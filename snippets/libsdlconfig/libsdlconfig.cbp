@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+    <FileVersion major="1" minor="2" />
+    <Project>
+        <Option title="libsdlconfig" />
+        <Option pch_mode="0" />
+        <Option compiler="0" />
+        <Build>
+            <Target title="default">
+                <Option output="libsdlconfig.a" />
+                <Option working_dir="" />
+                <Option type="2" />
+                <Option compiler="0" />
+                <Option includeInTargetAll="1" />
+                <Option createDefFile="1" />
+                <Option projectResourceIncludeDirsRelation="-1" />
+            </Target>
+        </Build>
+        <Compiler>
+            <Add directory="." />
+        </Compiler>
+        <Linker>
+            <Add library="SDL" />
+        </Linker>
+        <Unit filename="grammar.c">
+            <Option compilerVar="CC" />
+            <Option target="default" />
+        </Unit>
+        <Unit filename="libsdlconfig.c">
+            <Option compilerVar="CC" />
+            <Option target="default" />
+        </Unit>
+        <Unit filename="libsdlconfig.h">
+            <Option compilerVar="CPP" />
+            <Option compile="0" />
+            <Option link="0" />
+            <Option target="default" />
+        </Unit>
+        <Unit filename="libsdlconfig.hpp">
+            <Option compilerVar="CPP" />
+            <Option compile="0" />
+            <Option link="0" />
+            <Option target="default" />
+        </Unit>
+        <Unit filename="libsdlconfigcpp.cpp">
+            <Option compilerVar="CPP" />
+            <Option target="default" />
+        </Unit>
+        <Unit filename="private.h">
+            <Option compilerVar="CPP" />
+            <Option compile="0" />
+            <Option link="0" />
+            <Option target="default" />
+        </Unit>
+        <Unit filename="scanner.c">
+            <Option compilerVar="CC" />
+            <Option target="default" />
+        </Unit>
+        <Unit filename="scanner.h">
+            <Option compilerVar="CPP" />
+            <Option compile="0" />
+            <Option link="0" />
+            <Option target="default" />
+        </Unit>
+        <Unit filename="sdlrwops_tools.c">
+            <Option compilerVar="CC" />
+            <Option target="default" />
+        </Unit>
+        <Unit filename="sdlrwops_tools.h">
+            <Option compilerVar="CPP" />
+            <Option compile="0" />
+            <Option link="0" />
+            <Option target="default" />
+        </Unit>
+    </Project>
+</CodeBlocks_project_file>
