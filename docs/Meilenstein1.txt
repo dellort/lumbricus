@@ -1,0 +1,29 @@
+$Id$
+
+1. Ziele
+
+1.1 Grafik
+- Hintergrund (dekorative Grafikelemente hinter der Landschaft)
+- Landschaft
+  Anforderungen: 
+   - Scrolling
+   - Zerstörbar, dynamisch (entfernen von Kreisen)
+   - Texturierung/Dekoration, Maske -> Landschaftsbild
+- Animation/Sprites
+  Reihe von Bitmaps mit entsprechendem Timing mit:
+   - Wiederholung
+   - Folgeanimation
+   - Idle-Animationen
+   - Teamfarben (Versch. Einfärbung von spez. Elementen einer Animation)
+- Texte
+   - Animierte Texte
+   - LP, Wurmnamen, Teams
+   - LP-Verlust
+   - Textfarben
+
+1.2 Spielmechanik
+
+1.3 Benutzerinterface
+- Anpassung des gezeigten Landschaftsausschnitts
+
+1.4 Datenformate
