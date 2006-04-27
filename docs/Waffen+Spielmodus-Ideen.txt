@@ -70,6 +70,7 @@ Waffen-ideen:
   naja, rein theoretisch wäre es vielleicht möglich, dass die Engine mit
   beliebigen Bitmap-Veränderungen zurechtkommt, solange die Änderung nicht zu
   stark ist. Schmelzen hab ich mal in irgendeinem Bildschirmschoner gesehen
+- Monty Python Fuss
 
 Kisten/Spielmodi/Level-ideen:
 - verrückte Computergegner
