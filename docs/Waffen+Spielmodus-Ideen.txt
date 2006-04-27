@@ -1,0 +1,105 @@
+Waffen-ideen:
+- Super-Superbananenbombe
+  wie Esel, nur so gross wie Levelbreite und in form einer rießigen Banane
+- Bananenkiste
+  wird als Kiste abgelegt, zittert ein bisschen rum bis mit einem großem knall
+  die kiste explodiert und dabei bananen freisetzt
+- Unwahrscheinlichkeitsbombe
+  wo sie auftrifft, wird alles an zufällige Stellen gebeamt (kein schaden)
+  - Wahrscheinlichkeitsbombe
+    Wurmkonzentration erhöhen
+- Doppelter Schaden Bombe
+  sagt doch alles?
+- Wurm-Katastrophe
+  lässt plötzlich dutzende von Wurm-Klonen erscheinen
+  (die natürlich zum Team des Angereifers gehören)
+- Schwimmflügel
+  verleiht einem Wurm Schwimmkräfte!
+- Froschbombe
+  Michael muss entscheiden, was die tut
+- Laserstrahl
+  ganz konventionelle Waffe, die's in Worms aber noch nicht gibt (?)
+  (schiesst dünn und weit/tief)
+- verbesserter Flammenwerfer
+- Die Vögel
+  lässt in Worms passieren, was im gleichnamigem Film passiert ist
+  oder Bienenschwarm (siehe Zeichentrickfilme)
+- Atombombe
+  Atomtest, nur diesmal Erfoglreich
+- Professoren-Angriff
+  lässt andere Würmer einschlafen -> 2 runden für den spieler
+- Bücher
+  können sich die Würmer gegenseitig an den Kopf werfen
+- AOL und Linux-Distri CDs
+  wie Frisbee geworfen, hat scharfe Kanten
+- Todesstrahl, Todesstern
+- Tux (Linux-Pinguin)
+- Säureregen
+  hahahaha!
+- Singularität
+  alles, was zu nahe kommt, wird reingezogen
+  - singularitätsbombe: erst zusammenziehen, dann explosion
+- Schleimbombe
+  die Würmer haben keinen festen Halt mehr! plumps platsch
+- Heute ist das das Ende aller Tage
+  man darf Sensenmann spielen und einen Wurm auswählen, der das zeitliche segnet
+- Wasserschlauch
+  andere Würmer mit Wasser vollspritzen (besonders lustig im Winter)
+- Angelhaken
+  wie grausam!
+- Schockwelle
+  vom Wurm geht eine Schockwelle aus, harmlos für ihn, nicht aber für andere
+- Jesus
+  kann übers Wasser laufen
+- Dreckschleuder
+  kann Berge auftürmen (schlecht wenn ein Wurm an der Stelle gestanden hat)
+- Pflanzensamen
+  einmal engepflanzt, wuchert Grünzeugs
+- Laute Musik
+  == Erdbeben, aber auch Schaden (weil grässliche unwurmische Musik)
+  der angreifende Wurm setzt sich einen Hörschutz auf
+- Felsblock
+  kommt vom Himmel und bleibt Teil der Landschaft
+- Feuer unterm Hintern
+  unbeliebter Wurm fliegt in hohem Bogen davon
+- Lochfrass
+  nicht vergehendes Napalm, das erst verschwindet, wenn bis bis unten durch ist
+- Lachsschaumspeise
+  legt man einen Wurm hin, der sie dann isst und vom Sensenmann abgeholt wird
+- Landschaft schmelzen lassen (wie Käse)
+  naja, rein theoretisch wäre es vielleicht möglich, dass die Engine mit
+  beliebigen Bitmap-Veränderungen zurechtkommt, solange die Änderung nicht zu
+  stark ist. Schmelzen hab ich mal in irgendeinem Bildschirmschoner gesehen
+
+Kisten/Spielmodi/Level-ideen:
+- verrückte Computergegner
+  Computergegner fangen an, die Spielregeln zu missachten und machen Züge
+  obwohl ein anderer Würm dran ist
+- Panzer
+  Schutzschild für den Spieler
+- Wurmloch (verdammt, warum wurde dieser Name noch nicht verwendet?)
+  wie Wurmlöcher halt so sind
+- böse Kiste
+  sprengt sich beim einsammeln
+  ähnlich: halbe Zeit, halber Schaden...
+- God mode
+  zum einsammeln in einer Kiste
+- zahlreiche Dinge, die es in Adventure Spielen gibt
+  z.B. Türen und Schlüssel, etc.
+- Gravitation ganz aufheben
+  (gibts sowas in Worms?)
+- Friedensvertrag
+  Würmer einigen sich auf Unentschieden
+- Nebel
+  man sieht nix mehr!
+- Grosse Kälte
+  das Wasser gefriert zu einer Eisfläche
+  alles wird rutschig (wenn normale zu "steil", rutschkraft oder gravitation)
+- Kommunismus
+  alle Betriebsmittel werden sozialisiert (Zugriff auf (super)Waffen anderer)
+- Schockwellen
+- Sturm
+  wegwehende Würmer
+- Wirtschaftskrise
+  Würmer stürzen sich ins Wasser, weil alle ihre Aktien wertlos geworden sind!
+
