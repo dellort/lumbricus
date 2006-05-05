@@ -1,0 +1,21 @@
+class Node {
+    int getIntValue(string name, int default = 0);
+    string getStringValue(string name, string default = "");
+    //... ebenso für z.B. bool
+
+    void setIntValue(string name, int value);
+    void setStringValue(string name, string value);
+    //... ebenso für z.B. bool
+
+    int getValueCount();
+    string getValueIndexed(int index, string default = "");
+    //... ebenso für int und bool.
+
+
+    //Nodes haben der Einfachheit halber einen anderen Namensraum & Liste
+    Node* getSubNode(string name, bool createIfNotExist = true);
+
+
+    int getSubNodeCount();
+    Node* getSubNodeIndexed(int index);
+};
