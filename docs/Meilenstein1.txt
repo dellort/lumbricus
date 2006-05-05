@@ -77,3 +77,11 @@ $Id$
 - Konfigurationsdateien:
    - Hierarchisch, String, Int, Float, Boolean, Listen
    - XML+Wrapper
+
+2. Designentscheidungen
+
+2.1 Allgemein
+- GUI und Spiel unabhängig, Parameterübergabe durch Konfigurationsdatei
+
+2.2 GUI
+- GUI-Bibliothek: wxGTK

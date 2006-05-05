@@ -1,0 +1,17 @@
+"Name"    = Config
+"Author"  = Matthias
+"Version" = 0.0
+"About"   = Dateiformat fuer Lumbricus-Konfigdateien
+"Case Sensitive" = False
+
+"Start Symbol"   = <NodeList>
+{String Ch} = {Printable} - ["\]
+
+String = '"' ( {String Ch} | '\'{Printable} )* '"'
+Id            = {Letter}({AlphaNumeric}|'_')*
+
+<NodeList> ::= <Node> <NodeList>
+            |
+
+<Node> ::= Id '{' <NodeList> '}'
+        |  Id '=' String
