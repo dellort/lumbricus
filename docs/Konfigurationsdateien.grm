@@ -4,14 +4,21 @@
 "About"   = Dateiformat fuer Lumbricus-Konfigdateien
 "Case Sensitive" = False
 
-"Start Symbol"   = <NodeList>
+"Start Symbol"   = <NodeListComment>
 {String Ch} = {Printable} - ["\]
 
 String = '"' ( {String Ch} | '\'{Printable} )* '"'
 Id            = {Letter}({AlphaNumeric}|'_')*
+CommentString = ('#' {Printable}* '#')+
+
+<NodeListComment> ::= <NodeList> <Comment>
 
 <NodeList> ::= <Node> <NodeList>
             |
 
-<Node> ::= Id '{' <NodeList> '}'
-        |  Id '=' String
+<Node> ::= <Comment> Id '{' <NodeListComment> '}'
+        |  <Comment> Id '=' String
+        |  <Comment> String
+
+<Comment> ::= CommentString
+           |
