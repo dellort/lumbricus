@@ -73,6 +73,9 @@ Waffen-ideen:
 - Monty Python Fuss
 
 Kisten/Spielmodi/Level-ideen:
+- Selbstmord Modus
+  Am Ende muss sich der Gewinner selbst komplett umbringen, sonst gilts als verloren
+  (d.h. alle Würmer müssen erst "aufgebraucht" werden und man darf nicht zuviele Würmer übriglassen)
 - verrückte Computergegner
   Computergegner fangen an, die Spielregeln zu missachten und machen Züge
   obwohl ein anderer Würm dran ist
