@@ -85,3 +85,13 @@ $Id$
 
 2.2 GUI
 - GUI-Bibliothek: wxGTK
+
+3. Subsysteme
+
+3.1 Grafik-API
+
+3.2 Sound-API
+
+3.3 Physik-Engine
+
+3.4 Animation
