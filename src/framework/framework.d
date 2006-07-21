@@ -16,15 +16,12 @@ public class Surface {
     public abstract int height();
 }
 
-/** Enthält Bitmap-Daten, Verlustfreie Konvertierung bei Wechsel
- *  der Bit-Tiefe.
- */
+/// Contains bitmap data, lossless conversion when changing bit depth
 public class Image {
     public abstract Surface surface();
 }
 
-/** Mutable surface
- */
+/// drawable surface
 public class Canvas {
     public void draw(Surface source, Vector2 destPos) {
         draw(source, destPos, Vector2(0, 0), source.size);

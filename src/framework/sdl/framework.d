@@ -271,19 +271,6 @@ public class FrameworkSDL : Framework {
                     doKeyUp(infos);
                     break;
                 case SDL_MOUSEMOTION:
-                    /*
-                    removed, button state is already stored in keystate
-                    //loads of code to convert between our and the sdl
-                    //representation (allthough there might be no difference...)
-                    int bits = event.mouse.state;
-                    int button = 1;
-                    while (bits != 0) {
-                        if (SDL_BUTTON(button) & bits != 0) {
-                            bits &= ~SDL_BUTTON(button);
-                            ...
-                        }
-                    }*/
-
                     //update mouse pos after button state
                     doUpdateMousePos(Vector2(event.motion.x, event.motion.y));
                     break;
@@ -310,10 +297,4 @@ public class FrameworkSDL : Framework {
                 onFrame();
         }
     }
-
-    struct Foo {
-        int a;
-        char[] b;
-    };
-
 }

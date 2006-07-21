@@ -38,6 +38,7 @@ class MainGame {
         if (infos.code == Keycode.ESCAPE) {
             mFramework.terminate();
         }
+        writefln("Key-ID: %s", mFramework.translateKeycodeToKeyID(infos.code));
     }
 
     void keyUp(KeyInfo infos) {

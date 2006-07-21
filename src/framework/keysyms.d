@@ -483,5 +483,16 @@ const KeycodeToName g_keycode_to_name[] = [
     {Keycode.MENU, "menu"},
     {Keycode.POWER, "power"},
     {Keycode.EURO, "euro"},
-    {Keycode.UNDO, "undo"}
+    {Keycode.UNDO, "undo"},
+
+    {Keycode.MOUSE_LEFT, "mouse_left"},
+    {Keycode.MOUSE_MIDDLE, "mouse_middle"},
+    {Keycode.MOUSE_RIGHT, "mouse_right"},
+    {Keycode.MOUSE_WHEELUP, "mouse_wheelup"},
+    {Keycode.MOUSE_WHEELDOWN, "mouse_wheeldown"},
+    {Keycode.MOUSE_BUTTON5, "mouse_btn5"},
+    {Keycode.MOUSE_BUTTON6, "mouse_btn6"},
+    {Keycode.MOUSE_BUTTON7, "mouse_btn7"},
+    {Keycode.MOUSE_BUTTON8, "mouse_btn8"},
+    {Keycode.MOUSE_BUTTON9, "mouse_btn9"},
 ];
