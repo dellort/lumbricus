@@ -1,0 +1,32 @@
+--- rwops.d	2006-07-22 17:47:57.000000000 +0200
++++ rwops.d_old	2006-07-22 16:13:12.000000000 +0200
+@@ -43,12 +43,14 @@
+ 
+ struct SDL_RWops
+ {
++    extern (C) {
+     int (*seek)(SDL_RWops *context, int offset, int whence);
+     int (*read)(SDL_RWops *context, void *ptr, int size, int maxnum);
+     int (*write)(SDL_RWops *context, void *ptr, int size, int num);
+     int (*close)(SDL_RWops *context);
++    }
+     Uint32 type;
+-    union hidden
++    /*union hidden
+     {
+         version(Windows)
+         {
+@@ -70,10 +72,10 @@
+             Uint8 *stop;
+         }
+         struct unknown
+-        {
++        {*/
+             void *data1;
+-        }
+-    }
++        /*}
++    }*/
+ }
+ 
+ //==============================================================================
