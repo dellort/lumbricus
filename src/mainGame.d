@@ -1,6 +1,7 @@
 module sdltest;
 
 import std.stdio;
+import std.stream;
 import std.string;
 import framework.framework;
 import framework.sdl.framework;

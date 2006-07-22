@@ -3,6 +3,7 @@ module framework.sdl.framework;
 import framework.framework;
 import std.stream;
 import std.stdio;
+import std.string;
 import vector;
 import framework.sdl.rwops;
 import derelict.sdl.sdl;

@@ -1,8 +1,8 @@
 module framework.framework;
 
 import std.stream;
-import vector;
-import framework.keysyms;
+public import vector;
+public import framework.keysyms;
 
 public struct Color {
     int r, g, b, a;
