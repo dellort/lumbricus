@@ -1,6 +1,6 @@
---- rwops.d	2006-07-22 17:47:57.000000000 +0200
-+++ rwops.d_old	2006-07-22 16:13:12.000000000 +0200
-@@ -43,12 +43,14 @@
+--- rwops.d_orig	2006-07-22 17:47:57.000000000 +0200
++++ rwops.d_new	2006-07-22 21:39:54.000000000 +0200
+@@ -43,37 +43,44 @@
  
  struct SDL_RWops
  {
@@ -12,21 +12,41 @@
 +    }
      Uint32 type;
 -    union hidden
-+    /*union hidden
++    union hidden_
      {
          version(Windows)
          {
-@@ -70,10 +72,10 @@
+-            struct win32io
++            struct win32io_
+             {
+                 int append;
+                 void *h;
+             }
++	    win32io_ win32io;
+         }
+-        struct stdio
++        struct stdio_
+         {
+             int autoclose;
+             FILE *fp;
+         }
+-        struct mem
++	stdio_ stdio;
++        struct mem_
+         {
+             Uint8 *base;
+             Uint8 *here;
              Uint8 *stop;
          }
-         struct unknown
--        {
-+        {*/
+-        struct unknown
++	mem_ mem;
++        struct unknown_
+         {
              void *data1;
--        }
--    }
-+        /*}
-+    }*/
+         }
++	unknown_ unknown;
+     }
++    hidden_ hidden;
  }
  
  //==============================================================================
