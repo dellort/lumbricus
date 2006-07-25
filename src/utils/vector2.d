@@ -1,3 +1,5 @@
+module utils.vector2;
+
 import std.string;
 
 public struct Vector2(T) {

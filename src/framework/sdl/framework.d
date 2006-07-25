@@ -4,7 +4,7 @@ import framework.framework;
 import std.stream;
 import std.stdio;
 import std.string;
-import vector;
+import utils.vector2;
 import framework.sdl.rwops;
 import derelict.sdl.sdl;
 import derelict.sdl.image;

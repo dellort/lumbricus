@@ -1,7 +1,7 @@
 module framework.framework;
 
 import std.stream;
-public import vector;
+public import utils.vector2;
 public import framework.keysyms;
 
 public struct Color {
