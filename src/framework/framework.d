@@ -9,8 +9,8 @@ public struct Color {
 }
 
 public class Surface {
-    public Vector2 size() {
-        return Vector2(width(), height());
+    public Vector2i size() {
+        return Vector2i(width(), height());
     }
     public abstract int width();
     public abstract int height();
@@ -23,18 +23,18 @@ public class Image {
 
 /// drawable surface
 public class Canvas {
-    public void draw(Surface source, Vector2 destPos) {
-        draw(source, destPos, Vector2(0, 0), source.size);
+    public void draw(Surface source, Vector2i destPos) {
+        draw(source, destPos, Vector2i(0, 0), source.size);
     }
 
-    public abstract void draw(Surface source, Vector2 destPos,
-        Vector2 sourcePos, Vector2 sourceSize);
-    public abstract void drawCircle(Vector2 center, int radius, Color color);
-    public abstract void drawFilledCircle(Vector2 center, int radius,
+    public abstract void draw(Surface source, Vector2i destPos,
+        Vector2i sourcePos, Vector2i sourceSize);
+    public abstract void drawCircle(Vector2i center, int radius, Color color);
+    public abstract void drawFilledCircle(Vector2i center, int radius,
         Color color);
-    public abstract void drawLine(Vector2 p1, Vector2 p2, Color color);
-    public abstract void drawRect(Vector2 p1, Vector2 p2, Color color);
-    public abstract void drawFilledRect(Vector2 p1, Vector2 p2, Color color);
+    public abstract void drawLine(Vector2i p1, Vector2i p2, Color color);
+    public abstract void drawRect(Vector2i p1, Vector2i p2, Color color);
+    public abstract void drawFilledRect(Vector2i p1, Vector2i p2, Color color);
 
     public abstract Surface surface();
 }
@@ -46,32 +46,34 @@ struct FontProperties {
 }
 
 public class Font {
-    public abstract void drawText(Canvas canvas, Vector2 pos, char[] text);
+    public abstract void drawText(Canvas canvas, Vector2i pos, char[] text);
 }
 
 /// Information about a key press
 public struct KeyInfo {
     Keycode code;
-    /// Fully translated according to system keymap
-    wchar unicode = '\0';
+    /// Fully translated according to system keymap and modifiers
+    dchar unicode = '\0';
 }
 
 public struct MouseInfo {
-    Vector2 pos;
-    Vector2 rel;
+    Vector2i pos;
+    Vector2i rel;
 }
 
 public enum Modifier {
-    Alt = 1,
-    Control = 2,
-    Shift = 4,
+    Alt,
+    Control,
+    Shift,
+    Numlock,
 }
 
 /// Contains event- and graphics-handling
 public class Framework {
     //contains keystate (key down/up) for each key; indexed by Keycode
     private bool mKeyStateMap[];
-    private Vector2 mousePos;
+    private bool mCapsLock, mNumLock;
+    private Vector2i mMousePos;
 
     public this() {
         mKeyStateMap = new bool[Keycode.max-Keycode.min+1];
@@ -79,7 +81,10 @@ public class Framework {
 
     public abstract void setVideoMode(int widthX, int widthY, int bpp,
         bool fullscreen);
-
+    
+    /// set window title
+    public abstract void setCaption(char[] caption);
+    
     public abstract Image loadImage(Stream st);
     public Image loadImage(char[] fileName) {
         return loadImage(new File(fileName,FileMode.In));
@@ -140,7 +145,7 @@ public class Framework {
             case Modifier.Control:
                 return getKeyState(Keycode.RCTRL) || getKeyState(Keycode.LCTRL);
             case Modifier.Shift:
-                return getKeyState(Keycode.RSHIFT)
+	    	return getKeyState(Keycode.RSHIFT)
                     || getKeyState(Keycode.LSHIFT);
             default:
         }
@@ -170,12 +175,12 @@ public class Framework {
         }
     }
 
-    protected void doUpdateMousePos(Vector2 pos) {
-        if (mousePos != pos) {
+    protected void doUpdateMousePos(Vector2i pos) {
+        if (mMousePos != pos) {
             MouseInfo infos;
             infos.pos = pos;
-            infos.rel = pos - mousePos;
-            mousePos = pos;
+            infos.rel = pos - mMousePos;
+            mMousePos = pos;
             if (onMouseMove != null) {
                 onMouseMove(infos);
             }

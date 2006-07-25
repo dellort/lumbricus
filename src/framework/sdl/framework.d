@@ -62,8 +62,8 @@ public class SDLCanvas : Canvas {
         return sdlsurface;
     }
 
-    public void draw(Surface source, Vector2 destPos,
-        Vector2 sourcePos, Vector2 sourceSize)
+    public void draw(Surface source, Vector2i destPos,
+        Vector2i sourcePos, Vector2i sourceSize)
     {
         SDLSurface sdls = cast(SDLSurface)source;
         SDL_Rect rc, destrc;
@@ -77,21 +77,21 @@ public class SDLCanvas : Canvas {
     }
 
     //TODO: add code
-    public void drawCircle(Vector2 center, int radius, Color color) {
+    public void drawCircle(Vector2i center, int radius, Color color) {
     }
 
-    public void drawFilledCircle(Vector2 center, int radius,
+    public void drawFilledCircle(Vector2i center, int radius,
         Color color)
     {
     }
 
-    public void drawLine(Vector2 p1, Vector2 p2, Color color) {
+    public void drawLine(Vector2i p1, Vector2i p2, Color color) {
     }
 
-    public void drawRect(Vector2 p1, Vector2 p2, Color color) {
+    public void drawRect(Vector2i p1, Vector2i p2, Color color) {
     }
 
-    public void drawFilledRect(Vector2 p1, Vector2 p2, Color color) {
+    public void drawFilledRect(Vector2i p1, Vector2i p2, Color color) {
     }
 
     public void drawText(char[] text) {
@@ -124,7 +124,7 @@ public class SDLFont : Font {
         TTF_CloseFont(font);
     }
 
-    public void drawText(Canvas canvas, Vector2 pos, char[] text) {
+    public void drawText(Canvas canvas, Vector2i pos, char[] text) {
         Surface surface;
         foreach (dchar c; text) {
             if (!(c in frags)) {
@@ -188,6 +188,14 @@ public class FrameworkSDL : Framework {
         foreach (SDLToKeycode item; g_sdl_to_code) {
             mSdlToKeycode[item.sdlcode] = item.code;
         }
+        
+        setCaption("<no caption>");
+    }
+    
+    public void setCaption(char[] caption) {
+        caption = caption ~ '\0';
+        //second arg is the "icon name", the docs don't tell its meaning
+        SDL_WM_SetCaption(caption.ptr, null);
     }
 
     public void setVideoMode(int widthX, int widthY, int bpp,
@@ -199,13 +207,31 @@ public class FrameworkSDL : Framework {
             SDL_HWSURFACE | SDL_DOUBLEBUF);
 
         if(newscreen is null) {
-            throw new Exception(format("Unable to set %dx%d video mode: %s",
-                widthX, widthY, std.string.toString(SDL_GetError())));
+            throw new Exception(format("Unable to set %dx%dx%d video mode: %s",
+                widthX, widthY, bpp, std.string.toString(SDL_GetError())));
         }
 
         mScreen = newscreen;
         //TODO: Software backbuffer
         mScreenCanvas.sdlsurface.sdlsurface = mScreen;
+    }
+
+    public bool getModifierState(Modifier mod) {
+	//special handling for the shift- and numlock-modifiers
+	//since the user might toggle numlock or capslock while we don't have
+	//the keyboard-focus, ask the SDL (which inturn asks the OS)
+	SDLMod modstate = SDL_GetModState();
+	//writefln("state=%s", modstate);
+	if (mod == Modifier.Shift) {
+	    //xxx behaviour when caps and shift are both on is maybe OS
+	    //dependend; on X11, both states are usually XORed
+	    return ((modstate & KMOD_CAPS) != 0) ^ super.getModifierState(mod);
+	} else if (mod == Modifier.Numlock) {
+	    return (modstate & KMOD_NUM) != 0;
+	} else {
+	    //generic handling for non-toggle modifiers
+	    return super.getModifierState(mod);
+	}
     }
 
     private Keycode sdlToKeycode(int sdl_sym) {
@@ -273,17 +299,17 @@ public class FrameworkSDL : Framework {
                     break;
                 case SDL_MOUSEMOTION:
                     //update mouse pos after button state
-                    doUpdateMousePos(Vector2(event.motion.x, event.motion.y));
+                    doUpdateMousePos(Vector2i(event.motion.x, event.motion.y));
                     break;
                 case SDL_MOUSEBUTTONUP:
                     KeyInfo infos = mouseInfosFromSDL(event.button);
                     doKeyUp(infos);
-                    doUpdateMousePos(Vector2(event.button.x, event.button.y));
+                    doUpdateMousePos(Vector2i(event.button.x, event.button.y));
                     break;
                 case SDL_MOUSEBUTTONDOWN:
                     KeyInfo infos = mouseInfosFromSDL(event.button);
                     doKeyDown(infos);
-                    doUpdateMousePos(Vector2(event.button.x, event.button.y));
+                    doUpdateMousePos(Vector2i(event.button.x, event.button.y));
                     break;
                 case SDL_QUIT:
                     doTerminate();
