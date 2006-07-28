@@ -241,18 +241,23 @@ SDLToKeycode g_sdl_to_code[] = [
     {SDLK_EURO, Keycode.EURO},
     {SDLK_UNDO, Keycode.UNDO},
 
-    //abuse SDLK_LAST to get unused SDLK_ constants for the mouse button states
-    //keep in sync with g_sdl_mouse_button1
-    {SDLK_LAST+1, Keycode.MOUSE_LEFT},
-    {SDLK_LAST+2, Keycode.MOUSE_MIDDLE},
-    {SDLK_LAST+3, Keycode.MOUSE_RIGHT},
-    {SDLK_LAST+4, Keycode.MOUSE_WHEELUP},
-    {SDLK_LAST+5, Keycode.MOUSE_WHEELDOWN},
-    {SDLK_LAST+6, Keycode.MOUSE_BUTTON6},
-    {SDLK_LAST+7, Keycode.MOUSE_BUTTON7},
-    {SDLK_LAST+8, Keycode.MOUSE_BUTTON8},
-    {SDLK_LAST+9, Keycode.MOUSE_BUTTON9},
-    {SDLK_LAST+10, Keycode.MOUSE_BUTTON10},
+    //mouse button states
+    //one must not overwrite existing or future SDLK_* constants
+    //this is not particularly clean, but it works
+    //the translation is useful, because we don't need to rely that the
+    //Keycode.MOUSE_* constants have the same order like the SDL mouse buttons
+    {g_sdl_mouse_button1 + 0, Keycode.MOUSE_LEFT},
+    {g_sdl_mouse_button1 + 1, Keycode.MOUSE_MIDDLE},
+    {g_sdl_mouse_button1 + 2, Keycode.MOUSE_RIGHT},
+    {g_sdl_mouse_button1 + 3, Keycode.MOUSE_WHEELUP},
+    {g_sdl_mouse_button1 + 4, Keycode.MOUSE_WHEELDOWN},
+    {g_sdl_mouse_button1 + 5, Keycode.MOUSE_BUTTON6},
+    {g_sdl_mouse_button1 + 6, Keycode.MOUSE_BUTTON7},
+    {g_sdl_mouse_button1 + 7, Keycode.MOUSE_BUTTON8},
+    {g_sdl_mouse_button1 + 8, Keycode.MOUSE_BUTTON9},
+    {g_sdl_mouse_button1 + 9, Keycode.MOUSE_BUTTON10},
 ];
 
-public static final const int g_sdl_mouse_button1 = SDLK_LAST+1;
+//hope SDL never uses negative values for its key constants
+//at least this is more reliable than using SDLK_LAST
+public static final const int g_sdl_mouse_button1 = -20;

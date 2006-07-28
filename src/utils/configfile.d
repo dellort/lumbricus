@@ -6,7 +6,6 @@ import str = std.string;
 import std.format;
 import conv = std.conv;
 
-//sadly, Phobos doesn't seem to provide such a function (only atoi())
 //returns false: conversion failed, value is unmodified
 private bool parseInt(char[] s, inout int value) {
     try {
@@ -59,8 +58,7 @@ public abstract class ConfigItem {
         return mName;
     }
 
-    //abstract doesntwork
-    abstract void doWrite(OutputStream stream, uint level) {assert(false);}
+    protected abstract void doWrite(OutputStream stream, uint level);
 
     //throws ConfigInvalidName on error
     //keep in sync with parser
@@ -70,7 +68,7 @@ public abstract class ConfigItem {
     }
 
     //note: empty names are also legal
-    static bool doCheckName(char[] name) {
+    private static bool doCheckName(char[] name) {
         foreach (dchar c; name) {
             if (!my_isid(c)) {
                 return false;
@@ -92,11 +90,10 @@ public class ConfigValue : ConfigItem {
     //value can contain anything (as long as it is valid UTF-8)
     public char[] value;
 
-    void doWrite(OutputStream stream, uint level) {
+    protected override void doWrite(OutputStream stream, uint level) {
         if (name.length > 0) {
             stream.writeString(" = "c);
         }
-        //xxx escape the output string
         stream.writeString("\""c);
         stream.writeString(ConfigFile.doEscape(value));
         stream.writeString("\""c);
@@ -108,7 +105,7 @@ public class ConfigValue : ConfigItem {
 /// a subtree in a ConfigFile, can contain named and unnamed values and nodes
 public class ConfigNode : ConfigItem {
     //TODO: should be replaced by a linked list
-    //this list is to preserve the order
+    //this list is used to preserve the order 
     private ConfigItem[] mItems;
 
     //contains only "named" items
@@ -324,8 +321,18 @@ public class ConfigNode : ConfigItem {
     //TODO: additional foreachs:
     //foreach(char[], char[]; ConfigNode) to enumerate (name, value) pairs
     //foreach(char[], ConfigNode; ConfigNode) enumerate subnodes
+    
     //foreach(char[]; ConfigNode) enumerate names
-
+    public int opApply(int delegate(inout char[]) del) {
+        foreach (ConfigItem item; mItems) {
+            char[] tmp = item.name;
+            int res = del(tmp);
+            if (res)
+                return res;
+        }
+        return 0;
+    }
+    
     public int getIntValue(char[] name, int def = 0) {
         int res = def;
         parseInt(getStringValue(name), res);
@@ -388,6 +395,7 @@ public class ConfigFile {
     }
 
     /// do the same like the constructor
+    /// use hasErrors() to check if there were any errors
     public void loadFrom(char[] source, char[] filename, void delegate(char[]) reportError) {
         mData = source;
         mErrorOut = reportError;
@@ -404,16 +412,38 @@ public class ConfigFile {
         doParse();
     }
 
+    private struct BOMItem {
+        char[] code; char[] name;
+    }
+    private static const char[] cUtf8Bom = [0xEF, 0xBB, 0xBF];
+    private static const BOMItem[] cBOMs = [
+        {cUtf8Bom, null}, //UTF-8, special handling
+        {[0xFF, 0xFE, 0x00, 0x00], "UTF-32 little endian"},
+        {[0x00, 0x00, 0xFE, 0xFF], "UTF-32 big endian"},
+        {[0xFF, 0xFE], "UTF-16 little endian"},
+        {[0xFE, 0xFF], "UTF-16 big endian"},
+    ];
+    
     private void init_parser() {
         mNextPos = Position.init;
         mErrorCount = 0;
         mHasEncodingErrors = false;
         mUTFErrors = mUTFErrors.init;
-        //if it's there, skip the unicode-whatever-mark
-        //xxx: handle it correctly
-        if (mData.length >= 3) {
-            if (mData[0] == 0xef && mData[1] == 0xbb && mData[2] == 0xbf) {
-                mNextPos.bytePos = 3;
+        
+        //if there's one, skip the unicode BOM
+        foreach (BOMItem bom; cBOMs) {
+            if (bom.code.length <= mData.length) {
+                if (mData[0..bom.code.length] == bom.code) {
+                    //if UTF-8, skip BOM and continue
+                    if (bom.name == null) {
+                        mNextPos.bytePos = bom.code.length;
+                        break;
+                    }
+                    
+                    reportError(true, "file encoding is >%s<, unsupported",
+                        bom.name);
+                    return;
+                }
             }
         }
 
@@ -451,7 +481,7 @@ public class ConfigFile {
         mErrorCount++;
 
         //xxx: add possibility to translate error messages
-        mErrorOut(str.format("config file %s: error in (%s,%s): ", mFilename,
+        mErrorOut(str.format("ConfigFile, error in %s(%s,%s): ", mFilename,
             mPos.line, mPos.column));
         //scary D varargs!
         mErrorOut(formatfx(_arguments, _argptr));
@@ -459,11 +489,11 @@ public class ConfigFile {
 
         //abuse exception handling to abort parsing
         if (fatal) {
-            mErrorOut(str.format("config file %s: fatal error, aborting",
+            mErrorOut(str.format("ConfigFile, %s: fatal error, aborting",
                 mFilename));
             throw new ConfigFatalError(2);
         } else if (mErrorCount > cMaxErrors) {
-            mErrorOut(str.format("config file %s: too many errors, aborting",
+            mErrorOut(str.format("ConfigFile, %s: too many errors, aborting",
                 mFilename));
             throw new ConfigFatalError(1);
         }
@@ -508,8 +538,7 @@ public class ConfigFile {
                 mUTFErrors[mNextPos.bytePos] = true;
             }
 
-            //return the byte at the offending position and skip until there's
-            //a valid UTF sequence again
+            //skip until there's a valid UTF sequence again
 
             dchar offender = mData[mNextPos.bytePos];
             mNextPos.bytePos++;
@@ -517,12 +546,9 @@ public class ConfigFile {
                 uint adv = utf.stride(mData, mNextPos.bytePos);
                 if (adv != 0xFF)
                     break;
-                mNextPos.bytePos += adv;
+                mNextPos.bytePos++;
             }
 
-            //maybe it would be better not to return invalid UTF8 chars, and
-            //return a dummy instead, but then copyOut also needs to be fixed
-            //result = offender;
             result = '?';
             mHasEncodingErrors = true;
 
@@ -698,11 +724,10 @@ public class ConfigFile {
     //arrrg I want initializeable associative arrays
     private struct EscapeItem {char escape; char produce;}
     private static const EscapeItem cSimpleEscapes[] = [
-        {'\'', '\''}, {'\"', '\"'},
-        {'n', '\n'}, {'t', '\t'},
+        {'\\', '\\'}, {'\'', '\''}, {'\"', '\"'}, {'?', '?'},
+        {'n', '\n'}, {'t', '\t'}, {'v', '\v'}, {'b', '\b'}, {'f', '\f'},
+        {'a', '\a'},
         {'0', '\0'},
-        {'i', 'i'},
-        //xxx there are more "simple" escapes
     ];
 
     //parse an escape sequence, curpos is behind the leading backslash
@@ -767,7 +792,13 @@ public class ConfigFile {
     //xxx: definitely needs more work, it's S.L.O.W.
     public static char[] doEscape(char[] s) {
         char[] output;
-        //xxx appending the output array all the time might be inefficient
+        
+        //preallocate data; in the best case (no characters to escape), no
+        //further allocations are necessary
+        //(at least should work with DMD)
+        output.length = s.length;
+        output.length = 0;
+        
         charLoop: foreach(dchar c; s) {
             //convert non-printable chars, and any non-space whitespace
             if (!my_isprint(c) || (my_isspace(c) && c != ' ')) {
@@ -781,7 +812,7 @@ public class ConfigFile {
                     }
                 }
 
-                //endcode it as hex; ugly but... ugly
+                //encode it as hex; ugly but... ugly
                 uint digits = 1;
                 char marker = 'x';
                 if (c > 0xff) {
@@ -841,10 +872,14 @@ public class ConfigFile {
                     //ID = "VALUE"
                     Position p = curpos;
                     nextToken(token, str, waste);
-                    if (token != Token.VALUE) {
+                    if (token == Token.ID) {
                         reportError(false,
                             "value expected (did you forget the \"\"?)");
-                        reset(p); //go back
+                        //if he really forgot the "", don't go back
+                        //reset(p); //go back
+                    } else if (token != Token.VALUE) {
+                        reportError(false, "atfer '=': value expected");
+                        reset(p);
                     }
                     node.addValue(id, str, comm);
 
@@ -859,8 +894,15 @@ public class ConfigFile {
                 continue;
             }
 
-            //soll der user doch selber rausfinden, was fehlt
-            reportError(false, "unexpected token");
+            //invalid tokens, report hopefully helpful error messages
+            if (id.length != 0) {
+                reportError(false, "identifier is expected to be followed by"
+                    " '=' or '{'");
+            } else if (token == Token.ASSIGN) {
+                reportError(false, "unexpected '=', no identifier before it");
+            } else {
+                reportError(false, "unexpected token");
+            }
         }
 
         //foo
@@ -868,19 +910,29 @@ public class ConfigFile {
     }
 
     private void doParse() {
-        init_parser();
         clear();
-        char[] waste, morewaste;
-        Token token;
-        parseNode(mRootnode, true);
-        nextToken(token, waste, morewaste);
-        if (token != Token.EOF) {
-            //moan about unparsed stuff
-            reportError(false, "aborting here (nothing more to parse, but "
-                "there is still text)");
+        
+        try {
+            init_parser();
+            char[] waste, morewaste;
+            
+            Token token;
+            parseNode(mRootnode, true);
+            nextToken(token, waste, morewaste);
+            if (token != Token.EOF) {
+                //moan about unparsed stuff
+                reportError(false, "aborting here (nothing more to parse, but "
+                    "there is still text)");
+            }
+        } catch (ConfigFatalError e) {
+            //Exception is only used to exit parser function class hierachy
         }
     }
 
+    public bool hasErrors() {
+        return mErrorCount != 0;
+    }
+    
     public void clear() {
         if (mRootnode !is null) {
             mRootnode.unlink(null);
@@ -890,6 +942,7 @@ public class ConfigFile {
 
     public void writeFile(OutputStream stream) {
         if (rootnode !is null) {
+            stream.writeString(cUtf8Bom);
             rootnode.doWrite(stream, 0);
         }
     }
