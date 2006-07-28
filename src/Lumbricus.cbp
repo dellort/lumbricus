@@ -12,7 +12,6 @@
 				<Option compiler="dmd" />
 				<Option projectResourceIncludeDirsRelation="0" />
 				<Compiler>
-					<Add option="-w" />
 					<Add option="-g" />
 					<Add option="-debug" />
 				</Compiler>
@@ -33,6 +32,7 @@
 			<Add library="DerelictUtil" />
 			<Add library="DerelictSDLImage" />
 			<Add library="DerelictSDLttf" />
+			<Add library="DerelictPhysFs" />
 		</Linker>
 		<Unit filename="Makefile.am">
 			<Option compilerVar="CPP" />
@@ -71,7 +71,12 @@
 			<Option target="Debug" />
 			<Option target="Release" />
 		</Unit>
-		<Unit filename="vector.d">
+		<Unit filename="utils\configfile.d">
+			<Option compilerVar="CPP" />
+			<Option target="Debug" />
+			<Option target="Release" />
+		</Unit>
+		<Unit filename="utils\vector2.d">
 			<Option compilerVar="CPP" />
 			<Option target="Debug" />
 			<Option target="Release" />

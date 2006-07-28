@@ -6,36 +6,91 @@ import std.string;
 import framework.framework;
 import framework.sdl.framework;
 import utils.configfile;
-import std.cstream, std.file;
+import std.file;
+import derelict.physfs.physfs;
+import path = std.path;
+
+public char[] addTrailingPathDelimiter(char[] pathStr) {
+    if (pathStr[$-1] != path.sep[0]) {
+        pathStr ~= path.sep;
+    }
+    return pathStr;
+}
 
 class MainGame {
+    char[] mAppPath;
     Framework mFramework;
-    Image img;
+    Surface img;
     Font font;
 
-    this() {
+    this(char[][] args) {
+        DerelictPhysFs.load();
+
+        mAppPath = addTrailingPathDelimiter(path.getDirName(args[0]));
+
+        PHYSFS_init(args[0]);
+
+        PHYSFS_mount(mAppPath ~ "data",null,1);
+
         mFramework = new FrameworkSDL();
         mFramework.setVideoMode(800,600,32,false);
     }
 
     public void run() {
-        img = mFramework.loadImage("test.bmp");
+        img = mFramework.loadImage("C:\\Windows\\winnt256.bmp");
         FontProperties fontprops;
-        File f = new File("Vera.ttf");
+        Stream f = new PhysFsStream("vera.ttf");
+        fontprops.size = 50;
+        fontprops.back.g = 1.0f;
+        fontprops.back.a = 0.2f;
+        fontprops.fore.r = 1f;
+        fontprops.fore.g = 0;
+        fontprops.fore.b = 0;
+        fontprops.fore.a = 0.6f;
         font = mFramework.loadFont(f, fontprops);
+        f.close();
         mFramework.onFrame = &frame;
         mFramework.onKeyDown = &keyDown;
         mFramework.onKeyUp = &keyUp;
         mFramework.onKeyPress = &keyPress;
         mFramework.onMouseMove = &mouseMove;
         mFramework.setCaption("strange lumbricus test thingy");
+
+        testconfig();
+
         mFramework.run();
     }
 
+    void doout(char[] str) {
+        writefln(str);
+    }
+
+    void testconfig() {
+        //SVN never forgets, but I don't want to rewrite that crap if I need it again
+        ConfigFile f = new ConfigFile(new File(mAppPath~"test.conf"), "test.conf", &doout);
+        //ConfigFile f = new ConfigFile(" ha        llo    ", "file", std.cstream.dout);
+        //f.schnitzel();
+        f.rootnode().setStringValue("hallokey", "data");
+        ConfigNode s = f.rootnode().getSubNode("node1");
+        writefln("val1 = %s", s.getStringValue("val1"));
+        writefln("val5 = %s", s.getIntValue("val5"));
+        writefln("valnothing = %s", s.getStringValue("valnothing", "default value"));
+        //put in some stupid stuff
+        s.setStringValue("stoopid", "123 hi");
+        static char[] bingarbage = [0x12, 1, 0x34, 0x10, 0xa, 0x66, 0x74];
+        s.setStringValue("evil_binary", bingarbage);
+        auto outf = new File(mAppPath~"test.conf2", FileMode.OutNew);
+        f.writeFile(outf);
+        outf.close();
+    }
+
     void frame() {
-        mFramework.screen.draw(img.surface,Vector2i(0,0));
-        font.drawText(mFramework.screen, Vector2i(50, 50), "halllloxyzäöüß.");
-        mFramework.screen.draw(img.surface,Vector2i(75,75));
+        Canvas scrCanvas = mFramework.screen.startDraw();
+        scrCanvas.drawFilledRect(Vector2i(0,0),mFramework.screen.size,Color(1.0f,1.0f,1.0f));
+        scrCanvas.draw(img,Vector2i(0,0));
+        font.drawText(scrCanvas, Vector2i(50, 50), "halllloxyzäöüß.");
+        //mFramework.screen.draw(img.surface,Vector2i(75,75));
+        scrCanvas.endDraw();
     }
 
     void keyDown(KeyInfo infos) {
@@ -67,23 +122,8 @@ class MainGame {
 
 int main(char[][] args)
 {
-    //MainGame game = new MainGame();
-    //game.run();
-    
-    //SVN never forgets, but I don't want to rewrite that crap if I need it again
-    ConfigFile f = new ConfigFile(cast(char[])read("test.conf"), "file", std.cstream.dout);
-    //ConfigFile f = new ConfigFile(" ha        llo    ", "file", std.cstream.dout);
-    //f.schnitzel();
-    f.rootnode().setStringValue("hallokey", "data");
-    ConfigNode s = f.rootnode().getSubNode("node1");
-    writefln("val1 = %s", s.getStringValue("val1"));
-    writefln("val5 = %s", s.getIntValue("val5"));
-    writefln("valnothing = %s", s.getStringValue("valnothing", "default value"));
-    //put in some stupid stuff
-    s.setStringValue("stoopid", "123 hi");
-    static char[] bingarbage = [0x12, 1, 0x34, 0x10, 0xa, 0x66, 0x74];
-    s.setStringValue("evil_binary", bingarbage);
-    f.writeFile(new File("test.conf2", FileMode.OutNew));
-    //*/
+    MainGame game = new MainGame(args);
+    game.run();
+
     return 0;
 }

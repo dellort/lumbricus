@@ -5,44 +5,53 @@ public import utils.vector2;
 public import framework.keysyms;
 
 public struct Color {
-    int r, g, b, a;
+    float r, g, b, a;
+
+    public static Color opCall(float r, float g, float b, float a) {
+        Color res;
+        res.r = r;
+        res.g = g;
+        res.b = b;
+        res.a = a;
+        return res;
+    }
+    public static Color opCall(float r, float g, float b) {
+        return opCall(r,g,b,1.0f);
+    }
 }
 
 public class Surface {
-    public Vector2i size() {
-        return Vector2i(width(), height());
-    }
-    public abstract int width();
-    public abstract int height();
+    public abstract Vector2i size();
+
+    //this is done so to be able OpenGL
+    //(OpenGL would translate these calls to glNewList() and glEndList()
+    public abstract Canvas startDraw();
+    public abstract void endDraw();
 }
 
-/// Contains bitmap data, lossless conversion when changing bit depth
-public class Image {
-    public abstract Surface surface();
-}
-
-/// drawable surface
 public class Canvas {
+    //must be called after drawing done
+    public abstract void endDraw();
+
     public void draw(Surface source, Vector2i destPos) {
         draw(source, destPos, Vector2i(0, 0), source.size);
     }
 
     public abstract void draw(Surface source, Vector2i destPos,
         Vector2i sourcePos, Vector2i sourceSize);
+
     public abstract void drawCircle(Vector2i center, int radius, Color color);
     public abstract void drawFilledCircle(Vector2i center, int radius,
         Color color);
     public abstract void drawLine(Vector2i p1, Vector2i p2, Color color);
     public abstract void drawRect(Vector2i p1, Vector2i p2, Color color);
     public abstract void drawFilledRect(Vector2i p1, Vector2i p2, Color color);
-
-    public abstract Surface surface();
 }
 
 struct FontProperties {
     int size = 14;
-    Color back = {0,0,0,255};
-    Color fore = {255,255,255,255};
+    Color back = {0.0f,0.0f,0.0f,1.0f};
+    Color fore = {1.0f,0.0f,0.0f,1.0f};
 }
 
 public class Font {
@@ -81,18 +90,18 @@ public class Framework {
 
     public abstract void setVideoMode(int widthX, int widthY, int bpp,
         bool fullscreen);
-    
+
     /// set window title
     public abstract void setCaption(char[] caption);
-    
-    public abstract Image loadImage(Stream st);
-    public Image loadImage(char[] fileName) {
+
+    public abstract Surface loadImage(Stream st);
+    public Surface loadImage(char[] fileName) {
         return loadImage(new File(fileName,FileMode.In));
     }
 
     public abstract Font loadFont(Stream str, FontProperties fontProps);
 
-    public abstract Canvas screen();
+    public abstract Surface screen();
 
     /// Main-Loop
     public abstract void run();
