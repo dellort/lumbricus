@@ -5,7 +5,14 @@ public import utils.vector2;
 public import framework.keysyms;
 
 public struct Color {
+    //values between 0.0 and 1.0, 1.0 means full intensity
+    //(a is the alpha value; 1.0 means fully opaque)
     float r, g, b, a;
+    
+    /// a value that can be used as epsilon when comparing colors
+    //0.3f is a fuzzify value, with 255 I expect colors to be encoded with at
+    //most 8 bits
+    public static const float epsilon = 0.3f * 1.0f/255;
 
     public static Color opCall(float r, float g, float b, float a) {
         Color res;

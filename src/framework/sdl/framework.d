@@ -12,7 +12,17 @@ import derelict.sdl.ttf;
 import framework.sdl.keys;
 import math = std.math;
 
-private static Framework gFrameworkSDL;
+private static FrameworkSDL gFrameworkSDL;
+
+//SDL_Color.unused contains the alpha value
+static SDL_Color ColorToSDLColor(Color color) {
+    SDL_Color col;
+    col.r = cast(ubyte)(255*color.r);
+    col.g = cast(ubyte)(255*color.g);
+    col.b = cast(ubyte)(255*color.b);
+    col.unused = cast(ubyte)(255*color.a);
+    return col;
+}
 
 public class SDLSurface : Surface {
     SDL_Surface* sdlsurface;
@@ -39,6 +49,21 @@ public class SDLSurface : Surface {
     }
     this() {
     }
+    //create a new surface using current depth
+    //xxx: find better solution for enabling alpha...
+    this(Vector2i size, bool alpha = false) {
+        uint flags = SDL_HWSURFACE;
+        if (alpha) {
+            flags |= SDL_SRCALPHA;
+        }
+        SDL_PixelFormat* format = gFrameworkSDL.mScreen.format;
+        sdlsurface = SDL_CreateRGBSurface(flags, size.x, size.y,
+            format.BitsPerPixel, format.Rmask, format.Gmask, format.Bmask,
+            format.Amask);
+        if (sdlsurface is null) {
+            throw new Exception("couldn't create surface");
+        }
+    }
 
     void setSDLSurface(SDL_Surface* surface) {
         sdlsurface = surface;
@@ -62,8 +87,22 @@ public class SDLSurface : Surface {
         if (mImageSource !is null) {
             conv_from = mImageSource;
         }
+        //xxx or SDL_DisplayFormatAlpha???
         sdlsurface = SDL_DisplayFormat(conv_from);
         SDL_FreeSurface(old);
+    }
+    
+    uint colorToSDLColor(Color color) {
+        return SDL_MapRGBA(sdlsurface.format,cast(ubyte)(255*color.r),
+            cast(ubyte)(255*color.g),cast(ubyte)(255*color.b),
+            cast(ubyte)(255*color.a));
+    }
+    
+    //to avoid memory leaks
+    //xxx: either must be automatically managed (finalizer) or be in superclass
+    void free() {
+        SDL_FreeSurface(sdlsurface);
+        sdlsurface = null;
     }
 }
 
@@ -117,8 +156,9 @@ public class SDLCanvas : Canvas {
         rect.x = p1.x;
         rect.y = p1.y;
         rect.w = p2.x-p1.x;
-        rect.h = p2.x-p1.x;
-        SDL_FillRect(sdlsurface.sdlsurface,&rect,SDL_MapRGBA(sdlsurface.sdlsurface.format,cast(ubyte)(255*color.r),cast(ubyte)(255*color.g),cast(ubyte)(255*color.b),cast(ubyte)(255*color.a)));
+        rect.h = p2.y-p1.y;
+        SDL_FillRect(sdlsurface.sdlsurface, &rect,
+            sdlsurface.colorToSDLColor(color));
     }
 
     public void drawText(char[] text) {
@@ -128,7 +168,9 @@ public class SDLCanvas : Canvas {
 
 public class SDLFont : Font {
     private SDLSurface frags[dchar];
-    private SDLSurface backs[dchar];
+    private bool mNeedBackPlain;   //false if background is completely transp.
+    private SDLSurface mBackPlain; //used for fuzzy alpha text background
+    private uint mWidest;
     private FontProperties props;
     private TTF_Font* font;
     // Stream is used by TTF_Font, this keeps the reference to it
@@ -146,6 +188,13 @@ public class SDLFont : Font {
         if (font == null) {
             throw new Exception("Could not load font.");
         }
+        //just a guess, should be larger than any width of a char in the font
+        //(show me a font for which this isn't true, but still I catch that
+        // special case)
+        mWidest = TTF_FontHeight(font)*2;
+        
+        //Backplain not needed if it's fully transparent
+        mNeedBackPlain = (props.back.a >= Color.epsilon);
     }
 
     ~this() {
@@ -154,19 +203,38 @@ public class SDLFont : Font {
 
     public void drawText(Canvas canvas, Vector2i pos, char[] text) {
         Surface surface;
+        Vector2i size;
+        
         foreach (dchar c; text) {
             if (!(c in frags)) {
                 frags[c] = renderChar(c);
-                backs[c] = new SDLSurface(SDL_DisplayFormatAlpha(frags[c].sdlsurface));
-                SDL_Color bcol;
-                bcol.r = cast(ubyte)(255*props.back.r);
-                bcol.g = cast(ubyte)(255*props.back.g);
-                bcol.b = cast(ubyte)(255*props.back.b);
-                ubyte bcol_a = cast(ubyte)(255*props.back.a);
-                SDL_FillRect(backs[c].sdlsurface, null, SDL_MapRGBA(backs[c].sdlsurface.format, bcol.r, bcol.g, bcol.b, bcol_a));
             }
             surface = frags[c];
-            canvas.draw(backs[c], pos);
+            size = surface.size;
+            
+            if (mNeedBackPlain) {
+                //recreate "backplain" if necessary
+                if (mBackPlain is null
+                    //|| frags[c].size.x > mWidest
+                    || frags[c].size.x > mBackPlain.size.x)
+                {
+                    mWidest = frags[c].size.x;
+                    if (mBackPlain !is null) {
+                        mBackPlain.free();
+                        mBackPlain = null;
+                    }
+                    //the following doesntwork, no alpha channel (not always)
+                    //mBackPlain = new SDLSurface(Vector2i(mWidest, size.y));
+                    mBackPlain = new SDLSurface(SDL_DisplayFormatAlpha(
+                        frags[c].sdlsurface));
+                    Canvas tmp = mBackPlain.startDraw();
+                    tmp.drawFilledRect(Vector2i(0, 0), mBackPlain.size,
+                        props.back);
+                    tmp.endDraw();
+                }
+                canvas.draw(mBackPlain, pos, Vector2i(0, 0), size);
+            }
+            
             canvas.draw(surface, pos);
             pos.x += surface.size.x;
         }
@@ -176,15 +244,14 @@ public class SDLFont : Font {
         dchar s[2];
         s[0] = c;
         s[1] = '\0';
-        SDL_Color col;
-        col.r = cast(ubyte)(255*props.fore.r);
-        col.g = cast(ubyte)(255*props.fore.g);
-        col.b = cast(ubyte)(255*props.fore.b);
-        ubyte col_a = cast(ubyte)(255*props.fore.a);
+        SDL_Color col = ColorToSDLColor(props.fore);
+        ubyte col_a = col.unused;
         SDL_Surface* surface = TTF_RenderUNICODE_Blended(font,
             cast(ushort*)s.ptr, col);
         if (surface != null) {
             SDL_LockSurface(surface);
+            //scale the alpha values of the pixels in the surface to be in the
+            //range 0.0 .. props.fore.a
             //xxx code relies on exact surface format produced by SDL_TTF
             for (int y = 0; y < surface.h; y++) {
                 ubyte* ptr = cast(ubyte*)surface.pixels;

@@ -30,16 +30,18 @@ class MainGame {
 
         PHYSFS_init(args[0]);
 
-        PHYSFS_mount(mAppPath ~ "data",null,1);
+        PHYSFS_mount(mAppPath ~ "../data",null,1);
 
         mFramework = new FrameworkSDL();
         mFramework.setVideoMode(800,600,32,false);
     }
 
     public void run() {
-        img = mFramework.loadImage("C:\\Windows\\winnt256.bmp");
+        Stream foo = new PhysFsStream("test.bmp");
+        img = mFramework.loadImage(foo);
+        foo.close();
         FontProperties fontprops;
-        Stream f = new PhysFsStream("vera.ttf");
+        Stream f = new PhysFsStream("font/vera.ttf");
         fontprops.size = 50;
         fontprops.back.g = 1.0f;
         fontprops.back.a = 0.2f;
