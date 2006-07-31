@@ -105,7 +105,7 @@ public class ConfigValue : ConfigItem {
 /// a subtree in a ConfigFile, can contain named and unnamed values and nodes
 public class ConfigNode : ConfigItem {
     //TODO: should be replaced by a linked list
-    //this list is used to preserve the order 
+    //this list is used to preserve the order
     private ConfigItem[] mItems;
 
     //contains only "named" items
@@ -321,7 +321,7 @@ public class ConfigNode : ConfigItem {
     //TODO: additional foreachs:
     //foreach(char[], char[]; ConfigNode) to enumerate (name, value) pairs
     //foreach(char[], ConfigNode; ConfigNode) enumerate subnodes
-    
+
     //foreach(char[]; ConfigNode) enumerate names
     public int opApply(int delegate(inout char[]) del) {
         foreach (ConfigItem item; mItems) {
@@ -332,7 +332,7 @@ public class ConfigNode : ConfigItem {
         }
         return 0;
     }
-    
+
     public int getIntValue(char[] name, int def = 0) {
         int res = def;
         parseInt(getStringValue(name), res);
@@ -423,13 +423,13 @@ public class ConfigFile {
         {[0xFF, 0xFE], "UTF-16 little endian"},
         {[0xFE, 0xFF], "UTF-16 big endian"},
     ];
-    
+
     private void init_parser() {
         mNextPos = Position.init;
         mErrorCount = 0;
         mHasEncodingErrors = false;
         mUTFErrors = mUTFErrors.init;
-        
+
         //if there's one, skip the unicode BOM
         foreach (BOMItem bom; cBOMs) {
             if (bom.code.length <= mData.length) {
@@ -439,7 +439,7 @@ public class ConfigFile {
                         mNextPos.bytePos = bom.code.length;
                         break;
                     }
-                    
+
                     reportError(true, "file encoding is >%s<, unsupported",
                         bom.name);
                     return;
@@ -675,6 +675,7 @@ public class ConfigFile {
                     //looks inefficient
                     curstr = curstr ~ stuff ~ escape;
                     strstart = curpos;
+                    continue;
                 } else if (curChar == cValueClose) {
                     break;
                 } else {
@@ -792,25 +793,26 @@ public class ConfigFile {
     //xxx: definitely needs more work, it's S.L.O.W.
     public static char[] doEscape(char[] s) {
         char[] output;
-        
+
         //preallocate data; in the best case (no characters to escape), no
         //further allocations are necessary
         //(at least should work with DMD)
         output.length = s.length;
         output.length = 0;
-        
+
         charLoop: foreach(dchar c; s) {
+            //try "simple escapes"
+            foreach (EscapeItem item; cSimpleEscapes) {
+                if (item.produce == c) {
+                    output ~= '\\';
+                    output ~= item.escape;
+                    continue charLoop;
+                }
+            }
+
             //convert non-printable chars, and any non-space whitespace
             if (!my_isprint(c) || (my_isspace(c) && c != ' ')) {
                 output ~= '\\';
-
-                //try "simple escapes"
-                foreach (EscapeItem item; cSimpleEscapes) {
-                    if (item.produce == c) {
-                        output ~= item.escape;
-                        continue charLoop;
-                    }
-                }
 
                 //encode it as hex; ugly but... ugly
                 uint digits = 1;
@@ -911,11 +913,11 @@ public class ConfigFile {
 
     private void doParse() {
         clear();
-        
+
         try {
             init_parser();
             char[] waste, morewaste;
-            
+
             Token token;
             parseNode(mRootnode, true);
             nextToken(token, waste, morewaste);
@@ -932,7 +934,7 @@ public class ConfigFile {
     public bool hasErrors() {
         return mErrorCount != 0;
     }
-    
+
     public void clear() {
         if (mRootnode !is null) {
             mRootnode.unlink(null);
