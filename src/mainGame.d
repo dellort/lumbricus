@@ -1,5 +1,3 @@
-module sdltest;
-
 import std.stdio;
 import std.stream;
 import std.string;
@@ -7,41 +5,28 @@ import framework.framework;
 import framework.sdl.framework;
 import utils.configfile;
 import std.file;
-import derelict.physfs.physfs;
 import path = std.path;
-
-public char[] addTrailingPathDelimiter(char[] pathStr) {
-    if (pathStr[$-1] != path.sep[0]) {
-        pathStr ~= path.sep;
-    }
-    return pathStr;
-}
+import fileSystem;
 
 class MainGame {
-    char[] mAppPath;
     Framework mFramework;
+    FileSystem mFileSystem;
     Surface img;
     Font font;
 
     this(char[][] args) {
-        DerelictPhysFs.load();
-
-        mAppPath = addTrailingPathDelimiter(path.getDirName(args[0]));
-
-        PHYSFS_init(args[0]);
-
-        PHYSFS_mount(mAppPath ~ "../data",null,1);
+        mFileSystem = new FileSystem(args[0]);
 
         mFramework = new FrameworkSDL();
         mFramework.setVideoMode(800,600,32,false);
     }
 
     public void run() {
-        Stream foo = new PhysFsStream("test.bmp");
+        Stream foo = mFileSystem.openData("basselope.gif");
         img = mFramework.loadImage(foo);
         foo.close();
         FontProperties fontprops;
-        Stream f = new PhysFsStream("font/vera.ttf");
+        Stream f = mFileSystem.openData("font/vera.ttf");
         fontprops.size = 50;
         fontprops.back.g = 1.0f;
         fontprops.back.a = 0.2f;
@@ -69,7 +54,9 @@ class MainGame {
 
     void testconfig() {
         //SVN never forgets, but I don't want to rewrite that crap if I need it again
-        ConfigFile f = new ConfigFile(new File(mAppPath~"test.conf"), "test.conf", &doout);
+        auto inf = mFileSystem.openUser("test.conf",FileMode.In);
+        ConfigFile f = new ConfigFile(inf, "test.conf", &doout);
+        inf.close();
         //ConfigFile f = new ConfigFile(" ha        llo    ", "file", std.cstream.dout);
         //f.schnitzel();
         f.rootnode().setStringValue("hallokey", "data");
@@ -81,7 +68,7 @@ class MainGame {
         s.setStringValue("stoopid", "123 hi");
         static char[] bingarbage = [0x12, 1, 0x34, 0x10, 0xa, 0x66, 0x74];
         s.setStringValue("evil_binary", bingarbage);
-        auto outf = new File(mAppPath~"test.conf2", FileMode.OutNew);
+        auto outf = mFileSystem.openUser("test.conf2", FileMode.OutNew);
         f.writeFile(outf);
         outf.close();
     }
