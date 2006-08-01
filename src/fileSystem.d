@@ -56,9 +56,15 @@ public class FileSystem {
 
         //mount paths for PhysFs
         //NO trailing /
+        //all files opened for writing will be stored in mUserPath
         PHYSFS_setWriteDir(str.toStringz(mUserPath));
-        mount(mDataPath,"data",1);
+        //user directory comes first in search path, to allow user to override
+        //included default config files
         mount(mUserPath,"user",1);
+        //data path should contain data/data (game data) and
+        //data/user (user-changeable config files)
+        mount(mDataPath,null,1);
+        //TODO: search mDataPath for archives and add to search path
     }
 
     ~this() {
@@ -150,8 +156,8 @@ public class FileSystem {
         try {
             return new PhysFsStream("data/"~filename,FileMode.In);
         } catch (StreamException e) {
-            throw new FileSystemException("Could not open file \""~
-                filename~"\": "~e.toString());
+            throw new FileSystemException(str.format(
+                "Could not open file \"data/%s\": %s",filename,e.toString()));
         }
     }
 
@@ -160,15 +166,18 @@ public class FileSystem {
      * Stream must be closed manually
      */
     public Stream openUser(char[] filename, FileMode mode) {
+        char[] sWrite = "";
         try {
             if ((mode & FileMode.Out) || (mode & FileMode.Append)) {
+                sWrite = " for writing";
                 return new PhysFsStream(filename,mode);
             } else {
                 return new PhysFsStream("user/"~filename,mode);
             }
         } catch (StreamException e) {
-            throw new FileSystemException("Could not open file \""~
-                filename~"\" for writing: "~e.toString());
+            throw new FileSystemException(str.format(
+                "Could not open file \"user/%s\"%s: %s",
+                filename,sWrite,e.toString()));
         }
     }
 

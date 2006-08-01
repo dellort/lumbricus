@@ -68,7 +68,7 @@ class MainGame {
         s.setStringValue("stoopid", "123 hi");
         static char[] bingarbage = [0x12, 1, 0x34, 0x10, 0xa, 0x66, 0x74];
         s.setStringValue("evil_binary", bingarbage);
-        auto outf = mFileSystem.openUser("test.conf2", FileMode.OutNew);
+        auto outf = mFileSystem.openUser("test.conf", FileMode.OutNew);
         f.writeFile(outf);
         outf.close();
     }
