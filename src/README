@@ -1,0 +1,14 @@
+This is Lumbricus Terrestris. Sorry, it's at a very early planning state,
+there's nothing to see or to play yet.
+
+If you wonder in what language the already existing code is written in:
+It's Digital Mars D. A nice native compiled, garbage collected C descendant,
+which is modern and wants to be not as f***ed up as C++. There are compilers
+for Windows and Linux. D is still in "development", every new release of the
+Digital Mars D Compiler (DMD) can break any existing D code. (Well, every new
+release of G++ breaks my C++ code too :-)
+
+More Information can be found at:
+
+http://www.digitalmars.com/d/index.html
+
