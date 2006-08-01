@@ -69,12 +69,22 @@ public class FileSystem {
     private void initPaths(char[] arg0) {
         version(Windows) {
             //win: args[0] contains full path to executable
-            mAppPath = addTrailingPathDelimiter(path.getDirName(arg0));
+            mAppPath = path.getDirName(arg0);
         } else {
             //lin: args[0] is relative to current directory
-            char[] curDir = addTrailingPathDelimiter(getcwd());
-            mAppPath = curDir~path.getDirName(arg0);
+            char[] curDir = addTrailingPathDelimiter(stdf.getcwd());
+            char[] dirname = path.getDirName(arg0);
+            if (dirname.length > 0 && dirname[0] == path.sep[0]) {
+                //sometimes, the path is absolute
+                mAppPath = dirname;
+            } else if (dirname != ".") {
+                mAppPath = curDir ~ dirname;
+            } else {
+                mAppPath = curDir;
+            }
         }
+        
+        mAppPath = addTrailingPathDelimiter(mAppPath);
 
         //set user directory from os home path
         char* home = null;
