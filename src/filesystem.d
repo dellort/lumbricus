@@ -1,4 +1,4 @@
-module fileSystem;
+module filesystem;
 
 import derelict.physfs.physfs;
 import path = std.path;

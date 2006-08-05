@@ -8,7 +8,7 @@ import utils.configfile;
 import std.file;
 import path = std.path;
 import level.generator;
-import fileSystem;
+import filesystem;
 
 class MainGame {
     Framework mFramework;

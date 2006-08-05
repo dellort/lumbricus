@@ -5,11 +5,10 @@ import level.renderer;
 import level.genrandom;// : GenRandomLevel;
 import framework.framework;// : Surface;
 import utils.configfile;// : ConfigNode;
-import fileSystem;
+import filesystem;
 import std.stream;
 import str = std.string;
 import conv = std.conv;
-import std.stdio;
 import rand = std.random;
 
 /// level generator
@@ -129,7 +128,6 @@ public class LevelGenerator {
             auto marker = parseMarker(polygon.getStringValue("marker"));
             auto visible = polygon.getBoolValue("visible", true);
             auto changeable = polygon.getBoolValue("changeable", true);
-            writefln("%s %s", nosubdiv, points.length);
             gen.addPolygon(points, nosubdiv, tex, marker, changeable, visible);
         }
         

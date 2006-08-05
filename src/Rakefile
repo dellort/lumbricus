@@ -11,13 +11,13 @@ require 'rake/clean'
 dir = File.dirname(File.expand_path(__FILE__))
 
 progdir = '.'
-progname = 'mainGame'
+progname = 'maingame'
 
 PROG = "#{progdir}/#{progname}"
 
 gdbbatch = "#{dir}/gdbbatch"
 
-START_FILE = 'mainGame.d'
+START_FILE = 'maingame.d'
 
 
 DFLAGS = "-op -debug"
