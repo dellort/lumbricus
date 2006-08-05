@@ -1,6 +1,7 @@
 module framework.sdl.framework;
 
 import framework.framework;
+import framework.keysyms;
 import std.stream;
 import std.stdio;
 import std.string;
@@ -43,6 +44,49 @@ public class SDLSurface : Surface {
     public Vector2i size() {
         return Vector2i(sdlsurface.w,sdlsurface.h);
     }
+    
+    public bool convertToData(PixelFormat format, out uint pitch,
+        out void* data)
+    {
+        assert(sdlsurface !is null);
+        
+        //xxx: as an optimization, avoid double-copying (that is, calling the
+        //  SDL_ConvertSurface() function, if the format is already equal to
+        //  the requested one)
+        SDL_PixelFormat fmt;
+        //according to FreeNode/#SDL, SDL fills the loss/shift by itsself
+        fmt.BitsPerPixel = format.depth;
+        fmt.BytesPerPixel = format.bytes;
+        fmt.Rmask = format.mask_r;
+        fmt.Gmask = format.mask_g;
+        fmt.Bmask = format.mask_b;
+        fmt.Amask = format.mask_a;
+        //xxx: what about fmt.colorkey and fmt.alpha? (can it be ignored here?)
+        //should use of the palette be enabled?
+        fmt.palette = null;
+        
+        SDL_Surface* s = SDL_ConvertSurface(sdlsurface, &fmt, SDL_SWSURFACE);
+        if (s is null)
+            return false;
+        
+        pitch = s.pitch;
+        
+        void[] alloc;
+        alloc.length = pitch*size.y;
+        SDL_LockSurface(s);
+        alloc[] = s.pixels[0 .. alloc.length]; //copy
+        data = alloc.ptr;
+        SDL_UnlockSurface(s);
+        
+        SDL_FreeSurface(s);
+        
+        return true;
+    }
+    
+    public void colorkey(Color colorkey) {
+        uint key = colorToSDLColor(colorkey);
+        SDL_SetColorKey(sdlsurface, SDL_SRCCOLORKEY, key);
+    }
 
     this(SDL_Surface* surface) {
         this.sdlsurface = surface;
@@ -76,7 +120,7 @@ public class SDLSurface : Surface {
             mImageSource = surf;
             doConvert();
         } else {
-            throw new Exception("image couldn't be load");
+            throw new Exception("image couldn't be loaded");
         }
     }
 
@@ -202,15 +246,14 @@ public class SDLFont : Font {
     }
 
     public void drawText(Canvas canvas, Vector2i pos, char[] text) {
-        Surface surface;
-        Vector2i size;
-        
         foreach (dchar c; text) {
-            if (!(c in frags)) {
+            SDLSurface* sptr = c in frags;
+            if (!sptr) {
                 frags[c] = renderChar(c);
+                sptr = c in frags;
             }
-            surface = frags[c];
-            size = surface.size;
+            SDLSurface surface = *sptr;
+            Vector2i size = surface.size;
             
             if (mNeedBackPlain) {
                 //recreate "backplain" if necessary
@@ -366,6 +409,34 @@ public class FrameworkSDL : Framework {
         SDLSurface res = new SDLSurface();
         res.load(st);
         return res;
+    }
+    
+    public Surface createImage(uint width, uint height, uint pitch,
+        PixelFormat format, void* data)
+    {
+        SDLSurface f = new SDLSurface();
+        if (!data) {
+            void[] alloc;
+            alloc.length = pitch*height*format.bytes;
+            data = alloc.ptr;
+        }
+        //possibly incorrect
+        f.sdlsurface = SDL_CreateRGBSurfaceFrom(data, width, height,
+            format.depth, pitch, format.mask_r, format.mask_g, format.mask_b,
+            format.mask_a);
+        if (f.sdlsurface is null)
+            throw new Exception("couldn't create surface");
+        return f;
+    }
+    
+    public Surface createSurface(uint width, uint height) {
+        SDLSurface f = new SDLSurface();
+        f.sdlsurface = SDL_CreateRGBSurface(0, width, height,
+            mScreen.format.BitsPerPixel, mScreen.format.Rmask,
+            mScreen.format.Gmask, mScreen.format.Bmask, mScreen.format.Amask);
+        if (f.sdlsurface is null)
+            throw new Exception("couldn't create surface");
+        return f;
     }
 
     public Font loadFont(Stream str, FontProperties fontProps) {

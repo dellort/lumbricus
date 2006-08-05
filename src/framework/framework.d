@@ -2,7 +2,13 @@ module framework.framework;
 
 import std.stream;
 public import utils.vector2;
-public import framework.keysyms;
+import framework.keysyms;
+
+private static Framework gFramework;
+
+public Framework getFramework() {
+    return gFramework;
+}
 
 public struct Color {
     //values between 0.0 and 1.0, 1.0 means full intensity
@@ -13,7 +19,19 @@ public struct Color {
     //0.3f is a fuzzify value, with 255 I expect colors to be encoded with at
     //most 8 bits
     public static const float epsilon = 0.3f * 1.0f/255;
-
+    
+    /// clamp all components to the range [0.0, 1.0]
+    public void clamp() {
+        if (r < 0.0f) r = 0.0f;
+        if (r > 1.0f) r = 1.0f;
+        if (g < 0.0f) g = 0.0f;
+        if (g > 1.0f) g = 1.0f;
+        if (b < 0.0f) b = 0.0f;
+        if (b > 1.0f) b = 1.0f;
+        if (a < 0.0f) a = 0.0f;
+        if (a > 1.0f) a = 1.0f;
+    }
+    
     public static Color opCall(float r, float g, float b, float a) {
         Color res;
         res.r = r;
@@ -27,6 +45,12 @@ public struct Color {
     }
 }
 
+public struct PixelFormat {
+    uint depth; //in bits
+    uint bytes; //per pixel
+    uint mask_r, mask_g, mask_b, mask_a;
+}
+
 public class Surface {
     public abstract Vector2i size();
 
@@ -34,6 +58,14 @@ public class Surface {
     //(OpenGL would translate these calls to glNewList() and glEndList()
     public abstract Canvas startDraw();
     public abstract void endDraw();
+    
+    /// convert the image data to raw pixel data, using the given format
+    public abstract bool convertToData(PixelFormat format, out uint pitch,
+        out void* data);
+    
+    /// set colorkey, all pixels with that color will be transparent
+    //I'm not sure how this would work with OpenGL...
+    public abstract void colorkey(Color colorkey);
 }
 
 public class Canvas {
@@ -93,6 +125,10 @@ public class Framework {
 
     public this() {
         mKeyStateMap = new bool[Keycode.max-Keycode.min+1];
+        if (gFramework !is null) {
+            throw new Exception("Framework is a singleton");
+        }
+        gFramework = this;
     }
 
     public abstract void setVideoMode(int widthX, int widthY, int bpp,
@@ -105,6 +141,14 @@ public class Framework {
     public Surface loadImage(char[] fileName) {
         return loadImage(new File(fileName,FileMode.In));
     }
+    
+    /// create an image based on the given data and on the pixelformat
+    /// data can be null, in this case, the function allocates (GCed) memory
+    public abstract Surface createImage(uint width, uint height, uint pitch,
+        PixelFormat format, void* data);
+    
+    /// create a surface in the current display format
+    public abstract Surface createSurface(uint width, uint height);
 
     public abstract Font loadFont(Stream str, FontProperties fontProps);
 
@@ -189,6 +233,11 @@ public class Framework {
         if (onKeyUp != null) {
             onKeyUp(infos);
         }
+    }
+    
+    //returns true if key is a mouse button
+    public static bool keyIsMouseButton(Keycode key) {
+        return key >= cKeycodeMouseStart && key <= cKeycodeMouseEnd;
     }
 
     protected void doUpdateMousePos(Vector2i pos) {

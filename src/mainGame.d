@@ -2,21 +2,25 @@ import std.stdio;
 import std.stream;
 import std.string;
 import framework.framework;
+import framework.keysyms;
 import framework.sdl.framework;
 import utils.configfile;
 import std.file;
 import path = std.path;
+import level.generator;
 import fileSystem;
 
 class MainGame {
     Framework mFramework;
+    Surface img, imglevel;
     FileSystem mFileSystem;
-    Surface img;
     Font font;
+    Vector2i offset;
+    uint mLevelWidth = 750, mLevelHeight = 550;
+    LevelGenerator generator;
 
     this(char[][] args) {
         mFileSystem = new FileSystem(args[0]);
-
         mFramework = new FrameworkSDL();
         mFramework.setVideoMode(800,600,32,false);
     }
@@ -43,7 +47,13 @@ class MainGame {
         mFramework.onMouseMove = &mouseMove;
         mFramework.setCaption("strange lumbricus test thingy");
 
-        testconfig();
+        //testconfig();
+        generator = new LevelGenerator();
+        f = mFileSystem.openData("levelgen.conf");
+        ConfigFile conf = new ConfigFile(f, "levelgen.conf", &doout);
+        f.close();
+        generator.config = conf.rootnode.getSubNode("levelgen");
+        generate_level();
 
         mFramework.run();
     }
@@ -78,14 +88,22 @@ class MainGame {
         scrCanvas.drawFilledRect(Vector2i(0,0),mFramework.screen.size,Color(1.0f,1.0f,1.0f));
         scrCanvas.draw(img,Vector2i(0,0));
         font.drawText(scrCanvas, Vector2i(50, 50), "halllloxyzäöüß.");
+        scrCanvas.draw(imglevel, offset);
         //mFramework.screen.draw(img.surface,Vector2i(75,75));
         scrCanvas.endDraw();
+    }
+    
+    void generate_level() {
+        imglevel = generator.generateRandom(mLevelWidth, mLevelHeight,
+            "").image;
     }
 
     void keyDown(KeyInfo infos) {
         writefln("onKeyDown: key=%s unicode=>%s<", cast(int)infos.code, infos.unicode);
         if (infos.code == Keycode.ESCAPE) {
             mFramework.terminate();
+        } else if (infos.code == Keycode.MOUSE_LEFT) {
+            generate_level();
         }
         writefln("Key-ID: %s", mFramework.translateKeycodeToKeyID(infos.code));
     }
@@ -104,8 +122,9 @@ class MainGame {
     }
 
     void mouseMove(MouseInfo infos) {
-        writef("onMouseMove: (%s, %s)", infos.pos.x, infos.pos.y);
-        writefln(" rel: (%s, %s)", infos.rel.x, infos.rel.y);
+        //writef("onMouseMove: (%s, %s)", infos.pos.x, infos.pos.y);
+        //writefln(" rel: (%s, %s)", infos.rel.x, infos.rel.y);
+        //offset = -infos.pos*4+Vector2i(300,300);
     }
 }
 

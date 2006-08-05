@@ -233,7 +233,8 @@ enum Keycode {
     POWER,
     EURO,
     UNDO,
-
+    
+    //keep in sync with cKeycodeMouseStart and cKeycodeMouseEnd
     MOUSE_LEFT,
     MOUSE_MIDDLE,
     MOUSE_RIGHT,
@@ -246,6 +247,9 @@ enum Keycode {
     MOUSE_BUTTON10,
     //mice with more than 10 buttons???
 }
+
+final const Keycode cKeycodeMouseStart = Keycode.MOUSE_LEFT;
+final const Keycode cKeycodeMouseEnd = Keycode.MOUSE_BUTTON10;
 
 struct KeycodeToName {
     Keycode code;

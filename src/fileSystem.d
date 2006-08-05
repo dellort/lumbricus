@@ -7,7 +7,7 @@ import cstdlib = std.c.stdlib;
 import str = std.string;
 import std.stream;
 
-private static FileSystem gFileSystem;
+public static FileSystem gFileSystem;
 
 ///add OS-dependant path delimiter to pathStr, if not there
 public char[] addTrailingPathDelimiter(char[] pathStr) {

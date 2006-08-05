@@ -6,8 +6,9 @@
 		<Option compiler="dmd" />
 		<Build>
 			<Target title="Debug">
-				<Option output="..\bin\Debug\Lumbricus.exe" />
-				<Option object_output="..\bin\obj\Debug\" />
+				<Option output="..\bin\Lumbricus.exe" />
+				<Option working_dir="..\bin" />
+				<Option object_output="..\bin\obj\" />
 				<Option type="1" />
 				<Option compiler="dmd" />
 				<Option projectResourceIncludeDirsRelation="0" />
@@ -17,8 +18,9 @@
 				</Compiler>
 			</Target>
 			<Target title="Release">
-				<Option output="..\bin\Release\Lumbricus.exe" />
-				<Option object_output="..\bin\obj\Release\" />
+				<Option output="..\bin\Lumbricus.exe" />
+				<Option working_dir="..\bin" />
+				<Option object_output="..\bin\obj\" />
 				<Option type="1" />
 				<Option compiler="dmd" />
 				<Option projectResourceIncludeDirsRelation="0" />
@@ -34,10 +36,35 @@
 			<Add library="DerelictSDLttf" />
 			<Add library="DerelictPhysFs" />
 		</Linker>
+		<Unit filename="..\dmd\src\phobos\cairo\cairo.d">
+			<Option compilerVar="CPP" />
+			<Option target="Debug" />
+			<Option target="Release" />
+		</Unit>
+		<Unit filename="..\dmd\src\phobos\cairo\cairofuncs.d">
+			<Option compilerVar="CPP" />
+			<Option target="Debug" />
+			<Option target="Release" />
+		</Unit>
+		<Unit filename="..\dmd\src\phobos\cairo\cairotypes.d">
+			<Option compilerVar="CPP" />
+			<Option target="Debug" />
+			<Option target="Release" />
+		</Unit>
+		<Unit filename="..\dmd\src\phobos\cairo\loader.d">
+			<Option compilerVar="CPP" />
+			<Option target="Debug" />
+			<Option target="Release" />
+		</Unit>
 		<Unit filename="Makefile.am">
 			<Option compilerVar="CPP" />
 			<Option compile="0" />
 			<Option link="0" />
+			<Option target="Debug" />
+			<Option target="Release" />
+		</Unit>
+		<Unit filename="fileSystem.d">
+			<Option compilerVar="CPP" />
 			<Option target="Debug" />
 			<Option target="Release" />
 		</Unit>
@@ -66,12 +93,47 @@
 			<Option target="Debug" />
 			<Option target="Release" />
 		</Unit>
+		<Unit filename="level\generator.d">
+			<Option compilerVar="CPP" />
+			<Option target="Debug" />
+			<Option target="Release" />
+		</Unit>
+		<Unit filename="level\level.d">
+			<Option compilerVar="CPP" />
+			<Option target="Debug" />
+			<Option target="Release" />
+		</Unit>
+		<Unit filename="level\placeobjects.d">
+			<Option compilerVar="CPP" />
+			<Option target="Debug" />
+			<Option target="Release" />
+		</Unit>
+		<Unit filename="level\random.d">
+			<Option compilerVar="CPP" />
+			<Option target="Debug" />
+			<Option target="Release" />
+		</Unit>
+		<Unit filename="level\renderer.d">
+			<Option compilerVar="CPP" />
+			<Option target="Debug" />
+			<Option target="Release" />
+		</Unit>
 		<Unit filename="mainGame.d">
 			<Option compilerVar="CPP" />
 			<Option target="Debug" />
 			<Option target="Release" />
 		</Unit>
 		<Unit filename="utils\configfile.d">
+			<Option compilerVar="CPP" />
+			<Option target="Debug" />
+			<Option target="Release" />
+		</Unit>
+		<Unit filename="utils\math.d">
+			<Option compilerVar="CPP" />
+			<Option target="Debug" />
+			<Option target="Release" />
+		</Unit>
+		<Unit filename="utils\mylist2.d">
 			<Option compilerVar="CPP" />
 			<Option target="Debug" />
 			<Option target="Release" />
