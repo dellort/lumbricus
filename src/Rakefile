@@ -1,0 +1,82 @@
+# This Rakefile requires "rake" (apt-get install rake), dmd and dbuild
+# "rake" seems to be a Ruby build tool, but here it compiles D source code
+# This script is public domain and was provided by Kashia from freenode/#D, and
+# it was modified by me to compile lumbricus
+
+# There's a strange issue with this script: it first tries to link mainGame.o
+# alone (or so), and fails, but then successfully links the whole thing.
+
+require 'rake/clean'
+
+dir = File.dirname(File.expand_path(__FILE__))
+
+progdir = '.'
+progname = 'mainGame'
+
+PROG = "#{progdir}/#{progname}"
+
+gdbbatch = "#{dir}/gdbbatch"
+
+START_FILE = 'mainGame.d'
+
+
+DFLAGS = "-op -debug"
+# link to libDL (needed for Linux, at least)
+LDFLAGS = "-L-ldl"
+# not needed, this script compiles Derelict by itsself
+### "-L. -L-lDerelictSDL -L-lDerelictSDLImage -L-lDerelictSDLttf -L-lDerelictUtil"
+
+EXLUDE_LIBS = %w(std)
+EXTRA_FILES = []
+
+######################################## don't change *eyetwitch*
+
+DBUILD = 'dbuild'
+DBUILD_CMD = "#{ENV['DBUILD'] || DBUILD} #{ENV['DFLAGS']} #{DFLAGS} #{EXLUDE_LIBS.map{|x|"-X#{x}"}.join(' ')} -test -names #{START_FILE}"
+
+GDC = ENV['DMD'] || 'dmd'
+
+######################################## change even less, daredevil, anyone?
+
+SRC = FileList[*(`#{DBUILD_CMD}`.split(/\n+/m).reject {|x| x !~ / \[/ }.map {|x| x =~ /\[ (.*) \]/; $1 })] + [EXTRA_FILES].flatten
+OBJ = SRC.ext('o')
+
+######################################## ignore
+
+CLEAN.include(OBJ)
+CLOBBER.include(OBJ, PROG)
+
+######################################## duck 'n cover
+
+desc "Compile"
+task :default => [PROG]
+
+task :run do
+  sh "cd #{dir} && #{PROG}"
+end
+
+task :debug => gdbbatch do
+  sh "gdb #{PROG} -batch -x #{gdbbatch}"
+end
+
+rule '.o' => '.d' do |t|
+  sh "#{GDC} -c #{ENV['DFLAGS']} #{DFLAGS} \"#{t.source}\" -of\"#{t.name}\""
+end
+
+# file dependencies go here
+
+file PROG => OBJ do |f|
+  sh "#{GDC} -of#{f.name} #{ENV['LDFLAGS']} #{LDFLAGS} #{f.prerequisites.map{|x|"\"#{x}\""}.join(" ")}"
+end
+
+file gdbbatch do |t|
+  File.open(t.name, File::CREAT|File::TRUNC|File::WRONLY) do |f|
+    f.write <<-EOS
+run
+bt full
+quit
+y
+
+    EOS
+  end
+end
