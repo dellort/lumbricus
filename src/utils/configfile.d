@@ -7,12 +7,38 @@ import std.format;
 import conv = std.conv;
 
 //returns false: conversion failed, value is unmodified
-private bool parseInt(char[] s, inout int value) {
+public bool parseInt(char[] s, inout int value) {
     try {
         value = conv.toInt(s);
         return true;
     } catch (conv.ConvOverflowError e) {
     } catch (conv.ConvError e) {
+    }
+    return false;
+}
+
+//cf. parseInt
+public bool parseFloat(char[] s, inout float value) {
+    try {
+        value = conv.toFloat(s);
+        return true;
+    } catch (conv.ConvOverflowError e) {
+    } catch (conv.ConvError e) {
+    }
+    return false;
+}
+
+//cf. parseInt
+public bool parseBool(char[] s, inout bool value) {
+    //strings for truth values, alternating (sorry it was 4:28 AM)
+    static char[][] bool_strings = ["true", "false", "yes", "no"]; //etc.
+    bool ret_value = true;
+    foreach(char[] test; bool_strings) {
+        if (str.icmp(test, s) == 0) {
+            value = ret_value;
+            return true;
+        }
+        ret_value = !ret_value;
     }
     return false;
 }
@@ -318,9 +344,33 @@ public class ConfigNode : ConfigItem {
         return 0;
     }
 
-    //TODO: additional foreachs:
-    //foreach(char[], char[]; ConfigNode) to enumerate (name, value) pairs
     //foreach(char[], ConfigNode; ConfigNode) enumerate subnodes
+    public int opApply(int delegate(inout char[], inout ConfigNode) del) {
+        foreach (ConfigItem item; mItems) {
+            ConfigNode n = cast(ConfigNode)item;
+            if (n !is null) {
+                char[] tmp = n.name;
+                int res = del(tmp, n);
+                if (res)
+                    return res;
+            }
+        }
+        return 0;
+    }
+    
+    //foreach(char[], char[]; ConfigNode) enumerate (name, value) pairs
+    public int opApply(int delegate(inout char[], inout char[]) del) {
+        foreach (ConfigItem item; mItems) {
+            ConfigValue v = cast(ConfigValue)item;
+            if (v !is null) {
+                char[] tmp = v.name;
+                int res = del(tmp, v.value);
+                if (res)
+                    return res;
+            }
+        }
+        return 0;
+    }
 
     //foreach(char[]; ConfigNode) enumerate names
     public int opApply(int delegate(inout char[]) del) {
@@ -342,7 +392,23 @@ public class ConfigNode : ConfigItem {
         setStringValue(name, str.toString(value));
     }
 
-    //TODO: add setXXXValue/getXXXValue functions at least for: bool, float
+    public bool getBoolValue(char[] name, bool def = false) {
+        bool res = def;
+        parseBool(getStringValue(name), res);
+        return res;
+    }
+    public void setBoolValue(char[] name, bool value) {
+        setStringValue(name, value ? "true" : "false");
+    }
+    
+    public float getFloatValue(char[] name, float def = float.nan) {
+        float res = def;
+        parseFloat(getStringValue(name), res);
+        return res;
+    }
+    public void setFloatValue(char[] name, float value) {
+        setStringValue(name, str.toString(value));
+    }
 }
 
 private class ConfigFatalError : Exception {
@@ -353,7 +419,7 @@ private class ConfigFatalError : Exception {
     }
 }
 
-//stupid phobos dooesn't habve this yet
+//stupid phobos dooesn't have this yet
 char[] formatfx(TypeInfo[] arguments, void* argptr) {
     char[] res;
 
@@ -418,6 +484,7 @@ public class ConfigFile {
     private static const char[] cUtf8Bom = [0xEF, 0xBB, 0xBF];
     private static const BOMItem[] cBOMs = [
         {cUtf8Bom, null}, //UTF-8, special handling
+        //needed for sophisticated error handling messages, bloaha
         {[0xFF, 0xFE, 0x00, 0x00], "UTF-32 little endian"},
         {[0x00, 0x00, 0xFE, 0xFF], "UTF-32 big endian"},
         {[0xFF, 0xFE], "UTF-16 little endian"},
@@ -628,6 +695,19 @@ public class ConfigFile {
                 do {
                     next();
                 } while (curChar != EOF && !my_isnewline(curChar));
+            } else if (curChar == '/') {
+                Position cur = curpos;
+                next();
+                if (curChar != '/') {
+                    //go back, let the rest of the function parse the "/"
+                    reset(cur);
+                    break;
+                } else {
+                    //C99/C++/Java/C#/D style comment - skip it
+                    do {
+                        next();
+                    } while (curChar != EOF && !my_isnewline(curChar));
+                }
             } else {
                 break;
             }
