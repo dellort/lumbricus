@@ -103,6 +103,42 @@ public class LevelGenerator {
         return false;
     }
     
+    //maybe this should rather be implemented by genrandom.d?
+    private void readParams(ConfigNode node, GenRandomLevel g) {
+        //tedious, maybe should replaced by an associative array or so
+        float tmp = node.getFloatValue("pix_epsilon");
+        if (tmp == tmp) {
+            g.config_pix_epsilon = tmp;
+        }
+        tmp = node.getFloatValue("pix_filter");
+        if (tmp == tmp)
+            g.config_pix_filter = tmp;
+        int tmpint = node.getIntValue("subdivision_steps", -1);
+        if (tmpint >= 0)
+            g.config_subdivision_steps = tmpint;
+        tmp = node.getFloatValue("removal_aggresiveness");
+        if (tmp == tmp)
+            g.config_removal_aggresiveness = tmp;
+        tmp = node.getFloatValue("min_subdiv_length");
+        if (tmp == tmp)
+            g.config_min_subdiv_length = tmp;
+        tmp = node.getFloatValue("front_len_ratio_add");
+        if (tmp == tmp)
+            g.config_front_len_ratio_add = tmp;
+        tmp = node.getFloatValue("len_ratio_add");
+        if (tmp == tmp)
+            g.config_len_ratio_add = tmp;
+        tmp = node.getFloatValue("front_len_ratio_remove");
+        if (tmp == tmp)
+            g.config_front_len_ratio_remove = tmp;
+        tmp = node.getFloatValue("len_ratio_remove");
+        if (tmp == tmp)
+            g.config_len_ratio_remove = tmp;
+        tmp = node.getFloatValue("remove_or_add");
+        if (tmp == tmp)
+            g.config_remove_or_add = tmp;
+    }
+    
     private Level generateRandom(uint width, uint height,
         ConfigNode template_node)
     {
@@ -115,19 +151,26 @@ public class LevelGenerator {
             gen.setAsCave(tex, marker);
         }
         
+        readParams(template_node, gen);
+        
         ConfigNode polys = template_node.getSubNode("polygons");
         foreach(char[] name, ConfigNode polygon; polys) {
             Vector2f[] points = readPointList(polygon.getSubNode("points"));
+            
             //scale the points
             for (uint i = 0; i < points.length; i++) {
                 points[i].x *= width;
                 points[i].y *= height;
             }
+            
             uint[] nosubdiv = readUIntList(polygon.getSubNode("nochange"));
             auto tex = readTexture(polygon.getStringValue("texture"), true);
             auto marker = parseMarker(polygon.getStringValue("marker"));
             auto visible = polygon.getBoolValue("visible", true);
             auto changeable = polygon.getBoolValue("changeable", true);
+            
+            readParams(polygon, gen);
+            
             gen.addPolygon(points, nosubdiv, tex, marker, changeable, visible);
         }
         

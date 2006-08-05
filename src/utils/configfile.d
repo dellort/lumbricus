@@ -20,6 +20,9 @@ public bool parseInt(char[] s, inout int value) {
 //cf. parseInt
 public bool parseFloat(char[] s, inout float value) {
     try {
+        //as of DMD 0.163, std.conv.toFloat() parses an empty string as 0.0f
+        if (s.length == 0)
+            return false;
         value = conv.toFloat(s);
         return true;
     } catch (conv.ConvOverflowError e) {
