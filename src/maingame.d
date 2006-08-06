@@ -9,6 +9,8 @@ import std.file;
 import path = std.path;
 import level.generator;
 import filesystem;
+import gc = std.gc;
+import perf = std.perf;
 
 class MainGame {
     Framework mFramework;
@@ -22,7 +24,7 @@ class MainGame {
     this(char[][] args) {
         mFileSystem = new FileSystem(args[0]);
         mFramework = new FrameworkSDL();
-        mFramework.setVideoMode(800,600,32,false);
+        mFramework.setVideoMode(800,600,0,false);
     }
 
     public void run() {
@@ -90,6 +92,9 @@ class MainGame {
         font.drawText(scrCanvas, Vector2i(50, 50), "halllloxyzäöüß.");
         scrCanvas.draw(imglevel, offset);
         //mFramework.screen.draw(img.surface,Vector2i(75,75));
+        //FPS
+        font.drawText(scrCanvas, Vector2i(mFramework.screen.size.x-300, 20),
+            format("FPS: %1.2f", mFramework.FPS));
         scrCanvas.endDraw();
     }
     
@@ -118,6 +123,13 @@ class MainGame {
 	for (Modifier mod = Modifier.min; mod <= Modifier.max; mod++) {
 	    writefln("modifier %s: %s", cast(int)mod,
 	    	mFramework.getModifierState(mod));
+	}
+	if (infos.unicode == 'g') {
+	    auto counter = new perf.PerformanceCounter();
+	    counter.start();
+	    gc.fullCollect();
+	    counter.stop();
+	    writefln("GC fullcollect: %s us", counter.microseconds);
 	}
     }
 

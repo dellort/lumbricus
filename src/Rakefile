@@ -20,7 +20,7 @@ gdbbatch = "#{dir}/gdbbatch"
 START_FILE = 'maingame.d'
 
 
-DFLAGS = "-op -debug"
+DFLAGS = "-op -debug -gc"
 # link to libDL (needed for Linux, at least)
 LDFLAGS = "-L-ldl"
 # not needed, this script compiles Derelict by itsself

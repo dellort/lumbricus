@@ -274,6 +274,7 @@ public class SDLFont : Font {
                     tmp.drawFilledRect(Vector2i(0, 0), mBackPlain.size,
                         props.back);
                     tmp.endDraw();
+                    avoid_alpha(mBackPlain.sdlsurface, props.back.a);
                 }
                 canvas.draw(mBackPlain, pos, Vector2i(0, 0), size);
             }
@@ -307,18 +308,34 @@ public class SDLFont : Font {
                 }
             }
             SDL_UnlockSurface(surface);
+            avoid_alpha(surface, props.fore.a);
         }
         if (surface == null) {
             throw new Exception(format("could not render char %s", c));
         }
         return new SDLSurface(surface);
     }
+    
+    //avoid alpha if unnecessary, sometimes it's slow
+    private void avoid_alpha(SDL_Surface* surface, float alpha) {
+        //DMD 0.163: "Internal error: ../ztc/cg87.c 1327" when no indirection
+        //through e
+        float e = Color.epsilon;
+        if (math.fabs(alpha - 1.0f) < e) {
+        //    SDL_SetAlpha(surface, 0, 0);
+        }
+    }
 }
 
 public class FrameworkSDL : Framework {
-    SDL_Surface* mScreen;
-    SDLSurface mScreenSurface;
-    Keycode mSdlToKeycode[int];
+    private SDL_Surface* mScreen;
+    private SDLSurface mScreenSurface;
+    private Keycode mSdlToKeycode[int];
+    private uint mFPSLastTime;
+    private uint mFPSFrameCount;
+    private float mFPSLastValue;
+    
+    private final uint cFPSTimeSpan = 1000; //how often to recalc FPS (in ms)
 
     this() {
         if (gFrameworkSDL !is null) {
@@ -449,6 +466,15 @@ public class FrameworkSDL : Framework {
 
     public void run() {
         while(!shouldTerminate) {
+            // recalc FPS value
+            uint curtime = SDL_GetTicks(); //always in ms
+            if (curtime >= mFPSLastTime + cFPSTimeSpan) {
+                mFPSLastValue = (cast(float)mFPSFrameCount
+                    / (curtime - mFPSLastTime)) * 1000.0f;
+                mFPSLastTime = curtime;
+                mFPSFrameCount = 0;
+            }
+            
             // process events
             input();
 
@@ -460,7 +486,13 @@ public class FrameworkSDL : Framework {
 
             // yield the rest of the timeslice
             SDL_Delay(0);
+            
+            mFPSFrameCount++;
         }
+    }
+    
+    public float FPS() {
+        return mFPSLastValue;
     }
 
     private KeyInfo keyInfosFromSDL(in SDL_KeyboardEvent sdl) {

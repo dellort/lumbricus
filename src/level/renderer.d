@@ -244,6 +244,23 @@ package class LevelRenderer {
         }
     }
     
+    debug {
+        public void drawDebugLine(Vector2f from, Vector2f to) {
+            Vector2f d = to-from;
+            Vector2f old = from;
+            int n = cast(int)(math.fmax(math.fabs(d.x), math.fabs(d.y)));
+            d = d / cast(float)n;
+            for (int i = 0; i < n; i++) {
+                int px = cast(int)(from.x+0.5f);
+                int py = cast(int)(from.y+0.5f);
+                if (px >= 0 && px < mWidth && py >= 0 && py < mHeight) {
+                    mImageData[py*mWidth+px] = 0xffff0000;
+                }
+                from = from + d;
+            }
+        }
+    }
+    
     public this(uint width, uint height, Color transparency) {
         mWidth = width;
         mHeight = height;
@@ -433,7 +450,7 @@ private void rasterizePolygon(uint width, uint height, Vector2f[] points,
         edge.ymax = myround(b.y);
         
         //throw away horizontal segments or if not visible
-        if (edge.ymax == ymin || edge.ymax < 0 || ymin >= height) {
+        if (edge.ymax == ymin || edge.ymax < 0 || ymin >= cast(int)height) {
             return;
         }
         
@@ -441,7 +458,7 @@ private void rasterizePolygon(uint width, uint height, Vector2f[] points,
         edge.m1 = cast(double)d.x / d.y; //x increment for each y increment
         
         if (ymin < 0) {
-            //clipping, xxx: untested
+            //clipping, xxx: seems to work, but untested
             a.x = a.x += edge.m1*(-ymin);
             a.y = 0;
             ymin = 0;

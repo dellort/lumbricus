@@ -56,13 +56,16 @@ public class List(T) {
     
     //dirty C-like tricks to get T from a list node and reverse
     private T node_to_object(ListNodeT* node) {
+        assert(node !is null);
         return cast(T)(cast(void*)node - object_node_offset);
     }
     private ListNodeT* object_to_node(T obj) {
+        assert(obj !is null); //don't pass nulls to the List functions
         return cast(ListNodeT*)(cast(void*)obj + object_node_offset);
     }
     
     private void assert_own_node(ListNodeT* node) {
+        assert(node !is null);
         assert(node.owner is this);
     }
     
@@ -323,6 +326,18 @@ public class List(T) {
             last.next_node = head_tail;
             head_tail.prev_node = last;
         }
+    }
+    
+    //justification: useful for debugging
+    public uint indexOf(T object) {
+        uint i = 0;
+        T cur = head;
+        while (cur !is object) {
+            assert(cur !is null); //object not in list?
+            cur = next(cur);
+            i++;
+        }
+        return i;
     }
     
     //not a real D class invariant because it would be too slow (even in debug

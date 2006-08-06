@@ -169,8 +169,6 @@ public class LevelGenerator {
             auto visible = polygon.getBoolValue("visible", true);
             auto changeable = polygon.getBoolValue("changeable", true);
             
-            readParams(polygon, gen);
-            
             gen.addPolygon(points, nosubdiv, tex, marker, changeable, visible);
         }
         
@@ -210,6 +208,10 @@ public class LevelGenerator {
                 renderer.drawBorder(marker_a, marker_b, true, tex);
             if (do_down)
                 renderer.drawBorder(marker_a, marker_b, false, tex);
+        }
+        
+        debug {
+            gen.dumpDebuggingStuff(renderer);
         }
         
         return renderer.render();

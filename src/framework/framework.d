@@ -90,7 +90,7 @@ public class Canvas {
 struct FontProperties {
     int size = 14;
     Color back = {0.0f,0.0f,0.0f,1.0f};
-    Color fore = {1.0f,0.0f,0.0f,1.0f};
+    Color fore = {1.0f,1.0f,1.0f,1.0f};
 }
 
 public class Font {
@@ -164,6 +164,9 @@ public class Framework {
     public void terminate() {
         shouldTerminate = true;
     }
+    
+    /// return number of invocations of onFrame pro second
+    public abstract float FPS();
 
     /// translate a Keycode to a OS independent key ID string
     /// return null for Keycode.KEY_INVALID

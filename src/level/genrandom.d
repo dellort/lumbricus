@@ -11,10 +11,13 @@ import rand = std.random;
 
 debug import std.stdio;
 
+//debugging: dump polygon outlines into the levle image
+//version = dump_polygons;
+
 alias Vector2f Point;
 
 //line segment
-class Segment {
+private class Segment {
     //one of these points is redundant
     Point a, b;
     Group group;
@@ -24,45 +27,52 @@ class Segment {
     this(Group group, Point a, Point b) {
         this.group = group; this.a = a; this.b = b;
     }
-
-    //returns a point on this line, r interpolates between a and b
-    Point pointOfLine(float r) {
-        return a+(b-a)*r;
-    }
 }
 
-alias List!(Segment) SegmentList;
+private alias List!(Segment) SegmentList;
 
-struct SegmentRange {
+//range define by [start, last]
+//a range is empty when start and last are null
+//the list where start and last are contained is treated as ring list, so
+//last might be unreachable by using next(), and ring_next() must be used
+private struct SegmentRange {
     Segment start = null;
-    Segment end = null;
+    Segment last = null;
+    Group group = null;
 
     bool isEmpty() {
         return (start is null);
     }
-    Group group() {
-        if (start !is null)
-            return start.group;
-        return null;
-    }
-    static SegmentRange opCall(Segment start, Segment end) {
+    static SegmentRange opCall(Group g, Segment start, Segment last) {
         SegmentRange r;
-        Group g = null;
-        //do some ugly stuff to "normalize" the range (sigh)
-        r.start = start; r.end = end;
-        //either both are null, or both are non-null
-        //mixing not allowed
-        assert((start is null) == (end is null));
+        r.start = start; r.last = last; r.group = g;
+        //either both are null, or both are non-null, mixing is not allowed
+        assert((start is null) == (last is null));
+        if (start !is null) {
+            assert(g is start.group && g is last.group);
+        }
         return r;
     }
-    static SegmentRange opCall() {
+    static SegmentRange opCall(Group g) {
         SegmentRange r;
+        r.group = g;
         return r;
+    }
+    //return the intersection of all items in to_group to this range
+    SegmentRange complement(Group to_group) {
+        if (group !is to_group || isEmpty())
+            return to_group.fullRange;
+        auto b = to_group.segments.ring_prev(start);
+        auto a = to_group.segments.ring_next(last);
+        //does the range cover the whole list
+        if (a is start)
+            return SegmentRange(to_group);
+        return SegmentRange(to_group, a, b);
     }
 }
 
 //a Group is a single polygon
-class Group {
+private final class Group {
     SegmentList segments;
     mixin ListNodeMixin node;
     Lexel meaning;
@@ -97,10 +107,10 @@ class Group {
             return null;
         
         Point last = pts[0];
-        uint index = 0;
+        uint index = 1;
         foreach(Point pt; pts[1..$]) {
             Segment s = new Segment(this, last, pt);
-            s.changeable = isChangeable(index);
+            s.changeable = isChangeable(index-1);
             segments.insert_tail(s);
             index++;
             last = pt;
@@ -119,6 +129,10 @@ class Group {
         return true;
     }
     
+    SegmentRange fullRange() {
+        return SegmentRange(this, segments.head, segments.tail);
+    }
+    
     //filter out points, that could make later subdivision (by renderer.d) less
     //effective, and fortunately this also filters out other artifact-like fuzz
     void filter(float dist) {
@@ -133,6 +147,7 @@ class Group {
             float d = np.distance_from(p, onp-p);
             if (d < dist && next.changeable) {
                 segments.remove(next);
+                cur.b = onp;
                 if (segments.isEmpty) //oops, shouldn't really happen
                     return;
                 goto cont;
@@ -142,10 +157,10 @@ class Group {
         } while (cur !is segments.head);
     }
 
-    //remove all Segments _between_ start and end, and insert new segments
+    //remove all Segments _within_ the given range, and insert new segments
     //according to points
     //the new outline created is as follows:
-    //  start.a - points[0] - ... - points[$-1] - end.b
+    //  start.a - points[0] - ... - points[$-1] - last.b
     //i.e. start.b is modified to be start[0]...
     void splicify(SegmentRange range, Point[] points) {
         if (range.isEmpty) {
@@ -153,12 +168,14 @@ class Group {
         }
         
         Segment start = range.start;
-        Segment end = range.end;
+        Segment last = range.last;
         
-        //remove segments between start and end
+        assert(range.group is this);
+        
+        //remove segments after start and before last
         for (;;) {
             Segment cur = segments.ring_next(start);
-            if (cur is end)
+            if (start is last || cur is last)
                 break;
             //debug writefln("remove %s %s", cur.a.toString, cur.b.toString);
             segments.remove(cur);
@@ -166,10 +183,14 @@ class Group {
 
         if (points.length < 1)
             return;
-
+        
+        if (start is last) {
+            Segment s = new Segment(this, last.a, last.b);
+            segments.insert_before(s, start);
+            start = s;
+        }
+        
         start.b = points[0];
-        if (points.length < 1)
-            return;
 
         Segment cur = start;
         foreach(Point p; points[1..$]) {
@@ -177,18 +198,20 @@ class Group {
             segments.insert_after(s, cur);
             cur = s;
         }
+        
         //trailing
-        Segment n = new Segment(this, points[$-1], end.a);
-        segments.insert_after(n, cur);
+        last.a = points[$-1];
     }
 
-    //check if any of the polygon intersects with the group
-    //the array polygon is assumed to be closed (i.e. polygon[0]==polygon[$-1])
-    //nocheck_start/_end can specify the starting and ending Segment which
-    //should not be checked (this is an open range)
-    //for convenience, these segments can be from foreign groups (=> NOP)
-    bool checkCollide(Point[] polygon, SegmentRange nocheck) {
+    //check if any of the polygon intersects with the given segment range
+    //the given polygon is assumed to be closed (i.e. polygon[0]==polygon[$-1])
+    bool checkCollide(Point[] polygon, SegmentRange check) {
         if (polygon.length < 1)
+            return false;
+        
+        assert(check.group is this);
+        
+        if (check.isEmpty)
             return false;
 
         bool checkCollide(Segment s, Point a, Point b) {
@@ -199,20 +222,17 @@ class Group {
 
 
         Point last = polygon[0];
+        
         //xxx: unfortunate runtime complexity: O(|polygons|*|group polygons|)
         foreach(Point cur; polygon[1..$]) {
             bool current_nocheck = false;
-            foreach(Segment s; segments) {
-                if (s is nocheck.start) {
-                    current_nocheck = true;
-                }
-                if (s is nocheck.end) {
-                    current_nocheck = false;
-                }
-                if (!current_nocheck) {
-                    if (checkCollide(s, last, cur))
-                        return true;
-                }
+            Segment segment = check.start;
+            for (;;) {
+                if (checkCollide(segment, last, cur))
+                    return true;
+                if (segment is check.last)
+                    break;
+                segment = segments.ring_next(segment);
             }
             last = cur;
         }
@@ -220,7 +240,7 @@ class Group {
     }
 }
 
-alias List!(Group) GroupList;
+private alias List!(Group) GroupList;
 
 //This creates a random level image; the goal was to have levels looking
 //similar to the auto generated levels from Worms(tm).
@@ -228,7 +248,7 @@ alias List!(Group) GroupList;
 //data...
 //Note that the algorithm needs "template" shapes to work with, see xxx.
 public class GenRandomLevel {
-    GroupList mGroups;
+    private GroupList mGroups;
 
     private uint mWidth, mHeight;
 
@@ -245,6 +265,7 @@ public class GenRandomLevel {
     float config_len_ratio_remove = 1.0f;
     float config_remove_or_add = 0.5f; //0: only remove, 1: only add
 
+    //[0.0f, 1.0f]
     float random() {
         //xxx don't know RAND_MAX, this is numerically stupid anyway
         return cast(float)(rand.rand()) / typeof(rand.rand()).max;
@@ -255,6 +276,7 @@ public class GenRandomLevel {
         return (random()-0.5f)*2.0f;
     }
 
+    //[from, to)
     int random(int from, int to) {
         return rand.rand() % (to-from) + from;
     }
@@ -271,112 +293,124 @@ public class GenRandomLevel {
             Segment s = group.segments.head;
             assert(s !is null);
             while (s !is null) {
-                Segment n = group.segments.ring_next(s);
                 float d = (s.b-s.a).length;
-                auto r = SegmentRange(s, n);
-                assert(s !is null);
+                auto r = SegmentRange(group, s, s);
                 assert(!r.isEmpty);
                 if (s.changeable) {
                     doWormsify(r, 0.1f, 0.9f, random2()*2*PI/2+0.4,
-                        random2()*0.5f+PI, d*0.2f, d*2.5f, 2.0f);
+                        random2()*0.5f+PI, d*0.2f, d*2.5f, 2.0f,
+                        config_pix_epsilon);
                 }
-                s = n;
-                if (s is group.segments.head)
-                    break;
+                s = group.segments.next(s);
             }
         }
     }
 
-    void fuzzyRandomWormsify(Group group) {
+    void fuzzyRandomWormsify(Group group, uint depth) {
         if (!group.segments.hasAtLeast(2))
             return;
-        for (uint depth = 0; depth < config_subdivision_steps; depth++) {
-            //first, find longest edge and edge count
-            Segment s = group.segments.head;
-            float longest = 0;
-            uint count = 0;
-            while (s !is null) {
-                float d = (s.b-s.a).length;
-                longest = d > longest ? d : longest;
-                count++;
-                s = group.segments.next(s);
+        //first, find longest edge and edge count
+        Segment s = group.segments.head;
+        float longest = 0;
+        uint count = 0;
+        while (s !is null) {
+            float d = (s.b-s.a).length;
+            longest = d > longest ? d : longest;
+            count++;
+            s = group.segments.next(s);
+        }
+        
+        //random offset into the list (not so important, but try not to treat
+        //the segments at the start and end of the list different)
+        uint something = random(0, count);
+        Segment cur = group.segments.head;
+        while (something > 0) {
+            cur = group.segments.ring_next(cur);
+            something--;
+        }
+        
+        //step through each edge
+        Segment start = cur;
+        float summed_d = 0;
+        uint cur_len = 0;
+        uint iterations = 0;
+        while (iterations < count) {
+            Segment next = group.segments.ring_next(cur);
+            float cur_d = (cur.b-cur.a).length;
+            summed_d += cur_d;
+            float prob = summed_d/longest;
+            cur_len++;
+            
+            //I use some "heuristics" to create a nice-looking random level
+            //but note that if doWormsify always produces good-looking
+            //output, so the following code doesn't necessarly make _any_
+            //sense!
+            
+            bool reset = false;
+            bool dosubdiv = cur.changeable;
+            //the longer, the higher the probability to subdivide
+            dosubdiv &= prob >= random()*0.5f;
+            //condition above could always be true, so fuzzify it a bit
+            dosubdiv &= random() > 0.2f;
+            //don't be too aggressive with replacing ranges
+            dosubdiv &= cur_len-1 <= config_removal_aggresiveness * depth;
+            //also, respect pixel size
+            dosubdiv &= summed_d >= config_min_subdiv_length;
+            
+            if (dosubdiv) {
+                //muh
+                auto r = SegmentRange(group, start, cur);
+                
+                float ratio_front_len, ratio_len, rotsign;
+                if (config_remove_or_add > random()) {
+                    //add
+                    rotsign = 1;
+                    ratio_front_len = config_front_len_ratio_add;
+                    ratio_len = config_len_ratio_add;
+                } else {
+                    //remove
+                    rotsign = -1;
+                    ratio_front_len = config_front_len_ratio_remove;
+                    ratio_len = config_len_ratio_remove;
+                }
+                
+                doWormsify(r, 0.1f, 0.9f, rotsign*random()*PI/2,
+                    PI + random2()*0.4f, cur_d*ratio_front_len,
+                    cur_d*ratio_len, 2.0f, config_pix_epsilon);
+                
+                reset = true;
             }
             
-            //step through each edge
-            Segment cur = group.segments.head;
-            Segment start = cur;
-            float summed_d = 0;
-            uint cur_len = 0;
-            while (cur !is null) {
-                Segment next = group.segments.next(cur);
-                float cur_d = (cur.b-cur.a).length;
-                summed_d += cur_d;
-                float prob = summed_d/longest;
-                cur_len++;
-                
-                //I use some "heuristics" to create a nice-looking random level
-                //but note that if doWormsify always produces good-looking
-                //output, so the following code doesn't necessarly make _any_
-                //sense!
-                
-                bool reset = false;
-                bool dosubdiv = cur.changeable;
-                //the longer, the higher the probability to subdivide
-                dosubdiv &= prob >= random()*0.5f;
-                //condition above could always be true, so fuzzify it a bit
-                dosubdiv &= random() > 0.2f;
-                //don't be too aggressive with replacing ranges
-                dosubdiv &= cur_len-1 <= config_removal_aggresiveness * depth;
-                //also, respect pixel size
-                dosubdiv &= summed_d >= config_min_subdiv_length;
-                
-                if (dosubdiv) {
-                    //muh
-                    auto r = SegmentRange(start,
-                        group.segments.ring_next(cur));
-                    
-                    float ratio_front_len, ratio_len, rotsign;
-                    if (config_remove_or_add > random()) {
-                        //add
-                        rotsign = 1;
-                        ratio_front_len = config_front_len_ratio_add;
-                        ratio_len = config_len_ratio_add;
-                    } else {
-                        //remove
-                        rotsign = -1;
-                        ratio_front_len = config_front_len_ratio_remove;
-                        ratio_len = config_len_ratio_remove;
-                    }
-                    
-                    doWormsify(r, 0.1f, 0.9f, rotsign*random()*PI/2,
-                        PI + random2()*0.4f, cur_d*ratio_front_len,
-                        cur_d*ratio_len, 2.0f);
-                    
-                    reset = true;
-                }
-                
-                if (!cur.changeable)
-                    reset = true;
-                reset |= (random() > 0.3f);
-                reset |= cur_len-1 > depth;
-                
-                if (reset) {
-                    start = next;
-                    summed_d = 0;
-                    cur_len = 0;
-                }
-                
-                cur = next;
+            if (!cur.changeable)
+                reset = true;
+            reset |= (random() > 0.3f);
+            reset |= cur_len-1 > depth;
+            
+            if (reset) {
+                start = next;
+                summed_d = 0;
+                cur_len = 0;
             }
+            
+            iterations++;
+            cur = next;
         }
     }
 
     void wormsifyAll() {
+        for (uint depth = 0; depth < config_subdivision_steps; depth++) {
+            foreach(Group group; mGroups) {
+                if (!group.changeable)
+                    continue;
+                //naiveRandomWormsify(group);
+                fuzzyRandomWormsify(group, depth);
+            }
+        }
+        
+        //run filter separately to fix all the stupid things I did in wormsify
         foreach(Group group; mGroups) {
             if (!group.changeable)
                 continue;
-            //naiveRandomWormsify(group);
-            fuzzyRandomWormsify(group);
             group.filter(config_pix_filter);
         }
     }
@@ -455,10 +489,35 @@ public class GenRandomLevel {
 
     public void generate(LevelRenderer renderer) {
         wormsifyAll();
+        /*Group h = mGroups.head;
+        Group b = mGroups.next(h);
+        mGroups.clear();
+        mGroups.insert_tail(h);
+        mGroups.insert_tail(b);
+        Point[4] test;
+        test[3] = Vector2f(100, 200);
+        test[0] = Vector2f(50, 100);
+        test[1] = Vector2f(700, 200);
+        test[2] = Vector2f(400, 500);
+        addPolygon(test, null, null, Lexel.FREE);
+        h = mGroups.tail;
+        auto s = SegmentRange(h, h.segments.tail, h.segments.ring_next(h.segments.tail));
+        doWormsify(s, 0.1, 0.9, PI/2, PI, 50, 800, 10);*/
         foreach(Group group; mGroups) {
             if (group.meaning == Lexel.INVALID)
                 continue;
             render_points(renderer, group);
+        }
+    }
+    
+    debug public void dumpDebuggingStuff(LevelRenderer renderer) {
+        //dump polygon outlines
+        version (dump_polygons) {
+            foreach(Group group; mGroups) {
+                foreach(Segment segment; group.segments) {
+                    renderer.drawDebugLine(segment.a, segment.b);
+                }
+            }
         }
     }
 
@@ -466,7 +525,10 @@ public class GenRandomLevel {
     //the polygon array is assumed to be closed (cf. Group.checkCollide)
     bool globPolygonCollide(Point[] points, SegmentRange exclude) {
         foreach(Group group; mGroups) {
-            if (group.checkCollide(points, exclude))
+            if (!exclude.group.needIntersect(group))
+                continue;
+            SegmentRange check = exclude.complement(group);
+            if (group.checkCollide(points, check))
                 return true;
         }
         return false;
@@ -488,7 +550,7 @@ public class GenRandomLevel {
         float sdiv = 1.0f;
         float lenepsilon = config_pix_epsilon / dir.length();
 
-        if (lenepsilon != lenepsilon)
+        if (lenepsilon != lenepsilon || lenepsilon <= float.epsilon)
             return float.nan;
 
         Point base = b1 + (b2 - b1)*0.5f;
@@ -534,20 +596,25 @@ public class GenRandomLevel {
     //returns false if failed (shape's length out of range)
     //if not failed, at_start and at_end is set to the segment rang...
     bool doWormsify(inout SegmentRange at, float from_ratio, float to_ratio,
-        float dir, float fdir, float frontlen, float maxlen, float minlen)
+        float dir, float fdir, float frontlen, float maxlen, float minlen,
+        float min_baselen)
     {
         Point[4] shape;
         Point[2+3] tmp; //nasty temporary for probe_shapozoid, see there
 
         if (at.isEmpty())
             return false;
-
-        Segment before = at.group.segments.ring_prev(at.end);
-
-        Point na = at.start.pointOfLine(from_ratio);
-        Point nb = before.pointOfLine(to_ratio);
+        
+        Point a = at.start.a;
+        Point b = at.last.b;
+        
+        Point na = a + (b-a) * from_ratio;
+        Point nb = a + (b-a) * to_ratio;
         Point base = nb-na;
         float baselen = base.length();
+        
+        if (baselen < min_baselen)
+            return false;
 
         Point newdir = base.rotated(dir);
         newdir.length = maxlen;
