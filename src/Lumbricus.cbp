@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <CodeBlocks_project_file>
-	<FileVersion major="1" minor="4" />
+	<FileVersion major="1" minor="5" />
 	<Project>
 		<Option title="Lumbricus" />
+		<Option default_target="" />
 		<Option compiler="dmd" />
+		<Option virtualFolders="" />
 		<Build>
 			<Target title="Debug">
-				<Option output="..\bin\Lumbricus.exe" />
+				<Option output="..\bin\Lumbricus.exe" prefix_auto="0" extension_auto="0" />
 				<Option working_dir="..\bin" />
 				<Option object_output="..\bin\obj\" />
 				<Option type="1" />
@@ -18,7 +20,7 @@
 				</Compiler>
 			</Target>
 			<Target title="Release">
-				<Option output="..\bin\Lumbricus.exe" />
+				<Option output="..\bin\Lumbricus.exe" prefix_auto="0" extension_auto="0" />
 				<Option working_dir="..\bin" />
 				<Option object_output="..\bin\obj\" />
 				<Option type="1" />
@@ -36,26 +38,6 @@
 			<Add library="DerelictSDLttf" />
 			<Add library="DerelictPhysFs" />
 		</Linker>
-		<Unit filename="..\dmd\src\phobos\cairo\cairo.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="..\dmd\src\phobos\cairo\cairofuncs.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="..\dmd\src\phobos\cairo\cairotypes.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="..\dmd\src\phobos\cairo\loader.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
 		<Unit filename="Makefile.am">
 			<Option compilerVar="CPP" />
 			<Option compile="0" />
@@ -98,17 +80,12 @@
 			<Option target="Debug" />
 			<Option target="Release" />
 		</Unit>
+		<Unit filename="level\genrandom.d">
+			<Option compilerVar="CPP" />
+			<Option target="Debug" />
+			<Option target="Release" />
+		</Unit>
 		<Unit filename="level\level.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="level\placeobjects.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="level\random.d">
 			<Option compilerVar="CPP" />
 			<Option target="Debug" />
 			<Option target="Release" />
@@ -133,7 +110,7 @@
 			<Option target="Debug" />
 			<Option target="Release" />
 		</Unit>
-		<Unit filename="utils\mylist2.d">
+		<Unit filename="utils\mylist.d">
 			<Option compilerVar="CPP" />
 			<Option target="Debug" />
 			<Option target="Release" />
