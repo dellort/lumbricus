@@ -4,6 +4,8 @@ import std.stream;
 public import utils.vector2;
 import framework.keysyms;
 
+debug import std.stdio;
+
 private static Framework gFramework;
 
 public Framework getFramework() {
@@ -14,12 +16,12 @@ public struct Color {
     //values between 0.0 and 1.0, 1.0 means full intensity
     //(a is the alpha value; 1.0 means fully opaque)
     float r, g, b, a;
-    
+
     /// a value that can be used as epsilon when comparing colors
     //0.3f is a fuzzify value, with 255 I expect colors to be encoded with at
     //most 8 bits
     public static const float epsilon = 0.3f * 1.0f/255;
-    
+
     /// clamp all components to the range [0.0, 1.0]
     public void clamp() {
         if (r < 0.0f) r = 0.0f;
@@ -31,7 +33,7 @@ public struct Color {
         if (a < 0.0f) a = 0.0f;
         if (a > 1.0f) a = 1.0f;
     }
-    
+
     public static Color opCall(float r, float g, float b, float a) {
         Color res;
         res.r = r;
@@ -58,14 +60,52 @@ public class Surface {
     //(OpenGL would translate these calls to glNewList() and glEndList()
     public abstract Canvas startDraw();
     public abstract void endDraw();
-    
+
     /// convert the image data to raw pixel data, using the given format
     public abstract bool convertToData(PixelFormat format, out uint pitch,
         out void* data);
-    
+
     /// set colorkey, all pixels with that color will be transparent
     //I'm not sure how this would work with OpenGL...
     public abstract void colorkey(Color colorkey);
+
+    /// convert the texture to a transparency mask
+    /// one pixel per byte; the pitch is the width (pixel = arr[y*w+x])
+    /// transparent pixels are converted to 0, solid ones to 255
+    //xxx: handling of alpha values unclear
+    public byte[] convertToMask() {
+        //copied from level/renderer.d
+        //this is NOT nice, but sucks infinitely
+
+        PixelFormat fmt;
+        //xxx this isn't good and nice; needs rework anyway
+        fmt.depth = 32; //SDL doesn't like depth=24 (maybe it takes 3 bytes pp)
+        fmt.bytes = 4;
+        fmt.mask_r = 0xff0000;
+        fmt.mask_g = 0x00ff00;
+        fmt.mask_b = 0x0000ff;
+        fmt.mask_a = 0xff000000;
+
+        uint tex_pitch;
+        void* tex_data;
+        convertToData(fmt, tex_pitch, tex_data);
+        uint tex_w = size.x;
+        uint tex_h = size.y;
+        uint* texptr = cast(uint*)tex_data;
+
+        byte[] res = new byte[tex_w*tex_h];
+
+        for (uint y = 0; y < tex_h; y++) {
+            for (uint x = 0; x < tex_w; x++) {
+                uint val = (cast(uint*)(cast(byte*)(texptr)+y*tex_pitch))[x];
+                res[y*tex_w+x] =
+                    cast(byte)((val & fmt.mask_a) ? 255 : 0);
+            }
+        }
+
+        //dozens of garbage collected megabytes later...
+        return res;
+    }
 }
 
 public class Canvas {
@@ -123,6 +163,10 @@ public class Framework {
     private bool mCapsLock, mNumLock;
     private Vector2i mMousePos;
 
+    public Vector2i mousePos() {
+        return mMousePos;
+    }
+
     public this() {
         mKeyStateMap = new bool[Keycode.max-Keycode.min+1];
         if (gFramework !is null) {
@@ -141,12 +185,12 @@ public class Framework {
     public Surface loadImage(char[] fileName) {
         return loadImage(new File(fileName,FileMode.In));
     }
-    
+
     /// create an image based on the given data and on the pixelformat
     /// data can be null, in this case, the function allocates (GCed) memory
     public abstract Surface createImage(uint width, uint height, uint pitch,
         PixelFormat format, void* data);
-    
+
     /// create a surface in the current display format
     public abstract Surface createSurface(uint width, uint height);
 
@@ -164,7 +208,7 @@ public class Framework {
     public void terminate() {
         shouldTerminate = true;
     }
-    
+
     /// return number of invocations of onFrame pro second
     public abstract float FPS();
 
@@ -237,7 +281,7 @@ public class Framework {
             onKeyUp(infos);
         }
     }
-    
+
     //returns true if key is a mouse button
     public static bool keyIsMouseButton(Keycode key) {
         return key >= cKeycodeMouseStart && key <= cKeycodeMouseEnd;

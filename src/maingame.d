@@ -11,6 +11,8 @@ import level.generator;
 import filesystem;
 import gc = std.gc;
 import perf = std.perf;
+import level.level;
+import level.placeobjects;
 
 class MainGame {
     Framework mFramework;
@@ -18,13 +20,17 @@ class MainGame {
     FileSystem mFileSystem;
     Font font;
     Vector2i offset;
-    uint mLevelWidth = 750, mLevelHeight = 550;
+    uint mLevelWidth = 1920, mLevelHeight = 696;
     LevelGenerator generator;
+    Level mLevel;
+    Vector2i foo1, foo2;
+    PlaceObjects placer;
+    uint fg;
 
     this(char[][] args) {
         mFileSystem = new FileSystem(args[0]);
         mFramework = new FrameworkSDL();
-        mFramework.setVideoMode(800,600,0,false);
+        mFramework.setVideoMode(1024,768,0,false);
     }
 
     public void run() {
@@ -91,16 +97,21 @@ class MainGame {
         scrCanvas.draw(img,Vector2i(0,0));
         font.drawText(scrCanvas, Vector2i(50, 50), "halllloxyzäöüß.");
         scrCanvas.draw(imglevel, offset);
+        if (placer && placer.objectImage) {
+            scrCanvas.draw(placer.objectImage, mFramework.mousePos-placer.objectImage.size/2);
+            scrCanvas.drawLine(foo1, foo2, Color(255, 0, 0));
+            font.drawText(scrCanvas, Vector2i(0, 0), format("fo: %d", fg));
+        }
         //mFramework.screen.draw(img.surface,Vector2i(75,75));
         //FPS
         font.drawText(scrCanvas, Vector2i(mFramework.screen.size.x-300, 20),
             format("FPS: %1.2f", mFramework.FPS));
         scrCanvas.endDraw();
     }
-    
+
     void generate_level() {
-        imglevel = generator.generateRandom(mLevelWidth, mLevelHeight,
-            "").image;
+        mLevel = generator.generateRandom(mLevelWidth, mLevelHeight, "");
+        imglevel = mLevel.image;
     }
 
     void keyDown(KeyInfo infos) {
@@ -133,10 +144,27 @@ class MainGame {
 	}
     }
 
+
     void mouseMove(MouseInfo infos) {
         //writef("onMouseMove: (%s, %s)", infos.pos.x, infos.pos.y);
         //writefln(" rel: (%s, %s)", infos.rel.x, infos.rel.y);
         //offset = -infos.pos*4+Vector2i(300,300);
+        if (placer is null) {
+            placer = new PlaceObjects(mLevel);
+            Stream foo = mFileSystem.openData("test.tif");
+            auto imgbla = mFramework.loadImage(foo);
+            foo.close();
+            placer.loadObject(imgbla, PlaceObjects.Side.North, 10);
+        }
+        Vector2i dir;
+        uint cols;
+        placer.checkCollide(infos.pos, dir, cols);
+        foo1 = infos.pos;
+        Vector2f fdir = Vector2f(dir.x, dir.y);
+        fdir = fdir.normal()*50;
+        dir = Vector2i(cast(int)fdir.x, cast(int)fdir.y);
+        foo2 = infos.pos+dir;
+        fg = cols;
     }
 }
 

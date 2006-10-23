@@ -38,13 +38,6 @@
 			<Add library="DerelictSDLttf" />
 			<Add library="DerelictPhysFs" />
 		</Linker>
-		<Unit filename="Makefile.am">
-			<Option compilerVar="CPP" />
-			<Option compile="0" />
-			<Option link="0" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
 		<Unit filename="fileSystem.d">
 			<Option compilerVar="CPP" />
 			<Option target="Debug" />
@@ -86,6 +79,11 @@
 			<Option target="Release" />
 		</Unit>
 		<Unit filename="level\level.d">
+			<Option compilerVar="CPP" />
+			<Option target="Debug" />
+			<Option target="Release" />
+		</Unit>
+		<Unit filename="level\placeobjects.d">
 			<Option compilerVar="CPP" />
 			<Option target="Debug" />
 			<Option target="Release" />

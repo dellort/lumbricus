@@ -44,12 +44,12 @@ public class SDLSurface : Surface {
     public Vector2i size() {
         return Vector2i(sdlsurface.w,sdlsurface.h);
     }
-    
+
     public bool convertToData(PixelFormat format, out uint pitch,
         out void* data)
     {
         assert(sdlsurface !is null);
-        
+
         //xxx: as an optimization, avoid double-copying (that is, calling the
         //  SDL_ConvertSurface() function, if the format is already equal to
         //  the requested one)
@@ -64,25 +64,25 @@ public class SDLSurface : Surface {
         //xxx: what about fmt.colorkey and fmt.alpha? (can it be ignored here?)
         //should use of the palette be enabled?
         fmt.palette = null;
-        
+
         SDL_Surface* s = SDL_ConvertSurface(sdlsurface, &fmt, SDL_SWSURFACE);
         if (s is null)
             return false;
-        
+
         pitch = s.pitch;
-        
+
         void[] alloc;
         alloc.length = pitch*size.y;
         SDL_LockSurface(s);
         alloc[] = s.pixels[0 .. alloc.length]; //copy
         data = alloc.ptr;
         SDL_UnlockSurface(s);
-        
+
         SDL_FreeSurface(s);
-        
+
         return true;
     }
-    
+
     public void colorkey(Color colorkey) {
         uint key = colorToSDLColor(colorkey);
         SDL_SetColorKey(sdlsurface, SDL_SRCCOLORKEY, key);
@@ -118,6 +118,7 @@ public class SDLSurface : Surface {
         SDL_Surface* surf = IMG_Load_RW(ops, 0);
         if (surf !is null) {
             mImageSource = surf;
+            surf.flags |= SDL_SRCALPHA;
             doConvert();
         } else {
             throw new Exception("image couldn't be loaded");
@@ -131,17 +132,17 @@ public class SDLSurface : Surface {
         if (mImageSource !is null) {
             conv_from = mImageSource;
         }
-        //xxx or SDL_DisplayFormatAlpha???
-        sdlsurface = SDL_DisplayFormat(conv_from);
+        //xxx or SDL_DisplayFormat???
+        sdlsurface = SDL_DisplayFormatAlpha(conv_from);
         SDL_FreeSurface(old);
     }
-    
+
     uint colorToSDLColor(Color color) {
         return SDL_MapRGBA(sdlsurface.format,cast(ubyte)(255*color.r),
             cast(ubyte)(255*color.g),cast(ubyte)(255*color.b),
             cast(ubyte)(255*color.a));
     }
-    
+
     //to avoid memory leaks
     //xxx: either must be automatically managed (finalizer) or be in superclass
     void free() {
@@ -189,7 +190,22 @@ public class SDLCanvas : Canvas {
     {
     }
 
-    public void drawLine(Vector2i p1, Vector2i p2, Color color) {
+    public void drawLine(Vector2i from, Vector2i to, Color color) {
+        Vector2f d = Vector2f((to-from).x,(to-from).y);
+        Vector2f old = Vector2f(from.x, from.y);
+        int n = cast(int)(math.fmax(math.fabs(d.x), math.fabs(d.y)));
+        d = d / cast(float)n;
+        for (int i = 0; i < n; i++) {
+            int px = cast(int)(old.x+0.5f);
+            int py = cast(int)(old.y+0.5f);
+            setPixel(Vector2i(px, py), color);
+            old = old + d;
+        }
+    }
+
+    public void setPixel(Vector2i p1, Color color) {
+        //xxx: ultra LAME!
+        drawFilledRect(p1, p1+Vector2i(1,1), color);
     }
 
     public void drawRect(Vector2i p1, Vector2i p2, Color color) {
@@ -236,7 +252,7 @@ public class SDLFont : Font {
         //(show me a font for which this isn't true, but still I catch that
         // special case)
         mWidest = TTF_FontHeight(font)*2;
-        
+
         //Backplain not needed if it's fully transparent
         mNeedBackPlain = (props.back.a >= Color.epsilon);
     }
@@ -254,7 +270,7 @@ public class SDLFont : Font {
             }
             SDLSurface surface = *sptr;
             Vector2i size = surface.size;
-            
+
             if (mNeedBackPlain) {
                 //recreate "backplain" if necessary
                 if (mBackPlain is null
@@ -278,7 +294,7 @@ public class SDLFont : Font {
                 }
                 canvas.draw(mBackPlain, pos, Vector2i(0, 0), size);
             }
-            
+
             canvas.draw(surface, pos);
             pos.x += surface.size.x;
         }
@@ -315,7 +331,7 @@ public class SDLFont : Font {
         }
         return new SDLSurface(surface);
     }
-    
+
     //avoid alpha if unnecessary, sometimes it's slow
     private void avoid_alpha(SDL_Surface* surface, float alpha) {
         //DMD 0.163: "Internal error: ../ztc/cg87.c 1327" when no indirection
@@ -334,7 +350,7 @@ public class FrameworkSDL : Framework {
     private uint mFPSLastTime;
     private uint mFPSFrameCount;
     private float mFPSLastValue;
-    
+
     private final uint cFPSTimeSpan = 1000; //how often to recalc FPS (in ms)
 
     this() {
@@ -427,7 +443,7 @@ public class FrameworkSDL : Framework {
         res.load(st);
         return res;
     }
-    
+
     public Surface createImage(uint width, uint height, uint pitch,
         PixelFormat format, void* data)
     {
@@ -445,7 +461,7 @@ public class FrameworkSDL : Framework {
             throw new Exception("couldn't create surface");
         return f;
     }
-    
+
     public Surface createSurface(uint width, uint height) {
         SDLSurface f = new SDLSurface();
         f.sdlsurface = SDL_CreateRGBSurface(0, width, height,
@@ -474,7 +490,7 @@ public class FrameworkSDL : Framework {
                 mFPSLastTime = curtime;
                 mFPSFrameCount = 0;
             }
-            
+
             // process events
             input();
 
@@ -486,11 +502,11 @@ public class FrameworkSDL : Framework {
 
             // yield the rest of the timeslice
             SDL_Delay(0);
-            
+
             mFPSFrameCount++;
         }
     }
-    
+
     public float FPS() {
         return mFPSLastValue;
     }
