@@ -13,6 +13,7 @@ import gc = std.gc;
 import perf = std.perf;
 import level.level;
 import level.placeobjects;
+import framework.console;
 
 class MainGame {
     Framework mFramework;
@@ -25,6 +26,7 @@ class MainGame {
     Level mLevel;
     Vector2i foo1, foo2;
     PlaceObjects placer;
+    Console cons;
     uint fg;
 
     this(char[][] args) {
@@ -47,6 +49,13 @@ class MainGame {
         fontprops.fore.b = 0;
         fontprops.fore.a = 0.6f;
         font = mFramework.loadFont(f, fontprops);
+        fontprops.size = 12;
+        fontprops.back.a = 0.0f;
+        fontprops.fore.r = 0;
+        fontprops.fore.g = 0;
+        fontprops.fore.b = 0;
+        fontprops.fore.a = 1;
+        Font consFont = mFramework.loadFont(f, fontprops);
         f.close();
         mFramework.onFrame = &frame;
         mFramework.onKeyDown = &keyDown;
@@ -62,6 +71,13 @@ class MainGame {
         f.close();
         generator.config = conf.rootnode.getSubNode("levelgen");
         generate_level();
+
+        //testing console, 50 lines of debug output
+        cons = new Console(consFont);
+        for (int i = 0; i < 50; i++) {
+            cons.print(std.utf.toUTF32("Hallo"~std.string.toString(i)));
+        }
+        cons.setCurLine("Testzeile");
 
         mFramework.run();
     }
@@ -104,8 +120,10 @@ class MainGame {
         }
         //mFramework.screen.draw(img.surface,Vector2i(75,75));
         //FPS
-        font.drawText(scrCanvas, Vector2i(mFramework.screen.size.x-300, 20),
+        font.drawText(scrCanvas, Vector2i(mFramework.screen.size.x-300, mFramework.screen.size.y - 60),
             format("FPS: %1.2f", mFramework.FPS));
+        //render console last, to make it topmost
+        cons.frame(scrCanvas);
         scrCanvas.endDraw();
     }
 
@@ -122,6 +140,15 @@ class MainGame {
             generate_level();
         }
         writefln("Key-ID: %s", mFramework.translateKeycodeToKeyID(infos.code));
+        if (infos.code == Keycode.BACKSLASH) {
+            cons.toggle();
+        }
+        if (infos.code == Keycode.PAGEUP) {
+            cons.scrollBack(1);
+        }
+        if (infos.code == Keycode.PAGEDOWN) {
+            cons.scrollBack(-1);
+        }
     }
 
     void keyUp(KeyInfo infos) {

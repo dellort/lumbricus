@@ -110,6 +110,8 @@ public class Surface {
 }
 
 public class Canvas {
+    public abstract Vector2i size();
+
     //must be called after drawing done
     public abstract void endDraw();
 
@@ -136,6 +138,8 @@ struct FontProperties {
 
 public class Font {
     public abstract void drawText(Canvas canvas, Vector2i pos, char[] text);
+
+    public abstract FontProperties properties();
 }
 
 /// Information about a key press
@@ -163,6 +167,17 @@ public class Framework {
     private bool mKeyStateMap[];
     private bool mCapsLock, mNumLock;
     private Vector2i mMousePos;
+
+    private Time mFPSLastTime;
+    private uint mFPSFrameCount;
+    private float mFPSLastValue;
+
+    private static Time cFPSTimeSpan; //how often to recalc FPS
+
+    //initialize time between FPS recalculations
+    static this() {
+        cFPSTimeSpan = timeSecs(1);
+    }
 
     public Vector2i mousePos() {
         return mMousePos;
@@ -201,7 +216,24 @@ public class Framework {
     public abstract Surface screen();
 
     /// Main-Loop
-    public abstract void run();
+    public void run() {
+        while(!shouldTerminate) {
+            // recalc FPS value
+            Time curtime = getCurrentTime();
+            if (curtime >= mFPSLastTime + cFPSTimeSpan) {
+                mFPSLastValue = (cast(float)mFPSFrameCount
+                    / (curtime - mFPSLastTime).msecs) * 1000.0f;
+                mFPSLastTime = curtime;
+                mFPSFrameCount = 0;
+            }
+
+            run_fw();
+
+            mFPSFrameCount++;
+        }
+    }
+
+    protected abstract void run_fw();
 
     /// set to true if run() should exit
     protected bool shouldTerminate;
@@ -214,7 +246,9 @@ public class Framework {
     public abstract Time getCurrentTime();
 
     /// return number of invocations of onFrame pro second
-    public abstract float FPS();
+    public float FPS() {
+        return mFPSLastValue;
+    }
 
     /// translate a Keycode to a OS independent key ID string
     /// return null for Keycode.KEY_INVALID

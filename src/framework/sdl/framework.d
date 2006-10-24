@@ -155,6 +155,10 @@ public class SDLSurface : Surface {
 public class SDLCanvas : Canvas {
     SDLSurface sdlsurface;
 
+    public Vector2i size() {
+        return sdlsurface.size();
+    }
+
     public void endDraw() {
         //nop
         sdlsurface.endDraw();
@@ -262,6 +266,10 @@ public class SDLFont : Font {
         TTF_CloseFont(font);
     }
 
+    public FontProperties properties() {
+        return props;
+    }
+
     public void drawText(Canvas canvas, Vector2i pos, char[] text) {
         foreach (dchar c; text) {
             SDLSurface* sptr = c in frags;
@@ -348,15 +356,6 @@ public class FrameworkSDL : Framework {
     private SDL_Surface* mScreen;
     private SDLSurface mScreenSurface;
     private Keycode mSdlToKeycode[int];
-    private Time mFPSLastTime;
-    private uint mFPSFrameCount;
-    private float mFPSLastValue;
-
-    private static Time cFPSTimeSpan; //how often to recalc FPS
-
-    static this() {
-        cFPSTimeSpan = timeSecs(1);
-    }
 
     this() {
         if (gFrameworkSDL !is null) {
@@ -485,35 +484,18 @@ public class FrameworkSDL : Framework {
         return mScreenSurface;
     }
 
-    public void run() {
-        while(!shouldTerminate) {
-            // recalc FPS value
-            Time curtime = getCurrentTime();
-            if (curtime >= mFPSLastTime + cFPSTimeSpan) {
-                mFPSLastValue = (cast(float)mFPSFrameCount
-                    / (curtime - mFPSLastTime).msecs) * 1000.0f;
-                mFPSLastTime = curtime;
-                mFPSFrameCount = 0;
-            }
+    protected void run_fw() {
+        // process events
+        input();
 
-            // process events
-            input();
+        // draw to the screen
+        render();
 
-            // draw to the screen
-            render();
+        //TODO: Software backbuffer
+        SDL_Flip(mScreen);
 
-            //TODO: Software backbuffer
-            SDL_Flip(mScreen);
-
-            // yield the rest of the timeslice
-            SDL_Delay(0);
-
-            mFPSFrameCount++;
-        }
-    }
-
-    public float FPS() {
-        return mFPSLastValue;
+        // yield the rest of the timeslice
+        SDL_Delay(0);
     }
 
     private KeyInfo keyInfosFromSDL(in SDL_KeyboardEvent sdl) {
