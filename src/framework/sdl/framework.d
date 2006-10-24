@@ -12,6 +12,7 @@ import derelict.sdl.image;
 import derelict.sdl.ttf;
 import framework.sdl.keys;
 import math = std.math;
+import utils.time;
 
 private static FrameworkSDL gFrameworkSDL;
 
@@ -347,11 +348,15 @@ public class FrameworkSDL : Framework {
     private SDL_Surface* mScreen;
     private SDLSurface mScreenSurface;
     private Keycode mSdlToKeycode[int];
-    private uint mFPSLastTime;
+    private Time mFPSLastTime;
     private uint mFPSFrameCount;
     private float mFPSLastValue;
 
-    private final uint cFPSTimeSpan = 1000; //how often to recalc FPS (in ms)
+    private static Time cFPSTimeSpan; //how often to recalc FPS
+
+    static this() {
+        cFPSTimeSpan = timeSecs(1);
+    }
 
     this() {
         if (gFrameworkSDL !is null) {
@@ -483,10 +488,10 @@ public class FrameworkSDL : Framework {
     public void run() {
         while(!shouldTerminate) {
             // recalc FPS value
-            uint curtime = SDL_GetTicks(); //always in ms
+            Time curtime = getCurrentTime();
             if (curtime >= mFPSLastTime + cFPSTimeSpan) {
                 mFPSLastValue = (cast(float)mFPSFrameCount
-                    / (curtime - mFPSLastTime)) * 1000.0f;
+                    / (curtime - mFPSLastTime).msecs) * 1000.0f;
                 mFPSLastTime = curtime;
                 mFPSFrameCount = 0;
             }
@@ -565,5 +570,10 @@ public class FrameworkSDL : Framework {
         if (onFrame) {
                 onFrame();
         }
+    }
+
+    public Time getCurrentTime() {
+        int ticks = SDL_GetTicks();
+        return timeMsecs(ticks);
     }
 }

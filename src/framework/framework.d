@@ -3,6 +3,7 @@ module framework.framework;
 import std.stream;
 public import utils.vector2;
 import framework.keysyms;
+import utils.time;
 
 debug import std.stdio;
 
@@ -173,6 +174,7 @@ public class Framework {
             throw new Exception("Framework is a singleton");
         }
         gFramework = this;
+        setCurrentTimeDelegate(&getCurrentTime);
     }
 
     public abstract void setVideoMode(int widthX, int widthY, int bpp,
@@ -208,6 +210,8 @@ public class Framework {
     public void terminate() {
         shouldTerminate = true;
     }
+
+    public abstract Time getCurrentTime();
 
     /// return number of invocations of onFrame pro second
     public abstract float FPS();
