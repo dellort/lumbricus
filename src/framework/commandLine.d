@@ -1,6 +1,7 @@
 module framework.commandLine;
 
 import framework.console;
+import framework.framework;
 
 public class CommandLine {
     private Console mConsole;
@@ -10,9 +11,9 @@ public class CommandLine {
     }
 
     public int registerCommand(char[] name, dchar[] helpText,
-        void delegate(CommandLine cmdLine, int cmdId))
+        void delegate(CommandLine cmdLine, int cmdId) cmdProc)
     {
-
+        return 0;
     }
 
     public bool keyDown(KeyInfo infos) {
