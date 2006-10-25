@@ -142,7 +142,8 @@ class MainGame {
             mFramework.terminate();
         } else if (infos.code == Keycode.MOUSE_LEFT) {
             //generate_level();
-            placer.placeObject(mFramework.mousePos);
+            if (placer)
+                placer.placeObject(mFramework.mousePos);
         }
         writefln("Key-ID: %s", mFramework.translateKeycodeToKeyID(infos.code));
         cmdLine.keyDown(infos);

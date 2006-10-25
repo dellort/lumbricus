@@ -252,7 +252,8 @@ package class LevelRenderer {
                         uint* texel = texptr + x%tex_w;
                         texel = cast(uint*)(cast(void*)texel +
                             ((tex_h-pline[x])%tex_h)*tex_pitch);
-                        *scanline = *texel;
+                        if (*texel & 0xff000000)
+                            *scanline = *texel;
                     }
 
                     scanline++;
