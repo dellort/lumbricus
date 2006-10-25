@@ -181,7 +181,13 @@ struct FontProperties {
 }
 
 public class Font {
+    /// draw UTF8 encoded text (use framework singleton to instantiate it)
     public abstract void drawText(Canvas canvas, Vector2i pos, char[] text);
+    /// same for UTF-32
+    public abstract void drawText(Canvas canvas, Vector2i pos, dchar[] text);
+    /// return pixel width/height of the text
+    public abstract Vector2i textSize(char[] text);
+    public abstract Vector2i textSize(dchar[] text);
 
     public abstract FontProperties properties();
 }
@@ -262,7 +268,7 @@ public class Framework {
         return createImage(size, pitch, findPixelFormat(DisplayFormat.RGBA32),
             transp, data);
     }
-    
+
     /// get a "standard" pixel format (sigh)
     //NOTE: implementor is supposed to overwrite this and to catch the current
     //  screen format values

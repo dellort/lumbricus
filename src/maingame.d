@@ -78,10 +78,12 @@ class MainGame {
         //testing console, 50 lines of debug output
         cons = new Console(consFont);
         cmdLine = new CommandLine(cons);
+    version(TestConsole) {
         for (int i = 0; i < 50; i++) {
             cons.print(std.utf.toUTF32("Hallo"~std.string.toString(i)));
         }
         cons.setCurLine("Testzeile");
+    }
 
         mFramework.run();
     }
@@ -115,7 +117,7 @@ class MainGame {
         Canvas scrCanvas = mFramework.screen.startDraw();
         scrCanvas.drawFilledRect(Vector2i(0,0),mFramework.screen.size,Color(1.0f,1.0f,1.0f));
         scrCanvas.draw(img,Vector2i(0,0));
-        font.drawText(scrCanvas, Vector2i(50, 50), "halllloxyzäöüß.");
+        font.drawText(scrCanvas, Vector2i(50, 50), "halllloxyzäöüß."c);
         scrCanvas.draw(imglevel, offset);
         if (placer && placer.objectImage && mFramework.getModifierState(Modifier.Shift)) {
             scrCanvas.draw(placer.objectImage, mFramework.mousePos-placer.objectImage.size/2);

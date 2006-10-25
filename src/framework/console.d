@@ -94,8 +94,13 @@ public class Console {
                         Vector2i(mBorderOffset,mCurHeight-mLineHeight*(i+2)),
                         renderWidth);
             }
-            mConsoleFont.drawText(scrCanvas,Vector2i(mBorderOffset,
-                mCurHeight-mLineHeight),utf.toUTF8("> "~mCurLine));
+            dchar[] cmdline = "> "~mCurLine;
+            auto cmdsp = Vector2i(mBorderOffset, mCurHeight-mLineHeight);
+            mConsoleFont.drawText(scrCanvas,cmdsp,cmdline);
+            auto offs = mConsoleFont.textSize(cmdline[0..2+mCursorPos]);
+            //the cursor
+            scrCanvas.drawFilledRect(cmdsp+Vector2i(offs.x, 0), cmdsp+offs
+                +Vector2i(1, 0), mConsoleFont.properties.fore);
         }
 
         mLastTime = timeCurrentTime();
@@ -129,6 +134,10 @@ public class Console {
         mBackLogLen++;
         if (mBackLogLen > BACKLOG_LENGTH)
             mBackLogLen = BACKLOG_LENGTH;
+    }
+
+    public void print(char[] line) {
+        print(str.toUTF32(line));
     }
 
     ///scroll backlog display back dLines > 0 lines

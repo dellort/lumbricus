@@ -45,7 +45,7 @@ public class SDLSurface : Surface {
     public bool isOnScreen() {
         return mOnScreenSurface;
     }
-    
+
     /// don't convert the surface to screen format (which is usually done if it
     /// is painted to the screen to hopefully speed up drawing)
     public void setNeverCache() {
@@ -152,7 +152,7 @@ public class SDLSurface : Surface {
         SDL_UnlockSurface(s);
 
         SDL_FreeSurface(s);
-        
+
         assert(data);
 
         return true;
@@ -396,43 +396,80 @@ public class SDLFont : Font {
 
     public void drawText(Canvas canvas, Vector2i pos, char[] text) {
         foreach (dchar c; text) {
-            SDLSurface* sptr = c in frags;
-            if (!sptr) {
-                frags[c] = renderChar(c);
-                sptr = c in frags;
-            }
-            SDLSurface surface = *sptr;
-            Vector2i size = surface.size;
-
+            SDLSurface surface = getGlyph(c);
             if (mNeedBackPlain) {
-                //recreate "backplain" if necessary
-                if (mBackPlain is null
-                    //|| frags[c].size.x > mWidest
-                    || frags[c].size.x > mBackPlain.size.x)
-                {
-                    mWidest = frags[c].size.x;
-                    if (mBackPlain !is null) {
-                        mBackPlain.free();
-                        mBackPlain = null;
-                    }
-                    //xxx: disable the "screen format cache" of SDLSurface,
-                    //  and instead clear the glyph cache on bit depth change
-                    //but for now, don't use the screen format anyway, because
-                    //  then these spiffy alpha fonts won't work in 16bit depth!
-                    mBackPlain = new SDLSurface(Vector2i(mWidest, size.y),
-                        DisplayFormat.Best, Transparency.Alpha);
-                    mBackPlain.setNeverCache();
-                    Canvas tmp = mBackPlain.startDraw();
-                    tmp.drawFilledRect(Vector2i(0, 0), mBackPlain.size,
-                        props.back);
-                    tmp.endDraw();
-                }
-                canvas.draw(mBackPlain, pos, Vector2i(0, 0), size);
+                canvas.draw(mBackPlain, pos, Vector2i(0, 0), surface.size);
             }
-
             canvas.draw(surface, pos);
             pos.x += surface.size.x;
         }
+    }
+    //xxx code duplication
+    public void drawText(Canvas canvas, Vector2i pos, dchar[] text) {
+        foreach (dchar c; text) {
+            SDLSurface surface = getGlyph(c);
+            canvas.draw(surface, pos);
+            pos.x += surface.size.x;
+        }
+    }
+
+    public Vector2i textSize(char[] text) {
+        Vector2i res = Vector2i(0, 0);
+        foreach (dchar c; text) {
+            SDLSurface surface = getGlyph(c);
+            res.x += surface.size.x;
+        }
+        //xxx
+        res.y = renderChar(' ').size.y;
+        return res;
+    }
+    //xxx code duplication
+    public Vector2i textSize(dchar[] text) {
+        Vector2i res = Vector2i(0, 0);
+        foreach (dchar c; text) {
+            SDLSurface surface = getGlyph(c);
+            res.x += surface.size.x;
+        }
+        //xxx
+        res.y = renderChar(' ').size.y;
+        return res;
+    }
+
+    private SDLSurface getGlyph(dchar c) {
+        SDLSurface* sptr = c in frags;
+        if (!sptr) {
+            frags[c] = renderChar(c);
+            sptr = c in frags;
+        }
+        SDLSurface surface = *sptr;
+        Vector2i size = surface.size;
+
+        if (mNeedBackPlain) {
+            //recreate "backplain" if necessary
+            if (mBackPlain is null
+                //|| frags[c].size.x > mWidest
+                || frags[c].size.x > mBackPlain.size.x)
+            {
+                mWidest = frags[c].size.x;
+                if (mBackPlain !is null) {
+                    mBackPlain.free();
+                    mBackPlain = null;
+                }
+                //xxx: disable the "screen format cache" of SDLSurface,
+                //  and instead clear the glyph cache on bit depth change
+                //but for now, don't use the screen format anyway, because
+                //  then these spiffy alpha fonts won't work in 16bit depth!
+                mBackPlain = new SDLSurface(Vector2i(mWidest, size.y),
+                    DisplayFormat.Best, Transparency.Alpha);
+                mBackPlain.setNeverCache();
+                Canvas tmp = mBackPlain.startDraw();
+                tmp.drawFilledRect(Vector2i(0, 0), mBackPlain.size,
+                    props.back);
+                tmp.endDraw();
+            }
+        }
+
+        return surface;
     }
 
     private SDLSurface renderChar(dchar c) {
@@ -534,20 +571,20 @@ public class FrameworkSDL : Framework {
         //TODO: Software backbuffer
         mScreenSurface.mReal = mScreen;
     }
-    
+
     package PixelFormat sdlFormatToFramework(SDL_PixelFormat* fmt) {
         PixelFormat ret;
-        
+
         ret.depth = fmt.BitsPerPixel;
         ret.bytes = fmt.BytesPerPixel; //xxx: really? reliable?
         ret.mask_r = fmt.Rmask;
         ret.mask_g = fmt.Gmask;
         ret.mask_b = fmt.Bmask;
         ret.mask_a = fmt.Amask;
-        
+
         return ret;
     }
-    
+
     public PixelFormat findPixelFormat(DisplayFormat fmt) {
         if (fmt == DisplayFormat.Screen || fmt == DisplayFormat.ReallyScreen) {
             return sdlFormatToFramework(mScreen.format);
