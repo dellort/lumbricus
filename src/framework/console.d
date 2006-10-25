@@ -126,9 +126,16 @@ public class Console {
         mCurLine = line;
     }
 
+    ///i.e. reset the scorll state
+    public void touchConsole() {
+        //reset scroll state
+        mScrollPos = 0;
+    }
+
     ///output one line of text, drawn on bottom-most position
     ///current text is moved up
     public void print(dchar[] line) {
+        touchConsole();
         mBackLog[mBackLogIdx] = line;
         mBackLogIdx = (mBackLogIdx + 1) % BACKLOG_LENGTH;
         mBackLogLen++;
@@ -153,6 +160,7 @@ public class Console {
     ///clear backlog and output display
     ///input line is not touched
     public void clear() {
+        touchConsole();
         mBackLogIdx = 0;
         mBackLogLen = 0;
     }

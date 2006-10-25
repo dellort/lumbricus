@@ -197,6 +197,10 @@ public struct KeyInfo {
     Keycode code;
     /// Fully translated according to system keymap and modifiers
     dchar unicode = '\0';
+
+    bool isPrintable() {
+        return unicode >= 0x20;
+    }
 }
 
 public struct MouseInfo {

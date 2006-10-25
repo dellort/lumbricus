@@ -15,6 +15,7 @@ import level.level;
 import level.placeobjects;
 import framework.console;
 import framework.commandLine;
+import utils.log;
 
 class MainGame {
     Framework mFramework;
@@ -36,6 +37,13 @@ class MainGame {
         mFileSystem = new FileSystem(args[0]);
         mFramework = new FrameworkSDL();
         mFramework.setVideoMode(800,600,0,false);
+
+        Log log = registerLog("main");
+        log.writefln("hallo welt");
+    }
+
+    void cmdQuit(CommandLine cmdline, uint id) {
+        throw new Exception("byebye!");
     }
 
     public void run() {
@@ -84,6 +92,7 @@ class MainGame {
         }
         cons.setCurLine("Testzeile");
     }
+        cmdLine.registerCommand("quit"c, &cmdQuit, "Leave the game.");
 
         mFramework.run();
     }

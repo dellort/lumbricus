@@ -49,6 +49,7 @@ public class CommandLine {
         registerCommand("herz"d, &sinnlos, "sinnlos1"d);
         registerCommand("helrunar"d, &sinnlos, "sinnlos2"d);
         registerCommand("hatschie"d, &sinnlos, "sinnlos3"d);
+        registerCommand("helper"d, &sinnlos, "sinnlos4"d);
     }
 
     private void sinnlos(CommandLine cmd, uint id) {
@@ -142,7 +143,7 @@ public class CommandLine {
             do_tab_completion();
         } else if (infos.code == Keycode.RETURN) {
             do_execute();
-        } else if (infos.code == Keycode.UP) { //72=up
+        } else if (infos.code == Keycode.UP) {
             HistoryNode next_hist;
             if (mCurrentHistoryEntry) {
                 next_hist = mHistory.prev(mCurrentHistoryEntry);
@@ -152,7 +153,7 @@ public class CommandLine {
             if (next_hist) {
                 select_history_entry(next_hist);
             }
-        } else if (infos.code == Keycode.DOWN) { //80=down
+        } else if (infos.code == Keycode.DOWN) {
             if (mCurrentHistoryEntry) {
                 HistoryNode next_hist = mHistory.next(mCurrentHistoryEntry);
                 select_history_entry(next_hist);
@@ -163,7 +164,7 @@ public class CommandLine {
         } else if (infos.code == Keycode.PAGEDOWN) {
             mConsole.scrollBack(-1);
             return true;
-        } else if (infos.unicode >= 0x20) {
+        } else if (infos.isPrintable()) {
             //printable char
             mCurline = mCurline[0 .. mCursor] ~ infos.unicode
                 ~ mCurline[mCursor .. $];
@@ -208,26 +209,26 @@ public class CommandLine {
     private void do_execute() {
         auto cmd = parseCommand();
 
-        if (cmd.length == 0)
-            return;
+        if (cmd.length > 0) {
+            //into the history
+            HistoryNode histent = new HistoryNode();
+            histent.stuff = mCurline.dup;
+            mHistory.insert_tail(histent);
+            mHistoryCount++;
 
-        //into the history
-        HistoryNode histent = new HistoryNode();
-        histent.stuff = mCurline.dup;
-        mHistory.insert_tail(histent);
-        mHistoryCount++;
+            if (mHistoryCount > MAX_HISTORY_ENTRIES) {
+                mHistory.remove(mHistory.head);
+            }
 
-        if (mHistoryCount > MAX_HISTORY_ENTRIES) {
-            mHistory.remove(mHistory.head);
+            Command[] throwup;
+            auto ccmd = find_command_completions(cmd, throwup);
+            if (!ccmd) {
+                mConsole.print("Unknown command: "~cmd);
+            } else {
+                ccmd.cmdProc(this, ccmd.id);
+            }
         }
 
-        Command[] throwup;
-        auto ccmd = find_command_completions(cmd, throwup);
-        if (!ccmd) {
-            mConsole.print("Unknown command: "~cmd);
-        } else {
-            ccmd.cmdProc(this, ccmd.id);
-        }
         mCurline = null;
         mCursor = 0;
         updateCmdline();
@@ -254,9 +255,14 @@ public class CommandLine {
                 }
             }
 
+            /*//if there's only one completion, add a space
+            if (res.length == 1)
+                common ~= ' ';*/
+
             if (common.length > cmd.length) {
                 //if there's a common substring longer than the commonrent
                 //  command, extend it
+
                 mCurline = mCurline[0..mCommandStart] ~ common
                     ~ mCurline[mCommandEnd..$];
                 mCursor = mCommandStart + common.length; //end of the command
