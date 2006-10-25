@@ -43,7 +43,7 @@
 			<Option target="Debug" />
 			<Option target="Release" />
 		</Unit>
-		<Unit filename="framework\commandLine.d">
+		<Unit filename="framework\commandline.d">
 			<Option compilerVar="CPP" />
 			<Option target="Debug" />
 			<Option target="Release" />

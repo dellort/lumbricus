@@ -1,4 +1,4 @@
-module framework.commandLine;
+module framework.commandline;
 
 import framework.console;
 import framework.framework;
