@@ -37,7 +37,7 @@ public class CommandLine {
     private uint mCommandStart, mCommandEnd;
 
     private const uint MAX_HISTORY_ENTRIES = 20;
-    private const uint MAX_AUTO_COMPLETIONS = 7;
+    private const uint MAX_AUTO_COMPLETIONS = 10;
 
     this(Console cons) {
         mConsole = cons;
@@ -209,7 +209,10 @@ public class CommandLine {
     private void do_execute() {
         auto cmd = parseCommand();
 
-        if (cmd.length > 0) {
+        if (cmd.length == 0) {
+            //nothing, but show some reaction...
+            mConsole.print("-"c);
+        } else {
             //into the history
             HistoryNode histent = new HistoryNode();
             histent.stuff = mCurline.dup;
@@ -271,9 +274,13 @@ public class CommandLine {
                 if (res.length > 1) {
                     //write them to the output screen
                     mConsole.print("Tab completions:"d);
+                    bool toomuch = (res.length == MAX_AUTO_COMPLETIONS);
+                    if (toomuch) res = res[0..$-1];
                     foreach (Command ccmd; res) {
                         mConsole.print(ccmd.name);
                     }
+                    if (toomuch)
+                        mConsole.print("..."c);
                 } else {
                     //one hit, since the case wasn't catched above, this means
                     //it's already complete?

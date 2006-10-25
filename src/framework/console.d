@@ -3,8 +3,9 @@ module framework.console;
 import framework.framework;
 import utils.time;
 import utf = std.utf;
+import utils.output;
 
-public class Console {
+public class Console : Output {
     //maximum entries the backlog stores
     //if backlog would grow larger, old entries are thrown away
     private const int BACKLOG_LENGTH = 300;
@@ -130,6 +131,16 @@ public class Console {
     public void touchConsole() {
         //reset scroll state
         mScrollPos = 0;
+    }
+
+    void writef(...) {
+        writef_ind(false, _arguments, _argptr);
+    }
+    void writefln(...) {
+        writef_ind(true, _arguments, _argptr);
+    }
+    void writef_ind(bool newline, TypeInfo[] arguments, void* argptr) {
+        print(sformat_ind(newline, arguments, argptr));
     }
 
     ///output one line of text, drawn on bottom-most position
