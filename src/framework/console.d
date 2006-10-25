@@ -172,4 +172,8 @@ public class Console {
     public void height(int val) {
         mHeight = val;
     }
+
+    public bool visible() {
+        return mShowFlag == 1;
+    }
 }

@@ -14,6 +14,7 @@ import perf = std.perf;
 import level.level;
 import level.placeobjects;
 import framework.console;
+import framework.commandLine;
 
 class MainGame {
     Framework mFramework;
@@ -27,6 +28,8 @@ class MainGame {
     Vector2i foo1, foo2;
     PlaceObjects placer;
     Console cons;
+    CommandLine cmdLine;
+
     uint fg;
 
     this(char[][] args) {
@@ -74,6 +77,7 @@ class MainGame {
 
         //testing console, 50 lines of debug output
         cons = new Console(consFont);
+        cmdLine = new CommandLine(cons);
         for (int i = 0; i < 50; i++) {
             cons.print(std.utf.toUTF32("Hallo"~std.string.toString(i)));
         }
@@ -141,15 +145,7 @@ class MainGame {
             placer.placeObject(mFramework.mousePos);
         }
         writefln("Key-ID: %s", mFramework.translateKeycodeToKeyID(infos.code));
-        if (infos.code == Keycode.BACKSLASH) {
-            cons.toggle();
-        }
-        if (infos.code == Keycode.PAGEUP) {
-            cons.scrollBack(1);
-        }
-        if (infos.code == Keycode.PAGEDOWN) {
-            cons.scrollBack(-1);
-        }
+        cmdLine.keyDown(infos);
     }
 
     void keyUp(KeyInfo infos) {
@@ -163,12 +159,14 @@ class MainGame {
             writefln("modifier %s: %s", cast(int)mod,
                 mFramework.getModifierState(mod));
         }
-        if (infos.unicode == 'g') {
-            auto counter = new perf.PerformanceCounter();
-            counter.start();
-            gc.fullCollect();
-            counter.stop();
-            writefln("GC fullcollect: %s us", counter.microseconds);
+        if (!cmdLine.keyPress(infos)) {
+            if (infos.unicode == 'g') {
+                auto counter = new perf.PerformanceCounter();
+                counter.start();
+                gc.fullCollect();
+                counter.stop();
+                writefln("GC fullcollect: %s us", counter.microseconds);
+            }
         }
     }
 
