@@ -34,7 +34,6 @@ private alias Vector2f Point;
 
 package class LevelRenderer {
     private uint mWidth, mHeight;
-    private Color mColorKey;
     private uint mTranslatedColorKey;
     private uint[] mImageData;
     private Lexel[] mLevelData;
@@ -100,10 +99,13 @@ package class LevelRenderer {
         uint plain_evil;
 
         if (texture !is null) {
-            texture.convertToData(fmt, tex_pitch, tex_data);
+            bool res = texture.convertToData(fmt, tex_pitch, tex_data);
+            if (!res)
+                throw new Exception("?");
             tex_w = texture.size.x;
             tex_h = texture.size.y;
         } else {
+            //simulate an image consisting of a single transparent pixel
             plain_evil = mTranslatedColorKey;
             tex_data = &plain_evil;
             tex_w = tex_h = 1;
@@ -285,25 +287,12 @@ package class LevelRenderer {
         }
     }
 
-    public this(uint width, uint height, Color transparency) {
+    public this(uint width, uint height) {
         mWidth = width;
         mHeight = height;
-        mColorKey = transparency;
 
-        //xxx this isn't good and nice; needs rework anyway
-        fmt.depth = 32; //SDL doesn't like depth=24 (maybe it takes 3 bytes pp)
-        fmt.bytes = 4;
-        fmt.mask_r = 0xff0000;
-        fmt.mask_g = 0x00ff00;
-        fmt.mask_b = 0x0000ff;
-        fmt.mask_a = 0xff000000;
-
-        ubyte r = cast(ubyte)(mColorKey.r*255);
-        ubyte g = cast(ubyte)(mColorKey.g*255);
-        ubyte b = cast(ubyte)(mColorKey.b*255);
-        ubyte a = cast(ubyte)(mColorKey.a*255);
-
-        mTranslatedColorKey = a << 24 | r << 16 | g << 8 | b;
+        fmt = getFramework.findPixelFormat(DisplayFormat.RGBA32);
+        mTranslatedColorKey = colorToRGBA32(cStdColorkey);
 
         mImageData.length = mWidth*mHeight;
         mLevelData.length = mWidth*mHeight;
@@ -317,9 +306,8 @@ package class LevelRenderer {
     }
 
     public Level render() {
-        auto mImage = getFramework.createImage(mWidth, mHeight, mWidth*4, fmt,
-            mImageData.ptr);
-        mImage.colorkey = mColorKey;
+        auto mImage = getFramework.createImage(Vector2i(mWidth, mHeight),
+            mWidth*4, fmt, Transparency.Colorkey, mImageData.ptr);
         Level level = new Level(mWidth, mHeight, mImage);
         level.data[] = mLevelData; //?
 

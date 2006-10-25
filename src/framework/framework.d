@@ -13,6 +13,8 @@ public Framework getFramework() {
     return gFramework;
 }
 
+public Color cStdColorkey = {r:1.0f, g:0.0f, b:1.0f, a:0.0f};
+
 public struct Color {
     //values between 0.0 and 1.0, 1.0 means full intensity
     //(a is the alpha value; 1.0 means fully opaque)
@@ -48,6 +50,34 @@ public struct Color {
     }
 }
 
+enum Transparency {
+    None,
+    Colorkey,
+    Alpha
+}
+
+/// default display formats for surfaces (used in constructor-methods)
+/// other formats can be used too, but these are supposed to be "important"
+enum DisplayFormat {
+    /// fastest format for drawing on the screen
+    Screen,
+    /// exactly equal to the screen format (xxx: ever needed???)
+    ReallyScreen,
+    /// best display format (usually 32 bit RGBA)
+    Best,
+    /// guaranteed to be 32 bit RGBA
+    RGBA32,
+}
+
+//xxx: ?
+public uint colorToRGBA32(Color color) {
+    uint r = cast(ubyte)(255*color.r);
+    uint g = cast(ubyte)(255*color.g);
+    uint b = cast(ubyte)(255*color.b);
+    uint a = cast(ubyte)(255*color.a);
+    return a << 24 | r << 16 | g << 8 | b;
+}
+
 public struct PixelFormat {
     uint depth; //in bits
     uint bytes; //per pixel
@@ -55,6 +85,14 @@ public struct PixelFormat {
 }
 
 public class Surface {
+    //true if this is the single and only screen surface!
+    //(or the backbuffer)
+    public abstract bool isScreen();
+
+    //whether the surface is painted to the screen (set automatically)
+    public abstract bool isOnScreen();
+    public abstract void isOnScreen(bool onScreen);
+
     public abstract Vector2i size();
 
     //this is done so to be able OpenGL
@@ -62,13 +100,17 @@ public class Surface {
     public abstract Canvas startDraw();
     public abstract void endDraw();
 
+    /// set colorkey, all pixels with that color will be transparent
+    public abstract void enableColorkey(Color colorkey = cStdColorkey);
+    /// enable use of the alpha channel
+    public abstract void enableAlpha();
+
+    public abstract Color colorkey();
+    public abstract Transparency transparency();
+
     /// convert the image data to raw pixel data, using the given format
     public abstract bool convertToData(PixelFormat format, out uint pitch,
         out void* data);
-
-    /// set colorkey, all pixels with that color will be transparent
-    //I'm not sure how this would work with OpenGL...
-    public abstract void colorkey(Color colorkey);
 
     /// convert the texture to a transparency mask
     /// one pixel per byte; the pitch is the width (pixel = arr[y*w+x])
@@ -128,6 +170,8 @@ public class Canvas {
     public abstract void drawLine(Vector2i p1, Vector2i p2, Color color);
     public abstract void drawRect(Vector2i p1, Vector2i p2, Color color);
     public abstract void drawFilledRect(Vector2i p1, Vector2i p2, Color color);
+
+    public abstract void clear(Color color);
 }
 
 struct FontProperties {
@@ -158,14 +202,17 @@ public enum Modifier {
     Alt,
     Control,
     Shift,
-    Numlock,
+    //we don't consider Numlock to be a modifier anymore
+    //instead, the keyboard driver is supposed to deliver different keycodes
+    //for the numpad-keys, when numlock is toggled
+    //Numlock,
 }
 
 /// Contains event- and graphics-handling
 public class Framework {
     //contains keystate (key down/up) for each key; indexed by Keycode
     private bool mKeyStateMap[];
-    private bool mCapsLock, mNumLock;
+    private bool mCapsLock;
     private Vector2i mMousePos;
 
     private Time mFPSLastTime;
@@ -198,18 +245,47 @@ public class Framework {
     /// set window title
     public abstract void setCaption(char[] caption);
 
-    public abstract Surface loadImage(Stream st);
-    public Surface loadImage(char[] fileName) {
-        return loadImage(new File(fileName,FileMode.In));
+    public abstract Surface loadImage(Stream st, Transparency transp);
+    public Surface loadImage(char[] fileName, Transparency transp) {
+        return loadImage(new File(fileName,FileMode.In), transp);
     }
 
     /// create an image based on the given data and on the pixelformat
     /// data can be null, in this case, the function allocates (GCed) memory
-    public abstract Surface createImage(uint width, uint height, uint pitch,
-        PixelFormat format, void* data);
+    public abstract Surface createImage(Vector2i size, uint pitch,
+        PixelFormat format, Transparency transp, void* data);
+
+    //xxx code duplication, (re)move
+    public Surface createImageRGBA32(Vector2i size, uint pitch,
+        Transparency transp, void* data)
+    {
+        return createImage(size, pitch, findPixelFormat(DisplayFormat.RGBA32),
+            transp, data);
+    }
+    
+    /// get a "standard" pixel format (sigh)
+    //NOTE: implementor is supposed to overwrite this and to catch the current
+    //  screen format values
+    public PixelFormat findPixelFormat(DisplayFormat fmt) {
+        switch (fmt) {
+            case DisplayFormat.Best, DisplayFormat.RGBA32: {
+                PixelFormat ret;
+                ret.depth = 32;
+                ret.bytes = 4;
+                ret.mask_r = 0x00ff0000;
+                ret.mask_g = 0x0000ff00;
+                ret.mask_b = 0x000000ff;
+                ret.mask_a = 0xff000000;
+                return ret;
+            }
+            default:
+                assert(false);
+        }
+    }
 
     /// create a surface in the current display format
-    public abstract Surface createSurface(uint width, uint height);
+    public abstract Surface createSurface(Vector2i size, DisplayFormat fmt,
+        Transparency transp);
 
     public abstract Font loadFont(Stream str, FontProperties fontProps);
 

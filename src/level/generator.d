@@ -41,7 +41,7 @@ public class LevelGenerator {
                 return null;
         } else {
             Stream s = gFileSystem.openData(value);
-            res = getFramework.loadImage(s);
+            res = getFramework.loadImage(s, Transparency.Colorkey);
             s.close();
         }
         if (res is null) {
@@ -152,7 +152,8 @@ public class LevelGenerator {
             } else {
                 //sucky color-border hack
                 int height = texNode.getIntValue("height", 1);
-                tex = getFramework.createSurface(1, height);
+                tex = getFramework.createSurface(Vector2i(1, height),
+                    DisplayFormat.Best, Transparency.None);
                 auto col = Color(0,0,0);
                 parseColor(texNode.getStringValue("color"), col);
                 auto canvas = tex.startDraw();
@@ -192,8 +193,7 @@ public class LevelGenerator {
             gen.addPolygon(points, nosubdiv, tex, marker, changeable, visible);
         }
 
-        auto ckey = Color(0,0,0,0);
-        LevelRenderer renderer = new LevelRenderer(width, height, ckey);
+        LevelRenderer renderer = new LevelRenderer(width, height);
         gen.generate(renderer);
 
         //the least important part is the longest

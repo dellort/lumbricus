@@ -32,12 +32,12 @@ class MainGame {
     this(char[][] args) {
         mFileSystem = new FileSystem(args[0]);
         mFramework = new FrameworkSDL();
-        mFramework.setVideoMode(1024,768,0,false);
+        mFramework.setVideoMode(800,600,0,false);
     }
 
     public void run() {
         Stream foo = mFileSystem.openData("basselope.gif");
-        img = mFramework.loadImage(foo);
+        img = mFramework.loadImage(foo, Transparency.Alpha);
         foo.close();
         FontProperties fontprops;
         Stream f = mFileSystem.openData("font/vera.ttf");
@@ -113,7 +113,7 @@ class MainGame {
         scrCanvas.draw(img,Vector2i(0,0));
         font.drawText(scrCanvas, Vector2i(50, 50), "halllloxyzäöüß.");
         scrCanvas.draw(imglevel, offset);
-        if (placer && placer.objectImage) {
+        if (placer && placer.objectImage && mFramework.getModifierState(Modifier.Shift)) {
             scrCanvas.draw(placer.objectImage, mFramework.mousePos-placer.objectImage.size/2);
             scrCanvas.drawLine(foo1, foo2, Color(255, 0, 0));
             font.drawText(scrCanvas, Vector2i(0, 0), format("fo: %d", fg));
@@ -137,7 +137,8 @@ class MainGame {
         if (infos.code == Keycode.ESCAPE) {
             mFramework.terminate();
         } else if (infos.code == Keycode.MOUSE_LEFT) {
-            generate_level();
+            //generate_level();
+            placer.placeObject(mFramework.mousePos);
         }
         writefln("Key-ID: %s", mFramework.translateKeycodeToKeyID(infos.code));
         if (infos.code == Keycode.BACKSLASH) {
@@ -157,18 +158,18 @@ class MainGame {
 
     void keyPress(KeyInfo infos) {
         writefln("onKeyPress: key=%s unicode=>%s<", cast(int)infos.code, infos.unicode);
-	//output all modifiers
-	for (Modifier mod = Modifier.min; mod <= Modifier.max; mod++) {
-	    writefln("modifier %s: %s", cast(int)mod,
-	    	mFramework.getModifierState(mod));
-	}
-	if (infos.unicode == 'g') {
-	    auto counter = new perf.PerformanceCounter();
-	    counter.start();
-	    gc.fullCollect();
-	    counter.stop();
-	    writefln("GC fullcollect: %s us", counter.microseconds);
-	}
+        //output all modifiers
+        for (Modifier mod = Modifier.min; mod <= Modifier.max; mod++) {
+            writefln("modifier %s: %s", cast(int)mod,
+                mFramework.getModifierState(mod));
+        }
+        if (infos.unicode == 'g') {
+            auto counter = new perf.PerformanceCounter();
+            counter.start();
+            gc.fullCollect();
+            counter.stop();
+            writefln("GC fullcollect: %s us", counter.microseconds);
+        }
     }
 
 
@@ -176,10 +177,12 @@ class MainGame {
         //writef("onMouseMove: (%s, %s)", infos.pos.x, infos.pos.y);
         //writefln(" rel: (%s, %s)", infos.rel.x, infos.rel.y);
         //offset = -infos.pos*4+Vector2i(300,300);
+        if (!mFramework.getModifierState(Modifier.Shift))
+            return;
         if (placer is null) {
             placer = new PlaceObjects(mLevel);
-            Stream foo = mFileSystem.openData("test.tif");
-            auto imgbla = mFramework.loadImage(foo);
+            Stream foo = mFileSystem.openData("test.png");
+            auto imgbla = mFramework.loadImage(foo, Transparency.Colorkey);
             foo.close();
             placer.loadObject(imgbla, PlaceObjects.Side.North, 10);
         }
