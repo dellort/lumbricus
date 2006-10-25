@@ -6,11 +6,9 @@ import framework.keysyms;
 
 public class CommandLine {
     private Console mConsole;
-    private Keycode mConsoleKey;
 
     this(Console cons) {
         mConsole = cons;
-        mConsoleKey = Keycode.BACKSLASH;
     }
 
     public int registerCommand(char[] name, dchar[] helpText,
@@ -20,10 +18,7 @@ public class CommandLine {
     }
 
     public bool keyDown(KeyInfo infos) {
-        if (infos.code == mConsoleKey) {
-            mConsole.toggle();
-            return true;
-        }
+
         if (infos.code == Keycode.RIGHT) {
 
             return true;
@@ -57,9 +52,5 @@ public class CommandLine {
 
     private void executeCommand() {
 
-    }
-
-    public void setConsoleKey(Keycode key) {
-        mConsoleKey = key;
     }
 }

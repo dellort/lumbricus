@@ -145,6 +145,10 @@ class MainGame {
             if (placer)
                 placer.placeObject(mFramework.mousePos);
         }
+        if (infos.code == Keycode.BACKSLASH) {
+            cons.toggle();
+            return true;
+        }
         writefln("Key-ID: %s", mFramework.translateKeycodeToKeyID(infos.code));
         cmdLine.keyDown(infos);
     }
