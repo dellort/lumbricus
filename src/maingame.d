@@ -43,7 +43,7 @@ class MainGame {
     }
 
     void cmdQuit(CommandLine cmdline, uint id) {
-        throw new Exception("byebye!");
+        mFramework.terminate();
     }
 
     public void run() {
