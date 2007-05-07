@@ -211,6 +211,27 @@ public class ConfigNode : ConfigItem {
         return true;
     }
 
+    /// Find a subnode by following a path.
+    /// Path component separator is "."
+    public ConfigNode getPath(char[] path, bool create = false) {
+        //needed for recursion temrination :)
+        if (path.length == 0) {
+            return this;
+        }
+
+        int pos = str.find(path, ".");
+        if (pos < 0)
+            pos = path.length;
+
+        ConfigNode sub = findNode(path[0 .. pos], create);
+        if (!sub)
+            return null;
+
+        if (pos < path.length)
+            pos++;
+        return sub.getPath(path[pos .. $], create);
+    }
+
     //ugly
     //(D lacks support for class variables)
     template TdoFind(T) {
@@ -360,7 +381,7 @@ public class ConfigNode : ConfigItem {
         }
         return 0;
     }
-    
+
     //foreach(char[], char[]; ConfigNode) enumerate (name, value) pairs
     public int opApply(int delegate(inout char[], inout char[]) del) {
         foreach (ConfigItem item; mItems) {
@@ -403,7 +424,7 @@ public class ConfigNode : ConfigItem {
     public void setBoolValue(char[] name, bool value) {
         setStringValue(name, value ? "true" : "false");
     }
-    
+
     public float getFloatValue(char[] name, float def = float.nan) {
         float res = def;
         parseFloat(getStringValue(name), res);

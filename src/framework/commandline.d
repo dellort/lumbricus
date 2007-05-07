@@ -45,15 +45,6 @@ public class CommandLine {
         mHistory = new HistoryList(n.listnode.getListNodeOffset());
         registerCommand("help"d, &cmdHelp, "Show all commands."d);
         registerCommand("history"d, &cmdHistory, "Show the history."d);
-
-        registerCommand("herz"d, &sinnlos, "sinnlos1"d);
-        registerCommand("helrunar"d, &sinnlos, "sinnlos2"d);
-        registerCommand("hatschie"d, &sinnlos, "sinnlos3"d);
-        registerCommand("helper"d, &sinnlos, "sinnlos4"d);
-    }
-
-    private void sinnlos(CommandLine cmd, uint id) {
-        mConsole.print("ne rien pas"c);
     }
 
     private void cmdHelp(CommandLine cmd, uint id) {
@@ -225,6 +216,10 @@ public class CommandLine {
 
             Command[] throwup;
             auto ccmd = find_command_completions(cmd, throwup);
+            //accept unique partial matches
+            if (!ccmd && throwup.length == 1) {
+                ccmd = throwup[0];
+            }
             if (!ccmd) {
                 mConsole.print("Unknown command: "~cmd);
             } else {

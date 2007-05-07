@@ -16,6 +16,7 @@ import level.placeobjects;
 import framework.console;
 import framework.commandLine;
 import utils.log;
+import framework.i18n;
 
 class MainGame {
     Framework mFramework;
@@ -40,6 +41,15 @@ class MainGame {
 
         Log log = registerLog("main");
         log.writefln("hallo welt");
+
+        Stream x = gFileSystem.openData("i18n.conf");
+        ConfigFile c = new ConfigFile(x, "i18n.conf", &doout);
+        initI18N(c.rootnode, "de");
+        auto g = new Translator("module1.mod2");
+        log.writefln("?");
+        log.writefln(g("id1", 1, "llklk"));
+
+        //throw new Exception("terminate");
     }
 
     void cmdQuit(CommandLine cmdline, uint id) {
@@ -135,7 +145,6 @@ class MainGame {
             scrCanvas.drawLine(foo1, foo2, Color(255, 0, 0));
             font.drawText(scrCanvas, Vector2i(0, 0), format("fo: %d", fg));
         }
-        cons.writefln("hiii");
         //mFramework.screen.draw(img.surface,Vector2i(75,75));
         //FPS
         font.drawText(scrCanvas, Vector2i(mFramework.screen.size.x-300, mFramework.screen.size.y - 60),
@@ -178,7 +187,9 @@ class MainGame {
             writefln("modifier %s: %s", cast(int)mod,
                 mFramework.getModifierState(mod));
         }
-        if (!cmdLine.keyPress(infos)) {
+        if (cons.visible && cmdLine.keyPress(infos))
+            return;
+        if (true) {
             if (infos.unicode == 'g') {
                 auto counter = new perf.PerformanceCounter();
                 counter.start();

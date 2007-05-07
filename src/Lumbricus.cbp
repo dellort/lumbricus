@@ -58,6 +58,11 @@
 			<Option target="Debug" />
 			<Option target="Release" />
 		</Unit>
+		<Unit filename="framework\i18n.d">
+			<Option compilerVar="CPP" />
+			<Option target="Debug" />
+			<Option target="Release" />
+		</Unit>
 		<Unit filename="framework\keysyms.d">
 			<Option compilerVar="CPP" />
 			<Option target="Debug" />
