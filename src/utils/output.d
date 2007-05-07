@@ -14,7 +14,7 @@ public interface Output {
 //small nasty helper
 char[] sformat_ind(bool newline, TypeInfo[] arguments, void* argptr) {
     //xxx inefficient and stupid
-    char[] ret = "";
+    char[] ret;
     void putc(dchar c) {
         encode(ret, c);
     }

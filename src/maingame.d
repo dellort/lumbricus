@@ -133,6 +133,7 @@ class MainGame {
             scrCanvas.drawLine(foo1, foo2, Color(255, 0, 0));
             font.drawText(scrCanvas, Vector2i(0, 0), format("fo: %d", fg));
         }
+        cons.writefln("hiii");
         //mFramework.screen.draw(img.surface,Vector2i(75,75));
         //FPS
         font.drawText(scrCanvas, Vector2i(mFramework.screen.size.x-300, mFramework.screen.size.y - 60),
