@@ -1,5 +1,7 @@
 module filesystem;
 
+//version = PhysFS;
+
 import derelict.physfs.physfs;
 import path = std.path;
 import stdf = std.file;
@@ -31,13 +33,15 @@ class FileSystemException : Exception {
     }
 }
 
+//abstract filesystem interface
 public class FileSystem {
-    char[] mAppPath;
-    char[] mUserPath;
-    char[] mDataPath;
+    protected char[] mAppPath;
+    protected char[] mUserPath;
+    protected char[] mDataPath;
 
-    private const char[] USERPATH = ".lumbricus";
-    private const char[] DATAPATH = "data";
+    public final const char[] USERPATH = ".lumbricus";
+    //ask d0c about that
+    public final const char[] DATAPATH = "data/data";
 
     ///needs args[0] for initialization
     this(char[] arg0) {
@@ -49,30 +53,10 @@ public class FileSystem {
 
         //setup necessary paths
         initPaths(arg0);
-
-        //initialize PhysFs
-        DerelictPhysFs.load();
-        PHYSFS_init(arg0);
-
-        //mount paths for PhysFs
-        //NO trailing /
-        //all files opened for writing will be stored in mUserPath
-        PHYSFS_setWriteDir(str.toStringz(mUserPath));
-        //user directory comes first in search path, to allow user to override
-        //included default config files
-        mount(mUserPath,"user",1);
-        //data path should contain data/data (game data) and
-        //data/user (user-changeable config files)
-        mount(mDataPath,null,1);
-        //TODO: search mDataPath for archives and add to search path
-    }
-
-    ~this() {
-        PHYSFS_deinit();
     }
 
     ///Fill mAppPath, mUserPath and mDataPath with OS-dependant values
-    private void initPaths(char[] arg0) {
+    protected void initPaths(char[] arg0) {
         version(Windows) {
             //win: args[0] contains full path to executable
             mAppPath = path.getDirName(arg0);
@@ -89,7 +73,7 @@ public class FileSystem {
                 mAppPath = curDir;
             }
         }
-        
+
         mAppPath = addTrailingPathDelimiter(mAppPath);
 
         //set user directory from os home path
@@ -134,6 +118,77 @@ public class FileSystem {
         }
     }
 
+    /** Open a file from data directory/archives for reading
+     * throws FileSystemException if file could not be opened
+     * Stream must be closed manually
+     */
+    public Stream openData(char[] filename) {
+        try {
+            return createStream(filename,FileMode.In,false);
+        } catch (StreamException e) {
+            throw new FileSystemException(str.format(
+                "Could not open file \"data/%s\": %s",filename,e.toString()));
+        }
+    }
+
+    /** Open a file from user directory
+     * throws FileSystemException if file could not be opened
+     * Stream must be closed manually
+     */
+    public Stream openUser(char[] filename, FileMode mode) {
+        char[] sWrite = "";
+        try {
+            return createStream(filename,mode,true);
+        } catch (StreamException e) {
+            throw new FileSystemException(str.format(
+                "Could not open file \"user/%s\"%s: %s",
+                filename,sWrite,e.toString()));
+        }
+    }
+
+    ///return path to executable with trailing /
+    public char[] appPath() {
+        return mAppPath;
+    }
+
+    protected Stream createStream(char[] filename, FileMode mode, bool user) {
+        if (user) {
+            return new File(mUserPath~"/"~filename, mode);
+        } else {
+            return new File(mDataPath~"/"~filename, mode);
+        }
+    }
+}
+
+version (PhysFS) {
+
+public class FileSystemPhysFS : FileSystem {
+    ///needs args[0] for initialization
+    this(char[] arg0) {
+        super(arg0);
+
+        //initialize PhysFs
+        DerelictPhysFs.load();
+        PHYSFS_init(arg0.ptr);
+
+        //mount paths for PhysFs
+        //NO trailing /
+        //all files opened for writing will be stored in mUserPath
+        PHYSFS_setWriteDir(str.toStringz(mUserPath));
+        //user directory comes first in search path, to allow user to override
+        //included default config files
+        mount(mUserPath,"user",1);
+        //data path should contain data/data (game data) and
+        //data/user (user-changeable config files)
+        mount(mDataPath,"data",1);
+        //TODO: search mDataPath for archives and add to search path
+    }
+
+    ~this() {
+        PHYSFS_deinit();
+    }
+
+
     /** Wrapper for PHYSFS_mount that converts char[] to char*
      * and throws helpful exceptions on failure
      */
@@ -148,41 +203,23 @@ public class FileSystem {
         }
     }
 
-    /** Open a file from data directory/archives for reading
-     * throws FileSystemException if file could not be opened
-     * Stream must be closed manually
-     */
-    public Stream openData(char[] filename) {
-        try {
-            return new PhysFsStream("data/"~filename,FileMode.In);
-        } catch (StreamException e) {
-            throw new FileSystemException(str.format(
-                "Could not open file \"data/%s\": %s",filename,e.toString()));
+    protected Stream createStream(char[] filename, FileMode mode, bool user) {
+        if (user) {
+            return new PhysFsStream("user/"~filename, mode);
+        } else {
+            return new PhysFsStream("data/"~filename, mode);
         }
     }
+}
 
-    /** Open a file from user directory
-     * throws FileSystemException if file could not be opened
-     * Stream must be closed manually
-     */
-    public Stream openUser(char[] filename, FileMode mode) {
-        char[] sWrite = "";
-        try {
-            if ((mode & FileMode.Out) || (mode & FileMode.Append)) {
-                sWrite = " for writing";
-                return new PhysFsStream(filename,mode);
-            } else {
-                return new PhysFsStream("user/"~filename,mode);
-            }
-        } catch (StreamException e) {
-            throw new FileSystemException(str.format(
-                "Could not open file \"user/%s\"%s: %s",
-                filename,sWrite,e.toString()));
-        }
-    }
+public void initFileSystem(char[] arg0) {
+    new FileSystemPhysFS(arg0);
+}
 
-    ///return path to executable with trailing /
-    public char[] appPath() {
-        return mAppPath;
-    }
+} /+ version(PhysFS) +/ else {
+
+public void initFileSystem(char[] arg0) {
+    new FileSystem(arg0);
+}
+
 }

@@ -38,7 +38,7 @@
 			<Add library="DerelictSDLttf" />
 			<Add library="DerelictPhysFs" />
 		</Linker>
-		<Unit filename="fileSystem.d">
+		<Unit filename="filesystem.d">
 			<Option compilerVar="CPP" />
 			<Option target="Debug" />
 			<Option target="Release" />

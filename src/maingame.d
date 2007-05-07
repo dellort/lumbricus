@@ -20,7 +20,6 @@ import utils.log;
 class MainGame {
     Framework mFramework;
     Surface img, imglevel;
-    FileSystem mFileSystem;
     Font font;
     Vector2i offset;
     uint mLevelWidth = 1920, mLevelHeight = 696;
@@ -34,7 +33,8 @@ class MainGame {
     uint fg;
 
     this(char[][] args) {
-        mFileSystem = new FileSystem(args[0]);
+        initFileSystem(args[0]);
+
         mFramework = new FrameworkSDL();
         mFramework.setVideoMode(800,600,0,false);
 
@@ -47,11 +47,11 @@ class MainGame {
     }
 
     public void run() {
-        Stream foo = mFileSystem.openData("basselope.gif");
+        Stream foo = gFileSystem.openData("basselope.gif");
         img = mFramework.loadImage(foo, Transparency.Alpha);
         foo.close();
+        Stream f = gFileSystem.openData("font/vera.ttf");
         FontProperties fontprops;
-        Stream f = mFileSystem.openData("font/vera.ttf");
         fontprops.size = 50;
         fontprops.back.g = 1.0f;
         fontprops.back.a = 0.2f;
@@ -59,7 +59,9 @@ class MainGame {
         fontprops.fore.g = 0;
         fontprops.fore.b = 0;
         fontprops.fore.a = 0.6f;
+
         font = mFramework.loadFont(f, fontprops);
+
         fontprops.size = 12;
         fontprops.back.a = 0.0f;
         fontprops.fore.r = 0;
@@ -77,7 +79,7 @@ class MainGame {
 
         //testconfig();
         generator = new LevelGenerator();
-        f = mFileSystem.openData("levelgen.conf");
+        f = gFileSystem.openData("levelgen.conf");
         ConfigFile conf = new ConfigFile(f, "levelgen.conf", &doout);
         f.close();
         generator.config = conf.rootnode.getSubNode("levelgen");
@@ -103,7 +105,7 @@ class MainGame {
 
     void testconfig() {
         //SVN never forgets, but I don't want to rewrite that crap if I need it again
-        auto inf = mFileSystem.openUser("test.conf",FileMode.In);
+        auto inf = gFileSystem.openUser("test.conf",FileMode.In);
         ConfigFile f = new ConfigFile(inf, "test.conf", &doout);
         inf.close();
         //ConfigFile f = new ConfigFile(" ha        llo    ", "file", std.cstream.dout);
@@ -117,7 +119,7 @@ class MainGame {
         s.setStringValue("stoopid", "123 hi");
         static char[] bingarbage = [0x12, 1, 0x34, 0x10, 0xa, 0x66, 0x74];
         s.setStringValue("evil_binary", bingarbage);
-        auto outf = mFileSystem.openUser("test.conf", FileMode.OutNew);
+        auto outf = gFileSystem.openUser("test.conf", FileMode.OutNew);
         f.writeFile(outf);
         outf.close();
     }
@@ -196,7 +198,7 @@ class MainGame {
             return;
         if (placer is null) {
             placer = new PlaceObjects(mLevel);
-            Stream foo = mFileSystem.openData("test.png");
+            Stream foo = gFileSystem.openData("test.png");
             auto imgbla = mFramework.loadImage(foo, Transparency.Colorkey);
             foo.close();
             placer.loadObject(imgbla, PlaceObjects.Side.North, 10);

@@ -518,9 +518,13 @@ public class FrameworkSDL : Framework {
 
         gFrameworkSDL = this;
 
+
         DerelictSDL.load();
         DerelictSDLImage.load();
         DerelictSDLttf.load();
+
+
+
 
         if (SDL_Init(SDL_INIT_VIDEO) < 0) {
             throw new Exception(format("Could not init SDL: %s",
