@@ -2,7 +2,9 @@ module filesystem;
 
 //version = PhysFS;
 
-import derelict.physfs.physfs;
+version (PhysFS) {
+	import derelict.physfs.physfs;
+}
 import path = std.path;
 import stdf = std.file;
 import cstdlib = std.c.stdlib;

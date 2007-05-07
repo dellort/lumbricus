@@ -4,6 +4,12 @@ import std.format;
 import std.string;
 import std.conv;
 
+//NOTE: because normal varargs suck infinitely in D (you have to deal with
+//    _arguments and _argptr), and because it's not simple to convert these
+//    args to strings, I converted it to compile-time varargs (it's called
+//    tuples). So all many functions are templated!
+//    The old version is still in revision 71.
+
 private ConfigNode gTranslations;
 
 ///Translator
@@ -19,8 +25,8 @@ public class Translator {
 
     ///Translate a text, similar to the _() function.
     ///Warning: doesn't do namespace resolution.
-    char[] opCall(char[] id, ...) {
-        return DoTranslate(subnode, id, _arguments, _argptr);
+    char[] opCall(T...)(char[] id, T t) {
+        return DoTranslate(subnode, id, t);
     }
 }
 
@@ -43,7 +49,7 @@ public void initI18N(ConfigNode translations, char[] lang) {
 
 ///Translate an ID into text in the selected language.
 ///Unlike GNU Gettext, this only takes an ID, not an english text.
-public char[] _(char[] id, ...) {
+public char[] _(T...)(char[] id, T t) {
     int pos = rfind(id, '.');
     if (pos < 0)
         assert(pos == -1);
@@ -51,22 +57,22 @@ public char[] _(char[] id, ...) {
     if (gTranslations) {
         node = gTranslations.getPath(id[0 .. (pos<0?0:pos)], false);
     }
-    return DoTranslate(node, id[pos+1 .. $], _arguments, _argptr);
+    return DoTranslate(node, id[pos+1 .. $], t);
+}
+
+char[] argToString(T...)(int x, T t) {
+    foreach (i, y; t) {
+        if (x == i) {
+            return format("%s", y);
+        }
+    }
+    return "out of bounds";
 }
 
 //possibly replace by tango.text.convert.Layout()
-private char[] trivialFormat(char[] text, TypeInfo[] arguments, void* argptr) {
-    if (arguments.length > 64) {
-        return "ERROR: not more than 64 arguments, please.";
-    }
-
-    //following 5 lines almost literally copied from Tango!
-    void*[64] arglist = void;
-    foreach (i, arg; arguments) {
-        arglist[i] = argptr;
-        argptr += (arg.tsize + int.sizeof - 1) & ~ (int.sizeof - 1);
-    }
-
+//uh well, if you want a runtime-version of this
+//(it's compile-time because it's templated)
+private char[] trivialFormat(T...)(char[] text, T t) {
     char[] res;
     while (text.length > 0) {
         int start = find(text, '{');
@@ -86,29 +92,24 @@ private char[] trivialFormat(char[] text, TypeInfo[] arguments, void* argptr) {
             } catch (ConvError e) {
                 return "ERROR: invalid number: '" ~ formatstr ~ "'!";
             }
-            if (s < 0 || s >= arguments.length) {
+            if (s < 0 || s >= t.length) {
                 return "ERROR: invalid argument number: '" ~ formatstr ~ "'.";
             }
 
-            void addFormat(dchar c) {
-                res ~= c;
-            }
-
-            //xxx: this is WRONG
-            //it works, but if the argument is a string containing format
-            //strings, doFormat() will interpret them.
-            //complain at editor of doFormat()
-            doFormat(&addFormat, arguments[s..s+1], arglist[s]);
+	    res ~= argToString(s, t);
         } else {
-            res ~= text;
+	    if (res.length == 0) {
+	        res = text;
+	    } else {
+                res ~= text;
+	    }
             text = null;
         }
     }
     return res;
 }
 
-private char[] DoTranslate(ConfigNode data, char[] id, TypeInfo[] arguments,
-    void* argptr)
+private char[] DoTranslate(T...)(ConfigNode data, char[] id, T t)
 {
     char[] text;
     if (data) {
@@ -117,5 +118,5 @@ private char[] DoTranslate(ConfigNode data, char[] id, TypeInfo[] arguments,
     if (text.length == 0) {
         text = "ERROR: missing translation for ID '" ~ id ~ "'!";
     }
-    return trivialFormat(text, arguments, argptr);
+    return trivialFormat(text, t);
 }

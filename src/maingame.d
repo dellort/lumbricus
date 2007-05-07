@@ -14,7 +14,7 @@ import perf = std.perf;
 import level.level;
 import level.placeobjects;
 import framework.console;
-import framework.commandLine;
+import framework.commandline;
 import utils.log;
 import framework.i18n;
 
@@ -168,7 +168,7 @@ class MainGame {
             if (placer)
                 placer.placeObject(mFramework.mousePos);
         }
-        if (infos.code == Keycode.BACKSLASH) {
+        if (infos.code == Keycode.A) {
             cons.toggle();
             return true;
         }
