@@ -36,7 +36,7 @@
 			<Add library="DerelictSDLttf" />
 			<Add library="DerelictPhysFs" />
 		</Linker>
-		<Unit filename="common.d" />
+		<Unit filename="game\common.d" />
 		<Unit filename="filesystem.d" />
 		<Unit filename="framework\commandline.d" />
 		<Unit filename="framework\console.d" />
