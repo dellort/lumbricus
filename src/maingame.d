@@ -4,6 +4,7 @@ import std.string;
 import framework.framework;
 import framework.keysyms;
 import framework.sdl.framework;
+import framework.font;
 import utils.configfile;
 import std.file;
 import path = std.path;
@@ -17,6 +18,7 @@ import framework.console;
 import framework.commandline;
 import utils.log;
 import framework.i18n;
+import game.common;
 
 class MainGame {
     Framework mFramework;
@@ -75,7 +77,7 @@ class MainGame {
         fontprops.size = 12;
         fontprops.back.a = 0.0f;
         fontprops.fore.r = 0;
-        fontprops.fore.g = 0;
+        fontprops.fore.g = 1.0f;
         fontprops.fore.b = 0;
         fontprops.fore.a = 1;
         Font consFont = mFramework.loadFont(f, fontprops);
@@ -98,13 +100,10 @@ class MainGame {
         //testing console, 50 lines of debug output
         cons = new Console(consFont);
         cmdLine = new CommandLine(cons);
-    version(TestConsole) {
-        for (int i = 0; i < 50; i++) {
-            cons.print(std.utf.toUTF32("Hallo"~std.string.toString(i)));
-        }
-        cons.setCurLine("Testzeile");
-    }
+
         cmdLine.registerCommand("quit"c, &cmdQuit, "Leave the game.");
+
+        Common c = new Common(mFramework, consFont);
 
         mFramework.run();
     }
@@ -113,7 +112,7 @@ class MainGame {
         writefln(str);
     }
 
-    void testconfig() {
+    /+void testconfig() {
         //SVN never forgets, but I don't want to rewrite that crap if I need it again
         auto inf = gFileSystem.openUser("test.conf",FileMode.In);
         ConfigFile f = new ConfigFile(inf, "test.conf", &doout);
@@ -132,7 +131,7 @@ class MainGame {
         auto outf = gFileSystem.openUser("test.conf", FileMode.OutNew);
         f.writeFile(outf);
         outf.close();
-    }
+    }+/
 
     void frame() {
         Canvas scrCanvas = mFramework.screen.startDraw();

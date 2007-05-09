@@ -6,6 +6,7 @@ import level.genrandom : GenRandomLevel;
 import framework.framework;
 import utils.configfile : ConfigNode;
 import utils.vector2;
+import utils.log;
 import filesystem;
 import std.stream;
 import str = std.string;
@@ -15,6 +16,7 @@ import rand = std.random;
 /// level generator
 public class LevelGenerator {
     private ConfigNode mConfig;
+    private Log mLog;
 
     /// node must correspond to the "levelgen" section
     public void config(ConfigNode node) {
@@ -82,26 +84,6 @@ public class LevelGenerator {
         return ReadListTemplate!(uint).readList(node, (char[] item) {
             return conv.toUint(item);
         });
-    }
-
-    private bool parseColor(char[] s, Color color) {
-        char[][] values = str.split(s);
-        if (values.length < 3 || values.length > 4)
-            return false;
-        try {
-            float r = conv.toFloat(values[0]);
-            float g = conv.toFloat(values[1]);
-            float b = conv.toFloat(values[2]);
-            float a = 1.0f;
-            if (values.length > 3) {
-                a = conv.toFloat(values[3]);
-            }
-            color = Color(r, g, b, a);
-            return true;
-        } catch (conv.ConvOverflowError e) {
-        } catch (conv.ConvError e) {
-        }
-        return false;
     }
 
     //maybe this should rather be implemented by genrandom.d?
@@ -193,6 +175,8 @@ public class LevelGenerator {
             gen.addPolygon(points, nosubdiv, tex, marker, changeable, visible);
         }
 
+        mLog("generating level...");
+
         LevelRenderer renderer = new LevelRenderer(width, height);
         gen.generate(renderer);
 
@@ -227,11 +211,16 @@ public class LevelGenerator {
             gen.dumpDebuggingStuff(renderer);
         }
 
-        return renderer.render();
+        mLog("rendering level...");
+        auto ret = renderer.render();
+        mLog("done.");
+        return ret;
     }
 
     /// generate a random level based on a template
     public Level generateRandom(uint width, uint height, char[] templatename) {
+        mLog("template >%s<, %dx%d", templatename, width, height);
+
         //search template
         ConfigNode templates = mConfig.getSubNode("templates");
         uint count = 0;
@@ -261,5 +250,9 @@ public class LevelGenerator {
     public Level generateFromImage(Surface image) {
         //TODO: add code
         return null;
+    }
+
+    public this() {
+        mLog = registerLog("LevelGenerator");
     }
 }

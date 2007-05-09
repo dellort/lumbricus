@@ -36,9 +36,11 @@
 			<Add library="DerelictSDLttf" />
 			<Add library="DerelictPhysFs" />
 		</Linker>
+		<Unit filename="common.d" />
 		<Unit filename="filesystem.d" />
 		<Unit filename="framework\commandline.d" />
 		<Unit filename="framework\console.d" />
+		<Unit filename="framework\font.d" />
 		<Unit filename="framework\filesystem.d" />
 		<Unit filename="framework\framework.d" />
 		<Unit filename="framework\i18n.d" />
@@ -46,6 +48,9 @@
 		<Unit filename="framework\sdl\framework.d" />
 		<Unit filename="framework\sdl\keys.d" />
 		<Unit filename="framework\sdl\rwops.d" />
+		<Unit filename="game\animation.d" />
+		<Unit filename="game\gobject.d" />
+		<Unit filename="game\scene.d" />
 		<Unit filename="level\generator.d" />
 		<Unit filename="level\genrandom.d" />
 		<Unit filename="level\level.d" />

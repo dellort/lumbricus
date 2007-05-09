@@ -4,10 +4,12 @@ import std.stream;
 public import utils.vector2;
 import framework.keysyms;
 import utils.time;
+import framework.font;
+import conv = std.conv;
 
 debug import std.stdio;
 
-private static Framework gFramework;
+package static Framework gFramework;
 
 public Framework getFramework() {
     return gFramework;
@@ -48,6 +50,9 @@ public struct Color {
     public static Color opCall(float r, float g, float b) {
         return opCall(r,g,b,1.0f);
     }
+    public static Color opCall(float c) {
+        return opCall(c,c,c);
+    }
 }
 
 enum Transparency {
@@ -84,10 +89,69 @@ public struct PixelFormat {
     uint mask_r, mask_g, mask_b, mask_a;
 }
 
+//warning: quite restricted interface
+public class SubSurface : Surface {
+    protected Surface mParent;
+
+    public bool isScreen() {
+        return mParent.isScreen;
+    }
+
+    //whether the surface is painted to the screen (set automatically)
+    public bool isOnScreen() {
+        return mParent.isOnScreen;
+    }
+    public void isOnScreen(bool onScreen) {
+        return mParent.isOnScreen(onScreen);
+    }
+
+    public Vector2i size() {
+        return size;
+    }
+
+    private void nosupport() {
+        throw new Exception("not supported");
+    }
+    //this is done so to be able OpenGL
+    //(OpenGL would translate these calls to glNewList() and glEndList()
+    public Canvas startDraw() {
+        nosupport();
+        return null;
+    }
+    public void endDraw() {
+        nosupport();
+    }
+
+    public void enableColorkey(Color colorkey = cStdColorkey) {
+        nosupport();
+    }
+
+    public void enableAlpha() {
+        nosupport();
+    }
+
+    public Color colorkey() {
+        return mParent.colorkey();
+    }
+    public Transparency transparency() {
+        return mParent.transparency();
+    }
+
+    /// convert the image data to raw pixel data, using the given format
+    public abstract bool convertToData(PixelFormat format, out uint pitch,
+        out void* data)
+    {
+        nosupport();
+        return false;
+    }
+}
+
 public class Surface {
     //true if this is the single and only screen surface!
     //(or the backbuffer)
     public abstract bool isScreen();
+
+    public abstract Surface getSubSurface(Vector2i pos, Vector2i size);
 
     //whether the surface is painted to the screen (set automatically)
     public abstract bool isOnScreen();
@@ -174,24 +238,6 @@ public class Canvas {
     public abstract void clear(Color color);
 }
 
-struct FontProperties {
-    int size = 14;
-    Color back = {0.0f,0.0f,0.0f,1.0f};
-    Color fore = {1.0f,1.0f,1.0f,1.0f};
-}
-
-public class Font {
-    /// draw UTF8 encoded text (use framework singleton to instantiate it)
-    public abstract void drawText(Canvas canvas, Vector2i pos, char[] text);
-    /// same for UTF-32
-    public abstract void drawText(Canvas canvas, Vector2i pos, dchar[] text);
-    /// return pixel width/height of the text
-    public abstract Vector2i textSize(char[] text);
-    public abstract Vector2i textSize(dchar[] text);
-
-    public abstract FontProperties properties();
-}
-
 /// Information about a key press
 public struct KeyInfo {
     Keycode code;
@@ -230,6 +276,9 @@ public class Framework {
     private float mFPSLastValue;
 
     private static Time cFPSTimeSpan; //how often to recalc FPS
+
+    //another singelton
+    private FontManager mFontManager;
 
     //initialize time between FPS recalculations
     static this() {
@@ -297,7 +346,19 @@ public class Framework {
     public abstract Surface createSurface(Vector2i size, DisplayFormat fmt,
         Transparency transp);
 
+    /// load a font, Stream "str" should contain a .ttf file
     public abstract Font loadFont(Stream str, FontProperties fontProps);
+
+    /// load a font using the font manager
+    public Font getFont(char[] id) {
+        return fontManager.loadFont(id);
+    }
+
+    public FontManager fontManager() {
+        if (!mFontManager)
+            mFontManager = new FontManager();
+        return mFontManager;
+    }
 
     public abstract Surface screen();
 
@@ -447,4 +508,41 @@ public class Framework {
     /// Event raised when the mouse pointer is changed
     /// Note that mouse button are managed by the onKey* events
     public void delegate(MouseInfo mouse) onMouseMove;
+}
+
+//xxx: move... what about color.d?
+public bool parseColor(char[] s, out Color color) {
+    //predefined colors
+    //if you have time, move this into a configfile! :-)
+    Color[char[]] colors;
+    colors["white"] = Color(1.0f);
+    colors["black"] = Color(0.0f);
+    colors["off"] = Color(0.0f);
+    colors["grey"] = Color(0.5f);
+    colors["red"] = Color(1.0f,0,0);
+    colors["blue"] = Color(0,0,1.0f);
+    colors["green"] = Color(0,1.0f,0);
+
+    if (s in colors) {
+        color = colors[s];
+        return true;
+    }
+
+    char[][] values = str.split(s);
+    if (values.length < 3 || values.length > 4)
+        return false;
+    try {
+        float r = conv.toFloat(values[0]);
+        float g = conv.toFloat(values[1]);
+        float b = conv.toFloat(values[2]);
+        float a = 1.0f;
+        if (values.length > 3) {
+            a = conv.toFloat(values[3]);
+        }
+        color = Color(r, g, b, a);
+        return true;
+    } catch (conv.ConvOverflowError e) {
+    } catch (conv.ConvError e) {
+    }
+    return false;
 }

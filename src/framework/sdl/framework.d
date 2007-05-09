@@ -1,6 +1,7 @@
 module framework.sdl.framework;
 
 import framework.framework;
+import framework.font;
 import framework.keysyms;
 import std.stream;
 import std.stdio;
@@ -37,6 +38,25 @@ public class SDLSurface : Surface {
     bool mOnScreenSurface;
     bool mNeverCache;
     Color mColorkey;
+
+    public Surface getSubSurface(Vector2i pos, Vector2i size) {
+        SDLSurface n = new SDLSurface(null);
+        n.mTransp = mTransp;
+        n.mOnScreenSurface = mOnScreenSurface;
+        n.mNeverCache = mNeverCache;
+        n.mColorkey = mColorkey;
+        //xxx: shouldn't copy, but the rest of the code is too borken
+        //actually, it should only select a subregion without copying...
+        n.mReal = SDL_CreateRGBSurface(mReal.flags, mReal.w,
+            mReal.h, mReal.format.BitsPerPixel,
+            mReal.format.Rmask, mReal.format.Gmask, mReal.format.Bmask,
+            mReal.format.Amask);
+        assert(n.mReal);
+        Canvas c = n.startDraw();
+        c.draw(this, Vector2i(0, 0), pos, size);
+        c.endDraw();
+        return n;
+    }
 
     public bool isScreen() {
         return mIsScreen;
