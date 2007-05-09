@@ -107,11 +107,31 @@ public abstract class ConfigItem {
         return true;
     }
 
-    private void unlink(ConfigNode parent) {
-        assert(mParent == parent);
+    //call from doRemove() only!
+    private void doUnlink(ConfigNode parent) {
+        assert(mParent is parent);
+        assert(mParent !is null);
         mParent = null;
         //not sure if the name should be cleared...
         mName = "";
+    }
+    
+    public void rename(char[] new_name) {
+        ConfigNode parent = mParent;
+        if (!parent)
+            throw new Exception("cannot rename: no parent");
+        parent.doRemove(this);
+        ConfigItem conflict = parent.find(new_name);
+        if (conflict) {
+            conflict.resolveConflict(new_name);
+        }
+        mName = new_name;
+        parent.doAdd(this);
+    }
+    
+    private void resolveConflict(char[] conflict_name) {
+        rename(conflict_name ~ "_deleted");
+        assert(mName != conflict_name);
     }
 
     public abstract ConfigItem clone();
@@ -189,7 +209,7 @@ public class ConfigNode : ConfigItem {
 
     private void doRemove(ConfigItem item) {
         char[] name = item.mName;
-        item.unlink(this);
+        item.doUnlink(this);
 
         if (name.length > 0) {
             assert(name in mNamedItems);
@@ -277,7 +297,10 @@ public class ConfigNode : ConfigItem {
                 // - put ConfigNode and ConfigValue both into ConfigItem
                 //   (so a Node can have a value)
                 // - separate namespace between nodes and values
-                doRemove(item);
+                //doRemove(item);
+                //why not simply rename it? this will do that:
+                item.resolveConflict(item.name);
+                item = null;
             }
 
             //create & add
@@ -1121,7 +1144,7 @@ public class ConfigFile {
 
     public void clear() {
         if (mRootnode !is null) {
-            mRootnode.unlink(null);
+            mRootnode.doUnlink(null);
         }
         mRootnode = new ConfigNode();
     }
