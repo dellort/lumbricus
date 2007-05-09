@@ -5,6 +5,7 @@ import utf = std.utf;
 import str = std.string;
 import std.format;
 import conv = std.conv;
+import utils.output : Output;
 
 //returns false: conversion failed, value is unmodified
 public bool parseInt(char[] s, inout int value) {
@@ -87,7 +88,7 @@ public abstract class ConfigItem {
         return mName;
     }
 
-    protected abstract void doWrite(OutputStream stream, uint level);
+    protected abstract void doWrite(Output stream, uint level);
 
     //throws ConfigInvalidName on error
     //keep in sync with parser
@@ -112,6 +113,14 @@ public abstract class ConfigItem {
         //not sure if the name should be cleared...
         mName = "";
     }
+
+    public abstract ConfigItem clone();
+    //called by the doClone()s
+    private void helpClone(ConfigItem org) {
+        comment = org.comment;
+        mName = org.mName;
+        mParent = null;
+    }
 }
 
 /// a ConfigFile value, this is always encoded as string
@@ -119,13 +128,20 @@ public class ConfigValue : ConfigItem {
     //value can contain anything (as long as it is valid UTF-8)
     public char[] value;
 
-    protected override void doWrite(OutputStream stream, uint level) {
+    protected override void doWrite(Output stream, uint level) {
         if (name.length > 0) {
             stream.writeString(" = "c);
         }
         stream.writeString("\""c);
         stream.writeString(ConfigFile.doEscape(value));
         stream.writeString("\""c);
+    }
+
+    public ConfigValue clone() {
+        auto r = new ConfigValue();
+        r.value = value;
+        r.helpClone(this);
+        return r;
     }
 
     //TODO: add properties like asInt etc.
@@ -142,6 +158,17 @@ public class ConfigNode : ConfigItem {
 
     //comment after last item in the node
     private char[] mEndComment;
+
+    public ConfigNode clone() {
+        auto r = new ConfigNode();
+        r.mEndComment = mEndComment;
+        r.helpClone(this);
+        foreach (ConfigItem item; this) {
+            ConfigItem n = item.clone();
+            r.doAdd(n);
+        }
+        return r;
+    }
 
     private void doAdd(ConfigItem item) {
         assert(item.mParent is null);
@@ -274,6 +301,13 @@ public class ConfigNode : ConfigItem {
         return TdoFind!(ConfigNode).doFind(name, create);
     }
 
+    public bool hasValue(char[] name) {
+        return findValue(name) !is null;
+    }
+    public bool hasNode(char[] name) {
+        return findNode(name) !is null;
+    }
+
     //difference to findNode: different default value for 2nd parameter :-)
     public ConfigNode getSubNode(char[] name, bool createIfNotExist = true) {
         return findNode(name, createIfNotExist);
@@ -308,7 +342,7 @@ public class ConfigNode : ConfigItem {
         return node;
     }
 
-    void doWrite(OutputStream stream, uint level) {
+    void doWrite(Output stream, uint level) {
         //always use this... on some systems, \n might not be mapped to 0xa
         char[] newline = "\x0a";
         char[] indent_str = str.repeat(" ", 4*level);
@@ -432,6 +466,52 @@ public class ConfigNode : ConfigItem {
     }
     public void setFloatValue(char[] name, float value) {
         setStringValue(name, str.toString(value));
+    }
+
+    /// Copy all items from "node" into "this", as long as no node exists with
+    /// that name.
+    public void mixinNode(ConfigNode node) {
+        if (!node)
+            return;
+        assert(node !is this);
+        foreach (ConfigItem item; node) {
+            if (!find(item.name)) {
+                auto n = item.clone();
+                doAdd(n);
+            }
+        }
+    }
+
+    /// Does the following:
+    /// for each subnode in "this", look for the key "key"
+    /// if it finds "key", look for another subnode of "this" with that value
+    /// then remove the "key" and mixin that other subnode
+    /// do that recursively
+    public void templatetifyNodes(char[] key) {
+        void resolveTemplate(ConfigNode node) {
+            if (node.hasValue(key)) {
+                auto mixinnode = findNode(node.getStringValue(key));
+                node.remove(key);
+                if (!mixinnode) {
+                    //xxx: what to do?
+                } else {
+                    //hint: deleting the template-key hopefully prevents
+                    //  recursion... at least in non-evil cases
+                    resolveTemplate(mixinnode);
+                    node.mixinNode(mixinnode);
+                }
+            }
+        }
+
+        foreach (char[] tmp, ConfigNode node; this) {
+            resolveTemplate(node);
+        }
+    }
+    
+    public void writeFile(Output stream) {
+        //xxx: add method to stream to determine if it's a file... or so
+        //stream.writeString(ConfigFile.cUtf8Bom);
+        doWrite(stream, 0);
     }
 }
 
@@ -1046,10 +1126,9 @@ public class ConfigFile {
         mRootnode = new ConfigNode();
     }
 
-    public void writeFile(OutputStream stream) {
+    public void writeFile(Output stream) {
         if (rootnode !is null) {
-            stream.writeString(cUtf8Bom);
-            rootnode.doWrite(stream, 0);
+            rootnode.writeFile(stream);
         }
     }
 }

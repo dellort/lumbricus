@@ -1,6 +1,7 @@
 module framework.console;
 
 import framework.framework;
+import framework.font;
 import utils.time;
 import utf = std.utf;
 import utils.output;
@@ -141,6 +142,9 @@ public class Console : Output {
     }
     void writef_ind(bool newline, TypeInfo[] arguments, void* argptr) {
         print(sformat_ind(newline, arguments, argptr));
+    }
+    void writeString(char[] s) {
+        print(s);
     }
 
     ///output one line of text, drawn on bottom-most position

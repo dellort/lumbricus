@@ -24,10 +24,20 @@ public class Log : Output {
         writef_ind(true, _arguments, _argptr);
     }
 
-    void writef_ind(bool newline, TypeInfo[] arguments, void* argptr) {
-        assert(backend);
+    void writeString(char[] str) {
+    	assert(backend !is null);
 
-        backend.writef(mCategory, ": ");
+	backend.writeString(str);
+    }
+
+    void opCall(...) {
+        writef_ind(true, _arguments, _argptr);
+    }
+
+    void writef_ind(bool newline, TypeInfo[] arguments, void* argptr) {
+        assert(backend !is null);
+
+        backend.writef("%s: ", mCategory);
         backend.writef_ind(newline, arguments, argptr);
     }
 }
@@ -45,13 +55,17 @@ private class PseudoBackend : Output {
 
     void writef_ind(bool newline, TypeInfo[] arguments, void* argptr) {
         void putc(dchar c) {
-            stdio.writef(c);
+            stdio.writef("%s", c);
         }
 
         stdformat.doFormat(&putc, arguments, argptr);
         if (newline) {
             stdio.writefln();
         }
+    }
+
+    void writeString(char[] str) {
+    	stdio.writef("%s", str);
     }
 
     static this() {
