@@ -1,4 +1,4 @@
-module mylist;
+module utils.mylist;
 
 //With this doubly linked list, I wanted to clone the OpenSolaris list.h
 //interface. (Note: no code was copied from there)

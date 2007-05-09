@@ -1,11 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <CodeBlocks_project_file>
-	<FileVersion major="1" minor="5" />
+	<FileVersion major="1" minor="6" />
 	<Project>
 		<Option title="Lumbricus" />
-		<Option default_target="" />
 		<Option compiler="dmd" />
-		<Option virtualFolders="" />
 		<Build>
 			<Target title="Debug">
 				<Option output="..\bin\Lumbricus.exe" prefix_auto="0" extension_auto="0" />
@@ -38,116 +36,30 @@
 			<Add library="DerelictSDLttf" />
 			<Add library="DerelictPhysFs" />
 		</Linker>
-		<Unit filename="filesystem.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="framework\commandline.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="framework\console.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="framework\framework.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="framework\i18n.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="framework\keysyms.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="framework\sdl\framework.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="framework\sdl\keys.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="framework\sdl\rwops.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="level\generator.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="level\genrandom.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="level\level.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="level\placeobjects.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="level\renderer.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="mainGame.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="utils\configfile.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="utils\log.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="utils\math.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="utils\mylist.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="utils\output.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="utils\time.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Unit filename="utils\vector2.d">
-			<Option compilerVar="CPP" />
-			<Option target="Debug" />
-			<Option target="Release" />
-		</Unit>
-		<Extensions />
+		<Unit filename="filesystem.d" />
+		<Unit filename="framework\commandline.d" />
+		<Unit filename="framework\console.d" />
+		<Unit filename="framework\framework.d" />
+		<Unit filename="framework\i18n.d" />
+		<Unit filename="framework\keysyms.d" />
+		<Unit filename="framework\sdl\framework.d" />
+		<Unit filename="framework\sdl\keys.d" />
+		<Unit filename="framework\sdl\rwops.d" />
+		<Unit filename="level\generator.d" />
+		<Unit filename="level\genrandom.d" />
+		<Unit filename="level\level.d" />
+		<Unit filename="level\placeobjects.d" />
+		<Unit filename="level\renderer.d" />
+		<Unit filename="mainGame.d" />
+		<Unit filename="utils\configfile.d" />
+		<Unit filename="utils\log.d" />
+		<Unit filename="utils\math.d" />
+		<Unit filename="utils\mylist.d" />
+		<Unit filename="utils\output.d" />
+		<Unit filename="utils\time.d" />
+		<Unit filename="utils\vector2.d" />
+		<Extensions>
+			<code_completion />
+		</Extensions>
 	</Project>
 </CodeBlocks_project_file>
