@@ -125,12 +125,7 @@ public class FileSystem {
      * Stream must be closed manually
      */
     public Stream openData(char[] filename) {
-        try {
-            return createStream(filename,FileMode.In,false);
-        } catch (StreamException e) {
-            throw new FileSystemException(str.format(
-                "Could not open file \"data/%s\": %s",filename,e.toString()));
-        }
+        return open(filename, true);
     }
 
     /** Open a file from user directory
@@ -138,13 +133,19 @@ public class FileSystem {
      * Stream must be closed manually
      */
     public Stream openUser(char[] filename, FileMode mode) {
-        char[] sWrite = "";
+        return open(filename, false, mode);
+    }
+
+    public Stream open(char[] filename, bool system,
+        FileMode mode = FileMode.In)
+    {
+        char[] sWrite = (mode == FileMode.Out) ? " for writing" : "";
         try {
-            return createStream(filename,mode,true);
+            return createStream(filename,mode,!system);
         } catch (StreamException e) {
             throw new FileSystemException(str.format(
-                "Could not open file \"user/%s\"%s: %s",
-                filename,sWrite,e.toString()));
+                "Could not open file \"%s/%s\"%s: %s",
+                (system?"data":"user"),filename,sWrite,e.toString()));
         }
     }
 
