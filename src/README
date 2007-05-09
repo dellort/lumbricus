@@ -12,3 +12,22 @@ More Information can be found at:
 
 http://www.digitalmars.com/d/index.html
 
+Building it...
+
+A D compiler for D 1.0 is required.
+xxx list required libraries here
+
+Windows:
+Use Code::Blocks.
+
+Linux:
+(Code::Blocks should also work)
+
+1. Get Derelict, and put the files into an include path found by DMD, i.e.
+   you can put the files into src/phobos/derelict/sdl/ or so.
+2. Get rebuild (http://svn.dsource.org/projects/dsss/downloads/rebuild/) and
+   onvoke it like:
+   $ rebuild -lldl -oqbin maingame.d
+   You also can use dsss and invoke it doing "dsss build".
+
+

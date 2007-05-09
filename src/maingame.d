@@ -1,3 +1,4 @@
+module maingame;
 import std.stdio;
 import std.stream;
 import std.string;
