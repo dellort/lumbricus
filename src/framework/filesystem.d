@@ -5,6 +5,10 @@ import stdf = std.file;
 import cstdlib = std.c.stdlib;
 import str = std.string;
 import std.stream;
+import utils.misc;
+import utils.log;
+
+private Log log;
 
 ///add OS-dependant path delimiter to pathStr, if not there
 public char[] addTrailingPathDelimiter(char[] pathStr) {
@@ -22,22 +26,44 @@ public bool dirExists(char[] dir) {
         return false;
 }
 
+///Describes where the object you are mounting resides in the physical FS
 enum MountPath {
+    ///Path is relative to app's data path
     data,
+    ///Path is relative to users home directory
     user,
+    ///Path is absolute, nothing is appended by mount()
     absolute,
 }
 
-private abstract class MountPointHandler {
+///A handler class that registers itself with the framework
+///One instance will exist, responsible for creating a HandlerInstance object
+///when a path/file is mounted
+protected abstract class MountPointHandler {
+    ///Can this handler class mount the path/file
+    ///Params:
+    ///  absPath = Absolute system path to object that should be mounted
     abstract bool canHandle(char[] absPath);
 
+    ///Mount absPath and create HandlerInstance
+    ///You can assume that canHandle has been called before
+    ///Params:
+    ///  absPath = Absolute system path to object that should be mounted
     abstract HandlerInstance mount(char[] absPath);
 }
 
-private abstract class  HandlerInstance {
+///A mounted path/file
+protected abstract class HandlerInstance {
+    ///can the currently mounted path/whatever open files for writing?
     abstract bool isWritable();
+
+    ///does the file (relative to handler object) exist and could be opened?
+    abstract bool exists(char[] handlerPath);
+
+    abstract Stream open(char[] handlerPath, FileMode mode);
 }
 
+///Specific MountPointHandler for mounting directories
 private class MountPointHandlerDirectory : MountPointHandler {
     bool canHandle(char[] absPath) {
         return dirExists(absPath);
@@ -54,28 +80,79 @@ private class MountPointHandlerDirectory : MountPointHandler {
     }
 }
 
+///Specific HandlerInstance for opening files from mounted directories
 private class HandlerDirectory : HandlerInstance {
+    private {
+        char[] mDirPath;
+    }
+
     this(char[] absPath) {
+        if (!dirExists(absPath))
+            throw new Exception("Directory doesn't exist");
+        mDirPath = addTrailingPathDelimiter(absPath);
+        log("New dir handler for '%s'",mDirPath);
     }
 
     bool isWritable() {
         return true;
     }
+
+    bool exists(char[] handlerPath) {
+        char[] p = mDirPath ~ handlerPath;
+        log("Checking for existance: '%s'",p);
+        return stdf.exists(p) && stdf.isfile(p);
+    }
+
+    Stream open(char[] handlerPath, FileMode mode) {
+        log("Handler for '%s': Opening '%s'",mDirPath, handlerPath);
+        return new File(mDirPath ~ handlerPath, mode);
+    }
 }
 
-abstract class FileSystem {
+class FileSystem {
     protected {
+        ///represents a virtual path in the VFS
         struct MountedPath {
+            ///the path this HandlerInstance is mounted into,
+            ///relative to VFS root with leading/trailing '/'
             char[] mountPoint;
+            ///handler for mounted path/file
             HandlerInstance handler;
+            ///is opening files for writing/creating files supported by handler
+            ///and enabled for this path
             bool isWritable;
 
             public static MountedPath opCall(char[] mountPoint, HandlerInstance handler, bool isWritable) {
                 MountedPath ret;
-                ret.mountPoint = mountPoint;
+                //make sure mountPoint starts and ends with a '/'
+                ret.mountPoint = fixRelativePath(mountPoint);
+                if (ret.mountPoint[$-1] != '/')
+                    ret.mountPoint ~= '/';
                 ret.handler = handler;
                 ret.isWritable = isWritable && handler.isWritable();
                 return ret;
+            }
+
+            ///is relPath a subdirectory of mountPoint?
+            ///compares case-sensitive
+            public bool matchesPath(char[] relPath) {
+                log("Checking for match: '%s' and '%s'",relPath,mountPoint);
+                return relPath.length>mountPoint.length && (str.cmp(relPath[0..mountPoint.length],mountPoint) == 0);
+            }
+
+            ///Convert relPath (relative to VFS root) to a path relative to
+            ///mountPoint
+            public char[] getHandlerPath(char[] relPath) {
+                if (matchesPath(relPath)) {
+                    return relPath[mountPoint.length..$];
+                } else {
+                    return "";
+                }
+            }
+
+            ///Check if this mountPoint supports opening files with mode
+            public bool matchesMode(FileMode mode) {
+                return (mode == FileMode.In || isWritable);
             }
         }
 
@@ -89,10 +166,24 @@ abstract class FileSystem {
     }
 
     this(char[] arg0, char[] appId) {
+        log = registerLog("FS");
         mAppId = appId;
         initPaths(arg0);
     }
 
+    ///Add leading and trailing slashes if necessary and replace '\' by '/'
+    ///An empty path will be converted to '/'
+    protected static char[] fixRelativePath(char[] p) {
+        if (p.length == 0)
+            p = "/";
+        p = str.replace(p,"\\","/");
+        if (p[0] != '/')
+            p = "/" ~ p;
+        return p;
+    }
+
+    ///Return path to application's executable file, with trailing '/'
+    ///XXX test this on Linux
     protected char[] getAppPath(char[] arg0) {
         char[] appPath;
         version(Windows) {
@@ -116,6 +207,8 @@ abstract class FileSystem {
         return appPath;
     }
 
+    ///Returns path to '.<appId>' in user's home directory
+    ///Created if not existant
     ///Assuming mAppPath is already initalized
     protected char[] getUserPath() {
         char[] userPath;
@@ -145,20 +238,40 @@ abstract class FileSystem {
         return userPath;
     }
 
+    ///initialize paths where files/folders to mount will be searched
     protected void initPaths(char[] arg0) {
         mAppPath = getAppPath(arg0);
 
+        //user path: home directory + .appId
         mUserPath = getUserPath();
+        log("PUser = '%s'",mUserPath);
 
+        //data paths: app directory + special dirs on linux
         mDataPaths = null;
         version(linux) {
             mDataPaths ~= "/usr/local/share/" ~ mAppId ~ "/";
             mDataPaths ~= "/usr/share/" ~ mAppId ~ "/";
         }
-        mDataPaths ~= mAppPath ~ "../bin/";
+        mDataPaths ~= mAppPath;
+        //XXX really? this could cause problems if app is in C:\Program Files
+        mDataPaths ~= mAppPath ~ "../";
+        debug foreach(p; mDataPaths) {
+            log("PData = '%s'",p);
+        }
     }
 
-    public void mountDirectory(MountPath mp, char[] path, char[] mountPoint, bool writable, bool prepend = false) {
+    ///Mount file/folder path into the VFS at mountPoint
+    ///Params:
+    ///  mp = where in the real filesystem should be looked for path
+    ///       MountPoint.data: Search data dirs
+    ///       MountPoint.user: Search user dir
+    ///       MountPoint.absolute: Path is absolute, leave as it is
+    ///  path = path to object in the real FS, relative if specified by mp
+    ///  writable = should it be possible to open files for writing
+    ///             or create files in this path
+    ///             if path is not physically writable, this parameter is ignored
+    public void mount(MountPath mp, char[] path, char[] mountPoint, bool writable, bool prepend = false) {
+        //get absolute path to object, considering mp
         char[] absPath;
         switch (mp) {
             case MountPath.data:
@@ -178,6 +291,7 @@ abstract class FileSystem {
         if (!stdf.exists(absPath))
             throw new Exception("Failed to mount "~path~": Path/file not found");
 
+        //find a handler for this path
         MountPointHandler currentHandler = null;
         foreach (MountPointHandler h; mHandlers) {
             if (h.canHandle(absPath)) {
@@ -189,12 +303,50 @@ abstract class FileSystem {
         if (!currentHandler)
             throw new Exception("No handler was able to mount object "~path);
 
-        mMountedPaths ~= MountedPath(path,currentHandler.mount(absPath),writable);
+        mMountedPaths ~= MountedPath(mountPoint,currentHandler.mount(absPath),writable);
     }
 
-    public abstract Stream open(char[] relFilename, FileMode mode = FileMode.In);
+    ///open a stream to a file in the VFS
+    ///if you try to open an existing file (mode != FileMode.OutNew), all mounted
+    ///paths are searched top-down (first mounted first) until a file has been found
+    ///When creating a file, it will be created in the first matching path that
+    ///is writable
+    ///Params:
+    ///  relFilename = path to the file, relative to VFS root
+    ///  mode = how the file should be opened
+    public Stream open(char[] relFilename, FileMode mode = FileMode.In) {
+        relFilename = fixRelativePath(relFilename);
+        log("Trying to open '%s'",relFilename);
+        foreach (inout MountedPath p; mMountedPaths) {
+            if (p.matchesPath(relFilename) && p.matchesMode(mode)) {
+                log("Found matching handler");
+                char[] handlerPath = p.getHandlerPath(relFilename);
+                if (p.handler.exists(handlerPath) || mode == FileMode.OutNew) {
+                    //the file exists, or a new file should be created
+                    return p.handler.open(handlerPath, mode);
+                }
+            }
+        }
+        throw new Exception("File not found");
+    }
 
-    public abstract bool exists(char[] filename);
+    ///Check if a file exists in the VFS
+    ///This will only look for files, not directories
+    ///Params:
+    ///  relFilename = path to file to check for existance, relative to VFS root
+    public bool exists(char[] relFilename) {
+        relFilename = fixRelativePath(relFilename);
+        foreach (inout MountedPath p; mMountedPaths) {
+            if (p.matchesPath(relFilename)) {
+                char[] handlerPath = p.getHandlerPath(relFilename);
+                if (p.handler.exists(handlerPath)) {
+                    //file found
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 
     package static void registerHandler(MountPointHandler h) {
         mHandlers ~= h;
