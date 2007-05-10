@@ -56,7 +56,7 @@
 		<Unit filename="level\level.d" />
 		<Unit filename="level\placeobjects.d" />
 		<Unit filename="level\renderer.d" />
-		<Unit filename="maingame.d" />
+		<Unit filename="lumbricus.d" />
 		<Unit filename="utils\configfile.d" />
 		<Unit filename="utils\log.d" />
 		<Unit filename="utils\math.d" />

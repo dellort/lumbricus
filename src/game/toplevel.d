@@ -71,10 +71,16 @@ class TopLevel {
 
         globals.framework.registerShortcut(Keycode.G, [Modifier.Control],
             &testGC);
-        globals.framework.registerShortcut(Keycode.ESCAPE, null,
-            (KeyInfo inf) {globals.framework.terminate();});
-        globals.framework.registerShortcut(Keycode.F1, null,
-            (KeyInfo inf) {console.toggle();});
+        globals.framework.registerShortcut(Keycode.ESCAPE, null, &killShortcut);
+        globals.framework.registerShortcut(Keycode.F1, null, &showConsole);
+    }
+
+    private void showConsole(KeyInfo infos) {
+        console.toggle();
+    }
+
+    private void killShortcut(KeyInfo infos) {
+        globals.framework.terminate();
     }
 
     private void testGC(KeyInfo infos) {

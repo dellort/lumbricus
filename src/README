@@ -27,7 +27,7 @@ Linux:
    you can put the files into src/phobos/derelict/sdl/ or so.
 2. Get rebuild (http://svn.dsource.org/projects/dsss/downloads/rebuild/) and
    invoke it like:
-   $ rebuild -lldl -oqbin maingame.d
+   $ rebuild -lldl -oqbin lumbricus.d
    You also can use dsss and invoke it doing "dsss build".
 
 

@@ -1,16 +1,38 @@
 module utils.log;
 
+//make it simpler to rip out code without needing MyList
+version = WithLists;
+
 import utils.output;
 import stdformat = std.format;
 import stdio = std.stdio;
+
+version (WithLists) {
+    import utils.mylist;
+
+
+    List!(Log) gAllLogs;
+
+    static this() {
+        gAllLogs = new List!(Log)(Log.node.getListNodeOffset());
+    }
+}
 
 public class Log : Output {
     private char[] mCategory;
     Output backend;
 
+    version (WithLists) {
+        mixin ListNodeMixin node;
+    }
+
     public this(char[] category, Output backend) {
         mCategory = category;
         this.backend = backend;
+
+        version (WithLists) {
+            gAllLogs.insert_tail(this);
+        }
     }
 
     char[] category() {
