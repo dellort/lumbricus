@@ -7,6 +7,7 @@ import utils.time;
 import framework.font;
 import conv = std.conv;
 import str = std.format;
+import framework.filesystem;
 
 debug import std.stdio;
 
@@ -283,6 +284,8 @@ public class Framework {
 
     private KeyShortCut[] mKeyShortCuts;
 
+    private FileSystem mFilesystem;
+
     private struct KeyShortCut {
         Keycode code;
         //using a simple bitfield (ala (1<<modifier_1)|(1<<modifier2)...) would
@@ -303,11 +306,12 @@ public class Framework {
         return mMousePos;
     }
 
-    public this() {
+    public this(char[] arg0, char[] appId) {
         mKeyStateMap = new bool[Keycode.max-Keycode.min+1];
         if (gFramework !is null) {
             throw new Exception("Framework is a singleton");
         }
+        mFilesystem = new FileSystem(arg0, appId);
         gFramework = this;
         setCurrentTimeDelegate(&getCurrentTime);
     }
@@ -375,6 +379,10 @@ public class Framework {
     }
 
     public abstract Surface screen();
+
+    public FileSystem fs() {
+        return mFilesystem;
+    }
 
     /// Main-Loop
     public void run() {

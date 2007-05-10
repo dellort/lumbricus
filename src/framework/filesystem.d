@@ -254,7 +254,7 @@ class FileSystem {
         }
         mDataPaths ~= mAppPath;
         //XXX really? this could cause problems if app is in C:\Program Files
-        mDataPaths ~= mAppPath ~ "../";
+        mDataPaths ~= mAppPath ~ "../data/";
         debug foreach(p; mDataPaths) {
             log("PData = '%s'",p);
         }

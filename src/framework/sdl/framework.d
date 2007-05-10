@@ -531,7 +531,9 @@ public class FrameworkSDL : Framework {
     private SDLSurface mScreenSurface;
     private Keycode mSdlToKeycode[int];
 
-    this() {
+    this(char[] arg0, char[] appId) {
+        super(arg0, appId);
+
         if (gFrameworkSDL !is null) {
             throw new Exception("FrameworkSDL is a singleton, sorry.");
         }

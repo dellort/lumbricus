@@ -7,7 +7,6 @@ import framework.framework;
 import utils.configfile : ConfigNode;
 import utils.vector2;
 import utils.log;
-import filesystem;
 import std.stream;
 import str = std.string;
 import conv = std.conv;
@@ -42,7 +41,7 @@ public class LevelGenerator {
             if (accept_null)
                 return null;
         } else {
-            Stream s = gFileSystem.openData(value);
+            Stream s = gFramework.fs.open(value);
             res = getFramework.loadImage(s, Transparency.Colorkey);
             s.close();
         }

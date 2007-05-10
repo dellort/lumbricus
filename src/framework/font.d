@@ -1,7 +1,6 @@
 module framework.font;
 import framework.framework;
 import utils.configfile;
-import filesystem;
 import utils.log;
 
 struct FontProperties {
@@ -65,14 +64,14 @@ class FontManager {
 
         filename = font.getStringValue("filename");
 
-        /*if (!gFileSystem.exists(filename)) {
+        if (!gFramework.fs.exists(filename)) {
             filename = mNodes.getSubNode("default")
                 .getStringValue("filename", "font.ttf");
-        }*/
+        }
 
         p.bold = font.getBoolValue("bold", p.bold);
         p.italic = font.getBoolValue("italic", p.italic);
-        Font f = gFramework.loadFont(gFileSystem.open(filename,true), p);
+        Font f = gFramework.loadFont(gFramework.fs.open(filename), p);
 
         if (!f) {
             if (tryHard)

@@ -2,7 +2,6 @@ module game.common;
 import game.toplevel;
 import framework.framework;
 import framework.commandline;
-import filesystem;
 import utils.time;
 import utils.configfile;
 import utils.log;
@@ -30,7 +29,6 @@ enum GUIZOrder : int {
 class Common {
     Framework framework;
     TopLevel toplevel;
-    FileSystem filesystem;
     Log log;
     Output defaultOut;
     CommandLine cmdLine;
@@ -49,7 +47,6 @@ class Common {
         globals = this;
 
         framework = fw;
-        filesystem = gFileSystem;
 
         log = registerLog("common");
 
@@ -62,12 +59,12 @@ class Common {
     }
 
     Surface loadGraphic(char[] path) {
-        return framework.loadImage(filesystem.openData(path), Transparency.None);
+        return framework.loadImage(framework.fs.open(path), Transparency.None);
     }
 
     ConfigNode loadConfig(char[] section) {
         char[] file = section ~ ".conf";
-        auto s = filesystem.open(file, true);
+        auto s = framework.fs.open(file);
         auto f = new ConfigFile(s, file, &logconf);
         if (!f.rootnode)
             throw new Exception("?");

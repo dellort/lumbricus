@@ -6,11 +6,11 @@ import framework.framework;
 import framework.keysyms;
 import framework.sdl.framework;
 import framework.font;
+import framework.filesystem;
 import utils.configfile;
 import std.file;
 import path = std.path;
 import level.generator;
-import filesystem;
 import gc = std.gc;
 import perf = std.perf;
 import level.level;
@@ -34,18 +34,22 @@ class MainGame {
     Console cons;
     CommandLine cmdLine;
 
+    const char[] APP_ID = "lumbricus";
+
     uint fg;
 
     this(char[][] args) {
-        initFileSystem(args[0]);
-
-        mFramework = new FrameworkSDL();
+        mFramework = new FrameworkSDL(args[0],APP_ID);
         mFramework.setVideoMode(800,600,0,false);
+
+        //init filesystem
+        mFramework.fs.mount(MountPath.data,"data/","/",false);
+        mFramework.fs.mount(MountPath.user,"/","/",true);
 
         Log log = registerLog("main");
         log.writefln("hallo welt");
 
-        Stream x = gFileSystem.openData("i18n.conf");
+        Stream x = mFramework.fs.open("i18n.conf");
         ConfigFile c = new ConfigFile(x, "i18n.conf", &doout);
         initI18N(c.rootnode, "de");
         auto g = new Translator("module1.mod2");
@@ -60,10 +64,10 @@ class MainGame {
     }
 
     public void run() {
-        Stream foo = gFileSystem.openData("basselope.gif");
+        Stream foo = mFramework.fs.open("basselope.gif");
         img = mFramework.loadImage(foo, Transparency.Alpha);
         foo.close();
-        Stream f = gFileSystem.openData("font/vera.ttf");
+        Stream f = mFramework.fs.open("font/vera.ttf");
         FontProperties fontprops;
         fontprops.size = 50;
         fontprops.back.g = 1.0f;
@@ -92,7 +96,7 @@ class MainGame {
 
         //testconfig();
         generator = new LevelGenerator();
-        f = gFileSystem.openData("levelgen.conf");
+        f = mFramework.fs.open("levelgen.conf");
         ConfigFile conf = new ConfigFile(f, "levelgen.conf", &doout);
         f.close();
         generator.config = conf.rootnode.getSubNode("levelgen");
@@ -209,7 +213,7 @@ class MainGame {
             return;
         if (placer is null) {
             placer = new PlaceObjects(mLevel);
-            Stream foo = gFileSystem.openData("test.png");
+            Stream foo = mFramework.fs.open("test.png");
             auto imgbla = mFramework.loadImage(foo, Transparency.Colorkey);
             foo.close();
             placer.loadObject(imgbla, PlaceObjects.Side.North, 10);
