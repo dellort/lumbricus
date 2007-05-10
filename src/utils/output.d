@@ -2,6 +2,7 @@ module utils.output;
 
 import std.format;
 import std.utf;
+import stdio = std.stdio;
 
 /// interface for a generic text output stream (D currently lacks support for
 /// text streams, so we have to do it)
@@ -26,10 +27,8 @@ char[] sformat_ind(bool newline, TypeInfo[] arguments, void* argptr) {
     return ret;
 }
 
-//another small nasty helper: writes all output into a string
-public class StringOutput : Output {
-    public char[] text;
-
+/// A helper for implementers only, users shall use interface Output instead.
+public class OutputHelper : Output {
     void writef(...) {
         writef_ind(false, _arguments, _argptr);
     }
@@ -37,10 +36,56 @@ public class StringOutput : Output {
         writef_ind(true, _arguments, _argptr);
     }
     void writef_ind(bool newline, TypeInfo[] arguments, void* argptr) {
-        text ~= sformat_ind(newline, arguments, argptr);
+        writeString(sformat_ind(newline, arguments, argptr));
     }
+    abstract void writeString(char[] str);
+}
+
+/// Implements the Output interface and writes all text to stdio.
+public class StdioOutput : OutputHelper {
+    package static StdioOutput output_stdio;
+
+    /+void writef(...) {
+        writef_ind(false, _arguments, _argptr);
+    }
+    void writefln(...) {
+        writef_ind(true, _arguments, _argptr);
+    }
+
+    void writef_ind(bool newline, TypeInfo[] arguments, void* argptr) {
+        void putc(dchar c) {
+            stdio.writef("%s", c);
+        }
+
+        stdformat.doFormat(&putc, arguments, argptr);
+        if (newline) {
+            stdio.writefln();
+        }
+    }+/
+
+    void writeString(char[] str) {
+    	stdio.writef("%s", str);
+    }
+
+    static this() {
+        output_stdio = new StdioOutput();
+    }
+}
+
+/// Implements the Output interface and writes all text into a string variable.
+public class StringOutput : OutputHelper {
+    /// All text written to the Output interface is appended to this
+    public char[] text;
     void writeString(char[] str) {
         text ~= str;
+    }
+}
+
+/// Implements the Output interface and throws away all text written to it.
+public class DevNullOutput : OutputHelper {
+    void writeString(char[] str) {
+    }
+    void writef_ind(bool newline, TypeInfo[] arguments, void* argptr) {
     }
 }
 

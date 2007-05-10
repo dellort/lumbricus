@@ -111,7 +111,7 @@ public class Console : Output {
     private void renderTextLine(Canvas outCanvas, dchar[] text, Vector2i pos,
         int maxWidth)
     {
-        mConsoleFont.drawText(outCanvas,pos,utf.toUTF8(text));
+        mConsoleFont.drawText(outCanvas,pos,text);//utf.toUTF8(text));
         //xxx missing method to get drawn character width
         //foreach (dchar ch; text) {
         //    mConsoleFont.drawText(outCanvas,pos,utf.toUTF8(ch));

@@ -1,38 +1,24 @@
 module utils.log;
 
-//make it simpler to rip out code without needing MyList
-version = WithLists;
-
 import utils.output;
 import stdformat = std.format;
 import stdio = std.stdio;
 
-version (WithLists) {
-    import utils.mylist;
+/// Access to all Log objects created so far.
+Log[char[]] gAllLogs;
 
-
-    List!(Log) gAllLogs;
-
-    static this() {
-        gAllLogs = new List!(Log)(Log.node.getListNodeOffset());
-    }
-}
-
+/// Generic logging class. Implements interface Output, and all lines of text
+/// written to it are prefixed with a descriptive header.
 public class Log : Output {
     private char[] mCategory;
-    Output backend;
 
-    version (WithLists) {
-        mixin ListNodeMixin node;
-    }
+    Output backend;
 
     public this(char[] category, Output backend) {
         mCategory = category;
         this.backend = backend;
 
-        version (WithLists) {
-            gAllLogs.insert_tail(this);
-        }
+        gAllLogs[category] = this;
     }
 
     char[] category() {
@@ -64,37 +50,11 @@ public class Log : Output {
     }
 }
 
-//pseudo-backend to dump onto stdio
-private class PseudoBackend : Output {
-    package static PseudoBackend output_stdio;
-
-    void writef(...) {
-        writef_ind(false, _arguments, _argptr);
-    }
-    void writefln(...) {
-        writef_ind(true, _arguments, _argptr);
-    }
-
-    void writef_ind(bool newline, TypeInfo[] arguments, void* argptr) {
-        void putc(dchar c) {
-            stdio.writef("%s", c);
-        }
-
-        stdformat.doFormat(&putc, arguments, argptr);
-        if (newline) {
-            stdio.writefln();
-        }
-    }
-
-    void writeString(char[] str) {
-    	stdio.writef("%s", str);
-    }
-
-    static this() {
-        output_stdio = new PseudoBackend();
-    }
-}
-
+/// Register a log-category. There's one Log object per category-string, i.e.
+/// multiple calls with the same argument will return the same object.
 public Log registerLog(char[] category) {
-    return new Log(category, PseudoBackend.output_stdio);
+    if (category in gAllLogs) {
+        return gAllLogs[category];
+    }
+    return new Log(category, StdioOutput.output_stdio);
 }

@@ -424,10 +424,13 @@ public class SDLFont : Font {
             pos.x += surface.size.x;
         }
     }
-    //xxx code duplication
+    //xxx code duplication... created already one bug sigh
     public void drawText(Canvas canvas, Vector2i pos, dchar[] text) {
         foreach (dchar c; text) {
             SDLSurface surface = getGlyph(c);
+            if (mNeedBackPlain) {
+                canvas.draw(mBackPlain, pos, Vector2i(0, 0), surface.size);
+            }
             canvas.draw(surface, pos);
             pos.x += surface.size.x;
         }
