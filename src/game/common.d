@@ -5,6 +5,7 @@ import framework.commandline;
 import utils.time;
 import utils.configfile;
 import utils.log;
+import framework.i18n;
 
 public Common globals;
 
@@ -47,6 +48,8 @@ class Common {
         globals = this;
 
         framework = fw;
+
+        initI18N(loadConfig("i18n"), "de");
 
         log = registerLog("common");
 
