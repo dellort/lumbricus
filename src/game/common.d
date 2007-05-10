@@ -1,84 +1,73 @@
 module game.common;
+import game.toplevel;
 import framework.framework;
-import framework.font;
-import game.scene;
-import game.animation;
+import framework.commandline;
 import filesystem;
 import utils.time;
 import utils.configfile;
 import utils.log;
-import std.string;
 
-public Common gCommon;
+public Common globals;
 
 //don't know where to put your stuff? just dump it here!
+//mainly supposed to manage all the singletons...
 
 //ZOrders!
 //maybe keep in sync with game.Scene.cMaxZOrder
-enum ZOrder : int {
+//maybe move to module game.toplevel
+//these values are for globals.toplevel.guiscene
+enum GUIZOrder : int {
     Invisible = 0,
     Background,
-    HUD,
+    Game,
+    Gui,
+    Console,
     FPS,
 }
 
+//the big singleton...
+//also contains some important initialization code
 class Common {
     Framework framework;
-    Screen screen;
-    Scene gamescene;
+    TopLevel toplevel;
     FileSystem filesystem;
-    Font consFont;
-    FontLabel fpsDisplay;
-    Log defaultLog;
+    Log log;
+    Output defaultOut;
+    CommandLine cmdLine;
 
     private Log mLogConf;
 
+    //both time variables are updated for each frame
     //for graphics stuff (i.e. animations continue to play while game paused)
     Time gameTimeAnimations;
     //simulation time, etc.
     Time gameTime;
 
-    this(Framework fw, Font consFont) {
-        if (gCommon)
+    this(Framework fw) {
+        if (globals)
             throw new Exception("Common is a singelton!");
-        gCommon = this;
+        globals = this;
 
         framework = fw;
-        screen = new Screen(fw.screen.size);
-
-        this.consFont = consFont;
-
-        defaultLog = registerLog("common");
-
         filesystem = gFileSystem;
 
-        framework.fontManager.readFontDefinitions(loadConfig("fonts", true));
+        log = registerLog("common");
 
-        gamescene = screen.rootscene;
-        fpsDisplay = new FontLabel(gamescene, framework.getFont("fpsfont"));
-        fpsDisplay.active = true;
-        fpsDisplay.zorder = ZOrder.FPS;
+        framework.fontManager.readFontDefinitions(loadConfig("fonts"));
 
-        fpsDisplay.text = "hallo";
+        toplevel = new TopLevel();
 
-        //kidnap framework singleton...
-        framework.onFrame = &onFrame;
-        ConfigNode node = loadConfig("animations", true);
-        auto sub = node.getSubNode("testani1");
-        Animation ani = new Animation(sub);
-        Animator ar = new Animator(gamescene);
-        ar.zorder = 2;
-        ar.active = true;
-        ar.setAnimation(ani, true);
+        //hint: after leaving this constructor, the framework's mainloop is
+        //      called, which in turn calls callbacks set by TopLevel.
     }
 
     Surface loadGraphic(char[] path) {
         return framework.loadImage(filesystem.openData(path), Transparency.None);
     }
 
-    ConfigNode loadConfig(char[] section, bool system) {
+    ConfigNode loadConfig(char[] section) {
         char[] file = section ~ ".conf";
-        auto s = filesystem.open(file, system);
+        auto s = filesystem.open(file, true);
         auto f = new ConfigFile(s, file, &logconf);
         if (!f.rootnode)
             throw new Exception("?");
@@ -91,15 +80,5 @@ class Common {
             assert(mLogConf !is null);
         }
         mLogConf("%s", log);
-    }
-
-    private void onFrame() {
-        gameTimeAnimations = framework.getCurrentTime();
-
-        fpsDisplay.text = format("FPS: %1.2f", framework.FPS);
-
-        Canvas canvas = framework.screen.startDraw();
-        screen.draw(canvas);
-        framework.screen.endDraw();
     }
 }

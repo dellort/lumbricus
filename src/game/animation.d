@@ -18,7 +18,7 @@ class Animation {
     this (ConfigNode node) {
         assert(node !is null);
         int duration = node.getIntValue("duration", 10);
-        Surface bmp = gCommon.loadGraphic(node.getStringValue("image"));
+        Surface bmp = globals.loadGraphic(node.getStringValue("image"));
         assert(bmp !is null);
         int frames = node.getIntValue("frames", 0);
         size.x = node.getIntValue("width", 0);
@@ -57,24 +57,20 @@ class Animator : SceneObjectPositioned {
         mAniRepeat = repeating;
         mAniNext = null;
         mLastFrame = 0;
-        mLastFrameTime = gCommon.gameTimeAnimations;
+        mLastFrameTime = globals.gameTimeAnimations;
     }
 
     void setOnNoAnimation(void delegate(Animator) cb) {
         mOnNoAnimation = cb;
     }
 
-    this(Scene s) {
-        super(s);
-    }
-
     void draw(Canvas canvas) {
         if (!mAni || mAni.mFrames.length == 0)
             return;
         Animation.FrameInfo fi = mAni.mFrames[mLastFrame];
-        if ((gCommon.gameTimeAnimations - mLastFrameTime).msecs > fi.durationMS) {
+        if ((globals.gameTimeAnimations - mLastFrameTime).msecs > fi.durationMS) {
             mLastFrame = (mLastFrame + 1) % mAni.mFrames.length;
-            mLastFrameTime = gCommon.gameTimeAnimations;
+            mLastFrameTime = globals.gameTimeAnimations;
             if (mLastFrame == 0) {
                 //end of animation, check what to do now...
                 if (mAniNext) {

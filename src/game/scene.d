@@ -26,13 +26,16 @@ class Scene {
 
 //over engineered for sure!
 class SceneView : SceneObjectPositioned {
-    this(Scene scene) {
-        super(scene);
+    Scene mClientScene;
+
+    this(Scene clientscene) {
+        assert(clientscene !is null);
+        mClientScene = clientscene;
     }
 
     void draw(Canvas canvas) {
         //xxx: translate and add clipping!!!!
-        foreach (list; mScene.mActiveObjectsZOrdered[1..$]) {
+        foreach (list; mClientScene.mActiveObjectsZOrdered[1..$]) {
             foreach (obj; list) {
                 obj.draw(canvas);
             }
@@ -52,6 +55,9 @@ class Screen {
     this(Vector2i size) {
         mRootScene = new Scene();
         mRootView = new SceneView(mRootScene);
+        //NOTE: normally SceneViews are elements in a further Scene, but here
+        //      Screen is the container of the SceneView mRootView
+        //      damn overengineered madness!
         mRootView.pos = Vector2i(0, 0);
         mRootView.size = size;
     }
@@ -69,8 +75,25 @@ class SceneObject {
     private int mZOrder;
     private bool mActive;
 
-    this(Scene owner) {
-        mScene = owner;
+    public Scene scene() {
+        return mScene;
+    }
+
+    public void scene(Scene scene) {
+        if (scene is mScene)
+            return;
+
+        //remove
+        active = false;
+        mScene = null;
+
+        if (scene) {
+            //add
+            bool tmp = active;
+            active = false;
+            mScene = scene;
+            active = tmp;
+        }
     }
 
     public int zorder() {
@@ -87,9 +110,18 @@ class SceneObject {
         mZOrder = z;
     }
 
+    public bool active() {
+        return mActive;
+    }
+
     public void active(bool set) {
         if (set == mActive)
             return;
+
+        if (!mScene) {
+            mActive = false;
+            return;
+        }
 
         if (set) {
             mScene.mActiveObjectsZOrdered[mZOrder].insert_head(this);
@@ -105,22 +137,25 @@ class SceneObject {
     abstract void draw(Canvas canvas);
 }
 
+class CallbackSceneObject : SceneObject {
+    public void delegate(Canvas canvas) onDraw;
+
+    void draw(Canvas canvas) {
+        if (onDraw) onDraw(canvas);
+    }
+}
+
 //with a rectangular bounding box??
 class SceneObjectPositioned : SceneObject {
     Vector2i pos;
     Vector2i size;
-
-    this(Scene s) {
-        super(s);
-    }
 }
 
 class FontLabel : SceneObjectPositioned {
     char[] text;
     Font font;
 
-    this(Scene s, Font font) {
-        super(s);
+    this(Font font) {
         this.font = font;
     }
 

@@ -51,12 +51,13 @@
 		<Unit filename="game\common.d" />
 		<Unit filename="game\gobject.d" />
 		<Unit filename="game\scene.d" />
+		<Unit filename="game\toplevel.d" />
 		<Unit filename="level\generator.d" />
 		<Unit filename="level\genrandom.d" />
 		<Unit filename="level\level.d" />
 		<Unit filename="level\placeobjects.d" />
 		<Unit filename="level\renderer.d" />
-		<Unit filename="mainGame.d" />
+		<Unit filename="maingame.d" />
 		<Unit filename="utils\configfile.d" />
 		<Unit filename="utils\log.d" />
 		<Unit filename="utils\math.d" />

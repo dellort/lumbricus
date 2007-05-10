@@ -104,7 +104,7 @@ class MainGame {
 
         cmdLine.registerCommand("quit"c, &cmdQuit, "Leave the game.");
 
-        Common c = new Common(mFramework, consFont);
+        Common c = new Common(mFramework);
 
         mFramework.run();
     }

@@ -6,6 +6,7 @@ import framework.keysyms;
 import utils.time;
 import framework.font;
 import conv = std.conv;
+import str = std.format;
 
 debug import std.stdio;
 
@@ -280,6 +281,19 @@ public class Framework {
     //another singelton
     private FontManager mFontManager;
 
+    private KeyShortCut[] mKeyShortCuts;
+
+    private struct KeyShortCut {
+        Keycode code;
+        //using a simple bitfield (ala (1<<modifier_1)|(1<<modifier2)...) would
+        //be too simple!!!
+        Modifier[] required_mods;
+        void delegate(KeyInfo inf) handler;
+
+        //changed all the time (while handling...)
+        bool handled;
+    }
+
     //initialize time between FPS recalculations
     static this() {
         cFPSTimeSpan = timeSecs(1);
@@ -448,8 +462,12 @@ public class Framework {
         bool was_down = getKeyState(infos.code);
 
         updateKeyState(infos, true);
-        if (!was_down && onKeyDown != null) {
-            onKeyDown(infos);
+        if (!was_down) {
+            if (handleShortcuts(infos, true)) {
+                //it did handle the key; don't do anything more with that key
+                return;
+            }
+            if (onKeyDown) onKeyDown(infos);
         }
 
         if (onKeyPress != null) {
@@ -462,8 +480,8 @@ public class Framework {
         if (infos.code == Keycode.F4 && getModifierState(Modifier.Alt)) {
             doTerminate();
         }
-        if (onKeyUp != null) {
-            onKeyUp(infos);
+        if (!handleShortcuts(infos, false)) {
+            if (onKeyUp) onKeyUp(infos);
         }
     }
 
@@ -482,6 +500,69 @@ public class Framework {
                 onMouseMove(infos);
             }
         }
+    }
+
+    /// Register shortcuts, where the key "code" is pressed together with the
+    /// modifiers in "mods".
+    /// The shortcuts are only handled, if you call handleShortcuts() for each
+    /// event of onKeyDown and onKeyUp (but not onKeyPress)!
+    public void registerShortcut(Keycode code, Modifier[] mods,
+        void delegate(KeyInfo key) cb)
+    {
+        KeyShortCut ksc;
+        ksc.code = code;
+        ksc.required_mods = mods.dup;
+        ksc.handler = cb;
+        mKeyShortCuts ~= ksc;
+    }
+
+    // Handle shortcuts registered by registerShortcut()
+    // returns true: a shortcut was handled, i.e. the shortcut's event was
+    //               called, and the key is still hold down, or so.
+    // returns false: unhandled, unrecognized.
+    private bool handleShortcuts(KeyInfo infos, bool isKeyDownEvent) {
+        //linear search...
+        foreach (inout ksc; mKeyShortCuts) {
+            if (ksc.code == infos.code) {
+                bool matched = true;
+                foreach (mod; ksc.required_mods) {
+                    if (!getModifierState(mod)) {
+                        matched = false;
+                        break;
+                    }
+                }
+
+                //all conditions satisfied, the shortcut is considered to match
+                if (matched) {
+                    if (!ksc.handled && isKeyDownEvent) {
+                        ksc.handled = true;
+                        if (ksc.handler) ksc.handler(infos);
+                    }
+                    //shortcut released
+                    if (!isKeyDownEvent) {
+                        ksc.handled = false;
+                    }
+
+                    return true;
+                } else {
+                    //treat as released
+                    ksc.handled = false;
+                }
+            }
+        }
+        return false;
+    }
+
+    public char[] keyinfoToString(KeyInfo infos) {
+        char[] res = str.format("key=%s ('%s') unicode='%s'", cast(int)infos.code,
+            translateKeycodeToKeyID(infos.code), infos.unicode);
+
+        //append all modifiers
+        for (Modifier mod = Modifier.min; mod <= Modifier.max; mod++) {
+            res ~= str.format(" [%s: %s]", cast(int)mod, getModifierState(mod));
+        }
+
+        return res;
     }
 
     protected bool doTerminate() {
