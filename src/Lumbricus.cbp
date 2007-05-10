@@ -36,7 +36,6 @@
 			<Add library="DerelictSDLttf" />
 			<Add library="DerelictPhysFs" />
 		</Linker>
-		<Unit filename="filesystem.d" />
 		<Unit filename="framework\commandline.d" />
 		<Unit filename="framework\console.d" />
 		<Unit filename="framework\filesystem.d" />
