@@ -47,6 +47,10 @@ public class CommandLine {
         registerCommand("history"d, &cmdHistory, "Show the history."d);
     }
 
+    public Console console() {
+        return mConsole;
+    }
+
     private void cmdHelp(CommandLine cmd, uint id) {
         mConsole.print("List of commands: "c);
         uint count = 0;

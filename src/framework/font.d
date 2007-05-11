@@ -38,6 +38,7 @@ class FontManager {
             return mIDtoFont[id];
 
         FontProperties p;
+        p.back.a = 0;
         char[] filename;
 
         if (!mNodes)
@@ -70,7 +71,8 @@ class FontManager {
         }
 
         p.bold = font.getBoolValue("bold", p.bold);
-        p.italic = font.getBoolValue("italic", p.italic);
+        p.italic = font.getBoolValue("italic", p.italic);
+
         Font f = gFramework.loadFont(gFramework.fs.open(filename), p);
 
         if (!f) {

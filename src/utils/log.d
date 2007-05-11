@@ -53,8 +53,15 @@ public class Log : Output {
 /// Register a log-category. There's one Log object per category-string, i.e.
 /// multiple calls with the same argument will return the same object.
 public Log registerLog(char[] category) {
+    auto log = findLog(category);
+    if (!log)
+        log = new Log(category, StdioOutput.output_stdio);
+    return log;
+}
+
+public Log findLog(char[] category) {
     if (category in gAllLogs) {
         return gAllLogs[category];
     }
-    return new Log(category, StdioOutput.output_stdio);
+    return null;
 }

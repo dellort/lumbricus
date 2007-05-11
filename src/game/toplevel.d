@@ -53,7 +53,6 @@ class TopLevel {
         consrender.active = true;
         consrender.onDraw = &renderConsole;
 
-        //kidnap framework singleton...
         globals.framework.onFrame = &onFrame;
         globals.framework.onKeyPress = &onKeyPress;
         globals.framework.onKeyDown = &onKeyDown;
@@ -73,6 +72,16 @@ class TopLevel {
             &testGC);
         globals.framework.registerShortcut(Keycode.ESCAPE, null, &killShortcut);
         globals.framework.registerShortcut(Keycode.F1, null, &showConsole);
+
+        globals.cmdLine.registerCommand("log"d, &cmdShowLog,
+            "List and modify log-targets"d);
+    }
+
+    private void cmdShowLog(CommandLine cmd, uint id) {
+        cmd.console.writefln("Log targets:");
+        foreach (Log log; gAllLogs) {
+            cmd.console.writefln("  %s", log.category);
+        }
     }
 
     private void showConsole(KeyInfo infos) {

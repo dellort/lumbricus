@@ -440,6 +440,24 @@ public class Framework {
         return Keycode.INVALID;
     }
 
+    public char[] modifierToString(Modifier mod) {
+        switch (mod) {
+            case Modifier.Alt: return "alt";
+            case Modifier.Control: return "ctrl";
+            case Modifier.Shift: return "shift";
+        }
+    }
+
+    public bool stringToModifier(char[] str, out Modifier mod) {
+        switch (str) {
+            case "alt": mod = Modifier.Alt; return true;
+            case "ctrl": mod = Modifier.Control; return true;
+            case "shift": mod = Modifier.Shift; return true;
+            default:
+        }
+        return false;
+    }
+
     private void updateKeyState(in KeyInfo infos, bool state) {
         assert(infos.code >= Keycode.min && infos.code <= Keycode.max);
         mKeyStateMap[infos.code - Keycode.min] = state;
@@ -560,6 +578,37 @@ public class Framework {
         }
         return false;
     }
+
+    //parse a whitespace separated list of strings into sth. that can be passed
+    //to registerShortcut()
+    private bool parseBindString(char[] bindstr, out Keycode out_code,
+        out Modifier[] out_mods)
+    {
+        foreach (char[] s; str.split(bindstr)) {
+            Modifier mod;
+            if (stringToModifier(s, mod)) {
+                out_mods ~= mod;
+            } else {
+                if (out_code != Keycode.INVALID)
+                    return false;
+                out_code = translateKeyIDToKeycode(s);
+                if (out_code == Keycode.INVALID)
+                    return false;
+            }
+        }
+        return (out_code != Keycode.INVALID);
+    }
+
+    /*public void addBind(char[] bindid, char[] bindstr) {
+        Keycode code;
+        Modifier[] mods;
+
+        if (!parseBindString(bindstr, code, mods)) {
+            //xxx: silenty fail?
+            return;
+        }
+        registerShortcut...
+    }*/
 
     public char[] keyinfoToString(KeyInfo infos) {
         char[] res = str.format("key=%s ('%s') unicode='%s'", cast(int)infos.code,
