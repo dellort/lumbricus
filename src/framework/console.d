@@ -31,12 +31,12 @@ public class Console : Output {
     private int mLineHeight;
 
     //current input line
-    private dchar[] mCurLine;
+    private char[] mCurLine;
     //cursor position
     private int mCursorPos;
 
     //backlog buffer
-    private dchar[][BACKLOG_LENGTH]  mBackLog;
+    private char[][BACKLOG_LENGTH]  mBackLog;
     //index into backlog pointing to next empty line
     private int mBackLogIdx;
     //number of valid entries
@@ -96,10 +96,11 @@ public class Console : Output {
                         Vector2i(mBorderOffset,mCurHeight-mLineHeight*(i+2)),
                         renderWidth);
             }
-            dchar[] cmdline = "> "~mCurLine;
+            char[] prompt = "> ";
+            char[] cmdline = prompt~mCurLine;
             auto cmdsp = Vector2i(mBorderOffset, mCurHeight-mLineHeight);
             mConsoleFont.drawText(scrCanvas,cmdsp,cmdline);
-            auto offs = mConsoleFont.textSize(cmdline[0..2+mCursorPos]);
+            auto offs = mConsoleFont.textSize(cmdline[0..prompt.length+mCursorPos]);
             //the cursor
             scrCanvas.drawFilledRect(cmdsp+Vector2i(offs.x, 0), cmdsp+offs
                 +Vector2i(1, 0), mConsoleFont.properties.fore);
@@ -108,7 +109,7 @@ public class Console : Output {
         mLastTime = timeCurrentTime();
     }
 
-    private void renderTextLine(Canvas outCanvas, dchar[] text, Vector2i pos,
+    private void renderTextLine(Canvas outCanvas, char[] text, Vector2i pos,
         int maxWidth)
     {
         mConsoleFont.drawText(outCanvas,pos,text);//utf.toUTF8(text));
@@ -124,7 +125,7 @@ public class Console : Output {
     }
 
     ///set the input text (displayed on bottom)
-    public void setCurLine(dchar[] line) {
+    public void setCurLine(char[] line) {
         mCurLine = line;
     }
 
@@ -149,17 +150,13 @@ public class Console : Output {
 
     ///output one line of text, drawn on bottom-most position
     ///current text is moved up
-    public void print(dchar[] line) {
+    public void print(char[] line) {
         touchConsole();
         mBackLog[mBackLogIdx] = line;
         mBackLogIdx = (mBackLogIdx + 1) % BACKLOG_LENGTH;
         mBackLogLen++;
         if (mBackLogLen > BACKLOG_LENGTH)
             mBackLogLen = BACKLOG_LENGTH;
-    }
-
-    public void print(char[] line) {
-        print(str.toUTF32(line));
     }
 
     ///scroll backlog display back dLines > 0 lines

@@ -5,14 +5,38 @@ import framework.framework;
 import framework.keysyms;
 
 import str = std.string;
+import utf = std.utf;
 
 import utils.mylist;
 
+//xxx: maybe move these two functions into an utils.* file?
+/// Return the index of the character following the character at "index"
+int charNext(char[] s, int index) {
+    assert(index >= 0 && index <= s.length);
+    if (index == s.length)
+        return s.length;
+    return index + utf.stride(s, index);
+}
+/// Return the index of the character prepending the character at "index"
+int charPrev(char[] s, int index) {
+    assert(index >= 0 && index <= s.length);
+    debug if (index < s.length) {
+        //assert valid UTF-8 character (stride will throw an exception)
+        utf.stride(s, index);
+    }
+    //you just had to find the first char starting with 0b0... or 0b11...
+    //but this was most simple
+    foreach_reverse(int byteindex, dchar c; s[0..index]) {
+        return byteindex;
+    }
+    return 0;
+}
+
 //store stuff about a command
 private class Command {
-    dchar[] name;
+    char[] name;
     void delegate(CommandLine, uint) cmdProc;
-    dchar[] helpText;
+    char[] helpText;
     uint id;
 }
 
@@ -20,14 +44,14 @@ private class Command {
 private alias List!(HistoryNode) HistoryList;
 
 private class HistoryNode {
-    dchar[] stuff;
+    char[] stuff;
     mixin ListNodeMixin listnode;
 }
 
 public class CommandLine {
     private uint mUniqueID; //counter for registerCommand IDs
     private Console mConsole;
-    private dchar[] mCurline;
+    private char[] mCurline;
     private uint mCursor;
     private Command[] mCommands; //xxx: maybe replace by list
     private HistoryList mHistory;
@@ -43,8 +67,8 @@ public class CommandLine {
         mConsole = cons;
         HistoryNode n;
         mHistory = new HistoryList(n.listnode.getListNodeOffset());
-        registerCommand("help"d, &cmdHelp, "Show all commands."d);
-        registerCommand("history"d, &cmdHistory, "Show the history."d);
+        registerCommand("help", &cmdHelp, "Show all commands.");
+        registerCommand("history", &cmdHistory, "Show the history.");
     }
 
     public Console console() {
@@ -52,7 +76,7 @@ public class CommandLine {
     }
 
     private void cmdHelp(CommandLine cmd, uint id) {
-        mConsole.print("List of commands: "c);
+        mConsole.print("List of commands: ");
         uint count = 0;
         foreach (Command c; mCommands) {
             mConsole.print(c.name ~ ": " ~ c.helpText);
@@ -62,15 +86,15 @@ public class CommandLine {
     }
 
     private void cmdHistory(CommandLine cmd, uint id) {
-        mConsole.print("History:"d);
+        mConsole.print("History:");
         foreach (HistoryNode hist; mHistory) {
             mConsole.print("   "~hist.stuff);
         }
     }
 
-    public int registerCommand(dchar[] name,
+    public int registerCommand(char[] name,
         void delegate(CommandLine cmdLine, uint cmdId) cmdProc,
-        dchar[] helpText)
+        char[] helpText)
     {
         auto cmd = new Command();
         cmd.name = name;
@@ -81,14 +105,6 @@ public class CommandLine {
         mCommands ~= cmd;
 
         return cmd.id;
-    }
-
-    public int registerCommand(char[] name,
-        void delegate(CommandLine cmdLine, uint cmdId) cmdProc,
-        char[] helpText)
-    {
-        return registerCommand(str.toUTF32(name), cmdProc,
-            str.toUTF32(helpText));
     }
 
     public bool keyDown(KeyInfo infos) {
@@ -107,24 +123,26 @@ public class CommandLine {
     public bool keyPress(KeyInfo infos) {
         if (infos.code == Keycode.RIGHT) {
             if (mCursor < mCurline.length)
-                mCursor++;
+                mCursor = charNext(mCurline, mCursor);
             updateCursor();
             return true;
         } else if (infos.code == Keycode.LEFT) {
             if (mCursor > 0)
-                mCursor--;
+                mCursor = charPrev(mCurline, mCursor);
             updateCursor();
             return true;
         } else if (infos.code == Keycode.BACKSPACE) {
             if (mCursor > 0) {
-                mCurline = mCurline[0 .. mCursor-1] ~ mCurline[mCursor .. $];
-                mCursor--;
+                int del = mCursor - charPrev(mCurline, mCursor);
+                mCurline = mCurline[0 .. mCursor-del] ~ mCurline[mCursor .. $];
+                mCursor -= del;
                 updateCmdline();
             }
             return true;
         } else if (infos.code == Keycode.DELETE) {
             if (mCursor < mCurline.length) {
-                mCurline = mCurline[0 .. mCursor] ~ mCurline[mCursor+1 .. $];
+                int del = utf.stride(mCurline, mCursor);
+                mCurline = mCurline[0 .. mCursor] ~ mCurline[mCursor+del .. $];
                 updateCmdline();
             }
             return true;
@@ -161,9 +179,14 @@ public class CommandLine {
             return true;
         } else if (infos.isPrintable()) {
             //printable char
-            mCurline = mCurline[0 .. mCursor] ~ infos.unicode
-                ~ mCurline[mCursor .. $];
-            mCursor++;
+            char[] append;
+            if (!utf.isValidDchar(infos.unicode)) {
+                append = "?";
+            } else {
+                append = utf.toUTF8([infos.unicode]);
+            }
+            mCurline = mCurline[0 .. mCursor] ~ append ~ mCurline[mCursor .. $];
+            mCursor += utf.stride(mCurline, mCursor);
             updateCmdline();
             return true;
         }
@@ -171,7 +194,7 @@ public class CommandLine {
     }
 
     private void select_history_entry(HistoryNode newentry) {
-        dchar[] newline;
+        char[] newline;
 
         mCurrentHistoryEntry = newentry;
 
@@ -188,11 +211,11 @@ public class CommandLine {
 
     //get the command part of the command line
     //sets mCommandStart and mCommandEnd
-    private dchar[] parseCommand() {
+    private char[] parseCommand() {
         //currently just find the first space...
         mCommandStart = 0;
         mCommandEnd = mCurline.length;
-        foreach (uint index, dchar c; mCurline) {
+        foreach (uint index, char c; mCurline) {
             if (c == ' ') {
                 mCommandEnd = index;
                 break;
@@ -206,7 +229,7 @@ public class CommandLine {
 
         if (cmd.length == 0) {
             //nothing, but show some reaction...
-            mConsole.print("-"c);
+            mConsole.print("-");
         } else {
             //into the history
             HistoryNode histent = new HistoryNode();
@@ -237,7 +260,7 @@ public class CommandLine {
     }
 
     private void do_tab_completion() {
-        dchar[] cmd = parseCommand();
+        char[] cmd = parseCommand();
         Command[] res;
         Command exact = find_command_completions(cmd, res);
 
@@ -245,11 +268,12 @@ public class CommandLine {
             //no hit, too bad, maybe beep?
         } else {
             //get biggest common starting-string of all completions
-            dchar[] common = res[0].name;
+            char[] common = res[0].name;
             foreach (Command ccmd; res[1..$]) {
                 if (ccmd.name.length < common.length)
                     common = ccmd.name.dup; //dup: because we set length below
-                foreach (uint index, dchar c; common) {
+                //xxx incorrect utf-8 handling
+                foreach (uint index, char c; common) {
                     if (ccmd.name[index] != c) {
                         common.length = index;
                         break;
@@ -272,18 +296,18 @@ public class CommandLine {
             } else {
                 if (res.length > 1) {
                     //write them to the output screen
-                    mConsole.print("Tab completions:"d);
+                    mConsole.print("Tab completions:");
                     bool toomuch = (res.length == MAX_AUTO_COMPLETIONS);
                     if (toomuch) res = res[0..$-1];
                     foreach (Command ccmd; res) {
                         mConsole.print(ccmd.name);
                     }
                     if (toomuch)
-                        mConsole.print("..."c);
+                        mConsole.print("...");
                 } else {
                     //one hit, since the case wasn't catched above, this means
                     //it's already complete?
-                    mConsole.print("?"c);
+                    mConsole.print("?");
                 }
             }
         }
@@ -292,13 +316,14 @@ public class CommandLine {
 
     //if there's a perfect match (whole string equals), then it is returned,
     //  else return null
-    private Command find_command_completions(dchar[] cmd, inout Command[] res) {
+    private Command find_command_completions(char[] cmd, inout Command[] res) {
         Command exact;
 
         res.length = 0;
 
         foreach (Command cur; mCommands) {
             //xxx: make string comparisions case insensitive
+            //xxx: incorrect utf-8 handling?
             if (cur.name.length >= cmd.length
                 && cmd == cur.name[0 .. cmd.length])
             {

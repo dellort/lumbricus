@@ -73,8 +73,8 @@ class TopLevel {
         globals.framework.registerShortcut(Keycode.ESCAPE, null, &killShortcut);
         globals.framework.registerShortcut(Keycode.F1, null, &showConsole);
 
-        globals.cmdLine.registerCommand("log"d, &cmdShowLog,
-            "List and modify log-targets"d);
+        globals.cmdLine.registerCommand("log", &cmdShowLog,
+            "List and modify log-targets");
     }
 
     private void cmdShowLog(CommandLine cmd, uint id) {
