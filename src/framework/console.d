@@ -142,14 +142,24 @@ public class Console : Output {
         writef_ind(true, _arguments, _argptr);
     }
     void writef_ind(bool newline, TypeInfo[] arguments, void* argptr) {
-        print(sformat_ind(newline, arguments, argptr));
+        writeString(sformat_ind(newline, arguments, argptr));
     }
+
+    //NOTE: parses '\n's
     void writeString(char[] s) {
-        print(s);
+    restart:
+        foreach (int index, char c; s) {
+            if (c == '\n') {
+                print(s[0..index]);
+                s = s[index+1..$];
+                goto restart; //sry was too lazy!
+            }
+        }
     }
 
     ///output one line of text, drawn on bottom-most position
     ///current text is moved up
+    ///don't parse '\n's
     public void print(char[] line) {
         touchConsole();
         mBackLog[mBackLogIdx] = line;

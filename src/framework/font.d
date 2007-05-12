@@ -15,10 +15,10 @@ public class Font {
     /// draw UTF8 encoded text (use framework singleton to instantiate it)
     public abstract void drawText(Canvas canvas, Vector2i pos, char[] text);
     /// same for UTF-32
-    public abstract void drawText(Canvas canvas, Vector2i pos, dchar[] text);
+    //public abstract void drawText(Canvas canvas, Vector2i pos, dchar[] text);
     /// return pixel width/height of the text
     public abstract Vector2i textSize(char[] text);
-    public abstract Vector2i textSize(dchar[] text);
+    //public abstract Vector2i textSize(dchar[] text);
 
     public abstract FontProperties properties();
 }
