@@ -18,6 +18,7 @@ import perf = std.perf;
 import gc = std.gc;
 import level = level.generator;
 import str = std.string;
+import conv = std.conv;
 
 //ZOrders!
 //maybe keep in sync with game.Scene.cMaxZOrder
@@ -93,6 +94,10 @@ class TopLevel {
         globals.framework.onKeyDown = &onKeyDown;
         globals.framework.onKeyUp = &onKeyUp;
         globals.framework.onMouseMove = &onMouseMove;
+        globals.framework.onVideoInit = &onVideoInit;
+
+        //do it yourself... (initial event)
+        onVideoInit(false);
 
         //xxx test
         ConfigNode node = globals.loadConfig("animations");
@@ -117,6 +122,35 @@ class TopLevel {
             "Generate new level");
         globals.cmdLine.registerCommand("bind", &cmdBind,
             "display/edit key bindings");
+        globals.cmdLine.registerCommand("video", &cmdVideo, "set video");
+        globals.cmdLine.registerCommand("fullscreen", &cmdFS, "toggle fs");
+    }
+
+    private void onVideoInit(bool depth_only) {
+        globals.log("Changed video: %s", globals.framework.screen.size);
+    }
+
+    private void cmdVideo(CommandLine cmd) {
+        int[3] args;
+        char[][] sargs = cmd.parseArgs();
+        if (sargs.length != 3)
+            return;
+        try {
+            foreach (int idx, inout a; args) {
+                a = conv.toInt(sargs[idx]);
+            }
+        } catch (conv.ConvError) {
+            return;
+        }
+        globals.framework.setVideoMode(args[0], args[1], args[2], false);
+    }
+
+    private bool mIsFS;
+    private void cmdFS(CommandLine cmd) {
+        globals.framework.setVideoMode(globals.framework.screen.size.x1,
+            globals.framework.screen.size.x2, globals.framework.bitDepth,
+            !mIsFS);
+        mIsFS = !mIsFS;
     }
 
     //bind [name action [keys]]
@@ -222,7 +256,7 @@ class TopLevel {
         }
         auto x = new level.LevelGenerator();
         x.config = globals.loadConfig("levelgen").getSubNode("levelgen");
-        auto level = x.generateRandom(2000, 600, "");
+        auto level = x.generateRandom(1920, 696, "");
         thegame = new GameController(gamescene, level);
     }
 

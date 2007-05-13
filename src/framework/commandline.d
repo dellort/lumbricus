@@ -245,6 +245,8 @@ public class CommandLine {
                 mHistory.remove(mHistory.head);
             }
 
+            mCurrentHistoryEntry = null;
+
             Command[] throwup;
             auto ccmd = find_command_completions(cmd, throwup);
             //accept unique partial matches

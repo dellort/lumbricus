@@ -337,6 +337,8 @@ public class Framework {
     public abstract void setVideoMode(int widthX, int widthY, int bpp,
         bool fullscreen);
 
+    public abstract uint bitDepth();
+
     /// set window title
     public abstract void setCaption(char[] caption);
 
@@ -600,6 +602,9 @@ public class Framework {
     /// Event raised when the mouse pointer is changed
     /// Note that mouse button are managed by the onKey* events
     public void delegate(MouseInfo mouse) onMouseMove;
+    /// Event raised on initialization (before first onFrame) and when the
+    /// screen size or format changes.
+    public void delegate(bool depth_only) onVideoInit;
 }
 
 /// Map key combinations to IDs (strings).

@@ -603,9 +603,6 @@ public class FrameworkSDL : Framework {
         DerelictSDLImage.load();
         DerelictSDLttf.load();
 
-
-
-
         if (SDL_Init(SDL_INIT_VIDEO) < 0) {
             throw new Exception(format("Could not init SDL: %s",
                 std.string.toString(SDL_GetError())));
@@ -638,13 +635,17 @@ public class FrameworkSDL : Framework {
         SDL_WM_SetCaption(caption.ptr, null);
     }
 
+    public uint bitDepth() {
+        return mScreenSurface.mReal.format.BitsPerPixel;
+    }
+
     public void setVideoMode(int widthX, int widthY, int bpp,
         bool fullscreen)
     {
         SDL_Surface* newscreen;
 
         newscreen = SDL_SetVideoMode(widthX, widthY, bpp,
-            SDL_HWSURFACE | SDL_DOUBLEBUF);
+            SDL_HWSURFACE | SDL_DOUBLEBUF | (fullscreen ? SDL_FULLSCREEN : 0));
 
         if(newscreen is null) {
             throw new Exception(format("Unable to set %dx%dx%d video mode: %s",
@@ -652,8 +653,10 @@ public class FrameworkSDL : Framework {
         }
 
         mScreen = newscreen;
-        //TODO: Software backbuffer
         mScreenSurface.mReal = mScreen;
+
+        if (onVideoInit)
+            onVideoInit(false);
     }
 
     package PixelFormat sdlFormatToFramework(SDL_PixelFormat* fmt) {
