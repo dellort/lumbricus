@@ -503,6 +503,15 @@ public class Framework {
         }
         return false;
     }
+    public bool isModifierKey(Keycode c) {
+        switch (c) {
+            case Keycode.RALT, Keycode.RCTRL, Keycode.RSHIFT:
+            case Keycode.LALT, Keycode.LCTRL, Keycode.LSHIFT:
+                return true;
+            default:
+                return false;
+        }
+    }
 
     public Modifier[] getAllModifiers() {
         //hm, somewhat inconvenient...

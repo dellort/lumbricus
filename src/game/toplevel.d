@@ -48,6 +48,7 @@ class TopLevel {
     ConfigNode localizedKeyfile;
 
     bool mShowKeyDebug = false;
+    bool mKeyNameIt = false;
 
     this() {
         screen = new Screen(globals.framework.screen.size);
@@ -122,6 +123,7 @@ class TopLevel {
             "Generate new level");
         globals.cmdLine.registerCommand("bind", &cmdBind,
             "display/edit key bindings");
+        globals.cmdLine.registerCommand("nameit", &cmdNameit, "name a key");
         globals.cmdLine.registerCommand("video", &cmdVideo, "set video");
         globals.cmdLine.registerCommand("fullscreen", &cmdFS, "toggle fs");
     }
@@ -178,6 +180,10 @@ class TopLevel {
                     translateKeyshortcut(code, mods));
             }
         );
+    }
+
+    private void cmdNameit(CommandLine) {
+        mKeyNameIt = true;
     }
 
     //translate into translated user-readable string
@@ -279,6 +285,18 @@ class TopLevel {
     private Vector2i mMouseStart;
 
     private bool onKeyDown(KeyInfo infos) {
+        if (mKeyNameIt) {
+            //modifiers are also keys, ignore them
+            if (globals.framework.isModifierKey(infos.code)) {
+                return false;
+            }
+            auto mods = globals.framework.getAllModifiers();
+            globals.cmdLine.console.writefln("Key: '%s' '%s'",
+                keybindings.unparseBindString(infos.code, mods),
+                translateKeyshortcut(infos.code, mods));
+            mKeyNameIt = false;
+            return false;
+        }
         if (mShowKeyDebug) {
             globals.log("down: %s", globals.framework.keyinfoToString(infos));
         }
