@@ -61,6 +61,7 @@ class TopLevel {
         globals.cmdLine = new CommandLine(console);
 
         globals.defaultOut = console;
+        gDefaultOutput.destination = globals.defaultOut;
 
         //xxx: make this fail-safe
         localizedKeyfile = globals.loadConfig(
@@ -191,7 +192,7 @@ class TopLevel {
 
         cmd.console.writefln("Log targets:");
         foreach (Log log; gAllLogs) {
-            cmd.console.writefln("  %s", log.category);
+            cmd.console.writefln("  %s -> %s", log.category, log.backend_name);
         }
     }
 

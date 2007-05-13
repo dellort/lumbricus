@@ -171,7 +171,7 @@ class FileSystem {
         bool stfu = true; //xxx TODO: make configureable (environment var?)
         if (stfu) {
             log("Entering STFU mode.");
-            log.backend = DevNullOutput.output;
+            log.setBackend(DevNullOutput.output, "null");
         }
         mAppId = appId;
         initPaths(arg0);

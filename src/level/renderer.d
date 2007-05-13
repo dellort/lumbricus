@@ -7,7 +7,9 @@ module level.renderer;
 import level.level;
 import framework.framework;
 import utils.vector2;
+import utils.time;
 import utils.mylist;
+import utils.log;
 import math = std.math;
 
 import std.stdio;
@@ -37,6 +39,7 @@ package class LevelRenderer {
     private uint mTranslatedColorKey;
     private uint[] mImageData;
     private Lexel[] mLevelData;
+    private Log mLog;
 
     private PixelFormat fmt;
 
@@ -191,8 +194,8 @@ package class LevelRenderer {
 
         debug {
             counter.stop();
-            writefln("render.d: polygon rendered in %s us",
-                counter.microseconds);
+            mLog("render.d: polygon rendered in %s",
+                timeMusecs(cast(int)counter.microseconds));
         }
     }
 
@@ -263,12 +266,23 @@ package class LevelRenderer {
             }
         }
 
+        debug {
+            auto counter = new PerformanceCounter();
+            counter.start();
+        }
+
         //stores temporary data between up and down pass
         ubyte[] tmp = new ubyte[mWidth*mHeight];
         if (do_down)
             drawBorderInt(a, b, false, tex_down, tmp);
         if (do_up)
             drawBorderInt(a, b, true, tex_up, tmp);
+
+        debug {
+            counter.stop();
+            mLog("render.d: border drawn in %s",
+                timeMusecs(cast(int)counter.microseconds));
+        }
     }
 
     debug {
@@ -288,9 +302,10 @@ package class LevelRenderer {
         }
     }
 
-    public this(uint width, uint height) {
+    public this(uint width, uint height, Log log) {
         mWidth = width;
         mHeight = height;
+        mLog = log;
 
         fmt = getFramework.findPixelFormat(DisplayFormat.RGBA32);
         mTranslatedColorKey = colorToRGBA32(cStdColorkey);
@@ -362,8 +377,8 @@ package class LevelRenderer {
 
             debug {
                 counter.stop();
-                writefln("render.d: cairo rendered in   %s us",
-                    counter.microseconds);
+                mLog("render.d: cairo rendered in %s",
+                    timeMusecs(cast(int)counter.microseconds));
             }
         }
 

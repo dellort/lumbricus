@@ -47,8 +47,8 @@ public class SDLSurface : Surface {
         n.mColorkey = mColorkey;
         //xxx: shouldn't copy, but the rest of the code is too borken
         //actually, it should only select a subregion without copying...
-        n.mReal = SDL_CreateRGBSurface(mReal.flags, mReal.w,
-            mReal.h, mReal.format.BitsPerPixel,
+        n.mReal = SDL_CreateRGBSurface(mReal.flags, size.x1,
+            size.x2, mReal.format.BitsPerPixel,
             mReal.format.Rmask, mReal.format.Gmask, mReal.format.Bmask,
             mReal.format.Amask);
         assert(n.mReal);

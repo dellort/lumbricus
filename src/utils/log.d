@@ -6,6 +6,11 @@ import stdio = std.stdio;
 
 /// Access to all Log objects created so far.
 Log[char[]] gAllLogs;
+RedirectOutput gDefaultOutput;
+
+static this() {
+    gDefaultOutput = new RedirectOutput(StdioOutput.output);
+}
 
 /// Generic logging class. Implements interface Output, and all lines of text
 /// written to it are prefixed with a descriptive header.
@@ -17,7 +22,7 @@ public class Log : Output {
 
     public this(char[] category) {
         mCategory = category;
-        setBackend(DevNullOutput.output, "null");
+        setBackend(gDefaultOutput, "default");
 
         gAllLogs[category] = this;
     }
@@ -62,7 +67,7 @@ public Log registerLog(char[] category) {
     auto log = findLog(category);
     if (!log) {
         log = new Log(category);
-        log.setBackend(StdioOutput.output, "null");
+        //log.setBackend(StdioOutput.output, "null");
     }
     return log;
 }

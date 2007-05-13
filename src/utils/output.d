@@ -76,3 +76,13 @@ public class DevNullOutput : OutputHelper {
     }
 }
 
+public class RedirectOutput : OutputHelper {
+    Output destination;
+    void writeString(char[] str) {
+        if (destination)
+            destination.writeString(str);
+    }
+    this(Output to) {
+        destination = to;
+    }
+}

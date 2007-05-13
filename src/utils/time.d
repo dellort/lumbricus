@@ -56,9 +56,16 @@ public struct Time {
     }
 
     ///return string representation of value
-    ///ret: #.### in milliseconds
     public char[] toString() {
-        return str.format("%.3f ms",cast(float)musecs() / cast(float)1000);
+        //xxx add more formatting
+        //xxx negative time?
+        if (timeVal < 1000) {
+            return str.format("%d us", timeVal);
+        } else if (timeVal < 1000*1000) {
+            return str.format("%.3f ms", cast(float)timeVal / 1000.0f);
+        } else {
+            return str.format("%.3f s", cast(float)timeVal / (1000.0f*1000.0f));
+        }
     }
 
     ///Get: Time value as microseconds
@@ -120,6 +127,10 @@ public Time timeMusecs(int val) {
 
 public Time timeMusecs(float val) {
     return Time(cast(TType_Int)val);
+}
+
+public Time timeMusecs(long val) {
+    return Time(val);
 }
 
 ///new Time value from milliseconds

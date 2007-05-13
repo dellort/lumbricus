@@ -12,6 +12,11 @@ import str = std.string;
 import conv = std.conv;
 import rand = std.random;
 
+debug {
+    import std.perf;
+    import utils.time;
+}
+
 /// level generator
 public class LevelGenerator {
     private ConfigNode mConfig;
@@ -174,10 +179,25 @@ public class LevelGenerator {
             gen.addPolygon(points, nosubdiv, tex, marker, changeable, visible);
         }
 
+        debug {
+            auto counter = new PerformanceCounter();
+            counter.start();
+        }
+
         mLog("generating level...");
 
-        LevelRenderer renderer = new LevelRenderer(width, height);
-        gen.generate(renderer);
+        gen.generate();
+
+        debug {
+            counter.stop();
+            mLog("%s", timeMusecs(counter.microseconds));
+            counter.start();
+        }
+
+        mLog("rendering level...");
+
+        LevelRenderer renderer = new LevelRenderer(width, height, mLog);
+        gen.preRender(renderer);
 
         //the least important part is the longest
         ConfigNode borders = template_node.getSubNode("borders");
@@ -207,10 +227,12 @@ public class LevelGenerator {
         }
 
         debug {
+            counter.stop();
+            mLog("%s", timeMusecs(counter.microseconds));
+
             gen.dumpDebuggingStuff(renderer);
         }
 
-        mLog("rendering level...");
         auto ret = renderer.render();
         mLog("done.");
         return ret;

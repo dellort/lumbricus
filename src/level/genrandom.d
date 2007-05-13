@@ -89,11 +89,11 @@ private final class Group {
     //see GenRandomLevel.addPolygon()
     Segment init(Point[] pts, uint[] unchangeable, bool changeable) {
         segments.clear();
-        
+
         bool isChangeable(uint index) {
             if (!changeable)
                 return false;
-            
+
             //the bad runtime complexity doesn't really matter, since level
             //templates usually are small
             for (uint i = 0; i < unchangeable.length; i++) {
@@ -102,10 +102,10 @@ private final class Group {
             }
             return true;
         }
-        
+
         if (pts.length < 3)
             return null;
-        
+
         Point last = pts[0];
         uint index = 1;
         foreach(Point pt; pts[1..$]) {
@@ -115,11 +115,11 @@ private final class Group {
             index++;
             last = pt;
         }
-        
+
         Segment close = new Segment(this, pts[$-1], pts[0]);
         segments.insert_tail(close);
         close.changeable = isChangeable(pts.length-1);
-        
+
         return close;
     }
 
@@ -128,11 +128,11 @@ private final class Group {
     bool needIntersect(Group other) {
         return true;
     }
-    
+
     SegmentRange fullRange() {
         return SegmentRange(this, segments.head, segments.tail);
     }
-    
+
     //filter out points, that could make later subdivision (by renderer.d) less
     //effective, and fortunately this also filters out other artifact-like fuzz
     void filter(float dist) {
@@ -166,12 +166,12 @@ private final class Group {
         if (range.isEmpty) {
             throw new Exception("can't insert into an empty range");
         }
-        
+
         Segment start = range.start;
         Segment last = range.last;
-        
+
         assert(range.group is this);
-        
+
         //remove segments after start and before last
         for (;;) {
             Segment cur = segments.ring_next(start);
@@ -183,13 +183,13 @@ private final class Group {
 
         if (points.length < 1)
             return;
-        
+
         if (start is last) {
             Segment s = new Segment(this, last.a, last.b);
             segments.insert_before(s, start);
             start = s;
         }
-        
+
         start.b = points[0];
 
         Segment cur = start;
@@ -198,7 +198,7 @@ private final class Group {
             segments.insert_after(s, cur);
             cur = s;
         }
-        
+
         //trailing
         last.a = points[$-1];
     }
@@ -208,9 +208,9 @@ private final class Group {
     bool checkCollide(Point[] polygon, SegmentRange check) {
         if (polygon.length < 1)
             return false;
-        
+
         assert(check.group is this);
-        
+
         if (check.isEmpty)
             return false;
 
@@ -222,7 +222,7 @@ private final class Group {
 
 
         Point last = polygon[0];
-        
+
         //xxx: unfortunate runtime complexity: O(|polygons|*|group polygons|)
         foreach(Point cur; polygon[1..$]) {
             bool current_nocheck = false;
@@ -319,7 +319,7 @@ public class GenRandomLevel {
             count++;
             s = group.segments.next(s);
         }
-        
+
         //random offset into the list (not so important, but try not to treat
         //the segments at the start and end of the list different)
         uint something = random(0, count);
@@ -328,7 +328,7 @@ public class GenRandomLevel {
             cur = group.segments.ring_next(cur);
             something--;
         }
-        
+
         //step through each edge
         Segment start = cur;
         float summed_d = 0;
@@ -340,12 +340,12 @@ public class GenRandomLevel {
             summed_d += cur_d;
             float prob = summed_d/longest;
             cur_len++;
-            
+
             //I use some "heuristics" to create a nice-looking random level
             //but note that if doWormsify always produces good-looking
             //output, so the following code doesn't necessarly make _any_
             //sense!
-            
+
             bool reset = false;
             bool dosubdiv = cur.changeable;
             //the longer, the higher the probability to subdivide
@@ -356,11 +356,11 @@ public class GenRandomLevel {
             dosubdiv &= cur_len-1 <= config_removal_aggresiveness * depth;
             //also, respect pixel size
             dosubdiv &= summed_d >= config_min_subdiv_length;
-            
+
             if (dosubdiv) {
                 //muh
                 auto r = SegmentRange(group, start, cur);
-                
+
                 float ratio_front_len, ratio_len, rotsign;
                 if (config_remove_or_add > random()) {
                     //add
@@ -373,25 +373,25 @@ public class GenRandomLevel {
                     ratio_front_len = config_front_len_ratio_remove;
                     ratio_len = config_len_ratio_remove;
                 }
-                
+
                 doWormsify(r, 0.1f, 0.9f, rotsign*random()*PI/2,
                     PI + random2()*0.4f, cur_d*ratio_front_len,
                     cur_d*ratio_len, 2.0f, config_pix_epsilon);
-                
+
                 reset = true;
             }
-            
+
             if (!cur.changeable)
                 reset = true;
             reset |= (random() > 0.3f);
             reset |= cur_len-1 > depth;
-            
+
             if (reset) {
                 start = next;
                 summed_d = 0;
                 cur_len = 0;
             }
-            
+
             iterations++;
             cur = next;
         }
@@ -406,7 +406,7 @@ public class GenRandomLevel {
                 fuzzyRandomWormsify(group, depth);
             }
         }
-        
+
         //run filter separately to fix all the stupid things I did in wormsify
         foreach(Group group; mGroups) {
             if (!group.changeable)
@@ -414,7 +414,7 @@ public class GenRandomLevel {
             group.filter(config_pix_filter);
         }
     }
-    
+
     //the polygon defined by points never must to be closed, it will be closed
     //automatically by connecting the last and the first point; but if
     //line started by points which index is in the "unchangeable" array, will
@@ -434,7 +434,7 @@ public class GenRandomLevel {
         g.visible = visible;
         g.changeable = changeable;
     }
-    
+
     private Point[] getRect(float margin) {
         Point[] pts = new Point[4];
         pts[0] = Point(margin, margin);
@@ -443,7 +443,7 @@ public class GenRandomLevel {
         pts[3] = Point(mWidth-margin, margin);
         return pts;
     }
-    
+
     public void setAsCave(framework.Surface texture, Lexel marker) {
         addPolygon(getRect(0), null, texture, marker, false, true);
     }
@@ -451,16 +451,16 @@ public class GenRandomLevel {
     //static this() {
     //    rand.rand_seed(0,0);
     //}
-    
+
     public this(uint width, uint height) {
         mWidth = width; mHeight = height;
         Group s;
         mGroups = new GroupList(s.node.getListNodeOffset());
-        
+
         //init border
         addPolygon(getRect(10), null, null, Lexel.INVALID, false, false);
     }
-    
+
     void render_points(LevelRenderer renderer, Group group) {
         //collect points...
         Point[] pts = new Point[group.segments.count];
@@ -473,22 +473,25 @@ public class GenRandomLevel {
             }
             cur++;
         }
-        
+
         //...and render them
-        
+
         //randomize the texture offset, looks better sometimes
         Vector2f tex_offset = Vector2f(0, 0);
         if (group.texture !is null) {
             tex_offset.x = group.texture.size.x * random();
             tex_offset.y = group.texture.size.y * random();
         }
-        
+
         renderer.addPolygon(pts, nosubdiv, group.visible, tex_offset,
             group.texture, group.meaning);
     }
 
-    public void generate(LevelRenderer renderer) {
+    public void generate() {
         wormsifyAll();
+    }
+
+    public void preRender(LevelRenderer renderer) {
         /*Group h = mGroups.head;
         Group b = mGroups.next(h);
         mGroups.clear();
@@ -509,7 +512,7 @@ public class GenRandomLevel {
             render_points(renderer, group);
         }
     }
-    
+
     debug public void dumpDebuggingStuff(LevelRenderer renderer) {
         //dump polygon outlines
         version (dump_polygons) {
@@ -604,15 +607,15 @@ public class GenRandomLevel {
 
         if (at.isEmpty())
             return false;
-        
+
         Point a = at.start.a;
         Point b = at.last.b;
-        
+
         Point na = a + (b-a) * from_ratio;
         Point nb = a + (b-a) * to_ratio;
         Point base = nb-na;
         float baselen = base.length();
-        
+
         if (baselen < min_baselen)
             return false;
 
