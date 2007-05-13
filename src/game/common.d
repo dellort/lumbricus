@@ -12,19 +12,6 @@ public Common globals;
 //don't know where to put your stuff? just dump it here!
 //mainly supposed to manage all the singletons...
 
-//ZOrders!
-//maybe keep in sync with game.Scene.cMaxZOrder
-//maybe move to module game.toplevel
-//these values are for globals.toplevel.guiscene
-enum GUIZOrder : int {
-    Invisible = 0,
-    Background,
-    Game,
-    Gui,
-    Console,
-    FPS,
-}
-
 //the big singleton...
 //also contains some important initialization code
 class Common {
@@ -33,6 +20,7 @@ class Common {
     Log log;
     Output defaultOut;
     CommandLine cmdLine;
+    ConfigNode anyConfig;
 
     private Log mLogConf;
 
@@ -49,7 +37,10 @@ class Common {
 
         framework = fw;
 
-        initI18N(loadConfig("i18n"), "de");
+        anyConfig = loadConfig("anything");
+
+        initI18N(loadConfig("i18n"),
+            anyConfig.getSubNode("language").getStringValue("id", "de"));
 
         log = registerLog("common");
 

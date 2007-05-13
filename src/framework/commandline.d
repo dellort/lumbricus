@@ -224,6 +224,11 @@ public class CommandLine {
         return mCurline[mCommandStart..mCommandEnd];
     }
 
+    //to be called from command implementations...
+    public char[][] parseArgs() {
+        return str.split(mCurline[mCommandEnd .. $]);
+    }
+
     private void do_execute() {
         auto cmd = parseCommand();
 
@@ -257,6 +262,15 @@ public class CommandLine {
         mCurline = null;
         mCursor = 0;
         updateCmdline();
+    }
+
+    /// Execute any command from outside.
+    public void execute(char[] cmd) {
+        //xxx hacky
+        mCurline = cmd.dup;
+        mCursor = mCurline.length;
+        updateCmdline();
+        do_execute();
     }
 
     private void do_tab_completion() {

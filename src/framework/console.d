@@ -52,13 +52,20 @@ public class Console : Output {
         mBorderOffset = 4;
         mFadeinTime = timeMsecs(150);
         mLastTime = timeCurrentTime();
-        mBackColor = Color(0.5,0.5,0.5);
+        mBackColor = Color(0.5,0.5,0.5,0.5); //freaking alpha transparency!!!
         mConsoleFont = consoleFont;
         mLineHeight = consoleFont.properties.size + 3;
         mCurLine = "";
         mBackLogIdx = 0;
         mBackLogLen = 0;
         mScrollPos = 0;
+    }
+
+    public Color backcolor() {
+        return mBackColor;
+    }
+    public void backcolor(Color col) {
+        mBackColor = col;
     }
 
     ///call this every frame to draw console to the screen

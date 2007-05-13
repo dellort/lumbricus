@@ -13,12 +13,18 @@ public class Log : Output {
     private char[] mCategory;
 
     Output backend;
+    char[] backend_name;
 
-    public this(char[] category, Output backend) {
+    public this(char[] category) {
         mCategory = category;
-        this.backend = backend;
+        setBackend(DevNullOutput.output, "null");
 
         gAllLogs[category] = this;
+    }
+
+    void setBackend(Output backend, char[] backend_name) {
+        this.backend = backend;
+        this.backend_name = backend_name;
     }
 
     char[] category() {
@@ -54,8 +60,10 @@ public class Log : Output {
 /// multiple calls with the same argument will return the same object.
 public Log registerLog(char[] category) {
     auto log = findLog(category);
-    if (!log)
-        log = new Log(category, StdioOutput.output_stdio);
+    if (!log) {
+        log = new Log(category);
+        log.setBackend(StdioOutput.output, "null");
+    }
     return log;
 }
 

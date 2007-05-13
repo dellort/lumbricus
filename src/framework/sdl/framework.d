@@ -287,19 +287,64 @@ public class SDLSurface : Surface {
 }
 
 public class SDLCanvas : Canvas {
+    const int MAX_STACK = 10;
+
     SDLSurface sdlsurface;
+    private {
+        struct State {
+            SDL_Rect clip;
+            Vector2i translate;
+        }
+
+        Vector2i mTrans;
+        State[MAX_STACK] mStack;
+        uint mStackTop; //point to next free stack item (i.e. 0 on empty stack)
+    }
+
+    public void pushState() {
+        assert(mStackTop < MAX_STACK);
+        SDL_GetClipRect(sdlsurface.mReal, &mStack[mStackTop].clip);
+        mStack[mStackTop].translate = mTrans;
+        mStackTop++;
+    }
+
+    public void popState() {
+        assert(mStackTop > 0);
+        mStackTop--;
+        SDL_SetClipRect(sdlsurface.mReal, &mStack[mStackTop].clip);
+        mTrans = mStack[mStackTop].translate;
+    }
+
+    public void setWindow(Vector2i p1, Vector2i p2) {
+        p1 += mTrans; p2 += mTrans;
+        SDL_Rect rc;
+        rc.x = p1.x;
+        rc.y = p1.y;
+        rc.w = p2.x-p1.x;
+        rc.h = p2.y-p1.y;
+        SDL_SetClipRect(sdlsurface.mReal, &rc);
+        mTrans = p1;
+    }
+
+    public void translate(Vector2i offset) {
+        mTrans -= offset;
+    }
 
     public Vector2i size() {
         return sdlsurface.size();
     }
 
     public void endDraw() {
-        //nop
+        popState();
+        assert(mStackTop == 0);
         sdlsurface.endDraw();
     }
 
     this(SDLSurface surf) {
+        mTrans = Vector2i(0, 0);
+        mStackTop = 0;
         sdlsurface = surf;
+        pushState();
     }
 
     public Surface surface() {
@@ -309,6 +354,7 @@ public class SDLCanvas : Canvas {
     public void draw(Surface source, Vector2i destPos,
         Vector2i sourcePos, Vector2i sourceSize)
     {
+        destPos += mTrans;
         SDLSurface sdls = cast(SDLSurface)source;
         if (sdlsurface.mIsScreen) {
             sdls.checkIfScreenFormat();
@@ -356,18 +402,32 @@ public class SDLCanvas : Canvas {
     public void drawRect(Vector2i p1, Vector2i p2, Color color) {
     }
 
-    public void drawFilledRect(Vector2i p1, Vector2i p2, Color color) {
-        SDL_Rect rect;
-        rect.x = p1.x;
-        rect.y = p1.y;
-        rect.w = p2.x-p1.x;
-        rect.h = p2.y-p1.y;
-        SDL_FillRect(sdlsurface.mReal, &rect,
-            sdlsurface.colorToSDLColor(color));
+    override public void drawFilledRect(Vector2i p1, Vector2i p2, Color color,
+        bool properalpha = true)
+    {
+        int alpha = cast(ubyte)(color.a*255);
+        if (alpha == 0 && properalpha)
+            return; //xxx: correct?
+        if (alpha != 255 && properalpha) {
+            //quite insane insanity here!!!
+            Surface s = gFrameworkSDL.insanityCache(color);
+            assert(s !is null);
+            drawTiled(s, p1, p2-p1);
+        } else {
+            SDL_Rect rect;
+            p1 += mTrans;
+            p2 += mTrans;
+            rect.x = p1.x;
+            rect.y = p1.y;
+            rect.w = p2.x-p1.x;
+            rect.h = p2.y-p1.y;
+            SDL_FillRect(sdlsurface.mReal, &rect,
+                sdlsurface.colorToSDLColor(color));
+        }
     }
 
     public void clear(Color color) {
-        drawFilledRect(Vector2i(0, 0), sdlsurface.size, color);
+        drawFilledRect(Vector2i(0, 0)-mTrans, sdlsurface.size-mTrans, color);
     }
 
     public void drawText(char[] text) {
@@ -465,7 +525,7 @@ public class SDLFont : Font {
                 mBackPlain.setNeverCache();
                 Canvas tmp = mBackPlain.startDraw();
                 tmp.drawFilledRect(Vector2i(0, 0), mBackPlain.size,
-                    props.back);
+                    props.back, false);
                 tmp.endDraw();
             }
         }
@@ -511,6 +571,23 @@ public class FrameworkSDL : Framework {
     private SDL_Surface* mScreen;
     private SDLSurface mScreenSurface;
     private Keycode mSdlToKeycode[int];
+
+    private Surface[int] mInsanityCache;
+
+    private Surface insanityCache(Color c) {
+        int key = colorToRGBA32(c);
+
+        Surface* s = key in mInsanityCache;
+        if (s)
+            return *s;
+
+        //create a new tile
+        SDLSurface tile = createSurface(Vector2i(64, 64), DisplayFormat.Best,
+            Transparency.Alpha);
+        SDL_FillRect(tile.mReal, null, tile.colorToSDLColor(c));
+        mInsanityCache[key] = tile;
+        return tile;
+    }
 
     this(char[] arg0, char[] appId) {
         super(arg0, appId);
@@ -626,17 +703,17 @@ public class FrameworkSDL : Framework {
         }
     }
 
-    public Surface loadImage(Stream st, Transparency transp) {
+    public SDLSurface loadImage(Stream st, Transparency transp) {
         return new SDLSurface(st, transp);
     }
 
-    public Surface createImage(Vector2i size, uint pitch, PixelFormat format,
+    public SDLSurface createImage(Vector2i size, uint pitch, PixelFormat format,
         Transparency transp, void* data)
     {
         return new SDLSurface(size.x, size.y, pitch, format, transp, data);
     }
 
-    public Surface createSurface(Vector2i size, DisplayFormat fmt,
+    public SDLSurface createSurface(Vector2i size, DisplayFormat fmt,
         Transparency transp)
     {
         return new SDLSurface(size, fmt, transp);

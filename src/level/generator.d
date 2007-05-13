@@ -218,7 +218,7 @@ public class LevelGenerator {
 
     /// generate a random level based on a template
     public Level generateRandom(uint width, uint height, char[] templatename) {
-        mLog("template >%s<, %dx%d", templatename, width, height);
+        mLog("template '%s', %dx%d", templatename, width, height);
 
         //search template
         ConfigNode templates = mConfig.getSubNode("templates");
@@ -233,15 +233,23 @@ public class LevelGenerator {
             count++;
         }
 
+        if (count == 0) {
+            mLog("no level templates!");
+            return null;
+        }
+
         //not found, pick a random one instead
         uint pick = rand.rand() % count;
         foreach(char[] name, ConfigNode template_node; templates) {
             if (pick == 0) {
+                mLog("picked random template: '%s'", template_node
+                    .getStringValue("name"));
                 return generateRandom(width, height, template_node);
             }
             pick--;
         }
 
+        assert(false);
         return null;
     }
 

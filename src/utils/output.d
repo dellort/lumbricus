@@ -43,32 +43,14 @@ public class OutputHelper : Output {
 
 /// Implements the Output interface and writes all text to stdio.
 public class StdioOutput : OutputHelper {
-    package static StdioOutput output_stdio;
-
-    /+void writef(...) {
-        writef_ind(false, _arguments, _argptr);
-    }
-    void writefln(...) {
-        writef_ind(true, _arguments, _argptr);
-    }
-
-    void writef_ind(bool newline, TypeInfo[] arguments, void* argptr) {
-        void putc(dchar c) {
-            stdio.writef("%s", c);
-        }
-
-        stdformat.doFormat(&putc, arguments, argptr);
-        if (newline) {
-            stdio.writefln();
-        }
-    }+/
+    public static Output output;
 
     void writeString(char[] str) {
     	stdio.writef("%s", str);
     }
 
     static this() {
-        output_stdio = new StdioOutput();
+        output = new StdioOutput();
     }
 }
 
@@ -83,9 +65,14 @@ public class StringOutput : OutputHelper {
 
 /// Implements the Output interface and throws away all text written to it.
 public class DevNullOutput : OutputHelper {
+    public static Output output;
     void writeString(char[] str) {
     }
     void writef_ind(bool newline, TypeInfo[] arguments, void* argptr) {
+    }
+
+    static this() {
+        output = new DevNullOutput();
     }
 }
 

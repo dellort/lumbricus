@@ -58,7 +58,7 @@ public struct Time {
     ///return string representation of value
     ///ret: #.### in milliseconds
     public char[] toString() {
-        return str.format("%.3f",cast(float)musecs() / cast(float)1000);
+        return str.format("%.3f ms",cast(float)musecs() / cast(float)1000);
     }
 
     ///Get: Time value as microseconds

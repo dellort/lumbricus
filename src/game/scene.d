@@ -8,6 +8,7 @@ import framework.font;
 class Scene {
     alias List!(SceneObject) SOList;
     private SOList mActiveObjects;
+    Vector2i thesize;
 
     //zorder values from 0 to cMaxZorder, last inclusive
     //NOTE: zorder allocation is in common.d
@@ -25,21 +26,31 @@ class Scene {
 }
 
 //over engineered for sure!
+/// Provide a graphical windowed view into a (client-) scene.
+/// Various transformations can be applied on the client view (currently only
+/// translation, with OpenGL maybe also scaling and rotation)
 class SceneView : SceneObjectPositioned {
-    Scene mClientScene;
+    private Scene mClientScene;
+    Vector2i clientoffset;
 
     this(Scene clientscene) {
         assert(clientscene !is null);
         mClientScene = clientscene;
+        clientoffset = Vector2i(0, 0);
     }
 
     void draw(Canvas canvas) {
-        //xxx: translate and add clipping!!!!
+        canvas.pushState();
+        canvas.setWindow(pos, pos+thesize);
+        canvas.translate(-clientoffset);
+
         foreach (list; mClientScene.mActiveObjectsZOrdered[1..$]) {
             foreach (obj; list) {
                 obj.draw(canvas);
             }
         }
+
+        canvas.popState();
     }
 }
 
@@ -54,12 +65,13 @@ class Screen {
 
     this(Vector2i size) {
         mRootScene = new Scene();
+        mRootScene.thesize = size;
         mRootView = new SceneView(mRootScene);
         //NOTE: normally SceneViews are elements in a further Scene, but here
         //      Screen is the container of the SceneView mRootView
         //      damn overengineered madness!
         mRootView.pos = Vector2i(0, 0);
-        mRootView.size = size;
+        mRootView.thesize = size;
     }
 
     void draw(Canvas canvas) {
@@ -148,7 +160,7 @@ class CallbackSceneObject : SceneObject {
 //with a rectangular bounding box??
 class SceneObjectPositioned : SceneObject {
     Vector2i pos;
-    Vector2i size;
+    Vector2i thesize;
 }
 
 class FontLabel : SceneObjectPositioned {

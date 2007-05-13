@@ -6,8 +6,9 @@ import framework.keysyms;
 import utils.time;
 import framework.font;
 import conv = std.conv;
-import str = std.format;
+import str = std.string;
 import framework.filesystem;
+import config = utils.configfile;
 
 debug import std.stdio;
 
@@ -235,9 +236,40 @@ public class Canvas {
         Color color);
     public abstract void drawLine(Vector2i p1, Vector2i p2, Color color);
     public abstract void drawRect(Vector2i p1, Vector2i p2, Color color);
-    public abstract void drawFilledRect(Vector2i p1, Vector2i p2, Color color);
+    public abstract void drawFilledRect(Vector2i p1, Vector2i p2, Color color,
+        bool properalpha = true);
 
     public abstract void clear(Color color);
+
+    /// Set a clipping rect, and use p1 as origin (0, 0)
+    public abstract void setWindow(Vector2i p1, Vector2i p2);
+    /// Add translation offset, by which all coordinates are translated
+    public abstract void translate(Vector2i offset);
+    /// push/pop state as set by setWindow() and translate()
+    public abstract void pushState();
+    public abstract void popState();
+
+    /// Fill the area (destPos, destPos+destSize) with source, tiled on wrap
+    //warning: not very well tested
+    public void drawTiled(Surface source, Vector2i destPos, Vector2i destSize) {
+        int w = source.size.x1;
+        int h = source.size.x2;
+        int x;
+        Vector2i tmp;
+        int y = 0;
+        while (y < destSize.y) {
+            tmp.y = destPos.y + y;
+            int resty = ((y+h) < destSize.y) ? h : destSize.y - y;
+            x = 0;
+            while (x < destSize.x) {
+                tmp.x = destPos.x + x;
+                int restx = ((x+w) < destSize.x) ? w : destSize.x - x;
+                draw(source, tmp, Vector2i(0, 0), Vector2i(restx, resty));
+                x += restx;
+            }
+            y += resty;
+        }
+    }
 }
 
 /// Information about a key press
@@ -281,21 +313,7 @@ public class Framework {
 
     //another singelton
     private FontManager mFontManager;
-
-    private KeyShortCut[] mKeyShortCuts;
-
     private FileSystem mFilesystem;
-
-    private struct KeyShortCut {
-        Keycode code;
-        //using a simple bitfield (ala (1<<modifier_1)|(1<<modifier2)...) would
-        //be too simple!!!
-        Modifier[] required_mods;
-        void delegate(KeyInfo inf) handler;
-
-        //changed all the time (while handling...)
-        bool handled;
-    }
 
     //initialize time between FPS recalculations
     static this() {
@@ -442,17 +460,17 @@ public class Framework {
 
     public char[] modifierToString(Modifier mod) {
         switch (mod) {
-            case Modifier.Alt: return "alt";
-            case Modifier.Control: return "ctrl";
-            case Modifier.Shift: return "shift";
+            case Modifier.Alt: return "mod_alt";
+            case Modifier.Control: return "mod_ctrl";
+            case Modifier.Shift: return "mod_shift";
         }
     }
 
     public bool stringToModifier(char[] str, out Modifier mod) {
         switch (str) {
-            case "alt": mod = Modifier.Alt; return true;
-            case "ctrl": mod = Modifier.Control; return true;
-            case "shift": mod = Modifier.Shift; return true;
+            case "mod_alt": mod = Modifier.Alt; return true;
+            case "mod_ctrl": mod = Modifier.Control; return true;
+            case "mod_shift": mod = Modifier.Shift; return true;
             default:
         }
         return false;
@@ -484,15 +502,25 @@ public class Framework {
         return false;
     }
 
+    public Modifier[] getAllModifiers() {
+        //hm, somewhat inconvenient...
+        Modifier[] ret;
+        for (uint n = Modifier.min; n <= Modifier.max; n++) {
+            if (getModifierState(cast(Modifier)n))
+                ret ~= cast(Modifier)n;
+        }
+        return ret;
+    }
+
     protected void doKeyDown(in KeyInfo infos) {
         bool was_down = getKeyState(infos.code);
 
         updateKeyState(infos, true);
         if (!was_down) {
-            if (handleShortcuts(infos, true)) {
-                //it did handle the key; don't do anything more with that key
-                return;
-            }
+            //if (handleShortcuts(infos, true)) {
+            //    //it did handle the key; don't do anything more with that key
+            //    return;
+            //}
             if (onKeyDown) onKeyDown(infos);
         }
 
@@ -506,9 +534,9 @@ public class Framework {
         if (infos.code == Keycode.F4 && getModifierState(Modifier.Alt)) {
             doTerminate();
         }
-        if (!handleShortcuts(infos, false)) {
+        //if (!handleShortcuts(infos, false)) {
             if (onKeyUp) onKeyUp(infos);
-        }
+        //}
     }
 
     //returns true if key is a mouse button
@@ -527,88 +555,6 @@ public class Framework {
             }
         }
     }
-
-    /// Register shortcuts, where the key "code" is pressed together with the
-    /// modifiers in "mods".
-    /// The shortcuts are only handled, if you call handleShortcuts() for each
-    /// event of onKeyDown and onKeyUp (but not onKeyPress)!
-    public void registerShortcut(Keycode code, Modifier[] mods,
-        void delegate(KeyInfo key) cb)
-    {
-        KeyShortCut ksc;
-        ksc.code = code;
-        ksc.required_mods = mods.dup;
-        ksc.handler = cb;
-        mKeyShortCuts ~= ksc;
-    }
-
-    // Handle shortcuts registered by registerShortcut()
-    // returns true: a shortcut was handled, i.e. the shortcut's event was
-    //               called, and the key is still hold down, or so.
-    // returns false: unhandled, unrecognized.
-    private bool handleShortcuts(KeyInfo infos, bool isKeyDownEvent) {
-        //linear search...
-        foreach (inout ksc; mKeyShortCuts) {
-            if (ksc.code == infos.code) {
-                bool matched = true;
-                foreach (mod; ksc.required_mods) {
-                    if (!getModifierState(mod)) {
-                        matched = false;
-                        break;
-                    }
-                }
-
-                //all conditions satisfied, the shortcut is considered to match
-                if (matched) {
-                    if (!ksc.handled && isKeyDownEvent) {
-                        ksc.handled = true;
-                        if (ksc.handler) ksc.handler(infos);
-                    }
-                    //shortcut released
-                    if (!isKeyDownEvent) {
-                        ksc.handled = false;
-                    }
-
-                    return true;
-                } else {
-                    //treat as released
-                    ksc.handled = false;
-                }
-            }
-        }
-        return false;
-    }
-
-    //parse a whitespace separated list of strings into sth. that can be passed
-    //to registerShortcut()
-    private bool parseBindString(char[] bindstr, out Keycode out_code,
-        out Modifier[] out_mods)
-    {
-        foreach (char[] s; str.split(bindstr)) {
-            Modifier mod;
-            if (stringToModifier(s, mod)) {
-                out_mods ~= mod;
-            } else {
-                if (out_code != Keycode.INVALID)
-                    return false;
-                out_code = translateKeyIDToKeycode(s);
-                if (out_code == Keycode.INVALID)
-                    return false;
-            }
-        }
-        return (out_code != Keycode.INVALID);
-    }
-
-    /*public void addBind(char[] bindid, char[] bindstr) {
-        Keycode code;
-        Modifier[] mods;
-
-        if (!parseBindString(bindstr, code, mods)) {
-            //xxx: silenty fail?
-            return;
-        }
-        registerShortcut...
-    }*/
 
     public char[] keyinfoToString(KeyInfo infos) {
         char[] res = str.format("key=%s ('%s') unicode='%s'", cast(int)infos.code,
@@ -646,6 +592,162 @@ public class Framework {
     /// Event raised when the mouse pointer is changed
     /// Note that mouse button are managed by the onKey* events
     public void delegate(MouseInfo mouse) onMouseMove;
+}
+
+/// Map key combinations to IDs (strings).
+public class KeyBindings {
+    private struct Key {
+        Keycode code;
+        //bit field, each bit as in Modifier enum
+        uint required_mods;
+    }
+    private struct Entry {
+        char[] bound_to;
+        uint required_mods;
+    }
+
+    private Entry[Key] mBindings;
+
+    private uint cookmods(Modifier[] mods) {
+        uint ret = 0;
+        foreach (uint index, Modifier m; mods) {
+            ret |= m << index;
+        }
+        return ret;
+    }
+    private uint countmods(uint mods) {
+        uint sum = 0;
+        for (int n = Modifier.min; n <= Modifier.max; n++) {
+            sum += !!(mods & (1 << n));
+        }
+        return sum;
+    }
+
+    //find the key which matches with the _most_ modifiers
+    //to do that, try with all permutations :/
+    private Entry* doFindBinding(Keycode code, uint mods, uint pos = 0) {
+        if (!(mods & (1<<pos))) {
+            pos++;
+            if (pos > Modifier.max) {
+                //recursion end
+                Key k;
+                k.code = code;
+                k.required_mods = mods;
+                return k in mBindings;
+            }
+        }
+        //bit is set at this position...
+        //try recursively with and without that bit set
+        Entry* e1 = doFindBinding(code, mods & ~(1<<pos), pos+1);
+        Entry* e2 = doFindBinding(code, mods, pos+1);
+
+        //check which wins... if both are non-null, that with more modifiers
+        if (e1 && e2) {
+            e1 = countmods(e1.required_mods) > countmods(e2.required_mods)
+                ? e1 : e2;
+            e2 = null;
+        }
+        if (!e1) {
+            e1 = e2; e2 = null;
+        }
+
+        return e1;
+    }
+
+    public char[] findBinding(Keycode code, Modifier[] mods) {
+        Entry* e = doFindBinding(code, cookmods(mods));
+        if (!e) {
+            return null;
+        } else {
+            return e.bound_to;
+        }
+    }
+
+    //parse a whitespace separated list of strings into sth. that can be passed
+    //to addBinding()
+    private bool parseBindString(char[] bindstr, out Keycode out_code,
+        out Modifier[] out_mods)
+    {
+        foreach (char[] s; str.split(bindstr)) {
+            Modifier mod;
+            if (gFramework.stringToModifier(s, mod)) {
+                out_mods ~= mod;
+            } else {
+                if (out_code != Keycode.INVALID)
+                    return false;
+                out_code = gFramework.translateKeyIDToKeycode(s);
+                if (out_code == Keycode.INVALID)
+                    return false;
+            }
+        }
+        return (out_code != Keycode.INVALID);
+    }
+
+    /// Add a binding.
+    public bool addBinding(char[] bind_to, Keycode code, Modifier[] mods) {
+        Key k;
+        k.code = code;
+        k.required_mods = cookmods(mods);
+
+        Entry e;
+        e.bound_to = bind_to;
+        e.required_mods = k.required_mods;;
+
+        mBindings[k] = e;
+        return true;
+    }
+
+    /// Add a binding (by string).
+    public bool addBinding(char[] bind_to, char[] bindstr) {
+        Keycode code;
+        Modifier[] mods;
+        if (!parseBindString(bindstr, code, mods))
+            return false;
+        return addBinding(bind_to, code, mods);
+    }
+
+    /// Remove all key combinations that map to the binding "bind".
+    public void removeBinding(char[] bind) {
+        //hm...
+        Key[] keys;
+        foreach (Key k, Entry e; mBindings) {
+            if (bind == e.bound_to)
+                keys ~= k;
+        }
+        foreach (Key k; keys) {
+            mBindings.remove(k);
+        }
+    }
+
+    public void clear() {
+        mBindings = null;
+    }
+
+    public void loadFrom(config.ConfigNode node) {
+        foreach (char[] name, char[] value; node) {
+            if (!addBinding(name, str.tolower(value))) {
+                debug writefln("could not bind '%s' '%s'", name, value);
+            }
+        }
+    }
+
+    /// Enum all defined bindings.
+    /// Caller must not add or remove bindings while enumerating.
+    public void enumBindings(void delegate(char[] bind, Keycode code,
+        Modifier[] mods) callback)
+    {
+        if (!callback)
+            return;
+
+        foreach (Key k, Entry e; mBindings) {
+            Modifier[] mods;
+            for (int n = Modifier.min; n <= Modifier.max; n++) {
+                if (k.required_mods & (1<<n))
+                    mods ~= cast(Modifier)n;
+            }
+            callback(e.bound_to, k.code, mods);
+        }
+    }
 }
 
 //xxx: move... what about color.d?

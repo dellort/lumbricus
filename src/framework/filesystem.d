@@ -7,6 +7,7 @@ import str = std.string;
 import std.stream;
 import utils.misc;
 import utils.log;
+import utils.output;
 
 private Log log;
 
@@ -167,6 +168,11 @@ class FileSystem {
 
     this(char[] arg0, char[] appId) {
         log = registerLog("FS");
+        bool stfu = true; //xxx TODO: make configureable (environment var?)
+        if (stfu) {
+            log("Entering STFU mode.");
+            log.backend = DevNullOutput.output;
+        }
         mAppId = appId;
         initPaths(arg0);
     }
