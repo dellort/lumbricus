@@ -512,6 +512,7 @@ public class Framework {
         return ret;
     }
 
+    //called from framework implementation... relies on key repeat
     protected void doKeyDown(in KeyInfo infos) {
         bool was_down = getKeyState(infos.code);
 
@@ -521,7 +522,11 @@ public class Framework {
             //    //it did handle the key; don't do anything more with that key
             //    return;
             //}
-            if (onKeyDown) onKeyDown(infos);
+            if (onKeyDown) {
+                bool handle = onKeyDown(infos);
+                if (!handle)
+                    return;
+            }
         }
 
         if (onKeyPress != null) {
@@ -562,7 +567,9 @@ public class Framework {
 
         //append all modifiers
         for (Modifier mod = Modifier.min; mod <= Modifier.max; mod++) {
-            res ~= str.format(" [%s: %s]", cast(int)mod, getModifierState(mod));
+            if (getModifierState(mod)) {
+                res ~= str.format(" [%s]", modifierToString(mod));
+            }
         }
 
         return res;
@@ -585,8 +592,9 @@ public class Framework {
     /// Event raised when the screen is repainted
     public void delegate() onFrame;
     /// Event raised on key-down/up events; these events are not auto repeated
-    public void delegate(KeyInfo key) onKeyDown;
-    public void delegate(KeyInfo key) onKeyUp;
+    //return false if keys were handled (for onKeyDown: onKeyPress handling)
+    public bool delegate(KeyInfo key) onKeyDown;
+    public bool delegate(KeyInfo key) onKeyUp;
     /// Event raised on key-down; this event is auto repeated
     public void delegate(KeyInfo key) onKeyPress;
     /// Event raised when the mouse pointer is changed
@@ -611,7 +619,7 @@ public class KeyBindings {
     private uint cookmods(Modifier[] mods) {
         uint ret = 0;
         foreach (uint index, Modifier m; mods) {
-            ret |= m << index;
+            ret |= 1 << m;
         }
         return ret;
     }
@@ -624,7 +632,7 @@ public class KeyBindings {
     }
 
     //find the key which matches with the _most_ modifiers
-    //to do that, try with all permutations :/
+    //to do that, try with all permutations (across active mods) :/
     private Entry* doFindBinding(Keycode code, uint mods, uint pos = 0) {
         if (!(mods & (1<<pos))) {
             pos++;
@@ -665,7 +673,7 @@ public class KeyBindings {
 
     //parse a whitespace separated list of strings into sth. that can be passed
     //to addBinding()
-    private bool parseBindString(char[] bindstr, out Keycode out_code,
+    public bool parseBindString(char[] bindstr, out Keycode out_code,
         out Modifier[] out_mods)
     {
         foreach (char[] s; str.split(bindstr)) {
@@ -681,6 +689,15 @@ public class KeyBindings {
             }
         }
         return (out_code != Keycode.INVALID);
+    }
+    //undo parseBindString, return bindstr
+    public char[] unparseBindString(Keycode code, Modifier[] mods) {
+        char[][] stuff;
+        stuff = [gFramework.translateKeycodeToKeyID(code)];
+        foreach (Modifier mod; mods) {
+            stuff ~= gFramework.modifierToString(mod);
+        }
+        return str.join(stuff, " ");
     }
 
     /// Add a binding.

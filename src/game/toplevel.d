@@ -9,6 +9,7 @@ import game.animation;
 import game.game;
 import framework.framework;
 import framework.commandline;
+import framework.i18n;
 import utils.time;
 import utils.configfile;
 import utils.log;
@@ -16,6 +17,7 @@ import utils.output;
 import perf = std.perf;
 import gc = std.gc;
 import level = level.generator;
+import str = std.string;
 
 //ZOrders!
 //maybe keep in sync with game.Scene.cMaxZOrder
@@ -41,8 +43,10 @@ class TopLevel {
     Console console;
     KeyBindings keybindings;
     GameController thegame;
+    //xxx move this to where-ever
+    ConfigNode localizedKeyfile;
 
-    bool mShowKeyDebug = true;
+    bool mShowKeyDebug = false;
 
     this() {
         screen = new Screen(globals.framework.screen.size);
@@ -57,6 +61,10 @@ class TopLevel {
         globals.cmdLine = new CommandLine(console);
 
         globals.defaultOut = console;
+
+        //xxx: make this fail-safe
+        localizedKeyfile = globals.loadConfig(
+            globals.locales.getStringValue("keyname_conf", "keynames"));
 
         guiscene = screen.rootscene;
         fpsDisplay = new FontLabel(globals.framework.getFont("fpsfont"));
@@ -106,9 +114,51 @@ class TopLevel {
             "List and modify log-targets");
         globals.cmdLine.registerCommand("level", &cmdGenerateLevel,
             "Generate new level");
+        globals.cmdLine.registerCommand("bind", &cmdBind,
+            "display/edit key bindings");
     }
 
-    private void cmdShowLog(CommandLine cmd, uint id) {
+    //bind [name action [keys]]
+    private void cmdBind(CommandLine cmd) {
+        char[][] args = cmd.parseArgs();
+        if (args.length >= 2) {
+            switch (args[0]) {
+                case "add":
+                    char[] bindstr = str.join(args[2..$], " ");
+                    keybindings.addBinding(args[1], bindstr);
+                    return;
+                case "kill":
+                    //remove all bindings
+                    keybindings.removeBinding(args[1]);
+                    return;
+                default:
+            }
+        }
+        //else, list all bindings
+        cmd.console.writefln("Bindings:");
+        keybindings.enumBindings(
+            (char[] bind, Keycode code, Modifier[] mods) {
+                cmd.console.writefln("    %s='%s' ('%s')", bind,
+                    keybindings.unparseBindString(code, mods),
+                    translateKeyshortcut(code, mods));
+            }
+        );
+    }
+
+    //translate into translated user-readable string
+    char[] translateKeyshortcut(Keycode code, Modifier[] mods) {
+        if (!localizedKeyfile)
+            return "?";
+        char[] res = localizedKeyfile.getStringValue(
+            globals.framework.translateKeycodeToKeyID(code), "?");
+        foreach (Modifier mod; mods) {
+            res = localizedKeyfile.getStringValue(
+                globals.framework.modifierToString(mod), "?") ~ "+" ~ res;
+        }
+        return res;
+    }
+
+    private void cmdShowLog(CommandLine cmd) {
 
         void setTarget(Log log, char[] targetstr) {
             switch (targetstr) {
@@ -145,15 +195,15 @@ class TopLevel {
         }
     }
 
-    private void showConsole(CommandLine, uint) {
+    private void showConsole(CommandLine) {
         console.toggle();
     }
 
-    private void killShortcut(CommandLine, uint) {
+    private void killShortcut(CommandLine) {
         globals.framework.terminate();
     }
 
-    private void testGC(CommandLine, uint) {
+    private void testGC(CommandLine) {
         auto counter = new perf.PerformanceCounter();
         counter.start();
         gc.fullCollect();
@@ -164,7 +214,7 @@ class TopLevel {
         globals.log("GC fullcollect: %s", t);
     }
 
-    private void cmdGenerateLevel(CommandLine cmd, uint id) {
+    private void cmdGenerateLevel(CommandLine cmd) {
         if (thegame) {
             thegame.kill();
             thegame = null;
@@ -193,7 +243,7 @@ class TopLevel {
 
     private Vector2i mMouseStart;
 
-    private void onKeyDown(KeyInfo infos) {
+    private bool onKeyDown(KeyInfo infos) {
         if (mShowKeyDebug) {
             globals.log("down: %s", globals.framework.keyinfoToString(infos));
         }
@@ -203,15 +253,20 @@ class TopLevel {
         char[] bind = keybindings.findBinding(infos.code,
             globals.framework.getAllModifiers());
         if (bind) {
-            globals.log("Binding '%s'", bind);
+            if (mShowKeyDebug) {
+                globals.log("Binding '%s'", bind);
+            }
             globals.cmdLine.execute(bind);
+            return false;
         }
+        return true;
     }
 
-    private void onKeyUp(KeyInfo infos) {
+    private bool onKeyUp(KeyInfo infos) {
         if (mShowKeyDebug) {
             globals.log("up: %s", globals.framework.keyinfoToString(infos));
         }
+        return true;
     }
 
     private void onMouseMove(MouseInfo mouse) {

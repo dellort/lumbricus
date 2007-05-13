@@ -11,6 +11,7 @@ import std.conv;
 //    The old version is still in revision 71.
 
 private ConfigNode gTranslations;
+public char[] gCurrentLanguage;
 
 ///Translator
 ///A module can instantiate this to have a default id-namespace prefix.
@@ -44,6 +45,7 @@ public void initI18N(ConfigNode translations, char[] lang) {
     //default to English
     if (!node)
         node = translations.findNode("en");
+    gCurrentLanguage = node ? node.name : "none";
     gTranslations = node;
 }
 

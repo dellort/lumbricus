@@ -21,6 +21,8 @@ class Common {
     Output defaultOut;
     CommandLine cmdLine;
     ConfigNode anyConfig;
+    //language specific node in anyConfig for currently set language
+    ConfigNode locales;
 
     private Log mLogConf;
 
@@ -40,7 +42,9 @@ class Common {
         anyConfig = loadConfig("anything");
 
         initI18N(loadConfig("i18n"),
-            anyConfig.getSubNode("language").getStringValue("id", "de"));
+            anyConfig.getStringValue("language_id", "de"));
+
+        locales = anyConfig.getSubNode("langs").getSubNode(gCurrentLanguage);
 
         log = registerLog("common");
 

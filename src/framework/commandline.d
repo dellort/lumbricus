@@ -35,7 +35,7 @@ int charPrev(char[] s, int index) {
 //store stuff about a command
 private class Command {
     char[] name;
-    void delegate(CommandLine, uint) cmdProc;
+    void delegate(CommandLine) cmdProc;
     char[] helpText;
     uint id;
 }
@@ -75,17 +75,17 @@ public class CommandLine {
         return mConsole;
     }
 
-    private void cmdHelp(CommandLine cmd, uint id) {
+    private void cmdHelp(CommandLine cmd) {
         mConsole.print("List of commands: ");
         uint count = 0;
         foreach (Command c; mCommands) {
-            mConsole.print(c.name ~ ": " ~ c.helpText);
+            mConsole.writefln("   %s: %s", c.name, c.helpText);
             count++;
         }
         mConsole.print(str.format("%d commands.", count));
     }
 
-    private void cmdHistory(CommandLine cmd, uint id) {
+    private void cmdHistory(CommandLine cmd) {
         mConsole.print("History:");
         foreach (HistoryNode hist; mHistory) {
             mConsole.print("   "~hist.stuff);
@@ -93,8 +93,7 @@ public class CommandLine {
     }
 
     public int registerCommand(char[] name,
-        void delegate(CommandLine cmdLine, uint cmdId) cmdProc,
-        char[] helpText)
+        void delegate(CommandLine cmdLine) cmdProc, char[] helpText)
     {
         auto cmd = new Command();
         cmd.name = name;
@@ -255,7 +254,7 @@ public class CommandLine {
             if (!ccmd) {
                 mConsole.print("Unknown command: "~cmd);
             } else {
-                ccmd.cmdProc(this, ccmd.id);
+                ccmd.cmdProc(this);
             }
         }
 

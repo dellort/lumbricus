@@ -758,7 +758,6 @@ public class FrameworkSDL : Framework {
         SDL_Event event;
         while(SDL_PollEvent(&event)) {
             switch(event.type) {
-                // exit if SDLK or the window close button are pressed
                 case SDL_KEYDOWN:
                     KeyInfo infos = keyInfosFromSDL(event.key);
                     doKeyDown(infos);
@@ -782,6 +781,7 @@ public class FrameworkSDL : Framework {
                     doKeyDown(infos);
                     doUpdateMousePos(Vector2i(event.button.x, event.button.y));
                     break;
+                // exit if SDLK or the window close button are pressed
                 case SDL_QUIT:
                     doTerminate();
                     break;
