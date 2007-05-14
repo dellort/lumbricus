@@ -12,7 +12,7 @@ class Animation {
 
     private struct FrameInfo {
         int durationMS;
-        Surface surface;
+        TextureRef frametex;
     }
 
     this (ConfigNode node) {
@@ -20,13 +20,15 @@ class Animation {
         int duration = node.getIntValue("duration", 10);
         Surface bmp = globals.loadGraphic(node.getStringValue("image"));
         assert(bmp !is null);
+        Texture tex = bmp.createTexture();
         int frames = node.getIntValue("frames", 0);
         size.x = node.getIntValue("width", 0);
         size.y = node.getIntValue("height", 0);
         mFrames.length = frames;
         for (int n = 0; n < frames; n++) {
-//            mFrames[n].surface = bmp.getSubSurface(Vector2i(size.x*n, 0),
-//                Vector2i(size.x, size.y));
+            mFrames[n].frametex.texture = tex;
+            mFrames[n].frametex.pos = Vector2i(size.x*n, 0);
+            mFrames[n].frametex.size = size;
             mFrames[n].durationMS = duration;
         }
     }
@@ -87,6 +89,6 @@ class Animator : SceneObjectPositioned {
 
         //draw it.
         //xxx: this is the last frame... should draw the current one
-        //canvas.draw(fi.surface, pos);
+        canvas.draw(fi.frametex, pos);
     }
 }

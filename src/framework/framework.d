@@ -183,6 +183,10 @@ public class Canvas {
         draw(source, destPos, Vector2i(0, 0), source.size);
     }
 
+    public void draw(TextureRef texture, Vector2i dest) {
+        draw(texture.texture, dest, texture.pos, texture.size);
+    }
+
     public abstract void draw(Texture source, Vector2i destPos,
         Vector2i sourcePos, Vector2i sourceSize);
 
