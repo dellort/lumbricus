@@ -268,9 +268,8 @@ class TopLevel {
         counter.start();
         gc.fullCollect();
         counter.stop();
-        //hrhrhr
         Time t;
-        t.msecs = counter.microseconds;
+        t.musecs = counter.microseconds;
         globals.log("GC fullcollect: %s", t);
     }
 

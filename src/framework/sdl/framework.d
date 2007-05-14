@@ -42,10 +42,10 @@ package class SDLTexture : Texture {
 
     //return surface that's actually drawn
     package SDL_Surface* getDrawSurface() {
-        //if (!mCached)
-        //    checkIfScreenFormat();
-        //return mCached;
-        return mOriginalSurface.mReal;
+        if (!mCached)
+            checkIfScreenFormat();
+        return mCached;
+        //return mOriginalSurface.mReal;
     }
 
     //convert the image to the current screen format (this is done once)
@@ -432,7 +432,6 @@ public class SDLCanvas : Canvas {
 public class SDLFont : Font {
     private Texture frags[dchar];
     private bool mNeedBackPlain;   //false if background is completely transp.
-//    private Texture mBackPlain; //used for fuzzy alpha text background
     private uint mWidest;
     private FontProperties props;
     private TTF_Font* font;
@@ -472,7 +471,6 @@ public class SDLFont : Font {
         foreach (dchar c; text) {
             Texture surface = getGlyph(c);
             if (mNeedBackPlain) {
-                //canvas.draw(mBackPlain, pos, Vector2i(0, 0), surface.size);
                 canvas.drawFilledRect(pos, pos+surface.size, props.back, true);
             }
             canvas.draw(surface, pos);
@@ -497,35 +495,7 @@ public class SDLFont : Font {
             frags[c] = renderChar(c);
             sptr = c in frags;
         }
-        Texture surface = *sptr;
-        Vector2i size = surface.size;
-
-        /+if (mNeedBackPlain) {
-            //recreate "backplain" if necessary
-            if (mBackPlain is null
-                //|| frags[c].size.x > mWidest
-                || frags[c].size.x > mBackPlain.size.x)
-            {
-                mWidest = frags[c].size.x;
-                if (mBackPlain !is null) {
-                    mBackPlain.free();
-                    mBackPlain = null;
-                }
-                //xxx: disable the "screen format cache" of SDLSurface,
-                //  and instead clear the glyph cache on bit depth change
-                //but for now, don't use the screen format anyway, because
-                //  then these spiffy alpha fonts won't work in 16bit depth!
-                mBackPlain = new SDLSurface(Vector2i(mWidest, size.y),
-                    DisplayFormat.Best, Transparency.Alpha);
-                mBackPlain.setNeverCache();
-                Canvas tmp = mBackPlain.startDraw();
-                tmp.drawFilledRect(Vector2i(0, 0), mBackPlain.size,
-                    props.back, false);
-                tmp.endDraw();
-            }
-        }+/
-
-        return surface;
+        return *sptr;
     }
 
     private Texture renderChar(dchar c) {
@@ -541,6 +511,7 @@ public class SDLFont : Font {
             //scale the alpha values of the pixels in the surface to be in the
             //range 0.0 .. props.fore.a
             //xxx code relies on exact surface format produced by SDL_TTF
+            assert(surface.format.BytesPerPixel == 4);
             for (int y = 0; y < surface.h; y++) {
                 ubyte* ptr = cast(ubyte*)surface.pixels;
                 ptr += y*surface.pitch;
