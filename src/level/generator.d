@@ -144,7 +144,7 @@ public class LevelGenerator {
                 parseColor(texNode.getStringValue("color"), col);
                 auto canvas = tex.startDraw();
                 canvas.drawFilledRect(Vector2i(0, 0), tex.size, col);
-                tex.endDraw();
+                canvas.endDraw();
             }
             return tex;
         }

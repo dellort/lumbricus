@@ -285,15 +285,13 @@ class TopLevel {
         thegame = new GameController(gamescene, level);
     }
 
-    private void onFrame() {
+    private void onFrame(Canvas c) {
         globals.gameTimeAnimations = globals.framework.getCurrentTime();
         globals.gameTime = globals.gameTimeAnimations;
 
         fpsDisplay.text = format("FPS: %1.2f", globals.framework.FPS);
 
-        Canvas canvas = globals.framework.screen.startDraw();
-        screen.draw(canvas);
-        globals.framework.screen.endDraw();
+        screen.draw(c);
     }
 
     private void onKeyPress(KeyInfo infos) {

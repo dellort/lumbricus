@@ -37,13 +37,15 @@ package class SDLTexture : Texture {
     package this(SDLSurface source) {
         mOriginalSurface = source;
         assert(source !is null);
+        size = source.size;
     }
 
     //return surface that's actually drawn
     package SDL_Surface* getDrawSurface() {
-        if (!mCached)
-            checkIfScreenFormat();
-        return mCached;
+        //if (!mCached)
+        //    checkIfScreenFormat();
+        //return mCached;
+        return mOriginalSurface.mReal;
     }
 
     //convert the image to the current screen format (this is done once)
@@ -87,7 +89,7 @@ package class SDLTexture : Texture {
 public class SDLSurface : Surface {
     //mReal: original surface (any pixelformat)
     SDL_Surface* mReal;
-    Canvas mCanvas;
+    SDLCanvas mCanvas;
     Transparency mTransp;
     Color mColorkey;
 
@@ -95,11 +97,11 @@ public class SDLSurface : Surface {
         if (mCanvas is null) {
             mCanvas = new SDLCanvas(this);
         }
+        mCanvas.startDraw();
         return mCanvas;
     }
-    public void endDraw() {
-        //nop under SDL
-    }
+    //public void endDraw() {
+    //}
 
     public Vector2i size() {
         assert(mReal !is null);
@@ -281,6 +283,15 @@ public class SDLCanvas : Canvas {
         SDLSurface sdlsurface;
     }
 
+    package void startDraw() {
+        assert(mStackTop == 0);
+        pushState();
+    }
+    void endDraw() {
+        popState();
+        assert(mStackTop == 0);
+    }
+
     public void pushState() {
         assert(mStackTop < MAX_STACK);
         SDL_GetClipRect(sdlsurface.mReal, &mStack[mStackTop].clip);
@@ -318,17 +329,11 @@ public class SDLCanvas : Canvas {
         return mClientSize;
     }
 
-    public void endDraw() {
-        popState();
-        assert(mStackTop == 0);
-        sdlsurface.endDraw();
-    }
-
     this(SDLSurface surf) {
         mTrans = Vector2i(0, 0);
         mStackTop = 0;
         sdlsurface = surf;
-        pushState();
+        //pushState();
     }
 
     package Surface surface() {
@@ -397,7 +402,7 @@ public class SDLCanvas : Canvas {
         int alpha = cast(ubyte)(color.a*255);
         if (alpha == 0 && properalpha)
             return; //xxx: correct?
-        if (alpha != 255 && properalpha) {
+        if (true && alpha != 255 && properalpha) {
             //quite insane insanity here!!!
             Texture s = gFrameworkSDL.insanityCache(color);
             assert(s !is null);
@@ -821,9 +826,12 @@ public class FrameworkSDL : Framework {
 
     private void render() {
         SDL_FillRect(mScreen,null,SDL_MapRGB(mScreen.format,0,0,0));
+        Canvas c = screen.startDraw();
         if (onFrame) {
-                onFrame();
+                onFrame(c);
         }
+        c.endDraw();
+        SDL_UpdateRect(mScreen,0,0,0,0);
     }
 
     public Time getCurrentTime() {

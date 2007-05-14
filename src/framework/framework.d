@@ -107,7 +107,7 @@ public class Surface {
     public abstract Vector2i size();
 
     public abstract Canvas startDraw();
-    public abstract void endDraw();
+    //public abstract void endDraw();
 
     /// set colorkey, all pixels with that color will be transparent
     public abstract void enableColorkey(Color colorkey = cStdColorkey);
@@ -604,7 +604,7 @@ public class Framework {
     /// return false to abort quit
     public bool delegate() onTerminate;
     /// Event raised when the screen is repainted
-    public void delegate() onFrame;
+    public void delegate(Canvas canvas) onFrame;
     /// Event raised on key-down/up events; these events are not auto repeated
     //return false if keys were handled (for onKeyDown: onKeyPress handling)
     public bool delegate(KeyInfo key) onKeyDown;
