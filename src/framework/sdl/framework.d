@@ -27,102 +27,71 @@ static SDL_Color ColorToSDLColor(Color color) {
     return col;
 }
 
-public class SDLSurface : Surface {
-    //mReal: original surface (any pixelformat)
-    //mCached: surface as painted to the screen (should be screen pixelformat)
-    //  mCached maybe null, mReal should always be non-null
-    SDL_Surface* mReal, mCached;
-    Canvas mCanvas;
-    Transparency mTransp;
-    bool mIsScreen;
-    bool mOnScreenSurface;
-    bool mNeverCache;
-    Color mColorkey;
+//NOTE: there's also GLTexture :)
+package class SDLTexture : Texture {
+    //mOriginalSurface is the image source, and mCached is the image converted
+    //to screen format
+    private SDLSurface mOriginalSurface;
+    private SDL_Surface* mCached;
 
-    public Surface getSubSurface(Vector2i pos, Vector2i size) {
-        SDLSurface n = new SDLSurface(null);
-        n.mTransp = mTransp;
-        n.mOnScreenSurface = mOnScreenSurface;
-        n.mNeverCache = mNeverCache;
-        n.mColorkey = mColorkey;
-        //xxx: shouldn't copy, but the rest of the code is too borken
-        //actually, it should only select a subregion without copying...
-        n.mReal = SDL_CreateRGBSurface(mReal.flags, size.x1,
-            size.x2, mReal.format.BitsPerPixel,
-            mReal.format.Rmask, mReal.format.Gmask, mReal.format.Bmask,
-            mReal.format.Amask);
-        assert(n.mReal);
-        Canvas c = n.startDraw();
-        c.draw(this, Vector2i(0, 0), pos, size);
-        c.endDraw();
-        return n;
+    package this(SDLSurface source) {
+        mOriginalSurface = source;
+        assert(source !is null);
     }
 
-    public bool isScreen() {
-        return mIsScreen;
-    }
-
-    public bool isOnScreen() {
-        return mOnScreenSurface;
-    }
-
-    /// don't convert the surface to screen format (which is usually done if it
-    /// is painted to the screen to hopefully speed up drawing)
-    public void setNeverCache() {
-        mNeverCache = true;
-    }
-
-    public void isOnScreen(bool onScreen) {
-        if (onScreen) {
-            //xxx: ? shouldn't this be done on-demand
+    //return surface that's actually drawn
+    package SDL_Surface* getDrawSurface() {
+        if (!mCached)
             checkIfScreenFormat();
-        } else {
-            releaseCached();
-            mOnScreenSurface = false;
-        }
-    }
-
-    //release the cached surface, which has the screen pixelformat
-    public void releaseCached() {
-        if (mCached)
-            SDL_FreeSurface(mCached);
-        mCached = null;
+        return mCached;
     }
 
     //convert the image to the current screen format (this is done once)
     package void checkIfScreenFormat() {
-        if (mNeverCache)
-            return;
-
         //xxx insert check if screen depth has changed at all!
+        //xxx also check if you need to convert it at all
         //else: performance problem with main level surface
         if (!mCached) {
-            SDL_Surface* conv_from = mReal;
-            releaseCached(); //needed, if !mCached isn't the only cond. above...
-            switch (mTransp) {
+            assert(mOriginalSurface !is null);
+            SDL_Surface* conv_from = mOriginalSurface.mReal;
+            assert(conv_from !is null);
+
+            releaseCache();
+            switch (mOriginalSurface.mTransp) {
                 case Transparency.Colorkey, Transparency.None: {
-                    mCached = SDL_DisplayFormat(mReal);
+                    mCached = SDL_DisplayFormat(conv_from);
                     break;
                 }
                 case Transparency.Alpha: {
                     //xxx: this didn't really work, the alpha channel was
                     //  removed, needs to be retested (i.e. don't set neverCache
                     //  when using spiffy alpha blended fonts)
-                    mCached = SDL_DisplayFormatAlpha(mReal);
+                    mCached = SDL_DisplayFormatAlpha(conv_from);
                     break;
                 }
                 default:
                     assert(false);
             }
-            //xxx maybe it's unwanted because of slightly unfitting semantics
-            mOnScreenSurface = true;
         }
     }
 
-    public Canvas startDraw() {
-        //surface will be changed, so invalidate the cached bitmap
-        releaseCached();
+    void releaseCache() {
+        if (mCached) {
+            if (mCached !is mOriginalSurface.mReal)
+                SDL_FreeSurface(mCached);
+            mCached = null;
+        }
+    }
+}
 
+public class SDLSurface : Surface {
+    //mReal: original surface (any pixelformat)
+    SDL_Surface* mReal;
+    Canvas mCanvas;
+    Transparency mTransp;
+    Color mColorkey;
+
+    public Canvas startDraw() {
         if (mCanvas is null) {
             mCanvas = new SDLCanvas(this);
         }
@@ -133,13 +102,14 @@ public class SDLSurface : Surface {
     }
 
     public Vector2i size() {
+        assert(mReal !is null);
         return Vector2i(mReal.w, mReal.h);
     }
 
     public bool convertToData(PixelFormat format, out uint pitch,
         out void* data)
     {
-        assert(mReal);
+        assert(mReal !is null);
 
         //xxx: as an optimization, avoid double-copying (that is, calling the
         //  SDL_ConvertSurface() function, if the format is already equal to
@@ -180,7 +150,6 @@ public class SDLSurface : Surface {
 
     public void enableColorkey(Color colorkey = cStdColorkey) {
         assert(mReal);
-        releaseCached();
 
         uint key = colorToSDLColor(colorkey);
         mColorkey = colorkey;
@@ -189,8 +158,7 @@ public class SDLSurface : Surface {
     }
 
     public void enableAlpha() {
-        assert(mReal);
-        releaseCached();
+        assert(mReal !is null);
 
         SDL_SetAlpha(mReal, SDL_SRCALPHA, SDL_ALPHA_OPAQUE);
         mTransp = Transparency.Alpha;
@@ -280,16 +248,25 @@ public class SDLSurface : Surface {
     //to avoid memory leaks
     //xxx: either must be automatically managed (finalizer) or be in superclass
     void free() {
-        releaseCached();
+        //xxx: what about the textures hooked to us?
         SDL_FreeSurface(mReal);
         mReal = null;
+    }
+
+    //create a SDLTexture in SDL mode, and a GLTexture in OpenGL mode
+    Texture createTexture() {
+        if (gFrameworkSDL.useGL) {
+            //return new GLTexture(this);
+            assert(false);
+        } else {
+            return new SDLTexture(this);
+        }
     }
 }
 
 public class SDLCanvas : Canvas {
     const int MAX_STACK = 10;
 
-    SDLSurface sdlsurface;
     private {
         struct State {
             SDL_Rect clip;
@@ -299,6 +276,9 @@ public class SDLCanvas : Canvas {
         Vector2i mTrans;
         State[MAX_STACK] mStack;
         uint mStackTop; //point to next free stack item (i.e. 0 on empty stack)
+
+        Vector2i mClientSize;
+        SDLSurface sdlsurface;
     }
 
     public void pushState() {
@@ -324,14 +304,18 @@ public class SDLCanvas : Canvas {
         rc.h = p2.y-p1.y;
         SDL_SetClipRect(sdlsurface.mReal, &rc);
         mTrans = p1;
+        mClientSize = p2 - p1;
     }
 
     public void translate(Vector2i offset) {
         mTrans -= offset;
     }
 
-    public Vector2i size() {
+    public Vector2i realSize() {
         return sdlsurface.size();
+    }
+    public Vector2i clientSize() {
+        return mClientSize;
     }
 
     public void endDraw() {
@@ -347,18 +331,19 @@ public class SDLCanvas : Canvas {
         pushState();
     }
 
-    public Surface surface() {
+    package Surface surface() {
         return sdlsurface;
     }
 
-    public void draw(Surface source, Vector2i destPos,
+    public void draw(Texture source, Vector2i destPos,
         Vector2i sourcePos, Vector2i sourceSize)
     {
+        assert(source !is null);
         destPos += mTrans;
-        SDLSurface sdls = cast(SDLSurface)source;
-        if (sdlsurface.mIsScreen) {
-            sdls.checkIfScreenFormat();
-        }
+        SDLTexture sdls = cast(SDLTexture)source;
+        //when this is null, maybe the user passed a GLTexture?
+        assert(sdls !is null);
+
         SDL_Rect rc, destrc;
         rc.x = cast(short)sourcePos.x;
         rc.y = cast(short)sourcePos.y;
@@ -366,19 +351,22 @@ public class SDLCanvas : Canvas {
         rc.h = cast(ushort)sourceSize.y;
         destrc.x = cast(short)destPos.x;
         destrc.y = cast(short)destPos.y; //destrc.w/h ignored by SDL_BlitSurface
-        SDL_Surface* src = sdls.mCached;
-        if (!src)
-            src = sdls.mReal;
+        SDL_Surface* src = sdls.getDrawSurface();
+        //if (!src)
+        //    src = sdls.mReal;
+        assert(src !is null);
         SDL_BlitSurface(src, &rc, sdlsurface.mReal, &destrc);
     }
 
     //TODO: add code
     public void drawCircle(Vector2i center, int radius, Color color) {
+        assert(false);
     }
 
     public void drawFilledCircle(Vector2i center, int radius,
         Color color)
     {
+        assert(false);
     }
 
     public void drawLine(Vector2i from, Vector2i to, Color color) {
@@ -400,6 +388,7 @@ public class SDLCanvas : Canvas {
     }
 
     public void drawRect(Vector2i p1, Vector2i p2, Color color) {
+        assert(false);
     }
 
     override public void drawFilledRect(Vector2i p1, Vector2i p2, Color color,
@@ -410,7 +399,7 @@ public class SDLCanvas : Canvas {
             return; //xxx: correct?
         if (alpha != 255 && properalpha) {
             //quite insane insanity here!!!
-            Surface s = gFrameworkSDL.insanityCache(color);
+            Texture s = gFrameworkSDL.insanityCache(color);
             assert(s !is null);
             drawTiled(s, p1, p2-p1);
         } else {
@@ -427,7 +416,7 @@ public class SDLCanvas : Canvas {
     }
 
     public void clear(Color color) {
-        drawFilledRect(Vector2i(0, 0)-mTrans, sdlsurface.size-mTrans, color);
+        drawFilledRect(Vector2i(0, 0)-mTrans, clientSize-mTrans, color);
     }
 
     public void drawText(char[] text) {
@@ -436,9 +425,9 @@ public class SDLCanvas : Canvas {
 }
 
 public class SDLFont : Font {
-    private SDLSurface frags[dchar];
+    private Texture frags[dchar];
     private bool mNeedBackPlain;   //false if background is completely transp.
-    private SDLSurface mBackPlain; //used for fuzzy alpha text background
+//    private Texture mBackPlain; //used for fuzzy alpha text background
     private uint mWidest;
     private FontProperties props;
     private TTF_Font* font;
@@ -476,9 +465,10 @@ public class SDLFont : Font {
 
     public void drawText(Canvas canvas, Vector2i pos, char[] text) {
         foreach (dchar c; text) {
-            SDLSurface surface = getGlyph(c);
+            Texture surface = getGlyph(c);
             if (mNeedBackPlain) {
-                canvas.draw(mBackPlain, pos, Vector2i(0, 0), surface.size);
+                //canvas.draw(mBackPlain, pos, Vector2i(0, 0), surface.size);
+                canvas.drawFilledRect(pos, pos+surface.size, props.back, true);
             }
             canvas.draw(surface, pos);
             pos.x += surface.size.x;
@@ -488,7 +478,7 @@ public class SDLFont : Font {
     public Vector2i textSize(char[] text) {
         Vector2i res = Vector2i(0, 0);
         foreach (dchar c; text) {
-            SDLSurface surface = getGlyph(c);
+            Texture surface = getGlyph(c);
             res.x += surface.size.x;
         }
         //xxx
@@ -496,16 +486,16 @@ public class SDLFont : Font {
         return res;
     }
 
-    private SDLSurface getGlyph(dchar c) {
-        SDLSurface* sptr = c in frags;
+    private Texture getGlyph(dchar c) {
+        Texture* sptr = c in frags;
         if (!sptr) {
             frags[c] = renderChar(c);
             sptr = c in frags;
         }
-        SDLSurface surface = *sptr;
+        Texture surface = *sptr;
         Vector2i size = surface.size;
 
-        if (mNeedBackPlain) {
+        /+if (mNeedBackPlain) {
             //recreate "backplain" if necessary
             if (mBackPlain is null
                 //|| frags[c].size.x > mWidest
@@ -528,12 +518,12 @@ public class SDLFont : Font {
                     props.back, false);
                 tmp.endDraw();
             }
-        }
+        }+/
 
         return surface;
     }
 
-    private SDLSurface renderChar(dchar c) {
+    private Texture renderChar(dchar c) {
         dchar s[2];
         s[0] = c;
         s[1] = '\0';
@@ -563,7 +553,8 @@ public class SDLFont : Font {
         }
         auto tmp = new SDLSurface(surface);
         tmp.enableAlpha();
-        return tmp;
+        //xxx: be able to free it?
+        return tmp.createTexture();
     }
 }
 
@@ -572,12 +563,12 @@ public class FrameworkSDL : Framework {
     private SDLSurface mScreenSurface;
     private Keycode mSdlToKeycode[int];
 
-    private Surface[int] mInsanityCache;
+    private Texture[int] mInsanityCache;
 
-    private Surface insanityCache(Color c) {
+    private Texture insanityCache(Color c) {
         int key = colorToRGBA32(c);
 
-        Surface* s = key in mInsanityCache;
+        Texture* s = key in mInsanityCache;
         if (s)
             return *s;
 
@@ -585,8 +576,9 @@ public class FrameworkSDL : Framework {
         SDLSurface tile = createSurface(Vector2i(64, 64), DisplayFormat.Best,
             Transparency.Alpha);
         SDL_FillRect(tile.mReal, null, tile.colorToSDLColor(c));
-        mInsanityCache[key] = tile;
-        return tile;
+        auto tex = tile.createTexture();
+        mInsanityCache[key] = tex;
+        return tex;
     }
 
     this(char[] arg0, char[] appId) {
@@ -618,8 +610,8 @@ public class FrameworkSDL : Framework {
         }
 
         mScreenSurface = new SDLSurface(null);
-        mScreenSurface.mIsScreen = true;
-        mScreenSurface.mNeverCache = true;
+        //mScreenSurface.mIsScreen = true;
+        //mScreenSurface.mNeverCache = true;
 
         //Initialize translation hashmap from array
         foreach (SDLToKeycode item; g_sdl_to_code) {
@@ -627,6 +619,10 @@ public class FrameworkSDL : Framework {
         }
 
         setCaption("<no caption>");
+    }
+
+    package bool useGL() {
+        return false;
     }
 
     public void setCaption(char[] caption) {

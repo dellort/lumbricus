@@ -41,9 +41,13 @@ class GameController {
 class LevelObject : SceneObject {
     GameController game;
     Level level;
+    Texture levelTexture;
 
     void draw(Canvas c) {
-        c.draw(level.image, Vector2i(0, 0));
+        if (!levelTexture) {
+            levelTexture = level.image.createTexture();
+        }
+        c.draw(levelTexture, Vector2i(0, 0));
     }
 
     this(GameController game) {

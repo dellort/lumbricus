@@ -92,78 +92,20 @@ public struct PixelFormat {
     uint mask_r, mask_g, mask_b, mask_a;
 }
 
-//warning: quite restricted interface
-public class SubSurface : Surface {
-    protected Surface mParent;
-
-    public bool isScreen() {
-        return mParent.isScreen;
-    }
-
-    //whether the surface is painted to the screen (set automatically)
-    public bool isOnScreen() {
-        return mParent.isOnScreen;
-    }
-    public void isOnScreen(bool onScreen) {
-        return mParent.isOnScreen(onScreen);
-    }
-
-    public Vector2i size() {
-        return size;
-    }
-
-    private void nosupport() {
-        throw new Exception("not supported");
-    }
-    //this is done so to be able OpenGL
-    //(OpenGL would translate these calls to glNewList() and glEndList()
-    public Canvas startDraw() {
-        nosupport();
-        return null;
-    }
-    public void endDraw() {
-        nosupport();
-    }
-
-    public void enableColorkey(Color colorkey = cStdColorkey) {
-        nosupport();
-    }
-
-    public void enableAlpha() {
-        nosupport();
-    }
-
-    public Color colorkey() {
-        return mParent.colorkey();
-    }
-    public Transparency transparency() {
-        return mParent.transparency();
-    }
-
-    /// convert the image data to raw pixel data, using the given format
-    public abstract bool convertToData(PixelFormat format, out uint pitch,
-        out void* data)
-    {
-        nosupport();
-        return false;
-    }
+/// Subregion of a texture.
+//(hm, putting that into Texture would be too expensive I guess)
+public struct TextureRef {
+    Texture texture;
+    Vector2i pos, size;
 }
 
 public class Surface {
     //true if this is the single and only screen surface!
     //(or the backbuffer)
-    public abstract bool isScreen();
-
-    public abstract Surface getSubSurface(Vector2i pos, Vector2i size);
-
-    //whether the surface is painted to the screen (set automatically)
-    public abstract bool isOnScreen();
-    public abstract void isOnScreen(bool onScreen);
+    //public abstract bool isScreen();
 
     public abstract Vector2i size();
 
-    //this is done so to be able OpenGL
-    //(OpenGL would translate these calls to glNewList() and glEndList()
     public abstract Canvas startDraw();
     public abstract void endDraw();
 
@@ -178,6 +120,11 @@ public class Surface {
     /// convert the image data to raw pixel data, using the given format
     public abstract bool convertToData(PixelFormat format, out uint pitch,
         out void* data);
+
+    /// Create a texture from this surface.
+    /// The texture may or may not reflect changes to the surface since this
+    /// function was called. Texture.recreate() will update the Texture.
+    public abstract Texture createTexture();
 
     /// convert the texture to a transparency mask
     /// one pixel per byte; the pitch is the width (pixel = arr[y*w+x])
@@ -218,17 +165,25 @@ public class Surface {
     }
 }
 
+public abstract class Texture {
+    Vector2i size;
+}
+
+/// Draw stuffies!
+//HINT: The framework.sdl will implement this two times: once for SDL and once
+//      for the OpenGL screen!
 public class Canvas {
-    public abstract Vector2i size();
+    public abstract Vector2i realSize();
+    public abstract Vector2i clientSize();
 
     //must be called after drawing done
     public abstract void endDraw();
 
-    public void draw(Surface source, Vector2i destPos) {
+    public void draw(Texture source, Vector2i destPos) {
         draw(source, destPos, Vector2i(0, 0), source.size);
     }
 
-    public abstract void draw(Surface source, Vector2i destPos,
+    public abstract void draw(Texture source, Vector2i destPos,
         Vector2i sourcePos, Vector2i sourceSize);
 
     public abstract void drawCircle(Vector2i center, int radius, Color color);
@@ -236,6 +191,7 @@ public class Canvas {
         Color color);
     public abstract void drawLine(Vector2i p1, Vector2i p2, Color color);
     public abstract void drawRect(Vector2i p1, Vector2i p2, Color color);
+    /// properalpha: ignored in OpenGL mode, hack for SDL only mode :(
     public abstract void drawFilledRect(Vector2i p1, Vector2i p2, Color color,
         bool properalpha = true);
 
@@ -251,7 +207,8 @@ public class Canvas {
 
     /// Fill the area (destPos, destPos+destSize) with source, tiled on wrap
     //warning: not very well tested
-    public void drawTiled(Surface source, Vector2i destPos, Vector2i destSize) {
+    //will be specialized in OpenGL
+    public void drawTiled(Texture source, Vector2i destPos, Vector2i destSize) {
         int w = source.size.x1;
         int h = source.size.x2;
         int x;

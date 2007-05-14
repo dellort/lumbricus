@@ -84,12 +84,12 @@ public class Console : Output {
                 mCurHeight = 0;
         }
 
-        int renderWidth = scrCanvas.size.x - mBorderOffset*2;
+        int renderWidth = scrCanvas.realSize.x - mBorderOffset*2;
 
         if (mCurHeight > 0) {
             //draw background rect
             scrCanvas.drawFilledRect(Vector2i(0,0),
-                Vector2i(scrCanvas.size.x,mCurHeight),mBackColor);
+                Vector2i(scrCanvas.realSize.x,mCurHeight),mBackColor);
 
             //draw output backlog
             //maximum number of lines that fits on the screen

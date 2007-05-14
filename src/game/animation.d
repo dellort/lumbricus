@@ -25,8 +25,8 @@ class Animation {
         size.y = node.getIntValue("height", 0);
         mFrames.length = frames;
         for (int n = 0; n < frames; n++) {
-            mFrames[n].surface = bmp.getSubSurface(Vector2i(size.x*n, 0),
-                Vector2i(size.x, size.y));
+//            mFrames[n].surface = bmp.getSubSurface(Vector2i(size.x*n, 0),
+//                Vector2i(size.x, size.y));
             mFrames[n].durationMS = duration;
         }
     }
@@ -87,6 +87,6 @@ class Animator : SceneObjectPositioned {
 
         //draw it.
         //xxx: this is the last frame... should draw the current one
-        canvas.draw(fi.surface, pos);
+        //canvas.draw(fi.surface, pos);
     }
 }

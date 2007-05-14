@@ -80,12 +80,12 @@ public class PlaceObjects {
             DisplayFormat.Best, Transparency.Colorkey);
         auto canvas2 = newlevel.startDraw();
         canvas2.clear(Color(0, 0, 0, 1.0f));
-        canvas2.draw(mTexture, pos);
-        canvas2.draw(mLevel.image, Vector2i(0, 0));
+//        canvas2.draw(mTexture, pos);
+//        canvas2.draw(mLevel.image, Vector2i(0, 0));
         canvas2.endDraw();
         auto canvas = mLevel.image.startDraw();
         //overwrite teh suxors
-        canvas.draw(newlevel, Vector2i(0, 0));
+//        canvas.draw(newlevel, Vector2i(0, 0));
         canvas.endDraw();
 
         //after the image is done, adjust the mask (same task as above, sigh)
@@ -104,5 +104,5 @@ public class PlaceObjects {
             }
         }
     }
-    
+
 }
