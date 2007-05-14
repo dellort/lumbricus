@@ -315,6 +315,8 @@ public class Framework {
     private FontManager mFontManager;
     private FileSystem mFilesystem;
 
+    private bool mEnableEvents = true;
+
     //initialize time between FPS recalculations
     static this() {
         cFPSTimeSpan = timeSecs(1);
@@ -323,6 +325,11 @@ public class Framework {
     public Vector2i mousePos() {
         return mMousePos;
     }
+    public abstract void mousePos(Vector2i newPos);
+
+    public abstract bool grabInput();
+
+    public abstract void grabInput(bool grab);
 
     public this(char[] arg0, char[] appId) {
         mKeyStateMap = new bool[Keycode.max-Keycode.min+1];
@@ -533,14 +540,14 @@ public class Framework {
             //    //it did handle the key; don't do anything more with that key
             //    return;
             //}
-            if (onKeyDown) {
+            if (onKeyDown && mEnableEvents) {
                 bool handle = onKeyDown(infos);
                 if (!handle)
                     return;
             }
         }
 
-        if (onKeyPress != null) {
+        if (onKeyPress != null && mEnableEvents) {
             onKeyPress(infos);
         }
     }
@@ -551,7 +558,7 @@ public class Framework {
             doTerminate();
         }
         //if (!handleShortcuts(infos, false)) {
-            if (onKeyUp) onKeyUp(infos);
+            if (onKeyUp && mEnableEvents) onKeyUp(infos);
         //}
     }
 
@@ -561,14 +568,23 @@ public class Framework {
     }
 
     protected void doUpdateMousePos(Vector2i pos) {
+        if (mLockMouse) {
+            mousePos = mLockedMousePos;
+            //Vector2i newCorr = pos - mLockedMousePos;
+            pos += mMouseCorr;
+            //mMouseCorr = newCorr;
+            //mMouseCorr = Vector2i(0,0);
+        }
         if (mMousePos != pos) {
             MouseInfo infos;
             infos.pos = pos;
             infos.rel = pos - mMousePos;
             mMousePos = pos;
-            if (onMouseMove != null) {
+            if (onMouseMove != null && mEnableEvents) {
                 onMouseMove(infos);
             }
+            if (mLockMouse)
+                mMouseCorr -= infos.rel;
         }
     }
 
@@ -586,6 +602,33 @@ public class Framework {
         return res;
     }
 
+    public void enableEvents(bool enable) {
+        mEnableEvents = enable;
+    }
+    public bool enableEvents() {
+        return mEnableEvents;
+    }
+
+    private Vector2i mStoredMousePos, mLockedMousePos, mMouseCorr;
+    private bool mLockMouse;
+
+    ///This will move the mouse cursor to screen center and keep it there
+    ///It is probably a good idea to hide the cursor first, as it will still
+    ///be moveable and generate events, but "snap" back to the locked position
+    public void lockMouse() {
+        mLockedMousePos = screen.size/2;
+        mStoredMousePos = mousePos;
+        mLockMouse = true;
+        mousePos = mLockedMousePos;
+        mMouseCorr = mStoredMousePos - mLockedMousePos;
+    }
+
+    ///Remove the mouse lock and move the cursor back to where it was before
+    public void unlockMouse() {
+        mousePos = mStoredMousePos;
+        mLockMouse = false;
+    }
+
     protected bool doTerminate() {
         bool term = true;
         if (onTerminate != null) {
@@ -596,6 +639,9 @@ public class Framework {
         }
         return term;
     }
+
+    public abstract void cursorVisible(bool v);
+    public abstract bool cursorVisible();
 
     /// executed when receiving quit event from framework
     /// return false to abort quit

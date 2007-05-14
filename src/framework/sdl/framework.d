@@ -744,6 +744,36 @@ public class FrameworkSDL : Framework {
         SDL_Delay(0);
     }
 
+    public void cursorVisible(bool v) {
+        if (v)
+            SDL_ShowCursor(SDL_ENABLE);
+        else
+            SDL_ShowCursor(SDL_DISABLE);
+    }
+    public bool cursorVisible() {
+        int v = SDL_ShowCursor(SDL_QUERY);
+        if (v == SDL_ENABLE)
+            return true;
+        else
+            return false;
+    }
+
+    public void mousePos(Vector2i newPos) {
+        SDL_WarpMouse(newPos.x, newPos.y);
+    }
+
+    public bool grabInput() {
+        int g = SDL_WM_GrabInput(SDL_GRAB_QUERY);
+        return g == SDL_GRAB_ON;
+    }
+
+    public void grabInput(bool grab) {
+        if (grab)
+            SDL_WM_GrabInput(SDL_GRAB_ON);
+        else
+            SDL_WM_GrabInput(SDL_GRAB_OFF);
+    }
+
     private KeyInfo keyInfosFromSDL(in SDL_KeyboardEvent sdl) {
         KeyInfo infos;
         infos.code = sdlToKeycode(sdl.keysym.sym);

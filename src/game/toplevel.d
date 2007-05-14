@@ -126,6 +126,7 @@ class TopLevel {
         globals.cmdLine.registerCommand("nameit", &cmdNameit, "name a key");
         globals.cmdLine.registerCommand("video", &cmdVideo, "set video");
         globals.cmdLine.registerCommand("fullscreen", &cmdFS, "toggle fs");
+        globals.cmdLine.registerCommand("scroll", &cmdScroll, "enter scroll mode");
     }
 
     private void onVideoInit(bool depth_only) {
@@ -236,6 +237,24 @@ class TopLevel {
         }
     }
 
+    private bool mScrolling;
+    private Vector2i mScrollStart, mScrollDelta, mMouseOffsCorr;
+
+    private void cmdScroll(CommandLine cmd) {
+        if (mScrolling) {
+            globals.framework.grabInput = false;
+            //globals.framework.cursorVisible = true;
+            globals.framework.unlockMouse();
+        } else {
+            mScrollStart = gameview.clientoffset;
+            mScrollDelta = Vector2i(0,0);
+            globals.framework.grabInput = true;
+            //globals.framework.cursorVisible = false;
+            globals.framework.lockMouse();
+        }
+        mScrolling = !mScrolling;
+    }
+
     private void showConsole(CommandLine) {
         console.toggle();
     }
@@ -326,6 +345,10 @@ class TopLevel {
         //globals.log("%s", mouse.pos);
         if (globals.framework.getKeyState(Keycode.MOUSE_LEFT)) {
             gameview.clientoffset = mMouseStart + mouse.pos;
+        }
+        if (mScrolling) {
+            mScrollDelta += mouse.rel;
+            gameview.clientoffset = mScrollStart + mScrollDelta;
         }
     }
 
