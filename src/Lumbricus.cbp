@@ -48,6 +48,7 @@
 		<Unit filename="framework\sdl\rwops.d" />
 		<Unit filename="game\animation.d" />
 		<Unit filename="game\common.d" />
+		<Unit filename="game\game.d" />
 		<Unit filename="game\gobject.d" />
 		<Unit filename="game\scene.d" />
 		<Unit filename="game\toplevel.d" />
