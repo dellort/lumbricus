@@ -4,8 +4,8 @@ import str = std.string;
 import math = std.math;
 
 public struct Vector2(T) {
-    T x1;
-    T x2;
+    T x1 = 0;
+    T x2 = 0;
 
     alias x1 x;
     alias x2 y;
@@ -42,6 +42,10 @@ public struct Vector2(T) {
     }
     public Vector2 opMul_r(T scalar) {
         return opMul(scalar);
+    }
+    public void opMulAssign(T scalar) {
+        x1 *= scalar;
+        x2 *= scalar;
     }
 
     public Vector2 opDiv(T scalar) {
@@ -114,3 +118,17 @@ public struct Vector2(T) {
 
 public alias Vector2!(int) Vector2i;
 public alias Vector2!(float) Vector2f;
+
+public Vector2f toVector2f(Vector2i v) {
+    Vector2f res;
+    res.x1 = v.x1;
+    res.x2 = v.x2;
+    return res;
+}
+
+public Vector2i toVector2f(Vector2f v) {
+    Vector2i res;
+    res.x1 = cast(int)(v.x1+0.5f);
+    res.x2 = cast(int)(v.x2+0.5f);
+    return res;
+}

@@ -1,12 +1,33 @@
 module game.gobject;
 import game.animation;
 import utils.vector2;
+import utils.mylist;
+import game.common;
+import game.physic;
+import game.game;
 
-//needs work :-)
 class GameObject {
-    Animation graphic;
+    Animator graphic;
+    PhysicObject physics;
+    GameController controller;
 
-    void setPos(Vector2i pos) {
-        //graphic.pos = pos;
+    //for GameController
+    package mixin ListNodeMixin node;
+
+    private void physUpdate() {
+        graphic.pos = toVector2f(physics.pos);
+    }
+
+    this(GameController controller) {
+        this.controller = controller;
+        controller.mObjects.insert_tail(this);
+        physics = new PhysicObject();
+        graphic = new Animator();
+        graphic.setAnimation(new Animation(globals.loadConfig("animations").getSubNode("testani1")), true);
+        graphic.scene = controller.scene;
+        graphic.zorder = GameZOrder.Objects;
+        graphic.active = true;
+        physics.onUpdate = &physUpdate;
+        controller.physicworld.add(physics);
     }
 }

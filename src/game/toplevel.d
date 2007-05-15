@@ -19,6 +19,8 @@ import gc = std.gc;
 import level = level.generator;
 import str = std.string;
 import conv = std.conv;
+import game.physic;
+import game.gobject;
 
 //ZOrders!
 //maybe keep in sync with game.Scene.cMaxZOrder
@@ -44,6 +46,7 @@ class TopLevel {
     Console console;
     KeyBindings keybindings;
     GameController thegame;
+    Time gameStartTime;
     //xxx move this to where-ever
     ConfigNode localizedKeyfile;
 
@@ -127,6 +130,11 @@ class TopLevel {
         globals.cmdLine.registerCommand("video", &cmdVideo, "set video");
         globals.cmdLine.registerCommand("fullscreen", &cmdFS, "toggle fs");
         globals.cmdLine.registerCommand("scroll", &cmdScroll, "enter scroll mode");
+        globals.cmdLine.registerCommand("phys", &cmdPhys, "test123");
+    }
+
+    private void cmdPhys(CommandLine) {
+        GameObject obj = new GameObject(thegame);
     }
 
     private void onVideoInit(bool depth_only) {
@@ -279,6 +287,7 @@ class TopLevel {
         x.config = globals.loadConfig("levelgen").getSubNode("levelgen");
         auto level = x.generateRandom(1920, 696, "");
         thegame = new GameController(gamescene, level);
+        gameStartTime = globals.gameTime;
     }
 
     private void onFrame(Canvas c) {
@@ -286,6 +295,10 @@ class TopLevel {
         globals.gameTime = globals.gameTimeAnimations;
 
         fpsDisplay.text = format("FPS: %1.2f", globals.framework.FPS);
+
+        if (thegame) {
+            thegame.doFrame(globals.gameTime - gameStartTime);
+        }
 
         screen.draw(c);
     }
