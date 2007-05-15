@@ -242,14 +242,14 @@ class TopLevel {
 
     private void cmdScroll(CommandLine cmd) {
         if (mScrolling) {
-            globals.framework.grabInput = false;
-            //globals.framework.cursorVisible = true;
+            //globals.framework.grabInput = false;
+            globals.framework.cursorVisible = true;
             globals.framework.unlockMouse();
         } else {
             mScrollStart = gameview.clientoffset;
             mScrollDelta = Vector2i(0,0);
-            globals.framework.grabInput = true;
-            //globals.framework.cursorVisible = false;
+            //globals.framework.grabInput = true;
+            globals.framework.cursorVisible = false;
             globals.framework.lockMouse();
         }
         mScrolling = !mScrolling;
@@ -344,7 +344,7 @@ class TopLevel {
             gameview.clientoffset = mMouseStart + mouse.pos;
         }
         if (mScrolling) {
-            mScrollDelta += mouse.rel;
+            mScrollDelta -= mouse.rel;
             gameview.clientoffset = mScrollStart + mScrollDelta;
         }
     }

@@ -529,12 +529,9 @@ public class Framework {
     }
 
     protected void doUpdateMousePos(Vector2i pos) {
+        Vector2i realPos = pos;
         if (mLockMouse) {
-            mousePos = mLockedMousePos;
-            //Vector2i newCorr = pos - mLockedMousePos;
             pos += mMouseCorr;
-            //mMouseCorr = newCorr;
-            //mMouseCorr = Vector2i(0,0);
         }
         if (mMousePos != pos) {
             MouseInfo infos;
@@ -544,8 +541,10 @@ public class Framework {
             if (onMouseMove != null && mEnableEvents) {
                 onMouseMove(infos);
             }
-            if (mLockMouse)
-                mMouseCorr -= infos.rel;
+            if (mLockMouse) {
+                mousePos = mLockedMousePos;
+                mMouseCorr += (realPos-mLockedMousePos);
+            }
         }
     }
 
