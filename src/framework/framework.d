@@ -125,12 +125,14 @@ public class Surface {
     /// The texture may or may not reflect changes to the surface since this
     /// function was called. Texture.recreate() will update the Texture.
     public abstract Texture createTexture();
+    /// hmhm
+    public abstract Texture createBitmapTexture();
 
     /// convert the texture to a transparency mask
     /// one pixel per byte; the pitch is the width (pixel = arr[y*w+x])
     /// transparent pixels are converted to 0, solid ones to 255
     //xxx: handling of alpha values unclear
-    public byte[] convertToMask() {
+    public ubyte[] convertToMask() {
         //copied from level/renderer.d
         //this is NOT nice, but sucks infinitely
 
@@ -150,13 +152,14 @@ public class Surface {
         uint tex_h = size.y;
         uint* texptr = cast(uint*)tex_data;
 
-        byte[] res = new byte[tex_w*tex_h];
+        ubyte[] res = new ubyte[tex_w*tex_h];
 
         for (uint y = 0; y < tex_h; y++) {
+            uint* val = cast(uint*)(cast(byte*)(texptr)+y*tex_pitch);
             for (uint x = 0; x < tex_w; x++) {
-                uint val = (cast(uint*)(cast(byte*)(texptr)+y*tex_pitch))[x];
                 res[y*tex_w+x] =
-                    cast(byte)((val & fmt.mask_a) ? 255 : 0);
+                    cast(ubyte)((*val & fmt.mask_a) ? 255 : 0);
+                val++;
             }
         }
 
@@ -166,7 +169,10 @@ public class Surface {
 }
 
 public abstract class Texture {
-    Vector2i size;
+    /// return the underlying surface, may not reflect the current state of it
+    public abstract Surface getSurface();
+    public abstract void clearCache();
+    public abstract Vector2i size();
 }
 
 /// Draw stuffies!
@@ -217,6 +223,10 @@ public class Canvas {
         int h = source.size.x2;
         int x;
         Vector2i tmp;
+
+        if (w == 0 || h == 0)
+            return;
+
         int y = 0;
         while (y < destSize.y) {
             tmp.y = destPos.y + y;

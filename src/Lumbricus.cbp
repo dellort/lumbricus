@@ -52,6 +52,7 @@
 		<Unit filename="game\game.d" />
 		<Unit filename="game\gobject.d" />
 		<Unit filename="game\physic.d" />
+		<Unit filename="game\resources.d" />
 		<Unit filename="game\scene.d" />
 		<Unit filename="game\toplevel.d" />
 		<Unit filename="level\generator.d" />

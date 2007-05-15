@@ -16,7 +16,7 @@ public enum Lexel : ubyte {
 /// engine (which is not there yet).
 public class Level {
     private uint mWidth, mHeight, mPitch;
-    private Surface mImage;
+    package Surface mImage;
     private Lexel[] mData;
 
     public uint width() {

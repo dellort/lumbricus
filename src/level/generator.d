@@ -3,6 +3,7 @@ module level.generator;
 import level.level;
 import level.renderer;
 import level.genrandom : GenRandomLevel;
+import level.placeobjects;
 import framework.framework;
 import utils.configfile : ConfigNode;
 import utils.vector2;
@@ -234,6 +235,18 @@ public class LevelGenerator {
         }
 
         auto ret = renderer.render();
+        mLog("placing objects");
+
+        PlaceableObject[3] bridge;
+        bridge[0] = new PlaceableObject(readTexture("bridge.png", false).createBitmapTexture());
+        bridge[1] = new PlaceableObject(readTexture("bridge-l.png", false).createBitmapTexture());
+        bridge[2] = new PlaceableObject(readTexture("bridge-r.png", false).createBitmapTexture());
+        auto placer = new PlaceObjects(mLog, ret);
+        placer.start();
+        placer.placeBridges(10,10, bridge);
+        placer.end();
+        ret.image.createTexture().clearCache();
+
         mLog("done.");
         return ret;
     }

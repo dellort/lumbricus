@@ -34,10 +34,16 @@ package class SDLTexture : Texture {
     private SDLSurface mOriginalSurface;
     private SDL_Surface* mCached;
 
-    package this(SDLSurface source) {
+    package this(SDLSurface source, bool enableCache = true) {
         mOriginalSurface = source;
         assert(source !is null);
-        size = source.size;
+        if (!enableCache) {
+            mCached = mOriginalSurface.mReal;
+        }
+    }
+
+    public Vector2i size() {
+        return mOriginalSurface.size;
     }
 
     //return surface that's actually drawn
@@ -46,6 +52,10 @@ package class SDLTexture : Texture {
             checkIfScreenFormat();
         return mCached;
         //return mOriginalSurface.mReal;
+    }
+
+    public Surface getSurface() {
+        return mOriginalSurface;
     }
 
     //convert the image to the current screen format (this is done once)
@@ -84,6 +94,10 @@ package class SDLTexture : Texture {
             mCached = null;
         }
     }
+
+    void clearCache() {
+        releaseCache();
+    }
 }
 
 public class SDLSurface : Surface {
@@ -92,6 +106,8 @@ public class SDLSurface : Surface {
     SDLCanvas mCanvas;
     Transparency mTransp;
     Color mColorkey;
+
+    SDLTexture mSDLTexture;
 
     public Canvas startDraw() {
         if (mCanvas is null) {
@@ -261,8 +277,15 @@ public class SDLSurface : Surface {
             //return new GLTexture(this);
             assert(false);
         } else {
-            return new SDLTexture(this);
+            if (!mSDLTexture) {
+                mSDLTexture = new SDLTexture(this);
+            }
+            return mSDLTexture;
         }
+    }
+
+    Texture createBitmapTexture() {
+        return new SDLTexture(this, false);
     }
 }
 
@@ -285,6 +308,8 @@ public class SDLCanvas : Canvas {
 
     package void startDraw() {
         assert(mStackTop == 0);
+        SDL_SetClipRect(sdlsurface.mReal, null);
+        mTrans = Vector2i(0, 0);
         pushState();
     }
     void endDraw() {
@@ -360,7 +385,8 @@ public class SDLCanvas : Canvas {
         //if (!src)
         //    src = sdls.mReal;
         assert(src !is null);
-        SDL_BlitSurface(src, &rc, sdlsurface.mReal, &destrc);
+        int res = SDL_BlitSurface(src, &rc, sdlsurface.mReal, &destrc);
+        assert(res == 0);
     }
 
     //TODO: add code
@@ -415,13 +441,14 @@ public class SDLCanvas : Canvas {
             rect.y = p1.y;
             rect.w = p2.x-p1.x;
             rect.h = p2.y-p1.y;
-            SDL_FillRect(sdlsurface.mReal, &rect,
+            int res = SDL_FillRect(sdlsurface.mReal, &rect,
                 sdlsurface.colorToSDLColor(color));
+            assert(res == 0);
         }
     }
 
     public void clear(Color color) {
-        drawFilledRect(Vector2i(0, 0)-mTrans, clientSize-mTrans, color);
+        drawFilledRect(Vector2i(0, 0)-mTrans, clientSize-mTrans, color, false);
     }
 
     public void drawText(char[] text) {

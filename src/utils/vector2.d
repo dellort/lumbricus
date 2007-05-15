@@ -17,6 +17,13 @@ public struct Vector2(T) {
         return ret;
     }
 
+    public Vector2 X() {
+        return Vector2(x1,0);
+    }
+    public Vector2 Y() {
+        return Vector2(0,x2);
+    }
+
     public Vector2 opAdd(Vector2 v) {
         return Vector2(x1+v.x1, x2+v.x2);
     }
@@ -46,6 +53,10 @@ public struct Vector2(T) {
     public void opMulAssign(T scalar) {
         x1 *= scalar;
         x2 *= scalar;
+    }
+
+    public Vector2 mulEntries(Vector2 v) {
+        return Vector2(x1*v.x1, x2*v.x2);
     }
 
     public Vector2 opDiv(T scalar) {

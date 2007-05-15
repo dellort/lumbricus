@@ -47,6 +47,9 @@ class TopLevel {
     KeyBindings keybindings;
     GameController thegame;
     Time gameStartTime;
+    private Time mPauseStarted; //absolute time of pause start
+    private Time mPausedTime; //summed amount of time paused
+    private bool mPauseMode;
     //xxx move this to where-ever
     ConfigNode localizedKeyfile;
 
@@ -131,6 +134,7 @@ class TopLevel {
         globals.cmdLine.registerCommand("fullscreen", &cmdFS, "toggle fs");
         globals.cmdLine.registerCommand("scroll", &cmdScroll, "enter scroll mode");
         globals.cmdLine.registerCommand("phys", &cmdPhys, "test123");
+        globals.cmdLine.registerCommand("pause", &cmdPause, "pause");
     }
 
     private void cmdPhys(CommandLine) {
@@ -290,14 +294,23 @@ class TopLevel {
         gameStartTime = globals.gameTime;
     }
 
+    private void cmdPause(CommandLine) {
+        if (mPauseMode) {
+            mPausedTime += globals.gameTime - mPauseStarted;
+        } else {
+            mPauseStarted = globals.gameTime;
+        }
+        mPauseMode = !mPauseMode;
+    }
+
     private void onFrame(Canvas c) {
         globals.gameTimeAnimations = globals.framework.getCurrentTime();
         globals.gameTime = globals.gameTimeAnimations;
 
         fpsDisplay.text = format("FPS: %1.2f", globals.framework.FPS);
 
-        if (thegame) {
-            thegame.doFrame(globals.gameTime - gameStartTime);
+        if (thegame && !mPauseMode) {
+            thegame.doFrame(globals.gameTime - gameStartTime - mPausedTime);
         }
 
         screen.draw(c);

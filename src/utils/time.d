@@ -21,6 +21,9 @@ public struct Time {
     public Time opAdd(Time t2) {
         return Time(timeVal + t2.timeVal);
     }
+    public void opAddAssign(Time t2) {
+        timeVal += t2.timeVal;
+    }
 
     ///get difference between Time values
     public Time opSub(Time t2) {
