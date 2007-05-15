@@ -31,15 +31,22 @@ class Scene {
 /// translation, with OpenGL maybe also scaling and rotation)
 class SceneView : SceneObjectPositioned {
     private Scene mClientScene;
-    Vector2i clientoffset;
+    private Vector2i mClientoffset;
+    private Vector2i mSceneSize;
 
     this(Scene clientscene) {
         assert(clientscene !is null);
         mClientScene = clientscene;
-        clientoffset = Vector2i(0, 0);
+        mClientoffset = Vector2i(0, 0);
+        mSceneSize = mClientScene.thesize;
     }
 
     void draw(Canvas canvas) {
+        if (mSceneSize != mClientScene.thesize) {
+            //scene size has changed
+            clipOffset();
+            mSceneSize = mClientScene.thesize;
+        }
         canvas.pushState();
         canvas.setWindow(pos, pos+thesize);
         canvas.translate(-clientoffset);
@@ -51,6 +58,45 @@ class SceneView : SceneObjectPositioned {
         }
 
         canvas.popState();
+    }
+
+    Vector2i clientoffset() {
+        return mClientoffset;
+    }
+    void clientoffset(Vector2i newOffs) {
+        mClientoffset = newOffs;
+        clipOffset();
+    }
+
+    private void clipOffset() {
+        if (thesize.x < mClientScene.thesize.x) {
+            //view window is smaller than scene (x-dir)
+            //-> don't allow black borders
+            if (mClientoffset.x > 0)
+                mClientoffset.x = 0;
+            if (mClientoffset.x + mClientScene.thesize.x < thesize.x)
+                mClientoffset.x = thesize.x - mClientScene.thesize.x;
+        } else {
+            //view is larger than scene -> black borders, but don't allow
+            //parts of the scene to go out of view
+            if (mClientoffset.x < 0)
+                mClientoffset.x = 0;
+            if (mClientoffset.x + mClientScene.thesize.x > thesize.x)
+                mClientoffset.x = thesize.x - mClientScene.thesize.x;
+        }
+
+        //same for y
+        if (thesize.y < mClientScene.thesize.y) {
+            if (mClientoffset.y > 0)
+                mClientoffset.y = 0;
+            if (mClientoffset.y + mClientScene.thesize.y < thesize.y)
+                mClientoffset.y = thesize.y - mClientScene.thesize.y;
+        } else {
+            if (mClientoffset.y < 0)
+                mClientoffset.y = 0;
+            if (mClientoffset.y + mClientScene.thesize.y > thesize.y)
+                mClientoffset.y = thesize.y - mClientScene.thesize.y;
+        }
     }
 }
 
