@@ -200,6 +200,12 @@ package class LevelRenderer {
         }
     }
 
+    //for RGBA32 format, check if pixel is considered to be transparent
+    //hopefully inlined
+    private bool is_not_transparent(uint c) {
+        return !!(c & 0xff000000);
+    }
+
     //it's a strange design decision to do it _that_ way. sorry for that.
     //draw a border in "a", using that texture, where "a" forms a border to "b"
     //draws top and bottom borders with different textures (if do_xx is set,
@@ -256,7 +262,7 @@ package class LevelRenderer {
                         uint* texel = texptr + x%tex_w;
                         texel = cast(uint*)(cast(void*)texel +
                             ((tex_h-pline[x])%tex_h)*tex_pitch);
-                        if (*texel & 0xff000000)
+                        if (is_not_transparent(*texel))
                             *scanline = *texel;
                     }
 
@@ -305,7 +311,7 @@ package class LevelRenderer {
             uint* dst = &mImageData[mWidth*y+cx1];
             Lexel* dst_meta = &mLevelData[mWidth*y+cx1];
             for (int x = cx1; x < cx2; x++) {
-                if (*dst_meta == before) {
+                if (is_not_transparent(*src) && *dst_meta == before) {
                     *dst_meta = after;
                     //actually copy pixel
                     *dst = *src;
