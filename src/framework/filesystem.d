@@ -333,7 +333,7 @@ class FileSystem {
                 }
             }
         }
-        throw new Exception("File not found");
+        throw new Exception("File not found: " ~ relFilename);
     }
 
     ///Check if a file exists in the VFS

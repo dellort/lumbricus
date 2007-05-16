@@ -3,8 +3,10 @@ import level.level;
 import game.scene;
 import game.gobject;
 import game.physic;
+import game.glevel;
 import utils.mylist;
 import utils.time;
+import utils.log;
 import framework.framework;
 
 //maybe keep in sync with game.Scene.cMaxZOrder
@@ -20,9 +22,12 @@ enum GameZOrder {
 class GameController {
     Level level;
     LevelObject levelobject;
+    GameLevel gamelevel;
     Scene scene;
     PhysicWorld physicworld;
     Time currentTime;
+
+    Vector2i tmp;
 
     package List!(GameObject) mObjects;
 
@@ -32,9 +37,9 @@ class GameController {
         scene = gamescene;
         this.level = level;
         levelobject = new LevelObject(this);
-        levelobject.scene = scene;
-        levelobject.zorder = GameZOrder.Level;
-        levelobject.active = true;
+        levelobject.setScene(scene, GameZOrder.Level);
+
+        gamelevel = new GameLevel(level, Vector2i(0, 0));
 
         //prepare the scene
         gamescene.thesize = Vector2i(level.width, level.height);
@@ -65,6 +70,10 @@ class LevelObject : SceneObject {
             levelTexture = level.image.createTexture();
         }
         c.draw(levelTexture, Vector2i(0, 0));
+        Vector2i n = game.gamelevel.normalAt(game.tmp, 10);
+        Vector2f nf = toVector2f(n).normal*100;
+
+        c.drawLine(game.tmp, game.tmp +toVector2i(nf), Color(1,0,0));
     }
 
     this(GameController game) {

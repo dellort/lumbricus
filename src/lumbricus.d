@@ -2,7 +2,8 @@ module lumbricus;
 import framework.framework;
 import framework.sdl.framework;
 import framework.filesystem;
-import game = game.common;
+import game.common : Common;
+import std.random : rand_seed;
 
 version (linux) {
     //don't know if it works with GDC, but it does (mostly?) with DMD/Linux
@@ -45,6 +46,9 @@ int main(char[][] args)
         signal(SIGFPE, &signal_handler);
     }
 
+    //xxx
+    rand_seed(1, 1);
+
     auto fw = new FrameworkSDL(args[0], APP_ID);
     fw.setVideoMode(800,600,0,false);
     fw.setCaption("Lumbricus");
@@ -53,7 +57,7 @@ int main(char[][] args)
     fw.fs.mount(MountPath.data,"data/","/",false);
     fw.fs.mount(MountPath.user,"/","/",true);
 
-    new game.Common(fw);
+    new Common(fw);
 
     fw.run();
 

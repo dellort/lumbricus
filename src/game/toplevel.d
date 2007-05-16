@@ -398,6 +398,9 @@ class TopLevel {
             mScrollDest = mScrollDest - mouse.rel;
             gameview.clipOffset(mScrollDest);
         }
+        if (thegame) {
+            thegame.tmp = mouse.pos - gameview.pos - gameview.clientoffset;
+        }
     }
 
     private void renderConsole(Canvas canvas) {
