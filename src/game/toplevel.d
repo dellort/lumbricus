@@ -52,6 +52,8 @@ class TopLevel {
     private bool mPauseMode;
     //xxx move this to where-ever
     ConfigNode localizedKeyfile;
+    ConfigNode mWormsAnim;
+    Animator mWormsAnimator;
 
     bool mShowKeyDebug = false;
     bool mKeyNameIt = false;
@@ -114,6 +116,11 @@ class TopLevel {
         ar.setScene(gamescene, 2);
         ar.setAnimation(ani);
 
+        mWormsAnim = globals.loadConfig("wormsanim");
+        mWormsAnimator = new Animator();
+        mWormsAnimator.setScene(gamescene, 2);
+        mWormsAnimator.pos = Vector2i(100,330);
+
         keybindings = new KeyBindings();
         keybindings.loadFrom(globals.loadConfig("binds").getSubNode("binds"));
 
@@ -133,6 +140,7 @@ class TopLevel {
         globals.cmdLine.registerCommand("scroll", &cmdScroll, "enter scroll mode");
         globals.cmdLine.registerCommand("phys", &cmdPhys, "test123");
         globals.cmdLine.registerCommand("pause", &cmdPause, "pause");
+        globals.cmdLine.registerCommand("loadanim", &cmdLoadAnim, "load worms animation");
     }
 
     private void cmdPhys(CommandLine) {
@@ -260,6 +268,12 @@ class TopLevel {
             globals.framework.lockMouse();
         }
         mScrolling = !mScrolling;
+    }
+
+    private void cmdLoadAnim(CommandLine cmd) {
+        auto a = new Animation(mWormsAnim.getSubNode(cmd.parseArgs[0]));
+        std.stdio.writefln("Loaded ",cmd.parseArgs[0]);
+        mWormsAnimator.setAnimation(a);
     }
 
     private void showConsole(CommandLine) {

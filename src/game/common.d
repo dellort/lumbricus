@@ -57,7 +57,7 @@ class Common {
     }
 
     Surface loadGraphic(char[] path) {
-        return framework.loadImage(framework.fs.open(path), Transparency.None);
+        return framework.loadImage(framework.fs.open(path), Transparency.Colorkey);
     }
 
     ConfigNode loadConfig(char[] section) {
