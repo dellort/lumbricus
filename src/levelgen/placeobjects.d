@@ -1,7 +1,7 @@
-module level.placeobjects;
+module levelgen.placeobjects;
 
-import level.level;
-import level.renderer;
+import levelgen.level;
+import levelgen.renderer;
 import framework.framework;
 import rand = std.random;
 import utils.log;

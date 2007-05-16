@@ -1,5 +1,5 @@
 module game.glevel;
-import level.level;
+import levelgen.level;
 import utils.vector2;
 import utils.log;
 
@@ -10,7 +10,7 @@ enum GLexel : ubyte {
     SolidHard,
 }
 
-//in-game ("loaded") version of level.level.Level
+//in-game ("loaded") version of levelgen.level.Level
 class GameLevel {
     private int mWidth, mHeight;
     private GLexel[] mPixels;

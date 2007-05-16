@@ -1,9 +1,9 @@
-module level.generator;
+module levelgen.generator;
 
-import level.level;
-import level.renderer;
-import level.genrandom : GenRandomLevel;
-import level.placeobjects;
+import levelgen.level;
+import levelgen.renderer;
+import levelgen.genrandom : GenRandomLevel;
+import levelgen.placeobjects;
 import framework.framework;
 import utils.configfile : ConfigNode;
 import utils.vector2;

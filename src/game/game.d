@@ -1,5 +1,5 @@
 module game.game;
-import level.level;
+import levelgen.level;
 import game.scene;
 import game.gobject;
 import game.physic;

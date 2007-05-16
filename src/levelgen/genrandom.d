@@ -1,7 +1,7 @@
-module level.genrandom;
+module levelgen.genrandom;
 
-import level.level;
-import level.renderer;
+import levelgen.level;
+import levelgen.renderer;
 import utils.vector2;// : Vector2f;
 import utils.mylist;// : List, ListNode;
 import utils.math;// : lineIntersect;

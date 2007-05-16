@@ -1,4 +1,4 @@
-module level.level;
+module levelgen.level;
 
 import framework.framework;
 

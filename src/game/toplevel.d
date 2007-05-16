@@ -16,7 +16,7 @@ import utils.log;
 import utils.output;
 import perf = std.perf;
 import gc = std.gc;
-import level = level.generator;
+import genlevel = levelgen.generator;
 import str = std.string;
 import conv = std.conv;
 import game.physic;
@@ -307,7 +307,7 @@ class TopLevel {
             thegame.kill();
             thegame = null;
         }
-        auto x = new level.LevelGenerator();
+        auto x = new genlevel.LevelGenerator();
         x.config = globals.loadConfig("levelgen").getSubNode("levelgen");
         auto level = x.generateRandom(1920, 696, "");
         thegame = new GameController(gamescene, level);
