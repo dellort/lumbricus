@@ -15,7 +15,7 @@ class GameObject {
     package mixin ListNodeMixin node;
 
     private void physUpdate() {
-        graphic.pos = toVector2f(physics.pos);
+        graphic.pos = toVector2i(physics.pos);
     }
 
     this(GameController controller) {

@@ -137,7 +137,7 @@ public Vector2f toVector2f(Vector2i v) {
     return res;
 }
 
-public Vector2i toVector2f(Vector2f v) {
+public Vector2i toVector2i(Vector2f v) {
     Vector2i res;
     res.x1 = cast(int)(v.x1+0.5f);
     res.x2 = cast(int)(v.x2+0.5f);

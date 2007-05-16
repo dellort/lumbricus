@@ -58,6 +58,9 @@ class TopLevel {
     bool mShowKeyDebug = false;
     bool mKeyNameIt = false;
 
+    private Time mTimeLast;
+    private Time mDeltaT;
+
     this() {
         screen = new Screen(globals.framework.screen.size);
 
@@ -141,6 +144,8 @@ class TopLevel {
         globals.cmdLine.registerCommand("phys", &cmdPhys, "test123");
         globals.cmdLine.registerCommand("pause", &cmdPause, "pause");
         globals.cmdLine.registerCommand("loadanim", &cmdLoadAnim, "load worms animation");
+
+        mTimeLast = globals.framework.getCurrentTime();
     }
 
     private void cmdPhys(CommandLine) {
@@ -256,6 +261,8 @@ class TopLevel {
     }
 
     private bool mScrolling;
+    private Vector2i mScrollDest;
+    private const float K_SCROLL = 0.01f;
 
     private void cmdScroll(CommandLine cmd) {
         if (mScrolling) {
@@ -266,6 +273,7 @@ class TopLevel {
             //globals.framework.grabInput = true;
             globals.framework.cursorVisible = false;
             globals.framework.lockMouse();
+            mScrollDest = gameview.clientoffset;
         }
         mScrolling = !mScrolling;
     }
@@ -319,13 +327,21 @@ class TopLevel {
         globals.gameTimeAnimations = globals.framework.getCurrentTime();
         globals.gameTime = globals.gameTimeAnimations;
 
+        mDeltaT = globals.gameTime - mTimeLast;
+
         fpsDisplay.text = format("FPS: %1.2f", globals.framework.FPS);
+
+        if (mScrolling && mScrollDest != gameview.clientoffset) {
+            gameview.clientoffset = gameview.clientoffset + toVector2i(toVector2f(mScrollDest - gameview.clientoffset)*K_SCROLL*mDeltaT.msecs());
+        }
 
         if (thegame && !mPauseMode) {
             thegame.doFrame(globals.gameTime - gameStartTime - mPausedTime);
         }
 
         screen.draw(c);
+
+        mTimeLast = globals.gameTime;
     }
 
     private void onKeyPress(KeyInfo infos) {
@@ -379,7 +395,8 @@ class TopLevel {
             gameview.clientoffset = mMouseStart + mouse.pos;
         }
         if (mScrolling) {
-            gameview.clientoffset = gameview.clientoffset - mouse.rel;
+            mScrollDest = mScrollDest - mouse.rel;
+            gameview.clipOffset(mScrollDest);
         }
     }
 
