@@ -17,6 +17,7 @@ public enum Lexel : ubyte {
 public class Level {
     private uint mWidth, mHeight, mPitch;
     package Surface mImage;
+    //metadata per pixel
     private Lexel[] mData;
 
     public uint width() {

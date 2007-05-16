@@ -234,18 +234,16 @@ public class LevelGenerator {
             gen.dumpDebuggingStuff(renderer);
         }
 
-        auto ret = renderer.render();
         mLog("placing objects");
 
         PlaceableObject[3] bridge;
-        bridge[0] = new PlaceableObject(readTexture("bridge.png", false).createBitmapTexture());
-        bridge[1] = new PlaceableObject(readTexture("bridge-l.png", false).createBitmapTexture());
-        bridge[2] = new PlaceableObject(readTexture("bridge-r.png", false).createBitmapTexture());
-        auto placer = new PlaceObjects(mLog, ret);
-        placer.start();
+        auto placer = new PlaceObjects(mLog, renderer);
+        bridge[0] = placer.createObject(readTexture("bridge.png", false));
+        bridge[1] = placer.createObject(readTexture("bridge-l.png", false));
+        bridge[2] = placer.createObject(readTexture("bridge-r.png", false));
         placer.placeBridges(10,10, bridge);
-        placer.end();
-        ret.image.createTexture().clearCache();
+
+        auto ret = renderer.render();
 
         mLog("done.");
         return ret;

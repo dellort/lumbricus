@@ -192,6 +192,12 @@ class SceneObject {
         mActive = set;
     }
 
+    public void setScene(Scene s, int z) {
+        scene = s;
+        zorder = z;
+        active = true;
+    }
+
     abstract void draw(Canvas canvas);
 }
 

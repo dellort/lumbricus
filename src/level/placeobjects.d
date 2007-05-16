@@ -1,6 +1,7 @@
 module level.placeobjects;
 
 import level.level;
+import level.renderer;
 import framework.framework;
 import rand = std.random;
 import utils.log;
@@ -13,8 +14,10 @@ public enum Side {
 }
 
 public class PlaceableObject {
-    private ubyte[] mCollide;
-    private Texture mTexture;
+    //private ubyte[] mCollide;
+    private Surface mTexture;
+    private void* mPixelData; //RGBA32
+    private uint mPDPitch;
     private Side mSide;
     private uint mWidth;
     private uint mHeight;
@@ -22,33 +25,13 @@ public class PlaceableObject {
     private uint mDepth;
     private Vector2i mDir;
 
-    /// Load an object, that should be placed into the object
-    /// depth is the amount of pixels, that should be hidden into the land
-    /// note that depth is only "approximate"!
-    public this(Texture texture, Side side = Side.None, uint depth = 0) {
-        mCollide = texture.getSurface().convertToMask();
-        mTexture = texture;
-        mWidth = texture.size.x;
-        mHeight = texture.size.y;
-        mSize = texture.size;
-        mSide = side;
-        mDepth = depth;
-        if (depth > mHeight)
-            depth = mHeight;
-        switch (side) {
-            case Side.North: mDir = Vector2i(0,-1); break;
-            case Side.South: mDir = Vector2i(0,1); break;
-            case Side.East: mDir = Vector2i(1,0); break;
-            case Side.West: mDir = Vector2i(1,0); break;
-            default:
-                mDir = Vector2i(0,0);
-        }
+    void release() {
+        //delete mCollide;
     }
 }
 
 public class PlaceObjects {
-    private Canvas mCanvas;
-    private Level mLevel;
+    private LevelRenderer mLevel;
     private Log mLog;
 
     //[0.0f, 1.0f]
@@ -69,19 +52,41 @@ public class PlaceObjects {
 
     //point inside level
     Vector2i randPoint() {
-        return Vector2i(random(0, mLevel.width), random(0, mLevel.height));
+        return Vector2i(random(0, mLevel.mWidth), random(0, mLevel.mHeight));
     }
 
-    public this(Log log, Level level) {
-        mLevel = level;
+    public this(Log log, LevelRenderer renderer) {
+        mLevel = renderer;
         mLog = log;
     }
 
-    public void start() {
-        mCanvas = mLevel.image.startDraw();
-    }
-    public void end() {
-        mCanvas.endDraw();
+    /// Load an object, that should be placed into the object
+    /// depth is the amount of pixels, that should be hidden into the land
+    /// note that depth is only "approximate"!
+    public PlaceableObject createObject(Surface texture, Side side = Side.None,
+        uint depth = 0)
+    {
+        PlaceableObject o = new PlaceableObject();
+        //o.mCollide = texture.getSurface().convertToMask();
+        o.mTexture = texture;
+        o.mWidth = texture.size.x;
+        o.mHeight = texture.size.y;
+        o.mSize = texture.size;
+        o.mSide = side;
+        o.mDepth = depth;
+        switch (side) {
+            case Side.North: o.mDir = Vector2i(0,-1); break;
+            case Side.South: o.mDir = Vector2i(0,1); break;
+            case Side.East: o.mDir = Vector2i(1,0); break;
+            case Side.West: o.mDir = Vector2i(1,0); break;
+            default:
+                o.mDir = Vector2i(0,0);
+        }
+        bool res = texture.convertToData(
+            getFramework.findPixelFormat(DisplayFormat.RGBA32),
+            o.mPDPitch, o.mPixelData);
+        assert(res);
+        return o;
     }
 
     public bool tryPlaceBridge(Vector2i start, Vector2i segsize,
@@ -157,16 +162,16 @@ public class PlaceObjects {
         return bridges;
     }
 
-    bool checkCollide(PlaceableObject obj, Vector2i at, out Vector2i dir,
+    /*bool checkCollide(PlaceableObject obj, Vector2i at, out Vector2i dir,
         out uint collisions)
     {
         Vector2i sp = at;// - Vector2i(obj.mWidth, obj.mHeight) / 2;
         for (int y = sp.y; y < sp.y+cast(int)obj.mHeight; y++) {
             for (int x = sp.x; x < sp.x+cast(int)obj.mWidth; x++) {
                 bool col = true;
-                if (x >= 0 && x < mLevel.width && y >= 0 && y < mLevel.height) {
+                if (x >= 0 && x < mLevel.mWidth && y >= 0 && y < mLevel.mHeight) {
                     col = (obj.mCollide[(y-sp.y)*obj.mWidth+(x-sp.x)] != 0)
-                        && (mLevel[x, y] != Lexel.FREE);
+                        && (mLevel.mLevelData[y*mLevel.mWidth+x] != Lexel.FREE);
                 }
                 if (col) {
                     collisions++;
@@ -176,15 +181,15 @@ public class PlaceObjects {
         }
 
         return (collisions == 0);
-    }
+    }*/
     bool checkCollide(Vector2i at, Vector2i size, bool anti = false, bool outside_collides = true)
     {
         Vector2i sp = at;// - size / 2;
         for (int y = sp.y; y < sp.y+size.y; y++) {
             for (int x = sp.x; x < sp.x+size.x; x++) {
                 bool col = outside_collides;
-                if (x >= 0 && x < mLevel.width && y >= 0 && y < mLevel.height) {
-                    col = (mLevel[x, y] != Lexel.FREE) ^ anti;
+                if (x >= 0 && x < mLevel.mWidth && y >= 0 && y < mLevel.mHeight) {
+                    col = (mLevel.mLevelData[y*mLevel.mWidth+x] != Lexel.FREE) ^ anti;
                 }
                 if (col) {
                     return false;
@@ -198,46 +203,8 @@ public class PlaceObjects {
     //render object _under_ the level and adjust level mask
     public void placeObject(PlaceableObject obj, Vector2i at) {
         auto pos = at;//at - Vector2i(obj.mWidth, obj.mHeight) / 2;
-
-        //create a new surface, draw the object, then the level
-        //the level should cover the object, where the level isn't transparent
-        //this is hopelessly inefficient (again)
-        /*Surface newlevel = getFramework.createSurface(mLevel.image.size,
-            DisplayFormat.Best, Transparency.Colorkey);
-        auto canvas2 = newlevel.startDraw();
-        canvas2.clear(Color(0, 0, 0, 1.0f));
-        canvas2.draw(obj.mTexture, pos);
-        canvas2.draw(mLevel.image.createBitmapTexture(), Vector2i(0, 0));
-        canvas2.endDraw();
-        //overwrite teh suxors
-        mCanvas.draw(newlevel.createBitmapTexture(), Vector2i(0, 0));*/
-        mLog("draw: %s", pos);
-        mCanvas.draw(obj.mTexture, pos);
-
-        /*auto xx = mLevel.mImage.createBitmapTexture();
-        mLevel.mImage = getFramework.createSurface(mLevel.image.size,
-            DisplayFormat.Screen, Transparency.Colorkey);
-        auto c = mLevel.image.startDraw();
-        c.draw(xx, Vector2i(0,0));
-        c.draw(obj.mTexture, pos);
-
-        c.endDraw();*/
-
-        //after the image is done, adjust the mask (same task as above, sigh)
-        for (uint y = 0; y < obj.mHeight; y++) {
-            for (uint x = 0; x < obj.mWidth; x++) {
-                if (obj.mCollide[y*obj.mWidth+x]) {
-                    uint tx = x+pos.x, ty = y+pos.y;
-                    if (tx >= 0 && tx < mLevel.width && ty >= 0 &&
-                        ty < mLevel.height)
-                    {
-                        if (mLevel[tx, ty] == Lexel.FREE) {
-                            mLevel[tx, ty] = Lexel.LAND;
-                        }
-                    }
-                }
-            }
-        }
+        mLevel.drawBitmap(pos.x, pos.y, obj.mPixelData, obj.mPDPitch,
+            obj.mWidth, obj.mHeight, Lexel.FREE, Lexel.LAND);
     }
 
 }

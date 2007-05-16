@@ -23,10 +23,8 @@ class GameObject {
         controller.mObjects.insert_tail(this);
         physics = new PhysicObject();
         graphic = new Animator();
-        graphic.setAnimation(new Animation(globals.loadConfig("animations").getSubNode("testani1")), true);
-        graphic.scene = controller.scene;
-        graphic.zorder = GameZOrder.Objects;
-        graphic.active = true;
+        graphic.setAnimation(new Animation(globals.loadConfig("animations").getSubNode("testani1")));
+        graphic.setScene(controller.scene, GameZOrder.Objects);
         physics.onUpdate = &physUpdate;
         controller.physicworld.add(physics);
     }

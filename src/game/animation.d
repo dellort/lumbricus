@@ -8,7 +8,8 @@ import utils.time;
 
 class Animation {
     private FrameInfo[] mFrames;
-    private Vector2i size;
+    private Vector2i mSize;
+    private bool mRepeat;
 
     private struct FrameInfo {
         int durationMS;
@@ -22,13 +23,14 @@ class Animation {
         assert(bmp !is null);
         Texture tex = bmp.createTexture();
         int frames = node.getIntValue("frames", 0);
-        size.x = node.getIntValue("width", 0);
-        size.y = node.getIntValue("height", 0);
+        mSize.x = node.getIntValue("width", 0);
+        mSize.y = node.getIntValue("height", 0);
+        mRepeat = node.getBoolValue("repeat", false);
         mFrames.length = frames;
         for (int n = 0; n < frames; n++) {
             mFrames[n].frametex.texture = tex;
-            mFrames[n].frametex.pos = Vector2i(size.x*n, 0);
-            mFrames[n].frametex.size = size;
+            mFrames[n].frametex.pos = Vector2i(mSize.x*n, 0);
+            mFrames[n].frametex.size = mSize;
             mFrames[n].durationMS = duration;
         }
     }
@@ -37,29 +39,32 @@ class Animation {
 //does animation
 class Animator : SceneObjectPositioned {
     private Animation mAni, mAniNext;
-    private bool mAniRepeat, mAniNextRepeat;
+    private bool mAniRepeat;
     private uint mLastFrame;
     private Time mLastFrameTime;
     private void delegate(Animator sender) mOnNoAnimation;
 
     //animation to play after current animation finished
-    void setNextAnimation(Animation next, bool repeating) {
+    void setNextAnimation(Animation next) {
         if (mAni) {
             mAniNext = next;
-            mAniNextRepeat = repeating;
             //cancel repeating of current animation
             mAniRepeat = false;
         } else {
-            setAnimation(next, repeating);
+            setAnimation(next);
         }
     }
 
-    void setAnimation(Animation ani, bool repeating) {
+    void setAnimation(Animation ani) {
         mAni = ani;
-        mAniRepeat = repeating;
+        mAniRepeat = ani ? ani.mRepeat : false;
         mAniNext = null;
         mLastFrame = 0;
         mLastFrameTime = globals.gameTimeAnimations;
+
+        if (ani) {
+            thesize = ani.mSize;
+        }
     }
 
     void setOnNoAnimation(void delegate(Animator) cb) {
@@ -76,7 +81,7 @@ class Animator : SceneObjectPositioned {
             if (mLastFrame == 0) {
                 //end of animation, check what to do now...
                 if (mAniNext) {
-                    setAnimation(mAniNext, mAniRepeat);
+                    setAnimation(mAniNext);
                 } else if (mAniRepeat) {
                     //ok.
                 } else {
@@ -88,7 +93,7 @@ class Animator : SceneObjectPositioned {
         }
 
         //draw it.
-        //xxx: this is the last frame... should draw the current one
+        //xxx: this is the next frame... should draw the current one
         canvas.draw(fi.frametex, pos);
     }
 }

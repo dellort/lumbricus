@@ -10,6 +10,7 @@ import utils.vector2;
 import utils.time;
 import utils.mylist;
 import utils.log;
+import utils.misc;
 import math = std.math;
 
 import std.stdio;
@@ -35,10 +36,10 @@ debug import std.perf;
 private alias Vector2f Point;
 
 package class LevelRenderer {
-    private uint mWidth, mHeight;
+    package uint mWidth, mHeight;
     private uint mTranslatedColorKey;
-    private uint[] mImageData;
-    private Lexel[] mLevelData;
+    package uint[] mImageData;
+    package Lexel[] mLevelData;
     private Log mLog;
 
     private PixelFormat fmt;
@@ -273,15 +274,44 @@ package class LevelRenderer {
 
         //stores temporary data between up and down pass
         ubyte[] tmp = new ubyte[mWidth*mHeight];
+
         if (do_down)
             drawBorderInt(a, b, false, tex_down, tmp);
         if (do_up)
             drawBorderInt(a, b, true, tex_up, tmp);
 
+        delete tmp;
+
         debug {
             counter.stop();
             mLog("render.d: border drawn in %s",
                 timeMusecs(cast(int)counter.microseconds));
+        }
+    }
+
+    //draw a bitmap, but also modify the level pixels
+    //where "before" is, copy a pixel and set pixe-metadata to "after"
+    package void drawBitmap(int px, int py, void* data, uint pitch,
+        uint w, uint h, Lexel before, Lexel after)
+    {
+        //clip
+        int cx1 = max(px, 0);
+        int cy1 = max(py, 0);
+        int cx2 = min(mWidth, px+w);  //exclusive
+        int cy2 = min(mHeight, py+h);
+        for (int y = cy1; y < cy2; y++) {
+            //offset to relevant start of source scanline
+            uint* src = cast(uint*)(data + pitch*(y-py) + (cx1-px)*uint.sizeof);
+            uint* dst = &mImageData[mWidth*y+cx1];
+            Lexel* dst_meta = &mLevelData[mWidth*y+cx1];
+            for (int x = cx1; x < cx2; x++) {
+                if (*dst_meta == before) {
+                    *dst_meta = after;
+                    //actually copy pixel
+                    *dst = *src;
+                }
+                src++; dst++; dst_meta++;
+            }
         }
     }
 

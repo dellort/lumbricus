@@ -111,10 +111,8 @@ class TopLevel {
         auto sub = node.getSubNode("testani1");
         Animation ani = new Animation(sub);
         Animator ar = new Animator();
-        ar.scene = gamescene;
-        ar.zorder = 2;
-        ar.active = true;
-        ar.setAnimation(ani, true);
+        ar.setScene(gamescene, 2);
+        ar.setAnimation(ani);
 
         keybindings = new KeyBindings();
         keybindings.loadFrom(globals.loadConfig("binds").getSubNode("binds"));
