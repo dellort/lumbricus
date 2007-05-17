@@ -13,7 +13,7 @@ class Scene {
     //zorder values from 0 to cMaxZorder, last inclusive
     //NOTE: zorder allocation is in common.d
     //zorder 0 isn't drawn at all
-    public final const cMaxZOrder = 10;
+    public final const cMaxZOrder = 15;
 
     private SOList[cMaxZOrder] mActiveObjectsZOrdered;
 

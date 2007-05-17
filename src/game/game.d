@@ -14,10 +14,15 @@ import framework.framework;
 enum GameZOrder {
     Invisible = 0,
     Background,
-    BackWater,   //water behind the level
+    BackWater,
+    BackWaterWaves1,   //water behind the level
+    BackWaterWaves2,
     Level,
     Objects,
     FrontWater,  //water before the level
+    FrontWaterWaves1,
+    FrontWaterWaves2,
+    FrontWaterWaves3,
 }
 
 //code to manage a game session (hm, whatever this means)
@@ -83,6 +88,9 @@ class GameController {
     //remove all objects etc. from the scene
     void kill() {
         levelobject.active = false;
+        foreach (GameObject o; mObjects) {
+            o.kill();
+        }
     }
 }
 

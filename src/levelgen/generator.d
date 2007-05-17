@@ -250,7 +250,7 @@ public class LevelGenerator {
         //water level from bottom, relative value
         float waterLevel = template_node.getFloatValue("waterlevel");
         //level needs absolute pixel value
-        ret.waterLevel = cast(uint)waterLevel*height;
+        ret.waterLevel = cast(uint)(waterLevel*height);
 
         mLog("done.");
         return ret;

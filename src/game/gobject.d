@@ -21,8 +21,11 @@ abstract class GameObject {
         controller.mObjects.insert_tail(this);
     }
 
-    package void simulate(Time curTime) {
+    void simulate(Time curTime) {
         //override this if you need game time
+    }
+
+    void kill() {
     }
 }
 

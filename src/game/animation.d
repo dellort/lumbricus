@@ -20,7 +20,8 @@ class Animation {
         assert(node !is null);
         int duration = node.getIntValue("duration", 10);
         Surface bmp = globals.loadGraphic(node.getStringValue("image"));
-        assert(bmp !is null);
+        if (!bmp)
+            throw new Exception("Failed to load animation bitmap");
         Texture tex = bmp.createTexture();
         int frames = node.getIntValue("frames", 0);
         mSize.x = node.getIntValue("width", 0);
@@ -34,11 +35,15 @@ class Animation {
             mFrames[n].durationMS = duration;
         }
     }
+
+    public Vector2i size() {
+        return mSize;
+    }
 }
 
 //does animation
 class Animator : SceneObjectPositioned {
-    private Animation mAni, mAniNext;
+    protected Animation mAni, mAniNext;
     private bool mAniRepeat;
     private uint mLastFrame;
     private Time mLastFrameTime;
