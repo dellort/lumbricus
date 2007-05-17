@@ -4,6 +4,7 @@ import game.scene;
 import game.gobject;
 import game.physic;
 import game.glevel;
+import game.water;
 import utils.mylist;
 import utils.time;
 import utils.log;
@@ -13,8 +14,10 @@ import framework.framework;
 enum GameZOrder {
     Invisible = 0,
     Background,
+    BackWater,   //water behind the level
     Level,
     Objects,
+    FrontWater,  //water before the level
 }
 
 //code to manage a game session (hm, whatever this means)
@@ -26,32 +29,55 @@ class GameController {
     Scene scene;
     PhysicWorld physicworld;
     Time currentTime;
+    GameWater mGameWater;
 
     Vector2i tmp;
 
     package List!(GameObject) mObjects;
+
+    private const cSpaceBelowLevel = 80;
+    private const cSpaceAboveOpenLevel = 1000;
+    private const cOpenLevelWidthMultiplier = 3;
 
     this(Scene gamescene, Level level) {
         assert(gamescene !is null);
         assert(level !is null);
         scene = gamescene;
         this.level = level;
+
+        Vector2i levelOffset, worldSize;
+        if (level.isCave) {
+            worldSize = Vector2i(level.width, level.height+cSpaceBelowLevel);
+            levelOffset = Vector2i(0, 0);
+        } else {
+            worldSize = Vector2i(cOpenLevelWidthMultiplier*level.width,
+                level.height+cSpaceBelowLevel+cSpaceAboveOpenLevel);
+            levelOffset = Vector2i(cast(int)((cOpenLevelWidthMultiplier-1)/2.0f
+                *level.width), cSpaceAboveOpenLevel);
+        }
+
+        gamelevel = new GameLevel(level, levelOffset);
+
         levelobject = new LevelObject(this);
         levelobject.setScene(scene, GameZOrder.Level);
 
-        gamelevel = new GameLevel(level, Vector2i(0, 0));
-
         //prepare the scene
-        gamescene.thesize = Vector2i(level.width, level.height);
+        gamescene.thesize = worldSize;
 
         physicworld = new PhysicWorld();
 
         mObjects = new List!(GameObject)(GameObject.node.getListNodeOffset());
+
+        mGameWater = new GameWater(this, "blue");
     }
 
     void doFrame(Time gametime) {
         currentTime = gametime;
         physicworld.simulate(currentTime);
+        //update game objects
+        foreach (GameObject o; mObjects) {
+            o.simulate(currentTime);
+        }
     }
 
     //remove all objects etc. from the scene
@@ -62,15 +88,15 @@ class GameController {
 
 class LevelObject : SceneObject {
     GameController game;
-    Level level;
+    GameLevel gamelevel;
     Texture levelTexture;
 
     void draw(Canvas c) {
         if (!levelTexture) {
-            levelTexture = level.image.createTexture();
+            levelTexture = gamelevel.image.createTexture();
         }
-        c.draw(levelTexture, Vector2i(0, 0));
-        Vector2i n = game.gamelevel.normalAt(game.tmp, 10);
+        c.draw(levelTexture, gamelevel.offset);
+        Vector2i n = gamelevel.normalAt(game.tmp, 10);
         Vector2f nf = toVector2f(n).normal*100;
 
         c.drawLine(game.tmp, game.tmp +toVector2i(nf), Color(1,0,0));
@@ -78,6 +104,6 @@ class LevelObject : SceneObject {
 
     this(GameController game) {
         this.game = game;
-        level = game.level;
+        gamelevel = game.gamelevel;
     }
 }

@@ -1,4 +1,6 @@
 module game.glevel;
+
+import framework.framework;
 import levelgen.level;
 import utils.vector2;
 import utils.log;
@@ -20,12 +22,17 @@ class GameLevel {
     //offset of the level bitmap inside the world coordinates
     //i.e. worldcoords = mOffset + levelcoords
     private Vector2i mOffset;
+    //current water level (may rise during game)
+    private uint mWaterLevel;
+    package Surface mImage;
 
     this(Level level, Vector2i at) {
         assert(level !is null);
         mWidth = level.width;
         mHeight = level.height;
-        mIsCave = true; //xxx
+        mIsCave = level.isCave;
+        mWaterLevel = level.waterLevel;
+        mImage = level.image;
         mOffset = at;
         //copy data array (no one knows why)
         mPixels.length = mWidth*mHeight;
@@ -142,5 +149,32 @@ class GameLevel {
             });
         mCircles[radius] = stuff;
         return stuff;
+    }
+
+    public uint waterLevel() {
+        return mWaterLevel;
+    }
+    public void waterLevel(uint wlevel) {
+        mWaterLevel = wlevel;
+    }
+
+    public Surface image() {
+        return mImage;
+    }
+
+    public Vector2i offset() {
+        return mOffset;
+    }
+
+    public uint height() {
+        return mHeight;
+    }
+
+    public uint width() {
+        return mWidth;
+    }
+
+    public Vector2i levelsize() {
+        return Vector2i(mWidth, mHeight);
     }
 }

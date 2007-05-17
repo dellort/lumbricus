@@ -149,7 +149,7 @@ class TopLevel {
     }
 
     private void cmdPhys(CommandLine) {
-        GameObject obj = new GameObject(thegame);
+        GameObject obj = new TestAnimatedGameObject(thegame);
     }
 
     private void onVideoInit(bool depth_only) {

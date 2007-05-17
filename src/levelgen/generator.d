@@ -152,7 +152,8 @@ public class LevelGenerator {
 
         auto gen = new GenRandomLevel(width, height);
 
-        if (template_node.getBoolValue("is_cave")) {
+        bool isCave = template_node.getBoolValue("is_cave");
+        if (isCave) {
             auto tex = readTexture(template_node.getStringValue("texture"),
                 false);
             auto marker = parseMarker(template_node.getStringValue("marker"));
@@ -244,6 +245,12 @@ public class LevelGenerator {
         placer.placeBridges(10,10, bridge);
 
         auto ret = renderer.render();
+        ret.isCave = isCave;
+
+        //water level from bottom, relative value
+        float waterLevel = template_node.getFloatValue("waterlevel");
+        //level needs absolute pixel value
+        ret.waterLevel = cast(uint)waterLevel*height;
 
         mLog("done.");
         return ret;

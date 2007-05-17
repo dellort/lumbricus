@@ -20,6 +20,10 @@ public class Level {
     //metadata per pixel
     private Lexel[] mData;
 
+    //non-landscape values filled by level generator
+    private bool mIsCave;     //is this a cave level
+    private uint mWaterLevel; //initial water level, in pixels from lower border
+
     public uint width() {
         return mWidth;
     }
@@ -53,5 +57,19 @@ public class Level {
         mWidth = width; mHeight = height; mImage = image;
         mData.length = width*height;
         mPitch = width;
+    }
+
+    public bool isCave() {
+        return mIsCave;
+    }
+    package void isCave(bool cave) {
+        mIsCave = cave;
+    }
+
+    public uint waterLevel() {
+        return mWaterLevel;
+    }
+    package void waterLevel(uint wlevel) {
+        mWaterLevel = wlevel;
     }
 }
