@@ -61,7 +61,15 @@ protected abstract class HandlerInstance {
     ///does the file (relative to handler object) exist and could be opened?
     abstract bool exists(char[] handlerPath);
 
+    ///check if this path is valid (it does not have to contain files)
+    abstract bool pathExists(char[] handlerPath);
+
     abstract Stream open(char[] handlerPath, FileMode mode);
+
+    ///list the files (no dirs) in the path handlerPath (relative to handler object)
+    ///you can assume that pathExists has been called before
+    ///if callback returns false, you should abort and return false too
+    abstract bool listdir(char[] handlerPath, char[] pattern, bool delegate(char[] filename) callback);
 }
 
 ///Specific MountPointHandler for mounting directories
@@ -104,9 +112,28 @@ private class HandlerDirectory : HandlerInstance {
         return stdf.exists(p) && stdf.isfile(p);
     }
 
+    bool pathExists(char[] handlerPath) {
+        char[] p = mDirPath ~ handlerPath;
+        return stdf.exists(p) && stdf.isdir(p);
+    }
+
     Stream open(char[] handlerPath, FileMode mode) {
         log("Handler for '%s': Opening '%s'",mDirPath, handlerPath);
         return new File(mDirPath ~ handlerPath, mode);
+    }
+
+    bool listdir(char[] handlerPath, char[] pattern, bool delegate(char[] filename) callback) {
+        char[] p = mDirPath ~ handlerPath;
+        char[][] files = stdf.listdir(p, pattern);
+        bool cont = true;
+        foreach (f; files) {
+            if (stdf.isfile(path.join(p,f))) {
+                cont = callback(f);
+                if (!cont)
+                    break;
+            }
+        }
+        return cont;
     }
 }
 
@@ -139,6 +166,10 @@ class FileSystem {
             public bool matchesPath(char[] relPath) {
                 log("Checking for match: '%s' and '%s'",relPath,mountPoint);
                 return relPath.length>mountPoint.length && (str.cmp(relPath[0..mountPoint.length],mountPoint) == 0);
+            }
+
+            public bool matchesPathForList(char[] relPath) {
+                return relPath.length>=mountPoint.length && (str.cmp(relPath[0..mountPoint.length],mountPoint) == 0);
             }
 
             ///Convert relPath (relative to VFS root) to a path relative to
@@ -334,6 +365,26 @@ class FileSystem {
             }
         }
         throw new Exception("File not found: " ~ relFilename);
+    }
+
+    ///List files (not directories) in directory relPath
+    ///Works like std.file.listdir
+    ///Will not error if the path is not found
+    public void listdir(char[] relPath, char[] pattern, bool delegate(char[] filename) callback) {
+        relPath = fixRelativePath(relPath);
+        foreach (inout MountedPath p; mMountedPaths) {
+            bool cont = true;
+            if (p.matchesPathForList(relPath)) {
+                log("Found matching handler");
+                char[] handlerPath = p.getHandlerPath(relPath);
+                if (p.handler.pathExists(handlerPath)) {
+                    //the path exists, list contents
+                    cont = p.handler.listdir(handlerPath, pattern, callback);
+                }
+            }
+            if (!cont)
+                break;
+        }
     }
 
     ///Check if a file exists in the VFS
