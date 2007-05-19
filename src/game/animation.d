@@ -9,7 +9,7 @@ import utils.time;
 class Animation {
     private FrameInfo[] mFrames;
     private Vector2i mSize;
-    private bool mRepeat;
+    private bool mRepeat, mReverse;
 
     private struct FrameInfo {
         int durationMS;
@@ -27,6 +27,7 @@ class Animation {
         mSize.x = node.getIntValue("width", 0);
         mSize.y = node.getIntValue("height", 0);
         mRepeat = node.getBoolValue("repeat", false);
+        mReverse = node.getBoolValue("backwards", false);
         mFrames.length = frames;
         for (int n = 0; n < frames; n++) {
             mFrames[n].frametex.texture = tex;
@@ -39,15 +40,20 @@ class Animation {
     public Vector2i size() {
         return mSize;
     }
+
+    public uint frameCount() {
+        return mFrames.length;
+    }
 }
 
 //does animation
 class Animator : SceneObjectPositioned {
     protected Animation mAni, mAniNext;
-    private bool mAniRepeat;
+    private bool mAniRepeat, mAniReverse;
     private uint mLastFrame;
     private Time mLastFrameTime;
     private void delegate(Animator sender) mOnNoAnimation;
+    private bool mReversed = false;
 
     //animation to play after current animation finished
     void setNextAnimation(Animation next) {
@@ -63,6 +69,8 @@ class Animator : SceneObjectPositioned {
     void setAnimation(Animation ani) {
         mAni = ani;
         mAniRepeat = ani ? ani.mRepeat : false;
+        mAniReverse = ani ? ani.mReverse : false;
+        mReversed = false;
         mAniNext = null;
         mLastFrame = 0;
         mLastFrameTime = globals.gameTimeAnimations;
@@ -76,16 +84,27 @@ class Animator : SceneObjectPositioned {
         mOnNoAnimation = cb;
     }
 
+    void setFrame(uint frameIdx) {
+        if (frameIdx<mAni.frameCount)
+            mLastFrame = frameIdx;
+    }
+
     void draw(Canvas canvas) {
         if (!mAni || mAni.mFrames.length == 0)
             return;
         Animation.FrameInfo fi = mAni.mFrames[mLastFrame];
         if ((globals.gameTimeAnimations - mLastFrameTime).msecs > fi.durationMS) {
-            mLastFrame = (mLastFrame + 1) % mAni.mFrames.length;
+            if (mReversed) {
+                if (mLastFrame > 0)
+                    mLastFrame = mLastFrame - 1;
+            } else
+                mLastFrame = (mLastFrame + 1) % mAni.mFrames.length;
             mLastFrameTime = globals.gameTimeAnimations;
             if (mLastFrame == 0) {
                 //end of animation, check what to do now...
-                if (mAniNext) {
+                if (mAniReverse && !mReversed) {
+                    mLastFrame = mAni.mFrames.length - 1;
+                } else if (mAniNext) {
                     setAnimation(mAniNext);
                 } else if (mAniRepeat) {
                     //ok.
@@ -94,6 +113,7 @@ class Animator : SceneObjectPositioned {
                     if (mOnNoAnimation)
                         mOnNoAnimation(this);
                 }
+                mReversed = !mReversed;
             }
         }
 

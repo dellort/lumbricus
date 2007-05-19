@@ -5,6 +5,7 @@ import game.gobject;
 import game.physic;
 import game.glevel;
 import game.water;
+import game.sky;
 import utils.mylist;
 import utils.time;
 import utils.log;
@@ -35,6 +36,7 @@ class GameController {
     PhysicWorld physicworld;
     Time currentTime;
     GameWater mGameWater;
+    GameSky mGameSky;
 
     Vector2i tmp;
 
@@ -74,6 +76,7 @@ class GameController {
         mObjects = new List!(GameObject)(GameObject.node.getListNodeOffset());
 
         mGameWater = new GameWater(this, "blue");
+        mGameSky = new GameSky(this);
     }
 
     void doFrame(Time gametime) {

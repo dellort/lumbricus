@@ -28,7 +28,7 @@ class WaterDrawerFront : WaterDrawer {
 
     void draw(Canvas canvas) {
         canvas.drawFilledRect(Vector2i(0, mParent.waterOffs),
-            mParent.controller.scene.thesize, mWaterColor);
+            scene.thesize, mWaterColor);
     }
 }
 
@@ -40,7 +40,7 @@ class WaterDrawerBack : WaterDrawer {
     void draw(Canvas canvas) {
         canvas.drawFilledRect(Vector2i(0, mParent.waterOffs
             - mParent.cBackLayers*mParent.cWaterLayerDist),
-            Vector2i(mParent.controller.scene.thesize.x, mParent.waterOffs),
+            Vector2i(scene.thesize.x, mParent.waterOffs),
             mWaterColor);
     }
 }
