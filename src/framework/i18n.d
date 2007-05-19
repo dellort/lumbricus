@@ -1,6 +1,5 @@
 module framework.i18n;
 
-import game.common;
 import utils.configfile;
 import std.format;
 import std.string;
@@ -23,7 +22,8 @@ public class Translator {
 
     this(char[] namespace) {
         this.namespace = namespace;
-        subnode = gTranslations.getPath(namespace, false);
+        if (gTranslations)
+            subnode = gTranslations.getPath(namespace, false);
     }
 
     ///Translate a text, similar to the _() function.
@@ -44,24 +44,7 @@ public class Translator {
 ///     }
 ///     ...
 ///lang: Language identifier.
-public void initI18N(char[] localePath, char[] lang) {
-    ConfigNode node = null;
-    try {
-        node = globals.loadConfig(localePath ~ "/" ~ lang);
-    } catch {
-        try {
-            //default to English
-            lang = "en";
-            node = globals.loadConfig(localePath ~ "/" ~ lang);
-        } catch {
-            lang = "none";
-        }
-    }
-    try {
-        //mount locale-specific files to root
-        //this will work for user-defined locales, too
-        globals.framework.fs.remount("locale/"~lang,"/",true);
-    } catch {}
+public void initI18N(ConfigNode node, char[] lang) {
     gCurrentLanguage = lang;
     gTranslations = node;
 }

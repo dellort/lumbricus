@@ -30,6 +30,9 @@ class Common {
     //simulation time, etc.
     Time gameTime;
 
+    private const cLocalePath = "/locale";
+    private const cDefLang = "en";
+
     this(Framework fw) {
         if (globals)
             throw new Exception("Common is a singelton!");
@@ -39,8 +42,7 @@ class Common {
 
         anyConfig = loadConfig("anything");
 
-        initI18N("locale",
-            anyConfig.getStringValue("language_id", "de"));
+        initLocale();
 
         log = registerLog("common");
 
@@ -50,6 +52,28 @@ class Common {
 
         //hint: after leaving this constructor, the framework's mainloop is
         //      called, which in turn calls callbacks set by TopLevel.
+    }
+
+    private void initLocale() {
+        char[] langId = anyConfig.getStringValue("language_id", "de");
+        ConfigNode localeNode = null;
+        try {
+            localeNode = globals.loadConfig(cLocalePath ~ '/' ~ langId);
+        } catch {
+            try {
+                //try default language
+                langId = cDefLang;
+                localeNode = globals.loadConfig(cLocalePath ~ '/' ~ langId);
+            } catch {
+                langId = "none";
+            }
+        }
+        initI18N(localeNode,langId);
+        try {
+            framework.fs.link(cLocalePath ~ '/' ~ langId,"/",true);
+        } catch {
+            //don't crash if current locale has no locale-specific files
+        }
     }
 
     Surface loadGraphic(char[] path) {

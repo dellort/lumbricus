@@ -77,9 +77,6 @@ protected abstract class HandlerInstance {
     ///you can assume that pathExists has been called before
     ///if callback returns false, you should abort and return false too
     abstract bool listdir(char[] handlerPath, char[] pattern, bool delegate(char[] filename) callback);
-
-    ///Return a new HandlerInstance pointing to a path inside the current handler
-    abstract HandlerInstance remount(char[] handlerPath);
 }
 
 ///Specific MountPointHandler for mounting directories
@@ -158,13 +155,40 @@ version(Windows) {
         stdf.listdir(p, &listdircb);
         return cont;
     }
+}
 
-    HandlerInstance remount(char[] handlerPath) {
-        if (pathExists(handlerPath)) {
-            return new HandlerDirectory(mDirPath ~ handlerPath);
-        } else {
-            throw new Exception("Failed to remount "~handlerPath~": Path not found");
-        }
+private class HandlerLink : HandlerInstance {
+    private char[] mLinkedPath;
+    private FileSystem mParent;
+
+    this(FileSystem parent, char[] relPath) {
+        log("New link: %s",relPath);
+        mLinkedPath = relPath;
+        mParent = parent;
+    }
+
+    bool isWritable() {
+        log("Link: isWritable");
+        return mParent.pathIsWritable(mLinkedPath, this);
+    }
+
+    bool exists(char[] handlerPath) {
+        log("Link: exists(%s)",handlerPath);
+        return mParent.exists(mLinkedPath ~ handlerPath, this);
+    }
+
+    bool pathExists(char[] handlerPath) {
+        log("Link: pathexists(%s)",handlerPath);
+        return mParent.pathExists(mLinkedPath ~ handlerPath, this);
+    }
+
+    Stream open(char[] handlerPath, FileMode mode) {
+        log("Link: open(%s)",handlerPath);
+        return mParent.open(mLinkedPath ~ handlerPath, mode, this);
+    }
+
+    bool listdir(char[] handlerPath, char[] pattern, bool delegate(char[] filename) callback) {
+        return mParent.listdir(mLinkedPath ~ handlerPath, pattern, callback, this);
     }
 }
 
@@ -179,17 +203,19 @@ class FileSystem {
             HandlerInstance handler;
             ///is opening files for writing/creating files supported by handler
             ///and enabled for this path
-            bool isWritable;
+            private bool mWritable;
 
-            public static MountedPath opCall(char[] mountPoint, HandlerInstance handler, bool isWritable) {
+            public static MountedPath opCall(char[] mountPoint, HandlerInstance handler, bool writable) {
                 MountedPath ret;
                 //make sure mountPoint starts and ends with a '/'
-                ret.mountPoint = fixRelativePath(mountPoint);
-                if (ret.mountPoint[$-1] != '/')
-                    ret.mountPoint ~= '/';
+                ret.mountPoint = fixRelativePath(mountPoint) ~ '/';
                 ret.handler = handler;
-                ret.isWritable = isWritable && handler.isWritable();
+                ret.mWritable = writable;
                 return ret;
+            }
+
+            public bool isWritable() {
+                return mWritable && handler.isWritable();
             }
 
             ///is relPath a subdirectory of mountPoint?
@@ -239,14 +265,21 @@ class FileSystem {
         initPaths(arg0);
     }
 
-    ///Add leading and trailing slashes if necessary and replace '\' by '/'
-    ///An empty path will be converted to '/'
+    ///Ensure leading slash, replace '\' by '/', remove trailing '/' and
+    ///remove double '/'
+    ///An empty path will be left untouched
     protected static char[] fixRelativePath(char[] p) {
-        if (p.length == 0)
-            p = "/";
+        //replace '\' by '/'
         p = str.replace(p,"\\","/");
-        if (p[0] != '/')
+        //add leading /
+        if (p.length > 0 && p[0] != '/')
             p = "/" ~ p;
+        //remove trailing /
+        if (p.length > 0 && p[$-1] == '/')
+            p = p[0..$-1];
+        //kill double /
+        //XXX todo: kill multiple /
+        p = str.replace(p,"//","/");
         return p;
     }
 
@@ -377,21 +410,21 @@ class FileSystem {
             mMountedPaths ~= MountedPath(mountPoint,currentHandler.mount(absPath),writable);
     }
 
-    public void remount(char[] relPath, char[] mountPoint, bool prepend = false) {
-        relPath = fixRelativePath(relPath);
-        foreach (inout MountedPath p; mMountedPaths) {
-            if (p.matchesPathForList(relPath)) {
-                log("Found matching handler");
-                char[] handlerPath = p.getHandlerPath(relPath);
-                if (p.handler.pathExists(handlerPath)) {
-                    //the path exists, remount
-                    if (prepend)
-                        mMountedPaths = MountedPath(mountPoint,p.handler.remount(handlerPath),p.isWritable) ~ mMountedPaths;
-                    else
-                        mMountedPaths ~= MountedPath(mountPoint,p.handler.remount(handlerPath),p.isWritable);
-                }
-            }
+    ///Create a symbolic link from mountPoint to relPath
+    ///relPath cannot be a parent directory of mountPoint
+    ///Example:
+    ///  link("/locale/de","/")
+    ///Path is not checked for existance
+    public void link(char[] relPath, char[] mountPoint, bool prepend = false) {
+        relPath = fixRelativePath(relPath) ~ '/';
+        mountPoint = fixRelativePath(mountPoint) ~ '/';
+        if (relPath.length <= mountPoint.length && mountPoint[0..relPath.length] == relPath) {
+            throw new Exception("Can't link to a direct or indirect parent directory");
         }
+        if (prepend)
+            mMountedPaths = MountedPath(mountPoint,new HandlerLink(this, relPath),true) ~ mMountedPaths;
+        else
+            mMountedPaths ~= MountedPath(mountPoint,new HandlerLink(this, relPath),true);
     }
 
     ///open a stream to a file in the VFS
@@ -402,10 +435,15 @@ class FileSystem {
     ///Params:
     ///  relFilename = path to the file, relative to VFS root
     ///  mode = how the file should be opened
-    public Stream open(char[] relFilename, FileMode mode = FileMode.In) {
+    //need to make caller parameter public
+    public Stream open(char[] relFilename, FileMode mode = FileMode.In,
+        HandlerInstance caller = null)
+    {
         relFilename = fixRelativePath(relFilename);
         log("Trying to open '%s'",relFilename);
         foreach (inout MountedPath p; mMountedPaths) {
+            if (p.handler == caller)
+                continue;
             if (p.matchesPath(relFilename) && p.matchesMode(mode)) {
                 log("Found matching handler");
                 char[] handlerPath = p.getHandlerPath(relFilename);
@@ -421,10 +459,22 @@ class FileSystem {
     ///List files (not directories) in directory relPath
     ///Works like std.file.listdir
     ///Will not error if the path is not found
-    public void listdir(char[] relPath, char[] pattern, bool delegate(char[] filename) callback) {
-        relPath = fixRelativePath(relPath);
+    ///Returns:
+    /// false if listing was aborted, true otherwise
+    public bool listdir(char[] relPath, char[] pattern,
+        bool delegate(char[] filename) callback)
+    {
+        return listdir(relPath, pattern, callback, null);
+    }
+
+    protected bool listdir(char[] relPath, char[] pattern,
+        bool delegate(char[] filename) callback, HandlerInstance caller)
+    {
+        relPath = fixRelativePath(relPath) ~ '/';
+        bool cont = true;
         foreach (inout MountedPath p; mMountedPaths) {
-            bool cont = true;
+            if (p.handler == caller)
+                continue;
             if (p.matchesPathForList(relPath)) {
                 log("Found matching handler");
                 char[] handlerPath = p.getHandlerPath(relPath);
@@ -436,6 +486,7 @@ class FileSystem {
             if (!cont)
                 break;
         }
+        return cont;
     }
 
     ///Check if a file exists in the VFS
@@ -443,12 +494,59 @@ class FileSystem {
     ///Params:
     ///  relFilename = path to file to check for existance, relative to VFS root
     public bool exists(char[] relFilename) {
+        return exists(relFilename, null);
+    }
+
+    protected bool exists(char[] relFilename, HandlerInstance caller) {
         relFilename = fixRelativePath(relFilename);
         foreach (inout MountedPath p; mMountedPaths) {
+            if (p.handler == caller)
+                continue;
             if (p.matchesPath(relFilename)) {
                 char[] handlerPath = p.getHandlerPath(relFilename);
                 if (p.handler.exists(handlerPath)) {
                     //file found
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+
+    ///Check if a directory exists in the VFS
+    public bool pathExists(char[] relPath) {
+        return pathExists(relPath, null);
+    }
+
+    protected bool pathExists(char[] relPath, HandlerInstance caller) {
+        relPath = fixRelativePath(relPath) ~ '/';
+        foreach (inout MountedPath p; mMountedPaths) {
+            if (p.handler == caller)
+                continue;
+            if (p.matchesPathForList(relPath)) {
+                char[] handlerPath = p.getHandlerPath(relPath);
+                if (p.handler.pathExists(handlerPath)) {
+                    //path exists
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public bool pathIsWritable(char[] relPath) {
+        return pathIsWritable(relPath, null);
+    }
+
+    protected bool pathIsWritable(char[] relPath, HandlerInstance caller) {
+        relPath = fixRelativePath(relPath) ~ '/';
+        foreach (inout MountedPath p; mMountedPaths) {
+            if (p.handler == caller)
+                continue;
+            if (p.matchesPathForList(relPath)) {
+                if (p.isWritable()) {
+                    //writable path found
                     return true;
                 }
             }
