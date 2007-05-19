@@ -54,6 +54,7 @@ int main(char[][] args)
     fw.setCaption("Lumbricus");
 
     //init filesystem
+    fw.fs.mount(MountPath.data,"locale/","/locale/",false);
     fw.fs.mount(MountPath.data,"data/","/",false);
     fw.fs.mount(MountPath.user,"/","/",true);
 

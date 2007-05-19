@@ -13,9 +13,15 @@ private Log log;
 
 ///add OS-dependant path delimiter to pathStr, if not there
 public char[] addTrailingPathDelimiter(char[] pathStr) {
-    if (pathStr[$-1] != path.sep[0]) {
-        pathStr ~= path.sep;
+version(Windows) {
+    if (pathStr[$-1] != '/' && pathStr[$-1] != '\\') {
+        pathStr ~= '/';
     }
+} else {
+    if (pathStr[$-1] != '/') {
+        pathStr ~= '/';
+    }
+}
     return pathStr;
 }
 
@@ -67,9 +73,13 @@ protected abstract class HandlerInstance {
     abstract Stream open(char[] handlerPath, FileMode mode);
 
     ///list the files (no dirs) in the path handlerPath (relative to handler object)
+    ///listing should be non-recursive, and return files without path
     ///you can assume that pathExists has been called before
     ///if callback returns false, you should abort and return false too
     abstract bool listdir(char[] handlerPath, char[] pattern, bool delegate(char[] filename) callback);
+
+    ///Return a new HandlerInstance pointing to a path inside the current handler
+    abstract HandlerInstance remount(char[] handlerPath);
 }
 
 ///Specific MountPointHandler for mounting directories
@@ -123,17 +133,38 @@ private class HandlerDirectory : HandlerInstance {
     }
 
     bool listdir(char[] handlerPath, char[] pattern, bool delegate(char[] filename) callback) {
-        char[] p = mDirPath ~ handlerPath;
-        char[][] files = stdf.listdir(p, pattern);
         bool cont = true;
-        foreach (f; files) {
-            if (stdf.isfile(path.join(p,f))) {
-                cont = callback(f);
-                if (!cont)
-                    break;
+        bool listdircb(stdf.DirEntry* de) {
+            if (!stdf.isdir(de.name)) {
+                //listdir does a path.join with searchpath and found file, remove this
+                char[] fn = de.name[mDirPath.length..$];
+version(Windows) {
+                if (fn.length>0 && (fn[0] == '/' || fn[0] == '\\')) {
+                    fn = fn[1..$];
+                }
+} else {
+                if (fn.length>0 && fn[0] == '/') {
+                    fn = fn[1..$];
+                }
+}
+                if (std.path.fnmatch(fn, pattern))
+                    return (cont = callback(fn));
+            } else {
+                return true;
             }
         }
+
+        char[] p = mDirPath ~ handlerPath;
+        stdf.listdir(p, &listdircb);
         return cont;
+    }
+
+    HandlerInstance remount(char[] handlerPath) {
+        if (pathExists(handlerPath)) {
+            return new HandlerDirectory(mDirPath ~ handlerPath);
+        } else {
+            throw new Exception("Failed to remount "~handlerPath~": Path not found");
+        }
     }
 }
 
@@ -340,7 +371,27 @@ class FileSystem {
         if (!currentHandler)
             throw new Exception("No handler was able to mount object "~path);
 
-        mMountedPaths ~= MountedPath(mountPoint,currentHandler.mount(absPath),writable);
+        if (prepend)
+            mMountedPaths = MountedPath(mountPoint,currentHandler.mount(absPath),writable) ~ mMountedPaths;
+        else
+            mMountedPaths ~= MountedPath(mountPoint,currentHandler.mount(absPath),writable);
+    }
+
+    public void remount(char[] relPath, char[] mountPoint, bool prepend = false) {
+        relPath = fixRelativePath(relPath);
+        foreach (inout MountedPath p; mMountedPaths) {
+            if (p.matchesPathForList(relPath)) {
+                log("Found matching handler");
+                char[] handlerPath = p.getHandlerPath(relPath);
+                if (p.handler.pathExists(handlerPath)) {
+                    //the path exists, remount
+                    if (prepend)
+                        mMountedPaths = MountedPath(mountPoint,p.handler.remount(handlerPath),p.isWritable) ~ mMountedPaths;
+                    else
+                        mMountedPaths ~= MountedPath(mountPoint,p.handler.remount(handlerPath),p.isWritable);
+                }
+            }
+        }
     }
 
     ///open a stream to a file in the VFS

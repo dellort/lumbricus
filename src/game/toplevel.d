@@ -51,7 +51,7 @@ class TopLevel {
     private Time mPausedTime; //summed amount of time paused
     private bool mPauseMode;
     //xxx move this to where-ever
-    ConfigNode localizedKeyfile;
+    Translator localizedKeynames;
     ConfigNode mWormsAnim;
     Animator mWormsAnimator;
 
@@ -77,8 +77,7 @@ class TopLevel {
         gDefaultOutput.destination = globals.defaultOut;
 
         //xxx: make this fail-safe
-        localizedKeyfile = globals.loadConfig(
-            globals.locales.getStringValue("keyname_conf", "keynames"));
+        localizedKeynames = new Translator("keynames");
 
         guiscene = screen.rootscene;
         fpsDisplay = new FontLabel(globals.framework.getFont("fpsfont"));
@@ -212,12 +211,12 @@ class TopLevel {
 
     //translate into translated user-readable string
     char[] translateKeyshortcut(Keycode code, Modifier[] mods) {
-        if (!localizedKeyfile)
+        if (!localizedKeynames)
             return "?";
-        char[] res = localizedKeyfile.getStringValue(
+        char[] res = localizedKeynames(
             globals.framework.translateKeycodeToKeyID(code), "?");
         foreach (Modifier mod; mods) {
-            res = localizedKeyfile.getStringValue(
+            res = localizedKeynames(
                 globals.framework.modifierToString(mod), "?") ~ "+" ~ res;
         }
         return res;

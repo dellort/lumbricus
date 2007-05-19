@@ -1,4 +1,6 @@
 module framework.i18n;
+
+import game.common;
 import utils.configfile;
 import std.format;
 import std.string;
@@ -32,20 +34,35 @@ public class Translator {
 }
 
 ///Init translations.
-///translations: A ConfigFile with the following format:
-///     langid {
-///         id1 = "Text {1} with arguments {2}"
-///         ...
-///         namespace1 {
-///             idbla = "..."
+///localePath: Path in VFS where locale files are stored (<langId>.conf)
+///locale-specific files in <localePath>/<langId> will be mounted to root
+///A locale file is a ConfigFile with the following format:
+///     id1 = "Text {1} with arguments {2}"
+///     ...
+///     namespace1 {
+///         idbla = "..."
+///     }
 ///     ...
 ///lang: Language identifier.
-public void initI18N(ConfigNode translations, char[] lang) {
-    auto node = translations.findNode(lang);
-    //default to English
-    if (!node)
-        node = translations.findNode("en");
-    gCurrentLanguage = node ? node.name : "none";
+public void initI18N(char[] localePath, char[] lang) {
+    ConfigNode node = null;
+    try {
+        node = globals.loadConfig(localePath ~ "/" ~ lang);
+    } catch {
+        try {
+            //default to English
+            lang = "en";
+            node = globals.loadConfig(localePath ~ "/" ~ lang);
+        } catch {
+            lang = "none";
+        }
+    }
+    try {
+        //mount locale-specific files to root
+        //this will work for user-defined locales, too
+        globals.framework.fs.remount("locale/"~lang,"/",true);
+    } catch {}
+    gCurrentLanguage = lang;
     gTranslations = node;
 }
 
