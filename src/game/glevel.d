@@ -4,7 +4,7 @@ import framework.framework;
 import levelgen.level;
 import utils.vector2;
 import utils.log;
-import utils.drawing : circle;
+import drawing = utils.drawing;
 import std.math : sqrt;
 import game.physic;
 
@@ -97,6 +97,24 @@ class GameLevel {
         mPhysics.level = this;
     }
 
+    void damage(Vector2i pos, int radius, GLexel newpixel = GLexel.Free) {
+        assert(radius >= 0);
+        //xxx: see comments for normalAt()... actually it's almost the same code
+        auto st = pos + mOffset;
+        int[] circle = getCircle(radius);
+
+        for (int y = -radius; y <= radius; y++) {
+            int xoffs = radius - circle[y+radius];
+            for (int x = -xoffs; x <= xoffs; x++) {
+                int lx = st.x + x;
+                int ly = st.y + y;
+                if (lx >= 0 && lx < mWidth && ly >= 0 && ly < mHeight) {
+                    mPixels[ly*mWidth + lx] = newpixel;
+                }
+            }
+        }
+    }
+
     //calculate normal at that position
     //this is (very?) expensive
     //maybe replace it by other methods as used by other worms clones
@@ -136,15 +154,14 @@ class GameLevel {
      * array.
      * The circle has the diameter 1+radius*2
      */
-    private int[] getCircle(uint radius) {
+    private int[] getCircle(int radius) {
         if (radius in mCircles)
             return mCircles[radius];
 
-        if (radius == 0)
-            return null;
+        assert(radius >= 0);
 
         int[] stuff = new int[radius*2+1];
-        circle(radius, radius, radius,
+        drawing.circle(radius, radius, radius,
             (int x1, int x2, int y) {
                 stuff[y] = x1;
             });
