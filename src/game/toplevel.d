@@ -148,7 +148,8 @@ class TopLevel {
     }
 
     private void cmdPhys(CommandLine) {
-        GameObject obj = new TestAnimatedGameObject(thegame);
+        auto obj = new TestAnimatedGameObject(thegame);
+        obj.setPos(thegame.tmp);
     }
 
     private void onVideoInit(bool depth_only) {
@@ -398,7 +399,7 @@ class TopLevel {
             gameview.clipOffset(mScrollDest);
         }
         if (thegame) {
-            thegame.tmp = mouse.pos - gameview.pos - gameview.clientoffset;
+            thegame.tmp = gameview.toClientCoords(mouse.pos);
         }
     }
 

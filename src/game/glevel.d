@@ -4,6 +4,9 @@ import framework.framework;
 import levelgen.level;
 import utils.vector2;
 import utils.log;
+import utils.drawing : circle;
+import std.math : sqrt;
+import game.physic;
 
 //per pixel metadata (cf. level.level.Lexel)
 enum GLexel : ubyte {
@@ -12,11 +15,50 @@ enum GLexel : ubyte {
     SolidHard,
 }
 
+//collision handling
+class LevelGeometry : PhysicGeometry {
+    GameLevel level;
+
+    bool collide(inout Vector2f pos, float radius) {
+        Vector2i dir;
+        int pixelcount;
+
+        int iradius = cast(int)radius;
+
+        level.checkAt(toVector2i(pos), iradius, dir, pixelcount);
+
+        //no collided pixels
+        if (pixelcount == 0)
+            return false;
+
+        //xxx: ??? collided pixels, but no normal -> stuck?
+        int n_len = dir.quad_length();
+        if (n_len == 0)
+            return false;
+
+        //auto len = sqrt(cast(float)n_len);
+        //auto normal = toVector2f(dir) / len;
+        auto normal = toVector2f(dir).normal;
+
+        //this is most likely mathematical incorrect bullsh*t, but works mostly
+        //guess how deep the sphere is inside the landscape by dividing the
+        //amount of collided pixel by the amount of total pixels in the circle
+        float rx = cast(float)pixelcount / (radius*radius*3.14159);//level.mPixelSum[iradius];
+        auto nf = normal * (rx * radius * 2);
+
+        //the new hopefully less-colliding sphere center
+        pos += nf;
+
+        return true;
+    }
+}
+
 //in-game ("loaded") version of levelgen.level.Level
 class GameLevel {
     private int mWidth, mHeight;
     private GLexel[] mPixels;
-    private int[][uint] mCircles;
+    private int[][int] mCircles;
+    //private int[int] mPixelSum; //don't ask
     //in a cave, the level borders are solid
     private bool mIsCave;
     //offset of the level bitmap inside the world coordinates
@@ -24,7 +66,9 @@ class GameLevel {
     private Vector2i mOffset;
     //current water level (may rise during game)
     private uint mWaterLevel;
+
     package Surface mImage;
+    private LevelGeometry mPhysics;
 
     this(Level level, Vector2i at) {
         assert(level !is null);
@@ -48,18 +92,24 @@ class GameLevel {
             }
             mPixels[n] = gl;
         }
+
+        mPhysics = new LevelGeometry();
+        mPhysics.level = this;
     }
 
     //calculate normal at that position
     //this is (very?) expensive
-    Vector2i normalAt(Vector2i pos, int radius) {
+    //maybe replace it by other methods as used by other worms clones
+    // dir = not-notmalized diection which points to the outside of the level
+    // count = number of colliding pixels
+    void checkAt(Vector2i pos, int radius, out Vector2i dir, out int count) {
         assert(radius >= 0);
         //xxx: maybe add a non-clipping fast path, if it should be needed
         //also could do tricks to avoid clipping at all...!
-        auto st = pos + mOffset;
+        auto st = pos - mOffset;
         int[] circle = getCircle(radius);
 
-        Vector2i res; //init with 0, 0
+        //dir and count are initialized with 0
 
         for (int y = -radius; y <= radius; y++) {
             int xoffs = radius - circle[y+radius];
@@ -70,13 +120,14 @@ class GameLevel {
                 if (lx >= 0 && lx < mWidth && ly >= 0 && ly < mHeight) {
                     isset = (mPixels[ly*mWidth + lx] != GLexel.Free);
                 }
-                if (!isset) {
-                    res += Vector2i(x, y);
+                if (isset) {
+                    dir += Vector2i(x, y);
+                    count++;
                 }
             }
         }
 
-        return res;
+        dir = -dir;
     }
 
     /*
@@ -92,62 +143,17 @@ class GameLevel {
         if (radius == 0)
             return null;
 
-        //copied from sdl_gfx (and modified)
-        //original: sdlgfx-2.0.9, SDL_gfxPrimitives.c: filledCircleColor()
-        void circle(int x, int y, int r,
-            void delegate(int x1, int x2, int y) cb)
-        {
-            if (r <= 0)
-                return;
-
-            int cx = 0, cy = r;
-            int ocx = cx-1, ocy = cy+1;
-            int df = r - 1;
-            int d_e = 3;
-            int d_se = -2 * r + 5;
-
-            bool draw = true;
-
-            do {
-                if (draw) {
-                    if (cy > 0) {
-                        cb(x - cx, x + cx, y + cy);
-                        cb(x - cx, x + cx, y - cy);
-                    } else {
-                        cb(x - cx, x + cx, y);
-                    }
-                    //ocy = cy;
-                    draw = false;
-                }
-                if (cx != cy) {
-                    if (cx) {
-                        cb(x - cy, x + cy, y - cx);
-                        cb(x - cy, x + cy, y + cx);
-                    } else {
-                        cb(x - cy, x + cy, y);
-                    }
-                }
-                if (df < 0) {
-                    df += d_e;
-                    d_e += 2;
-                    d_se += 2;
-                } else {
-                    df += d_se;
-                    d_e += 2;
-                    d_se += 4;
-                    cy--;
-                    draw = true;
-                }
-                cx++;
-            } while (cx <= cy);
-        }
-
         int[] stuff = new int[radius*2+1];
         circle(radius, radius, radius,
             (int x1, int x2, int y) {
                 stuff[y] = x1;
             });
         mCircles[radius] = stuff;
+        /*int sum = 0;
+        foreach (int i; stuff) {
+            sum += (radius-i)*2+1;
+        }
+        mPixelSum[radius] = sum;*/
         return stuff;
     }
 
@@ -176,5 +182,9 @@ class GameLevel {
 
     public Vector2i levelsize() {
         return Vector2i(mWidth, mHeight);
+    }
+
+    public LevelGeometry physics() {
+        return mPhysics;
     }
 }

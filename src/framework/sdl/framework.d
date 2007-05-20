@@ -14,6 +14,7 @@ import derelict.sdl.ttf;
 import framework.sdl.keys;
 import math = std.math;
 import utils.time;
+import utils.drawing;
 
 private static FrameworkSDL gFrameworkSDL;
 
@@ -389,9 +390,14 @@ public class SDLCanvas : Canvas {
         assert(res == 0);
     }
 
-    //TODO: add code
+    //inefficient, wanted this for debugging
     public void drawCircle(Vector2i center, int radius, Color color) {
-        assert(false);
+        circle(center.x, center.y, radius,
+            (int x1, int x2, int y) {
+                setPixel(Vector2i(x1, y), color);
+                setPixel(Vector2i(x2, y), color);
+            }
+        );
     }
 
     public void drawFilledCircle(Vector2i center, int radius,

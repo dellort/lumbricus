@@ -37,10 +37,15 @@ class TestAnimatedGameObject : GameObject {
         super(controller);
         physics = new PhysicObject();
         graphic = new Animator();
-        graphic.setAnimation(new Animation(globals.loadConfig("animations").getSubNode("testani1")));
-        graphic.setScene(controller.scene, GameZOrder.Objects);
+        //graphic.setAnimation(new Animation(globals.loadConfig("animations").getSubNode("testani1")));
+        //graphic.setScene(controller.scene, GameZOrder.Objects);
         physics.onUpdate = &physUpdate;
         controller.physicworld.add(physics);
+    }
+
+    void setPos(Vector2i pos) {
+        physics.pos = toVector2f(pos);
+        physUpdate();
     }
 
     private void physUpdate() {

@@ -43,7 +43,7 @@ class GameController {
     package List!(GameObject) mObjects;
 
     private const cSpaceBelowLevel = 80;
-    private const cSpaceAboveOpenLevel = 1000;
+    private const cSpaceAboveOpenLevel = 10;//00;
     private const cOpenLevelWidthMultiplier = 3;
 
     this(Scene gamescene, Level level) {
@@ -72,6 +72,17 @@ class GameController {
         gamescene.thesize = worldSize;
 
         physicworld = new PhysicWorld();
+
+        //to enable level-bitmap collision
+        physicworld.add(gamelevel.physics);
+        //various level borders; for now, simply box it
+        //water border
+        physicworld.add(new PlaneGeometry(toVector2f(levelOffset+worldSize),
+            toVector2f(levelOffset+worldSize) + Vector2f(1,0)));
+
+        auto grav = new ConstantForce();
+        grav.force = Vector2f(0, 10); //what unit is that???
+        physicworld.add(grav);
 
         mObjects = new List!(GameObject)(GameObject.node.getListNodeOffset());
 
@@ -107,10 +118,17 @@ class LevelObject : SceneObject {
             levelTexture = gamelevel.image.createTexture();
         }
         c.draw(levelTexture, gamelevel.offset);
-        Vector2i n = gamelevel.normalAt(game.tmp, 10);
-        Vector2f nf = toVector2f(n).normal*100;
-
-        c.drawLine(game.tmp, game.tmp +toVector2i(nf), Color(1,0,0));
+        Vector2i dir; int pixelcount;
+        auto pos = game.tmp;
+        auto npos = toVector2f(pos);
+        if (gamelevel.physics.collide(npos, 100)) {
+            c.drawCircle(pos, 100, Color(0,1,0));
+            c.drawCircle(toVector2i(npos), 100, Color(1,1,0));
+        }
+        //xxx draw debug stuff for physics!
+        foreach (PhysicObject o; game.physicworld.mObjects) {
+            c.drawCircle(toVector2i(o.pos), cast(int)o.radius, Color(1,1,1));
+        }
     }
 
     this(GameController game) {

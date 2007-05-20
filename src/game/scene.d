@@ -68,6 +68,16 @@ class SceneView : SceneObjectPositioned {
         clipOffset(mClientoffset);
     }
 
+    Scene clientscene() {
+        return mClientScene;
+    }
+
+    //from the parent's coordinate system to the client's
+    //(client = mClientScene)
+    public Vector2i toClientCoords(Vector2i p) {
+        return p - pos - clientoffset;
+    }
+
     public void clipOffset(inout Vector2i offs) {
         if (thesize.x < mClientScene.thesize.x) {
             //view window is smaller than scene (x-dir)
