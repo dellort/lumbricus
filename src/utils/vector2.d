@@ -110,19 +110,6 @@ public struct Vector2(T) {
         return (*this - project_on(start, dir)).length;
     }
 
-    //start and end form a (finite) line; for this, return the distance to the
-    //point this...
-    public T real_distance_from(Vector2 start, Vector2 end) {
-        Vector2 n = (end-start).orthogonal.normal;
-        T t = (start - *this) * n;
-        if (t < 0)
-            t = 0;
-        if (t > 1)
-            t = 1;
-        Vector2 projected = *this+n*t;
-        return (*this - projected).length;
-    }
-
     //if point is inside the rect formed by pos and size
     //the border of that rect is exclusive
     public bool isInside(Vector2 pos, Vector2 size) {

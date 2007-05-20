@@ -89,6 +89,13 @@ class GameController {
 
         gameWater = new GameWater(this, "blue");
         gameSky = new GameSky(this);
+
+        levelobject.getEventSink().onMouseMove = &onMouseMove;
+    }
+
+    bool onMouseMove(EventSink sender, MouseInfo info) {
+        tmp = info.pos;
+        return true;
     }
 
     void doFrame(Time gametime) {

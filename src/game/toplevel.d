@@ -21,6 +21,7 @@ import str = std.string;
 import conv = std.conv;
 import game.physic;
 import game.gobject;
+import game.leveledit;
 
 //ZOrders!
 //maybe keep in sync with game.Scene.cMaxZOrder
@@ -133,7 +134,19 @@ class TopLevel {
         globals.cmdLine.registerCommand("clouds", &cmdClouds, "enable/disable animated clouds");
         globals.cmdLine.registerCommand("simplewater", &cmdSimpleWater, "set reduced water mode");
 
+        globals.cmdLine.registerCommand("editor", &cmdLevelEdit, "hm");
+
         mTimeLast = globals.framework.getCurrentTime();
+    }
+
+    private void cmdLevelEdit(CommandLine cmd) {
+        //replace level etc. by the "editor" in a very violent way
+        auto edit = new LevelEditor();
+        SceneView v = new SceneView(edit.scene);
+        v.thesize = edit.scene.thesize;
+        v.setScene(guiscene, GUIZOrder.Gui);
+        //clearly sucks, find a better way
+        screen.setFocus(edit.render);
     }
 
     private void cmdClouds(CommandLine cmd) {
@@ -366,6 +379,7 @@ class TopLevel {
     private void onKeyPress(KeyInfo infos) {
         if (console.visible && globals.cmdLine.keyPress(infos))
             return;
+        screen.putOnKeyPress(infos);
     }
 
     private Vector2i mMouseStart;
@@ -398,6 +412,7 @@ class TopLevel {
             globals.cmdLine.execute(bind);
             return false;
         }
+        screen.putOnKeyDown(infos);
         return true;
     }
 
@@ -405,6 +420,7 @@ class TopLevel {
         if (mShowKeyDebug) {
             globals.log("up: %s", globals.framework.keyinfoToString(infos));
         }
+        screen.putOnKeyUp(infos);
         return true;
     }
 
@@ -417,9 +433,7 @@ class TopLevel {
             mScrollDest = mScrollDest - mouse.rel;
             gameview.clipOffset(mScrollDest);
         }
-        if (thegame) {
-            thegame.tmp = gameview.toClientCoords(mouse.pos);
-        }
+        screen.putOnMouseMove(mouse);
     }
 
     private void renderConsole(Canvas canvas) {

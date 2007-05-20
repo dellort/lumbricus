@@ -54,6 +54,12 @@ class EventSink {
             default: assert(false);
         }
     }
+
+    private void callMouseHandler(MouseInfo info) {
+        mMousePos = info.pos;
+        if (onMouseMove)
+            onMouseMove(this, info);
+    }
 }
 
 //over engineered for sure!
@@ -70,6 +76,8 @@ class SceneView : SceneObjectPositioned {
         mClientScene = clientscene;
         mClientoffset = Vector2i(0, 0);
         mSceneSize = mClientScene.thesize;
+        //always create event handler
+        getEventSink();
     }
 
     void draw(Canvas canvas) {
@@ -150,13 +158,11 @@ class SceneView : SceneObjectPositioned {
         info.pos = toClientCoords(info.pos);
         foreach (SceneObject so; mClientScene.mEventReceiver) {
             auto pso = cast(SceneObjectPositioned)so;
-            if (!pso)
-                continue;
-            if (isInside(pso, info.pos)) {
+            if (!pso) {
+                so.getEventSink().callMouseHandler(info);
+            } else if (isInside(pso, info.pos)) {
                 //deliver
-                pso.getEventSink().mMousePos = info.pos;
-                if (pso.getEventSink().onMouseMove)
-                    pso.getEventSink().onMouseMove(pso.getEventSink(), info);
+                pso.getEventSink().callMouseHandler(info);
                 auto sv = cast(SceneView)pso;
                 if (sv) {
                     sv.doMouseMove(info);
@@ -171,9 +177,9 @@ class SceneView : SceneObjectPositioned {
         auto pos = getEventSink().mousePos;
         foreach (SceneObject so; mClientScene.mEventReceiver) {
             auto pso = cast(SceneObjectPositioned)so;
-            if (!pso)
-                continue;
-            if (isInside(pso, pos)) {
+            if (!pso) {
+                so.getEventSink().callKeyHandler(ev, info);
+            } else if (isInside(pso, pos)) {
                 pso.getEventSink().callKeyHandler(ev, info);
                 auto sv = cast(SceneView)pso;
                 if (sv) {
