@@ -143,8 +143,36 @@ class TopLevel {
         globals.cmdLine.registerCommand("phys", &cmdPhys, "test123");
         globals.cmdLine.registerCommand("pause", &cmdPause, "pause");
         globals.cmdLine.registerCommand("loadanim", &cmdLoadAnim, "load worms animation");
+        globals.cmdLine.registerCommand("clouds", &cmdClouds, "enable/disable animated clouds");
+        globals.cmdLine.registerCommand("simplewater", &cmdSimpleWater, "set reduced water mode");
 
         mTimeLast = globals.framework.getCurrentTime();
+    }
+
+    private void cmdClouds(CommandLine cmd) {
+        char[][] sargs = cmd.parseArgs();
+        bool on = false;
+        if (sargs.length < 1)
+            return;
+        try {
+            on = cast(bool)conv.toInt(sargs[0]);
+        } catch (conv.ConvError) {
+            return;
+        }
+        thegame.gameSky.enableClouds = on;
+    }
+
+    private void cmdSimpleWater(CommandLine cmd) {
+        char[][] sargs = cmd.parseArgs();
+        bool simple = false;
+        if (sargs.length < 1)
+            return;
+        try {
+            simple = cast(bool)conv.toInt(sargs[0]);
+        } catch (conv.ConvError) {
+            return;
+        }
+        thegame.gameWater.simpleMode = simple;
     }
 
     private void cmdPhys(CommandLine) {
@@ -266,11 +294,11 @@ class TopLevel {
 
     private void cmdScroll(CommandLine cmd) {
         if (mScrolling) {
-            //globals.framework.grabInput = false;
+            globals.framework.grabInput = false;
             globals.framework.cursorVisible = true;
             globals.framework.unlockMouse();
         } else {
-            //globals.framework.grabInput = true;
+            globals.framework.grabInput = true;
             globals.framework.cursorVisible = false;
             globals.framework.lockMouse();
             mScrollDest = gameview.clientoffset;

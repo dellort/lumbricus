@@ -7,15 +7,10 @@ import game.glevel;
 import game.common;
 import game.animation;
 import game.scene;
-import rand = std.random;
+import utils.misc;
 import utils.time;
 import utils.vector2;
 import utils.configfile;
-
-int random(int min, int max) {
-    auto r = rand.rand();
-    return cast(int)(min + (max-min)*(cast(float)r/r.max));
-}
 
 class SkyDrawer : SceneObject {
     private GameSky mParent;
@@ -42,10 +37,16 @@ class GameSky : GameObject {
     private SkyDrawer mSkyDrawer;
     protected int skyOffset;
     private Animation[] mCloudAnims;
-    private bool mEnableClouds = false;
+    private bool mEnableClouds = true;
+    private bool mCloudsVisible;
 
     private const cNumClouds = 50;
-    private const cCloudMaxSpeed = 200;
+    private const cCloudHeightRange = 50;
+    private const cCloudSpeedRange = 100;
+
+    //Pixels/sec
+    //XXX place this somewhere else
+    private int mWindSpeed = 30;
 
     private struct CloudInfo {
         Animator anim;
@@ -68,11 +69,11 @@ class GameSky : GameObject {
 
         skyOffset = controller.gamelevel.offset.y+controller.gamelevel.height-skyTex.size.y;
         if (skyOffset > 0)
-            mEnableClouds = true;
+            mCloudsVisible = true;
         else
-            mEnableClouds = false;
+            mCloudsVisible = false;
 
-        if (mEnableClouds) {
+        if (mCloudsVisible) {
             try {
                 foreach (char[] nodeName, ConfigNode node; skyNode.getSubNode("clouds")) {
                     mCloudAnims ~= new Animation(node);
@@ -82,17 +83,18 @@ class GameSky : GameObject {
                 foreach (inout CloudInfo ci; mCloudAnimators) {
                     ci.anim = new Animator();
                     ci.anim.setAnimation(mCloudAnims[nAnim]);
-                    ci.anim.setScene(controller.scene, GameZOrder.Background);
-                    ci.anim.pos.y = skyOffset - mCloudAnims[nAnim].size.y/2;
-                    ci.x = random(-mCloudAnims[nAnim].size.x, controller.scene.thesize.x);
+                    ci.anim.setScene(controller.scene, GameZOrder.BackLayer);
+                    ci.anim.pos.y = skyOffset - mCloudAnims[nAnim].size.y/2 + randRange(-cCloudHeightRange/2,cCloudHeightRange/2);
+                    ci.x = randRange(-mCloudAnims[nAnim].size.x, controller.scene.thesize.x);
                     ci.anim.pos.x = cast(int)ci.x;
-                    ci.anim.setFrame(random(0,mCloudAnims[nAnim].frameCount));
+                    ci.anim.setFrame(randRange(0,mCloudAnims[nAnim].frameCount));
                     ci.animSizex = mCloudAnims[nAnim].size.x;
-                    ci.xspeed = random(1,cCloudMaxSpeed);
+                    //speed delta to wind speed
+                    ci.xspeed = randRange(-cCloudSpeedRange/2, cCloudSpeedRange/2);
                     nAnim = (nAnim+1)%mCloudAnims.length;
                 }
             } catch {
-                mEnableClouds = false;
+                mCloudsVisible = false;
             }
         }
 
@@ -100,15 +102,33 @@ class GameSky : GameObject {
         mSkyDrawer.setScene(controller.scene, GameZOrder.Background);
     }
 
+    public void enableClouds(bool enable) {
+        mEnableClouds = enable;
+        if (mCloudsVisible) {
+            if (enable) {
+                foreach (inout ci; mCloudAnimators) {
+                    ci.anim.active = true;
+                }
+            } else {
+                foreach (inout ci; mCloudAnimators) {
+                    ci.anim.active = false;
+                }
+            }
+        }
+    }
+    public bool enableClouds() {
+        return mEnableClouds;
+    }
+
     private int mTLast;
 
     override void simulate(Time curTime) {
-        if (mEnableClouds) {
+        if (mCloudsVisible && mEnableClouds) {
             int t = curTime.msecs();
             if (mTLast>0) {
                 float deltaT = cast(float)(t-mTLast)/1000.0f;
                 foreach (inout ci; mCloudAnimators) {
-                    ci.x += ci.xspeed*deltaT;
+                    ci.x += (ci.xspeed+mWindSpeed)*deltaT;
                     if (ci.x > controller.scene.thesize.x)
                         ci.x = -ci.animSizex;
                     ci.anim.pos.x = cast(int)ci.x;
@@ -120,7 +140,7 @@ class GameSky : GameObject {
 
     override void kill() {
         mSkyDrawer.active = false;
-        if (mEnableClouds) {
+        if (mCloudsVisible && mEnableClouds) {
             foreach (inout ci; mCloudAnimators) {
                 ci.anim.active = false;
                 ci.anim = null;

@@ -15,6 +15,7 @@ import framework.framework;
 enum GameZOrder {
     Invisible = 0,
     Background,
+    BackLayer,
     BackWater,
     BackWaterWaves1,   //water behind the level
     BackWaterWaves2,
@@ -35,15 +36,15 @@ class GameController {
     Scene scene;
     PhysicWorld physicworld;
     Time currentTime;
-    GameWater mGameWater;
-    GameSky mGameSky;
+    GameWater gameWater;
+    GameSky gameSky;
 
     Vector2i tmp;
 
     package List!(GameObject) mObjects;
 
     private const cSpaceBelowLevel = 80;
-    private const cSpaceAboveOpenLevel = 10;//00;
+    private const cSpaceAboveOpenLevel = 1000;
     private const cOpenLevelWidthMultiplier = 3;
 
     this(Scene gamescene, Level level) {
@@ -86,8 +87,8 @@ class GameController {
 
         mObjects = new List!(GameObject)(GameObject.node.getListNodeOffset());
 
-        mGameWater = new GameWater(this, "blue");
-        mGameSky = new GameSky(this);
+        gameWater = new GameWater(this, "blue");
+        gameSky = new GameSky(this);
     }
 
     void doFrame(Time gametime) {

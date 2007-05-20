@@ -65,6 +65,7 @@
 		<Unit filename="levelgen\renderer.d" />
 		<Unit filename="lumbricus.d" />
 		<Unit filename="utils\configfile.d" />
+		<Unit filename="utils\drawing.d" />
 		<Unit filename="utils\log.d" />
 		<Unit filename="utils\math.d" />
 		<Unit filename="utils\misc.d" />

@@ -7,6 +7,7 @@ import game.glevel;
 import game.common;
 import game.animation;
 import game.scene;
+import utils.misc;
 import utils.time;
 import utils.vector2;
 import utils.configfile;
@@ -49,7 +50,6 @@ class GameWater : GameObject {
     package const cBackLayers = 2;
     package const cFrontLayers = 3;
     package const cWaterLayerDist = 20;
-    private const cLayerOffs = 50;
 
     private WaterDrawer mWaterDrawerFront, mWaterDrawerBack;
     private Animation mWaveAnim;
@@ -59,6 +59,7 @@ class GameWater : GameObject {
     protected uint waterOffs;
     private uint mStoredWaterLevel = uint.max;
     private GameLevel mLevel;
+    private bool mSimpleMode = true;
 
     this(GameController controller, char[] waterType) {
         super(controller);
@@ -72,22 +73,46 @@ class GameWater : GameObject {
         mWaterDrawerBack.setScene(controller.scene, GameZOrder.BackWater);
         try {
             mWaveAnim = new Animation(waterNode.getSubNode("waves"));
-            uint curOffs = 0;
             foreach (int i, inout a; mWaveAnimBack) {
                 a = new HorizontalFullsceneAnimator();
                 a.setAnimation(mWaveAnim);
                 a.setScene(controller.scene, GameZOrder.BackWaterWaves1+i);
-                a.xoffs = curOffs;
-                curOffs += cLayerOffs;
+                a.xoffs = randRange(0,mWaveAnim.size.x);
             }
             foreach (int i, inout a; mWaveAnimFront) {
                 a = new HorizontalFullsceneAnimator();
                 a.setAnimation(mWaveAnim);
                 a.setScene(controller.scene, GameZOrder.FrontWaterWaves1+i);
-                a.xoffs = curOffs;
-                curOffs += cLayerOffs;
+                a.xoffs = randRange(0,mWaveAnim.size.x);
             }
         } catch {};
+        simpleMode(mSimpleMode);
+    }
+
+    public void simpleMode(bool simple) {
+        mSimpleMode = simple;
+        if (simple) {
+            //no background layers, one front layer
+            foreach (inout a; mWaveAnimBack) {
+                a.active = false;
+            }
+            for (int i = 1; i < mWaveAnimFront.length; i++) {
+                mWaveAnimFront[i].active = false;
+            }
+            mWaterDrawerBack.active = false;
+        } else {
+            //all on
+            foreach (inout a; mWaveAnimBack) {
+                a.active = true;
+            }
+            foreach (inout a; mWaveAnimFront) {
+                a.active = true;
+            }
+            mWaterDrawerBack.active = true;
+        }
+    }
+    public bool simpleMode() {
+        return mSimpleMode;
     }
 
     override void simulate(Time curTime) {
