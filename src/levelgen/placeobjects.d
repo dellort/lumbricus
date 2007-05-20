@@ -143,6 +143,8 @@ public class PlaceObjects {
 
             mLog("bridge at %s? %s", pos, bridge[1].mSize/3);
 
+            //bridge segment size now can be less than the size of the bitmap,
+            // but disabled it because it looks worse (?)
             if (tryPlaceBridge(pos, bridge[0].mSize, st, en)) {
                 //only accept if end parts of bridge is inside earth
                 if (!checkCollide(st-bridge[1].mSize.X+bridge[1].mSize.Y/3*2,bridge[1].mSize/3,true))
@@ -155,6 +157,9 @@ public class PlaceObjects {
                 for (int i = 0; i < count; i++) {
                     placeObject(bridge[0], st+i*bridge[0].mSize.X);
                 }
+                //possibly partial last part...
+                uint trail = (en.x1-st.x1+bridge[0].mSize.x) % bridge[0].mSize.x;
+                placeObject(bridge[0], st+count*bridge[0].mSize.X, trail, bridge[0].mSize.y);
                 placeObject(bridge[1], st-bridge[1].mSize.X);
                 placeObject(bridge[2], en);
             }
@@ -201,10 +206,16 @@ public class PlaceObjects {
     }
 
     //render object _under_ the level and adjust level mask
-    public void placeObject(PlaceableObject obj, Vector2i at) {
+    public void placeObject(PlaceableObject obj, Vector2i at,
+        int w = -1, int h = -1)
+    {
         auto pos = at;//at - Vector2i(obj.mWidth, obj.mHeight) / 2;
-        mLevel.drawBitmap(pos.x, pos.y, obj.mPixelData, obj.mPDPitch,
-            obj.mWidth, obj.mHeight, Lexel.FREE, Lexel.LAND);
+        if (w < 0)
+            w = obj.mWidth;
+        if (h < 0)
+            h = obj.mHeight;
+        mLevel.drawBitmap(pos.x, pos.y, obj.mPixelData, obj.mPDPitch, w, h,
+            Lexel.FREE, Lexel.LAND);
     }
 
 }

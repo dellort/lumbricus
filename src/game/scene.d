@@ -8,10 +8,11 @@ import framework.font;
 class Scene {
     alias List!(SceneObject) SOList;
     private SOList mActiveObjects;
+    //all objects that want to receive events
+    private SceneObject[SceneObject] mEventReceiver;
     Vector2i thesize;
 
     //zorder values from 0 to cMaxZorder, last inclusive
-    //NOTE: zorder allocation is in common.d
     //zorder 0 isn't drawn at all
     public final const cMaxZOrder = 15;
 
@@ -21,6 +22,36 @@ class Scene {
         mActiveObjects = new SOList(SceneObject.allobjects.getListNodeOffset());
         foreach (inout list; mActiveObjectsZOrdered) {
             list = new SOList(SceneObject.zorderlist.getListNodeOffset());
+        }
+    }
+}
+
+class EventSink {
+    bool delegate(EventSink sender, KeyInfo key) onKeyDown;
+    bool delegate(EventSink sender, KeyInfo key) onKeyUp;
+    bool delegate(EventSink sender, KeyInfo key) onKeyPress;
+    bool delegate(EventSink sender, MouseInfo mouse) onMouseMove;
+
+    private enum KeyEvent {
+        Down,
+        Up,
+        Press
+    }
+
+    private Vector2i mMousePos;  //see mousePos()
+    private SceneObject mObject; //(mObject.getEventSink() is this) == true
+
+    //last known mouse position, that is inside this "window"
+    Vector2i mousePos() {
+        return mMousePos;
+    }
+
+    private bool callKeyHandler(KeyEvent type, KeyInfo info) {
+        switch (type) {
+            case KeyEvent.Down: return onKeyDown ? onKeyDown(this, info) : false;
+            case KeyEvent.Up: return onKeyUp ? onKeyUp(this, info) : false;
+            case KeyEvent.Press: return onKeyPress ? onKeyPress(this, info) : false;
+            default: assert(false);
         }
     }
 }
@@ -51,6 +82,7 @@ class SceneView : SceneObjectPositioned {
         canvas.setWindow(pos, pos+thesize);
         canvas.translate(-clientoffset);
 
+        //Hint: first element in zorder array is the list of invisible objects
         foreach (list; mClientScene.mActiveObjectsZOrdered[1..$]) {
             foreach (obj; list) {
                 obj.draw(canvas);
@@ -108,12 +140,55 @@ class SceneView : SceneObjectPositioned {
                 offs.y = thesize.y - mClientScene.thesize.y;
         }
     }
+
+    private static bool isInside(SceneObjectPositioned obj, Vector2i pos) {
+        return pos.isInside(obj.pos, obj.thesize);
+    }
+
+    //event handling
+    void doMouseMove(MouseInfo info) {
+        info.pos = toClientCoords(info.pos);
+        foreach (SceneObject so; mClientScene.mEventReceiver) {
+            auto pso = cast(SceneObjectPositioned)so;
+            if (!pso)
+                continue;
+            if (isInside(pso, info.pos)) {
+                //deliver
+                pso.getEventSink().mMousePos = info.pos;
+                if (pso.getEventSink().onMouseMove)
+                    pso.getEventSink().onMouseMove(pso.getEventSink(), info);
+                auto sv = cast(SceneView)pso;
+                if (sv) {
+                    sv.doMouseMove(info);
+                }
+            }
+        }
+    }
+
+    //duplicated from above
+    void doMouseButtons(EventSink.KeyEvent ev, KeyInfo info) {
+        //last mouse position - should be valid (?)
+        auto pos = getEventSink().mousePos;
+        foreach (SceneObject so; mClientScene.mEventReceiver) {
+            auto pso = cast(SceneObjectPositioned)so;
+            if (!pso)
+                continue;
+            if (isInside(pso, pos)) {
+                pso.getEventSink().callKeyHandler(ev, info);
+                auto sv = cast(SceneView)pso;
+                if (sv) {
+                    sv.doMouseButtons(ev, info);
+                }
+            }
+        }
+    }
 }
 
 //(should be a) singleton!
 class Screen {
     private Scene mRootScene;
     private SceneView mRootView;
+    private EventSink mFocus;
 
     Scene rootscene() {
         return mRootScene;
@@ -130,8 +205,40 @@ class Screen {
         mRootView.thesize = size;
     }
 
+    void setSize(Vector2i s) {
+        mRootScene.thesize = s;
+        mRootView.thesize = s;
+    }
+
     void draw(Canvas canvas) {
         mRootView.draw(canvas);
+    }
+
+    void setFocus(SceneObject so) {
+        mFocus = so.getEventSink();
+    }
+
+    private bool doKeyEvent(EventSink.KeyEvent ev, KeyInfo info) {
+        if (info.isMouseButton) {
+            mRootView.doMouseButtons(ev, info);
+        }
+        if (mFocus) {
+            return mFocus.callKeyHandler(ev, info);
+        }
+        return false;
+    }
+    //distribute events to these EventSink things
+    bool putOnKeyDown(KeyInfo info) {
+        return doKeyEvent(EventSink.KeyEvent.Down, info);
+    }
+    bool putOnKeyPress(KeyInfo info) {
+        return doKeyEvent(EventSink.KeyEvent.Press, info);
+    }
+    bool putOnKeyUp(KeyInfo info) {
+        return doKeyEvent(EventSink.KeyEvent.Up, info);
+    }
+    void putOnMouseMove(MouseInfo info) {
+        mRootView.doMouseMove(info);
     }
 }
 
@@ -142,6 +249,20 @@ class SceneObject {
     private Scene mScene;
     private int mZOrder;
     private bool mActive;
+
+    private EventSink mEvents;
+
+    //create on demand, since very view SceneObjects want events...
+    public EventSink getEventSink() {
+        if (!mEvents) {
+            bool tmp = active;
+            active = false;
+            mEvents = new EventSink();
+            mEvents.mObject = this;
+            active = tmp;
+        }
+        return mEvents;
+    }
 
     public Scene scene() {
         return mScene;
@@ -194,9 +315,15 @@ class SceneObject {
         if (set) {
             mScene.mActiveObjectsZOrdered[mZOrder].insert_head(this);
             mScene.mActiveObjects.insert_head(this);
+            if (mEvents) {
+                mScene.mEventReceiver[this] = this;
+            }
         } else {
             mScene.mActiveObjectsZOrdered[mZOrder].remove(this);
             mScene.mActiveObjects.remove(this);
+            if (mEvents) {
+                mScene.mEventReceiver.remove(this);
+            }
         }
 
         mActive = set;

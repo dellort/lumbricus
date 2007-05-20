@@ -783,6 +783,7 @@ public class FrameworkSDL : Framework {
         KeyInfo infos;
         infos.code = sdlToKeycode(sdl.keysym.sym);
         infos.unicode = sdl.keysym.unicode;
+        infos.mods = getModifierSet();
         return infos;
     }
 

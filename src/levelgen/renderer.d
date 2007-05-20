@@ -321,6 +321,15 @@ package class LevelRenderer {
         }
     }
 
+    //same as above, but only draw a sub region of the source bitmap
+    package void drawBitmap(int px, int py, void* data, uint pitch, uint sx,
+        uint sy, uint w, uint h, Lexel before, Lexel after)
+    {
+        //xxx: hm, more clipping to make it robust?
+        void* ndata = data + sy*pitch + sx*uint.sizeof;
+        drawBitmap(px, py, ndata, pitch, w, h, before, after);
+    }
+
     debug {
         public void drawDebugLine(Vector2f from, Vector2f to) {
             Vector2f d = to-from;

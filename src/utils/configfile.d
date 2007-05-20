@@ -115,7 +115,7 @@ public abstract class ConfigItem {
         //not sure if the name should be cleared...
         mName = "";
     }
-    
+
     public void rename(char[] new_name) {
         ConfigNode parent = mParent;
         if (!parent)
@@ -128,7 +128,7 @@ public abstract class ConfigItem {
         mName = new_name;
         parent.doAdd(this);
     }
-    
+
     private void resolveConflict(char[] conflict_name) {
         rename(conflict_name ~ "_deleted");
         assert(mName != conflict_name);
@@ -152,9 +152,9 @@ public class ConfigValue : ConfigItem {
         if (name.length > 0) {
             stream.writeString(" = "c);
         }
-        stream.writeString("\""c);
+        stream.writeString("\"");
         stream.writeString(ConfigFile.doEscape(value));
-        stream.writeString("\""c);
+        stream.writeString("\"");
     }
 
     public ConfigValue clone() {
@@ -352,6 +352,14 @@ public class ConfigNode : ConfigItem {
         val.value = value;
     }
 
+    //alias to getStringValue/setStringValue
+    public char[] opIndex(char[] name) {
+        return getStringValue(name);
+    }
+    public void opIndexAssign(char[] value, char[] name) {
+        setStringValue(name, value);
+    }
+
     //internally used by ConfigFile
     package ConfigValue addValue(char[] name, char[] value, char[] comment) {
         ConfigValue val = findValue(name, true);
@@ -530,7 +538,7 @@ public class ConfigNode : ConfigItem {
             resolveTemplate(node);
         }
     }
-    
+
     public void writeFile(Output stream) {
         //xxx: add method to stream to determine if it's a file... or so
         //stream.writeString(ConfigFile.cUtf8Bom);

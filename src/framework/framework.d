@@ -243,22 +243,6 @@ public class Canvas {
     }
 }
 
-/// Information about a key press
-public struct KeyInfo {
-    Keycode code;
-    /// Fully translated according to system keymap and modifiers
-    dchar unicode = '\0';
-
-    bool isPrintable() {
-        return unicode >= 0x20;
-    }
-}
-
-public struct MouseInfo {
-    Vector2i pos;
-    Vector2i rel;
-}
-
 public enum Modifier {
     Alt,
     Control,
@@ -267,6 +251,44 @@ public enum Modifier {
     //instead, the keyboard driver is supposed to deliver different keycodes
     //for the numpad-keys, when numlock is toggled
     //Numlock,
+}
+
+/// Where mod is a Modifier and modifierset is a ModifierSet:
+/// bool modifier_active = !!((1<<mod) & modifierset)
+/// ("!!" means convert to bool)
+public typedef uint ModifierSet;
+
+public bool modifierIsSet(ModifierSet s, Modifier m) {
+    return !!((1<<m) & s);
+}
+public void modifierSet(inout ModifierSet s, Modifier m) {
+    s |= (1<<m);
+}
+public void foreachSetModifier(ModifierSet s, void delegate(Modifier m) cb) {
+    for (Modifier m = Modifier.min; m <= Modifier.max; m++) {
+        if (modifierIsSet(s, m)) cb(m);
+    }
+}
+
+/// Information about a key press
+public struct KeyInfo {
+    Keycode code;
+    /// Fully translated according to system keymap and modifiers
+    dchar unicode = '\0';
+    /// set of active modifiers when event was fired
+    ModifierSet mods;
+
+    bool isPrintable() {
+        return unicode >= 0x20;
+    }
+    bool isMouseButton() {
+        return code >= cKeycodeMouseStart && code <= cKeycodeMouseEnd;
+    }
+}
+
+public struct MouseInfo {
+    Vector2i pos;
+    Vector2i rel;
 }
 
 /// Contains event- and graphics-handling
@@ -491,14 +513,13 @@ public class Framework {
         }
     }
 
-    public Modifier[] getAllModifiers() {
-        //hm, somewhat inconvenient...
-        Modifier[] ret;
+    public ModifierSet getModifierSet() {
+        ModifierSet mods;
         for (uint n = Modifier.min; n <= Modifier.max; n++) {
             if (getModifierState(cast(Modifier)n))
-                ret ~= cast(Modifier)n;
+                mods |= 1 << n;
         }
-        return ret;
+        return mods;
     }
 
     //called from framework implementation... relies on key repeat
@@ -564,7 +585,7 @@ public class Framework {
 
         //append all modifiers
         for (Modifier mod = Modifier.min; mod <= Modifier.max; mod++) {
-            if (getModifierState(mod)) {
+            if ((1<<mod) & infos.mods) {
                 res ~= str.format(" [%s]", modifierToString(mod));
             }
         }
@@ -646,13 +667,6 @@ public class KeyBindings {
 
     private Entry[Key] mBindings;
 
-    private uint cookmods(Modifier[] mods) {
-        uint ret = 0;
-        foreach (uint index, Modifier m; mods) {
-            ret |= 1 << m;
-        }
-        return ret;
-    }
     private uint countmods(uint mods) {
         uint sum = 0;
         for (int n = Modifier.min; n <= Modifier.max; n++) {
@@ -692,8 +706,19 @@ public class KeyBindings {
         return e1;
     }
 
-    public char[] findBinding(Keycode code, Modifier[] mods) {
-        Entry* e = doFindBinding(code, cookmods(mods));
+    //returns how many modifiers the winning key binding eats up
+    //return -1 if no match
+    public int checkBinding(Keycode code, ModifierSet mods) {
+        Entry* e = doFindBinding(code, mods);
+        if (!e) {
+            return -1;
+        } else {
+            return countmods(e.required_mods);
+        }
+    }
+
+    public char[] findBinding(Keycode code, ModifierSet mods) {
+        Entry* e = doFindBinding(code, mods);
         if (!e) {
             return null;
         } else {
@@ -704,12 +729,12 @@ public class KeyBindings {
     //parse a whitespace separated list of strings into sth. that can be passed
     //to addBinding()
     public bool parseBindString(char[] bindstr, out Keycode out_code,
-        out Modifier[] out_mods)
+        out ModifierSet out_mods)
     {
         foreach (char[] s; str.split(bindstr)) {
             Modifier mod;
             if (gFramework.stringToModifier(s, mod)) {
-                out_mods ~= mod;
+                out_mods |= (1<<mod);
             } else {
                 if (out_code != Keycode.INVALID)
                     return false;
@@ -721,20 +746,21 @@ public class KeyBindings {
         return (out_code != Keycode.INVALID);
     }
     //undo parseBindString, return bindstr
-    public char[] unparseBindString(Keycode code, Modifier[] mods) {
+    public char[] unparseBindString(Keycode code, ModifierSet mods) {
         char[][] stuff;
         stuff = [gFramework.translateKeycodeToKeyID(code)];
-        foreach (Modifier mod; mods) {
-            stuff ~= gFramework.modifierToString(mod);
+        for (Modifier mod = Modifier.min; mod <= Modifier.max; mod++) {
+            if (modifierIsSet(mods, mod))
+                stuff ~= gFramework.modifierToString(mod);
         }
         return str.join(stuff, " ");
     }
 
     /// Add a binding.
-    public bool addBinding(char[] bind_to, Keycode code, Modifier[] mods) {
+    public bool addBinding(char[] bind_to, Keycode code, ModifierSet mods) {
         Key k;
         k.code = code;
-        k.required_mods = cookmods(mods);
+        k.required_mods = mods;
 
         Entry e;
         e.bound_to = bind_to;
@@ -747,7 +773,7 @@ public class KeyBindings {
     /// Add a binding (by string).
     public bool addBinding(char[] bind_to, char[] bindstr) {
         Keycode code;
-        Modifier[] mods;
+        ModifierSet mods;
         if (!parseBindString(bindstr, code, mods))
             return false;
         return addBinding(bind_to, code, mods);
@@ -781,18 +807,13 @@ public class KeyBindings {
     /// Enum all defined bindings.
     /// Caller must not add or remove bindings while enumerating.
     public void enumBindings(void delegate(char[] bind, Keycode code,
-        Modifier[] mods) callback)
+        ModifierSet mods) callback)
     {
         if (!callback)
             return;
 
         foreach (Key k, Entry e; mBindings) {
-            Modifier[] mods;
-            for (int n = Modifier.min; n <= Modifier.max; n++) {
-                if (k.required_mods & (1<<n))
-                    mods ~= cast(Modifier)n;
-            }
-            callback(e.bound_to, k.code, mods);
+            callback(e.bound_to, k.code, cast(ModifierSet)k.required_mods);
         }
     }
 }

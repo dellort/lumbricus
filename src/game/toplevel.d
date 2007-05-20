@@ -81,23 +81,18 @@ class TopLevel {
 
         guiscene = screen.rootscene;
         fpsDisplay = new FontLabel(globals.framework.getFont("fpsfont"));
-        fpsDisplay.scene = guiscene;
-        fpsDisplay.zorder = GUIZOrder.FPS;
-        fpsDisplay.active = true;
+        fpsDisplay.setScene(guiscene, GUIZOrder.FPS);
 
         gamescene = new Scene();
+
         gameview = new SceneView(gamescene);
-        gameview.scene = guiscene; //container!
-        gameview.zorder = GUIZOrder.Game;
-        gameview.active = true;
+        gameview.setScene(guiscene, GUIZOrder.Game); //container!
         //gameview is simply the window that shows the level
         gameview.pos = Vector2i(10, 10);
         gameview.thesize = guiscene.thesize - Vector2i(10, 10)*2;
 
         auto consrender = new CallbackSceneObject();
-        consrender.scene = guiscene;
-        consrender.zorder = GUIZOrder.Console;
-        consrender.active = true;
+        consrender.setScene(guiscene, GUIZOrder.Console);
         consrender.onDraw = &renderConsole;
 
         globals.framework.onFrame = &onFrame;
@@ -109,14 +104,6 @@ class TopLevel {
 
         //do it yourself... (initial event)
         onVideoInit(false);
-
-        //xxx test
-        ConfigNode node = globals.loadConfig("animations");
-        auto sub = node.getSubNode("testani1");
-        Animation ani = new Animation(sub);
-        Animator ar = new Animator();
-        ar.setScene(gamescene, 2);
-        ar.setAnimation(ani);
 
         mWormsAnim = globals.loadConfig("wormsanim");
         mWormsAnimator = new Animator();
@@ -182,6 +169,8 @@ class TopLevel {
 
     private void onVideoInit(bool depth_only) {
         globals.log("Changed video: %s", globals.framework.screen.size);
+        screen.setSize(globals.framework.screen.size);
+        gameview.thesize = guiscene.thesize - Vector2i(10, 10)*2;
     }
 
     private void cmdVideo(CommandLine cmd) {
@@ -226,7 +215,7 @@ class TopLevel {
         //else, list all bindings
         cmd.console.writefln("Bindings:");
         keybindings.enumBindings(
-            (char[] bind, Keycode code, Modifier[] mods) {
+            (char[] bind, Keycode code, ModifierSet mods) {
                 cmd.console.writefln("    %s='%s' ('%s')", bind,
                     keybindings.unparseBindString(code, mods),
                     translateKeyshortcut(code, mods));
@@ -239,15 +228,17 @@ class TopLevel {
     }
 
     //translate into translated user-readable string
-    char[] translateKeyshortcut(Keycode code, Modifier[] mods) {
+    char[] translateKeyshortcut(Keycode code, ModifierSet mods) {
         if (!localizedKeynames)
             return "?";
         char[] res = localizedKeynames(
             globals.framework.translateKeycodeToKeyID(code), "?");
-        foreach (Modifier mod; mods) {
-            res = localizedKeynames(
-                globals.framework.modifierToString(mod), "?") ~ "+" ~ res;
-        }
+        foreachSetModifier(mods,
+            (Modifier mod) {
+                res = localizedKeynames(
+                    globals.framework.modifierToString(mod), "?") ~ "+" ~ res;
+            }
+        );
         return res;
     }
 
@@ -385,7 +376,7 @@ class TopLevel {
             if (globals.framework.isModifierKey(infos.code)) {
                 return false;
             }
-            auto mods = globals.framework.getAllModifiers();
+            auto mods = globals.framework.getModifierSet();
             globals.cmdLine.console.writefln("Key: '%s' '%s'",
                 keybindings.unparseBindString(infos.code, mods),
                 translateKeyshortcut(infos.code, mods));
@@ -399,7 +390,7 @@ class TopLevel {
             mMouseStart = gameview.clientoffset - globals.framework.mousePos;
         }
         char[] bind = keybindings.findBinding(infos.code,
-            globals.framework.getAllModifiers());
+            globals.framework.getModifierSet());
         if (bind) {
             if (mShowKeyDebug) {
                 globals.log("Binding '%s'", bind);
