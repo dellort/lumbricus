@@ -55,6 +55,7 @@ int main(char[][] args)
 
     //init filesystem
     fw.fs.mount(MountPath.data,"locale/","/locale/",false);
+    fw.fs.mount(MountPath.data,"data2/","/",false);
     fw.fs.mount(MountPath.data,"data/","/",false);
     fw.fs.mount(MountPath.user,"/","/",true);
 

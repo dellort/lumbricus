@@ -16,6 +16,9 @@
 					<Add option="-g" />
 					<Add option="-debug" />
 				</Compiler>
+				<Linker>
+					<Add option="-g" />
+				</Linker>
 			</Target>
 			<Target title="Release">
 				<Option output="..\bin\Lumbricus.exe" prefix_auto="0" extension_auto="0" />
