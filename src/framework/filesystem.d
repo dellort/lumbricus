@@ -410,6 +410,15 @@ class FileSystem {
             mMountedPaths ~= MountedPath(mountPoint,currentHandler.mount(absPath),writable);
     }
 
+    ///Try mounting a file/folder and return if the mount succeeded
+    public bool tryMount(MountPath mp, char[] path, char[] mountPoint, bool writable, bool prepend = false) {
+        try {
+            mount(mp, path, mountPoint, writable, prepend);
+            return true;
+        } catch {
+            return false;
+        }
+    }
     ///Create a symbolic link from mountPoint to relPath
     ///relPath cannot be a parent directory of mountPoint
     ///Example:
