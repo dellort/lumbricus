@@ -91,24 +91,28 @@ class GameWater : GameObject {
 
     public void simpleMode(bool simple) {
         mSimpleMode = simple;
-        if (simple) {
-            //no background layers, one front layer
-            foreach (inout a; mWaveAnimBack) {
-                a.active = false;
+        if (mWaveAnim) {
+            if (simple) {
+                //no background layers, one front layer
+                foreach (inout a; mWaveAnimBack) {
+                    a.active = false;
+                }
+                for (int i = 1; i < mWaveAnimFront.length; i++) {
+                    mWaveAnimFront[i].active = false;
+                }
+                mWaterDrawerBack.active = false;
+            } else {
+                //all on
+                foreach (inout a; mWaveAnimBack) {
+                    a.active = true;
+                }
+                foreach (inout a; mWaveAnimFront) {
+                    a.active = true;
+                }
+                mWaterDrawerBack.active = true;
             }
-            for (int i = 1; i < mWaveAnimFront.length; i++) {
-                mWaveAnimFront[i].active = false;
-            }
-            mWaterDrawerBack.active = false;
         } else {
-            //all on
-            foreach (inout a; mWaveAnimBack) {
-                a.active = true;
-            }
-            foreach (inout a; mWaveAnimFront) {
-                a.active = true;
-            }
-            mWaterDrawerBack.active = true;
+            mWaterDrawerBack.active = false;
         }
     }
     public bool simpleMode() {
