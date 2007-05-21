@@ -113,6 +113,8 @@ package class SDLTexture : Texture {
 public class SDLSurface : Surface {
     //mReal: original surface (any pixelformat)
     SDL_Surface* mReal;
+    //if non-null, this contains the surface data (to prevent GCing it)
+    void* mData;
     SDLCanvas mCanvas;
     Transparency mTransp;
     Color mColorkey;
@@ -134,15 +136,7 @@ public class SDLSurface : Surface {
         return Vector2i(mReal.w, mReal.h);
     }
 
-    public bool convertToData(PixelFormat format, out uint pitch,
-        out void* data)
-    {
-        assert(mReal !is null);
-
-        //xxx: as an optimization, avoid double-copying (that is, calling the
-        //  SDL_ConvertSurface() function, if the format is already equal to
-        //  the requested one)
-        SDL_PixelFormat fmt;
+    private void toSDLPixelFmt(PixelFormat format, out SDL_PixelFormat fmt) {
         //according to FreeNode/#SDL, SDL fills the loss/shift by itsself
         fmt.BitsPerPixel = format.depth;
         fmt.BytesPerPixel = format.bytes;
@@ -153,6 +147,18 @@ public class SDLSurface : Surface {
         //xxx: what about fmt.colorkey and fmt.alpha? (can it be ignored here?)
         //should use of the palette be enabled?
         fmt.palette = null;
+    }
+
+    public bool convertToData(PixelFormat format, out uint pitch,
+        out void* data)
+    {
+        assert(mReal !is null);
+
+        //xxx: as an optimization, avoid double-copying (that is, calling the
+        //  SDL_ConvertSurface() function, if the format is already equal to
+        //  the requested one)
+        SDL_PixelFormat fmt;
+        toSDLPixelFmt(format, fmt);
 
         SDL_Surface* s = SDL_ConvertSurface(mReal, &fmt, SDL_SWSURFACE);
         //xxx: error checking: SDL even creates surfaces, if the pixelformat
@@ -176,8 +182,26 @@ public class SDLSurface : Surface {
         return true;
     }
 
-    public void forcePixelFormat(PixelFormat fmt) {
-        assert(false);
+    public void forcePixelFormat(PixelFormat format) {
+        assert(mReal !is null);
+        SDL_PixelFormat fmt;
+        toSDLPixelFmt(format, fmt);
+        SDL_Surface* s = SDL_ConvertSurface(mReal, &fmt, SDL_SWSURFACE);
+        assert(s !is null);
+        //xxx really need to track references to the SDL surface
+        // i.e. using textures which reference to this will crash, omg.
+        free();
+        mReal = s;
+    }
+
+    public void lockPixels(out void* pixels, out uint pitch) {
+        assert(mReal !is null);
+        SDL_LockSurface(mReal);
+        pixels = mReal.pixels;
+        pitch = mReal.pitch;
+    }
+    public void unlockPixels() {
+        SDL_UnlockSurface(mReal);
     }
 
     public void enableColorkey(Color colorkey = cStdColorkey) {
@@ -246,6 +270,7 @@ public class SDLSurface : Surface {
             alloc.length = pitch*h*format.bytes;
             data = alloc.ptr;
         }
+        mData = data;
         //possibly incorrect
         //xxx: cf. SDLSurface(Vector2i) constructor!
         mReal = SDL_CreateRGBSurfaceFrom(data, w, h, format.depth, pitch,
@@ -288,6 +313,7 @@ public class SDLSurface : Surface {
         //xxx: what about the textures hooked to us?
         SDL_FreeSurface(mReal);
         mReal = null;
+        mData = null;
     }
 
     //create a SDLTexture in SDL mode, and a GLTexture in OpenGL mode

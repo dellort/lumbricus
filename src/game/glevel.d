@@ -9,10 +9,12 @@ import std.math : sqrt;
 import game.physic;
 
 //per pixel metadata (cf. level.level.Lexel)
+//collection of flags
+//0 currently means pixel is free
 enum GLexel : ubyte {
-    Free,
-    SolidSoft,
-    SolidHard,
+    Null = 0,
+    SolidSoft = 1, // destroyable ground
+    SolidHard = 2, // undestroyable ground
 }
 
 //collision handling
@@ -43,7 +45,7 @@ class LevelGeometry : PhysicGeometry {
         //this is most likely mathematical incorrect bullsh*t, but works mostly
         //guess how deep the sphere is inside the landscape by dividing the
         //amount of collided pixel by the amount of total pixels in the circle
-        float rx = cast(float)pixelcount / (radius*radius*3.14159);//level.mPixelSum[iradius];
+        float rx = cast(float)pixelcount / (radius*radius*3.14159);
         auto nf = normal * (rx * radius * 2);
 
         //the new hopefully less-colliding sphere center
@@ -77,6 +79,7 @@ class GameLevel {
         mIsCave = level.isCave;
         mWaterLevel = level.waterLevel;
         mImage = level.image;
+        mImage.forcePixelFormat(gFramework.findPixelFormat(DisplayFormat.RGBA32));
         mOffset = at;
         //copy data array (no one knows why)
         mPixels.length = mWidth*mHeight;
@@ -84,7 +87,7 @@ class GameLevel {
         foreach (int n, Lexel x; data) {
             GLexel gl;
             switch (x) {
-                case Lexel.FREE: gl = GLexel.Free; break;
+                case Lexel.FREE: gl = GLexel.Null; break;
                 case Lexel.LAND: gl = GLexel.SolidSoft; break;
                 case Lexel.SOLID_LAND: gl = GLexel.SolidHard; break;
                 default:
@@ -97,7 +100,7 @@ class GameLevel {
         mPhysics.level = this;
     }
 
-    private void doDamage(Vector2i pos, int radius, GLexel newpixel) {
+    private void doDamage(Vector2i pos, int radius) {
         assert(radius >= 0);
         //xxx: see comments for checkAt()... actually it's almost the same code
         auto st = pos - mOffset;
@@ -109,19 +112,65 @@ class GameLevel {
                 int lx = st.x + x;
                 int ly = st.y + y;
                 if (lx >= 0 && lx < mWidth && ly >= 0 && ly < mHeight) {
-                    mPixels[ly*mWidth + lx] = newpixel;
+                    //clear that bit
+                    mPixels[ly*mWidth + lx] &= ~GLexel.SolidSoft;
                 }
+            }
+        }
+    }
+
+    //render a circle using a special color on the surface
+    // blubb = if true, paint on "soft" ground, else paint on free ground
+    void circle_masked(Vector2i pos, int radius, Color color, bool blubb,
+        void* pixels, uint pitch)
+    {
+        assert(radius >= 0);
+        auto st = pos - mOffset;
+        int[] circle = getCircle(radius);
+
+        uint rcolor = colorToRGBA32(color);
+
+        //regarding clipping: could write a clipping- and a non-clipping version
+
+        for (int y = -radius; y <= radius; y++) {
+            int ly = st.y + y;
+            if (ly < 0 || ly >= mHeight)
+                continue;
+            int xoffs = radius - circle[y+radius];
+            int x1 = st.x - xoffs;
+            int x2 = st.x + xoffs + 1;
+            //clipping
+            x1 = x1 < 0 ? 0 : x1;
+            x1 = x1 > mWidth ? mWidth : x1;
+            x2 = x2 < 0 ? 0 : x2;
+            x2 = x2 > mWidth ? mWidth : x2;
+            uint* imgptr = cast(uint*)(pixels+pitch*ly);
+            imgptr += x1;
+            GLexel* meta = mPixels.ptr + mWidth*ly + x1;
+            for (int x = x1; x < x2; x++) {
+                bool set = (((*meta & GLexel.SolidSoft) == 0) ^ blubb)
+                    & !(*meta & GLexel.SolidHard);
+                if (set) {
+                    *imgptr = rcolor;
+                }
+                imgptr++;
+                meta++;
             }
         }
     }
 
     //destroy a part of the landscape
     void damage(Vector2i pos, int radius) {
-        Canvas c = mImage.startDraw();
-        c.drawFilledCircle(pos - mOffset, radius+5, Color(1,1,0));
+        /*Canvas c = mImage.startDraw();
+        c.drawFilledCircle(pos - mOffset, radius+5, Color(0.7,0.7,0));
         c.drawFilledCircle(pos - mOffset, radius, mImage.colorkey());
-        c.endDraw();
-        doDamage(pos, radius, GLexel.Free);
+        c.endDraw();*/
+        doDamage(pos, radius);
+        void* pixels; uint pitch;
+        mImage.lockPixels(pixels, pitch);
+        circle_masked(pos, radius+7, Color(0.5,0.5,0), true, pixels, pitch);
+        circle_masked(pos, radius, mImage.colorkey(), false, pixels, pitch);
+        mImage.unlockPixels();
     }
 
     //calculate normal at that position
@@ -145,7 +194,7 @@ class GameLevel {
                 int ly = st.y + y;
                 bool isset = mIsCave;
                 if (lx >= 0 && lx < mWidth && ly >= 0 && ly < mHeight) {
-                    isset = (mPixels[ly*mWidth + lx] != GLexel.Free);
+                    isset = (mPixels[ly*mWidth + lx] != 0);
                 }
                 if (isset) {
                     dir += Vector2i(x, y);

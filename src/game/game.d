@@ -138,6 +138,8 @@ class LevelObject : SceneObject {
             levelTexture.setCaching(false);
         }
         c.draw(levelTexture, gamelevel.offset);
+        /+
+        //debug code to test collision detection
         Vector2i dir; int pixelcount;
         auto pos = game.tmp;
         auto npos = toVector2f(pos);
@@ -145,6 +147,7 @@ class LevelObject : SceneObject {
             c.drawCircle(pos, 100, Color(0,1,0));
             c.drawCircle(toVector2i(npos), 100, Color(1,1,0));
         }
+        +/
         //xxx draw debug stuff for physics!
         foreach (PhysicObject o; game.physicworld.mObjects) {
             c.drawCircle(toVector2i(o.pos), cast(int)o.radius, Color(1,1,1));

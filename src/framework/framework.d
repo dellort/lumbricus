@@ -116,6 +116,8 @@ public class Surface {
 
     /// hahaha!
     public abstract void forcePixelFormat(PixelFormat fmt);
+    public abstract void lockPixels(out void* pixels, out uint pitch);
+    public abstract void unlockPixels();
 
     /// return colorkey or a 0-alpha black, depending from transparency mode
     public abstract Color colorkey();

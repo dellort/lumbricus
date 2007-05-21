@@ -367,8 +367,11 @@ package class LevelRenderer {
     }
 
     public Level render() {
+        //xxx: set it to alpha, on colorkey, SDL groks up
+        //     ok, it's Colorkey again, since we don't draw onto this surface
+        //     using SDL functions like SDL_FillRect()
         auto mImage = getFramework.createImage(Vector2i(mWidth, mHeight),
-            mWidth*4, fmt, Transparency.Alpha, mImageData.ptr);
+            mWidth*4, fmt, Transparency.Colorkey, mImageData.ptr);
         Level level = new Level(mWidth, mHeight, mImage);
         level.data[] = mLevelData; //?
 
