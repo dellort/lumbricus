@@ -114,6 +114,7 @@ public class Surface {
     /// enable use of the alpha channel
     public abstract void enableAlpha();
 
+    /// return colorkey or a 0-alpha black, depending from transparency mode
     public abstract Color colorkey();
     public abstract Transparency transparency();
 
@@ -173,6 +174,7 @@ public abstract class Texture {
     public abstract Surface getSurface();
     public abstract void clearCache();
     public abstract Vector2i size();
+    public abstract void setCaching(bool state);
 }
 
 /// Draw stuffies!

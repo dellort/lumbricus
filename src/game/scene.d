@@ -156,6 +156,8 @@ class SceneView : SceneObjectPositioned {
     //event handling
     void doMouseMove(MouseInfo info) {
         info.pos = toClientCoords(info.pos);
+        //xxx following line
+        getEventSink().mMousePos = info.pos;
         foreach (SceneObject so; mClientScene.mEventReceiver) {
             auto pso = cast(SceneObjectPositioned)so;
             if (!pso) {

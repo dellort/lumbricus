@@ -97,10 +97,10 @@ class GameLevel {
         mPhysics.level = this;
     }
 
-    void damage(Vector2i pos, int radius, GLexel newpixel = GLexel.Free) {
+    private void doDamage(Vector2i pos, int radius, GLexel newpixel) {
         assert(radius >= 0);
-        //xxx: see comments for normalAt()... actually it's almost the same code
-        auto st = pos + mOffset;
+        //xxx: see comments for checkAt()... actually it's almost the same code
+        auto st = pos - mOffset;
         int[] circle = getCircle(radius);
 
         for (int y = -radius; y <= radius; y++) {
@@ -113,6 +113,15 @@ class GameLevel {
                 }
             }
         }
+    }
+
+    //destroy a part of the landscape
+    void damage(Vector2i pos, int radius) {
+        Canvas c = mImage.startDraw();
+        c.drawFilledCircle(pos - mOffset, radius+5, Color(1,1,0));
+        c.drawFilledCircle(pos - mOffset, radius, mImage.colorkey());
+        c.endDraw();
+        doDamage(pos, radius, GLexel.Free);
     }
 
     //calculate normal at that position

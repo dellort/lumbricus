@@ -10,6 +10,7 @@ import utils.mylist;
 import utils.time;
 import utils.log;
 import framework.framework;
+import framework.keysyms;
 
 //maybe keep in sync with game.Scene.cMaxZOrder
 enum GameZOrder {
@@ -40,6 +41,7 @@ class GameController {
     GameSky gameSky;
 
     Vector2i tmp;
+    EventSink events;
 
     package List!(GameObject) mObjects;
 
@@ -90,11 +92,20 @@ class GameController {
         gameWater = new GameWater(this, "blue");
         gameSky = new GameSky(this);
 
-        levelobject.getEventSink().onMouseMove = &onMouseMove;
+        events = levelobject.getEventSink();
+        events.onMouseMove = &onMouseMove;
+        events.onKeyDown = &onKeyDown;
     }
 
     bool onMouseMove(EventSink sender, MouseInfo info) {
         tmp = info.pos;
+        return true;
+    }
+
+    bool onKeyDown(EventSink sender, KeyInfo info) {
+        if (info.code == Keycode.MOUSE_LEFT) {
+            gamelevel.damage(sender.mousePos, 50);
+        }
         return true;
     }
 
@@ -124,6 +135,7 @@ class LevelObject : SceneObject {
     void draw(Canvas c) {
         if (!levelTexture) {
             levelTexture = gamelevel.image.createTexture();
+            levelTexture.setCaching(false);
         }
         c.draw(levelTexture, gamelevel.offset);
         Vector2i dir; int pixelcount;

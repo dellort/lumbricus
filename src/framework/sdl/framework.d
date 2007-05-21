@@ -43,6 +43,15 @@ package class SDLTexture : Texture {
         }
     }
 
+    public void setCaching(bool state) {
+        releaseCache();
+        if (state) {
+            mCached = null;
+        } else {
+            mCached = mOriginalSurface.mReal;
+        }
+    }
+
     public Vector2i size() {
         return mOriginalSurface.size;
     }
@@ -184,7 +193,12 @@ public class SDLSurface : Surface {
     }
 
     public Color colorkey() {
-        return mColorkey;
+        switch (mTransp) {
+            case Transparency.Alpha:
+                return Color(0, 0, 0, 0);
+            default:
+                return mColorkey;
+        }
     }
 
     public Transparency transparency() {
@@ -400,10 +414,15 @@ public class SDLCanvas : Canvas {
         );
     }
 
+    //xxx: replace by a more serious implementation
     public void drawFilledCircle(Vector2i center, int radius,
         Color color)
     {
-        assert(false);
+        circle(center.x, center.y, radius,
+            (int x1, int x2, int y) {
+                drawFilledRect(Vector2i(x1, y), Vector2i(x2, y+1), color, false);
+            }
+        );
     }
 
     public void drawLine(Vector2i from, Vector2i to, Color color) {

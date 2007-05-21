@@ -38,7 +38,7 @@ class PhysicBase {
 class PhysicObject : PhysicBase {
     private mixin ListNodeMixin objects_node;
 
-    float elasticity = 0.97f; //loss of energy when bumping against a surface
+    float elasticity = 0.9f; //loss of energy when bumping against a surface
     Vector2f pos; //pixels
     float radius = 10; //pixels
     float mass = 10; //in Milli-Worms, 10 Milli-Worms = 1 Worm
@@ -249,6 +249,10 @@ class PhysicWorld {
                 Vector2f npos = me.pos;
                 if (gm.collide(npos, me.radius)) {
                     Vector2f direction = npos - me.pos;
+
+                    //set new position (forgot that d'oh)
+                    me.pos = npos;
+
                     //hm, collide() should return the normal, maybe
                     Vector2f normal = direction.normal;
 
