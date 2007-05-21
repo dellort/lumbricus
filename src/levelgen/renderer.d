@@ -368,7 +368,7 @@ package class LevelRenderer {
 
     public Level render() {
         auto mImage = getFramework.createImage(Vector2i(mWidth, mHeight),
-            mWidth*4, fmt, Transparency.Colorkey, mImageData.ptr);
+            mWidth*4, fmt, Transparency.Alpha, mImageData.ptr);
         Level level = new Level(mWidth, mHeight, mImage);
         level.data[] = mLevelData; //?
 

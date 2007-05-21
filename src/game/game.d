@@ -84,7 +84,7 @@ class GameController {
             toVector2f(levelOffset+worldSize) + Vector2f(1,0)));
 
         auto grav = new ConstantForce();
-        grav.force = Vector2f(0, 10); //what unit is that???
+        grav.force = Vector2f(0, 50); //what unit is that???
         physicworld.add(grav);
 
         mObjects = new List!(GameObject)(GameObject.node.getListNodeOffset());

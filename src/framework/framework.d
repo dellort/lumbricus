@@ -114,6 +114,9 @@ public class Surface {
     /// enable use of the alpha channel
     public abstract void enableAlpha();
 
+    /// hahaha!
+    public abstract void forcePixelFormat(PixelFormat fmt);
+
     /// return colorkey or a 0-alpha black, depending from transparency mode
     public abstract Color colorkey();
     public abstract Transparency transparency();

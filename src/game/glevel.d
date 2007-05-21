@@ -214,3 +214,25 @@ class GameLevel {
         return mPhysics;
     }
 }
+
+/+
+tx = x / w
+ty = y / h
+
+ox = x % w
+oy = y % w
+
+dw=number of tiles
+ts=tile size
+
+tile =ty*dw*ts + tx*ts
+px = tile + oy*w + ox
+
+//amount of bytes per tile-row
+c1=dw*ts
+
+//cy only per scanline
+cy = (y >> 5)*c1 + ((y & 31) << 5)
+//on each pixel
+px=cy + (x >> 5) << 10 + (x & 31)
++/

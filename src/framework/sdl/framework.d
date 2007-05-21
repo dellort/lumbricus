@@ -176,6 +176,10 @@ public class SDLSurface : Surface {
         return true;
     }
 
+    public void forcePixelFormat(PixelFormat fmt) {
+        assert(false);
+    }
+
     public void enableColorkey(Color colorkey = cStdColorkey) {
         assert(mReal);
 
