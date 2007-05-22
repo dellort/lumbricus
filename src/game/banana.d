@@ -25,8 +25,11 @@ class BananaBomb : GameObject {
         graphic.setAnimation(mAnim);
         graphic.setScene(controller.scene, GameZOrder.Objects);
         physics.onUpdate = &physUpdate;
-        physics.onDie = &physDie;
-        physics.lifeTime = 3;
+        if (spawner) {
+            physics.onDie = &physDie;
+            physics.lifeTime = 3;
+        } else
+            physics.onImpact = &physImpact;
         controller.physicworld.add(physics);
     }
 
@@ -39,12 +42,25 @@ class BananaBomb : GameObject {
         graphic.pos = toVector2i(physics.pos) - mAnim.size/2;
     }
 
-    private void physDie() {
+    private void physImpact(PhysicObject other) {
+        if (other is null) {
+            physics.dead = true;
+            graphic.active = false;
+            explode();
+        }
+    }
+
+    private void explode() {
+        controller.gamelevel.damage(toVector2i(physics.pos), 50);
         auto expl = new ExplosiveForce();
-        //expl.impulse = 2000;
-        //expl.radius = 200;
-        //expl.pos = physics.pos;
-        //controller.physicworld.add(expl);
+        expl.impulse = 2000;
+        expl.radius = 200;
+        expl.pos = physics.pos;
+        controller.physicworld.add(expl);
+    }
+
+    private void physDie() {
+        explode();
         if (mSpawner) {
             for (int i = 0; i < 5; i++) {
                 auto b = new BananaBomb(controller, mAnim, false);
