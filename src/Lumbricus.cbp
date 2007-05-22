@@ -51,6 +51,7 @@
 		<Unit filename="framework\sdl\keys.d" />
 		<Unit filename="framework\sdl\rwops.d" />
 		<Unit filename="game\animation.d" />
+		<Unit filename="game\banana.d" />
 		<Unit filename="game\common.d" />
 		<Unit filename="game\game.d" />
 		<Unit filename="game\glevel.d" />

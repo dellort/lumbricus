@@ -7,6 +7,7 @@ import framework.keysyms;
 import game.scene;
 import game.animation;
 import game.game;
+import game.banana;
 import framework.framework;
 import framework.commandline;
 import framework.i18n;
@@ -61,6 +62,8 @@ class TopLevel {
 
     private Time mTimeLast;
     private Time mDeltaT;
+
+    private Animation mBananaAnim;
 
     this() {
         screen = new Screen(globals.framework.screen.size);
@@ -137,6 +140,8 @@ class TopLevel {
 
         globals.cmdLine.registerCommand("editor", &cmdLevelEdit, "hm");
 
+        mBananaAnim = new Animation(globals.loadConfig("banana").getSubNode("anim"));
+
         mTimeLast = globals.framework.getCurrentTime();
     }
 
@@ -182,11 +187,8 @@ class TopLevel {
     }
 
     private void cmdExpl(CommandLine) {
-        auto expl = new ExplosiveForce();
-        expl.impulse = 2000;
-        expl.radius = 200;
-        expl.pos = toVector2f(thegame.tmp);
-        thegame.physicworld.add(expl);
+        auto obj = new BananaBomb(thegame,mBananaAnim);
+        obj.setPos(thegame.tmp);
     }
 
     private void onVideoInit(bool depth_only) {
@@ -418,7 +420,7 @@ class TopLevel {
             if (mShowKeyDebug) {
                 globals.log("Binding '%s'", bind);
             }
-            globals.cmdLine.execute(bind);
+            globals.cmdLine.execute(bind, false);
             return false;
         }
         screen.putOnKeyDown(infos);

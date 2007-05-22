@@ -21,6 +21,8 @@ class PhysicBase {
     private float mLifeTime = float.infinity;
     private float mRemainLifeTime;
 
+    public void delegate() onDie;
+
     //call when object should be notified with doUpdate() after all physics done
     void needUpdate() {
         mNeedUpdate = true;
@@ -38,7 +40,7 @@ class PhysicBase {
         if (onUpdate) {
             onUpdate();
         }
-        //world.mLog("update: %s", this);
+        world.mLog("update: %s", this);
     }
 
     protected void simulate(float deltaT) {
@@ -72,6 +74,8 @@ class PhysicObject : PhysicBase {
 
     //used temporarely during "simulation"
     Vector2f deltav;
+
+    public void delegate(PhysicObject other) onImpact;
 
     //fast check if object can collide with other object
     //(includes reverse check)
@@ -137,10 +141,14 @@ class ExplosiveForce : PhysicForce {
         lifeTime = 0;
     }
 
+    private float cDistDelta = 0.01f;
     Vector2f getAccelFor(PhysicObject o, float deltaT) {
         Vector2f v = (pos-o.pos);
         float dist = v.length;
-        return -v.normal()*(impulse/deltaT)*(max(radius-dist,0f)/radius)/o.mass;
+        if (dist > cDistDelta)
+            return -v.normal()*(impulse/deltaT)*(max(radius-dist,0f)/radius)/o.mass;
+        else
+            return Vector2f(0,0);
     }
 }
 
@@ -288,7 +296,9 @@ class PhysicWorld {
 
                 me.needUpdate();
                 other.needUpdate();
-                //xxx: somehow need to generate an on-collide event!
+
+                if (me.onImpact)
+                    me.onImpact(other);
                 //xxx: also, should it be possible to glue objects here?
             }
         }
@@ -320,7 +330,8 @@ class PhysicWorld {
                     //what about unglue??
                     me.needUpdate();
 
-                    //xxx: on-collide events
+                    if (me.onImpact)
+                        me.onImpact(null);
                     //xxx: glue objects that don't fly fast enough
                 }
             }
@@ -335,6 +346,8 @@ class PhysicWorld {
                 obj.doUpdate();
             }
             if (obj.dead) {
+                if (obj.onDie)
+                    obj.onDie();
                 obj.remove();
             }
             obj = next;

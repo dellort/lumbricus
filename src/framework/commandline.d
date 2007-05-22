@@ -228,24 +228,26 @@ public class CommandLine {
         return str.split(mCurline[mCommandEnd .. $]);
     }
 
-    private void do_execute() {
+    private void do_execute(bool addHistory = true) {
         auto cmd = parseCommand();
 
         if (cmd.length == 0) {
             //nothing, but show some reaction...
             mConsole.print("-");
         } else {
-            //into the history
-            HistoryNode histent = new HistoryNode();
-            histent.stuff = mCurline.dup;
-            mHistory.insert_tail(histent);
-            mHistoryCount++;
+            if (addHistory) {
+                //into the history
+                HistoryNode histent = new HistoryNode();
+                histent.stuff = mCurline.dup;
+                mHistory.insert_tail(histent);
+                mHistoryCount++;
 
-            if (mHistoryCount > MAX_HISTORY_ENTRIES) {
-                mHistory.remove(mHistory.head);
+                if (mHistoryCount > MAX_HISTORY_ENTRIES) {
+                    mHistory.remove(mHistory.head);
+                }
+
+                mCurrentHistoryEntry = null;
             }
-
-            mCurrentHistoryEntry = null;
 
             Command[] throwup;
             auto ccmd = find_command_completions(cmd, throwup);
@@ -266,12 +268,12 @@ public class CommandLine {
     }
 
     /// Execute any command from outside.
-    public void execute(char[] cmd) {
+    public void execute(char[] cmd, bool addHistory = true) {
         //xxx hacky
         mCurline = cmd.dup;
         mCursor = mCurline.length;
         updateCmdline();
-        do_execute();
+        do_execute(addHistory);
     }
 
     private void do_tab_completion() {
