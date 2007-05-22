@@ -158,6 +158,11 @@ class GameLevel {
             for (int x = x1; x < x2; x++) {
                 bool set = ((((*meta & GLexel.SolidSoft) == 0) ^ blubb)
                     & !(*meta & GLexel.SolidHard));
+                /+ same code without if, hehe
+                uint mask = cast(uint)set - 1;
+                uint rcolor = *(srcptr+(x & swl));
+                *dstptr = (*dstptr & mask) | (rcolor & ~mask);
+                +/
                 if (set) {
                     *dstptr = *(srcptr+(x & swl));
                 }

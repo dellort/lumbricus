@@ -325,6 +325,11 @@ class PhysicWorld {
                     //hm, collide() should return the normal, maybe
                     Vector2f normal = direction.normal;
 
+                    //seems to happen in in extreme situations only?
+                    if (normal.isNaN()) {
+                        continue;
+                    }
+
                     //mirror velocity on surface
                     Vector2f proj = normal * (me.velocity * normal);
                     me.velocity -= proj * 2.0f;
