@@ -298,16 +298,19 @@ package class LevelRenderer {
     //draw a bitmap, but also modify the level pixels
     //where "before" is, copy a pixel and set pixe-metadata to "after"
     package void drawBitmap(int px, int py, void* data, uint pitch,
-        uint w, uint h, Lexel before, Lexel after)
+        int w, int h, Lexel before, Lexel after)
     {
         //clip
         int cx1 = max(px, 0);
         int cy1 = max(py, 0);
-        int cx2 = min(mWidth, px+w);  //exclusive
-        int cy2 = min(mHeight, py+h);
+        int cx2 = min(cast(int)mWidth, px+w);  //exclusive
+        int cy2 = min(cast(int)mHeight, py+h);
+        assert(cx2-cx1 <= w);
+        assert(cy2-cy1 <= h);
         for (int y = cy1; y < cy2; y++) {
             //offset to relevant start of source scanline
             uint* src = cast(uint*)(data + pitch*(y-py) + (cx1-px)*uint.sizeof);
+            //uint* src = cast(uint*)(data + pitch*(y-cy1) + (cx1-cx1)*uint.sizeof);
             uint* dst = &mImageData[mWidth*y+cx1];
             Lexel* dst_meta = &mLevelData[mWidth*y+cx1];
             for (int x = cx1; x < cx2; x++) {

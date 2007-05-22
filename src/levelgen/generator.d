@@ -244,6 +244,9 @@ public class LevelGenerator {
         bridge[2] = placer.createObject(readTexture("bridge-r.png", false));
         placer.placeBridges(10,10, bridge);
 
+        auto levelobj = placer.createObject(readTexture("objects/test.png", false));
+        placer.placeObjects(10, 10, levelobj);
+
         auto ret = renderer.render();
         ret.isCave = isCave;
 

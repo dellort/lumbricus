@@ -167,6 +167,42 @@ public class PlaceObjects {
         return bridges;
     }
 
+    //tries to place an object using the try-and-error algorithm
+    public uint placeObjects(uint retry, uint maxobjs, PlaceableObject obj) {
+        uint count = 0;
+        Vector2i line = Vector2i(obj.mWidth/6*4, 2);
+        outer: for (int n = 0; n < retry; n++) {
+            if (count >= maxobjs)
+                break;
+
+            //try to find good place position
+            auto cpos = randPoint();
+
+            while (!checkCollide(cpos, line, true)) {
+                cpos.y += 2;
+                if (cpos.y >= mLevel.mHeight)
+                    continue outer;
+            }
+
+            mLog("???");
+
+            //check if can be placed
+            auto dist = 20;
+            auto pos = Vector2i(cpos.x + line.x/2 - obj.mWidth/2,
+                cpos.y-(obj.mHeight-line.y));
+
+            writefln("to: %s %s", pos, obj.mSize);
+
+            if (checkCollide(pos, obj.mSize - Vector2i(0, dist))) {
+                //yeeha
+                mLog("place at %s", pos);
+                placeObject(obj, pos);
+                count++;
+            }
+        }
+        return count;
+    }
+
     /*bool checkCollide(PlaceableObject obj, Vector2i at, out Vector2i dir,
         out uint collisions)
     {
