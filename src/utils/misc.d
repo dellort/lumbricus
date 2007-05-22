@@ -29,3 +29,17 @@ int randRange(int min, int max) {
     return cast(int)(min + (max-min+1)*genrand_real2());
 }
 
+uint log2(uint value)
+out (res) {
+    assert(value >= (1<<res));
+    assert(value < (1<<(res+1)));
+}
+body {
+    uint res = 33;
+    uint tmp = value;
+    while (tmp) {
+            tmp = tmp << 1;
+            res--;
+    }
+    return res;
+}

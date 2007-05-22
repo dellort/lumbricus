@@ -24,6 +24,12 @@ public class Level {
     private bool mIsCave;     //is this a cave level
     private uint mWaterLevel; //initial water level, in pixels from lower border
 
+    //color of the landscape border where landscape was destroyed
+    package Color mBorderColor;
+    //background image for the level (visible when parts of level destroyed)
+    //can be null!
+    package Surface mBackImage;
+
     public uint width() {
         return mWidth;
     }
@@ -57,6 +63,7 @@ public class Level {
         mWidth = width; mHeight = height; mImage = image;
         mData.length = width*height;
         mPitch = width;
+        mBorderColor = Color(0.6,0.6,0);
     }
 
     public bool isCave() {
@@ -71,5 +78,13 @@ public class Level {
     }
     package void waterLevel(uint wlevel) {
         mWaterLevel = wlevel;
+    }
+
+
+    public Surface backimage() {
+        return mBackImage;
+    }
+    public Color bordercolor() {
+        return mBorderColor;
     }
 }

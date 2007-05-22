@@ -43,7 +43,7 @@ public class LevelGenerator {
 
     private static Surface readTexture(char[] value, bool accept_null) {
         Surface res;
-        if (value == "-") {
+        if (value == "-" || value == "") {
             if (accept_null)
                 return null;
         } else {
@@ -251,6 +251,11 @@ public class LevelGenerator {
         float waterLevel = template_node.getFloatValue("waterlevel");
         //level needs absolute pixel value
         ret.waterLevel = cast(uint)(waterLevel*height);
+
+        ret.mBackImage = readTexture(template_node.getStringValue("background"),
+            true);
+        parseColor(template_node.getStringValue("bordercolor"),
+            ret.mBorderColor);
 
         mLog("done.");
         return ret;

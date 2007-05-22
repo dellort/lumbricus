@@ -4,6 +4,7 @@ import framework.framework;
 import levelgen.level;
 import utils.vector2;
 import utils.log;
+import utils.misc;
 import drawing = utils.drawing;
 import std.math : sqrt;
 import game.physic;
@@ -36,7 +37,7 @@ class LevelGeometry : PhysicGeometry {
         //xxx: ??? collided pixels, but no normal -> stuck?
         int n_len = dir.quad_length();
         if (n_len == 0)
-            return false;
+            return true;
 
         //auto len = sqrt(cast(float)n_len);
         //auto normal = toVector2f(dir) / len;
@@ -66,10 +67,12 @@ class GameLevel {
     //offset of the level bitmap inside the world coordinates
     //i.e. worldcoords = mOffset + levelcoords
     private Vector2i mOffset;
+    private Color mBorderColor;
     //current water level (may rise during game)
     private uint mWaterLevel;
 
     package Surface mImage;
+    private Surface mBackImage;
     private LevelGeometry mPhysics;
 
     this(Level level, Vector2i at) {
@@ -80,6 +83,11 @@ class GameLevel {
         mWaterLevel = level.waterLevel;
         mImage = level.image;
         mImage.forcePixelFormat(gFramework.findPixelFormat(DisplayFormat.RGBA32));
+        mBackImage = level.backimage;
+        if (mBackImage) {
+            mBackImage.forcePixelFormat(gFramework.findPixelFormat(DisplayFormat.RGBA32));
+        }
+        mBorderColor = level.bordercolor;
         mOffset = at;
         //copy data array (no one knows why)
         mPixels.length = mWidth*mHeight;
@@ -121,14 +129,13 @@ class GameLevel {
 
     //render a circle using a special color on the surface
     // blubb = if true, paint on "soft" ground, else paint on free ground
-    void circle_masked(Vector2i pos, int radius, Color color, bool blubb,
-        void* pixels, uint pitch)
+    // swl, shl: source bitmap width and height as bitz mask (!)
+    void circle_masked(Vector2i pos, int radius, bool blubb, void* dst,
+        uint dst_pitch, void* src, uint src_pitch, uint swl, uint shl)
     {
         assert(radius >= 0);
         auto st = pos - mOffset;
         int[] circle = getCircle(radius);
-
-        uint rcolor = colorToRGBA32(color);
 
         //regarding clipping: could write a clipping- and a non-clipping version
 
@@ -144,16 +151,17 @@ class GameLevel {
             x1 = x1 > mWidth ? mWidth : x1;
             x2 = x2 < 0 ? 0 : x2;
             x2 = x2 > mWidth ? mWidth : x2;
-            uint* imgptr = cast(uint*)(pixels+pitch*ly);
-            imgptr += x1;
+            uint* dstptr = cast(uint*)(dst+dst_pitch*ly);
+            uint* srcptr = cast(uint*)(src+src_pitch*(ly & shl));
+            dstptr += x1;
             GLexel* meta = mPixels.ptr + mWidth*ly + x1;
             for (int x = x1; x < x2; x++) {
-                bool set = (((*meta & GLexel.SolidSoft) == 0) ^ blubb)
-                    & !(*meta & GLexel.SolidHard);
+                bool set = ((((*meta & GLexel.SolidSoft) == 0) ^ blubb)
+                    & !(*meta & GLexel.SolidHard));
                 if (set) {
-                    *imgptr = rcolor;
+                    *dstptr = *(srcptr+(x & swl));
                 }
-                imgptr++;
+                dstptr++;
                 meta++;
             }
         }
@@ -161,15 +169,28 @@ class GameLevel {
 
     //destroy a part of the landscape
     void damage(Vector2i pos, int radius) {
-        /*Canvas c = mImage.startDraw();
-        c.drawFilledCircle(pos - mOffset, radius+5, Color(0.7,0.7,0));
-        c.drawFilledCircle(pos - mOffset, radius, mImage.colorkey());
-        c.endDraw();*/
-        doDamage(pos, radius);
         void* pixels; uint pitch;
         mImage.lockPixels(pixels, pitch);
-        circle_masked(pos, radius+7, Color(0.5,0.5,0), true, pixels, pitch);
-        circle_masked(pos, radius, mImage.colorkey(), false, pixels, pitch);
+
+        auto nradius = max(radius-25,0);
+        if (nradius < 30 || !mBackImage) {
+            nradius = radius;
+        } else {
+            void* srcpixels; uint srcpitch;
+            mBackImage.lockPixels(srcpixels, srcpitch);
+            auto bwl = (1<<log2(mBackImage.size.x))-1;
+            auto bhl = (1<<log2(mBackImage.size.y))-1;
+            circle_masked(pos, radius, true, pixels, pitch, srcpixels, srcpitch,
+                bwl, bhl);
+            mBackImage.unlockPixels();
+        }
+
+        doDamage(pos, radius);
+
+        uint col = colorToRGBA32(mBorderColor);
+        circle_masked(pos, radius+7, true, pixels, pitch, &col, 0, 0, 0);
+        col = colorToRGBA32(mImage.colorkey());
+        circle_masked(pos, nradius, false, pixels, pitch, &col, 0, 0, 0);
         mImage.unlockPixels();
     }
 

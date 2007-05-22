@@ -38,7 +38,7 @@ class PhysicBase {
 class PhysicObject : PhysicBase {
     private mixin ListNodeMixin objects_node;
 
-    float elasticity = 0.9f; //loss of energy when bumping against a surface
+    float elasticity = 0.99f; //loss of energy when bumping against a surface
     Vector2f pos; //pixels
     float radius = 10; //pixels
     float mass = 10; //in Milli-Worms, 10 Milli-Worms = 1 Worm

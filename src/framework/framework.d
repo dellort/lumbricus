@@ -826,7 +826,7 @@ public class KeyBindings {
 }
 
 //xxx: move... what about color.d?
-public bool parseColor(char[] s, out Color color) {
+public bool parseColor(char[] s, inout Color color) {
     //predefined colors
     //if you have time, move this into a configfile! :-)
     Color[char[]] colors;
