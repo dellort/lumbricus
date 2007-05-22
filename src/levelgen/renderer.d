@@ -260,10 +260,19 @@ package class LevelRenderer {
                         pline[x] > tmpData[y*mWidth+x])
                     {
                         uint* texel = texptr + x%tex_w;
-                        texel = cast(uint*)(cast(void*)texel +
-                            ((tex_h-pline[x])%tex_h)*tex_pitch);
+                        uint texy = (tex_h-pline[x])%tex_h;
+                        texel = cast(uint*)(cast(void*)texel + texy*tex_pitch);
                         if (is_not_transparent(*texel))
                             *scanline = *texel;
+                        else {
+                            //XXX assumption: parts of the texture that should
+                            //render transparent only take half of the y space
+                            if (texy < tex_h/2) {
+                                //XXX set current pixel transparent
+                                *scanline = 0x00FF00FF;
+                                mLevelData[cur] = Lexel.FREE;
+                            }
+                        }
                     }
 
                     scanline++;
