@@ -184,18 +184,16 @@ public class PlaceObjects {
                     continue outer;
             }
 
-            mLog("???");
-
             //check if can be placed
             auto dist = 20;
             auto pos = Vector2i(cpos.x + line.x/2 - obj.mWidth/2,
                 cpos.y-(obj.mHeight-line.y));
 
-            writefln("to: %s %s", pos, obj.mSize);
+            mLog("try object at %s", pos);
 
             if (checkCollide(pos, obj.mSize - Vector2i(0, dist))) {
                 //yeeha
-                mLog("place at %s", pos);
+                mLog("place object at %s", pos);
                 placeObject(obj, pos);
                 count++;
             }
