@@ -77,15 +77,16 @@ class GameSky : GameObject {
         Texture skyTex = bmp.createTexture();
         bmp = controller.level.skyBackdrop;
         Texture skyBackdrop = null;
-        if (bmp)
+        if (bmp) {
             skyBackdrop = bmp.createTexture();
+            skyBackdropOffset = controller.gamelevel.offset.y+controller.gamelevel.height-controller.gamelevel.waterLevel-skyBackdrop.size.y;
+        }
 
         skyOffset = controller.gamelevel.offset.y+controller.gamelevel.height-skyTex.size.y;
         if (skyOffset > 0)
             mCloudsVisible = true;
         else
             mCloudsVisible = false;
-        skyBackdropOffset = controller.gamelevel.offset.y+controller.gamelevel.height-controller.gamelevel.waterLevel-skyBackdrop.size.y;
 
         if (mCloudsVisible) {
             try {
