@@ -172,7 +172,7 @@ class GameLevel {
         void* pixels; uint pitch;
         mImage.lockPixels(pixels, pitch);
 
-        auto nradius = max(radius-25,0);
+        auto nradius = max(radius-20,0);
 
         void* srcpixels; uint srcpitch;
         mBackImage.lockPixels(srcpixels, srcpitch);

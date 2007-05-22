@@ -36,6 +36,7 @@ class TestAnimatedGameObject : GameObject {
     this(GameController controller) {
         super(controller);
         physics = new PhysicObject();
+        physics.mass = 1;
         graphic = new Animator();
         //graphic.setAnimation(new Animation(globals.loadConfig("animations").getSubNode("testani1")));
         //graphic.setScene(controller.scene, GameZOrder.Objects);
