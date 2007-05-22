@@ -173,24 +173,24 @@ class GameLevel {
         mImage.lockPixels(pixels, pitch);
 
         auto nradius = max(radius-25,0);
-        if (nradius < 30 || !mBackImage) {
-            nradius = radius;
-        } else {
-            void* srcpixels; uint srcpitch;
-            mBackImage.lockPixels(srcpixels, srcpitch);
-            auto bwl = (1<<log2(mBackImage.size.x))-1;
-            auto bhl = (1<<log2(mBackImage.size.y))-1;
-            circle_masked(pos, radius, true, pixels, pitch, srcpixels, srcpitch,
-                bwl, bhl);
-            mBackImage.unlockPixels();
-        }
+
+        void* srcpixels; uint srcpitch;
+        mBackImage.lockPixels(srcpixels, srcpitch);
+        auto bwl = (1<<log2(mBackImage.size.x))-1;
+        auto bhl = (1<<log2(mBackImage.size.y))-1;
+        circle_masked(pos, radius, true, pixels, pitch, srcpixels, srcpitch,
+            bwl, bhl);
+        mBackImage.unlockPixels();
 
         doDamage(pos, radius);
 
         uint col = colorToRGBA32(mBorderColor);
         circle_masked(pos, radius+7, true, pixels, pitch, &col, 0, 0, 0);
-        col = colorToRGBA32(mImage.colorkey());
-        circle_masked(pos, nradius, false, pixels, pitch, &col, 0, 0, 0);
+
+        if (nradius > 0) {
+            col = colorToRGBA32(mImage.colorkey());
+            circle_masked(pos, nradius, false, pixels, pitch, &col, 0, 0, 0);
+        }
         mImage.unlockPixels();
     }
 
