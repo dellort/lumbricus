@@ -129,6 +129,7 @@ class TopLevel {
         globals.cmdLine.registerCommand("fullscreen", &cmdFS, "toggle fs");
         globals.cmdLine.registerCommand("scroll", &cmdScroll, "enter scroll mode");
         globals.cmdLine.registerCommand("phys", &cmdPhys, "test123");
+        globals.cmdLine.registerCommand("expl", &cmdExpl, "BOOM! HAHAHAHA");
         globals.cmdLine.registerCommand("pause", &cmdPause, "pause");
         globals.cmdLine.registerCommand("loadanim", &cmdLoadAnim, "load worms animation");
         globals.cmdLine.registerCommand("clouds", &cmdClouds, "enable/disable animated clouds");
@@ -178,6 +179,14 @@ class TopLevel {
     private void cmdPhys(CommandLine) {
         auto obj = new TestAnimatedGameObject(thegame);
         obj.setPos(thegame.tmp);
+    }
+
+    private void cmdExpl(CommandLine) {
+        auto expl = new ExplosiveForce();
+        expl.impulse = 2000;
+        expl.radius = 200;
+        expl.pos = toVector2f(thegame.tmp);
+        thegame.physicworld.add(expl);
     }
 
     private void onVideoInit(bool depth_only) {

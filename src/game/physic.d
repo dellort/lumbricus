@@ -1,5 +1,6 @@
 module game.physic;
 import game.common;
+import utils.misc;
 import utils.mylist;
 import utils.time;
 import utils.vector2;
@@ -14,10 +15,20 @@ class PhysicBase {
     //private bool mNeedSimulation;
     private bool mNeedUpdate;
     PhysicWorld world;
+    //set to remove object after simulation
+    bool dead = false;
+    //in seconds
+    private float mLifeTime = float.infinity;
+    private float mRemainLifeTime;
 
     //call when object should be notified with doUpdate() after all physics done
     void needUpdate() {
         mNeedUpdate = true;
+    }
+
+    void lifeTime(float secs) {
+        mLifeTime = secs;
+        mRemainLifeTime = secs;
     }
 
     void delegate() onUpdate;
@@ -27,10 +38,21 @@ class PhysicBase {
         if (onUpdate) {
             onUpdate();
         }
-        world.mLog("update: %s", this);
+        //world.mLog("update: %s", this);
     }
 
     protected void simulate(float deltaT) {
+        if (mLifeTime != float.infinity) {
+            mRemainLifeTime -= deltaT;
+            if (mRemainLifeTime <= 0) {
+                dead = true;
+            }
+        }
+    }
+
+    public void remove() {
+        //allobjects_node.removeFromList();
+        world.mAllObjects.remove(this);
     }
 }
 
@@ -49,7 +71,7 @@ class PhysicObject : PhysicBase {
     float glueForce = 0; //force required to move a glued worm away
 
     //used temporarely during "simulation"
-    Vector2f force;
+    Vector2f deltav;
 
     //fast check if object can collide with other object
     //(includes reverse check)
@@ -59,21 +81,26 @@ class PhysicObject : PhysicBase {
 
     this() {
         velocity = Vector2f(0, 0);
-        force = Vector2f(0, 0);
+        deltav = Vector2f(0, 0);
     }
 
     //look if the worm can't adhere to the rock surface anymore
     private void checkUnglue(bool forceit = false) {
-        if ((isGlued && force.length < glueForce) && !forceit)
+        if ((isGlued && deltav.length < glueForce) && !forceit)
             return;
         //he flies away! arrrgh!
-        velocity += force;
-        force = Vector2f(0, 0);
+        velocity += deltav;
+        deltav = Vector2f(0, 0);
         needUpdate();
     }
 
     char[] toString() {
         return str.format("%s: %s %s", toHash(), pos, velocity);
+    }
+
+    public void remove() {
+        super.remove();
+        objects_node.removeFromList();
     }
 }
 
@@ -82,16 +109,38 @@ class PhysicObject : PhysicBase {
 class PhysicForce : PhysicBase {
     private mixin ListNodeMixin forces_node;
 
-    abstract Vector2f getForceFor(PhysicObject o);
+    abstract Vector2f getAccelFor(PhysicObject o, float deltaT);
+
+    public void remove() {
+        super.remove();
+        //forces_node.removeFromList();
+        world.mForceObjects.remove(this);
+    }
 }
 
 class ConstantForce : PhysicForce {
     //directed force, in Wormtons
     //(1 Wormton = 10 Milli-Worms * 1 Pixel / Seconds^2 [F=ma])
-    Vector2f force;
+    Vector2f accel;
 
-    Vector2f getForceFor(PhysicObject) {
-        return force;
+    Vector2f getAccelFor(PhysicObject, float deltaT) {
+        return accel;
+    }
+}
+
+class ExplosiveForce : PhysicForce {
+    float impulse, radius;
+    Vector2f pos;
+
+    this() {
+        //one time
+        lifeTime = 0;
+    }
+
+    Vector2f getAccelFor(PhysicObject o, float deltaT) {
+        Vector2f v = (pos-o.pos);
+        float dist = v.length;
+        return -v.normal()*(impulse/deltaT)*(max(radius-dist,0f)/radius)/o.mass;
     }
 }
 
@@ -159,21 +208,26 @@ class PhysicWorld {
         mAllObjects.insert_tail(bobj);
     }
 
+    private const cPhysTimeStepMs = 10;
+
     public void simulate(Time currentTime) {
         uint ms = currentTime.msecs();
-        uint deltaTs = ms - mLastTime;
-        mLastTime = ms;
-        float deltaT = cast(float)deltaTs / 1000.0f;
+        while (mLastTime + cPhysTimeStepMs < ms) {
+            mLastTime += cPhysTimeStepMs;
+            doSimulate(cast(float)cPhysTimeStepMs/1000.0f);
+        }
+    }
 
+    private void doSimulate(float deltaT) {
         foreach (PhysicBase b; mAllObjects) {
             b.simulate(deltaT);
         }
 
         //apply forces
         foreach (PhysicObject o; mObjects) {
-            o.force = Vector2f(0, 0);
+            o.deltav = Vector2f(0, 0);
             foreach (PhysicForce f; mForceObjects) {
-                o.force += f.getForceFor(o) * deltaT;
+                o.deltav += f.getAccelFor(o, deltaT) * deltaT;
             }
             //adds the force to the velocity
             o.checkUnglue();
@@ -273,11 +327,17 @@ class PhysicWorld {
         }
 
         //do updates
-        foreach (PhysicBase obj; mAllObjects) {
+        PhysicBase obj = mAllObjects.head();
+        while (obj) {
+            auto next = mAllObjects.next(obj);
             if (obj.mNeedUpdate) {
                 obj.mNeedUpdate = false;
                 obj.doUpdate();
             }
+            if (obj.dead) {
+                obj.remove();
+            }
+            obj = next;
         }
     }
 
