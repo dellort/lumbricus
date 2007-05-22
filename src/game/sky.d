@@ -16,11 +16,13 @@ class SkyDrawer : SceneObject {
     private GameSky mParent;
     private Color mSkyColor;
     private Texture mSkyTex;
+    private Texture mSkyBackdrop;
 
-    this(GameSky parent, Color skyColor, Texture skyTex) {
+    this(GameSky parent, Color skyColor, Texture skyTex, Texture skyBackdrop) {
         mParent = parent;
         mSkyColor = skyColor;
         mSkyTex = skyTex;
+        mSkyBackdrop = skyBackdrop;
     }
 
     void draw(Canvas canvas) {
@@ -30,12 +32,17 @@ class SkyDrawer : SceneObject {
         if (mParent.skyOffset > 0)
             canvas.drawFilledRect(Vector2i(0, 0),
                 Vector2i(scene.thesize.x, mParent.skyOffset), mSkyColor);
+        if (mSkyBackdrop) {
+            for (int x = 0; x < scene.thesize.x; x += mSkyBackdrop.size.x) {
+                canvas.draw(mSkyBackdrop, Vector2i(x, mParent.skyBackdropOffset));
+            }
+        }
     }
 }
 
 class GameSky : GameObject {
     private SkyDrawer mSkyDrawer;
-    protected int skyOffset;
+    protected int skyOffset, skyBackdropOffset;
     private Animation[] mCloudAnims;
     private bool mEnableClouds = true;
     private bool mCloudsVisible;
@@ -68,12 +75,17 @@ class GameSky : GameObject {
                 throw new Exception("Failed to load gradient bitmap");
         }
         Texture skyTex = bmp.createTexture();
+        bmp = controller.level.skyBackdrop;
+        Texture skyBackdrop = null;
+        if (bmp)
+            skyBackdrop = bmp.createTexture();
 
         skyOffset = controller.gamelevel.offset.y+controller.gamelevel.height-skyTex.size.y;
         if (skyOffset > 0)
             mCloudsVisible = true;
         else
             mCloudsVisible = false;
+        skyBackdropOffset = controller.gamelevel.offset.y+controller.gamelevel.height-controller.gamelevel.waterLevel-skyBackdrop.size.y;
 
         if (mCloudsVisible) {
             try {
@@ -100,7 +112,7 @@ class GameSky : GameObject {
             }
         }
 
-        mSkyDrawer = new SkyDrawer(this, skyColor, skyTex);
+        mSkyDrawer = new SkyDrawer(this, skyColor, skyTex, skyBackdrop);
         mSkyDrawer.setScene(controller.scene, GameZOrder.Background);
     }
 

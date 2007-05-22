@@ -276,8 +276,13 @@ public class LevelGenerator {
         ret.isCave = isCave;
 
         ConfigNode skyNode = gfxNode.getSubNode("sky");
-        ret.skyGradient = readTexture(gfxPath ~ skyNode.getStringValue("gradient"), true);
+        char[] skyGradientTex = skyNode.getStringValue("gradient");
+        if (skyGradientTex.length > 0)
+            ret.skyGradient = readTexture(gfxPath ~ skyGradientTex, true);
         parseColor(skyNode.getStringValue("skycolor"),ret.skyColor);
+        char[] skyBackTex = skyNode.getStringValue("backdrop");
+        if (skyBackTex.length > 0)
+            ret.skyBackdrop = readTexture(gfxPath ~ skyBackTex, true);
 
         //water level from bottom, relative value
         float waterLevel = template_node.getFloatValue("waterlevel");

@@ -32,6 +32,7 @@ public class Level {
     package Surface mBackImage;
 
     Surface skyGradient;
+    Surface skyBackdrop;
     Color skyColor;
 
     public uint width() {
