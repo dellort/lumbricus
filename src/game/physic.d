@@ -275,6 +275,11 @@ class PhysicWorld {
                 float gap = mindist - dist;
                 Vector2f nd = d / dist;
 
+                if (nd.isNaN()) {
+                    //NaN? maybe because dist was 0
+                    nd = Vector2f(0);
+                }
+
                 //assert(fabs(nd.length()-1.0f) < 0.001);
 
                 me.pos -= nd * (0.5f * gap);

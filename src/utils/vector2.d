@@ -27,6 +27,11 @@ public struct Vector2(T) {
         return Vector2(0,x2);
     }
 
+    //for floats only
+    bool isNaN() {
+         return x != x || y != y;
+    }
+
     public Vector2 opAdd(Vector2 v) {
         return Vector2(x1+v.x1, x2+v.x2);
     }
