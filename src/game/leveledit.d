@@ -557,7 +557,6 @@ public class LevelEditor {
         ConfigNode rootnode = new ConfigNode();
         auto sub = rootnode.getSubNode("templates").getSubNode("");
         sub["is_cave"] = "true";
-        sub["texture"] = "texsoil.bmp";
         sub["marker"] = "LAND";
         auto polies = sub.getSubNode("polygons");
         const WIDTH = 1900;
@@ -567,7 +566,6 @@ public class LevelEditor {
                 continue;
             EditPolygon p = cast(EditPolygon)o;
             auto curpoly = polies.getSubNode(""); //create new unnamed node
-            curpoly["texture"] = "-";
             curpoly["marker"] = "FREE";
             auto points = curpoly.getSubNode("points");
             Vector2i[] pts = p.getPoints();
@@ -578,7 +576,7 @@ public class LevelEditor {
         }
         auto generator = new LevelGenerator();
         generator.config = rootnode;
-        Level level = generator.generateRandom(WIDTH, HEIGHT, "");
+        Level level = generator.generateRandom(WIDTH, HEIGHT, "", "gpl");
         if (level)
             mPreviewImage = level.image.createTexture();
     }

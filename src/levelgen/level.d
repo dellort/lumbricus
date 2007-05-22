@@ -1,6 +1,7 @@
 module levelgen.level;
 
 import framework.framework;
+import utils.configfile;
 
 //LEvel ELement
 //sorry for that stupid type name
@@ -29,6 +30,9 @@ public class Level {
     //background image for the level (visible when parts of level destroyed)
     //can be null!
     package Surface mBackImage;
+
+    Surface skyGradient;
+    Color skyColor;
 
     public uint width() {
         return mWidth;

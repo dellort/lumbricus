@@ -4,6 +4,7 @@ import levelgen.level;
 import levelgen.renderer;
 import levelgen.genrandom : GenRandomLevel;
 import levelgen.placeobjects;
+import game.common;
 import framework.framework;
 import utils.configfile : ConfigNode;
 import utils.vector2;
@@ -128,14 +129,14 @@ public class LevelGenerator {
     }
 
     private Level generateRandom(uint width, uint height,
-        ConfigNode template_node)
+        ConfigNode template_node, ConfigNode gfxNode, char[] gfxPath)
     {
         Surface loadBorderTex(ConfigNode texNode)
         {
             Surface tex;
             char[] tex_name = texNode.getStringValue("texture");
             if (tex_name.length > 0) {
-                tex = readTexture(tex_name, false);
+                tex = readTexture(gfxPath ~ tex_name, false);
             } else {
                 //sucky color-border hack
                 int height = texNode.getIntValue("height", 1);
@@ -150,13 +151,32 @@ public class LevelGenerator {
             return tex;
         }
 
+        ConfigNode gfxTexNode = gfxNode.getSubNode("marker_textures");
+
+        Surface readMarkerTex(char[] markerId, bool accept_null) {
+            Surface res;
+            char[] texFile = gfxTexNode.getStringValue(markerId);
+            if (texFile == "-" || texFile == "") {
+                if (accept_null)
+                    return null;
+            } else {
+                Stream s = gFramework.fs.open(gfxPath ~ texFile);
+                res = getFramework.loadImage(s, Transparency.Colorkey);
+                s.close();
+            }
+            if (res is null) {
+                throw new Exception("couldn't load texture for marker: "~markerId);
+            }
+            return res;
+        }
+
         auto gen = new GenRandomLevel(width, height);
 
         bool isCave = template_node.getBoolValue("is_cave");
         if (isCave) {
-            auto tex = readTexture(template_node.getStringValue("texture"),
-                false);
-            auto marker = parseMarker(template_node.getStringValue("marker"));
+            char[] markerId = template_node.getStringValue("marker");
+            auto marker = parseMarker(markerId);
+            auto tex = readMarkerTex(markerId, false);
             gen.setAsCave(tex, marker);
         }
 
@@ -173,8 +193,9 @@ public class LevelGenerator {
             }
 
             uint[] nosubdiv = readUIntList(polygon.getSubNode("nochange"));
-            auto tex = readTexture(polygon.getStringValue("texture"), true);
-            auto marker = parseMarker(polygon.getStringValue("marker"));
+            char[] markerId = polygon.getStringValue("marker");
+            auto marker = parseMarker(markerId);
+            auto tex = readMarkerTex(markerId, true);
             auto visible = polygon.getBoolValue("visible", true);
             auto changeable = polygon.getBoolValue("changeable", true);
 
@@ -202,7 +223,7 @@ public class LevelGenerator {
         gen.preRender(renderer);
 
         //the least important part is the longest
-        ConfigNode borders = template_node.getSubNode("borders");
+        ConfigNode borders = gfxNode.getSubNode("borders");
         foreach(char[] name, ConfigNode border; borders) {
             auto marker_a = parseMarker(border.getStringValue("marker_a"));
             auto marker_b = parseMarker(border.getStringValue("marker_b"));
@@ -237,27 +258,35 @@ public class LevelGenerator {
 
         mLog("placing objects");
 
+        ConfigNode bridgeNode = gfxNode.getSubNode("bridge");
         PlaceableObject[3] bridge;
         auto placer = new PlaceObjects(mLog, renderer);
-        bridge[0] = placer.createObject(readTexture("bridge.png", false));
-        bridge[1] = placer.createObject(readTexture("bridge-l.png", false));
-        bridge[2] = placer.createObject(readTexture("bridge-r.png", false));
+        bridge[0] = placer.createObject(readTexture(gfxPath ~ bridgeNode.getStringValue("segment"), false));
+        bridge[1] = placer.createObject(readTexture(gfxPath ~ bridgeNode.getStringValue("left"), false));
+        bridge[2] = placer.createObject(readTexture(gfxPath ~ bridgeNode.getStringValue("right"), false));
         placer.placeBridges(10,10, bridge);
 
-        auto levelobj = placer.createObject(readTexture("objects/test.png", false));
-        placer.placeObjects(10, 10, levelobj);
+        ConfigNode objectsNode = gfxNode.getSubNode("objects");
+        foreach (char[] id, ConfigNode onode; objectsNode) {
+            auto levelobj = placer.createObject(readTexture(gfxPath ~ onode.getStringValue("image"), false));
+            placer.placeObjects(10, 2, levelobj);
+        }
 
         auto ret = renderer.render();
         ret.isCave = isCave;
+
+        ConfigNode skyNode = gfxNode.getSubNode("sky");
+        ret.skyGradient = readTexture(gfxPath ~ skyNode.getStringValue("gradient"), true);
+        parseColor(skyNode.getStringValue("skycolor"),ret.skyColor);
 
         //water level from bottom, relative value
         float waterLevel = template_node.getFloatValue("waterlevel");
         //level needs absolute pixel value
         ret.waterLevel = cast(uint)(waterLevel*height);
 
-        ret.mBackImage = readTexture(template_node.getStringValue("background"),
+        ret.mBackImage = readTexture(gfxPath ~ gfxNode.getStringValue("soil_tex"),
             true);
-        parseColor(template_node.getStringValue("bordercolor"),
+        parseColor(gfxNode.getStringValue("bordercolor"),
             ret.mBorderColor);
 
         mLog("done.");
@@ -265,8 +294,14 @@ public class LevelGenerator {
     }
 
     /// generate a random level based on a template
-    public Level generateRandom(uint width, uint height, char[] templatename) {
+    public Level generateRandom(uint width, uint height, char[] templatename,
+        char[] gfxSet)
+    {
         mLog("template '%s', %dx%d", templatename, width, height);
+
+        //open graphics set
+        char[] gfxPath = "/level/" ~ gfxSet ~ "/";
+        ConfigNode gfxNode = globals.loadConfig(gfxPath ~ "level");
 
         //search template
         ConfigNode templates = mConfig.getSubNode("templates");
@@ -276,7 +311,7 @@ public class LevelGenerator {
             if (templatename.length > 0 &&
                 template_node.getStringValue("name", "") == templatename)
             {
-                return generateRandom(width, height, template_node);
+                return generateRandom(width, height, template_node, gfxNode, gfxPath);
             }
             count++;
         }
@@ -292,7 +327,7 @@ public class LevelGenerator {
             if (pick == 0) {
                 mLog("picked random template: '%s'", template_node
                     .getStringValue("name"));
-                return generateRandom(width, height, template_node);
+                return generateRandom(width, height, template_node, gfxNode, gfxPath);
             }
             pick--;
         }

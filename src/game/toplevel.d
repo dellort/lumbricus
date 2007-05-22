@@ -65,6 +65,8 @@ class TopLevel {
 
     private Animation mBananaAnim;
 
+    private char[] mGfxSet = "gpl";
+
     this() {
         screen = new Screen(globals.framework.screen.size);
 
@@ -140,9 +142,18 @@ class TopLevel {
 
         globals.cmdLine.registerCommand("editor", &cmdLevelEdit, "hm");
 
+        globals.cmdLine.registerCommand("gfxset", &cmdGfxSet, "Set level graphics style");
+
         mBananaAnim = new Animation(globals.loadConfig("banana").getSubNode("anim"));
 
         mTimeLast = globals.framework.getCurrentTime();
+    }
+
+    private void cmdGfxSet(CommandLine cmd) {
+        char[][] sargs = cmd.parseArgs();
+        if (sargs.length < 1)
+            return;
+        mGfxSet = sargs[0];
     }
 
     private void cmdLevelEdit(CommandLine cmd) {
@@ -352,7 +363,7 @@ class TopLevel {
         }
         auto x = new genlevel.LevelGenerator();
         x.config = globals.loadConfig("levelgen").getSubNode("levelgen");
-        auto level = x.generateRandom(1920, 696, "");
+        auto level = x.generateRandom(1920, 696, "", mGfxSet);
         thegame = new GameController(gamescene, level);
         gameStartTime = globals.gameTime;
     }

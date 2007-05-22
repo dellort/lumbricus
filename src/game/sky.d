@@ -59,12 +59,14 @@ class GameSky : GameObject {
     this(GameController controller) {
         super(controller);
         ConfigNode skyNode = globals.loadConfig("sky");
-        Color skyColor;
-        parseColor(skyNode.getStringValue("skycolor"),skyColor);
+        Color skyColor = controller.level.skyColor;
 
-        Surface bmp = globals.loadGraphic(skyNode.getStringValue("gradient"));
-        if (!bmp)
-            throw new Exception("Failed to load animation bitmap");
+        Surface bmp = controller.level.skyGradient;
+        if (!bmp) {
+            bmp = globals.loadGraphic(skyNode.getStringValue("gradient"));
+            if (!bmp)
+                throw new Exception("Failed to load gradient bitmap");
+        }
         Texture skyTex = bmp.createTexture();
 
         skyOffset = controller.gamelevel.offset.y+controller.gamelevel.height-skyTex.size.y;

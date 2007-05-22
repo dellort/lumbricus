@@ -35,11 +35,11 @@ out (res) {
     assert(value < (1<<(res+1)));
 }
 body {
-    uint res = 33;
+    uint res = uint.max;
     uint tmp = value;
     while (tmp) {
-            tmp = tmp << 1;
-            res--;
+            tmp >>= 1;
+            res++;
     }
     return res;
 }
