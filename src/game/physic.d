@@ -40,7 +40,7 @@ class PhysicBase {
         if (onUpdate) {
             onUpdate();
         }
-        world.mLog("update: %s", this);
+        //world.mLog("update: %s", this);
     }
 
     protected void simulate(float deltaT) {
@@ -75,6 +75,11 @@ class PhysicObject : PhysicBase {
     //used temporarely during "simulation"
     Vector2f deltav;
 
+    //direction when flying etc., just rotation of the object
+    float rotation;
+    //last known angle to ground
+    float ground_angle;
+
     public void delegate(PhysicObject other) onImpact;
 
     //fast check if object can collide with other object
@@ -96,6 +101,16 @@ class PhysicObject : PhysicBase {
         velocity += deltav;
         deltav = Vector2f(0, 0);
         needUpdate();
+    }
+
+    //set rotation
+    private void checkRotation() {
+        auto len = velocity.length;
+        //xxx insert a well chosen value here
+        //intention is that changes must be big enough to change worm direction
+        if (len > 0.001) {
+            rotation = (velocity/len).toAngle();
+        }
     }
 
     char[] toString() {
@@ -241,6 +256,7 @@ class PhysicWorld {
             o.checkUnglue();
             if (!o.isGlued) {
                 o.pos += o.velocity * deltaT;
+                o.checkRotation();
             }
         }
 
@@ -302,6 +318,8 @@ class PhysicWorld {
                 me.needUpdate();
                 other.needUpdate();
 
+                me.checkRotation();
+
                 if (me.onImpact)
                     me.onImpact(other);
                 //xxx: also, should it be possible to glue objects here?
@@ -311,16 +329,16 @@ class PhysicWorld {
         //check against geometry
         foreach (PhysicObject me; mObjects) {
             //no need to check then? (maybe)
+            //xxx if landscape changed => need to check
             if (me.isGlued)
                 continue;
+
+            Vector2f normalsum = Vector2f(0);
 
             foreach (PhysicGeometry gm; mGeometryObjects) {
                 Vector2f npos = me.pos;
                 if (gm.collide(npos, me.radius)) {
                     Vector2f direction = npos - me.pos;
-
-                    //set new position (forgot that d'oh)
-                    me.pos = npos;
 
                     //hm, collide() should return the normal, maybe
                     Vector2f normal = direction.normal;
@@ -330,20 +348,41 @@ class PhysicWorld {
                         continue;
                     }
 
-                    //mirror velocity on surface
-                    Vector2f proj = normal * (me.velocity * normal);
-                    me.velocity -= proj * 2.0f;
-
-                    //bumped against surface -> loss of energy
-                    me.velocity *= me.elasticity;
-
-                    //what about unglue??
-                    me.needUpdate();
+                    normalsum += direction;
 
                     if (me.onImpact)
                         me.onImpact(null);
                     //xxx: glue objects that don't fly fast enough
                 }
+            }
+
+            auto rnormal = normalsum.normal();
+            if (!rnormal.isNaN()) {
+                me.ground_angle = rnormal.toAngle();
+
+                //set new position ("should" fit)
+                me.pos = me.pos + normalsum;
+
+                //mirror velocity on surface
+                Vector2f proj = rnormal * (me.velocity * rnormal);
+                me.velocity -= proj * 2.0f;
+
+                //bumped against surface -> loss of energy
+                me.velocity *= me.elasticity;
+
+                //we collided with geometry, but were not fast enough!
+                //  => worm gets glued, hahaha.
+                std.stdio.writefln(me.velocity.length);
+                if (me.velocity.length <= me.glueForce) {
+                    me.isGlued = true;
+                    //velocity must be set to 0 (or change glue handling)
+                    me.velocity = Vector2f(0);
+                }
+
+                me.checkRotation();
+
+                //what about unglue??
+                me.needUpdate();
             }
         }
 
@@ -362,6 +401,17 @@ class PhysicWorld {
             }
             obj = next;
         }
+    }
+
+    //check how an object would collide with all the geometry
+    bool collideGeometry(inout Vector2f pos, float radius)
+    {
+        bool res = false;
+        foreach (PhysicGeometry gm; mGeometryObjects) {
+            Vector2f npos = pos;
+            res = res | gm.collide(npos, radius);
+        }
+        return res;
     }
 
     this() {

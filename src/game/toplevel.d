@@ -8,6 +8,7 @@ import game.scene;
 import game.animation;
 import game.game;
 import game.banana;
+import game.worm;
 import framework.framework;
 import framework.commandline;
 import framework.i18n;
@@ -134,6 +135,7 @@ class TopLevel {
         globals.cmdLine.registerCommand("fullscreen", &cmdFS, "toggle fs");
         globals.cmdLine.registerCommand("phys", &cmdPhys, "test123");
         globals.cmdLine.registerCommand("expl", &cmdExpl, "BOOM! HAHAHAHA");
+        globals.cmdLine.registerCommand("worm", &cmdWorm, "...");
         globals.cmdLine.registerCommand("pause", &cmdPause, "pause");
         globals.cmdLine.registerCommand("loadanim", &cmdLoadAnim, "load worms animation");
         globals.cmdLine.registerCommand("clouds", &cmdClouds, "enable/disable animated clouds");
@@ -198,6 +200,11 @@ class TopLevel {
 
     private void cmdExpl(CommandLine) {
         auto obj = new BananaBomb(thegame,mBananaAnim);
+        obj.setPos(thegame.tmp);
+    }
+
+    private void cmdWorm(CommandLine) {
+        auto obj = new Worm(thegame);
         obj.setPos(thegame.tmp);
     }
 

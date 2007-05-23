@@ -63,6 +63,7 @@
 		<Unit filename="game\sky.d" />
 		<Unit filename="game\toplevel.d" />
 		<Unit filename="game\water.d" />
+		<Unit filename="game\worm.d" />
 		<Unit filename="levelgen\generator.d" />
 		<Unit filename="levelgen\genrandom.d" />
 		<Unit filename="levelgen\level.d" />

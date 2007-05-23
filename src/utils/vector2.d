@@ -98,6 +98,12 @@ public struct Vector2(T) {
         *this = normal*new_length;
     }
 
+    //if "this" is a normal, return angle to X axis in radians
+    //useful for T==float only
+    public T toAngle() {
+        return cast(T)math.atan2(y,x);
+    }
+
     public void add_length(T add) {
         *this = normal*(length+add);
     }

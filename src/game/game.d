@@ -11,6 +11,7 @@ import utils.time;
 import utils.log;
 import framework.framework;
 import framework.keysyms;
+import std.math;
 
 //maybe keep in sync with game.Scene.cMaxZOrder
 enum GameZOrder {
@@ -156,6 +157,9 @@ class LevelObject : SceneObject {
         //xxx draw debug stuff for physics!
         foreach (PhysicObject o; game.physicworld.mObjects) {
             c.drawCircle(toVector2i(o.pos), cast(int)o.radius, Color(1,1,1));
+            auto p = Vector2f(40*cos(o.rotation)+o.pos.x,
+                40*sin(o.rotation)+o.pos.y);
+            c.drawCircle(toVector2i(p), 5, Color(1,1,0));
         }
     }
 

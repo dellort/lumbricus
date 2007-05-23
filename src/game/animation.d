@@ -55,6 +55,8 @@ class Animator : SceneObjectPositioned {
     private void delegate(Animator sender) mOnNoAnimation;
     private bool mReversed = false;
 
+    public bool paused;
+
     //animation to play after current animation finished
     void setNextAnimation(Animation next) {
         if (mAni) {
@@ -85,7 +87,7 @@ class Animator : SceneObjectPositioned {
     }
 
     void setFrame(uint frameIdx) {
-        if (frameIdx<mAni.frameCount)
+        if (mAni && frameIdx<mAni.frameCount)
             mLastFrame = frameIdx;
     }
 
@@ -93,7 +95,9 @@ class Animator : SceneObjectPositioned {
         if (!mAni || mAni.mFrames.length == 0)
             return;
         Animation.FrameInfo fi = mAni.mFrames[mLastFrame];
-        if ((globals.gameTimeAnimations - mLastFrameTime).msecs > fi.durationMS) {
+        if ((globals.gameTimeAnimations - mLastFrameTime).msecs > fi.durationMS
+            && !paused)
+        {
             if (mReversed) {
                 if (mLastFrame > 0)
                     mLastFrame = mLastFrame - 1;
