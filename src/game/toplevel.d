@@ -132,7 +132,6 @@ class TopLevel {
         globals.cmdLine.registerCommand("nameit", &cmdNameit, "name a key");
         globals.cmdLine.registerCommand("video", &cmdVideo, "set video");
         globals.cmdLine.registerCommand("fullscreen", &cmdFS, "toggle fs");
-        globals.cmdLine.registerCommand("scroll", &cmdScroll, "enter scroll mode");
         globals.cmdLine.registerCommand("phys", &cmdPhys, "test123");
         globals.cmdLine.registerCommand("expl", &cmdExpl, "BOOM! HAHAHAHA");
         globals.cmdLine.registerCommand("pause", &cmdPause, "pause");
@@ -318,13 +317,13 @@ class TopLevel {
     private Vector2i mScrollDest;
     private const float K_SCROLL = 0.01f;
 
-    private void cmdScroll(CommandLine cmd) {
+    private void toggleScroll() {
         if (mScrolling) {
-            globals.framework.grabInput = false;
+            //globals.framework.grabInput = false;
             globals.framework.cursorVisible = true;
             globals.framework.unlockMouse();
         } else {
-            globals.framework.grabInput = true;
+            //globals.framework.grabInput = true;
             globals.framework.cursorVisible = false;
             globals.framework.lockMouse();
             mScrollDest = gameview.clientoffset;
@@ -404,8 +403,6 @@ class TopLevel {
         screen.putOnKeyPress(infos);
     }
 
-    private Vector2i mMouseStart;
-
     private bool onKeyDown(KeyInfo infos) {
         if (mKeyNameIt) {
             //modifiers are also keys, ignore them
@@ -422,8 +419,8 @@ class TopLevel {
         if (mShowKeyDebug) {
             globals.log("down: %s", globals.framework.keyinfoToString(infos));
         }
-        if (infos.code == Keycode.MOUSE_LEFT) {
-            mMouseStart = gameview.clientoffset - globals.framework.mousePos;
+        if (infos.code == Keycode.MOUSE_RIGHT) {
+            toggleScroll();
         }
         char[] bind = keybindings.findBinding(infos.code,
             globals.framework.getModifierSet());
@@ -448,9 +445,6 @@ class TopLevel {
 
     private void onMouseMove(MouseInfo mouse) {
         //globals.log("%s", mouse.pos);
-        if (globals.framework.getKeyState(Keycode.MOUSE_LEFT)) {
-            gameview.clientoffset = mMouseStart + mouse.pos;
-        }
         if (mScrolling) {
             mScrollDest = mScrollDest - mouse.rel;
             gameview.clipOffset(mScrollDest);

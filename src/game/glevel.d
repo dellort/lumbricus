@@ -190,7 +190,7 @@ class GameLevel {
         doDamage(pos, radius);
 
         uint col = colorToRGBA32(mBorderColor);
-        circle_masked(pos, radius+7, true, pixels, pitch, &col, 0, 0, 0);
+        circle_masked(pos, radius+4, true, pixels, pitch, &col, 0, 0, 0);
 
         if (nradius > 0) {
             col = colorToRGBA32(mImage.colorkey());
