@@ -204,8 +204,7 @@ class TopLevel {
     }
 
     private void cmdWorm(CommandLine) {
-        auto obj = new Worm(thegame);
-        obj.setPos(thegame.tmp);
+        thegame.spawnWorm();
     }
 
     private void onVideoInit(bool depth_only) {
@@ -372,6 +371,8 @@ class TopLevel {
         auto level = x.generateRandom(1920, 696, "", mGfxSet);
         thegame = new GameController(gamescene, level);
         gameStartTime = globals.gameTime;
+        //xxx evil+sucks
+        screen.setFocus(thegame.levelobject);
     }
 
     private void cmdPause(CommandLine) {

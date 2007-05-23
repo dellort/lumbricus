@@ -134,6 +134,9 @@ public class Surface {
     /// hmhm
     public abstract Texture createBitmapTexture();
 
+    //mirror on Y axis
+    public abstract Surface createMirroredY();
+
     /// convert the texture to a transparency mask
     /// one pixel per byte; the pitch is the width (pixel = arr[y*w+x])
     /// transparent pixels are converted to 0, solid ones to 255

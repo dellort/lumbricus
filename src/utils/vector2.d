@@ -20,6 +20,10 @@ public struct Vector2(T) {
         return Vector2(both, both);
     }
 
+    public static Vector2 fromPolar(T length, T angle) {
+        return Vector2(cast(T)math.cos(angle), cast(T)math.sin(angle))*length;
+    }
+
     public Vector2 X() {
         return Vector2(x1,0);
     }

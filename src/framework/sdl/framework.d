@@ -204,6 +204,54 @@ public class SDLSurface : Surface {
         SDL_UnlockSurface(mReal);
     }
 
+    //only for createMirroredY()
+    void doMirror(T)(SDLSurface ret) {
+        assert(mReal.format.BytesPerPixel == T.sizeof);
+        assert(mReal.format.BytesPerPixel == ret.mReal.format.BytesPerPixel);
+        assert(mReal.w == ret.mReal.w);
+        assert(mReal.h == ret.mReal.h);
+        SDL_LockSurface(mReal);
+        SDL_LockSurface(ret.mReal);
+        for (uint y = 0; y < mReal.h; y++) {
+            T* src = cast(T*)(mReal.pixels+y*mReal.pitch+mReal.w*T.sizeof);
+            T* dst = cast(T*)(ret.mReal.pixels+y*ret.mReal.pitch);
+            for (uint x = 0; x < mReal.w; x++) {
+                src--;
+                *dst = *src;
+                dst++;
+            }
+        }
+        SDL_UnlockSurface(ret.mReal);
+        SDL_UnlockSurface(mReal);
+    }
+    public Surface createMirroredY() {
+        //clone the SDL surface
+        //wouldn't need to actually copy the surface, doMirror below uses this
+        //surface and copies it into the dest, mirrored
+
+        //xxx some violence
+        //if (mReal.format.BytesPerPixel == 3) {
+            //forcePixelFormat(gFramework.findPixelFormat(DisplayFormat.RGBA32));
+        //}
+        //xxx gross hack
+        mReal = SDL_DisplayFormat(mReal);
+
+        SDL_Surface* ns = SDL_ConvertSurface(mReal, mReal.format, SDL_SWSURFACE);
+        auto ret = new SDLSurface(ns);
+        ret.initTransp(mTransp);
+
+        switch (mReal.format.BytesPerPixel) {
+            case 1: doMirror!(ubyte)(ret); break;
+            case 2: doMirror!(ushort)(ret); break;
+            case 4: doMirror!(uint)(ret); break;
+            default:
+                std.stdio.writefln("format.BytesPerPixel = %s", mReal.format.BytesPerPixel);
+                assert(false);
+        }
+
+        return ret;
+    }
+
     public void enableColorkey(Color colorkey = cStdColorkey) {
         assert(mReal);
 

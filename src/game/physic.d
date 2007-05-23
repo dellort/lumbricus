@@ -67,7 +67,6 @@ class PhysicObject : PhysicBase {
     float radius = 10; //pixels
     float mass = 10; //in Milli-Worms, 10 Milli-Worms = 1 Worm
     Vector2f velocity; //in pixels per second
-    //xxx to add: rotation, rotation-speed
 
     //percent of wind influence
     float windInfluence = 0.0f;
@@ -75,13 +74,19 @@ class PhysicObject : PhysicBase {
     bool isGlued;    //for sitting worms (can't be moved that easily)
     float glueForce = 0; //force required to move a glued worm away
 
+    float walkingSpeed = 0; //pixels per seconds, or so
+    float walkingClimb = 10; //pixels of height per 1-pixel which worm can climb
+    //used during simulation
+    float walkingTime = 0; //time until next pixel will be walked on
+    Vector2f walkTo; //direction
+
     //used temporarely during "simulation"
     Vector2f deltav;
 
     //direction when flying etc., just rotation of the object
-    float rotation;
+    float rotation = 0;
     //last known angle to ground
-    float ground_angle;
+    float ground_angle = 0;
 
     public void delegate(PhysicObject other) onImpact;
 
@@ -103,6 +108,7 @@ class PhysicObject : PhysicBase {
         //he flies away! arrrgh!
         velocity += deltav;
         deltav = Vector2f(0, 0);
+        isGlued = false;
         needUpdate();
     }
 
@@ -122,7 +128,73 @@ class PhysicObject : PhysicBase {
 
     public void remove() {
         super.remove();
-        objects_node.removeFromList();
+        //objects_node.removeFromList();
+        world.mObjects.remove(this);
+    }
+
+    void setWalking(Vector2f dir) {
+        //xxx
+        walkingSpeed = 20;
+        walkingTime = 0;
+        walkTo = dir;
+        //or switch off?
+        if (dir.length < 0.01)
+            walkingSpeed = 0;
+    }
+
+    override protected void simulate(float deltaT) {
+        //take care of walking, walkingSpeed > 0 marks walking enabled
+        if (walkingSpeed > 0) {
+            walkingTime -= deltaT;
+            if (walkingTime <= 0) {
+                walkingTime = 1.0 / walkingSpeed; //time for one pixel
+                //actually walk (or try to)
+
+                //must stand on surface when walking
+                if (!isGlued) {
+                    log.registerLog("xxx")("no walk because not glued");
+                    return;
+                }
+
+                //notice update before you forget it...
+                needUpdate();
+
+                Vector2f npos = pos + walkTo;
+
+                //look where's bottom
+                //NOTE: y1 > y2 means y1 is _blow_ y2
+                bool first = true;
+                for (float y = +walkingClimb; y >= -walkingClimb; y--) {
+
+                    Vector2f nnpos = npos;
+                    nnpos.y += y;
+                    auto tmp = nnpos;
+                    //log.registerLog("xxx")("%s %s", nnpos, pos);
+                    bool res = world.collideGeometry(nnpos, radius);
+
+                    if (!res) {
+                        log.registerLog("xxx")("at %s -> %s", nnpos, nnpos-tmp);
+                        //no collision, consider this to be bottom
+                        if (first) {
+                            //even first tested location => most bottom, fall
+                            log.registerLog("xxx")("fall-bottom");
+                            pos = npos;
+                            checkUnglue(true);
+                        } else {
+                            log.registerLog("xxx")("bottom at %s", y);
+                            //walk to there...
+                            npos.y += y;
+                            pos = npos;
+                        }
+                        break;
+                    }
+
+                    first = false;
+                }
+                //if nothing is done, the worm just can't walk
+                //(maybe set a did-not-walk-flag)
+            }
+        }
     }
 }
 
@@ -381,7 +453,6 @@ class PhysicWorld {
 
                 //we collided with geometry, but were not fast enough!
                 //  => worm gets glued, hahaha.
-                std.stdio.writefln(me.velocity.length);
                 if (me.velocity.length <= me.glueForce) {
                     me.isGlued = true;
                     //velocity must be set to 0 (or change glue handling)
@@ -417,8 +488,8 @@ class PhysicWorld {
     {
         bool res = false;
         foreach (PhysicGeometry gm; mGeometryObjects) {
-            Vector2f npos = pos;
-            res = res | gm.collide(npos, radius);
+            //pos will be changed, that is ok
+            res = res | gm.collide(pos, radius);
         }
         return res;
     }

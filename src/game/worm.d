@@ -24,7 +24,7 @@ enum Angle {
 }
 
 //indexed by Angle (in degrees)
-static float[] cAngles = [90+45,90+90,90+135,90-45,90-90,90-135];
+static int[] cAngles = [90+45,90+90,90+135,90-45,90-90,90-135];
 
 class Worm : GameObject {
     Animator graphic;
@@ -36,6 +36,7 @@ class Worm : GameObject {
     WormAnim mState;
     float angle; //in radians!
     float set_angle; //angle as set in graphic, needs update if !=angle!
+    float realangle;
 
     this(GameController controller) {
         super(controller);
@@ -47,21 +48,18 @@ class Worm : GameObject {
             return new Animation(config.getSubNode("worm_" ~ name));
         }
 
-        /*foreach (inout Animation[] a; mAnim) {
-            a.length = WormAnim.max+1;
-        }*/
         mAnim.length = WormAnim.max+1;
 
-        /*mAnim[WormAnim.Stand][Angle.Up] = loadAnim("stand_up");
+        mAnim[WormAnim.Stand][Angle.Up] = loadAnim("stand_up");
         mAnim[WormAnim.Stand][Angle.Down] = loadAnim("stand_down");
         mAnim[WormAnim.Stand][Angle.Norm] = loadAnim("stand_norm");
         mAnim[WormAnim.Move][Angle.Up] = loadAnim("move_up");
         mAnim[WormAnim.Move][Angle.Down] = loadAnim("move_down");
-        mAnim[WormAnim.Move][Angle.Norm] = loadAnim("move_norm");*/
+        mAnim[WormAnim.Move][Angle.Norm] = loadAnim("move_norm");
 
         mBla = loadAnim("bla");
         curanim = mBla;
-        graphic.paused = true;
+        //graphic.paused = true;
         graphic.setAnimation(curanim);
 
         mState = WormAnim.Stand;
@@ -84,27 +82,48 @@ class Worm : GameObject {
             graphic.pos = toVector2i(physics.pos) - curanim.size/2;
         }
 
-        auto nangle = physics.rotation;//ground_angle-3.141/2;
+        //ground_angle is the angle of the normal, orthogonal to the worm
+        //  walking direction
+        //so there are two possible sides (+/- 180 degrees)
+        auto nangle = physics.ground_angle+3.141/2;
+        //hm!?!?
+        auto a = Vector2f.fromPolar(1, nangle);
+        auto b = Vector2f.fromPolar(1, physics.rotation);
+        if (a*b < 0)
+            nangle += 3.141; //+180 degrees
         if (nangle != angle) {
             angle = nangle;
-            /*
+
+            //whatever
+            int angle_dist(int a, int b) {
+                int x1 = min(a, b);
+                int x2 = max(a, b);
+                if (x1 < 180 && x2 > 180) {
+                    return abs((x1+360-x2) % 360);
+                } else {
+                    return x2-x1;
+                }
+            }
+
             //pick best animation (what's nearer)
             Angle closest;
-            float cur = float.max;
-            foreach (int i, float x; cAngles) {
-                x = x/360.0f * 2*3.141;
-                if (fabs(angle-x) < cur) {
-                    cur = fabs(angle-x);
+            int cur = int.max;
+            int iangle = (cast(int)(nangle/(2*3.141)*360)+360*2) % 360;
+            foreach (int i, int x; cAngles) {
+                if (angle_dist(iangle,x) < cur) {
+                    cur = angle_dist(iangle,x);
                     closest = cast(Angle)i;
                 }
             }
 
-            registerLog("xxx")("%s -> %s", angle, closest);
+            //registerLog("xxx")("angle=%s iangle=%s ca=%s cl=%s", angle, iangle, cAngles[closest], closest);
 
-            curanim = mAnim[mState][closest % 3];*/
-            //graphic.setAnimation(curanim);
-            auto x = cast(int)((angle+3.141*2.5)/(2*3.141)*(curanim.frameCount-1));
-            graphic.setFrame(x % (curanim.frameCount));
+            curanim = mAnim[mState][closest % 3];
+            graphic.setMirror(!!(closest/3));
+            graphic.setAnimation(curanim);
+
+            //auto x = cast(int)((angle+3.141*2.5)/(2*3.141)*(curanim.frameCount-1));
+            //graphic.setFrame(x % (curanim.frameCount));
         }
     }
 

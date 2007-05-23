@@ -4,6 +4,7 @@ import game.scene;
 import game.gobject;
 import game.physic;
 import game.glevel;
+import game.worm;
 import game.water;
 import game.sky;
 import utils.mylist;
@@ -43,6 +44,8 @@ class GameController {
 
     Vector2i tmp;
     EventSink events;
+
+    Worm lastworm;
 
     package List!(GameObject) mObjects;
 
@@ -103,6 +106,7 @@ class GameController {
         events = levelobject.getEventSink();
         events.onMouseMove = &onMouseMove;
         events.onKeyDown = &onKeyDown;
+        events.onKeyUp = &onKeyUp;
     }
 
     public float windSpeed() {
@@ -125,7 +129,23 @@ class GameController {
         if (info.code == Keycode.MOUSE_LEFT) {
             gamelevel.damage(sender.mousePos, 100);
         }
+        if (lastworm) {
+            if (info.code == Keycode.LEFT) {
+                lastworm.physics.setWalking(Vector2f(-1, 0));
+                registerLog("xxx")("walk left");
+            } else if (info.code == Keycode.RIGHT) {
+                lastworm.physics.setWalking(Vector2f(+1, 0));
+                registerLog("xxx")("walk right");
+            }
+        }
         return true;
+    }
+
+    bool onKeyUp(EventSink sender, KeyInfo info) {
+        if (info.code == Keycode.LEFT || info.code == Keycode.RIGHT) {
+            lastworm.physics.setWalking(Vector2f(0));
+        }
+        return false;
     }
 
     void doFrame(Time gametime) {
@@ -144,6 +164,13 @@ class GameController {
             o.kill();
         }
     }
+
+    //stupid debugging code
+    void spawnWorm() {
+        auto obj = new Worm(this);
+        obj.setPos(tmp);
+        lastworm = obj;
+    }
 }
 
 class LevelObject : SceneObject {
@@ -157,7 +184,7 @@ class LevelObject : SceneObject {
             levelTexture.setCaching(false);
         }
         c.draw(levelTexture, gamelevel.offset);
-        //+
+        /+
         //debug code to test collision detection
         Vector2i dir; int pixelcount;
         auto pos = game.tmp;
@@ -167,13 +194,22 @@ class LevelObject : SceneObject {
             c.drawCircle(pos, testr, Color(0,1,0));
             c.drawCircle(toVector2i(npos), testr, Color(1,1,0));
         }
-        //+/
+        +/
         //xxx draw debug stuff for physics!
         foreach (PhysicObject o; game.physicworld.mObjects) {
+            //auto angle = o.rotation;
+            auto angle = o.ground_angle;
             c.drawCircle(toVector2i(o.pos), cast(int)o.radius, Color(1,1,1));
-            auto p = Vector2f(40*cos(o.rotation)+o.pos.x,
-                40*sin(o.rotation)+o.pos.y);
+            auto p = Vector2f.fromPolar(40, angle) + o.pos;
             c.drawCircle(toVector2i(p), 5, Color(1,1,0));
+        }
+        //more debug stuff...
+        foreach (GameObject go; game.mObjects) {
+            if (cast(Worm)go) {
+                auto w = cast(Worm)go;
+                auto p = Vector2f.fromPolar(40, w.angle) + w.physics.pos;
+                c.drawCircle(toVector2i(p), 5, Color(1,0,1));
+            }
         }
     }
 
