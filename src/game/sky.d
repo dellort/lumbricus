@@ -42,18 +42,19 @@ class SkyDrawer : SceneObject {
 
 class GameSky : GameObject {
     private SkyDrawer mSkyDrawer;
-    protected int skyOffset, skyBackdropOffset;
+    protected int skyOffset, skyBackdropOffset, levelBottom;
     private Animation[] mCloudAnims;
     private bool mEnableClouds = true;
+    private bool mEnableDebris = true;
     private bool mCloudsVisible;
 
     private const cNumClouds = 50;
     private const cCloudHeightRange = 50;
     private const cCloudSpeedRange = 100;
 
-    //Pixels/sec
-    //XXX place this somewhere else
-    private int mWindSpeed = 30;
+    private const cNumDebris = 100;
+    //this is not gravity, as debris is not accelerated
+    private const cDebrisFallSpeed = 70; //pixels/sec
 
     private struct CloudInfo {
         Animator anim;
@@ -62,6 +63,14 @@ class GameSky : GameObject {
         float x;
     }
     private CloudInfo[cNumClouds] mCloudAnimators;
+
+    private struct DebrisInfo {
+        Animator anim;
+        float speedPerc;
+        float x, y;
+    }
+    private DebrisInfo[cNumDebris] mDebrisAnimators;
+    private Animation mDebrisAnim;
 
     this(GameController controller) {
         super(controller);
@@ -82,11 +91,14 @@ class GameSky : GameObject {
             skyBackdropOffset = controller.gamelevel.offset.y+controller.gamelevel.height-controller.gamelevel.waterLevel-skyBackdrop.size.y;
         }
 
+        mDebrisAnim = controller.level.skyDebris;
+
         skyOffset = controller.gamelevel.offset.y+controller.gamelevel.height-skyTex.size.y;
         if (skyOffset > 0)
             mCloudsVisible = true;
         else
             mCloudsVisible = false;
+        levelBottom = controller.gamelevel.offset.y+controller.gamelevel.height;
 
         if (mCloudsVisible) {
             try {
@@ -98,7 +110,7 @@ class GameSky : GameObject {
                 foreach (inout CloudInfo ci; mCloudAnimators) {
                     ci.anim = new Animator();
                     ci.anim.setAnimation(mCloudAnims[nAnim]);
-                    ci.anim.setScene(controller.scene, GameZOrder.BackLayer);
+                    ci.anim.setScene(controller.scene, GameZOrder.Objects);
                     ci.anim.pos.y = skyOffset - mCloudAnims[nAnim].size.y/2 + randRange(-cCloudHeightRange/2,cCloudHeightRange/2);
                     ci.x = randRange(-mCloudAnims[nAnim].size.x, controller.scene.thesize.x);
                     ci.anim.pos.x = cast(int)ci.x;
@@ -110,6 +122,24 @@ class GameSky : GameObject {
                 }
             } catch {
                 mCloudsVisible = false;
+            }
+        }
+
+        if (mDebrisAnim) {
+            try {
+                foreach (inout DebrisInfo di; mDebrisAnimators) {
+                    di.anim = new Animator();
+                    di.anim.setAnimation(mDebrisAnim);
+                    di.anim.setScene(controller.scene, GameZOrder.BackLayer);
+                    di.x = randRange(-mDebrisAnim.size.x, controller.scene.thesize.x);
+                    di.y = randRange(skyOffset, levelBottom);
+                    di.anim.pos.x = cast(int)di.x;
+                    di.anim.pos.y = cast(int)di.y;
+                    di.anim.setFrame(randRange(0,mDebrisAnim.frameCount));
+                    di.speedPerc = genrand_real1()/2.0+0.5;
+                }
+            } catch {
+                mDebrisAnim = null;
             }
         }
 
@@ -135,22 +165,58 @@ class GameSky : GameObject {
         return mEnableClouds;
     }
 
+    public void enableDebris(bool enable) {
+        mEnableClouds = enable;
+        if (mDebrisAnim) {
+            if (enable) {
+                foreach (inout di; mDebrisAnimators) {
+                    di.anim.active = true;
+                }
+            } else {
+                foreach (inout di; mDebrisAnimators) {
+                    di.anim.active = false;
+                }
+            }
+        }
+    }
+    public bool enableDebris() {
+        return mEnableDebris;
+    }
+
     private int mTLast;
 
     override void simulate(Time curTime) {
+        int t = curTime.msecs();
         if (mCloudsVisible && mEnableClouds) {
-            int t = curTime.msecs();
             if (mTLast>0) {
                 float deltaT = cast(float)(t-mTLast)/1000.0f;
                 foreach (inout ci; mCloudAnimators) {
-                    ci.x += (ci.xspeed+mWindSpeed)*deltaT;
+                    //XXX this is acceleration, how to get a constant speed from this??
+                    ci.x += (ci.xspeed+controller.windSpeed)*deltaT;
                     if (ci.x > controller.scene.thesize.x)
                         ci.x = -ci.animSizex;
                     ci.anim.pos.x = cast(int)ci.x;
                 }
             }
-            mTLast = t;
         }
+        if (mDebrisAnim && mEnableDebris) {
+            //XXX (and, XXX) handmade physics
+            if (mTLast>0) {
+                float deltaT = cast(float)(t-mTLast)/1000.0f;
+                foreach (inout di; mDebrisAnimators) {
+                    //XXX same here
+                    di.x += 2*controller.windSpeed*deltaT*di.speedPerc;
+                    di.y += cDebrisFallSpeed*deltaT;
+                    if (di.x > controller.scene.thesize.x)
+                        di.x -= controller.scene.thesize.x + mDebrisAnim.size.x;
+                    if (di.y > levelBottom)
+                        di.y = skyOffset;
+                    di.anim.pos.x = cast(int)di.x;
+                    di.anim.pos.y = cast(int)di.y;
+                }
+            }
+        }
+        mTLast = t;
     }
 
     override void kill() {
@@ -159,6 +225,12 @@ class GameSky : GameObject {
             foreach (inout ci; mCloudAnimators) {
                 ci.anim.active = false;
                 ci.anim = null;
+            }
+        }
+        if (mDebrisAnim && mEnableDebris) {
+            foreach (inout di; mDebrisAnimators) {
+                di.anim.active = false;
+                di.anim = null;
             }
         }
     }

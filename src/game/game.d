@@ -50,6 +50,9 @@ class GameController {
     private const cSpaceAboveOpenLevel = 1000;
     private const cOpenLevelWidthMultiplier = 3;
 
+    private ConstantForce mGravForce;
+    private WindyForce mWindForce;
+
     this(Scene gamescene, Level level) {
         assert(gamescene !is null);
         assert(level !is null);
@@ -84,13 +87,13 @@ class GameController {
         physicworld.add(new PlaneGeometry(toVector2f(levelOffset+worldSize),
             toVector2f(levelOffset+worldSize) + Vector2f(1,0)));
 
-        auto grav = new ConstantForce();
-        grav.accel = Vector2f(0, 100); //what unit is that???
-        physicworld.add(grav);
+        mGravForce = new ConstantForce();
+        mGravForce.accel = Vector2f(0, 100); //what unit is that???
+        physicworld.add(mGravForce);
 
-        auto wind = new ConstantForce();
-        wind.accel = Vector2f(0, 0); //what unit is that???
-        physicworld.add(wind);
+        mWindForce = new WindyForce();
+        mWindForce.accel = Vector2f(150, 0); //what unit is that???
+        physicworld.add(mWindForce);
 
         mObjects = new List!(GameObject)(GameObject.node.getListNodeOffset());
 
@@ -100,6 +103,17 @@ class GameController {
         events = levelobject.getEventSink();
         events.onMouseMove = &onMouseMove;
         events.onKeyDown = &onKeyDown;
+    }
+
+    public float windSpeed() {
+        return mWindForce.accel.x;
+    }
+    public void windSpeed(float speed) {
+        mWindForce.accel.x = speed;
+    }
+
+    public float gravity() {
+        return mGravForce.accel.y;
     }
 
     bool onMouseMove(EventSink sender, MouseInfo info) {

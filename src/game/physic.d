@@ -69,6 +69,9 @@ class PhysicObject : PhysicBase {
     Vector2f velocity; //in pixels per second
     //xxx to add: rotation, rotation-speed
 
+    //percent of wind influence
+    float windInfluence = 0.0f;
+
     bool isGlued;    //for sitting worms (can't be moved that easily)
     float glueForce = 0; //force required to move a glued worm away
 
@@ -144,6 +147,12 @@ class ConstantForce : PhysicForce {
 
     Vector2f getAccelFor(PhysicObject, float deltaT) {
         return accel;
+    }
+}
+
+class WindyForce : ConstantForce {
+    Vector2f getAccelFor(PhysicObject o, float deltaT) {
+        return accel * o.windInfluence;
     }
 }
 

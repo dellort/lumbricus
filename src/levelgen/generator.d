@@ -4,6 +4,7 @@ import levelgen.level;
 import levelgen.renderer;
 import levelgen.genrandom : GenRandomLevel;
 import levelgen.placeobjects;
+import game.animation;
 import game.common;
 import framework.framework;
 import utils.configfile : ConfigNode;
@@ -283,6 +284,8 @@ public class LevelGenerator {
         char[] skyBackTex = skyNode.getStringValue("backdrop");
         if (skyBackTex.length > 0)
             ret.skyBackdrop = readTexture(gfxPath ~ skyBackTex, true);
+        if (skyNode.exists("debris"))
+            ret.skyDebris = new Animation(skyNode.getSubNode("debris"), gfxPath);
 
         //water level from bottom, relative value
         float waterLevel = template_node.getFloatValue("waterlevel");

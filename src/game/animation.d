@@ -16,10 +16,10 @@ class Animation {
         TextureRef frametex;
     }
 
-    this (ConfigNode node) {
+    this (ConfigNode node, char[] relPath = "") {
         assert(node !is null);
         int duration = node.getIntValue("duration", 10);
-        Surface bmp = globals.loadGraphic(node.getStringValue("image"));
+        Surface bmp = globals.loadGraphic(relPath ~ node.getStringValue("image"));
         if (!bmp)
             throw new Exception("Failed to load animation bitmap");
         Texture tex = bmp.createTexture();
