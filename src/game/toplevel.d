@@ -149,6 +149,7 @@ class TopLevel {
         globals.cmdLine.registerCommand("editor", &cmdLevelEdit, "hm");
 
         globals.cmdLine.registerCommand("gfxset", &cmdGfxSet, "Set level graphics style");
+        globals.cmdLine.registerCommand("wind", &cmdSetWind, "Change wind speed");
 
         mBananaAnim = new Animation(globals.loadConfig("banana").getSubNode("anim"));
 
@@ -183,6 +184,13 @@ class TopLevel {
     private void closeGui() {
         mGuiWindMeter.controller = null;
         mGuiWindMeter.setScene(null, GUIZOrder.Gui);
+    }
+
+    private void cmdSetWind(CommandLine cmd) {
+        char[][] sargs = cmd.parseArgs();
+        if (sargs.length < 1)
+            return;
+        thegame.windSpeed = conv.toFloat(sargs[0]);
     }
 
     private void cmdGfxSet(CommandLine cmd) {

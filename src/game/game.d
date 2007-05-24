@@ -168,7 +168,6 @@ class GameController {
         if (abs(mWindTarget - mWindForce.accel.x) > 0.5f) {
             float deltaT = (currentTime - mLastTime).msecs/1000.0f;
             mWindForce.accel.x += copysign(cWindChange*deltaT,mWindTarget - mWindForce.accel.x);
-            std.stdio.writefln("%s, %s",currentTime,mWindForce.accel.x);
         }
         physicworld.simulate(currentTime);
         //update game objects

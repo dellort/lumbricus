@@ -186,6 +186,13 @@ class GameSky : GameObject {
     private int mTLast;
 
     override void simulate(Time curTime) {
+        void clip(inout float v, float s, float min, float max) {
+            if (v > max)
+                v -= (max-min) + s;
+            if (v + s < 0)
+                v += (max-min) + s;
+        }
+
         int t = curTime.msecs();
         if (mCloudsVisible && mEnableClouds) {
             if (mTLast>0) {
@@ -193,8 +200,7 @@ class GameSky : GameObject {
                 foreach (inout ci; mCloudAnimators) {
                     //XXX this is acceleration, how to get a constant speed from this??
                     ci.x += (ci.xspeed+controller.windSpeed)*deltaT;
-                    if (ci.x > controller.scene.thesize.x)
-                        ci.x = -ci.animSizex;
+                    clip(ci.x, ci.animSizex, 0, controller.scene.thesize.x);
                     ci.anim.pos.x = cast(int)ci.x;
                 }
             }
@@ -207,10 +213,8 @@ class GameSky : GameObject {
                     //XXX same here
                     di.x += 2*controller.windSpeed*deltaT*di.speedPerc;
                     di.y += cDebrisFallSpeed*deltaT;
-                    if (di.x > controller.scene.thesize.x)
-                        di.x -= controller.scene.thesize.x + mDebrisAnim.size.x;
-                    if (di.y > levelBottom)
-                        di.y = skyOffset;
+                    clip(di.x, mDebrisAnim.size.x, 0, controller.scene.thesize.x);
+                    clip(di.y, mDebrisAnim.size.y, skyOffset, levelBottom);
                     di.anim.pos.x = cast(int)di.x;
                     di.anim.pos.y = cast(int)di.y;
                 }
