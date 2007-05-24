@@ -1,17 +1,22 @@
 module game.toplevel;
-import game.common;
+
 import std.string;
 import framework.font;
 import framework.console;
 import framework.keysyms;
+import framework.framework;
+import framework.commandline;
+import framework.i18n;
 import game.scene;
 import game.animation;
 import game.game;
 import game.banana;
 import game.worm;
-import framework.framework;
-import framework.commandline;
-import framework.i18n;
+import game.common;
+import game.physic;
+import game.gobject;
+import game.leveledit;
+import gui.windmeter;
 import utils.time;
 import utils.configfile;
 import utils.log;
@@ -21,9 +26,6 @@ import gc = std.gc;
 import genlevel = levelgen.generator;
 import str = std.string;
 import conv = std.conv;
-import game.physic;
-import game.gobject;
-import game.leveledit;
 
 //ZOrders!
 //maybe keep in sync with game.Scene.cMaxZOrder
@@ -65,6 +67,7 @@ class TopLevel {
     private Time mDeltaT;
 
     private Animation mBananaAnim;
+    private WindMeter mGuiWindMeter;
 
     private char[] mGfxSet = "gpl";
 
@@ -90,13 +93,15 @@ class TopLevel {
         fpsDisplay = new FontLabel(globals.framework.getFont("fpsfont"));
         fpsDisplay.setScene(guiscene, GUIZOrder.FPS);
 
+        mGuiWindMeter = new WindMeter();
+
         gamescene = new Scene();
 
         gameview = new SceneView(gamescene);
         gameview.setScene(guiscene, GUIZOrder.Game); //container!
         //gameview is simply the window that shows the level
-        gameview.pos = Vector2i(10, 10);
-        gameview.thesize = guiscene.thesize - Vector2i(10, 10)*2;
+        gameview.pos = Vector2i(0, 0);
+        gameview.thesize = guiscene.thesize;
 
         auto consrender = new CallbackSceneObject();
         consrender.setScene(guiscene, GUIZOrder.Console);
@@ -148,6 +153,36 @@ class TopLevel {
         mBananaAnim = new Animation(globals.loadConfig("banana").getSubNode("anim"));
 
         mTimeLast = globals.framework.getCurrentTime();
+    }
+
+    private void initializeGame(GameConfig config) {
+        closeGame();
+        thegame = new GameController(gamescene, config);
+        //xxx evil+sucks
+        screen.setFocus(thegame.levelobject);
+        initializeGui();
+        gameStartTime = globals.framework.getCurrentTime();
+    }
+
+    private void closeGame() {
+        closeGui();
+        if (thegame) {
+            thegame.kill();
+            delete thegame;
+            thegame = null;
+        }
+    }
+
+    private void initializeGui() {
+        closeGui();
+        mGuiWindMeter.controller = thegame;
+        mGuiWindMeter.setScene(guiscene, GUIZOrder.Gui);
+        mGuiWindMeter.pos = guiscene.thesize - mGuiWindMeter.size - Vector2i(5,5);
+    }
+
+    private void closeGui() {
+        mGuiWindMeter.controller = null;
+        mGuiWindMeter.setScene(null, GUIZOrder.Gui);
     }
 
     private void cmdGfxSet(CommandLine cmd) {
@@ -210,7 +245,7 @@ class TopLevel {
     private void onVideoInit(bool depth_only) {
         globals.log("Changed video: %s", globals.framework.screen.size);
         screen.setSize(globals.framework.screen.size);
-        gameview.thesize = guiscene.thesize - Vector2i(10, 10)*2;
+        gameview.thesize = guiscene.thesize;
     }
 
     private void cmdVideo(CommandLine cmd) {
@@ -362,17 +397,11 @@ class TopLevel {
     }
 
     private void cmdGenerateLevel(CommandLine cmd) {
-        if (thegame) {
-            thegame.kill();
-            thegame = null;
-        }
         auto x = new genlevel.LevelGenerator();
         x.config = globals.loadConfig("levelgen").getSubNode("levelgen");
-        auto level = x.generateRandom("", mGfxSet);
-        thegame = new GameController(gamescene, level);
-        gameStartTime = globals.gameTime;
-        //xxx evil+sucks
-        screen.setFocus(thegame.levelobject);
+        GameConfig cfg;
+        cfg.level = x.generateRandom("", mGfxSet);
+        initializeGame(cfg);
     }
 
     private void cmdPause(CommandLine) {

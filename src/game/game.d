@@ -30,6 +30,10 @@ enum GameZOrder {
     FrontWaterWaves3,
 }
 
+struct GameConfig {
+    Level level;
+}
+
 //code to manage a game session (hm, whatever this means)
 //reinstantiated on each "round"
 class GameController {
@@ -55,12 +59,16 @@ class GameController {
 
     private ConstantForce mGravForce;
     private WindyForce mWindForce;
+    private float mWindTarget;
+    private const cWindChange = 80.0f;
 
-    this(Scene gamescene, Level level) {
+    private Time mLastTime;
+
+    this(Scene gamescene, GameConfig config) {
         assert(gamescene !is null);
-        assert(level !is null);
+        assert(config.level !is null);
         scene = gamescene;
-        this.level = level;
+        this.level = config.level;
 
         Vector2i levelOffset, worldSize;
         if (level.isCave) {
@@ -95,8 +103,8 @@ class GameController {
         physicworld.add(mGravForce);
 
         mWindForce = new WindyForce();
-        mWindForce.accel = Vector2f(150, 0); //what unit is that???
         physicworld.add(mWindForce);
+        mWindTarget = -150;   //what unit is that???
 
         mObjects = new List!(GameObject)(GameObject.node.getListNodeOffset());
 
@@ -113,7 +121,7 @@ class GameController {
         return mWindForce.accel.x;
     }
     public void windSpeed(float speed) {
-        mWindForce.accel.x = speed;
+        mWindTarget = speed;
     }
 
     public float gravity() {
@@ -150,11 +158,17 @@ class GameController {
 
     void doFrame(Time gametime) {
         currentTime = gametime;
+        if (abs(mWindTarget - mWindForce.accel.x) > 0.5f) {
+            float deltaT = (currentTime - mLastTime).msecs/1000.0f;
+            mWindForce.accel.x += copysign(cWindChange*deltaT,mWindTarget - mWindForce.accel.x);
+            std.stdio.writefln("%s, %s",currentTime,mWindForce.accel.x);
+        }
         physicworld.simulate(currentTime);
         //update game objects
         foreach (GameObject o; mObjects) {
             o.simulate(currentTime);
         }
+        mLastTime = currentTime;
     }
 
     //remove all objects etc. from the scene

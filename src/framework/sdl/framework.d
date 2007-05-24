@@ -522,7 +522,10 @@ public class SDLCanvas : Canvas {
     }
 
     public void drawRect(Vector2i p1, Vector2i p2, Color color) {
-        assert(false);
+        drawLine(p1, Vector2i(p1.x, p2.y), color);
+        drawLine(Vector2i(p1.x, p2.y), p2, color);
+        drawLine(p2, Vector2i(p2.x, p1.y), color);
+        drawLine(Vector2i(p2.x, p1.y), p1, color);
     }
 
     override public void drawFilledRect(Vector2i p1, Vector2i p2, Color color,

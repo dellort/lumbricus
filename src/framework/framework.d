@@ -365,7 +365,7 @@ public class Framework {
 
     public abstract Surface loadImage(Stream st, Transparency transp);
     public Surface loadImage(char[] fileName, Transparency transp) {
-        return loadImage(new File(fileName,FileMode.In), transp);
+        return loadImage(fs.open(fileName,FileMode.In), transp);
     }
 
     /// create an image based on the given data and on the pixelformat
