@@ -56,6 +56,17 @@ public struct Color {
     public static Color opCall(float c) {
         return opCall(c,c,c);
     }
+
+    Color opMul(float m) {
+        Color res = *this;
+        res *= m;
+        return res;
+    }
+    void opMulAssign(float m) {
+        r = r*m;
+        g = g*m;
+        b = b*m;
+    }
 }
 
 enum Transparency {

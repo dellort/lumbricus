@@ -12,6 +12,7 @@ import utils.log;
 import levelgen.level;
 import levelgen.generator;
 import std.string : format;
+import utils.output;
 
 private:
 
@@ -166,6 +167,32 @@ class EditObject {
         return null;
     }
 
+    //select all objects which touch the bounding box
+    //doesn't necessarely use the object's bounding box, but should rather
+    //behave as if pickSub() was called for each pixel
+    EditObject[] pickBoundingBox(in Rect2i bb) {
+        auto res = pickSubBoundingBox(bb);
+        if (doPickBoundingBox(bb)) {
+            res ~= this;
+        }
+        return res;
+    }
+
+    //like pickBoundingBox(), but only pick sub objects
+    EditObject[] pickSubBoundingBox(in Rect2i bb) {
+        EditObject[] res;
+        foreach (o; subObjects) {
+            res ~= o.pickBoundingBox(bb);
+        }
+        return res;
+    }
+
+    //if the this object is picked (without any sub objects)
+    protected bool doPickBoundingBox(in Rect2i bb) {
+        //default: by bounding box
+        return bb.intersects(bounds);
+    }
+
     void draw(Canvas canvas) {
         //by default, draw the bounding box, then all subobjects
         auto c = isHighlighted ? Color(1,1,1,0.4) : Color(1,1,1,0.2);
@@ -224,11 +251,16 @@ class EditLine : EditObject {
         return mPTs[index];
     }
 
-    bool pick(Vector2i p) {
+    override bool pick(Vector2i p) {
         auto a = toVector2f(p);
         auto b = toVector2f(mPTs[0]);
         auto c = toVector2f(mPTs[1]);
         return a.distance_from(b, b-c) <= 5.0f;
+    }
+
+    override protected bool doPickBoundingBox(in Rect2i bb) {
+        //xxx :)
+        return super.doPickBoundingBox(bb);
     }
 
     override void doUpdateBoundingBox() {
@@ -253,6 +285,14 @@ class EditPLine : EditLine {
     //both must always be non-null
     EditPPoint prev;
     EditPPoint next;
+
+    bool noChange;
+
+    void draw(Canvas canvas) {
+        Color x = noChange ? Color(1,1,0) : Color(1,1,1);
+        auto c = isHighlighted ? x : x*0.5;
+        canvas.drawLine(mPTs[0], mPTs[1], c);
+    }
 
     override void changedPoints() {
         //move both joining points (they must exist)
@@ -307,6 +347,7 @@ class EditPolygon : EditObject {
     //the polygon contains subobjects of the types EditPPoint and EditPLine
     EditPPoint first;
 
+    /+
     void addTrailingPoint(Vector2i pt) {
         EditPPoint last;
         EditPLine nline;
@@ -336,6 +377,41 @@ class EditPolygon : EditObject {
         if (!first)
             first = obj;
     }
+    +/
+
+    //init closed polygon
+    void initLine(Vector2i[] pts) {
+        //allowed for initlization only
+        assert(first is null);
+        assert(pts.length >= 3);
+        first = new EditPPoint();
+        auto last = new EditPPoint();
+        auto line = new EditPLine();
+        line.prev = first; first.next = line;
+        line.next = last;  last.prev = line;
+        //and the line back...
+        auto back = new EditPLine();
+        back.prev = last;  last.next = back;
+        back.next = first; first.prev = back;
+        //hm
+        add(first);
+        add(last);
+        add(line, false);
+        add(back, false);
+        //set the points, warning stupidity!
+        first.isMoving = true;
+        last.isMoving = true;
+        first.pt = pts[0];
+        last.pt = pts[$-1];
+        first.isMoving = false;
+        last.isMoving = false;
+        //insert the rest points
+        auto cur = line;
+        foreach (Vector2i pt; pts[1..$-1]) {
+            cur.split(pt);
+            cur = cur.next.next;
+        }
+    }
 
     Vector2i[] getPoints() {
         Vector2i[] res;
@@ -344,7 +420,29 @@ class EditPolygon : EditObject {
             res ~= cur.pt;
             if (!cur.next)
                 break;
+            if (cur.next.next is first)
+                break;
             cur = cur.next.next;
+        }
+        return res;
+    }
+    //get indices of points whose following line is not changeable (noChange)
+    int[] getNoChangeable() {
+        int[] res;
+        EditPPoint cur = first;
+        int index = 0;
+        for (;;) {
+            if (!cur.next) {
+                break;
+            } else {
+                if (cur.next.noChange) {
+                    res ~= index;
+                }
+            }
+            if (cur.next.next is first)
+                break;
+            cur = cur.next.next;
+            index++;
         }
         return res;
     }
@@ -362,6 +460,12 @@ class RenderEditor : SceneObject {
         if (editor.mPreviewImage)
             c.draw(editor.mPreviewImage, Vector2i(0));
         editor.root.draw(c);
+        //selection rectangle
+        if (editor.isSelecting) {
+            auto sel = Rect2i(editor.selectStart, editor.selectEnd);
+            sel.normalize();
+            c.drawFilledRect(sel.p1, sel.p2, Color(0.5, 0.5, 0.5, 0.5), true);
+        }
     }
 }
 
@@ -374,7 +478,15 @@ public class LevelEditor {
     Vector2i dragRel; //moving always relative -> need to undo relative moves
     EditObject pickedObject; //for draging
 
+    bool isSelecting;
+    Vector2i selectStart, selectEnd;
+
     Texture mPreviewImage;
+
+    //current rectangle-selection mode
+    //(what to do if the user draws this rect)
+    //if null, just try to select stuff
+    void delegate(Rect2i) onSelect;
 
     //update cheap things (called often on small state changes)
 //    private void updateState() {
@@ -457,8 +569,12 @@ public class LevelEditor {
                     setSelected(obj, !obj.isSelected);
                 return false;
             }
-            if (!obj) {
+            if (!obj || obj is root) {
                 deselectAll();
+                //start selection mode
+                selectStart = sender.mousePos;
+                selectEnd = selectStart;
+                isSelecting = true;
                 return false;
             }
 
@@ -473,9 +589,32 @@ public class LevelEditor {
         return false;
     }
 
+    void doSelect(Rect2i r) {
+        EditObject[] sel = root.pickBoundingBox(r);
+        foreach (o; sel) {
+            //don't select PLines, it's annoying
+            if (cast(EditPLine)o)
+                continue;
+            setSelected(o, true);
+        }
+    }
+
     bool onKeyPress(EventSink sender, KeyInfo infos) {
         if (infos.code == Keycode.N)
             insertPoint();
+        if (infos.code == Keycode.C) {
+            foreachSelected(false,
+                (EditObject obj) {
+                    if (cast(EditPLine)obj) {
+                        auto line = cast(EditPLine)obj;
+                        line.noChange = !line.noChange;
+                    }
+                }
+            );
+        }
+        if (infos.code == Keycode.P) {
+            onSelect = &newPolyAt;
+        }
         return false;
     }
 
@@ -488,6 +627,19 @@ public class LevelEditor {
                     if (pickedObject) {
                         setSelected(pickedObject, true);
                     }
+                }
+            }
+            if (isSelecting) {
+                isSelecting = false;
+                selectEnd = sender.mousePos;
+                auto r = Rect2i(selectStart, selectEnd);
+                r.normalize();
+                if (onSelect) {
+                    auto tmp = onSelect;
+                    onSelect = null;
+                    tmp(r);
+                } else {
+                    doSelect(r);
                 }
             }
         }
@@ -516,7 +668,17 @@ public class LevelEditor {
                 }
             );
         }
+        if (isSelecting) {
+            selectEnd = info.pos;
+        }
         return true;
+    }
+
+    void newPolyAt(Rect2i r) {
+        EditPolygon tmp = new EditPolygon();
+        tmp.initLine([r.p1, Vector2i(r.p1.x, r.p2.y),r.p2,
+            Vector2i(r.p2.x, r.p1.y)]);
+        root.add(tmp);
     }
 
     this() {
@@ -525,13 +687,11 @@ public class LevelEditor {
         render = new RenderEditor(this);
         render.setScene(scene, 2);
         scene.thesize = Vector2i(1000,1000);
-        EditPolygon tmp = new EditPolygon();
-        root.add(tmp);
-        tmp.addTrailingPoint(Vector2i(10, 10));
-        tmp.addTrailingPoint(Vector2i(10, 100));
-        tmp.addTrailingPoint(Vector2i(100, 100));
+
+        newPolyAt(Rect2i(100, 100, 500, 500));
 
         globals.cmdLine.registerCommand("preview", &cmdPreview, "preview");
+        globals.cmdLine.registerCommand("save", &cmdSave, "save edit level");
 
         auto ev = render.getEventSink();
         ev.onMouseMove = &onMouseMove;
@@ -552,15 +712,13 @@ public class LevelEditor {
         }
     }
 
-    void cmdPreview(CommandLine) {
-        //create a level generator configfile...
-        ConfigNode rootnode = new ConfigNode();
-        auto sub = rootnode.getSubNode("templates").getSubNode("");
+    void saveLevel(ConfigNode sub) {
         sub["is_cave"] = "true";
         sub["marker"] = "LAND";
         auto polies = sub.getSubNode("polygons");
-        const WIDTH = 1900;
-        const HEIGHT = 690;
+        const WIDTH = 2000;
+        const HEIGHT = 700;
+        sub["size"] = format("%s %s", WIDTH, HEIGHT);
         foreach (o; root.subObjects) {
             if (!cast(EditPolygon)o)
                 continue;
@@ -571,12 +729,33 @@ public class LevelEditor {
             Vector2i[] pts = p.getPoints();
             foreach (x; pts) {
                 points.setStringValue("",
-                    format("%s %s", 1.0f*x.x/WIDTH, 1.0f*x.y/HEIGHT));
+                    format("%s %s", x.x, x.y));
+            }
+            auto nochange = curpoly.getSubNode("nochange");
+            int[] nc = p.getNoChangeable();
+            foreach (int i; nc) {
+                nochange.setStringValue("", format(i));
             }
         }
+    }
+
+    void cmdSave(CommandLine) {
+        ConfigNode rootnode = new ConfigNode();
+        auto sub = rootnode.getSubNode("templates").getSubNode("");
+        saveLevel(sub);
+        auto s = new StringOutput();
+        rootnode.writeFile(s);
+        std.stdio.writefln(s.text);
+    }
+
+    void cmdPreview(CommandLine) {
+        //create a level generator configfile...
+        ConfigNode rootnode = new ConfigNode();
+        auto sub = rootnode.getSubNode("templates").getSubNode("");
+        saveLevel(sub);
         auto generator = new LevelGenerator();
         generator.config = rootnode;
-        Level level = generator.generateRandom(WIDTH, HEIGHT, "", "gpl");
+        Level level = generator.generateRandom("", "gpl");
         if (level)
             mPreviewImage = level.image.createTexture();
     }

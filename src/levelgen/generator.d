@@ -72,19 +72,23 @@ public class LevelGenerator {
          }
     }
 
+    private Vector2f readVector(char[] s) {
+        char[][] items = str.split(s);
+        if (items.length != 2) {
+            throw new Exception("invalid point value");
+        }
+        Vector2f pt;
+        pt.x = conv.toFloat(items[0]);
+        pt.y = conv.toFloat(items[1]);
+        return pt;
+    }
+
     private Vector2f[] readPointList(ConfigNode node) {
         //is that horrible or beautiful?
         return ReadListTemplate!(Vector2f).readList(node, (char[] item) {
             //a bit inefficient, but that doesn't matter
             //(as long as nobody puts complete vector graphics there...)
-            char[][] items = str.split(item);
-            if (items.length != 2) {
-                throw new Exception("invalid point value");
-            }
-            Vector2f pt;
-            pt.x = conv.toFloat(items[0]);
-            pt.y = conv.toFloat(items[1]);
-            return pt;
+            return readVector(item);
         });
     }
     private uint[] readUIntList(ConfigNode node) {
@@ -129,8 +133,8 @@ public class LevelGenerator {
             g.config_remove_or_add = tmp;
     }
 
-    private Level generateRandom(uint width, uint height,
-        ConfigNode template_node, ConfigNode gfxNode, char[] gfxPath)
+    private Level generateRandom(ConfigNode template_node, ConfigNode gfxNode,
+        char[] gfxPath)
     {
         Surface loadBorderTex(ConfigNode texNode)
         {
@@ -171,6 +175,10 @@ public class LevelGenerator {
             return res;
         }
 
+        auto size = toVector2i(
+            readVector(template_node.getStringValue("size", "1200 700")));
+        auto width = size.x, height = size.y;
+
         auto gen = new GenRandomLevel(width, height);
 
         bool isCave = template_node.getBoolValue("is_cave");
@@ -187,11 +195,12 @@ public class LevelGenerator {
         foreach(char[] name, ConfigNode polygon; polys) {
             Vector2f[] points = readPointList(polygon.getSubNode("points"));
 
+            /+ removed scaling, contains absolute values now
             //scale the points
             for (uint i = 0; i < points.length; i++) {
                 points[i].x *= width;
                 points[i].y *= height;
-            }
+            }+/
 
             uint[] nosubdiv = readUIntList(polygon.getSubNode("nochange"));
             char[] markerId = polygon.getStringValue("marker");
@@ -302,10 +311,9 @@ public class LevelGenerator {
     }
 
     /// generate a random level based on a template
-    public Level generateRandom(uint width, uint height, char[] templatename,
-        char[] gfxSet)
+    public Level generateRandom(char[] templatename, char[] gfxSet)
     {
-        mLog("template '%s', %dx%d", templatename, width, height);
+        mLog("template '%s'", templatename ? templatename : "[random]");
 
         //open graphics set
         char[] gfxPath = "/level/" ~ gfxSet ~ "/";
@@ -319,7 +327,7 @@ public class LevelGenerator {
             if (templatename.length > 0 &&
                 template_node.getStringValue("name", "") == templatename)
             {
-                return generateRandom(width, height, template_node, gfxNode, gfxPath);
+                return generateRandom(template_node, gfxNode, gfxPath);
             }
             count++;
         }
@@ -335,7 +343,7 @@ public class LevelGenerator {
             if (pick == 0) {
                 mLog("picked random template: '%s'", template_node
                     .getStringValue("name"));
-                return generateRandom(width, height, template_node, gfxNode, gfxPath);
+                return generateRandom(template_node, gfxNode, gfxPath);
             }
             pick--;
         }

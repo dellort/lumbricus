@@ -368,7 +368,7 @@ class TopLevel {
         }
         auto x = new genlevel.LevelGenerator();
         x.config = globals.loadConfig("levelgen").getSubNode("levelgen");
-        auto level = x.generateRandom(1920, 696, "", mGfxSet);
+        auto level = x.generateRandom("", mGfxSet);
         thegame = new GameController(gamescene, level);
         gameStartTime = globals.gameTime;
         //xxx evil+sucks
