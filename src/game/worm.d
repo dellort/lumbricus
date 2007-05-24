@@ -37,6 +37,7 @@ class Worm : GameObject {
     float angle; //in radians!
     float set_angle; //angle as set in graphic, needs update if !=angle!
     float realangle;
+    Angle currot;
 
     this(GameController controller) {
         super(controller);
@@ -44,17 +45,20 @@ class Worm : GameObject {
         graphic = new Animator();
         auto config = globals.loadConfig("worm");
 
+        config.templatetifyNodes("template");
+
         Animation loadAnim(char[] name) {
             return new Animation(config.getSubNode("worm_" ~ name));
         }
 
         mAnim.length = WormAnim.max+1;
 
-        mAnim[WormAnim.Stand][Angle.Up] = loadAnim("stand_up");
-        mAnim[WormAnim.Stand][Angle.Down] = loadAnim("stand_down");
+        //xxx did swap Up and Down animations, to neutralize the bug in physUpdate()
+        mAnim[WormAnim.Stand][Angle.Down] = loadAnim("stand_up");
+        mAnim[WormAnim.Stand][Angle.Up] = loadAnim("stand_down");
         mAnim[WormAnim.Stand][Angle.Norm] = loadAnim("stand_norm");
-        mAnim[WormAnim.Move][Angle.Up] = loadAnim("move_up");
-        mAnim[WormAnim.Move][Angle.Down] = loadAnim("move_down");
+        mAnim[WormAnim.Move][Angle.Down] = loadAnim("move_up");
+        mAnim[WormAnim.Move][Angle.Up] = loadAnim("move_down");
         mAnim[WormAnim.Move][Angle.Norm] = loadAnim("move_norm");
 
         mBla = loadAnim("bla");
@@ -82,6 +86,10 @@ class Worm : GameObject {
             graphic.pos = toVector2i(physics.pos) - curanim.size/2;
         }
 
+        mState = physics.isWalking() ? WormAnim.Move : WormAnim.Stand;
+
+        Angle rot;
+
         //ground_angle is the angle of the normal, orthogonal to the worm
         //  walking direction
         //so there are two possible sides (+/- 180 degrees)
@@ -91,7 +99,7 @@ class Worm : GameObject {
         auto b = Vector2f.fromPolar(1, physics.rotation);
         if (a*b < 0)
             nangle += 3.141; //+180 degrees
-        if (nangle != angle) {
+        //if (nangle != angle) {
             angle = nangle;
 
             //whatever
@@ -115,15 +123,22 @@ class Worm : GameObject {
                     closest = cast(Angle)i;
                 }
             }
+            rot = closest;
 
             //registerLog("xxx")("angle=%s iangle=%s ca=%s cl=%s", angle, iangle, cAngles[closest], closest);
 
-            curanim = mAnim[mState][closest % 3];
-            graphic.setMirror(!!(closest/3));
-            graphic.setAnimation(curanim);
+
 
             //auto x = cast(int)((angle+3.141*2.5)/(2*3.141)*(curanim.frameCount-1));
             //graphic.setFrame(x % (curanim.frameCount));
+        //}
+
+        auto nanim = mAnim[mState][closest % 3];
+        if (graphic.currentAnimation() !is nanim || currot != closest) {
+            curanim = nanim;
+            currot = closest;
+            graphic.setMirror(!!(currot/3));
+            graphic.setAnimation(curanim);
         }
     }
 

@@ -104,6 +104,10 @@ class Animator : SceneObjectPositioned {
         }
     }
 
+    Animation currentAnimation() {
+        return mAni;
+    }
+
     void setOnNoAnimation(void delegate(Animator) cb) {
         mOnNoAnimation = cb;
     }

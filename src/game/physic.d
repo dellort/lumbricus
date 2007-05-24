@@ -79,6 +79,7 @@ class PhysicObject : PhysicBase {
     //used during simulation
     float walkingTime = 0; //time until next pixel will be walked on
     Vector2f walkTo; //direction
+    private bool mIsWalking;
 
     //used temporarely during "simulation"
     Vector2f deltav;
@@ -112,13 +113,31 @@ class PhysicObject : PhysicBase {
         needUpdate();
     }
 
-    //set rotation
+    //set rotation (using velocity)
     private void checkRotation() {
         auto len = velocity.length;
         //xxx insert a well chosen value here
+        //NOTE: this check also prevents NaNs from getting through
         //intention is that changes must be big enough to change worm direction
         if (len > 0.001) {
             rotation = (velocity/len).toAngle();
+        }
+    }
+    //set rotation (using move-vector from oldpos to pos)
+    private void checkRotation2(Vector2f oldpos) {
+        Vector2f dir = pos-oldpos;
+        auto len = dir.length;
+        if (len > 0.001) {
+            rotation = (dir/len).toAngle();
+        }
+    }
+
+    //whenever this object touches the ground, call this with the depth*normal
+    //  vector
+    private void checkGroundAngle(Vector2f dir) {
+        auto len = dir.length;
+        if (len > 0.001) {
+            ground_angle = (dir/len).toAngle();
         }
     }
 
@@ -134,17 +153,31 @@ class PhysicObject : PhysicBase {
 
     void setWalking(Vector2f dir) {
         //xxx
-        walkingSpeed = 20;
+        walkingSpeed = 40;
         walkingTime = 0;
         walkTo = dir;
         //or switch off?
         if (dir.length < 0.01)
             walkingSpeed = 0;
+        mIsWalking = false;
+
+        needUpdate();
+    }
+
+    //if object _attempts_ to walk
+    bool isWalkingMode() {
+        return walkingSpeed > 0;
+    }
+
+    //if object is walking and actually walks!
+    bool isWalking() {
+        return mIsWalking;
     }
 
     override protected void simulate(float deltaT) {
+        super.simulate(deltaT);
         //take care of walking, walkingSpeed > 0 marks walking enabled
-        if (walkingSpeed > 0) {
+        if (isWalkingMode()) {
             walkingTime -= deltaT;
             if (walkingTime <= 0) {
                 walkingTime = 1.0 / walkingSpeed; //time for one pixel
@@ -175,6 +208,9 @@ class PhysicObject : PhysicBase {
                     if (!res) {
                         log.registerLog("xxx")("at %s -> %s", nnpos, nnpos-tmp);
                         //no collision, consider this to be bottom
+
+                        auto oldpos = pos;
+
                         if (first) {
                             //even first tested location => most bottom, fall
                             log.registerLog("xxx")("fall-bottom");
@@ -186,13 +222,26 @@ class PhysicObject : PhysicBase {
                             npos.y += y;
                             pos = npos;
                         }
-                        break;
+
+                        //check worm direction...
+                        checkRotation2(oldpos);
+
+                        //check ground normal... not good :)
+                        nnpos = pos;
+                        if (world.collideGeometry(nnpos, radius+5))
+                            checkGroundAngle(nnpos-npos);
+
+                        //jup, did walk
+                        mIsWalking = true;
+
+                        return;
                     }
 
                     first = false;
                 }
-                //if nothing is done, the worm just can't walk
-                //(maybe set a did-not-walk-flag)
+
+                //if nothing was done, the worm (or the cow :) just can't walk
+                mIsWalking = false;
             }
         }
     }
@@ -439,7 +488,7 @@ class PhysicWorld {
 
             auto rnormal = normalsum.normal();
             if (!rnormal.isNaN()) {
-                me.ground_angle = rnormal.toAngle();
+                me.checkGroundAngle(normalsum);
 
                 //set new position ("should" fit)
                 me.pos = me.pos + normalsum;

@@ -197,8 +197,8 @@ class LevelObject : SceneObject {
         +/
         //xxx draw debug stuff for physics!
         foreach (PhysicObject o; game.physicworld.mObjects) {
-            //auto angle = o.rotation;
-            auto angle = o.ground_angle;
+            auto angle = o.rotation;
+            //auto angle = o.ground_angle;
             c.drawCircle(toVector2i(o.pos), cast(int)o.radius, Color(1,1,1));
             auto p = Vector2f.fromPolar(40, angle) + o.pos;
             c.drawCircle(toVector2i(p), 5, Color(1,1,0));
