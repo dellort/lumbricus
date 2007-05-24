@@ -7,7 +7,7 @@ import utils.vector2;
 import log = utils.log;
 import str = std.string;
 import utils.output;
-import std.math : sqrt;
+import std.math : sqrt, PI;
 
 //base type for physic objects (which are contained in a PhysicWorld)
 class PhysicBase {
@@ -110,7 +110,17 @@ class PhysicObject : PhysicBase {
         velocity += deltav;
         deltav = Vector2f(0, 0);
         isGlued = false;
+        //xxx switch off walking mode?
+        walkingSpeed = 0;
+        mIsWalking = false;
         needUpdate();
+    }
+
+    //push a worm into a direction (i.e. for jumping)
+    void push(Vector2f force) {
+        //xxx maybe make that better
+        velocity += force;
+        checkUnglue(true);
     }
 
     //set rotation (using velocity)
@@ -138,6 +148,26 @@ class PhysicObject : PhysicBase {
         auto len = dir.length;
         if (len > 0.001) {
             ground_angle = (dir/len).toAngle();
+        }
+    }
+
+    //angle where the worm looks to, or is forced to look to
+    //the angle (should?) be orthogonal
+    float lookey(bool forceGlue = false) {
+        if (!isGlued || forceGlue) {
+            return rotation;
+        } else {
+            float angle = ground_angle+PI/2;
+            //hm!?!?
+            auto a = Vector2f.fromPolar(1, angle);
+            auto b = Vector2f.fromPolar(1, rotation);
+            if (a*b < 0)
+                angle += PI; //+180 degrees
+            //modf sucks!
+            while (angle > PI*2) {
+                angle -= PI*2;
+            }
+            return angle;
         }
     }
 

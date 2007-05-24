@@ -144,6 +144,13 @@ class GameController {
             } else if (info.code == Keycode.RIGHT) {
                 lastworm.physics.setWalking(Vector2f(+1, 0));
                 registerLog("xxx")("walk right");
+            } else if (info.code == Keycode.RETURN) {
+                if (lastworm.physics.isGlued) {
+                    auto look = Vector2f.fromPolar(1, lastworm.physics.lookey);
+                    look.y = 0;
+                    look = look.normal(); //get sign *g*
+                    lastworm.physics.push(Vector2f(10*look.x, -100));
+                }
             }
         }
         return true;
@@ -216,14 +223,16 @@ class LevelObject : SceneObject {
             c.drawCircle(toVector2i(o.pos), cast(int)o.radius, Color(1,1,1));
             auto p = Vector2f.fromPolar(40, angle) + o.pos;
             c.drawCircle(toVector2i(p), 5, Color(1,1,0));
+            p = Vector2f.fromPolar(50, o.lookey) + o.pos;
+            c.drawCircle(toVector2i(p), 5, Color(1,0,1));
         }
         //more debug stuff...
         foreach (GameObject go; game.mObjects) {
-            if (cast(Worm)go) {
+            /+if (cast(Worm)go) {
                 auto w = cast(Worm)go;
                 auto p = Vector2f.fromPolar(40, w.angle) + w.physics.pos;
                 c.drawCircle(toVector2i(p), 5, Color(1,0,1));
-            }
+            }+/
         }
     }
 

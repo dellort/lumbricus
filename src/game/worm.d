@@ -93,12 +93,7 @@ class Worm : GameObject {
         //ground_angle is the angle of the normal, orthogonal to the worm
         //  walking direction
         //so there are two possible sides (+/- 180 degrees)
-        auto nangle = physics.ground_angle+3.141/2;
-        //hm!?!?
-        auto a = Vector2f.fromPolar(1, nangle);
-        auto b = Vector2f.fromPolar(1, physics.rotation);
-        if (a*b < 0)
-            nangle += 3.141; //+180 degrees
+        auto nangle = physics.lookey;
         //if (nangle != angle) {
             angle = nangle;
 
