@@ -63,8 +63,8 @@ class Animation {
 class Animator : SceneObjectPositioned {
     protected Animation mAni, mAniNext;
     private bool mAniRepeat, mAniReverse;
-    private uint mLastFrame;
-    private Time mLastFrameTime;
+    private uint mCurFrame;
+    private Time mCurFrameTime;
     private void delegate(Animator sender) mOnNoAnimation;
     private bool mReversed = false;
     private bool mMirrored;
@@ -94,8 +94,7 @@ class Animator : SceneObjectPositioned {
         mAniReverse = ani ? ani.mReverse : false;
         mReversed = false;
         mAniNext = null;
-        mLastFrame = 0;
-        mLastFrameTime = globals.gameTimeAnimations;
+        setFrame(0);
 
         if (ani) {
             thesize = ani.mSize;
@@ -113,27 +112,29 @@ class Animator : SceneObjectPositioned {
     }
 
     void setFrame(uint frameIdx) {
-        if (mAni && frameIdx<mAni.frameCount)
-            mLastFrame = frameIdx;
+        if (mAni && frameIdx<mAni.frameCount) {
+            mCurFrame = frameIdx;
+            mCurFrameTime = globals.gameTimeAnimations;
+        }
     }
 
     void draw(Canvas canvas) {
         if (!mAni || mAni.mFrames.length == 0)
             return;
-        Animation.FrameInfo fi = mAni.mFrames[mLastFrame];
-        if ((globals.gameTimeAnimations - mLastFrameTime).msecs > fi.durationMS
+        Animation.FrameInfo fi = mAni.mFrames[mCurFrame];
+        while ((globals.gameTimeAnimations - mCurFrameTime).msecs > fi.durationMS
             && !paused)
         {
             if (mReversed) {
-                if (mLastFrame > 0)
-                    mLastFrame = mLastFrame - 1;
+                if (mCurFrame > 0)
+                    mCurFrame = mCurFrame - 1;
             } else
-                mLastFrame = (mLastFrame + 1) % mAni.mFrames.length;
-            mLastFrameTime = globals.gameTimeAnimations;
-            if (mLastFrame == 0) {
+                mCurFrame = (mCurFrame + 1) % mAni.mFrames.length;
+            mCurFrameTime += timeMsecs(fi.durationMS);
+            if (mCurFrame == 0) {
                 //end of animation, check what to do now...
                 if (mAniReverse && !mReversed) {
-                    mLastFrame = mAni.mFrames.length - 1;
+                    mCurFrame = mAni.mFrames.length - 1;
                 } else if (mAniNext) {
                     setAnimation(mAniNext);
                 } else if (mAniRepeat) {
@@ -145,10 +146,10 @@ class Animator : SceneObjectPositioned {
                 }
                 mReversed = !mReversed;
             }
+            fi = mAni.mFrames[mCurFrame];
         }
 
         //draw it.
-        //xxx: this is the next frame... should draw the current one
         auto tex = mMirrored ? mAni.mMirrorTex : mAni.mImageTex;
         canvas.draw(tex, pos, fi.pos, fi.size);
     }
