@@ -71,16 +71,24 @@ class SceneView : SceneObjectPositioned {
     private Vector2i mClientoffset;
     private Vector2i mSceneSize;
 
-    this(Scene clientscene) {
-        assert(clientscene !is null);
-        mClientScene = clientscene;
-        mClientoffset = Vector2i(0, 0);
-        mSceneSize = mClientScene.thesize;
+    this() {
         //always create event handler
         getEventSink();
     }
 
+    void clientscene(Scene scene) {
+        mClientScene = scene;
+        mClientoffset = Vector2i(0, 0);
+        mSceneSize = Vector2i(0, 0);
+        if (scene) {
+            mSceneSize = mClientScene.thesize;
+        }
+    }
+
     void draw(Canvas canvas) {
+        if (!mClientScene)
+            return;
+
         if (mSceneSize != mClientScene.thesize) {
             //scene size has changed
             clipOffset(mClientoffset);
@@ -119,6 +127,11 @@ class SceneView : SceneObjectPositioned {
     }
 
     public void clipOffset(inout Vector2i offs) {
+        if (!mClientScene) {
+            offs = Vector2i(0, 0);
+            return;
+        }
+
         if (thesize.x < mClientScene.thesize.x) {
             //view window is smaller than scene (x-dir)
             //-> don't allow black borders
@@ -158,6 +171,10 @@ class SceneView : SceneObjectPositioned {
         info.pos = toClientCoords(info.pos);
         //xxx following line
         getEventSink().mMousePos = info.pos;
+
+        if (!mClientScene)
+            return;
+
         foreach (SceneObject so; mClientScene.mEventReceiver) {
             auto pso = cast(SceneObjectPositioned)so;
             if (!pso) {
@@ -175,6 +192,9 @@ class SceneView : SceneObjectPositioned {
 
     //duplicated from above
     void doMouseButtons(EventSink.KeyEvent ev, KeyInfo info) {
+        if (!mClientScene)
+            return;
+
         //last mouse position - should be valid (?)
         auto pos = getEventSink().mousePos;
         foreach (SceneObject so; mClientScene.mEventReceiver) {
@@ -205,7 +225,8 @@ class Screen {
     this(Vector2i size) {
         mRootScene = new Scene();
         mRootScene.thesize = size;
-        mRootView = new SceneView(mRootScene);
+        mRootView = new SceneView();
+        mRootView.clientscene = mRootScene;
         //NOTE: normally SceneViews are elements in a further Scene, but here
         //      Screen is the container of the SceneView mRootView
         //      damn overengineered madness!
@@ -223,7 +244,7 @@ class Screen {
     }
 
     void setFocus(SceneObject so) {
-        mFocus = so.getEventSink();
+        mFocus = so ? so.getEventSink() : null;
     }
 
     private bool doKeyEvent(EventSink.KeyEvent ev, KeyInfo info) {

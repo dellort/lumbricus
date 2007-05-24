@@ -46,8 +46,9 @@ class TopLevel {
     Screen screen;
     Scene guiscene;
     //overengineered
-    Scene gamescene;
-    SceneView gameview;
+    private SceneView sceneview;
+    private void delegate() mOnStopGui; //associated with sceneview
+    LevelEditor editor;
     Console console;
     KeyBindings keybindings;
     GameController thegame;
@@ -95,13 +96,11 @@ class TopLevel {
 
         mGuiWindMeter = new WindMeter();
 
-        gamescene = new Scene();
-
-        gameview = new SceneView(gamescene);
-        gameview.setScene(guiscene, GUIZOrder.Game); //container!
-        //gameview is simply the window that shows the level
-        gameview.pos = Vector2i(0, 0);
-        gameview.thesize = guiscene.thesize;
+        sceneview = new SceneView();
+        sceneview.setScene(guiscene, GUIZOrder.Game); //container!
+        //sceneview is simply the window that shows the level
+        sceneview.pos = Vector2i(0, 0);
+        sceneview.thesize = guiscene.thesize;
 
         auto consrender = new CallbackSceneObject();
         consrender.setScene(guiscene, GUIZOrder.Console);
@@ -117,10 +116,12 @@ class TopLevel {
         //do it yourself... (initial event)
         onVideoInit(false);
 
+        /+ to be removed
         mWormsAnim = globals.loadConfig("wormsanim");
         mWormsAnimator = new Animator();
         mWormsAnimator.setScene(gamescene, 2);
         mWormsAnimator.pos = Vector2i(100,330);
+        +/
 
         keybindings = new KeyBindings();
         keybindings.loadFrom(globals.loadConfig("binds").getSubNode("binds"));
@@ -142,7 +143,7 @@ class TopLevel {
         globals.cmdLine.registerCommand("expl", &cmdExpl, "BOOM! HAHAHAHA");
         globals.cmdLine.registerCommand("worm", &cmdWorm, "...");
         globals.cmdLine.registerCommand("pause", &cmdPause, "pause");
-        globals.cmdLine.registerCommand("loadanim", &cmdLoadAnim, "load worms animation");
+        //globals.cmdLine.registerCommand("loadanim", &cmdLoadAnim, "load worms animation");
         globals.cmdLine.registerCommand("clouds", &cmdClouds, "enable/disable animated clouds");
         globals.cmdLine.registerCommand("simplewater", &cmdSimpleWater, "set reduced water mode");
 
@@ -150,19 +151,41 @@ class TopLevel {
 
         globals.cmdLine.registerCommand("gfxset", &cmdGfxSet, "Set level graphics style");
         globals.cmdLine.registerCommand("wind", &cmdSetWind, "Change wind speed");
+        globals.cmdLine.registerCommand("stop", &cmdStop, "stop editor/game");
 
         mBananaAnim = new Animation(globals.loadConfig("banana").getSubNode("anim"));
 
         mTimeLast = globals.framework.getCurrentTime();
     }
 
+    private void cmdStop(CommandLine) {
+        if (mOnStopGui)
+            mOnStopGui();
+        screen.setFocus(null);
+        sceneview.clientscene = null;
+        mOnStopGui = null;
+    }
+
+    private void setScene(Scene s) {
+        //not clean, but we need to redo this GUI-handling stuff anyway
+        cmdStop(null);
+        sceneview.clientscene = s;
+    }
+
     private void initializeGame(GameConfig config) {
         closeGame();
+        //xxx README: since the scene is recreated for each level, there's no
+        //            need to remove them all in Game.kill()
+        auto gamescene = new Scene();
+        setScene(gamescene);
         thegame = new GameController(gamescene, config);
         //xxx evil+sucks
         screen.setFocus(thegame.levelobject);
         initializeGui();
         gameStartTime = globals.framework.getCurrentTime();
+
+        //callback when invoking cmdStop
+        mOnStopGui = &closeGame;
     }
 
     private void closeGame() {
@@ -200,14 +223,22 @@ class TopLevel {
         mGfxSet = sargs[0];
     }
 
+    private void killEditor() {
+        if (editor) {
+            editor.kill();
+            editor = null;
+        }
+    }
+
     private void cmdLevelEdit(CommandLine cmd) {
         //replace level etc. by the "editor" in a very violent way
-        auto edit = new LevelEditor();
-        SceneView v = new SceneView(edit.scene);
-        v.thesize = edit.scene.thesize;
-        v.setScene(guiscene, GUIZOrder.Gui);
+        auto editscene = new Scene();
+        setScene(editscene);
+        editor = new LevelEditor(editscene);
         //clearly sucks, find a better way
-        screen.setFocus(edit.render);
+        screen.setFocus(editor.render);
+
+        mOnStopGui = &killEditor;
     }
 
     private void cmdClouds(CommandLine cmd) {
@@ -253,7 +284,7 @@ class TopLevel {
     private void onVideoInit(bool depth_only) {
         globals.log("Changed video: %s", globals.framework.screen.size);
         screen.setSize(globals.framework.screen.size);
-        gameview.thesize = guiscene.thesize;
+        sceneview.thesize = guiscene.thesize;
     }
 
     private void cmdVideo(CommandLine cmd) {
@@ -375,16 +406,18 @@ class TopLevel {
             //globals.framework.grabInput = true;
             globals.framework.cursorVisible = false;
             globals.framework.lockMouse();
-            mScrollDest = gameview.clientoffset;
+            mScrollDest = sceneview.clientoffset;
         }
         mScrolling = !mScrolling;
     }
 
+    /+
     private void cmdLoadAnim(CommandLine cmd) {
         auto a = new Animation(mWormsAnim.getSubNode(cmd.parseArgs[0]));
         std.stdio.writefln("Loaded ",cmd.parseArgs[0]);
         mWormsAnimator.setAnimation(a);
     }
+    +/
 
     private void showConsole(CommandLine) {
         console.toggle();
@@ -408,7 +441,7 @@ class TopLevel {
         auto x = new genlevel.LevelGenerator();
         x.config = globals.loadConfig("levelgen").getSubNode("levelgen");
         GameConfig cfg;
-        cfg.level = x.generateRandom("", mGfxSet);
+        cfg.level = x.generateRandom(cmd.getArgString(), mGfxSet);
         initializeGame(cfg);
     }
 
@@ -429,8 +462,8 @@ class TopLevel {
 
         fpsDisplay.text = format("FPS: %1.2f", globals.framework.FPS);
 
-        if (mScrolling && mScrollDest != gameview.clientoffset) {
-            gameview.clientoffset = gameview.clientoffset + toVector2i(toVector2f(mScrollDest - gameview.clientoffset)*K_SCROLL*mDeltaT.msecs());
+        if (mScrolling && mScrollDest != sceneview.clientoffset) {
+            sceneview.clientoffset = sceneview.clientoffset + toVector2i(toVector2f(mScrollDest - sceneview.clientoffset)*K_SCROLL*mDeltaT.msecs());
         }
 
         if (thegame && !mPauseMode) {
@@ -492,7 +525,7 @@ class TopLevel {
         //globals.log("%s", mouse.pos);
         if (mScrolling) {
             mScrollDest = mScrollDest - mouse.rel;
-            gameview.clipOffset(mScrollDest);
+            sceneview.clipOffset(mScrollDest);
         }
         screen.putOnMouseMove(mouse);
     }

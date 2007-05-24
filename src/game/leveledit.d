@@ -681,12 +681,11 @@ public class LevelEditor {
         root.add(tmp);
     }
 
-    this() {
-        scene = new Scene();
+    this(Scene scene) {
         root = new EditRoot();
         render = new RenderEditor(this);
         render.setScene(scene, 2);
-        scene.thesize = Vector2i(1000,1000);
+        scene.thesize = Vector2i(3000,1000);
 
         newPolyAt(Rect2i(100, 100, 500, 500));
 
@@ -698,6 +697,11 @@ public class LevelEditor {
         ev.onKeyDown = &onKeyDown;
         ev.onKeyPress = &onKeyPress;
         ev.onKeyUp = &onKeyUp;
+    }
+
+    void kill() {
+        //remove all the stuff
+        render.active = false;
     }
 
     void insertPoint() {

@@ -228,6 +228,10 @@ public class CommandLine {
         return str.split(mCurline[mCommandEnd .. $]);
     }
 
+    public char[] getArgString() {
+        return str.strip(mCurline[mCommandEnd .. $]);
+    }
+
     private void do_execute(bool addHistory = true) {
         auto cmd = parseCommand();
 

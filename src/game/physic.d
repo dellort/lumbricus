@@ -9,6 +9,10 @@ import str = std.string;
 import utils.output;
 import std.math : sqrt, PI;
 
+//if you need to check a normal when there's almost no collision (i.e. when worm
+//  is sitting on ground), add this value to the radius
+final float cNormalCheck = 5;
+
 //base type for physic objects (which are contained in a PhysicWorld)
 class PhysicBase {
     private mixin ListNodeMixin allobjects_node;
@@ -151,8 +155,7 @@ class PhysicObject : PhysicBase {
         }
     }
 
-    //angle where the worm looks to, or is forced to look to
-    //the angle (should?) be orthogonal
+    //angle where the worm looks to, or is forced to look to (i.e. when sitting)
     float lookey(bool forceGlue = false) {
         if (!isGlued || forceGlue) {
             return rotation;
@@ -187,8 +190,12 @@ class PhysicObject : PhysicBase {
         walkingTime = 0;
         walkTo = dir;
         //or switch off?
-        if (dir.length < 0.01)
+        if (dir.length < 0.01) {
             walkingSpeed = 0;
+        } else {
+            //will definitely try to walk, so look into walking direction
+            checkRotation2(pos-dir);
+        }
         mIsWalking = false;
 
         needUpdate();
@@ -254,11 +261,15 @@ class PhysicObject : PhysicBase {
                         }
 
                         //check worm direction...
-                        checkRotation2(oldpos);
+                        //disabled because: want worm to look to the real
+                        //walking direction, this breaks when walking into caves
+                        //where the worm gets stuck
+                        //checkRotation2(oldpos);
 
                         //check ground normal... not good :)
+                        //maybe physics should check the normal properly
                         nnpos = pos;
-                        if (world.collideGeometry(nnpos, radius+5))
+                        if (world.collideGeometry(nnpos, radius+cNormalCheck))
                             checkGroundAngle(nnpos-npos);
 
                         //jup, did walk
