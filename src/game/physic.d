@@ -108,11 +108,12 @@ class PhysicObject : PhysicBase {
     POSP posp;
 
     Vector2f pos; //pixels
-    Vector2f velocity; //in pixels per second, readonly for external code!
+    //in pixels per second, readonly for external code!
+    Vector2f velocity = {0,0};
 
     void addVelocity(Vector2f v) {
-        velocity += v.mulEntries(posp.fixate);
-        checkUnglue();
+        //erm... hehe.
+        velocity += v;
     }
 
     bool isGlued;    //for sitting worms (can't be moved that easily)
@@ -123,8 +124,11 @@ class PhysicObject : PhysicBase {
     private bool mWalkingMode;
     private bool mIsWalking;
 
-    //used temporarely during "simulation"
-    Vector2f deltav;
+    //constant force the object adds to itself
+    //used for jetpack or flying weapons
+    Vector2f selfForce = {0, 0};
+    //hacky: force didn't really work for jetpack
+    Vector2f selfAddVelocity = {0, 0};
 
     //direction when flying etc., just rotation of the object
     float rotation = 0;
@@ -132,17 +136,13 @@ class PhysicObject : PhysicBase {
     float ground_angle = 0;
 
     this() {
-        velocity = Vector2f(0, 0);
-        deltav = Vector2f(0, 0);
     }
 
-    //look if the worm can't adhere to the rock surface anymore
-    private void checkUnglue(bool forceit = false) {
-        if ((isGlued && deltav.length < posp.glueForce) && !forceit)
-            return;
+    //the worm couldn't adhere to the rock surface anymore
+    //called from the PhysicWorld simulation loop only
+    private void doUnglue() {
+        world.mLog("unglue object %s", this);
         //he flies away! arrrgh!
-        velocity += deltav;
-        deltav = Vector2f(0, 0);
         isGlued = false;
         mWalkingMode = false;
         mIsWalking = false;
@@ -153,7 +153,7 @@ class PhysicObject : PhysicBase {
     void push(Vector2f force) {
         //xxx maybe make that better
         velocity += force;
-        checkUnglue(true);
+        doUnglue();
     }
 
     //set rotation (using velocity)
@@ -204,7 +204,7 @@ class PhysicObject : PhysicBase {
     }
 
     char[] toString() {
-        return str.format("%s: %s %s", toHash(), pos, velocity);
+        return str.format("[%s: %s %s]", toHash(), pos, velocity);
     }
 
     public void remove() {
@@ -282,7 +282,7 @@ class PhysicObject : PhysicBase {
                             //even first tested location => most bottom, fall
                             world.mLog("walk: fall-bottom");
                             pos = npos;
-                            checkUnglue(true);
+                            doUnglue();
                         } else {
                             world.mLog("walk: bottom at %s", y);
                             //walk to there...
@@ -450,16 +450,35 @@ class PhysicWorld {
 
         //apply forces
         foreach (PhysicObject o; mObjects) {
-            o.deltav = Vector2f(0, 0);
             foreach (PhysicForce f; mForceObjects) {
-                o.deltav += f.getAccelFor(o, deltaT) * deltaT;
+                o.velocity += f.getAccelFor(o, deltaT) * deltaT;
             }
-            //adds the force to the velocity
-            o.checkUnglue();
-            if (!o.isGlued) {
-                o.pos += (o.velocity * deltaT).mulEntries(o.posp.fixate);
-                o.checkRotation();
+
+            //xxx this with addVelocity can't be correct?
+            o.velocity += o.selfAddVelocity + (o.selfForce * deltaT);
+
+            //remove unwanted parts
+            o.velocity = o.velocity.mulEntries(o.posp.fixate);
+
+            auto vel = o.velocity;
+
+            if (o.isGlued) {
+                //argh. so a velocity is compared to a "force"... sigh.
+                if (vel.length <= o.posp.glueForce) {
+                    //xxx: reset the velocity vector, because else, the object
+                    //     will be unglued even it stands on the ground
+                    //     this should be changed such that the object is only
+                    //     unglued if it actually could be moved...
+                    o.velocity = Vector2f(0);
+                    //skip to next object, don't change position
+                    continue;
+                }
+                o.doUnglue();
             }
+
+            o.pos += vel * deltaT;
+            o.needUpdate();
+            o.checkRotation();
         }
 
         //collide with each other PhysicObjects
@@ -486,8 +505,9 @@ class PhysicWorld {
                 //actually collide the stuff....
 
                 //sitting worms are not safe
-                me.checkUnglue(true);
-                other.checkUnglue(true);
+                //if it doesn't matter, they'll be glued again in the next frame
+                me.doUnglue();
+                other.doUnglue();
 
                 float dist = sqrt(q_dist);
                 float gap = mindist - dist;
@@ -576,10 +596,15 @@ class PhysicWorld {
 
                 //we collided with geometry, but were not fast enough!
                 //  => worm gets glued, hahaha.
-                if (me.velocity.length <= me.posp.glueForce) {
+                //xxx maybe do the gluing somewhere else?
+                if (me.velocity.mulEntries(me.posp.fixate).length
+                    <= me.posp.glueForce)
+                {
                     me.isGlued = true;
+                    mLog("glue object %s", me);
                     //velocity must be set to 0 (or change glue handling)
-                    me.velocity = Vector2f(0);
+                    //ok I did change glue handling.
+                    //me.velocity = Vector2f(0);
                 }
 
                 me.checkRotation();

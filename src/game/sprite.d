@@ -40,15 +40,29 @@ class GObjectSprite : GameObject {
     private StaticStateInfo mCurrentAnimationState;
     private float mCurrentAnimationAngle;
 
+    //animation played when doing state transition...
+    StateTransition currentTransition;
+
     //this function does its own caching and can be overriden to pick custom
     //animations
     Animation getCurrentAnimation() {
+        SpriteAnimationInfo* info = &currentState.animation;
+
+        if (currentTransition) {
+            //condition checks if reverse transition
+            if (currentTransition.to is currentState) {
+                info = &currentTransition.animation;
+            } else {
+                info = &currentTransition.animation_back;
+            }
+        }
+
         float angle = physics.lookey;
 
         if (mCurrentAnimationState !is currentState
             || mCurrentAnimationAngle != angle)
         {
-            mCurrentAnimation = currentState.animation.animationFromAngle(angle);
+            mCurrentAnimation = info.animationFromAngle(angle);
             mCurrentAnimationState = currentState;
             mCurrentAnimationAngle = angle;
         }
@@ -87,6 +101,19 @@ class GObjectSprite : GameObject {
         physUpdate();
     }
 
+    //called when current animation is finished
+    protected void animationEnd(Animator sender) {
+        if (currentTransition) {
+            //end the transition
+            if (currentTransition.disablePhysics) {
+                physics.posp.fixate = currentState.physic_properties.fixate;
+            }
+            currentTransition = null;
+            controller.mLog("state transition end");
+            updateAnimation();
+        }
+    }
+
     //do as less as necessary to force a new state
     void setStateForced(StaticStateInfo nstate) {
         assert(nstate !is null);
@@ -105,20 +132,30 @@ class GObjectSprite : GameObject {
         if (currentState is nstate)
             return;
 
-        controller.mLog("state %s -> %s", currentState.name, nstate.name);
+        StateTransition* transp = nstate in currentState.transitions;
+        StateTransition trans = transp ? *transp : null;
+
+        controller.mLog("state %s -> %s%s", currentState.name, nstate.name,
+            trans ? " (with transition)" : "");
 
         currentState = nstate;
         physics.collision = nstate.collide;
         physics.posp = nstate.physic_properties;
+
+        currentTransition = trans;
+        if (trans) {
+            if (trans.disablePhysics) {
+                //don't allow any move
+                physics.posp.fixate = Vector2f(0);
+            }
+        }
 
         updateAnimation();
     }
 
     //never returns null
     StaticStateInfo findState(char[] name) {
-        StaticStateInfo* state = name in type.states;
-        assert(state !is null); //xxx better error handling
-        return *state;
+        return type.findState(name);
     }
 
     this (GameController controller, GOSpriteClass type) {
@@ -135,9 +172,9 @@ class GObjectSprite : GameObject {
         physics.onUpdate = &physUpdate;
         physics.onImpact = &physImpact;
         physics.onDie = &physDie;
-
         controller.physicworld.add(physics);
 
+        graphic.setOnNoAnimation(&animationEnd);
         graphic.setScene(controller.scene, GameZOrder.Objects);
     }
 }
@@ -211,7 +248,18 @@ class StaticStateInfo {
     CollisionType collide;
     POSP physic_properties;
 
+    StateTransition[StaticStateInfo] transitions;
+
     SpriteAnimationInfo animation;
+}
+
+//describe an animation which is played when switching to another state
+class StateTransition {
+    bool disablePhysics; //no physics while playing animation
+    SpriteAnimationInfo animation, animation_back;
+
+    //to detect if an animation must be played reverse
+    StaticStateInfo from, to;
 }
 
 //loads "collisions"-nodes and adds them to the collision map
@@ -224,6 +272,15 @@ class GOSpriteClass {
 
     StaticStateInfo[char[]] states;
     StaticStateInfo initState;
+
+    StaticStateInfo findState(char[] name) {
+        StaticStateInfo* state = name in states;
+        if (!state) {
+            //xxx better error handling
+            throw new Exception("state "~name~" not found");
+        }
+        return *state;
+    }
 
     this (GameController controller, ConfigNode config) {
         POSP[char[]] posps;
@@ -269,6 +326,34 @@ class GOSpriteClass {
         StaticStateInfo* init = config["initstate"] in states;
         if (init)
             initState = *init;
+
+        //load/assign state transitions
+        foreach (ConfigNode tc; config.getSubNode("state_transitions")) {
+            auto trans = new StateTransition();
+            auto sto = findState(tc["to"]);
+            auto sfrom = findState(tc["from"]);
+
+            trans.disablePhysics = tc.getBoolValue("disable_physics", false);
+
+            trans.animation.loadFrom(controller, tc);
+
+            trans.from = sfrom;
+            trans.to = sto;
+            sfrom.transitions[sto] = trans;
+
+            if (tc.getBoolValue("works_reverse", false)) {
+                sto.transitions[sfrom] = trans;
+                //create backward animations
+                trans.animation_back.ani2angle = trans.animation.ani2angle;
+                auto anis = trans.animation.animations.dup;
+                foreach (inout Animation a; anis) {
+                    if (a) {
+                        a = a.getBackwards();
+                    }
+                }
+                trans.animation_back.animations = anis;
+            }
+        }
     }
 }
 
@@ -310,7 +395,12 @@ float realmod(float a, float b) {
 private uint pickNearestAngle(int[] angles, float angle) {
     //whatever
     float angle_dist(float a, float b) {
-        return abs(realmod(a, PI*2) - realmod(b, PI*2));
+        //assume angles already are mod PI*2
+        auto r = abs(a - b); //abs(realmod(a, PI*2) - realmod(b, PI*2));
+        if (r > PI) {
+            r = PI*2 - r;
+        }
+        return r;
     }
 
     //pick best angle (what's nearer)

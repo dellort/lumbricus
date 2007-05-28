@@ -172,26 +172,40 @@ class GameController {
         return true;
     }
 
+    //key state for LEFT/RIGHT and UP/DOWN
+    Vector2f dirKeyState = {0, 0};
+
+    void handleDirKey(Keycode c, bool up) {
+        float v = up ? 0 : 1;
+        switch (c) {
+            case Keycode.LEFT:
+                dirKeyState.x = -v;
+                break;
+            case Keycode.RIGHT:
+                dirKeyState.x = +v;
+                break;
+            case Keycode.UP:
+                dirKeyState.y = -v;
+                break;
+            case Keycode.DOWN:
+                dirKeyState.y = +v;
+                break;
+            default:
+                return;
+        }
+
+        //control the worm (better only on state change)
+        lastworm.move(dirKeyState);
+    }
+
     bool onKeyDown(EventSink sender, KeyInfo info) {
         if (info.code == Keycode.MOUSE_LEFT) {
             gamelevel.damage(sender.mousePos, 100);
         }
         if (lastworm) {
-            if (info.code == Keycode.LEFT) {
-                lastworm.move(Vector2f(-1,0));
-            } else if (info.code == Keycode.RIGHT) {
-                lastworm.move(Vector2f(+1,0));
-            } else if (info.code == Keycode.UP) {
-                lastworm.move(Vector2f(0,-1));
-            } else if (info.code == Keycode.DOWN) {
-                lastworm.move(Vector2f(0,+1));
-            } else if (info.code == Keycode.RETURN) {
-                if (lastworm.physics.isGlued) {
-                    auto look = Vector2f.fromPolar(1, lastworm.physics.lookey);
-                    look.y = 0;
-                    look = look.normal(); //get sign *g*
-                    lastworm.physics.push(Vector2f(10*look.x, -100));
-                }
+            handleDirKey(info.code, false);
+            if (info.code == Keycode.RETURN) {
+                lastworm.jump();
             } else if (info.code == Keycode.J) {
                 //jetpack
                 lastworm.activateJetpack(!lastworm.jetpackActivated);
@@ -201,8 +215,8 @@ class GameController {
     }
 
     bool onKeyUp(EventSink sender, KeyInfo info) {
-        if (info.code == Keycode.LEFT || info.code == Keycode.RIGHT) {
-            lastworm.physics.setWalking(Vector2f(0));
+        if (lastworm) {
+            handleDirKey(info.code, true);
         }
         return false;
     }

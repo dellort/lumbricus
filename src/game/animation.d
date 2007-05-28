@@ -13,7 +13,7 @@ class Animation {
     private bool mRepeat, mReverse;
     private Surface mImage;
     private Texture mImageTex;
-    private Animation mMirrored;
+    private Animation mMirrored, mBackwards;
 
     private struct FrameInfo {
         int durationMS;
@@ -53,6 +53,26 @@ class Animation {
         return mFrames.length;
     }
 
+    //xxx I don't like that, but it was simpler with the rest of the code
+    //(+ I'm too lazy)
+    Animation getBackwards() {
+        if (!mBackwards) {
+            auto n = new Animation();
+            n.mFrames = this.mFrames.dup;
+            n.mSize = this.mSize;
+            n.mRepeat = this.mRepeat;
+            n.mReverse = this.mReverse;
+            n.mImage = this.mImage;
+            n.mImageTex = this.mImageTex;
+            n.mBackwards = this;
+
+            n.doReverse();
+
+            mBackwards = n;
+        }
+        return mBackwards;
+    }
+
     //get an animation which contains this animation with mirrored frames
     //(mirrored across Y axis)
     Animation getMirroredY() {
@@ -66,14 +86,18 @@ class Animation {
             n.mImageTex = n.mImage.createTexture();
             n.mMirrored = this;
 
-            //reverse the frames, this should restore the correct frame order
-            for (int i = 0; i < n.mFrames.length/2; i++) {
-                swap(n.mFrames[i], n.mFrames[$-1-i]);
-            }
+            n.doReverse();
 
             mMirrored = n;
         }
         return mMirrored;
+    }
+
+    private void doReverse() {
+        //reverse the frames, this should restore the correct frame order
+        for (int i = 0; i < mFrames.length/2; i++) {
+            swap(mFrames[i], mFrames[$-1-i]);
+        }
     }
 }
 
