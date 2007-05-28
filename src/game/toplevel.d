@@ -268,8 +268,10 @@ class TopLevel {
     }
 
     private void cmdPhys(CommandLine) {
-        auto obj = new TestAnimatedGameObject(thegame);
-        obj.setPos(thegame.tmp);
+        //oops?
+        //auto obj = new TestAnimatedGameObject(thegame);
+        //obj.setPos(thegame.tmp);
+        assert(false);
     }
 
     private void cmdExpl(CommandLine) {

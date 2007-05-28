@@ -1,9 +1,6 @@
 module game.gobject;
-import game.animation;
 import game.common;
-import game.physic;
 import game.game;
-import utils.vector2;
 import utils.mylist;
 import utils.time;
 
@@ -29,27 +26,3 @@ abstract class GameObject {
     }
 }
 
-class TestAnimatedGameObject : GameObject {
-    Animator graphic;
-    PhysicObject physics;
-
-    this(GameController controller) {
-        super(controller);
-        physics = new PhysicObject();
-        physics.mass = 1;
-        graphic = new Animator();
-        //graphic.setAnimation(new Animation(globals.loadConfig("animations").getSubNode("testani1")));
-        //graphic.setScene(controller.scene, GameZOrder.Objects);
-        physics.onUpdate = &physUpdate;
-        controller.physicworld.add(physics);
-    }
-
-    void setPos(Vector2i pos) {
-        physics.pos = toVector2f(pos);
-        physUpdate();
-    }
-
-    private void physUpdate() {
-        graphic.pos = toVector2i(physics.pos);
-    }
-}

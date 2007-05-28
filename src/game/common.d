@@ -38,13 +38,13 @@ class Common {
             throw new Exception("Common is a singelton!");
         globals = this;
 
+        log = registerLog("common");
+
         framework = fw;
 
         anyConfig = loadConfig("anything");
 
         initLocale();
-
-        log = registerLog("common");
 
         framework.fontManager.readFontDefinitions(loadConfig("fonts"));
 
@@ -77,13 +77,19 @@ class Common {
     }
 
     Surface loadGraphic(char[] path) {
-        return framework.loadImage(framework.fs.open(path), Transparency.Colorkey);
+        log("load image: %s", path);
+        auto stream = framework.fs.open(path);
+        auto image = framework.loadImage(stream, Transparency.Colorkey);
+        stream.close();
+        return image;
     }
 
     ConfigNode loadConfig(char[] section) {
         char[] file = section ~ ".conf";
+        log("load config: %s", file);
         auto s = framework.fs.open(file);
         auto f = new ConfigFile(s, file, &logconf);
+        s.close();
         if (!f.rootnode)
             throw new Exception("?");
         return f.rootnode;

@@ -253,7 +253,7 @@ public class ConfigNode : ConfigItem {
     public bool remove(ConfigItem item) {
         if (item is null)
             return false;
-        assert(item.mParent == this);
+        assert(item.mParent is this);
         doRemove(item);
         return true;
     }
@@ -433,7 +433,20 @@ public class ConfigNode : ConfigItem {
         return 0;
     }
 
-    //foreach(char[], ConfigNode; ConfigNode) enumerate subnodes
+    //foreach(ConfigNode; ConfigNode) enumerate subnodes
+    public int opApply(int delegate(inout ConfigNode) del) {
+        foreach (ConfigItem item; mItems) {
+            ConfigNode n = cast(ConfigNode)item;
+            if (n !is null) {
+                int res = del(n);
+                if (res)
+                    return res;
+            }
+        }
+        return 0;
+    }
+
+    //foreach(char[], ConfigNode; ConfigNode) enumerate subnodes with name
     public int opApply(int delegate(inout char[], inout ConfigNode) del) {
         foreach (ConfigItem item; mItems) {
             ConfigNode n = cast(ConfigNode)item;
@@ -499,14 +512,36 @@ public class ConfigNode : ConfigItem {
         setStringValue(name, str.toString(value));
     }
 
+    //TODO: how strict should the string comparision of the values be?
+    //also TODO: distinguish between not-set values and "wrong" values?
+    public int selectValueFrom(char[] name, char[][] values, int def = -1) {
+        auto vo = findValue(name);
+        if (!vo)
+            return def;
+        char[] v = vo.value;
+        foreach (int i, char[] cur; values) {
+            if (cur == v)
+                return i;
+        }
+        //not found
+        return def;
+    }
+
     /// Copy all items from "node" into "this", as long as no node exists with
     /// that name.
-    public void mixinNode(ConfigNode node) {
+    /// node = node to be mixed in
+    /// overwrite = if names exist in both this and node, use the one from node
+    public void mixinNode(ConfigNode node, bool overwrite = false) {
         if (!node)
             return;
         assert(node !is this);
         foreach (ConfigItem item; node) {
-            if (!find(item.name)) {
+            auto item2 = find(item.name);
+            if (overwrite && item2) {
+                remove(item2);
+                item2 = null;
+            }
+            if (!item2) {
                 auto n = item.clone();
                 doAdd(n);
             }
@@ -1095,7 +1130,7 @@ public class ConfigFile {
                         //if he really forgot the "", don't go back
                         //reset(p); //go back
                     } else if (token != Token.VALUE) {
-                        reportError(false, "atfer '=': value expected");
+                        reportError(false, "after '=': value expected");
                         reset(p);
                     }
                     node.addValue(id, str, comm);

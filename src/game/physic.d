@@ -13,6 +13,10 @@ import std.math : sqrt, PI;
 //  is sitting on ground), add this value to the radius
 final float cNormalCheck = 5;
 
+//the physics stuff uses an ID to test if collision between objects is wanted
+//all physic objects (type PhysicBase) have an CollisionType
+typedef uint CollisionType;
+
 //base type for physic objects (which are contained in a PhysicWorld)
 class PhysicBase {
     private mixin ListNodeMixin allobjects_node;
@@ -24,6 +28,8 @@ class PhysicBase {
     //in seconds
     private float mLifeTime = float.infinity;
     private float mRemainLifeTime;
+
+    CollisionType collision;
 
     public void delegate() onDie;
 
@@ -47,6 +53,12 @@ class PhysicBase {
         //world.mLog("update: %s", this);
     }
 
+    //fast check if object can collide with other object
+    //(includes reverse check)
+    bool canCollide(PhysicBase other) {
+        return world.canCollide(collision, other.collision);
+    }
+
     protected void simulate(float deltaT) {
         if (mLifeTime != float.infinity) {
             mRemainLifeTime -= deltaT;
@@ -62,27 +74,48 @@ class PhysicBase {
     }
 }
 
+//PhysicalObjectStaticProperties
+//challenge: find a better name
+//contains all values which are considered not-changing physical properties of
+//an object, i.e. they won't be changed by the simulation loop at all
+struct POSP {
+    float elasticity = 0.99f; //loss of energy when bumping against a surface
+    float radius = 10; //pixels
+    float mass = 10; //in Milli-Worms, 10 Milli-Worms = 1 Worm
+
+    //percent of wind influence
+    float windInfluence = 0.0f;
+    //explosion influence
+    float explosionInfluence = 1.0f;
+
+    //fixate vector: how much an object can be moved in x/y directions
+    //i.e. frozen worms will have fixate.x == 0
+    //immobile objects will have fixate.length == 0
+    //maybe should be 1 or 0, else funny things might happen
+    Vector2f fixate = {1.0f,1.0f};
+
+    //xxx maybe redefine to minimum velocity required to start simulaion again
+    float glueForce = 0; //force required to move a glued worm away
+
+    float walkingSpeed = 10; //pixels per seconds, or so
+    float walkingClimb = 10; //pixels of height per 1-pixel which worm can climb
+}
+
 //simple physical object (has velocity, position, mass, radius, ...)
 class PhysicObject : PhysicBase {
     private mixin ListNodeMixin objects_node;
 
-    float elasticity = 0.99f; //loss of energy when bumping against a surface
+    POSP posp;
+
     Vector2f pos; //pixels
-    float radius = 10; //pixels
-    float mass = 10; //in Milli-Worms, 10 Milli-Worms = 1 Worm
     Vector2f velocity; //in pixels per second
 
-    //percent of wind influence
-    float windInfluence = 0.0f;
-
     bool isGlued;    //for sitting worms (can't be moved that easily)
-    float glueForce = 0; //force required to move a glued worm away
 
-    float walkingSpeed = 0; //pixels per seconds, or so
-    float walkingClimb = 10; //pixels of height per 1-pixel which worm can climb
     //used during simulation
     float walkingTime = 0; //time until next pixel will be walked on
     Vector2f walkTo; //direction
+    private bool mWalkingMode;
     private bool mIsWalking;
 
     //used temporarely during "simulation"
@@ -95,12 +128,6 @@ class PhysicObject : PhysicBase {
 
     public void delegate(PhysicObject other) onImpact;
 
-    //fast check if object can collide with other object
-    //(includes reverse check)
-    bool canCollide(PhysicBase other) {
-        return true;
-    }
-
     this() {
         velocity = Vector2f(0, 0);
         deltav = Vector2f(0, 0);
@@ -108,14 +135,13 @@ class PhysicObject : PhysicBase {
 
     //look if the worm can't adhere to the rock surface anymore
     private void checkUnglue(bool forceit = false) {
-        if ((isGlued && deltav.length < glueForce) && !forceit)
+        if ((isGlued && deltav.length < posp.glueForce) && !forceit)
             return;
         //he flies away! arrrgh!
         velocity += deltav;
         deltav = Vector2f(0, 0);
         isGlued = false;
-        //xxx switch off walking mode?
-        walkingSpeed = 0;
+        mWalkingMode = false;
         mIsWalking = false;
         needUpdate();
     }
@@ -185,16 +211,15 @@ class PhysicObject : PhysicBase {
     }
 
     void setWalking(Vector2f dir) {
-        //xxx
-        walkingSpeed = 40;
         walkingTime = 0;
         walkTo = dir;
         //or switch off?
         if (dir.length < 0.01) {
-            walkingSpeed = 0;
+            mWalkingMode = false;
         } else {
             //will definitely try to walk, so look into walking direction
             checkRotation2(pos-dir);
+            mWalkingMode = true;
         }
         mIsWalking = false;
 
@@ -203,7 +228,7 @@ class PhysicObject : PhysicBase {
 
     //if object _attempts_ to walk
     bool isWalkingMode() {
-        return walkingSpeed > 0;
+        return mWalkingMode;
     }
 
     //if object is walking and actually walks!
@@ -217,12 +242,12 @@ class PhysicObject : PhysicBase {
         if (isWalkingMode()) {
             walkingTime -= deltaT;
             if (walkingTime <= 0) {
-                walkingTime = 1.0 / walkingSpeed; //time for one pixel
+                walkingTime = 1.0 / posp.walkingSpeed; //time for one pixel
                 //actually walk (or try to)
 
                 //must stand on surface when walking
                 if (!isGlued) {
-                    log.registerLog("xxx")("no walk because not glued");
+                    world.mLog("no walk because not glued");
                     return;
                 }
 
@@ -234,27 +259,28 @@ class PhysicObject : PhysicBase {
                 //look where's bottom
                 //NOTE: y1 > y2 means y1 is _blow_ y2
                 bool first = true;
-                for (float y = +walkingClimb; y >= -walkingClimb; y--) {
+                for (float y = +posp.walkingClimb; y >= -posp.walkingClimb; y--)
+                {
 
                     Vector2f nnpos = npos;
                     nnpos.y += y;
                     auto tmp = nnpos;
                     //log.registerLog("xxx")("%s %s", nnpos, pos);
-                    bool res = world.collideGeometry(nnpos, radius);
+                    bool res = world.collideGeometry(nnpos, posp.radius);
 
                     if (!res) {
-                        log.registerLog("xxx")("at %s -> %s", nnpos, nnpos-tmp);
+                        world.mLog("walk at %s -> %s", nnpos, nnpos-tmp);
                         //no collision, consider this to be bottom
 
                         auto oldpos = pos;
 
                         if (first) {
                             //even first tested location => most bottom, fall
-                            log.registerLog("xxx")("fall-bottom");
+                            world.mLog("walk: fall-bottom");
                             pos = npos;
                             checkUnglue(true);
                         } else {
-                            log.registerLog("xxx")("bottom at %s", y);
+                            world.mLog("walk: bottom at %s", y);
                             //walk to there...
                             npos.y += y;
                             pos = npos;
@@ -269,7 +295,7 @@ class PhysicObject : PhysicBase {
                         //check ground normal... not good :)
                         //maybe physics should check the normal properly
                         nnpos = pos;
-                        if (world.collideGeometry(nnpos, radius+cNormalCheck))
+                        if (world.collideGeometry(nnpos, posp.radius+cNormalCheck))
                             checkGroundAngle(nnpos-npos);
 
                         //jup, did walk
@@ -314,7 +340,7 @@ class ConstantForce : PhysicForce {
 
 class WindyForce : ConstantForce {
     Vector2f getAccelFor(PhysicObject o, float deltaT) {
-        return accel * o.windInfluence;
+        return accel * o.posp.windInfluence;
     }
 }
 
@@ -332,7 +358,8 @@ class ExplosiveForce : PhysicForce {
         Vector2f v = (pos-o.pos);
         float dist = v.length;
         if (dist > cDistDelta)
-            return -v.normal()*(impulse/deltaT)*(max(radius-dist,0f)/radius)/o.mass;
+            return -v.normal()*(impulse/deltaT)*(max(radius-dist,0f)/radius)/o.posp.mass
+                    * o.posp.explosionInfluence;
         else
             return Vector2f(0,0);
     }
@@ -426,7 +453,7 @@ class PhysicWorld {
             //adds the force to the velocity
             o.checkUnglue();
             if (!o.isGlued) {
-                o.pos += o.velocity * deltaT;
+                o.pos += (o.velocity * deltaT).mulEntries(o.posp.fixate);
                 o.checkRotation();
             }
         }
@@ -442,7 +469,7 @@ class PhysicWorld {
 
                 Vector2f d = other.pos - me.pos;
                 float q_dist = d.quad_length();
-                float mindist = other.radius + me.radius;
+                float mindist = other.posp.radius + me.posp.radius;
 
                 //check if they collide at all
                 if (q_dist >= mindist*mindist)
@@ -475,13 +502,15 @@ class PhysicWorld {
                 float vca = me.velocity * nd;
                 float vcb = other.velocity * nd;
 
-                float dva = (vca * (me.mass - other.mass) + vcb * 2.0f * other.mass)
-                            / (me.mass + other.mass) - vca;
-                float dvb = (vcb * (other.mass - me.mass) + vca * 2.0f * me.mass)
-                            / (me.mass + other.mass) - vcb;
+                float ma = me.posp.mass, mb = other.posp.mass;
 
-                dva *= me.elasticity;
-                dvb *= other.elasticity;
+                float dva = (vca * (ma - mb) + vcb * 2.0f * mb)
+                            / (ma + mb) - vca;
+                float dvb = (vcb * (mb - ma) + vca * 2.0f * ma)
+                            / (ma + mb) - vcb;
+
+                dva *= me.posp.elasticity;
+                dvb *= other.posp.elasticity;
 
                 me.velocity += dva * nd;
                 other.velocity += dvb * nd;
@@ -508,7 +537,7 @@ class PhysicWorld {
 
             foreach (PhysicGeometry gm; mGeometryObjects) {
                 Vector2f npos = me.pos;
-                if (gm.collide(npos, me.radius)) {
+                if (gm.collide(npos, me.posp.radius)) {
                     Vector2f direction = npos - me.pos;
 
                     //hm, collide() should return the normal, maybe
@@ -539,11 +568,11 @@ class PhysicWorld {
                 me.velocity -= proj * 2.0f;
 
                 //bumped against surface -> loss of energy
-                me.velocity *= me.elasticity;
+                me.velocity *= me.posp.elasticity;
 
                 //we collided with geometry, but were not fast enough!
                 //  => worm gets glued, hahaha.
-                if (me.velocity.length <= me.glueForce) {
+                if (me.velocity.length <= me.posp.glueForce) {
                     me.isGlued = true;
                     //velocity must be set to 0 (or change glue handling)
                     me.velocity = Vector2f(0);
@@ -582,6 +611,48 @@ class PhysicWorld {
             res = res | gm.collide(pos, radius);
         }
         return res;
+    }
+
+    //handling of the collision map
+
+    //for now, do it this strange way, rectangular array would be better, faster
+    //and more sane, but: you don't know the upper bounds of the array yet
+    private struct Collide {
+        CollisionType a, b;
+        //not needed for > DMD1.014 (but 1.014 is buggy on struct literals)
+        static Collide opCall(CollisionType a, CollisionType b)
+            {Collide c; c.a=a; c.b = b; return c;}
+    }
+    private int[Collide] mCollisionMap;
+    private CollisionType mCollisionAlloc;
+
+    CollisionType newCollisionType() {
+        return ++mCollisionAlloc;
+    }
+
+    //a should colide with b, and b with a (commutative)
+    //  cookie = returned by canCollide() on this collision
+    //raises error if collision is already set
+    void setCollide(CollisionType a, CollisionType b, int cookie) {
+        if (canCollide(a, b)) {
+            throw new Exception("no.");
+        }
+        mCollisionMap[Collide(a, b)] = cookie;
+    }
+    bool canCollide(CollisionType a, CollisionType b, out int cookie) {
+        int* ptr = Collide(a, b) in mCollisionMap;
+        if (!ptr)
+            ptr = Collide(b, a) in mCollisionMap;
+        if (ptr) {
+            cookie = *ptr;
+            return true;
+        } else {
+            return false;
+        }
+    }
+    bool canCollide(CollisionType a, CollisionType b) {
+        int tmp;
+        return canCollide(a, b, tmp);
     }
 
     this() {

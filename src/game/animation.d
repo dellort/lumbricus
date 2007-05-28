@@ -11,9 +11,8 @@ class Animation {
     private Vector2i mSize;
     private bool mRepeat, mReverse;
     private Surface mImage;
-    private Surface mMirroredImage;
     private Texture mImageTex;
-    private Texture mMirrorTex;
+    private Animation mMirrored;
 
     private struct FrameInfo {
         int durationMS;
@@ -23,7 +22,7 @@ class Animation {
 
     this (ConfigNode node, char[] relPath = "") {
         assert(node !is null);
-        int duration = node.getIntValue("duration", 10);
+        int duration = node.getIntValue("duration", 20);
         mImage = globals.loadGraphic(relPath ~ node.getStringValue("image"));
         if (!mImage)
             throw new Exception("Failed to load animation bitmap");
@@ -41,6 +40,10 @@ class Animation {
         }
     }
 
+    //for getMirroredY()
+    private this () {
+    }
+
     public Vector2i size() {
         return mSize;
     }
@@ -49,13 +52,22 @@ class Animation {
         return mFrames.length;
     }
 
-    public void enableMirror() {
-        //actually, one would need to mirror frame per frame, ignore for now
-        //(can be solved by making the ani-strips vertical, not horizontal!)
-        if (!mMirroredImage) {
-            mMirroredImage = mImage.createMirroredY();
-            mMirrorTex = mMirroredImage.createTexture();
+    //get an animation which contains this animation with mirrored frames
+    //(mirrored across Y axis)
+    Animation getMirroredY() {
+        if (!mMirrored) {
+            auto n = new Animation();
+            n.mFrames = this.mFrames;
+            n.mSize = this.mSize;
+            n.mRepeat = this.mRepeat;
+            //huh? wtf?
+            n.mReverse = !this.mReverse;
+            n.mImage = this.mImage.createMirroredY();
+            n.mImageTex = n.mImage.createTexture();
+            n.mMirrored = this;
+            mMirrored = n;
         }
+        return mMirrored;
     }
 }
 
@@ -67,7 +79,6 @@ class Animator : SceneObjectPositioned {
     private Time mCurFrameTime;
     private void delegate(Animator sender) mOnNoAnimation;
     private bool mReversed = false;
-    private bool mMirrored;
 
     public bool paused;
 
@@ -82,12 +93,6 @@ class Animator : SceneObjectPositioned {
         }
     }
 
-    void setMirror(bool mirror) {
-        mMirrored = mirror;
-        if (mAni)
-            mAni.enableMirror();
-    }
-
     void setAnimation(Animation ani) {
         mAni = ani;
         mAniRepeat = ani ? ani.mRepeat : false;
@@ -98,8 +103,6 @@ class Animator : SceneObjectPositioned {
 
         if (ani) {
             thesize = ani.mSize;
-            if (mMirrored)
-                mAni.enableMirror();
         }
     }
 
@@ -150,7 +153,6 @@ class Animator : SceneObjectPositioned {
         }
 
         //draw it.
-        auto tex = mMirrored ? mAni.mMirrorTex : mAni.mImageTex;
-        canvas.draw(tex, pos, fi.pos, fi.size);
+        canvas.draw(mAni.mImageTex, pos, fi.pos, fi.size);
     }
 }

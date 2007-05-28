@@ -24,7 +24,7 @@ class BananaBomb : GameObject {
         mAnim = anim;
         graphic.setAnimation(mAnim);
         graphic.setScene(controller.scene, GameZOrder.Objects);
-        physics.radius = 5;
+        physics.posp.radius = 5;
         physics.onUpdate = &physUpdate;
         if (spawner) {
             physics.onDie = &physDie;

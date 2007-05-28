@@ -7,9 +7,11 @@ import stdio = std.stdio;
 /// Access to all Log objects created so far.
 Log[char[]] gAllLogs;
 RedirectOutput gDefaultOutput;
+Log gDefaultLog;
 
 static this() {
     gDefaultOutput = new RedirectOutput(StdioOutput.output);
+    gDefaultLog = registerLog("unknown");
 }
 
 /// Generic logging class. Implements interface Output, and all lines of text
