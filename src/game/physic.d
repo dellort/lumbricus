@@ -7,7 +7,7 @@ import utils.vector2;
 import log = utils.log;
 import str = std.string;
 import utils.output;
-import std.math : sqrt, PI;
+import std.math : sqrt, PI, abs;
 
 //if you need to check a normal when there's almost no collision (i.e. when worm
 //  is sitting on ground), add this value to the radius
@@ -108,7 +108,12 @@ class PhysicObject : PhysicBase {
     POSP posp;
 
     Vector2f pos; //pixels
-    Vector2f velocity; //in pixels per second
+    Vector2f velocity; //in pixels per second, readonly for external code!
+
+    void addVelocity(Vector2f v) {
+        velocity += v.mulEntries(posp.fixate);
+        checkUnglue();
+    }
 
     bool isGlued;    //for sitting worms (can't be moved that easily)
 
@@ -212,7 +217,8 @@ class PhysicObject : PhysicBase {
         walkingTime = 0;
         walkTo = dir;
         //or switch off?
-        if (dir.length < 0.01) {
+        //NOTE: restrict to X axis
+        if (abs(dir.x) < 0.01) {
             mWalkingMode = false;
         } else {
             //will definitely try to walk, so look into walking direction

@@ -178,11 +178,13 @@ class GameController {
         }
         if (lastworm) {
             if (info.code == Keycode.LEFT) {
-                lastworm.physics.setWalking(Vector2f(-1, 0));
-                registerLog("xxx")("walk left");
+                lastworm.move(Vector2f(-1,0));
             } else if (info.code == Keycode.RIGHT) {
-                lastworm.physics.setWalking(Vector2f(+1, 0));
-                registerLog("xxx")("walk right");
+                lastworm.move(Vector2f(+1,0));
+            } else if (info.code == Keycode.UP) {
+                lastworm.move(Vector2f(0,-1));
+            } else if (info.code == Keycode.DOWN) {
+                lastworm.move(Vector2f(0,+1));
             } else if (info.code == Keycode.RETURN) {
                 if (lastworm.physics.isGlued) {
                     auto look = Vector2f.fromPolar(1, lastworm.physics.lookey);
@@ -190,6 +192,9 @@ class GameController {
                     look = look.normal(); //get sign *g*
                     lastworm.physics.push(Vector2f(10*look.x, -100));
                 }
+            } else if (info.code == Keycode.J) {
+                //jetpack
+                lastworm.activateJetpack(!lastworm.jetpackActivated);
             }
         }
         return true;
