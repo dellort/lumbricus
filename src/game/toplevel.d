@@ -67,7 +67,6 @@ class TopLevel {
     private Time mTimeLast;
     private Time mDeltaT;
 
-    private Animation mBananaAnim;
     private WindMeter mGuiWindMeter;
 
     private char[] mGfxSet = "gpl";
@@ -152,8 +151,6 @@ class TopLevel {
         globals.cmdLine.registerCommand("gfxset", &cmdGfxSet, "Set level graphics style");
         globals.cmdLine.registerCommand("wind", &cmdSetWind, "Change wind speed");
         globals.cmdLine.registerCommand("stop", &cmdStop, "stop editor/game");
-
-        mBananaAnim = new Animation(globals.loadConfig("banana").getSubNode("anim"));
 
         mTimeLast = globals.framework.getCurrentTime();
     }
@@ -275,7 +272,7 @@ class TopLevel {
     }
 
     private void cmdExpl(CommandLine) {
-        auto obj = new BananaBomb(thegame,mBananaAnim);
+        auto obj = new BananaBomb(thegame);
         obj.setPos(thegame.tmp);
     }
 

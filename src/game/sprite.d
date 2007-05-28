@@ -8,6 +8,7 @@ import utils.configfile;
 import utils.misc;
 import utils.log;
 import std.math : abs, PI;
+import cmath = std.c.math;
 
 //method how animations are chosen from object angles
 enum Angle2AnimationMode {
@@ -71,6 +72,15 @@ class GObjectSprite : GameObject {
         updateAnimation();
     }
 
+    protected void physImpact(PhysicBase other) {
+        //so?
+    }
+
+    protected void physDie() {
+        //what to do? remove ourselves from the game?
+        graphic.active = false;
+    }
+
     //force position
     void setPos(Vector2i pos) {
         physics.pos = toVector2f(pos);
@@ -94,6 +104,8 @@ class GObjectSprite : GameObject {
 
         if (currentState is nstate)
             return;
+
+        controller.mLog("state %s -> %s", currentState.name, nstate.name);
 
         currentState = nstate;
         physics.collision = nstate.collide;
@@ -121,6 +133,8 @@ class GObjectSprite : GameObject {
         setStateForced(type.initState);
 
         physics.onUpdate = &physUpdate;
+        physics.onImpact = &physImpact;
+        physics.onDie = &physDie;
 
         controller.physicworld.add(physics);
 
@@ -135,7 +149,7 @@ struct SpriteAnimationInfo {
     Animation animationFromAngle(float angle) {
 
         Animation getFromCAngles(int[] angles) {
-            return animations[doAngleFromAni(angles, angle)];
+            return animations[pickNearestAngle(angles, angle)];
         }
 
         switch (ani2angle) {
@@ -287,27 +301,25 @@ private Vector2f readVector(char[] s) {
     return pt;
 }
 
+float realmod(float a, float b) {
+    return cmath.fmodf(cmath.fmodf(a, b) + b, b);
+}
+
 //return the index of the angle in "angles" which is closest to "angle"
 //for unknown reasons, angles[] is in degrees, while angle is in radians
-private uint doAngleFromAni(int[] angles, float angle) {
+private uint pickNearestAngle(int[] angles, float angle) {
     //whatever
-    int angle_dist(int a, int b) {
-        int x1 = min(a, b);
-        int x2 = max(a, b);
-        if (x1 < 180 && x2 > 180) {
-            return abs((x1+360-x2) % 360);
-        } else {
-            return x2-x1;
-        }
+    float angle_dist(float a, float b) {
+        return abs(realmod(a, PI*2) - realmod(b, PI*2));
     }
 
-    //pick best animation (what's nearer)
+    //pick best angle (what's nearer)
     uint closest;
-    int cur = int.max;
-    int iangle = (cast(int)(angle/(2*PI)*360)+360*2) % 360;
+    float cur = float.max;
     foreach (int i, int x; angles) {
-        if (angle_dist(iangle,x) < cur) {
-            cur = angle_dist(iangle,x);
+        auto d = angle_dist(angle,x/180.0f*PI);
+        if (d < cur) {
+            cur = d;
             closest = i;
         }
     }

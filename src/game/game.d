@@ -51,7 +51,7 @@ class GameController {
     GameWater gameWater;
     GameSky gameSky;
 
-    private Log mLog;
+    package Log mLog;
 
     //for simplicity of managment, store all animations globally
     //note that they are also referenced from i.e. spite.d/StaticStateInfo
@@ -142,6 +142,18 @@ class GameController {
         events.onMouseMove = &onMouseMove;
         events.onKeyDown = &onKeyDown;
         events.onKeyUp = &onKeyUp;
+
+        loadLevelStuff();
+    }
+
+    //one time initialization, where levle objects etc. should be loaded (?)
+    private void loadLevelStuff() {
+        auto conf = globals.loadConfig("game");
+        //load sprites
+        foreach (char[] name, char[] value; conf.getSubNode("sprites")) {
+            auto n = new GOSpriteClass(this, globals.loadConfig(value));
+            mSpriteClasses[name] = n;
+        }
     }
 
     public float windSpeed() {
@@ -348,9 +360,17 @@ class GameController {
         if (gosc)
             return *gosc;
 
-        auto n = new GOSpriteClass(this, globals.loadConfig(name));
-        mSpriteClasses[name] = n;
-        return n;
+        //not found? xxx better error handling (as usual...)
+        throw new Exception("sprite class " ~ name ~ " not found");
+    }
+
+    void explosionAt(Vector2f pos, float damage) {
+        gamelevel.damage(toVector2i(pos), cast(int)damage);
+        auto expl = new ExplosiveForce();
+        expl.impulse = 40.0f*damage;
+        expl.radius = 4.0f*damage;
+        expl.pos = pos;
+        physicworld.add(expl);
     }
 }
 

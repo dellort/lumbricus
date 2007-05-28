@@ -10,6 +10,12 @@ public T max(T)(T v1, T v2) {
     return v1<v2?v2:v1;
 }
 
+public void swap(T)(inout T a, inout T b) {
+    T t = a;
+    a = b;
+    b = t;
+}
+
 /* generates a random number on [0,1]-real-interval */
 double genrand_real1()
 {

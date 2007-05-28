@@ -4,6 +4,7 @@ import game.scene;
 import game.common;
 import framework.framework;
 import utils.configfile;
+import utils.misc;
 import utils.time;
 
 class Animation {
@@ -57,14 +58,19 @@ class Animation {
     Animation getMirroredY() {
         if (!mMirrored) {
             auto n = new Animation();
-            n.mFrames = this.mFrames;
+            n.mFrames = this.mFrames.dup;
             n.mSize = this.mSize;
             n.mRepeat = this.mRepeat;
-            //huh? wtf?
-            n.mReverse = !this.mReverse;
+            n.mReverse = this.mReverse;
             n.mImage = this.mImage.createMirroredY();
             n.mImageTex = n.mImage.createTexture();
             n.mMirrored = this;
+
+            //reverse the frames, this should restore the correct frame order
+            for (int i = 0; i < n.mFrames.length/2; i++) {
+                swap(n.mFrames[i], n.mFrames[$-1-i]);
+            }
+
             mMirrored = n;
         }
         return mMirrored;

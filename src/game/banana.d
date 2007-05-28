@@ -5,69 +5,50 @@ import game.animation;
 import game.common;
 import game.physic;
 import game.game;
+import game.sprite;
 import utils.misc;
 import utils.vector2;
 import utils.mylist;
 import utils.time;
 
-class BananaBomb : GameObject {
-    Animator graphic;
-    Animation mAnim;
-    PhysicObject physics;
+class BananaBomb : GObjectSprite {
     private bool mSpawner;
 
-    this(GameController controller, Animation anim, bool spawner = true) {
-        super(controller);
+    this(GameController controller, bool spawner = true) {
+        super(controller, controller.findGOSpriteClass("banana"));
         mSpawner = spawner;
-        physics = new PhysicObject();
-        graphic = new Animator();
-        mAnim = anim;
-        graphic.setAnimation(mAnim);
-        graphic.setScene(controller.scene, GameZOrder.Objects);
-        physics.posp.radius = 5;
-        physics.onUpdate = &physUpdate;
         if (spawner) {
-            physics.onDie = &physDie;
             physics.lifeTime = 3;
-        } else
-            physics.onImpact = &physImpact;
-        controller.physicworld.add(physics);
-    }
-
-    void setPos(Vector2i pos) {
-        physics.pos = toVector2f(pos);
-        physUpdate();
-    }
-
-    private void physUpdate() {
-        graphic.pos = toVector2i(physics.pos) - mAnim.size/2;
-    }
-
-    private void physImpact(PhysicObject other) {
-        if (other is null) {
-            physics.dead = true;
-            graphic.active = false;
-            explode();
         }
     }
 
-    private void explode() {
-        controller.gamelevel.damage(toVector2i(physics.pos), 50);
-        auto expl = new ExplosiveForce();
-        expl.impulse = 2000;
-        expl.radius = 200;
-        expl.pos = physics.pos;
-        controller.physicworld.add(expl);
+    override protected void physImpact(PhysicBase other) {
+        super.physImpact(other);
+        if (mSpawner)
+            return; //???
+
+        //Hint: in future, physImpact should deliver the collision cookie
+        //(aka "action" in the config file)
+        //then the banana bomb can decide if it expldoes or falls into the water
+        physics.dead = true;
+        graphic.active = false;
+        explode();
     }
 
-    private void physDie() {
+    private void explode() {
+        controller.explosionAt(physics.pos,
+            type.config.getFloatValue("damage", 1.0f));
+    }
+
+    override protected void physDie() {
         explode();
         if (mSpawner) {
             for (int i = 0; i < 5; i++) {
-                auto b = new BananaBomb(controller, mAnim, false);
+                auto b = new BananaBomb(controller, false);
                 b.setPos(toVector2i(physics.pos+Vector2f(genrand_real1()*4-2,-2)));
             }
         }
         graphic.active = false;
+        super.physDie();
     }
 }

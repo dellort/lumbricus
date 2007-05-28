@@ -31,8 +31,6 @@ class PhysicBase {
 
     CollisionType collision;
 
-    public void delegate() onDie;
-
     //call when object should be notified with doUpdate() after all physics done
     void needUpdate() {
         mNeedUpdate = true;
@@ -43,7 +41,9 @@ class PhysicBase {
         mRemainLifeTime = secs;
     }
 
-    void delegate() onUpdate;
+    public void delegate() onUpdate;
+    public void delegate(PhysicBase other) onImpact;
+    public void delegate() onDie;
 
     //feedback to other parts of the game
     private void doUpdate() {
@@ -125,8 +125,6 @@ class PhysicObject : PhysicBase {
     float rotation = 0;
     //last known angle to ground
     float ground_angle = 0;
-
-    public void delegate(PhysicObject other) onImpact;
 
     this() {
         velocity = Vector2f(0, 0);
