@@ -209,6 +209,10 @@ class GameController {
             } else if (info.code == Keycode.J) {
                 //jetpack
                 lastworm.activateJetpack(!lastworm.jetpackActivated);
+            } else if (info.code == Keycode.W) {
+                lastworm.drawWeapon(!lastworm.weaponDrawn);
+            } else if (info.code == Keycode.SPACE) {
+                lastworm.fireWeapon();
             }
         }
         return true;
@@ -223,14 +227,14 @@ class GameController {
 
     void doFrame(Time gametime) {
         currentTime = gametime;
+        float deltaT = (currentTime - mLastTime).msecs/1000.0f;
         if (abs(mWindTarget - mWindForce.accel.x) > 0.5f) {
-            float deltaT = (currentTime - mLastTime).msecs/1000.0f;
             mWindForce.accel.x += copysign(cWindChange*deltaT,mWindTarget - mWindForce.accel.x);
         }
         physicworld.simulate(currentTime);
         //update game objects
         foreach (GameObject o; mObjects) {
-            o.simulate(currentTime);
+            o.simulate(deltaT);
         }
         mLastTime = currentTime;
     }
@@ -246,7 +250,7 @@ class GameController {
     //stupid debugging code
     void spawnWorm() {
         auto obj = new Worm(this);
-        obj.setPos(tmp);
+        obj.setPos(toVector2f(tmp));
         lastworm = obj;
     }
 

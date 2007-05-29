@@ -45,7 +45,7 @@ class BananaBomb : GObjectSprite {
         if (mSpawner) {
             for (int i = 0; i < 5; i++) {
                 auto b = new BananaBomb(controller, false);
-                b.setPos(toVector2i(physics.pos+Vector2f(genrand_real1()*4-2,-2)));
+                b.setPos(physics.pos+Vector2f(genrand_real1()*4-2,-2));
             }
         }
         graphic.active = false;

@@ -40,6 +40,10 @@ public struct Time {
         return Time(cast(TType_Int)(timeVal * f));
     }
 
+    public Time opMul(double f) {
+        return Time(cast(TType_Int)(timeVal * f));
+    }
+
     ///multiply Time value by constant (int)
     public Time opDiv(int i) {
         return Time(cast(TType_Int)(timeVal / i));

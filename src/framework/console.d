@@ -51,7 +51,7 @@ public class Console : Output {
         mCurHeight = 0;
         mBorderOffset = 4;
         mFadeinTime = timeMsecs(150);
-        mLastTime = timeCurrentTime();
+        mLastTime = gFramework.getCurrentTime();
         mBackColor = Color(0.5,0.5,0.5,0.5); //freaking alpha transparency!!!
         mConsoleFont = consoleFont;
         mLineHeight = consoleFont.properties.size + 3;
@@ -71,7 +71,7 @@ public class Console : Output {
     ///call this every frame to draw console to the screen
     public void frame(Canvas scrCanvas) {
         Time dt;
-        dt =  timeCurrentTime() - mLastTime;
+        dt = gFramework.getCurrentTime() - mLastTime;
 
         //sliding console in/out
         if ((mShowFlag < 0 && mCurHeight > 0) || ((mShowFlag > 0 &&
@@ -113,7 +113,7 @@ public class Console : Output {
                 +Vector2i(1, 0), mConsoleFont.properties.fore);
         }
 
-        mLastTime = timeCurrentTime();
+        mLastTime = gFramework.getCurrentTime();
     }
 
     private void renderTextLine(Canvas outCanvas, char[] text, Vector2i pos,

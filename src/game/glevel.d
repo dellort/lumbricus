@@ -6,8 +6,13 @@ import utils.vector2;
 import utils.log;
 import utils.misc;
 import drawing = utils.drawing;
-import std.math : sqrt;
+import std.math : sqrt, PI;
 import game.physic;
+
+//if deactivated, use a rectangle (which surrounds the old circle)
+//circular looks better on collisions (reflecting from walls)
+//rectangular should be faster and falling down from cliffs looks better
+version = CircularCollision;
 
 //per pixel metadata (cf. level.level.Lexel)
 //collection of flags
@@ -26,7 +31,12 @@ class LevelGeometry : PhysicGeometry {
         Vector2i dir;
         int pixelcount;
 
-        int iradius = cast(int)radius;
+        version (CircularCollision) {
+            int iradius = cast(int)radius;
+        } else {
+            //make it a bit smaller?
+            int iradius = cast(int)(radius/5*4);
+        }
 
         level.checkAt(toVector2i(pos), iradius, dir, pixelcount);
 
@@ -43,10 +53,17 @@ class LevelGeometry : PhysicGeometry {
         //auto normal = toVector2f(dir) / len;
         auto normal = toVector2f(dir).normal;
 
+        auto realradius = iradius+0.5f; //checkAt checks -radius <= p <= +radius
+        version (CircularCollision) {
+            auto totalpixels = realradius*realradius*PI;
+        } else {
+            auto totalpixels = realradius*realradius*4;
+        }
+
         //this is most likely mathematical incorrect bullsh*t, but works mostly
         //guess how deep the sphere is inside the landscape by dividing the
         //amount of collided pixel by the amount of total pixels in the circle
-        float rx = cast(float)pixelcount / (radius*radius*3.14159);
+        float rx = cast(float)pixelcount / totalpixels;
         auto nf = normal * (rx * radius * 2);
 
         //the new hopefully less-colliding sphere center
@@ -214,7 +231,11 @@ class GameLevel {
         //dir and count are initialized with 0
 
         for (int y = -radius; y <= radius; y++) {
-            int xoffs = radius - circle[y+radius];
+            version (CircularCollision) {
+                int xoffs = radius - circle[y+radius];
+            } else {
+                int xoffs = radius;
+            }
             for (int x = -xoffs; x <= xoffs; x++) {
                 int lx = st.x + x;
                 int ly = st.y + y;

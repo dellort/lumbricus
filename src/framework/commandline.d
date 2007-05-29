@@ -148,13 +148,17 @@ public class CommandLine {
         } else if (infos.code == Keycode.HOME) {
             mCursor = 0;
             updateCursor();
+            return true;
         } else if (infos.code == Keycode.END) {
             mCursor = mCurline.length;
             updateCursor();
+            return true;
         } else if (infos.code == Keycode.TAB) {
             do_tab_completion();
+            return true;
         } else if (infos.code == Keycode.RETURN) {
             do_execute();
+            return true;
         } else if (infos.code == Keycode.UP) {
             HistoryNode next_hist;
             if (mCurrentHistoryEntry) {
@@ -165,11 +169,13 @@ public class CommandLine {
             if (next_hist) {
                 select_history_entry(next_hist);
             }
+            return true;
         } else if (infos.code == Keycode.DOWN) {
             if (mCurrentHistoryEntry) {
                 HistoryNode next_hist = mHistory.next(mCurrentHistoryEntry);
                 select_history_entry(next_hist);
             }
+            return true;
         } else if (infos.code == Keycode.PAGEUP) {
             mConsole.scrollBack(1);
             return true;

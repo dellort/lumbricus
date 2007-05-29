@@ -119,7 +119,7 @@ class GameWater : GameObject {
         return mSimpleMode;
     }
 
-    override void simulate(Time curTime) {
+    override void simulate(float deltaT) {
         if (mLevel.waterLevel != mStoredWaterLevel) {
             waterOffs = mLevel.offset.y + mLevel.height-mLevel.waterLevel;
             if (mWaveAnim) {

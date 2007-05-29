@@ -36,9 +36,11 @@ class GObjectSprite : GameObject {
     PhysicObject physics;
     Animator graphic;
 
+    /+
     private Animation mCurrentAnimation;
     private StaticStateInfo mCurrentAnimationState;
     private float mCurrentAnimationAngle;
+    +/
 
     //animation played when doing state transition...
     StateTransition currentTransition;
@@ -59,13 +61,18 @@ class GObjectSprite : GameObject {
 
         float angle = physics.lookey;
 
+        /+
         if (mCurrentAnimationState !is currentState
             || mCurrentAnimationAngle != angle)
         {
+        +/
+            auto
             mCurrentAnimation = info.animationFromAngle(angle);
+        /+
             mCurrentAnimationState = currentState;
             mCurrentAnimationAngle = angle;
         }
+        +/
         return mCurrentAnimation;
     }
 
@@ -96,8 +103,8 @@ class GObjectSprite : GameObject {
     }
 
     //force position
-    void setPos(Vector2i pos) {
-        physics.pos = toVector2f(pos);
+    void setPos(Vector2f pos) {
+        physics.pos = pos;
         physUpdate();
     }
 
@@ -111,6 +118,7 @@ class GObjectSprite : GameObject {
             currentTransition = null;
             controller.mLog("state transition end");
             updateAnimation();
+            transitionEnd();
         }
     }
 
@@ -122,6 +130,18 @@ class GObjectSprite : GameObject {
         physics.collision = nstate.collide;
         physics.posp = nstate.physic_properties;
         graphic.setAnimation(getCurrentAnimation());
+    }
+
+    //when called: currentState is to
+    //and state transition will have been just started
+    //must not call setState (alone danger for recursion forbids it)
+    protected void stateTransition(StaticStateInfo from, StaticStateInfo to) {
+    }
+
+    //if the transition animation to the current state has finished
+    //not called if the transition animation was canceled
+    //when called, currentTransition should be null, and new animation was set
+    protected void transitionEnd() {
     }
 
     //do a (possibly) soft transition to the new state
@@ -138,6 +158,7 @@ class GObjectSprite : GameObject {
         controller.mLog("state %s -> %s%s", currentState.name, nstate.name,
             trans ? " (with transition)" : "");
 
+        auto oldstate = currentState;
         currentState = nstate;
         physics.collision = nstate.collide;
         physics.posp = nstate.physic_properties;
@@ -151,6 +172,10 @@ class GObjectSprite : GameObject {
         }
 
         updateAnimation();
+
+        stateTransition(oldstate, currentState);
+        //if this fails, maybe stateTransition called setState()?
+        assert(currentState is nstate);
     }
 
     //never returns null
@@ -384,10 +409,6 @@ private Vector2f readVector(char[] s) {
     pt.x = conv.toFloat(items[0]);
     pt.y = conv.toFloat(items[1]);
     return pt;
-}
-
-float realmod(float a, float b) {
-    return cmath.fmodf(cmath.fmodf(a, b) + b, b);
 }
 
 //return the index of the angle in "angles" which is closest to "angle"

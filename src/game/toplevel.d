@@ -52,10 +52,6 @@ class TopLevel {
     Console console;
     KeyBindings keybindings;
     GameController thegame;
-    Time gameStartTime;
-    private Time mPauseStarted; //absolute time of pause start
-    private Time mPausedTime; //summed amount of time paused
-    private bool mPauseMode;
     //xxx move this to where-ever
     Translator localizedKeynames;
     ConfigNode mWormsAnim;
@@ -64,6 +60,7 @@ class TopLevel {
     bool mShowKeyDebug = false;
     bool mKeyNameIt = false;
 
+    //for scrolling stuff only
     private Time mTimeLast;
     private Time mDeltaT;
 
@@ -72,6 +69,8 @@ class TopLevel {
     private char[] mGfxSet = "gpl";
 
     this() {
+        initTimes();
+
         screen = new Screen(globals.framework.screen.size);
 
         console = new Console(globals.framework.getFont("console"));
@@ -152,6 +151,8 @@ class TopLevel {
         globals.cmdLine.registerCommand("wind", &cmdSetWind, "Change wind speed");
         globals.cmdLine.registerCommand("stop", &cmdStop, "stop editor/game");
 
+        globals.cmdLine.registerCommand("slow", &cmdSlow, "todo");
+
         mTimeLast = globals.framework.getCurrentTime();
     }
 
@@ -179,7 +180,7 @@ class TopLevel {
         //xxx evil+sucks
         screen.setFocus(thegame.levelobject);
         initializeGui();
-        gameStartTime = globals.framework.getCurrentTime();
+        resetTime();
 
         //callback when invoking cmdStop
         mOnStopGui = &closeGame;
@@ -273,7 +274,7 @@ class TopLevel {
 
     private void cmdExpl(CommandLine) {
         auto obj = new BananaBomb(thegame);
-        obj.setPos(thegame.tmp);
+        obj.setPos(toVector2f(thegame.tmp));
     }
 
     private void cmdWorm(CommandLine) {
@@ -445,19 +446,125 @@ class TopLevel {
     }
 
     private void cmdPause(CommandLine) {
-        if (mPauseMode) {
-            mPausedTime += globals.gameTime - mPauseStarted;
+        paused = !paused;
+    }
+
+    //slow <whatever> time
+    //whatever can be "game", "ani" or left out
+    private void cmdSlow(CommandLine cmd) {
+        auto args = cmd.parseArgs();
+        bool setgame, setani;
+        float val;
+        if (args.length == 2) {
+            val = conv.toFloat(args[1]);
+            if (args[0] == "game")
+                setgame = true;
+            else if (args[0] == "ani")
+                setani = true;
+        } else if (args.length == 1) {
+            val = conv.toFloat(args[0]);
+            setgame = setani = true;
         } else {
-            mPauseStarted = globals.gameTime;
+            return;
         }
-        mPauseMode = !mPauseMode;
+        float g = setgame ? val : mSlowGame;
+        float a = setani ? val : mSlowAni;
+        cmd.console.writefln("set slowdown: game=%s animations=%s", g, a);
+        setSlowDown(g, a);
+    }
+
+    private {
+        Time gameStartTime;  //absolute time of start of game (pretty useless)
+        //not-slowed-down time of game, also quite useless/dangerous to use
+        Time pseudoGameTime;
+        Time mPauseStarted; //absolute time of pause start
+        Time mPausedTime; //summed amount of time paused
+        bool mPauseMode;
+
+        //last simulated time when slowdown was set...
+        Time mLastGameTime, mLastAniTime;
+        //last real time when slowdown was set; relative to pseudoGameTime...
+        Time mLastRealGameTime, mLastRealAniTime;
+        //slowdown scale values
+        float mSlowGame, mSlowAni;
+    }
+
+    private void initTimes() {
+        mPauseMode = false;
+        gameStartTime = globals.framework.getCurrentTime();
+        pseudoGameTime = timeSecs(0);
+        mPausedTime = timeSecs(0);
+
+        mLastRealGameTime = mLastRealAniTime = timeSecs(0);
+        globals.gameTime = timeSecs(0);
+        mLastGameTime = mLastAniTime = globals.gameTime;
+        globals.gameTimeAnimations = globals.gameTime;
+        setSlowDown(1,1);
+    }
+
+    void resetTime() {
+        initTimes();
+    }
+
+    void paused(bool p) {
+        if (p == mPauseMode)
+            return;
+
+        mPauseMode = p;
+        if (mPauseMode) {
+            mPauseStarted = globals.framework.getCurrentTime();
+        } else {
+            mPausedTime += globals.framework.getCurrentTime() - mPauseStarted;
+        }
+    }
+    bool paused() {
+        return mPauseMode;
+    }
+
+    //set the slowdown multiplier, 1 = normal, <1 = slower, >1 = faster
+    void setSlowDown(float game, float ani) {
+        assert(game == game && ani == ani);
+
+        auto realtime = pseudoGameTime;
+
+        //make old values absolute
+        mLastGameTime = globals.gameTime;
+        mLastAniTime = globals.gameTimeAnimations;
+        mLastRealGameTime = mLastRealAniTime = realtime;
+
+        mSlowGame = game;
+        mSlowAni = ani;
+    }
+
+    //xxx: what about rounding errors??
+    //possible solution: reset "Last"-times all i.e. 5 seconds?
+    private void doCalcTimes() {
+        if (mPauseMode)
+            return;
+
+        pseudoGameTime = globals.framework.getCurrentTime()
+            - gameStartTime - mPausedTime;
+
+        auto realtime = pseudoGameTime;
+
+        Time doTime(Time lastsim, Time lastreal, double scale) {
+            return lastsim + (realtime - lastreal)*scale;
+        }
+
+        globals.gameTimeAnimations = doTime(mLastAniTime, mLastRealAniTime,
+            mSlowAni);
+        globals.gameTime = doTime(mLastGameTime, mLastRealGameTime, mSlowGame);
     }
 
     private void onFrame(Canvas c) {
-        globals.gameTimeAnimations = globals.framework.getCurrentTime();
-        globals.gameTime = globals.gameTimeAnimations;
+        doCalcTimes();
 
-        mDeltaT = globals.gameTime - mTimeLast;
+        //std.stdio.writefln("%s %s %s", pseudoGameTime, globals.gameTime,
+        //    globals.gameTimeAnimations);
+
+        //use real absolute time (else no scrolling when paused etc.)
+        mDeltaT = globals.framework.getCurrentTime() - mTimeLast;
+        mTimeLast = globals.framework.getCurrentTime();
 
         fpsDisplay.text = format("FPS: %1.2f", globals.framework.FPS);
 
@@ -466,18 +573,18 @@ class TopLevel {
         }
 
         if (thegame && !mPauseMode) {
-            thegame.doFrame(globals.gameTime - gameStartTime - mPausedTime);
+            //thegame.doFrame(pseudoGameTime);
+            thegame.doFrame(globals.gameTime);
         }
 
         screen.draw(c);
-
-        mTimeLast = globals.gameTime;
     }
 
     private void onKeyPress(KeyInfo infos) {
         if (console.visible && globals.cmdLine.keyPress(infos))
             return;
-        screen.putOnKeyPress(infos);
+        if (!console.visible)
+            screen.putOnKeyPress(infos);
     }
 
     private bool onKeyDown(KeyInfo infos) {
@@ -508,7 +615,8 @@ class TopLevel {
             globals.cmdLine.execute(bind, false);
             return false;
         }
-        screen.putOnKeyDown(infos);
+        if (!console.visible)
+            screen.putOnKeyDown(infos);
         return true;
     }
 
@@ -516,7 +624,8 @@ class TopLevel {
         if (mShowKeyDebug) {
             globals.log("up: %s", globals.framework.keyinfoToString(infos));
         }
-        screen.putOnKeyUp(infos);
+        if (!console.visible)
+            screen.putOnKeyUp(infos);
         return true;
     }
 

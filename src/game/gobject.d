@@ -18,7 +18,8 @@ abstract class GameObject {
         controller.mObjects.insert_tail(this);
     }
 
-    void simulate(Time curTime) {
+    //deltaT = seconds since last frame
+    void simulate(float deltaT) {
         //override this if you need game time
     }
 

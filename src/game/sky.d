@@ -183,9 +183,7 @@ class GameSky : GameObject {
         return mEnableDebris;
     }
 
-    private int mTLast;
-
-    override void simulate(Time curTime) {
+    override void simulate(float deltaT) {
         void clip(inout float v, float s, float min, float max) {
             if (v > max)
                 v -= (max-min) + s;
@@ -193,22 +191,16 @@ class GameSky : GameObject {
                 v += (max-min) + s;
         }
 
-        int t = curTime.msecs();
         if (mCloudsVisible && mEnableClouds) {
-            if (mTLast>0) {
-                float deltaT = cast(float)(t-mTLast)/1000.0f;
                 foreach (inout ci; mCloudAnimators) {
                     //XXX this is acceleration, how to get a constant speed from this??
                     ci.x += (ci.xspeed+controller.windSpeed)*deltaT;
                     clip(ci.x, ci.animSizex, 0, controller.scene.thesize.x);
                     ci.anim.pos.x = cast(int)ci.x;
                 }
-            }
         }
         if (mDebrisAnim && mEnableDebris) {
             //XXX (and, XXX) handmade physics
-            if (mTLast>0) {
-                float deltaT = cast(float)(t-mTLast)/1000.0f;
                 foreach (inout di; mDebrisAnimators) {
                     //XXX same here
                     di.x += 2*controller.windSpeed*deltaT*di.speedPerc;
@@ -218,9 +210,7 @@ class GameSky : GameObject {
                     di.anim.pos.x = cast(int)di.x;
                     di.anim.pos.y = cast(int)di.y;
                 }
-            }
         }
-        mTLast = t;
     }
 
     override void kill() {

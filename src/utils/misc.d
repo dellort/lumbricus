@@ -1,6 +1,7 @@
 module utils.misc;
 
 import rand = std.random;
+import cmath = std.c.math;
 
 public T min(T)(T v1, T v2) {
     return v1<v2?v1:v2;
@@ -14,6 +15,10 @@ public void swap(T)(inout T a, inout T b) {
     T t = a;
     a = b;
     b = t;
+}
+
+float realmod(float a, float b) {
+    return cmath.fmodf(cmath.fmodf(a, b) + b, b);
 }
 
 /* generates a random number on [0,1]-real-interval */
