@@ -127,8 +127,14 @@ class SceneView : SceneObjectPositioned {
     }
 
     public void clipOffset(inout Vector2i offs) {
+        Vector2f tmp = toVector2f(offs);
+        clipOffset(tmp);
+        offs = toVector2i(tmp);
+    }
+
+    public void clipOffset(inout Vector2f offs) {
         if (!mClientScene) {
-            offs = Vector2i(0, 0);
+            offs = Vector2f(0, 0);
             return;
         }
 

@@ -54,15 +54,11 @@ class TopLevel {
     GameController thegame;
     //xxx move this to where-ever
     Translator localizedKeynames;
-    ConfigNode mWormsAnim;
-    Animator mWormsAnimator;
+    //ConfigNode mWormsAnim;
+    //Animator mWormsAnimator;
 
     bool mShowKeyDebug = false;
     bool mKeyNameIt = false;
-
-    //for scrolling stuff only
-    private Time mTimeLast;
-    private Time mDeltaT;
 
     private WindMeter mGuiWindMeter;
 
@@ -73,26 +69,7 @@ class TopLevel {
 
         screen = new Screen(globals.framework.screen.size);
 
-        console = new Console(globals.framework.getFont("console"));
-        Color console_color;
-        if (parseColor(globals.anyConfig.getSubNode("console")
-            .getStringValue("backcolor"), console_color))
-        {
-            console.backcolor = console_color;
-        }
-        globals.cmdLine = new CommandLine(console);
-
-        globals.defaultOut = console;
-        gDefaultOutput.destination = globals.defaultOut;
-
-        //xxx: make this fail-safe
-        localizedKeynames = new Translator("keynames");
-
         guiscene = screen.rootscene;
-        fpsDisplay = new FontLabel(globals.framework.getFont("fpsfont"));
-        fpsDisplay.setScene(guiscene, GUIZOrder.FPS);
-
-        mGuiWindMeter = new WindMeter();
 
         sceneview = new SceneView();
         sceneview.setScene(guiscene, GUIZOrder.Game); //container!
@@ -100,9 +77,11 @@ class TopLevel {
         sceneview.pos = Vector2i(0, 0);
         sceneview.thesize = guiscene.thesize;
 
-        auto consrender = new CallbackSceneObject();
-        consrender.setScene(guiscene, GUIZOrder.Console);
-        consrender.onDraw = &renderConsole;
+        initConsole();
+
+        fpsDisplay = new FontLabel(globals.framework.getFont("fpsfont"));
+        fpsDisplay.setScene(guiscene, GUIZOrder.FPS);
+        mGuiWindMeter = new WindMeter();
 
         globals.framework.onFrame = &onFrame;
         globals.framework.onKeyPress = &onKeyPress;
@@ -121,8 +100,28 @@ class TopLevel {
         mWormsAnimator.pos = Vector2i(100,330);
         +/
 
+        localizedKeynames = new Translator("keynames");
+
         keybindings = new KeyBindings();
         keybindings.loadFrom(globals.loadConfig("binds").getSubNode("binds"));
+    }
+
+    private void initConsole() {
+        console = new Console(globals.framework.getFont("console"));
+        Color console_color;
+        if (parseColor(globals.anyConfig.getSubNode("console")
+            .getStringValue("backcolor"), console_color))
+        {
+            console.backcolor = console_color;
+        }
+        globals.cmdLine = new CommandLine(console);
+
+        globals.defaultOut = console;
+        gDefaultOutput.destination = globals.defaultOut;
+
+        auto consrender = new CallbackSceneObject();
+        consrender.setScene(guiscene, GUIZOrder.Console);
+        consrender.onDraw = &renderConsole;
 
         globals.cmdLine.registerCommand("gc", &testGC, "timed GC run");
         globals.cmdLine.registerCommand("quit", &killShortcut, "kill it");
@@ -152,8 +151,6 @@ class TopLevel {
         globals.cmdLine.registerCommand("stop", &cmdStop, "stop editor/game");
 
         globals.cmdLine.registerCommand("slow", &cmdSlow, "todo");
-
-        mTimeLast = globals.framework.getCurrentTime();
     }
 
     private void cmdStop(CommandLine) {
@@ -168,10 +165,12 @@ class TopLevel {
         //not clean, but we need to redo this GUI-handling stuff anyway
         cmdStop(null);
         sceneview.clientscene = s;
+        scrollReset();
     }
 
     private void initializeGame(GameConfig config) {
         closeGame();
+        resetTime();
         //xxx README: since the scene is recreated for each level, there's no
         //            need to remove them all in Game.kill()
         auto gamescene = new Scene();
@@ -180,7 +179,9 @@ class TopLevel {
         //xxx evil+sucks
         screen.setFocus(thegame.levelobject);
         initializeGui();
+        //yes, really twice, as no game time should pass while loading stuff
         resetTime();
+        mTimeLast = globals.framework.getCurrentTime().msecs;
 
         //callback when invoking cmdStop
         mOnStopGui = &closeGame;
@@ -393,11 +394,16 @@ class TopLevel {
         }
     }
 
-    private bool mScrolling;
-    private Vector2i mScrollDest;
-    private const float K_SCROLL = 0.01f;
+    //--------------------------- Scrolling start -------------------------
 
-    private void toggleScroll() {
+    private bool mScrolling;
+    private Vector2f mScrollDest, mScrollOffset;
+    private const float K_SCROLL = 0.01f;
+    //for scrolling stuff only
+    private long mTimeLast;
+    private const cScrollStepMs = 10;
+
+    private void scrollToggle() {
         if (mScrolling) {
             //globals.framework.grabInput = false;
             globals.framework.cursorVisible = true;
@@ -406,10 +412,46 @@ class TopLevel {
             //globals.framework.grabInput = true;
             globals.framework.cursorVisible = false;
             globals.framework.lockMouse();
-            mScrollDest = sceneview.clientoffset;
+            mScrollDest = toVector2f(sceneview.clientoffset);
+            mScrollOffset = mScrollDest;
         }
         mScrolling = !mScrolling;
     }
+
+    private void scrollReset() {
+        mScrollOffset = toVector2f(sceneview.clientoffset);
+        mScrollDest = mScrollOffset;
+    }
+
+    private void scrollUpdate(Time curTime) {
+        long curTimeMs = curTime.msecs;
+
+        if ((mScrollDest-mScrollOffset).quad_length > 0.1f) {
+            while (mTimeLast + cScrollStepMs < curTimeMs) {
+                mScrollOffset = mScrollOffset + (mScrollDest - mScrollOffset)*K_SCROLL*cScrollStepMs;
+                mTimeLast += cScrollStepMs;
+            }
+            sceneview.clientoffset = toVector2i(mScrollOffset);
+        }
+    }
+
+    private void scrollMove(Vector2i delta) {
+        if (mScrolling) {
+            mScrollDest = mScrollDest - toVector2f(delta);
+            sceneview.clipOffset(mScrollDest);
+        }
+    }
+
+    private void scrollCenterOn(Vector2i scenePos, bool instantly = false) {
+        mScrollDest = -toVector2f(scenePos - sceneview.thesize/2);
+        sceneview.clipOffset(mScrollDest);
+        if (instantly) {
+            mScrollOffset = mScrollDest;
+            sceneview.clientoffset = toVector2i(mScrollOffset);
+        }
+    }
+
+    //--------------------------- Scrolling end ---------------------------
 
     /+
     private void cmdLoadAnim(CommandLine cmd) {
@@ -443,6 +485,8 @@ class TopLevel {
         GameConfig cfg;
         cfg.level = x.generateRandom(cmd.getArgString(), mGfxSet);
         initializeGame(cfg);
+        //start at level center
+        scrollCenterOn(thegame.gamelevel.offset+thegame.gamelevel.levelsize/2, true);
     }
 
     private void cmdPause(CommandLine) {
@@ -563,14 +607,9 @@ class TopLevel {
         //    globals.gameTimeAnimations);
 
         //use real absolute time (else no scrolling when paused etc.)
-        mDeltaT = globals.framework.getCurrentTime() - mTimeLast;
-        mTimeLast = globals.framework.getCurrentTime();
+        scrollUpdate(globals.framework.getCurrentTime());
 
         fpsDisplay.text = format("FPS: %1.2f", globals.framework.FPS);
-
-        if (mScrolling && mScrollDest != sceneview.clientoffset) {
-            sceneview.clientoffset = sceneview.clientoffset + toVector2i(toVector2f(mScrollDest - sceneview.clientoffset)*K_SCROLL*mDeltaT.msecs());
-        }
 
         if (thegame && !mPauseMode) {
             //thegame.doFrame(pseudoGameTime);
@@ -604,7 +643,7 @@ class TopLevel {
             globals.log("down: %s", globals.framework.keyinfoToString(infos));
         }
         if (infos.code == Keycode.MOUSE_RIGHT) {
-            toggleScroll();
+            scrollToggle();
         }
         char[] bind = keybindings.findBinding(infos.code,
             globals.framework.getModifierSet());
@@ -631,10 +670,7 @@ class TopLevel {
 
     private void onMouseMove(MouseInfo mouse) {
         //globals.log("%s", mouse.pos);
-        if (mScrolling) {
-            mScrollDest = mScrollDest - mouse.rel;
-            sceneview.clipOffset(mScrollDest);
-        }
+        scrollMove(mouse.rel);
         screen.putOnMouseMove(mouse);
     }
 
