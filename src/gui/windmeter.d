@@ -33,7 +33,7 @@ class WindMeter : SceneObjectPositioned {
         mController = c;
     }
 
-    void draw(Canvas canvas) {
+    void draw(Canvas canvas, SceneView parentView) {
         Time cur = globals.gameTimeAnimations;
         if (mController) {
             float deltaT = (cur.msecs - mLastTime.msecs)/1000.0f;

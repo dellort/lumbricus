@@ -27,7 +27,7 @@ class WaterDrawerFront : WaterDrawer {
         super(parent, waterColor);
     }
 
-    void draw(Canvas canvas) {
+    void draw(Canvas canvas, SceneView parentView) {
         canvas.drawFilledRect(Vector2i(0, mParent.waterOffs),
             scene.thesize, mWaterColor);
     }
@@ -38,7 +38,7 @@ class WaterDrawerBack : WaterDrawer {
         super(parent, waterColor);
     }
 
-    void draw(Canvas canvas) {
+    void draw(Canvas canvas, SceneView parentView) {
         canvas.drawFilledRect(Vector2i(0, mParent.waterOffs
             - mParent.cBackLayers*mParent.cWaterLayerDist),
             Vector2i(scene.thesize.x, mParent.waterOffs),
@@ -157,12 +157,12 @@ class HorizontalFullsceneAnimator : Animator {
     //texture offset
     public uint xoffs;
 
-    void draw(Canvas canvas) {
+    void draw(Canvas canvas, SceneView parentView) {
         int w = mAni.size.x;
         for (int x = xoffs-w; x < scene.thesize.x; x += w) {
             pos = Vector2i(x, ypos);
             //XXX I just hope canvas does clipping instead of letting sdl to it
-            super.draw(canvas);
+            super.draw(canvas, parentView);
         }
     }
 }

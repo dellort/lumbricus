@@ -61,6 +61,7 @@
 		<Unit filename="game\resources.d" />
 		<Unit filename="game\scene.d" />
 		<Unit filename="game\sky.d" />
+		<Unit filename="game\sprite.d" />
 		<Unit filename="game\toplevel.d" />
 		<Unit filename="game\water.d" />
 		<Unit filename="game\worm.d" />

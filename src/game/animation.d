@@ -151,7 +151,7 @@ class Animator : SceneObjectPositioned {
         }
     }
 
-    void draw(Canvas canvas) {
+    void draw(Canvas canvas, SceneView parentView) {
         if (!mAni || mAni.mFrames.length == 0)
             return;
         Animation.FrameInfo fi = mAni.mFrames[mCurFrame];

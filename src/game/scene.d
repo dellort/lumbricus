@@ -85,7 +85,7 @@ class SceneView : SceneObjectPositioned {
         }
     }
 
-    void draw(Canvas canvas) {
+    void draw(Canvas canvas, SceneView parentView) {
         if (!mClientScene)
             return;
 
@@ -101,7 +101,7 @@ class SceneView : SceneObjectPositioned {
         //Hint: first element in zorder array is the list of invisible objects
         foreach (list; mClientScene.mActiveObjectsZOrdered[1..$]) {
             foreach (obj; list) {
-                obj.draw(canvas);
+                obj.draw(canvas, this);
             }
         }
 
@@ -240,7 +240,7 @@ class Screen {
     }
 
     void draw(Canvas canvas) {
-        mRootView.draw(canvas);
+        mRootView.draw(canvas, null);
     }
 
     void setFocus(SceneObject so) {
@@ -364,14 +364,14 @@ class SceneObject {
         active = true;
     }
 
-    abstract void draw(Canvas canvas);
+    abstract void draw(Canvas canvas, SceneView parentView);
 }
 
 class CallbackSceneObject : SceneObject {
-    public void delegate(Canvas canvas) onDraw;
+    public void delegate(Canvas canvas, SceneView parentView) onDraw;
 
-    void draw(Canvas canvas) {
-        if (onDraw) onDraw(canvas);
+    void draw(Canvas canvas, SceneView parentView) {
+        if (onDraw) onDraw(canvas, parentView);
     }
 }
 
@@ -389,7 +389,7 @@ class FontLabel : SceneObjectPositioned {
         this.font = font;
     }
 
-    void draw(Canvas canvas) {
+    void draw(Canvas canvas, SceneView parentView) {
         font.drawText(canvas, pos, text);
     }
 }

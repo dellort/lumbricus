@@ -638,7 +638,7 @@ class TopLevel {
         screen.putOnMouseMove(mouse);
     }
 
-    private void renderConsole(Canvas canvas) {
+    private void renderConsole(Canvas canvas, SceneView parentView) {
         console.frame(canvas);
     }
 }
