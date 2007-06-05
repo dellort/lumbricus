@@ -9,7 +9,7 @@ import utils.output;
 public class Console : Output {
     //maximum entries the backlog stores
     //if backlog would grow larger, old entries are thrown away
-    private const int BACKLOG_LENGTH = 300;
+    private const int BACKLOG_LENGTH = 30;
 
     //currently showing (1) or hiding (-1)
     private int mShowFlag;

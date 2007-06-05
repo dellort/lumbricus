@@ -384,8 +384,8 @@ class PhysicGeometry : PhysicBase {
 
 //a plane which divides space into two regions (inside and outside plane)
 class PlaneGeometry : PhysicGeometry {
-    private Vector2f mNormal;
-    private float mDistance; //distance of the plane from origin
+    private Vector2f mNormal = {1,0};
+    private float mDistance = 0; //distance of the plane from origin
 
     void define(Vector2f from, Vector2f to) {
         mNormal = (to - from).orthogonal.normal;
@@ -394,6 +394,9 @@ class PlaneGeometry : PhysicGeometry {
 
     this(Vector2f from, Vector2f to) {
         define(from, to);
+    }
+
+    this() {
     }
 
     bool collide(inout Vector2f pos, float radius) {

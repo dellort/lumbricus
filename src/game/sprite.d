@@ -414,21 +414,11 @@ private Vector2f readVector(char[] s) {
 //return the index of the angle in "angles" which is closest to "angle"
 //for unknown reasons, angles[] is in degrees, while angle is in radians
 private uint pickNearestAngle(int[] angles, float angle) {
-    //whatever
-    float angle_dist(float a, float b) {
-        //assume angles already are mod PI*2
-        auto r = abs(a - b); //abs(realmod(a, PI*2) - realmod(b, PI*2));
-        if (r > PI) {
-            r = PI*2 - r;
-        }
-        return r;
-    }
-
     //pick best angle (what's nearer)
     uint closest;
     float cur = float.max;
     foreach (int i, int x; angles) {
-        auto d = angle_dist(angle,x/180.0f*PI);
+        auto d = angleDistance(angle,x/180.0f*PI);
         if (d < cur) {
             cur = d;
             closest = i;

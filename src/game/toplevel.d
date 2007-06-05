@@ -436,7 +436,7 @@ class TopLevel {
         }
     }
 
-    private void scrollCenterOn(Vector2i scenePos, bool instantly = false) {
+    /+private+/ void scrollCenterOn(Vector2i scenePos, bool instantly = false) {
         mScrollDest = -toVector2f(scenePos - sceneview.thesize/2);
         sceneview.clipOffset(mScrollDest);
         if (instantly) {
@@ -478,7 +478,7 @@ class TopLevel {
         x.config = globals.loadConfig("levelgen").getSubNode("levelgen");
         GameConfig cfg;
         cfg.level = x.generateRandom(cmd.getArgString(), mGfxSet);
-        cfg.teams = globals.loadConfig("teams");
+        cfg.teams = globals.loadConfig("teams").getSubNode("teams");
         initializeGame(cfg);
         //start at level center
         scrollCenterOn(thegame.gamelevel.offset+thegame.gamelevel.levelsize/2, true);

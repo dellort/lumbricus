@@ -2,6 +2,7 @@ module utils.misc;
 
 import rand = std.random;
 import cmath = std.c.math;
+import math = std.math;
 
 public T min(T)(T v1, T v2) {
     return v1<v2?v1:v2;
@@ -21,6 +22,15 @@ float realmod(float a, float b) {
     return cmath.fmodf(cmath.fmodf(a, b) + b, b);
 }
 
+//return distance of two angles in radians
+float angleDistance(float a, float b) {
+    auto r = math.abs(realmod(a, math.PI*2) - realmod(b, math.PI*2));
+    if (r > math.PI) {
+        r = math.PI*2 - r;
+    }
+    return r;
+}
+
 /* generates a random number on [0,1]-real-interval */
 double genrand_real1()
 {
@@ -35,9 +45,9 @@ double genrand_real2()
     /* divided by 2^32 */
 }
 
-int randRange(int min, int max) {
+T randRange(T)(T min, T max) {
     auto r = rand.rand();
-    return cast(int)(min + (max-min+1)*genrand_real2());
+    return cast(T)(min + (max-min+1)*genrand_real2());
 }
 
 uint log2(uint value)

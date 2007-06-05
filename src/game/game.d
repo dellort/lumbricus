@@ -37,8 +37,10 @@ enum GameZOrder {
 }
 
 enum CameraStyle {
+    Set,    //scroll to an object (once, don't follow)
+    SetForced, //center an object, no scrolling
     Normal, //camera follows in a non-confusing way
-    Center, //always centered, cf. super sheep
+    Center, //follows always centered, cf. super sheep
 }
 
 struct GameConfig {
@@ -54,6 +56,7 @@ class GameEngine {
     GameLevel gamelevel;
     Scene scene;
     PhysicWorld physicworld;
+    PlaneGeometry waterborder;
     Time currentTime;
     GameWater gameWater;
     GameSky gameSky;
@@ -124,10 +127,9 @@ class GameEngine {
 
         //to enable level-bitmap collision
         physicworld.add(gamelevel.physics);
-        //various level borders; for now, simply box it
-        //water border
-        physicworld.add(new PlaneGeometry(toVector2f(levelOffset+worldSize),
-            toVector2f(levelOffset+worldSize) + Vector2f(1,0)));
+        //various level borders
+        waterborder = new PlaneGeometry();
+        physicworld.add(waterborder);
 
         mGravForce = new ConstantForce();
         mGravForce.accel = Vector2f(0, 100); //what unit is that???
@@ -142,9 +144,21 @@ class GameEngine {
         gameWater = new GameWater(this, "blue");
         gameSky = new GameSky(this);
 
+        fixupWaterLevel();
+
         loadLevelStuff();
 
+        //NOTE: GameController relies on many stuff at initialization
+        //i.e. physics for worm placement
         controller = new GameController(this, config);
+    }
+
+    void fixupWaterLevel() {
+        //xxx: move calculations from water.d to here
+        //also look at GameController.placeWorms()
+        gameWater.simulate(0);
+        auto water_y = gameWater.waterOffs;
+        waterborder.define(Vector2f(0, water_y), Vector2f(1, water_y));
     }
 
     //one time initialization, where levle objects etc. should be loaded (?)
@@ -168,8 +182,23 @@ class GameEngine {
         return mGravForce.accel.y;
     }
 
-    public void setCameraFocus(SceneObjectPositioned obj, CameraStyle cs) {
-        assert(false);
+    public void setCameraFocus(SceneObjectPositioned obj, CameraStyle cs
+         = CameraStyle.Normal)
+    {
+        if (obj) {
+            //xxx: must translate coord-system?
+            //this is a full xxx anyway! also must implement followed objects...
+            switch (cs) {
+                case CameraStyle.Normal:
+                case CameraStyle.Set:
+                    globals.toplevel.scrollCenterOn(obj.pos, false);
+                    break;
+                case CameraStyle.Center:
+                case CameraStyle.SetForced:
+                    globals.toplevel.scrollCenterOn(obj.pos, true);
+                    break;
+            }
+        }
     }
 
     void doFrame(Time gametime) {
@@ -198,26 +227,40 @@ class GameEngine {
     //essentially finds the first collision under "drop" and checks the normal
     //success only when only the LevelGeometry object is hit
     //  drop = any startpoint
-    //  dest = where it is dropped (will have same x value)
+    //  dest = where it is dropped (will have same x value as drop)
     //returns if dest contains a useful value
-    bool placeObject(inout Vector2i drop, out Vector2i dest, int radius) {
-        assert(false);
+    bool placeObject(Vector2f drop, out Vector2f dest, float radius) {
+        Vector2f pos = drop;
+        while (!physicworld.collideGeometry(drop, radius)) {
+            pos = drop;
+            //hmpf!
+            drop.y += 1;
+        }
+        //had a collision, check normal
+        Vector2f normal = (drop-pos).normal;
+        float dist = abs(angleDistance(normal.toAngle(), 90.0f/180*PI));
+        //if (dist < 20.0f/180*PI) { always is true or so, for unkown reasons
+        if (true) {
+            dest = pos;
+            return true;
+        } else {
+            return false;
+        }
     }
 
     //places an object at a random (x,y)-position, where y <= y_max
     //use y_max to prevent placement under the water, or to start dopping from
     //the sky (instead of anywhere)
     //  retrycount = times it tries again until it gives up
-    bool placeObject(int y_max, int retrycount, out Vector2i drop,
-        out Vector2i dest, int radius)
+    bool placeObject(float y_max, int retrycount, out Vector2f drop,
+        out Vector2f dest, float radius)
     {
         //clip y_max to level borders
-        y_max = max(y_max, gamelevel.offset.y);
-        y_max = min(y_max, gamelevel.offset.y + cast(int)gamelevel.height);
+        y_max = max(y_max, 1.0f*gamelevel.offset.y);
+        y_max = min(y_max, 1.0f*gamelevel.offset.y + gamelevel.height);
         for (;retrycount > 0; retrycount--) {
-            drop.x = randRange(gamelevel.offset.y, y_max);
-            drop.y = randRange(gamelevel.offset.x, gamelevel.offset.x
-                + cast(int)gamelevel.width);
+            drop.y = randRange(1.0f*gamelevel.offset.y, y_max);
+            drop.x = gamelevel.offset.x + randRange(0u, gamelevel.width);
             if (placeObject(drop, dest, radius))
                 return true;
         }

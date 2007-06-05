@@ -5,6 +5,7 @@ import game.sprite;
 import game.scene;
 import utils.vector2;
 import utils.configfile;
+import utils.log;
 import game.common;
 
 //Hint: there's a limited number of predefined colors; that's because sometimes
@@ -48,8 +49,13 @@ class Team {
         foreach (char[] value; node.getSubNode("member_names")) {
             auto worm = new TeamMember();
             worm.name = value;
+            worm.team = this;
             mWorms ~= worm;
         }
+    }
+
+    char[] toString() {
+        return "[team '" ~ name ~ "']";
     }
 }
 
@@ -64,7 +70,11 @@ class TeamMember {
     }
 
     Worm worm() {
-            return mWorm;
+        return mWorm;
+    }
+
+    char[] toString() {
+        return "[tworm " ~ (team ? team.toString() : null) ~ ":'" ~ name ~ "']";
     }
 }
 
@@ -81,6 +91,8 @@ class GameController {
     //key state for LEFT/RIGHT and UP/DOWN
     private Vector2f dirKeyState = {0, 0};
 
+    private Log mLog;
+
     void current(TeamMember worm) {
         auto old = mCurrent ? mCurrent.worm : null;
         if (old) {
@@ -90,6 +102,12 @@ class GameController {
             old.drawWeapon(false);
         }
         mCurrent = worm;
+        if (mCurrent) {
+            //set camera
+            if (mCurrent.mWorm) {
+                mEngine.setCameraFocus(mCurrent.mWorm.graphic);
+            }
+        }
     }
     TeamMember current() {
         return mCurrent;
@@ -97,6 +115,8 @@ class GameController {
 
     this(GameEngine engine, GameConfig config) {
         mEngine = engine;
+
+        mLog = registerLog("gamecontroller");
 
         if (config.teams) {
             loadTeams(config.teams);
@@ -207,6 +227,39 @@ class GameController {
         foreach (ConfigNode sub; config) {
             mTeams ~= new Team(sub);
         }
+        placeWorms();
+    }
+
+    //create and place worms when necessary
+    private void placeWorms() {
+        mLog("placing worms...");
+
+        foreach (Team t; mTeams) {
+            foreach (TeamMember m; t.mWorms) {
+                if (m.mWorm)
+                    continue;
+                //create and place into the landscape
+                m.mWorm = new Worm(mEngine);
+                Vector2f npos, tmp;
+                auto water_y = mEngine.gameWater.waterOffs;
+                //first 10: minimum distance from water
+                //second 10: retry count
+                if (!mEngine.placeObject(water_y-10, 10, tmp, npos,
+                    m.mWorm.physics.posp.radius))
+                {
+                    //placement unsuccessful
+                    //the original game blows a hole into the level at a random
+                    //position, and then places a small bridge for the worm
+                    //but for now... just barf and complain
+                    npos = toVector2f(mEngine.gamelevel.offset
+                        + Vector2i(mEngine.gamelevel.width / 2, 0));
+                    mLog("couldn't place worm!");
+                }
+                m.mWorm.setPos(npos);
+            }
+        }
+
+        mLog("placing worms done.");
     }
 }
 

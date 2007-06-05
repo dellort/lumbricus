@@ -56,7 +56,7 @@ class GameWater : GameObject {
     private HorizontalFullsceneAnimator[3] mWaveAnimFront;
     private HorizontalFullsceneAnimator[2] mWaveAnimBack;
 
-    protected uint waterOffs;
+    /+protected+/ uint waterOffs;
     private uint mStoredWaterLevel = uint.max;
     private GameLevel mLevel;
     private bool mSimpleMode = true;
