@@ -10,6 +10,7 @@ import game.worm;
 import game.water;
 import game.sky;
 import game.common;
+import game.controller;
 import utils.mylist;
 import utils.time;
 import utils.log;
@@ -35,6 +36,11 @@ enum GameZOrder {
     FrontWaterWaves3,
 }
 
+enum CameraStyle {
+    Normal, //camera follows in a non-confusing way
+    Center, //always centered, cf. super sheep
+}
+
 struct GameConfig {
     Level level;
 }
@@ -50,6 +56,8 @@ class GameEngine {
     Time currentTime;
     GameWater gameWater;
     GameSky gameSky;
+
+    GameController controller;
 
     package Log mLog;
 
@@ -68,11 +76,6 @@ class GameEngine {
 
     //managment of sprite classes, for findGOSpriteClass()
     private GOSpriteClass[char[]] mSpriteClasses;
-
-    Vector2i tmp;
-    EventSink events;
-
-    Worm lastworm;
 
     package List!(GameObject) mObjects;
 
@@ -138,12 +141,9 @@ class GameEngine {
         gameWater = new GameWater(this, "blue");
         gameSky = new GameSky(this);
 
-        events = levelobject.getEventSink();
-        events.onMouseMove = &onMouseMove;
-        events.onKeyDown = &onKeyDown;
-        events.onKeyUp = &onKeyUp;
-
         loadLevelStuff();
+
+        controller = new GameController(this);
     }
 
     //one time initialization, where levle objects etc. should be loaded (?)
@@ -167,62 +167,8 @@ class GameEngine {
         return mGravForce.accel.y;
     }
 
-    bool onMouseMove(EventSink sender, MouseInfo info) {
-        tmp = info.pos;
-        return true;
-    }
-
-    //key state for LEFT/RIGHT and UP/DOWN
-    Vector2f dirKeyState = {0, 0};
-
-    void handleDirKey(Keycode c, bool up) {
-        float v = up ? 0 : 1;
-        switch (c) {
-            case Keycode.LEFT:
-                dirKeyState.x = -v;
-                break;
-            case Keycode.RIGHT:
-                dirKeyState.x = +v;
-                break;
-            case Keycode.UP:
-                dirKeyState.y = -v;
-                break;
-            case Keycode.DOWN:
-                dirKeyState.y = +v;
-                break;
-            default:
-                return;
-        }
-
-        //control the worm (better only on state change)
-        lastworm.move(dirKeyState);
-    }
-
-    bool onKeyDown(EventSink sender, KeyInfo info) {
-        if (info.code == Keycode.MOUSE_LEFT) {
-            gamelevel.damage(sender.mousePos, 100);
-        }
-        if (lastworm) {
-            handleDirKey(info.code, false);
-            if (info.code == Keycode.RETURN) {
-                lastworm.jump();
-            } else if (info.code == Keycode.J) {
-                //jetpack
-                lastworm.activateJetpack(!lastworm.jetpackActivated);
-            } else if (info.code == Keycode.W) {
-                lastworm.drawWeapon(!lastworm.weaponDrawn);
-            } else if (info.code == Keycode.SPACE) {
-                lastworm.fireWeapon();
-            }
-        }
-        return true;
-    }
-
-    bool onKeyUp(EventSink sender, KeyInfo info) {
-        if (lastworm) {
-            handleDirKey(info.code, true);
-        }
-        return false;
+    public void setCameraFocus(SceneObjectPositioned obj, CameraStyle cs) {
+        assert(false);
     }
 
     void doFrame(Time gametime) {
@@ -245,13 +191,6 @@ class GameEngine {
         foreach (GameObject o; mObjects) {
             o.kill();
         }
-    }
-
-    //stupid debugging code
-    void spawnWorm() {
-        auto obj = new Worm(this);
-        obj.setPos(toVector2f(tmp));
-        lastworm = obj;
     }
 
     //try to place an object into the landscape

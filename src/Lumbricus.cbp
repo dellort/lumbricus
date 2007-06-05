@@ -53,6 +53,7 @@
 		<Unit filename="game\animation.d" />
 		<Unit filename="game\banana.d" />
 		<Unit filename="game\common.d" />
+		<Unit filename="game\controller.d" />
 		<Unit filename="game\game.d" />
 		<Unit filename="game\glevel.d" />
 		<Unit filename="game\gobject.d" />

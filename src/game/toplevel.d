@@ -138,7 +138,6 @@ class TopLevel {
         globals.cmdLine.registerCommand("fullscreen", &cmdFS, "toggle fs");
         globals.cmdLine.registerCommand("phys", &cmdPhys, "test123");
         globals.cmdLine.registerCommand("expl", &cmdExpl, "BOOM! HAHAHAHA");
-        globals.cmdLine.registerCommand("worm", &cmdWorm, "...");
         globals.cmdLine.registerCommand("pause", &cmdPause, "pause");
         //globals.cmdLine.registerCommand("loadanim", &cmdLoadAnim, "load worms animation");
         globals.cmdLine.registerCommand("clouds", &cmdClouds, "enable/disable animated clouds");
@@ -176,8 +175,6 @@ class TopLevel {
         auto gamescene = new Scene();
         setScene(gamescene);
         thegame = new GameEngine(gamescene, config);
-        //xxx evil+sucks
-        screen.setFocus(thegame.levelobject);
         initializeGui();
         //yes, really twice, as no game time should pass while loading stuff
         resetTime();
@@ -275,11 +272,8 @@ class TopLevel {
 
     private void cmdExpl(CommandLine) {
         auto obj = new BananaBomb(thegame);
-        obj.setPos(toVector2f(thegame.tmp));
-    }
-
-    private void cmdWorm(CommandLine) {
-        thegame.spawnWorm();
+        //obj.setPos(toVector2f(thegame.tmp));
+        assert(false);
     }
 
     private void onVideoInit(bool depth_only) {

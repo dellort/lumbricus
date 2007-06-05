@@ -3,6 +3,9 @@ import framework.framework;
 import utils.mylist;
 import framework.font;
 
+public import framework.keysyms;
+public import framework.framework : KeyInfo, Canvas;
+
 //a scene contains all graphics drawn onto the screen
 //each graphic is represented by a SceneObject
 class Scene {
