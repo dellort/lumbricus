@@ -72,33 +72,33 @@ class GameSky : GameObject {
     private DebrisInfo[cNumDebris] mDebrisAnimators;
     private Animation mDebrisAnim;
 
-    this(GameController controller) {
-        super(controller);
+    this(GameEngine engine) {
+        super(engine);
         ConfigNode skyNode = globals.loadConfig("sky");
-        Color skyColor = controller.level.skyColor;
+        Color skyColor = engine.level.skyColor;
 
-        Surface bmp = controller.level.skyGradient;
+        Surface bmp = engine.level.skyGradient;
         if (!bmp) {
             bmp = globals.loadGraphic(skyNode.getStringValue("gradient"));
             if (!bmp)
                 throw new Exception("Failed to load gradient bitmap");
         }
         Texture skyTex = bmp.createTexture();
-        bmp = controller.level.skyBackdrop;
+        bmp = engine.level.skyBackdrop;
         Texture skyBackdrop = null;
         if (bmp) {
             skyBackdrop = bmp.createTexture();
-            skyBackdropOffset = controller.gamelevel.offset.y+controller.gamelevel.height-controller.gamelevel.waterLevel-skyBackdrop.size.y;
+            skyBackdropOffset = engine.gamelevel.offset.y+engine.gamelevel.height-engine.gamelevel.waterLevel-skyBackdrop.size.y;
         }
 
-        mDebrisAnim = controller.level.skyDebris;
+        mDebrisAnim = engine.level.skyDebris;
 
-        skyOffset = controller.gamelevel.offset.y+controller.gamelevel.height-skyTex.size.y;
+        skyOffset = engine.gamelevel.offset.y+engine.gamelevel.height-skyTex.size.y;
         if (skyOffset > 0)
             mCloudsVisible = true;
         else
             mCloudsVisible = false;
-        levelBottom = controller.gamelevel.offset.y+controller.gamelevel.height;
+        levelBottom = engine.gamelevel.offset.y+engine.gamelevel.height;
 
         if (mCloudsVisible) {
             try {
@@ -110,9 +110,9 @@ class GameSky : GameObject {
                 foreach (inout CloudInfo ci; mCloudAnimators) {
                     ci.anim = new Animator();
                     ci.anim.setAnimation(mCloudAnims[nAnim]);
-                    ci.anim.setScene(controller.scene, GameZOrder.Objects);
+                    ci.anim.setScene(engine.scene, GameZOrder.Objects);
                     ci.anim.pos.y = skyOffset - mCloudAnims[nAnim].size.y/2 + randRange(-cCloudHeightRange/2,cCloudHeightRange/2);
-                    ci.x = randRange(-mCloudAnims[nAnim].size.x, controller.scene.thesize.x);
+                    ci.x = randRange(-mCloudAnims[nAnim].size.x, engine.scene.thesize.x);
                     ci.anim.pos.x = cast(int)ci.x;
                     ci.anim.setFrame(randRange(0,mCloudAnims[nAnim].frameCount));
                     ci.animSizex = mCloudAnims[nAnim].size.x;
@@ -130,8 +130,8 @@ class GameSky : GameObject {
                 foreach (inout DebrisInfo di; mDebrisAnimators) {
                     di.anim = new Animator();
                     di.anim.setAnimation(mDebrisAnim);
-                    di.anim.setScene(controller.scene, GameZOrder.BackLayer);
-                    di.x = randRange(-mDebrisAnim.size.x, controller.scene.thesize.x);
+                    di.anim.setScene(engine.scene, GameZOrder.BackLayer);
+                    di.x = randRange(-mDebrisAnim.size.x, engine.scene.thesize.x);
                     di.y = randRange(skyOffset, levelBottom);
                     di.anim.pos.x = cast(int)di.x;
                     di.anim.pos.y = cast(int)di.y;
@@ -144,7 +144,7 @@ class GameSky : GameObject {
         }
 
         mSkyDrawer = new SkyDrawer(this, skyColor, skyTex, skyBackdrop);
-        mSkyDrawer.setScene(controller.scene, GameZOrder.Background);
+        mSkyDrawer.setScene(engine.scene, GameZOrder.Background);
     }
 
     public void enableClouds(bool enable) {
@@ -194,8 +194,8 @@ class GameSky : GameObject {
         if (mCloudsVisible && mEnableClouds) {
                 foreach (inout ci; mCloudAnimators) {
                     //XXX this is acceleration, how to get a constant speed from this??
-                    ci.x += (ci.xspeed+controller.windSpeed)*deltaT;
-                    clip(ci.x, ci.animSizex, 0, controller.scene.thesize.x);
+                    ci.x += (ci.xspeed+engine.windSpeed)*deltaT;
+                    clip(ci.x, ci.animSizex, 0, engine.scene.thesize.x);
                     ci.anim.pos.x = cast(int)ci.x;
                 }
         }
@@ -203,9 +203,9 @@ class GameSky : GameObject {
             //XXX (and, XXX) handmade physics
                 foreach (inout di; mDebrisAnimators) {
                     //XXX same here
-                    di.x += 2*controller.windSpeed*deltaT*di.speedPerc;
+                    di.x += 2*engine.windSpeed*deltaT*di.speedPerc;
                     di.y += cDebrisFallSpeed*deltaT;
-                    clip(di.x, mDebrisAnim.size.x, 0, controller.scene.thesize.x);
+                    clip(di.x, mDebrisAnim.size.x, 0, engine.scene.thesize.x);
                     clip(di.y, mDebrisAnim.size.y, skyOffset, levelBottom);
                     di.anim.pos.x = cast(int)di.x;
                     di.anim.pos.y = cast(int)di.y;

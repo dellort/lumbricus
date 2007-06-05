@@ -41,7 +41,7 @@ struct GameConfig {
 
 //code to manage a game session (hm, whatever this means)
 //reinstantiated on each "round"
-class GameController {
+class GameEngine {
     Level level;
     LevelObject levelobject;
     GameLevel gamelevel;
@@ -93,7 +93,7 @@ class GameController {
         scene = gamescene;
         this.level = config.level;
 
-        mLog = registerLog("gamecontroller");
+        mLog = registerLog("gameengine");
 
         mAllAnimations = new ConfigNode();
 
@@ -398,7 +398,7 @@ class GameController {
 }
 
 class LevelObject : SceneObject {
-    GameController game;
+    GameEngine game;
     GameLevel gamelevel;
     Texture levelTexture;
 
@@ -440,7 +440,7 @@ class LevelObject : SceneObject {
         }
     }
 
-    this(GameController game) {
+    this(GameEngine game) {
         this.game = game;
         gamelevel = game.gamelevel;
     }

@@ -51,7 +51,7 @@ class TopLevel {
     LevelEditor editor;
     Console console;
     KeyBindings keybindings;
-    GameController thegame;
+    GameEngine thegame;
     //xxx move this to where-ever
     Translator localizedKeynames;
     //ConfigNode mWormsAnim;
@@ -175,7 +175,7 @@ class TopLevel {
         //            need to remove them all in Game.kill()
         auto gamescene = new Scene();
         setScene(gamescene);
-        thegame = new GameController(gamescene, config);
+        thegame = new GameEngine(gamescene, config);
         //xxx evil+sucks
         screen.setFocus(thegame.levelobject);
         initializeGui();
@@ -198,13 +198,13 @@ class TopLevel {
 
     private void initializeGui() {
         closeGui();
-        mGuiWindMeter.controller = thegame;
+        mGuiWindMeter.engine = thegame;
         mGuiWindMeter.setScene(guiscene, GUIZOrder.Gui);
         mGuiWindMeter.pos = guiscene.thesize - mGuiWindMeter.size - Vector2i(5,5);
     }
 
     private void closeGui() {
-        mGuiWindMeter.controller = null;
+        mGuiWindMeter.engine = null;
         mGuiWindMeter.setScene(null, GUIZOrder.Gui);
     }
 

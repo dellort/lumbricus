@@ -116,7 +116,7 @@ class GObjectSprite : GameObject {
                 physics.posp.fixate = currentState.physic_properties.fixate;
             }
             currentTransition = null;
-            controller.mLog("state transition end");
+            engine.mLog("state transition end");
             updateAnimation();
             transitionEnd();
         }
@@ -155,7 +155,7 @@ class GObjectSprite : GameObject {
         StateTransition* transp = nstate in currentState.transitions;
         StateTransition trans = transp ? *transp : null;
 
-        controller.mLog("state %s -> %s%s", currentState.name, nstate.name,
+        engine.mLog("state %s -> %s%s", currentState.name, nstate.name,
             trans ? " (with transition)" : "");
 
         auto oldstate = currentState;
@@ -183,8 +183,8 @@ class GObjectSprite : GameObject {
         return type.findState(name);
     }
 
-    this (GameController controller, GOSpriteClass type) {
-        super(controller);
+    this (GameEngine engine, GOSpriteClass type) {
+        super(engine);
 
         assert(type !is null);
         this.type = type;
@@ -197,10 +197,10 @@ class GObjectSprite : GameObject {
         physics.onUpdate = &physUpdate;
         physics.onImpact = &physImpact;
         physics.onDie = &physDie;
-        controller.physicworld.add(physics);
+        engine.physicworld.add(physics);
 
         graphic.setOnNoAnimation(&animationEnd);
-        graphic.setScene(controller.scene, GameZOrder.Objects);
+        graphic.setScene(engine.scene, GameZOrder.Objects);
     }
 }
 
@@ -232,7 +232,7 @@ struct SpriteAnimationInfo {
         }
     }
 
-    void loadFrom(GameController controller, ConfigNode sc) {
+    void loadFrom(GameEngine engine, ConfigNode sc) {
 
         void addMirrors() {
             Animation[] nanimations;
@@ -248,7 +248,7 @@ struct SpriteAnimationInfo {
         switch (ani2angle) {
             case Angle2AnimationMode.Simple, Angle2AnimationMode.Twosided: {
                 //only one animation to load
-                animations = [controller.findAnimation(sc["animations"])];
+                animations = [engine.findAnimation(sc["animations"])];
                 addMirrors();
                 break;
             }
@@ -256,7 +256,7 @@ struct SpriteAnimationInfo {
                 char[] head = sc["animations"];
                 static names = [cast(char[])"down", "norm", "up"];
                 foreach (s; names) {
-                    animations ~= controller.findAnimation(head ~ s);
+                    animations ~= engine.findAnimation(head ~ s);
                 }
                 addMirrors();
                 break;
@@ -292,7 +292,7 @@ class StateTransition {
 //loads static physic properties (in a POSP struct)
 //load static parts of the "states"-nodes
 class GOSpriteClass {
-    GameController controller;
+    GameEngine engine;
     ConfigNode config;
 
     StaticStateInfo[char[]] states;
@@ -307,19 +307,19 @@ class GOSpriteClass {
         return *state;
     }
 
-    this (GameController controller, ConfigNode config) {
+    this (GameEngine engine, ConfigNode config) {
         POSP[char[]] posps;
 
-        this.controller = controller;
+        this.engine = engine;
         this.config = config;
 
         //load the stuff...
 
         //load animation config files
-        controller.loadAnimations(config.find("require_animations"));
+        engine.loadAnimations(config.find("require_animations"));
 
         //load collision map
-        controller.loadCollisions(config.getSubNode("collisions"));
+        engine.loadCollisions(config.getSubNode("collisions"));
 
         //load states
         //physic stuff is loaded when it's referenced in a state description
@@ -336,7 +336,7 @@ class GOSpriteClass {
             //xxx: passes true for the second parameter, which means the ID
             //     is created if it doesn't exist; this is for forward
             //     referencing... it should be replaced by collision classes
-            ssi.collide = controller.findCollisionID(sc["collide"], true);
+            ssi.collide = engine.findCollisionID(sc["collide"], true);
 
             //physic stuff, already loaded physic-types are not cached
             auto phys = config.getSubNode("physics").findNode(sc["physic"]);
@@ -344,7 +344,7 @@ class GOSpriteClass {
             loadPOSP(phys, ssi.physic_properties);
 
             //load animations
-            ssi.animation.loadFrom(controller, sc);
+            ssi.animation.loadFrom(engine, sc);
 
         } //foreach state to load
 
@@ -360,7 +360,7 @@ class GOSpriteClass {
 
             trans.disablePhysics = tc.getBoolValue("disable_physics", false);
 
-            trans.animation.loadFrom(controller, tc);
+            trans.animation.loadFrom(engine, tc);
 
             trans.from = sfrom;
             trans.to = sto;

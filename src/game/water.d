@@ -61,28 +61,28 @@ class GameWater : GameObject {
     private GameLevel mLevel;
     private bool mSimpleMode = true;
 
-    this(GameController controller, char[] waterType) {
-        super(controller);
-        mLevel = controller.gamelevel;
+    this(GameEngine engine, char[] waterType) {
+        super(engine);
+        mLevel = engine.gamelevel;
         ConfigNode waterNode = globals.loadConfig("water").getSubNode(waterType);
         Color waterColor;
         parseColor(waterNode.getStringValue("color"),waterColor);
         mWaterDrawerFront = new WaterDrawerFront(this, waterColor);
-        mWaterDrawerFront.setScene(controller.scene, GameZOrder.FrontWater);
+        mWaterDrawerFront.setScene(engine.scene, GameZOrder.FrontWater);
         mWaterDrawerBack = new WaterDrawerBack(this, waterColor);
-        mWaterDrawerBack.setScene(controller.scene, GameZOrder.BackWater);
+        mWaterDrawerBack.setScene(engine.scene, GameZOrder.BackWater);
         try {
             mWaveAnim = new Animation(waterNode.getSubNode("waves"));
             foreach (int i, inout a; mWaveAnimBack) {
                 a = new HorizontalFullsceneAnimator();
                 a.setAnimation(mWaveAnim);
-                a.setScene(controller.scene, GameZOrder.BackWaterWaves1+i);
+                a.setScene(engine.scene, GameZOrder.BackWaterWaves1+i);
                 a.xoffs = randRange(0,mWaveAnim.size.x);
             }
             foreach (int i, inout a; mWaveAnimFront) {
                 a = new HorizontalFullsceneAnimator();
                 a.setAnimation(mWaveAnim);
-                a.setScene(controller.scene, GameZOrder.FrontWaterWaves1+i);
+                a.setScene(engine.scene, GameZOrder.FrontWaterWaves1+i);
                 a.xoffs = randRange(0,mWaveAnim.size.x);
             }
         } catch {};

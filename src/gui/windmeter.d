@@ -8,7 +8,7 @@ import utils.time;
 import utils.vector2;
 
 class WindMeter : SceneObjectPositioned {
-    private GameController mController;
+    private GameEngine mEngine;
     private Vector2i mSize;
     private Texture mBackgroundTex;
     private Texture mWindLeft, mWindRight;
@@ -29,17 +29,17 @@ class WindMeter : SceneObjectPositioned {
         mPosCenter = mSize/2;
     }
 
-    void controller(GameController c) {
-        mController = c;
+    void engine(GameEngine c) {
+        mEngine = c;
     }
 
     void draw(Canvas canvas, SceneView parentView) {
         Time cur = globals.gameTimeAnimations;
-        if (mController) {
+        if (mEngine) {
             float deltaT = (cur.msecs - mLastTime.msecs)/1000.0f;
             mTexOffsetf = mTexOffsetf + cAnimSpeed*deltaT;
             canvas.draw(mBackgroundTex, pos);
-            float wspeed = mController.windSpeed;
+            float wspeed = mEngine.windSpeed;
             int anisize = cast(int)(wspeed/2.0f);
             if (wspeed < 0)
                 canvas.draw(mWindLeft, pos + Vector2i(mPosCenter.x - 1 + anisize, 2),

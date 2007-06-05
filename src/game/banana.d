@@ -14,8 +14,8 @@ import utils.time;
 class BananaBomb : GObjectSprite {
     private bool mSpawner;
 
-    this(GameController controller, bool spawner = true) {
-        super(controller, controller.findGOSpriteClass("banana"));
+    this(GameEngine engine, bool spawner = true) {
+        super(engine, engine.findGOSpriteClass("banana"));
         mSpawner = spawner;
         if (spawner) {
             physics.lifeTime = 3;
@@ -36,7 +36,7 @@ class BananaBomb : GObjectSprite {
     }
 
     private void explode() {
-        controller.explosionAt(physics.pos,
+        engine.explosionAt(physics.pos,
             type.config.getFloatValue("damage", 1.0f));
     }
 
@@ -44,7 +44,7 @@ class BananaBomb : GObjectSprite {
         explode();
         if (mSpawner) {
             for (int i = 0; i < 5; i++) {
-                auto b = new BananaBomb(controller, false);
+                auto b = new BananaBomb(engine, false);
                 b.setPos(physics.pos+Vector2f(genrand_real1()*4-2,-2));
             }
         }

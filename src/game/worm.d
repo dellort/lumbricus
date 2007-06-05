@@ -32,8 +32,8 @@ class Worm : GObjectSprite {
         float mWeaponMove = 0;
     }
 
-    this (GameController controller) {
-        super(controller, controller.findGOSpriteClass("worm"));
+    this (GameEngine engine) {
+        super(engine, engine.findGOSpriteClass("worm"));
         //blah
         mStates[WormState.Stand] = findState("sit");
         mStates[WormState.Fly] = findState("fly");
@@ -132,7 +132,7 @@ class Worm : GObjectSprite {
         if (!weaponDrawn)
             return; //go away
         //bananas only for now
-        auto banana = new BananaBomb(controller);
+        auto banana = new BananaBomb(engine);
         auto distance = physics.posp.radius+banana.physics.posp.radius+5;
         auto dir = Vector2f.fromPolar(distance, mWeaponAngle);
         banana.setPos(physics.pos + dir);
