@@ -73,7 +73,7 @@ class Worm : GObjectSprite {
             auto look = Vector2f.fromPolar(1, physics.lookey);
             look.y = 0;
             look = look.normal(); //get sign *g*
-            physics.push(Vector2f(10*look.x, -100));
+            physics.push(Vector2f(100*look.x, -100));
         }
     }
 

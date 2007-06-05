@@ -589,10 +589,10 @@ class PhysicWorld {
 
                 //mirror velocity on surface
                 Vector2f proj = rnormal * (me.velocity * rnormal);
-                me.velocity -= proj * 2.0f;
+                me.velocity -= proj * (1.0f + me.posp.elasticity);
 
                 //bumped against surface -> loss of energy
-                me.velocity *= me.posp.elasticity;
+                //me.velocity *= me.posp.elasticity;
 
                 //we collided with geometry, but were not fast enough!
                 //  => worm gets glued, hahaha.
