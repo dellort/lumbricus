@@ -478,6 +478,7 @@ class TopLevel {
         x.config = globals.loadConfig("levelgen").getSubNode("levelgen");
         GameConfig cfg;
         cfg.level = x.generateRandom(cmd.getArgString(), mGfxSet);
+        cfg.teams = globals.loadConfig("teams");
         initializeGame(cfg);
         //start at level center
         scrollCenterOn(thegame.gamelevel.offset+thegame.gamelevel.levelsize/2, true);

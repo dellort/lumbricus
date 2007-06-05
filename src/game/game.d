@@ -43,6 +43,7 @@ enum CameraStyle {
 
 struct GameConfig {
     Level level;
+    ConfigNode teams;
 }
 
 //code to manage a game session (hm, whatever this means)
@@ -143,7 +144,7 @@ class GameEngine {
 
         loadLevelStuff();
 
-        controller = new GameController(this);
+        controller = new GameController(this, config);
     }
 
     //one time initialization, where levle objects etc. should be loaded (?)

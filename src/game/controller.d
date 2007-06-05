@@ -4,11 +4,23 @@ import game.worm;
 import game.sprite;
 import game.scene;
 import utils.vector2;
+import utils.configfile;
 import game.common;
+
+//Hint: there's a limited number of predefined colors; that's because sometimes
+//colors are hardcoded in animations, etc.
+//so, these are not just color names, but also linked to these animations
+static const char[][] cTeamColors = [
+    "red",
+    "blue",
+    "green",
+];
 
 class Team {
     char[] name = "unnamed team";
     private TeamMember[] mWorms;
+    //this values indices into cTeamColors
+    int teamColor;
 
     TeamMember findNext(TeamMember w) {
         if (!mWorms)
@@ -23,6 +35,21 @@ class Team {
         }
         found = (found + 1) % mWorms.length;
         return mWorms[found];
+    }
+
+    private this() {
+    }
+
+    //node = the node describing a single team
+    this(ConfigNode node) {
+        name = node.getStringValue("name", name);
+        teamColor = node.selectValueFrom("teamColor", cTeamColors, 0);
+        //the worms currently aren't loaded by theirselves...
+        foreach (char[] value; node.getSubNode("member_names")) {
+            auto worm = new TeamMember();
+            worm.name = value;
+            mWorms ~= worm;
+        }
     }
 }
 
@@ -54,8 +81,26 @@ class GameController {
     //key state for LEFT/RIGHT and UP/DOWN
     private Vector2f dirKeyState = {0, 0};
 
-    this(GameEngine engine) {
+    void current(TeamMember worm) {
+        auto old = mCurrent ? mCurrent.worm : null;
+        if (old) {
+            //switch all off!
+            old.activateJetpack(false);
+            old.move(Vector2f(0));
+            old.drawWeapon(false);
+        }
+        mCurrent = worm;
+    }
+    TeamMember current() {
+        return mCurrent;
+    }
+
+    this(GameEngine engine, GameConfig config) {
         mEngine = engine;
+
+        if (config.teams) {
+            loadTeams(config.teams);
+        }
 
         //the stupid!
         auto eventcatcher = new EventCatcher();
@@ -85,15 +130,14 @@ class GameController {
     }
 
     //actually still stupid debugging code
-    int foo;
     private void spawnWorm(Vector2i pos) {
         auto obj = new TeamMember();
         obj.mWorm = new Worm(mEngine);
         obj.mWorm.setPos(toVector2f(pos));
-        obj.name = "worm " ~ str.toString(++foo);
         if (!mTeams) {
             mTeams ~= new Team();
         }
+        obj.name = "worm " ~ str.toString(mTeams[0].mWorms.length+1);
         mTeams[0].mWorms ~= obj;
         obj.team = mTeams[0];
         mCurrent = obj;
@@ -144,7 +188,7 @@ class GameController {
             spawnWorm(sender.mousePos);
         }
         if (info.code == Keycode.TAB) {
-            mCurrent = selectNext();
+            current = selectNext();
         }
         return true;
     }
@@ -154,6 +198,15 @@ class GameController {
             handleDirKey(info.code, true);
         }
         return false;
+    }
+
+    //config = the "teams" node, i.e. from data/data/teams.conf
+    private void loadTeams(ConfigNode config) {
+        current = null;
+        mTeams = null;
+        foreach (ConfigNode sub; config) {
+            mTeams ~= new Team(sub);
+        }
     }
 }
 
