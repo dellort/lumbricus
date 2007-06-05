@@ -46,7 +46,7 @@ class TopLevel {
     Screen screen;
     Scene guiscene;
     //overengineered
-    private SceneView sceneview;
+    /+private+/ SceneView sceneview;
     private void delegate() mOnStopGui; //associated with sceneview
     LevelEditor editor;
     Console console;
@@ -142,6 +142,7 @@ class TopLevel {
         //globals.cmdLine.registerCommand("loadanim", &cmdLoadAnim, "load worms animation");
         globals.cmdLine.registerCommand("clouds", &cmdClouds, "enable/disable animated clouds");
         globals.cmdLine.registerCommand("simplewater", &cmdSimpleWater, "set reduced water mode");
+        globals.cmdLine.registerCommand("raisewater", &cmdRaiseWater, "increase waterline");
 
         globals.cmdLine.registerCommand("editor", &cmdLevelEdit, "hm");
 
@@ -261,6 +262,19 @@ class TopLevel {
             return;
         }
         thegame.gameWater.simpleMode = simple;
+    }
+
+    private void cmdRaiseWater(CommandLine cmd) {
+        char[][] sargs = cmd.parseArgs();
+        int add = 0;
+        if (sargs.length < 1)
+            return;
+        try {
+            add = conv.toInt(sargs[0]);
+        } catch (conv.ConvError) {
+            return;
+        }
+        thegame.raiseWater(add);
     }
 
     private void cmdPhys(CommandLine) {

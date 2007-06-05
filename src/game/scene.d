@@ -126,7 +126,11 @@ class SceneView : SceneObjectPositioned {
     //from the parent's coordinate system to the client's
     //(client = mClientScene)
     public Vector2i toClientCoords(Vector2i p) {
-        return p - pos - clientoffset;
+        return p - (pos + clientoffset);
+    }
+    //toClientCoords(fromClientCoords(x)) == x
+    public Vector2i fromClientCoords(Vector2i p) {
+        return p + (pos + clientoffset);
     }
 
     public void clipOffset(inout Vector2i offs) {

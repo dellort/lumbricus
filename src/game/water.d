@@ -56,14 +56,14 @@ class GameWater : GameObject {
     private HorizontalFullsceneAnimator[3] mWaveAnimFront;
     private HorizontalFullsceneAnimator[2] mWaveAnimBack;
 
-    /+protected+/ uint waterOffs;
+    protected uint waterOffs;
     private uint mStoredWaterLevel = uint.max;
-    private GameLevel mLevel;
+    private GameEngine mEngine;
     private bool mSimpleMode = true;
 
     this(GameEngine engine, char[] waterType) {
         super(engine);
-        mLevel = engine.gamelevel;
+        mEngine = engine;
         ConfigNode waterNode = globals.loadConfig("water").getSubNode(waterType);
         Color waterColor;
         parseColor(waterNode.getStringValue("color"),waterColor);
@@ -120,8 +120,8 @@ class GameWater : GameObject {
     }
 
     override void simulate(float deltaT) {
-        if (mLevel.waterLevel != mStoredWaterLevel) {
-            waterOffs = mLevel.offset.y + mLevel.height-mLevel.waterLevel;
+        if (mEngine.gamelevel.waterLevel != mStoredWaterLevel) {
+            waterOffs = mEngine.waterOffset;
             if (mWaveAnim) {
                 uint p = waterOffs;
                 foreach_reverse (inout a; mWaveAnimBack) {
@@ -134,7 +134,7 @@ class GameWater : GameObject {
                     p += cWaterLayerDist;
                 }
             }
-            mStoredWaterLevel = mLevel.waterLevel;
+            mStoredWaterLevel = mEngine.gamelevel.waterLevel;
         }
     }
 

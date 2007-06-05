@@ -241,7 +241,7 @@ class GameController {
                 //create and place into the landscape
                 m.mWorm = new Worm(mEngine);
                 Vector2f npos, tmp;
-                auto water_y = mEngine.gameWater.waterOffs;
+                auto water_y = mEngine.waterOffset;
                 //first 10: minimum distance from water
                 //second 10: retry count
                 if (!mEngine.placeObject(water_y-10, 10, tmp, npos,

@@ -37,6 +37,7 @@ enum GameZOrder {
 }
 
 enum CameraStyle {
+    Reset,  //disable camera
     Set,    //scroll to an object (once, don't follow)
     SetForced, //center an object, no scrolling
     Normal, //camera follows in a non-confusing way
@@ -93,6 +94,23 @@ class GameEngine {
     private const cWindChange = 80.0f;
 
     private Time mLastTime;
+
+    //for raising waterline
+    private bool mRaiseWaterActive;
+    private uint mDestWaterLevel;
+    //GameLevel.waterLevel is uint, so we have a float version here...
+    private float mCurrentLevel;
+
+    //pixels per second
+    private const cWaterRaisingSpeed = 50;
+
+    //"camera"
+    private CameraStyle mCameraStyle;
+    private SceneObjectPositioned mCameraFollowObject;
+
+    //in pixels the width of the border in which a follower camera becomes
+    //active and scrolls towards the followed object again
+    private int cCameraBorder = 150;
 
     this(Scene gamescene, GameConfig config) {
         assert(gamescene !is null);
@@ -153,11 +171,13 @@ class GameEngine {
         controller = new GameController(this, config);
     }
 
-    void fixupWaterLevel() {
-        //xxx: move calculations from water.d to here
-        //also look at GameController.placeWorms()
-        gameWater.simulate(0);
-        auto water_y = gameWater.waterOffs;
+    //return y coordinate of waterline
+    int waterOffset() {
+        return gamelevel.offset.y + gamelevel.height-gamelevel.waterLevel;
+    }
+
+    private void fixupWaterLevel() {
+        auto water_y = waterOffset;
         waterborder.define(Vector2f(0, water_y), Vector2f(1, water_y));
     }
 
@@ -185,6 +205,8 @@ class GameEngine {
     public void setCameraFocus(SceneObjectPositioned obj, CameraStyle cs
          = CameraStyle.Normal)
     {
+        mCameraFollowObject = obj;
+        mCameraStyle = cs;
         if (obj) {
             //xxx: must translate coord-system?
             //this is a full xxx anyway! also must implement followed objects...
@@ -197,6 +219,52 @@ class GameEngine {
                 case CameraStyle.SetForced:
                     globals.toplevel.scrollCenterOn(obj.pos, true);
                     break;
+                case CameraStyle.Reset:
+                    //nop
+                    break;
+            }
+        }
+    }
+
+    void raiseWater(int by) {
+        if (!mRaiseWaterActive) {
+            mRaiseWaterActive = true;
+            mDestWaterLevel = gamelevel.waterLevel;
+            mCurrentLevel = gamelevel.waterLevel;
+        }
+        mDestWaterLevel += by;
+    }
+
+    private void simulate(float deltaT) {
+        //whatever this is?
+        if (abs(mWindTarget - mWindForce.accel.x) > 0.5f) {
+            mWindForce.accel.x += copysign(cWindChange*deltaT,mWindTarget - mWindForce.accel.x);
+        }
+
+        if (mRaiseWaterActive) {
+            mCurrentLevel += deltaT * cWaterRaisingSpeed;
+            uint current = cast(uint)mCurrentLevel;
+            gamelevel.waterLevel = current;
+            if (current >= mDestWaterLevel) {
+                mRaiseWaterActive = false;
+            }
+        }
+
+        //at least currently it's ok to update this each frame
+        fixupWaterLevel();
+
+        //check for camera
+        if (mCameraFollowObject && mCameraFollowObject.active) {
+            //xxx make better: sceneview stuff and object is a rect, not a point
+            SceneView sv = globals.toplevel.sceneview;
+            auto pos = mCameraFollowObject.pos;
+            pos = sv.fromClientCoords(pos);
+            if (pos.x < cCameraBorder || pos.x >= sv.thesize.x - cCameraBorder
+                || pos.y < cCameraBorder || pos.y >= sv.thesize.y - cCameraBorder)
+            {
+                //also not good, i.e. for CameraStyle.Normal, the camera should
+                //just move the object into the inner region again, not center it
+                setCameraFocus(mCameraFollowObject, mCameraStyle);
             }
         }
     }
@@ -204,9 +272,7 @@ class GameEngine {
     void doFrame(Time gametime) {
         currentTime = gametime;
         float deltaT = (currentTime - mLastTime).msecs/1000.0f;
-        if (abs(mWindTarget - mWindForce.accel.x) > 0.5f) {
-            mWindForce.accel.x += copysign(cWindChange*deltaT,mWindTarget - mWindForce.accel.x);
-        }
+        simulate(deltaT);
         physicworld.simulate(currentTime);
         //update game objects
         foreach (GameObject o; mObjects) {
@@ -231,11 +297,15 @@ class GameEngine {
     //returns if dest contains a useful value
     bool placeObject(Vector2f drop, out Vector2f dest, float radius) {
         Vector2f pos = drop;
+        bool isfirst = true;
         while (!physicworld.collideGeometry(drop, radius)) {
             pos = drop;
             //hmpf!
             drop.y += 1;
+            isfirst = false;
         }
+        if (isfirst) //don't place inside landscape
+            return false;
         //had a collision, check normal
         Vector2f normal = (drop-pos).normal;
         float dist = abs(angleDistance(normal.toAngle(), 90.0f/180*PI));
