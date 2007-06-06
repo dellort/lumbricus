@@ -9,6 +9,7 @@ struct FontProperties {
     Color fore = {1.0f,1.0f,1.0f,1.0f};
     bool bold;
     bool italic;
+    bool underline;
 }
 
 public class Font {
@@ -72,6 +73,7 @@ class FontManager {
 
         p.bold = font.getBoolValue("bold", p.bold);
         p.italic = font.getBoolValue("italic", p.italic);
+        p.underline = font.getBoolValue("underline", p.underline);
 
         Font f = gFramework.loadFont(gFramework.fs.open(filename), p);
 

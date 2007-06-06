@@ -30,6 +30,7 @@ enum GameZOrder {
     BackWaterWaves2,
     Level,
     Objects,
+    Names, //controller.d/WormNameDrawer
     FrontWater,  //water before the level
     FrontWaterWaves1,
     FrontWaterWaves2,
@@ -205,6 +206,8 @@ class GameEngine {
     public void setCameraFocus(SceneObjectPositioned obj, CameraStyle cs
          = CameraStyle.Normal)
     {
+        if (!obj)
+            mCameraStyle = CameraStyle.Reset;
         mCameraFollowObject = obj;
         mCameraStyle = cs;
         if (obj) {

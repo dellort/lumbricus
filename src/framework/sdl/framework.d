@@ -583,6 +583,11 @@ public class SDLFont : Font {
         if (font == null) {
             throw new Exception("Could not load font.");
         }
+        int styles = (props.bold ? TTF_STYLE_BOLD : 0)
+            | (props.italic ? TTF_STYLE_ITALIC : 0)
+            | (props.underline ? TTF_STYLE_UNDERLINE : 0);
+        TTF_SetFontStyle(font, styles);
+
         //just a guess, should be larger than any width of a char in the font
         //(show me a font for which this isn't true, but still I catch that
         // special case)

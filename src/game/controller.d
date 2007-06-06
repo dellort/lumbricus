@@ -8,6 +8,9 @@ import utils.configfile;
 import utils.log;
 import game.common;
 
+import framework.framework;
+import framework.font;
+
 //Hint: there's a limited number of predefined colors; that's because sometimes
 //colors are hardcoded in animations, etc.
 //so, these are not just color names, but also linked to these animations
@@ -44,9 +47,10 @@ class Team {
     //node = the node describing a single team
     this(ConfigNode node) {
         name = node.getStringValue("name", name);
-        teamColor = node.selectValueFrom("teamColor", cTeamColors, 0);
+        teamColor = node.selectValueFrom("color", cTeamColors, 0);
+        std.stdio.writefln("team: ", teamColor);
         //the worms currently aren't loaded by theirselves...
-        foreach (char[] value; node.getSubNode("member_names")) {
+        foreach (char[] name, char[] value; node.getSubNode("member_names")) {
             auto worm = new TeamMember();
             worm.name = value;
             worm.team = this;
@@ -121,6 +125,10 @@ class GameController {
         if (config.teams) {
             loadTeams(config.teams);
         }
+
+        //draws the worm names
+        auto names = new WormNameDrawer(this);
+        names.setScene(mEngine.scene, GameZOrder.Names);
 
         //the stupid!
         auto eventcatcher = new EventCatcher();
@@ -266,5 +274,41 @@ class GameController {
 private class EventCatcher : SceneObject {
     void draw(Canvas canvas, SceneView parentView) {
         //nop
+    }
+}
+
+private class WormNameDrawer : SceneObject {
+    private GameController mController;
+    private Font[Team] mWormFont;
+
+    this(GameController controller) {
+        mController = controller;
+        //create team fonts (expects teams are already loaded)
+        foreach (Team t; controller.mTeams) {
+            mWormFont[t] = globals.framework.fontManager.loadFont("wormfont_"
+                ~ cTeamColors[t.teamColor]);
+        }
+    }
+
+    void draw(Canvas canvas, SceneView parentView) {
+        foreach (Team t; mController.mTeams) {
+            auto pfont = t in mWormFont;
+            if (!pfont)
+                continue;
+            Font font = *pfont;
+            foreach (TeamMember w; t.mWorms) {
+                if (!w.mWorm)
+                    continue;
+
+                char[] text = t.name ~ ": " ~ w.name;
+
+                auto wp = w.mWorm.graphic.pos;
+                auto sz = w.mWorm.graphic.thesize;
+                //draw 3 pixels above, centered
+                auto tsz = font.textSize(text);
+                auto pos = wp+Vector2i(sz.x/2 - tsz.x/2, -tsz.y - 3);
+                font.drawText(canvas, pos, text);
+            }
+        }
     }
 }

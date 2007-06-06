@@ -153,6 +153,7 @@ class TopLevel {
         globals.cmdLine.registerCommand("slow", &cmdSlow, "todo");
 
         globals.cmdLine.registerCommand("framerate", &cmdFramerate, "set fixed framerate");
+        globals.cmdLine.registerCommand("cameradisable", &cmdCameraDisable, "disable game camera");
     }
 
     private void cmdFramerate(CommandLine cmd) {
@@ -166,6 +167,11 @@ class TopLevel {
             return;
         }
         globals.framework.fixedFramerate = rate;
+    }
+
+    private void cmdCameraDisable(CommandLine) {
+        if (thegame)
+            thegame.setCameraFocus(null);
     }
 
     private void cmdStop(CommandLine) {
