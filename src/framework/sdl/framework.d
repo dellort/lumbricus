@@ -943,4 +943,8 @@ public class FrameworkSDL : Framework {
         int ticks = SDL_GetTicks();
         return timeMsecs(ticks);
     }
+
+    public void sleepTime(Time relative) {
+        SDL_Delay(relative.msecs);
+    }
 }

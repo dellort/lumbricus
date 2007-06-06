@@ -325,6 +325,9 @@ public class Framework {
 
     private static Time cFPSTimeSpan; //how often to recalc FPS
 
+    //least time per frame; for fixed framerate (0 to disable)
+    private static Time mTimePerFrame;
+
     //another singelton
     private FontManager mFontManager;
     private FileSystem mFilesystem;
@@ -334,6 +337,16 @@ public class Framework {
     //initialize time between FPS recalculations
     static this() {
         cFPSTimeSpan = timeSecs(1);
+    }
+
+    /// set a fixed framerate / a maximum framerate
+    /// fps = framerate, or 0 to disable fixed framerate
+    public void fixedFramerate(int fps) {
+        if (fps == 0) {
+            mTimePerFrame = timeMsecs(0);
+        } else {
+            mTimePerFrame = timeMsecs(1000/fps);
+        }
     }
 
     public Vector2i mousePos() {
@@ -439,9 +452,18 @@ public class Framework {
 
             run_fw();
 
+            //wait for fixed framerate?
+            Time time = getCurrentTime();
+            Time diff = mTimePerFrame - (time - curtime);
+            if (diff > timeSecs(0)) {
+                sleepTime(diff);
+            }
+
             mFPSFrameCount++;
         }
     }
+
+    public abstract void sleepTime(Time relative);
 
     protected abstract void run_fw();
 

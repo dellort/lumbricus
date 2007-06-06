@@ -151,6 +151,21 @@ class TopLevel {
         globals.cmdLine.registerCommand("stop", &cmdStop, "stop editor/game");
 
         globals.cmdLine.registerCommand("slow", &cmdSlow, "todo");
+
+        globals.cmdLine.registerCommand("framerate", &cmdFramerate, "set fixed framerate");
+    }
+
+    private void cmdFramerate(CommandLine cmd) {
+        char[][] sargs = cmd.parseArgs();
+        int rate = 0;
+        if (sargs.length < 1)
+            return;
+        try {
+            rate = conv.toInt(sargs[0]);
+        } catch (conv.ConvError) {
+            return;
+        }
+        globals.framework.fixedFramerate = rate;
     }
 
     private void cmdStop(CommandLine) {
@@ -453,6 +468,7 @@ class TopLevel {
     /+private+/ void scrollCenterOn(Vector2i scenePos, bool instantly = false) {
         mScrollDest = -toVector2f(scenePos - sceneview.thesize/2);
         sceneview.clipOffset(mScrollDest);
+        mTimeLast = globals.framework.getCurrentTime().msecs;
         if (instantly) {
             mScrollOffset = mScrollDest;
             sceneview.clientoffset = toVector2i(mScrollOffset);
