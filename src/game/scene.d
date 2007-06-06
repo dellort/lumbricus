@@ -1,10 +1,14 @@
 module game.scene;
+
 import framework.framework;
-import utils.mylist;
 import framework.font;
+import utils.mylist;
+import utils.time;
 
 public import framework.keysyms;
 public import framework.framework : KeyInfo, Canvas;
+
+import game.common;
 
 //a scene contains all graphics drawn onto the screen
 //each graphic is represented by a SceneObject
@@ -65,6 +69,14 @@ class EventSink {
     }
 }
 
+enum CameraStyle {
+    Reset,  //disable camera
+    Set,    //scroll to an object (once, don't follow)
+    SetForced, //center an object, no scrolling
+    Normal, //camera follows in a non-confusing way
+    Center, //follows always centered, cf. super sheep
+}
+
 //over engineered for sure!
 /// Provide a graphical windowed view into a (client-) scene.
 /// Various transformations can be applied on the client view (currently only
@@ -74,9 +86,23 @@ class SceneView : SceneObjectPositioned {
     private Vector2i mClientoffset;
     private Vector2i mSceneSize;
 
+    //scrolling stuff
+    private long mTimeLast;
+    private const float K_SCROLL = 0.01f;
+    private Vector2f mScrollDest, mScrollOffset;
+    private const cScrollStepMs = 10;
+    //"camera"
+    private CameraStyle mCameraStyle;
+    private SceneObjectPositioned mCameraFollowObject;
+
+    //in pixels the width of the border in which a follower camera becomes
+    //active and scrolls towards the followed object again
+    private int cCameraBorder = 150;
+
     this() {
         //always create event handler
         getEventSink();
+        mTimeLast = globals.framework.getCurrentTime().msecs;
     }
 
     void clientscene(Scene scene) {
@@ -86,7 +112,90 @@ class SceneView : SceneObjectPositioned {
         if (scene) {
             mSceneSize = mClientScene.thesize;
         }
+        scrollReset();
     }
+
+    //--------------------------- Scrolling start -------------------------
+
+    public void scrollReset() {
+        mScrollOffset = toVector2f(clientoffset);
+        mScrollDest = mScrollOffset;
+    }
+
+    private void scrollUpdate(Time curTime) {
+        long curTimeMs = curTime.msecs;
+
+        //check for camera
+        if (mCameraFollowObject && mCameraFollowObject.active) {
+            //xxx make better: sceneview stuff and object is a rect, not a point
+            SceneView sv = globals.toplevel.sceneview;
+            auto pos = mCameraFollowObject.pos;
+            pos = sv.fromClientCoords(pos);
+            if (pos.x < cCameraBorder || pos.x >= sv.thesize.x - cCameraBorder
+                || pos.y < cCameraBorder || pos.y >= sv.thesize.y - cCameraBorder)
+            {
+                //also not good, i.e. for CameraStyle.Normal, the camera should
+                //just move the object into the inner region again, not center it
+                setCameraFocus(mCameraFollowObject, mCameraStyle);
+            }
+        }
+
+        if ((mScrollDest-mScrollOffset).quad_length > 0.1f) {
+            while (mTimeLast + cScrollStepMs < curTimeMs) {
+                mScrollOffset = mScrollOffset + (mScrollDest - mScrollOffset)*K_SCROLL*cScrollStepMs;
+                mTimeLast += cScrollStepMs;
+            }
+            clientoffset = toVector2i(mScrollOffset);
+        }
+    }
+
+    public void scrollMove(Vector2i delta) {
+        //xxx update "last scrolling" time
+        scrollDoMove(delta);
+    }
+
+    private void scrollDoMove(Vector2i delta) {
+        mScrollDest = mScrollDest - toVector2f(delta);
+        clipOffset(mScrollDest);
+    }
+
+    /+private+/ void scrollCenterOn(Vector2i scenePos, bool instantly = false) {
+        mScrollDest = -toVector2f(scenePos - thesize/2);
+        clipOffset(mScrollDest);
+        mTimeLast = globals.framework.getCurrentTime().msecs;
+        if (instantly) {
+            mScrollOffset = mScrollDest;
+            clientoffset = toVector2i(mScrollOffset);
+        }
+    }
+
+    public void setCameraFocus(SceneObjectPositioned obj, CameraStyle cs
+         = CameraStyle.Normal)
+    {
+        if (!obj)
+            mCameraStyle = CameraStyle.Reset;
+        mCameraFollowObject = obj;
+        mCameraStyle = cs;
+        if (obj) {
+            //xxx: must translate coord-system?
+            //this is a full xxx anyway! also must implement followed objects...
+            switch (cs) {
+                case CameraStyle.Normal:
+                case CameraStyle.Set:
+                    scrollCenterOn(obj.pos, false);
+                    break;
+                case CameraStyle.Center:
+                case CameraStyle.SetForced:
+                    scrollCenterOn(obj.pos, true);
+                    break;
+                case CameraStyle.Reset:
+                    //nop
+                    break;
+            }
+        }
+    }
+
+    //--------------------------- Scrolling end ---------------------------
 
     void draw(Canvas canvas, SceneView parentView) {
         if (!mClientScene)
@@ -97,6 +206,9 @@ class SceneView : SceneObjectPositioned {
             clipOffset(mClientoffset);
             mSceneSize = mClientScene.thesize;
         }
+
+        scrollUpdate(globals.framework.getCurrentTime());
+
         canvas.pushState();
         canvas.setWindow(pos, pos+thesize);
         canvas.translate(-clientoffset);

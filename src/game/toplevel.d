@@ -170,8 +170,8 @@ class TopLevel {
     }
 
     private void cmdCameraDisable(CommandLine) {
-        if (thegame)
-            thegame.setCameraFocus(null);
+        if (sceneview)
+            sceneview.setCameraFocus(null);
     }
 
     private void cmdStop(CommandLine) {
@@ -186,7 +186,6 @@ class TopLevel {
         //not clean, but we need to redo this GUI-handling stuff anyway
         cmdStop(null);
         sceneview.clientscene = s;
-        scrollReset();
     }
 
     private void initializeGame(GameConfig config) {
@@ -200,7 +199,6 @@ class TopLevel {
         initializeGui();
         //yes, really twice, as no game time should pass while loading stuff
         resetTime();
-        mTimeLast = globals.framework.getCurrentTime().msecs;
 
         //callback when invoking cmdStop
         mOnStopGui = &closeGame;
@@ -426,11 +424,6 @@ class TopLevel {
     //--------------------------- Scrolling start -------------------------
 
     private bool mScrolling;
-    private Vector2f mScrollDest, mScrollOffset;
-    private const float K_SCROLL = 0.01f;
-    //for scrolling stuff only
-    private long mTimeLast;
-    private const cScrollStepMs = 10;
 
     private void scrollToggle() {
         if (mScrolling) {
@@ -441,44 +434,9 @@ class TopLevel {
             //globals.framework.grabInput = true;
             globals.framework.cursorVisible = false;
             globals.framework.lockMouse();
-            mScrollDest = toVector2f(sceneview.clientoffset);
-            mScrollOffset = mScrollDest;
+            sceneview.scrollReset();
         }
         mScrolling = !mScrolling;
-    }
-
-    private void scrollReset() {
-        mScrollOffset = toVector2f(sceneview.clientoffset);
-        mScrollDest = mScrollOffset;
-    }
-
-    private void scrollUpdate(Time curTime) {
-        long curTimeMs = curTime.msecs;
-
-        if ((mScrollDest-mScrollOffset).quad_length > 0.1f) {
-            while (mTimeLast + cScrollStepMs < curTimeMs) {
-                mScrollOffset = mScrollOffset + (mScrollDest - mScrollOffset)*K_SCROLL*cScrollStepMs;
-                mTimeLast += cScrollStepMs;
-            }
-            sceneview.clientoffset = toVector2i(mScrollOffset);
-        }
-    }
-
-    private void scrollMove(Vector2i delta) {
-        if (mScrolling) {
-            mScrollDest = mScrollDest - toVector2f(delta);
-            sceneview.clipOffset(mScrollDest);
-        }
-    }
-
-    /+private+/ void scrollCenterOn(Vector2i scenePos, bool instantly = false) {
-        mScrollDest = -toVector2f(scenePos - sceneview.thesize/2);
-        sceneview.clipOffset(mScrollDest);
-        mTimeLast = globals.framework.getCurrentTime().msecs;
-        if (instantly) {
-            mScrollOffset = mScrollDest;
-            sceneview.clientoffset = toVector2i(mScrollOffset);
-        }
     }
 
     //--------------------------- Scrolling end ---------------------------
@@ -517,7 +475,7 @@ class TopLevel {
         cfg.teams = globals.loadConfig("teams").getSubNode("teams");
         initializeGame(cfg);
         //start at level center
-        scrollCenterOn(thegame.gamelevel.offset+thegame.gamelevel.levelsize/2, true);
+        sceneview.scrollCenterOn(thegame.gamelevel.offset+thegame.gamelevel.levelsize/2, true);
     }
 
     private void cmdPause(CommandLine) {
@@ -637,9 +595,6 @@ class TopLevel {
         //std.stdio.writefln("%s %s %s", pseudoGameTime, globals.gameTime,
         //    globals.gameTimeAnimations);
 
-        //use real absolute time (else no scrolling when paused etc.)
-        scrollUpdate(globals.framework.getCurrentTime());
-
         fpsDisplay.text = format("FPS: %1.2f", globals.framework.FPS);
 
         if (thegame && !mPauseMode) {
@@ -701,7 +656,8 @@ class TopLevel {
 
     private void onMouseMove(MouseInfo mouse) {
         //globals.log("%s", mouse.pos);
-        scrollMove(mouse.rel);
+        if (mScrolling)
+            sceneview.scrollMove(mouse.rel);
         screen.putOnMouseMove(mouse);
     }
 

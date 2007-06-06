@@ -109,7 +109,8 @@ class GameController {
         if (mCurrent) {
             //set camera
             if (mCurrent.mWorm) {
-                mEngine.setCameraFocus(mCurrent.mWorm.graphic);
+                //xxx use controller-specific scene view
+                //globals.toplevel.sceneview.setCameraFocus(mCurrent.mWorm.graphic);
             }
         }
     }

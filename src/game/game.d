@@ -37,14 +37,6 @@ enum GameZOrder {
     FrontWaterWaves3,
 }
 
-enum CameraStyle {
-    Reset,  //disable camera
-    Set,    //scroll to an object (once, don't follow)
-    SetForced, //center an object, no scrolling
-    Normal, //camera follows in a non-confusing way
-    Center, //follows always centered, cf. super sheep
-}
-
 struct GameConfig {
     Level level;
     ConfigNode teams;
@@ -104,14 +96,6 @@ class GameEngine {
 
     //pixels per second
     private const cWaterRaisingSpeed = 50;
-
-    //"camera"
-    private CameraStyle mCameraStyle;
-    private SceneObjectPositioned mCameraFollowObject;
-
-    //in pixels the width of the border in which a follower camera becomes
-    //active and scrolls towards the followed object again
-    private int cCameraBorder = 150;
 
     this(Scene gamescene, GameConfig config) {
         assert(gamescene !is null);
@@ -203,32 +187,6 @@ class GameEngine {
         return mGravForce.accel.y;
     }
 
-    public void setCameraFocus(SceneObjectPositioned obj, CameraStyle cs
-         = CameraStyle.Normal)
-    {
-        if (!obj)
-            mCameraStyle = CameraStyle.Reset;
-        mCameraFollowObject = obj;
-        mCameraStyle = cs;
-        if (obj) {
-            //xxx: must translate coord-system?
-            //this is a full xxx anyway! also must implement followed objects...
-            switch (cs) {
-                case CameraStyle.Normal:
-                case CameraStyle.Set:
-                    globals.toplevel.scrollCenterOn(obj.pos, false);
-                    break;
-                case CameraStyle.Center:
-                case CameraStyle.SetForced:
-                    globals.toplevel.scrollCenterOn(obj.pos, true);
-                    break;
-                case CameraStyle.Reset:
-                    //nop
-                    break;
-            }
-        }
-    }
-
     void raiseWater(int by) {
         if (!mRaiseWaterActive) {
             mRaiseWaterActive = true;
@@ -255,21 +213,6 @@ class GameEngine {
 
         //at least currently it's ok to update this each frame
         fixupWaterLevel();
-
-        //check for camera
-        if (mCameraFollowObject && mCameraFollowObject.active) {
-            //xxx make better: sceneview stuff and object is a rect, not a point
-            SceneView sv = globals.toplevel.sceneview;
-            auto pos = mCameraFollowObject.pos;
-            pos = sv.fromClientCoords(pos);
-            if (pos.x < cCameraBorder || pos.x >= sv.thesize.x - cCameraBorder
-                || pos.y < cCameraBorder || pos.y >= sv.thesize.y - cCameraBorder)
-            {
-                //also not good, i.e. for CameraStyle.Normal, the camera should
-                //just move the object into the inner region again, not center it
-                setCameraFocus(mCameraFollowObject, mCameraStyle);
-            }
-        }
     }
 
     void doFrame(Time gametime) {
