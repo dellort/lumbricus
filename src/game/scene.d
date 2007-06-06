@@ -125,27 +125,27 @@ class SceneView : SceneObjectPositioned {
     private void scrollUpdate(Time curTime) {
         long curTimeMs = curTime.msecs;
 
+        if ((mScrollDest-mScrollOffset).quad_length > 0.1f) {
+            while (mTimeLast + cScrollStepMs < curTimeMs) {
+                mScrollOffset +=
+                    (mScrollDest - mScrollOffset)*K_SCROLL*cScrollStepMs;
+                mTimeLast += cScrollStepMs;
+            }
+            clientoffset = toVector2i(mScrollOffset);
+        }
+
         //check for camera
         if (mCameraFollowObject && mCameraFollowObject.active) {
-            //xxx make better: sceneview stuff and object is a rect, not a point
-            SceneView sv = globals.toplevel.sceneview;
+            //xxx make better: object is a rect, not a point
             auto pos = mCameraFollowObject.pos;
-            pos = sv.fromClientCoords(pos);
-            if (pos.x < cCameraBorder || pos.x >= sv.thesize.x - cCameraBorder
-                || pos.y < cCameraBorder || pos.y >= sv.thesize.y - cCameraBorder)
+            pos = fromClientCoords(pos);
+            if (pos.x < cCameraBorder || pos.x >= thesize.x - cCameraBorder
+                || pos.y < cCameraBorder || pos.y >= thesize.y - cCameraBorder)
             {
                 //also not good, i.e. for CameraStyle.Normal, the camera should
                 //just move the object into the inner region again, not center it
                 setCameraFocus(mCameraFollowObject, mCameraStyle);
             }
-        }
-
-        if ((mScrollDest-mScrollOffset).quad_length > 0.1f) {
-            while (mTimeLast + cScrollStepMs < curTimeMs) {
-                mScrollOffset = mScrollOffset + (mScrollDest - mScrollOffset)*K_SCROLL*cScrollStepMs;
-                mTimeLast += cScrollStepMs;
-            }
-            clientoffset = toVector2i(mScrollOffset);
         }
     }
 
