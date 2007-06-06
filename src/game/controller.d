@@ -48,7 +48,6 @@ class Team {
     this(ConfigNode node) {
         name = node.getStringValue("name", name);
         teamColor = node.selectValueFrom("color", cTeamColors, 0);
-        std.stdio.writefln("team: ", teamColor);
         //the worms currently aren't loaded by theirselves...
         foreach (char[] name, char[] value; node.getSubNode("member_names")) {
             auto worm = new TeamMember();
@@ -92,6 +91,7 @@ class GameController {
     private TeamMember mCurrent; //currently active worm
 
     private EventSink mEvents;
+    private KeyBindings mBindings;
     //key state for LEFT/RIGHT and UP/DOWN
     private Vector2f dirKeyState = {0, 0};
 
@@ -129,6 +129,9 @@ class GameController {
         //draws the worm names
         auto names = new WormNameDrawer(this);
         names.setScene(mEngine.scene, GameZOrder.Names);
+
+        mBindings = new KeyBindings();
+        mBindings.loadFrom(globals.loadConfig("wormbinds").getSubNode("binds"));
 
         //the stupid!
         auto eventcatcher = new EventCatcher();
@@ -171,59 +174,85 @@ class GameController {
         mCurrent = obj;
     }
 
-    private void handleDirKey(Keycode c, bool up) {
+    private bool handleDirKey(char[] bind, bool up) {
         float v = up ? 0 : 1;
-        switch (c) {
-            case Keycode.LEFT:
+        switch (bind) {
+            case "left":
                 dirKeyState.x = -v;
                 break;
-            case Keycode.RIGHT:
+            case "right":
                 dirKeyState.x = +v;
                 break;
-            case Keycode.UP:
+            case "up":
                 dirKeyState.y = -v;
                 break;
-            case Keycode.DOWN:
+            case "down":
                 dirKeyState.y = +v;
                 break;
             default:
-                return;
+                return false;
         }
 
         //control the worm (better only on state change)
         mCurrent.worm.move(dirKeyState);
-    }
 
-    private bool onKeyDown(EventSink sender, KeyInfo info) {
-        if (info.code == Keycode.MOUSE_LEFT) {
-            mEngine.gamelevel.damage(sender.mousePos, 100);
-        }
-        if (mCurrent) {
-            auto worm = mCurrent.worm;
-            handleDirKey(info.code, false);
-            if (info.code == Keycode.RETURN) {
-                worm.jump();
-            } else if (info.code == Keycode.J) {
-                //jetpack
-                worm.activateJetpack(!worm.jetpackActivated);
-            } else if (info.code == Keycode.W) {
-                worm.drawWeapon(!worm.weaponDrawn);
-            } else if (info.code == Keycode.SPACE) {
-                worm.fireWeapon();
-            }
-        }
-        if (info.code == Keycode.S) {
-            spawnWorm(sender.mousePos);
-        }
-        if (info.code == Keycode.TAB) {
-            current = selectNext();
-        }
         return true;
     }
 
+    private bool onKeyDown(EventSink sender, KeyInfo info) {
+        char[] bind = mBindings.findBinding(info);
+        switch (bind) {
+            case "debug2": {
+                mEngine.gamelevel.damage(sender.mousePos, 100);
+                return true;
+            }
+            case "debug1": {
+                spawnWorm(sender.mousePos);
+                return true;
+            }
+            case "selectworm": {
+                current = selectNext();
+                return true;
+            }
+            default:
+        }
+
+        if (!mCurrent)
+            return false;
+        auto worm = mCurrent.worm;
+
+        if (handleDirKey(bind, false))
+            return true;
+
+        switch (bind) {
+            case "jump": {
+                worm.jump();
+                return true;
+            }
+            case "jetpack": {
+                worm.activateJetpack(!worm.jetpackActivated);
+                return true;
+            }
+            case "weapon": {
+                worm.drawWeapon(!worm.weaponDrawn);
+                return true;
+            }
+            case "fire": {
+                worm.fireWeapon();
+                return true;
+            }
+            default:
+
+        }
+        //nothing found
+        return false;
+    }
+
     private bool onKeyUp(EventSink sender, KeyInfo info) {
+        char[] bind = mBindings.findBinding(info);
         if (mCurrent) {
-            handleDirKey(info.code, true);
+            if (handleDirKey(bind, true))
+                return true;
         }
         return false;
     }

@@ -769,6 +769,10 @@ public class KeyBindings {
         }
     }
 
+    public char[] findBinding(KeyInfo info) {
+        return findBinding(info.code, info.mods);
+    }
+
     //parse a whitespace separated list of strings into sth. that can be passed
     //to addBinding()
     public bool parseBindString(char[] bindstr, out Keycode out_code,
