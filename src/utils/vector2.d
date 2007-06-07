@@ -125,6 +125,28 @@ public struct Vector2(T) {
         return (*this - project_on(start, dir)).length;
     }
 
+    //like project_on(), but given a line by start+t*dir, return the point
+    //that's nearest to the line, but for which 0 <= t <= 1 is true
+    public Vector2 project_on_clipped(Vector2 start, Vector2 dir) {
+        auto pt = project_on(start, dir);
+        //sorry, I'm stupid, do you know a better way?
+        auto t = pt.get_line_index(start, dir);
+        if (t < 0)
+            t = 0;
+        else if (t > 1)
+            t = 1;
+        return start+dir*t;
+    }
+
+    public T distance_from_clipped(Vector2 start, Vector2 dir) {
+        return (*this - project_on_clipped(start, dir)).length;
+    }
+
+    //return t so that: start+t*dir = this
+    T get_line_index(Vector2 start, Vector2 dir) {
+        return ((*this - start) * dir) / dir.quad_length;
+    }
+
     //if point is inside the rect formed by pos and size
     //the border of that rect is exclusive
     public bool isInside(Vector2 pos, Vector2 size) {

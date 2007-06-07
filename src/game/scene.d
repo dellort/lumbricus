@@ -4,6 +4,8 @@ import framework.framework;
 import framework.font;
 import utils.mylist;
 import utils.time;
+import utils.vector2;
+import utils.rect2;
 
 public import framework.keysyms;
 public import framework.framework : KeyInfo, Canvas;
@@ -136,21 +138,21 @@ class SceneView : SceneObjectPositioned {
 
         //check for camera
         if (mCameraFollowObject && mCameraFollowObject.active) {
-            //xxx make better: object is a rect, not a point
-            auto pos = mCameraFollowObject.pos;
+            auto pos = mCameraFollowObject.pos + mCameraFollowObject.thesize/2;
             pos = fromClientCoords(pos);
-            if (pos.x < cCameraBorder || pos.x >= thesize.x - cCameraBorder
-                || pos.y < cCameraBorder || pos.y >= thesize.y - cCameraBorder)
-            {
-                //also not good, i.e. for CameraStyle.Normal, the camera should
-                //just move the object into the inner region again, not center it
-                setCameraFocus(mCameraFollowObject, mCameraStyle);
+            auto border = Vector2i(cCameraBorder);
+            Rect2i clip = Rect2i(border, thesize - border);
+            if (!clip.isInsideB(pos)) {
+                auto npos = clip.clip(pos);
+                //xxx: maybe this is why the camera sometimes doesn't stop moving
+                scrollMove(pos-npos);
             }
         }
     }
 
     public void scrollMove(Vector2i delta) {
         //xxx update "last scrolling" time
+        mTimeLast = globals.framework.getCurrentTime().msecs;
         scrollDoMove(delta);
     }
 
@@ -359,9 +361,12 @@ class Screen {
         mRootView.thesize = size;
     }
 
-    void setSize(Vector2i s) {
+    void size(Vector2i s) {
         mRootScene.thesize = s;
         mRootView.thesize = s;
+    }
+    Vector2i size() {
+        return mRootView.thesize;
     }
 
     void draw(Canvas canvas) {

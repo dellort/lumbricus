@@ -311,7 +311,7 @@ class TopLevel {
 
     private void onVideoInit(bool depth_only) {
         globals.log("Changed video: %s", globals.framework.screen.size);
-        screen.setSize(globals.framework.screen.size);
+        screen.size = globals.framework.screen.size;
         sceneview.thesize = guiscene.thesize;
     }
 

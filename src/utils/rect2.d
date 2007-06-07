@@ -77,6 +77,23 @@ public struct Rect2(T) {
         return contains(other) ||other.contains(*this);
     }
 
+    //clip pt to this rect; isInsideB(clip(pt)) will always return true
+    //(isInside() won't; also NaNs may mess it all up when using floats)
+    Point clip(in Point pt)
+    out(r) {assert(isInsideB(r));}
+    body {
+        Point r = pt;
+        if (r.x2 > p2.x2)
+            r.x2 = p2.x2;
+        if (r.x2 < p1.x2)
+            r.x2 = p1.x2;
+        if (r.x1 > p2.x1)
+            r.x1 = p2.x1;
+        if (r.x1 < p1.x1)
+            r.x1 = p1.x1;
+        return r;
+    }
+
     char[] toString() {
         return format("[%s - %s]", p1, p2);
     }

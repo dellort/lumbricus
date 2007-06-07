@@ -11,6 +11,8 @@ import game.common;
 import framework.framework;
 import framework.font;
 
+import std.string : toString;
+
 //Hint: there's a limited number of predefined colors; that's because sometimes
 //colors are hardcoded in animations, etc.
 //so, these are not just color names, but also linked to these animations
@@ -327,18 +329,109 @@ private class WormNameDrawer : SceneObject {
                 continue;
             Font font = *pfont;
             foreach (TeamMember w; t.mWorms) {
-                if (!w.mWorm)
+                if (!w.mWorm || !w.mWorm.graphic.active)
                     continue;
 
-                char[] text = t.name ~ ": " ~ w.name;
+                char[] text = w.name;
 
                 auto wp = w.mWorm.graphic.pos;
                 auto sz = w.mWorm.graphic.thesize;
                 //draw 3 pixels above, centered
                 auto tsz = font.textSize(text);
                 auto pos = wp+Vector2i(sz.x/2 - tsz.x/2, -tsz.y - 3);
+
+                auto border = Vector2i(4, 2);
+                //auto b = getBox(tsz+border*2, Color(1,1,1), Color(0,0,0));
+                //canvas.draw(b, pos-border);
+                drawBox(canvas, pos-border, tsz+border*2);
                 font.drawText(canvas, pos, text);
             }
         }
     }
 }
+
+/+
+  0 -- 1 -- 2
+  |         |
+  3   (4)   5
+  |         |
+  6 -- 7 -- 8
+  (png files start with 1)
++/
+Texture[9] boxParts;
+bool boxesLoaded;
+
+//NOTE: won't work correctly for sizes below the two corner boxes
+void drawBox(Canvas c, Vector2i pos, Vector2i size) {
+    if (!boxesLoaded) {
+        for (int n = 0; n < 9; n++) {
+            boxParts[n] = globals.framework.loadImage("box"
+                ~ toString(n+1) ~ ".png", Transparency.Alpha).createTexture();
+        }
+        boxesLoaded = true;
+    }
+    //corners
+    c.draw(boxParts[0], pos);
+    c.draw(boxParts[2], pos+size.X-boxParts[2].size.X);
+    c.draw(boxParts[6], pos+size.Y-boxParts[6].size.Y);
+    c.draw(boxParts[8], pos+size-boxParts[8].size);
+    //border lines
+    c.drawTiled(boxParts[1], pos+boxParts[0].size.X,
+        size.X-boxParts[2].size.X-boxParts[0].size.X+boxParts[1].size.Y);
+    c.drawTiled(boxParts[3], pos+boxParts[0].size.Y,
+        size.Y-boxParts[6].size.Y-boxParts[0].size.Y+boxParts[3].size.X);
+    c.drawTiled(boxParts[5], pos+size.X-boxParts[8].size.X+boxParts[2].size.Y,
+        size.Y-boxParts[2].size.Y-boxParts[8].size.Y+boxParts[8].size.X);
+    c.drawTiled(boxParts[7], pos+size.Y-boxParts[7].size.Y+boxParts[6].size.X,
+        size.X-boxParts[6].size.X-boxParts[8].size.X+boxParts[7].size.Y);
+    //fill
+    c.drawTiled(boxParts[4], pos+boxParts[0].size,
+        size-boxParts[0].size-boxParts[8].size);
+}
+
+/+
+//quite a hack to draw boxes with rounded borders...
+struct BoxProps {
+    Vector2i size;
+    Color border, back;
+}
+
+Texture[BoxProps] boxes;
+
+import utils.drawing;
+
+Texture getBox(Vector2i size, Color border, Color back) {
+    BoxProps box;
+    box.size = size; box.border = border; box.back = back;
+    auto t = box in boxes;
+    if (t)
+        return *t;
+    //create it
+    auto surface = globals.framework.createSurface(size, DisplayFormat.Screen,
+        Transparency.None);
+    auto c = surface.startDraw();
+    c.drawFilledRect(Vector2i(0),size,back);
+    int radius = 20;
+    c.drawFilledRect(Vector2i(0, radius), Vector2i(1, size.y-radius), border);
+    c.drawFilledRect(Vector2i(size.x-1, radius),
+        Vector2i(size.x, size.y-radius), border);
+    circle(radius, radius, radius,
+        (int x1, int x2, int y) {
+            if (y >= radius)
+                y += size.y - radius*2;
+            x2 += size.x - radius*2;
+            auto p1 = Vector2i(x1, y);
+            auto p2 = Vector2i(x2, y);
+            //transparency on the side
+            c.drawFilledRect(Vector2i(0, y), p1, surface.colorkey);
+            c.drawFilledRect(p2, Vector2i(size.x, y), surface.colorkey);
+            //circle pixels
+            c.drawFilledRect(p1, p1+Vector2i(1), border);
+            c.drawFilledRect(p2, p2+Vector2i(1), border);
+        }
+    );
+    c.endDraw();
+    boxes[box] = surface.createTexture();
+    return boxes[box];
+}
++/
