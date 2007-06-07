@@ -73,8 +73,6 @@ class EventSink {
 
 enum CameraStyle {
     Reset,  //disable camera
-    Set,    //scroll to an object (once, don't follow)
-    SetForced, //center an object, no scrolling
     Normal, //camera follows in a non-confusing way
     Center, //follows always centered, cf. super sheep
 }
@@ -93,11 +91,13 @@ class SceneView : SceneObjectPositioned {
     private const float K_SCROLL = 0.01f;
     private Vector2f mScrollDest, mScrollOffset;
     private const cScrollStepMs = 10;
+    private const cScrollIdleTimeMs = 2000;
     //"camera"
     private CameraStyle mCameraStyle;
     private SceneObjectPositioned mCameraFollowObject;
+    private bool mCameraFollowLock;
     //last time the scene was scrolled by i.e. the mouse
-    private long mLastNonCameraScroll;
+    private long mLastUserScroll;
 
     //if the scene was scrolled by the mouse, scroll back to the camera focus
     //after this time
@@ -124,6 +124,7 @@ class SceneView : SceneObjectPositioned {
 
     //--------------------------- Scrolling start -------------------------
 
+    ///Stop all active scrolling and stay at the currently visible position
     public void scrollReset() {
         mScrollOffset = toVector2f(clientoffset);
         mScrollDest = mScrollOffset;
@@ -139,82 +140,82 @@ class SceneView : SceneObjectPositioned {
                 mTimeLast += cScrollStepMs;
             }
             clientoffset = toVector2i(mScrollOffset);
+        } else {
+            mTimeLast = timeCurrentTime().msecs;
         }
 
         //check for camera
-        if (mCameraFollowObject && mCameraFollowObject.active) {
-            //should camera be active at all?
-            if (curTimeMs - mLastNonCameraScroll >= cCameraScrollBackTimeMs) {
-                auto pos = mCameraFollowObject.pos + mCameraFollowObject.size/2;
-                pos = fromClientCoords(pos);
-                auto border = Vector2i(cCameraBorder);
-                Rect2i clip = Rect2i(border, size - border);
-                if (!clip.isInsideB(pos)) {
-                    auto npos = clip.clip(pos);
-                    //xxx: maybe this is why the camera sometimes doesn't stop moving
-                    scrollMoveReset(pos-npos);
-                }
-            }
-        }
-    }
-
-    //as opposed to scrollMove(): always used by camera only
-    private void scrollMoveReset(Vector2i delta) {
-        mTimeLast = globals.framework.getCurrentTime().msecs;
-        scrollDoMove(delta);
-    }
-
-    public void scrollMove(Vector2i delta, bool isCameraMove = false) {
-        if (!isCameraMove) {
-            mLastNonCameraScroll = globals.framework.getCurrentTime().msecs;
-        }
-
-        scrollDoMove(delta);
-    }
-
-    private void scrollDoMove(Vector2i delta) {
-        mScrollDest = mScrollDest - toVector2f(delta);
-        clipOffset(mScrollDest);
-    }
-
-    public void scrollCenterOn(Vector2i scenePos, bool instantly = false) {
-        mScrollDest = -toVector2f(scenePos - size/2);
-        clipOffset(mScrollDest);
-        mTimeLast = globals.framework.getCurrentTime().msecs;
-        if (instantly) {
-            mScrollOffset = mScrollDest;
-            clientoffset = toVector2i(mScrollOffset);
-        }
-    }
-
-    public void setCameraFocus(SceneObjectPositioned obj, CameraStyle cs
-         = CameraStyle.Normal)
-    {
-        if (!obj)
-            mCameraStyle = CameraStyle.Reset;
-        mCameraFollowObject = null;
-        mCameraStyle = cs;
-        if (obj) {
-            switch (cs) {
+        if (mCameraFollowObject && mCameraFollowObject.active &&
+            (curTimeMs - mLastUserScroll > cScrollIdleTimeMs || mCameraFollowLock)) {
+            auto pos = mCameraFollowObject.pos + mCameraFollowObject.size/2;
+            pos = fromClientCoordsScroll(pos);
+            switch (mCameraStyle) {
                 case CameraStyle.Normal:
-                case CameraStyle.Set:
-                    scrollCenterOn(obj.pos, false);
-                    if (cs == CameraStyle.Normal) {
-                        mCameraFollowObject = obj;
+                    auto border = Vector2i(cCameraBorder);
+                    Rect2i clip = Rect2i(border, size - border);
+                    if (!clip.isInsideB(pos)) {
+                        auto npos = clip.clip(pos);
+                        scrollDoMove(pos-npos);
                     }
                     break;
                 case CameraStyle.Center:
-                case CameraStyle.SetForced:
-                    scrollCenterOn(obj.pos, true);
-                    if (cs == CameraStyle.Center) {
-                        mCameraFollowObject = obj;
-                    }
+                    auto posCenter = size/2;
+                    scrollDoMove(pos-posCenter);
                     break;
                 case CameraStyle.Reset:
                     //nop
                     break;
             }
         }
+    }
+
+    ///call this when the user moves the mouse to scroll by delta
+    ///idle time will be reset
+    public void scrollMove(Vector2i delta) {
+        mLastUserScroll = timeCurrentTime().msecs;
+        scrollDoMove(delta);
+    }
+
+    ///internal method that will move the camera by delta without affecting
+    ///idle time
+    private void scrollDoMove(Vector2i delta) {
+        mScrollDest = mScrollDest - toVector2f(delta);
+        clipOffset(mScrollDest);
+    }
+
+    ///One-time center the camera on scenePos
+    public void scrollCenterOn(Vector2i scenePos, bool instantly = false) {
+        mScrollDest = -toVector2f(scenePos - size/2);
+        clipOffset(mScrollDest);
+        mTimeLast = timeCurrentTime().msecs;
+        if (instantly) {
+            mScrollOffset = mScrollDest;
+            clientoffset = toVector2i(mScrollOffset);
+        }
+    }
+
+    ///One-time center the camera on obj
+    public void scrollCenterOn(SceneObjectPositioned obj,
+        bool instantly = false)
+    {
+        scrollCenterOn(obj.pos, instantly);
+    }
+
+    ///Set the active object the camera should follow
+    ///Params:
+    ///  lock = set to true to prevent user scrolling
+    ///  resetIdleTime = set to true to start the cam movement immediately
+    ///                  without waiting for user idle
+    public void setCameraFocus(SceneObjectPositioned obj, CameraStyle cs
+         = CameraStyle.Normal, bool lock = false, bool resetIdleTime = false)
+    {
+        if (!obj)
+            cs = CameraStyle.Reset;
+        mCameraFollowObject = obj;
+        mCameraStyle = cs;
+        mCameraFollowLock = lock;
+        if (resetIdleTime)
+            mLastUserScroll = 0;
     }
 
     //--------------------------- Scrolling end ---------------------------
@@ -265,6 +266,11 @@ class SceneView : SceneObjectPositioned {
     //toClientCoords(fromClientCoords(x)) == x
     public Vector2i fromClientCoords(Vector2i p) {
         return p + (pos + clientoffset);
+    }
+    //same as fromClientCoords, but uses current scroll destination instead
+    //of actual position
+    public Vector2i fromClientCoordsScroll(Vector2i p) {
+        return p + (pos + toVector2i(mScrollDest));
     }
 
     public void clipOffset(inout Vector2i offs) {
