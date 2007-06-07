@@ -91,7 +91,6 @@ class SceneView : SceneObjectPositioned {
     private const float K_SCROLL = 0.01f;
     private Vector2f mScrollDest, mScrollOffset;
     private const cScrollStepMs = 10;
-    private const cScrollIdleTimeMs = 2000;
     //"camera"
     private CameraStyle mCameraStyle;
     private SceneObjectPositioned mCameraFollowObject;
@@ -101,7 +100,7 @@ class SceneView : SceneObjectPositioned {
 
     //if the scene was scrolled by the mouse, scroll back to the camera focus
     //after this time
-    private const cCameraScrollBackTimeMs = 1000;
+    private const cScrollIdleTimeMs = 1000;
     //in pixels the width of the border in which a follower camera becomes
     //active and scrolls towards the followed object again
     private const cCameraBorder = 150;
