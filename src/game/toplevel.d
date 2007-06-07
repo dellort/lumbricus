@@ -154,6 +154,14 @@ class TopLevel {
 
         globals.cmdLine.registerCommand("framerate", &cmdFramerate, "set fixed framerate");
         globals.cmdLine.registerCommand("cameradisable", &cmdCameraDisable, "disable game camera");
+        globals.cmdLine.registerCommand("detail", &cmdDetail, "switch detail level");
+    }
+
+    private void cmdDetail(CommandLine cmd) {
+        if (!thegame)
+            return;
+        thegame.detailLevel = thegame.detailLevel + 1;
+        cmd.console.writefln("set detailLevel to %s", thegame.detailLevel);
     }
 
     private void cmdFramerate(CommandLine cmd) {
@@ -596,9 +604,9 @@ class TopLevel {
         //    globals.gameTimeAnimations);
 
         fpsDisplay.text = format("FPS: %1.2f", globals.framework.FPS);
+        fpsDisplay.pos = (fpsDisplay.scene.size - fpsDisplay.size).X;
 
         if (thegame && !mPauseMode) {
-            //thegame.doFrame(pseudoGameTime);
             thegame.doFrame(globals.gameTime);
         }
 

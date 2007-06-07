@@ -44,6 +44,13 @@ class Common {
 
         anyConfig = loadConfig("anything");
 
+        auto scr = anyConfig.getSubNode("screenmode");
+        int w = scr.getIntValue("width", 800);
+        int h = scr.getIntValue("height", 600);
+        int d = scr.getIntValue("depth", 0);
+        bool fs = scr.getBoolValue("fullscreen", false);
+        fw.setVideoMode(w, h, d, fs);
+
         initLocale();
 
         framework.fontManager.readFontDefinitions(loadConfig("fonts"));

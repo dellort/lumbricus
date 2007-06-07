@@ -26,13 +26,15 @@ class SkyDrawer : SceneObject {
     }
 
     void draw(Canvas canvas, SceneView parentView) {
-        for (int x = 0; x < scene.size.x; x += mSkyTex.size.x) {
-            canvas.draw(mSkyTex, Vector2i(x, mParent.skyOffset));
+        if (mParent.enableSkyTex) {
+            for (int x = 0; x < scene.size.x; x += mSkyTex.size.x) {
+                canvas.draw(mSkyTex, Vector2i(x, mParent.skyOffset));
+            }
         }
         if (mParent.skyOffset > 0)
             canvas.drawFilledRect(Vector2i(0, 0),
                 Vector2i(scene.size.x, mParent.skyOffset), mSkyColor);
-        if (mSkyBackdrop) {
+        if (mSkyBackdrop && mParent.enableSkyBackdrop) {
             for (int x = -parentView.clientoffset.x/8; x < scene.size.x; x += mSkyBackdrop.size.x) {
                 canvas.draw(mSkyBackdrop, Vector2i(x, mParent.skyBackdropOffset));
             }
@@ -47,6 +49,9 @@ class GameSky : GameObject {
     private bool mEnableClouds = true;
     private bool mEnableDebris = true;
     private bool mCloudsVisible;
+
+    bool enableSkyBackdrop = true;
+    bool enableSkyTex = true;
 
     private const cNumClouds = 50;
     private const cCloudHeightRange = 50;

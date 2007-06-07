@@ -94,6 +94,8 @@ class GameEngine {
     //GameLevel.waterLevel is uint, so we have a float version here...
     private float mCurrentLevel;
 
+    private uint mDetailLevel;
+
     //pixels per second
     private const cWaterRaisingSpeed = 50;
 
@@ -151,6 +153,8 @@ class GameEngine {
 
         loadLevelStuff();
 
+        detailLevel = 0;
+
         //NOTE: GameController relies on many stuff at initialization
         //i.e. physics for worm placement
         controller = new GameController(this, config);
@@ -174,6 +178,27 @@ class GameEngine {
             auto n = new GOSpriteClass(this, globals.loadConfig(value));
             mSpriteClasses[name] = n;
         }
+    }
+
+    public uint detailLevel() {
+        return mDetailLevel;
+    }
+    //the higher the less detail (wtf), wraps around if set too high
+    public void detailLevel(uint level) {
+        level = level % 6;
+        mDetailLevel = level;
+        bool clouds = true, skyDebris = true, skyBackdrop = true, skyTex = true;
+        bool water = true;
+        if (level >= 1) skyDebris = false;
+        if (level >= 2) skyBackdrop = false;
+        if (level >= 3) skyTex = false;
+        if (level >= 4) clouds = false;
+        if (level >= 5) water = false;
+        gameWater.simpleMode = !water;
+        gameSky.enableClouds = clouds;
+        gameSky.enableDebris = skyDebris;
+        gameSky.enableSkyBackdrop = skyBackdrop;
+        gameSky.enableSkyTex = skyTex;
     }
 
     public float windSpeed() {

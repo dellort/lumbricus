@@ -50,7 +50,6 @@ int main(char[][] args)
     rand_seed(1, 1);
 
     auto fw = new FrameworkSDL(args[0], APP_ID);
-    fw.setVideoMode(800,600,0,false);
     fw.setCaption("Lumbricus");
 
     //init filesystem

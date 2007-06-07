@@ -96,10 +96,15 @@ class SceneView : SceneObjectPositioned {
     //"camera"
     private CameraStyle mCameraStyle;
     private SceneObjectPositioned mCameraFollowObject;
+    //last time the scene was scrolled by i.e. the mouse
+    private long mLastNonCameraScroll;
 
+    //if the scene was scrolled by the mouse, scroll back to the camera focus
+    //after this time
+    private const cCameraScrollBackTimeMs = 1000;
     //in pixels the width of the border in which a follower camera becomes
     //active and scrolls towards the followed object again
-    private int cCameraBorder = 150;
+    private const cCameraBorder = 150;
 
     this() {
         //always create event handler
@@ -138,21 +143,32 @@ class SceneView : SceneObjectPositioned {
 
         //check for camera
         if (mCameraFollowObject && mCameraFollowObject.active) {
-            auto pos = mCameraFollowObject.pos + mCameraFollowObject.size/2;
-            pos = fromClientCoords(pos);
-            auto border = Vector2i(cCameraBorder);
-            Rect2i clip = Rect2i(border, size - border);
-            if (!clip.isInsideB(pos)) {
-                auto npos = clip.clip(pos);
-                //xxx: maybe this is why the camera sometimes doesn't stop moving
-                scrollMove(pos-npos);
+            //should camera be active at all?
+            if (curTimeMs - mLastNonCameraScroll >= cCameraScrollBackTimeMs) {
+                auto pos = mCameraFollowObject.pos + mCameraFollowObject.size/2;
+                pos = fromClientCoords(pos);
+                auto border = Vector2i(cCameraBorder);
+                Rect2i clip = Rect2i(border, size - border);
+                if (!clip.isInsideB(pos)) {
+                    auto npos = clip.clip(pos);
+                    //xxx: maybe this is why the camera sometimes doesn't stop moving
+                    scrollMoveReset(pos-npos);
+                }
             }
         }
     }
 
-    public void scrollMove(Vector2i delta) {
-        //xxx update "last scrolling" time
+    //as opposed to scrollMove(): always used by camera only
+    private void scrollMoveReset(Vector2i delta) {
         mTimeLast = globals.framework.getCurrentTime().msecs;
+        scrollDoMove(delta);
+    }
+
+    public void scrollMove(Vector2i delta, bool isCameraMove = false) {
+        if (!isCameraMove) {
+            mLastNonCameraScroll = globals.framework.getCurrentTime().msecs;
+        }
+
         scrollDoMove(delta);
     }
 
@@ -161,7 +177,7 @@ class SceneView : SceneObjectPositioned {
         clipOffset(mScrollDest);
     }
 
-    /+private+/ void scrollCenterOn(Vector2i scenePos, bool instantly = false) {
+    public void scrollCenterOn(Vector2i scenePos, bool instantly = false) {
         mScrollDest = -toVector2f(scenePos - size/2);
         clipOffset(mScrollDest);
         mTimeLast = globals.framework.getCurrentTime().msecs;
@@ -176,19 +192,23 @@ class SceneView : SceneObjectPositioned {
     {
         if (!obj)
             mCameraStyle = CameraStyle.Reset;
-        mCameraFollowObject = obj;
+        mCameraFollowObject = null;
         mCameraStyle = cs;
         if (obj) {
-            //xxx: must translate coord-system?
-            //this is a full xxx anyway! also must implement followed objects...
             switch (cs) {
                 case CameraStyle.Normal:
                 case CameraStyle.Set:
                     scrollCenterOn(obj.pos, false);
+                    if (cs == CameraStyle.Normal) {
+                        mCameraFollowObject = obj;
+                    }
                     break;
                 case CameraStyle.Center:
                 case CameraStyle.SetForced:
                     scrollCenterOn(obj.pos, true);
+                    if (cs == CameraStyle.Center) {
+                        mCameraFollowObject = obj;
+                    }
                     break;
                 case CameraStyle.Reset:
                     //nop
@@ -512,14 +532,24 @@ class SceneObjectPositioned : SceneObject {
 }
 
 class FontLabel : SceneObjectPositioned {
-    char[] text;
-    Font font;
+    private char[] mText;
+    private Font mFont;
 
     this(Font font) {
-        this.font = font;
+        mFont = font;
+        assert(font !is null);
+    }
+
+    void text(char[] txt) {
+        mText = txt;
+        //fit size to text
+        size = mFont.textSize(mText);
+    }
+    char[] text() {
+        return mText;
     }
 
     void draw(Canvas canvas, SceneView parentView) {
-        font.drawText(canvas, pos, text);
+        mFont.drawText(canvas, pos, mText);
     }
 }
