@@ -132,7 +132,7 @@ class Animator : SceneObjectPositioned {
         setFrame(0);
 
         if (ani) {
-            thesize = ani.mSize;
+            size = ani.mSize;
         }
     }
 

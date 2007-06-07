@@ -26,14 +26,14 @@ class SkyDrawer : SceneObject {
     }
 
     void draw(Canvas canvas, SceneView parentView) {
-        for (int x = 0; x < scene.thesize.x; x += mSkyTex.size.x) {
+        for (int x = 0; x < scene.size.x; x += mSkyTex.size.x) {
             canvas.draw(mSkyTex, Vector2i(x, mParent.skyOffset));
         }
         if (mParent.skyOffset > 0)
             canvas.drawFilledRect(Vector2i(0, 0),
-                Vector2i(scene.thesize.x, mParent.skyOffset), mSkyColor);
+                Vector2i(scene.size.x, mParent.skyOffset), mSkyColor);
         if (mSkyBackdrop) {
-            for (int x = -parentView.clientoffset.x/8; x < scene.thesize.x; x += mSkyBackdrop.size.x) {
+            for (int x = -parentView.clientoffset.x/8; x < scene.size.x; x += mSkyBackdrop.size.x) {
                 canvas.draw(mSkyBackdrop, Vector2i(x, mParent.skyBackdropOffset));
             }
         }
@@ -112,7 +112,7 @@ class GameSky : GameObject {
                     ci.anim.setAnimation(mCloudAnims[nAnim]);
                     ci.anim.setScene(engine.scene, GameZOrder.Objects);
                     ci.anim.pos.y = skyOffset - mCloudAnims[nAnim].size.y/2 + randRange(-cCloudHeightRange/2,cCloudHeightRange/2);
-                    ci.x = randRange(-mCloudAnims[nAnim].size.x, engine.scene.thesize.x);
+                    ci.x = randRange(-mCloudAnims[nAnim].size.x, engine.scene.size.x);
                     ci.anim.pos.x = cast(int)ci.x;
                     ci.anim.setFrame(randRange(0u,mCloudAnims[nAnim].frameCount));
                     ci.animSizex = mCloudAnims[nAnim].size.x;
@@ -131,7 +131,7 @@ class GameSky : GameObject {
                     di.anim = new Animator();
                     di.anim.setAnimation(mDebrisAnim);
                     di.anim.setScene(engine.scene, GameZOrder.BackLayer);
-                    di.x = randRange(-mDebrisAnim.size.x, engine.scene.thesize.x);
+                    di.x = randRange(-mDebrisAnim.size.x, engine.scene.size.x);
                     di.y = randRange(skyOffset, levelBottom);
                     di.anim.pos.x = cast(int)di.x;
                     di.anim.pos.y = cast(int)di.y;
@@ -195,7 +195,7 @@ class GameSky : GameObject {
                 foreach (inout ci; mCloudAnimators) {
                     //XXX this is acceleration, how to get a constant speed from this??
                     ci.x += (ci.xspeed+engine.windSpeed)*deltaT;
-                    clip(ci.x, ci.animSizex, 0, engine.scene.thesize.x);
+                    clip(ci.x, ci.animSizex, 0, engine.scene.size.x);
                     ci.anim.pos.x = cast(int)ci.x;
                 }
         }
@@ -205,7 +205,7 @@ class GameSky : GameObject {
                     //XXX same here
                     di.x += 2*engine.windSpeed*deltaT*di.speedPerc;
                     di.y += cDebrisFallSpeed*deltaT;
-                    clip(di.x, mDebrisAnim.size.x, 0, engine.scene.thesize.x);
+                    clip(di.x, mDebrisAnim.size.x, 0, engine.scene.size.x);
                     clip(di.y, mDebrisAnim.size.y, skyOffset, levelBottom);
                     di.anim.pos.x = cast(int)di.x;
                     di.anim.pos.y = cast(int)di.y;

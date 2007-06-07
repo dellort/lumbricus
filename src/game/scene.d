@@ -19,7 +19,7 @@ class Scene {
     private SOList mActiveObjects;
     //all objects that want to receive events
     private SceneObject[SceneObject] mEventReceiver;
-    Vector2i thesize;
+    Vector2i size;
 
     //zorder values from 0 to cMaxZorder, last inclusive
     //zorder 0 isn't drawn at all
@@ -112,7 +112,7 @@ class SceneView : SceneObjectPositioned {
         mClientoffset = Vector2i(0, 0);
         mSceneSize = Vector2i(0, 0);
         if (scene) {
-            mSceneSize = mClientScene.thesize;
+            mSceneSize = mClientScene.size;
         }
         scrollReset();
     }
@@ -138,10 +138,10 @@ class SceneView : SceneObjectPositioned {
 
         //check for camera
         if (mCameraFollowObject && mCameraFollowObject.active) {
-            auto pos = mCameraFollowObject.pos + mCameraFollowObject.thesize/2;
+            auto pos = mCameraFollowObject.pos + mCameraFollowObject.size/2;
             pos = fromClientCoords(pos);
             auto border = Vector2i(cCameraBorder);
-            Rect2i clip = Rect2i(border, thesize - border);
+            Rect2i clip = Rect2i(border, size - border);
             if (!clip.isInsideB(pos)) {
                 auto npos = clip.clip(pos);
                 //xxx: maybe this is why the camera sometimes doesn't stop moving
@@ -162,7 +162,7 @@ class SceneView : SceneObjectPositioned {
     }
 
     /+private+/ void scrollCenterOn(Vector2i scenePos, bool instantly = false) {
-        mScrollDest = -toVector2f(scenePos - thesize/2);
+        mScrollDest = -toVector2f(scenePos - size/2);
         clipOffset(mScrollDest);
         mTimeLast = globals.framework.getCurrentTime().msecs;
         if (instantly) {
@@ -203,16 +203,16 @@ class SceneView : SceneObjectPositioned {
         if (!mClientScene)
             return;
 
-        if (mSceneSize != mClientScene.thesize) {
+        if (mSceneSize != mClientScene.size) {
             //scene size has changed
             clipOffset(mClientoffset);
-            mSceneSize = mClientScene.thesize;
+            mSceneSize = mClientScene.size;
         }
 
         scrollUpdate(globals.framework.getCurrentTime());
 
         canvas.pushState();
-        canvas.setWindow(pos, pos+thesize);
+        canvas.setWindow(pos, pos+size);
         canvas.translate(-clientoffset);
 
         //Hint: first element in zorder array is the list of invisible objects
@@ -259,38 +259,38 @@ class SceneView : SceneObjectPositioned {
             return;
         }
 
-        if (thesize.x < mClientScene.thesize.x) {
+        if (size.x < mClientScene.size.x) {
             //view window is smaller than scene (x-dir)
             //-> don't allow black borders
             if (offs.x > 0)
                 offs.x = 0;
-            if (offs.x + mClientScene.thesize.x < thesize.x)
-                offs.x = thesize.x - mClientScene.thesize.x;
+            if (offs.x + mClientScene.size.x < size.x)
+                offs.x = size.x - mClientScene.size.x;
         } else {
             //view is larger than scene -> black borders, but don't allow
             //parts of the scene to go out of view
             if (offs.x < 0)
                 offs.x = 0;
-            if (offs.x + mClientScene.thesize.x > thesize.x)
-                offs.x = thesize.x - mClientScene.thesize.x;
+            if (offs.x + mClientScene.size.x > size.x)
+                offs.x = size.x - mClientScene.size.x;
         }
 
         //same for y
-        if (thesize.y < mClientScene.thesize.y) {
+        if (size.y < mClientScene.size.y) {
             if (offs.y > 0)
                 offs.y = 0;
-            if (offs.y + mClientScene.thesize.y < thesize.y)
-                offs.y = thesize.y - mClientScene.thesize.y;
+            if (offs.y + mClientScene.size.y < size.y)
+                offs.y = size.y - mClientScene.size.y;
         } else {
             if (offs.y < 0)
                 offs.y = 0;
-            if (offs.y + mClientScene.thesize.y > thesize.y)
-                offs.y = thesize.y - mClientScene.thesize.y;
+            if (offs.y + mClientScene.size.y > size.y)
+                offs.y = size.y - mClientScene.size.y;
         }
     }
 
     private static bool isInside(SceneObjectPositioned obj, Vector2i pos) {
-        return pos.isInside(obj.pos, obj.thesize);
+        return pos.isInside(obj.pos, obj.size);
     }
 
     //event handling
@@ -351,22 +351,22 @@ class Screen {
 
     this(Vector2i size) {
         mRootScene = new Scene();
-        mRootScene.thesize = size;
+        mRootScene.size = size;
         mRootView = new SceneView();
         mRootView.clientscene = mRootScene;
         //NOTE: normally SceneViews are elements in a further Scene, but here
         //      Screen is the container of the SceneView mRootView
         //      damn overengineered madness!
         mRootView.pos = Vector2i(0, 0);
-        mRootView.thesize = size;
+        mRootView.size = size;
     }
 
     void size(Vector2i s) {
-        mRootScene.thesize = s;
-        mRootView.thesize = s;
+        mRootScene.size = s;
+        mRootView.size = s;
     }
     Vector2i size() {
-        return mRootView.thesize;
+        return mRootView.size;
     }
 
     void draw(Canvas canvas) {
@@ -508,7 +508,7 @@ class CallbackSceneObject : SceneObject {
 //with a rectangular bounding box??
 class SceneObjectPositioned : SceneObject {
     Vector2i pos;
-    Vector2i thesize;
+    Vector2i size;
 }
 
 class FontLabel : SceneObjectPositioned {

@@ -124,7 +124,7 @@ class GameEngine {
         levelobject.setScene(scene, GameZOrder.Level);
 
         //prepare the scene
-        gamescene.thesize = worldSize;
+        gamescene.size = worldSize;
 
         physicworld = new PhysicWorld();
 

@@ -335,7 +335,7 @@ private class WormNameDrawer : SceneObject {
                 char[] text = w.name;
 
                 auto wp = w.mWorm.graphic.pos;
-                auto sz = w.mWorm.graphic.thesize;
+                auto sz = w.mWorm.graphic.size;
                 //draw 3 pixels above, centered
                 auto tsz = font.textSize(text);
                 auto pos = wp+Vector2i(sz.x/2 - tsz.x/2, -tsz.y - 3);

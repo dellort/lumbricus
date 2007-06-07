@@ -75,7 +75,7 @@ class TopLevel {
         sceneview.setScene(guiscene, GUIZOrder.Game); //container!
         //sceneview is simply the window that shows the level
         sceneview.pos = Vector2i(0, 0);
-        sceneview.thesize = guiscene.thesize;
+        sceneview.size = guiscene.size;
 
         initConsole();
 
@@ -217,7 +217,7 @@ class TopLevel {
         closeGui();
         mGuiWindMeter.engine = thegame;
         mGuiWindMeter.setScene(guiscene, GUIZOrder.Gui);
-        mGuiWindMeter.pos = guiscene.thesize - mGuiWindMeter.size - Vector2i(5,5);
+        mGuiWindMeter.pos = guiscene.size - mGuiWindMeter.size - Vector2i(5,5);
     }
 
     private void closeGui() {
@@ -312,7 +312,7 @@ class TopLevel {
     private void onVideoInit(bool depth_only) {
         globals.log("Changed video: %s", globals.framework.screen.size);
         screen.size = globals.framework.screen.size;
-        sceneview.thesize = guiscene.thesize;
+        sceneview.size = guiscene.size;
     }
 
     private void cmdVideo(CommandLine cmd) {

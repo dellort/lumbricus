@@ -685,7 +685,7 @@ public class LevelEditor {
         root = new EditRoot();
         render = new RenderEditor(this);
         render.setScene(scene, 2);
-        scene.thesize = Vector2i(3000,1000);
+        scene.size = Vector2i(3000,1000);
 
         newPolyAt(Rect2i(100, 100, 500, 500));
 
