@@ -247,6 +247,12 @@ class GameController {
         startNextRound();
     }
 
+    //currently needed to deinitialize the gui
+    void kill() {
+        mMessages.active = false;
+        mTimeView.active = false;
+    }
+
     void simulate(float deltaT) {
         //object moved -> arrow disappears
         if (mForArrow && mForArrowPos != mForArrow.pos)

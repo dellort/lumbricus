@@ -264,6 +264,7 @@ class GameEngine {
         foreach (GameObject o; mObjects) {
             o.kill();
         }
+        controller.kill();
     }
 
     //try to place an object into the landscape

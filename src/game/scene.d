@@ -144,26 +144,6 @@ class SceneView : SceneObjectPositioned {
         }
 
         //check for camera
-/*
-    yyy: if you can read this, I forgot to remove this
-        if (mCameraFollowObject && mCameraFollowObject.active) {
-            //should camera be active at all?
-            if (curTimeMs - mLastNonCameraScroll >= cCameraScrollBackTimeMs) {
-                auto pos = mCameraFollowObject.pos + mCameraFollowObject.size/2;
-                pos = fromClientCoords(pos);
-                auto border = Vector2i(cCameraBorder);
-                Rect2i clip = Rect2i(border, size - border);
-                if (!clip.isInsideB(pos)) {
-                    auto npos = clip.clip(pos);
-                    //xxx: maybe this is why the camera sometimes doesn't stop moving
-                    //xxx: if the worm is out of the screen area, and the camera
-                    // centers the worm, it scrolls to fast; this is because we add
-                    // delta to the camera movement all the time; don't know how to fix that
-                    scrollMoveReset(pos-npos);
-                    //auto napos = size/2 + (pos-npos);
-                    //scrollCenterOn(toClientCoords(napos));
-                }
-*/
         if (mCameraFollowObject && mCameraFollowObject.active &&
             (curTimeMs - mLastUserScroll > cScrollIdleTimeMs || mCameraFollowLock)) {
             auto pos = mCameraFollowObject.pos + mCameraFollowObject.size/2;
