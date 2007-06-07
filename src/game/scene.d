@@ -144,6 +144,26 @@ class SceneView : SceneObjectPositioned {
         }
 
         //check for camera
+/*
+    yyy: if you can read this, I forgot to remove this
+        if (mCameraFollowObject && mCameraFollowObject.active) {
+            //should camera be active at all?
+            if (curTimeMs - mLastNonCameraScroll >= cCameraScrollBackTimeMs) {
+                auto pos = mCameraFollowObject.pos + mCameraFollowObject.size/2;
+                pos = fromClientCoords(pos);
+                auto border = Vector2i(cCameraBorder);
+                Rect2i clip = Rect2i(border, size - border);
+                if (!clip.isInsideB(pos)) {
+                    auto npos = clip.clip(pos);
+                    //xxx: maybe this is why the camera sometimes doesn't stop moving
+                    //xxx: if the worm is out of the screen area, and the camera
+                    // centers the worm, it scrolls to fast; this is because we add
+                    // delta to the camera movement all the time; don't know how to fix that
+                    scrollMoveReset(pos-npos);
+                    //auto napos = size/2 + (pos-npos);
+                    //scrollCenterOn(toClientCoords(napos));
+                }
+*/
         if (mCameraFollowObject && mCameraFollowObject.active &&
             (curTimeMs - mLastUserScroll > cScrollIdleTimeMs || mCameraFollowLock)) {
             auto pos = mCameraFollowObject.pos + mCameraFollowObject.size/2;
@@ -539,22 +559,37 @@ class SceneObjectPositioned : SceneObject {
 class FontLabel : SceneObjectPositioned {
     private char[] mText;
     private Font mFont;
+    private Vector2i mBorder;
 
     this(Font font) {
         mFont = font;
         assert(font !is null);
+        recalc();
+    }
+
+    private void recalc() {
+        //fit size to text
+        size = mFont.textSize(mText) + border * 2;
     }
 
     void text(char[] txt) {
         mText = txt;
-        //fit size to text
-        size = mFont.textSize(mText);
+        recalc();
     }
     char[] text() {
         return mText;
     }
 
+    //(invisible!) border around text
+    void border(Vector2i b) {
+        mBorder = b;
+        recalc();
+    }
+    Vector2i border() {
+        return mBorder;
+    }
+
     void draw(Canvas canvas, SceneView parentView) {
-        mFont.drawText(canvas, pos, mText);
+        mFont.drawText(canvas, pos+mBorder, mText);
     }
 }

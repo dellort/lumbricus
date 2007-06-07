@@ -877,6 +877,9 @@ public bool parseColor(char[] s, inout Color color) {
     colors["red"] = Color(1.0f,0,0);
     colors["blue"] = Color(0,0,1.0f);
     colors["green"] = Color(0,1.0f,0);
+    colors["yellow"] = Color(1.0f,1.0f,0);
+    colors["magenta"] = Color(1.0f,0,1.0f);
+    colors["cyan"] = Color(0,1.0f,1.0f);
 
     if (s in colors) {
         color = colors[s];

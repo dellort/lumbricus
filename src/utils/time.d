@@ -124,6 +124,11 @@ public struct Time {
     public void hours(long val) {
         timeVal = val * (60 * 60 * 1000 * 1000);
     }
+
+    //return as float in seconds (should only be used for small relative times)
+    public float toFloat() {
+        return msecs/1000.0f;
+    }
 }
 
 

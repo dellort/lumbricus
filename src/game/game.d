@@ -242,6 +242,8 @@ class GameEngine {
 
         //at least currently it's ok to update this each frame
         fixupWaterLevel();
+
+        controller.simulate(deltaT);
     }
 
     void doFrame(Time gametime) {
@@ -314,19 +316,30 @@ class GameEngine {
 
     //load animations as requested in "item"
     //currently, item shall be a ConfigValue which contains the configfile name
-    //note that this name shouldn't contains a ".conf", argh.
+    //note that this name shouldn't contain a ".conf", argh.
+    //also can be an animation configfile directly
     void loadAnimations(ConfigItem item) {
         if (!item)
             return;
 
-        auto v = cast(ConfigValue)item;
-        assert(v !is null);
-        char[] file = v.value;
-        if (file in mLoadedAnimationConfigFiles)
-            return;
+        ConfigNode cfg;
 
-        mLoadedAnimationConfigFiles[file] = true;
-        auto cfg = globals.loadConfig(file);
+        auto v = cast(ConfigValue)item;
+        if (v) {
+            char[] file = v.value;
+            if (file in mLoadedAnimationConfigFiles)
+                return;
+
+            mLoadedAnimationConfigFiles[file] = true;
+            cfg = globals.loadConfig(file);
+        } else if (cast(ConfigNode)item) {
+            cfg = cast(ConfigNode)item;
+        } else {
+            assert(false);
+        }
+
+        assert(cfg !is null);
+
         auto load_further = cfg.find("require_animations");
         if (load_further !is null) {
             //xxx: should try to prevent possible recursion
