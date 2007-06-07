@@ -30,10 +30,10 @@ class SkyDrawer : SceneObject {
             for (int x = 0; x < scene.size.x; x += mSkyTex.size.x) {
                 canvas.draw(mSkyTex, Vector2i(x, mParent.skyOffset));
             }
+            if (mParent.skyOffset > 0)
+                canvas.drawFilledRect(Vector2i(0, 0),
+                    Vector2i(scene.size.x, mParent.skyOffset), mSkyColor);
         }
-        if (mParent.skyOffset > 0)
-            canvas.drawFilledRect(Vector2i(0, 0),
-                Vector2i(scene.size.x, mParent.skyOffset), mSkyColor);
         if (mSkyBackdrop && mParent.enableSkyBackdrop) {
             for (int x = -parentView.clientoffset.x/8; x < scene.size.x; x += mSkyBackdrop.size.x) {
                 canvas.draw(mSkyBackdrop, Vector2i(x, mParent.skyBackdropOffset));
@@ -106,45 +106,39 @@ class GameSky : GameObject {
         levelBottom = engine.gamelevel.offset.y+engine.gamelevel.height;
 
         if (mCloudsVisible) {
-            try {
-                foreach (char[] nodeName, ConfigNode node; skyNode.getSubNode("clouds")) {
-                    mCloudAnims ~= new Animation(node);
-                }
+            scope (failure) mCloudsVisible = false;
+            foreach (char[] nodeName, ConfigNode node; skyNode.getSubNode("clouds")) {
+                mCloudAnims ~= new Animation(node);
+            }
 
-                int nAnim = 0;
-                foreach (inout CloudInfo ci; mCloudAnimators) {
-                    ci.anim = new Animator();
-                    ci.anim.setAnimation(mCloudAnims[nAnim]);
-                    ci.anim.setScene(engine.scene, GameZOrder.Objects);
-                    ci.anim.pos.y = skyOffset - mCloudAnims[nAnim].size.y/2 + randRange(-cCloudHeightRange/2,cCloudHeightRange/2);
-                    ci.x = randRange(-mCloudAnims[nAnim].size.x, engine.scene.size.x);
-                    ci.anim.pos.x = cast(int)ci.x;
-                    ci.anim.setFrame(randRange(0u,mCloudAnims[nAnim].frameCount));
-                    ci.animSizex = mCloudAnims[nAnim].size.x;
-                    //speed delta to wind speed
-                    ci.xspeed = randRange(-cCloudSpeedRange/2, cCloudSpeedRange/2);
-                    nAnim = (nAnim+1)%mCloudAnims.length;
-                }
-            } catch {
-                mCloudsVisible = false;
+            int nAnim = 0;
+            foreach (inout CloudInfo ci; mCloudAnimators) {
+                ci.anim = new Animator();
+                ci.anim.setAnimation(mCloudAnims[nAnim]);
+                ci.anim.setScene(engine.scene, GameZOrder.Objects);
+                ci.anim.pos.y = skyOffset - mCloudAnims[nAnim].size.y/2 + randRange(-cCloudHeightRange/2,cCloudHeightRange/2);
+                ci.x = randRange(-mCloudAnims[nAnim].size.x, engine.scene.size.x);
+                ci.anim.pos.x = cast(int)ci.x;
+                ci.anim.setFrame(randRange(0u,mCloudAnims[nAnim].frameCount));
+                ci.animSizex = mCloudAnims[nAnim].size.x;
+                //speed delta to wind speed
+                ci.xspeed = randRange(-cCloudSpeedRange/2, cCloudSpeedRange/2);
+                nAnim = (nAnim+1)%mCloudAnims.length;
             }
         }
 
         if (mDebrisAnim) {
-            try {
-                foreach (inout DebrisInfo di; mDebrisAnimators) {
-                    di.anim = new Animator();
-                    di.anim.setAnimation(mDebrisAnim);
-                    di.anim.setScene(engine.scene, GameZOrder.BackLayer);
-                    di.x = randRange(-mDebrisAnim.size.x, engine.scene.size.x);
-                    di.y = randRange(skyOffset, levelBottom);
-                    di.anim.pos.x = cast(int)di.x;
-                    di.anim.pos.y = cast(int)di.y;
-                    di.anim.setFrame(randRange(0u,mDebrisAnim.frameCount));
-                    di.speedPerc = genrand_real1()/2.0+0.5;
-                }
-            } catch {
-                mDebrisAnim = null;
+            scope (failure) mDebrisAnim = null;
+            foreach (inout DebrisInfo di; mDebrisAnimators) {
+                di.anim = new Animator();
+                di.anim.setAnimation(mDebrisAnim);
+                di.anim.setScene(engine.scene, GameZOrder.BackLayer);
+                di.x = randRange(-mDebrisAnim.size.x, engine.scene.size.x);
+                di.y = randRange(skyOffset, levelBottom);
+                di.anim.pos.x = cast(int)di.x;
+                di.anim.pos.y = cast(int)di.y;
+                di.anim.setFrame(randRange(0u,mDebrisAnim.frameCount));
+                di.speedPerc = genrand_real1()/2.0+0.5;
             }
         }
 
@@ -171,7 +165,7 @@ class GameSky : GameObject {
     }
 
     public void enableDebris(bool enable) {
-        mEnableClouds = enable;
+        mEnableDebris = enable;
         if (mDebrisAnim) {
             if (enable) {
                 foreach (inout di; mDebrisAnimators) {

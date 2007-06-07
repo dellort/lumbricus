@@ -343,7 +343,8 @@ private class WormNameDrawer : SceneObject {
                 auto border = Vector2i(4, 2);
                 //auto b = getBox(tsz+border*2, Color(1,1,1), Color(0,0,0));
                 //canvas.draw(b, pos-border);
-                drawBox(canvas, pos-border, tsz+border*2);
+                if (mController.mEngine.enableSpiffyGui)
+                    drawBox(canvas, pos-border, tsz+border*2);
                 font.drawText(canvas, pos, text);
             }
         }

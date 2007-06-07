@@ -95,6 +95,8 @@ class GameEngine {
     private float mCurrentLevel;
 
     private uint mDetailLevel;
+    //not quite clean: Gui drawers can query this / detailLevel changes it
+    bool enableSpiffyGui;
 
     //pixels per second
     private const cWaterRaisingSpeed = 50;
@@ -185,20 +187,22 @@ class GameEngine {
     }
     //the higher the less detail (wtf), wraps around if set too high
     public void detailLevel(uint level) {
-        level = level % 6;
+        level = level % 7;
         mDetailLevel = level;
         bool clouds = true, skyDebris = true, skyBackdrop = true, skyTex = true;
-        bool water = true;
+        bool water = true, gui = true;
         if (level >= 1) skyDebris = false;
         if (level >= 2) skyBackdrop = false;
         if (level >= 3) skyTex = false;
         if (level >= 4) clouds = false;
         if (level >= 5) water = false;
+        if (level >= 6) gui = false;
         gameWater.simpleMode = !water;
         gameSky.enableClouds = clouds;
         gameSky.enableDebris = skyDebris;
         gameSky.enableSkyBackdrop = skyBackdrop;
         gameSky.enableSkyTex = skyTex;
+        enableSpiffyGui = gui;
     }
 
     public float windSpeed() {
