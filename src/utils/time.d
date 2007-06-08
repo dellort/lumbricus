@@ -34,6 +34,9 @@ public struct Time {
     public Time opMul(int i) {
         return Time(cast(TType_Int)(timeVal * i));
     }
+    public void opMulAssign(int i) {
+        timeVal *= i;
+    }
 
     ///divide Time value by constant (float)
     public Time opMul(float f) {
@@ -55,11 +58,17 @@ public struct Time {
     }
 
     public int opEquals(Time t2) {
-        return t2.timeVal - timeVal;
+        return timeVal == t2.timeVal;
     }
 
     public int opCmp(Time t2) {
-        return timeVal - t2.timeVal;
+        //NOTE: "timeVal - t2.timeVal" is wrong, it wraps around too early!
+        if (timeVal > t2.timeVal)
+            return 1;
+        else if (timeVal < t2.timeVal)
+            return -1;
+        else
+            return 0;
     }
 
     ///return string representation of value

@@ -174,6 +174,8 @@ class GameEngine {
 
     //one time initialization, where levle objects etc. should be loaded (?)
     private void loadLevelStuff() {
+        loadAnimations(globals.loadConfig("stdanims"));
+
         auto conf = globals.loadConfig("game");
         //load sprites
         foreach (char[] name, char[] value; conf.getSubNode("sprites")) {
@@ -273,13 +275,17 @@ class GameEngine {
     //  drop = any startpoint
     //  dest = where it is dropped (will have same x value as drop)
     //returns if dest contains a useful value
-    bool placeObject(Vector2f drop, out Vector2f dest, float radius) {
+    bool placeObject(Vector2f drop, float y_max, out Vector2f dest,
+        float radius)
+    {
         Vector2f pos = drop;
         bool isfirst = true;
         while (!physicworld.collideGeometry(drop, radius)) {
             pos = drop;
             //hmpf!
             drop.y += 1;
+            if (drop.y > y_max)
+                return false;
             isfirst = false;
         }
         if (isfirst) //don't place inside landscape
@@ -309,7 +315,7 @@ class GameEngine {
         for (;retrycount > 0; retrycount--) {
             drop.y = randRange(1.0f*gamelevel.offset.y, y_max);
             drop.x = gamelevel.offset.x + randRange(0u, gamelevel.width);
-            if (placeObject(drop, dest, radius))
+            if (placeObject(drop, y_max, dest, radius))
                 return true;
         }
         return false;

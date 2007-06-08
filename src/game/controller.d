@@ -14,7 +14,7 @@ import game.common;
 import framework.framework;
 import framework.font;
 
-import std.string : toString;
+import str = std.string;
 
 //Hint: there's a limited number of predefined colors; that's because sometimes
 //colors are hardcoded in animations, etc.
@@ -160,9 +160,8 @@ class GameController {
     private bool mNextRoundOnHold, mRoundStarting;
     //to select next worm
     private TeamMember[Team] mTeamCurrentOne;
-
-    //of course needs to be configureable etc.
-    private const cRoundTime = 10;
+    //time a round takes
+    private Time mTimePerRound;
 
     void current(TeamMember worm) {
         if (mCurrent) {
@@ -203,6 +202,8 @@ class GameController {
         if (config.teams) {
             loadTeams(config.teams);
         }
+
+        mTimePerRound = timeSecs(10);
 
         //draws the worm names
         mDrawer = new WormNameDrawer(this);
@@ -267,18 +268,19 @@ class GameController {
             }
         }
 
-        auto newrtime = timeSecs(cRoundTime)
-            - (globals.gameTime - mRoundStarted);
+        auto newrtime = mTimePerRound - (globals.gameTime - mRoundStarted);
         auto secs = newrtime.secs;
         if (mCurrentRoundTime != secs) {
             mTimeView.text = str.format("%.2s", secs >= 0 ? secs : 0);
         }
+        //xxx: roundtime becomes negative when waiting for next round
+        // maybe implement sth. to pause the tound time
         mCurrentRoundTime = secs;
 
         //NOTE: might yield to false even if newrtime.secs==0, which is wanted
         if (!mNextRoundOnHold && newrtime <= timeSecs(0)) {
             attemptNextRound();
-            mMessages.addMessage("next round!");
+            mMessages.addMessage("next round! ");
         }
 
         //even more xxx (a gui layouter or so would be better...)
@@ -412,6 +414,10 @@ class GameController {
             case "debug1": {
                 spawnWorm(sender.mousePos);
                 return true;
+            }
+            case "debug3": {
+                mTimePerRound *= 4;
+                break;
             }
             case "selectworm": {
                 current = selectNext();
@@ -577,7 +583,7 @@ private class MessageViewer : SceneObject {
     private Time mPhaseStart; //start of current phase
     private Vector2i mMessageSize;
     private float mMessagePos;
-    private float mMessageDelta; //speed of message box
+    private float mMessageWay; //way over which message is scrolled
 
     static const int cPhaseTimingsMs[] = [0, 300, 1000, 300, 400];
 
@@ -616,6 +622,9 @@ private class MessageViewer : SceneObject {
             }
         }
 
+        //(division by zero and NaNs in some cases where the value isn't needed)
+        auto messagedelta = mMessageWay / (cPhaseTimingsMs[mPhase]/1000.0f);
+
         //make some progress
         switch (mPhase) {
             case 0:
@@ -626,15 +635,14 @@ private class MessageViewer : SceneObject {
                     mCurrentMessage = mMessages.pop();
                     mMessageSize = mFont.textSize(mCurrentMessage);
                     mMessagePos = -mMessageSize.y - cMessageBorders.y*2;
-                    mMessageDelta = (-mMessagePos + cMessageOffset)
-                        / (cPhaseTimingsMs[mPhase]/1000.0f);
+                    mMessageWay = -mMessagePos + cMessageOffset;
                 }
                 break;
             case 3:
-                mMessagePos -= mMessageDelta * deltaT;
+                mMessagePos -= messagedelta * deltaT;
                 break;
             case 1:
-                mMessagePos += mMessageDelta * deltaT;
+                mMessagePos += messagedelta * deltaT;
                 break;
             case 4:
                 //nothing
@@ -676,7 +684,7 @@ bool boxesLoaded;
 void drawBox(Canvas c, Vector2i pos, Vector2i size) {
     if (!boxesLoaded) {
         for (int n = 0; n < 9; n++) {
-            auto s = globals.loadGraphic("box" ~ toString(n+1) ~ ".png");
+            auto s = globals.loadGraphic("box" ~ str.toString(n+1) ~ ".png");
             s.enableAlpha();
             boxParts[n] = s.createTexture();
         }

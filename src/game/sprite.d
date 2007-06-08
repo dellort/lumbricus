@@ -4,6 +4,7 @@ import game.physic;
 import game.animation;
 import game.game;
 import utils.vector2;
+import utils.rect2;
 import utils.configfile;
 import utils.misc;
 import utils.log;
@@ -23,9 +24,14 @@ enum Angle2AnimationMode {
     //"animations" field (from the config file) to get the animation names.
     //No animations for directly looking up or down (on the Y axis).
     Step3,
+    /+
+    //Not an animation; instead, each frame shows a specific angle, starting
+    //from 270 degrees
+    Noani360,
+    +/
 }
 //Angle2AnimationMode -> name-string (as used in config file)
-private char[][] cA2AM2Str = ["simple", "twosided", "step3"];
+private char[][] cA2AM2Str = ["simple", "twosided", "step3"];//, "noani360"];
 
 //object which represents a PhysicObject and an animation on the screen
 //also provides loading from ConfigFiles and state managment
@@ -35,6 +41,8 @@ class GObjectSprite : GameObject {
 
     PhysicObject physics;
     Animator graphic;
+
+    Animator outOfLevel;
 
     /+
     private Animation mCurrentAnimation;
@@ -91,6 +99,28 @@ class GObjectSprite : GameObject {
 
     protected void physUpdate() {
         updateAnimation();
+
+        //check if sprite is out of level
+        //if so, draw nice out-of-level-graphic
+        auto scenerect = Rect2i(0,0,graphic.scene.size.x,graphic.scene.size.y);
+        if (!scenerect.intersects(Rect2i(graphic.pos,graphic.pos+graphic.size)))
+        {
+            auto hsize = outOfLevel.size/2;
+            //draw arrow 10 pixels before level border
+            scenerect.extendBorder(-hsize-Vector2i(100));
+            auto dest = graphic.pos+graphic.size/2;
+            auto c = scenerect.clip(dest);
+            outOfLevel.pos = c - hsize;
+            //get the angle to the outside graphic
+            auto angle = -toVector2f(dest-c).normal.toAngle();
+            //frame according to angle; starts at 270 degrees => add PI/2
+            auto frames = outOfLevel.currentAnimation.frameCount;
+            auto frame = cast(int)(realmod(angle+PI/2,PI*2)/(PI*2)*frames);
+            outOfLevel.setFrame(frame);
+            outOfLevel.active = true;
+        } else {
+            outOfLevel.active = false;
+        }
     }
 
     protected void physImpact(PhysicBase other) {
@@ -100,6 +130,7 @@ class GObjectSprite : GameObject {
     protected void physDie() {
         //what to do? remove ourselves from the game?
         graphic.active = false;
+        outOfLevel.active = false;
     }
 
     //force position
@@ -191,6 +222,7 @@ class GObjectSprite : GameObject {
 
         physics = new PhysicObject();
         graphic = new Animator();
+        outOfLevel = new Animator();
 
         setStateForced(type.initState);
 
@@ -201,6 +233,11 @@ class GObjectSprite : GameObject {
 
         graphic.setOnNoAnimation(&animationEnd);
         graphic.setScene(engine.scene, GameZOrder.Objects);
+
+        outOfLevel.scene = engine.scene;
+        outOfLevel.zorder = GameZOrder.Objects;
+        outOfLevel.paused = true;
+        outOfLevel.setAnimation(type.outOfRegionArrow);
     }
 }
 
@@ -298,6 +335,8 @@ class GOSpriteClass {
     StaticStateInfo[char[]] states;
     StaticStateInfo initState;
 
+    Animation outOfRegionArrow;
+
     StaticStateInfo findState(char[] name) {
         StaticStateInfo* state = name in states;
         if (!state) {
@@ -379,6 +418,9 @@ class GOSpriteClass {
                 trans.animation_back.animations = anis;
             }
         }
+
+        //hardcoded and stupid, sorry
+        outOfRegionArrow = engine.findAnimation("out_of_level_arrow");
     }
 }
 

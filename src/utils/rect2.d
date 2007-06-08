@@ -59,6 +59,13 @@ public struct Rect2(T) {
         extend(r.p2, 0);
     }
 
+    //move all 4 borders by this value
+    //xxx maybe should clip for too large negative values
+    void extendBorder(Point value) {
+        p1 -= value;
+        p2 += value;
+    }
+
     //Rect must be normal
     bool isInside(Point p) {
         return (p.x1 >= p1.x1 && p.x2 >= p1.x2 && p.x1 < p2.x1 && p.x2 < p2.x2);
