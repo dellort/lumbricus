@@ -18,6 +18,8 @@ import game.gobject;
 import game.leveledit;
 import game.visual;
 import gui.windmeter;
+import gui.messageviewer;
+import gui.gametimer;
 import utils.time;
 import utils.configfile;
 import utils.log;
@@ -62,6 +64,8 @@ class TopLevel {
     bool mKeyNameIt = false;
 
     private WindMeter mGuiWindMeter;
+    private MessageViewer mGuiMessage;
+    private GameTimer mGuiGameTimer;
 
     private char[] mGfxSet = "gpl";
 
@@ -83,6 +87,8 @@ class TopLevel {
         fpsDisplay = new FontLabel(globals.framework.getFont("fpsfont"));
         fpsDisplay.setScene(guiscene, GUIZOrder.FPS);
         mGuiWindMeter = new WindMeter();
+        mGuiMessage = new MessageViewer();
+        mGuiGameTimer = new GameTimer();
 
         globals.framework.onFrame = &onFrame;
         globals.framework.onKeyPress = &onKeyPress;
@@ -224,14 +230,31 @@ class TopLevel {
 
     private void initializeGui() {
         closeGui();
+
         mGuiWindMeter.engine = thegame;
         mGuiWindMeter.setScene(guiscene, GUIZOrder.Gui);
         mGuiWindMeter.pos = guiscene.size - mGuiWindMeter.size - Vector2i(5,5);
+
+        mGuiMessage.setScene(guiscene, GUIZOrder.Gui);
+        thegame.controller.messageCb = &mGuiMessage.addMessage;
+        thegame.controller.messageIdleCb = &mGuiMessage.idle;
+
+        mGuiGameTimer.engine = thegame;
+        mGuiGameTimer.setScene(guiscene, GUIZOrder.Gui);
     }
 
     private void closeGui() {
         mGuiWindMeter.engine = null;
         mGuiWindMeter.setScene(null, GUIZOrder.Gui);
+
+        if (thegame) {
+            thegame.controller.messageCb = null;
+            thegame.controller.messageIdleCb = null;
+        }
+        mGuiMessage.setScene(null, GUIZOrder.Gui);
+
+        mGuiGameTimer.engine = null;
+        mGuiGameTimer.setScene(null, GUIZOrder.Gui);
     }
 
     private void cmdSetWind(CommandLine cmd) {

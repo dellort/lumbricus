@@ -29,36 +29,6 @@ static const char[][] cTeamColors = [
     "cyan",
 ];
 
-//return next after w, wraps around, if w==null, return first element, if any
-private T arrayFindNext(T)(T[] arr, T w) {
-    if (!arr)
-        return null;
-
-    int found = -1;
-    foreach (int i, T c; arr) {
-        if (w is c) {
-            found = i;
-            break;
-        }
-    }
-    found = (found + 1) % arr.length;
-    return arr[found];
-}
-
-//searches for next element with pred(element)==true, wraps around, if w is null
-//start search with first element, if no element found, return null
-private T arrayFindNextPred(T)(T[] arr, T w, bool delegate(T t) pred) {
-    T c = arrayFindNext(arr, w);
-    while (c) {
-        if (pred(c))
-            return c;
-        if (c is w)
-            break;
-        c = arrayFindNext(arr, c);
-    }
-    return null;
-}
-
 class Team {
     char[] name = "unnamed team";
     private TeamMember[] mWorms;
@@ -153,8 +123,6 @@ class GameController {
     private Vector2i mForArrowPos;
     private Animation[] mArrowAnims;
     private Animator mArrow;
-    private MessageViewer mMessages;
-    private FontLabel mTimeView;
 
     private Time mRoundStarted;
     private int mCurrentRoundTime;
@@ -165,6 +133,9 @@ class GameController {
     private Time mTimePerRound;
     //extra time before round time to switch seats etc
     private Time mHotseatSwitchTime;
+
+    public void delegate(char[]) messageCb;
+    public bool delegate() messageIdleCb;
 
     void current(TeamMember worm) {
         if (mCurrent) {
@@ -190,7 +161,7 @@ class GameController {
                 globals.toplevel.sceneview.setCameraFocus(mCurrent.mWorm.graphic);
             }
             showArrow();
-            mMessages.addMessage("select worm: " ~ mCurrent.name);
+            messageAdd("select worm: " ~ mCurrent.name);
         }
     }
     TeamMember current() {
@@ -212,14 +183,6 @@ class GameController {
         //draws the worm names
         mDrawer = new WormNameDrawer(this);
         mDrawer.setScene(mEngine.scene, GameZOrder.Names);
-
-        mMessages = new MessageViewer();
-        //xxx: !
-        mMessages.setScene(globals.toplevel.guiscene, game.toplevel.GUIZOrder.Gui);
-
-        mTimeView = new FontLabelBoxed(globals.framework.fontManager.loadFont("time"));
-        mTimeView.setScene(globals.toplevel.guiscene, game.toplevel.GUIZOrder.Gui);
-        mTimeView.border = Vector2i(7, 5);
 
         mBindings = new KeyBindings();
         mBindings.loadFrom(globals.loadConfig("wormbinds").getSubNode("binds"));
@@ -245,7 +208,7 @@ class GameController {
         globals.toplevel.screen.setFocus(eventcatcher);
 
         //actually start the game
-        mMessages.addMessage("start of the game");
+        messageAdd("start of the game");
         attemptNextRound();
         //don't wait for messages, so force it to actually start now
         //else the round counter will look strange
@@ -254,8 +217,6 @@ class GameController {
 
     //currently needed to deinitialize the gui
     void kill() {
-        mMessages.active = false;
-        mTimeView.active = false;
     }
 
     void simulate(float deltaT) {
@@ -266,7 +227,7 @@ class GameController {
         //currently mNextRoundOnHold means: next round to start, but must
         //display all messages first
         if (mNextRoundOnHold) {
-            if (!mMessages.working) {
+            if (messageIsIdle()) {
                 //round is actually now started
                 startNextRound();
             }
@@ -274,9 +235,6 @@ class GameController {
 
         auto newrtime = mTimePerRound - (globals.gameTime - mRoundStarted);
         auto secs = newrtime.secs;
-        if (mCurrentRoundTime != secs) {
-            mTimeView.text = str.format("%.2s", secs >= 0 ? secs : 0);
-        }
         //xxx: roundtime becomes negative when waiting for next round
         // maybe implement sth. to pause the tound time
         mCurrentRoundTime = secs;
@@ -284,12 +242,24 @@ class GameController {
         //NOTE: might yield to false even if newrtime.secs==0, which is wanted
         if (!mNextRoundOnHold && newrtime <= timeSecs(0)) {
             attemptNextRound();
-            mMessages.addMessage("next round! ");
+            messageAdd("next round! ");
         }
+    }
 
-        //even more xxx (a gui layouter or so would be better...)
-        mTimeView.pos = mTimeView.scene.size.Y - mTimeView.size.Y
-            - Vector2i(-20,20);
+    public int currentRoundTime() {
+        return mCurrentRoundTime;
+    }
+
+    private void messageAdd(char[] msg) {
+        if (messageCb)
+            messageCb(msg);
+    }
+
+    private bool messageIsIdle() {
+        if (messageIdleCb)
+            return messageIdleCb();
+        else
+            return true;
     }
 
     void showArrow() {
@@ -349,7 +319,7 @@ class GameController {
         current = nextworm;
 
         if (!mCurrent) {
-            mMessages.addMessage("omg! all dead!");
+            messageAdd("omg! all dead!");
         }
     }
 
@@ -564,101 +534,6 @@ private class WormNameDrawer : SceneObject {
                     drawBox(canvas, pos-border, tsz+border*2);
                 font.drawText(canvas, pos, text);
             }
-        }
-    }
-}
-
-private class MessageViewer : SceneObject {
-    private Queue!(char[]) mMessages;
-    private char[] mCurrentMessage;
-    private Font mFont;
-    private Time mLastFrame;
-    private int mPhase; //0 = nothing, 1 = blend in, 2 = show, 3 = blend out, 4 = wait
-    private Time mPhaseStart; //start of current phase
-    private Vector2i mMessageSize;
-    private float mMessagePos;
-    private float mMessageWay; //way over which message is scrolled
-
-    static const int cPhaseTimingsMs[] = [0, 300, 1000, 300, 400];
-
-    //offset of message from upper border
-    const cMessageOffset = 12;
-    const Vector2i cMessageBorders = {7, 3};
-
-    this() {
-        mFont = globals.framework.fontManager.loadFont("messages");
-        mMessages = new Queue!(char[]);
-        mLastFrame = globals.gameTimeAnimations;
-    }
-
-    void addMessage(char[] msg) {
-        mMessages.push(msg);
-    }
-
-    //return true as long messages are displayed
-    bool working() {
-        return !mMessages.empty || mPhase != 0;
-    }
-
-    void simulate(Time t, float deltaT) {
-        Time phaseT = timeMsecs(cPhaseTimingsMs[mPhase]);
-        Time diff = t - mPhaseStart;
-        if (diff >= phaseT) {
-            //end of current phase
-            if (mPhase != 0) {
-                mPhase++;
-                mPhaseStart = t;
-            }
-            if (mPhase > 4) {
-                //done, no current message anymore
-                mCurrentMessage = null;
-                mPhase = 0;
-            }
-        }
-
-        //(division by zero and NaNs in some cases where the value isn't needed)
-        auto messagedelta = mMessageWay / (cPhaseTimingsMs[mPhase]/1000.0f);
-
-        //make some progress
-        switch (mPhase) {
-            case 0:
-                if (!mMessages.empty) {
-                    //put new message
-                    mPhase = 1;
-                    mPhaseStart = t;
-                    mCurrentMessage = mMessages.pop();
-                    mMessageSize = mFont.textSize(mCurrentMessage);
-                    mMessagePos = -mMessageSize.y - cMessageBorders.y*2;
-                    mMessageWay = -mMessagePos + cMessageOffset;
-                }
-                break;
-            case 3:
-                mMessagePos -= messagedelta * deltaT;
-                break;
-            case 1:
-                mMessagePos += messagedelta * deltaT;
-                break;
-            case 4:
-                //nothing
-                break;
-            case 2:
-                mMessagePos = cMessageOffset;
-                break;
-        }
-    }
-
-    void draw(Canvas canvas, SceneView parentView) {
-        //argh
-        Time now = globals.gameTime;
-        float delta = (now - mLastFrame).toFloat();
-        mLastFrame = now;
-        simulate(now, delta);
-
-        if (mPhase == 1 || mPhase == 2 || mPhase == 3) {
-            auto org = scene.size.X / 2 - (mMessageSize+cMessageBorders*2).X / 2;
-            org.y += cast(int)mMessagePos;
-            drawBox(canvas, org, mMessageSize+cMessageBorders*2);
-            mFont.drawText(canvas, org+cMessageBorders, mCurrentMessage);
         }
     }
 }

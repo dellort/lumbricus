@@ -90,3 +90,33 @@ class Queue(T) {
         mItems = null;
     }
 }
+
+//return next after w, wraps around, if w==null, return first element, if any
+T arrayFindNext(T)(T[] arr, T w) {
+    if (!arr)
+        return null;
+
+    int found = -1;
+    foreach (int i, T c; arr) {
+        if (w is c) {
+            found = i;
+            break;
+        }
+    }
+    found = (found + 1) % arr.length;
+    return arr[found];
+}
+
+//searches for next element with pred(element)==true, wraps around, if w is null
+//start search with first element, if no element found, return null
+T arrayFindNextPred(T)(T[] arr, T w, bool delegate(T t) pred) {
+    T c = arrayFindNext(arr, w);
+    while (c) {
+        if (pred(c))
+            return c;
+        if (c is w)
+            break;
+        c = arrayFindNext(arr, c);
+    }
+    return null;
+}
