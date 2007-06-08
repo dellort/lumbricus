@@ -233,7 +233,6 @@ class TopLevel {
 
         mGuiWindMeter.engine = thegame;
         mGuiWindMeter.setScene(guiscene, GUIZOrder.Gui);
-        mGuiWindMeter.pos = guiscene.size - mGuiWindMeter.size - Vector2i(5,5);
 
         mGuiMessage.setScene(guiscene, GUIZOrder.Gui);
         thegame.controller.messageCb = &mGuiMessage.addMessage;
@@ -359,14 +358,28 @@ class TopLevel {
         } catch (conv.ConvError) {
             return;
         }
-        globals.framework.setVideoMode(args[0], args[1], args[2], false);
+        try {
+            globals.framework.setVideoMode(args[0], args[1], args[2], mIsFS);
+        } catch (Exception e) {
+            //failed to set video mode, try again in windowed mode
+            mIsFS = false;
+            globals.framework.setVideoMode(args[0], args[1], args[2], mIsFS);
+        }
     }
 
     private bool mIsFS;
     private void cmdFS(CommandLine cmd) {
-        globals.framework.setVideoMode(globals.framework.screen.size.x1,
-            globals.framework.screen.size.x2, globals.framework.bitDepth,
-            !mIsFS);
+        try {
+            globals.framework.setVideoMode(globals.framework.screen.size.x1,
+                globals.framework.screen.size.x2, globals.framework.bitDepth,
+                !mIsFS);
+        } catch (Exception e) {
+            //fullscreen switch failed
+            mIsFS = true;
+            globals.framework.setVideoMode(globals.framework.screen.size.x1,
+                globals.framework.screen.size.x2, globals.framework.bitDepth,
+                !mIsFS);
+        }
         mIsFS = !mIsFS;
     }
 

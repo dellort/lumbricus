@@ -46,6 +46,9 @@ class WindMeter : SceneObjectPositioned {
     }
 
     void draw(Canvas canvas, SceneView parentView) {
+        //xxx again
+        pos = scene.size - size - Vector2i(5,5);
+
         Time cur = globals.gameTimeAnimations;
         if (mEngine) {
             float deltaT = (cur.msecs - mLastTime.msecs)/1000.0f;
