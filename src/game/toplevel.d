@@ -16,6 +16,7 @@ import game.common;
 import game.physic;
 import game.gobject;
 import game.leveledit;
+import game.visual;
 import gui.windmeter;
 import utils.time;
 import utils.configfile;

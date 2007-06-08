@@ -106,13 +106,14 @@ class GObjectSprite : GameObject {
         if (!scenerect.intersects(Rect2i(graphic.pos,graphic.pos+graphic.size)))
         {
             auto hsize = outOfLevel.size/2;
-            //draw arrow 10 pixels before level border
-            scenerect.extendBorder(-hsize-Vector2i(100));
+            //draw arrow 5 pixels before level border
+            scenerect.extendBorder(-hsize-Vector2i(5));
             auto dest = graphic.pos+graphic.size/2;
             auto c = scenerect.clip(dest);
             outOfLevel.pos = c - hsize;
             //get the angle to the outside graphic
-            auto angle = -toVector2f(dest-c).normal.toAngle();
+            //auto angle = -toVector2f(dest-c).normal.toAngle();
+            auto angle = -physics.velocity.toAngle();
             //frame according to angle; starts at 270 degrees => add PI/2
             auto frames = outOfLevel.currentAnimation.frameCount;
             auto frame = cast(int)(realmod(angle+PI/2,PI*2)/(PI*2)*frames);
