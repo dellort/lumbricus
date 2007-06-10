@@ -92,6 +92,7 @@ class Queue(T) {
 }
 
 //return next after w, wraps around, if w==null, return first element, if any
+//returns always w if arr == [T]
 T arrayFindNext(T)(T[] arr, T w) {
     if (!arr)
         return null;
@@ -107,8 +108,28 @@ T arrayFindNext(T)(T[] arr, T w) {
     return arr[found];
 }
 
+//like arrayFindPrev, but backwards
+//untested
+T arrayFindPrev(T)(T[] arr, T w) {
+    if (!arr)
+        return null;
+
+    int found = 0;
+    foreach_reverse (int i, T c; arr) {
+        if (w is c) {
+            found = i;
+            break;
+        }
+    }
+    if (found == 0) {
+        found = arr.length;
+    }
+    return arr[found - 1];
+}
+
 //searches for next element with pred(element)==true, wraps around, if w is null
 //start search with first element, if no element found, return null
+//if w is the only valid element, return w
 T arrayFindNextPred(T)(T[] arr, T w, bool delegate(T t) pred) {
     T c = arrayFindNext(arr, w);
     while (c) {

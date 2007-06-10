@@ -18,6 +18,8 @@ import utils.drawing;
 
 private static FrameworkSDL gFrameworkSDL;
 
+debug import std.stdio;
+
 //SDL_Color.unused contains the alpha value
 static SDL_Color ColorToSDLColor(Color color) {
     SDL_Color col;

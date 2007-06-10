@@ -66,7 +66,7 @@ class WormSprite : GObjectSprite {
 
     protected SpriteAnimationInfo* getAnimationInfoForState(StaticStateInfo info)
     {
-        if (currentState is mStates[WormState.Weapon]) {
+        if (currentState is mStates[WormState.Weapon] && mWeapon) {
             return &mWeapon.weapon.animations[WeaponWormAnimations.Hold];
         } else {
             return super.getAnimationInfoForState(info);
@@ -76,8 +76,9 @@ class WormSprite : GObjectSprite {
         StateTransition st, bool reverse)
     {
         //xxx this sucks make better
-        if (st.to is mStates[WormState.Weapon]
+        if ((st.to is mStates[WormState.Weapon]
             || st.from is mStates[WormState.Weapon])
+            && mWeapon)
         {
             return &mWeapon.weapon.animations[!reverse
                 ? WeaponWormAnimations.Arm : WeaponWormAnimations.UnArm];

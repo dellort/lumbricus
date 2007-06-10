@@ -406,7 +406,9 @@ class Screen {
         if (info.isMouseButton) {
             mRootView.doMouseButtons(ev, info);
         }
-        if (mFocus) {
+        //avoid to send the event twice
+        //this still could be wrong, though
+        if (mFocus && !info.isMouseButton) {
             return mFocus.callKeyHandler(ev, info);
         }
         return false;

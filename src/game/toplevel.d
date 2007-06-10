@@ -534,7 +534,9 @@ class TopLevel {
         x.config = globals.loadConfig("levelgen").getSubNode("levelgen");
         GameConfig cfg;
         cfg.level = x.generateRandom(cmd.getArgString(), mGfxSet);
-        cfg.teams = globals.loadConfig("teams").getSubNode("teams");
+        auto teamconf = globals.loadConfig("teams");
+        cfg.teams = teamconf.getSubNode("teams");
+        cfg.weapons = teamconf.getSubNode("weapon_sets");
         initializeGame(cfg);
         //start at level center
         sceneview.scrollCenterOn(thegame.gamelevel.offset+thegame.gamelevel.levelsize/2, true);

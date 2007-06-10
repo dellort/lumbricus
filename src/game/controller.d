@@ -5,6 +5,7 @@ import game.sprite;
 import game.scene;
 import game.animation;
 import game.visual;
+import game.weapon;
 import utils.vector2;
 import utils.configfile;
 import utils.log;
@@ -14,6 +15,7 @@ import game.common;
 
 import framework.framework;
 import framework.font;
+import framework.i18n;
 
 import str = std.string;
 
@@ -34,6 +36,7 @@ class Team {
     private TeamMember[] mWorms;
     //this values indices into cTeamColors
     int teamColor;
+    WeaponSet weapons;
 
     //wraps around, if w==null, return first element, if any
     private TeamMember doFindNext(TeamMember w) {
@@ -79,6 +82,7 @@ class TeamMember {
     private WormSprite mWorm;
     Team team;
     char[] name = "unnamed worm";
+    private WeaponItem mCurrentWeapon;
 
     GObjectSprite sprite() {
         return mWorm;
@@ -96,6 +100,76 @@ class TeamMember {
     char[] toString() {
         return "[tworm " ~ (team ? team.toString() : null) ~ ":'" ~ name ~ "']";
     }
+
+    WeaponItem currentWeapon() {
+        return mCurrentWeapon;
+    }
+    //dir = +1 or -1
+    void cycleThroughWeapons(int dir) {
+        if (dir > 0) {
+            mCurrentWeapon = arrayFindNext(team.weapons.weapons, mCurrentWeapon);
+        } else if (dir < 0) {
+            mCurrentWeapon = arrayFindPrev(team.weapons.weapons, mCurrentWeapon);
+        }
+    }
+
+    void didFire() {
+        assert(mCurrentWeapon !is null);
+        mCurrentWeapon.decrease();
+        //xxx select next weapon when current is empty... oh sigh
+    }
+}
+
+class WeaponSet {
+    WeaponItem[] weapons;
+    char[] name;
+
+    //config = item from "weapon_sets"
+    void readFromConfig(ConfigNode config, GameEngine engine) {
+        name = config.name;
+        foreach (ConfigNode node; config.getSubNode("weapon_list")) {
+            auto weapon = new WeaponItem();
+            weapon.loadFromConfig(node, engine);
+            weapons ~= weapon;
+        }
+    }
+}
+
+class WeaponItem {
+    private {
+        WeaponSet mContainer;
+        WeaponClass mWeapon;
+        int mQuantity;
+        bool mInfiniteQuantity;
+    }
+
+    bool haveAtLeastOne() {
+        return mQuantity > 0 || mInfiniteQuantity;
+    }
+
+    void decrease() {
+        if (mQuantity > 0)
+            mQuantity--;
+    }
+
+    WeaponClass weapon() {
+        return mWeapon;
+    }
+
+    //an item in "weapon_list"
+    void loadFromConfig(ConfigNode config, GameEngine engine) {
+        //xxx error handling
+        mWeapon = engine.findWeaponClass(config["type"]);
+        if (config.valueIs("quantity", "inf")) {
+            mInfiniteQuantity = true;
+        } else {
+            mQuantity = config.getIntValue("type", 0);
+        }
+    }
+
+    //only instantiated from WeaponSet
+    private this() {
+    }
 }
 
 //the GameController controlls the game play; especially, it converts keyboard
@@ -105,6 +179,8 @@ class TeamMember {
 class GameController {
     private GameEngine mEngine;
     private Team[] mTeams;
+    //xxx for loading only
+    private ConfigNode[char[]] mWeaponSets;
 
     private TeamMember mCurrent; //currently active worm
     private TeamMember mLastActive; //last active worm
@@ -164,7 +240,7 @@ class GameController {
                 sceneview.setCameraFocus(mCurrent.mWorm.graphic);
             }
             showArrow();
-            messageAdd("select worm: " ~ mCurrent.name);
+            messageAdd(_("selectworm", mCurrent.name));
         }
     }
     TeamMember current() {
@@ -176,6 +252,9 @@ class GameController {
 
         mLog = registerLog("gamecontroller");
 
+        if (config.weapons) {
+            loadWeapons(config.weapons);
+        }
         if (config.teams) {
             loadTeams(config.teams);
         }
@@ -283,6 +362,31 @@ class GameController {
     //called if any action is issued, i.e. key pressed to control worm
     void currentWormAction() {
         hideArrow();
+    }
+
+    //update weapon state of current worm (when new weapon selected)
+    void updateWeapon() {
+        if (!mCurrent)
+            return;
+        //argh
+        if (mCurrent.mWorm) {
+            WeaponClass selected;
+            if (mCurrent.currentWeapon) {
+                if (mCurrent.currentWeapon.weapon) {
+                    selected = mCurrent.currentWeapon.weapon;
+                }
+            }
+            if (selected) {
+                messageAdd(_("selweapon", _("weapons." ~ selected.name)));
+            } else {
+                messageAdd(_("noweapon"));
+            }
+            Shooter nshooter;
+            if (selected) {
+                nshooter = selected.createShooter();
+            }
+            mCurrent.mWorm.shooter = nshooter;
+        }
     }
 
     //waits until all messages showed, and then calls nextRound()
@@ -428,14 +532,24 @@ class GameController {
                 return true;
             }
             case "weapon": {
-                worm.shooter = mEngine.createShooter("banana");
                 worm.drawWeapon(!worm.weaponDrawn);
                 currentWormAction();
                 return true;
             }
             case "fire": {
                 worm.fireWeapon();
+                mCurrent.didFire();
                 currentWormAction();
+                return true;
+            }
+            case "weapon_prev": {
+                mCurrent.cycleThroughWeapons(-1);
+                updateWeapon();
+                return true;
+            }
+            case "weapon_next": {
+                mCurrent.cycleThroughWeapons(+1);
+                updateWeapon();
                 return true;
             }
             default:
@@ -460,8 +574,21 @@ class GameController {
         mTeams = null;
         foreach (ConfigNode sub; config) {
             mTeams ~= new Team(sub);
+            //xxx shouldn't it load itself?
+            //xxx error handling
+            ConfigNode ws = mWeaponSets[sub["weapon_set"]];
+            auto set = new WeaponSet();
+            set.readFromConfig(ws, mEngine);
+            mTeams[$-1].weapons = set;
         }
         placeWorms();
+    }
+
+    //"weapon_sets" in teams.conf
+    private void loadWeapons(ConfigNode config) {
+        foreach (ConfigNode item; config) {
+            mWeaponSets[item.name] = item;
+        }
     }
 
     //create and place worms when necessary

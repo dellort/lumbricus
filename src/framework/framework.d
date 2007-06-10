@@ -305,6 +305,12 @@ public struct KeyInfo {
     bool isMouseButton() {
         return code >= cKeycodeMouseStart && code <= cKeycodeMouseEnd;
     }
+
+    char[] toString() {
+        return str.format("[KeyInfo: code=%d mods=%d ch='%s'",
+            cast(int)code, cast(int)mods,
+            cast(dchar)(isPrintable ? unicode : '?'));
+    }
 }
 
 public struct MouseInfo {

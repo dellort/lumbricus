@@ -43,6 +43,7 @@ enum GameZOrder {
 struct GameConfig {
     Level level;
     ConfigNode teams;
+    ConfigNode weapons;
 }
 
 //code to manage a game session (hm, whatever this means)
