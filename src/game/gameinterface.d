@@ -79,24 +79,46 @@ enum WeaponMode {
     secondaryWeapons,   ///limited weapon set (jetpack-flying, ...)
 }
 
-interface ControllerSetupIfc {
-    ///get current game state
-    GameState getGameState();
+///short out-of-game information about running game
+struct GameInformation {
+    char[] gameName;
+    GameState state;
+    int maxPlayers;
+    char[][] connectedClients;
+    //xxx add more
+}
 
-    ///get timing information of current state, e.g. time remaining to
-    ///join the game
-    ///will return 0/0 if no timing is available
-    void getStateTimings(out Time fullTime, out Time remainingTime);
+///out-of-game interface of game controller
+///responsible for establishing a connection to the game
+interface ControllerSetupIfc {
+    ///connect to the game (does not mean to really participate)
+    ControllerGameIfc connect(ClientGameIfc cl, char[] clientName);
+
+    ///get some info about running game
+    GameInformation getInformation();
+}
+
+///in-game interface of game controller
+interface ControllerGameIfc {
+    ///disconnect from the game
+    ///remaining teams will die with your connection
+    void disconnect();
 
     ///join the game with a pack of worms
     ///depending on game mode/settings, not all team members will really
-    ///appear in-game
+    ///appear in-game, or you may get random additional members assigned
     TeamControllerIfc joinGame(ClientTeamIfc client, TeamDescriptor team);
+
+    //xxx add everything needed to draw the game scene
+    //this is a hack until we make something up to sync client/server view
 }
 
 ///team controller interface used by client
 ///with this interface, only the associated team can be controlled
 interface TeamControllerIfc {
+    ///flee from the battlefield
+    void disconnect();
+
     ///select the next worm in row
     ///this does not have to work, nothing will happen if selecting is not
     ///possible
@@ -177,6 +199,10 @@ interface ClientTeamIfc {
 ///general game callback interface, not dependant on a particular team
 ///most values are used to update the gui
 interface ClientGameIfc {
+    ///called whenever game state changes
+    ///times are for current state and can be 0,0 if not available
+    void gameState(GameState st, Time fullTime, Time remainingTime);
+
     ///wind change over time, speed is target speed
     //xxx physics problems in network mode due to timing
     void windChange(float speed, Time changeTime);
