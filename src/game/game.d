@@ -362,7 +362,11 @@ class GameEngine {
     //remove all objects etc. from the scene
     void kill() {
         levelobject.active = false;
-        foreach (GameObject o; mObjects) {
+        //must iterate savely
+        GameObject cur = mObjects.head;
+        while (cur) {
+            auto o = cur;
+            cur = mObjects.next(cur);
             o.kill();
         }
         controller.kill();
