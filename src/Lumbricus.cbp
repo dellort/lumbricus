@@ -51,7 +51,6 @@
 		<Unit filename="framework\sdl\keys.d" />
 		<Unit filename="framework\sdl\rwops.d" />
 		<Unit filename="game\animation.d" />
-		<Unit filename="game\banana.d" />
 		<Unit filename="game\common.d" />
 		<Unit filename="game\controller.d" />
 		<Unit filename="game\game.d" />
@@ -59,13 +58,16 @@
 		<Unit filename="game\gobject.d" />
 		<Unit filename="game\leveledit.d" />
 		<Unit filename="game\physic.d" />
+		<Unit filename="game\projectile.d" />
 		<Unit filename="game\resources.d" />
 		<Unit filename="game\scene.d" />
 		<Unit filename="game\sky.d" />
+		<Unit filename="game\special_weapon.d" />
 		<Unit filename="game\sprite.d" />
 		<Unit filename="game\toplevel.d" />
 		<Unit filename="game\visual.d" />
 		<Unit filename="game\water.d" />
+		<Unit filename="game\weapon.d" />
 		<Unit filename="game\worm.d" />
 		<Unit filename="gui\gametimer.d" />
 		<Unit filename="gui\messageviewer.d" />

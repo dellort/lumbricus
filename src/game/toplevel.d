@@ -10,7 +10,6 @@ import framework.i18n;
 import game.scene;
 import game.animation;
 import game.game;
-import game.banana;
 import game.worm;
 import game.common;
 import game.physic;
@@ -123,14 +122,14 @@ class TopLevel {
         }
         globals.cmdLine = new CommandLine(console);
 
-        globals.defaultOut = console;
-        gDefaultOutput.destination = globals.defaultOut;
+        globals.setDefaultOutput(console);
 
         auto consrender = new CallbackSceneObject();
         consrender.setScene(guiscene, GUIZOrder.Console);
         consrender.onDraw = &renderConsole;
 
         globals.cmdLine.registerCommand("gc", &testGC, "timed GC run");
+        globals.cmdLine.registerCommand("gcstats", &testGCstats, "GC stats");
         globals.cmdLine.registerCommand("quit", &killShortcut, "kill it");
         globals.cmdLine.registerCommand("toggle", &showConsole,
             "toggle this console");
@@ -240,6 +239,9 @@ class TopLevel {
 
         mGuiGameTimer.engine = thegame;
         mGuiGameTimer.setScene(guiscene, GUIZOrder.Gui);
+
+        thegame.controller.sceneview = sceneview;
+        screen.setFocus(thegame.controller.eventcatcher);
     }
 
     private void closeGui() {
@@ -335,7 +337,7 @@ class TopLevel {
     }
 
     private void cmdExpl(CommandLine) {
-        auto obj = new BananaBomb(thegame);
+        //auto obj = new BananaBomb(thegame);
         //obj.setPos(toVector2f(thegame.tmp));
         assert(false);
     }
@@ -504,12 +506,27 @@ class TopLevel {
 
     private void testGC(CommandLine) {
         auto counter = new perf.PerformanceCounter();
+        gc.GCStats s1, s2;
+        gc.getStats(s1);
         counter.start();
         gc.fullCollect();
         counter.stop();
+        gc.getStats(s2);
         Time t;
         t.musecs = counter.microseconds;
-        globals.log("GC fullcollect: %s", t);
+        globals.log("GC fullcollect: %s, free'd %s KB", t,
+            ((s1.usedsize - s2.usedsize) + 512) / 1024);
+    }
+    private void testGCstats(CommandLine cmd) {
+        auto w = cmd.console;
+        gc.GCStats s;
+        gc.getStats(s);
+        w.writefln("GC stats:");
+        w.writefln("poolsize = %s KB", s.poolsize/1024);
+        w.writefln("usedsize = %s KB", s.usedsize/1024);
+        w.writefln("freeblocks = %s", s.freeblocks);
+        w.writefln("freelistsize = %s KB", s.freelistsize/1024);
+        w.writefln("pageblocks = %s", s.pageblocks);
     }
 
     private void cmdGenerateLevel(CommandLine cmd) {

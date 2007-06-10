@@ -33,6 +33,90 @@ enum Angle2AnimationMode {
 //Angle2AnimationMode -> name-string (as used in config file)
 private char[][] cA2AM2Str = ["simple", "twosided", "step3"];//, "noani360"];
 
+struct SpriteAnimationInfo {
+    Angle2AnimationMode ani2angle;
+    Animation[] animations;
+
+    void reset() {
+        *this = (*this).init;
+    }
+
+    Animation animationFromAngle(float angle) {
+
+        Animation getFromCAngles(int[] angles) {
+            return animations[pickNearestAngle(angles, angle)];
+        }
+
+        switch (ani2angle) {
+            case Angle2AnimationMode.Simple: {
+                return animations ? animations[0] : null;
+            }
+            case Angle2AnimationMode.Twosided: {
+                //Hint: array literals allocate memory
+                static int[] angles = [180, 0];
+                return getFromCAngles(angles);
+            }
+            case Angle2AnimationMode.Step3: {
+                static int[] angles = [90+45,90+90,90+135,90-45,90-90,90-135];
+                return getFromCAngles(angles);
+            }
+            default:
+                assert(false);
+        }
+    }
+
+    //return a backward animation
+    SpriteAnimationInfo make_reverse() {
+        SpriteAnimationInfo res;
+
+        res = *this;
+        res.animations = res.animations.dup;
+
+        foreach (inout Animation a; res.animations) {
+            if (a) {
+                a = a.getBackwards();
+            }
+        }
+
+        return res;
+    }
+
+    void loadFrom(GameEngine engine, ConfigNode sc) {
+
+        void addMirrors() {
+            Animation[] nanimations;
+            foreach (Animation a; animations) {
+                nanimations ~= a ? a.getMirroredY() : null;
+            }
+            animations ~= nanimations;
+        }
+
+        ani2angle = cast(Angle2AnimationMode)
+            sc.selectValueFrom("angle2animations", cA2AM2Str, 0);
+
+        switch (ani2angle) {
+            case Angle2AnimationMode.Simple, Angle2AnimationMode.Twosided: {
+                //only one animation to load
+                animations = [engine.findAnimation(sc["animations"])];
+                addMirrors();
+                break;
+            }
+            case Angle2AnimationMode.Step3: {
+                char[] head = sc["animations"];
+                static names = [cast(char[])"down", "norm", "up"];
+                foreach (s; names) {
+                    animations ~= engine.findAnimation(head ~ s);
+                }
+                addMirrors();
+                break;
+            }
+            default:
+                assert(false);
+        }
+    }
+}
+
+
 //object which represents a PhysicObject and an animation on the screen
 //also provides loading from ConfigFiles and state managment
 class GObjectSprite : GameObject {
@@ -41,47 +125,40 @@ class GObjectSprite : GameObject {
 
     PhysicObject physics;
     Animator graphic;
-
     Animator outOfLevel;
-
-    /+
-    private Animation mCurrentAnimation;
-    private StaticStateInfo mCurrentAnimationState;
-    private float mCurrentAnimationAngle;
-    +/
 
     //animation played when doing state transition...
     StateTransition currentTransition;
 
-    //this function does its own caching and can be overriden to pick custom
-    //animations
-    Animation getCurrentAnimation() {
-        SpriteAnimationInfo* info = &currentState.animation;
+    //return animations for states; this can be used to "patch" animations for
+    //specific states (used for worm.d/weapons)
+    protected SpriteAnimationInfo* getAnimationInfoForState(StaticStateInfo info)
+    {
+        return &info.animation;
+    }
+    protected SpriteAnimationInfo* getAnimationInfoForTransition(
+        StateTransition st, bool reverse)
+    {
+        if (reverse) {
+            return &st.animation;
+        } else {
+            return &st.animation_back;
+        }
+    }
 
-        if (currentTransition) {
+    Animation getCurrentAnimation() {
+        SpriteAnimationInfo* info;
+
+        if (!currentTransition) {
+            info = getAnimationInfoForState(currentState);
+        } else {
             //condition checks if reverse transition
-            if (currentTransition.to is currentState) {
-                info = &currentTransition.animation;
-            } else {
-                info = &currentTransition.animation_back;
-            }
+            info = getAnimationInfoForTransition(currentTransition,
+                 currentTransition.from is currentState);
         }
 
         float angle = physics.lookey;
-
-        /+
-        if (mCurrentAnimationState !is currentState
-            || mCurrentAnimationAngle != angle)
-        {
-        +/
-            auto
-            mCurrentAnimation = info.animationFromAngle(angle);
-        /+
-            mCurrentAnimationState = currentState;
-            mCurrentAnimationAngle = angle;
-        }
-        +/
-        return mCurrentAnimation;
+        return info.animationFromAngle(angle);
     }
 
     //update the animation to the current state and physics status
@@ -118,7 +195,7 @@ class GObjectSprite : GameObject {
             auto frames = outOfLevel.currentAnimation.frameCount;
             auto frame = cast(int)(realmod(angle+PI/2,PI*2)/(PI*2)*frames);
             outOfLevel.setFrame(frame);
-            outOfLevel.active = true;
+            outOfLevel.active = active; //only make active if self active
         } else {
             outOfLevel.active = false;
         }
@@ -129,9 +206,19 @@ class GObjectSprite : GameObject {
     }
 
     protected void physDie() {
-        //what to do? remove ourselves from the game?
-        graphic.active = false;
-        outOfLevel.active = false;
+        //assume that's what we want
+        if (!active)
+            return;
+        die();
+    }
+
+    //called when object should die
+    //this implementation actually makes it dying
+    //xxx: maybe add a state transition, which could be used by worm.d... hm...
+    protected void die() {
+        active = false;
+        physics.dead = true;
+        //engine.mLog("die: %s", type.name);
     }
 
     //force position
@@ -215,8 +302,14 @@ class GObjectSprite : GameObject {
         return type.findState(name);
     }
 
-    this (GameEngine engine, GOSpriteClass type) {
-        super(engine);
+    override protected void updateActive() {
+        graphic.active = active;
+        if (!active)
+            outOfLevel.active = false;
+    }
+
+    protected this (GameEngine engine, GOSpriteClass type) {
+        super(engine, false);
 
         assert(type !is null);
         this.type = type;
@@ -233,7 +326,8 @@ class GObjectSprite : GameObject {
         engine.physicworld.add(physics);
 
         graphic.setOnNoAnimation(&animationEnd);
-        graphic.setScene(engine.scene, GameZOrder.Objects);
+        graphic.scene = engine.scene;
+        graphic.zorder = GameZOrder.Objects;
 
         outOfLevel.scene = engine.scene;
         outOfLevel.zorder = GameZOrder.Objects;
@@ -242,68 +336,7 @@ class GObjectSprite : GameObject {
     }
 }
 
-struct SpriteAnimationInfo {
-    Angle2AnimationMode ani2angle;
-    Animation[] animations;
 
-    Animation animationFromAngle(float angle) {
-
-        Animation getFromCAngles(int[] angles) {
-            return animations[pickNearestAngle(angles, angle)];
-        }
-
-        switch (ani2angle) {
-            case Angle2AnimationMode.Simple: {
-                return animations ? animations[0] : null;
-            }
-            case Angle2AnimationMode.Twosided: {
-                //Hint: array literals allocate memory
-                static int[] angles = [180, 0];
-                return getFromCAngles(angles);
-            }
-            case Angle2AnimationMode.Step3: {
-                static int[] angles = [90+45,90+90,90+135,90-45,90-90,90-135];
-                return getFromCAngles(angles);
-            }
-            default:
-                assert(false);
-        }
-    }
-
-    void loadFrom(GameEngine engine, ConfigNode sc) {
-
-        void addMirrors() {
-            Animation[] nanimations;
-            foreach (Animation a; animations) {
-                nanimations ~= a ? a.getMirroredY() : null;
-            }
-            animations ~= nanimations;
-        }
-
-        ani2angle = cast(Angle2AnimationMode)
-            sc.selectValueFrom("angle2animations", cA2AM2Str, 0);
-
-        switch (ani2angle) {
-            case Angle2AnimationMode.Simple, Angle2AnimationMode.Twosided: {
-                //only one animation to load
-                animations = [engine.findAnimation(sc["animations"])];
-                addMirrors();
-                break;
-            }
-            case Angle2AnimationMode.Step3: {
-                char[] head = sc["animations"];
-                static names = [cast(char[])"down", "norm", "up"];
-                foreach (s; names) {
-                    animations ~= engine.findAnimation(head ~ s);
-                }
-                addMirrors();
-                break;
-            }
-            default:
-                assert(false);
-        }
-    }
-}
 
 //state infos (per sprite class, thus it's static)
 class StaticStateInfo {
@@ -331,7 +364,7 @@ class StateTransition {
 //load static parts of the "states"-nodes
 class GOSpriteClass {
     GameEngine engine;
-    ConfigNode config;
+    char[] name;
 
     StaticStateInfo[char[]] states;
     StaticStateInfo initState;
@@ -347,13 +380,28 @@ class GOSpriteClass {
         return *state;
     }
 
-    this (GameEngine engine, ConfigNode config) {
-        POSP[char[]] posps;
+    GObjectSprite createSprite() {
+        return new GObjectSprite(engine, this);
+    }
 
+    this (GameEngine engine, char[] regname) {
         this.engine = engine;
-        this.config = config;
+        name = regname;
 
-        //load the stuff...
+        engine.registerSpriteClass(regname, this);
+
+        //create a default state to have at least one state at all
+        auto ssi = new StaticStateInfo();
+        ssi.name = "defaultstate";
+        states[ssi.name] = ssi;
+        initState = ssi;
+
+        //hardcoded and stupid, sorry
+        outOfRegionArrow = engine.findAnimation("out_of_level_arrow");
+    }
+
+    void loadFromConfig(ConfigNode config) {
+        POSP[char[]] posps;
 
         //load animation config files
         engine.loadAnimations(config.find("require_animations"));
@@ -381,7 +429,7 @@ class GOSpriteClass {
             //physic stuff, already loaded physic-types are not cached
             auto phys = config.getSubNode("physics").findNode(sc["physic"]);
             assert(phys !is null); //xxx better error handling :-)
-            loadPOSP(phys, ssi.physic_properties);
+            loadPOSPFromConfig(phys, ssi.physic_properties);
 
             //load animations
             ssi.animation.loadFrom(engine, sc);
@@ -389,8 +437,12 @@ class GOSpriteClass {
         } //foreach state to load
 
         StaticStateInfo* init = config["initstate"] in states;
-        if (init)
+        if (init && *init)
             initState = *init;
+
+        //at least the constructor created a default state
+        assert(initState !is null);
+        assert(states.length > 0);
 
         //load/assign state transitions
         foreach (ConfigNode tc; config.getSubNode("state_transitions")) {
@@ -409,49 +461,10 @@ class GOSpriteClass {
             if (tc.getBoolValue("works_reverse", false)) {
                 sto.transitions[sfrom] = trans;
                 //create backward animations
-                trans.animation_back.ani2angle = trans.animation.ani2angle;
-                auto anis = trans.animation.animations.dup;
-                foreach (inout Animation a; anis) {
-                    if (a) {
-                        a = a.getBackwards();
-                    }
-                }
-                trans.animation_back.animations = anis;
+                trans.animation_back = trans.animation.make_reverse();
             }
         }
-
-        //hardcoded and stupid, sorry
-        outOfRegionArrow = engine.findAnimation("out_of_level_arrow");
     }
-}
-
-//should be moved?
-void loadPOSP(ConfigNode node, inout POSP posp) {
-    //xxx: maybe replace by tuples, if that should be possible
-    posp.elasticity = node.getFloatValue("elasticity", posp.elasticity);
-    posp.radius = node.getFloatValue("radius", posp.radius);
-    posp.mass = node.getFloatValue("mass", posp.mass);
-    posp.windInfluence = node.getFloatValue("wind_influence",
-        posp.windInfluence);
-    posp.explosionInfluence = node.getFloatValue("explosion_influence",
-        posp.explosionInfluence);
-    posp.fixate = readVector(node.getStringValue("fixate", str.format("%s %s",
-        posp.fixate.x, posp.fixate.y)));
-    posp.glueForce = node.getFloatValue("glue_force", posp.glueForce);
-    posp.walkingSpeed = node.getFloatValue("walking_speed", posp.walkingSpeed);
-    posp.walkingClimb = node.getFloatValue("walking_climb", posp.walkingClimb);
-}
-
-//xxx duplicated from generator.d
-private Vector2f readVector(char[] s) {
-    char[][] items = str.split(s);
-    if (items.length != 2) {
-        throw new Exception("invalid point value");
-    }
-    Vector2f pt;
-    pt.x = conv.toFloat(items[0]);
-    pt.y = conv.toFloat(items[1]);
-    return pt;
 }
 
 //return the index of the angle in "angles" which is closest to "angle"

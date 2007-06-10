@@ -74,9 +74,9 @@ class Team {
     }
 }
 
-//member of a team, currently (and maybe always) capsulates a Worm object
+//member of a team, currently (and maybe always) capsulates a WormSprite object
 class TeamMember {
-    private Worm mWorm;
+    private WormSprite mWorm;
     Team team;
     char[] name = "unnamed worm";
 
@@ -84,7 +84,7 @@ class TeamMember {
         return mWorm;
     }
 
-    Worm worm() {
+    WormSprite worm() {
         return mWorm;
     }
 
@@ -133,9 +133,13 @@ class GameController {
     private Time mTimePerRound;
     //extra time before round time to switch seats etc
     private Time mHotseatSwitchTime;
+    private bool mIsAnythingGoingOn; // (= hack)
 
     public void delegate(char[]) messageCb;
     public bool delegate() messageIdleCb;
+
+    public SceneView sceneview; //set by someone else (= hack)
+    public SceneObject eventcatcher; //r/o, for focus (= also a hack)
 
     void current(TeamMember worm) {
         if (mCurrent) {
@@ -157,8 +161,7 @@ class GameController {
 
             //set camera
             if (mCurrent.mWorm) {
-                //xxx use controller-specific scene view
-                globals.toplevel.sceneview.setCameraFocus(mCurrent.mWorm.graphic);
+                sceneview.setCameraFocus(mCurrent.mWorm.graphic);
             }
             showArrow();
             messageAdd("select worm: " ~ mCurrent.name);
@@ -197,22 +200,13 @@ class GameController {
         mArrow.zorder = GameZOrder.Names;
 
         //the stupid!
-        auto eventcatcher = new EventCatcher();
+        //xxx sucks!
+        eventcatcher = new EventCatcher();
         eventcatcher.setScene(mEngine.scene, 0);
         mEvents = eventcatcher.getEventSink();
         //mEvents.onMouseMove = &onMouseMove;
         mEvents.onKeyDown = &onKeyDown;
         mEvents.onKeyUp = &onKeyUp;
-
-        //xxx sucks!
-        globals.toplevel.screen.setFocus(eventcatcher);
-
-        //actually start the game
-        messageAdd("start of the game");
-        attemptNextRound();
-        //don't wait for messages, so force it to actually start now
-        //else the round counter will look strange
-        startNextRound();
     }
 
     //currently needed to deinitialize the gui
@@ -220,6 +214,16 @@ class GameController {
     }
 
     void simulate(float deltaT) {
+        if (!mIsAnythingGoingOn) {
+            mIsAnythingGoingOn = true;
+            //nothing happening? start a round
+            messageAdd("start of the game");
+            attemptNextRound();
+            //don't wait for messages, so force it to actually start now
+            //else the round counter will look strange
+            startNextRound();
+        }
+
         //object moved -> arrow disappears
         if (mForArrow && mForArrowPos != mForArrow.pos)
             hideArrow();
@@ -340,8 +344,9 @@ class GameController {
 
     //actually still stupid debugging code
     private void spawnWorm(Vector2i pos) {
-        auto obj = new TeamMember();
-        obj.mWorm = new Worm(mEngine);
+        /*auto obj = new TeamMember();
+        obj.mWorm = cast(WormSprite)mEngine.createSprite("worm");
+        assert(obj.mWorm !is null);
         obj.mWorm.setPos(toVector2f(pos));
         if (!mTeams) {
             mTeams ~= new Team();
@@ -349,7 +354,11 @@ class GameController {
         obj.name = "worm " ~ str.toString(mTeams[0].mWorms.length+1);
         mTeams[0].mWorms ~= obj;
         obj.team = mTeams[0];
-        mCurrent = obj;
+        mCurrent = obj;*/
+        //now stupid debug code in another way
+        auto w = mEngine.createSprite("worm");
+        w.setPos(toVector2f(pos));
+        w.active = true;
     }
 
     private bool handleDirKey(char[] bind, bool up) {
@@ -419,6 +428,7 @@ class GameController {
                 return true;
             }
             case "weapon": {
+                worm.shooter = mEngine.createShooter("banana");
                 worm.drawWeapon(!worm.weaponDrawn);
                 currentWormAction();
                 return true;
@@ -463,7 +473,8 @@ class GameController {
                 if (m.mWorm)
                     continue;
                 //create and place into the landscape
-                m.mWorm = new Worm(mEngine);
+                m.mWorm = cast(WormSprite)mEngine.createSprite("worm");
+                assert(m.mWorm !is null);
                 Vector2f npos, tmp;
                 auto water_y = mEngine.waterOffset;
                 //first 10: minimum distance from water
@@ -480,6 +491,7 @@ class GameController {
                     mLog("couldn't place worm!");
                 }
                 m.mWorm.setPos(npos);
+                m.mWorm.active = true;
             }
         }
 

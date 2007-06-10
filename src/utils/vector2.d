@@ -3,12 +3,18 @@ module utils.vector2;
 import str = std.string;
 import math = std.math;
 
+
 public struct Vector2(T) {
     T x1 = 0;
     T x2 = 0;
 
     alias x1 x;
     alias x2 y;
+
+    //can be used for static initialization, i.e. as Vector2!(float).nan
+    static if (is(T == float) || is(T == double)) {
+        const Vector2 nan = {T.nan, T.nan};
+    }
 
     public static Vector2 opCall(T x1, T x2) {
         Vector2 ret;

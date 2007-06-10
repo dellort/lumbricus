@@ -512,15 +512,55 @@ public class ConfigNode : ConfigItem {
         setStringValue(name, str.toString(value));
     }
 
-    //TODO: how strict should the string comparision of the values be?
-    //also TODO: distinguish between not-set values and "wrong" values?
+    /// Parse the value as array of values.
+    /// Separator is always whitespace.
+    //(xxx: should be really generic, but the other accessor functions aren't
+    // templated yet)
+    public T[] getValueArray(T)(char[] name, T[] def = null) {
+        auto v = findValue(name);
+        if (!v)
+            return def;
+        //xxx: Phobos API decides how string is parsed
+        auto array = str.split(v.value);
+        auto res = new T[array.length];
+        foreach (int i, char[] s; array) {
+            T n;
+            static if (is(T : char[])) {
+                n = s;
+            } else static if (is(T : int)) {
+                //(one invalid value makes everything fail)
+                if (!parseInt(s, n))
+                    return def;
+            } else {
+                assert(false);
+            }
+            res[i] = n;
+        }
+        return res;
+    }
+
+    //compare values in a non-strict way (i.e. not byte-exact)
+    //xxx: maybe at least case insensitive, also maybe strip whitespace
+    private bool doCompareValueFuzzy(char[] s1, char[] s2) {
+        return s1 == s2;
+    }
+
+    /// return true if the field name contains the value isValue
+    /// does fuzzy value comparision
+    bool valueIs(char[] name, char[] isValue) {
+        return doCompareValueFuzzy(getStringValue(name), isValue);
+    }
+
+    /// Return what to index into values to which that value equals to.
+    /// does fuzzy value comparision
+    //TODO: distinguish between not-set values and "wrong" values?
     public int selectValueFrom(char[] name, char[][] values, int def = -1) {
         auto vo = findValue(name);
         if (!vo)
             return def;
         char[] v = vo.value;
         foreach (int i, char[] cur; values) {
-            if (cur == v)
+            if (doCompareValueFuzzy(cur, v))
                 return i;
         }
         //not found

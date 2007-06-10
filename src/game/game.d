@@ -11,6 +11,9 @@ import game.water;
 import game.sky;
 import game.common;
 import game.controller;
+import game.weapon;
+import projectile = game.projectile;
+import special_weapon = game.special_weapon;
 import utils.mylist;
 import utils.time;
 import utils.log;
@@ -51,6 +54,7 @@ class GameEngine {
     Scene scene;
     PhysicWorld physicworld;
     PlaneGeometry waterborder;
+    Time lastTime;
     Time currentTime;
     GameWater gameWater;
     GameSky gameSky;
@@ -72,9 +76,6 @@ class GameEngine {
     //used by loadCollisions() and findCollisionID()
     private CollisionType[char[]] mCollisionTypeNames;
 
-    //managment of sprite classes, for findGOSpriteClass()
-    private GOSpriteClass[char[]] mSpriteClasses;
-
     package List!(GameObject) mObjects;
 
     private const cSpaceBelowLevel = 80;
@@ -85,8 +86,6 @@ class GameEngine {
     private WindyForce mWindForce;
     private float mWindTarget;
     private const cWindChange = 80.0f;
-
-    private Time mLastTime;
 
     //for raising waterline
     private bool mRaiseWaterActive;
@@ -101,6 +100,83 @@ class GameEngine {
     //pixels per second
     private const cWaterRaisingSpeed = 50;
 
+    //managment of sprite classes, for findSpriteClass()
+    private GOSpriteClass[char[]] mSpriteClasses;
+    //factory to instantiate sprite classes, this is a small wtf
+    private Factory!(GOSpriteClass, GameEngine, char[]) mSpriteClassFactory;
+
+    //same for weapons (also such a two-stage factory, which creastes Shooters)
+    private WeaponClass[char[]] mWeaponClasses;
+    private Factory!(WeaponClass, GameEngine, ConfigNode) mWeaponClassFactory;
+
+    //factory for GOSpriteClasses
+    //the constructor of GOSpriteClasses will call:
+    //  engine.registerSpriteClass(registerName, this);
+    GOSpriteClass instantiateSpriteClass(char[] name, char[] registerName) {
+        return mSpriteClassFactory.instantiate(name, this, registerName);
+    }
+
+    //called by sprite.d/GOSpriteClass.this() only
+    void registerSpriteClass(char[] name, GOSpriteClass sc) {
+        if (findSpriteClass(name, true)) {
+            assert(false);
+        }
+        mSpriteClasses[name] = sc;
+    }
+
+    //find a sprite class
+    GOSpriteClass findSpriteClass(char[] name, bool canfail = false) {
+        GOSpriteClass* gosc = name in mSpriteClasses;
+        if (gosc)
+            return *gosc;
+
+        if (canfail)
+            return null;
+
+        //not found? xxx better error handling (as usual...)
+        throw new Exception("sprite class " ~ name ~ " not found");
+    }
+
+    GObjectSprite createSprite(char[] name) {
+        return findSpriteClass(name).createSprite();
+    }
+
+    Shooter createShooter(char[] weapon_name) {
+        return findWeaponClass(weapon_name).createShooter();
+    }
+
+    //currently just worm.conf
+    void loadSpriteClass(ConfigNode sprite) {
+        char[] type = sprite.getStringValue("type", "notype");
+        char[] name = sprite.getStringValue("name", "unnamed");
+        auto res = instantiateSpriteClass(type, name);
+        res.loadFromConfig(sprite);
+    }
+
+    //a weapon subnode of weapons.conf
+    void loadWeaponClass(ConfigNode weapon) {
+        char[] type = weapon.getStringValue("type", "notype");
+        char[] name = weapon.getStringValue("name", "unnamed");
+        //xxx error handling
+        assert(findWeaponClass(name, true) is null);
+        //hope you never need to debug this code!
+        WeaponClass c = mWeaponClassFactory.instantiate(type, this, weapon);
+        mWeaponClasses[name] = c;
+    }
+
+    //find a weapon class
+    WeaponClass findWeaponClass(char[] name, bool canfail = false) {
+        WeaponClass* w = name in mWeaponClasses;
+        if (w)
+            return *w;
+
+        if (canfail)
+            return null;
+
+        //not found? xxx better error handling (as usual...)
+        throw new Exception("weapon class " ~ name ~ " not found");
+    }
+
     this(Scene gamescene, GameConfig config) {
         assert(gamescene !is null);
         assert(config.level !is null);
@@ -108,6 +184,15 @@ class GameEngine {
         this.level = config.level;
 
         mLog = registerLog("gameengine");
+
+        mSpriteClassFactory = new typeof(mSpriteClassFactory);
+        mSpriteClassFactory.register!(GOSpriteClass)("sprite_mc");
+        mSpriteClassFactory.register!(WormSpriteClass)("worm_mc");
+        mSpriteClassFactory.register!(projectile.ProjectileSpriteClass)("projectile_mc");
+
+        mWeaponClassFactory = new typeof(mWeaponClassFactory);
+        mWeaponClassFactory.register!(projectile.ProjectileWeapon)("projectile_mc");
+        mWeaponClassFactory.register!(special_weapon.SpecialWeapon)("specialw_mc");
 
         mAllAnimations = new ConfigNode();
 
@@ -176,11 +261,19 @@ class GameEngine {
     private void loadLevelStuff() {
         loadAnimations(globals.loadConfig("stdanims"));
 
+        //load weapons
+        auto weapons = globals.loadConfig("weapons");
+        loadAnimations(weapons.find("require_animations"));
+        auto list = weapons.getSubNode("weapons");
+        foreach (ConfigNode item; list) {
+            loadWeaponClass(item);
+        }
+
         auto conf = globals.loadConfig("game");
         //load sprites
         foreach (char[] name, char[] value; conf.getSubNode("sprites")) {
-            auto n = new GOSpriteClass(this, globals.loadConfig(value));
-            mSpriteClasses[name] = n;
+            auto sprite = globals.loadConfig(value);
+            loadSpriteClass(sprite);
         }
     }
 
@@ -250,14 +343,19 @@ class GameEngine {
 
     void doFrame(Time gametime) {
         currentTime = gametime;
-        float deltaT = (currentTime - mLastTime).msecs/1000.0f;
+        float deltaT = (currentTime - lastTime).msecs/1000.0f;
         simulate(deltaT);
         physicworld.simulate(currentTime);
         //update game objects
-        foreach (GameObject o; mObjects) {
+        //NOTE: objects might be inserted/removed while iterating
+        //      maybe one should implement a safe iterator...
+        GameObject cur = mObjects.head;
+        while (cur) {
+            auto o = cur;
+            cur = mObjects.next(cur);
             o.simulate(deltaT);
         }
-        mLastTime = currentTime;
+        lastTime = currentTime;
     }
 
     //remove all objects etc. from the scene
@@ -424,15 +522,6 @@ class GameEngine {
                 physicworld.setCollide(obj_a, obj_b, 1);
             }
         }
-    }
-
-    GOSpriteClass findGOSpriteClass(char[] name) {
-        GOSpriteClass* gosc = name in mSpriteClasses;
-        if (gosc)
-            return *gosc;
-
-        //not found? xxx better error handling (as usual...)
-        throw new Exception("sprite class " ~ name ~ " not found");
     }
 
     void explosionAt(Vector2f pos, float damage) {

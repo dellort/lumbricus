@@ -131,9 +131,7 @@ class Animator : SceneObjectPositioned {
         mAniNext = null;
         setFrame(0);
 
-        if (ani) {
-            size = ani.mSize;
-        }
+        size = ani ? ani.mSize : Vector2i(0);
     }
 
     Animation currentAnimation() {
@@ -152,8 +150,12 @@ class Animator : SceneObjectPositioned {
     }
 
     void draw(Canvas canvas, SceneView parentView) {
-        if (!mAni || mAni.mFrames.length == 0)
-            return;
+        if (!mAni || mAni.mFrames.length == 0) {
+            if (mOnNoAnimation)
+                mOnNoAnimation(this);
+            if (!mAni || mAni.mFrames.length == 0)
+                return;
+        }
         Animation.FrameInfo fi = mAni.mFrames[mCurFrame];
         while ((globals.gameTimeAnimations - mCurFrameTime).msecs > fi.durationMS
             && !paused)

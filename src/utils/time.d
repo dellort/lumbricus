@@ -195,6 +195,13 @@ public Time timeHms(int h, int m, int s) {
     return timeHours(h) + timeMins(m) + timeSecs(s);
 }
 
+//seems to be a convenient hack, remove it if you don't like it
+public Time timeNever() {
+    Time r;
+    r.timeVal = typeof(r.timeVal).max;
+    return r;
+}
+
 
 //this delegate allows to get the current (framework) time
 //without importing the framework module

@@ -1,51 +1,14 @@
 module lumbricus;
-import framework.framework;
 import framework.sdl.framework;
-import framework.filesystem;
-import game.common : Common;
+import framework.filesystem : MountPath;
+import game = game.common;
+import toplevel = game.toplevel;
 import std.random : rand_seed;
-
-version (linux) {
-    //don't know if it works with GDC, but it does (mostly?) with DMD/Linux
-    //and together with my Phobos patch, I can get backtraces on signals
-    version = EnableSignalExceptions;
-}
-
-version (EnableSignalExceptions) {
-    import std.c.linux.linux;
-    import std.c.stdio;
-
-    //missing declarations... *sigh*
-    alias void function(int) sighandler_t;
-    extern(C) sighandler_t signal(int signum, sighandler_t handler);
-
-    private Exception gSigException;
-
-    void signal_handler(int sig) {
-        char[] signame;
-        switch (sig) {
-            case SIGSEGV: signame = "SIGSEGV"; break;
-            case SIGFPE: signame = "SIGFPE"; break;
-            default:
-                signame = "unknown, add to lumbricus.d/signal_handler()";
-        }
-        printf("Signal caught: %.*s!\n", signame);
-        throw gSigException;
-    }
-}
 
 const char[] APP_ID = "lumbricus";
 
 int main(char[][] args)
 {
-    version (EnableSignalExceptions) {
-        gSigException = new Exception("signal caught");
-
-        //add whatever signal barked on you
-        signal(SIGSEGV, &signal_handler);
-        signal(SIGFPE, &signal_handler);
-    }
-
     //xxx
     rand_seed(1, 1);
 
@@ -58,7 +21,9 @@ int main(char[][] args)
     fw.fs.mount(MountPath.data,"data/","/",false);
     fw.fs.mount(MountPath.user,"/","/",true);
 
-    new Common(fw);
+    new game.Common(fw, args[1..$]);
+    //installs callbacks to framework, which get called in the mainloop
+    new toplevel.TopLevel();
 
     fw.run();
 

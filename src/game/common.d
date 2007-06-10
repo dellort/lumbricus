@@ -1,10 +1,9 @@
 module game.common;
-import game.toplevel;
 import framework.framework;
 import framework.commandline;
 import utils.time;
 import utils.configfile;
-import utils.log;
+import utils.log, utils.output;
 import framework.i18n;
 
 public Common globals;
@@ -16,7 +15,6 @@ public Common globals;
 //also contains some important initialization code
 class Common {
     Framework framework;
-    TopLevel toplevel;
     Log log;
     Output defaultOut;
     CommandLine cmdLine;
@@ -33,7 +31,7 @@ class Common {
     private const cLocalePath = "/locale";
     private const cDefLang = "en";
 
-    this(Framework fw) {
+    this(Framework fw, char[][] args) {
         if (globals)
             throw new Exception("Common is a singelton!");
         globals = this;
@@ -55,10 +53,17 @@ class Common {
 
         framework.fontManager.readFontDefinitions(loadConfig("fonts"));
 
-        toplevel = new TopLevel();
+        //maybe replace by a real arg parser
+        if (args.length > 0 && args[0] == "logconsole") {
+            defaultOut = StdioOutput.output;
+        }
+    }
 
-        //hint: after leaving this constructor, the framework's mainloop is
-        //      called, which in turn calls callbacks set by TopLevel.
+    void setDefaultOutput(Output o) {
+        if (!defaultOut) {
+            defaultOut = o;
+            gDefaultOutput.destination = defaultOut;
+        }
     }
 
     private void initLocale() {

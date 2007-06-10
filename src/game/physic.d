@@ -6,7 +6,9 @@ import utils.time;
 import utils.vector2;
 import log = utils.log;
 import str = std.string;
+import conv = std.conv;
 import utils.output;
+import utils.configfile : ConfigNode;
 import std.math : sqrt, PI, abs;
 
 //if you need to check a normal when there's almost no collision (i.e. when worm
@@ -78,6 +80,7 @@ class PhysicBase {
 //challenge: find a better name
 //contains all values which are considered not-changing physical properties of
 //an object, i.e. they won't be changed by the simulation loop at all
+//code to load from ConfigFile at the end of this file
 struct POSP {
     float elasticity = 0.99f; //loss of energy when bumping against a surface
     float radius = 10; //pixels
@@ -694,4 +697,31 @@ class PhysicWorld {
         mGeometryObjects = new List!(PhysicGeometry)(PhysicGeometry.geometries_node.getListNodeOffset());
         mLog = log.registerLog("physlog");
     }
+}
+
+void loadPOSPFromConfig(ConfigNode node, inout POSP posp) {
+    posp.elasticity = node.getFloatValue("elasticity", posp.elasticity);
+    posp.radius = node.getFloatValue("radius", posp.radius);
+    posp.mass = node.getFloatValue("mass", posp.mass);
+    posp.windInfluence = node.getFloatValue("wind_influence",
+        posp.windInfluence);
+    posp.explosionInfluence = node.getFloatValue("explosion_influence",
+        posp.explosionInfluence);
+    posp.fixate = readVector(node.getStringValue("fixate", str.format("%s %s",
+        posp.fixate.x, posp.fixate.y)));
+    posp.glueForce = node.getFloatValue("glue_force", posp.glueForce);
+    posp.walkingSpeed = node.getFloatValue("walking_speed", posp.walkingSpeed);
+    posp.walkingClimb = node.getFloatValue("walking_climb", posp.walkingClimb);
+}
+
+//xxx duplicated from generator.d
+private Vector2f readVector(char[] s) {
+    char[][] items = str.split(s);
+    if (items.length != 2) {
+        throw new Exception("invalid point value");
+    }
+    Vector2f pt;
+    pt.x = conv.toFloat(items[0]);
+    pt.y = conv.toFloat(items[1]);
+    return pt;
 }

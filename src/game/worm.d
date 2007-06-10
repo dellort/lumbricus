@@ -6,7 +6,7 @@ import game.common;
 import game.physic;
 import game.game;
 import game.sprite;
-import game.banana;
+import game.weapon;
 import utils.misc;
 import utils.vector2;
 import utils.time;
@@ -22,33 +22,75 @@ enum WormState {
     Weapon,
 }
 
-class Worm : GObjectSprite {
+/+
+  just an idea:
+  thing which can be controlled like a worm
+  game/controller.d would only have a sprite, which could have this interface...
+
+interface IControllable {
+    void move(Vector2f dir);
+    void jump();
+    void activateJetpack(bool activate);
+    void drawWeapon(bool draw);
+    bool weaponDrawn();
+    void shooter(Shooter w);
+    Shooter shooter();
+}
++/
+
+class WormSprite : GObjectSprite {
     private {
+        WormSpriteClass wsc;
+
         //indexed by WormState (not sure why I did that with an array)
+        //also could be moved to wsc (i.e. when killing that array...)
         StaticStateInfo[WormState.max+1] mStates;
-        float mJetVelocity;
 
         float mWeaponAngle = 0;
         float mWeaponMove = 0;
+
+        //selected weapon
+        Shooter mWeapon;
     }
 
-    this (GameEngine engine) {
-        super(engine, engine.findGOSpriteClass("worm"));
+    protected this (GameEngine engine, WormSpriteClass spriteclass) {
+        super(engine, spriteclass);
+        wsc = spriteclass;
         //blah
         mStates[WormState.Stand] = findState("sit");
         mStates[WormState.Fly] = findState("fly");
         mStates[WormState.Walk] = findState("walk");
         mStates[WormState.Jet] = findState("jetpack");
         mStates[WormState.Weapon] = findState("weapon");
+    }
 
-        mJetVelocity = type.config.getFloatValue("jet_velocity", 0);
+    protected SpriteAnimationInfo* getAnimationInfoForState(StaticStateInfo info)
+    {
+        if (currentState is mStates[WormState.Weapon]) {
+            return &mWeapon.weapon.animations[WeaponWormAnimations.Hold];
+        } else {
+            return super.getAnimationInfoForState(info);
+        }
+    }
+    protected SpriteAnimationInfo* getAnimationInfoForTransition(
+        StateTransition st, bool reverse)
+    {
+        //xxx this sucks make better
+        if (st.to is mStates[WormState.Weapon]
+            || st.from is mStates[WormState.Weapon])
+        {
+            return &mWeapon.weapon.animations[!reverse
+                ? WeaponWormAnimations.Arm : WeaponWormAnimations.UnArm];
+        } else {
+            return super.getAnimationInfoForTransition(st, reverse);
+        }
     }
 
     //movement for walking/jetpack
     void move(Vector2f dir) {
         if (jetpackActivated) {
             //velocity or force? sigh.
-            physics.selfForce = dir*mJetVelocity;
+            physics.selfForce = dir * wsc.jetpackVelocity;
         } else if (weaponDrawn) {
             mWeaponMove = dir.y;
         } else {
@@ -77,13 +119,11 @@ class Worm : GObjectSprite {
         }
     }
 
-    bool weaponDrawn() {
-        return currentState is mStates[WormState.Weapon];
-    }
-
     void updateAnimation() {
         super.updateAnimation();
         if (weaponDrawn && !currentTransition) {
+            if (!graphic.currentAnimation)
+                return;
             //-angle: animations are clockwise in the bitmap
             //+PI/2*3: animations start at 270 degrees
             //+PI: huh? I don't really know...
@@ -107,10 +147,22 @@ class Worm : GObjectSprite {
             return;
 
         setState(draw ? mStates[WormState.Weapon] : mStates[WormState.Stand]);
-        if (draw && !currentTransition) {
-            mWeaponAngle = physics.lookey;
-            mWeaponMove = 0;
+    }
+    bool weaponDrawn() {
+        return currentState is mStates[WormState.Weapon];
+    }
+
+    //xxx: clearify relationship between shooter and so on
+    void shooter(Shooter sh) {
+        mWeapon = sh;
+        if (!sh) {
+            drawWeapon(false);
         }
+        //xxx: if weapon is changed, play the correct animations
+        updateAnimation();
+    }
+    Shooter shooter() {
+        return mWeapon;
     }
 
     override protected void stateTransition(StaticStateInfo from,
@@ -122,23 +174,27 @@ class Worm : GObjectSprite {
         //so, updateAnimation() sets paused to true, and this resets it again
         if (!weaponDrawn) {
             graphic.paused = false;
+            mWeaponMove = 0;
         }
     }
 
-    //override protected void transitionEnd() {
-    //}
+    override protected void transitionEnd() {
+        if (currentState is mStates[WormState.Weapon]) {
+            mWeaponAngle = physics.lookey;
+            mWeaponMove = 0;
+        }
+    }
 
     void fireWeapon() {
-        if (!weaponDrawn)
+        if (!weaponDrawn || !mWeapon)
             return; //go away
-        //bananas only for now
-        auto banana = new BananaBomb(engine);
-        auto distance = physics.posp.radius+banana.physics.posp.radius+5;
-        auto dir = Vector2f.fromPolar(distance, mWeaponAngle);
-        banana.setPos(physics.pos + dir);
-        //actually throw it *g*
-        //btw: my (!) comment in physics.d says this field is "readonly" *shrug*
-        banana.physics.velocity = dir*10;
+        //xxx: I'll guess I'll move this into GameController?
+        FireInfo info;
+        info.dir = Vector2f.fromPolar(1.0f, mWeaponAngle);
+        info.shootby = physics;
+        info.strength = mWeapon.weapon.throwStrength;
+        info.timer = mWeapon.weapon.timerFrom;
+        mWeapon.fire(info);
     }
 
     bool jetpackActivated() {
@@ -174,6 +230,22 @@ class Worm : GObjectSprite {
             }
         }
         super.physUpdate();
+    }
+}
+
+//the factories work over the sprite classes, so we need one
+class WormSpriteClass : GOSpriteClass {
+    float jetpackVelocity;
+
+    this(GameEngine e, char[] r) {
+        super(e, r);
+    }
+    override void loadFromConfig(ConfigNode config) {
+        super.loadFromConfig(config);
+        jetpackVelocity = config.getFloatValue("jet_velocity", 0);
+    }
+    override WormSprite createSprite() {
+        return new WormSprite(engine, this);
     }
 }
 
