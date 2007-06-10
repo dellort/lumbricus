@@ -254,6 +254,30 @@ public class SDLSurface : Surface {
         return ret;
     }
 
+    //scale the alpha values of the pixels in the surface to be in the
+    //range 0.0 .. scale
+    void scaleAlpha(float scale) {
+        assert(mReal !is null);
+        ubyte nalpha = cast(ubyte)(scale * 255);
+        if (nalpha == 255)
+            return;
+        //xxx code relies on exact surface format produced by SDL_TTF
+        forcePixelFormat(gFramework.findPixelFormat(DisplayFormat.RGBA32));
+        SDL_LockSurface(mReal);
+        assert(mReal.format.BytesPerPixel == 4);
+        for (int y = 0; y < mReal.h; y++) {
+            ubyte* ptr = cast(ubyte*)mReal.pixels;
+            ptr += y*mReal.pitch;
+            for (int x = 0; x < mReal.w; x++) {
+                uint alpha = ptr[3];
+                alpha = (alpha*nalpha)/255;
+                ptr[3] = cast(ubyte)(alpha);
+                ptr += 4;
+            }
+        }
+        SDL_UnlockSurface(mReal);
+    }
+
     public void enableColorkey(Color colorkey = cStdColorkey) {
         assert(mReal);
 
@@ -567,7 +591,7 @@ public class SDLCanvas : Canvas {
 public class SDLFont : Font {
     private Texture frags[dchar];
     private bool mNeedBackPlain;   //false if background is completely transp.
-    private uint mWidest;
+    private uint mHeight;
     private FontProperties props;
     private TTF_Font* font;
     // Stream is used by TTF_Font, this keeps the reference to it
@@ -590,10 +614,7 @@ public class SDLFont : Font {
             | (props.underline ? TTF_STYLE_UNDERLINE : 0);
         TTF_SetFontStyle(font, styles);
 
-        //just a guess, should be larger than any width of a char in the font
-        //(show me a font for which this isn't true, but still I catch that
-        // special case)
-        mWidest = TTF_FontHeight(font)*2;
+        mHeight = TTF_FontHeight(font);
 
         //Backplain not needed if it's fully transparent
         mNeedBackPlain = (props.back.a >= Color.epsilon);
@@ -624,8 +645,7 @@ public class SDLFont : Font {
             Texture surface = getGlyph(c);
             res.x += surface.size.x;
         }
-        //xxx
-        res.y = renderChar(' ').size.y;
+        res.y = TTF_FontHeight(font);
         return res;
     }
 
@@ -638,36 +658,24 @@ public class SDLFont : Font {
         return *sptr;
     }
 
-    private Texture renderChar(dchar c) {
+    //color: ignores the alpha value
+    private SDLSurface doRender(dchar c, inout Color color) {
         dchar s[2];
         s[0] = c;
         s[1] = '\0';
-        SDL_Color col = ColorToSDLColor(props.fore);
-        ubyte col_a = col.unused;
+        SDL_Color col = ColorToSDLColor(color);
         SDL_Surface* surface = TTF_RenderUNICODE_Blended(font,
             cast(ushort*)s.ptr, col);
-        if (surface != null) {
-            SDL_LockSurface(surface);
-            //scale the alpha values of the pixels in the surface to be in the
-            //range 0.0 .. props.fore.a
-            //xxx code relies on exact surface format produced by SDL_TTF
-            assert(surface.format.BytesPerPixel == 4);
-            for (int y = 0; y < surface.h; y++) {
-                ubyte* ptr = cast(ubyte*)surface.pixels;
-                ptr += y*surface.pitch;
-                for (int x = 0; x < surface.w; x++) {
-                    uint alpha = ptr[3];
-                    alpha = (alpha*col_a)/255;
-                    ptr[3] = cast(ubyte)(alpha);
-                    ptr += 4;
-                }
-            }
-            SDL_UnlockSurface(surface);
-        }
         if (surface == null) {
             throw new Exception(format("could not render char %s", c));
         }
-        auto tmp = new SDLSurface(surface);
+        auto res = new SDLSurface(surface);
+        return res;
+    }
+
+    private Texture renderChar(dchar c) {
+        auto tmp = doRender(c, props.fore);
+        tmp.scaleAlpha(props.fore.a);
         tmp.enableAlpha();
         //xxx: be able to free it?
         return tmp.createTexture();
@@ -681,6 +689,8 @@ public class FrameworkSDL : Framework {
 
     private Texture[int] mInsanityCache;
 
+    //return a surface with unspecified size containing this color
+    //(used for drawing alpha blended rectangles)
     private Texture insanityCache(Color c) {
         int key = colorToRGBA32(c);
 
@@ -688,7 +698,6 @@ public class FrameworkSDL : Framework {
         if (s)
             return *s;
 
-        //create a new tile
         SDLSurface tile = createSurface(Vector2i(64, 64), DisplayFormat.Best,
             Transparency.Alpha);
         SDL_FillRect(tile.mReal, null, tile.colorToSDLColor(c));

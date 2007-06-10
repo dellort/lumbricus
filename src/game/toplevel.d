@@ -99,17 +99,13 @@ class TopLevel {
         //do it yourself... (initial event)
         onVideoInit(false);
 
-        /+ to be removed
-        mWormsAnim = globals.loadConfig("wormsanim");
-        mWormsAnimator = new Animator();
-        mWormsAnimator.setScene(gamescene, 2);
-        mWormsAnimator.pos = Vector2i(100,330);
-        +/
-
         localizedKeynames = new Translator("keynames");
 
         keybindings = new KeyBindings();
         keybindings.loadFrom(globals.loadConfig("binds").getSubNode("binds"));
+
+        //hack to start level on start
+        cmdGenerateLevel(null);
     }
 
     private void initConsole() {
@@ -533,7 +529,7 @@ class TopLevel {
         auto x = new genlevel.LevelGenerator();
         x.config = globals.loadConfig("levelgen").getSubNode("levelgen");
         GameConfig cfg;
-        cfg.level = x.generateRandom(cmd.getArgString(), mGfxSet);
+        cfg.level = x.generateRandom(cmd?cmd.getArgString():"", mGfxSet);
         auto teamconf = globals.loadConfig("teams");
         cfg.teams = teamconf.getSubNode("teams");
         cfg.weapons = teamconf.getSubNode("weapon_sets");
