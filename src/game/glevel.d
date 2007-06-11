@@ -44,7 +44,9 @@ class LevelGeometry : PhysicGeometry {
         if (pixelcount == 0)
             return false;
 
-        //xxx: ??? collided pixels, but no normal -> stuck?
+        //collided pixels, but no normal -> stuck
+        //there's a hack in physic.d which handles this (the current collide()
+        //interface is too restricted, can't handle it directly
         int n_len = dir.quad_length();
         if (n_len == 0)
             return true;

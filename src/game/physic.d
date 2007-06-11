@@ -568,16 +568,17 @@ class PhysicWorld {
             foreach (PhysicGeometry gm; mGeometryObjects) {
                 Vector2f npos = me.pos;
                 if (gm.collide(npos, me.posp.radius)) {
-                    Vector2f direction = npos - me.pos;
-
-                    //hm, collide() should return the normal, maybe
-                    Vector2f normal = direction.normal;
-
-                    //seems to happen in in extreme situations only?
-                    if (normal.isNaN()) {
-                        continue;
+                    //kind of hack for LevelGeometry
+                    //if the pos didn't change at all, but a collision was
+                    //reported, assume the object is completely within the
+                    //landscape...
+                    //(xxx: uh, actually a dangerous hack)
+                    if (npos == me.pos) {
+                        //so pull it out along the velocity vector
+                        npos -= me.velocity.normal*me.posp.radius*2;
                     }
 
+                    Vector2f direction = npos - me.pos;
                     normalsum += direction;
 
                     if (me.onImpact)
