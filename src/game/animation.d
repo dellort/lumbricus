@@ -176,12 +176,13 @@ class Animator : SceneObjectPositioned {
                     //ok.
                 } else {
                     //hum...
-                    if (mOnNoAnimation)
+                    if (mOnNoAnimation) {
                         mOnNoAnimation(this);
-                    //xxx sorry that could have set a new animation, but we
-                    //don't knoiw anything about the new one
-                    //so recheck on the next frame
-                    return;
+                        //xxx sorry that could have set a new animation, but we
+                        //don't knoiw anything about the new one
+                        //so recheck on the next frame
+                        return;
+                    }
                 }
                 mReversed = !mReversed;
             }
