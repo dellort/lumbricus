@@ -72,6 +72,7 @@
 		<Unit filename="game\worm.d" />
 		<Unit filename="gui\gametimer.d" />
 		<Unit filename="gui\messageviewer.d" />
+		<Unit filename="gui\preparedisplay.d" />
 		<Unit filename="gui\windmeter.d" />
 		<Unit filename="levelgen\generator.d" />
 		<Unit filename="levelgen\genrandom.d" />
