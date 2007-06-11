@@ -152,12 +152,11 @@ class GameEngine {
     //a weapon subnode of weapons.conf
     void loadWeaponClass(ConfigNode weapon) {
         char[] type = weapon.getStringValue("type", "notype");
-        char[] name = weapon.getStringValue("name", "unnamed");
         //xxx error handling
-        assert(findWeaponClass(name, true) is null);
         //hope you never need to debug this code!
         WeaponClass c = gWeaponClassFactory.instantiate(type, this, weapon);
-        mWeaponClasses[name] = c;
+        assert(findWeaponClass(c.name, true) is null);
+        mWeaponClasses[c.name] = c;
     }
 
     //find a weapon class

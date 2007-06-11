@@ -62,7 +62,7 @@ abstract class WeaponClass {
         mEngine = engine;
         assert(mEngine !is null);
 
-        name = node["name"];
+        name = node.name;
         value = node.getIntValue("value", 0);
         auto fire = node.findNode("firemode");
         if (fire) {
