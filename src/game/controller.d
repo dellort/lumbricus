@@ -251,7 +251,7 @@ class GameController {
                 sceneview.setCameraFocus(mCurrent.mWorm.graphic);
             }
             showArrow();
-            messageAdd(_("selectworm", mCurrent.name));
+            messageAdd(_("msgselectworm", mCurrent.name));
         }
     }
     TeamMember current() {
@@ -307,7 +307,7 @@ class GameController {
         if (!mIsAnythingGoingOn) {
             mIsAnythingGoingOn = true;
             //nothing happening? start a round
-            messageAdd("start of the game");
+            messageAdd(_("msggamestart"));
 
             mCurrentRoundState = RoundState.nextOnHold;
             current = null;
@@ -395,7 +395,7 @@ class GameController {
                 break;
             case RoundState.nextOnHold:
                 current = null;
-                messageAdd("next round!");
+                messageAdd(_("msgnextround"));
                 mRoundRemaining = timeMusecs(0);
                 break;
         }
@@ -466,9 +466,9 @@ class GameController {
                 }
             }
             if (selected) {
-                messageAdd(_("selweapon", _("weapons." ~ selected.name)));
+                messageAdd(_("msgselweapon", _("weapons." ~ selected.name)));
             } else {
-                messageAdd(_("noweapon"));
+                messageAdd(_("msgnoweapon"));
             }
             Shooter nshooter;
             if (selected) {
