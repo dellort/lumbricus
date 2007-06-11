@@ -512,12 +512,13 @@ class GameController {
         w.active = true;
     }
 
-    private bool canMoveWorm() {
-        return true;
+    private bool canControlWorm() {
+        return mCurrentRoundState == RoundState.prepare
+            || mCurrentRoundState == RoundState.playing;
     }
 
     private void moveWorm(Vector2f v) {
-        if (canMoveWorm() && movementVec != Vector2f(0)) {
+        if (canControlWorm() && movementVec != Vector2f(0)) {
             mCurrent.worm.move(movementVec);
             currentWormAction();
         } else {
@@ -526,7 +527,6 @@ class GameController {
     }
 
     private bool handleDirKey(char[] bind, bool up) {
-        std.stdio.writefln("Handle: %s, %s",bind,up);
         float v = up ? 0 : 1;
         switch (bind) {
             case "left":
@@ -562,7 +562,7 @@ class GameController {
                 return true;
             }
             case "debug3": {
-                mTimePerRound *= 4;
+                mRoundRemaining *= 4;
                 break;
             }
             case "selectworm": {
@@ -572,12 +572,12 @@ class GameController {
             default:
         }
 
-        if (!mCurrent)
-            return false;
-        auto worm = mCurrent.worm;
-
         if (handleDirKey(bind, false))
             return true;
+
+        if (!mCurrent || !canControlWorm())
+            return false;
+        auto worm = mCurrent.worm;
 
         switch (bind) {
             case "jump": {
@@ -620,10 +620,8 @@ class GameController {
 
     private bool onKeyUp(EventSink sender, KeyInfo info) {
         char[] bind = mBindings.findBinding(info);
-        if (mCurrent) {
-            if (handleDirKey(bind, true))
-                return true;
-        }
+        if (handleDirKey(bind, true))
+            return true;
         return false;
     }
 

@@ -6,6 +6,7 @@ import game.scene;
 import game.game;
 import game.visual;
 import game.common;
+import game.controller;
 import utils.time;
 
 class GameTimer : SceneObjectPositioned {
@@ -32,9 +33,16 @@ class GameTimer : SceneObjectPositioned {
 
     void draw(Canvas canvas, SceneView parentView) {
         Time cur = globals.gameTimeAnimations;
-        if (mEngine) {
-            Time rt = mEngine.controller.currentRoundTime();
-            mTimeView.text = str.format("%.2s", rt.secs >= 0 ? rt.secs : 0);
+        if (mEngine && mEngine.controller.currentRoundState() == RoundState.prepare
+            || mEngine.controller.currentRoundState() == RoundState.playing
+            || mEngine.controller.currentRoundState() == RoundState.cleaningUp)
+        {
+            mTimeView.active = true;
+            //little hack to show correct time
+            Time rt = mEngine.controller.currentRoundTime()-timeMsecs(1);;
+            mTimeView.text = str.format("%.2s", rt.secs >= 0 ? rt.secs+1 : 0);
+        } else {
+            mTimeView.active = false;
         }
 
         //xxx self-managed position (someone said gui-layouter...)

@@ -38,8 +38,9 @@ class PrepareDisplay : SceneObjectPositioned {
             if (curTeam) {
                 mPrepareView.active = true;
                 char[] teamName = curTeam.name;
-                Time pt = mEngine.controller.currentPrepareTime();
-                mPrepareView.text = str.format("Get ready %s! %.2s", teamName, pt.secs >= 0 ? pt.secs : 0);
+                //little hack to show correct time
+                Time pt = mEngine.controller.currentPrepareTime()-timeMsecs(1);
+                mPrepareView.text = str.format("Get ready %s! %s", teamName, pt.secs >= 0 ? pt.secs+1 : 0);
             } else {
                 mPrepareView.active = false;
             }
