@@ -29,6 +29,10 @@ import genlevel = levelgen.generator;
 import str = std.string;
 import conv = std.conv;
 
+//xxx include so that module constructors (static this) are actually called
+import game.projectile;
+import game.special_weapon;
+
 //ZOrders!
 //maybe keep in sync with game.Scene.cMaxZOrder
 //these values are for globals.toplevel.guiscene
