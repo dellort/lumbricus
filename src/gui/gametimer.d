@@ -33,8 +33,8 @@ class GameTimer : SceneObjectPositioned {
     void draw(Canvas canvas, SceneView parentView) {
         Time cur = globals.gameTimeAnimations;
         if (mEngine) {
-            int secs = mEngine.controller.currentRoundTime();
-            mTimeView.text = str.format("%.2s", secs >= 0 ? secs : 0);
+            Time rt = mEngine.controller.currentRoundTime();
+            mTimeView.text = str.format("%.2s", rt.secs >= 0 ? rt.secs : 0);
         }
 
         //xxx self-managed position (someone said gui-layouter...)

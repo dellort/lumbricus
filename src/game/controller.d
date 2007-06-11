@@ -172,6 +172,13 @@ class WeaponItem {
     }
 }
 
+enum RoundState {
+    prepare,    //player ready
+    playing,    //round running
+    cleaningUp, //worms losing hp etc, may occur during round
+    nextOnHold, //next round about to start (drop crates, ...)
+}
+
 //the GameController controlls the game play; especially, it converts keyboard
 //events into worm moves (or weapon moves!), controlls which object is focused
 //by the "camera", and also manages worm teams
@@ -189,8 +196,11 @@ class GameController {
 
     private EventSink mEvents;
     private KeyBindings mBindings;
+
     //key state for LEFT/RIGHT and UP/DOWN
-    private Vector2f dirKeyState = {0, 0};
+    private Vector2f dirKeyState_lu = {0, 0};  //left/up
+    private Vector2f dirKeyState_rd = {0, 0};  //right/down
+    private Vector2f movementVec = {0, 0};
 
     private Log mLog;
 
@@ -200,9 +210,7 @@ class GameController {
     private Animation[] mArrowAnims;
     private Animator mArrow;
 
-    private Time mRoundStarted;
-    private int mCurrentRoundTime;
-    private bool mNextRoundOnHold, mRoundStarting;
+    private Time mRoundRemaining, mPrepareRemaining;
     //to select next worm
     private TeamMember[Team] mTeamCurrentOne;
     //time a round takes
@@ -210,12 +218,15 @@ class GameController {
     //extra time before round time to switch seats etc
     private Time mHotseatSwitchTime;
     private bool mIsAnythingGoingOn; // (= hack)
+    private bool mWormAction;
 
     public void delegate(char[]) messageCb;
     public bool delegate() messageIdleCb;
 
     public SceneView sceneview; //set by someone else (= hack)
     public SceneObject eventcatcher; //r/o, for focus (= also a hack)
+
+    private RoundState mCurrentRoundState;
 
     void current(TeamMember worm) {
         if (mCurrent) {
@@ -297,40 +308,117 @@ class GameController {
             mIsAnythingGoingOn = true;
             //nothing happening? start a round
             messageAdd("start of the game");
-            attemptNextRound();
-            //don't wait for messages, so force it to actually start now
-            //else the round counter will look strange
-            startNextRound();
+
+            mCurrentRoundState = RoundState.nextOnHold;
+            current = null;
+            transition(RoundState.prepare);
         }
 
-        //object moved -> arrow disappears
-        if (mForArrow && mForArrowPos != mForArrow.pos)
-            hideArrow();
-
-        //currently mNextRoundOnHold means: next round to start, but must
-        //display all messages first
-        if (mNextRoundOnHold) {
-            if (messageIsIdle()) {
-                //round is actually now started
-                startNextRound();
-            }
-        }
-
-        auto newrtime = mTimePerRound - (globals.gameTime - mRoundStarted);
-        auto secs = newrtime.secs;
-        //xxx: roundtime becomes negative when waiting for next round
-        // maybe implement sth. to pause the tound time
-        mCurrentRoundTime = secs;
-
-        //NOTE: might yield to false even if newrtime.secs==0, which is wanted
-        if (!mNextRoundOnHold && newrtime <= timeSecs(0)) {
-            attemptNextRound();
-            messageAdd("next round! ");
-        }
+        RoundState next = doState(deltaT);
+        if (next != mCurrentRoundState)
+            transition(next);
     }
 
-    public int currentRoundTime() {
-        return mCurrentRoundTime;
+    private RoundState doState(float deltaT) {
+        switch (mCurrentRoundState) {
+            case RoundState.prepare:
+                mPrepareRemaining = mPrepareRemaining - timeSecs(deltaT);
+                moveWorm(movementVec);
+                if (mWormAction)
+                    //worm moved -> exit prepare phase
+                    return RoundState.playing;
+                if (mPrepareRemaining < timeMusecs(0))
+                    return RoundState.playing;
+                break;
+            case RoundState.playing:
+                mRoundRemaining = mRoundRemaining - timeSecs(deltaT);
+                if (mRoundRemaining < timeMusecs(0))
+                    return RoundState.cleaningUp;
+
+                moveWorm(movementVec);
+
+                //object moved -> arrow disappears
+                if (mForArrow && mForArrowPos != mForArrow.pos)
+                    hideArrow();
+
+                break;
+            case RoundState.cleaningUp:
+                //not yet
+                return RoundState.nextOnHold;
+                break;
+            case RoundState.nextOnHold:
+                if (messageIsIdle())
+                    return RoundState.prepare;
+                break;
+        }
+        return mCurrentRoundState;
+    }
+
+    private void transition(RoundState st) {
+        switch (st) {
+            case RoundState.prepare:
+                mWormAction = false;
+                mRoundRemaining = mTimePerRound;
+                mPrepareRemaining = mHotseatSwitchTime;
+
+                auto old = mLastActive;
+
+                //save that
+                if (old) {
+                    mTeamCurrentOne[old.team] = old;
+                }
+
+                //select next team/worm
+                Team currentTeam = old ? old.team : null;
+                Team next = arrayFindNextPred(mTeams, currentTeam,
+                    (Team t) {
+                        return t.isAlive();
+                    }
+                );
+                TeamMember nextworm;
+                if (next) {
+                    auto w = next in mTeamCurrentOne;
+                    TeamMember cur = w ? *w : null;
+                    nextworm = next.findNext(cur, true);
+                }
+
+                current = nextworm;
+
+                if (!mCurrent) {
+                    messageAdd("omg! all dead!");
+                }
+                break;
+            case RoundState.playing:
+                mPrepareRemaining = timeMusecs(0);
+                break;
+            case RoundState.cleaningUp:
+                break;
+            case RoundState.nextOnHold:
+                current = null;
+                messageAdd("next round!");
+                mRoundRemaining = timeMusecs(0);
+                break;
+        }
+        mCurrentRoundState = st;
+    }
+
+    public RoundState currentRoundState() {
+        return mCurrentRoundState;
+    }
+
+    public Team currentTeam() {
+        if (current)
+            return current.team;
+        else
+            return null;
+    }
+
+    public Time currentRoundTime() {
+        return mRoundRemaining;
+    }
+
+    public Time currentPrepareTime() {
+        return mPrepareRemaining;
     }
 
     private void messageAdd(char[] msg) {
@@ -361,6 +449,7 @@ class GameController {
     }
     //called if any action is issued, i.e. key pressed to control worm
     void currentWormAction() {
+        mWormAction = true;
         hideArrow();
     }
 
@@ -386,48 +475,6 @@ class GameController {
                 nshooter = selected.createShooter();
             }
             mCurrent.mWorm.shooter = nshooter;
-        }
-    }
-
-    //waits until all messages showed, and then calls nextRound()
-    private void attemptNextRound() {
-        assert(!mNextRoundOnHold);
-        mNextRoundOnHold = true;
-        //already deselect old worm
-        current = null;
-    }
-
-    //called by simulate() only
-    private void startNextRound() {
-        assert(mNextRoundOnHold);
-        mNextRoundOnHold = false;
-        mRoundStarted = globals.gameTime;
-
-        auto old = mLastActive;
-
-        //save that
-        if (old) {
-            mTeamCurrentOne[old.team] = old;
-        }
-
-        //select next team/worm
-        Team currentTeam = old ? old.team : null;
-        Team next = arrayFindNextPred(mTeams, currentTeam,
-            (Team t) {
-                return t.isAlive();
-            }
-        );
-        TeamMember nextworm;
-        if (next) {
-            auto w = next in mTeamCurrentOne;
-            TeamMember cur = w ? *w : null;
-            nextworm = next.findNext(cur, true);
-        }
-
-        current = nextworm;
-
-        if (!mCurrent) {
-            messageAdd("omg! all dead!");
         }
     }
 
@@ -465,28 +512,40 @@ class GameController {
         w.active = true;
     }
 
+    private bool canMoveWorm() {
+        return true;
+    }
+
+    private void moveWorm(Vector2f v) {
+        if (canMoveWorm() && movementVec != Vector2f(0)) {
+            mCurrent.worm.move(movementVec);
+            currentWormAction();
+        } else {
+            mCurrent.worm.move(Vector2f(0));
+        }
+    }
+
     private bool handleDirKey(char[] bind, bool up) {
+        std.stdio.writefln("Handle: %s, %s",bind,up);
         float v = up ? 0 : 1;
         switch (bind) {
             case "left":
-                dirKeyState.x = -v;
+                dirKeyState_lu.x = v;
                 break;
             case "right":
-                dirKeyState.x = +v;
+                dirKeyState_rd.x = v;
                 break;
             case "up":
-                dirKeyState.y = -v;
+                dirKeyState_lu.y = v;
                 break;
             case "down":
-                dirKeyState.y = +v;
+                dirKeyState_rd.y = v;
                 break;
             default:
                 return false;
         }
 
-        //control the worm (better only on state change)
-        mCurrent.worm.move(dirKeyState);
-        currentWormAction();
+        movementVec = dirKeyState_rd-dirKeyState_lu;
 
         return true;
     }

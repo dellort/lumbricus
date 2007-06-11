@@ -19,6 +19,7 @@ import game.visual;
 import gui.windmeter;
 import gui.messageviewer;
 import gui.gametimer;
+import gui.preparedisplay;
 import utils.time;
 import utils.configfile;
 import utils.log;
@@ -69,6 +70,7 @@ class TopLevel {
     private WindMeter mGuiWindMeter;
     private MessageViewer mGuiMessage;
     private GameTimer mGuiGameTimer;
+    private PrepareDisplay mGuiPrepareDisplay;
 
     private char[] mGfxSet = "gpl";
 
@@ -92,6 +94,7 @@ class TopLevel {
         mGuiWindMeter = new WindMeter();
         mGuiMessage = new MessageViewer();
         mGuiGameTimer = new GameTimer();
+        mGuiPrepareDisplay = new PrepareDisplay();
 
         globals.framework.onFrame = &onFrame;
         globals.framework.onKeyPress = &onKeyPress;
@@ -240,6 +243,9 @@ class TopLevel {
         mGuiGameTimer.engine = thegame;
         mGuiGameTimer.setScene(guiscene, GUIZOrder.Gui);
 
+        mGuiPrepareDisplay.engine = thegame;
+        mGuiPrepareDisplay.setScene(guiscene, GUIZOrder.Gui);
+
         thegame.controller.sceneview = sceneview;
         screen.setFocus(thegame.controller.eventcatcher);
     }
@@ -256,6 +262,9 @@ class TopLevel {
 
         mGuiGameTimer.engine = null;
         mGuiGameTimer.setScene(null, GUIZOrder.Gui);
+
+        mGuiPrepareDisplay.engine = null;
+        mGuiPrepareDisplay.setScene(null, GUIZOrder.Gui);
     }
 
     private void cmdSetWind(CommandLine cmd) {
