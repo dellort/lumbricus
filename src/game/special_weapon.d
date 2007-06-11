@@ -5,6 +5,10 @@ import game.weapon;
 import utils.configfile;
 import utils.log;
 
+static this() {
+    gWeaponClassFactory.register!(SpecialWeapon)("specialw_mc");
+}
+
 class SpecialWeapon : WeaponClass {
     this(GameEngine aengine, ConfigNode node) {
         super(aengine, node);

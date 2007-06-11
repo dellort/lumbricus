@@ -91,7 +91,6 @@
 		<Unit filename="utils\vector2.d" />
 		<Extensions>
 			<code_completion />
-			<envvars />
 		</Extensions>
 	</Project>
 </CodeBlocks_project_file>

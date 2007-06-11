@@ -1,10 +1,10 @@
 module game.projectile;
 
-import game.gobject;
 import game.animation;
 import game.common;
 import game.physic;
 import game.game;
+import game.gobject;
 import game.sprite;
 import game.weapon;
 import utils.misc;
@@ -12,6 +12,11 @@ import utils.vector2;
 import utils.mylist;
 import utils.time;
 import utils.configfile;
+
+static this() {
+    gWeaponClassFactory.register!(ProjectileWeapon)("projectile_mc");
+    gSpriteClassFactory.register!(ProjectileSpriteClass)("projectile_mc");
+}
 
 private class ProjectileWeapon : WeaponClass {
     //GOSpriteClass[char[]] projectiles;

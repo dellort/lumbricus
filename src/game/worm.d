@@ -14,6 +14,10 @@ import utils.log;
 import utils.misc;
 import std.math;
 
+static this() {
+    gSpriteClassFactory.register!(WormSpriteClass)("worm_mc");
+}
+
 enum WormState {
     Stand = 0,
     Fly,
@@ -67,7 +71,7 @@ class WormSprite : GObjectSprite {
     protected SpriteAnimationInfo* getAnimationInfoForState(StaticStateInfo info)
     {
         if (currentState is mStates[WormState.Weapon] && mWeapon) {
-            return &mWeapon.weapon.animations[WeaponWormAnimations.Hold];
+            return mWeapon.weapon.animations[WeaponWormAnimations.Hold];
         } else {
             return super.getAnimationInfoForState(info);
         }
@@ -80,7 +84,7 @@ class WormSprite : GObjectSprite {
             || st.from is mStates[WormState.Weapon])
             && mWeapon)
         {
-            return &mWeapon.weapon.animations[!reverse
+            return mWeapon.weapon.animations[!reverse
                 ? WeaponWormAnimations.Arm : WeaponWormAnimations.UnArm];
         } else {
             return super.getAnimationInfoForTransition(st, reverse);

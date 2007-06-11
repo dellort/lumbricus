@@ -12,8 +12,6 @@ import game.sky;
 import game.common;
 import game.controller;
 import game.weapon;
-import projectile = game.projectile;
-import special_weapon = game.special_weapon;
 import utils.mylist;
 import utils.time;
 import utils.log;
@@ -103,18 +101,15 @@ class GameEngine {
 
     //managment of sprite classes, for findSpriteClass()
     private GOSpriteClass[char[]] mSpriteClasses;
-    //factory to instantiate sprite classes, this is a small wtf
-    private Factory!(GOSpriteClass, GameEngine, char[]) mSpriteClassFactory;
 
     //same for weapons (also such a two-stage factory, which creastes Shooters)
     private WeaponClass[char[]] mWeaponClasses;
-    private Factory!(WeaponClass, GameEngine, ConfigNode) mWeaponClassFactory;
 
     //factory for GOSpriteClasses
     //the constructor of GOSpriteClasses will call:
     //  engine.registerSpriteClass(registerName, this);
     GOSpriteClass instantiateSpriteClass(char[] name, char[] registerName) {
-        return mSpriteClassFactory.instantiate(name, this, registerName);
+        return gSpriteClassFactory.instantiate(name, this, registerName);
     }
 
     //called by sprite.d/GOSpriteClass.this() only
@@ -161,7 +156,7 @@ class GameEngine {
         //xxx error handling
         assert(findWeaponClass(name, true) is null);
         //hope you never need to debug this code!
-        WeaponClass c = mWeaponClassFactory.instantiate(type, this, weapon);
+        WeaponClass c = gWeaponClassFactory.instantiate(type, this, weapon);
         mWeaponClasses[name] = c;
     }
 
@@ -185,15 +180,6 @@ class GameEngine {
         this.level = config.level;
 
         mLog = registerLog("gameengine");
-
-        mSpriteClassFactory = new typeof(mSpriteClassFactory);
-        mSpriteClassFactory.register!(GOSpriteClass)("sprite_mc");
-        mSpriteClassFactory.register!(WormSpriteClass)("worm_mc");
-        mSpriteClassFactory.register!(projectile.ProjectileSpriteClass)("projectile_mc");
-
-        mWeaponClassFactory = new typeof(mWeaponClassFactory);
-        mWeaponClassFactory.register!(projectile.ProjectileWeapon)("projectile_mc");
-        mWeaponClassFactory.register!(special_weapon.SpecialWeapon)("specialw_mc");
 
         mAllAnimations = new ConfigNode();
 

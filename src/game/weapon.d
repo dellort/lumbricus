@@ -11,6 +11,12 @@ import utils.vector2;
 import utils.mylist;
 import utils.time;
 
+package Factory!(WeaponClass, GameEngine, ConfigNode) gWeaponClassFactory;
+
+static this() {
+    gWeaponClassFactory = new typeof(gWeaponClassFactory);
+}
+
 enum WeaponWormAnimations {
     Arm,  //worm gets armed (or unarmed: animation played backwards)
     Hold, //worm holds the weapon (xxx: hardcoded to stupidness, see weapons.conf)
@@ -46,7 +52,7 @@ abstract class WeaponClass {
 
     //xxx maybe fix this by a better animation subsystem or so
     //(because SpriteAnimationInfo was a hack for sprite.d)
-    SpriteAnimationInfo[WeaponWormAnimations.max+1] animations;
+    SpriteAnimationInfo*[WeaponWormAnimations.max+1] animations;
 
     GameEngine engine() {
         return mEngine;
@@ -87,11 +93,14 @@ abstract class WeaponClass {
         foreach (int i, char[] name; cWWA2Str) {
             auto sub = anis.findNode(name);
             if (sub) {
+                animations[i] = allocSpriteAnimationInfo();
                 animations[i].loadFrom(engine, sub);
             }
         }
         //if (animations[WeaponWormAnimations.Arm]) {
             animations[WeaponWormAnimations.UnArm]
+                = allocSpriteAnimationInfo;
+            *animations[WeaponWormAnimations.UnArm]
                 = animations[WeaponWormAnimations.Arm].make_reverse();
         //}
     }

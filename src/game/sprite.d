@@ -11,6 +11,18 @@ import utils.log;
 import std.math : abs, PI;
 import cmath = std.c.math;
 
+//factory to instantiate sprite classes, this is a small wtf
+package Factory!(GOSpriteClass, GameEngine, char[]) gSpriteClassFactory;
+
+static this() {
+    gSpriteClassFactory = new typeof(gSpriteClassFactory);
+    gSpriteClassFactory.register!(GOSpriteClass)("sprite_mc");
+}
+
+package void registerSpriteClass(T : GOSpriteClass)(char[] name) {
+    mSpriteClassFactory.register(T)(name);
+}
+
 //method how animations are chosen from object angles
 enum Angle2AnimationMode {
     //One animation for all angles
@@ -32,6 +44,11 @@ enum Angle2AnimationMode {
 }
 //Angle2AnimationMode -> name-string (as used in config file)
 private char[][] cA2AM2Str = ["simple", "twosided", "step3"];//, "noani360"];
+
+//whacky hacky
+SpriteAnimationInfo* allocSpriteAnimationInfo() {
+    return new SpriteAnimationInfo;
+}
 
 struct SpriteAnimationInfo {
     Angle2AnimationMode ani2angle;
