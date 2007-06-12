@@ -67,7 +67,7 @@ class WormSprite : GObjectSprite {
 
     //if can move etc.
     bool haveAnyControl() {
-        return !shouldDie();
+        return !isDead();
     }
 
     void gravestone(int grave) {
@@ -83,15 +83,24 @@ class WormSprite : GObjectSprite {
     }
 
     //if object wants to die; if true, call finallyDie() (etc.)
-    //xxx unclear what this means if object is really dead (active==false)
-    //so, horribly fail if really dead now
+    //actually, object can have any state, it even can be dead
+    //you should prefer isDead()
     bool shouldDie() {
-        assert(active());
         return physics.lifepower <= 0;
     }
 
-    bool isDelayedDying() {
+    //if worm is dead (including if worm is waiting to commit suicide)
+    bool isDead() {
+        return shouldDie() || isReallyDead();
+    }
+    //less strict than isDead(): return false for not-yet-suicided worms
+    bool isReallyDead() {
         return currentState is mStates[WormState.Death];
+    }
+
+    //if suicide animation played
+    bool isDelayedDying() {
+        return isReallyDead() && currentTransition;
     }
 
     void finallyDie() {
@@ -101,6 +110,13 @@ class WormSprite : GObjectSprite {
             //assert(delayedDeath());
             assert(shouldDie());
             setState(mStates[WormState.Death]);
+        }
+    }
+
+    void updateControl() {
+        if (!haveAnyControl()) {
+            drawWeapon(false);
+            activateJetpack(false);
         }
     }
 
@@ -199,8 +215,14 @@ class WormSprite : GObjectSprite {
     void drawWeapon(bool draw) {
         if (draw == weaponDrawn)
             return;
-        if (draw && currentState !is mStates[WormState.Stand])
-            return;
+        if (draw) {
+            if (currentState !is mStates[WormState.Stand])
+                return;
+            if (!haveAnyControl())
+                return;
+            if (!mWeapon)
+                return;
+        }
 
         setState(draw ? mStates[WormState.Weapon] : mStates[WormState.Stand]);
     }

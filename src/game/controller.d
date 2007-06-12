@@ -86,6 +86,11 @@ class TeamMember {
     char[] name = "unnamed worm";
     private WeaponItem mCurrentWeapon;
 
+    //returns if 0 points, i.e. returns true even if worm didn't commit yet
+    bool dead() {
+        return !mWorm || mWorm.isDead();
+    }
+
     GObjectSprite sprite() {
         return mWorm;
     }
@@ -179,6 +184,7 @@ enum RoundState {
     playing,    //round running
     cleaningUp, //worms losing hp etc, may occur during round
     nextOnHold, //next round about to start (drop crates, ...)
+    end,        //everything ended!
 }
 
 //the GameController controlls the game play; especially, it converts keyboard
@@ -188,6 +194,7 @@ enum RoundState {
 class GameController {
     private GameEngine mEngine;
     private Team[] mTeams;
+    private TeamMember[] mAllWorms;
     //xxx for loading only
     private ConfigNode[char[]] mWeaponSets;
 
@@ -260,6 +267,13 @@ class GameController {
         return mCurrent;
     }
 
+    bool haveCurrentControl() {
+        auto worm = mCurrent ? mCurrent.mWorm : null;
+        if (!worm)
+            return false;
+        return worm.haveAnyControl();
+    }
+
     this(GameEngine engine, GameConfig config) {
         mEngine = engine;
 
@@ -319,6 +333,38 @@ class GameController {
         RoundState next = doState(deltaT);
         if (next != mCurrentRoundState)
             transition(next);
+
+        if (mCurrentRoundState == RoundState.playing) {
+            if (!current || current.dead()) {
+                messageAdd("bad luck!");
+                transition(RoundState.cleaningUp);
+            }
+        }
+    }
+
+    //return true if there are dying worms
+    private bool checkDyingWorms() {
+        bool morework;
+        foreach (TeamMember m; mAllWorms) {
+            auto worm = m.mWorm;
+            //already dead -> boring
+            if (!worm || worm.isReallyDead()) {
+                m.mWorm = null;
+                continue;
+            }
+
+            //3 possible states: healthy, unhealthy but not suiciding, suiciding
+            if (worm.shouldDie() && !worm.isDelayedDying()) {
+                //unhealthy, not suiciding
+                worm.finallyDie();
+                assert(worm.isDelayedDying() || worm.isDead());
+                morework = true;
+            } else if (worm.isDelayedDying()) {
+                //suiciding
+                morework = true;
+            }
+        }
+        return morework;
     }
 
     private RoundState doState(float deltaT) {
@@ -345,8 +391,10 @@ class GameController {
 
                 break;
             case RoundState.cleaningUp:
+                mRoundRemaining = timeSecs(0);
                 //not yet
-                return RoundState.nextOnHold;
+                return checkDyingWorms()
+                    ? RoundState.cleaningUp : RoundState.nextOnHold;
                 break;
             case RoundState.nextOnHold:
                 if (messageIsIdle())
@@ -357,6 +405,7 @@ class GameController {
     }
 
     private void transition(RoundState st) {
+        assert(st != mCurrentRoundState);
         switch (st) {
             case RoundState.prepare:
                 mWormAction = false;
@@ -388,17 +437,23 @@ class GameController {
 
                 if (!mCurrent) {
                     messageAdd("omg! all dead!");
+                    transition(RoundState.end);
                 }
                 break;
             case RoundState.playing:
                 mPrepareRemaining = timeMusecs(0);
                 break;
             case RoundState.cleaningUp:
+                messageAdd("cleanup");
                 break;
             case RoundState.nextOnHold:
                 current = null;
                 messageAdd(_("msgnextround"));
                 mRoundRemaining = timeMusecs(0);
+                break;
+            case RoundState.end:
+                messageAdd("game has ended");
+                current = null;
                 break;
         }
         mCurrentRoundState = st;
@@ -497,17 +552,6 @@ class GameController {
 
     //actually still stupid debugging code
     private void spawnWorm(Vector2i pos) {
-        /*auto obj = new TeamMember();
-        obj.mWorm = cast(WormSprite)mEngine.createSprite("worm");
-        assert(obj.mWorm !is null);
-        obj.mWorm.setPos(toVector2f(pos));
-        if (!mTeams) {
-            mTeams ~= new Team();
-        }
-        obj.name = "worm " ~ str.toString(mTeams[0].mWorms.length+1);
-        mTeams[0].mWorms ~= obj;
-        obj.team = mTeams[0];
-        mCurrent = obj;*/
         //now stupid debug code in another way
         auto w = mEngine.createSprite("worm");
         w.setPos(toVector2f(pos));
@@ -606,15 +650,18 @@ class GameController {
             case "weapon_prev": {
                 mCurrent.cycleThroughWeapons(-1);
                 updateWeapon();
+                currentWormAction();
                 return true;
             }
             case "weapon_next": {
                 mCurrent.cycleThroughWeapons(+1);
                 updateWeapon();
+                currentWormAction();
                 return true;
             }
             case "debug4": {
                 worm.physics.applyDamage(100000);
+                currentWormAction();
                 return true;
             }
             default:
@@ -635,14 +682,17 @@ class GameController {
     private void loadTeams(ConfigNode config) {
         current = null;
         mTeams = null;
+        mAllWorms = null;
         foreach (ConfigNode sub; config) {
-            mTeams ~= new Team(sub);
+            auto team = new Team(sub);
             //xxx shouldn't it load itself?
             //xxx error handling
             ConfigNode ws = mWeaponSets[sub["weapon_set"]];
             auto set = new WeaponSet();
             set.readFromConfig(ws, mEngine);
-            mTeams[$-1].weapons = set;
+            team.weapons = set;
+            mTeams ~= team;
+            mAllWorms ~= team.mWorms;
         }
         placeWorms();
     }
@@ -663,9 +713,12 @@ class GameController {
                 if (m.mWorm)
                     continue;
                 //create and place into the landscape
+                //habemus lumbricus
                 m.mWorm = cast(WormSprite)mEngine.createSprite("worm");
                 assert(m.mWorm !is null);
                 m.mWorm.physics.lifepower = t.initialPoints;
+                //take control over dying, so we can let them die on round end
+                m.mWorm.delayedDeath = true;
                 Vector2f npos, tmp;
                 auto water_y = mEngine.waterOffset;
                 //first 10: minimum distance from water

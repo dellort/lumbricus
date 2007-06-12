@@ -131,14 +131,17 @@ T arrayFindPrev(T)(T[] arr, T w) {
 //start search with first element, if no element found, return null
 //if w is the only valid element, return w
 T arrayFindNextPred(T)(T[] arr, T w, bool delegate(T t) pred) {
-    T c = arrayFindNext(arr, w);
-    while (c) {
+    T first = arrayFindNext(arr, w);
+    if (!first)
+        return null;
+    auto c = first;
+    do {
         if (pred(c))
             return c;
         if (c is w)
             break;
         c = arrayFindNext(arr, c);
-    }
+    } while (c !is first);
     return null;
 }
 

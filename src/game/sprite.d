@@ -278,10 +278,14 @@ class GObjectSprite : GameObject {
 
     //do a (possibly) soft transition to the new state
     //explictely no-op if same state as currently is set.
+    //can refuse state transition
     void setState(StaticStateInfo nstate) {
         assert(nstate !is null);
 
         if (currentState is nstate)
+            return;
+
+        if (currentState.noleave)
             return;
 
         StateTransition* transp = nstate in currentState.transitions;
@@ -360,6 +364,7 @@ class StaticStateInfo {
     POSP physic_properties;
 
     StateTransition[StaticStateInfo] transitions;
+    bool noleave; //no leaving transitions
 
     SpriteAnimationInfo animation;
 }
@@ -444,6 +449,8 @@ class GOSpriteClass {
             auto phys = config.getSubNode("physics").findNode(sc["physic"]);
             assert(phys !is null); //xxx better error handling :-)
             loadPOSPFromConfig(phys, ssi.physic_properties);
+
+            ssi.noleave = sc.getBoolValue("noleave", false);
 
             //load animations
             ssi.animation.loadFrom(engine, sc);
