@@ -649,7 +649,7 @@ class PhysicWorld {
                 me.checkGroundAngle(normalsum);
 
                 //set new position ("should" fit)
-                me.pos = me.pos + normalsum;
+                me.pos = me.pos + normalsum.mulEntries(me.posp.fixate);
 
                 //direction the worm is flying to
                 auto flydirection = me.velocity.normal;

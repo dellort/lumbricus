@@ -34,8 +34,8 @@ static const char[][] cTeamColors = [
 class Team {
     char[] name = "unnamed team";
     private TeamMember[] mWorms;
-    //this values indices into cTeamColors
-    int teamColor;
+    //this values indices into cTeamColors and the gravestone animations
+    int teamColor, graveStone;
     WeaponSet weapons;
     int initialPoints; //on loading
 
@@ -65,6 +65,7 @@ class Team {
         name = node.getStringValue("name", name);
         teamColor = node.selectValueFrom("color", cTeamColors, 0);
         initialPoints = node.getIntValue("power", 100);
+        graveStone = node.getIntValue("grave", 0);
         //the worms currently aren't loaded by theirselves...
         foreach (char[] name, char[] value; node.getSubNode("member_names")) {
             auto worm = new TeamMember();
@@ -728,6 +729,7 @@ class GameController {
                 m.mWorm.physics.lifepower = t.initialPoints;
                 //take control over dying, so we can let them die on round end
                 m.mWorm.delayedDeath = true;
+                m.mWorm.gravestone = t.graveStone;
                 Vector2f npos, tmp;
                 auto water_y = mEngine.waterOffset;
                 //first 10: minimum distance from water
