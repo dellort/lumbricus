@@ -85,6 +85,7 @@ class TeamMember {
     private WormSprite mWorm;
     Team team;
     char[] name = "unnamed worm";
+    int lastKnownLifepower;
     private WeaponItem mCurrentWeapon;
 
     //returns if 0 points, i.e. returns true even if worm didn't commit yet
@@ -200,6 +201,9 @@ class GameController {
     private ConfigNode[char[]] mWeaponSets;
 
     private TeamMember mCurrent; //currently active worm
+    //position where worm started, used to check if worm did anything (?)
+    private Vector2f mCurrent_startpos;
+
     private TeamMember mLastActive; //last active worm
 
     private WormNameDrawer mDrawer;
@@ -248,6 +252,9 @@ class GameController {
                 old.drawWeapon(false);
             }
 
+            //possibly was focused on it, release camera focus then
+            sceneview.setCameraFocus(null, CameraStyle.Reset);
+
             hideArrow();
 
             mLastActive = mCurrent;
@@ -259,6 +266,7 @@ class GameController {
             //set camera
             if (mCurrent.mWorm) {
                 sceneview.setCameraFocus(mCurrent.mWorm.graphic);
+                mCurrent_startpos = mCurrent.mWorm.physics.pos;
             }
             showArrow();
             messageAdd(_("msgselectworm", mCurrent.name));
@@ -321,6 +329,10 @@ class GameController {
     }
 
     void simulate(float deltaT) {
+        if (current && current.mWorm) {
+            if (mCurrent_startpos != current.mWorm.physics.pos)
+                currentWormAction(false);
+        }
         if (!mIsAnythingGoingOn) {
             mIsAnythingGoingOn = true;
             //nothing happening? start a round
@@ -498,9 +510,9 @@ class GameController {
             mForArrow = mCurrent.mWorm.graphic;
             mForArrowPos = mForArrow.pos;
             mArrow.setAnimation(mArrowAnims[mCurrent.team.teamColor]);
-            //15 pixels above object
-            //xxx: center and should know about this worm label...
-            mArrow.pos = mForArrowPos - mArrow.size.Y - Vector2i(0, 15);
+            //2 pixels Y spacing
+            mArrow.pos = mForArrowPos + mForArrow.size.X/2 - mArrow.size.X/2
+                - mArrow.size.Y - Vector2i(0, mDrawer.labelsYOffset + 2);
             mArrow.active = true;
         }
     }
@@ -508,7 +520,11 @@ class GameController {
         mArrow.active = false;
     }
     //called if any action is issued, i.e. key pressed to control worm
-    void currentWormAction() {
+    //or if it was moved by sth. else
+    void currentWormAction(bool fromkeys = true) {
+        if (mWormAction)
+            return;
+
         mWormAction = true;
         hideArrow();
     }
@@ -727,6 +743,7 @@ class GameController {
                 m.mWorm = cast(WormSprite)mEngine.createSprite("worm");
                 assert(m.mWorm !is null);
                 m.mWorm.physics.lifepower = t.initialPoints;
+                m.lastKnownLifepower = t.initialPoints;
                 //take control over dying, so we can let them die on round end
                 m.mWorm.delayedDeath = true;
                 m.mWorm.gravestone = t.graveStone;
@@ -763,15 +780,27 @@ private class EventCatcher : SceneObject {
 private class WormNameDrawer : SceneObject {
     private GameController mController;
     private Font[Team] mWormFont;
+    private int mFontHeight;
 
     this(GameController controller) {
         mController = controller;
 
         //create team fonts (expects teams are already loaded)
         foreach (Team t; controller.mTeams) {
-            mWormFont[t] = globals.framework.fontManager.loadFont("wormfont_"
+            auto font = globals.framework.fontManager.loadFont("wormfont_"
                 ~ cTeamColors[t.teamColor]);
+            mWormFont[t] = font;
+            //assume all fonts are same height but... anyway
+            mFontHeight = max(mFontHeight, font.textSize("").y);
         }
+    }
+
+    const cYDist = 3;   //distance label/worm-graphic
+    const cYBorder = 2; //thickness of label box
+
+    //upper border of the label relative to the worm's Y coordinate
+    int labelsYOffset() {
+        return cYDist+cYBorder*2+mFontHeight;
     }
 
     void draw(Canvas canvas, SceneView parentView) {
@@ -786,15 +815,17 @@ private class WormNameDrawer : SceneObject {
                 if (!w.mWorm || !w.mWorm.graphic.active)
                     continue;
 
-                char[] text = str.format("%s (%s)", w.name, w.mWorm.physics.lifepowerInt);
+                char[] text = str.format("%s (%s)", w.name,
+                    w.mWorm.physics.lifepowerInt);
 
                 auto wp = w.mWorm.graphic.pos;
                 auto sz = w.mWorm.graphic.size;
                 //draw 3 pixels above, centered
                 auto tsz = font.textSize(text);
-                auto pos = wp+Vector2i(sz.x/2 - tsz.x/2, -tsz.y - 3);
+                tsz.y = mFontHeight; //hicks
+                auto pos = wp+Vector2i(sz.x/2 - tsz.x/2, -tsz.y - cYDist);
 
-                auto border = Vector2i(4, 2);
+                auto border = Vector2i(4, cYBorder);
                 //auto b = getBox(tsz+border*2, Color(1,1,1), Color(0,0,0));
                 //canvas.draw(b, pos-border);
                 if (mController.mEngine.enableSpiffyGui)
