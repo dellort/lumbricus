@@ -25,6 +25,7 @@ package void registerSpriteClass(T : GOSpriteClass)(char[] name) {
 
 //method how animations are chosen from object angles
 enum Angle2AnimationMode {
+    None,
     //One animation for all angles
     Simple,
     //Only one animation, but which is mirrored on the Y axis
@@ -43,7 +44,7 @@ enum Angle2AnimationMode {
     +/
 }
 //Angle2AnimationMode -> name-string (as used in config file)
-private char[][] cA2AM2Str = ["simple", "twosided", "step3"];//, "noani360"];
+private char[][] cA2AM2Str = ["none", "simple", "twosided", "step3"];//, "noani360"];
 
 //whacky hacky
 SpriteAnimationInfo* allocSpriteAnimationInfo() {
@@ -53,6 +54,10 @@ SpriteAnimationInfo* allocSpriteAnimationInfo() {
 struct SpriteAnimationInfo {
     Angle2AnimationMode ani2angle;
     Animation[] animations;
+
+    bool noAnimation() {
+        return ani2angle == Angle2AnimationMode.None;
+    }
 
     void reset() {
         *this = (*this).init;
@@ -65,6 +70,9 @@ struct SpriteAnimationInfo {
         }
 
         switch (ani2angle) {
+            case Angle2AnimationMode.None: {
+                return null;
+            }
             case Angle2AnimationMode.Simple: {
                 return animations ? animations[0] : null;
             }
@@ -112,6 +120,10 @@ struct SpriteAnimationInfo {
             sc.selectValueFrom("angle2animations", cA2AM2Str, 0);
 
         switch (ani2angle) {
+            case Angle2AnimationMode.None: {
+                //NOTE: but maybe still should check for accidental no-animation
+                break;
+            }
             case Angle2AnimationMode.Simple, Angle2AnimationMode.Twosided: {
                 //only one animation to load
                 animations = [engine.findAnimation(sc["animations"])];
@@ -455,6 +467,10 @@ class GOSpriteClass {
             //load animations
             ssi.animation.loadFrom(engine, sc);
 
+            if (ssi.animation.noAnimation) {
+                engine.mLog("no animation for state '%s'", ssi.name);
+            }
+
         } //foreach state to load
 
         StaticStateInfo* init = config["initstate"] in states;
@@ -474,6 +490,11 @@ class GOSpriteClass {
             trans.disablePhysics = tc.getBoolValue("disable_physics", false);
 
             trans.animation.loadFrom(engine, tc);
+
+            if (trans.animation.noAnimation) {
+                engine.mLog("no animation for transition '%s' -> '%s'",
+                    sfrom.name, sto.name);
+            }
 
             trans.from = sfrom;
             trans.to = sto;
