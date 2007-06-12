@@ -24,7 +24,13 @@ class Animation {
     this (ConfigNode node, char[] relPath = "") {
         assert(node !is null);
         int duration = node.getIntValue("duration", 20);
-        mImage = globals.loadGraphic(relPath ~ node.getStringValue("image"));
+        char[] imgmode = node.getStringValue("transparency","colorkey");
+        Transparency trans = Transparency.Colorkey;
+        if (imgmode == "alpha") {
+            trans = Transparency.Alpha;
+        }
+        mImage = globals.loadGraphic(relPath ~ node.getStringValue("image"),
+            trans);
         if (!mImage)
             throw new Exception("Failed to load animation bitmap");
         mImageTex = mImage.createTexture();

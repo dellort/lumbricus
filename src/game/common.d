@@ -88,10 +88,10 @@ class Common {
         }
     }
 
-    Surface loadGraphic(char[] path) {
+    Surface loadGraphic(char[] path, Transparency t = Transparency.Colorkey) {
         log("load image: %s", path);
         auto stream = framework.fs.open(path);
-        auto image = framework.loadImage(stream, Transparency.Colorkey);
+        auto image = framework.loadImage(stream, t);
         stream.close();
         return image;
     }

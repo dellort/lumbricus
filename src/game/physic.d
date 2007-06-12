@@ -106,6 +106,11 @@ struct POSP {
     //influence through damage (0 = invincible, 1 = normal)
     float damageable = 0.0f;
     float damageThreshold = 1.0f;
+
+    //amount of force to take before taking fall damage
+    float sustainableForce = 150;
+    //force multiplier
+    float fallDamageFactor = 0.1f;
 }
 
 //simple physical object (has velocity, position, mass, radius, ...)
@@ -655,13 +660,14 @@ class PhysicWorld {
                 auto flydirection = me.velocity.normal;
 
                 //force directed against surface
+                //xxx in worms, only vertical speed counts
                 auto bump = -(flydirection * rnormal);
 
                 if (bump < 0)
                     bump = 0;
 
                 //use this for damage
-                me.applyDamage(me.velocity.length*bump/100);
+                me.applyDamage(max(me.velocity.length-me.posp.sustainableForce,0f)*bump*me.posp.fallDamageFactor);
 
                 //mirror velocity on surface
                 Vector2f proj = rnormal * (me.velocity * rnormal);
