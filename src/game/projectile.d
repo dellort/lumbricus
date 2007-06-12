@@ -112,6 +112,7 @@ private class ProjectileSprite : GObjectSprite {
     Time birthTime;
     //only used if mylcass.dieByTime && !myclass.useFixedDeathTime
     Time deathTimer;
+    ProjectileEffector[] effectors;
 
     Time dieTime() {
         if (myclass.dieByTime) {
@@ -126,6 +127,10 @@ private class ProjectileSprite : GObjectSprite {
 
     override void simulate(float deltaT) {
         super.simulate(deltaT);
+
+        foreach (eff; effectors) {
+            eff.simulate(deltaT);
+        }
 
         if (engine.currentTime > dieTime) {
             die();
@@ -166,25 +171,36 @@ private class ProjectileSprite : GObjectSprite {
         if (myclass.explosionOnDeath > 0) {
             engine.explosionAt(physics.pos, myclass.explosionOnDeath);
         }
+
+        //remove constant effects
+        foreach (eff; effectors) {
+            eff.die();
+        }
         //actually die (byebye)
         super.die();
     }
 
-    this(GameEngine engine, GOSpriteClass type) {
+    this(GameEngine engine, ProjectileSpriteClass type) {
         super(engine, type);
 
         assert(type !is null);
-        myclass = cast(typeof(myclass))type;
+        myclass = type;
         assert(myclass !is null);
         birthTime = engine.currentTime;
+
+        foreach (effcls; myclass.effects) {
+            auto peff = effcls.createEffector(this);
+            peff.birthTime = birthTime;
+            effectors ~= peff;
+        }
     }
 }
 
 //guided missile and some other missile-like weapons
 //not implemented, just there to set the target
-abstract class TargetProjectileSprite : ProjectileSprite {
+class TargetProjectileSprite : ProjectileSprite {
     Vector2f target;
-    this(GameEngine engine, GOSpriteClass type) {
+    this(GameEngine engine, TargetProjectileSpriteClass type) {
         super(engine, type);
     }
 }
@@ -264,6 +280,7 @@ class ProjectileSpriteClass : GOSpriteClass {
 
     //non-null if to spawn anything on death
     SpawnParams* spawnOnDeath;
+    ProjectileEffectorClass[] effects;
 
     //0 for no explosion, else this is the damage strength
     float explosionOnDeath;
@@ -283,9 +300,15 @@ class ProjectileSpriteClass : GOSpriteClass {
             } else {
                 useFixedDieTime = true;
                 //currently in seconds
-                fixedDieTime = timeSecs(deathreason.getIntValue("lifetime"));
+                fixedDieTime = timeSecs(deathreason.getFloatValue("lifetime"));
             }
         }
+
+        auto effectsNode = config.getSubNode("effects");
+        foreach (ConfigNode n; effectsNode) {
+            effects ~= ProjectileEffectorFactory.instantiate(n["name"],n);
+        }
+
         auto spawn = config.getPath("death.spawn");
         if (spawn) {
             spawnOnDeath = new SpawnParams;
@@ -303,3 +326,117 @@ class ProjectileSpriteClass : GOSpriteClass {
     }
 }
 
+class TargetProjectileSpriteClass : ProjectileSpriteClass {
+    override TargetProjectileSprite createSprite() {
+        return new TargetProjectileSprite(engine, this);
+    }
+
+    this(GameEngine e, char[] r) {
+        super(e, r);
+    }
+}
+
+class ProjectileEffector {
+    Time birthTime;
+    protected ProjectileSprite mParent;
+    private ProjectileEffectorClass myclass;
+    private bool mActive;
+
+    //create effect
+    this(ProjectileSprite parent, ProjectileEffectorClass type) {
+        mParent = parent;
+        myclass = type;
+    }
+
+    void active(bool ac) {
+        if (ac != mActive) {
+            activate(ac);
+            mActive = ac;
+        }
+    }
+    bool active() {
+        return mActive;
+    }
+
+    Time dietime() {
+        if (myclass.lifetime > timeMusecs(0)) {
+            return birthTime + myclass.lifetime;
+        } else {
+            return timeNever();
+        }
+    }
+
+    abstract void activate(bool ac);
+
+    //do effect
+    void simulate(float deltaT) {
+        if (mParent.engine.currentTime > dietime) {
+            die();
+        }
+    }
+
+    //remove effect
+    void die() {
+        active = false;
+    }
+}
+
+class ProjectileEffectorClass {
+    Time lifetime;
+
+    this(ConfigNode node) {
+        lifetime = timeSecs(node.getFloatValue("lifetime",0));
+    }
+
+    abstract ProjectileEffector createEffector(ProjectileSprite parent);
+}
+
+class ProjectileEffectorGravityCenter : ProjectileEffector {
+    private ProjectileEffectorGravityCenterClass myclass;
+    private GravityCenter mGravForce;
+
+    this(ProjectileSprite parent, ProjectileEffectorGravityCenterClass type) {
+        super(parent, type);
+        myclass = type;
+        mGravForce = new GravityCenter();
+        mGravForce.accel = myclass.gravity;
+        mGravForce.radius = myclass.radius;
+        mGravForce.pos = mParent.physics.pos;
+        active = true;
+    }
+
+    override void simulate(float deltaT) {
+        mGravForce.pos = mParent.physics.pos;
+        super.simulate(deltaT);
+    }
+
+    override void activate(bool ac) {
+        if (ac) {
+            mParent.engine.physicworld.add(mGravForce);
+        } else {
+            mGravForce.remove();
+        }
+    }
+}
+
+class ProjectileEffectorGravityCenterClass : ProjectileEffectorClass {
+    float gravity, radius;
+
+    this(ConfigNode node) {
+        super(node);
+        gravity = node.getFloatValue("gravity",0);
+        radius = node.getFloatValue("radius",100);
+    }
+
+    override ProjectileEffectorGravityCenter createEffector(ProjectileSprite parent) {
+        return new ProjectileEffectorGravityCenter(parent, this);
+    }
+
+    static this() {
+        ProjectileEffectorFactory.register!(typeof(this))("gravitycenter");
+    }
+}
+
+static class ProjectileEffectorFactory : StaticFactory!(
+    ProjectileEffectorClass, ConfigNode) {
+}

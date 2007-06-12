@@ -515,11 +515,10 @@ class GameEngine {
     }
 
     void explosionAt(Vector2f pos, float damage) {
-        gamelevel.damage(toVector2i(pos), cast(int)damage);
         auto expl = new ExplosiveForce();
-        expl.impulse = 40.0f*damage;
-        expl.radius = 4.0f*damage;
+        expl.damage = damage;
         expl.pos = pos;
+        gamelevel.damage(toVector2i(pos), cast(int)(expl.radius/2.0f));
         physicworld.add(expl);
     }
 }

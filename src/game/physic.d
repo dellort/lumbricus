@@ -162,6 +162,8 @@ class PhysicObject : PhysicBase {
     float rotation = 0;
     //last known angle to ground
     float ground_angle = 0;
+    //last known surface normal
+    Vector2f surface_normal;
 
     this() {
     }
@@ -208,7 +210,8 @@ class PhysicObject : PhysicBase {
     private void checkGroundAngle(Vector2f dir) {
         auto len = dir.length;
         if (len > 0.001) {
-            ground_angle = (dir/len).toAngle();
+            surface_normal = (dir/len);
+            ground_angle = surface_normal.toAngle();
         }
     }
 
@@ -377,7 +380,7 @@ class WindyForce : ConstantForce {
 }
 
 class ExplosiveForce : PhysicForce {
-    float impulse, radius;
+    float damage;
     Vector2f pos;
 
     this() {
@@ -385,14 +388,40 @@ class ExplosiveForce : PhysicForce {
         lifeTime = 0;
     }
 
+    private const cDamageToImpulse = 40.0f;
+    private const cDamageToRadius = 2.0f;
+
+    public float radius() {
+        return damage*cDamageToRadius;
+    }
+
+    private float cDistDelta = 0.01f;
+    Vector2f getAccelFor(PhysicObject o, float deltaT) {
+        float impulse = damage*cDamageToImpulse;
+        Vector2f v = (pos-o.pos);
+        float dist = v.length;
+        if (dist > cDistDelta) {
+            float r = max(radius-dist,0f)/radius;
+            o.applyDamage(r*damage);
+            return -v.normal()*(impulse/deltaT)*r/o.posp.mass
+                    * o.posp.explosionInfluence;
+        } else {
+            return Vector2f(0,0);
+        }
+    }
+}
+
+class GravityCenter : PhysicForce {
+    float accel, radius;
+    Vector2f pos;
+
     private float cDistDelta = 0.01f;
     Vector2f getAccelFor(PhysicObject o, float deltaT) {
         Vector2f v = (pos-o.pos);
         float dist = v.length;
         if (dist > cDistDelta) {
-            o.applyDamage((max(radius-dist,0f)/radius)*impulse/10);
-            return -v.normal()*(impulse/deltaT)*(max(radius-dist,0f)/radius)/o.posp.mass
-                    * o.posp.explosionInfluence;
+            float r = (max(radius-dist,0f)/radius);
+            return v.normal()*accel*r;
         } else {
             return Vector2f(0,0);
         }
@@ -497,7 +526,8 @@ class PhysicWorld {
 
             if (o.isGlued) {
                 //argh. so a velocity is compared to a "force"... sigh.
-                if (vel.length <= o.posp.glueForce) {
+                //surface_normal is valid, as objects are always glued to the ground
+                if (vel.length <= o.posp.glueForce && vel*o.surface_normal <= 0) {
                     //xxx: reset the velocity vector, because else, the object
                     //     will be unglued even it stands on the ground
                     //     this should be changed such that the object is only
@@ -650,7 +680,7 @@ class PhysicWorld {
                     mLog("glue object %s", me);
                     //velocity must be set to 0 (or change glue handling)
                     //ok I did change glue handling.
-                    //me.velocity = Vector2f(0);
+                    me.velocity = Vector2f(0);
                 }
 
                 me.checkRotation();
