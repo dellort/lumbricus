@@ -388,9 +388,9 @@ class GOSpriteClass {
 
     Animation outOfRegionArrow;
 
-    StaticStateInfo findState(char[] name) {
+    StaticStateInfo findState(char[] name, bool canfail = false) {
         StaticStateInfo* state = name in states;
-        if (!state) {
+        if (!state && !canfail) {
             //xxx better error handling
             throw new Exception("state "~name~" not found");
         }
@@ -462,10 +462,10 @@ class GOSpriteClass {
         assert(states.length > 0);
 
         //load/assign state transitions
-        foreach (ConfigNode tc; config.getSubNode("state_transitions")) {
+        StateTransition newTransition(StaticStateInfo sfrom,
+            StaticStateInfo sto, ConfigNode tc)
+        {
             auto trans = new StateTransition();
-            auto sto = findState(tc["to"]);
-            auto sfrom = findState(tc["from"]);
 
             trans.disablePhysics = tc.getBoolValue("disable_physics", false);
 
@@ -479,6 +479,21 @@ class GOSpriteClass {
                 sto.transitions[sfrom] = trans;
                 //create backward animations
                 trans.animation_back = trans.animation.make_reverse();
+            }
+
+            return trans;
+        }
+        foreach (ConfigNode tc; config.getSubNode("state_transitions")) {
+            auto sto = findState(tc["to"]);
+            if (tc.getBoolValue("from_any")) {
+                foreach (StaticStateInfo s; states) {
+                    if (s !is sto) {
+                        newTransition(s, sto, tc);
+                    }
+                }
+            } else {
+                auto sfrom = findState(tc["from"]);
+                newTransition(sto, sfrom, tc);
             }
         }
     }

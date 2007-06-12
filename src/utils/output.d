@@ -3,6 +3,7 @@ module utils.output;
 import std.format;
 import std.utf;
 import stdio = std.stdio;
+import std.stream;
 
 /// interface for a generic text output stream (D currently lacks support for
 /// text streams, so we have to do it)
@@ -60,6 +61,20 @@ public class StringOutput : OutputHelper {
     public char[] text;
     void writeString(char[] str) {
         text ~= str;
+    }
+}
+
+public class StreamOutput : OutputHelper {
+    private Stream mTo;
+
+    void writeString(char[] str) {
+        if (mTo) {
+            mTo.writeExact(str.ptr, str.length);
+        }
+    }
+
+    this(Stream to) {
+        mTo = to;
     }
 }
 

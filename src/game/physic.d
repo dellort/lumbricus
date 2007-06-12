@@ -102,6 +102,10 @@ struct POSP {
 
     float walkingSpeed = 10; //pixels per seconds, or so
     float walkingClimb = 10; //pixels of height per 1-pixel which worm can climb
+
+    //influence through damage (0 = invincible, 1 = normal)
+    float damageable = 0.0f;
+    float damageThreshold = 1.0f;
 }
 
 //simple physical object (has velocity, position, mass, radius, ...)
@@ -126,6 +130,27 @@ class PhysicObject : PhysicBase {
     Vector2f walkTo; //direction
     private bool mWalkingMode;
     private bool mIsWalking;
+
+    float lifepower = float.infinity;
+
+    void applyDamage(float severity) {
+        auto delta = -severity*posp.damageable;
+        world.mLog("damage: %s/%s", severity, delta);
+        if (abs(delta) > posp.damageThreshold) {
+            lifepower += delta;
+            needUpdate();
+            //die muaha
+            //xxx rather not (WormSprite is died by GameController)
+            //if (lifepower <= 0)
+              //  dead = true;
+        }
+    }
+
+    //sry
+    int lifepowerInt() {
+        return cast(int)(lifepower + 0.5f);
+    }
+
 
     //constant force the object adds to itself
     //used for jetpack or flying weapons
@@ -364,11 +389,13 @@ class ExplosiveForce : PhysicForce {
     Vector2f getAccelFor(PhysicObject o, float deltaT) {
         Vector2f v = (pos-o.pos);
         float dist = v.length;
-        if (dist > cDistDelta)
+        if (dist > cDistDelta) {
+            o.applyDamage((max(radius-dist,0f)/radius)*impulse/10);
             return -v.normal()*(impulse/deltaT)*(max(radius-dist,0f)/radius)/o.posp.mass
                     * o.posp.explosionInfluence;
-        else
+        } else {
             return Vector2f(0,0);
+        }
     }
 }
 
@@ -594,6 +621,18 @@ class PhysicWorld {
                 //set new position ("should" fit)
                 me.pos = me.pos + normalsum;
 
+                //direction the worm is flying to
+                auto flydirection = me.velocity.normal;
+
+                //force directed against surface
+                auto bump = -(flydirection * rnormal);
+
+                if (bump < 0)
+                    bump = 0;
+
+                //use this for damage
+                me.applyDamage(me.velocity.length*bump/100);
+
                 //mirror velocity on surface
                 Vector2f proj = rnormal * (me.velocity * rnormal);
                 me.velocity -= proj * (1.0f + me.posp.elasticity);
@@ -713,6 +752,9 @@ void loadPOSPFromConfig(ConfigNode node, inout POSP posp) {
     posp.glueForce = node.getFloatValue("glue_force", posp.glueForce);
     posp.walkingSpeed = node.getFloatValue("walking_speed", posp.walkingSpeed);
     posp.walkingClimb = node.getFloatValue("walking_climb", posp.walkingClimb);
+    posp.damageable = node.getFloatValue("damageable", posp.damageable);
+    posp.damageThreshold = node.getFloatValue("damage_threshold",
+        posp.damageThreshold);
 }
 
 //xxx duplicated from generator.d

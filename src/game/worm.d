@@ -13,6 +13,7 @@ import utils.time;
 import utils.log;
 import utils.misc;
 import std.math;
+import str = std.string;
 
 static this() {
     gSpriteClassFactory.register!(WormSpriteClass)("worm_mc");
@@ -24,6 +25,7 @@ enum WormState {
     Walk,
     Jet,
     Weapon,
+    Death,
 }
 
 /+
@@ -39,6 +41,7 @@ interface IControllable {
     bool weaponDrawn();
     void shooter(Shooter w);
     Shooter shooter();
+    xxx not uptodate
 }
 +/
 
@@ -55,6 +58,50 @@ class WormSprite : GObjectSprite {
 
         //selected weapon
         Shooter mWeapon;
+
+        //by default off, GameController can use this
+        bool mDelayedDeath;
+
+        SpriteAnimationInfo* mGravestone;
+    }
+
+    //if can move etc.
+    bool haveAnyControl() {
+        return !shouldDie();
+    }
+
+    void gravestone(int grave) {
+        assert(grave >= 0 && grave < wsc.gravestones.length);
+        mGravestone = wsc.gravestones[grave];
+    }
+
+    void delayedDeath(bool delay) {
+        mDelayedDeath = delay;
+    }
+    bool delayedDeath() {
+        return mDelayedDeath;
+    }
+
+    //if object wants to die; if true, call finallyDie() (etc.)
+    //xxx unclear what this means if object is really dead (active==false)
+    //so, horribly fail if really dead now
+    bool shouldDie() {
+        assert(active());
+        return physics.lifepower <= 0;
+    }
+
+    bool isDelayedDying() {
+        return currentState is mStates[WormState.Death];
+    }
+
+    void finallyDie() {
+        if (active) {
+            if (isDelayedDying())
+                return;
+            //assert(delayedDeath());
+            assert(shouldDie());
+            setState(mStates[WormState.Death]);
+        }
     }
 
     protected this (GameEngine engine, WormSpriteClass spriteclass) {
@@ -66,12 +113,17 @@ class WormSprite : GObjectSprite {
         mStates[WormState.Walk] = findState("walk");
         mStates[WormState.Jet] = findState("jetpack");
         mStates[WormState.Weapon] = findState("weapon");
+        mStates[WormState.Death] = findState("death");
+
+        gravestone = 0;
     }
 
     protected SpriteAnimationInfo* getAnimationInfoForState(StaticStateInfo info)
     {
         if (currentState is mStates[WormState.Weapon] && mWeapon) {
             return mWeapon.weapon.animations[WeaponWormAnimations.Hold];
+        } else if (currentState is mStates[WormState.Death]) {
+            return mGravestone;
         } else {
             return super.getAnimationInfoForState(info);
         }
@@ -234,6 +286,10 @@ class WormSprite : GObjectSprite {
                     ? mStates[WormState.Stand] : mStates[WormState.Fly]);
             }
         }
+        //check death
+        if (active && shouldDie() && !delayedDeath()) {
+            finallyDie();
+        }
         super.physUpdate();
     }
 }
@@ -241,6 +297,7 @@ class WormSprite : GObjectSprite {
 //the factories work over the sprite classes, so we need one
 class WormSpriteClass : GOSpriteClass {
     float jetpackVelocity;
+    SpriteAnimationInfo*[] gravestones;
 
     this(GameEngine e, char[] r) {
         super(e, r);
@@ -248,6 +305,15 @@ class WormSpriteClass : GOSpriteClass {
     override void loadFromConfig(ConfigNode config) {
         super.loadFromConfig(config);
         jetpackVelocity = config.getFloatValue("jet_velocity", 0);
+        char[] grave = config.getStringValue("gravestones", "notfound");
+        int count = config.getIntValue("gravestones_count");
+        gravestones.length = count;
+        foreach (int n, inout SpriteAnimationInfo* inf; gravestones) {
+            inf = allocSpriteAnimationInfo();
+            //violate capsulation a bit
+            inf.ani2angle = Angle2AnimationMode.Simple;
+            inf.animations = [engine.findAnimation(str.format("%s%d", grave, n))];
+        }
     }
     override WormSprite createSprite() {
         return new WormSprite(engine, this);

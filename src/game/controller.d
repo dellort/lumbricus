@@ -37,6 +37,7 @@ class Team {
     //this values indices into cTeamColors
     int teamColor;
     WeaponSet weapons;
+    int initialPoints; //on loading
 
     //wraps around, if w==null, return first element, if any
     private TeamMember doFindNext(TeamMember w) {
@@ -63,6 +64,7 @@ class Team {
     this(ConfigNode node) {
         name = node.getStringValue("name", name);
         teamColor = node.selectValueFrom("color", cTeamColors, 0);
+        initialPoints = node.getIntValue("power", 100);
         //the worms currently aren't loaded by theirselves...
         foreach (char[] name, char[] value; node.getSubNode("member_names")) {
             auto worm = new TeamMember();
@@ -659,6 +661,7 @@ class GameController {
                 //create and place into the landscape
                 m.mWorm = cast(WormSprite)mEngine.createSprite("worm");
                 assert(m.mWorm !is null);
+                m.mWorm.physics.lifepower = t.initialPoints;
                 Vector2f npos, tmp;
                 auto water_y = mEngine.waterOffset;
                 //first 10: minimum distance from water
@@ -715,7 +718,7 @@ private class WormNameDrawer : SceneObject {
                 if (!w.mWorm || !w.mWorm.graphic.active)
                     continue;
 
-                char[] text = w.name;
+                char[] text = str.format("%s (%s)", w.name, w.mWorm.physics.lifepowerInt);
 
                 auto wp = w.mWorm.graphic.pos;
                 auto sz = w.mWorm.graphic.size;

@@ -7,11 +7,13 @@ import stdio = std.stdio;
 /// Access to all Log objects created so far.
 Log[char[]] gAllLogs;
 RedirectOutput gDefaultOutput;
+RedirectOutput gLogEverything;
 Log gDefaultLog;
 
 static this() {
     gDefaultOutput = new RedirectOutput(StdioOutput.output);
     gDefaultLog = registerLog("unknown");
+    gLogEverything = new RedirectOutput(DevNullOutput.output);
 }
 
 /// Generic logging class. Implements interface Output, and all lines of text
@@ -60,6 +62,9 @@ public class Log : Output {
 
         backend.writef("%s: ", mCategory);
         backend.writef_ind(newline, arguments, argptr);
+
+        gLogEverything.writef("%s: ", mCategory);
+        gLogEverything.writef_ind(newline, arguments, argptr);
     }
 }
 
