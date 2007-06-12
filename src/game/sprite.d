@@ -154,13 +154,9 @@ class GObjectSprite : GameObject {
         return &info.animation;
     }
     protected SpriteAnimationInfo* getAnimationInfoForTransition(
-        StateTransition st, bool reverse)
+        StateTransition st)
     {
-        if (reverse) {
-            return &st.animation;
-        } else {
-            return &st.animation_back;
-        }
+        return &st.animation;
     }
 
     Animation getCurrentAnimation() {
@@ -169,9 +165,7 @@ class GObjectSprite : GameObject {
         if (!currentTransition) {
             info = getAnimationInfoForState(currentState);
         } else {
-            //condition checks if reverse transition
-            info = getAnimationInfoForTransition(currentTransition,
-                 currentTransition.from is currentState);
+            info = getAnimationInfoForTransition(currentTransition);
         }
 
         float angle = physics.lookey;
@@ -251,8 +245,10 @@ class GObjectSprite : GameObject {
             if (currentTransition.disablePhysics) {
                 physics.posp.fixate = currentState.physic_properties.fixate;
             }
+            engine.mLog("state transition end (%s -> %s)",
+                currentTransition.from.name, currentTransition.to.name);
+            assert(currentState is currentTransition.to);
             currentTransition = null;
-            engine.mLog("state transition end");
             updateAnimation();
             transitionEnd();
         }
@@ -301,6 +297,8 @@ class GObjectSprite : GameObject {
 
         currentTransition = trans;
         if (trans) {
+            assert(oldstate is trans.from);
+            assert(currentState is trans.to);
             if (trans.disablePhysics) {
                 //don't allow any move
                 physics.posp.fixate = Vector2f(0);
@@ -369,9 +367,8 @@ class StaticStateInfo {
 //describe an animation which is played when switching to another state
 class StateTransition {
     bool disablePhysics; //no physics while playing animation
-    SpriteAnimationInfo animation, animation_back;
+    SpriteAnimationInfo animation;
 
-    //to detect if an animation must be played reverse
     StaticStateInfo from, to;
 }
 
@@ -475,12 +472,6 @@ class GOSpriteClass {
             trans.to = sto;
             sfrom.transitions[sto] = trans;
 
-            if (tc.getBoolValue("works_reverse", false)) {
-                sto.transitions[sfrom] = trans;
-                //create backward animations
-                trans.animation_back = trans.animation.make_reverse();
-            }
-
             return trans;
         }
         foreach (ConfigNode tc; config.getSubNode("state_transitions")) {
@@ -494,6 +485,12 @@ class GOSpriteClass {
             } else {
                 auto sfrom = findState(tc["from"]);
                 newTransition(sto, sfrom, tc);
+
+                if (tc.getBoolValue("works_reverse", false)) {
+                    auto trans = newTransition(sfrom, sto, tc);
+                    //create backward animations
+                    trans.animation = trans.animation.make_reverse();
+                }
             }
         }
     }

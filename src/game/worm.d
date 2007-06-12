@@ -129,17 +129,16 @@ class WormSprite : GObjectSprite {
         }
     }
     protected SpriteAnimationInfo* getAnimationInfoForTransition(
-        StateTransition st, bool reverse)
+        StateTransition st)
     {
         //xxx this sucks make better
-        if ((st.to is mStates[WormState.Weapon]
-            || st.from is mStates[WormState.Weapon])
-            && mWeapon)
-        {
-            return mWeapon.weapon.animations[!reverse
+        auto to_w = st.to is mStates[WormState.Weapon];
+        auto from_w = st.from is mStates[WormState.Weapon];
+        if ((to_w || from_w) && mWeapon) {
+            return mWeapon.weapon.animations[to_w
                 ? WeaponWormAnimations.Arm : WeaponWormAnimations.UnArm];
         } else {
-            return super.getAnimationInfoForTransition(st, reverse);
+            return super.getAnimationInfoForTransition(st);
         }
     }
 
@@ -269,26 +268,28 @@ class WormSprite : GObjectSprite {
     }
 
     override protected void physUpdate() {
-        if (!jetpackActivated) {
-            //update walk animation
-            if (physics.isGlued) {
-                bool walk = physics.isWalking;
-                setState(walk ?
-                    mStates[WormState.Walk] : mStates[WormState.Stand]);
-            }
+        if (!isDelayedDying) {
+            if (!jetpackActivated) {
+                //update walk animation
+                if (physics.isGlued) {
+                    bool walk = physics.isWalking;
+                    setState(walk ?
+                        mStates[WormState.Walk] : mStates[WormState.Stand]);
+                }
 
-            //update if worm is flying around...
-            bool onGround = currentState is mStates[WormState.Stand]
-                || currentState is mStates[WormState.Walk]
-                || currentState is mStates[WormState.Weapon];
-            if (physics.isGlued != onGround) {
-                setState(physics.isGlued
-                    ? mStates[WormState.Stand] : mStates[WormState.Fly]);
+                //update if worm is flying around...
+                bool onGround = currentState is mStates[WormState.Stand]
+                    || currentState is mStates[WormState.Walk]
+                    || currentState is mStates[WormState.Weapon];
+                if (physics.isGlued != onGround) {
+                    setState(physics.isGlued
+                        ? mStates[WormState.Stand] : mStates[WormState.Fly]);
+                }
             }
-        }
-        //check death
-        if (active && shouldDie() && !delayedDeath()) {
-            finallyDie();
+            //check death
+            if (active && shouldDie() && !delayedDeath()) {
+                finallyDie();
+            }
         }
         super.physUpdate();
     }

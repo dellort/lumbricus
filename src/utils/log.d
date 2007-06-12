@@ -3,6 +3,7 @@ module utils.log;
 import utils.output;
 import stdformat = std.format;
 import stdio = std.stdio;
+import utils.time;
 
 /// Access to all Log objects created so far.
 Log[char[]] gAllLogs;
@@ -23,6 +24,7 @@ public class Log : Output {
 
     Output backend;
     char[] backend_name;
+    bool show_time = true;
 
     public this(char[] category) {
         mCategory = category;
@@ -58,13 +60,17 @@ public class Log : Output {
     }
 
     void writef_ind(bool newline, TypeInfo[] arguments, void* argptr) {
+        void writeTo(Output o) {
+            if (show_time) {
+                o.writef("[%s] ", timeCurrentTime());
+            }
+            o.writef("%s: ", mCategory);
+            o.writef_ind(newline, arguments, argptr);
+        }
+
         assert(backend !is null);
-
-        backend.writef("%s: ", mCategory);
-        backend.writef_ind(newline, arguments, argptr);
-
-        gLogEverything.writef("%s: ", mCategory);
-        gLogEverything.writef_ind(newline, arguments, argptr);
+        writeTo(backend);
+        writeTo(gLogEverything);
     }
 }
 

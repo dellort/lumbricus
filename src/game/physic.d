@@ -135,7 +135,7 @@ class PhysicObject : PhysicBase {
 
     void applyDamage(float severity) {
         auto delta = -severity*posp.damageable;
-        world.mLog("damage: %s/%s", severity, delta);
+        //world.mLog("damage: %s/%s", severity, delta);
         if (abs(delta) > posp.damageThreshold) {
             lifepower += delta;
             needUpdate();

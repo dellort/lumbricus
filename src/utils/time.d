@@ -209,7 +209,11 @@ private Time delegate() timeGetCurrentTime;
 
 ///get current (framework) time
 public Time timeCurrentTime() {
-    return timeGetCurrentTime();
+    if (timeGetCurrentTime) {
+        return timeGetCurrentTime();
+    } else {
+        return timeSecs(0);
+    }
 }
 
 ///set the delegate that is called to get the current time

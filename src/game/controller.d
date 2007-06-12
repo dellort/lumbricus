@@ -613,6 +613,10 @@ class GameController {
                 updateWeapon();
                 return true;
             }
+            case "debug4": {
+                worm.physics.applyDamage(100000);
+                return true;
+            }
             default:
 
         }
