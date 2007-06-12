@@ -400,12 +400,15 @@ class GameController {
                 if (messageIsIdle())
                     return RoundState.prepare;
                 break;
+            case RoundState.end:
+                break;
         }
         return mCurrentRoundState;
     }
 
     private void transition(RoundState st) {
         assert(st != mCurrentRoundState);
+        mCurrentRoundState = st;
         switch (st) {
             case RoundState.prepare:
                 mWormAction = false;
@@ -444,7 +447,7 @@ class GameController {
                 mPrepareRemaining = timeMusecs(0);
                 break;
             case RoundState.cleaningUp:
-                messageAdd("cleanup");
+                //see doState()
                 break;
             case RoundState.nextOnHold:
                 current = null;
@@ -452,11 +455,10 @@ class GameController {
                 mRoundRemaining = timeMusecs(0);
                 break;
             case RoundState.end:
-                messageAdd("game has ended");
+                messageAdd(_("msggameend"));
                 current = null;
                 break;
         }
-        mCurrentRoundState = st;
     }
 
     public RoundState currentRoundState() {
@@ -538,7 +540,8 @@ class GameController {
     private TeamMember selectNext() {
         if (!mCurrent) {
             //hum? this is debug code
-            return mTeams ? mTeams[0].findNext(null) : null;
+            //return mTeams ? mTeams[0].findNext(null) : null;
+            return null;
         } else {
             return selectNextFromTeam(mCurrent);
         }
@@ -559,11 +562,17 @@ class GameController {
     }
 
     private bool canControlWorm() {
-        return mCurrentRoundState == RoundState.prepare
-            || mCurrentRoundState == RoundState.playing;
+        return mCurrent !is null
+            && (mCurrentRoundState == RoundState.prepare
+                || mCurrentRoundState == RoundState.playing)
+            && mCurrent.mWorm
+            && mCurrent.mWorm.haveAnyControl();
     }
 
     private void moveWorm(Vector2f v) {
+        if (!mCurrent || !mCurrent.worm)
+            return;
+
         if (canControlWorm() && movementVec != Vector2f(0)) {
             mCurrent.worm.move(movementVec);
             currentWormAction();

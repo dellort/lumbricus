@@ -260,6 +260,9 @@ class WormSprite : GObjectSprite {
         if (currentState is mStates[WormState.Weapon]) {
             mWeaponAngle = physics.lookey;
             mWeaponMove = 0;
+        } else if (currentState is mStates[WormState.Death]) {
+            //explosion!
+            engine.explosionAt(physics.pos, wsc.suicideDamage);
         }
     }
 
@@ -320,6 +323,7 @@ class WormSprite : GObjectSprite {
 //the factories work over the sprite classes, so we need one
 class WormSpriteClass : GOSpriteClass {
     float jetpackVelocity;
+    float suicideDamage;
     SpriteAnimationInfo*[] gravestones;
 
     this(GameEngine e, char[] r) {
@@ -328,6 +332,7 @@ class WormSpriteClass : GOSpriteClass {
     override void loadFromConfig(ConfigNode config) {
         super.loadFromConfig(config);
         jetpackVelocity = config.getFloatValue("jet_velocity", 0);
+        suicideDamage = config.getFloatValue("suicide_damage", 10);
         char[] grave = config.getStringValue("gravestones", "notfound");
         int count = config.getIntValue("gravestones_count");
         gravestones.length = count;
