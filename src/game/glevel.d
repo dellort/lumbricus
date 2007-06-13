@@ -148,6 +148,7 @@ class GameLevel {
                 }
             }
         }
+        mPhysics.generationNo++;
     }
 
     //render a circle using a special color on the surface

@@ -445,6 +445,10 @@ class GravityCenter : PhysicForce {
 class PhysicGeometry : PhysicBase {
     private mixin ListNodeMixin geometries_node;
 
+    //generation counter, increased on every change
+    int generationNo = 0;
+    private int lastKnownGen = -1;
+
     //if outside geometry, return false and don't change pos
     //if inside or touching, return true and set pos to a corrected pos
     //(which is the old pos, moved along the normal at that point in the object)
@@ -644,10 +648,19 @@ class PhysicWorld {
         foreach (PhysicObject me; mObjects) {
             //no need to check then? (maybe)
             //xxx if landscape changed => need to check
-            if (me.isGlued)
-                continue;
-
             Vector2f normalsum = Vector2f(0);
+
+            bool forceCheck = false;
+            foreach (PhysicGeometry gm; mGeometryObjects) {
+                if (gm.lastKnownGen < gm.generationNo) {
+                    //object has changed
+                    forceCheck = true;
+                    gm.lastKnownGen = gm.generationNo;
+                }
+            }
+
+            if (me.isGlued && !forceCheck)
+                continue;
 
             foreach (PhysicGeometry gm; mGeometryObjects) {
                 Vector2f npos = me.pos;
@@ -669,7 +682,7 @@ class PhysicWorld {
                         normalsum += direction;
                     }
 
-                    if (me.onImpact)
+                    if (me.onImpact && !me.isGlued)
                         me.onImpact(gm);
                     //xxx: glue objects that don't fly fast enough
                 }
@@ -677,48 +690,57 @@ class PhysicWorld {
 
             auto rnormal = normalsum.normal();
             if (!rnormal.isNaN()) {
-                me.checkGroundAngle(normalsum);
+                //don't check again for already glued objects
+                if (!me.isGlued) {
+                    me.checkGroundAngle(normalsum);
 
-                //set new position ("should" fit)
-                me.pos = me.pos + normalsum.mulEntries(me.posp.fixate);
+                    //set new position ("should" fit)
+                    me.pos = me.pos + normalsum.mulEntries(me.posp.fixate);
 
-                //direction the worm is flying to
-                auto flydirection = me.velocity.normal;
+                    //direction the worm is flying to
+                    auto flydirection = me.velocity.normal;
 
-                //force directed against surface
-                //xxx in worms, only vertical speed counts
-                auto bump = -(flydirection * rnormal);
+                    //force directed against surface
+                    //xxx in worms, only vertical speed counts
+                    auto bump = -(flydirection * rnormal);
 
-                if (bump < 0)
-                    bump = 0;
+                    if (bump < 0)
+                        bump = 0;
 
-                //use this for damage
-                me.applyDamage(max(me.velocity.length-me.posp.sustainableForce,0f)*bump*me.posp.fallDamageFactor);
+                    //use this for damage
+                    me.applyDamage(max(me.velocity.length-me.posp.sustainableForce,0f)*bump*me.posp.fallDamageFactor);
 
-                //mirror velocity on surface
-                Vector2f proj = rnormal * (me.velocity * rnormal);
-                me.velocity -= proj * (1.0f + me.posp.elasticity);
+                    //mirror velocity on surface
+                    Vector2f proj = rnormal * (me.velocity * rnormal);
+                    me.velocity -= proj * (1.0f + me.posp.elasticity);
 
-                //bumped against surface -> loss of energy
-                //me.velocity *= me.posp.elasticity;
+                    //bumped against surface -> loss of energy
+                    //me.velocity *= me.posp.elasticity;
 
-                //we collided with geometry, but were not fast enough!
-                //  => worm gets glued, hahaha.
-                //xxx maybe do the gluing somewhere else?
-                if (me.velocity.mulEntries(me.posp.fixate).length
-                    <= me.posp.glueForce)
-                {
-                    me.isGlued = true;
-                    mLog("glue object %s", me);
-                    //velocity must be set to 0 (or change glue handling)
-                    //ok I did change glue handling.
-                    me.velocity = Vector2f(0);
+                    //we collided with geometry, but were not fast enough!
+                    //  => worm gets glued, hahaha.
+                    //xxx maybe do the gluing somewhere else?
+                    if (me.velocity.mulEntries(me.posp.fixate).length
+                        <= me.posp.glueForce)
+                    {
+                        me.isGlued = true;
+                        mLog("glue object %s", me);
+                        //velocity must be set to 0 (or change glue handling)
+                        //ok I did change glue handling.
+                        me.velocity = Vector2f(0);
+                    }
+
+                    me.checkRotation();
+
+                    //what about unglue??
+                    me.needUpdate();
                 }
-
-                me.checkRotation();
-
-                //what about unglue??
-                me.needUpdate();
+            } else {
+                if (me.isGlued) {
+                    //no valid normal although glued -> terrain disappeared
+                    me.doUnglue();
+                    me.needUpdate();
+                }
             }
         }
 

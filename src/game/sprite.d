@@ -274,7 +274,6 @@ class GObjectSprite : GameObject {
         //do something that involves an object and a lot of water
         auto st = type.findState("drowning", true);
         if (mUnderWater && st) {
-            std.stdio.writefln("Waterstate");
             setState(st);
         }
     }
