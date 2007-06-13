@@ -240,6 +240,10 @@ class GObjectSprite : GameObject {
     protected void physTriggerEnter(char[] trigId) {
         if (trigId == "waterplane") {
             waterStateChange(true);
+        } else if (trigId == "deathzone") {
+            //_always_ die completely (or are there exceptions?)
+            engine.mLog("exterminate in deathzone: %s", type.name);
+            die();
         }
     }
 
@@ -250,8 +254,7 @@ class GObjectSprite : GameObject {
     }
 
     //called when object should die
-    //this implementation actually makes it dying
-    //xxx: maybe add a state transition, which could be used by worm.d... hm...
+    //this implementation kills it immediately
     protected void die() {
         active = false;
         physics.dead = true;
@@ -264,9 +267,14 @@ class GObjectSprite : GameObject {
 
     protected void waterStateChange(bool under) {
         //do something that involves an object and a lot of water
-        auto st = type.findState("drowning", true);
-        if (under && st) {
-            setState(st);
+        if (under) {
+            auto st = type.findState("drowning", true);
+            if (st) {
+                setState(st);
+            } else {
+                //no drowning state -> die now
+                die();
+            }
         }
     }
 

@@ -103,7 +103,7 @@ class TeamMember {
 
     bool isAlive() {
         //currently by havingwormspriteness... since dead worms haven't
-        return mWorm !is null;
+        return (mWorm !is null) && !mWorm.isDead();
     }
 
     char[] toString() {
@@ -377,6 +377,7 @@ class GameController {
         foreach (TeamMember m; mAllWorms) {
             auto worm = m.mWorm;
             //already dead -> boring
+            //also bail out here if worm drowned/is drowning
             if (!worm || worm.isReallyDead()) {
                 m.mWorm = null;
                 continue;
@@ -597,6 +598,7 @@ class GameController {
         }
     }
 
+    //xxx code duplication with code that selects worm for next round
     private TeamMember selectNext() {
         if (!mCurrent) {
             //hum? this is debug code
@@ -606,11 +608,10 @@ class GameController {
             return selectNextFromTeam(mCurrent);
         }
     }
-
     private TeamMember selectNextFromTeam(TeamMember cur) {
         if (!cur)
             return null;
-        return cur.team.findNext(cur);
+        return cur.team.findNext(cur, true);
     }
 
     //actually still stupid debugging code

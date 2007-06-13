@@ -52,7 +52,8 @@ class GameEngine {
     GameLevel gamelevel;
     Scene scene;
     PhysicWorld physicworld;
-    WaterPlaneTrigger waterborder;
+    PlaneTrigger waterborder;
+    PlaneTrigger deathzone;
     Time lastTime;
     Time currentTime;
     GameWater gameWater;
@@ -206,9 +207,17 @@ class GameEngine {
         //to enable level-bitmap collision
         physicworld.add(gamelevel.physics);
         //various level borders
-        waterborder = new WaterPlaneTrigger();
+        waterborder = new PlaneTrigger();
         waterborder.id = "waterplane";
         physicworld.add(waterborder);
+
+        deathzone = new PlaneTrigger();
+        deathzone.id = "deathzone";
+        //xxx: at least as high as highest object in the game
+        //     else objects will disappear too early
+        auto death_y = worldSize.y + 30;
+        deathzone.plane.define(Vector2f(0, death_y), Vector2f(1, death_y));
+        physicworld.add(deathzone);
 
         mGravForce = new ConstantForce();
         mGravForce.accel = Vector2f(0, 100); //what unit is that???
@@ -246,7 +255,7 @@ class GameEngine {
 
     private void fixupWaterLevel() {
         auto water_y = waterOffset;
-        waterborder.define(Vector2f(0, water_y), Vector2f(1, water_y));
+        waterborder.plane.define(Vector2f(0, water_y), Vector2f(1, water_y));
     }
 
     //one time initialization, where levle objects etc. should be loaded (?)

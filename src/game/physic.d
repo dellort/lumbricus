@@ -491,21 +491,13 @@ class PhysicGeometry : PhysicBase {
     }
 }
 
-//a plane which divides space into two regions (inside and outside plane)
-class PlaneGeometry : PhysicGeometry {
-    private Vector2f mNormal = {1,0};
-    private float mDistance = 0; //distance of the plane from origin
+struct Plane {
+    Vector2f mNormal = {1,0};
+    float mDistance = 0; //distance of the plane from origin
 
     void define(Vector2f from, Vector2f to) {
         mNormal = (to - from).orthogonal.normal;
         mDistance = mNormal * from;
-    }
-
-    this(Vector2f from, Vector2f to) {
-        define(from, to);
-    }
-
-    this() {
     }
 
     bool collide(inout Vector2f pos, float radius) {
@@ -516,6 +508,22 @@ class PlaneGeometry : PhysicGeometry {
         float gap = mDistance - dist;
         pos += mNormal * gap;
         return true;
+    }
+}
+
+//a plane which divides space into two regions (inside and outside plane)
+class PlaneGeometry : PhysicGeometry {
+    Plane plane;
+
+    this(Vector2f from, Vector2f to) {
+        plane.define(from, to);
+    }
+
+    this() {
+    }
+
+    bool collide(inout Vector2f pos, float radius) {
+        return plane.collide(pos, radius);
     }
 }
 
@@ -538,28 +546,18 @@ class PhysicTrigger : PhysicBase {
 }
 
 //little copy+paste, sorry
-class WaterPlaneTrigger : PhysicTrigger {
-    private Vector2f mNormal = {1,0};
-    private float mDistance = 0; //distance of the plane from origin
-
-    void define(Vector2f from, Vector2f to) {
-        mNormal = (to - from).orthogonal.normal;
-        mDistance = mNormal * from;
-    }
+class PlaneTrigger : PhysicTrigger {
+    Plane plane;
 
     this(Vector2f from, Vector2f to) {
-        define(from, to);
+        plane.define(from, to);
     }
 
     this() {
     }
 
     bool collide(Vector2f pos, float radius) {
-        Vector2f out_pt = pos - mNormal * radius;
-        float dist = mNormal * out_pt;
-        if (dist >= mDistance)
-            return false;
-        return true;
+        return plane.collide(pos, radius);
     }
 }
 

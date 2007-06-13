@@ -26,6 +26,7 @@ enum WormState {
     Jet,
     Weapon,
     Death,
+    Drowning,
 }
 
 /+
@@ -61,6 +62,8 @@ class WormSprite : GObjectSprite {
 
         //by default off, GameController can use this
         bool mDelayedDeath;
+
+        bool mIsDead;
 
         SpriteAnimationInfo* mGravestone;
     }
@@ -99,7 +102,7 @@ class WormSprite : GObjectSprite {
     }
     //less strict than isDead(): return false for not-yet-suicided worms
     bool isReallyDead() {
-        return currentState is mStates[WormState.Death];
+        return mIsDead;
     }
 
     //if suicide animation played
@@ -134,6 +137,7 @@ class WormSprite : GObjectSprite {
         mStates[WormState.Jet] = findState("jetpack");
         mStates[WormState.Weapon] = findState("weapon");
         mStates[WormState.Death] = findState("death");
+        mStates[WormState.Drowning] = findState("drowning");
 
         gravestone = 0;
     }
@@ -258,6 +262,12 @@ class WormSprite : GObjectSprite {
         if (!weaponDrawn) {
             graphic.paused = false;
             mWeaponMove = 0;
+        }
+
+        if ((currentState is mStates[WormState.Death])
+            || (currentState is mStates[WormState.Drowning]))
+        {
+            mIsDead = true;
         }
     }
 
