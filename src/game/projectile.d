@@ -12,6 +12,7 @@ import utils.vector2;
 import utils.mylist;
 import utils.time;
 import utils.configfile;
+import utils.log;
 
 static this() {
     gWeaponClassFactory.register!(ProjectileWeapon)("projectile_mc");
@@ -21,9 +22,17 @@ static this() {
 private class ProjectileWeapon : WeaponClass {
     //GOSpriteClass[char[]] projectiles;
     SpawnParams onFire;
+    //create projectiles in the air (according to point value)
+    bool isAirstrike;
 
     this(GameEngine aengine, ConfigNode node) {
         super(aengine, node);
+
+        isAirstrike = node.getBoolValue("airstrike");
+        if (isAirstrike) {
+            onFire.airstrike = true;
+            canPoint = true;
+        }
 
         //load projectiles
         foreach (ConfigNode pr; node.getSubNode("projectiles")) {
@@ -49,7 +58,6 @@ private class ProjectileWeapon : WeaponClass {
 
         parseSpawn(onFire, node.getSubNode("onfire"));
     }
-
 
     ProjectileThrower createShooter() {
         return new ProjectileThrower(this, mEngine);
@@ -80,9 +88,8 @@ private class ProjectileThrower : Shooter {
             spawnCount--;
             lastSpawn = engine.currentTime;
 
-            GObjectSprite sprite = engine.createSprite(spawnParams.projectile);
             auto n = spawnParams.count - (spawnCount + 1); //rgh
-            spawnAdjustSprite(n, spawnParams, fireInfo, sprite);
+            spawnsprite(engine, n, spawnParams, fireInfo);
         }
         if (spawnCount == 0) {
             active = false;
@@ -133,6 +140,7 @@ private class ProjectileSprite : GObjectSprite {
         }
 
         if (engine.currentTime > dieTime) {
+            engine.mLog("die by time");
             die();
         }
     }
@@ -149,9 +157,11 @@ private class ProjectileSprite : GObjectSprite {
             if (myclass.dieByImpact) {
                 die();
             }
+            if (myclass.explosionOnImpact) {
+                engine.explosionAt(physics.pos, myclass.explosionOnImpact);
+            }
         }
     }
-
     override protected void die() {
         //various actions possible when dying
         //spawning
@@ -166,13 +176,11 @@ private class ProjectileSprite : GObjectSprite {
             // ways: create a GameObject which does this (or do it in
             // this.simulate), or use the Shooter class
             for (int n = 0; n < myclass.spawnOnDeath.count; n++) {
-                GObjectSprite sprite =
-                    engine.createSprite(myclass.spawnOnDeath.projectile);
-                spawnAdjustSprite(n, *myclass.spawnOnDeath, info, sprite);
+                spawnsprite(engine, n, *myclass.spawnOnDeath, info);
             }
         }
         //an explosion
-        if (myclass.explosionOnDeath > 0) {
+        if (myclass.explosionOnDeath) {
             engine.explosionAt(physics.pos, myclass.explosionOnDeath);
         }
 
@@ -213,18 +221,20 @@ class TargetProjectileSprite : ProjectileSprite {
 //from the "onfire" or "death.spawn" config sections in weapons.conf
 struct SpawnParams {
     char[] projectile;
-    float spawndist;  //distance between shooter and new projectile
-    int count;        //number of projectiles to spawn
-    Time delay;       //delay between spawns
-    bool random;      //randomly place new projectiles
+    float spawndist = 2; //distance between shooter and new projectile
+    int count = 1;       //number of projectiles to spawn
+    Time delay;         //delay between spawns
+    bool random;        //randomly place new projectiles
+    bool airstrike;     //shoot from the air
 }
 
 bool parseSpawn(inout SpawnParams params, ConfigNode config) {
-    params.projectile = config.getStringValue("projectile");
-    params.count = config.getIntValue("count", 1);
-    params.spawndist = config.getFloatValue("spawndist", 1.0f);
-    params.delay = timeSecs(config.getIntValue("delay", 0));
-    params.random = config.getBoolValue("random", false);
+    params.projectile = config.getStringValue("projectile", params.projectile);
+    params.count = config.getIntValue("count", params.count);
+    params.spawndist = config.getFloatValue("spawndist", params.spawndist);
+    params.delay = timeSecs(config.getIntValue("delay", params.delay.secs));
+    params.random = config.getBoolValue("random", params.random);
+    params.airstrike = config.getBoolValue("airstrike", params.airstrike);
     return true;
 }
 
@@ -233,20 +243,33 @@ bool parseSpawn(inout SpawnParams params, ConfigNode config) {
 // params = see typeof(params)
 // about = how it was thrown
 // sprite = new projectile sprite, which will be initialized and set active now
-private void spawnAdjustSprite(int n, SpawnParams params, FireInfo about,
-    GObjectSprite sprite)
+private void spawnsprite(GameEngine engine, int n, SpawnParams params,
+    FireInfo about)
 {
     assert(about.shootby !is null);
     assert(n >= 0 && n < params.count);
 
-    //place it
-    float dist = about.shootby.posp.radius + sprite.physics.posp.radius;
-    dist += params.spawndist;
+    GObjectSprite sprite = engine.createSprite(params.projectile);
 
-    if (!params.random) {
-        sprite.setPos(about.shootby.pos + about.dir*dist);
+    if (!params.airstrike) {
+        //place it
+        float dist = about.shootby.posp.radius + sprite.physics.posp.radius;
+        dist += params.spawndist;
+
+        if (!params.random) {
+            sprite.setPos(about.shootby.pos + about.dir*dist);
+        } else {
+            sprite.setPos(about.shootby.pos+Vector2f(genrand_real1()*4-2,-2));
+        }
     } else {
-        sprite.setPos(about.shootby.pos+Vector2f(genrand_real1()*4-2,-2));
+        Vector2f pos;
+        float width = params.spawndist * (params.count-1);
+        //center around pointed
+        pos.x = about.pointto.x - width/2 + params.spawndist * n;
+        pos.y = sprite.engine.skyline()+100;
+        sprite.setPos(pos);
+        //patch for below *g*, direct into gravity direction
+        about.dir = Vector2f(0, 1);
     }
 
     //velocity of new object
@@ -286,8 +309,9 @@ class ProjectileSpriteClass : GOSpriteClass {
     SpawnParams* spawnOnDeath;
     ProjectileEffectorClass[] effects;
 
-    //0 for no explosion, else this is the damage strength
+    //nan for no explosion, else this is the damage strength
     float explosionOnDeath;
+    float explosionOnImpact;
 
     override ProjectileSprite createSprite() {
         return new ProjectileSprite(engine, this);
@@ -321,7 +345,8 @@ class ProjectileSpriteClass : GOSpriteClass {
             }
         }
         auto expl = config.getPath("death.explosion", true);
-        explosionOnDeath = expl.getFloatValue("damage", 0);
+        explosionOnDeath = expl.getFloatValue("damage", float.nan);
+        explosionOnImpact = config.getFloatValue("explosion_on_impact", float.nan);
     }
 
 

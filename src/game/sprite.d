@@ -74,7 +74,7 @@ struct SpriteAnimationInfo {
                 return null;
             }
             case Angle2AnimationMode.Simple: {
-                return animations ? animations[0] : null;
+                return animations[0];
             }
             case Angle2AnimationMode.Twosided: {
                 //Hint: array literals allocate memory
@@ -263,7 +263,7 @@ class GObjectSprite : GameObject {
     protected void die() {
         active = false;
         physics.dead = true;
-        //engine.mLog("die: %s", type.name);
+        engine.mLog("really die: %s", type.name);
     }
 
     public bool underWater() {
@@ -309,6 +309,8 @@ class GObjectSprite : GameObject {
         physics.collision = nstate.collide;
         physics.posp = nstate.physic_properties;
         graphic.setAnimation(getCurrentAnimation());
+
+        engine.mLog("force state: %s", nstate.name);
     }
 
     //when called: currentState is to

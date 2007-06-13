@@ -65,6 +65,10 @@ class WormSprite : GObjectSprite {
         SpriteAnimationInfo* mGravestone;
     }
 
+    float weaponAngle() {
+        return mWeaponAngle;
+    }
+
     //if can move etc.
     bool haveAnyControl() {
         return !isDead();
@@ -268,15 +272,7 @@ class WormSprite : GObjectSprite {
     }
 
     void fireWeapon() {
-        if (!weaponDrawn || !mWeapon)
-            return; //go away
-        //xxx: I'll guess I'll move this into GameController?
-        FireInfo info;
-        info.dir = Vector2f.fromPolar(1.0f, mWeaponAngle);
-        info.shootby = physics;
-        info.strength = mWeapon.weapon.throwStrength;
-        info.timer = mWeapon.weapon.timerFrom;
-        mWeapon.fire(info);
+        assert(false);
     }
 
     bool jetpackActivated() {

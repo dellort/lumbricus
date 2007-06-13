@@ -221,8 +221,19 @@ class GameController {
     //parts of the Gui
     private SceneObjectPositioned mForArrow;
     private Vector2i mForArrowPos;
-    private Animation[] mArrowAnims;
+    struct PerTeamAnim {
+        Animation arrow;
+        Animation pointed;
+    }
+    //indexed by team color
+    private PerTeamAnim[] mTeamAnims;
     private Animator mArrow;
+    private Animator mPointed;
+
+    //if you can click anything, if true, also show that animation
+    private bool mAllowSetPoint;
+    private bool mPointIsSet;
+    private Vector2f mPointTo;
 
     private Time mRoundRemaining, mPrepareRemaining;
     //to select next worm
@@ -256,6 +267,7 @@ class GameController {
             sceneview.setCameraFocus(null, CameraStyle.Reset);
 
             hideArrow();
+            allowSetPoint = false;
 
             mLastActive = mCurrent;
         }
@@ -306,13 +318,17 @@ class GameController {
         mBindings.loadFrom(globals.loadConfig("wormbinds").getSubNode("binds"));
 
         mEngine.loadAnimations(globals.loadConfig("teamanims"));
-        mArrowAnims.length = cTeamColors.length;
+        mTeamAnims.length = cTeamColors.length;
         foreach (int n, char[] color; cTeamColors) {
-            mArrowAnims[n] = mEngine.findAnimation("darrow_" ~ color);
+            mTeamAnims[n].arrow = mEngine.findAnimation("darrow_" ~ color);
+            mTeamAnims[n].pointed = mEngine.findAnimation("pointed_" ~ color);
         }
         mArrow = new Animator();
         mArrow.scene = mEngine.scene;
         mArrow.zorder = GameZOrder.Names;
+        mPointed = new Animator();
+        mPointed.scene = mEngine.scene;
+        mPointed.zorder = GameZOrder.Names;
 
         //the stupid!
         //xxx sucks!
@@ -509,7 +525,7 @@ class GameController {
         if (mCurrent && mCurrent.mWorm) {
             mForArrow = mCurrent.mWorm.graphic;
             mForArrowPos = mForArrow.pos;
-            mArrow.setAnimation(mArrowAnims[mCurrent.team.teamColor]);
+            mArrow.setAnimation(mTeamAnims[mCurrent.team.teamColor].arrow);
             //2 pixels Y spacing
             mArrow.pos = mForArrowPos + mForArrow.size.X/2 - mArrow.size.X/2
                 - mArrow.size.Y - Vector2i(0, mDrawer.labelsYOffset + 2);
@@ -519,6 +535,32 @@ class GameController {
     void hideArrow() {
         mArrow.active = false;
     }
+
+    void allowSetPoint(bool set) {
+        if (mAllowSetPoint == set)
+            return;
+        mAllowSetPoint = set;
+        if (set) {
+            //treat as unset yet
+            mPointIsSet = false;
+        } else {
+            mPointIsSet = false;
+            mPointed.active = false;
+        }
+    }
+    void doSetPoint(Vector2f where) {
+        if (!mAllowSetPoint)
+            return;
+        mPointIsSet = true;
+        mPointTo = where;
+
+        if (mCurrent) {
+            mPointed.setAnimation(mTeamAnims[mCurrent.team.teamColor].pointed);
+            mPointed.pos = toVector2i(mPointTo) - mPointed.size/2;
+            mPointed.active = true;
+        }
+    }
+
     //called if any action is issued, i.e. key pressed to control worm
     //or if it was moved by sth. else
     void currentWormAction(bool fromkeys = true) {
@@ -549,6 +591,7 @@ class GameController {
             Shooter nshooter;
             if (selected) {
                 nshooter = selected.createShooter();
+                allowSetPoint = selected.canPoint;
             }
             mCurrent.mWorm.shooter = nshooter;
         }
@@ -635,10 +678,14 @@ class GameController {
             }
             case "debug3": {
                 mRoundRemaining *= 4;
-                break;
+                return true;
             }
             case "selectworm": {
                 current = selectNext();
+                return true;
+            }
+            case "pointy": {
+                doSetPoint(toVector2f(sender.mousePos));
                 return true;
             }
             default:
@@ -664,13 +711,12 @@ class GameController {
             }
             case "weapon": {
                 worm.drawWeapon(!worm.weaponDrawn);
+                updateWeapon();
                 currentWormAction();
                 return true;
             }
             case "fire": {
-                worm.fireWeapon();
-                mCurrent.didFire();
-                currentWormAction();
+                doFire();
                 return true;
             }
             case "weapon_prev": {
@@ -695,6 +741,30 @@ class GameController {
         }
         //nothing found
         return false;
+    }
+
+    private void doFire() {
+        if (!mCurrent || !mCurrent.worm)
+            return;
+
+        auto worm = mCurrent.worm;
+        auto shooter = worm.shooter;
+
+        if (!worm.weaponDrawn || !worm.shooter)
+            return; //go away
+
+        mLog("fire: %s", shooter.weapon.name);
+
+        FireInfo info;
+        info.dir = Vector2f.fromPolar(1.0f, worm.weaponAngle);
+        info.shootby = worm.physics;
+        info.strength = shooter.weapon.throwStrength;
+        info.timer = shooter.weapon.timerFrom;
+        info.pointto = mPointTo;
+        shooter.fire(info);
+
+        mCurrent.didFire();
+        currentWormAction();
     }
 
     private bool onKeyUp(EventSink sender, KeyInfo info) {

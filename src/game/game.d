@@ -238,6 +238,11 @@ class GameEngine {
         return gamelevel.offset.y + gamelevel.height-gamelevel.waterLevel;
     }
 
+    //return skyline offset (used by airstrikes)
+    float skyline() {
+        return gamelevel.offset.y;
+    }
+
     private void fixupWaterLevel() {
         auto water_y = waterOffset;
         waterborder.define(Vector2f(0, water_y), Vector2f(1, water_y));

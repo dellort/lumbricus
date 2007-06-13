@@ -69,7 +69,7 @@ abstract class WeaponClass {
             canThrow = fire.valueIs("mode", "throw");
             throwAnyDirection = fire.valueIs("direction", "any");
             variableThrowStrength = fire.valueIs("strength_mode", "variable");
-            throwStrength = fire.getFloatValue("strength_value");
+            throwStrength = fire.getFloatValue("strength_value", 0);
             hasTimer = fire.getBoolValue("timer");
             if (hasTimer) {
                 //if you need finer values than seconds, hack this
@@ -86,6 +86,11 @@ abstract class WeaponClass {
                 }
             }
             relaxtime = timeSecs(fire.getIntValue("relaxtime", 0));
+            canPoint = fire.getBoolValue("canpoint", false);
+        }
+
+        foreach (inout SpriteAnimationInfo* ani; animations) {
+            ani = allocSpriteAnimationInfo();
         }
 
         //load the transition animations
@@ -93,7 +98,6 @@ abstract class WeaponClass {
         foreach (int i, char[] name; cWWA2Str) {
             auto sub = anis.findNode(name);
             if (sub) {
-                animations[i] = allocSpriteAnimationInfo();
                 animations[i].loadFrom(engine, sub);
             }
         }
@@ -114,7 +118,7 @@ abstract class WeaponClass {
 struct FireInfo {
     PhysicObject shootby; //maybe need shooter position, size and velocity
     Vector2f dir = Vector2f.nan; //normalized throw direction
-    float strength; //as allowed in the weapon config
+    float strength = 1.0f; //as allowed in the weapon config
     Time timer;     //selected time, in the range dictated by the weapon
     Vector2f pointto = Vector2f.nan; //if weapon can point to somewhere
 }

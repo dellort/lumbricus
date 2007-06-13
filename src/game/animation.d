@@ -6,6 +6,7 @@ import framework.framework;
 import utils.configfile;
 import utils.misc;
 import utils.time;
+import utils.log;
 
 class Animation {
     private FrameInfo[] mFrames;
@@ -187,6 +188,7 @@ class Animator : SceneObjectPositioned {
                         //xxx sorry that could have set a new animation, but we
                         //don't knoiw anything about the new one
                         //so recheck on the next frame
+                        gDefaultLog("fool!");
                         return;
                     }
                 }
