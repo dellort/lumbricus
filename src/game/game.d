@@ -52,7 +52,7 @@ class GameEngine {
     GameLevel gamelevel;
     Scene scene;
     PhysicWorld physicworld;
-    PlaneGeometry waterborder;
+    WaterPlaneTrigger waterborder;
     Time lastTime;
     Time currentTime;
     GameWater gameWater;
@@ -206,7 +206,8 @@ class GameEngine {
         //to enable level-bitmap collision
         physicworld.add(gamelevel.physics);
         //various level borders
-        waterborder = new WaterPlaneGeometry();
+        waterborder = new WaterPlaneTrigger();
+        waterborder.id = "waterplane";
         physicworld.add(waterborder);
 
         mGravForce = new ConstantForce();

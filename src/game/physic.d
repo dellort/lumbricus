@@ -34,6 +34,8 @@ class PhysicBase {
     private float mLifeTime = float.infinity;
     private float mRemainLifeTime;
 
+    private bool[char[]] mTriggerStates, mLastTriggerStates;
+
     CollisionType collision;
 
     //call when object should be notified with doUpdate() after all physics done
@@ -49,13 +51,38 @@ class PhysicBase {
     public void delegate() onUpdate;
     public void delegate(PhysicBase other) onImpact;
     public void delegate() onDie;
+    public void delegate(char[] triggerId) onTriggerEnter;
+    public void delegate(char[] triggerId) onTriggerExit;
 
     //feedback to other parts of the game
     private void doUpdate() {
         if (onUpdate) {
             onUpdate();
         }
+        //update trigger states and trigger events
+        foreach (char[] trigId, inout bool curTrigSt; mTriggerStates) {
+            bool* last = (trigId in mLastTriggerStates);
+            if (!last || *last != curTrigSt) {
+                mLastTriggerStates[trigId] = curTrigSt;
+                if (curTrigSt) {
+                    if (onTriggerEnter)
+                        onTriggerEnter(trigId);
+                } else {
+                    if (onTriggerExit)
+                        onTriggerExit(trigId);
+                }
+            }
+            curTrigSt = false;
+        }
         //world.mLog("update: %s", this);
+    }
+
+    public bool triggerActive(char[] triggerId) {
+        bool* trigSt = (triggerId in mLastTriggerStates);
+        if (trigSt)
+            return *trigSt;
+        else
+            return false;
     }
 
     //fast check if object can collide with other object
@@ -71,6 +98,10 @@ class PhysicBase {
                 dead = true;
             }
         }
+    }
+
+    protected void triggerCollide(char[] triggerId) {
+        mTriggerStates[triggerId] = true;
     }
 
     public void remove() {
@@ -454,8 +485,10 @@ class PhysicGeometry : PhysicBase {
     //(which is the old pos, moved along the normal at that point in the object)
     abstract bool collide(inout Vector2f pos, float radius);
 
-    //wether the geom object is solid (bounce off) or just a trigger area
-    abstract bool isSolid();
+    public void remove() {
+        super.remove();
+        world.mGeometryObjects.remove(this);
+    }
 }
 
 //a plane which divides space into two regions (inside and outside plane)
@@ -484,15 +517,49 @@ class PlaneGeometry : PhysicGeometry {
         pos += mNormal * gap;
         return true;
     }
+}
 
-    bool isSolid() {
-        return true;
+//base class for trigger regions
+//objects can be inside or outside and will trigger a callback when inside
+//remember to set id for trigger handler
+class PhysicTrigger : PhysicBase {
+    private mixin ListNodeMixin triggers_node;
+
+    //identifier for callback procedure
+    char[] id = "trigid_undefined";
+
+    //return true when object is inside, false otherwise
+    abstract bool collide(Vector2f pos, float radius);
+
+    public void remove() {
+        super.remove();
+        world.mTriggers.remove(this);
     }
 }
 
-class WaterPlaneGeometry : PlaneGeometry {
-    bool isSolid() {
-        return false;
+//little copy+paste, sorry
+class WaterPlaneTrigger : PhysicTrigger {
+    private Vector2f mNormal = {1,0};
+    private float mDistance = 0; //distance of the plane from origin
+
+    void define(Vector2f from, Vector2f to) {
+        mNormal = (to - from).orthogonal.normal;
+        mDistance = mNormal * from;
+    }
+
+    this(Vector2f from, Vector2f to) {
+        define(from, to);
+    }
+
+    this() {
+    }
+
+    bool collide(Vector2f pos, float radius) {
+        Vector2f out_pt = pos - mNormal * radius;
+        float dist = mNormal * out_pt;
+        if (dist >= mDistance)
+            return false;
+        return true;
     }
 }
 
@@ -501,6 +568,7 @@ class PhysicWorld {
     private List!(PhysicForce) mForceObjects;
     private List!(PhysicGeometry) mGeometryObjects;
     package List!(PhysicObject) mObjects;
+    package List!(PhysicTrigger) mTriggers;
     private uint mLastTime;
 
     private log.Log mLog;
@@ -515,6 +583,10 @@ class PhysicWorld {
     }
     public void add(PhysicGeometry obj) {
         mGeometryObjects.insert_tail(obj);
+        addBaseObject(obj);
+    }
+    public void add(PhysicTrigger obj) {
+        mTriggers.insert_tail(obj);
         addBaseObject(obj);
     }
     public void addBaseObject(PhysicBase bobj) {
@@ -646,6 +718,15 @@ class PhysicWorld {
 
         //check against geometry
         foreach (PhysicObject me; mObjects) {
+            //check triggers
+            //check glued objects too, or else not checking would be
+            //misinterpreted as not active
+            foreach (PhysicTrigger tr; mTriggers) {
+                if (tr.collide(me.pos, me.posp.radius)) {
+                    me.triggerCollide(tr.id);
+                }
+            }
+
             //no need to check then? (maybe)
             //xxx if landscape changed => need to check
             Vector2f normalsum = Vector2f(0);
@@ -670,17 +751,13 @@ class PhysicWorld {
                     //reported, assume the object is completely within the
                     //landscape...
                     //(xxx: uh, actually a dangerous hack)
-                    if (gm.isSolid()) {
-                        //only solid objects add to normal, and make objects
-                        //bounce out
-                        if (npos == me.pos) {
-                            //so pull it out along the velocity vector
-                            npos -= me.velocity.normal*me.posp.radius*2;
-                        }
-
-                        Vector2f direction = npos - me.pos;
-                        normalsum += direction;
+                    if (npos == me.pos) {
+                        //so pull it out along the velocity vector
+                        npos -= me.velocity.normal*me.posp.radius*2;
                     }
+
+                    Vector2f direction = npos - me.pos;
+                    normalsum += direction;
 
                     if (me.onImpact && !me.isGlued)
                         me.onImpact(gm);
@@ -819,6 +896,7 @@ class PhysicWorld {
         mAllObjects = new List!(PhysicBase)(PhysicBase.allobjects_node.getListNodeOffset());
         mForceObjects = new List!(PhysicForce)(PhysicForce.forces_node.getListNodeOffset());
         mGeometryObjects = new List!(PhysicGeometry)(PhysicGeometry.geometries_node.getListNodeOffset());
+        mTriggers = new List!(PhysicTrigger)(PhysicTrigger.triggers_node.getListNodeOffset());
         mLog = log.registerLog("physlog");
     }
 }

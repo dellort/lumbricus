@@ -73,10 +73,6 @@ class LevelGeometry : PhysicGeometry {
 
         return true;
     }
-
-    bool isSolid() {
-        return true;
-    }
 }
 
 //in-game ("loaded") version of levelgen.level.Level

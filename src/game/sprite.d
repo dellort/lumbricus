@@ -159,9 +159,6 @@ class GObjectSprite : GameObject {
     //animation played when doing state transition...
     StateTransition currentTransition;
 
-    private bool mWaterImpact = false;
-    protected bool mUnderWater = false;
-
     //return animations for states; this can be used to "patch" animations for
     //specific states (used for worm.d/weapons)
     protected SpriteAnimationInfo* getAnimationInfoForState(StaticStateInfo info)
@@ -205,24 +202,11 @@ class GObjectSprite : GameObject {
     protected void physUpdate() {
         updateAnimation();
 
-        if (mWaterImpact) {
-            //object hit water in this simulation step
-            mUnderWater = true;
-        } else {
-            mUnderWater = false;
-        }
-        mWaterImpact = false;
-
-        if (mUnderWater != lastwater) {
-            waterStateChange();
-            lastwater = mUnderWater;
-        }
-
         //check if sprite is out of level
         //if so, draw nice out-of-level-graphic
         auto scenerect = Rect2i(0,0,graphic.scene.size.x,graphic.scene.size.y);
         if (!scenerect.intersects(Rect2i(graphic.pos,graphic.pos+graphic.size))
-            && !mUnderWater)
+            && !underWater)
         {
             auto hsize = outOfLevel.size/2;
             //draw arrow 5 pixels before level border
@@ -244,10 +228,6 @@ class GObjectSprite : GameObject {
     }
 
     protected void physImpact(PhysicBase other) {
-        if (cast(WaterPlaneGeometry)other) {
-            //object is in water
-            mWaterImpact = true;
-        }
     }
 
     protected void physDie() {
@@ -255,6 +235,18 @@ class GObjectSprite : GameObject {
         if (!active)
             return;
         die();
+    }
+
+    protected void physTriggerEnter(char[] trigId) {
+        if (trigId == "waterplane") {
+            waterStateChange(true);
+        }
+    }
+
+    protected void physTriggerExit(char[] trigId) {
+        if (trigId == "waterplane") {
+            waterStateChange(false);
+        }
     }
 
     //called when object should die
@@ -267,13 +259,13 @@ class GObjectSprite : GameObject {
     }
 
     public bool underWater() {
-        return mUnderWater;
+        return physics.triggerActive("waterplane");
     }
 
-    protected void waterStateChange() {
+    protected void waterStateChange(bool under) {
         //do something that involves an object and a lot of water
         auto st = type.findState("drowning", true);
-        if (mUnderWater && st) {
+        if (under && st) {
             setState(st);
         }
     }
@@ -390,6 +382,8 @@ class GObjectSprite : GameObject {
         physics.onUpdate = &physUpdate;
         physics.onImpact = &physImpact;
         physics.onDie = &physDie;
+        physics.onTriggerEnter = &physTriggerEnter;
+        physics.onTriggerExit =&physTriggerExit;
         engine.physicworld.add(physics);
 
         graphic.setOnNoAnimation(&animationEnd);
