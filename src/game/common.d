@@ -5,6 +5,7 @@ import utils.time;
 import utils.configfile;
 import utils.log, utils.output;
 import framework.i18n;
+import game.resources;
 
 public Common globals;
 
@@ -19,6 +20,7 @@ class Common {
     Output defaultOut;
     CommandLine cmdLine;
     ConfigNode anyConfig;
+    Resources resources;
 
     private Log mLogConf;
 
@@ -39,6 +41,8 @@ class Common {
         log = registerLog("common");
 
         framework = fw;
+
+        resources = new Resources();
 
         anyConfig = loadConfig("anything");
 

@@ -1,7 +1,7 @@
 module levelgen.level;
 
 import framework.framework;
-import game.animation;
+import game.resources;
 import utils.configfile;
 
 //LEvel ELement
@@ -35,7 +35,7 @@ public class Level {
     Surface skyGradient;
     Surface skyBackdrop;
     Color skyColor;
-    Animation skyDebris;
+    AnimationResource skyDebris;
 
     public uint width() {
         return mWidth;

@@ -7,6 +7,7 @@ import game.glevel;
 import game.common;
 import game.animation;
 import game.scene;
+import game.resources;
 import utils.misc;
 import utils.time;
 import utils.vector2;
@@ -72,7 +73,7 @@ class GameWater : GameObject {
         mWaterDrawerBack = new WaterDrawerBack(this, waterColor);
         mWaterDrawerBack.setScene(engine.scene, GameZOrder.BackWater);
         try {
-            mWaveAnim = new Animation(waterNode.getSubNode("waves"));
+            mWaveAnim = globals.resources.createAnimation(waterNode.getSubNode("waves"),waterType~"_waves").get();
             foreach (int i, inout a; mWaveAnimBack) {
                 a = new HorizontalFullsceneAnimator();
                 a.setAnimation(mWaveAnim);

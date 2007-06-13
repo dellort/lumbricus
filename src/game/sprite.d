@@ -3,6 +3,8 @@ import game.gobject;
 import game.physic;
 import game.animation;
 import game.game;
+import game.common;
+import game.resources;
 import utils.vector2;
 import utils.rect2;
 import utils.configfile;
@@ -53,7 +55,7 @@ SpriteAnimationInfo* allocSpriteAnimationInfo() {
 
 struct SpriteAnimationInfo {
     Angle2AnimationMode ani2angle;
-    Animation[] animations;
+    AnimationResource[] animations;
 
     bool noAnimation() {
         return ani2angle == Angle2AnimationMode.None;
@@ -63,9 +65,9 @@ struct SpriteAnimationInfo {
         *this = (*this).init;
     }
 
-    Animation animationFromAngle(float angle) {
+    AnimationResource animationFromAngle(float angle) {
 
-        Animation getFromCAngles(int[] angles) {
+        AnimationResource getFromCAngles(int[] angles) {
             return animations[pickNearestAngle(angles, angle)];
         }
 
@@ -97,9 +99,10 @@ struct SpriteAnimationInfo {
         res = *this;
         res.animations = res.animations.dup;
 
-        foreach (inout Animation a; res.animations) {
+        foreach (inout AnimationResource a; res.animations) {
             if (a) {
-                a = a.getBackwards();
+                a = globals.resources.createProcessedAnimation(a.id,
+                    a.id~"_backwards",true,false);
             }
         }
 
@@ -109,9 +112,10 @@ struct SpriteAnimationInfo {
     void loadFrom(GameEngine engine, ConfigNode sc) {
 
         void addMirrors() {
-            Animation[] nanimations;
-            foreach (Animation a; animations) {
-                nanimations ~= a ? a.getMirroredY() : null;
+            AnimationResource[] nanimations;
+            foreach (AnimationResource a; animations) {
+                nanimations ~= a ? globals.resources.createProcessedAnimation(
+                    a.id,a.id~"_mirrored",false,true) : null;
             }
             animations ~= nanimations;
         }
@@ -126,7 +130,7 @@ struct SpriteAnimationInfo {
             }
             case Angle2AnimationMode.Simple, Angle2AnimationMode.Twosided: {
                 //only one animation to load
-                animations = [engine.findAnimation(sc["animations"])];
+                animations = [globals.resources.anims(sc["animations"])];
                 addMirrors();
                 break;
             }
@@ -134,7 +138,7 @@ struct SpriteAnimationInfo {
                 char[] head = sc["animations"];
                 static names = [cast(char[])"down", "norm", "up"];
                 foreach (s; names) {
-                    animations ~= engine.findAnimation(head ~ s);
+                    animations ~= globals.resources.anims(head ~ s);
                 }
                 addMirrors();
                 break;
@@ -171,7 +175,7 @@ class GObjectSprite : GameObject {
         return &st.animation;
     }
 
-    Animation getCurrentAnimation() {
+    AnimationResource getCurrentAnimation() {
         SpriteAnimationInfo* info;
 
         if (!currentTransition) {
@@ -186,7 +190,10 @@ class GObjectSprite : GameObject {
 
     //update the animation to the current state and physics status
     void updateAnimation() {
-        Animation anim = getCurrentAnimation();
+        AnimationResource r = getCurrentAnimation();
+        Animation anim = null;
+        if (r)
+            anim = r.get();
 
         Vector2i anim_size = anim ? anim.size : Vector2i(0);
         graphic.pos = toVector2i(physics.pos) - anim_size/2;
@@ -307,7 +314,7 @@ class GObjectSprite : GameObject {
         currentState = nstate;
         physics.collision = nstate.collide;
         physics.posp = nstate.physic_properties;
-        graphic.setAnimation(getCurrentAnimation());
+        graphic.setAnimation(getCurrentAnimation().get());
 
         engine.mLog("force state: %s", nstate.name);
     }
@@ -401,7 +408,7 @@ class GObjectSprite : GameObject {
         outOfLevel.scene = engine.scene;
         outOfLevel.zorder = GameZOrder.Objects;
         outOfLevel.paused = true;
-        outOfLevel.setAnimation(type.outOfRegionArrow);
+        outOfLevel.setAnimation(type.outOfRegionArrow.get());
     }
 }
 
@@ -438,7 +445,7 @@ class GOSpriteClass {
     StaticStateInfo[char[]] states;
     StaticStateInfo initState;
 
-    Animation outOfRegionArrow;
+    AnimationResource outOfRegionArrow;
 
     StaticStateInfo findState(char[] name, bool canfail = false) {
         StaticStateInfo* state = name in states;
@@ -469,14 +476,14 @@ class GOSpriteClass {
         initState = ssi;
 
         //hardcoded and stupid, sorry
-        outOfRegionArrow = engine.findAnimation("out_of_level_arrow");
+        outOfRegionArrow = globals.resources.anims("out_of_level_arrow");
     }
 
     void loadFromConfig(ConfigNode config) {
         POSP[char[]] posps;
 
         //load animation config files
-        engine.loadAnimations(config.find("require_animations"));
+        globals.resources.loadAnimations(config.find("require_animations"));
 
         //load collision map
         engine.loadCollisions(config.getSubNode("collisions"));

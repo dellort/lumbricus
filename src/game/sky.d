@@ -96,7 +96,7 @@ class GameSky : GameObject {
             skyBackdropOffset = engine.gamelevel.offset.y+engine.gamelevel.height-engine.gamelevel.waterLevel-skyBackdrop.size.y;
         }
 
-        mDebrisAnim = engine.level.skyDebris;
+        mDebrisAnim = engine.level.skyDebris.get();
 
         skyOffset = engine.gamelevel.offset.y+engine.gamelevel.height-skyTex.size.y;
         if (skyOffset > 0)
@@ -108,7 +108,7 @@ class GameSky : GameObject {
         if (mCloudsVisible) {
             scope (failure) mCloudsVisible = false;
             foreach (char[] nodeName, ConfigNode node; skyNode.getSubNode("clouds")) {
-                mCloudAnims ~= new Animation(node);
+                mCloudAnims ~= globals.resources.createAnimation(node,"clouds_"~nodeName).get();
             }
 
             int nAnim = 0;

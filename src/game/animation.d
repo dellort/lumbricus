@@ -8,6 +8,32 @@ import utils.misc;
 import utils.time;
 import utils.log;
 
+struct AnimationData {
+    int duration = 20;
+    Transparency trans = Transparency.Colorkey;
+    char[] imagePath = "(invalid)";
+    int frames = 1;
+    Vector2i size = {0, 0};
+    bool repeat = false;
+    bool reverse = false;
+
+    public static AnimationData opCall(ConfigNode node) {
+        AnimationData ret;
+        ret.duration = node.getIntValue("duration", ret.duration);;
+        char[] imgmode = node.getStringValue("transparency","colorkey");
+        if (imgmode == "alpha") {
+            ret.trans = Transparency.Alpha;
+        }
+        ret.imagePath = node.getStringValue("image",ret.imagePath);
+        ret.frames = node.getIntValue("frames", ret.frames);
+        ret.size.x = node.getIntValue("width", ret.size.x);
+        ret.size.y = node.getIntValue("height", ret.size.y);
+        ret.repeat = node.getBoolValue("repeat", ret.repeat);
+        ret.reverse = node.getBoolValue("backwards", ret.reverse);
+        return ret;
+    }
+}
+
 class Animation {
     private FrameInfo[] mFrames;
     private Vector2i mSize;
@@ -22,29 +48,26 @@ class Animation {
         Vector2i pos, size;
     }
 
-    this (ConfigNode node, char[] relPath = "") {
+    /*this (ConfigNode node, char[] relPath = "") {
         assert(node !is null);
-        int duration = node.getIntValue("duration", 20);
-        char[] imgmode = node.getStringValue("transparency","colorkey");
-        Transparency trans = Transparency.Colorkey;
-        if (imgmode == "alpha") {
-            trans = Transparency.Alpha;
-        }
-        mImage = globals.loadGraphic(relPath ~ node.getStringValue("image"),
-            trans);
+        AnimationData animData = AnimationData(node);
+        this(animData, relPath);
+    }*/
+
+    this(AnimationData animData, char[] relPath = "") {
+        mImage = globals.loadGraphic(relPath ~ animData.imagePath,
+            animData.trans);
         if (!mImage)
             throw new Exception("Failed to load animation bitmap");
         mImageTex = mImage.createTexture();
-        int frames = node.getIntValue("frames", 0);
-        mSize.x = node.getIntValue("width", 0);
-        mSize.y = node.getIntValue("height", 0);
-        mRepeat = node.getBoolValue("repeat", false);
-        mReverse = node.getBoolValue("backwards", false);
-        mFrames.length = frames;
-        for (int n = 0; n < frames; n++) {
+        mSize = animData.size;
+        mRepeat = animData.repeat;
+        mReverse = animData.reverse;
+        mFrames.length = animData.frames;
+        for (int n = 0; n < animData.frames; n++) {
             mFrames[n].pos = Vector2i(mSize.x*n, 0);
             mFrames[n].size = mSize;
-            mFrames[n].durationMS = duration;
+            mFrames[n].durationMS = animData.duration;
         }
     }
 

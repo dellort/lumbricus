@@ -347,7 +347,7 @@ class WormSpriteClass : GOSpriteClass {
             inf = allocSpriteAnimationInfo();
             //violate capsulation a bit
             inf.ani2angle = Angle2AnimationMode.Simple;
-            inf.animations = [engine.findAnimation(str.format("%s%d", grave, n))];
+            inf.animations = [globals.resources.anims(str.format("%s%d", grave, n))];
         }
     }
     override WormSprite createSprite() {

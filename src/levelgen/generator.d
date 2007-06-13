@@ -294,7 +294,7 @@ public class LevelGenerator {
         if (skyBackTex.length > 0)
             ret.skyBackdrop = readTexture(gfxPath ~ skyBackTex, true);
         if (skyNode.exists("debris"))
-            ret.skyDebris = new Animation(skyNode.getSubNode("debris"), gfxPath);
+            ret.skyDebris = globals.resources.createAnimation(skyNode.getSubNode("debris"), gfxPath~"debris",gfxPath);
 
         //water level from bottom, relative value
         float waterLevel = template_node.getFloatValue("waterlevel");

@@ -6,6 +6,7 @@ import game.scene;
 import game.animation;
 import game.visual;
 import game.weapon;
+import game.resources;
 import utils.vector2;
 import utils.configfile;
 import utils.log;
@@ -222,8 +223,8 @@ class GameController {
     private SceneObjectPositioned mForArrow;
     private Vector2i mForArrowPos;
     struct PerTeamAnim {
-        Animation arrow;
-        Animation pointed;
+        AnimationResource arrow;
+        AnimationResource pointed;
     }
     //indexed by team color
     private PerTeamAnim[] mTeamAnims;
@@ -317,11 +318,11 @@ class GameController {
         mBindings = new KeyBindings();
         mBindings.loadFrom(globals.loadConfig("wormbinds").getSubNode("binds"));
 
-        mEngine.loadAnimations(globals.loadConfig("teamanims"));
+        globals.resources.loadAnimations(globals.loadConfig("teamanims"));
         mTeamAnims.length = cTeamColors.length;
         foreach (int n, char[] color; cTeamColors) {
-            mTeamAnims[n].arrow = mEngine.findAnimation("darrow_" ~ color);
-            mTeamAnims[n].pointed = mEngine.findAnimation("pointed_" ~ color);
+            mTeamAnims[n].arrow = globals.resources.anims("darrow_" ~ color);
+            mTeamAnims[n].pointed = globals.resources.anims("pointed_" ~ color);
         }
         mArrow = new Animator();
         mArrow.scene = mEngine.scene;
@@ -526,7 +527,7 @@ class GameController {
         if (mCurrent && mCurrent.mWorm) {
             mForArrow = mCurrent.mWorm.graphic;
             mForArrowPos = mForArrow.pos;
-            mArrow.setAnimation(mTeamAnims[mCurrent.team.teamColor].arrow);
+            mArrow.setAnimation(mTeamAnims[mCurrent.team.teamColor].arrow.get());
             //2 pixels Y spacing
             mArrow.pos = mForArrowPos + mForArrow.size.X/2 - mArrow.size.X/2
                 - mArrow.size.Y - Vector2i(0, mDrawer.labelsYOffset + 2);
@@ -556,7 +557,7 @@ class GameController {
         mPointTo = where;
 
         if (mCurrent) {
-            mPointed.setAnimation(mTeamAnims[mCurrent.team.teamColor].pointed);
+            mPointed.setAnimation(mTeamAnims[mCurrent.team.teamColor].pointed.get());
             mPointed.pos = toVector2i(mPointTo) - mPointed.size/2;
             mPointed.active = true;
         }

@@ -260,11 +260,11 @@ class GameEngine {
 
     //one time initialization, where levle objects etc. should be loaded (?)
     private void loadLevelStuff() {
-        loadAnimations(globals.loadConfig("stdanims"));
+        globals.resources.loadAnimations(globals.loadConfig("stdanims"));
 
         //load weapons
         auto weapons = globals.loadConfig("weapons");
-        loadAnimations(weapons.find("require_animations"));
+        globals.resources.loadAnimations(weapons.find("require_animations"));
         auto list = weapons.getSubNode("weapons");
         foreach (ConfigNode item; list) {
             loadWeaponClass(item);
@@ -276,6 +276,10 @@ class GameEngine {
             auto sprite = globals.loadConfig(value);
             loadSpriteClass(sprite);
         }
+
+        //load all animations
+        //xxx this would load all those worms animations, think of something
+        //globals.resources.preloadAll();
     }
 
     public uint detailLevel() {
@@ -422,87 +426,6 @@ class GameEngine {
                 return true;
         }
         return false;
-    }
-
-    //load animations as requested in "item"
-    //currently, item shall be a ConfigValue which contains the configfile name
-    //note that this name shouldn't contain a ".conf", argh.
-    //also can be an animation configfile directly
-    void loadAnimations(ConfigItem item) {
-        if (!item)
-            return;
-
-        ConfigNode cfg;
-
-        auto v = cast(ConfigValue)item;
-        if (v) {
-            //argh
-            ConfigNode n = v.parent;
-            //argh
-            char[][] files = n.getValueArray!(char[])(v.name);
-            foreach (file; files) {
-                if (file in mLoadedAnimationConfigFiles)
-                    continue;
-
-                mLoadedAnimationConfigFiles[file] = true;
-                cfg = globals.loadConfig(file);
-                loadAnimations(cfg);
-            }
-            return;
-        } else if (cast(ConfigNode)item) {
-            cfg = cast(ConfigNode)item;
-        } else {
-            assert(false);
-        }
-
-        assert(cfg !is null);
-
-        auto load_further = cfg.find("require_animations");
-        if (load_further !is null) {
-            //xxx: should try to prevent possible recursion
-            loadAnimations(load_further);
-        }
-
-        //load new introduced animations (not really load them themselves...)
-        mAllAnimations.mixinNode(cfg.getSubNode("animations"), false);
-
-        //add aliases
-        foreach (char[] name, char[] value;
-            cfg.getSubNode("animation_aliases"))
-        {
-            ConfigNode aliased = mAllAnimations.findNode(value);
-            if (!aliased) {
-                mLog("WARNING: alias '%s' not found", value);
-                continue;
-            }
-            if (mAllAnimations.findNode(name)) {
-                mLog("WARNING: alias target '%s' already exists", name);
-                continue;
-            }
-            //um, this sucks... but seems to work... strange world
-            mAllAnimations.getSubNode(name).mixinNode(aliased);
-            //possibly copy already loaded Animation
-            Animation* ani = value in mAllLoadedAnimations;
-            if (ani) {
-                mAllLoadedAnimations[name] = *ani;
-            }
-        }
-    }
-
-    //get an animation or, if not loaded yet, actually load the animation
-    Animation findAnimation(char[] name) {
-        Animation* ani = name in mAllLoadedAnimations;
-        if (ani)
-            return *ani;
-        //actually load
-        ConfigNode n = mAllAnimations.findNode(name);
-        if (!n) {
-            mLog("WARNING: animation '%s' not found", name);
-            return null;
-        }
-        auto nani = new Animation(n);
-        mAllLoadedAnimations[name] = nani;
-        return nani;
     }
 
     //find a collision ID by name
