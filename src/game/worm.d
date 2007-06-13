@@ -246,6 +246,7 @@ class WormSprite : GObjectSprite {
     override protected void stateTransition(StaticStateInfo from,
         StaticStateInfo to)
     {
+        super.stateTransition(from, to);
         //hm... no animations while holding a weapon, because the animation here
         //isn't really an animation, instead each frame is for a specific angle
         //to hold the weapon...

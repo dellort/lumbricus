@@ -30,9 +30,9 @@ enum GameZOrder {
     BackWaterWaves1,   //water behind the level
     BackWaterWaves2,
     Level,
+    FrontWater,  //water before the level
     Objects,
     Names, //controller.d/WormNameDrawer
-    FrontWater,  //water before the level
     FrontWaterWaves1,
     FrontWaterWaves2,
     FrontWaterWaves3,
@@ -77,7 +77,7 @@ class GameEngine {
 
     package List!(GameObject) mObjects;
 
-    private const cSpaceBelowLevel = 80;
+    private const cSpaceBelowLevel = 150;
     private const cSpaceAboveOpenLevel = 1000;
     private const cOpenLevelWidthMultiplier = 3;
 
@@ -206,7 +206,7 @@ class GameEngine {
         //to enable level-bitmap collision
         physicworld.add(gamelevel.physics);
         //various level borders
-        waterborder = new PlaneGeometry();
+        waterborder = new WaterPlaneGeometry();
         physicworld.add(waterborder);
 
         mGravForce = new ConstantForce();
@@ -421,12 +421,19 @@ class GameEngine {
 
         auto v = cast(ConfigValue)item;
         if (v) {
-            char[] file = v.value;
-            if (file in mLoadedAnimationConfigFiles)
-                return;
+            //argh
+            ConfigNode n = v.parent;
+            //argh
+            char[][] files = n.getValueArray!(char[])(v.name);
+            foreach (file; files) {
+                if (file in mLoadedAnimationConfigFiles)
+                    continue;
 
-            mLoadedAnimationConfigFiles[file] = true;
-            cfg = globals.loadConfig(file);
+                mLoadedAnimationConfigFiles[file] = true;
+                cfg = globals.loadConfig(file);
+                loadAnimations(cfg);
+            }
+            return;
         } else if (cast(ConfigNode)item) {
             cfg = cast(ConfigNode)item;
         } else {

@@ -159,6 +159,9 @@ class GObjectSprite : GameObject {
     //animation played when doing state transition...
     StateTransition currentTransition;
 
+    private bool mWaterImpact = false;
+    protected bool mUnderWater = false;
+
     //return animations for states; this can be used to "patch" animations for
     //specific states (used for worm.d/weapons)
     protected SpriteAnimationInfo* getAnimationInfoForState(StaticStateInfo info)
@@ -197,13 +200,29 @@ class GObjectSprite : GameObject {
         }
     }
 
+    private bool lastwater;
+
     protected void physUpdate() {
         updateAnimation();
+
+        if (mWaterImpact) {
+            //object hit water in this simulation step
+            mUnderWater = true;
+        } else {
+            mUnderWater = false;
+        }
+        mWaterImpact = false;
+
+        if (mUnderWater != lastwater) {
+            waterStateChange();
+            lastwater = mUnderWater;
+        }
 
         //check if sprite is out of level
         //if so, draw nice out-of-level-graphic
         auto scenerect = Rect2i(0,0,graphic.scene.size.x,graphic.scene.size.y);
-        if (!scenerect.intersects(Rect2i(graphic.pos,graphic.pos+graphic.size)))
+        if (!scenerect.intersects(Rect2i(graphic.pos,graphic.pos+graphic.size))
+            && !mUnderWater)
         {
             auto hsize = outOfLevel.size/2;
             //draw arrow 5 pixels before level border
@@ -225,7 +244,10 @@ class GObjectSprite : GameObject {
     }
 
     protected void physImpact(PhysicBase other) {
-        //so?
+        if (cast(WaterPlaneGeometry)other) {
+            //object is in water
+            mWaterImpact = true;
+        }
     }
 
     protected void physDie() {
@@ -242,6 +264,19 @@ class GObjectSprite : GameObject {
         active = false;
         physics.dead = true;
         //engine.mLog("die: %s", type.name);
+    }
+
+    public bool underWater() {
+        return mUnderWater;
+    }
+
+    protected void waterStateChange() {
+        //do something that involves an object and a lot of water
+        auto st = type.findState("drowning", true);
+        if (mUnderWater && st) {
+            std.stdio.writefln("Waterstate");
+            setState(st);
+        }
     }
 
     //force position
@@ -408,7 +443,10 @@ class GOSpriteClass {
             //xxx better error handling
             throw new Exception("state "~name~" not found");
         }
-        return *state;
+        if (state)
+            return *state;
+        else
+            return null;
     }
 
     GObjectSprite createSprite() {

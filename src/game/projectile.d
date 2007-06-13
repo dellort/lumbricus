@@ -140,11 +140,15 @@ private class ProjectileSprite : GObjectSprite {
     override protected void physImpact(PhysicBase other) {
         super.physImpact(other);
 
-        //Hint: in future, physImpact should deliver the collision cookie
-        //(aka "action" in the config file)
-        //then the banana bomb can decide if it expldoes or falls into the water
-        if (myclass.dieByImpact) {
-            die();
+        //only die by solid objects
+        auto geom = cast(PhysicGeometry)other;
+        if (!geom || geom.isSolid()) {
+            //Hint: in future, physImpact should deliver the collision cookie
+            //(aka "action" in the config file)
+            //then the banana bomb can decide if it expldoes or falls into the water
+            if (myclass.dieByImpact) {
+                die();
+            }
         }
     }
 

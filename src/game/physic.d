@@ -15,6 +15,9 @@ import std.math : sqrt, PI, abs;
 //  is sitting on ground), add this value to the radius
 final float cNormalCheck = 5;
 
+//constant from Stokes's drag
+const cStokesConstant = 6*PI;
+
 //the physics stuff uses an ID to test if collision between objects is wanted
 //all physic objects (type PhysicBase) have an CollisionType
 typedef uint CollisionType;
@@ -111,6 +114,8 @@ struct POSP {
     float sustainableForce = 150;
     //force multiplier
     float fallDamageFactor = 0.1f;
+
+    float mediumViscosity = 0.0f;
 }
 
 //simple physical object (has velocity, position, mass, radius, ...)
@@ -444,6 +449,9 @@ class PhysicGeometry : PhysicBase {
     //if inside or touching, return true and set pos to a corrected pos
     //(which is the old pos, moved along the normal at that point in the object)
     abstract bool collide(inout Vector2f pos, float radius);
+
+    //wether the geom object is solid (bounce off) or just a trigger area
+    abstract bool isSolid();
 }
 
 //a plane which divides space into two regions (inside and outside plane)
@@ -471,6 +479,16 @@ class PlaneGeometry : PhysicGeometry {
         float gap = mDistance - dist;
         pos += mNormal * gap;
         return true;
+    }
+
+    bool isSolid() {
+        return true;
+    }
+}
+
+class WaterPlaneGeometry : PlaneGeometry {
+    bool isSolid() {
+        return false;
     }
 }
 
@@ -526,6 +544,10 @@ class PhysicWorld {
 
             //remove unwanted parts
             o.velocity = o.velocity.mulEntries(o.posp.fixate);
+
+            //Stokes's drag
+            o.velocity += ((o.posp.mediumViscosity*cStokesConstant*o.posp.radius)
+                * -o.velocity)/o.posp.mass * deltaT;
 
             auto vel = o.velocity;
 
@@ -635,16 +657,20 @@ class PhysicWorld {
                     //reported, assume the object is completely within the
                     //landscape...
                     //(xxx: uh, actually a dangerous hack)
-                    if (npos == me.pos) {
-                        //so pull it out along the velocity vector
-                        npos -= me.velocity.normal*me.posp.radius*2;
+                    if (gm.isSolid()) {
+                        //only solid objects add to normal, and make objects
+                        //bounce out
+                        if (npos == me.pos) {
+                            //so pull it out along the velocity vector
+                            npos -= me.velocity.normal*me.posp.radius*2;
+                        }
+
+                        Vector2f direction = npos - me.pos;
+                        normalsum += direction;
                     }
 
-                    Vector2f direction = npos - me.pos;
-                    normalsum += direction;
-
                     if (me.onImpact)
-                        me.onImpact(null);
+                        me.onImpact(gm);
                     //xxx: glue objects that don't fly fast enough
                 }
             }
@@ -791,6 +817,8 @@ void loadPOSPFromConfig(ConfigNode node, inout POSP posp) {
     posp.damageable = node.getFloatValue("damageable", posp.damageable);
     posp.damageThreshold = node.getFloatValue("damage_threshold",
         posp.damageThreshold);
+    posp.mediumViscosity = node.getFloatValue("medium_viscosity",
+        posp.mediumViscosity);
 }
 
 //xxx duplicated from generator.d

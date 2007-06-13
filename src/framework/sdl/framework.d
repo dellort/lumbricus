@@ -331,7 +331,8 @@ public class SDLSurface : Surface {
         if (surf) {
             mReal = surf;
         } else {
-            throw new Exception("image couldn't be loaded");
+            char* err = IMG_GetError();
+            throw new Exception("image couldn't be loaded: "~std.string.toString(err));
         }
         initTransp(transp);
     }

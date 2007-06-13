@@ -141,6 +141,10 @@ public abstract class ConfigItem {
         mName = org.mName;
         mParent = null;
     }
+
+    public ConfigNode parent() {
+        return mParent;
+    }
 }
 
 /// a ConfigFile value, this is always encoded as string
