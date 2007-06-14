@@ -85,21 +85,19 @@ class GameEngine {
 
     private ConstantForce mGravForce;
     private WindyForce mWindForce;
-    private float mWindTarget;
+    private PhysicTimedChangerFloat mWindChanger;
     private const cWindChange = 80.0f;
 
     //for raising waterline
-    private bool mRaiseWaterActive;
-    private uint mDestWaterLevel;
-    //GameLevel.waterLevel is uint, so we have a float version here...
-    private float mCurrentLevel;
+    private PhysicTimedChangerFloat mWaterChanger;
+    private const cWaterRaisingSpeed = 50.0f; //pixels per second
+    //current water level, now in absolute scene coordinates, no more dupes
+    private float mCurrentWaterLevel;
 
     private uint mDetailLevel;
     //not quite clean: Gui drawers can query this / detailLevel changes it
     bool enableSpiffyGui;
 
-    //pixels per second
-    private const cWaterRaisingSpeed = 50;
 
     //managment of sprite classes, for findSpriteClass()
     private GOSpriteClass[char[]] mSpriteClasses;
@@ -174,6 +172,16 @@ class GameEngine {
         throw new Exception("weapon class " ~ name ~ " not found");
     }
 
+    void windChangerUpdate(float val) {
+        mWindForce.accel = Vector2f(val,0);
+    }
+
+    private void waterChangerUpdate(float val) {
+        std.stdio.writefln("Water: %s",val);
+        mCurrentWaterLevel = val;
+        waterborder.plane.define(Vector2f(0, val), Vector2f(1, val));
+    }
+
     this(Scene gamescene, GameConfig config) {
         assert(gamescene !is null);
         assert(config.level !is null);
@@ -225,15 +233,23 @@ class GameEngine {
         physicworld.add(mGravForce);
 
         mWindForce = new WindyForce();
+        mWindChanger = new PhysicTimedChangerFloat(0, &windChangerUpdate);
+        mWindChanger.changePerSec = cWindChange;
         physicworld.add(mWindForce);
-        mWindTarget = -150;   //what unit is that???
+        physicworld.addBaseObject(mWindChanger);
+        //xxx make this configurable or initialize randomly
+        windSpeed = -150;   //what unit is that???
+
+        //physics timed changer for water offset
+        mWaterChanger = new PhysicTimedChangerFloat(gamelevel.offset.y
+            + gamelevel.height - gamelevel.waterLevelInit, &waterChangerUpdate);
+        mWaterChanger.changePerSec = cWaterRaisingSpeed;
+        physicworld.addBaseObject(mWaterChanger);
 
         mObjects = new List!(GameObject)(GameObject.node.getListNodeOffset());
 
         gameWater = new GameWater(this, "blue");
         gameSky = new GameSky(this);
-
-        fixupWaterLevel();
 
         loadLevelStuff();
 
@@ -246,17 +262,12 @@ class GameEngine {
 
     //return y coordinate of waterline
     int waterOffset() {
-        return gamelevel.offset.y + gamelevel.height-gamelevel.waterLevel;
+        return cast(int)mCurrentWaterLevel;
     }
 
     //return skyline offset (used by airstrikes)
     float skyline() {
         return gamelevel.offset.y;
-    }
-
-    private void fixupWaterLevel() {
-        auto water_y = waterOffset;
-        waterborder.plane.define(Vector2f(0, water_y), Vector2f(1, water_y));
     }
 
     //one time initialization, where levle objects etc. should be loaded (?)
@@ -310,7 +321,7 @@ class GameEngine {
         return mWindForce.accel.x;
     }
     public void windSpeed(float speed) {
-        mWindTarget = speed;
+        mWindChanger.target = speed;
     }
 
     public float gravity() {
@@ -318,32 +329,10 @@ class GameEngine {
     }
 
     void raiseWater(int by) {
-        if (!mRaiseWaterActive) {
-            mRaiseWaterActive = true;
-            mDestWaterLevel = gamelevel.waterLevel;
-            mCurrentLevel = gamelevel.waterLevel;
-        }
-        mDestWaterLevel += by;
+        mWaterChanger.target = mCurrentWaterLevel + by;
     }
 
     private void simulate(float deltaT) {
-        //whatever this is?
-        if (abs(mWindTarget - mWindForce.accel.x) > 0.5f) {
-            mWindForce.accel.x += copysign(cWindChange*deltaT,mWindTarget - mWindForce.accel.x);
-        }
-
-        if (mRaiseWaterActive) {
-            mCurrentLevel += deltaT * cWaterRaisingSpeed;
-            uint current = cast(uint)mCurrentLevel;
-            gamelevel.waterLevel = current;
-            if (current >= mDestWaterLevel) {
-                mRaiseWaterActive = false;
-            }
-        }
-
-        //at least currently it's ok to update this each frame
-        fixupWaterLevel();
-
         controller.simulate(deltaT);
     }
 

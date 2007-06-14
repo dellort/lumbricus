@@ -93,7 +93,7 @@ class GameSky : GameObject {
         Texture skyBackdrop = null;
         if (bmp) {
             skyBackdrop = bmp.createTexture();
-            skyBackdropOffset = engine.gamelevel.offset.y+engine.gamelevel.height-engine.gamelevel.waterLevel-skyBackdrop.size.y;
+            skyBackdropOffset = engine.waterOffset - skyBackdrop.size.y;
         }
 
         mDebrisAnim = engine.level.skyDebris.get();

@@ -135,7 +135,7 @@ class GameWater : GameObject {
     }
 
     override void simulate(float deltaT) {
-        if (mEngine.gamelevel.waterLevel != mStoredWaterLevel) {
+        if (mEngine.waterOffset != mStoredWaterLevel) {
             waterOffs = mEngine.waterOffset;
             uint p = waterOffs;
             int waveCenterDiff = 0;
@@ -155,7 +155,7 @@ class GameWater : GameObject {
             }
             animTop = waterOffs + waveCenterDiff;
             animBottom = p;
-            mStoredWaterLevel = mEngine.gamelevel.waterLevel;
+            mStoredWaterLevel = mEngine.waterOffset;
         }
     }
 

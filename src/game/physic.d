@@ -9,7 +9,7 @@ import str = std.string;
 import conv = std.conv;
 import utils.output;
 import utils.configfile : ConfigNode;
-import std.math : sqrt, PI, abs;
+import std.math : sqrt, PI, abs, copysign;
 
 //if you need to check a normal when there's almost no collision (i.e. when worm
 //  is sitting on ground), add this value to the radius
@@ -34,8 +34,6 @@ class PhysicBase {
     private float mLifeTime = float.infinity;
     private float mRemainLifeTime;
 
-    private bool[char[]] mTriggerStates, mLastTriggerStates;
-
     CollisionType collision;
 
     //call when object should be notified with doUpdate() after all physics done
@@ -51,38 +49,13 @@ class PhysicBase {
     public void delegate() onUpdate;
     public void delegate(PhysicBase other) onImpact;
     public void delegate() onDie;
-    public void delegate(char[] triggerId) onTriggerEnter;
-    public void delegate(char[] triggerId) onTriggerExit;
 
     //feedback to other parts of the game
-    private void doUpdate() {
+    protected void doUpdate() {
         if (onUpdate) {
             onUpdate();
         }
-        //update trigger states and trigger events
-        foreach (char[] trigId, inout bool curTrigSt; mTriggerStates) {
-            bool* last = (trigId in mLastTriggerStates);
-            if (!last || *last != curTrigSt) {
-                mLastTriggerStates[trigId] = curTrigSt;
-                if (curTrigSt) {
-                    if (onTriggerEnter)
-                        onTriggerEnter(trigId);
-                } else {
-                    if (onTriggerExit)
-                        onTriggerExit(trigId);
-                }
-            }
-            curTrigSt = false;
-        }
         //world.mLog("update: %s", this);
-    }
-
-    public bool triggerActive(char[] triggerId) {
-        bool* trigSt = (triggerId in mLastTriggerStates);
-        if (trigSt)
-            return *trigSt;
-        else
-            return false;
     }
 
     //fast check if object can collide with other object
@@ -98,10 +71,6 @@ class PhysicBase {
                 dead = true;
             }
         }
-    }
-
-    protected void triggerCollide(char[] triggerId) {
-        mTriggerStates[triggerId] = true;
     }
 
     public void remove() {
@@ -312,6 +281,46 @@ class PhysicObject : PhysicBase {
         return mIsWalking;
     }
 
+    // Trigger support ------------->
+
+    public void delegate(char[] triggerId) onTriggerEnter;
+    public void delegate(char[] triggerId) onTriggerExit;
+
+    private bool[char[]] mTriggerStates, mLastTriggerStates;
+
+    protected void doUpdate() {
+        super.doUpdate();
+        //update trigger states and trigger events
+        foreach (char[] trigId, inout bool curTrigSt; mTriggerStates) {
+            bool* last = (trigId in mLastTriggerStates);
+            if (!last || *last != curTrigSt) {
+                mLastTriggerStates[trigId] = curTrigSt;
+                if (curTrigSt) {
+                    if (onTriggerEnter)
+                        onTriggerEnter(trigId);
+                } else {
+                    if (onTriggerExit)
+                        onTriggerExit(trigId);
+                }
+            }
+            curTrigSt = false;
+        }
+    }
+
+    public bool triggerActive(char[] triggerId) {
+        bool* trigSt = (triggerId in mLastTriggerStates);
+        if (trigSt)
+            return *trigSt;
+        else
+            return false;
+    }
+
+    protected void triggerCollide(char[] triggerId) {
+        mTriggerStates[triggerId] = true;
+    }
+
+    // <------------- Trigger support
+
     override protected void simulate(float deltaT) {
         super.simulate(deltaT);
         //take care of walking, walkingSpeed > 0 marks walking enabled
@@ -401,6 +410,76 @@ class PhysicForce : PhysicBase {
         super.remove();
         //forces_node.removeFromList();
         world.mForceObjects.remove(this);
+    }
+}
+
+//base template for changers that will update a value over time until a
+//specified target is reached
+//use this as mixin and implement updateStep(float deltaT) (strange D world...)
+template PhysicTimedChanger(T) {
+    //current value
+    protected T mValue;
+    //do a change over time to target value, changing with changePerSec/s
+    T target;
+    T changePerSec;
+    //callback that is executed when the real value changes
+    void delegate(T newValue) onValueChange;
+
+    this(T startValue, void delegate(T newValue) valChange) {
+        onValueChange = valChange;
+        value = startValue;
+    }
+
+    void value(T v) {
+        mValue = v;
+        target = v;
+        doValueChange();
+    }
+    T value() {
+        return mValue;
+    }
+
+    private void doValueChange() {
+        if (onValueChange)
+            onValueChange(mValue);
+    }
+
+    protected void simulate(float deltaT) {
+        super.simulate(deltaT);
+        if (mValue != target) {
+            //this is expensive, but only executed when the value is changing
+            updateStep(deltaT);
+            doValueChange();
+        }
+    }
+}
+
+class PhysicTimedChangerFloat : PhysicBase {
+    mixin PhysicTimedChanger!(float);
+
+    protected void updateStep(float deltaT) {
+        float diff = target - mValue;
+        mValue += copysign(changePerSec*deltaT,diff);
+        float diffn = target - mValue;
+        float sgn = diff*diffn;
+        if (sgn < 0)
+            mValue = target;
+    }
+}
+
+class PhysicTimedChangerVector2f : PhysicBase {
+    mixin PhysicTimedChanger!(Vector2f);
+
+    protected void updateStep(float deltaT) {
+        Vector2f diff = target - mValue;
+        mValue.x += copysign(changePerSec.x*deltaT,diff.x);
+        mValue.y += copysign(changePerSec.y*deltaT,diff.y);
+        Vector2f diffn = target - mValue;
+        Vector2f sgn = diff.mulEntries(diffn);
+        if (sgn.x < 0)
+            mValue.x = target.x;
+        if (sgn.y < 0)
+            mValue.y = target.y;
     }
 }
 

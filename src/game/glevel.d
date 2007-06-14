@@ -87,7 +87,7 @@ class GameLevel {
     //i.e. worldcoords = mOffset + levelcoords
     private Vector2i mOffset;
     private Color mBorderColor;
-    //current water level (may rise during game)
+    //initial water level
     private uint mWaterLevel;
 
     package Surface mImage;
@@ -282,11 +282,8 @@ class GameLevel {
         return stuff;
     }
 
-    public uint waterLevel() {
+    public uint waterLevelInit() {
         return mWaterLevel;
-    }
-    public void waterLevel(uint wlevel) {
-        mWaterLevel = wlevel;
     }
 
     public Surface image() {
