@@ -30,9 +30,10 @@ enum GameZOrder {
     BackWaterWaves1,   //water behind the level
     BackWaterWaves2,
     Level,
-    FrontWater,  //water before the level
+    FrontLowerWater,  //water before the level
     Objects,
     Names, //controller.d/WormNameDrawer
+    FrontUpperWater,
     FrontWaterWaves1,
     FrontWaterWaves2,
     FrontWaterWaves3,
