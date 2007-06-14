@@ -473,7 +473,7 @@ class LevelObject : SceneObject {
     GameLevel gamelevel;
     Texture levelTexture;
 
-    void draw(Canvas c, SceneView parentView) {
+    void draw(Canvas c) {
         if (!levelTexture) {
             levelTexture = gamelevel.image.createTexture();
             levelTexture.setCaching(false);

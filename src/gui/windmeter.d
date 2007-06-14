@@ -45,7 +45,7 @@ class WindMeter : SceneObjectPositioned {
         mEngine = c;
     }
 
-    void draw(Canvas canvas, SceneView parentView) {
+    void draw(Canvas canvas) {
         //xxx again
         pos = scene.size - size - Vector2i(5,5);
 

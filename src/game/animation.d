@@ -179,7 +179,7 @@ class Animator : SceneObjectPositioned {
         }
     }
 
-    void draw(Canvas canvas, SceneView parentView) {
+    void draw(Canvas canvas) {
         if (!mAni || mAni.mFrames.length == 0) {
             if (mOnNoAnimation)
                 mOnNoAnimation(this);

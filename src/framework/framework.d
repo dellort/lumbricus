@@ -203,6 +203,11 @@ public class Canvas {
     public abstract Vector2i realSize();
     public abstract Vector2i clientSize();
 
+    /// offset to add to client coords to get position of the fist
+    /// visible upper left point on the screen or canvas (?)
+    //(returns translation relative to last setWindow())
+    public abstract Vector2i clientOffset();
+
     //must be called after drawing done
     public abstract void endDraw();
 

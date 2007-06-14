@@ -844,7 +844,7 @@ class GameController {
 }
 
 private class EventCatcher : SceneObject {
-    void draw(Canvas canvas, SceneView parentView) {
+    void draw(Canvas canvas) {
         //nop
     }
 }
@@ -875,7 +875,7 @@ private class WormNameDrawer : SceneObject {
         return cYDist+cYBorder*2+mFontHeight;
     }
 
-    void draw(Canvas canvas, SceneView parentView) {
+    void draw(Canvas canvas) {
         //xxx: add code to i.e. move the worm-name labels
 
         foreach (Team t; mController.mTeams) {

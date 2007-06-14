@@ -23,6 +23,7 @@ private class ProjectileWeapon : WeaponClass {
     //GOSpriteClass[char[]] projectiles;
     SpawnParams onFire;
     //create projectiles in the air (according to point value)
+    //(currently convenience only: only used for loading)
     bool isAirstrike;
 
     this(GameEngine aengine, ConfigNode node) {

@@ -38,7 +38,7 @@ class FontLabel : SceneObjectPositioned {
         return mBorder;
     }
 
-    void draw(Canvas canvas, SceneView parentView) {
+    void draw(Canvas canvas) {
         mFont.drawText(canvas, pos+mBorder, mText);
     }
 }
@@ -47,9 +47,9 @@ private class FontLabelBoxed : FontLabel {
     this(Font font) {
         super(font);
     }
-    void draw(Canvas canvas, SceneView parentView) {
+    void draw(Canvas canvas) {
         drawBox(canvas, pos, size);
-        super.draw(canvas, parentView);
+        super.draw(canvas);
     }
 }
 

@@ -92,7 +92,7 @@ private class MessageViewer : SceneObject {
         }
     }
 
-    void draw(Canvas canvas, SceneView parentView) {
+    void draw(Canvas canvas) {
         //argh
         Time now = globals.gameTime;
         float delta = (now - mLastFrame).toFloat();

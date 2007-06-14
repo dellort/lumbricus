@@ -423,6 +423,7 @@ public class SDLCanvas : Canvas {
         uint mStackTop; //point to next free stack item (i.e. 0 on empty stack)
 
         Vector2i mClientSize;
+        Vector2i mClipStart;  //origin of clip rect
         SDLSurface sdlsurface;
     }
 
@@ -447,8 +448,13 @@ public class SDLCanvas : Canvas {
     public void popState() {
         assert(mStackTop > 0);
         mStackTop--;
-        SDL_SetClipRect(sdlsurface.mReal, &mStack[mStackTop].clip);
+        SDL_Rect* rc = &mStack[mStackTop].clip;
+        SDL_SetClipRect(sdlsurface.mReal, rc);
         mTrans = mStack[mStackTop].translate;
+        mClipStart.x = rc.x;
+        mClipStart.y = rc.y;
+        mClientSize.x = rc.w;
+        mClientSize.y = rc.h;
     }
 
     public void setWindow(Vector2i p1, Vector2i p2) {
@@ -460,11 +466,16 @@ public class SDLCanvas : Canvas {
         rc.h = p2.y-p1.y;
         SDL_SetClipRect(sdlsurface.mReal, &rc);
         mTrans = p1;
+        mClipStart = p1;
         mClientSize = p2 - p1;
     }
 
     public void translate(Vector2i offset) {
         mTrans -= offset;
+    }
+
+    public Vector2i clientOffset() {
+        return mClipStart - mTrans;
     }
 
     public Vector2i realSize() {

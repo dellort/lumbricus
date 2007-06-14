@@ -34,7 +34,7 @@ class PrepareDisplay : SceneObjectPositioned {
         mPrepareView.setScene(s, z);
     }
 
-    void draw(Canvas canvas, SceneView parentView) {
+    void draw(Canvas canvas) {
         Time cur = globals.gameTimeAnimations;
         if (mEngine && mEngine.controller.currentRoundState() == RoundState.prepare) {
             Team curTeam = mEngine.controller.currentTeam();

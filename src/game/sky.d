@@ -25,7 +25,7 @@ class SkyDrawer : SceneObject {
         mSkyBackdrop = skyBackdrop;
     }
 
-    void draw(Canvas canvas, SceneView parentView) {
+    void draw(Canvas canvas) {
         if (mParent.enableSkyTex) {
             for (int x = 0; x < scene.size.x; x += mSkyTex.size.x) {
                 canvas.draw(mSkyTex, Vector2i(x, mParent.skyOffset));
@@ -35,7 +35,7 @@ class SkyDrawer : SceneObject {
                     Vector2i(scene.size.x, mParent.skyOffset), mSkyColor);
         }
         if (mSkyBackdrop && mParent.enableSkyBackdrop) {
-            for (int x = -parentView.clientoffset.x/8; x < scene.size.x; x += mSkyBackdrop.size.x) {
+            for (int x = canvas.clientOffset.x/8; x < scene.size.x; x += mSkyBackdrop.size.x) {
                 canvas.draw(mSkyBackdrop, Vector2i(x, mParent.skyBackdropOffset));
             }
         }

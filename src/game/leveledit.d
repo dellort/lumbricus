@@ -456,7 +456,7 @@ class RenderEditor : SceneObject {
     this (LevelEditor e) {
         editor = e;
     }
-    void draw(Canvas c, SceneView parentView) {
+    void draw(Canvas c) {
         if (editor.mPreviewImage)
             c.draw(editor.mPreviewImage, Vector2i(0));
         editor.root.draw(c);

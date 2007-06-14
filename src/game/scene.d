@@ -219,7 +219,7 @@ class SceneView : SceneObjectPositioned {
 
     //--------------------------- Scrolling end ---------------------------
 
-    void draw(Canvas canvas, SceneView parentView) {
+    void draw(Canvas canvas) {
         if (!mClientScene)
             return;
 
@@ -238,7 +238,7 @@ class SceneView : SceneObjectPositioned {
         //Hint: first element in zorder array is the list of invisible objects
         foreach (list; mClientScene.mActiveObjectsZOrdered[1..$]) {
             foreach (obj; list) {
-                obj.draw(canvas, this);
+                obj.draw(canvas);
             }
         }
 
@@ -395,7 +395,7 @@ class Screen {
     }
 
     void draw(Canvas canvas) {
-        mRootView.draw(canvas, null);
+        mRootView.draw(canvas);
     }
 
     void setFocus(SceneObject so) {
@@ -521,14 +521,14 @@ class SceneObject {
         active = true;
     }
 
-    abstract void draw(Canvas canvas, SceneView parentView);
+    abstract void draw(Canvas canvas);
 }
 
 class CallbackSceneObject : SceneObject {
-    public void delegate(Canvas canvas, SceneView parentView) onDraw;
+    public void delegate(Canvas canvas) onDraw;
 
-    void draw(Canvas canvas, SceneView parentView) {
-        if (onDraw) onDraw(canvas, parentView);
+    void draw(Canvas canvas) {
+        if (onDraw) onDraw(canvas);
     }
 }
 

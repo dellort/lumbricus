@@ -31,7 +31,7 @@ class GameTimer : SceneObjectPositioned {
         mTimeView.setScene(s, z);
     }
 
-    void draw(Canvas canvas, SceneView parentView) {
+    void draw(Canvas canvas) {
         Time cur = globals.gameTimeAnimations;
         if (mEngine && mEngine.controller.currentRoundState() == RoundState.prepare
             || mEngine.controller.currentRoundState() == RoundState.playing
