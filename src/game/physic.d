@@ -801,6 +801,7 @@ class PhysicWorld {
             foreach (PhysicTrigger tr; mTriggers) {
                 if (tr.collide(me.pos, me.posp.radius)) {
                     me.triggerCollide(tr.id);
+                    me.needUpdate();
                 }
             }
 

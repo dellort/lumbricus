@@ -177,7 +177,6 @@ class GameEngine {
     }
 
     private void waterChangerUpdate(float val) {
-        std.stdio.writefln("Water: %s",val);
         mCurrentWaterLevel = val;
         waterborder.plane.define(Vector2f(0, val), Vector2f(1, val));
     }
@@ -329,7 +328,7 @@ class GameEngine {
     }
 
     void raiseWater(int by) {
-        mWaterChanger.target = mCurrentWaterLevel + by;
+        mWaterChanger.target = mCurrentWaterLevel - by;
     }
 
     private void simulate(float deltaT) {

@@ -204,8 +204,6 @@ class GObjectSprite : GameObject {
         }
     }
 
-    private bool lastwater;
-
     protected void physUpdate() {
         updateAnimation();
 
