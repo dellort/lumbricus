@@ -170,7 +170,11 @@ class WormSprite : GObjectSprite {
     void move(Vector2f dir) {
         if (jetpackActivated) {
             //velocity or force? sigh.
-            physics.selfForce = dir * wsc.jetpackVelocity;
+            Vector2f jetForce = dir.mulEntries(wsc.jetpackAccel);
+            //don't accelerate down
+            if (jetForce.y > 0)
+                jetForce.y = 0;
+            physics.selfForce = jetForce;
         } else if (weaponDrawn) {
             mWeaponMove = dir.y;
         } else {
@@ -329,7 +333,7 @@ class WormSprite : GObjectSprite {
 
 //the factories work over the sprite classes, so we need one
 class WormSpriteClass : GOSpriteClass {
-    float jetpackVelocity;
+    Vector2f jetpackAccel;
     float suicideDamage;
     SpriteAnimationInfo*[] gravestones;
 
@@ -338,7 +342,11 @@ class WormSpriteClass : GOSpriteClass {
     }
     override void loadFromConfig(ConfigNode config) {
         super.loadFromConfig(config);
-        jetpackVelocity = config.getFloatValue("jet_velocity", 0);
+        float[] jetAc = config.getValueArray!(float)("jet_velocity", [0f,0f]);
+        if (jetAc.length > 1)
+            jetpackAccel = Vector2f(jetAc[0], jetAc[1]);
+        else
+            jetpackAccel = Vector2f(0);
         suicideDamage = config.getFloatValue("suicide_damage", 10);
         char[] grave = config.getStringValue("gravestones", "notfound");
         int count = config.getIntValue("gravestones_count");

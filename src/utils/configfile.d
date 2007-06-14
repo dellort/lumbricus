@@ -535,6 +535,9 @@ public class ConfigNode : ConfigItem {
                 //(one invalid value makes everything fail)
                 if (!parseInt(s, n))
                     return def;
+            } else static if (is(T: float)) {
+                if (!parseFloat(s, n))
+                    return def;
             } else {
                 assert(false);
             }

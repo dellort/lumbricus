@@ -116,6 +116,9 @@ struct POSP {
     float fallDamageFactor = 0.1f;
 
     float mediumViscosity = 0.0f;
+
+    //maximum absolute value, velocity is cut if over this
+    Vector2f velocityConstraint = {float.infinity, float.infinity};
 }
 
 //simple physical object (has velocity, position, mass, radius, ...)
@@ -508,7 +511,7 @@ class ExplosiveForce : PhysicForce {
         lifeTime = 0;
     }
 
-    private const cDamageToImpulse = 40.0f;
+    private const cDamageToImpulse = 80.0f;
     private const cDamageToRadius = 2.0f;
 
     public float radius() {
@@ -701,6 +704,9 @@ class PhysicWorld {
             //Stokes's drag
             o.velocity += ((o.posp.mediumViscosity*cStokesConstant*o.posp.radius)
                 * -o.velocity)/o.posp.mass * deltaT;
+
+            //clip components at maximum velocity
+            o.velocity = o.velocity.clipAbsEntries(o.posp.velocityConstraint);
 
             auto vel = o.velocity;
 
@@ -997,6 +1003,14 @@ void loadPOSPFromConfig(ConfigNode node, inout POSP posp) {
         posp.damageThreshold);
     posp.mediumViscosity = node.getFloatValue("medium_viscosity",
         posp.mediumViscosity);
+    posp.sustainableForce = node.getFloatValue("sustainable_force",
+        posp.sustainableForce);
+    posp.fallDamageFactor = node.getFloatValue("fall_damage_factor",
+        posp.fallDamageFactor);
+    float[] velConstr = node.getValueArray!(float)("velocity_constraint",
+        []);
+    if (velConstr.length > 1)
+        posp.velocityConstraint = Vector2f(velConstr[0], velConstr[1]);
 }
 
 //xxx duplicated from generator.d

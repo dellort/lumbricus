@@ -228,7 +228,6 @@ class GameEngine {
         physicworld.add(deathzone);
 
         mGravForce = new ConstantForce();
-        mGravForce.accel = Vector2f(0, 100); //what unit is that???
         physicworld.add(mGravForce);
 
         mWindForce = new WindyForce();
@@ -287,6 +286,8 @@ class GameEngine {
             auto sprite = globals.loadConfig(value);
             loadSpriteClass(sprite);
         }
+
+        mGravForce.accel = Vector2f(0, conf.getFloatValue("gravity",100));
 
         //load all animations
         //xxx this would load all those worms animations, think of something

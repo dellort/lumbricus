@@ -103,6 +103,15 @@ public struct Vector2(T) {
         return Vector2(y, -x);
     }
 
+    public Vector2 abs() {
+        return Vector2(cast(T)math.abs(x), cast(T)math.abs(y));
+    }
+
+    public Vector2 clipAbsEntries(Vector2 clip) {
+        return Vector2((math.abs(x) > clip.x)?cast(T)math.copysign(clip.x, x):x,
+            (math.abs(y) > clip.y)?cast(T)math.copysign(clip.y, y):y);
+    }
+
     public void length(T new_length) {
         //xxx might be numerically stupid (especially with integers...)
         *this = normal*new_length;
