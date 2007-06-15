@@ -309,7 +309,7 @@ class GameController {
             loadTeams(config.teams);
         }
 
-        mTimePerRound = timeSecs(10);
+        mTimePerRound = timeSecs(15);
         mHotseatSwitchTime = timeSecs(5);
     }
 

@@ -199,7 +199,8 @@ class WormSprite : GObjectSprite {
             auto look = Vector2f.fromPolar(1, physics.lookey);
             look.y = 0;
             look = look.normal(); //get sign *g*
-            physics.push(Vector2f(100*look.x, -100));
+            look.y = 1;
+            physics.push(look.mulEntries(wsc.jumpStrength));
         }
     }
 
@@ -336,6 +337,7 @@ class WormSpriteClass : GOSpriteClass {
     Vector2f jetpackAccel;
     float suicideDamage;
     SpriteAnimationInfo*[] gravestones;
+    Vector2f jumpStrength;
 
     this(GameObjectHandler h, GameEngine e, char[] r) {
         super(h, e, r);
@@ -348,6 +350,8 @@ class WormSpriteClass : GOSpriteClass {
         else
             jetpackAccel = Vector2f(0);
         suicideDamage = config.getFloatValue("suicide_damage", 10);
+        float[] js = config.getValueArray!(float)("jump_strength",[100,-100]);
+        jumpStrength = Vector2f(js[0],js[1]);
         char[] grave = config.getStringValue("gravestones", "notfound");
         int count = config.getIntValue("gravestones_count");
         gravestones.length = count;
