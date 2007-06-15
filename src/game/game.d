@@ -47,7 +47,7 @@ struct GameConfig {
 
 //code to manage a game session (hm, whatever this means)
 //reinstantiated on each "round"
-class GameEngine {
+class GameEngine : GameObjectHandler {
     Level level;
     LevelObject levelobject;
     GameLevel gamelevel;
@@ -57,8 +57,6 @@ class GameEngine {
     PlaneTrigger deathzone;
     Time lastTime;
     Time currentTime;
-    GameWater gameWater;
-    GameSky gameSky;
 
     GameController controller;
 
@@ -94,10 +92,6 @@ class GameEngine {
     //current water level, now in absolute scene coordinates, no more dupes
     private float mCurrentWaterLevel;
 
-    private uint mDetailLevel;
-    //not quite clean: Gui drawers can query this / detailLevel changes it
-    bool enableSpiffyGui;
-
 
     //managment of sprite classes, for findSpriteClass()
     private GOSpriteClass[char[]] mSpriteClasses;
@@ -105,11 +99,19 @@ class GameEngine {
     //same for weapons (also such a two-stage factory, which creastes Shooters)
     private WeaponClass[char[]] mWeaponClasses;
 
+    void activate(GameObject obj) {
+        mObjects.insert_tail(obj);
+    }
+
+    void deactivate(GameObject obj) {
+        mObjects.remove(obj);
+    }
+
     //factory for GOSpriteClasses
     //the constructor of GOSpriteClasses will call:
     //  engine.registerSpriteClass(registerName, this);
     GOSpriteClass instantiateSpriteClass(char[] name, char[] registerName) {
-        return gSpriteClassFactory.instantiate(name, this, registerName);
+        return gSpriteClassFactory.instantiate(name, this, this, registerName);
     }
 
     //called by sprite.d/GOSpriteClass.this() only
@@ -154,7 +156,7 @@ class GameEngine {
         char[] type = weapon.getStringValue("type", "notype");
         //xxx error handling
         //hope you never need to debug this code!
-        WeaponClass c = gWeaponClassFactory.instantiate(type, this, weapon);
+        WeaponClass c = gWeaponClassFactory.instantiate(type, this, this, weapon);
         assert(findWeaponClass(c.name, true) is null);
         mWeaponClasses[c.name] = c;
     }
@@ -181,15 +183,11 @@ class GameEngine {
         waterborder.plane.define(Vector2f(0, val), Vector2f(1, val));
     }
 
-    this(Scene gamescene, GameConfig config) {
-        assert(gamescene !is null);
+    this(GameConfig config) {
         assert(config.level !is null);
-        scene = gamescene;
         this.level = config.level;
 
         mLog = registerLog("gameengine");
-
-        mAllAnimations = new ConfigNode();
 
         Vector2i levelOffset, worldSize;
         if (level.isCave) {
@@ -202,13 +200,14 @@ class GameEngine {
                 *level.width), cSpaceAboveOpenLevel);
         }
 
+        //prepare the scene
+        scene = new Scene();
+        scene.size = worldSize;
+
         gamelevel = new GameLevel(level, levelOffset);
 
         levelobject = new LevelObject(this);
         levelobject.setScene(scene, GameZOrder.Level);
-
-        //prepare the scene
-        gamescene.size = worldSize;
 
         physicworld = new PhysicWorld();
 
@@ -246,12 +245,7 @@ class GameEngine {
 
         mObjects = new List!(GameObject)(GameObject.node.getListNodeOffset());
 
-        gameWater = new GameWater(this, "blue");
-        gameSky = new GameSky(this);
-
         loadLevelStuff();
-
-        detailLevel = 0;
 
         //NOTE: GameController relies on many stuff at initialization
         //i.e. physics for worm placement
@@ -292,29 +286,6 @@ class GameEngine {
         //load all animations
         //xxx this would load all those worms animations, think of something
         //globals.resources.preloadAll();
-    }
-
-    public uint detailLevel() {
-        return mDetailLevel;
-    }
-    //the higher the less detail (wtf), wraps around if set too high
-    public void detailLevel(uint level) {
-        level = level % 7;
-        mDetailLevel = level;
-        bool clouds = true, skyDebris = true, skyBackdrop = true, skyTex = true;
-        bool water = true, gui = true;
-        if (level >= 1) skyDebris = false;
-        if (level >= 2) skyBackdrop = false;
-        if (level >= 3) skyTex = false;
-        if (level >= 4) clouds = false;
-        if (level >= 5) water = false;
-        if (level >= 6) gui = false;
-        gameWater.simpleMode = !water;
-        gameSky.enableClouds = clouds;
-        gameSky.enableDebris = skyDebris;
-        gameSky.enableSkyBackdrop = skyBackdrop;
-        gameSky.enableSkyTex = skyTex;
-        enableSpiffyGui = gui;
     }
 
     public float windSpeed() {

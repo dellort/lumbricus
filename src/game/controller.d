@@ -209,9 +209,6 @@ class GameController {
 
     private WormNameDrawer mDrawer;
 
-    private EventSink mEvents;
-    private KeyBindings mBindings;
-
     //key state for LEFT/RIGHT and UP/DOWN
     private Vector2f dirKeyState_lu = {0, 0};  //left/up
     private Vector2f dirKeyState_rd = {0, 0};  //right/down
@@ -315,9 +312,6 @@ class GameController {
         mDrawer = new WormNameDrawer(this);
         mDrawer.setScene(mEngine.scene, GameZOrder.Names);
 
-        mBindings = new KeyBindings();
-        mBindings.loadFrom(globals.loadConfig("wormbinds").getSubNode("binds"));
-
         globals.resources.loadAnimations(globals.loadConfig("teamanims"));
         mTeamAnims.length = cTeamColors.length;
         foreach (int n, char[] color; cTeamColors) {
@@ -330,15 +324,6 @@ class GameController {
         mPointed = new Animator();
         mPointed.scene = mEngine.scene;
         mPointed.zorder = GameZOrder.Names;
-
-        //the stupid!
-        //xxx sucks!
-        eventcatcher = new EventCatcher();
-        eventcatcher.setScene(mEngine.scene, 0);
-        mEvents = eventcatcher.getEventSink();
-        //mEvents.onMouseMove = &onMouseMove;
-        mEvents.onKeyDown = &onKeyDown;
-        mEvents.onKeyUp = &onKeyUp;
     }
 
     //currently needed to deinitialize the gui
@@ -667,15 +652,14 @@ class GameController {
         return true;
     }
 
-    private bool onKeyDown(EventSink sender, KeyInfo info) {
-        char[] bind = mBindings.findBinding(info);
+    bool onKeyDown(char[] bind, KeyInfo info, Vector2i mousePos) {
         switch (bind) {
             case "debug2": {
-                mEngine.gamelevel.damage(sender.mousePos, 100);
+                mEngine.gamelevel.damage(mousePos, 100);
                 return true;
             }
             case "debug1": {
-                spawnWorm(sender.mousePos);
+                spawnWorm(mousePos);
                 return true;
             }
             case "debug3": {
@@ -687,7 +671,7 @@ class GameController {
                 return true;
             }
             case "pointy": {
-                doSetPoint(toVector2f(sender.mousePos));
+                doSetPoint(toVector2f(mousePos));
                 return true;
             }
             default:
@@ -769,8 +753,7 @@ class GameController {
         currentWormAction();
     }
 
-    private bool onKeyUp(EventSink sender, KeyInfo info) {
-        char[] bind = mBindings.findBinding(info);
+    bool onKeyUp(char[] bind, KeyInfo info, Vector2i mousePos) {
         if (handleDirKey(bind, true))
             return true;
         return false;
@@ -900,7 +883,7 @@ private class WormNameDrawer : SceneObject {
                 auto border = Vector2i(4, cYBorder);
                 //auto b = getBox(tsz+border*2, Color(1,1,1), Color(0,0,0));
                 //canvas.draw(b, pos-border);
-                if (mController.mEngine.enableSpiffyGui)
+                //if (mController.mEngine.enableSpiffyGui)
                     drawBox(canvas, pos-border, tsz+border*2);
                 font.drawText(canvas, pos, text);
             }

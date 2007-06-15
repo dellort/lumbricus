@@ -74,30 +74,30 @@ class GameWater : GameObject {
     private GameEngine mEngine;
     private bool mSimpleMode = true;
 
-    this(GameEngine engine, char[] waterType) {
-        super(engine);
+    this(GameObjectHandler handler, GameEngine engine, Scene target, char[] waterType) {
+        super(handler, engine);
         mEngine = engine;
         ConfigNode waterNode = globals.loadConfig("water").getSubNode(waterType);
         Color waterColor;
         parseColor(waterNode.getStringValue("color"),waterColor);
         mWaterDrawerFront1 = new WaterDrawerFront1(this, waterColor);
-        mWaterDrawerFront1.setScene(engine.scene, GameZOrder.FrontUpperWater);
+        mWaterDrawerFront1.setScene(target, GameZOrder.FrontUpperWater);
         mWaterDrawerFront2 = new WaterDrawerFront2(this, waterColor);
-        mWaterDrawerFront2.setScene(engine.scene, GameZOrder.FrontLowerWater);
+        mWaterDrawerFront2.setScene(target, GameZOrder.FrontLowerWater);
         mWaterDrawerBack = new WaterDrawerBack(this, waterColor);
-        mWaterDrawerBack.setScene(engine.scene, GameZOrder.BackWater);
+        mWaterDrawerBack.setScene(target, GameZOrder.BackWater);
         try {
             mWaveAnim = globals.resources.createAnimation(waterNode.getSubNode("waves"),waterType~"_waves").get();
             foreach (int i, inout a; mWaveAnimBack) {
                 a = new HorizontalFullsceneAnimator();
                 a.setAnimation(mWaveAnim);
-                a.setScene(engine.scene, GameZOrder.BackWaterWaves1+i);
+                a.setScene(target, GameZOrder.BackWaterWaves1+i);
                 a.xoffs = randRange(0,mWaveAnim.size.x);
             }
             foreach (int i, inout a; mWaveAnimFront) {
                 a = new HorizontalFullsceneAnimator();
                 a.setAnimation(mWaveAnim);
-                a.setScene(engine.scene, GameZOrder.FrontWaterWaves1+i);
+                a.setScene(target, GameZOrder.FrontWaterWaves1+i);
                 a.xoffs = randRange(0,mWaveAnim.size.x);
             }
         } catch {};

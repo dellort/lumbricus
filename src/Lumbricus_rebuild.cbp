@@ -64,6 +64,7 @@
 		<Unit filename="framework\sdl\keys.d" />
 		<Unit filename="framework\sdl\rwops.d" />
 		<Unit filename="game\animation.d" />
+		<Unit filename="game\clientengine.d" />
 		<Unit filename="game\common.d" />
 		<Unit filename="game\controller.d" />
 		<Unit filename="game\game.d" />
@@ -83,7 +84,12 @@
 		<Unit filename="game\water.d" />
 		<Unit filename="game\weapon.d" />
 		<Unit filename="game\worm.d" />
+		<Unit filename="gui\console.d" />
+		<Unit filename="gui\fps.d" />
 		<Unit filename="gui\gametimer.d" />
+		<Unit filename="gui\gameview.d" />
+		<Unit filename="gui\gui.d" />
+		<Unit filename="gui\guiobject.d" />
 		<Unit filename="gui\messageviewer.d" />
 		<Unit filename="gui\preparedisplay.d" />
 		<Unit filename="gui\windmeter.d" />

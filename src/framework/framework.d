@@ -621,6 +621,8 @@ public class Framework {
         if (mMousePos != pos) {
             MouseInfo infos;
             infos.pos = pos;
+            if (mLockMouse)
+                infos.pos -= mMouseCorr;
             infos.rel = pos - mMousePos;
             mMousePos = pos;
             if (onMouseMove != null && mEnableEvents) {

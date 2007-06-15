@@ -6,13 +6,24 @@ import utils.time;
 
 import std.stdio;
 
+interface GameObjectHandler {
+    void activate(GameObject obj);
+
+    void deactivate(GameObject obj);
+}
+
 //not really abstract, but should not be created
 abstract class GameObject {
     private bool mActive;
+    private GameObjectHandler mHandler;
     private GameEngine mEngine;
 
     //for GameEngine
     package mixin ListNodeMixin node;
+
+    GameObjectHandler handler() {
+        return mHandler;
+    }
 
     GameEngine engine() {
         return mEngine;
@@ -23,10 +34,12 @@ abstract class GameObject {
             return;
         mActive = set;
         if (mActive) {
-            engine.mObjects.insert_tail(this);
+            handler.activate(this);
+            //engine.mObjects.insert_tail(this);
             //std.stdio.writefln("INSERT: %s", this);
         } else {
-            engine.mObjects.remove(this);
+            handler.deactivate(this);
+            //engine.mObjects.remove(this);
             //std.stdio.writefln("REMOVE: %s", this);
         }
         updateActive();
@@ -40,9 +53,10 @@ abstract class GameObject {
     protected void updateActive() {
     }
 
-    this(GameEngine aengine, bool start_active = true) {
-        assert(aengine !is null);
-        mEngine = aengine;
+    this(GameObjectHandler handler, GameEngine engine, bool start_active = true) {
+        assert(handler !is null);
+        mEngine = engine;
+        mHandler = handler;
         if (start_active)
             active = true;
     }

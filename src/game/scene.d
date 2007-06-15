@@ -16,7 +16,7 @@ import game.common;
 //each graphic is represented by a SceneObject
 class Scene {
     alias List!(SceneObject) SOList;
-    private SOList mActiveObjects;
+    protected SOList mActiveObjects;
     //all objects that want to receive events
     private SceneObject[SceneObject] mEventReceiver;
     Vector2i size;
@@ -33,41 +33,46 @@ class Scene {
             list = new SOList(SceneObject.zorderlist.getListNodeOffset());
         }
     }
+
+    //iterate over all objects in z-order (including z-order 0)
+    int opApply(int delegate(inout SceneObject obj, inout int zorder) del) {
+        foreach (int z, SOList list; mActiveObjectsZOrdered) {
+            foreach (obj; list) {
+                int res = del(obj, z);
+                if (res)
+                    return res;
+            }
+        }
+        return 0;
+    }
 }
 
-class EventSink {
-    bool delegate(EventSink sender, KeyInfo key) onKeyDown;
-    bool delegate(EventSink sender, KeyInfo key) onKeyUp;
-    bool delegate(EventSink sender, KeyInfo key) onKeyPress;
-    bool delegate(EventSink sender, MouseInfo mouse) onMouseMove;
+//virtual scene that merges two or more real (no recursion, sorry) scenes
+//into one on-the-fly without any copying
+class MetaScene : Scene {
+    private Scene[] mSubScenes;
 
-    private enum KeyEvent {
-        Down,
-        Up,
-        Press
-    }
-
-    private Vector2i mMousePos;  //see mousePos()
-    private SceneObject mObject; //(mObject.getEventSink() is this) == true
-
-    //last known mouse position, that is inside this "window"
-    Vector2i mousePos() {
-        return mMousePos;
-    }
-
-    private bool callKeyHandler(KeyEvent type, KeyInfo info) {
-        switch (type) {
-            case KeyEvent.Down: return onKeyDown ? onKeyDown(this, info) : false;
-            case KeyEvent.Up: return onKeyUp ? onKeyUp(this, info) : false;
-            case KeyEvent.Press: return onKeyPress ? onKeyPress(this, info) : false;
-            default: assert(false);
+    this(Scene[] subScenes) {
+        mSubScenes = subScenes;
+        foreach (s; mSubScenes) {
+            assert((cast(MetaScene)s) is null);
+            size.x = max(size.x,s.size.x);
+            size.y = max(size.y,s.size.y);
         }
     }
 
-    private void callMouseHandler(MouseInfo info) {
-        mMousePos = info.pos;
-        if (onMouseMove)
-            onMouseMove(this, info);
+    //iterate over all objects in z-order (including z-order 0)
+    int opApply(int delegate(inout SceneObject obj, inout int zorder) del) {
+        for (int z = 0; z < cMaxZOrder; z++) {
+            foreach (s; mSubScenes) {
+                foreach (obj; s.mActiveObjectsZOrdered[z]) {
+                    int res = del(obj, z);
+                    if (res)
+                        return res;
+                }
+            }
+        }
+        return 0;
     }
 }
 
@@ -107,7 +112,6 @@ class SceneView : SceneObjectPositioned {
 
     this() {
         //always create event handler
-        getEventSink();
         mTimeLast = globals.framework.getCurrentTime().msecs;
     }
 
@@ -236,10 +240,9 @@ class SceneView : SceneObjectPositioned {
         canvas.translate(-clientoffset);
 
         //Hint: first element in zorder array is the list of invisible objects
-        foreach (list; mClientScene.mActiveObjectsZOrdered[1..$]) {
-            foreach (obj; list) {
+        foreach (obj, z; mClientScene) {
+            if (z>0)
                 obj.draw(canvas);
-            }
         }
 
         canvas.popState();
@@ -317,115 +320,6 @@ class SceneView : SceneObjectPositioned {
     private static bool isInside(SceneObjectPositioned obj, Vector2i pos) {
         return pos.isInside(obj.pos, obj.size);
     }
-
-    //event handling
-    void doMouseMove(MouseInfo info) {
-        info.pos = toClientCoords(info.pos);
-        //xxx following line
-        getEventSink().mMousePos = info.pos;
-
-        if (!mClientScene)
-            return;
-
-        foreach (SceneObject so; mClientScene.mEventReceiver) {
-            auto pso = cast(SceneObjectPositioned)so;
-            if (!pso) {
-                so.getEventSink().callMouseHandler(info);
-            } else if (isInside(pso, info.pos)) {
-                //deliver
-                pso.getEventSink().callMouseHandler(info);
-                auto sv = cast(SceneView)pso;
-                if (sv) {
-                    sv.doMouseMove(info);
-                }
-            }
-        }
-    }
-
-    //duplicated from above
-    void doMouseButtons(EventSink.KeyEvent ev, KeyInfo info) {
-        if (!mClientScene)
-            return;
-
-        //last mouse position - should be valid (?)
-        auto pos = getEventSink().mousePos;
-        foreach (SceneObject so; mClientScene.mEventReceiver) {
-            auto pso = cast(SceneObjectPositioned)so;
-            if (!pso) {
-                so.getEventSink().callKeyHandler(ev, info);
-            } else if (isInside(pso, pos)) {
-                pso.getEventSink().callKeyHandler(ev, info);
-                auto sv = cast(SceneView)pso;
-                if (sv) {
-                    sv.doMouseButtons(ev, info);
-                }
-            }
-        }
-    }
-}
-
-//(should be a) singleton!
-class Screen {
-    private Scene mRootScene;
-    private SceneView mRootView;
-    private EventSink mFocus;
-
-    Scene rootscene() {
-        return mRootScene;
-    }
-
-    this(Vector2i size) {
-        mRootScene = new Scene();
-        mRootScene.size = size;
-        mRootView = new SceneView();
-        mRootView.clientscene = mRootScene;
-        //NOTE: normally SceneViews are elements in a further Scene, but here
-        //      Screen is the container of the SceneView mRootView
-        //      damn overengineered madness!
-        mRootView.pos = Vector2i(0, 0);
-        mRootView.size = size;
-    }
-
-    void size(Vector2i s) {
-        mRootScene.size = s;
-        mRootView.size = s;
-    }
-    Vector2i size() {
-        return mRootView.size;
-    }
-
-    void draw(Canvas canvas) {
-        mRootView.draw(canvas);
-    }
-
-    void setFocus(SceneObject so) {
-        mFocus = so ? so.getEventSink() : null;
-    }
-
-    private bool doKeyEvent(EventSink.KeyEvent ev, KeyInfo info) {
-        if (info.isMouseButton) {
-            mRootView.doMouseButtons(ev, info);
-        }
-        //avoid to send the event twice
-        //this still could be wrong, though
-        if (mFocus && !info.isMouseButton) {
-            return mFocus.callKeyHandler(ev, info);
-        }
-        return false;
-    }
-    //distribute events to these EventSink things
-    bool putOnKeyDown(KeyInfo info) {
-        return doKeyEvent(EventSink.KeyEvent.Down, info);
-    }
-    bool putOnKeyPress(KeyInfo info) {
-        return doKeyEvent(EventSink.KeyEvent.Press, info);
-    }
-    bool putOnKeyUp(KeyInfo info) {
-        return doKeyEvent(EventSink.KeyEvent.Up, info);
-    }
-    void putOnMouseMove(MouseInfo info) {
-        mRootView.doMouseMove(info);
-    }
 }
 
 class SceneObject {
@@ -435,20 +329,6 @@ class SceneObject {
     private Scene mScene;
     private int mZOrder;
     private bool mActive;
-
-    private EventSink mEvents;
-
-    //create on demand, since very view SceneObjects want events...
-    public EventSink getEventSink() {
-        if (!mEvents) {
-            bool tmp = active;
-            active = false;
-            mEvents = new EventSink();
-            mEvents.mObject = this;
-            active = tmp;
-        }
-        return mEvents;
-    }
 
     public Scene scene() {
         return mScene;
@@ -501,15 +381,9 @@ class SceneObject {
         if (set) {
             mScene.mActiveObjectsZOrdered[mZOrder].insert_head(this);
             mScene.mActiveObjects.insert_head(this);
-            if (mEvents) {
-                mScene.mEventReceiver[this] = this;
-            }
         } else {
             mScene.mActiveObjectsZOrdered[mZOrder].remove(this);
             mScene.mActiveObjects.remove(this);
-            if (mEvents) {
-                mScene.mEventReceiver.remove(this);
-            }
         }
 
         mActive = set;

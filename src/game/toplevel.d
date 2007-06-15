@@ -16,14 +16,23 @@ import game.physic;
 import game.gobject;
 import game.leveledit;
 import game.visual;
+import game.water;
+import game.sky;
+import game.clientengine;
+import gui.gui;
+import gui.guiobject;
 import gui.windmeter;
 import gui.messageviewer;
 import gui.gametimer;
 import gui.preparedisplay;
+import gui.fps;
+import gui.gameview;
+import gui.console;
 import utils.time;
 import utils.configfile;
 import utils.log;
 import utils.output;
+import utils.mylist;
 import perf = std.perf;
 import gc = std.gc;
 import genlevel = levelgen.generator;
@@ -34,31 +43,25 @@ import conv = std.conv;
 import game.projectile;
 import game.special_weapon;
 
-//ZOrders!
-//maybe keep in sync with game.Scene.cMaxZOrder
-//these values are for globals.toplevel.guiscene
-enum GUIZOrder : int {
-    Invisible = 0,
-    Background,
-    Game,
-    Gui,
-    Console,
-    FPS,
-}
-
 //this contains the mainframe
 class TopLevel {
-    FontLabel fpsDisplay;
     Font consFont;
-    Screen screen;
-    Scene guiscene;
+    Scene clientgamescene;
+    MetaScene metascene;
     //overengineered
-    /+private+/ SceneView sceneview;
     private void delegate() mOnStopGui; //associated with sceneview
     LevelEditor editor;
-    Console console;
     KeyBindings keybindings;
+
+    GuiMain mGui;
+    GameView mGameView;
+    GuiConsole mGuiConsole;
+
     GameEngine thegame;
+    ClientGameEngine clientengine;
+    GameWater gameWater;
+    GameSky gameSky;
+
     //xxx move this to where-ever
     Translator localizedKeynames;
     //ConfigNode mWormsAnim;
@@ -67,34 +70,33 @@ class TopLevel {
     bool mShowKeyDebug = false;
     bool mKeyNameIt = false;
 
-    private WindMeter mGuiWindMeter;
-    private MessageViewer mGuiMessage;
-    private GameTimer mGuiGameTimer;
-    private PrepareDisplay mGuiPrepareDisplay;
-
     private char[] mGfxSet = "gpl";
+
+    private uint mDetailLevel;
+    //not quite clean: Gui drawers can query this / detailLevel changes it
+    bool enableSpiffyGui;
 
     this() {
         initTimes();
 
-        screen = new Screen(globals.framework.screen.size);
+        mGui = new GuiMain(globals.framework.screen.size);
+        mGui.add(new GuiFps(), GUIZOrder.FPS);
+        mGui.add(new WindMeter(), GUIZOrder.Gui);
+        mGui.add(new MessageViewer(), GUIZOrder.Gui);
+        mGui.add(new GameTimer(), GUIZOrder.Gui);
+        mGui.add(new PrepareDisplay(), GUIZOrder.Gui);
 
-        guiscene = screen.rootscene;
+        mGameView = new GameView();
+        mGameView.loadBindings(globals.loadConfig("wormbinds")
+            .getSubNode("binds"));
+        mGui.add(mGameView, GUIZOrder.Game);
+        //xxx no focus changes yet
+        mGui.setFocus(mGameView);
 
-        sceneview = new SceneView();
-        sceneview.setScene(guiscene, GUIZOrder.Game); //container!
-        //sceneview is simply the window that shows the level
-        sceneview.pos = Vector2i(0, 0);
-        sceneview.size = guiscene.size;
+        mGuiConsole = new GuiConsole();
+        mGui.add(mGuiConsole, GUIZOrder.Console);
 
         initConsole();
-
-        fpsDisplay = new FontLabel(globals.framework.getFont("fpsfont"));
-        fpsDisplay.setScene(guiscene, GUIZOrder.FPS);
-        mGuiWindMeter = new WindMeter();
-        mGuiMessage = new MessageViewer();
-        mGuiGameTimer = new GameTimer();
-        mGuiPrepareDisplay = new PrepareDisplay();
 
         globals.framework.onFrame = &onFrame;
         globals.framework.onKeyPress = &onKeyPress;
@@ -116,20 +118,9 @@ class TopLevel {
     }
 
     private void initConsole() {
-        console = new Console(globals.framework.getFont("console"));
-        Color console_color;
-        if (parseColor(globals.anyConfig.getSubNode("console")
-            .getStringValue("backcolor"), console_color))
-        {
-            console.backcolor = console_color;
-        }
-        globals.cmdLine = new CommandLine(console);
+        globals.cmdLine = new CommandLine(mGuiConsole.console);
 
-        globals.setDefaultOutput(console);
-
-        auto consrender = new CallbackSceneObject();
-        consrender.setScene(guiscene, GUIZOrder.Console);
-        consrender.onDraw = &renderConsole;
+        globals.setDefaultOutput(mGuiConsole.console);
 
         globals.cmdLine.registerCommand("gc", &testGC, "timed GC run");
         globals.cmdLine.registerCommand("gcstats", &testGCstats, "GC stats");
@@ -169,8 +160,8 @@ class TopLevel {
     private void cmdDetail(CommandLine cmd) {
         if (!thegame)
             return;
-        thegame.detailLevel = thegame.detailLevel + 1;
-        cmd.console.writefln("set detailLevel to %s", thegame.detailLevel);
+        detailLevel = detailLevel + 1;
+        cmd.console.writefln("set detailLevel to %s", detailLevel);
     }
 
     private void cmdFramerate(CommandLine cmd) {
@@ -187,22 +178,16 @@ class TopLevel {
     }
 
     private void cmdCameraDisable(CommandLine) {
-        if (sceneview)
-            sceneview.setCameraFocus(null);
+        if (mGameView.view)
+            mGameView.view.setCameraFocus(null);
     }
 
     private void cmdStop(CommandLine) {
         if (mOnStopGui)
             mOnStopGui();
-        screen.setFocus(null);
-        sceneview.clientscene = null;
+        //screen.setFocus(null);
+        //sceneview.clientscene = null;
         mOnStopGui = null;
-    }
-
-    private void setScene(Scene s) {
-        //not clean, but we need to redo this GUI-handling stuff anyway
-        cmdStop(null);
-        sceneview.clientscene = s;
     }
 
     private void initializeGame(GameConfig config) {
@@ -210,9 +195,18 @@ class TopLevel {
         resetTime();
         //xxx README: since the scene is recreated for each level, there's no
         //            need to remove them all in Game.kill()
-        auto gamescene = new Scene();
-        setScene(gamescene);
-        thegame = new GameEngine(gamescene, config);
+        thegame = new GameEngine(config);
+        clientengine = new ClientGameEngine();
+
+        auto clientgamescene = new Scene();
+        clientgamescene.size = thegame.scene.size;
+        metascene = new MetaScene([thegame.scene, clientgamescene]);
+
+        gameWater = new GameWater(clientengine, thegame, clientgamescene, "blue");
+        gameSky = new GameSky(clientengine, thegame);
+
+        detailLevel = 0;
+
         initializeGui();
         //yes, really twice, as no game time should pass while loading stuff
         resetTime();
@@ -228,43 +222,28 @@ class TopLevel {
             delete thegame;
             thegame = null;
         }
+        if (clientengine) {
+            clientengine.kill();
+            delete clientengine;
+            clientengine = null;
+        }
     }
 
     private void initializeGui() {
         closeGui();
 
-        mGuiWindMeter.engine = thegame;
-        mGuiWindMeter.setScene(guiscene, GUIZOrder.Gui);
+        mGui.engine = thegame;
+        mGameView.controller = thegame.controller;
+        mGameView.gamescene = metascene;
 
-        mGuiMessage.setScene(guiscene, GUIZOrder.Gui);
-        thegame.controller.messageCb = &mGuiMessage.addMessage;
-        thegame.controller.messageIdleCb = &mGuiMessage.idle;
-
-        mGuiGameTimer.engine = thegame;
-        mGuiGameTimer.setScene(guiscene, GUIZOrder.Gui);
-
-        mGuiPrepareDisplay.engine = thegame;
-        mGuiPrepareDisplay.setScene(guiscene, GUIZOrder.Gui);
-
-        thegame.controller.sceneview = sceneview;
-        screen.setFocus(thegame.controller.eventcatcher);
+        //start at level center
+        mGameView.view.scrollCenterOn(thegame.gamelevel.offset+thegame.gamelevel.levelsize/2, true);
     }
 
     private void closeGui() {
-        mGuiWindMeter.engine = null;
-        mGuiWindMeter.setScene(null, GUIZOrder.Gui);
-
-        if (thegame) {
-            thegame.controller.messageCb = null;
-            thegame.controller.messageIdleCb = null;
-        }
-        mGuiMessage.setScene(null, GUIZOrder.Gui);
-
-        mGuiGameTimer.engine = null;
-        mGuiGameTimer.setScene(null, GUIZOrder.Gui);
-
-        mGuiPrepareDisplay.engine = null;
-        mGuiPrepareDisplay.setScene(null, GUIZOrder.Gui);
+        mGameView.gamescene = null;
+        mGameView.controller = null;
+        mGui.engine = null;
     }
 
     private void cmdSetWind(CommandLine cmd) {
@@ -291,10 +270,10 @@ class TopLevel {
     private void cmdLevelEdit(CommandLine cmd) {
         //replace level etc. by the "editor" in a very violent way
         auto editscene = new Scene();
-        setScene(editscene);
+        //setScene(editscene);
         editor = new LevelEditor(editscene);
         //clearly sucks, find a better way
-        screen.setFocus(editor.render);
+        //screen.setFocus(editor.render);
 
         mOnStopGui = &killEditor;
     }
@@ -309,7 +288,7 @@ class TopLevel {
         } catch (conv.ConvError) {
             return;
         }
-        thegame.gameSky.enableClouds = on;
+        gameSky.enableClouds = on;
     }
 
     private void cmdSimpleWater(CommandLine cmd) {
@@ -322,7 +301,7 @@ class TopLevel {
         } catch (conv.ConvError) {
             return;
         }
-        thegame.gameWater.simpleMode = simple;
+        gameWater.simpleMode = simple;
     }
 
     private void cmdRaiseWater(CommandLine cmd) {
@@ -353,8 +332,7 @@ class TopLevel {
 
     private void onVideoInit(bool depth_only) {
         globals.log("Changed video: %s", globals.framework.screen.size);
-        screen.size = globals.framework.screen.size;
-        sceneview.size = guiscene.size;
+        mGui.size = globals.framework.screen.size;
     }
 
     private void cmdVideo(CommandLine cmd) {
@@ -477,26 +455,6 @@ class TopLevel {
         }
     }
 
-    //--------------------------- Scrolling start -------------------------
-
-    private bool mScrolling;
-
-    private void scrollToggle() {
-        if (mScrolling) {
-            //globals.framework.grabInput = false;
-            globals.framework.cursorVisible = true;
-            globals.framework.unlockMouse();
-        } else {
-            //globals.framework.grabInput = true;
-            globals.framework.cursorVisible = false;
-            globals.framework.lockMouse();
-            sceneview.scrollReset();
-        }
-        mScrolling = !mScrolling;
-    }
-
-    //--------------------------- Scrolling end ---------------------------
-
     /+
     private void cmdLoadAnim(CommandLine cmd) {
         auto a = new Animation(mWormsAnim.getSubNode(cmd.parseArgs[0]));
@@ -506,7 +464,7 @@ class TopLevel {
     +/
 
     private void showConsole(CommandLine) {
-        console.toggle();
+        mGuiConsole.console.toggle();
     }
 
     private void killShortcut(CommandLine) {
@@ -547,8 +505,6 @@ class TopLevel {
         cfg.teams = teamconf.getSubNode("teams");
         cfg.weapons = teamconf.getSubNode("weapon_sets");
         initializeGame(cfg);
-        //start at level center
-        sceneview.scrollCenterOn(thegame.gamelevel.offset+thegame.gamelevel.levelsize/2, true);
     }
 
     private void cmdPause(CommandLine) {
@@ -668,21 +624,48 @@ class TopLevel {
         //std.stdio.writefln("%s %s %s", pseudoGameTime, globals.gameTime,
         //    globals.gameTimeAnimations);
 
-        fpsDisplay.text = format("FPS: %1.2f", globals.framework.FPS);
-        fpsDisplay.pos = (fpsDisplay.scene.size - fpsDisplay.size).X;
-
         if (thegame && !mPauseMode) {
             thegame.doFrame(globals.gameTime);
         }
 
-        screen.draw(c);
+        if (clientengine) {
+            clientengine.doFrame(timeCurrentTime());
+        }
+
+        mGui.doFrame(timeCurrentTime());
+
+        mGui.draw(c);
+    }
+
+    public uint detailLevel() {
+        return mDetailLevel;
+    }
+    //the higher the less detail (wtf), wraps around if set too high
+    public void detailLevel(uint level) {
+        level = level % 7;
+        mDetailLevel = level;
+        bool clouds = true, skyDebris = true, skyBackdrop = true, skyTex = true;
+        bool water = true, gui = true;
+        if (level >= 1) skyDebris = false;
+        if (level >= 2) skyBackdrop = false;
+        if (level >= 3) skyTex = false;
+        if (level >= 4) clouds = false;
+        if (level >= 5) water = false;
+        if (level >= 6) gui = false;
+        gameWater.simpleMode = !water;
+        gameSky.enableClouds = clouds;
+        gameSky.enableDebris = skyDebris;
+        gameSky.enableSkyBackdrop = skyBackdrop;
+        gameSky.enableSkyTex = skyTex;
+        enableSpiffyGui = gui;
     }
 
     private void onKeyPress(KeyInfo infos) {
-        if (console.visible && globals.cmdLine.keyPress(infos))
+        mGui.putOnKeyPress(infos);
+        /*if (mGui.console.visible && globals.cmdLine.keyPress(infos))
             return;
-        if (!console.visible)
-            screen.putOnKeyPress(infos);
+        if (!mGui.console.visible)
+            screen.putOnKeyPress(infos);*/
     }
 
     private bool onKeyDown(KeyInfo infos) {
@@ -701,9 +684,6 @@ class TopLevel {
         if (mShowKeyDebug) {
             globals.log("down: %s", globals.framework.keyinfoToString(infos));
         }
-        if (infos.code == Keycode.MOUSE_RIGHT) {
-            scrollToggle();
-        }
         char[] bind = keybindings.findBinding(infos.code,
             globals.framework.getModifierSet());
         if (bind) {
@@ -713,8 +693,7 @@ class TopLevel {
             globals.cmdLine.execute(bind, false);
             return false;
         }
-        if (!console.visible)
-            screen.putOnKeyDown(infos);
+        mGui.putOnKeyDown(infos);
         return true;
     }
 
@@ -722,19 +701,12 @@ class TopLevel {
         if (mShowKeyDebug) {
             globals.log("up: %s", globals.framework.keyinfoToString(infos));
         }
-        if (!console.visible)
-            screen.putOnKeyUp(infos);
+        mGui.putOnKeyUp(infos);
         return true;
     }
 
     private void onMouseMove(MouseInfo mouse) {
         //globals.log("%s", mouse.pos);
-        if (mScrolling)
-            sceneview.scrollMove(mouse.rel);
-        screen.putOnMouseMove(mouse);
-    }
-
-    private void renderConsole(Canvas canvas) {
-        console.frame(canvas);
+        mGui.putOnMouseMove(mouse);
     }
 }

@@ -4,12 +4,12 @@ import framework.framework;
 import game.common;
 import game.scene;
 import game.game;
+import gui.guiobject;
 import utils.configfile;
 import utils.time;
 import utils.vector2;
 
-class WindMeter : SceneObjectPositioned {
-    private GameEngine mEngine;
+class WindMeter : GuiObject {
     private Vector2i mSize;
     private Texture mBackgroundTex;
     private Texture mWindLeft, mWindRight;
@@ -38,21 +38,15 @@ class WindMeter : SceneObjectPositioned {
         mAnimSpeed = wmNode.getFloatValue("animSpeed",40.0f);
         mWindScale = wmNode.getFloatValue("windScale",0.5f);
 
-        mLastTime = globals.gameTimeAnimations;
+        mLastTime =  timeCurrentTime();
     }
 
-    void engine(GameEngine c) {
-        mEngine = c;
+    void simulate(float deltaT) {
+        mTexOffsetf = mTexOffsetf + mAnimSpeed*deltaT;
     }
 
     void draw(Canvas canvas) {
-        //xxx again
-        pos = scene.size - size - Vector2i(5,5);
-
-        Time cur = globals.gameTimeAnimations;
         if (mEngine) {
-            float deltaT = (cur.msecs - mLastTime.msecs)/1000.0f;
-            mTexOffsetf = mTexOffsetf + mAnimSpeed*deltaT;
             canvas.draw(mBackgroundTex, pos);
             float wspeed = mEngine.windSpeed;
             int anisize = cast(int)(wspeed*mWindScale);
@@ -63,10 +57,13 @@ class WindMeter : SceneObjectPositioned {
                 canvas.draw(mWindRight, pos + Vector2i(mPosCenter.x + 2, mPosCenter.y),
                     Vector2i(mTexStep-(cast(int)mTexOffsetf)%mTexStep, 0), Vector2i(anisize, mWindRight.size.y));
         }
-        mLastTime = cur;
     }
 
     Vector2i size() {
         return mSize;
+    }
+
+    void resize() {
+        pos = scene.size - size - Vector2i(5,5);
     }
 }

@@ -6,10 +6,11 @@ import game.game;
 import game.scene;
 import game.common;
 import game.visual;
+import gui.guiobject;
 import utils.misc;
 import utils.time;
 
-private class MessageViewer : SceneObject {
+private class MessageViewer : GuiObject {
     private Queue!(char[]) mMessages;
     private char[] mCurrentMessage;
     private Font mFont;
@@ -29,7 +30,20 @@ private class MessageViewer : SceneObject {
     this() {
         mFont = globals.framework.fontManager.loadFont("messages");
         mMessages = new Queue!(char[]);
-        mLastFrame = globals.gameTimeAnimations;
+        mLastFrame = timeCurrentTime();
+    }
+
+    void engine(GameEngine eng) {
+        if (eng) {
+            eng.controller.messageCb = &addMessage;
+            eng.controller.messageIdleCb = &idle;
+        } else {
+            if (mEngine) {
+                mEngine.controller.messageCb = null;
+                mEngine.controller.messageIdleCb = null;
+            }
+        }
+        super.engine(eng);
     }
 
     void addMessage(char[] msg) {
@@ -94,7 +108,7 @@ private class MessageViewer : SceneObject {
 
     void draw(Canvas canvas) {
         //argh
-        Time now = globals.gameTime;
+        Time now = timeCurrentTime();
         float delta = (now - mLastFrame).toFloat();
         mLastFrame = now;
         simulate(now, delta);

@@ -8,12 +8,12 @@ import game.game;
 import game.visual;
 import game.common;
 import game.controller;
+import gui.guiobject;
 import utils.time;
 
-class PrepareDisplay : SceneObjectPositioned {
+class PrepareDisplay : GuiObject {
     private FontLabel mPrepareView;
     private Time mLastTime;
-    private GameEngine mEngine;
     private Translator tr;
 
     this() {
@@ -22,11 +22,7 @@ class PrepareDisplay : SceneObjectPositioned {
         mPrepareView.border = Vector2i(7, 5);
         size = mPrepareView.size;
 
-        mLastTime = globals.gameTimeAnimations;
-    }
-
-    void engine(GameEngine c) {
-        mEngine = c;
+        mLastTime = timeCurrentTime();
     }
 
     public void setScene(Scene s, int z) {
@@ -35,7 +31,7 @@ class PrepareDisplay : SceneObjectPositioned {
     }
 
     void draw(Canvas canvas) {
-        Time cur = globals.gameTimeAnimations;
+        Time cur = timeCurrentTime();
         if (mEngine && mEngine.controller.currentRoundState() == RoundState.prepare) {
             Team curTeam = mEngine.controller.currentTeam();
             if (curTeam) {
@@ -52,13 +48,16 @@ class PrepareDisplay : SceneObjectPositioned {
         }
 
         size = mPrepareView.size;
-        //xxx self-managed position (someone said gui-layouter...)
-        pos.y = 40;
         pos.x = scene.size.x/2 - size.x/2;
         mPrepareView.pos = pos;
 
         //animation stuff here
 
         mLastTime = cur;
+    }
+
+    void resize() {
+        //xxx self-managed position (someone said gui-layouter...)
+        pos.y = 40;
     }
 }

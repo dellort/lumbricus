@@ -77,8 +77,8 @@ class GameSky : GameObject {
     private DebrisInfo[cNumDebris] mDebrisAnimators;
     private Animation mDebrisAnim;
 
-    this(GameEngine engine) {
-        super(engine);
+    this(GameObjectHandler handler, GameEngine engine) {
+        super(handler, engine);
         ConfigNode skyNode = globals.loadConfig("sky");
         Color skyColor = engine.level.skyColor;
 

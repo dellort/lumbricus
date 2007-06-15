@@ -26,8 +26,8 @@ private class ProjectileWeapon : WeaponClass {
     //(currently convenience only: only used for loading)
     bool isAirstrike;
 
-    this(GameEngine aengine, ConfigNode node) {
-        super(aengine, node);
+    this(GameObjectHandler handler, GameEngine aengine, ConfigNode node) {
+        super(handler, aengine, node);
 
         isAirstrike = node.getBoolValue("airstrike");
         if (isAirstrike) {
@@ -61,7 +61,7 @@ private class ProjectileWeapon : WeaponClass {
     }
 
     ProjectileThrower createShooter() {
-        return new ProjectileThrower(this, mEngine);
+        return new ProjectileThrower(this, mHandler, mEngine);
     }
 }
 
@@ -74,8 +74,8 @@ private class ProjectileThrower : Shooter {
     Time lastSpawn;
     FireInfo fireInfo;
 
-    this(ProjectileWeapon base, GameEngine engine) {
-        super(base, engine);
+    this(ProjectileWeapon base, GameObjectHandler handler, GameEngine engine) {
+        super(base, handler, engine);
         pweapon = base;
     }
 
@@ -189,8 +189,8 @@ private class ProjectileSprite : GObjectSprite {
         super.die();
     }
 
-    this(GameEngine engine, ProjectileSpriteClass type) {
-        super(engine, type);
+    this(GameObjectHandler handler, GameEngine engine, ProjectileSpriteClass type) {
+        super(handler, engine, type);
 
         assert(type !is null);
         myclass = type;
@@ -209,8 +209,8 @@ private class ProjectileSprite : GObjectSprite {
 //not implemented, just there to set the target
 class TargetProjectileSprite : ProjectileSprite {
     Vector2f target;
-    this(GameEngine engine, TargetProjectileSpriteClass type) {
-        super(engine, type);
+    this(GameObjectHandler handler, GameEngine engine, TargetProjectileSpriteClass type) {
+        super(handler, engine, type);
     }
 }
 
@@ -311,7 +311,7 @@ class ProjectileSpriteClass : GOSpriteClass {
     float explosionOnImpact;
 
     override ProjectileSprite createSprite() {
-        return new ProjectileSprite(engine, this);
+        return new ProjectileSprite(handler, engine, this);
     }
 
     //config = a subnode in the weapons.conf which describes a single projectile
@@ -347,18 +347,18 @@ class ProjectileSpriteClass : GOSpriteClass {
     }
 
 
-    this(GameEngine e, char[] r) {
-        super(e, r);
+    this(GameObjectHandler h, GameEngine e, char[] r) {
+        super(h, e, r);
     }
 }
 
 class TargetProjectileSpriteClass : ProjectileSpriteClass {
     override TargetProjectileSprite createSprite() {
-        return new TargetProjectileSprite(engine, this);
+        return new TargetProjectileSprite(handler, engine, this);
     }
 
-    this(GameEngine e, char[] r) {
-        super(e, r);
+    this(GameObjectHandler h, GameEngine e, char[] r) {
+        super(h, e, r);
     }
 }
 

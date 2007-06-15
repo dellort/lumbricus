@@ -127,8 +127,8 @@ class WormSprite : GObjectSprite {
         }
     }
 
-    protected this (GameEngine engine, WormSpriteClass spriteclass) {
-        super(engine, spriteclass);
+    protected this (GameObjectHandler handler, GameEngine engine, WormSpriteClass spriteclass) {
+        super(handler, engine, spriteclass);
         wsc = spriteclass;
         //blah
         mStates[WormState.Stand] = findState("sit");
@@ -337,8 +337,8 @@ class WormSpriteClass : GOSpriteClass {
     float suicideDamage;
     SpriteAnimationInfo*[] gravestones;
 
-    this(GameEngine e, char[] r) {
-        super(e, r);
+    this(GameObjectHandler h, GameEngine e, char[] r) {
+        super(h, e, r);
     }
     override void loadFromConfig(ConfigNode config) {
         super.loadFromConfig(config);
@@ -359,7 +359,7 @@ class WormSpriteClass : GOSpriteClass {
         }
     }
     override WormSprite createSprite() {
-        return new WormSprite(engine, this);
+        return new WormSprite(handler, engine, this);
     }
 }
 

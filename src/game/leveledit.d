@@ -561,7 +561,7 @@ public class LevelEditor {
         );
     }
 
-    bool onKeyDown(EventSink sender, KeyInfo infos) {
+/*    bool onKeyDown(EventSink sender, KeyInfo infos) {
         if (infos.code == Keycode.MOUSE_LEFT) {
             auto obj = pickDeepest(sender.mousePos);
             if (gFramework.getModifierState(Modifier.Control)) {
@@ -587,7 +587,7 @@ public class LevelEditor {
             dragRel = Vector2i(0);
         }
         return false;
-    }
+    }*/
 
     void doSelect(Rect2i r) {
         EditObject[] sel = root.pickBoundingBox(r);
@@ -599,7 +599,7 @@ public class LevelEditor {
         }
     }
 
-    bool onKeyPress(EventSink sender, KeyInfo infos) {
+/*    bool onKeyPress(EventSink sender, KeyInfo infos) {
         if (infos.code == Keycode.N)
             insertPoint();
         if (infos.code == Keycode.C) {
@@ -616,7 +616,7 @@ public class LevelEditor {
             onSelect = &newPolyAt;
         }
         return false;
-    }
+
 
     bool onKeyUp(EventSink sender, KeyInfo infos) {
         if (infos.code == Keycode.MOUSE_LEFT) {
@@ -672,7 +672,7 @@ public class LevelEditor {
             selectEnd = info.pos;
         }
         return true;
-    }
+    }*/
 
     void newPolyAt(Rect2i r) {
         EditPolygon tmp = new EditPolygon();
@@ -692,11 +692,11 @@ public class LevelEditor {
         globals.cmdLine.registerCommand("preview", &cmdPreview, "preview");
         globals.cmdLine.registerCommand("save", &cmdSave, "save edit level");
 
-        auto ev = render.getEventSink();
+        /*auto ev = render.getEventSink();
         ev.onMouseMove = &onMouseMove;
         ev.onKeyDown = &onKeyDown;
         ev.onKeyPress = &onKeyPress;
-        ev.onKeyUp = &onKeyUp;
+        ev.onKeyUp = &onKeyUp;*/
     }
 
     void kill() {
