@@ -41,6 +41,9 @@ class Team {
     WeaponSet weapons;
     int initialPoints; //on loading
 
+    Vector2f currentTarget;
+    bool targetIsSet;
+
     //wraps around, if w==null, return first element, if any
     private TeamMember doFindNext(TeamMember w) {
         return arrayFindNext(mWorms, w);
@@ -79,6 +82,15 @@ class Team {
 
     char[] toString() {
         return "[team '" ~ name ~ "']";
+    }
+
+    int opApply(int delegate(inout TeamMember member) del) {
+        foreach (TeamMember m; mWorms) {
+            int res = del(m);
+            if (res)
+                return res;
+        }
+        return 0;
     }
 }
 
@@ -208,8 +220,6 @@ class GameController {
 
     private TeamMember mLastActive; //last active worm
 
-    private WormNameDrawer mDrawer;
-
     //key state for LEFT/RIGHT and UP/DOWN
     private Vector2f dirKeyState_lu = {0, 0};  //left/up
     private Vector2f dirKeyState_rd = {0, 0};  //right/down
@@ -220,19 +230,9 @@ class GameController {
     //parts of the Gui
     private SceneObjectPositioned mForArrow;
     private Vector2i mForArrowPos;
-    struct PerTeamAnim {
-        AnimationResource arrow;
-        AnimationResource pointed;
-    }
-    //indexed by team color
-    private PerTeamAnim[] mTeamAnims;
-    private Animator mArrow;
-    private Animator mPointed;
 
     //if you can click anything, if true, also show that animation
     private bool mAllowSetPoint;
-    private bool mPointIsSet;
-    private Vector2f mPointTo;
 
     private Time mRoundRemaining, mPrepareRemaining;
     //to select next worm
@@ -243,12 +243,13 @@ class GameController {
     private Time mHotseatSwitchTime;
     private bool mIsAnythingGoingOn; // (= hack)
     private bool mWormAction;
+    private Time mCurrentLastAction;
+    private Time cLongAgo;
 
     public void delegate(char[]) messageCb;
     public bool delegate() messageIdleCb;
 
     public SceneView sceneview; //set by someone else (= hack)
-    public SceneObject eventcatcher; //r/o, for focus (= also a hack)
 
     private RoundState mCurrentRoundState;
 
@@ -265,8 +266,8 @@ class GameController {
             //possibly was focused on it, release camera focus then
             sceneview.setCameraFocus(null, CameraStyle.Reset);
 
-            hideArrow();
             allowSetPoint = false;
+            mCurrentLastAction = cLongAgo;
 
             mLastActive = mCurrent;
         }
@@ -279,7 +280,7 @@ class GameController {
                 sceneview.setCameraFocus(mCurrent.mWorm.graphic);
                 mCurrent_startpos = mCurrent.mWorm.physics.pos;
             }
-            showArrow();
+            mCurrentLastAction = cLongAgo;
             messageAdd(_("msgselectworm", mCurrent.name));
         }
     }
@@ -295,6 +296,8 @@ class GameController {
     }
 
     this(GameEngine engine, GameConfig config) {
+        cLongAgo = timeHours(-24);
+
         mEngine = engine;
 
         mLog = registerLog("gamecontroller");
@@ -308,27 +311,14 @@ class GameController {
 
         mTimePerRound = timeSecs(10);
         mHotseatSwitchTime = timeSecs(5);
-
-        //draws the worm names
-        mDrawer = new WormNameDrawer(this);
-        mDrawer.setScene(mEngine.scene, GameZOrder.Names);
-
-        globals.resources.loadAnimations(globals.loadConfig("teamanims"));
-        mTeamAnims.length = cTeamColors.length;
-        foreach (int n, char[] color; cTeamColors) {
-            mTeamAnims[n].arrow = globals.resources.anims("darrow_" ~ color);
-            mTeamAnims[n].pointed = globals.resources.anims("pointed_" ~ color);
-        }
-        mArrow = new Animator();
-        mArrow.scene = mEngine.scene;
-        mArrow.zorder = GameZOrder.Names;
-        mPointed = new Animator();
-        mPointed.scene = mEngine.scene;
-        mPointed.zorder = GameZOrder.Names;
     }
 
     //currently needed to deinitialize the gui
     void kill() {
+    }
+
+    GameEngine engine() {
+        return mEngine;
     }
 
     void simulate(float deltaT) {
@@ -356,6 +346,10 @@ class GameController {
                 transition(RoundState.cleaningUp);
             }
         }
+    }
+
+    Time currentLastAction() {
+        return mCurrentLastAction;
     }
 
     //return true if there are dying worms
@@ -401,10 +395,6 @@ class GameController {
                     return RoundState.cleaningUp;
 
                 moveWorm(movementVec);
-
-                //object moved -> arrow disappears
-                if (mForArrow && mForArrowPos != mForArrow.pos)
-                    hideArrow();
 
                 break;
             case RoundState.cleaningUp:
@@ -489,6 +479,10 @@ class GameController {
             return null;
     }
 
+    public Team[] teams() {
+        return mTeams;
+    }
+
     public Time currentRoundTime() {
         return mRoundRemaining;
     }
@@ -509,54 +503,29 @@ class GameController {
             return true;
     }
 
-    void showArrow() {
-        if (mCurrent && mCurrent.mWorm) {
-            mForArrow = mCurrent.mWorm.graphic;
-            mForArrowPos = mForArrow.pos;
-            mArrow.setAnimation(mTeamAnims[mCurrent.team.teamColor].arrow.get());
-            //2 pixels Y spacing
-            mArrow.pos = mForArrowPos + mForArrow.size.X/2 - mArrow.size.X/2
-                - mArrow.size.Y - Vector2i(0, mDrawer.labelsYOffset + 2);
-            mArrow.active = true;
-        }
-    }
-    void hideArrow() {
-        mArrow.active = false;
-    }
-
     void allowSetPoint(bool set) {
         if (mAllowSetPoint == set)
             return;
         mAllowSetPoint = set;
-        if (set) {
-            //treat as unset yet
-            mPointIsSet = false;
-        } else {
-            mPointIsSet = false;
-            mPointed.active = false;
-        }
+        mCurrent.team.targetIsSet = false;
     }
     void doSetPoint(Vector2f where) {
         if (!mAllowSetPoint)
             return;
-        mPointIsSet = true;
-        mPointTo = where;
 
         if (mCurrent) {
-            mPointed.setAnimation(mTeamAnims[mCurrent.team.teamColor].pointed.get());
-            mPointed.pos = toVector2i(mPointTo) - mPointed.size/2;
-            mPointed.active = true;
+            mCurrent.team.targetIsSet = true;
+            mCurrent.team.currentTarget = where;
         }
     }
 
     //called if any action is issued, i.e. key pressed to control worm
     //or if it was moved by sth. else
     void currentWormAction(bool fromkeys = true) {
-        if (mWormAction)
-            return;
-
-        mWormAction = true;
-        hideArrow();
+        if (fromkeys) {
+            mWormAction = true;
+            mCurrentLastAction = mEngine.currentTime;
+        }
     }
 
     //update weapon state of current worm (when new weapon selected)
@@ -747,7 +716,7 @@ class GameController {
         info.shootby = worm.physics;
         info.strength = shooter.weapon.throwStrength;
         info.timer = shooter.weapon.timerFrom;
-        info.pointto = mPointTo;
+        info.pointto = mCurrent.team.currentTarget;
         shooter.fire(info);
 
         mCurrent.didFire();
@@ -824,64 +793,5 @@ class GameController {
         }
 
         mLog("placing worms done.");
-    }
-}
-
-private class WormNameDrawer : SceneObject {
-    private GameController mController;
-    private Font[Team] mWormFont;
-    private int mFontHeight;
-
-    this(GameController controller) {
-        mController = controller;
-
-        //create team fonts (expects teams are already loaded)
-        foreach (Team t; controller.mTeams) {
-            auto font = globals.framework.fontManager.loadFont("wormfont_"
-                ~ cTeamColors[t.teamColor]);
-            mWormFont[t] = font;
-            //assume all fonts are same height but... anyway
-            mFontHeight = max(mFontHeight, font.textSize("").y);
-        }
-    }
-
-    const cYDist = 3;   //distance label/worm-graphic
-    const cYBorder = 2; //thickness of label box
-
-    //upper border of the label relative to the worm's Y coordinate
-    int labelsYOffset() {
-        return cYDist+cYBorder*2+mFontHeight;
-    }
-
-    void draw(Canvas canvas) {
-        //xxx: add code to i.e. move the worm-name labels
-
-        foreach (Team t; mController.mTeams) {
-            auto pfont = t in mWormFont;
-            if (!pfont)
-                continue;
-            Font font = *pfont;
-            foreach (TeamMember w; t.mWorms) {
-                if (!w.mWorm || !w.mWorm.graphic.active)
-                    continue;
-
-                char[] text = str.format("%s (%s)", w.name,
-                    w.mWorm.physics.lifepowerInt);
-
-                auto wp = w.mWorm.graphic.pos;
-                auto sz = w.mWorm.graphic.size;
-                //draw 3 pixels above, centered
-                auto tsz = font.textSize(text);
-                tsz.y = mFontHeight; //hicks
-                auto pos = wp+Vector2i(sz.x/2 - tsz.x/2, -tsz.y - cYDist);
-
-                auto border = Vector2i(4, cYBorder);
-                //auto b = getBox(tsz+border*2, Color(1,1,1), Color(0,0,0));
-                //canvas.draw(b, pos-border);
-                //if (mController.mEngine.enableSpiffyGui)
-                    drawBox(canvas, pos-border, tsz+border*2);
-                font.drawText(canvas, pos, text);
-            }
-        }
     }
 }

@@ -45,8 +45,6 @@ import game.special_weapon;
 
 //this contains the mainframe
 class TopLevel {
-    Font consFont;
-    Scene clientgamescene;
     MetaScene metascene;
     //overengineered
     private void delegate() mOnStopGui; //associated with sceneview

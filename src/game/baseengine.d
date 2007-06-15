@@ -26,9 +26,9 @@ enum GameZOrder {
 //base class for game engine
 //engines have a physicworld, manage game objects and do time-based simulation
 class BaseGameEngine : GameObjectHandler {
-    PhysicWorld mPhysicWorld;
+    protected PhysicWorld mPhysicWorld;
     package List!(GameObject) mObjects;
-    Time lastTime;
+    protected Time lastTime;
     Time currentTime;
 
     this() {
