@@ -26,6 +26,7 @@ struct GameConfig {
     Level level;
     ConfigNode teams;
     ConfigNode weapons;
+    ConfigNode gamemode;
 }
 
 //code to manage a game session (hm, whatever this means)

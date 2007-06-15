@@ -309,8 +309,9 @@ class GameController {
             loadTeams(config.teams);
         }
 
-        mTimePerRound = timeSecs(15);
-        mHotseatSwitchTime = timeSecs(5);
+        mTimePerRound = timeSecs(config.gamemode.getIntValue("roundtime",15));
+        mHotseatSwitchTime = timeSecs(
+            config.gamemode.getIntValue("hotseattime",5));
     }
 
     //currently needed to deinitialize the gui
