@@ -16,10 +16,16 @@ class GuiConsole : GuiObject {
         {
             console.backcolor = console_color;
         }
+        events.onKeyPress = &keyPress;
     }
 
     void draw(Canvas canvas) {
         if (console)
             console.frame(canvas);
+    }
+
+    bool keyPress(char[] bind, KeyInfo key) {
+        if (console.visible && globals.cmdLine.keyPress(key))
+            return true;
     }
 }

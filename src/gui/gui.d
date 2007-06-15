@@ -139,7 +139,6 @@ class GuiMain {
     void doMouseMove(MouseInfo info) {
         //xxx following line
         mMousePos = info.pos;
-        std.stdio.writefln(mMousePos);
 
         foreach (obj, int z; mGuiScene) {
             GuiObject go = cast(GuiObject)obj;

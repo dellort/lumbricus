@@ -7,6 +7,7 @@ import game.glevel;
 import game.common;
 import game.animation;
 import game.scene;
+import game.baseengine;
 import utils.misc;
 import utils.time;
 import utils.vector2;
@@ -61,6 +62,8 @@ class GameSky : GameObject {
     //this is not gravity, as debris is not accelerated
     private const cDebrisFallSpeed = 70; //pixels/sec
 
+    private Scene mScene;
+
     private struct CloudInfo {
         Animator anim;
         int animSizex;
@@ -77,8 +80,9 @@ class GameSky : GameObject {
     private DebrisInfo[cNumDebris] mDebrisAnimators;
     private Animation mDebrisAnim;
 
-    this(GameObjectHandler handler, GameEngine engine) {
+    this(GameObjectHandler handler, GameEngine engine, Scene target) {
         super(handler, engine);
+        mScene = target;
         ConfigNode skyNode = globals.loadConfig("sky");
         Color skyColor = engine.level.skyColor;
 
@@ -115,9 +119,9 @@ class GameSky : GameObject {
             foreach (inout CloudInfo ci; mCloudAnimators) {
                 ci.anim = new Animator();
                 ci.anim.setAnimation(mCloudAnims[nAnim]);
-                ci.anim.setScene(engine.scene, GameZOrder.Objects);
+                ci.anim.setScene(target, GameZOrder.Objects);
                 ci.anim.pos.y = skyOffset - mCloudAnims[nAnim].size.y/2 + randRange(-cCloudHeightRange/2,cCloudHeightRange/2);
-                ci.x = randRange(-mCloudAnims[nAnim].size.x, engine.scene.size.x);
+                ci.x = randRange(-mCloudAnims[nAnim].size.x, target.size.x);
                 ci.anim.pos.x = cast(int)ci.x;
                 ci.anim.setFrame(randRange(0u,mCloudAnims[nAnim].frameCount));
                 ci.animSizex = mCloudAnims[nAnim].size.x;
@@ -132,8 +136,8 @@ class GameSky : GameObject {
             foreach (inout DebrisInfo di; mDebrisAnimators) {
                 di.anim = new Animator();
                 di.anim.setAnimation(mDebrisAnim);
-                di.anim.setScene(engine.scene, GameZOrder.BackLayer);
-                di.x = randRange(-mDebrisAnim.size.x, engine.scene.size.x);
+                di.anim.setScene(target, GameZOrder.BackLayer);
+                di.x = randRange(-mDebrisAnim.size.x, target.size.x);
                 di.y = randRange(skyOffset, levelBottom);
                 di.anim.pos.x = cast(int)di.x;
                 di.anim.pos.y = cast(int)di.y;
@@ -143,7 +147,7 @@ class GameSky : GameObject {
         }
 
         mSkyDrawer = new SkyDrawer(this, skyColor, skyTex, skyBackdrop);
-        mSkyDrawer.setScene(engine.scene, GameZOrder.Background);
+        mSkyDrawer.setScene(target, GameZOrder.Background);
     }
 
     public void enableClouds(bool enable) {
@@ -194,7 +198,7 @@ class GameSky : GameObject {
                 foreach (inout ci; mCloudAnimators) {
                     //XXX this is acceleration, how to get a constant speed from this??
                     ci.x += (ci.xspeed+engine.windSpeed)*deltaT;
-                    clip(ci.x, ci.animSizex, 0, engine.scene.size.x);
+                    clip(ci.x, ci.animSizex, 0, mScene.size.x);
                     ci.anim.pos.x = cast(int)ci.x;
                 }
         }
@@ -204,7 +208,7 @@ class GameSky : GameObject {
                     //XXX same here
                     di.x += 2*engine.windSpeed*deltaT*di.speedPerc;
                     di.y += cDebrisFallSpeed*deltaT;
-                    clip(di.x, mDebrisAnim.size.x, 0, engine.scene.size.x);
+                    clip(di.x, mDebrisAnim.size.x, 0, mScene.size.x);
                     clip(di.y, mDebrisAnim.size.y, skyOffset, levelBottom);
                     di.anim.pos.x = cast(int)di.x;
                     di.anim.pos.y = cast(int)di.y;

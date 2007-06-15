@@ -12,6 +12,7 @@ import game.sky;
 import game.common;
 import game.controller;
 import game.weapon;
+import game.baseengine;
 import utils.mylist;
 import utils.time;
 import utils.log;
@@ -21,24 +22,6 @@ import framework.framework;
 import framework.keysyms;
 import std.math;
 
-//maybe keep in sync with game.Scene.cMaxZOrder
-enum GameZOrder {
-    Invisible = 0,
-    Background,
-    BackLayer,
-    BackWater,
-    BackWaterWaves1,   //water behind the level
-    BackWaterWaves2,
-    Level,
-    FrontLowerWater,  //water before the level
-    Objects,
-    Names, //controller.d/WormNameDrawer
-    FrontUpperWater,
-    FrontWaterWaves1,
-    FrontWaterWaves2,
-    FrontWaterWaves3,
-}
-
 struct GameConfig {
     Level level;
     ConfigNode teams;
@@ -47,16 +30,13 @@ struct GameConfig {
 
 //code to manage a game session (hm, whatever this means)
 //reinstantiated on each "round"
-class GameEngine : GameObjectHandler {
+class GameEngine : BaseGameEngine {
     Level level;
     LevelObject levelobject;
     GameLevel gamelevel;
     Scene scene;
-    PhysicWorld physicworld;
     PlaneTrigger waterborder;
     PlaneTrigger deathzone;
-    Time lastTime;
-    Time currentTime;
 
     GameController controller;
 
@@ -74,8 +54,6 @@ class GameEngine : GameObjectHandler {
     //collision handling stuff: map names to the registered IDs
     //used by loadCollisions() and findCollisionID()
     private CollisionType[char[]] mCollisionTypeNames;
-
-    package List!(GameObject) mObjects;
 
     private const cSpaceBelowLevel = 150;
     private const cSpaceAboveOpenLevel = 1000;
@@ -98,14 +76,6 @@ class GameEngine : GameObjectHandler {
 
     //same for weapons (also such a two-stage factory, which creastes Shooters)
     private WeaponClass[char[]] mWeaponClasses;
-
-    void activate(GameObject obj) {
-        mObjects.insert_tail(obj);
-    }
-
-    void deactivate(GameObject obj) {
-        mObjects.remove(obj);
-    }
 
     //factory for GOSpriteClasses
     //the constructor of GOSpriteClasses will call:
@@ -184,6 +154,7 @@ class GameEngine : GameObjectHandler {
     }
 
     this(GameConfig config) {
+        super();
         assert(config.level !is null);
         this.level = config.level;
 
@@ -208,8 +179,6 @@ class GameEngine : GameObjectHandler {
 
         levelobject = new LevelObject(this);
         levelobject.setScene(scene, GameZOrder.Level);
-
-        physicworld = new PhysicWorld();
 
         //to enable level-bitmap collision
         physicworld.add(gamelevel.physics);
@@ -303,38 +272,8 @@ class GameEngine : GameObjectHandler {
         mWaterChanger.target = mCurrentWaterLevel - by;
     }
 
-    private void simulate(float deltaT) {
+    protected void simulate(float deltaT) {
         controller.simulate(deltaT);
-    }
-
-    void doFrame(Time gametime) {
-        currentTime = gametime;
-        float deltaT = (currentTime - lastTime).msecs/1000.0f;
-        simulate(deltaT);
-        physicworld.simulate(currentTime);
-        //update game objects
-        //NOTE: objects might be inserted/removed while iterating
-        //      maybe one should implement a safe iterator...
-        GameObject cur = mObjects.head;
-        while (cur) {
-            auto o = cur;
-            cur = mObjects.next(cur);
-            o.simulate(deltaT);
-        }
-        lastTime = currentTime;
-    }
-
-    //remove all objects etc. from the scene
-    void kill() {
-        levelobject.active = false;
-        //must iterate savely
-        GameObject cur = mObjects.head;
-        while (cur) {
-            auto o = cur;
-            cur = mObjects.next(cur);
-            o.kill();
-        }
-        controller.kill();
     }
 
     //try to place an object into the landscape

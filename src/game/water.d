@@ -8,6 +8,7 @@ import game.common;
 import game.animation;
 import game.scene;
 import game.resources;
+import game.baseengine;
 import utils.misc;
 import utils.time;
 import utils.vector2;

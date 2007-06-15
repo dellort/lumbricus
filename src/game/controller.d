@@ -7,6 +7,7 @@ import game.animation;
 import game.visual;
 import game.weapon;
 import game.resources;
+import game.baseengine;
 import utils.vector2;
 import utils.configfile;
 import utils.log;
@@ -823,12 +824,6 @@ class GameController {
         }
 
         mLog("placing worms done.");
-    }
-}
-
-private class EventCatcher : SceneObject {
-    void draw(Canvas canvas) {
-        //nop
     }
 }
 

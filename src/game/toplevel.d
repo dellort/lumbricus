@@ -59,8 +59,6 @@ class TopLevel {
 
     GameEngine thegame;
     ClientGameEngine clientengine;
-    GameWater gameWater;
-    GameSky gameSky;
 
     //xxx move this to where-ever
     Translator localizedKeynames;
@@ -71,10 +69,6 @@ class TopLevel {
     bool mKeyNameIt = false;
 
     private char[] mGfxSet = "gpl";
-
-    private uint mDetailLevel;
-    //not quite clean: Gui drawers can query this / detailLevel changes it
-    bool enableSpiffyGui;
 
     this() {
         initTimes();
@@ -140,8 +134,6 @@ class TopLevel {
         globals.cmdLine.registerCommand("expl", &cmdExpl, "BOOM! HAHAHAHA");
         globals.cmdLine.registerCommand("pause", &cmdPause, "pause");
         //globals.cmdLine.registerCommand("loadanim", &cmdLoadAnim, "load worms animation");
-        globals.cmdLine.registerCommand("clouds", &cmdClouds, "enable/disable animated clouds");
-        globals.cmdLine.registerCommand("simplewater", &cmdSimpleWater, "set reduced water mode");
         globals.cmdLine.registerCommand("raisewater", &cmdRaiseWater, "increase waterline");
 
         globals.cmdLine.registerCommand("editor", &cmdLevelEdit, "hm");
@@ -158,10 +150,10 @@ class TopLevel {
     }
 
     private void cmdDetail(CommandLine cmd) {
-        if (!thegame)
+        if (!clientengine)
             return;
-        detailLevel = detailLevel + 1;
-        cmd.console.writefln("set detailLevel to %s", detailLevel);
+        clientengine.detailLevel = clientengine.detailLevel + 1;
+        cmd.console.writefln("set detailLevel to %s", clientengine.detailLevel);
     }
 
     private void cmdFramerate(CommandLine cmd) {
@@ -196,16 +188,9 @@ class TopLevel {
         //xxx README: since the scene is recreated for each level, there's no
         //            need to remove them all in Game.kill()
         thegame = new GameEngine(config);
-        clientengine = new ClientGameEngine();
+        clientengine = new ClientGameEngine(thegame);
 
-        auto clientgamescene = new Scene();
-        clientgamescene.size = thegame.scene.size;
-        metascene = new MetaScene([thegame.scene, clientgamescene]);
-
-        gameWater = new GameWater(clientengine, thegame, clientgamescene, "blue");
-        gameSky = new GameSky(clientengine, thegame);
-
-        detailLevel = 0;
+        metascene = new MetaScene([thegame.scene, clientengine.scene]);
 
         initializeGui();
         //yes, really twice, as no game time should pass while loading stuff
@@ -276,32 +261,6 @@ class TopLevel {
         //screen.setFocus(editor.render);
 
         mOnStopGui = &killEditor;
-    }
-
-    private void cmdClouds(CommandLine cmd) {
-        char[][] sargs = cmd.parseArgs();
-        bool on = false;
-        if (sargs.length < 1)
-            return;
-        try {
-            on = cast(bool)conv.toInt(sargs[0]);
-        } catch (conv.ConvError) {
-            return;
-        }
-        gameSky.enableClouds = on;
-    }
-
-    private void cmdSimpleWater(CommandLine cmd) {
-        char[][] sargs = cmd.parseArgs();
-        bool simple = false;
-        if (sargs.length < 1)
-            return;
-        try {
-            simple = cast(bool)conv.toInt(sargs[0]);
-        } catch (conv.ConvError) {
-            return;
-        }
-        gameWater.simpleMode = simple;
     }
 
     private void cmdRaiseWater(CommandLine cmd) {
@@ -465,6 +424,11 @@ class TopLevel {
 
     private void showConsole(CommandLine) {
         mGuiConsole.console.toggle();
+        //xxx focus hack
+        if (mGuiConsole.console.visible)
+            mGui.setFocus(mGuiConsole);
+        else
+            mGui.setFocus(mGameView);
     }
 
     private void killShortcut(CommandLine) {
@@ -637,35 +601,8 @@ class TopLevel {
         mGui.draw(c);
     }
 
-    public uint detailLevel() {
-        return mDetailLevel;
-    }
-    //the higher the less detail (wtf), wraps around if set too high
-    public void detailLevel(uint level) {
-        level = level % 7;
-        mDetailLevel = level;
-        bool clouds = true, skyDebris = true, skyBackdrop = true, skyTex = true;
-        bool water = true, gui = true;
-        if (level >= 1) skyDebris = false;
-        if (level >= 2) skyBackdrop = false;
-        if (level >= 3) skyTex = false;
-        if (level >= 4) clouds = false;
-        if (level >= 5) water = false;
-        if (level >= 6) gui = false;
-        gameWater.simpleMode = !water;
-        gameSky.enableClouds = clouds;
-        gameSky.enableDebris = skyDebris;
-        gameSky.enableSkyBackdrop = skyBackdrop;
-        gameSky.enableSkyTex = skyTex;
-        enableSpiffyGui = gui;
-    }
-
     private void onKeyPress(KeyInfo infos) {
         mGui.putOnKeyPress(infos);
-        /*if (mGui.console.visible && globals.cmdLine.keyPress(infos))
-            return;
-        if (!mGui.console.visible)
-            screen.putOnKeyPress(infos);*/
     }
 
     private bool onKeyDown(KeyInfo infos) {
