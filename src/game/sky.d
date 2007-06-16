@@ -6,6 +6,7 @@ import game.glevel;
 import game.common;
 import game.animation;
 import game.scene;
+import str = std.string;
 import utils.misc;
 import utils.time;
 import utils.vector2;
@@ -111,8 +112,10 @@ class GameSky {
 
         if (mCloudsVisible) {
             scope (failure) mCloudsVisible = false;
+            int i = 0;
             foreach (char[] nodeName, ConfigNode node; skyNode.getSubNode("clouds")) {
-                mCloudAnims ~= globals.resources.createAnimation(node,"clouds_"~nodeName).get();
+                mCloudAnims ~= globals.resources.createAnimation(node,"clouds_"~str.toString(i)).get();
+                i++;
             }
 
             int nAnim = 0;
