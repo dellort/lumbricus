@@ -5,19 +5,20 @@ import game.resources;
 import utils.configfile;
 
 //LEvel ELement
-//sorry for that stupid type name
+//collection of flags
+//all 0 currently means pixel is free
 public enum Lexel : ubyte {
-    FREE = 0,           //free space
-    LAND = 1,           //destroyable land
-    SOLID_LAND = 2,     //undestroyable land
+    Null = 0,
+    SolidSoft = 1, // destroyable ground
+    SolidHard = 2, // undestroyable ground
 
-    INVALID = 255,
+    INVALID = 255
 }
 
-/// A Lumbricus level - this is the data passed from the level generator to the
-/// engine (which is not there yet).
+/// A Lumbricus level.
 public class Level {
-    private uint mWidth, mHeight, mPitch;
+    private Vector2i mSize;
+    private uint mPitch;
     package Surface mImage;
     //metadata per pixel
     private Lexel[] mData;
@@ -37,12 +38,10 @@ public class Level {
     Color skyColor;
     AnimationResource skyDebris;
 
-    public uint width() {
-        return mWidth;
+    public Vector2i size() {
+        return mSize;
     }
-    public uint height() {
-        return mHeight;
-    }
+
     /// pitch value for the data array (length of scanline)
     public uint dataPitch() {
         return mPitch;
@@ -66,10 +65,10 @@ public class Level {
         mData[y*mPitch+x] = lexel;
     }
 
-    public this(uint width, uint height, Surface image) {
-        mWidth = width; mHeight = height; mImage = image;
-        mData.length = width*height;
-        mPitch = width;
+    public this(Vector2i asize, Surface image) {
+        mSize = asize; mImage = image;
+        mData.length = size.x*size.y;
+        mPitch = size.x;
         mBorderColor = Color(0.6,0.6,0);
     }
 
@@ -87,11 +86,10 @@ public class Level {
         mWaterLevel = wlevel;
     }
 
-
-    public Surface backimage() {
+    public Surface backImage() {
         return mBackImage;
     }
-    public Color bordercolor() {
+    public Color borderColor() {
         return mBorderColor;
     }
 }

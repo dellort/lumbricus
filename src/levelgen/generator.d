@@ -20,6 +20,32 @@ debug {
     import utils.time;
 }
 
+//record, serialize, deserialize and replay renderer calls
+/*
+class RendererRecorder : LevelRenderer {
+private:
+    ConfigNode serialized;
+    ConfigNode commands;
+
+    char[] getSurfaceId(Surface s) {
+    }
+
+    public void addPolygon(Point[] points, uint[] nosubdiv, bool visible,
+        Point texture_offset, Surface texture, Lexel marker)
+    {
+    }
+    public void drawBorder(Lexel a, Lexel b, bool do_up, bool do_down,
+        Surface tex_up, Surface tex_down)
+    {
+    }
+    public void drawBitmap(Vector2i p, Surface source, Vector2i size,
+        Lexel before, Lexel after)
+    {
+    }
+}
+*/
+
+
 /// level generator
 public class LevelGenerator {
     private ConfigNode mConfig;
@@ -32,8 +58,8 @@ public class LevelGenerator {
 
     private static Lexel parseMarker(char[] value) {
         static char[][] marker_strings = ["FREE", "LAND", "SOLID_LAND"];
-        static Lexel[] marker_values = [Lexel.FREE, Lexel.LAND,
-            Lexel.SOLID_LAND];
+        static Lexel[] marker_values = [Lexel.Null, Lexel.SolidSoft,
+            Lexel.SolidHard];
         for (uint i = 0; i < marker_strings.length; i++) {
             if (str.icmp(value, marker_strings[i]) == 0) {
                 return marker_values[i];
@@ -229,7 +255,7 @@ public class LevelGenerator {
 
         mLog("rendering level...");
 
-        LevelRenderer renderer = new LevelRenderer(width, height, mLog);
+        auto renderer = new LevelBitmap(size);
         gen.preRender(renderer);
 
         //the least important part is the longest
@@ -238,10 +264,10 @@ public class LevelGenerator {
             auto marker_a = parseMarker(border.getStringValue("marker_a"));
             auto marker_b = parseMarker(border.getStringValue("marker_b"));
             bool do_up = false, do_down = false;
-            char[] dir = border.getStringValue("direction");
-            if (str.icmp(dir, "up") == 0) {
+            int dir = border.selectValueFrom("direction", ["up", "down"]);
+            if (dir == 0) {
                 do_up = true;
-            } else if (str.icmp(dir, "down") == 0) {
+            } else if (dir == 1) {
                 do_down = true;
             } else {
                 do_up = do_down = true;
@@ -262,8 +288,6 @@ public class LevelGenerator {
         debug {
             counter.stop();
             mLog("%s", timeMusecs(counter.microseconds));
-
-            gen.dumpDebuggingStuff(renderer);
         }
 
         mLog("placing objects");
@@ -271,18 +295,22 @@ public class LevelGenerator {
         ConfigNode bridgeNode = gfxNode.getSubNode("bridge");
         PlaceableObject[3] bridge;
         auto placer = new PlaceObjects(mLog, renderer);
-        bridge[0] = placer.createObject(readTexture(gfxPath ~ bridgeNode.getStringValue("segment"), false));
-        bridge[1] = placer.createObject(readTexture(gfxPath ~ bridgeNode.getStringValue("left"), false));
-        bridge[2] = placer.createObject(readTexture(gfxPath ~ bridgeNode.getStringValue("right"), false));
+        bridge[0] = placer.createObject(readTexture(gfxPath ~
+            bridgeNode.getStringValue("segment"), false));
+        bridge[1] = placer.createObject(readTexture(gfxPath ~
+            bridgeNode.getStringValue("left"), false));
+        bridge[2] = placer.createObject(readTexture(gfxPath ~
+            bridgeNode.getStringValue("right"), false));
         placer.placeBridges(10,10, bridge);
 
         ConfigNode objectsNode = gfxNode.getSubNode("objects");
         foreach (char[] id, ConfigNode onode; objectsNode) {
-            auto levelobj = placer.createObject(readTexture(gfxPath ~ onode.getStringValue("image"), false));
+            auto levelobj = placer.createObject(readTexture(gfxPath ~
+                onode.getStringValue("image"), false));
             placer.placeObjects(10, 2, levelobj);
         }
 
-        auto ret = renderer.render();
+        auto ret = renderer.createLevel();
         ret.isCave = isCave;
 
         ConfigNode skyNode = gfxNode.getSubNode("sky");
@@ -294,7 +322,9 @@ public class LevelGenerator {
         if (skyBackTex.length > 0)
             ret.skyBackdrop = readTexture(gfxPath ~ skyBackTex, true);
         if (skyNode.exists("debris"))
-            ret.skyDebris = globals.resources.createAnimation(skyNode.getSubNode("debris"), gfxPath~"debris",gfxPath);
+            ret.skyDebris =
+                globals.resources.createAnimation(skyNode.getSubNode("debris"),
+                gfxPath~"debris",gfxPath);
 
         //water level from bottom, relative value
         float waterLevel = template_node.getFloatValue("waterlevel");

@@ -123,6 +123,15 @@ public class SDLSurface : Surface {
 
     SDLTexture mSDLTexture;
 
+    public Surface clone() {
+        assert(mReal !is null);
+        auto n = SDL_ConvertSurface(mReal, mReal.format, mReal.flags);
+        auto res = new SDLSurface(n);
+        res.mTransp = mTransp;
+        res.mColorkey = mColorkey;
+        return res;
+    }
+
     public Canvas startDraw() {
         if (mCanvas is null) {
             mCanvas = new SDLCanvas(this);
@@ -204,6 +213,20 @@ public class SDLSurface : Surface {
     }
     public void unlockPixels() {
         SDL_UnlockSurface(mReal);
+    }
+
+    public void lockPixelsRGBA32(out void* pixels, out uint pitch) {
+        assert(mReal !is null);
+        //xxx: this is a fast, but dirty check for the correct format
+        if (mReal.format.BytesPerPixel != 4
+            || mReal.format.Rmask != 0x00ff0000
+            || mReal.format.Gmask != 0x0000ff00
+            || mReal.format.Bmask != 0x000000ff
+            || mReal.format.Amask != 0xff000000)
+        {
+            forcePixelFormat(gFramework.findPixelFormat(DisplayFormat.RGBA32));
+        }
+        lockPixels(pixels, pitch);
     }
 
     //only for createMirroredY()

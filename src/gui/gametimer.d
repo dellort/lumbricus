@@ -22,9 +22,8 @@ class GameTimer : GuiObject {
         mLastTime = timeCurrentTime();
     }
 
-    public void setScene(Scene s, int z) {
-        super.setScene(s, z);
-        mTimeView.setScene(s, z);
+    override protected void onChangeScene() {
+        mTimeView.setScene(scene, zorder, active);
     }
 
     void draw(Canvas canvas) {

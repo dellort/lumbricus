@@ -14,9 +14,8 @@ class GuiFps : GuiObject {
         fpsDisplay = new FontLabel(globals.framework.getFont("fpsfont"));
     }
 
-    public void setScene(Scene s, int z) {
-        super.setScene(s, z);
-        fpsDisplay.setScene(s, z);
+    override protected void onChangeScene() {
+        fpsDisplay.setScene(scene, zorder, active);
     }
 
     void simulate(float deltaT) {

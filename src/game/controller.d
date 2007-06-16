@@ -7,7 +7,6 @@ import game.animation;
 import game.visual;
 import game.weapon;
 import game.resources;
-import game.baseengine;
 import utils.vector2;
 import utils.configfile;
 import utils.log;
@@ -785,7 +784,7 @@ class GameController {
                     //position, and then places a small bridge for the worm
                     //but for now... just barf and complain
                     npos = toVector2f(mEngine.gamelevel.offset
-                        + Vector2i(mEngine.gamelevel.width / 2, 0));
+                        + mEngine.gamelevel.size / 2);
                     mLog("couldn't place worm!");
                 }
                 m.mWorm.setPos(npos);

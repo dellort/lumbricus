@@ -5,7 +5,6 @@ import game.animation;
 import game.game;
 import game.common;
 import game.resources;
-import game.baseengine;
 import utils.vector2;
 import utils.rect2;
 import utils.configfile;
@@ -15,7 +14,7 @@ import std.math : abs, PI;
 import cmath = std.c.math;
 
 //factory to instantiate sprite classes, this is a small wtf
-package Factory!(GOSpriteClass, GameObjectHandler, GameEngine, char[]) gSpriteClassFactory;
+package Factory!(GOSpriteClass, GameEngine, char[]) gSpriteClassFactory;
 
 static this() {
     gSpriteClassFactory = new typeof(gSpriteClassFactory);
@@ -381,8 +380,8 @@ class GObjectSprite : GameObject {
             outOfLevel.active = false;
     }
 
-    protected this (GameObjectHandler handler, GameEngine engine, GOSpriteClass type) {
-        super(handler, engine, false);
+    protected this (GameEngine engine, GOSpriteClass type) {
+        super(engine, false);
 
         assert(type !is null);
         this.type = type;
@@ -438,7 +437,6 @@ class StateTransition {
 //loads static physic properties (in a POSP struct)
 //load static parts of the "states"-nodes
 class GOSpriteClass {
-    GameObjectHandler handler;
     GameEngine engine;
     char[] name;
 
@@ -460,11 +458,10 @@ class GOSpriteClass {
     }
 
     GObjectSprite createSprite() {
-        return new GObjectSprite(handler, engine, this);
+        return new GObjectSprite(engine, this);
     }
 
-    this (GameObjectHandler handler, GameEngine engine, char[] regname) {
-        this.handler = handler;
+    this (GameEngine engine, char[] regname) {
         this.engine = engine;
         name = regname;
 

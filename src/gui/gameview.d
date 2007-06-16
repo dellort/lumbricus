@@ -19,10 +19,9 @@ class GameView : GuiObject {
         events.onMouseMove = &mouseMove;
     }
 
-    public void setScene(Scene s, int z) {
-        super.setScene(s, z);
-        mGameSceneView.setScene(scene, zorder);
-        if (s) {
+    override protected void onChangeScene() {
+        mGameSceneView.setScene(scene, zorder, active);
+        if (scene) {
             mGameSceneView.pos = Vector2i(0, 0);
         }
     }

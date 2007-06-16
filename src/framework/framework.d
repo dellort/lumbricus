@@ -85,6 +85,7 @@ enum DisplayFormat {
     /// best display format (usually 32 bit RGBA)
     Best,
     /// guaranteed to be 32 bit RGBA
+    //xxx: use alpha transparency, on colorkey, SDL groks up (???)
     RGBA32,
 }
 
@@ -117,6 +118,9 @@ public class Surface {
 
     public abstract Vector2i size();
 
+    public abstract Surface clone();
+    public abstract void free();
+
     public abstract Canvas startDraw();
     //public abstract void endDraw();
 
@@ -128,6 +132,10 @@ public class Surface {
     /// hahaha!
     public abstract void forcePixelFormat(PixelFormat fmt);
     public abstract void lockPixels(out void* pixels, out uint pitch);
+    /// like lockPixels(), but ensure RGBA32 format before
+    /// (xxx see comment in SDL implementation)
+    public abstract void lockPixelsRGBA32(out void* pixels, out uint pitch);
+    /// must be called after done with lockPixels()
     public abstract void unlockPixels();
 
     /// return colorkey or a 0-alpha black, depending from transparency mode
@@ -411,6 +419,7 @@ public class Framework {
     public PixelFormat findPixelFormat(DisplayFormat fmt) {
         switch (fmt) {
             case DisplayFormat.Best, DisplayFormat.RGBA32: {
+                //keep in sync with SDL implementation's lockPixelsRGBA32()
                 PixelFormat ret;
                 ret.depth = 32;
                 ret.bytes = 4;

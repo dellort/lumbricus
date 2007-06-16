@@ -11,7 +11,7 @@ import utils.vector2;
 import utils.mylist;
 import utils.time;
 
-package Factory!(WeaponClass, GameObjectHandler, GameEngine, ConfigNode) gWeaponClassFactory;
+package Factory!(WeaponClass, GameEngine, ConfigNode) gWeaponClassFactory;
 
 static this() {
     gWeaponClassFactory = new typeof(gWeaponClassFactory);
@@ -33,7 +33,6 @@ const char[][] cWWA2Str = ["arm", "hold", "fire"];
 // inheritance *g*; and how would you have a single fire() method then)
 abstract class WeaponClass {
     protected GameEngine mEngine;
-    protected GameObjectHandler mHandler;
 
     //generally read-only fields
     char[] name; //weapon name, translateable string
@@ -59,8 +58,7 @@ abstract class WeaponClass {
         return mEngine;
     }
 
-    this(GameObjectHandler handler, GameEngine engine, ConfigNode node) {
-        mHandler = handler;
+    this(GameEngine engine, ConfigNode node) {
         mEngine = engine;
         assert(mEngine !is null);
 
@@ -133,8 +131,8 @@ struct FireInfo {
 class Shooter : GameObject {
     protected WeaponClass mClass;
 
-    protected this(WeaponClass base, GameObjectHandler handler, GameEngine engine) {
-        super(handler, engine, false);
+    protected this(WeaponClass base, GameEngine engine) {
+        super(engine, false);
         assert(base !is null);
         mClass = base;
     }

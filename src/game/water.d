@@ -1,14 +1,12 @@
 module game.water;
 
 import framework.framework;
-import game.game;
-import game.gobject;
+import game.clientengine;
 import game.glevel;
 import game.common;
 import game.animation;
 import game.scene;
 import game.resources;
-import game.baseengine;
 import utils.misc;
 import utils.time;
 import utils.vector2;
@@ -59,7 +57,7 @@ class WaterDrawerBack : WaterDrawer {
     }
 }
 
-class GameWater : GameObject {
+class GameWater {
     package const cBackLayers = 2;
     package const cFrontLayers = 3;
     package const cWaterLayerDist = 20;
@@ -72,11 +70,10 @@ class GameWater : GameObject {
 
     protected uint waterOffs, animTop, animBottom;
     private uint mStoredWaterLevel = uint.max;
-    private GameEngine mEngine;
+    private ClientGameEngine mEngine;
     private bool mSimpleMode = true;
 
-    this(GameObjectHandler handler, GameEngine engine, Scene target, char[] waterType) {
-        super(handler, engine);
+    this(ClientGameEngine engine, Scene target, char[] waterType) {
         mEngine = engine;
         ConfigNode waterNode = globals.loadConfig("water").getSubNode(waterType);
         Color waterColor;
@@ -135,7 +132,7 @@ class GameWater : GameObject {
         return mSimpleMode;
     }
 
-    override void simulate(float deltaT) {
+    void simulate(float deltaT) {
         if (mEngine.waterOffset != mStoredWaterLevel) {
             waterOffs = mEngine.waterOffset;
             uint p = waterOffs;
@@ -160,7 +157,7 @@ class GameWater : GameObject {
         }
     }
 
-    override void kill() {
+    void kill() {
         mWaterDrawerFront1.active = false;
         mWaterDrawerFront2.active = false;
         mWaterDrawerBack.active = false;

@@ -14,10 +14,7 @@ public enum Side {
 }
 
 public class PlaceableObject {
-    //private ubyte[] mCollide;
     private Surface mTexture;
-    private void* mPixelData; //RGBA32
-    private uint mPDPitch;
     private Side mSide;
     private uint mWidth;
     private uint mHeight;
@@ -31,7 +28,7 @@ public class PlaceableObject {
 }
 
 public class PlaceObjects {
-    private LevelRenderer mLevel;
+    private LevelBitmap mLevel;
     private Log mLog;
 
     //[0.0f, 1.0f]
@@ -52,10 +49,10 @@ public class PlaceObjects {
 
     //point inside level
     Vector2i randPoint() {
-        return Vector2i(random(0, mLevel.mWidth), random(0, mLevel.mHeight));
+        return Vector2i(random(0, mLevel.size.x), random(0, mLevel.size.y));
     }
 
-    public this(Log log, LevelRenderer renderer) {
+    public this(Log log, LevelBitmap renderer) {
         mLevel = renderer;
         mLog = log;
     }
@@ -82,10 +79,6 @@ public class PlaceObjects {
             default:
                 o.mDir = Vector2i(0,0);
         }
-        bool res = texture.convertToData(
-            getFramework.findPixelFormat(DisplayFormat.RGBA32),
-            o.mPDPitch, o.mPixelData);
-        assert(res);
         return o;
     }
 
@@ -180,7 +173,7 @@ public class PlaceObjects {
 
             while (!checkCollide(cpos, line, true)) {
                 cpos.y += 2;
-                if (cpos.y >= mLevel.mHeight)
+                if (cpos.y >= mLevel.size.y)
                     continue outer;
             }
 
@@ -201,34 +194,16 @@ public class PlaceObjects {
         return count;
     }
 
-    /*bool checkCollide(PlaceableObject obj, Vector2i at, out Vector2i dir,
-        out uint collisions)
+    bool checkCollide(Vector2i at, Vector2i size, bool anti = false,
+        bool outside_collides = true)
     {
-        Vector2i sp = at;// - Vector2i(obj.mWidth, obj.mHeight) / 2;
-        for (int y = sp.y; y < sp.y+cast(int)obj.mHeight; y++) {
-            for (int x = sp.x; x < sp.x+cast(int)obj.mWidth; x++) {
-                bool col = true;
-                if (x >= 0 && x < mLevel.mWidth && y >= 0 && y < mLevel.mHeight) {
-                    col = (obj.mCollide[(y-sp.y)*obj.mWidth+(x-sp.x)] != 0)
-                        && (mLevel.mLevelData[y*mLevel.mWidth+x] != Lexel.FREE);
-                }
-                if (col) {
-                    collisions++;
-                    dir = dir + Vector2i(x, y) - at;
-                }
-            }
-        }
-
-        return (collisions == 0);
-    }*/
-    bool checkCollide(Vector2i at, Vector2i size, bool anti = false, bool outside_collides = true)
-    {
-        Vector2i sp = at;// - size / 2;
+        Vector2i sp = at;
         for (int y = sp.y; y < sp.y+size.y; y++) {
             for (int x = sp.x; x < sp.x+size.x; x++) {
                 bool col = outside_collides;
-                if (x >= 0 && x < mLevel.mWidth && y >= 0 && y < mLevel.mHeight) {
-                    col = (mLevel.mLevelData[y*mLevel.mWidth+x] != Lexel.FREE) ^ anti;
+                if (x >= 0 && x < mLevel.size.x && y >= 0 && y < mLevel.size.y) {
+                    col = (mLevel.levelData[y*mLevel.size.x+x]
+                        != Lexel.Null) ^ anti;
                 }
                 if (col) {
                     return false;
@@ -248,8 +223,8 @@ public class PlaceObjects {
             w = obj.mWidth;
         if (h < 0)
             h = obj.mHeight;
-        mLevel.drawBitmap(pos.x, pos.y, obj.mPixelData, obj.mPDPitch, w, h,
-            Lexel.FREE, Lexel.LAND);
+        mLevel.drawBitmap(pos, obj.mTexture, Vector2i(w, h),
+            Lexel.Null, Lexel.SolidSoft);
     }
 
 }

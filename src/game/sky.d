@@ -1,13 +1,11 @@
 module game.sky;
 
 import framework.framework;
-import game.game;
-import game.gobject;
+import game.clientengine;
 import game.glevel;
 import game.common;
 import game.animation;
 import game.scene;
-import game.baseengine;
 import utils.misc;
 import utils.time;
 import utils.vector2;
@@ -43,7 +41,9 @@ class SkyDrawer : SceneObject {
     }
 }
 
-class GameSky : GameObject {
+class GameSky {
+    private ClientGameEngine mEngine;
+
     private SkyDrawer mSkyDrawer;
     protected int skyOffset, skyBackdropOffset, levelBottom;
     private Animation[] mCloudAnims;
@@ -80,8 +80,8 @@ class GameSky : GameObject {
     private DebrisInfo[cNumDebris] mDebrisAnimators;
     private Animation mDebrisAnim;
 
-    this(GameObjectHandler handler, GameEngine engine, Scene target) {
-        super(handler, engine);
+    this(ClientGameEngine engine, Scene target) {
+        mEngine = engine;
         mScene = target;
         ConfigNode skyNode = globals.loadConfig("sky");
         Color skyColor = engine.level.skyColor;
@@ -102,12 +102,12 @@ class GameSky : GameObject {
 
         mDebrisAnim = engine.level.skyDebris.get();
 
-        skyOffset = engine.gamelevel.offset.y+engine.gamelevel.height-skyTex.size.y;
+        skyOffset = engine.downLine-skyTex.size.y;
         if (skyOffset > 0)
             mCloudsVisible = true;
         else
             mCloudsVisible = false;
-        levelBottom = engine.gamelevel.offset.y+engine.gamelevel.height;
+        levelBottom = engine.downLine;
 
         if (mCloudsVisible) {
             scope (failure) mCloudsVisible = false;
@@ -186,7 +186,7 @@ class GameSky : GameObject {
         return mEnableDebris;
     }
 
-    override void simulate(float deltaT) {
+    void simulate(float deltaT) {
         void clip(inout float v, float s, float min, float max) {
             if (v > max)
                 v -= (max-min) + s;
@@ -197,7 +197,7 @@ class GameSky : GameObject {
         if (mCloudsVisible && mEnableClouds) {
                 foreach (inout ci; mCloudAnimators) {
                     //XXX this is acceleration, how to get a constant speed from this??
-                    ci.x += (ci.xspeed+engine.windSpeed)*deltaT;
+                    ci.x += (ci.xspeed+mEngine.windSpeed)*deltaT;
                     clip(ci.x, ci.animSizex, 0, mScene.size.x);
                     ci.anim.pos.x = cast(int)ci.x;
                 }
@@ -206,7 +206,7 @@ class GameSky : GameObject {
             //XXX (and, XXX) handmade physics
                 foreach (inout di; mDebrisAnimators) {
                     //XXX same here
-                    di.x += 2*engine.windSpeed*deltaT*di.speedPerc;
+                    di.x += 2*mEngine.windSpeed*deltaT*di.speedPerc;
                     di.y += cDebrisFallSpeed*deltaT;
                     clip(di.x, mDebrisAnim.size.x, 0, mScene.size.x);
                     clip(di.y, mDebrisAnim.size.y, skyOffset, levelBottom);
@@ -216,7 +216,7 @@ class GameSky : GameObject {
         }
     }
 
-    override void kill() {
+    void kill() {
         mSkyDrawer.active = false;
         if (mCloudsVisible && mEnableClouds) {
             foreach (inout ci; mCloudAnimators) {

@@ -220,7 +220,8 @@ class TopLevel {
         mGameView.gamescene = metascene;
 
         //start at level center
-        mGameView.view.scrollCenterOn(thegame.gamelevel.offset+thegame.gamelevel.levelsize/2, true);
+        mGameView.view.scrollCenterOn(thegame.gamelevel.offset
+            + thegame.gamelevel.size/2, true);
     }
 
     private void closeGui() {
@@ -590,11 +591,11 @@ class TopLevel {
         //    globals.gameTimeAnimations);
 
         if (thegame && !mPauseMode) {
-            thegame.doFrame(globals.gameTime);
+            thegame.doFrame();
         }
 
         if (clientengine) {
-            clientengine.doFrame(timeCurrentTime());
+            clientengine.doFrame();
         }
 
         mGui.doFrame(timeCurrentTime());

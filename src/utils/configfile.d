@@ -340,6 +340,10 @@ public class ConfigNode : ConfigItem {
         return findNode(name, createIfNotExist);
     }
 
+    public ConfigNode addUnnamedNode() {
+        return findNode("", true);
+    }
+
     /// Access a value by name, return 'default' if it doesn't exist.
     public char[] getStringValue(char[] name, char[] def = "") {
         ConfigValue value = findValue(name);

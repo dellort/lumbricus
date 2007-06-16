@@ -25,9 +25,8 @@ class PrepareDisplay : GuiObject {
         mLastTime = timeCurrentTime();
     }
 
-    public void setScene(Scene s, int z) {
-        super.setScene(s, z);
-        mPrepareView.setScene(s, z);
+    override protected void onChangeScene() {
+        mPrepareView.setScene(scene, zorder, active);
     }
 
     void draw(Canvas canvas) {

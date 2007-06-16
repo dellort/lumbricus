@@ -492,35 +492,10 @@ public class GenRandomLevel {
     }
 
     public void preRender(LevelRenderer renderer) {
-        /*Group h = mGroups.head;
-        Group b = mGroups.next(h);
-        mGroups.clear();
-        mGroups.insert_tail(h);
-        mGroups.insert_tail(b);
-        Point[4] test;
-        test[3] = Vector2f(100, 200);
-        test[0] = Vector2f(50, 100);
-        test[1] = Vector2f(700, 200);
-        test[2] = Vector2f(400, 500);
-        addPolygon(test, null, null, Lexel.FREE);
-        h = mGroups.tail;
-        auto s = SegmentRange(h, h.segments.tail, h.segments.ring_next(h.segments.tail));
-        doWormsify(s, 0.1, 0.9, PI/2, PI, 50, 800, 10);*/
         foreach(Group group; mGroups) {
             if (group.meaning == Lexel.INVALID)
                 continue;
             render_points(renderer, group);
-        }
-    }
-
-    debug public void dumpDebuggingStuff(LevelRenderer renderer) {
-        //dump polygon outlines
-        version (dump_polygons) {
-            foreach(Group group; mGroups) {
-                foreach(Segment segment; group.segments) {
-                    renderer.drawDebugLine(segment.a, segment.b);
-                }
-            }
         }
     }
 

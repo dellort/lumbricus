@@ -334,7 +334,12 @@ class SceneObject {
         return mScene;
     }
 
-    public void scene(Scene scene) {
+    //called after scene was set new, or zorder/activeness was changed
+    //stupidly will be called 3 times on setScene()
+    protected void onChangeScene() {
+    }
+
+    final public void scene(Scene scene) {
         if (scene is mScene)
             return;
 
@@ -349,6 +354,8 @@ class SceneObject {
             mScene = scene;
             active = tmp;
         }
+
+        onChangeScene();
     }
 
     public int zorder() {
@@ -363,6 +370,8 @@ class SceneObject {
         }
 
         mZOrder = z;
+
+        onChangeScene();
     }
 
     public bool active() {
@@ -375,6 +384,7 @@ class SceneObject {
 
         if (!mScene) {
             mActive = false;
+            onChangeScene();
             return;
         }
 
@@ -387,12 +397,14 @@ class SceneObject {
         }
 
         mActive = set;
+
+        onChangeScene();
     }
 
-    public void setScene(Scene s, int z) {
+    final public void setScene(Scene s, int z, bool aactive = true) {
         scene = s;
         zorder = z;
-        active = true;
+        active = aactive;
     }
 
     abstract void draw(Canvas canvas);
