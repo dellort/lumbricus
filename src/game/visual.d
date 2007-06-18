@@ -54,24 +54,21 @@ private class FontLabelBoxed : FontLabel {
     }
 }
 
-/+
-  0 -- 1 -- 2
-  |         |
-  3   (4)   5
-  |         |
-  6 -- 7 -- 8
-  (png files start with 1)
-+/
-Texture[9] boxParts;
-bool boxesLoaded;
 
-//NOTE: won't work correctly for sizes below the two corner boxes
-void drawBox(Canvas c, Vector2i pos, Vector2i size) {
+///draw a box with rounded corners around the specified rect
+///alpha is unsupported (blame drawFilledRect) and will be ignored
+///if any value from BoxProps (see below) changes, the box needs to be
+///redrawn (sloooow)
+void drawBox(Canvas c, Vector2i pos, Vector2i size, int borderWidth = 1,
+    int cornerRadius = 8, Color back = Color(1,1,1),
+    Color border = Color(0,0,0))
+{
     BoxProps props;
     props.height = size.y;
-    props.borderWidth = 2;
-    props.border = Color(0,0,0,1);
-    props.back = Color(1,1,1,1);
+    props.borderWidth = borderWidth;
+    props.cornerRadius = cornerRadius;
+    props.border = border;
+    props.back = back;
 
     BoxTex tex = getBox(props);
 
@@ -79,38 +76,12 @@ void drawBox(Canvas c, Vector2i pos, Vector2i size) {
     c.draw(tex.right, pos+size.X-tex.right.size.X);
     c.drawTiled(tex.middle, pos+tex.left.size.X,
         size.X-tex.right.size.X-tex.left.size.X+tex.middle.size.Y);
-
-    /*if (!boxesLoaded) {
-        for (int n = 0; n < 9; n++) {
-            auto s = globals.loadGraphic("box" ~ str.toString(n+1) ~ ".png");
-            s.enableAlpha();
-            boxParts[n] = s.createTexture();
-        }
-        boxesLoaded = true;
-    }
-    //corners
-    c.draw(boxParts[0], pos);
-    c.draw(boxParts[2], pos+size.X-boxParts[2].size.X);
-    c.draw(boxParts[6], pos+size.Y-boxParts[6].size.Y);
-    c.draw(boxParts[8], pos+size-boxParts[8].size);
-    //border lines
-    c.drawTiled(boxParts[1], pos+boxParts[0].size.X,
-        size.X-boxParts[2].size.X-boxParts[0].size.X+boxParts[1].size.Y);
-    c.drawTiled(boxParts[3], pos+boxParts[0].size.Y,
-        size.Y-boxParts[6].size.Y-boxParts[0].size.Y+boxParts[3].size.X);
-    c.drawTiled(boxParts[5], pos+size.X-boxParts[8].size.X+boxParts[2].size.Y,
-        size.Y-boxParts[2].size.Y-boxParts[8].size.Y+boxParts[8].size.X);
-    c.drawTiled(boxParts[7], pos+size.Y-boxParts[7].size.Y+boxParts[6].size.X,
-        size.X-boxParts[6].size.X-boxParts[8].size.X+boxParts[7].size.Y);
-    //fill
-    c.drawTiled(boxParts[4], pos+boxParts[0].size,
-        size-boxParts[0].size-boxParts[8].size);*/
 }
 
 
 //quite a hack to draw boxes with rounded borders...
 struct BoxProps {
-    int height, borderWidth;
+    int height, borderWidth, cornerRadius;
     Color border, back;
 }
 
@@ -154,82 +125,83 @@ BoxTex getBox(BoxProps props) {
         c.drawFilledRect(Vector2i(xs, s.size.x),Vector2i(xs+props.borderWidth,
             s.size.y-s.size.x), props.border);
 
-        bool onCircle(Vector2f p, Vector2f c, float w, float r) {
+        //simple distance test, quite expensive though
+        //-1 if outside, 0 if hit, 1 if inside
+        int onCircle(Vector2f p, Vector2f c, float w, float r) {
             float dist = (c-p).length;
-            if (dist < r+w/2.0f && dist > r-w/2.0f)
-                return true;
-            return false;
+            if (dist < r-w/2.0f)
+                return 1;
+            else if (dist > r+w/2.0f)
+                return -1;
+            return 0;
         }
 
-        const float cSamples = 1.0f;
+        //resolution of the AA grid (will do cGrid*cGrid samples)
+        const int cGrid = 4;
 
-        void drawCircle(Vector2i offs, Vector2i c, int w) {
+        //draw a circle inside a w x w rect with center c and radius w
+        //offset the result by offs
+        void drawCircle(Vector2i offs, Vector2f c, int w) {
             void* pixels;
             uint pitch;
             s.lockPixelsRGBA32(pixels, pitch);
 
-            float colBuf;
             for (int y = 0; y < w; y++) {
                 uint* line = cast(uint*)(pixels+pitch*(y+offs.y));
                 line += offs.x;
                 for (int x = 0; x < w; x++) {
-                    colBuf = 0;
-                    if (onCircle(Vector2f(x,y),toVector2f(c),props.borderWidth,
-                        w-1))
-                    {
-                        colBuf += 1.0f;
+                    //accumulate color and alpha value
+                    float colBuf = 0, aBuf = 0;
+                    //do multiple regular grid samples for AA
+                    for (int iy = 0; iy < cGrid; iy++) {
+                        for (int ix = 0; ix < cGrid; ix++) {
+                            //get the pos of the current sample to the
+                            //circle to draw
+                            int cPos = onCircle(Vector2f(x + (0.5f + ix)/cGrid,
+                                y + (0.5f + iy)/cGrid), c, props.borderWidth,
+                                w - cast(float)props.borderWidth/2.0f);
+                            if (cPos <= 0)
+                                //outside or hit -> gather border color
+                                colBuf += 1.0f/(cGrid * cGrid);
+                            if (cPos >= 0)
+                                //inside or hit -> gather opaqueness
+                                aBuf += 1.0f/(cGrid * cGrid);
+                        }
                     }
-                    *line = colorToRGBA32(props.border*(colBuf/cSamples));
+                    *line = colorToRGBA32(Color(
+                        props.border.r*colBuf+props.back.r*(1.0f-colBuf),
+                        props.border.g*colBuf+props.back.g*(1.0f-colBuf),
+                        props.border.b*colBuf+props.back.b*(1.0f-colBuf),aBuf));
                     line++;
                 }
             }
             s.unlockPixels();
         }
 
-        xs = right?0:s.size.x;
-        drawCircle(Vector2i(0), Vector2i(xs,s.size.x), s.size.x);
-        drawCircle(Vector2i(0,s.size.y-s.size.x), Vector2i(xs,0), s.size.x);
+        float xc = right?0:s.size.x;
+        drawCircle(Vector2i(0), Vector2f(xc,s.size.x), s.size.x);
+        drawCircle(Vector2i(0,s.size.y-s.size.x), Vector2f(xc,0), s.size.x);
 
         c.endDraw();
     }
 
-    int sidew = min(10,props.height/2);
+    //width of the side textures
+    int sidew = min(props.cornerRadius,props.height/2);
     size = Vector2i(sidew,props.height);
 
     //left texture
     auto surfLeft = globals.framework.createSurface(size,
-        DisplayFormat.Screen, Transparency.None);
+        DisplayFormat.Screen, Transparency.Alpha);
     drawSideTex(surfLeft, false);
     Texture texLeft = surfLeft.createTexture();
 
     //right texture
     auto surfRight = globals.framework.createSurface(size,
-        DisplayFormat.Screen, Transparency.None);
+        DisplayFormat.Screen, Transparency.Alpha);
     drawSideTex(surfRight, true);
     Texture texRight = surfRight.createTexture();
 
-
-
-    /*c.drawFilledRect(Vector2i(0, radius), Vector2i(1, size.y-radius), border);
-    c.drawFilledRect(Vector2i(size.x-1, radius),
-        Vector2i(size.x, size.y-radius), border);
-    circle(radius, radius, radius,
-        (int x1, int x2, int y) {
-            if (y >= radius)
-                y += size.y - radius*2;
-            x2 += size.x - radius*2;
-            auto p1 = Vector2i(x1, y);
-            auto p2 = Vector2i(x2, y);
-            //transparency on the side
-            c.drawFilledRect(Vector2i(0, y), p1, surface.colorkey);
-            c.drawFilledRect(p2, Vector2i(size.x, y), surface.colorkey);
-            //circle pixels
-            c.drawFilledRect(p1, p1+Vector2i(1), border);
-            c.drawFilledRect(p2, p2+Vector2i(1), border);
-        }
-    );
-    c.endDraw();*/
-
+    //store struct with texture refs in hashmap
     boxes[props] = BoxTex(texLeft, texMiddle, texRight);
     return boxes[props];
 }
