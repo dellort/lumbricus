@@ -21,7 +21,7 @@ import framework.framework;
 import framework.keysyms;
 import std.math;
 
-public import game.clientengine;
+import clientengine = game.clientengine;
 
 struct GameConfig {
     Level level;
@@ -30,18 +30,147 @@ struct GameConfig {
     ConfigNode gamemode;
 }
 
+interface ServerGraphic {
+    //update position
+    void setPos(Vector2i pos);
+
+    //update params
+    // p1 is mostly an angle (in degrees), and p2 is mostly unused
+    // (actual meaning depends from animation)
+    void setParams(int p1, int p2);
+
+    //update animation
+    // force = set new animation immediately, else wait until done
+    void setNextAnimation(AnimationResource animation, bool force);
+
+    //visibility of the animation
+    void setVisible(bool v);
+
+    //kill this graphic
+    void remove();
+
+    //if remove() was called
+    bool isDead();
+}
+
+enum GraphicEventType {
+    None,
+    Add,
+    Change,
+    Remove,
+}
+
+struct GraphicEvent {
+    GraphicEvent* next; //ad-hoc linked list
+
+    GraphicEventType type;
+    long uid;
+    GraphicSetEvent setevent;
+}
+
+struct GraphicSetEvent {
+    Vector2i pos;
+    int p1, p2;
+    bool do_set_ani;
+    AnimationResource set_animation; //network had to transfer animation id
+    bool set_force;
+}
+
+package class ServerGraphicLocalImpl : ServerGraphic {
+    private mixin ListNodeMixin node;
+
+    long uid;
+
+    //event to be generated, also store local data (currently)
+    GraphicEvent event;
+    bool nalive; //new value for alive
+    bool didchange;
+
+    bool mDead;
+    bool alive; //graphic dead or alive remotely
+
+    //return an event to generate the new state or null if nothing changed
+    GraphicEvent* createEvent() {
+        if (!didchange || (!alive && !nalive))
+            return null;
+
+        //don't send non-Adds if not alive
+        if (!alive && (nalive == alive))
+            return null;
+
+        GraphicEvent* res = new GraphicEvent;
+        *res = event;
+        res.uid = uid;
+        if (!nalive && alive) {
+            res.type = GraphicEventType.Remove;
+        } else if (nalive && !alive) {
+            res.type = GraphicEventType.Add;
+        } else {
+            res.type = GraphicEventType.Change;
+        }
+
+        //reset state machine to capture changes
+        didchange = false;
+        alive = nalive;
+        event.setevent.do_set_ani = false;
+
+        return res;
+    }
+
+    //methods of that interface
+    void setPos(Vector2i apos) {
+        event.setevent.pos = apos;
+        didchange = true;
+    }
+
+    void setParams(int ap1, int ap2) {
+        if (event.setevent.p1 != ap1 || event.setevent.p2 != ap2) {
+            event.setevent.p1 = ap1;
+            event.setevent.p2 = ap2;
+            didchange = true;
+        }
+    }
+
+    void setNextAnimation(AnimationResource animation, bool force) {
+        event.setevent.do_set_ani = true;
+        event.setevent.set_animation = animation;
+        event.setevent.set_force = force;
+        didchange = true;
+    }
+
+    void setVisible(bool v) {
+        nalive = v;
+        if (nalive != alive)
+            didchange = true;
+    }
+
+    void remove() {
+        if (alive) {
+            nalive = false;
+            didchange = true;
+        }
+        mDead = true; //for GameEngine
+    }
+
+    bool isDead() {
+        return mDead;
+    }
+}
+
 //code to manage a game session (hm, whatever this means)
 //reinstantiated on each "round"
 class GameEngine {
     protected Time lastTime;
     Time currentTime;
     protected PhysicWorld mPhysicWorld;
-    package List!(GameObject) mObjects;
+    private List!(GameObject) mObjects;
+    public List!(ServerGraphicLocalImpl) mGraphics;
     Level level;
     GameLevel gamelevel;
     PlaneTrigger waterborder;
     PlaneTrigger deathzone;
-    Scene scene; //yyy
+
+    GraphicEvent* currentEvents;
 
     Vector2i levelOffset, worldSize;
 
@@ -167,6 +296,8 @@ class GameEngine {
         mLog = registerLog("gameengine");
 
         mObjects = new List!(GameObject)(GameObject.node.getListNodeOffset());
+        mGraphics = new typeof(mGraphics)(ServerGraphicLocalImpl.node
+            .getListNodeOffset());
         mPhysicWorld = new PhysicWorld();
 
         if (level.isCave) {
@@ -178,9 +309,6 @@ class GameEngine {
             levelOffset = Vector2i(cast(int)((cOpenLevelWidthMultiplier-1)/2.0f
                 *level.size.x), cSpaceAboveOpenLevel);
         }
-
-        scene = new Scene();
-        scene.size = worldSize;
 
         gamelevel = new GameLevel(level, levelOffset);
 
@@ -284,6 +412,16 @@ class GameEngine {
         mObjects.remove(obj);
     }
 
+    long mUids;
+
+    ServerGraphic createGraphic() {
+        auto g = new ServerGraphicLocalImpl();
+        g.uid = mUids;
+        mUids++;
+        mGraphics.insert_tail(g);
+        return g;
+    }
+
     PhysicWorld physicworld() {
         return mPhysicWorld;
     }
@@ -291,6 +429,9 @@ class GameEngine {
     protected void simulate(float deltaT) {
         controller.simulate(deltaT);
     }
+
+    Time blubber;
+    int eventCount;
 
     void doFrame() {
         currentTime = globals.gameTime;
@@ -306,7 +447,35 @@ class GameEngine {
             cur = mObjects.next(cur);
             o.simulate(deltaT);
         }
+
+        //should be read and reset by clientengine.d (or so)
+        assert(!currentEvents);
+        GraphicEvent** lastptr = &currentEvents;
+
+        auto cur2 = mGraphics.head;
+        while (cur2) {
+            auto o = cur2;
+            cur2 = mGraphics.next(cur2);
+
+            GraphicEvent* curevent = o.createEvent();
+            if (curevent) {
+                //add to queue (as tail)
+                *lastptr = curevent;
+                lastptr = &curevent.next;
+                curevent.next = null;
+                eventCount++;
+            }
+
+            if (o.mDead)
+                mGraphics.remove(o);
+        }
         lastTime = currentTime;
+
+        if ((lastTime - blubber).secs >= 1) {
+            gDefaultLog("blubb: %s", eventCount);
+            blubber = lastTime;
+            eventCount = 0;
+        }
     }
 
     //remove all objects etc. from the scene

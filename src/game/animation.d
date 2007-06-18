@@ -3,224 +3,631 @@ module game.animation;
 import game.scene;
 import game.common;
 import framework.framework;
+import game.resources;
 import utils.configfile;
 import utils.misc;
 import utils.time;
 import utils.log;
+import math = std.math;
+import str = std.string;
 
-struct AnimationData {
-    int duration = 20;
-    Transparency trans = Transparency.Colorkey;
-    char[] imagePath = "(invalid)";
-    int frames = 1;
-    Vector2i size = {0, 0};
-    bool repeat = false;
-    bool reverse = false;
+//handlers to load specialized animation descriptions
+//(because the generic one is too barfed)
+private alias AnimationData function(ConfigNode node) AnimationLoadHandler;
+private AnimationLoadHandler[char[]] gAnimationLoadHandlers;
 
-    public static AnimationData opCall(ConfigNode node) {
-        AnimationData ret;
-        ret.duration = node.getIntValue("duration", ret.duration);;
-        char[] imgmode = node.getStringValue("transparency","colorkey");
-        if (imgmode == "alpha") {
-            ret.trans = Transparency.Alpha;
-        }
-        ret.imagePath = node.getStringValue("image",ret.imagePath);
-        ret.frames = node.getIntValue("frames", ret.frames);
-        ret.size.x = node.getIntValue("width", ret.size.x);
-        ret.size.y = node.getIntValue("height", ret.size.y);
-        ret.repeat = node.getBoolValue("repeat", ret.repeat);
-        ret.reverse = node.getBoolValue("backwards", ret.reverse);
-        return ret;
-    }
+Animation loadAnimation(ConfigNode from) {
+    auto name = from.getStringValue("handler", "old");
+    assert(name in gAnimationLoadHandlers, "unknown animation load handler");
+    AnimationData data = gAnimationLoadHandlers[name](from);
+    return new Animation(data);
 }
 
+//slightly overengeneered, but actually not that argh.
+private alias int function(int p, int count) ParamConvertDelegate;
+private ParamConvertDelegate[char[]] gParamConverters;
+
+static this() {
+    //documentation on this stuff see implementations
+
+    gParamConverters["none"] = &paramConvertNone;
+    gParamConverters["step3"] = &paramConvertStep3;
+    gParamConverters["twosided"] = &paramConvertTwosided;
+    gParamConverters["rot360"] = &paramConvertFreeRot;
+    gParamConverters["rot180"] = &paramConvertFreeRot2;
+
+    //normal worm, standing or walking
+    gAnimationLoadHandlers["worm"] = &loadWormAnimation;
+    /*
+    //worm holding a weapon (with weapon-angle as param2)
+    gAnimationLoadHandlers["worm_weapon"] = &loadWormWeaponAnimation;
+    //360 degrees graphic, not animated
+    gAnimationLoadHandlers["360"] = &loadWormWeaponAnimation;
+    */
+
+    gAnimationLoadHandlers["generic"] = &loadGenericAnimation;
+    gAnimationLoadHandlers["old"] = &loadOldAnimation;
+}
+
+public enum AnimationParamType {
+    Null = 0,
+    Time = 1,
+    P1 = 2,
+    P2 = 3,
+}
+
+//data for yet-to-be-loaded animations
+struct AnimationData {
+    //an animation can consists by several sections, which are played in order
+    //i.e. there can be an entry and loop animation
+    //(used for get-weapon animation)
+    AnimationSection[] sections;
+}
+struct AnimationSection {
+    //loop: replay animation on end, else stop on last frame (or go to next
+    //      animation/section if there's one)
+    //loop_reverse: play backwards on each 2nd loop (only used if loop is true)
+    bool loop = true, loop_reverse = false;
+
+    //method to convert param values into index values
+    ParamConvertDelegate[2] paramConvert
+        = [&paramConvertNone, &paramConvertNone];
+
+    //offset added to each param before conversion
+    int[2] paramOffset;
+
+    //where index A and B map to; A is the frame index, and B the file index
+    //i.e. if AB[0] is AnimationParamType.P1, param1 maps to the frame index
+    AnimationParamType[2] AB = [AnimationParamType.Time, AnimationParamType.P1];
+
+    int frameTimeMs = 50;
+
+    //frameSize/frameCount is for the frames in the following bitmaps
+    Vector2i frameSize;
+    int frameCount;
+    BitmapResource[] bitmaps;
+
+    //append mirrored (on Y axis) bitmaps to bitmaps list
+    bool mirror_Y_B = false;
+    //append mirrored (on Y axis) bitmaps to frame rows
+    bool mirror_Y_A = false;
+}
+
+//NOTE: no AnimationData necessary, because "createProcessedAnimation" is
+//obsoleted by the features supported by this class
 class Animation {
-    private FrameInfo[] mFrames;
-    private Vector2i mSize;
-    private bool mRepeat, mReverse;
-    private Surface mImage;
-    private Texture mImageTex;
-    private Animation mMirrored, mBackwards;
-
-    private struct FrameInfo {
-        int durationMS;
-        //in image...
-        Vector2i pos, size;
+private:
+    enum SectionType {
+        Enter,
+        Loop,
     }
+    Section[] mSections;
+    Section* mStartSection;
 
-    /*this (ConfigNode node, char[] relPath = "") {
-        assert(node !is null);
-        AnimationData animData = AnimationData(node);
-        this(animData, relPath);
-    }*/
+    //indexed by the FrameInfo.texture field
+    BitmapResource[] mSurfaces;
+    //created on demand (?)
+    Texture[] mTextures;
 
-    this(AnimationData animData, char[] relPath = "") {
-        mImage = globals.loadGraphic(relPath ~ animData.imagePath,
-            animData.trans);
-        if (!mImage)
-            throw new Exception("Failed to load animation bitmap");
-        mImageTex = mImage.createTexture();
-        mSize = animData.size;
-        mRepeat = animData.repeat;
-        mReverse = animData.reverse;
-        mFrames.length = animData.frames;
-        for (int n = 0; n < animData.frames; n++) {
-            mFrames[n].pos = Vector2i(mSize.x*n, 0);
-            mFrames[n].size = mSize;
-            mFrames[n].durationMS = animData.duration;
+    //largest of all frames
+    Vector2i mSize;
+
+    //finish the current animation, if new animation is set with force == false
+    bool mFinishAnimationOnReplace = false;
+
+    alias AnimationParamType ParamType;
+
+    //enter, loop or exit section (depending from what's happening)
+    struct Section {
+        Section* next;
+        //loop_reverse is only used when loop is true
+        bool loop, loop_reverse;
+
+        //per frame and per loop
+        int frameTimeMs, lengthMs;
+        //from the time dependant count field
+        int frameCount;
+
+        ParamConvertDelegate[2] convertParam;
+        int[2] Poffset; //offset value added to each of the params
+        int[2] usedfor; //reverse for "from", indexed by parameter
+
+        //number of frames (must be the same in all strips)
+        //please note that it isn't indexed by the parameter-nr., but A or B
+        int[2] count; //count of items for index A (0) and B (1)
+        //where the indices A and B come from
+        ParamType[2] from;
+        bool timeDependant;     //if one of Afrom or Bfrom is the time
+
+        //xxx: if we don't need this (different sized frames etc.), the
+        //     following could be greatly simplified, i.e. B == FrameInfo.texture
+        //2D-array, length frameCount*stripCount, see getFrame()
+        FrameInfo[] strips;
+        //A, B = as in the config file; A selects frame index, B selects strip
+        FrameInfo* framePtr(int A, int B) {
+            assert(A >= 0);
+            assert(A < count[0]);
+            assert(B >= 0);
+            assert(B < count[1]);
+            return &strips[count[0]*B + A];
         }
     }
 
-    //for getMirroredY()
-    private this () {
+    struct FrameInfo {
+        //sub-rectangle of a texture
+        Vector2i pos;
+        Vector2i size;
+        //the following can be different for each frame
+        //index into mSurfaces/mTextures
+        int texture;
+    }
+
+    public this(AnimationData data) {
+        void loadSection(inout AnimationSection section, inout Section to) {
+            //copy and possibly verify
+            to.frameTimeMs = section.frameTimeMs;
+            to.loop = section.loop;
+            to.loop_reverse = to.loop ? section.loop_reverse : false;
+            to.convertParam[] = section.paramConvert;
+            to.from[] = section.AB;
+            to.Poffset[] = section.paramOffset;
+
+            int bitmapoffset = mSurfaces.length;
+            int mirroredoffset;
+            mSurfaces ~= section.bitmaps;
+
+            to.count[0] = section.frameCount;
+            to.count[1] = mSurfaces.length;
+            assert(to.count[0] > 0);
+            assert(to.count[1] > 0);
+
+            if (section.mirror_Y_B || section.mirror_Y_A) {
+                //create mirrors of the yet existing surfaces
+                mirroredoffset = mSurfaces.length;
+                for (int n = 0; n < section.bitmaps.length; n++) {
+                    auto mirror = mSurfaces[bitmapoffset + n];
+                    //sucks *g*
+                    auto mirrored = globals.resources.createProcessedBitmap(
+                        mirror.id, mirror.id ~ "mirrored", true);
+                    mSurfaces ~= mirrored;
+                }
+                if (section.mirror_Y_A) {
+                    to.count[0] *= 2; //by A
+                }
+                if (section.mirror_Y_B) {
+                    to.count[1] *= 2; //mirrored surfaces addressed by B
+                }
+            }
+
+            //maximum size => size of the animation
+            mSize.x = max(section.frameSize.x, mSize.x);
+            mSize.y = max(section.frameSize.y, mSize.y);
+
+            //create frame infos
+            to.strips.length = to.count[0] * to.count[1];
+            for (int a = 0; a < to.count[0]; a++) {
+                auto pos = Vector2i(a*section.frameSize.x, 0);
+                int start = bitmapoffset;
+                if (section.mirror_Y_A && a >= to.count[0]/2) {
+                    //extends along the x-axis only virtually
+                    //actually map to another bitmap with same x-offsets
+                    pos.x = pos.x - (to.count[0]/2)*section.frameSize.x;
+                    start = mirroredoffset;
+                }
+                for (int b = 0; b < to.count[1]; b++) {
+                    FrameInfo* info = to.framePtr(a, b);
+                    if (section.mirror_Y_B && b >= to.count[1]/2) {
+                        //mirror on x-axis (so it's not played backwards)
+                        pos.x = (to.count[0]-1)*section.frameSize.x - pos.x;
+                    }
+                    info.pos = pos;
+                    info.size = section.frameSize;
+                    info.texture = start + b;
+                }
+            }
+
+            //precalculate some infos
+            int fortime = -1;
+            fortime = (to.from[0] == ParamType.Time) ? 0 : fortime;
+            fortime = (to.from[1] == ParamType.Time) ? 1 : fortime;
+            to.timeDependant = (fortime != -1);
+            to.frameCount = to.timeDependant ? to.count[fortime] : 1;
+            to.lengthMs = to.frameCount * to.frameTimeMs;
+
+            to.usedfor[0] = -1; to.usedfor[1] = -1;
+            //for each parameter (P1, P2)
+            for (int n = 0; n < 2; n++) {
+                if (to.from[0] == ParamType.P1+n) {
+                    to.usedfor[n] = 0;
+                }
+                if (to.from[1] == ParamType.P1+n) {
+                    if (to.usedfor[n] >= 0) {
+                        gDefaultLog("error: parameter %d used twice", n);
+                        assert(false);
+                    }
+                    to.usedfor[n] = 1;
+                }
+            }
+        }
+
+        mSections.length = data.sections.length;
+        foreach (int n, inout AnimationSection section; data.sections) {
+            loadSection(section, mSections[n]);
+        }
+
+        //link the sections (sigh, why do I do that)
+        Section* prev_ptr = null;
+        foreach_reverse(inout Section s; mSections) {
+            s.next = prev_ptr;
+            prev_ptr = &s;
+        }
+        mStartSection = prev_ptr;
     }
 
     public Vector2i size() {
         return mSize;
     }
 
-    public uint frameCount() {
-        return mFrames.length;
-    }
-
-    //xxx I don't like that, but it was simpler with the rest of the code
-    //(+ I'm too lazy)
-    Animation getBackwards() {
-        if (!mBackwards) {
-            auto n = new Animation();
-            n.mFrames = this.mFrames.dup;
-            n.mSize = this.mSize;
-            n.mRepeat = this.mRepeat;
-            n.mReverse = this.mReverse;
-            n.mImage = this.mImage;
-            n.mImageTex = this.mImageTex;
-            n.mBackwards = this;
-
-            n.doReverse();
-
-            mBackwards = n;
-        }
-        return mBackwards;
-    }
-
-    //get an animation which contains this animation with mirrored frames
-    //(mirrored across Y axis)
-    Animation getMirroredY() {
-        if (!mMirrored) {
-            auto n = new Animation();
-            n.mFrames = this.mFrames.dup;
-            n.mSize = this.mSize;
-            n.mRepeat = this.mRepeat;
-            n.mReverse = this.mReverse;
-            n.mImage = this.mImage.createMirroredY();
-            n.mImageTex = n.mImage.createTexture();
-            n.mMirrored = this;
-
-            n.doReverse();
-
-            mMirrored = n;
-        }
-        return mMirrored;
-    }
-
-    private void doReverse() {
-        //reverse the frames, this should restore the correct frame order
-        for (int i = 0; i < mFrames.length/2; i++) {
-            swap(mFrames[i], mFrames[$-1-i]);
+    //load the textures (and bitmaps) if they weren't already
+    public void assertStuffLoaded() {
+        if (!mTextures) {
+            mTextures.length = mSurfaces.length;
+            for (int n = 0; n < mTextures.length; n++) {
+                mTextures[n] = mSurfaces[n].get().createTexture();
+            }
         }
     }
 }
 
-//does animation
-class Animator : SceneObjectPositioned {
-    protected Animation mAni, mAniNext;
-    private bool mAniRepeat, mAniReverse;
-    private uint mCurFrame;
-    private Time mCurFrameTime;
-    private void delegate(Animator sender) mOnNoAnimation;
-    private bool mReversed = false;
-
-    public bool paused;
-
-    //animation to play after current animation finished
-    void setNextAnimation(Animation next) {
-        if (mAni) {
-            mAniNext = next;
-            //cancel repeating of current animation
-            mAniRepeat = false;
-        } else {
-            setAnimation(next);
+//private animation state
+struct AnimationState {
+private:
+    alias Animation.Section Section;
+    alias Animation.ParamType ParamType;
+    bool mLoopBack; //looping back for loop_reverse
+    bool mStopTime; //animation is on end, keep showing last frame
+    Animation mAnimation, mNextAnimation;
+    Section* mCurrentSection;
+    bool mParamCacheValid; //mParams[] reflects state in mP[]
+    int[2] mP;  //parameters (mostly angle + unused or secundary angle)
+    int[ParamType.max+1] mParams; //cached parameters (including time)
+    int mTimeMs; //time before how many ms the animation(-section) was started
+    Time mLast;  //last time check
+public:
+    void setParams(int p1, int p2) {
+        if (mP[0] != p1 || mP[1] != p2) {
+            mP[0] = p1; mP[1] = p2;
+            mParamCacheValid = false;
         }
     }
+    private bool needTime() {
+        return mCurrentSection && mCurrentSection.timeDependant && !mStopTime;
+    }
+    //force = replace current animation immediately
+    //  else respect animarion-settings, i.e. wait until animation done
+    void setAnimation(Animation animation, bool force) {
+        if (mAnimation && !force && mAnimation.mFinishAnimationOnReplace
+            && needTime())
+        {
+            //just set this animation "next" time
+            mNextAnimation = animation;
+            return;
+        }
+        initAnimation(animation);
+    }
+    private void initAnimation(Animation animation) {
+        mAnimation = animation;
+        mNextAnimation = null;
+        mCurrentSection = null;
+        if (animation) {
+            mCurrentSection = mAnimation.mStartSection;
+            mLast = globals.gameTimeAnimations;
+            mTimeMs = 0;
+            mLoopBack = false;
+            mStopTime = false;
+            mParamCacheValid = false;
+            //initialize i.e. frame indices
+            updateTime();
+        }
+    }
+    //current loop of mCurrentSection has ended
+    //decide what's next and return it
+    //all parameters from the loop are still valid, and not reset after this
+    //currently these is just mLoopBack: play current animation backwards
+    private Section* onNextAnimation() {
+        if (mNextAnimation) {
+            mLoopBack = false;
+            mAnimation = mNextAnimation;
+            mNextAnimation = null;
+            return mAnimation.mStartSection;
+        } else if (mCurrentSection.loop) {
+            if (mCurrentSection.loop_reverse)
+                mLoopBack = !mLoopBack;
+            return mCurrentSection;
+        } else if (mCurrentSection.next) {
+            mLoopBack = false;
+            return mCurrentSection.next;
+        }
+        //keep showing last frame (special case)
+        return null;
+    }
+    //next frame
+    public void updateTime() {
+        if (!needTime())
+            return;
 
-    void setAnimation(Animation ani) {
-        mAni = ani;
-        mAniRepeat = ani ? ani.mRepeat : false;
-        mAniReverse = ani ? ani.mReverse : false;
-        mReversed = false;
-        mAniNext = null;
-        setFrame(0);
+        auto time = globals.gameTimeAnimations;
+        mTimeMs += (time - mLast).msecs;
+        mLast = time;
 
-        size = ani ? ani.mSize : Vector2i(0);
+        while (!mStopTime) {
+            //normal case
+            if (mTimeMs < mCurrentSection.lengthMs) {
+                int nframe = mTimeMs / mCurrentSection.frameTimeMs;
+                assert(nframe < mCurrentSection.frameCount);
+                if (mLoopBack) { //play backwards
+                    nframe = mCurrentSection.frameCount - nframe - 1;
+                }
+                assert(nframe < mCurrentSection.frameCount);
+                assert(nframe >= 0);
+                mParams[ParamType.Time] = nframe;
+                return;
+            }
+
+            //time flowed over; get next run (i.e. loop, next animation, etc.)
+            Section* next = onNextAnimation();
+            if (!next) {
+                //fix to current frame and make sure this code is not executed
+                //again (and leave mTimeMs to anything, don't care)
+                mParams[ParamType.Time] =
+                    mLoopBack ? 0 : mCurrentSection.frameCount - 1;
+                mStopTime = true;
+                return;
+            }
+            //remove time of the last animation-run, advance to next animation
+            mTimeMs -= mCurrentSection.lengthMs;
+            mCurrentSection = next;
+            mParamCacheValid = false; //argh
+        }
+    }
+    public void drawFrame(Canvas canvas, Vector2i at) {
+        auto section = mCurrentSection;
+        if (!section) {
+            return;
+        }
+
+        assert(mAnimation !is null);
+
+        if (!mParamCacheValid) {
+            for (int n = 0; n < 2; n++) {
+                int usedfor = section.usedfor[n];
+                if (usedfor >= 0) {
+                    auto convert = section.convertParam[n];
+                    auto count = section.count[usedfor];
+                    auto nval = convert(mP[n] + section.Poffset[n], count);
+                    if (nval >= count)
+                        nval = count - 1;
+                    if (nval < 0)
+                        nval = 0;
+                    mParams[ParamType.P1+n] = nval;
+                }
+            }
+            mParamCacheValid = true;
+        }
+
+        Animation.FrameInfo* fi = section.framePtr(mParams[section.from[0]],
+            mParams[section.from[1]]);
+
+        //origin is in "at", but center frame in animation itself
+        at += (size - fi.size) / 2;
+        mAnimation.assertStuffLoaded();
+        canvas.draw(mAnimation.mTextures[fi.texture], at, fi.pos, fi.size);
+    }
+    public Animation currentAnimation() {
+        return mAnimation;
+    }
+    public Vector2i size() {
+        return mAnimation ? mAnimation.mSize : Vector2i(0, 0);
+    }
+}
+
+//your friendly wrapper around the actual animation code
+class Animator : SceneObjectPositioned {
+    private AnimationState mState;
+    //private void delegate(Animator sender) mOnNoAnimation;
+
+    AnimationState* animationState() {
+        return &mState;
+    }
+
+    //animation to play after current animation finished
+    //force parameter is documented in at least two other places
+    void setNextAnimation(Animation next, bool force) {
+        mState.setAnimation(next, force);
+        size = mState.size;
+    }
+    void setAnimation(Animation n) {
+        setNextAnimation(n, true);
     }
 
     Animation currentAnimation() {
-        return mAni;
+        return mState.currentAnimation;
     }
 
-    void setOnNoAnimation(void delegate(Animator) cb) {
-        mOnNoAnimation = cb;
-    }
-
-    void setFrame(uint frameIdx) {
-        if (mAni && frameIdx<mAni.frameCount) {
-            mCurFrame = frameIdx;
-            mCurFrameTime = globals.gameTimeAnimations;
-        }
-    }
+    //void onNoAnimation(void delegate(Animator) cb) {
+    //    mOnNoAnimation = cb;
+    //}
 
     void draw(Canvas canvas) {
-        if (!mAni || mAni.mFrames.length == 0) {
-            if (mOnNoAnimation)
-                mOnNoAnimation(this);
-            if (!mAni || mAni.mFrames.length == 0)
-                return;
+       mState.updateTime();
+       mState.drawFrame(canvas, pos);
+       size = mState.size;
+    }
+}
+
+//return the index of the angle in "angles" which is closest to "angle"
+//all units in degrees, return values is always an index into angles
+private uint pickNearestAngle(int[] angles, int iangle) {
+    //pick best angle (what's nearer)
+    uint closest;
+    float angle = iangle/180.0f*math.PI;
+    float cur = float.max;
+    foreach (int i, int x; angles) {
+        auto d = angleDistance(angle,x/180.0f*math.PI);
+        if (d < cur) {
+            cur = d;
+            closest = i;
         }
-        Animation.FrameInfo fi = mAni.mFrames[mCurFrame];
-        while ((globals.gameTimeAnimations - mCurFrameTime).msecs > fi.durationMS
-            && !paused)
-        {
-            if (mReversed) {
-                if (mCurFrame > 0)
-                    mCurFrame = mCurFrame - 1;
-            } else
-                mCurFrame = (mCurFrame + 1) % mAni.mFrames.length;
-            mCurFrameTime += timeMsecs(fi.durationMS);
-            if (mCurFrame == 0) {
-                //end of animation, check what to do now...
-                if (mAniReverse && !mReversed) {
-                    mCurFrame = mAni.mFrames.length - 1;
-                } else if (mAniNext) {
-                    setAnimation(mAniNext);
-                } else if (mAniRepeat) {
-                    //ok.
-                } else {
-                    //hum...
-                    if (mOnNoAnimation) {
-                        mOnNoAnimation(this);
-                        //xxx sorry that could have set a new animation, but we
-                        //don't knoiw anything about the new one
-                        //so recheck on the next frame
-                        gDefaultLog("fool!");
-                        return;
-                    }
-                }
-                mReversed = !mReversed;
-            }
-            fi = mAni.mFrames[mCurFrame];
+    }
+    return closest;
+}
+
+//param converters
+
+//default
+private int paramConvertNone(int angle, int count) {
+    return angle;
+}
+//expects count to be 6 (for the 6 angles)
+private int paramConvertStep3(int angle, int count) {
+    static int[] angles = [90,90-45,90+45,270,270+45,270-45];
+    return pickNearestAngle(angles, angle);
+}
+//expects count to be 2 (two sides)
+private int paramConvertTwosided(int angle, int count) {
+    return (angle % 360) < 180 ? 0 : 1;
+}
+//360 degrees freedom
+private int paramConvertFreeRot(int angle, int count) {
+    return cast(int)(((angle % 360) / 360.0f) * (count - 1));
+}
+//180 degrees
+//(overflows, used for weapons, it's hardcoded that it can use 180 degrees only)
+private int paramConvertFreeRot2(int angle, int count) {
+    return cast(int)(((angle % 360) / 180.0f) * (count - 1));
+}
+
+//animation load handlers
+
+private BitmapResource doLoadGraphic(char[] file) {
+    //I don't get it how to properly use the res-manager
+    //currently shut it up by using the filename as id...
+    return globals.resources.createBitmap(file, file);
+}
+
+private BitmapResource[] loadFooImages(char[] templ, int offset, int count) {
+    BitmapResource[] res;
+    res.length = count;
+    for (int n = 0; n < count; n++) {
+        char[] name = str.replace(templ, "#", str.toString(offset + n));
+        res[n] = doLoadGraphic(name);
+    }
+    return res;
+}
+
+private AnimationData loadWormAnimation(ConfigNode node) {
+    AnimationData res;
+    AnimationSection section;
+    section.bitmaps = loadFooImages(node["image"], node.getIntValue("offset"), 3);
+    int[] dims = node.getValueArray!(int)("size");
+    assert(dims.length == 2);
+    section.frameSize.x = dims[0];
+    section.frameSize.y = dims[1];
+    section.frameCount = node.getIntValue("frames");
+    section.paramConvert[0] = &paramConvertStep3;
+    section.loop_reverse = true;
+    section.mirror_Y_B = true;
+    res.sections = [section];
+    return res;
+}
+
+private AnimationData loadGenericAnimation(ConfigNode node) {
+    AnimationSection loadSection(ConfigNode node) {
+        AnimationSection to;
+
+        //--- load/process files
+        char[][] files = node.getSubNode("image").getValueList();
+        to.bitmaps.length = files.length;
+        foreach (int n, char[] file; files) {
+            to.bitmaps[n] = doLoadGraphic(file);
         }
 
-        //draw it.
-        canvas.draw(mAni.mImageTex, pos, fi.pos, fi.size);
+        to.mirror_Y_B = node.getBoolValue("mirror_Y_B");
+        to.mirror_Y_A = node.getBoolValue("mirror_Y_A");
+
+        //measures: width height framecount
+        int[] measures = node.getValueArray!(int)("measures");
+        assert(measures.length==3, "add error handling here");
+        to.frameSize.x = measures[0];
+        to.frameSize.y = measures[1];
+        to.frameCount = measures[2];
+
+        //--- book keeping for the angle stuff etc....
+
+        void loadParamStuff(int index, char[] name) {
+            auto val = node.getStringValue(name, "none");
+            if (!(val in gParamConverters)) {
+                assert(false, "not found; add error handling");
+            }
+            to.paramConvert[index] = gParamConverters[val];
+
+            to.paramOffset[index] = node.getIntValue(name ~ "offset");
+        }
+
+        loadParamStuff(0, "param1");
+        loadParamStuff(1, "param2");
+
+        //what A/B is wired to
+
+        void getAB(int index, char[] value, int def) {
+            static const char[][] cAB = ["none", "time", "param1", "param2"];
+            int ab = def;
+            if (value) {
+                ab = arraySearch(cAB, value, def);
+            }
+            assert(ab >= 0 && ab <= AnimationParamType.max, "TODO: error handling");
+            to.AB[index] = cast(AnimationParamType)ab;
+        }
+
+        char[][] vals = node.getValueArray!(char[])("AB");
+        getAB(0, vals.length >= 1 ? vals[0] : "", AnimationParamType.Time);
+        getAB(1, vals.length >= 2 ? vals[1] : "", AnimationParamType.P1);
+
+        to.loop = node.getBoolValue("loop");
+        to.loop_reverse = node.getBoolValue("loop_reverse");
+
+        return to;
     }
+
+    AnimationData data;
+
+    ConfigNode enter = node.findNode("enter");
+    ConfigNode loop = node.findNode("loop");
+
+    assert(loop !is null, "no loop section");
+    if (enter) {
+        data.sections.length = 2;
+        data.sections[0] = loadSection(enter);
+        data.sections[1] = loadSection(loop);
+    } else {
+        data.sections.length = 1;
+        data.sections[0] = loadSection(loop);
+    }
+
+    return data;
+}
+
+//"old" format... these configfile are scattered everywhere...
+private AnimationData loadOldAnimation(ConfigNode node) {
+    AnimationData data;
+    data.sections.length = 1;
+    AnimationSection* section = &data.sections[0];
+    section.bitmaps = [doLoadGraphic(node["image"])];
+    section.loop = node.getBoolValue("repeat");
+    section.loop_reverse = node.getBoolValue("backwards");
+    section.frameSize.x = node.getIntValue("width");
+    section.frameSize.y = node.getIntValue("height");
+    section.frameTimeMs = node.getIntValue("duration", 50);
+    section.frameCount = node.getIntValue("frames");
+    return data;
 }

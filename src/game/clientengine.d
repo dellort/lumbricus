@@ -24,6 +24,23 @@ struct PerTeamAnim {
     AnimationResource pointed;
 }
 
+//synced with game.ServerGraphicLocalImpl
+class ClientGraphic : Animator {
+    private mixin ListNodeMixin node;
+    long uid = -1;
+
+    void sync(GraphicEvent* bla) {
+        assert(uid == bla.uid);
+        if (bla.setevent.do_set_ani) {
+            auto ani = bla.setevent.set_animation;
+            setNextAnimation(ani ? ani.get() : null, bla.setevent.set_force);
+        }
+        size = currentAnimation ? currentAnimation.size : Vector2i(0, 0);
+        pos = bla.setevent.pos - size/2;
+        animationState.setParams(bla.setevent.p1, bla.setevent.p2);
+    }
+}
+
 //maybe keep in sync with game.Scene.cMaxZOrder
 enum GameZOrder {
     Invisible = 0,
@@ -46,6 +63,8 @@ enum GameZOrder {
 //but needs access to the game and is drawn into the game scene
 class ClientGameEngine : GameObject /+ temporary hack *g* +/ {
     private GameEngine mEngine;
+
+    private List!(ClientGraphic) mGraphics;
 
     //stuff cached/received/duplicated from the engine
     //(remind that mEngine might disappear because of networking)
@@ -77,13 +96,15 @@ class ClientGameEngine : GameObject /+ temporary hack *g* +/ {
         super(engine, true);
         mEngine = engine;
 
+        mGraphics = new typeof(mGraphics)(ClientGraphic.node.getListNodeOffset());
+
         level = mEngine.level;
         levelOffset = mEngine.levelOffset;
         worldSize = mEngine.worldSize;
         downLine = mEngine.gamelevel.offset.y+mEngine.gamelevel.size.y;
 
         mScene = new Scene();
-        mScene.size = mEngine.scene.size;
+        mScene.size = worldSize;
 
         globals.resources.loadAnimations(globals.loadConfig("teamanims"));
         mTeamAnims.length = cTeamColors.length;
@@ -122,6 +143,50 @@ class ClientGameEngine : GameObject /+ temporary hack *g* +/ {
         mGameSky.simulate(deltaT);
 
         lastTime = currentTime;
+
+        //never mind...
+        ClientGraphic cur_c = mGraphics.head;
+        GraphicEvent* cur_s = mEngine.currentEvents;
+        mEngine.currentEvents = null;
+        //sync client and server
+        while (cur_c && cur_s) {
+            if (cur_c.uid == cur_s.uid) {
+                if (cur_s.type == GraphicEventType.Remove) {
+                    //kill kill kill
+                    ClientGraphic kill = cur_c;
+                    cur_c = mGraphics.next(cur_c);
+                    kill.active = false;
+                    mGraphics.remove(kill);
+                } else if (cur_s.type == GraphicEventType.Change) {
+                    //sync up...
+                    cur_c.sync(cur_s);
+                }
+                cur_s = cur_s.next;
+                //only if there are no more events for this uid/object
+                //and if not killed cur_c = mGraphics.next(cur_c);
+            } else {
+                //try to find where they sync up (both lists ordered)
+                if (cur_c.uid > cur_s.uid) {
+                    cur_s = cur_s.next;
+                } else {
+                    cur_c = mGraphics.next(cur_c);
+                }
+            }
+        }
+        //the rest of the events must be add commands
+        while (cur_s) {
+            assert(cur_s.type == GraphicEventType.Add);
+
+            auto ng = new ClientGraphic();
+            ng.uid = cur_s.uid;
+            mGraphics.insert_tail(ng);
+            ng.scene = mScene;
+            ng.zorder = GameZOrder.Objects;
+            ng.active = true;
+            ng.sync(cur_s);
+
+            cur_s = cur_s.next;
+        }
     }
 
     Scene scene() {
@@ -185,13 +250,13 @@ class LevelDrawer : SceneObject {
             c.drawCircle(toVector2i(p), 5, Color(1,0,1));
         }
         //more debug stuff...
-        foreach (GameObject go; game.mEngine.mObjects) {
+        //foreach (GameObject go; game.mEngine.mObjects) {
             /+if (cast(Worm)go) {
                 auto w = cast(Worm)go;
                 auto p = Vector2f.fromPolar(40, w.angle) + w.physics.pos;
                 c.drawCircle(toVector2i(p), 5, Color(1,0,1));
             }+/
-        }
+        //}
     }
 
     this(ClientGameEngine game) {
@@ -244,14 +309,16 @@ private class WormNameDrawer : SceneObject {
 
     private void showArrow(TeamMember cur) {
         if (cur.worm) {
-            Animator curGr = cur.worm.graphic;
+            //xxx currently don't have worm animations available
+            auto wpos = toVector2i(cur.worm.physics.pos);
+            auto wsize = Vector2i(0);
             if (!mArrow.active || mArrowCol != cur.team.teamColor) {
                 mArrow.setAnimation(mTeamAnims[cur.team.teamColor].arrow.get());
                 mArrow.active = true;
                 mArrowCol = cur.team.teamColor;
             }
             //2 pixels Y spacing
-            mArrow.pos = curGr.pos + curGr.size.X/2 - mArrow.size.X/2
+            mArrow.pos = wpos + wsize.X/2 - mArrow.size.X/2
                 - mArrow.size.Y /*- Vector2i(0, mDrawer.labelsYOffset + 2)*/;
         }
     }
@@ -295,14 +362,15 @@ private class WormNameDrawer : SceneObject {
                 continue;
             Font font = *pfont;
             foreach (TeamMember w; t) {
-                if (!w.worm || !w.worm.graphic.active)
+                if (!w.worm || w.worm.isDead)
                     continue;
 
                 char[] text = str.format("%s (%s)", w.name,
                     w.worm.physics.lifepowerInt);
 
-                auto wp = w.worm.graphic.pos;
-                auto sz = w.worm.graphic.size;
+                //xxx haven't worm graphic available
+                auto wp = toVector2i(w.worm.physics.pos)-Vector2i(30,30);
+                auto sz = Vector2i(6, 60); //w.worm.graphic.size;
                 //draw 3 pixels above, centered
                 auto tsz = font.textSize(text);
                 tsz.y = mFontHeight; //hicks

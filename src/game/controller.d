@@ -19,6 +19,7 @@ import framework.font;
 import framework.i18n;
 
 import str = std.string;
+import math = std.math;
 
 //Hint: there's a limited number of predefined colors; that's because sometimes
 //colors are hardcoded in animations, etc.
@@ -276,7 +277,7 @@ class GameController {
 
             //set camera
             if (mCurrent.mWorm) {
-                sceneview.setCameraFocus(mCurrent.mWorm.graphic);
+                //xxx sceneview.setCameraFocus(mCurrent.mWorm.graphic);
                 mCurrent_startpos = mCurrent.mWorm.physics.pos;
             }
             mCurrentLastAction = cLongAgo;
@@ -712,7 +713,11 @@ class GameController {
         mLog("fire: %s", shooter.weapon.name);
 
         FireInfo info;
-        info.dir = Vector2f.fromPolar(1.0f, worm.weaponAngle);
+        //weaponAngle will be 0-PI, 0 being bottom
+        auto w = math.copysign(1.0f, Vector2f.fromPolar(1,worm.physics.lookey).x);
+        if (w < 0)
+            w = w*2; //little stupid hack *g*
+        info.dir = Vector2f.fromPolar(1.0f, -PI/2 + w*PI - worm.weaponAngle);
         info.shootby = worm.physics;
         info.strength = shooter.weapon.throwStrength;
         info.timer = shooter.weapon.timerFrom;

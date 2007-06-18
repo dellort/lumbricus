@@ -10,6 +10,7 @@ import utils.misc;
 import utils.vector2;
 import utils.mylist;
 import utils.time;
+import game.resources;
 
 package Factory!(WeaponClass, GameEngine, ConfigNode) gWeaponClassFactory;
 
@@ -21,8 +22,6 @@ enum WeaponWormAnimations {
     Arm,  //worm gets armed (or unarmed: animation played backwards)
     Hold, //worm holds the weapon (xxx: hardcoded to stupidness, see weapons.conf)
     Fire, //animation played while worm is shooting
-    //hm, not set in the configfile; backwards animation of .Arm
-    UnArm,
 }
 //WeaponWormAnimations -> string
 const char[][] cWWA2Str = ["arm", "hold", "fire"];
@@ -50,9 +49,7 @@ abstract class WeaponClass {
     Time timerTo;   //maximal time
     Time relaxtime;
 
-    //xxx maybe fix this by a better animation subsystem or so
-    //(because SpriteAnimationInfo was a hack for sprite.d)
-    SpriteAnimationInfo*[WeaponWormAnimations.max+1] animations;
+    AnimationResource[WeaponWormAnimations.max+1] animations;
 
     GameEngine engine() {
         return mEngine;
@@ -89,24 +86,14 @@ abstract class WeaponClass {
             canPoint = fire.getBoolValue("canpoint", false);
         }
 
-        foreach (inout SpriteAnimationInfo* ani; animations) {
-            ani = allocSpriteAnimationInfo();
-        }
-
         //load the transition animations
         auto anis = node.getSubNode("animation");
         foreach (int i, char[] name; cWWA2Str) {
-            auto sub = anis.findNode(name);
-            if (sub) {
-                animations[i].loadFrom(engine, sub);
+            auto val = anis.findValue(name);
+            if (val) {
+                animations[i] = globals.resources.anims(val.value);
             }
         }
-        //if (animations[WeaponWormAnimations.Arm]) {
-            animations[WeaponWormAnimations.UnArm]
-                = allocSpriteAnimationInfo;
-            *animations[WeaponWormAnimations.UnArm]
-                = animations[WeaponWormAnimations.Arm].make_reverse();
-        //}
     }
 
     //just a factory

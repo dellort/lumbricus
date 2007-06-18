@@ -188,7 +188,7 @@ class TopLevel {
         thegame = new GameEngine(config);
         clientengine = new ClientGameEngine(thegame);
 
-        metascene = new MetaScene([thegame.scene, clientengine.scene]);
+        metascene = new MetaScene([clientengine.scene]);
 
         initializeGui();
         //yes, really twice, as no game time should pass while loading stuff

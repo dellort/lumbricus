@@ -14,6 +14,7 @@ import utils.log;
 import utils.misc;
 import std.math;
 import str = std.string;
+import game.resources : AnimationResource;
 
 static this() {
     gSpriteClassFactory.register!(WormSpriteClass)("worm_mc");
@@ -65,7 +66,7 @@ class WormSprite : GObjectSprite {
 
         bool mIsDead;
 
-        SpriteAnimationInfo* mGravestone;
+        AnimationResource mGravestone;
     }
 
     float weaponAngle() {
@@ -142,17 +143,16 @@ class WormSprite : GObjectSprite {
         gravestone = 0;
     }
 
-    protected SpriteAnimationInfo* getAnimationInfoForState(StaticStateInfo info)
-    {
+    protected AnimationResource getAnimationForState(StaticStateInfo info) {
         if (currentState is mStates[WormState.Weapon] && mWeapon) {
-            return mWeapon.weapon.animations[WeaponWormAnimations.Hold];
+            return mWeapon.weapon.animations[WeaponWormAnimations.Arm];
         } else if (currentState is mStates[WormState.Death]) {
             return mGravestone;
         } else {
-            return super.getAnimationInfoForState(info);
+            return super.getAnimationForState(info);
         }
     }
-    protected SpriteAnimationInfo* getAnimationInfoForTransition(
+    /*protected SpriteAnimationInfo* getAnimationInfoForTransition(
         StateTransition st)
     {
         //xxx this sucks make better
@@ -164,7 +164,7 @@ class WormSprite : GObjectSprite {
         } else {
             return super.getAnimationInfoForTransition(st);
         }
-    }
+    }*/
 
     //movement for walking/jetpack
     void move(Vector2f dir) {
@@ -187,9 +187,13 @@ class WormSprite : GObjectSprite {
         super.simulate(deltaT);
         if (weaponDrawn) {
             //when user presses key to change weapon angle
-            //can rotate through all 360 degrees in 5 seconds
+            //can rotate through all 180 degrees in 5 seconds
             //(given abs(mWeaponMove) == 1)
-            mWeaponAngle += mWeaponMove*deltaT*PI*2/5;
+            mWeaponAngle += mWeaponMove*deltaT*PI/5;
+            mWeaponAngle = max(mWeaponAngle, 0f);
+            mWeaponAngle = min(mWeaponAngle, cast(float)PI);
+            //why add 90 degrees? I doin't know
+            param2 = angleToAnimation(mWeaponAngle+PI/2);
             updateAnimation();
         }
     }
@@ -201,27 +205,6 @@ class WormSprite : GObjectSprite {
             look = look.normal(); //get sign *g*
             look.y = 1;
             physics.push(look.mulEntries(wsc.jumpStrength));
-        }
-    }
-
-    void updateAnimation() {
-        super.updateAnimation();
-        if (weaponDrawn && !currentTransition) {
-            if (!graphic.currentAnimation)
-                return;
-            //-angle: animations are clockwise in the bitmap
-            //+PI/2*3: animations start at 270 degrees
-            //+PI: huh? I don't really know...
-            auto angle = realmod(-mWeaponAngle+PI/2*3+PI, PI*2)/(PI);
-            if (angle > 1.0f) {
-                angle = 2.0f - angle;
-                //NOTE: since super.updateAnimation() resets the animation,
-                //      graphic.currentAnimation will always be unmirrored first
-                graphic.setAnimation(graphic.currentAnimation.getMirroredY());
-            }
-            graphic.paused = true;
-            graphic.setFrame(
-                cast(int)(angle*graphic.currentAnimation.frameCount));
         }
     }
 
@@ -256,18 +239,11 @@ class WormSprite : GObjectSprite {
         return mWeapon;
     }
 
+    //yyy
     override protected void stateTransition(StaticStateInfo from,
         StaticStateInfo to)
     {
         super.stateTransition(from, to);
-        //hm... no animations while holding a weapon, because the animation here
-        //isn't really an animation, instead each frame is for a specific angle
-        //to hold the weapon...
-        //so, updateAnimation() sets paused to true, and this resets it again
-        if (!weaponDrawn) {
-            graphic.paused = false;
-            mWeaponMove = 0;
-        }
 
         if ((currentState is mStates[WormState.Death])
             || (currentState is mStates[WormState.Drowning]))
@@ -276,6 +252,7 @@ class WormSprite : GObjectSprite {
         }
     }
 
+    //yyy
     override protected void transitionEnd() {
         if (currentState is mStates[WormState.Weapon]) {
             mWeaponAngle = physics.lookey;
@@ -336,7 +313,7 @@ class WormSprite : GObjectSprite {
 class WormSpriteClass : GOSpriteClass {
     Vector2f jetpackAccel;
     float suicideDamage;
-    SpriteAnimationInfo*[] gravestones;
+    AnimationResource[] gravestones;
     Vector2f jumpStrength;
 
     this(GameEngine e, char[] r) {
@@ -355,11 +332,8 @@ class WormSpriteClass : GOSpriteClass {
         char[] grave = config.getStringValue("gravestones", "notfound");
         int count = config.getIntValue("gravestones_count");
         gravestones.length = count;
-        foreach (int n, inout SpriteAnimationInfo* inf; gravestones) {
-            inf = allocSpriteAnimationInfo();
-            //violate capsulation a bit
-            inf.ani2angle = Angle2AnimationMode.Simple;
-            inf.animations = [globals.resources.anims(str.format("%s%d", grave, n))];
+        foreach (int n, inout AnimationResource ani; gravestones) {
+            ani = globals.resources.anims(str.format("%s%d", grave, n));
         }
     }
     override WormSprite createSprite() {

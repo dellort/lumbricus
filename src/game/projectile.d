@@ -48,7 +48,7 @@ private class ProjectileWeapon : WeaponClass {
             auto st = spriteclass.initState;
 
             loadPOSPFromConfig(pr.getSubNode("physics"), st.physic_properties);
-            st.animation.loadFrom(engine, pr.getSubNode("animation"));
+            st.animation = globals.resources.anims(pr["animation"]);
 
             //allow non-ProjectileSpriteClass objects, why not
             auto pclass = cast(ProjectileSpriteClass)spriteclass;

@@ -25,131 +25,6 @@ package void registerSpriteClass(T : GOSpriteClass)(char[] name) {
     mSpriteClassFactory.register(T)(name);
 }
 
-//method how animations are chosen from object angles
-enum Angle2AnimationMode {
-    None,
-    //One animation for all angles
-    Simple,
-    //Only one animation, but which is mirrored on the Y axis
-    // => 2 possible states, looking into degrees 0 and 180
-    Twosided,
-    //Worm-like mapping of angles to animations
-    //There are 6 45 degree rotated animations, 3 of them mirrored on the Y
-    //axis, and the code will add "up", "down" and "norm" to the value of the
-    //"animations" field (from the config file) to get the animation names.
-    //No animations for directly looking up or down (on the Y axis).
-    Step3,
-    /+
-    //Not an animation; instead, each frame shows a specific angle, starting
-    //from 270 degrees
-    Noani360,
-    +/
-}
-//Angle2AnimationMode -> name-string (as used in config file)
-private char[][] cA2AM2Str = ["none", "simple", "twosided", "step3"];//, "noani360"];
-
-//whacky hacky
-SpriteAnimationInfo* allocSpriteAnimationInfo() {
-    return new SpriteAnimationInfo;
-}
-
-struct SpriteAnimationInfo {
-    Angle2AnimationMode ani2angle;
-    AnimationResource[] animations;
-
-    bool noAnimation() {
-        return ani2angle == Angle2AnimationMode.None;
-    }
-
-    void reset() {
-        *this = (*this).init;
-    }
-
-    AnimationResource animationFromAngle(float angle) {
-
-        AnimationResource getFromCAngles(int[] angles) {
-            return animations[pickNearestAngle(angles, angle)];
-        }
-
-        switch (ani2angle) {
-            case Angle2AnimationMode.None: {
-                return null;
-            }
-            case Angle2AnimationMode.Simple: {
-                return animations[0];
-            }
-            case Angle2AnimationMode.Twosided: {
-                //Hint: array literals allocate memory
-                static int[] angles = [180, 0];
-                return getFromCAngles(angles);
-            }
-            case Angle2AnimationMode.Step3: {
-                static int[] angles = [90+45,90+90,90+135,90-45,90-90,90-135];
-                return getFromCAngles(angles);
-            }
-            default:
-                assert(false);
-        }
-    }
-
-    //return a backward animation
-    SpriteAnimationInfo make_reverse() {
-        SpriteAnimationInfo res;
-
-        res = *this;
-        res.animations = res.animations.dup;
-
-        foreach (inout AnimationResource a; res.animations) {
-            if (a) {
-                a = globals.resources.createProcessedAnimation(a.id,
-                    a.id~"_backwards",true,false);
-            }
-        }
-
-        return res;
-    }
-
-    void loadFrom(GameEngine engine, ConfigNode sc) {
-
-        void addMirrors() {
-            AnimationResource[] nanimations;
-            foreach (AnimationResource a; animations) {
-                nanimations ~= a ? globals.resources.createProcessedAnimation(
-                    a.id,a.id~"_mirrored",false,true) : null;
-            }
-            animations ~= nanimations;
-        }
-
-        ani2angle = cast(Angle2AnimationMode)
-            sc.selectValueFrom("angle2animations", cA2AM2Str, 0);
-
-        switch (ani2angle) {
-            case Angle2AnimationMode.None: {
-                //NOTE: but maybe still should check for accidental no-animation
-                break;
-            }
-            case Angle2AnimationMode.Simple, Angle2AnimationMode.Twosided: {
-                //only one animation to load
-                animations = [globals.resources.anims(sc["animations"])];
-                addMirrors();
-                break;
-            }
-            case Angle2AnimationMode.Step3: {
-                char[] head = sc["animations"];
-                static names = [cast(char[])"down", "norm", "up"];
-                foreach (s; names) {
-                    animations ~= globals.resources.anims(head ~ s);
-                }
-                addMirrors();
-                break;
-            }
-            default:
-                assert(false);
-        }
-    }
-}
-
-
 //object which represents a PhysicObject and an animation on the screen
 //also provides loading from ConfigFiles and state managment
 class GObjectSprite : GameObject {
@@ -157,56 +32,56 @@ class GObjectSprite : GameObject {
     StaticStateInfo currentState; //must not be null
 
     PhysicObject physics;
-    Animator graphic;
-    Animator outOfLevel;
+    //attention: can be null if object inactive
+    ServerGraphic graphic;
+
+    AnimationResource currentAnimation;
 
     //animation played when doing state transition...
     StateTransition currentTransition;
 
+    int param2;
+
     //return animations for states; this can be used to "patch" animations for
     //specific states (used for worm.d/weapons)
-    protected SpriteAnimationInfo* getAnimationInfoForState(StaticStateInfo info)
-    {
-        return &info.animation;
-    }
-    protected SpriteAnimationInfo* getAnimationInfoForTransition(
-        StateTransition st)
-    {
-        return &st.animation;
-    }
-
-    AnimationResource getCurrentAnimation() {
-        SpriteAnimationInfo* info;
-
-        if (!currentTransition) {
-            info = getAnimationInfoForState(currentState);
-        } else {
-            info = getAnimationInfoForTransition(currentTransition);
-        }
-
-        float angle = physics.lookey;
-        return info.animationFromAngle(angle);
+    protected AnimationResource getAnimationForState(StaticStateInfo info) {
+        return info.animation;
     }
 
     //update the animation to the current state and physics status
     void updateAnimation() {
-        AnimationResource r = getCurrentAnimation();
-        Animation anim = null;
-        if (r)
-            anim = r.get();
+        if (!graphic)
+            return;
 
-        Vector2i anim_size = anim ? anim.size : Vector2i(0);
-        graphic.pos = toVector2i(physics.pos) - anim_size/2;
+        auto wanted_animation = getAnimationForState(currentState);
 
-        if (graphic.currentAnimation !is anim) {
-            //xxx: or use setNextAnimation()? or make it configureable?
-            graphic.setAnimation(anim);
+        //must not set animation all the time, because setAnimation() resets
+        //the animation (maybe.... or maybe not)
+        if (wanted_animation !is currentAnimation) {
+            //xxx you have to decide: false or true as parameter?
+            // true = force, false = wait until current animation done
+            graphic.setNextAnimation(wanted_animation, false);
+            currentAnimation = wanted_animation;
         }
+
+        graphic.setPos(toVector2i(physics.pos));
+        graphic.setParams(angleToAnimation(physics.lookey), param2);
+    }
+
+    static int angleToAnimation(float angle) {
+        //worm angles: start pointing upwards (dir.y = -1), then goes with the clock
+        //(while physics angles start at (1, 0) and go against the clock)
+        //(going with the clock as you see it on screen, with (0,0) in upper left)
+        return cast(int)(realmod((-angle+PI/2*3)/PI*180.0f, 360));
     }
 
     protected void physUpdate() {
         updateAnimation();
 
+        /+
+        yyy move this code into the client's GUI
+        this can't be here because this depends from what part of the level
+        you look into
         //check if sprite is out of level
         //if so, draw nice out-of-level-graphic
         auto scenerect = Rect2i(0,0,graphic.scene.size.x,graphic.scene.size.y);
@@ -230,6 +105,7 @@ class GObjectSprite : GameObject {
         } else {
             outOfLevel.active = false;
         }
+        +/
     }
 
     protected void physImpact(PhysicBase other) {
@@ -312,7 +188,7 @@ class GObjectSprite : GameObject {
         currentState = nstate;
         physics.collision = nstate.collide;
         physics.posp = nstate.physic_properties;
-        graphic.setAnimation(getCurrentAnimation().get());
+        updateAnimation();
 
         engine.mLog("force state: %s", nstate.name);
     }
@@ -375,9 +251,16 @@ class GObjectSprite : GameObject {
     }
 
     override protected void updateActive() {
-        graphic.active = active;
-        if (!active)
-            outOfLevel.active = false;
+        //xxx: doesn't deal with physics!
+        if (graphic) {
+            graphic.remove();
+            graphic = null;
+        }
+        if (active) {
+            graphic = engine.createGraphic();
+            graphic.setVisible(true);
+            updateAnimation();
+        }
     }
 
     protected this (GameEngine engine, GOSpriteClass type) {
@@ -387,8 +270,6 @@ class GObjectSprite : GameObject {
         this.type = type;
 
         physics = new PhysicObject();
-        graphic = new Animator();
-        outOfLevel = new Animator();
 
         setStateForced(type.initState);
 
@@ -398,15 +279,6 @@ class GObjectSprite : GameObject {
         physics.onTriggerEnter = &physTriggerEnter;
         physics.onTriggerExit =&physTriggerExit;
         engine.physicworld.add(physics);
-
-        graphic.setOnNoAnimation(&animationEnd);
-        graphic.scene = engine.scene;
-        graphic.zorder = GameZOrder.Objects;
-
-        outOfLevel.scene = engine.scene;
-        outOfLevel.zorder = GameZOrder.Objects;
-        outOfLevel.paused = true;
-        outOfLevel.setAnimation(type.outOfRegionArrow.get());
     }
 }
 
@@ -419,15 +291,14 @@ class StaticStateInfo {
     POSP physic_properties;
 
     StateTransition[StaticStateInfo] transitions;
-    bool noleave; //no leaving transitions
+    bool noleave; //don't leave this state
 
-    SpriteAnimationInfo animation;
+    AnimationResource animation;
 }
 
 //describe an animation which is played when switching to another state
 class StateTransition {
     bool disablePhysics; //no physics while playing animation
-    SpriteAnimationInfo animation;
 
     StaticStateInfo from, to;
 }
@@ -442,8 +313,6 @@ class GOSpriteClass {
 
     StaticStateInfo[char[]] states;
     StaticStateInfo initState;
-
-    AnimationResource outOfRegionArrow;
 
     StaticStateInfo findState(char[] name, bool canfail = false) {
         StaticStateInfo* state = name in states;
@@ -472,9 +341,6 @@ class GOSpriteClass {
         ssi.name = "defaultstate";
         states[ssi.name] = ssi;
         initState = ssi;
-
-        //hardcoded and stupid, sorry
-        outOfRegionArrow = globals.resources.anims("out_of_level_arrow");
     }
 
     void loadFromConfig(ConfigNode config) {
@@ -510,10 +376,9 @@ class GOSpriteClass {
 
             ssi.noleave = sc.getBoolValue("noleave", false);
 
-            //load animations
-            ssi.animation.loadFrom(engine, sc);
+            ssi.animation = globals.resources.animsMaybe(sc["animation"]);
 
-            if (ssi.animation.noAnimation) {
+            if (!ssi.animation) {
                 engine.mLog("no animation for state '%s'", ssi.name);
             }
 
@@ -534,13 +399,6 @@ class GOSpriteClass {
             auto trans = new StateTransition();
 
             trans.disablePhysics = tc.getBoolValue("disable_physics", false);
-
-            trans.animation.loadFrom(engine, tc);
-
-            if (trans.animation.noAnimation) {
-                engine.mLog("no animation for transition '%s' -> '%s'",
-                    sfrom.name, sto.name);
-            }
 
             trans.from = sfrom;
             trans.to = sto;
@@ -563,25 +421,9 @@ class GOSpriteClass {
                 if (tc.getBoolValue("works_reverse", false)) {
                     auto trans = newTransition(sfrom, sto, tc);
                     //create backward animations
-                    trans.animation = trans.animation.make_reverse();
+                    //(removed)
                 }
             }
         }
     }
-}
-
-//return the index of the angle in "angles" which is closest to "angle"
-//for unknown reasons, angles[] is in degrees, while angle is in radians
-private uint pickNearestAngle(int[] angles, float angle) {
-    //pick best angle (what's nearer)
-    uint closest;
-    float cur = float.max;
-    foreach (int i, int x; angles) {
-        auto d = angleDistance(angle,x/180.0f*PI);
-        if (d < cur) {
-            cur = d;
-            closest = i;
-        }
-    }
-    return closest;
 }

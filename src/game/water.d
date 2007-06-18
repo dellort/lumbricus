@@ -178,7 +178,7 @@ class HorizontalFullsceneAnimator : Animator {
     public uint xoffs;
 
     void draw(Canvas canvas) {
-        int w = mAni.size.x;
+        int w = size.x;
         for (int x = xoffs-w; x < scene.size.x; x += w) {
             pos = Vector2i(x, ypos);
             //XXX I just hope canvas does clipping instead of letting sdl to it

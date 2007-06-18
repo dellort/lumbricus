@@ -145,6 +145,14 @@ T arrayFindNextPred(T)(T[] arr, T w, bool delegate(T t) pred) {
     return null;
 }
 
+int arraySearch(T)(T[] arr, T value, int def = -1) {
+    foreach (int i, T item; arr) {
+        if (item == value)
+            return i;
+    }
+    return def;
+}
+
 //a small factory template
 //ConstructorArgs is a tuple which is passed as constructor arguments
 class Factory(T, ConstructorArgs...) {

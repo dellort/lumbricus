@@ -4,6 +4,16 @@ import utils.configfile;
 import utils.vector2;
 import utils.time;
 
+//ok, now it seems like all these interfaces also shall be network transparent
+//especially this means that they're asynchronous by default and thus, they
+//shouldn't have return values
+
+///calls from engine into clients
+interface EngineClient {
+    ///cause damage; if explode is true, play corresponding particle effects
+    void damage(Vector2i pos, int radius, bool explode);
+}
+
 //Hint: there's a limited number of predefined colors; that's because sometimes
 //colors are hardcoded in animations, etc.
 //so, these are not just color names, but also linked to these animations

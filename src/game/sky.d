@@ -126,7 +126,7 @@ class GameSky {
                 ci.anim.pos.y = skyOffset - mCloudAnims[nAnim].size.y/2 + randRange(-cCloudHeightRange/2,cCloudHeightRange/2);
                 ci.x = randRange(-mCloudAnims[nAnim].size.x, target.size.x);
                 ci.anim.pos.x = cast(int)ci.x;
-                ci.anim.setFrame(randRange(0u,mCloudAnims[nAnim].frameCount));
+                //xxx ci.anim.setFrame(randRange(0u,mCloudAnims[nAnim].frameCount));
                 ci.animSizex = mCloudAnims[nAnim].size.x;
                 //speed delta to wind speed
                 ci.xspeed = randRange(-cCloudSpeedRange/2, cCloudSpeedRange/2);
@@ -144,7 +144,7 @@ class GameSky {
                 di.y = randRange(skyOffset, levelBottom);
                 di.anim.pos.x = cast(int)di.x;
                 di.anim.pos.y = cast(int)di.y;
-                di.anim.setFrame(randRange(0u,mDebrisAnim.frameCount));
+                //xxx di.anim.setFrame(randRange(0u,mDebrisAnim.frameCount));
                 di.speedPerc = genrand_real1()/2.0+0.5;
             }
         }

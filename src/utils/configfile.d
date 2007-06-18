@@ -158,7 +158,7 @@ public class ConfigValue : ConfigItem {
         }
         stream.writeString("\"");
         stream.writeString(ConfigFile.doEscape(value));
-        stream.writeString("\"");
+        stream.writeString("\""); //" <- hack for Kates syntax highlighter, lol
     }
 
     public ConfigValue clone() {
@@ -578,6 +578,16 @@ public class ConfigNode : ConfigItem {
         return def;
     }
 
+    //return all values from this node in an string array
+    //xxx: maybe give up and implement ConfigNodes that are lists
+    public char[][] getValueList() {
+        char[][] res;
+        foreach (char[] name, char[] value; this) {
+            res ~= value;
+        }
+        return res;
+    }
+
     /// Copy all items from "node" into "this", as long as no node exists with
     /// that name.
     /// node = node to be mixed in
@@ -919,15 +929,29 @@ public class ConfigFile {
             } else if (curChar == '/') {
                 Position cur = curpos;
                 next();
-                if (curChar != '/') {
-                    //go back, let the rest of the function parse the "/"
-                    reset(cur);
-                    break;
-                } else {
+                if (curChar == '/') {
                     //C99/C++/Java/C#/D style comment - skip it
                     do {
                         next();
                     } while (curChar != EOF && !my_isnewline(curChar));
+                } else if (curChar == '*') {
+                    //stream comment, search next "*/"
+                    bool s = false;
+                    do {
+                        next();
+                        if (curChar == '/' && s) {
+                            next();
+                            break;
+                        }
+                        s = false;
+                        if (curChar == '*') {
+                            s = true;
+                        }
+                    } while (curChar != EOF);
+                } else {
+                    //go back, let the rest of the function parse the "/"
+                    reset(cur);
+                    break;
                 }
             } else {
                 break;
@@ -1004,7 +1028,7 @@ public class ConfigFile {
 
         if (is_value) {
             if (curChar != cValueClose) {
-                reportError(true, "no closing >\"< for a value");
+                reportError(true, "no closing >\"< for a value"); //" yay
             } else {
                 next();
             }
@@ -1177,7 +1201,7 @@ public class ConfigFile {
                     nextToken(token, str, waste);
                     if (token == Token.ID) {
                         reportError(false,
-                            "value expected (did you forget the \"\"?)");
+                            "value expected (did you forget the \"\"?)"); //"
                         //if he really forgot the "", don't go back
                         //reset(p); //go back
                     } else if (token != Token.VALUE) {

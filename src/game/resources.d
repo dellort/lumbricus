@@ -1,7 +1,6 @@
 module game.resources;
 
 import framework.framework;
-import game.animation;
 import game.common;
 import str = std.string;
 import utils.configfile;
@@ -17,6 +16,10 @@ import utils.output;
 protected class Resource(T) {
     ///unique id of resource
     char[] id;
+    ///unique numeric id
+    ///useful for networking, has the same meaning across all nodes
+    ///yyy actually initialize it etc.
+    int uid;
 
     private T mContents;
     private bool mValid = false;
@@ -65,8 +68,11 @@ protected class Resource(T) {
     }
 }
 
-alias Resource!(Animation) AnimationResource;
 alias Resource!(Surface) BitmapResource;
+
+//import here to not to have forward reference to BitmapResource in animation.d!
+import game.animation;
+alias Resource!(Animation) AnimationResource;
 
 ///the resource manager
 ///currently manages:
@@ -80,7 +86,7 @@ public class Resources {
 
     this() {
         log = registerLog("Res");
-        log.setBackend(DevNullOutput.output, "null");
+        //log.setBackend(DevNullOutput.output, "null");
     }
 
     ///create new animation resource from a ConfigNode containing animation
@@ -94,26 +100,25 @@ public class Resources {
             //animation has already been loaded
             return anims(id, allowFail);
         }
-        AnimationData animData = AnimationData(node);
+        //haha
+        ConfigNode animData = node;
         AnimationResource r = new AnimationResourceImpl(this,id,relPath,
             animData);
         mAnimations[id] = r;
         return r;
     }
 
-    ///create an animation by processing an existing resource
-    ///source does not have to be loaded when this is called
-    ///actual processing will occur on first use
-    public AnimationResource createProcessedAnimation(char[] sourceId,
-        char[] id, bool backwards, bool mirrored, bool allowFail = false)
+    //cutnpaste from above
+    public BitmapResource createProcessedBitmap(char[] sourceId,
+        char[] id, bool mirroredY, bool allowFail = false)
     {
-        assert(id != "","createProcessedAnimation with empty id");
-        if (id in mAnimations) {
-            return anims(id, allowFail);
+        assert(id != "","createProcessedBitmap with empty id");
+        if (id in mBitmaps) {
+            return bitmaps(id, allowFail);
         }
-        AnimationResource r = new AnimationResourceProcessed(this, id, sourceId,
-            backwards, mirrored);
-        mAnimations[id] = r;
+        BitmapResource r = new BitmapResourceProcessed(this, id, sourceId,
+            mirroredY);
+        mBitmaps[id] = r;
         return r;
     }
 
@@ -130,6 +135,12 @@ public class Resources {
         } else {
             return *r;
         }
+    }
+
+    public AnimationResource animsMaybe(char[] id) {
+        if (!id.length)
+            return null;
+        return anims(id);
     }
 
     ///create new bitmap resource from a graphics file
@@ -240,48 +251,47 @@ public class Resources {
 
 ///Resource class that holds an animation loaded from a config node
 protected class AnimationResourceImpl : AnimationResource {
-    private AnimationData mAnimData;
+    private ConfigNode mAnimData;
     protected char[] mRelativePath;
 
-    this(Resources parent, char[] id, char[] relPath, AnimationData animData) {
+    this(Resources parent, char[] id, char[] relPath, ConfigNode animData) {
         super(parent, id);
         mRelativePath = relPath;
         mAnimData = animData;
     }
 
     protected void load() {
-        mParent.log("Load animation %s",mAnimData.imagePath);
-        mContents = new Animation(mAnimData, mRelativePath);
+        mParent.log("Load animation %s",id);
+        //wtf is mRelativePath? not used here.
+        //NOTE: creating an animation shouldn't cost too much
+        //  Animation now loads bitmaps lazily
+        //  (it uses BitmapResource and BitmapResourceProcessed)
+        mContents = loadAnimation(mAnimData);
     }
 }
 
-///Resource class for creating an animation by processing an existing one
-protected class AnimationResourceProcessed : AnimationResource {
-    private bool mBackwards;
-    private bool mMirrored;
+protected class BitmapResourceProcessed : BitmapResource {
+    private bool mMirroredY;
     private char[] mSourceId;
 
     this(Resources parent, char[] id, char[] sourceId,
-        bool backwards, bool mirrored)
+        bool mirroredY)
     {
         super(parent, id);
-        mBackwards = backwards;
-        mMirrored = mirrored;
+        mMirroredY = mirroredY;
         mSourceId = sourceId;
     }
 
     protected void load() {
-        AnimationResource src = mParent.anims(mSourceId);
-        if (mBackwards) {
-            mContents = src.get().getBackwards();
-        } else if (mMirrored) {
-            mContents = src.get().getMirroredY();
+        BitmapResource src = mParent.bitmaps(mSourceId);
+        if (mMirroredY) {
+            mContents = src.get().createMirroredY();
         }
     }
 }
 
 ///Resource class for bitmaps
-protected class BitmapResourceImpl : Resource!(Surface) {
+protected class BitmapResourceImpl : BitmapResource {
     protected char[] mRelativePath;
     protected char[] mGraphicFile;
 
