@@ -119,8 +119,10 @@ package class ServerGraphicLocalImpl : ServerGraphic {
 
     //methods of that interface
     void setPos(Vector2i apos) {
-        event.setevent.pos = apos;
-        didchange = true;
+        if (event.setevent.pos != apos) {
+            event.setevent.pos = apos;
+            didchange = true;
+        }
     }
 
     void setParams(int ap1, int ap2) {
@@ -171,6 +173,13 @@ class GameEngine {
     PlaneTrigger deathzone;
 
     GraphicEvent* currentEvents;
+
+    struct EventQueue {
+        GraphicEvent* list;
+        Time time;
+    }
+    EventQueue[] events;
+    const lag = 100; //ms
 
     Vector2i levelOffset, worldSize;
 
@@ -433,24 +442,11 @@ class GameEngine {
     Time blubber;
     int eventCount;
 
-    void doFrame() {
+    void netupdate() {
         currentTime = globals.gameTime;
-        float deltaT = (currentTime - lastTime).msecs/1000.0f;
-        simulate(deltaT);
-        mPhysicWorld.simulate(currentTime);
-        //update game objects
-        //NOTE: objects might be inserted/removed while iterating
-        //      maybe one should implement a safe iterator...
-        GameObject cur = mObjects.head;
-        while (cur) {
-            auto o = cur;
-            cur = mObjects.next(cur);
-            o.simulate(deltaT);
-        }
 
-        //should be read and reset by clientengine.d (or so)
-        assert(!currentEvents);
-        GraphicEvent** lastptr = &currentEvents;
+        GraphicEvent* currentlist = null;
+        GraphicEvent** lastptr = &currentlist;
 
         auto cur2 = mGraphics.head;
         while (cur2) {
@@ -475,6 +471,43 @@ class GameEngine {
             gDefaultLog("blubb: %s", eventCount);
             blubber = lastTime;
             eventCount = 0;
+        }
+
+        EventQueue current;
+        current.list = currentlist;
+        current.time = currentTime;
+        events ~= current;
+
+        currentEvents = null;
+
+        //take one element back from queue
+        if (events[0].time + timeMsecs(lag+randRange(-25,25)) < currentTime) {
+            currentEvents = events[0].list;
+            events = events[1..$];
+        }
+    }
+
+    Time lastnetupdate;
+
+    void doFrame() {
+        currentTime = globals.gameTime;
+        float deltaT = (currentTime - lastTime).msecs/1000.0f;
+        simulate(deltaT);
+        mPhysicWorld.simulate(currentTime);
+        //update game objects
+        //NOTE: objects might be inserted/removed while iterating
+        //      maybe one should implement a safe iterator...
+        GameObject cur = mObjects.head;
+        while (cur) {
+            auto o = cur;
+            cur = mObjects.next(cur);
+            o.simulate(deltaT);
+        }
+
+        //all 100ms update
+        if (lastnetupdate + timeMsecs(100) < currentTime) {
+            netupdate();
+            lastnetupdate = currentTime;
         }
     }
 

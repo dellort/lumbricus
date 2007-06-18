@@ -541,11 +541,11 @@ class GameController {
                     selected = mCurrent.currentWeapon.weapon;
                 }
             }
-            if (selected) {
+            /*if (selected) {
                 messageAdd(_("msgselweapon", _("weapons." ~ selected.name)));
             } else {
                 messageAdd(_("msgnoweapon"));
-            }
+            }*/
             Shooter nshooter;
             if (selected) {
                 nshooter = selected.createShooter();

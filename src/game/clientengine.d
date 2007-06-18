@@ -238,6 +238,7 @@ class LevelDrawer : SceneObject {
             c.drawCircle(toVector2i(npos), testr, Color(1,1,0));
         }
         +/
+        /+
         //xxx draw debug stuff for physics!
         foreach (PhysicObject o; game.mEngine.physicworld.mObjects) {
             //auto angle = o.rotation;
@@ -249,6 +250,7 @@ class LevelDrawer : SceneObject {
             p = Vector2f.fromPolar(50, angle2) + o.pos;
             c.drawCircle(toVector2i(p), 5, Color(1,0,1));
         }
+        +/
         //more debug stuff...
         //foreach (GameObject go; game.mEngine.mObjects) {
             /+if (cast(Worm)go) {
@@ -380,8 +382,9 @@ private class WormNameDrawer : SceneObject {
                 //auto b = getBox(tsz+border*2, Color(1,1,1), Color(0,0,0));
                 //canvas.draw(b, pos-border);
                 //if (mController.mEngine.enableSpiffyGui)
-                    drawBox(canvas, pos-border, tsz+border*2);
-                font.drawText(canvas, pos, text);
+
+                //    drawBox(canvas, pos-border, tsz+border*2);
+                //font.drawText(canvas, pos, text);
             }
         }
     }
