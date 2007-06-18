@@ -465,7 +465,6 @@ class GameEngine {
             if (o.mDead)
                 mGraphics.remove(o);
         }
-        lastTime = currentTime;
 
         if ((lastTime - blubber).secs >= 1) {
             gDefaultLog("blubb: %s", eventCount);
@@ -509,6 +508,8 @@ class GameEngine {
             netupdate();
             lastnetupdate = currentTime;
         }
+
+        lastTime = currentTime;
     }
 
     //remove all objects etc. from the scene

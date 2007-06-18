@@ -152,7 +152,8 @@ public class PlaceObjects {
                 }
                 //possibly partial last part...
                 uint trail = (en.x1-st.x1+bridge[0].mSize.x) % bridge[0].mSize.x;
-                placeObject(bridge[0], st+count*bridge[0].mSize.X, trail, bridge[0].mSize.y);
+                placeObject(bridge[0], st+count*bridge[0].mSize.X,
+                    Vector2i(trail, bridge[0].mSize.y));
                 placeObject(bridge[1], st-bridge[1].mSize.X);
                 placeObject(bridge[2], en);
             }
@@ -160,7 +161,7 @@ public class PlaceObjects {
         return bridges;
     }
 
-    //tries to place an object using the try-and-error algorithm
+    //tries to place an object using the try-and-error (TM) algorithm
     public uint placeObjects(uint retry, uint maxobjs, PlaceableObject obj) {
         uint count = 0;
         Vector2i line = Vector2i(obj.mWidth/6*4, 2);
@@ -214,17 +215,17 @@ public class PlaceObjects {
         return true;
     }
 
+    const Vector2i cBla = {-1, -1};
     //render object _under_ the level and adjust level mask
     public void placeObject(PlaceableObject obj, Vector2i at,
-        int w = -1, int h = -1)
+        Vector2i size = cBla)
     {
         auto pos = at;//at - Vector2i(obj.mWidth, obj.mHeight) / 2;
-        if (w < 0)
-            w = obj.mWidth;
-        if (h < 0)
-            h = obj.mHeight;
-        mLevel.drawBitmap(pos, obj.mTexture, Vector2i(w, h),
-            Lexel.Null, Lexel.SolidSoft);
+        if (size.x < 0)
+            size.x = obj.mWidth;
+        if (size.y < 0)
+            size.y = obj.mHeight;
+        mLevel.drawBitmap(pos, obj.mTexture, size, Lexel.Null, Lexel.SolidSoft);
     }
 
 }

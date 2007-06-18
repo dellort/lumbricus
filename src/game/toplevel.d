@@ -7,17 +7,12 @@ import framework.keysyms;
 import framework.framework;
 import framework.commandline;
 import framework.i18n;
+import framework.timesource;
 import game.scene;
-import game.animation;
 import game.game;
-import game.worm;
 import game.common;
-import game.physic;
-import game.gobject;
 import game.leveledit;
 import game.visual;
-import game.water;
-import game.sky;
 import game.clientengine;
 import gui.gui;
 import gui.guiobject;
@@ -50,6 +45,9 @@ class TopLevel {
     private void delegate() mOnStopGui; //associated with sceneview
     LevelEditor editor;
     KeyBindings keybindings;
+
+    private TimeSource mGameTime;
+    private TimeSource mGameTimeAnimations;
 
     GuiMain mGui;
     GameView mGameView;
@@ -474,7 +472,8 @@ class TopLevel {
     }
 
     private void cmdPause(CommandLine) {
-        paused = !paused;
+        mGameTime.paused = !mGameTime.paused;
+        mGameTimeAnimations.paused = !mGameTimeAnimations.paused;
     }
 
     //slow <whatever> time
@@ -495,102 +494,33 @@ class TopLevel {
         } else {
             return;
         }
-        float g = setgame ? val : mSlowGame;
-        float a = setani ? val : mSlowAni;
+        float g = setgame ? val : mGameTime.slowDown;
+        float a = setani ? val : mGameTimeAnimations.slowDown;
         cmd.console.writefln("set slowdown: game=%s animations=%s", g, a);
-        setSlowDown(g, a);
-    }
-
-    private {
-        Time gameStartTime;  //absolute time of start of game (pretty useless)
-        //not-slowed-down time of game, also quite useless/dangerous to use
-        Time pseudoGameTime;
-        Time mPauseStarted; //absolute time of pause start
-        Time mPausedTime; //summed amount of time paused
-        bool mPauseMode;
-
-        //last simulated time when slowdown was set...
-        Time mLastGameTime, mLastAniTime;
-        //last real time when slowdown was set; relative to pseudoGameTime...
-        Time mLastRealGameTime, mLastRealAniTime;
-        //slowdown scale values
-        float mSlowGame, mSlowAni;
+        mGameTime.slowDown = g;
+        mGameTimeAnimations.slowDown = a;
     }
 
     private void initTimes() {
-        mPauseMode = false;
-        gameStartTime = globals.framework.getCurrentTime();
-        pseudoGameTime = timeSecs(0);
-        mPausedTime = timeSecs(0);
-
-        mLastRealGameTime = mLastRealAniTime = timeSecs(0);
-        globals.gameTime = timeSecs(0);
-        mLastGameTime = mLastAniTime = globals.gameTime;
-        globals.gameTimeAnimations = globals.gameTime;
-        setSlowDown(1,1);
+        mGameTime = new TimeSource(globals.framework.getCurrentTime());
+        mGameTimeAnimations = new TimeSource(globals.framework.getCurrentTime());
     }
 
     void resetTime() {
-        initTimes();
-    }
-
-    void paused(bool p) {
-        if (p == mPauseMode)
-            return;
-
-        mPauseMode = p;
-        if (mPauseMode) {
-            mPauseStarted = globals.framework.getCurrentTime();
-        } else {
-            mPausedTime += globals.framework.getCurrentTime() - mPauseStarted;
-        }
-    }
-    bool paused() {
-        return mPauseMode;
-    }
-
-    //set the slowdown multiplier, 1 = normal, <1 = slower, >1 = faster
-    void setSlowDown(float game, float ani) {
-        assert(game == game && ani == ani);
-
-        auto realtime = pseudoGameTime;
-
-        //make old values absolute
-        mLastGameTime = globals.gameTime;
-        mLastAniTime = globals.gameTimeAnimations;
-        mLastRealGameTime = mLastRealAniTime = realtime;
-
-        mSlowGame = game;
-        mSlowAni = ani;
-    }
-
-    //xxx: what about rounding errors??
-    //possible solution: reset "Last"-times all i.e. 5 seconds?
-    private void doCalcTimes() {
-        if (mPauseMode)
-            return;
-
-        pseudoGameTime = globals.framework.getCurrentTime()
-            - gameStartTime - mPausedTime;
-
-        auto realtime = pseudoGameTime;
-
-        Time doTime(Time lastsim, Time lastreal, double scale) {
-            return lastsim + (realtime - lastreal)*scale;
-        }
-
-        globals.gameTimeAnimations = doTime(mLastAniTime, mLastRealAniTime,
-            mSlowAni);
-        globals.gameTime = doTime(mLastGameTime, mLastRealGameTime, mSlowGame);
+        mGameTime.resetTime();
+        mGameTimeAnimations.resetTime();
     }
 
     private void onFrame(Canvas c) {
-        doCalcTimes();
+        auto ctime = globals.framework.getCurrentTime();
 
-        //std.stdio.writefln("%s %s %s", pseudoGameTime, globals.gameTime,
-        //    globals.gameTimeAnimations);
+        mGameTime.update(ctime);
+        mGameTimeAnimations.update(ctime);
 
-        if (thegame && !mPauseMode) {
+        globals.gameTime = mGameTime.current;
+        globals.gameTimeAnimations = mGameTimeAnimations.current;
+
+        if (thegame && !mGameTime.paused) {
             thegame.doFrame();
         }
 

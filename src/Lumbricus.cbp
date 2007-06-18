@@ -11,6 +11,7 @@
 				<Option object_output="..\bin\obj\" />
 				<Option type="1" />
 				<Option compiler="dmd" />
+				<Option parameters="logconsole" />
 				<Option projectResourceIncludeDirsRelation="0" />
 				<Compiler>
 					<Add option="-g" />
@@ -39,6 +40,9 @@
 			<Add library="DerelictSDLttf" />
 			<Add library="DerelictPhysFs" />
 		</Linker>
+		<Unit filename="derelict\enet\enet.d" />
+		<Unit filename="derelict\enet\enetfuncs.d" />
+		<Unit filename="derelict\enet\enettypes.d" />
 		<Unit filename="framework\commandline.d" />
 		<Unit filename="framework\console.d" />
 		<Unit filename="framework\filesystem.d" />
@@ -50,8 +54,8 @@
 		<Unit filename="framework\sdl\fwgl.d" />
 		<Unit filename="framework\sdl\keys.d" />
 		<Unit filename="framework\sdl\rwops.d" />
+		<Unit filename="framework\timesource.d" />
 		<Unit filename="game\animation.d" />
-		<Unit filename="game\baseengine.d" />
 		<Unit filename="game\clientengine.d" />
 		<Unit filename="game\common.d" />
 		<Unit filename="game\controller.d" />
@@ -87,6 +91,7 @@
 		<Unit filename="levelgen\placeobjects.d" />
 		<Unit filename="levelgen\renderer.d" />
 		<Unit filename="lumbricus.d" />
+		<Unit filename="net\netlayer.d" />
 		<Unit filename="utils\configfile.d" />
 		<Unit filename="utils\drawing.d" />
 		<Unit filename="utils\log.d" />

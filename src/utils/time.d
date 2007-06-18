@@ -202,6 +202,11 @@ public Time timeNever() {
     return r;
 }
 
+public Time timeNull() {
+    Time t;
+    t.timeVal = 0;
+    return t;
+}
 
 //this delegate allows to get the current (framework) time
 //without importing the framework module

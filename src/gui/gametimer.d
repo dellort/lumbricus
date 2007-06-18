@@ -27,7 +27,6 @@ class GameTimer : GuiObject {
     }
 
     void draw(Canvas canvas) {
-        Time cur = timeCurrentTime();
         if (mEngine && mEngine.controller.currentRoundState() == RoundState.prepare
             || mEngine.controller.currentRoundState() == RoundState.playing
             || mEngine.controller.currentRoundState() == RoundState.cleaningUp)
@@ -39,10 +38,6 @@ class GameTimer : GuiObject {
         } else {
             mTimeView.active = false;
         }
-
-        //animation stuff here
-
-        mLastTime = cur;
     }
 
     void resize() {
