@@ -33,6 +33,7 @@ struct GameConfig {
 interface ServerGraphic {
     //update position
     void setPos(Vector2i pos);
+    void setVelocity(Vector2f v);
 
     //update params
     // p1 is mostly an angle (in degrees), and p2 is mostly unused
@@ -70,6 +71,7 @@ struct GraphicEvent {
 
 struct GraphicSetEvent {
     Vector2i pos;
+    Vector2f dir; //direction + velocity
     int p1, p2;
     bool do_set_ani;
     AnimationResource set_animation; //network had to transfer animation id
@@ -121,6 +123,13 @@ package class ServerGraphicLocalImpl : ServerGraphic {
     void setPos(Vector2i apos) {
         if (event.setevent.pos != apos) {
             event.setevent.pos = apos;
+            didchange = true;
+        }
+    }
+
+    void setVelocity(Vector2f v) {
+        if (event.setevent.dir != v) {
+            event.setevent.dir = v;
             didchange = true;
         }
     }

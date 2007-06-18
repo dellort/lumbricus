@@ -65,6 +65,7 @@ class GObjectSprite : GameObject {
         }
 
         graphic.setPos(toVector2i(physics.pos));
+        graphic.setVelocity(physics.velocity);
         graphic.setParams(angleToAnimation(physics.lookey), param2);
     }
 

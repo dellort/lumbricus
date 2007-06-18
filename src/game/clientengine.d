@@ -29,6 +29,16 @@ class ClientGraphic : Animator {
     private mixin ListNodeMixin node;
     long uid = -1;
 
+    Vector2f velocity;
+    Vector2f fpos; //float here, "network" uses int, and that's ok
+
+    //called manually from ClientEngine
+    void simulate(float deltaT) {
+        fpos += velocity * deltaT;
+        size = currentAnimation ? currentAnimation.size : Vector2i(0, 0);
+        pos = toVector2i(fpos) - size/2;
+    }
+
     void sync(GraphicEvent* bla) {
         assert(uid == bla.uid);
         if (bla.setevent.do_set_ani) {
@@ -37,6 +47,8 @@ class ClientGraphic : Animator {
         }
         size = currentAnimation ? currentAnimation.size : Vector2i(0, 0);
         pos = bla.setevent.pos - size/2;
+        fpos = toVector2f(bla.setevent.pos);
+        velocity = bla.setevent.dir;
         animationState.setParams(bla.setevent.p1, bla.setevent.p2);
     }
 }
@@ -143,6 +155,11 @@ class ClientGameEngine : GameObject /+ temporary hack *g* +/ {
         mGameSky.simulate(deltaT);
 
         lastTime = currentTime;
+
+        //haha, update before next "network" sync
+        foreach (ClientGraphic gra; mGraphics) {
+            gra.simulate(deltaT);
+        }
 
         //never mind...
         ClientGraphic cur_c = mGraphics.head;
