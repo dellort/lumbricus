@@ -246,6 +246,8 @@ class GameController {
     private Time mCurrentLastAction;
     private Time cLongAgo;
 
+    private Time mLastTime;
+
     public void delegate(char[]) messageCb;
     public bool delegate() messageIdleCb;
 
@@ -312,6 +314,8 @@ class GameController {
         mTimePerRound = timeSecs(config.gamemode.getIntValue("roundtime",15));
         mHotseatSwitchTime = timeSecs(
             config.gamemode.getIntValue("hotseattime",5));
+
+        mLastTime = globals.gameTime;
     }
 
     //currently needed to deinitialize the gui
@@ -323,6 +327,9 @@ class GameController {
     }
 
     void simulate(float deltaT) {
+        Time diffT = globals.gameTime - mLastTime;
+        mLastTime = globals.gameTime;
+
         if (current && current.mWorm) {
             if (mCurrent_startpos != current.mWorm.physics.pos)
                 currentWormAction(false);
@@ -337,7 +344,7 @@ class GameController {
             transition(RoundState.prepare);
         }
 
-        RoundState next = doState(deltaT);
+        RoundState next = doState(diffT);
         if (next != mCurrentRoundState)
             transition(next);
 
@@ -379,10 +386,10 @@ class GameController {
         return morework;
     }
 
-    private RoundState doState(float deltaT) {
+    private RoundState doState(Time deltaT) {
         switch (mCurrentRoundState) {
             case RoundState.prepare:
-                mPrepareRemaining = mPrepareRemaining - timeSecs(deltaT);
+                mPrepareRemaining = mPrepareRemaining - deltaT;
                 moveWorm(movementVec);
                 if (mWormAction)
                     //worm moved -> exit prepare phase
@@ -391,7 +398,7 @@ class GameController {
                     return RoundState.playing;
                 break;
             case RoundState.playing:
-                mRoundRemaining = mRoundRemaining - timeSecs(deltaT);
+                mRoundRemaining = mRoundRemaining - deltaT;
                 if (mRoundRemaining < timeMusecs(0))
                     return RoundState.cleaningUp;
 
