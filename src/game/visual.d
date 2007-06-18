@@ -4,6 +4,7 @@ import framework.framework;
 import framework.font;
 import game.common;
 import game.scene;
+import utils.misc;
 
 class FontLabel : SceneObjectPositioned {
     private char[] mText;
@@ -66,7 +67,20 @@ bool boxesLoaded;
 
 //NOTE: won't work correctly for sizes below the two corner boxes
 void drawBox(Canvas c, Vector2i pos, Vector2i size) {
-    if (!boxesLoaded) {
+    BoxProps props;
+    props.height = size.y;
+    props.borderWidth = 2;
+    props.border = Color(0,0,0,1);
+    props.back = Color(1,1,1,1);
+
+    BoxTex tex = getBox(props);
+
+    c.draw(tex.left, pos);
+    c.draw(tex.right, pos+size.X-tex.right.size.X);
+    c.drawTiled(tex.middle, pos+tex.left.size.X,
+        size.X-tex.right.size.X-tex.left.size.X+tex.middle.size.Y);
+
+    /*if (!boxesLoaded) {
         for (int n = 0; n < 9; n++) {
             auto s = globals.loadGraphic("box" ~ str.toString(n+1) ~ ".png");
             s.enableAlpha();
@@ -90,33 +104,113 @@ void drawBox(Canvas c, Vector2i pos, Vector2i size) {
         size.X-boxParts[6].size.X-boxParts[8].size.X+boxParts[7].size.Y);
     //fill
     c.drawTiled(boxParts[4], pos+boxParts[0].size,
-        size-boxParts[0].size-boxParts[8].size);
+        size-boxParts[0].size-boxParts[8].size);*/
 }
 
-/+
+
 //quite a hack to draw boxes with rounded borders...
 struct BoxProps {
-    Vector2i size;
+    int height, borderWidth;
     Color border, back;
 }
 
-Texture[BoxProps] boxes;
+struct BoxTex {
+    Texture left, middle, right;
+    static BoxTex opCall(Texture l, Texture m, Texture r) {
+        BoxTex ret;
+        ret.left = l;
+        ret.middle = m;
+        ret.right = r;
+        return ret;
+    }
+}
 
-import utils.drawing;
+BoxTex[BoxProps] boxes;
 
-Texture getBox(Vector2i size, Color border, Color back) {
-    BoxProps box;
-    box.size = size; box.border = border; box.back = back;
-    auto t = box in boxes;
+BoxTex getBox(BoxProps props) {
+    auto t = props in boxes;
     if (t)
         return *t;
+
     //create it
-    auto surface = globals.framework.createSurface(size, DisplayFormat.Screen,
-        Transparency.None);
-    auto c = surface.startDraw();
-    c.drawFilledRect(Vector2i(0),size,back);
-    int radius = 20;
-    c.drawFilledRect(Vector2i(0, radius), Vector2i(1, size.y-radius), border);
+    //middle texture
+    Vector2i size = Vector2i(10,props.height);
+    auto surfMiddle = globals.framework.createSurface(size,
+        DisplayFormat.Screen, Transparency.None);
+    auto c = surfMiddle.startDraw();
+    c.drawFilledRect(Vector2i(0),size,props.back);
+    c.drawFilledRect(Vector2i(0),Vector2i(size.x,props.borderWidth),
+        props.border);
+    c.drawFilledRect(Vector2i(0,size.y-props.borderWidth),
+        Vector2i(size.x,props.borderWidth),props.border);
+    c.endDraw();
+    Texture texMiddle = surfMiddle.createTexture();
+
+
+    void drawSideTex(Surface s, bool right) {
+        auto c = s.startDraw();
+        int xs = right?s.size.x-props.borderWidth:0;
+        c.drawFilledRect(Vector2i(0),s.size,props.back);
+        c.drawFilledRect(Vector2i(xs, s.size.x),Vector2i(xs+props.borderWidth,
+            s.size.y-s.size.x), props.border);
+
+        bool onCircle(Vector2f p, Vector2f c, float w, float r) {
+            float dist = (c-p).length;
+            if (dist < r+w/2.0f && dist > r-w/2.0f)
+                return true;
+            return false;
+        }
+
+        const float cSamples = 1.0f;
+
+        void drawCircle(Vector2i offs, Vector2i c, int w) {
+            void* pixels;
+            uint pitch;
+            s.lockPixelsRGBA32(pixels, pitch);
+
+            float colBuf;
+            for (int y = 0; y < w; y++) {
+                uint* line = cast(uint*)(pixels+pitch*(y+offs.y));
+                line += offs.x;
+                for (int x = 0; x < w; x++) {
+                    colBuf = 0;
+                    if (onCircle(Vector2f(x,y),toVector2f(c),props.borderWidth,
+                        w-1))
+                    {
+                        colBuf += 1.0f;
+                    }
+                    *line = colorToRGBA32(props.border*(colBuf/cSamples));
+                    line++;
+                }
+            }
+            s.unlockPixels();
+        }
+
+        xs = right?0:s.size.x;
+        drawCircle(Vector2i(0), Vector2i(xs,s.size.x), s.size.x);
+        drawCircle(Vector2i(0,s.size.y-s.size.x), Vector2i(xs,0), s.size.x);
+
+        c.endDraw();
+    }
+
+    int sidew = min(10,props.height/2);
+    size = Vector2i(sidew,props.height);
+
+    //left texture
+    auto surfLeft = globals.framework.createSurface(size,
+        DisplayFormat.Screen, Transparency.None);
+    drawSideTex(surfLeft, false);
+    Texture texLeft = surfLeft.createTexture();
+
+    //right texture
+    auto surfRight = globals.framework.createSurface(size,
+        DisplayFormat.Screen, Transparency.None);
+    drawSideTex(surfRight, true);
+    Texture texRight = surfRight.createTexture();
+
+
+
+    /*c.drawFilledRect(Vector2i(0, radius), Vector2i(1, size.y-radius), border);
     c.drawFilledRect(Vector2i(size.x-1, radius),
         Vector2i(size.x, size.y-radius), border);
     circle(radius, radius, radius,
@@ -134,8 +228,9 @@ Texture getBox(Vector2i size, Color border, Color back) {
             c.drawFilledRect(p2, p2+Vector2i(1), border);
         }
     );
-    c.endDraw();
-    boxes[box] = surface.createTexture();
-    return boxes[box];
+    c.endDraw();*/
+
+    boxes[props] = BoxTex(texLeft, texMiddle, texRight);
+    return boxes[props];
 }
-+/
+
