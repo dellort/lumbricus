@@ -29,6 +29,7 @@ debug import std.perf;
 
 public alias Vector2f Point;
 
+/+
 //cf. generator.d
 public class LevelRenderer {
     public abstract void addPolygon(Point[] points, uint[] nosubdiv, bool visible,
@@ -38,8 +39,9 @@ public class LevelRenderer {
     public abstract void drawBitmap(Vector2i p, Surface source, Vector2i size,
         Lexel before, Lexel after);
 }
++/
 
-package class LevelBitmap : LevelRenderer {
+package class LevelBitmap /+ : LevelRenderer +/ {
     private uint mWidth, mHeight;
     private Surface mImage;
     private Surface mBackImage;
@@ -92,8 +94,9 @@ package class LevelBitmap : LevelRenderer {
     //  "interpolated" (they won't be changed)
     //"texture" is used to fill the new polygon, if it is null, make all pixels
     //  covered by the polygon transparent
-    public void addPolygon(Point[] points, uint[] nosubdiv, bool visible,
-        Point texture_offset, Surface texture, Lexel marker)
+    //historical note: points was changed from Vector2f
+    public void addPolygon(Vector2i[] points, uint[] nosubdiv, bool visible,
+        Vector2i texture_offset, Surface texture, Lexel marker)
     {
         if (!visible)
             return;
@@ -101,9 +104,9 @@ package class LevelBitmap : LevelRenderer {
         VertexList vertices = new VertexList(Vertex.getListNodeOffset());
 
         uint curindex = 0;
-        foreach(Point p; points) {
+        foreach(Vector2i p; points) {
             Vertex* v = new Vertex();
-            v.pt = p;
+            v.pt = toVector2f(p);
             //obviously, nosubdiv should be small
             foreach(uint index; nosubdiv) {
                 if (index == curindex)
@@ -141,8 +144,8 @@ package class LevelBitmap : LevelRenderer {
             tex_pitch = 4;
         }
 
-        int tex_offset_x = cast(int)(texture_offset.x);
-        int tex_offset_y = cast(int)(texture_offset.y);
+        int tex_offset_x = texture_offset.x;
+        int tex_offset_y = texture_offset.y;
 
         void* dstptr; uint dstpitch;
         mImage.lockPixelsRGBA32(dstptr, dstpitch);
@@ -560,6 +563,7 @@ package class LevelBitmap : LevelRenderer {
 
     //copy the level bitmap, per-pixel-metadata, background image and damage-
     //bordercolor from level
+    //xxx this is a hack worth to be killed
     public this(Level level) {
         mImage = level.image.clone();
         auto fmt = getFramework.findPixelFormat(DisplayFormat.RGBA32);
@@ -584,8 +588,15 @@ package class LevelBitmap : LevelRenderer {
         }
     }
 
-    public Level createLevel() {
-        auto img = mImage.clone();
+    //create using the bitmap and pixel data
+    public Level createLevel(bool release_surface) {
+        Surface img;
+        if (release_surface) {
+            img = mImage;
+            mImage = null;
+        } else {
+            img = mImage.clone();
+        }
 
         Level level = new Level(img.size, img);
         level.data[] = mLevelData; //? this is evil!

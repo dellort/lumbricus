@@ -400,8 +400,8 @@ private class WormNameDrawer : SceneObject {
                 //canvas.draw(b, pos-border);
                 //if (mController.mEngine.enableSpiffyGui)
 
-                //    drawBox(canvas, pos-border, tsz+border*2);
-                //font.drawText(canvas, pos, text);
+                    drawBox(canvas, pos-border, tsz+border*2);
+                font.drawText(canvas, pos, text);
             }
         }
     }

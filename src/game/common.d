@@ -6,6 +6,7 @@ import utils.configfile;
 import utils.log, utils.output;
 import framework.i18n;
 import game.resources;
+import std.stream;
 
 public Common globals;
 
@@ -117,5 +118,16 @@ class Common {
             assert(mLogConf !is null);
         }
         mLogConf("%s", log);
+    }
+}
+
+//arrgh
+void saveConfig(ConfigNode node, char[] filename) {
+    auto stream = gFramework.fs.open(filename, FileMode.OutNew);
+    try {
+        auto textstream = new StreamOutput(stream);
+        node.writeFile(textstream);
+    } finally {
+        stream.close();
     }
 }

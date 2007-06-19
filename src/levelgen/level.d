@@ -93,3 +93,77 @@ public class Level {
         return mBorderColor;
     }
 }
+
+//helpers
+package:
+
+import conv = std.conv;
+import str = std.string;
+
+Lexel parseMarker(char[] value) {
+    static char[][] marker_strings = ["FREE", "LAND", "SOLID_LAND"];
+    static Lexel[] marker_values = [Lexel.Null, Lexel.SolidSoft,
+        Lexel.SolidHard];
+    for (uint i = 0; i < marker_strings.length; i++) {
+        if (str.icmp(value, marker_strings[i]) == 0) {
+            return marker_values[i];
+        }
+    }
+    //else explode
+    throw new Exception("invalid marker value in configfile: " ~ value);
+}
+
+Vector2i readVector(char[] s) {
+    char[][] items = str.split(s);
+    if (items.length != 2) {
+        throw new Exception("invalid point value");
+    }
+    Vector2i pt;
+    pt.x = conv.toInt(items[0]);
+    pt.y = conv.toInt(items[1]);
+    return pt;
+}
+
+//some of this stuff maybe should be moved into configfile.d
+//practically a map over ConfigNode *g*
+ T[] readList(T)(ConfigNode node, T delegate(char[] item) translate) {
+    T[] res;
+    //(the name isn't needed (and should be empty))
+    foreach(char[] name, char[] value; node) {
+        T item = translate(value);
+        res ~= item;
+    }
+    return res;
+}
+
+Vector2i[] readPointList(ConfigNode node) {
+    return readList!(Vector2i)(node, (char[] item) {
+        //a bit inefficient, but that doesn't matter
+        //(as long as nobody puts complete vector graphics there...)
+        // ^ update: yes we do! generated levels...
+        return readVector(item);
+    });
+}
+uint[] readUIntList(ConfigNode node) {
+    return readList!(uint)(node, (char[] item) {
+        return conv.toUint(item);
+    });
+}
+
+void writeList(T)(ConfigNode to, T[] stuff, char[] delegate(T item) translate) {
+    to.clear();
+    foreach(T s; stuff) {
+        to.setStringValue("", translate(s));
+    }
+}
+
+void writePointList(ConfigNode node, Vector2i[] stuff) {
+    writeList!(Vector2i)(node, stuff, (Vector2i item) {
+        return str.format("%s %s", item.x, item.y);
+    });
+}
+void writeUIntList(ConfigNode node, uint[] stuff) {
+    writeList!(uint)(node, stuff, (uint item) {
+        return str.toString(item);
+    });
+}

@@ -344,6 +344,11 @@ public class ConfigNode : ConfigItem {
         return findNode("", true);
     }
 
+    //number of nodes and values
+    int count() {
+        return mItems.length;
+    }
+
     /// Access a value by name, return 'default' if it doesn't exist.
     public char[] getStringValue(char[] name, char[] def = "") {
         ConfigValue value = findValue(name);

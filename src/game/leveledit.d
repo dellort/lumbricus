@@ -9,6 +9,7 @@ import framework.keysyms;
 import game.scene;
 import game.common;
 import utils.log;
+import utils.configfile;
 import levelgen.level;
 import levelgen.generator;
 import std.string : format;

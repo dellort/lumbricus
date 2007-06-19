@@ -460,8 +460,17 @@ class TopLevel {
     private void cmdGenerateLevel(CommandLine cmd) {
         auto x = new genlevel.LevelGenerator();
         x.config = globals.loadConfig("levelgen").getSubNode("levelgen");
+        char[] arg0 = cmd?cmd.getArgString():"";
         GameConfig cfg;
-        cfg.level = x.generateRandom(cmd?cmd.getArgString():"", mGfxSet);
+        if (true == false) {
+            genlevel.LevelTemplate templ = x.findRandomTemplate(arg0);
+            genlevel.LevelTheme gfx = x.findGfx(mGfxSet);
+            ConfigNode saveto = new ConfigNode();
+            cfg.level = x.renderLevel(templ, gfx, saveto);
+            saveConfig(saveto, "bestlevelevar.conf");
+        } else {
+            cfg.level = x.renderSavedLevel(globals.loadConfig("bestlevelevar"));
+        }
         auto teamconf = globals.loadConfig("teams");
         cfg.teams = teamconf.getSubNode("teams");
         cfg.weapons = teamconf.getSubNode("weapon_sets");
