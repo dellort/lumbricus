@@ -233,7 +233,7 @@ enum Keycode {
     POWER,
     EURO,
     UNDO,
-    
+
     //keep in sync with cKeycodeMouseStart and cKeycodeMouseEnd
     MOUSE_LEFT,
     MOUSE_MIDDLE,

@@ -35,9 +35,9 @@ public template ListNodeMixin() {
         return t;
     }
 
-    public void removeFromList() {
-        __uglify_listnode.owner.remove(this);
-    }
+    //public void removeFromList() {
+    //    __uglify_listnode.owner.remove(this);
+    //}
 }
 
 /// Doubly linked list, see unittest on how to use it.
