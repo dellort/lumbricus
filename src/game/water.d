@@ -11,6 +11,7 @@ import utils.misc;
 import utils.time;
 import utils.vector2;
 import utils.configfile;
+import utils.random;
 
 class WaterDrawer : SceneObject {
     protected Color mWaterColor;

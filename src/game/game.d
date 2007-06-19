@@ -17,6 +17,7 @@ import utils.time;
 import utils.log;
 import utils.configfile;
 import utils.misc;
+import utils.random;
 import framework.framework;
 import framework.keysyms;
 import std.math;

@@ -9,6 +9,7 @@ import game.visual;
 import gui.guiobject;
 import utils.misc;
 import utils.time;
+import utils.queue;
 
 private class MessageViewer : GuiObject {
     private Queue!(char[]) mMessages;

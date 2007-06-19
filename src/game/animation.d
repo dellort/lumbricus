@@ -631,3 +631,12 @@ private AnimationData loadOldAnimation(ConfigNode node) {
     section.frameCount = node.getIntValue("frames");
     return data;
 }
+
+//return distance of two angles in radians
+float angleDistance(float a, float b) {
+    auto r = math.abs(realmod(a, math.PI*2) - realmod(b, math.PI*2));
+    if (r > math.PI) {
+        r = math.PI*2 - r;
+    }
+    return r;
+}

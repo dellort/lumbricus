@@ -14,6 +14,7 @@
 				<Option parameters="logconsole" />
 				<Option projectResourceIncludeDirsRelation="0" />
 				<Compiler>
+					<Add option="-unittest" />
 					<Add option="-g" />
 					<Add option="-debug" />
 				</Compiler>
@@ -94,11 +95,14 @@
 		<Unit filename="net\netlayer.d" />
 		<Unit filename="utils\configfile.d" />
 		<Unit filename="utils\drawing.d" />
+		<Unit filename="utils\factory.d" />
 		<Unit filename="utils\log.d" />
 		<Unit filename="utils\math.d" />
 		<Unit filename="utils\misc.d" />
 		<Unit filename="utils\mylist.d" />
 		<Unit filename="utils\output.d" />
+		<Unit filename="utils\queue.d" />
+		<Unit filename="utils\random.d" />
 		<Unit filename="utils\rect2.d" />
 		<Unit filename="utils\time.d" />
 		<Unit filename="utils\vector2.d" />

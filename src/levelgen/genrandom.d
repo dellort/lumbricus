@@ -7,7 +7,7 @@ import utils.mylist;
 import utils.math : lineIntersect;
 import framework = framework.framework : Color;
 import std.math : PI;
-import rand = std.random;
+import utils.random;
 import utils.configfile : ConfigNode;
 import str = std.string;
 
@@ -389,27 +389,6 @@ private:
 
     uint mWidth, mHeight;
 
-    //config items
-
-    //[0.0f, 1.0f]
-    float random() {
-        //xxx don't know RAND_MAX, this is numerically stupid anyway
-        return cast(float)(rand.rand()) / typeof(rand.rand()).max;
-    }
-
-    //-1.0f..1.0f
-    float random2() {
-        return (random()-0.5f)*2.0f;
-    }
-
-    //[from, to)
-    int random(int from, int to) {
-        return rand.rand() % (to-from) + from;
-    }
-
-    //doWormsify(inout SegmentRange at, float from_ratio, float to_ratio,
-    //    float dir, float fdir, float frontlen, float maxlen, float minlen)
-
     //completely unsophisticated again-and-again random wormsify
     //of course needs to be fixed
     void naiveRandomWormsify(Group group) {
@@ -432,6 +411,7 @@ private:
         }
     }
 
+    //completely utterly pointless mindless fuzzifier
     void fuzzyRandomWormsify(Group group, uint depth) {
         if (!group.segments.hasAtLeast(2))
             return;

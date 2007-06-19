@@ -64,7 +64,6 @@
 		<Unit filename="framework\sdl\keys.d" />
 		<Unit filename="framework\sdl\rwops.d" />
 		<Unit filename="game\animation.d" />
-		<Unit filename="game\baseengine.d" />
 		<Unit filename="game\clientengine.d" />
 		<Unit filename="game\common.d" />
 		<Unit filename="game\controller.d" />
@@ -102,11 +101,14 @@
 		<Unit filename="lumbricus.d" />
 		<Unit filename="utils\configfile.d" />
 		<Unit filename="utils\drawing.d" />
+		<Unit filename="utils\factory.d" />
 		<Unit filename="utils\log.d" />
 		<Unit filename="utils\math.d" />
 		<Unit filename="utils\misc.d" />
 		<Unit filename="utils\mylist.d" />
 		<Unit filename="utils\output.d" />
+		<Unit filename="utils\queue.d" />
+		<Unit filename="utils\random.d" />
 		<Unit filename="utils\rect2.d" />
 		<Unit filename="utils\time.d" />
 		<Unit filename="utils\vector2.d" />

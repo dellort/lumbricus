@@ -11,6 +11,7 @@ import utils.misc;
 import utils.time;
 import utils.vector2;
 import utils.configfile;
+import utils.random;
 
 class SkyDrawer : SceneObject {
     private GameSky mParent;
@@ -123,7 +124,8 @@ class GameSky {
                 ci.anim = new Animator();
                 ci.anim.setAnimation(mCloudAnims[nAnim]);
                 ci.anim.setScene(target, GameZOrder.Objects);
-                ci.anim.pos.y = skyOffset - mCloudAnims[nAnim].size.y/2 + randRange(-cCloudHeightRange/2,cCloudHeightRange/2);
+                ci.anim.pos.y = skyOffset - mCloudAnims[nAnim].size.y/2
+                    + randRange(-cCloudHeightRange/2,cCloudHeightRange/2);
                 ci.x = randRange(-mCloudAnims[nAnim].size.x, target.size.x);
                 ci.anim.pos.x = cast(int)ci.x;
                 //xxx ci.anim.setFrame(randRange(0u,mCloudAnims[nAnim].frameCount));

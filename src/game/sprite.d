@@ -12,6 +12,7 @@ import utils.misc;
 import utils.log;
 import std.math : abs, PI;
 import cmath = std.c.math;
+import utils.factory;
 
 //factory to instantiate sprite classes, this is a small wtf
 package Factory!(GOSpriteClass, GameEngine, char[]) gSpriteClassFactory;

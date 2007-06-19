@@ -13,6 +13,8 @@ import utils.mylist;
 import utils.time;
 import utils.configfile;
 import utils.log;
+import utils.random;
+import utils.factory;
 
 static this() {
     gWeaponClassFactory.register!(ProjectileWeapon)("projectile_mc");
