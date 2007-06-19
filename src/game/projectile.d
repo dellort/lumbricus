@@ -7,6 +7,7 @@ import game.game;
 import game.gobject;
 import game.sprite;
 import game.weapon;
+import game.resources;
 import utils.misc;
 import utils.vector2;
 import utils.mylist;
@@ -50,7 +51,8 @@ private class ProjectileWeapon : WeaponClass {
             auto st = spriteclass.initState;
 
             loadPOSPFromConfig(pr.getSubNode("physics"), st.physic_properties);
-            st.animation = globals.resources.anims(pr["animation"]);
+            st.animation = globals.resources.resource!(AnimationResource)
+                (pr.getPathValue("animation"));
 
             //allow non-ProjectileSpriteClass objects, why not
             auto pclass = cast(ProjectileSpriteClass)spriteclass;

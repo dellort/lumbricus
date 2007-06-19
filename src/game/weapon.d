@@ -92,7 +92,8 @@ abstract class WeaponClass {
         foreach (int i, char[] name; cWWA2Str) {
             auto val = anis.findValue(name);
             if (val) {
-                animations[i] = globals.resources.anims(val.value);
+                animations[i] = globals.resources.resource!(AnimationResource)
+                    (val.parent.getPathValue(val.name));  //argh
             }
         }
     }

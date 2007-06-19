@@ -4,6 +4,7 @@ import framework.commandline;
 import utils.time;
 import utils.configfile;
 import utils.log, utils.output;
+import utils.misc;
 import framework.i18n;
 import game.resources;
 import std.stream;
@@ -102,7 +103,7 @@ class Common {
     }
 
     ConfigNode loadConfig(char[] section) {
-        char[] file = section ~ ".conf";
+        char[] file = fixRelativePath(section ~ ".conf");
         log("load config: %s", file);
         auto s = framework.fs.open(file);
         auto f = new ConfigFile(s, file, &logconf);

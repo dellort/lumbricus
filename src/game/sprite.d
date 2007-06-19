@@ -349,7 +349,7 @@ class GOSpriteClass {
         POSP[char[]] posps;
 
         //load animation config files
-        globals.resources.loadAnimations(config.find("require_animations"));
+        globals.resources.loadResources(config.find("require_resources"));
 
         //load collision map
         engine.loadCollisions(config.getSubNode("collisions"));
@@ -378,7 +378,10 @@ class GOSpriteClass {
 
             ssi.noleave = sc.getBoolValue("noleave", false);
 
-            ssi.animation = globals.resources.animsMaybe(sc["animation"]);
+            if (sc["animation"].length > 0) {
+                ssi.animation = globals.resources.resource!(AnimationResource)
+                    (sc.getPathValue("animation"));
+            }
 
             if (!ssi.animation) {
                 engine.mLog("no animation for state '%s'", ssi.name);

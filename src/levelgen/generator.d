@@ -131,7 +131,8 @@ public class LevelTheme {
         Surface tex;
         char[] tex_name = texNode.getStringValue("texture");
         if (tex_name.length > 0) {
-            tex = readTexture(mGfxPath ~ tex_name, false);
+            tex = globals.resources.resource!(BitmapResource)
+                (texNode.getPathValue("texture")).get();
         } else {
             //sucky color-border hack
             int height = texNode.getIntValue("height", 1);
@@ -153,9 +154,8 @@ public class LevelTheme {
             if (accept_null)
                 return null;
         } else {
-            Stream s = gFramework.fs.open(mGfxPath ~ texFile);
-            res = getFramework.loadImage(s, Transparency.Colorkey);
-            s.close();
+            res = globals.resources.resource!(BitmapResource)
+                (gfxTexNode.getPathValue(markerId)).get();
         }
         if (res is null) {
             throw new Exception("couldn't load texture for marker: "~markerId);
@@ -164,9 +164,9 @@ public class LevelTheme {
     }
 
     this(ConfigNode gfxNode) {
+        globals.resources.loadResources(gfxNode);
         gfxTexNode = gfxNode.getSubNode("marker_textures");
         name = gfxNode["name"];
-        mGfxPath = gfxNode["gfxpath"];
 
         //the least important part is the longest
         ConfigNode cborders = gfxNode.getSubNode("borders");
@@ -207,33 +207,36 @@ public class LevelTheme {
         bridge[2] = placer.createObject(readTexture(gfxPath ~
             bridgeNode.getStringValue("right"), false));
         placer.placeBridges(10,10, bridge);*/
-        bridge[0] = readTexture(mGfxPath ~
-            bridgeNode.getStringValue("segment"), false);
-        bridge[1] = readTexture(mGfxPath ~
-            bridgeNode.getStringValue("left"), false);
-        bridge[2] = readTexture(mGfxPath ~
-            bridgeNode.getStringValue("right"), false);
+        bridge[0] = globals.resources.resource!(BitmapResource)
+            (bridgeNode.getPathValue("segment")).get();
+        bridge[1] = globals.resources.resource!(BitmapResource)
+            (bridgeNode.getPathValue("left")).get();
+        bridge[2] = globals.resources.resource!(BitmapResource)
+            (bridgeNode.getPathValue("right")).get();
 
         ConfigNode objectsNode = gfxNode.getSubNode("objects");
         foreach (char[] id, ConfigNode onode; objectsNode) {
-            objects ~= readTexture(mGfxPath ~ onode.getStringValue("image"), false);
+            objects ~= globals.resources.resource!(BitmapResource)
+            (onode.getPathValue("image")).get();
         }
 
         ConfigNode skyNode = gfxNode.getSubNode("sky");
-        char[] skyGradientTex = skyNode.getStringValue("gradient");
+        char[] skyGradientTex = skyNode.getPathValue("gradient");
         if (skyGradientTex.length > 0)
-            skyGradient = readTexture(mGfxPath ~ skyGradientTex, true);
+            skyGradient = globals.resources.resource!(BitmapResource)
+                (skyGradientTex).get();
         parseColor(skyNode.getStringValue("skycolor"),skyColor);
-        char[] skyBackTex = skyNode.getStringValue("backdrop");
+        char[] skyBackTex = skyNode.getPathValue("backdrop");
         if (skyBackTex.length > 0)
-            skyBackdrop = readTexture(mGfxPath ~ skyBackTex, true);
-        if (skyNode.exists("debris"))
-            skyDebris =
-                globals.resources.createAnimation(skyNode.getSubNode("debris"),
-                mGfxPath~"debris",mGfxPath);
+            skyBackdrop = globals.resources.resource!(BitmapResource)
+                (skyBackTex).get();
+        if (skyNode.exists("debris")) {
+            skyDebris = globals.resources.resource!(AnimationResource)
+                (skyNode.getPathValue("debris"));
+        }
 
-        backImage = readTexture(mGfxPath ~ gfxNode.getStringValue("soil_tex"),
-            true);
+        backImage = globals.resources.resource!(BitmapResource)
+            (gfxNode.getPathValue("soil_tex")).get();
         parseColor(gfxNode.getStringValue("bordercolor"),
             borderColor);
 

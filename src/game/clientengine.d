@@ -118,11 +118,16 @@ class ClientGameEngine : GameObject /+ temporary hack *g* +/ {
         mScene = new Scene();
         mScene.size = worldSize;
 
-        globals.resources.loadAnimations(globals.loadConfig("teamanims"));
+        ConfigNode taCfg = globals.loadConfig("teamanims");
+        globals.resources.loadResources(taCfg);
         mTeamAnims.length = cTeamColors.length;
         foreach (int n, char[] color; cTeamColors) {
-            mTeamAnims[n].arrow = globals.resources.anims("darrow_" ~ color);
-            mTeamAnims[n].pointed = globals.resources.anims("pointed_" ~ color);
+            ConfigNode colsNode = taCfg.getSubNode("darrow");
+            mTeamAnims[n].arrow = globals.resources.resource!(AnimationResource)
+                (colsNode.getPathValue(color));
+            colsNode = taCfg.getSubNode("pointed");
+            mTeamAnims[n].pointed = globals.resources.resource!
+                (AnimationResource)(colsNode.getPathValue(color));
         }
 
         mGameWater = new GameWater(this, mScene, "blue");

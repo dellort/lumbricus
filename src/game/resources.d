@@ -1,11 +1,15 @@
 module game.resources;
 
 import framework.framework;
+import framework.filesystem;
 import game.common;
+import game.animation;
 import str = std.string;
 import utils.configfile;
 import utils.log;
 import utils.output;
+import utils.misc;
+import utils.factory;
 
 ///base template for any resource that is held ready for being loaded
 ///resources are loaded on the first call to get(), not when loading them from
@@ -24,10 +28,13 @@ protected class Resource(T) {
     private T mContents;
     private bool mValid = false;
     private Resources mParent;
+    private ConfigItem mConfig;
 
-    package this(Resources parent, char[] id) {
+    package this(Resources parent, char[] id, ConfigItem item)
+    {
         mParent = parent;
         this.id = id;
+        mConfig = item;
     }
 
     ///get the contents of this resource
@@ -68,129 +75,95 @@ protected class Resource(T) {
     }
 }
 
-alias Resource!(Surface) BitmapResource;
-
-//import here to not to have forward reference to BitmapResource in animation.d!
-import game.animation;
-alias Resource!(Animation) AnimationResource;
-
 ///the resource manager
 ///currently manages:
 ///  - bitmap (Surface)
 ///  - animations (Animation)
 public class Resources {
-    private AnimationResource[char[]] mAnimations;
-    private BitmapResource[char[]] mBitmaps;
+    private Object[char[]] mResources;
     private Log log;
     private bool[char[]] mLoadedAnimationConfigFiles;
+    private bool[char[]] mResourceRefs;
 
     this() {
         log = registerLog("Res");
         //log.setBackend(DevNullOutput.output, "null");
     }
 
-    ///create new animation resource from a ConfigNode containing animation
-    ///infos
-    ///store resource at id for later use
-    public AnimationResource createAnimation(ConfigNode node, char[] id,
-        char[] relPath = "", bool allowFail = false)
+    private void createResource(char[] type, ConfigItem it,
+        bool allowFail = false, char[] id = "")
     {
-        assert(id != "","createAnimation with empty id");
-        if (id in mAnimations) {
-            //animation has already been loaded
-            return anims(id, allowFail);
+        ConfigNode n = cast(ConfigNode)it;
+        if (!n)
+            n = it.parent;
+        if (id.length == 0)
+            id = n.filePath~it.name;
+        if (!(id in mResources)) {
+            log("Create(%s): %s",type,id);
+            Object r = ResFactory.instantiate(type,this,id,it);
+            mResources[id] = r;
         }
-        //haha
-        ConfigNode animData = node;
-        AnimationResource r = new AnimationResourceImpl(this,id,relPath,
-            animData);
-        mAnimations[id] = r;
-        return r;
     }
 
-    //cutnpaste from above
-    public BitmapResource createProcessedBitmap(char[] sourceId,
-        char[] id, bool mirroredY, bool allowFail = false)
+    ///hacky: create a resource from a plain filename (only for resources
+    ///supporting it, currently just BitmapResource)
+    ///id will be the filename
+    public T createResourceFromFile(T)(char[] filename,
+        bool allowFail = false)
     {
-        assert(id != "","createProcessedBitmap with empty id");
-        if (id in mBitmaps) {
-            return bitmaps(id, allowFail);
+        char[] id = filename;
+        if (!(id in mResources)) {
+            ConfigValue v = new ConfigValue;
+            v.value = filename;
+            Object r = new T(this,id,v);
+            mResources[id] = r;
         }
-        BitmapResource r = new BitmapResourceProcessed(this, id, sourceId,
-            mirroredY);
-        mBitmaps[id] = r;
-        return r;
+        return resource!(T)(id,allowFail);
     }
 
-    ///retrieve an animation resource by id
-    public AnimationResource anims(char[] id, bool allowFail = false) {
-        assert(id != "","anims with empty id");
-        AnimationResource* r = id in mAnimations;
+    ///get a reference to a resource by its id
+    public T resource(T)(char[] id, bool allowFail = false) {
+        assert(id != "","resource with empty id");
+        Object* r = id in mResources;
         if (!r) {
-            char[] errMsg = "Animation "~id~" not loaded";
+            char[] errMsg = "Resource "~id~" not defined";
             log(errMsg);
             if (!allowFail)
                 throw new ResourceException(errMsg);
             return null;
-        } else {
-            return *r;
         }
-    }
-
-    public AnimationResource animsMaybe(char[] id) {
-        if (!id.length)
-            return null;
-        return anims(id);
-    }
-
-    ///create new bitmap resource from a graphics file
-    ///store resource at id for later use
-    public BitmapResource createBitmap(char[] imgPath, char[] id,
-        char[] relPath = "", bool allowFail = false)
-    {
-        assert(id != "","createBitmap with empty id");
-        if (id in mBitmaps) {
-            //animation has already been loaded
-            return bitmaps(id, allowFail);
-        }
-        BitmapResource r = new BitmapResourceImpl(this,id,relPath,
-            imgPath);
-        mBitmaps[id] = r;
-        return r;
-    }
-
-    ///retrieve a bitmap resource by id
-    public BitmapResource bitmaps(char[] id, bool allowFail = false) {
-        assert(id != "","bitmaps with empty id");
-        BitmapResource* r = id in mBitmaps;
-        if (!r) {
-            char[] errMsg = "Bitmap "~id~" not loaded";
+        T ret = cast(T)*r;
+        if (!ret) {
+            char[] errMsg = "Resource "~id~" is not of type "~T.stringof;
             log(errMsg);
             if (!allowFail)
                 throw new ResourceException(errMsg);
             return null;
-        } else {
-            return *r;
         }
+        mResourceRefs[ret.id] = true;
+        return ret;
     }
 
     ///preload all cached resources from disk
     ///Attention: this will load really ALL resources, not just needed ones
     //xxx add progress callback
     public void preloadAll() {
-        foreach (aniRes; mAnimations) {
+        foreach (char[] id, bool tmp; mResourceRefs) {
+            std.stdio.writefln("Ref: %s",id);
+        }
+        /*foreach (aniRes; mAnimations) {
             aniRes.get();
         }
         foreach (bmpRes; mBitmaps) {
             bmpRes.get();
-        }
+        }*/
     }
 
     //load animations as requested in "item"
     //currently, item shall be a ConfigValue which contains the configfile name
     //note that this name shouldn't contain a ".conf", argh.
     //also can be an animation configfile directly
-    void loadAnimations(ConfigItem item) {
+    void loadResources(ConfigItem item) {
         if (!item)
             return;
 
@@ -208,7 +181,7 @@ public class Resources {
 
                 mLoadedAnimationConfigFiles[file] = true;
                 cfg = globals.loadConfig(file);
-                loadAnimations(cfg);
+                loadResources(cfg);
             }
             return;
         } else if (cast(ConfigNode)item) {
@@ -219,45 +192,54 @@ public class Resources {
 
         assert(cfg !is null);
 
-        auto load_further = cfg.find("require_animations");
+        auto load_further = cfg.find("require_resources");
         if (load_further !is null) {
             //xxx: should try to prevent possible recursion
-            loadAnimations(load_further);
+            loadResources(load_further);
         }
 
         //load new introduced animations (not really load them themselves...)
-        foreach (char[] name, ConfigNode node; cfg.getSubNode("animations")) {
-            createAnimation(node, name, "", true);
+        foreach (char[] resType, ConfigNode resNode;
+            cfg.getSubNode("resources"))
+        {
+            foreach (char[] name, ConfigNode node; resNode) {
+                createResource(resType, node, true);
+            }
+            foreach (ConfigValue v; resNode) {
+                createResource(resType, v, true);
+            }
         }
 
         //add aliases
-        foreach (char[] name, char[] value;
-            cfg.getSubNode("animation_aliases"))
+        ConfigNode aliasNode = cfg.getSubNode("resource_aliases");
+        foreach (char[] name; aliasNode)
         {
-            AnimationResource aliased = anims(value, true);
+            char[] value = aliasNode.getPathValue(name);
+            Object* aliased = value in mResources;
             if (!aliased) {
                 log("WARNING: alias '%s' not found", value);
                 continue;
             }
-            if (anims(name, true)) {
-                char[] errMsg = "WARNING: alias target '"~name~"' already exists";
+            if (name in mResources) {
+                char[] errMsg = "WARNING: alias target '"~name
+                    ~"' already exists";
                 log(errMsg);
                 continue;
             }
-            mAnimations[name] = aliased;
+            //std.stdio.writefln("Alias: %s -> %s",aliasNode.filePath
+            //    ~ name,value);
+            mResources[aliasNode.filePath ~ name] = *aliased;
         }
     }
 }
 
 ///Resource class that holds an animation loaded from a config node
-protected class AnimationResourceImpl : AnimationResource {
-    private ConfigNode mAnimData;
-    protected char[] mRelativePath;
+protected class AnimationResource : Resource!(Animation) {
+    private ProcessedAnimationData mAniData;
 
-    this(Resources parent, char[] id, char[] relPath, ConfigNode animData) {
-        super(parent, id);
-        mRelativePath = relPath;
-        mAnimData = animData;
+    this(Resources parent, char[] id, ConfigItem item) {
+        super(parent, id, item);
+        mAniData = parseAnimation(cast(ConfigNode)item);
     }
 
     protected void load() {
@@ -266,43 +248,61 @@ protected class AnimationResourceImpl : AnimationResource {
         //NOTE: creating an animation shouldn't cost too much
         //  Animation now loads bitmaps lazily
         //  (it uses BitmapResource and BitmapResourceProcessed)
-        mContents = loadAnimation(mAnimData);
+        mContents = loadAnimation(mAniData);
+    }
+
+    static this() {
+        ResFactory.register!(typeof(this))("animations");
     }
 }
 
 protected class BitmapResourceProcessed : BitmapResource {
-    private bool mMirroredY;
-    private char[] mSourceId;
-
-    this(Resources parent, char[] id, char[] sourceId,
-        bool mirroredY)
+    char[] mSrcId;
+    this(Resources parent, char[] id, ConfigItem item)
     {
-        super(parent, id);
-        mMirroredY = mirroredY;
-        mSourceId = sourceId;
+        super(parent, id, item);
+        mSrcId = (cast(ConfigNode)item).getStringValue("id");
+        assert(mSrcId != id);
     }
 
     protected void load() {
-        BitmapResource src = mParent.bitmaps(mSourceId);
-        if (mMirroredY) {
-            mContents = src.get().createMirroredY();
-        }
+        BitmapResource src = mParent.resource!(BitmapResource)(mSrcId);
+        mContents = src.get().createMirroredY();
+    }
+
+    static this() {
+        ResFactory.register!(typeof(this))("bitmaps_processed");
     }
 }
 
 ///Resource class for bitmaps
-protected class BitmapResourceImpl : BitmapResource {
-    protected char[] mRelativePath;
-    protected char[] mGraphicFile;
-
-    this(Resources parent, char[] id, char[] relPath, char[] graphicFile) {
-        super(parent, id);
-        mRelativePath = relPath;
-        mGraphicFile = graphicFile;
+protected class BitmapResource : Resource!(Surface) {
+    this(Resources parent, char[] id, ConfigItem item) {
+        super(parent, id, item);
     }
 
     protected void load() {
-        mContents = globals.loadGraphic(mGraphicFile);
+        ConfigValue val = cast(ConfigValue)mConfig;
+        assert(val !is null);
+        char[] fn;
+        if (mConfig.parent)
+            fn = val.parent.getPathValue(val.name);
+        else
+            fn = val.value;
+        mContents = globals.loadGraphic(fn);
+    }
+
+    BitmapResource createMirror() {
+        //xxx hack to pass parameters to BitmapResourceProcessed
+        ConfigNode n = new ConfigNode();
+        char[] newid = id~"mirrored";
+        n.setStringValue("id",id);
+        mParent.createResource("bitmaps_processed",n,false,newid);
+        return mParent.resource!(BitmapResource)(newid);
+    }
+
+    static this() {
+        ResFactory.register!(typeof(this))("bitmaps");
     }
 }
 
@@ -310,4 +310,12 @@ class ResourceException : Exception {
     this(char[] msg) {
         super(msg);
     }
+}
+
+static class ResFactory : StaticFactory!(Object, Resources, char[], ConfigItem)
+{
+}
+
+static this() {
+    initAnimations();
 }

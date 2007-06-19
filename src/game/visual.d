@@ -107,7 +107,7 @@ BoxTex getBox(BoxProps props) {
     //middle texture
     Vector2i size = Vector2i(10,props.height);
     auto surfMiddle = globals.framework.createSurface(size,
-        DisplayFormat.Screen, Transparency.None);
+        DisplayFormat.Screen, Transparency.Alpha);
     auto c = surfMiddle.startDraw();
     c.drawFilledRect(Vector2i(0),size,props.back);
     c.drawFilledRect(Vector2i(0),Vector2i(size.x,props.borderWidth),

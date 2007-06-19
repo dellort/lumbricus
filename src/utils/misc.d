@@ -2,6 +2,7 @@ module utils.misc;
 
 import cmath = std.c.math;
 import math = std.math;
+import str = std.string;
 import intr = std.intrinsic;
 
 public T min(T)(T v1, T v2) {
@@ -92,3 +93,40 @@ int arraySearch(T)(T[] arr, T value, int def = -1) {
     }
     return def;
 }
+
+///Ensure leading slash, replace '\' by '/', remove trailing '/' and
+///remove double '/'
+///An empty path will be left untouched
+char[] fixRelativePath(char[] p) {
+    //replace '\' by '/'
+    p = str.replace(p,"\\","/");
+    //add leading /
+    if (p.length > 0 && p[0] != '/')
+        p = "/" ~ p;
+    //remove trailing /
+    if (p.length > 0 && p[$-1] == '/')
+        p = p[0..$-1];
+    //kill double /
+    //XXX todo: kill multiple /
+    p = str.replace(p,"//","/");
+    return p;
+}
+
+char[] getFilePath(char[] fullname)
+    out (result)
+    {
+	assert(result.length <= fullname.length);
+    }
+    body
+    {
+        uint i;
+
+        for (i = fullname.length; i > 0; i--)
+        {
+            if (fullname[i - 1] == '\\')
+                break;
+            if (fullname[i - 1] == '/')
+                break;
+        }
+        return fullname[0 .. i];
+    }

@@ -76,7 +76,9 @@ class GameWater {
 
     this(ClientGameEngine engine, Scene target, char[] waterType) {
         mEngine = engine;
-        ConfigNode waterNode = globals.loadConfig("water").getSubNode(waterType);
+        ConfigNode waterConf = globals.loadConfig("water");
+        globals.resources.loadResources(waterConf);
+        ConfigNode waterNode = waterConf.getSubNode(waterType);
         Color waterColor;
         parseColor(waterNode.getStringValue("color"),waterColor);
         mWaterDrawerFront1 = new WaterDrawerFront1(this, waterColor);
@@ -86,7 +88,8 @@ class GameWater {
         mWaterDrawerBack = new WaterDrawerBack(this, waterColor);
         mWaterDrawerBack.setScene(target, GameZOrder.BackWater);
         try {
-            mWaveAnim = globals.resources.createAnimation(waterNode.getSubNode("waves"),waterType~"_waves").get();
+            mWaveAnim = globals.resources.resource!(AnimationResource)
+                (waterNode.getPathValue("waves")).get();
             foreach (int i, inout a; mWaveAnimBack) {
                 a = new HorizontalFullsceneAnimator();
                 a.setAnimation(mWaveAnim);

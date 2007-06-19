@@ -265,24 +265,6 @@ class FileSystem {
         initPaths(arg0);
     }
 
-    ///Ensure leading slash, replace '\' by '/', remove trailing '/' and
-    ///remove double '/'
-    ///An empty path will be left untouched
-    protected static char[] fixRelativePath(char[] p) {
-        //replace '\' by '/'
-        p = str.replace(p,"\\","/");
-        //add leading /
-        if (p.length > 0 && p[0] != '/')
-            p = "/" ~ p;
-        //remove trailing /
-        if (p.length > 0 && p[$-1] == '/')
-            p = p[0..$-1];
-        //kill double /
-        //XXX todo: kill multiple /
-        p = str.replace(p,"//","/");
-        return p;
-    }
-
     ///Return path to application's executable file, with trailing '/'
     ///XXX test this on Linux
     protected char[] getAppPath(char[] arg0) {

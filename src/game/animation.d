@@ -16,10 +16,13 @@ import str = std.string;
 private alias AnimationData function(ConfigNode node) AnimationLoadHandler;
 private AnimationLoadHandler[char[]] gAnimationLoadHandlers;
 
-Animation loadAnimation(ConfigNode from) {
+ProcessedAnimationData parseAnimation(ConfigNode from) {
     auto name = from.getStringValue("handler", "old");
     assert(name in gAnimationLoadHandlers, "unknown animation load handler");
-    AnimationData data = gAnimationLoadHandlers[name](from);
+    return gAnimationLoadHandlers[name](from).preprocess();
+}
+
+Animation loadAnimation(ProcessedAnimationData data) {
     return new Animation(data);
 }
 
@@ -27,7 +30,7 @@ Animation loadAnimation(ConfigNode from) {
 private alias int function(int p, int count) ParamConvertDelegate;
 private ParamConvertDelegate[char[]] gParamConverters;
 
-static this() {
+void initAnimations() {
     //documentation on this stuff see implementations
 
     gParamConverters["none"] = &paramConvertNone;
@@ -62,6 +65,16 @@ struct AnimationData {
     //i.e. there can be an entry and loop animation
     //(used for get-weapon animation)
     AnimationSection[] sections;
+
+    //create internal data for resources
+    ProcessedAnimationData preprocess() {
+        ProcessedAnimationData res;
+        res.mData = *this;
+        foreach (inout AnimationSection s; res.mData.sections) {
+            s.preprocess();
+        }
+        return res;
+    }
 }
 struct AnimationSection {
     //loop: replay animation on end, else stop on last frame (or go to next
@@ -91,6 +104,36 @@ struct AnimationSection {
     bool mirror_Y_B = false;
     //append mirrored (on Y axis) bitmaps to frame rows
     bool mirror_Y_A = false;
+
+    private {
+        bool mPreprocessed = false;
+        BitmapResource[] mMirrors;
+
+        void preprocess() {
+            if (mPreprocessed)
+                return;
+
+            if (mirror_Y_B || mirror_Y_A) {
+                //create mirrors of the yet existing surfaces
+                for (int n = 0; n < bitmaps.length; n++) {
+                    auto mirror = bitmaps[n];
+                    assert(mirror !is null);
+                    //sucks *g*
+                    auto mirrored = mirror.createMirror();
+                    mMirrors ~= mirrored;
+                }
+            }
+
+            mPreprocessed = true;
+        }
+    }
+}
+
+//struct to assert only preprocessed animations are passed to Animation.this()
+struct ProcessedAnimationData {
+    private {
+        AnimationData mData;
+    }
 }
 
 //NOTE: no AnimationData necessary, because "createProcessedAnimation" is
@@ -162,8 +205,11 @@ private:
         int texture;
     }
 
-    public this(AnimationData data) {
+    public this(ProcessedAnimationData ani) {
+        AnimationData data = ani.mData;
+
         void loadSection(inout AnimationSection section, inout Section to) {
+            assert(section.mPreprocessed, "must call AnimationData.preprocess");
             //copy and possibly verify
             to.frameTimeMs = section.frameTimeMs;
             to.loop = section.loop;
@@ -177,20 +223,13 @@ private:
             mSurfaces ~= section.bitmaps;
 
             to.count[0] = section.frameCount;
-            to.count[1] = mSurfaces.length;
+            to.count[1] = section.bitmaps.length;
             assert(to.count[0] > 0);
             assert(to.count[1] > 0);
 
             if (section.mirror_Y_B || section.mirror_Y_A) {
-                //create mirrors of the yet existing surfaces
                 mirroredoffset = mSurfaces.length;
-                for (int n = 0; n < section.bitmaps.length; n++) {
-                    auto mirror = mSurfaces[bitmapoffset + n];
-                    //sucks *g*
-                    auto mirrored = globals.resources.createProcessedBitmap(
-                        mirror.id, mirror.id ~ "mirrored", true);
-                    mSurfaces ~= mirrored;
-                }
+                mSurfaces ~= section.mMirrors;
                 if (section.mirror_Y_A) {
                     to.count[0] *= 2; //by A
                 }
@@ -512,7 +551,7 @@ private int paramConvertFreeRot2(int angle, int count) {
 private BitmapResource doLoadGraphic(char[] file) {
     //I don't get it how to properly use the res-manager
     //currently shut it up by using the filename as id...
-    return globals.resources.createBitmap(file, file);
+    return globals.resources.createResourceFromFile!(BitmapResource)(file);
 }
 
 private BitmapResource[] loadFooImages(char[] templ, int offset, int count) {
@@ -528,7 +567,7 @@ private BitmapResource[] loadFooImages(char[] templ, int offset, int count) {
 private AnimationData loadWormAnimation(ConfigNode node) {
     AnimationData res;
     AnimationSection section;
-    section.bitmaps = loadFooImages(node["image"], node.getIntValue("offset"), 3);
+    section.bitmaps = loadFooImages(node.getPathValue("image"), node.getIntValue("offset"), 3);
     int[] dims = node.getValueArray!(int)("size");
     assert(dims.length == 2);
     section.frameSize.x = dims[0];
@@ -547,6 +586,9 @@ private AnimationData loadGenericAnimation(ConfigNode node) {
 
         //--- load/process files
         char[][] files = node.getSubNode("image").getValueList();
+        foreach (inout char[] f; files) {
+            f = node.fixPathValue(f);
+        }
         to.bitmaps.length = files.length;
         foreach (int n, char[] file; files) {
             to.bitmaps[n] = doLoadGraphic(file);
@@ -622,7 +664,7 @@ private AnimationData loadOldAnimation(ConfigNode node) {
     AnimationData data;
     data.sections.length = 1;
     AnimationSection* section = &data.sections[0];
-    section.bitmaps = [doLoadGraphic(node["image"])];
+    section.bitmaps = [doLoadGraphic(node.getPathValue("image"))];
     section.loop = node.getBoolValue("repeat");
     section.loop_reverse = node.getBoolValue("backwards");
     section.frameSize.x = node.getIntValue("width");

@@ -384,11 +384,11 @@ class GameEngine {
 
     //one time initialization, where levle objects etc. should be loaded (?)
     private void loadLevelStuff() {
-        globals.resources.loadAnimations(globals.loadConfig("stdanims"));
+        globals.resources.loadResources(globals.loadConfig("stdanims"));
 
         //load weapons
         auto weapons = globals.loadConfig("weapons");
-        globals.resources.loadAnimations(weapons.find("require_animations"));
+        globals.resources.loadResources(weapons.find("require_resources"));
         auto list = weapons.getSubNode("weapons");
         foreach (ConfigNode item; list) {
             loadWeaponClass(item);
@@ -405,7 +405,7 @@ class GameEngine {
 
         //load all animations
         //xxx this would load all those worms animations, think of something
-        //globals.resources.preloadAll();
+        globals.resources.preloadAll();
     }
 
     public float windSpeed() {

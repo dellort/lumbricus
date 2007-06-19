@@ -12,6 +12,7 @@ import utils.vector2;
 import utils.time;
 import utils.log;
 import utils.misc;
+import utils.configfile;
 import std.math;
 import str = std.string;
 import game.resources : AnimationResource;
@@ -329,11 +330,15 @@ class WormSpriteClass : GOSpriteClass {
         suicideDamage = config.getFloatValue("suicide_damage", 10);
         float[] js = config.getValueArray!(float)("jump_strength",[100,-100]);
         jumpStrength = Vector2f(js[0],js[1]);
-        char[] grave = config.getStringValue("gravestones", "notfound");
-        int count = config.getIntValue("gravestones_count");
-        gravestones.length = count;
-        foreach (int n, inout AnimationResource ani; gravestones) {
-            ani = globals.resources.anims(str.format("%s%d", grave, n));
+
+        gravestones.length = 0;
+
+        ConfigNode grNode = config.getSubNode("gravestones");
+        foreach (char[] v; grNode) {
+            char[] grv = grNode.getPathValue(v);
+            assert(grv.length > 0);
+            gravestones ~= globals.resources.resource!(AnimationResource)
+                (grv);
         }
     }
     override WormSprite createSprite() {
