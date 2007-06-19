@@ -272,7 +272,7 @@ public class Resources {
                 log(errMsg);
                 continue;
             }
-            log("Alias: %s -> %s",aliasNode.filePath, name,value);
+            log("Alias: %s -> %s",aliasNode.filePath ~ name,value);
             mResources[aliasNode.filePath ~ name] = *aliased;
         }
     }
