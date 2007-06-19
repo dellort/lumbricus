@@ -6,7 +6,6 @@ import game.scene;
 import game.animation;
 import game.visual;
 import game.weapon;
-import game.resources;
 import utils.vector2;
 import utils.configfile;
 import utils.log;

@@ -1,7 +1,7 @@
 module levelgen.level;
 
 import framework.framework;
-import game.resources;
+import game.animation;
 import utils.configfile;
 
 //LEvel ELement

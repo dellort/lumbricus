@@ -6,7 +6,7 @@ import levelgen.genrandom : GenRandomLevel, LevelGeometry, GeneratorConfig;
 import levelgen.placeobjects;
 import game.animation;
 import game.common;
-import game.resources;
+import game.bmpresource;
 import framework.framework;
 import framework.filesystem;
 import utils.configfile;

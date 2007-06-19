@@ -4,7 +4,6 @@ import game.physic;
 import game.animation;
 import game.game;
 import game.common;
-import game.resources;
 import utils.vector2;
 import utils.rect2;
 import utils.configfile;

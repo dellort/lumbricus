@@ -12,7 +12,6 @@ import game.controller;
 import game.common;
 import game.visual;
 import game.animation;
-import game.resources;
 import levelgen.level;
 import utils.mylist;
 import utils.time;

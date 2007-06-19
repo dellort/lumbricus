@@ -4,6 +4,7 @@ import game.scene;
 import game.common;
 import framework.framework;
 import game.resources;
+import game.bmpresource;
 import utils.configfile;
 import utils.misc;
 import utils.time;
@@ -30,7 +31,7 @@ Animation loadAnimation(ProcessedAnimationData data) {
 private alias int function(int p, int count) ParamConvertDelegate;
 private ParamConvertDelegate[char[]] gParamConverters;
 
-void initAnimations() {
+static this() {
     //documentation on this stuff see implementations
 
     gParamConverters["none"] = &paramConvertNone;
@@ -684,4 +685,33 @@ float angleDistance(float a, float b) {
         r = math.PI*2 - r;
     }
     return r;
+}
+
+///Resource class that holds an animation loaded from a config node
+protected class AnimationResource : ResourceBase!(Animation) {
+    private AnimationData mAniData;
+    private ProcessedAnimationData mProcAniData;
+
+    this(Resources parent, char[] id, ConfigItem item) {
+        super(parent, id, item);
+        mAniData = parseAnimation(cast(ConfigNode)item);
+        mProcAniData = mAniData.preprocess();
+    }
+
+    protected void load() {
+        mParent.log("Load animation %s",id);
+        //wtf is mRelativePath? not used here.
+        //NOTE: creating an animation shouldn't cost too much
+        //  Animation now loads bitmaps lazily
+        //  (it uses BitmapResource and BitmapResourceProcessed)
+        mContents = loadAnimation(mProcAniData);
+    }
+
+    AnimationData animData() {
+        return mAniData;
+    }
+
+    static this() {
+        ResFactory.register!(typeof(this))("animations");
+    }
 }

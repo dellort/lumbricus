@@ -7,7 +7,6 @@ import game.game;
 import game.gobject;
 import game.sprite;
 import game.weapon;
-import game.resources;
 import utils.misc;
 import utils.vector2;
 import utils.mylist;

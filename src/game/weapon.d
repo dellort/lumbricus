@@ -11,7 +11,6 @@ import utils.vector2;
 import utils.mylist;
 import utils.time;
 import utils.factory;
-import game.resources;
 
 package Factory!(WeaponClass, GameEngine, ConfigNode) gWeaponClassFactory;
 

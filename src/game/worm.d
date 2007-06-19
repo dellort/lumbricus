@@ -15,7 +15,6 @@ import utils.misc;
 import utils.configfile;
 import std.math;
 import str = std.string;
-import game.resources : AnimationResource;
 
 static this() {
     gSpriteClassFactory.register!(WormSpriteClass)("worm_mc");

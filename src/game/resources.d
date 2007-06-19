@@ -3,7 +3,6 @@ module game.resources;
 import framework.framework;
 import framework.filesystem;
 import game.common;
-import game.animation;
 import str = std.string;
 import utils.configfile;
 import utils.log;
@@ -26,8 +25,8 @@ protected class Resource {
     int uid;
 
     private bool mValid = false;
-    private Resources mParent;
-    private ConfigItem mConfig;
+    protected Resources mParent;
+    protected ConfigItem mConfig;
 
     package this(Resources parent, char[] id, ConfigItem item)
     {
@@ -70,6 +69,13 @@ protected class Resource {
     protected void unload() {
         //implement if you need this
     }
+
+    //Wrapper for Resources.createResource to keep this private
+    protected void createSubResource(char[] type, ConfigItem it,
+        bool allowFail = false, char[] id = "")
+    {
+        mParent.createResource(type,it,allowFail,id);
+    }
 }
 
 private class ResourceBase(T) : Resource {
@@ -94,8 +100,8 @@ alias void delegate(int cur, int total) ResourceLoadProgress;
 ///  - animations (Animation)
 public class Resources {
     private Resource[char[]] mResources;
-    private Log log;
-    private bool[char[]] mLoadedAnimationConfigFiles;
+    Log log;
+    private bool[char[]] mLoadedResourceFiles;
     private bool[char[]] mResourceRefs;
 
     this() {
@@ -103,6 +109,11 @@ public class Resources {
         //log.setBackend(DevNullOutput.output, "null");
     }
 
+    //Create a resource directly from a configitem, knowing the
+    //resource type identifier
+    //This is an internal method and should only used from this class
+    //and from Resource implementations
+    //*** Internal: Use loadResources() instead ***
     private void createResource(char[] type, ConfigItem it,
         bool allowFail = false, char[] id = "")
     {
@@ -194,10 +205,10 @@ public class Resources {
         log("Finished preloading USED");
     }
 
-    //load animations as requested in "item"
+    //load resources as requested in "item"
     //currently, item shall be a ConfigValue which contains the configfile name
     //note that this name shouldn't contain a ".conf", argh.
-    //also can be an animation configfile directly
+    //also can be a resources configfile directly
     void loadResources(ConfigItem item) {
         if (!item)
             return;
@@ -211,10 +222,10 @@ public class Resources {
             //argh
             char[][] files = n.getValueArray!(char[])(v.name);
             foreach (file; files) {
-                if (file in mLoadedAnimationConfigFiles)
+                if (file in mLoadedResourceFiles)
                     continue;
 
-                mLoadedAnimationConfigFiles[file] = true;
+                mLoadedResourceFiles[file] = true;
                 cfg = globals.loadConfig(file);
                 loadResources(cfg);
             }
@@ -233,7 +244,7 @@ public class Resources {
             loadResources(load_further);
         }
 
-        //load new introduced animations (not really load them themselves...)
+        //load new introduced resources (not really load them themselves...)
         foreach (char[] resType, ConfigNode resNode;
             cfg.getSubNode("resources"))
         {
@@ -261,89 +272,9 @@ public class Resources {
                 log(errMsg);
                 continue;
             }
-            //std.stdio.writefln("Alias: %s -> %s",aliasNode.filePath
-            //    ~ name,value);
+            log("Alias: %s -> %s",aliasNode.filePath, name,value);
             mResources[aliasNode.filePath ~ name] = *aliased;
         }
-    }
-}
-
-///Resource class that holds an animation loaded from a config node
-protected class AnimationResource : ResourceBase!(Animation) {
-    private AnimationData mAniData;
-    private ProcessedAnimationData mProcAniData;
-
-    this(Resources parent, char[] id, ConfigItem item) {
-        super(parent, id, item);
-        mAniData = parseAnimation(cast(ConfigNode)item);
-        mProcAniData = mAniData.preprocess();
-    }
-
-    protected void load() {
-        mParent.log("Load animation %s",id);
-        //wtf is mRelativePath? not used here.
-        //NOTE: creating an animation shouldn't cost too much
-        //  Animation now loads bitmaps lazily
-        //  (it uses BitmapResource and BitmapResourceProcessed)
-        mContents = loadAnimation(mProcAniData);
-    }
-
-    AnimationData animData() {
-        return mAniData;
-    }
-
-    static this() {
-        ResFactory.register!(typeof(this))("animations");
-    }
-}
-
-protected class BitmapResourceProcessed : BitmapResource {
-    char[] mSrcId;
-    this(Resources parent, char[] id, ConfigItem item)
-    {
-        super(parent, id, item);
-        mSrcId = (cast(ConfigNode)item).getStringValue("id");
-        assert(mSrcId != id);
-    }
-
-    protected void load() {
-        BitmapResource src = mParent.resource!(BitmapResource)(mSrcId);
-        mContents = src.get().createMirroredY();
-    }
-
-    static this() {
-        ResFactory.register!(typeof(this))("bitmaps_processed");
-    }
-}
-
-///Resource class for bitmaps
-protected class BitmapResource : ResourceBase!(Surface) {
-    this(Resources parent, char[] id, ConfigItem item) {
-        super(parent, id, item);
-    }
-
-    protected void load() {
-        ConfigValue val = cast(ConfigValue)mConfig;
-        assert(val !is null);
-        char[] fn;
-        if (mConfig.parent)
-            fn = val.parent.getPathValue(val.name);
-        else
-            fn = val.value;
-        mContents = globals.loadGraphic(fn);
-    }
-
-    BitmapResource createMirror() {
-        //xxx hack to pass parameters to BitmapResourceProcessed
-        ConfigNode n = new ConfigNode();
-        char[] newid = id~"mirrored";
-        n.setStringValue("id",id);
-        mParent.createResource("bitmaps_processed",n,false,newid);
-        return mParent.resource!(BitmapResource)(newid);
-    }
-
-    static this() {
-        ResFactory.register!(typeof(this))("bitmaps");
     }
 }
 
@@ -355,8 +286,4 @@ class ResourceException : Exception {
 
 static class ResFactory : StaticFactory!(Resource, Resources, char[], ConfigItem)
 {
-}
-
-static this() {
-    initAnimations();
 }
