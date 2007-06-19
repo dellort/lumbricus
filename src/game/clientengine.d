@@ -143,6 +143,10 @@ class ClientGameEngine : GameObject /+ temporary hack *g* +/ {
 
         detailLevel = 0;
 
+        //preload all needed animations
+        //xxx add loading bar
+        globals.resources.preloadUsed(null);
+
         //else you'll get a quite big deltaT on start
         lastTime = timeCurrentTime();
     }

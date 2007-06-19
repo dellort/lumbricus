@@ -17,7 +17,7 @@ import utils.factory;
 ///Resource references can be stored and passed on without ever actually
 ///loading the file
 ///once loaded, the resource will stay cached unless invalidated
-protected class Resource(T) {
+protected class Resource {
     ///unique id of resource
     char[] id;
     ///unique numeric id
@@ -25,7 +25,6 @@ protected class Resource(T) {
     ///yyy actually initialize it etc.
     int uid;
 
-    private T mContents;
     private bool mValid = false;
     private Resources mParent;
     private ConfigItem mConfig;
@@ -35,24 +34,22 @@ protected class Resource(T) {
         mParent = parent;
         this.id = id;
         mConfig = item;
+        mParent.log("Preparing resource "~id);
     }
 
     ///get the contents of this resource
     ///allowFail to ignore load errors (not recommended)
-    T get(bool allowFail = false) {
-        if (!mValid)
-            preload(allowFail);
-        return mContents;
-    }
+    abstract Object get(bool allowFail = false);
 
     //preloads the resource from disk, allowFail controls if an exception
     //is thrown on error
     package void preload(bool allowFail = false) {
         try {
+            mParent.log("Loading resource "~id);
             load();
             mValid = true;
         } catch (Exception e) {
-            char[] errMsg = toString() ~ " failed to load: "~e.msg;
+            char[] errMsg = "Resource " ~ id ~ "(" ~ toString() ~ ") failed to load: "~e.msg;
             mParent.log(errMsg);
             if (!allowFail)
                 throw new ResourceException(errMsg);
@@ -75,12 +72,28 @@ protected class Resource(T) {
     }
 }
 
+private class ResourceBase(T) : Resource {
+    protected T mContents;
+
+    package this(Resources parent, char[] id, ConfigItem item) {
+        super(parent, id, item);
+    }
+
+    override T get(bool allowFail = false) {
+        if (!mValid)
+            preload(allowFail);
+        return mContents;
+    }
+}
+
+alias void delegate(int cur, int total) ResourceLoadProgress;
+
 ///the resource manager
 ///currently manages:
 ///  - bitmap (Surface)
 ///  - animations (Animation)
 public class Resources {
-    private Object[char[]] mResources;
+    private Resource[char[]] mResources;
     private Log log;
     private bool[char[]] mLoadedAnimationConfigFiles;
     private bool[char[]] mResourceRefs;
@@ -99,8 +112,7 @@ public class Resources {
         if (id.length == 0)
             id = n.filePath~it.name;
         if (!(id in mResources)) {
-            log("Create(%s): %s",type,id);
-            Object r = ResFactory.instantiate(type,this,id,it);
+            Resource r = ResFactory.instantiate(type,this,id,it);
             mResources[id] = r;
         }
     }
@@ -109,22 +121,31 @@ public class Resources {
     ///supporting it, currently just BitmapResource)
     ///id will be the filename
     public T createResourceFromFile(T)(char[] filename,
-        bool allowFail = false)
+        bool allowFail = false, bool markDirty = true)
     {
         char[] id = filename;
         if (!(id in mResources)) {
             ConfigValue v = new ConfigValue;
             v.value = filename;
-            Object r = new T(this,id,v);
+            Resource r = new T(this,id,v);
             mResources[id] = r;
         }
-        return resource!(T)(id,allowFail);
+        if (markDirty)
+            return resource!(T)(id,allowFail);
+        else
+            return doFindResource!(T)(id,allowFail);
     }
 
     ///get a reference to a resource by its id
     public T resource(T)(char[] id, bool allowFail = false) {
-        assert(id != "","resource with empty id");
-        Object* r = id in mResources;
+        T ret = doFindResource!(T)(id, allowFail);
+        mResourceRefs[ret.id] = true;
+        return ret;
+    }
+
+    private T doFindResource(T)(char[] id, bool allowFail = false) {
+        assert(id != "","called resource() with empty id");
+        Resource* r = id in mResources;
         if (!r) {
             char[] errMsg = "Resource "~id~" not defined";
             log(errMsg);
@@ -140,23 +161,37 @@ public class Resources {
                 throw new ResourceException(errMsg);
             return null;
         }
-        mResourceRefs[ret.id] = true;
         return ret;
     }
 
     ///preload all cached resources from disk
     ///Attention: this will load really ALL resources, not just needed ones
     //xxx add progress callback
-    public void preloadAll() {
+    public void preloadAll(ResourceLoadProgress prog) {
+        int count = mResources.length;
+        log("Preloading ALL resources");
+        int i = 0;
+        foreach (Resource res; mResources) {
+            res.get();
+            i++;
+            if (prog)
+                prog(i, count);
+        }
+        log("Finished preloading ALL");
+    }
+
+    public void preloadUsed(ResourceLoadProgress prog) {
+        int count = mResourceRefs.length;
+        log("Preloading USED resources");
+        int i = 0;
         foreach (char[] id, bool tmp; mResourceRefs) {
-            std.stdio.writefln("Ref: %s",id);
+            Resource res = mResources[id];
+            res.get();
+            i++;
+            if (prog)
+                prog(i, count);
         }
-        /*foreach (aniRes; mAnimations) {
-            aniRes.get();
-        }
-        foreach (bmpRes; mBitmaps) {
-            bmpRes.get();
-        }*/
+        log("Finished preloading USED");
     }
 
     //load animations as requested in "item"
@@ -215,7 +250,7 @@ public class Resources {
         foreach (char[] name; aliasNode)
         {
             char[] value = aliasNode.getPathValue(name);
-            Object* aliased = value in mResources;
+            Resource* aliased = value in mResources;
             if (!aliased) {
                 log("WARNING: alias '%s' not found", value);
                 continue;
@@ -234,12 +269,14 @@ public class Resources {
 }
 
 ///Resource class that holds an animation loaded from a config node
-protected class AnimationResource : Resource!(Animation) {
-    private ProcessedAnimationData mAniData;
+protected class AnimationResource : ResourceBase!(Animation) {
+    private AnimationData mAniData;
+    private ProcessedAnimationData mProcAniData;
 
     this(Resources parent, char[] id, ConfigItem item) {
         super(parent, id, item);
         mAniData = parseAnimation(cast(ConfigNode)item);
+        mProcAniData = mAniData.preprocess();
     }
 
     protected void load() {
@@ -248,7 +285,11 @@ protected class AnimationResource : Resource!(Animation) {
         //NOTE: creating an animation shouldn't cost too much
         //  Animation now loads bitmaps lazily
         //  (it uses BitmapResource and BitmapResourceProcessed)
-        mContents = loadAnimation(mAniData);
+        mContents = loadAnimation(mProcAniData);
+    }
+
+    AnimationData animData() {
+        return mAniData;
     }
 
     static this() {
@@ -276,7 +317,7 @@ protected class BitmapResourceProcessed : BitmapResource {
 }
 
 ///Resource class for bitmaps
-protected class BitmapResource : Resource!(Surface) {
+protected class BitmapResource : ResourceBase!(Surface) {
     this(Resources parent, char[] id, ConfigItem item) {
         super(parent, id, item);
     }
@@ -312,7 +353,7 @@ class ResourceException : Exception {
     }
 }
 
-static class ResFactory : StaticFactory!(Object, Resources, char[], ConfigItem)
+static class ResFactory : StaticFactory!(Resource, Resources, char[], ConfigItem)
 {
 }
 

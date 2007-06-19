@@ -402,10 +402,6 @@ class GameEngine {
         }
 
         mGravForce.accel = Vector2f(0, conf.getFloatValue("gravity",100));
-
-        //load all animations
-        //xxx this would load all those worms animations, think of something
-        globals.resources.preloadAll();
     }
 
     public float windSpeed() {

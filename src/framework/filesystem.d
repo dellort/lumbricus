@@ -11,6 +11,9 @@ import utils.output;
 
 private Log log;
 
+//Uncomment this to see detailed filesystem log messages
+//version = FSDebug;
+
 ///add OS-dependant path delimiter to pathStr, if not there
 public char[] addTrailingPathDelimiter(char[] pathStr) {
 version(Windows) {
@@ -106,7 +109,7 @@ private class HandlerDirectory : HandlerInstance {
         if (!dirExists(absPath))
             throw new Exception("Directory doesn't exist");
         mDirPath = addTrailingPathDelimiter(absPath);
-        log("New dir handler for '%s'",mDirPath);
+        version(FSDebug) log("New dir handler for '%s'",mDirPath);
     }
 
     bool isWritable() {
@@ -115,7 +118,7 @@ private class HandlerDirectory : HandlerInstance {
 
     bool exists(char[] handlerPath) {
         char[] p = mDirPath ~ handlerPath;
-        log("Checking for existance: '%s'",p);
+        version(FSDebug) log("Checking for existance: '%s'",p);
         return stdf.exists(p) && stdf.isfile(p);
     }
 
@@ -125,7 +128,7 @@ private class HandlerDirectory : HandlerInstance {
     }
 
     Stream open(char[] handlerPath, FileMode mode) {
-        log("Handler for '%s': Opening '%s'",mDirPath, handlerPath);
+        version(FSDebug) log("Handler for '%s': Opening '%s'",mDirPath, handlerPath);
         return new File(mDirPath ~ handlerPath, mode);
     }
 
@@ -162,28 +165,28 @@ private class HandlerLink : HandlerInstance {
     private FileSystem mParent;
 
     this(FileSystem parent, char[] relPath) {
-        log("New link: %s",relPath);
+        version(FSDebug) log("New link: %s",relPath);
         mLinkedPath = relPath;
         mParent = parent;
     }
 
     bool isWritable() {
-        log("Link: isWritable");
+        version(FSDebug) log("Link: isWritable");
         return mParent.pathIsWritable(mLinkedPath, this);
     }
 
     bool exists(char[] handlerPath) {
-        log("Link: exists(%s)",handlerPath);
+        version(FSDebug) log("Link: exists(%s)",handlerPath);
         return mParent.exists(mLinkedPath ~ handlerPath, this);
     }
 
     bool pathExists(char[] handlerPath) {
-        log("Link: pathexists(%s)",handlerPath);
+        version(FSDebug) log("Link: pathexists(%s)",handlerPath);
         return mParent.pathExists(mLinkedPath ~ handlerPath, this);
     }
 
     Stream open(char[] handlerPath, FileMode mode) {
-        log("Link: open(%s)",handlerPath);
+        version(FSDebug) log("Link: open(%s)",handlerPath);
         return mParent.open(mLinkedPath ~ handlerPath, mode, this);
     }
 
@@ -221,7 +224,7 @@ class FileSystem {
             ///is relPath a subdirectory of mountPoint?
             ///compares case-sensitive
             public bool matchesPath(char[] relPath) {
-                log("Checking for match: '%s' and '%s'",relPath,mountPoint);
+                version(FSDebug) log("Checking for match: '%s' and '%s'",relPath,mountPoint);
                 return relPath.length>mountPoint.length && (str.cmp(relPath[0..mountPoint.length],mountPoint) == 0);
             }
 
@@ -258,7 +261,7 @@ class FileSystem {
         log = registerLog("FS");
         bool stfu = true; //xxx TODO: make configureable (environment var?)
         if (stfu) {
-            log("Entering STFU mode.");
+            version(FSDebug) log("Entering STFU mode.");
             log.setBackend(DevNullOutput.output, "null");
         }
         mAppId = appId;
@@ -327,7 +330,7 @@ class FileSystem {
 
         //user path: home directory + .appId
         mUserPath = getUserPath();
-        log("PUser = '%s'",mUserPath);
+        version(FSDebug) log("PUser = '%s'",mUserPath);
 
         //data paths: app directory + special dirs on linux
         mDataPaths = null;
@@ -339,7 +342,7 @@ class FileSystem {
         //XXX really? this could cause problems if app is in C:\Program Files
         mDataPaths ~= mAppPath ~ "../data/";
         debug foreach(p; mDataPaths) {
-            log("PData = '%s'",p);
+            version(FSDebug) log("PData = '%s'",p);
         }
     }
 
@@ -431,12 +434,12 @@ class FileSystem {
         HandlerInstance caller = null)
     {
         relFilename = fixRelativePath(relFilename);
-        log("Trying to open '%s'",relFilename);
+        version(FSDebug) log("Trying to open '%s'",relFilename);
         foreach (inout MountedPath p; mMountedPaths) {
             if (p.handler == caller)
                 continue;
             if (p.matchesPath(relFilename) && p.matchesMode(mode)) {
-                log("Found matching handler");
+                version(FSDebug) log("Found matching handler");
                 char[] handlerPath = p.getHandlerPath(relFilename);
                 if (p.handler.exists(handlerPath) || mode == FileMode.OutNew) {
                     //the file exists, or a new file should be created
@@ -467,7 +470,7 @@ class FileSystem {
             if (p.handler == caller)
                 continue;
             if (p.matchesPathForList(relPath)) {
-                log("Found matching handler");
+                version(FSDebug) log("Found matching handler");
                 char[] handlerPath = p.getHandlerPath(relPath);
                 if (p.handler.pathExists(handlerPath)) {
                     //the path exists, list contents

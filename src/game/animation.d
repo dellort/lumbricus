@@ -16,10 +16,10 @@ import str = std.string;
 private alias AnimationData function(ConfigNode node) AnimationLoadHandler;
 private AnimationLoadHandler[char[]] gAnimationLoadHandlers;
 
-ProcessedAnimationData parseAnimation(ConfigNode from) {
+AnimationData parseAnimation(ConfigNode from) {
     auto name = from.getStringValue("handler", "old");
     assert(name in gAnimationLoadHandlers, "unknown animation load handler");
-    return gAnimationLoadHandlers[name](from).preprocess();
+    return gAnimationLoadHandlers[name](from);
 }
 
 Animation loadAnimation(ProcessedAnimationData data) {
@@ -301,6 +301,8 @@ private:
             prev_ptr = &s;
         }
         mStartSection = prev_ptr;
+        //load this here to avoid loading breaks in-game
+        assertStuffLoaded();
     }
 
     public Vector2i size() {
@@ -551,7 +553,8 @@ private int paramConvertFreeRot2(int angle, int count) {
 private BitmapResource doLoadGraphic(char[] file) {
     //I don't get it how to properly use the res-manager
     //currently shut it up by using the filename as id...
-    return globals.resources.createResourceFromFile!(BitmapResource)(file);
+    return globals.resources.createResourceFromFile!(BitmapResource)(file,
+        false,false);
 }
 
 private BitmapResource[] loadFooImages(char[] templ, int offset, int count) {
