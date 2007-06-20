@@ -399,7 +399,9 @@ public:
             return;
 
         auto time = globals.gameTimeAnimations;
-        mTimeMs += (time - mLast).msecs;
+        auto delta = (time - mLast).msecs;
+        assert(delta >= 0);
+        mTimeMs += delta;
         mLast = time;
 
         while (!mStopTime) {

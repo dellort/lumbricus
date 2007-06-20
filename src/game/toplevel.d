@@ -513,11 +513,14 @@ class TopLevel {
     private void initTimes() {
         mGameTime = new TimeSource(globals.framework.getCurrentTime());
         mGameTimeAnimations = new TimeSource(globals.framework.getCurrentTime());
+        resetTime();
     }
 
     void resetTime() {
         mGameTime.resetTime();
         mGameTimeAnimations.resetTime();
+        globals.gameTime = mGameTime.current;
+        globals.gameTimeAnimations = mGameTimeAnimations.current;
     }
 
     private void onFrame(Canvas c) {
