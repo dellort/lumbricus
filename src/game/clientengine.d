@@ -109,6 +109,10 @@ class ClientGameEngine : GameObject /+ temporary hack *g* +/ {
 
         mGraphics = new typeof(mGraphics)(ClientGraphic.node.getListNodeOffset());
 
+        //xxx make value transfers generic
+        waterOffset = mEngine.waterOffset;
+        windSpeed = mEngine.windSpeed;
+
         level = mEngine.level;
         levelOffset = mEngine.levelOffset;
         worldSize = mEngine.worldSize;
