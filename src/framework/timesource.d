@@ -24,16 +24,18 @@ final class TimeSource {
         //should at least internally be double to avoid precission issues
         double mSlowDown;
         int mFixedTimeStep = 0; //0 if invalid
+
+        Time delegate() mCurTimeDg;
     }
 
-    this(Time aCurrentTime) {
-        initTime(aCurrentTime);
+    this(Time delegate() curTimeDg) {
+        mCurTimeDg = curTimeDg;
+        initTime();
     }
 
     //initialize time to 0
-    //aCurrentTime = the external time (same time as for update())
-    void initTime(Time aCurrentTime) {
-        mExternalTime = aCurrentTime;
+    void initTime() {
+        mExternalTime = mCurTimeDg();
 
         mPauseMode = false;
         mStartTime = mExternalTime;
@@ -50,7 +52,7 @@ final class TimeSource {
 
     //reset to time 0 with current external time
     void resetTime() {
-        initTime(mExternalTime);
+        initTime();
     }
 
     void paused(bool p) {
@@ -95,8 +97,8 @@ final class TimeSource {
 
     //update time!
     //after this, a new deltaT and/or frameCount
-    public void update(Time currentTime) {
-        mExternalTime = currentTime;
+    public void update() {
+        mExternalTime = mCurTimeDg();
 
         mLastSimTime = mSimTime;
 

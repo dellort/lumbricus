@@ -60,7 +60,7 @@ private class MessageViewer : GuiObject {
         return !working();
     }
 
-    void simulate(Time t, float deltaT) {
+    void simulate(Time t, Time deltaT) {
         Time phaseT = timeMsecs(cPhaseTimingsMs[mPhase]);
         Time diff = t - mPhaseStart;
         if (diff >= phaseT) {
@@ -93,10 +93,10 @@ private class MessageViewer : GuiObject {
                 }
                 break;
             case 3:
-                mMessagePos -= messagedelta * deltaT;
+                mMessagePos -= messagedelta * deltaT.secsf;
                 break;
             case 1:
-                mMessagePos += messagedelta * deltaT;
+                mMessagePos += messagedelta * deltaT.secsf;
                 break;
             case 4:
                 //nothing
@@ -108,12 +108,6 @@ private class MessageViewer : GuiObject {
     }
 
     void draw(Canvas canvas) {
-        //argh
-        Time now = timeCurrentTime();
-        float delta = (now - mLastFrame).toFloat();
-        mLastFrame = now;
-        simulate(now, delta);
-
         if (mPhase == 1 || mPhase == 2 || mPhase == 3) {
             auto org = scene.size.X / 2 - (mMessageSize+cMessageBorders*2).X / 2;
             org.y += cast(int)mMessagePos;

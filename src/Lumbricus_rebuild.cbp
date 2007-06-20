@@ -63,6 +63,7 @@
 		<Unit filename="framework\sdl\fwgl.d" />
 		<Unit filename="framework\sdl\keys.d" />
 		<Unit filename="framework\sdl\rwops.d" />
+		<Unit filename="framework\timesource.d" />
 		<Unit filename="game\animation.d" />
 		<Unit filename="game\bmpresource.d" />
 		<Unit filename="game\clientengine.d" />
@@ -91,6 +92,7 @@
 		<Unit filename="gui\gameview.d" />
 		<Unit filename="gui\gui.d" />
 		<Unit filename="gui\guiobject.d" />
+		<Unit filename="gui\loadingscreen.d" />
 		<Unit filename="gui\messageviewer.d" />
 		<Unit filename="gui\preparedisplay.d" />
 		<Unit filename="gui\windmeter.d" />
@@ -116,6 +118,7 @@
 		<Unit filename="utils\vector2.d" />
 		<Extensions>
 			<code_completion />
+			<envvars />
 		</Extensions>
 	</Project>
 </CodeBlocks_project_file>

@@ -41,8 +41,8 @@ class WindMeter : GuiObject {
         mLastTime =  timeCurrentTime();
     }
 
-    void simulate(float deltaT) {
-        mTexOffsetf = mTexOffsetf + mAnimSpeed*deltaT;
+    void simulate(Time curTime, Time deltaT) {
+        mTexOffsetf = mTexOffsetf + mAnimSpeed*(deltaT.secsf);
     }
 
     void draw(Canvas canvas) {

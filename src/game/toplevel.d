@@ -23,6 +23,7 @@ import gui.preparedisplay;
 import gui.fps;
 import gui.gameview;
 import gui.console;
+import gui.loadingscreen;
 import utils.time;
 import utils.configfile;
 import utils.log;
@@ -52,6 +53,7 @@ class TopLevel {
     GuiMain mGui;
     GameView mGameView;
     GuiConsole mGuiConsole;
+    LoadingScreen mLoadScreen;
 
     GameEngine thegame;
     ClientGameEngine clientengine;
@@ -86,6 +88,10 @@ class TopLevel {
         mGuiConsole = new GuiConsole();
         mGui.add(mGuiConsole, GUIZOrder.Console);
 
+        mLoadScreen = new LoadingScreen();
+        mGui.add(mLoadScreen, GUIZOrder.Loading);
+        mLoadScreen.active = false;
+
         initConsole();
 
         globals.framework.onFrame = &onFrame;
@@ -103,8 +109,19 @@ class TopLevel {
         keybindings = new KeyBindings();
         keybindings.loadFrom(globals.loadConfig("binds").getSubNode("binds"));
 
-        //hack to start level on start
-        cmdGenerateLevel(null);
+        mLoadScreen.startLoad(1, &loadChunk, &loadFinish);
+    }
+
+    bool loadChunk(int cur) {
+        if (cur == 0) {
+            //hack to start level on start
+            cmdGenerateLevel(null);
+        }
+        return true;
+    }
+
+    void loadFinish() {
+        //
     }
 
     private void initConsole() {
@@ -200,7 +217,7 @@ class TopLevel {
         closeGui();
         if (thegame) {
             thegame.kill();
-            delete thegame;
+            //delete thegame;
             thegame = null;
         }
         if (clientengine) {
@@ -223,6 +240,8 @@ class TopLevel {
     }
 
     private void closeGui() {
+        assert(mGameView !is null);
+        assert(mGui !is null);
         mGameView.gamescene = null;
         mGameView.controller = null;
         mGui.engine = null;
@@ -511,8 +530,8 @@ class TopLevel {
     }
 
     private void initTimes() {
-        mGameTime = new TimeSource(globals.framework.getCurrentTime());
-        mGameTimeAnimations = new TimeSource(globals.framework.getCurrentTime());
+        mGameTime = new TimeSource(&gFramework.getCurrentTime);
+        mGameTimeAnimations = new TimeSource(&gFramework.getCurrentTime);
         resetTime();
     }
 
@@ -526,8 +545,8 @@ class TopLevel {
     private void onFrame(Canvas c) {
         auto ctime = globals.framework.getCurrentTime();
 
-        mGameTime.update(ctime);
-        mGameTimeAnimations.update(ctime);
+        mGameTime.update();
+        mGameTimeAnimations.update();
 
         globals.gameTime = mGameTime.current;
         globals.gameTimeAnimations = mGameTimeAnimations.current;
@@ -543,6 +562,11 @@ class TopLevel {
         mGui.doFrame(timeCurrentTime());
 
         mGui.draw(c);
+
+        //xxx can't deactivate this from delegate because it would crash
+        //the list
+        if (!mLoadScreen.loading)
+            mLoadScreen.active = false;
     }
 
     private void onKeyPress(KeyInfo infos) {

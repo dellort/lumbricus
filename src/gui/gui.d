@@ -19,6 +19,7 @@ enum GUIZOrder : int {
     Background,
     Game,
     Gui,
+    Loading,
     Console,
     FPS,
 }
@@ -87,12 +88,12 @@ class GuiMain {
     }
 
     void doFrame(Time curTime) {
-        float deltaT = (curTime.msecs - mLastTime.msecs)/1000.0f;
+        Time deltaT = curTime - mLastTime;
 
         foreach (obj, int z; mGuiScene) {
             GuiObject go = cast(GuiObject)obj;
             if (go)
-                go.simulate(deltaT);
+                go.simulate(curTime, deltaT);
         }
 
         mLastTime = curTime;

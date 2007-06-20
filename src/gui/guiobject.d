@@ -5,6 +5,7 @@ import game.game;
 import game.scene;
 import utils.configfile;
 import utils.mylist;
+import utils.time;
 
 class EventSink {
     //(optional) set of key bindings for this EventSink
@@ -88,7 +89,7 @@ class GuiObject : SceneObjectPositioned {
         mEngine = eng;
     }
 
-    void simulate(float deltaT) {
+    void simulate(Time curTime, Time deltaT) {
     }
 
     void resize() {

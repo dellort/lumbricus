@@ -27,14 +27,16 @@ class GameTimer : GuiObject {
     }
 
     void draw(Canvas canvas) {
-        if (mEngine && mEngine.controller.currentRoundState() == RoundState.prepare
-            || mEngine.controller.currentRoundState() == RoundState.playing
-            || mEngine.controller.currentRoundState() == RoundState.cleaningUp)
-        {
-            mTimeView.active = true;
-            //little hack to show correct time
-            Time rt = mEngine.controller.currentRoundTime()-timeMsecs(1);;
-            mTimeView.text = str.format("%.2s", rt.secs >= -1 ? rt.secs+1 : 0);
+        if (mEngine) {
+            if (mEngine.controller.currentRoundState() == RoundState.prepare
+                || mEngine.controller.currentRoundState() == RoundState.playing
+                || mEngine.controller.currentRoundState() == RoundState.cleaningUp)
+            {
+                mTimeView.active = true;
+                //little hack to show correct time
+                Time rt = mEngine.controller.currentRoundTime()-timeMsecs(1);;
+                mTimeView.text = str.format("%.2s", rt.secs >= -1 ? rt.secs+1 : 0);
+            }
         } else {
             mTimeView.active = false;
         }

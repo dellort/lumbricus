@@ -109,6 +109,10 @@ public struct Time {
         return timeVal / (1000 * 1000);
     }
 
+    public float secsf() {
+        return cast(float)timeVal / (1000.0f * 1000.0f);
+    }
+
     ///Set: Time value as seconds
     public void secs(long val) {
         timeVal = val * (1000 * 1000);

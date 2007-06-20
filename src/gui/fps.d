@@ -6,6 +6,7 @@ import game.scene;
 import game.visual;
 import gui.guiobject;
 import std.string;
+import utils.time;
 
 class GuiFps : GuiObject {
     FontLabel fpsDisplay;
@@ -18,7 +19,7 @@ class GuiFps : GuiObject {
         fpsDisplay.setScene(scene, zorder, active);
     }
 
-    void simulate(float deltaT) {
+    void simulate(Time curTime, Time deltaT) {
         fpsDisplay.text = format("FPS: %1.2f", globals.framework.FPS);
         fpsDisplay.pos = (fpsDisplay.scene.size - fpsDisplay.size).X;
     }
