@@ -37,7 +37,7 @@ class SkyDrawer : SceneObject {
         }
         if (mSkyBackdrop && mParent.enableSkyBackdrop) {
             int offs = mParent.skyBottom - mSkyBackdrop.size.y;
-            for (int x = canvas.clientOffset.x/8; x < scene.size.x; x += mSkyBackdrop.size.x) {
+            for (int x = canvas.clientOffset.x/6; x < scene.size.x; x += mSkyBackdrop.size.x) {
                 canvas.draw(mSkyBackdrop, Vector2i(x, offs));
             }
         }
@@ -85,6 +85,8 @@ class GameSky {
     private DebrisInfo[cNumDebris] mDebrisAnimators;
     private Animation mDebrisAnim;
 
+    ///create data structures and load textures, however no
+    ///game-related values are used
     this(ClientGameEngine engine, Scene target) {
         mEngine = engine;
         mScene = target;
@@ -109,11 +111,6 @@ class GameSky {
 
         mDebrisAnim = engine.level.skyDebris.get();
 
-        //xxx as waterOffset is not valid here, this will set strange values
-        //however the first onFrame should fix them
-        //but initial anim offsets are affected
-        updateOffsets();
-
         int i = 0;
         ConfigNode cloudNode = skyNode.getSubNode("clouds");
         foreach (char[] nodeName; cloudNode) {
@@ -129,13 +126,10 @@ class GameSky {
             ci.anim = new Animator();
             ci.anim.setAnimation(mCloudAnims[nAnim]);
             ci.anim.setScene(target, GameZOrder.Objects);
-            ci.y = randRange(-cCloudHeightRange/2,cCloudHeightRange/2)
-                - mCloudAnims[nAnim].size.y/2;
-            ci.anim.pos.y = skyOffset + ci.y;
-            ci.x = randRange(-mCloudAnims[nAnim].size.x, target.size.x);
-            ci.anim.pos.x = cast(int)ci.x;
             //xxx ci.anim.setFrame(randRange(0u,mCloudAnims[nAnim].frameCount));
             ci.animSizex = mCloudAnims[nAnim].size.x;
+            ci.y = randRange(-cCloudHeightRange/2,cCloudHeightRange/2)
+                - mCloudAnims[nAnim].size.y/2;
             //speed delta to wind speed
             ci.xspeed = randRange(-cCloudSpeedRange/2, cCloudSpeedRange/2);
             nAnim = (nAnim+1)%mCloudAnims.length;
@@ -147,10 +141,6 @@ class GameSky {
                 di.anim = new Animator();
                 di.anim.setAnimation(mDebrisAnim);
                 di.anim.setScene(target, GameZOrder.BackLayer);
-                di.x = randRange(-mDebrisAnim.size.x, target.size.x);
-                di.y = randRange(skyOffset, skyBottom);
-                di.anim.pos.x = cast(int)di.x;
-                di.anim.pos.y = cast(int)di.y;
                 //xxx di.anim.setFrame(randRange(0u,mDebrisAnim.frameCount));
                 di.speedPerc = genrand_real1()/2.0+0.5;
             }
@@ -158,6 +148,29 @@ class GameSky {
 
         mSkyDrawer = new SkyDrawer(this, skyColor, skyTex, skyBackdrop);
         mSkyDrawer.setScene(target, GameZOrder.Background);
+
+        //xxx make sure mEngine.waterOffset is valid for this call
+        initialize();
+    }
+
+    ///initialize object positions on game start
+    ///game-specific values have to be valid (e.g. waterOffset)
+    void initialize() {
+        updateOffsets();
+        foreach (inout CloudInfo ci; mCloudAnimators) {
+            ci.x = randRange(-ci.animSizex, mScene.size.x);
+            ci.anim.pos.y = skyOffset + ci.y;
+            ci.anim.pos.x = cast(int)ci.x;
+        }
+
+        if (mDebrisAnim) {
+            foreach (inout DebrisInfo di; mDebrisAnimators) {
+                di.x = randRange(-mDebrisAnim.size.x, mScene.size.x);
+                di.y = randRange(skyOffset, skyBottom);
+                di.anim.pos.x = cast(int)di.x;
+                di.anim.pos.y = cast(int)di.y;
+            }
+        }
     }
 
     private void updateOffsets() {

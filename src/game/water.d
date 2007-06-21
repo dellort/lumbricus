@@ -50,9 +50,8 @@ class WaterDrawerBack : WaterDrawer {
     }
 
     void draw(Canvas canvas) {
-        canvas.drawFilledRect(Vector2i(0, mParent.waterOffs
-            - mParent.cBackLayers*mParent.cWaterLayerDist),
-            Vector2i(scene.size.x, mParent.waterOffs),
+        canvas.drawFilledRect(Vector2i(0, mParent.backAnimTop),
+            Vector2i(scene.size.x, mParent.animTop),
             mWaterColor);
     }
 }
@@ -68,7 +67,7 @@ class GameWater {
     private HorizontalFullsceneAnimator[3] mWaveAnimFront;
     private HorizontalFullsceneAnimator[2] mWaveAnimBack;
 
-    protected uint waterOffs, animTop, animBottom;
+    protected uint waterOffs, animTop, animBottom, backAnimTop;
     private uint mStoredWaterLevel = uint.max;
     private ClientGameEngine mEngine;
     private bool mSimpleMode = true;
@@ -94,12 +93,14 @@ class GameWater {
                 a.setAnimation(mWaveAnim);
                 a.setScene(target, GameZOrder.BackWaterWaves1+i);
                 a.xoffs = randRange(0,mWaveAnim.size.x);
+                a.scrollMult = -0.16666f+i*0.08333f;
             }
             foreach (int i, inout a; mWaveAnimFront) {
                 a = new HorizontalFullsceneAnimator();
                 a.setAnimation(mWaveAnim);
                 a.setScene(target, GameZOrder.FrontWaterWaves1+i);
                 a.xoffs = randRange(0,mWaveAnim.size.x);
+                a.scrollMult = 0.0f+i*0.15f;
             }
         } catch {};
         simpleMode(mSimpleMode);
@@ -140,6 +141,7 @@ class GameWater {
             waterOffs = mEngine.waterOffset;
             uint p = waterOffs;
             int waveCenterDiff = 0;
+            backAnimTop = waterOffs;
             if (mWaveAnim) {
                 waveCenterDiff = - cast(int)(mWaveAnim.size.y*cWaveAnimMult)
                     + mWaveAnim.size.y/2;
@@ -147,6 +149,7 @@ class GameWater {
                     p -= cWaterLayerDist;
                     a.ypos = p - cast(int)(mWaveAnim.size.y*cWaveAnimMult);
                 }
+                backAnimTop = p + waveCenterDiff;
                 p = waterOffs;
                 foreach (inout a; mWaveAnimFront) {
                     a.ypos = p - cast(int)(mWaveAnim.size.y*cWaveAnimMult);
@@ -179,13 +182,19 @@ class HorizontalFullsceneAnimator : Animator {
     public uint ypos;
     //texture offset
     public uint xoffs;
+    //scrolling pos multiplier
+    public float scrollMult = 0;
 
     void draw(Canvas canvas) {
         int w = size.x;
-        for (int x = xoffs-w; x < scene.size.x; x += w) {
-            pos = Vector2i(x, ypos);
-            //XXX I just hope canvas does clipping instead of letting sdl to it
-            super.draw(canvas);
+        int soffs = cast(int)(scrollMult*canvas.clientOffset.x);
+        for (int x = xoffs-w-soffs; x < scene.size.x; x += w) {
+            //due to scrolling parallax, this can get out of the scene
+            if (x+w > 0) {
+                pos = Vector2i(x, ypos);
+                //XXX I hope canvas does clipping instead of letting sdl to it
+                super.draw(canvas);
+            }
         }
     }
 }
