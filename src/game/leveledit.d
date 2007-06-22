@@ -759,7 +759,6 @@ public class LevelEditor {
         auto sub = rootnode.getSubNode("templates").getSubNode("");
         saveLevel(sub);
         auto generator = new LevelGenerator();
-        generator.config = rootnode;
         Level level = generator.generateRandom("", "gpl");
         if (level)
             mPreviewImage = level.image.createTexture();

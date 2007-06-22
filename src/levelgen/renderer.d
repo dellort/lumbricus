@@ -39,7 +39,9 @@ package class LevelBitmap {
     }
     private alias List!(Vertex*) VertexList;
 
-    private static void cornercut(VertexList verts) {
+    //steps = number of subdivisions
+    //start = start of the subdivision
+    private static void cornercut(VertexList verts, int steps, float start) {
         for (int i = 0; i < 5; i++) {
             if (!verts.hasAtLeast(3))
                 return;
@@ -52,9 +54,9 @@ package class LevelBitmap {
                     Vertex* newv = new Vertex();
                     verts.insert_after(newv, cur);
                     Point p2 = next.pt, p3 = overnext.pt;
-                    newv.pt = pt + (p2-pt)/4.0f*3.0f;
+                    newv.pt = pt + (p2-pt)*(1.0f - start);
                     pt = p2;
-                    p2 = p2 + (p3-p2)/4.0f;
+                    p2 = p2 + (p3-p2)*start;
                     next.pt = p2;
                 } else {
                     pt = next.pt;
@@ -67,6 +69,7 @@ package class LevelBitmap {
     //draw a polygon; it's closed by the line points[$-1] - points[0]
     //"marker" is the value that should be written into the Level.mData array,
     //if a pixel is coverered by this polygon
+    //subdiv: if subdivision should be done
     //"visible" is true if the polygon should appear in the image surface, and
     //"color" is the color of the drawed filled polygon (alpha value ignored)
     //nosubdiv: indices for points that start lines which shouldn't be
@@ -74,8 +77,9 @@ package class LevelBitmap {
     //"texture" is used to fill the new polygon, if it is null, make all pixels
     //  covered by the polygon transparent
     //historical note: points was changed from Vector2f
-    public void addPolygon(Vector2i[] points, uint[] nosubdiv, bool visible,
-        Vector2i texture_offset, Surface texture, Lexel marker)
+    public void addPolygon(Vector2i[] points, bool visible,
+        Vector2i texture_offset, Surface texture, Lexel marker,
+        bool subdiv, uint[] nosubdiv, int subdivSteps, float subdivStart)
     {
         if (!visible)
             return;
@@ -95,7 +99,9 @@ package class LevelBitmap {
             curindex++;
         }
 
-        cornercut(vertices);
+        if (subdiv) {
+            cornercut(vertices, subdivSteps, subdivStart);
+        }
 
         Point[] urgs;
         urgs.length = vertices.count;
@@ -490,6 +496,7 @@ package class LevelBitmap {
 
     //draw a bitmap, but also modify the level pixels
     //where "before" is, copy a pixel and set pixe-metadata to "after"
+    //bitmap is only drawn where level bitmap is transparent
     public void drawBitmap(Vector2i p, Surface source, Vector2i size,
         Lexel before, Lexel after)
     {
@@ -568,19 +575,24 @@ package class LevelBitmap {
     }
 
     //create using the bitmap and pixel data
-    public Level createLevel(bool release_surface) {
+    //  release_this = don't copy image and metadata, instead, leave them to
+    //                 level and set own fields to null
+    public void createLevel(Level level, bool release_this) {
         Surface img;
-        if (release_surface) {
+        Lexel[] data;
+        if (release_this) {
             img = mImage;
+            data = mLevelData;
             mImage = null;
+            mLevelData = null;
         } else {
             img = mImage.clone();
+            data = mLevelData.dup;
         }
 
-        Level level = new Level(img.size, img);
-        level.data[] = mLevelData; //? this is evil!
-
-        return level;
+        level.mSize = img.size;
+        level.mImage = img;
+        level.data = data;
     }
 
     public Vector2i size() {

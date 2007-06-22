@@ -3,9 +3,73 @@ module levelgen.placeobjects;
 import levelgen.level;
 import levelgen.renderer;
 import framework.framework;
-import rand = std.random;
+import game.common;
+import utils.random;
 import utils.log;
+import utils.configfile;
 debug import std.stdio;
+
+//how an object is placed
+struct PlaceCommand {
+    Vector2i at, size;
+    Lexel before;
+    Lexel after;
+
+    void saveTo(ConfigNode node) {
+        node["at"] = str.format("%s %s", at.x, at.y);
+        node["size"] = str.format("%s %s", size.x, size.y);
+        node["before"] = writeMarker(before);
+        node["after"] = writeMarker(after);
+    }
+
+    void loadFrom(ConfigNode node) {
+        at = readVector(node["at"]);
+        size = readVector(node["size"]);
+        before = parseMarker(node["before"]);
+        after = parseMarker(node["after"]);
+    }
+}
+
+void renderPlacedObject(LevelBitmap renderer, Surface img, in PlaceCommand cmd)
+{
+    renderer.drawBitmap(cmd.at, img, cmd.size, cmd.before, cmd.after);
+}
+
+//store object positions
+class LevelObjects {
+    PlaceItem[] items;
+
+    struct PlaceItem {
+        char[] id;
+        PlaceCommand params;
+    }
+
+    void place(char[] id, PlaceCommand p) {
+        PlaceItem n;
+        n.id = id;
+        n.params = p;
+        items ~= n;
+    }
+
+    void saveTo(ConfigNode node) {
+        node.clear();
+        foreach (item; items) {
+            auto obj = node.addUnnamedNode();
+            obj.setStringValue("id", item.id);
+            item.params.saveTo(obj);
+        }
+    }
+
+    void loadFrom(ConfigNode node) {
+        items = [];
+        foreach (ConfigNode obj; node) {
+            PlaceItem item;
+            item.id = obj.getStringValue("id");
+            item.params.loadFrom(obj);
+            items ~= item;
+        }
+    }
+}
 
 /// Number of border where the object should be rooted into the landscape
 /// Side.None means the object is placed within the landscape
@@ -14,80 +78,60 @@ public enum Side {
 }
 
 public class PlaceableObject {
-    private Surface mTexture;
-    private Side mSide;
-    private uint mWidth;
-    private uint mHeight;
-    private Vector2i mSize; //same as above
-    private uint mDepth;
+    //readonly (xxx make private, add accessors)
+    char[] id;
+    Surface bitmap;
+    bool tryPlace;
+    Side side;
+
     private Vector2i mDir;
 
-    void release() {
-        //delete mCollide;
+    Vector2i size() {
+        return bitmap.size;
+    }
+
+    package this(char[] aid, Surface abitmap, bool tryplace) {
+        id = aid;
+        bitmap = abitmap;
+        tryPlace = tryplace;
+
+        side = Side.South;
+        switch (side) {
+            case Side.North: mDir = Vector2i(0,-1); break;
+            case Side.South: mDir = Vector2i(0,1); break;
+            case Side.East: mDir = Vector2i(1,0); break;
+            case Side.West: mDir = Vector2i(1,0); break;
+            default:
+                mDir = Vector2i(0,1);
+        }
     }
 }
 
 public class PlaceObjects {
     private LevelBitmap mLevel;
     private Log mLog;
-
-    //[0.0f, 1.0f]
-    float random() {
-        //xxx don't know RAND_MAX, this is numerically stupid anyway
-        return cast(float)(rand.rand()) / typeof(rand.rand()).max;
-    }
-
-    //-1.0f..1.0f
-    float random2() {
-        return (random()-0.5f)*2.0f;
-    }
-
-    //[from, to)
-    int random(int from, int to) {
-        return rand.rand() % (to-from) + from;
-    }
+    //journal of added objects
+    private LevelObjects mObjects;
 
     //point inside level
-    Vector2i randPoint() {
-        return Vector2i(random(0, mLevel.size.x), random(0, mLevel.size.y));
+    Vector2i randPoint(int border = 0) {
+        return Vector2i(random(border, mLevel.size.x - border*2),
+            random(border, mLevel.size.y - border*2));
     }
 
-    public this(Log log, LevelBitmap renderer) {
+    public this(LevelBitmap renderer) {
         mLevel = renderer;
-        mLog = log;
+        mLog = registerLog("placeobjects");
+        mObjects = new LevelObjects();
     }
 
-    /// Load an object, that should be placed into the object
-    /// depth is the amount of pixels, that should be hidden into the land
-    /// note that depth is only "approximate"!
-    public PlaceableObject createObject(Surface texture, Side side = Side.None,
-        uint depth = 0)
-    {
-        PlaceableObject o = new PlaceableObject();
-        //o.mCollide = texture.getSurface().convertToMask();
-        o.mTexture = texture;
-        o.mWidth = texture.size.x;
-        o.mHeight = texture.size.y;
-        o.mSize = texture.size;
-        o.mSide = side;
-        o.mDepth = depth;
-        switch (side) {
-            case Side.North: o.mDir = Vector2i(0,-1); break;
-            case Side.South: o.mDir = Vector2i(0,1); break;
-            case Side.East: o.mDir = Vector2i(1,0); break;
-            case Side.West: o.mDir = Vector2i(1,0); break;
-            default:
-                o.mDir = Vector2i(0,0);
-        }
-        return o;
+    LevelObjects objects() {
+        return mObjects;
     }
 
     public bool tryPlaceBridge(Vector2i start, Vector2i segsize,
         out Vector2i bridge_start, out Vector2i bridge_end)
     {
-        //bridge_start = start;
-        //bridge_end = start;
-        //return true;
         uint fits = 0;
 
         bool canPlace(Vector2i pos) {
@@ -134,27 +178,27 @@ public class PlaceObjects {
             Vector2i pos, st, en;
             pos = randPoint();
 
-            mLog("bridge at %s? %s", pos, bridge[1].mSize/3);
+            mLog("bridge at %s? %s", pos, bridge[1].size/3);
 
             //bridge segment size now can be less than the size of the bitmap,
             // but disabled it because it looks worse (?)
-            if (tryPlaceBridge(pos, bridge[0].mSize, st, en)) {
+            if (tryPlaceBridge(pos, bridge[0].size, st, en)) {
                 //only accept if end parts of bridge is inside earth
-                if (!checkCollide(st-bridge[1].mSize.X+bridge[1].mSize.Y/3*2,bridge[1].mSize/3,true))
+                if (!checkCollide(st-bridge[1].size.X+bridge[1].size.Y/3*2,bridge[1].size/3,true))
                     continue;
-                if (!checkCollide(en+bridge[2].mSize/3*2,bridge[2].mSize/3,true))
+                if (!checkCollide(en+bridge[2].size/3*2,bridge[2].size/3,true))
                     continue;
                 mLog("yay bridge!");
                 bridges++;
-                uint count = (en.x1-st.x1)/bridge[0].mSize.x;
+                uint count = (en.x1-st.x1)/bridge[0].size.x;
                 for (int i = 0; i < count; i++) {
-                    placeObject(bridge[0], st+i*bridge[0].mSize.X);
+                    placeObject(bridge[0], st+i*bridge[0].size.X);
                 }
                 //possibly partial last part...
-                uint trail = (en.x1-st.x1+bridge[0].mSize.x) % bridge[0].mSize.x;
-                placeObject(bridge[0], st+count*bridge[0].mSize.X,
-                    Vector2i(trail, bridge[0].mSize.y));
-                placeObject(bridge[1], st-bridge[1].mSize.X);
+                uint trail = (en.x1-st.x1+bridge[0].size.x) % bridge[0].size.x;
+                placeObject(bridge[0], st+count*bridge[0].size.X,
+                    Vector2i(trail, bridge[0].size.y));
+                placeObject(bridge[1], st-bridge[1].size.X);
                 placeObject(bridge[2], en);
             }
         }
@@ -164,7 +208,7 @@ public class PlaceObjects {
     //tries to place an object using the try-and-error (TM) algorithm
     public uint placeObjects(uint retry, uint maxobjs, PlaceableObject obj) {
         uint count = 0;
-        Vector2i line = Vector2i(obj.mWidth/6*4, 2);
+        Vector2i line = Vector2i(obj.size.x/6*4, 2);
         outer: for (int n = 0; n < retry; n++) {
             if (count >= maxobjs)
                 break;
@@ -180,12 +224,12 @@ public class PlaceObjects {
 
             //check if can be placed
             auto dist = 20;
-            auto pos = Vector2i(cpos.x + line.x/2 - obj.mWidth/2,
-                cpos.y-(obj.mHeight-line.y));
+            auto pos = Vector2i(cpos.x + line.x/2 - obj.size.x/2,
+                cpos.y-(obj.size.y-line.y));
 
             mLog("try object at %s", pos);
 
-            if (checkCollide(pos, obj.mSize - Vector2i(0, dist))) {
+            if (checkCollide(pos, obj.size - Vector2i(0, dist))) {
                 //yeeha
                 mLog("place object at %s", pos);
                 placeObject(obj, pos);
@@ -222,10 +266,17 @@ public class PlaceObjects {
     {
         auto pos = at;//at - Vector2i(obj.mWidth, obj.mHeight) / 2;
         if (size.x < 0)
-            size.x = obj.mWidth;
+            size.x = obj.size.x;
         if (size.y < 0)
-            size.y = obj.mHeight;
-        mLevel.drawBitmap(pos, obj.mTexture, size, Lexel.Null, Lexel.SolidSoft);
+            size.y = obj.size.y;
+        PlaceCommand cmd;
+        cmd.at = at;
+        cmd.size = size;
+        cmd.before = Lexel.Null;
+        cmd.after = Lexel.SolidSoft;
+
+        mObjects.place(obj.id, cmd);
+        renderPlacedObject(mLevel, obj.bitmap, cmd);
     }
 
 }

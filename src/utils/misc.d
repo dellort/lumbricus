@@ -32,6 +32,12 @@ body {
     return intr.bsr(value);
 }
 
+//aaIfIn(a,b) works like a[b], but if !(a in b), return null
+public V aaIfIn(K, V)(V[K] aa, K key) {
+    V* pv = key in aa;
+    return pv ? *pv : null;
+}
+
 //return next after w, wraps around, if w==null, return first element, if any
 //returns always w if arr == [T]
 T arrayFindNext(T)(T[] arr, T w) {

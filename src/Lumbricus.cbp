@@ -39,7 +39,6 @@
 			<Add library="DerelictUtil" />
 			<Add library="DerelictSDLImage" />
 			<Add library="DerelictSDLttf" />
-			<Add library="DerelictPhysFs" />
 		</Linker>
 		<Unit filename="derelict\enet\enet.d" />
 		<Unit filename="derelict\enet\enetfuncs.d" />

@@ -74,8 +74,7 @@ public class LevelGeometry {
         bool is_cave = caveness != Lexel.Null;
         node.setBoolValue("is_cave", is_cave);
         if (is_cave) {
-            const char[][] cMarkers = ["FREE", "LAND", "SOLID_LAND"];
-            node.setStringValue("marker", cMarkers[caveness]);
+            node.setStringValue("marker", writeMarker(caveness));
         }
 
         ConfigNode polys = node.getSubNode("polygons");
@@ -88,8 +87,7 @@ public class LevelGeometry {
             sub.setBoolValue("changeable", p.changeable);
             sub.setStringValue("texoffset", str.format("%a %a",
                 p.texoffset.x, p.texoffset.y));
-            const char[][] cMarkers = ["FREE", "LAND", "SOLID_LAND"];
-            sub.setStringValue("marker", cMarkers[p.marker]);
+            sub.setStringValue("marker", writeMarker(p.marker));
         }
     }
 }

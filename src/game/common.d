@@ -102,8 +102,8 @@ class Common {
         return image;
     }
 
-    ConfigNode loadConfig(char[] section) {
-        char[] file = fixRelativePath(section ~ ".conf");
+    ConfigNode loadConfig(char[] section, bool asfilename = false) {
+        char[] file = fixRelativePath(section ~ (asfilename ? "" : ".conf"));
         log("load config: %s", file);
         auto s = framework.fs.open(file);
         auto f = new ConfigFile(s, file, &logconf);

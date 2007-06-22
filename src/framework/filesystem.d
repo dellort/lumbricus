@@ -28,6 +28,12 @@ version(Windows) {
     return pathStr;
 }
 
+class FilesystemException : Exception {
+    this(char[] m) {
+        super(m);
+    }
+}
+
 ///return true if dir exists and is a directory, false otherwise
 public bool dirExists(char[] dir) {
     if (stdf.exists(dir) && stdf.isdir(dir))
@@ -78,8 +84,10 @@ protected abstract class HandlerInstance {
     ///list the files (no dirs) in the path handlerPath (relative to handler object)
     ///listing should be non-recursive, and return files without path
     ///you can assume that pathExists has been called before
+    ///if findDir is true, also find directories
     ///if callback returns false, you should abort and return false too
-    abstract bool listdir(char[] handlerPath, char[] pattern, bool delegate(char[] filename) callback);
+    abstract bool listdir(char[] handlerPath, char[] pattern, bool findDir,
+        bool delegate(char[] filename) callback);
 }
 
 ///Specific MountPointHandler for mounting directories
@@ -107,7 +115,7 @@ private class HandlerDirectory : HandlerInstance {
 
     this(char[] absPath) {
         if (!dirExists(absPath))
-            throw new Exception("Directory doesn't exist");
+            throw new FilesystemException("Directory doesn't exist");
         mDirPath = addTrailingPathDelimiter(absPath);
         version(FSDebug) log("New dir handler for '%s'",mDirPath);
     }
@@ -132,10 +140,13 @@ private class HandlerDirectory : HandlerInstance {
         return new File(mDirPath ~ handlerPath, mode);
     }
 
-    bool listdir(char[] handlerPath, char[] pattern, bool delegate(char[] filename) callback) {
+    bool listdir(char[] handlerPath, char[] pattern, bool findDirs,
+        bool delegate(char[] filename) callback)
+    {
         bool cont = true;
         bool listdircb(stdf.DirEntry* de) {
-            if (!stdf.isdir(de.name)) {
+            bool isDir = stdf.isdir(de.name) != 0;
+            if (findDirs || !isDir) {
                 //listdir does a path.join with searchpath and found file, remove this
                 char[] fn = de.name[mDirPath.length..$];
 version(Windows) {
@@ -147,6 +158,9 @@ version(Windows) {
                     fn = fn[1..$];
                 }
 }
+                if (isDir) {
+                    fn ~= "/";
+                }
                 if (std.path.fnmatch(fn, pattern))
                     return (cont = callback(fn));
             } else {
@@ -190,8 +204,11 @@ private class HandlerLink : HandlerInstance {
         return mParent.open(mLinkedPath ~ handlerPath, mode, this);
     }
 
-    bool listdir(char[] handlerPath, char[] pattern, bool delegate(char[] filename) callback) {
-        return mParent.listdir(mLinkedPath ~ handlerPath, pattern, callback, this);
+    bool listdir(char[] handlerPath, char[] pattern, bool findDirs,
+        bool delegate(char[] filename) callback)
+    {
+        return mParent.listdir(mLinkedPath ~ handlerPath, pattern, findDirs,
+            callback, this);
     }
 }
 
@@ -356,7 +373,9 @@ class FileSystem {
     ///  writable = should it be possible to open files for writing
     ///             or create files in this path
     ///             if path is not physically writable, this parameter is ignored
-    public void mount(MountPath mp, char[] path, char[] mountPoint, bool writable, bool prepend = false) {
+    public void mount(MountPath mp, char[] path, char[] mountPoint,
+        bool writable, bool prepend = false)
+    {
         //get absolute path to object, considering mp
         char[] absPath;
         switch (mp) {
@@ -375,7 +394,8 @@ class FileSystem {
                 break;
         }
         if (!stdf.exists(absPath))
-            throw new Exception("Failed to mount "~path~": Path/file not found");
+            throw new FilesystemException("Failed to mount "~path
+                ~": Path/file not found");
 
         //find a handler for this path
         MountPointHandler currentHandler = null;
@@ -387,16 +407,22 @@ class FileSystem {
         }
 
         if (!currentHandler)
-            throw new Exception("No handler was able to mount object "~path);
+            throw new FilesystemException("No handler was able to mount object "
+                ~path);
 
         if (prepend)
-            mMountedPaths = MountedPath(mountPoint,currentHandler.mount(absPath),writable) ~ mMountedPaths;
+            mMountedPaths =
+                MountedPath(mountPoint,currentHandler.mount(absPath),writable) ~
+                mMountedPaths;
         else
-            mMountedPaths ~= MountedPath(mountPoint,currentHandler.mount(absPath),writable);
+            mMountedPaths ~=
+                MountedPath(mountPoint,currentHandler.mount(absPath),writable);
     }
 
     ///Try mounting a file/folder and return if the mount succeeded
-    public bool tryMount(MountPath mp, char[] path, char[] mountPoint, bool writable, bool prepend = false) {
+    public bool tryMount(MountPath mp, char[] path, char[] mountPoint,
+        bool writable, bool prepend = false)
+    {
         try {
             mount(mp, path, mountPoint, writable, prepend);
             return true;
@@ -412,13 +438,18 @@ class FileSystem {
     public void link(char[] relPath, char[] mountPoint, bool prepend = false) {
         relPath = fixRelativePath(relPath) ~ '/';
         mountPoint = fixRelativePath(mountPoint) ~ '/';
-        if (relPath.length <= mountPoint.length && mountPoint[0..relPath.length] == relPath) {
-            throw new Exception("Can't link to a direct or indirect parent directory");
+        if (relPath.length <= mountPoint.length
+            && mountPoint[0..relPath.length] == relPath)
+        {
+            throw new FilesystemException("Can't link to a direct or indirect"
+                " parent directory");
         }
         if (prepend)
-            mMountedPaths = MountedPath(mountPoint,new HandlerLink(this, relPath),true) ~ mMountedPaths;
+            mMountedPaths = MountedPath(mountPoint,new HandlerLink(this,
+                relPath),true) ~ mMountedPaths;
         else
-            mMountedPaths ~= MountedPath(mountPoint,new HandlerLink(this, relPath),true);
+            mMountedPaths ~= MountedPath(mountPoint,new HandlerLink(this,
+                relPath),true);
     }
 
     ///open a stream to a file in the VFS
@@ -447,21 +478,22 @@ class FileSystem {
                 }
             }
         }
-        throw new Exception("File not found: " ~ relFilename);
+        throw new FilesystemException("File not found: " ~ relFilename);
     }
 
     ///List files (not directories) in directory relPath
     ///Works like std.file.listdir
     ///Will not error if the path is not found
+    ///findDirs: also find directories (these have '/' at the end of filename!)
     ///Returns:
     /// false if listing was aborted, true otherwise
-    public bool listdir(char[] relPath, char[] pattern,
+    public bool listdir(char[] relPath, char[] pattern, bool findDirs,
         bool delegate(char[] filename) callback)
     {
-        return listdir(relPath, pattern, callback, null);
+        return listdir(relPath, pattern, findDirs, callback, null);
     }
 
-    protected bool listdir(char[] relPath, char[] pattern,
+    protected bool listdir(char[] relPath, char[] pattern, bool findDirs,
         bool delegate(char[] filename) callback, HandlerInstance caller)
     {
         relPath = fixRelativePath(relPath) ~ '/';
@@ -474,7 +506,8 @@ class FileSystem {
                 char[] handlerPath = p.getHandlerPath(relPath);
                 if (p.handler.pathExists(handlerPath)) {
                     //the path exists, list contents
-                    cont = p.handler.listdir(handlerPath, pattern, callback);
+                    cont = p.handler.listdir(handlerPath, pattern, findDirs,
+                        callback);
                 }
             }
             if (!cont)

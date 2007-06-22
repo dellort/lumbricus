@@ -476,27 +476,35 @@ class TopLevel {
         w.writefln("pageblocks = %s", s.pageblocks);
     }
 
-    private void cmdGenerateLevel(CommandLine cmd) {
+    private void newGame(ConfigNode config) {
         auto x = new genlevel.LevelGenerator();
-        x.config = globals.loadConfig("levelgen").getSubNode("levelgen");
-        char[] arg0 = cmd?cmd.getArgString():"";
         GameConfig cfg;
-        if (true == false) {
-            genlevel.LevelTemplate templ = x.findRandomTemplate(arg0);
-            genlevel.LevelTheme gfx = x.findGfx(mGfxSet);
+        bool load = config.selectValueFrom("level", ["generate", "load"]) == 1;
+        if (load) {
+            cfg.level =
+                x.renderSavedLevel(globals.loadConfig(config["level_load"]));
+        } else {
+            genlevel.LevelTemplate templ =
+                x.findRandomTemplate(config["level_template"]);
+            genlevel.LevelTheme gfx = x.findRandomGfx(config["level_gfx"]);
+
+            //be so friendly and save it
             ConfigNode saveto = new ConfigNode();
             cfg.level = x.renderLevel(templ, gfx, saveto);
-            saveConfig(saveto, "bestlevelevar.conf");
-        } else {
-            cfg.level = x.renderSavedLevel(globals.loadConfig("bestlevelevar"));
+            saveConfig(saveto, "lastlevel.conf");
         }
         auto teamconf = globals.loadConfig("teams");
         cfg.teams = teamconf.getSubNode("teams");
         cfg.weapons = teamconf.getSubNode("weapon_sets");
         auto gamemodecfg = globals.loadConfig("gamemode");
         cfg.gamemode = gamemodecfg.getSubNode(
-            globals.anyConfig.getStringValue("gamemode",""));
+            config.getStringValue("gamemode",""));
         initializeGame(cfg);
+    }
+
+    private void cmdGenerateLevel(CommandLine cmd) {
+        //char[] arg0 = cmd?cmd.getArgString():"";
+        newGame(globals.anyConfig.getSubNode("newgame"));
     }
 
     private void cmdPause(CommandLine) {

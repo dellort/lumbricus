@@ -50,7 +50,6 @@
 			<Add library="DerelictUtil" />
 			<Add library="DerelictSDLImage" />
 			<Add library="DerelictSDLttf" />
-			<Add library="DerelictPhysFs" />
 		</Linker>
 		<Unit filename="framework\commandline.d" />
 		<Unit filename="framework\console.d" />

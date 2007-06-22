@@ -187,7 +187,7 @@ public class ConfigNode : ConfigItem {
     //path to config file, used for getPathValue etc
     private char[] mFilePath;
 
-    private void setFilePath(char[] p) {
+    public void setFilePath(char[] p) {
         mFilePath = p;
     }
 
@@ -420,7 +420,11 @@ public class ConfigNode : ConfigItem {
         }
 
         if (level != 0) {
-            stream.writeString(" {"c);
+            //unnamed item: no space between name and rest
+            if (this.name.length > 0) {
+                stream.writeString(" ");
+            }
+            stream.writeString("{"c);
             stream.writeString(newline);
         }
 
@@ -523,6 +527,28 @@ public class ConfigNode : ConfigItem {
         return 0;
     }
 
+    ///visit all existing (transitive) subitems, including "this"
+    public void visitAllItems(void delegate(ConfigItem item) visitor) {
+        visitor(this);
+        foreach (ConfigItem item; mItems) {
+            visitor(item);
+            ConfigNode node = cast(ConfigNode)item;
+            if (node) {
+                node.visitAllItems(visitor);
+            }
+        }
+    }
+
+    public void visitAllNodes(void delegate(ConfigNode node) visitor) {
+        visitAllItems(
+            (ConfigItem item) {
+                auto node = cast(ConfigNode)item;
+                if (node)
+                    visitor(node);
+            }
+        );
+    }
+
     public int getIntValue(char[] name, int def = 0) {
         int res = def;
         parseInt(getStringValue(name), res);
@@ -550,6 +576,7 @@ public class ConfigNode : ConfigItem {
         setStringValue(name, str.toString(value));
     }
 
+    //xxx arrrrrrrrrgh remove this horrible hack arrrrrrrrrrrrrrrrrrrrrrrrgh
     public char[] getPathValue(char[] name, char[] def = "")
     {
         char[] res = getStringValue(name, def);

@@ -17,6 +17,7 @@ import std.stream;
 import str = std.string;
 import conv = std.conv;
 import rand = std.random;
+import utils.misc;
 
 debug {
     import std.perf;
@@ -27,9 +28,6 @@ private Log mLog;
 
 static this() {
     mLog = registerLog("LevelGenerator");
-}
-
-class LevelObjects {
 }
 
 /// geometry template, all information from an item in levelgen.conf
@@ -62,6 +60,10 @@ public class LevelTemplate {
         return mGeometry;
     }
 
+    Vector2i size() {
+        return mGeometry.size;
+    }
+
     uint waterLevel() {
         return mWaterLevel;
     }
@@ -77,7 +79,7 @@ public class LevelTemplate {
         gen.readFrom(mGeometry);
         gen.setConfig(mConfig);
 
-        mLog("rendering level...");
+        mLog("generating level...");
 
         auto res = gen.generate();
 
@@ -96,9 +98,8 @@ public class LevelTheme {
     Surface skyBackdrop;
     Color skyColor;
     AnimationResource skyDebris;
-    //incredibly evil hack
-    Surface[] objects;
-    Surface[3] bridge;
+    PlaceableObject[char[]] objects;
+    PlaceableObject[3] bridge;
     Surface[Lexel] markerTex;
     Border[] borders;
 
@@ -110,6 +111,10 @@ public class LevelTheme {
 
     private ConfigNode gfxTexNode;
     private char[] mGfxPath;
+
+    public PlaceableObject findObject(char[] name) {
+        return objects[name];
+    }
 
     private static Surface readTexture(char[] value, bool accept_null) {
         Surface res;
@@ -167,6 +172,7 @@ public class LevelTheme {
         globals.resources.loadResources(gfxNode);
         gfxTexNode = gfxNode.getSubNode("marker_textures");
         name = gfxNode["name"];
+        assert(name.length > 0);
 
         //the least important part is the longest
         ConfigNode cborders = gfxNode.getSubNode("borders");
@@ -195,29 +201,23 @@ public class LevelTheme {
             borders ~= b;
         }
 
-        mLog("not placing objects");
+        //xxx fix this (objects should have more than just a bitmap)
+        PlaceableObject createObject(char[] bitmap, bool try_place) {
+            auto bmp = globals.resources.resource!(BitmapResource)(bitmap).get();
+            //use ressource name as id
+            auto po = new PlaceableObject(bitmap, bmp, try_place);
+            objects[po.id] = po;
+            return po;
+        }
 
         ConfigNode bridgeNode = gfxNode.getSubNode("bridge");
-        /*PlaceableObject[3] bridge;
-        auto placer = new PlaceObjects(mLog, renderer);
-        bridge[0] = placer.createObject(readTexture(gfxPath ~
-            bridgeNode.getStringValue("segment"), false));
-        bridge[1] = placer.createObject(readTexture(gfxPath ~
-            bridgeNode.getStringValue("left"), false));
-        bridge[2] = placer.createObject(readTexture(gfxPath ~
-            bridgeNode.getStringValue("right"), false));
-        placer.placeBridges(10,10, bridge);*/
-        bridge[0] = globals.resources.resource!(BitmapResource)
-            (bridgeNode.getPathValue("segment")).get();
-        bridge[1] = globals.resources.resource!(BitmapResource)
-            (bridgeNode.getPathValue("left")).get();
-        bridge[2] = globals.resources.resource!(BitmapResource)
-            (bridgeNode.getPathValue("right")).get();
+        bridge[0] = createObject(bridgeNode.getPathValue("segment"), false);
+        bridge[1] = createObject(bridgeNode.getPathValue("left"), false);
+        bridge[2] = createObject(bridgeNode.getPathValue("right"), false);
 
         ConfigNode objectsNode = gfxNode.getSubNode("objects");
         foreach (char[] id, ConfigNode onode; objectsNode) {
-            objects ~= globals.resources.resource!(BitmapResource)
-            (onode.getPathValue("image")).get();
+            createObject(onode.getPathValue("image"), true);
         }
 
         ConfigNode skyNode = gfxNode.getSubNode("sky");
@@ -248,11 +248,9 @@ public class LevelTheme {
 
 /// level generator
 public class LevelGenerator {
-    private ConfigNode mConfig;
-
-    /// node must correspond to the "levelgen" section
-    public void config(ConfigNode node) {
-        mConfig = node;
+    private {
+        ConfigNode mTemplates;
+        ConfigNode mGfxNodes;
     }
 
     private void doRenderGeometry(LevelBitmap renderer, LevelGeometry geometry,
@@ -265,12 +263,14 @@ public class LevelGenerator {
 
         //geometry
         foreach (LevelGeometry.Polygon p; geometry.polygons) {
-            auto surface = gfx.markerTex[p.marker];
+            Surface surface = aaIfIn(gfx.markerTex, p.marker);
             Vector2i texoffset;
-            texoffset.x = cast(int)(p.texoffset.x * surface.size.x);
-            texoffset.y = cast(int)(p.texoffset.y * surface.size.y);
-            renderer.addPolygon(p.points, p.nochange, p.visible, texoffset,
-                surface, p.marker);
+            if (surface) {
+                texoffset.x = cast(int)(p.texoffset.x * surface.size.x);
+                texoffset.y = cast(int)(p.texoffset.y * surface.size.y);
+            }
+            renderer.addPolygon(p.points, p.visible, texoffset, surface,
+                p.marker, p.changeable, p.nochange, 5, 0.25f);
         }
 
         debug {
@@ -292,10 +292,43 @@ public class LevelGenerator {
         }
     }
 
-    //fill in most of Level members
-    private Level doCreateLevel(Level level, LevelTemplate level_templ,
+    //try to place the objects (listed in gfx) onto the level bitmap in renderer
+    //both draws the objects into renderer and returns a list of placed obejcts
+    //(this list is used to implement level saving/loading, else it's useless)
+    //NOTE: this is how Worms(TM) obviously works, i.e. there you can paint
+    //      your own level and Worms(TM) still can place objects into it
+    //xxx: but maybe I'll use data from LevelTemplate to see in which areas
+    //     object placement would be worth to try (reason for templ param)
+    private LevelObjects doPlaceObjects(LevelBitmap renderer,
+        LevelTemplate templ, LevelTheme gfx)
+    {
+        auto placer = new PlaceObjects(renderer);
+        foreach (PlaceableObject o; gfx.objects) {
+            if (o.tryPlace)
+                placer.placeObjects(10, 10, o);
+        }
+        placer.placeBridges(10, 10, gfx.bridge);
+        return placer.objects;
+    }
+
+    //render the same objects as doPlaceObjects() did, using its return value
+    private void doRenderObjects(LevelBitmap renderer, LevelObjects objs,
         LevelTheme gfx)
     {
+        foreach (LevelObjects.PlaceItem item; objs.items) {
+            PlaceableObject obj = gfx.findObject(item.id);
+            renderPlacedObject(renderer, obj.bitmap, item.params);
+        }
+    }
+
+    //fill in most of Level members, destroy renderer (free its drawing surface)
+    private Level doCreateLevel(LevelBitmap renderer, LevelTemplate level_templ,
+        LevelTheme gfx)
+    {
+        Level level = new Level();
+
+        renderer.createLevel(level, true);
+
         level.waterLevel = level_templ.waterLevel;
         level.isCave = level_templ.isCave;
 
@@ -310,39 +343,34 @@ public class LevelGenerator {
         return level;
     }
 
-    /// render a level using (already generated) geometry in "geometry",
-    /// object placments in "objects", graphics from "gfx",
-    /// and the rest in "level_templ"
-    public Level renderLevel(LevelGeometry geometry, LevelObjects objects,
-        LevelTemplate level_templ, LevelTheme gfx)
-    {
-        auto renderer = new LevelBitmap(geometry.size);
-        doRenderGeometry(renderer, geometry, gfx);
-        //xxx: render objects, using the placements in "objects"
-        //create the level; don't ask me why the renderer creates it
-        Level level = renderer.createLevel(true);
-        doCreateLevel(level, level_templ, gfx);
-        return level;
-    }
-
     /// render a level, auto-generated geometry
     ///     saveto = if !is null, store generated metadata into it
     public Level renderLevel(LevelTemplate level_templ, LevelTheme gfx,
         ConfigNode saveto = null)
     {
-        auto gen = level_templ.generate();
+        assert(level_templ !is null);
+        assert(gfx !is null);
+        mLog("generating level... template='%s', gfx='%s'",
+            level_templ.name, gfx.name);
+
         //actual rendering etc. goes on here
-        Level level = renderLevel(gen, null, level_templ, gfx);
+        auto renderer = new LevelBitmap(level_templ.size);
+        auto gen = level_templ.generate();
+        doRenderGeometry(renderer, gen, gfx);
+        auto objects = doPlaceObjects(renderer, level_templ, gfx);
+
         //maybe save
         if (saveto !is null) {
             //general
             saveto["template"] = level_templ.name;
             saveto["gfx"] = gfx.name;
             //geometry
-            gen.saveTo(saveto);
-            //xxx object positions
+            gen.saveTo(saveto.getSubNode("geometry"));
+            //object positions
+            objects.saveTo(saveto.getSubNode("objects"));
         }
-        return level;
+
+        return doCreateLevel(renderer, level_templ, gfx);
     }
 
     public Level renderSavedLevel(ConfigNode saved) {
@@ -350,45 +378,30 @@ public class LevelGenerator {
         LevelTemplate templ = findTemplate(saved["template"]);
         LevelTheme gfx = findGfx(saved["gfx"]);
         LevelGeometry geo = new LevelGeometry();
-        geo.loadFrom(saved);
+        geo.loadFrom(saved.getSubNode("geometry"));
+        LevelObjects objs = new LevelObjects();
+        objs.loadFrom(saved.getSubNode("objects"));
 
         //render
-        Level level = renderLevel(geo, null, templ, gfx);
+        auto renderer = new LevelBitmap(geo.size);
+        doRenderGeometry(renderer, geo, gfx);
+        doRenderObjects(renderer, objs, gfx);
 
-        return level;
+        return doCreateLevel(renderer, templ, gfx);
     }
 
-    public Level generateRandom(LevelTemplate templ, LevelTheme gfx) {
-        mLog("generating level... template='%s', gfx='%s'", templ.name, gfx.name);
-
-        debug {
-            auto counter = new PerformanceCounter();
-            counter.start();
+    //xxx: both find*()s generate new objects on the fly
+    public LevelTheme findGfx(char[] name, bool canfail = false) {
+        auto res = mGfxNodes.findNode(name);
+        if (!res) {
+            if (!canfail)
+                throw new Exception("gfx-set '" ~ name ~ "' not found");
+            return null;
         }
-
-        Level level = renderLevel(templ, gfx);
-
-        debug {
-            counter.stop();
-            mLog("done in %s", timeMusecs(counter.microseconds));
-            counter.start();
-        }
-
-        return level;
+        return new LevelTheme(res);
     }
-
-    public LevelTheme findGfx(char[] name) {
-        //open graphics set
-        char[] gfxPath = "/level/" ~ name ~ "/";
-        ConfigNode gfxNode = globals.loadConfig(gfxPath ~ "level");
-        //use some violence!
-        gfxNode["gfxpath"] = gfxPath;
-        gfxNode["name"] = name;
-        return new LevelTheme(gfxNode);
-    }
-
     public LevelTemplate findTemplate(char[] name, bool canfail = false) {
-        auto res = mConfig.getSubNode("templates").findNode(name);
+        auto res = mTemplates.findNode(name);
         if (!res) {
             if (!canfail)
                 throw new Exception("template '" ~ name ~ " not found");
@@ -398,49 +411,110 @@ public class LevelGenerator {
     }
 
     /// generate a random level based on a template
-    public Level generateRandom(char[] templatename, char[] gfxSet)
+    public Level generateRandom(char[] templatename = "", char[] gfxSet = "")
     {
         mLog("template '%s'", templatename ? templatename : "[random]");
+        mLog("gfx-set '%s'", gfxSet ? gfxSet : "[random]");
 
-        LevelTheme gfx = findGfx(gfxSet);
+        LevelTheme gfx = findRandomGfx(gfxSet);
         LevelTemplate templ = findRandomTemplate(templatename);
 
-        return generateRandom(templ, gfx);
+        return renderLevel(templ, gfx);
+    }
+
+    private ConfigNode findRandomNode(ConfigNode node, char[] name = "") {
+        ConfigNode res = node.findNode(name);
+
+        if (res)
+            return res;
+
+        if (node.count > 0) {
+            uint pick = rand.rand() % node.count;
+            foreach(ConfigNode bres; node) {
+                assert(bres !is null);
+                if (pick == 0) {
+                    return bres;
+                }
+                pick--;
+            }
+        }
+
+        return null;
     }
 
     /// pick a template with name 'name'; if 'name' is not found, return a
-    /// random template from the list
+    /// random one from the list
     public LevelTemplate findRandomTemplate(char[] name = "") {
-        LevelTemplate templ = findTemplate(name, true);
-
-        if (templ)
-            return templ;
-
-        auto templates = mConfig.getSubNode("templates");
-        uint count = templates.count;
-        if (count == 0) {
+        ConfigNode node = findRandomNode(mTemplates, name);
+        if (!node) {
             mLog("no level templates!");
             return null;
         }
-
-        //not found, pick a random one instead
-        uint pick = rand.rand() % count;
-        foreach(ConfigNode template_node; templates) {
-            assert(template_node !is null);
-            if (pick == 0) {
-                mLog("picked random template: '%s'", template_node.name);
-                return findTemplate(template_node.name);
-            }
-            pick--;
+        mLog("picked level template: '%s'", node.name);
+        return findTemplate(node.name, false);
+    }
+    public LevelTheme findRandomGfx(char[] name = "") {
+        ConfigNode node = findRandomNode(mGfxNodes, name);
+        if (!node) {
+            mLog("no level gfx-sets!");
+            return null;
         }
-
-        assert(false);
-        return null;
+        mLog("picked level gfx-set: '%s'", node.name);
+        return findGfx(node.name, false);
     }
 
     /// like in Worms(tm): allow user images, but auto-place worms, boxes, etc.
-    public Level generateFromImage(Surface image) {
+    ///     placeObjects = place gfx objects into the level
+    ///     gfx = gfx theme to use (still needed for i.e. the background)
+    public Level generateFromImage(Surface image, bool placeObjects, char[] gfx)
+    {
         //TODO: add code
         return null;
+    }
+
+    this() {
+        mTemplates = globals.loadConfig("levelgen")
+            .getSubNode("levelgen_templates");
+
+        mGfxNodes = new ConfigNode();
+
+        //find and load all gfx config nodes
+        //(load them to see if it really exists)
+        gFramework.fs.listdir("level", "*", true,
+            (char[] path) {
+                ConfigNode config;
+                try {
+                    config = globals.loadConfig(path ~ "level");
+                } catch (FilesystemException e) {
+                    //seems it wasn't a valid gfx dir, do nothing, config==null
+                    //i.e. the data directory contains .svn
+                }
+                if (config) {
+                    //get the name of the config node from the path
+                    //xxx store name in config file directly
+                    assert(path[$-1] == '/');
+                    path = path[0..$-1];
+                    auto pos = str.rfind(path, '/');
+                    char[] name = path[pos+1..$];
+                    char[] prepath = path[0..pos];
+
+                    config["gfxpath"] = path ~ "/";
+                    config["name"] = name;
+                    assert(!mGfxNodes.hasNode(name), "gfx name already exists");
+                    ConfigNode node = mGfxNodes.getSubNode(name);
+                    //xxx: sorry, it just seemed to be too complicated to provide
+                    //a function like ConfigNode.addSubNode(ConfigNode node);
+                    //so, copy it into the new node
+                    node.mixinNode(config);
+                    //but this disgusting hack wasn't my idea
+                    node.visitAllNodes(
+                        (ConfigNode sub) {
+                            sub.setFilePath(path ~ "/");
+                        }
+                    );
+                }
+                return true;
+            }
+        );
     }
 }

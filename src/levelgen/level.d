@@ -17,18 +17,18 @@ public enum Lexel : ubyte {
 
 /// A Lumbricus level.
 public class Level {
-    private Vector2i mSize;
+    package Vector2i mSize;
     private uint mPitch;
     package Surface mImage;
     //metadata per pixel
-    private Lexel[] mData;
+    package Lexel[] mData;
 
     //non-landscape values filled by level generator
     private bool mIsCave;     //is this a cave level
     private uint mWaterLevel; //initial water level, in pixels from lower border
 
     //color of the landscape border where landscape was destroyed
-    package Color mBorderColor;
+    package Color mBorderColor = {0.6,0.6,0};
     //background image for the level (visible when parts of level destroyed)
     //can be null!
     package Surface mBackImage;
@@ -65,11 +65,19 @@ public class Level {
         mData[y*mPitch+x] = lexel;
     }
 
-    public this(Vector2i asize, Surface image) {
+    /*public this(Vector2i asize, Surface image) {
         mSize = asize; mImage = image;
         mData.length = size.x*size.y;
         mPitch = size.x;
-        mBorderColor = Color(0.6,0.6,0);
+    }*/
+    //usually created by generator.d/Generator
+    package this() {
+    }
+
+    package void data(Lexel[] data) {
+        assert(data.length == mSize.x * mSize.y);
+        mData = data;
+        mPitch = mSize.x;
     }
 
     public bool isCave() {
@@ -95,13 +103,15 @@ public class Level {
 }
 
 //helpers
+//xxx these should be moved away, they really don't belong here
 package:
 
 import conv = std.conv;
 import str = std.string;
 
+private static char[][] marker_strings = ["FREE", "LAND", "SOLID_LAND"];
+
 Lexel parseMarker(char[] value) {
-    static char[][] marker_strings = ["FREE", "LAND", "SOLID_LAND"];
     static Lexel[] marker_values = [Lexel.Null, Lexel.SolidSoft,
         Lexel.SolidHard];
     for (uint i = 0; i < marker_strings.length; i++) {
@@ -111,6 +121,10 @@ Lexel parseMarker(char[] value) {
     }
     //else explode
     throw new Exception("invalid marker value in configfile: " ~ value);
+}
+
+char[] writeMarker(Lexel v) {
+    return marker_strings[v];
 }
 
 Vector2i readVector(char[] s) {
@@ -126,7 +140,7 @@ Vector2i readVector(char[] s) {
 
 //some of this stuff maybe should be moved into configfile.d
 //practically a map over ConfigNode *g*
- T[] readList(T)(ConfigNode node, T delegate(char[] item) translate) {
+T[] readList(T)(ConfigNode node, T delegate(char[] item) translate) {
     T[] res;
     //(the name isn't needed (and should be empty))
     foreach(char[] name, char[] value; node) {
