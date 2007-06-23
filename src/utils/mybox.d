@@ -80,17 +80,6 @@ struct MyBox {
         }
     }
 
-    /// Copy the box including contents. Should work like a normal assignment,
-    /// at least if there's no opAssign.
-    /// (Simply assinging a box will copy contents only if data is small enough)
-    MyBox copy() {
-        MyBox c = *this;
-        if (mType.tsize() > mStaticData.length) {
-            c.mDynamicData = mDynamicData.dup;
-        }
-        return c;
-    }
-
     /// Type stored in the box; null if empty.
     TypeInfo type() {
         return mType;
@@ -112,23 +101,23 @@ struct MyBox {
             if (mType.tsize() <= mStaticData.length) {
                 return mStaticData[0..mType.tsize()];
             } else {
-                assert(mType.size.length == mDynamicData.length);
+                assert(mType.tsize() == mDynamicData.length);
                 return mDynamicData;
             }
         }
     }
 
     /// Compare two boxes;
-    /// - If different types, throw exception.
     /// - If one of them is null, return false.
+    /// - If different types, throw exception.
     /// - Otherwise invoke TypeInfo.compare(), which should correspond to "is".
-    bool compare(MyBox b) {
+    bool compare(in MyBox b) {
         if (mType is null || b.mType is null)
             return false;
         if (mType !is b.mType) {
             throw new Exception("can't compare different types.");
         }
-        return mType.compare(data().ptr, b.data().ptr);
+        return mType.compare(data().ptr, b.data().ptr) == 0;
     }
 }
 
@@ -175,6 +164,18 @@ unittest {
 
     box.init!(huh)();
     assert(box.unbox!(huh) == huh.init);
+
+    MyBox box2;
+    box.box!(int)(7);
+    assert(!box.compare(box2));
+    box2.box!(int)(8);
+    assert(!box.compare(box2));
+    box2.box!(int)(7);
+    assert(box.compare(box2));
+    box2.box!(uint)(7);
+    bool thrown = false;
+    try { box.compare(box2); } catch (Exception e) { thrown = true; }
+    assert(thrown);
 
     //just to be sure MyBox will work for object references
     class Foo {
