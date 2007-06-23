@@ -81,7 +81,8 @@ protected abstract class HandlerInstance {
 
     abstract Stream open(char[] handlerPath, FileMode mode);
 
-    ///list the files (no dirs) in the path handlerPath (relative to handler object)
+    ///list the files (no dirs) in the path handlerPath (relative to handler
+    ///object)
     ///listing should be non-recursive, and return files without path
     ///you can assume that pathExists has been called before
     ///if findDir is true, also find directories
@@ -136,7 +137,8 @@ private class HandlerDirectory : HandlerInstance {
     }
 
     Stream open(char[] handlerPath, FileMode mode) {
-        version(FSDebug) log("Handler for '%s': Opening '%s'",mDirPath, handlerPath);
+        version(FSDebug) log("Handler for '%s': Opening '%s'",mDirPath,
+            handlerPath);
         return new File(mDirPath ~ handlerPath, mode);
     }
 
@@ -147,20 +149,18 @@ private class HandlerDirectory : HandlerInstance {
         bool listdircb(stdf.DirEntry* de) {
             bool isDir = stdf.isdir(de.name) != 0;
             if (findDirs || !isDir) {
-                //listdir does a path.join with searchpath and found file, remove this
-                char[] fn = de.name[mDirPath.length..$];
-version(Windows) {
-                if (fn.length>0 && (fn[0] == '/' || fn[0] == '\\')) {
-                    fn = fn[1..$];
-                }
-} else {
+                //listdir does a path.join with searchpath and found file,
+                //remove this
+                char[] fn = fixRelativePath(de.name[mDirPath.length..$]);
+                //remove leading '/'
                 if (fn.length>0 && fn[0] == '/') {
                     fn = fn[1..$];
                 }
-}
+                //add trailing '/' for directories
                 if (isDir) {
                     fn ~= "/";
                 }
+                //match search pattern
                 if (std.path.fnmatch(fn, pattern))
                     return (cont = callback(fn));
             } else {
@@ -225,7 +225,9 @@ class FileSystem {
             ///and enabled for this path
             private bool mWritable;
 
-            public static MountedPath opCall(char[] mountPoint, HandlerInstance handler, bool writable) {
+            public static MountedPath opCall(char[] mountPoint,
+                HandlerInstance handler, bool writable)
+            {
                 MountedPath ret;
                 //make sure mountPoint starts and ends with a '/'
                 ret.mountPoint = fixRelativePath(mountPoint) ~ '/';
@@ -241,12 +243,15 @@ class FileSystem {
             ///is relPath a subdirectory of mountPoint?
             ///compares case-sensitive
             public bool matchesPath(char[] relPath) {
-                version(FSDebug) log("Checking for match: '%s' and '%s'",relPath,mountPoint);
-                return relPath.length>mountPoint.length && (str.cmp(relPath[0..mountPoint.length],mountPoint) == 0);
+                version(FSDebug) log("Checking for match: '%s' and '%s'",
+                    relPath,mountPoint);
+                return relPath.length > mountPoint.length
+                    && str.cmp(relPath[0..mountPoint.length],mountPoint) == 0;
             }
 
             public bool matchesPathForList(char[] relPath) {
-                return relPath.length>=mountPoint.length && (str.cmp(relPath[0..mountPoint.length],mountPoint) == 0);
+                return relPath.length>=mountPoint.length
+                    && str.cmp(relPath[0..mountPoint.length],mountPoint) == 0;
             }
 
             ///Convert relPath (relative to VFS root) to a path relative to
@@ -372,7 +377,8 @@ class FileSystem {
     ///  path = path to object in the real FS, relative if specified by mp
     ///  writable = should it be possible to open files for writing
     ///             or create files in this path
-    ///             if path is not physically writable, this parameter is ignored
+    ///             if path is not physically writable, this parameter is
+    ///             ignored
     public void mount(MountPath mp, char[] path, char[] mountPoint,
         bool writable, bool prepend = false)
     {
@@ -453,8 +459,9 @@ class FileSystem {
     }
 
     ///open a stream to a file in the VFS
-    ///if you try to open an existing file (mode != FileMode.OutNew), all mounted
-    ///paths are searched top-down (first mounted first) until a file has been found
+    ///if you try to open an existing file (mode != FileMode.OutNew), all
+    ///mounted paths are searched top-down (first mounted first) until a file
+    ///has been found
     ///When creating a file, it will be created in the first matching path that
     ///is writable
     ///Params:
