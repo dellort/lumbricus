@@ -3,16 +3,18 @@ module gui.gameview;
 import framework.framework;
 import game.controller;
 import game.common;
-import game.game;
+import game.clientengine;
 import game.scene;
 import gui.guiobject;
 import utils.vector2;
 
 class GameView : GuiObject {
+    private ClientGameEngine mEngine;
     private SceneView mGameSceneView;
     private GameController mController;
 
-    this() {
+    this(ClientGameEngine engine) {
+        mEngine = engine;
         mGameSceneView = new SceneView();
         events.onKeyDown = &keyDown;
         events.onKeyUp = &keyUp;

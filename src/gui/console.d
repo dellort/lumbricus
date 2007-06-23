@@ -27,5 +27,10 @@ class GuiConsole : GuiObject {
     bool keyPress(char[] bind, KeyInfo key) {
         if (console.visible && globals.cmdLine.keyPress(key))
             return true;
+        return false;
+    }
+
+    void resize() {
+        size = scene.size;
     }
 }

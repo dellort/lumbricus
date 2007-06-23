@@ -31,7 +31,7 @@ class GuiMain {
     private SceneView mRootView;
 
     private Time mLastTime;
-    private GameEngine mEngine;
+    //private GameEngine mEngine;
 
     private EventSink mFocus, events;
 
@@ -46,22 +46,21 @@ class GuiMain {
         mRootView.size = size;
 
         //for root events, e.g. focus change
-        events = new EventSink();
+        events = new EventSink(null);
 
         mLastTime = timeCurrentTime();
     }
 
     void add(GuiObject o, GUIZOrder z) {
         o.setScene(mGuiScene, z);
+        o.mOnKilled = &onSubObjectKilled;
         o.resize();
     }
 
-    void engine(GameEngine engine) {
-        mEngine = engine;
-        foreach (obj, int z; mGuiScene) {
-            GuiObject go = cast(GuiObject)obj;
-            if (go)
-                go.engine = engine;
+    private void onSubObjectKilled(GuiObject o) {
+        //ensure focus is taken when object is killed
+        if (mFocus && o is mFocus.mObject) {
+            mFocus = null;
         }
     }
 
@@ -105,6 +104,9 @@ class GuiMain {
 
     void setFocus(GuiObject go) {
         mFocus = go ? go.events : null;
+        if (go) {
+            go.mHasFocus = true;
+        }
     }
 
     private bool doKeyEvent(EventSink.KeyEvent ev, KeyInfo info) {

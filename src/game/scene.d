@@ -12,6 +12,11 @@ public import framework.framework : KeyInfo, Canvas;
 
 import game.common;
 
+//when drawing a SceneObjectPositioned, clip the canvas to its bound
+//useful to see if size field is correct, but not an intended functionality
+//(because it's slow)
+//version = ClipForDebugging;
+
 //a scene contains all graphics drawn onto the screen
 //each graphic is represented by a SceneObject
 class Scene {
@@ -241,8 +246,21 @@ class SceneView : SceneObjectPositioned {
 
         //Hint: first element in zorder array is the list of invisible objects
         foreach (obj, z; mClientScene) {
-            if (z>0)
-                obj.draw(canvas);
+            if (z>0) {
+                version (ClipForDebugging) {
+                    SceneObjectPositioned pobj = cast(SceneObjectPositioned)obj;
+                    if (pobj) {
+                        canvas.pushState();
+                        canvas.clip(pobj.pos, pobj.pos + pobj.size);
+                        obj.draw(canvas);
+                        canvas.popState();
+                    } else {
+                        obj.draw(canvas);
+                    }
+                } else {
+                    obj.draw(canvas);
+                }
+            }
         }
 
         canvas.popState();

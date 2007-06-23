@@ -595,6 +595,12 @@ package class LevelBitmap {
         level.data = data;
     }
 
+    public Surface releaseImage() {
+        auto img = mImage;
+        mImage = null;
+        return img;
+    }
+
     public Vector2i size() {
         return mImage.size;
     }

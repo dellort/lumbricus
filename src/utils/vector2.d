@@ -11,6 +11,10 @@ public struct Vector2(T) {
     alias x1 x;
     alias x2 y;
 
+    //unit vectors (not to confuse with .X and .Y properties)
+    const Vector2 cX = {1,0};
+    const Vector2 cY = {0,1};
+
     //can be used for static initialization, i.e. as Vector2!(float).nan
     static if (is(T == float) || is(T == double)) {
         const Vector2 nan = {T.nan, T.nan};
@@ -79,6 +83,11 @@ public struct Vector2(T) {
 
     public Vector2 opDiv(T scalar) {
         return Vector2(x1/scalar, x2/scalar);
+    }
+
+    //entry-wise division (like mulEntries)
+    public Vector2 opDiv(Vector2 v) {
+        return Vector2(x1/v.x1, x2/v.x2);
     }
 
     public Vector2 opNeg() {

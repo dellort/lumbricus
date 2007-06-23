@@ -439,6 +439,7 @@ public class SDLCanvas : Canvas {
         struct State {
             SDL_Rect clip;
             Vector2i translate;
+            Vector2i clientstart, clientsize;
         }
 
         Vector2i mTrans;
@@ -446,7 +447,7 @@ public class SDLCanvas : Canvas {
         uint mStackTop; //point to next free stack item (i.e. 0 on empty stack)
 
         Vector2i mClientSize;
-        Vector2i mClipStart;  //origin of clip rect
+        Vector2i mClientStart;  //origin of window
         SDLSurface sdlsurface;
     }
 
@@ -465,6 +466,8 @@ public class SDLCanvas : Canvas {
         assert(mStackTop < MAX_STACK);
         SDL_GetClipRect(sdlsurface.mReal, &mStack[mStackTop].clip);
         mStack[mStackTop].translate = mTrans;
+        mStack[mStackTop].clientstart = mClientStart;
+        mStack[mStackTop].clientsize = mClientSize;
         mStackTop++;
     }
 
@@ -474,13 +477,18 @@ public class SDLCanvas : Canvas {
         SDL_Rect* rc = &mStack[mStackTop].clip;
         SDL_SetClipRect(sdlsurface.mReal, rc);
         mTrans = mStack[mStackTop].translate;
-        mClipStart.x = rc.x;
-        mClipStart.y = rc.y;
-        mClientSize.x = rc.w;
-        mClientSize.y = rc.h;
+        mClientStart = mStack[mStackTop].clientstart;
+        mClientSize = mStack[mStackTop].clientsize;
     }
 
     public void setWindow(Vector2i p1, Vector2i p2) {
+        clip(p1, p2);
+        mTrans = p1 + mTrans;
+        mClientStart = p1 + mTrans;
+        mClientSize = p2 - p1;
+    }
+
+    public void clip(Vector2i p1, Vector2i p2) {
         p1 += mTrans; p2 += mTrans;
         SDL_Rect rc;
         rc.x = p1.x;
@@ -488,9 +496,6 @@ public class SDLCanvas : Canvas {
         rc.w = p2.x-p1.x;
         rc.h = p2.y-p1.y;
         SDL_SetClipRect(sdlsurface.mReal, &rc);
-        mTrans = p1;
-        mClipStart = p1;
-        mClientSize = p2 - p1;
     }
 
     public void translate(Vector2i offset) {
@@ -498,7 +503,7 @@ public class SDLCanvas : Canvas {
     }
 
     public Vector2i clientOffset() {
-        return mClipStart - mTrans;
+        return mClientStart - mTrans;
     }
 
     public Vector2i realSize() {

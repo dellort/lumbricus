@@ -3,7 +3,7 @@ module gui.gametimer;
 import framework.framework;
 import framework.font;
 import game.scene;
-import game.game;
+import game.clientengine;
 import game.visual;
 import game.common;
 import game.controller;
@@ -11,10 +11,12 @@ import gui.guiobject;
 import utils.time;
 
 class GameTimer : GuiObject {
+    private ClientGameEngine mEngine;
     private FontLabel mTimeView;
     private Time mLastTime;
 
-    this() {
+    this(ClientGameEngine engine) {
+        mEngine = engine;
         mTimeView = new FontLabelBoxed(globals.framework.fontManager.loadFont("time"));
         mTimeView.border = Vector2i(7, 5);
         size = mTimeView.size;
@@ -28,13 +30,14 @@ class GameTimer : GuiObject {
 
     void draw(Canvas canvas) {
         if (mEngine) {
-            if (mEngine.controller.currentRoundState() == RoundState.prepare
-                || mEngine.controller.currentRoundState() == RoundState.playing
-                || mEngine.controller.currentRoundState() == RoundState.cleaningUp)
+            auto controller = mEngine.mEngine.controller;
+            if (controller.currentRoundState() == RoundState.prepare
+                || controller.currentRoundState() == RoundState.playing
+                || controller.currentRoundState() == RoundState.cleaningUp)
             {
                 mTimeView.active = true;
                 //little hack to show correct time
-                Time rt = mEngine.controller.currentRoundTime()-timeMsecs(1);;
+                Time rt = controller.currentRoundTime()-timeMsecs(1);;
                 mTimeView.text = str.format("%.2s", rt.secs >= -1 ? rt.secs+1 : 0);
             }
         } else {

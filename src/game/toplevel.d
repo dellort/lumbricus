@@ -66,24 +66,12 @@ class TopLevel {
     bool mShowKeyDebug = false;
     bool mKeyNameIt = false;
 
-    private char[] mGfxSet = "gpl";
-
     this() {
         initTimes();
 
         mGui = new GuiMain(globals.framework.screen.size);
-        mGui.add(new GuiFps(), GUIZOrder.FPS);
-        mGui.add(new WindMeter(), GUIZOrder.Gui);
-        mGui.add(new MessageViewer(), GUIZOrder.Gui);
-        mGui.add(new GameTimer(), GUIZOrder.Gui);
-        mGui.add(new PrepareDisplay(), GUIZOrder.Gui);
 
-        mGameView = new GameView();
-        mGameView.loadBindings(globals.loadConfig("wormbinds")
-            .getSubNode("binds"));
-        mGui.add(mGameView, GUIZOrder.Game);
-        //xxx no focus changes yet
-        mGui.setFocus(mGameView);
+        mGui.add(new GuiFps(), GUIZOrder.FPS);
 
         mGuiConsole = new GuiConsole();
         mGui.add(mGuiConsole, GUIZOrder.Console);
@@ -151,7 +139,6 @@ class TopLevel {
 
         globals.cmdLine.registerCommand("editor", &cmdLevelEdit, "hm");
 
-        globals.cmdLine.registerCommand("gfxset", &cmdGfxSet, "Set level graphics style");
         globals.cmdLine.registerCommand("wind", &cmdSetWind, "Change wind speed");
         globals.cmdLine.registerCommand("stop", &cmdStop, "stop editor/game");
 
@@ -205,7 +192,7 @@ class TopLevel {
 
         metascene = new MetaScene([clientengine.scene]);
 
-        initializeGui();
+        initializeGameGui();
         //yes, really twice, as no game time should pass while loading stuff
         resetTime();
 
@@ -214,7 +201,7 @@ class TopLevel {
     }
 
     private void closeGame() {
-        closeGui();
+        closeGameGui();
         if (thegame) {
             thegame.kill();
             //delete thegame;
@@ -227,10 +214,38 @@ class TopLevel {
         }
     }
 
-    private void initializeGui() {
-        closeGui();
+    //xxx replace this by a GuiFrame thing or so
+    private GuiObject[] mGameGuiObjects;
+    private bool mGameGuiOpened;
 
-        mGui.engine = thegame;
+    private void initializeGameGui() {
+        closeGameGui();
+
+        mGameGuiOpened = true;
+
+        void addGui(GuiObject obj) {
+            mGui.add(obj, GUIZOrder.Gui);
+            mGameGuiObjects ~= obj;
+        }
+
+        addGui(new WindMeter(clientengine));
+        addGui(new GameTimer(clientengine));
+        addGui(new PrepareDisplay(clientengine));
+        auto msg = new MessageViewer();
+        addGui(msg);
+
+        thegame.controller.messageCb = &msg.addMessage;
+        thegame.controller.messageIdleCb = &msg.idle;
+
+        mGameView = new GameView(clientengine);
+        mGameView.loadBindings(globals.loadConfig("wormbinds")
+            .getSubNode("binds"));
+        mGui.add(mGameView, GUIZOrder.Game);
+        mGameGuiObjects ~= mGameView;
+        //xxx no focus changes yet
+        mGui.setFocus(mGameView);
+
+        //mGui.engine = thegame;
         mGameView.controller = thegame.controller;
         mGameView.gamescene = metascene;
 
@@ -239,12 +254,22 @@ class TopLevel {
             + thegame.gamelevel.size/2, true);
     }
 
-    private void closeGui() {
+    private void closeGameGui() {
+        if (!mGameGuiOpened)
+            return;
+
         assert(mGameView !is null);
         assert(mGui !is null);
         mGameView.gamescene = null;
         mGameView.controller = null;
-        mGui.engine = null;
+        foreach (GuiObject o; mGameGuiObjects) {
+            //should be enough
+            o.active = false;
+        }
+        mGameGuiObjects = null;
+        mGameView = null;
+
+        mGameGuiOpened = false;
     }
 
     private void cmdSetWind(CommandLine cmd) {
@@ -252,13 +277,6 @@ class TopLevel {
         if (sargs.length < 1)
             return;
         thegame.windSpeed = conv.toFloat(sargs[0]);
-    }
-
-    private void cmdGfxSet(CommandLine cmd) {
-        char[][] sargs = cmd.parseArgs();
-        if (sargs.length < 1)
-            return;
-        mGfxSet = sargs[0];
     }
 
     private void killEditor() {
@@ -269,12 +287,11 @@ class TopLevel {
     }
 
     private void cmdLevelEdit(CommandLine cmd) {
-        //replace level etc. by the "editor" in a very violent way
-        auto editscene = new Scene();
-        //setScene(editscene);
-        editor = new LevelEditor(editscene);
+        closeGame();
+        editor = new LevelEditor();
+        mGui.add(editor.render, GUIZOrder.Gui);
         //clearly sucks, find a better way
-        //screen.setFocus(editor.render);
+        mGui.setFocus(editor.render);
 
         mOnStopGui = &killEditor;
     }

@@ -3,13 +3,14 @@ module gui.windmeter;
 import framework.framework;
 import game.common;
 import game.scene;
-import game.game;
+import game.clientengine;
 import gui.guiobject;
 import utils.configfile;
 import utils.time;
 import utils.vector2;
 
 class WindMeter : GuiObject {
+    private ClientGameEngine mEngine;
     private Vector2i mSize;
     private Texture mBackgroundTex;
     private Texture mWindLeft, mWindRight;
@@ -22,7 +23,9 @@ class WindMeter : GuiObject {
     private int mTexStep;
     private float mWindScale;
 
-    this() {
+    this(ClientGameEngine engine) {
+        mEngine = engine;
+
         ConfigNode wmNode = globals.loadConfig("windmeter");
         ConfigNode imgNode = wmNode.getSubNode("images");
         mBackgroundTex = gFramework.loadImage(imgNode.getStringValue("back"),Transparency.Colorkey).createTexture();

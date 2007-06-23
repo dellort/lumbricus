@@ -4,7 +4,7 @@ import framework.framework;
 import framework.font;
 import framework.i18n;
 import game.scene;
-import game.game;
+import game.clientengine;
 import game.visual;
 import game.common;
 import game.controller;
@@ -15,8 +15,10 @@ class PrepareDisplay : GuiObject {
     private FontLabel mPrepareView;
     private Time mLastTime;
     private Translator tr;
+    private ClientGameEngine mEngine;
 
-    this() {
+    this(ClientGameEngine engine) {
+        mEngine = engine;
         tr = new Translator("gui_prepare");
         mPrepareView = new FontLabelBoxed(globals.framework.fontManager.loadFont("messages"));
         mPrepareView.border = Vector2i(7, 5);
@@ -31,13 +33,14 @@ class PrepareDisplay : GuiObject {
 
     void draw(Canvas canvas) {
         Time cur = timeCurrentTime();
-        if (mEngine && mEngine.controller.currentRoundState() == RoundState.prepare) {
-            Team curTeam = mEngine.controller.currentTeam();
+        auto controller = mEngine ? mEngine.mEngine.controller : null;
+        if (controller && controller.currentRoundState() == RoundState.prepare) {
+            Team curTeam = controller.currentTeam();
             if (curTeam) {
                 mPrepareView.active = true;
                 char[] teamName = curTeam.name;
                 //little hack to show correct time
-                Time pt = mEngine.controller.currentPrepareTime()-timeMsecs(1);
+                Time pt = controller.currentPrepareTime()-timeMsecs(1);
                 mPrepareView.text = tr("teamgetready", teamName, pt.secs >= 0 ? pt.secs+1 : 0);
             } else {
                 mPrepareView.active = false;

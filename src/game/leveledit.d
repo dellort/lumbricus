@@ -8,6 +8,7 @@ import framework.framework;
 import framework.keysyms;
 import game.scene;
 import game.common;
+import gui.guiobject;
 import utils.log;
 import utils.configfile;
 import levelgen.level;
@@ -428,8 +429,8 @@ class EditPolygon : EditObject {
         return res;
     }
     //get indices of points whose following line is not changeable (noChange)
-    int[] getNoChangeable() {
-        int[] res;
+    uint[] getNoChangeable() {
+        uint[] res;
         EditPPoint cur = first;
         int index = 0;
         for (;;) {
@@ -452,7 +453,7 @@ class EditPolygon : EditObject {
 class EditRoot : EditObject {
 }
 
-class RenderEditor : SceneObject {
+class RenderEditor : GuiObject {
     LevelEditor editor;
     this (LevelEditor e) {
         editor = e;
@@ -473,7 +474,6 @@ class RenderEditor : SceneObject {
 public class LevelEditor {
     EditRoot root;
     RenderEditor render;
-    Scene scene;
     bool isDraging, didReallyDrag;
     Vector2i dragPick; //start position when draging
     Vector2i dragRel; //moving always relative -> need to undo relative moves
@@ -490,9 +490,9 @@ public class LevelEditor {
     void delegate(Rect2i) onSelect;
 
     //update cheap things (called often on small state changes)
-//    private void updateState() {
-//        //scene.thesize = root.bounds.p2;
-//    }
+    private void updateState() {
+        //scene.thesize = root.bounds.p2;
+    }
 
     private EditObject pickDeepest(Vector2i at) {
         EditObject cur = root;
@@ -562,9 +562,13 @@ public class LevelEditor {
         );
     }
 
-/*    bool onKeyDown(EventSink sender, KeyInfo infos) {
+    private EventSink events() {
+        return render.events;
+    }
+
+    bool onKeyDown(char[] bind, KeyInfo infos) {
         if (infos.code == Keycode.MOUSE_LEFT) {
-            auto obj = pickDeepest(sender.mousePos);
+            auto obj = pickDeepest(events.mousePos);
             if (gFramework.getModifierState(Modifier.Control)) {
                 if (obj)
                     setSelected(obj, !obj.isSelected);
@@ -573,7 +577,7 @@ public class LevelEditor {
             if (!obj || obj is root) {
                 deselectAll();
                 //start selection mode
-                selectStart = sender.mousePos;
+                selectStart = events.mousePos;
                 selectEnd = selectStart;
                 isSelecting = true;
                 return false;
@@ -584,11 +588,11 @@ public class LevelEditor {
             pickedObject = obj;
             isDraging = true;
             didReallyDrag = false;
-            dragPick = sender.mousePos;
+            dragPick = events.mousePos;
             dragRel = Vector2i(0);
         }
         return false;
-    }*/
+    }
 
     void doSelect(Rect2i r) {
         EditObject[] sel = root.pickBoundingBox(r);
@@ -600,7 +604,7 @@ public class LevelEditor {
         }
     }
 
-/*    bool onKeyPress(EventSink sender, KeyInfo infos) {
+    bool onKeyPress(char[] bind, KeyInfo infos) {
         if (infos.code == Keycode.N)
             insertPoint();
         if (infos.code == Keycode.C) {
@@ -617,9 +621,10 @@ public class LevelEditor {
             onSelect = &newPolyAt;
         }
         return false;
+    }
 
 
-    bool onKeyUp(EventSink sender, KeyInfo infos) {
+    bool onKeyUp(char[] bind, KeyInfo infos) {
         if (infos.code == Keycode.MOUSE_LEFT) {
             if (isDraging) {
                 isDraging = false;
@@ -632,7 +637,7 @@ public class LevelEditor {
             }
             if (isSelecting) {
                 isSelecting = false;
-                selectEnd = sender.mousePos;
+                selectEnd = events.mousePos;
                 auto r = Rect2i(selectStart, selectEnd);
                 r.normalize();
                 if (onSelect) {
@@ -647,7 +652,7 @@ public class LevelEditor {
         return false;
     }
 
-    bool onMouseMove(EventSink sender, MouseInfo info) {
+    bool onMouseMove(MouseInfo info) {
         if (isDraging) {
             didReallyDrag = true;
             auto move = -dragRel + (info.pos - dragPick);
@@ -673,7 +678,7 @@ public class LevelEditor {
             selectEnd = info.pos;
         }
         return true;
-    }*/
+    }
 
     void newPolyAt(Rect2i r) {
         EditPolygon tmp = new EditPolygon();
@@ -682,22 +687,21 @@ public class LevelEditor {
         root.add(tmp);
     }
 
-    this(Scene scene) {
+    this() {
         root = new EditRoot();
         render = new RenderEditor(this);
-        render.setScene(scene, 2);
-        scene.size = Vector2i(3000,1000);
+        render.size = Vector2i(3000,1000);
 
         newPolyAt(Rect2i(100, 100, 500, 500));
 
         globals.cmdLine.registerCommand("preview", &cmdPreview, "preview");
         globals.cmdLine.registerCommand("save", &cmdSave, "save edit level");
 
-        /*auto ev = render.getEventSink();
+        auto ev = render.events();
         ev.onMouseMove = &onMouseMove;
         ev.onKeyDown = &onKeyDown;
         ev.onKeyPress = &onKeyPress;
-        ev.onKeyUp = &onKeyUp;*/
+        ev.onKeyUp = &onKeyUp;
     }
 
     void kill() {
@@ -718,30 +722,22 @@ public class LevelEditor {
     }
 
     void saveLevel(ConfigNode sub) {
-        sub["is_cave"] = "true";
-        sub["marker"] = "LAND";
-        auto polies = sub.getSubNode("polygons");
-        const WIDTH = 2000;
-        const HEIGHT = 700;
-        sub["size"] = format("%s %s", WIDTH, HEIGHT);
+        LevelGeometry geo = new LevelGeometry();
+        geo.size = Vector2i(2000, 700);
+        geo.caveness = Lexel.SolidSoft;
+
         foreach (o; root.subObjects) {
             if (!cast(EditPolygon)o)
                 continue;
             EditPolygon p = cast(EditPolygon)o;
-            auto curpoly = polies.getSubNode(""); //create new unnamed node
-            curpoly["marker"] = "FREE";
-            auto points = curpoly.getSubNode("points");
-            Vector2i[] pts = p.getPoints();
-            foreach (x; pts) {
-                points.setStringValue("",
-                    format("%s %s", x.x, x.y));
-            }
-            auto nochange = curpoly.getSubNode("nochange");
-            int[] nc = p.getNoChangeable();
-            foreach (int i; nc) {
-                nochange.setStringValue("", format(i));
-            }
+            LevelGeometry.Polygon curpoly;
+            curpoly.points = p.getPoints();
+            curpoly.nochange = p.getNoChangeable();
+            curpoly.marker = Lexel.Null;
+            geo.polygons ~= curpoly;
         }
+
+        geo.saveTo(sub);
     }
 
     void cmdSave(CommandLine) {
@@ -755,11 +751,12 @@ public class LevelEditor {
 
     void cmdPreview(CommandLine) {
         //create a level generator configfile...
-        ConfigNode rootnode = new ConfigNode();
-        auto sub = rootnode.getSubNode("templates").getSubNode("");
-        saveLevel(sub);
+        ConfigNode config = new ConfigNode();
+        saveLevel(config);
+        auto templ = new LevelTemplate(config);
         auto generator = new LevelGenerator();
-        Level level = generator.generateRandom("", "gpl");
+        auto gfx = generator.findRandomGfx("gpl");
+        Level level = generator.renderLevel(templ, gfx);
         if (level)
             mPreviewImage = level.image.createTexture();
     }

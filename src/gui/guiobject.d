@@ -31,7 +31,7 @@ class EventSink {
     }
 
     private Vector2i mMousePos;  //see mousePos()
-    private GuiObject mObject; //(mObject.getEventSink() is this) == true
+    package GuiObject mObject; //(mObject.getEventSink() is this) == true
 
     //last known mouse position, that is inside this "window"
     Vector2i mousePos() {
@@ -56,22 +56,32 @@ class EventSink {
         if (onMouseMove)
             onMouseMove(info);
     }
+
+    package this(GuiObject owner) {
+        mObject = owner;
+    }
 }
 
 //base class for gui stuff
 //gui objects are simulated with absolute time, can be drawn and
 //accept events by key bindings
 class GuiObject : SceneObjectPositioned {
-    package GameEngine mEngine;
-    private bool mActive;
-
     protected EventSink mEvents;
+    package bool mHasFocus;
+    //called if the object was removed, used by GuiMain
+    package void delegate(GuiObject) mOnKilled;
 
     this() {
         //all gui objects accept events (thats their nature)
         //you can just leave the callbacks blank to pass an event on
-        mEvents = new EventSink();
-        mEvents.mObject = this;
+        mEvents = new EventSink(this);
+    }
+
+    protected override void onChangeScene() {
+        if (!active && mOnKilled) {
+            mOnKilled(this);
+        }
+        super.onChangeScene();
     }
 
     //load a set of key bindings for this control (used only for own events)
@@ -85,9 +95,9 @@ class GuiObject : SceneObjectPositioned {
         return mEvents;
     }
 
-    void engine(GameEngine eng) {
+    /*void engine(GameEngine eng) {
         mEngine = eng;
-    }
+    }*/
 
     void simulate(Time curTime, Time deltaT) {
     }

@@ -34,19 +34,6 @@ private class MessageViewer : GuiObject {
         mLastFrame = timeCurrentTime();
     }
 
-    void engine(GameEngine eng) {
-        if (eng) {
-            eng.controller.messageCb = &addMessage;
-            eng.controller.messageIdleCb = &idle;
-        } else {
-            if (mEngine) {
-                mEngine.controller.messageCb = null;
-                mEngine.controller.messageIdleCb = null;
-            }
-        }
-        super.engine(eng);
-    }
-
     void addMessage(char[] msg) {
         mMessages.push(msg);
     }

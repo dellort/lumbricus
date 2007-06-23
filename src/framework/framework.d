@@ -245,6 +245,8 @@ public class Canvas {
     public abstract void setWindow(Vector2i p1, Vector2i p2);
     /// Add translation offset, by which all coordinates are translated
     public abstract void translate(Vector2i offset);
+    /// Set the cliprect (doesn't change "window" or so).
+    public abstract void clip(Vector2i p1, Vector2i p2);
     /// push/pop state as set by setWindow() and translate()
     public abstract void pushState();
     public abstract void popState();
@@ -437,6 +439,17 @@ public class Framework {
     /// create a surface in the current display format
     public abstract Surface createSurface(Vector2i size, DisplayFormat fmt,
         Transparency transp);
+
+    /// a surface of size 1x1 with a pixel of given color
+    public Surface createPixelSurface(Color color) {
+        auto surface = createSurface(Vector2i(1, 1), DisplayFormat.RGBA32,
+            Transparency.None);
+        void* data; uint pitch;
+        surface.lockPixelsRGBA32(data, pitch);
+        *(cast(uint*)data) = colorToRGBA32(color);
+        surface.unlockPixels();
+        return surface;
+    }
 
     /// load a font, Stream "str" should contain a .ttf file
     public abstract Font loadFont(Stream str, FontProperties fontProps);

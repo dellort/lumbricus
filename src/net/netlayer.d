@@ -76,6 +76,9 @@ class NetHost {
     private int mMaxConnections;
     private ushort mBoundPort;
     private ENetHost* mHost;
+    //references to instantiated peers
+    //(ENetPeer.data is not enough, the GC could collect it)
+    private NetPeer[ENetPeers*] mPeers;
 
     ///called whenever a new connection is established
     void delegate(NetHost sender, NetPeer peer) onConnect;
@@ -146,6 +149,7 @@ class NetHost {
             case ENET_EVENT_TYPE_CONNECT:
                 auto peer = new NetPeer(this, event.peer);
                 event.peer.data = cast(void*)peer;
+                mPeers[event.peer] = peer;
                 if (onConnect)
                     onConnect(this, peer);
                 break;
@@ -164,6 +168,7 @@ class NetHost {
                 if (peer) {
                     peer.handleDisconnect();
                     event.peer.data = null;
+                    mPeers.remove(event.peer);
                 } else {
                     //outgoing connection failed
                 }

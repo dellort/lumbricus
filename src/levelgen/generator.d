@@ -292,6 +292,39 @@ public class LevelGenerator {
         }
     }
 
+    /// render a fast, ugly preview; just to see the geometry
+    /// returns a surface, which shall be freed by the user itself
+    //xxx completely untested
+    public Surface renderPreview(LevelGeometry geo, Vector2i size, Color land,
+        Color hard_land, Color free)
+    {
+        //oh well...
+        Surface[Lexel] markers;
+        markers[Lexel.SolidSoft] = gFramework.createPixelSurface(land);
+        markers[Lexel.SolidHard] = gFramework.createPixelSurface(hard_land);
+        markers[Lexel.Null] = gFramework.createPixelSurface(free);
+
+        Vector2f scale = toVector2f(size) / toVector2f(geo.size);
+        auto renderer = new LevelBitmap(size);
+
+        //xxx caves will come out wrong (background texture not painted)
+        foreach (LevelGeometry.Polygon p; geo.polygons) {
+            //scale down the points first
+            auto npts = p.points.dup;
+            foreach (inout Vector2i point; npts) {
+                point = toVector2i(toVector2f(point).mulEntries(scale));
+            }
+            renderer.addPolygon(npts, p.visible, Vector2i(0, 0),
+                markers[p.marker], p.marker, p.changeable, p.nochange, 1, 0.25f);
+        }
+
+        foreach (bitmap; markers) {
+            bitmap.free();
+        }
+
+        return renderer.releaseImage();
+    }
+
     //try to place the objects (listed in gfx) onto the level bitmap in renderer
     //both draws the objects into renderer and returns a list of placed obejcts
     //(this list is used to implement level saving/loading, else it's useless)
