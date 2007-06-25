@@ -1,5 +1,9 @@
 module utils.mybox;
 
+class MyBoxException : Exception {
+    this(char[] msg) { super(msg); }
+}
+
 /// most simple, but generic class that works similar to std.Boxer
 /// this is nazi-typed and neither converts between integer types (i.e. if box
 /// contains int, can't unpack as uint), not does it do upcasting for classes.
@@ -32,7 +36,8 @@ struct MyBox {
     /// Implicit conversion is never supported (not even upcasts).
     T unbox(T)() {
         if (typeid(T) !is mType) {
-            throw new Exception("MyBox says no.");
+            throw new MyBoxException("MyBox says no: unbox "
+                ~ (mType ? mType.toString : "<empty>") ~ " to " ~ T.stringof);
         }
         size_t size = mType.tsize();
         T data;
@@ -96,7 +101,7 @@ struct MyBox {
     /// Not allowed on empty boxes.
     void[] data() {
         if (mType is null) {
-            throw new Exception("MyBox.data(): box is empty.");
+            throw new MyBoxException("MyBox.data(): box is empty.");
         } else {
             if (mType.tsize() <= mStaticData.length) {
                 return mStaticData[0..mType.tsize()];
@@ -115,9 +120,23 @@ struct MyBox {
         if (mType is null || b.mType is null)
             return false;
         if (mType !is b.mType) {
-            throw new Exception("can't compare different types.");
+            throw new MyBoxException("can't compare different types.");
         }
         return mType.compare(data().ptr, b.data().ptr) == 0;
+    }
+
+    /// Default constructor: Empty box.
+    static MyBox opCall()() {
+        MyBox box;
+        return box;
+    }
+
+    /// Construct a box with that parameter in it.
+    /// Because opCall doesntwork it's named Box
+    static MyBox Box(T)(T data) {
+        MyBox box;
+        box.box!(T)(data);
+        return box;
     }
 }
 
@@ -131,6 +150,15 @@ unittest {
 
     box.box!(long)(-56);
     assert(box.unbox!(long)() == -56);
+
+    bool thrown = false;
+    try {
+        box.box!(int)(5);
+        box.unbox!(uint);
+    } catch (MyBoxException) {
+        thrown = true;
+    }
+    assert(thrown);
 
     struct FooFoo {
         char[12] foofoo;
@@ -173,7 +201,7 @@ unittest {
     box2.box!(int)(7);
     assert(box.compare(box2));
     box2.box!(uint)(7);
-    bool thrown = false;
+    thrown = false;
     try { box.compare(box2); } catch (Exception e) { thrown = true; }
     assert(thrown);
 
