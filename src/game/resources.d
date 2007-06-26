@@ -21,17 +21,21 @@ protected class Resource {
     char[] id;
     ///unique numeric id
     ///useful for networking, has the same meaning across all nodes
-    ///yyy actually initialize it etc.
     int uid;
 
     private bool mValid = false;
     protected Resources mParent;
     protected ConfigItem mConfig;
 
+    public ConfigItem config() {
+        return mConfig;
+    }
+
     package this(Resources parent, char[] id, ConfigItem item)
     {
         mParent = parent;
         this.id = id;
+        this.uid = parent.getUid();
         mConfig = item;
         mParent.log("Preparing resource "~id);
     }
@@ -103,10 +107,16 @@ public class Resources {
     Log log;
     private bool[char[]] mLoadedResourceFiles;
     private bool[char[]] mResourceRefs;
+    //used to assign uids
+    private long mCurUid;
 
     this() {
         log = registerLog("Res");
         //log.setBackend(DevNullOutput.output, "null");
+    }
+
+    long getUid() {
+        return ++mCurUid;
     }
 
     //Create a resource directly from a configitem, knowing the
@@ -148,9 +158,12 @@ public class Resources {
     }
 
     ///get a reference to a resource by its id
-    public T resource(T)(char[] id, bool allowFail = false) {
+    /// doref = mark resource as used (for preloading)
+    public T resource(T)(char[] id, bool allowFail = false, bool doref = true) {
         T ret = doFindResource!(T)(id, allowFail);
-        mResourceRefs[ret.id] = true;
+        if (doref) {
+            mResourceRefs[ret.id] = true;
+        }
         return ret;
     }
 
@@ -177,7 +190,6 @@ public class Resources {
 
     ///preload all cached resources from disk
     ///Attention: this will load really ALL resources, not just needed ones
-    //xxx add progress callback
     public void preloadAll(ResourceLoadProgress prog) {
         int count = mResources.length;
         log("Preloading ALL resources");

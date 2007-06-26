@@ -83,6 +83,7 @@
 		<Unit filename="gui\gameview.d" />
 		<Unit filename="gui\gui.d" />
 		<Unit filename="gui\guiobject.d" />
+		<Unit filename="gui\loadingscreen.d" />
 		<Unit filename="gui\messageviewer.d" />
 		<Unit filename="gui\preparedisplay.d" />
 		<Unit filename="gui\windmeter.d" />
@@ -99,15 +100,18 @@
 		<Unit filename="utils\log.d" />
 		<Unit filename="utils\math.d" />
 		<Unit filename="utils\misc.d" />
+		<Unit filename="utils\mybox.d" />
 		<Unit filename="utils\mylist.d" />
 		<Unit filename="utils\output.d" />
 		<Unit filename="utils\queue.d" />
 		<Unit filename="utils\random.d" />
 		<Unit filename="utils\rect2.d" />
+		<Unit filename="utils\strparser.d" />
 		<Unit filename="utils\time.d" />
 		<Unit filename="utils\vector2.d" />
 		<Extensions>
 			<code_completion />
+			<envvars />
 		</Extensions>
 	</Project>
 </CodeBlocks_project_file>

@@ -78,7 +78,7 @@ class NetHost {
     private ENetHost* mHost;
     //references to instantiated peers
     //(ENetPeer.data is not enough, the GC could collect it)
-    private NetPeer[ENetPeers*] mPeers;
+    private NetPeer[ENetPeer*] mPeers;
 
     ///called whenever a new connection is established
     void delegate(NetHost sender, NetPeer peer) onConnect;

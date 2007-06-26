@@ -40,14 +40,18 @@ static this() {
     gParamConverters["rot360"] = &paramConvertFreeRot;
     gParamConverters["rot180"] = &paramConvertFreeRot2;
 
+    //simple animation
+    gAnimationLoadHandlers["simple"] = &loadSimpleAnimation;
+    //mirror animation on Y axis
+    //gAnimationLoadHandlers["twosided"] = &loadTwoSidedAnimation;
     //normal worm, standing or walking
     gAnimationLoadHandlers["worm"] = &loadWormAnimation;
-    /*
     //worm holding a weapon (with weapon-angle as param2)
     gAnimationLoadHandlers["worm_weapon"] = &loadWormWeaponAnimation;
     //360 degrees graphic, not animated
-    gAnimationLoadHandlers["360"] = &loadWormWeaponAnimation;
-    */
+    //gAnimationLoadHandlers["360"] = &load360Animation;
+    //graphic contains only 180 degrees, to be mirrored
+    //gAnimationLoadHandlers["360m"] = &load360MAnimation;
 
     gAnimationLoadHandlers["generic"] = &loadGenericAnimation;
     gAnimationLoadHandlers["old"] = &loadOldAnimation;
@@ -554,35 +558,63 @@ private int paramConvertFreeRot2(int angle, int count) {
 //animation load handlers
 
 private BitmapResource doLoadGraphic(char[] file) {
-    //I don't get it how to properly use the res-manager
-    //currently shut it up by using the filename as id...
     return globals.resources.createResourceFromFile!(BitmapResource)(file,
         false,false);
 }
 
-private BitmapResource[] loadFooImages(char[] templ, int offset, int count) {
-    BitmapResource[] res;
-    res.length = count;
-    for (int n = 0; n < count; n++) {
-        char[] name = str.replace(templ, "#", str.toString(offset + n));
-        res[n] = doLoadGraphic(name);
+private void loadFooImages(inout AnimationData data, ConfigNode node, int count) {
+    Vector2i size;
+    size.x = node.getIntValue("width");
+    size.y = node.getIntValue("height");
+    data.sections.length = node.getIntValue("imagecount");
+    char[] templ = node.getStringValue("path");
+    foreach (int n, inout AnimationSection section; data.sections) {
+        section.frameSize = size;
+        auto offset = node.getIntValue("image_" ~ str.toString(n));
+        section.frameCount = node.getIntValue("frames_" ~ str.toString(n));
+        section.bitmaps.length = count;
+        for (int i = 0; i < count; i++) {
+            char[] name = str.replace(templ, "#", str.toString(offset + i));
+            section.bitmaps[i] = doLoadGraphic(name);
+        }
     }
-    return res;
 }
 
 private AnimationData loadWormAnimation(ConfigNode node) {
     AnimationData res;
-    AnimationSection section;
-    section.bitmaps = loadFooImages(node.getPathValue("image"), node.getIntValue("offset"), 3);
-    int[] dims = node.getValueArray!(int)("size");
-    assert(dims.length == 2);
-    section.frameSize.x = dims[0];
-    section.frameSize.y = dims[1];
-    section.frameCount = node.getIntValue("frames");
-    section.paramConvert[0] = &paramConvertStep3;
-    section.loop_reverse = true;
-    section.mirror_Y_B = true;
-    res.sections = [section];
+    loadFooImages(res, node, 3);
+
+    res.sections[0].paramConvert[0] = &paramConvertStep3;
+    res.sections[0].loop = true;
+    res.sections[0].loop_reverse = true;
+    res.sections[0].mirror_Y_B = true;
+
+    return res;
+}
+
+private AnimationData loadWormWeaponAnimation(ConfigNode node) {
+    AnimationData res;
+    loadFooImages(res, node, 3);
+
+    res.sections[0].paramConvert[0] = &paramConvertStep3;
+    res.sections[0].mirror_Y_B = true;
+
+    res.sections[1].paramConvert[0] = &paramConvertStep3;
+    res.sections[1].paramConvert[1] = &paramConvertFreeRot2;
+    res.sections[1].AB[0] = AnimationParamType.P2;
+    res.sections[1].AB[1] = AnimationParamType.P1;
+    res.sections[1].mirror_Y_B = true;
+
+    return res;
+}
+
+private AnimationData loadSimpleAnimation(ConfigNode node) {
+    AnimationData res;
+    loadFooImages(res, node, 1);
+
+    res.sections[0].loop = true;
+    res.sections[0].loop_reverse = true;
+
     return res;
 }
 
