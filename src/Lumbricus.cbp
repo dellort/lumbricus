@@ -94,6 +94,7 @@
 		<Unit filename="levelgen\renderer.d" />
 		<Unit filename="lumbricus.d" />
 		<Unit filename="net\netlayer.d" />
+		<Unit filename="net\replicate.d" />
 		<Unit filename="utils\configfile.d" />
 		<Unit filename="utils\drawing.d" />
 		<Unit filename="utils\factory.d" />
