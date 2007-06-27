@@ -1,12 +1,19 @@
 This is Lumbricus Terrestris. Sorry, it's at a very early planning state,
 there's nothing to see or to play yet.
 
+WARNING: Yeah sure, you can compile the code, but to run it, the svn misses
+some important bits. Running the program right out of the SVN will crash,
+complaining about strange missing things or files.
+
+At some time we'll make sure it works just with the data from this SVN.
+
 If you wonder in what language the already existing code is written in:
 It's Digital Mars D. A nice native compiled, garbage collected C descendant,
 which is modern and wants to be not as f***ed up as C++. There are compilers
 for Windows and Linux. D is still in "development", every new release of the
 Digital Mars D Compiler (DMD) can break any existing D code. (Well, every new
-release of G++ breaks my C++ code too :-)
+release of G++ breaks my C++ code too :-) ...oh and that's because of C++, not
+my C++ skills, lol.)
 
 More Information can be found at:
 
@@ -15,19 +22,28 @@ http://www.digitalmars.com/d/index.html
 Building it...
 
 A D compiler for D 1.0 is required.
-xxx list required libraries here
+I.e.: http://www.digitalmars.com/d/1.0/dcompiler.html
+
+Required libraries:
+- Dynamic linked (.dll/.so):
+  - SDL
+  - SDL_image
+  - SDL_ttf
+- Static linked D libraries:
+  - Derelict for the 3 SDL libraries (http://dsource.org/projects/derelict)
+  - Phobos (comes with DMD)
 
 Windows:
-Use Code::Blocks.
+You can use Code::Blocks, but better compile using rebuild; see below.
 
 Linux:
 (Code::Blocks should work too, untested)
 
 1. Get Derelict, and put the files into an include path found by DMD, i.e.
-   you can put the files into src/phobos/derelict/sdl/ or so.
+   you can put the files into dmd/src/phobos/derelict/sdl/ or so.
 2. Get rebuild (http://svn.dsource.org/projects/dsss/downloads/rebuild/) and
    invoke it like:
    $ rebuild -lldl -oqbin lumbricus.d
-   You also can use dsss and invoke it doing "dsss build".
+   You also can use dsss and invoke it doing "dsss build" (dsss uses rebuild).
 
 
