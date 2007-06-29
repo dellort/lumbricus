@@ -20,6 +20,7 @@ import utils.misc;
 import utils.random;
 import framework.framework;
 import framework.keysyms;
+import framework.timesource;
 import std.math;
 
 import clientengine = game.clientengine;
@@ -172,8 +173,8 @@ package class ServerGraphicLocalImpl : ServerGraphic {
 //code to manage a game session (hm, whatever this means)
 //reinstantiated on each "round"
 class GameEngine {
-    protected Time lastTime;
-    Time currentTime;
+    private TimeSource mGameTime;
+
     protected PhysicWorld mPhysicWorld;
     private List!(GameObject) mObjects;
     public List!(ServerGraphicLocalImpl) mGraphics;
@@ -370,6 +371,12 @@ class GameEngine {
         //NOTE: GameController relies on many stuff at initialization
         //i.e. physics for worm placement
         controller = new GameController(this, config);
+
+        mGameTime = new TimeSource(&gFramework.getCurrentTime);
+    }
+
+    TimeSourcePublic gameTime() {
+        return mGameTime;
     }
 
     //return y coordinate of waterline
@@ -441,16 +448,14 @@ class GameEngine {
         return mPhysicWorld;
     }
 
-    protected void simulate(float deltaT) {
-        controller.simulate(deltaT);
+    protected void simulate() {
+        controller.simulate();
     }
 
     Time blubber;
     int eventCount;
 
     void netupdate() {
-        currentTime = globals.gameTime;
-
         GraphicEvent* currentlist = null;
         GraphicEvent** lastptr = &currentlist;
 
@@ -472,21 +477,21 @@ class GameEngine {
                 mGraphics.remove(o);
         }
 
-        if ((lastTime - blubber).secs >= 1) {
+        if ((mGameTime.current - blubber).secs >= 1) {
             gDefaultLog("blubb: %s", eventCount);
-            blubber = lastTime;
+            blubber = mGameTime.current;
             eventCount = 0;
         }
 
         EventQueue current;
         current.list = currentlist;
-        current.time = currentTime;
+        current.time = mGameTime.current;
         events ~= current;
 
         currentEvents = null;
 
         //take one element back from queue
-        if (events[0].time + timeMsecs(lag+randRange(-25,25)) < currentTime) {
+        if (events[0].time + timeMsecs(lag+randRange(-25,25)) < mGameTime.current) {
             currentEvents = events[0].list;
             events = events[1..$];
         }
@@ -495,27 +500,28 @@ class GameEngine {
     Time lastnetupdate;
 
     void doFrame() {
-        currentTime = globals.gameTime;
-        float deltaT = (currentTime - lastTime).msecs/1000.0f;
-        simulate(deltaT);
-        mPhysicWorld.simulate(currentTime);
-        //update game objects
-        //NOTE: objects might be inserted/removed while iterating
-        //      maybe one should implement a safe iterator...
-        GameObject cur = mObjects.head;
-        while (cur) {
-            auto o = cur;
-            cur = mObjects.next(cur);
-            o.simulate(deltaT);
-        }
+        mGameTime.update();
 
-        //all 100ms update
-        if (lastnetupdate + timeMsecs(100) < currentTime) {
-            netupdate();
-            lastnetupdate = currentTime;
-        }
+        if (!mGameTime.paused) {
+            simulate();
+            mPhysicWorld.simulate(mGameTime.current);
+            //update game objects
+            //NOTE: objects might be inserted/removed while iterating
+            //      maybe one should implement a safe iterator...
+            GameObject cur = mObjects.head;
+            float deltat = mGameTime.difference.secsf;
+            while (cur) {
+                auto o = cur;
+                cur = mObjects.next(cur);
+                o.simulate(deltat);
+            }
 
-        lastTime = currentTime;
+            //all 100ms update
+            if (lastnetupdate + timeMsecs(100) < mGameTime.current) {
+                netupdate();
+                lastnetupdate = mGameTime.current;
+            }
+        }
     }
 
     //remove all objects etc. from the scene

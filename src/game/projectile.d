@@ -87,10 +87,10 @@ private class ProjectileThrower : Shooter {
 
         //care about spawning!
         while (spawnCount > 0
-            && engine.currentTime - lastSpawn > spawnParams.delay)
+            && engine.gameTime.current - lastSpawn > spawnParams.delay)
         {
             spawnCount--;
-            lastSpawn = engine.currentTime;
+            lastSpawn = engine.gameTime.current;
 
             auto n = spawnParams.count - (spawnCount + 1); //rgh
             spawnsprite(engine, n, spawnParams, fireInfo);
@@ -143,7 +143,7 @@ private class ProjectileSprite : GObjectSprite {
             eff.simulate(deltaT);
         }
 
-        if (engine.currentTime > dieTime) {
+        if (engine.gameTime.current > dieTime) {
             engine.mLog("die by time");
             die();
         }
@@ -198,7 +198,7 @@ private class ProjectileSprite : GObjectSprite {
         assert(type !is null);
         myclass = type;
         assert(myclass !is null);
-        birthTime = engine.currentTime;
+        birthTime = engine.gameTime.current;
 
         foreach (effcls; myclass.effects) {
             auto peff = effcls.createEffector(this);
@@ -399,7 +399,7 @@ class ProjectileEffector {
 
     //do effect
     void simulate(float deltaT) {
-        if (mParent.engine.currentTime > dietime) {
+        if (mParent.engine.gameTime.current > dietime) {
             die();
         }
     }

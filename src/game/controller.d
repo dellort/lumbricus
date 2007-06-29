@@ -245,8 +245,6 @@ class GameController {
     private Time mCurrentLastAction;
     private Time cLongAgo;
 
-    private Time mLastTime;
-
     public void delegate(char[]) messageCb;
     public bool delegate() messageIdleCb;
 
@@ -313,8 +311,6 @@ class GameController {
         mTimePerRound = timeSecs(config.gamemode.getIntValue("roundtime",15));
         mHotseatSwitchTime = timeSecs(
             config.gamemode.getIntValue("hotseattime",5));
-
-        mLastTime = globals.gameTime;
     }
 
     //currently needed to deinitialize the gui
@@ -325,9 +321,8 @@ class GameController {
         return mEngine;
     }
 
-    void simulate(float deltaT) {
-        Time diffT = globals.gameTime - mLastTime;
-        mLastTime = globals.gameTime;
+    void simulate() {
+        Time diffT = mEngine.gameTime.difference;
 
         if (current && current.mWorm) {
             if (mCurrent_startpos != current.mWorm.physics.pos)
@@ -531,7 +526,7 @@ class GameController {
     void currentWormAction(bool fromkeys = true) {
         if (fromkeys) {
             mWormAction = true;
-            mCurrentLastAction = mEngine.currentTime;
+            mCurrentLastAction = mEngine.gameTime.current;
         }
     }
 

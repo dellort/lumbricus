@@ -598,12 +598,14 @@ private AnimationData loadWormWeaponAnimation(ConfigNode node) {
 
     res.sections[0].paramConvert[0] = &paramConvertStep3;
     res.sections[0].mirror_Y_B = true;
+    res.sections[0].loop = false;
 
     res.sections[1].paramConvert[0] = &paramConvertStep3;
     res.sections[1].paramConvert[1] = &paramConvertFreeRot2;
     res.sections[1].AB[0] = AnimationParamType.P2;
     res.sections[1].AB[1] = AnimationParamType.P1;
     res.sections[1].mirror_Y_B = true;
+    res.sections[1].loop = false;
 
     return res;
 }

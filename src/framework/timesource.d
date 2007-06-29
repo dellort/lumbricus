@@ -1,7 +1,21 @@
 module framework.timesource;
 import utils.time;
 
-final class TimeSource {
+interface TimeSourcePublic {
+    Time current();
+
+    Time difference();
+
+    void paused(bool p);
+
+    bool paused();
+
+    void slowDown(float factor);
+
+    float slowDown();
+}
+
+final class TimeSource : TimeSourcePublic {
     private {
         //current time source (set using nextFrame())
         Time mExternalTime;
@@ -92,7 +106,7 @@ final class TimeSource {
     }
 
     Time difference() {
-        return mLastSimTime - mSimTime;
+        return mSimTime - mLastSimTime;
     }
 
     //update time!

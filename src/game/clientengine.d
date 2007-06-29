@@ -2,6 +2,7 @@ module game.clientengine;
 
 import framework.framework;
 import framework.font;
+import framework.timesource;
 import game.gobject;
 import game.physic;
 import game.scene;
@@ -72,7 +73,7 @@ enum GameZOrder {
 
 //client-side game engine, manages all stuff that does not affect gameplay,
 //but needs access to the game and is drawn into the game scene
-class ClientGameEngine : GameObject /+ temporary hack *g* +/ {
+class ClientGameEngine {
     //xxx some stuff still needs this, remove as far as possible
     GameEngine mEngine;
 
@@ -92,7 +93,7 @@ class ClientGameEngine : GameObject /+ temporary hack *g* +/ {
 
     private Scene mScene;
 
-    private Time lastTime;
+    private TimeSource mEngineTime;
 
     private GameWater mGameWater;
     private GameSky mGameSky;
@@ -104,8 +105,6 @@ class ClientGameEngine : GameObject /+ temporary hack *g* +/ {
     private PerTeamAnim[] mTeamAnims;
 
     this(GameEngine engine) {
-        //wuahaha
-        super(engine, true);
         mEngine = engine;
 
         mGraphics = new typeof(mGraphics)(ClientGraphic.node.getListNodeOffset());
@@ -152,12 +151,21 @@ class ClientGameEngine : GameObject /+ temporary hack *g* +/ {
         globals.resources.preloadUsed(null);
 
         //else you'll get a quite big deltaT on start
-        lastTime = timeCurrentTime();
+        mEngineTime = new TimeSource(&gFramework.getCurrentTime);
+    }
+
+    TimeSourcePublic engineTime() {
+        return mEngineTime;
+    }
+
+    void kill() {
+        //xxx is this necessary? previously implemented by GameObject
     }
 
     void doFrame() {
-        auto currentTime = timeCurrentTime();
-        float deltaT = (currentTime - lastTime).msecs/1000.0f;
+        mEngineTime.update();
+
+        float deltaT = mEngineTime.difference.secsf;
 
         //hm
         waterOffset = mEngine.waterOffset;
@@ -166,8 +174,6 @@ class ClientGameEngine : GameObject /+ temporary hack *g* +/ {
         //call simulate(deltaT);
         mGameWater.simulate(deltaT);
         mGameSky.simulate(deltaT);
-
-        lastTime = currentTime;
 
         //haha, update before next "network" sync
         foreach (ClientGraphic gra; mGraphics) {
@@ -372,7 +378,7 @@ private class WormNameDrawer : SceneObject {
     }
 
     void draw(Canvas canvas) {
-        if (mController.current && mController.engine.currentTime
+        if (mController.current && mController.engine.gameTime.current
             - mController.currentLastAction > mArrowDelta)
         {
             showArrow(mController.current);
