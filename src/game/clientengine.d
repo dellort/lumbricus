@@ -22,6 +22,10 @@ import utils.vector2;
 struct PerTeamAnim {
     AnimationResource arrow;
     AnimationResource pointed;
+    AnimationResource change;
+    AnimationResource cursor;
+    AnimationResource click;
+    AnimationResource aim;
 }
 
 //synced with game.ServerGraphicLocalImpl
@@ -130,6 +134,18 @@ class ClientGameEngine {
                 (colsNode.getPathValue(color));
             colsNode = taCfg.getSubNode("pointed");
             mTeamAnims[n].pointed = globals.resources.resource!
+                (AnimationResource)(colsNode.getPathValue(color));
+            colsNode = taCfg.getSubNode("change");
+            mTeamAnims[n].change = globals.resources.resource!
+                (AnimationResource)(colsNode.getPathValue(color));
+            colsNode = taCfg.getSubNode("cursor");
+            mTeamAnims[n].cursor = globals.resources.resource!
+                (AnimationResource)(colsNode.getPathValue(color));
+            colsNode = taCfg.getSubNode("click");
+            mTeamAnims[n].click = globals.resources.resource!
+                (AnimationResource)(colsNode.getPathValue(color));
+            colsNode = taCfg.getSubNode("aim");
+            mTeamAnims[n].aim = globals.resources.resource!
                 (AnimationResource)(colsNode.getPathValue(color));
         }
 

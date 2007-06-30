@@ -49,9 +49,11 @@ static this() {
     //worm holding a weapon (with weapon-angle as param2)
     gAnimationLoadHandlers["worm_weapon"] = &loadWormWeaponAnimation;
     //360 degrees graphic, not animated
-    //gAnimationLoadHandlers["360"] = &load360Animation;
+    gAnimationLoadHandlers["360"] = &load360Animation;
     //graphic contains only 180 degrees, to be mirrored
     //gAnimationLoadHandlers["360m"] = &load360MAnimation;
+    //180 degrees graphic, not animated
+    gAnimationLoadHandlers["180"] = &load180Animation;
 
     gAnimationLoadHandlers["generic"] = &loadGenericAnimation;
     gAnimationLoadHandlers["old"] = &loadOldAnimation;
@@ -614,8 +616,35 @@ private AnimationData loadSimpleAnimation(ConfigNode node) {
     AnimationData res;
     loadFooImages(res, node, 1);
 
-    res.sections[0].loop = true;
-    res.sections[0].loop_reverse = true;
+    int flags = node.getIntValue("flags", 0);
+    if (flags & 1)
+        res.sections[0].loop = true;
+    if (flags & 2)
+        res.sections[0].loop_reverse = true;
+
+    return res;
+}
+
+private AnimationData load360Animation(ConfigNode node) {
+    AnimationData res;
+    loadFooImages(res, node, 1);
+
+    res.sections[0].paramConvert[0] = &paramConvertFreeRot;
+    res.sections[0].AB[0] = AnimationParamType.P1;
+    res.sections[0].AB[1] = AnimationParamType.Null;
+    res.sections[0].loop = false;
+
+    return res;
+}
+
+private AnimationData load180Animation(ConfigNode node) {
+    AnimationData res;
+    loadFooImages(res, node, 1);
+
+    res.sections[0].paramConvert[0] = &paramConvertFreeRot2;
+    res.sections[0].AB[0] = AnimationParamType.P1;
+    res.sections[0].AB[1] = AnimationParamType.Null;
+    res.sections[0].loop = false;
 
     return res;
 }

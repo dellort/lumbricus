@@ -511,10 +511,13 @@ class TopLevel {
         }
         auto teamconf = globals.loadConfig("teams");
         cfg.teams = teamconf.getSubNode("teams");
-        cfg.weapons = teamconf.getSubNode("weapon_sets");
+
         auto gamemodecfg = globals.loadConfig("gamemode");
-        cfg.gamemode = gamemodecfg.getSubNode(
+        auto modes = gamemodecfg.getSubNode("modes");
+        cfg.gamemode = modes.getSubNode(
             config.getStringValue("gamemode",""));
+        cfg.weapons = gamemodecfg.getSubNode("weapon_sets");
+
         initializeGame(cfg);
     }
 
