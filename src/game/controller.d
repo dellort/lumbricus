@@ -714,11 +714,11 @@ class GameController {
         mLog("fire: %s", shooter.weapon.name);
 
         FireInfo info;
-        //weaponAngle will be 0-PI, 0 being bottom
+        //-1 for left, 1 for right
         auto w = math.copysign(1.0f, Vector2f.fromPolar(1,worm.physics.lookey).x);
-        if (w < 0)
-            w = w*2; //little stupid hack *g*
-        info.dir = Vector2f.fromPolar(1.0f, -PI/2 + w*PI - worm.weaponAngle);
+        //weaponAngle will be -PI/2 - PI/2, -PI/2 meaning down
+        //-> Invert for screen, and add PI/2 if looking left
+        info.dir = Vector2f.fromPolar(1.0f, (1-w)*PI/2 - w*worm.weaponAngle);
         info.shootby = worm.physics;
         info.strength = shooter.weapon.throwStrength;
         info.timer = shooter.weapon.timerFrom;

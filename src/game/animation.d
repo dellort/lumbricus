@@ -551,10 +551,12 @@ private int paramConvertTwosided(int angle, int count) {
 private int paramConvertFreeRot(int angle, int count) {
     return cast(int)(((angle % 360) / 360.0f) * (count - 1));
 }
-//180 degrees
+//180 degrees, -90 (down) to +90 (up)
 //(overflows, used for weapons, it's hardcoded that it can use 180 degrees only)
 private int paramConvertFreeRot2(int angle, int count) {
-    return cast(int)(((angle % 360) / 180.0f) * (count - 1));
+    assert(angle <= 90);
+    assert(angle >= -90);
+    return cast(int)((((angle+90) % 360) / 180.0f) * (count - 1));
 }
 
 //animation load handlers

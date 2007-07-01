@@ -176,7 +176,8 @@ class WormSprite : GObjectSprite {
                 jetForce.y = 0;
             physics.selfForce = jetForce;
         } else if (weaponDrawn) {
-            mWeaponMove = dir.y;
+            //invert y to go from screen coords to math coords
+            mWeaponMove = -dir.y;
         } else {
             physics.setWalking(dir);
         }
@@ -189,11 +190,11 @@ class WormSprite : GObjectSprite {
             //when user presses key to change weapon angle
             //can rotate through all 180 degrees in 5 seconds
             //(given abs(mWeaponMove) == 1)
-            mWeaponAngle += mWeaponMove*deltaT*PI/5;
-            mWeaponAngle = max(mWeaponAngle, 0f);
-            mWeaponAngle = min(mWeaponAngle, cast(float)PI);
-            //why add 90 degrees? I doin't know
-            param2 = angleToAnimation(mWeaponAngle+PI/2);
+            mWeaponAngle += mWeaponMove*deltaT*PI/2;
+            mWeaponAngle = max(mWeaponAngle, cast(float)-PI/2);
+            mWeaponAngle = min(mWeaponAngle, cast(float)PI/2);
+            //[-PI/2, PI/2] to [-90, 90]
+            param2 = cast(int)(mWeaponAngle/PI*180.0f);
             updateAnimation();
         }
     }

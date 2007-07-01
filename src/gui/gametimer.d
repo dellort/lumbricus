@@ -39,6 +39,8 @@ class GameTimer : GuiObject {
                 //little hack to show correct time
                 Time rt = controller.currentRoundTime()-timeMsecs(1);;
                 mTimeView.text = str.format("%.2s", rt.secs >= -1 ? rt.secs+1 : 0);
+            } else {
+                mTimeView.active = false;
             }
         } else {
             mTimeView.active = false;
