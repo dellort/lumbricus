@@ -375,7 +375,7 @@ class GameEngine {
         mGameTime = new TimeSource(&gFramework.getCurrentTime);
     }
 
-    TimeSourcePublic gameTime() {
+    TimeSource gameTime() {
         return mGameTime;
     }
 

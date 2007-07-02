@@ -2,19 +2,21 @@ module gui.loadingscreen;
 
 import framework.framework;
 import framework.font;
+import game.loader;
 import gui.guiobject;
 import str = std.string;
 import utils.time;
 import utils.vector2;
 
 class LoadingScreen : GuiObject {
-    Font mFont;
-    Vector2i mTxtSize;
-    char[] mCurTxt;
-    int mCurChunk, mChunkCount;
-    bool mLoading, mLoadRes;
-    bool delegate(int cur) mLoadDel;
-    void delegate() mFinishDel;
+    private {
+        Font mFont;
+        Vector2i mTxtSize;
+        char[] mCurTxt;
+        int mCurChunk;
+        bool mLoading, mLoadRes;
+        Loader mLoader;
+    }
 
     this() {
         mFont = gFramework.fontManager.loadFont("loading");
@@ -29,12 +31,12 @@ class LoadingScreen : GuiObject {
     void simulate(Time curTime, Time deltaT) {
         mCurTxt = "Loading";
         if (mLoading) {
-            if (mCurChunk >= mChunkCount || !mLoadRes) {
+            if (mCurChunk >= mLoader.chunkCount || !mLoadRes) {
                 finishLoad();
                 prog(1,1);
             } else if (mCurChunk >= 0) {
-                prog(mCurChunk, mChunkCount);
-                mLoadRes = mLoadDel(mCurChunk);
+                prog(mCurChunk, mLoader.chunkCount);
+                mLoadRes = mLoader.load(mCurChunk);
             } else {
                 prog(0,1);
             }
@@ -55,20 +57,16 @@ class LoadingScreen : GuiObject {
         size = scene.size;
     }
 
-    void startLoad(int chunkCount, bool delegate(int cur) loadChunk,
-        void delegate() loadFinish)
-    {
+    void startLoad(Loader load) {
         mLoading = true;
         mLoadRes = true;
         active = true;
-        mChunkCount = chunkCount;
+        mLoader = load;
         mCurChunk = -1;
-        mLoadDel = loadChunk;
-        mFinishDel = loadFinish;
     }
 
     private void finishLoad() {
-        mFinishDel();
+        mLoader.finished();
         mLoading = false;
     }
 

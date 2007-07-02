@@ -14,6 +14,8 @@ import game.common;
 import game.leveledit;
 import game.visual;
 import game.clientengine;
+import game.loader;
+import game.loader_game;
 import gui.gui;
 import gui.guiobject;
 import gui.windmeter;
@@ -41,7 +43,7 @@ import game.special_weapon;
 
 //this contains the mainframe
 class TopLevel {
-    MetaScene metascene;
+    Scene metascene;
     //overengineered
     private void delegate() mOnStopGui; //associated with sceneview
     LevelEditor editor;
@@ -64,6 +66,8 @@ class TopLevel {
 
     bool mShowKeyDebug = false;
     bool mKeyNameIt = false;
+
+    private GameLoader mGameLoader;
 
     this() {
         initTimes();
@@ -96,19 +100,19 @@ class TopLevel {
         keybindings = new KeyBindings();
         keybindings.loadFrom(globals.loadConfig("binds").getSubNode("binds"));
 
-        mLoadScreen.startLoad(1, &loadChunk, &loadFinish);
+        mGameLoader = new GameLoader(globals.anyConfig.getSubNode("newgame"), mGui);
+        mGameLoader.onFinish = &gameLoaded;
+
+        //load a new game
+        mLoadScreen.startLoad(mGameLoader);
     }
 
-    bool loadChunk(int cur) {
-        if (cur == 0) {
-            //hack to start level on start
-            cmdGenerateLevel(null);
-        }
-        return true;
-    }
-
-    void loadFinish() {
-        //
+    void gameLoaded(Loader sender) {
+        thegame = mGameLoader.thegame;
+        thegame.gameTime.resetTime;
+        resetTime();
+        clientengine = mGameLoader.clientengine;
+        metascene = mGameLoader.metascene;
     }
 
     private void initConsole() {
@@ -181,96 +185,6 @@ class TopLevel {
         mOnStopGui = null;
     }
 
-    private void initializeGame(GameConfig config) {
-        closeGame();
-        resetTime();
-        //xxx README: since the scene is recreated for each level, there's no
-        //            need to remove them all in Game.kill()
-        thegame = new GameEngine(config);
-        clientengine = new ClientGameEngine(thegame);
-
-        metascene = new MetaScene([clientengine.scene]);
-
-        initializeGameGui();
-        //yes, really twice, as no game time should pass while loading stuff
-        resetTime();
-
-        //callback when invoking cmdStop
-        mOnStopGui = &closeGame;
-    }
-
-    private void closeGame() {
-        closeGameGui();
-        if (thegame) {
-            thegame.kill();
-            //delete thegame;
-            thegame = null;
-        }
-        if (clientengine) {
-            clientengine.kill();
-            delete clientengine;
-            clientengine = null;
-        }
-    }
-
-    //xxx replace this by a GuiFrame thing or so
-    private GuiObject[] mGameGuiObjects;
-    private bool mGameGuiOpened;
-
-    private void initializeGameGui() {
-        closeGameGui();
-
-        mGameGuiOpened = true;
-
-        void addGui(GuiObject obj) {
-            mGui.add(obj, GUIZOrder.Gui);
-            mGameGuiObjects ~= obj;
-        }
-
-        addGui(new WindMeter(clientengine));
-        addGui(new GameTimer(clientengine));
-        addGui(new PrepareDisplay(clientengine));
-        auto msg = new MessageViewer();
-        addGui(msg);
-
-        thegame.controller.messageCb = &msg.addMessage;
-        thegame.controller.messageIdleCb = &msg.idle;
-
-        mGameView = new GameView(clientengine);
-        mGameView.loadBindings(globals.loadConfig("wormbinds")
-            .getSubNode("binds"));
-        mGui.add(mGameView, GUIZOrder.Game);
-        mGameGuiObjects ~= mGameView;
-        //xxx no focus changes yet
-        mGui.setFocus(mGameView);
-
-        //mGui.engine = thegame;
-        mGameView.controller = thegame.controller;
-        mGameView.gamescene = metascene;
-
-        //start at level center
-        mGameView.view.scrollCenterOn(thegame.gamelevel.offset
-            + thegame.gamelevel.size/2, true);
-    }
-
-    private void closeGameGui() {
-        if (!mGameGuiOpened)
-            return;
-
-        assert(mGameView !is null);
-        assert(mGui !is null);
-        mGameView.gamescene = null;
-        mGameView.controller = null;
-        foreach (GuiObject o; mGameGuiObjects) {
-            //should be enough
-            o.active = false;
-        }
-        mGameGuiObjects = null;
-        mGameView = null;
-
-        mGameGuiOpened = false;
-    }
-
     private void cmdSetWind(CommandLine cmd) {
         char[][] sargs = cmd.parseArgs();
         if (sargs.length < 1)
@@ -286,7 +200,7 @@ class TopLevel {
     }
 
     private void cmdLevelEdit(CommandLine cmd) {
-        closeGame();
+        //closeGame();
         editor = new LevelEditor();
         mGui.add(editor.render, GUIZOrder.Gui);
         //clearly sucks, find a better way
@@ -492,38 +406,9 @@ class TopLevel {
         w.writefln("pageblocks = %s", s.pageblocks);
     }
 
-    private void newGame(ConfigNode config) {
-        auto x = new genlevel.LevelGenerator();
-        GameConfig cfg;
-        bool load = config.selectValueFrom("level", ["generate", "load"]) == 1;
-        if (load) {
-            cfg.level =
-                x.renderSavedLevel(globals.loadConfig(config["level_load"]));
-        } else {
-            genlevel.LevelTemplate templ =
-                x.findRandomTemplate(config["level_template"]);
-            genlevel.LevelTheme gfx = x.findRandomGfx(config["level_gfx"]);
-
-            //be so friendly and save it
-            ConfigNode saveto = new ConfigNode();
-            cfg.level = x.renderLevel(templ, gfx, saveto);
-            saveConfig(saveto, "lastlevel.conf");
-        }
-        auto teamconf = globals.loadConfig("teams");
-        cfg.teams = teamconf.getSubNode("teams");
-
-        auto gamemodecfg = globals.loadConfig("gamemode");
-        auto modes = gamemodecfg.getSubNode("modes");
-        cfg.gamemode = modes.getSubNode(
-            config.getStringValue("gamemode",""));
-        cfg.weapons = gamemodecfg.getSubNode("weapon_sets");
-
-        initializeGame(cfg);
-    }
-
     private void cmdGenerateLevel(CommandLine cmd) {
         //char[] arg0 = cmd?cmd.getArgString():"";
-        newGame(globals.anyConfig.getSubNode("newgame"));
+        mLoadScreen.startLoad(mGameLoader);
     }
 
     private void cmdPause(CommandLine) {
@@ -569,25 +454,27 @@ class TopLevel {
     }
 
     private void onFrame(Canvas c) {
-        mGameTimeAnimations.update();
+        if (mGameLoader.fullyLoaded) {
+            mGameTimeAnimations.update();
 
-        globals.gameTimeAnimations = mGameTimeAnimations.current;
+            globals.gameTimeAnimations = mGameTimeAnimations.current;
 
-        if (thegame) {
-            thegame.doFrame();
-        }
+            if (thegame) {
+                thegame.doFrame();
+            }
 
-        if (clientengine) {
-            clientengine.doFrame();
+            if (clientengine) {
+                clientengine.doFrame();
+            }
         }
 
         mGui.doFrame(timeCurrentTime());
 
         mGui.draw(c);
 
-        //xxx can't deactivate this from delegate because it would crash
-        //the list
         if (!mLoadScreen.loading)
+            //xxx can't deactivate this from delegate because it would crash
+            //the list
             mLoadScreen.active = false;
     }
 
