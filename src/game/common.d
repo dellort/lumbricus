@@ -1,11 +1,13 @@
 module game.common;
+
 import framework.framework;
 import framework.commandline;
+import framework.timesource;
+import framework.i18n;
 import utils.time;
 import utils.configfile;
 import utils.log, utils.output;
 import utils.misc;
-import framework.i18n;
 import game.resources;
 import std.stream;
 
@@ -28,7 +30,7 @@ class Common {
 
     //both time variables are updated for each frame
     //for graphics stuff (i.e. animations continue to play while game paused)
-    Time gameTimeAnimations;
+    TimeSource gameTimeAnimations;
 
     private const cLocalePath = "/locale";
     private const cDefLang = "en";
@@ -61,6 +63,8 @@ class Common {
         if (args.length > 0 && args[0] == "logconsole") {
             defaultOut = StdioOutput.output;
         }
+
+        gameTimeAnimations = new TimeSource(&framework.getCurrentTime);
     }
 
     void setDefaultOutput(Output o) {

@@ -369,7 +369,6 @@ public:
         mCurrentSection = null;
         if (animation) {
             mCurrentSection = mAnimation.mStartSection;
-            mLast = globals.gameTimeAnimations;
             mTimeMs = 0;
             mLoopBack = false;
             mStopTime = false;
@@ -404,8 +403,10 @@ public:
         if (!needTime())
             return;
 
-        auto time = globals.gameTimeAnimations;
-        auto delta = (time - mLast).msecs;
+        auto time = globals.gameTimeAnimations.current;
+        if (time == mLast)
+            return;     //already updated this frame
+        auto delta = globals.gameTimeAnimations.difference.msecs;
         assert(delta >= 0);
         mTimeMs += delta;
         mLast = time;

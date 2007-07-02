@@ -49,8 +49,6 @@ class TopLevel {
     LevelEditor editor;
     KeyBindings keybindings;
 
-    private TimeSource mGameTimeAnimations;
-
     GuiMain mGui;
     GameView mGameView;
     GuiConsole mGuiConsole;
@@ -414,7 +412,7 @@ class TopLevel {
     private void cmdPause(CommandLine) {
         thegame.gameTime.paused = !thegame.gameTime.paused;
         clientengine.engineTime.paused = thegame.gameTime.paused;
-        mGameTimeAnimations.paused = !mGameTimeAnimations.paused;
+        globals.gameTimeAnimations.paused = !globals.gameTimeAnimations.paused;
     }
 
     //slow <whatever> time
@@ -436,28 +434,24 @@ class TopLevel {
             return;
         }
         float g = setgame ? val : thegame.gameTime.slowDown;
-        float a = setani ? val : mGameTimeAnimations.slowDown;
+        float a = setani ? val : globals.gameTimeAnimations.slowDown;
         cmd.console.writefln("set slowdown: game=%s animations=%s", g, a);
         thegame.gameTime.slowDown = g;
         clientengine.engineTime.slowDown = g;
-        mGameTimeAnimations.slowDown = a;
+        globals.gameTimeAnimations.slowDown = a;
     }
 
     private void initTimes() {
-        mGameTimeAnimations = new TimeSource(&gFramework.getCurrentTime);
         resetTime();
     }
 
     void resetTime() {
-        mGameTimeAnimations.resetTime();
-        globals.gameTimeAnimations = mGameTimeAnimations.current;
+        globals.gameTimeAnimations.resetTime();
     }
 
     private void onFrame(Canvas c) {
         if (mGameLoader.fullyLoaded) {
-            mGameTimeAnimations.update();
-
-            globals.gameTimeAnimations = mGameTimeAnimations.current;
+            globals.gameTimeAnimations.update();
 
             if (thegame) {
                 thegame.doFrame();

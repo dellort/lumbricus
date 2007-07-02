@@ -14,6 +14,7 @@ import gui.preparedisplay;
 import gui.messageviewer;
 import genlevel = levelgen.generator;
 import utils.configfile;
+import utils.log;
 
 class GameLoader : Loader {
     private ConfigNode mConfig;
@@ -22,6 +23,7 @@ class GameLoader : Loader {
     //xxx replace this by a GuiFrame thing or so
     private GuiObject[] mGameGuiObjects;
     private bool mGameGuiOpened;
+    private Log log;
 
     GameEngine thegame;
     ClientGameEngine clientengine;
@@ -29,6 +31,7 @@ class GameLoader : Loader {
     Scene metascene;
 
     this(ConfigNode config, GuiMain mgui) {
+        log = registerLog("GameLoader");
         mConfig = config;
         mGui = mgui;
         registerChunk(&unloadGui);
@@ -40,6 +43,7 @@ class GameLoader : Loader {
     }
 
     private bool unloadGui() {
+        log("unloadGui");
         if (mGameGuiOpened) {
             //xxx implement correct focus handling
             mGui.setFocus(null);
@@ -61,6 +65,7 @@ class GameLoader : Loader {
     }
 
     private bool unloadGame() {
+        log("unloadGame");
         if (thegame) {
             thegame.kill();
             //delete thegame;
@@ -76,6 +81,7 @@ class GameLoader : Loader {
     }
 
     private bool loadConfig() {
+        log("loadConfig");
         auto x = new genlevel.LevelGenerator();
         GameConfig cfg;
         bool load = mConfig.selectValueFrom("level", ["generate", "load"]) == 1;
@@ -107,20 +113,18 @@ class GameLoader : Loader {
     }
 
     private bool initGameEngine() {
+        log("initGameEngine");
         thegame = new GameEngine(mGameConfig);
 
         return true;
     }
 
     private bool initClientEngine() {
-        //resetTime();
+        log("initClientEngine");
         //xxx README: since the scene is recreated for each level, there's no
         //            need to remove them all in Game.kill()
         clientengine = new ClientGameEngine(thegame);
         metascene = new MetaScene([clientengine.scene]);
-
-        //yes, really twice, as no game time should pass while loading stuff
-        //resetTime();
 
         //callback when invoking cmdStop
         //mOnStopGui = &closeGame;
@@ -129,6 +133,7 @@ class GameLoader : Loader {
     }
 
     private bool initializeGameGui() {
+        log("initializeGameGui");
         mGameGuiOpened = true;
 
         void addGui(GuiObject obj) {
@@ -161,5 +166,10 @@ class GameLoader : Loader {
             + thegame.gamelevel.size/2, true);
 
         return true;
+    }
+
+    override void finished() {
+        super.finished();
+        log("Done");
     }
 }
