@@ -72,7 +72,6 @@
 		<Unit filename="game\gameinterface.d" />
 		<Unit filename="game\glevel.d" />
 		<Unit filename="game\gobject.d" />
-		<Unit filename="game\leveledit.d" />
 		<Unit filename="game\loader.d" />
 		<Unit filename="game\loader_game.d" />
 		<Unit filename="game\physic.d" />
@@ -89,10 +88,13 @@
 		<Unit filename="game\worm.d" />
 		<Unit filename="gui\console.d" />
 		<Unit filename="gui\fps.d" />
+		<Unit filename="gui\gameframe.d" />
 		<Unit filename="gui\gametimer.d" />
 		<Unit filename="gui\gameview.d" />
 		<Unit filename="gui\gui.d" />
+		<Unit filename="gui\guiframe.d" />
 		<Unit filename="gui\guiobject.d" />
+		<Unit filename="gui\leveledit.d" />
 		<Unit filename="gui\loadingscreen.d" />
 		<Unit filename="gui\messageviewer.d" />
 		<Unit filename="gui\preparedisplay.d" />

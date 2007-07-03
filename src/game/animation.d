@@ -38,6 +38,7 @@ static this() {
     gParamConverters["step3"] = &paramConvertStep3;
     gParamConverters["twosided"] = &paramConvertTwosided;
     gParamConverters["rot360"] = &paramConvertFreeRot;
+    gParamConverters["rot360inv"] = &paramConvertFreeRotInv;
     gParamConverters["rot180"] = &paramConvertFreeRot2;
 
     //simple animation
@@ -50,6 +51,8 @@ static this() {
     gAnimationLoadHandlers["worm_weapon"] = &loadWormWeaponAnimation;
     //360 degrees graphic, not animated
     gAnimationLoadHandlers["360"] = &load360Animation;
+    //360 deg, inverted rotation
+    gAnimationLoadHandlers["360inv"] = &load360InvAnimation;
     //graphic contains only 180 degrees, to be mirrored
     //gAnimationLoadHandlers["360m"] = &load360MAnimation;
     //180 degrees graphic, not animated
@@ -552,6 +555,10 @@ private int paramConvertTwosided(int angle, int count) {
 private int paramConvertFreeRot(int angle, int count) {
     return cast(int)(((angle % 360) / 360.0f) * (count - 1));
 }
+//360 degrees freedom, inverted spinning direction
+private int paramConvertFreeRotInv(int angle, int count) {
+    return cast(int)((((720-angle) % 360) / 360.0f) * (count - 1));
+}
 //180 degrees, -90 (down) to +90 (up)
 //(overflows, used for weapons, it's hardcoded that it can use 180 degrees only)
 private int paramConvertFreeRot2(int angle, int count) {
@@ -633,6 +640,18 @@ private AnimationData load360Animation(ConfigNode node) {
     loadFooImages(res, node, 1);
 
     res.sections[0].paramConvert[0] = &paramConvertFreeRot;
+    res.sections[0].AB[0] = AnimationParamType.P1;
+    res.sections[0].AB[1] = AnimationParamType.Null;
+    res.sections[0].loop = false;
+
+    return res;
+}
+
+private AnimationData load360InvAnimation(ConfigNode node) {
+    AnimationData res;
+    loadFooImages(res, node, 1);
+
+    res.sections[0].paramConvert[0] = &paramConvertFreeRotInv;
     res.sections[0].AB[0] = AnimationParamType.P1;
     res.sections[0].AB[1] = AnimationParamType.Null;
     res.sections[0].loop = false;

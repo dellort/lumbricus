@@ -124,6 +124,7 @@ private class ProjectileSprite : GObjectSprite {
     //only used if mylcass.dieByTime && !myclass.useFixedDeathTime
     Time deathTimer;
     ProjectileEffector[] effectors;
+    Vector2f target;
 
     Time dieTime() {
         if (myclass.dieByTime) {
@@ -208,15 +209,6 @@ private class ProjectileSprite : GObjectSprite {
     }
 }
 
-//guided missile and some other missile-like weapons
-//not implemented, just there to set the target
-class TargetProjectileSprite : ProjectileSprite {
-    Vector2f target;
-    this(GameEngine engine, TargetProjectileSpriteClass type) {
-        super(engine, type);
-    }
-}
-
 //information about how to spawn something
 //from the "onfire" or "death.spawn" config sections in weapons.conf
 struct SpawnParams {
@@ -279,10 +271,7 @@ private void spawnsprite(GameEngine engine, int n, SpawnParams params,
     auto ps = cast(ProjectileSprite)sprite;
     if (ps) {
         ps.deathTimer = about.timer;
-    }
-    auto tps = cast(TargetProjectileSprite)sprite;
-    if (tps) {
-        tps.target = about.pointto;
+        ps.target = about.pointto;
     }
 
     //set fire to it
@@ -349,16 +338,6 @@ class ProjectileSpriteClass : GOSpriteClass {
         explosionOnImpact = config.getFloatValue("explosion_on_impact", float.nan);
     }
 
-
-    this(GameEngine e, char[] r) {
-        super(e, r);
-    }
-}
-
-class TargetProjectileSpriteClass : ProjectileSpriteClass {
-    override TargetProjectileSprite createSprite() {
-        return new TargetProjectileSprite(engine, this);
-    }
 
     this(GameEngine e, char[] r) {
         super(e, r);
@@ -463,6 +442,56 @@ class ProjectileEffectorGravityCenterClass : ProjectileEffectorClass {
 
     static this() {
         ProjectileEffectorFactory.register!(typeof(this))("gravitycenter");
+    }
+}
+
+class ProjectileEffectorHoming : ProjectileEffector {
+    private ProjectileEffectorHomingClass myclass;
+
+    this(ProjectileSprite parent, ProjectileEffectorHomingClass type) {
+        super(parent, type);
+        myclass = type;
+        active = true;
+    }
+
+    override void simulate(float deltaT) {
+        if (mActive) {
+            if (mParent.engine.gameTime.current - birthTime > myclass.delay) {
+                Vector2f totarget = mParent.target - mParent.physics.pos;
+                mParent.physics.velocity += totarget.normal*myclass.force;
+                if (mParent.physics.velocity.length > myclass.maxvelocity) {
+                    mParent.physics.velocity.length = myclass.maxvelocity;
+                }
+            }
+        }
+        super.simulate(deltaT);
+    }
+
+    override void activate(bool ac) {
+        /*if (ac) {
+        } else {
+        }*/
+    }
+}
+
+class ProjectileEffectorHomingClass : ProjectileEffectorClass {
+    Time delay;
+    float force;
+    float maxvelocity;
+
+    this(ConfigNode node) {
+        super(node);
+        delay = timeSecs(node.getFloatValue("delay",1.0f));
+        force = node.getIntValue("force",100);
+        maxvelocity = node.getIntValue("max_velocity",500);
+    }
+
+    override ProjectileEffectorHoming createEffector(ProjectileSprite parent) {
+        return new ProjectileEffectorHoming(parent, this);
+    }
+
+    static this() {
+        ProjectileEffectorFactory.register!(typeof(this))("homing");
     }
 }
 
