@@ -190,7 +190,8 @@ class GameEngine {
         Time time;
     }
     EventQueue[] events;
-    const lag = 100; //ms
+    const lag = 0;//100; //ms
+    const lagvar = 0; //100
 
     Vector2i levelOffset, worldSize;
 
@@ -517,7 +518,7 @@ class GameEngine {
             }
 
             //all 100ms update
-            if (lastnetupdate + timeMsecs(100) < mGameTime.current) {
+            if (lastnetupdate + timeMsecs(lagvar) < mGameTime.current) {
                 netupdate();
                 lastnetupdate = mGameTime.current;
             }

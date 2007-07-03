@@ -32,7 +32,6 @@ class GuiMain {
     private SceneView mRootView;
 
     private Time mLastTime;
-    //private GameEngine mEngine;
 
     private GuiObject mFocus;
     private GuiEventsObject events;
@@ -64,8 +63,9 @@ class GuiMain {
     }
 
     void add(GuiObject o, GUIZOrder z) {
-        o.setScene(mGuiScene, z);
         o.mChangeActiveness = &onSubObjectChanged;
+        o.setScene(mGuiScene, z);
+        onSubObjectChanged(o); //xxx??? shouldn't be needed (to set initial focus)
         o.resize();
     }
 
@@ -80,6 +80,7 @@ class GuiMain {
 
     //linked to a subobject's onChangeScene()
     private void onSubObjectChanged(GuiObject o) {
+        gDefaultLog("change %s", o);
         //if object was added/removed, o.active = new state
         if (o.active && o.canHaveFocus) {
             if (o.greedyFocus) {
