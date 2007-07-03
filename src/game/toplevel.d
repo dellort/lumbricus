@@ -21,6 +21,7 @@ import utils.configfile;
 import utils.log;
 import utils.output;
 import utils.mylist;
+import utils.mybox;
 import perf = std.perf;
 import gc = std.gc;
 import genlevel = levelgen.generator;
@@ -38,6 +39,7 @@ private:
     GuiConsole mGuiConsole;
 
     GuiFrame mCurrentFrame;
+    GameFrame mGameFrame;
 
     //xxx move this to where-ever
     Translator localizedKeynames;
@@ -75,7 +77,7 @@ private:
         keybindings.loadFrom(globals.loadConfig("binds").getSubNode("binds"));
 
         //load a new game
-        mCurrentFrame = new GameFrame(mGui);
+        newGame();
     }
 
     private void initConsole() {
@@ -88,19 +90,23 @@ private:
         globals.cmdLine.registerCommand("quit", &killShortcut, "kill it");
         globals.cmdLine.registerCommand("toggle", &showConsole,
             "toggle this console");
-        globals.cmdLine.registerCommand("log", &cmdShowLog,
-            "List and modify log-targets");
+        //globals.cmdLine.registerCommand("log", &cmdShowLog,
+          //  "List and modify log-targets");
         globals.cmdLine.registerCommand("level", &cmdGenerateLevel,
             "Generate new level");
         globals.cmdLine.registerCommand("bind", &cmdBind,
-            "display/edit key bindings");
+            "display/edit key bindings", [
+                "text?:add/kill",
+                "text?:name",
+                "text...:bind to"
+            ]);
         globals.cmdLine.registerCommand("nameit", &cmdNameit, "name a key");
-        globals.cmdLine.registerCommand("video", &cmdVideo, "set video");
+        globals.cmdLine.registerCommand("video", &cmdVideo, "set video", [
+            "int:width",
+            "int:height",
+            "int?=0:depth (bits)"]);
         globals.cmdLine.registerCommand("fullscreen", &cmdFS, "toggle fs");
-        globals.cmdLine.registerCommand("phys", &cmdPhys, "test123");
-        globals.cmdLine.registerCommand("expl", &cmdExpl, "BOOM! HAHAHAHA");
         globals.cmdLine.registerCommand("pause", &cmdPause, "pause");
-        //globals.cmdLine.registerCommand("loadanim", &cmdLoadAnim, "load worms animation");
         //yyy globals.cmdLine.registerCommand("raisewater", &cmdRaiseWater, "increase waterline");
 
         globals.cmdLine.registerCommand("editor", &cmdLevelEdit, "hm");
@@ -108,46 +114,40 @@ private:
         //yyy globals.cmdLine.registerCommand("wind", &cmdSetWind, "Change wind speed");
         globals.cmdLine.registerCommand("stop", &cmdStop, "stop editor/game");
 
-        globals.cmdLine.registerCommand("slow", &cmdSlow, "todo");
+        globals.cmdLine.registerCommand("slow", &cmdSlow, "set slowdown", [
+            "float:slow down",
+            "text?:ani or game"]);
 
         globals.cmdLine.registerCommand("framerate", &cmdFramerate, "set fixed framerate");
         globals.cmdLine.registerCommand("cameradisable", &cmdCameraDisable, "disable game camera");
         globals.cmdLine.registerCommand("detail", &cmdDetail, "switch detail level");
     }
 
-    private void cmdDetail(CommandLine cmd) {
-        /*yyy if (!clientengine)
+    private void cmdDetail(MyBox[] args, Output write) {
+        if (!mGameFrame || !mGameFrame.clientengine)
             return;
-        clientengine.detailLevel = clientengine.detailLevel + 1;
-        cmd.console.writefln("set detailLevel to %s", clientengine.detailLevel);*/
+        mGameFrame.clientengine.detailLevel = mGameFrame.clientengine.detailLevel + 1;
+        write.writefln("set detailLevel to %s", mGameFrame.clientengine.detailLevel);
     }
 
-    private void cmdFramerate(CommandLine cmd) {
-        char[][] sargs = cmd.parseArgs();
-        int rate = 0;
-        if (sargs.length < 1)
-            return;
-        try {
-            rate = conv.toInt(sargs[0]);
-        } catch (conv.ConvError) {
-            return;
-        }
-        globals.framework.fixedFramerate = rate;
+    private void cmdFramerate(MyBox[] args, Output write) {
+        globals.framework.fixedFramerate = args[0].unbox!(int)();
     }
 
-    private void cmdCameraDisable(CommandLine) {
-        /*yyy if (mGameView.view)
-            mGameView.view.setCameraFocus(null);*/
+    private void cmdCameraDisable(MyBox[] args, Output write) {
+        if (mGameFrame && mGameFrame.mGameLoader.gameView)
+            mGameFrame.mGameLoader.gameView.view.setCameraFocus(null);
     }
 
     void killFrame() {
         if (mCurrentFrame) {
             mCurrentFrame.kill();
             mCurrentFrame = null;
+            mGameFrame = null;
         }
     }
 
-    private void cmdStop(CommandLine) {
+    private void cmdStop(MyBox[] args, Output write) {
         killFrame();
     }
 /*yyy
@@ -158,7 +158,7 @@ private:
         thegame.windSpeed = conv.toFloat(sargs[0]);
     }
 */
-    private void cmdLevelEdit(CommandLine cmd) {
+    private void cmdLevelEdit(MyBox[] args, Output write) {
         killFrame();
         mCurrentFrame = new LevelEditor(mGui);
     }
@@ -176,47 +176,27 @@ private:
         thegame.raiseWater(add);
     }
 */
-    private void cmdPhys(CommandLine) {
-        //oops?
-        //auto obj = new TestAnimatedGameObject(thegame);
-        //obj.setPos(thegame.tmp);
-        assert(false);
-    }
-
-    private void cmdExpl(CommandLine) {
-        //auto obj = new BananaBomb(thegame);
-        //obj.setPos(toVector2f(thegame.tmp));
-        assert(false);
-    }
 
     private void onVideoInit(bool depth_only) {
         globals.log("Changed video: %s", globals.framework.screen.size);
         mGui.size = globals.framework.screen.size;
     }
 
-    private void cmdVideo(CommandLine cmd) {
-        int[3] args;
-        char[][] sargs = cmd.parseArgs();
-        if (sargs.length != 3)
-            return;
+    private void cmdVideo(MyBox[] args, Output write) {
+        int a = args[0].unbox!(int);
+        int b = args[1].unbox!(int);
+        int c = args[2].unbox!(int);
         try {
-            foreach (int idx, inout a; args) {
-                a = conv.toInt(sargs[idx]);
-            }
-        } catch (conv.ConvError) {
-            return;
-        }
-        try {
-            globals.framework.setVideoMode(args[0], args[1], args[2], mIsFS);
+            globals.framework.setVideoMode(a, b, c, mIsFS);
         } catch (Exception e) {
             //failed to set video mode, try again in windowed mode
             mIsFS = false;
-            globals.framework.setVideoMode(args[0], args[1], args[2], mIsFS);
+            globals.framework.setVideoMode(a, b, c, mIsFS);
         }
     }
 
     private bool mIsFS;
-    private void cmdFS(CommandLine cmd) {
+    private void cmdFS(MyBox[] args, Output write) {
         try {
             globals.framework.setVideoMode(globals.framework.screen.size.x1,
                 globals.framework.screen.size.x2, globals.framework.bitDepth,
@@ -232,33 +212,30 @@ private:
     }
 
     //bind [name action [keys]]
-    private void cmdBind(CommandLine cmd) {
-        char[][] args = cmd.parseArgs();
-        if (args.length >= 2) {
-            switch (args[0]) {
-                case "add":
-                    char[] bindstr = str.join(args[2..$], " ");
-                    keybindings.addBinding(args[1], bindstr);
-                    return;
-                case "kill":
-                    //remove all bindings
-                    keybindings.removeBinding(args[1]);
-                    return;
-                default:
-            }
+    private void cmdBind(MyBox[] args, Output write) {
+        switch (args[0].unbox!(char[])()) {
+            case "add":
+                keybindings.addBinding(args[1].unbox!(char[])(),
+                    args[2].unbox!(char[])());
+                return;
+            case "kill":
+                //remove all bindings
+                keybindings.removeBinding(args[1].unbox!(char[])());
+                return;
+            default:
         }
         //else, list all bindings
-        cmd.console.writefln("Bindings:");
+        write.writefln("Bindings:");
         keybindings.enumBindings(
             (char[] bind, Keycode code, ModifierSet mods) {
-                cmd.console.writefln("    %s='%s' ('%s')", bind,
+                write.writefln("    %s='%s' ('%s')", bind,
                     keybindings.unparseBindString(code, mods),
                     translateKeyshortcut(code, mods));
             }
         );
     }
 
-    private void cmdNameit(CommandLine) {
+    private void cmdNameit(MyBox[] args, Output write) {
         mKeyNameIt = true;
     }
 
@@ -277,7 +254,7 @@ private:
         return res;
     }
 
-    private void cmdShowLog(CommandLine cmd) {
+/*    private void cmdShowLog(CommandLine cmd) {
 
         void setTarget(Log log, char[] targetstr) {
             switch (targetstr) {
@@ -312,25 +289,17 @@ private:
         foreach (Log log; gAllLogs) {
             cmd.console.writefln("  %s -> %s", log.category, log.backend_name);
         }
-    }
+    }*/
 
-    /+
-    private void cmdLoadAnim(CommandLine cmd) {
-        auto a = new Animation(mWormsAnim.getSubNode(cmd.parseArgs[0]));
-        std.stdio.writefln("Loaded ",cmd.parseArgs[0]);
-        mWormsAnimator.setAnimation(a);
-    }
-    +/
-
-    private void showConsole(CommandLine) {
+    private void showConsole(MyBox[], Output) {
         mGuiConsole.toggle();
     }
 
-    private void killShortcut(CommandLine) {
+    private void killShortcut(MyBox[], Output) {
         globals.framework.terminate();
     }
 
-    private void testGC(CommandLine) {
+    private void testGC(MyBox[] args, Output write) {
         auto counter = new perf.PerformanceCounter();
         gc.GCStats s1, s2;
         gc.getStats(s1);
@@ -340,11 +309,11 @@ private:
         gc.getStats(s2);
         Time t;
         t.musecs = counter.microseconds;
-        globals.log("GC fullcollect: %s, free'd %s KB", t,
+        write.writefln("GC fullcollect: %s, free'd %s KB", t,
             ((s1.usedsize - s2.usedsize) + 512) / 1024);
     }
-    private void testGCstats(CommandLine cmd) {
-        auto w = cmd.console;
+    private void testGCstats(MyBox[] args, Output write) {
+        auto w = write;
         gc.GCStats s;
         gc.getStats(s);
         w.writefln("GC stats:");
@@ -355,41 +324,38 @@ private:
         w.writefln("pageblocks = %s", s.pageblocks);
     }
 
-    private void cmdGenerateLevel(CommandLine cmd) {
-        killFrame();
-        mCurrentFrame = new GameFrame(mGui);
+    private void cmdGenerateLevel(MyBox[] args, Output write) {
+        newGame();
     }
 
-    private void cmdPause(CommandLine) {
+    private void newGame() {
+        killFrame();
+        mCurrentFrame = mGameFrame = new GameFrame(mGui);
+    }
+
+    private void cmdPause(MyBox[], Output) {
         //yyy thegame.gameTime.paused = !thegame.gameTime.paused;
         //yyy clientengine.engineTime.paused = thegame.gameTime.paused;
         globals.gameTimeAnimations.paused = !globals.gameTimeAnimations.paused;
     }
 
-    //slow <whatever> time
+    //slow time <whatever>
     //whatever can be "game", "ani" or left out
-    private void cmdSlow(CommandLine cmd) {
-        auto args = cmd.parseArgs();
+    private void cmdSlow(MyBox[] args, Output write) {
         bool setgame, setani;
-        float val;
-        if (args.length == 2) {
-            val = conv.toFloat(args[1]);
-            if (args[0] == "game")
-                setgame = true;
-            else if (args[0] == "ani")
-                setani = true;
-        } else if (args.length == 1) {
-            val = conv.toFloat(args[0]);
-            setgame = setani = true;
-        } else {
-            return;
+        switch (args[1].unbox!(char[])) {
+            case "game": setgame = true; break;
+            case "ani": setani = true; break;
+            default:
+                setgame = setani = true;
         }
-        /*yyy float g = setgame ? val : thegame.gameTime.slowDown;
+        float val = args[0].unbox!(float);
+        float g = setgame ? val : mGameFrame.thegame.gameTime.slowDown;
         float a = setani ? val : globals.gameTimeAnimations.slowDown;
-        cmd.console.writefln("set slowdown: game=%s animations=%s", g, a);
-        thegame.gameTime.slowDown = g;
-        clientengine.engineTime.slowDown = g;
-        globals.gameTimeAnimations.slowDown = a;*/
+        write.writefln("set slowdown: game=%s animations=%s", g, a);
+        mGameFrame.thegame.gameTime.slowDown = g;
+        mGameFrame.clientengine.engineTime.slowDown = g;
+        globals.gameTimeAnimations.slowDown = a;
     }
 
     private void initTimes() {

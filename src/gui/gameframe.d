@@ -19,7 +19,7 @@ import game.special_weapon;
 class GameFrame : GuiFrame, GameGui {
     GameEngine thegame;
     ClientGameEngine clientengine;
-    private GameLoader mGameLoader;
+    /*private*/ GameLoader mGameLoader;
     private LoadingScreen mLoadScreen;
 
     //strange? complains about not implemented fpr GameGui, even happens if

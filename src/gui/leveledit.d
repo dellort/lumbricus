@@ -703,8 +703,8 @@ public class LevelEditor : GuiFrame {
 
         newPolyAt(Rect2i(100, 100, 500, 500));
 
-        globals.cmdLine.registerCommand("preview", &cmdPreview, "preview");
-        globals.cmdLine.registerCommand("save", &cmdSave, "save edit level");
+//        globals.cmdLine.registerCommand("preview", &cmdPreview, "preview");
+//        globals.cmdLine.registerCommand("save", &cmdSave, "save edit level");
     }
 
     void insertPoint() {

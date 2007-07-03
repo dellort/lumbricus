@@ -11,30 +11,26 @@ import utils.mylist;
 import utils.mybox;
 import utils.misc;
 import utils.output;
+import utils.strparser;
 
-alias MyBox function(char[][] args, inout int argIdx) TypeHandler;
-alias void delegate(CommandLine) CommandHandler;
-alias void delegate(MyBox[] args, Output write) NewCommandHandler;
+//the coin has decided
+alias MyBox function(char[] args) TypeHandler;
+
+alias void delegate(MyBox[] args, Output write) CommandHandler;
 
 TypeHandler[char[]] gCommandLineParsers;
+
+static this() {
+    gCommandLineParsers["text"] = gBoxParsers[typeid(char[])];
+    gCommandLineParsers["int"] = gBoxParsers[typeid(int)];
+    gCommandLineParsers["float"] = gBoxParsers[typeid(float)];
+    gCommandLineParsers["color"] = gBoxParsers[typeid(Color)];
+}
 
 //store stuff about a command
 public class Command {
     //use opCall()
     private this() {
-    }
-
-    static Command opCall(char[] name, CommandHandler handler, char[] helpText)
-    {
-        Command cmd = new Command();
-        cmd.name = name;
-        cmd.cmdProc = handler;
-        cmd.helpText = helpText;
-        //cmd.param_types = [gCommandLineParsers["text"]];
-        //combination of both => no arguments yield an empty string
-        cmd.minArgCount = 1;
-        cmd.textArgument = 0;
-        return cmd;
     }
 
     //format for args: each string item describes a parameter, with type and
@@ -49,28 +45,168 @@ public class Command {
     // <default> can be given for optional arguments; if an optional argument
     //   isn't available, then this will be passed to the handler
     // <help> is the help text for that parameter
-    static Command opCall(char[] name, NewCommandHandler handler,
-        char[] helpText, char[][] args)
+    static Command opCall(char[] name, CommandHandler handler,
+        char[] helpText, char[][] args = null)
     {
-        assert(false, "implement me");
-        return null;
+        Command cmd = new Command();
+        cmd.name = name;
+        cmd.cmdProc = handler;
+        cmd.helpText = helpText;
+        cmd.param_help.length = args.length;
+        cmd.param_defaults.length = args.length;
+        cmd.param_types.length = args.length;
+        int firstOptional = -1;
+        foreach (int index, char[] arg; args) {
+            char[] help = "no help";
+
+            //<rest> ':' <help>
+            int p = str.find(arg, ':');
+            if (p >= 0) {
+                help = arg[p+1..$];
+                arg = arg[0..p];
+            }
+            cmd.param_help[index] = help;
+
+            //<rest> = <default>
+            char[] def = "";
+            bool have_def = false;
+            p = str.find(arg, '=');
+            if (p >= 0) {
+                def = arg[p+1..$];
+                arg = arg[0..p];
+                have_def = true;
+            }
+
+            //on of ... or ? (they're mutual anyway)
+            bool isTextArgument;
+             if (arg.length > 4 && arg[$-3..$] == "...") {
+                isTextArgument = true;
+                arg = arg[0..$-3];
+             }
+            bool isOptional;
+            if (arg.length > 1 && arg[$-1] == '?') {
+                isOptional = true;
+                arg = arg[0..$-1];
+            }
+            if (isTextArgument) {
+                cmd.textArgument = true;
+                if (index + 1 != args.length) {
+                    //xxx error handling
+                    assert(false, "'...' argument must come last");
+                }
+            }
+            if (isOptional && firstOptional < 0) {
+                firstOptional = index;
+            }
+
+            //arg contains the type now
+            TypeHandler* phandler = arg in gCommandLineParsers;
+            if (!phandler) {
+                //xxx error handling
+                assert(false, "type not found");
+            }
+            cmd.param_types[index] = *phandler;
+
+            if (have_def) {
+                auto box = (*phandler)(def);
+                if (box.empty()) {
+                    //xxx error handling
+                    assert(false, "couldn't parse default param");
+                }
+                cmd.param_defaults[index] = box;
+            }
+        }
+        cmd.minArgCount = firstOptional < 0 ? args.length : firstOptional;
+        return cmd;
     }
 private:
     char[] name;
     CommandHandler cmdProc;
-    NewCommandHandler cmdProc2;
     char[] helpText;
 
     TypeHandler[] param_types;
     MyBox[] param_defaults;
     char[][] param_help;
     int minArgCount;
-    //-1 or param nr. since when all all the rest of the text should be passed
-    //to the argument parser (before that, separate by whitespace)
-    int textArgument = -1;
+    //pass rest of the commandline as string for the last parameter
+    bool textArgument;
+
+    //find any char from anyof in str and return the first one
+    private static int findAny(char[] astr, char[] anyof) {
+        //if you like, you can implement an efficient one, hahaha
+        int first = -1;
+        foreach (char c; anyof) {
+            int r = str.find(astr, c);
+            if (r > first)
+                first = r;
+        }
+        return first;
+    }
+
+    //cur left whitespace
+    private static char[] trimLeft(char[] s) {
+        while (s.length > 1 && str.iswhite(s[0]))
+            s = s[1..$];
+        return s;
+    }
 
     //whatever...
     void parseAndInvoke(char[] cmdline, Output write) {
+        MyBox[] args;
+        args.length = param_types.length;
+        for (int curarg = 0; curarg < param_types.length; curarg++) {
+            char[] arg_string;
+            //cut leading whitespace only if that's not a textArgument
+            bool isTextArg = (textArgument && param_types.length == curarg+1);
+            if (!isTextArg) {
+                cmdline = trimLeft(cmdline);
+
+                //find end of the argument
+                //it end with string end or whitespace, but there can be quotes
+                //in the middle of it, which again can contain whitespace...
+                bool in_quote;
+                bool done;
+
+                while (!(done || cmdline.length == 0)) {
+                    if (cmdline[0] == '"') {
+                        in_quote = !in_quote;
+                    } else {
+                        bool iswh = !in_quote && str.iswhite(cmdline[0]);
+                        if (!iswh) {
+                            arg_string ~= cmdline[0];
+                        } else {
+                            done = true; //NOTE: also strip this whitespace!
+                        }
+                    }
+                    cmdline = cmdline[1..$];
+                }
+            }
+
+            //complain and throw up if not valid
+            MyBox box = param_types[curarg](arg_string);
+            if (box.empty()) {
+                if (curarg+1 < minArgCount) {
+                    write.writefln("could not parse argument nr. %s", curarg);
+                    return;
+                }
+                box = param_defaults[curarg];
+            }
+            //xxx stupid hack to support default arguments for strings
+            if (arg_string.length == 0 && !param_defaults[curarg].empty()) {
+                box = param_defaults[curarg];
+            }
+            args[curarg] = box;
+        }
+        cmdline = trimLeft(cmdline);
+        if (cmdline.length > 0) {
+            write.writefln("Warning: trailing unparsed argument string: '%s'",
+                cmdline);
+        }
+
+        //successfully parsed, so...:
+        if (cmdProc) {
+            cmdProc(args, write);
+        }
     }
 }
 
@@ -110,15 +246,15 @@ public class CommandLine {
         mConsole = cons;
         HistoryNode n;
         mHistory = new HistoryList(n.listnode.getListNodeOffset());
-        registerCommand("help", &cmdHelp, "Show all commands.");
-        registerCommand("history", &cmdHistory, "Show the history.");
+        registerCommand(Command("help", &cmdHelp, "Show all commands.", null));
+        registerCommand(Command("history", &cmdHistory, "Show the history.", null));
     }
 
     public Console console() {
         return mConsole;
     }
 
-    private void cmdHelp(CommandLine cmd) {
+    private void cmdHelp(MyBox[] args, Output write) {
         mConsole.print("List of commands: ");
         uint count = 0;
         foreach (Command c; mCommands) {
@@ -128,19 +264,21 @@ public class CommandLine {
         mConsole.print(str.format("%d commands.", count));
     }
 
-    private void cmdHistory(CommandLine cmd) {
+    private void cmdHistory(MyBox[] args, Output write) {
         mConsole.print("History:");
         foreach (HistoryNode hist; mHistory) {
             mConsole.print("   "~hist.stuff);
         }
     }
 
-    public int registerCommand(char[] name,
-        void delegate(CommandLine cmdLine) cmdProc, char[] helpText)
-    {
-        mCommands ~= Command(name, cmdProc, helpText);
+    public void registerCommand(Command cmd) {
+        mCommands ~= cmd;
+    }
 
-        return 0; //xxx what was the id for?
+    public void registerCommand(char[] name, CommandHandler handler,
+        char[] helpText, char[][] args = null)
+    {
+        registerCommand(Command(name, handler, helpText, args));
     }
 
     public bool keyDown(KeyInfo infos) {
@@ -266,15 +404,6 @@ public class CommandLine {
         return mCurline[mCommandStart..mCommandEnd];
     }
 
-    //to be called from command implementations...
-    public char[][] parseArgs() {
-        return str.split(mCurline[mCommandEnd .. $]);
-    }
-
-    public char[] getArgString() {
-        return str.strip(mCurline[mCommandEnd .. $]);
-    }
-
     private void do_execute(bool addHistory = true) {
         auto cmd = parseCommand();
 
@@ -305,7 +434,7 @@ public class CommandLine {
             if (!ccmd) {
                 mConsole.print("Unknown command: "~cmd);
             } else {
-                ccmd.cmdProc(this);
+                ccmd.parseAndInvoke(mCurline[mCommandEnd .. $], mConsole);
             }
         }
 
@@ -402,4 +531,26 @@ public class CommandLine {
 
         return exact;
     }
+}
+
+debug import std.stdio;
+
+unittest {
+    /+
+    void handler(MyBox[] args, Output write) {
+        foreach(int index, MyBox b; args) {
+            debug writefln("%s: %s", index, boxToString(b));
+        }
+    }
+    auto c1 = Command("foo", &handler, "blah", [
+        "int:hello",
+        "float:bla",
+        "text:huh",
+        "int?=789:fff",
+        "text?=haha:bla2"
+        ]);
+    c1.parseAndInvoke("5   1.2 \"hal  l ooo\"  ", StdioOutput.output);
+
+    debug writefln("commandline.d unittest: passed.");
+    +/
 }

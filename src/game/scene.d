@@ -406,9 +406,8 @@ class SceneObject {
             return;
 
         if (!mScene) {
-            bool changed = mActive;
-            mActive = false;
-            onChangeScene(changed);
+            assert(!mActive);
+            onChangeScene(false);
             return;
         }
 

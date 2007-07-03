@@ -8,9 +8,18 @@ import str = std.string;
 import utils.vector2 : Vector2, Vector2i, Vector2f;
 
 //xxx function, should be delegate
+//convention: return empty box if not parseable
 alias MyBox function(char[] s) BoxParseString;
 
 BoxParseString[TypeInfo] gBoxParsers;
+
+MyBox stringToBoxTypeID(TypeInfo info, char[] s) {
+    return gBoxParsers[info](s);
+}
+
+MyBox stringToBox(T)(char[] s) {
+    return stringToBoxTypeID(typeid(T), s);
+}
 
 static this() {
     gBoxParsers[typeid(char[])] = &boxParseStr;
@@ -92,15 +101,19 @@ debug void testParse(char[] input) {
         MyBox box = parser(input);
         if (box.type) {
             assert(t is box.type);
-            writef("  %s: '", box.type.toString());
-            //EVIL, PURE EVIL
-            //the doFormat() function expects data.ptr to be aligned like on
-            //the stack
-            doFormat((dchar c) {writef(c);}, [box.type], box.data.ptr);
-            writefln("'");
+            writefln("  %s: '%s'", box.type.toString(), boxToString(box));
         }
     }
     std.stdio.writefln("fin.");
+}
+
+char[] boxToString(MyBox box) {
+    char[] res;
+    //EVIL, PURE EVIL
+    //the doFormat() function expects data.ptr to be aligned like on
+    //the stack
+    doFormat((dchar c) {res ~= c;}, [box.type], box.data.ptr);
+    return res;
 }
 
 unittest {

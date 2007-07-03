@@ -89,6 +89,9 @@ struct MyBox {
     TypeInfo type() {
         return mType;
     }
+    bool empty() {
+        return type is null;
+    }
 
     /// Empty the box.
     void nullify() {

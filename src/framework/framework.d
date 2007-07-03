@@ -939,3 +939,19 @@ public bool parseColor(char[] s, inout Color color) {
     }
     return false;
 }
+
+//colorparser for boxes (used by the commandline)
+import utils.strparser;
+import utils.mybox;
+
+private MyBox parseColorBox(char[] s) {
+    Color res;
+    if (parseColor(s, res)) {
+        return MyBox.Box(res);
+    }
+    return MyBox();
+}
+
+static this() {
+    gBoxParsers[typeid(Color)] = &parseColorBox;
+}
