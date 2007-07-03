@@ -11,6 +11,9 @@ import utils.output;
 import utils.configfile : ConfigNode;
 import std.math : sqrt, PI, abs, copysign;
 
+//Uncomment to get detailed physics debugging log (slooooow)
+//version = PhysDebug;
+
 //if you need to check a normal when there's almost no collision (i.e. when worm
 //  is sitting on ground), add this value to the radius
 final float cNormalCheck = 5;
@@ -184,7 +187,7 @@ class PhysicObject : PhysicBase {
     //the worm couldn't adhere to the rock surface anymore
     //called from the PhysicWorld simulation loop only
     private void doUnglue() {
-        world.mLog("unglue object %s", this);
+        version(PhysDebug) world.mLog("unglue object %s", this);
         //he flies away! arrrgh!
         isGlued = false;
         mWalkingMode = false;
@@ -885,7 +888,7 @@ class PhysicWorld {
                         <= me.posp.glueForce)
                     {
                         me.isGlued = true;
-                        mLog("glue object %s", me);
+                        version(PhysDebug) mLog("glue object %s", me);
                         //velocity must be set to 0 (or change glue handling)
                         //ok I did change glue handling.
                         me.velocity = Vector2f(0);
