@@ -107,11 +107,13 @@ private:
             "int?=0:depth (bits)"]);
         globals.cmdLine.registerCommand("fullscreen", &cmdFS, "toggle fs");
         globals.cmdLine.registerCommand("pause", &cmdPause, "pause");
-        //yyy globals.cmdLine.registerCommand("raisewater", &cmdRaiseWater, "increase waterline");
+        globals.cmdLine.registerCommand("raisewater", &cmdRaiseWater,
+            "increase waterline", ["int:water level"]);
 
         globals.cmdLine.registerCommand("editor", &cmdLevelEdit, "hm");
 
-        //yyy globals.cmdLine.registerCommand("wind", &cmdSetWind, "Change wind speed");
+        globals.cmdLine.registerCommand("wind", &cmdSetWind,
+            "Change wind speed", ["float:wind speed"]);
         globals.cmdLine.registerCommand("stop", &cmdStop, "stop editor/game");
 
         globals.cmdLine.registerCommand("slow", &cmdSlow, "set slowdown", [
@@ -120,13 +122,16 @@ private:
 
         globals.cmdLine.registerCommand("framerate", &cmdFramerate, "set fixed framerate");
         globals.cmdLine.registerCommand("cameradisable", &cmdCameraDisable, "disable game camera");
-        globals.cmdLine.registerCommand("detail", &cmdDetail, "switch detail level");
+        globals.cmdLine.registerCommand("detail", &cmdDetail,
+            "switch detail level", ["int?:detail level (if not given: cycle)"]);
     }
 
     private void cmdDetail(MyBox[] args, Output write) {
         if (!mGameFrame || !mGameFrame.clientengine)
             return;
-        mGameFrame.clientengine.detailLevel = mGameFrame.clientengine.detailLevel + 1;
+        int c = args[0].unboxMaybe!(int)(-1);
+        mGameFrame.clientengine.detailLevel =
+            c >= 0 ? c : mGameFrame.clientengine.detailLevel + 1;
         write.writefln("set detailLevel to %s", mGameFrame.clientengine.detailLevel);
     }
 
@@ -150,32 +155,19 @@ private:
     private void cmdStop(MyBox[] args, Output write) {
         killFrame();
     }
-/*yyy
-    private void cmdSetWind(CommandLine cmd) {
-        char[][] sargs = cmd.parseArgs();
-        if (sargs.length < 1)
-            return;
-        thegame.windSpeed = conv.toFloat(sargs[0]);
+
+    private void cmdSetWind(MyBox[] args, Output write) {
+        mGameFrame.thegame.windSpeed = args[0].unbox!(float)();
     }
-*/
+
     private void cmdLevelEdit(MyBox[] args, Output write) {
         killFrame();
         mCurrentFrame = new LevelEditor(mGui);
     }
-/*
-    private void cmdRaiseWater(CommandLine cmd) {
-        char[][] sargs = cmd.parseArgs();
-        int add = 0;
-        if (sargs.length < 1)
-            return;
-        try {
-            add = conv.toInt(sargs[0]);
-        } catch (conv.ConvError) {
-            return;
-        }
-        thegame.raiseWater(add);
+
+    private void cmdRaiseWater(MyBox[] args, Output write) {
+        mGameFrame.thegame.raiseWater(args[0].unbox!(int)());
     }
-*/
 
     private void onVideoInit(bool depth_only) {
         globals.log("Changed video: %s", globals.framework.screen.size);
@@ -334,8 +326,12 @@ private:
     }
 
     private void cmdPause(MyBox[], Output) {
-        //yyy thegame.gameTime.paused = !thegame.gameTime.paused;
-        //yyy clientengine.engineTime.paused = thegame.gameTime.paused;
+        if (mGameFrame) {
+            mGameFrame.thegame.gameTime.paused =
+                !mGameFrame.thegame.gameTime.paused;
+            mGameFrame.clientengine.engineTime.paused =
+                mGameFrame.thegame.gameTime.paused;
+        }
         globals.gameTimeAnimations.paused = !globals.gameTimeAnimations.paused;
     }
 

@@ -152,28 +152,40 @@ public class Console : Output {
         writeString(sformat_ind(newline, arguments, argptr));
     }
 
+    private char[] mLineBuffer;
+
     //NOTE: parses '\n's
+    //xxx might be inefficient; at least it's correct, unlike the last version
     void writeString(char[] s) {
-    restart:
-        foreach (int index, char c; s) {
+        foreach (char c; s) {
             if (c == '\n') {
-                print(s[0..index]);
-                s = s[index+1..$];
-                goto restart; //sry was too lazy!
+                println();
+            } else {
+                mLineBuffer ~= c;
             }
         }
+    }
+
+    private void doprint(char[] text) {
+        mLineBuffer ~= text;
+    }
+
+    private void println() {
+        touchConsole();
+        mBackLog[mBackLogIdx] = mLineBuffer;
+        mLineBuffer = null;
+        mBackLogIdx = (mBackLogIdx + 1) % BACKLOG_LENGTH;
+        mBackLogLen++;
+        if (mBackLogLen > BACKLOG_LENGTH)
+            mBackLogLen = BACKLOG_LENGTH;
     }
 
     ///output one line of text, drawn on bottom-most position
     ///current text is moved up
     ///don't parse '\n's
     public void print(char[] line) {
-        touchConsole();
-        mBackLog[mBackLogIdx] = line;
-        mBackLogIdx = (mBackLogIdx + 1) % BACKLOG_LENGTH;
-        mBackLogLen++;
-        if (mBackLogLen > BACKLOG_LENGTH)
-            mBackLogLen = BACKLOG_LENGTH;
+        doprint(line);
+        println();
     }
 
     ///scroll backlog display back dLines > 0 lines

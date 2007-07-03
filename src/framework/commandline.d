@@ -213,10 +213,40 @@ private:
 //idea:
 //bind a bunch of commands to... something
 class CommandBucket {
-    void registerCommand(Command);
+    private Command[] mCommands;
+    private CommandLine mBoundTo;
+
+    void registerCommand(Command cmd) {
+        mCommands ~= cmd;
+    }
+
+    /// Add commands to there.
+    void bind(CommandLine cmdline) {
+        assert(mBoundTo is null);
+        mBoundTo = cmdline;
+        mBoundTo.mCommands ~= mCommands;
+    }
 
     //remove all commands from CommandLine instance again
-    abstract public void kill();
+    void kill() {
+        if (!mBoundTo)
+            return;
+        //the really really rough way...
+        Command[] ncmds;
+        foreach (Command c; mBoundTo.mCommands) {
+            bool hit = false;
+            foreach (Command c2; mCommands) {
+                if (c is c2) {
+                    hit = true;
+                    break;
+                }
+            }
+            if (!hit)
+                ncmds ~= c;
+        }
+        mBoundTo.mCommands = ncmds;
+        mBoundTo = null;
+    }
 }
 
 //this was the only list class available :-)
@@ -246,7 +276,8 @@ public class CommandLine {
         mConsole = cons;
         HistoryNode n;
         mHistory = new HistoryList(n.listnode.getListNodeOffset());
-        registerCommand(Command("help", &cmdHelp, "Show all commands.", null));
+        registerCommand(Command("help", &cmdHelp, "Show all commands.",
+            ["text?:specific help for a command"]));
         registerCommand(Command("history", &cmdHistory, "Show the history.", null));
     }
 
@@ -255,13 +286,43 @@ public class CommandLine {
     }
 
     private void cmdHelp(MyBox[] args, Output write) {
-        mConsole.print("List of commands: ");
-        uint count = 0;
-        foreach (Command c; mCommands) {
-            mConsole.writefln("   %s: %s", c.name, c.helpText);
-            count++;
+        char[] foo = args[0].unboxMaybe!(char[])("");
+        if (foo.length == 0) {
+            mConsole.print("List of commands: ");
+            uint count = 0;
+            foreach (Command c; mCommands) {
+                mConsole.writefln("   %s: %s", c.name, c.helpText);
+                count++;
+            }
+            mConsole.writefln("%d commands.", count);
+        } else {
+            //"detailed" help about one command
+            //xxx: maybe replace the exact comparision by calling the auto
+            //completion code
+            foreach (Command c; mCommands) {
+                if (c.name == foo) {
+                    mConsole.writefln("Command '%s': %s", c.name, c.helpText);
+                    for (int n = 0; n < c.param_types.length; n++) {
+                        //reverse lookup type
+                        foreach (key, value; gCommandLineParsers) {
+                            if (value is c.param_types[n]) {
+                                mConsole.writef("    %s ", key);
+                            }
+                        }
+                        if (n >= c.minArgCount) {
+                            mConsole.writef("[opt] ");
+                        }
+                        mConsole.writefln("%s", c.param_help[n]);
+                    }
+                    if (c.textArgument) {
+                        mConsole.writefln("    [text-agument]");
+                    }
+                    mConsole.writefln("%s arguments.", c.param_types.length);
+                    return;
+                }
+            }
+            mConsole.writefln("Command '%s' not found.", foo);
         }
-        mConsole.print(str.format("%d commands.", count));
     }
 
     private void cmdHistory(MyBox[] args, Output write) {

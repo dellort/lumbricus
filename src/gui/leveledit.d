@@ -3,6 +3,7 @@ module gui.leveledit;
 import utils.vector2;
 import utils.rect2;
 import utils.mylist;
+import utils.mybox;
 import framework.commandline;
 import framework.framework;
 import framework.keysyms;
@@ -457,6 +458,7 @@ class EditRoot : EditObject {
 public class LevelEditor : GuiFrame {
     EditRoot root;
     RenderEditor render;
+    CommandBucket commands;
     bool isDraging, didReallyDrag;
     Vector2i dragPick; //start position when draging
     Vector2i dragRel; //moving always relative -> need to undo relative moves
@@ -703,8 +705,15 @@ public class LevelEditor : GuiFrame {
 
         newPolyAt(Rect2i(100, 100, 500, 500));
 
-//        globals.cmdLine.registerCommand("preview", &cmdPreview, "preview");
-//        globals.cmdLine.registerCommand("save", &cmdSave, "save edit level");
+        commands = new typeof(commands);
+        commands.registerCommand(Command("preview", &cmdPreview, "preview"));
+        commands.registerCommand(Command("save", &cmdSave, "save edit level"));
+        commands.bind(globals.cmdLine);
+    }
+
+    override void kill() {
+        commands.kill();
+        super.kill();
     }
 
     void insertPoint() {
@@ -738,7 +747,7 @@ public class LevelEditor : GuiFrame {
         geo.saveTo(sub);
     }
 
-    void cmdSave(CommandLine) {
+    void cmdSave(MyBox[] args, Output write) {
         ConfigNode rootnode = new ConfigNode();
         auto sub = rootnode.getSubNode("templates").getSubNode("");
         saveLevel(sub);
@@ -747,7 +756,7 @@ public class LevelEditor : GuiFrame {
         std.stdio.writefln(s.text);
     }
 
-    void cmdPreview(CommandLine) {
+    void cmdPreview(MyBox[] args, Output write) {
         //create a level generator configfile...
         ConfigNode config = new ConfigNode();
         saveLevel(config);
