@@ -1,5 +1,5 @@
 //aw! I couldn't resist!
-module game.leveledit;
+module gui.leveledit;
 import utils.vector2;
 import utils.rect2;
 import utils.mylist;
@@ -9,6 +9,7 @@ import framework.keysyms;
 import game.scene;
 import game.common;
 import gui.guiobject;
+import gui.guiframe;
 import utils.log;
 import utils.configfile;
 import levelgen.level;
@@ -453,25 +454,7 @@ class EditPolygon : EditObject {
 class EditRoot : EditObject {
 }
 
-class RenderEditor : GuiObject {
-    LevelEditor editor;
-    this (LevelEditor e) {
-        editor = e;
-    }
-    void draw(Canvas c) {
-        if (editor.mPreviewImage)
-            c.draw(editor.mPreviewImage, Vector2i(0));
-        editor.root.draw(c);
-        //selection rectangle
-        if (editor.isSelecting) {
-            auto sel = Rect2i(editor.selectStart, editor.selectEnd);
-            sel.normalize();
-            c.drawFilledRect(sel.p1, sel.p2, Color(0.5, 0.5, 0.5, 0.5), true);
-        }
-    }
-}
-
-public class LevelEditor {
+public class LevelEditor : GuiFrame {
     EditRoot root;
     RenderEditor render;
     bool isDraging, didReallyDrag;
@@ -488,6 +471,136 @@ public class LevelEditor {
     //(what to do if the user draws this rect)
     //if null, just try to select stuff
     void delegate(Rect2i) onSelect;
+
+    //pseudo object for input and drawing
+    class RenderEditor : GuiObject {
+        LevelEditor editor;
+        this (LevelEditor e) {
+            editor = e;
+        }
+        void draw(Canvas c) {
+            if (editor.mPreviewImage)
+                c.draw(editor.mPreviewImage, Vector2i(0));
+            editor.root.draw(c);
+            //selection rectangle
+            if (editor.isSelecting) {
+                auto sel = Rect2i(editor.selectStart, editor.selectEnd);
+                sel.normalize();
+                c.drawFilledRect(sel.p1, sel.p2, Color(0.5, 0.5, 0.5, 0.5), true);
+            }
+        }
+
+        override bool canHaveFocus() {
+            return true;
+        }
+        override bool greedyFocus() {
+            return true;
+        }
+
+        bool onKeyDown(char[] bind, KeyInfo infos) {
+            if (infos.code == Keycode.MOUSE_LEFT) {
+                auto obj = pickDeepest(mousePos);
+                if (gFramework.getModifierState(Modifier.Control)) {
+                    if (obj)
+                        setSelected(obj, !obj.isSelected);
+                    return false;
+                }
+                if (!obj || obj is root) {
+                    deselectAll();
+                    //start selection mode
+                    selectStart = mousePos;
+                    selectEnd = selectStart;
+                    isSelecting = true;
+                    return false;
+                }
+
+                if (!obj.isSelected)
+                    setSelected(obj, true);
+                pickedObject = obj;
+                isDraging = true;
+                didReallyDrag = false;
+                dragPick = mousePos;
+                dragRel = Vector2i(0);
+            }
+            return false;
+        }
+
+        bool onKeyPress(char[] bind, KeyInfo infos) {
+            if (infos.code == Keycode.N)
+                insertPoint();
+            if (infos.code == Keycode.C) {
+                foreachSelected(false,
+                    (EditObject obj) {
+                        if (cast(EditPLine)obj) {
+                            auto line = cast(EditPLine)obj;
+                            line.noChange = !line.noChange;
+                        }
+                    }
+                );
+            }
+            if (infos.code == Keycode.P) {
+                onSelect = &newPolyAt;
+            }
+            return false;
+        }
+
+
+        bool onKeyUp(char[] bind, KeyInfo infos) {
+            if (infos.code == Keycode.MOUSE_LEFT) {
+                if (isDraging) {
+                    isDraging = false;
+                    if (!didReallyDrag) {
+                        deselectAll();
+                        if (pickedObject) {
+                            setSelected(pickedObject, true);
+                        }
+                    }
+                }
+                if (isSelecting) {
+                    isSelecting = false;
+                    selectEnd = mousePos;
+                    auto r = Rect2i(selectStart, selectEnd);
+                    r.normalize();
+                    if (onSelect) {
+                        auto tmp = onSelect;
+                        onSelect = null;
+                        tmp(r);
+                    } else {
+                        doSelect(r);
+                    }
+                }
+            }
+            return false;
+        }
+
+        bool onMouseMove(MouseInfo info) {
+            if (isDraging) {
+                didReallyDrag = true;
+                auto move = -dragRel + (info.pos - dragPick);
+                dragRel += move;
+                //the same stupid hack about isMoving is in moveRel() itself
+                foreachSelected(true,
+                    (EditObject cur) {
+                        cur.isMoving = true;
+                    }
+                );
+                foreachSelected(true,
+                    (EditObject cur) {
+                        cur.moveRel(move);
+                    }
+                );
+                foreachSelected(true,
+                    (EditObject cur) {
+                        cur.isMoving = false;
+                    }
+                );
+            }
+            if (isSelecting) {
+                selectEnd = info.pos;
+            }
+            return true;
+        }
+    } //RenderEditor
 
     //update cheap things (called often on small state changes)
     private void updateState() {
@@ -562,38 +675,6 @@ public class LevelEditor {
         );
     }
 
-    private EventSink events() {
-        return render.events;
-    }
-
-    bool onKeyDown(char[] bind, KeyInfo infos) {
-        if (infos.code == Keycode.MOUSE_LEFT) {
-            auto obj = pickDeepest(events.mousePos);
-            if (gFramework.getModifierState(Modifier.Control)) {
-                if (obj)
-                    setSelected(obj, !obj.isSelected);
-                return false;
-            }
-            if (!obj || obj is root) {
-                deselectAll();
-                //start selection mode
-                selectStart = events.mousePos;
-                selectEnd = selectStart;
-                isSelecting = true;
-                return false;
-            }
-
-            if (!obj.isSelected)
-                setSelected(obj, true);
-            pickedObject = obj;
-            isDraging = true;
-            didReallyDrag = false;
-            dragPick = events.mousePos;
-            dragRel = Vector2i(0);
-        }
-        return false;
-    }
-
     void doSelect(Rect2i r) {
         EditObject[] sel = root.pickBoundingBox(r);
         foreach (o; sel) {
@@ -604,82 +685,6 @@ public class LevelEditor {
         }
     }
 
-    bool onKeyPress(char[] bind, KeyInfo infos) {
-        if (infos.code == Keycode.N)
-            insertPoint();
-        if (infos.code == Keycode.C) {
-            foreachSelected(false,
-                (EditObject obj) {
-                    if (cast(EditPLine)obj) {
-                        auto line = cast(EditPLine)obj;
-                        line.noChange = !line.noChange;
-                    }
-                }
-            );
-        }
-        if (infos.code == Keycode.P) {
-            onSelect = &newPolyAt;
-        }
-        return false;
-    }
-
-
-    bool onKeyUp(char[] bind, KeyInfo infos) {
-        if (infos.code == Keycode.MOUSE_LEFT) {
-            if (isDraging) {
-                isDraging = false;
-                if (!didReallyDrag) {
-                    deselectAll();
-                    if (pickedObject) {
-                        setSelected(pickedObject, true);
-                    }
-                }
-            }
-            if (isSelecting) {
-                isSelecting = false;
-                selectEnd = events.mousePos;
-                auto r = Rect2i(selectStart, selectEnd);
-                r.normalize();
-                if (onSelect) {
-                    auto tmp = onSelect;
-                    onSelect = null;
-                    tmp(r);
-                } else {
-                    doSelect(r);
-                }
-            }
-        }
-        return false;
-    }
-
-    bool onMouseMove(MouseInfo info) {
-        if (isDraging) {
-            didReallyDrag = true;
-            auto move = -dragRel + (info.pos - dragPick);
-            dragRel += move;
-            //the same stupid hack about isMoving is in moveRel() itself
-            foreachSelected(true,
-                (EditObject cur) {
-                    cur.isMoving = true;
-                }
-            );
-            foreachSelected(true,
-                (EditObject cur) {
-                    cur.moveRel(move);
-                }
-            );
-            foreachSelected(true,
-                (EditObject cur) {
-                    cur.isMoving = false;
-                }
-            );
-        }
-        if (isSelecting) {
-            selectEnd = info.pos;
-        }
-        return true;
-    }
-
     void newPolyAt(Rect2i r) {
         EditPolygon tmp = new EditPolygon();
         tmp.initLine([r.p1, Vector2i(r.p1.x, r.p2.y),r.p2,
@@ -687,26 +692,19 @@ public class LevelEditor {
         root.add(tmp);
     }
 
-    this() {
+    this(GuiMain gui) {
+        super(gui);
+
         root = new EditRoot();
         render = new RenderEditor(this);
         render.size = Vector2i(3000,1000);
+
+        addGui(render);
 
         newPolyAt(Rect2i(100, 100, 500, 500));
 
         globals.cmdLine.registerCommand("preview", &cmdPreview, "preview");
         globals.cmdLine.registerCommand("save", &cmdSave, "save edit level");
-
-        auto ev = render.events();
-        ev.onMouseMove = &onMouseMove;
-        ev.onKeyDown = &onKeyDown;
-        ev.onKeyPress = &onKeyPress;
-        ev.onKeyUp = &onKeyUp;
-    }
-
-    void kill() {
-        //remove all the stuff
-        render.active = false;
     }
 
     void insertPoint() {

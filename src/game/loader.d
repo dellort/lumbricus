@@ -6,6 +6,7 @@ class Loader {
     private LoadChunkDg[] mChunks;
     bool fullyLoaded;
     void delegate(Loader sender) onFinish;
+    void delegate(Loader sender) onUnload;
 
     protected void registerChunk(LoadChunkDg chunkLoader) {
         mChunks ~= chunkLoader;
@@ -13,6 +14,13 @@ class Loader {
 
     int chunkCount() {
         return mChunks.length;
+    }
+
+    //overridden method is supposed to call this atfer unloading done
+    void unload() {
+        if (onUnload) {
+            onUnload(this);
+        }
     }
 
     bool load(int chunkId) {

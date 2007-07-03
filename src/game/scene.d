@@ -32,6 +32,10 @@ class Scene {
 
     private SOList[cMaxZOrder] mActiveObjectsZOrdered;
 
+    SOList activeObjects() {
+        return mActiveObjects;
+    }
+
     this() {
         mActiveObjects = new SOList(SceneObject.allobjects.getListNodeOffset());
         foreach (inout list; mActiveObjectsZOrdered) {
@@ -354,7 +358,7 @@ class SceneObject {
 
     //called after scene was set new, or zorder/activeness was changed
     //stupidly will be called 3 times on setScene()
-    protected void onChangeScene() {
+    protected void onChangeScene(bool changed_activeness) {
     }
 
     final public void scene(Scene scene) {
@@ -373,7 +377,8 @@ class SceneObject {
             active = tmp;
         }
 
-        onChangeScene();
+        //???
+        onChangeScene(false);
     }
 
     public int zorder() {
@@ -389,7 +394,7 @@ class SceneObject {
 
         mZOrder = z;
 
-        onChangeScene();
+        onChangeScene(false);
     }
 
     public bool active() {
@@ -401,8 +406,9 @@ class SceneObject {
             return;
 
         if (!mScene) {
+            bool changed = mActive;
             mActive = false;
-            onChangeScene();
+            onChangeScene(changed);
             return;
         }
 
@@ -416,7 +422,7 @@ class SceneObject {
 
         mActive = set;
 
-        onChangeScene();
+        onChangeScene(true);
     }
 
     final public void setScene(Scene s, int z, bool aactive = true) {
@@ -425,14 +431,7 @@ class SceneObject {
         active = aactive;
     }
 
-    abstract void draw(Canvas canvas);
-}
-
-class CallbackSceneObject : SceneObject {
-    public void delegate(Canvas canvas) onDraw;
-
     void draw(Canvas canvas) {
-        if (onDraw) onDraw(canvas);
     }
 }
 

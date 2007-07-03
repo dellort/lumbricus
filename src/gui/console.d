@@ -8,6 +8,13 @@ import gui.guiobject;
 class GuiConsole : GuiObject {
     Console console;
 
+    override bool canHaveFocus() {
+        return console.visible;
+    }
+    override bool greedyFocus() {
+        return true;
+    }
+
     this() {
         console = new Console(globals.framework.getFont("console"));
         Color console_color;
@@ -16,7 +23,12 @@ class GuiConsole : GuiObject {
         {
             console.backcolor = console_color;
         }
-        events.onKeyPress = &keyPress;
+    }
+
+    //xxx: maybe should register a callback on Console instead of requiring this
+    void toggle() {
+        console.toggle();
+        recheckFocus();
     }
 
     void draw(Canvas canvas) {
@@ -24,7 +36,7 @@ class GuiConsole : GuiObject {
             console.frame(canvas);
     }
 
-    bool keyPress(char[] bind, KeyInfo key) {
+    override protected bool onKeyPress(char[] bind, KeyInfo key) {
         if (console.visible && globals.cmdLine.keyPress(key))
             return true;
         return false;

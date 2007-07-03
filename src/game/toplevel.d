@@ -8,24 +8,14 @@ import framework.framework;
 import framework.commandline;
 import framework.i18n;
 import framework.timesource;
-import game.scene;
-import game.game;
-import game.common;
-import game.leveledit;
-import game.visual;
-import game.clientengine;
-import game.loader;
-import game.loader_game;
 import gui.gui;
 import gui.guiobject;
-import gui.windmeter;
-import gui.messageviewer;
-import gui.gametimer;
-import gui.preparedisplay;
+import gui.leveledit;
 import gui.fps;
-import gui.gameview;
+import gui.guiframe;
+import gui.gameframe;
 import gui.console;
-import gui.loadingscreen;
+import game.common;
 import utils.time;
 import utils.configfile;
 import utils.log;
@@ -37,25 +27,17 @@ import genlevel = levelgen.generator;
 import str = std.string;
 import conv = std.conv;
 
-//xxx include so that module constructors (static this) are actually called
-import game.projectile;
-import game.special_weapon;
-
 //this contains the mainframe
 class TopLevel {
-    Scene metascene;
-    //overengineered
-    private void delegate() mOnStopGui; //associated with sceneview
+private:
+    void delegate() mOnStopGui; //associated with sceneview
     LevelEditor editor;
     KeyBindings keybindings;
 
     GuiMain mGui;
-    GameView mGameView;
     GuiConsole mGuiConsole;
-    LoadingScreen mLoadScreen;
 
-    GameEngine thegame;
-    ClientGameEngine clientengine;
+    GuiFrame mCurrentFrame;
 
     //xxx move this to where-ever
     Translator localizedKeynames;
@@ -65,9 +47,7 @@ class TopLevel {
     bool mShowKeyDebug = false;
     bool mKeyNameIt = false;
 
-    private GameLoader mGameLoader;
-
-    this() {
+    public this() {
         initTimes();
 
         mGui = new GuiMain(globals.framework.screen.size);
@@ -76,10 +56,6 @@ class TopLevel {
 
         mGuiConsole = new GuiConsole();
         mGui.add(mGuiConsole, GUIZOrder.Console);
-
-        mLoadScreen = new LoadingScreen();
-        mGui.add(mLoadScreen, GUIZOrder.Loading);
-        mLoadScreen.active = false;
 
         initConsole();
 
@@ -98,19 +74,8 @@ class TopLevel {
         keybindings = new KeyBindings();
         keybindings.loadFrom(globals.loadConfig("binds").getSubNode("binds"));
 
-        mGameLoader = new GameLoader(globals.anyConfig.getSubNode("newgame"), mGui);
-        mGameLoader.onFinish = &gameLoaded;
-
         //load a new game
-        mLoadScreen.startLoad(mGameLoader);
-    }
-
-    void gameLoaded(Loader sender) {
-        thegame = mGameLoader.thegame;
-        thegame.gameTime.resetTime;
-        resetTime();
-        clientengine = mGameLoader.clientengine;
-        metascene = mGameLoader.metascene;
+        mCurrentFrame = new GameFrame(mGui);
     }
 
     private void initConsole() {
@@ -136,11 +101,11 @@ class TopLevel {
         globals.cmdLine.registerCommand("expl", &cmdExpl, "BOOM! HAHAHAHA");
         globals.cmdLine.registerCommand("pause", &cmdPause, "pause");
         //globals.cmdLine.registerCommand("loadanim", &cmdLoadAnim, "load worms animation");
-        globals.cmdLine.registerCommand("raisewater", &cmdRaiseWater, "increase waterline");
+        //yyy globals.cmdLine.registerCommand("raisewater", &cmdRaiseWater, "increase waterline");
 
         globals.cmdLine.registerCommand("editor", &cmdLevelEdit, "hm");
 
-        globals.cmdLine.registerCommand("wind", &cmdSetWind, "Change wind speed");
+        //yyy globals.cmdLine.registerCommand("wind", &cmdSetWind, "Change wind speed");
         globals.cmdLine.registerCommand("stop", &cmdStop, "stop editor/game");
 
         globals.cmdLine.registerCommand("slow", &cmdSlow, "todo");
@@ -151,10 +116,10 @@ class TopLevel {
     }
 
     private void cmdDetail(CommandLine cmd) {
-        if (!clientengine)
+        /*yyy if (!clientengine)
             return;
         clientengine.detailLevel = clientengine.detailLevel + 1;
-        cmd.console.writefln("set detailLevel to %s", clientengine.detailLevel);
+        cmd.console.writefln("set detailLevel to %s", clientengine.detailLevel);*/
     }
 
     private void cmdFramerate(CommandLine cmd) {
@@ -171,42 +136,33 @@ class TopLevel {
     }
 
     private void cmdCameraDisable(CommandLine) {
-        if (mGameView.view)
-            mGameView.view.setCameraFocus(null);
+        /*yyy if (mGameView.view)
+            mGameView.view.setCameraFocus(null);*/
+    }
+
+    void killFrame() {
+        if (mCurrentFrame) {
+            mCurrentFrame.kill();
+            mCurrentFrame = null;
+        }
     }
 
     private void cmdStop(CommandLine) {
-        if (mOnStopGui)
-            mOnStopGui();
-        //screen.setFocus(null);
-        //sceneview.clientscene = null;
-        mOnStopGui = null;
+        killFrame();
     }
-
+/*yyy
     private void cmdSetWind(CommandLine cmd) {
         char[][] sargs = cmd.parseArgs();
         if (sargs.length < 1)
             return;
         thegame.windSpeed = conv.toFloat(sargs[0]);
     }
-
-    private void killEditor() {
-        if (editor) {
-            editor.kill();
-            editor = null;
-        }
-    }
-
+*/
     private void cmdLevelEdit(CommandLine cmd) {
-        //closeGame();
-        editor = new LevelEditor();
-        mGui.add(editor.render, GUIZOrder.Gui);
-        //clearly sucks, find a better way
-        mGui.setFocus(editor.render);
-
-        mOnStopGui = &killEditor;
+        killFrame();
+        mCurrentFrame = new LevelEditor(mGui);
     }
-
+/*
     private void cmdRaiseWater(CommandLine cmd) {
         char[][] sargs = cmd.parseArgs();
         int add = 0;
@@ -219,7 +175,7 @@ class TopLevel {
         }
         thegame.raiseWater(add);
     }
-
+*/
     private void cmdPhys(CommandLine) {
         //oops?
         //auto obj = new TestAnimatedGameObject(thegame);
@@ -367,12 +323,7 @@ class TopLevel {
     +/
 
     private void showConsole(CommandLine) {
-        mGuiConsole.console.toggle();
-        //xxx focus hack
-        if (mGuiConsole.console.visible)
-            mGui.setFocus(mGuiConsole);
-        else
-            mGui.setFocus(mGameView);
+        mGuiConsole.toggle();
     }
 
     private void killShortcut(CommandLine) {
@@ -405,13 +356,13 @@ class TopLevel {
     }
 
     private void cmdGenerateLevel(CommandLine cmd) {
-        //char[] arg0 = cmd?cmd.getArgString():"";
-        mLoadScreen.startLoad(mGameLoader);
+        killFrame();
+        mCurrentFrame = new GameFrame(mGui);
     }
 
     private void cmdPause(CommandLine) {
-        thegame.gameTime.paused = !thegame.gameTime.paused;
-        clientengine.engineTime.paused = thegame.gameTime.paused;
+        //yyy thegame.gameTime.paused = !thegame.gameTime.paused;
+        //yyy clientengine.engineTime.paused = thegame.gameTime.paused;
         globals.gameTimeAnimations.paused = !globals.gameTimeAnimations.paused;
     }
 
@@ -433,12 +384,12 @@ class TopLevel {
         } else {
             return;
         }
-        float g = setgame ? val : thegame.gameTime.slowDown;
+        /*yyy float g = setgame ? val : thegame.gameTime.slowDown;
         float a = setani ? val : globals.gameTimeAnimations.slowDown;
         cmd.console.writefln("set slowdown: game=%s animations=%s", g, a);
         thegame.gameTime.slowDown = g;
         clientengine.engineTime.slowDown = g;
-        globals.gameTimeAnimations.slowDown = a;
+        globals.gameTimeAnimations.slowDown = a;*/
     }
 
     private void initTimes() {
@@ -450,26 +401,13 @@ class TopLevel {
     }
 
     private void onFrame(Canvas c) {
-        if (mGameLoader.fullyLoaded) {
-            globals.gameTimeAnimations.update();
-
-            if (thegame) {
-                thegame.doFrame();
-            }
-
-            if (clientengine) {
-                clientengine.doFrame();
-            }
+        if (mCurrentFrame) {
+            mCurrentFrame.onFrame(c);
         }
 
         mGui.doFrame(timeCurrentTime());
 
         mGui.draw(c);
-
-        if (!mLoadScreen.loading)
-            //xxx can't deactivate this from delegate because it would crash
-            //the list
-            mLoadScreen.active = false;
     }
 
     private void onKeyPress(KeyInfo infos) {

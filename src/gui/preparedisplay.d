@@ -27,7 +27,7 @@ class PrepareDisplay : GuiObject {
         mLastTime = timeCurrentTime();
     }
 
-    override protected void onChangeScene() {
+    override protected void onChangeScene(bool activeness) {
         mPrepareView.setScene(scene, zorder, active);
     }
 

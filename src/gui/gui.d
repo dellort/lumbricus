@@ -10,6 +10,7 @@ import std.string;
 import utils.mylist;
 import utils.time;
 import utils.configfile;
+import utils.log;
 
 //ZOrders!
 //maybe keep in sync with game.Scene.cMaxZOrder
@@ -33,9 +34,20 @@ class GuiMain {
     private Time mLastTime;
     //private GameEngine mEngine;
 
-    private EventSink mFocus, events;
+    private GuiObject mFocus;
+    private GuiEventsObject events;
 
     private Vector2i mSize, mMousePos;
+
+    class GuiEventsObject : GuiObject {
+        protected override bool onKeyDown(char[] bind, KeyInfo key) {
+            if (key.code == Keycode.TAB) {
+                nextFocus();
+                return true;
+            }
+            return false;
+        }
+    }
 
     this(Vector2i size) {
         mGuiScene = new Scene();
@@ -46,22 +58,77 @@ class GuiMain {
         mRootView.size = size;
 
         //for root events, e.g. focus change
-        events = new EventSink(null);
+        events = new GuiEventsObject();
 
         mLastTime = timeCurrentTime();
     }
 
     void add(GuiObject o, GUIZOrder z) {
         o.setScene(mGuiScene, z);
-        o.mOnKilled = &onSubObjectKilled;
+        o.mChangeActiveness = &onSubObjectChanged;
         o.resize();
     }
 
-    private void onSubObjectKilled(GuiObject o) {
-        //ensure focus is taken when object is killed
-        if (mFocus && o is mFocus.mObject) {
-            mFocus = null;
+    //focus rules:
+    // object becomes active => if greedy focus, set focus immediately
+    // object becomes inactive => object which was focused before gets focus
+    //    to do that, GuiObject.mFocusAge is used
+    // tab => next focusable GuiObject in scene is focused
+
+    //only grows, wonder what happens if it overflows
+    private int mCurrentFocusAge;
+
+    //linked to a subobject's onChangeScene()
+    private void onSubObjectChanged(GuiObject o) {
+        //if object was added/removed, o.active = new state
+        if (o.active && o.canHaveFocus) {
+            if (o.greedyFocus) {
+                o.mFocusAge = ++mCurrentFocusAge;
+                setFocus(o);
+            }
+        } else {
+            //maybe was killed, take focus
+            if (mFocus is o) {
+                //the element which was focused before should be picked
+                //pick element with highest age, take old and set new focus
+                GuiObject winner;
+                foreach (SceneObject cur; mGuiScene.activeObjects) {
+                    assert(cur.active);
+                    GuiObject curgui = cast(GuiObject)cur;
+                    if (curgui && curgui.canHaveFocus &&
+                        (!winner || (winner.mFocusAge < curgui.mFocusAge)))
+                    {
+                        winner = curgui;
+                    }
+                }
+                setFocus(winner);
+            }
         }
+    }
+
+    //like when you press <tab>
+    //  forward = false: go backwards in focus list, i.e. undo <tab>
+    void nextFocus(bool forward = true) {
+        //NOTE: the stupid thing is that not all objects here are GuiObjects
+        auto objects = mGuiScene.activeObjects();
+        SceneObject current = mFocus;
+        if (!current) {
+            //forward==true: finally pick first, else last
+            current = forward ? objects.tail() : objects.head();
+        }
+        do {
+            if (forward) {
+                current = objects.ring_next(current);
+            } else {
+                current = objects.ring_prev(current);
+            }
+            GuiObject curgui = cast(GuiObject)current;
+            if (curgui && curgui.canHaveFocus) {
+                setFocus(curgui);
+                return;
+            }
+        } while (current !is mFocus);
+        setFocus(null);
     }
 
     //load a set of key bindings for the main gui (override all others)
@@ -102,14 +169,28 @@ class GuiMain {
         mRootView.draw(canvas);
     }
 
+    void takeFocus() {
+        setFocus(null);
+    }
+
     void setFocus(GuiObject go) {
-        mFocus = go ? go.events : null;
-        if (go) {
+        if (go is mFocus)
+            return;
+
+        if (mFocus) {
+            gDefaultLog("remove focus: %s", mFocus);
+            mFocus.mHasFocus = false;
+            mFocus = null;
+        }
+        mFocus = go;
+        if (go && go.canHaveFocus) {
             go.mHasFocus = true;
+            go.mFocusAge = ++mCurrentFocusAge;
+            gDefaultLog("set focus: %s", mFocus);
         }
     }
 
-    private bool doKeyEvent(EventSink.KeyEvent ev, KeyInfo info) {
+    private bool doKeyEvent(GuiObject.KeyEvent ev, KeyInfo info) {
         if (info.isMouseButton) {
             doMouseButtons(ev, info);
         }
@@ -126,13 +207,13 @@ class GuiMain {
     }
     //distribute events to these EventSink things
     bool putOnKeyDown(KeyInfo info) {
-        return doKeyEvent(EventSink.KeyEvent.Down, info);
+        return doKeyEvent(GuiObject.KeyEvent.Down, info);
     }
     bool putOnKeyPress(KeyInfo info) {
-        return doKeyEvent(EventSink.KeyEvent.Press, info);
+        return doKeyEvent(GuiObject.KeyEvent.Press, info);
     }
     bool putOnKeyUp(KeyInfo info) {
-        return doKeyEvent(EventSink.KeyEvent.Up, info);
+        return doKeyEvent(GuiObject.KeyEvent.Up, info);
     }
     void putOnMouseMove(MouseInfo info) {
         doMouseMove(info);
@@ -149,14 +230,14 @@ class GuiMain {
                 auto pso = cast(SceneObjectPositioned)obj;
                 if (isInside(pso, info.pos)) {
                     //deliver
-                    go.events.callMouseHandler(info);
+                    go.callMouseHandler(info);
                 }
             }
         }
     }
 
     //duplicated from above
-    void doMouseButtons(EventSink.KeyEvent ev, KeyInfo info) {
+    void doMouseButtons(GuiObject.KeyEvent ev, KeyInfo info) {
         //last mouse position in mMousePos should be valid
         foreach (obj, int z; mGuiScene) {
             GuiObject go = cast(GuiObject)obj;
@@ -164,7 +245,7 @@ class GuiMain {
                 auto pso = cast(SceneObjectPositioned)obj;
                 if (isInside(pso, mMousePos)) {
                     //deliver
-                    go.events.callKeyHandler(ev, info);
+                    go.callKeyHandler(ev, info);
                 }
             }
         }

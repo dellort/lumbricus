@@ -13,15 +13,19 @@ class GameView : GuiObject {
     private SceneView mGameSceneView;
     private GameController mController;
 
+    override bool canHaveFocus() {
+        return true;
+    }
+    override bool greedyFocus() {
+        return true;
+    }
+
     this(ClientGameEngine engine) {
         mEngine = engine;
         mGameSceneView = new SceneView();
-        events.onKeyDown = &keyDown;
-        events.onKeyUp = &keyUp;
-        events.onMouseMove = &mouseMove;
     }
 
-    override protected void onChangeScene() {
+    override protected void onChangeScene(bool activeness) {
         mGameSceneView.setScene(scene, zorder, active);
         if (scene) {
             mGameSceneView.pos = Vector2i(0, 0);
@@ -55,17 +59,19 @@ class GameView : GuiObject {
         size = mGameSceneView.size;
     }
 
-    bool keyDown(char[] bind, KeyInfo key) {
+    override protected bool onKeyDown(char[] bind, KeyInfo key) {
         if (bind == "scroll_toggle") {
             scrollToggle();
             return true;
         }
-        return mController.onKeyDown(bind, key, mGameSceneView.toClientCoords(events.mousePos));
+        return mController.onKeyDown(bind, key,
+            mGameSceneView.toClientCoords(mousePos));
     }
-    bool keyUp(char[] bind, KeyInfo key) {
-        return mController.onKeyUp(bind, key, mGameSceneView.toClientCoords(events.mousePos));
+    override protected bool onKeyUp(char[] bind, KeyInfo key) {
+        return mController.onKeyUp(bind, key,
+            mGameSceneView.toClientCoords(mousePos));
     }
-    bool mouseMove(MouseInfo mouse) {
+    override protected bool onMouseMove(MouseInfo mouse) {
         if (mScrolling) {
             mGameSceneView.scrollMove(mouse.rel);
             return true;

@@ -8,36 +8,79 @@ import str = std.string;
 import utf = std.utf;
 
 import utils.mylist;
+import utils.mybox;
+import utils.misc;
+import utils.output;
 
-//xxx: maybe move these two functions into an utils.* file?
-/// Return the index of the character following the character at "index"
-int charNext(char[] s, int index) {
-    assert(index >= 0 && index <= s.length);
-    if (index == s.length)
-        return s.length;
-    return index + utf.stride(s, index);
-}
-/// Return the index of the character prepending the character at "index"
-int charPrev(char[] s, int index) {
-    assert(index >= 0 && index <= s.length);
-    debug if (index < s.length) {
-        //assert valid UTF-8 character (stride will throw an exception)
-        utf.stride(s, index);
-    }
-    //you just had to find the first char starting with 0b0... or 0b11...
-    //but this was most simple
-    foreach_reverse(int byteindex, dchar c; s[0..index]) {
-        return byteindex;
-    }
-    return 0;
-}
+alias MyBox function(char[][] args, inout int argIdx) TypeHandler;
+alias void delegate(CommandLine) CommandHandler;
+alias void delegate(MyBox[] args, Output write) NewCommandHandler;
+
+TypeHandler[char[]] gCommandLineParsers;
 
 //store stuff about a command
-private class Command {
+public class Command {
+    //use opCall()
+    private this() {
+    }
+
+    static Command opCall(char[] name, CommandHandler handler, char[] helpText)
+    {
+        Command cmd = new Command();
+        cmd.name = name;
+        cmd.cmdProc = handler;
+        cmd.helpText = helpText;
+        //cmd.param_types = [gCommandLineParsers["text"]];
+        //combination of both => no arguments yield an empty string
+        cmd.minArgCount = 1;
+        cmd.textArgument = 0;
+        return cmd;
+    }
+
+    //format for args: each string item describes a parameter, with type and
+    //help, and additional flags which influence parsing
+    // general syntax: <type>[<flags>]['='<default>][':'<help>]
+    // <type> is searched in gCommandLineParsers[]
+    // if <flags> is "...", this must be the last parameter, and the rest of the
+    //   command line is passed to the type parser (cf. textArgument)
+    // if <flag> is "?", this and the following params are optional; they will
+    //   be passed as empty box
+    // (just an idea, if it's ever needed: <flag>=="@" for arrays)
+    // <default> can be given for optional arguments; if an optional argument
+    //   isn't available, then this will be passed to the handler
+    // <help> is the help text for that parameter
+    static Command opCall(char[] name, NewCommandHandler handler,
+        char[] helpText, char[][] args)
+    {
+        assert(false, "implement me");
+        return null;
+    }
+private:
     char[] name;
-    void delegate(CommandLine) cmdProc;
+    CommandHandler cmdProc;
+    NewCommandHandler cmdProc2;
     char[] helpText;
-    uint id;
+
+    TypeHandler[] param_types;
+    MyBox[] param_defaults;
+    char[][] param_help;
+    int minArgCount;
+    //-1 or param nr. since when all all the rest of the text should be passed
+    //to the argument parser (before that, separate by whitespace)
+    int textArgument = -1;
+
+    //whatever...
+    void parseAndInvoke(char[] cmdline, Output write) {
+    }
+}
+
+//idea:
+//bind a bunch of commands to... something
+class CommandBucket {
+    void registerCommand(Command);
+
+    //remove all commands from CommandLine instance again
+    abstract public void kill();
 }
 
 //this was the only list class available :-)
@@ -95,15 +138,9 @@ public class CommandLine {
     public int registerCommand(char[] name,
         void delegate(CommandLine cmdLine) cmdProc, char[] helpText)
     {
-        auto cmd = new Command();
-        cmd.name = name;
-        cmd.cmdProc = cmdProc;
-        cmd.helpText = helpText;
-        cmd.id = ++mUniqueID;
+        mCommands ~= Command(name, cmdProc, helpText);
 
-        mCommands ~= cmd;
-
-        return cmd.id;
+        return 0; //xxx what was the id for?
     }
 
     public bool keyDown(KeyInfo infos) {

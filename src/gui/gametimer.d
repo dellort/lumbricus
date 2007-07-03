@@ -24,7 +24,7 @@ class GameTimer : GuiObject {
         mLastTime = timeCurrentTime();
     }
 
-    override protected void onChangeScene() {
+    override protected void onChangeScene(bool activeness) {
         mTimeView.setScene(scene, zorder, active);
     }
 

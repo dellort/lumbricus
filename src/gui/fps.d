@@ -15,7 +15,7 @@ class GuiFps : GuiObject {
         fpsDisplay = new FontLabel(globals.framework.getFont("fpsfont"));
     }
 
-    override protected void onChangeScene() {
+    override protected void onChangeScene(bool activeness) {
         fpsDisplay.setScene(scene, zorder, active);
     }
 

@@ -12,7 +12,21 @@ final class BitStream {
         //when writing, mPos is the index after the last valid bit
         BitPos mBitPos, mBitSize;
     }
-debug import std.stdio;
+
+    /// Get data as ubyte[] (not copied).
+    ubyte[] data() {
+        return (cast(ubyte[])mData)[0..(mBitSize+7)/8];
+    }
+
+    /// Set data as ubyte[] (copied).
+    void data(ubyte[] data) {
+        //erm... to simplify things.
+        bitPos = 0;
+        bitSize = 0;
+        writeAlignedBytes(data);
+        bitPos = 0;
+    }
+
     //actually write bits
     //this also increases the buffer as needed, and it doesn't overwrite bits
     //after (bitPos + count)
@@ -49,11 +63,9 @@ debug import std.stdio;
         if (bitStart + count <= BIT_COUNT) {
             ptr[0] = (ptr[0] & (maskBefore | maskAfter))
                 | (data << bitStart);
-            writefln("-> pos=%s st=%s lst=%s single %s %s -> %s", mBitPos, bitStart, bitLast, maskBefore, maskAfter, data);
         } else {
             ptr[0] = (ptr[0] & maskBefore) | (data << bitStart);
             ptr[1] = (ptr[1] & maskAfter) | (data >> (BIT_COUNT - bitStart));
-            writefln("-> %s %s multi %s %s", bitStart, bitLast, maskBefore, maskAfter);
         }
 
         if (mBitSize < bitEndPos)
@@ -141,6 +153,7 @@ debug import std.stdio;
     //xxx: endian-situation unclear
     //xxx: currently actually only works for integers (but could be changed)
     void write(T)(T data, uint bitcount) {
+        assert(bitcount <= T.sizeof*8);
         static if (T.sizeof > BitData.sizeof) {
             writeAnyBits(&data, bitcount);
         } else {
@@ -149,6 +162,7 @@ debug import std.stdio;
         }
     }
     T read(T)(uint bitcount) {
+        assert(bitcount <= T.sizeof*8);
         T data;
         static if (T.sizeof > BitData.sizeof) {
             readAnyBits(&data, bitcount);
@@ -203,6 +217,15 @@ debug import std.stdio;
         foreach (int index, b; data) {
             doWriteBits(index, cast(uint)b, 1);
         }
+    }
+
+    /// Align bitPos to next byte-boundary and then write the data bytes.
+    void writeAlignedBytes(ubyte[] data) {
+        bitPos = (bitPos+7) & ~7;
+        size_t npos = bitPos + data.length * 8;
+        bitSize = npos;
+        (cast(ubyte[])mData)[bitPos/8 .. npos/8] = data[];
+        bitPos = npos;
     }
 
     void clear() {

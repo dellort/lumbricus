@@ -16,46 +16,47 @@ import genlevel = levelgen.generator;
 import utils.configfile;
 import utils.log;
 
+//stupid hack to access GameFrame, hopefully goes away very soon
+interface GameGui {
+    void addGui(GuiObject obj);
+    void killGui();
+}
+
 class GameLoader : Loader {
     private ConfigNode mConfig;
     private GameConfig mGameConfig;
-    private GuiMain mGui;
-    //xxx replace this by a GuiFrame thing or so
-    private GuiObject[] mGameGuiObjects;
+    private GameGui mGui;
     private bool mGameGuiOpened;
     private Log log;
 
     GameEngine thegame;
     ClientGameEngine clientengine;
     GameView gameView;
-    Scene metascene;
 
-    this(ConfigNode config, GuiMain mgui) {
+    this(ConfigNode config, GameGui mgui) {
         log = registerLog("GameLoader");
         mConfig = config;
         mGui = mgui;
-        registerChunk(&unloadGui);
-        registerChunk(&unloadGame);
         registerChunk(&loadConfig);
         registerChunk(&initGameEngine);
         registerChunk(&initClientEngine);
         registerChunk(&initializeGameGui);
     }
 
+    override void unload() {
+        unloadGui();
+        unloadGame();
+        super.unload();
+    }
+
     private bool unloadGui() {
         log("unloadGui");
         if (mGameGuiOpened) {
-            //xxx implement correct focus handling
-            mGui.setFocus(null);
             assert(gameView !is null);
             assert(mGui !is null);
             gameView.gamescene = null;
             gameView.controller = null;
-            foreach (GuiObject o; mGameGuiObjects) {
-                //should be enough
-                o.active = false;
-            }
-            mGameGuiObjects = null;
+            mGui.killGui();
             gameView = null;
 
             mGameGuiOpened = false;
@@ -124,7 +125,6 @@ class GameLoader : Loader {
         //xxx README: since the scene is recreated for each level, there's no
         //            need to remove them all in Game.kill()
         clientengine = new ClientGameEngine(thegame);
-        metascene = new MetaScene([clientengine.scene]);
 
         //callback when invoking cmdStop
         //mOnStopGui = &closeGame;
@@ -136,16 +136,11 @@ class GameLoader : Loader {
         log("initializeGameGui");
         mGameGuiOpened = true;
 
-        void addGui(GuiObject obj) {
-            mGui.add(obj, GUIZOrder.Gui);
-            mGameGuiObjects ~= obj;
-        }
-
-        addGui(new WindMeter(clientengine));
-        addGui(new GameTimer(clientengine));
-        addGui(new PrepareDisplay(clientengine));
+        mGui.addGui(new WindMeter(clientengine));
+        mGui.addGui(new GameTimer(clientengine));
+        mGui.addGui(new PrepareDisplay(clientengine));
         auto msg = new MessageViewer();
-        addGui(msg);
+        mGui.addGui(msg);
 
         thegame.controller.messageCb = &msg.addMessage;
         thegame.controller.messageIdleCb = &msg.idle;
@@ -153,13 +148,11 @@ class GameLoader : Loader {
         gameView = new GameView(clientengine);
         gameView.loadBindings(globals.loadConfig("wormbinds")
             .getSubNode("binds"));
-        mGui.add(gameView, GUIZOrder.Game);
-        mGameGuiObjects ~= gameView;
-        //xxx no focus changes yet
-        mGui.setFocus(gameView);
+        mGui.addGui(gameView);
+        gameView.zorder = GUIZOrder.Game;
 
         gameView.controller = thegame.controller;
-        gameView.gamescene = metascene;
+        gameView.gamescene = clientengine.scene;
 
         //start at level center
         gameView.view.scrollCenterOn(thegame.gamelevel.offset
