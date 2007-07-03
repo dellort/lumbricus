@@ -244,7 +244,7 @@ class GameEngine {
     //called by sprite.d/GOSpriteClass.this() only
     void registerSpriteClass(char[] name, GOSpriteClass sc) {
         if (findSpriteClass(name, true)) {
-            assert(false);
+            assert(false, "Sprite class "~name~" already registered");
         }
         mSpriteClasses[name] = sc;
     }

@@ -7,6 +7,7 @@ import game.game;
 import game.gobject;
 import game.sprite;
 import game.weapon;
+import std.math;
 import utils.misc;
 import utils.vector2;
 import utils.mylist;
@@ -118,6 +119,12 @@ private class ProjectileThrower : Shooter {
     }
 }
 
+private enum DeathReason {
+    unknown,
+    impact,
+    timeout,
+}
+
 private class ProjectileSprite : GObjectSprite {
     ProjectileSpriteClass myclass;
     Time birthTime;
@@ -125,6 +132,7 @@ private class ProjectileSprite : GObjectSprite {
     Time deathTimer;
     ProjectileEffector[] effectors;
     Vector2f target;
+    private DeathReason mDeathReason;
 
     Time dieTime() {
         if (myclass.dieByTime) {
@@ -146,6 +154,7 @@ private class ProjectileSprite : GObjectSprite {
 
         if (engine.gameTime.current > dieTime) {
             engine.mLog("die by time");
+            mDeathReason = DeathReason.timeout;
             die();
         }
     }
@@ -157,6 +166,7 @@ private class ProjectileSprite : GObjectSprite {
         //(aka "action" in the config file)
         //then the banana bomb can decide if it expldoes or falls into the water
         if (myclass.dieByImpact) {
+            mDeathReason = DeathReason.impact;
             die();
         }
         if (myclass.explosionOnImpact) {
@@ -166,12 +176,15 @@ private class ProjectileSprite : GObjectSprite {
     override protected void die() {
         //various actions possible when dying
         //spawning
-        if (myclass.spawnOnDeath) {
+        if (myclass.spawnOnDeath &&
+            (!myclass.spawnLimitReason || mDeathReason == myclass.spawnRequire))
+        {
             FireInfo info;
             //whatever seems useful...
             info.dir = physics.velocity.normal;
-            info.strength = 0;//physics.velocity.length; //xxx confusing units :-)
+            info.strength = physics.velocity.length; //xxx confusing units :-)
             info.shootby = physics;
+            info.pointto = target;   //keep target for spawned projectiles
 
             //xxx: if you want the spawn-delay to be considered, there'd be two
             // ways: create a GameObject which does this (or do it in
@@ -215,9 +228,13 @@ struct SpawnParams {
     char[] projectile;
     float spawndist = 2; //distance between shooter and new projectile
     int count = 1;       //number of projectiles to spawn
-    Time delay;         //delay between spawns
-    bool random;        //randomly place new projectiles
-    bool airstrike;     //shoot from the air
+    Time delay;          //delay between spawns
+    int random = 0;      //angle in which to spread projectiles randomly
+    bool airstrike;      //shoot from the air
+    bool keepVelocity = true; //if true, use strength/dir from FireInfo
+                              //else use values below
+    Vector2f direction;  //intial moving direction, affects spawn point
+    float strength = 0;  //initial moving speed into above direction
 }
 
 bool parseSpawn(inout SpawnParams params, ConfigNode config) {
@@ -225,8 +242,13 @@ bool parseSpawn(inout SpawnParams params, ConfigNode config) {
     params.count = config.getIntValue("count", params.count);
     params.spawndist = config.getFloatValue("spawndist", params.spawndist);
     params.delay = timeSecs(config.getIntValue("delay", params.delay.secs));
-    params.random = config.getBoolValue("random", params.random);
+    params.random = config.getIntValue("random", params.random);
     params.airstrike = config.getBoolValue("airstrike", params.airstrike);
+    params.keepVelocity = config.getBoolValue("keep_velocity",
+        params.keepVelocity);
+    float[] dirv = config.getValueArray!(float)("direction", [0, -1]);
+    params.direction = Vector2f(dirv[0], dirv[1]);
+    params.strength = config.getFloatValue("strength_value", params.strength);
     return true;
 }
 
@@ -243,16 +265,24 @@ private void spawnsprite(GameEngine engine, int n, SpawnParams params,
 
     GObjectSprite sprite = engine.createSprite(params.projectile);
 
+    if (!params.keepVelocity) {
+        //don't use strength/direction from FireInfo
+        about.dir = params.direction;
+        about.strength = params.strength;
+    }
+
     if (!params.airstrike) {
         //place it
         float dist = about.shootby.posp.radius + sprite.physics.posp.radius;
         dist += params.spawndist;
 
-        if (!params.random) {
-            sprite.setPos(about.shootby.pos + about.dir*dist);
-        } else {
-            sprite.setPos(about.shootby.pos+Vector2f(genrand_real1()*4-2,-2));
+        if (params.random) {
+            //random rotation angle for dir vector, in rads
+            float theta = (genrand_real1()-0.5f)*params.random*PI/180.0f;
+            about.dir = about.dir.rotated(theta);
         }
+
+        sprite.setPos(about.shootby.pos + about.dir*dist);
     } else {
         Vector2f pos;
         float width = params.spawndist * (params.count-1);
@@ -297,6 +327,8 @@ class ProjectileSpriteClass : GOSpriteClass {
     //non-null if to spawn anything on death
     SpawnParams* spawnOnDeath;
     ProjectileEffectorClass[] effects;
+    bool spawnLimitReason = false;
+    DeathReason spawnRequire;
 
     //nan for no explosion, else this is the damage strength
     float explosionOnDeath;
@@ -331,6 +363,22 @@ class ProjectileSpriteClass : GOSpriteClass {
             spawnOnDeath = new SpawnParams;
             if (!parseSpawn(*spawnOnDeath, spawn)) {
                 spawnOnDeath = null;
+            }
+            char[] sp = spawn.getStringValue("require_reason");
+            spawnLimitReason = true;
+            switch (sp) {
+                case "unknown":
+                    spawnRequire = DeathReason.unknown;
+                    break;
+                case "impact":
+                    spawnRequire = DeathReason.impact;
+                    break;
+                case "timeout":
+                    spawnRequire = DeathReason.timeout;
+                    break;
+                default:
+                    spawnLimitReason = false;
+                    break;
             }
         }
         auto expl = config.getPath("death.explosion", true);
@@ -458,7 +506,7 @@ class ProjectileEffectorHoming : ProjectileEffector {
         if (mActive) {
             if (mParent.engine.gameTime.current - birthTime > myclass.delay) {
                 Vector2f totarget = mParent.target - mParent.physics.pos;
-                mParent.physics.velocity += totarget.normal*myclass.force;
+                mParent.physics.velocity += totarget.normal*myclass.force*deltaT;
                 if (mParent.physics.velocity.length > myclass.maxvelocity) {
                     mParent.physics.velocity.length = myclass.maxvelocity;
                 }
