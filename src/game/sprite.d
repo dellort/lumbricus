@@ -187,7 +187,6 @@ class GObjectSprite : GameObject {
         assert(nstate !is null);
 
         currentState = nstate;
-        physics.collision = nstate.collide;
         physics.posp = nstate.physic_properties;
         updateAnimation();
 
@@ -226,7 +225,6 @@ class GObjectSprite : GameObject {
 
         auto oldstate = currentState;
         currentState = nstate;
-        physics.collision = nstate.collide;
         physics.posp = nstate.physic_properties;
 
         currentTransition = trans;
@@ -288,7 +286,6 @@ class GObjectSprite : GameObject {
 //state infos (per sprite class, thus it's static)
 class StaticStateInfo {
     char[] name;
-    CollisionType collide;
     POSP physic_properties;
 
     StateTransition[StaticStateInfo] transitions;
@@ -365,15 +362,11 @@ class GOSpriteClass {
             if (!initState)
                 initState = ssi;
 
-            //xxx: passes true for the second parameter, which means the ID
-            //     is created if it doesn't exist; this is for forward
-            //     referencing... it should be replaced by collision classes
-            ssi.collide = engine.findCollisionID(sc["collide"], true);
-
             //physic stuff, already loaded physic-types are not cached
             auto phys = config.getSubNode("physics").findNode(sc["physic"]);
             assert(phys !is null); //xxx better error handling :-)
-            loadPOSPFromConfig(phys, ssi.physic_properties);
+            loadPOSPFromConfig(phys, ssi.physic_properties,
+                &engine.findCollisionID);
 
             ssi.noleave = sc.getBoolValue("noleave", false);
 

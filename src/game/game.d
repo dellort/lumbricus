@@ -396,6 +396,7 @@ class GameEngine {
 
         //load weapons
         auto weapons = globals.loadConfig("weapons");
+        loadCollisions(weapons.getSubNode("collisions"));
         globals.resources.loadResources(weapons.find("require_resources"));
         auto list = weapons.getSubNode("weapons");
         foreach (ConfigNode item; list) {

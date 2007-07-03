@@ -34,8 +34,6 @@ class PhysicBase {
     private float mLifeTime = float.infinity;
     private float mRemainLifeTime;
 
-    CollisionType collision;
-
     //call when object should be notified with doUpdate() after all physics done
     void needUpdate() {
         mNeedUpdate = true;
@@ -56,12 +54,6 @@ class PhysicBase {
             onUpdate();
         }
         //world.mLog("update: %s", this);
-    }
-
-    //fast check if object can collide with other object
-    //(includes reverse check)
-    bool canCollide(PhysicBase other) {
-        return world.canCollide(collision, other.collision);
     }
 
     protected void simulate(float deltaT) {
@@ -119,6 +111,8 @@ struct POSP {
 
     //maximum absolute value, velocity is cut if over this
     Vector2f velocityConstraint = {float.infinity, float.infinity};
+
+    CollisionType collision;
 }
 
 //simple physical object (has velocity, position, mass, radius, ...)
@@ -179,6 +173,12 @@ class PhysicObject : PhysicBase {
     Vector2f surface_normal;
 
     this() {
+    }
+
+    //fast check if object can collide with other object
+    //(includes reverse check)
+    bool canCollide(PhysicObject other) {
+        return world.canCollide(posp.collision, other.posp.collision);
     }
 
     //the worm couldn't adhere to the rock surface anymore
@@ -985,7 +985,10 @@ class PhysicWorld {
     }
 }
 
-void loadPOSPFromConfig(ConfigNode node, inout POSP posp) {
+//xxx sorry, but this avoids another circular reference
+void loadPOSPFromConfig(ConfigNode node, inout POSP posp,
+    CollisionType delegate(char[] name, bool doregister = false) findCollisionID)
+{
     posp.elasticity = node.getFloatValue("elasticity", posp.elasticity);
     posp.radius = node.getFloatValue("radius", posp.radius);
     posp.mass = node.getFloatValue("mass", posp.mass);
@@ -1011,6 +1014,10 @@ void loadPOSPFromConfig(ConfigNode node, inout POSP posp) {
         []);
     if (velConstr.length > 1)
         posp.velocityConstraint = Vector2f(velConstr[0], velConstr[1]);
+    //xxx: passes true for the second parameter, which means the ID
+    //     is created if it doesn't exist; this is for forward
+    //     referencing... it should be replaced by collision classes
+    posp.collision = findCollisionID(node.getStringValue("collide"), true);
 }
 
 //xxx duplicated from generator.d
