@@ -403,6 +403,7 @@ class ProjectileEffector {
     this(ProjectileSprite parent, ProjectileEffectorClass type) {
         mParent = parent;
         myclass = type;
+        birthTime = mParent.engine.gameTime.current;
     }
 
     void active(bool ac) {
@@ -541,6 +542,61 @@ class ProjectileEffectorHomingClass : ProjectileEffectorClass {
 
     static this() {
         ProjectileEffectorFactory.register!(typeof(this))("homing");
+    }
+}
+
+class ProjectileEffectorExplode : ProjectileEffector {
+    private ProjectileEffectorExplodeClass myclass;
+    private Time mLast;
+    private Time mDelay;
+
+    this(ProjectileSprite parent, ProjectileEffectorExplodeClass type) {
+        super(parent, type);
+        myclass = type;
+        active = true;
+        if (myclass.randomDelay)
+            mDelay = timeMsecs(myclass.delay.msecs*genrand_real1());
+        else
+            mDelay = myclass.delay;
+        mLast = birthTime + mDelay - myclass.interval;
+    }
+
+    override void simulate(float deltaT) {
+        if (mActive) {
+            if (mParent.engine.gameTime.current - mLast > myclass.interval) {
+                mLast += myclass.interval;
+                mParent.engine.explosionAt(mParent.physics.pos, myclass.damage);
+            }
+        }
+        super.simulate(deltaT);
+    }
+
+    override void activate(bool ac) {
+        /*if (ac) {
+        } else {
+        }*/
+    }
+}
+
+class ProjectileEffectorExplodeClass : ProjectileEffectorClass {
+    Time delay, interval;
+    bool randomDelay;
+    float damage;
+
+    this(ConfigNode node) {
+        super(node);
+        delay = timeSecs(node.getFloatValue("delay",0.0f));
+        interval = timeSecs(node.getFloatValue("interval",1.0f));
+        damage = node.getIntValue("damage",50);
+        randomDelay = node.getBoolValue("random_delay",false);
+    }
+
+    override ProjectileEffectorExplode createEffector(ProjectileSprite parent) {
+        return new ProjectileEffectorExplode(parent, this);
+    }
+
+    static this() {
+        ProjectileEffectorFactory.register!(typeof(this))("explode");
     }
 }
 
