@@ -706,8 +706,8 @@ public class LevelEditor : GuiFrame {
         newPolyAt(Rect2i(100, 100, 500, 500));
 
         commands = new typeof(commands);
-        commands.registerCommand(Command("preview", &cmdPreview, "preview"));
-        commands.registerCommand(Command("save", &cmdSave, "save edit level"));
+        commands.register(Command("preview", &cmdPreview, "preview"));
+        commands.register(Command("save", &cmdSave, "save edit level"));
         commands.bind(globals.cmdLine);
     }
 

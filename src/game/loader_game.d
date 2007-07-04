@@ -69,12 +69,10 @@ class GameLoader : Loader {
         log("unloadGame");
         if (thegame) {
             thegame.kill();
-            //delete thegame;
             thegame = null;
         }
         if (clientengine) {
             clientengine.kill();
-            delete clientengine;
             clientengine = null;
         }
 
@@ -122,12 +120,7 @@ class GameLoader : Loader {
 
     private bool initClientEngine() {
         log("initClientEngine");
-        //xxx README: since the scene is recreated for each level, there's no
-        //            need to remove them all in Game.kill()
         clientengine = new ClientGameEngine(thegame);
-
-        //callback when invoking cmdStop
-        //mOnStopGui = &closeGame;
 
         return true;
     }

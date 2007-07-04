@@ -65,7 +65,6 @@ class GuiMain {
     void add(GuiObject o, GUIZOrder z) {
         o.mChangeActiveness = &onSubObjectChanged;
         o.setScene(mGuiScene, z);
-        onSubObjectChanged(o); //xxx??? shouldn't be needed (to set initial focus)
         o.resize();
     }
 

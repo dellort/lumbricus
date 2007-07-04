@@ -216,8 +216,12 @@ class CommandBucket {
     private Command[] mCommands;
     private CommandLine mBoundTo;
 
-    void registerCommand(Command cmd) {
+    void register(Command cmd) {
         mCommands ~= cmd;
+    }
+
+    void registerCommand(T...)(T) {
+        return register(Command(T));
     }
 
     /// Add commands to there.

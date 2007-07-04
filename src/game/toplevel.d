@@ -24,15 +24,10 @@ import utils.mylist;
 import utils.mybox;
 import perf = std.perf;
 import gc = std.gc;
-import genlevel = levelgen.generator;
-import str = std.string;
-import conv = std.conv;
 
 //this contains the mainframe
 class TopLevel {
 private:
-    void delegate() mOnStopGui; //associated with sceneview
-    LevelEditor editor;
     KeyBindings keybindings;
 
     GuiMain mGui;
@@ -43,8 +38,6 @@ private:
 
     //xxx move this to where-ever
     Translator localizedKeynames;
-    //ConfigNode mWormsAnim;
-    //Animator mWormsAnimator;
 
     bool mShowKeyDebug = false;
     bool mKeyNameIt = false;
@@ -107,41 +100,17 @@ private:
             "int?=0:depth (bits)"]);
         globals.cmdLine.registerCommand("fullscreen", &cmdFS, "toggle fs");
         globals.cmdLine.registerCommand("pause", &cmdPause, "pause");
-        globals.cmdLine.registerCommand("raisewater", &cmdRaiseWater,
-            "increase waterline", ["int:water level"]);
-
-        globals.cmdLine.registerCommand("editor", &cmdLevelEdit, "hm");
-
-        globals.cmdLine.registerCommand("wind", &cmdSetWind,
-            "Change wind speed", ["float:wind speed"]);
         globals.cmdLine.registerCommand("stop", &cmdStop, "stop editor/game");
-
+        globals.cmdLine.registerCommand("editor", &cmdLevelEdit, "hm");
         globals.cmdLine.registerCommand("slow", &cmdSlow, "set slowdown", [
             "float:slow down",
             "text?:ani or game"]);
-
-        globals.cmdLine.registerCommand("framerate", &cmdFramerate, "set fixed framerate");
-        globals.cmdLine.registerCommand("cameradisable", &cmdCameraDisable, "disable game camera");
-        globals.cmdLine.registerCommand("detail", &cmdDetail,
-            "switch detail level", ["int?:detail level (if not given: cycle)"]);
-    }
-
-    private void cmdDetail(MyBox[] args, Output write) {
-        if (!mGameFrame || !mGameFrame.clientengine)
-            return;
-        int c = args[0].unboxMaybe!(int)(-1);
-        mGameFrame.clientengine.detailLevel =
-            c >= 0 ? c : mGameFrame.clientengine.detailLevel + 1;
-        write.writefln("set detailLevel to %s", mGameFrame.clientengine.detailLevel);
+        globals.cmdLine.registerCommand("framerate", &cmdFramerate,
+            "set fixed framerate");
     }
 
     private void cmdFramerate(MyBox[] args, Output write) {
         globals.framework.fixedFramerate = args[0].unbox!(int)();
-    }
-
-    private void cmdCameraDisable(MyBox[] args, Output write) {
-        if (mGameFrame && mGameFrame.mGameLoader.gameView)
-            mGameFrame.mGameLoader.gameView.view.setCameraFocus(null);
     }
 
     void killFrame() {
@@ -156,17 +125,9 @@ private:
         killFrame();
     }
 
-    private void cmdSetWind(MyBox[] args, Output write) {
-        mGameFrame.thegame.windSpeed = args[0].unbox!(float)();
-    }
-
     private void cmdLevelEdit(MyBox[] args, Output write) {
         killFrame();
         mCurrentFrame = new LevelEditor(mGui);
-    }
-
-    private void cmdRaiseWater(MyBox[] args, Output write) {
-        mGameFrame.thegame.raiseWater(args[0].unbox!(int)());
     }
 
     private void onVideoInit(bool depth_only) {
@@ -326,12 +287,8 @@ private:
     }
 
     private void cmdPause(MyBox[], Output) {
-        if (mGameFrame) {
-            mGameFrame.thegame.gameTime.paused =
-                !mGameFrame.thegame.gameTime.paused;
-            mGameFrame.clientengine.engineTime.paused =
-                mGameFrame.thegame.gameTime.paused;
-        }
+        if (mGameFrame)
+            mGameFrame.gamePaused = !mGameFrame.gamePaused;
         globals.gameTimeAnimations.paused = !globals.gameTimeAnimations.paused;
     }
 

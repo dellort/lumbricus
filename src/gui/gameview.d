@@ -30,6 +30,7 @@ class GameView : GuiObject {
         if (scene) {
             mGameSceneView.pos = Vector2i(0, 0);
         }
+        super.onChangeScene(activeness);
     }
 
     SceneView view() {
