@@ -97,11 +97,12 @@ T arrayFindPrev(T)(T[] arr, T w) {
     return arr[found - 1];
 }
 
-//searches for next element with pred(element)==true, wraps around, if w is null
-//start search with first element, if no element found, return null
-//if w is the only valid element, return w
-T arrayFindNextPred(T)(T[] arr, T w, bool delegate(T t) pred) {
-    T first = arrayFindNext(arr, w);
+//cf. arrayFindNextPred()()
+//iterate(arr, w): find the element following w in arr
+T arrayFindFollowingPred(T)(T[] arr, T w, T function(T[] arr, T w) iterate,
+    bool delegate(T t) pred)
+{
+    T first = iterate(arr, w);
     if (!first)
         return null;
     auto c = first;
@@ -110,9 +111,20 @@ T arrayFindNextPred(T)(T[] arr, T w, bool delegate(T t) pred) {
             return c;
         if (c is w)
             break;
-        c = arrayFindNext(arr, c);
+        c = iterate(arr, c);
     } while (c !is first);
     return null;
+}
+
+//searches for next element with pred(element)==true, wraps around, if w is null
+//start search with first element, if no element found, return null
+//if w is the only valid element, return w
+T arrayFindNextPred(T)(T[] arr, T w, bool delegate(T t) pred) {
+    return arrayFindFollowingPred(arr, w, &arrayFindNext!(T), pred);
+}
+//for the preceeding element
+T arrayFindPrevPred(T)(T[] arr, T w, bool delegate(T t) pred) {
+    return arrayFindFollowingPred(arr, w, &arrayFindPrev!(T), pred);
 }
 
 int arraySearch(T)(T[] arr, T value, int def = -1) {
@@ -121,6 +133,22 @@ int arraySearch(T)(T[] arr, T value, int def = -1) {
             return i;
     }
     return def;
+}
+
+//remove first occurence of value from arr; the order is not changed
+//(thus not O(1), but stuff is simply copied)
+void arrayRemove(T)(inout T[] arr, T value) {
+    for (int n = 0; n < arr.length; n++) {
+        if (arr[n] is value) {
+            //array slice assigment disallows overlapping copy, so don't use it
+            for (int i = n; i < arr.length-1; i++) {
+                arr[i] = arr[i+1];
+            }
+            arr = arr[0..$-1];
+            return;
+        }
+    }
+    assert(false, "element not in array!");
 }
 
 ///Ensure leading slash, replace '\' by '/', remove trailing '/' and

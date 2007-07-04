@@ -20,6 +20,16 @@ public struct Rect2(T) {
         return Rect2(Point(x1, y1), Point(x2, y2));
     }
 
+    //return a rectangle that could be considered to be "empty"
+    // .isNormal() will return false, and the first .extend() will make the
+    // rectangle to exactly the extended point, and also makes isNormal()==true
+    public static Rect2 Empty() {
+        Rect2 r;
+        r.p1 = Point(T.max);
+        r.p2 = Point(T.min);
+        return r;
+    }
+
     Point size() {
         return p2 - p1;
     }
