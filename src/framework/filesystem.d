@@ -136,9 +136,27 @@ private class HandlerDirectory : HandlerInstance {
         return stdf.exists(p) && stdf.isdir(p);
     }
 
+    private void createPath(char[] handlerPath) {
+        if (!pathExists(handlerPath)) {
+            int i = str.rfind(handlerPath,'/');
+            if (i > 0) {
+                //cut off last path component and do recursive call
+                createPath(handlerPath[0..i]);
+            }
+            //create last path
+            stdf.mkdir(mDirPath ~ handlerPath);
+        }
+    }
+
     Stream open(char[] handlerPath, FileMode mode) {
         version(FSDebug) log("Handler for '%s': Opening '%s'",mDirPath,
             handlerPath);
+        if (mode == FileMode.OutNew) {
+            //make sure path exists
+            int i = str.rfind(handlerPath,'/');
+            if (i > 0)
+                createPath(handlerPath[0..i]);
+        }
         return new File(mDirPath ~ handlerPath, mode);
     }
 
@@ -219,18 +237,22 @@ class FileSystem {
             ///the path this HandlerInstance is mounted into,
             ///relative to VFS root with leading/trailing '/'
             char[] mountPoint;
+            ///precedence of virtual directory
+            ///if multiple paths match, lower precedence is considered first
+            uint precedence;
             ///handler for mounted path/file
             HandlerInstance handler;
             ///is opening files for writing/creating files supported by handler
             ///and enabled for this path
             private bool mWritable;
 
-            public static MountedPath opCall(char[] mountPoint,
+            public static MountedPath opCall(char[] mountPoint, uint precedence,
                 HandlerInstance handler, bool writable)
             {
                 MountedPath ret;
                 //make sure mountPoint starts and ends with a '/'
                 ret.mountPoint = fixRelativePath(mountPoint) ~ '/';
+                ret.precedence = precedence;
                 ret.handler = handler;
                 ret.mWritable = writable;
                 return ret;
@@ -368,6 +390,29 @@ class FileSystem {
         }
     }
 
+    //find array index after which to insert new MountedPath with precedence
+    //does a binary search, returns -1 for an empty array
+    private int findInsertIndex(uint prec) {
+        int l = 0, r = mMountedPaths.length-1;
+        while (l <= r) {
+            int m = (l + r) / 2;
+            if (mMountedPaths[m].precedence < prec) {
+                l = m + 1;
+            } else if (mMountedPaths[m].precedence > prec) {
+                r = m - 1;
+            } else {
+                return m;
+            }
+        }
+        return r;
+    }
+
+    private void addMountedPath(MountedPath m) {
+        int i = findInsertIndex(m.precedence);
+        //the following line should work for all cases, even an empty array
+        mMountedPaths = mMountedPaths[0..i+1] ~ m ~ mMountedPaths[i+1..$];
+    }
+
     ///Mount file/folder path into the VFS at mountPoint
     ///Params:
     ///  mp = where in the real filesystem should be looked for path
@@ -380,7 +425,7 @@ class FileSystem {
     ///             if path is not physically writable, this parameter is
     ///             ignored
     public void mount(MountPath mp, char[] path, char[] mountPoint,
-        bool writable, bool prepend = false)
+        bool writable, uint precedence = 0)
     {
         //get absolute path to object, considering mp
         char[] absPath;
@@ -416,21 +461,16 @@ class FileSystem {
             throw new FilesystemException("No handler was able to mount object "
                 ~path);
 
-        if (prepend)
-            mMountedPaths =
-                MountedPath(mountPoint,currentHandler.mount(absPath),writable) ~
-                mMountedPaths;
-        else
-            mMountedPaths ~=
-                MountedPath(mountPoint,currentHandler.mount(absPath),writable);
+        addMountedPath(MountedPath(mountPoint, precedence,
+            currentHandler.mount(absPath), writable));
     }
 
     ///Try mounting a file/folder and return if the mount succeeded
     public bool tryMount(MountPath mp, char[] path, char[] mountPoint,
-        bool writable, bool prepend = false)
+        bool writable, uint precedence = 0)
     {
         try {
-            mount(mp, path, mountPoint, writable, prepend);
+            mount(mp, path, mountPoint, writable, precedence);
             return true;
         } catch {
             return false;
@@ -439,9 +479,15 @@ class FileSystem {
     ///Create a symbolic link from mountPoint to relPath
     ///relPath cannot be a parent directory of mountPoint
     ///Example:
-    ///  link("/locale/de","/")
+    ///  link("/locale/de","/",false)
     ///Path is not checked for existance
-    public void link(char[] relPath, char[] mountPoint, bool prepend = false) {
+    ///IMPORTANT: Be careful with setting writable = true,
+    ///  as you may get errors or files created in wrong paths when
+    ///  relPath is a subpath of mountPoint and any directory in-between is
+    ///  writable
+    public void link(char[] relPath, char[] mountPoint, bool writable,
+        uint precedence = 0)
+    {
         relPath = fixRelativePath(relPath) ~ '/';
         mountPoint = fixRelativePath(mountPoint) ~ '/';
         if (relPath.length <= mountPoint.length
@@ -450,12 +496,9 @@ class FileSystem {
             throw new FilesystemException("Can't link to a direct or indirect"
                 " parent directory");
         }
-        if (prepend)
-            mMountedPaths = MountedPath(mountPoint,new HandlerLink(this,
-                relPath),true) ~ mMountedPaths;
-        else
-            mMountedPaths ~= MountedPath(mountPoint,new HandlerLink(this,
-                relPath),true);
+
+        addMountedPath(MountedPath(mountPoint, precedence,
+            new HandlerLink(this, relPath), writable));
     }
 
     ///open a stream to a file in the VFS

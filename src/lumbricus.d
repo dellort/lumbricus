@@ -19,10 +19,10 @@ int main(char[][] args)
     fw.setCaption("Lumbricus");
 
     //init filesystem
-    fw.fs.mount(MountPath.data,"locale/","/locale/",false);
-    fw.fs.tryMount(MountPath.data,"data2/","/",false);
-    fw.fs.mount(MountPath.data,"data/","/",false);
-    fw.fs.mount(MountPath.user,"/","/",true);
+    fw.fs.mount(MountPath.data, "locale/", "/locale/", false, 2);
+    fw.fs.tryMount(MountPath.data, "data2/", "/", false, 2);
+    fw.fs.mount(MountPath.data, "data/", "/", false, 3);
+    fw.fs.mount(MountPath.user, "/", "/", true, 0);
 
     gLogEverything.destination = new StreamOutput(new File("logall.txt",
         FileMode.OutNew));

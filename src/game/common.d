@@ -90,7 +90,8 @@ class Common {
         }
         initI18N(localeNode,langId);
         try {
-            framework.fs.link(cLocalePath ~ '/' ~ langId,"/",true);
+            //link locale-specific files into root
+            framework.fs.link(cLocalePath ~ '/' ~ langId,"/",false,1);
         } catch {
             //don't crash if current locale has no locale-specific files
         }
