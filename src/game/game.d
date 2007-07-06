@@ -208,10 +208,6 @@ class GameEngine {
     //this is a hack!
     private bool[char[]] mLoadedAnimationConfigFiles;
 
-    //collision handling stuff: map names to the registered IDs
-    //used by loadCollisions() and findCollisionID()
-    private CollisionType[char[]] mCollisionTypeNames;
-
     private const cSpaceBelowLevel = 150;
     private const cSpaceAboveOpenLevel = 1000;
     private const cOpenLevelWidthMultiplier = 3;
@@ -396,7 +392,7 @@ class GameEngine {
 
         //load weapons
         auto weapons = globals.loadConfig("weapons");
-        loadCollisions(weapons.getSubNode("collisions"));
+        physicworld.loadCollisions(weapons.getSubNode("collisions"));
         globals.resources.loadResources(weapons.find("require_resources"));
         auto list = weapons.getSubNode("weapons");
         foreach (ConfigNode item; list) {
@@ -587,37 +583,6 @@ class GameEngine {
                 return true;
         }
         return false;
-    }
-
-    //find a collision ID by name
-    //  doregister = if true, register on not-exist, else throw exception
-    CollisionType findCollisionID(char[] name, bool doregister = false) {
-        if (name in mCollisionTypeNames)
-            return mCollisionTypeNames[name];
-
-        if (!doregister) {
-            mLog("WARNING: collision name '%s' not found", name);
-            throw new Exception("mooh");
-        }
-
-        auto nt = physicworld.newCollisionType();
-        mCollisionTypeNames[name] = nt;
-        return nt;
-    }
-
-    //"collisions" node from i.e. worm.conf
-    void loadCollisions(ConfigNode node) {
-        //list of collision IDs, which map to...
-        foreach (ConfigNode sub; node) {
-            CollisionType obj_a = findCollisionID(sub.name, true);
-            //... a list of "collision ID" -> "action" pairs
-            foreach (char[] name, char[] value; sub) {
-                //NOTE: action is currently unused
-                //      should map to a cookie value, which is 1 for now
-                CollisionType obj_b = findCollisionID(name, true);
-                physicworld.setCollide(obj_a, obj_b, 1);
-            }
-        }
     }
 
     void explosionAt(Vector2f pos, float damage) {

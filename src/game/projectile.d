@@ -50,8 +50,7 @@ private class ProjectileWeapon : WeaponClass {
             //hm, state stuff unused, so only that state
             auto st = spriteclass.initState;
 
-            loadPOSPFromConfig(pr.getSubNode("physics"), st.physic_properties,
-                &aengine.findCollisionID);
+            st.physic_properties.loadFromConfig(pr.getSubNode("physics"));
             st.animation = globals.resources.resource!(AnimationResource)
                 (pr.getPathValue("animation"));
 

@@ -24,18 +24,41 @@ const cStokesConstant = 6*PI;
 //the physics stuff uses an ID to test if collision between objects is wanted
 //all physic objects (type PhysicBase) have an CollisionType
 typedef uint CollisionType;
+const CollisionType_Invalid = uint.max;
 
 //base type for physic objects (which are contained in a PhysicWorld)
 class PhysicBase {
     private mixin ListNodeMixin allobjects_node;
     //private bool mNeedSimulation;
     private bool mNeedUpdate;
-    PhysicWorld world;
+    PhysicWorld mWorld;
     //set to remove object after simulation
     bool dead = false;
     //in seconds
     private float mLifeTime = float.infinity;
     private float mRemainLifeTime;
+
+    CollisionType collision = CollisionType_Invalid;
+
+    //fast check if object can collide with other object
+    //(includes reverse check)
+    bool canCollide(PhysicBase other) {
+        return world.canCollide(collision, other.collision);
+    }
+
+    PhysicWorld world() {
+        return mWorld;
+    }
+    void world(PhysicWorld w) {
+        mWorld = w;
+        if (w) {
+            addedToWorld();
+        }
+    }
+
+    protected void addedToWorld() {
+        //override to do something when the object is added to the PhysicWorld
+    }
 
     //call when object should be notified with doUpdate() after all physics done
     void needUpdate() {
@@ -115,14 +138,69 @@ struct POSP {
     //maximum absolute value, velocity is cut if over this
     Vector2f velocityConstraint = {float.infinity, float.infinity};
 
-    CollisionType collision;
+    private char[] mCollisionID;
+    char[] collisionID() {
+        return mCollisionID;
+    }
+    void collisionID(char[] id) {
+        mCollisionID = id;
+        needUpdate = true;
+    }
+
+    //has any data changed that needs further processing by POSP owner?
+    //(currently only collisionID)
+    protected bool needUpdate = true;
+
+    //xxx sorry, but this avoids another circular reference
+    void loadFromConfig(ConfigNode node)
+    {
+        elasticity = node.getFloatValue("elasticity", elasticity);
+        radius = node.getFloatValue("radius", radius);
+        mass = node.getFloatValue("mass", mass);
+        windInfluence = node.getFloatValue("wind_influence",
+            windInfluence);
+        explosionInfluence = node.getFloatValue("explosion_influence",
+            explosionInfluence);
+        fixate = readVector(node.getStringValue("fixate", str.format("%s %s",
+            fixate.x, fixate.y)));
+        glueForce = node.getFloatValue("glue_force", glueForce);
+        walkingSpeed = node.getFloatValue("walking_speed", walkingSpeed);
+        walkingClimb = node.getFloatValue("walking_climb", walkingClimb);
+        damageable = node.getFloatValue("damageable", damageable);
+        damageThreshold = node.getFloatValue("damage_threshold",
+            damageThreshold);
+        mediumViscosity = node.getFloatValue("medium_viscosity",
+            mediumViscosity);
+        sustainableForce = node.getFloatValue("sustainable_force",
+            sustainableForce);
+        fallDamageFactor = node.getFloatValue("fall_damage_factor",
+            fallDamageFactor);
+        velocityConstraint = readVector(node.getStringValue(
+            "velocity_constraint", str.format("%s %s", velocityConstraint.x,
+            velocityConstraint.y)));
+        //xxx: passes true for the second parameter, which means the ID
+        //     is created if it doesn't exist; this is for forward
+        //     referencing... it should be replaced by collision classes
+        collisionID = node.getStringValue("collide");
+        needUpdate = true;
+    }
 }
 
 //simple physical object (has velocity, position, mass, radius, ...)
 class PhysicObject : PhysicBase {
     private mixin ListNodeMixin objects_node;
 
-    POSP posp;
+    private POSP mPosp;
+    POSP* posp() {
+        //xxx sorry, this is to avoid strange effects for calls like
+        //obj.posp.prop = value
+        return &mPosp;
+    }
+    void posp(POSP p) {
+        mPosp = p;
+        //new POSP -> check values
+        mPosp.needUpdate = true;
+    }
 
     Vector2f pos; //pixels
     //in pixels per second, readonly for external code!
@@ -175,13 +253,10 @@ class PhysicObject : PhysicBase {
     //last known surface normal
     Vector2f surface_normal;
 
-    this() {
-    }
-
     //fast check if object can collide with other object
     //(includes reverse check)
-    bool canCollide(PhysicObject other) {
-        return world.canCollide(posp.collision, other.posp.collision);
+    override bool canCollide(PhysicBase other) {
+        return super.canCollide(other);
     }
 
     //the worm couldn't adhere to the rock surface anymore
@@ -329,6 +404,10 @@ class PhysicObject : PhysicBase {
 
     override protected void simulate(float deltaT) {
         super.simulate(deltaT);
+        if (mPosp.needUpdate) {
+            collision = world.findCollisionID(mPosp.collisionID, true);
+            mPosp.needUpdate = false;
+        }
         //take care of walking, walkingSpeed > 0 marks walking enabled
         if (isWalkingMode()) {
             walkingTime -= deltaT;
@@ -564,6 +643,15 @@ class PhysicGeometry : PhysicBase {
     //generation counter, increased on every change
     int generationNo = 0;
     private int lastKnownGen = -1;
+
+    override protected void addedToWorld() {
+        //register fixed collision id "ground" on first call
+        collision = world.findCollisionID("ground", true);
+    }
+
+    override bool canCollide(PhysicBase other) {
+        return super.canCollide(other);
+    }
 
     //if outside geometry, return false and don't change pos
     //if inside or touching, return true and set pos to a corrected pos
@@ -802,6 +890,17 @@ class PhysicWorld {
             }
         }
 
+        //check for updated geometry objects, and force a full check
+        //if geom has changed
+        bool forceCheck = false;
+        foreach (PhysicGeometry gm; mGeometryObjects) {
+            if (gm.lastKnownGen < gm.generationNo) {
+                //object has changed
+                forceCheck = true;
+                gm.lastKnownGen = gm.generationNo;
+            }
+        }
+
         //check against geometry
         foreach (PhysicObject me; mObjects) {
             //check triggers
@@ -818,21 +917,12 @@ class PhysicWorld {
             //xxx if landscape changed => need to check
             Vector2f normalsum = Vector2f(0);
 
-            bool forceCheck = false;
-            foreach (PhysicGeometry gm; mGeometryObjects) {
-                if (gm.lastKnownGen < gm.generationNo) {
-                    //object has changed
-                    forceCheck = true;
-                    gm.lastKnownGen = gm.generationNo;
-                }
-            }
-
             if (me.isGlued && !forceCheck)
                 continue;
 
             foreach (PhysicGeometry gm; mGeometryObjects) {
                 Vector2f npos = me.pos;
-                if (gm.collide(npos, me.posp.radius)) {
+                if (gm.canCollide(me) && gm.collide(npos, me.posp.radius)) {
                     //kind of hack for LevelGeometry
                     //if the pos didn't change at all, but a collision was
                     //reported, assume the object is completely within the
@@ -978,6 +1068,41 @@ class PhysicWorld {
         return canCollide(a, b, tmp);
     }
 
+    //collision handling stuff: map names to the registered IDs
+    //used by loadCollisions() and findCollisionID()
+    private CollisionType[char[]] mCollisionTypeNames;
+
+    //find a collision ID by name
+    //  doregister = if true, register on not-exist, else throw exception
+    CollisionType findCollisionID(char[] name, bool doregister = false) {
+        if (name in mCollisionTypeNames)
+            return mCollisionTypeNames[name];
+
+        if (!doregister) {
+            mLog("WARNING: collision name '%s' not found", name);
+            throw new Exception("mooh");
+        }
+
+        auto nt = newCollisionType();
+        mCollisionTypeNames[name] = nt;
+        return nt;
+    }
+
+    //"collisions" node from i.e. worm.conf
+    void loadCollisions(ConfigNode node) {
+        //list of collision IDs, which map to...
+        foreach (ConfigNode sub; node) {
+            CollisionType obj_a = findCollisionID(sub.name, true);
+            //... a list of "collision ID" -> "action" pairs
+            foreach (char[] name, char[] value; sub) {
+                //NOTE: action is currently unused
+                //      should map to a cookie value, which is 1 for now
+                CollisionType obj_b = findCollisionID(name, true);
+                setCollide(obj_a, obj_b, 1);
+            }
+        }
+    }
+
     this() {
         mObjects = new List!(PhysicObject)(PhysicObject.objects_node.getListNodeOffset());
         mAllObjects = new List!(PhysicBase)(PhysicBase.allobjects_node.getListNodeOffset());
@@ -986,41 +1111,6 @@ class PhysicWorld {
         mTriggers = new List!(PhysicTrigger)(PhysicTrigger.triggers_node.getListNodeOffset());
         mLog = log.registerLog("physlog");
     }
-}
-
-//xxx sorry, but this avoids another circular reference
-void loadPOSPFromConfig(ConfigNode node, inout POSP posp,
-    CollisionType delegate(char[] name, bool doregister = false) findCollisionID)
-{
-    posp.elasticity = node.getFloatValue("elasticity", posp.elasticity);
-    posp.radius = node.getFloatValue("radius", posp.radius);
-    posp.mass = node.getFloatValue("mass", posp.mass);
-    posp.windInfluence = node.getFloatValue("wind_influence",
-        posp.windInfluence);
-    posp.explosionInfluence = node.getFloatValue("explosion_influence",
-        posp.explosionInfluence);
-    posp.fixate = readVector(node.getStringValue("fixate", str.format("%s %s",
-        posp.fixate.x, posp.fixate.y)));
-    posp.glueForce = node.getFloatValue("glue_force", posp.glueForce);
-    posp.walkingSpeed = node.getFloatValue("walking_speed", posp.walkingSpeed);
-    posp.walkingClimb = node.getFloatValue("walking_climb", posp.walkingClimb);
-    posp.damageable = node.getFloatValue("damageable", posp.damageable);
-    posp.damageThreshold = node.getFloatValue("damage_threshold",
-        posp.damageThreshold);
-    posp.mediumViscosity = node.getFloatValue("medium_viscosity",
-        posp.mediumViscosity);
-    posp.sustainableForce = node.getFloatValue("sustainable_force",
-        posp.sustainableForce);
-    posp.fallDamageFactor = node.getFloatValue("fall_damage_factor",
-        posp.fallDamageFactor);
-    float[] velConstr = node.getValueArray!(float)("velocity_constraint",
-        []);
-    if (velConstr.length > 1)
-        posp.velocityConstraint = Vector2f(velConstr[0], velConstr[1]);
-    //xxx: passes true for the second parameter, which means the ID
-    //     is created if it doesn't exist; this is for forward
-    //     referencing... it should be replaced by collision classes
-    posp.collision = findCollisionID(node.getStringValue("collide"), true);
 }
 
 //xxx duplicated from generator.d

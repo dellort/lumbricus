@@ -348,7 +348,7 @@ class GOSpriteClass {
         globals.resources.loadResources(config.find("require_resources"));
 
         //load collision map
-        engine.loadCollisions(config.getSubNode("collisions"));
+        engine.physicworld.loadCollisions(config.getSubNode("collisions"));
 
         //load states
         //physic stuff is loaded when it's referenced in a state description
@@ -365,8 +365,7 @@ class GOSpriteClass {
             //physic stuff, already loaded physic-types are not cached
             auto phys = config.getSubNode("physics").findNode(sc["physic"]);
             assert(phys !is null); //xxx better error handling :-)
-            loadPOSPFromConfig(phys, ssi.physic_properties,
-                &engine.findCollisionID);
+            ssi.physic_properties.loadFromConfig(phys);
 
             ssi.noleave = sc.getBoolValue("noleave", false);
 

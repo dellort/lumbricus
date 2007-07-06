@@ -4,6 +4,7 @@ module utils.strparser;
 import utils.mybox;
 import conv = std.conv;
 import str = std.string;
+import std.format : doFormat;
 
 import utils.vector2 : Vector2, Vector2i, Vector2f;
 
