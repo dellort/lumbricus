@@ -4,6 +4,7 @@ import framework.framework;
 import game.common;
 import game.scene;
 import game.clientengine;
+import game.bmpresource;
 import gui.guiobject;
 import utils.configfile;
 import utils.time;
@@ -27,11 +28,15 @@ class WindMeter : GuiObject {
         mEngine = engine;
 
         ConfigNode wmNode = globals.loadConfig("windmeter");
-        ConfigNode imgNode = wmNode.getSubNode("images");
-        mBackgroundTex = gFramework.loadImage(imgNode.getStringValue("back"),Transparency.Colorkey).createTexture();
+        globals.resources.loadResources(wmNode);
+
+        mBackgroundTex = globals.resources.resource!(BitmapResource)
+            ("/windmeter_back").get().createTexture();
         mSize = mBackgroundTex.size;
-        mWindLeft = gFramework.loadImage(imgNode.getStringValue("left"),Transparency.Colorkey).createTexture();
-        mWindRight = gFramework.loadImage(imgNode.getStringValue("right"),Transparency.Colorkey).createTexture();
+        mWindLeft = globals.resources.resource!(BitmapResource)
+            ("/windmeter_left").get().createTexture();
+        mWindRight = globals.resources.resource!(BitmapResource)
+            ("/windmeter_right").get().createTexture();
 
         ConfigNode ctNode = wmNode.getSubNode("center");
         mPosCenter.x = ctNode.getIntValue("x",mSize.x/2);

@@ -1,6 +1,7 @@
 module game.sky;
 
 import framework.framework;
+import game.bmpresource;
 import game.clientengine;
 import game.glevel;
 import game.common;
@@ -96,9 +97,8 @@ class GameSky {
 
         Surface bmp = engine.level.skyGradient;
         if (!bmp) {
-            bmp = globals.loadGraphic(skyNode.getStringValue("gradient"));
-            if (!bmp)
-                throw new Exception("Failed to load gradient bitmap");
+            bmp = globals.resources.resource!(BitmapResource)
+                ("/default_gradient").get();
         }
         Texture skyTex = bmp.createTexture();
         mSkyHeight = skyTex.size.y;
