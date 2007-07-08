@@ -5,7 +5,7 @@ import framework.framework;
 import game.common;
 import gui.guiobject;
 
-class GuiConsole : GuiObject {
+class GuiConsole : GuiObjectOwnerDrawn {
     Console console;
 
     override bool canHaveFocus() {
@@ -32,17 +32,16 @@ class GuiConsole : GuiObject {
     }
 
     void draw(Canvas canvas) {
-        if (console)
-            console.frame(canvas);
+        console.frame(canvas);
+    }
+
+    void relayout() {
+        console.height = size.y/2;
     }
 
     override protected bool onKeyPress(char[] bind, KeyInfo key) {
         if (console.visible && globals.cmdLine.keyPress(key))
             return true;
         return false;
-    }
-
-    void resize() {
-        size = scene.size;
     }
 }

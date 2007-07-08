@@ -20,17 +20,15 @@ class GameView : GuiObject {
         return true;
     }
 
+    override void relayout() {
+        mGameSceneView.pos = bounds.p1;
+        mGameSceneView.size = size;
+    }
+
     this(ClientGameEngine engine) {
         mEngine = engine;
         mGameSceneView = new SceneView();
-    }
-
-    override protected void onChangeScene(bool activeness) {
-        mGameSceneView.setScene(scene, zorder, active);
-        if (scene) {
-            mGameSceneView.pos = Vector2i(0, 0);
-        }
-        super.onChangeScene(activeness);
+        addManagedSceneObject(mGameSceneView);
     }
 
     SceneView view() {
@@ -49,15 +47,6 @@ class GameView : GuiObject {
 
     void gamescene(Scene s) {
         mGameSceneView.clientscene = s;
-    }
-
-    void draw(Canvas canvas) {
-        //
-    }
-
-    void resize() {
-        mGameSceneView.size = scene.size;
-        size = mGameSceneView.size;
     }
 
     override protected bool onKeyDown(char[] bind, KeyInfo key) {

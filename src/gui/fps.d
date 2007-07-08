@@ -13,18 +13,15 @@ class GuiFps : GuiObject {
 
     this() {
         fpsDisplay = new FontLabel(globals.framework.getFont("fpsfont"));
+        addManagedSceneObject(fpsDisplay);
     }
 
-    override protected void onChangeScene(bool activeness) {
-        fpsDisplay.setScene(scene, zorder, active);
+    override void relayout() {
+        //?
     }
 
-    void simulate(Time curTime, Time deltaT) {
+    override void simulate(Time curTime, Time deltaT) {
         fpsDisplay.text = format("FPS: %1.2f", globals.framework.FPS);
         fpsDisplay.pos = (fpsDisplay.scene.size - fpsDisplay.size).X;
-    }
-
-    void draw(Canvas canvas) {
-        //
     }
 }

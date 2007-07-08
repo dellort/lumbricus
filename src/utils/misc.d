@@ -20,6 +20,16 @@ public void swap(T)(inout T a, inout T b) {
     b = t;
 }
 
+/// Cast object in t to type T, and throw exception if not possible.
+/// Only return null if t was already null.
+T castStrict(T : Object)(Object t) {
+    T res = cast(T)t;
+    if (t && !res) {
+        throw new Exception("could not cast");
+    }
+    return res;
+}
+
 float realmod(float a, float b) {
     return cmath.fmodf(cmath.fmodf(a, b) + b, b);
 }

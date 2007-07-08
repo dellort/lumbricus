@@ -1,8 +1,13 @@
 module gui.gameframe;
-import gui.guiframe;
+import gui.frame;
 import gui.gui;
 import gui.guiobject;
 import gui.loadingscreen;
+import gui.gametimer;
+import gui.windmeter;
+import gui.preparedisplay;
+import gui.messageviewer;
+import gui.layout;
 import game.common;
 import game.scene;
 import game.game;
@@ -10,31 +15,36 @@ import game.visual;
 import game.clientengine;
 import game.loader;
 import game.loader_game;
+import gui.gameview;
 import framework.commandline : CommandBucket, Command;
 import utils.mybox;
 import utils.output;
+import utils.time;
+import utils.vector2;
+import levelgen.generator;
+import genlevel = levelgen.generator;
+import utils.configfile;
 
 //xxx include so that module constructors (static this) are actually called
 import game.projectile;
 import game.special_weapon;
 
-//GameGui: hack for loader_game.d, make GuiFrame methods accessable
-class GameFrame : GuiFrame, GameGui {
+class GameFrame : GuiFrame {
     GameEngine thegame;
     ClientGameEngine clientengine;
     /*private*/ GameLoader mGameLoader;
+    /+private+/ GameConfig mGameConfig;
     private LoadingScreen mLoadScreen;
+    private bool mGameGuiOpened;
+    private GuiLayouterAlign mLayoutAlign;
+    private GuiLayouterNull mLayoutClient;
+
+    //temporary between constructor and loadConfig...
+    private LevelGeometry mGeo;
 
     private CommandBucket mCmds;
 
-    //strange? complains about not implemented fpr GameGui, even happens if
-    //GameFrame methods are public; maybe compiler bug
-    public void addGui(GuiObject obj) {
-        super.addGui(obj);
-    }
-    public void killGui() {
-        super.killGui();
-    }
+    GameView gameView;
 
     bool gamePaused() {
         return thegame.gameTime.paused;
@@ -44,20 +54,26 @@ class GameFrame : GuiFrame, GameGui {
         clientengine.engineTime.paused = set;
     }
 
-    this(GuiMain gui) {
-        super(gui);
+    this(LevelGeometry geo = null) {
+        mGeo = geo;
+
+        virtualFrame = true;
 
         mCmds = new CommandBucket();
         registerCommands();
         mCmds.bind(globals.cmdLine);
 
         mLoadScreen = new LoadingScreen();
-        addGui(mLoadScreen);
+        //meh...
+        auto lay = new GuiLayouterNull();
+        lay.frame = this;
+        addLayouter(lay);
+        lay.add(mLoadScreen);
 
-        mLoadScreen.active = false;
         mLoadScreen.zorder = GUIZOrder.Loading;
 
-        mGameLoader = new GameLoader(globals.anyConfig.getSubNode("newgame"), this);
+        mGameLoader = new GameLoader(globals.anyConfig.getSubNode("newgame"),
+            this);
         mGameLoader.onFinish = &gameLoaded;
         mGameLoader.onUnload = &gameUnloaded;
 
@@ -65,25 +81,141 @@ class GameFrame : GuiFrame, GameGui {
         mLoadScreen.startLoad(mGameLoader);
     }
 
-    private void gameLoaded(Loader sender) {
-        thegame = mGameLoader.thegame;
+    bool unloadGame() {
+        //log("unloadGame");
+        if (thegame) {
+            thegame.kill();
+            thegame = null;
+        }
+        if (clientengine) {
+            clientengine.kill();
+            clientengine = null;
+        }
+
+        return true;
+    }
+
+    bool initGameEngine() {
+        //log("initGameEngine");
+        thegame = new GameEngine(mGameConfig);
+
+        return true;
+    }
+
+    bool initClientEngine() {
+        //log("initClientEngine");
+        clientengine = new ClientGameEngine(thegame);
+
+        return true;
+    }
+
+    bool loadConfig() {
+        auto mConfig = mGameLoader.mConfig;
+        //log("loadConfig");
+        auto x = new genlevel.LevelGenerator();
+        GameConfig cfg;
+        //hack: ignore what's in the configfile and generate a random level
+        //      with the geometry from the previewer...
+        //old behaviour still works with geo==null
+        bool load = mConfig.selectValueFrom("level", ["generate", "load"]) == 1;
+        if (!mGeo && load) {
+            cfg.level =
+                x.renderSavedLevel(globals.loadConfig(mConfig["level_load"]));
+        } else {
+            genlevel.LevelTemplate templ =
+                x.findRandomTemplate(mConfig["level_template"]);
+            genlevel.LevelTheme gfx = x.findRandomGfx(mConfig["level_gfx"]);
+
+            //be so friendly and save it
+            ConfigNode saveto = new ConfigNode();
+            cfg.level = x.renderLevelGeometry(templ, mGeo, gfx, saveto);
+            saveConfig(saveto, "lastlevel.conf");
+        }
+        auto teamconf = globals.loadConfig("teams");
+        cfg.teams = teamconf.getSubNode("teams");
+
+        auto gamemodecfg = globals.loadConfig("gamemode");
+        auto modes = gamemodecfg.getSubNode("modes");
+        cfg.gamemode = modes.getSubNode(
+            mConfig.getStringValue("gamemode",""));
+        cfg.weapons = gamemodecfg.getSubNode("weapon_sets");
+
+        mGameConfig = cfg;
+
+        return true;
+    }
+
+    bool initializeGameGui() {
+        //log("initializeGameGui");
+        mGameGuiOpened = true;
+
+        mLayoutAlign = new GuiLayouterAlign();
+        addLayouter(mLayoutAlign);
+        mLayoutClient = new GuiLayouterNull();
+        addLayouter(mLayoutClient);
+
+        mLayoutAlign.add(new WindMeter(clientengine), 1, 1, Vector2i(10, 10));
+        mLayoutAlign.add(new GameTimer(clientengine), -1, 1, Vector2i(5,5));
+
+        mLayoutClient.add(new PrepareDisplay(clientengine));
+        auto msg = new MessageViewer();
+        mLayoutClient.add(msg);
+
+        thegame.controller.messageCb = &msg.addMessage;
+        thegame.controller.messageIdleCb = &msg.idle;
+
+        gameView = new GameView(clientengine);
+        gameView.zorder = GUIZOrder.Game;
+        gameView.loadBindings(globals.loadConfig("wormbinds")
+            .getSubNode("binds"));
+        mLayoutClient.add(gameView);
+        //gameView.zorder = GUIZOrder.Game;
+
+        gameView.controller = thegame.controller;
+        gameView.gamescene = clientengine.scene;
+
+        //start at level center
+        gameView.view.scrollCenterOn(thegame.gamelevel.offset
+            + thegame.gamelevel.size/2, true);
+
+        return true;
+    }
+
+    bool unloadGui() {
+        //log("unloadGui");
+        if (mGameGuiOpened) {
+            assert(gameView !is null);
+            gameView.gamescene = null;
+            gameView.controller = null;
+            remove();
+            gameView = null;
+
+            mGameGuiOpened = false;
+        }
+
+        return true;
+    }
+
+    void gameLoaded(Loader sender) {
+        //thegame = mGameLoader.thegame;
         thegame.gameTime.resetTime;
         //yyy?? resetTime();
         globals.gameTimeAnimations.resetTime(); //yyy
-        clientengine = mGameLoader.clientengine;
+        //clientengine = mGameLoader.clientengine;
     }
-    private void gameUnloaded(Loader sender) {
+    void gameUnloaded(Loader sender) {
         thegame = null;
         clientengine = null;
     }
 
-    protected void kill() {
+    //xxx: rethink
+    protected void remove() {
         mGameLoader.unload();
         mCmds.kill();
-        super.kill();
+        super.remove();
     }
 
-    void onFrame(Canvas c) {
+    void simulate(Time curTime, Time deltaT) {
         if (mGameLoader.fullyLoaded) {
             globals.gameTimeAnimations.update();
 
@@ -99,7 +231,7 @@ class GameFrame : GuiFrame, GameGui {
         if (!mLoadScreen.loading)
             //xxx can't deactivate this from delegate because it would crash
             //the list
-            mLoadScreen.active = false;
+            mLoadScreen.remove();
     }
 
     //game specific commands
@@ -112,11 +244,15 @@ class GameFrame : GuiFrame, GameGui {
             "disable game camera"));
         mCmds.register(Command("detail", &cmdDetail,
             "switch detail level", ["int?:detail level (if not given: cycle)"]));
+        mCmds.register(Command("slow", &cmdSlow, "set slowdown",
+            ["float:slow down",
+             "text?:ani or game"]));
+        mCmds.register(Command("pause", &cmdPause, "pause"));
     }
 
     private void cmdCameraDisable(MyBox[] args, Output write) {
-        if (mGameLoader.gameView)
-            mGameLoader.gameView.view.setCameraFocus(null);
+        if (gameView)
+            gameView.view.setCameraFocus(null);
     }
 
     private void cmdDetail(MyBox[] args, Output write) {
@@ -133,5 +269,29 @@ class GameFrame : GuiFrame, GameGui {
 
     private void cmdRaiseWater(MyBox[] args, Output write) {
         thegame.raiseWater(args[0].unbox!(int)());
+    }
+
+    //slow time <whatever>
+    //whatever can be "game", "ani" or left out
+    private void cmdSlow(MyBox[] args, Output write) {
+        bool setgame, setani;
+        switch (args[1].unboxMaybe!(char[])) {
+            case "game": setgame = true; break;
+            case "ani": setani = true; break;
+            default:
+                setgame = setani = true;
+        }
+        float val = args[0].unbox!(float);
+        float g = setgame ? val : thegame.gameTime.slowDown;
+        float a = setani ? val : globals.gameTimeAnimations.slowDown;
+        write.writefln("set slowdown: game=%s animations=%s", g, a);
+        thegame.gameTime.slowDown = g;
+        clientengine.engineTime.slowDown = g;
+        globals.gameTimeAnimations.slowDown = a;
+    }
+
+    private void cmdPause(MyBox[], Output) {
+        gamePaused = !gamePaused;
+        globals.gameTimeAnimations.paused = !globals.gameTimeAnimations.paused;
     }
 }

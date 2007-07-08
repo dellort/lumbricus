@@ -56,6 +56,7 @@ class Scene {
     }
 }
 
+/+
 //virtual scene that merges two or more real (no recursion, sorry) scenes
 //into one on-the-fly without any copying
 class MetaScene : Scene {
@@ -84,6 +85,24 @@ class MetaScene : Scene {
         return 0;
     }
 }
+
+//like metascene, but draw the single scenes in the order of that array
+//especially earlier scenes always have a lower zorder than later ones
+class FunnyScene : Scene {
+    Scene[] subScenes;
+
+    int opApply(int delegate(inout SceneObject obj, inout int zorder) del) {
+        foreach (s; subScenes) {
+            foreach (obj, z; s) {
+                int res = del(obj, z);
+                if (res)
+                    return res;
+            }
+        }
+        return 0;
+    }
+}
++/
 
 enum CameraStyle {
     Reset,  //disable camera
@@ -389,7 +408,7 @@ class SceneObject {
 
         if (mActive) {
             mScene.mActiveObjectsZOrdered[mZOrder].remove(this);
-            mScene.mActiveObjectsZOrdered[z].insert_head(this);
+            mScene.mActiveObjectsZOrdered[z].insert_tail(this);
         }
 
         mZOrder = z;
@@ -412,7 +431,7 @@ class SceneObject {
         }
 
         if (set) {
-            mScene.mActiveObjectsZOrdered[mZOrder].insert_head(this);
+            mScene.mActiveObjectsZOrdered[mZOrder].insert_tail(this);
             mScene.mActiveObjects.insert_head(this);
         } else {
             mScene.mActiveObjectsZOrdered[mZOrder].remove(this);
@@ -428,6 +447,16 @@ class SceneObject {
         scene = s;
         zorder = z;
         active = aactive;
+    }
+
+    //make tail in zorder-list this object is in (so it's drawn last)
+    //xxx: can mess up code iterating over the SceneObject list
+    void toTop() {
+        if (mScene && mActive) {
+            //remove and insert again => new tail for its zorder list
+            active = false;
+            active = true;
+        }
     }
 
     void draw(Canvas canvas) {

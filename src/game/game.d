@@ -476,7 +476,7 @@ class GameEngine {
         }
 
         if ((mGameTime.current - blubber).secs >= 1) {
-            gDefaultLog("blubb: %s", eventCount);
+            //gDefaultLog("blubb: %s", eventCount);
             blubber = mGameTime.current;
             eventCount = 0;
         }

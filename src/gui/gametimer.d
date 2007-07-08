@@ -19,16 +19,13 @@ class GameTimer : GuiObject {
         mEngine = engine;
         mTimeView = new FontLabelBoxed(globals.framework.fontManager.loadFont("time"));
         mTimeView.border = Vector2i(7, 5);
-        size = mTimeView.size;
 
         mLastTime = timeCurrentTime();
+
+        addManagedSceneObject(mTimeView);
     }
 
-    override protected void onChangeScene(bool activeness) {
-        mTimeView.setScene(scene, zorder, active);
-    }
-
-    void draw(Canvas canvas) {
+    void simulate(Time curTime, Time deltaT) {
         if (mEngine) {
             auto controller = mEngine.mEngine.controller;
             if (controller.currentRoundState() == RoundState.prepare
@@ -47,9 +44,11 @@ class GameTimer : GuiObject {
         }
     }
 
-    void resize() {
-        //xxx self-managed position (someone said gui-layouter...)
-        pos = scene.size.Y - size.Y - Vector2i(-20,20);
-        mTimeView.pos = pos;
+    void relayout() {
+        mTimeView.pos = bounds.p1;
+    }
+
+    override void getLayoutConstraints(out LayoutConstraints lc) {
+        lc.minSize = mTimeView.size;
     }
 }

@@ -11,7 +11,7 @@ import utils.misc;
 import utils.time;
 import utils.queue;
 
-private class MessageViewer : GuiObject {
+private class MessageViewer : GuiObjectOwnerDrawn {
     private Queue!(char[]) mMessages;
     private char[] mCurrentMessage;
     private Font mFont;
@@ -96,7 +96,7 @@ private class MessageViewer : GuiObject {
 
     void draw(Canvas canvas) {
         if (mPhase == 1 || mPhase == 2 || mPhase == 3) {
-            auto org = scene.size.X / 2 - (mMessageSize+cMessageBorders*2).X / 2;
+            auto org = size.X / 2 - (mMessageSize+cMessageBorders*2).X / 2;
             org.y += cast(int)mMessagePos;
             drawBox(canvas, org, mMessageSize+cMessageBorders*2);
             mFont.drawText(canvas, org+cMessageBorders, mCurrentMessage);

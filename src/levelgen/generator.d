@@ -381,6 +381,14 @@ public class LevelGenerator {
     public Level renderLevel(LevelTemplate level_templ, LevelTheme gfx,
         ConfigNode saveto = null)
     {
+        return renderLevelGeometry(level_templ, null, gfx, saveto);
+    }
+
+    /// like renderLevel(), but the geometry was already generated and is in g.
+    /// if g id null, generate it from level_templ
+    public Level renderLevelGeometry(LevelTemplate level_templ, LevelGeometry g,
+        LevelTheme gfx, ConfigNode saveto = null)
+    {
         assert(level_templ !is null);
         assert(gfx !is null);
         mLog("generating level... template='%s', gfx='%s'",
@@ -388,7 +396,7 @@ public class LevelGenerator {
 
         //actual rendering etc. goes on here
         auto renderer = new LevelBitmap(level_templ.size);
-        auto gen = level_templ.generate();
+        auto gen = g ? g : level_templ.generate();
         doRenderGeometry(renderer, gen, gfx);
         auto objects = doPlaceObjects(renderer, level_templ, gfx);
 

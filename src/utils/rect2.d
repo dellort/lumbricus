@@ -117,3 +117,4 @@ public struct Rect2(T) {
 }
 
 alias Rect2!(int) Rect2i;
+alias Rect2!(float) Rect2f;

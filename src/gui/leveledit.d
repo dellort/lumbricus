@@ -6,11 +6,11 @@ import utils.mylist;
 import utils.mybox;
 import framework.commandline;
 import framework.framework;
-import framework.keysyms;
+import framework.event;
 import game.scene;
 import game.common;
 import gui.guiobject;
-import gui.guiframe;
+import gui.frame;
 import utils.log;
 import utils.configfile;
 import levelgen.level;
@@ -475,7 +475,7 @@ public class LevelEditor : GuiFrame {
     void delegate(Rect2i) onSelect;
 
     //pseudo object for input and drawing
-    class RenderEditor : GuiObject {
+    class RenderEditor : GuiObjectOwnerDrawn {
         LevelEditor editor;
         this (LevelEditor e) {
             editor = e;
@@ -694,14 +694,12 @@ public class LevelEditor : GuiFrame {
         root.add(tmp);
     }
 
-    this(GuiMain gui) {
-        super(gui);
-
+    this() {
         root = new EditRoot();
         render = new RenderEditor(this);
-        render.size = Vector2i(3000,1000);
 
-        addGui(render);
+        add(render);
+        render.bounds = Rect2i(0, 0, 2000, 700);
 
         newPolyAt(Rect2i(100, 100, 500, 500));
 
@@ -711,9 +709,9 @@ public class LevelEditor : GuiFrame {
         commands.bind(globals.cmdLine);
     }
 
-    override void kill() {
+    override void remove() {
         commands.kill();
-        super.kill();
+        super.remove();
     }
 
     void insertPoint() {

@@ -12,9 +12,11 @@ import gui.gui;
 import gui.guiobject;
 import gui.leveledit;
 import gui.fps;
-import gui.guiframe;
+import gui.frame;
+import gui.test;
 import gui.gameframe;
 import gui.console;
+import gui.preview;
 import game.common;
 import utils.time;
 import utils.configfile;
@@ -47,10 +49,13 @@ private:
 
         mGui = new GuiMain(globals.framework.screen.size);
 
-        mGui.add(new GuiFps(), GUIZOrder.FPS);
+        auto fps = new GuiFps();
+        fps.zorder = GUIZOrder.FPS;
+        mGui.mainFrame.add(fps);
 
         mGuiConsole = new GuiConsole();
-        mGui.add(mGuiConsole, GUIZOrder.Console);
+        mGuiConsole.zorder = GUIZOrder.Console;
+        mGui.mainFrame.add(mGuiConsole);
 
         initConsole();
 
@@ -70,7 +75,10 @@ private:
         keybindings.loadFrom(globals.loadConfig("binds").getSubNode("binds"));
 
         //load a new game
-        newGame();
+        //newGame();
+
+        //mGui.mainFrame.add(new TestFrame());
+        mGui.mainFrame.add(new LevelPreviewer());
     }
 
     private void initConsole() {
@@ -99,12 +107,8 @@ private:
             "int:height",
             "int?=0:depth (bits)"]);
         globals.cmdLine.registerCommand("fullscreen", &cmdFS, "toggle fs");
-        globals.cmdLine.registerCommand("pause", &cmdPause, "pause");
         globals.cmdLine.registerCommand("stop", &cmdStop, "stop editor/game");
         globals.cmdLine.registerCommand("editor", &cmdLevelEdit, "hm");
-        globals.cmdLine.registerCommand("slow", &cmdSlow, "set slowdown", [
-            "float:slow down",
-            "text?:ani or game"]);
         globals.cmdLine.registerCommand("framerate", &cmdFramerate,
             "set fixed framerate");
     }
@@ -115,7 +119,7 @@ private:
 
     void killFrame() {
         if (mCurrentFrame) {
-            mCurrentFrame.kill();
+            mCurrentFrame.remove();
             mCurrentFrame = null;
             mGameFrame = null;
         }
@@ -127,7 +131,29 @@ private:
 
     private void cmdLevelEdit(MyBox[] args, Output write) {
         killFrame();
-        mCurrentFrame = new LevelEditor(mGui);
+        mCurrentFrame = new LevelEditor();
+        mCurrentFrame.parent = mGui.mainFrame;
+    }
+
+    private void cmdGenerateLevel(MyBox[] args, Output write) {
+        newGame();
+    }
+
+    private void newGame() {
+        //doesn't work from the preview: the preview creates a new frame, which
+        //we don't know, so we can't destroy the old game; two games will run
+        assert(false);
+        killFrame();
+        mCurrentFrame = mGameFrame = new GameFrame();
+        mCurrentFrame.parent = mGui.mainFrame;
+    }
+
+    private void initTimes() {
+        resetTime();
+    }
+
+    void resetTime() {
+        globals.gameTimeAnimations.resetTime();
     }
 
     private void onVideoInit(bool depth_only) {
@@ -277,53 +303,7 @@ private:
         w.writefln("pageblocks = %s", s.pageblocks);
     }
 
-    private void cmdGenerateLevel(MyBox[] args, Output write) {
-        newGame();
-    }
-
-    private void newGame() {
-        killFrame();
-        mCurrentFrame = mGameFrame = new GameFrame(mGui);
-    }
-
-    private void cmdPause(MyBox[], Output) {
-        if (mGameFrame)
-            mGameFrame.gamePaused = !mGameFrame.gamePaused;
-        globals.gameTimeAnimations.paused = !globals.gameTimeAnimations.paused;
-    }
-
-    //slow time <whatever>
-    //whatever can be "game", "ani" or left out
-    private void cmdSlow(MyBox[] args, Output write) {
-        bool setgame, setani;
-        switch (args[1].unbox!(char[])) {
-            case "game": setgame = true; break;
-            case "ani": setani = true; break;
-            default:
-                setgame = setani = true;
-        }
-        float val = args[0].unbox!(float);
-        float g = setgame ? val : mGameFrame.thegame.gameTime.slowDown;
-        float a = setani ? val : globals.gameTimeAnimations.slowDown;
-        write.writefln("set slowdown: game=%s animations=%s", g, a);
-        mGameFrame.thegame.gameTime.slowDown = g;
-        mGameFrame.clientengine.engineTime.slowDown = g;
-        globals.gameTimeAnimations.slowDown = a;
-    }
-
-    private void initTimes() {
-        resetTime();
-    }
-
-    void resetTime() {
-        globals.gameTimeAnimations.resetTime();
-    }
-
     private void onFrame(Canvas c) {
-        if (mCurrentFrame) {
-            mCurrentFrame.onFrame(c);
-        }
-
         mGui.doFrame(timeCurrentTime());
 
         mGui.draw(c);

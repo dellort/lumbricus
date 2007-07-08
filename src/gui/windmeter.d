@@ -10,7 +10,7 @@ import utils.configfile;
 import utils.time;
 import utils.vector2;
 
-class WindMeter : GuiObject {
+class WindMeter : GuiObjectOwnerDrawn {
     private ClientGameEngine mEngine;
     private Vector2i mSize;
     private Texture mBackgroundTex;
@@ -54,6 +54,7 @@ class WindMeter : GuiObject {
     }
 
     void draw(Canvas canvas) {
+        auto pos = bounds.p1;
         if (mEngine) {
             canvas.draw(mBackgroundTex, pos);
             float wspeed = mEngine.windSpeed;
@@ -67,11 +68,7 @@ class WindMeter : GuiObject {
         }
     }
 
-    Vector2i size() {
-        return mSize;
-    }
-
-    void resize() {
-        pos = scene.size - size - Vector2i(5,5);
+    override void getLayoutConstraints(out LayoutConstraints lc) {
+        lc.minSize = mSize;
     }
 }

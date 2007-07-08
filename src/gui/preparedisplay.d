@@ -22,16 +22,13 @@ class PrepareDisplay : GuiObject {
         tr = new Translator("gui_prepare");
         mPrepareView = new FontLabelBoxed(globals.framework.fontManager.loadFont("messages"));
         mPrepareView.border = Vector2i(7, 5);
-        size = mPrepareView.size;
 
         mLastTime = timeCurrentTime();
+
+        addManagedSceneObject(mPrepareView);
     }
 
-    override protected void onChangeScene(bool activeness) {
-        mPrepareView.setScene(scene, zorder, active);
-    }
-
-    void draw(Canvas canvas) {
+    void simulate(Time curTime, Time deltaT) {
         Time cur = timeCurrentTime();
         auto controller = mEngine ? mEngine.mEngine.controller : null;
         if (controller && controller.currentRoundState() == RoundState.prepare) {
@@ -49,17 +46,16 @@ class PrepareDisplay : GuiObject {
             mPrepareView.active = false;
         }
 
-        size = mPrepareView.size;
-        pos.x = scene.size.x/2 - size.x/2;
-        mPrepareView.pos = pos;
+        mPrepareView.pos.x = size.x/2 - mPrepareView.size.x/2;
+        mPrepareView.pos.y = 40;
 
         //animation stuff here
 
         mLastTime = cur;
     }
 
-    void resize() {
+    void relayout() {
         //xxx self-managed position (someone said gui-layouter...)
-        pos.y = 40;
+        //pos.y = 40;
     }
 }

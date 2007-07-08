@@ -2,7 +2,7 @@ module framework.commandline;
 
 import framework.console;
 import framework.framework;
-import framework.keysyms;
+import framework.event;
 
 import str = std.string;
 import utf = std.utf;

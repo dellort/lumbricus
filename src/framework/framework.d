@@ -2,7 +2,7 @@ module framework.framework;
 
 import std.stream;
 public import utils.vector2;
-import framework.keysyms;
+public import framework.event;
 import utils.time;
 import framework.font;
 import conv = std.conv;
@@ -279,60 +279,6 @@ public class Canvas {
     }
 }
 
-public enum Modifier {
-    Alt,
-    Control,
-    Shift,
-    //we don't consider Numlock to be a modifier anymore
-    //instead, the keyboard driver is supposed to deliver different keycodes
-    //for the numpad-keys, when numlock is toggled
-    //Numlock,
-}
-
-/// Where mod is a Modifier and modifierset is a ModifierSet:
-/// bool modifier_active = !!((1<<mod) & modifierset)
-/// ("!!" means convert to bool)
-public typedef uint ModifierSet;
-
-public bool modifierIsSet(ModifierSet s, Modifier m) {
-    return !!((1<<m) & s);
-}
-public void modifierSet(inout ModifierSet s, Modifier m) {
-    s |= (1<<m);
-}
-public void foreachSetModifier(ModifierSet s, void delegate(Modifier m) cb) {
-    for (Modifier m = Modifier.min; m <= Modifier.max; m++) {
-        if (modifierIsSet(s, m)) cb(m);
-    }
-}
-
-/// Information about a key press
-public struct KeyInfo {
-    Keycode code;
-    /// Fully translated according to system keymap and modifiers
-    dchar unicode = '\0';
-    /// set of active modifiers when event was fired
-    ModifierSet mods;
-
-    bool isPrintable() {
-        return unicode >= 0x20;
-    }
-    bool isMouseButton() {
-        return code >= cKeycodeMouseStart && code <= cKeycodeMouseEnd;
-    }
-
-    char[] toString() {
-        return str.format("[KeyInfo: code=%d mods=%d ch='%s'",
-            cast(int)code, cast(int)mods,
-            cast(dchar)(isPrintable ? unicode : '?'));
-    }
-}
-
-public struct MouseInfo {
-    Vector2i pos;
-    Vector2i rel;
-}
-
 /// Contains event- and graphics-handling
 public class Framework {
     //contains keystate (key down/up) for each key; indexed by Keycode
@@ -573,7 +519,7 @@ public class Framework {
             case Modifier.Control:
                 return getKeyState(Keycode.RCTRL) || getKeyState(Keycode.LCTRL);
             case Modifier.Shift:
-	    	return getKeyState(Keycode.RSHIFT)
+                return getKeyState(Keycode.RSHIFT)
                     || getKeyState(Keycode.LSHIFT);
             default:
         }
@@ -599,7 +545,9 @@ public class Framework {
     }
 
     //called from framework implementation... relies on key repeat
-    protected void doKeyDown(in KeyInfo infos) {
+    protected void doKeyDown(KeyInfo infos) {
+        infos.type = KeyEventType.Down;
+
         bool was_down = getKeyState(infos.code);
 
         updateKeyState(infos, true);
@@ -616,18 +564,24 @@ public class Framework {
         }
 
         if (onKeyPress != null && mEnableEvents) {
+            infos.type = KeyEventType.Press;
             onKeyPress(infos);
         }
     }
 
     protected void doKeyUp(in KeyInfo infos) {
+        infos.type = KeyEventType.Up;
+
         updateKeyState(infos, false);
+
+        //xxx: huh? shouldn't that be done by the OS' window manager?
         if (infos.code == Keycode.F4 && getModifierState(Modifier.Alt)) {
             doTerminate();
         }
-        //if (!handleShortcuts(infos, false)) {
-            if (onKeyUp && mEnableEvents) onKeyUp(infos);
-        //}
+
+        if (onKeyUp && mEnableEvents) {
+            onKeyUp(infos);
+        }
     }
 
     //returns true if key is a mouse button

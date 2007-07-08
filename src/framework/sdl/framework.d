@@ -2,7 +2,7 @@ module framework.sdl.framework;
 
 import framework.framework;
 import framework.font;
-import framework.keysyms;
+import framework.event;
 import std.stream;
 import std.stdio;
 import std.string;

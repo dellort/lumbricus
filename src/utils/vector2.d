@@ -29,6 +29,10 @@ public struct Vector2(T) {
     public static Vector2 opCall(T both) {
         return Vector2(both, both);
     }
+    public static Vector2 opCall() {
+        Vector2 v;
+        return v;
+    }
 
     public static Vector2 fromPolar(T length, T angle) {
         return Vector2(cast(T)math.cos(angle), cast(T)math.sin(angle))*length;
@@ -42,8 +46,16 @@ public struct Vector2(T) {
     }
 
     //for floats only
-    bool isNaN() {
+    public bool isNaN() {
          return x != x || y != y;
+    }
+
+    public T opIndex(uint index) {
+        //is that kosher?
+        return ((&x1)[0..2])[index];
+    }
+    public void opIndexAssign(T val, uint index) {
+        ((&x1)[0..2])[index] = val;
     }
 
     public Vector2 opAdd(Vector2 v) {
@@ -191,6 +203,11 @@ public struct Vector2(T) {
         Vector2 tmp = other;
         other = *this;
         *this = tmp;
+    }
+
+    //don't ask
+    public T sum() {
+        return x1 + x2;
     }
 
     public char[] toString() {
