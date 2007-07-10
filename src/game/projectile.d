@@ -393,7 +393,7 @@ class ProjectileSpriteClass : GOSpriteClass {
 }
 
 class ProjectileEffector {
-    Time birthTime;
+    Time birthTime, startTime, delay;
     protected ProjectileSprite mParent;
     private ProjectileEffectorClass myclass;
     private bool mActive;
@@ -403,6 +403,10 @@ class ProjectileEffector {
         mParent = parent;
         myclass = type;
         birthTime = mParent.engine.gameTime.current;
+        if (myclass.randomDelay)
+            delay = timeMsecs(myclass.delay.msecs*genrand_real1());
+        else
+            delay = myclass.delay;
     }
 
     void active(bool ac) {
@@ -427,6 +431,10 @@ class ProjectileEffector {
 
     //do effect
     void simulate(float deltaT) {
+        if (mParent.engine.gameTime.current - birthTime >= delay) {
+            active = true;
+            startTime = mParent.engine.gameTime.current + delay;
+        }
         if (mParent.engine.gameTime.current > dietime) {
             die();
         }
@@ -439,10 +447,13 @@ class ProjectileEffector {
 }
 
 class ProjectileEffectorClass {
-    Time lifetime;
+    Time lifetime, delay;
+    bool randomDelay;
 
     this(ConfigNode node) {
         lifetime = timeSecs(node.getFloatValue("lifetime",0));
+        delay = timeSecs(node.getFloatValue("delay",0.0f));
+        randomDelay = node.getBoolValue("random_delay",false);
     }
 
     abstract ProjectileEffector createEffector(ProjectileSprite parent);
@@ -459,12 +470,11 @@ class ProjectileEffectorGravityCenter : ProjectileEffector {
         mGravForce.accel = myclass.gravity;
         mGravForce.radius = myclass.radius;
         mGravForce.pos = mParent.physics.pos;
-        active = true;
     }
 
     override void simulate(float deltaT) {
-        mGravForce.pos = mParent.physics.pos;
         super.simulate(deltaT);
+        mGravForce.pos = mParent.physics.pos;
     }
 
     override void activate(bool ac) {
@@ -500,20 +510,17 @@ class ProjectileEffectorHoming : ProjectileEffector {
     this(ProjectileSprite parent, ProjectileEffectorHomingClass type) {
         super(parent, type);
         myclass = type;
-        active = true;
     }
 
     override void simulate(float deltaT) {
+        super.simulate(deltaT);
         if (mActive) {
-            if (mParent.engine.gameTime.current - birthTime > myclass.delay) {
-                Vector2f totarget = mParent.target - mParent.physics.pos;
-                mParent.physics.velocity += totarget.normal*myclass.force*deltaT;
-                if (mParent.physics.velocity.length > myclass.maxvelocity) {
-                    mParent.physics.velocity.length = myclass.maxvelocity;
-                }
+            Vector2f totarget = mParent.target - mParent.physics.pos;
+            mParent.physics.velocity += totarget.normal*myclass.force*deltaT;
+            if (mParent.physics.velocity.length > myclass.maxvelocity) {
+                mParent.physics.velocity.length = myclass.maxvelocity;
             }
         }
-        super.simulate(deltaT);
     }
 
     override void activate(bool ac) {
@@ -524,13 +531,11 @@ class ProjectileEffectorHoming : ProjectileEffector {
 }
 
 class ProjectileEffectorHomingClass : ProjectileEffectorClass {
-    Time delay;
     float force;
     float maxvelocity;
 
     this(ConfigNode node) {
         super(node);
-        delay = timeSecs(node.getFloatValue("delay",1.0f));
         force = node.getIntValue("force",100);
         maxvelocity = node.getIntValue("max_velocity",500);
     }
@@ -547,47 +552,38 @@ class ProjectileEffectorHomingClass : ProjectileEffectorClass {
 class ProjectileEffectorExplode : ProjectileEffector {
     private ProjectileEffectorExplodeClass myclass;
     private Time mLast;
-    private Time mDelay;
 
     this(ProjectileSprite parent, ProjectileEffectorExplodeClass type) {
         super(parent, type);
         myclass = type;
-        active = true;
-        if (myclass.randomDelay)
-            mDelay = timeMsecs(myclass.delay.msecs*genrand_real1());
-        else
-            mDelay = myclass.delay;
-        mLast = birthTime + mDelay - myclass.interval;
     }
 
     override void simulate(float deltaT) {
+        super.simulate(deltaT);
         if (mActive) {
             if (mParent.engine.gameTime.current - mLast > myclass.interval) {
                 mLast += myclass.interval;
                 mParent.engine.explosionAt(mParent.physics.pos, myclass.damage);
             }
         }
-        super.simulate(deltaT);
     }
 
     override void activate(bool ac) {
-        /*if (ac) {
+        if (ac) {
+            mLast = birthTime + delay - myclass.interval;
         } else {
-        }*/
+        }
     }
 }
 
 class ProjectileEffectorExplodeClass : ProjectileEffectorClass {
-    Time delay, interval;
-    bool randomDelay;
+    Time interval;
     float damage;
 
     this(ConfigNode node) {
         super(node);
-        delay = timeSecs(node.getFloatValue("delay",0.0f));
         interval = timeSecs(node.getFloatValue("interval",1.0f));
         damage = node.getIntValue("damage",50);
-        randomDelay = node.getBoolValue("random_delay",false);
     }
 
     override ProjectileEffectorExplode createEffector(ProjectileSprite parent) {
