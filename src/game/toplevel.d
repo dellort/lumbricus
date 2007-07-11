@@ -9,14 +9,14 @@ import framework.commandline;
 import framework.i18n;
 import framework.timesource;
 import gui.gui;
-import gui.guiobject;
-import gui.leveledit;
+import gui.widget;
+//import game.gui.leveledit;
 import gui.fps;
-import gui.frame;
+import gui.container;
 import gui.test;
-import gui.gameframe;
+//import gui.gameframe;
+//import gui.preview;
 import gui.console;
-import gui.preview;
 import game.common;
 import utils.time;
 import utils.configfile;
@@ -35,8 +35,7 @@ private:
     GuiMain mGui;
     GuiConsole mGuiConsole;
 
-    GuiFrame mCurrentFrame;
-    GameFrame mGameFrame;
+    Container mCurrentFrame;
 
     //xxx move this to where-ever
     Translator localizedKeynames;
@@ -45,9 +44,9 @@ private:
     bool mKeyNameIt = false;
 
     public this() {
-        initTimes();
+        auto framework = getFramework();
 
-        mGui = new GuiMain(globals.framework.screen.size);
+        mGui = new GuiMain(framework.screen.size);
 
         auto fps = new GuiFps();
         fps.zorder = GUIZOrder.FPS;
@@ -59,12 +58,12 @@ private:
 
         initConsole();
 
-        globals.framework.onFrame = &onFrame;
-        globals.framework.onKeyPress = &onKeyPress;
-        globals.framework.onKeyDown = &onKeyDown;
-        globals.framework.onKeyUp = &onKeyUp;
-        globals.framework.onMouseMove = &onMouseMove;
-        globals.framework.onVideoInit = &onVideoInit;
+        framework.onFrame = &onFrame;
+        framework.onKeyPress = &onKeyPress;
+        framework.onKeyDown = &onKeyDown;
+        framework.onKeyUp = &onKeyUp;
+        framework.onMouseMove = &onMouseMove;
+        framework.onVideoInit = &onVideoInit;
 
         //do it yourself... (initial event)
         onVideoInit(false);
@@ -77,8 +76,9 @@ private:
         //load a new game
         //newGame();
 
-        //mGui.mainFrame.add(new TestFrame());
-        mGui.mainFrame.add(new LevelPreviewer());
+        mGui.mainFrame.add(new TestFrame());
+        //mGui.mainFrame.add(new LevelPreviewer());
+        //mGui.mainFrame.add(new GameFrame());
     }
 
     private void initConsole() {
@@ -121,7 +121,6 @@ private:
         if (mCurrentFrame) {
             mCurrentFrame.remove();
             mCurrentFrame = null;
-            mGameFrame = null;
         }
     }
 
@@ -130,9 +129,10 @@ private:
     }
 
     private void cmdLevelEdit(MyBox[] args, Output write) {
-        killFrame();
-        mCurrentFrame = new LevelEditor();
-        mCurrentFrame.parent = mGui.mainFrame;
+        assert(false);
+        //killFrame();
+        //mCurrentFrame = new LevelEditor();
+        //mCurrentFrame.parent = mGui.mainFrame;
     }
 
     private void cmdGenerateLevel(MyBox[] args, Output write) {
@@ -143,17 +143,9 @@ private:
         //doesn't work from the preview: the preview creates a new frame, which
         //we don't know, so we can't destroy the old game; two games will run
         assert(false);
-        killFrame();
+        /*killFrame();
         mCurrentFrame = mGameFrame = new GameFrame();
-        mCurrentFrame.parent = mGui.mainFrame;
-    }
-
-    private void initTimes() {
-        resetTime();
-    }
-
-    void resetTime() {
-        globals.gameTimeAnimations.resetTime();
+        mCurrentFrame.parent = mGui.mainFrame;*/
     }
 
     private void onVideoInit(bool depth_only) {
@@ -275,7 +267,7 @@ private:
     }
 
     private void killShortcut(MyBox[], Output) {
-        globals.framework.terminate();
+        getFramework().terminate();
     }
 
     private void testGC(MyBox[] args, Output write) {

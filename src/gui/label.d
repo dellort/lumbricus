@@ -1,6 +1,6 @@
 module gui.label;
 
-import gui.guiobject;
+import gui.widget;
 import game.common;
 import game.scene;
 import game.visual;
@@ -16,8 +16,8 @@ class GuiLabel : GuiObjectOwnerDrawn {
 
     bool drawBorder;
 
-    override void getLayoutConstraints(out LayoutConstraints lc) {
-        lc.minSize = mFont.textSize(mText) + border * 2;
+    override Vector2i layoutSizeRequest() {
+        return mFont.textSize(mText) + border * 2;
     }
 
     void text(char[] txt) {
@@ -45,8 +45,8 @@ class GuiLabel : GuiObjectOwnerDrawn {
 
     override void draw(Canvas canvas) {
         if (drawBorder) {
-            drawBox(canvas, bounds.p1, size);
+            drawBox(canvas, Vector2i(0), size);
         }
-        mFont.drawText(canvas, bounds.p1+mBorder, mText);
+        mFont.drawText(canvas, mBorder, mText);
     }
 }

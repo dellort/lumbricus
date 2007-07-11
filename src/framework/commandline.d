@@ -9,7 +9,7 @@ import utf = std.utf;
 
 import utils.mylist;
 import utils.mybox;
-import utils.misc;
+import utils.array;
 import utils.output;
 import utils.strparser;
 

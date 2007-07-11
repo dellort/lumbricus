@@ -4,24 +4,24 @@ import framework.framework;
 import game.common;
 import game.scene;
 import game.visual;
-import gui.guiobject;
+import gui.widget;
 import std.string;
 import utils.time;
 
-class GuiFps : GuiObject {
+class GuiFps : Widget {
     FontLabel fpsDisplay;
 
     this() {
         fpsDisplay = new FontLabel(globals.framework.getFont("fpsfont"));
-        addManagedSceneObject(fpsDisplay);
+        scene.add(fpsDisplay);
     }
 
-    override void relayout() {
-        //?
+    override bool testMouse(Vector2i pos) {
+        return false;
     }
 
     override void simulate(Time curTime, Time deltaT) {
         fpsDisplay.text = format("FPS: %1.2f", globals.framework.FPS);
-        fpsDisplay.pos = (fpsDisplay.scene.size - fpsDisplay.size).X;
+        fpsDisplay.pos = (scene.size - fpsDisplay.size).X;
     }
 }

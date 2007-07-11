@@ -65,6 +65,8 @@ class Common {
         }
 
         gameTimeAnimations = new TimeSource(&framework.getCurrentTime);
+        //moved from toplevel.d
+        gameTimeAnimations.resetTime();
     }
 
     void setDefaultOutput(Output o) {

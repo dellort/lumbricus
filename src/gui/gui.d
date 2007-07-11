@@ -2,13 +2,11 @@ module gui.gui;
 
 import framework.console;
 import framework.framework;
-import framework.event;
+public import framework.event;
 import game.common;
-import game.game;
 import game.scene;
-import gui.guiobject;
-import gui.frame;
-import gui.layout;
+import gui.widget;
+import gui.container;
 import std.string;
 import utils.mylist;
 import utils.time;
@@ -37,14 +35,25 @@ class GuiMain {
     private Time mLastTime;
     private Vector2i mSize;
 
-    GuiFrame mainFrame() {
+    Container mainFrame() {
         return mMainFrame;
     }
 
-    private class MainFrame : GuiFrame {
+    private class MainFrame : SimpleContainer {
         override bool isTopLevel() {
             return true;
         }
+
+        protected override void requestedRelayout() {
+            super.requestedRelayout();
+            //propagate downwards again
+            internalLayoutAllocation(containedBounds);
+        }
+
+        void setSize(Vector2i size) {
+            internalLayoutAllocation(Rect2i(Vector2i(0), size));
+        }
+
         bool putKeyEvent(KeyInfo info) {
             if (info.isMouseButton) {
                 internalHandleMouseEvent(null, &info);
@@ -66,34 +75,20 @@ class GuiMain {
             return false;
         }
 
-        GuiLayouterNull layout;
-
         this() {
-            layout = new GuiLayouterNull();
-            addLayouter(layout);
-        }
-
-        //not particularly elegant; but this will make all added GuiObjects to
-        //be layouted such that they'll cover the whole screen
-        /+package+/ override void doAdd(GuiObject o) {
-            super.doAdd(o);
-            layout.add(o);
+            super();
         }
     }
 
     this(Vector2i size) {
         mLastTime = timeCurrentTime();
-
         mMainFrame = new MainFrame();
-        //??? can't harm
-        mMainFrame.stateChanged();
-
         this.size = size;
     }
 
     void size(Vector2i size) {
         mSize = size;
-        mMainFrame.bounds = Rect2i(Vector2i(0), size);
+        mMainFrame.setSize(mSize);
     }
     Vector2i size() {
         return mSize;
@@ -102,13 +97,13 @@ class GuiMain {
     void doFrame(Time curTime) {
         Time deltaT = curTime - mLastTime;
 
-        mMainFrame.doSimulate(curTime, deltaT);
+        mMainFrame.internalSimulate(curTime, deltaT);
 
         mLastTime = curTime;
     }
 
     void draw(Canvas canvas) {
-        mMainFrame.view.draw(canvas);
+        mMainFrame.scene.draw(canvas);
     }
 
     //distribute events to these EventSink things

@@ -3,7 +3,7 @@ module gui.console;
 import framework.console;
 import framework.framework;
 import game.common;
-import gui.guiobject;
+import gui.widget;
 
 class GuiConsole : GuiObjectOwnerDrawn {
     Console console;
@@ -25,6 +25,10 @@ class GuiConsole : GuiObjectOwnerDrawn {
         }
     }
 
+    override bool testMouse(Vector2i pos) {
+        return false;
+    }
+
     //xxx: maybe should register a callback on Console instead of requiring this
     void toggle() {
         console.toggle();
@@ -35,7 +39,7 @@ class GuiConsole : GuiObjectOwnerDrawn {
         console.frame(canvas);
     }
 
-    void relayout() {
+    override protected void onRelayout() {
         console.height = size.y/2;
     }
 
