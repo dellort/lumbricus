@@ -190,6 +190,11 @@ class Widget {
         return mLastRequestSize;
     }
 
+    //last requested size; might be invalid for the current state of the Widget
+    final Vector2i lastLayoutRequestSize() {
+        return mLastRequestSize;
+    }
+
     /// The parent container calls this if it relayouts its children.
     /// (ok, it's actually only called by this.internalSizeAllocation())
     protected void layoutSizeAllocation() {
@@ -243,15 +248,29 @@ class Widget {
     ///layoutSizeRequest(), or if any layouting parameter was changed
     /// immediate = if it should be relayouted on return of this function
     void needRelayout(bool immediate = false) {
-        requestedRelayout();
+        requestedRelayout(null);
+    }
+
+    ///like needRelayout(), but less strict
+    ///only_if_changed == only relayout if requested size changed
+    ///will do more work than needRelayout() if layoutSizeRequest() is expensive
+    void needResize(bool only_if_changed) {
+        if (only_if_changed && layoutSizeRequest() == mLastRequestSize) {
+            return;
+        }
+        needRelayout();
     }
 
     //call to make the parent container to relayouted its children
-    protected void requestedRelayout() {
+    //if this is a container, Widget can be the direct child for which the
+    //relayout was requested
+    protected void requestedRelayout(Widget child) {
+        //xxx: for containers, one could check if the child requests more than
+        //     its allocated size; if not, one only needs to reallocate this child
         //propagate upwards
         mLayouting = LayoutingPhase.Need;
         if (mParent) {
-            mParent.requestedRelayout();
+            mParent.requestedRelayout(this);
         }
     }
 
@@ -446,6 +465,8 @@ class Widget {
         class DebugDraw : SceneObject {
             override void draw(Canvas canvas) {
                 canvas.drawRect(Vector2i(0), size - Vector2i(1,1), Color(1,0,0));
+                //nasty trick to avoid overdrawing of the rect above
+                canvas.clip(Vector2i(1), size - Vector2i(1,1));
             }
         }
 

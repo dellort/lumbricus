@@ -130,7 +130,6 @@ void arrayInsertSortedTail(T)(inout T[] arr, T value,
 unittest {
     int[] testAIST(int[] arr, int v) {
         bool bla(int a, int b) { return a/2 <= b/2; }
-        assert(bla(3, 4));
         arrayInsertSortedTail(arr, v, &bla);
         return arr;
     }
@@ -145,6 +144,25 @@ unittest {
     assert(testAIST([1], 2) == [1,2]);
     assert(testAIST([2], 1) == [1,2]);
     assert(testAIST([], 1) == [1]);
+}
+
+//xxx: improve, this is unnecessarly unefficient!
+//someone said: steal it from
+//http://www.dsource.org/projects/tango/browser/trunk/tango/core/Array.d
+void arraySort(T)(inout T[] arr, bool delegate(T a, T b) pred) {
+    T[] narr;
+    foreach (inout x; arr) {
+        arrayInsertSortedTail(narr, x, pred);
+    }
+    arr = narr;
+}
+
+unittest {
+    int[] foo = [43,4,5,9,87,6,38,9,4,78,2,38,9,7,6,89,2,4,7];
+    int[] should = foo.dup;
+    should.sort;
+    arraySort(foo, (int a, int b) {return a <= b;});
+    assert(foo == should);
 }
 
 //utf-8 strings are arrays too

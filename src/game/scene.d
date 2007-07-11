@@ -101,6 +101,9 @@ class SceneObjectRect : SceneObject {
     final Vector2i size() {
         return mRect.size;
     }
+    final void size(Vector2i size) {
+        mRect.p2 = mRect.p1 + size;
+    }
 }
 
 class SceneObjectCentered : SceneObject {

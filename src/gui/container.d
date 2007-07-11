@@ -54,7 +54,7 @@ struct WidgetLayout {
 ///   void layoutDoAllocChild(PerWidget widget, Rect2i bounds);
 class Container : Widget {
     private {
-        PerWidget[] mWidgets; //sorted by z-order
+        PerWidget[] mWidgets; //sorted by order of insertion
         Widget mFocus; //local focus
         //only grows, wonder what happens if it overflows
         int mCurrentFocusAge;
@@ -62,6 +62,8 @@ class Container : Widget {
         bool mIsVirtualFrame;
         //only one element per child
         bool mIsBinFrame;
+
+        int mLastZOrder2;
     }
 
     //used to store container-specific per-widget data
@@ -74,6 +76,7 @@ class Container : Widget {
         private Container mContainer;
         private int mFocusAge;
         private int mZOrder;  //any value, higher means more on top
+        private int mZOrder2; //what was last clicked, argh
 
         WidgetLayout layout;
 
@@ -84,7 +87,7 @@ class Container : Widget {
             return mContainer;
         }
 
-        this (Container a_container, Widget a_child) {
+        this(Container a_container, Widget a_child) {
             assert(a_child !is null && a_container !is null);
             mChild = a_child;
             mContainer = a_container;
@@ -224,8 +227,8 @@ class Container : Widget {
         //in this form, it iterates at least 6 times or so over mWidgets
         //and even changes its size in two cases
         PerWidget w = findChild(child);
-        removeWidget(w);
-        insertWidget(w);
+        w.mZOrder2 = ++mLastZOrder2;
+        updateZFor(w);
     }
 
     void setChildZOrder(Widget child, int zorder) {
@@ -244,16 +247,28 @@ class Container : Widget {
     private void insertWidget(PerWidget w) {
         assert(arraySearch(mWidgets, w) < 0);
         //insert...
-        arrayInsertSortedTail(mWidgets, w,
+        mWidgets ~= w;
+        scene().add(w.child.scene);
+        updateZFor(w);
+    }
+    //null = update everything
+    private void updateZFor(PerWidget w) {
+        //ok, and since 20:16 today this even creates a new array to sort it
+        //argh.
+        PerWidget[] foo = mWidgets.dup;
+        arraySort(foo,
             (PerWidget w1, PerWidget w2) {
-                return w1.mZOrder <= w2.mZOrder;
+                if (w1 == w2) {
+                    return w1.mZOrder2 <= w2.mZOrder2;
+                } else {
+                    return w1.mZOrder <= w2.mZOrder;
+                }
             }
         );
-        //update Scene (in the rough way *g*, reason for that: the inserted
-        //element must have the correct zorder)
         Scene s = scene();
-        s.clear;
-        foreach (wuhu; mWidgets) {
+        foreach (wuhu; foo) {
+            //confusing, but correct: remove scene and add as tail (=> reorder)
+            s.remove(wuhu.child.scene);
             s.add(wuhu.child.scene);
         }
     }

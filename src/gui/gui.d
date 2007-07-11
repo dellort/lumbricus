@@ -44,8 +44,8 @@ class GuiMain {
             return true;
         }
 
-        protected override void requestedRelayout() {
-            super.requestedRelayout();
+        protected override void requestedRelayout(Widget c) {
+            super.requestedRelayout(c);
             //propagate downwards again
             internalLayoutAllocation(containedBounds);
         }

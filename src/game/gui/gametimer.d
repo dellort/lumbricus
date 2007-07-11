@@ -15,11 +15,15 @@ class GameTimer : Widget {
     private FontLabel mTimeView;
     private bool mActive;
     private Time mLastTime;
+    private Vector2i mInitSize;
 
     this(ClientGameEngine engine) {
         mEngine = engine;
         mTimeView = new FontLabelBoxed(globals.framework.fontManager.loadFont("time"));
         mTimeView.border = Vector2i(7, 5);
+
+        mTimeView.text = str.format("%.2s", 99);
+        mInitSize = mTimeView.size;
 
         mLastTime = timeCurrentTime();
     }
@@ -36,6 +40,7 @@ class GameTimer : Widget {
                 //little hack to show correct time
                 Time rt = controller.currentRoundTime()-timeMsecs(1);;
                 mTimeView.text = str.format("%.2s", rt.secs >= -1 ? rt.secs+1 : 0);
+                //needRelayout();
             } else {
                 active = false;
             }
@@ -54,7 +59,6 @@ class GameTimer : Widget {
     }
 
     Vector2i layoutSizeRequest() {
-        mTimeView.text = mTimeView.text;
-        return mTimeView.size*2;
+        return mInitSize;
     }
 }
