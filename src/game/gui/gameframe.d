@@ -171,8 +171,8 @@ class GameFrame : SimpleContainer {
         add(mGui);
 
         //start at level center
-        //gameView.view.scrollCenterOn(thegame.gamelevel.offset
-          //yyy  + thegame.gamelevel.size/2, true);
+        mScroller.scrollCenterOn(thegame.gamelevel.offset
+            + thegame.gamelevel.size/2, true);
 
         return true;
     }

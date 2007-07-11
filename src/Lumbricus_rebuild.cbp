@@ -94,6 +94,7 @@
 		<Unit filename="game\water.d" />
 		<Unit filename="game\weapon.d" />
 		<Unit filename="game\worm.d" />
+		<Unit filename="gui\boxcontainer.d" />
 		<Unit filename="gui\button.d" />
 		<Unit filename="gui\camframe.d" />
 		<Unit filename="gui\console.d" />
@@ -112,22 +113,25 @@
 		<Unit filename="levelgen\renderer.d" />
 		<Unit filename="lumbricus.d" />
 		<Unit filename="net\netlayer.d" />
+		<Unit filename="utils\array.d" />
+		<Unit filename="utils\bitstream.d" />
 		<Unit filename="utils\configfile.d" />
 		<Unit filename="utils\drawing.d" />
 		<Unit filename="utils\factory.d" />
 		<Unit filename="utils\log.d" />
 		<Unit filename="utils\math.d" />
 		<Unit filename="utils\misc.d" />
+		<Unit filename="utils\mybox.d" />
 		<Unit filename="utils\mylist.d" />
 		<Unit filename="utils\output.d" />
 		<Unit filename="utils\queue.d" />
 		<Unit filename="utils\random.d" />
 		<Unit filename="utils\rect2.d" />
+		<Unit filename="utils\strparser.d" />
 		<Unit filename="utils\time.d" />
 		<Unit filename="utils\vector2.d" />
 		<Extensions>
 			<code_completion />
-			<envvars />
 		</Extensions>
 	</Project>
 </CodeBlocks_project_file>
