@@ -5,7 +5,7 @@ import game.common;
 import game.scene;
 import game.clientengine;
 import game.bmpresource;
-import gui.guiobject;
+import gui.widget;
 import utils.configfile;
 import utils.time;
 import utils.vector2;
@@ -54,7 +54,7 @@ class WindMeter : GuiObjectOwnerDrawn {
     }
 
     void draw(Canvas canvas) {
-        auto pos = bounds.p1;
+        auto pos = Vector2i(0);
         if (mEngine) {
             canvas.draw(mBackgroundTex, pos);
             float wspeed = mEngine.windSpeed;
@@ -68,7 +68,7 @@ class WindMeter : GuiObjectOwnerDrawn {
         }
     }
 
-    override void getLayoutConstraints(out LayoutConstraints lc) {
-        lc.minSize = mSize;
+    override Vector2i layoutSizeRequest() {
+        return mSize;
     }
 }

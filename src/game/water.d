@@ -12,6 +12,7 @@ import utils.vector2;
 import utils.configfile;
 import utils.random;
 
+/+
 class WaterDrawer : SceneObject {
     protected Color mWaterColor;
     protected GameWater mParent;
@@ -198,3 +199,4 @@ class HorizontalFullsceneAnimator : Animator {
         }
     }
 }
++/

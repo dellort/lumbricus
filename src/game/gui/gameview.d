@@ -5,13 +5,18 @@ import game.controller;
 import game.common;
 import game.clientengine;
 import game.scene;
-import gui.guiobject;
+import gui.widget;
+import gui.container;
+import gui.mousescroller;
 import utils.vector2;
 
-class GameView : GuiObject {
-    private ClientGameEngine mEngine;
-    private SceneView mGameSceneView;
-    private GameController mController;
+//GameView is everything which is scrolled
+class GameView : Widget {
+    private {
+        ClientGameEngine mEngine;
+        GameController mController;
+        Container mGuiFrame;
+    }
 
     override bool canHaveFocus() {
         return true;
@@ -20,57 +25,49 @@ class GameView : GuiObject {
         return true;
     }
 
-    override void relayout() {
-        mGameSceneView.pos = bounds.p1;
-        mGameSceneView.size = size;
-    }
-
     this(ClientGameEngine engine) {
         mEngine = engine;
-        mGameSceneView = new SceneView();
-        addManagedSceneObject(mGameSceneView);
+        scene.add(mEngine.scene);
     }
 
-    SceneView view() {
-        return mGameSceneView;
+    override Vector2i layoutSizeRequest() {
+        return mEngine.scene.size;
+    }
+
+    override void onRelayout() {
     }
 
     void controller(GameController cont) {
         if (cont) {
-            cont.sceneview = mGameSceneView;
+            //cont.sceneview = mGameSceneView;
         } else {
-            if (mController)
-                mController.sceneview = null;
+            //if (mController)
+              //  mController.sceneview = null;
         }
         mController = cont;
     }
 
-    void gamescene(Scene s) {
-        mGameSceneView.clientscene = s;
-    }
-
     override protected bool onKeyDown(char[] bind, KeyInfo key) {
         if (bind == "scroll_toggle") {
-            scrollToggle();
+            //scrollToggle();
             return true;
         }
-        return mController.onKeyDown(bind, key,
-            mGameSceneView.toClientCoords(mousePos));
+        return mController.onKeyDown(bind, key, mousePos);
     }
     override protected bool onKeyUp(char[] bind, KeyInfo key) {
-        return mController.onKeyUp(bind, key,
-            mGameSceneView.toClientCoords(mousePos));
+        return mController.onKeyUp(bind, key, mousePos);
     }
-    override protected bool onMouseMove(MouseInfo mouse) {
+    override protected void onMouseMove(MouseInfo mouse) {
+        /+
         if (mScrolling) {
             mGameSceneView.scrollMove(mouse.rel);
-            return true;
         }
-        return false;
+        +/
     }
 
     //--------------------------- Scrolling start -------------------------
 
+    /+
     private bool mScrolling;
 
     private void scrollToggle() {
@@ -86,6 +83,7 @@ class GameView : GuiObject {
         }
         mScrolling = !mScrolling;
     }
+    +/
 
     //--------------------------- Scrolling end ---------------------------
 }

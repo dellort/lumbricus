@@ -1,13 +1,12 @@
-module gui.gameframe;
-import gui.frame;
-import gui.gui;
-import gui.guiobject;
-import gui.loadingscreen;
-import gui.gametimer;
-import gui.windmeter;
-import gui.preparedisplay;
+module game.gui.gameframe;
+import gui.container;
+import gui.widget;
+import game.gui.loadingscreen;
+import game.gui.gametimer;
+import game.gui.windmeter;
+import game.gui.preparedisplay;
 import gui.messageviewer;
-import gui.layout;
+import gui.mousescroller;
 import game.common;
 import game.scene;
 import game.game;
@@ -15,12 +14,13 @@ import game.visual;
 import game.clientengine;
 import game.loader;
 import game.loader_game;
-import gui.gameview;
+import game.gui.gameview;
 import framework.commandline : CommandBucket, Command;
 import utils.mybox;
 import utils.output;
 import utils.time;
 import utils.vector2;
+import utils.log;
 import levelgen.generator;
 import genlevel = levelgen.generator;
 import utils.configfile;
@@ -29,21 +29,21 @@ import utils.configfile;
 import game.projectile;
 import game.special_weapon;
 
-class GameFrame : GuiFrame {
+class GameFrame : SimpleContainer {
     GameEngine thegame;
     ClientGameEngine clientengine;
     /*private*/ GameLoader mGameLoader;
     /+private+/ GameConfig mGameConfig;
     private LoadingScreen mLoadScreen;
     private bool mGameGuiOpened;
-    private GuiLayouterAlign mLayoutAlign;
-    private GuiLayouterNull mLayoutClient;
 
     //temporary between constructor and loadConfig...
     private LevelGeometry mGeo;
 
     private CommandBucket mCmds;
 
+    private MouseScroller mScroller;
+    private Container mGui;
     GameView gameView;
 
     bool gamePaused() {
@@ -55,22 +55,17 @@ class GameFrame : GuiFrame {
     }
 
     this(LevelGeometry geo = null) {
+        super();
         mGeo = geo;
-
-        virtualFrame = true;
 
         mCmds = new CommandBucket();
         registerCommands();
         mCmds.bind(globals.cmdLine);
 
         mLoadScreen = new LoadingScreen();
-        //meh...
-        auto lay = new GuiLayouterNull();
-        lay.frame = this;
-        addLayouter(lay);
-        lay.add(mLoadScreen);
+        add(mLoadScreen);
 
-        mLoadScreen.zorder = GUIZOrder.Loading;
+        mLoadScreen.zorder = 10;
 
         mGameLoader = new GameLoader(globals.anyConfig.getSubNode("newgame"),
             this);
@@ -146,37 +141,38 @@ class GameFrame : GuiFrame {
     }
 
     bool initializeGameGui() {
-        //log("initializeGameGui");
+        gDefaultLog("initializeGameGui");
         mGameGuiOpened = true;
 
-        mLayoutAlign = new GuiLayouterAlign();
-        addLayouter(mLayoutAlign);
-        mLayoutClient = new GuiLayouterNull();
-        addLayouter(mLayoutClient);
+        mGui = new SimpleContainer();
 
-        mLayoutAlign.add(new WindMeter(clientengine), 1, 1, Vector2i(10, 10));
-        mLayoutAlign.add(new GameTimer(clientengine), -1, 1, Vector2i(5,5));
+        mGui.add(new WindMeter(clientengine),
+            WidgetLayout.Aligned(1, 1, Vector2i(10, 10)));
+        mGui.add(new GameTimer(clientengine),
+            WidgetLayout.Aligned(-1, 1, Vector2i(5,5)));
 
-        mLayoutClient.add(new PrepareDisplay(clientengine));
+        mGui.add(new PrepareDisplay(clientengine));
+
         auto msg = new MessageViewer();
-        mLayoutClient.add(msg);
+        mGui.add(msg);
 
         thegame.controller.messageCb = &msg.addMessage;
         thegame.controller.messageIdleCb = &msg.idle;
 
         gameView = new GameView(clientengine);
-        gameView.zorder = GUIZOrder.Game;
         gameView.loadBindings(globals.loadConfig("wormbinds")
             .getSubNode("binds"));
-        mLayoutClient.add(gameView);
-        //gameView.zorder = GUIZOrder.Game;
 
         gameView.controller = thegame.controller;
-        gameView.gamescene = clientengine.scene;
+
+        mScroller = new MouseScroller();
+        mScroller.add(gameView);
+        add(mScroller);
+        add(mGui);
 
         //start at level center
-        gameView.view.scrollCenterOn(thegame.gamelevel.offset
-            + thegame.gamelevel.size/2, true);
+        //gameView.view.scrollCenterOn(thegame.gamelevel.offset
+          //yyy  + thegame.gamelevel.size/2, true);
 
         return true;
     }
@@ -185,10 +181,10 @@ class GameFrame : GuiFrame {
         //log("unloadGui");
         if (mGameGuiOpened) {
             assert(gameView !is null);
-            gameView.gamescene = null;
             gameView.controller = null;
-            remove();
+            mScroller.clear();
             gameView = null;
+            mGui = null;
 
             mGameGuiOpened = false;
         }
@@ -208,14 +204,12 @@ class GameFrame : GuiFrame {
         clientengine = null;
     }
 
-    //xxx: rethink
-    protected void remove() {
+    void kill() {
         mGameLoader.unload();
         mCmds.kill();
-        super.remove();
     }
 
-    void simulate(Time curTime, Time deltaT) {
+    override void simulate(Time curTime, Time deltaT) {
         if (mGameLoader.fullyLoaded) {
             globals.gameTimeAnimations.update();
 
@@ -251,8 +245,8 @@ class GameFrame : GuiFrame {
     }
 
     private void cmdCameraDisable(MyBox[] args, Output write) {
-        if (gameView)
-            gameView.view.setCameraFocus(null);
+        //if (gameView)
+          //  gameView.view.setCameraFocus(null);
     }
 
     private void cmdDetail(MyBox[] args, Output write) {

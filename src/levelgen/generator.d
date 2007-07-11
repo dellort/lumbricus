@@ -13,6 +13,7 @@ import utils.configfile;
 import utils.vector2;
 import utils.output;
 import utils.log;
+import utils.array;
 import std.stream;
 import str = std.string;
 import conv = std.conv;

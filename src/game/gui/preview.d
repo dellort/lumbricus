@@ -1,7 +1,8 @@
 module gui.preview;
 
+/+
 import framework.framework;
-import gui.guiobject;
+import gui.widget;
 import gui.frame;
 import gui.button;
 import gui.layout;
@@ -80,3 +81,4 @@ class LevelPreviewer : GuiFrame {
         remove();
     }
 }
++/

@@ -18,6 +18,7 @@ import utils.mylist;
 import utils.time;
 import utils.misc;
 import utils.vector2;
+import utils.rect2;
 
 struct PerTeamAnim {
     AnimationResource arrow;
@@ -96,17 +97,24 @@ class ClientGameEngine {
     bool enableSpiffyGui;
 
     private Scene mScene;
+    private Scene[GameZOrder.max+1] mZScenes;
 
     private TimeSource mEngineTime;
 
-    private GameWater mGameWater;
-    private GameSky mGameSky;
+    //private GameWater mGameWater;
+    //private GameSky mGameSky;
 
-    private WormNameDrawer mDrawer;
+    //private WormNameDrawer mDrawer;
     private LevelDrawer mLevelDrawer;
 
     //indexed by team color
     private PerTeamAnim[] mTeamAnims;
+
+    class TestHack : SceneObject {
+        override void draw(Canvas c) {
+            c.drawFilledRect(Vector2i(0), Vector2i(100, 100), Color(1,0,0));
+        }
+    }
 
     this(GameEngine engine) {
         mEngine = engine;
@@ -123,7 +131,17 @@ class ClientGameEngine {
         downLine = mEngine.gamelevel.offset.y+mEngine.gamelevel.size.y;
 
         mScene = new Scene();
-        mScene.size = worldSize;
+
+        //attention: be sure to keep the order
+        //never remove or reinsert items frm the mScene
+        foreach(inout Scene s; mZScenes) {
+            s = new Scene();
+            mScene.add(s);
+        }
+
+        resize(worldSize);
+
+        mZScenes[$-1].add(new TestHack());
 
         ConfigNode taCfg = globals.loadConfig("teamanims");
         globals.resources.loadResources(taCfg);
@@ -149,16 +167,16 @@ class ClientGameEngine {
                 (AnimationResource)(colsNode.getPathValue(color));
         }
 
-        mGameWater = new GameWater(this, mScene, "blue");
-        mGameSky = new GameSky(this, mScene);
+        //mGameWater = new GameWater(this, mScene, "blue");
+        //mGameSky = new GameSky(this, mScene);
 
         //draws the worm names
-        mDrawer = new WormNameDrawer(mEngine.controller, mTeamAnims);
-        mDrawer.setScene(mScene, GameZOrder.Names);
+        //mDrawer = new WormNameDrawer(mEngine.controller, mTeamAnims);
+        //mDrawer.setScene(mScene, GameZOrder.Names);
 
         //actual level
         mLevelDrawer = new LevelDrawer(this);
-        mLevelDrawer.setScene(mScene, GameZOrder.Level);
+        mZScenes[GameZOrder.Level].add(mLevelDrawer);
 
         detailLevel = 0;
 
@@ -183,13 +201,15 @@ class ClientGameEngine {
 
         float deltaT = mEngineTime.difference.secsf;
 
+        auto grascene = mZScenes[GameZOrder.Objects];
+
         //hm
         waterOffset = mEngine.waterOffset;
         windSpeed = mEngine.windSpeed;
 
         //call simulate(deltaT);
-        mGameWater.simulate(deltaT);
-        mGameSky.simulate(deltaT);
+        //mGameWater.simulate(deltaT);
+        //mGameSky.simulate(deltaT);
 
         //haha, update before next "network" sync
         foreach (ClientGraphic gra; mGraphics) {
@@ -207,7 +227,7 @@ class ClientGameEngine {
                     //kill kill kill
                     ClientGraphic kill = cur_c;
                     cur_c = mGraphics.next(cur_c);
-                    kill.active = false;
+                    grascene.remove(kill);
                     mGraphics.remove(kill);
                 } else if (cur_s.type == GraphicEventType.Change) {
                     //sync up...
@@ -232,9 +252,7 @@ class ClientGameEngine {
             auto ng = new ClientGraphic();
             ng.uid = cur_s.uid;
             mGraphics.insert_tail(ng);
-            ng.scene = mScene;
-            ng.zorder = GameZOrder.Objects;
-            ng.active = true;
+            grascene.add(ng);
             ng.sync(cur_s);
 
             cur_s = cur_s.next;
@@ -243,6 +261,14 @@ class ClientGameEngine {
 
     Scene scene() {
         return mScene;
+    }
+
+    void resize(Vector2i s) {
+        mScene.rect = Rect2i(mScene.rect.p1, mScene.rect.p1 + s);
+        Rect2i rc = Rect2i(Vector2i(0), s);
+        foreach (Scene e; mZScenes) {
+            e.rect = rc;
+        }
     }
 
     public uint detailLevel() {
@@ -260,11 +286,13 @@ class ClientGameEngine {
         if (level >= 4) clouds = false;
         if (level >= 5) water = false;
         if (level >= 6) gui = false;
+        /+
         mGameWater.simpleMode = !water;
         mGameSky.enableClouds = clouds;
         mGameSky.enableDebris = skyDebris;
         mGameSky.enableSkyBackdrop = skyBackdrop;
         mGameSky.enableSkyTex = skyTex;
+        +/
         enableSpiffyGui = gui;
     }
 }
@@ -318,6 +346,7 @@ class LevelDrawer : SceneObject {
     }
 }
 
+/+
 private class WormNameDrawer : SceneObject {
     private GameController mController;
     private Font[Team] mWormFont;
@@ -353,12 +382,6 @@ private class WormNameDrawer : SceneObject {
     //upper border of the label relative to the worm's Y coordinate
     int labelsYOffset() {
         return cYDist+cYBorder*2+mFontHeight;
-    }
-
-    void setScene(Scene s, int z) {
-        super.setScene(s, z);
-        mArrow.setScene(s, z);
-        mPointed.setScene(s, z);
     }
 
     private void showArrow(TeamMember cur) {
@@ -441,3 +464,4 @@ private class WormNameDrawer : SceneObject {
         }
     }
 }
++/

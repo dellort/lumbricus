@@ -14,7 +14,7 @@ import gui.widget;
 import gui.fps;
 import gui.container;
 import gui.test;
-//import gui.gameframe;
+import game.gui.gameframe;
 //import gui.preview;
 import gui.console;
 import game.common;
@@ -76,9 +76,9 @@ private:
         //load a new game
         //newGame();
 
-        mGui.mainFrame.add(new TestFrame());
+        //mGui.mainFrame.add(new TestFrame());
         //mGui.mainFrame.add(new LevelPreviewer());
-        //mGui.mainFrame.add(new GameFrame());
+        mGui.mainFrame.add(new GameFrame());
     }
 
     private void initConsole() {

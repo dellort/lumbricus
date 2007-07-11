@@ -13,7 +13,7 @@ import utils.rect2;
 import utils.log;
 
 //debugging
-version = WidgetDebug;
+//version = WidgetDebug;
 
 enum LayoutingPhase {
     None,       //done

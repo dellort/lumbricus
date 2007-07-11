@@ -7,6 +7,7 @@ import game.resources;
 import game.bmpresource;
 import utils.configfile;
 import utils.misc;
+import utils.array;
 import utils.time;
 import utils.log;
 import math = std.math;

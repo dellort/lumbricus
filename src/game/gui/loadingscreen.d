@@ -1,9 +1,9 @@
-module gui.loadingscreen;
+module game.gui.loadingscreen;
 
 import framework.framework;
 import framework.font;
 import game.loader;
-import gui.guiobject;
+import gui.widget;
 import str = std.string;
 import utils.time;
 import utils.vector2;

@@ -46,6 +46,12 @@ struct WidgetLayout {
 }
 
 /// Group of Widgets, like a window.
+/// for own containers, override for layouting:
+///   override protected Vector2i layoutSizeRequest();
+///   override protected void layoutSizeAllocation();
+/// to request sizes/set allocations in these functions:
+///   Vector2i layoutDoRequestChild(PerWidget widget);
+///   void layoutDoAllocChild(PerWidget widget, Rect2i bounds);
 class Container : Widget {
     private {
         PerWidget[] mWidgets; //sorted by z-order
@@ -358,14 +364,16 @@ class Container : Widget {
 
     //called by anyone if o.canHaveFocus changed
     void recheckChildFocus(Widget o) {
-        doRecheckChildFocus(findChild(o), o.canHaveFocus);
+        if (o) {
+            doRecheckChildFocus(findChild(o), o.canHaveFocus);
+        }
     }
 
     //like when you press <tab>
     //  forward = false: go backwards in focus list, i.e. undo <tab>
     void nextFocus(bool forward = true) {
         //xxx this might infer with zorder handling so it wouldn't work!
-        auto cur = findChild(mFocus);
+        auto cur = findChild(mFocus, true);
         if (!cur) {
             //forward==true: finally pick first, else last
             cur = forward ? mWidgets[$-1] : mWidgets[0];

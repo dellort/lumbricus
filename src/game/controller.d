@@ -11,6 +11,7 @@ import utils.configfile;
 import utils.log;
 import utils.time;
 import utils.misc;
+import utils.array;
 import game.common;
 
 import framework.framework;
@@ -248,7 +249,7 @@ class GameController {
     public void delegate(char[]) messageCb;
     public bool delegate() messageIdleCb;
 
-    public SceneView sceneview; //set by someone else (= hack)
+    //public SceneView sceneview; //set by someone else (= hack)
 
     private RoundState mCurrentRoundState;
 
@@ -263,7 +264,7 @@ class GameController {
             }
 
             //possibly was focused on it, release camera focus then
-            sceneview.setCameraFocus(null, CameraStyle.Reset);
+            //yyy sceneview.setCameraFocus(null, CameraStyle.Reset);
 
             allowSetPoint = false;
             mCurrentLastAction = cLongAgo;

@@ -7,12 +7,13 @@ import game.clientengine;
 import game.visual;
 import game.common;
 import game.controller;
-import gui.guiobject;
+import gui.widget;
 import utils.time;
 
-class GameTimer : GuiObject {
+class GameTimer : Widget {
     private ClientGameEngine mEngine;
     private FontLabel mTimeView;
+    private bool mActive;
     private Time mLastTime;
 
     this(ClientGameEngine engine) {
@@ -21,34 +22,39 @@ class GameTimer : GuiObject {
         mTimeView.border = Vector2i(7, 5);
 
         mLastTime = timeCurrentTime();
-
-        addManagedSceneObject(mTimeView);
     }
 
     void simulate(Time curTime, Time deltaT) {
+        bool active;
         if (mEngine) {
             auto controller = mEngine.mEngine.controller;
             if (controller.currentRoundState() == RoundState.prepare
                 || controller.currentRoundState() == RoundState.playing
                 || controller.currentRoundState() == RoundState.cleaningUp)
             {
-                mTimeView.active = true;
+                active = true;
                 //little hack to show correct time
                 Time rt = controller.currentRoundTime()-timeMsecs(1);;
                 mTimeView.text = str.format("%.2s", rt.secs >= -1 ? rt.secs+1 : 0);
             } else {
-                mTimeView.active = false;
+                active = false;
             }
         } else {
-            mTimeView.active = false;
+            active = false;
+        }
+
+        if (active != mActive) {
+            mActive = active;
+            if (mActive) {
+                scene.add(mTimeView);
+            } else {
+                scene.remove(mTimeView);
+            }
         }
     }
 
-    void relayout() {
-        mTimeView.pos = bounds.p1;
-    }
-
-    override void getLayoutConstraints(out LayoutConstraints lc) {
-        lc.minSize = mTimeView.size;
+    Vector2i layoutSizeRequest() {
+        mTimeView.text = mTimeView.text;
+        return mTimeView.size*2;
     }
 }

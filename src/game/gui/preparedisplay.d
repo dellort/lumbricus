@@ -1,4 +1,4 @@
-module gui.preparedisplay;
+module game.gui.preparedisplay;
 
 import framework.framework;
 import framework.font;
@@ -8,11 +8,12 @@ import game.clientengine;
 import game.visual;
 import game.common;
 import game.controller;
-import gui.guiobject;
+import gui.widget;
 import utils.time;
 
-class PrepareDisplay : GuiObject {
+class PrepareDisplay : Widget {
     private FontLabel mPrepareView;
+    private bool mActive;
     private Time mLastTime;
     private Translator tr;
     private ClientGameEngine mEngine;
@@ -24,26 +25,28 @@ class PrepareDisplay : GuiObject {
         mPrepareView.border = Vector2i(7, 5);
 
         mLastTime = timeCurrentTime();
-
-        addManagedSceneObject(mPrepareView);
     }
 
     void simulate(Time curTime, Time deltaT) {
         Time cur = timeCurrentTime();
         auto controller = mEngine ? mEngine.mEngine.controller : null;
-        if (controller && controller.currentRoundState() == RoundState.prepare) {
+        if (controller && controller.currentRoundState() == RoundState.prepare
+            && controller.currentTeam())
+        {
             Team curTeam = controller.currentTeam();
-            if (curTeam) {
-                mPrepareView.active = true;
-                char[] teamName = curTeam.name;
-                //little hack to show correct time
-                Time pt = controller.currentPrepareTime()-timeMsecs(1);
-                mPrepareView.text = tr("teamgetready", teamName, pt.secs >= 0 ? pt.secs+1 : 0);
-            } else {
-                mPrepareView.active = false;
+            if (!mActive) {
+                scene.add(mPrepareView);
+                mActive = true;
             }
+            char[] teamName = curTeam.name;
+            //little hack to show correct time
+            Time pt = controller.currentPrepareTime()-timeMsecs(1);
+            mPrepareView.text = tr("teamgetready", teamName, pt.secs >= 0 ? pt.secs+1 : 0);
         } else {
-            mPrepareView.active = false;
+            if (mActive) {
+                scene.remove(mPrepareView);
+                mActive = false;
+            }
         }
 
         mPrepareView.pos.x = size.x/2 - mPrepareView.size.x/2;

@@ -9,8 +9,8 @@ import framework.framework;
 import framework.event;
 import game.scene;
 import game.common;
-import gui.guiobject;
-import gui.frame;
+import gui.widget;
+import gui.container;
 import utils.log;
 import utils.configfile;
 import levelgen.level;
@@ -455,7 +455,7 @@ class EditPolygon : EditObject {
 class EditRoot : EditObject {
 }
 
-public class LevelEditor : GuiFrame {
+public class LevelEditor : Container {
     EditRoot root;
     RenderEditor render;
     CommandBucket commands;
@@ -575,7 +575,7 @@ public class LevelEditor : GuiFrame {
             return false;
         }
 
-        bool onMouseMove(MouseInfo info) {
+        void onMouseMove(MouseInfo info) {
             if (isDraging) {
                 didReallyDrag = true;
                 auto move = -dragRel + (info.pos - dragPick);
@@ -699,7 +699,7 @@ public class LevelEditor : GuiFrame {
         render = new RenderEditor(this);
 
         add(render);
-        render.bounds = Rect2i(0, 0, 2000, 700);
+        //render.bounds = Rect2i(0, 0, 2000, 700);
 
         newPolyAt(Rect2i(100, 100, 500, 500));
 
@@ -709,9 +709,8 @@ public class LevelEditor : GuiFrame {
         commands.bind(globals.cmdLine);
     }
 
-    override void remove() {
+    void kill() {
         commands.kill();
-        super.remove();
     }
 
     void insertPoint() {

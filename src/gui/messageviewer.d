@@ -6,7 +6,7 @@ import game.game;
 import game.scene;
 import game.common;
 import game.visual;
-import gui.guiobject;
+import gui.widget;
 import utils.misc;
 import utils.time;
 import utils.queue;

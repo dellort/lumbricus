@@ -13,7 +13,7 @@ import utils.time;
 import utils.vector2;
 import utils.configfile;
 import utils.random;
-
+/+
 class SkyDrawer : SceneObject {
     private GameSky mParent;
     private Color mSkyColor;
@@ -267,3 +267,4 @@ class GameSky {
         }
     }
 }
++/

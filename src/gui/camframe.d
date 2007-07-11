@@ -1,5 +1,6 @@
 module gui.camframe;
 
+/+
 enum CameraStyle {
     Dead,     //not applicable
     Inactive, //disable camera temporarely
@@ -18,5 +19,6 @@ interface CameraObject {
 
 ///A special key event can activate scrolling with the mouse
 class CameraFrame : MouseScroller {
-    ...
+    //...
 }
++/
