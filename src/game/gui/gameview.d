@@ -65,29 +65,4 @@ class GameView : Widget {
         +/
         return false;
     }
-
-    //--------------------------- Scrolling start -------------------------
-
-    /+
-    xxx whatever you do, move scrolling to MouseScroller
-
-
-    private bool mScrolling;
-
-    private void scrollToggle() {
-        if (mScrolling) {
-            //globals.framework.grabInput = false;
-            globals.framework.cursorVisible = true;
-            globals.framework.unlockMouse();
-        } else {
-            //globals.framework.grabInput = true;
-            globals.framework.cursorVisible = false;
-            globals.framework.lockMouse();
-            mGameSceneView.scrollReset();
-        }
-        mScrolling = !mScrolling;
-    }
-    +/
-
-    //--------------------------- Scrolling end ---------------------------
 }
