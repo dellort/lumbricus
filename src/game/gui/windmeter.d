@@ -1,4 +1,4 @@
-module gui.windmeter;
+module game.gui.windmeter;
 
 import framework.framework;
 import game.common;

@@ -1,4 +1,4 @@
-module gui.gametimer;
+module game.gui.gametimer;
 
 import framework.framework;
 import framework.font;

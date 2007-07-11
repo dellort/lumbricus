@@ -1,4 +1,4 @@
-module gui.gameview;
+module game.gui.gameview;
 
 import framework.framework;
 import game.controller;
@@ -57,17 +57,21 @@ class GameView : Widget {
     override protected bool onKeyUp(char[] bind, KeyInfo key) {
         return mController.onKeyUp(bind, key, mousePos);
     }
-    override protected void onMouseMove(MouseInfo mouse) {
+    override protected bool onMouseMove(MouseInfo mouse) {
         /+
         if (mScrolling) {
             mGameSceneView.scrollMove(mouse.rel);
         }
         +/
+        return false;
     }
 
     //--------------------------- Scrolling start -------------------------
 
     /+
+    xxx whatever you do, move scrolling to MouseScroller
+
+
     private bool mScrolling;
 
     private void scrollToggle() {

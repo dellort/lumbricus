@@ -422,31 +422,38 @@ class Container : Widget {
         }
     }
 
-    override void internalHandleMouseEvent(MouseInfo* mi, KeyInfo* ki) {
+    override bool internalHandleMouseEvent(MouseInfo* mi, KeyInfo* ki) {
         //NOTE: mouse buttons (ki) don't have the mousepos; use the old one then
-        if (mi) {
-            internalUpdateMousePos(mi.pos);
-        }
+
+        //xxx: mouse capture
+
+        //first check if the parent wants it; if it returns true, don't deliver
+        //this event to the children
+        if (super.internalHandleMouseEvent(mi, ki))
+            return true;
+
         //check if any children are hit by this
         //objects towards the end of the array are later drawn => _reverse
-        //xxx: mouse capture
         foreach_reverse(o; mWidgets) {
             auto child = o.child;
             auto clientmp = child.coordsFromParent(mousePos);
             if (child.testMouse(clientmp)) {
                 //huhuhu a hit! call its event handler
+                bool res;
+                //MouseInfo.pos should contain the translated mousepos
                 if (mi) {
                     MouseInfo mi2 = *mi;
                     mi2.pos = clientmp;
-                    child.internalHandleMouseEvent(&mi2, null);
+                    res = child.internalHandleMouseEvent(&mi2, null);
                 } else {
-                    child.internalHandleMouseEvent(null, ki);
+                    res = child.internalHandleMouseEvent(null, ki);
                 }
-                return;
+                if (res)
+                    return true;
             }
         }
-        //nothing hit; invoke default handler for this
-        super.internalHandleMouseEvent(mi, ki);
+
+        return false;
     }
 
     override bool internalHandleKeyEvent(KeyInfo info) {

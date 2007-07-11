@@ -344,8 +344,10 @@ class Widget {
     protected bool onKeyPress(char[] bind, KeyInfo key) {
         return false;
     }
-    //no return value; see testMouse()
-    protected void onMouseMove(MouseInfo mouse) {
+    //return true only if you want block this event for children
+    //no meaning for non-Container Widgets (?)
+    protected bool onMouseMove(MouseInfo mouse) {
+        return false;
     }
 
     //notification if this.testMouse() changed on a mouse move event
@@ -390,19 +392,16 @@ class Widget {
     //      not, there's testMouse() which queries if a mouse event on that
     //      position will be accepted or not
     //overridden by Container
-    void internalHandleMouseEvent(MouseInfo* mi, KeyInfo* ki) {
+    bool internalHandleMouseEvent(MouseInfo* mi, KeyInfo* ki) {
+        //call user's event handler
         assert(!!mi != !!ki);
         if (mi) {
-            internalUpdateMousePos(mi.pos);
-            onMouseMove(*mi);
+            //update mousepos too!
+            mMousePos = mi.pos;
+            return onMouseMove(*mi);
         } else {
-            callKeyHandler(*ki);
+            return callKeyHandler(*ki);
         }
-    }
-
-    //called by Container only
-    package final void internalUpdateMousePos(Vector2i pos) {
-        mMousePos = pos;
     }
 
     //return true if event was handled

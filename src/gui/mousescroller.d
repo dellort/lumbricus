@@ -4,6 +4,7 @@ import gui.container;
 import framework.event;
 import utils.vector2;
 import utils.rect2;
+import utils.log;
 
 /// The child for MouseScroller can implement this; then scrolling will can be
 /// enabled.
@@ -46,11 +47,13 @@ class MouseScroller : Container {
 
     void scrollTo(Vector2i offset) {
         mOffset = offset;
+        doSetScrollPos();
     }
 
     override protected bool onKeyDown(char[] bind, KeyInfo key) {
         if (key.code == Keycode.MOUSE_RIGHT) {
             mScrolling = true;
+            gDefaultLog("scroll on");
             return true;
         }
         return false;
@@ -59,6 +62,7 @@ class MouseScroller : Container {
     override protected bool onKeyUp(char[] bind, KeyInfo key) {
         if (key.code == Keycode.MOUSE_RIGHT) {
             mScrolling = false;
+            gDefaultLog("scroll off");
             return true;
         }
         return false;
@@ -68,8 +72,12 @@ class MouseScroller : Container {
         return true;
     }
 
-    override protected void onMouseMove(MouseInfo mi) {
-        assert(false);
-        scrollTo(mi.pos);
+    override bool onMouseMove(MouseInfo mi) {
+        if (mScrolling) {
+            gDefaultLog("scroll to ", mi.pos);
+            scrollTo(mi.pos);
+            return true;
+        }
+        return false;
     }
 }
