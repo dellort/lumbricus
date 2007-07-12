@@ -214,8 +214,6 @@ class GameFrame : SimpleContainer {
 
     override void simulate(Time curTime, Time deltaT) {
         if (mGameLoader.fullyLoaded) {
-            globals.gameTimeAnimations.update();
-
             if (thegame) {
                 thegame.doFrame();
             }

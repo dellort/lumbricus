@@ -110,10 +110,10 @@ class LevelPreviewer : SimpleContainer {
     private void play(GuiButton sender) {
         int idx = getIdx(sender);
         //generate level
-        mGenerator.renderLevelGeometry(mLevel[idx].templ, mLevel[idx].geo,
-            mGenerator.findRandomGfx(""));
+        auto level = mGenerator.renderLevelGeometry(mLevel[idx].templ,
+            mLevel[idx].geo, mGenerator.findRandomGfx(""));
         //start game
-        auto gf = new GameFrame();
+        auto gf = new GameFrame(level);
         //xxx replace with the game window, but it'd be nice if you could come back
         gf.parent = this.parent;
         remove();

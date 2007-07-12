@@ -296,6 +296,8 @@ private:
     }
 
     private void onFrame(Canvas c) {
+        globals.gameTimeAnimations.update();
+
         mGui.doFrame(timeCurrentTime());
 
         mGui.draw(c);

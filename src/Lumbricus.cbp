@@ -82,6 +82,7 @@
 		<Unit filename="game\sky.d" />
 		<Unit filename="game\special_weapon.d" />
 		<Unit filename="game\sprite.d" />
+		<Unit filename="game\task.d" />
 		<Unit filename="game\toplevel.d" />
 		<Unit filename="game\visual.d" />
 		<Unit filename="game\water.d" />
