@@ -1,5 +1,11 @@
 module utils.factory;
 
+class ClassNotFoundException : Exception {
+    this(char[] msg) {
+        super(msg);
+    }
+}
+
 //a small factory template
 //ConstructorArgs is a tuple which is passed as constructor arguments
 class Factory(T, ConstructorArgs...) {
@@ -36,7 +42,7 @@ class Factory(T, ConstructorArgs...) {
     T instantiate(char[] name, ConstructorArgs args) {
         auto del = name in mConstructors;
         if (!del) {
-            throw new Exception("class '"~name~"' not found.");
+            throw new ClassNotFoundException("class '"~name~"' not found.");
         }
         return (*del)(args);
     }
@@ -81,7 +87,7 @@ static class StaticFactory(T, ConstructorArgs...) {
     static T instantiate(char[] name, ConstructorArgs args) {
         auto del = name in mConstructors;
         if (!del) {
-            throw new Exception("class '"~name~"' not found.");
+            throw new ClassNotFoundException("class '"~name~"' not found.");
         }
         return (*del)(args);
     }

@@ -36,7 +36,6 @@ class Scene : SceneObjectRect {
     void add(SceneObject obj) {
         assert(!mActiveObjects.contains(obj));
         mActiveObjects.insert_tail(obj);
-        obj.mScene = this;
     }
 
     /// Remove an object from the scene.
@@ -44,7 +43,6 @@ class Scene : SceneObjectRect {
     void remove(SceneObject obj) {
         assert(mActiveObjects.contains(obj));
         mActiveObjects.remove(obj);
-        obj.mScene = null;
     }
 
     /// Remove all sub objects
@@ -86,18 +84,7 @@ class Scene : SceneObjectRect {
 
 class SceneObject {
     private mixin ListNodeMixin allobjects;
-    private Scene mScene;
     bool active = true;
-
-    Scene scene() {
-        return mScene;
-    }
-    void scene(Scene newScene) {
-        if (mScene)
-            mScene.remove(this);
-        if (newScene)
-            newScene.add(this);
-    }
 
     //render callback; coordinates relative to containing SceneObject
     void draw(Canvas canvas) {

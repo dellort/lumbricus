@@ -105,12 +105,6 @@ class ClientGameEngine {
     //indexed by team color
     private PerTeamAnim[] mTeamAnims;
 
-    class TestHack : SceneObject {
-        override void draw(Canvas c) {
-            c.drawFilledRect(Vector2i(0), Vector2i(100, 100), Color(1,0,0));
-        }
-    }
-
     this(GameEngine engine) {
         mEngine = engine;
 
@@ -135,8 +129,6 @@ class ClientGameEngine {
         }
 
         resize(worldSize);
-
-        //mZScenes[$-1].add(new TestHack());
 
         ConfigNode taCfg = globals.loadConfig("teamanims");
         globals.resources.loadResources(taCfg);

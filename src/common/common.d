@@ -30,6 +30,7 @@ class Common {
 
     //both time variables are updated for each frame
     //for graphics stuff (i.e. animations continue to play while game paused)
+    //xxx: move!
     TimeSource gameTimeAnimations;
 
     private const cLocalePath = "/locale";

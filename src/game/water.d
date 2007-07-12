@@ -30,7 +30,7 @@ class WaterDrawerFront1 : WaterDrawer {
 
     void draw(Canvas canvas) {
         canvas.drawFilledRect(Vector2i(0, mParent.animTop),
-            Vector2i(scene.size.x, mParent.animBottom), mWaterColor);
+            Vector2i(mParent.size.x, mParent.animBottom), mWaterColor);
     }
 }
 
@@ -41,7 +41,7 @@ class WaterDrawerFront2 : WaterDrawer {
 
     void draw(Canvas canvas) {
         canvas.drawFilledRect(Vector2i(0, mParent.animBottom),
-            scene.size, mWaterColor);
+            mParent.size, mWaterColor);
     }
 }
 
@@ -52,7 +52,7 @@ class WaterDrawerBack : WaterDrawer {
 
     void draw(Canvas canvas) {
         canvas.drawFilledRect(Vector2i(0, mParent.backAnimTop),
-            Vector2i(scene.size.x, mParent.animTop),
+            Vector2i(mParent.size.x, mParent.animTop),
             mWaterColor);
     }
 }
@@ -73,6 +73,8 @@ class GameWater {
     private ClientGameEngine mEngine;
     private bool mSimpleMode = true;
 
+    Vector2i size;
+
     enum Z {
         back,
         level,
@@ -86,6 +88,8 @@ class GameWater {
             s.rect = engine.scene.rect;
         }
 
+        size = engine.scene.size;
+
         mEngine = engine;
         ConfigNode waterConf = globals.loadConfig("water");
         globals.resources.loadResources(waterConf);
@@ -98,30 +102,35 @@ class GameWater {
         scenes[Z.level].add(mWaterDrawerFront2);
         mWaterDrawerBack = new WaterDrawerBack(this, waterColor);
         scenes[Z.back].add(mWaterDrawerBack);
-        try {
+        //try {
             mWaveAnim = globals.resources.resource!(AnimationResource)
                 (waterNode.getPathValue("waves")).get();
             foreach (int i, inout a; mWaveAnimBack) {
                 a = new HorizontalFullsceneAnimator();
-                a.setAnimation(mWaveAnim);
+                a.animator = new Animator();
+                a.animator.setAnimation(mWaveAnim);
                 scenes[Z.back].add(a);
                 a.xoffs = randRange(0,mWaveAnim.size.x);
+                a.size = size;
                 a.scrollMult = -0.16666f+i*0.08333f;
             }
             foreach (int i, inout a; mWaveAnimFront) {
                 a = new HorizontalFullsceneAnimator();
-                a.setAnimation(mWaveAnim);
+                a.animator = new Animator();
+                a.animator.setAnimation(mWaveAnim);
                 scenes[Z.front].add(a);
                 a.xoffs = randRange(0,mWaveAnim.size.x);
+                a.size = size;
                 a.scrollMult = 0.0f+i*0.15f;
             }
-        } catch {};
+        //wtf? } catch {};
         simpleMode(mSimpleMode);
     }
 
     public void simpleMode(bool simple) {
         mSimpleMode = simple;
         if (mWaveAnim) {
+            //make sure to kill all, then
             if (simple) {
                 //no background layers, one front layer
                 foreach (inout a; mWaveAnimBack) {
@@ -142,7 +151,8 @@ class GameWater {
                 mWaterDrawerBack.active = true;
             }
         } else {
-            mWaterDrawerBack.active = false;
+            //what?
+            assert(false);
         }
     }
     public bool simpleMode() {
@@ -161,6 +171,7 @@ class GameWater {
                 foreach_reverse (inout a; mWaveAnimBack) {
                     p -= cWaterLayerDist;
                     a.ypos = p - cast(int)(mWaveAnim.size.y*cWaveAnimMult);
+                    a.size = size;
                 }
                 backAnimTop = p + waveCenterDiff;
                 p = waterOffs;
@@ -175,38 +186,34 @@ class GameWater {
             mStoredWaterLevel = mEngine.waterOffset;
         }
     }
-
-    void kill() {
-        mWaterDrawerFront1.scene = null;
-        mWaterDrawerFront2.scene = null;
-        mWaterDrawerBack.scene = null;
-        foreach (int i, inout a; mWaveAnimBack) {
-            a.scene = null;
-        }
-        foreach (int i, inout a; mWaveAnimFront) {
-            a.scene = null;
-        }
-    }
 }
 
 //XXX I don't like that
 //quite dirty hack to get water drawn over the complete scene
-class HorizontalFullsceneAnimator : Animator {
+class HorizontalFullsceneAnimator : SceneObject {
     public uint ypos;
     //texture offset
     public uint xoffs;
     //scrolling pos multiplier
     public float scrollMult = 0;
 
+    public Vector2i size;
+
+    Animator animator;
+
     void draw(Canvas canvas) {
-        int w = size.x;
+        if (!animator)
+            return;
+
+        int w = animator.size.x;
         int soffs = cast(int)(scrollMult*canvas.clientOffset.x);
-        for (int x = xoffs-w-soffs; x < scene.size.x; x += w) {
+        for (int x = xoffs-w-soffs; x < size.x; x += w) {
             //due to scrolling parallax, this can get out of the scene
             if (x+w > 0) {
-                pos = Vector2i(x, ypos);
+                animator.pos = Vector2i(x, ypos);
                 //XXX I hope canvas does clipping instead of letting sdl to it
-                super.draw(canvas);
+                //answer: no, it will be sent to the sdl (and sdl clips it)
+                animator.draw(canvas);
             }
         }
     }

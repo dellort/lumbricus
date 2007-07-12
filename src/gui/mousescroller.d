@@ -21,7 +21,7 @@ interface ScrollClient {
 /// This frame always sizes its child to its requested size, and enables
 /// scrolling within it.
 //(this is what the SceneObjectViewer was)
-class MouseScroller : Container {
+class MouseScroller : SimpleContainer {
     private {
         Vector2i mOffset;
         Vector2f mScrollDest, mScrollOffset;
@@ -40,7 +40,7 @@ class MouseScroller : Container {
     }
 
     this() {
-        super(true, true);
+        setBinContainer(true);
         mTimeLast = timeCurrentTime().msecs;
     }
 

@@ -29,16 +29,16 @@ class SkyDrawer : SceneObject {
 
     void draw(Canvas canvas) {
         if (mParent.enableSkyTex) {
-            for (int x = 0; x < scene.size.x; x += mSkyTex.size.x) {
+            for (int x = 0; x < mParent.size.x; x += mSkyTex.size.x) {
                 canvas.draw(mSkyTex, Vector2i(x, mParent.skyOffset));
             }
             if (mParent.skyOffset > 0)
                 canvas.drawFilledRect(Vector2i(0, 0),
-                    Vector2i(scene.size.x, mParent.skyOffset), mSkyColor);
+                    Vector2i(mParent.size.x, mParent.skyOffset), mSkyColor);
         }
         if (mSkyBackdrop && mParent.enableSkyBackdrop) {
             int offs = mParent.skyBottom - mSkyBackdrop.size.y;
-            for (int x = canvas.clientOffset.x/6; x < scene.size.x; x += mSkyBackdrop.size.x) {
+            for (int x = canvas.clientOffset.x/6; x < mParent.size.x; x += mSkyBackdrop.size.x) {
                 canvas.draw(mSkyBackdrop, Vector2i(x, offs));
             }
         }
@@ -91,6 +91,8 @@ class GameSky {
     }
     Scene[Z.max+1] scenes;
 
+    Vector2i size;
+
     ///create data structures and load textures, however no
     ///game-related values are used
     this(ClientGameEngine engine) {
@@ -98,6 +100,8 @@ class GameSky {
             s = new Scene();
             s.rect = engine.scene.rect;
         }
+
+        size = engine.scene.size;
 
         mEngine = engine;
         ConfigNode skyNode = globals.loadConfig("sky");
@@ -256,22 +260,6 @@ class GameSky {
                 clip(di.y, mDebrisAnim.size.y, skyOffset, skyBottom);
                 di.anim.pos.x = cast(int)di.x;
                 di.anim.pos.y = cast(int)di.y;
-            }
-        }
-    }
-
-    void kill() {
-        mSkyDrawer.active = false;
-        if (mCloudsVisible && mEnableClouds) {
-            foreach (inout ci; mCloudAnimators) {
-                ci.anim.active = false;
-                ci.anim = null;
-            }
-        }
-        if (mDebrisAnim && mEnableDebris) {
-            foreach (inout di; mDebrisAnimators) {
-                di.anim.active = false;
-                di.anim = null;
             }
         }
     }

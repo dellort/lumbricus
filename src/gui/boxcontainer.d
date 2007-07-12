@@ -5,7 +5,7 @@ import utils.vector2;
 import utils.rect2;
 
 ///contains boxes in a row
-class BoxContainer : Container {
+class BoxContainer : SimpleContainer {
     private {
         int mDir; //0==X, 1==Y
         bool mHomogeneous;

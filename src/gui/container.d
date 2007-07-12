@@ -52,6 +52,11 @@ struct WidgetLayout {
 /// to request sizes/set allocations in these functions:
 ///   Vector2i layoutDoRequestChild(PerWidget widget);
 ///   void layoutDoAllocChild(PerWidget widget, Rect2i bounds);
+///default behaviour if default args of constructor are used:
+///doesn't take focus for itself, but manages children's focus and delegates any
+///events to focused children; doesn't draw anything (except its children);
+///for layout, allocates all children to its own size and reports maximum size
+///of all children as request-size
 class Container : Widget {
     private {
         PerWidget[] mWidgets; //sorted by order of insertion
@@ -59,7 +64,7 @@ class Container : Widget {
         //only grows, wonder what happens if it overflows
         int mCurrentFocusAge;
         //frame is "transparent"
-        bool mIsVirtualFrame;
+        bool mIsVirtualFrame = true;
         //only one element per child
         bool mIsBinFrame;
 
@@ -178,20 +183,8 @@ class Container : Widget {
         return mWidgets;
     }
 
-    /// Add an element to the GUI, which gets automatically cleaned up later.
-    void add(Widget obj) {
-        obj.parent = this;
-    }
-
-    /// Add and set layout.
-    void add(Widget obj, WidgetLayout layout) {
-        //xxx maybe do sth. like freezeLayout()
-        add(obj);
-        setChildLayout(obj, layout);
-    }
-
-    //called by GuiObject.parent(...)
-    package final void internalDoAdd(Widget o) {
+    /// Add GUI element (makes
+    protected void addChild(Widget o) {
         assert(o.parent is null);
         assert(findChild(o, false, false) is null);
         auto pw = newPerWidget(o);
@@ -202,7 +195,7 @@ class Container : Widget {
     }
 
     /// Remove GUI element; that element gets destroyed.
-    void removeChild(Widget obj) {
+    /+protected+/ void removeChild(Widget obj) {
         assert(obj.parent is this);
         removeWidget(findChild(obj));
         obj.internalDoRemove(this);
@@ -212,12 +205,6 @@ class Container : Widget {
         if (obj is mFocus) {
             mFocus = null;
             recheckFocus(); //yyy: check if correct
-        }
-    }
-
-    void clear() {
-        while (mWidgets.length > 0) {
-            removeChild(mWidgets[0].child);
         }
     }
 
@@ -331,11 +318,16 @@ class Container : Widget {
     /// itself, doesn't accept any events for itself (only child objects, but
     /// i.e. doesn't take focus or accept mouse events for itself), doesn't draw
     /// anything (except to show child objects),  but it does clipping
-    ///
-    /// isBinContainer: if true, allow only one child and enable getBinChild()
-    this(bool isVirtualFrame = true, bool isBinContainer = false) {
-        mIsVirtualFrame = isVirtualFrame;
-        mIsBinFrame = isBinContainer;
+    protected void setVirtualFrame(bool v) {
+        mIsVirtualFrame = v;
+    }
+
+    /// if true, allow only one child and enable getBinChild()
+    protected void setBinContainer(bool b) {
+        if (b) {
+            assert(children.length <= 1);
+        }
+        mIsBinFrame = b;
     }
 
     protected PerWidget getBinChild() {
@@ -403,15 +395,8 @@ class Container : Widget {
         localFocus = next.child;
     }
 
-    //"local focus": if the frame had the real focus, the element that'd be
-    //  focused now
-    //"real/global focus": an object and all its parents are locally focused
-    Widget localFocus() {
-        return mFocus;
-    }
-
     //doesn't set the global focus; do "go.focused = true;" for that
-    void localFocus(Widget go) {
+    /+protected+/ void localFocus(Widget go) {
         if (go is mFocus)
             return;
 
@@ -427,6 +412,13 @@ class Container : Widget {
             gDefaultLog("set local focus: %s for %s", mFocus, this);
             go.stateChanged();
         }
+    }
+
+    //"local focus": if the frame had the real focus, the element that'd be
+    //  focused now
+    //"real/global focus": an object and all its parents are locally focused
+    /+protected+/ Widget localFocus() {
+        return mFocus;
     }
 
     override void onFocusChange() {
@@ -490,14 +482,8 @@ class Container : Widget {
         }
         super.internalSimulate(curTime, deltaT);
     }
-}
 
-///doesn't take focus for itself, but manages children's focus and delegates any
-///events to focused children; doesn't draw anything (except its children);
-///for layout, allocates all children to its own size and reports maximum size
-///of all children as request-size
-class SimpleContainer : Container {
-    protected Vector2i layoutSizeRequest() {
+    protected override Vector2i layoutSizeRequest() {
         //report the biggest
         Vector2i biggest;
         foreach (PerWidget w; children) {
@@ -507,10 +493,38 @@ class SimpleContainer : Container {
         }
         return biggest;
     }
-
     protected override void layoutSizeAllocation() {
         foreach (PerWidget w; children) {
             layoutDoAllocChild(w, widgetBounds());
         }
+    }
+}
+
+///Container with a public Container-interface
+///Container introduces some public methods too, but only ones that need a
+///valid object reference to child widgets
+///xxx: maybe do it right, I didn't even catch all functions, but it makes
+///     problems in widget.d/Widget
+class PublicContainer : Container {
+    void clear() {
+        while (children.length > 0) {
+            removeChild(children[0].child);
+        }
+    }
+}
+
+///PublicContainer which supports simple layouting
+///by coincidence only needs to add more accessors to the original Container
+class SimpleContainer : PublicContainer {
+    /// Add an element to the GUI, which gets automatically cleaned up later.
+    void add(Widget obj) {
+        addChild(obj);
+    }
+
+    /// Add and set layout.
+    void add(Widget obj, WidgetLayout layout) {
+        //xxx maybe do sth. like freezeLayout()
+        addChild(obj);
+        setChildLayout(obj, layout);
     }
 }

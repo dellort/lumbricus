@@ -14,19 +14,6 @@ import utils.configfile;
 import utils.log;
 import utils.rect2;
 
-//ZOrders!
-//maybe keep in sync with game.Scene.cMaxZOrder
-//these values are for globals.toplevel.guiscene
-enum GUIZOrder : int {
-    Invisible = 0,
-    Background,
-    Game,
-    Gui,
-    Loading,
-    Console,
-    FPS,
-}
-
 //main gui class, manages gui elements and forwards events
 //(should be) singleton
 class GuiMain {
@@ -35,7 +22,7 @@ class GuiMain {
     private Time mLastTime;
     private Vector2i mSize;
 
-    Container mainFrame() {
+    SimpleContainer mainFrame() {
         return mMainFrame;
     }
 

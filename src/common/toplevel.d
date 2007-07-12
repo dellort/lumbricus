@@ -10,22 +10,29 @@ import framework.i18n;
 import framework.timesource;
 import gui.gui;
 import gui.widget;
-//import game.gui.leveledit;
 import gui.fps;
 import gui.container;
-import gui.test;
-import game.gui.gameframe;
-import game.gui.preview;
 import gui.console;
 import common.common;
+import common.task;
 import utils.time;
 import utils.configfile;
+import utils.factory;
 import utils.log;
 import utils.output;
 import utils.mylist;
 import utils.mybox;
 import perf = std.perf;
 import gc = std.gc;
+
+//ZOrders!
+//only for the stuff managed by TopLevel
+//note that Widget.zorder can take any value
+enum GUIZOrder : int {
+    Gui,
+    Console,
+    FPS,
+}
 
 //this contains the mainframe
 class TopLevel {
@@ -35,7 +42,7 @@ private:
     GuiMain mGui;
     GuiConsole mGuiConsole;
 
-    Container mCurrentFrame;
+    TaskManager taskManager;
 
     //xxx move this to where-ever
     Translator localizedKeynames;
@@ -58,6 +65,8 @@ private:
 
         initConsole();
 
+        taskManager = new TaskManager(mGui);
+
         framework.onFrame = &onFrame;
         framework.onKeyPress = &onKeyPress;
         framework.onKeyDown = &onKeyDown;
@@ -76,9 +85,16 @@ private:
         //load a new game
         //newGame();
 
-        //mGui.mainFrame.add(new TestFrame());
-        mGui.mainFrame.add(new LevelPreviewer());
-        //mGui.mainFrame.add(new GameFrame());
+        char[] start = globals.anyConfig["start"];
+        if (start.length > 0) {
+            //create an initial task
+            //don't need the instance, it'll be registered in the TaskManager
+            try {
+                TaskFactory.instantiate(start, taskManager);
+            } catch (ClassNotFoundException e) {
+                mGuiConsole.console.writefln("BIG FAT WARNING: %s", e);
+            }
+        }
     }
 
     private void initConsole() {
@@ -93,8 +109,6 @@ private:
             "toggle this console");
         //globals.cmdLine.registerCommand("log", &cmdShowLog,
           //  "List and modify log-targets");
-        globals.cmdLine.registerCommand("level", &cmdGenerateLevel,
-            "Generate new level");
         globals.cmdLine.registerCommand("bind", &cmdBind,
             "display/edit key bindings", [
                 "text?:add/kill",
@@ -107,45 +121,58 @@ private:
             "int:height",
             "int?=0:depth (bits)"]);
         globals.cmdLine.registerCommand("fullscreen", &cmdFS, "toggle fs");
-        globals.cmdLine.registerCommand("stop", &cmdStop, "stop editor/game");
-        globals.cmdLine.registerCommand("editor", &cmdLevelEdit, "hm");
         globals.cmdLine.registerCommand("framerate", &cmdFramerate,
             "set fixed framerate");
+
+        globals.cmdLine.registerCommand("ps", &cmdPS, "list tasks");
+        globals.cmdLine.registerCommand("spawn", &cmdSpawn, "create task",
+            ["text:task name (get avilable ones with 'help_spawn')"]);
+        globals.cmdLine.registerCommand("kill", &cmdKill, "kill a task by ID",
+            ["int:task id"]);
+        globals.cmdLine.registerCommand("help_spawn", &cmdSpawnHelp,
+            "list tasks registered at task factory (use for spawn)");
+    }
+
+    private void cmdPS(MyBox[] args, Output write) {
+        write.writefln("ID / toString()");
+        foreach (Task t; taskManager.taskList) {
+            write.writefln("  %2d / %s", t.taskID, t);
+        }
+    }
+
+    private void cmdSpawn(MyBox[] args, Output write) {
+        char[] name = args[0].unbox!(char[])();
+        Task n;
+        try {
+            n = TaskFactory.instantiate(name, taskManager);
+        } catch (ClassNotFoundException e) {
+            //xxx: and what if the Task was found, but the Task constructor
+            //     throws this exception??
+            write.writefln("not found (%s)", e);
+            return;
+        }
+        write.writefln("spawn: instantiated %s -> %s", name, n);
+    }
+
+    private void cmdKill(MyBox[] args, Output write) {
+        int id = args[0].unbox!(int)();
+        foreach (Task t; taskManager.taskList) {
+            if (id == t.taskID) {
+                write.writefln("killing %s", t);
+                t.kill();
+                write.writefln("kill: done");
+                return;
+            }
+        }
+        write.writefln("Task %d not found.", id);
+    }
+
+    private void cmdSpawnHelp(MyBox[] args, Output write) {
+        write.writefln("registered task classes: %s", TaskFactory.classes);
     }
 
     private void cmdFramerate(MyBox[] args, Output write) {
         globals.framework.fixedFramerate = args[0].unbox!(int)();
-    }
-
-    void killFrame() {
-        if (mCurrentFrame) {
-            mCurrentFrame.remove();
-            mCurrentFrame = null;
-        }
-    }
-
-    private void cmdStop(MyBox[] args, Output write) {
-        killFrame();
-    }
-
-    private void cmdLevelEdit(MyBox[] args, Output write) {
-        assert(false);
-        //killFrame();
-        //mCurrentFrame = new LevelEditor();
-        //mCurrentFrame.parent = mGui.mainFrame;
-    }
-
-    private void cmdGenerateLevel(MyBox[] args, Output write) {
-        newGame();
-    }
-
-    private void newGame() {
-        //doesn't work from the preview: the preview creates a new frame, which
-        //we don't know, so we can't destroy the old game; two games will run
-        assert(false);
-        /*killFrame();
-        mCurrentFrame = mGameFrame = new GameFrame();
-        mCurrentFrame.parent = mGui.mainFrame;*/
     }
 
     private void onVideoInit(bool depth_only) {
@@ -296,7 +323,10 @@ private:
     }
 
     private void onFrame(Canvas c) {
+        //xxx move?
         globals.gameTimeAnimations.update();
+
+        taskManager.doFrame();
 
         mGui.doFrame(timeCurrentTime());
 

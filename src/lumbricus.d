@@ -8,6 +8,12 @@ import utils.log;
 import utils.output;
 import std.stream : File, FileMode;
 
+//these imports register classes in a factory on module initialization
+//so be carefull not to remove them accidently
+import gui.test; //GUI test code
+import game.gametask; //the game itself
+import game.gui.preview; //level preview window
+
 const char[] APP_ID = "lumbricus";
 
 int main(char[][] args)

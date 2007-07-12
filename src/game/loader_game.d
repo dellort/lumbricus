@@ -17,13 +17,12 @@ import utils.log;
 class GameLoader : Loader {
     private Log log;
     private GameFrame mGui;
-    /+private+/ ConfigNode mConfig;
 
     //xxx allmost everything was moved to GameFrame
+    //xxx nr 2.: maybe move that stuff again from GameFrame to GameTask!
 
-    this(ConfigNode config, GameFrame mgui) {
+    this(GameFrame mgui) {
         log = registerLog("GameLoader");
-        mConfig = config;
         mGui = mgui;
         registerChunk(&mGui.loadConfig);
         registerChunk(&mGui.initGameEngine);

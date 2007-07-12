@@ -1,13 +1,16 @@
 module game.gui.preview;
 
 import framework.framework;
+import common.task;
+import common.common;
 import gui.widget;
 import gui.container;
 import gui.button;
 import gui.boxcontainer;
 import gui.label;
-import game.gui.gameframe;
+import game.gametask;
 import levelgen.generator;
+import levelgen.level;
 import utils.vector2;
 import utils.rect2;
 
@@ -36,7 +39,7 @@ class BitmapButton : GuiButton {
     }
 }
 
-class LevelPreviewer : SimpleContainer {
+private class LevelPreviewer : SimpleContainer {
     private {
         const cRows = 3;
         const cCols = 2;
@@ -50,9 +53,12 @@ class LevelPreviewer : SimpleContainer {
         LevelInfo[cRows*cCols] mLevel;
         LevelGenerator mGenerator;
         GuiLabel mLblInfo;
+
+        LevelPreviewTask mTask;
     }
 
-    this() {
+    this(LevelPreviewTask bla) {
+        mTask = bla;
         mGenerator = new LevelGenerator();
 
         BoxContainer[cRows+1] buttons_layout;
@@ -110,13 +116,53 @@ class LevelPreviewer : SimpleContainer {
     private void play(GuiButton sender) {
         int idx = getIdx(sender);
         //generate level
-        auto level = mGenerator.renderLevelGeometry(mLevel[idx].templ,
-            mLevel[idx].geo, mGenerator.findRandomGfx(""));
+        auto level = generateAndSaveLevel(mGenerator, mLevel[idx].templ,
+            mLevel[idx].geo, null);
         //start game
-        auto gf = new GameFrame(level);
-        //xxx replace with the game window, but it'd be nice if you could come back
-        gf.parent = this.parent;
-        remove();
+        mTask.play(level);
     }
 }
 
+class LevelPreviewTask : Task {
+    private {
+        LevelPreviewer mWindow;
+        Task mGame;
+    }
+
+    this(TaskManager tm) {
+        super(tm);
+        mWindow = new LevelPreviewer(this);
+        manager.guiMain.mainFrame.add(mWindow);
+    }
+
+    override protected void onKill() {
+        mWindow.remove();
+    }
+
+    //play a level, hide this GUI while doing that, then return
+    void play(Level level) {
+        mWindow.remove();
+
+        assert(!mGame); //hm, no idea
+        //create default GameConfig with custom level
+        auto gc = loadGameConfig(globals.anyConfig.getSubNode("newgame"), level);
+        //xxx: do some task-death-notification or so... (currently: polling)
+        //currently, the game can't really return anyway...
+        mGame = new GameTask(manager, gc);
+    }
+
+    override protected void onFrame() {
+        //poll for game death
+        if (mGame) {
+            if (mGame.reallydead) {
+                mGame = null;
+                //show GUI again
+                manager.guiMain.mainFrame.add(mWindow);
+            }
+        }
+    }
+
+    static this() {
+        TaskFactory.register!(typeof(this))("levelpreview");
+    }
+}

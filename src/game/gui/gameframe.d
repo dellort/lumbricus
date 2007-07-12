@@ -34,12 +34,9 @@ class GameFrame : SimpleContainer {
     GameEngine thegame;
     ClientGameEngine clientengine;
     /*private*/ GameLoader mGameLoader;
-    /+private+/ GameConfig mGameConfig;
+    private GameConfig mGameConfig;
     private LoadingScreen mLoadScreen;
     private bool mGameGuiOpened;
-
-    //temporary between constructor and loadConfig...
-    private Level mLevel;
 
     private CommandBucket mCmds;
 
@@ -55,9 +52,9 @@ class GameFrame : SimpleContainer {
         clientengine.engineTime.paused = set;
     }
 
-    this(Level level = null) {
+    this(GameConfig cfg) {
         super();
-        mLevel = level;
+        mGameConfig = cfg;
 
         mCmds = new CommandBucket();
         registerCommands();
@@ -68,8 +65,7 @@ class GameFrame : SimpleContainer {
 
         mLoadScreen.zorder = 10;
 
-        mGameLoader = new GameLoader(globals.anyConfig.getSubNode("newgame"),
-            this);
+        mGameLoader = new GameLoader(this);
         mGameLoader.onFinish = &gameLoaded;
         mGameLoader.onUnload = &gameUnloaded;
 
@@ -106,40 +102,7 @@ class GameFrame : SimpleContainer {
     }
 
     bool loadConfig() {
-        auto mConfig = mGameLoader.mConfig;
-        //log("loadConfig");
-        auto x = new genlevel.LevelGenerator();
-        GameConfig cfg;
-        if (mLevel) {
-            cfg.level = mLevel;
-        } else {
-            bool load = mConfig.selectValueFrom("level", ["generate", "load"]) == 1;
-            if (load) {
-                cfg.level =
-                    x.renderSavedLevel(globals.loadConfig(mConfig["level_load"]));
-            } else {
-                genlevel.LevelTemplate templ =
-                    x.findRandomTemplate(mConfig["level_template"]);
-                genlevel.LevelTheme gfx = x.findRandomGfx(mConfig["level_gfx"]);
-
-                //be so friendly and save it
-                ConfigNode saveto = new ConfigNode();
-                cfg.level = x.renderLevelGeometry(templ, null, gfx, saveto);
-                saveConfig(saveto, "lastlevel.conf");
-            }
-        }
-        mLevel = cfg.level; //just to be consistent
-        auto teamconf = globals.loadConfig("teams");
-        cfg.teams = teamconf.getSubNode("teams");
-
-        auto gamemodecfg = globals.loadConfig("gamemode");
-        auto modes = gamemodecfg.getSubNode("modes");
-        cfg.gamemode = modes.getSubNode(
-            mConfig.getStringValue("gamemode",""));
-        cfg.weapons = gamemodecfg.getSubNode("weapon_sets");
-
-        mGameConfig = cfg;
-
+        //moved to gametask.d
         return true;
     }
 

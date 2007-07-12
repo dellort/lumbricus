@@ -79,22 +79,6 @@ class Widget {
         return mParent;
     }
 
-    final void parent(Container set) {
-        if (mParent is set)
-            return;
-
-        if (mParent !is null)
-            remove();
-        if (set is null)
-            return;
-
-        assert(mParent is null);
-        assert(set !is null);
-
-        //calls this.internalDoAdd() in turn, after all work was done
-        set.internalDoAdd(this);
-    }
-
     final void remove() {
         if (mParent) {
             mParent.removeChild(this);

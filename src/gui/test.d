@@ -5,6 +5,7 @@ import gui.widget;
 import gui.button;
 import gui.boxcontainer;
 import common.common;
+import common.task;
 import framework.commandline : CommandBucket, Command;
 import utils.mybox;
 import utils.output;
@@ -85,5 +86,24 @@ class TestFrame : SimpleContainer {
             }
         }
         //end -> http://developer.gnome.org/doc/GGAD/figures/allpack.png
+    }
+}
+
+//just to show the testframe
+class TestTask : Task {
+    private TestFrame mWindow;
+
+    this(TaskManager tm) {
+        super(tm);
+        mWindow = new TestFrame;
+        manager.guiMain.mainFrame.add(mWindow);
+    }
+
+    override protected void onKill() {
+        mWindow.remove();
+    }
+
+    static this() {
+        TaskFactory.register!(typeof(this))("testtask");
     }
 }

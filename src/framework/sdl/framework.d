@@ -502,8 +502,9 @@ public class SDLCanvas : Canvas {
         mTrans -= offset;
     }
 
+    //definition: return client coords for screen coord (0, 0)
     public Vector2i clientOffset() {
-        return mClientStart - mTrans;
+        return -mTrans;
     }
 
     public Vector2i realSize() {
