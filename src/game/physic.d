@@ -1,5 +1,5 @@
 module game.physic;
-import game.common;
+//import game.common;
 import utils.misc;
 import utils.mylist;
 import utils.time;

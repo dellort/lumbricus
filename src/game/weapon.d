@@ -2,7 +2,7 @@ module game.weapon;
 
 import game.gobject;
 import game.animation;
-import game.common;
+import common.common;
 import game.physic;
 import game.game;
 import game.sprite;

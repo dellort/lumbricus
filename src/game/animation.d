@@ -1,10 +1,10 @@
 module game.animation;
 
-import game.scene;
-import game.common;
+import common.scene;
+import common.common;
 import framework.framework;
-import game.resources;
-import game.bmpresource;
+import common.resources;
+import common.bmpresource;
 import utils.configfile;
 import utils.misc;
 import utils.array;

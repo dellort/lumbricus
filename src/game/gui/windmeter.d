@@ -1,10 +1,10 @@
 module game.gui.windmeter;
 
 import framework.framework;
-import game.common;
-import game.scene;
+import common.common;
+import common.scene;
 import game.clientengine;
-import game.bmpresource;
+import common.bmpresource;
 import gui.widget;
 import utils.configfile;
 import utils.time;

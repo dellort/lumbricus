@@ -4,7 +4,7 @@ import framework.framework;
 import framework.event;
 import gui.container;
 import gui.gui;
-import game.scene;
+import common.scene;
 import utils.configfile;
 import utils.mylist;
 import utils.time;

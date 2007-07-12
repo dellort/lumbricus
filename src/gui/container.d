@@ -1,5 +1,5 @@
 module gui.container;
-import game.scene;
+import common.scene;
 import gui.widget;
 import gui.gui;
 import utils.array;

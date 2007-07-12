@@ -1,9 +1,9 @@
 module gui.fps;
 
 import framework.framework;
-import game.common;
-import game.scene;
-import game.visual;
+import common.common;
+import common.scene;
+import common.visual;
 import gui.widget;
 import std.string;
 import utils.time;

@@ -2,10 +2,10 @@ module game.gui.gametimer;
 
 import framework.framework;
 import framework.font;
-import game.scene;
+import common.scene;
 import game.clientengine;
-import game.visual;
-import game.common;
+import common.visual;
+import common.common;
 import game.controller;
 import gui.widget;
 import utils.time;

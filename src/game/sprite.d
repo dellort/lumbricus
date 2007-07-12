@@ -3,7 +3,7 @@ import game.gobject;
 import game.physic;
 import game.animation;
 import game.game;
-import game.common;
+import common.common;
 import utils.vector2;
 import utils.rect2;
 import utils.configfile;

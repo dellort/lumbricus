@@ -2,9 +2,9 @@ module game.gui.gameview;
 
 import framework.framework;
 import game.controller;
-import game.common;
+import common.common;
 import game.clientengine;
-import game.scene;
+import common.scene;
 import gui.widget;
 import gui.container;
 import gui.mousescroller;

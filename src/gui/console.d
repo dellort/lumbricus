@@ -2,7 +2,7 @@ module gui.console;
 
 import framework.console;
 import framework.framework;
-import game.common;
+import common.common;
 import gui.widget;
 
 class GuiConsole : GuiObjectOwnerDrawn {

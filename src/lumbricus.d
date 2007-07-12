@@ -1,8 +1,8 @@
 module lumbricus;
 import framework.sdl.framework;
 import framework.filesystem : MountPath;
-import game = game.common;
-import toplevel = game.toplevel;
+import common = common.common;
+import toplevel = common.toplevel;
 import std.random : rand_seed;
 import utils.log;
 import utils.output;
@@ -27,7 +27,7 @@ int main(char[][] args)
     gLogEverything.destination = new StreamOutput(new File("logall.txt",
         FileMode.OutNew));
 
-    new game.Common(fw, args[1..$]);
+    new common.Common(fw, args[1..$]);
     //installs callbacks to framework, which get called in the mainloop
     new toplevel.TopLevel();
 

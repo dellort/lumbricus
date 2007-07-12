@@ -1,12 +1,12 @@
 module game.sky;
 
 import framework.framework;
-import game.bmpresource;
+import common.bmpresource;
 import game.clientengine;
 import game.glevel;
-import game.common;
+import common.common;
 import game.animation;
-import game.scene;
+import common.scene;
 import str = std.string;
 import utils.misc;
 import utils.time;

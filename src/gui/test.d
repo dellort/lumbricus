@@ -4,7 +4,7 @@ import gui.gui;
 import gui.widget;
 import gui.button;
 import gui.boxcontainer;
-import game.common;
+import common.common;
 import framework.commandline : CommandBucket, Command;
 import utils.mybox;
 import utils.output;

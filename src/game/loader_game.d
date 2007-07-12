@@ -2,9 +2,9 @@ module game.loader_game;
 
 import game.loader;
 import game.game;
-import game.common;
+import common.common;
 import game.clientengine;
-import game.scene;
+import common.scene;
 import gui.gui;
 import gui.widget;
 import gui.container;

@@ -1,4 +1,4 @@
-module game.common;
+module common.common;
 
 import framework.framework;
 import framework.commandline;
@@ -8,7 +8,7 @@ import utils.time;
 import utils.configfile;
 import utils.log, utils.output;
 import utils.misc;
-import game.resources;
+import common.resources;
 import std.stream;
 
 public Common globals;

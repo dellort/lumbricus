@@ -5,8 +5,8 @@ import levelgen.renderer;
 import levelgen.genrandom : GenRandomLevel, LevelGeometry, GeneratorConfig;
 import levelgen.placeobjects;
 import game.animation;
-import game.common;
-import game.bmpresource;
+import common.common;
+import common.bmpresource;
 import framework.framework;
 import framework.filesystem;
 import utils.configfile;
@@ -309,6 +309,7 @@ public class LevelGenerator {
         auto renderer = new LevelBitmap(size);
 
         //draw background (not drawn when it's not a cave!)
+        //(actually, a FillRect would be enough, but...)
         renderer.addPolygon([Vector2i(), size.X, size, size.Y], true,
             Vector2i(), markers[Lexel.Null], Lexel.Null, false, null, 0, 0);
 

@@ -1,8 +1,8 @@
-module game.resources;
+module common.resources;
 
 import framework.framework;
 import framework.filesystem;
-import game.common;
+import common.common;
 import str = std.string;
 import utils.configfile;
 import utils.log;

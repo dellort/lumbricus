@@ -1,8 +1,8 @@
-module game.bmpresource;
+module common.bmpresource;
 
 import framework.framework;
-import game.common;
-import game.resources;
+import common.common;
+import common.resources;
 import utils.configfile;
 
 

@@ -1,9 +1,9 @@
-module game.visual;
+module common.visual;
 
 import framework.framework;
 import framework.font;
-import game.common;
-import game.scene;
+import common.common;
+import common.scene;
 import utils.misc;
 
 class FontLabel : SceneObjectPositioned {

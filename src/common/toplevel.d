@@ -1,4 +1,4 @@
-module game.toplevel;
+module common.toplevel;
 
 import std.string;
 import framework.font;
@@ -17,7 +17,7 @@ import gui.test;
 import game.gui.gameframe;
 import game.gui.preview;
 import gui.console;
-import game.common;
+import common.common;
 import utils.time;
 import utils.configfile;
 import utils.log;

@@ -1,4 +1,4 @@
-module game.scene;
+module common.scene;
 
 import framework.framework;
 import utils.mylist;

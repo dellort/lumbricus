@@ -1,9 +1,9 @@
 module gui.label;
 
 import gui.widget;
-import game.common;
-import game.scene;
-import game.visual;
+import common.common;
+import common.scene;
+import common.visual;
 import framework.framework;
 import framework.font;
 import utils.misc;

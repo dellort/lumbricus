@@ -1,7 +1,7 @@
 module game.projectile;
 
 import game.animation;
-import game.common;
+import common.common;
 import game.physic;
 import game.game;
 import game.gobject;

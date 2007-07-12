@@ -1,5 +1,5 @@
 module game.gobject;
-import game.common;
+import common.common;
 import game.game;
 import utils.mylist;
 import utils.time;
