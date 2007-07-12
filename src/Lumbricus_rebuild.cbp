@@ -51,6 +51,15 @@
 			<Add library="DerelictSDLImage" />
 			<Add library="DerelictSDLttf" />
 		</Linker>
+		<Unit filename="common\bmpresource.d" />
+		<Unit filename="common\common.d" />
+		<Unit filename="common\resources.d" />
+		<Unit filename="common\scene.d" />
+		<Unit filename="common\toplevel.d" />
+		<Unit filename="common\visual.d" />
+		<Unit filename="derelict\enet\enet.d" />
+		<Unit filename="derelict\enet\enetfuncs.d" />
+		<Unit filename="derelict\enet\enettypes.d" />
 		<Unit filename="framework\commandline.d" />
 		<Unit filename="framework\console.d" />
 		<Unit filename="framework\filesystem.d" />
@@ -64,9 +73,7 @@
 		<Unit filename="framework\sdl\rwops.d" />
 		<Unit filename="framework\timesource.d" />
 		<Unit filename="game\animation.d" />
-		<Unit filename="game\bmpresource.d" />
 		<Unit filename="game\clientengine.d" />
-		<Unit filename="game\common.d" />
 		<Unit filename="game\controller.d" />
 		<Unit filename="game\game.d" />
 		<Unit filename="game\gameinterface.d" />
@@ -84,13 +91,9 @@
 		<Unit filename="game\loader_game.d" />
 		<Unit filename="game\physic.d" />
 		<Unit filename="game\projectile.d" />
-		<Unit filename="game\resources.d" />
-		<Unit filename="game\scene.d" />
 		<Unit filename="game\sky.d" />
 		<Unit filename="game\special_weapon.d" />
 		<Unit filename="game\sprite.d" />
-		<Unit filename="game\toplevel.d" />
-		<Unit filename="game\visual.d" />
 		<Unit filename="game\water.d" />
 		<Unit filename="game\weapon.d" />
 		<Unit filename="game\worm.d" />

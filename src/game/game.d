@@ -274,6 +274,25 @@ class GameEngine {
         res.loadFromConfig(sprite);
     }
 
+    //load all weapons from "weapons" subdir
+    private void loadWeapons(char[] dir) {
+        //load all .conf files found
+        gFramework.fs.listdir(dir, "*.conf", false,
+            (char[] path) {
+                //a weapons file can contain resources, collision map
+                //additions and a list of weapons
+                auto wp_conf = globals.loadConfig(path[0..$-5]);
+                physicworld.loadCollisions(wp_conf.getSubNode("collisions"));
+                globals.resources.loadResources(wp_conf);
+                auto list = wp_conf.getSubNode("weapons");
+                foreach (ConfigNode item; list) {
+                    loadWeaponClass(item);
+                }
+                return true;
+            }
+        );
+    }
+
     //a weapon subnode of weapons.conf
     void loadWeaponClass(ConfigNode weapon) {
         char[] type = weapon.getStringValue("type", "notype");
@@ -391,13 +410,7 @@ class GameEngine {
         globals.resources.loadResources(globals.loadConfig("stdanims"));
 
         //load weapons
-        auto weapons = globals.loadConfig("weapons");
-        physicworld.loadCollisions(weapons.getSubNode("collisions"));
-        globals.resources.loadResources(weapons.find("require_resources"));
-        auto list = weapons.getSubNode("weapons");
-        foreach (ConfigNode item; list) {
-            loadWeaponClass(item);
-        }
+        loadWeapons("weapons");
 
         auto conf = globals.loadConfig("game");
         //load sprites

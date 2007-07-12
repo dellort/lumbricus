@@ -181,9 +181,8 @@ private class HandlerDirectory : HandlerInstance {
                 //match search pattern
                 if (std.path.fnmatch(fn, pattern))
                     return (cont = callback(fn));
-            } else {
-                return true;
             }
+            return true;
         }
 
         char[] p = mDirPath ~ handlerPath;
