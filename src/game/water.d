@@ -12,7 +12,7 @@ import utils.vector2;
 import utils.configfile;
 import utils.random;
 
-/+
+
 class WaterDrawer : SceneObject {
     protected Color mWaterColor;
     protected GameWater mParent;
@@ -73,7 +73,19 @@ class GameWater {
     private ClientGameEngine mEngine;
     private bool mSimpleMode = true;
 
-    this(ClientGameEngine engine, Scene target, char[] waterType) {
+    enum Z {
+        back,
+        level,
+        front,
+    }
+    Scene[Z.max+1] scenes;  //back, level, front
+
+    this(ClientGameEngine engine, char[] waterType) {
+        foreach (inout s; scenes) {
+            s = new Scene();
+            s.rect = engine.scene.rect;
+        }
+
         mEngine = engine;
         ConfigNode waterConf = globals.loadConfig("water");
         globals.resources.loadResources(waterConf);
@@ -81,25 +93,25 @@ class GameWater {
         Color waterColor;
         parseColor(waterNode.getStringValue("color"),waterColor);
         mWaterDrawerFront1 = new WaterDrawerFront1(this, waterColor);
-        mWaterDrawerFront1.setScene(target, GameZOrder.FrontUpperWater);
+        scenes[Z.front].add(mWaterDrawerFront1);
         mWaterDrawerFront2 = new WaterDrawerFront2(this, waterColor);
-        mWaterDrawerFront2.setScene(target, GameZOrder.FrontLowerWater);
+        scenes[Z.level].add(mWaterDrawerFront2);
         mWaterDrawerBack = new WaterDrawerBack(this, waterColor);
-        mWaterDrawerBack.setScene(target, GameZOrder.BackWater);
+        scenes[Z.back].add(mWaterDrawerBack);
         try {
             mWaveAnim = globals.resources.resource!(AnimationResource)
                 (waterNode.getPathValue("waves")).get();
             foreach (int i, inout a; mWaveAnimBack) {
                 a = new HorizontalFullsceneAnimator();
                 a.setAnimation(mWaveAnim);
-                a.setScene(target, GameZOrder.BackWaterWaves1+i);
+                scenes[Z.back].add(a);
                 a.xoffs = randRange(0,mWaveAnim.size.x);
                 a.scrollMult = -0.16666f+i*0.08333f;
             }
             foreach (int i, inout a; mWaveAnimFront) {
                 a = new HorizontalFullsceneAnimator();
                 a.setAnimation(mWaveAnim);
-                a.setScene(target, GameZOrder.FrontWaterWaves1+i);
+                scenes[Z.front].add(a);
                 a.xoffs = randRange(0,mWaveAnim.size.x);
                 a.scrollMult = 0.0f+i*0.15f;
             }
@@ -165,14 +177,14 @@ class GameWater {
     }
 
     void kill() {
-        mWaterDrawerFront1.active = false;
-        mWaterDrawerFront2.active = false;
-        mWaterDrawerBack.active = false;
+        mWaterDrawerFront1.scene = null;
+        mWaterDrawerFront2.scene = null;
+        mWaterDrawerBack.scene = null;
         foreach (int i, inout a; mWaveAnimBack) {
-            a.active = false;
+            a.scene = null;
         }
         foreach (int i, inout a; mWaveAnimFront) {
-            a.active = false;
+            a.scene = null;
         }
     }
 }
@@ -199,4 +211,3 @@ class HorizontalFullsceneAnimator : Animator {
         }
     }
 }
-+/

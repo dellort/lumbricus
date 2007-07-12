@@ -13,7 +13,7 @@ import utils.time;
 import utils.vector2;
 import utils.configfile;
 import utils.random;
-/+
+
 class SkyDrawer : SceneObject {
     private GameSky mParent;
     private Color mSkyColor;
@@ -67,8 +67,6 @@ class GameSky {
     //this is not gravity, as debris is not accelerated
     private const cDebrisFallSpeed = 70; //pixels/sec
 
-    private Scene mScene;
-
     private struct CloudInfo {
         Animator anim;
         int animSizex;
@@ -86,11 +84,22 @@ class GameSky {
     private DebrisInfo[cNumDebris] mDebrisAnimators;
     private Animation mDebrisAnim;
 
+    enum Z {
+        back,
+        debris,
+        clouds,
+    }
+    Scene[Z.max+1] scenes;
+
     ///create data structures and load textures, however no
     ///game-related values are used
-    this(ClientGameEngine engine, Scene target) {
+    this(ClientGameEngine engine) {
+        foreach (inout s; scenes) {
+            s = new Scene();
+            s.rect = engine.scene.rect;
+        }
+
         mEngine = engine;
-        mScene = target;
         ConfigNode skyNode = globals.loadConfig("sky");
         globals.resources.loadResources(skyNode);
         Color skyColor = engine.level.skyColor;
@@ -125,7 +134,7 @@ class GameSky {
         foreach (inout CloudInfo ci; mCloudAnimators) {
             ci.anim = new Animator();
             ci.anim.setAnimation(mCloudAnims[nAnim]);
-            ci.anim.setScene(target, GameZOrder.Objects);
+            scenes[Z.clouds].add(ci.anim);
             //xxx ci.anim.setFrame(randRange(0u,mCloudAnims[nAnim].frameCount));
             ci.animSizex = mCloudAnims[nAnim].size.x;
             ci.y = randRange(-cCloudHeightRange/2,cCloudHeightRange/2)
@@ -140,14 +149,14 @@ class GameSky {
             foreach (inout DebrisInfo di; mDebrisAnimators) {
                 di.anim = new Animator();
                 di.anim.setAnimation(mDebrisAnim);
-                di.anim.setScene(target, GameZOrder.BackLayer);
+                scenes[Z.debris].add(di.anim);
                 //xxx di.anim.setFrame(randRange(0u,mDebrisAnim.frameCount));
                 di.speedPerc = genrand_real1()/2.0+0.5;
             }
         }
 
         mSkyDrawer = new SkyDrawer(this, skyColor, skyTex, skyBackdrop);
-        mSkyDrawer.setScene(target, GameZOrder.Background);
+        scenes[Z.back].add(mSkyDrawer);
 
         //xxx make sure mEngine.waterOffset is valid for this call
         initialize();
@@ -158,14 +167,14 @@ class GameSky {
     void initialize() {
         updateOffsets();
         foreach (inout CloudInfo ci; mCloudAnimators) {
-            ci.x = randRange(-ci.animSizex, mScene.size.x);
+            ci.x = randRange(-ci.animSizex, scenes[Z.clouds].size.x);
             ci.anim.pos.y = skyOffset + ci.y;
             ci.anim.pos.x = cast(int)ci.x;
         }
 
         if (mDebrisAnim) {
             foreach (inout DebrisInfo di; mDebrisAnimators) {
-                di.x = randRange(-mDebrisAnim.size.x, mScene.size.x);
+                di.x = randRange(-mDebrisAnim.size.x, scenes[Z.debris].size.x);
                 di.y = randRange(skyOffset, skyBottom);
                 di.anim.pos.x = cast(int)di.x;
                 di.anim.pos.y = cast(int)di.y;
@@ -232,7 +241,7 @@ class GameSky {
             foreach (inout ci; mCloudAnimators) {
                 //XXX this is acceleration, how to get a constant speed from this??
                 ci.x += (ci.xspeed+mEngine.windSpeed)*deltaT;
-                clip(ci.x, ci.animSizex, 0, mScene.size.x);
+                clip(ci.x, ci.animSizex, 0, scenes[Z.clouds].size.x);
                 ci.anim.pos.x = cast(int)ci.x;
                 ci.anim.pos.y = skyOffset + ci.y;
             }
@@ -243,7 +252,7 @@ class GameSky {
                 //XXX same here
                 di.x += 2*mEngine.windSpeed*deltaT*di.speedPerc;
                 di.y += cDebrisFallSpeed*deltaT;
-                clip(di.x, mDebrisAnim.size.x, 0, mScene.size.x);
+                clip(di.x, mDebrisAnim.size.x, 0, scenes[Z.debris].size.x);
                 clip(di.y, mDebrisAnim.size.y, skyOffset, skyBottom);
                 di.anim.pos.x = cast(int)di.x;
                 di.anim.pos.y = cast(int)di.y;
@@ -267,4 +276,3 @@ class GameSky {
         }
     }
 }
-+/

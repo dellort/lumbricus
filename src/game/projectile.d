@@ -129,17 +129,17 @@ private class ProjectileSprite : GObjectSprite {
     ProjectileSpriteClass myclass;
     Time birthTime;
     //only used if mylcass.dieByTime && !myclass.useFixedDeathTime
-    Time deathTimer;
+    Time detonateTimer;
     ProjectileEffector[] effectors;
     Vector2f target;
     private DeathReason mDeathReason;
 
-    Time dieTime() {
-        if (myclass.dieByTime) {
-            if (!myclass.useFixedDieTime)
-                return birthTime + deathTimer;
+    Time detonateTime() {
+        if (myclass.detonateByTime) {
+            if (!myclass.useFixedDetonateTime)
+                return birthTime + detonateTimer;
             else
-                return birthTime + myclass.fixedDieTime;
+                return birthTime + myclass.fixedDetonateTime;
         } else {
             return timeNever();
         }
@@ -152,10 +152,10 @@ private class ProjectileSprite : GObjectSprite {
             eff.simulate(deltaT);
         }
 
-        if (engine.gameTime.current > dieTime) {
-            engine.mLog("die by time");
+        if (engine.gameTime.current > detonateTime) {
+            engine.mLog("detonate by time");
             mDeathReason = DeathReason.timeout;
-            die();
+            detonate();
         }
     }
 
@@ -165,18 +165,20 @@ private class ProjectileSprite : GObjectSprite {
         //Hint: in future, physImpact should deliver the collision cookie
         //(aka "action" in the config file)
         //then the banana bomb can decide if it expldoes or falls into the water
-        if (myclass.dieByImpact) {
+        if (myclass.detonateByImpact) {
             mDeathReason = DeathReason.impact;
-            die();
+            detonate();
         }
         if (myclass.explosionOnImpact) {
             engine.explosionAt(physics.pos, myclass.explosionOnImpact);
         }
     }
-    override protected void die() {
-        //various actions possible when dying
+
+    //called when projectile goes off
+    protected void detonate() {
+        //various actions possible when blowing up
         //spawning
-        if (myclass.spawnOnDeath &&
+        if (myclass.spawnOnDetonate &&
             (!myclass.spawnLimitReason || mDeathReason == myclass.spawnRequire))
         {
             FireInfo info;
@@ -189,8 +191,8 @@ private class ProjectileSprite : GObjectSprite {
             //xxx: if you want the spawn-delay to be considered, there'd be two
             // ways: create a GameObject which does this (or do it in
             // this.simulate), or use the Shooter class
-            for (int n = 0; n < myclass.spawnOnDeath.count; n++) {
-                spawnsprite(engine, n, *myclass.spawnOnDeath, info);
+            for (int n = 0; n < myclass.spawnOnDetonate.count; n++) {
+                spawnsprite(engine, n, *myclass.spawnOnDetonate, info);
             }
         }
         //an explosion
@@ -198,10 +200,16 @@ private class ProjectileSprite : GObjectSprite {
             engine.explosionAt(physics.pos, myclass.explosionOnDeath);
         }
 
+        //effects are removed by die()
+        die();
+    }
+
+    override protected void die() {
         //remove constant effects
         foreach (eff; effectors) {
             eff.die();
         }
+
         //actually die (byebye)
         super.die();
     }
@@ -300,7 +308,7 @@ private void spawnsprite(GameEngine engine, int n, SpawnParams params,
     //pass required parameters
     auto ps = cast(ProjectileSprite)sprite;
     if (ps) {
-        ps.deathTimer = about.timer;
+        ps.detonateTimer = about.timer;
         ps.target = about.pointto;
     }
 
@@ -318,14 +326,14 @@ private void spawnsprite(GameEngine engine, int n, SpawnParams params,
 //can load weapon config from configfile, see weapons.conf; it's a projectile
 class ProjectileSpriteClass : GOSpriteClass {
     //r/o fields
-    bool dieByImpact;
+    bool detonateByImpact;
 
-    bool dieByTime;
-    bool useFixedDieTime;
-    Time fixedDieTime;
+    bool detonateByTime;
+    bool useFixedDetonateTime;
+    Time fixedDetonateTime;
 
     //non-null if to spawn anything on death
-    SpawnParams* spawnOnDeath;
+    SpawnParams* spawnOnDetonate;
     ProjectileEffectorClass[] effects;
     bool spawnLimitReason = false;
     DeathReason spawnRequire;
@@ -340,16 +348,16 @@ class ProjectileSpriteClass : GOSpriteClass {
 
     //config = a subnode in the weapons.conf which describes a single projectile
     void loadProjectileStuff(ConfigNode config) {
-        auto deathreason = config.getSubNode("death_howcome");
-        dieByImpact = deathreason.getBoolValue("diebyimpact");
-        dieByTime = deathreason.getBoolValue("diebytime");
-        if (dieByTime) {
-            if (deathreason.valueIs("lifetime", "$LIFETIME$")) {
-                useFixedDieTime = false;
+        auto detonatereason = config.getSubNode("detonate_howcome");
+        detonateByImpact = detonatereason.getBoolValue("byimpact");
+        detonateByTime = detonatereason.getBoolValue("bytime");
+        if (detonateByTime) {
+            if (detonatereason.valueIs("lifetime", "$LIFETIME$")) {
+                useFixedDetonateTime = false;
             } else {
-                useFixedDieTime = true;
+                useFixedDetonateTime = true;
                 //currently in seconds
-                fixedDieTime = timeSecs(deathreason.getFloatValue("lifetime"));
+                fixedDetonateTime = timeSecs(detonatereason.getFloatValue("lifetime"));
             }
         }
 
@@ -358,11 +366,11 @@ class ProjectileSpriteClass : GOSpriteClass {
             effects ~= ProjectileEffectorFactory.instantiate(n["name"],n);
         }
 
-        auto spawn = config.getPath("death.spawn");
+        auto spawn = config.getPath("detonate.spawn");
         if (spawn) {
-            spawnOnDeath = new SpawnParams;
-            if (!parseSpawn(*spawnOnDeath, spawn)) {
-                spawnOnDeath = null;
+            spawnOnDetonate = new SpawnParams;
+            if (!parseSpawn(*spawnOnDetonate, spawn)) {
+                spawnOnDetonate = null;
             }
             char[] sp = spawn.getStringValue("require_reason");
             spawnLimitReason = true;
@@ -381,7 +389,7 @@ class ProjectileSpriteClass : GOSpriteClass {
                     break;
             }
         }
-        auto expl = config.getPath("death.explosion", true);
+        auto expl = config.getPath("detonate.explosion", true);
         explosionOnDeath = expl.getFloatValue("damage", float.nan);
         explosionOnImpact = config.getFloatValue("explosion_on_impact", float.nan);
     }

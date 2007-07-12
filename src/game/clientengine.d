@@ -64,16 +64,11 @@ enum GameZOrder {
     Background,
     BackLayer,
     BackWater,
-    BackWaterWaves1,   //water behind the level
-    BackWaterWaves2,
     Level,
-    FrontLowerWater,  //water before the level
+    LevelWater,  //water before the level, but behind drowning objects
     Objects,
     Names, //controller.d/WormNameDrawer
-    FrontUpperWater,
-    FrontWaterWaves1,
-    FrontWaterWaves2,
-    FrontWaterWaves3,
+    FrontWater,
 }
 
 //client-side game engine, manages all stuff that does not affect gameplay,
@@ -101,8 +96,8 @@ class ClientGameEngine {
 
     private TimeSource mEngineTime;
 
-    //private GameWater mGameWater;
-    //private GameSky mGameSky;
+    private GameWater mGameWater;
+    private GameSky mGameSky;
 
     //private WormNameDrawer mDrawer;
     private LevelDrawer mLevelDrawer;
@@ -141,7 +136,7 @@ class ClientGameEngine {
 
         resize(worldSize);
 
-        mZScenes[$-1].add(new TestHack());
+        //mZScenes[$-1].add(new TestHack());
 
         ConfigNode taCfg = globals.loadConfig("teamanims");
         globals.resources.loadResources(taCfg);
@@ -167,8 +162,15 @@ class ClientGameEngine {
                 (AnimationResource)(colsNode.getPathValue(color));
         }
 
-        //mGameWater = new GameWater(this, mScene, "blue");
-        //mGameSky = new GameSky(this, mScene);
+        mGameWater = new GameWater(this, "blue");
+        mZScenes[GameZOrder.BackWater].add(mGameWater.scenes[GameWater.Z.back]);
+        mZScenes[GameZOrder.LevelWater].add(mGameWater.scenes[GameWater.Z.level]);
+        mZScenes[GameZOrder.FrontWater].add(mGameWater.scenes[GameWater.Z.front]);
+
+        mGameSky = new GameSky(this);
+        mZScenes[GameZOrder.Background].add(mGameSky.scenes[GameSky.Z.back]);
+        mZScenes[GameZOrder.BackLayer].add(mGameSky.scenes[GameSky.Z.debris]);
+        mZScenes[GameZOrder.Objects].add(mGameSky.scenes[GameSky.Z.clouds]);
 
         //draws the worm names
         //mDrawer = new WormNameDrawer(mEngine.controller, mTeamAnims);
@@ -208,8 +210,8 @@ class ClientGameEngine {
         windSpeed = mEngine.windSpeed;
 
         //call simulate(deltaT);
-        //mGameWater.simulate(deltaT);
-        //mGameSky.simulate(deltaT);
+        mGameWater.simulate(deltaT);
+        mGameSky.simulate(deltaT);
 
         //haha, update before next "network" sync
         foreach (ClientGraphic gra; mGraphics) {
@@ -286,13 +288,11 @@ class ClientGameEngine {
         if (level >= 4) clouds = false;
         if (level >= 5) water = false;
         if (level >= 6) gui = false;
-        /+
         mGameWater.simpleMode = !water;
         mGameSky.enableClouds = clouds;
         mGameSky.enableDebris = skyDebris;
         mGameSky.enableSkyBackdrop = skyBackdrop;
         mGameSky.enableSkyTex = skyTex;
-        +/
         enableSpiffyGui = gui;
     }
 }
