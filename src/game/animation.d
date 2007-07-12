@@ -50,6 +50,8 @@ static this() {
     gAnimationLoadHandlers["worm"] = &loadWormAnimation;
     //worm holding a weapon (with weapon-angle as param2)
     gAnimationLoadHandlers["worm_weapon"] = &loadWormWeaponAnimation;
+    //worm holding a weapon that has no aiming animation
+    gAnimationLoadHandlers["worm_weapon_fixed"] = &loadWormWeaponFixedAnimation;
     //360 degrees graphic, not animated
     gAnimationLoadHandlers["360"] = &load360Animation;
     //360 deg, inverted rotation
@@ -623,6 +625,17 @@ private AnimationData loadWormWeaponAnimation(ConfigNode node) {
     return res;
 }
 
+private AnimationData loadWormWeaponFixedAnimation(ConfigNode node) {
+    AnimationData res;
+    loadFooImages(res, node, 3);
+
+    res.sections[0].paramConvert[0] = &paramConvertStep3;
+    res.sections[0].mirror_Y_B = true;
+    res.sections[0].loop = false;
+
+    return res;
+}
+
 private AnimationData loadSimpleAnimation(ConfigNode node) {
     AnimationData res;
     loadFooImages(res, node, 1);
@@ -642,7 +655,7 @@ private AnimationData load360Animation(ConfigNode node) {
 
     res.sections[0].paramConvert[0] = &paramConvertFreeRot;
     res.sections[0].AB[0] = AnimationParamType.P1;
-    res.sections[0].AB[1] = AnimationParamType.Null;
+    res.sections[0].AB[1] = AnimationParamType.Time;
     res.sections[0].loop = false;
 
     return res;
@@ -654,7 +667,7 @@ private AnimationData load360InvAnimation(ConfigNode node) {
 
     res.sections[0].paramConvert[0] = &paramConvertFreeRotInv;
     res.sections[0].AB[0] = AnimationParamType.P1;
-    res.sections[0].AB[1] = AnimationParamType.Null;
+    res.sections[0].AB[1] = AnimationParamType.Time;
     res.sections[0].loop = false;
 
     return res;
@@ -666,7 +679,7 @@ private AnimationData load180Animation(ConfigNode node) {
 
     res.sections[0].paramConvert[0] = &paramConvertFreeRot2;
     res.sections[0].AB[0] = AnimationParamType.P1;
-    res.sections[0].AB[1] = AnimationParamType.Null;
+    res.sections[0].AB[1] = AnimationParamType.Time;
     res.sections[0].loop = false;
 
     return res;

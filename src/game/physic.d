@@ -706,11 +706,27 @@ class PlaneGeometry : PhysicGeometry {
 class PhysicTrigger : PhysicBase {
     private mixin ListNodeMixin triggers_node;
 
+    void delegate(PhysicTrigger sender, PhysicObject other) onTrigger;
+
     //identifier for callback procedure
     char[] id = "trigid_undefined";
 
+    //special handling: allow collision with all if not set
+    override bool canCollide(PhysicBase other) {
+        if (collision == CollisionType_Invalid)
+            return true;
+        return world.canCollide(collision, other.collision);
+    }
+
     //return true when object is inside, false otherwise
-    abstract bool collide(Vector2f pos, float radius);
+    bool collide(PhysicObject obj) {
+        bool coll = doCollide(obj.pos, obj.posp.radius);
+        if (coll && onTrigger)
+            onTrigger(this, obj);
+        return coll;
+    }
+
+    abstract protected bool doCollide(Vector2f pos, float radius);
 
     public void remove() {
         super.remove();
@@ -718,7 +734,7 @@ class PhysicTrigger : PhysicBase {
     }
 }
 
-//little copy+paste, sorry
+//plane separating world, objects can be on one side (in) or the other (out)
 class PlaneTrigger : PhysicTrigger {
     Plane plane;
 
@@ -729,9 +745,34 @@ class PlaneTrigger : PhysicTrigger {
     this() {
     }
 
-    bool collide(Vector2f pos, float radius) {
+    override bool doCollide(Vector2f pos, float radius) {
         return plane.collide(pos, radius);
     }
+}
+
+//circular trigger area with position and radius
+//(you could call it proximity sensor)
+class CircularTrigger : PhysicTrigger {
+    private float mSqRadius;   //cached value to avoid sqrt call
+    private float mRadius;
+    Vector2f pos;
+
+    this(Vector2f pos, float rad) {
+        radius = rad;
+    }
+
+    void radius(float r) {
+        mRadius = r;
+        mSqRadius = r*r;
+    }
+    float radius() {
+        return mRadius;
+    }
+
+    override bool doCollide(Vector2f opos, float orad) {
+        return (opos-pos).quad_length < mSqRadius;
+    }
+
 }
 
 class PhysicWorld {
@@ -907,7 +948,7 @@ class PhysicWorld {
             //check glued objects too, or else not checking would be
             //misinterpreted as not active
             foreach (PhysicTrigger tr; mTriggers) {
-                if (tr.collide(me.pos, me.posp.radius)) {
+                if (tr.canCollide(me) && tr.collide(me)) {
                     me.triggerCollide(tr.id);
                     me.needUpdate();
                 }

@@ -8,6 +8,7 @@ import game.gobject;
 import game.sprite;
 import game.weapon;
 import std.math;
+import str = std.string;
 import utils.misc;
 import utils.vector2;
 import utils.mylist;
@@ -119,10 +120,11 @@ private class ProjectileThrower : Shooter {
     }
 }
 
-private enum DeathReason {
+private enum DetonateReason {
     unknown,
     impact,
     timeout,
+    sensor,
 }
 
 private class ProjectileSprite : GObjectSprite {
@@ -132,7 +134,6 @@ private class ProjectileSprite : GObjectSprite {
     Time detonateTimer;
     ProjectileEffector[] effectors;
     Vector2f target;
-    private DeathReason mDeathReason;
 
     Time detonateTime() {
         if (myclass.detonateByTime) {
@@ -154,8 +155,7 @@ private class ProjectileSprite : GObjectSprite {
 
         if (engine.gameTime.current > detonateTime) {
             engine.mLog("detonate by time");
-            mDeathReason = DeathReason.timeout;
-            detonate();
+            detonate(DetonateReason.timeout);
         }
     }
 
@@ -166,8 +166,7 @@ private class ProjectileSprite : GObjectSprite {
         //(aka "action" in the config file)
         //then the banana bomb can decide if it expldoes or falls into the water
         if (myclass.detonateByImpact) {
-            mDeathReason = DeathReason.impact;
-            detonate();
+            detonate(DetonateReason.impact);
         }
         if (myclass.explosionOnImpact) {
             engine.explosionAt(physics.pos, myclass.explosionOnImpact);
@@ -175,11 +174,11 @@ private class ProjectileSprite : GObjectSprite {
     }
 
     //called when projectile goes off
-    protected void detonate() {
+    protected void detonate(DetonateReason reason) {
         //various actions possible when blowing up
         //spawning
         if (myclass.spawnOnDetonate &&
-            (!myclass.spawnLimitReason || mDeathReason == myclass.spawnRequire))
+            (!myclass.spawnLimitReason || reason == myclass.spawnRequire))
         {
             FireInfo info;
             //whatever seems useful...
@@ -336,7 +335,7 @@ class ProjectileSpriteClass : GOSpriteClass {
     SpawnParams* spawnOnDetonate;
     ProjectileEffectorClass[] effects;
     bool spawnLimitReason = false;
-    DeathReason spawnRequire;
+    DetonateReason spawnRequire;
 
     //nan for no explosion, else this is the damage strength
     float explosionOnDeath;
@@ -376,13 +375,16 @@ class ProjectileSpriteClass : GOSpriteClass {
             spawnLimitReason = true;
             switch (sp) {
                 case "unknown":
-                    spawnRequire = DeathReason.unknown;
+                    spawnRequire = DetonateReason.unknown;
                     break;
                 case "impact":
-                    spawnRequire = DeathReason.impact;
+                    spawnRequire = DetonateReason.impact;
                     break;
                 case "timeout":
-                    spawnRequire = DeathReason.timeout;
+                    spawnRequire = DetonateReason.timeout;
+                    break;
+                case "sensor":
+                    spawnRequire = DetonateReason.sensor;
                     break;
                 default:
                     spawnLimitReason = false;
@@ -600,6 +602,72 @@ class ProjectileEffectorExplodeClass : ProjectileEffectorClass {
 
     static this() {
         ProjectileEffectorFactory.register!(typeof(this))("explode");
+    }
+}
+
+class ProjectileEffectorProximiySensor : ProjectileEffector {
+    private ProjectileEffectorProximiySensorClass myclass;
+    private CircularTrigger mTrigger;
+    private Time mFireTime;
+
+    private static int sTrigId;
+
+    this(ProjectileSprite parent, ProjectileEffectorProximiySensorClass type) {
+        super(parent, type);
+        myclass = type;
+        mTrigger = new CircularTrigger(mParent.physics.pos, myclass.radius);
+        mTrigger.collision = mParent.engine.physicworld.findCollisionID(
+            myclass.collision, true);
+        //generate unique id
+        mTrigger.id = "prox_sensor_"~str.toString(sTrigId++);
+        mTrigger.onTrigger = &trigTrigger;
+        mFireTime = timeNever();
+    }
+
+    private void trigTrigger(PhysicTrigger sender, PhysicObject other) {
+        if (mActive && mFireTime == timeNever()) {
+            mFireTime = mParent.engine.gameTime.current + myclass.triggerDelay;
+        }
+    }
+
+    override void simulate(float deltaT) {
+        super.simulate(deltaT);
+        mTrigger.pos = mParent.physics.pos;
+        if (mActive) {
+            if (mParent.engine.gameTime.current >= mFireTime) {
+                //xxx implement different actions
+                mParent.detonate(DetonateReason.sensor);
+            }
+        }
+    }
+
+    override void activate(bool ac) {
+        if (ac) {
+            mParent.engine.physicworld.add(mTrigger);
+        } else {
+            mTrigger.remove();
+        }
+    }
+}
+
+class ProjectileEffectorProximiySensorClass : ProjectileEffectorClass {
+    float radius;
+    Time triggerDelay;   //time from triggering from firing
+    char[] collision;
+
+    this(ConfigNode node) {
+        super(node);
+        radius = node.getFloatValue("radius",20);
+        triggerDelay = timeSecs(node.getFloatValue("trigger_delay",1.0f));
+        collision = node.getStringValue("collision","proxsensor");
+    }
+
+    override ProjectileEffectorProximiySensor createEffector(ProjectileSprite parent) {
+        return new ProjectileEffectorProximiySensor(parent, this);
+    }
+
+    static this() {
+        ProjectileEffectorFactory.register!(typeof(this))("proximitysensor");
     }
 }
 
