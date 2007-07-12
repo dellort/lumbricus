@@ -41,7 +41,13 @@ class LevelPreviewer : SimpleContainer {
         const cRows = 3;
         const cCols = 2;
         BitmapButton[cRows*cCols] mShowBitmap;
-        LevelGeometry[cRows*cCols] mLevel;
+
+        struct LevelInfo {
+            LevelGeometry geo;
+            LevelTemplate templ;
+        }
+
+        LevelInfo[cRows*cCols] mLevel;
         LevelGenerator mGenerator;
         GuiLabel mLblInfo;
     }
@@ -92,17 +98,22 @@ class LevelPreviewer : SimpleContainer {
 
     private void doGenerate(int idx) {
         auto templ = mGenerator.findRandomTemplate("");
-        mLevel[idx] = templ.generate();
+        mLevel[idx].geo = templ.generate();
+        mLevel[idx].templ = templ;
         //scale down (?)
         auto sz = toVector2i(toVector2f(templ.size)*0.15);
-        mShowBitmap[idx].bitmap = mGenerator.renderPreview(mLevel[idx],
+        mShowBitmap[idx].bitmap = mGenerator.renderPreview(mLevel[idx].geo,
             sz, Color(1,1,1), Color(0.8,0.8,0.8), Color(0.4,0.4,0.4));
         mShowBitmap[idx].needRelayout();
     }
 
     private void play(GuiButton sender) {
         int idx = getIdx(sender);
-        auto gf = new GameFrame(mLevel[idx]);
+        //generate level
+        mGenerator.renderLevelGeometry(mLevel[idx].templ, mLevel[idx].geo,
+            mGenerator.findRandomGfx(""));
+        //start game
+        auto gf = new GameFrame();
         //xxx replace with the game window, but it'd be nice if you could come back
         gf.parent = this.parent;
         remove();

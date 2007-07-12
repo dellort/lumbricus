@@ -575,7 +575,7 @@ public class LevelEditor : Container {
             return false;
         }
 
-        void onMouseMove(MouseInfo info) {
+        bool onMouseMove(MouseInfo info) {
             if (isDraging) {
                 didReallyDrag = true;
                 auto move = -dragRel + (info.pos - dragPick);

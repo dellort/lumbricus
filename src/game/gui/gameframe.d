@@ -21,6 +21,7 @@ import utils.output;
 import utils.time;
 import utils.vector2;
 import utils.log;
+import levelgen.level;
 import levelgen.generator;
 import genlevel = levelgen.generator;
 import utils.configfile;
@@ -38,12 +39,12 @@ class GameFrame : SimpleContainer {
     private bool mGameGuiOpened;
 
     //temporary between constructor and loadConfig...
-    private LevelGeometry mGeo;
+    private Level mLevel;
 
     private CommandBucket mCmds;
 
     private MouseScroller mScroller;
-    private Container mGui;
+    private SimpleContainer mGui;
     GameView gameView;
 
     bool gamePaused() {
@@ -54,9 +55,9 @@ class GameFrame : SimpleContainer {
         clientengine.engineTime.paused = set;
     }
 
-    this(LevelGeometry geo = null) {
+    this(Level level = null) {
         super();
-        mGeo = geo;
+        mLevel = level;
 
         mCmds = new CommandBucket();
         registerCommands();
@@ -109,23 +110,25 @@ class GameFrame : SimpleContainer {
         //log("loadConfig");
         auto x = new genlevel.LevelGenerator();
         GameConfig cfg;
-        //hack: ignore what's in the configfile and generate a random level
-        //      with the geometry from the previewer...
-        //old behaviour still works with geo==null
-        bool load = mConfig.selectValueFrom("level", ["generate", "load"]) == 1;
-        if (!mGeo && load) {
-            cfg.level =
-                x.renderSavedLevel(globals.loadConfig(mConfig["level_load"]));
+        if (mLevel) {
+            cfg.level = mLevel;
         } else {
-            genlevel.LevelTemplate templ =
-                x.findRandomTemplate(mConfig["level_template"]);
-            genlevel.LevelTheme gfx = x.findRandomGfx(mConfig["level_gfx"]);
+            bool load = mConfig.selectValueFrom("level", ["generate", "load"]) == 1;
+            if (load) {
+                cfg.level =
+                    x.renderSavedLevel(globals.loadConfig(mConfig["level_load"]));
+            } else {
+                genlevel.LevelTemplate templ =
+                    x.findRandomTemplate(mConfig["level_template"]);
+                genlevel.LevelTheme gfx = x.findRandomGfx(mConfig["level_gfx"]);
 
-            //be so friendly and save it
-            ConfigNode saveto = new ConfigNode();
-            cfg.level = x.renderLevelGeometry(templ, mGeo, gfx, saveto);
-            saveConfig(saveto, "lastlevel.conf");
+                //be so friendly and save it
+                ConfigNode saveto = new ConfigNode();
+                cfg.level = x.renderLevelGeometry(templ, null, gfx, saveto);
+                saveConfig(saveto, "lastlevel.conf");
+            }
         }
+        mLevel = cfg.level; //just to be consistent
         auto teamconf = globals.loadConfig("teams");
         cfg.teams = teamconf.getSubNode("teams");
 

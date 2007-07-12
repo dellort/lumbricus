@@ -308,7 +308,10 @@ public class LevelGenerator {
         Vector2f scale = toVector2f(size) / toVector2f(geo.size);
         auto renderer = new LevelBitmap(size);
 
-        //xxx caves will come out wrong (background texture not painted)
+        //draw background (not drawn when it's not a cave!)
+        renderer.addPolygon([Vector2i(), size.X, size, size.Y], true,
+            Vector2i(), markers[Lexel.Null], Lexel.Null, false, null, 0, 0);
+
         foreach (LevelGeometry.Polygon p; geo.polygons) {
             //scale down the points first
             auto npts = p.points.dup;

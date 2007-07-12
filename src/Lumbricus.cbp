@@ -87,6 +87,7 @@
 		<Unit filename="game\water.d" />
 		<Unit filename="game\weapon.d" />
 		<Unit filename="game\worm.d" />
+		<Unit filename="gui\boxcontainer.d" />
 		<Unit filename="gui\button.d" />
 		<Unit filename="gui\camframe.d" />
 		<Unit filename="gui\console.d" />
