@@ -1,10 +1,10 @@
 module game.gui.gameview;
 
 import framework.framework;
-import game.controller;
 import common.common;
-import game.clientengine;
 import common.scene;
+import game.gamepublic;
+import game.clientengine;
 import gui.widget;
 import gui.container;
 import gui.mousescroller;
@@ -14,7 +14,7 @@ import utils.vector2;
 class GameView : Widget {
     private {
         ClientGameEngine mEngine;
-        GameController mController;
+        ControllerPublic mController;
         Container mGuiFrame;
     }
 
@@ -37,7 +37,7 @@ class GameView : Widget {
     override void onRelayout() {
     }
 
-    void controller(GameController cont) {
+    void controller(ControllerPublic cont) {
         if (cont) {
             //cont.sceneview = mGameSceneView;
         } else {
@@ -48,21 +48,12 @@ class GameView : Widget {
     }
 
     override protected bool onKeyDown(char[] bind, KeyInfo key) {
-        if (bind == "scroll_toggle") {
-            //scrollToggle();
-            return true;
-        }
         return mController.onKeyDown(bind, key, mousePos);
     }
     override protected bool onKeyUp(char[] bind, KeyInfo key) {
         return mController.onKeyUp(bind, key, mousePos);
     }
     override protected bool onMouseMove(MouseInfo mouse) {
-        /+
-        if (mScrolling) {
-            mGameSceneView.scrollMove(mouse.rel);
-        }
-        +/
         return false;
     }
 }

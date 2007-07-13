@@ -181,6 +181,10 @@ class MouseScroller : SimpleContainer {
     }
 
     override protected bool onKeyDown(char[] bind, KeyInfo key) {
+        /*if (bind == "scroll_toggle") {
+            //scrollToggle();
+            return true;
+        }*/
         if (key.code == Keycode.MOUSE_RIGHT) {
             mouseScrollToggle();
             return true;

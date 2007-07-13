@@ -7,7 +7,7 @@ import common.scene;
 import game.clientengine;
 import common.visual;
 import common.common;
-import game.controller;
+import game.gamepublic;
 import gui.widget;
 import utils.time;
 
@@ -29,8 +29,8 @@ class PrepareDisplay : Widget {
 
     void simulate(Time curTime, Time deltaT) {
         Time cur = timeCurrentTime();
-        auto controller = mEngine ? mEngine.mEngine.controller : null;
-        if (controller && controller.currentRoundState() == RoundState.prepare
+        auto controller = mEngine ? mEngine.engine.controller : null;
+        /*if (controller && controller.currentRoundState() == RoundState.prepare
             && controller.currentTeam())
         {
             Team curTeam = controller.currentTeam();
@@ -47,7 +47,7 @@ class PrepareDisplay : Widget {
                 scene.remove(mPrepareView);
                 mActive = false;
             }
-        }
+        }*/
 
         mPrepareView.pos.x = size.x/2 - mPrepareView.size.x/2;
         mPrepareView.pos.y = 40;

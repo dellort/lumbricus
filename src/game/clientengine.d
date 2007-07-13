@@ -3,22 +3,20 @@ module game.clientengine;
 import framework.framework;
 import framework.font;
 import framework.timesource;
-import game.gobject;
-import game.physic;
 import common.scene;
-import game.game;
-import game.water;
-import game.sky;
-import game.controller;
 import common.common;
 import common.visual;
+import game.water;
+import game.sky;
 import game.animation;
+import game.gamepublic;
 import levelgen.level;
 import utils.mylist;
 import utils.time;
 import utils.misc;
 import utils.vector2;
 import utils.rect2;
+import utils.configfile;
 
 struct PerTeamAnim {
     AnimationResource arrow;
@@ -75,7 +73,7 @@ enum GameZOrder {
 //but needs access to the game and is drawn into the game scene
 class ClientGameEngine {
     //xxx some stuff still needs this, remove as far as possible
-    GameEngine mEngine;
+    private GameEnginePublic mEngine;
 
     private List!(ClientGraphic) mGraphics;
 
@@ -83,7 +81,6 @@ class ClientGameEngine {
     //(remind that mEngine might disappear because of networking)
     int waterOffset;
     float windSpeed;
-    Level level;
     Vector2i levelOffset, worldSize;
     int downLine; //used to be: gamelevel.offset.y+gamelevel.size.y
 
@@ -105,7 +102,7 @@ class ClientGameEngine {
     //indexed by team color
     private PerTeamAnim[] mTeamAnims;
 
-    this(GameEngine engine) {
+    this(GameEnginePublic engine) {
         mEngine = engine;
 
         mGraphics = new typeof(mGraphics)(ClientGraphic.node.getListNodeOffset());
@@ -114,8 +111,6 @@ class ClientGameEngine {
         waterOffset = mEngine.waterOffset;
         windSpeed = mEngine.windSpeed;
 
-        level = mEngine.level;
-        levelOffset = mEngine.levelOffset;
         worldSize = mEngine.worldSize;
         downLine = mEngine.gamelevel.offset.y+mEngine.gamelevel.size.y;
 
@@ -186,6 +181,10 @@ class ClientGameEngine {
         return mEngineTime;
     }
 
+    GameEnginePublic engine() {
+        return mEngine;
+    }
+
     void kill() {
         //xxx is this necessary? previously implemented by GameObject
     }
@@ -213,7 +212,7 @@ class ClientGameEngine {
         //never mind...
         ClientGraphic cur_c = mGraphics.head;
         GraphicEvent* cur_s = mEngine.currentEvents;
-        mEngine.currentEvents = null;
+        mEngine.clearEvents();
         //sync client and server
         while (cur_c && cur_s) {
             if (cur_c.uid == cur_s.uid) {

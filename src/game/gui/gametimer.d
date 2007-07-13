@@ -6,7 +6,7 @@ import common.scene;
 import game.clientengine;
 import common.visual;
 import common.common;
-import game.controller;
+import game.gamepublic;
 import gui.widget;
 import utils.time;
 
@@ -31,7 +31,7 @@ class GameTimer : Widget {
     void simulate(Time curTime, Time deltaT) {
         bool active;
         if (mEngine) {
-            auto controller = mEngine.mEngine.controller;
+            auto controller = mEngine.engine.controller;
             if (controller.currentRoundState() == RoundState.prepare
                 || controller.currentRoundState() == RoundState.playing
                 || controller.currentRoundState() == RoundState.cleaningUp)

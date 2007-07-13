@@ -2,7 +2,6 @@ module gui.messageviewer;
 
 import framework.framework;
 import framework.font;
-import game.game;
 import common.scene;
 import common.common;
 import common.visual;

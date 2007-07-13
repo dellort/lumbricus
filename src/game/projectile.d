@@ -605,14 +605,14 @@ class ProjectileEffectorExplodeClass : ProjectileEffectorClass {
     }
 }
 
-class ProjectileEffectorProximiySensor : ProjectileEffector {
-    private ProjectileEffectorProximiySensorClass myclass;
+class ProjectileEffectorProximitySensor : ProjectileEffector {
+    private ProjectileEffectorProximitySensorClass myclass;
     private CircularTrigger mTrigger;
     private Time mFireTime;
 
     private static int sTrigId;
 
-    this(ProjectileSprite parent, ProjectileEffectorProximiySensorClass type) {
+    this(ProjectileSprite parent, ProjectileEffectorProximitySensorClass type) {
         super(parent, type);
         myclass = type;
         mTrigger = new CircularTrigger(mParent.physics.pos, myclass.radius);
@@ -650,7 +650,7 @@ class ProjectileEffectorProximiySensor : ProjectileEffector {
     }
 }
 
-class ProjectileEffectorProximiySensorClass : ProjectileEffectorClass {
+class ProjectileEffectorProximitySensorClass : ProjectileEffectorClass {
     float radius;
     Time triggerDelay;   //time from triggering from firing
     char[] collision;
@@ -662,8 +662,8 @@ class ProjectileEffectorProximiySensorClass : ProjectileEffectorClass {
         collision = node.getStringValue("collision","proxsensor");
     }
 
-    override ProjectileEffectorProximiySensor createEffector(ProjectileSprite parent) {
-        return new ProjectileEffectorProximiySensor(parent, this);
+    override ProjectileEffectorProximitySensor createEffector(ProjectileSprite parent) {
+        return new ProjectileEffectorProximitySensor(parent, this);
     }
 
     static this() {

@@ -1,29 +1,31 @@
 module game.gui.gameframe;
+
+import common.common;
+import common.scene;
+import common.visual;
+import framework.commandline : CommandBucket, Command;
 import gui.container;
 import gui.widget;
+import gui.messageviewer;
+import gui.mousescroller;
 import game.gui.loadingscreen;
 import game.gui.gametimer;
 import game.gui.windmeter;
 import game.gui.preparedisplay;
-import gui.messageviewer;
-import gui.mousescroller;
-import common.common;
-import common.scene;
-import game.game;
-import common.visual;
 import game.clientengine;
 import game.loader;
 import game.loader_game;
+import game.gamepublic;
 import game.gui.gameview;
-import framework.commandline : CommandBucket, Command;
+import game.game;
+import levelgen.level;
+import levelgen.generator;
+import genlevel = levelgen.generator;
 import utils.mybox;
 import utils.output;
 import utils.time;
 import utils.vector2;
 import utils.log;
-import levelgen.level;
-import levelgen.generator;
-import genlevel = levelgen.generator;
 import utils.configfile;
 
 //xxx include so that module constructors (static this) are actually called
@@ -32,6 +34,8 @@ import game.special_weapon;
 
 class GameFrame : SimpleContainer {
     GameEngine thegame;
+    GameEnginePublic gameifc;
+    GameEngineAdmin gameadmin;
     ClientGameEngine clientengine;
     /*private*/ GameLoader mGameLoader;
     private GameConfig mGameConfig;
@@ -45,10 +49,10 @@ class GameFrame : SimpleContainer {
     GameView gameView;
 
     bool gamePaused() {
-        return thegame.gameTime.paused;
+        return gameifc.paused;
     }
     void gamePaused(bool set) {
-        thegame.gameTime.paused = set;
+        gameadmin.setPaused(set);
         clientengine.engineTime.paused = set;
     }
 
@@ -90,14 +94,14 @@ class GameFrame : SimpleContainer {
     bool initGameEngine() {
         //log("initGameEngine");
         thegame = new GameEngine(mGameConfig);
-
+        gameifc = thegame;
+        gameadmin = thegame.requestAdmin();
         return true;
     }
 
     bool initClientEngine() {
         //log("initClientEngine");
         clientengine = new ClientGameEngine(thegame);
-
         return true;
     }
 
@@ -123,7 +127,6 @@ class GameFrame : SimpleContainer {
         mGui.add(msg);
 
         thegame.controller.messageCb = &msg.addMessage;
-        thegame.controller.messageIdleCb = &msg.idle;
 
         gameView = new GameView(clientengine);
         gameView.loadBindings(globals.loadConfig("wormbinds")
@@ -222,11 +225,11 @@ class GameFrame : SimpleContainer {
     }
 
     private void cmdSetWind(MyBox[] args, Output write) {
-        thegame.windSpeed = args[0].unbox!(float)();
+        gameadmin.setWindSpeed(args[0].unbox!(float)());
     }
 
     private void cmdRaiseWater(MyBox[] args, Output write) {
-        thegame.raiseWater(args[0].unbox!(int)());
+        gameadmin.raiseWater(args[0].unbox!(int)());
     }
 
     //slow time <whatever>
@@ -240,10 +243,10 @@ class GameFrame : SimpleContainer {
                 setgame = setani = true;
         }
         float val = args[0].unbox!(float);
-        float g = setgame ? val : thegame.gameTime.slowDown;
+        float g = setgame ? val : gameifc.slowDown;
         float a = setani ? val : globals.gameTimeAnimations.slowDown;
         write.writefln("set slowdown: game=%s animations=%s", g, a);
-        thegame.gameTime.slowDown = g;
+        gameadmin.setSlowDown(g);
         clientengine.engineTime.slowDown = g;
         globals.gameTimeAnimations.slowDown = a;
     }

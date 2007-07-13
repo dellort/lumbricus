@@ -12,6 +12,7 @@ import game.sky;
 import common.common;
 import game.controller;
 import game.weapon;
+import game.gamepublic;
 import utils.mylist;
 import utils.time;
 import utils.log;
@@ -22,15 +23,6 @@ import framework.framework;
 import framework.keysyms;
 import framework.timesource;
 import std.math;
-
-import clientengine = game.clientengine;
-
-struct GameConfig {
-    Level level;
-    ConfigNode teams;
-    ConfigNode weapons;
-    ConfigNode gamemode;
-}
 
 interface ServerGraphic {
     //update position
@@ -54,30 +46,6 @@ interface ServerGraphic {
 
     //if remove() was called
     bool isDead();
-}
-
-enum GraphicEventType {
-    None,
-    Add,
-    Change,
-    Remove,
-}
-
-struct GraphicEvent {
-    GraphicEvent* next; //ad-hoc linked list
-
-    GraphicEventType type;
-    long uid;
-    GraphicSetEvent setevent;
-}
-
-struct GraphicSetEvent {
-    Vector2i pos;
-    Vector2f dir; //direction + velocity
-    int p1, p2;
-    bool do_set_ani;
-    AnimationResource set_animation; //network had to transfer animation id
-    bool set_force;
 }
 
 package class ServerGraphicLocalImpl : ServerGraphic {
@@ -172,18 +140,34 @@ package class ServerGraphicLocalImpl : ServerGraphic {
 
 //code to manage a game session (hm, whatever this means)
 //reinstantiated on each "round"
-class GameEngine {
+class GameEngine : GameEnginePublic, GameEngineAdmin {
     private TimeSource mGameTime;
 
     protected PhysicWorld mPhysicWorld;
     private List!(GameObject) mObjects;
     public List!(ServerGraphicLocalImpl) mGraphics;
-    Level level;
-    GameLevel gamelevel;
+    private Level mLevel;
+    private GameLevel mGamelevel;
     PlaneTrigger waterborder;
     PlaneTrigger deathzone;
 
-    GraphicEvent* currentEvents;
+    private GraphicEvent* mCurrentEvents;
+
+    GraphicEvent* currentEvents() {
+        return mCurrentEvents;
+    }
+
+    void clearEvents() {
+        mCurrentEvents = null;
+    }
+
+    Level level() {
+        return mLevel;
+    }
+
+    GameLevel gamelevel() {
+        return mGamelevel;
+    }
 
     struct EventQueue {
         GraphicEvent* list;
@@ -193,9 +177,35 @@ class GameEngine {
     const lag = 0;//100; //ms
     const lagvar = 0; //100
 
-    Vector2i levelOffset, worldSize;
+    private Vector2i mWorldSize;
 
-    GameController controller;
+    private GameController mController;
+
+    ControllerPublic controller() {
+        return mController;
+    }
+
+    Vector2i worldSize() {
+        return mWorldSize;
+    }
+
+    GameEngineAdmin requestAdmin() {
+        return this;
+    }
+
+    bool paused() {
+        return mGameTime.paused;
+    }
+    void setPaused(bool p) {
+        mGameTime.paused = p;
+    }
+
+    float slowDown() {
+        return mGameTime.slowDown;
+    }
+    void setSlowDown(float s) {
+        mGameTime.slowDown = s;
+    }
 
     package Log mLog;
 
@@ -327,7 +337,7 @@ class GameEngine {
 
     this(GameConfig config) {
         assert(config.level !is null);
-        this.level = config.level;
+        mLevel = config.level;
 
         mLog = registerLog("gameengine");
 
@@ -336,20 +346,21 @@ class GameEngine {
             .getListNodeOffset());
         mPhysicWorld = new PhysicWorld();
 
+        Vector2i levelOffset;
         if (level.isCave) {
-            worldSize = level.size + Vector2i(0, cSpaceBelowLevel);
+            mWorldSize = mLevel.size + Vector2i(0, cSpaceBelowLevel);
             levelOffset = Vector2i(0, 0);
         } else {
-            worldSize = Vector2i(cOpenLevelWidthMultiplier*level.size.x,
-                level.size.y+cSpaceBelowLevel+cSpaceAboveOpenLevel);
+            mWorldSize = Vector2i(cOpenLevelWidthMultiplier*mLevel.size.x,
+                mLevel.size.y+cSpaceBelowLevel+cSpaceAboveOpenLevel);
             levelOffset = Vector2i(cast(int)((cOpenLevelWidthMultiplier-1)/2.0f
-                *level.size.x), cSpaceAboveOpenLevel);
+                *mLevel.size.x), cSpaceAboveOpenLevel);
         }
 
-        gamelevel = new GameLevel(level, levelOffset);
+        mGamelevel = new GameLevel(mLevel, levelOffset);
 
         //to enable level-bitmap collision
-        physicworld.add(gamelevel.physics);
+        physicworld.add(mGamelevel.physics);
         //various level borders
         waterborder = new PlaneTrigger();
         waterborder.id = "waterplane";
@@ -372,11 +383,11 @@ class GameEngine {
         physicworld.add(mWindForce);
         physicworld.addBaseObject(mWindChanger);
         //xxx make this configurable or initialize randomly
-        windSpeed = -150;   //what unit is that???
+        setWindSpeed(-150);   //what unit is that???
 
         //physics timed changer for water offset
-        mWaterChanger = new PhysicTimedChangerFloat(gamelevel.offset.y
-            + gamelevel.size.y - gamelevel.waterLevelInit, &waterChangerUpdate);
+        mWaterChanger = new PhysicTimedChangerFloat(mGamelevel.offset.y
+            + mGamelevel.size.y - mGamelevel.waterLevelInit, &waterChangerUpdate);
         mWaterChanger.changePerSec = cWaterRaisingSpeed;
         physicworld.addBaseObject(mWaterChanger);
 
@@ -386,7 +397,7 @@ class GameEngine {
 
         //NOTE: GameController relies on many stuff at initialization
         //i.e. physics for worm placement
-        controller = new GameController(this, config);
+        mController = new GameController(this, config);
 
         mGameTime = new TimeSource(&gFramework.getCurrentTime);
     }
@@ -402,7 +413,7 @@ class GameEngine {
 
     //return skyline offset (used by airstrikes)
     float skyline() {
-        return gamelevel.offset.y;
+        return mGamelevel.offset.y;
     }
 
     //one time initialization, where levle objects etc. should be loaded (?)
@@ -425,7 +436,7 @@ class GameEngine {
     public float windSpeed() {
         return mWindForce.accel.x;
     }
-    public void windSpeed(float speed) {
+    public void setWindSpeed(float speed) {
         mWindChanger.target = speed;
     }
 
@@ -460,7 +471,7 @@ class GameEngine {
     }
 
     protected void simulate() {
-        controller.simulate();
+        mController.simulate();
     }
 
     Time blubber;
@@ -499,11 +510,11 @@ class GameEngine {
         current.time = mGameTime.current;
         events ~= current;
 
-        currentEvents = null;
+        mCurrentEvents = null;
 
         //take one element back from queue
         if (events[0].time + timeMsecs(lag+randRange(-25,25)) < mGameTime.current) {
-            currentEvents = events[0].list;
+            mCurrentEvents = events[0].list;
             events = events[1..$];
         }
     }
@@ -587,11 +598,11 @@ class GameEngine {
         out Vector2f dest, float radius)
     {
         //clip y_max to level borders
-        y_max = max(y_max, 1.0f*gamelevel.offset.y);
-        y_max = min(y_max, 1.0f*gamelevel.offset.y + gamelevel.size.y);
+        y_max = max(y_max, 1.0f*mGamelevel.offset.y);
+        y_max = min(y_max, 1.0f*mGamelevel.offset.y + mGamelevel.size.y);
         for (;retrycount > 0; retrycount--) {
-            drop.y = randRange(1.0f*gamelevel.offset.y, y_max);
-            drop.x = gamelevel.offset.x + randRange(0, gamelevel.size.x);
+            drop.y = randRange(1.0f*mGamelevel.offset.y, y_max);
+            drop.x = mGamelevel.offset.x + randRange(0, mGamelevel.size.x);
             if (placeObject(drop, y_max, dest, radius))
                 return true;
         }
@@ -602,7 +613,7 @@ class GameEngine {
         auto expl = new ExplosiveForce();
         expl.damage = damage;
         expl.pos = pos;
-        gamelevel.damage(toVector2i(pos), cast(int)(expl.radius/2.0f));
+        mGamelevel.damage(toVector2i(pos), cast(int)(expl.radius/2.0f));
         physicworld.add(expl);
     }
 }

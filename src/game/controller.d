@@ -6,12 +6,14 @@ import common.scene;
 import game.animation;
 import common.visual;
 import game.weapon;
+import game.gamepublic;
 import utils.vector2;
 import utils.configfile;
 import utils.log;
 import utils.time;
 import utils.misc;
 import utils.array;
+import utils.queue;
 import common.common;
 
 import framework.framework;
@@ -20,18 +22,6 @@ import framework.i18n;
 
 import str = std.string;
 import math = std.math;
-
-//Hint: there's a limited number of predefined colors; that's because sometimes
-//colors are hardcoded in animations, etc.
-//so, these are not just color names, but also linked to these animations
-static const char[][] cTeamColors = [
-    "red",
-    "blue",
-    "green",
-    "yellow",
-    "magenta",
-    "cyan",
-];
 
 class Team {
     char[] name = "unnamed team";
@@ -195,19 +185,11 @@ class WeaponItem {
     }
 }
 
-enum RoundState {
-    prepare,    //player ready
-    playing,    //round running
-    cleaningUp, //worms losing hp etc, may occur during round
-    nextOnHold, //next round about to start (drop crates, ...)
-    end,        //everything ended!
-}
-
 //the GameController controlls the game play; especially, it converts keyboard
 //events into worm moves (or weapon moves!), controlls which object is focused
 //by the "camera", and also manages worm teams
 //xxx: move gui parts out of this
-class GameController {
+class GameController : ControllerPublic {
     private GameEngine mEngine;
     private Team[] mTeams;
     private TeamMember[] mAllWorms;
@@ -246,8 +228,21 @@ class GameController {
     private Time mCurrentLastAction;
     private Time cLongAgo;
 
-    public void delegate(char[]) messageCb;
-    public bool delegate() messageIdleCb;
+    private Queue!(char[]) mMessages;
+    //time between messages, how they are actually displayed
+    //is up to the gui
+    private const cMessageTime = 1.5f;
+    private Time mLastMsgTime;
+    //called whenever a message should be sent to the gui, which
+    //will show it asap
+    public void delegate(char[]) mMessageCb;
+
+    void delegate(char[]) messageCb() {
+        return mMessageCb;
+    }
+    void messageCb(void delegate(char[]) cb) {
+        mMessageCb = cb;
+    }
 
     //public SceneView sceneview; //set by someone else (= hack)
 
@@ -312,6 +307,9 @@ class GameController {
         mTimePerRound = timeSecs(config.gamemode.getIntValue("roundtime",15));
         mHotseatSwitchTime = timeSecs(
             config.gamemode.getIntValue("hotseattime",5));
+
+        mMessages = new Queue!(char[]);
+        mLastMsgTime = cLongAgo;
     }
 
     //currently needed to deinitialize the gui
@@ -348,6 +346,17 @@ class GameController {
                 messageAdd("bad luck!");
                 transition(RoundState.cleaningUp);
             }
+        }
+
+        //process messages
+        if (mLastMsgTime < mEngine.gameTime.current && !mMessages.empty()) {
+            //show one
+            char[] msg = mMessages.pop();
+            //note that messages will get lost if callback is not set,
+            //this is intended
+            if (mMessageCb)
+                mMessageCb(msg);
+            mLastMsgTime = mEngine.gameTime.current;
         }
     }
 
@@ -495,15 +504,11 @@ class GameController {
     }
 
     private void messageAdd(char[] msg) {
-        if (messageCb)
-            messageCb(msg);
+        mMessages.push(msg);
     }
 
     private bool messageIsIdle() {
-        if (messageIdleCb)
-            return messageIdleCb();
-        else
-            return true;
+        return mMessages.empty;
     }
 
     void allowSetPoint(bool set) {

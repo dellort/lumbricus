@@ -106,9 +106,9 @@ class GameSky {
         mEngine = engine;
         ConfigNode skyNode = globals.loadConfig("sky");
         globals.resources.loadResources(skyNode);
-        Color skyColor = engine.level.skyColor;
+        Color skyColor = engine.engine.level.skyColor;
 
-        Surface bmp = engine.level.skyGradient;
+        Surface bmp = engine.engine.level.skyGradient;
         if (!bmp) {
             bmp = globals.resources.resource!(BitmapResource)
                 ("/default_gradient").get();
@@ -116,13 +116,13 @@ class GameSky {
         Texture skyTex = bmp.createTexture();
         mSkyHeight = skyTex.size.y;
 
-        bmp = engine.level.skyBackdrop;
+        bmp = engine.engine.level.skyBackdrop;
         Texture skyBackdrop = null;
         if (bmp) {
             skyBackdrop = bmp.createTexture();
         }
 
-        mDebrisAnim = engine.level.skyDebris.get();
+        mDebrisAnim = engine.engine.level.skyDebris.get();
 
         int i = 0;
         ConfigNode cloudNode = skyNode.getSubNode("clouds");
