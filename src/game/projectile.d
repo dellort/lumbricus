@@ -89,7 +89,7 @@ private class ProjectileThrower : Shooter {
 
         //care about spawning!
         while (spawnCount > 0
-            && engine.gameTime.current - lastSpawn > spawnParams.delay)
+            && engine.gameTime.current - lastSpawn >= spawnParams.delay)
         {
             spawnCount--;
             lastSpawn = engine.gameTime.current;
@@ -491,7 +491,7 @@ class ProjectileEffectorGravityCenter : ProjectileEffector {
         if (ac) {
             mParent.engine.physicworld.add(mGravForce);
         } else {
-            mGravForce.remove();
+            mGravForce.dead = true;
         }
     }
 }
@@ -645,7 +645,7 @@ class ProjectileEffectorProximitySensor : ProjectileEffector {
         if (ac) {
             mParent.engine.physicworld.add(mTrigger);
         } else {
-            mTrigger.remove();
+            mTrigger.dead = true;
         }
     }
 }

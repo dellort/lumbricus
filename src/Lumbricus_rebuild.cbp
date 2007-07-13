@@ -77,6 +77,7 @@
 		<Unit filename="game\controller.d" />
 		<Unit filename="game\game.d" />
 		<Unit filename="game\gameinterface.d" />
+		<Unit filename="game\gamepublic.d" />
 		<Unit filename="game\glevel.d" />
 		<Unit filename="game\gobject.d" />
 		<Unit filename="game\gui\gameframe.d" />
