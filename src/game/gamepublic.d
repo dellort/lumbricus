@@ -115,6 +115,8 @@ interface ControllerPublic {
     ///pass an event to the controller
     bool onKeyDown(char[] bind, KeyInfo info, Vector2i mousePos);
     bool onKeyUp(char[] bind, KeyInfo info, Vector2i mousePos);
+
+    void selectWeapon(char[] weaponId);
 }
 
 //Hint: there's a limited number of predefined colors; that's because sometimes

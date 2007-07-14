@@ -209,6 +209,13 @@ class GameFrame : SimpleContainer {
             ["float:slow down",
              "text?:ani or game"]));
         mCmds.register(Command("pause", &cmdPause, "pause"));
+        mCmds.register(Command("weapon", &cmdWeapon,
+            "Debug: Select a weapon by id", ["text:Weapon ID"]));
+    }
+
+    private void cmdWeapon(MyBox[] args, Output write) {
+        char[] wid = args[0].unboxMaybe!(char[])("");
+        gameifc.controller.selectWeapon(wid);
     }
 
     private void cmdCameraDisable(MyBox[] args, Output write) {

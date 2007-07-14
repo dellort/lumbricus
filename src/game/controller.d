@@ -23,28 +23,98 @@ import framework.i18n;
 import str = std.string;
 import math = std.math;
 
+private Time cLongAgo;
+
+///which style a worm should jump
+enum JumpMode {
+    normal,      ///standard forward jump (return)
+    smallBack,   ///little backwards jump (double return)
+    backFlip,    ///large backwards jump/flip (double backspace)
+    straightUp,  ///jump straight up (backspace)
+}
+
 class Team {
     char[] name = "unnamed team";
-    private TeamMember[] mWorms;
     //this values indices into cTeamColors and the gravestone animations
     int teamColor, graveStone;
     WeaponSet weapons;
+    WeaponItem defaultWeapon;
     int initialPoints; //on loading
-
     Vector2f currentTarget;
     bool targetIsSet;
+    GameController parent;
+    bool allowSelect;   //can next worm be selected by user (tab)
+    bool forcedFinish;
+
+    private {
+        TeamMember[] mMembers;  //all members (will not change in-game)
+        TeamMember mCurrent;  //active worm that will receive user input
+        TeamMember mLastActive;  //worm that played last (to choose next)
+        bool mActive;         //is this team playing?
+        bool mOnHold;
+
+        //if you can click anything, if true, also show that animation
+        bool mAllowSetPoint;
+
+        //key state for LEFT/RIGHT and UP/DOWN
+        Vector2f dirKeyState_lu = {0, 0};  //left/up
+        Vector2f dirKeyState_rd = {0, 0};  //right/down
+        Vector2f movementVec = {0, 0};
+    }
+
+    //node = the node describing a single team
+    this(ConfigNode node, GameController parent) {
+        this.parent = parent;
+        name = node.getStringValue("name", name);
+        teamColor = node.selectValueFrom("color", cTeamColors, 0);
+        initialPoints = node.getIntValue("power", 100);
+        graveStone = node.getIntValue("grave", 0);
+        //the worms currently aren't loaded by theirselves...
+        foreach (char[] name, char[] value; node.getSubNode("member_names")) {
+            auto worm = new TeamMember(value, this);
+            mMembers ~= worm;
+        }
+        //xxx error handling
+        weapons = parent.initWeaponSet(node["weapon_set"]);
+        defaultWeapon = weapons.byId(node["default_weapon"]);
+    }
+
+    private void placeMembers() {
+        foreach (TeamMember m; mMembers) {
+            m.place();
+        }
+    }
 
     //wraps around, if w==null, return first element, if any
     private TeamMember doFindNext(TeamMember w) {
-        return arrayFindNext(mWorms, w);
+        return arrayFindNext(mMembers, w);
     }
 
     TeamMember findNext(TeamMember w, bool must_be_alive = false) {
-        return arrayFindNextPred(mWorms, w,
+        return arrayFindNextPred(mMembers, w,
             (TeamMember t) {
                 return !must_be_alive || t.isAlive;
             }
         );
+    }
+
+    ///activate a member for playing
+    ///only for a member, not the team, use setActive for team
+    void current(TeamMember cur) {
+        if (cur is mCurrent)
+            return;
+        if (mCurrent)
+            mCurrent.setActive(false);
+        mCurrent = cur;
+        if (mCurrent) {
+            mCurrent.setActive(true);
+            //apply current movement (user may have pressed keys early)
+            mCurrent.move(movementVec);
+        }
+    }
+    ///get active member (can be null)
+    TeamMember current() {
+        return mCurrent;
     }
 
     //if there's any alive worm
@@ -52,22 +122,64 @@ class Team {
         return findNext(null, true) !is null;
     }
 
-    private this() {
+    bool isActive() {
+        return mActive;
     }
 
-    //node = the node describing a single team
-    this(ConfigNode node) {
-        name = node.getStringValue("name", name);
-        teamColor = node.selectValueFrom("color", cTeamColors, 0);
-        initialPoints = node.getIntValue("power", 100);
-        graveStone = node.getIntValue("grave", 0);
-        //the worms currently aren't loaded by theirselves...
-        foreach (char[] name, char[] value; node.getSubNode("member_names")) {
-            auto worm = new TeamMember();
-            worm.name = value;
-            worm.team = this;
-            mWorms ~= worm;
+    bool isControllable() {
+        return mActive && !mOnHold;
+    }
+
+    void setOnHold(bool hold) {
+        if (!mActive)
+            return;
+        mOnHold = hold;
+    }
+
+    ///set if this team should be able to move/play
+    void setActive(bool act) {
+        if (act == mActive)
+            return;
+        if (act) {
+            //activating team
+            mActive = act;
+            setOnHold(false);
+            if (!activateNextInRow()) {
+                //no worm could be activated (i.e. all dead)
+                mActive = false;
+                return;
+            }
+            forcedFinish = false;
+        } else {
+            //deactivating
+            current = null;
+            allowSetPoint(false);
+            setOnHold(false);
+            mActive = act;
         }
+    }
+
+    ///select the worm to play when team becomes active
+    bool activateNextInRow() {
+        assert(mCurrent is null);
+        assert(mActive);
+        //this will activate the worm
+        auto next = findNext(mLastActive, true);
+        current = next;
+        //current may change by user input, mLastActive will not
+        mLastActive = next;
+        if (!next)
+            return false;
+        return true;
+    }
+
+    ///choose next in reaction to user keypress
+    void doChooseWorm() {
+        if (!mActive || !mCurrent || !allowSelect)
+            return;
+        //activates next, and deactivates current
+        //special case: only one left -> current() will do nothing
+        current = findNext(mCurrent, true);
     }
 
     char[] toString() {
@@ -75,535 +187,26 @@ class Team {
     }
 
     int opApply(int delegate(inout TeamMember member) del) {
-        foreach (TeamMember m; mWorms) {
+        foreach (TeamMember m; mMembers) {
             int res = del(m);
             if (res)
                 return res;
         }
         return 0;
     }
-}
-
-//member of a team, currently (and maybe always) capsulates a WormSprite object
-class TeamMember {
-    private WormSprite mWorm;
-    Team team;
-    char[] name = "unnamed worm";
-    int lastKnownLifepower;
-    private WeaponItem mCurrentWeapon;
-
-    //returns if 0 points, i.e. returns true even if worm didn't commit yet
-    bool dead() {
-        return !mWorm || mWorm.isDead();
-    }
-
-    GObjectSprite sprite() {
-        return mWorm;
-    }
-
-    WormSprite worm() {
-        return mWorm;
-    }
-
-    bool isAlive() {
-        //currently by havingwormspriteness... since dead worms haven't
-        return (mWorm !is null) && !mWorm.isDead();
-    }
-
-    char[] toString() {
-        return "[tworm " ~ (team ? team.toString() : null) ~ ":'" ~ name ~ "']";
-    }
-
-    WeaponItem currentWeapon() {
-        return mCurrentWeapon;
-    }
-    //dir = +1 or -1
-    void cycleThroughWeapons(int dir) {
-        if (dir > 0) {
-            mCurrentWeapon = arrayFindNext(team.weapons.weapons, mCurrentWeapon);
-        } else if (dir < 0) {
-            mCurrentWeapon = arrayFindPrev(team.weapons.weapons, mCurrentWeapon);
-        }
-    }
-
-    void didFire() {
-        assert(mCurrentWeapon !is null);
-        mCurrentWeapon.decrease();
-        //xxx select next weapon when current is empty... oh sigh
-    }
-}
-
-class WeaponSet {
-    WeaponItem[] weapons;
-    char[] name;
-
-    //config = item from "weapon_sets"
-    void readFromConfig(ConfigNode config, GameEngine engine) {
-        name = config.name;
-        foreach (ConfigNode node; config.getSubNode("weapon_list")) {
-            auto weapon = new WeaponItem();
-            weapon.loadFromConfig(node, engine);
-            weapons ~= weapon;
-        }
-    }
-}
-
-class WeaponItem {
-    private {
-        WeaponSet mContainer;
-        WeaponClass mWeapon;
-        int mQuantity;
-        bool mInfiniteQuantity;
-    }
-
-    bool haveAtLeastOne() {
-        return mQuantity > 0 || mInfiniteQuantity;
-    }
-
-    void decrease() {
-        if (mQuantity > 0)
-            mQuantity--;
-    }
-
-    WeaponClass weapon() {
-        return mWeapon;
-    }
-
-    //an item in "weapon_list"
-    void loadFromConfig(ConfigNode config, GameEngine engine) {
-        //xxx error handling
-        mWeapon = engine.findWeaponClass(config["type"]);
-        if (config.valueIs("quantity", "inf")) {
-            mInfiniteQuantity = true;
-        } else {
-            mQuantity = config.getIntValue("type", 0);
-        }
-    }
-
-    //only instantiated from WeaponSet
-    private this() {
-    }
-}
-
-//the GameController controlls the game play; especially, it converts keyboard
-//events into worm moves (or weapon moves!), controlls which object is focused
-//by the "camera", and also manages worm teams
-//xxx: move gui parts out of this
-class GameController : ControllerPublic {
-    private GameEngine mEngine;
-    private Team[] mTeams;
-    private TeamMember[] mAllWorms;
-    //xxx for loading only
-    private ConfigNode[char[]] mWeaponSets;
-
-    private TeamMember mCurrent; //currently active worm
-    //position where worm started, used to check if worm did anything (?)
-    private Vector2f mCurrent_startpos;
-
-    private TeamMember mLastActive; //last active worm
-
-    //key state for LEFT/RIGHT and UP/DOWN
-    private Vector2f dirKeyState_lu = {0, 0};  //left/up
-    private Vector2f dirKeyState_rd = {0, 0};  //right/down
-    private Vector2f movementVec = {0, 0};
-
-    private Log mLog;
-
-    //parts of the Gui
-    private SceneObjectPositioned mForArrow;
-    private Vector2i mForArrowPos;
-
-    //if you can click anything, if true, also show that animation
-    private bool mAllowSetPoint;
-
-    private Time mRoundRemaining, mPrepareRemaining;
-    //to select next worm
-    private TeamMember[Team] mTeamCurrentOne;
-    //time a round takes
-    private Time mTimePerRound;
-    //extra time before round time to switch seats etc
-    private Time mHotseatSwitchTime;
-    private bool mIsAnythingGoingOn; // (= hack)
-    private bool mWormAction;
-    private Time mCurrentLastAction;
-    private Time cLongAgo;
-
-    private Queue!(char[]) mMessages;
-    //time between messages, how they are actually displayed
-    //is up to the gui
-    private const cMessageTime = 1.5f;
-    private Time mLastMsgTime;
-    //called whenever a message should be sent to the gui, which
-    //will show it asap
-    public void delegate(char[]) mMessageCb;
-
-    void delegate(char[]) messageCb() {
-        return mMessageCb;
-    }
-    void messageCb(void delegate(char[]) cb) {
-        mMessageCb = cb;
-    }
-
-    //public SceneView sceneview; //set by someone else (= hack)
-
-    private RoundState mCurrentRoundState;
-
-    void current(TeamMember worm) {
-        if (mCurrent) {
-            auto old = mCurrent.worm;
-            if (old) {
-                //switch all off!
-                old.activateJetpack(false);
-                old.move(Vector2f(0));
-                old.drawWeapon(false);
-            }
-
-            //possibly was focused on it, release camera focus then
-            //yyy sceneview.setCameraFocus(null, CameraStyle.Reset);
-
-            allowSetPoint = false;
-            mCurrentLastAction = cLongAgo;
-
-            mLastActive = mCurrent;
-        }
-        mCurrent = worm;
-        if (mCurrent) {
-            mLastActive = mCurrent;
-
-            //set camera
-            if (mCurrent.mWorm) {
-                //xxx sceneview.setCameraFocus(mCurrent.mWorm.graphic);
-                mCurrent_startpos = mCurrent.mWorm.physics.pos;
-            }
-            mCurrentLastAction = cLongAgo;
-            messageAdd(_("msgselectworm", mCurrent.name));
-        }
-    }
-    TeamMember current() {
-        return mCurrent;
-    }
-
-    bool haveCurrentControl() {
-        auto worm = mCurrent ? mCurrent.mWorm : null;
-        if (!worm)
-            return false;
-        return worm.haveAnyControl();
-    }
-
-    this(GameEngine engine, GameConfig config) {
-        cLongAgo = timeHours(-24);
-
-        mEngine = engine;
-
-        mLog = registerLog("gamecontroller");
-
-        if (config.weapons) {
-            loadWeapons(config.weapons);
-        }
-        if (config.teams) {
-            loadTeams(config.teams);
-        }
-
-        mTimePerRound = timeSecs(config.gamemode.getIntValue("roundtime",15));
-        mHotseatSwitchTime = timeSecs(
-            config.gamemode.getIntValue("hotseattime",5));
-
-        mMessages = new Queue!(char[]);
-        mLastMsgTime = cLongAgo;
-    }
-
-    //currently needed to deinitialize the gui
-    void kill() {
-    }
-
-    GameEngine engine() {
-        return mEngine;
-    }
-
-    void simulate() {
-        Time diffT = mEngine.gameTime.difference;
-
-        if (current && current.mWorm) {
-            if (mCurrent_startpos != current.mWorm.physics.pos)
-                currentWormAction(false);
-        }
-        if (!mIsAnythingGoingOn) {
-            mIsAnythingGoingOn = true;
-            //nothing happening? start a round
-            messageAdd(_("msggamestart"));
-
-            mCurrentRoundState = RoundState.nextOnHold;
-            current = null;
-            transition(RoundState.prepare);
-        }
-
-        RoundState next = doState(diffT);
-        if (next != mCurrentRoundState)
-            transition(next);
-
-        if (mCurrentRoundState == RoundState.playing) {
-            if (!current || current.dead()) {
-                messageAdd("bad luck!");
-                transition(RoundState.cleaningUp);
-            }
-        }
-
-        //process messages
-        if (mLastMsgTime < mEngine.gameTime.current && !mMessages.empty()) {
-            //show one
-            char[] msg = mMessages.pop();
-            //note that messages will get lost if callback is not set,
-            //this is intended
-            if (mMessageCb)
-                mMessageCb(msg);
-            mLastMsgTime = mEngine.gameTime.current;
-        }
-    }
-
-    Time currentLastAction() {
-        return mCurrentLastAction;
-    }
-
-    //return true if there are dying worms
-    private bool checkDyingWorms() {
-        bool morework;
-        foreach (TeamMember m; mAllWorms) {
-            auto worm = m.mWorm;
-            //already dead -> boring
-            //also bail out here if worm drowned/is drowning
-            if (!worm || worm.isReallyDead()) {
-                m.mWorm = null;
-                continue;
-            }
-
-            //3 possible states: healthy, unhealthy but not suiciding, suiciding
-            if (worm.shouldDie() && !worm.isDelayedDying()) {
-                //unhealthy, not suiciding
-                worm.finallyDie();
-                assert(worm.isDelayedDying() || worm.isDead());
-                morework = true;
-            } else if (worm.isDelayedDying()) {
-                //suiciding
-                morework = true;
-            }
-        }
-        return morework;
-    }
-
-    private RoundState doState(Time deltaT) {
-        switch (mCurrentRoundState) {
-            case RoundState.prepare:
-                mPrepareRemaining = mPrepareRemaining - deltaT;
-                moveWorm(movementVec);
-                if (mWormAction)
-                    //worm moved -> exit prepare phase
-                    return RoundState.playing;
-                if (mPrepareRemaining < timeMusecs(0))
-                    return RoundState.playing;
-                break;
-            case RoundState.playing:
-                mRoundRemaining = mRoundRemaining - deltaT;
-                if (mRoundRemaining < timeMusecs(0))
-                    return RoundState.cleaningUp;
-
-                moveWorm(movementVec);
-
-                break;
-            case RoundState.cleaningUp:
-                mRoundRemaining = timeSecs(0);
-                //not yet
-                return checkDyingWorms()
-                    ? RoundState.cleaningUp : RoundState.nextOnHold;
-                break;
-            case RoundState.nextOnHold:
-                if (messageIsIdle())
-                    return RoundState.prepare;
-                break;
-            case RoundState.end:
-                break;
-        }
-        return mCurrentRoundState;
-    }
-
-    private void transition(RoundState st) {
-        assert(st != mCurrentRoundState);
-        mCurrentRoundState = st;
-        switch (st) {
-            case RoundState.prepare:
-                mWormAction = false;
-                mRoundRemaining = mTimePerRound;
-                mPrepareRemaining = mHotseatSwitchTime;
-
-                auto old = mLastActive;
-
-                //save that
-                if (old) {
-                    mTeamCurrentOne[old.team] = old;
-                }
-
-                //select next team/worm
-                Team currentTeam = old ? old.team : null;
-                Team next = arrayFindNextPred(mTeams, currentTeam,
-                    (Team t) {
-                        return t.isAlive();
-                    }
-                );
-                TeamMember nextworm;
-                if (next) {
-                    auto w = next in mTeamCurrentOne;
-                    TeamMember cur = w ? *w : null;
-                    nextworm = next.findNext(cur, true);
-                }
-
-                current = nextworm;
-
-                if (!mCurrent) {
-                    messageAdd("omg! all dead!");
-                    transition(RoundState.end);
-                }
-                break;
-            case RoundState.playing:
-                mPrepareRemaining = timeMusecs(0);
-                break;
-            case RoundState.cleaningUp:
-                //see doState()
-                break;
-            case RoundState.nextOnHold:
-                current = null;
-                messageAdd(_("msgnextround"));
-                mRoundRemaining = timeMusecs(0);
-                break;
-            case RoundState.end:
-                messageAdd(_("msggameend"));
-                current = null;
-                break;
-        }
-    }
-
-    public RoundState currentRoundState() {
-        return mCurrentRoundState;
-    }
-
-    public Team currentTeam() {
-        if (current)
-            return current.team;
-        else
-            return null;
-    }
-
-    public Team[] teams() {
-        return mTeams;
-    }
-
-    public Time currentRoundTime() {
-        return mRoundRemaining;
-    }
-
-    public Time currentPrepareTime() {
-        return mPrepareRemaining;
-    }
-
-    private void messageAdd(char[] msg) {
-        mMessages.push(msg);
-    }
-
-    private bool messageIsIdle() {
-        return mMessages.empty;
-    }
 
     void allowSetPoint(bool set) {
         if (mAllowSetPoint == set)
             return;
         mAllowSetPoint = set;
-        mCurrent.team.targetIsSet = false;
+        targetIsSet = false;
     }
     void doSetPoint(Vector2f where) {
-        if (!mAllowSetPoint)
+        if (!mAllowSetPoint || !isControllable)
             return;
 
-        if (mCurrent) {
-            mCurrent.team.targetIsSet = true;
-            mCurrent.team.currentTarget = where;
-        }
-    }
-
-    //called if any action is issued, i.e. key pressed to control worm
-    //or if it was moved by sth. else
-    void currentWormAction(bool fromkeys = true) {
-        if (fromkeys) {
-            mWormAction = true;
-            mCurrentLastAction = mEngine.gameTime.current;
-        }
-    }
-
-    //update weapon state of current worm (when new weapon selected)
-    void updateWeapon() {
-        if (!mCurrent)
-            return;
-        //argh
-        if (mCurrent.mWorm) {
-            WeaponClass selected;
-            if (mCurrent.currentWeapon) {
-                if (mCurrent.currentWeapon.weapon) {
-                    selected = mCurrent.currentWeapon.weapon;
-                }
-            }
-            /*if (selected) {
-                messageAdd(_("msgselweapon", _("weapons." ~ selected.name)));
-            } else {
-                messageAdd(_("msgnoweapon"));
-            }*/
-            Shooter nshooter;
-            if (selected) {
-                nshooter = selected.createShooter();
-                allowSetPoint = selected.canPoint;
-            }
-            mCurrent.mWorm.shooter = nshooter;
-        }
-    }
-
-    //xxx code duplication with code that selects worm for next round
-    private TeamMember selectNext() {
-        if (!mCurrent) {
-            //hum? this is debug code
-            //return mTeams ? mTeams[0].findNext(null) : null;
-            return null;
-        } else {
-            return selectNextFromTeam(mCurrent);
-        }
-    }
-    private TeamMember selectNextFromTeam(TeamMember cur) {
-        if (!cur)
-            return null;
-        return cur.team.findNext(cur, true);
-    }
-
-    //actually still stupid debugging code
-    private void spawnWorm(Vector2i pos) {
-        //now stupid debug code in another way
-        auto w = mEngine.createSprite("worm");
-        w.setPos(toVector2f(pos));
-        w.active = true;
-    }
-
-    private bool canControlWorm() {
-        return mCurrent !is null
-            && (mCurrentRoundState == RoundState.prepare
-                || mCurrentRoundState == RoundState.playing)
-            && mCurrent.mWorm
-            && mCurrent.mWorm.haveAnyControl();
-    }
-
-    private void moveWorm(Vector2f v) {
-        if (!mCurrent || !mCurrent.worm)
-            return;
-
-        if (canControlWorm() && movementVec != Vector2f(0)) {
-            mCurrent.worm.move(movementVec);
-            currentWormAction();
-        } else {
-            mCurrent.worm.move(Vector2f(0));
-        }
+        targetIsSet = true;
+        currentTarget = where;
     }
 
     private bool handleDirKey(char[] bind, bool up) {
@@ -626,6 +229,8 @@ class GameController : ControllerPublic {
         }
 
         movementVec = dirKeyState_rd-dirKeyState_lu;
+        if (mCurrent)
+            mCurrent.move(movementVec);
 
         return true;
     }
@@ -633,19 +238,19 @@ class GameController : ControllerPublic {
     bool onKeyDown(char[] bind, KeyInfo info, Vector2i mousePos) {
         switch (bind) {
             case "debug2": {
-                mEngine.gamelevel.damage(mousePos, 100);
+                parent.engine.gamelevel.damage(mousePos, 100);
                 return true;
             }
             case "debug1": {
-                spawnWorm(mousePos);
+                parent.spawnWorm(mousePos);
                 return true;
             }
             case "debug3": {
-                mRoundRemaining *= 4;
+                parent.mRoundRemaining *= 4;
                 return true;
             }
             case "selectworm": {
-                current = selectNext();
+                doChooseWorm();
                 return true;
             }
             case "pointy": {
@@ -658,46 +263,24 @@ class GameController : ControllerPublic {
         if (handleDirKey(bind, false))
             return true;
 
-        if (!mCurrent || !canControlWorm())
+        if (!mCurrent)
             return false;
-        auto worm = mCurrent.worm;
 
         switch (bind) {
             case "jump": {
-                worm.jump();
-                currentWormAction();
+                mCurrent.jump(JumpMode.normal);
                 return true;
             }
             case "jetpack": {
-                worm.activateJetpack(!worm.jetpackActivated);
-                currentWormAction();
-                return true;
-            }
-            case "weapon": {
-                worm.drawWeapon(!worm.weaponDrawn);
-                updateWeapon();
-                currentWormAction();
+                mCurrent.toggleJetpack();
                 return true;
             }
             case "fire": {
-                doFire();
-                return true;
-            }
-            case "weapon_prev": {
-                mCurrent.cycleThroughWeapons(-1);
-                updateWeapon();
-                currentWormAction();
-                return true;
-            }
-            case "weapon_next": {
-                mCurrent.cycleThroughWeapons(+1);
-                updateWeapon();
-                currentWormAction();
+                mCurrent.doFire();
                 return true;
             }
             case "debug4": {
-                worm.physics.applyDamage(100000);
-                currentWormAction();
+                mCurrent.worm.physics.applyDamage(100000);
                 return true;
             }
             default:
@@ -707,17 +290,245 @@ class GameController : ControllerPublic {
         return false;
     }
 
-    private void doFire() {
-        if (!mCurrent || !mCurrent.worm)
+    bool onKeyUp(char[] bind, KeyInfo info, Vector2i mousePos) {
+        if (handleDirKey(bind, true))
+            return true;
+        return false;
+    }
+
+    //select (and draw) a weapon by its id
+    void selectWeapon(char[] weaponId) {
+        if (mCurrent)
+            mCurrent.selectWeapon(weapons.byId(weaponId));
+    }
+
+    bool teamAction() {
+        if (mCurrent) {
+            return mCurrent.actionPerformed();
+        }
+        return false;
+    }
+
+    //check if some parts of the team are still moving
+    //round controller may use this to wait for the next round
+    bool isIdle() {
+        foreach (m; mMembers) {
+            //check if any alive member is still moving around
+            if (m.isAlive() && !m.isIdle())
+                return false;
+        }
+        return true;
+    }
+
+    void simulate() {
+        if (!mActive)
+            return;
+        if (mCurrent)
+            mCurrent.simulate();
+    }
+
+    bool checkDyingMembers() {
+        foreach (TeamMember m; mMembers) {
+            auto worm = m.mWorm;
+            //already dead -> boring
+            //also bail out here if worm drowned/is drowning
+            if (!worm || worm.isReallyDead()) {
+                m.mWorm = null;
+                continue;
+            }
+
+            //3 possible states: healthy, unhealthy but not suiciding, suiciding
+            if (worm.shouldDie() && !worm.isDelayedDying()) {
+                //unhealthy, not suiciding
+                worm.finallyDie();
+                assert(worm.isDelayedDying() || worm.isDead());
+                return true;
+            } else if (worm.isDelayedDying()) {
+                //suiciding
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
+//member of a team, currently (and maybe always) capsulates a WormSprite object
+class TeamMember {
+    Team team;
+    char[] name = "unnamed worm";
+    int lastKnownLifepower;
+    private {
+        WeaponItem mCurrentWeapon;
+        bool mActive;
+        Time mLastAction;
+        WormSprite mWorm;
+        bool mWormAction;
+        Vector2f mLastMoveVector;
+        GameEngine mEngine;
+    }
+
+    this(char[] name, Team team) {
+        this.name = name;
+        this.team = team;
+        mEngine = team.parent.engine;
+    }
+
+    private void place() {
+        if (mWorm)
+            return;
+        //create and place into the landscape
+        //habemus lumbricus
+        mWorm = cast(WormSprite)mEngine.createSprite("worm");
+        assert(mWorm !is null);
+        mWorm.physics.lifepower = team.initialPoints;
+        lastKnownLifepower = team.initialPoints;
+        //take control over dying, so we can let them die on round end
+        mWorm.delayedDeath = true;
+        mWorm.gravestone = team.graveStone;
+        Vector2f npos, tmp;
+        auto water_y = mEngine.waterOffset;
+        //first 10: minimum distance from water
+        //second 10: retry count
+        if (!mEngine.placeObject(water_y-10, 10, tmp, npos,
+            mWorm.physics.posp.radius))
+        {
+            //placement unsuccessful
+            //the original game blows a hole into the level at a random
+            //position, and then places a small bridge for the worm
+            //but for now... just barf and complain
+            npos = toVector2f(mEngine.gamelevel.offset
+                + mEngine.gamelevel.size / 2);
+            team.parent.mLog("couldn't place worm!");
+        }
+        mWorm.setPos(npos);
+        mWorm.active = true;
+    }
+
+    //returns if 0 points, i.e. returns true even if worm didn't commit yet
+    bool dead() {
+        return !mWorm || mWorm.isDead();
+    }
+
+    GObjectSprite sprite() {
+        return mWorm;
+    }
+
+    WormSprite worm() {
+        return mWorm;
+    }
+
+    bool isAlive() {
+        //currently by havingwormspriteness... since dead worms haven't
+        return (mWorm !is null) && !mWorm.isDead();
+    }
+
+    bool isControllable() {
+        return mActive && team.isControllable();
+    }
+
+    char[] toString() {
+        return "[tworm " ~ (team ? team.toString() : null) ~ ":'" ~ name ~ "']";
+    }
+
+    bool lifeLost() {
+        return mWorm.physics.lifepower < lastKnownLifepower;
+    }
+
+    void setActive(bool act) {
+        if (mActive == act)
+            return;
+        if (act) {
+            //member is being activated
+            mActive = act;
+            mWormAction = false;
+            mLastAction = cLongAgo;
+            lastKnownLifepower = cast(int)mWorm.physics.lifepower;
+            //select last used weapon, select default if none
+            if (!mCurrentWeapon)
+                mCurrentWeapon = team.defaultWeapon;
+            selectWeapon(mCurrentWeapon);
+        } else {
+            //being deactivated
+            mWorm.activateJetpack(false);
+            move(Vector2f(0));
+            mWorm.drawWeapon(false);
+            mLastAction = cLongAgo;
+            mWormAction = false;
+            mActive = act;
+        }
+    }
+
+    void jump(JumpMode j) {
+        if (!isControllable)
+            return;
+        mWorm.drawWeapon(false);
+        switch (j) {
+            case JumpMode.normal:
+                mWorm.jump();
+                break;
+            default:
+                assert(false, "Implement");
+        }
+        wormAction();
+    }
+
+    void toggleJetpack() {
+        if (!isControllable)
+            return;
+        mWorm.activateJetpack(!mWorm.jetpackActivated());
+        wormAction();
+    }
+
+    WeaponItem currentWeapon() {
+        return mCurrentWeapon;
+    }
+
+    void selectWeapon(WeaponItem weapon) {
+        if (!isControllable)
+            return;
+        mCurrentWeapon = weapon;
+        if (mCurrentWeapon)
+            if (!mCurrentWeapon.haveAtLeastOne())
+                mCurrentWeapon = null;
+        updateWeapon();
+    }
+
+    //update weapon state of current worm (when new weapon selected)
+    void updateWeapon() {
+        if (!mActive)
             return;
 
-        auto worm = mCurrent.worm;
+        WeaponClass selected;
+        if (mCurrentWeapon) {
+            if (!mCurrentWeapon.haveAtLeastOne())
+                return;
+            if (currentWeapon.weapon) {
+                selected = mCurrentWeapon.weapon;
+            }
+        }
+        /*if (selected) {
+            messageAdd(_("msgselweapon", _("weapons." ~ selected.name)));
+        } else {
+            messageAdd(_("msgnoweapon"));
+        }*/
+        Shooter nshooter;
+        if (selected) {
+            nshooter = selected.createShooter();
+            team.allowSetPoint = selected.canPoint;
+        }
+        mWorm.shooter = nshooter;
+    }
+
+    void doFire() {
+        if (!isControllable)
+            return;
+
         auto shooter = worm.shooter;
 
         if (!worm.weaponDrawn || !worm.shooter)
             return; //go away
 
-        mLog("fire: %s", shooter.weapon.name);
+        team.parent.mLog("fire: %s", shooter.weapon.name);
 
         FireInfo info;
         //-1 for left, 1 for right
@@ -728,40 +539,418 @@ class GameController : ControllerPublic {
         info.shootby = worm.physics;
         info.strength = shooter.weapon.throwStrength;
         info.timer = shooter.weapon.timerFrom;
-        info.pointto = mCurrent.team.currentTarget;
+        info.pointto = team.currentTarget;
         shooter.fire(info);
 
-        mCurrent.didFire();
-        currentWormAction();
+        didFire();
+        wormAction();
     }
 
-    bool onKeyUp(char[] bind, KeyInfo info, Vector2i mousePos) {
-        if (handleDirKey(bind, true))
-            return true;
+    void didFire() {
+        assert(mCurrentWeapon !is null);
+        mCurrentWeapon.decrease();
+        if (!mCurrentWeapon.haveAtLeastOne())
+            //nothing left? put away
+            selectWeapon(null);
+        //xxx select next weapon when current is empty... oh sigh
+    }
+
+    Time lastAction() {
+        return mLastAction;
+    }
+
+    //called if any action is issued, i.e. key pressed to control worm
+    //or if it was moved by sth. else
+    void wormAction(bool fromkeys = true) {
+        if (fromkeys) {
+            mWormAction = true;
+            mLastAction = team.parent.engine.gameTime.current;
+        }
+    }
+    //has the worm done anything since activation?
+    bool actionPerformed() {
+        return mWormAction;
+    }
+
+    private void move(Vector2f vec) {
+        if (!isControllable || vec == mLastMoveVector) {
+            mWorm.move(Vector2f(0));
+            return;
+        }
+
+        if (vec.x != 0) {
+            //requested walk -> put away weapon
+            mWorm.drawWeapon(false);
+        }
+
+        mLastMoveVector = vec;
+        mWorm.move(vec);
+        wormAction();
+    }
+
+    bool isIdle() {
+        return mWorm.physics.isGlued;
+    }
+
+    void simulate() {
+        if (!mActive)
+            return;
+        if (mWorm.isStanding())
+            //worms are not standing, they are FIGHTING!
+            mWorm.drawWeapon(true);
+    }
+}
+
+class WeaponSet {
+    WeaponItem[char[]] weapons;
+    char[] name;
+
+    //config = item from "weapon_sets"
+    void readFromConfig(ConfigNode config, GameEngine engine) {
+        name = config.name;
+        foreach (ConfigNode node; config.getSubNode("weapon_list")) {
+            auto weapon = new WeaponItem();
+            weapon.loadFromConfig(node, engine);
+            weapons[weapon.weaponId] = weapon;
+        }
+    }
+
+    WeaponItem byId(char[] weaponId) {
+        if (weaponId in weapons)
+            return weapons[weaponId];
+        return null;
+    }
+}
+
+class WeaponItem {
+    private {
+        WeaponSet mContainer;
+        WeaponClass mWeapon;
+        char[] weaponId;
+        int mQuantity;
+        bool mInfiniteQuantity;
+    }
+
+    bool haveAtLeastOne() {
+        return mQuantity > 0 || mInfiniteQuantity;
+    }
+
+    void decrease() {
+        if (mQuantity > 0)
+            mQuantity--;
+    }
+
+    WeaponClass weapon() {
+        return mWeapon;
+    }
+
+    //an item in "weapon_list"
+    void loadFromConfig(ConfigNode config, GameEngine engine) {
+        //xxx error handling
+        weaponId = config["type"];
+        mWeapon = engine.findWeaponClass(weaponId);
+        if (config.valueIs("quantity", "inf")) {
+            mInfiniteQuantity = true;
+        } else {
+            mQuantity = config.getIntValue("quantity", 0);
+        }
+    }
+
+    //only instantiated from WeaponSet
+    private this() {
+    }
+}
+
+//the GameController controlls the game play; especially, it converts keyboard
+//events into worm moves (or weapon moves!), controlls which object is focused
+//by the "camera", and also manages worm teams
+//xxx: move gui parts out of this
+class GameController : ControllerPublic {
+    private {
+        GameEngine mEngine;
+        Log mLog;
+
+        Team[] mTeams;
+        Team mCurrentTeam;
+        Team mLastTeam;
+
+        //xxx for loading only
+        ConfigNode[char[]] mWeaponSets;
+
+        Time mRoundRemaining, mPrepareRemaining;
+        //time a round takes
+        Time mTimePerRound;
+        //extra time before round time to switch seats etc
+        Time mHotseatSwitchTime;
+        bool mIsAnythingGoingOn; // (= hack)
+        Time mCurrentLastAction;
+
+        Queue!(char[]) mMessages;
+        //time between messages, how they are actually displayed
+        //is up to the gui
+        const cMessageTime = 1.5f;
+        Time mLastMsgTime;
+        //called whenever a message should be sent to the gui, which
+        //will show it asap
+        void delegate(char[]) mMessageCb;
+
+        RoundState mCurrentRoundState;
+    }
+
+    this(GameEngine engine, GameConfig config) {
+        cLongAgo = timeHours(-24);
+
+        mEngine = engine;
+
+        mLog = registerLog("gamecontroller");
+
+        if (config.weapons) {
+            loadWeaponSets(config.weapons);
+        }
+        if (config.teams) {
+            loadTeams(config.teams);
+        }
+
+        mTimePerRound = timeSecs(config.gamemode.getIntValue("roundtime",15));
+        mHotseatSwitchTime = timeSecs(
+            config.gamemode.getIntValue("hotseattime",5));
+
+        mMessages = new Queue!(char[]);
+        mLastMsgTime = cLongAgo;
+    }
+
+    GameEngine engine() {
+        return mEngine;
+    }
+
+    void delegate(char[]) messageCb() {
+        return mMessageCb;
+    }
+    void messageCb(void delegate(char[]) cb) {
+        mMessageCb = cb;
+    }
+
+    private void messageAdd(char[] msg) {
+        mMessages.push(msg);
+    }
+
+    private bool messageIsIdle() {
+        return mMessages.empty;
+    }
+
+    void startGame() {
+        mIsAnythingGoingOn = true;
+        //nothing happening? start a round
+        messageAdd(_("msggamestart"));
+
+        mCurrentRoundState = RoundState.nextOnHold;
+        deactivateAll();
+    }
+
+    void simulate() {
+        Time diffT = mEngine.gameTime.difference;
+
+        if (!mIsAnythingGoingOn) {
+            startGame();
+        } else {
+            RoundState next = doState(diffT);
+            if (next != mCurrentRoundState)
+                transition(next);
+
+            foreach (t; mTeams)
+                t.simulate();
+
+            //process messages
+            if (mLastMsgTime < mEngine.gameTime.current && !mMessages.empty()) {
+                //show one
+                char[] msg = mMessages.pop();
+                //note that messages will get lost if callback is not set,
+                //this is intended
+                if (mMessageCb)
+                    mMessageCb(msg);
+                mLastMsgTime = mEngine.gameTime.current;
+            }
+        }
+    }
+
+    private void deactivateAll() {
+        foreach (t; mTeams) {
+            t.setActive(false);
+        }
+        mCurrentTeam = null;
+        mLastTeam = null;
+    }
+
+    //return true if there are dying worms
+    private bool checkDyingWorms() {
+        foreach (Team t; mTeams) {
+            //death is in no hurry, one worm a frame
+            if (t.checkDyingMembers())
+                return true;
+        }
         return false;
+    }
+
+    private RoundState doState(Time deltaT) {
+        switch (mCurrentRoundState) {
+            case RoundState.prepare:
+                mPrepareRemaining = mPrepareRemaining - deltaT;
+                if (mCurrentTeam.teamAction())
+                    //worm moved -> exit prepare phase
+                    return RoundState.playing;
+                if (mPrepareRemaining < timeMusecs(0))
+                    return RoundState.playing;
+                break;
+            case RoundState.playing:
+                mRoundRemaining = mRoundRemaining - deltaT;
+                if (mRoundRemaining < timeMusecs(0))
+                    return RoundState.cleaningUp;
+                if (!mCurrentTeam.current)
+                    return RoundState.cleaningUp;
+                if (!mCurrentTeam.current.isAlive
+                    || mCurrentTeam.current.lifeLost)
+                    return RoundState.cleaningUp;
+                break;
+            case RoundState.cleaningUp:
+                mRoundRemaining = timeSecs(0);
+                //not yet
+                return checkDyingWorms()
+                    ? RoundState.cleaningUp : RoundState.nextOnHold;
+                break;
+            case RoundState.nextOnHold:
+                if (messageIsIdle() && objectsIdle())
+                    return RoundState.prepare;
+                break;
+            case RoundState.end:
+                break;
+        }
+        return mCurrentRoundState;
+    }
+
+    private void transition(RoundState st) {
+        assert(st != mCurrentRoundState);
+        mCurrentRoundState = st;
+        switch (st) {
+            case RoundState.prepare:
+                mRoundRemaining = mTimePerRound;
+                mPrepareRemaining = mHotseatSwitchTime;
+
+                //select next team/worm
+                Team next = arrayFindNextPred(mTeams, mLastTeam,
+                    (Team t) {
+                        return t.isAlive();
+                    }
+                );
+                currentTeam = next;
+                mLastTeam = next;
+                if (!next) {
+                    messageAdd("omg! all dead!");
+                    transition(RoundState.end);
+                }
+
+                break;
+            case RoundState.playing:
+                if (mCurrentTeam)
+                    mCurrentTeam.setOnHold(false);
+                mPrepareRemaining = timeMusecs(0);
+                break;
+            case RoundState.cleaningUp:
+                //no control while blowing up worms
+                if (mCurrentTeam)
+                    mCurrentTeam.setOnHold(true);
+                //see doState()
+                break;
+            case RoundState.nextOnHold:
+                currentTeam = null;
+                messageAdd(_("msgnextround"));
+                mRoundRemaining = timeMusecs(0);
+                break;
+            case RoundState.end:
+                messageAdd(_("msggameend"));
+                currentTeam = null;
+                break;
+        }
+    }
+
+    void currentTeam(Team t) {
+        if (mCurrentTeam is t)
+            return;
+        if (mCurrentTeam)
+            mCurrentTeam.setActive(false);
+        mCurrentTeam = t;
+        if (mCurrentTeam)
+            mCurrentTeam.setActive(true);
+    }
+    Team currentTeam() {
+        return mCurrentTeam;
+    }
+
+    bool objectsIdle() {
+        foreach (t; mTeams) {
+            if (!t.isIdle())
+                return false;
+        }
+        return true;
+    }
+
+    public RoundState currentRoundState() {
+        return mCurrentRoundState;
+    }
+
+    public Team[] activeTeams() {
+        Team[] res;
+        foreach (t; mTeams) {
+            if (t.isActive) {
+                res ~= t;
+            }
+        }
+        return res;
+    }
+
+    public Team[] teams() {
+        return mTeams;
+    }
+
+    public Time currentRoundTime() {
+        return mRoundRemaining;
+    }
+
+    public Time currentPrepareTime() {
+        return mPrepareRemaining;
+    }
+
+    //actually still stupid debugging code
+    private void spawnWorm(Vector2i pos) {
+        //now stupid debug code in another way
+        auto w = mEngine.createSprite("worm");
+        w.setPos(toVector2f(pos));
+        w.active = true;
+    }
+
+    WeaponSet initWeaponSet(char[] id) {
+        ConfigNode ws = mWeaponSets[id];
+        auto set = new WeaponSet();
+        set.readFromConfig(ws, mEngine);
+        return set;
     }
 
     //config = the "teams" node, i.e. from data/data/teams.conf
     private void loadTeams(ConfigNode config) {
-        current = null;
         mTeams = null;
-        mAllWorms = null;
         foreach (ConfigNode sub; config) {
-            auto team = new Team(sub);
-            //xxx shouldn't it load itself?
-            //xxx error handling
-            ConfigNode ws = mWeaponSets[sub["weapon_set"]];
-            auto set = new WeaponSet();
-            set.readFromConfig(ws, mEngine);
-            team.weapons = set;
-            mTeams ~= team;
-            mAllWorms ~= team.mWorms;
+            addTeam(sub);
         }
         placeWorms();
     }
 
+    //config = the "teams" node, i.e. from data/data/teams.conf
+    private void addTeam(ConfigNode config) {
+        auto team = new Team(config, this);
+        mTeams ~= team;
+    }
+
     //"weapon_sets" in teams.conf
-    private void loadWeapons(ConfigNode config) {
+    private void loadWeaponSets(ConfigNode config) {
         foreach (ConfigNode item; config) {
             mWeaponSets[item.name] = item;
         }
@@ -772,38 +961,28 @@ class GameController : ControllerPublic {
         mLog("placing worms...");
 
         foreach (Team t; mTeams) {
-            foreach (TeamMember m; t.mWorms) {
-                if (m.mWorm)
-                    continue;
-                //create and place into the landscape
-                //habemus lumbricus
-                m.mWorm = cast(WormSprite)mEngine.createSprite("worm");
-                assert(m.mWorm !is null);
-                m.mWorm.physics.lifepower = t.initialPoints;
-                m.lastKnownLifepower = t.initialPoints;
-                //take control over dying, so we can let them die on round end
-                m.mWorm.delayedDeath = true;
-                m.mWorm.gravestone = t.graveStone;
-                Vector2f npos, tmp;
-                auto water_y = mEngine.waterOffset;
-                //first 10: minimum distance from water
-                //second 10: retry count
-                if (!mEngine.placeObject(water_y-10, 10, tmp, npos,
-                    m.mWorm.physics.posp.radius))
-                {
-                    //placement unsuccessful
-                    //the original game blows a hole into the level at a random
-                    //position, and then places a small bridge for the worm
-                    //but for now... just barf and complain
-                    npos = toVector2f(mEngine.gamelevel.offset
-                        + mEngine.gamelevel.size / 2);
-                    mLog("couldn't place worm!");
-                }
-                m.mWorm.setPos(npos);
-                m.mWorm.active = true;
-            }
+            t.placeMembers();
         }
 
         mLog("placing worms done.");
+    }
+
+    //xxx hacks follow
+
+    bool onKeyDown(char[] bind, KeyInfo info, Vector2i mousePos) {
+        if (mCurrentTeam)
+            return mCurrentTeam.onKeyDown(bind, info, mousePos);
+        return false;
+    }
+
+    bool onKeyUp(char[] bind, KeyInfo info, Vector2i mousePos) {
+        if (mCurrentTeam)
+            return mCurrentTeam.onKeyUp(bind, info, mousePos);
+        return false;
+    }
+
+    void selectWeapon(char[] weaponId) {
+        if (mCurrentTeam)
+            mCurrentTeam.selectWeapon(weaponId);
     }
 }

@@ -30,7 +30,7 @@ enum WormState {
     Drowning,
 }
 
-/+
+/**
   just an idea:
   thing which can be controlled like a worm
   game/controller.d would only have a sprite, which could have this interface...
@@ -45,7 +45,7 @@ interface IControllable {
     Shooter shooter();
     xxx not uptodate
 }
-+/
+**/
 
 class WormSprite : GObjectSprite {
     private {
@@ -280,6 +280,10 @@ class WormSprite : GObjectSprite {
             physics.selfForce = Vector2f(0);
         }
         setState(wanted);
+    }
+
+    bool isStanding() {
+        return currentState is mStates[WormState.Stand];
     }
 
     override protected void physUpdate() {
