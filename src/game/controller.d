@@ -23,8 +23,6 @@ import framework.i18n;
 import str = std.string;
 import math = std.math;
 
-private Time cLongAgo;
-
 ///which style a worm should jump
 enum JumpMode {
     normal,      ///standard forward jump (return)
@@ -149,6 +147,7 @@ class Team {
                 mActive = false;
                 return;
             }
+            parent.messageAdd(_("msgwormstartmove", mCurrent.name));
             forcedFinish = false;
         } else {
             //deactivating
@@ -423,7 +422,7 @@ class TeamMember {
     }
 
     bool isControllable() {
-        return mActive && team.isControllable();
+        return mActive && isAlive() && team.isControllable();
     }
 
     char[] toString() {
@@ -441,7 +440,7 @@ class TeamMember {
             //member is being activated
             mActive = act;
             mWormAction = false;
-            mLastAction = cLongAgo;
+            mLastAction = timeMusecs(0);
             lastKnownLifepower = cast(int)mWorm.physics.lifepower;
             //select last used weapon, select default if none
             if (!mCurrentWeapon)
@@ -449,11 +448,13 @@ class TeamMember {
             selectWeapon(mCurrentWeapon);
         } else {
             //being deactivated
-            mWorm.activateJetpack(false);
             move(Vector2f(0));
-            mWorm.drawWeapon(false);
-            mLastAction = cLongAgo;
+            mLastAction = timeMusecs(0);
             mWormAction = false;
+            if (isAlive) {
+                mWorm.activateJetpack(false);
+                mWorm.drawWeapon(false);
+            }
             mActive = act;
         }
     }
@@ -495,7 +496,7 @@ class TeamMember {
 
     //update weapon state of current worm (when new weapon selected)
     void updateWeapon() {
-        if (!mActive)
+        if (!mActive || !isAlive)
             return;
 
         WeaponClass selected;
@@ -573,6 +574,8 @@ class TeamMember {
     }
 
     private void move(Vector2f vec) {
+        if (!isAlive)
+            return;
         if (!isControllable || vec == mLastMoveVector) {
             mWorm.move(Vector2f(0));
             return;
@@ -698,8 +701,6 @@ class GameController : ControllerPublic {
     }
 
     this(GameEngine engine, GameConfig config) {
-        cLongAgo = timeHours(-24);
-
         mEngine = engine;
 
         mLog = registerLog("gamecontroller");
@@ -716,7 +717,7 @@ class GameController : ControllerPublic {
             config.gamemode.getIntValue("hotseattime",5));
 
         mMessages = new Queue!(char[]);
-        mLastMsgTime = cLongAgo;
+        mLastMsgTime = timeSecs(-cMessageTime);
     }
 
     GameEngine engine() {
