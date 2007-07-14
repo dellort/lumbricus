@@ -17,7 +17,7 @@ class BoxContainer : SimpleContainer {
         int mAllSpacing;
     }
 
-    this(bool horiz, bool homogeneous, int cellspacing = 0) {
+    this(bool horiz, bool homogeneous = false, int cellspacing = 0) {
         mDir = horiz ? 0 : 1;
         mHomogeneous = homogeneous;
         mCellSpacing = cellspacing;

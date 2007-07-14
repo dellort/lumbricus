@@ -1,5 +1,5 @@
 //aw! I couldn't resist!
-module gui.leveledit;
+module game.gui.leveledit;
 import utils.vector2;
 import utils.rect2;
 import utils.mylist;
@@ -7,8 +7,9 @@ import utils.mybox;
 import framework.commandline;
 import framework.framework;
 import framework.event;
-import game.scene;
-import game.common;
+import common.scene;
+import common.common;
+import common.task;
 import gui.widget;
 import gui.container;
 import utils.log;
@@ -455,7 +456,7 @@ class EditPolygon : EditObject {
 class EditRoot : EditObject {
 }
 
-public class LevelEditor : Container {
+public class LevelEditor : Task {
     EditRoot root;
     RenderEditor render;
     CommandBucket commands;
@@ -694,11 +695,12 @@ public class LevelEditor : Container {
         root.add(tmp);
     }
 
-    this() {
+    this(TaskManager tm) {
+        super(tm);
+
         root = new EditRoot();
         render = new RenderEditor(this);
 
-        add(render);
         //render.bounds = Rect2i(0, 0, 2000, 700);
 
         newPolyAt(Rect2i(100, 100, 500, 500));
@@ -707,9 +709,11 @@ public class LevelEditor : Container {
         commands.register(Command("preview", &cmdPreview, "preview"));
         commands.register(Command("save", &cmdSave, "save edit level"));
         commands.bind(globals.cmdLine);
+
+        manager.guiMain.mainFrame.add(render);
     }
 
-    void kill() {
+    override protected void onKill() {
         commands.kill();
     }
 
@@ -763,6 +767,10 @@ public class LevelEditor : Container {
         Level level = generator.renderLevel(templ, gfx);
         if (level)
             mPreviewImage = level.image.createTexture();
+    }
+
+    static this() {
+        TaskFactory.register!(typeof(this))("ledit");
     }
 }
 

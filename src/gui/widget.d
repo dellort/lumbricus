@@ -112,8 +112,8 @@ class Widget {
         return pos - mContainedBounds.p1;
     }
 
-    ///coordToParent(coordFromParent(p)) == p
-    final Vector2i coordToParent(Vector2i pos) {
+    ///coordsToParent(coordsFromParent(p)) == p
+    final Vector2i coordsToParent(Vector2i pos) {
         return pos + mContainedBounds.p1;
     }
 
@@ -155,6 +155,12 @@ class Widget {
     Vector2i layoutSizeRequest() {
         //unmeaningful default value
         return Vector2i(100, 100);
+    }
+
+    /// Report prefered size... not used except in _very_ special cases
+    /// (xxx: orly)
+    Vector2i preferedSize() {
+        return Vector2i();
     }
 
     //called from Container while layouting

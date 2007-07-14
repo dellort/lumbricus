@@ -28,6 +28,15 @@ class GuiLabel : GuiObjectOwnerDrawn {
         return mText;
     }
 
+    void font(Font font) {
+        assert(font !is null);
+        mFont = font;
+        needRelayout();
+    }
+    Font font() {
+        return mFont;
+    }
+
     //(invisible!) border around text
     void border(Vector2i b) {
         mBorder = b;

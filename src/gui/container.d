@@ -43,6 +43,33 @@ struct WidgetLayout {
         lay.padA = lay.padB = border;
         return lay;
     }
+
+    //expand in one direction, align centered in the other
+    static WidgetLayout Expand(bool horiz_dir, Vector2i border = Vector2i()) {
+        int dir = horiz_dir ? 0 : 1;
+        int inv = 1-dir;
+        WidgetLayout lay;
+        lay.expand[dir] = true;
+        lay.expand[inv] = false;
+        lay.padA = lay.padB = border;
+        return lay;
+    }
+
+    //expand fully, but with a fixed border around the widget
+    static WidgetLayout Border(Vector2i border) {
+        WidgetLayout lay;
+        lay.padA = lay.padB = border;
+        return lay;
+    }
+
+    static WidgetLayout Noexpand() {
+        return Aligned(0,0);
+    }
+
+    static WidgetLayout opCall() {
+        WidgetLayout x;
+        return x;
+    }
 }
 
 /// Group of Widgets, like a window.
@@ -184,7 +211,7 @@ class Container : Widget {
     }
 
     /// Add GUI element (makes
-    protected void addChild(Widget o) {
+    protected PerWidget addChild(Widget o) {
         assert(o.parent is null);
         assert(findChild(o, false, false) is null);
         auto pw = newPerWidget(o);
@@ -192,6 +219,8 @@ class Container : Widget {
         o.internalDoAdd(this);
 
         gDefaultLog("added %s to %s", o, this);
+
+        return pw;
     }
 
     /// Remove GUI element; that element gets destroyed.
@@ -226,7 +255,8 @@ class Container : Widget {
     }
 
     //internal; don't use this, use removeChild()
-    private void removeWidget(PerWidget w) {
+    //override for removal notification
+    protected void removeWidget(PerWidget w) {
         arrayRemove(mWidgets, w);
         scene().remove(w.child.scene);
     }
@@ -262,7 +292,7 @@ class Container : Widget {
 
     void setChildLayout(Widget child, WidgetLayout layout) {
         findChild(child).layout = layout;
-        child.needRelayout();
+        needRelayout();
     }
 
     //if we're a (transitive) parent of obj
@@ -350,6 +380,10 @@ class Container : Widget {
             if (o.child.canHaveFocus && o.child.greedyFocus) {
                 o.mFocusAge = ++mCurrentFocusAge;
                 localFocus = o.child;
+                //propagate upwards
+                if (parent) {
+                    parent.recheckChildFocus(this);
+                }
             }
         } else {
             //maybe was killed, take focus
@@ -491,12 +525,21 @@ class Container : Widget {
             biggest.x = max(biggest.x, s.x);
             biggest.y = max(biggest.y, s.y);
         }
+        biggest -= getInternalBorder()*2;
         return biggest;
     }
     protected override void layoutSizeAllocation() {
+        Rect2i b = widgetBounds();
+        b.extendBorder(-getInternalBorder());
         foreach (PerWidget w; children) {
-            layoutDoAllocChild(w, widgetBounds());
+            layoutDoAllocChild(w, b);
         }
+    }
+
+    //container-side border for children
+    //xxx: check usefulness
+    protected Vector2i getInternalBorder() {
+        return Vector2i();
     }
 }
 
