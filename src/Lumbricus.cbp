@@ -67,6 +67,8 @@
 		<Unit filename="game\controller.d" />
 		<Unit filename="game\game.d" />
 		<Unit filename="game\gameinterface.d" />
+		<Unit filename="game\gamepublic.d" />
+		<Unit filename="game\gametask.d" />
 		<Unit filename="game\glevel.d" />
 		<Unit filename="game\gobject.d" />
 		<Unit filename="game\gui\gameframe.d" />
@@ -87,6 +89,7 @@
 		<Unit filename="game\water.d" />
 		<Unit filename="game\weapon.d" />
 		<Unit filename="game\worm.d" />
+		<Unit filename="game\wtris.d" />
 		<Unit filename="gui\boxcontainer.d" />
 		<Unit filename="gui\button.d" />
 		<Unit filename="gui\camframe.d" />
@@ -97,6 +100,7 @@
 		<Unit filename="gui\label.d" />
 		<Unit filename="gui\messageviewer.d" />
 		<Unit filename="gui\mousescroller.d" />
+		<Unit filename="gui\tablecontainer.d" />
 		<Unit filename="gui\test.d" />
 		<Unit filename="gui\widget.d" />
 		<Unit filename="levelgen\generator.d" />
@@ -125,6 +129,7 @@
 		<Unit filename="utils\vector2.d" />
 		<Extensions>
 			<code_completion />
+			<envvars />
 		</Extensions>
 	</Project>
 </CodeBlocks_project_file>

@@ -234,6 +234,7 @@ public class Resources {
             //argh
             char[][] files = n.getValueArray!(char[])(v.name);
             foreach (file; files) {
+                file = n.fixPathValue(file);
                 if (file in mLoadedResourceFiles)
                     continue;
 
