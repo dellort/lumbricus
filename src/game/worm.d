@@ -20,16 +20,6 @@ static this() {
     gSpriteClassFactory.register!(WormSpriteClass)("worm_mc");
 }
 
-enum WormState {
-    Stand = 0,
-    Fly,
-    Walk,
-    Jet,
-    Weapon,
-    Death,
-    Drowning,
-}
-
 /**
   just an idea:
   thing which can be controlled like a worm
@@ -50,10 +40,6 @@ interface IControllable {
 class WormSprite : GObjectSprite {
     private {
         WormSpriteClass wsc;
-
-        //indexed by WormState (not sure why I did that with an array)
-        //also could be moved to wsc (i.e. when killing that array...)
-        StaticStateInfo[WormState.max+1] mStates;
 
         float mWeaponAngle = 0;
         float mWeaponMove = 0;
@@ -102,13 +88,18 @@ class WormSprite : GObjectSprite {
         return shouldDie() || isReallyDead();
     }
     //less strict than isDead(): return false for not-yet-suicided worms
+    //but true for suiciding worms
     bool isReallyDead() {
         return mIsDead;
+    }
+    //returns true if suiciding is also done
+    bool isReallyReallyDead() {
+        return mIsDead && currentState is wsc.st_dead;
     }
 
     //if suicide animation played
     bool isDelayedDying() {
-        return isReallyDead() && currentTransition;
+        return isReallyDead() && currentState is wsc.st_die;
     }
 
     void finallyDie() {
@@ -117,7 +108,7 @@ class WormSprite : GObjectSprite {
                 return;
             //assert(delayedDeath());
             assert(shouldDie());
-            setState(mStates[WormState.Death]);
+            setState(wsc.st_die);
         }
     }
 
@@ -131,40 +122,19 @@ class WormSprite : GObjectSprite {
     protected this (GameEngine engine, WormSpriteClass spriteclass) {
         super(engine, spriteclass);
         wsc = spriteclass;
-        //blah
-        mStates[WormState.Stand] = findState("sit");
-        mStates[WormState.Fly] = findState("fly");
-        mStates[WormState.Walk] = findState("walk");
-        mStates[WormState.Jet] = findState("jetpack");
-        mStates[WormState.Weapon] = findState("weapon");
-        mStates[WormState.Death] = findState("death");
-        mStates[WormState.Drowning] = findState("drowning");
 
         gravestone = 0;
     }
 
     protected AnimationResource getAnimationForState(StaticStateInfo info) {
-        if (currentState is mStates[WormState.Weapon] && mWeapon) {
+        if (currentState is wsc.st_weapon && mWeapon) {
             return mWeapon.weapon.animations[WeaponWormAnimations.Arm];
-        } else if (currentState is mStates[WormState.Death]) {
+        } else if (currentState is wsc.st_dead) {
             return mGravestone;
         } else {
             return super.getAnimationForState(info);
         }
     }
-    /*protected SpriteAnimationInfo* getAnimationInfoForTransition(
-        StateTransition st)
-    {
-        //xxx this sucks make better
-        auto to_w = st.to is mStates[WormState.Weapon];
-        auto from_w = st.from is mStates[WormState.Weapon];
-        if ((to_w || from_w) && mWeapon) {
-            return mWeapon.weapon.animations[to_w
-                ? WeaponWormAnimations.Arm : WeaponWormAnimations.UnArm];
-        } else {
-            return super.getAnimationInfoForTransition(st);
-        }
-    }*/
 
     //movement for walking/jetpack
     void move(Vector2f dir) {
@@ -213,7 +183,7 @@ class WormSprite : GObjectSprite {
         if (draw == weaponDrawn)
             return;
         if (draw) {
-            if (currentState !is mStates[WormState.Stand])
+            if (currentState !is wsc.st_stand)
                 return;
             if (!haveAnyControl())
                 return;
@@ -221,10 +191,10 @@ class WormSprite : GObjectSprite {
                 return;
         }
 
-        setState(draw ? mStates[WormState.Weapon] : mStates[WormState.Stand]);
+        setState(draw ? wsc.st_weapon : wsc.st_stand);
     }
     bool weaponDrawn() {
-        return currentState is mStates[WormState.Weapon];
+        return currentState is wsc.st_weapon;
     }
 
     //xxx: clearify relationship between shooter and so on
@@ -246,21 +216,14 @@ class WormSprite : GObjectSprite {
     {
         super.stateTransition(from, to);
 
-        if ((currentState is mStates[WormState.Death])
-            || (currentState is mStates[WormState.Drowning]))
-        {
+        bool todead = (currentState is wsc.st_dead);
+        if (!mIsDead && (todead || currentState is wsc.st_drowning)) {
+            engine.mLog("set dead flag for %s", this);
             mIsDead = true;
-        }
-    }
-
-    //yyy
-    override protected void transitionEnd() {
-        if (currentState is mStates[WormState.Weapon]) {
-            mWeaponAngle = physics.lookey;
-            mWeaponMove = 0;
-        } else if (currentState is mStates[WormState.Death]) {
-            //explosion!
-            engine.explosionAt(physics.pos, wsc.suicideDamage);
+            if (todead) {
+                //explosion!
+                engine.explosionAt(physics.pos, wsc.suicideDamage);
+            }
         }
     }
 
@@ -269,13 +232,12 @@ class WormSprite : GObjectSprite {
     }
 
     bool jetpackActivated() {
-        return currentState is mStates[WormState.Jet];
+        return currentState is wsc.st_jet;
     }
 
     //activate = activate/deactivate the jetpack
     void activateJetpack(bool activate) {
-        StaticStateInfo wanted = activate ? mStates[WormState.Jet]
-            : mStates[WormState.Stand];
+        StaticStateInfo wanted = activate ? wsc.st_jet : wsc.st_stand;
         if (!activate) {
             physics.selfForce = Vector2f(0);
         }
@@ -283,7 +245,7 @@ class WormSprite : GObjectSprite {
     }
 
     bool isStanding() {
-        return currentState is mStates[WormState.Stand];
+        return currentState is wsc.st_stand;
     }
 
     override protected void physUpdate() {
@@ -292,17 +254,16 @@ class WormSprite : GObjectSprite {
                 //update walk animation
                 if (physics.isGlued) {
                     bool walk = physics.isWalking;
-                    setState(walk ?
-                        mStates[WormState.Walk] : mStates[WormState.Stand]);
+                    setState(walk ? wsc.st_walk : wsc.st_stand);
                 }
 
                 //update if worm is flying around...
-                bool onGround = currentState is mStates[WormState.Stand]
-                    || currentState is mStates[WormState.Walk]
-                    || currentState is mStates[WormState.Weapon];
+                //xxx replace by state-attributes or so *g*
+                bool onGround = currentState is wsc.st_stand
+                    || currentState is wsc.st_walk
+                    || currentState is wsc.st_weapon;
                 if (physics.isGlued != onGround) {
-                    setState(physics.isGlued
-                        ? mStates[WormState.Stand] : mStates[WormState.Fly]);
+                    setState(physics.isGlued ? wsc.st_stand : wsc.st_fly);
                 }
             }
             //check death
@@ -320,6 +281,9 @@ class WormSpriteClass : GOSpriteClass {
     float suicideDamage;
     AnimationResource[] gravestones;
     Vector2f jumpStrength;
+
+    StaticStateInfo st_stand, st_fly, st_walk, st_jet, st_weapon, st_dead,
+        st_die, st_drowning;
 
     this(GameEngine e, char[] r) {
         super(e, r);
@@ -344,6 +308,16 @@ class WormSpriteClass : GOSpriteClass {
             gravestones ~= globals.resources.resource!(AnimationResource)
                 (grv);
         }
+
+        //done, read out the stupid states :/
+        st_stand = findState("sit");
+        st_fly = findState("fly");
+        st_walk = findState("walk");
+        st_jet = findState("jetpack");
+        st_weapon = findState("weapon");
+        st_dead = findState("dead");
+        st_die = findState("die");
+        st_drowning = findState("drowning");
     }
     override WormSprite createSprite() {
         return new WormSprite(engine, this);

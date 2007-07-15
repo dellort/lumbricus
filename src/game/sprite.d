@@ -13,6 +13,7 @@ import utils.log;
 import std.math : abs, PI;
 import cmath = std.c.math;
 import utils.factory;
+import utils.time;
 
 //factory to instantiate sprite classes, this is a small wtf
 package Factory!(GOSpriteClass, GameEngine, char[]) gSpriteClassFactory;
@@ -37,9 +38,7 @@ class GObjectSprite : GameObject {
     ServerGraphic graphic;
 
     AnimationResource currentAnimation;
-
-    //animation played when doing state transition...
-    StateTransition currentTransition;
+    Time animationStarted;
 
     int param2;
 
@@ -62,6 +61,7 @@ class GObjectSprite : GameObject {
             //xxx you have to decide: false or true as parameter?
             // true = force, false = wait until current animation done
             graphic.setNextAnimation(wanted_animation, false);
+            animationStarted = engine.gameTime.current;
             currentAnimation = wanted_animation;
         }
 
@@ -167,22 +167,6 @@ class GObjectSprite : GameObject {
         physUpdate();
     }
 
-    //called when current animation is finished
-    protected void animationEnd(Animator sender) {
-        if (currentTransition) {
-            //end the transition
-            if (currentTransition.disablePhysics) {
-                physics.posp.fixate = currentState.physic_properties.fixate;
-            }
-            engine.mLog("state transition end (%s -> %s)",
-                currentTransition.from.name, currentTransition.to.name);
-            assert(currentState is currentTransition.to);
-            currentTransition = null;
-            updateAnimation();
-            transitionEnd();
-        }
-    }
-
     //do as less as necessary to force a new state
     void setStateForced(StaticStateInfo nstate) {
         assert(nstate !is null);
@@ -195,15 +179,8 @@ class GObjectSprite : GameObject {
     }
 
     //when called: currentState is to
-    //and state transition will have been just started
     //must not call setState (alone danger for recursion forbids it)
     protected void stateTransition(StaticStateInfo from, StaticStateInfo to) {
-    }
-
-    //if the transition animation to the current state has finished
-    //not called if the transition animation was canceled
-    //when called, currentTransition should be null, and new animation was set
-    protected void transitionEnd() {
     }
 
     //do a (possibly) soft transition to the new state
@@ -218,25 +195,11 @@ class GObjectSprite : GameObject {
         if (currentState.noleave)
             return;
 
-        StateTransition* transp = nstate in currentState.transitions;
-        StateTransition trans = transp ? *transp : null;
-
-        engine.mLog("state %s -> %s%s", currentState.name, nstate.name,
-            trans ? " (with transition)" : "");
+        engine.mLog("state %s -> %s", currentState.name, nstate.name);
 
         auto oldstate = currentState;
         currentState = nstate;
         physics.posp = nstate.physic_properties;
-
-        currentTransition = trans;
-        if (trans) {
-            assert(oldstate is trans.from);
-            assert(currentState is trans.to);
-            if (trans.disablePhysics) {
-                //don't allow any move
-                physics.posp.fixate = Vector2f(0);
-            }
-        }
 
         updateAnimation();
 
@@ -260,6 +223,19 @@ class GObjectSprite : GameObject {
             graphic = engine.createGraphic();
             graphic.setVisible(true);
             updateAnimation();
+        }
+    }
+
+    override void simulate(float deltaT) {
+        super.simulate(deltaT);
+        if (currentState.onAnimationEnd && currentAnimation) {
+            if (engine.gameTime.current - animationStarted
+                >= currentAnimation.get.getOneTimeDuration())
+            {
+                engine.mLog("state transition because of animation end");
+                //time to change; the setState code will reset the animation
+                setState(currentState.onAnimationEnd);
+            }
         }
     }
 
@@ -289,17 +265,11 @@ class StaticStateInfo {
     char[] name;
     POSP physic_properties;
 
-    StateTransition[StaticStateInfo] transitions;
+    //automatic transition to this state if animation finished
+    StaticStateInfo onAnimationEnd;
     bool noleave; //don't leave this state
 
     AnimationResource animation;
-}
-
-//describe an animation which is played when switching to another state
-class StateTransition {
-    bool disablePhysics; //no physics while playing animation
-
-    StaticStateInfo from, to;
 }
 
 //loads "collisions"-nodes and adds them to the collision map
@@ -345,6 +315,12 @@ class GOSpriteClass {
     void loadFromConfig(ConfigNode config) {
         POSP[char[]] posps;
 
+        struct FwRef {
+            StaticStateInfo* patch;
+            char[] name;
+        }
+        FwRef[] fwrefs;
+
         //load animation config files
         globals.resources.loadResources(config.find("require_resources"));
 
@@ -376,10 +352,23 @@ class GOSpriteClass {
             }
 
             if (!ssi.animation) {
-                engine.mLog("no animation for state '%s'", ssi.name);
+                engine.mLog("WARNING: no animation for state '%s'", ssi.name);
+            }
+
+            char[] onend = sc["on_animation_end"];
+            if (onend.length) {
+                FwRef r;
+                r.name = onend;
+                r.patch = &ssi.onAnimationEnd;
+                fwrefs ~= r;
             }
 
         } //foreach state to load
+
+        //resolve forward refs
+        foreach (FwRef r; fwrefs) {
+            *r.patch = findState(r.name);
+        }
 
         StaticStateInfo* init = config["initstate"] in states;
         if (init && *init)
@@ -388,39 +377,5 @@ class GOSpriteClass {
         //at least the constructor created a default state
         assert(initState !is null);
         assert(states.length > 0);
-
-        //load/assign state transitions
-        StateTransition newTransition(StaticStateInfo sfrom,
-            StaticStateInfo sto, ConfigNode tc)
-        {
-            auto trans = new StateTransition();
-
-            trans.disablePhysics = tc.getBoolValue("disable_physics", false);
-
-            trans.from = sfrom;
-            trans.to = sto;
-            sfrom.transitions[sto] = trans;
-
-            return trans;
-        }
-        foreach (ConfigNode tc; config.getSubNode("state_transitions")) {
-            auto sto = findState(tc["to"]);
-            if (tc.getBoolValue("from_any")) {
-                foreach (StaticStateInfo s; states) {
-                    if (s !is sto) {
-                        newTransition(s, sto, tc);
-                    }
-                }
-            } else {
-                auto sfrom = findState(tc["from"]);
-                newTransition(sto, sfrom, tc);
-
-                if (tc.getBoolValue("works_reverse", false)) {
-                    auto trans = newTransition(sfrom, sto, tc);
-                    //create backward animations
-                    //(removed)
-                }
-            }
-        }
     }
 }

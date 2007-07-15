@@ -118,17 +118,6 @@ struct AnimationSection {
     //append mirrored (on Y axis) bitmaps to frame rows
     bool mirror_Y_A = false;
 
-    //get the time for the section to fully animate once
-    //only for time-based animations
-    //xxx check and validate this
-    Time getOneTimeDuration() {
-        assert(AB[0] == AnimationParamType.Time);
-        int ms = frameTimeMs*frameCount;
-        if (mirror_Y_A)
-            ms *= 2;
-        return timeMsecs(ms);
-    }
-
     private {
         bool mPreprocessed = false;
         BitmapResource[] mMirrors;
@@ -170,6 +159,8 @@ private:
     }
     Section[] mSections;
     Section* mStartSection;
+
+    int mOneTimeDurationMs = -1; //-1 = cache invalid
 
     //indexed by the FrameInfo.texture field
     BitmapResource[] mSurfaces;
@@ -327,6 +318,19 @@ private:
         mStartSection = prev_ptr;
         //load this here to avoid loading breaks in-game
         assertStuffLoaded();
+    }
+
+    //get the time for the section to fully animate once
+    //only for time-based animations
+    public Time getOneTimeDuration() {
+        if (mOneTimeDurationMs < 0) {
+            mOneTimeDurationMs = 0;
+            foreach (inout Section s; mSections) {
+                //xxx: not sure about loop_reverse
+                mOneTimeDurationMs += s.lengthMs * (s.loop_reverse ? 2 : 1);
+            }
+        }
+        return timeMsecs(mOneTimeDurationMs);
     }
 
     public Vector2i size() {
