@@ -2,9 +2,6 @@ module game.controller;
 import game.game;
 import game.worm;
 import game.sprite;
-import common.scene;
-import game.animation;
-import common.visual;
 import game.weapon;
 import game.gamepublic;
 import utils.vector2;
@@ -16,23 +13,135 @@ import utils.array;
 import utils.queue;
 import common.common;
 
-import framework.framework;
-import framework.font;
 import framework.i18n;
 
 import str = std.string;
 import math = std.math;
 
-///which style a worm should jump
-enum JumpMode {
-    normal,      ///standard forward jump (return)
-    smallBack,   ///little backwards jump (double return)
-    backFlip,    ///large backwards jump/flip (double backspace)
-    straightUp,  ///jump straight up (backspace)
+//nasty proxy to the currently active TeamMember
+//this is per client (and not per-team)
+class ServerMemberControl : TeamMemberControl {
+    private {
+        TeamMemberControlCallback mBack;
+        //xxx the controller needs to be replaced by sth. "better" hahaha
+        GameController ctl;
+
+        this(GameController c) {
+            ctl = c;
+        }
+    }
+
+    void setTeamMemberControlCallback(TeamMemberControlCallback tmcc) {
+        //refuse overwriting :)
+        assert(mBack is null);
+
+        mBack = tmcc;
+    }
+
+    private ServerTeamMember activemember() {
+        if (ctl.mCurrentTeam) {
+            return ctl.mCurrentTeam.mCurrent;
+        }
+        return null;
+    }
+
+    TeamMember getActiveMember() {
+        return activemember();
+    }
+
+    Team getActiveTeam() {
+        return ctl.mCurrentTeam;
+    }
+
+    void selectNextMember() {
+        auto c = activemember;
+        if (c) {
+            c.mTeam.doChooseWorm();
+        }
+    }
+
+    WalkState walkState() {
+        auto m = activemember;
+        if (m) {
+            return m.walkState;
+        }
+    }
+
+    void jump(JumpMode mode) {
+        auto m = activemember;
+        if (m) {
+            m.jump(mode);
+        }
+    }
+
+    void jetpack(bool active) {
+        auto m = activemember;
+        if (m) {
+            m.setJetpack(active);
+        }
+    }
+
+    void setMovement(Vector2i dir) {
+        auto m = activemember;
+        if (m) {
+            m.doMove(dir);
+        }
+    }
+
+    WeaponMode weaponMode() {
+        if (activemember) {
+            //TODO
+            return WeaponMode.full;
+        }
+        return WeaponMode.none;
+    }
+
+    void weaponDraw(WeaponClass w) {
+        auto m = activemember;
+        if (m) {
+            m.selectWeapon(w);
+        }
+    }
+
+    void weaponSetTimer(Time timer) {
+        //TODO
+    }
+
+    void weaponSetTarget(Vector2i targetPos) {
+        auto m = activemember;
+        if (m) {
+            m.mTeam.doSetPoint(toVector2f(targetPos));
+        }
+    }
+
+    void weaponFire(float strength) {
+        auto m = activemember;
+        if (m) {
+            //TODO: strength parameter
+            m.doFire();
+        }
+    }
+
+    //back-proxy *g*
+    void memberChanged() {
+        if (mBack) {
+            mBack.controlMemberChanged();
+        }
+    }
+    void walkStateChanged() {
+        if (mBack) {
+            mBack.controlWalkStateChanged();
+        }
+    }
+    void weaponModeChanged() {
+        if (mBack) {
+            mBack.controlWeaponModeChanged();
+        }
+    }
 }
 
-class Team {
-    char[] name = "unnamed team";
+class ServerTeam : Team {
+    char[] mName = "unnamed team";
     //this values indices into cTeamColors and the gravestone animations
     int teamColor, graveStone;
     WeaponSet weapons;
@@ -45,9 +154,9 @@ class Team {
     bool forcedFinish;
 
     private {
-        TeamMember[] mMembers;  //all members (will not change in-game)
-        TeamMember mCurrent;  //active worm that will receive user input
-        TeamMember mLastActive;  //worm that played last (to choose next)
+        ServerTeamMember[] mMembers;  //all members (will not change in-game)
+        ServerTeamMember mCurrent;  //active worm that will receive user input
+        ServerTeamMember mLastActive;  //worm that played last (to choose next)
         bool mActive;         //is this team playing?
         bool mOnHold;
 
@@ -63,34 +172,80 @@ class Team {
     //node = the node describing a single team
     this(ConfigNode node, GameController parent) {
         this.parent = parent;
-        name = node.getStringValue("name", name);
+        mName = node.getStringValue("name", mName);
         teamColor = node.selectValueFrom("color", cTeamColors, 0);
         initialPoints = node.getIntValue("power", 100);
         graveStone = node.getIntValue("grave", 0);
         //the worms currently aren't loaded by theirselves...
         foreach (char[] name, char[] value; node.getSubNode("member_names")) {
-            auto worm = new TeamMember(value, this);
+            auto worm = new ServerTeamMember(value, this);
             mMembers ~= worm;
         }
         //xxx error handling
         weapons = parent.initWeaponSet(node["weapon_set"]);
-        defaultWeapon = weapons.byId(node["default_weapon"]);
+        //yyy defaultWeapon = weapons.byId(node["default_weapon"]);
     }
 
+    // --- start Team
+
+    char[] name() {
+        return mName;
+    }
+
+    TeamColor color() {
+        return teamColor;
+    }
+
+    bool alive() {
+        //xxx?
+        assert(false);
+    }
+
+    bool active() {
+        return mActive;
+    }
+
+    int totalHealth() {
+        int h;
+        foreach (t; mMembers) {
+            h += t.health;
+        }
+        return h;
+    }
+
+    WeaponList getWeapons() {
+        //convert WeaponSet to WeaponList
+        WeaponItem[] items = weapons.weapons.values;
+        WeaponList list;
+        list.length = items.length;
+        for (int n = 0; n < list.length; n++) {
+            list[n].type = items[n].weapon;
+            list[n].quantity = items[n].infinite ?
+                WeaponListItem.QUANTITY_INFINITE : items[n].count;
+        }
+        return list;
+    }
+
+    TeamMember[] getMembers() {
+        return arrayCastCopyImplicit!(TeamMember, ServerTeamMember)(mMembers);
+    }
+
+    // --- end Team
+
     private void placeMembers() {
-        foreach (TeamMember m; mMembers) {
+        foreach (ServerTeamMember m; mMembers) {
             m.place();
         }
     }
 
     //wraps around, if w==null, return first element, if any
-    private TeamMember doFindNext(TeamMember w) {
+    private ServerTeamMember doFindNext(ServerTeamMember w) {
         return arrayFindNext(mMembers, w);
     }
 
-    TeamMember findNext(TeamMember w, bool must_be_alive = false) {
+    ServerTeamMember findNext(ServerTeamMember w, bool must_be_alive = false) {
         return arrayFindNextPred(mMembers, w,
-            (TeamMember t) {
+            (ServerTeamMember t) {
                 return !must_be_alive || t.isAlive;
             }
         );
@@ -98,7 +253,7 @@ class Team {
 
     ///activate a member for playing
     ///only for a member, not the team, use setActive for team
-    void current(TeamMember cur) {
+    void current(ServerTeamMember cur) {
         if (cur is mCurrent)
             return;
         if (mCurrent)
@@ -111,7 +266,7 @@ class Team {
         }
     }
     ///get active member (can be null)
-    TeamMember current() {
+    ServerTeamMember current() {
         return mCurrent;
     }
 
@@ -185,8 +340,8 @@ class Team {
         return "[team '" ~ name ~ "']";
     }
 
-    int opApply(int delegate(inout TeamMember member) del) {
-        foreach (TeamMember m; mMembers) {
+    int opApply(int delegate(inout ServerTeamMember member) del) {
+        foreach (m; mMembers) {
             int res = del(m);
             if (res)
                 return res;
@@ -207,6 +362,8 @@ class Team {
         targetIsSet = true;
         currentTarget = where;
     }
+/+
+yyy
 
     private bool handleDirKey(char[] bind, bool up) {
         float v = up ? 0 : 1;
@@ -253,7 +410,7 @@ class Team {
                 return true;
             }
             case "pointy": {
-                doSetPoint(toVector2f(mousePos));
+
                 return true;
             }
             default:
@@ -294,9 +451,10 @@ class Team {
             return true;
         return false;
     }
++/
 
     //select (and draw) a weapon by its id
-    void selectWeapon(char[] weaponId) {
+    void selectWeapon(WeaponClass weaponId) {
         if (mCurrent)
             mCurrent.selectWeapon(weapons.byId(weaponId));
     }
@@ -327,7 +485,7 @@ class Team {
     }
 
     bool checkDyingMembers() {
-        foreach (TeamMember m; mMembers) {
+        foreach (m; mMembers) {
             auto worm = m.mWorm;
             //already dead -> boring
             //also bail out here if worm drowned/is drowning
@@ -352,9 +510,9 @@ class Team {
 }
 
 //member of a team, currently (and maybe always) capsulates a WormSprite object
-class TeamMember {
-    Team team;
-    char[] name = "unnamed worm";
+class ServerTeamMember : TeamMember {
+    ServerTeam mTeam;
+    char[] mName = "unnamed worm";
     int lastKnownLifepower;
     private {
         WeaponItem mCurrentWeapon;
@@ -366,11 +524,44 @@ class TeamMember {
         GameEngine mEngine;
     }
 
-    this(char[] name, Team team) {
-        this.name = name;
-        this.team = team;
-        mEngine = team.parent.engine;
+    this(char[] a_name, ServerTeam a_team) {
+        this.mName = a_name;
+        this.mTeam = a_team;
+        mEngine = mTeam.parent.engine;
     }
+
+    // --- start TeamMember
+
+    char[] name() {
+        return mName;
+    }
+
+    Team team() {
+        return mTeam;
+    }
+
+    bool alive() {
+        //xxx this is fishy
+        return isAlive;
+    }
+
+    bool active() {
+        return mActive;
+    }
+
+    int health() {
+        //xxx really?
+        return lastKnownLifepower;
+    }
+
+    long getGraphic() {
+        if (sprite) {
+            return sprite.graphic.getUID();
+        }
+        return cInvalidUID;
+    }
+
+    // --- end TemaMember
 
     private void place() {
         if (mWorm)
@@ -379,11 +570,11 @@ class TeamMember {
         //habemus lumbricus
         mWorm = cast(WormSprite)mEngine.createSprite("worm");
         assert(mWorm !is null);
-        mWorm.physics.lifepower = team.initialPoints;
-        lastKnownLifepower = team.initialPoints;
+        mWorm.physics.lifepower = mTeam.initialPoints;
+        lastKnownLifepower = mTeam.initialPoints;
         //take control over dying, so we can let them die on round end
         mWorm.delayedDeath = true;
-        mWorm.gravestone = team.graveStone;
+        mWorm.gravestone = mTeam.graveStone;
         Vector2f npos, tmp;
         auto water_y = mEngine.waterOffset;
         //first 10: minimum distance from water
@@ -397,7 +588,7 @@ class TeamMember {
             //but for now... just barf and complain
             npos = toVector2f(mEngine.gamelevel.offset
                 + mEngine.gamelevel.size / 2);
-            team.parent.mLog("couldn't place worm!");
+            mTeam.parent.mLog("couldn't place worm!");
         }
         mWorm.setPos(npos);
         mWorm.active = true;
@@ -422,11 +613,11 @@ class TeamMember {
     }
 
     bool isControllable() {
-        return mActive && isAlive() && team.isControllable();
+        return mActive && isAlive() && mTeam.isControllable();
     }
 
     char[] toString() {
-        return "[tworm " ~ (team ? team.toString() : null) ~ ":'" ~ name ~ "']";
+        return "[tworm " ~ (mTeam ? mTeam.toString() : null) ~ ":'" ~ name ~ "']";
     }
 
     bool lifeLost() {
@@ -444,7 +635,7 @@ class TeamMember {
             lastKnownLifepower = cast(int)mWorm.physics.lifepower;
             //select last used weapon, select default if none
             if (!mCurrentWeapon)
-                mCurrentWeapon = team.defaultWeapon;
+                mCurrentWeapon = mTeam.defaultWeapon;
             selectWeapon(mCurrentWeapon);
         } else {
             //being deactivated
@@ -473,10 +664,21 @@ class TeamMember {
         wormAction();
     }
 
-    void toggleJetpack() {
+    WalkState walkState() {
+        if (!isControllable)
+            return WalkState.noMovement;
+
+        if (mWorm.jetpackActivated())
+            return WalkState.jetpackFly;
+
+        //no other possibilities currently
+        return WalkState.walk;
+    }
+
+    void setJetpack(bool state) {
         if (!isControllable)
             return;
-        mWorm.activateJetpack(!mWorm.jetpackActivated());
+        mWorm.activateJetpack(state);
         wormAction();
     }
 
@@ -492,6 +694,10 @@ class TeamMember {
             if (!mCurrentWeapon.haveAtLeastOne())
                 mCurrentWeapon = null;
         updateWeapon();
+    }
+
+    void selectWeapon(WeaponClass id) {
+        selectWeapon(mTeam.weapons.byId(id));
     }
 
     //update weapon state of current worm (when new weapon selected)
@@ -515,7 +721,7 @@ class TeamMember {
         Shooter nshooter;
         if (selected) {
             nshooter = selected.createShooter();
-            team.allowSetPoint = selected.canPoint;
+            mTeam.allowSetPoint = selected.canPoint;
         }
         mWorm.shooter = nshooter;
     }
@@ -529,7 +735,7 @@ class TeamMember {
         if (!worm.weaponDrawn || !worm.shooter)
             return; //go away
 
-        team.parent.mLog("fire: %s", shooter.weapon.name);
+        mTeam.parent.mLog("fire: %s", shooter.weapon.name);
 
         FireInfo info;
         //-1 for left, 1 for right
@@ -540,7 +746,7 @@ class TeamMember {
         info.shootby = worm.physics;
         info.strength = shooter.weapon.throwStrength;
         info.timer = shooter.weapon.timerFrom;
-        info.pointto = team.currentTarget;
+        info.pointto = mTeam.currentTarget;
         shooter.fire(info);
 
         didFire();
@@ -550,9 +756,10 @@ class TeamMember {
     void didFire() {
         assert(mCurrentWeapon !is null);
         mCurrentWeapon.decrease();
+        mTeam.parent.updateWeaponStats(this);
         if (!mCurrentWeapon.haveAtLeastOne())
             //nothing left? put away
-            selectWeapon(null);
+            selectWeapon(cast(WeaponItem)null);
         //xxx select next weapon when current is empty... oh sigh
     }
 
@@ -565,7 +772,7 @@ class TeamMember {
     void wormAction(bool fromkeys = true) {
         if (fromkeys) {
             mWormAction = true;
-            mLastAction = team.parent.engine.gameTime.current;
+            mLastAction = mTeam.parent.engine.gameTime.current;
         }
     }
     //has the worm done anything since activation?
@@ -591,6 +798,13 @@ class TeamMember {
         wormAction();
     }
 
+    void doMove(Vector2i vec) {
+        //xxx: restrict movement vector, but is this correct?
+        vec.x = clampRangeC(vec.x, -1, +1);
+        vec.y = clampRangeC(vec.y, -1, +1);
+        move(toVector2f(vec));
+    }
+
     bool isIdle() {
         return mWorm.physics.isGlued;
     }
@@ -605,7 +819,7 @@ class TeamMember {
 }
 
 class WeaponSet {
-    WeaponItem[char[]] weapons;
+    WeaponItem[WeaponClass] weapons;
     char[] name;
 
     //config = item from "weapon_sets"
@@ -614,11 +828,11 @@ class WeaponSet {
         foreach (ConfigNode node; config.getSubNode("weapon_list")) {
             auto weapon = new WeaponItem();
             weapon.loadFromConfig(node, engine);
-            weapons[weapon.weaponId] = weapon;
+            weapons[weapon.weapon] = weapon;
         }
     }
 
-    WeaponItem byId(char[] weaponId) {
+    WeaponItem byId(WeaponClass weaponId) {
         if (weaponId in weapons)
             return weapons[weaponId];
         return null;
@@ -629,7 +843,6 @@ class WeaponItem {
     private {
         WeaponSet mContainer;
         WeaponClass mWeapon;
-        char[] weaponId;
         int mQuantity;
         bool mInfiniteQuantity;
     }
@@ -647,11 +860,18 @@ class WeaponItem {
         return mWeapon;
     }
 
+    bool infinite() {
+        return mInfiniteQuantity;
+    }
+    int count() {
+        return infinite ? typeof(mQuantity).max : mQuantity;
+    }
+
     //an item in "weapon_list"
     void loadFromConfig(ConfigNode config, GameEngine engine) {
         //xxx error handling
-        weaponId = config["type"];
-        mWeapon = engine.findWeaponClass(weaponId);
+        auto w = config["type"];
+        mWeapon = engine.findWeaponClass(w);
         if (config.valueIs("quantity", "inf")) {
             mInfiniteQuantity = true;
         } else {
@@ -668,14 +888,14 @@ class WeaponItem {
 //events into worm moves (or weapon moves!), controlls which object is focused
 //by the "camera", and also manages worm teams
 //xxx: move gui parts out of this
-class GameController : ControllerPublic {
+class GameController : GameLogicPublic {
     private {
         GameEngine mEngine;
         Log mLog;
 
-        Team[] mTeams;
-        Team mCurrentTeam;
-        Team mLastTeam;
+        ServerTeam[] mTeams;
+        ServerTeam mCurrentTeam;
+        ServerTeam mLastTeam;
 
         //xxx for loading only
         ConfigNode[char[]] mWeaponSets;
@@ -697,11 +917,19 @@ class GameController : ControllerPublic {
         //will show it asap
         void delegate(char[]) mMessageCb;
 
-        RoundState mCurrentRoundState;
+        RoundState mCurrentRoundState = RoundState.nextOnHold;
+
+        ServerMemberControl control;
+        GameLogicPublicCallback controlBack;
+        //state associated with controlBack
+        bool lastReportedPauseState;
+        RoundState lastReportedRoundState;
     }
 
     this(GameEngine engine, GameConfig config) {
         mEngine = engine;
+
+        control = new ServerMemberControl(this);
 
         mLog = registerLog("gamecontroller");
 
@@ -718,6 +946,63 @@ class GameController : ControllerPublic {
 
         mMessages = new Queue!(char[]);
         mLastMsgTime = timeSecs(-cMessageTime);
+    }
+
+    //--- start GameLogicPublic
+
+    void setGameLogicCallback(GameLogicPublicCallback glpc) {
+        assert(controlBack is null);
+        controlBack = glpc;
+    }
+
+    Team[] getTeams() {
+        //f*ck interface arrays are not compatible to class arrays
+        Team[] nt;
+        foreach (t; mTeams) {
+            nt ~= t;
+        }
+        return nt;
+    }
+
+    RoundState currentRoundState() {
+        return mCurrentRoundState;
+    }
+
+    Time currentRoundTime() {
+        return mRoundRemaining;
+    }
+
+    Time currentPrepareTime() {
+        return mPrepareRemaining;
+    }
+
+    ///xxx: read comment for this in gamepublic.d
+    TeamMemberControl getControl() {
+        return control;
+    }
+
+    //--- end GameLogicPublic
+
+    void updateClientRoundStateTime() {
+        if (!controlBack)
+            return;
+
+        if (currentRoundState() != lastReportedRoundState) {
+            lastReportedRoundState = currentRoundState();
+            controlBack.gameLogicUpdateRoundState();
+        }
+
+        if (mEngine.gameTime.paused != lastReportedPauseState) {
+            lastReportedPauseState = mEngine.gameTime.paused;
+            controlBack.gameLogicRoundTimeUpdate(currentRoundTime,
+                lastReportedPauseState);
+        }
+    }
+
+    void updateWeaponStats(TeamMember m) {
+        if (controlBack) {
+            controlBack.gameLogicWeaponListUpdated(m ? m.team : null);
+        }
     }
 
     GameEngine engine() {
@@ -744,7 +1029,6 @@ class GameController : ControllerPublic {
         //nothing happening? start a round
         messageAdd(_("msggamestart"));
 
-        mCurrentRoundState = RoundState.nextOnHold;
         deactivateAll();
     }
 
@@ -772,6 +1056,9 @@ class GameController : ControllerPublic {
                 mLastMsgTime = mEngine.gameTime.current;
             }
         }
+
+
+        updateClientRoundStateTime();
     }
 
     private void deactivateAll() {
@@ -784,7 +1071,7 @@ class GameController : ControllerPublic {
 
     //return true if there are dying worms
     private bool checkDyingWorms() {
-        foreach (Team t; mTeams) {
+        foreach (t; mTeams) {
             //death is in no hurry, one worm a frame
             if (t.checkDyingMembers())
                 return true;
@@ -837,8 +1124,8 @@ class GameController : ControllerPublic {
                 mPrepareRemaining = mHotseatSwitchTime;
 
                 //select next team/worm
-                Team next = arrayFindNextPred(mTeams, mLastTeam,
-                    (Team t) {
+                ServerTeam next = arrayFindNextPred(mTeams, mLastTeam,
+                    (ServerTeam t) {
                         return t.isAlive();
                     }
                 );
@@ -846,7 +1133,10 @@ class GameController : ControllerPublic {
                 mLastTeam = next;
                 if (!next) {
                     messageAdd("omg! all dead!");
-                    transition(RoundState.end);
+                    //sry
+                    //transition(RoundState.end);
+                    mCurrentRoundState = RoundState.end;
+                    goto case RoundState.end;
                 }
 
                 break;
@@ -871,9 +1161,14 @@ class GameController : ControllerPublic {
                 currentTeam = null;
                 break;
         }
+
+        //report it! but not too early, the changes must first have been made
+        if (controlBack) {
+            controlBack.gameLogicUpdateRoundState();
+        }
     }
 
-    void currentTeam(Team t) {
+    void currentTeam(ServerTeam t) {
         if (mCurrentTeam is t)
             return;
         if (mCurrentTeam)
@@ -882,7 +1177,7 @@ class GameController : ControllerPublic {
         if (mCurrentTeam)
             mCurrentTeam.setActive(true);
     }
-    Team currentTeam() {
+    ServerTeam currentTeam() {
         return mCurrentTeam;
     }
 
@@ -894,10 +1189,6 @@ class GameController : ControllerPublic {
         return true;
     }
 
-    public RoundState currentRoundState() {
-        return mCurrentRoundState;
-    }
-
     public Team[] activeTeams() {
         Team[] res;
         foreach (t; mTeams) {
@@ -906,18 +1197,6 @@ class GameController : ControllerPublic {
             }
         }
         return res;
-    }
-
-    public Team[] teams() {
-        return mTeams;
-    }
-
-    public Time currentRoundTime() {
-        return mRoundRemaining;
-    }
-
-    public Time currentPrepareTime() {
-        return mPrepareRemaining;
     }
 
     //actually still stupid debugging code
@@ -946,7 +1225,7 @@ class GameController : ControllerPublic {
 
     //config = the "teams" node, i.e. from data/data/teams.conf
     private void addTeam(ConfigNode config) {
-        auto team = new Team(config, this);
+        auto team = new ServerTeam(config, this);
         mTeams ~= team;
     }
 
@@ -961,28 +1240,14 @@ class GameController : ControllerPublic {
     private void placeWorms() {
         mLog("placing worms...");
 
-        foreach (Team t; mTeams) {
+        foreach (t; mTeams) {
             t.placeMembers();
         }
 
         mLog("placing worms done.");
     }
 
-    //xxx hacks follow
-
-    bool onKeyDown(char[] bind, KeyInfo info, Vector2i mousePos) {
-        if (mCurrentTeam)
-            return mCurrentTeam.onKeyDown(bind, info, mousePos);
-        return false;
-    }
-
-    bool onKeyUp(char[] bind, KeyInfo info, Vector2i mousePos) {
-        if (mCurrentTeam)
-            return mCurrentTeam.onKeyUp(bind, info, mousePos);
-        return false;
-    }
-
-    void selectWeapon(char[] weaponId) {
+    void selectWeapon(WeaponClass weaponId) {
         if (mCurrentTeam)
             mCurrentTeam.selectWeapon(weaponId);
     }

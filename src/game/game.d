@@ -46,6 +46,8 @@ interface ServerGraphic {
 
     //if remove() was called
     bool isDead();
+
+    long getUID();
 }
 
 package class ServerGraphicLocalImpl : ServerGraphic {
@@ -136,6 +138,10 @@ package class ServerGraphicLocalImpl : ServerGraphic {
     bool isDead() {
         return mDead;
     }
+
+    long getUID() {
+        return uid;
+    }
 }
 
 //code to manage a game session (hm, whatever this means)
@@ -181,8 +187,16 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
 
     private GameController mController;
 
-    ControllerPublic controller() {
+    GameLogicPublic logic() {
         return mController;
+    }
+
+    //from GameEnginePublic
+    void signalReadiness() {
+        //client signaled readiness
+    }
+    void setGameEngineCalback(GameEngineCallback gec) {
+        //TODO!
     }
 
     Vector2i worldSize() {
@@ -244,7 +258,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     //the constructor of GOSpriteClasses will call:
     //  engine.registerSpriteClass(registerName, this);
     GOSpriteClass instantiateSpriteClass(char[] name, char[] registerName) {
-        return gSpriteClassFactory.instantiate(name, this, registerName);
+        return SpriteClassFactory.instantiate(name, this, registerName);
     }
 
     //called by sprite.d/GOSpriteClass.this() only
@@ -308,7 +322,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         char[] type = weapon.getStringValue("type", "notype");
         //xxx error handling
         //hope you never need to debug this code!
-        WeaponClass c = gWeaponClassFactory.instantiate(type, this, weapon);
+        WeaponClass c = WeaponClassFactory.instantiate(type, this, weapon);
         assert(findWeaponClass(c.name, true) is null);
         mWeaponClasses[c.name] = c;
     }

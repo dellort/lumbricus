@@ -185,6 +185,14 @@ class ClientGameEngine {
         return mEngine;
     }
 
+    //hacky?
+    GameLogicPublic logic() {
+        return mEngine.logic;
+    }
+    TeamMemberControl controller() {
+        return logic.getControl();
+    }
+
     void kill() {
         //xxx is this necessary? previously implemented by GameObject
     }

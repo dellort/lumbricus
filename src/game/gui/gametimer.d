@@ -31,7 +31,7 @@ class GameTimer : Widget {
     void simulate(Time curTime, Time deltaT) {
         bool active;
         if (mEngine) {
-            auto controller = mEngine.engine.controller;
+            auto controller = mEngine.engine.logic;
             if (controller.currentRoundState() == RoundState.prepare
                 || controller.currentRoundState() == RoundState.playing
                 || controller.currentRoundState() == RoundState.cleaningUp)

@@ -18,11 +18,6 @@ import utils.log;
 import utils.random;
 import utils.factory;
 
-static this() {
-    gWeaponClassFactory.register!(ProjectileWeapon)("projectile_mc");
-    gSpriteClassFactory.register!(ProjectileSpriteClass)("projectile_mc");
-}
-
 private class ProjectileWeapon : WeaponClass {
     //GOSpriteClass[char[]] projectiles;
     SpawnParams onFire;
@@ -67,6 +62,10 @@ private class ProjectileWeapon : WeaponClass {
 
     ProjectileThrower createShooter() {
         return new ProjectileThrower(this, mEngine);
+    }
+
+    static this() {
+        WeaponClassFactory.register!(typeof(this))("projectile_mc");
     }
 }
 
@@ -356,7 +355,8 @@ class ProjectileSpriteClass : GOSpriteClass {
             } else {
                 useFixedDetonateTime = true;
                 //currently in seconds
-                fixedDetonateTime = timeSecs(detonatereason.getFloatValue("lifetime"));
+                fixedDetonateTime =
+                    timeSecs(detonatereason.getFloatValue("lifetime"));
             }
         }
 
@@ -399,6 +399,10 @@ class ProjectileSpriteClass : GOSpriteClass {
 
     this(GameEngine e, char[] r) {
         super(e, r);
+    }
+
+    static this() {
+        SpriteClassFactory.register!(typeof(this))("projectile_mc");
     }
 }
 

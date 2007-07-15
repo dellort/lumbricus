@@ -14,7 +14,8 @@ import utils.vector2;
 class GameView : Widget {
     private {
         ClientGameEngine mEngine;
-        ControllerPublic mController;
+        GameLogicPublic mLogic;
+        TeamMemberControl mController;
         Container mGuiFrame;
     }
 
@@ -28,6 +29,10 @@ class GameView : Widget {
     this(ClientGameEngine engine) {
         mEngine = engine;
         scene.add(mEngine.scene);
+
+        //hacky?
+        mLogic = mEngine.logic;
+        mController = mEngine.controller;
     }
 
     override Vector2i layoutSizeRequest() {
@@ -37,21 +42,13 @@ class GameView : Widget {
     override void onRelayout() {
     }
 
-    void controller(ControllerPublic cont) {
-        if (cont) {
-            //cont.sceneview = mGameSceneView;
-        } else {
-            //if (mController)
-              //  mController.sceneview = null;
-        }
-        mController = cont;
-    }
-
     override protected bool onKeyDown(char[] bind, KeyInfo key) {
-        return mController.onKeyDown(bind, key, mousePos);
+        //return mController.onKeyDown(bind, key, mousePos);
+        return false;
     }
     override protected bool onKeyUp(char[] bind, KeyInfo key) {
-        return mController.onKeyUp(bind, key, mousePos);
+        //return mController.onKeyUp(bind, key, mousePos);
+        return false;
     }
     override protected bool onMouseMove(MouseInfo mouse) {
         return false;

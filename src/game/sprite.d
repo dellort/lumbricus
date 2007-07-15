@@ -16,15 +16,9 @@ import utils.factory;
 import utils.time;
 
 //factory to instantiate sprite classes, this is a small wtf
-package Factory!(GOSpriteClass, GameEngine, char[]) gSpriteClassFactory;
-
-static this() {
-    gSpriteClassFactory = new typeof(gSpriteClassFactory);
-    gSpriteClassFactory.register!(GOSpriteClass)("sprite_mc");
-}
-
-package void registerSpriteClass(T : GOSpriteClass)(char[] name) {
-    mSpriteClassFactory.register(T)(name);
+static class SpriteClassFactory
+    : StaticFactory!(GOSpriteClass, GameEngine, char[])
+{
 }
 
 //object which represents a PhysicObject and an animation on the screen
@@ -377,5 +371,9 @@ class GOSpriteClass {
         //at least the constructor created a default state
         assert(initState !is null);
         assert(states.length > 0);
+    }
+
+    static this() {
+        SpriteClassFactory.register!(typeof(this))("sprite_mc");
     }
 }

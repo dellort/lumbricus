@@ -6,18 +6,29 @@ import str = std.string;
 import intr = std.intrinsic;
 import utf = std.utf;
 
-public T min(T)(T v1, T v2) {
+T min(T)(T v1, T v2) {
     return v1<v2?v1:v2;
 }
 
-public T max(T)(T v1, T v2) {
+T max(T)(T v1, T v2) {
     return v1<v2?v2:v1;
 }
 
-public void swap(T)(inout T a, inout T b) {
+void swap(T)(inout T a, inout T b) {
     T t = a;
     a = b;
     b = t;
+}
+
+//clamp to closed range, i.e. val is adjusted so that it fits into [low, high]
+T clampRangeC(T)(T val, T low, T high) {
+    if (val < low) {
+        return low;
+    } else if (val > high) {
+        return high;
+    } else {
+        return val;
+    }
 }
 
 /// Cast object in t to type T, and throw exception if not possible.

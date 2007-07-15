@@ -12,10 +12,9 @@ import utils.mylist;
 import utils.time;
 import utils.factory;
 
-package Factory!(WeaponClass, GameEngine, ConfigNode) gWeaponClassFactory;
-
-static this() {
-    gWeaponClassFactory = new typeof(gWeaponClassFactory);
+static class WeaponClassFactory
+    : StaticFactory!(WeaponClass, GameEngine, ConfigNode)
+{
 }
 
 enum WeaponWormAnimations {

@@ -7,6 +7,16 @@ public V aaIfIn(K, V)(V[K] aa, K key) {
     return pv ? *pv : null;
 }
 
+//useful for class[] -> interface[] conversion!
+T_to[] arrayCastCopyImplicit(T_to, T_from)(T_from[] arr) {
+    T_to[] res;
+    res.length = arr.length;
+    for (int n = 0; n < res.length; n++) {
+        res[n] = arr[n];
+    }
+    return res;
+}
+
 //return next after w, wraps around, if w==null, return first element, if any
 //returns always w if arr == [T]
 T arrayFindNext(T)(T[] arr, T w) {

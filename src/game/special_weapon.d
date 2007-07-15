@@ -6,10 +6,6 @@ import game.gobject;
 import utils.configfile;
 import utils.log;
 
-static this() {
-    gWeaponClassFactory.register!(SpecialWeapon)("specialw_mc");
-}
-
 class SpecialWeapon : WeaponClass {
     this(GameEngine aengine, ConfigNode node) {
         super(aengine, node);
@@ -18,6 +14,10 @@ class SpecialWeapon : WeaponClass {
     //using SpecialShooter here leads to dmd lockup (at least with dsss)
     Shooter createShooter() {
         return new SpecialShooter(this, engine);
+    }
+
+    static this() {
+        WeaponClassFactory.register!(SpecialWeapon)("specialw_mc");
     }
 }
 

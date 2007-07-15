@@ -29,7 +29,7 @@ class PrepareDisplay : Widget {
 
     void simulate(Time curTime, Time deltaT) {
         Time cur = timeCurrentTime();
-        auto controller = mEngine ? mEngine.engine.controller : null;
+        //auto controller = mEngine ? mEngine.engine.controller : null;
         /*if (controller && controller.currentRoundState() == RoundState.prepare
             && controller.currentTeam())
         {

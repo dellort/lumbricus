@@ -16,10 +16,6 @@ import utils.configfile;
 import std.math;
 import str = std.string;
 
-static this() {
-    gSpriteClassFactory.register!(WormSpriteClass)("worm_mc");
-}
-
 /**
   just an idea:
   thing which can be controlled like a worm
@@ -210,7 +206,6 @@ class WormSprite : GObjectSprite {
         return mWeapon;
     }
 
-    //yyy
     override protected void stateTransition(StaticStateInfo from,
         StaticStateInfo to)
     {
@@ -321,6 +316,10 @@ class WormSpriteClass : GOSpriteClass {
     }
     override WormSprite createSprite() {
         return new WormSprite(engine, this);
+    }
+
+    static this() {
+        SpriteClassFactory.register!(WormSpriteClass)("worm_mc");
     }
 }
 

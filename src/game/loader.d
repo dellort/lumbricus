@@ -8,7 +8,7 @@ class Loader {
     void delegate(Loader sender) onFinish;
     void delegate(Loader sender) onUnload;
 
-    protected void registerChunk(LoadChunkDg chunkLoader) {
+    /+sry! protected+/ void registerChunk(LoadChunkDg chunkLoader) {
         mChunks ~= chunkLoader;
     }
 
