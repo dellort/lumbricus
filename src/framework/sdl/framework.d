@@ -357,6 +357,12 @@ public class SDLSurface : Surface {
             char* err = IMG_GetError();
             throw new Exception("image couldn't be loaded: "~std.string.toString(err));
         }
+        if (transp == Transparency.AutoDetect) {
+            //auto-detect transparency from file
+            //32-bit images will be using alpha, all others colorkeying
+            transp = surf.format.BytesPerPixel == 4 ? Transparency.Alpha
+            : Transparency.Colorkey;
+        }
         initTransp(transp);
     }
     //create from bitmap data, see Framework.createImage
@@ -387,6 +393,11 @@ public class SDLSurface : Surface {
             case Transparency.Colorkey: {
                 //use the default colorkey!
                 enableColorkey();
+                break;
+            }
+            case Transparency.AutoDetect: {
+                //if this got here, assume no transparency
+                mTransp = Transparency.None;
                 break;
             }
             default: //rien

@@ -104,6 +104,6 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
         //um, this is bullshit, but anyway?
         mWeaponSel.bindings = wormbinds;
 
-        add(mWeaponSel, WidgetLayout.Aligned(1, 1, Vector2i(40, 40)));
+        add(mWeaponSel, WidgetLayout.Aligned(1, 1, Vector2i(10, 40)));
     }
 }

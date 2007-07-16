@@ -132,7 +132,7 @@ class Common {
         }
     }
 
-    Surface loadGraphic(char[] path, Transparency t = Transparency.Colorkey) {
+    Surface loadGraphic(char[] path, Transparency t = Transparency.AutoDetect) {
         log("load image: %s", path);
         auto stream = framework.fs.open(path);
         auto image = framework.loadImage(stream, t);

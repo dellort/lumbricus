@@ -72,7 +72,9 @@ public struct Color {
 enum Transparency {
     None,
     Colorkey,
-    Alpha
+    Alpha,
+    AutoDetect, //special value: get transparency from file when loading
+                //invalid as surface transparency type
 }
 
 /// default display formats for surfaces (used in constructor-methods)

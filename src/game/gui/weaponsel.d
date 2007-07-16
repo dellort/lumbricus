@@ -162,7 +162,7 @@ class WeaponSelWindow : Container {
 
     class Foolinator : SceneObject {
         override void draw(Canvas c) {
-            drawBox(c, Vector2i(0), size);
+            drawBox(c, Vector2i(0), size, 1, 8, Color(0.7,0.7,0.7));
         }
     }
 
