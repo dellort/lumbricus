@@ -9,16 +9,22 @@ public V aaIfIn(K, V)(V[K] aa, K key) {
 
 //useful for class[] -> interface[] conversion!
 T_to[] arrayCastCopyImplicit(T_to, T_from)(T_from[] arr) {
+    return arrayMap(arr, (T_from x) { T_to f = x; return f; });
+}
+
+//as you know it from your Haskell lessons
+T_to[] arrayMap(T_from, T_to)(T_from[] arr, T_to delegate(T_from x) del) {
     T_to[] res;
     res.length = arr.length;
     for (int n = 0; n < res.length; n++) {
-        res[n] = arr[n];
+        res[n] = del(arr[n]);
     }
     return res;
 }
 
 //return next after w, wraps around, if w==null, return first element, if any
 //returns always w if arr == [T]
+//shall work like w==null if w not in array
 T arrayFindNext(T)(T[] arr, T w) {
     if (!arr)
         return null;

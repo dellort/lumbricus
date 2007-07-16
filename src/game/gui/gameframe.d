@@ -4,6 +4,7 @@ import common.common;
 import common.scene;
 import common.visual;
 import framework.framework;
+import framework.event;
 import gui.container;
 import gui.widget;
 import gui.messageviewer;
@@ -31,6 +32,7 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
     GameView gameView;
 
     private WeaponSelWindow mWeaponSel;
+    private WeaponClass mLastWeapon;
 
     //xxx this be awful hack
     void gameLogicRoundTimeUpdate(Time t, bool timePaused) {
@@ -54,7 +56,18 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
 
     private void selectWeapon(WeaponClass c) {
         //xxx nasty again
+        mLastWeapon = c;
         clientengine.logic.getControl.weaponDraw(c);
+    }
+
+    //could be unclean: catch weapon selection shortcut before passing it down
+    //to GameView (the GUI does that part)
+    protected override bool onKeyDown(char[] bind, KeyInfo k) {
+        //noone knows why it doesn't simply pass the bind, instead of k
+        auto c = mLastWeapon; //xxx should read the weapon from controller
+        if (mWeaponSel.checkNextWeaponInCategoryShortcut(k, c))
+            return true;
+        return super.onKeyDown(bind, k);
     }
 
     this(ClientGameEngine ce) {
@@ -101,8 +114,7 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
         mWeaponSel = new WeaponSelWindow();
         mWeaponSel.onSelectWeapon = &selectWeapon;
 
-        //um, this is bullshit, but anyway?
-        mWeaponSel.bindings = wormbinds;
+        mWeaponSel.selectionBindings = wormbinds;
 
         add(mWeaponSel, WidgetLayout.Aligned(1, 1, Vector2i(10, 40)));
     }

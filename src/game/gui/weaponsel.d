@@ -15,6 +15,7 @@ import gui.label;
 import gui.tablecontainer;
 import gui.widget;
 
+import utils.array;
 import utils.misc;
 import utils.vector2;
 
@@ -50,7 +51,28 @@ class WeaponSelWindow : Container {
         Font mDFG;
     }
 
+    KeyBindings selectionBindings;
+
     void delegate(WeaponClass c) onSelectWeapon;
+
+    //also hack-liek
+    //checks if "key" is a shortcut, and if so, cycle the weapon
+    //c is the currently selected weapon
+    bool checkNextWeaponInCategoryShortcut(KeyInfo key, WeaponClass c) {
+        char[] b = selectionBindings.findBinding(key);
+        auto parr = b in mRows;
+        if (!parr)
+            return false;
+        Weapon[] arr = *parr;
+        if (!arr.length)
+            return true; //key shortcut catched
+        //sry was lazy!
+        WeaponClass[] foo = arrayMap(arr, (Weapon w) { return w.type; });
+        auto nc = arrayFindNext(foo, c);
+        if (nc && onSelectWeapon)
+            onSelectWeapon(nc);
+        return true;
+    }
 
     private void clickWeapon(GuiButton sender) {
         Weapon* w = sender in mButtonToWeapon;
@@ -134,8 +156,8 @@ class WeaponSelWindow : Container {
             //reverse-resolve shortcut and show
             auto shortcut = new GuiLabel();
             //and yes, the shortcut bind-name is the category-id itself
-            shortcut.text = bindings ? globals.translateBind(bindings, category)
-                : category;
+            shortcut.text = selectionBindings ?
+                globals.translateBind(selectionBindings, category) : category;
             shortcut.font = mDFG;
             shortcut.drawBorder = false;
             mGrid.add(shortcut, 0, y, WidgetLayout.Noexpand);
@@ -174,7 +196,7 @@ class WeaponSelWindow : Container {
         }
 
         mWeaponTranslate = new Translator("weapons");
-        mDFG = getFramework.getFont("weaponsel_down");
+        mDFG = getFramework.getFont("weaponsel_side");
 
         scene.add(new Foolinator);
 
