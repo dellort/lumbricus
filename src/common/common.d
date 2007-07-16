@@ -69,7 +69,7 @@ class Common {
             defaultOut = StdioOutput.output;
         }
 
-        localizedKeynames = new Translator("keynames");
+        localizedKeynames = localeRoot.bindNamespace("keynames");
 
         gameTimeAnimations = new TimeSource(&framework.getCurrentTime);
         //moved from toplevel.d
@@ -85,19 +85,7 @@ class Common {
 
     private void initLocale() {
         char[] langId = anyConfig.getStringValue("language_id", "de");
-        ConfigNode localeNode = null;
-        try {
-            localeNode = globals.loadConfig(cLocalePath ~ '/' ~ langId);
-        } catch {
-            try {
-                //try default language
-                langId = cDefLang;
-                localeNode = globals.loadConfig(cLocalePath ~ '/' ~ langId);
-            } catch {
-                langId = "none";
-            }
-        }
-        initI18N(localeNode,langId);
+        initI18N(cLocalePath, langId, cDefLang, &loadConfig);
         try {
             //link locale-specific files into root
             framework.fs.link(cLocalePath ~ '/' ~ langId,"/",false,1);
@@ -140,15 +128,23 @@ class Common {
         return image;
     }
 
-    ConfigNode loadConfig(char[] section, bool asfilename = false) {
+    ConfigNode loadConfig(char[] section, bool asfilename = false,
+        bool allowFail = false)
+    {
         char[] file = fixRelativePath(section ~ (asfilename ? "" : ".conf"));
         log("load config: %s", file);
-        auto s = framework.fs.open(file);
-        auto f = new ConfigFile(s, file, &logconf);
-        s.close();
-        if (!f.rootnode)
-            throw new Exception("?");
-        return f.rootnode;
+        try {
+            scope s = framework.fs.open(file);
+            auto f = new ConfigFile(s, file, &logconf);
+            if (!f.rootnode)
+                throw new Exception("?");
+            return f.rootnode;
+        } catch (Exception e) {
+            if (!allowFail)
+                throw e;
+        }
+        log("config file %s failed to load (allowFail = true)", file);
+        return null;
     }
 
     private void logconf(char[] log) {

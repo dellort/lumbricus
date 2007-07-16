@@ -195,7 +195,7 @@ class WeaponSelWindow : Container {
             mCategories ~= value;
         }
 
-        mWeaponTranslate = new Translator("weapons");
+        mWeaponTranslate = new Translator("/weapons/locale");
         mDFG = getFramework.getFont("weaponsel_side");
 
         scene.add(new Foolinator);

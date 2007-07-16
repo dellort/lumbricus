@@ -20,7 +20,7 @@ class PrepareDisplay : Widget {
 
     this(ClientGameEngine engine) {
         mEngine = engine;
-        tr = new Translator("gui_prepare");
+        tr = localeRoot.bindNamespace("gui_prepare");
         mPrepareView = new FontLabelBoxed(globals.framework.fontManager.loadFont("messages"));
         mPrepareView.border = Vector2i(7, 5);
 
