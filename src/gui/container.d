@@ -96,6 +96,9 @@ class Container : Widget {
         bool mIsBinFrame;
 
         int mLastZOrder2;
+
+        //to send mouse-leave events
+        Widget mLastMouseReceiver;
     }
 
     //used to store container-specific per-widget data
@@ -471,7 +474,10 @@ class Container : Widget {
         //first check if the parent wants it; if it returns true, don't deliver
         //this event to the children
         if (super.internalHandleMouseEvent(mi, ki))
-            return true;
+            //sry!
+            goto huhha;
+
+        Widget got_it;
 
         //check if any children are hit by this
         //objects towards the end of the array are later drawn => _reverse
@@ -489,12 +495,28 @@ class Container : Widget {
                 } else {
                     res = child.internalHandleMouseEvent(null, ki);
                 }
-                if (res)
-                    return true;
+                if (res) {
+                    got_it = child;
+                    break;
+                }
             }
         }
+    huhha:
 
-        return false;
+        if (mLastMouseReceiver && (mLastMouseReceiver !is got_it)) {
+            mLastMouseReceiver.internalMouseLeave();
+        }
+
+        mLastMouseReceiver = got_it;
+
+        return got_it !is null;
+    }
+
+    override protected void onMouseEnterLeave(bool mouseIsInside) {
+        if (!mouseIsInside && mLastMouseReceiver) {
+            mLastMouseReceiver.internalMouseLeave();
+            mLastMouseReceiver = null;
+        }
     }
 
     override bool internalHandleKeyEvent(KeyInfo info) {

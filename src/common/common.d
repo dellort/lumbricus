@@ -33,6 +33,10 @@ class Common {
     //xxx: move!
     TimeSource gameTimeAnimations;
 
+    //moved to here from TopLevel
+    //xxx move this to where-ever
+    Translator localizedKeynames;
+
     private const cLocalePath = "/locale";
     private const cDefLang = "en";
 
@@ -64,6 +68,8 @@ class Common {
         if (args.length > 0 && args[0] == "logconsole") {
             defaultOut = StdioOutput.output;
         }
+
+        localizedKeynames = new Translator("keynames");
 
         gameTimeAnimations = new TimeSource(&framework.getCurrentTime);
         //moved from toplevel.d
@@ -97,6 +103,32 @@ class Common {
             framework.fs.link(cLocalePath ~ '/' ~ langId,"/",false,1);
         } catch {
             //don't crash if current locale has no locale-specific files
+        }
+    }
+
+    //translate into translated user-readable string
+    char[] translateKeyshortcut(Keycode code, ModifierSet mods) {
+        if (!localizedKeynames)
+            return "?";
+        char[] res = localizedKeynames(
+            framework.translateKeycodeToKeyID(code), "?");
+        foreachSetModifier(mods,
+            (Modifier mod) {
+                res = localizedKeynames(
+                    framework.modifierToString(mod), "?") ~ "+" ~ res;
+            }
+        );
+        return res;
+    }
+
+    //xxx maybe move to framework
+    char[] translateBind(KeyBindings b, char[] bind) {
+        Keycode code;
+        ModifierSet mods;
+        if (!b.readBinding(bind, code, mods)) {
+            return "-";
+        } else {
+            return translateKeyshortcut(code, mods);
         }
     }
 

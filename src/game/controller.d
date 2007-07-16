@@ -65,6 +65,7 @@ class ServerMemberControl : TeamMemberControl {
         if (m) {
             return m.walkState;
         }
+        return WalkState.noMovement;
     }
 
     void jump(JumpMode mode) {
@@ -163,9 +164,6 @@ class ServerTeam : Team {
         //if you can click anything, if true, also show that animation
         bool mAllowSetPoint;
 
-        //key state for LEFT/RIGHT and UP/DOWN
-        Vector2f dirKeyState_lu = {0, 0};  //left/up
-        Vector2f dirKeyState_rd = {0, 0};  //right/down
         Vector2f movementVec = {0, 0};
     }
 
@@ -362,96 +360,14 @@ class ServerTeam : Team {
         targetIsSet = true;
         currentTarget = where;
     }
-/+
-yyy
 
-    private bool handleDirKey(char[] bind, bool up) {
-        float v = up ? 0 : 1;
-        switch (bind) {
-            case "left":
-                dirKeyState_lu.x = v;
-                break;
-            case "right":
-                dirKeyState_rd.x = v;
-                break;
-            case "up":
-                dirKeyState_lu.y = v;
-                break;
-            case "down":
-                dirKeyState_rd.y = v;
-                break;
-            default:
-                return false;
-        }
-
-        movementVec = dirKeyState_rd-dirKeyState_lu;
-        if (mCurrent)
-            mCurrent.move(movementVec);
-
-        return true;
+    //xxx integrate (unused yet)
+    void applyDoubleTime() {
+        parent.mRoundRemaining *= 2;
     }
-
-    bool onKeyDown(char[] bind, KeyInfo info, Vector2i mousePos) {
-        switch (bind) {
-            case "debug2": {
-                parent.engine.gamelevel.damage(mousePos, 100);
-                return true;
-            }
-            case "debug1": {
-                parent.spawnWorm(mousePos);
-                return true;
-            }
-            case "debug3": {
-                parent.mRoundRemaining *= 4;
-                return true;
-            }
-            case "selectworm": {
-                doChooseWorm();
-                return true;
-            }
-            case "pointy": {
-
-                return true;
-            }
-            default:
-        }
-
-        if (handleDirKey(bind, false))
-            return true;
-
-        if (!mCurrent)
-            return false;
-
-        switch (bind) {
-            case "jump": {
-                mCurrent.jump(JumpMode.normal);
-                return true;
-            }
-            case "jetpack": {
-                mCurrent.toggleJetpack();
-                return true;
-            }
-            case "fire": {
-                mCurrent.doFire();
-                return true;
-            }
-            case "debug4": {
-                mCurrent.worm.physics.applyDamage(100000);
-                return true;
-            }
-            default:
-
-        }
-        //nothing found
-        return false;
+    void dieNow() {
+        mCurrent.worm.physics.applyDamage(100000);
     }
-
-    bool onKeyUp(char[] bind, KeyInfo info, Vector2i mousePos) {
-        if (handleDirKey(bind, true))
-            return true;
-        return false;
-    }
-+/
 
     //select (and draw) a weapon by its id
     void selectWeapon(WeaponClass weaponId) {
@@ -956,12 +872,7 @@ class GameController : GameLogicPublic {
     }
 
     Team[] getTeams() {
-        //f*ck interface arrays are not compatible to class arrays
-        Team[] nt;
-        foreach (t; mTeams) {
-            nt ~= t;
-        }
-        return nt;
+        return arrayCastCopyImplicit!(Team, ServerTeam)(mTeams);
     }
 
     RoundState currentRoundState() {
@@ -1176,6 +1087,8 @@ class GameController : GameLogicPublic {
         mCurrentTeam = t;
         if (mCurrentTeam)
             mCurrentTeam.setActive(true);
+        //xxx: not sure
+        control.memberChanged();
     }
     ServerTeam currentTeam() {
         return mCurrentTeam;

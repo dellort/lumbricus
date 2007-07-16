@@ -56,8 +56,13 @@ class TableContainer : PublicContainer {
         mCellSpacing = cellspacing;
     }
 
+    //hack
+    bool forceExpand;
+
     void add(Widget w, int x, int y, WidgetLayout layout = WidgetLayout()) {
         //check bounds, no overwriting of cells
+        assert(x >= 0 && x < mW);
+        assert(y >= 0 && y < mH);
         assert(mCells[x][y] is null);
         auto pw = addChild(w);
         mCells[x][y] = pw;
@@ -105,8 +110,8 @@ class TableContainer : PublicContainer {
                 allMinX = max(allMinX, mMinWidths[x]);
                 allMinY = max(allMinY, mMinHeights[y]);
                 //if one item in the row wants to expand, make all expanded
-                mExpandX[x] |= expand[0];
-                mExpandY[y] |= expand[1];
+                mExpandX[x] |= forceExpand | expand[0];
+                mExpandY[y] |= forceExpand | expand[1];
             }
         }
 

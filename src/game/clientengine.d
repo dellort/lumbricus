@@ -72,7 +72,6 @@ enum GameZOrder {
 //client-side game engine, manages all stuff that does not affect gameplay,
 //but needs access to the game and is drawn into the game scene
 class ClientGameEngine {
-    //xxx some stuff still needs this, remove as far as possible
     private GameEnginePublic mEngine;
 
     private List!(ClientGraphic) mGraphics;

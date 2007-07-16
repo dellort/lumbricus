@@ -698,6 +698,8 @@ public class KeyBindings {
     }
 
     private Entry[Key] mBindings;
+    //only for readBinding()
+    private Key[char[]] mReverseLookup;
 
     private uint countmods(uint mods) {
         uint sum = 0;
@@ -803,6 +805,7 @@ public class KeyBindings {
         e.required_mods = k.required_mods;;
 
         mBindings[k] = e;
+        mReverseLookup[bind_to] = k;
         return true;
     }
 
@@ -826,6 +829,18 @@ public class KeyBindings {
         foreach (Key k; keys) {
             mBindings.remove(k);
         }
+        mReverseLookup.remove(bind);
+    }
+
+    /// Return the arguments for the addBinding() call which created "bind".
+    /// Return value is false if not found.
+    bool readBinding(char[] bind, out Keycode code, out ModifierSet mods) {
+        Key* k = bind in mReverseLookup;
+        if (!k)
+            return false;
+        code = k.code;
+        mods = cast(ModifierSet)k.required_mods;
+        return true;
     }
 
     public void clear() {

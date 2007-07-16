@@ -3,6 +3,7 @@ module game.weapon;
 import game.gobject;
 import game.animation;
 import common.common;
+import common.bmpresource;
 import game.physic;
 import game.game;
 import game.sprite;
@@ -19,7 +20,7 @@ static class WeaponClassFactory
 
 enum WeaponWormAnimations {
     Arm,  //worm gets armed (or unarmed: animation played backwards)
-    Hold, //worm holds the weapon (xxx: hardcoded to stupidness, see weapons.conf)
+    Hold, //worm holds the weapon
     Fire, //animation played while worm is shooting
 }
 //WeaponWormAnimations -> string
@@ -35,9 +36,12 @@ abstract class WeaponClass {
     //generally read-only fields
     char[] name; //weapon name, translateable string
     int value;  //see config file
+    char[] category; //category-id for this weapon
 
-    //NOTE: should this be moved into Shooter?
-    //      (more flexible, but you had to deal with state changes)
+    //for the weapon selection; only needed on client-side
+    BitmapResource icon;
+
+    //needed by both client and server (server should verify with this data)
     bool canThrow; //firing from worms direction
     bool throwAnyDirection; //false=left or right, true=360 degrees of freedom
     bool variableThrowStrength; //chooseable throw strength
@@ -48,6 +52,7 @@ abstract class WeaponClass {
     Time timerTo;   //maximal time
     Time relaxtime;
 
+    //weapon-holding animations
     AnimationResource[WeaponWormAnimations.max+1] animations;
 
     GameEngine engine() {
@@ -60,6 +65,11 @@ abstract class WeaponClass {
 
         name = node.name;
         value = node.getIntValue("value", 0);
+        category = node.getStringValue("category", "none");
+
+        icon = globals.resources.resource!(BitmapResource)
+            (node.getPathValue("icon"));
+
         auto fire = node.findNode("firemode");
         if (fire) {
             canThrow = fire.valueIs("mode", "throw");

@@ -44,9 +44,6 @@ private:
 
     TaskManager taskManager;
 
-    //xxx move this to where-ever
-    Translator localizedKeynames;
-
     bool mShowKeyDebug = false;
     bool mKeyNameIt = false;
 
@@ -76,8 +73,6 @@ private:
 
         //do it yourself... (initial event)
         onVideoInit(false);
-
-        localizedKeynames = new Translator("keynames");
 
         keybindings = new KeyBindings();
         keybindings.loadFrom(globals.loadConfig("binds").getSubNode("binds"));
@@ -228,28 +223,13 @@ private:
             (char[] bind, Keycode code, ModifierSet mods) {
                 write.writefln("    %s='%s' ('%s')", bind,
                     keybindings.unparseBindString(code, mods),
-                    translateKeyshortcut(code, mods));
+                    globals.translateKeyshortcut(code, mods));
             }
         );
     }
 
     private void cmdNameit(MyBox[] args, Output write) {
         mKeyNameIt = true;
-    }
-
-    //translate into translated user-readable string
-    char[] translateKeyshortcut(Keycode code, ModifierSet mods) {
-        if (!localizedKeynames)
-            return "?";
-        char[] res = localizedKeynames(
-            globals.framework.translateKeycodeToKeyID(code), "?");
-        foreachSetModifier(mods,
-            (Modifier mod) {
-                res = localizedKeynames(
-                    globals.framework.modifierToString(mod), "?") ~ "+" ~ res;
-            }
-        );
-        return res;
     }
 
 /*    private void cmdShowLog(CommandLine cmd) {
@@ -346,7 +326,7 @@ private:
             auto mods = globals.framework.getModifierSet();
             globals.cmdLine.console.writefln("Key: '%s' '%s'",
                 keybindings.unparseBindString(infos.code, mods),
-                translateKeyshortcut(infos.code, mods));
+                globals.translateKeyshortcut(infos.code, mods));
             mKeyNameIt = false;
             return false;
         }

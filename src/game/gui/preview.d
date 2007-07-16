@@ -14,36 +14,11 @@ import levelgen.level;
 import utils.vector2;
 import utils.rect2;
 
-class BitmapButton : GuiButton {
-    Surface bitmap;
-    void delegate(GuiButton sender) onRightClick;
-
-    override Vector2i layoutSizeRequest() {
-        return bitmap ? bitmap.size : Vector2i();
-    }
-
-    override void draw(Canvas c) {
-        if (bitmap) {
-            c.draw(bitmap.createTexture, Vector2i());
-        }
-    }
-
-    override protected bool onKeyUp(char[] bind, KeyInfo key) {
-        if (key.code == Keycode.MOUSE_RIGHT) {
-            if (onRightClick) {
-                onRightClick(this);
-            }
-            return true;
-        }
-        return super.onKeyUp(bind, key);
-    }
-}
-
 private class LevelPreviewer : SimpleContainer {
     private {
         const cRows = 3;
         const cCols = 2;
-        BitmapButton[cRows*cCols] mShowBitmap;
+        GuiButton[cRows*cCols] mShowBitmap;
 
         struct LevelInfo {
             LevelGeometry geo;
@@ -71,8 +46,8 @@ private class LevelPreviewer : SimpleContainer {
         mLblInfo = new GuiLabel();
         mLblInfo.text = "Select level to play, right click to regenerate";
 
-        foreach (int i, inout BitmapButton sb; mShowBitmap) {
-            sb = new BitmapButton();
+        foreach (int i, inout GuiButton sb; mShowBitmap) {
+            sb = new GuiButton();
             sb.onClick = &play;
             sb.onRightClick = &generate;
             doGenerate(i);
@@ -90,7 +65,7 @@ private class LevelPreviewer : SimpleContainer {
     }
 
     private int getIdx(GuiButton which) {
-        foreach (int i, BitmapButton b; mShowBitmap) {
+        foreach (int i, GuiButton b; mShowBitmap) {
             if (b == which)
                 return i;
         }
@@ -108,8 +83,9 @@ private class LevelPreviewer : SimpleContainer {
         mLevel[idx].templ = templ;
         //scale down (?)
         auto sz = toVector2i(toVector2f(templ.size)*0.15);
-        mShowBitmap[idx].bitmap = mGenerator.renderPreview(mLevel[idx].geo,
-            sz, Color(1,1,1), Color(0.8,0.8,0.8), Color(0.4,0.4,0.4));
+        mShowBitmap[idx].image = mGenerator.renderPreview(mLevel[idx].geo,
+            sz, Color(1,1,1), Color(0.8,0.8,0.8), Color(0.4,0.4,0.4))
+            .createTexture();
         mShowBitmap[idx].needRelayout();
     }
 

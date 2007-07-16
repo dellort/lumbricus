@@ -175,7 +175,7 @@ class Widget {
                 || mLayouting == LayoutingPhase.NeedAlloc);
         }
 
-        gDefaultLog("ask %s for size, return %s", this, mLastRequestSize);
+        //gDefaultLog("ask %s for size, return %s", this, mLastRequestSize);
 
         return mLastRequestSize;
     }
@@ -208,7 +208,7 @@ class Widget {
         mContainedBounds = rect;
         internalUpdateRealRect();
 
-        gDefaultLog("reallocate %s %s", this, rect);
+        //gDefaultLog("reallocate %s %s", this, rect);
 
         //call user handler
         //but only if the size changed; else theoretically there would be no
@@ -363,10 +363,15 @@ class Widget {
     //onMouseEnterLeave(true, _) is called before the first onMouseMove() is
     //delivered
     //mouseIsInside == testMouse(mousePos)
+    //xxx capture stuff who cares
     //forCapture == whether capture is active
     //i.e. onMouseEnterLeave(false, true) == captured, but outside real region
-    //xxx nothing calls this, not implemented yet
-    protected void onMouseEnterLeave(bool mouseIsInside, bool forCapture) {
+    //xxx only partially implemented (no leave)
+    protected void onMouseEnterLeave(bool mouseIsInside) {
+    }
+
+    void internalMouseLeave() {
+        onMouseEnterLeave(false);
     }
 
     void bindings(KeyBindings bind) {
@@ -407,8 +412,10 @@ class Widget {
         if (mi) {
             //update mousepos too!
             mMousePos = mi.pos;
+            onMouseEnterLeave(true);
             return onMouseMove(*mi);
         } else {
+            onMouseEnterLeave(true);
             return callKeyHandler(*ki);
         }
     }
