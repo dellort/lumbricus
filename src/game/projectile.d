@@ -131,6 +131,8 @@ private class ProjectileSprite : GObjectSprite {
     Time birthTime;
     //only used if mylcass.dieByTime && !myclass.useFixedDeathTime
     Time detonateTimer;
+    Time glueTime;   //time when projectile got glued
+    bool gluedCache; //last value of physics.isGlued
     ProjectileEffector[] effectors;
     Vector2f target;
 
@@ -153,8 +155,23 @@ private class ProjectileSprite : GObjectSprite {
         }
 
         if (engine.gameTime.current > detonateTime) {
-            engine.mLog("detonate by time");
-            detonate(DetonateReason.timeout);
+            //start glued checking when projectile wants to blow
+            if (physics.isGlued) {
+                if (!gluedCache) {
+                    //projectile got glued
+                    gluedCache = true;
+                    glueTime = engine.gameTime.current;
+                }
+            } else {
+                //projectile is not glued
+                glueTime = engine.gameTime.current;
+                gluedCache = false;
+            }
+            //this will do 0 >= 0 for projectiles not needing glue
+            if (engine.gameTime.current - glueTime >= myclass.minimumGluedTime) {
+                engine.mLog("detonate by time");
+                detonate(DetonateReason.timeout);
+            }
         }
     }
 
@@ -329,6 +346,7 @@ class ProjectileSpriteClass : GOSpriteClass {
     bool detonateByTime;
     bool useFixedDetonateTime;
     Time fixedDetonateTime;
+    Time minimumGluedTime;
 
     //non-null if to spawn anything on death
     SpawnParams* spawnOnDetonate;
@@ -349,6 +367,8 @@ class ProjectileSpriteClass : GOSpriteClass {
         auto detonatereason = config.getSubNode("detonate_howcome");
         detonateByImpact = detonatereason.getBoolValue("byimpact");
         detonateByTime = detonatereason.getBoolValue("bytime");
+        minimumGluedTime = timeSecs(detonatereason.getFloatValue("gluetime",
+            0));
         if (detonateByTime) {
             if (detonatereason.valueIs("lifetime", "$LIFETIME$")) {
                 useFixedDetonateTime = false;
