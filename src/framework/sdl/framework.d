@@ -691,6 +691,32 @@ public class SDLFont : Font {
         }
     }
 
+    public void drawTextLimited(Canvas canvas, Vector2i pos, int width,
+        char[] text)
+    {
+        Vector2i s = textSize(text);
+        if (s.x <= width) {
+            drawText(canvas, pos, text);
+        } else {
+            char[] dotty = "...";
+            int ds = textSize(dotty).x;
+            width -= ds;
+            //draw manually (oh, this is an xxx)
+            foreach (dchar c; text) {
+                Texture surface = getGlyph(c);
+                if (mNeedBackPlain) {
+                    canvas.drawFilledRect(pos, pos+surface.size, props.back, true);
+                }
+                auto npos = pos.x + surface.size.x;
+                if (npos > width)
+                    break;
+                canvas.draw(surface, pos);
+                pos.x = npos;
+            }
+            drawText(canvas, pos, dotty);
+        }
+    }
+
     public Vector2i textSize(char[] text) {
         Vector2i res = Vector2i(0, 0);
         foreach (dchar c; text) {

@@ -15,6 +15,10 @@ struct FontProperties {
 public class Font {
     /// draw UTF8 encoded text (use framework singleton to instantiate it)
     public abstract void drawText(Canvas canvas, Vector2i pos, char[] text);
+    /// like drawText(), but try not to draw beyond "width"
+    /// instead the text is cut and, unlike clipping, will be ended with "..."
+    public abstract void drawTextLimited(Canvas canvas, Vector2i pos, int width,
+        char[] text);
     /// same for UTF-32
     //public abstract void drawText(Canvas canvas, Vector2i pos, dchar[] text);
     /// return pixel width/height of the text

@@ -13,16 +13,21 @@ class GuiLabel : GuiObjectOwnerDrawn {
     private char[] mText;
     private Font mFont;
     private Vector2i mBorder;
+    private bool mShrink;
 
     bool drawBorder;
 
     override Vector2i layoutSizeRequest() {
-        return mFont.textSize(mText) + border * 2;
+        auto size = mFont.textSize(mText) + border * 2;
+        if (mShrink) {
+            size.x = 0;
+        }
+        return size;
     }
 
     void text(char[] txt) {
         mText = txt;
-        needRelayout();
+        needResize(true);
     }
     char[] text() {
         return mText;
@@ -31,7 +36,7 @@ class GuiLabel : GuiObjectOwnerDrawn {
     void font(Font font) {
         assert(font !is null);
         mFont = font;
-        needRelayout();
+        needResize(true);
     }
     Font font() {
         return mFont;
@@ -40,10 +45,19 @@ class GuiLabel : GuiObjectOwnerDrawn {
     //(invisible!) border around text
     void border(Vector2i b) {
         mBorder = b;
-        needRelayout();
+        needResize(true);
     }
     Vector2i border() {
         return mBorder;
+    }
+
+    //if true, report size as 0 and then draw in a special way (see .draw())
+    void shrink(bool s) {
+        mShrink = s;
+        needRelayout();
+    }
+    bool shrink() {
+        return mShrink;
     }
 
     this(Font font = null) {
@@ -56,6 +70,12 @@ class GuiLabel : GuiObjectOwnerDrawn {
         if (drawBorder) {
             drawBox(canvas, Vector2i(0), size);
         }
-        mFont.drawText(canvas, mBorder, mText);
+        if (!mShrink) {
+            mFont.drawText(canvas, mBorder, mText);
+        } else {
+            auto sz = size;
+            sz -= mBorder*2;
+            mFont.drawTextLimited(canvas, mBorder, size.x, mText);
+        }
     }
 }

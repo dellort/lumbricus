@@ -67,7 +67,7 @@ class WeaponSelWindow : Container {
 
         if (over) {
             mWeaponName.text = mWeaponTranslate(w.type.name);
-            mWeaponQuantity.text = w.infinite ? "" : format(w.quantity);
+            mWeaponQuantity.text = w.infinite ? "" : format("x%s", w.quantity);
         } else {
             mWeaponName.text = "";
             mWeaponQuantity.text = "";
@@ -184,13 +184,14 @@ class WeaponSelWindow : Container {
         mWeaponName = new GuiLabel();
         mWeaponName.drawBorder = false;
         mWeaponName.font = getFramework.getFont("weaponsel_down");
+        mWeaponName.shrink = true;
         mWeaponQuantity = new GuiLabel();
         mWeaponQuantity.drawBorder = false;
         mWeaponQuantity.font = mWeaponName.font;
-        auto box = new SimpleContainer();
-        box.add(mWeaponName, WidgetLayout.Aligned(-1, 0));
-        box.add(mWeaponQuantity, WidgetLayout.Aligned(1, 0));
-        all.add(box);
+        auto hbox = new BoxContainer(true, false, 10);
+        hbox.add(mWeaponName, WidgetLayout.Expand(true));
+        hbox.add(mWeaponQuantity, WidgetLayout.Noexpand);
+        all.add(hbox);
 
         addChild(all);
         setChildLayout(all, WidgetLayout.Border(Vector2i(6)));
