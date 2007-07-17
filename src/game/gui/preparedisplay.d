@@ -8,12 +8,13 @@ import game.clientengine;
 import common.visual;
 import common.common;
 import game.gamepublic;
+import gui.container;
+import gui.label;
 import gui.widget;
 import utils.time;
 
-class PrepareDisplay : Widget {
-    private FontLabel mPrepareView;
-    private bool mActive;
+class PrepareDisplay : Container {
+    private GuiLabel mPrepareView;
     private Time mLastTime;
     private Translator tr;
     private ClientGameEngine mEngine;
@@ -21,44 +22,43 @@ class PrepareDisplay : Widget {
     this(ClientGameEngine engine) {
         mEngine = engine;
         tr = localeRoot.bindNamespace("gui_prepare");
-        mPrepareView = new FontLabelBoxed(globals.framework.fontManager.loadFont("messages"));
+        mPrepareView = new GuiLabel();
+        mPrepareView.font = globals.framework.fontManager.loadFont("messages");
         mPrepareView.border = Vector2i(7, 5);
 
         mLastTime = timeCurrentTime();
     }
 
-    void simulate(Time curTime, Time deltaT) {
-        Time cur = timeCurrentTime();
-        //auto controller = mEngine ? mEngine.engine.controller : null;
-        /*if (controller && controller.currentRoundState() == RoundState.prepare
-            && controller.currentTeam())
-        {
-            Team curTeam = controller.currentTeam();
-            if (!mActive) {
-                scene.add(mPrepareView);
-                mActive = true;
+    private void active(bool active) {
+        if (active) {
+            if (mPrepareView.parent !is this) {
+                addChild(mPrepareView);
+                setChildLayout(mPrepareView, WidgetLayout.Aligned(0, -1,
+                    Vector2i(0, 40)));
             }
-            char[] teamName = curTeam.name;
-            //little hack to show correct time
-            Time pt = controller.currentPrepareTime()-timeMsecs(1);
-            mPrepareView.text = tr("teamgetready", teamName, pt.secs >= 0 ? pt.secs+1 : 0);
         } else {
-            if (mActive) {
-                scene.remove(mPrepareView);
-                mActive = false;
-            }
-        }*/
-
-        mPrepareView.pos.x = size.x/2 - mPrepareView.size.x/2;
-        mPrepareView.pos.y = 40;
-
-        //animation stuff here
-
-        mLastTime = cur;
+            mPrepareView.remove();
+        }
     }
 
-    void relayout() {
-        //xxx self-managed position (someone said gui-layouter...)
-        //pos.y = 40;
+    void simulate(Time curTime, Time deltaT) {
+        Time cur = timeCurrentTime();
+        auto logic = mEngine.logic;
+        //auto controller = mEngine ? mEngine.engine.controller : null;
+        if (logic.currentRoundState() == RoundState.prepare
+            && logic.getControl.getActiveTeam())
+        {
+            Team curTeam = logic.getControl().getActiveTeam();
+            active = true;
+            char[] teamName = curTeam.name;
+            //little hack to show correct time
+            Time pt = logic.currentPrepareTime()-timeMsecs(1);
+            mPrepareView.text = tr("teamgetready", teamName,
+                pt.secs >= 0 ? pt.secs+1 : 0);
+        } else {
+            active = false;
+        }
+
+        mLastTime = cur;
     }
 }

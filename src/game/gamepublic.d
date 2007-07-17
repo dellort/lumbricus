@@ -144,22 +144,6 @@ interface GameEngineCallback {
     void onEngineStateChanged();
 }
 
-/+
-///public interface to game controller
-///xxx I guess this must die
-interface ControllerPublic {
-    ///set this callback to receive messages
-    void delegate(char[]) messageCb();
-    void messageCb(void delegate(char[]) cb);
-
-    ///pass an event to the controller
-    bool onKeyDown(char[] bind, KeyInfo info, Vector2i mousePos);
-    bool onKeyUp(char[] bind, KeyInfo info, Vector2i mousePos);
-
-    void selectWeapon(char[] weaponId);
-}
-+/
-
 enum RoundState {
     prepare,    //player ready
     playing,    //round running
@@ -276,6 +260,9 @@ interface TeamMemberControl {
 
     ///redundant to getActiveMember and TeamMember.team
     Team getActiveTeam();
+
+    ///last time a worm did an action (or so)
+    Time currentLastAction();
 
     ///select the next worm in row
     ///this does not have to work, nothing will happen if selecting is not

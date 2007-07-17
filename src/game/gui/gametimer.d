@@ -7,23 +7,30 @@ import game.clientengine;
 import common.visual;
 import common.common;
 import game.gamepublic;
+import gui.container;
+import gui.label;
 import gui.widget;
 import utils.time;
 
-class GameTimer : Widget {
+class GameTimer : Container {
     private ClientGameEngine mEngine;
-    private FontLabel mTimeView;
+    private GuiLabel mTimeView;
     private bool mActive;
     private Time mLastTime;
     private Vector2i mInitSize;
 
     this(ClientGameEngine engine) {
         mEngine = engine;
-        mTimeView = new FontLabelBoxed(globals.framework.fontManager.loadFont("time"));
+        mTimeView = new GuiLabel();
+        mTimeView.font = globals.framework.fontManager.loadFont("time");
         mTimeView.border = Vector2i(7, 5);
 
         mTimeView.text = str.format("%.2s", 99);
-        mInitSize = mTimeView.size;
+        //ew!
+        mInitSize = mTimeView.font.textSize(mTimeView.text);
+
+        addChild(mTimeView);
+        setChildLayout(mTimeView, WidgetLayout.Noexpand);
 
         mLastTime = timeCurrentTime();
     }
@@ -51,14 +58,16 @@ class GameTimer : Widget {
         if (active != mActive) {
             mActive = active;
             if (mActive) {
-                scene.add(mTimeView);
+                //xxx
+                //scene.add(mTimeView);
             } else {
-                scene.remove(mTimeView);
+                //scene.remove(mTimeView);
             }
         }
     }
 
     Vector2i layoutSizeRequest() {
-        return mInitSize;
+        //idea: avoid resizing, give a larger area to have moar border
+        return mInitSize*2;
     }
 }

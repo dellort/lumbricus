@@ -101,6 +101,22 @@ class ClientGameEngine {
     //indexed by team color
     private PerTeamAnim[] mTeamAnims;
 
+    //needed by gameview.d (where all this stuff is drawn)
+    //you can move it around if you want
+    PerTeamAnim getTeamAnimations(Team t) {
+        return mTeamAnims[t.color];
+    }
+
+    //inefficient because O(n)
+    //return null if invalid id
+    ClientGraphic findClientGraphic(long id) {
+        foreach (ClientGraphic g; mGraphics) {
+            if (g.uid == id)
+                return g;
+        }
+        return null;
+    }
+
     this(GameEnginePublic engine) {
         mEngine = engine;
 
@@ -157,10 +173,6 @@ class ClientGameEngine {
         mZScenes[GameZOrder.Background].add(mGameSky.scenes[GameSky.Z.back]);
         mZScenes[GameZOrder.BackLayer].add(mGameSky.scenes[GameSky.Z.debris]);
         mZScenes[GameZOrder.Objects].add(mGameSky.scenes[GameSky.Z.clouds]);
-
-        //draws the worm names
-        //mDrawer = new WormNameDrawer(mEngine.controller, mTeamAnims);
-        //mDrawer.setScene(mScene, GameZOrder.Names);
 
         //actual level
         mLevelDrawer = new LevelDrawer(this);
@@ -229,6 +241,7 @@ class ClientGameEngine {
                     cur_c = mGraphics.next(cur_c);
                     grascene.remove(kill);
                     mGraphics.remove(kill);
+                    kill.active = false;
                 } else if (cur_s.type == GraphicEventType.Change) {
                     //sync up...
                     cur_c.sync(cur_s);
@@ -343,123 +356,3 @@ class LevelDrawer : SceneObject {
         this.game = game;
     }
 }
-
-/+
-private class WormNameDrawer : SceneObject {
-    private GameController mController;
-    private Font[Team] mWormFont;
-    private int mFontHeight;
-    private Animator mArrow;
-    private Animator mPointed;
-    private Time mArrowDelta;
-    private int mArrowCol = -1, mPointCol = -1;
-    private PerTeamAnim[] mTeamAnims;
-
-    this(GameController controller, PerTeamAnim[] teamAnims) {
-        mController = controller;
-        mTeamAnims = teamAnims;
-
-        //create team fonts (expects teams are already loaded)
-        foreach (Team t; controller.teams) {
-            auto font = globals.framework.fontManager.loadFont("wormfont_"
-                ~ cTeamColors[t.teamColor]);
-            mWormFont[t] = font;
-            //assume all fonts are same height but... anyway
-            mFontHeight = max(mFontHeight, font.textSize("").y);
-        }
-
-        mArrow = new Animator();
-        mArrowDelta = timeSecs(5);
-
-        mPointed = new Animator();
-    }
-
-    const cYDist = 3;   //distance label/worm-graphic
-    const cYBorder = 2; //thickness of label box
-
-    //upper border of the label relative to the worm's Y coordinate
-    int labelsYOffset() {
-        return cYDist+cYBorder*2+mFontHeight;
-    }
-
-    private void showArrow(TeamMember cur) {
-        if (cur.worm) {
-            //xxx currently don't have worm animations available
-            auto wpos = toVector2i(cur.worm.physics.pos);
-            auto wsize = Vector2i(0);
-            if (!mArrow.active || mArrowCol != cur.team.teamColor) {
-                mArrow.setAnimation(mTeamAnims[cur.team.teamColor].arrow.get());
-                mArrow.active = true;
-                mArrowCol = cur.team.teamColor;
-            }
-            //2 pixels Y spacing
-            mArrow.pos = wpos + wsize.X/2 - mArrow.size.X/2
-                - mArrow.size.Y /*- Vector2i(0, mDrawer.labelsYOffset + 2)*/;
-        }
-    }
-    private void hideArrow() {
-        mArrow.active = false;
-    }
-
-    private void showPoint(TeamMember cur) {
-        if (!mPointed.active || mPointCol != cur.team.teamColor) {
-            mPointed.setAnimation(mTeamAnims[cur.team.teamColor].pointed.get());
-            mPointed.active = true;
-            mPointCol = cur.team.teamColor;
-        }
-        mPointed.pos = toVector2i(cur.team.currentTarget) - mPointed.size/2;
-    }
-
-    private void hidePoint() {
-        mPointed.active = false;
-    }
-
-    void draw(Canvas canvas) {
-        if (mController.current && mController.engine.gameTime.current
-            - mController.currentLastAction > mArrowDelta)
-        {
-            showArrow(mController.current);
-        } else {
-            hideArrow();
-        }
-        if (mController.current && mController.current.team &&
-            mController.current.team.targetIsSet)
-        {
-            showPoint(mController.current);
-        } else {
-            hidePoint();
-        }
-        //xxx: add code to i.e. move the worm-name labels
-
-        foreach (Team t; mController.teams) {
-            auto pfont = t in mWormFont;
-            if (!pfont)
-                continue;
-            Font font = *pfont;
-            foreach (TeamMember w; t) {
-                if (!w.worm || w.worm.isDead)
-                    continue;
-
-                char[] text = str.format("%s (%s)", w.name,
-                    w.worm.physics.lifepowerInt);
-
-                //xxx haven't worm graphic available
-                auto wp = toVector2i(w.worm.physics.pos)-Vector2i(30,30);
-                auto sz = Vector2i(6, 60); //w.worm.graphic.size;
-                //draw 3 pixels above, centered
-                auto tsz = font.textSize(text);
-                tsz.y = mFontHeight; //hicks
-                auto pos = wp+Vector2i(sz.x/2 - tsz.x/2, -tsz.y - cYDist);
-
-                auto border = Vector2i(4, cYBorder);
-                //auto b = getBox(tsz+border*2, Color(1,1,1), Color(0,0,0));
-                //canvas.draw(b, pos-border);
-                //if (mController.mEngine.enableSpiffyGui)
-
-                    drawBox(canvas, pos-border, tsz+border*2);
-                font.drawText(canvas, pos, text);
-            }
-        }
-    }
-}
-+/

@@ -200,7 +200,7 @@ class WeaponSelWindow : Container {
 
         scene.add(new Foolinator);
 
-        auto all = new BoxContainer(false);
+        auto all = new BoxContainer(false, false, 4);
         mGridContainer = new SimpleContainer();
         all.add(mGridContainer);
         mWeaponName = new GuiLabel();

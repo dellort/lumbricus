@@ -653,11 +653,15 @@ public class SDLFont : Font {
         font_stream = new MemoryStream();
         str.seek(0,SeekPos.Set);
         font_stream.copyFrom(str);
+        init(props);
+    }
+
+    void init(FontProperties props) {
         font_stream.seek(0,SeekPos.Set);
         this.props = props;
         SDL_RWops* rwops;
         rwops = rwopsFromStream(font_stream);
-        font = TTF_OpenFontRW(rwops, 1, props.size);
+        font = TTF_OpenFontRW(rwops, 0, props.size);
         if (font == null) {
             throw new Exception("Could not load font.");
         }
@@ -673,12 +677,29 @@ public class SDLFont : Font {
     }
 
     ~this() {
-        TTF_CloseFont(font);
+        close();
+    }
+
+    void close() {
+        frags = null;
+        if (font) {
+            TTF_CloseFont(font);
+            font = null;
+        }
     }
 
     public FontProperties properties() {
         return props;
     }
+
+/+
+it worked, but was useless: FontManager considers Fonts to be immutable
+    //setting is expensive, but at least works
+    public void properties(FontProperties props) {
+        close();
+        init(props);
+    }
++/
 
     public void drawText(Canvas canvas, Vector2i pos, char[] text) {
         foreach (dchar c; text) {

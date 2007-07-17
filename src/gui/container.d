@@ -101,6 +101,9 @@ class Container : Widget {
         Widget mLastMouseReceiver;
     }
 
+    //another hack
+    Vector2i minSize;
+
     //used to store container-specific per-widget data
     //can be overridden by derived Containers, cf. newPerWidget()
     //this wouldn't be needed in AspectJ!
@@ -539,15 +542,19 @@ class Container : Widget {
         super.internalSimulate(curTime, deltaT);
     }
 
+    private static Vector2i vectorMax(Vector2i a, Vector2i b) {
+        return Vector2i(max(a.x, b.x), max(a.y, b.y));
+    }
+
     protected override Vector2i layoutSizeRequest() {
         //report the biggest
         Vector2i biggest;
         foreach (PerWidget w; children) {
             Vector2i s = layoutDoRequestChild(w);
-            biggest.x = max(biggest.x, s.x);
-            biggest.y = max(biggest.y, s.y);
+            biggest = vectorMax(biggest, s);
         }
-        biggest -= getInternalBorder()*2;
+        biggest += getInternalBorder()*2;
+        biggest = vectorMax(biggest, minSize);
         return biggest;
     }
     protected override void layoutSizeAllocation() {

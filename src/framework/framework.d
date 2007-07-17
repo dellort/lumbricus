@@ -23,7 +23,8 @@ public Color cStdColorkey = {r:1.0f, g:0.0f, b:1.0f, a:0.0f};
 public struct Color {
     //values between 0.0 and 1.0, 1.0 means full intensity
     //(a is the alpha value; 1.0 means fully opaque)
-    float r, g, b, a;
+    float r = 0.0f, g = 0.0f, b = 0.0f;
+    float a = 1.0f;
 
     /// a value that can be used as epsilon when comparing colors
     //0.3f is a fuzzify value, with 255 I expect colors to be encoded with at

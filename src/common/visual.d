@@ -3,57 +3,9 @@ module common.visual;
 import framework.framework;
 import framework.font;
 import common.common;
-import common.scene;
 import utils.misc;
-
-class FontLabel : SceneObjectPositioned {
-    private char[] mText;
-    private Font mFont;
-    private Vector2i mBorder;
-
-    this(Font font) {
-        mFont = font;
-        assert(font !is null);
-        recalc();
-    }
-
-    private void recalc() {
-        //fit size to text
-        size = mFont.textSize(mText) + border * 2;
-    }
-
-    void text(char[] txt) {
-        mText = txt;
-        recalc();
-    }
-    char[] text() {
-        return mText;
-    }
-
-    //(invisible!) border around text
-    void border(Vector2i b) {
-        mBorder = b;
-        recalc();
-    }
-    Vector2i border() {
-        return mBorder;
-    }
-
-    void draw(Canvas canvas) {
-        mFont.drawText(canvas, pos+mBorder, mText);
-    }
-}
-
-private class FontLabelBoxed : FontLabel {
-    this(Font font) {
-        super(font);
-    }
-    void draw(Canvas canvas) {
-        drawBox(canvas, pos, size);
-        super.draw(canvas);
-    }
-}
-
+import utils.rect2;
+import utils.vector2;
 
 ///draw a box with rounded corners around the specified rect
 ///alpha is unsupported (blame drawFilledRect) and will be ignored
@@ -65,10 +17,10 @@ void drawBox(Canvas c, Vector2i pos, Vector2i size, int borderWidth = 1,
 {
     BoxProps props;
     props.height = size.y;
-    props.borderWidth = borderWidth;
-    props.cornerRadius = cornerRadius;
-    props.border = border;
-    props.back = back;
+    props.p.borderWidth = borderWidth;
+    props.p.cornerRadius = cornerRadius;
+    props.p.border = border;
+    props.p.back = back;
 
     BoxTex tex = getBox(props);
 
@@ -78,11 +30,32 @@ void drawBox(Canvas c, Vector2i pos, Vector2i size, int borderWidth = 1,
         size.X-tex.right.size.X-tex.left.size.X+tex.middle.size.Y);
 }
 
+///same functionality as above
+///sry for the code duplication
+void drawBox(Canvas c, in Rect2i rect, in BoxProperties props) {
+    BoxProps p;
+    p.height = rect.size.y;
+    p.p = props;
+
+    BoxTex tex = getBox(p);
+
+    c.draw(tex.left, rect.p1);
+    c.draw(tex.right, rect.p1+rect.size.X-tex.right.size.X);
+    c.drawTiled(tex.middle, rect.p1+tex.left.size.X,
+        rect.size.X-tex.right.size.X-tex.left.size.X+tex.middle.size.Y);
+}
+
+struct BoxProperties {
+    int borderWidth = 1, cornerRadius = 8;
+    Color border, back = {1,1,1};
+}
+
+private:
 
 //quite a hack to draw boxes with rounded borders...
 struct BoxProps {
-    int height, borderWidth, cornerRadius;
-    Color border, back;
+    int height;
+    BoxProperties p;
 }
 
 struct BoxTex {
@@ -109,21 +82,21 @@ BoxTex getBox(BoxProps props) {
     auto surfMiddle = globals.framework.createSurface(size,
         DisplayFormat.Screen, Transparency.Alpha);
     auto c = surfMiddle.startDraw();
-    c.drawFilledRect(Vector2i(0),size,props.back);
-    c.drawFilledRect(Vector2i(0),Vector2i(size.x,props.borderWidth),
-        props.border);
-    c.drawFilledRect(Vector2i(0,size.y-props.borderWidth),
-        Vector2i(size.x,props.borderWidth),props.border);
+    c.drawFilledRect(Vector2i(0),size,props.p.back);
+    c.drawFilledRect(Vector2i(0),Vector2i(size.x,props.p.borderWidth),
+        props.p.border);
+    c.drawFilledRect(Vector2i(0,size.y-props.p.borderWidth),
+        Vector2i(size.x,props.p.borderWidth),props.p.border);
     c.endDraw();
     Texture texMiddle = surfMiddle.createTexture();
 
 
     void drawSideTex(Surface s, bool right) {
         auto c = s.startDraw();
-        int xs = right?s.size.x-props.borderWidth:0;
-        c.drawFilledRect(Vector2i(0),s.size,props.back);
-        c.drawFilledRect(Vector2i(xs, s.size.x),Vector2i(xs+props.borderWidth,
-            s.size.y-s.size.x), props.border);
+        int xs = right?s.size.x-props.p.borderWidth:0;
+        c.drawFilledRect(Vector2i(0),s.size,props.p.back);
+        c.drawFilledRect(Vector2i(xs, s.size.x),Vector2i(xs+props.p.borderWidth,
+            s.size.y-s.size.x), props.p.border);
 
         //simple distance test, quite expensive though
         //-1 if outside, 0 if hit, 1 if inside
@@ -158,8 +131,8 @@ BoxTex getBox(BoxProps props) {
                             //get the pos of the current sample to the
                             //circle to draw
                             int cPos = onCircle(Vector2f(x + (0.5f + ix)/cGrid,
-                                y + (0.5f + iy)/cGrid), c, props.borderWidth,
-                                w - cast(float)props.borderWidth/2.0f);
+                                y + (0.5f + iy)/cGrid), c, props.p.borderWidth,
+                                w - cast(float)props.p.borderWidth/2.0f);
                             if (cPos <= 0)
                                 //outside or hit -> gather border color
                                 colBuf += 1.0f/(cGrid * cGrid);
@@ -169,9 +142,10 @@ BoxTex getBox(BoxProps props) {
                         }
                     }
                     *line = colorToRGBA32(Color(
-                        props.border.r*colBuf+props.back.r*(1.0f-colBuf),
-                        props.border.g*colBuf+props.back.g*(1.0f-colBuf),
-                        props.border.b*colBuf+props.back.b*(1.0f-colBuf),aBuf));
+                        props.p.border.r*colBuf+props.p.back.r*(1.0f-colBuf),
+                        props.p.border.g*colBuf+props.p.back.g*(1.0f-colBuf),
+                        props.p.border.b*colBuf+props.p.back.b*(1.0f-colBuf),
+                        aBuf));
                     line++;
                 }
             }
@@ -186,7 +160,7 @@ BoxTex getBox(BoxProps props) {
     }
 
     //width of the side textures
-    int sidew = min(props.cornerRadius,props.height/2);
+    int sidew = min(props.p.cornerRadius,props.height/2);
     size = Vector2i(sidew,props.height);
 
     //left texture

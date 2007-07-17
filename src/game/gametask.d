@@ -126,6 +126,9 @@ class GameTask : Task {
         mServerEngine.gameTime.paused = false;
         //xxx! this is evul!
         globals.gameTimeAnimations.resetTime();
+
+        //start at level center
+        mWindow.scrollToCenter();
     }
 
     override protected void onKill() {

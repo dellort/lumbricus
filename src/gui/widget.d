@@ -195,6 +195,12 @@ class Widget {
     protected void onRelayout() {
     }
 
+    void manualRelayout(Rect2i c) {
+        mContainedBounds = c;
+        internalUpdateRealRect();
+        layoutSizeAllocation();
+    }
+
     package final void internalLayoutAllocation(Rect2i rect) {
         bool need = (mLayouting == LayoutingPhase.Need)
             || (mLayouting == LayoutingPhase.NeedAlloc);

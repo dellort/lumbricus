@@ -26,6 +26,7 @@ public class Font {
     //public abstract Vector2i textSize(dchar[] text);
 
     public abstract FontProperties properties();
+    //public abstract void properties(FontProperties props);
 }
 
 //NOTE: this class is considered to be "abstract", and must be created by the

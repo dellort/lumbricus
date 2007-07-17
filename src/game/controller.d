@@ -53,6 +53,10 @@ class ServerMemberControl : TeamMemberControl {
         return ctl.mCurrentTeam;
     }
 
+    Time currentLastAction() {
+        return ctl.mCurrentLastAction;
+    }
+
     void selectNextMember() {
         auto c = activemember;
         if (c) {
@@ -429,7 +433,7 @@ class ServerTeam : Team {
 class ServerTeamMember : TeamMember {
     ServerTeam mTeam;
     char[] mName = "unnamed worm";
-    int lastKnownLifepower;
+
     private {
         WeaponItem mCurrentWeapon;
         bool mActive;
@@ -438,6 +442,7 @@ class ServerTeamMember : TeamMember {
         bool mWormAction;
         Vector2f mLastMoveVector;
         GameEngine mEngine;
+        int lastKnownLifepower;
     }
 
     this(char[] a_name, ServerTeam a_team) {
@@ -466,12 +471,11 @@ class ServerTeamMember : TeamMember {
     }
 
     int health() {
-        //xxx really?
-        return lastKnownLifepower;
+        return mWorm ? cast(int)mWorm.physics.lifepower : 0;
     }
 
     long getGraphic() {
-        if (sprite) {
+        if (sprite && sprite.graphic) {
             return sprite.graphic.getUID();
         }
         return cInvalidUID;
@@ -487,7 +491,7 @@ class ServerTeamMember : TeamMember {
         mWorm = cast(WormSprite)mEngine.createSprite("worm");
         assert(mWorm !is null);
         mWorm.physics.lifepower = mTeam.initialPoints;
-        lastKnownLifepower = mTeam.initialPoints;
+        lastKnownLifepower = health;
         //take control over dying, so we can let them die on round end
         mWorm.delayedDeath = true;
         mWorm.gravestone = mTeam.graveStone;
@@ -536,6 +540,7 @@ class ServerTeamMember : TeamMember {
         return "[tworm " ~ (mTeam ? mTeam.toString() : null) ~ ":'" ~ name ~ "']";
     }
 
+    //xxx should be named: round lost?
     bool lifeLost() {
         return mWorm.physics.lifepower < lastKnownLifepower;
     }
@@ -548,7 +553,7 @@ class ServerTeamMember : TeamMember {
             mActive = act;
             mWormAction = false;
             mLastAction = timeMusecs(0);
-            lastKnownLifepower = cast(int)mWorm.physics.lifepower;
+            lastKnownLifepower = health;
             //select last used weapon, select default if none
             if (!mCurrentWeapon)
                 mCurrentWeapon = mTeam.defaultWeapon;
