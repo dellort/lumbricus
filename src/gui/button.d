@@ -5,16 +5,16 @@ import gui.widget;
 import gui.label;
 
 //xxx this is a hack
-//if an image is set, also disable all GuiLabel rendering completely
-class GuiButton : GuiLabel {
+//if an image is set, also disable all Label rendering completely
+class Button : Label {
     private {
         Texture mImage;
         bool mMouseOver;
     }
 
-    void delegate(GuiButton sender) onClick;
-    void delegate(GuiButton sender) onRightClick;
-    void delegate(GuiButton sender, bool over) onMouseOver;
+    void delegate(Button sender) onClick;
+    void delegate(Button sender) onRightClick;
+    void delegate(Button sender, bool over) onMouseOver;
 
     void image(Texture img) {
         mImage = img;
@@ -25,11 +25,11 @@ class GuiButton : GuiLabel {
         return mImage ? mImage.size : super.layoutSizeRequest();
     }
 
-    override void draw(Canvas c) {
+    override void onDraw(Canvas c) {
         if (mImage) {
             c.draw(mImage, Vector2i());
         } else {
-            super.draw(c);
+            super.onDraw(c);
         }
         //*g*
         if (mMouseOver) {

@@ -14,14 +14,14 @@ import utils.time;
 
 class GameTimer : Container {
     private ClientGameEngine mEngine;
-    private GuiLabel mTimeView;
+    private Label mTimeView;
     private bool mActive;
     private Time mLastTime;
     private Vector2i mInitSize;
 
     this(ClientGameEngine engine) {
         mEngine = engine;
-        mTimeView = new GuiLabel();
+        mTimeView = new Label();
         mTimeView.font = globals.framework.fontManager.loadFont("time");
         mTimeView.border = Vector2i(7, 5);
 

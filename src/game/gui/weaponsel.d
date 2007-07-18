@@ -39,12 +39,12 @@ class WeaponSelWindow : Container {
             }
         }
         //kind of SICK
-        Weapon[GuiButton] mButtonToWeapon;
+        Weapon[Button] mButtonToWeapon;
         Weapon[][char[]] mRows;
         TableContainer mGrid;
         SimpleContainer mGridContainer;
-        GuiLabel mWeaponName;
-        GuiLabel mWeaponQuantity;
+        Label mWeaponName;
+        Label mWeaponQuantity;
 
         Translator mWeaponTranslate;
 
@@ -74,7 +74,7 @@ class WeaponSelWindow : Container {
         return true;
     }
 
-    private void clickWeapon(GuiButton sender) {
+    private void clickWeapon(Button sender) {
         Weapon* w = sender in mButtonToWeapon;
         assert(w !is null);
 
@@ -83,7 +83,7 @@ class WeaponSelWindow : Container {
         }
     }
 
-    private void mouseoverWeapon(GuiButton sender, bool over) {
+    private void mouseoverWeapon(Button sender, bool over) {
         Weapon* w = sender in mButtonToWeapon;
         assert(w !is null);
 
@@ -154,7 +154,7 @@ class WeaponSelWindow : Container {
             wlist.sort; //see Weapon; order by weapon-value
 
             //reverse-resolve shortcut and show
-            auto shortcut = new GuiLabel();
+            auto shortcut = new Label();
             //and yes, the shortcut bind-name is the category-id itself
             shortcut.text = selectionBindings ?
                 globals.translateBind(selectionBindings, category) : category;
@@ -165,7 +165,7 @@ class WeaponSelWindow : Container {
             //add the weapon icons
             int x = 1;
             foreach (Weapon w; wlist) {
-                auto button = new GuiButton();
+                auto button = new Button();
                 mButtonToWeapon[button] = w;
                 button.image = w.type.icon.get.createTexture();
                 button.onClick = &clickWeapon;
@@ -182,10 +182,9 @@ class WeaponSelWindow : Container {
         mGridContainer.add(mGrid);
     }
 
-    class Foolinator : SceneObject {
-        override void draw(Canvas c) {
-            drawBox(c, Vector2i(0), size, 1, 8, Color(0.7,0.7,0.7));
-        }
+    override void onDraw(Canvas c) {
+        drawBox(c, Vector2i(0), size, 1, 8, Color(0.7,0.7,0.7));
+        super.onDraw(c);
     }
 
     this() {
@@ -198,16 +197,14 @@ class WeaponSelWindow : Container {
         mWeaponTranslate = new Translator("/weapons/locale");
         mDFG = getFramework.getFont("weaponsel_side");
 
-        scene.add(new Foolinator);
-
         auto all = new BoxContainer(false, false, 4);
         mGridContainer = new SimpleContainer();
         all.add(mGridContainer);
-        mWeaponName = new GuiLabel();
+        mWeaponName = new Label();
         mWeaponName.drawBorder = false;
         mWeaponName.font = getFramework.getFont("weaponsel_down");
         mWeaponName.shrink = true;
-        mWeaponQuantity = new GuiLabel();
+        mWeaponQuantity = new Label();
         mWeaponQuantity.drawBorder = false;
         mWeaponQuantity.font = mWeaponName.font;
         auto hbox = new BoxContainer(true, false, 10);

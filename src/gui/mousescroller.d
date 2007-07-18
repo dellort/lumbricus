@@ -49,8 +49,8 @@ class MouseScroller : SimpleContainer {
     }
     override protected void layoutSizeAllocation() {
         //it's ok; maybe readjust scrolling (this function happens on resize)
-        Vector2i clientsize = layoutDoRequestChild(getBinChild());
-        layoutDoAllocChild(getBinChild(), Rect2i(Vector2i(0), clientsize));
+        Vector2i clientsize = getBinChild().layoutCachedContainerSizeRequest;
+        getBinChild().layoutContainerAllocate(Rect2i(Vector2i(0), clientsize));
         //xxx nasty?
         doSetScrollPos();
     }
@@ -103,7 +103,7 @@ class MouseScroller : SimpleContainer {
     //offset
     private void doSetScrollPos() {
         clipOffset(mOffset);
-        getBinChild().child.adjustPosition(mOffset);
+        getBinChild().adjustPosition(mOffset);
     }
 
     Vector2i offset() {
@@ -125,7 +125,7 @@ class MouseScroller : SimpleContainer {
     ///scenes bigger than the viewport are prevented from showing black
     ///borders, whereas smaller scenes will be centered
     protected void clipOffset(inout Vector2f offs) {
-        Vector2i clientsize = getBinChild().child.size;
+        Vector2i clientsize = getBinChild().size;
 
         if (size.x < clientsize.x) {
             //view window is smaller than scene (x-dir)
@@ -196,9 +196,9 @@ class MouseScroller : SimpleContainer {
         return false;
     }
 
-    override bool testMouse(Vector2i pos) {
+    /*override bool testMouse(Vector2i pos) {
         return true;
-    }
+    }*/
 
     override bool onMouseMove(MouseInfo mi) {
         if (mMouseScrolling) {

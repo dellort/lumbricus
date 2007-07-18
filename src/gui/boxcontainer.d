@@ -23,14 +23,14 @@ class BoxContainer : SimpleContainer {
         mCellSpacing = cellspacing;
     }
 
-    protected Vector2i layoutSizeRequest() {
+    protected override Vector2i layoutSizeRequest() {
         //report the biggest
         Vector2i rsize;
         int count;
         int inv = 1-mDir;
         mExpandableCount = 0;
-        foreach (PerWidget w; children) {
-            Vector2i s = layoutDoRequestChild(w);
+        foreach (Widget w; children) {
+            Vector2i s = w.layoutCachedContainerSizeRequest();
             if (mHomogeneous) {
                 rsize[mDir] = max(rsize[mDir], s[mDir]);
             } else {
@@ -58,7 +58,7 @@ class BoxContainer : SimpleContainer {
         int inv = 1-mDir;
         Vector2i asize = size;
         if (!mHomogeneous) {
-            int extra = (asize - lastLayoutRequestSize())[mDir];
+            int extra = (asize - layoutCachedContainerSizeRequest())[mDir];
             if (extra < 0)
                 extra = 0; //don't really deal with shrinking
             //distribute extra space over all cells that are expandable
@@ -66,14 +66,14 @@ class BoxContainer : SimpleContainer {
             Rect2i cur;
             cur.p2[inv] = asize[inv];
             int p = 0;
-            foreach (PerWidget w; children) {
-                auto s = layoutDoRequestChild(w);
+            foreach (Widget w; children) {
+                auto s = w.layoutCachedContainerSizeRequest();
                 int add = s[mDir];
                 if (w.layout.expand[mDir])
                     add += distextra;
                 cur.p1[mDir] = p;
                 cur.p2[mDir] = p + add;
-                layoutDoAllocChild(w, cur);
+                w.layoutContainerAllocate(cur);
                 p += add;
                 p += mCellSpacing;
             }
@@ -84,10 +84,10 @@ class BoxContainer : SimpleContainer {
             Rect2i cur;
             cur.p2[inv] = asize[inv];
             int p = 0;
-            foreach (PerWidget w; children) {
+            foreach (Widget w; children) {
                 cur.p1[mDir] = p;
                 cur.p2[mDir] = p + add;
-                layoutDoAllocChild(w, cur);
+                w.layoutContainerAllocate(cur);
                 p += add;
                 p += mCellSpacing;
             }

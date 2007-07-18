@@ -57,7 +57,7 @@ public class WTris : Task {
         alias void delegate(char[]) SetText;
         SetText set_lines, set_points, set_speed;
 
-        GuiLabel msg;
+        Label msg;
         SimpleContainer msg_parent;
     }
 
@@ -201,9 +201,9 @@ public class WTris : Task {
     private const Vector2i border = {5,5};
 
     //the main field, and also eat events
-    private class GameView : GuiObjectOwnerDrawn {
+    private class GameView : Widget {
 
-        override protected void draw(Canvas c) {
+        override protected void onDraw(Canvas c) {
             //draw the complete background; could be quite expensive
             c.drawFilledRect(Vector2i(0), size, Color(0.7,0.7,0.7));
 
@@ -294,8 +294,8 @@ public class WTris : Task {
         }
     }
 
-    private class Preview : GuiObjectOwnerDrawn {
-        override protected void draw(Canvas c) {
+    private class Preview : Widget {
+        override protected void onDraw(Canvas c) {
             draw_piece(c, border, previewPiece);
         }
 
@@ -463,7 +463,7 @@ public class WTris : Task {
         msg_parent.add(new GameView(), WidgetLayout.Noexpand);
 
         //added or removed on demand, see update_gui()
-        msg = new GuiLabel();
+        msg = new Label();
         msg.zorder = 1;
 
         auto side = new BoxContainer(false, false, 10);
@@ -475,12 +475,12 @@ public class WTris : Task {
         side.add(table, WidgetLayout());
 
         SetText addfield(int y, char[] name) {
-            auto label = new GuiLabel();
+            auto label = new Label();
             label.drawBorder = false;
             label.text = name;
             label.font = getFramework.getFont("fps");
             table.add(label, 0, y, WidgetLayout.Aligned(-1, 0));
-            auto label2 = new GuiLabel();
+            auto label2 = new Label();
             label2.drawBorder = false;
             label2.font = label.font;
             table.add(label2, 1, y, WidgetLayout.Aligned(1, 0));

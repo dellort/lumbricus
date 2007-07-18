@@ -5,7 +5,7 @@ import framework.framework;
 import common.common;
 import gui.widget;
 
-class GuiConsole : GuiObjectOwnerDrawn {
+class GuiConsole : Widget {
     Console console;
 
     override bool canHaveFocus() {
@@ -35,11 +35,15 @@ class GuiConsole : GuiObjectOwnerDrawn {
         recheckFocus();
     }
 
-    void draw(Canvas canvas) {
+    void onDraw(Canvas canvas) {
         console.frame(canvas);
     }
 
-    override protected void onRelayout() {
+    override Vector2i layoutSizeRequest() {
+        return Vector2i(0);
+    }
+
+    override protected void layoutSizeAllocation() {
         console.height = size.y/2;
     }
 

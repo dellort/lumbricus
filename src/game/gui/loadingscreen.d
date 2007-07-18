@@ -8,7 +8,7 @@ import str = std.string;
 import utils.time;
 import utils.vector2;
 
-class LoadingScreen : GuiObjectOwnerDrawn {
+class LoadingScreen : Widget {
     private {
         Font mFont;
         Vector2i mTxtSize;
@@ -45,16 +45,14 @@ class LoadingScreen : GuiObjectOwnerDrawn {
         mTxtSize = mFont.textSize(mCurTxt);
     }
 
-    void draw(Canvas canvas) {
+    protected void onDraw(Canvas canvas) {
         canvas.drawFilledRect(Vector2i(0,0),canvas.clientSize,Color(0,0,0));
         auto org = size / 2 - mTxtSize / 2;
         mFont.drawText(canvas, org, mCurTxt);
     }
 
-    void relayout() {
-        //xxx self-managed position (someone said gui-layouter...)
-        //pos = Vector2i(0);
-        //size = scene.size;
+    Vector2i layoutSizeRequest() {
+        return Vector2i(0);
     }
 
     void startLoad(Loader load) {

@@ -126,6 +126,11 @@ private:
             ["int:task id"]);
         globals.cmdLine.registerCommand("help_spawn", &cmdSpawnHelp,
             "list tasks registered at task factory (use for spawn)");
+        globals.cmdLine.registerCommand("grab", &cmdGrab, "-");
+    }
+
+    private void cmdGrab(MyBox[] args, Output write) {
+        getFramework.grabInput = !getFramework.grabInput;
     }
 
     private void cmdPS(MyBox[] args, Output write) {

@@ -15,17 +15,15 @@ import utils.vector2;
 import str = std.string;
 
 class TestFrame : SimpleContainer {
-    private GuiButton[] mButtons;
+    private Button[] mButtons;
 
-    private void foo(GuiButton sender) {
+    private void foo(Button sender) {
         globals.cmdLine.console.writefln("button: %s", arraySearch(mButtons, sender));
     }
 
     this() {
-        super();
-
         void put(int nr, int x, int y) {
-            auto label = new GuiButton();
+            auto label = new Button();
             label.onClick = &foo;
             label.text = str.format("Label %s", nr);
             add(label, WidgetLayout.Aligned(x, y, Vector2i(10, 40)));
@@ -80,7 +78,7 @@ class TestFrame : SimpleContainer {
                 WidgetLayout wl;
                 wl.expand[0] = bt.exp;
                 wl.fill[0] = bt.fill ? 1.0 : 0;
-                auto label = new GuiButton();
+                auto label = new Button();
                 label.text = t;
                 hbox.add(label, wl);
             }

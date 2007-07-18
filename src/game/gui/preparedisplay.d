@@ -14,7 +14,7 @@ import gui.widget;
 import utils.time;
 
 class PrepareDisplay : Container {
-    private GuiLabel mPrepareView;
+    private Label mPrepareView;
     private Time mLastTime;
     private Translator tr;
     private ClientGameEngine mEngine;
@@ -22,7 +22,7 @@ class PrepareDisplay : Container {
     this(ClientGameEngine engine) {
         mEngine = engine;
         tr = localeRoot.bindNamespace("gui_prepare");
-        mPrepareView = new GuiLabel();
+        mPrepareView = new Label();
         mPrepareView.font = globals.framework.fontManager.loadFont("messages");
         mPrepareView.border = Vector2i(7, 5);
 

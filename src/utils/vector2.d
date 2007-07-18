@@ -92,6 +92,10 @@ public struct Vector2(T) {
     public Vector2 mulEntries(Vector2 v) {
         return Vector2(x1*v.x1, x2*v.x2);
     }
+    //the same thing
+    public Vector2 opXor(Vector2 v) {
+        return mulEntries(v);
+    }
 
     public Vector2 opDiv(T scalar) {
         return Vector2(x1/scalar, x2/scalar);
@@ -131,6 +135,11 @@ public struct Vector2(T) {
     public Vector2 clipAbsEntries(Vector2 clip) {
         return Vector2((math.abs(x) > clip.x)?cast(T)math.copysign(clip.x, x):x,
             (math.abs(y) > clip.y)?cast(T)math.copysign(clip.y, y):y);
+    }
+
+    //return vector with entry-wise maxima of this and other
+    public Vector2 max(Vector2 other) {
+        return Vector2(x>other.x ? x : other.x, y>other.y ? y : other.y);
     }
 
     public void length(T new_length) {

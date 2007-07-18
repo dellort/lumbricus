@@ -54,7 +54,11 @@ class ServerMemberControl : TeamMemberControl {
     }
 
     Time currentLastAction() {
-        return ctl.mCurrentLastAction;
+        auto c = activemember;
+        if (c) {
+            return c.lastAction;
+        }
+        return timeSecs(0);
     }
 
     void selectNextMember() {
@@ -105,6 +109,13 @@ class ServerMemberControl : TeamMemberControl {
         auto m = activemember;
         if (m) {
             m.selectWeapon(w);
+        }
+    }
+
+    WeaponClass currentWeapon() {
+        auto m = activemember;
+        if (m) {
+            return m.currentWeapon.weapon;
         }
     }
 
@@ -827,7 +838,6 @@ class GameController : GameLogicPublic {
         //extra time before round time to switch seats etc
         Time mHotseatSwitchTime;
         bool mIsAnythingGoingOn; // (= hack)
-        Time mCurrentLastAction;
 
         Queue!(char[]) mMessages;
         //time between messages, how they are actually displayed

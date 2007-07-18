@@ -175,7 +175,7 @@ class GameTask : Task {
 
     private void cmdWeapon(MyBox[] args, Output write) {
         char[] wid = args[0].unboxMaybe!(char[])("");
-        //yyy mGame.controller.selectWeapon(wid);
+        write.writefln("xxx reimplement if you want this");
     }
 
     private void cmdCameraDisable(MyBox[] args, Output write) {

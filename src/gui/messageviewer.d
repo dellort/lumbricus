@@ -10,7 +10,7 @@ import utils.misc;
 import utils.time;
 import utils.queue;
 
-private class MessageViewer : GuiObjectOwnerDrawn {
+private class MessageViewer : Widget {
     private Queue!(char[]) mMessages;
     private char[] mCurrentMessage;
     private Font mFont;
@@ -93,7 +93,11 @@ private class MessageViewer : GuiObjectOwnerDrawn {
         }
     }
 
-    void draw(Canvas canvas) {
+    Vector2i layoutSizeRequest() {
+        return Vector2i(0);
+    }
+
+    override protected void onDraw(Canvas canvas) {
         if (mPhase == 1 || mPhase == 2 || mPhase == 3) {
             auto org = size.X / 2 - (mMessageSize+cMessageBorders*2).X / 2;
             org.y += cast(int)mMessagePos;

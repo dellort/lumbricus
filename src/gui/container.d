@@ -1,5 +1,5 @@
 module gui.container;
-import common.scene;
+import framework.framework : Canvas;
 import gui.widget;
 import gui.gui;
 import utils.array;
@@ -9,345 +9,110 @@ import utils.rect2;
 import utils.time;
 import utils.log;
 
-//layout parameters which should be useful to all Widgets/Containers
-//you can define borders and what happens, if a widget gets more space than it
-//wanted
-struct WidgetLayout {
-    //most parameters are for each coord-component; X==0, Y==1
-
-    //how the Widget wants to size
-    //maybe give extra space to this object (> requested)
-    bool[2] expand = [true, true];
-    //actually use the extra space from expand (for allocation), aka streching
-    //the value selects between expanded and requested size (without borders)
-    //(with (expand && (fill==0)), the extra space will be kept empty, and the
-    // widget is set to its requested size, i.e. allocation == requested)
-    float[2] fill = [1.0f, 1.0f];
-
-    //alignment of the Widget if it was expanded but not filled
-    float[2] alignment = [0.5f, 0.5f]; //range 0 .. 1.0f
-
-    //padding (added to the Widget's size request)
-    int pad;        //padding for all 4 borders
-    Vector2i padA;  //additional left/top border padding
-    Vector2i padB;  //additional right/bottom border padding
-
-    //not expanded and aligned, with optional border
-    //x: -1 = left, 0 = center, 1 = right
-    //y: similar
-    static WidgetLayout Aligned(int x, int y, Vector2i border = Vector2i()) {
-        WidgetLayout lay;
-        lay.expand[0] = lay.expand[1] = false;
-        lay.alignment[0] = (x+1)/2.0f;
-        lay.alignment[1] = (y+1)/2.0f;
-        lay.padA = lay.padB = border;
-        return lay;
-    }
-
-    //expand in one direction, align centered in the other
-    static WidgetLayout Expand(bool horiz_dir, Vector2i border = Vector2i()) {
-        int dir = horiz_dir ? 0 : 1;
-        int inv = 1-dir;
-        WidgetLayout lay;
-        lay.expand[dir] = true;
-        lay.expand[inv] = false;
-        lay.padA = lay.padB = border;
-        return lay;
-    }
-
-    //expand fully, but with a fixed border around the widget
-    static WidgetLayout Border(Vector2i border) {
-        WidgetLayout lay;
-        lay.padA = lay.padB = border;
-        return lay;
-    }
-
-    static WidgetLayout Noexpand() {
-        return Aligned(0,0);
-    }
-
-    static WidgetLayout opCall() {
-        WidgetLayout x;
-        return x;
-    }
-}
-
-/// Group of Widgets, like a window.
-/// for own containers, override for layouting:
-///   override protected Vector2i layoutSizeRequest();
-///   override protected void layoutSizeAllocation();
-/// to request sizes/set allocations in these functions:
-///   Vector2i layoutDoRequestChild(PerWidget widget);
-///   void layoutDoAllocChild(PerWidget widget, Rect2i bounds);
-///default behaviour if default args of constructor are used:
-///doesn't take focus for itself, but manages children's focus and delegates any
-///events to focused children; doesn't draw anything (except its children);
-///for layout, allocates all children to its own size and reports maximum size
-///of all children as request-size
 class Container : Widget {
     private {
-        PerWidget[] mWidgets; //sorted by order of insertion
-        Widget mFocus; //local focus
+        //helper
+        struct ZWidget {
+            Widget w;
+            int opCmp(ZWidget* o) {
+                if (w.mZOrder == o.w.mZOrder) {
+                    return w.mZOrder2 - o.w.mZOrder2;
+                }
+                return w.mZOrder - o.w.mZOrder;
+            }
+            char[] toString() {
+                return std.string.format("%s(%s,%s)", w, w.mZOrder, w.mZOrder2);
+            }
+        }
+
+        Widget[] mWidgets;   //sorted by order of insertion
+        ZWidget[] mZWidgets; //sorted as itself (mZChildren.sort)
+
+        //local focus
+        Widget mFocus;
         //only grows, wonder what happens if it overflows
         int mCurrentFocusAge;
         //frame is "transparent"
         bool mIsVirtualFrame = true;
         //only one element per child
         bool mIsBinFrame;
-
+        //also grows only; used to do "soft" zorder
         int mLastZOrder2;
 
         //to send mouse-leave events
         Widget mLastMouseReceiver;
+
+        Vector2i mInternalBorder;
     }
 
-    //another hack
-    Vector2i minSize;
+    // --- insertion/deletion including zorder-stuff
 
-    //used to store container-specific per-widget data
-    //can be overridden by derived Containers, cf. newPerWidget()
-    //this wouldn't be needed in AspectJ!
-    //btw. dmd doesn't want to allow deriving inner classes in derived classes
-    //so this is "static" and needs that "container" pointer
-    static protected class PerWidget {
-        private Widget mChild;
-        private Container mContainer;
-        private int mFocusAge;
-        private int mZOrder;  //any value, higher means more on top
-        private int mZOrder2; //what was last clicked, argh
-
-        WidgetLayout layout;
-
-        final Widget child() {
-            return mChild;
+    /// Add sub GUI element
+    protected void addChild(Widget o) {
+        if (o.parent !is null) {
+            assert(false, "already added");
         }
-        final Container container() {
-            return mContainer;
+        assert(arraySearch(mWidgets, o) < 0);
+
+        o.mParent = this;
+        mWidgets ~= o;
+        mZWidgets ~= ZWidget(o);
+        updateZOrder(o);
+
+        if (o.greedyFocus && o.canHaveFocus)
+            o.claimFocus();
+        //just to be sure
+        o.needRelayout();
+
+        //gDefaultLog("added %s to %s", o, this);
+    }
+
+    /// Undo addChild()
+    protected void removeChild(Widget o) {
+        bool hadglobalfocus = o.focused;
+
+        if (o.parent !is this) {
+            assert(false, "was not child of this");
         }
+        arrayRemove(mWidgets, o);
+        arrayRemove(mZWidgets, ZWidget(o));
+        o.mParent = null;
 
-        this(Container a_container, Widget a_child) {
-            assert(a_child !is null && a_container !is null);
-            mChild = a_child;
-            mContainer = a_container;
+        //gDefaultLog("removed %s from %s", o, this);
 
-            mZOrder = a_child.zorder;
-        }
-
-        protected Vector2i layoutDoRequestChild() {
-            auto size = child.internalSizeRequest();
-            //just padding
-            size.x += layout.pad*2; //both borders for each component
-            size.y += layout.pad*2;
-            size += layout.padA + layout.padB;
-            return size;
-        }
-
-        ///a container shall call this to actually alloc a child
-        ///this will take care about what happens if the child doesn't get the
-        ///requested size, and about alignment, etc., whatever
-        ///use with layoutDoRequestChild()
-        protected void layoutDoAllocChild(Rect2i area) {
-            //xxx doesn't handle under-sized stuff
-            Vector2i psize = area.size();
-            Vector2i offset;
-            auto size = layoutDoRequestChild();
-            //fit the widget with its size into the area
-            for (int n = 0; n < 2; n++) {
-                if (layout.expand[n]) {
-                    //fill, 0-1 selects the rest of the size
-                    size[n] = size[n]
-                        + cast(int)((psize[n] - size[n]) * layout.fill[n]);
-                }
-                //and align; this again selects the rest of the size
-                //and add the border padding (padB is the second border, implicit)
-                offset[n] = cast(int)((psize[n] - size[n]) * layout.alignment[n])
-                    + layout.pad + layout.padA[n];
-                //at the end, remove the border from the size again...
-                size[n] = size[n] - layout.pad - layout.padA[n] - layout.padB[n];
-            }
-            area.p1 = area.p1 + offset;
-            area.p2 = area.p1 + size;
-            child.internalLayoutAllocation(area);
-        }
-    }
-
-    //or override these functions, if you want
-    protected Vector2i layoutDoRequestChild(PerWidget child) {
-        return child.layoutDoRequestChild();
-    }
-    protected void layoutDoAllocChild(PerWidget child, Rect2i area) {
-        return child.layoutDoAllocChild(area);
-    }
-
-    //override when needed
-    protected PerWidget newPerWidget(Widget child) {
-        return new PerWidget(this, child);
-    }
-
-    //accept_null = don't assert(result !is null)
-    //must_find = widget must be a child of us
-    protected PerWidget findChild(Widget child, bool accept_null = false,
-        bool must_find = true)
-    {
-        if (child is null) {
-            assert(accept_null);
-            return null;
-        }
-
-        PerWidget found;
-        foreach (w; mWidgets) {
-            if (w.child is child) {
-                found = w;
-                break;
-            }
-        }
-
-        if (must_find)
-            assert(found !is null);
-
-        assert(!!found == (child.parent is this));
-
-        return found;
-    }
-
-    //return thought-to-be-invariant array of all children
-    //(in D2.0, this could be really a const or an invariant array...)
-    protected PerWidget[] children() {
-        return mWidgets;
-    }
-
-    /// Add GUI element (makes
-    protected PerWidget addChild(Widget o) {
-        assert(o.parent is null);
-        assert(findChild(o, false, false) is null);
-        auto pw = newPerWidget(o);
-        insertWidget(pw);
-        o.internalDoAdd(this);
-
-        gDefaultLog("added %s to %s", o, this);
-
-        return pw;
-    }
-
-    /// Remove GUI element; that element gets destroyed.
-    /+protected+/ void removeChild(Widget obj) {
-        assert(obj.parent is this);
-        removeWidget(findChild(obj));
-        obj.internalDoRemove(this);
-
-        gDefaultLog("removed %s from %s", obj, this);
-
-        if (obj is mFocus) {
+        if (o is mFocus) {
             mFocus = null;
-            recheckFocus(); //yyy: check if correct
+            findNextFocusOnKill(o);
+        } else {
+            assert(!hadglobalfocus);
+            //that's just kind and friendly?
+            o.pollFocusState();
         }
     }
 
-    ///set this child to highest z-order possible for it (
-    void childToTop(Widget child) {
-        //xxx: if you need performance here, you must rewrite it completely!
-        //in this form, it iterates at least 6 times or so over mWidgets
-        //and even changes its size in two cases
-        PerWidget w = findChild(child);
-        w.mZOrder2 = ++mLastZOrder2;
-        updateZFor(w);
+    //work around protection...
+    package void doRemoveChild(Widget o) {
+        removeChild(o);
+    }
+    package void doSetChildToFront(Widget o) {
+        setChildToFront(o);
     }
 
-    void setChildZOrder(Widget child, int zorder) {
-        PerWidget w = findChild(child);
-        removeWidget(w);
-        w.mZOrder = zorder;
-        insertWidget(w);
+    private void updateZOrder(Widget child) {
+        child.mZOrder2 = ++mLastZOrder2;
+        mZWidgets.sort;
     }
 
-    //internal; don't use this, use removeChild()
-    //override for removal notification
-    protected void removeWidget(PerWidget w) {
-        arrayRemove(mWidgets, w);
-        scene().remove(w.child.scene);
-    }
-    //insert by z-order
-    private void insertWidget(PerWidget w) {
-        assert(arraySearch(mWidgets, w) < 0);
-        //insert...
-        mWidgets ~= w;
-        scene().add(w.child.scene);
-        updateZFor(w);
-    }
-    //null = update everything
-    private void updateZFor(PerWidget w) {
-        //ok, and since 20:16 today this even creates a new array to sort it
-        //argh.
-        PerWidget[] foo = mWidgets.dup;
-        arraySort(foo,
-            (PerWidget w1, PerWidget w2) {
-                if (w1 == w2) {
-                    return w1.mZOrder2 <= w2.mZOrder2;
-                } else {
-                    return w1.mZOrder <= w2.mZOrder;
-                }
-            }
-        );
-        Scene s = scene();
-        foreach (wuhu; foo) {
-            //confusing, but correct: remove scene and add as tail (=> reorder)
-            s.remove(wuhu.child.scene);
-            s.add(wuhu.child.scene);
-        }
+    ///set this child to highest z-order possible for it
+    ///also used from various places to update the child's zorder internally
+    final protected void setChildToFront(Widget child) {
+        //what concidence
+        updateZOrder(child);
     }
 
-    void setChildLayout(Widget child, WidgetLayout layout) {
-        findChild(child).layout = layout;
+    protected void setChildLayout(Widget child, WidgetLayout layout) {
+        child.setLayout(layout);
         needRelayout();
-    }
-
-    //if we're a (transitive) parent of obj
-    bool isTransitiveParentOf(Widget obj) {
-        //assume no cyclic parents
-        while (obj) {
-            if (obj is this)
-                return true;
-            obj = obj.parent;
-        }
-        return false;
-    }
-
-    override bool testMouse(Vector2i pos) {
-        if (!super.testMouse(pos))
-            return false;
-
-        //virtual frame => only if a child was hit
-        if (mIsVirtualFrame) {
-            foreach (o; mWidgets) {
-                if (o.child.testMouse(o.child.coordsFromParent(pos)))
-                    return true;
-            }
-            return false;
-        }
-
-        return true;
-    }
-
-    //the GuiFrame itself accepts to be focused
-    //look at GuiVirtualFrame if the frame shouldn't be focused itself
-    override bool canHaveFocus() {
-        if (mIsVirtualFrame) {
-            //xxx maybe a bit expensive; cache it?
-            foreach (o; mWidgets) {
-                if (o.child.canHaveFocus)
-                    return true;
-            }
-        }
-        return true;
-    }
-    override bool greedyFocus() {
-        if (mIsVirtualFrame) {
-            foreach (o; mWidgets) {
-                if (o.child.greedyFocus)
-                    return true;
-            }
-        }
-        return false;
     }
 
     /// "Virtual" frame: It just groups all its child object, but isn't visible
@@ -366,77 +131,105 @@ class Container : Widget {
         mIsBinFrame = b;
     }
 
-    protected PerWidget getBinChild() {
+    protected Widget getBinChild() {
         assert(mIsBinFrame);
         assert(mWidgets.length <= 1);
         return mWidgets.length ? mWidgets[0] : null;
     }
 
+    ///treat the return value as const
+    protected Widget[] children() {
+        return mWidgets;
+    }
+
+    // --- focus handling
+
+    //in the case a Widget disclaimed focus, find the Widget which was focused
+    //before; check Widget.mFocusAge to do this (the only reason why it exists)
+    protected override Widget findLastFocused() {
+        Widget winner = null;
+        foreach (cur; mWidgets) {
+            if (cur.canHaveFocus &&
+                (!winner || (winner.mFocusAge < cur.mFocusAge)))
+            {
+                winner = cur;
+            }
+        }
+        return winner ? winner : this;
+    }
+
     //focus rules:
     // object becomes active => if greedy focus, set focus immediately
     // object becomes inactive => object which was focused before gets focus
-    //    to do that, PerWidget.mFocusAge is used
-    // tab => next focusable Widget in scene is focused
+    //    to do that, Widget.mFocusAge is used
+    // tab => next focusable Widget in GUI is focused
 
-    //added = true: o was added newly or o.canhaveFocus got true
-    //see recheckChildFocus(Widget o)
-    private void doRecheckChildFocus(PerWidget o, bool added) {
-        assert(o !is null);
-        if (added) {
-            if (o.child.canHaveFocus && o.child.greedyFocus) {
-                o.mFocusAge = ++mCurrentFocusAge;
-                localFocus = o.child;
-                //propagate upwards
-                if (parent) {
-                    parent.recheckChildFocus(this);
-                }
+    /// call when child.canHaveFocus changed
+    protected void recheckChildFocus(Widget child) {
+        assert(child !is null);
+        assert(child.parent is this);
+
+        if (child.canHaveFocus) {
+            if (child.greedyFocus) {
+                child.claimFocus();
             }
         } else {
             //maybe was killed, take focus
-            if (mFocus is o.child) {
-                //the element which was focused before should be picked
-                //pick element with highest age, take old and set new focus
-                PerWidget winner;
-                foreach (curgui; mWidgets) {
-                    if (curgui.child.canHaveFocus &&
-                        (!winner || (winner.mFocusAge < curgui.mFocusAge)))
-                    {
-                        winner = curgui;
-                    }
-                }
-                localFocus = winner ? winner.child : null;
+            if (child.focused) {
+                //was even globally focused! special case.
+                findNextFocusOnKill(child);
             }
         }
     }
 
-    //called by anyone if o.canHaveFocus changed
-    void recheckChildFocus(Widget o) {
-        if (o) {
-            doRecheckChildFocus(findChild(o), o.canHaveFocus);
+    //fuck
+    package void doRecheckChildFocus(Widget child) {
+        recheckChildFocus(child);
+    }
+
+    private void findNextFocusOnKill(Widget child) {
+        if (!isTopLevel) {
+            //this can't have happened because this is _only_ called if the
+            //child was globally focused, and this again can only happen if the
+            //child has the toplevel-container as indirect parent
+            assert(parent !is null);
+            parent.findNextFocusOnKill(child);
+            pollFocusState();
+        } else {
+            child.pollFocusState();
+            Widget nfocus = findLastFocused();
+            if (nfocus)
+                nfocus.claimFocus();
         }
     }
 
-    //like when you press <tab>
-    //  forward = false: go backwards in focus list, i.e. undo <tab>
-    void nextFocus(bool forward = true) {
-        //xxx this might infer with zorder handling so it wouldn't work!
-        auto cur = findChild(mFocus, true);
-        if (!cur) {
-            //forward==true: finally pick first, else last
-            cur = forward ? mWidgets[$-1] : mWidgets[0];
+    override bool nextFocus() {
+        //the container itself also should be focusable
+        //so possibly set focus already
+        bool ok = super.nextFocus();
+
+        //try to next-focus the children
+
+        int index = arraySearch(mWidgets, mFocus);
+        if (index < 0) {
+            assert(mFocus is null); //else not-added Widget would be focused
+            index = 0; //start with first
         }
-        auto iterate = forward ?
-            &arrayFindPrev!(PerWidget) : &arrayFindNext!(PerWidget);
-        auto next = arrayFindFollowingPred(mWidgets, cur, iterate,
-            (PerWidget o) {
-                return o.child.canHaveFocus;
+
+        while (index < mWidgets.length) {
+            auto cur = mWidgets[index];
+            //try to find a new focus and if so, be happy
+            if (cur.nextFocus()) {
+                return true;
             }
-        );
-        localFocus = next.child;
+            index++;
+        }
+
+        return ok;
     }
 
     //doesn't set the global focus; do "go.focused = true;" for that
-    /+protected+/ void localFocus(Widget go) {
+    package void localFocus(Widget go) {
         if (go is mFocus)
             return;
 
@@ -444,20 +237,17 @@ class Container : Widget {
             gDefaultLog("remove local focus: %s from %s", mFocus, this);
             auto tmp = mFocus;
             mFocus = null;
-            tmp.stateChanged();
+            tmp.pollFocusState();
         }
         mFocus = go;
         if (go && go.canHaveFocus) {
-            findChild(go).mFocusAge = ++mCurrentFocusAge;
+            go.mFocusAge = ++mCurrentFocusAge;
             gDefaultLog("set local focus: %s for %s", mFocus, this);
-            go.stateChanged();
+            go.pollFocusState();
         }
     }
 
-    //"local focus": if the frame had the real focus, the element that'd be
-    //  focused now
-    //"real/global focus": an object and all its parents are locally focused
-    /+protected+/ Widget localFocus() {
+    package Widget localFocus() {
         return mFocus;
     }
 
@@ -465,49 +255,138 @@ class Container : Widget {
         super.onFocusChange();
         //propagate focus change downwards...
         foreach (o; mWidgets) {
-            o.child.stateChanged();
+            o.pollFocusState();
         }
     }
 
-    override bool internalHandleMouseEvent(MouseInfo* mi, KeyInfo* ki) {
+    /// For "virtual frames", the Container itself is not focusable, but
+    /// children are.
+    override bool canHaveFocus() {
+        if (mIsVirtualFrame) {
+            //xxx maybe a bit expensive; cache it?
+            foreach (o; mWidgets) {
+                if (o.canHaveFocus)
+                    return true;
+            }
+            return false;
+        }
+        return true;
+    }
+
+    /// Frames should always respect focus-greedyness of children, and so does
+    /// the default implementation.
+    override bool greedyFocus() {
+        foreach (o; mWidgets) {
+            if (o.greedyFocus)
+                return true;
+        }
+        return false;
+    }
+
+    // --- layouting
+
+    protected override Vector2i layoutSizeRequest() {
+        //report the biggest
+        Vector2i biggest;
+        foreach (w; children) {
+            biggest = biggest.max(w.layoutCachedContainerSizeRequest());
+        }
+        biggest += mInternalBorder*2;
+        return biggest;
+    }
+
+    protected override void layoutSizeAllocation() {
+        Rect2i b = widgetBounds();
+        b.extendBorder(-mInternalBorder);
+        foreach (w; children) {
+            w.layoutContainerAllocate(b);
+        }
+    }
+
+    protected void requestedRelayout(Widget child) {
+        assert(child.parent is this);
+        //propagate upwards, indirectly
+        needRelayout();
+    }
+
+    //I hate D
+    package void doRequestedRelayout(Widget child) {
+        requestedRelayout(child);
+    }
+
+    // --- input handling
+
+    override bool testMouse(Vector2i pos) {
+        if (!super.testMouse(pos))
+            return false;
+
+        //virtual frame => only if a child was hit
+        if (mIsVirtualFrame) {
+            foreach (o; mWidgets) {
+                if (o.testMouse(o.coordsFromParent(pos)))
+                    return true;
+            }
+            return false;
+        }
+
+        return true;
+    }
+
+    override protected void onMouseEnterLeave(bool mouseIsInside) {
+        if (!mouseIsInside && mLastMouseReceiver) {
+            mLastMouseReceiver.doMouseEnterLeave(false);
+            mLastMouseReceiver = null;
+        }
+    }
+
+    override bool handleKeyEvent(KeyInfo info) {
+        //first try to handle locally
+        //the super.-method invokes the onKey*() functions
+        if (super.handleKeyEvent(info))
+            return true;
+        //event wasn't handled, handle by child objects
+        if (mFocus) {
+            if (mFocus.handleKeyEvent(info))
+                return true;
+        }
+        return false;
+    }
+
+    override bool handleMouseEvent(MouseInfo* mi, KeyInfo* ki) {
         //NOTE: mouse buttons (ki) don't have the mousepos; use the old one then
-
-        //xxx: mouse capture
-
-        //first check if the parent wants it; if it returns true, don't deliver
-        //this event to the children
-        if (super.internalHandleMouseEvent(mi, ki))
-            //sry!
-            goto huhha;
 
         Widget got_it;
 
-        //check if any children are hit by this
-        //objects towards the end of the array are later drawn => _reverse
-        foreach_reverse(o; mWidgets) {
-            auto child = o.child;
-            auto clientmp = child.coordsFromParent(mousePos);
-            if (child.testMouse(clientmp)) {
-                //huhuhu a hit! call its event handler
-                bool res;
-                //MouseInfo.pos should contain the translated mousepos
-                if (mi) {
-                    MouseInfo mi2 = *mi;
-                    mi2.pos = clientmp;
-                    res = child.internalHandleMouseEvent(&mi2, null);
-                } else {
-                    res = child.internalHandleMouseEvent(null, ki);
-                }
-                if (res) {
-                    got_it = child;
-                    break;
+        //first, check if the parent wants it; if it returns true, don't deliver
+        //this event to the children
+        if (!super.handleMouseEvent(mi, ki)) {
+
+            //check if any children are hit by this
+            //objects towards the end of the array are later drawn => _reverse
+            foreach_reverse (zchild; mZWidgets) {
+                auto child = zchild.w;
+                auto clientmp = child.coordsFromParent(mousePos);
+                if (child.testMouse(clientmp)) {
+                    //huhuhu a hit! call its event handler
+                    bool res;
+                    //MouseInfo.pos should contain the translated mousepos
+                    if (mi) {
+                        MouseInfo mi2 = *mi;
+                        mi2.pos = clientmp;
+                        res = child.handleMouseEvent(&mi2, null);
+                    } else {
+                        res = child.handleMouseEvent(null, ki);
+                    }
+                    if (res) {
+                        got_it = child;
+                        break;
+                    }
                 }
             }
         }
-    huhha:
 
         if (mLastMouseReceiver && (mLastMouseReceiver !is got_it)) {
-            mLastMouseReceiver.internalMouseLeave();
+            mLastMouseReceiver.doMouseEnterLeave(false);
         }
 
         mLastMouseReceiver = got_it;
@@ -515,60 +394,18 @@ class Container : Widget {
         return got_it !is null;
     }
 
-    override protected void onMouseEnterLeave(bool mouseIsInside) {
-        if (!mouseIsInside && mLastMouseReceiver) {
-            mLastMouseReceiver.internalMouseLeave();
-            mLastMouseReceiver = null;
-        }
-    }
-
-    override bool internalHandleKeyEvent(KeyInfo info) {
-        //first try to handle locally
-        //the super.-method invokes the onKey*() functions
-        if (super.internalHandleKeyEvent(info))
-            return true;
-        //event wasn't handled, handle by child objects
-        if (mFocus) {
-            if (mFocus.internalHandleKeyEvent(info))
-                return true;
-        }
-        return false;
-    }
-
     override void internalSimulate(Time curTime, Time deltaT) {
         foreach (obj; mWidgets) {
-            obj.child.internalSimulate(curTime, deltaT);
+            obj.internalSimulate(curTime, deltaT);
         }
         super.internalSimulate(curTime, deltaT);
     }
 
-    private static Vector2i vectorMax(Vector2i a, Vector2i b) {
-        return Vector2i(max(a.x, b.x), max(a.y, b.y));
-    }
-
-    protected override Vector2i layoutSizeRequest() {
-        //report the biggest
-        Vector2i biggest;
-        foreach (PerWidget w; children) {
-            Vector2i s = layoutDoRequestChild(w);
-            biggest = vectorMax(biggest, s);
+    override protected void onDraw(Canvas c) {
+        foreach (obj; mZWidgets) {
+            obj.w.doDraw(c);
         }
-        biggest += getInternalBorder()*2;
-        biggest = vectorMax(biggest, minSize);
-        return biggest;
-    }
-    protected override void layoutSizeAllocation() {
-        Rect2i b = widgetBounds();
-        b.extendBorder(-getInternalBorder());
-        foreach (PerWidget w; children) {
-            layoutDoAllocChild(w, b);
-        }
-    }
-
-    //container-side border for children
-    //xxx: check usefulness
-    protected Vector2i getInternalBorder() {
-        return Vector2i();
+        super.onDraw(c);
     }
 }
 
@@ -580,7 +417,7 @@ class Container : Widget {
 class PublicContainer : Container {
     void clear() {
         while (children.length > 0) {
-            removeChild(children[0].child);
+            removeChild(children[0]);
         }
     }
 }

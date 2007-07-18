@@ -28,7 +28,7 @@ import utils.vector2;
 import utils.log;
 
 //special gui element used to display team-bars (for showing the team health)
-class Foobar : GuiObjectOwnerDrawn {
+class Foobar : Widget {
     BoxProperties border;
     Vector2i spacing = {2, 2};
     float percent = 1.0f; //aliveness
@@ -46,7 +46,7 @@ class Foobar : GuiObjectOwnerDrawn {
         return Vector2i(100, 0);
     }
 
-    override protected void draw(Canvas c) {
+    override protected void onDraw(Canvas c) {
         auto s = widgetBounds();
         s.p2.x = s.p1.x + cast(int)((s.p2.x - s.p1.x) * percent);
         drawBox(c, s, border);
@@ -75,9 +75,10 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
         this(Team[] teams) {
             auto table = new TableContainer(2, teams.length, Vector2i(3));
             for (int n = 0; n < teams.length; n++) {
-                auto teamname = new GuiLabel();
+                auto teamname = new Label();
                 //xxx proper font and color etc.
                 teamname.text = teams[n].name;
+                teamname.border = Vector2i(3,3);
                 //xxx code duplication with gameview.d
                 teamname.font = globals.framework.fontManager.loadFont("wormfont_"
                     ~ cTeamColors[teams[n].color]);
@@ -174,18 +175,13 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
         auto msg = new MessageViewer();
         mGui.add(msg);
 
-        //yyy auto controller = clientengine.engine.controller;
-
-        //yyy controller.messageCb = &msg.addMessage;
-
         gameView = new GameView(clientengine);
         gameView.onTeamChange = &teamChanged;
         gameView.bindings = wormbinds;
 
-        //yyy gameView.controller = controller;
-
         mScroller = new MouseScroller();
         mScroller.add(gameView);
+        mScroller.zorder = -1; //don't hide the game GUI
         add(mScroller);
         add(mGui);
 

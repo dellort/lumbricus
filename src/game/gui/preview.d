@@ -18,7 +18,7 @@ private class LevelPreviewer : SimpleContainer {
     private {
         const cRows = 3;
         const cCols = 2;
-        GuiButton[cRows*cCols] mShowBitmap;
+        Button[cRows*cCols] mShowBitmap;
 
         struct LevelInfo {
             LevelGeometry geo;
@@ -27,7 +27,7 @@ private class LevelPreviewer : SimpleContainer {
 
         LevelInfo[cRows*cCols] mLevel;
         LevelGenerator mGenerator;
-        GuiLabel mLblInfo;
+        Label mLblInfo;
 
         LevelPreviewTask mTask;
     }
@@ -43,11 +43,11 @@ private class LevelPreviewer : SimpleContainer {
         WidgetLayout lay;
         lay.expand[1] = false; //don't expand in Y
 
-        mLblInfo = new GuiLabel();
+        mLblInfo = new Label();
         mLblInfo.text = "Select level to play, right click to regenerate";
 
-        foreach (int i, inout GuiButton sb; mShowBitmap) {
-            sb = new GuiButton();
+        foreach (int i, inout Button sb; mShowBitmap) {
+            sb = new Button();
             sb.onClick = &play;
             sb.onRightClick = &generate;
             doGenerate(i);
@@ -64,15 +64,15 @@ private class LevelPreviewer : SimpleContainer {
         add(layout, WidgetLayout.Aligned(0,0));
     }
 
-    private int getIdx(GuiButton which) {
-        foreach (int i, GuiButton b; mShowBitmap) {
+    private int getIdx(Button which) {
+        foreach (int i, Button b; mShowBitmap) {
             if (b == which)
                 return i;
         }
         assert(false);
     }
 
-    private void generate(GuiButton sender) {
+    private void generate(Button sender) {
         int idx = getIdx(sender);
         doGenerate(idx);
     }
@@ -89,7 +89,7 @@ private class LevelPreviewer : SimpleContainer {
         mShowBitmap[idx].needRelayout();
     }
 
-    private void play(GuiButton sender) {
+    private void play(Button sender) {
         int idx = getIdx(sender);
         //generate level
         auto level = generateAndSaveLevel(mGenerator, mLevel[idx].templ,

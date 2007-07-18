@@ -4,7 +4,6 @@ import framework.framework;
 import framework.event;
 import gui.container;
 import gui.gui;
-import common.scene;
 import utils.configfile;
 import utils.mylist;
 import utils.time;
@@ -12,32 +11,83 @@ import utils.vector2;
 import utils.rect2;
 import utils.log;
 
-//debugging
+//debugging (draw a red frame for the widget's bounds)
 //version = WidgetDebug;
 
-enum LayoutingPhase {
-    None,       //done
-    Need,       //relayout requested (which must be honoured)
-    NeedAlloc,  //like Need, but requested size is valid
-    //Request,    //layoutSizeRequest() is being called on this (and children)
-    Alloc       //layoutSizeAllocation() is being called
+//layout parameters for dealing with i.e. size overallocation
+//you can define borders and what happens, if a widget gets more space than it
+//wanted
+struct WidgetLayout {
+    //most parameters are for each coord-component; X==0, Y==1
+
+    //how the Widget wants to size
+    //maybe give extra space to this object (> requested)
+    bool[2] expand = [true, true];
+    //actually use the extra space from expand (for allocation), aka streching
+    //the value selects between expanded and requested size (without borders)
+    //(with (expand && (fill==0)), the extra space will be kept empty, and the
+    // widget is set to its requested size, i.e. allocation == requested)
+    float[2] fill = [1.0f, 1.0f];
+
+    //alignment of the Widget if it was expanded but not filled
+    float[2] alignment = [0.5f, 0.5f]; //range 0 .. 1.0f
+
+    //padding (added to the Widget's size request)
+    int pad;        //padding for all 4 borders
+    Vector2i padA;  //additional left/top border padding
+    Vector2i padB;  //additional right/bottom border padding
+
+    //not expanded and aligned, with optional border
+    //x: -1 = left, 0 = center, 1 = right
+    //y: similar
+    static WidgetLayout Aligned(int x, int y, Vector2i border = Vector2i()) {
+        WidgetLayout lay;
+        lay.expand[0] = lay.expand[1] = false;
+        lay.alignment[0] = (x+1)/2.0f;
+        lay.alignment[1] = (y+1)/2.0f;
+        lay.padA = lay.padB = border;
+        return lay;
+    }
+
+    //expand in one direction, align centered in the other
+    static WidgetLayout Expand(bool horiz_dir, Vector2i border = Vector2i()) {
+        int dir = horiz_dir ? 0 : 1;
+        int inv = 1-dir;
+        WidgetLayout lay;
+        lay.expand[dir] = true;
+        lay.expand[inv] = false;
+        lay.padA = lay.padB = border;
+        return lay;
+    }
+
+    //expand fully, but with a fixed border around the widget
+    static WidgetLayout Border(Vector2i border) {
+        WidgetLayout lay;
+        lay.padA = lay.padB = border;
+        return lay;
+    }
+
+    static WidgetLayout Noexpand() {
+        return Aligned(0,0);
+    }
+
+    static WidgetLayout opCall() {
+        WidgetLayout x;
+        return x;
+    }
 }
 
 //base class for gui stuff
 //Widgets are simulated with absolute time, and can
 //accept events by key bindings
-//(to draw stuff, you can add your own SceneObject using addManagedSceneObject()
-// it will be removed on kill() again, and also you should notice relayout())
 class Widget {
-    private {
+    package {
         Container mParent;
-        Scene mScene;
-
-        int mZOrder; //any value
-
-        //used to prevent too much (infinite recursion?) or too less layouting
-        LayoutingPhase mLayouting;
-
+        int mZOrder; //any value, higher means more on top
+        int mZOrder2; //what was last clicked, argh
+        int mFocusAge;
+    }
+    private {
         //last known mousepos (client coords)
         Vector2i mMousePos;
 
@@ -53,248 +103,34 @@ class Widget {
         //if not set, bind parameter will be empty
         KeyBindings mBindings;
 
-        //size which the container allocated for this Widget, including the
-        //container's coordinates
-        Rect2i mContainedBounds;
+        //size which the container allocated for this Widget
+        Rect2i mContainerBounds;
+        //size which the Widget accepted (due to WidgetLayout)
+        Rect2i mContainedWidgetBounds;
 
         //last requested size (cached)
-        Vector2i mLastRequestSize = {-1, -1};
+        Vector2i mCachedContainedRequestSize;
+        bool mCachedContainedRequestSizeValid;
 
-        //this is added to the graphical position of the widget (Scene.rect)
+        //if false, only call reallocation if size changed
+        bool mLayoutNeedReallocate = true;
+
+        //placement of Widget within allocation from Container
+        WidgetLayout mLayout;
+
+        //this is added to the graphical position of the widget (onDraw)
         //it is intended to support animations (without messing up the layouting)
         Vector2i mAddToPos;
-    }
-
-    this() {
-        mScene = new Scene();
-        version (WidgetDebug)
-            initDebug();
-    }
-
-    final Scene scene() {
-        return mScene;
     }
 
     final Container parent() {
         return mParent;
     }
 
+    /// remove this from its parent
     final void remove() {
         if (mParent) {
-            mParent.removeChild(this);
-        }
-    }
-
-    package final void internalDoAdd(Container from) {
-        assert(mParent is null);
-        mParent = from;
-
-        mParent.recheckChildFocus(this);
-        needRelayout();
-        stateChanged();
-    }
-
-    //called by Container only; it's there because argh
-    package final void internalDoRemove(Container from) {
-        assert(mParent is from);
-        mParent = null;
-        doRemove();
-    }
-
-    //deinitialize widget
-    protected void doRemove() {
-        stateChanged();
-    }
-
-    ///translate parent's coordinates (i.e. containedBounds()) to the Widget's
-    ///coords (i.e. mousePos(), in case of containers: child object coordinates)
-    final Vector2i coordsFromParent(Vector2i pos) {
-        return pos - mContainedBounds.p1;
-    }
-
-    ///coordsToParent(coordsFromParent(p)) == p
-    final Vector2i coordsToParent(Vector2i pos) {
-        return pos + mContainedBounds.p1;
-    }
-
-    final Rect2i containedBounds() {
-        return mContainedBounds;
-    }
-
-    final Rect2i widgetBounds() {
-        return Rect2i(Vector2i(0), size);
-    }
-
-    ///only for Containers which kick around their children in quite nasty ways
-    ///i.e. scrolling containers
-    final void adjustPosition(Vector2i pos) {
-        auto s = mContainedBounds.size;
-        mContainedBounds.p1 = pos;
-        mContainedBounds.p2 = pos + s;
-        //no notifications whatever necessary :)
-        //only need to reposition the Scene
-        internalUpdateRealRect();
-    }
-
-    ///the actual allocated size
-    final Vector2i size() {
-        return mContainedBounds.size;
-    }
-
-/+
-    ///visible area due to Scene scrolling and parent clipping
-    ///all in Widget coords
-    final Rect2i visibleArea() {
-        Rect2i rc;
-        rc.p1 = ...
-        return rc;
-    }
-+/
-
-    /// Report wished size (or minimal size) to the parent container.
-    Vector2i layoutSizeRequest() {
-        //unmeaningful default value
-        return Vector2i(100, 100);
-    }
-
-    /// Report prefered size... not used except in _very_ special cases
-    /// (xxx: orly)
-    Vector2i preferedSize() {
-        return Vector2i();
-    }
-
-    //called from Container while layouting
-    //(_only_ from Container, in the generic layouting code)
-    package final Vector2i internalSizeRequest() {
-        if (mLayouting == LayoutingPhase.Need) {
-            mLastRequestSize = layoutSizeRequest();
-            mLayouting = LayoutingPhase.NeedAlloc;
-        } else {
-            //hum, this function shouldn't be called if this fails!
-            assert(mLayouting == LayoutingPhase.None
-                || mLayouting == LayoutingPhase.NeedAlloc);
-        }
-
-        //gDefaultLog("ask %s for size, return %s", this, mLastRequestSize);
-
-        return mLastRequestSize;
-    }
-
-    //last requested size; might be invalid for the current state of the Widget
-    final Vector2i lastLayoutRequestSize() {
-        return mLastRequestSize;
-    }
-
-    /// The parent container calls this if it relayouts its children.
-    /// (ok, it's actually only called by this.internalSizeAllocation())
-    protected void layoutSizeAllocation() {
-        //override if you want
-    }
-
-    ///??
-    protected void onRelayout() {
-    }
-
-    void manualRelayout(Rect2i c) {
-        mContainedBounds = c;
-        internalUpdateRealRect();
-        layoutSizeAllocation();
-    }
-
-    package final void internalLayoutAllocation(Rect2i rect) {
-        bool need = (mLayouting == LayoutingPhase.Need)
-            || (mLayouting == LayoutingPhase.NeedAlloc);
-
-        assert(mLayouting == LayoutingPhase.None || need);
-
-        Vector2i oldAllocation = mContainedBounds.size;
-
-        mLayouting = LayoutingPhase.Alloc;
-
-        mContainedBounds = rect;
-        internalUpdateRealRect();
-
-        //gDefaultLog("reallocate %s %s", this, rect);
-
-        //call user handler
-        //but only if the size changed; else theoretically there would be no
-        //change (but honour need-flag)
-        if (need || rect.size != oldAllocation) {
-            layoutSizeAllocation();
-
-            onRelayout();
-        }
-
-        //the idea is: if someone requested layouting again, don't delete the flag
-        //xxx rethink, this seems to be stupid and useless
-        if (mLayouting == LayoutingPhase.Alloc)
-            mLayouting = LayoutingPhase.None;
-    }
-
-    //argghrhrrdss
-    //never calls any "notification" functions or so by design
-    private void internalUpdateRealRect() {
-        Rect2i rect = mContainedBounds;
-        rect.p1 += mAddToPos;
-        rect.p2 += mAddToPos;
-        mScene.rect = rect;
-    }
-
-    ///called by a Widget itself when it wants to report a changed
-    ///layoutSizeRequest(), or if any layouting parameter was changed
-    /// immediate = if it should be relayouted on return of this function
-    void needRelayout(bool immediate = false) {
-        requestedRelayout(null);
-    }
-
-    ///like needRelayout(), but less strict
-    ///only_if_changed == only relayout if requested size changed
-    ///will do more work than needRelayout() if layoutSizeRequest() is expensive
-    void needResize(bool only_if_changed) {
-        if (only_if_changed && layoutSizeRequest() == mLastRequestSize) {
-            return;
-        }
-        needRelayout();
-    }
-
-    //call to make the parent container to relayouted its children
-    //if this is a container, Widget can be the direct child for which the
-    //relayout was requested
-    protected void requestedRelayout(Widget child) {
-        //xxx: for containers, one could check if the child requests more than
-        //     its allocated size; if not, one only needs to reallocate this child
-        //propagate upwards
-        mLayouting = LayoutingPhase.Need;
-        if (mParent) {
-            mParent.requestedRelayout(this);
-        }
-    }
-
-    //check if the mouse "hits" this gui object
-    //by default just look if it's inside the bounding rect
-    //but for the sake of overengineering, anything is possible
-    bool testMouse(Vector2i pos) {
-        auto s = size;
-        return (pos.x >= 0 && pos.y >= 0 && pos.x < s.x && pos.y < s.y);
-    }
-
-    //called if one of the following things changed:
-    //  - focusness
-    //  - global focusness (if parent focuses change)
-    //  - mouse capture (not here yet)
-    //  - alive state (added to a parent, killed)
-    //also accessed by GuiFrame -> package
-    void stateChanged() {
-        if (mParent) {
-            //recheck focus
-            mHasFocus = (mParent.localFocus is this) && mParent.focused;
-        } else {
-            mHasFocus = isTopLevel;
-        }
-
-        if (mOldFocus != focused()) {
-            mOldFocus = mHasFocus;
-            onFocusChange();
+            mParent.doRemoveChild(this);
         }
     }
 
@@ -303,49 +139,200 @@ class Widget {
         return false;
     }
 
-    //set global focus state
-    final void focused(bool set) {
-        //in some cases, this might even safe you from infinite loops
-        if (set == focused)
-            return;
-        if (set) {
-            //set focus: recursively claim focus on parents
-            if (parent) {
-                parent.localFocus = this; //local
-                parent.focused = true;    //global (recurse upwards)
-            }
-        } else {
-            //xxx disclaiming focus
-            assert(false);
-        }
-    }
-
-    final bool focused() {
-        return mHasFocus;
-    }
-
-    //within the parent frame, set this object on the highest zorder
+    ///within the parent frame, set this object on the highest zorder
     final void toFront() {
         if (parent) {
-            parent.childToTop(this);
+            parent.doSetChildToFront(this);
         }
     }
 
     final int zorder() {
         return mZOrder;
     }
+    ///set the "strict" zorder, will also set the "soft" zorder to top
     final void zorder(int z) {
         mZOrder = z;
         if (mParent) {
-            mParent.setChildZOrder(this, z);
+            mParent.doSetChildToFront(this);
         }
     }
 
-    //called when focused() changes
-    void onFocusChange() {
-        gDefaultLog("global focus change for %s: %s", this, mHasFocus);
-        //also adjust zorder, else it looks strange
-        toFront();
+    ///translate parent's coordinates (i.e. containedBounds()) to the Widget's
+    ///coords (i.e. mousePos(), in case of containers: child object coordinates)
+    final Vector2i coordsFromParent(Vector2i pos) {
+        return pos - mContainedWidgetBounds.p1;
+    }
+
+    ///coordsToParent(coordsFromParent(p)) == p
+    final Vector2i coordsToParent(Vector2i pos) {
+        return pos + mContainedWidgetBounds.p1;
+    }
+
+    ///rectangle the Widget takes up in parent container
+    final Rect2i containedBounds() {
+        return mContainedWidgetBounds;
+    }
+
+    ///widget size
+    final Vector2i size() {
+        return mContainedWidgetBounds.size;
+    }
+
+    ///rectangle of the Widget in its own coordinates (.p1 is always (0,0))
+    final Rect2i widgetBounds() {
+        return Rect2i(Vector2i(0), size);
+    }
+
+    // --- layouting stuff
+
+    WidgetLayout layout() {
+        return mLayout;
+    }
+
+    void setLayout(WidgetLayout wl) {
+        mLayout = wl;
+        needRelayout();
+    }
+
+    ///only for Containers which kick around their children in quite nasty ways
+    ///i.e. scrolling containers
+    ///requires some cooperation from the parent's layoutSizeAllocation()
+    final void adjustPosition(Vector2i pos) {
+        auto s = mContainedWidgetBounds.size;
+        mContainedWidgetBounds.p1 = pos;
+        mContainedWidgetBounds.p2 = pos + s;
+    }
+
+    /// Report wished size (or minimal size) to the parent container.
+    /// Can also be used to precalculate the layout (must independent of the
+    /// current size).
+    /// Widgets must override this; no default implementation.
+    abstract protected Vector2i layoutSizeRequest();
+
+    /// Return what layoutContainerSizeRequest() would return, but possibly
+    /// cache the result.
+    /// Container should use this to know child-Widget sizes
+    /// (may the name lead to confusion with layoutSizeRequest())
+    final Vector2i layoutCachedContainerSizeRequest() {
+        //yyy no idea why caching the size doesn't really work
+        //if (!mCachedContainedRequestSizeValid) {
+            mCachedContainedRequestSizeValid = true;
+            mCachedContainedRequestSize = layoutContainerSizeRequest();
+        //}
+
+        return mCachedContainedRequestSize;
+    }
+
+    /// assigns this Widget a new region
+    /// Containers should use this to place children
+    final void layoutContainerAllocate(Rect2i rect) {
+        mContainerBounds = rect;
+        layoutCalculateSubAllocation(rect);
+        auto oldsize = mContainedWidgetBounds.size;
+        mContainedWidgetBounds = rect;
+        if (!mLayoutNeedReallocate && oldsize == rect.size) {
+            //huh, no need to reallocate, because only the size matters.
+            //(reallocation can be expensive; so avoid it)
+        } else {
+            mLayoutNeedReallocate = false;
+            layoutSizeAllocation();
+        }
+    }
+
+    /// Override this to actually do Widget-internal layouting.
+    /// default implementation: empty (and isn't required to be invoked)
+    protected void layoutSizeAllocation() {
+    }
+
+    ///called by a Widget itself when it wants to report a changed
+    ///layoutSizeRequest(), or if any layouting parameter was changed
+    ///if only the size was changed, maybe rather use needResize
+    ///but if layoutSizeAllocation must be called, use needRelayout()
+    ///relayouting won't happen if there's no parent!
+    final void needRelayout() {
+        mLayoutNeedReallocate = true;
+        mCachedContainedRequestSizeValid = false;
+        requestRelayout();
+    }
+
+    ///like needRelayout(), but less strict
+    ///only_if_changed == only relayout if requested size changed
+    final void needResize(bool only_if_changed) {
+        if (only_if_changed && mCachedContainedRequestSizeValid) {
+            //read the cache, invalidate it, and see if the size really changed
+            auto oldsize = mCachedContainedRequestSize;
+            mCachedContainedRequestSizeValid = false;
+            if (oldsize == layoutCachedContainerSizeRequest())
+                return;
+        } else {
+            mCachedContainedRequestSizeValid = false;
+        }
+        //difference to needRelayout: don't set the mLayoutNeedReallocate flag
+        requestRelayout();
+    }
+
+    //call the parent container to relayout this Widget
+    //internal to needRelayout() and needResize()
+    private void requestRelayout() {
+        if (parent) {
+            parent.doRequestedRelayout(this);
+        } else if (isTopLevel) {
+            layoutContainerAllocate(mContainerBounds);
+        } else {
+            //hm.... Widget without parent wants relayout
+            //do nothing (and don't relayout it)
+        }
+    }
+
+    ///manually set the position/size, outside the normal layouting process
+    final void manualRelayout(Rect2i c) {
+        layoutContainerAllocate(c);
+    }
+
+    /// Size including the not-really-client-area.
+    protected Vector2i layoutContainerSizeRequest() {
+        auto msize = layoutSizeRequest();
+        //just padding
+        msize.x += mLayout.pad*2; //both borders for each component
+        msize.y += mLayout.pad*2;
+        msize += mLayout.padA + mLayout.padB;
+        return msize;
+    }
+
+    /// according to WidgetLayout, adjust area such that the Widget feels warm
+    /// and snugly; can be overridden... but with care and don't forget
+    /// also to override layoutContainerSizeRequest()
+    void layoutCalculateSubAllocation(inout Rect2i area) {
+        //xxx doesn't handle under-sized stuff
+        Vector2i psize = area.size();
+        Vector2i offset;
+        auto rsize = layoutCachedContainerSizeRequest();
+        //fit the widget with its size into the area
+        for (int n = 0; n < 2; n++) {
+            if (mLayout.expand[n]) {
+                //fill, 0-1 selects the rest of the size
+                rsize[n] = rsize[n]
+                    + cast(int)((psize[n] - rsize[n]) * mLayout.fill[n]);
+            }
+            //and align; this again selects the rest of the size
+            //and add the border padding (padB is the second border, implicit)
+            offset[n] = cast(int)((psize[n] - rsize[n]) * mLayout.alignment[n])
+                + mLayout.pad + mLayout.padA[n];
+            //remove the border from the size (the size is for the widget)
+            rsize[n] = rsize[n] - mLayout.pad*2 - mLayout.padB[n] - mLayout.padA[n];
+        }
+        area.p1 = area.p1 + offset;
+        area.p2 = area.p1 + rsize;
+    }
+
+    // --- input handling
+
+    //check if the mouse "hits" this gui object
+    //by default just look if it's inside the bounding rect
+    //but for the sake of overengineering, anything is possible
+    bool testMouse(Vector2i pos) {
+        auto s = size;
+        return (pos.x >= 0 && pos.y >= 0 && pos.x < s.x && pos.y < s.y);
     }
 
     //event handlers which can be overridden by the user
@@ -366,18 +353,13 @@ class Widget {
     }
 
     //notification if this.testMouse() changed on a mouse move event
-    //onMouseEnterLeave(true, _) is called before the first onMouseMove() is
-    //delivered
-    //mouseIsInside == testMouse(mousePos)
-    //xxx capture stuff who cares
-    //forCapture == whether capture is active
-    //i.e. onMouseEnterLeave(false, true) == captured, but outside real region
-    //xxx only partially implemented (no leave)
+    //xxx: currently works a bit... strange
     protected void onMouseEnterLeave(bool mouseIsInside) {
     }
 
-    void internalMouseLeave() {
-        onMouseEnterLeave(false);
+    //I hate D
+    package void doMouseEnterLeave(bool mii) {
+        onMouseEnterLeave(mii);
     }
 
     void bindings(KeyBindings bind) {
@@ -412,7 +394,7 @@ class Widget {
     //      not, there's testMouse() which queries if a mouse event on that
     //      position will be accepted or not
     //overridden by Container
-    bool internalHandleMouseEvent(MouseInfo* mi, KeyInfo* ki) {
+    bool handleMouseEvent(MouseInfo* mi, KeyInfo* ki) {
         //call user's event handler
         assert(!!mi != !!ki);
         if (mi) {
@@ -428,26 +410,8 @@ class Widget {
 
     //return true if event was handled
     //overridden by Container
-    bool internalHandleKeyEvent(KeyInfo info) {
+    bool handleKeyEvent(KeyInfo info) {
         return callKeyHandler(info);
-    }
-
-    /// Return true if this can have a focus (used for treatment of <tab>).
-    bool canHaveFocus() {
-        return false;
-    }
-
-    /// Return true if focus should set to this element when it becomes active.
-    /// Only used if canHaveFocus() is true.
-    bool greedyFocus() {
-        return false;
-    }
-
-    //call if canHaveFocus() could have changed, although object was not added
-    //or removed to the scene *sigh*
-    void recheckFocus() {
-        if (mParent)
-            mParent.recheckChildFocus(this);
     }
 
     //load a set of key bindings for this control (used only for own events)
@@ -455,6 +419,8 @@ class Widget {
         bindings = new KeyBindings();
         bindings.loadFrom(node);
     }
+
+    // --- simulation and drawing
 
     //overridden by Container
     void internalSimulate(Time curTime, Time deltaT) {
@@ -464,32 +430,111 @@ class Widget {
     void simulate(Time curTime, Time deltaT) {
     }
 
-    version (WidgetDebug) {
-        class DebugDraw : SceneObject {
-            override void draw(Canvas canvas) {
-                canvas.drawRect(Vector2i(0), size - Vector2i(1,1), Color(1,0,0));
-                //nasty trick to avoid overdrawing of the rect above
-                canvas.clip(Vector2i(1), size - Vector2i(1,1));
-            }
+    void doDraw(Canvas c) {
+        c.pushState();
+        //map (0,0) to the position of the widget and clip by widget-size
+        c.setWindow(mContainedWidgetBounds.p1, mContainedWidgetBounds.p2);
+
+        //user's draw routine
+        onDraw(c);
+
+        version (WidgetDebug) {
+            c.drawRect(Vector2i(0), size - Vector2i(1,1),
+                Color(1,focused ? 1 : 0,0));
         }
 
-        void initDebug() {
-            scene.add(new DebugDraw);
+        c.popState();
+    }
+
+    ///you should override this for custom drawing / normal widget rendering
+    protected void onDraw(Canvas c) {
+    }
+
+
+    // --- focus handling
+
+    /// Return true if this can have a focus (used for treatment of <tab>).
+    /// default implementation: return false
+    bool canHaveFocus() {
+        return false;
+    }
+
+    /// Return true if focus should set to this element when it becomes active.
+    /// Only used if canHaveFocus() is true.
+    /// default implementation: return false
+    bool greedyFocus() {
+        return false;
+    }
+
+    /// call if canHaveFocus() could have changed, although object was not added
+    /// or removed to the GUI *sigh*
+    final void recheckFocus() {
+        if (parent)
+            parent.doRecheckChildFocus(this);
+    }
+
+    /// claim global focus (try to make this.focused() == true)
+    final void claimFocus() {
+        //in some cases, this might even safe you from infinite loops
+        if (focused)
+            return;
+        //set focus: recursively claim focus on parents
+        if (parent) {
+            parent.localFocus = this; //local
+            parent.claimFocus();      //global (recurse upwards)
         }
     }
-}
 
-//evil, but the rest was better to integrate with this
-class GuiObjectOwnerDrawn : Widget {
-    class Drawer : SceneObject {
-        override void draw(Canvas canvas) {
-            this.outer.draw(canvas);
+    /// if globally focused
+    final bool focused() {
+        return mHasFocus;
+    }
+
+    /// if locally focused
+    final bool localFocused() {
+        return parent ? parent.localFocus is this : isTopLevel;
+    }
+
+    /// focus the next element; returns if a new focus could be set
+    /// used to focus to the next element using <tab>
+    /// normal Widgets return true and claim focus if they weren't focused
+    ///   else they return false and don't do anything
+    /// Containers return true if another sub-Widget could be focused without
+    ///   wrapping the internal list
+    bool nextFocus() {
+        if (canHaveFocus && !focused) {
+            claimFocus();
+            return true;
+        }
+        return false;
+    }
+
+    /// called when focused() changes
+    /// default implementation: set Widget zorder to front
+    protected void onFocusChange() {
+        gDefaultLog("global focus change for %s: %s", this, mHasFocus);
+        //also adjust zorder, else it looks strange
+        if (focused)
+            toFront();
+    }
+
+    //cf. Container
+    protected Widget findLastFocused() {
+        return this;
+    }
+
+    /// possibly update focus state
+    final void pollFocusState() {
+        if (parent) {
+            //recheck focus
+            mHasFocus = (parent.localFocus is this) && parent.focused;
+        } else {
+            mHasFocus = isTopLevel;
+        }
+
+        if (mOldFocus != focused()) {
+            mOldFocus = focused();
+            onFocusChange();
         }
     }
-
-    this() {
-        scene.add(new Drawer);
-    }
-
-    protected abstract void draw(Canvas canvas);
 }

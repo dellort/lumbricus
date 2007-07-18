@@ -295,6 +295,8 @@ interface TeamMemberControl {
     ///select weapon weaponId for the active worm
     void weaponDraw(WeaponClass weaponId);
 
+    WeaponClass currentWeapon();
+
     ///set grenade timer (cf. Weapon for useful values)
     void weaponSetTimer(Time timer);
 

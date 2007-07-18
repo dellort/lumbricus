@@ -4,7 +4,6 @@ import framework.console;
 import framework.framework;
 public import framework.event;
 import common.common;
-import common.scene;
 import gui.widget;
 import gui.container;
 import std.string;
@@ -27,43 +26,38 @@ class GuiMain {
     }
 
     private class MainFrame : SimpleContainer {
+        this() {
+            pollFocusState();
+        }
+
         override bool isTopLevel() {
             return true;
         }
 
-        protected override void requestedRelayout(Widget c) {
-            super.requestedRelayout(c);
-            //propagate downwards again
-            internalLayoutAllocation(containedBounds);
-        }
-
         void setSize(Vector2i size) {
-            internalLayoutAllocation(Rect2i(Vector2i(0), size));
+            layoutContainerAllocate(Rect2i(Vector2i(0), size));
         }
 
         bool putKeyEvent(KeyInfo info) {
             if (info.isMouseButton) {
-                internalHandleMouseEvent(null, &info);
-                return true; //???
+                return handleMouseEvent(null, &info);
             } else {
-                return internalHandleKeyEvent(info);
+                return handleKeyEvent(info);
             }
         }
 
         void putMouseMove(MouseInfo info) {
-            internalHandleMouseEvent(&info, null);
+            handleMouseEvent(&info, null);
         }
 
         protected override bool onKeyDown(char[] bind, KeyInfo key) {
             if (key.code == Keycode.TAB) {
-                mMainFrame.nextFocus();
+                bool res = mMainFrame.nextFocus();
+                if (!res)
+                    mMainFrame.nextFocus();
                 return true;
             }
             return false;
-        }
-
-        this() {
-            super();
         }
     }
 
@@ -90,7 +84,7 @@ class GuiMain {
     }
 
     void draw(Canvas canvas) {
-        mMainFrame.scene.draw(canvas);
+        mMainFrame.doDraw(canvas);
     }
 
     //distribute events to these EventSink things

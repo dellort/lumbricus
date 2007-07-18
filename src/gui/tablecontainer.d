@@ -16,7 +16,7 @@ class TableContainer : PublicContainer {
         int mW, mH;
         bool[2] mHomogeneous;
         //organized as [x][y]
-        PerWidget[][] mCells;
+        Widget[][] mCells;
         //spacing _between_ cells (per direction)
         Vector2i mCellSpacing;
 
@@ -64,12 +64,12 @@ class TableContainer : PublicContainer {
         assert(x >= 0 && x < mW);
         assert(y >= 0 && y < mH);
         assert(mCells[x][y] is null);
-        auto pw = addChild(w);
-        mCells[x][y] = pw;
-        setChildLayout(w, layout);
+        w.setLayout(layout);
+        addChild(w);
+        mCells[x][y] = w;
     }
 
-    override protected void removeWidget(PerWidget w) {
+    override protected void removeChild(Widget w) {
         loop: foreach (col; mCells) {
             foreach (inout c; col) {
                 if (c is w) {
@@ -78,7 +78,7 @@ class TableContainer : PublicContainer {
                 }
             }
         }
-        super.removeWidget(w);
+        super.removeChild(w);
     }
 
     protected Vector2i layoutSizeRequest() {
@@ -103,7 +103,7 @@ class TableContainer : PublicContainer {
                 Vector2i s;
                 if (cur) {
                     expand[] = cur.layout.expand;
-                    s = layoutDoRequestChild(cur);
+                    s = cur.layoutCachedContainerSizeRequest();
                 }
                 mMinWidths[x] = max(mMinWidths[x], s.x);
                 mMinHeights[y] = max(mMinHeights[y], s.y);
@@ -156,7 +156,7 @@ class TableContainer : PublicContainer {
 
         //first calculate allocations...
 
-        Vector2i extra = asize - lastLayoutRequestSize();
+        Vector2i extra = asize - layoutCachedContainerSizeRequest();
         //distribute extra space accross all expanding cells
         //the 0-case occurs when not expanding at all, but there's extra space
         //be right-top aligned then
@@ -189,7 +189,7 @@ class TableContainer : PublicContainer {
                 if (w) {
                     box.p1.y = mAllocY[y];
                     box.p2.y = mAllocY[y+1] - mCellSpacing.y;
-                    layoutDoAllocChild(w, box);
+                    w.layoutContainerAllocate(box);
                 }
             }
         }

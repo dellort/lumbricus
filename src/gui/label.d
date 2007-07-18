@@ -8,8 +8,7 @@ import framework.framework;
 import framework.font;
 import utils.misc;
 
-//xxx: mostly duplicated from visual.d; maybe kill visual.d, the GUI is _here_
-class GuiLabel : GuiObjectOwnerDrawn {
+class Label : Widget {
     private char[] mText;
     private Font mFont;
     private Vector2i mBorder;
@@ -66,7 +65,7 @@ class GuiLabel : GuiObjectOwnerDrawn {
         mBorder = Vector2i(2,1);
     }
 
-    override void draw(Canvas canvas) {
+    override void onDraw(Canvas canvas) {
         if (drawBorder) {
             drawBox(canvas, Vector2i(0), size);
         }

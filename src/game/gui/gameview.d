@@ -25,7 +25,10 @@ class GuiAnimator : Widget {
 
     this() {
         mAnimator = new Animator();
-        scene.add(mAnimator);
+    }
+
+    override protected void onDraw(Canvas c) {
+        mAnimator.draw(c);
     }
 
     override Vector2i layoutSizeRequest() {
@@ -113,21 +116,23 @@ class GameView : Container, TeamMemberControlCallback {
             //you might wonder why these labels aren't just drawn directly
             //instead we use the GUI... well but there's no reason
             //it's just plain stupid :D
-            GuiLabel wormName;
-            GuiLabel wormPoints;
+            Label wormName;
+            Label wormPoints;
 
             //animation of lifepower-countdown
             //int health_from, health_to;
             int health_cur;
 
+            Vector2i forArrow;
+
             this(ViewTeam parent, TeamMember m) {
                 member = m;
                 team = parent;
-                wormName = new GuiLabel();
+                wormName = new Label();
                 wormName.font = team.font;
                 wormName.text = m.name;
                 wormName.border = Vector2i(3);
-                wormPoints = new GuiLabel();
+                wormPoints = new Label();
                 wormPoints.font = wormName.font;
                 wormPoints.border = wormName.border;
             }
@@ -170,13 +175,13 @@ class GameView : Container, TeamMemberControlCallback {
                         Vector2i sz = w.size;
                         Rect2i booh = void;
                         pos.y -= sz.y;
-                        booh.p1 = pos;
-                        booh.p1.x -= sz.x/2; //center
-                        booh.p2 = booh.p1 + sz;
-                        w.manualRelayout(booh);
+                        auto p = pos;
+                        p.x -= sz.x/2; //center
+                        w.adjustPosition(p);
                     }
                     mooh(wormPoints);
                     mooh(wormName);
+                    forArrow = pos;
                 }
             }
         }
@@ -189,6 +194,24 @@ class GameView : Container, TeamMemberControlCallback {
         foreach (m; mAllMembers) {
             m.simulate();
         }
+
+        TeamMember cur = mController.getActiveMember();
+        if (cur &&
+            mCurrentTime - mController.currentLastAction() > mArrowDelta)
+        {
+            //make sure the arrow is active
+            ViewMember vm = mEngineMemberToOurs[cur];
+            if (!mArrow.parent) {
+                mArrow.animation = vm.team.animations.arrow.get;
+                addChild(mArrow);
+            }
+            Vector2i pos = vm.forArrow;
+            pos.y -= mArrow.size.y;
+            pos.x -= mArrow.size.x/2;
+            mArrow.adjustPosition(pos);
+        } else {
+            mArrow.remove();
+        }
     }
 
     //at least if child is one of the worm labels, don't relayout the whole GUI
@@ -196,12 +219,8 @@ class GameView : Container, TeamMemberControlCallback {
     //a bit stupid...
     //of course breaks layouting of other elements, but there are none
     override protected void requestedRelayout(Widget child) {
-        if (!child) {
-            super.requestedRelayout(null);
-            return;
-        }
         //just readjust the size / position is fixed
-        auto size = child.layoutSizeRequest();
+        auto size = child.layoutCachedContainerSizeRequest();
         auto bounds = child.containedBounds();
         bounds.p2 = bounds.p1 + size;
         child.manualRelayout(bounds);
@@ -222,9 +241,9 @@ class GameView : Container, TeamMemberControlCallback {
 
     this(ClientGameEngine engine) {
         mArrowDelta = timeSecs(5);
+        mArrow = new GuiAnimator();
 
         mEngine = engine;
-        scene.add(mEngine.scene);
 
         //hacky?
         mLogic = mEngine.logic;
@@ -241,9 +260,6 @@ class GameView : Container, TeamMemberControlCallback {
 
     override Vector2i layoutSizeRequest() {
         return mEngine.scene.size;
-    }
-
-    override void onRelayout() {
     }
 
     // --- start TeamMemberControlCallback
@@ -335,9 +351,19 @@ class GameView : Container, TeamMemberControlCallback {
         return false;
     }
 
+    //grrr
+    override bool testMouse(Vector2i pos) {
+        return true;
+    }
+
     override void simulate(Time curTime, Time deltaT) {
         super.simulate(curTime, deltaT);
         doSim();
+    }
+
+    override void onDraw(Canvas c) {
+        mEngine.scene.draw(c);
+        super.onDraw(c);
     }
 }
 /+

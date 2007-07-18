@@ -10,7 +10,7 @@ import utils.configfile;
 import utils.time;
 import utils.vector2;
 
-class WindMeter : GuiObjectOwnerDrawn {
+class WindMeter : Widget {
     private ClientGameEngine mEngine;
     private Vector2i mSize;
     private Texture mBackgroundTex;
@@ -53,7 +53,7 @@ class WindMeter : GuiObjectOwnerDrawn {
         mTexOffsetf = mTexOffsetf + mAnimSpeed*(deltaT.secsf);
     }
 
-    void draw(Canvas canvas) {
+    protected void onDraw(Canvas canvas) {
         auto pos = Vector2i(0);
         if (mEngine) {
             canvas.draw(mBackgroundTex, pos);

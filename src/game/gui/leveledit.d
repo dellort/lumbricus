@@ -476,12 +476,12 @@ public class LevelEditor : Task {
     void delegate(Rect2i) onSelect;
 
     //pseudo object for input and drawing
-    class RenderEditor : GuiObjectOwnerDrawn {
+    class RenderEditor : Widget {
         LevelEditor editor;
         this (LevelEditor e) {
             editor = e;
         }
-        void draw(Canvas c) {
+        protected void onDraw(Canvas c) {
             if (editor.mPreviewImage)
                 c.draw(editor.mPreviewImage, Vector2i(0));
             editor.root.draw(c);
