@@ -593,23 +593,34 @@ public class Framework {
     }
 
     protected void doUpdateMousePos(Vector2i pos) {
-        Vector2i realPos = pos;
-        if (mLockMouse) {
-            pos += mMouseCorr;
-        }
         if (mMousePos != pos) {
             MouseInfo infos;
             infos.pos = pos;
-            if (mLockMouse)
-                infos.pos -= mMouseCorr;
             infos.rel = pos - mMousePos;
+            if (mLockMouse) {
+                //xxx this hack throws away the first 3 relative motions
+                //when in locked mode to fix SDL stupidness
+                mFooLockCounter--;
+                if (mFooLockCounter > 0)
+                    infos.rel = Vector2i(0);
+                else
+                    mFooLockCounter = 0;
+                //pretend mouse to be at stored position
+                infos.pos = mStoredMousePos;
+                //correct the last cursor position change made
+                infos.rel += mMouseCorr;
+                //correction has been used, reset
+                mMouseCorr = Vector2i(0);
+            }
             mMousePos = pos;
             if (onMouseMove != null && mEnableEvents) {
                 onMouseMove(infos);
             }
             if (mLockMouse) {
                 mousePos = mLockedMousePos;
-                mMouseCorr += (realPos-mLockedMousePos);
+                //save position change to subtract later, as this will
+                //generate an event
+                mMouseCorr += (pos-mLockedMousePos);
             }
         }
     }
@@ -637,22 +648,33 @@ public class Framework {
 
     private Vector2i mStoredMousePos, mLockedMousePos, mMouseCorr;
     private bool mLockMouse;
+    private int mFooLockCounter;
 
     ///This will move the mouse cursor to screen center and keep it there
     ///It is probably a good idea to hide the cursor first, as it will still
     ///be moveable and generate events, but "snap" back to the locked position
+    ///Events will show the mouse cursor standing at its locked position
+    ///and only show relative motion
     public void lockMouse() {
-        mLockedMousePos = screen.size/2;
-        mStoredMousePos = mousePos;
-        mLockMouse = true;
-        mousePos = mLockedMousePos;
-        mMouseCorr = mStoredMousePos - mLockedMousePos;
+        if (!mLockMouse) {
+            mLockedMousePos = screen.size/2;
+            mStoredMousePos = mousePos;
+            mLockMouse = true;
+            mousePos = mLockedMousePos;
+            //mMouseCorr = mStoredMousePos - mLockedMousePos;
+            mMouseCorr = Vector2i(0);
+            //discard 3 events from now
+            mFooLockCounter = 3;
+        }
     }
 
     ///Remove the mouse lock and move the cursor back to where it was before
     public void unlockMouse() {
-        mousePos = mStoredMousePos;
-        mLockMouse = false;
+        if (mLockMouse) {
+            mousePos = mStoredMousePos;
+            mLockMouse = false;
+            mMouseCorr = Vector2i(0);
+        }
     }
 
     protected bool doTerminate() {

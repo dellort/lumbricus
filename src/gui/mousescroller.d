@@ -161,12 +161,12 @@ class MouseScroller : SimpleContainer {
         if (enable == mMouseScrolling)
             return;
         if (enable) {
-            //globals.framework.grabInput = true;
+            gFramework.grabInput = true;
             gFramework.cursorVisible = false;
             gFramework.lockMouse();
             scrollReset();
         } else {
-            //globals.framework.grabInput = false;
+            gFramework.grabInput = false;
             gFramework.cursorVisible = true;
             gFramework.unlockMouse();
         }
