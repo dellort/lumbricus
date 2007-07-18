@@ -41,8 +41,11 @@ T castStrict(T : Object)(Object t) {
     return res;
 }
 
-float realmod(float a, float b) {
-    return cmath.fmodf(cmath.fmodf(a, b) + b, b);
+T realmod(T)(T a, T m) {
+    T res = a % m;
+    if (res < 0)
+        res += m;
+    return res;
 }
 
 uint log2(uint value)

@@ -68,7 +68,7 @@ class GObjectSprite : GameObject {
         //worm angles: start pointing upwards (dir.y = -1), then goes with the clock
         //(while physics angles start at (1, 0) and go against the clock)
         //(going with the clock as you see it on screen, with (0,0) in upper left)
-        return cast(int)(realmod((-angle+PI/2*3)/PI*180.0f, 360));
+        return realmod(cast(int)((-angle+PI/2*3)/PI*180.0f), 360);
     }
 
     protected void physUpdate() {
@@ -216,6 +216,7 @@ class GObjectSprite : GameObject {
         if (active) {
             graphic = engine.createGraphic();
             graphic.setVisible(true);
+            physics.checkRotation();
             updateAnimation();
         }
     }

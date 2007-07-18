@@ -556,6 +556,16 @@ private uint pickNearestAngle(int[] angles, int iangle) {
 
 //param converters
 
+//map with wrap-around
+private int map(float val, float rFrom, int rTo) {
+    return cast(int)(realmod(val + 0.5f*rFrom/rTo,rFrom)/rFrom * rTo);
+}
+
+//map without wrap-around, assuming val will not exceed rFrom
+private int map2(float val, float rFrom, int rTo) {
+    return cast(int)((val + 0.5f*rFrom/rTo)/rFrom * (rTo-1));
+}
+
 //default
 private int paramConvertNone(int angle, int count) {
     return angle;
@@ -567,22 +577,22 @@ private int paramConvertStep3(int angle, int count) {
 }
 //expects count to be 2 (two sides)
 private int paramConvertTwosided(int angle, int count) {
-    return (angle % 360) < 180 ? 0 : 1;
+    return realmod(angle,360) < 180 ? 0 : 1;
 }
 //360 degrees freedom
 private int paramConvertFreeRot(int angle, int count) {
-    return cast(int)(((angle % 360) / 360.0f) * (count - 1));
+    return map(angle, 360.0f, count);
 }
 //360 degrees freedom, inverted spinning direction
 private int paramConvertFreeRotInv(int angle, int count) {
-    return cast(int)((((720-angle) % 360) / 360.0f) * (count - 1));
+    return map(-angle, 360.0f, count);
 }
 //180 degrees, -90 (down) to +90 (up)
 //(overflows, used for weapons, it's hardcoded that it can use 180 degrees only)
 private int paramConvertFreeRot2(int angle, int count) {
     assert(angle <= 90);
     assert(angle >= -90);
-    return cast(int)((((angle+90) % 360) / 180.0f) * (count - 1));
+    return map2(angle+90.0f,180.0f,count);
 }
 
 //animation load handlers
@@ -796,7 +806,7 @@ private AnimationData loadOldAnimation(ConfigNode node) {
 
 //return distance of two angles in radians
 float angleDistance(float a, float b) {
-    auto r = math.abs(realmod(a, math.PI*2) - realmod(b, math.PI*2));
+    auto r = realmod(a - b, cast(float)math.PI*2);
     if (r > math.PI) {
         r = math.PI*2 - r;
     }

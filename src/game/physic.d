@@ -278,7 +278,7 @@ class PhysicObject : PhysicBase {
     }
 
     //set rotation (using velocity)
-    private void checkRotation() {
+    public void checkRotation() {
         auto len = velocity.length;
         //xxx insert a well chosen value here
         //NOTE: this check also prevents NaNs from getting through
