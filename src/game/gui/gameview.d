@@ -196,6 +196,7 @@ class GameView : Container, TeamMemberControlCallback {
         }
 
         TeamMember cur = mController.getActiveMember();
+
         if (cur &&
             mCurrentTime - mController.currentLastAction() > mArrowDelta)
         {
@@ -211,6 +212,15 @@ class GameView : Container, TeamMemberControlCallback {
             mArrow.adjustPosition(pos);
         } else {
             mArrow.remove();
+        }
+
+        bool p_active = (mPointedFor is cur);
+        if (!mPointed.parent && p_active) {
+            addChild(mPointed);
+        }
+        if (!p_active) {
+            mPointedFor = null;
+            mPointed.remove;
         }
     }
 
@@ -242,6 +252,7 @@ class GameView : Container, TeamMemberControlCallback {
     this(ClientGameEngine engine) {
         mArrowDelta = timeSecs(5);
         mArrow = new GuiAnimator();
+        mPointed = new GuiAnimator();
 
         mEngine = engine;
 
@@ -312,6 +323,15 @@ class GameView : Container, TeamMemberControlCallback {
             }
             case "pointy": {
                 mController.weaponSetTarget(mousePos);
+                auto cur = mController.getActiveMember();
+                if (cur && mController.currentWeapon &&
+                    mController.currentWeapon.canPoint)
+                {
+                    mPointedFor = cur;
+                    mPointed.animation = mEngineMemberToOurs[cur].team
+                        .animations.pointed.get;
+                    mPointed.adjustPosition(mousePos-mPointed.size/2);
+                }
                 return true;
             }
             default:

@@ -115,7 +115,7 @@ class ServerMemberControl : TeamMemberControl {
     WeaponClass currentWeapon() {
         auto m = activemember;
         if (m) {
-            return m.currentWeapon.weapon;
+            return m.currentWeapon ? m.currentWeapon.weapon : null;
         }
     }
 
@@ -125,7 +125,7 @@ class ServerMemberControl : TeamMemberControl {
 
     void weaponSetTarget(Vector2i targetPos) {
         auto m = activemember;
-        if (m) {
+        if (m && m.mTeam) {
             m.mTeam.doSetPoint(toVector2f(targetPos));
         }
     }
