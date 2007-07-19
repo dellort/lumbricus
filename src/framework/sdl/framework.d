@@ -20,6 +20,17 @@ private static FrameworkSDL gFrameworkSDL;
 
 debug import std.stdio;
 
+debug {
+    version = MeasureImgLoadTime;
+}
+
+version (MeasureImgLoadTime) {
+    import std.perf;
+    Time gSummedImageLoadingTime;
+    uint gSummedImageLoadingSize;
+    uint gSummedImageLoadingCount;
+}
+
 //SDL_Color.unused contains the alpha value
 static SDL_Color ColorToSDLColor(Color color) {
     SDL_Color col;
@@ -350,7 +361,20 @@ public class SDLSurface : Surface {
     //create from stream (using SDL_Image)
     this(Stream st, Transparency transp) {
         SDL_RWops* ops = rwopsFromStream(st);
+        version (MeasureImgLoadTime) {
+            auto counter = new PerformanceCounter();
+            counter.start();
+        }
         SDL_Surface* surf = IMG_Load_RW(ops, 0);
+        version (MeasureImgLoadTime) {
+            counter.stop();
+            gSummedImageLoadingTime += timeMusecs(counter.microseconds);
+            gSummedImageLoadingCount++;
+            gSummedImageLoadingSize += st.size;
+            writefln("summed image loading time: %s, img: %s, size: %s",
+                gSummedImageLoadingTime, gSummedImageLoadingCount,
+                gSummedImageLoadingSize);
+        }
         if (surf) {
             mReal = surf;
         } else {

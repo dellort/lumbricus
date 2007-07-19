@@ -567,6 +567,42 @@ package class LevelBitmap {
         mBorderColor = level.borderColor;
     }
 
+    //this creates the metadata from the image's transparency information
+    //memory managment: you shall not touch the Surface instance in bmp anymore
+    public this(Surface bmp) {
+        mImage = bmp;
+        auto fmt = getFramework.findPixelFormat(DisplayFormat.RGBA32);
+        mImage.forcePixelFormat(fmt);
+
+        mWidth = mImage.size.x;
+        mHeight = mImage.size.y;
+        mLog = registerLog("levelrenderer");
+
+        //create mask
+        mLevelData.length = mWidth*mHeight;
+        void* ptr; uint pitch;
+        mImage.lockPixelsRGBA32(ptr, pitch);
+
+        for (int y = 0; y < mHeight; y++) {
+            uint* pixel = cast(uint*)(ptr + y*pitch);
+            Lexel* meta = &mLevelData[y*mWidth];
+            for (int x = 0; x < mWidth; x++) {
+                *meta = is_not_transparent(*pixel) ? Lexel.SolidSoft
+                    : Lexel.Null;
+                meta++;
+                pixel++;
+            }
+        }
+
+        mImage.unlockPixels();
+
+        //hm... back image and border-color?
+        //put some random stuff (maybe read it from special pixels which could
+        //be in the upper left corner of the level... or so)
+        mBackImage = null;
+        mBorderColor = Color(0.5, 0.5, 0.5);
+    }
+
     public void free() {
         mImage.free();
         if (mBackImage) {

@@ -2,7 +2,9 @@ module game.gametask;
 
 import common.common;
 import common.task;
-import framework.commandline : CommandBucket, Command;
+import framework.commandline;
+import framework.framework;
+import framework.filesystem;
 import game.gui.loadingscreen;
 import game.gui.gameframe;
 import game.clientengine;
@@ -18,6 +20,9 @@ import utils.time;
 import utils.vector2;
 import utils.log;
 import utils.configfile;
+
+import std.stream;
+import std.outbuffer;
 
 //these imports register classes in a factory on module initialization
 import game.projectile;
@@ -171,6 +176,15 @@ class GameTask : Task {
         mCmds.register(Command("pause", &cmdPause, "pause"));
         mCmds.register(Command("weapon", &cmdWeapon,
             "Debug: Select a weapon by id", ["text:Weapon ID"]));
+        mCmds.register(Command("saveleveltga", &cmdSafeLevelTGA, "dump TGA",
+            ["text:filename"]));
+    }
+
+    private void cmdSafeLevelTGA(MyBox[] args, Output write) {
+        char[] filename = args[0].unbox!(char[])();
+        Stream s = getFramework.fs.open(filename, FileMode.OutNew);
+        saveSurfaceToTGA(mServerEngine.gamelevel.image, s);
+        s.close();
     }
 
     private void cmdWeapon(MyBox[] args, Output write) {
@@ -238,17 +252,24 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
     if (level) {
         cfg.level = level;
     } else {
-        bool load = mConfig.selectValueFrom("level", ["generate", "load"]) == 1;
+        int what = mConfig.selectValueFrom("level",
+            ["generate", "load", "loadbmp"]);
         auto x = new LevelGenerator();
-        if (load) {
+        if (what == 0) {
             cfg.level =
                 x.renderSavedLevel(globals.loadConfig(mConfig["level_load"]));
-        } else {
+        } else if (what == 1) {
             LevelTemplate templ =
                 x.findRandomTemplate(mConfig["level_template"]);
             LevelTheme gfx = x.findRandomGfx(mConfig["level_gfx"]);
 
             cfg.level = generateAndSaveLevel(x, templ, null, gfx);
+        } else if (what == 2) {
+            auto bmp = globals.loadGraphic(mConfig["level_load_bitmap"]);
+            cfg.level = x.generateFromImage(bmp, false, "");
+        } else {
+            //wrong string in configfile or internal error
+            throw new Exception("noes noes noes!");
         }
     }
     auto teamconf = globals.loadConfig("teams");
@@ -276,4 +297,57 @@ Level generateAndSaveLevel(LevelGenerator gen, LevelTemplate templ,
     auto res = gen.renderLevelGeometry(templ, geo, gfx, saveto);
     saveConfig(saveto, "lastlevel.conf");
     return res;
+}
+
+//dirty hacky lib to dump a surface to a file
+//as far as I've seen we're not linked to any library which can write images
+void saveSurfaceToTGA(Surface s, OutputStream stream) {
+    OutBuffer to = new OutBuffer;
+    try {
+        void* pvdata;
+        uint pitch;
+        s.lockPixelsRGBA32(pvdata, pitch);
+        ubyte b;
+        b = 0;
+        to.write(b); //image id, whatever
+        to.write(b); //no palette
+        b = 2;
+        to.write(b); //uncompressed 24 bit RGB
+        short sh;
+        sh = 0;
+        to.write(sh); //skip plalette
+        to.write(sh);
+        b = 0;
+        to.write(b);
+        to.write(sh); //x/y coordinates
+        to.write(sh);
+        sh = s.size.x; to.write(sh); //w/h
+        sh = s.size.y; to.write(sh);
+        b = 24;
+        to.write(b);
+        b = 0;
+        to.write(b); //??
+        //dump picture data as 24 bbp
+        //TGA seems to be upside down
+        for (int y = s.size.y-1; y >= 0; y--) {
+            uint* data = cast(uint*)(pvdata+pitch*y);
+            for (int x = 0; x < s.size.x; x++) {
+                //trivial alpha check... and if so, write a colorkey
+                //this, of course, is a dirty hack
+                if (*data >> 24) {
+                    b = *data; to.write(b);
+                    b = *data >> 8; to.write(b);
+                    b = *data >> 16; to.write(b);
+                } else {
+                    b = 255; to.write(b);
+                    b = 0; to.write(b);
+                    b = 255; to.write(b);
+                }
+                data++;
+            }
+        }
+    } finally {
+        s.unlockPixels();
+    }
+    stream.write(to.toBytes);
 }

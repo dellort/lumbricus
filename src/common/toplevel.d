@@ -80,6 +80,7 @@ private:
         //load a new game
         //newGame();
 
+        /+
         char[] start = globals.anyConfig["start"];
         if (start.length > 0) {
             //create an initial task
@@ -89,6 +90,12 @@ private:
             } catch (ClassNotFoundException e) {
                 mGuiConsole.console.writefln("BIG FAT WARNING: %s", e);
             }
+        }
+        +/
+
+        auto autoexec = globals.anyConfig.getSubNode("autoexec");
+        foreach (char[] name, char[] value; autoexec) {
+            globals.cmdLine.execute(value, false);
         }
     }
 

@@ -514,8 +514,15 @@ public class LevelGenerator {
     ///     gfx = gfx theme to use (still needed for i.e. the background)
     public Level generateFromImage(Surface image, bool placeObjects, char[] gfx)
     {
-        //TODO: add code
-        return null;
+        if (placeObjects) {
+            //TODO: add code
+            assert(false);
+        }
+        auto rend = new LevelBitmap(image);
+        //we still definitely need these for various stuff
+        auto templ = findRandomTemplate();
+        auto theme = findRandomGfx(gfx);
+        return doCreateLevel(rend, templ, theme);
     }
 
     this() {
