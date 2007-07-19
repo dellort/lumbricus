@@ -114,6 +114,7 @@ abstract class WeaponClass {
 //for Shooter.fire(FireInfo)
 struct FireInfo {
     PhysicObject shootby; //maybe need shooter position, size and velocity
+    GameObject shootby_object; //for tracking who-shot-which
     Vector2f dir = Vector2f.nan; //normalized throw direction
     float strength = 1.0f; //as allowed in the weapon config
     Time timer;     //selected time, in the range dictated by the weapon

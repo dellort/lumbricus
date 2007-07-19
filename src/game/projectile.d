@@ -185,7 +185,7 @@ private class ProjectileSprite : GObjectSprite {
             detonate(DetonateReason.impact);
         }
         if (myclass.explosionOnImpact) {
-            engine.explosionAt(physics.pos, myclass.explosionOnImpact);
+            engine.explosionAt(physics.pos, myclass.explosionOnImpact, this);
         }
     }
 
@@ -202,6 +202,7 @@ private class ProjectileSprite : GObjectSprite {
             info.strength = physics.velocity.length; //xxx confusing units :-)
             info.shootby = physics;
             info.pointto = target;   //keep target for spawned projectiles
+            info.shootby_object = this;
 
             //xxx: if you want the spawn-delay to be considered, there'd be two
             // ways: create a GameObject which does this (or do it in
@@ -212,7 +213,7 @@ private class ProjectileSprite : GObjectSprite {
         }
         //an explosion
         if (myclass.explosionOnDeath) {
-            engine.explosionAt(physics.pos, myclass.explosionOnDeath);
+            engine.explosionAt(physics.pos, myclass.explosionOnDeath, this);
         }
 
         //effects are removed by die()
@@ -287,6 +288,7 @@ private void spawnsprite(GameEngine engine, int n, SpawnParams params,
     assert(n >= 0 && n < params.count);
 
     GObjectSprite sprite = engine.createSprite(params.projectile);
+    sprite.createdBy = about.shootby_object;
 
     if (!params.keepVelocity) {
         //don't use strength/direction from FireInfo
@@ -426,6 +428,7 @@ class ProjectileSpriteClass : GOSpriteClass {
     }
 }
 
+//feature request for d0c: make effectors to be derived from GameObject
 class ProjectileEffector {
     Time birthTime, startTime, delay;
     protected ProjectileSprite mParent;
@@ -597,7 +600,8 @@ class ProjectileEffectorExplode : ProjectileEffector {
         if (mActive) {
             if (mParent.engine.gameTime.current - mLast > myclass.interval) {
                 mLast += myclass.interval;
-                mParent.engine.explosionAt(mParent.physics.pos, myclass.damage);
+                mParent.engine.explosionAt(mParent.physics.pos, myclass.damage,
+                    mParent);
             }
         }
     }

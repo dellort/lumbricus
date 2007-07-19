@@ -241,6 +241,7 @@ class GObjectSprite : GameObject {
         this.type = type;
 
         physics = new PhysicObject();
+        physics.backlink = this;
 
         setStateForced(type.initState);
 

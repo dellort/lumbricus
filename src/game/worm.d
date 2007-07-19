@@ -217,7 +217,7 @@ class WormSprite : GObjectSprite {
             mIsDead = true;
             if (todead) {
                 //explosion!
-                engine.explosionAt(physics.pos, wsc.suicideDamage);
+                engine.explosionAt(physics.pos, wsc.suicideDamage, this);
             }
         }
     }

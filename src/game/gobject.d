@@ -9,6 +9,9 @@ abstract class GameObject {
     private bool mActive;
     private GameEngine mEngine;
 
+    //for the controller
+    GameObject createdBy;
+
     //for GameEngine
     package mixin ListNodeMixin node;
 

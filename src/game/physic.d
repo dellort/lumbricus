@@ -202,6 +202,9 @@ class PhysicObject : PhysicBase {
         mPosp.needUpdate = true;
     }
 
+    //used for damage-reporting
+    Object backlink;
+
     Vector2f pos; //pixels
     //in pixels per second, readonly for external code!
     Vector2f velocity = {0,0};
@@ -584,9 +587,14 @@ class WindyForce : ConstantForce {
     }
 }
 
+//feature request to d0c: make it last more than one frame :)
+//(over several frames should it should be more stable )
 class ExplosiveForce : PhysicForce {
     float damage;
     Vector2f pos;
+    Object cause;
+
+    void delegate(Object cause, Object victim, float damage) onReportApply;
 
     this() {
         //one time
@@ -607,7 +615,15 @@ class ExplosiveForce : PhysicForce {
         float dist = v.length;
         if (dist > cDistDelta) {
             float r = max(radius-dist,0f)/radius;
+            float before = o.lifepower;
             o.applyDamage(r*damage);
+            float diff = before - o.lifepower;
+            //corner cases; i.e. unvincible worm
+            if (diff != diff || diff == typeof(diff).infinity)
+                diff = 0;
+            if (diff != 0 && onReportApply) {
+                onReportApply(cause, o.backlink, diff);
+            }
             return -v.normal()*(impulse/deltaT)*r/o.posp.mass
                     * o.posp.explosionInfluence;
         } else {

@@ -194,9 +194,11 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     //from GameEnginePublic
     void signalReadiness() {
         //client signaled readiness
+        assert(false);
     }
     void setGameEngineCalback(GameEngineCallback gec) {
         //TODO!
+        assert(false);
     }
 
     Vector2i worldSize() {
@@ -222,15 +224,6 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     }
 
     package Log mLog;
-
-    //for simplicity of managment, store all animations globally
-    //note that they are also referenced from i.e. spite.d/StaticStateInfo
-    //access using loadAnimations() and findAnimation()
-    private Animation[char[]] mAllLoadedAnimations;
-    private ConfigNode mAllAnimations;
-    //to prevent loading a configfile more than once
-    //this is a hack!
-    private bool[char[]] mLoadedAnimationConfigFiles;
 
     private const cSpaceBelowLevel = 150;
     private const cSpaceAboveOpenLevel = 1000;
@@ -623,10 +616,24 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         return false;
     }
 
-    void explosionAt(Vector2f pos, float damage) {
+    //hack
+    //sry!
+    private void onDamage(Object cause, Object victim, float damage) {
+        auto a = cast(GameObject)cause;
+        auto b = cast(GameObject)victim;
+        if (!a || !b) {
+            mLog("WARNING: unknown damage: %s %s %s", cause, victim, damage);
+        } else {
+            mController.reportViolence(a, b, damage);
+        }
+    }
+
+    void explosionAt(Vector2f pos, float damage, GameObject cause) {
         auto expl = new ExplosiveForce();
         expl.damage = damage;
         expl.pos = pos;
+        expl.onReportApply = &onDamage;
+        expl.cause = cause;
         mGamelevel.damage(toVector2i(pos), cast(int)(expl.radius/2.0f));
         physicworld.add(expl);
     }

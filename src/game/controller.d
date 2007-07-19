@@ -1,5 +1,6 @@
 module game.controller;
 import game.game;
+import game.gobject;
 import game.worm;
 import game.sprite;
 import game.weapon;
@@ -676,6 +677,7 @@ class ServerTeamMember : TeamMember {
         //-> Invert for screen, and add PI/2 if looking left
         info.dir = Vector2f.fromPolar(1.0f, (1-w)*PI/2 - w*worm.weaponAngle);
         info.shootby = worm.physics;
+        info.shootby_object = worm;
         info.strength = shooter.weapon.throwStrength;
         info.timer = shooter.weapon.timerFrom;
         info.pointto = mTeam.currentTarget;
@@ -1178,5 +1180,36 @@ class GameController : GameLogicPublic {
     void selectWeapon(WeaponClass weaponId) {
         if (mCurrentTeam)
             mCurrentTeam.selectWeapon(weaponId);
+    }
+
+    //xxx this should return members for already dead sprites
+    // currently the sprite is cleared out as soon as the worm "really" dies
+    // but reportDamage can still later be called (when the weapon is still
+    // active but the worm i.e. was tossed into the water)
+    ServerTeamMember memberFromGameObject(GameObject go) {
+        //xxx: improve
+        foreach (t; mTeams) {
+            foreach (m; t.mMembers) {
+                if (m.sprite is go)
+                    return m;
+            }
+        }
+        return null;
+    }
+
+    void reportViolence(GameObject cause, GameObject victim, float damage) {
+        assert(!!cause && !!victim);
+        //typically, GameObject is transitively (consider spawning projectiles!)
+        //created by a Worm, and victim is directly a Worm
+        while (cause.createdBy) {
+            cause = cause.createdBy;
+        }
+        auto m1 = memberFromGameObject(cause);
+        auto m2 = memberFromGameObject(victim);
+        if (!m1 || !m2) {
+            mLog("unknown damage %s/%s %s/%s %s", cause, victim, m1, m2, damage);
+        } else {
+            mLog("worm %s injured %s by %s", m1, m2, damage);
+        }
     }
 }
