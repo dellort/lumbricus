@@ -927,6 +927,8 @@ class PhysicWorld {
 
                 if (me.onImpact)
                     me.onImpact(other);
+                if (other.onImpact)
+                    other.onImpact(me);
                 //xxx: also, should it be possible to glue objects here?
             }
         }

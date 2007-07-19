@@ -360,8 +360,8 @@ public class SDLSurface : Surface {
         if (transp == Transparency.AutoDetect) {
             //auto-detect transparency from file
             //32-bit images will be using alpha, all others colorkeying
-            transp = surf.format.BytesPerPixel == 4 ? Transparency.Alpha
-            : Transparency.Colorkey;
+            transp = surf.format.Amask != 0 ? Transparency.Alpha
+                : Transparency.Colorkey;
         }
         initTransp(transp);
     }
