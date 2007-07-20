@@ -1076,6 +1076,7 @@ class GameController : GameLogicPublic {
                     st = RoundState.end;
                     goto again;
                 }
+                mLog("active: %s", next);
 
                 break;
             case RoundState.playing:
@@ -1087,6 +1088,8 @@ class GameController : GameLogicPublic {
                 //no control while blowing up worms
                 if (mCurrentTeam)
                     mCurrentTeam.setOnHold(true);
+                //if it's the round's end, also take control early enough
+                currentTeam = null;
                 break;
             case RoundState.cleaningUp:
                 //see doState()
