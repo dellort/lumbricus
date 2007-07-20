@@ -147,6 +147,7 @@ interface GameEngineCallback {
 enum RoundState {
     prepare,    //player ready
     playing,    //round running
+    waitForSilence, //before entering cleaningUp: wait for no-activity
     cleaningUp, //worms losing hp etc, may occur during round
     nextOnHold, //next round about to start (drop crates, ...)
     end,        //everything ended!
@@ -194,6 +195,12 @@ interface GameLogicPublicCallback {
     ///team is null if for all teams
     ///xxx: does it belong here?
     void gameLogicWeaponListUpdated(Team team);
+
+    ///let the client display a message (like it's done on round's end etc.)
+    ///this is a bit complicated because message shall be translated on the
+    ///client (i.e. one client might prefer Klingon, while the other is used
+    ///to Latin); so msgid and args are passed to the translation functions
+    void gameShowMessage(char[] msgid, char[][] args);
 
     ///you shall update all game stats; these are:
     ///- Healthiness of all teams.

@@ -36,6 +36,10 @@ class GObjectSprite : GameObject {
 
     int param2;
 
+    bool activity() {
+        return active && !physics.isGlued;
+    }
+
     //return animations for states; this can be used to "patch" animations for
     //specific states (used for worm.d/weapons)
     protected AnimationResource getAnimationForState(StaticStateInfo info) {
@@ -234,7 +238,7 @@ class GObjectSprite : GameObject {
         }
     }
 
-    protected this (GameEngine engine, GOSpriteClass type) {
+    protected this(GameEngine engine, GOSpriteClass type) {
         super(engine, false);
 
         assert(type !is null);
@@ -249,7 +253,7 @@ class GObjectSprite : GameObject {
         physics.onImpact = &physImpact;
         physics.onDie = &physDie;
         physics.onTriggerEnter = &physTriggerEnter;
-        physics.onTriggerExit =&physTriggerExit;
+        physics.onTriggerExit = &physTriggerExit;
         engine.physicworld.add(physics);
     }
 }

@@ -3,6 +3,7 @@ module game.special_weapon;
 import game.game;
 import game.weapon;
 import game.gobject;
+import game.sprite;
 import utils.configfile;
 import utils.log;
 
@@ -12,8 +13,8 @@ class SpecialWeapon : WeaponClass {
     }
 
     //using SpecialShooter here leads to dmd lockup (at least with dsss)
-    Shooter createShooter() {
-        return new SpecialShooter(this, engine);
+    Shooter createShooter(GObjectSprite owner) {
+        return new SpecialShooter(this, owner, engine);
     }
 
     static this() {
@@ -22,8 +23,12 @@ class SpecialWeapon : WeaponClass {
 }
 
 private class SpecialShooter : Shooter {
-    this(WeaponClass base, GameEngine engine) {
-        super(base, engine);
+    this(WeaponClass base, GObjectSprite a_owner, GameEngine engine) {
+        super(base, a_owner, engine);
+    }
+
+    bool activity() {
+        return active;
     }
 
     void fire(FireInfo info) {

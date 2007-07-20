@@ -28,6 +28,7 @@ version (MeasureImgLoadTime) {
     import std.perf;
     Time gSummedImageLoadingTime;
     uint gSummedImageLoadingSize;
+    uint gSummedImageLoadingSizeUncompressed;
     uint gSummedImageLoadingCount;
 }
 
@@ -371,9 +372,15 @@ public class SDLSurface : Surface {
             gSummedImageLoadingTime += timeMusecs(counter.microseconds);
             gSummedImageLoadingCount++;
             gSummedImageLoadingSize += st.size;
-            writefln("summed image loading time: %s, img: %s, size: %s",
-                gSummedImageLoadingTime, gSummedImageLoadingCount,
-                gSummedImageLoadingSize);
+            if (surf) {
+                //estimated
+                gSummedImageLoadingSizeUncompressed +=
+                    surf.w*surf.h*surf.format.BytesPerPixel;
+            }
+            writefln("summed image loading time: %s, count: %s, size: %s, "
+                "uncompressed size: %s", gSummedImageLoadingTime,
+                gSummedImageLoadingCount, gSummedImageLoadingSize,
+                gSummedImageLoadingSizeUncompressed);
         }
         if (surf) {
             mReal = surf;

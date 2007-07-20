@@ -12,6 +12,8 @@ import std.conv;
 //    args to strings, I converted it to compile-time varargs (it's called
 //    tuples). So all many functions are templated!
 //    The old version is still in revision 71.
+//xxx after r341, I changed most functions to use a char[][] instead of a tuple
+//    this could make per-param-formatting less easy (i.e. number formatting)
 
 //translator for root locale file (read-only, use accessor method below)
 
@@ -81,17 +83,26 @@ public class Translator {
     ///Translate a text, similar to the _() function.
     ///Warning: doesn't do namespace resolution.
     char[] opCall(T...)(char[] id, T t) {
+        //convert tuple to string array
+        //yes, it's a bit sad; it was soo nice before (r341)
+        char[][] bla;
+        foreach (y; t) {
+            bla ~= format("%s", y);
+        }
+        return translateWithArray(id, bla);
+    }
+
+    char[] translateWithArray(char[] id, char[][] args) {
         int pos = rfind(id, '.');
         if (pos < 0)
             assert(pos == -1);
         ConfigNode subnode;
         if (mNode)
             subnode = mNode.getPath(id[0 .. (pos<0?0:pos)], false);
-        return DoTranslate(subnode, id[pos+1 .. $], t);
+        return DoTranslate(subnode, id[pos+1 .. $], args);
     }
 
-    private char[] DoTranslate(T...)(ConfigNode data, char[] id, T t)
-    {
+    private char[] DoTranslate(ConfigNode data, char[] id, char[][] t) {
         char[] text;
         if (data) {
             text = data.getStringValue(id, "");
@@ -130,19 +141,9 @@ public char[] _(T...)(char[] id, T t) {
     return gLocaleRoot(id, t);
 }
 
-char[] argToString(T...)(int x, T t) {
-    foreach (i, y; t) {
-        if (x == i) {
-            return format("%s", y);
-        }
-    }
-    return "out of bounds";
-}
-
 //possibly replace by tango.text.convert.Layout()
-//uh well, if you want a runtime-version of this
-//(it's compile-time because it's templated)
-private char[] trivialFormat(T...)(char[] text, T t) {
+//this once was generic (using tuples); see above
+private char[] trivialFormat(char[] text, char[][] t) {
     char[] res;
     while (text.length > 0) {
         int start = find(text, '{');
@@ -166,13 +167,13 @@ private char[] trivialFormat(T...)(char[] text, T t) {
                 return "ERROR: invalid argument number: '" ~ formatstr ~ "'.";
             }
 
-	    res ~= argToString(s, t);
+            res ~= t[s];
         } else {
-	    if (res.length == 0) {
-	        res = text;
-	    } else {
+            if (res.length == 0) {
+               res = text;
+            } else {
                 res ~= text;
-	    }
+            }
             text = null;
         }
     }

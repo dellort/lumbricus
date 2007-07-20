@@ -279,8 +279,8 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         return findSpriteClass(name).createSprite();
     }
 
-    Shooter createShooter(char[] weapon_name) {
-        return findWeaponClass(weapon_name).createShooter();
+    Shooter createShooter(char[] weapon_name, GObjectSprite owner) {
+        return findWeaponClass(weapon_name).createShooter(owner);
     }
 
     //currently just worm.conf
@@ -636,5 +636,15 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         expl.cause = cause;
         mGamelevel.damage(toVector2i(pos), cast(int)(expl.radius/2.0f));
         physicworld.add(expl);
+    }
+
+    //determine round-active objects
+    //just another loop over all GameObjects :(
+    bool checkForActivity() {
+        foreach (GameObject o; mObjects) {
+            if (o.activity)
+                return true;
+        }
+        return false;
     }
 }

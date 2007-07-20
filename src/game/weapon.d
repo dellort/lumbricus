@@ -108,13 +108,12 @@ abstract class WeaponClass {
 
     //just a factory
     //users call fire() on them to actually activate them
-    abstract Shooter createShooter();
+    //  go == entity which fires it (its physical properties will be used)
+    abstract Shooter createShooter(GObjectSprite go);
 }
 
 //for Shooter.fire(FireInfo)
 struct FireInfo {
-    PhysicObject shootby; //maybe need shooter position, size and velocity
-    GameObject shootby_object; //for tracking who-shot-which
     Vector2f dir = Vector2f.nan; //normalized throw direction
     float strength = 1.0f; //as allowed in the weapon config
     Time timer;     //selected time, in the range dictated by the weapon
@@ -128,11 +127,13 @@ struct FireInfo {
 //projectiles can work completely independend from this class
 class Shooter : GameObject {
     protected WeaponClass mClass;
+    protected GObjectSprite owner;
 
-    protected this(WeaponClass base, GameEngine engine) {
+    protected this(WeaponClass base, GObjectSprite a_owner, GameEngine engine) {
         super(engine, false);
         assert(base !is null);
         mClass = base;
+        owner = a_owner;
     }
 
     public WeaponClass weapon() {

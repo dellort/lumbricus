@@ -41,6 +41,9 @@ abstract class GameObject {
     protected void updateActive() {
     }
 
+    //return true if its active in the sense of a game-round
+    abstract bool activity();
+
     this(GameEngine aengine, bool start_active = true) {
         assert(aengine !is null);
         mEngine = aengine;

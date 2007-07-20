@@ -214,7 +214,7 @@ class GameView : Container, TeamMemberControlCallback {
             mArrow.remove();
         }
 
-        bool p_active = (mPointedFor is cur);
+        bool p_active = (mPointedFor is cur) && !!cur;
         if (!mPointed.parent && p_active) {
             addChild(mPointed);
         }

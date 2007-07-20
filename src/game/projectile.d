@@ -60,8 +60,8 @@ private class ProjectileWeapon : WeaponClass {
         parseSpawn(onFire, node.getSubNode("onfire"));
     }
 
-    ProjectileThrower createShooter() {
-        return new ProjectileThrower(this, mEngine);
+    ProjectileThrower createShooter(GObjectSprite go) {
+        return new ProjectileThrower(this, go, mEngine);
     }
 
     static this() {
@@ -78,8 +78,8 @@ private class ProjectileThrower : Shooter {
     Time lastSpawn;
     FireInfo fireInfo;
 
-    this(ProjectileWeapon base, GameEngine engine) {
-        super(base, engine);
+    this(ProjectileWeapon base, GObjectSprite a_owner, GameEngine engine) {
+        super(base, a_owner, engine);
         pweapon = base;
     }
 
@@ -94,11 +94,15 @@ private class ProjectileThrower : Shooter {
             lastSpawn = engine.gameTime.current;
 
             auto n = spawnParams.count - (spawnCount + 1); //rgh
-            spawnsprite(engine, n, spawnParams, fireInfo);
+            spawnsprite(engine, n, spawnParams, fireInfo, owner.physics, owner);
         }
         if (spawnCount == 0) {
             active = false;
         }
+    }
+
+    bool activity() {
+        return active; //rly?
     }
 
     void fire(FireInfo info) {
@@ -200,15 +204,14 @@ private class ProjectileSprite : GObjectSprite {
             //whatever seems useful...
             info.dir = physics.velocity.normal;
             info.strength = physics.velocity.length; //xxx confusing units :-)
-            info.shootby = physics;
             info.pointto = target;   //keep target for spawned projectiles
-            info.shootby_object = this;
 
             //xxx: if you want the spawn-delay to be considered, there'd be two
             // ways: create a GameObject which does this (or do it in
             // this.simulate), or use the Shooter class
             for (int n = 0; n < myclass.spawnOnDetonate.count; n++) {
-                spawnsprite(engine, n, *myclass.spawnOnDetonate, info);
+                spawnsprite(engine, n, *myclass.spawnOnDetonate, info, physics,
+                    this);
             }
         }
         //an explosion
@@ -281,14 +284,16 @@ bool parseSpawn(inout SpawnParams params, ConfigNode config) {
 // params = see typeof(params)
 // about = how it was thrown
 // sprite = new projectile sprite, which will be initialized and set active now
+// shootby = maybe need shooter position, size and velocity
+// shootby_object = for tracking who-shot-which
 private void spawnsprite(GameEngine engine, int n, SpawnParams params,
-    FireInfo about)
+    FireInfo about, PhysicObject shootby, GameObject shootby_object)
 {
-    assert(about.shootby !is null);
+    assert(shootby !is null);
     assert(n >= 0 && n < params.count);
 
     GObjectSprite sprite = engine.createSprite(params.projectile);
-    sprite.createdBy = about.shootby_object;
+    sprite.createdBy = shootby_object;
 
     if (!params.keepVelocity) {
         //don't use strength/direction from FireInfo
@@ -298,7 +303,8 @@ private void spawnsprite(GameEngine engine, int n, SpawnParams params,
 
     if (!params.airstrike) {
         //place it
-        float dist = about.shootby.posp.radius + sprite.physics.posp.radius;
+        //1.5 is a fuzzy value to prevent that the objects are "too near"
+        float dist = (shootby.posp.radius + sprite.physics.posp.radius) * 1.5f;
         dist += params.spawndist;
 
         if (params.random) {
@@ -307,7 +313,7 @@ private void spawnsprite(GameEngine engine, int n, SpawnParams params,
             about.dir = about.dir.rotated(theta);
         }
 
-        sprite.setPos(about.shootby.pos + about.dir*dist);
+        sprite.setPos(shootby.pos + about.dir*dist);
     } else {
         Vector2f pos;
         float width = params.spawndist * (params.count-1);
@@ -483,6 +489,8 @@ class ProjectileEffector {
     }
 }
 
+//feature request to d0c: make this derived from GameObject
+//(would be good for having an .activity())
 class ProjectileEffectorClass {
     Time lifetime, delay;
     bool randomDelay;

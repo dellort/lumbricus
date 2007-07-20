@@ -118,6 +118,7 @@ class ServerMemberControl : TeamMemberControl {
         if (m) {
             return m.currentWeapon ? m.currentWeapon.weapon : null;
         }
+        return null;
     }
 
     void weaponSetTimer(Time timer) {
@@ -222,7 +223,10 @@ class ServerTeam : Team {
     int totalHealth() {
         int h;
         foreach (t; mMembers) {
-            h += t.health;
+            //no negative values
+            //(it's sad - but the other team member don't care about the
+            // wounded! it's a cruel game.)
+            h += t.health < 0 ? 0 : t.health;
         }
         return h;
     }
@@ -316,7 +320,7 @@ class ServerTeam : Team {
                 mActive = false;
                 return;
             }
-            parent.messageAdd(_("msgwormstartmove", mCurrent.name));
+            parent.messageAdd("msgwormstartmove", [mCurrent.name]);
             forcedFinish = false;
         } else {
             //deactivating
@@ -501,6 +505,7 @@ class ServerTeamMember : TeamMember {
         //create and place into the landscape
         //habemus lumbricus
         mWorm = cast(WormSprite)mEngine.createSprite("worm");
+        mTeam.parent.addMemberGameObject(this, mWorm);
         assert(mWorm !is null);
         mWorm.physics.lifepower = mTeam.initialPoints;
         lastKnownLifepower = health;
@@ -653,7 +658,7 @@ class ServerTeamMember : TeamMember {
         }*/
         Shooter nshooter;
         if (selected) {
-            nshooter = selected.createShooter();
+            nshooter = selected.createShooter(mWorm);
             mTeam.allowSetPoint = selected.canPoint;
         }
         mWorm.shooter = nshooter;
@@ -676,8 +681,6 @@ class ServerTeamMember : TeamMember {
         //weaponAngle will be -PI/2 - PI/2, -PI/2 meaning down
         //-> Invert for screen, and add PI/2 if looking left
         info.dir = Vector2f.fromPolar(1.0f, (1-w)*PI/2 - w*worm.weaponAngle);
-        info.shootby = worm.physics;
-        info.shootby_object = worm;
         info.strength = shooter.weapon.throwStrength;
         info.timer = shooter.weapon.timerFrom;
         info.pointto = mTeam.currentTarget;
@@ -831,6 +834,8 @@ class GameController : GameLogicPublic {
         ServerTeam mCurrentTeam;
         ServerTeam mLastTeam;
 
+        ServerTeamMember[GameObject] mGameObjectToMember;
+
         //xxx for loading only
         ConfigNode[char[]] mWeaponSets;
 
@@ -841,7 +846,11 @@ class GameController : GameLogicPublic {
         Time mHotseatSwitchTime;
         bool mIsAnythingGoingOn; // (= hack)
 
-        Queue!(char[]) mMessages;
+        struct Message {
+            char[] id;
+            char[][] args;
+        }
+        Queue!(Message) mMessages; //GUI messages which are sent to the clients
         //time between messages, how they are actually displayed
         //is up to the gui
         const cMessageTime = 1.5f;
@@ -877,7 +886,7 @@ class GameController : GameLogicPublic {
         mHotseatSwitchTime = timeSecs(
             config.gamemode.getIntValue("hotseattime",5));
 
-        mMessages = new Queue!(char[]);
+        mMessages = new Queue!(Message);
         mLastMsgTime = timeSecs(-cMessageTime);
     }
 
@@ -937,15 +946,8 @@ class GameController : GameLogicPublic {
         return mEngine;
     }
 
-    void delegate(char[]) messageCb() {
-        return mMessageCb;
-    }
-    void messageCb(void delegate(char[]) cb) {
-        mMessageCb = cb;
-    }
-
-    private void messageAdd(char[] msg) {
-        mMessages.push(msg);
+    private void messageAdd(char[] msg, char[][] args = null) {
+        mMessages.push(Message(msg, args));
     }
 
     private bool messageIsIdle() {
@@ -955,7 +957,7 @@ class GameController : GameLogicPublic {
     void startGame() {
         mIsAnythingGoingOn = true;
         //nothing happening? start a round
-        messageAdd(_("msggamestart"));
+        messageAdd("msggamestart", null);
 
         deactivateAll();
     }
@@ -976,11 +978,11 @@ class GameController : GameLogicPublic {
             //process messages
             if (mLastMsgTime < mEngine.gameTime.current && !mMessages.empty()) {
                 //show one
-                char[] msg = mMessages.pop();
+                Message msg = mMessages.pop();
                 //note that messages will get lost if callback is not set,
                 //this is intended
-                if (mMessageCb)
-                    mMessageCb(msg);
+                if (controlBack)
+                    controlBack.gameShowMessage(msg.id, msg.args);
                 mLastMsgTime = mEngine.gameTime.current;
             }
         }
@@ -1020,18 +1022,24 @@ class GameController : GameLogicPublic {
             case RoundState.playing:
                 mRoundRemaining = mRoundRemaining - deltaT;
                 if (mRoundRemaining < timeMusecs(0))
-                    return RoundState.cleaningUp;
+                    return RoundState.waitForSilence;
                 if (!mCurrentTeam.current)
-                    return RoundState.cleaningUp;
+                    return RoundState.waitForSilence;
                 if (!mCurrentTeam.current.isAlive
                     || mCurrentTeam.current.lifeLost)
+                    return RoundState.waitForSilence;
+                break;
+            case RoundState.waitForSilence:
+                if (!mEngine.checkForActivity) {
+                    //hope the game stays inactive
                     return RoundState.cleaningUp;
+                }
                 break;
             case RoundState.cleaningUp:
                 mRoundRemaining = timeSecs(0);
                 //not yet
                 return checkDyingWorms()
-                    ? RoundState.cleaningUp : RoundState.nextOnHold;
+                    ? RoundState.waitForSilence : RoundState.nextOnHold;
                 break;
             case RoundState.nextOnHold:
                 if (messageIsIdle() && objectsIdle())
@@ -1044,7 +1052,10 @@ class GameController : GameLogicPublic {
     }
 
     private void transition(RoundState st) {
+    again:
         assert(st != mCurrentRoundState);
+        mLog("state transition %s -> %s", cast(int)mCurrentRoundState,
+            cast(int)st);
         mCurrentRoundState = st;
         switch (st) {
             case RoundState.prepare:
@@ -1061,10 +1072,9 @@ class GameController : GameLogicPublic {
                 mLastTeam = next;
                 if (!next) {
                     messageAdd("omg! all dead!");
-                    //sry
-                    //transition(RoundState.end);
-                    mCurrentRoundState = RoundState.end;
-                    goto case RoundState.end;
+                    //very sry
+                    st = RoundState.end;
+                    goto again;
                 }
 
                 break;
@@ -1073,19 +1083,21 @@ class GameController : GameLogicPublic {
                     mCurrentTeam.setOnHold(false);
                 mPrepareRemaining = timeMusecs(0);
                 break;
-            case RoundState.cleaningUp:
+            case RoundState.waitForSilence:
                 //no control while blowing up worms
                 if (mCurrentTeam)
                     mCurrentTeam.setOnHold(true);
+                break;
+            case RoundState.cleaningUp:
                 //see doState()
                 break;
             case RoundState.nextOnHold:
                 currentTeam = null;
-                messageAdd(_("msgnextround"));
+                messageAdd("msgnextround");
                 mRoundRemaining = timeMusecs(0);
                 break;
             case RoundState.end:
-                messageAdd(_("msggameend"));
+                messageAdd("msggameend");
                 currentTeam = null;
                 break;
         }
@@ -1182,19 +1194,18 @@ class GameController : GameLogicPublic {
             mCurrentTeam.selectWeapon(weaponId);
     }
 
-    //xxx this should return members for already dead sprites
-    // currently the sprite is cleared out as soon as the worm "really" dies
-    // but reportDamage can still later be called (when the weapon is still
-    // active but the worm i.e. was tossed into the water)
+    //associate go with member; used i.e. for who-damages-who reporting
+    //NOTE: tracking membership of projectiles generated by worms works slightly
+    //  differently (projectiles form a singly linked list to who fired them)
+    void addMemberGameObject(ServerTeamMember member, GameObject go) {
+        //NOTE: the GameObject stays in this AA for forever
+        //  in some cases, it could be released again (i.e. after a new round
+        //  was started)
+        mGameObjectToMember[go] = member;
+    }
+
     ServerTeamMember memberFromGameObject(GameObject go) {
-        //xxx: improve
-        foreach (t; mTeams) {
-            foreach (m; t.mMembers) {
-                if (m.sprite is go)
-                    return m;
-            }
-        }
-        return null;
+        return aaIfIn(mGameObjectToMember, go);
     }
 
     void reportViolence(GameObject cause, GameObject victim, float damage) {
