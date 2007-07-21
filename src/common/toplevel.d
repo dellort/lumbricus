@@ -30,6 +30,7 @@ import gc = std.gc;
 //note that Widget.zorder can take any value
 enum GUIZOrder : int {
     Gui,
+    Something, //hack for the fade-"overlay"
     Console,
     FPS,
 }
@@ -131,6 +132,8 @@ private:
             ["text:task name (get avilable ones with 'help_spawn')"]);
         globals.cmdLine.registerCommand("kill", &cmdKill, "kill a task by ID",
             ["int:task id"]);
+        globals.cmdLine.registerCommand("terminate", &cmdTerminate,
+            "terminate a task by ID", ["int:task id"]);
         globals.cmdLine.registerCommand("help_spawn", &cmdSpawnHelp,
             "list tasks registered at task factory (use for spawn)");
         globals.cmdLine.registerCommand("grab", &cmdGrab, "-");
@@ -161,17 +164,31 @@ private:
         write.writefln("spawn: instantiated %s -> %s", name, n);
     }
 
-    private void cmdKill(MyBox[] args, Output write) {
+    private Task findTask(MyBox[] args, Output write) {
         int id = args[0].unbox!(int)();
         foreach (Task t; taskManager.taskList) {
             if (id == t.taskID) {
-                write.writefln("killing %s", t);
-                t.kill();
-                write.writefln("kill: done");
-                return;
+                return t;
             }
         }
         write.writefln("Task %d not found.", id);
+    }
+
+    private void cmdKill(MyBox[] args, Output write) {
+        Task t = findTask(args, write);
+        if (t) {
+            write.writefln("killing %s", t);
+            t.kill();
+            write.writefln("kill: done");
+        }
+    }
+
+    private void cmdTerminate(MyBox[] args, Output write) {
+        Task t = findTask(args, write);
+        if (t) {
+            write.writefln("terminating %s", t);
+            t.terminate();
+        }
     }
 
     private void cmdSpawnHelp(MyBox[] args, Output write) {

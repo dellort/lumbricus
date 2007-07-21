@@ -212,8 +212,7 @@ class ServerTeam : Team {
     }
 
     bool alive() {
-        //xxx?
-        assert(false);
+        return isAlive(); //oops
     }
 
     bool active() {
@@ -442,6 +441,12 @@ class ServerTeam : Team {
             }
         }
         return false;
+    }
+
+    void youWinNow() {
+        foreach (m; mMembers) {
+            m.youWinNow();
+        }
     }
 }
 
@@ -753,6 +758,11 @@ class ServerTeamMember : TeamMember {
             //worms are not standing, they are FIGHTING!
             mWorm.drawWeapon(true);
     }
+
+    void youWinNow() {
+        if (mWorm)
+            mWorm.setState(mWorm.findState("win"));
+    }
 }
 
 class WeaponSet {
@@ -839,7 +849,7 @@ class GameController : GameLogicPublic {
         //xxx for loading only
         ConfigNode[char[]] mWeaponSets;
 
-        Time mRoundRemaining, mPrepareRemaining;
+        Time mRoundRemaining, mPrepareRemaining, mWinRemaining;
         //time a round takes
         Time mTimePerRound;
         //extra time before round time to switch seats etc
@@ -1045,6 +1055,11 @@ class GameController : GameLogicPublic {
                 if (messageIsIdle() && objectsIdle())
                     return RoundState.prepare;
                 break;
+            case RoundState.winning:
+                mWinRemaining -= deltaT;
+                if (mWinRemaining < timeMusecs(0))
+                    return RoundState.end;
+                break;
             case RoundState.end:
                 break;
         }
@@ -1068,14 +1083,31 @@ class GameController : GameLogicPublic {
                         return t.isAlive();
                     }
                 );
-                currentTeam = next;
-                mLastTeam = next;
-                if (!next) {
-                    messageAdd("omg! all dead!");
+                currentTeam = null;
+
+                //check if at least two teams are alive
+                int aliveTeams;
+                foreach (t; mTeams) {
+                    aliveTeams += t.isAlive() ? 1 : 0;
+                }
+
+                assert((aliveTeams == 0) != !!next); //no teams, no next
+
+                if (aliveTeams < 2) {
+                    if (aliveTeams == 0) {
+                        messageAdd("msgnowin");
+                        st = RoundState.end;
+                    } else {
+                        next.youWinNow();
+                        messageAdd("msgwin", [next.name]);
+                        st = RoundState.winning;
+                    }
                     //very sry
-                    st = RoundState.end;
                     goto again;
                 }
+
+                mLastTeam = next;
+                currentTeam = next;
                 mLog("active: %s", next);
 
                 break;
@@ -1098,6 +1130,10 @@ class GameController : GameLogicPublic {
                 currentTeam = null;
                 messageAdd("msgnextround");
                 mRoundRemaining = timeMusecs(0);
+                break;
+            case RoundState.winning:
+                //how long winning animation is showed
+                mWinRemaining = timeSecs(5);
                 break;
             case RoundState.end:
                 messageAdd("msggameend");

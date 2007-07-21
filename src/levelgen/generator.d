@@ -521,6 +521,7 @@ public class LevelGenerator {
         auto rend = new LevelBitmap(image);
         //we still definitely need these for various stuff
         auto templ = findRandomTemplate();
+        //xxx loads many graphics for nothing in this case
         auto theme = findRandomGfx(gfx);
         return doCreateLevel(rend, templ, theme);
     }

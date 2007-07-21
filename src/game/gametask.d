@@ -12,6 +12,7 @@ import game.loader;
 import game.gamepublic;
 import game.gui.gameview;
 import game.game;
+import gui.widget;
 import levelgen.level;
 import levelgen.generator;
 import utils.mybox;
@@ -28,6 +29,24 @@ import std.outbuffer;
 import game.projectile;
 import game.special_weapon;
 
+//for fading in/out
+private class OverlayWidget : Widget {
+    Color color;
+    bool enableAlpha;
+
+    this() {
+        zorder = 2;
+    }
+
+    override protected void onDraw(Canvas c) {
+        c.drawFilledRect(Vector2i(0), size, color, enableAlpha);
+    }
+
+    Vector2i layoutSizeRequest() {
+        return Vector2i(0);
+    }
+}
+
 class GameTask : Task {
     private {
         GameConfig mGameConfig;
@@ -42,6 +61,12 @@ class GameTask : Task {
         Loader mGameLoader;
 
         CommandBucket mCmds;
+
+        OverlayWidget mFadeOut;
+        const Color cFadeStart = {0,0,0,0};
+        const Color cFadeEnd = {0,0,0,1};
+        const cFadeDurationMs = 3000;
+        Time mFadeStartTime;
     }
 
     //just for the paused-command?
@@ -143,6 +168,30 @@ class GameTask : Task {
         mWindow.remove(); //from GUI
     }
 
+    override void terminate() {
+        if (!mFadeOut) {
+            mFadeOut = new OverlayWidget();
+            mFadeOut.color = cFadeStart;
+            mFadeOut.enableAlpha = true;
+            manager.guiMain.mainFrame.add(mFadeOut);
+            mFadeStartTime = timeCurrentTime;
+        }
+    }
+
+    private void doFade() {
+        if (!mFadeOut)
+            return;
+        int mstime = (timeCurrentTime - mFadeStartTime).msecs;
+        if (mstime > cFadeDurationMs) {
+            //end of fade
+            mFadeOut.remove();
+            kill();
+        } else {
+            float scale = 1.0f*mstime/cFadeDurationMs;
+            mFadeOut.color = cFadeStart + (cFadeEnd - cFadeStart) * scale;
+        }
+    }
+
     override protected void onFrame() {
         if (mGameLoader.fullyLoaded) {
             if (mServerEngine) {
@@ -151,6 +200,10 @@ class GameTask : Task {
 
             if (mClientEngine) {
                 mClientEngine.doFrame();
+
+                //maybe
+                if (mClientEngine.gameEnded)
+                    terminate();
             }
         }
 
@@ -158,6 +211,9 @@ class GameTask : Task {
             //xxx can't deactivate this from delegate because it would crash
             //the list
             mLoadScreen.remove();
+
+        //he-he
+        doFade();
     }
 
     //game specific commands
@@ -266,7 +322,8 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
             cfg.level = generateAndSaveLevel(x, templ, null, gfx);
         } else if (what == 2) {
             auto bmp = globals.loadGraphic(mConfig["level_load_bitmap"]);
-            cfg.level = x.generateFromImage(bmp, false, "");
+            auto gfx = mConfig["level_gfx"];
+            cfg.level = x.generateFromImage(bmp, false, gfx);
         } else {
             //wrong string in configfile or internal error
             throw new Exception("noes noes noes!");

@@ -1,10 +1,11 @@
 module common.task;
 import gui.gui;
 import utils.factory;
+import utils.log;
 
 /// something which can get created, listed, and destroyed
 /// it can add commands and GUI elements to the program
-/// it
+/// it doesn't have anything to do with real processes or threads
 class Task {
     private {
         TaskManager mManager;
@@ -77,12 +78,14 @@ class TaskManager {
         Task[int] mTaskList;
         int mTaskIDAlloc;
         GuiMain mGui;
+        Log mLog;
     }
 
     //take the almighty gui singleton and claims almost complete control over it
     this(GuiMain thegui) {
         assert(thegui !is null);
         mGui = thegui;
+        mLog = registerLog("taskmanager");
     }
 
     GuiMain guiMain() {
@@ -96,11 +99,13 @@ class TaskManager {
         mTaskList[id] = task;
         task.mManager = this;
         task.mTaskID = id;
+        mLog("task created: %s", task.mTaskID);
     }
 
     //called by Task.kill() only
     private void killTask(Task task) {
         mTaskList.remove(task.mTaskID);
+        mLog("task killed: %s", task.mTaskID);
     }
 
     //called from TopLevel on each frame

@@ -188,6 +188,10 @@ class ClientGameEngine {
         mEngineTime = new TimeSource(&gFramework.getCurrentTime);
     }
 
+    bool gameEnded() {
+        return mEngine.logic.currentRoundState == RoundState.end;
+    }
+
     TimeSourcePublic engineTime() {
         return mEngineTime;
     }

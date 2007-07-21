@@ -190,7 +190,7 @@ class GObjectSprite : GameObject {
         if (currentState is nstate)
             return;
 
-        if (currentState.noleave)
+        if (currentState.noleave && nstate !is currentState.onAnimationEnd)
             return;
 
         engine.mLog("state %s -> %s", currentState.name, nstate.name);
@@ -267,7 +267,7 @@ class StaticStateInfo {
 
     //automatic transition to this state if animation finished
     StaticStateInfo onAnimationEnd;
-    bool noleave; //don't leave this state
+    bool noleave; //don't leave this state (explictly excludes onAnimationEnd)
 
     AnimationResource animation;
 }

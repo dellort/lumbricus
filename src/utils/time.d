@@ -29,6 +29,9 @@ public struct Time {
     public Time opSub(Time t2) {
         return Time(timeVal - t2.timeVal);
     }
+    public void opSubAssign(Time t2) {
+        timeVal -= t2.timeVal;
+    }
 
     ///divide Time value by constant (int)
     public Time opMul(int i) {

@@ -67,6 +67,13 @@ public struct Color {
         r = r*m;
         g = g*m;
         b = b*m;
+        a = a*m;
+    }
+    Color opAdd(Color c2) {
+        return Color(r+c2.r,g+c2.g,b+c2.g,a+c2.a);
+    }
+    Color opSub(Color c2) {
+        return Color(r-c2.r,g-c2.g,b-c2.g,a-c2.a);
     }
 }
 
