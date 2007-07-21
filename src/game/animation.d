@@ -839,5 +839,6 @@ protected class AnimationResource : ResourceBase!(Animation) {
 
     static this() {
         ResFactory.register!(typeof(this))("animations");
+        setResourceNamespace!(typeof(this))("animation");
     }
 }

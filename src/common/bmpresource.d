@@ -29,6 +29,7 @@ protected class BitmapResourceProcessed : BitmapResource {
 
     static this() {
         ResFactory.register!(typeof(this))("bitmaps_processed");
+        setResourceNamespace!(typeof(this))("bitmap");
     }
 }
 
@@ -61,5 +62,6 @@ protected class BitmapResource : ResourceBase!(Surface) {
 
     static this() {
         ResFactory.register!(typeof(this))("bitmaps");
+        setResourceNamespace!(typeof(this))("bitmap");
     }
 }

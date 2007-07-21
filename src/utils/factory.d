@@ -56,6 +56,7 @@ class Factory(T, ConstructorArgs...) {
 static class StaticFactory(T, ConstructorArgs...) {
     alias T delegate(ConstructorArgs) constructorCallback;
     private static constructorCallback[char[]] mConstructors;
+    private static char[][TypeInfo] mInverseLookup;
 
     //can't be named register(), because... hm? DMD is just borken.
     static void registerByDelegate(char[] name, constructorCallback create) {
@@ -76,6 +77,7 @@ static class StaticFactory(T, ConstructorArgs...) {
         }
 
         registerByDelegate(name, &inst);
+        mInverseLookup[typeid(X)] = name;
     }
 
     //register using the unqualified class name
@@ -94,6 +96,10 @@ static class StaticFactory(T, ConstructorArgs...) {
 
     static char[][] classes() {
         return mConstructors.keys;
+    }
+
+    static char[] lookup(X : T)() {
+        return mInverseLookup[typeid(X)];
     }
 }
 

@@ -55,6 +55,7 @@
 		<Unit filename="common\common.d" />
 		<Unit filename="common\resources.d" />
 		<Unit filename="common\scene.d" />
+		<Unit filename="common\soundresource.d" />
 		<Unit filename="common\toplevel.d" />
 		<Unit filename="common\visual.d" />
 		<Unit filename="derelict\enet\enet.d" />
@@ -71,6 +72,8 @@
 		<Unit filename="framework\sdl\fwgl.d" />
 		<Unit filename="framework\sdl\keys.d" />
 		<Unit filename="framework\sdl\rwops.d" />
+		<Unit filename="framework\sdl\soundmixer.d" />
+		<Unit filename="framework\sound.d" />
 		<Unit filename="framework\timesource.d" />
 		<Unit filename="game\animation.d" />
 		<Unit filename="game\clientengine.d" />

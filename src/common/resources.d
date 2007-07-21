@@ -10,6 +10,8 @@ import utils.output;
 import utils.misc;
 import utils.factory;
 
+private char[][char[]] gNamespaceMap;
+
 ///base template for any resource that is held ready for being loaded
 ///resources are loaded on the first call to get(), not when loading them from
 ///file
@@ -80,6 +82,10 @@ protected class Resource {
     {
         mParent.createResource(type,it,allowFail,id);
     }
+
+    protected static void setResourceNamespace(T : Resource)(char[] id) {
+        gNamespaceMap[ResFactory.lookup!(T)()] = id;
+    }
 }
 
 private class ResourceBase(T) : Resource {
@@ -119,6 +125,12 @@ public class Resources {
         return ++mCurUid;
     }
 
+    private char[] addNSPrefix(char[] type, char[] resId) {
+        assert(type in gNamespaceMap, "'" ~ type ~ "' needs a namespace, set with "
+            ~ "setResourceNamespace()");
+        return gNamespaceMap[type] ~ "_" ~ resId;
+    }
+
     //Create a resource directly from a configitem, knowing the
     //resource type identifier
     //This is an internal method and should only used from this class
@@ -131,10 +143,10 @@ public class Resources {
         if (!n)
             n = it.parent;
         if (id.length == 0)
-            id = n.filePath~it.name;
+            id = n.filePath ~ it.name;
         if (!(id in mResources)) {
             Resource r = ResFactory.instantiate(type,this,id,it);
-            mResources[id] = r;
+            mResources[addNSPrefix(type,id)] = r;
         }
     }
 
@@ -149,7 +161,7 @@ public class Resources {
             ConfigValue v = new ConfigValue;
             v.value = filename;
             Resource r = new T(this,id,v);
-            mResources[id] = r;
+            mResources[addNSPrefix(ResFactory.lookup!(T)(),id)] = r;
         }
         if (markDirty)
             return resource!(T)(id,allowFail);
@@ -162,14 +174,15 @@ public class Resources {
     public T resource(T)(char[] id, bool allowFail = false, bool doref = true) {
         T ret = doFindResource!(T)(id, allowFail);
         if (doref) {
-            mResourceRefs[ret.id] = true;
+            mResourceRefs[addNSPrefix(ResFactory.lookup!(T)(),ret.id)] = true;
         }
         return ret;
     }
 
     private T doFindResource(T)(char[] id, bool allowFail = false) {
         assert(id != "","called resource() with empty id");
-        Resource* r = id in mResources;
+        char[] internalId = addNSPrefix(ResFactory.lookup!(T)(),id);
+        Resource* r = internalId in mResources;
         if (!r) {
             char[] errMsg = "Resource "~id~" not defined";
             log(errMsg);

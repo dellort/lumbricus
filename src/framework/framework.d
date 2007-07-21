@@ -3,6 +3,7 @@ module framework.framework;
 import std.stream;
 public import utils.vector2;
 public import framework.event;
+public import framework.sound;
 import utils.time;
 import framework.font;
 import conv = std.conv;
@@ -426,6 +427,8 @@ public class Framework {
     public FileSystem fs() {
         return mFilesystem;
     }
+
+    public abstract Sound sound();
 
     /// Main-Loop
     public void run() {

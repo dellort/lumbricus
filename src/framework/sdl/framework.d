@@ -8,6 +8,7 @@ import std.stdio;
 import std.string;
 import utils.vector2;
 import framework.sdl.rwops;
+import framework.sdl.soundmixer;
 import derelict.sdl.sdl;
 import derelict.sdl.image;
 import derelict.sdl.ttf;
@@ -819,6 +820,8 @@ public class FrameworkSDL : Framework {
 
     private Texture[int] mInsanityCache;
 
+    private SoundMixer mSoundMixer;
+
     //return a surface with unspecified size containing this color
     //(used for drawing alpha blended rectangles)
     private Texture insanityCache(Color c) {
@@ -850,7 +853,7 @@ public class FrameworkSDL : Framework {
         DerelictSDLImage.load();
         DerelictSDLttf.load();
 
-        if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        if (SDL_Init(SDL_INIT_VIDEO || SDL_INIT_AUDIO) < 0) {
             throw new Exception(format("Could not init SDL: %s",
                 std.string.toString(SDL_GetError())));
         }
@@ -867,6 +870,8 @@ public class FrameworkSDL : Framework {
         mScreenSurface = new SDLSurface(null);
         //mScreenSurface.mIsScreen = true;
         //mScreenSurface.mNeverCache = true;
+
+        mSoundMixer = new SoundMixer();
 
         //Initialize translation hashmap from array
         foreach (SDLToKeycode item; g_sdl_to_code) {
@@ -979,6 +984,10 @@ public class FrameworkSDL : Framework {
 
     public Surface screen() {
         return mScreenSurface;
+    }
+
+    public Sound sound() {
+        return mSoundMixer;
     }
 
     protected void run_fw() {
