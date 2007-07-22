@@ -453,6 +453,10 @@ public class Framework {
 
             mFPSFrameCount++;
         }
+
+        //make sure to release the grab
+        //at least stupid X11 keeps the grab when the program ends
+        grabInput = false;
     }
 
     public abstract void sleepTime(Time relative);
@@ -571,8 +575,9 @@ public class Framework {
             //}
             if (onKeyDown && mEnableEvents) {
                 bool handle = onKeyDown(infos);
+                /* commented out, doesn't seem logical
                 if (!handle)
-                    return;
+                    return;*/
             }
         }
 

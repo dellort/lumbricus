@@ -182,11 +182,6 @@ class WeaponSelWindow : Container {
         mGridContainer.add(mGrid);
     }
 
-    override void onDraw(Canvas c) {
-        drawBox(c, Vector2i(0), size, 1, 8, Color(0.7,0.7,0.7));
-        super.onDraw(c);
-    }
-
     this() {
         //meh how stupid
         auto conf = globals.loadConfig("wsel").getSubNode("categories");
@@ -214,5 +209,10 @@ class WeaponSelWindow : Container {
 
         addChild(all);
         setChildLayout(all, WidgetLayout.Border(Vector2i(6)));
+
+        BoxProperties boxy;
+        boxy.back = Color(0.7,0.7,0.7);
+        drawBoxStyle = boxy;
+        drawBox = true;
     }
 }

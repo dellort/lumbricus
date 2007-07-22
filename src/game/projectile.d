@@ -151,6 +151,13 @@ private class ProjectileSprite : GObjectSprite {
         }
     }
 
+    override bool activity() {
+        //most weapons are always "active", so the exceptions have to
+        //explicitely specify when they're actually "inactive"
+        //this includes non-exploding mines
+        return active && !(physics.isGlued && myclass.inactiveWhenGlued);
+    }
+
     override void simulate(float deltaT) {
         super.simulate(deltaT);
 
@@ -356,6 +363,9 @@ class ProjectileSpriteClass : GOSpriteClass {
     Time fixedDetonateTime;
     Time minimumGluedTime;
 
+    //when glued, consider it as inactive (so next round can start); i.e. mines
+    bool inactiveWhenGlued;
+
     //non-null if to spawn anything on death
     SpawnParams* spawnOnDetonate;
     ProjectileEffectorClass[] effects;
@@ -387,6 +397,8 @@ class ProjectileSpriteClass : GOSpriteClass {
                     timeSecs(detonatereason.getFloatValue("lifetime"));
             }
         }
+
+        inactiveWhenGlued = config.getBoolValue("inactive_when_glued");
 
         auto effectsNode = config.getSubNode("effects");
         foreach (ConfigNode n; effectsNode) {

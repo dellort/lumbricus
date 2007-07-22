@@ -13,7 +13,7 @@ import std.stream : File, FileMode;
 import gui.test; //GUI test code
 import game.gametask; //the game itself
 import game.gui.preview; //level preview window
-//import game.gui.leveledit; //aw
+import game.gui.leveledit; //aw
 import game.wtris; //lol
 
 const char[] APP_ID = "lumbricus";

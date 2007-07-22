@@ -1,4 +1,6 @@
 module gui.container;
+
+static import common.visual;
 import framework.framework : Canvas;
 import gui.widget;
 import gui.gui;
@@ -45,6 +47,9 @@ class Container : Widget {
         Vector2i mInternalBorder;
     }
 
+    common.visual.BoxProperties drawBoxStyle;
+    bool drawBox = false;
+
     // --- insertion/deletion including zorder-stuff
 
     /// Add sub GUI element
@@ -58,6 +63,8 @@ class Container : Widget {
         mWidgets ~= o;
         mZWidgets ~= ZWidget(o);
         updateZOrder(o);
+
+        onAddChild(o);
 
         if (o.greedyFocus && o.canHaveFocus)
             o.claimFocus();
@@ -78,6 +85,8 @@ class Container : Widget {
         arrayRemove(mZWidgets, ZWidget(o));
         o.mParent = null;
 
+        onRemoveChild(o);
+
         //gDefaultLog("removed %s from %s", o, this);
 
         if (o is mFocus) {
@@ -88,6 +97,8 @@ class Container : Widget {
             //that's just kind and friendly?
             o.pollFocusState();
         }
+
+        needRelayout();
     }
 
     //work around protection...
@@ -96,6 +107,13 @@ class Container : Widget {
     }
     package void doSetChildToFront(Widget o) {
         setChildToFront(o);
+    }
+
+    //called after child has been added/removed, and before relayouting etc.
+    //is done -- might be very fragile
+    protected void onAddChild(Widget c) {
+    }
+    protected void onRemoveChild(Widget c) {
     }
 
     private void updateZOrder(Widget child) {
@@ -394,6 +412,16 @@ class Container : Widget {
         return got_it !is null;
     }
 
+    // --- all the rest
+
+    void internalBorder(Vector2i b) {
+        mInternalBorder = b;
+        needRelayout();
+    }
+    Vector2i internalBorder() {
+        return mInternalBorder;
+    }
+
     override void internalSimulate(Time curTime, Time deltaT) {
         foreach (obj; mWidgets) {
             obj.internalSimulate(curTime, deltaT);
@@ -402,6 +430,9 @@ class Container : Widget {
     }
 
     override protected void onDraw(Canvas c) {
+        if (drawBox) {
+            common.visual.drawBox(c, widgetBounds, drawBoxStyle);
+        }
         foreach (obj; mZWidgets) {
             obj.w.doDraw(c);
         }
@@ -432,8 +463,7 @@ class SimpleContainer : PublicContainer {
 
     /// Add and set layout.
     void add(Widget obj, WidgetLayout layout) {
-        //xxx maybe do sth. like freezeLayout()
-        addChild(obj);
         setChildLayout(obj, layout);
+        addChild(obj);
     }
 }

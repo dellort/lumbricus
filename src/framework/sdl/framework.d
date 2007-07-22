@@ -16,6 +16,7 @@ import framework.sdl.keys;
 import math = std.math;
 import utils.time;
 import utils.drawing;
+import utils.misc : min, max;
 
 private static FrameworkSDL gFrameworkSDL;
 
@@ -525,10 +526,26 @@ public class SDLCanvas : Canvas {
     }
 
     public void setWindow(Vector2i p1, Vector2i p2) {
-        clip(p1, p2);
+        addclip(p1, p2);
         mTrans = p1 + mTrans;
         mClientStart = p1 + mTrans;
         mClientSize = p2 - p1;
+    }
+
+    //xxx: unify with clip(), or whatever, ..., etc.
+    //oh, and this is actually needed in only a _very_ few places (scrolling)
+    private void addclip(Vector2i p1, Vector2i p2) {
+        p1 += mTrans; p2 += mTrans;
+        SDL_Rect rc;
+        SDL_GetClipRect(sdlsurface.mReal, &rc);
+        //common rect of old cliprect and (p1,p2)
+        rc.w += rc.x; rc.h += rc.y; //make w/h to x2/y2
+        rc.x = max!(int)(rc.x, p1.x);
+        rc.y = max!(int)(rc.y, p1.y);
+        rc.w = min!(int)(rc.w, p2.x);
+        rc.h = min!(int)(rc.h, p2.y);
+        rc.w -= rc.x; rc.h -= rc.y;
+        SDL_SetClipRect(sdlsurface.mReal, &rc);
     }
 
     public void clip(Vector2i p1, Vector2i p2) {
@@ -853,7 +870,7 @@ public class FrameworkSDL : Framework {
         DerelictSDLImage.load();
         DerelictSDLttf.load();
 
-        if (SDL_Init(SDL_INIT_VIDEO || SDL_INIT_AUDIO) < 0) {
+        if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
             throw new Exception(format("Could not init SDL: %s",
                 std.string.toString(SDL_GetError())));
         }

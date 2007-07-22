@@ -141,6 +141,9 @@ public struct Vector2(T) {
     public Vector2 max(Vector2 other) {
         return Vector2(x>other.x ? x : other.x, y>other.y ? y : other.y);
     }
+    public Vector2 min(Vector2 other) {
+        return Vector2(x<other.x ? x : other.x, y<other.y ? y : other.y);
+    }
 
     public void length(T new_length) {
         //xxx might be numerically stupid (especially with integers...)

@@ -12,6 +12,7 @@ import gui.tablecontainer;
 import gui.widget;
 import gui.messageviewer;
 import gui.mousescroller;
+import game.gui.camera;
 import game.gui.loadingscreen;
 import game.gui.gameteams;
 import game.gui.gametimer;
@@ -41,6 +42,8 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
     private TeamWindow mTeamWindow;
 
     private MessageViewer mMessageViewer;
+
+    private Camera mCamera;
 
     //xxx this be awful hack
     void gameLogicRoundTimeUpdate(Time t, bool timePaused) {
@@ -83,8 +86,12 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
 
     //scroll to level center
     void scrollToCenter() {
-        mScroller.scrollCenterOn(clientengine.engine.gamelevel.offset
-            + clientengine.engine.gamelevel.size/2, true);
+        mScroller.offset = mScroller.centeredOffset(clientengine.engine
+            .gamelevel.offset + clientengine.engine.gamelevel.size/2);
+    }
+
+    override protected void simulate(Time, Time) {
+        mCamera.doFrame();
     }
 
     this(ClientGameEngine ce) {
@@ -109,7 +116,9 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
         mMessageViewer = new MessageViewer();
         mGui.add(mMessageViewer);
 
-        gameView = new GameView(clientengine);
+        mCamera = new Camera();
+
+        gameView = new GameView(clientengine, mCamera);
         gameView.onTeamChange = &teamChanged;
         gameView.bindings = wormbinds;
 
@@ -118,6 +127,8 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
         mScroller.zorder = -1; //don't hide the game GUI
         add(mScroller);
         add(mGui);
+
+        mCamera.control = mScroller;
 
         mWeaponSel = new WeaponSelWindow();
         mWeaponSel.onSelectWeapon = &selectWeapon;

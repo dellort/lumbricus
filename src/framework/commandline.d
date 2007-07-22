@@ -25,6 +25,7 @@ static this() {
     gCommandLineParsers["int"] = gBoxParsers[typeid(int)];
     gCommandLineParsers["float"] = gBoxParsers[typeid(float)];
     gCommandLineParsers["color"] = gBoxParsers[typeid(Color)];
+    gCommandLineParsers["bool"] = gBoxParsers[typeid(bool)];
 }
 
 //store stuff about a command

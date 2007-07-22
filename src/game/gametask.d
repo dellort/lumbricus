@@ -12,6 +12,8 @@ import game.loader;
 import game.gamepublic;
 import game.gui.gameview;
 import game.game;
+import game.sprite;
+import game.crate;
 import gui.widget;
 import levelgen.level;
 import levelgen.generator;
@@ -29,24 +31,6 @@ import std.outbuffer;
 import game.projectile;
 import game.special_weapon;
 
-//for fading in/out
-private class OverlayWidget : Widget {
-    Color color;
-    bool enableAlpha;
-
-    this() {
-        zorder = 2;
-    }
-
-    override protected void onDraw(Canvas c) {
-        c.drawFilledRect(Vector2i(0), size, color, enableAlpha);
-    }
-
-    Vector2i layoutSizeRequest() {
-        return Vector2i(0);
-    }
-}
-
 class GameTask : Task {
     private {
         GameConfig mGameConfig;
@@ -62,7 +46,7 @@ class GameTask : Task {
 
         CommandBucket mCmds;
 
-        OverlayWidget mFadeOut;
+        Spacer mFadeOut;
         const Color cFadeStart = {0,0,0,0};
         const Color cFadeEnd = {0,0,0,1};
         const cFadeDurationMs = 3000;
@@ -170,7 +154,7 @@ class GameTask : Task {
 
     override void terminate() {
         if (!mFadeOut) {
-            mFadeOut = new OverlayWidget();
+            mFadeOut = new Spacer();
             mFadeOut.color = cFadeStart;
             mFadeOut.enableAlpha = true;
             manager.guiMain.mainFrame.add(mFadeOut);
@@ -234,6 +218,7 @@ class GameTask : Task {
             "Debug: Select a weapon by id", ["text:Weapon ID"]));
         mCmds.register(Command("saveleveltga", &cmdSafeLevelTGA, "dump TGA",
             ["text:filename"]));
+        mCmds.register(Command("crate_test", &cmdCrateTest, "drop a crate"));
     }
 
     private void cmdSafeLevelTGA(MyBox[] args, Output write) {
@@ -291,6 +276,25 @@ class GameTask : Task {
     private void cmdPause(MyBox[], Output) {
         gamePaused = !gamePaused;
         globals.gameTimeAnimations.paused = !globals.gameTimeAnimations.paused;
+    }
+
+    private void cmdCrateTest(MyBox[] args, Output write) {
+        Vector2f from, to;
+        float water = mServerEngine.waterOffset - 10;
+        if (!mServerEngine.placeObject(water, 10, from, to, 5)) {
+            write.writefln("couldn't find a safe drop-position");
+            return;
+        }
+        GObjectSprite s = mServerEngine.createSprite("crate");
+        CrateSprite crate = cast(CrateSprite)s;
+        assert(!!crate);
+        //put stuffies into it
+        Object esel = mServerEngine.findWeaponClass("esel");
+        crate.stuffies = [esel, esel];
+        //actually start it
+        crate.setPos(from);
+        crate.active = true;
+        write.writefln("drop %s -> %s", from, to);
     }
 
     static this() {

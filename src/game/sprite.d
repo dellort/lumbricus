@@ -340,7 +340,9 @@ class GOSpriteClass {
                 initState = ssi;
 
             //physic stuff, already loaded physic-types are not cached
-            auto phys = config.getSubNode("physics").findNode(sc["physic"]);
+            //NOTE: if no "physic" value given, use state-name for physics
+            auto phys = config.getSubNode("physics").findNode(sc.getStringValue(
+                "physic", ssi.name));
             assert(phys !is null); //xxx better error handling :-)
             ssi.physic_properties.loadFromConfig(phys);
 

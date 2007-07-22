@@ -538,3 +538,30 @@ class Widget {
         }
     }
 }
+
+//just a trivial Widget: have a minimum size and draw a color on its background
+class Spacer : Widget {
+    Color color = {1.0f,0,0};
+    bool enableAlpha;
+    bool drawBackground = true;
+
+    private Vector2i mMinSize;
+
+    void minSize(Vector2i s) {
+        mMinSize = s;
+        needResize(true);
+    }
+    Vector2i minSize() {
+        return mMinSize;
+    }
+
+    override protected void onDraw(Canvas c) {
+        if (drawBackground) {
+            c.drawFilledRect(Vector2i(0), size, color, enableAlpha);
+        }
+    }
+
+    Vector2i layoutSizeRequest() {
+        return mMinSize;
+    }
+}

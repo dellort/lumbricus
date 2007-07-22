@@ -12,12 +12,17 @@ import common.common;
 import common.task;
 import gui.widget;
 import gui.container;
+import gui.button;
+import gui.boxcontainer;
+import gui.mousescroller;
 import utils.log;
 import utils.configfile;
 import levelgen.level;
 import levelgen.generator;
 import std.string : format;
 import utils.output;
+
+import std.bind;
 
 private:
 
@@ -201,7 +206,9 @@ class EditObject {
     void draw(Canvas canvas) {
         //by default, draw the bounding box, then all subobjects
         auto c = isHighlighted ? Color(1,1,1,0.4) : Color(1,1,1,0.2);
-        canvas.drawFilledRect(bounds.p1, bounds.p2, c, true);
+        if (cast(EditRoot)this is null) {
+            canvas.drawFilledRect(bounds.p1, bounds.p2, c, true);
+        }
         foreach (o; subObjects) {
             o.draw(canvas);
         }
@@ -470,6 +477,8 @@ public class LevelEditor : Task {
 
     Texture mPreviewImage;
 
+    Widget mContainer;
+
     //current rectangle-selection mode
     //(what to do if the user draws this rect)
     //if null, just try to select stuff
@@ -498,6 +507,14 @@ public class LevelEditor : Task {
         }
         override bool greedyFocus() {
             return true;
+        }
+
+        Vector2i layoutSizeRequest() {
+            //this is considered to be the default & maximum size of a level
+            //xxx should return root.bounds.p2 instead; currently not done
+            // because there's no mouse-capture, and so mouse events outside
+            // the Widget are always lost
+            return Vector2i(2000, 700);
         }
 
         bool onKeyDown(char[] bind, KeyInfo infos) {
@@ -529,21 +546,6 @@ public class LevelEditor : Task {
         }
 
         bool onKeyPress(char[] bind, KeyInfo infos) {
-            if (infos.code == Keycode.N)
-                insertPoint();
-            if (infos.code == Keycode.C) {
-                foreachSelected(false,
-                    (EditObject obj) {
-                        if (cast(EditPLine)obj) {
-                            auto line = cast(EditPLine)obj;
-                            line.noChange = !line.noChange;
-                        }
-                    }
-                );
-            }
-            if (infos.code == Keycode.P) {
-                onSelect = &newPolyAt;
-            }
             return false;
         }
 
@@ -701,8 +703,6 @@ public class LevelEditor : Task {
         root = new EditRoot();
         render = new RenderEditor(this);
 
-        //render.bounds = Rect2i(0, 0, 2000, 700);
-
         newPolyAt(Rect2i(100, 100, 500, 500));
 
         commands = new typeof(commands);
@@ -710,10 +710,48 @@ public class LevelEditor : Task {
         commands.register(Command("save", &cmdSave, "save edit level"));
         commands.bind(globals.cmdLine);
 
-        manager.guiMain.mainFrame.add(render);
+        createGui();
+    }
+
+    void createGui() {
+        auto container = new BoxContainer(true, false, 10);
+        auto scroller = new MouseScroller();
+        scroller.add(render);
+        container.add(scroller);
+        auto spacer = new Spacer();
+        spacer.minSize = Vector2i(4, 0);
+        spacer.color = Color(1,1,1);
+        container.add(spacer, WidgetLayout.Expand(false));
+        auto foo = new SimpleContainer();
+        foo.drawBox = true;
+        foo.internalBorder = Vector2i(6);
+        auto sidebar = new BoxContainer(false,false,6);
+        foo.add(sidebar, WidgetLayout.Aligned(0, 0));
+        container.add(foo, WidgetLayout.Aligned(0, 0));
+
+        //NOTE: indirection through bind is done because using the this-ptr
+        // directly would reference the stack, which is invalid when called
+
+        alias typeof(this) Me;
+
+        void addButton(char[] title, void delegate(Button, Me) onclick) {
+            auto b = new Button();
+            b.text = title;
+            b.onClick = bind(onclick, _0, this).ptr;
+            sidebar.add(b);
+        }
+
+        addButton("Preview", (Button, Me me) {me.genPreview;});
+        addButton("Insert Point", (Button, Me me) {me.insertPoint;});
+        addButton("Toggle 'nochange'", (Button, Me me) {me.toggleNochange;});
+        addButton("New Polygon'", (Button, Me me) {me.setNewPolygon;});
+
+        mContainer = container;
+        manager.guiMain.mainFrame.add(mContainer);
     }
 
     override protected void onKill() {
+        mContainer.remove(); //GUI
         commands.kill();
     }
 
@@ -727,6 +765,23 @@ public class LevelEditor : Task {
         if (pline) {
             pline.split(pline.getPT(0)+(pline.getPT(1)-pline.getPT(0))/2);
         }
+    }
+
+    //for the currently selected lines, toggle the nochange-flag
+    void toggleNochange() {
+        foreachSelected(false,
+            (EditObject obj) {
+                if (cast(EditPLine)obj) {
+                    auto line = cast(EditPLine)obj;
+                    line.noChange = !line.noChange;
+                }
+            }
+        );
+    }
+
+    //create polygon on next selection
+    void setNewPolygon() {
+        onSelect = &newPolyAt;
     }
 
     void saveLevel(ConfigNode sub) {
@@ -754,10 +809,14 @@ public class LevelEditor : Task {
         saveLevel(sub);
         auto s = new StringOutput();
         rootnode.writeFile(s);
-        std.stdio.writefln(s.text);
+        write.writefln(s.text);
     }
 
     void cmdPreview(MyBox[] args, Output write) {
+        genPreview();
+    }
+
+    void genPreview() {
         //create a level generator configfile...
         ConfigNode config = new ConfigNode();
         saveLevel(config);

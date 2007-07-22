@@ -7,6 +7,7 @@ import common.scene;
 import game.animation;
 import game.gamepublic;
 import game.clientengine;
+import game.gui.camera;
 import gui.widget;
 import gui.container;
 import gui.label;
@@ -52,6 +53,8 @@ class GameView : Container, TeamMemberControlCallback {
         GameLogicPublic mLogic;
         TeamMemberControl mController;
         Container mGuiFrame;
+
+        Camera mCamera;
 
         //key state for LEFT/RIGHT and UP/DOWN
         Vector2i dirKeyState_lu = {0, 0};  //left/up
@@ -104,7 +107,7 @@ class GameView : Container, TeamMemberControlCallback {
         }
 
         //per-member class
-        class ViewMember {
+        class ViewMember : CameraObject {
             TeamMember member; //from the "engine"
             ViewTeam team;
 
@@ -124,6 +127,8 @@ class GameView : Container, TeamMemberControlCallback {
             int health_cur;
 
             Vector2i forArrow;
+            Vector2i lastKnownPosition;
+            bool cameraActivated;
 
             this(ViewTeam parent, TeamMember m) {
                 member = m;
@@ -135,6 +140,14 @@ class GameView : Container, TeamMemberControlCallback {
                 wormPoints = new Label();
                 wormPoints.font = wormName.font;
                 wormPoints.border = wormName.border;
+            }
+
+            Vector2i getCameraPosition() {
+                return lastKnownPosition;
+            }
+            bool isCameraAlive() {
+                cameraActivated &= member.active();
+                return cameraActivated;
             }
 
             void simulate() {
@@ -160,6 +173,8 @@ class GameView : Container, TeamMemberControlCallback {
                     guiIsActive = shouldactive;
                 }
                 if (guiIsActive) {
+                    lastKnownPosition = cachedCG.pos;
+
                     //update state
                     if (health_cur != member.health) {
                         health_cur = member.health;
@@ -182,6 +197,12 @@ class GameView : Container, TeamMemberControlCallback {
                     mooh(wormPoints);
                     mooh(wormName);
                     forArrow = pos;
+
+                    //activate camera if it should and wasn't yet
+                    if (!cameraActivated && member.active()) {
+                        cameraActivated = true;
+                        mCamera.setCameraFocus(this);
+                    }
                 }
             }
         }
@@ -249,12 +270,14 @@ class GameView : Container, TeamMemberControlCallback {
         return true;
     }
 
-    this(ClientGameEngine engine) {
+    this(ClientGameEngine engine, Camera cam) {
         mArrowDelta = timeSecs(5);
         mArrow = new GuiAnimator();
         mPointed = new GuiAnimator();
 
         mEngine = engine;
+
+        mCamera = cam;
 
         //hacky?
         mLogic = mEngine.logic;

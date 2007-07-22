@@ -20,6 +20,12 @@ void swap(T)(inout T a, inout T b) {
     b = t;
 }
 
+//execute code count-times
+void times(int count, void delegate() code) {
+    while (count--)
+        code();
+}
+
 //clamp to closed range, i.e. val is adjusted so that it fits into [low, high]
 T clampRangeC(T)(T val, T low, T high) {
     if (val < low) {

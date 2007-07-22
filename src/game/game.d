@@ -5,7 +5,6 @@ import game.gobject;
 import game.physic;
 import game.glevel;
 import game.sprite;
-import game.worm;
 import game.water;
 import game.sky;
 //import game.scene;
@@ -23,6 +22,9 @@ import framework.framework;
 import framework.keysyms;
 import framework.timesource;
 import std.math;
+
+import game.worm;
+import game.crate;
 
 interface ServerGraphic {
     //update position
