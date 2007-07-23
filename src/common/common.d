@@ -8,6 +8,7 @@ import utils.time;
 import utils.configfile;
 import utils.log, utils.output;
 import utils.misc;
+import utils.path;
 import common.resources;
 import std.stream;
 
@@ -131,11 +132,11 @@ class Common {
     ConfigNode loadConfig(char[] section, bool asfilename = false,
         bool allowFail = false)
     {
-        char[] file = fixRelativePath(section ~ (asfilename ? "" : ".conf"));
+        VFSPath file = VFSPath(section ~ (asfilename ? "" : ".conf"));
         log("load config: %s", file);
         try {
             scope s = framework.fs.open(file);
-            auto f = new ConfigFile(s, file, &logconf);
+            auto f = new ConfigFile(s, file.get(), &logconf);
             if (!f.rootnode)
                 throw new Exception("?");
             return f.rootnode;

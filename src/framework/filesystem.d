@@ -8,6 +8,7 @@ import std.stream;
 import utils.misc;
 import utils.log;
 import utils.output;
+import utils.path;
 
 private Log log;
 
@@ -74,12 +75,12 @@ protected abstract class HandlerInstance {
     abstract bool isWritable();
 
     ///does the file (relative to handler object) exist and could be opened?
-    abstract bool exists(char[] handlerPath);
+    abstract bool exists(VFSPath handlerPath);
 
     ///check if this path is valid (it does not have to contain files)
-    abstract bool pathExists(char[] handlerPath);
+    abstract bool pathExists(VFSPath handlerPath);
 
-    abstract Stream open(char[] handlerPath, FileMode mode);
+    abstract Stream open(VFSPath handlerPath, FileMode mode);
 
     ///list the files (no dirs) in the path handlerPath (relative to handler
     ///object)
@@ -87,7 +88,7 @@ protected abstract class HandlerInstance {
     ///you can assume that pathExists has been called before
     ///if findDir is true, also find directories
     ///if callback returns false, you should abort and return false too
-    abstract bool listdir(char[] handlerPath, char[] pattern, bool findDir,
+    abstract bool listdir(VFSPath handlerPath, char[] pattern, bool findDir,
         bool delegate(char[] filename) callback);
 }
 
@@ -125,42 +126,40 @@ private class HandlerDirectory : HandlerInstance {
         return true;
     }
 
-    bool exists(char[] handlerPath) {
-        char[] p = mDirPath ~ handlerPath;
+    bool exists(VFSPath handlerPath) {
+        char[] p = handlerPath.makeAbsolute(mDirPath);
         version(FSDebug) log("Checking for existance: '%s'",p);
         return stdf.exists(p) && stdf.isfile(p);
     }
 
-    bool pathExists(char[] handlerPath) {
-        char[] p = mDirPath ~ handlerPath;
+    bool pathExists(VFSPath handlerPath) {
+        char[] p = handlerPath.makeAbsolute(mDirPath);
         return stdf.exists(p) && stdf.isdir(p);
     }
 
-    private void createPath(char[] handlerPath) {
+    private void createPath(VFSPath handlerPath) {
         if (!pathExists(handlerPath)) {
-            int i = str.rfind(handlerPath,'/');
-            if (i > 0) {
-                //cut off last path component and do recursive call
-                createPath(handlerPath[0..i]);
-            }
+            if (handlerPath.isEmpty())
+                throw new Exception("createPath error: handler"
+                    ~ " path does not exist");
+            //recursively create parent dir
+            createPath(handlerPath.parent);
             //create last path
-            stdf.mkdir(mDirPath ~ handlerPath);
+            stdf.mkdir(handlerPath.makeAbsolute(mDirPath));
         }
     }
 
-    Stream open(char[] handlerPath, FileMode mode) {
+    Stream open(VFSPath handlerPath, FileMode mode) {
         version(FSDebug) log("Handler for '%s': Opening '%s'",mDirPath,
             handlerPath);
         if (mode == FileMode.OutNew) {
             //make sure path exists
-            int i = str.rfind(handlerPath,'/');
-            if (i > 0)
-                createPath(handlerPath[0..i]);
+            createPath(handlerPath.parent);
         }
-        return new File(mDirPath ~ handlerPath, mode);
+        return new File(handlerPath.makeAbsolute(mDirPath), mode);
     }
 
-    bool listdir(char[] handlerPath, char[] pattern, bool findDirs,
+    bool listdir(VFSPath handlerPath, char[] pattern, bool findDirs,
         bool delegate(char[] filename) callback)
     {
         bool cont = true;
@@ -169,15 +168,9 @@ private class HandlerDirectory : HandlerInstance {
             if (findDirs || !isDir) {
                 //listdir does a path.join with searchpath and found file,
                 //remove this
-                char[] fn = fixRelativePath(de.name[mDirPath.length..$]);
-                //remove leading '/'
-                if (fn.length>0 && fn[0] == '/') {
-                    fn = fn[1..$];
-                }
+                VFSPath vfn = VFSPath(de.name[mDirPath.length..$]);
                 //add trailing '/' for directories
-                if (isDir) {
-                    fn ~= "/";
-                }
+                char[] fn = vfn.get(false, isDir);
                 //match search pattern
                 if (std.path.fnmatch(fn, pattern))
                     return (cont = callback(fn));
@@ -185,17 +178,17 @@ private class HandlerDirectory : HandlerInstance {
             return true;
         }
 
-        char[] p = mDirPath ~ handlerPath;
+        char[] p = handlerPath.makeAbsolute(mDirPath);
         stdf.listdir(p, &listdircb);
         return cont;
     }
 }
 
 private class HandlerLink : HandlerInstance {
-    private char[] mLinkedPath;
+    private VFSPath mLinkedPath;
     private FileSystem mParent;
 
-    this(FileSystem parent, char[] relPath) {
+    this(FileSystem parent, VFSPath relPath) {
         version(FSDebug) log("New link: %s",relPath);
         mLinkedPath = relPath;
         mParent = parent;
@@ -206,25 +199,25 @@ private class HandlerLink : HandlerInstance {
         return mParent.pathIsWritable(mLinkedPath, this);
     }
 
-    bool exists(char[] handlerPath) {
+    bool exists(VFSPath handlerPath) {
         version(FSDebug) log("Link: exists(%s)",handlerPath);
-        return mParent.exists(mLinkedPath ~ handlerPath, this);
+        return mParent.exists(mLinkedPath.join(handlerPath), this);
     }
 
-    bool pathExists(char[] handlerPath) {
+    bool pathExists(VFSPath handlerPath) {
         version(FSDebug) log("Link: pathexists(%s)",handlerPath);
-        return mParent.pathExists(mLinkedPath ~ handlerPath, this);
+        return mParent.pathExists(mLinkedPath.join(handlerPath), this);
     }
 
-    Stream open(char[] handlerPath, FileMode mode) {
+    Stream open(VFSPath handlerPath, FileMode mode) {
         version(FSDebug) log("Link: open(%s)",handlerPath);
-        return mParent.open(mLinkedPath ~ handlerPath, mode, this);
+        return mParent.open(mLinkedPath.join(handlerPath), mode, this);
     }
 
-    bool listdir(char[] handlerPath, char[] pattern, bool findDirs,
+    bool listdir(VFSPath handlerPath, char[] pattern, bool findDirs,
         bool delegate(char[] filename) callback)
     {
-        return mParent.listdir(mLinkedPath ~ handlerPath, pattern, findDirs,
+        return mParent.listdir(mLinkedPath.join(handlerPath), pattern, findDirs,
             callback, this);
     }
 }
@@ -235,7 +228,7 @@ class FileSystem {
         struct MountedPath {
             ///the path this HandlerInstance is mounted into,
             ///relative to VFS root with leading/trailing '/'
-            char[] mountPoint;
+            VFSPath mountPoint;
             ///precedence of virtual directory
             ///if multiple paths match, lower precedence is considered first
             uint precedence;
@@ -245,12 +238,12 @@ class FileSystem {
             ///and enabled for this path
             private bool mWritable;
 
-            public static MountedPath opCall(char[] mountPoint, uint precedence,
+            public static MountedPath opCall(VFSPath mountPoint, uint precedence,
                 HandlerInstance handler, bool writable)
             {
                 MountedPath ret;
                 //make sure mountPoint starts and ends with a '/'
-                ret.mountPoint = fixRelativePath(mountPoint) ~ '/';
+                ret.mountPoint = mountPoint;
                 ret.precedence = precedence;
                 ret.handler = handler;
                 ret.mWritable = writable;
@@ -263,26 +256,20 @@ class FileSystem {
 
             ///is relPath a subdirectory of mountPoint?
             ///compares case-sensitive
-            public bool matchesPath(char[] relPath) {
+            public bool matchesPath(VFSPath other) {
                 version(FSDebug) log("Checking for match: '%s' and '%s'",
-                    relPath,mountPoint);
-                return relPath.length > mountPoint.length
-                    && str.cmp(relPath[0..mountPoint.length],mountPoint) == 0;
+                    other,mountPoint);
+                return mountPoint.isChild(other);
             }
 
-            public bool matchesPathForList(char[] relPath) {
-                return relPath.length>=mountPoint.length
-                    && str.cmp(relPath[0..mountPoint.length],mountPoint) == 0;
+            public bool matchesPathForList(VFSPath other) {
+                return mountPoint.isChildOrEqual(other);
             }
 
-            ///Convert relPath (relative to VFS root) to a path relative to
+            ///Convert other (relative to VFS root) to a path relative to
             ///mountPoint
-            public char[] getHandlerPath(char[] relPath) {
-                if (matchesPath(relPath)) {
-                    return relPath[mountPoint.length..$];
-                } else {
-                    return "";
-                }
+            public VFSPath getHandlerPath(VFSPath other) {
+                return other.relativePath(mountPoint);
             }
 
             ///Check if this mountPoint supports opening files with mode
@@ -423,7 +410,7 @@ class FileSystem {
     ///             or create files in this path
     ///             if path is not physically writable, this parameter is
     ///             ignored
-    public void mount(MountPath mp, char[] path, char[] mountPoint,
+    public void mount(MountPath mp, char[] sysPath, VFSPath mountPoint,
         bool writable, uint precedence = 0)
     {
         //get absolute path to object, considering mp
@@ -431,20 +418,20 @@ class FileSystem {
         switch (mp) {
             case MountPath.data:
                 foreach (char[] p; mDataPaths) {
-                    absPath = p ~ path;
+                    absPath = p ~ sysPath;
                     if (stdf.exists(absPath))
                         break;
                 }
                 break;
             case MountPath.user:
-                absPath = mUserPath ~ mountPoint;
+                absPath = mUserPath ~ sysPath;
                 break;
             case MountPath.absolute:
-                absPath = path;
+                absPath = sysPath;
                 break;
         }
         if (!stdf.exists(absPath))
-            throw new FilesystemException("Failed to mount "~path
+            throw new FilesystemException("Failed to mount "~sysPath
                 ~": Path/file not found");
 
         //find a handler for this path
@@ -458,14 +445,20 @@ class FileSystem {
 
         if (!currentHandler)
             throw new FilesystemException("No handler was able to mount object "
-                ~path);
+                ~sysPath);
 
         addMountedPath(MountedPath(mountPoint, precedence,
             currentHandler.mount(absPath), writable));
     }
 
+    public void mount(MountPath mp, char[] sysPath, char[] mountPoint,
+        bool writable, uint precedence = 0)
+    {
+        mount(mp, sysPath, VFSPath(mountPoint), writable, precedence);
+    }
+
     ///Try mounting a file/folder and return if the mount succeeded
-    public bool tryMount(MountPath mp, char[] path, char[] mountPoint,
+    public bool tryMount(MountPath mp, char[] path, VFSPath mountPoint,
         bool writable, uint precedence = 0)
     {
         try {
@@ -475,6 +468,13 @@ class FileSystem {
             return false;
         }
     }
+
+    public bool tryMount(MountPath mp, char[] path, char[] mountPoint,
+        bool writable, uint precedence = 0)
+    {
+        return tryMount(mp, path, VFSPath(mountPoint), writable, precedence);
+    }
+
     ///Create a symbolic link from mountPoint to relPath
     ///relPath cannot be a parent directory of mountPoint
     ///Example:
@@ -484,13 +484,10 @@ class FileSystem {
     ///  as you may get errors or files created in wrong paths when
     ///  relPath is a subpath of mountPoint and any directory in-between is
     ///  writable
-    public void link(char[] relPath, char[] mountPoint, bool writable,
+    public void link(VFSPath relPath, VFSPath mountPoint, bool writable,
         uint precedence = 0)
     {
-        relPath = fixRelativePath(relPath) ~ '/';
-        mountPoint = fixRelativePath(mountPoint) ~ '/';
-        if (relPath.length <= mountPoint.length
-            && mountPoint[0..relPath.length] == relPath)
+        if (relPath.isChildOrEqual(mountPoint))
         {
             throw new FilesystemException("Can't link to a direct or indirect"
                 " parent directory");
@@ -498,6 +495,12 @@ class FileSystem {
 
         addMountedPath(MountedPath(mountPoint, precedence,
             new HandlerLink(this, relPath), writable));
+    }
+
+    public void link(char[] relPath, char[] mountPoint, bool writable,
+        uint precedence = 0)
+    {
+        link(VFSPath(relPath), VFSPath(mountPoint), writable, precedence);
     }
 
     ///open a stream to a file in the VFS
@@ -510,24 +513,28 @@ class FileSystem {
     ///  relFilename = path to the file, relative to VFS root
     ///  mode = how the file should be opened
     //need to make caller parameter public
-    public Stream open(char[] relFilename, FileMode mode = FileMode.In,
+    public Stream open(VFSPath filename, FileMode mode = FileMode.In,
         HandlerInstance caller = null)
     {
-        relFilename = fixRelativePath(relFilename);
-        version(FSDebug) log("Trying to open '%s'",relFilename);
+        version(FSDebug) log("Trying to open '%s'",filename);
         foreach (inout MountedPath p; mMountedPaths) {
             if (p.handler == caller)
                 continue;
-            if (p.matchesPath(relFilename) && p.matchesMode(mode)) {
+            if (p.matchesPath(filename) && p.matchesMode(mode)) {
                 version(FSDebug) log("Found matching handler");
-                char[] handlerPath = p.getHandlerPath(relFilename);
+                VFSPath handlerPath = p.getHandlerPath(filename);
                 if (p.handler.exists(handlerPath) || mode == FileMode.OutNew) {
                     //the file exists, or a new file should be created
                     return p.handler.open(handlerPath, mode);
                 }
             }
         }
-        throw new FilesystemException("File not found: " ~ relFilename);
+        throw new FilesystemException("File not found: " ~ filename.toString);
+    }
+
+    public Stream open(char[] filename, FileMode mode = FileMode.In)
+    {
+        return open(VFSPath(filename), mode, null);
     }
 
     ///List files (not directories) in directory relPath
@@ -536,23 +543,28 @@ class FileSystem {
     ///findDirs: also find directories (these have '/' at the end of filename!)
     ///Returns:
     /// false if listing was aborted, true otherwise
-    public bool listdir(char[] relPath, char[] pattern, bool findDirs,
+    public bool listdir(VFSPath relPath, char[] pattern, bool findDirs,
         bool delegate(char[] filename) callback)
     {
         return listdir(relPath, pattern, findDirs, callback, null);
     }
 
-    protected bool listdir(char[] relPath, char[] pattern, bool findDirs,
+    public bool listdir(char[] relPath, char[] pattern, bool findDirs,
+        bool delegate(char[] filename) callback)
+    {
+        return listdir(VFSPath(relPath), pattern, findDirs, callback);
+    }
+
+    protected bool listdir(VFSPath relPath, char[] pattern, bool findDirs,
         bool delegate(char[] filename) callback, HandlerInstance caller)
     {
-        relPath = fixRelativePath(relPath) ~ '/';
         bool cont = true;
         foreach (inout MountedPath p; mMountedPaths) {
             if (p.handler == caller)
                 continue;
             if (p.matchesPathForList(relPath)) {
                 version(FSDebug) log("Found matching handler");
-                char[] handlerPath = p.getHandlerPath(relPath);
+                VFSPath handlerPath = p.getHandlerPath(relPath);
                 if (p.handler.pathExists(handlerPath)) {
                     //the path exists, list contents
                     cont = p.handler.listdir(handlerPath, pattern, findDirs,
@@ -569,17 +581,20 @@ class FileSystem {
     ///This will only look for files, not directories
     ///Params:
     ///  relFilename = path to file to check for existance, relative to VFS root
-    public bool exists(char[] relFilename) {
-        return exists(relFilename, null);
+    public bool exists(VFSPath filename) {
+        return exists(filename, null);
     }
 
-    protected bool exists(char[] relFilename, HandlerInstance caller) {
-        relFilename = fixRelativePath(relFilename);
+    public bool exists(char[] filename) {
+        return exists(VFSPath(filename));
+    }
+
+    protected bool exists(VFSPath filename, HandlerInstance caller) {
         foreach (inout MountedPath p; mMountedPaths) {
             if (p.handler == caller)
                 continue;
-            if (p.matchesPath(relFilename)) {
-                char[] handlerPath = p.getHandlerPath(relFilename);
+            if (p.matchesPath(filename)) {
+                VFSPath handlerPath = p.getHandlerPath(filename);
                 if (p.handler.exists(handlerPath)) {
                     //file found
                     return true;
@@ -591,17 +606,20 @@ class FileSystem {
 
 
     ///Check if a directory exists in the VFS
-    public bool pathExists(char[] relPath) {
+    public bool pathExists(VFSPath relPath) {
         return pathExists(relPath, null);
     }
 
-    protected bool pathExists(char[] relPath, HandlerInstance caller) {
-        relPath = fixRelativePath(relPath) ~ '/';
+    public bool pathExists(char[] relPath) {
+        return pathExists(VFSPath(relPath));
+    }
+
+    protected bool pathExists(VFSPath relPath, HandlerInstance caller) {
         foreach (inout MountedPath p; mMountedPaths) {
             if (p.handler == caller)
                 continue;
             if (p.matchesPathForList(relPath)) {
-                char[] handlerPath = p.getHandlerPath(relPath);
+                VFSPath handlerPath = p.getHandlerPath(relPath);
                 if (p.handler.pathExists(handlerPath)) {
                     //path exists
                     return true;
@@ -611,12 +629,15 @@ class FileSystem {
         return false;
     }
 
-    public bool pathIsWritable(char[] relPath) {
+    public bool pathIsWritable(VFSPath relPath) {
         return pathIsWritable(relPath, null);
     }
 
-    protected bool pathIsWritable(char[] relPath, HandlerInstance caller) {
-        relPath = fixRelativePath(relPath) ~ '/';
+    public bool pathIsWritable(char[] relPath) {
+        return pathIsWritable(VFSPath(relPath));
+    }
+
+    protected bool pathIsWritable(VFSPath relPath, HandlerInstance caller) {
         foreach (inout MountedPath p; mMountedPaths) {
             if (p.handler == caller)
                 continue;

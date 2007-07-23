@@ -1,5 +1,7 @@
 module utils.math;
+
 public import utils.vector2;// : Vector2f;
+import intr = std.intrinsic;
 
 /// Intersect two lines given (p1+dir_1*t1, p2+dir_2*t2), and return the tX
 /// values, where these lines intersect; returns true if the point is "within".
@@ -35,4 +37,20 @@ public bool lineIntersect(Vector2f p1, Vector2f dir_1, Vector2f p2,
     double tx2 = tolerance / dir_2.length();
     return (out_t1 >= -tx1 && out_t1 <= 1.0f + tx1
         && out_t2 >= -tx2 && out_t2 <= 1.0f + tx2);
+}
+
+T realmod(T)(T a, T m) {
+    T res = a % m;
+    if (res < 0)
+        res += m;
+    return res;
+}
+
+uint log2(uint value)
+out (res) {
+    assert(value >= (1<<res));
+    assert(value < (1<<(res+1)));
+}
+body {
+    return intr.bsr(value);
 }

@@ -6,7 +6,7 @@ import str = std.string;
 import std.format;
 import conv = std.conv;
 import utils.output : Output;
-import utils.misc;
+import utils.path;
 
 //returns false: conversion failed, value is unmodified
 public bool parseInt(char[] s, inout int value) {

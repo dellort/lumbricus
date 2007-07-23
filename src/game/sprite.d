@@ -10,6 +10,7 @@ import utils.rect2;
 import utils.configfile;
 import utils.misc;
 import utils.log;
+import utils.math;
 import std.math : abs, PI;
 import cmath = std.c.math;
 import utils.factory;

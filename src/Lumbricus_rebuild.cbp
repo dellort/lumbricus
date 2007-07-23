@@ -78,13 +78,16 @@
 		<Unit filename="game\animation.d" />
 		<Unit filename="game\clientengine.d" />
 		<Unit filename="game\controller.d" />
+		<Unit filename="game\crate.d" />
 		<Unit filename="game\game.d" />
 		<Unit filename="game\gameinterface.d" />
 		<Unit filename="game\gamepublic.d" />
 		<Unit filename="game\gametask.d" />
 		<Unit filename="game\glevel.d" />
 		<Unit filename="game\gobject.d" />
+		<Unit filename="game\gui\camera.d" />
 		<Unit filename="game\gui\gameframe.d" />
+		<Unit filename="game\gui\gameteams.d" />
 		<Unit filename="game\gui\gametimer.d" />
 		<Unit filename="game\gui\gameview.d" />
 		<Unit filename="game\gui\leveledit.d" />
@@ -106,7 +109,6 @@
 		<Unit filename="game\wtris.d" />
 		<Unit filename="gui\boxcontainer.d" />
 		<Unit filename="gui\button.d" />
-		<Unit filename="gui\camframe.d" />
 		<Unit filename="gui\console.d" />
 		<Unit filename="gui\container.d" />
 		<Unit filename="gui\fps.d" />
@@ -114,6 +116,7 @@
 		<Unit filename="gui\label.d" />
 		<Unit filename="gui\messageviewer.d" />
 		<Unit filename="gui\mousescroller.d" />
+		<Unit filename="gui\scrollwindow.d" />
 		<Unit filename="gui\tablecontainer.d" />
 		<Unit filename="gui\test.d" />
 		<Unit filename="gui\widget.d" />
@@ -135,6 +138,7 @@
 		<Unit filename="utils\mybox.d" />
 		<Unit filename="utils\mylist.d" />
 		<Unit filename="utils\output.d" />
+		<Unit filename="utils\path.d" />
 		<Unit filename="utils\queue.d" />
 		<Unit filename="utils\random.d" />
 		<Unit filename="utils\rect2.d" />

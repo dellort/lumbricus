@@ -10,6 +10,7 @@ import utils.misc;
 import utils.array;
 import utils.time;
 import utils.log;
+import utils.math;
 import math = std.math;
 import str = std.string;
 
