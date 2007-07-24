@@ -189,9 +189,6 @@ private class ProjectileSprite : GObjectSprite {
     override protected void physImpact(PhysicBase other) {
         super.physImpact(other);
 
-        //Hint: in future, physImpact should deliver the collision cookie
-        //(aka "action" in the config file)
-        //then the banana bomb can decide if it expldoes or falls into the water
         if (myclass.detonateByImpact) {
             detonate(DetonateReason.impact);
         }
@@ -658,16 +655,12 @@ class ProjectileEffectorProximitySensor : ProjectileEffector {
     private CircularTrigger mTrigger;
     private Time mFireTime;
 
-    private static int sTrigId;
-
     this(ProjectileSprite parent, ProjectileEffectorProximitySensorClass type) {
         super(parent, type);
         myclass = type;
         mTrigger = new CircularTrigger(mParent.physics.pos, myclass.radius);
         mTrigger.collision = mParent.engine.physicworld.findCollisionID(
             myclass.collision, true);
-        //generate unique id
-        mTrigger.id = "prox_sensor_"~str.toString(sTrigId++);
         mTrigger.onTrigger = &trigTrigger;
         mFireTime = timeNever();
     }

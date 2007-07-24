@@ -16,7 +16,10 @@ import std.math;
 import str = std.string;
 
 class CrateSprite : GObjectSprite {
-    private CrateSpriteClass myclass;
+    private {
+        CrateSpriteClass myclass;
+        CircularTrigger collectTrigger;
+    }
 
     //type will be mostly WeaponClass for weapon-crates
     //other crates (tool, medi) contain stuff I didn't think about yet
@@ -25,14 +28,31 @@ class CrateSprite : GObjectSprite {
     protected this (GameEngine engine, CrateSpriteClass spriteclass) {
         super(engine, spriteclass);
         myclass = spriteclass;
+
+        collectTrigger = new CircularTrigger(Vector2f(), myclass.collectRadius);
+        collectTrigger.onTrigger = &oncollect;
+        //doesntwork
+        //collectTrigger.collision = physics.collision;
+        engine.physicworld.add(collectTrigger);
     }
 
-    //overwritten from GObject.simulate()
-    override void simulate(float deltaT) {
-        super.simulate(deltaT);
+    public void collected() {
+        die();
+    }
+
+    override protected void die() {
+        collectTrigger.dead = true;
+        super.die();
+    }
+
+    private void oncollect(PhysicTrigger sender, PhysicObject other) {
+        if (other is physics)
+            return; //lol
+        engine.collectCrate(this, other);
     }
 
     override protected void physUpdate() {
+        collectTrigger.pos = physics.pos;
         if (physics.isGlued) {
             setState(myclass.st_normal);
         } else {
@@ -49,6 +69,7 @@ class CrateSprite : GObjectSprite {
 //the factories work over the sprite classes, so we need one
 class CrateSpriteClass : GOSpriteClass {
     float enterParachuteSpeed;
+    float collectRadius;
 
     StaticStateInfo st_creation, st_normal, st_parachute;
 
@@ -59,6 +80,7 @@ class CrateSpriteClass : GOSpriteClass {
         super.loadFromConfig(config);
 
         enterParachuteSpeed = config.getFloatValue("enter_parachute_speed");
+        collectRadius = config.getFloatValue("collect_radius");
 
         //done, read out the stupid states :/
         st_creation = findState("creation");

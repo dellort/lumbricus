@@ -211,7 +211,7 @@ class WormSprite : GObjectSprite {
     {
         super.stateTransition(from, to);
 
-        bool todead = (currentState is wsc.st_dead);
+        bool todead = from is wsc.st_die;
         if (!mIsDead && (todead || currentState is wsc.st_drowning)) {
             engine.mLog("set dead flag for %s", this);
             mIsDead = true;

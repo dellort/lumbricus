@@ -2,6 +2,7 @@ module game.controller;
 import game.game;
 import game.gobject;
 import game.worm;
+import game.crate;
 import game.sprite;
 import game.weapon;
 import game.gamepublic;
@@ -448,6 +449,11 @@ class ServerTeam : Team {
             m.youWinNow();
         }
     }
+
+    void addWeapon(WeaponClass w) {
+        weapons.addWeapon(w);
+        parent.updateWeaponStats(null);
+    }
 }
 
 //member of a team, currently (and maybe always) capsulates a WormSprite object
@@ -783,6 +789,19 @@ class WeaponSet {
         if (weaponId in weapons)
             return weapons[weaponId];
         return null;
+    }
+
+    void addWeapon(WeaponClass c) {
+        WeaponItem item = byId(c);
+        if (!item) {
+            item = new WeaponItem();
+            item.mContainer = this;
+            item.mWeapon = c;
+            weapons[c] = item;
+        }
+        if (!item.infinite) {
+            item.mQuantity++;
+        }
     }
 }
 
@@ -1240,26 +1259,53 @@ class GameController : GameLogicPublic {
         //NOTE: the GameObject stays in this AA for forever
         //  in some cases, it could be released again (i.e. after a new round
         //  was started)
+        assert(!go.createdBy, "fix memberFromGameObject and remove this");
         mGameObjectToMember[go] = member;
     }
 
-    ServerTeamMember memberFromGameObject(GameObject go) {
+    ServerTeamMember memberFromGameObject(GameObject go, bool transitive) {
+        //typically, GameObject is transitively (consider spawning projectiles!)
+        //created by a Worm
+        //"victim" from reportViolence should be directly a Worm
+
+        while (transitive && go.createdBy) {
+            go = go.createdBy;
+        }
+
         return aaIfIn(mGameObjectToMember, go);
     }
 
     void reportViolence(GameObject cause, GameObject victim, float damage) {
         assert(!!cause && !!victim);
-        //typically, GameObject is transitively (consider spawning projectiles!)
-        //created by a Worm, and victim is directly a Worm
-        while (cause.createdBy) {
-            cause = cause.createdBy;
-        }
-        auto m1 = memberFromGameObject(cause);
-        auto m2 = memberFromGameObject(victim);
+        auto m1 = memberFromGameObject(cause, true);
+        auto m2 = memberFromGameObject(victim, false);
         if (!m1 || !m2) {
             mLog("unknown damage %s/%s %s/%s %s", cause, victim, m1, m2, damage);
         } else {
             mLog("worm %s injured %s by %s", m1, m2, damage);
         }
+    }
+
+    void collectCrate(CrateSprite crate, GameObject finder) {
+        //for some weapons like animal-weapons, transitive should be true
+        //and normally a non-collecting weapon should just explode here??
+        auto member = memberFromGameObject(finder, false);
+        if (!member) {
+            mLog("crate %s can't be collected by %s", crate, finder);
+            return;
+        }
+        mLog("%s collects crate %s", member, crate);
+        //transfer stuffies
+        foreach (Object o; crate.stuffies) {
+            auto w = cast(WeaponClass)o;
+            if (w) {
+                member.mTeam.addWeapon(w);
+            } else {
+                mLog("unknown crate item: %s", o);
+            }
+        }
+        //and destroy crate
+        crate.stuffies = null;
+        crate.collected();
     }
 }

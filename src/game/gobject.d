@@ -24,11 +24,7 @@ abstract class GameObject {
             return;
         mActive = set;
         if (mActive) {
-            engine.activate(this);
-            //std.stdio.writefln("INSERT: %s", this);
-        } else {
-            engine.deactivate(this);
-            //std.stdio.writefln("REMOVE: %s", this);
+            engine.ensureAdded(this);
         }
         updateActive();
     }

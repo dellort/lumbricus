@@ -374,11 +374,11 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         physicworld.add(mGamelevel.physics);
         //various level borders
         waterborder = new PlaneTrigger();
-        waterborder.id = "waterplane";
+        waterborder.onTrigger = &underWaterTrigger;
         physicworld.add(waterborder);
 
         deathzone = new PlaneTrigger();
-        deathzone.id = "deathzone";
+        deathzone.onTrigger = &deathzoneTrigger;
         //xxx: at least as high as highest object in the game
         //     else objects will disappear too early
         auto death_y = worldSize.y + 30;
@@ -440,6 +440,38 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         }
 
         mGravForce.accel = Vector2f(0, conf.getFloatValue("gravity",100));
+
+        //hm!?!?
+        physicworld.setCollideHandler("hit", &onPhysicHit);
+
+        //this barfs up if setCollideHandler()s were missed
+        physicworld.checkCollisionHandlers();
+    }
+
+    //called when a and b hit using the "hit" collision
+    //i.e. the worm.conf contains this:
+    //  collisions {
+    //        worm {
+    //            ground = "hit"
+    //    }}
+    //"hit" means onPhysicHit is called, with worm as "a" and ground as "b"
+    //
+    private void onPhysicHit(PhysicBase a, PhysicBase b) {
+        //exactly as the old bahviour
+        auto xa = cast(GObjectSprite)(a.backlink);
+        if (xa) xa.doImpact(b);
+        auto xb = cast(GObjectSprite)(b.backlink);
+        if (xb) xb.doImpact(a);
+    }
+
+    private void underWaterTrigger(PhysicTrigger sender, PhysicObject other) {
+        auto x = cast(GObjectSprite)(other.backlink);
+        if (x) x.isUnderWater();
+    }
+
+    private void deathzoneTrigger(PhysicTrigger sender, PhysicObject other) {
+        auto x = cast(GObjectSprite)(other.backlink);
+        if (x) x.exterminate();
     }
 
     public float windSpeed() {
@@ -457,12 +489,12 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         mWaterChanger.target = mCurrentWaterLevel - by;
     }
 
-    void activate(GameObject obj) {
-        mObjects.insert_tail(obj);
-    }
-
-    void deactivate(GameObject obj) {
-        mObjects.remove(obj);
+    void ensureAdded(GameObject obj) {
+        assert(obj.active);
+        //in case of lazy removal
+        //note that .contains is O(1)
+        if (!mObjects.contains(obj))
+            mObjects.insert_tail(obj);
     }
 
     long mUids;
@@ -544,7 +576,12 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
             while (cur) {
                 auto o = cur;
                 cur = mObjects.next(cur);
-                o.simulate(deltat);
+                if (o.active) {
+                    o.simulate(deltat);
+                } else {
+                    //remove (it's done lazily, and here it's actually removed)
+                    mObjects.remove(o);
+                }
             }
 
             //all 100ms update
@@ -648,5 +685,12 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
                 return true;
         }
         return false;
+    }
+
+    void collectCrate(CrateSprite crate, PhysicObject obj) {
+        GameObject gobj = cast(GameObject)(obj.backlink);
+        if (gobj) {
+            mController.collectCrate(crate, gobj);
+        } //if not then wtf!?
     }
 }

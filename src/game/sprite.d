@@ -37,6 +37,8 @@ class GObjectSprite : GameObject {
 
     int param2;
 
+    private bool mIsUnderWater, mWaterUpdated;
+
     bool activity() {
         return active && !physics.isGlued;
     }
@@ -112,6 +114,10 @@ class GObjectSprite : GameObject {
     protected void physImpact(PhysicBase other) {
     }
 
+    void doImpact(PhysicBase other) {
+        physImpact(other);
+    }
+
     protected void physDie() {
         //assume that's what we want
         if (!active)
@@ -119,20 +125,10 @@ class GObjectSprite : GameObject {
         die();
     }
 
-    protected void physTriggerEnter(char[] trigId) {
-        if (trigId == "waterplane") {
-            waterStateChange(true);
-        } else if (trigId == "deathzone") {
-            //_always_ die completely (or are there exceptions?)
-            engine.mLog("exterminate in deathzone: %s", type.name);
-            die();
-        }
-    }
-
-    protected void physTriggerExit(char[] trigId) {
-        if (trigId == "waterplane") {
-            waterStateChange(false);
-        }
+    void exterminate() {
+        //_always_ die completely (or are there exceptions?)
+        engine.mLog("exterminate in deathzone: %s", type.name);
+        die();
     }
 
     //called when object should die
@@ -141,10 +137,6 @@ class GObjectSprite : GameObject {
         active = false;
         physics.dead = true;
         engine.mLog("really die: %s", type.name);
-    }
-
-    public bool underWater() {
-        return physics.triggerActive("waterplane");
     }
 
     protected void waterStateChange(bool under) {
@@ -226,6 +218,17 @@ class GObjectSprite : GameObject {
         }
     }
 
+    //called by GameEngine on each frame if it's really under water
+    //xxx: TriggerEnter/TriggerExit was more beautiful, so maybe bring it back
+    final void isUnderWater() {
+        if (mIsUnderWater)
+            return;
+
+        mIsUnderWater = true;
+        mWaterUpdated = true;
+        waterStateChange(true);
+    }
+
     override void simulate(float deltaT) {
         super.simulate(deltaT);
         if (currentState.onAnimationEnd && currentAnimation) {
@@ -237,6 +240,11 @@ class GObjectSprite : GameObject {
                 setState(currentState.onAnimationEnd);
             }
         }
+        if (!mWaterUpdated) {
+            mIsUnderWater = false;
+            waterStateChange(false);
+        }
+        mWaterUpdated = false;
     }
 
     protected this(GameEngine engine, GOSpriteClass type) {
@@ -248,14 +256,12 @@ class GObjectSprite : GameObject {
         physics = new PhysicObject();
         physics.backlink = this;
 
+        engine.physicworld.add(physics);
+
         setStateForced(type.initState);
 
         physics.onUpdate = &physUpdate;
-        physics.onImpact = &physImpact;
         physics.onDie = &physDie;
-        physics.onTriggerEnter = &physTriggerEnter;
-        physics.onTriggerExit = &physTriggerExit;
-        engine.physicworld.add(physics);
     }
 }
 

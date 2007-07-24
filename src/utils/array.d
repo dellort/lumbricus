@@ -7,6 +7,14 @@ public V aaIfIn(K, V)(V[K] aa, K key) {
     return pv ? *pv : null;
 }
 
+public K aaReverseLookup(K, V)(V[K] aa, V value, K def) {
+    foreach (K k, V v; aa) {
+        if (v == value)
+            return k;
+    }
+    return def;
+}
+
 //useful for class[] -> interface[] conversion!
 T_to[] arrayCastCopyImplicit(T_to, T_from)(T_from[] arr) {
     return arrayMap(arr, (T_from x) { T_to f = x; return f; });

@@ -1,6 +1,7 @@
 module game.physic;
 //import game.common;
 import utils.misc;
+import utils.array : aaReverseLookup;
 import utils.mylist;
 import utils.time;
 import utils.vector2;
@@ -26,6 +27,8 @@ const cStokesConstant = 6*PI;
 typedef uint CollisionType;
 const CollisionType_Invalid = uint.max;
 
+alias void delegate(PhysicBase a, PhysicBase b) CollideDelegate;
+
 //base type for physic objects (which are contained in a PhysicWorld)
 class PhysicBase {
     private mixin ListNodeMixin allobjects_node;
@@ -40,11 +43,10 @@ class PhysicBase {
 
     CollisionType collision = CollisionType_Invalid;
 
-    //fast check if object can collide with other object
-    //(includes reverse check)
-    bool canCollide(PhysicBase other) {
-        return world.canCollide(collision, other.collision);
-    }
+    //free for use by the rest of the game
+    //used for collisions- and damage-reporting
+    //currently is either null or stores a GObjectSprite instance
+    Object backlink;
 
     PhysicWorld world() {
         return mWorld;
@@ -71,7 +73,6 @@ class PhysicBase {
     }
 
     public void delegate() onUpdate;
-    public void delegate(PhysicBase other) onImpact;
     public void delegate() onDie;
 
     //feedback to other parts of the game
@@ -91,7 +92,7 @@ class PhysicBase {
         }
     }
 
-    public void remove() {
+    protected void doremove() {
         //allobjects_node.removeFromList();
         world.mAllObjects.remove(this);
     }
@@ -182,7 +183,6 @@ struct POSP {
         //     is created if it doesn't exist; this is for forward
         //     referencing... it should be replaced by collision classes
         collisionID = node.getStringValue("collide");
-        needUpdate = true;
     }
 }
 
@@ -199,11 +199,8 @@ class PhysicObject : PhysicBase {
     void posp(POSP p) {
         mPosp = p;
         //new POSP -> check values
-        mPosp.needUpdate = true;
+        collision = world.findCollisionID(mPosp.collisionID, true);
     }
-
-    //used for damage-reporting
-    Object backlink;
 
     Vector2f pos; //pixels
     //in pixels per second, readonly for external code!
@@ -255,12 +252,6 @@ class PhysicObject : PhysicBase {
     float ground_angle = 0;
     //last known surface normal
     Vector2f surface_normal;
-
-    //fast check if object can collide with other object
-    //(includes reverse check)
-    override bool canCollide(PhysicBase other) {
-        return super.canCollide(other);
-    }
 
     //the worm couldn't adhere to the rock surface anymore
     //called from the PhysicWorld simulation loop only
@@ -332,8 +323,8 @@ class PhysicObject : PhysicBase {
         return str.format("[%s: %s %s]", toHash(), pos, velocity);
     }
 
-    public void remove() {
-        super.remove();
+    override protected void doremove() {
+        super.doremove();
         //objects_node.removeFromList();
         world.mObjects.remove(this);
     }
@@ -365,52 +356,8 @@ class PhysicObject : PhysicBase {
         return mIsWalking;
     }
 
-    // Trigger support ------------->
-
-    public void delegate(char[] triggerId) onTriggerEnter;
-    public void delegate(char[] triggerId) onTriggerExit;
-
-    private bool[char[]] mTriggerStates, mLastTriggerStates;
-
-    protected void doUpdate() {
-        super.doUpdate();
-        //update trigger states and trigger events
-        foreach (char[] trigId, inout bool curTrigSt; mTriggerStates) {
-            bool* last = (trigId in mLastTriggerStates);
-            if (!last || *last != curTrigSt) {
-                mLastTriggerStates[trigId] = curTrigSt;
-                if (curTrigSt) {
-                    if (onTriggerEnter)
-                        onTriggerEnter(trigId);
-                } else {
-                    if (onTriggerExit)
-                        onTriggerExit(trigId);
-                }
-            }
-            curTrigSt = false;
-        }
-    }
-
-    public bool triggerActive(char[] triggerId) {
-        bool* trigSt = (triggerId in mLastTriggerStates);
-        if (trigSt)
-            return *trigSt;
-        else
-            return false;
-    }
-
-    protected void triggerCollide(char[] triggerId) {
-        mTriggerStates[triggerId] = true;
-    }
-
-    // <------------- Trigger support
-
     override protected void simulate(float deltaT) {
         super.simulate(deltaT);
-        if (mPosp.needUpdate) {
-            collision = world.findCollisionID(mPosp.collisionID, true);
-            mPosp.needUpdate = false;
-        }
         //take care of walking, walkingSpeed > 0 marks walking enabled
         if (isWalkingMode()) {
             walkingTime -= deltaT;
@@ -494,8 +441,8 @@ class PhysicForce : PhysicBase {
 
     abstract Vector2f getAccelFor(PhysicObject o, float deltaT);
 
-    public void remove() {
-        super.remove();
+    override protected void doremove() {
+        super.doremove();
         //forces_node.removeFromList();
         world.mForceObjects.remove(this);
     }
@@ -665,17 +612,14 @@ class PhysicGeometry : PhysicBase {
         collision = world.findCollisionID("ground", true);
     }
 
-    override bool canCollide(PhysicBase other) {
-        return super.canCollide(other);
-    }
 
     //if outside geometry, return false and don't change pos
     //if inside or touching, return true and set pos to a corrected pos
     //(which is the old pos, moved along the normal at that point in the object)
     abstract bool collide(inout Vector2f pos, float radius);
 
-    public void remove() {
-        super.remove();
+    override protected void doremove() {
+        super.doremove();
         world.mGeometryObjects.remove(this);
     }
 }
@@ -724,16 +668,6 @@ class PhysicTrigger : PhysicBase {
 
     void delegate(PhysicTrigger sender, PhysicObject other) onTrigger;
 
-    //identifier for callback procedure
-    char[] id = "trigid_undefined";
-
-    //special handling: allow collision with all if not set
-    override bool canCollide(PhysicBase other) {
-        if (collision == CollisionType_Invalid)
-            return true;
-        return world.canCollide(collision, other.collision);
-    }
-
     //return true when object is inside, false otherwise
     bool collide(PhysicObject obj) {
         bool coll = doCollide(obj.pos, obj.posp.radius);
@@ -744,8 +678,8 @@ class PhysicTrigger : PhysicBase {
 
     abstract protected bool doCollide(Vector2f pos, float radius);
 
-    public void remove() {
-        super.remove();
+    override protected void doremove() {
+        super.doremove();
         world.mTriggers.remove(this);
     }
 }
@@ -769,24 +703,17 @@ class PlaneTrigger : PhysicTrigger {
 //circular trigger area with position and radius
 //(you could call it proximity sensor)
 class CircularTrigger : PhysicTrigger {
-    private float mSqRadius;   //cached value to avoid sqrt call
-    private float mRadius;
+    float radius;
     Vector2f pos;
 
     this(Vector2f pos, float rad) {
         radius = rad;
-    }
-
-    void radius(float r) {
-        mRadius = r;
-        mSqRadius = r*r;
-    }
-    float radius() {
-        return mRadius;
+        this.pos = pos;
     }
 
     override bool doCollide(Vector2f opos, float orad) {
-        return (opos-pos).quad_length < mSqRadius;
+        //xxx: orad?
+        return (opos-pos).quad_length < radius*radius;
     }
 
 }
@@ -895,8 +822,10 @@ class PhysicWorld {
                 if (q_dist >= mindist*mindist)
                     continue;
 
+                CollisionCookie collide;
+
                 //no collision if unwanted
-                if (!me.canCollide(other))
+                if (!canCollide(me, other, collide))
                     continue;
 
                 //actually collide the stuff....
@@ -941,10 +870,7 @@ class PhysicWorld {
 
                 me.checkRotation();
 
-                if (me.onImpact)
-                    me.onImpact(other);
-                if (other.onImpact)
-                    other.onImpact(me);
+                collide.call(); //call collision handler
                 //xxx: also, should it be possible to glue objects here?
             }
         }
@@ -965,11 +891,15 @@ class PhysicWorld {
             //check triggers
             //check glued objects too, or else not checking would be
             //misinterpreted as not active
+
             foreach (PhysicTrigger tr; mTriggers) {
-                if (tr.canCollide(me) && tr.collide(me)) {
-                    me.triggerCollide(tr.id);
-                    me.needUpdate();
-                }
+                //handler is unused -> registered handler not called
+                //instead, the trigger calls a delegate... hmmm
+                CollisionCookie handler;
+                //xxx: not good, but had to hack it back, sigh
+                bool always = tr.collision == CollisionType_Invalid;
+                if (always || canCollide(tr, me, handler))
+                    tr.collide(me);
             }
 
             //no need to check then? (maybe)
@@ -981,7 +911,10 @@ class PhysicWorld {
 
             foreach (PhysicGeometry gm; mGeometryObjects) {
                 Vector2f npos = me.pos;
-                if (gm.canCollide(me) && gm.collide(npos, me.posp.radius)) {
+                CollisionCookie cookie;
+                if (canCollide(me, gm, cookie)
+                    && gm.collide(npos, me.posp.radius))
+                {
                     //kind of hack for LevelGeometry
                     //if the pos didn't change at all, but a collision was
                     //reported, assume the object is completely within the
@@ -995,8 +928,8 @@ class PhysicWorld {
                     Vector2f direction = npos - me.pos;
                     normalsum += direction;
 
-                    if (me.onImpact && !me.isGlued)
-                        me.onImpact(gm);
+                    if (!me.isGlued)
+                        cookie.call();
                     //xxx: glue objects that don't fly fast enough
                 }
             }
@@ -1061,14 +994,14 @@ class PhysicWorld {
         PhysicBase obj = mAllObjects.head();
         while (obj) {
             auto next = mAllObjects.next(obj);
-            if (obj.mNeedUpdate) {
+            if (!obj.dead && obj.mNeedUpdate) {
                 obj.mNeedUpdate = false;
                 obj.doUpdate();
             }
             if (obj.dead) {
                 if (obj.onDie)
                     obj.onDie();
-                obj.remove();
+                obj.doremove();
             }
             obj = next;
         }
@@ -1091,40 +1024,126 @@ class PhysicWorld {
     //and more sane, but: you don't know the upper bounds of the array yet
     private struct Collide {
         CollisionType a, b;
-        //not needed for > DMD1.014 (but 1.014 is buggy on struct literals)
-        static Collide opCall(CollisionType a, CollisionType b)
-            {Collide c; c.a=a; c.b = b; return c;}
     }
     private int[Collide] mCollisionMap;
     private CollisionType mCollisionAlloc;
+
+    private CollideDelegate[] mCollideHandlers;
+    private int[char[]] mCollideHandlerToIndex;
 
     CollisionType newCollisionType() {
         return ++mCollisionAlloc;
     }
 
-    //a should colide with b, and b with a (commutative)
-    //  cookie = returned by canCollide() on this collision
-    //raises error if collision is already set
-    void setCollide(CollisionType a, CollisionType b, int cookie) {
-        if (canCollide(a, b)) {
-            throw new Exception("no.");
+    //considered to be private; result of canCollide
+    //this is used to call the collision handler (was: PhysicBase.onImpact)
+    //this is done using .call(), all other members are opaque
+    //intention: avoid a second lookup into the collision map on impact
+    //           also, maybe the arguments need to be reverted
+    struct CollisionCookie {
+        private PhysicBase a, b;
+        private CollideDelegate oncollide;
+
+        void call() {
+            oncollide(a, b);
         }
-        mCollisionMap[Collide(a, b)] = cookie;
     }
-    bool canCollide(CollisionType a, CollisionType b, out int cookie) {
+
+    private int getCollisionHandlerIndex(char[] name, bool maybecreate) {
+        if (!(name in mCollideHandlerToIndex)) {
+            if (!maybecreate)
+                return -1;
+            mCollideHandlerToIndex[name] = mCollideHandlers.length;
+            mCollideHandlers ~= null;
+        }
+
+        return mCollideHandlerToIndex[name];
+    }
+
+    //associate a collision handler with code
+    //this can handle forward-referencing
+    void setCollideHandler(char[] name, CollideDelegate oncollide) {
+        int index = getCollisionHandlerIndex(name, true);
+
+        if (mCollideHandlers[index] !is null) {
+            //already set, but there can be only one handler
+            throw new Exception("collide-handler '"~name~"' is already set!");
+        }
+
+        if (!oncollide)
+            oncollide = &collide_nohandler;
+
+        mCollideHandlers[index] = oncollide;
+    }
+
+    private void collide_nohandler(PhysicBase a, PhysicBase b) {
+    }
+
+    //a should colide with b, and reverse (if allow_reverse is true)
+    //  handler_name = name of the handler; can handle forward-refs
+    //raises an error if collision is already set
+    void setCollide(CollisionType a, CollisionType b, char[] handler_name,
+        bool allow_reverse = true)
+    {
+        bool rev;
+        int cook = doCollisionLookup(a, b, rev);
+        if (cook >= 0) {
+            throw new Exception(str.format("there is already a collision set"
+                " between '%s' and '%s' (handler='%s', reverse=%s), can't"
+                " set handler to '%s'!",
+                aaReverseLookup(mCollisionTypeNames, a, "?"),
+                aaReverseLookup(mCollisionTypeNames, b, "?"),
+                aaReverseLookup(mCollideHandlerToIndex, cook, "?"),
+                rev,
+                handler_name));
+        }
+        mCollisionMap[Collide(a, b)] =
+            getCollisionHandlerIndex(handler_name, true);
+    }
+
+    private int doCollisionLookup(CollisionType a, CollisionType b,
+        out bool revert)
+    {
         int* ptr = Collide(a, b) in mCollisionMap;
-        if (!ptr)
+        if (!ptr) {
             ptr = Collide(b, a) in mCollisionMap;
+            revert = true;
+        }
         if (ptr) {
-            cookie = *ptr;
-            return true;
+            return *ptr;
         } else {
-            return false;
+            return -1;
         }
     }
-    bool canCollide(CollisionType a, CollisionType b) {
-        int tmp;
-        return canCollide(a, b, tmp);
+
+    bool canCollide(PhysicBase a, PhysicBase b, out CollisionCookie stuff) {
+        bool revert;
+        int cookie = doCollisionLookup(a.collision, b.collision, revert);
+
+        if (cookie < 0)
+            return false;
+
+        stuff.a = revert ? b : a;
+        stuff.b = revert ? a : b;
+        stuff.oncollide = mCollideHandlers[cookie];
+
+        return true;
+    }
+
+    //check if all collision handlers were set; if not throw an error
+    void checkCollisionHandlers() {
+        char[][] errors;
+
+        foreach(int index, handler; mCollideHandlers) {
+            if (!handler) {
+                errors ~= aaReverseLookup(mCollideHandlerToIndex, index, "?");
+            }
+        }
+
+        if (errors.length > 0) {
+            throw new Exception(str.format("the following collision handlers"
+                " weren't set: %s", errors));
+        }
     }
 
     //collision handling stuff: map names to the registered IDs
@@ -1154,10 +1173,8 @@ class PhysicWorld {
             CollisionType obj_a = findCollisionID(sub.name, true);
             //... a list of "collision ID" -> "action" pairs
             foreach (char[] name, char[] value; sub) {
-                //NOTE: action is currently unused
-                //      should map to a cookie value, which is 1 for now
                 CollisionType obj_b = findCollisionID(name, true);
-                setCollide(obj_a, obj_b, 1);
+                setCollide(obj_a, obj_b, value);
             }
         }
     }
