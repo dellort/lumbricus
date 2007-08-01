@@ -136,7 +136,7 @@ class GameView : Container, TeamMemberControlCallback {
                 wormName = new Label();
                 wormName.font = team.font;
                 wormName.text = m.name;
-                wormName.border = Vector2i(3);
+                //wormName.border = Vector2i(3);
                 wormPoints = new Label();
                 wormPoints.font = wormName.font;
                 wormPoints.border = wormName.border;

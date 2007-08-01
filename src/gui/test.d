@@ -4,8 +4,12 @@ import gui.gui;
 import gui.widget;
 import gui.button;
 import gui.boxcontainer;
+import gui.tablecontainer;
+import gui.label;
+import gui.mousescroller;
 import common.common;
 import common.task;
+import framework.framework;
 import framework.commandline : CommandBucket, Command;
 import utils.mybox;
 import utils.output;
@@ -13,6 +17,8 @@ import utils.time;
 import utils.array;
 import utils.vector2;
 import str = std.string;
+
+import gui.window;
 
 class TestFrame : SimpleContainer {
     private Button[] mButtons;
@@ -39,7 +45,11 @@ class TestFrame : SimpleContainer {
         put(6, -1, +1); //6
         put(7,  0, +1);
         put(8, +1, +1); //8
+    }
+}
 
+class TestFrame2 : SimpleContainer {
+    this() {
         //start -> http://developer.gnome.org/doc/GGAD/figures/allpack.png
         struct BoxTest {
             bool hom, exp, fill;
@@ -55,19 +65,10 @@ class TestFrame : SimpleContainer {
             BoxTest(true, true, true),
         ];
 
-        static class ExtendContainer : SimpleContainer {
-            Vector2i layoutSizeRequest() {
-                return /+super.layoutSizeRequest() + +/Vector2i(600, 500);
-            }
-        }
-
-        auto cont = new ExtendContainer();
-        add(cont, WidgetLayout.Aligned(0, 0));
-
         auto vbox = new BoxContainer(false, false, 0);
         WidgetLayout w;
         w.expand[1] = false;
-        cont.add(vbox, w);
+        add(vbox, w);
 
         foreach (BoxTest bt; stuff) {
             auto hbox = new BoxContainer(true, bt.hom, 0);
@@ -78,7 +79,7 @@ class TestFrame : SimpleContainer {
                 WidgetLayout wl;
                 wl.expand[0] = bt.exp;
                 wl.fill[0] = bt.fill ? 1.0 : 0;
-                auto label = new Button();
+                auto label = new Label();
                 label.text = t;
                 hbox.add(label, wl);
             }
@@ -87,14 +88,43 @@ class TestFrame : SimpleContainer {
     }
 }
 
+class TestFrame3 : Container {
+    this() {
+        auto scroll = new MouseScroller();
+        auto label = new Label();
+        scroll.add(label);
+        label.text = "MouseScroller huhuh!";
+        label.font = getFramework.fontManager.loadFont("test");
+        addChild(scroll);
+    }
+}
+
 //just to show the testframe
 class TestTask : Task {
-    private TestFrame mWindow;
+    private Widget mWindow;
 
     this(TaskManager tm) {
         super(tm);
-        mWindow = new TestFrame;
+
+        auto frame = new WindowFrame();
+        mWindow = frame;
         manager.guiMain.mainFrame.add(mWindow);
+
+        //xxx move to WindowFrame
+        void createWindow(char[] name, Widget client) {
+            auto wnd = new Window();
+            wnd.windowTitle = name;
+            wnd.client = client;
+            frame.add(wnd);
+        }
+
+        createWindow("bla", null);
+        createWindow("nummer 2", null);
+        createWindow("TestFrame", new TestFrame);
+        createWindow("TestFrame2", new TestFrame2);
+        createWindow("TestFrame3", new TestFrame3);
+
+//        getFramework.clearColor = Color(1,1,1);
     }
 
     override protected void onKill() {

@@ -170,6 +170,8 @@ unittest {
     assert(testAIST([], 1) == [1]);
 }
 
+/+ it works, but it's ridiculous
+
 //xxx: improve, this is unnecessarly unefficient!
 //someone said: steal it from
 //http://www.dsource.org/projects/tango/browser/trunk/tango/core/Array.d
@@ -188,6 +190,7 @@ unittest {
     arraySort(foo, (int a, int b) {return a <= b;});
     assert(foo == should);
 }
++/
 
 //utf-8 strings are arrays too
 

@@ -27,6 +27,7 @@ class GuiMain {
 
     private class MainFrame : SimpleContainer {
         this() {
+            doMouseEnterLeave(true); //mous always in, initial event
             pollFocusState();
         }
 
@@ -39,25 +40,22 @@ class GuiMain {
         }
 
         bool putKeyEvent(KeyInfo info) {
-            if (info.isMouseButton) {
-                return handleMouseEvent(null, &info);
-            } else {
-                return handleKeyEvent(info);
-            }
+            return handleKeyEvent(info);
         }
 
         void putMouseMove(MouseInfo info) {
-            handleMouseEvent(&info, null);
+            updateMousePos(info.pos);
+            handleMouseEvent(info);
         }
 
-        protected override bool onKeyDown(char[] bind, KeyInfo key) {
-            if (key.code == Keycode.TAB) {
+        protected override bool onKeyEvent(KeyInfo key) {
+            if (key.isDown && key.code == Keycode.TAB) {
                 bool res = mMainFrame.nextFocus();
                 if (!res)
                     mMainFrame.nextFocus();
                 return true;
             }
-            return false;
+            return super.onKeyEvent(key);
         }
     }
 

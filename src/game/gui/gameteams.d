@@ -57,7 +57,7 @@ class TeamWindow : Container {
             auto teamname = new Label();
             //xxx proper font and color etc.
             teamname.text = teams[n].name;
-            teamname.border = Vector2i(3,3);
+            //teamname.border = Vector2i(3,3);
             //xxx code duplication with gameview.d
             teamname.font = globals.framework.fontManager.loadFont("wormfont_"
                 ~ cTeamColors[teams[n].color]);
@@ -69,7 +69,7 @@ class TeamWindow : Container {
             assert(res);
             bar.fill = c;
             mBars[teams[n]] = bar;
-            table.add(bar, 1, n);
+            table.add(bar, 1, n, WidgetLayout.Expand(false));
 
             mMaxHealth = max(mMaxHealth, teams[n].totalHealth);
         }

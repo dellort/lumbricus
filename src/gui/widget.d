@@ -99,6 +99,8 @@ class Widget {
         //used only to raise onFocusChange()
         bool mOldFocus;
 
+        bool mMouseOverState;
+
         //(optional) set of key bindings for the onKey*() handlers
         //if not set, bind parameter will be empty
         KeyBindings mBindings;
@@ -214,11 +216,10 @@ class Widget {
     /// Container should use this to know child-Widget sizes
     /// (may the name lead to confusion with layoutSizeRequest())
     final Vector2i layoutCachedContainerSizeRequest() {
-        //yyy no idea why caching the size doesn't really work
-        //if (!mCachedContainedRequestSizeValid) {
+        if (!mCachedContainedRequestSizeValid) {
             mCachedContainedRequestSizeValid = true;
             mCachedContainedRequestSize = layoutContainerSizeRequest();
-        //}
+        }
 
         return mCachedContainedRequestSize;
     }
@@ -317,12 +318,15 @@ class Widget {
             //and align; this again selects the rest of the size
             //and add the border padding (padB is the second border, implicit)
             offset[n] = cast(int)((psize[n] - rsize[n]) * mLayout.alignment[n])
-                + mLayout.pad + mLayout.padA[n];
+                ;//+ mLayout.pad + mLayout.padA[n];
             //remove the border from the size (the size is for the widget)
-            rsize[n] = rsize[n] - mLayout.pad*2 - mLayout.padB[n] - mLayout.padA[n];
+            //rsize[n] = rsize[n] - mLayout.pad - mLayout.padA[n] - mLayout.padB[n];
         }
-        area.p1 = area.p1 + offset;
-        area.p2 = area.p1 + rsize;
+        auto pad = Vector2i(mLayout.pad, mLayout.pad);
+        auto ba = mLayout.padA + pad;
+        auto bb = mLayout.padB + pad;
+        area.p1 += offset + ba;
+        area.p2 = area.p1 + rsize - ba - bb;
     }
 
     // --- input handling
@@ -335,8 +339,25 @@ class Widget {
         return (pos.x >= 0 && pos.y >= 0 && pos.x < s.x && pos.y < s.y);
     }
 
-    //event handlers which can be overridden by the user
-    //these functions shall return true if the event was handled
+    //event handler which can be overridden by the user
+    //this function shall return true if the event was handled
+    //if it doesn't handle an event, an overridden method must call the super-
+    //handler and return its result
+    protected bool onKeyEvent(KeyInfo info) {
+        //default: do nothing, return false (to indicate "unhandled")
+        //but also must do kind of "compatibility" here:
+        char[] bind = findBind(info);
+        switch (info.type) {
+            case KeyEventType.Down: return onKeyDown(bind, info);
+            case KeyEventType.Up: return onKeyUp(bind, info);
+            case KeyEventType.Press: return onKeyPress(bind, info);
+            default: assert(false);
+        }
+    }
+
+    //compatibility/simplification
+    //can still be used, but i.e. it's not possible to use this with containers
+    //to have full control about what should go the children and what not
     protected bool onKeyDown(char[] bind, KeyInfo key) {
         return false;
     }
@@ -346,6 +367,8 @@ class Widget {
     protected bool onKeyPress(char[] bind, KeyInfo key) {
         return false;
     }
+
+
     //return true only if you want block this event for children
     //no meaning for non-Container Widgets (?)
     protected bool onMouseMove(MouseInfo mouse) {
@@ -353,13 +376,16 @@ class Widget {
     }
 
     //notification if this.testMouse() changed on a mouse move event
-    //xxx: currently works a bit... strange
     protected void onMouseEnterLeave(bool mouseIsInside) {
     }
 
-    //I hate D
+    //calls onMouseEnterLeave(), but avoid unnecessary recursion (cf. Container)
+    //(and also is "package" to deal with the stupid D protection attributes)
     package void doMouseEnterLeave(bool mii) {
-        onMouseEnterLeave(mii);
+        if (mMouseOverState != mii) {
+            mMouseOverState = mii;
+            onMouseEnterLeave(mii);
+        }
     }
 
     void bindings(KeyBindings bind) {
@@ -375,43 +401,26 @@ class Widget {
         return mMousePos;
     }
 
-    private bool callKeyHandler(KeyInfo info) {
+    final char[] findBind(KeyInfo k) {
         char[] bind;
         if (mBindings) {
-            bind = mBindings.findBinding(info);
+            bind = mBindings.findBinding(k);
         }
-        switch (info.type) {
-            case KeyEventType.Down: return onKeyDown(bind, info);
-            case KeyEventType.Up: return onKeyUp(bind, info);
-            case KeyEventType.Press: return onKeyPress(bind, info);
-            default: assert(false);
-        }
+        return bind;
     }
 
-    //sucky interface, one and only one param must be !null
-    //reason: mouse buttons are dispatched exactly like mouse move events
-    //NOTE: instead of returning a bool for whether the event was accepted or
-    //      not, there's testMouse() which queries if a mouse event on that
-    //      position will be accepted or not
-    //overridden by Container
-    bool handleMouseEvent(MouseInfo* mi, KeyInfo* ki) {
-        //call user's event handler
-        assert(!!mi != !!ki);
-        if (mi) {
-            //update mousepos too!
-            mMousePos = mi.pos;
-            onMouseEnterLeave(true);
-            return onMouseMove(*mi);
-        } else {
-            onMouseEnterLeave(true);
-            return callKeyHandler(*ki);
-        }
+    //called by the owning Container only
+    package void updateMousePos(Vector2i pos) {
+        mMousePos = pos;
+    }
+
+    bool handleMouseEvent(MouseInfo mi) {
+        return onMouseMove(mi);
     }
 
     //return true if event was handled
-    //overridden by Container
     bool handleKeyEvent(KeyInfo info) {
-        return callKeyHandler(info);
+        return onKeyEvent(info);
     }
 
     //load a set of key bindings for this control (used only for own events)
@@ -512,7 +521,8 @@ class Widget {
     /// called when focused() changes
     /// default implementation: set Widget zorder to front
     protected void onFocusChange() {
-        gDefaultLog("global focus change for %s: %s", this, mHasFocus);
+        version (LogFocus)
+            gDefaultLog("global focus change for %s: %s", this, mHasFocus);
         //also adjust zorder, else it looks strange
         if (focused)
             toFront();
@@ -536,6 +546,35 @@ class Widget {
             mOldFocus = focused();
             onFocusChange();
         }
+    }
+
+    // --- captures
+    //there are mouse and key captures; both disable the normal per-Container
+    //event dispatch mechanism (mouse events are normally dispatched by zorder
+    //and testMouse, key events by focus) and pass all events to the grabbing
+    //Widget
+    //but you still can't capture all _global_ events with this, only the events
+    //the Containers pass to their children
+    //(mouse and key captures can be easily separated if needed, see Container)
+
+    //keyboard events are delivered even to non-focusable Widgets when captured
+
+    //this will capture all parent Widgets too, and if there already exists
+    //another capture which is not in this line, the other will be canceled
+    final void captureEnable() {
+        if (parent)
+            parent.childSetCapture(this, true);
+    }
+
+    //remove capture (including parent captures)
+    final void captureDisable() {
+        if (parent)
+            parent.childSetCapture(this, false);
+    }
+
+    final void captureSet(bool set) {
+        if (parent)
+            parent.childSetCapture(this, set);
     }
 }
 

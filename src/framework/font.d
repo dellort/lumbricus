@@ -80,7 +80,9 @@ class FontManager {
         p.italic = font.getBoolValue("italic", p.italic);
         p.underline = font.getBoolValue("underline", p.underline);
 
-        Font f = gFramework.loadFont(gFramework.fs.open(filename), p);
+        auto file = gFramework.fs.open(filename);
+        Font f = gFramework.loadFont(file, p);
+        file.close();
 
         if (!f) {
             if (tryHard)

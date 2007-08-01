@@ -5,10 +5,8 @@ import gui.widget;
 import gui.label;
 
 //xxx this is a hack
-//if an image is set, also disable all Label rendering completely
 class Button : Label {
     private {
-        Texture mImage;
         bool mMouseOver;
     }
 
@@ -16,52 +14,38 @@ class Button : Label {
     void delegate(Button sender) onRightClick;
     void delegate(Button sender, bool over) onMouseOver;
 
-    void image(Texture img) {
-        mImage = img;
-        needRelayout();
-    }
-
-    override Vector2i layoutSizeRequest() {
-        return mImage ? mImage.size : super.layoutSizeRequest();
-    }
-
     override void onDraw(Canvas c) {
-        if (mImage) {
-            c.draw(mImage, Vector2i());
-        } else {
-            super.onDraw(c);
-        }
+        super.onDraw(c);
         //*g*
         if (mMouseOver) {
             c.drawFilledRect(Vector2i(0), size, Color(1,1,1,0.3));
         }
     }
 
-    override protected bool onMouseMove(MouseInfo mouse) {
-        //lol... but else, mouse-leave won't work (see container.d/internal...)
-        return true;
-    }
-
     override protected void onMouseEnterLeave(bool mouseIsInside) {
+        super.onMouseEnterLeave(mouseIsInside);
         mMouseOver = mouseIsInside;
         if (onMouseOver) {
             onMouseOver(this, mouseIsInside);
         }
     }
 
-    override protected bool onKeyUp(char[] bind, KeyInfo key) {
+    override protected bool onKeyEvent(KeyInfo key) {
         if (key.code == Keycode.MOUSE_LEFT /*&& bounds.isInside(mousePos)*/) {
-            if (onClick) {
+            //NOTE: even though you react only on key-up events, catch down-
+            // and press-events as well, else other Widgets might receive this
+            // events, leading to stupid confusion
+            if (key.isUp && onClick) {
                 onClick(this);
             }
             return true;
         }
         if (key.code == Keycode.MOUSE_RIGHT) {
-            if (onRightClick) {
+            if (key.isUp && onRightClick) {
                 onRightClick(this);
             }
             return true;
         }
-        return super.onKeyUp(bind, key);
+        return super.onKeyEvent(key);
     }
 }

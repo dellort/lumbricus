@@ -523,7 +523,7 @@ public class LevelEditor : Task {
                 if (gFramework.getModifierState(Modifier.Control)) {
                     if (obj)
                         setSelected(obj, !obj.isSelected);
-                    return false;
+                    return true;
                 }
                 if (!obj || obj is root) {
                     deselectAll();
@@ -531,7 +531,7 @@ public class LevelEditor : Task {
                     selectStart = mousePos;
                     selectEnd = selectStart;
                     isSelecting = true;
-                    return false;
+                    return true;
                 }
 
                 if (!obj.isSelected)
@@ -542,12 +542,12 @@ public class LevelEditor : Task {
                 dragPick = mousePos;
                 dragRel = Vector2i(0);
             }
-            return false;
+            return true;
         }
 
-        bool onKeyPress(char[] bind, KeyInfo infos) {
+        /+bool onKeyPress(char[] bind, KeyInfo infos) {
             return false;
-        }
+        }+/
 
 
         bool onKeyUp(char[] bind, KeyInfo infos) {
@@ -575,7 +575,7 @@ public class LevelEditor : Task {
                     }
                 }
             }
-            return false;
+            return true;
         }
 
         bool onMouseMove(MouseInfo info) {
@@ -724,9 +724,8 @@ public class LevelEditor : Task {
         container.add(spacer, WidgetLayout.Expand(false));
         auto foo = new SimpleContainer();
         foo.drawBox = true;
-        foo.internalBorder = Vector2i(6);
         auto sidebar = new BoxContainer(false,false,6);
-        foo.add(sidebar, WidgetLayout.Aligned(0, 0));
+        foo.add(sidebar, WidgetLayout.Aligned(0, 0, Vector2i(6)));
         container.add(foo, WidgetLayout.Aligned(0, 0));
 
         //NOTE: indirection through bind is done because using the this-ptr

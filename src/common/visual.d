@@ -46,7 +46,7 @@ void drawBox(Canvas c, in Rect2i rect, in BoxProperties props) {
 }
 
 struct BoxProperties {
-    int borderWidth = 1, cornerRadius = 8;
+    int borderWidth = 1, cornerRadius = 5;
     Color border, back = {1,1,1};
 }
 

@@ -21,7 +21,8 @@ interface ScrollClient {
 
 /// This frame always sizes its child to its requested size, and enables
 /// scrolling within it.
-//(this is what the SceneObjectViewer was)
+///xxx: add a widget which shows scrollbars and which takes a "ScollClient" as
+///  client; so ScrollArea would need to implement ScrollClient (or so)
 class ScrollArea : SimpleContainer {
     private {
         Vector2i mOffset;

@@ -73,6 +73,6 @@ class MouseScroller : ScrollArea {
             noticeAction();
             return true;
         }
-        return false;
+        return super.onMouseMove(mi);
     }
 }

@@ -140,7 +140,7 @@ class WeaponSelWindow : Container {
         }
         //create table and insert stuff
         mGrid = new TableContainer(x_max, y_max, Vector2i(3,3));//, [true, true]);
-        mGrid.forceExpand = true;
+        //mGrid.forceExpand = true;
         //go with the order of categories
         int y = 0;
         foreach (category; mCategories) {
@@ -170,6 +170,7 @@ class WeaponSelWindow : Container {
                 button.image = w.type.icon.get.createTexture();
                 button.onClick = &clickWeapon;
                 button.onMouseOver = &mouseoverWeapon;
+                button.drawBorder = false;
                 mGrid.add(button, x, y, WidgetLayout.Noexpand);
 
                 x++;

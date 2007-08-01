@@ -41,10 +41,7 @@ class Container : Widget {
         //also grows only; used to do "soft" zorder
         int mLastZOrder2;
 
-        //to send mouse-leave events
-        Widget mLastMouseReceiver;
-
-        Vector2i mInternalBorder;
+        Widget mEventCaptured;
     }
 
     common.visual.BoxProperties drawBoxStyle;
@@ -88,6 +85,9 @@ class Container : Widget {
         onRemoveChild(o);
 
         //gDefaultLog("removed %s from %s", o, this);
+
+        if (o is mEventCaptured)
+            childSetCapture(mEventCaptured, false);
 
         if (o is mFocus) {
             mFocus = null;
@@ -243,6 +243,10 @@ class Container : Widget {
             index++;
         }
 
+        //reset, so it starts cycling again if we're focused next time
+        if (!ok)
+            localFocus = null;
+
         return ok;
     }
 
@@ -252,7 +256,8 @@ class Container : Widget {
             return;
 
         if (mFocus) {
-            gDefaultLog("remove local focus: %s from %s", mFocus, this);
+            version (LogFocus)
+                gDefaultLog("remove local focus: %s from %s", mFocus, this);
             auto tmp = mFocus;
             mFocus = null;
             tmp.pollFocusState();
@@ -260,7 +265,8 @@ class Container : Widget {
         mFocus = go;
         if (go && go.canHaveFocus) {
             go.mFocusAge = ++mCurrentFocusAge;
-            gDefaultLog("set local focus: %s for %s", mFocus, this);
+            version (LogFocus)
+                gDefaultLog("set local focus: %s for %s", mFocus, this);
             go.pollFocusState();
         }
     }
@@ -309,13 +315,11 @@ class Container : Widget {
         foreach (w; children) {
             biggest = biggest.max(w.layoutCachedContainerSizeRequest());
         }
-        biggest += mInternalBorder*2;
         return biggest;
     }
 
     protected override void layoutSizeAllocation() {
         Rect2i b = widgetBounds();
-        b.extendBorder(-mInternalBorder);
         foreach (w; children) {
             w.layoutContainerAllocate(b);
         }
@@ -351,76 +355,107 @@ class Container : Widget {
     }
 
     override protected void onMouseEnterLeave(bool mouseIsInside) {
-        if (!mouseIsInside && mLastMouseReceiver) {
-            mLastMouseReceiver.doMouseEnterLeave(false);
-            mLastMouseReceiver = null;
+        //if it's inside, rely on mouse-event stuff
+        if (mouseIsInside)
+            return;
+        foreach (o; mWidgets) {
+            o.doMouseEnterLeave(mouseIsInside);
         }
     }
 
-    override bool handleKeyEvent(KeyInfo info) {
+    override protected bool onKeyEvent(KeyInfo key) {
         //first try to handle locally
-        //the super.-method invokes the onKey*() functions
-        if (super.handleKeyEvent(info))
+        //the super.-method also invokes the old onKey*() functions
+        if (super.onKeyEvent(key))
             return true;
+
+        bool ok;
+
         //event wasn't handled, handle by child objects
-        if (mFocus) {
-            if (mFocus.handleKeyEvent(info))
-                return true;
+        if (!key.isMouseButton) {
+            //normal key: dispatch by focus
+            //when captured, the captured one gets all events
+            if (!mEventCaptured) {
+                ok = mFocus && mFocus.handleKeyEvent(key);
+            } else {
+                ok = mEventCaptured.handleKeyEvent(key);
+            }
+        } else {
+            //mouse key: dispatch by mouse position
+            ok = checkChildrenMouseEvent(mousePos,
+                (Widget child) {
+                    //attention: local return within a delegate
+                    return child.handleKeyEvent(key);
+                }
+            );
         }
-        return false;
+
+        return ok;
     }
 
-    override bool handleMouseEvent(MouseInfo* mi, KeyInfo* ki) {
-        //NOTE: mouse buttons (ki) don't have the mousepos; use the old one then
+    override protected bool onMouseMove(MouseInfo mouse) {
+        //first handle locally (currently the super-method is empty, hmm)
+        if (super.onMouseMove(mouse))
+            return true;
 
+        return checkChildrenMouseEvent(mouse.pos,
+            (Widget child) {
+                //mouse-struct needs to be translated to the child
+                mouse.pos = child.mousePos; //xxx: unkosher?
+                return child.handleMouseEvent(mouse);
+            }
+        );
+    }
+
+    //enumerate all children which would handle the event for mousepos "mouse"
+    //the check_child-delegate is supposed to actually call the child's event-
+    //handler; it returns whether to child did handle the event
+    protected bool checkChildrenMouseEvent(Vector2i mouse,
+        bool delegate(Widget child) check_child)
+    {
         Widget got_it;
 
-        //first, check if the parent wants it; if it returns true, don't deliver
-        //this event to the children
-        if (!super.handleMouseEvent(mi, ki)) {
+        //check if any children are hit by this
+        //objects towards the end of the array are later drawn => _reverse
+        foreach_reverse (zchild; mZWidgets) {
+            auto child = zchild.w;
+            auto clientmp = child.coordsFromParent(mouse);
 
-            //check if any children are hit by this
-            //objects towards the end of the array are later drawn => _reverse
-            foreach_reverse (zchild; mZWidgets) {
-                auto child = zchild.w;
-                auto clientmp = child.coordsFromParent(mousePos);
-                if (child.testMouse(clientmp)) {
-                    //huhuhu a hit! call its event handler
-                    bool res;
-                    //MouseInfo.pos should contain the translated mousepos
-                    if (mi) {
-                        MouseInfo mi2 = *mi;
-                        mi2.pos = clientmp;
-                        res = child.handleMouseEvent(&mi2, null);
-                    } else {
-                        res = child.handleMouseEvent(null, ki);
-                    }
-                    if (res) {
-                        got_it = child;
-                        break;
-                    }
-                }
+            //mouse capture means mEventCaptured gets all events
+            bool captured = child is mEventCaptured;
+            bool capturing = mEventCaptured !is null;
+
+            if ((capturing && captured)
+                || (!capturing && child.testMouse(clientmp)))
+            {
+                child.updateMousePos(clientmp);
+                child.doMouseEnterLeave(true);
+                //(try to) deliver event, but only if noone got it yet
+                if (!got_it && check_child(child))
+                    got_it = child;
+            } else {
+                child.doMouseEnterLeave(false);
             }
         }
-
-        if (mLastMouseReceiver && (mLastMouseReceiver !is got_it)) {
-            mLastMouseReceiver.doMouseEnterLeave(false);
-        }
-
-        mLastMouseReceiver = got_it;
 
         return got_it !is null;
     }
 
-    // --- all the rest
+    //you should use Widget.captureEnable/captureDisable/captureSet
+    void childSetCapture(Widget child, bool set) {
+        assert(child.parent is this);
+        if (set) {
+            mEventCaptured = child;
+            captureSet(true); //propagate upwards
+        } else {
+            if (mEventCaptured is child) {
+                mEventCaptured = null;
+                captureSet(false);
+            }
+        }
+    }
 
-    void internalBorder(Vector2i b) {
-        mInternalBorder = b;
-        needRelayout();
-    }
-    Vector2i internalBorder() {
-        return mInternalBorder;
-    }
+    // --- all the rest
 
     override void internalSimulate(Time curTime, Time deltaT) {
         foreach (obj; mWidgets) {
@@ -438,6 +473,12 @@ class Container : Widget {
         }
         super.onDraw(c);
     }
+
+    protected void clear() {
+        while (children.length > 0) {
+            removeChild(children[0]);
+        }
+    }
 }
 
 ///Container with a public Container-interface
@@ -447,9 +488,7 @@ class Container : Widget {
 ///     problems in widget.d/Widget
 class PublicContainer : Container {
     void clear() {
-        while (children.length > 0) {
-            removeChild(children[0]);
-        }
+        super.clear();
     }
 }
 

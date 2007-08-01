@@ -21,6 +21,7 @@ class TableContainer : PublicContainer {
         Vector2i mCellSpacing;
 
         //temporary between layoutSizeRequest() and allocation
+        Vector2i mLastSize;
         int[2] mExpandableCount;
         Vector2i mAllSpacing;
         bool[] mExpandX;
@@ -59,14 +60,18 @@ class TableContainer : PublicContainer {
     //hack
     bool forceExpand;
 
-    void add(Widget w, int x, int y, WidgetLayout layout = WidgetLayout()) {
+    void add(Widget w, int x, int y, WidgetLayout layout) {
+        w.setLayout(layout);
+        add(w, x, y);
+    }
+
+    void add(Widget w, int x, int y) {
         //check bounds, no overwriting of cells
         assert(x >= 0 && x < mW);
         assert(y >= 0 && y < mH);
         assert(mCells[x][y] is null);
-        w.setLayout(layout);
-        addChild(w);
         mCells[x][y] = w;
+        addChild(w);
     }
 
     override protected void removeChild(Widget w) {
@@ -130,12 +135,14 @@ class TableContainer : PublicContainer {
         //summed up
         Vector2i rsize;
 
+        mExpandableCount[0] = 0;
         for (int x = 0; x < mW; x++) {
             auto w = mMinWidths[x];
             rsize.x += w;
             mExpandableCount[0] += mExpandX[x] ? 1 : 0;
         }
 
+        mExpandableCount[1] = 0;
         for (int y = 0; y < mH; y++) {
             auto h = mMinHeights[y];
             rsize.y += h;
@@ -148,6 +155,8 @@ class TableContainer : PublicContainer {
 
         rsize += mAllSpacing;
 
+        mLastSize = rsize;
+
         return rsize;
     }
 
@@ -156,7 +165,7 @@ class TableContainer : PublicContainer {
 
         //first calculate allocations...
 
-        Vector2i extra = asize - layoutCachedContainerSizeRequest();
+        Vector2i extra = asize - mLastSize;
         //distribute extra space accross all expanding cells
         //the 0-case occurs when not expanding at all, but there's extra space
         //be right-top aligned then

@@ -9,19 +9,56 @@ import framework.font;
 import utils.misc;
 
 class Label : Widget {
-    private char[] mText;
-    private Font mFont;
-    private Vector2i mBorder;
-    private bool mShrink;
+    private {
+        char[] mText;
+        Font mFont;
+        Vector2i mBorder;
+        bool mShrink;
+        Texture mImage;
+        BoxProperties mBorderStyle;
+        bool mDrawBorder;
+        //calculated by layoutSizeRequest
+        Vector2i mFinalBorderSize;
+    }
 
-    bool drawBorder;
+    void image(Texture img) {
+        mImage = img;
+        needResize(true);
+    }
+    Texture image() {
+        return mImage;
+    }
+
+    void borderStyle(BoxProperties style) {
+        mBorderStyle = style;
+        needResize(true);
+    }
+    BoxProperties borderStyle() {
+        return mBorderStyle;
+    }
 
     override Vector2i layoutSizeRequest() {
-        auto size = mFont.textSize(mText) + border * 2;
-        if (mShrink) {
-            size.x = 0;
+        auto csize = mFont.textSize(mText);
+        if (mImage) {
+            csize = csize.max(mImage.size);
         }
-        return size;
+        if (mShrink) {
+            csize.x = 0;
+        }
+        mFinalBorderSize = border;
+        if (mDrawBorder) {
+            auto corner = mBorderStyle.cornerRadius/2;
+            mFinalBorderSize += Vector2i(mBorderStyle.borderWidth + corner);
+        }
+        return csize + mFinalBorderSize*2;
+    }
+
+    void drawBorder(bool set) {
+        mDrawBorder = set;
+        needResize(true);
+    }
+    bool drawBorder() {
+        return mDrawBorder;
     }
 
     void text(char[] txt) {
@@ -41,7 +78,7 @@ class Label : Widget {
         return mFont;
     }
 
-    //(invisible!) border around text
+    //(invisible!) border around text (additional to the box)
     void border(Vector2i b) {
         mBorder = b;
         needResize(true);
@@ -62,19 +99,23 @@ class Label : Widget {
     this(Font font = null) {
         mFont = font ? font : globals.framework.getFont("messages");
         drawBorder = true;
-        mBorder = Vector2i(2,1);
+        mBorder = Vector2i(0,0);
     }
 
     override void onDraw(Canvas canvas) {
+        auto b = mFinalBorderSize;
         if (drawBorder) {
-            drawBox(canvas, Vector2i(0), size);
+            drawBox(canvas, widgetBounds, mBorderStyle);
+        }
+        if (mImage) {
+            canvas.draw(mImage, b);
         }
         if (!mShrink) {
-            mFont.drawText(canvas, mBorder, mText);
+            mFont.drawText(canvas, b, mText);
         } else {
             auto sz = size;
-            sz -= mBorder*2;
-            mFont.drawTextLimited(canvas, mBorder, size.x, mText);
+            sz -= b*2;
+            mFont.drawTextLimited(canvas, b, sz.x, mText);
         }
     }
 }

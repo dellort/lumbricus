@@ -172,6 +172,7 @@ private:
             }
         }
         write.writefln("Task %d not found.", id);
+        return null;
     }
 
     private void cmdKill(MyBox[] args, Output write) {

@@ -49,15 +49,32 @@ public struct KeyInfo {
     /// set of active modifiers when event was fired
     ModifierSet mods;
 
+    ///if not a control character
     bool isPrintable() {
         return unicode >= 0x20;
     }
+
+    ///if mouse button
     bool isMouseButton() {
-        return code >= cKeycodeMouseStart && code <= cKeycodeMouseEnd;
+        return keycodeIsMouseButton(code);
+    }
+
+    bool isPress() {
+        return type == KeyEventType.Press;
+    }
+
+    ///if type is KeyEventType.Down
+    bool isDown() {
+        return type == KeyEventType.Down;
+    }
+
+    bool isUp() {
+        return type == KeyEventType.Up;
     }
 
     char[] toString() {
-        return str.format("[KeyInfo: code=%d mods=%d ch='%s'",
+        return str.format("[KeyInfo: ev=%s code=%d mods=%d ch='%s']",
+            ["down", "up", "press"][type],
             cast(int)code, cast(int)mods,
             cast(dchar)(isPrintable ? unicode : '?'));
     }

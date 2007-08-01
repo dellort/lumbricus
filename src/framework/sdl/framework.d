@@ -477,7 +477,7 @@ public class SDLSurface : Surface {
 }
 
 public class SDLCanvas : Canvas {
-    const int MAX_STACK = 10;
+    const int MAX_STACK = 20;
 
     private {
         struct State {
@@ -1084,13 +1084,13 @@ public class FrameworkSDL : Framework {
                     break;
                 case SDL_MOUSEBUTTONUP:
                     KeyInfo infos = mouseInfosFromSDL(event.button);
-                    doKeyUp(infos);
                     doUpdateMousePos(Vector2i(event.button.x, event.button.y));
+                    doKeyUp(infos);
                     break;
                 case SDL_MOUSEBUTTONDOWN:
                     KeyInfo infos = mouseInfosFromSDL(event.button);
-                    doKeyDown(infos);
                     doUpdateMousePos(Vector2i(event.button.x, event.button.y));
+                    doKeyDown(infos);
                     break;
                 // exit if SDLK or the window close button are pressed
                 case SDL_QUIT:
@@ -1102,13 +1102,13 @@ public class FrameworkSDL : Framework {
     }
 
     private void render() {
-        SDL_FillRect(mScreen,null,SDL_MapRGB(mScreen.format,0,0,0));
+        SDL_FillRect(mScreen, null, mScreenSurface.colorToSDLColor(clearColor));
         Canvas c = screen.startDraw();
         if (onFrame) {
                 onFrame(c);
         }
         c.endDraw();
-        SDL_UpdateRect(mScreen,0,0,0,0);
+        //SDL_UpdateRect(mScreen,0,0,0,0);
     }
 
     public Time getCurrentTime() {

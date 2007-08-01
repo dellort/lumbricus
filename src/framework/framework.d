@@ -312,6 +312,8 @@ public class Framework {
 
     private bool mEnableEvents = true;
 
+    private Color mClearColor;
+
     //initialize time between FPS recalculations
     static this() {
         cFPSTimeSpan = timeSecs(1);
@@ -331,6 +333,13 @@ public class Framework {
         return mMousePos;
     }
     public abstract void mousePos(Vector2i newPos);
+
+    public void clearColor(Color c) {
+        mClearColor = c;
+    }
+    public Color clearColor() {
+        return mClearColor;
+    }
 
     public abstract bool grabInput();
 

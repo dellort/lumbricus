@@ -13,6 +13,7 @@ class BoxContainer : SimpleContainer {
         int mCellSpacing;
 
         //temporary between layoutSizeRequest() and allocation
+        Vector2i mLastMinSize;
         int mExpandableCount;
         int mAllSpacing;
     }
@@ -51,6 +52,8 @@ class BoxContainer : SimpleContainer {
         mAllSpacing = (count ? (count-1) * mCellSpacing : 0);
         rsize[mDir] = rsize[mDir] + mAllSpacing;
 
+        mLastMinSize = rsize;
+
         return rsize;
     }
 
@@ -58,7 +61,7 @@ class BoxContainer : SimpleContainer {
         int inv = 1-mDir;
         Vector2i asize = size;
         if (!mHomogeneous) {
-            int extra = (asize - layoutCachedContainerSizeRequest())[mDir];
+            int extra = (asize - mLastMinSize)[mDir];
             if (extra < 0)
                 extra = 0; //don't really deal with shrinking
             //distribute extra space over all cells that are expandable

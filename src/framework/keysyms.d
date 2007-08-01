@@ -251,6 +251,10 @@ enum Keycode {
 final const Keycode cKeycodeMouseStart = Keycode.MOUSE_LEFT;
 final const Keycode cKeycodeMouseEnd = Keycode.MOUSE_BUTTON10;
 
+bool keycodeIsMouseButton(Keycode c) {
+    return c >= cKeycodeMouseStart && c <= cKeycodeMouseEnd;
+}
+
 struct KeycodeToName {
     Keycode code;
     char[] name;
