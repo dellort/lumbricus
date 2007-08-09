@@ -80,6 +80,12 @@ public class Translator {
         this(node);
     }
 
+    ///argh: before r333, the constructor did exactly this
+    ///Create a translator for the current language bound to the namespace ns
+    static Translator ByNamespace(char[] ns) {
+        return gLocaleRoot.bindNamespace(ns);
+    }
+
     ///Translate a text, similar to the _() function.
     ///Warning: doesn't do namespace resolution.
     char[] opCall(T...)(char[] id, T t) {

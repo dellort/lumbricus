@@ -2,73 +2,119 @@ module game.gui.loadingscreen;
 
 import framework.framework;
 import framework.font;
-import game.loader;
+import framework.i18n;
+import gui.boxcontainer;
+import gui.container;
+import gui.label;
+import gui.progress;
 import gui.widget;
 import str = std.string;
 import utils.time;
 import utils.vector2;
 
-class LoadingScreen : Widget {
+class LoadingScreen : Container {
     private {
         Font mFont;
-        Vector2i mTxtSize;
-        char[] mCurTxt;
-        int mCurChunk;
-        bool mLoading, mLoadRes;
-        Loader mLoader;
+        Font mFontGray;
+        int mCurChunk = -1;
+        SimpleContainer mSecondaryFrame;
+        Foobar mSecondary;
+        int mSecondaryPos, mSecondaryCount;
+        Label[] mChunkLabels;
+        BoxContainer mLabelList;
     }
 
     this() {
-        mFont = gFramework.fontManager.loadFont("loading");
-        mLoading = false;
+        mFont = gFramework.fontManager.loadFont("loading_highlight");
+        mFontGray = gFramework.fontManager.loadFont("loading_gray");
     }
 
-    private void prog(int cur, int tot) {
-        mCurTxt = "Loading... "
-            ~str.toString((cur*100)/tot)~"%";
-    }
-
-    override void simulate(Time curTime, Time deltaT) {
-        mCurTxt = "Loading";
-        if (mLoading) {
-            if (mCurChunk >= mLoader.chunkCount || !mLoadRes) {
-                finishLoad();
-                prog(1,1);
-            } else if (mCurChunk >= 0) {
-                prog(mCurChunk, mLoader.chunkCount);
-                mLoadRes = mLoader.load(mCurChunk);
-            } else {
-                prog(0,1);
-            }
-            mCurChunk++;
+    //fixed amount of chunks; each chunk has an associated message
+    //these are used to show what's going on
+    void setPrimaryChunks(char[][] stuff) {
+        if (mLabelList) {
+            mLabelList.remove();
         }
-        mTxtSize = mFont.textSize(mCurTxt);
+
+        mLabelList = new BoxContainer(false, false);
+        mLabelList.setLayout(WidgetLayout.Aligned(-1,-1,Vector2i(50,50)));
+        addChild(mLabelList);
+
+        foreach (char[] chunk; stuff) {
+            auto label = new Label();
+            mChunkLabels ~= label;
+            label.font = mFontGray;
+            label.text = _("loading.load", chunk);
+            label.drawBorder = false;
+            mLabelList.add(label);
+        }
+
+        mCurChunk = -1;
     }
 
-    protected void onDraw(Canvas canvas) {
-        canvas.drawFilledRect(Vector2i(0,0),canvas.clientSize,Color(0,0,0));
-        auto org = size / 2 - mTxtSize / 2;
-        mFont.drawText(canvas, org, mCurTxt);
+    //select a chuck set with setPrimaryChunks()
+    void primaryPos(int cur) {
+        if (cur <= mCurChunk)
+            return;
+        //set a next pos => gray out old chunk again
+        if (mCurChunk >= 0) {
+            mChunkLabels[mCurChunk].font = mFontGray;
+        }
+        //and highlight current one
+        mCurChunk = cur;
+        if (mCurChunk < mChunkLabels.length) {
+            mChunkLabels[mCurChunk].font = mFont;
+        }
     }
 
     Vector2i layoutSizeRequest() {
         return Vector2i(0);
     }
 
-    void startLoad(Loader load) {
-        mLoading = true;
-        mLoadRes = true;
-        //active = true;
-        mLoader = load;
-        mCurChunk = -1;
+    private void updateSecondary() {
+        if (mSecondary && mSecondaryCount)
+            mSecondary.percent = 1.0f*mSecondaryPos / mSecondaryCount;
     }
 
-    private void finishLoad() {
-        mLoader.finished();
-        mLoading = false;
+    void secondaryPos(int p) {
+        mSecondaryPos = p;
+        updateSecondary();
     }
 
-    bool loading() {
-        return mLoading;
+    void secondaryCount(int c) {
+        mSecondaryCount = c;
+        updateSecondary();
+    }
+
+    void secondaryActive(bool set) {
+        if (set == !!mSecondaryFrame)
+            return;
+
+        //create/destroy progressbar-GUI
+        if (set) {
+            mSecondaryFrame = new SimpleContainer();
+            mSecondary = new Foobar();
+            updateSecondary();
+            mSecondary.zorder = 1;
+            mSecondary.fill = Color(0,1.0,0);
+            mSecondary.minSize = Vector2i(0, 50); //height of the bar
+            mSecondaryFrame.add(mSecondary);
+            auto background = new Spacer();
+            background.color = Color(0.5);
+            mSecondaryFrame.add(background);
+            WidgetLayout lay;
+            lay.fill[0] = 0.7;
+            lay.fill[1] = 0.2;
+            lay.alignment[1] = 0.8;
+            lay.pad = 20;
+            lay.expand[0] = true;
+            lay.expand[1] = false;
+            mSecondaryFrame.setLayout = lay;
+            addChild(mSecondaryFrame);
+        } else {
+            mSecondaryFrame.remove();
+            mSecondaryFrame = null;
+            mSecondary = null;
+        }
     }
 }

@@ -137,6 +137,14 @@ private:
         globals.cmdLine.registerCommand("help_spawn", &cmdSpawnHelp,
             "list tasks registered at task factory (use for spawn)");
         globals.cmdLine.registerCommand("grab", &cmdGrab, "-", ["bool:onoff"]);
+
+        globals.cmdLine.registerCommand("res_unload", &cmdResUnload,
+            "Unload unused resources; currently can crash!", []);
+    }
+
+    private void cmdResUnload(MyBox[] args, Output write) {
+        //can crash; see unloadUnneeded() for details
+        globals.resources.unloadUnneeded();
     }
 
     private void cmdGrab(MyBox[] args, Output write) {

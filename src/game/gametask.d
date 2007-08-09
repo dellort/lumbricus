@@ -2,9 +2,11 @@ module game.gametask;
 
 import common.common;
 import common.task;
+import common.resources;
 import framework.commandline;
 import framework.framework;
 import framework.filesystem;
+import framework.i18n;
 import game.gui.loadingscreen;
 import game.gui.gameframe;
 import game.clientengine;
@@ -43,6 +45,7 @@ class GameTask : Task {
 
         LoadingScreen mLoadScreen;
         Loader mGameLoader;
+        Resources.Preloader mResPreloader;
 
         CommandBucket mCmds;
 
@@ -90,14 +93,22 @@ class GameTask : Task {
         mLoadScreen.zorder = 10;
         manager.guiMain.mainFrame.add(mLoadScreen);
 
+        auto load_txt = Translator.ByNamespace("loading.game");
+        char[][] chunks;
+
+        void addChunk(LoadChunkDg cb, char[] txt_id) {
+            chunks ~= load_txt(txt_id);
+            mGameLoader.registerChunk(cb);
+        }
+
         mGameLoader = new Loader();
-        mGameLoader.registerChunk(&initGameEngine);
-        mGameLoader.registerChunk(&initClientEngine);
-        mGameLoader.registerChunk(&initGameGui);
+        addChunk(&initGameEngine, "gameengine");
+        addChunk(&initClientEngine, "clientengine");
+        addChunk(&initLoadResources, "resources");
+        addChunk(&initGameGui, "gui");
         mGameLoader.onFinish = &gameLoaded;
 
-        //creaton of this frame -> start new game
-        mLoadScreen.startLoad(mGameLoader);
+        mLoadScreen.setPrimaryChunks(chunks);
     }
 
     private void unloadGame() {
@@ -134,6 +145,25 @@ class GameTask : Task {
         return true;
     }
 
+    //periodically called by loader (until we return false)
+    private bool initLoadResources() {
+        if (!mResPreloader) {
+            mResPreloader = globals.resources.createPreloader();
+            mLoadScreen.secondaryActive = true;
+        }
+        mLoadScreen.secondaryCount = mResPreloader.totalCount();
+        mLoadScreen.secondaryPos = mResPreloader.loadedCount();
+        //the use in returning after some time is to redraw the screen
+        mResPreloader.progressTimed(timeMsecs(300));
+        if (!mResPreloader.done) {
+            return false;
+        } else {
+            mLoadScreen.secondaryActive = false;
+            mResPreloader = null;
+            return true;
+        }
+    }
+
     private void gameLoaded(Loader sender) {
         //idea: start in paused mode, release poause at end to not need to
         //      reset the gametime
@@ -149,7 +179,10 @@ class GameTask : Task {
         //smash it up (forced kill; unforced goes into terminate())
         unloadGame();
         mCmds.kill();
-        mWindow.remove(); //from GUI
+        if (mWindow)
+            mWindow.remove(); //from GUI
+        if (mLoadScreen)
+            mLoadScreen.remove();
     }
 
     override void terminate() {
@@ -189,9 +222,13 @@ class GameTask : Task {
                 if (mClientEngine.gameEnded)
                     terminate();
             }
+        } else {
+            mGameLoader.loadStep();
+            //update GUI (Loader/LoadingScreen aren't connected anymore)
+            mLoadScreen.primaryPos = mGameLoader.currentChunk;
         }
 
-        if (!mLoadScreen.loading)
+        if (mGameLoader.fullyLoaded)
             //xxx can't deactivate this from delegate because it would crash
             //the list
             mLoadScreen.remove();

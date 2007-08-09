@@ -7,6 +7,7 @@ import common.visual;
 import framework.framework;
 import gui.container;
 import gui.label;
+import gui.progress;
 import gui.tablecontainer;
 import gui.widget;
 import game.clientengine;
@@ -15,36 +16,6 @@ import utils.time;
 import utils.misc;
 import utils.vector2;
 import utils.log;
-
-//special gui element used to display team-bars (for showing the team health)
-private class Foobar : Widget {
-    BoxProperties border;
-    Vector2i spacing = {2, 2};
-    float percent = 1.0f; //aliveness
-    private BoxProperties mFill;
-
-    void fill(Color c) {
-        mFill.back = c;
-    }
-
-    this() {
-        mFill.borderWidth = 0;
-    }
-
-    Vector2i layoutSizeRequest() {
-        return Vector2i(100, 0);
-    }
-
-    override protected void onDraw(Canvas c) {
-        auto s = widgetBounds();
-        //padding so it doesn't look stupid when percent == 0
-        int pad = border.cornerRadius + mFill.cornerRadius + spacing.x;
-        s.p2.x = s.p1.x + pad + cast(int)((s.p2.x - s.p1.x - pad*2) * percent);
-        drawBox(c, s, border);
-        s.extendBorder(-spacing);
-        drawBox(c, s, mFill);
-    }
-}
 
 //the team-bars on the bottom of the screen
 class TeamWindow : Container {

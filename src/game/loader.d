@@ -4,11 +4,12 @@ alias bool delegate() LoadChunkDg;
 
 class Loader {
     private LoadChunkDg[] mChunks;
-    bool fullyLoaded;
+    private int mCurChunk;
+    private bool mFullyLoaded;
     void delegate(Loader sender) onFinish;
     void delegate(Loader sender) onUnload;
 
-    /+sry! protected+/ void registerChunk(LoadChunkDg chunkLoader) {
+    void registerChunk(LoadChunkDg chunkLoader) {
         mChunks ~= chunkLoader;
     }
 
@@ -16,23 +17,43 @@ class Loader {
         return mChunks.length;
     }
 
+    int currentChunk() {
+        return mCurChunk;
+    }
+
     //overridden method is supposed to call this atfer unloading done
+    //NOTE: you can't reload it again using this Loader instance
     void unload() {
         if (onUnload) {
             onUnload(this);
         }
     }
 
-    bool load(int chunkId) {
-        fullyLoaded = false;
+    //call until fullyLoaded() returns true
+    void loadStep() {
+        if (fullyLoaded())
+            return;
+        if (doLoad(mCurChunk)) {
+            mCurChunk++;
+        }
+        if (mCurChunk >= mChunks.length) {
+            doFinish();
+        }
+    }
+
+    bool fullyLoaded() {
+        return mFullyLoaded;
+    }
+
+    private bool doLoad(int chunkId) {
         assert(chunkId >= 0 && chunkId < mChunks.length);
         bool ret = mChunks[chunkId]();
         return ret;
     }
 
-    void finished() {
+    private void doFinish() {
         if (onFinish)
             onFinish(this);
-        fullyLoaded = true;
+        mFullyLoaded = true;
     }
 }

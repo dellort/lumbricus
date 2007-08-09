@@ -9,6 +9,7 @@ import utils.log;
 import utils.output;
 import utils.misc;
 import utils.factory;
+import utils.time;
 
 private char[][char[]] gNamespaceMap;
 
@@ -28,6 +29,11 @@ protected class Resource {
     private bool mValid = false;
     protected Resources mParent;
     protected ConfigItem mConfig;
+    package bool mRefed = false;
+
+    final bool isLoaded() {
+        return mValid;
+    }
 
     public ConfigItem config() {
         return mConfig;
@@ -64,7 +70,7 @@ protected class Resource {
     ///destroy contents and make resource reload on next use
     package void invalidate() {
         if (mValid)
-            unload();
+            doUnload();
         mValid = false;
     }
 
@@ -72,7 +78,7 @@ protected class Resource {
     ///store result in mContents, throw exception on error
     abstract protected void load();
 
-    protected void unload() {
+    protected void doUnload() {
         //implement if you need this
     }
 
@@ -95,6 +101,11 @@ private class ResourceBase(T) : Resource {
         super(parent, id, item);
     }
 
+    override protected void doUnload() {
+        mContents = null;
+        super.doUnload();
+    }
+
     override T get(bool allowFail = false) {
         if (!mValid)
             preload(allowFail);
@@ -112,7 +123,6 @@ public class Resources {
     private Resource[char[]] mResources;
     Log log;
     private bool[char[]] mLoadedResourceFiles;
-    private bool[char[]] mResourceRefs;
     //used to assign uids
     private long mCurUid;
 
@@ -173,9 +183,7 @@ public class Resources {
     /// doref = mark resource as used (for preloading)
     public T resource(T)(char[] id, bool allowFail = false, bool doref = true) {
         T ret = doFindResource!(T)(id, allowFail);
-        if (doref) {
-            mResourceRefs[addNSPrefix(ResFactory.lookup!(T)(),ret.id)] = true;
-        }
+        ret.mRefed |= doref;
         return ret;
     }
 
@@ -201,33 +209,103 @@ public class Resources {
         return ret;
     }
 
-    ///preload all cached resources from disk
-    ///Attention: this will load really ALL resources, not just needed ones
-    public void preloadAll(ResourceLoadProgress prog) {
-        int count = mResources.length;
-        log("Preloading ALL resources");
-        int i = 0;
-        foreach (Resource res; mResources) {
-            res.get();
-            i++;
-            if (prog)
-                prog(i, count);
+    ///support for preloading stuff incrementally (step-by-step)
+    ///since D doesn't support coroutines, pack state in an extra class and call
+    ///a "progress...()" method periodically
+    public final class Preloader {
+        private bool mUsedOnly;
+        private int mOffset; //already loaded stuff that isn't in mToLoad
+        private Resource[] mToLoad;
+        private int mCurrent; //next res. to load, index into mToLoad
+
+        this(bool used_only) {
+            mUsedOnly = used_only;
+
+            log("Preloading %s resources", mUsedOnly ? "USED" : "ALL");
+
+            updateToLoad();
         }
-        log("Finished preloading ALL");
+
+        private void updateToLoad() {
+            mOffset += mToLoad.length;
+            mToLoad = null;
+            foreach (Resource r; mResources) {
+                bool wantLoad = r.mRefed || !mUsedOnly;
+                if (wantLoad && !r.isLoaded) {
+                    mToLoad ~= r; //inefficient, but optimizing not worthy
+                }
+            }
+        }
+
+        ///total count of resources to load
+        ///not guaranteed to be constant!
+        int totalCount() {
+            return mOffset + mToLoad.length;
+        }
+
+        ///number of loaded resources, monotonically growing
+        int loadedCount() {
+            return mOffset + mCurrent;
+        }
+
+        ///(not updated once all requested resources were loaded)
+        bool done() {
+            return loadedCount >= totalCount;
+        }
+
+        ///load count-many resources
+        void progressSteps(int count) {
+            while (count-- > 0 && !done) {
+                mToLoad[mCurrent].get();
+                mCurrent++;
+                if (done) {
+                    //still check for maybe newly created resources
+                    //(normally shouldn't happen, but it's simple to handle it)
+                    updateToLoad();
+
+                    if (done)
+                        log("Finished preloading");
+                }
+            }
+        }
+
+        ///load as much stuff as possible, but return if time was exceeded
+        ///this is useful to i.e. update the screen while loading
+        void progressTimed(Time return_after) {
+            Time start = timeCurrentTime;
+            while (!done && timeCurrentTime() - start <= return_after) {
+                progressSteps(1);
+            }
+        }
+
+        ///load everything in one go, no incremental loading (old behaviour)
+        void loadAll(ResourceLoadProgress progress = null) {
+            while (!done) {
+                progressSteps(1);
+                if (progress)
+                    progress(loadedCount, totalCount);
+            }
+        }
+    }
+
+    ///Create a Preloader, which enables you to incrementally load resources
+    /// used_only = if true, only resources marked as "used" are preloaded
+    public Preloader createPreloader(bool used_only = true) {
+        return new Preloader(used_only);
     }
 
     public void preloadUsed(ResourceLoadProgress prog) {
-        int count = mResourceRefs.length;
-        log("Preloading USED resources");
-        int i = 0;
-        foreach (char[] id, bool tmp; mResourceRefs) {
-            Resource res = mResources[id];
-            res.get();
-            i++;
-            if (prog)
-                prog(i, count);
+        createPreloader().loadAll(prog);
+    }
+
+    ///Unload all "unnused" resources (whatever that means)
+    ///xxx: currently can crash, because surfaces are always freed by force
+    ///   actually, Resource or Surface should be refcounted or so to prevent
+    //    this; i.e. unload Resource only if underlying object isn't in use
+    void unloadUnneeded() {
+        foreach (Resource r; mResources) {
+            r.invalidate();
         }
-        log("Finished preloading USED");
     }
 
     //load resources as requested in "item"

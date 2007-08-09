@@ -50,6 +50,12 @@ protected class BitmapResource : ResourceBase!(Surface) {
         mContents = globals.loadGraphic(fn);
     }
 
+    override protected void doUnload() {
+        if (mContents)
+            mContents.free();
+        super.doUnload();
+    }
+
     BitmapResource createMirror() {
         //xxx hack to pass parameters to BitmapResourceProcessed
         ConfigNode n = new ConfigNode();
