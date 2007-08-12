@@ -351,6 +351,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         mLog = registerLog("gameengine");
 
         mGameTime = new TimeSource(&gFramework.getCurrentTime);
+        mGameTime.paused = true;
 
         mObjects = new List!(GameObject)(GameObject.node.getListNodeOffset());
         mGraphics = new typeof(mGraphics)(ServerGraphicLocalImpl.node
@@ -409,6 +410,11 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         //NOTE: GameController relies on many stuff at initialization
         //i.e. physics for worm placement
         mController = new GameController(this, config);
+    }
+
+    //actually start the game (called after resources were preloaded)
+    void start() {
+        mGameTime.paused = false;
     }
 
     TimeSource gameTime() {

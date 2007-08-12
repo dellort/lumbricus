@@ -16,7 +16,9 @@ import game.gui.gameview;
 import game.game;
 import game.sprite;
 import game.crate;
+import gui.container;
 import gui.widget;
+import gui.wm;
 import levelgen.level;
 import levelgen.generator;
 import utils.mybox;
@@ -54,6 +56,11 @@ class GameTask : Task {
         const Color cFadeEnd = {0,0,0,1};
         const cFadeDurationMs = 3000;
         Time mFadeStartTime;
+
+        bool mDelayedFirstFrame; //draw screen before loading first chunk
+
+        //argh, another step of indirection :/
+        SimpleContainer mGameFrame;
     }
 
     //just for the paused-command?
@@ -71,13 +78,28 @@ class GameTask : Task {
     //use the other constructor and pass it a useful GameConfig
     this(TaskManager tm) {
         super(tm);
+
+        createWindow();
         initGame(loadGameConfig(globals.anyConfig.getSubNode("newgame")));
     }
 
     //start a game
     this(TaskManager tm, GameConfig cfg) {
         super(tm);
+
+        createWindow();
         initGame(cfg);
+    }
+
+    private void createWindow() {
+        mGameFrame = new SimpleContainer();
+        auto wnd = gWindowManager.createWindowFullscreen(this, mGameFrame,
+            "lumbricus");
+        //background is mostly invisible, except when loading and at low
+        //detail levels (where the background isn't completely overdrawn)
+        auto props = wnd.properties;
+        props.background = Color(0); //black :)
+        wnd.properties = props;
     }
 
     //start game intialization
@@ -91,7 +113,7 @@ class GameTask : Task {
 
         mLoadScreen = new LoadingScreen();
         mLoadScreen.zorder = 10;
-        manager.guiMain.mainFrame.add(mLoadScreen);
+        mGameFrame.add(mLoadScreen);
 
         auto load_txt = Translator.ByNamespace("loading.game");
         char[][] chunks;
@@ -125,7 +147,7 @@ class GameTask : Task {
 
     private bool initGameGui() {
         mWindow = new GameFrame(mClientEngine);
-        manager.guiMain.mainFrame.add(mWindow);
+        mGameFrame.add(mWindow);
 
         return true;
     }
@@ -133,7 +155,6 @@ class GameTask : Task {
     private bool initGameEngine() {
         //log("initGameEngine");
         mServerEngine = new GameEngine(mGameConfig);
-        mServerEngine.gameTime.paused = true;
         mGame = mServerEngine;
         mGameAdmin = mServerEngine.requestAdmin();
         return true;
@@ -167,12 +188,17 @@ class GameTask : Task {
     private void gameLoaded(Loader sender) {
         //idea: start in paused mode, release poause at end to not need to
         //      reset the gametime
-        mServerEngine.gameTime.paused = false;
+        mServerEngine.start();
+        //a small wtf: why does client engine have its own time??
+        mClientEngine.start();
         //xxx! this is evul!
         globals.gameTimeAnimations.resetTime();
 
         //start at level center
         mWindow.scrollToCenter();
+
+        //remove this, so the game becomes visible
+        mLoadScreen.remove();
     }
 
     override protected void onKill() {
@@ -190,7 +216,7 @@ class GameTask : Task {
             mFadeOut = new Spacer();
             mFadeOut.color = cFadeStart;
             mFadeOut.enableAlpha = true;
-            manager.guiMain.mainFrame.add(mFadeOut);
+            mGameFrame.add(mFadeOut);
             mFadeStartTime = timeCurrentTime;
         }
     }
@@ -223,15 +249,13 @@ class GameTask : Task {
                     terminate();
             }
         } else {
-            mGameLoader.loadStep();
+            if (mDelayedFirstFrame) {
+                mGameLoader.loadStep();
+            }
+            mDelayedFirstFrame = true;
             //update GUI (Loader/LoadingScreen aren't connected anymore)
             mLoadScreen.primaryPos = mGameLoader.currentChunk;
         }
-
-        if (mGameLoader.fullyLoaded)
-            //xxx can't deactivate this from delegate because it would crash
-            //the list
-            mLoadScreen.remove();
 
         //he-he
         doFade();

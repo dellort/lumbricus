@@ -185,12 +185,10 @@ class ClientGameEngine {
         mEngineTime.paused = true;
     }
 
-    /+ hm, similar thing already in GameTask
     //actually start the game (called after resources were preloaded)
     void start() {
         mEngineTime.paused = false;
     }
-    +/
 
     bool gameEnded() {
         return mEngine.logic.currentRoundState == RoundState.end;

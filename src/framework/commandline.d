@@ -13,6 +13,9 @@ import utils.array;
 import utils.output;
 import utils.strparser;
 
+public import utils.mybox : MyBox;
+public import utils.output : Output;
+
 //the coin has decided
 alias MyBox function(char[] args) TypeHandler;
 

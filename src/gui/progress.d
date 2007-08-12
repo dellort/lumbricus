@@ -15,7 +15,8 @@ class Foobar : Widget {
     BoxProperties border;
     Vector2i spacing = {2, 2};
     private BoxProperties mFill;
-    private Vector2i mMinSize = {100, 0};
+    private Vector2i mMinSize = {0, 0};
+    private int mWidth = 0;
 
     ///between 0 and 1
     float percent = 1.0f;
@@ -29,7 +30,7 @@ class Foobar : Widget {
     }
     void minSize(Vector2i s) {
         mMinSize = s;
-        needRelayout();
+        needResize(true);
     }
 
     this() {
@@ -37,13 +38,26 @@ class Foobar : Widget {
     }
 
     Vector2i layoutSizeRequest() {
-        return mMinSize;
+        int x = max(mMinSize.x, xpadding*2);
+        x += mWidth;
+        return Vector2i(x, mMinSize.y);
+    }
+
+    //border on the left and right
+    private int xpadding() {
+        return border.cornerRadius + mFill.cornerRadius + spacing.x;
+    }
+
+    //set width of the bar; in pixels; when width=0, the minimal size is showed
+    void width(int w) {
+        mWidth = max(0, w);
+        needResize(true);
     }
 
     override protected void onDraw(Canvas c) {
         auto s = widgetBounds();
         //padding so it doesn't look stupid when percent == 0
-        int pad = border.cornerRadius + mFill.cornerRadius + spacing.x;
+        int pad = xpadding();
         s.p2.x = s.p1.x + pad + cast(int)((s.p2.x - s.p1.x - pad*2) * percent);
         drawBox(c, s, border);
         s.extendBorder(-spacing);

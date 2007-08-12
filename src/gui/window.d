@@ -1,5 +1,6 @@
 module gui.window;
 
+import common.common;
 import common.visual;
 import framework.event;
 import framework.framework;
@@ -14,8 +15,15 @@ import utils.misc;
 import utils.rect2;
 import utils.vector2;
 
+//only static properties
+struct WindowProperties {
+    char[] windowTitle = "<huhu, you forgot to set a title!>";
+    bool canResize = true;   //disallow user to resize the window
+    Color background = Color(1,1,1); //of the client part of the window
+}
+
 /// A window with proper window decorations and behaviour
-class Window : Container {
+class WindowWidget : Container {
     private {
         Widget mClient; //what's shown inside the window
         Label mTitleBar;
@@ -41,6 +49,8 @@ class Window : Container {
         //size of the window border and the resize boxes
         const cCornerSize = 5;
 
+        bool mCanResize = true;
+
         //thingies on the border to resize this window
         class Sizer : Widget {
             int x, y; //directions: -1 left/bottom, 0 fixed, +1 right/top
@@ -49,7 +59,7 @@ class Window : Container {
             Vector2i drag_start;
 
             override protected bool onMouseMove(MouseInfo mouse) {
-                if (drag_active) {
+                if (drag_active && mCanResize) {
                     //get position within the window's parent
                     assert(parent && this.outer.parent);
                     auto pos = this.outer.coordsToParent(
@@ -147,12 +157,19 @@ class Window : Container {
         super.layoutSizeAllocation();
     }
 
+    WindowFrame manager() {
+        return mManager;
+    }
+
     this() {
         setVirtualFrame(false);
 
+        loadBindings(globals.loadConfig("window"));
+
         recreateGui();
 
-        windowTitle = "hallo";
+        WindowProperties p;
+        properties = p; //to be consistent
     }
 
     //when that button in the titlebar is pressed
@@ -233,8 +250,6 @@ class Window : Container {
         if (mFullScreen == set)
             return;
 
-        bool was_focused = focused; //focus state should survive
-
         mFullScreen = set;
 
         if (set) {
@@ -250,9 +265,6 @@ class Window : Container {
         if (!set) {
             position = mFSSavedPos;
         }
-
-        if (was_focused)
-            claimFocus();
     }
 
     Widget client() {
@@ -263,19 +275,17 @@ class Window : Container {
         recreateGui();
     }
 
-    char[] windowTitle() {
-        return mTitleBar.text;
+    WindowProperties properties() {
+        WindowProperties res;
+        res.windowTitle = mTitle;
+        res.background = mBackground.back;
+        res.canResize = mCanResize;
+        return res;
     }
-    void windowTitle(char[] t) {
-        mTitleBar.text = t;
-        mTitle = t;
-    }
-
-    Color background() {
-        return mBackground.back;
-    }
-    void background(Color back) {
-        mBackground.back = back;
+    void properties(WindowProperties props) {
+        mTitleBar.text = mTitle = props.windowTitle;
+        mBackground.back = props.background;
+        mCanResize = props.canResize;
     }
 
     void activate() {
@@ -289,18 +299,20 @@ class Window : Container {
         mBackground.border = focused ? Color(0,0,1) : mBackground.border.init;
     }
 
-    override protected bool onKeyDown(char[] bind, KeyInfo key) {
-        if (key.code == Keycode.RETURN)
-            fullScreen = !fullScreen;
-        return false;
-    }
-
     //treat all events as handled (?)
     override bool onKeyEvent(KeyInfo key) {
+        char[] bind = findBind(key);
+
         //and if the mouse was clicked _anywhere_, make sure window is on top
         //but don't steal the click-event from the children
         if (key.isMouseButton())
             activate();
+
+        if (bind == "toggle_fs") {
+            if (key.isDown())
+                fullScreen = !fullScreen;
+            return true;
+        }
 
         //let the children handle key events
         bool handled = super.onKeyEvent(key);
@@ -333,7 +345,7 @@ class Window : Container {
     }
 
     char[] toString() {
-        return "[Window '"~mTitle~"']";
+        return "["~super.toString~" '"~mTitle~"']";
     }
 }
 
@@ -341,11 +353,11 @@ class Window : Container {
 /// efficiently (won't draw other windows then)
 class WindowFrame : Container {
     private {
-        Window mFullScreen; //non-null if in fullscreen mode
-        Window[] mWindows;  //all windows
+        WindowWidget mFullScreen; //non-null if in fullscreen mode
+        WindowWidget[] mWindows;  //all windows
     }
 
-    void add(Window wnd) {
+    void addWindow(WindowWidget wnd) {
         wnd.remove();
         wnd.mManager = this;
         mWindows ~= wnd;
@@ -354,7 +366,7 @@ class WindowFrame : Container {
     }
 
     //hm, stupid, you must use this; wnd.remove() would silently fail
-    void remove(Window wnd) {
+    void removeWindow(WindowWidget wnd) {
         if (mFullScreen is wnd) {
             setFullScreen(null);
         }
@@ -364,9 +376,11 @@ class WindowFrame : Container {
     }
 
     //called by Window
-    private void setFullScreen(Window wnd) {
+    private void setFullScreen(WindowWidget wnd) {
         if (wnd is mFullScreen)
             return;
+
+        auto was_focused = localFocus; //focus state should survive
 
         if (wnd) {
             mFullScreen = wnd;
@@ -379,15 +393,23 @@ class WindowFrame : Container {
             if (mFullScreen) {
                 mFullScreen.fullScreen = false;
             }
+            auto old = mFullScreen;
             mFullScreen = null;
             clear(); //possibly kill old fullscreen
-            foreach (Window w; mWindows) {
+            foreach (w; mWindows) {
                 addChild(w);
             }
+            //this is slightly stupid:
+        }
+
+        if (was_focused) {
+            was_focused.claimFocus();
+            //zorder gets completely messed up, and claimFocus refuses
+            was_focused.toFront();
         }
     }
 
-    void setWindowPosition(Window wnd, Vector2i pos) {
+    void setWindowPosition(WindowWidget wnd, Vector2i pos) {
         wnd.layoutContainerAllocate(Rect2i(pos, pos + wnd.size));
     }
 
@@ -403,7 +425,7 @@ class WindowFrame : Container {
         if (mFullScreen) {
             mFullScreen.layoutContainerAllocate(widgetBounds());
         } else {
-            foreach (Window w; mWindows) {
+            foreach (WindowWidget w; mWindows) {
                 //maybe want to support invisible window sometime
                 //so if a window isn't parented, it's invisible
                 if (w.parent is this) {
@@ -413,5 +435,15 @@ class WindowFrame : Container {
                 }
             }
         }
+    }
+
+    override protected void onDraw(Canvas c) {
+        if (mFullScreen) {
+            //xxx: possibly unnecessary clearing when it really covers the whole
+            //  screen; it should use getFramework.clearColor then, maybe
+            c.drawFilledRect(Vector2i(0), size,
+                mFullScreen.properties.background);
+        }
+        super.onDraw(c);
     }
 }

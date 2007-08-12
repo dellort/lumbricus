@@ -87,12 +87,12 @@ class Common {
     private void initLocale() {
         char[] langId = anyConfig.getStringValue("language_id", "de");
         initI18N(cLocalePath, langId, cDefLang, &loadConfig);
-        try {
+        //try {
             //link locale-specific files into root
             framework.fs.link(cLocalePath ~ '/' ~ langId,"/",false,1);
-        } catch {
+        //} catch { xxx: no, don't catch everything
             //don't crash if current locale has no locale-specific files
-        }
+        //}
     }
 
     //translate into translated user-readable string

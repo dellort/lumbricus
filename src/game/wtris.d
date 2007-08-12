@@ -10,6 +10,7 @@ import gui.container;
 import gui.boxcontainer;
 import gui.tablecontainer;
 import gui.label;
+import gui.wm;
 import std.random;
 import utils.time;
 import utils.vector2;
@@ -533,7 +534,10 @@ public class WTris : Task {
 
         update_gui();
 
-        tm.guiMain.mainFrame.add(thegui, WidgetLayout.Noexpand);
+        auto window = gWindowManager.createWindow(this, thegui, "WTris");
+        auto props = window.properties;
+        props.background = Color(0.2);
+        window.properties = props;
     }
 
     override protected void onKill() {

@@ -19,11 +19,17 @@ import utils.log;
 
 //the team-bars on the bottom of the screen
 class TeamWindow : Container {
-    int mMaxHealth;
-    Foobar[Team] mBars;
+    private {
+        //int mMaxHealth;
+        Foobar[Team] mBars;
+    }
 
     this(Team[] teams) {
-        auto table = new TableContainer(2, teams.length, Vector2i(3));
+        //cells both expanded and homogeneous in x-dir => centered correctly
+        //will give you headaches if you want more than two columns
+        auto table = new TableContainer(2, teams.length, Vector2i(3),
+            [true, true], [true, false]);
+
         for (int n = 0; n < teams.length; n++) {
             auto teamname = new Label();
             //xxx proper font and color etc.
@@ -40,9 +46,12 @@ class TeamWindow : Container {
             assert(res);
             bar.fill = c;
             mBars[teams[n]] = bar;
-            table.add(bar, 1, n, WidgetLayout.Expand(false));
+            WidgetLayout lay; //expand in y, but left-align in x
+            lay.alignment[0] = 0;
+            lay.expand[0] = false;
+            table.add(bar, 1, n, lay);
 
-            mMaxHealth = max(mMaxHealth, teams[n].totalHealth);
+            //mMaxHealth = max(mMaxHealth, teams[n].totalHealth);
         }
 
         addChild(table);
@@ -51,7 +60,9 @@ class TeamWindow : Container {
 
     void update() {
         foreach (Team team, Foobar bar; mBars) {
-            bar.percent = mMaxHealth ? 1.0f*team.totalHealth/mMaxHealth : 0;
+            //bar.percent = mMaxHealth ? 1.0f*team.totalHealth/mMaxHealth : 0;
+            //this makes 10 life points exactly a pixel on the screen
+            bar.width = team.totalHealth / 10;
         }
     }
 

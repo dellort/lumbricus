@@ -1,6 +1,6 @@
 module gui.test;
 import gui.container;
-import gui.gui;
+import gui.wm;
 import gui.widget;
 import gui.button;
 import gui.boxcontainer;
@@ -101,34 +101,34 @@ class TestFrame3 : Container {
 
 //just to show the testframe
 class TestTask : Task {
-    private Widget mWindow;
+    //private Widget mWindow;
 
     this(TaskManager tm) {
         super(tm);
 
-        auto frame = new WindowFrame();
-        mWindow = frame;
-        manager.guiMain.mainFrame.add(mWindow);
-
         //xxx move to WindowFrame
         void createWindow(char[] name, Widget client) {
-            auto wnd = new Window();
-            wnd.windowTitle = name;
-            wnd.client = client;
-            frame.add(wnd);
+            gWindowManager.createWindow(this, client, name);
         }
 
-        createWindow("bla", null);
-        createWindow("nummer 2", null);
         createWindow("TestFrame", new TestFrame);
         createWindow("TestFrame2", new TestFrame2);
         createWindow("TestFrame3", new TestFrame3);
 
+        auto k = new Button();
+        k.text = "Kill!!!1";
+        k.onClick = &onKill;
+        createWindow("hihi", k);
+
 //        getFramework.clearColor = Color(1,1,1);
     }
 
+    private void onKill(Button b) {
+        terminate();
+    }
+
     override protected void onKill() {
-        mWindow.remove();
+        //mWindow.remove();
     }
 
     static this() {

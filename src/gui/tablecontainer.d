@@ -15,10 +15,15 @@ class TableContainer : PublicContainer {
     private {
         int mW, mH;
         bool[2] mHomogeneous;
+        struct PerCell {
+            Widget w;
+        }
         //organized as [x][y]
-        Widget[][] mCells;
+        PerCell[][] mCells;
         //spacing _between_ cells (per direction)
         Vector2i mCellSpacing;
+
+        bool[2] mForceExpand;
 
         //temporary between layoutSizeRequest() and allocation
         Vector2i mLastSize;
@@ -35,8 +40,14 @@ class TableContainer : PublicContainer {
         int[] mAllocY;
     }
 
+    ///a_w, a_h = number of cells in this direction
+    ///cellspacing = spacing between cells (doesn't add borders around the
+    ///  table, use the table-widget's .setLayout() for that)
+    ///homogeneous = for each direction if all cells should have the same size
+    ///forceExpand = for each direction if all cells should be expanded
     this(int a_w, int a_h, Vector2i cellspacing = Vector2i(),
-        bool[2] homogeneous = [false, false])
+        bool[2] homogeneous = [false, false],
+        bool[2] forceExpand = [false, false])
     {
         mCells.length = a_w;
         foreach (inout r; mCells) {
@@ -54,11 +65,9 @@ class TableContainer : PublicContainer {
         mAllocY.length = mH + 1;
 
         mHomogeneous[] = homogeneous;
+        mForceExpand[] = forceExpand;
         mCellSpacing = cellspacing;
     }
-
-    //hack
-    bool forceExpand;
 
     void add(Widget w, int x, int y, WidgetLayout layout) {
         w.setLayout(layout);
@@ -69,16 +78,16 @@ class TableContainer : PublicContainer {
         //check bounds, no overwriting of cells
         assert(x >= 0 && x < mW);
         assert(y >= 0 && y < mH);
-        assert(mCells[x][y] is null);
-        mCells[x][y] = w;
+        assert(mCells[x][y].w is null);
+        mCells[x][y].w = w;
         addChild(w);
     }
 
     override protected void removeChild(Widget w) {
         loop: foreach (col; mCells) {
             foreach (inout c; col) {
-                if (c is w) {
-                    c = null;
+                if (c.w is w) {
+                    c.w = null;
                     break loop;
                 }
             }
@@ -106,17 +115,17 @@ class TableContainer : PublicContainer {
                 auto cur = mCells[x][y];
                 bool[2] expand;
                 Vector2i s;
-                if (cur) {
-                    expand[] = cur.layout.expand;
-                    s = cur.layoutCachedContainerSizeRequest();
+                if (cur.w) {
+                    expand[] = cur.w.layout.expand;
+                    s = cur.w.layoutCachedContainerSizeRequest();
                 }
                 mMinWidths[x] = max(mMinWidths[x], s.x);
                 mMinHeights[y] = max(mMinHeights[y], s.y);
                 allMinX = max(allMinX, mMinWidths[x]);
                 allMinY = max(allMinY, mMinHeights[y]);
                 //if one item in the row wants to expand, make all expanded
-                mExpandX[x] |= forceExpand | expand[0];
-                mExpandY[y] |= forceExpand | expand[1];
+                mExpandX[x] |= mForceExpand[0] | expand[0];
+                mExpandY[y] |= mForceExpand[1] | expand[1];
             }
         }
 
@@ -194,7 +203,7 @@ class TableContainer : PublicContainer {
             box.p1.x = mAllocX[x];
             box.p2.x = mAllocX[x+1] - mCellSpacing.x;
             for (int y = 0; y < mH; y++) {
-                auto w = mCells[x][y];
+                auto w = mCells[x][y].w;
                 if (w) {
                     box.p1.y = mAllocY[y];
                     box.p2.y = mAllocY[y+1] - mCellSpacing.y;

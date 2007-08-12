@@ -97,7 +97,7 @@ public struct Rect2(T) {
     //clip pt to this rect; isInsideB(clip(pt)) will always return true
     //(isInside() won't; also NaNs may mess it all up when using floats)
     Point clip(in Point pt)
-    out(r) {assert(isInsideB(r));}
+    //removed because sometimes it's inconvenient out(r) {assert(isInsideB(r));}
     body {
         Point r = pt;
         if (r.x2 > p2.x2)

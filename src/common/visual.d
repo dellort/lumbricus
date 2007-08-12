@@ -78,7 +78,7 @@ BoxTex getBox(BoxProps props) {
 
     //create it
     //middle texture
-    Vector2i size = Vector2i(10,props.height);
+    Vector2i size = Vector2i(10,max(0, props.height));
     auto surfMiddle = globals.framework.createSurface(size,
         DisplayFormat.Screen, Transparency.Alpha);
     auto c = surfMiddle.startDraw();
@@ -161,7 +161,7 @@ BoxTex getBox(BoxProps props) {
 
     //width of the side textures
     int sidew = min(props.p.cornerRadius,props.height/2);
-    size = Vector2i(sidew,props.height);
+    size = Vector2i(max(0,sidew),max(0,props.height));
 
     //left texture
     auto surfLeft = globals.framework.createSurface(size,

@@ -13,6 +13,7 @@ import gui.widget;
 import gui.fps;
 import gui.container;
 import gui.console;
+import gui.wm;
 import common.common;
 import common.task;
 import utils.time;
@@ -63,7 +64,9 @@ private:
 
         initConsole();
 
-        taskManager = new TaskManager(mGui);
+        taskManager = new TaskManager();
+
+        gWindowManager = new WindowManager(mGui);
 
         framework.onFrame = &onFrame;
         framework.onKeyPress = &onKeyPress;

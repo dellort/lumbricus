@@ -229,6 +229,7 @@ public class Resources {
         private void updateToLoad() {
             mOffset += mToLoad.length;
             mToLoad = null;
+            mCurrent = 0;
             foreach (Resource r; mResources) {
                 bool wantLoad = r.mRefed || !mUsedOnly;
                 if (wantLoad && !r.isLoaded) {

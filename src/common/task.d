@@ -1,7 +1,29 @@
 module common.task;
-import gui.gui;
 import utils.factory;
 import utils.log;
+
+//maybe should replaced by a more complete signals & slots implementation
+//or use the quite strange one from Phobos
+//takes argument types as tuple; return value is fixed to void
+struct MulticastDelegate(DelegateArgs...) {
+    alias void delegate(DelegateArgs) DelegateType;
+
+    private DelegateType[] mDelegates;
+
+    void call(DelegateArgs a) {
+        foreach (d; mDelegates) {
+            d(a);
+        }
+    }
+
+    void clear() {
+        mDelegates = null;
+    }
+
+    void opCatAssign(DelegateType dg) {
+        mDelegates ~= dg;
+    }
+}
 
 /// something which can get created, listed, and destroyed
 /// it can add commands and GUI elements to the program
@@ -12,6 +34,13 @@ class Task {
         int mTaskID;
         bool mAlive;
         bool mKilled;
+        MulticastDelegate!(Task) mOnDeath;
+    }
+
+    /// registered delegates are invoked when the reallydead() property
+    /// becomes true
+    void registerOnDeath(mOnDeath.DelegateType callback) {
+        mOnDeath ~= callback;
     }
 
     final TaskManager manager() {
@@ -48,6 +77,8 @@ class Task {
         mManager.killTask(this);
         onKill();
         mKilled = true;
+        mOnDeath.call(this);
+        mOnDeath.clear();
     }
 
     ///ask a task to kill itself
@@ -77,19 +108,11 @@ class TaskManager {
         //id -> Task (task creation and destruction is considered to be seldom)
         Task[int] mTaskList;
         int mTaskIDAlloc;
-        GuiMain mGui;
         Log mLog;
     }
 
-    //take the almighty gui singleton and claims almost complete control over it
-    this(GuiMain thegui) {
-        assert(thegui !is null);
-        mGui = thegui;
+    this() {
         mLog = registerLog("taskmanager");
-    }
-
-    GuiMain guiMain() {
-        return mGui;
     }
 
     //called by Task constructor only

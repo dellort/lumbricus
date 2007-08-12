@@ -8,6 +8,7 @@ import gui.container;
 import gui.button;
 import gui.boxcontainer;
 import gui.label;
+import gui.wm;
 import game.gametask;
 import levelgen.generator;
 import levelgen.level;
@@ -102,22 +103,19 @@ private class LevelPreviewer : SimpleContainer {
 class LevelPreviewTask : Task {
     private {
         LevelPreviewer mWindow;
+        Window mWMWindow;
         Task mGame;
     }
 
     this(TaskManager tm) {
         super(tm);
         mWindow = new LevelPreviewer(this);
-        manager.guiMain.mainFrame.add(mWindow);
-    }
-
-    override protected void onKill() {
-        mWindow.remove();
+        mWMWindow = gWindowManager.createWindow(this, mWindow, "Level Preview");
     }
 
     //play a level, hide this GUI while doing that, then return
     void play(Level level) {
-        mWindow.remove();
+        mWMWindow.visible = false;
 
         assert(!mGame); //hm, no idea
         //create default GameConfig with custom level
@@ -133,7 +131,7 @@ class LevelPreviewTask : Task {
             if (mGame.reallydead) {
                 mGame = null;
                 //show GUI again
-                manager.guiMain.mainFrame.add(mWindow);
+                mWMWindow.visible = true;
             }
         }
     }

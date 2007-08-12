@@ -15,6 +15,7 @@ import gui.container;
 import gui.button;
 import gui.boxcontainer;
 import gui.mousescroller;
+import gui.wm;
 import utils.log;
 import utils.configfile;
 import levelgen.level;
@@ -746,7 +747,7 @@ public class LevelEditor : Task {
         addButton("New Polygon'", (Button, Me me) {me.setNewPolygon;});
 
         mContainer = container;
-        manager.guiMain.mainFrame.add(mContainer);
+        gWindowManager.createWindowFullscreen(this, mContainer, "Level Editor");
     }
 
     override protected void onKill() {

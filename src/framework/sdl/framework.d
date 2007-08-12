@@ -390,12 +390,6 @@ public class SDLSurface : Surface {
             char* err = IMG_GetError();
             throw new Exception("image couldn't be loaded: "~std.string.toString(err));
         }
-        if (transp == Transparency.AutoDetect) {
-            //auto-detect transparency from file
-            //32-bit images will be using alpha, all others colorkeying
-            transp = surf.format.Amask != 0 ? Transparency.Alpha
-                : Transparency.Colorkey;
-        }
         initTransp(transp);
     }
     //create from bitmap data, see Framework.createImage
@@ -418,6 +412,13 @@ public class SDLSurface : Surface {
     }
 
     private void initTransp(Transparency transp) {
+        if (transp == Transparency.AutoDetect) {
+            //try to auto-detect transparency
+            //if no alpha is used, maybe it uses a colorkey
+            assert(mReal !is null);
+            transp = mReal.format.Amask != 0 ? Transparency.Alpha
+                : Transparency.Colorkey;
+        }
         switch (transp) {
             case Transparency.Alpha: {
                 enableAlpha();
@@ -426,11 +427,6 @@ public class SDLSurface : Surface {
             case Transparency.Colorkey: {
                 //use the default colorkey!
                 enableColorkey();
-                break;
-            }
-            case Transparency.AutoDetect: {
-                //if this got here, assume no transparency
-                mTransp = Transparency.None;
                 break;
             }
             default: //rien
@@ -452,7 +448,8 @@ public class SDLSurface : Surface {
     //to avoid memory leaks
     //xxx: either must be automatically managed (finalizer) or be in superclass
     void free() {
-        //xxx: what about the textures hooked to us?
+        if (mSDLTexture)
+            mSDLTexture.releaseCache();
         SDL_FreeSurface(mReal);
         mReal = null;
         mData = null;
