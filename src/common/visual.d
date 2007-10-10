@@ -3,6 +3,7 @@ module common.visual;
 import framework.framework;
 import framework.font;
 import common.common;
+import utils.configfile : ConfigNode;
 import utils.misc;
 import utils.rect2;
 import utils.vector2;
@@ -48,6 +49,13 @@ void drawBox(Canvas c, in Rect2i rect, in BoxProperties props) {
 struct BoxProperties {
     int borderWidth = 1, cornerRadius = 5;
     Color border, back = {1,1,1};
+
+    void loadFrom(ConfigNode node) {
+        parseColor(node.getStringValue("border"), border);
+        parseColor(node.getStringValue("back"), back);
+        borderWidth = node.getIntValue("border_width", borderWidth);
+        cornerRadius = node.getIntValue("corner_radius", cornerRadius);
+    }
 }
 
 private:
@@ -71,7 +79,40 @@ struct BoxTex {
 
 BoxTex[BoxProps] boxes;
 
+//xxx: maybe introduce a global on-framework-creation callback registry for
+//     these cases? currently init() is simply called in getBox().
+bool didInit;
+
+void init() {
+    if (didInit)
+        return;
+    didInit = true;
+    getFramework.registerCacheReleaser(toDelegate(&releaseBoxCache));
+}
+
+int releaseBoxCache() {
+    int rel;
+
+    void killtex(Texture t) {
+        t.clearCache();
+        t.getSurface().free();
+        rel++;
+    }
+
+    foreach (BoxTex t; boxes) {
+        killtex(t.left);
+        killtex(t.middle);
+        killtex(t.right);
+    }
+
+    boxes = null;
+
+    return rel;
+}
+
 BoxTex getBox(BoxProps props) {
+    init();
+
     auto t = props in boxes;
     if (t)
         return *t;

@@ -52,6 +52,8 @@ class FontManager {
 
         ConfigNode font = mNodes.findNode(id);
         if (!font) {
+            if (!tryHard) //don't default to default
+                return null;
             //std.stdio.writefln("not found: >%s<", id);
             font = mNodes.getSubNode("default");
         }

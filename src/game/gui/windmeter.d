@@ -49,12 +49,15 @@ class WindMeter : Widget {
         mLastTime =  timeCurrentTime();
     }
 
-    void simulate(Time curTime, Time deltaT) {
-        mTexOffsetf = mTexOffsetf + mAnimSpeed*(deltaT.secsf);
-    }
-
     protected void onDraw(Canvas canvas) {
         auto pos = Vector2i(0);
+        auto time = timeCurrentTime;
+        //mLastTime first isn't initialized, but the resulting random value
+        //  doesn't really matter (note you also must be able to deal with
+        //  unexpected pauses)
+        auto deltaT = time - mLastTime;
+        mLastTime = time;
+        mTexOffsetf = mTexOffsetf + mAnimSpeed*(deltaT.secsf);
         if (mEngine) {
             canvas.draw(mBackgroundTex, pos);
             float wspeed = mEngine.windSpeed;

@@ -144,24 +144,19 @@ class ClientGameEngine {
         globals.resources.loadResources(taCfg);
         mTeamAnims.length = cTeamColors.length;
         foreach (int n, char[] color; cTeamColors) {
-            ConfigNode colsNode = taCfg.getSubNode("darrow");
-            mTeamAnims[n].arrow = globals.resources.resource!(AnimationResource)
-                (colsNode.getPathValue(color));
-            colsNode = taCfg.getSubNode("pointed");
-            mTeamAnims[n].pointed = globals.resources.resource!
-                (AnimationResource)(colsNode.getPathValue(color));
-            colsNode = taCfg.getSubNode("change");
-            mTeamAnims[n].change = globals.resources.resource!
-                (AnimationResource)(colsNode.getPathValue(color));
-            colsNode = taCfg.getSubNode("cursor");
-            mTeamAnims[n].cursor = globals.resources.resource!
-                (AnimationResource)(colsNode.getPathValue(color));
-            colsNode = taCfg.getSubNode("click");
-            mTeamAnims[n].click = globals.resources.resource!
-                (AnimationResource)(colsNode.getPathValue(color));
-            colsNode = taCfg.getSubNode("aim");
-            mTeamAnims[n].aim = globals.resources.resource!
-                (AnimationResource)(colsNode.getPathValue(color));
+            auto cur = &mTeamAnims[n];
+
+            AnimationResource loadanim(char[] node) {
+                return globals.resources.resource!(AnimationResource)
+                    (taCfg.getSubNode(node).getPathValue(color));
+            }
+
+            cur.arrow = loadanim("darrow");
+            cur.pointed = loadanim("pointed");
+            cur.change = loadanim("change");
+            cur.cursor = loadanim("cursor");
+            cur.click = loadanim("click");
+            cur.aim = loadanim("aim");
         }
 
         mGameWater = new GameWater(this, "blue");

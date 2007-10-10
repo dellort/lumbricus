@@ -1,6 +1,7 @@
 module gui.mousescroller;
 
 import gui.scrollwindow;
+import gui.widget;
 import framework.event;
 import framework.framework;
 import utils.time;
@@ -74,5 +75,14 @@ class MouseScroller : ScrollArea {
             return true;
         }
         return super.onMouseMove(mi);
+    }
+
+    override void loadFrom(GuiLoader loader) {
+        //hm, nothing? mouseScrolling() is a runtime-only property
+        super.loadFrom(loader);
+    }
+
+    static this() {
+        WidgetFactory.register!(typeof(this))("mousescroller");
     }
 }

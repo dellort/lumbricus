@@ -15,6 +15,7 @@ import gui.container;
 import gui.console;
 import gui.wm;
 import common.common;
+import common.resources;
 import common.task;
 import utils.time;
 import utils.configfile;
@@ -25,6 +26,7 @@ import utils.mylist;
 import utils.mybox;
 import perf = std.perf;
 import gc = std.gc;
+import std.stream : File, FileMode;
 
 //ZOrders!
 //only for the stuff managed by TopLevel
@@ -128,7 +130,7 @@ private:
             "int?=0:depth (bits)"]);
         globals.cmdLine.registerCommand("fullscreen", &cmdFS, "toggle fs");
         globals.cmdLine.registerCommand("framerate", &cmdFramerate,
-            "set fixed framerate");
+            "set fixed framerate", ["int:framerate"]);
 
         globals.cmdLine.registerCommand("ps", &cmdPS, "list tasks");
         globals.cmdLine.registerCommand("spawn", &cmdSpawn, "create task",
@@ -143,6 +145,60 @@ private:
 
         globals.cmdLine.registerCommand("res_unload", &cmdResUnload,
             "Unload unused resources; currently can crash!", []);
+        globals.cmdLine.registerCommand("res_list", &cmdResList,
+            "List all resources", []);
+
+        globals.cmdLine.registerCommand("release_caches", &cmdReleaseCaches,
+            "Release caches (temporary data)", []);
+
+        //more like a test
+        globals.cmdLine.registerCommand("widget_tree", &cmdWidgetTree, "-");
+    }
+
+    private void cmdWidgetTree(MyBox[] args, Output write) {
+        int maxdepth;
+        int count;
+
+        void showWidget(Widget w, int depth) {
+            maxdepth = depth > maxdepth ? depth : maxdepth;
+            count++;
+            char[] pad; pad.length = depth*2; pad[] = ' ';
+            Container cw = cast(Container)w;
+            write.writefln("%s%s%s", pad, w, cw ? " [container]" : "");
+            if (cw) {
+                cw.enumChildren((Widget child) {
+                    showWidget(child, depth + 1);
+                });
+            }
+        }
+
+        write.writefln("Widget tree:");
+        showWidget(mGui.mainFrame, 0);
+        write.writefln("maxdepth = %d, count = %d", maxdepth, count);
+    }
+
+    private void cmdReleaseCaches(MyBox[] args, Output write) {
+        int released = getFramework.releaseCaches();
+        write.writefln("released %s memory consuming house shoes", released);
+    }
+
+    private void cmdResList(MyBox[] args, Output write) {
+        write.writefln("dumping to res.txt");
+        auto file = new File("res.txt", FileMode.OutNew);
+        write = new StreamOutput(file);
+        int count;
+        globals.resources.enumResources(
+            (char[] full, Resource res) {
+                write.writefln("Full=%s, Id=%s", full, res.id);
+                //write.writef(" refcount=%d,", res.refcount);
+                write.writef(" uid=%d, loaded=%s, refed=%s", res.uid,
+                    res.isLoaded, "?"); //res.isRefed);
+                write.writefln(" type=%s,", res.type);
+                count++;
+            }
+        );
+        write.writefln("%d resources.", count);
+        file.close();
     }
 
     private void cmdResUnload(MyBox[] args, Output write) {

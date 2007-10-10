@@ -92,6 +92,9 @@ protected class Resource {
     protected static void setResourceNamespace(T : Resource)(char[] id) {
         gNamespaceMap[ResFactory.lookup!(T)()] = id;
     }
+
+    //managed type
+    abstract TypeInfo type();
 }
 
 private class ResourceBase(T) : Resource {
@@ -110,6 +113,10 @@ private class ResourceBase(T) : Resource {
         if (!mValid)
             preload(allowFail);
         return mContents;
+    }
+
+    override TypeInfo type() {
+        return typeid(T);
     }
 }
 
@@ -133,6 +140,12 @@ public class Resources {
 
     long getUid() {
         return ++mCurUid;
+    }
+
+    void enumResources(void delegate(char[] fullname, Resource res) cb) {
+        foreach (char[] fullname, Resource res; mResources) {
+            cb(fullname, res);
+        }
     }
 
     private char[] addNSPrefix(char[] type, char[] resId) {
@@ -163,6 +176,7 @@ public class Resources {
     ///hacky: create a resource from a plain filename (only for resources
     ///supporting it, currently just BitmapResource)
     ///id will be the filename
+    ///markDirty = mark as referenced?
     public T createResourceFromFile(T)(char[] filename,
         bool allowFail = false, bool markDirty = true)
     {
@@ -173,10 +187,7 @@ public class Resources {
             Resource r = new T(this,id,v);
             mResources[addNSPrefix(ResFactory.lookup!(T)(),id)] = r;
         }
-        if (markDirty)
-            return resource!(T)(id,allowFail);
-        else
-            return doFindResource!(T)(id,allowFail);
+        return resource!(T)(id,allowFail, markDirty);
     }
 
     ///get a reference to a resource by its id

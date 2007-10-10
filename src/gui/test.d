@@ -7,6 +7,8 @@ import gui.boxcontainer;
 import gui.tablecontainer;
 import gui.label;
 import gui.mousescroller;
+import gui.scrollwindow;
+import gui.loader;
 import common.common;
 import common.task;
 import framework.framework;
@@ -119,6 +121,19 @@ class TestTask : Task {
         k.text = "Kill!!!1";
         k.onClick = &onKill;
         createWindow("hihi", k);
+
+        //test loading GUIs from file
+        auto loader = new LoadGui(globals.loadConfig("test_gui"));
+        loader.load();
+        createWindow("Test5", loader.lookup("root"));
+
+        //two scrollbars
+        auto bar1 = new ScrollBar(false);
+        bar1.maxValue = 3;
+        createWindow("Test6", bar1);
+        auto bar2 = new ScrollBar(true);
+        bar2.maxValue = 3;
+        createWindow("Test6", bar2);
 
 //        getFramework.clearColor = Color(1,1,1);
     }

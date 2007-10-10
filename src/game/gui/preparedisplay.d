@@ -41,7 +41,7 @@ class PrepareDisplay : Container {
         }
     }
 
-    void simulate(Time curTime, Time deltaT) {
+    override void simulate() {
         Time cur = timeCurrentTime();
         auto logic = mEngine.logic;
         //auto controller = mEngine ? mEngine.engine.controller : null;

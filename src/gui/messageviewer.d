@@ -46,14 +46,17 @@ private class MessageViewer : Widget {
         return !working();
     }
 
-    void simulate(Time t, Time deltaT) {
+    override void simulate() {
         Time phaseT = timeMsecs(cPhaseTimingsMs[mPhase]);
-        Time diff = t - mPhaseStart;
+        Time cur = timeCurrentTime;
+        Time deltaT = cur - mLastFrame;
+        mLastFrame = cur;
+        Time diff = cur - mPhaseStart;
         if (diff >= phaseT) {
             //end of current phase
             if (mPhase != 0) {
                 mPhase++;
-                mPhaseStart = t;
+                mPhaseStart = cur;
             }
             if (mPhase > 4) {
                 //done, no current message anymore
@@ -71,7 +74,7 @@ private class MessageViewer : Widget {
                 if (!mMessages.empty) {
                     //put new message
                     mPhase = 1;
-                    mPhaseStart = t;
+                    mPhaseStart = cur;
                     mCurrentMessage = mMessages.pop();
                     mMessageSize = mFont.textSize(mCurrentMessage);
                     mMessagePos = -mMessageSize.y - cMessageBorders.y*2;

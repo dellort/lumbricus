@@ -6,6 +6,7 @@ import common.scene;
 import common.visual;
 import framework.framework;
 import framework.font;
+import utils.configfile;
 import utils.misc;
 
 class Label : Widget {
@@ -97,7 +98,7 @@ class Label : Widget {
     }
 
     this(Font font = null) {
-        mFont = font ? font : globals.framework.getFont("messages");
+        mFont = font ? font : globals.framework.getFont("label_default");
         drawBorder = true;
         mBorder = Vector2i(0,0);
     }
@@ -117,5 +118,31 @@ class Label : Widget {
             sz -= b*2;
             mFont.drawTextLimited(canvas, b, sz.x, mText);
         }
+    }
+
+    override void loadFrom(GuiLoader loader) {
+        auto node = loader.node;
+
+        auto fnt = globals.framework.fontManager.loadFont(
+            node.getStringValue("font"), false);
+        if (fnt)
+            mFont = fnt;
+
+        mText = node.getStringValue("text", mText);
+        parseVector(node.getStringValue("border"), mBorder);
+        mShrink = node.getBoolValue("shrink", mShrink);
+        mDrawBorder = node.getBoolValue("draw_border", mDrawBorder);
+
+        auto bnode = node.findNode("border_style");
+        if (bnode)
+            mBorderStyle.loadFrom(bnode);
+
+        //xxx: maybe also load image
+
+        super.loadFrom(loader);
+    }
+
+    static this() {
+        WidgetFactory.register!(typeof(this))("label");
     }
 }

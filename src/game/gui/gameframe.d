@@ -90,7 +90,7 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
             .gamelevel.offset + clientengine.engine.gamelevel.size/2);
     }
 
-    override protected void simulate(Time, Time) {
+    override protected void simulate() {
         mCamera.doFrame();
     }
 

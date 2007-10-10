@@ -35,7 +35,7 @@ class GameTimer : Container {
         mLastTime = timeCurrentTime();
     }
 
-    void simulate(Time curTime, Time deltaT) {
+    override void simulate() {
         bool active;
         if (mEngine) {
             auto controller = mEngine.engine.logic;

@@ -115,13 +115,6 @@ public struct PixelFormat {
     uint mask_r, mask_g, mask_b, mask_a;
 }
 
-/// Subregion of a texture.
-//(hm, putting that into Texture would be too expensive I guess)
-public struct TextureRef {
-    Texture texture;
-    Vector2i pos, size;
-}
-
 public class Surface {
     //true if this is the single and only screen surface!
     //(or the backbuffer)
@@ -153,10 +146,6 @@ public class Surface {
     public abstract Color colorkey();
     public abstract Transparency transparency();
 
-    /// convert the image data to raw pixel data, using the given format
-    public abstract bool convertToData(PixelFormat format, out uint pitch,
-        out void* data);
-
     /// Create a texture from this surface.
     /// The texture may or may not reflect changes to the surface since this
     /// function was called. Texture.recreate() will update the Texture.
@@ -166,45 +155,6 @@ public class Surface {
 
     //mirror on Y axis
     public abstract Surface createMirroredY();
-
-    /// convert the texture to a transparency mask
-    /// one pixel per byte; the pitch is the width (pixel = arr[y*w+x])
-    /// transparent pixels are converted to 0, solid ones to 255
-    //xxx: handling of alpha values unclear
-    public ubyte[] convertToMask() {
-        //copied from level/renderer.d
-        //this is NOT nice, but sucks infinitely
-
-        PixelFormat fmt;
-        //xxx this isn't good and nice; needs rework anyway
-        fmt.depth = 32; //SDL doesn't like depth=24 (maybe it takes 3 bytes pp)
-        fmt.bytes = 4;
-        fmt.mask_r = 0xff0000;
-        fmt.mask_g = 0x00ff00;
-        fmt.mask_b = 0x0000ff;
-        fmt.mask_a = 0xff000000;
-
-        uint tex_pitch;
-        void* tex_data;
-        convertToData(fmt, tex_pitch, tex_data);
-        uint tex_w = size.x;
-        uint tex_h = size.y;
-        uint* texptr = cast(uint*)tex_data;
-
-        ubyte[] res = new ubyte[tex_w*tex_h];
-
-        for (uint y = 0; y < tex_h; y++) {
-            uint* val = cast(uint*)(cast(byte*)(texptr)+y*tex_pitch);
-            for (uint x = 0; x < tex_w; x++) {
-                res[y*tex_w+x] =
-                    cast(ubyte)((*val & fmt.mask_a) ? 255 : 0);
-                val++;
-            }
-        }
-
-        //dozens of garbage collected megabytes later...
-        return res;
-    }
 }
 
 public abstract class Texture {
@@ -232,10 +182,6 @@ public class Canvas {
 
     public void draw(Texture source, Vector2i destPos) {
         draw(source, destPos, Vector2i(0, 0), source.size);
-    }
-
-    public void draw(TextureRef texture, Vector2i dest) {
-        draw(texture.texture, dest, texture.pos, texture.size);
     }
 
     public abstract void draw(Texture source, Vector2i destPos,
@@ -290,6 +236,9 @@ public class Canvas {
     }
 }
 
+//returns number of released resources (surfaces, currently)
+public alias int delegate() CacheReleaseDelegate;
+
 /// Contains event- and graphics-handling
 public class Framework {
     //contains keystate (key down/up) for each key; indexed by Keycode
@@ -314,9 +263,27 @@ public class Framework {
 
     private Color mClearColor;
 
-    //initialize time between FPS recalculations
+    private CacheReleaseDelegate[] mCacheReleasers;
+
     static this() {
+        //initialize time between FPS recalculations
         cFPSTimeSpan = timeSecs(1);
+    }
+
+    /// register a callback which is called on releaseCaches()
+    public void registerCacheReleaser(CacheReleaseDelegate callback) {
+        mCacheReleasers ~= callback;
+    }
+
+    /// release all cached data, which can easily created again (i.e. font glyph
+    /// surfaces)
+    /// returns number of freed resources (cf. CacheReleaseDelegate)
+    public int releaseCaches() {
+        int released;
+        foreach (r; mCacheReleasers) {
+            released += r();
+        }
+        return released;
     }
 
     /// set a fixed framerate / a maximum framerate

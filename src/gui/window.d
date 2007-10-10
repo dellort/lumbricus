@@ -210,7 +210,7 @@ class WindowWidget : Container {
             auto titlebar = new BoxContainer(true);
 
             mTitleBar = new Label();
-            mTitleBar.drawBorder = false;
+            //mTitleBar.drawBorder = false;
             mTitleBar.text = mTitle;
             titlebar.add(mTitleBar);
 

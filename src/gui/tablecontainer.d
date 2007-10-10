@@ -1,6 +1,7 @@
 module gui.tablecontainer;
 import gui.container;
 import gui.widget;
+import utils.configfile;
 import utils.vector2;
 import utils.rect2;
 import utils.misc;
@@ -40,6 +41,11 @@ class TableContainer : PublicContainer {
         int[] mAllocY;
     }
 
+    ///default constructor needed for WidgetFactory/gui.loader
+    this() {
+        setSize(0, 0);
+    }
+
     ///a_w, a_h = number of cells in this direction
     ///cellspacing = spacing between cells (doesn't add borders around the
     ///  table, use the table-widget's .setLayout() for that)
@@ -49,6 +55,18 @@ class TableContainer : PublicContainer {
         bool[2] homogeneous = [false, false],
         bool[2] forceExpand = [false, false])
     {
+        setSize(a_w, a_h);
+
+        mHomogeneous[] = homogeneous;
+        mForceExpand[] = forceExpand;
+        mCellSpacing = cellspacing;
+    }
+
+    //this clears all contained elements!
+    void setSize(int a_w, int a_h) {
+        clear();
+        mCells = null; //?
+
         mCells.length = a_w;
         foreach (inout r; mCells) {
             r.length = a_h;
@@ -64,9 +82,7 @@ class TableContainer : PublicContainer {
         mExpandY.length = mH;
         mAllocY.length = mH + 1;
 
-        mHomogeneous[] = homogeneous;
-        mForceExpand[] = forceExpand;
-        mCellSpacing = cellspacing;
+        needRelayout();
     }
 
     void add(Widget w, int x, int y, WidgetLayout layout) {
@@ -211,6 +227,51 @@ class TableContainer : PublicContainer {
                 }
             }
         }
+    }
+
+    void loadFrom(GuiLoader loader) {
+        auto node = loader.node;
+
+        auto size = Vector2i(mW, mH);
+        parseVector(node.getStringValue("size"), size);
+        setSize(size.x, size.y);
+
+        parseVector(node.getStringValue("cellspacing"), mCellSpacing);
+
+        mHomogeneous[0] = node.getBoolValue("homogeneous_x", mHomogeneous[0]);
+        mHomogeneous[1] = node.getBoolValue("homogeneous_y", mHomogeneous[1]);
+
+        mForceExpand[0] = node.getBoolValue("force_expand_x", mForceExpand[0]);
+        mForceExpand[1] = node.getBoolValue("force_expand_y", mForceExpand[1]);
+
+        //childrens are loaded in order, line by line
+        Vector2i pos;
+        //skip k many cells
+        void skip(int k) {
+            if (!mW)
+                return;
+            pos.x += k;
+            pos.y += pos.x / mW;
+            pos.x = pos.x % mW;
+        }
+        foreach (ConfigNode child; node.getSubNode("cells")) {
+            //if a cell contains "table_skip", it doesn't contain a Widget
+            const cSkip = "table_skip";
+            if (child.hasValue(cSkip)) {
+                skip(child.getIntValue(cSkip, 1));
+            } else {
+                //allow explicit relocation, but it isn't required
+                parseVector(child.getStringValue("table_at"), pos);
+                add(loader.loadWidget(child), pos.x, pos.y);
+                skip(1);
+            }
+        }
+
+        super.loadFrom(loader);
+    }
+
+    static this() {
+        WidgetFactory.register!(typeof(this))("tablecontainer");
     }
 }
 

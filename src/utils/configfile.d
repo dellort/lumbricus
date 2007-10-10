@@ -8,6 +8,21 @@ import conv = std.conv;
 import utils.output : Output;
 import utils.path;
 
+//xxx: desperately moved to here (where else to put it?)
+import utils.vector2;
+bool parseVector(char[] s, inout Vector2i value) {
+    char[][] items = str.split(s);
+    if (items.length != 2) {
+        return false;
+    }
+    int a, b;
+    if (!parseInt(items[0], a) || !parseInt(items[1], b))
+        return false;
+    value.x = a;
+    value.y = b;
+    return true;
+}
+
 //returns false: conversion failed, value is unmodified
 public bool parseInt(char[] s, inout int value) {
     try {

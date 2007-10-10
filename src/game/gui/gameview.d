@@ -399,8 +399,8 @@ class GameView : Container, TeamMemberControlCallback {
         return true;
     }
 
-    override void simulate(Time curTime, Time deltaT) {
-        super.simulate(curTime, deltaT);
+    override void simulate() {
+        super.simulate();
         doSim();
     }
 

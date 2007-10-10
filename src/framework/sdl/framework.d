@@ -23,7 +23,7 @@ private static FrameworkSDL gFrameworkSDL;
 debug import std.stdio;
 
 debug {
-    version = MeasureImgLoadTime;
+    //version = MeasureImgLoadTime;
 }
 
 version (MeasureImgLoadTime) {
@@ -137,10 +137,18 @@ public class SDLSurface : Surface {
 
     SDLTexture mSDLTexture;
 
+    //own: if this Surface is allowed to free the SDL_Surface
+    //(added this to simplify memory managment later on, currently pointless)
+    void setSurface(SDL_Surface* realsurface, bool own) {
+        assert(mReal is null);
+        mReal = realsurface;
+        //mOwnsSurface = own;
+    }
+
     public Surface clone() {
         assert(mReal !is null);
         auto n = SDL_ConvertSurface(mReal, mReal.format, mReal.flags);
-        auto res = new SDLSurface(n);
+        auto res = new SDLSurface(n, true);
         res.mTransp = mTransp;
         res.mColorkey = mColorkey;
         return res;
@@ -153,8 +161,6 @@ public class SDLSurface : Surface {
         mCanvas.startDraw();
         return mCanvas;
     }
-    //public void endDraw() {
-    //}
 
     public Vector2i size() {
         assert(mReal !is null);
@@ -172,39 +178,6 @@ public class SDLSurface : Surface {
         //xxx: what about fmt.colorkey and fmt.alpha? (can it be ignored here?)
         //should use of the palette be enabled?
         fmt.palette = null;
-    }
-
-    public bool convertToData(PixelFormat format, out uint pitch,
-        out void* data)
-    {
-        assert(mReal !is null);
-
-        //xxx: as an optimization, avoid double-copying (that is, calling the
-        //  SDL_ConvertSurface() function, if the format is already equal to
-        //  the requested one)
-        SDL_PixelFormat fmt;
-        toSDLPixelFmt(format, fmt);
-
-        SDL_Surface* s = SDL_ConvertSurface(mReal, &fmt, SDL_SWSURFACE);
-        //xxx: error checking: SDL even creates surfaces, if the pixelformat
-        //  doesn't make any sense (at least it looks like)
-        if (s is null)
-            return false;
-
-        pitch = s.pitch;
-
-        void[] alloc;
-        alloc.length = pitch*size.y;
-        SDL_LockSurface(s);
-        alloc[] = s.pixels[0 .. alloc.length]; //copy
-        data = alloc.ptr;
-        SDL_UnlockSurface(s);
-
-        SDL_FreeSurface(s);
-
-        assert(data);
-
-        return true;
     }
 
     public void forcePixelFormat(PixelFormat format) {
@@ -345,20 +318,21 @@ public class SDLSurface : Surface {
     }
 
     //following: all constructors
-    this(SDL_Surface* surface) {
-        this.mReal = surface;
+    this(SDL_Surface* surface, bool owns = false) {
+        setSurface(surface, owns);
     }
     //create a new surface using current depth
     //xxx: find better solution for enabling alpha...
     this(Vector2i size, DisplayFormat fmt, Transparency transp) {
         PixelFormat format = gFrameworkSDL.findPixelFormat(fmt);
-        mReal = SDL_CreateRGBSurface(SDL_HWSURFACE, size.x, size.y,
+        auto ns = SDL_CreateRGBSurface(SDL_HWSURFACE, size.x, size.y,
             format.depth, format.mask_r, format.mask_g, format.mask_b,
             format.mask_a);
-        if (!mReal) {
+        if (!ns) {
             writefln("%d %d %d", size.x, size.y, format.depth);
             throw new Exception("couldn't create surface (1)");
         }
+        setSurface(ns, true);
         initTransp(transp);
     }
     //create from stream (using SDL_Image)
@@ -385,7 +359,7 @@ public class SDLSurface : Surface {
                 gSummedImageLoadingSizeUncompressed);
         }
         if (surf) {
-            mReal = surf;
+            setSurface(surf, true);
         } else {
             char* err = IMG_GetError();
             throw new Exception("image couldn't be loaded: "~std.string.toString(err));
@@ -404,10 +378,11 @@ public class SDLSurface : Surface {
         mData = data;
         //possibly incorrect
         //xxx: cf. SDLSurface(Vector2i) constructor!
-        mReal = SDL_CreateRGBSurfaceFrom(data, w, h, format.depth, pitch,
+        auto ns = SDL_CreateRGBSurfaceFrom(data, w, h, format.depth, pitch,
             format.mask_r, format.mask_g, format.mask_b, format.mask_a);
-        if (!mReal)
+        if (!ns)
             throw new Exception("couldn't create surface (2)");
+        setSurface(ns, true);
         initTransp(transp);
     }
 
@@ -505,7 +480,7 @@ public class SDLCanvas : Canvas {
 
     public void pushState() {
         assert(mStackTop < MAX_STACK);
-        SDL_GetClipRect(sdlsurface.mReal, &mStack[mStackTop].clip);
+        mStack[mStackTop].clip = sdlsurface.mReal.clip_rect;
         mStack[mStackTop].translate = mTrans;
         mStack[mStackTop].clientstart = mClientStart;
         mStack[mStackTop].clientsize = mClientSize;
@@ -533,15 +508,20 @@ public class SDLCanvas : Canvas {
     //oh, and this is actually needed in only a _very_ few places (scrolling)
     private void addclip(Vector2i p1, Vector2i p2) {
         p1 += mTrans; p2 += mTrans;
-        SDL_Rect rc;
-        SDL_GetClipRect(sdlsurface.mReal, &rc);
+        SDL_Rect rc = sdlsurface.mReal.clip_rect;
+
+        int rcx2 = rc.w + rc.x;
+        int rcy2 = rc.h + rc.y;
+
         //common rect of old cliprect and (p1,p2)
-        rc.w += rc.x; rc.h += rc.y; //make w/h to x2/y2
         rc.x = max!(int)(rc.x, p1.x);
         rc.y = max!(int)(rc.y, p1.y);
-        rc.w = min!(int)(rc.w, p2.x);
-        rc.h = min!(int)(rc.h, p2.y);
-        rc.w -= rc.x; rc.h -= rc.y;
+        rcx2 = min!(int)(rcx2, p2.x);
+        rcy2 = min!(int)(rcy2, p2.y);
+
+        rc.w = max!(int)(rcx2 - rc.x, 0);
+        rc.h = max!(int)(rcy2 - rc.y, 0);
+
         SDL_SetClipRect(sdlsurface.mReal, &rc);
     }
 
@@ -700,6 +680,9 @@ public class SDLFont : Font {
         str.seek(0,SeekPos.Set);
         font_stream.copyFrom(str);
         init(props);
+
+        //xxx: prevents garbage collection of this object (including TTF_Font)
+        gFrameworkSDL.registerCacheReleaser(&releaseCache);
     }
 
     void init(FontProperties props) {
@@ -732,6 +715,17 @@ public class SDLFont : Font {
             TTF_CloseFont(font);
             font = null;
         }
+    }
+
+    int releaseCache() {
+        int rel;
+        foreach (Texture t; frags) {
+            t.clearCache();
+            t.getSurface().free();
+            rel++;
+        }
+        frags = null;
+        return rel;
     }
 
     public FontProperties properties() {
@@ -853,6 +847,17 @@ public class FrameworkSDL : Framework {
         return tex;
     }
 
+    private int releaseInsanityCache() {
+        int rel;
+        foreach (Texture t; mInsanityCache) {
+            t.clearCache();
+            t.getSurface().free();
+            rel++;
+        }
+        mInsanityCache = null;
+        return rel;
+    }
+
     this(char[] arg0, char[] appId) {
         super(arg0, appId);
 
@@ -891,6 +896,8 @@ public class FrameworkSDL : Framework {
         foreach (SDLToKeycode item; g_sdl_to_code) {
             mSdlToKeycode[item.sdlcode] = item.code;
         }
+
+        registerCacheReleaser(&releaseInsanityCache);
 
         setCaption("<no caption>");
     }

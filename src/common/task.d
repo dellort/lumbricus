@@ -1,32 +1,11 @@
 module common.task;
 import utils.factory;
 import utils.log;
-
-//maybe should replaced by a more complete signals & slots implementation
-//or use the quite strange one from Phobos
-//takes argument types as tuple; return value is fixed to void
-struct MulticastDelegate(DelegateArgs...) {
-    alias void delegate(DelegateArgs) DelegateType;
-
-    private DelegateType[] mDelegates;
-
-    void call(DelegateArgs a) {
-        foreach (d; mDelegates) {
-            d(a);
-        }
-    }
-
-    void clear() {
-        mDelegates = null;
-    }
-
-    void opCatAssign(DelegateType dg) {
-        mDelegates ~= dg;
-    }
-}
+import utils.md;
 
 /// something which can get created, listed, and destroyed
-/// it can add commands and GUI elements to the program
+/// when it's "running", its onFrame method is called every frame
+/// (after the screen is cleared by the framework and before GUI rendering)
 /// it doesn't have anything to do with real processes or threads
 class Task {
     private {
@@ -63,6 +42,7 @@ class Task {
     }
 
     this(TaskManager tc) {
+        mOnDeath = new typeof(mOnDeath);
         //fortunately D enforce use of this constructor
         assert(tc !is null);
         tc.registerTask(this);
@@ -102,7 +82,6 @@ class Task {
 }
 
 /// a singleton which manages Task creation and destruction
-/// also provides access to the GUI
 class TaskManager {
     private {
         //id -> Task (task creation and destruction is considered to be seldom)

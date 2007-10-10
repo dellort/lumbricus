@@ -5,6 +5,7 @@ import framework.framework : Canvas;
 import gui.widget;
 import gui.gui;
 import utils.array;
+import utils.configfile;
 import utils.misc;
 import utils.vector2;
 import utils.rect2;
@@ -462,11 +463,11 @@ class Container : Widget {
 
     // --- all the rest
 
-    override void internalSimulate(Time curTime, Time deltaT) {
+    override void internalSimulate() {
         foreach (obj; mWidgets) {
-            obj.internalSimulate(curTime, deltaT);
+            obj.internalSimulate();
         }
-        super.internalSimulate(curTime, deltaT);
+        super.internalSimulate();
     }
 
     override protected void onDraw(Canvas c) {
@@ -484,6 +485,14 @@ class Container : Widget {
             removeChild(children[0]);
         }
     }
+
+    //only intended for debugging; not to subvert any protection
+    //rather use this.children() (which is protected)
+    void enumChildren(void delegate(Widget w) callback) {
+        foreach (w; children.dup) {
+            callback(w);
+        }
+    }
 }
 
 ///Container with a public Container-interface
@@ -499,6 +508,7 @@ class PublicContainer : Container {
 
 ///PublicContainer which supports simple layouting
 ///by coincidence only needs to add more accessors to the original Container
+///also supports loading of children widgets using loadFrom()
 class SimpleContainer : PublicContainer {
     /// Add an element to the GUI, which gets automatically cleaned up later.
     void add(Widget obj) {
@@ -510,4 +520,27 @@ class SimpleContainer : PublicContainer {
         setChildLayout(obj, layout);
         addChild(obj);
     }
+
+    override void loadFrom(GuiLoader loader) {
+        auto node = loader.node;
+
+        auto children = node.findNode("children");
+        if (children) {
+            clear();
+            foreach (ConfigItem sub; children) {
+                add(loader.loadWidget(sub));
+            }
+        }
+
+        //hmpf
+        drawBox = node.getBoolValue("draw_box", drawBox);
+
+        super.loadFrom(loader);
+    }
+
+    /+
+    moved to widget.d because of "circular initialization dependency" :(
+    static this() {
+        WidgetFactory.register!(typeof(this))("simplecontainer");
+    }+/
 }

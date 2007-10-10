@@ -121,6 +121,17 @@ void arrayRemove(T)(inout T[] arr, T value) {
     assert(false, "element not in array!");
 }
 
+//like arrayRemove(), but order of array elements isn't kept -> faster
+void arrayRemoveUnordered(T)(inout T[] arr, T value) {
+    auto index = arraySearch(arr, value);
+    if (index < 0)
+        throw new Exception("arrayRemoveUnordered: element not in array");
+    if (arr.length >= 1) {
+        arr[index] = arr[$-1];
+    }
+    arr = arr[0..$-1];
+}
+
 //array should be sorted so that pred(arr[i-1], arr[i]) == true for 0<i<$
 //"value" is inserted after the last index i where pred(arr[i], value)
 void arrayInsertSortedTail(T)(inout T[] arr, T value,
@@ -151,6 +162,8 @@ void arrayInsertSortedTail(T)(inout T[] arr, T value,
     }
 }
 
+debug import std.stdio;
+
 unittest {
     int[] testAIST(int[] arr, int v) {
         bool bla(int a, int b) { return a/2 <= b/2; }
@@ -168,6 +181,8 @@ unittest {
     assert(testAIST([1], 2) == [1,2]);
     assert(testAIST([2], 1) == [1,2]);
     assert(testAIST([], 1) == [1]);
+
+    debug writefln("array.d unittest: passed.");
 }
 
 /+ it works, but it's ridiculous

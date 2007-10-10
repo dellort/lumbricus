@@ -47,6 +47,11 @@ class Factory(T, ConstructorArgs...) {
         return (*del)(args);
     }
 
+    //return true if a class is registered under this name
+    bool exists(char[] name) {
+        return !!(name in mConstructors);
+    }
+
     char[][] classes() {
         return mConstructors.keys;
     }
@@ -92,6 +97,11 @@ static class StaticFactory(T, ConstructorArgs...) {
             throw new ClassNotFoundException("class '"~name~"' not found.");
         }
         return (*del)(args);
+    }
+
+    //return true if a class is registered under this name
+    static bool exists(char[] name) {
+        return !!(name in mConstructors);
     }
 
     static char[][] classes() {

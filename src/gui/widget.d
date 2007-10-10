@@ -5,6 +5,7 @@ import framework.event;
 import gui.container;
 import gui.gui;
 import utils.configfile;
+import utils.factory;
 import utils.mylist;
 import utils.time;
 import utils.vector2;
@@ -74,6 +75,15 @@ struct WidgetLayout {
     static WidgetLayout opCall() {
         WidgetLayout x;
         return x;
+    }
+
+    void loadFrom(ConfigNode node) {
+        //xxx loading only the "important" fields (rest seems to be unused...)
+        pad = node.getIntValue("pad", pad);
+        expand[0] = node.getBoolValue("expand_x", expand[0]);
+        expand[1] = node.getBoolValue("expand_y", expand[1]);
+        alignment[0] = node.getFloatValue("align_x", alignment[0]);
+        alignment[1] = node.getFloatValue("align_y", alignment[1]);
     }
 }
 
@@ -223,6 +233,9 @@ class Widget {
 
         return mCachedContainedRequestSize;
     }
+
+    //short names cure overengineering
+    alias layoutCachedContainerSizeRequest requestSize;
 
     /// assigns this Widget a new region
     /// Containers should use this to place children
@@ -432,11 +445,11 @@ class Widget {
     // --- simulation and drawing
 
     //overridden by Container
-    void internalSimulate(Time curTime, Time deltaT) {
-        simulate(curTime, deltaT);
+    void internalSimulate() {
+        simulate();
     }
 
-    void simulate(Time curTime, Time deltaT) {
+    void simulate() {
     }
 
     void doDraw(Canvas c) {
@@ -576,6 +589,36 @@ class Widget {
         if (parent)
             parent.childSetCapture(this, set);
     }
+
+    // --- blabla rest
+
+    /// load Widget properties from a config file, i.e. the WidgetLayout
+    /// (needRelayout() is guaranteed to be called after this, so the Widget
+    ///  will be relayouted)
+    /// NOTE: normally, loadFrom() shall only reset the fields mentioned in
+    ///       loader.node() (and leave all other fields as they are, but
+    ///       containers can remove all their children before reloading
+    void loadFrom(GuiLoader loader) {
+        auto lay = loader.node.findNode("layout");
+        if (lay) {
+            mLayout.loadFrom(lay);
+        }
+
+        //xxx: load KeyBindings somehow?
+        //...
+
+        needRelayout();
+    }
+}
+
+//only used for Widget.loadFrom(), implemented in loader.d
+//used mostly to avoid cyclic dependencies
+interface GuiLoader {
+    //node specific to the currently loaded Widget
+    ConfigNode node();
+    //load another Widget which can be used i.e. as a child
+    //"from" is a ConfigNode or ConfigValue
+    Widget loadWidget(ConfigItem from);
 }
 
 //just a trivial Widget: have a minimum size and draw a color on its background
@@ -603,4 +646,26 @@ class Spacer : Widget {
     Vector2i layoutSizeRequest() {
         return mMinSize;
     }
+
+    override void loadFrom(GuiLoader loader) {
+        auto node = loader.node;
+        parseColor(node.getStringValue("color"), color);
+        enableAlpha = node.getBoolValue("enable_alpha", enableAlpha);
+        drawBackground = node.getBoolValue("draw_background", drawBackground);
+        parseVector(node.getStringValue("min_size"), mMinSize);
+        super.loadFrom(loader);
+    }
+
+    static this() {
+        WidgetFactory.register!(typeof(this))("spacer");
+    }
+}
+
+/// Widget factory; anyone can register here.
+/// Used by module gui.layout to create Widgets from names.
+static class WidgetFactory : StaticFactory!(Widget) {
+}
+
+static this() {
+    WidgetFactory.register!(SimpleContainer)("simplecontainer");
 }

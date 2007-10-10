@@ -1,6 +1,7 @@
 module gui.boxcontainer;
 import gui.container;
 import gui.widget;
+import utils.configfile;
 import utils.vector2;
 import utils.rect2;
 
@@ -16,6 +17,11 @@ class BoxContainer : SimpleContainer {
         Vector2i mLastMinSize;
         int mExpandableCount;
         int mAllSpacing;
+    }
+
+    //needed for gui.loader only
+    this() {
+        this(false);
     }
 
     this(bool horiz, bool homogeneous = false, int cellspacing = 0) {
@@ -95,6 +101,23 @@ class BoxContainer : SimpleContainer {
                 p += mCellSpacing;
             }
         }
+    }
+
+    void loadFrom(GuiLoader loader) {
+        auto node = loader.node;
+        clear();
+        mHomogeneous = node.getBoolValue("homogeneous", mHomogeneous);
+        mCellSpacing = node.getIntValue("cell_spacing", mCellSpacing);
+        mDir = node.selectValueFrom("direction", ["x", "y"], 0);
+        //reload children; order in list decides layout
+        foreach (ConfigItem child; node.getSubNode("cells")) {
+            add(loader.loadWidget(child));
+        }
+        super.loadFrom(loader);
+    }
+
+    static this() {
+        WidgetFactory.register!(typeof(this))("boxcontainer");
     }
 }
 

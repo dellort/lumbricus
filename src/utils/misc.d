@@ -34,6 +34,13 @@ T clampRangeC(T)(T val, T low, T high) {
     }
 }
 
+//clamp to open range, [low, high), makes sense for integers only
+T clampRangeO(T)(T val, T low, T high) {
+    if (val > high)
+        val = high - 1;
+    return (val < low) ? low : val;
+}
+
 /// Cast object in t to type T, and throw exception if not possible.
 /// Only return null if t was already null.
 T castStrict(T : Object)(Object t) {
@@ -42,4 +49,20 @@ T castStrict(T : Object)(Object t) {
         throw new Exception("could not cast");
     }
     return res;
+}
+
+/// convert a function-ptr to a delegate (thanks to downs, it's his code)
+R delegate(T) toDelegate(R, T...)(R function(T) fn) {
+    struct holder {
+        typeof(fn) _fn;
+        R call(T t) {
+            static if (is(R==void))
+                _fn(t);
+            else
+                return _fn(t);
+        }
+    }
+    auto res = new holder;
+    res._fn = fn;
+    return &res.call;
 }

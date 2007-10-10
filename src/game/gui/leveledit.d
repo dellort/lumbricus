@@ -1,4 +1,6 @@
 //aw! I couldn't resist!
+//NOTE: if this file causes problems, simply exclude it from compilation
+//      (not needed for the game)
 module game.gui.leveledit;
 import utils.vector2;
 import utils.rect2;
@@ -14,6 +16,7 @@ import gui.widget;
 import gui.container;
 import gui.button;
 import gui.boxcontainer;
+import gui.loader;
 import gui.mousescroller;
 import gui.wm;
 import utils.log;
@@ -715,6 +718,7 @@ public class LevelEditor : Task {
     }
 
     void createGui() {
+        /+
         auto container = new BoxContainer(true, false, 10);
         auto scroller = new MouseScroller();
         scroller.add(render);
@@ -745,9 +749,35 @@ public class LevelEditor : Task {
         addButton("Insert Point", (Button, Me me) {me.insertPoint;});
         addButton("Toggle 'nochange'", (Button, Me me) {me.toggleNochange;});
         addButton("New Polygon'", (Button, Me me) {me.setNewPolygon;});
+        +/
 
-        mContainer = container;
-        gWindowManager.createWindowFullscreen(this, mContainer, "Level Editor");
+        //"static", non-configfile version was in r351
+        auto loader = new LoadGui(globals.loadConfig("ledit_gui"));
+        loader.addNamedWidget(render, "render");
+        loader.load();
+
+        //NOTE: indirection through bind is done because using the this-ptr
+        // directly would reference the stack, which is invalid when called
+
+        alias typeof(this) Me;
+
+        //button events, sigh
+        void setOnClick(char[] name, void delegate(Button, Me) onclick) {
+            auto b = loader.lookup!(Button)(name);
+            b.onClick = bind(onclick, _0, this).ptr;
+        }
+
+        setOnClick("preview", (Button, Me me) {me.genPreview;});
+        setOnClick("inspt", (Button, Me me) {me.insertPoint;});
+        setOnClick("nochange", (Button, Me me) {me.toggleNochange;});
+        setOnClick("addpoly", (Button, Me me) {me.setNewPolygon;});
+
+        mContainer = loader.lookup("ledit_root");
+        auto wnd = gWindowManager.createWindowFullscreen(this, mContainer,
+            "Level Editor");
+        auto props = wnd.properties;
+        props.background = Color(0,0,0);
+        wnd.properties = props;
     }
 
     override protected void onKill() {

@@ -18,7 +18,6 @@ import utils.rect2;
 class GuiMain {
     private MainFrame mMainFrame;
 
-    private Time mLastTime;
     private Vector2i mSize;
 
     SimpleContainer mainFrame() {
@@ -60,7 +59,6 @@ class GuiMain {
     }
 
     this(Vector2i size) {
-        mLastTime = timeCurrentTime();
         mMainFrame = new MainFrame();
         this.size = size;
     }
@@ -74,11 +72,7 @@ class GuiMain {
     }
 
     void doFrame(Time curTime) {
-        Time deltaT = curTime - mLastTime;
-
-        mMainFrame.internalSimulate(curTime, deltaT);
-
-        mLastTime = curTime;
+        mMainFrame.internalSimulate();
     }
 
     void draw(Canvas canvas) {

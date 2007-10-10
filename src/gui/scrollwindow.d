@@ -1,12 +1,16 @@
 module gui.scrollwindow;
 
-import gui.widget;
+import common.visual;
+import gui.button;
 import gui.container;
+import gui.tablecontainer;
+import gui.widget;
 import framework.framework;
 import framework.event;
 import utils.vector2;
 import utils.rect2;
 import utils.log;
+import utils.misc;
 import utils.time;
 
 /// The child for ScrollArea can implement this; then scrolling can be owner
@@ -21,8 +25,6 @@ interface ScrollClient {
 
 /// This frame always sizes its child to its requested size, and enables
 /// scrolling within it.
-///xxx: add a widget which shows scrollbars and which takes a "ScollClient" as
-///  client; so ScrollArea would need to implement ScrollClient (or so)
 class ScrollArea : SimpleContainer {
     private {
         Vector2i mOffset;
@@ -37,6 +39,11 @@ class ScrollArea : SimpleContainer {
         const cScrollStepMs = 10;
         const float K_SCROLL = 0.01f;
     }
+
+    //changes to scroll size or scrollability
+    void delegate(ScrollArea sender) onStateChange;
+    //changes to the scroll position
+    void delegate(ScrollArea sender) onPositionChange;
 
     protected {
         ScrollClient mScroller; //maybe null, even if child available
@@ -59,6 +66,9 @@ class ScrollArea : SimpleContainer {
     void setEnableScroll(bool[2] enable) {
         mEnableScroll[] = enable;
         needRelayout();
+    }
+    void getEnableScroll(bool[2] enable) {
+        enable[] = mEnableScroll;
     }
 
     void setScroller(ScrollClient c) {
@@ -131,6 +141,9 @@ class ScrollArea : SimpleContainer {
 
         //assert it's within the scrolling region (call setter...)
         offset = mOffset;
+
+        if (onStateChange)
+            onStateChange(this);
     }
 
     final public Vector2i clipOffset(Vector2i offs) {
@@ -153,6 +166,8 @@ class ScrollArea : SimpleContainer {
         } else if (child) {
             child.adjustPosition(mOffset);
         }
+        if (onPositionChange)
+            onPositionChange(this);
     }
 
     ///calculate the offset that would center pos in the middle of this Widget
@@ -187,11 +202,11 @@ class ScrollArea : SimpleContainer {
         mScrollDest = clipOffset(mScrollDest - toVector2f(d));
     }
 
-    override protected void simulate(Time curTime, Time deltaT) {
+    override protected void simulate() {
         if (!mEnableSmoothScrolling)
             return;
 
-        long curTimeMs = curTime.msecs;
+        long curTimeMs = timeCurrentTime.msecs;
 
         if ((mScrollDest-mScrollOffset).quad_length > 0.1f) {
             while (mTimeLast + cScrollStepMs < curTimeMs) {
@@ -203,5 +218,337 @@ class ScrollArea : SimpleContainer {
         } else {
             mEnableSmoothScrolling = false;
         }
+    }
+
+    override void loadFrom(GuiLoader loader) {
+        auto node = loader.node;
+
+        bool[2] enable = mEnableScroll;
+        enable[0] = node.getBoolValue("enable_scroll_x", enable[0]);
+        enable[1] = node.getBoolValue("enable_scroll_y", enable[1]);
+        setEnableScroll(enable);
+
+        //will load a child, if available
+        super.loadFrom(loader);
+    }
+
+    static this() {
+        WidgetFactory.register!(typeof(this))("scrollarea");
+    }
+}
+
+/// Combines a ScrollArea and 0-2 ScrollBars
+/// (currently provides access to a ScrollArea directly, hmmm)
+//xxx: there's no technical reason why this is derived from a Container, instead
+//  of deriving from TableContainer or so, but it seemed unclean
+class ScrollWindow : Container {
+    private {
+        ScrollArea mArea;
+        ScrollBar[2] mBars;
+        TableContainer mLayout;
+        //used to block recursive change notifications (!= 0 means updating)
+        int mUpdating;
+    }
+
+    this() {
+        mArea = new ScrollArea();
+        recreateGui();
+    }
+
+    //callbacks must be left to this object
+    void setScrollArea(ScrollArea arr) {
+        destroyGui();
+        mArea = arr;
+        recreateGui();
+    }
+
+    private void destroyGui() {
+        //especially remove callbacks; before they are even fired on removal
+        foreach (ScrollBar b; mBars) {
+            if (b) {
+                b.onValueChange = null;
+            }
+        }
+        mBars[] = mBars.init;
+        mLayout = null;
+        mArea.onPositionChange = null;
+        mArea.onStateChange = null;
+        clear();
+        mArea.remove();
+    }
+
+    private void recreateGui() {
+        //recreate only if necessary
+        //this prevents an infinite loop, triggered by recreating the GUI,
+        //which makes the ScrollArea trigger onStateChange, which calls us (this
+        //function) again... argh
+        //xxx: horrible implementation, make better
+
+        bool[2] scr;
+        Vector2i sizes;
+        if (mArea) {
+            mArea.getEnableScroll(scr);
+            sizes = mArea.getScrollSize();
+        }
+        //sizes as set
+        Vector2i setsizes;
+        if (mBars[0] && scr)
+            setsizes[0] = mBars[0].maxValue;
+        if (mBars[1] && scr)
+            setsizes[1] = mBars[1].maxValue;
+
+        //if GUI is existing, check if anything that must be changed below is
+        //different
+        if (mLayout && !!mBars[0] == scr[0] && !!mBars[1] == scr[1])
+        {
+            if (sizes != setsizes) {
+                //only the sizes changed; handle that without triggering
+                //relayouting *sigh*
+                if (mBars[0]) mBars[0].maxValue = sizes[0];
+                if (mBars[1]) mBars[1].maxValue = sizes[1];
+            }
+            return;
+        }
+
+        destroyGui();
+
+        if (!mArea)
+            return;
+
+        try {
+            mUpdating++;
+
+            mArea.onPositionChange = &onDoScroll;
+            mArea.onStateChange = &onScrollChange;
+            mLayout = new TableContainer(scr[0]?2:1, scr[1]?2:1);
+            mLayout.add(mArea, 0, 0);
+            for (int n = 0; n < 2; n++) {
+                if (scr[n]) {
+                    auto bar = new ScrollBar(!n);
+                    mBars[n] = bar;
+                    mLayout.add(bar, n?1:0, n?0:1, WidgetLayout.Expand(!n));
+                    bar.onValueChange = &onScrollbar;
+                    bar.maxValue = sizes[n];
+                    bar.curValue = -mArea.offset[n];
+                }
+            }
+
+            addChild(mLayout);
+        } finally {
+            mUpdating--;
+        }
+    }
+
+    private void onScrollbar(ScrollBar sender) {
+        if (mUpdating)
+            return;
+
+        Vector2i offset = mArea.offset;
+        if (sender is mBars[0]) {
+            offset[0] = -sender.curValue;
+        } else if (sender is mBars[1]) {
+            offset[1] = -sender.curValue;
+        }
+        try {
+            mUpdating++;
+            mArea.offset = offset;
+        } finally {
+            mUpdating--;
+        }
+    }
+
+    //its onPositionChange
+    private void onDoScroll(ScrollArea scroller) {
+        if (mUpdating)
+            return;
+
+        try {
+            mUpdating++;
+            if (mBars[0])
+                mBars[0].curValue = -scroller.offset[0];
+            if (mBars[1])
+                mBars[1].curValue = -scroller.offset[1];
+        } finally {
+            mUpdating--;
+        }
+    }
+
+    //its onStateChange
+    private void onScrollChange(ScrollArea scroller) {
+        recreateGui();
+    }
+
+    void loadFrom(GuiLoader loader) {
+        auto node = loader.node;
+
+        //possibly load a child, which must be a ScrollArea (or a subtype of it)
+        auto child = node.findNode("area");
+        if (child) {
+            auto childw = loader.loadWidget(child);
+            auto arr = cast(ScrollArea)childw;
+            if (!arr)
+                throw new Exception("whatever");
+            setScrollArea(arr);
+        }
+
+        super.loadFrom(loader);
+    }
+
+    static this() {
+        WidgetFactory.register!(typeof(this))("scrollwindow");
+    }
+}
+
+class ScrollBar : Container {
+    private {
+        int mDir; //0=in x direction, 1=y
+        Button mSub, mAdd;
+        Bar mBar;
+        Rect2i mBarArea;
+
+        int mCurValue;
+        int mMaxValue;
+        //scale factor = pixels / value
+        double mScaleFactor;
+
+        //amount of pixels the bar can be moved
+        int mBarFreeSpace;
+
+        //that thing which sits between the two buttons
+        //xxx: drag and drop code partially copied from window.d
+        class Bar : Widget {
+            BoxProperties mBorder;
+            bool drag_active;
+            Vector2i drag_start;
+
+            protected void onDraw(Canvas c) {
+                common.visual.drawBox(c, widgetBounds, mBorder);
+            }
+
+            override protected Vector2i layoutSizeRequest() {
+                return Vector2i(0);
+            }
+
+            override protected bool onMouseMove(MouseInfo mouse) {
+                if (drag_active) {
+                    //get position within the container
+                    assert(parent && this.outer.parent);
+                    auto pos = coordsToParent(mouse.pos);
+                    pos -= drag_start; //click offset
+
+                    curValue = cast(int)((pos[mDir] - mBarArea.p1[mDir])
+                        / mScaleFactor);
+
+                    return true;
+                }
+                return false;
+            }
+
+            override protected bool onKeyEvent(KeyInfo key) {
+                if (!key.isPress && key.isMouseButton) {
+                    drag_active = key.isDown;
+                    drag_start = mousePos;
+                    captureSet(drag_active);
+                }
+                return super.onKeyEvent(key);
+            }
+        }
+    }
+
+    void delegate(ScrollBar sender) onValueChange;
+
+    ///horizontal if horiz = true, else vertical
+    this(bool horiz) {
+        mDir = horiz ? 0 : 1;
+        //xxx: replace text by images
+        mAdd = new Button();
+        mAdd.text = "A";
+        mAdd.onClick = &onAddSub;
+        addChild(mAdd);
+        mSub = new Button();
+        mSub.text = "B";
+        mSub.onClick = &onAddSub;
+        addChild(mSub);
+        mBar = new Bar();
+        addChild(mBar);
+    }
+
+    private void onAddSub(Button sender) {
+        if (sender is mAdd) {
+            curValue = curValue+1;
+        } else if (sender is mSub) {
+            curValue = curValue-1;
+        }
+    }
+
+    override protected Vector2i layoutSizeRequest() {
+        auto r1 = mSub.requestSize;
+        auto r2 = mAdd.requestSize;
+        Vector2i res;
+        auto mindir = max(r1[mDir], r2[mDir])*2;
+        //leave at least mindir/4 space for the bar, as a hopefully-ok guess
+        res[mDir] = mindir + mindir/4;
+        res[!mDir] = max(r1[!mDir], r2[!mDir]);
+        return res;
+    }
+
+    override protected void layoutSizeAllocation() {
+        auto sz = size;
+
+        Vector2i buttons = mSub.requestSize.max(mAdd.requestSize);
+        buttons[!mDir] = sz[!mDir];
+        auto bsize = Rect2i(Vector2i(0), buttons);
+
+        mSub.layoutContainerAllocate(bsize);
+        Vector2i r;
+        r[mDir] = sz[mDir] - mAdd.requestSize[mDir];
+        mAdd.layoutContainerAllocate(bsize + r);
+        mBarArea = widgetBounds;
+        mBarArea.p1[mDir] = mSub.requestSize[mDir];
+        mBarArea.p2[mDir] = r[mDir];
+
+        adjustBar();
+    }
+
+    //reset position of mBar according to mCurValue/mMaxValue
+    private void adjustBar() {
+        //"height" (size along mDir) should be chosen to a useful size, but
+        //for now make it... something
+        int barh = mAdd.requestSize[mDir];
+        int areah = mBarArea.size[mDir];
+        if (mMaxValue == 0) //no scrolling in this case
+            barh = areah;
+        if (barh > areah)
+            barh = areah;
+        mBarFreeSpace = areah - barh;
+        Vector2i sz = size;
+        sz[mDir] = barh;
+        //pixel offset of bar inside mBarArea
+        mScaleFactor = mMaxValue ? (1.0/mMaxValue)*mBarFreeSpace : 0;
+        int pos = cast(int)(mScaleFactor*mCurValue);
+        Vector2i start = mBarArea.p1;
+        start[mDir] = start[mDir] + pos;
+        mBar.layoutContainerAllocate(Rect2i(start, start+sz));
+    }
+
+    int curValue() {
+        return mCurValue;
+    }
+    void curValue(int v) {
+        v = clampRangeC(v, 0, mMaxValue);
+        mCurValue = v;
+        adjustBar();
+        if (onValueChange)
+            onValueChange(this);
+    }
+
+    int maxValue() {
+        return mMaxValue;
+    }
+    void maxValue(int v) {
+        assert(v >= 0);
+        mMaxValue = v;
+        //hmmmm
+        curValue = curValue;
     }
 }

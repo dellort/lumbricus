@@ -128,13 +128,10 @@ char[] writeMarker(Lexel v) {
 }
 
 Vector2i readVector(char[] s) {
-    char[][] items = str.split(s);
-    if (items.length != 2) {
-        throw new Exception("invalid point value");
-    }
+    //whatever
     Vector2i pt;
-    pt.x = conv.toInt(items[0]);
-    pt.y = conv.toInt(items[1]);
+    if (!parseVector(s, pt))
+        throw new Exception("invalid vector string");
     return pt;
 }
 

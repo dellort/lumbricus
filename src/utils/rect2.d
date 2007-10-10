@@ -30,6 +30,17 @@ public struct Rect2(T) {
         return r;
     }
 
+    //translate rect by the vector r
+    Rect2 opAdd(Point r) {
+        Rect2 res = *this;
+        res.p1 += r;
+        res.p2 += r;
+        return res;
+    }
+    Rect2 opSub(Point r) {
+        return *this + (-r);
+    }
+
     Point size() {
         return p2 - p1;
     }

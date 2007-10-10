@@ -48,4 +48,12 @@ class Button : Label {
         }
         return super.onKeyEvent(key);
     }
+
+    override void loadFrom(GuiLoader loader) {
+        super.loadFrom(loader);
+    }
+
+    static this() {
+        WidgetFactory.register!(typeof(this))("button");
+    }
 }
