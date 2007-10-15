@@ -80,10 +80,12 @@ class ScrollArea : SimpleContainer {
         return mScrollSize;
     }
 
+    //same as child.coordsToParent, but uses current scroll destination instead
+    //of actual position
     //xxx doesn't work with mScroller
     final Vector2i fromClientCoordsScroll(Vector2i p) {
         auto child = getBinChild();
-        return child ? child.coordsToParent(p) : p;
+        return child ? p + toVector2i(mScrollDest) : p;
     }
 
     override protected Vector2i layoutSizeRequest() {
