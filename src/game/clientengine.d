@@ -17,6 +17,8 @@ import utils.misc;
 import utils.vector2;
 import utils.rect2;
 import utils.configfile;
+import utils.random : random;
+import std.math : PI;
 
 struct PerTeamAnim {
     AnimationResource arrow;
@@ -318,7 +320,9 @@ class LevelDrawer : SceneObject {
             levelTexture = game.mEngine.gamelevel.image.createTexture();
             levelTexture.setCaching(false);
         }
-        c.draw(levelTexture, game.mEngine.gamelevel.offset);
+        auto shake = Vector2f.fromPolar(1.0f, random()*PI*2)
+            * (game.mEngine.earthQuakeStrength()/100f);
+        c.draw(levelTexture, game.mEngine.gamelevel.offset + toVector2i(shake));
         /+
         //debug code to test collision detection
         Vector2i dir; int pixelcount;

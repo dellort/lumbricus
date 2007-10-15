@@ -549,11 +549,6 @@ public class LevelEditor : Task {
             return true;
         }
 
-        /+bool onKeyPress(char[] bind, KeyInfo infos) {
-            return false;
-        }+/
-
-
         bool onKeyUp(char[] bind, KeyInfo infos) {
             if (infos.code == Keycode.MOUSE_LEFT) {
                 if (isDraging) {
@@ -580,6 +575,13 @@ public class LevelEditor : Task {
                 }
             }
             return true;
+        }
+
+        override protected bool onKeyEvent(KeyInfo ki) {
+            auto b = findBind(ki);
+            return (ki.isDown && onKeyDown(b, ki))
+                || (ki.isUp && onKeyUp(b, ki))
+                || super.onKeyEvent(ki);
         }
 
         bool onMouseMove(MouseInfo info) {

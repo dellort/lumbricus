@@ -598,10 +598,9 @@ class GravityCenter : PhysicForce {
 }
 
 //in seconds, change rate for degrading the earthquake
-const cEarthQuakeDegradeInterval = 0.2;
+const cEarthQuakeDegradeInterval = 0.1;
 
-//xxx: part of the game logic, should this be moved out of physics?
-//controlls an EarthQuake object and degrades its strength by time
+//causes an EarthQuake and also is able to degrade it down by time
 class EarthQuakeDegrader : PhysicBase {
     private {
         float mDegrade;
@@ -811,6 +810,10 @@ class PhysicWorld {
     //each frame (in PhysicBase.simulate()!)
     void addEarthQuakePerFrameStrength(float force) {
         mEarthQuakeStrength += force;
+    }
+
+    float earthQuakeStrength() {
+        return mEarthQuakeStrength;
     }
 
     //(code maybe should be in a separate PhysicBase, but that's hard because

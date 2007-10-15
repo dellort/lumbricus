@@ -88,6 +88,9 @@ interface GameEnginePublic {
     ///current wind speed
     float windSpeed();
 
+    ///return how strong the earth quake is, 0 if no earth quake active
+    float earthQuakeStrength();
+
     ///list of graphics events for the client to process
     GraphicEvent* currentEvents();
 

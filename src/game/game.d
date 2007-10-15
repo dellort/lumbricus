@@ -426,6 +426,10 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         return cast(int)mCurrentWaterLevel;
     }
 
+    float earthQuakeStrength() {
+        return mPhysicWorld.earthQuakeStrength();
+    }
+
     //return skyline offset (used by airstrikes)
     float skyline() {
         return mGamelevel.offset.y;
