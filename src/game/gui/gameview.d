@@ -410,7 +410,7 @@ class GameView : Container, TeamMemberControlCallback {
     }
 
     override void onDraw(Canvas c) {
-        mEngine.scene.draw(c);
+        mEngine.draw(c);
         super.onDraw(c);
     }
 }

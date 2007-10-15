@@ -598,7 +598,7 @@ class GravityCenter : PhysicForce {
 }
 
 //in seconds, change rate for degrading the earthquake
-const cEarthQuakeDegradeInterval = 0.1;
+const cEarthQuakeDegradeInterval = 1.0;
 
 //causes an EarthQuake and also is able to degrade it down by time
 class EarthQuakeDegrader : PhysicBase {
@@ -607,11 +607,11 @@ class EarthQuakeDegrader : PhysicBase {
         float mStrength;
         //silly, cf. same member in class EarthQuake
         //maybe should be changed, but with a constant frame rate, it's ok
-        float mLastChange;
+        float mLastChange = 0;
     }
 
     //1.0f means forever
-    this(float strength, float degrade = 1.0f) {
+    this(float strength, float degrade) {
         mStrength = strength;
         mDegrade = degrade;
     }
@@ -630,6 +630,8 @@ class EarthQuakeDegrader : PhysicBase {
         //what would be a good value to trigger destruction?
         if (mStrength < 0.2)
             dead = true;
+
+        mLastChange = 0;
     }
 }
 

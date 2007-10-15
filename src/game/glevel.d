@@ -98,6 +98,8 @@ class GameLevel {
     }
 
     public void damage(Vector2i pos, int radius) {
+        if (radius <= 0)
+            return;
         mLevel.blastHole(pos - mOffset, radius);
         mPhysics.generationNo++;
     }

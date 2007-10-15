@@ -697,7 +697,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         //some more chaos, if string enough
         //xxx needs moar tweaking
         if (damage > 50)
-            addEarthQuake(damage, 1.0);
+            addEarthQuake(damage, 0.5);
     }
 
     //determine round-active objects

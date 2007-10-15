@@ -58,7 +58,6 @@ class ClientGraphic : Animator {
     }
 }
 
-//maybe keep in sync with game.Scene.cMaxZOrder
 enum GameZOrder {
     Invisible = 0,
     Background,
@@ -67,6 +66,7 @@ enum GameZOrder {
     Level,
     LevelWater,  //water before the level, but behind drowning objects
     Objects,
+    Clouds,
     Names, //controller.d/WormNameDrawer
     FrontWater,
 }
@@ -92,10 +92,20 @@ class ClientGameEngine {
     private Scene mScene;
     private Scene[GameZOrder.max+1] mZScenes;
 
+    //normal position of the scenes nested in mScene
+    private Rect2i mSceneRect;
+
     private TimeSource mEngineTime;
 
     private GameWater mGameWater;
     private GameSky mGameSky;
+
+    //when shaking, the current offset
+    private Vector2i mShakeOffset;
+    //time after which a new shake offset is computed (to make shaking framerate
+    //  independent), in ms
+    const cShakeIntervalMs = 100;
+    private Time mLastShake;
 
     //private WormNameDrawer mDrawer;
     private LevelDrawer mLevelDrawer;
@@ -169,10 +179,10 @@ class ClientGameEngine {
         mGameSky = new GameSky(this);
         mZScenes[GameZOrder.Background].add(mGameSky.scenes[GameSky.Z.back]);
         mZScenes[GameZOrder.BackLayer].add(mGameSky.scenes[GameSky.Z.debris]);
-        mZScenes[GameZOrder.Objects].add(mGameSky.scenes[GameSky.Z.clouds]);
+        mZScenes[GameZOrder.Clouds].add(mGameSky.scenes[GameSky.Z.clouds]);
 
         //actual level
-        mLevelDrawer = new LevelDrawer(this);
+        mLevelDrawer = new LevelDrawer();
         mZScenes[GameZOrder.Level].add(mLevelDrawer);
 
         detailLevel = 0;
@@ -217,6 +227,23 @@ class ClientGameEngine {
         float deltaT = mEngineTime.difference.secsf;
 
         auto grascene = mZScenes[GameZOrder.Objects];
+
+        if ((mEngineTime.current - mLastShake).msecs >= cShakeIntervalMs) {
+            //something similar is being done in physics.d
+            //the point of not using the physic's value is to reduce client-
+            //  server communication a bit
+
+            //100f? I don't know what it means, but it works (kind of)
+            auto shake = Vector2f.fromPolar(1.0f, random()*PI*2)
+                * (mEngine.earthQuakeStrength()/100f);
+            mShakeOffset = toVector2i(shake);
+
+            mLastShake = mEngineTime.current;
+        }
+
+        //only these are shaked on an earth quake
+        mZScenes[GameZOrder.Objects].rect = mSceneRect + mShakeOffset;
+        mZScenes[GameZOrder.Level].rect = mSceneRect + mShakeOffset;
 
         //hm
         waterOffset = mEngine.waterOffset;
@@ -279,11 +306,15 @@ class ClientGameEngine {
         return mScene;
     }
 
+    void draw(Canvas canvas) {
+        mScene.draw(canvas);
+    }
+
     void resize(Vector2i s) {
         mScene.rect = Rect2i(mScene.rect.p1, mScene.rect.p1 + s);
-        Rect2i rc = Rect2i(Vector2i(0), s);
+        mSceneRect = Rect2i(Vector2i(0), s);
         foreach (Scene e; mZScenes) {
-            e.rect = rc;
+            e.rect = mSceneRect;
         }
     }
 
@@ -309,55 +340,49 @@ class ClientGameEngine {
         mGameSky.enableSkyTex = skyTex;
         enableSpiffyGui = gui;
     }
-}
 
-class LevelDrawer : SceneObject {
-    ClientGameEngine game;
-    Texture levelTexture;
+    //all hail to inner classes
+    private class LevelDrawer : SceneObject {
+        Texture levelTexture;
 
-    void draw(Canvas c) {
-        if (!levelTexture) {
-            levelTexture = game.mEngine.gamelevel.image.createTexture();
-            levelTexture.setCaching(false);
-        }
-        auto shake = Vector2f.fromPolar(1.0f, random()*PI*2)
-            * (game.mEngine.earthQuakeStrength()/100f);
-        c.draw(levelTexture, game.mEngine.gamelevel.offset + toVector2i(shake));
-        /+
-        //debug code to test collision detection
-        Vector2i dir; int pixelcount;
-        auto pos = game.tmp;
-        auto npos = toVector2f(pos);
-        auto testr = 10;
-        if (game.gamelevel.physics.collide(npos, testr)) {
-            c.drawCircle(pos, testr, Color(0,1,0));
-            c.drawCircle(toVector2i(npos), testr, Color(1,1,0));
-        }
-        +/
-        /+
-        //xxx draw debug stuff for physics!
-        foreach (PhysicObject o; game.mEngine.physicworld.mObjects) {
-            //auto angle = o.rotation;
-            auto angle2 = o.ground_angle;
-            auto angle = o.lookey;
-            c.drawCircle(toVector2i(o.pos), cast(int)o.posp.radius, Color(1,1,1));
-            auto p = Vector2f.fromPolar(40, angle) + o.pos;
-            c.drawCircle(toVector2i(p), 5, Color(1,1,0));
-            p = Vector2f.fromPolar(50, angle2) + o.pos;
-            c.drawCircle(toVector2i(p), 5, Color(1,0,1));
-        }
-        +/
-        //more debug stuff...
-        //foreach (GameObject go; game.mEngine.mObjects) {
-            /+if (cast(Worm)go) {
-                auto w = cast(Worm)go;
-                auto p = Vector2f.fromPolar(40, w.angle) + w.physics.pos;
+        void draw(Canvas c) {
+            if (!levelTexture) {
+                levelTexture = mEngine.gamelevel.image.createTexture();
+                levelTexture.setCaching(false);
+            }
+            c.draw(levelTexture, mEngine.gamelevel.offset);
+            /+
+            //debug code to test collision detection
+            Vector2i dir; int pixelcount;
+            auto pos = game.tmp;
+            auto npos = toVector2f(pos);
+            auto testr = 10;
+            if (game.gamelevel.physics.collide(npos, testr)) {
+                c.drawCircle(pos, testr, Color(0,1,0));
+                c.drawCircle(toVector2i(npos), testr, Color(1,1,0));
+            }
+            +/
+            /+
+            //xxx draw debug stuff for physics!
+            foreach (PhysicObject o; game.mEngine.physicworld.mObjects) {
+                //auto angle = o.rotation;
+                auto angle2 = o.ground_angle;
+                auto angle = o.lookey;
+                c.drawCircle(toVector2i(o.pos), cast(int)o.posp.radius, Color(1,1,1));
+                auto p = Vector2f.fromPolar(40, angle) + o.pos;
+                c.drawCircle(toVector2i(p), 5, Color(1,1,0));
+                p = Vector2f.fromPolar(50, angle2) + o.pos;
                 c.drawCircle(toVector2i(p), 5, Color(1,0,1));
-            }+/
-        //}
-    }
-
-    this(ClientGameEngine game) {
-        this.game = game;
+            }
+            +/
+            //more debug stuff...
+            //foreach (GameObject go; game.mEngine.mObjects) {
+                /+if (cast(Worm)go) {
+                    auto w = cast(Worm)go;
+                    auto p = Vector2f.fromPolar(40, w.angle) + w.physics.pos;
+                    c.drawCircle(toVector2i(p), 5, Color(1,0,1));
+                }+/
+            //}
+        }
     }
 }

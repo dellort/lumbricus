@@ -280,6 +280,8 @@ class GameTask : Task {
         mCmds.register(Command("saveleveltga", &cmdSafeLevelTGA, "dump TGA",
             ["text:filename"]));
         mCmds.register(Command("crate_test", &cmdCrateTest, "drop a crate"));
+        mCmds.register(Command("shake_test", &cmdShakeTest, "earth quake test",
+            ["float:strength", "float:degrade (multiplier < 1.0)"]));
     }
 
     private void cmdSafeLevelTGA(MyBox[] args, Output write) {
@@ -356,6 +358,12 @@ class GameTask : Task {
         crate.setPos(from);
         crate.active = true;
         write.writefln("drop %s -> %s", from, to);
+    }
+
+    private void cmdShakeTest(MyBox[] args, Output write) {
+        float strength = args[0].unbox!(float);
+        float degrade = args[1].unbox!(float);
+        mServerEngine.addEarthQuake(strength, degrade);
     }
 
     static this() {

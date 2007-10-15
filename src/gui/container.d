@@ -79,6 +79,10 @@ class Container : Widget {
         if (o.parent !is this) {
             assert(false, "was not child of this");
         }
+
+        if (o is mEventCaptured)
+            childSetCapture(mEventCaptured, false);
+
         arrayRemove(mWidgets, o);
         arrayRemove(mZWidgets, ZWidget(o));
         o.mParent = null;
@@ -86,9 +90,6 @@ class Container : Widget {
         onRemoveChild(o);
 
         //gDefaultLog("removed %s from %s", o, this);
-
-        if (o is mEventCaptured)
-            childSetCapture(mEventCaptured, false);
 
         if (o is mFocus) {
             mFocus = null;
