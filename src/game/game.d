@@ -495,6 +495,15 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         mWaterChanger.target = mCurrentWaterLevel - by;
     }
 
+    //strength = force, degrade = multiplier applied all the time after a
+    //  physics.cEarthQuakeDegradeInterval
+    //this function never overwrites the settings, but adds both values to the
+    //existing ones
+    void addEarthQuake(float strength, float degrade) {
+        physicworld.addBaseObject(new EarthQuakeDegrader(strength, degrade));
+        mLog("created earth quake, strength=%s, degrade=%s", strength, degrade);
+    }
+
     void ensureAdded(GameObject obj) {
         assert(obj.active);
         //in case of lazy removal
@@ -681,6 +690,10 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         expl.cause = cause;
         mGamelevel.damage(toVector2i(pos), cast(int)(expl.radius/2.0f));
         physicworld.add(expl);
+        //some more chaos, if string enough
+        //xxx needs moar tweaking
+        if (damage > 50)
+            addEarthQuake(damage, 1.0);
     }
 
     //determine round-active objects

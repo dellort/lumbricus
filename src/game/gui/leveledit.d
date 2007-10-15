@@ -718,39 +718,6 @@ public class LevelEditor : Task {
     }
 
     void createGui() {
-        /+
-        auto container = new BoxContainer(true, false, 10);
-        auto scroller = new MouseScroller();
-        scroller.add(render);
-        container.add(scroller);
-        auto spacer = new Spacer();
-        spacer.minSize = Vector2i(4, 0);
-        spacer.color = Color(1,1,1);
-        container.add(spacer, WidgetLayout.Expand(false));
-        auto foo = new SimpleContainer();
-        foo.drawBox = true;
-        auto sidebar = new BoxContainer(false,false,6);
-        foo.add(sidebar, WidgetLayout.Aligned(0, 0, Vector2i(6)));
-        container.add(foo, WidgetLayout.Aligned(0, 0));
-
-        //NOTE: indirection through bind is done because using the this-ptr
-        // directly would reference the stack, which is invalid when called
-
-        alias typeof(this) Me;
-
-        void addButton(char[] title, void delegate(Button, Me) onclick) {
-            auto b = new Button();
-            b.text = title;
-            b.onClick = bind(onclick, _0, this).ptr;
-            sidebar.add(b);
-        }
-
-        addButton("Preview", (Button, Me me) {me.genPreview;});
-        addButton("Insert Point", (Button, Me me) {me.insertPoint;});
-        addButton("Toggle 'nochange'", (Button, Me me) {me.toggleNochange;});
-        addButton("New Polygon'", (Button, Me me) {me.setNewPolygon;});
-        +/
-
         //"static", non-configfile version was in r351
         auto loader = new LoadGui(globals.loadConfig("ledit_gui"));
         loader.addNamedWidget(render, "render");

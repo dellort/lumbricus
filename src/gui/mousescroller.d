@@ -33,11 +33,17 @@ class MouseScroller : ScrollArea {
         if (enable == mMouseScrolling)
             return;
         if (enable) {
+            if (!captureEnable()) {
+                //to avoid some problems when draging around the containing
+                //window (TestFrame3 in test.d)
+                return; //refuse
+            }
             gFramework.grabInput = true;
             gFramework.cursorVisible = false;
             gFramework.lockMouse();
             stopSmoothScrolling();
         } else {
+            captureDisable();
             gFramework.grabInput = false;
             gFramework.cursorVisible = true;
             gFramework.unlockMouse();
@@ -48,25 +54,15 @@ class MouseScroller : ScrollArea {
         mouseScrolling(!mMouseScrolling);
     }
 
-    override protected bool onKeyDown(char[] bind, KeyInfo key) {
-        /*if (bind == "scroll_toggle") {
-            //scrollToggle();
-            return true;
-        }*/
+    override protected bool onKeyEvent(KeyInfo key) {
         if (key.code == Keycode.MOUSE_RIGHT) {
-            mouseScrollToggle();
+            if (key.isDown) {
+                mouseScrollToggle();
+            }
             return true;
         }
-        return false;
+        return super.onKeyEvent(key);
     }
-
-    override protected bool onKeyUp(char[] bind, KeyInfo key) {
-        return false;
-    }
-
-    /*override bool testMouse(Vector2i pos) {
-        return true;
-    }*/
 
     override bool onMouseMove(MouseInfo mi) {
         if (mMouseScrolling) {

@@ -448,16 +448,23 @@ class Container : Widget {
     }
 
     //you should use Widget.captureEnable/captureDisable/captureSet
-    void childSetCapture(Widget child, bool set) {
+    //returns if action could be performed
+    bool childSetCapture(Widget child, bool set) {
         assert(child.parent is this);
         if (set) {
+            if (mEventCaptured)
+                return false;
             mEventCaptured = child;
-            captureSet(true); //propagate upwards
-        } else {
-            if (mEventCaptured is child) {
+            //propagate upwards
+            bool res = captureSet(true);
+            if (!res)
                 mEventCaptured = null;
-                captureSet(false);
-            }
+            return res;
+        } else {
+            if (mEventCaptured !is child)
+                return false;
+            mEventCaptured = null;
+            return captureSet(false);
         }
     }
 

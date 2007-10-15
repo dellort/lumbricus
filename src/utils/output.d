@@ -4,6 +4,8 @@ import std.format;
 import std.utf;
 import stdio = std.stdio;
 import std.stream;
+import utils.misc : formatfx;
+import std.stdarg : va_list;
 
 /// interface for a generic text output stream (D currently lacks support for
 /// text streams, so we have to do it)
@@ -12,20 +14,16 @@ import std.stream;
 public interface Output {
     void writef(...);
     void writefln(...);
-    void writef_ind(bool newline, TypeInfo[] arguments, void* argptr);
+    void writef_ind(bool newline, TypeInfo[] arguments, va_list argptr);
     void writeString(char[] str);
 }
 
 //small nasty helper
-char[] sformat_ind(bool newline, TypeInfo[] arguments, void* argptr) {
-    //xxx inefficient and stupid
-    char[] ret;
-    void putc(dchar c) {
-        encode(ret, c);
-    }
-    doFormat(&putc, arguments, argptr);
-    if (newline) putc('\n');
-    return ret;
+char[] sformat_ind(bool newline, TypeInfo[] arguments, va_list argptr) {
+    auto r = formatfx(arguments, argptr);
+    if (newline)
+        r ~= '\n';
+    return r;
 }
 
 /// A helper for implementers only, users shall use interface Output instead.
@@ -36,8 +34,11 @@ public class OutputHelper : Output {
     void writefln(...) {
         writef_ind(true, _arguments, _argptr);
     }
-    void writef_ind(bool newline, TypeInfo[] arguments, void* argptr) {
-        writeString(sformat_ind(newline, arguments, argptr));
+    void writef_ind(bool newline, TypeInfo[] arguments, va_list argptr) {
+        auto s = formatfx(arguments, argptr);
+        if (newline)
+            s ~= '\n';
+        writeString(s);
     }
     abstract void writeString(char[] str);
 }

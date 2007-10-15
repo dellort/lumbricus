@@ -76,12 +76,14 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
 
     //could be unclean: catch weapon selection shortcut before passing it down
     //to GameView (the GUI does that part)
-    protected override bool onKeyDown(char[] bind, KeyInfo k) {
-        //noone knows why it doesn't simply pass the bind, instead of k
-        auto c = clientengine.logic.getControl.currentWeapon;
-        if (mWeaponSel.checkNextWeaponInCategoryShortcut(k, c))
-            return true;
-        return super.onKeyDown(bind, k);
+    protected override bool onKeyEvent(KeyInfo k) {
+        if (k.isDown) {
+            //noone knows why it doesn't simply pass the bind, instead of k
+            auto c = clientengine.logic.getControl.currentWeapon;
+            if (mWeaponSel.checkNextWeaponInCategoryShortcut(k, c))
+                return true;
+        }
+        return super.onKeyEvent(k);
     }
 
     //scroll to level center

@@ -93,7 +93,7 @@ class WindowWidget : Container {
                     drag_start = mousePos;
                     captureSet(drag_active);
                 }
-                return super.onKeyEvent(key);
+                return key.isMouseButton || super.onKeyEvent(key);
             }
 
             Vector2i layoutSizeRequest() {
@@ -123,28 +123,6 @@ class WindowWidget : Container {
         needResize(true);
         position = b.p1;
     }
-
-    /+ works, but not needed anymore
-    //x, y as in Sizer.x/y; by: relative size change
-    //return by how many actually moved
-    private void resizeOn(int x, int y, Vector2i by) {
-        Vector2i minsize = mLastMinSize;
-        Rect2i bounds = windowBounds;
-        auto spare = bounds.size - minsize; //x,y should be >= 0
-        int[] s = [x, y];
-        for (int n = 0; n < 2; n++) {
-            if (s[n] < 0) {
-                //so that spare-add >= 0
-                int add = min(by[n], spare[n]); //don't make too small
-                bounds.p1[n] = bounds.p1[n] + add;
-            } else if (s[n] > 0) {
-                int add = max(by[n], -spare[n]);
-                bounds.p2[n] = bounds.p2[n] + add;
-            }
-        }
-        windowBounds = bounds;
-    }
-    +/
 
     override Vector2i layoutSizeRequest() {
         mLastMinSize = super.layoutSizeRequest();
@@ -314,23 +292,38 @@ class WindowWidget : Container {
             return true;
         }
 
+        if (mDraging) {
+            //stop draging by any further mouse-up event
+            if (key.isMouseButton && !key.isPress && !key.isDown) {
+                mDraging = false;
+                captureDisable();
+            }
+            //mask events from children while dragging
+            return true;
+        }
+
         //let the children handle key events
         bool handled = super.onKeyEvent(key);
 
         //if a mouse click wasn't handled, start draging the window around
-        if (!handled && key.isMouseButton && !key.isPress) {
-            mDraging = key.isDown;
-            captureSet(mDraging);
+        if (!handled && key.isMouseButton && !key.isPress && key.isDown) {
+            if (captureEnable()) {
+                //if capture couldn't be set, maybe another capture is active
+                //play around with TestFrame3 in test.d to see if it works
+                mDraging = true;
+            }
         }
+
         return true;
     }
 
     protected bool onMouseMove(MouseInfo mouse) {
-        bool handled = super.onMouseMove(mouse);
-        if (!handled && mDraging && !mFullScreen) {
-            if (mManager) {
+        if (mDraging) {
+            if (!mFullScreen && mManager) {
                 mManager.setWindowPosition(this, containedBounds.p1+mouse.rel);
             }
+        } else {
+            super.onMouseMove(mouse);
         }
         //always return true => all events as handled
         return true;

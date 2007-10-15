@@ -47,8 +47,8 @@ class GuiConsole : Widget {
         console.height = size.y/2;
     }
 
-    override protected bool onKeyPress(char[] bind, KeyInfo key) {
-        if (console.visible && globals.cmdLine.keyPress(key))
+    override protected bool onKeyEvent(KeyInfo key) {
+        if (key.isPress && console.visible && globals.cmdLine.keyPress(key))
             return true;
         return false;
     }

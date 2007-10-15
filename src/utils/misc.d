@@ -2,6 +2,8 @@ module utils.misc;
 
 import str = std.string;
 import utf = std.utf;
+import format = std.format;
+import std.stdarg : va_list;
 
 T min(T)(T v1, T v2) {
     return v1<v2?v1:v2;
@@ -65,4 +67,12 @@ R delegate(T) toDelegate(R, T...)(R function(T) fn) {
     auto res = new holder;
     res._fn = fn;
     return &res.call;
+}
+
+//maybe move away from this module
+//stupid phobos doesn't have this yet
+char[] formatfx(TypeInfo[] arguments, va_list argptr) {
+    char[] res;
+    format.doFormat((dchar c) { utf.encode(res, c); }, arguments, argptr);
+    return res;
 }

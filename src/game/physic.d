@@ -11,6 +11,7 @@ import conv = std.conv;
 import utils.output;
 import utils.configfile : ConfigNode;
 import std.math : sqrt, PI, abs, copysign;
+import random = utils.random;
 
 //Uncomment to get detailed physics debugging log (slooooow)
 //version = PhysDebug;
@@ -596,6 +597,43 @@ class GravityCenter : PhysicForce {
     }
 }
 
+//in seconds, change rate for degrading the earthquake
+const cEarthQuakeDegradeInterval = 0.2;
+
+//xxx: part of the game logic, should this be moved out of physics?
+//controlls an EarthQuake object and degrades its strength by time
+class EarthQuakeDegrader : PhysicBase {
+    private {
+        float mDegrade;
+        float mStrength;
+        //silly, cf. same member in class EarthQuake
+        //maybe should be changed, but with a constant frame rate, it's ok
+        float mLastChange;
+    }
+
+    //1.0f means forever
+    this(float strength, float degrade = 1.0f) {
+        mStrength = strength;
+        mDegrade = degrade;
+    }
+
+    override protected void simulate(float deltaT) {
+        world.addEarthQuakePerFrameStrength(mStrength);
+
+        mLastChange += deltaT;
+
+        if (mLastChange < cEarthQuakeDegradeInterval)
+            return;
+
+        mStrength *= mDegrade;
+
+        //if strength is too small, die
+        //what would be a good value to trigger destruction?
+        if (mStrength < 0.2)
+            dead = true;
+    }
+}
+
 //a geometric object which represent (almost) static parts of the map
 //i.e. the deathzone (where worms go if they fly too far), the water, and solid
 // border of the level (i.e. upper border in caves)
@@ -712,8 +750,7 @@ class CircularTrigger : PhysicTrigger {
     }
 
     override bool doCollide(Vector2f opos, float orad) {
-        //xxx: orad?
-        return (opos-pos).quad_length < radius*radius;
+        return (opos-pos).quad_length < (radius*radius + orad*orad);
     }
 
 }
@@ -759,16 +796,67 @@ class PhysicWorld {
         }
     }
 
+    // --- nasty earth quake code
+
+    //valid per frame
+    private float mEarthQuakeStrength = 0;
+    //the force is updated in intervals according to the strength
+    //reason: would look silly if it changed each frame
+    private Vector2f mEarthQuakeForce;
+    // a bit silly/dangerous: sum up the deltaTs until "change" time is
+    // reached; initialized with NaN to trigger change in first simulate()
+    private float mEarthQuakeLastChangeTime;
+
+    //when something wants to cause an earth quake, it needs to update this
+    //each frame (in PhysicBase.simulate()!)
+    void addEarthQuakePerFrameStrength(float force) {
+        mEarthQuakeStrength += force;
+    }
+
+    //(code maybe should be in a separate PhysicBase, but that's hard because
+    // its simulate() method is called before and after other simulate methods)
+    private void earthQuakeFrame(float deltaT) {
+        if (mEarthQuakeStrength <= float.epsilon) {
+            mEarthQuakeForce = Vector2f.init;
+            return;
+        }
+
+        mEarthQuakeLastChangeTime += deltaT;
+
+        //NOTE: don't return if mLastChange is NaN
+        //this constant is the update-radnom-vector-change time
+        if (mEarthQuakeLastChangeTime < 0.2)
+            return;
+
+        //new direction
+        //xxx: undeterministic randomness
+        //using an angle here is a simple way to create a normalized vector
+        mEarthQuakeForce = Vector2f.fromPolar(1.0f,
+            random.random() * PI * 2.0f) * mEarthQuakeStrength;
+        mEarthQuakeLastChangeTime = 0;
+    }
+
+    // --- simulation, all in one function
+
     private void doSimulate(float deltaT) {
+        //is changed per frame by EarthQuakeDegraders, which use the function
+        //  addEarthQuakePerFrameStrength()
+        mEarthQuakeStrength = 0;
+
         foreach (PhysicBase b; mAllObjects) {
             b.simulate(deltaT);
         }
+
+        earthQuakeFrame(deltaT);
 
         //apply forces
         foreach (PhysicObject o; mObjects) {
             foreach (PhysicForce f; mForceObjects) {
                 o.velocity += f.getAccelFor(o, deltaT) * deltaT;
             }
+
+            //for earth quake, works like a force (as above)
+            o.velocity += mEarthQuakeForce * deltaT;
 
             //xxx this with addVelocity can't be correct?
             o.velocity += o.selfAddVelocity + (o.selfForce * deltaT);

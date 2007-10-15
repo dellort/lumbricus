@@ -1,3 +1,5 @@
+//NOTE: this module is not needed for lumbricus, it just uses its framework
+//  if it causes problems at compilation or so, just remove it from lumbricus.d
 module game.wtris;
 
 import framework.framework;
@@ -7,9 +9,8 @@ import common.task;
 import common.common;
 import gui.widget;
 import gui.container;
-import gui.boxcontainer;
-import gui.tablecontainer;
 import gui.label;
+import gui.loader;
 import gui.wm;
 import std.random;
 import utils.time;
@@ -245,7 +246,15 @@ public class WTris : Task {
             return true;
         }
 
-        override protected bool onKeyDown(char[] bind, KeyInfo key) {
+        override protected bool onKeyEvent(KeyInfo key) {
+            if (key.isDown) {
+                if (onKeyDown(key))
+                    return true;
+            }
+            return super.onKeyEvent(key);
+        }
+
+        private bool onKeyDown(KeyInfo key) {
             int rel_x, rel_rot;
             switch (key.code) {
                 case Keycode.LEFT: rel_x -= 1; break;
@@ -457,42 +466,25 @@ public class WTris : Task {
     }
 
     private void createGui() {
-        auto contain = new BoxContainer(true, false, 10);
-        msg_parent = new SimpleContainer();
-        contain.add(msg_parent);
+        auto loader = new LoadGui(globals.loadConfig("wtris_gui"));
 
-        msg_parent.add(new GameView(), WidgetLayout.Noexpand);
+        loader.addNamedWidget(new GameView(), "gameview");
+        loader.addNamedWidget(new Preview(), "preview");
 
-        //added or removed on demand, see update_gui()
-        msg = new Label();
-        msg.zorder = 1;
+        loader.load();
 
-        auto side = new BoxContainer(false, false, 10);
-        contain.add(side, WidgetLayout.Border(Vector2i(5)));
-
-        side.add(new Preview(), WidgetLayout.Noexpand);
-
-        auto table = new TableContainer(2, 3, Vector2i(10));
-        side.add(table, WidgetLayout());
-
-        SetText addfield(int y, char[] name) {
-            auto label = new Label();
-            label.drawBorder = false;
-            label.text = name;
-            label.font = getFramework.getFont("fps");
-            table.add(label, 0, y, WidgetLayout.Aligned(-1, 0));
-            auto label2 = new Label();
-            label2.drawBorder = false;
-            label2.font = label.font;
-            table.add(label2, 1, y, WidgetLayout.Aligned(1, 0));
-            return &label2.text;
+        SetText getbla(char[] name) {
+            return &loader.lookup!(Label)(name).text;
         }
 
-        set_lines = addfield(0, "Lines:");
-        set_points = addfield(1, "Points:");
-        set_speed = addfield(2, "Speed:");
+        set_lines = getbla("lines");
+        set_points = getbla("points");
+        set_speed = getbla("speed");
 
-        thegui = contain;
+        msg = loader.lookup!(Label)("msg");
+        msg_parent = loader.lookup!(SimpleContainer)("msg_parent");
+
+        thegui = loader.lookup("wtris_root");
     }
 
     private void update_gui() {

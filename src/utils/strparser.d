@@ -95,6 +95,7 @@ public MyBox boxParseVector2f(char[] s) {
 debug import std.stdio;
 debug import std.format;
 
+/+
 //some horrible testcode, to be killed *g*
 debug void testParse(char[] input) {
     writefln("parsing: '%s':", input);
@@ -116,6 +117,7 @@ char[] boxToString(MyBox box) {
     doFormat((dchar c) {res ~= c;}, [box.type], box.data.ptr);
     return res;
 }
++/
 
 unittest {
     assert(boxParseInt("123").unbox!(int) == 123);
@@ -135,9 +137,11 @@ unittest {
     assert(boxParseVector2i("1 2").unbox!(Vector2i) == Vector2i(1, 2));
     assert(boxParseVector2i("1 foo").type is null);
 
+    /+
     debug testParse("+123.0");
     debug testParse("1 2");
     debug testParse("1 2.0");
+    +/
 
     debug writefln("strparser.d unittest: passed.");
 }

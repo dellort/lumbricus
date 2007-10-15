@@ -338,7 +338,7 @@ class GameView : Container, TeamMemberControlCallback {
         return true;
     }
 
-    override protected bool onKeyDown(char[] bind, KeyInfo info) {
+    private bool onKeyDown(char[] bind, KeyInfo info) {
         switch (bind) {
             case "selectworm": {
                 mController.selectNextMember();
@@ -384,10 +384,15 @@ class GameView : Container, TeamMemberControlCallback {
         return false;
     }
 
-    override protected bool onKeyUp(char[] bind, KeyInfo info) {
-        if (handleDirKey(bind, true))
+    override protected bool onKeyEvent(KeyInfo ki) {
+        auto bind = findBind(ki);
+        if (ki.isDown && onKeyDown(bind, ki)) {
             return true;
-        return false;
+        } else if (ki.isUp) {
+            if (handleDirKey(bind, true))
+                return true;
+        }
+        return super.onKeyEvent(ki);
     }
 
     override protected bool onMouseMove(MouseInfo mouse) {
@@ -409,95 +414,3 @@ class GameView : Container, TeamMemberControlCallback {
         super.onDraw(c);
     }
 }
-/+
-private class WormNames {
-
-    const cYDist = 3;   //distance label/worm-graphic
-    const cYBorder = 2; //thickness of label box
-
-    //upper border of the label relative to the worm's Y coordinate
-    int labelsYOffset() {
-        return cYDist+cYBorder*2+mFontHeight;
-    }
-
-    private void showArrow(TeamMember cur) {
-        if (cur.worm) {
-            //xxx currently don't have worm animations available
-            auto wpos = toVector2i(cur.worm.physics.pos);
-            auto wsize = Vector2i(0);
-            if (!mArrow.active || mArrowCol != cur.team.teamColor) {
-                mArrow.setAnimation(mTeamAnims[cur.team.teamColor].arrow.get());
-                mArrow.active = true;
-                mArrowCol = cur.team.teamColor;
-            }
-            //2 pixels Y spacing
-            mArrow.pos = wpos + wsize.X/2 - mArrow.size.X/2
-                - mArrow.size.Y /*- Vector2i(0, mDrawer.labelsYOffset + 2)*/;
-        }
-    }
-    private void hideArrow() {
-        mArrow.active = false;
-    }
-
-    private void showPoint(TeamMember cur) {
-        if (!mPointed.active || mPointCol != cur.team.teamColor) {
-            mPointed.setAnimation(mTeamAnims[cur.team.teamColor].pointed.get());
-            mPointed.active = true;
-            mPointCol = cur.team.teamColor;
-        }
-        mPointed.pos = toVector2i(cur.team.currentTarget) - mPointed.size/2;
-    }
-
-    private void hidePoint() {
-        mPointed.active = false;
-    }
-
-    void draw(Canvas canvas) {
-        if (mController.current && mController.engine.gameTime.current
-            - mController.currentLastAction > mArrowDelta)
-        {
-            showArrow(mController.current);
-        } else {
-            hideArrow();
-        }
-        if (mController.current && mController.current.team &&
-            mController.current.team.targetIsSet)
-        {
-            showPoint(mController.current);
-        } else {
-            hidePoint();
-        }
-        //xxx: add code to i.e. move the worm-name labels
-
-        foreach (Team t; mController.teams) {
-            auto pfont = t in mWormFont;
-            if (!pfont)
-                continue;
-            Font font = *pfont;
-            foreach (TeamMember w; t) {
-                if (!w.worm || w.worm.isDead)
-                    continue;
-
-                char[] text = str.format("%s (%s)", w.name,
-                    w.worm.physics.lifepowerInt);
-
-                //xxx haven't worm graphic available
-                auto wp = toVector2i(w.worm.physics.pos)-Vector2i(30,30);
-                auto sz = Vector2i(6, 60); //w.worm.graphic.size;
-                //draw 3 pixels above, centered
-                auto tsz = font.textSize(text);
-                tsz.y = mFontHeight; //hicks
-                auto pos = wp+Vector2i(sz.x/2 - tsz.x/2, -tsz.y - cYDist);
-
-                auto border = Vector2i(4, cYBorder);
-                //auto b = getBox(tsz+border*2, Color(1,1,1), Color(0,0,0));
-                //canvas.draw(b, pos-border);
-                //if (mController.mEngine.enableSpiffyGui)
-
-                    drawBox(canvas, pos-border, tsz+border*2);
-                font.drawText(canvas, pos, text);
-            }
-        }
-    }
-}
-+/

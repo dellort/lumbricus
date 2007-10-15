@@ -5,6 +5,7 @@ import framework.font;
 import utils.time;
 import utf = std.utf;
 import utils.output;
+import std.stdarg : va_list;
 
 public class Console : Output {
     //maximum entries the backlog stores
@@ -148,7 +149,7 @@ public class Console : Output {
     void writefln(...) {
         writef_ind(true, _arguments, _argptr);
     }
-    void writef_ind(bool newline, TypeInfo[] arguments, void* argptr) {
+    void writef_ind(bool newline, TypeInfo[] arguments, va_list argptr) {
         writeString(sformat_ind(newline, arguments, argptr));
     }
 

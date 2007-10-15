@@ -436,8 +436,8 @@ class ScrollBar : Container {
                     auto pos = coordsToParent(mouse.pos);
                     pos -= drag_start; //click offset
 
-                    curValue = cast(int)((pos[mDir] - mBarArea.p1[mDir])
-                        / mScaleFactor);
+                    curValue = cast(int)((pos[mDir] - mBarArea.p1[mDir]
+                        + 0.5*mScaleFactor) / mScaleFactor);
 
                     return true;
                 }
@@ -450,7 +450,7 @@ class ScrollBar : Container {
                     drag_start = mousePos;
                     captureSet(drag_active);
                 }
-                return super.onKeyEvent(key);
+                return key.isMouseButton || super.onKeyEvent(key);
             }
         }
     }
@@ -464,10 +464,12 @@ class ScrollBar : Container {
         mAdd = new Button();
         mAdd.text = "A";
         mAdd.onClick = &onAddSub;
+        mAdd.autoRepeat = true;
         addChild(mAdd);
         mSub = new Button();
         mSub.text = "B";
         mSub.onClick = &onAddSub;
+        mSub.autoRepeat = true;
         addChild(mSub);
         mBar = new Bar();
         addChild(mBar);
@@ -479,6 +481,33 @@ class ScrollBar : Container {
         } else if (sender is mSub) {
             curValue = curValue-1;
         }
+    }
+
+    override protected bool onKeyEvent(KeyInfo ki) {
+        if (super.onKeyEvent(ki))
+            return true;
+
+        //nothing was hit -> free area of scrollbar, between the bar and the
+        //two buttons
+
+        auto at = mousePos;
+        if (ki.isMouseButton && mBarArea.isInside(at)) {
+            if (ki.isDown) {
+                //xxx: would need some kind of auto repeat too
+                //also, this looks ugly
+                auto bar = mBar.containedBounds;
+                int dir = (at[mDir] > ((bar.p1 + bar.p2)/2)[mDir]) ? +1 : -1;
+                //multiply dir with the per-click increment (fixed to 1 now)
+                curValue = curValue + dir*1;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    //prevent Container from returning false if no child is hit
+    override bool testMouse(Vector2i pos) {
+        return true;
     }
 
     override protected Vector2i layoutSizeRequest() {

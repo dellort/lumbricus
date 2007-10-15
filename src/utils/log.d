@@ -4,6 +4,7 @@ import utils.output;
 import stdformat = std.format;
 import stdio = std.stdio;
 import utils.time;
+import std.stdarg : va_list;
 
 /// Access to all Log objects created so far.
 Log[char[]] gAllLogs;
@@ -50,16 +51,15 @@ public class Log : Output {
     }
 
     void writeString(char[] str) {
-    	assert(backend !is null);
-
-	backend.writeString(str);
+        assert(backend !is null);
+        backend.writeString(str);
     }
 
     void opCall(...) {
         writef_ind(true, _arguments, _argptr);
     }
 
-    void writef_ind(bool newline, TypeInfo[] arguments, void* argptr) {
+    void writef_ind(bool newline, TypeInfo[] arguments, va_list argptr) {
         void writeTo(Output o) {
             if (show_time) {
                 o.writef("[%s] ", timeCurrentTime());

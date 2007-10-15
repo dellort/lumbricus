@@ -867,7 +867,6 @@ public class FrameworkSDL : Framework {
 
         gFrameworkSDL = this;
 
-
         DerelictSDL.load();
         DerelictSDLImage.load();
         DerelictSDLttf.load();

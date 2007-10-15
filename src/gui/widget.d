@@ -356,31 +356,13 @@ class Widget {
     //this function shall return true if the event was handled
     //if it doesn't handle an event, an overridden method must call the super-
     //handler and return its result
+    //NOTE about down/up/press events: even though you react only i.e. on key-up
+    // events in a specific case, always catch down- and press-events as well,
+    // else other Widgets might receive this events, leading to stupid confusion
     protected bool onKeyEvent(KeyInfo info) {
         //default: do nothing, return false (to indicate "unhandled")
-        //but also must do kind of "compatibility" here:
-        char[] bind = findBind(info);
-        switch (info.type) {
-            case KeyEventType.Down: return onKeyDown(bind, info);
-            case KeyEventType.Up: return onKeyUp(bind, info);
-            case KeyEventType.Press: return onKeyPress(bind, info);
-            default: assert(false);
-        }
-    }
-
-    //compatibility/simplification
-    //can still be used, but i.e. it's not possible to use this with containers
-    //to have full control about what should go the children and what not
-    protected bool onKeyDown(char[] bind, KeyInfo key) {
         return false;
     }
-    protected bool onKeyUp(char[] bind, KeyInfo key) {
-        return false;
-    }
-    protected bool onKeyPress(char[] bind, KeyInfo key) {
-        return false;
-    }
-
 
     //return true only if you want block this event for children
     //no meaning for non-Container Widgets (?)
@@ -394,7 +376,7 @@ class Widget {
 
     //calls onMouseEnterLeave(), but avoid unnecessary recursion (cf. Container)
     //(and also is "package" to deal with the stupid D protection attributes)
-    package void doMouseEnterLeave(bool mii) {
+    void doMouseEnterLeave(bool mii) {
         if (mMouseOverState != mii) {
             mMouseOverState = mii;
             onMouseEnterLeave(mii);
@@ -572,22 +554,24 @@ class Widget {
 
     //keyboard events are delivered even to non-focusable Widgets when captured
 
+    //the return values tell if the capture could be enabled or if there was
+    //a capture to disable
+
     //this will capture all parent Widgets too, and if there already exists
     //another capture which is not in this line, the other will be canceled
-    final void captureEnable() {
-        if (parent)
-            parent.childSetCapture(this, true);
+    final bool captureEnable() {
+        return captureSet(true);
     }
 
     //remove capture (including parent captures)
-    final void captureDisable() {
-        if (parent)
-            parent.childSetCapture(this, false);
+    final bool captureDisable() {
+        return captureSet(false);
     }
 
-    final void captureSet(bool set) {
-        if (parent)
-            parent.childSetCapture(this, set);
+    final bool captureSet(bool set) {
+        if (!parent)
+            return true;
+        return parent.childSetCapture(this, set);
     }
 
     // --- blabla rest
@@ -603,6 +587,8 @@ class Widget {
         if (lay) {
             mLayout.loadFrom(lay);
         }
+
+        zorder = loader.node.getIntValue("zorder", zorder);
 
         //xxx: load KeyBindings somehow?
         //...

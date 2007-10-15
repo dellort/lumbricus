@@ -7,6 +7,7 @@ import std.format;
 import conv = std.conv;
 import utils.output : Output;
 import utils.path;
+import utils.misc : formatfx;
 
 //xxx: desperately moved to here (where else to put it?)
 import utils.vector2;
@@ -734,20 +735,6 @@ private class ConfigFatalError : Exception {
         super("");
         this.type = type;
     }
-}
-
-//stupid phobos dooesn't have this yet
-char[] formatfx(TypeInfo[] arguments, void* argptr) {
-    char[] res;
-
-    void myputc(dchar c) {
-        res.length = res.length + 1;
-        res[res.length-1] = c;
-    }
-
-    doFormat(&myputc, arguments, argptr);
-
-    return res;
 }
 
 /// Used to manage config files. See docs/*.grm for the used format.
