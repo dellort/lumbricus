@@ -154,7 +154,10 @@ class ScrollArea : SimpleContainer {
 
     //sigh?
     final public Vector2f clipOffset(Vector2f offs) {
-        return Rect2f(-toVector2f(mScrollSize), Vector2f(0)).clip(offs);
+        //xxx hack against float rounding error of offs
+        //(when scrolling to right border)
+        return Rect2f(-toVector2f(mScrollSize) - Vector2f(.99f,.99f),
+            Vector2f(0)).clip(offs);
     }
 
     Vector2i offset() {
@@ -178,6 +181,10 @@ class ScrollArea : SimpleContainer {
         //xxx don't know if this is correct when using mScroller or so
         //aim: mOffset + pos == size/2
         return size/2 - pos;
+    }
+
+    void scrollDelta(Vector2i d) {
+        offset = mOffset - d;
     }
 
     // --- (optional) smooth scrolling (works completely in top of the rest)
@@ -216,7 +223,7 @@ class ScrollArea : SimpleContainer {
                     (mScrollDest - mScrollOffset)*K_SCROLL*cScrollStepMs;
                 mTimeLast += cScrollStepMs;
             }
-            offset = toVector2i(mScrollOffset);
+            offset = toVector2i(mScrollOffset-Vector2f(.5f));
         } else {
             mEnableSmoothScrolling = false;
         }

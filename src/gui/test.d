@@ -92,12 +92,14 @@ class TestFrame2 : SimpleContainer {
 
 class TestFrame3 : Container {
     this() {
+        auto wind = new ScrollWindow();
         auto scroll = new MouseScroller();
+        wind.setScrollArea(scroll);
         auto label = new Label();
         scroll.add(label);
         label.text = "MouseScroller huhuh!";
         label.font = getFramework.fontManager.loadFont("test");
-        addChild(scroll);
+        addChild(wind);
     }
 }
 
