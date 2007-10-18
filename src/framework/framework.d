@@ -2,6 +2,7 @@ module framework.framework;
 
 import std.stream;
 public import utils.vector2;
+public import utils.rect2;
 public import framework.event;
 public import framework.sound;
 import utils.time;
@@ -176,6 +177,13 @@ public class Canvas {
     /// visible upper left point on the screen or canvas (?)
     //(returns translation relative to last setWindow())
     public abstract Vector2i clientOffset();
+
+    /// Get the rectangle in client coords which is visible
+    /// (right/bottom borders exclusive)
+    public abstract Rect2i getVisible();
+
+    /// Return true if any part of this rectangle is visible
+    //public abstract bool isVisible(in Vector2i p1, in Vector2i p2);
 
     //must be called after drawing done
     public abstract void endDraw();

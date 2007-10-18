@@ -16,6 +16,7 @@ import gui.widget;
 import gui.container;
 import gui.button;
 import gui.boxcontainer;
+import gui.list;
 import gui.loader;
 import gui.mousescroller;
 import gui.wm;
@@ -23,10 +24,14 @@ import utils.log;
 import utils.configfile;
 import levelgen.level;
 import levelgen.generator;
+import levelgen.genrandom;
 import std.string : format;
 import utils.output;
 
 import std.bind;
+
+//for playing the preview
+import game.gametask;
 
 private:
 
@@ -363,37 +368,9 @@ class EditPolygon : EditObject {
     //the polygon contains subobjects of the types EditPPoint and EditPLine
     EditPPoint first;
 
-    /+
-    void addTrailingPoint(Vector2i pt) {
-        EditPPoint last;
-        EditPLine nline;
-        if (!subObjects.isEmpty) {
-            last = cast(EditPPoint)subObjects.tail;
-            assert(last !is null);
-
-            //insert line
-            nline = new EditPLine();
-            nline.prev = last;
-            last.next = nline;
-            add(nline, false);
-        }
-        auto obj = new EditPPoint();
-        obj.pt = pt;
-        add(obj);
-        if (last) {
-            obj.prev = nline;
-            nline.next = obj;
-            //force update
-            //ridiculous hack :-)
-            obj.isMoving = true;
-            last.changedPoints();
-            obj.changedPoints();
-            obj.isMoving = false;
-        }
-        if (!first)
-            first = obj;
-    }
-    +/
+    //xxx lumbricus-level specific data, maybe move out of here
+    Lexel marker = Lexel.Null; //default is cave
+    bool p_changeable = true, p_visible = true;
 
     //init closed polygon
     void initLine(Vector2i[] pts) {
@@ -479,9 +456,20 @@ public class LevelEditor : Task {
     bool isSelecting;
     Vector2i selectStart, selectEnd;
 
+    //cf. LevelGeometry.caveness
+    Lexel levelCaveness = Lexel.SolidSoft; //means it's a cave
+    Vector2i levelSize = {2000, 700};
+
+    Level mCurrentPreview;
     Texture mPreviewImage;
 
-    Widget mContainer;
+    Window mWindow;
+
+    Widget mEditor;
+    Widget mLoadTemplate;
+
+    StringListWidget mLoadTemplateList;
+    ConfigNode[] mTemplateList; //temporary during mLoadTemplate
 
     //current rectangle-selection mode
     //(what to do if the user draws this rect)
@@ -518,7 +506,7 @@ public class LevelEditor : Task {
             //xxx should return root.bounds.p2 instead; currently not done
             // because there's no mouse-capture, and so mouse events outside
             // the Widget are always lost
-            return Vector2i(2000, 700);
+            return levelSize;
         }
 
         bool onKeyDown(char[] bind, KeyInfo infos) {
@@ -584,7 +572,7 @@ public class LevelEditor : Task {
                 || super.onKeyEvent(ki);
         }
 
-        bool onMouseMove(MouseInfo info) {
+        override bool onMouseMove(MouseInfo info) {
             if (isDraging) {
                 didReallyDrag = true;
                 auto move = -dragRel + (info.pos - dragPick);
@@ -740,17 +728,92 @@ public class LevelEditor : Task {
         setOnClick("inspt", (Button, Me me) {me.insertPoint;});
         setOnClick("nochange", (Button, Me me) {me.toggleNochange;});
         setOnClick("addpoly", (Button, Me me) {me.setNewPolygon;});
+        setOnClick("play", (Button, Me me) {me.play;});
+        setOnClick("load", (Button, Me me) {me.loadTemplate;});
 
-        mContainer = loader.lookup("ledit_root");
-        auto wnd = gWindowManager.createWindowFullscreen(this, mContainer,
+        mEditor = loader.lookup("ledit_root");
+        mWindow = gWindowManager.createWindowFullscreen(this, mEditor,
             "Level Editor");
-        auto props = wnd.properties;
+        auto props = mWindow.properties;
         props.background = Color(0,0,0);
-        wnd.properties = props;
+        mWindow.properties = props;
+
+        //that other dialog to load templates
+        mLoadTemplate = loader.lookup("load_templ");
+        mLoadTemplateList = loader.lookup!(StringListWidget)("load_list");
+        setOnClick("load_ok", (Button, Me me) {me.loadTemplate_OK;});
+        setOnClick("load_cancel", (Button, Me me) {me.loadTemplate_Cancel;});
+    }
+
+    private void loadTemplate() {
+        //exchange the Window's GUI to display the dialog, oh what evilness
+        mWindow.client = mLoadTemplate;
+        auto templs = loadTemplates(); //NOTE: provided by levelgen.generator
+        char[][] names;
+        mTemplateList = null;
+        foreach (ConfigNode n; templs) {
+            names ~= n["description"];
+            mTemplateList ~= n;
+        }
+        mLoadTemplateList.setContents(names);
+    }
+
+    private void loadTemplate_Cancel() {
+        mWindow.client = mEditor;
+    }
+
+    private void loadTemplate_OK() {
+        mWindow.client = mEditor;
+        auto sel = mLoadTemplateList.selectedIndex;
+        clear();
+        if (sel < 0)
+            return;
+        loadFromTemplate(new LevelTemplate(mTemplateList[sel]));
+    }
+
+    void loadFromTemplate(LevelTemplate templ) {
+        assert(!!templ);
+        clear();
+        //currently we throw everything away, except the geometry:
+        doLoadGeometry(templ.geometry);
+    }
+
+    private void doLoadGeometry(LevelGeometry geo) {
+        levelSize = geo.size;
+        levelCaveness = geo.caveness;
+        foreach (LevelGeometry.Polygon p; geo.polygons) {
+            //xxx: only loads the point-list, nothing else
+            auto poly = new EditPolygon();
+            poly.initLine(p.points);
+            poly.marker = p.marker;
+            poly.p_changeable = p.changeable;
+            poly.p_visible = p.visible;
+            root.add(poly);
+        }
+        render.needResize(true); //for level size
+    }
+
+    void clear() {
+        mPreviewImage = null;
+        mCurrentPreview = null;
+        //xxx this is most likely a BAD IDEA
+        root = new EditRoot();
+    }
+
+    //play the preview
+    void play() {
+        if (!mCurrentPreview)
+            genPreview();
+        if (!mCurrentPreview)
+            return;
+        //cut'n'paste from game.gui.preview
+        auto gc = loadGameConfig(globals.anyConfig.getSubNode("newgame"),
+            mCurrentPreview);
+        //don't care about the game anymore as soon as spawned
+        new GameTask(manager, gc);
     }
 
     override protected void onKill() {
-        mContainer.remove(); //GUI
         commands.kill();
     }
 
@@ -785,8 +848,8 @@ public class LevelEditor : Task {
 
     void saveLevel(ConfigNode sub) {
         LevelGeometry geo = new LevelGeometry();
-        geo.size = Vector2i(2000, 700);
-        geo.caveness = Lexel.SolidSoft;
+        geo.size = levelSize;
+        geo.caveness = levelCaveness;
 
         foreach (o; root.subObjects) {
             if (!cast(EditPolygon)o)
@@ -795,7 +858,9 @@ public class LevelEditor : Task {
             LevelGeometry.Polygon curpoly;
             curpoly.points = p.getPoints();
             curpoly.nochange = p.getNoChangeable();
-            curpoly.marker = Lexel.Null;
+            curpoly.marker = p.marker;
+            curpoly.changeable = p.p_changeable;
+            curpoly.visible = p.p_visible;
             geo.polygons ~= curpoly;
         }
 
@@ -816,15 +881,19 @@ public class LevelEditor : Task {
     }
 
     void genPreview() {
+        mCurrentPreview = genRenderedLevel();
+        if (mCurrentPreview)
+            mPreviewImage = mCurrentPreview.image.createTexture();
+    }
+
+    Level genRenderedLevel() {
         //create a level generator configfile...
         ConfigNode config = new ConfigNode();
         saveLevel(config);
         auto templ = new LevelTemplate(config);
         auto generator = new LevelGenerator();
         auto gfx = generator.findRandomGfx("gpl");
-        Level level = generator.renderLevel(templ, gfx);
-        if (level)
-            mPreviewImage = level.image.createTexture();
+        return generator.renderLevel(templ, gfx);
     }
 
     static this() {

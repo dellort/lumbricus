@@ -6,6 +6,7 @@ import gui.button;
 import gui.boxcontainer;
 import gui.tablecontainer;
 import gui.label;
+import gui.list;
 import gui.mousescroller;
 import gui.scrollwindow;
 import gui.loader;
@@ -17,6 +18,7 @@ import utils.mybox;
 import utils.output;
 import utils.time;
 import utils.array;
+import utils.rect2;
 import utils.vector2;
 import str = std.string;
 
@@ -103,6 +105,46 @@ class TestFrame3 : Container {
     }
 }
 
+class TestFrame4 : Container {
+    class Bla : Widget {
+        override protected Vector2i layoutSizeRequest() {
+            return Vector2i(500, 500);
+        }
+        override  void onDraw(Canvas canvas) {
+            auto rc = canvas.getVisible();
+            rc.extendBorder(-Vector2i(5));
+            canvas.drawFilledRect(rc.p1, rc.p2, Color(1,0,0));
+            auto x1 = Vector2i(0), x2 = size-Vector2i(1);
+            canvas.drawRect(x1, x2, Color(0));
+            canvas.drawLine(x1, x2, Color(0));
+            canvas.drawLine(x2.Y, x2.X, Color(0));
+        }
+    }
+    this() {
+        auto wind = new ScrollWindow();
+        auto label = new Label();
+        wind.area.add(new Bla());
+        addChild(wind);
+    }
+}
+
+class TestFrame5 : Container {
+    this() {
+        auto list = new StringListWidget();
+        list.checkWidth = true;
+        list.setContents([
+            "entry 1",
+            "blablabla",
+            "entry 3",
+            "when i was in alabama",
+            "my turtle ate a banana",
+            "entry 6"
+        ]);
+        auto wind = new ScrollWindow(list, [false, true]);
+        addChild(wind);
+    }
+}
+
 //just to show the testframe
 class TestTask : Task {
     //private Widget mWindow;
@@ -118,6 +160,8 @@ class TestTask : Task {
         createWindow("TestFrame", new TestFrame);
         createWindow("TestFrame2", new TestFrame2);
         createWindow("TestFrame3", new TestFrame3);
+        createWindow("Visibility Test", new TestFrame4);
+        createWindow("List", new TestFrame5);
 
         auto k = new Button();
         k.text = "Kill!!!1";

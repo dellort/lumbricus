@@ -259,9 +259,22 @@ class ScrollWindow : Container {
         int mUpdating;
     }
 
+    /// Use this to set scoll client and properties
+    ScrollArea area() {
+        return mArea;
+    }
+
     this() {
         mArea = new ScrollArea();
         recreateGui();
+    }
+
+    /// Init with "child" as child for the ScrollArea, and do setEnableScroll
+    /// with "enable"
+    this(Widget child, bool[2] enable = [true, true]) {
+        this();
+        area.setEnableScroll(enable);
+        area.addChild(child);
     }
 
     //callbacks must be left to this object
@@ -329,7 +342,7 @@ class ScrollWindow : Container {
 
             mArea.onPositionChange = &onDoScroll;
             mArea.onStateChange = &onScrollChange;
-            mLayout = new TableContainer(scr[0]?2:1, scr[1]?2:1);
+            mLayout = new TableContainer(scr[1]?2:1, scr[0]?2:1);
             mLayout.add(mArea, 0, 0);
             for (int n = 0; n < 2; n++) {
                 if (scr[n]) {

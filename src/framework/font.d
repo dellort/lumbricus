@@ -55,7 +55,7 @@ class FontManager {
             if (!tryHard) //don't default to default
                 return null;
             //std.stdio.writefln("not found: >%s<", id);
-            font = mNodes.getSubNode("default");
+            font = mNodes.getSubNode("normal");
         }
 
         Color tmp;

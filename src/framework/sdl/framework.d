@@ -551,6 +551,18 @@ public class SDLCanvas : Canvas {
         return mClientSize;
     }
 
+    public Rect2i getVisible() {
+        Rect2i res;
+        SDL_Rect rc = sdlsurface.mReal.clip_rect;
+        res.p1.x = rc.x;
+        res.p1.y = rc.y;
+        res.p2.x = rc.x + rc.w;
+        res.p2.y = rc.y + rc.h;
+        res.p1 -= mTrans;
+        res.p2 -= mTrans;
+        return res;
+    }
+
     this(SDLSurface surf) {
         mTrans = Vector2i(0, 0);
         mStackTop = 0;

@@ -527,8 +527,7 @@ public class LevelGenerator {
     }
 
     this() {
-        mTemplates = globals.loadConfig("levelgen")
-            .getSubNode("levelgen_templates");
+        mTemplates = loadTemplates();
 
         mGfxNodes = new ConfigNode();
 
@@ -571,4 +570,12 @@ public class LevelGenerator {
             }
         );
     }
+}
+
+///load level generator templates; each node in the returned ConfigNode contains
+///a single template which can be passed to the constructor of LevelTemplate
+//xxx maybe rather return a LevelTemplate[]?
+//    or only a char[][], and also a loader function
+ConfigNode loadTemplates() {
+    return globals.loadConfig("levelgen").getSubNode("levelgen_templates");
 }
