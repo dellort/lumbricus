@@ -439,6 +439,28 @@ class EditPolygon : EditObject {
         }
         return res;
     }
+    //reverse of above; doesn't reset the EditPLine.nochange property
+    void setNoChangeable(uint[] nochange) {
+        EditPPoint cur = first;
+        int index = 0;
+        for (;;) {
+            if (!cur.next) {
+                break;
+            } else {
+                //inefficient
+                foreach (uint x; nochange) {
+                    if (x == index) {
+                        cur.next.noChange = true;
+                        break;
+                    }
+                }
+            }
+            if (cur.next.next is first)
+                break;
+            cur = cur.next.next;
+            index++;
+        }
+    }
 }
 
 class EditRoot : EditObject {
@@ -785,6 +807,7 @@ public class LevelEditor : Task {
             //xxx: only loads the point-list, nothing else
             auto poly = new EditPolygon();
             poly.initLine(p.points);
+            poly.setNoChangeable(p.nochange);
             poly.marker = p.marker;
             poly.p_changeable = p.changeable;
             poly.p_visible = p.visible;

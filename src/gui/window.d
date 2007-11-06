@@ -124,6 +124,13 @@ class WindowWidget : Container {
         position = b.p1;
     }
 
+    //usersize to current minsize (in case usersize is smaller)
+    void acceptSize() {
+        mUserSize = mUserSize.max(mLastMinSize);
+        //actually not needed, make spotting errors easier
+        needResize(true);
+    }
+
     override Vector2i layoutSizeRequest() {
         mLastMinSize = super.layoutSizeRequest();
         //mUserSize is the window size as requested by the user

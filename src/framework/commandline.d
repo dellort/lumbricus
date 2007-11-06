@@ -155,7 +155,7 @@ private:
     }
 
     //whatever...
-    void parseAndInvoke(char[] cmdline, Output write) {
+    public void parseAndInvoke(char[] cmdline, Output write) {
         MyBox[] args;
         args.length = param_types.length;
         for (int curarg = 0; curarg < param_types.length; curarg++) {
@@ -189,7 +189,7 @@ private:
             //complain and throw up if not valid
             MyBox box = param_types[curarg](arg_string);
             if (box.empty()) {
-                if (curarg+1 < minArgCount) {
+                if (curarg < minArgCount) {
                     write.writefln("could not parse argument nr. %s", curarg);
                     return;
                 }
@@ -274,8 +274,8 @@ public class CommandLine {
     private HistoryList mHistory;
     private uint mHistoryCount; //number of entries in the history
     private HistoryNode mCurrentHistoryEntry;
-    //used for parseCommand()
-    private uint mCommandStart, mCommandEnd;
+    private char[] mCommandPrefix;
+    private char[] mDefaultCommand;
 
     private const uint MAX_HISTORY_ENTRIES = 20;
     private const uint MAX_AUTO_COMPLETIONS = 10;
@@ -350,8 +350,11 @@ public class CommandLine {
         registerCommand(Command(name, handler, helpText, args));
     }
 
-    public bool keyDown(KeyInfo infos) {
-        return false;
+    /// Set a prefix which is required before each command (disable with ""),
+    /// and a default_command, which is invoked when the prefix isn't given.
+    public void setPrefix(char[] prefix, char[] default_command) {
+        mCommandPrefix = prefix;
+        mDefaultCommand = default_command;
     }
 
     private void updateCursor() {
@@ -460,23 +463,36 @@ public class CommandLine {
 
     //get the command part of the command line
     //sets mCommandStart and mCommandEnd
-    private char[] parseCommand() {
-        //currently just find the first space...
-        mCommandStart = 0;
-        mCommandEnd = mCurline.length;
-        foreach (uint index, char c; mCurline) {
-            if (c == ' ') {
-                mCommandEnd = index;
-                break;
+    private bool parseCommand(out char[] command, out char[] args,
+        out uint start, out uint end)
+    {
+        auto plen = mCommandPrefix.length;
+        auto line = mCurline;
+        if (line[0..plen] == mCommandPrefix) {
+            line = line[plen..$]; //skip prefix
+            line = str.stripl(line); //skip whitespace
+            start = mCurline.length - line.length; //start offset
+            auto first_whitespace = str.find(line, ' ');
+            if (first_whitespace >= 0) {
+                command = line[0..first_whitespace];
+                end = start + first_whitespace;
+                args = line[first_whitespace+1..$];
+            } else {
+                command = line;
+                end = start + line.length;
             }
+        } else {
+            command = mDefaultCommand;
+            args = line;
         }
-        return mCurline[mCommandStart..mCommandEnd];
+        return command.length > 0;
     }
 
     private void do_execute(bool addHistory = true) {
-        auto cmd = parseCommand();
+        char[] cmd, args;
+        uint start, end; //not really needed
 
-        if (cmd.length == 0) {
+        if (!parseCommand(cmd, args, start, end)) {
             //nothing, but show some reaction...
             mConsole.print("-");
         } else {
@@ -503,7 +519,7 @@ public class CommandLine {
             if (!ccmd) {
                 mConsole.print("Unknown command: "~cmd);
             } else {
-                ccmd.parseAndInvoke(mCurline[mCommandEnd .. $], mConsole);
+                ccmd.parseAndInvoke(args, mConsole);
             }
         }
 
@@ -522,7 +538,10 @@ public class CommandLine {
     }
 
     private void do_tab_completion() {
-        char[] cmd = parseCommand();
+        char[] cmd, args;
+        uint start, end;
+        if (!parseCommand(cmd, args, start, end) || start == end)
+            return;
         Command[] res;
         Command exact = find_command_completions(cmd, res);
 
@@ -551,9 +570,9 @@ public class CommandLine {
                 //if there's a common substring longer than the commonrent
                 //  command, extend it
 
-                mCurline = mCurline[0..mCommandStart] ~ common
-                    ~ mCurline[mCommandEnd..$];
-                mCursor = mCommandStart + common.length; //end of the command
+                mCurline = mCurline[0..start] ~ common
+                    ~ mCurline[end..$];
+                mCursor = start + common.length; //end of the command
                 updateCmdline();
             } else {
                 if (res.length > 1) {

@@ -2,7 +2,7 @@ module utils.misc;
 
 import str = std.string;
 import utf = std.utf;
-import format = std.format;
+import fmt = std.format; //wtf, can cause conflicts in other modules
 import std.stdarg : va_list;
 
 T min(T)(T v1, T v2) {
@@ -73,6 +73,82 @@ R delegate(T) toDelegate(R, T...)(R function(T) fn) {
 //stupid phobos doesn't have this yet
 char[] formatfx(TypeInfo[] arguments, va_list argptr) {
     char[] res;
-    format.doFormat((dchar c) { utf.encode(res, c); }, arguments, argptr);
+    fmt.doFormat((dchar c) { utf.encode(res, c); }, arguments, argptr);
     return res;
 }
+
+//some metaprogramming stuff
+
+///unsigned!(T): return the unsigned type of a signed one
+///invalid for non-integers (including char)
+template unsigned(T : long) {
+    alias ulong unsigned;
+}
+template unsigned(T : int) {
+    alias uint unsigned;
+}
+template unsigned(T : short) {
+    alias ushort unsigned;
+}
+template unsigned(T : byte) {
+    alias ubyte unsigned;
+}
+
+///signed!(T): return the signed type of an unsigned one
+///invalid for non-integers (including char)
+template signed(T : ulong) {
+    alias long signed;
+}
+template signed(T : uint) {
+    alias int signed;
+}
+template signed(T : ushort) {
+    alias short signed;
+}
+template signed(T : ubyte) {
+    alias byte signed;
+}
+
+///test if a type is signed/unsigned
+template isUnsigned(T) {
+    const isUnsigned = is(signed!(T));
+}
+template isSigned(T) {
+    const isSigned = is(unsigned!(T));
+}
+
+///true if it's an integer
+///(isInteger!(char) is false)
+template isInteger(T) {
+    const isInteger = isSigned!(T) || isUnsigned!(T);
+}
+
+template forceUnsigned(T) {
+    static assert(isInteger!(T));
+    static if (isSigned!(T))
+        alias unsigned!(T) forceUnsigned;
+    else
+        alias T forceUnsigned;
+}
+template forceSigned(T) {
+    static assert(isInteger!(T));
+    static if (isUnsigned!(T))
+        alias signed!(T) forceSigned;
+    else
+        alias T forceSigned;
+}
+
+//unittest {
+    static assert(is(signed!(ulong) == long));
+    static assert(is(signed!(ubyte) == byte));
+    static assert(is(unsigned!(long) == ulong));
+    static assert(is(unsigned!(byte) == ubyte));
+    static assert(isSigned!(long) && !isUnsigned!(long));
+    static assert(isUnsigned!(uint) && !isSigned!(uint));
+    static assert(isInteger!(int) && !isInteger!(char));
+    static assert(!isInteger!(float));
+    static assert(is(forceSigned!(ushort) == short));
+    static assert(is(forceSigned!(short) == short));
+    static assert(is(forceUnsigned!(short) == ushort));
+    static assert(is(forceUnsigned!(ushort) == ushort));
+//}

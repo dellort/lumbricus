@@ -1,7 +1,8 @@
-module enet.enet;
+module net.netlayer;
 
 import derelict.enet.enet;
 import str = std.string;
+import conv = std.conv;
 
 pragma(lib,"DerelictUtil");
 
@@ -19,6 +20,26 @@ struct NetAddress {
         return ret;
     }
 
+    ///parse a standard address from a string
+    ///format: <host> ":" <port>
+    ///sets port to 0 if missing or not a number
+    ///the hostname "broadcast" is hardwired to set the broadcast flag!
+    static NetAddress opCall(char[] name) {
+        auto index = str.rfind(name, ":");
+        auto host = index > 0 ? name[0..index] : name;
+        ushort p = 0;
+        if (index >= 0) {
+            try {
+                p = conv.toUshort(name[index+1..$]);
+            } catch { //sucks, don't care
+            }
+        }
+        auto addr = opCall(host, p);
+        if (host == "broadcast")
+            addr.broadcast = true;
+        return addr;
+    }
+
     ///create broadcast address
     static NetAddress opCall(ushort port) {
         NetAddress ret;
@@ -26,18 +47,31 @@ struct NetAddress {
         ret.broadcast = true;
         return ret;
     }
+
+    char[] toString() {
+        return str.format("['%s', %s%s]", hostName, port,
+            broadcast ? " (broadcast)" : "");
+    }
 }
 
 ///base class for network library, make sure to manually delete it before
 ///the app ends or you may get an AV
 class NetBase {
+    //allow several instances of NetBase without messing things up
+    private static int mRefCount;
     this() {
+        mRefCount++;
+        if (mRefCount != 1)
+            return;
         DerelictENet.load();
         if (enet_initialize() != 0)
             throw new NetException("Initialization of network lib failed");
     }
 
     ~this() {
+        mRefCount--;
+        if (mRefCount != 0)
+            return;
         enet_deinitialize();
         DerelictENet.unload();
     }
@@ -55,7 +89,7 @@ class NetBase {
         if (!server)
             throw new NetException("Failed to create server host");
 
-        return new NetHost(port, maxConnections, server);
+        return new NetHost(this, port, maxConnections, server);
     }
 
     ///create an unbound client host, not yet connected
@@ -66,7 +100,7 @@ class NetBase {
         if (!client)
             throw new NetException("Failed to create client host");
 
-        return new NetHost(0, maxConnections, client);
+        return new NetHost(this, 0, maxConnections, client);
     }
 }
 
@@ -79,14 +113,18 @@ class NetHost {
     //references to instantiated peers
     //(ENetPeer.data is not enough, the GC could collect it)
     private NetPeer[ENetPeer*] mPeers;
+    //reference to NetBase so its destructor won't unload the library until
+    //it's really not needed anymore; apart from that it's unused
+    private NetBase mBase;
 
     ///called whenever a new connection is established
     void delegate(NetHost sender, NetPeer peer) onConnect;
 
-    private this(ushort port, int maxConnections, ENetHost* host) {
+    private this(NetBase b, ushort port, int maxConnections, ENetHost* host) {
         mMaxConnections = maxConnections;
         mBoundPort = port;
         mHost = host;
+        mBase = b;
     }
 
     ~this()  {

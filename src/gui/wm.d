@@ -143,6 +143,13 @@ class Window {
     void properties(WindowProperties props) {
         mWindow.properties = props;
     }
+
+    /// take over the current possibly-forced size of the window as user choice
+    /// (usefull when: the client is larger than the user-chosen size, and then
+    ///  you want to avoid automatic resizing if the client gets smaller again)
+    void acceptSize() {
+        mWindow.acceptSize();
+    }
 }
 
 class WindowManager {

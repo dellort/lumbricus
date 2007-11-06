@@ -60,7 +60,7 @@ private:
         fps.zorder = GUIZOrder.FPS;
         mGui.mainFrame.add(fps);
 
-        mGuiConsole = new GuiConsole();
+        mGuiConsole = new GuiConsole(false);
         mGuiConsole.zorder = GUIZOrder.Console;
         mGui.mainFrame.add(mGuiConsole);
 
@@ -103,10 +103,17 @@ private:
         foreach (char[] name, char[] value; autoexec) {
             globals.cmdLine.execute(value, false);
         }
+
+        if (taskManager.taskList.length == 0) {
+            mGuiConsole.console.writefln("Nothing to run, do what you want");
+            mGuiConsole.console.visible = true;
+            //damn, misses focus (because Console doesn't notify GuiConsole)
+            mGuiConsole.claimFocus();
+        }
     }
 
     private void initConsole() {
-        globals.cmdLine = new CommandLine(mGuiConsole.console);
+        globals.cmdLine = mGuiConsole.cmdline;
 
         globals.setDefaultOutput(mGuiConsole.console);
 

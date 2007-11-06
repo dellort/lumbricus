@@ -45,6 +45,8 @@ public class Console : Output {
     //number of lines to scroll back
     private int mScrollPos;
 
+    bool drawBackground = false;
+
     ///initialize console, consoleFont will be used for rendering text
     public this(Font consoleFont) {
         mHeight = 300;
@@ -85,12 +87,16 @@ public class Console : Output {
                 mCurHeight = 0;
         }
 
-        int renderWidth = scrCanvas.realSize.x - mBorderOffset*2;
+        Vector2i size = scrCanvas.clientSize;
+
+        int renderWidth = size.x - mBorderOffset*2;
 
         if (mCurHeight > 0) {
             //draw background rect
-            scrCanvas.drawFilledRect(Vector2i(0,0),
-                Vector2i(scrCanvas.realSize.x,mCurHeight),mBackColor);
+            if (drawBackground) {
+                scrCanvas.drawFilledRect(Vector2i(0,0),
+                    Vector2i(size.x,mCurHeight),mBackColor);
+            }
 
             //draw output backlog
             //maximum number of lines that fits on the screen
@@ -229,10 +235,23 @@ public class Console : Output {
 
     ///set height (pixels)
     public void height(int val) {
+        if (mCurHeight == mHeight)
+            mCurHeight = val;
         mHeight = val;
     }
 
     public bool visible() {
         return mShowFlag == 1;
+    }
+
+    ///force toggle/visibility state
+    void visible(bool set) {
+        if (set) {
+            mShowFlag = 1;
+            mCurHeight = mHeight;
+        } else {
+            mShowFlag = -1;
+            mCurHeight = 0;
+        }
     }
 }

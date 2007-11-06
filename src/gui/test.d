@@ -1,9 +1,11 @@
 module gui.test;
 import gui.container;
+import gui.console;
 import gui.wm;
 import gui.widget;
 import gui.button;
 import gui.boxcontainer;
+import gui.edit;
 import gui.tablecontainer;
 import gui.label;
 import gui.list;
@@ -145,6 +147,21 @@ class TestFrame5 : Container {
     }
 }
 
+class TestFrame6 : Container {
+    this() {
+        auto cons = new GuiConsole;
+        cons.console.writefln("list commands with /help");
+        cons.cmdline.registerCommand("say", &cmdSay, "hullo!",
+            ["text...:what you say"]);
+        cons.cmdline.setPrefix("/", "say");
+        addChild(cons);
+    }
+
+    void cmdSay(MyBox[] args, Output write) {
+        write.writefln("you said: '%s'", args[0].unbox!(char[]));
+    }
+}
+
 //just to show the testframe
 class TestTask : Task {
     //private Widget mWindow;
@@ -162,6 +179,8 @@ class TestTask : Task {
         createWindow("TestFrame3", new TestFrame3);
         createWindow("Visibility Test", new TestFrame4);
         createWindow("List", new TestFrame5);
+        createWindow("EditLine", new EditLine);
+        createWindow("Console", new TestFrame6);
 
         auto k = new Button();
         k.text = "Kill!!!1";
