@@ -162,7 +162,10 @@ private:
             char[] arg_string;
             //cut leading whitespace only if that's not a textArgument
             bool isTextArg = (textArgument && param_types.length == curarg+1);
-            if (!isTextArg) {
+            if (isTextArg) {
+                arg_string = cmdline;
+                cmdline = null;
+            } else {
                 cmdline = trimLeft(cmdline);
 
                 //find end of the argument
