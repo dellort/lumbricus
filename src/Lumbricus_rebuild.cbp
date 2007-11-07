@@ -113,9 +113,11 @@
 		<Unit filename="gui\button.d" />
 		<Unit filename="gui\console.d" />
 		<Unit filename="gui\container.d" />
+		<Unit filename="gui\edit.d" />
 		<Unit filename="gui\fps.d" />
 		<Unit filename="gui\gui.d" />
 		<Unit filename="gui\label.d" />
+		<Unit filename="gui\list.d" />
 		<Unit filename="gui\loader.d" />
 		<Unit filename="gui\messageviewer.d" />
 		<Unit filename="gui\mousescroller.d" />
@@ -126,6 +128,11 @@
 		<Unit filename="gui\widget.d" />
 		<Unit filename="gui\window.d" />
 		<Unit filename="gui\wm.d" />
+		<Unit filename="irc\ircclient.d" />
+		<Unit filename="irclib\all.d" />
+		<Unit filename="irclib\client.d" />
+		<Unit filename="irclib\protocol.d" />
+		<Unit filename="irclib\tools.d" />
 		<Unit filename="levelgen\generator.d" />
 		<Unit filename="levelgen\genrandom.d" />
 		<Unit filename="levelgen\level.d" />

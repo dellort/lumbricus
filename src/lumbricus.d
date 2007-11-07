@@ -15,6 +15,7 @@ import game.gametask; //the game itself
 import game.gui.preview; //level preview window
 import game.gui.leveledit; //aw
 import game.wtris; //lol
+import irc.ircclient; //roflmao
 //net tests
 import net.enet_test;
 //import net.test;
