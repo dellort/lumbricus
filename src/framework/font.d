@@ -22,7 +22,9 @@ public class Font {
     /// same for UTF-32
     //public abstract void drawText(Canvas canvas, Vector2i pos, dchar[] text);
     /// return pixel width/height of the text
-    public abstract Vector2i textSize(char[] text);
+    /// forceHeight: if true (default), an empty string will return
+    ///              (0, fontHeight) instead of (0,0)
+    public abstract Vector2i textSize(char[] text, bool forceHeight = true);
     //public abstract Vector2i textSize(dchar[] text);
 
     public abstract FontProperties properties();

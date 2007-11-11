@@ -790,13 +790,14 @@ it worked, but was useless: FontManager considers Fonts to be immutable
         }
     }
 
-    public Vector2i textSize(char[] text) {
+    public Vector2i textSize(char[] text, bool forceHeight = true) {
         Vector2i res = Vector2i(0, 0);
         foreach (dchar c; text) {
             Texture surface = getGlyph(c);
             res.x += surface.size.x;
         }
-        res.y = TTF_FontHeight(font);
+        if (text.length > 0 || forceHeight)
+            res.y = TTF_FontHeight(font);
         return res;
     }
 

@@ -18,6 +18,7 @@ void drawBox(Canvas c, Vector2i pos, Vector2i size, int borderWidth = 1,
 {
     BoxProps props;
     props.height = size.y;
+    props.width = size.x;
     props.p.borderWidth = borderWidth;
     props.p.cornerRadius = cornerRadius;
     props.p.border = border;
@@ -36,6 +37,7 @@ void drawBox(Canvas c, Vector2i pos, Vector2i size, int borderWidth = 1,
 void drawBox(Canvas c, in Rect2i rect, in BoxProperties props) {
     BoxProps p;
     p.height = rect.size.y;
+    p.width = rect.size.x;
     p.p = props;
 
     BoxTex tex = getBox(p);
@@ -62,7 +64,7 @@ private:
 
 //quite a hack to draw boxes with rounded borders...
 struct BoxProps {
-    int height;
+    int height, width;
     BoxProperties p;
 }
 
@@ -201,7 +203,7 @@ BoxTex getBox(BoxProps props) {
     }
 
     //width of the side textures
-    int sidew = min(props.p.cornerRadius,props.height/2);
+    int sidew = min(min(props.p.cornerRadius,props.height/2),props.width/2);
     size = Vector2i(max(0,sidew),max(0,props.height));
 
     //left texture

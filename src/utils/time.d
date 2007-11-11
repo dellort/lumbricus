@@ -232,3 +232,7 @@ public Time timeCurrentTime() {
 public void setCurrentTimeDelegate(Time delegate() timeDg) {
     timeGetCurrentTime = timeDg;
 }
+///returns the time delegate
+public Time delegate() getCurrentTimeDelegate() {
+    return timeGetCurrentTime;
+}

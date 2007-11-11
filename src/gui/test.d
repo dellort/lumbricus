@@ -10,6 +10,7 @@ import gui.tablecontainer;
 import gui.label;
 import gui.list;
 import gui.mousescroller;
+import gui.scrollbar;
 import gui.scrollwindow;
 import gui.loader;
 import common.common;
@@ -140,7 +141,11 @@ class TestFrame5 : Container {
             "entry 3",
             "when i was in alabama",
             "my turtle ate a banana",
-            "entry 6"
+            "entry 6",
+            "even",
+            "more",
+            "stupid",
+            "text"
         ]);
         auto wind = new ScrollWindow(list, [false, true]);
         addChild(wind);
@@ -194,10 +199,11 @@ class TestTask : Task {
 
         //two scrollbars
         auto bar1 = new ScrollBar(false);
-        bar1.maxValue = 3;
+        bar1.maxValue = 100;
         createWindow("Test6", bar1);
         auto bar2 = new ScrollBar(true);
-        bar2.maxValue = 3;
+        bar2.maxValue = 100;
+        bar2.pageSize = 30;
         createWindow("Test6", bar2);
 
 //        getFramework.clearColor = Color(1,1,1);

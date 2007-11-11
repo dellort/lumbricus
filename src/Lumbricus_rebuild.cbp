@@ -122,6 +122,7 @@
 		<Unit filename="gui\messageviewer.d" />
 		<Unit filename="gui\mousescroller.d" />
 		<Unit filename="gui\progress.d" />
+		<Unit filename="gui\scrollbar.d" />
 		<Unit filename="gui\scrollwindow.d" />
 		<Unit filename="gui\tablecontainer.d" />
 		<Unit filename="gui\test.d" />
@@ -158,6 +159,7 @@
 		<Unit filename="utils\rect2.d" />
 		<Unit filename="utils\strparser.d" />
 		<Unit filename="utils\time.d" />
+		<Unit filename="utils\timer.d" />
 		<Unit filename="utils\vector2.d" />
 		<Extensions>
 			<code_completion />

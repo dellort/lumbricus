@@ -39,7 +39,7 @@ class Label : Widget {
     }
 
     override Vector2i layoutSizeRequest() {
-        auto csize = mFont.textSize(mText);
+        auto csize = mFont.textSize(mText,false);
         if (mImage) {
             csize = csize.max(mImage.size);
         }
