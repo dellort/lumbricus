@@ -39,9 +39,9 @@ class Label : Widget {
     }
 
     override Vector2i layoutSizeRequest() {
-        auto csize = mFont.textSize(mText,false);
+        auto csize = mFont.textSize(mText,true);
         if (mImage) {
-            csize = csize.max(mImage.size);
+            csize = mImage.size;
         }
         if (mShrink) {
             csize.x = 0;
@@ -110,6 +110,7 @@ class Label : Widget {
         }
         if (mImage) {
             canvas.draw(mImage, b);
+            return;
         }
         if (!mShrink) {
             mFont.drawText(canvas, b, mText);

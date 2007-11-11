@@ -249,6 +249,10 @@ class Widget {
             //(reallocation can be expensive; so avoid it)
         } else {
             mLayoutNeedReallocate = false;
+            /+auto diff = size - layoutCachedContainerSizeRequest();
+            if (diff.x < 0 || diff.y < 0) {
+                std.stdio.writefln("warning: diff=%s for %s",diff,this);
+            }+/
             layoutSizeAllocation();
         }
     }

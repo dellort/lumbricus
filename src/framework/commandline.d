@@ -199,7 +199,7 @@ private:
                 box = param_defaults[curarg];
             }
             //xxx stupid hack to support default arguments for strings
-            if (arg_string.length == 0 && !param_defaults[curarg].empty()) {
+            if (arg_string.length == 0) {
                 box = param_defaults[curarg];
             }
             args[curarg] = box;

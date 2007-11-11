@@ -405,6 +405,8 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
     auto teamconf = globals.loadConfig("teams");
     cfg.teams = teamconf.getSubNode("teams");
 
+    cfg.levelobjects = mConfig.getSubNode("levelobjects");
+
     auto gamemodecfg = globals.loadConfig("gamemode");
     auto modes = gamemodecfg.getSubNode("modes");
     cfg.gamemode = modes.getSubNode(

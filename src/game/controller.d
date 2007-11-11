@@ -523,23 +523,8 @@ class ServerTeamMember : TeamMember {
         //take control over dying, so we can let them die on round end
         mWorm.delayedDeath = true;
         mWorm.gravestone = mTeam.graveStone;
-        Vector2f npos, tmp;
-        auto water_y = mEngine.waterOffset;
-        //first 10: minimum distance from water
-        //second 10: retry count
-        if (!mEngine.placeObject(water_y-10, 10, tmp, npos,
-            mWorm.physics.posp.radius))
-        {
-            //placement unsuccessful
-            //the original game blows a hole into the level at a random
-            //position, and then places a small bridge for the worm
-            //but for now... just barf and complain
-            npos = toVector2f(mEngine.gamelevel.offset
-                + mEngine.gamelevel.size / 2);
-            mTeam.parent.mLog("couldn't place worm!");
-        }
-        mWorm.setPos(npos);
-        mWorm.active = true;
+        //let Controller place the worm
+        mTeam.parent.placeOnLandscape(mWorm);
     }
 
     //returns if 0 points, i.e. returns true even if worm didn't commit yet
@@ -910,6 +895,9 @@ class GameController : GameLogicPublic {
         if (config.teams) {
             loadTeams(config.teams);
         }
+        if (config.levelobjects) {
+            loadLevelObjects(config.levelobjects);
+        }
 
         mTimePerRound = timeSecs(config.gamemode.getIntValue("roundtime",15));
         mHotseatSwitchTime = timeSecs(
@@ -1247,6 +1235,23 @@ class GameController : GameLogicPublic {
         mLog("placing worms done.");
     }
 
+    private void loadLevelObjects(ConfigNode objs) {
+        mLog("placing level objects");
+        foreach (ConfigNode sub; objs) {
+            auto mode = sub.getStringValue("mode", "unknown");
+            if (mode == "random") {
+                auto cnt = sub.getIntValue("count");
+                mLog("count %s type %s", cnt, sub["type"]);
+                for (int n = 0; n < cnt; n++) {
+                    placeOnLandscape(mEngine.createSprite(sub["type"]));
+                }
+            } else {
+                mLog("warning: unknown placing mode: '%s'", sub["mode"]);
+            }
+        }
+        mLog("done placing level objects");
+    }
+
     void selectWeapon(WeaponClass weaponId) {
         if (mCurrentTeam)
             mCurrentTeam.selectWeapon(weaponId);
@@ -1307,5 +1312,32 @@ class GameController : GameLogicPublic {
         //and destroy crate
         crate.stuffies = null;
         crate.collected();
+    }
+
+    //place anywhere on landscape
+    //returns success
+    //  must_place = if true, this must not return false
+    bool placeOnLandscape(GObjectSprite sprite, bool must_place = true) {
+        Vector2f npos, tmp;
+        auto water_y = mEngine.waterOffset;
+        //first 10: minimum distance from water
+        //second 10: retry count
+        if (!mEngine.placeObject(water_y-10, 10, tmp, npos,
+            sprite.physics.posp.radius))
+        {
+            //placement unsuccessful
+            //the original game blows a hole into the level at a random
+            //position, and then places a small bridge for the worm
+            //but for now... just barf and complain
+            auto level = mEngine.gamelevel;
+            npos = toVector2f(level.offset + level.size / 2);
+            mLog("couldn't place '%s'!", sprite);
+            if (!must_place)
+                return false;
+        }
+        mLog("placed '%s' at %s", sprite, npos);
+        sprite.setPos(npos);
+        sprite.active = true;
+        return true;
     }
 }
