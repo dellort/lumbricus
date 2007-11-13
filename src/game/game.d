@@ -703,6 +703,9 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     //determine round-active objects
     //just another loop over all GameObjects :(
     bool checkForActivity() {
+        bool quake = earthQuakeStrength() > 0;
+        if (quake)
+            return true;
         foreach (GameObject o; mObjects) {
             if (o.activity)
                 return true;

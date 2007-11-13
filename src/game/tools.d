@@ -6,6 +6,8 @@ import game.weapon;
 import game.worm;
 import utils.configfile;
 import utils.factory;
+import utils.time;
+import utils.vector2;
 
 import std.string : format;
 
@@ -55,21 +57,41 @@ class Tool : Shooter {
 }
 
 class Beamer : Tool {
+    private {
+        bool mStartBeaming;
+        Time mWhenStart;
+        Vector2f mDest;
+    }
+
     this(ToolClass b, WormSprite o) {
         super(b, o);
     }
 
     override void fire(FireInfo info) {
-        //if (active)
-          //  return; //while beaming
+        if (active)
+            return; //while beaming
         active = true;
-        mWorm.beamTo(info.pointto);
+        mDest = info.pointto;
+        //first play animation where worm talks into its communicator
+        engine.mLog("wait for beaming");
+        mStartBeaming = true;
+        mWhenStart = engine.gameTime.current +
+            weapon.animations[WeaponWormAnimations.Fire].get()
+            .getOneTimeDuration();
     }
 
     override void simulate(float deltaT) {
         super.simulate(deltaT);
-        if (!mWorm.isBeaming)
+        if (mStartBeaming) {
+            if (mWhenStart <= engine.gameTime.current) {
+                engine.mLog("start beaming");
+                mStartBeaming = false;
+                mWorm.beamTo(mDest);
+            }
+        } else if (!mWorm.isBeaming) {
             active = false;
+            engine.mLog("end beaming");
+        }
     }
 
     static this() {
@@ -107,5 +129,22 @@ class Jetpack : Tool {
 
     static this() {
         ToolsFactory.register!(typeof(this))("jetpack");
+    }
+}
+
+class Rope : Tool {
+    this(ToolClass b, WormSprite o) {
+        super(b, o);
+    }
+
+    override void fire(FireInfo info) {
+    }
+
+    override void simulate(float deltaT) {
+        super.simulate(deltaT);
+    }
+
+    static this() {
+        ToolsFactory.register!(typeof(this))("rope");
     }
 }

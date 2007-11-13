@@ -1,30 +1,44 @@
 module game.special_weapon;
 
 import game.game;
-import game.weapon;
 import game.gobject;
+import game.physic;
 import game.sprite;
+import game.weapon;
 import utils.configfile;
 import utils.log;
+import utils.time;
 
-class SpecialWeapon : WeaponClass {
+class AtomtestWeapon : WeaponClass {
+    float earthquakeStrength;
+    Time testDuration;
+    int waterRaise;
+
     this(GameEngine aengine, ConfigNode node) {
         super(aengine, node);
+        earthquakeStrength = node.getFloatValue("earthquake_strength");
+        testDuration = timeMsecs(node.getIntValue("test_duration_ms"));
+        waterRaise = node.getIntValue("water_raise");
     }
 
     //using SpecialShooter here leads to dmd lockup (at least with dsss)
     Shooter createShooter(GObjectSprite owner) {
-        return new SpecialShooter(this, owner, engine);
+        return new AtomtestShooter(this, owner, engine);
     }
 
     static this() {
-        WeaponClassFactory.register!(SpecialWeapon)("specialw_mc");
+        WeaponClassFactory.register!(AtomtestWeapon)("atomtest_mc");
     }
 }
 
-private class SpecialShooter : Shooter {
-    this(WeaponClass base, GObjectSprite a_owner, GameEngine engine) {
+private class AtomtestShooter : Shooter {
+    AtomtestWeapon base;
+    PhysicBase earthquake;
+    Time endtime;
+
+    this(AtomtestWeapon base, GObjectSprite a_owner, GameEngine engine) {
         super(base, a_owner, engine);
+        this.base = base;
     }
 
     bool activity() {
@@ -32,6 +46,19 @@ private class SpecialShooter : Shooter {
     }
 
     void fire(FireInfo info) {
-        gDefaultLog("do whatever you want");
+        active = true;
+        //start it hrhrhr
+        engine.raiseWater(base.waterRaise);
+        earthquake = new EarthQuakeDegrader(base.earthquakeStrength, 1.0f);
+        engine.physicworld.addBaseObject(earthquake);
+        endtime = engine.gameTime.current + base.testDuration;
+    }
+
+    override protected void simulate(float deltaT) {
+        super.simulate(deltaT);
+        if (engine.gameTime.current >= endtime) {
+            active = false;
+            earthquake.dead = true;
+        }
     }
 }

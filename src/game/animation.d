@@ -51,6 +51,9 @@ static this() {
     gAnimationLoadHandlers["worm"] = &loadWormAnimation;
     //same as above, but not looping
     gAnimationLoadHandlers["worm_noloop"] = &loadWormNoLoopAnimation;
+    //special case
+    gAnimationLoadHandlers["worm_noloop_backwards"] =
+        &loadWormNoLoopAnimationBack;
     //worm holding a weapon (with weapon-angle as param2)
     gAnimationLoadHandlers["worm_weapon"] = &loadWormWeaponAnimation;
     //worm holding a weapon that has no aiming animation
@@ -96,7 +99,8 @@ struct AnimationSection {
     //loop: replay animation on end, else stop on last frame (or go to next
     //      animation/section if there's one)
     //loop_reverse: play backwards on each 2nd loop (only used if loop is true)
-    bool loop = true, loop_reverse = false;
+    //backwards: animations backwards
+    bool loop = true, loop_reverse = false, backwards = false;
 
     //method to convert param values into index values
     ParamConvertDelegate[2] paramConvert
@@ -184,6 +188,9 @@ private:
         //loop_reverse is only used when loop is true
         bool loop, loop_reverse;
 
+        //animations backwards in time (but not section order, lol)
+        bool backwards;
+
         //per frame and per loop
         int frameTimeMs, lengthMs;
         //from the time dependant count field
@@ -232,6 +239,7 @@ private:
             to.frameTimeMs = section.frameTimeMs;
             to.loop = section.loop;
             to.loop_reverse = to.loop ? section.loop_reverse : false;
+            to.backwards = section.backwards;
             to.convertParam[] = section.paramConvert;
             to.from[] = section.AB;
             to.Poffset[] = section.paramOffset;
@@ -440,7 +448,7 @@ public:
             if (mTimeMs < mCurrentSection.lengthMs) {
                 int nframe = mTimeMs / mCurrentSection.frameTimeMs;
                 assert(nframe < mCurrentSection.frameCount);
-                if (mLoopBack) { //play backwards
+                if (mLoopBack ^ mCurrentSection.backwards) { //play backwards
                     nframe = mCurrentSection.frameCount - nframe - 1;
                 }
                 assert(nframe < mCurrentSection.frameCount);
@@ -631,7 +639,13 @@ private AnimationData loadWormAnimation(ConfigNode node) {
     return doLoadWormAnimation(node, true);
 }
 
-private AnimationData doLoadWormAnimation(ConfigNode node, bool loop) {
+private AnimationData loadWormNoLoopAnimationBack(ConfigNode node) {
+    return doLoadWormAnimation(node, true, true);
+}
+
+private AnimationData doLoadWormAnimation(ConfigNode node, bool loop,
+    bool backwards = false)
+{
     AnimationData res;
     loadFooImages(res, node, 3);
 
@@ -639,6 +653,7 @@ private AnimationData doLoadWormAnimation(ConfigNode node, bool loop) {
     res.sections[0].loop = loop;
     res.sections[0].loop_reverse = true;
     res.sections[0].mirror_Y_B = true;
+    res.sections[0].backwards = backwards;
 
     return res;
 }

@@ -41,7 +41,7 @@ class WormSprite : GObjectSprite {
         float mWeaponMove = 0;
 
         //beam destination, only valid while state is st_beaming
-        Vector2f mBeamerDestination;
+        WormSprite mBeamerClone;
 
         //selected weapon
         Shooter mWeapon;
@@ -52,6 +52,7 @@ class WormSprite : GObjectSprite {
         bool mIsDead;
 
         AnimationResource mGravestone;
+        AnimationResource mUsingWeapon;
     }
 
     float weaponAngle() {
@@ -129,7 +130,9 @@ class WormSprite : GObjectSprite {
         if (currentState is wsc.st_weapon && mWeapon) {
             //return only if there's any specific weapon animation
             //else, show normal worm
-            auto spec = mWeapon.weapon.animations[WeaponWormAnimations.Arm];
+            auto arm = mWeapon.weapon.animations[WeaponWormAnimations.Arm];
+            auto fire = mWeapon.weapon.animations[WeaponWormAnimations.Fire];
+            auto spec = mWeapon.active ? (fire?fire:arm) : arm;
             if (spec)
                 return spec;
             return super.getAnimationForState(wsc.st_stand);
@@ -162,12 +165,18 @@ class WormSprite : GObjectSprite {
     }
 
     void beamTo(Vector2f npos) {
-        if (currentState !is wsc.st_stand && currentState !is wsc.st_weapon)
-            return; //only can beam when standing
+        //if (!isSitting())
+        //    return; //only can beam when standing
         engine.mLog("beam to: %s", npos);
-        mBeamerDestination = npos;
-        //xxx: check and lock destination, also play animation at destination!
+        //xxx: check and lock destination
         setState(wsc.st_beaming);
+        //play animation at destination
+        //this is rather a hack: actually clone the worm, lol
+        mBeamerClone = wsc.createSprite();
+        //copy some properties
+        mBeamerClone.setPos(npos);
+        mBeamerClone.setState(wsc.st_reverse_beaming);
+        mBeamerClone.active = true;
     }
 
     //overwritten from GObject.simulate()
@@ -254,8 +263,10 @@ class WormSprite : GObjectSprite {
             }
         }
 
-        if (from is wsc.st_beaming) {
-            setPos(mBeamerDestination);
+        if (from is wsc.st_beaming && mBeamerClone) {
+            setPos(mBeamerClone.physics.pos);
+            mBeamerClone.exterminate();
+            mBeamerClone = null;
         }
 
         if (to is wsc.st_fly) {
@@ -265,17 +276,16 @@ class WormSprite : GObjectSprite {
         }
     }
 
-    void fireWeapon() {
-        assert(false);
-    }
-
     bool jetpackActivated() {
         return currentState is wsc.st_jet;
     }
 
     //activate = activate/deactivate the jetpack
     void activateJetpack(bool activate) {
-        StaticStateInfo wanted = activate ? wsc.st_jet : wsc.st_stand;
+        if (activate == jetpackActivated())
+            return;
+
+        StaticStateInfo wanted = activate ? wsc.st_jet : wsc.st_fly;
         if (!activate) {
             physics.selfForce = Vector2f(0);
         }
@@ -284,6 +294,10 @@ class WormSprite : GObjectSprite {
 
     bool isStanding() {
         return currentState is wsc.st_stand;
+    }
+
+    bool isSitting() {
+        return isStanding() || currentState is wsc.st_weapon;
     }
 
     override protected void physUpdate() {
@@ -321,7 +335,7 @@ class WormSpriteClass : GOSpriteClass {
     Vector2f jumpStrength;
 
     StaticStateInfo st_stand, st_fly, st_walk, st_jet, st_weapon, st_dead,
-        st_die, st_drowning, st_beaming;
+        st_die, st_drowning, st_beaming, st_reverse_beaming;
 
     this(GameEngine e, char[] r) {
         super(e, r);
@@ -357,6 +371,7 @@ class WormSpriteClass : GOSpriteClass {
         st_die = findState("die");
         st_drowning = findState("drowning");
         st_beaming = findState("beaming");
+        st_reverse_beaming = findState("reverse_beaming");
     }
     override WormSprite createSprite() {
         return new WormSprite(engine, this);

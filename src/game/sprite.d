@@ -178,14 +178,19 @@ class GObjectSprite : GameObject {
     //do a (possibly) soft transition to the new state
     //explictely no-op if same state as currently is set.
     //can refuse state transition
-    void setState(StaticStateInfo nstate) {
+    //  for_end = used internally (with state.onAnimationEnd)
+    void setState(StaticStateInfo nstate, bool for_end = false) {
         assert(nstate !is null);
 
         if (currentState is nstate)
             return;
 
-        if (currentState.noleave && nstate !is currentState.onAnimationEnd)
+        if (currentState.noleave && !for_end)
             return;
+
+        if (for_end) {
+            assert(nstate is currentState.onAnimationEnd);
+        }
 
         engine.mLog("state %s -> %s", currentState.name, nstate.name);
 
@@ -238,7 +243,7 @@ class GObjectSprite : GameObject {
             {
                 engine.mLog("state transition because of animation end");
                 //time to change; the setState code will reset the animation
-                setState(currentState.onAnimationEnd);
+                setState(currentState.onAnimationEnd, true);
             }
         }
         if (!mWaterUpdated) {

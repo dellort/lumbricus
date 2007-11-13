@@ -120,6 +120,12 @@ private class ProjectileThrower : Shooter {
         //set lastSpawn? doesn't seem to be needed
         //make active, so projectiles will be shot
         active = true;
+
+        //if it has an extra firing, let the owner update it
+        //(cf. Worm.getAnimationForState())
+        if (owner && weapon.animations[WeaponWormAnimations.Fire]) {
+            owner.updateAnimation();
+        }
     }
 }
 

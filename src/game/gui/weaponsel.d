@@ -38,7 +38,7 @@ class WeaponSelWindow : Container {
                 auto res = w.type.value - this.type.value;
                 //if of same value compare untranslated names instead
                 if (res == 0)
-                    res = cmp(w.type.name, this.type.name);
+                    res = cmp(this.type.name, w.type.name);
                 return res;
             }
         }
