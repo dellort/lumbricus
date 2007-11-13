@@ -85,13 +85,6 @@ class ServerMemberControl : TeamMemberControl {
         }
     }
 
-    void jetpack(bool active) {
-        auto m = activemember;
-        if (m) {
-            m.setJetpack(active);
-        }
-    }
-
     void setMovement(Vector2i dir) {
         auto m = activemember;
         if (m) {
@@ -609,13 +602,6 @@ class ServerTeamMember : TeamMember {
         return WalkState.walk;
     }
 
-    void setJetpack(bool state) {
-        if (!isControllable)
-            return;
-        mWorm.activateJetpack(state);
-        wormAction();
-    }
-
     WeaponItem currentWeapon() {
         return mCurrentWeapon;
     }
@@ -666,7 +652,8 @@ class ServerTeamMember : TeamMember {
 
         auto shooter = worm.shooter;
 
-        if (!worm.weaponDrawn || !worm.shooter)
+        //in jetpack mode, weapon still can be active, but not "drawn"
+        if (/*!worm.weaponDrawn ||*/ !worm.shooter)
             return; //go away
 
         mTeam.parent.mLog("fire: %s", shooter.weapon.name);
@@ -690,10 +677,14 @@ class ServerTeamMember : TeamMember {
         assert(mCurrentWeapon !is null);
         mCurrentWeapon.decrease();
         mTeam.parent.updateWeaponStats(this);
+        /+ not valid anymore (weapon still can be active)
         if (!mCurrentWeapon.haveAtLeastOne())
             //nothing left? put away
             selectWeapon(cast(WeaponItem)null);
+        +/
         //xxx select next weapon when current is empty... oh sigh
+        //xxx also, select current weapon if we still have one, but weapon is
+        //    undrawn! (???)
     }
 
     Time lastAction() {

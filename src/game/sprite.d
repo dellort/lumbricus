@@ -154,8 +154,9 @@ class GObjectSprite : GameObject {
 
     //force position
     void setPos(Vector2f pos) {
-        physics.pos = pos;
-        physUpdate();
+        physics.setPos(pos, false);
+        //physUpdate();
+        physics.needUpdate();
     }
 
     //do as less as necessary to force a new state

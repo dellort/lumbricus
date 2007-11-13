@@ -34,6 +34,7 @@ import std.outbuffer;
 //these imports register classes in a factory on module initialization
 import game.projectile;
 import game.special_weapon;
+import game.tools;
 
 class GameTask : Task {
     private {

@@ -49,6 +49,8 @@ static this() {
     //gAnimationLoadHandlers["twosided"] = &loadTwoSidedAnimation;
     //normal worm, standing or walking
     gAnimationLoadHandlers["worm"] = &loadWormAnimation;
+    //same as above, but not looping
+    gAnimationLoadHandlers["worm_noloop"] = &loadWormNoLoopAnimation;
     //worm holding a weapon (with weapon-angle as param2)
     gAnimationLoadHandlers["worm_weapon"] = &loadWormWeaponAnimation;
     //worm holding a weapon that has no aiming animation
@@ -621,12 +623,20 @@ private void loadFooImages(inout AnimationData data, ConfigNode node, int count)
     }
 }
 
+private AnimationData loadWormNoLoopAnimation(ConfigNode node) {
+    return doLoadWormAnimation(node, false);
+}
+
 private AnimationData loadWormAnimation(ConfigNode node) {
+    return doLoadWormAnimation(node, true);
+}
+
+private AnimationData doLoadWormAnimation(ConfigNode node, bool loop) {
     AnimationData res;
     loadFooImages(res, node, 3);
 
     res.sections[0].paramConvert[0] = &paramConvertStep3;
-    res.sections[0].loop = true;
+    res.sections[0].loop = loop;
     res.sections[0].loop_reverse = true;
     res.sections[0].mirror_Y_B = true;
 

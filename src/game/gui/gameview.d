@@ -8,6 +8,7 @@ import game.animation;
 import game.gamepublic;
 import game.clientengine;
 import game.gui.camera;
+import game.weapon;
 import gui.widget;
 import gui.container;
 import gui.label;
@@ -338,6 +339,26 @@ class GameView : Container, TeamMemberControlCallback {
         return true;
     }
 
+    //find a WeaponClass of the weapon named "name" in the current team's
+    //weapon-set (or return null)
+    private WeaponClass findWeapon(char[] name) {
+        auto team = mController.getActiveTeam();
+        if (!team)
+            return null;
+        WeaponList weapons = team.getWeapons();
+        foreach (w; weapons) {
+            if (w.type.name == name) {
+                return w.available ? w.type : null;
+            }
+        }
+        return null;
+    }
+
+    //fire current weapon
+    private void doFire() {
+        mController.weaponFire(1.0f);
+    }
+
     private bool onKeyDown(char[] bind, KeyInfo info) {
         switch (bind) {
             case "selectworm": {
@@ -368,18 +389,34 @@ class GameView : Container, TeamMemberControlCallback {
                 mController.jump(JumpMode.normal);
                 return true;
             }
-            case "jetpack": {
-                mController.jetpack(mController.walkState()
-                    != WalkState.jetpackFly);
-                return true;
-            }
             case "fire": {
-                mController.weaponFire(1.0f);
+                doFire();
                 return true;
             }
             default:
 
         }
+
+        //try if it's a wapon shortcut
+        //(oh lol, kind of unclean?)
+        const cWShortcut = "weapon_";
+        auto len = cWShortcut.length;
+        if (bind.length >= len && bind[0..len] == cWShortcut) {
+            auto wcname = bind[len..$];
+            if (mController.currentWeapon &&
+                mController.currentWeapon.name == wcname)
+            {
+                //already selected, fire (possibly again)
+                doFire();
+            } else {
+                //draw the weapon
+                //xxx what about instant fire?
+                //    would have to wait until weapon ready
+                WeaponClass c = findWeapon(wcname);
+                mController.weaponDraw(c);
+            }
+        }
+
         //nothing found
         return false;
     }

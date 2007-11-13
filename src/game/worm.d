@@ -40,6 +40,9 @@ class WormSprite : GObjectSprite {
         float mWeaponAngle = 0;
         float mWeaponMove = 0;
 
+        //beam destination, only valid while state is st_beaming
+        Vector2f mBeamerDestination;
+
         //selected weapon
         Shooter mWeapon;
 
@@ -124,12 +127,17 @@ class WormSprite : GObjectSprite {
 
     protected AnimationResource getAnimationForState(StaticStateInfo info) {
         if (currentState is wsc.st_weapon && mWeapon) {
-            return mWeapon.weapon.animations[WeaponWormAnimations.Arm];
-        } else if (currentState is wsc.st_dead) {
-            return mGravestone;
-        } else {
-            return super.getAnimationForState(info);
+            //return only if there's any specific weapon animation
+            //else, show normal worm
+            auto spec = mWeapon.weapon.animations[WeaponWormAnimations.Arm];
+            if (spec)
+                return spec;
+            return super.getAnimationForState(wsc.st_stand);
         }
+        if (currentState is wsc.st_dead) {
+            return mGravestone;
+        }
+        return super.getAnimationForState(info);
     }
 
     //movement for walking/jetpack
@@ -149,6 +157,19 @@ class WormSprite : GObjectSprite {
         }
     }
 
+    bool isBeaming() {
+        return currentState is wsc.st_beaming;
+    }
+
+    void beamTo(Vector2f npos) {
+        if (currentState !is wsc.st_stand && currentState !is wsc.st_weapon)
+            return; //only can beam when standing
+        engine.mLog("beam to: %s", npos);
+        mBeamerDestination = npos;
+        //xxx: check and lock destination, also play animation at destination!
+        setState(wsc.st_beaming);
+    }
+
     //overwritten from GObject.simulate()
     override void simulate(float deltaT) {
         super.simulate(deltaT);
@@ -163,6 +184,10 @@ class WormSprite : GObjectSprite {
             param2 = cast(int)(mWeaponAngle/PI*180.0f);
             updateAnimation();
         }
+        //if shooter dies, undraw weapon
+        //xxx doesn't work yet, shooter starts as active=false (wtf)
+        //if (mWeapon && !mWeapon.active)
+          //  shooter = null;
     }
 
     void jump() {
@@ -195,6 +220,14 @@ class WormSprite : GObjectSprite {
 
     //xxx: clearify relationship between shooter and so on
     void shooter(Shooter sh) {
+        //xxx: haha, not sure if this is right
+        //is to disallow interrupting i.e. for guns
+        if (mWeapon) {
+            if (mWeapon.active)
+                mWeapon.interruptFiring();
+            if (mWeapon.active)
+                return; //interrupting didn't work
+        }
         mWeapon = sh;
         if (!sh) {
             drawWeapon(false);
@@ -219,6 +252,16 @@ class WormSprite : GObjectSprite {
                 //explosion!
                 engine.explosionAt(physics.pos, wsc.suicideDamage, this);
             }
+        }
+
+        if (from is wsc.st_beaming) {
+            setPos(mBeamerDestination);
+        }
+
+        if (to is wsc.st_fly) {
+            //whatever, when you beam the worm into the air
+            //xxx replace by propper handing in physics.d
+            physics.doUnglue();
         }
     }
 
@@ -278,7 +321,7 @@ class WormSpriteClass : GOSpriteClass {
     Vector2f jumpStrength;
 
     StaticStateInfo st_stand, st_fly, st_walk, st_jet, st_weapon, st_dead,
-        st_die, st_drowning;
+        st_die, st_drowning, st_beaming;
 
     this(GameEngine e, char[] r) {
         super(e, r);
@@ -313,6 +356,7 @@ class WormSpriteClass : GOSpriteClass {
         st_dead = findState("dead");
         st_die = findState("die");
         st_drowning = findState("drowning");
+        st_beaming = findState("beaming");
     }
     override WormSprite createSprite() {
         return new WormSprite(engine, this);

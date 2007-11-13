@@ -76,6 +76,13 @@ class PhysicBase {
     public void delegate() onUpdate;
     public void delegate() onDie;
 
+    //called when simulation is done and this.dead was true
+    //must invoke onDie if it !is null
+    void doDie() {
+        if (onDie)
+            onDie();
+    }
+
     //feedback to other parts of the game
     protected void doUpdate() {
         if (onUpdate) {
@@ -203,7 +210,43 @@ class PhysicObject : PhysicBase {
         collision = world.findCollisionID(mPosp.collisionID, true);
     }
 
-    Vector2f pos; //pixels
+    private Vector2f mPos; //pixels
+
+    final Vector2f pos() {
+        return mPos;
+    }
+
+    MoveHandler moveHandler;
+
+    //(assert validity)
+    private void checkHandler() {
+        if (moveHandler)
+            assert(moveHandler.handledObject is this);
+    }
+
+    //set new position
+    //  correction = true: small fixup of the position (i.e. collision handling)
+    //  correction = false: violent reset of the position (i.e. beamers)
+    final void setPos(Vector2f npos, bool correction) {
+        checkHandler();
+        if (moveHandler) {
+            moveHandler.setPosition(npos, correction);
+        } else {
+            mPos = npos;
+        }
+    }
+
+    //move the object by this vector
+    //the object might modify the vector or so on its own (ropes do that)
+    final void move(Vector2f delta) {
+        checkHandler();
+        if (moveHandler) {
+            moveHandler.doMove(delta);
+        } else {
+            mPos += delta;
+        }
+    }
+
     //in pixels per second, readonly for external code!
     Vector2f velocity = {0,0};
 
@@ -256,7 +299,7 @@ class PhysicObject : PhysicBase {
 
     //the worm couldn't adhere to the rock surface anymore
     //called from the PhysicWorld simulation loop only
-    private void doUnglue() {
+    /+private+/ void doUnglue() {
         version(PhysDebug) world.mLog("unglue object %s", this);
         //he flies away! arrrgh!
         isGlued = false;
@@ -330,6 +373,11 @@ class PhysicObject : PhysicBase {
         world.mObjects.remove(this);
     }
 
+    override void doDie() {
+        //oh oops
+        super.doDie();
+    }
+
     void setWalking(Vector2f dir) {
         walkingTime = 0;
         walkTo = dir;
@@ -398,13 +446,13 @@ class PhysicObject : PhysicBase {
                         if (first) {
                             //even first tested location => most bottom, fall
                             world.mLog("walk: fall-bottom");
-                            pos = npos;
+                            mPos = npos;
                             doUnglue();
                         } else {
                             world.mLog("walk: bottom at %s", y);
                             //walk to there...
                             npos.y += y;
-                            pos = npos;
+                            mPos = npos;
                         }
 
                         //check worm direction...
@@ -435,11 +483,22 @@ class PhysicObject : PhysicBase {
     }
 }
 
+interface MoveHandler {
+    //object which is handled by this object
+    PhysicObject handledObject();
+    //move an object
+    void doMove(Vector2f delta);
+    //set position (i.e. beam or when calliding)
+    //  npos = new requested position
+    //  correct_only = just a small correction to unstuck objects which collided
+    void setPosition(Vector2f npos, bool correct_only);
+}
+
 //handles an object hanging on a rope and the objects for the rope itself,
 //including movement of that stuff etc.
 //xxx: used directly by PhysicObject and PhysicWorld
 //     maybe should be abstracted out (together with walking-code)
-class RopeHandler : PhysicBase {
+class RopeHandler : PhysicBase, MoveHandler {
     //max. length of the rope (=> number of segments)
     const cRopeMaxLength = 300;
     //size of a segment (smaller is better and slower)
@@ -468,6 +527,10 @@ class RopeHandler : PhysicBase {
         }
     }
 
+    PhysicObject handledObject() {
+        return dead ? null : shooter;
+    }
+
     //call dg for each line segment
     void iterateSegments(void delegate(Vector2f start, Vector2f end) dg) {
         foreach (s; ropeSegments) {
@@ -478,8 +541,12 @@ class RopeHandler : PhysicBase {
     override void simulate(float deltaT) {
         super.simulate(deltaT);
 
-        if (dead)
+        assert(!dead);
+
+        if (shooter.dead || anchor.dead) {
+            dead = true;
             return;
+        }
 
         if (isShooting) {
             ropeSegments.length = 1;
@@ -563,19 +630,40 @@ class RopeHandler : PhysicBase {
     //xxx: or what should happen with the length? I fail at physics
     void doMove(Vector2f delta) {
         auto ropedir = ropeSegments[$-1].direction;
-        shooter.pos += ropedir.orthogonal*(ropedir*delta);
+        shooter.mPos += ropedir.orthogonal*(ropedir*delta);
+    }
+
+    //when position is corrected
+    //xxx: possibly add a delta-vector to keep the rope length??
+    //  also, break the rope if the new position is too far away
+    //  (maybe could happen with beamers or so)
+    void setPosition(Vector2f npos, bool correction) {
+        shooter.mPos = npos;
+        //break rope if complete reset of position
+        if (!correction)
+            dead = true;
     }
 
     //create a rope from this object
     this(PhysicObject from, float angle) {
+        from.moveHandler = this;
         shooter = from;
         anchor = new PhysicObject();
         auto dir = Vector2f.fromPolar(1, angle);
-        anchor.pos = dir*(anchor.posp.radius+shooter.posp.radius);
+        anchor.setPos(dir*(anchor.posp.radius+shooter.posp.radius), false);
         anchor.velocity = dir*10;//hm, speed
         from.world.add(anchor);
         //anchor is flying and searching for ground
         isShooting = true;
+    }
+
+    override void doDie() {
+        if (shooter && shooter.moveHandler is this)
+            shooter.moveHandler = null;
+        anchor.dead = true;
+        //just in case
+        isAttached = isShooting = false;
+        super.onDie();
     }
 }
 
@@ -1037,7 +1125,7 @@ class PhysicWorld {
                 o.doUnglue();
             }
 
-            o.pos += vel * deltaT;
+            o.move(vel * deltaT);
             o.needUpdate();
             o.checkRotation();
         }
@@ -1083,8 +1171,8 @@ class PhysicWorld {
 
                 //assert(fabs(nd.length()-1.0f) < 0.001);
 
-                me.pos -= nd * (0.5f * gap);
-                other.pos += nd * (0.5f * gap);
+                me.setPos(me.pos - nd * (0.5f * gap), true);
+                other.setPos(me.pos + nd * (0.5f * gap), true);
 
                 float vca = me.velocity * nd;
                 float vcb = other.velocity * nd;
@@ -1178,7 +1266,8 @@ class PhysicWorld {
                     me.checkGroundAngle(normalsum);
 
                     //set new position ("should" fit)
-                    me.pos = me.pos + normalsum.mulEntries(me.posp.fixate);
+                    me.setPos(me.pos + normalsum.mulEntries(me.posp.fixate),
+                        true);
 
                     //direction the worm is flying to
                     auto flydirection = me.velocity.normal;
@@ -1236,8 +1325,7 @@ class PhysicWorld {
                 obj.doUpdate();
             }
             if (obj.dead) {
-                if (obj.onDie)
-                    obj.onDie();
+                obj.doDie();
                 obj.doremove();
             }
             obj = next;

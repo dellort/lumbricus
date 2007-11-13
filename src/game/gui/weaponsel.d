@@ -19,7 +19,7 @@ import utils.array;
 import utils.misc;
 import utils.vector2;
 
-import std.string : format;
+import std.string : format, cmp;
 
 class WeaponSelWindow : Container {
     private {
@@ -35,7 +35,11 @@ class WeaponSelWindow : Container {
             }
 
             int opCmp(Weapon* w) {
-                return w.type.value - this.type.value;
+                auto res = w.type.value - this.type.value;
+                //if of same value compare untranslated names instead
+                if (res == 0)
+                    res = cmp(w.type.name, this.type.name);
+                return res;
             }
         }
         //kind of SICK

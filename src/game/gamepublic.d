@@ -240,6 +240,11 @@ struct WeaponListItem {
     int quantity;
 
     const int QUANTITY_INFINITE = int.max;
+
+    ///return if a weapon is available
+    bool available() {
+        return quantity > 0;
+    }
 }
 
 interface Team {
@@ -288,12 +293,6 @@ interface TeamMemberControl {
 
     ///make the active worm jump
     void jump(JumpMode mode);
-
-    ///set jetpack mode
-    //xxx making this a function assumes that the jetpack is not a weapon
-    //xxx NOTE: we should have worm "vehicles" (weapons which control worm-
-    //          movement, i.e. jetpack, beamer, rope, bengee, glider.)
-    void jetpack(bool active);
 
     ///set the movement vector for the active worm
     ///only the sign counts, speed is always fixed
