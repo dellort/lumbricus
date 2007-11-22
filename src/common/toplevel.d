@@ -24,7 +24,7 @@ import utils.log;
 import utils.output;
 import utils.mylist;
 import utils.mybox;
-import perf = std.perf;
+import utils.perf;
 import gc = std.gc;
 import std.stream : File, FileMode;
 
@@ -51,8 +51,58 @@ private:
     bool mShowKeyDebug = false;
     bool mKeyNameIt = false;
 
+    PerfTimer mTaskTime, mGuiDrawTime, mGuiFrameTime;
+    PerfTimer mFrameTime;
+
+    Time[PerfTimer] mLastTimerValues;
+
+    const cTimerStatsUpdateTimeMs = 1000;
+
+    Time mLastTimerStatsUpdate;
+    int mLastTimerStatsFrames;
+    bool mLastTimerInitialized;
+
+    void onFrameEnd() {
+        mFrameTime.stop();
+
+        Time cur = timeCurrentTime();
+        if (!mLastTimerInitialized) {
+            mLastTimerStatsUpdate = cur;
+            mLastTimerStatsFrames = 1;
+        }
+        if (cur + timeMsecs(cTimerStatsUpdateTimeMs) > mLastTimerStatsUpdate) {
+            mLastTimerStatsUpdate = cur;
+            int div = mLastTimerStatsFrames;
+            mLastTimerStatsFrames = 0;
+            foreach (PerfTimer cnt; globals.timers) {
+                assert(!cnt.active, "timers must be off across frames");
+                mLastTimerValues[cnt] = cnt.time() / div;
+                cnt.reset();
+            }
+        }
+        mLastTimerStatsFrames++;
+
+        mFrameTime.start();
+    }
+
+    void cmdShowTimers(MyBox[] args, Output write) {
+        write.writefln("Timers:");
+        foreach (char[] name, PerfTimer cnt; globals.timers) {
+            Time* pt = cnt in mLastTimerValues;
+            char[] s = "<unknown>";
+            if (pt)
+                s = format("%s", *pt);
+            write.writefln("   %s: %s", name, s);
+        }
+    }
+
     public this() {
         auto framework = getFramework();
+
+        mTaskTime = globals.newTimer("tasks");
+        mGuiDrawTime = globals.newTimer("gui_draw");
+        mGuiFrameTime = globals.newTimer("gui_frame");
+        mFrameTime = globals.newTimer("frame_time");
 
         mGui = new GuiMain(framework.screen.size);
 
@@ -76,6 +126,7 @@ private:
         framework.onKeyUp = &onKeyUp;
         framework.onMouseMove = &onMouseMove;
         framework.onVideoInit = &onVideoInit;
+        framework.onFrameEnd = &onFrameEnd;
 
         //do it yourself... (initial event)
         onVideoInit(false);
@@ -157,6 +208,9 @@ private:
 
         globals.cmdLine.registerCommand("release_caches", &cmdReleaseCaches,
             "Release caches (temporary data)", []);
+
+        globals.cmdLine.registerCommand("times", &cmdShowTimers,
+            "List timers", []);
 
         //more like a test
         globals.cmdLine.registerCommand("widget_tree", &cmdWidgetTree, "-");
@@ -382,16 +436,14 @@ private:
     }
 
     private void testGC(MyBox[] args, Output write) {
-        auto counter = new perf.PerformanceCounter();
+        auto counter = new PerfTimer();
         gc.GCStats s1, s2;
         gc.getStats(s1);
         counter.start();
         gc.fullCollect();
         counter.stop();
         gc.getStats(s2);
-        Time t;
-        t.musecs = counter.microseconds;
-        write.writefln("GC fullcollect: %s, free'd %s KB", t,
+        write.writefln("GC fullcollect: %s, free'd %s KB", counter.time,
             ((s1.usedsize - s2.usedsize) + 512) / 1024);
     }
     private void testGCstats(MyBox[] args, Output write) {
@@ -410,11 +462,17 @@ private:
         //xxx move?
         globals.gameTimeAnimations.update();
 
+        mTaskTime.start();
         taskManager.doFrame();
+        mTaskTime.stop();
 
+        mGuiFrameTime.start();
         mGui.doFrame(timeCurrentTime());
+        mGuiFrameTime.stop();
 
+        mGuiDrawTime.start();
         mGui.draw(c);
+        mGuiDrawTime.stop();
     }
 
     private void onKeyPress(KeyInfo infos) {

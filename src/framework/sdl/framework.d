@@ -15,6 +15,7 @@ import derelict.sdl.ttf;
 import framework.sdl.keys;
 import math = std.math;
 import utils.time;
+import utils.perf;
 import utils.drawing;
 import utils.misc : min, max;
 
@@ -24,6 +25,7 @@ debug import std.stdio;
 
 debug {
     //version = MeasureImgLoadTime;
+    version = DrawStats;
 }
 
 version (MeasureImgLoadTime) {
@@ -594,7 +596,9 @@ public class SDLCanvas : Canvas {
         //if (!src)
         //    src = sdls.mReal;
         assert(src !is null);
+        version(DrawStats) gFrameworkSDL.mDrawTime.start();
         int res = SDL_BlitSurface(src, &rc, sdlsurface.mReal, &destrc);
+        version(DrawStats) gFrameworkSDL.mDrawTime.stop();
         assert(res == 0);
     }
 
@@ -663,8 +667,10 @@ public class SDLCanvas : Canvas {
             rect.y = p1.y;
             rect.w = p2.x-p1.x;
             rect.h = p2.y-p1.y;
+            version(DrawStats) gFrameworkSDL.mDrawTime.start();
             int res = SDL_FillRect(sdlsurface.mReal, &rect,
                 sdlsurface.colorToSDLColor(color));
+            version(DrawStats) gFrameworkSDL.mDrawTime.stop();
             assert(res == 0);
         }
     }
@@ -843,6 +849,10 @@ public class FrameworkSDL : Framework {
 
     private SoundMixer mSoundMixer;
 
+    //hurhurhur
+    private PerfTimer mDrawTime, mClearTime, mFlipTime, mInputTime;
+    private PerfTimer[char[]] mTimers;
+
     //return a surface with unspecified size containing this color
     //(used for drawing alpha blended rectangles)
     private Texture insanityCache(Color c) {
@@ -912,6 +922,20 @@ public class FrameworkSDL : Framework {
         registerCacheReleaser(&releaseInsanityCache);
 
         setCaption("<no caption>");
+
+        //for some worthless statistics...
+        void timer(out PerfTimer tmr, char[] name) {
+            tmr = new PerfTimer;
+            mTimers[name] = tmr;
+        }
+        timer(mDrawTime, "fw_draw");
+        timer(mClearTime, "fw_clear");
+        timer(mFlipTime, "fw_flip");
+        timer(mInputTime, "fw_input");
+    }
+
+    override public PerfTimer[char[]] timers() {
+        return mTimers;
     }
 
     package bool useGL() {
@@ -1025,13 +1049,17 @@ public class FrameworkSDL : Framework {
 
     protected void run_fw() {
         // process events
+        mInputTime.start();
         input();
+        mInputTime.stop();
 
         // draw to the screen
         render();
 
         //TODO: Software backbuffer
+        mFlipTime.start();
         SDL_Flip(mScreen);
+        mFlipTime.stop();
 
         // yield the rest of the timeslice
         SDL_Delay(0);
@@ -1118,7 +1146,9 @@ public class FrameworkSDL : Framework {
     }
 
     private void render() {
+        mClearTime.start();
         SDL_FillRect(mScreen, null, mScreenSurface.colorToSDLColor(clearColor));
+        mClearTime.stop();
         Canvas c = screen.startDraw();
         if (onFrame) {
                 onFrame(c);

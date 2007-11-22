@@ -6,6 +6,7 @@ public import utils.rect2;
 public import framework.event;
 public import framework.sound;
 import utils.time;
+import utils.perf;
 import framework.font;
 import conv = std.conv;
 import str = std.string;
@@ -263,6 +264,8 @@ public class Framework {
     //least time per frame; for fixed framerate (0 to disable)
     private static Time mTimePerFrame;
 
+    private Time mLastFrameTime;
+
     //another singelton
     private FontManager mFontManager;
     private FileSystem mFilesystem;
@@ -434,6 +437,15 @@ public class Framework {
             if (diff > timeSecs(0)) {
                 sleepTime(diff);
             }
+
+            //real frame time
+            Time cur = getCurrentTime();
+            mLastFrameTime = cur - curtime;
+
+            //it's a hack!
+            //used by toplevel.d
+            if (onFrameEnd)
+                onFrameEnd();
 
             mFPSFrameCount++;
         }
@@ -690,6 +702,14 @@ public class Framework {
     public abstract void cursorVisible(bool v);
     public abstract bool cursorVisible();
 
+    public PerfTimer[char[]] timers() {
+        return null;
+    }
+
+    Time lastFrameTime() {
+        return mLastFrameTime;
+    }
+
     /// executed when receiving quit event from framework
     /// return false to abort quit
     public bool delegate() onTerminate;
@@ -707,6 +727,9 @@ public class Framework {
     /// Event raised on initialization (before first onFrame) and when the
     /// screen size or format changes.
     public void delegate(bool depth_only) onVideoInit;
+
+    /// Called after all work for a frame is done
+    public void delegate() onFrameEnd;
 }
 
 /// Map key combinations to IDs (strings).

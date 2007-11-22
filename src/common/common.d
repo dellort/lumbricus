@@ -9,6 +9,7 @@ import utils.configfile;
 import utils.log, utils.output;
 import utils.misc;
 import utils.path;
+import utils.perf;
 import common.resources;
 import std.stream;
 
@@ -26,6 +27,10 @@ class Common {
     CommandLine cmdLine;
     ConfigNode anyConfig;
     Resources resources;
+
+    //high resolution timers which are updated each frame, or so
+    //toplevel.d will reset them all!
+    PerfTimer[char[]] timers;
 
     private Log mLogConf;
 
@@ -49,6 +54,11 @@ class Common {
         log = registerLog("common");
 
         framework = fw;
+
+        //copy the stupid timers
+        foreach (char[] name, PerfTimer cnt; fw.timers) {
+            timers[name] = cnt;
+        }
 
         resources = new Resources();
 
@@ -154,6 +164,12 @@ class Common {
             assert(mLogConf !is null);
         }
         mLogConf("%s", log);
+    }
+
+    public PerfTimer newTimer(char[] name) {
+        auto t = new PerfTimer();
+        timers[name] = t;
+        return t;
     }
 }
 

@@ -471,7 +471,7 @@ public class CommandLine {
     {
         auto plen = mCommandPrefix.length;
         auto line = mCurline;
-        if (line[0..plen] == mCommandPrefix) {
+        if (line.length >= plen && line[0..plen] == mCommandPrefix) {
             line = line[plen..$]; //skip prefix
             line = str.stripl(line); //skip whitespace
             start = mCurline.length - line.length; //start offset

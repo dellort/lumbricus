@@ -16,6 +16,7 @@ import utils.time;
 import utils.misc;
 import utils.vector2;
 import utils.rect2;
+import utils.perf;
 import utils.configfile;
 import utils.random : random;
 import std.math : PI;
@@ -113,6 +114,8 @@ class ClientGameEngine {
     //indexed by team color
     private PerTeamAnim[] mTeamAnims;
 
+    private PerfTimer mGameDrawTime;
+
     //needed by gameview.d (where all this stuff is drawn)
     //you can move it around if you want
     PerTeamAnim getTeamAnimations(Team t) {
@@ -133,6 +136,8 @@ class ClientGameEngine {
         mEngine = engine;
 
         mGraphics = new typeof(mGraphics)(ClientGraphic.node.getListNodeOffset());
+
+        mGameDrawTime = globals.newTimer("game_draw_time");
 
         //xxx make value transfers generic
         waterOffset = mEngine.waterOffset;
@@ -307,7 +312,9 @@ class ClientGameEngine {
     }
 
     void draw(Canvas canvas) {
+        mGameDrawTime.start();
         mScene.draw(canvas);
+        mGameDrawTime.stop();
     }
 
     void resize(Vector2i s) {

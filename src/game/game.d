@@ -17,6 +17,7 @@ import utils.time;
 import utils.log;
 import utils.configfile;
 import utils.misc;
+import utils.perf;
 import utils.random;
 import framework.framework;
 import framework.keysyms;
@@ -226,6 +227,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     }
 
     package Log mLog;
+    private PerfTimer mNetUpdateTime, mPhysicTime;
 
     private const cSpaceBelowLevel = 150;
     private const cSpaceAboveOpenLevel = 1000;
@@ -349,6 +351,8 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         mLevel = config.level;
 
         mLog = registerLog("gameengine");
+        mNetUpdateTime = globals.newTimer("game_netupdate");
+        mPhysicTime = globals.newTimer("game_physic");
 
         mGameTime = new TimeSource(&gFramework.getCurrentTime);
         mGameTime.paused = true;
@@ -586,7 +590,9 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
 
         if (!mGameTime.paused) {
             simulate();
+            mPhysicTime.start();
             mPhysicWorld.simulate(mGameTime.current);
+            mPhysicTime.stop();
             //update game objects
             //NOTE: objects might be inserted/removed while iterating
             //      maybe one should implement a safe iterator...
@@ -605,8 +611,10 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
 
             //all 100ms update
             if (lastnetupdate + timeMsecs(lagvar) < mGameTime.current) {
+                mNetUpdateTime.start();
                 netupdate();
                 lastnetupdate = mGameTime.current;
+                mNetUpdateTime.stop();
             }
         }
     }
