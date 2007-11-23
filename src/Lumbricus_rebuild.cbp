@@ -70,6 +70,7 @@
 		<Unit filename="framework\framework.d" />
 		<Unit filename="framework\i18n.d" />
 		<Unit filename="framework\keysyms.d" />
+		<Unit filename="framework\sdl\font.d" />
 		<Unit filename="framework\sdl\framework.d" />
 		<Unit filename="framework\sdl\fwgl.d" />
 		<Unit filename="framework\sdl\keys.d" />
@@ -154,6 +155,7 @@
 		<Unit filename="utils\mylist.d" />
 		<Unit filename="utils\output.d" />
 		<Unit filename="utils\path.d" />
+		<Unit filename="utils\perf.d" />
 		<Unit filename="utils\queue.d" />
 		<Unit filename="utils\random.d" />
 		<Unit filename="utils\rect2.d" />

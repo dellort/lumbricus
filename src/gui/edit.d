@@ -87,6 +87,14 @@ class EditLine : Widget {
             return true;
         }
         if (info.isMouseButton) { //take focus when clicked
+            if (info.code == Keycode.MOUSE_LEFT && info.isDown) {
+                //set cursor pos according to click
+                //xxx add selection
+                mCursor = mFont.findIndex(mCurline, mousePos.x);
+                //make cursor visible
+                mCursorVisible = true;
+                mCursorTimer.reset();
+            }
             claimFocus();
             return true;
         }

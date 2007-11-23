@@ -1,4 +1,4 @@
-module irc.irctask;
+module irc.ircclient;
 
 import common.common;
 import common.task;

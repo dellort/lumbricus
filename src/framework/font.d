@@ -27,6 +27,31 @@ public class Font {
     public abstract Vector2i textSize(char[] text, bool forceHeight = true);
     //public abstract Vector2i textSize(dchar[] text);
 
+    ///return the character index closest to posX
+    ///(0 for start, text.length for end)
+    ///posX is relative to left edge of text
+    public uint findIndex(char[] text, int posX) {
+        //yay, first non-abstract method
+        int twold = 0;
+        //check width from start until it is over the requested position
+        for (int i = 1; i <= text.length; i++) {
+            int twidth = textSize(text[0..i]).x;
+            if (twidth > posX) {
+                //over-shot position -> clicked between current and last pos
+                //determine distance to center of last character
+                int rel = posX - (twold + (twidth-twold)/2);
+                if (rel > 0)
+                    //after center -> next index
+                    return i;
+                else
+                    return i-1;
+            }
+            twold = twidth;
+        }
+        //no match -> must be after the string
+        return text.length;
+    }
+
     public abstract FontProperties properties();
     //public abstract void properties(FontProperties props);
 }
