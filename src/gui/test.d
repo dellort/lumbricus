@@ -184,7 +184,9 @@ class TestTask : Task {
         createWindow("TestFrame3", new TestFrame3);
         createWindow("Visibility Test", new TestFrame4);
         createWindow("List", new TestFrame5);
-        createWindow("EditLine", new EditLine);
+        auto editl = new EditLine;
+        editl.prompt = "> ";
+        createWindow("EditLine", editl);
         createWindow("Console", new TestFrame6);
 
         auto k = new Button();

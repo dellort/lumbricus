@@ -13,7 +13,7 @@ import utils.vector2;
 //    (minus history, tab completion and commandline-window)
 class EditLine : Widget {
     private {
-        char[] mCurline;
+        char[] mCurline, mPrompt;
         uint mCursor;
         Font mFont;
         bool mCursorVisible = true;
@@ -90,7 +90,7 @@ class EditLine : Widget {
             if (info.code == Keycode.MOUSE_LEFT && info.isDown) {
                 //set cursor pos according to click
                 //xxx add selection
-                mCursor = mFont.findIndex(mCurline, mousePos.x);
+                mCursor = mFont.findIndex(mCurline, mousePos.x - mFont.textSize(mPrompt).x);
                 //make cursor visible
                 mCursorVisible = true;
                 mCursorTimer.reset();
@@ -110,11 +110,11 @@ class EditLine : Widget {
     }
 
     override void onDraw(Canvas c) {
-        mFont.drawText(c, Vector2i(0), mCurline);
+        mFont.drawText(c, Vector2i(0), mPrompt ~ mCurline);
         if (focused) {
             mCursorTimer.enabled = true;
             if (mCursorVisible) {
-                auto offs = mFont.textSize(mCurline[0..mCursor]);
+                auto offs = mFont.textSize(mPrompt ~ mCurline[0..mCursor]);
                 c.drawFilledRect(offs.X, offs + Vector2i(1, 0),
                     mFont.properties.fore);
             }
@@ -135,6 +135,13 @@ class EditLine : Widget {
     public void text(char[] newtext) {
         mCurline = newtext;
         mCursor = 0;
+    }
+
+    public char[] prompt() {
+        return mPrompt;
+    }
+    public void prompt(char[] newprompt) {
+        mPrompt = newprompt;
     }
 
     public uint cursorPos() {

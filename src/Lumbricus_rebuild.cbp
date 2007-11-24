@@ -163,6 +163,8 @@
 		<Unit filename="utils\time.d" />
 		<Unit filename="utils\timer.d" />
 		<Unit filename="utils\vector2.d" />
+		<Unit filename="utils\weaklist.d" />
+		<Unit filename="utils\weaktest.d" />
 		<Extensions>
 			<code_completion />
 			<envvars />

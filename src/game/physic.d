@@ -1102,8 +1102,9 @@ class PhysicWorld {
             o.velocity = o.velocity.mulEntries(o.posp.fixate);
 
             //Stokes's drag
-            o.velocity += ((o.posp.mediumViscosity*cStokesConstant*o.posp.radius)
-                * -o.velocity)/o.posp.mass * deltaT;
+            if (o.posp.mediumViscosity != 0.0f)
+                o.velocity += ((o.posp.mediumViscosity*cStokesConstant
+                    *o.posp.radius)* -o.velocity)/o.posp.mass * deltaT;
 
             //clip components at maximum velocity
             o.velocity = o.velocity.clipAbsEntries(o.posp.velocityConstraint);

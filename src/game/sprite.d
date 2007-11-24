@@ -165,6 +165,9 @@ class GObjectSprite : GameObject {
 
         currentState = nstate;
         physics.posp = nstate.physic_properties;
+        //stop all induced forces (e.g. jetpack)
+        if (!nstate.keepSelfForce)
+            physics.selfForce = Vector2f(0);
         updateAnimation();
 
         engine.mLog("force state: %s", nstate.name);
@@ -197,6 +200,9 @@ class GObjectSprite : GameObject {
         auto oldstate = currentState;
         currentState = nstate;
         physics.posp = nstate.physic_properties;
+        //stop all induced forces (e.g. jetpack)
+        if (!nstate.keepSelfForce)
+            physics.selfForce = Vector2f(0);
 
         updateAnimation();
 
@@ -281,6 +287,7 @@ class StaticStateInfo {
     //automatic transition to this state if animation finished
     StaticStateInfo onAnimationEnd;
     bool noleave; //don't leave this state (explictly excludes onAnimationEnd)
+    bool keepSelfForce; //phys.selfForce will be reset unless this is set
 
     AnimationResource animation;
 }
@@ -360,6 +367,7 @@ class GOSpriteClass {
             ssi.physic_properties.loadFromConfig(phys);
 
             ssi.noleave = sc.getBoolValue("noleave", false);
+            ssi.keepSelfForce = sc.getBoolValue("keep_selfforce", false);
 
             if (sc["animation"].length > 0) {
                 ssi.animation = globals.resources.resource!(AnimationResource)
