@@ -39,6 +39,12 @@ class SoundMixer : Sound {
         //SDL_Mixer does not need this
     }
 
+    public void deinitialize() {
+        foreach (s; mSamples) s.close;
+        foreach (m; mMusics) m.close;
+        DerelictSDLMixer.unload();
+    }
+
     public Music createMusic(Stream st, bool ownsStream = true) {
         MusicMixer mus = new MusicMixer(this, st, ownsStream);
         mMusics ~= mus;

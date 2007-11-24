@@ -212,8 +212,41 @@ private:
         globals.cmdLine.registerCommand("times", &cmdShowTimers,
             "List timers", []);
 
+        globals.cmdLine.registerCommand("fw_info", &cmdInfoString,
+            "Query a info string from the framework, with no argument: list "
+            "all info string names", ["text?:Name of the string or 'all'"]);
+
         //more like a test
         globals.cmdLine.registerCommand("widget_tree", &cmdWidgetTree, "-");
+    }
+
+    private void cmdInfoString(MyBox[] args, Output write) {
+        auto names = gFramework.getInfoStringNames();
+        if (args[0].empty) {
+            write.writefln("Strings:");
+            foreach (char[] name, InfoString id; names) {
+                write.writefln("  - %s", name);
+            }
+            return;
+        }
+
+        void show(InfoString s) {
+            write.writef(gFramework.getInfoString(s));
+        }
+
+        char[] s = args[0].unbox!(char[]);
+        if (s == "all") {
+            foreach (char[] name, InfoString id; names) {
+                write.writefln("%s:", name);
+                show(id);
+            }
+        } else {
+            if (s in names) {
+                show(names[s]);
+            } else {
+                write.writefln("string '%s' not found", s);
+            }
+        }
     }
 
     private void cmdWidgetTree(MyBox[] args, Output write) {

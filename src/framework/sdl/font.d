@@ -8,7 +8,21 @@ import derelict.sdl.sdl;
 import derelict.sdl.ttf;
 import std.stream;
 
-public class SDLFont : Font {
+import utils.weaklist;
+
+package {
+    struct FontData {
+        TTF_Font* font;
+
+        void doFree() {
+            if (font)
+                TTF_CloseFont(font);
+        }
+    }
+    WeakList!(SDLFont, FontData) gFonts;
+}
+
+package class SDLFont : Font {
     private Texture frags[dchar];
     private bool mNeedBackPlain;   //false if background is completely transp.
     private uint mHeight;
@@ -22,6 +36,7 @@ public class SDLFont : Font {
         str.seek(0,SeekPos.Set);
         font_stream.copyFrom(str);
         init(props);
+        gFonts.add(this);
     }
 
     void init(FontProperties props) {
@@ -44,16 +59,28 @@ public class SDLFont : Font {
         mNeedBackPlain = (props.back.a >= Color.epsilon);
     }
 
-    ~this() {
-        close();
+    void doFree(bool finalizer) {
+        FontData d;
+        d.font = font;
+        font = null;
+        gFonts.remove(this, finalizer, d);
     }
 
-    void close() {
-        frags = null;
-        if (font) {
-            TTF_CloseFont(font);
-            font = null;
-        }
+    ~this() {
+        doFree(true);
+    }
+
+    //warning: defered free etc.
+    override public void free() {
+        doFree(false);
+    }
+
+    bool valid() {
+        return !!font;
+    }
+
+    int cachedGlyphs() {
+        return frags.length;
     }
 
     int releaseCache() {

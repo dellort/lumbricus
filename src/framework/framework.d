@@ -248,6 +248,16 @@ public class Canvas {
 //returns number of released resources (surfaces, currently)
 public alias int delegate() CacheReleaseDelegate;
 
+/// For Framework.getInfoString()
+/// Entries from Framework.getInfoStringNames() correspond to this
+/// Each entry describes a piece of information which can be queried by calling
+/// Framework.getInfoString().
+enum InfoString {
+    Framework,
+    Backend,
+    ResourceList,
+}
+
 /// Contains event- and graphics-handling
 public class Framework {
     //contains keystate (key down/up) for each key; indexed by Keycode
@@ -279,6 +289,20 @@ public class Framework {
     static this() {
         //initialize time between FPS recalculations
         cFPSTimeSpan = timeSecs(1);
+    }
+
+    /// Get a string for a specific entry (see InfoString).
+    /// Overridden by the framework implementation.
+    /// Since it can have more than one line, it's always terminated with \n
+    public char[] getInfoString(InfoString s) {
+        return "?\n";
+    }
+
+    /// Return valid InfoString entry numbers and their name (see InfoString).
+    public InfoString[char[]] getInfoStringNames() {
+        return [cast(char[])"framework": InfoString.Framework,
+                "backend": InfoString.Backend,
+                "resource_list": InfoString.ResourceList];
     }
 
     /// register a callback which is called on releaseCaches()
@@ -346,6 +370,7 @@ public class Framework {
         return loadImage(fs.open(fileName,FileMode.In), transp);
     }
 
+    /+
     /// create an image based on the given data and on the pixelformat
     /// data can be null, in this case, the function allocates (GCed) memory
     public abstract Surface createImage(Vector2i size, uint pitch,
@@ -358,6 +383,7 @@ public class Framework {
         return createImage(size, pitch, findPixelFormat(DisplayFormat.RGBA32),
             transp, data);
     }
+    +/
 
     /// get a "standard" pixel format (sigh)
     //NOTE: implementor is supposed to overwrite this and to catch the current
@@ -698,6 +724,9 @@ public class Framework {
         }
         return term;
     }
+
+    ///Cleanups (i.e. free all still used resources)
+    public abstract void deinitialize();
 
     public abstract void cursorVisible(bool v);
     public abstract bool cursorVisible();

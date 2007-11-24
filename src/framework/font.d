@@ -54,6 +54,8 @@ public class Font {
 
     public abstract FontProperties properties();
     //public abstract void properties(FontProperties props);
+
+    public abstract void free();
 }
 
 //NOTE: this class is considered to be "abstract", and must be created by the

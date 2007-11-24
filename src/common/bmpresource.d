@@ -51,8 +51,9 @@ protected class BitmapResource : ResourceBase!(Surface) {
     }
 
     override protected void doUnload() {
-        if (mContents)
-            mContents.free();
+        //if (mContents)
+        //    mContents.free();
+        mContents = null; //let the GC do the work
         super.doUnload();
     }
 

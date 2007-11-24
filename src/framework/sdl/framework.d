@@ -18,9 +18,24 @@ import math = std.math;
 import utils.time;
 import utils.perf;
 import utils.drawing;
-import utils.misc : min, max;
+import utils.misc : min, max, sizeToHuman;
+import utils.weaklist;
 
-private static FrameworkSDL gFrameworkSDL;
+package {
+    FrameworkSDL gFrameworkSDL;
+
+    struct SurfaceData {
+        SDL_Surface* preal, pcached;
+
+        void doFree() {
+            if (preal)
+                SDL_FreeSurface(preal);
+            if (preal !is pcached && pcached)
+                SDL_FreeSurface(pcached);
+        }
+    }
+    WeakList!(SDLSurface, SurfaceData) gSurfaces;
+}
 
 debug import std.stdio;
 
@@ -52,22 +67,21 @@ package class SDLTexture : Texture {
     //mOriginalSurface is the image source, and mCached is the image converted
     //to screen format
     private SDLSurface mOriginalSurface;
-    private SDL_Surface* mCached;
 
     package this(SDLSurface source, bool enableCache = true) {
         mOriginalSurface = source;
         assert(source !is null);
         if (!enableCache) {
-            mCached = mOriginalSurface.mReal;
+            mOriginalSurface.mCached = mOriginalSurface.mReal;
         }
     }
 
     public void setCaching(bool state) {
         releaseCache();
         if (state) {
-            mCached = null;
+            mOriginalSurface.mCached = null;
         } else {
-            mCached = mOriginalSurface.mReal;
+            mOriginalSurface.mCached = mOriginalSurface.mReal;
         }
     }
 
@@ -77,9 +91,9 @@ package class SDLTexture : Texture {
 
     //return surface that's actually drawn
     package SDL_Surface* getDrawSurface() {
-        if (!mCached)
+        if (!mOriginalSurface.mCached)
             checkIfScreenFormat();
-        return mCached;
+        return mOriginalSurface.mCached;
         //return mOriginalSurface.mReal;
     }
 
@@ -92,35 +106,37 @@ package class SDLTexture : Texture {
         //xxx insert check if screen depth has changed at all!
         //xxx also check if you need to convert it at all
         //else: performance problem with main level surface
-        if (!mCached) {
+        if (!mOriginalSurface.mCached) {
             assert(mOriginalSurface !is null);
             SDL_Surface* conv_from = mOriginalSurface.mReal;
             assert(conv_from !is null);
 
             releaseCache();
+            SDL_Surface* nsurf;
             switch (mOriginalSurface.mTransp) {
                 case Transparency.Colorkey, Transparency.None: {
-                    mCached = SDL_DisplayFormat(conv_from);
+                    nsurf = SDL_DisplayFormat(conv_from);
                     break;
                 }
                 case Transparency.Alpha: {
                     //xxx: this didn't really work, the alpha channel was
                     //  removed, needs to be retested (i.e. don't set neverCache
                     //  when using spiffy alpha blended fonts)
-                    mCached = SDL_DisplayFormatAlpha(conv_from);
+                    nsurf = SDL_DisplayFormatAlpha(conv_from);
                     break;
                 }
                 default:
                     assert(false);
             }
+            mOriginalSurface.mCached = nsurf;
         }
     }
 
     void releaseCache() {
-        if (mCached) {
-            if (mCached !is mOriginalSurface.mReal)
-                SDL_FreeSurface(mCached);
-            mCached = null;
+        if (mOriginalSurface.mCached) {
+            if (mOriginalSurface.mCached !is mOriginalSurface.mReal)
+                SDL_FreeSurface(mOriginalSurface.mCached);
+            mOriginalSurface.mCached = null;
         }
     }
 
@@ -133,12 +149,15 @@ public class SDLSurface : Surface {
     //mReal: original surface (any pixelformat)
     SDL_Surface* mReal;
     //if non-null, this contains the surface data (to prevent GCing it)
-    void* mData;
+    //void* mData; incorrect, can be collected before sdl-surface is free'd
     SDLCanvas mCanvas;
     Transparency mTransp;
     Color mColorkey;
 
     SDLTexture mSDLTexture;
+    SDL_Surface* mCached;
+
+    bool mDidInit;
 
     //own: if this Surface is allowed to free the SDL_Surface
     //(added this to simplify memory managment later on, currently pointless)
@@ -146,6 +165,36 @@ public class SDLSurface : Surface {
         assert(mReal is null);
         mReal = realsurface;
         //mOwnsSurface = own;
+        assert(!mDidInit); //execute gSurfaces.add() only once
+        mDidInit = true;
+        gSurfaces.add(this);
+    }
+
+    void doFree(bool finalizer) {
+        SurfaceData d;
+        d.preal = mReal;
+        d.pcached = mCached;
+        mReal = mCached = null;
+        gSurfaces.remove(this, finalizer, d);
+    }
+
+    ~this() {
+        doFree(true);
+    }
+
+    //to avoid memory leaks
+    //warning: only pushes the surface data into the kill list
+    void free() {
+        doFree(false);
+    }
+
+    bool valid() {
+        return !!mReal;
+    }
+
+    //xxx: functionality duplicated across a few places
+    bool hasCache() {
+        return mCached && (mReal !is mCached);
     }
 
     public Surface clone() {
@@ -369,6 +418,7 @@ public class SDLSurface : Surface {
         }
         initTransp(transp);
     }
+    /+
     //create from bitmap data, see Framework.createImage
     this(uint w, uint h, uint pitch, PixelFormat format, Transparency transp,
         void* data)
@@ -388,6 +438,7 @@ public class SDLSurface : Surface {
         setSurface(ns, true);
         initTransp(transp);
     }
+    +/
 
     private void initTransp(Transparency transp) {
         if (transp == Transparency.AutoDetect) {
@@ -421,16 +472,6 @@ public class SDLSurface : Surface {
         }
         return SDL_MapRGBA(mReal.format,cast(ubyte)(255*color.r),
             cast(ubyte)(255*color.g),cast(ubyte)(255*color.b), alpha);
-    }
-
-    //to avoid memory leaks
-    //xxx: either must be automatically managed (finalizer) or be in superclass
-    void free() {
-        if (mSDLTexture)
-            mSDLTexture.releaseCache();
-        SDL_FreeSurface(mReal);
-        mReal = null;
-        mData = null;
     }
 
     //create a SDLTexture in SDL mode, and a GLTexture in OpenGL mode
@@ -729,6 +770,9 @@ public class FrameworkSDL : Framework {
     this(char[] arg0, char[] appId) {
         super(arg0, appId);
 
+        gSurfaces = new typeof(gSurfaces);
+        gFonts = new typeof(gFonts);
+
         if (gFrameworkSDL !is null) {
             throw new Exception("FrameworkSDL is a singleton, sorry.");
         }
@@ -765,6 +809,7 @@ public class FrameworkSDL : Framework {
         }
 
         registerCacheReleaser(&releaseInsanityCache);
+        registerCacheReleaser(&releaseResCaches);
 
         setCaption("<no caption>");
 
@@ -777,6 +822,110 @@ public class FrameworkSDL : Framework {
         timer(mClearTime, "fw_clear");
         timer(mFlipTime, "fw_flip");
         timer(mInputTime, "fw_input");
+    }
+
+    override public void deinitialize() {
+        //reap everything hahahaha
+        //this wouldn't catch everything if it was multithreaded
+        foreach (SDLSurface s; gSurfaces.list) {
+            s.free();
+        }
+        foreach (SDLFont f; gFonts.list) {
+            f.free();
+        }
+        //hint: should be no need to run a gc cycle before
+        //  is it race condition free???
+        defered_free();
+
+        mSoundMixer.deinitialize();
+
+        //deinit and unload all SDL dlls (in reverse order)
+        TTF_Quit();
+        SDL_Quit();
+        DerelictSDLImage.unload();
+        DerelictSDLttf.unload();
+        DerelictSDL.unload();
+    }
+
+    override public char[] getInfoString(InfoString s) {
+        switch (s) {
+            case InfoString.Framework: {
+                char[] version_to_a(SDL_version v) {
+                    return format("%s.%s.%s", v.major, v.minor, v.patch);
+                }
+                SDL_version compiled, linked;
+                SDL_VERSION(&compiled);
+                linked = *SDL_Linked_Version();
+                return format("FrameworkSDL, SDL compiled=%s linked=%s\n",
+                    version_to_a(compiled), version_to_a(linked));
+            }
+            case InfoString.Backend: {
+                char[20] buf;
+                char* res = SDL_VideoDriverName(buf.ptr, buf.length);
+                char[] driver = res ? .toString(res) : "<unintialized>";
+                SDL_VideoInfo info = *SDL_GetVideoInfo();
+
+                //in C, info.flags doesn't exist, but instead there's a bitfield
+                //here are the names of the bitfield entries (in order)
+                char[][] flag_names = ["hw_available", "wm_available",
+                    "blit_hw", "blit_hw_CC", "blit_hw_A", "blit_sw",
+                    "blit_sw_CC", "blit_sw_A", "blit_fill"];
+
+                char[] flags;
+                foreach (int index, name; flag_names) {
+                    bool set = !!(info.flags & (1<<index));
+                    flags ~= format("  %s: %s\n", name, (set ? "1" : "0"));
+                }
+
+                auto fmt = *info.vfmt;
+                char[] pxfmt = format("bits/bytes=%s/%s "
+                    "R/G/B/A=%#08x/%#08x/%#08x/%#08x colorkey=%#x alpha=%s",
+                    fmt.BitsPerPixel, fmt.BytesPerPixel, fmt.Rmask, fmt.Gmask,
+                    fmt.Bmask, fmt.Amask, fmt.colorkey, fmt.alpha);
+
+                return format("driver: %s\nflags: \n%svideo_mem = %s\n"
+                    "pixel_fmt = %s\ncurrent WxH = %sx%s\n", driver, flags,
+                    sizeToHuman(info.video_mem), pxfmt, info.current_w,
+                    info.current_h);
+            }
+            case InfoString.ResourceList: return resourceString();
+            default:
+                return super.getInfoString(s);
+        }
+    }
+
+    char[] resourceString() {
+        char[] res;
+
+        res ~= "Surfaces:\n";
+        int pixelCount, byteCount, cachedBytes;
+        int sCount;
+        foreach (SDLSurface s; gSurfaces.list) {
+            if (!s.valid) //xxx: don't know if or why it should be not valid
+                continue;
+            sCount++;
+            auto pixels = s.size.x*s.size.y;
+            pixelCount += pixels;
+            byteCount += pixels*s.mReal.format.BytesPerPixel;
+            if (s.hasCache())
+                cachedBytes += pixels*s.mCached.format.BytesPerPixel;
+            res ~= format("   [%s] %sx%s\n", s.hasCache() ? "C" : " ", s.size.x,
+                s.size.y);
+        }
+        res ~= format("%s surfaces, %s pixels => %s, cached: %s\n", sCount,
+            pixelCount, sizeToHuman(byteCount), sizeToHuman(cachedBytes));
+
+        res ~= "Fonts:\n";
+        int fCount, cachedGlyphs;
+        foreach (SDLFont f; gFonts.list) {
+            if (!f.valid)
+                continue;
+            fCount++;
+            cachedGlyphs += f.cachedGlyphs();
+        }
+        res ~= format("%s fonts, %s cached glyphs\n", fCount, cachedGlyphs);
+
+        return res;
     }
 
     override public PerfTimer[char[]] timers() {
@@ -868,11 +1017,13 @@ public class FrameworkSDL : Framework {
         return new SDLSurface(st, transp);
     }
 
+    /+
     public SDLSurface createImage(Vector2i size, uint pitch, PixelFormat format,
         Transparency transp, void* data)
     {
         return new SDLSurface(size.x, size.y, pitch, format, transp, data);
     }
+    +/
 
     public SDLSurface createSurface(Vector2i size, DisplayFormat fmt,
         Transparency transp)
@@ -882,8 +1033,6 @@ public class FrameworkSDL : Framework {
 
     public Font loadFont(Stream str, FontProperties fontProps) {
         auto ret = new SDLFont(str,fontProps);
-        //xxx: prevents garbage collection of new object (including TTF_Font)
-        registerCacheReleaser(&ret.releaseCache);
         return ret;
     }
 
@@ -909,8 +1058,34 @@ public class FrameworkSDL : Framework {
         SDL_Flip(mScreen);
         mFlipTime.stop();
 
+        // defered free (GC related, sucky Phobos forces this to us)
+        defered_free();
+
         // yield the rest of the timeslice
         SDL_Delay(0);
+    }
+
+    void defered_free() {
+        gFonts.cleanup((FontData d) { d.doFree(); });
+        gSurfaces.cleanup((SurfaceData d) { d.doFree(); });
+    }
+
+    int releaseResCaches() {
+        int res;
+
+        foreach (f; gFonts.list) {
+            res += f.releaseCache();
+        }
+
+        foreach (s; gSurfaces.list) {
+            //oh noes, this is awfully stupid!
+            if (s.hasCache()) {
+                s.createTexture().clearCache();
+                res++;
+            }
+        }
+
+        return res;
     }
 
     public void cursorVisible(bool v) {

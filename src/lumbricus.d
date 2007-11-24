@@ -7,6 +7,7 @@ import std.random : rand_seed;
 import utils.log;
 import utils.output;
 import std.stream : File, FileMode;
+import std.stdio;
 
 //these imports register classes in a factory on module initialization
 //so be carefull not to remove them accidently
@@ -44,6 +45,10 @@ int main(char[][] args)
     new toplevel.TopLevel();
 
     fw.run();
+
+    fw.deinitialize();
+
+    writefln("Bye!");
 
     return 0;
 }

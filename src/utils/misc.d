@@ -77,6 +77,26 @@ char[] formatfx(TypeInfo[] arguments, va_list argptr) {
     return res;
 }
 
+/// number of bytes to a string like "number XX", where XX is "B", "KB" etc.
+char[] sizeToHuman(long bytes) {
+    const char[][] cSizes = ["B", "KB", "MB", "GB"];
+    int n;
+    long x;
+    x = 1;
+    while (bytes >= x*1024 && n < cSizes.length-1) {
+        x = x*1024;
+        n++;
+    }
+    //xxx: ugly trailing zeros
+    return str.format("%.3f %s", 1.0*bytes/x, cSizes[n]);
+}
+
+unittest {
+    /+assert(sizeToHuman(0) == "0 B");
+    assert(sizeToHuman(1023) == "1023 B");
+    assert(sizeToHuman(1024) == "1 KB");+/
+}
+
 //some metaprogramming stuff
 
 ///unsigned!(T): return the unsigned type of a signed one
