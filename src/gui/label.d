@@ -109,7 +109,8 @@ class Label : Widget {
             drawBox(canvas, widgetBounds, mBorderStyle);
         }
         if (mImage) {
-            canvas.draw(mImage, b);
+            auto s = size - b*2;
+            canvas.draw(mImage, b + s/2 - mImage.size/2);
             return;
         }
         if (!mShrink) {

@@ -42,6 +42,7 @@ class SoundMixer : Sound {
     public void deinitialize() {
         foreach (s; mSamples) s.close;
         foreach (m; mMusics) m.close;
+        Mix_CloseAudio();
         DerelictSDLMixer.unload();
     }
 

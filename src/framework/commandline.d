@@ -1,6 +1,5 @@
 module framework.commandline;
 
-import framework.console;
 import framework.framework;
 import framework.event;
 
@@ -199,7 +198,7 @@ private:
                 box = param_defaults[curarg];
             }
             //xxx stupid hack to support default arguments for strings
-            if (arg_string.length == 0) {
+            if (arg_string.length == 0 && curarg >= minArgCount) {
                 box = param_defaults[curarg];
             }
             args[curarg] = box;
@@ -270,8 +269,7 @@ private class HistoryNode {
 
 public class CommandLine {
     private uint mUniqueID; //counter for registerCommand IDs
-    private Console mConsole;
-    private char[] mCurline;
+    private Output mConsole;
     private uint mCursor;
     private Command[] mCommands; //xxx: maybe replace by list
     private HistoryList mHistory;
@@ -283,8 +281,8 @@ public class CommandLine {
     private const uint MAX_HISTORY_ENTRIES = 20;
     private const uint MAX_AUTO_COMPLETIONS = 10;
 
-    this(Console cons) {
-        mConsole = cons;
+    this(Output output) {
+        mConsole = output;
         HistoryNode n;
         mHistory = new HistoryList(n.listnode.getListNodeOffset());
         registerCommand(Command("help", &cmdHelp, "Show all commands.",
@@ -292,14 +290,14 @@ public class CommandLine {
         registerCommand(Command("history", &cmdHistory, "Show the history.", null));
     }
 
-    public Console console() {
+    public Output output() {
         return mConsole;
     }
 
     private void cmdHelp(MyBox[] args, Output write) {
         char[] foo = args[0].unboxMaybe!(char[])("");
         if (foo.length == 0) {
-            mConsole.print("List of commands: ");
+            mConsole.writefln("List of commands: ");
             uint count = 0;
             foreach (Command c; mCommands) {
                 mConsole.writefln("   %s: %s", c.name, c.helpText);
@@ -337,9 +335,9 @@ public class CommandLine {
     }
 
     private void cmdHistory(MyBox[] args, Output write) {
-        mConsole.print("History:");
+        mConsole.writefln("History:");
         foreach (HistoryNode hist; mHistory) {
-            mConsole.print("   "~hist.stuff);
+            mConsole.writefln("   "~hist.stuff);
         }
     }
 
@@ -360,56 +358,10 @@ public class CommandLine {
         mDefaultCommand = default_command;
     }
 
-    private void updateCursor() {
-        mConsole.setCursorPos(mCursor);
-    }
-
-    private void updateCmdline() {
-        mConsole.setCurLine(mCurline.dup);
-        updateCursor();
-    }
-
-    public bool keyPress(KeyInfo infos) {
-        if (infos.code == Keycode.RIGHT) {
-            if (mCursor < mCurline.length)
-                mCursor = charNext(mCurline, mCursor);
-            updateCursor();
-            return true;
-        } else if (infos.code == Keycode.LEFT) {
-            if (mCursor > 0)
-                mCursor = charPrev(mCurline, mCursor);
-            updateCursor();
-            return true;
-        } else if (infos.code == Keycode.BACKSPACE) {
-            if (mCursor > 0) {
-                int del = mCursor - charPrev(mCurline, mCursor);
-                mCurline = mCurline[0 .. mCursor-del] ~ mCurline[mCursor .. $];
-                mCursor -= del;
-                updateCmdline();
-            }
-            return true;
-        } else if (infos.code == Keycode.DELETE) {
-            if (mCursor < mCurline.length) {
-                int del = utf.stride(mCurline, mCursor);
-                mCurline = mCurline[0 .. mCursor] ~ mCurline[mCursor+del .. $];
-                updateCmdline();
-            }
-            return true;
-        } else if (infos.code == Keycode.HOME) {
-            mCursor = 0;
-            updateCursor();
-            return true;
-        } else if (infos.code == Keycode.END) {
-            mCursor = mCurline.length;
-            updateCursor();
-            return true;
-        } else if (infos.code == Keycode.TAB) {
-            do_tab_completion();
-            return true;
-        } else if (infos.code == Keycode.RETURN) {
-            do_execute();
-            return true;
-        } else if (infos.code == Keycode.UP) {
+    /// Search through the history, dir is either -1 or +1
+    /// Returned string must not be modified.
+    public char[] selectHistory(char[] cur, int dir) {
+        if (dir == -1) {
             HistoryNode next_hist;
             if (mCurrentHistoryEntry) {
                 next_hist = mHistory.prev(mCurrentHistoryEntry);
@@ -417,38 +369,18 @@ public class CommandLine {
                 next_hist = mHistory.tail();
             }
             if (next_hist) {
-                select_history_entry(next_hist);
+                return select_history_entry(next_hist);
             }
-            return true;
-        } else if (infos.code == Keycode.DOWN) {
+        } else if (dir == +1) {
             if (mCurrentHistoryEntry) {
                 HistoryNode next_hist = mHistory.next(mCurrentHistoryEntry);
-                select_history_entry(next_hist);
+                return select_history_entry(next_hist);
             }
-            return true;
-        } else if (infos.code == Keycode.PAGEUP) {
-            mConsole.scrollBack(1);
-            return true;
-        } else if (infos.code == Keycode.PAGEDOWN) {
-            mConsole.scrollBack(-1);
-            return true;
-        } else if (infos.isPrintable()) {
-            //printable char
-            char[] append;
-            if (!utf.isValidDchar(infos.unicode)) {
-                append = "?";
-            } else {
-                append = utf.toUTF8([infos.unicode]);
-            }
-            mCurline = mCurline[0 .. mCursor] ~ append ~ mCurline[mCursor .. $];
-            mCursor += utf.stride(mCurline, mCursor);
-            updateCmdline();
-            return true;
         }
-        return false;
+        return cur;
     }
 
-    private void select_history_entry(HistoryNode newentry) {
+    private char[] select_history_entry(HistoryNode newentry) {
         char[] newline;
 
         mCurrentHistoryEntry = newentry;
@@ -459,22 +391,19 @@ public class CommandLine {
             newline = null;
         }
 
-        mCurline = newline;
-        mCursor = mCurline.length;
-        updateCmdline();
+        return newline;
     }
 
     //get the command part of the command line
-    //sets mCommandStart and mCommandEnd
-    private bool parseCommand(out char[] command, out char[] args,
+    private bool parseCommand(char[] line, out char[] command, out char[] args,
         out uint start, out uint end)
     {
         auto plen = mCommandPrefix.length;
-        auto line = mCurline;
-        if (line.length >= plen && line[0..plen] == mCommandPrefix) {
+        auto len = line.length;
+        if (len >= plen && line[0..plen] == mCommandPrefix) {
             line = line[plen..$]; //skip prefix
             line = str.stripl(line); //skip whitespace
-            start = mCurline.length - line.length; //start offset
+            start = len - line.length; //start offset
             auto first_whitespace = str.find(line, ' ');
             if (first_whitespace >= 0) {
                 command = line[0..first_whitespace];
@@ -491,18 +420,19 @@ public class CommandLine {
         return command.length > 0;
     }
 
-    private void do_execute(bool addHistory = true) {
+    /// Execute any command from outside.
+    public void execute(char[] cmdline, bool addHistory = true) {
         char[] cmd, args;
         uint start, end; //not really needed
 
-        if (!parseCommand(cmd, args, start, end)) {
+        if (!parseCommand(cmdline, cmd, args, start, end)) {
             //nothing, but show some reaction...
-            mConsole.print("-");
+            mConsole.writefln("-");
         } else {
             if (addHistory) {
                 //into the history
                 HistoryNode histent = new HistoryNode();
-                histent.stuff = mCurline.dup;
+                histent.stuff = cmdline.dup;
                 mHistory.insert_tail(histent);
                 mHistoryCount++;
 
@@ -520,30 +450,24 @@ public class CommandLine {
                 ccmd = throwup[0];
             }
             if (!ccmd) {
-                mConsole.print("Unknown command: "~cmd);
+                mConsole.writefln("Unknown command: "~cmd);
             } else {
                 ccmd.parseAndInvoke(args, mConsole);
             }
         }
-
-        mCurline = null;
-        mCursor = 0;
-        updateCmdline();
     }
 
-    /// Execute any command from outside.
-    public void execute(char[] cmd, bool addHistory = true) {
-        //xxx hacky
-        mCurline = cmd.dup;
-        mCursor = mCurline.length;
-        updateCmdline();
-        do_execute(addHistory);
-    }
+    /// Replace the text between start and end by text
+    /// operation: newline = line[0..start] ~ text ~ line[end..$];
+    public alias void delegate(int start, int end, char[] text) EditDelegate;
 
-    private void do_tab_completion() {
+    /// Do tab completion for the given line. The delegate by edit inserts
+    /// completed text.
+    /// at = cursor position; currently unused
+    public void tabCompletion(char[] line, int at, EditDelegate edit) {
         char[] cmd, args;
         uint start, end;
-        if (!parseCommand(cmd, args, start, end) || start == end)
+        if (!parseCommand(line, cmd, args, start, end) || start == end)
             return;
         Command[] res;
         Command exact = find_command_completions(cmd, res);
@@ -565,33 +489,28 @@ public class CommandLine {
                 }
             }
 
-            /*//if there's only one completion, add a space
-            if (res.length == 1)
-                common ~= ' ';*/
-
             if (common.length > cmd.length) {
                 //if there's a common substring longer than the commonrent
                 //  command, extend it
 
-                mCurline = mCurline[0..start] ~ common
-                    ~ mCurline[end..$];
-                mCursor = start + common.length; //end of the command
-                updateCmdline();
+                edit(start, end, common);
             } else {
                 if (res.length > 1) {
                     //write them to the output screen
-                    mConsole.print("Tab completions:");
+                    mConsole.writefln("Tab completions:");
                     bool toomuch = (res.length == MAX_AUTO_COMPLETIONS);
                     if (toomuch) res = res[0..$-1];
                     foreach (Command ccmd; res) {
-                        mConsole.print(ccmd.name);
+                        mConsole.writefln("  %s", ccmd.name);
                     }
                     if (toomuch)
-                        mConsole.print("...");
+                        mConsole.writefln("...");
                 } else {
                     //one hit, since the case wasn't catched above, this means
-                    //it's already complete?
-                    mConsole.print("?");
+                    //it's already complete
+                    //insert a space after the command, if there isn't yet
+                    if (!(end < line.length && line[end] == ' '))
+                        edit(end, end, " ");
                 }
             }
         }

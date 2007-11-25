@@ -478,7 +478,8 @@ class IRCTask: Task {
     this(TaskManager tm) {
         super(tm);
 
-        gWindowManager.createWindow(this, new IRCFrame(this), "wIRC");
+        gWindowManager.createWindow(this, new IRCFrame(this), "wIRC",
+            Vector2i(600, 400));
     }
 
     static this() {

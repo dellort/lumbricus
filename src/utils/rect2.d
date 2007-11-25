@@ -41,6 +41,15 @@ public struct Rect2(T) {
         return *this + (-r);
     }
 
+    void opAddAssign(Point r) {
+        p1 += r;
+        p2 += r;
+    }
+    void opSubAssign(Point r) {
+        p1 -= r;
+        p2 -= r;
+    }
+
     Point size() {
         return p2 - p1;
     }

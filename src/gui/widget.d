@@ -441,7 +441,8 @@ class Widget {
     void doDraw(Canvas c) {
         c.pushState();
         //map (0,0) to the position of the widget and clip by widget-size
-        c.setWindow(mContainedWidgetBounds.p1, mContainedWidgetBounds.p2);
+        c.setWindow(mContainedWidgetBounds.p1+mAddToPos,
+            mContainedWidgetBounds.p2+mAddToPos);
 
         //user's draw routine
         onDraw(c);
@@ -456,6 +457,13 @@ class Widget {
 
     ///you should override this for custom drawing / normal widget rendering
     protected void onDraw(Canvas c) {
+    }
+
+    void setAddToPos(Vector2i delta) {
+        mAddToPos = delta;
+    }
+    Vector2i getAddToPos() {
+        return mAddToPos;
     }
 
 

@@ -1,6 +1,5 @@
 module gui.gui;
 
-import framework.console;
 import framework.framework;
 public import framework.event;
 import common.common;
@@ -33,6 +32,10 @@ class GuiMain {
 
         override bool isTopLevel() {
             return true;
+        }
+
+        override void onFocusChange() {
+            assert(focused());
         }
 
         void setSize(Vector2i size) {

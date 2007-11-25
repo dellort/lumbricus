@@ -14,7 +14,8 @@ struct FontProperties {
 
 public class Font {
     /// draw UTF8 encoded text (use framework singleton to instantiate it)
-    public abstract void drawText(Canvas canvas, Vector2i pos, char[] text);
+    /// returns position beyond last drawn glyph
+    public abstract Vector2i drawText(Canvas canvas, Vector2i pos, char[] text);
     /// like drawText(), but try not to draw beyond "width"
     /// instead the text is cut and, unlike clipping, will be ended with "..."
     public abstract void drawTextLimited(Canvas canvas, Vector2i pos, int width,
@@ -53,7 +54,10 @@ public class Font {
     }
 
     public abstract FontProperties properties();
-    //public abstract void properties(FontProperties props);
+
+    ///clone this font, with these new properties
+    ///strangely required because the font face isn't part of FontProperties
+    public abstract Font clone(FontProperties new_props);
 
     public abstract void free();
 }

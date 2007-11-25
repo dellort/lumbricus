@@ -29,12 +29,17 @@ package class SDLFont : Font {
     private FontProperties props;
     private TTF_Font* font;
     // Stream is used by TTF_Font, this keeps the reference to it
-    private MemoryStream font_stream;
+    // possibly shared accross font instances
+    private Stream font_stream;
 
-    this(Stream str, FontProperties props) {
-        font_stream = new MemoryStream();
-        str.seek(0,SeekPos.Set);
-        font_stream.copyFrom(str);
+    this(Stream str, FontProperties props, bool need_copy = true) {
+        if (need_copy) {
+            font_stream = new MemoryStream();
+            str.seek(0,SeekPos.Set);
+            font_stream.copyFrom(str);
+        } else {
+            font_stream = str;
+        }
         init(props);
         gFonts.add(this);
     }
@@ -98,16 +103,11 @@ package class SDLFont : Font {
         return props;
     }
 
-/+
-it worked, but was useless: FontManager considers Fonts to be immutable
-    //setting is expensive, but at least works
-    public void properties(FontProperties props) {
-        close();
-        init(props);
+    public SDLFont clone(FontProperties new_props) {
+        return new SDLFont(font_stream, new_props, false);
     }
-+/
 
-    public void drawText(Canvas canvas, Vector2i pos, char[] text) {
+    public Vector2i drawText(Canvas canvas, Vector2i pos, char[] text) {
         foreach (dchar c; text) {
             Texture surface = getGlyph(c);
             if (mNeedBackPlain) {
@@ -116,6 +116,7 @@ it worked, but was useless: FontManager considers Fonts to be immutable
             canvas.draw(surface, pos);
             pos.x += surface.size.x;
         }
+        return pos;
     }
 
     public void drawTextLimited(Canvas canvas, Vector2i pos, int width,

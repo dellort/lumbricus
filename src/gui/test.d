@@ -31,7 +31,7 @@ class TestFrame : SimpleContainer {
     private Button[] mButtons;
 
     private void foo(Button sender) {
-        globals.cmdLine.console.writefln("button: %s", arraySearch(mButtons, sender));
+        globals.cmdLine.output.writefln("button: %s", arraySearch(mButtons, sender));
     }
 
     this() {
@@ -155,7 +155,7 @@ class TestFrame5 : Container {
 class TestFrame6 : Container {
     this() {
         auto cons = new GuiConsole;
-        cons.console.writefln("list commands with /help");
+        cons.output.writefln("list commands with /help");
         cons.cmdline.registerCommand("say", &cmdSay, "hullo!",
             ["text...:what you say"]);
         cons.cmdline.setPrefix("/", "say");

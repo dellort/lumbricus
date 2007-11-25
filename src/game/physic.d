@@ -1173,7 +1173,7 @@ class PhysicWorld {
                 //assert(fabs(nd.length()-1.0f) < 0.001);
 
                 me.setPos(me.pos - nd * (0.5f * gap), true);
-                other.setPos(me.pos + nd * (0.5f * gap), true);
+                other.setPos(other.pos + nd * (0.5f * gap), true);
 
                 float vca = me.velocity * nd;
                 float vcb = other.velocity * nd;

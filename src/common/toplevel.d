@@ -2,7 +2,6 @@ module common.toplevel;
 
 import std.string;
 import framework.font;
-import framework.console;
 import framework.keysyms;
 import framework.framework;
 import framework.commandline;
@@ -156,17 +155,15 @@ private:
         }
 
         if (taskManager.taskList.length == 0) {
-            mGuiConsole.console.writefln("Nothing to run, do what you want");
-            mGuiConsole.console.visible = true;
-            //damn, misses focus (because Console doesn't notify GuiConsole)
-            mGuiConsole.claimFocus();
+            mGuiConsole.output.writefln("Nothing to run, do what you want");
+            mGuiConsole.consoleVisible = true;
         }
     }
 
     private void initConsole() {
         globals.cmdLine = mGuiConsole.cmdline;
 
-        globals.setDefaultOutput(mGuiConsole.console);
+        globals.setDefaultOutput(mGuiConsole.output);
 
         globals.cmdLine.registerCommand("gc", &testGC, "timed GC run");
         globals.cmdLine.registerCommand("gcstats", &testGCstats, "GC stats");
@@ -519,7 +516,7 @@ private:
                 return false;
             }
             auto mods = globals.framework.getModifierSet();
-            globals.cmdLine.console.writefln("Key: '%s' '%s'",
+            globals.cmdLine.output.writefln("Key: '%s' '%s'",
                 keybindings.unparseBindString(infos.code, mods),
                 globals.translateKeyshortcut(infos.code, mods));
             mKeyNameIt = false;
