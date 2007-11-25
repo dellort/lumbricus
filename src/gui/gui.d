@@ -52,7 +52,9 @@ class GuiMain {
         }
 
         protected override bool onKeyEvent(KeyInfo key) {
-            if (key.isDown && key.code == Keycode.TAB) {
+            if (key.isDown && modifierIsSet(key.mods, Modifier.Control)
+                && key.code == Keycode.TAB)
+            {
                 bool res = mMainFrame.nextFocus();
                 if (!res)
                     mMainFrame.nextFocus();

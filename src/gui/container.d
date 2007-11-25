@@ -48,6 +48,9 @@ class Container : Widget {
     common.visual.BoxProperties drawBoxStyle;
     bool drawBox = false;
 
+    ///use Widget.doesCover
+    protected bool checkCover = false;
+
     // --- insertion/deletion including zorder-stuff
 
     /// Add sub GUI element
@@ -482,8 +485,23 @@ class Container : Widget {
         if (drawBox) {
             common.visual.drawBox(c, widgetBounds, drawBoxStyle);
         }
-        foreach (obj; mZWidgets) {
-            obj.w.doDraw(c);
+        if (!checkCover) {
+            foreach (obj; mZWidgets) {
+                obj.w.doDraw(c);
+            }
+        } else {
+            //special hack-like thing to speed up drawing *shrug*
+            Widget last_cover;
+            foreach (obj; mZWidgets) {
+                if (obj.w.doesCover)
+                    last_cover = obj.w;
+            }
+            bool draw = !last_cover;
+            foreach (obj; mZWidgets) {
+                draw |= obj.w is last_cover;
+                if (draw)
+                    obj.w.doDraw(c);
+            }
         }
         super.onDraw(c);
     }

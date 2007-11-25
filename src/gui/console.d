@@ -14,7 +14,8 @@ import utils.time;
 
 class GuiConsole : Container {
     private {
-        CommandLine mCmdline;
+        CommandLine mRealCmdline;
+        CommandLineInstance mCmdline;
 
         LogWindow mLogWindow;
         EditLine mEdit;
@@ -77,7 +78,7 @@ class GuiConsole : Container {
         return output();
     }
     final CommandLine cmdline() {
-        return mCmdline;
+        return mRealCmdline;
     }
 
     override bool canHaveFocus() {
@@ -90,7 +91,8 @@ class GuiConsole : Container {
     private const cBorder = 4;
 
     //standalone: if false: hack to keep "old" behaviour of the system console
-    this(bool standalone = true) {
+    //cmdline: use that cmdline, if null create a new one
+    this(bool standalone = true, CommandLine cmdline = null) {
         mBackColor = Color(0.5,0.5,0.5,0.5); //freaking alpha transparency!!!
 
         auto font = globals.framework.getFont(standalone
@@ -122,7 +124,8 @@ class GuiConsole : Container {
             mDrawBackground = true;
         }
 
-        mCmdline = new CommandLine(mLogWindow);
+        mRealCmdline = cmdline ? cmdline : new CommandLine(mLogWindow);
+        mCmdline = new CommandLineInstance(mRealCmdline, mLogWindow);
 
         mFadeinTime = timeMsecs(150);
         mLastTime = gFramework.getCurrentTime();
@@ -160,6 +163,17 @@ class GuiConsole : Container {
         mLastTime = gFramework.getCurrentTime();
 
         super.simulate();
+    }
+
+    //catch all events
+    override bool onKeyEvent(KeyInfo infos) {
+        super.onKeyEvent(infos);
+        mEdit.claimFocus();
+        return true;
+    }
+    override bool onMouseMove(MouseInfo infos) {
+        super.onMouseMove(infos);
+        return true;
     }
 
     override protected void layoutSizeAllocation() {

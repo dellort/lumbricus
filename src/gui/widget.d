@@ -455,6 +455,14 @@ class Widget {
         c.popState();
     }
 
+    //can be used with Container.checkCover (used if that is true)
+    //a return value of true means it cover's the _container's_ area compeltely
+    //the container then doesn't draw all widgets with lower zorder
+    //use with care
+    bool doesCover() {
+        return false;
+    }
+
     ///you should override this for custom drawing / normal widget rendering
     protected void onDraw(Canvas c) {
     }

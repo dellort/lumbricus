@@ -151,7 +151,7 @@ private:
 
         auto autoexec = globals.anyConfig.getSubNode("autoexec");
         foreach (char[] name, char[] value; autoexec) {
-            globals.cmdLine.execute(value, false);
+            globals.cmdLine.execute(value);
         }
 
         if (taskManager.taskList.length == 0) {
@@ -394,16 +394,21 @@ private:
 
     //bind [name action [keys]]
     private void cmdBind(MyBox[] args, Output write) {
-        switch (args[0].unbox!(char[])()) {
-            case "add":
-                keybindings.addBinding(args[1].unbox!(char[])(),
-                    args[2].unbox!(char[])());
-                return;
-            case "kill":
-                //remove all bindings
-                keybindings.removeBinding(args[1].unbox!(char[])());
-                return;
-            default:
+        if (!args[0].empty()) {
+            switch (args[0].unbox!(char[])()) {
+                case "add":
+                    if (!args[1].empty() && !args[1].empty()) {
+                        keybindings.addBinding(args[1].unbox!(char[])(),
+                            args[2].unbox!(char[])());
+                        return;
+                    }
+                case "kill":
+                    if (!args[1].empty()) {
+                        keybindings.removeBinding(args[1].unbox!(char[])());
+                        return;
+                    }
+                default:
+            }
         }
         //else, list all bindings
         write.writefln("Bindings:");
@@ -516,7 +521,7 @@ private:
                 return false;
             }
             auto mods = globals.framework.getModifierSet();
-            globals.cmdLine.output.writefln("Key: '%s' '%s'",
+            mGuiConsole.output.writefln("Key: '%s' '%s'",
                 keybindings.unparseBindString(infos.code, mods),
                 globals.translateKeyshortcut(infos.code, mods));
             mKeyNameIt = false;
@@ -531,7 +536,7 @@ private:
             if (mShowKeyDebug) {
                 globals.log("Binding '%s'", bind);
             }
-            globals.cmdLine.execute(bind, false);
+            globals.cmdLine.execute(bind);
             return false;
         }
         mGui.putOnKeyDown(infos);
@@ -549,5 +554,17 @@ private:
     private void onMouseMove(MouseInfo mouse) {
         //globals.log("%s", mouse.pos);
         mGui.putOnMouseMove(mouse);
+    }
+}
+
+class ConsoleWindow : Task {
+    this(TaskManager mgr) {
+        super(mgr);
+        gWindowManager.createWindowFullscreen(this,
+            new GuiConsole(true, globals.cmdLine), "Console");
+    }
+
+    static this() {
+        TaskFactory.register!(typeof(this))("console");
     }
 }

@@ -243,9 +243,7 @@ class WindowWidget : Container {
 
         recreateGui();
 
-        if (mManager) {
-            mManager.setFullScreen(mFullScreen ? this : null);
-        }
+        needRelayout();
 
         if (!set) {
             position = mFSSavedPos;
@@ -340,8 +338,16 @@ class WindowWidget : Container {
         //if fullscreen, the parent clears with this.background
         if (!mFullScreen) {
             common.visual.drawBox(c, widgetBounds, mBackground);
+        } else {
+            //xxx: possibly unnecessary clearing when it really covers the whole
+            //  screen; it should use getFramework.clearColor then, maybe
+            c.drawFilledRect(Vector2i(0), size, properties.background);
         }
         super.onDraw(c);
+    }
+
+    override bool doesCover() {
+        return mFullScreen;
     }
 
     char[] toString() {
@@ -353,60 +359,25 @@ class WindowWidget : Container {
 /// efficiently (won't draw other windows then)
 class WindowFrame : Container {
     private {
-        WindowWidget mFullScreen; //non-null if in fullscreen mode
         WindowWidget[] mWindows;  //all windows
+    }
+
+    this() {
+        checkCover = true;
     }
 
     void addWindow(WindowWidget wnd) {
         wnd.remove();
         wnd.mManager = this;
         mWindows ~= wnd;
-        if (!mFullScreen)
-            addChild(wnd);
+        addChild(wnd);
     }
 
     //hm, stupid, you must use this; wnd.remove() would silently fail
     void removeWindow(WindowWidget wnd) {
-        if (mFullScreen is wnd) {
-            setFullScreen(null);
-        }
         arrayRemove(mWindows, wnd);
         wnd.mManager = null;
         wnd.remove();
-    }
-
-    //called by Window
-    private void setFullScreen(WindowWidget wnd) {
-        if (wnd is mFullScreen)
-            return;
-
-        auto was_focused = localFocus; //focus state should survive
-
-        if (wnd) {
-            mFullScreen = wnd;
-            //for some stupid reasons, the following will relayouts us at least
-            //for mWindows.length time (or 1 if it was fullscreen before)
-            clear();
-            addChild(mFullScreen);
-            mFullScreen.fullScreen = true;
-        } else {
-            if (mFullScreen) {
-                mFullScreen.fullScreen = false;
-            }
-            auto old = mFullScreen;
-            mFullScreen = null;
-            clear(); //possibly kill old fullscreen
-            foreach (w; mWindows) {
-                addChild(w);
-            }
-            //this is slightly stupid:
-        }
-
-        if (was_focused) {
-            was_focused.claimFocus();
-            //zorder gets completely messed up, and claimFocus refuses
-            was_focused.toFront();
-        }
     }
 
     void setWindowPosition(WindowWidget wnd, Vector2i pos) {
@@ -414,36 +385,25 @@ class WindowFrame : Container {
     }
 
     protected override Vector2i layoutSizeRequest() {
-        if (mFullScreen) {
-            return mFullScreen.layoutCachedContainerSizeRequest();
-        } else {
-            return super.layoutSizeRequest();
-        }
+        //wtf should I do here? better stay consistent
+        return Vector2i(0);
     }
 
     protected override void layoutSizeAllocation() {
-        if (mFullScreen) {
-            mFullScreen.layoutContainerAllocate(widgetBounds());
-        } else {
-            foreach (WindowWidget w; mWindows) {
-                //maybe want to support invisible window sometime
-                //so if a window isn't parented, it's invisible
-                if (w.parent is this) {
+        foreach (WindowWidget w; mWindows) {
+            //maybe want to support invisible window sometime
+            //so if a window isn't parented, it's invisible
+            if (w.parent is this) {
+                Rect2i alloc;
+                if (w.fullScreen) {
+                    alloc = widgetBounds();
+                } else {
                     auto s = w.layoutCachedContainerSizeRequest();
                     auto p = w.containedBounds.p1;
-                    w.layoutContainerAllocate(Rect2i(p, p + s));
+                    alloc = Rect2i(p, p + s);
                 }
+                w.layoutContainerAllocate(alloc);
             }
         }
-    }
-
-    override protected void onDraw(Canvas c) {
-        if (mFullScreen) {
-            //xxx: possibly unnecessary clearing when it really covers the whole
-            //  screen; it should use getFramework.clearColor then, maybe
-            c.drawFilledRect(Vector2i(0), size,
-                mFullScreen.properties.background);
-        }
-        super.onDraw(c);
     }
 }

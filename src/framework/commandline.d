@@ -219,130 +219,128 @@ private:
 //idea:
 //bind a bunch of commands to... something
 class CommandBucket {
-    private Command[] mCommands;
-    private CommandLine mBoundTo;
+    private {
+        Command[] mCommands;
+        CommandBucket[] mSubs;
+        CommandBucket mParent;
+        Entry[] mSorted;   //sorted list of commands, including subs
+    }
+
+    //entry for each command
+    struct Entry {
+        char[] alias_name;
+        Command cmd;
+
+        //NOTE: sorted() uses the fact that it's sorted by name to eliminate
+        //      double entries
+        int opCmp(Entry* other) {
+            return str.cmp(alias_name, other.alias_name);
+        }
+    }
 
     void register(Command cmd) {
         mCommands ~= cmd;
-    }
-
-    void registerCommand(T...)(T) {
-        return register(Command(T));
-    }
-
-    /// Add commands to there.
-    void bind(CommandLine cmdline) {
-        assert(mBoundTo is null);
-        mBoundTo = cmdline;
-        mBoundTo.mCommands ~= mCommands;
-    }
-
-    //remove all commands from CommandLine instance again
-    void kill() {
-        if (!mBoundTo)
-            return;
-        //the really really rough way...
-        Command[] ncmds;
-        foreach (Command c; mBoundTo.mCommands) {
-            bool hit = false;
-            foreach (Command c2; mCommands) {
-                if (c is c2) {
-                    hit = true;
-                    break;
-                }
-            }
-            if (!hit)
-                ncmds ~= c;
-        }
-        mBoundTo.mCommands = ncmds;
-        mBoundTo = null;
-    }
-}
-
-//this was the only list class available :-)
-private alias List!(HistoryNode) HistoryList;
-
-private class HistoryNode {
-    char[] stuff;
-    mixin ListNodeMixin listnode;
-}
-
-public class CommandLine {
-    private uint mUniqueID; //counter for registerCommand IDs
-    private Output mConsole;
-    private uint mCursor;
-    private Command[] mCommands; //xxx: maybe replace by list
-    private HistoryList mHistory;
-    private uint mHistoryCount; //number of entries in the history
-    private HistoryNode mCurrentHistoryEntry;
-    private char[] mCommandPrefix;
-    private char[] mDefaultCommand;
-
-    private const uint MAX_HISTORY_ENTRIES = 20;
-    private const uint MAX_AUTO_COMPLETIONS = 10;
-
-    this(Output output) {
-        mConsole = output;
-        HistoryNode n;
-        mHistory = new HistoryList(n.listnode.getListNodeOffset());
-        registerCommand(Command("help", &cmdHelp, "Show all commands.",
-            ["text?:specific help for a command"]));
-        registerCommand(Command("history", &cmdHistory, "Show the history.", null));
-    }
-
-    public Output output() {
-        return mConsole;
-    }
-
-    private void cmdHelp(MyBox[] args, Output write) {
-        char[] foo = args[0].unboxMaybe!(char[])("");
-        if (foo.length == 0) {
-            mConsole.writefln("List of commands: ");
-            uint count = 0;
-            foreach (Command c; mCommands) {
-                mConsole.writefln("   %s: %s", c.name, c.helpText);
-                count++;
-            }
-            mConsole.writefln("%d commands.", count);
-        } else {
-            //"detailed" help about one command
-            //xxx: maybe replace the exact comparision by calling the auto
-            //completion code
-            foreach (Command c; mCommands) {
-                if (c.name == foo) {
-                    mConsole.writefln("Command '%s': %s", c.name, c.helpText);
-                    for (int n = 0; n < c.param_types.length; n++) {
-                        //reverse lookup type
-                        foreach (key, value; gCommandLineParsers) {
-                            if (value is c.param_types[n]) {
-                                mConsole.writef("    %s ", key);
-                            }
-                        }
-                        if (n >= c.minArgCount) {
-                            mConsole.writef("[opt] ");
-                        }
-                        mConsole.writefln("%s", c.param_help[n]);
-                    }
-                    if (c.textArgument) {
-                        mConsole.writefln("    [text-agument]");
-                    }
-                    mConsole.writefln("%s arguments.", c.param_types.length);
-                    return;
-                }
-            }
-            mConsole.writefln("Command '%s' not found.", foo);
-        }
-    }
-
-    private void cmdHistory(MyBox[] args, Output write) {
-        mConsole.writefln("History:");
-        foreach (HistoryNode hist; mHistory) {
-            mConsole.writefln("   "~hist.stuff);
-        }
+        invalidate();
     }
 
     public void registerCommand(Command cmd) {
-        mCommands ~= cmd;
+        register(cmd);
+    }
+
+    public void registerCommand(char[] name, CommandHandler handler,
+        char[] helpText, char[][] args = null)
+    {
+        register(Command(name, handler, helpText, args));
+    }
+
+    /// Merge the commands from sub with this
+    void addSub(CommandBucket sub) {
+        removeSub(sub); //just to be safe
+        mSubs ~= sub;
+        sub.mParent = this;
+        invalidate();
+    }
+
+    void bind(CommandLine cmdline) {
+        cmdline.commands.addSub(this);
+    }
+
+    void removeSub(CommandBucket sub) {
+        if (arraySearch(mSubs, sub) < 0)
+            return;
+        arrayRemove(mSubs, sub);
+        invalidate();
+    }
+
+    void kill() {
+        if (mParent)
+            mParent.removeSub(this);
+    }
+
+    //clear command cache
+    void invalidate() {
+        mSorted = null;
+        if (mParent)
+            mParent.invalidate();
+    }
+
+    Entry[] sorted() {
+        if (mSorted.length == 0) {
+            //recursively add from all sub-entries etc.
+            void doAdd(CommandBucket b) {
+                foreach (m; b.mCommands) {
+                    mSorted ~= Entry(m.name, m);
+                }
+                foreach (s; b.mSubs) {
+                    doAdd(s);
+                }
+            }
+            doAdd(this);
+
+            //sort the mess and deal with double entries
+            for (;;) {
+                bool change = false;
+                mSorted.sort;
+                char[] last_entry;
+                int n_entry;
+                foreach (inout e; mSorted) {
+                    if (e.alias_name == last_entry) {
+                        change = true;
+                        n_entry++;
+                        e.alias_name = format("%s_%d", last_entry, n_entry);
+                    } else {
+                        last_entry = e.alias_name;
+                        n_entry = 1;
+                    }
+                }
+                if (!change)
+                    break;
+            }
+        }
+        return mSorted;
+    }
+}
+
+///stateless part of the commandline, where commands are registered
+public class CommandLine {
+    private CommandBucket mCommands;
+    private char[] mCommandPrefix;
+    private char[] mDefaultCommand;
+    private CommandLineInstance mDefInstance; //to support execute()
+
+    CommandBucket commands() {
+        return mCommands;
+    }
+
+    //def_output: output for execute(), normally you use your own
+    //CommandLineInstance, which can have its own output
+    this(Output def_output) {
+        mCommands = new CommandBucket;
+        mDefInstance = new CommandLineInstance(this, def_output);
+    }
+
+    public void registerCommand(Command cmd) {
+        mCommands.register(cmd);
     }
 
     public void registerCommand(char[] name, CommandHandler handler,
@@ -356,6 +354,105 @@ public class CommandLine {
     public void setPrefix(char[] prefix, char[] default_command) {
         mCommandPrefix = prefix;
         mDefaultCommand = default_command;
+    }
+
+    public void execute(char[] cmdline) {
+        mDefInstance.execute(cmdline, false);
+    }
+}
+
+///stateful part of the commandline (i.e. history)
+class CommandLineInstance {
+    private {
+        //this was the only list class available :-(
+        alias List!(HistoryNode) HistoryList;
+
+        class HistoryNode {
+            char[] stuff;
+            mixin ListNodeMixin listnode;
+        }
+
+        CommandLine mCmdline;
+        CommandBucket mCommands;
+        Output mConsole;
+        HistoryList mHistory;
+        HistoryNode mCurrentHistoryEntry;
+
+        const uint MAX_HISTORY_ENTRIES = 20;
+        const uint MAX_AUTO_COMPLETIONS = 10;
+
+        alias CommandBucket.Entry CommandEntry;
+    }
+
+    this(CommandLine cmdline, Output output) {
+        mConsole = output;
+        mCmdline = cmdline;
+        mCommands = new CommandBucket;
+        mCommands.addSub(mCmdline.mCommands);
+        HistoryNode n;
+        mHistory = new HistoryList(n.listnode.getListNodeOffset());
+        mCommands.registerCommand(Command("help", &cmdHelp,
+            "Show all commands.", ["text?:specific help for a command"]));
+        mCommands.registerCommand(Command("history", &cmdHistory,
+            "Show the history.", null));
+    }
+
+    private void cmdHelp(MyBox[] args, Output write) {
+        char[] foo = args[0].unboxMaybe!(char[])("");
+        if (foo.length == 0) {
+            mConsole.writefln("List of commands: ");
+            uint count = 0;
+            foreach (c; mCommands.sorted) {
+                mConsole.writefln("   %s: %s", c.alias_name, c.cmd.helpText);
+                count++;
+            }
+            mConsole.writefln("%d commands.", count);
+        } else {
+            //"detailed" help about one command
+            //xxx: maybe replace the exact comparision by calling the auto
+            //completion code
+            CommandEntry[] reslist;
+            auto exact = find_command_completions(foo, reslist);
+            if (!exact.cmd && reslist.length == 1) {
+                exact = reslist[0];
+            }
+            if (exact.cmd) {
+                auto c = exact.cmd;
+                mConsole.writefln("Command '%s' ('%s'): %s", exact.alias_name,
+                    c.name, c.helpText);
+                for (int n = 0; n < c.param_types.length; n++) {
+                    //reverse lookup type
+                    foreach (key, value; gCommandLineParsers) {
+                        if (value is c.param_types[n]) {
+                            mConsole.writef("    %s ", key);
+                        }
+                    }
+                    if (n >= c.minArgCount) {
+                        mConsole.writef("[opt] ");
+                    }
+                    mConsole.writefln("%s", c.param_help[n]);
+                }
+                if (c.textArgument) {
+                    mConsole.writefln("    [text-agument]");
+                }
+                mConsole.writefln("%s arguments.", c.param_types.length);
+                return;
+            } else if (reslist.length) {
+                mConsole.writefln("matches:");
+                foreach (e; reslist) {
+                    mConsole.writefln("   %s", e.alias_name);
+                }
+                return;
+            }
+            mConsole.writefln("Command '%s' not found.", foo);
+        }
+    }
+
+    private void cmdHistory(MyBox[] args, Output write) {
+        mConsole.writefln("History:");
+        foreach (HistoryNode hist; mHistory) {
+            mConsole.writefln("   "~hist.stuff);
+        }
     }
 
     /// Search through the history, dir is either -1 or +1
@@ -398,9 +495,9 @@ public class CommandLine {
     private bool parseCommand(char[] line, out char[] command, out char[] args,
         out uint start, out uint end)
     {
-        auto plen = mCommandPrefix.length;
+        auto plen = mCmdline.mCommandPrefix.length;
         auto len = line.length;
-        if (len >= plen && line[0..plen] == mCommandPrefix) {
+        if (len >= plen && line[0..plen] == mCmdline.mCommandPrefix) {
             line = line[plen..$]; //skip prefix
             line = str.stripl(line); //skip whitespace
             start = len - line.length; //start offset
@@ -414,7 +511,7 @@ public class CommandLine {
                 end = start + line.length;
             }
         } else {
-            command = mDefaultCommand;
+            command = mCmdline.mDefaultCommand;
             args = line;
         }
         return command.length > 0;
@@ -434,20 +531,20 @@ public class CommandLine {
                 HistoryNode histent = new HistoryNode();
                 histent.stuff = cmdline.dup;
                 mHistory.insert_tail(histent);
-                mHistoryCount++;
 
-                if (mHistoryCount > MAX_HISTORY_ENTRIES) {
+                if (mHistory.count() > MAX_HISTORY_ENTRIES) {
                     mHistory.remove(mHistory.head);
                 }
 
                 mCurrentHistoryEntry = null;
             }
 
-            Command[] throwup;
-            auto ccmd = find_command_completions(cmd, throwup);
+            CommandEntry[] throwup;
+            auto cccmd = find_command_completions(cmd, throwup);
+            auto ccmd = cccmd.cmd;
             //accept unique partial matches
             if (!ccmd && throwup.length == 1) {
-                ccmd = throwup[0];
+                ccmd = throwup[0].cmd;
             }
             if (!ccmd) {
                 mConsole.writefln("Unknown command: "~cmd);
@@ -469,20 +566,20 @@ public class CommandLine {
         uint start, end;
         if (!parseCommand(line, cmd, args, start, end) || start == end)
             return;
-        Command[] res;
-        Command exact = find_command_completions(cmd, res);
+        CommandEntry[] res;
+        CommandEntry exact = find_command_completions(cmd, res);
 
         if (res.length == 0) {
             //no hit, too bad, maybe beep?
         } else {
             //get biggest common starting-string of all completions
-            char[] common = res[0].name;
-            foreach (Command ccmd; res[1..$]) {
-                if (ccmd.name.length < common.length)
-                    common = ccmd.name.dup; //dup: because we set length below
+            char[] common = res[0].alias_name;
+            foreach (CommandEntry ccmd; res[1..$]) {
+                if (ccmd.alias_name.length < common.length)
+                    common = ccmd.alias_name.dup; //dup: because we set length below
                 //xxx incorrect utf-8 handling
                 foreach (uint index, char c; common) {
-                    if (ccmd.name[index] != c) {
+                    if (ccmd.alias_name[index] != c) {
                         common.length = index;
                         break;
                     }
@@ -500,8 +597,8 @@ public class CommandLine {
                     mConsole.writefln("Tab completions:");
                     bool toomuch = (res.length == MAX_AUTO_COMPLETIONS);
                     if (toomuch) res = res[0..$-1];
-                    foreach (Command ccmd; res) {
-                        mConsole.writefln("  %s", ccmd.name);
+                    foreach (CommandEntry ccmd; res) {
+                        mConsole.writefln("  %s", ccmd.alias_name);
                     }
                     if (toomuch)
                         mConsole.writefln("...");
@@ -518,20 +615,22 @@ public class CommandLine {
     }
 
     //if there's a perfect match (whole string equals), then it is returned,
-    //  else return null
-    private Command find_command_completions(char[] cmd, inout Command[] res) {
-        Command exact;
+    //  else return null (for the .cmd field)
+    private CommandEntry find_command_completions(char[] cmd,
+        inout CommandEntry[] res)
+    {
+        CommandEntry exact;
 
         res.length = 0;
 
-        foreach (Command cur; mCommands) {
+        foreach (CommandEntry cur; mCommands.sorted) {
             //xxx: make string comparisions case insensitive
             //xxx: incorrect utf-8 handling?
-            if (cur.name.length >= cmd.length
-                && cmd == cur.name[0 .. cmd.length])
+            if (cur.alias_name.length >= cmd.length
+                && cmd == cur.alias_name[0 .. cmd.length])
             {
                 res = res ~ cur;
-                if (cmd == cur.name) {
+                if (cmd == cur.alias_name) {
                     exact = cur;
                 }
             }

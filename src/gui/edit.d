@@ -76,6 +76,7 @@ class EditLine : Widget {
             if (had_sel) {
                 deleteSelection();
             } else if (mCursor > 0) {
+                killSelection();
                 int del = mCursor - charPrev(mCurline, mCursor);
                 mCurline = mCurline[0 .. mCursor-del] ~ mCurline[mCursor .. $];
                 mCursor -= del;
@@ -86,6 +87,7 @@ class EditLine : Widget {
             if (had_sel) {
                 deleteSelection();
             } else if (mCursor < mCurline.length) {
+                killSelection();
                 int del = utf.stride(mCurline, mCursor);
                 mCurline = mCurline[0 .. mCursor] ~ mCurline[mCursor+del .. $];
                 doOnChange();
@@ -170,9 +172,10 @@ class EditLine : Widget {
     override bool onMouseMove(MouseInfo info) {
         if (mMouseDown) {
             mSelEnd = indexAtX(mousePos.x);
+            mCursor = mSelEnd;
+            return true;
         }
-        return true;
-        //return super.onMouseMove(info);
+        return super.onMouseMove(info);
     }
 
     override Vector2i layoutSizeRequest() {

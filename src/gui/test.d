@@ -31,7 +31,7 @@ class TestFrame : SimpleContainer {
     private Button[] mButtons;
 
     private void foo(Button sender) {
-        globals.cmdLine.output.writefln("button: %s", arraySearch(mButtons, sender));
+        globals.defaultOut.writefln("button: %s", arraySearch(mButtons, sender));
     }
 
     this() {
