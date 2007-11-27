@@ -15,11 +15,17 @@ import utils.misc;
 import utils.rect2;
 import utils.vector2;
 
+enum WindowZOrder {
+    Normal = 0,
+    High = 10, //always on top
+}
+
 //only static properties
 struct WindowProperties {
     char[] windowTitle = "<huhu, you forgot to set a title!>";
     bool canResize = true;   //disallow user to resize the window
     Color background = Color(1,1,1); //of the client part of the window
+    WindowZOrder zorder; //static zorder
 }
 
 /// A window with proper window decorations and behaviour
@@ -263,12 +269,14 @@ class WindowWidget : Container {
         res.windowTitle = mTitle;
         res.background = mBackground.back;
         res.canResize = mCanResize;
+        res.zorder = cast(WindowZOrder)zorder;
         return res;
     }
     void properties(WindowProperties props) {
         mTitleBar.text = mTitle = props.windowTitle;
         mBackground.back = props.background;
         mCanResize = props.canResize;
+        zorder = props.zorder;
     }
 
     void activate() {

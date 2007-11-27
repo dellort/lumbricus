@@ -17,7 +17,7 @@ import utils.misc;
 import utils.rect2;
 import utils.vector2;
 
-public import gui.window : WindowProperties;
+public import gui.window : WindowProperties, WindowZOrder;
 
 ///the WindowManager singleton, usually created by common/toplevel.d
 ///(here because it fits and also to avoid circular dependencies etc.)

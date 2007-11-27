@@ -21,6 +21,7 @@ import utils.configfile;
 import utils.factory;
 import utils.log;
 import utils.output;
+import utils.misc;
 import utils.mylist;
 import utils.mybox;
 import utils.perf;
@@ -36,6 +37,8 @@ enum GUIZOrder : int {
     Console,
     FPS,
 }
+
+TopLevel gTopLevel;
 
 //this contains the mainframe
 class TopLevel {
@@ -60,6 +63,7 @@ private:
     Time mLastTimerStatsUpdate;
     int mLastTimerStatsFrames;
     bool mLastTimerInitialized;
+    int mTimerStatsGeneration;
 
     void onFrameEnd() {
         mFrameTime.stop();
@@ -68,14 +72,17 @@ private:
         if (!mLastTimerInitialized) {
             mLastTimerStatsUpdate = cur;
             mLastTimerStatsFrames = 1;
+            mLastTimerInitialized = true;
         }
-        if (cur + timeMsecs(cTimerStatsUpdateTimeMs) > mLastTimerStatsUpdate) {
+        if (cur - mLastTimerStatsUpdate >= timeMsecs(cTimerStatsUpdateTimeMs)) {
+            mTimerStatsGeneration++;
             mLastTimerStatsUpdate = cur;
             int div = mLastTimerStatsFrames;
             mLastTimerStatsFrames = 0;
             foreach (PerfTimer cnt; globals.timers) {
                 assert(!cnt.active, "timers must be off across frames");
-                mLastTimerValues[cnt] = cnt.time() / div;
+                auto t = cnt.time();
+                mLastTimerValues[cnt] = t / div;
                 cnt.reset();
             }
         }
@@ -86,16 +93,27 @@ private:
 
     void cmdShowTimers(MyBox[] args, Output write) {
         write.writefln("Timers:");
+        listTimers((char[] a, char[] b) {write.writefln("   %s: %s", a, b);});
+    }
+
+    void listTimers(void delegate(char[] name, char[] value) cb) {
         foreach (char[] name, PerfTimer cnt; globals.timers) {
             Time* pt = cnt in mLastTimerValues;
             char[] s = "<unknown>";
             if (pt)
                 s = format("%s", *pt);
-            write.writefln("   %s: %s", name, s);
+            cb(name, s);
         }
     }
 
+    int timerCount() {
+        return globals.timers.length;
+    }
+
     public this() {
+        assert(!gTopLevel, "singleton");
+        gTopLevel = this;
+
         auto framework = getFramework();
 
         mTaskTime = globals.newTimer("tasks");
@@ -566,5 +584,79 @@ class ConsoleWindow : Task {
 
     static this() {
         TaskFactory.register!(typeof(this))("console");
+    }
+}
+
+import gui.tablecontainer;
+import gui.label;
+
+class StatsWindow : Task {
+    TopLevel bla;
+    int lastupdate = -1;
+    Window wnd;
+    TableContainer table;
+
+    this(TaskManager mgr) {
+        super(mgr);
+        bla = gTopLevel;
+        table = new TableContainer(2, 0, Vector2i(10, 0));
+        //rettet die statistik
+        wnd = gWindowManager.createWindow(this, table, "Statistics");
+        auto props = wnd.properties;
+        props.zorder = WindowZOrder.High;
+        wnd.properties = props;
+    }
+
+    override void onFrame() {
+        if (bla.mTimerStatsGeneration != lastupdate) {
+            lastupdate = bla.mTimerStatsGeneration;
+
+            void setLine(int line, char[] a, char[] b) {
+                Label la, lb;
+                if (!table.get(0, line)) {
+                    la = new Label();
+                    lb = new Label();
+                    la.font = gFramework.getFont("normal");
+                    lb.font = la.font;
+                    la.drawBorder = false;
+                    lb.drawBorder = false;
+                    table.add(la, 0, line);
+                    table.add(lb, 1, line, WidgetLayout.Aligned(+1, 0));
+                } else {
+                    la = cast(Label)table.get(0, line);
+                    lb = cast(Label)table.get(1, line);
+                }
+                la.text = a;
+                lb.text = b;
+            }
+
+            wnd.client = null; //dirty trick to avoid relayouting all the time
+            table.setSize(2, bla.timerCount+3, false);
+
+            int n = 0;
+
+            gc.GCStats gcs;
+            gc.getStats(gcs);
+
+            setLine(0, "GC Used", sizeToHuman(gcs.usedsize));
+            setLine(1, "GC Poolsize", sizeToHuman(gcs.poolsize));
+            setLine(2, "Weak objects",
+                gFramework.getInfoString(InfoString.Custom0));
+
+            n += 3;
+
+            bla.listTimers((char[] a, char[] b) {
+                setLine(n, a, b);
+                n++;
+            });
+
+            wnd.client = table;
+            //avoid that the window resizes on each update
+            wnd.acceptSize();
+        }
+    }
+
+    static this() {
+        TaskFactory.register!(typeof(this))("stats");
     }
 }

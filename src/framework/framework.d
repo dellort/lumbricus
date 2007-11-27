@@ -256,6 +256,7 @@ enum InfoString {
     Framework,
     Backend,
     ResourceList,
+    Custom0, //hack lol
 }
 
 /// Contains event- and graphics-handling
@@ -302,7 +303,8 @@ public class Framework {
     public InfoString[char[]] getInfoStringNames() {
         return [cast(char[])"framework": InfoString.Framework,
                 "backend": InfoString.Backend,
-                "resource_list": InfoString.ResourceList];
+                "resource_list": InfoString.ResourceList,
+                "custom0": InfoString.Custom0];
     }
 
     /// register a callback which is called on releaseCaches()

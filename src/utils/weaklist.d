@@ -80,11 +80,7 @@ class WeakList(T, Data = Dummy) {
         };
 
         if (fromFinalizer) {
-            //currently, Phobos calls the finalizer while all other threads are
-            //still stopped; and if the GC starts to run, other threads still
-            //could enter sync() and lock the mutex (just before the GC pauses
-            //them) => possible deadlock when sync() is used here
-            //on Tango, things are different and this might break
+            //xxx earlier comment was wrong; this is a race condition
             code();
         } else {
             sync(code);
@@ -101,6 +97,19 @@ class WeakList(T, Data = Dummy) {
                 mRoot = tmp;
             }
         });
+    }
+
+    /// returns list.length (for statistics, actual length can change anytime)
+    int countRefs() {
+        int n;
+        sync({
+            auto cur = mRoot;
+            while (cur) {
+                n++;
+                cur = cur.next;
+            }
+        });
+        return n;
     }
 
     /// Obtain the list of all objects in a safe way. This is slow!
@@ -132,14 +141,7 @@ class WeakList(T, Data = Dummy) {
             for (;;) {
                 bool ok = true;
                 //first count the objects
-                int n;
-                sync({
-                    auto cur = mRoot;
-                    while (cur) {
-                        n++;
-                        cur = cur.next;
-                    }
-                });
+                int n = countRefs();
                 //then allocate an array and attempt to stuff all refs into it
                 //the lock must (should?) be released during that, because we want
                 //allocate memory from the GC (to guarantee that the GC keeps the

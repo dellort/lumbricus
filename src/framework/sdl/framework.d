@@ -889,6 +889,7 @@ public class FrameworkSDL : Framework {
                     info.current_h);
             }
             case InfoString.ResourceList: return resourceString();
+            case InfoString.Custom0: return .toString(weaklist_count());
             default:
                 return super.getInfoString(s);
         }
@@ -1068,6 +1069,10 @@ public class FrameworkSDL : Framework {
     void defered_free() {
         gFonts.cleanup((FontData d) { d.doFree(); });
         gSurfaces.cleanup((SurfaceData d) { d.doFree(); });
+    }
+
+    int weaklist_count() {
+        return gFonts.countRefs() + gSurfaces.countRefs();
     }
 
     int releaseResCaches() {

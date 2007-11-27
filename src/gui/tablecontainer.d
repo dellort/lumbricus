@@ -62,10 +62,12 @@ class TableContainer : PublicContainer {
         mCellSpacing = cellspacing;
     }
 
-    //this clears all contained elements!
-    void setSize(int a_w, int a_h) {
-        clear();
-        mCells = null; //?
+    //this clears all contained elements! (but not if doclear = false)
+    void setSize(int a_w, int a_h, bool doclear = true) {
+        if (doclear) {
+            clear();
+            mCells = null; //??
+        }
 
         mCells.length = a_w;
         foreach (inout r; mCells) {
@@ -97,6 +99,10 @@ class TableContainer : PublicContainer {
         assert(mCells[x][y].w is null);
         mCells[x][y].w = w;
         addChild(w);
+    }
+
+    Widget get(int x, int y) {
+        return mCells[x][y].w;
     }
 
     override protected void removeChild(Widget w) {
