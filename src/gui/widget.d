@@ -218,8 +218,10 @@ class Widget {
     /// Report wished size (or minimal size) to the parent container.
     /// Can also be used to precalculate the layout (must independent of the
     /// current size).
-    /// Widgets must override this; no default implementation.
-    abstract protected Vector2i layoutSizeRequest();
+    /// Widgets should override this; by default returns always (0,0).
+    protected Vector2i layoutSizeRequest() {
+        return Vector2i(0);
+    }
 
     /// Return what layoutContainerSizeRequest() would return, but possibly
     /// cache the result.

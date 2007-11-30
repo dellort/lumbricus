@@ -145,6 +145,9 @@ private:
         framework.onVideoInit = &onVideoInit;
         framework.onFrameEnd = &onFrameEnd;
 
+        //fugly!
+        //framework.clearColor = Color(0,0,1);
+
         //do it yourself... (initial event)
         onVideoInit(false);
 
@@ -223,6 +226,8 @@ private:
 
         globals.cmdLine.registerCommand("release_caches", &cmdReleaseCaches,
             "Release caches (temporary data)", []);
+        globals.cmdLine.registerCommand("caching", &cmdSetCaching,
+            "Set if texture caching should be done", ["bool:if enabled"]);
 
         globals.cmdLine.registerCommand("times", &cmdShowTimers,
             "List timers", []);
@@ -289,6 +294,10 @@ private:
     private void cmdReleaseCaches(MyBox[] args, Output write) {
         int released = getFramework.releaseCaches();
         write.writefln("released %s memory consuming house shoes", released);
+    }
+
+    private void cmdSetCaching(MyBox[] args, Output write) {
+        getFramework.setAllowCaching(args[0].unbox!(bool));
     }
 
     private void cmdResList(MyBox[] args, Output write) {

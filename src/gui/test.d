@@ -15,7 +15,9 @@ import gui.scrollwindow;
 import gui.loader;
 import common.common;
 import common.task;
+import common.visual;
 import framework.framework;
+import framework.font;
 import framework.commandline : CommandBucket, Command;
 import utils.mybox;
 import utils.output;
@@ -221,5 +223,118 @@ class TestTask : Task {
 
     static this() {
         TaskFactory.register!(typeof(this))("testtask");
+    }
+}
+
+class TestTask2 : Task {
+    const cBorder = Vector2i(10);
+
+    class FontTest : Widget {
+        FontProperties font;
+        Color clear;
+        Font f;
+
+        this() {
+            f = gFramework.getFont("");
+        }
+
+        override protected void layoutSizeAllocation() {
+            updateFont();
+        }
+
+        void updateFont() {
+            //font size isn't in pixels, but in "points"
+            //no idea how to convert these
+            font.size = size.y-cBorder.y*4;
+            auto oldf = f;
+            f = f.clone(font);
+            oldf.free();
+        }
+
+        override void onDraw(Canvas c) {
+            c.drawFilledRect(Vector2i(0), size, clear);
+            f.drawText(c, cBorder, "Ab");
+        }
+    }
+
+    class BoxTest : Widget {
+        BoxProperties box;
+        Color clear;
+
+        override void onDraw(Canvas c) {
+            c.drawFilledRect(Vector2i(0), size, clear);
+            auto rc = widgetBounds;
+            rc.extendBorder(-cBorder);
+            drawBox(c, rc, box);
+        }
+    }
+
+    FontTest mFont;
+    BoxTest mBox;
+    ScrollBar[3] mBars;
+
+    void onScrollbar(ScrollBar sender) {
+        float getcolor(int n) {
+            return mBars[n].curValue/255.0f;
+        }
+        mFont.font.fore.a = getcolor(0);
+        mFont.font.back.a = getcolor(1);
+        mFont.updateFont();
+        mBox.box.back.a = getcolor(0);
+        mBox.box.border.a = getcolor(1);
+        Color clear = Color(getcolor(2),1,1);
+        mFont.clear = clear;
+        mBox.clear = clear;
+
+        gFramework.releaseCaches();
+    }
+
+    this(TaskManager tm) {
+        super(tm);
+
+        mFont = new FontTest();
+        mBox = new BoxTest();
+
+        auto gui = new BoxContainer(false, false, 3);
+        auto cnt = new BoxContainer(true);
+        cnt.add(mFont);
+        cnt.add(mBox);
+        gui.add(cnt);
+
+        auto scr = new TableContainer(2, 3, Vector2i(15, 1));
+        char[][] labels = ["foreground/border alpha", "background alpha",
+            "container red"];
+        int[] values = [128, 128, 0];
+
+        for (int n = 0; n < mBars.length; n++) {
+            auto la = new Label();
+            la.font = gFramework.getFont("normal");
+            la.text = labels[n];
+            la.drawBorder = false;
+            scr.add(la, 0, n, WidgetLayout.Aligned(-1,0));
+
+            auto bar = new ScrollBar(true);
+            mBars[n] = bar;
+            bar.maxValue = 255;
+            bar.curValue = values[n];
+            bar.onValueChange = &onScrollbar;
+            scr.add(bar, 1, n, WidgetLayout.Border(Vector2i(3)));
+        }
+
+        auto sp = new Spacer();
+        sp.minSize = Vector2i(0,2);
+        sp.color = Color(0);
+        gui.add(sp, WidgetLayout.Expand(true));
+
+        gui.add(scr, WidgetLayout.Expand(true));
+
+        onScrollbar(null); //update
+
+        gWindowManager.createWindow(this, gui, "Alpha test",
+            Vector2i(450, 300));
+    }
+
+    static this() {
+        TaskFactory.register!(typeof(this))("alphatest");
     }
 }

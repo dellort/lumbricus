@@ -96,6 +96,13 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
         mCamera.doFrame();
     }
 
+    override bool doesCover() {
+        //assumption: gameView covers this widget completely, i.e. no borders
+        //etc...; warning: assumption isn't true if level+gameView is smaller
+        //than window; would need to check that
+        return gameView.doesCover();
+    }
+
     this(ClientGameEngine ce) {
         clientengine = ce;
 

@@ -222,7 +222,7 @@ class CommandBucket {
     private {
         Command[] mCommands;
         CommandBucket[] mSubs;
-        CommandBucket mParent;
+        CommandBucket[] mParent; //lol, don't ask...
         Entry[] mSorted;   //sorted list of commands, including subs
     }
 
@@ -257,7 +257,7 @@ class CommandBucket {
     void addSub(CommandBucket sub) {
         removeSub(sub); //just to be safe
         mSubs ~= sub;
-        sub.mParent = this;
+        sub.mParent ~= this;
         invalidate();
     }
 
@@ -269,19 +269,20 @@ class CommandBucket {
         if (arraySearch(mSubs, sub) < 0)
             return;
         arrayRemove(mSubs, sub);
+        arrayRemove(sub.mParent, this);
         invalidate();
     }
 
     void kill() {
-        if (mParent)
-            mParent.removeSub(this);
+        foreach (p; mParent)
+            p.removeSub(this);
     }
 
     //clear command cache
     void invalidate() {
         mSorted = null;
-        if (mParent)
-            mParent.invalidate();
+        foreach (p; mParent)
+            p.invalidate();
     }
 
     Entry[] sorted() {

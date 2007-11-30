@@ -42,6 +42,9 @@ debug import std.stdio;
 debug {
     //version = MeasureImgLoadTime;
     version = DrawStats;
+    //with this hack, all alpha surfaces (for which texture cache is enabled)
+    //are drawn with a black box around them
+    //version = MarkAlpha;
 }
 
 version (MeasureImgLoadTime) {
@@ -67,22 +70,34 @@ package class SDLTexture : Texture {
     //mOriginalSurface is the image source, and mCached is the image converted
     //to screen format
     private SDLSurface mOriginalSurface;
+    private bool mEnableCache; //see checkCaching()
 
     package this(SDLSurface source, bool enableCache = true) {
         mOriginalSurface = source;
+        mEnableCache = enableCache;
         assert(source !is null);
-        if (!enableCache) {
-            mOriginalSurface.mCached = mOriginalSurface.mReal;
+    }
+
+    private bool cachingOK() {
+        return mEnableCache && gFrameworkSDL.mAllowTextureCache;
+    }
+
+    //if gFramework.mAllowTextureCache changed
+    package void checkCaching() {
+        //if caching is wished (user requests it and framework allows it)
+        bool shouldCache = cachingOK();
+        //if currently there's a cached surface
+        //mCached can be null, mReal, or a surface with a converted surface
+        bool doesCache = (mOriginalSurface.mCached !is mOriginalSurface.mReal);
+        //if different, clear the cache -> getDrawSurface() does the right thing
+        if (shouldCache != doesCache) {
+            releaseCache();
         }
     }
 
     public void setCaching(bool state) {
         releaseCache();
-        if (state) {
-            mOriginalSurface.mCached = null;
-        } else {
-            mOriginalSurface.mCached = mOriginalSurface.mReal;
-        }
+        mEnableCache = state;
     }
 
     public Vector2i size() {
@@ -101,6 +116,14 @@ package class SDLTexture : Texture {
         return mOriginalSurface;
     }
 
+    //check if s is of format fmt
+    //don't know if implementation is correct; but it worked for me
+    private static bool checkFormat(SDL_Surface* s, DisplayFormat fmt) {
+        PixelFormat f = gFrameworkSDL.findPixelFormat(fmt);
+        PixelFormat f2 = gFrameworkSDL.sdlFormatToFramework(s.format);
+        return f == f2;
+    }
+
     //convert the image to the current screen format (this is done once)
     package void checkIfScreenFormat() {
         //xxx insert check if screen depth has changed at all!
@@ -108,27 +131,32 @@ package class SDLTexture : Texture {
         //else: performance problem with main level surface
         if (!mOriginalSurface.mCached) {
             assert(mOriginalSurface !is null);
+            if (!cachingOK()) {
+                mOriginalSurface.mCached = mOriginalSurface.mReal;
+                return;
+            }
             SDL_Surface* conv_from = mOriginalSurface.mReal;
             assert(conv_from !is null);
 
-            releaseCache();
             SDL_Surface* nsurf;
             switch (mOriginalSurface.mTransp) {
                 case Transparency.Colorkey, Transparency.None: {
-                    nsurf = SDL_DisplayFormat(conv_from);
+                    if (!checkFormat(conv_from, DisplayFormat.Screen))
+                        nsurf = SDL_DisplayFormat(conv_from);
                     break;
                 }
                 case Transparency.Alpha: {
-                    //xxx: this didn't really work, the alpha channel was
-                    //  removed, needs to be retested (i.e. don't set neverCache
-                    //  when using spiffy alpha blended fonts)
-                    nsurf = SDL_DisplayFormatAlpha(conv_from);
+                    if (!checkFormat(conv_from, DisplayFormat.ScreenAlpha)) {
+                        nsurf = SDL_DisplayFormatAlpha(conv_from);
+                        version (MarkAlpha)
+                            doMarkAlpha(nsurf);
+                    }
                     break;
                 }
                 default:
                     assert(false);
             }
-            mOriginalSurface.mCached = nsurf;
+            mOriginalSurface.mCached = nsurf ? nsurf : mOriginalSurface.mReal;
         }
     }
 
@@ -145,6 +173,17 @@ package class SDLTexture : Texture {
     }
 }
 
+version (MarkAlpha) {
+    private void doMarkAlpha(SDL_Surface* surface) {
+        Canvas c = (new SDLSurface(surface, false)).startDraw();
+        auto x1 = Vector2i(0), x2 = c.realSize()-Vector2i(1);
+        c.drawRect(x1, x2, Color(0));
+        c.drawLine(x1, x2, Color(0));
+        c.drawLine(x2.Y, x2.X, Color(0));
+        c.endDraw();
+    }
+}
+
 public class SDLSurface : Surface {
     //mReal: original surface (any pixelformat)
     SDL_Surface* mReal;
@@ -157,24 +196,31 @@ public class SDLSurface : Surface {
     SDLTexture mSDLTexture;
     SDL_Surface* mCached;
 
-    bool mDidInit;
+    bool mDidInit, mOwns;
 
     //own: if this Surface is allowed to free the SDL_Surface
-    //(added this to simplify memory managment later on, currently pointless)
     void setSurface(SDL_Surface* realsurface, bool own) {
         assert(mReal is null);
         mReal = realsurface;
-        //mOwnsSurface = own;
         assert(!mDidInit); //execute gSurfaces.add() only once
         mDidInit = true;
+        mOwns = own;
         gSurfaces.add(this);
     }
 
     void doFree(bool finalizer) {
         SurfaceData d;
-        d.preal = mReal;
-        d.pcached = mCached;
+        if (mOwns) {
+            d.preal = mReal;
+            d.pcached = mCached;
+        }
         mReal = mCached = null;
+        if (!finalizer) {
+            //if not from finalizer, actually can call C functions
+            //so free it now (and not later, by lazy freeing)
+            d.doFree();
+            d = SurfaceData(); //reset
+        }
         gSurfaces.remove(this, finalizer, d);
     }
 
@@ -729,9 +775,12 @@ public class SDLCanvas : Canvas {
 public class FrameworkSDL : Framework {
     private SDL_Surface* mScreen;
     private SDLSurface mScreenSurface;
+    private PixelFormat* mScreenAlpha;
     private Keycode mSdlToKeycode[int];
 
     private Texture[int] mInsanityCache;
+
+    package bool mAllowTextureCache = true;
 
     private SoundMixer mSoundMixer;
 
@@ -877,16 +926,20 @@ public class FrameworkSDL : Framework {
                     flags ~= format("  %s: %s\n", name, (set ? "1" : "0"));
                 }
 
-                auto fmt = *info.vfmt;
-                char[] pxfmt = format("bits/bytes=%s/%s "
-                    "R/G/B/A=%#08x/%#08x/%#08x/%#08x colorkey=%#x alpha=%s",
-                    fmt.BitsPerPixel, fmt.BytesPerPixel, fmt.Rmask, fmt.Gmask,
-                    fmt.Bmask, fmt.Amask, fmt.colorkey, fmt.alpha);
+                //.alpha and .colorkey fields ignored
+                char[] pxfmt = sdlFormatToFramework(info.vfmt).toString();
+
+                //Framework's pixel formats
+                char[] pxfmts = "Pixel formats:\n";
+                for (int n = DisplayFormat.min; n <= DisplayFormat.max; n++) {
+                    pxfmts ~= format("   %s: %s\n", n,
+                        findPixelFormat(cast(DisplayFormat)n));
+                }
 
                 return format("driver: %s\nflags: \n%svideo_mem = %s\n"
-                    "pixel_fmt = %s\ncurrent WxH = %sx%s\n", driver, flags,
+                    "pixel_fmt = %s\ncurrent WxH = %sx%s\n%s", driver, flags,
                     sizeToHuman(info.video_mem), pxfmt, info.current_w,
-                    info.current_h);
+                    info.current_h, pxfmts);
             }
             case InfoString.ResourceList: return resourceString();
             case InfoString.Custom0: return .toString(weaklist_count());
@@ -963,6 +1016,19 @@ public class FrameworkSDL : Framework {
         mScreen = newscreen;
         mScreenSurface.mReal = mScreen;
 
+        //find out what SDL thinks is best for using alpha blending on screen
+        //(is there a better way than this hack??)
+        mScreenAlpha = new PixelFormat;
+        auto temp = createSurface(Vector2i(1,1), DisplayFormat.Screen,
+            Transparency.None);
+        auto temp2 = SDL_DisplayFormatAlpha(temp.mReal);
+        *mScreenAlpha = sdlFormatToFramework(temp2.format);
+        SDL_FreeSurface(temp2);
+        temp.free();
+
+        //i.e. reload textures, get rid of stuff in too low resolution...
+        releaseCaches();
+
         if (onVideoInit)
             onVideoInit(false);
     }
@@ -981,7 +1047,13 @@ public class FrameworkSDL : Framework {
     }
 
     public PixelFormat findPixelFormat(DisplayFormat fmt) {
-        if (fmt == DisplayFormat.Screen || fmt == DisplayFormat.ReallyScreen) {
+        if (fmt == DisplayFormat.ScreenAlpha) {
+            if (mScreenAlpha)
+                return *mScreenAlpha;
+            //fallback
+            fmt = DisplayFormat.RGBA32;
+        }
+        if (fmt == DisplayFormat.Screen) {
             return sdlFormatToFramework(mScreen.format);
         } else {
             return super.findPixelFormat(fmt);
@@ -1091,6 +1163,15 @@ public class FrameworkSDL : Framework {
         }
 
         return res;
+    }
+
+    override void setAllowCaching(bool set) {
+        mAllowTextureCache = set;
+        foreach (s; gSurfaces.list) {
+            if (auto t = s.mSDLTexture) {
+                t.checkCaching();
+            }
+        }
     }
 
     public void cursorVisible(bool v) {

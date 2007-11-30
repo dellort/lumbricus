@@ -93,8 +93,8 @@ enum Transparency {
 enum DisplayFormat {
     /// fastest format for drawing on the screen
     Screen,
-    /// exactly equal to the screen format (xxx: ever needed???)
-    ReallyScreen,
+    /// best format to draw on screen when you need alpha blending
+    ScreenAlpha,
     /// best display format (usually 32 bit RGBA)
     Best,
     /// guaranteed to be 32 bit RGBA
@@ -115,6 +115,11 @@ public struct PixelFormat {
     uint depth; //in bits
     uint bytes; //per pixel
     uint mask_r, mask_g, mask_b, mask_a;
+
+    char[] toString() {
+        return str.format("[bits/bytes=%s/%s R/G/B/A=%#08x/%#08x/%#08x/%#08x]",
+            depth, bytes, mask_r, mask_g, mask_b, mask_a);
+    }
 }
 
 public class Surface {
@@ -321,6 +326,11 @@ public class Framework {
             released += r();
         }
         return released;
+    }
+
+    /// set texture caching; if set, it could be faster but also memory hungrier
+    public void setAllowCaching(bool set) {
+        //framework could override this
     }
 
     /// set a fixed framerate / a maximum framerate

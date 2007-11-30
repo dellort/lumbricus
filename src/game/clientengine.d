@@ -348,6 +348,12 @@ class ClientGameEngine {
         enableSpiffyGui = gui;
     }
 
+    //if this returns true, the one who calls .draw() will not clear the
+    //background => return true if we overpaint everything anyway
+    public bool needBackclear() {
+        return !mGameSky.enableSkyTex;
+    }
+
     //all hail to inner classes
     private class LevelDrawer : SceneObject {
         Texture levelTexture;

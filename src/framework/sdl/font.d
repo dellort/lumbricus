@@ -25,6 +25,7 @@ package {
 package class SDLFont : Font {
     private Texture frags[dchar];
     private bool mNeedBackPlain;   //false if background is completely transp.
+    private bool mOpaque;
     private uint mHeight;
     private FontProperties props;
     private TTF_Font* font;
@@ -59,9 +60,13 @@ package class SDLFont : Font {
         TTF_SetFontStyle(font, styles);
 
         mHeight = TTF_FontHeight(font);
+        //assert(mHeight == props.size); bleh
 
         //Backplain not needed if it's fully transparent
         mNeedBackPlain = (props.back.a >= Color.epsilon);
+        //or if it's fully opaque (see renderChar())
+        mOpaque = (props.back.a > 1.0f - Color.epsilon);
+        mNeedBackPlain = mNeedBackPlain && !mOpaque;
     }
 
     void doFree(bool finalizer) {
@@ -176,15 +181,28 @@ package class SDLFont : Font {
         if (surface == null) {
             throw new Exception(format("could not render char %s", c));
         }
-        auto res = new SDLSurface(surface);
+        auto res = new SDLSurface(surface, true);
+        assert(mHeight == res.size.y);
         return res;
     }
 
     private Texture renderChar(dchar c) {
         auto tmp = doRender(c, props.fore);
-        tmp.scaleAlpha(props.fore.a);
+        if (props.fore.a <= (1.0f - Color.epsilon)) {
+            tmp.scaleAlpha(props.fore.a);
+        }
         tmp.enableAlpha();
-        //xxx: be able to free it?
-        return tmp.createTexture();
+        if (mOpaque) {
+            auto s = gFramework.createSurface(tmp.size, DisplayFormat.Screen,
+                Transparency.None);
+            auto d = s.startDraw();
+            d.drawFilledRect(Vector2i(0), s.size, props.back, false);
+            d.draw(tmp.createBitmapTexture(), Vector2i(0));
+            d.endDraw();
+            tmp.free();
+            return s.createTexture();
+        } else {
+            return tmp.createTexture();
+        }
     }
 }

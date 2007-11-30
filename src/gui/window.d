@@ -256,6 +256,9 @@ class WindowWidget : Container {
         }
     }
 
+    /// client Widget shown in the window
+    /// in fullscreen mode, the Widget's .doesCover method is queried to see if
+    /// the background should be cleared (use with care etc.)
     Widget client() {
         return mClient;
     }
@@ -349,7 +352,8 @@ class WindowWidget : Container {
         } else {
             //xxx: possibly unnecessary clearing when it really covers the whole
             //  screen; it should use getFramework.clearColor then, maybe
-            c.drawFilledRect(Vector2i(0), size, properties.background);
+            if (!mClient || !mClient.doesCover)
+                c.drawFilledRect(Vector2i(0), size, properties.background);
         }
         super.onDraw(c);
     }

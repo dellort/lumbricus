@@ -119,17 +119,25 @@ BoxTex getBox(BoxProps props) {
     if (t)
         return *t;
 
+    bool needAlpha = props.p.back.a < (1.0f - Color.epsilon);
+
+    //border color used, except for circle; circle modifies alpha scaling itself
+    //xxx doesn't really work
+    Color border = props.p.border;
+    border.a = border.a * props.p.back.a;
+
     //create it
     //middle texture
     Vector2i size = Vector2i(10,max(0, props.height));
     auto surfMiddle = globals.framework.createSurface(size,
-        DisplayFormat.Screen, Transparency.Alpha);
+        needAlpha ? DisplayFormat.ScreenAlpha : DisplayFormat.Screen,
+        needAlpha ? Transparency.Alpha : Transparency.None);
     auto c = surfMiddle.startDraw();
-    c.drawFilledRect(Vector2i(0),size,props.p.back);
+    c.drawFilledRect(Vector2i(0),size,props.p.back,false);
     c.drawFilledRect(Vector2i(0),Vector2i(size.x,props.p.borderWidth),
-        props.p.border);
+        border,false);
     c.drawFilledRect(Vector2i(0,size.y-props.p.borderWidth),
-        Vector2i(size.x,props.p.borderWidth),props.p.border);
+        Vector2i(size.x,props.p.borderWidth),border,false);
     c.endDraw();
     Texture texMiddle = surfMiddle.createTexture();
 
@@ -137,9 +145,9 @@ BoxTex getBox(BoxProps props) {
     void drawSideTex(Surface s, bool right) {
         auto c = s.startDraw();
         int xs = right?s.size.x-props.p.borderWidth:0;
-        c.drawFilledRect(Vector2i(0),s.size,props.p.back);
+        c.drawFilledRect(Vector2i(0),s.size,props.p.back,false);
         c.drawFilledRect(Vector2i(xs, s.size.x),Vector2i(xs+props.p.borderWidth,
-            s.size.y-s.size.x), props.p.border);
+            s.size.y-s.size.x), border,false);
 
         //simple distance test, quite expensive though
         //-1 if outside, 0 if hit, 1 if inside
@@ -188,7 +196,7 @@ BoxTex getBox(BoxProps props) {
                         props.p.border.r*colBuf+props.p.back.r*(1.0f-colBuf),
                         props.p.border.g*colBuf+props.p.back.g*(1.0f-colBuf),
                         props.p.border.b*colBuf+props.p.back.b*(1.0f-colBuf),
-                        aBuf));
+                        aBuf*props.p.back.a));
                     line++;
                 }
             }
@@ -206,17 +214,22 @@ BoxTex getBox(BoxProps props) {
     int sidew = min(min(props.p.cornerRadius,props.height/2),props.width/2);
     size = Vector2i(max(0,sidew),max(0,props.height));
 
+    Texture createSideT(bool right) {
+        bool usecc = false; //!needAlpha;
+        auto res = globals.framework.createSurface(size, DisplayFormat.RGBA32,
+            usecc ? Transparency.Colorkey : Transparency.Alpha);
+        if (usecc) {
+            res.enableColorkey(Color(0,0,0,0));
+        }
+        drawSideTex(res, right);
+        return res.createTexture();
+    }
+
     //left texture
-    auto surfLeft = globals.framework.createSurface(size,
-        DisplayFormat.Screen, Transparency.Alpha);
-    drawSideTex(surfLeft, false);
-    Texture texLeft = surfLeft.createTexture();
+    Texture texLeft = createSideT(false);
 
     //right texture
-    auto surfRight = globals.framework.createSurface(size,
-        DisplayFormat.Screen, Transparency.Alpha);
-    drawSideTex(surfRight, true);
-    Texture texRight = surfRight.createTexture();
+    Texture texRight = createSideT(true);
 
     //store struct with texture refs in hashmap
     boxes[props] = BoxTex(texLeft, texMiddle, texRight);

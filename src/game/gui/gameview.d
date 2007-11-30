@@ -450,4 +450,8 @@ class GameView : Container, TeamMemberControlCallback {
         mEngine.draw(c);
         super.onDraw(c);
     }
+
+    override bool doesCover() {
+        return !mEngine.needBackclear();
+    }
 }
