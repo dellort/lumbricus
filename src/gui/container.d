@@ -181,6 +181,12 @@ class Container : Widget {
         return winner ? winner : this;
     }
 
+    //hack
+    protected int getChildFocusAge(Widget w) {
+        assert(w && w.parent is this);
+        return w.mFocusAge;
+    }
+
     //focus rules:
     // object becomes active => if greedy focus, set focus immediately
     // object becomes inactive => object which was focused before gets focus

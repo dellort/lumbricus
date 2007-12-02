@@ -17,6 +17,8 @@ import utils.misc;
 import utils.rect2;
 import utils.vector2;
 
+import str = std.string;
+
 public import gui.window : WindowProperties, WindowZOrder;
 
 ///the WindowManager singleton, usually created by common/toplevel.d
@@ -60,10 +62,40 @@ class Window {
         bool mCreated; //if it already was placed
     }
 
+    ///if this isn't set, closing the window will terminate the task
+    ///if it is set, and it returns...
+    ///  false: nothing happens
+    ///  true: this.visible = false;
+    bool delegate(Window sender) onClose;
+
     this(WindowManager manager, Task owner) {
         mManager = manager;
         mTask = manager.getTask(owner);
         mWindow = new WindowWidget();
+
+        mManager.mFrame.addDefaultDecorations(mWindow);
+        mWindow.onKeyBinding = &onWindowAction;
+    }
+
+    private void onWindowAction(WindowWidget sender, char[] action) {
+        assert(sender is mWindow);
+        switch (action) {
+            case "toggle_fs": {
+                mWindow.fullScreen = !mWindow.fullScreen;
+                break;
+            }
+            case "close": {
+                if (onClose) {
+                    if (onClose(this))
+                        visible = false;
+                } else {
+                    mTask.mTask.terminate();
+                }
+                break;
+            }
+            default:
+                globals.defaultOut.writefln("window action '%s'??", action);
+        }
     }
 
     /// visibility means if the window is created (but if true, it actually
@@ -107,7 +139,7 @@ class Window {
                 }
             }
         } else {
-            mManager.mFrame.removeWindow(mWindow);
+            mWindow.remove();
             mManager.onWindowDestroy(this);
         }
     }
@@ -150,6 +182,10 @@ class Window {
     void acceptSize() {
         mWindow.acceptSize();
     }
+
+    Task task() {
+        return mTask.mTask;
+    }
 }
 
 class WindowManager {
@@ -158,6 +194,8 @@ class WindowManager {
         GuiMain mGuiMain;
         WindowFrame mFrame;
         CommandBucket mCmds;
+        WindowSwitcher mSwitcher; //null or current instance
+        Window mCurHighlight;
     }
 
     //WindowManager is supposed to take over control completely
@@ -166,6 +204,8 @@ class WindowManager {
         mGuiMain = gui;
         mFrame = new WindowFrame;
         gui.mainFrame.add(mFrame);
+
+        mFrame.onSelectWindow = &onSelectWindow;
 
         mCmds = new CommandBucket();
         registerCommands();
@@ -242,6 +282,67 @@ class WindowManager {
         arrayRemove(w.mTask.mWindows, w);
     }
 
+    private Window windowFromWidget(WindowWidget w) {
+        foreach (pt; mTaskList) {
+            foreach (window; pt.mWindows) {
+                if (window.mWindow is w)
+                    return window;
+            }
+        }
+        return null;
+    }
+
+    Window activeWindow() {
+        return windowFromWidget(mFrame.focusWindow());
+    }
+    void activeWindow(Window w) {
+        if (w && w.visible && w.mWindow)
+            w.mWindow.activate();
+    }
+
+    void highlightWindow(Window w) {
+        if (mCurHighlight) {
+            mCurHighlight.mWindow.highlight = false;
+            mCurHighlight = null;
+        }
+        if (w && w.visible) {
+            w.mWindow.highlight = true;
+            mCurHighlight = w;
+        }
+    }
+
+    //get all windows managed by this; is slow
+    struct TaskListEntry { //xxx: maybe just make PerTask public and use it here
+        Task task;
+        Window[] windows;
+    }
+    TaskListEntry[] getWindowList() {
+        TaskListEntry[] res;
+        foreach (pt; mTaskList) {
+            res ~= TaskListEntry(pt.mTask, pt.mWindows.dup);
+        }
+        return res;
+    }
+
+    private void onSelectWindow(bool sel_end) {
+        if (!sel_end && !mSwitcher) {
+            mSwitcher = new WindowSwitcher(this);
+            mSwitcher.setLayout(WidgetLayout.Noexpand());
+            mSwitcher.zorder = WindowZOrder.Murks;
+            mFrame.addWidget(mSwitcher);
+            mSwitcher.selection = activeWindow();
+        } else if (sel_end && mSwitcher) {
+            Window winner = mSwitcher.selection;
+            mSwitcher.remove();
+            mSwitcher = null;
+            highlightWindow(null);
+            if (winner)
+                activeWindow = winner;
+        } else if (!sel_end && mSwitcher) {
+            mSwitcher.switchNext();
+        }
+    }
+
     private void registerCommands() {
         mCmds.register(Command("windows", &cmdWindows, "list all active windows"
             " by task"));
@@ -258,5 +359,94 @@ class WindowManager {
                 write.writefln("        focused: ", w.mWindow.focused);
             }
         }
+    }
+}
+
+import framework.framework;
+import gui.label;
+import gui.tablecontainer;
+
+class WindowSwitcher : Container {
+private:
+    struct Entry {
+        Label entry_w, entry_t; //to highlight them
+        Window window;
+    }
+    Entry[] mEntries;
+    int mCurrent = -1;
+    WindowManager mWm;
+
+    public this(WindowManager wm) {
+        this.mWm = wm;
+        drawBox = true;
+        WindowManager.TaskListEntry[] wnds = wm.getWindowList();
+        int window_lines, task_lines;
+        auto table = new TableContainer(2, 2, Vector2i(3, 3));
+        auto caption = new Label();
+        caption.text = "Window list";
+        caption.drawBorder = false;
+        table.add(caption, 0, 0, 2, 1);
+        foreach (w; wnds) {
+            if (!w.windows.length)
+                continue;
+            int y = table.height;
+            table.setSize(table.width, y + w.windows.length + 1);
+            auto sp1 = new Spacer();
+            sp1.minSize = Vector2i(0, 2);
+            sp1.color = Color(0);
+            table.add(sp1, 0, y, 2, 1);
+            auto tasktitle = new Label();
+            tasktitle.text = str.format("%s (%s)", w.task, w.task.taskID);
+            tasktitle.drawBorder = false;
+            tasktitle.font = gFramework.getFont("big_transparent");
+            table.add(tasktitle, 0, y+1, 1, w.windows.length);
+            foreach (int index, window; w.windows) {
+                auto wndtitle = new Label();
+                wndtitle.text = window.properties.windowTitle;
+                wndtitle.font = gFramework.getFont("normal_transparent");
+                wndtitle.drawBorder = false;
+                table.add(wndtitle, 1, y+1+index);
+                mEntries ~= Entry(wndtitle, tasktitle, window);
+            }
+        }
+
+        table.setLayout(WidgetLayout.Border(Vector2i(3, 5)));
+        addChild(table);
+    }
+
+    void switch_to(int index) {
+        void dosel(Label l, bool state) {
+            l.background = state ? Color(0.7,0.7,0.7) : Color(0,0,0,0);
+        }
+
+        if (index < 0 || index >= mEntries.length)
+            return;
+        //deselect old one
+        if (mCurrent >= 0) {
+            dosel(mEntries[mCurrent].entry_w, false);
+            dosel(mEntries[mCurrent].entry_t, false);
+        }
+        mCurrent = index;
+        dosel(mEntries[mCurrent].entry_w, true);
+        dosel(mEntries[mCurrent].entry_t, true);
+        mWm.highlightWindow(mEntries[mCurrent].window);
+    }
+
+    public void switchNext() {
+        switch_to(mCurrent + 1 == mEntries.length ? 0 : mCurrent + 1);
+    }
+
+    public Window selection() {
+        return mCurrent < 0 ? null : mEntries[mCurrent].window;
+    }
+    public void selection(Window w) {
+        foreach (int index, e; mEntries) {
+            if (e.window is w) {
+                switch_to(index);
+                return;
+            }
+        }
+        //try a default
+        switch_to(0);
     }
 }

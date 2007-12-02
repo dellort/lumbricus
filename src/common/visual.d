@@ -16,36 +16,70 @@ void drawBox(Canvas c, Vector2i pos, Vector2i size, int borderWidth = 1,
     int cornerRadius = 8, Color back = Color(1,1,1),
     Color border = Color(0,0,0))
 {
-    BoxProps props;
-    props.height = size.y;
-    props.width = size.x;
-    props.p.borderWidth = borderWidth;
-    props.p.cornerRadius = cornerRadius;
-    props.p.border = border;
-    props.p.back = back;
+    BoxProperties props;
+    props.borderWidth = borderWidth;
+    props.cornerRadius = cornerRadius;
+    props.border = border;
+    props.back = back;
 
-    BoxTex tex = getBox(props);
-
-    c.draw(tex.left, pos);
-    c.draw(tex.right, pos+size.X-tex.right.size.X);
-    c.drawTiled(tex.middle, pos+tex.left.size.X,
-        size.X-tex.right.size.X-tex.left.size.X+tex.middle.size.Y);
+    drawBox(c, pos, size, props);
 }
 
-///same functionality as above
-///sry for the code duplication
 void drawBox(Canvas c, in Rect2i rect, in BoxProperties props) {
-    BoxProps p;
-    p.height = rect.size.y;
-    p.width = rect.size.x;
-    p.p = props;
+    drawBox(c, rect.p1, rect.size, props);
+}
 
-    BoxTex tex = getBox(p);
+void drawBox(Canvas c, ref Vector2i p, ref Vector2i s, ref BoxProperties props)
+{
+    BoxProps bp;
+    bp.p = props;
 
-    c.draw(tex.left, rect.p1);
-    c.draw(tex.right, rect.p1+rect.size.X-tex.right.size.X);
-    c.drawTiled(tex.middle, rect.p1+tex.left.size.X,
-        rect.size.X-tex.right.size.X-tex.left.size.X+tex.middle.size.Y);
+    //all error checking here
+    s.x = max(0, s.x);
+    s.y = max(0, s.y);
+    int m = min(s.x, s.y) / 2;
+    bp.p.borderWidth = min(max(0, bp.p.borderWidth), m);
+    bp.p.cornerRadius = min(max(0, bp.p.cornerRadius), m);
+
+    BoxTex tex = getBox(bp);
+
+    //size of the box quad
+    int qi = max(bp.p.borderWidth, bp.p.cornerRadius);
+    Vector2i q = Vector2i(qi);
+    assert(tex.corners.size == q*2);
+    assert(tex.sides[0].size.y == q.y*2);
+    assert(tex.sides[1].size.x == q.x*2);
+
+    //corners
+    c.draw(tex.corners, p, Vector2i(0), q);
+    c.draw(tex.corners, p + Vector2i(s.x - q.x, 0), Vector2i(q.x, 0), q);
+    c.draw(tex.corners, p + Vector2i(0, s.y - q.y), Vector2i(0, q.y), q);
+    c.draw(tex.corners, p + s - q, q, q); //tripple q lol
+
+    //borders along X-axis
+    int px = p.x + q.x;
+    int ex = p.x + s.x - q.x;
+    auto sx = tex.sides[0].size.x;
+    while (px < ex) {
+        auto w = Vector2i(min(sx, ex - px), q.y);
+        c.draw(tex.sides[0], Vector2i(px, p.y), Vector2i(0), w);
+        c.draw(tex.sides[0], Vector2i(px, p.y + s.y - q.y), Vector2i(0, q.y), w);
+        px += w.x;
+    }
+
+    //along Y-axis, code is symmetric to above => code duplication sry
+    int py = p.y + q.y;
+    int ey = p.y + s.y - q.y;
+    auto sy = tex.sides[1].size.y;
+    while (py < ey) {
+        auto h = Vector2i(q.x, min(sy, ey - py));
+        c.draw(tex.sides[1], Vector2i(p.x, py), Vector2i(0), h);
+        c.draw(tex.sides[1], Vector2i(p.x + s.x - q.x, py), Vector2i(q.x, 0), h);
+        py += h.y;
+    }
+
+    //interrior
+    c.drawFilledRect(p + q, p + s - q, props.back, true);
 }
 
 struct BoxProperties {
@@ -64,17 +98,22 @@ private:
 
 //quite a hack to draw boxes with rounded borders...
 struct BoxProps {
-    int height, width;
     BoxProperties p;
 }
 
 struct BoxTex {
-    Texture left, middle, right;
-    static BoxTex opCall(Texture l, Texture m, Texture r) {
+    //corners: quadratic bitmap which looks like
+    //         | left-top    |    right-top |
+    //         | left-bottom | right-bottom |
+    Texture corners;
+    //sides[0]: | top x-axis    |
+    //          | bottom x-axis |
+    //sides[1]: | left y-axis | right y-axis |
+    Texture[2] sides;
+    static BoxTex opCall(Texture c, Texture[2] s) {
         BoxTex ret;
-        ret.left = l;
-        ret.middle = m;
-        ret.right = r;
+        ret.corners = c;
+        ret.sides[] = s;
         return ret;
     }
 }
@@ -102,9 +141,9 @@ int releaseBoxCache() {
     }
 
     foreach (BoxTex t; boxes) {
-        killtex(t.left);
-        killtex(t.middle);
-        killtex(t.right);
+        killtex(t.corners);
+        killtex(t.sides[0]);
+        killtex(t.sides[1]);
     }
 
     boxes = null;
@@ -119,35 +158,52 @@ BoxTex getBox(BoxProps props) {
     if (t)
         return *t;
 
-    bool needAlpha = props.p.back.a < (1.0f - Color.epsilon);
-
     //border color used, except for circle; circle modifies alpha scaling itself
-    //xxx doesn't really work
     Color border = props.p.border;
-    border.a = border.a * props.p.back.a;
+    //hm I think the border shouldn't be blended by the background's alpha
+    //border.a = border.a * props.p.back.a;
 
-    //create it
-    //middle texture
-    Vector2i size = Vector2i(10,max(0, props.height));
-    auto surfMiddle = globals.framework.createSurface(size,
-        needAlpha ? DisplayFormat.ScreenAlpha : DisplayFormat.Screen,
-        needAlpha ? Transparency.Alpha : Transparency.None);
-    auto c = surfMiddle.startDraw();
-    c.drawFilledRect(Vector2i(0),size,props.p.back,false);
-    c.drawFilledRect(Vector2i(0),Vector2i(size.x,props.p.borderWidth),
-        border,false);
-    c.drawFilledRect(Vector2i(0,size.y-props.p.borderWidth),
-        Vector2i(size.x,props.p.borderWidth),border,false);
-    c.endDraw();
-    Texture texMiddle = surfMiddle.createTexture();
+    //corners are of size q x q, side textures are also of size q in one dim.
+    int q = max(props.p.borderWidth, props.p.cornerRadius);
 
+    //border textures on the box sides
 
-    void drawSideTex(Surface s, bool right) {
+    //dir = 0 x-axis, 1 y-axis
+    Texture createSide(int dir) {
+        int inv = !dir;
+
+        Vector2i size;
+        size[dir] = 50; //choose as you like
+        size[inv] = q*2;
+
+        bool needAlpha = (props.p.back.a < (1.0f - Color.epsilon))
+            || (props.p.border.a < (1.0f - Color.epsilon));
+
+        auto surface = globals.framework.createSurface(size,
+            needAlpha ? DisplayFormat.ScreenAlpha : DisplayFormat.Screen,
+            needAlpha ? Transparency.Alpha : Transparency.None);
+
+        auto c = surface.startDraw();
+
+        Vector2i p1 = Vector2i(0), p2 = size;
+        auto bw = props.p.borderWidth;
+        p1[inv] = bw;
+        p2[inv] = p2[inv] - bw;
+
+        c.drawFilledRect(Vector2i(0), size, border, false);
+        c.drawFilledRect(p1, p2, props.p.back, false);
+
+        c.endDraw();
+        return surface.createTexture();
+    }
+
+    Texture[2] sides; //will be BoxText.sides
+    sides[0] = createSide(0);
+    sides[1] = createSide(1);
+
+    void drawCorner(Surface s) {
         auto c = s.startDraw();
-        int xs = right?s.size.x-props.p.borderWidth:0;
         c.drawFilledRect(Vector2i(0),s.size,props.p.back,false);
-        c.drawFilledRect(Vector2i(xs, s.size.x),Vector2i(xs+props.p.borderWidth,
-            s.size.y-s.size.x), border,false);
 
         //simple distance test, quite expensive though
         //-1 if outside, 0 if hit, 1 if inside
@@ -170,10 +226,12 @@ BoxTex getBox(BoxProps props) {
             uint pitch;
             s.lockPixelsRGBA32(pixels, pitch);
 
-            for (int y = 0; y < w; y++) {
+            for (int y = 0; y < w*2; y++) {
                 uint* line = cast(uint*)(pixels+pitch*(y+offs.y));
                 line += offs.x;
-                for (int x = 0; x < w; x++) {
+                for (int x = 0; x < w*2; x++) {
+                    assert(x < s.size.x);
+                    assert(y < s.size.y);
                     //accumulate color and alpha value
                     float colBuf = 0, aBuf = 0;
                     //do multiple regular grid samples for AA
@@ -196,43 +254,25 @@ BoxTex getBox(BoxProps props) {
                         props.p.border.r*colBuf+props.p.back.r*(1.0f-colBuf),
                         props.p.border.g*colBuf+props.p.back.g*(1.0f-colBuf),
                         props.p.border.b*colBuf+props.p.back.b*(1.0f-colBuf),
-                        aBuf*props.p.back.a));
+                        aBuf*(border.a*colBuf+props.p.back.a*(1.0f-colBuf))));
                     line++;
                 }
             }
             s.unlockPixels();
         }
 
-        float xc = right?0:s.size.x;
-        drawCircle(Vector2i(0), Vector2f(xc,s.size.x), s.size.x);
-        drawCircle(Vector2i(0,s.size.y-s.size.x), Vector2f(xc,0), s.size.x);
+        drawCircle(Vector2i(0), Vector2f(q,q), q);
 
         c.endDraw();
     }
 
-    //width of the side textures
-    int sidew = min(min(props.p.cornerRadius,props.height/2),props.width/2);
-    size = Vector2i(max(0,sidew),max(0,props.height));
-
-    Texture createSideT(bool right) {
-        bool usecc = false; //!needAlpha;
-        auto res = globals.framework.createSurface(size, DisplayFormat.RGBA32,
-            usecc ? Transparency.Colorkey : Transparency.Alpha);
-        if (usecc) {
-            res.enableColorkey(Color(0,0,0,0));
-        }
-        drawSideTex(res, right);
-        return res.createTexture();
-    }
-
-    //left texture
-    Texture texLeft = createSideT(false);
-
-    //right texture
-    Texture texRight = createSideT(true);
+    auto size = Vector2i(q)*2;
+    auto corners = globals.framework.createSurface(size, DisplayFormat.RGBA32,
+        Transparency.Alpha);
+    drawCorner(corners);
 
     //store struct with texture refs in hashmap
-    boxes[props] = BoxTex(texLeft, texMiddle, texRight);
+    boxes[props] = BoxTex(corners.createTexture(), sides);
     return boxes[props];
 }
 

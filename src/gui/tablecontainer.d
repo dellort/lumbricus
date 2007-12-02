@@ -9,36 +9,57 @@ import utils.misc;
 //like BoxContainer, but two dimensional
 //the width of a row is taken from the maximum width of all other cells in the
 //same column; same reverse for the height of them
-//only 0 or 1 widgets per cell; cells without widgets have request size 0 and
-//are not expanded
-//no cell spanning
+//cells without widgets have request size 0 and are not expanded
+//cell spanning:
+//  works as in GTK and the expand property isn't used for spanning cells
+//  but you still can use setForceExpand()
+//  an algorithm to support automatic expand for spannin cells:
+//      - for each header, count how many spanning cells it includes that wants
+//        to expand
+//      - set column with highest count to expand
+//      - set a flag on all cells whose expand is now satisfied
+//      - repeat until no spanning cells with unset flags anymore
 class TableContainer : PublicContainer {
     private {
-        int mW, mH;
-        bool[2] mHomogeneous;
-        struct PerCell {
+        int[2] mSize; //size in cells
+
+        struct PerChild {
             Widget w;
+            //cell the widget is in
+            int[2] p;
+            //number of cells this cell spans, usually only [1,1]
+            int[2] join;
+            //temporary during resize
+            Vector2i minSize;
+            bool[2] expand;
         }
-        //organized as [x][y]
-        PerCell[][] mCells;
+        PerChild[] mChildren;
+
         //spacing _between_ cells (per direction)
         Vector2i mCellSpacing;
 
+        bool[2] mHomogeneous;
         bool[2] mForceExpand;
 
         //temporary between layoutSizeRequest() and allocation
         Vector2i mLastSize;
-        int[2] mExpandableCount;
-        Vector2i mAllSpacing;
-        bool[] mExpandX;
-        bool[] mExpandY;
-        int[] mMinWidths;  //minimal requested widths (for each cell)
-        int[] mMinHeights; //minimal heights
-        //temporary for allocation (just here for memory managment)
-        //these are one element longer than the size in that direction, to
-        //catch the last border
-        int[] mAllocX;
-        int[] mAllocY;
+
+        //header array for each direction; mHeaders[0] = columns, ...[1] = rows
+        Header[][2] mHeaders;
+
+        //header for each row or column
+        struct Header {
+            //force this column/row to expand
+            bool forceExpand;
+
+            //temporaries between sizing and allocation
+            bool expand;
+            //minimal requested width/height in this column/row
+            int minSize;
+            //allocated size (valid after allocation)
+            //start and end of the column/row
+            int allocA, allocB;
+        }
     }
 
     ///default constructor needed for WidgetFactory/gui.loader
@@ -62,29 +83,87 @@ class TableContainer : PublicContainer {
         mCellSpacing = cellspacing;
     }
 
-    //this clears all contained elements! (but not if doclear = false)
-    void setSize(int a_w, int a_h, bool doclear = true) {
-        if (doclear) {
-            clear();
-            mCells = null; //??
+    ///per column/row force-expand setting
+    /// dir = 0 address a column, 1 address a row
+    /// num = row or column to set
+    /// force_expand = guess what
+    void setForceExpand(int dir, int num, bool force_expand) {
+        mHeaders[dir][num].forceExpand = force_expand;
+        needRelayout();
+    }
+
+    ///getter for setForceExpand()
+    bool getForceExpand(int dir, int num) {
+        return mHeaders[dir][num].forceExpand;
+    }
+
+    ///query if a column/row was expanded (after layouting)
+    bool isExpandedAt(int dir, int num) {
+        return mHeaders[dir][num].expand;
+    }
+
+    //NOTE: static arrays are reference types by default lol
+    void getParams(bool[2] homogeneous, bool[2] force_expand) {
+        homogeneous[] = mHomogeneous;
+        force_expand[] = mForceExpand;
+    }
+    void setParams(bool[2] homogeneous, bool[2] force_expand) {
+        mHomogeneous[] = homogeneous;
+        mForceExpand[] = force_expand;
+        needRelayout();
+    }
+
+    Vector2i cellSpacing() {
+        return mCellSpacing;
+    }
+    void cellSpacing(Vector2i sp) {
+        mCellSpacing = sp;
+        needRelayout();
+    }
+
+    private bool checkCoordinates(PerChild pc) {
+        bool ok = true;
+        for (int n = 0; n < 2; n++) {
+            ok &= pc.p[n] >= 0 && pc.join[n] >= 1
+                && pc.p[n] + pc.join[n] <= mSize[n];
         }
+        return ok;
+    }
 
-        mCells.length = a_w;
-        foreach (inout r; mCells) {
-            r.length = a_h;
+    ///set size in cell count; if it gets smaller, widgets which don't fit into
+    ///the table anymore are removed
+    void setSize(int a_w, int a_h) {
+        mSize[0] = a_w;
+        mSize[1] = a_h;
+
+        mHeaders[0].length = mSize[0];
+        mHeaders[1].length = mSize[1];
+
+        //remove children that have invalid table coordinates
+        //iterates backwards; .remove calls removeChildren => array changes
+        for (int n = mChildren.length-1; n >= 0; n--) {
+            if (!checkCoordinates(mChildren[n]))
+                mChildren[n].w.remove();
         }
-
-        mW = a_w; mH = a_h;
-
-        mMinWidths.length = mW;
-        mExpandX.length = mW;
-        mAllocX.length = mW + 1;
-
-        mMinHeights.length = mH;
-        mExpandY.length = mH;
-        mAllocY.length = mH + 1;
 
         needRelayout();
+    }
+
+    ///add a row/column; returns _index_ of the new row/column
+    int addRow() {
+        setSize(width(), height()+1);
+        return height() - 1;
+    }
+    int addColumn() {
+        setSize(width()+1, height());
+        return width() - 1;
+    }
+
+    final int width() {
+        return mSize[0];
+    }
+    final int height() {
+        return mSize[1];
     }
 
     void add(Widget w, int x, int y, WidgetLayout layout) {
@@ -92,153 +171,186 @@ class TableContainer : PublicContainer {
         add(w, x, y);
     }
 
-    void add(Widget w, int x, int y) {
-        //check bounds, no overwriting of cells
-        assert(x >= 0 && x < mW);
-        assert(y >= 0 && y < mH);
-        assert(mCells[x][y].w is null);
-        mCells[x][y].w = w;
+    //add a child at (x,y), with spans (s_x,s_y) cells
+    void add(Widget w, int x, int y, int s_x = 1, int s_y = 1) {
+        PerChild pc;
+        pc.p[0] = x; pc.p[1] = y;
+        pc.join[0] = s_x; pc.join[1] = s_y;
+        bool ok = checkCoordinates(pc);
+        if (!ok) {
+            assert(false);
+        }
+        w.remove();
+        pc.w = w;
+        mChildren ~= pc;
         addChild(w);
     }
 
-    Widget get(int x, int y) {
-        return mCells[x][y].w;
+    private int find_pc(Widget w) {
+        for (int n = 0; n < mChildren.length; n++) {
+            if (mChildren[n].w is w)
+                return n;
+        }
+        return -1;
     }
 
     override protected void removeChild(Widget w) {
-        loop: foreach (col; mCells) {
-            foreach (inout c; col) {
-                if (c.w is w) {
-                    c.w = null;
-                    break loop;
-                }
-            }
+        int index = find_pc(w);
+        if (index >= 0) {
+            mChildren = mChildren[0..index] ~ mChildren[index..$];
         }
         super.removeChild(w);
     }
 
-    protected Vector2i layoutSizeRequest() {
-        //if homogeneous, always expand all cells, else look into the loop below
-        for (int x = 0; x < mW; x++) {
-            mMinWidths[x] = 0;
-            mExpandX[x] = mHomogeneous[0];
+    //some stupid code needed this sigh
+    Widget get(int x, int y) {
+        foreach (inout pc; mChildren) {
+            if (pc.p[0] == x && pc.p[1] == y)
+                return pc.w;
         }
-        for (int y = 0; y < mH; y++) {
-            mMinHeights[y] = 0;
-            mExpandY[y] = mHomogeneous[1];
+        return null;
+    }
+
+    //process size request for one direction
+    private int doSizeRequest(int dir) {
+        Header[] heads = mHeaders[dir];
+        int space = max(0, mCellSpacing[dir]);
+
+        foreach (inout h; heads) {
+            h.expand = h.forceExpand | mForceExpand[dir] | mHomogeneous[dir];
+            h.minSize = 0;
         }
 
-        //help for homogeneous layout
-        int allMinX, allMinY;
+        //set expand, but only if it doesn't join multiple cells
+        foreach (inout pc; mChildren) {
+            if (pc.join[dir] == 1) {
+                int n = pc.p[dir];
+                heads[n].expand |= pc.expand[dir];
+            }
+        }
 
-        //go over each col and row, update sizes progressively
-        for (int x = 0; x < mW; x++) {
-            for (int y = 0; y < mH; y++) {
-                auto cur = mCells[x][y];
-                bool[2] expand;
-                Vector2i s;
-                if (cur.w) {
-                    expand[] = cur.w.layout.expand;
-                    s = cur.w.layoutCachedContainerSizeRequest();
+        //set minimal sizes (processes normal and spanning cells)
+        foreach (inout pc; mChildren) {
+            int requestSize = pc.minSize[dir];
+            int n = pc.p[dir];
+            int count = pc.join[dir];
+
+            //sum up width (also count expandable cells for below)
+            int expandCount, size;
+            for (int i = n; i < n+count; i++) {
+                expandCount += heads[i].expand ? 1 : 0;
+                //substract cell spacing because that gets added seperately
+                size += heads[i].minSize - space;
+            }
+            size += space; //count only spacing _between_ cells
+
+            //if the columns/rows are too small, add as much as is still needed
+            //for a normal cell, this is minSize = max(minSize, requestSize)
+            int need = requestSize - size;
+            if (need > 0) {
+                //need more size => distribute it across cells
+                bool forceExpand = (expandCount == 0);
+                if (forceExpand)
+                    expandCount = count; //to all cells
+                //note: /+round up+/
+                int add = (need /++ expandCount - 1+/) / expandCount;
+                for (int i = n; i < n+count; i++) {
+                    if (forceExpand || heads[i].expand) {
+                        heads[i].minSize += add;
+                    }
                 }
-                mMinWidths[x] = max(mMinWidths[x], s.x);
-                mMinHeights[y] = max(mMinHeights[y], s.y);
-                allMinX = max(allMinX, mMinWidths[x]);
-                allMinY = max(allMinY, mMinHeights[y]);
-                //if one item in the row wants to expand, make all expanded
-                mExpandX[x] |= mForceExpand[0] | expand[0];
-                mExpandY[y] |= mForceExpand[1] | expand[1];
             }
         }
 
-        //homogenize (could be implemented more efficiently)
-        if (mHomogeneous[0]) {
-            foreach (inout w; mMinWidths) {
-                w = allMinX;
+        if (mHomogeneous[dir]) {
+            //homogenize
+            int minWidth;
+            foreach (inout h; heads) {
+                minWidth = max(minWidth, h.minSize);
+            }
+            foreach (inout h; heads) {
+                h.minSize = minWidth;
             }
         }
-        if (mHomogeneous[1]) {
-            foreach (inout h; mMinHeights) {
-                h = allMinY;
-            }
+
+        //sum up (could speed up this when homogeneous)
+        int sum;
+        foreach (inout h; heads) {
+            sum += h.minSize + space;
+        }
+        //only space between cells; when grid has size 0 it becomes -space
+        sum = max(0, sum - space);
+
+        return sum;
+    }
+
+    //allocate row/column header coordinates according to extrasize, which is
+    //the additional size to the requested minimum size
+    //fills out the Header.alloc fields
+    private void doSizeAlloc(int dir, int extrasize) {
+        Header[] heads = mHeaders[dir];
+        int space = max(0, mCellSpacing[dir]);
+
+        if (extrasize < 0)
+            extrasize = 0; //sorry no shrinking, but also don't blow up
+
+        //distribute extra space equally accross all expanding cells
+
+        int expandcount;
+        foreach (inout h; heads) {
+            expandcount += h.expand ? 1 : 0;
         }
 
-        //summed up
-        Vector2i rsize;
+        //the 0-case occurs when not expanding at all, but there's extra space
+        //be top-left aligned then
+        //also, /+round up the division+/ <- no, looks fugly
+        auto extra = expandcount ? (extrasize/++expandcount-1+/)/expandcount : 0;
 
-        mExpandableCount[0] = 0;
-        for (int x = 0; x < mW; x++) {
-            auto w = mMinWidths[x];
-            rsize.x += w;
-            mExpandableCount[0] += mExpandX[x] ? 1 : 0;
+        int cur;
+        foreach (inout h; heads) {
+            h.allocA = cur;
+            cur += h.minSize + (h.expand ? extra : 0);
+            h.allocB = cur;
+            cur += space;
+        }
+    }
+
+    protected Vector2i layoutSizeRequest() {
+        foreach (inout pc; mChildren) {
+            assert(pc.w !is null);
+            pc.minSize = pc.w.layoutCachedContainerSizeRequest();
+            pc.expand[] = pc.w.layout.expand;
         }
 
-        mExpandableCount[1] = 0;
-        for (int y = 0; y < mH; y++) {
-            auto h = mMinHeights[y];
-            rsize.y += h;
-            mExpandableCount[1] += mExpandY[y] ? 1 : 0;
-        }
+        mLastSize.x = doSizeRequest(0);
+        mLastSize.y = doSizeRequest(1);
 
-        //spacing only between cells, so n-1 in total
-        mAllSpacing.x = max(0, (mW-1) * mCellSpacing.x);
-        mAllSpacing.y = max(0, (mH-1) * mCellSpacing.y);
-
-        rsize += mAllSpacing;
-
-        mLastSize = rsize;
-
-        return rsize;
+        return mLastSize;
     }
 
     protected override void layoutSizeAllocation() {
-        Vector2i asize = size;
+        Vector2i extra = size - mLastSize;
 
         //first calculate allocations...
+        doSizeAlloc(0, extra[0]);
+        doSizeAlloc(1, extra[1]);
 
-        Vector2i extra = asize - mLastSize;
-        //distribute extra space accross all expanding cells
-        //the 0-case occurs when not expanding at all, but there's extra space
-        //be right-top aligned then
-        extra.x = mExpandableCount[0] ? extra.x/mExpandableCount[0] : 0;
-        extra.y = mExpandableCount[1] ? extra.y/mExpandableCount[1] : 0;
-
-        int cur;
-        for (int x = 0; x < mW; x++) {
-            int add = mMinWidths[x] + (mExpandX[x] ? extra.x : 0);
-            mAllocX[x] = cur;
-            cur += add + mCellSpacing.x;
-        }
-        mAllocX[$-1] = cur; //goes beyond asize by cellspacing.x, but see below
-
-        cur = 0;
-        for (int y = 0; y < mH; y++) {
-            int add = mMinHeights[y] + (mExpandY[y] ? extra.y : 0);
-            mAllocY[y] = cur;
-            cur += add + mCellSpacing.y;
-        }
-        mAllocY[$-1] = cur;
-
-        //and then assign them.
-        Rect2i box;
-        for (int x = 0; x < mW; x++) {
-            box.p1.x = mAllocX[x];
-            box.p2.x = mAllocX[x+1] - mCellSpacing.x;
-            for (int y = 0; y < mH; y++) {
-                auto w = mCells[x][y].w;
-                if (w) {
-                    box.p1.y = mAllocY[y];
-                    box.p2.y = mAllocY[y+1] - mCellSpacing.y;
-                    w.layoutContainerAllocate(box);
-                }
-            }
+        //and then assign them
+        foreach (inout pc; mChildren) {
+            Rect2i box;
+            box.p1.x = mHeaders[0][pc.p[0]].allocA;
+            box.p1.y = mHeaders[1][pc.p[1]].allocA;
+            box.p2.x = mHeaders[0][pc.p[0] + pc.join[0] - 1].allocB;
+            box.p2.y = mHeaders[1][pc.p[1] + pc.join[1] - 1].allocB;
+            pc.w.layoutContainerAllocate(box);
         }
     }
 
+    //xxx change this to use public methods only
     void loadFrom(GuiLoader loader) {
         auto node = loader.node;
 
-        auto size = Vector2i(mW, mH);
+        auto size = Vector2i(mSize[0], mSize[1]);
         parseVector(node.getStringValue("size"), size);
         setSize(size.x, size.y);
 
@@ -254,11 +366,11 @@ class TableContainer : PublicContainer {
         Vector2i pos;
         //skip k many cells
         void skip(int k) {
-            if (!mW)
+            if (!mSize[0])
                 return;
             pos.x += k;
-            pos.y += pos.x / mW;
-            pos.x = pos.x % mW;
+            pos.y += pos.x / mSize[0];
+            pos.x = pos.x % mSize[0];
         }
         foreach (ConfigNode child; node.getSubNode("cells")) {
             //if a cell contains "table_skip", it doesn't contain a Widget

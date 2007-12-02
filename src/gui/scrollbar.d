@@ -220,7 +220,7 @@ class ScrollBar : Container {
 
     ///minimum value that can be reached by scrolling
     int minValue() {
-        return mMaxValue;
+        return mMinValue;
     }
     void minValue(int v) {
         mMinValue = max(v,0);

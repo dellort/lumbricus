@@ -20,7 +20,12 @@ class Label : Widget {
         bool mDrawBorder;
         //calculated by layoutSizeRequest
         Vector2i mFinalBorderSize;
+        int mTextHeight;
+
+        const cSpacing = 3; //between images and text
     }
+
+    Color background = {0,0,0,0};
 
     void image(Texture img) {
         mImage = img;
@@ -39,12 +44,14 @@ class Label : Widget {
     }
 
     override Vector2i layoutSizeRequest() {
-        auto csize = mFont.textSize(mText,true);
-        if (mImage) {
-            csize = mImage.size;
-        }
+        auto csize = mFont.textSize(mText,!mImage);
+        mTextHeight = csize.y;
         if (mShrink) {
             csize.x = 0;
+        }
+        if (mImage) {
+            csize.x += mImage.size.x + (mText.length ? cSpacing : 0);
+            csize.y = max(csize.y, mImage.size.y);
         }
         mFinalBorderSize = border;
         if (mDrawBorder) {
@@ -104,21 +111,32 @@ class Label : Widget {
     }
 
     override void onDraw(Canvas canvas) {
+        if (background.a >= Color.epsilon) {
+            canvas.drawFilledRect(Vector2i(0), size, background, true);
+        }
         auto b = mFinalBorderSize;
         if (drawBorder) {
             drawBox(canvas, widgetBounds, mBorderStyle);
         }
+        //xxx replace manual centering code etc. by sth. automatic
+        auto diff = size - b*2;
+        int x = b.x;
         if (mImage) {
             auto s = size - b*2;
-            canvas.draw(mImage, b + s/2 - mImage.size/2);
-            return;
+            if (mText.length)
+                s.x = mImage.size.x;
+            auto ipos = b + s/2 - mImage.size/2;
+            canvas.draw(mImage, ipos);
+            x = ipos.x + mImage.size.x + cSpacing;
         }
+        if (!mText.length)
+            return;
+        Vector2i p = Vector2i(x, b.y);
+        p.y = p.y + diff.y/2 - mTextHeight/2;
         if (!mShrink) {
-            mFont.drawText(canvas, b, mText);
+            mFont.drawText(canvas, p, mText);
         } else {
-            auto sz = size;
-            sz -= b*2;
-            mFont.drawTextLimited(canvas, b, sz.x, mText);
+            mFont.drawTextLimited(canvas, p, (size-b*2-p).x, mText);
         }
     }
 

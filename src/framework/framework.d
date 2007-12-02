@@ -576,6 +576,13 @@ public class Framework {
         }
         return false;
     }
+
+    /// return true if all modifiers in the set are applied
+    /// empty set applies always
+    public bool getModifierSetState(ModifierSet mods) {
+        return (getModifierSet() & mods) == mods;
+    }
+
     public bool isModifierKey(Keycode c) {
         switch (c) {
             case Keycode.RALT, Keycode.RCTRL, Keycode.RSHIFT:

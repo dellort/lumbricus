@@ -1,6 +1,8 @@
 module gui.window;
 
 import common.common;
+import common.bmpresource;
+import common.resources;
 import common.visual;
 import framework.event;
 import framework.framework;
@@ -11,13 +13,17 @@ import gui.label;
 import gui.tablecontainer;
 import gui.widget;
 import utils.array;
+import utils.configfile;
 import utils.misc;
 import utils.rect2;
 import utils.vector2;
 
+import str = std.string;
+
 enum WindowZOrder {
     Normal = 0,
     High = 10, //always on top
+    Murks = 20,
 }
 
 //only static properties
@@ -34,7 +40,13 @@ class WindowWidget : Container {
         Widget mClient; //what's shown inside the window
         Label mTitleBar;
 
-        char[] mTitle;
+        Widget mClientWidget;//what's really in (!is mClient if mClient is null)
+        BoxContainer mForClient; //where client is, non-fullscreen mode
+        Widget mWindowDecoration; //window frame etc. in non-fullscreen mode
+
+        BoxContainer mTitleContainer; //titlebar + the buttons
+        TitlePart[] mTitleParts; //kept sorted by .sort
+
         BoxProperties mBackground;
 
         //"window manager"; supported to be null
@@ -56,6 +68,20 @@ class WindowWidget : Container {
         const cCornerSize = 5;
 
         bool mCanResize = true;
+
+        struct TitlePart {
+            char[] name;
+            int priority;
+            Widget widget;
+
+            //for sorting
+            int opCmp(TitlePart* other) {
+                int diff = priority - other.priority;
+                if (diff == 0)
+                    diff = str.cmp(name, other.name);
+                return diff;
+            }
+        }
 
         //thingies on the border to resize this window
         class Sizer : Widget {
@@ -121,6 +147,15 @@ class WindowWidget : Container {
         }
     }
 
+    ///catches a window-keybinding
+    void delegate(WindowWidget sender, char[] action) onKeyBinding;
+
+    ///always call acceptSize() after resize
+    bool alwaysAcceptSize = true;
+
+    ///expensive way to highlight the whole window (i.e. for window selection)
+    bool highlight;
+
     Rect2i windowBounds() {
         return containedBounds;
     }
@@ -130,8 +165,10 @@ class WindowWidget : Container {
         position = b.p1;
     }
 
-    //usersize to current minsize (in case usersize is smaller)
-    void acceptSize() {
+    ///usersize to current minsize (in case usersize is smaller)
+    void acceptSize(bool ignore_if_fullscreen = true) {
+        if (ignore_if_fullscreen && mFullScreen)
+            return;
         mUserSize = mUserSize.max(mLastMinSize);
         //actually not needed, make spotting errors easier
         needResize(true);
@@ -146,6 +183,8 @@ class WindowWidget : Container {
 
     override protected void layoutSizeAllocation() {
         super.layoutSizeAllocation();
+        if (alwaysAcceptSize)
+            acceptSize(true);
     }
 
     WindowFrame manager() {
@@ -155,9 +194,41 @@ class WindowWidget : Container {
     this() {
         setVirtualFrame(false);
 
-        loadBindings(globals.loadConfig("window"));
+        //add decorations etc.
+        auto all = new TableContainer(3, 3);
+        mWindowDecoration = all;
+
+        void sizer(int x, int y) {
+            all.add(new Sizer(x, y), x+1, y+1);
+        }
+
+        //all combinations of -1/0/+1, except (0, 0)
+        sizer(-1, -1);
+        sizer(-1,  0);
+        sizer(-1, +1);
+        sizer( 0, -1);
+        sizer( 0, +1);
+        sizer(+1, -1);
+        sizer(+1,  0);
+        sizer(+1, +1);
+
+        auto vbox = new BoxContainer(false, false, 5);
+
+        mTitleContainer = new BoxContainer(true);
+        auto tmp = new SimpleContainer();
+        tmp.drawBox = true;
+        tmp.add(mTitleContainer, WidgetLayout.Border(Vector2i(3, 1)));
+        vbox.add(tmp, WidgetLayout.Expand(true));
+
+        mForClient = vbox;
+
+        all.add(vbox, 1, 1);
 
         recreateGui();
+
+        mTitleBar = new Label();
+        mTitleBar.drawBorder = false;
+        mTitleBar.font = gFramework.getFont("window_title");
 
         WindowProperties p;
         properties = p; //to be consistent
@@ -170,58 +241,33 @@ class WindowWidget : Container {
     }
 
     private void recreateGui() {
-        clear();
+        if (mClient) {
+            mClient.remove(); //just to be safe
+        }
+
+        //whatever there was... kill it
+        if (mClientWidget) {
+            mClientWidget.remove();
+            mClientWidget = null;
+        }
 
         if (mFullScreen) {
+            clear();
             if (mClient) {
-                mClient.remove();
                 addChild(mClient);
             }
-            needRelayout();
         } else {
-            //add decorations etc.
-            auto all = new TableContainer(3, 3);
-
-            void sizer(int x, int y) {
-                all.add(new Sizer(x, y), x+1, y+1);
+            mClientWidget = mClient;
+            if (!mClientWidget) {
+                mClientWidget = new Spacer(); //placeholder
             }
 
-            //all combinations of -1/0/+1, except (0, 0)
-            sizer(-1, -1);
-            sizer(-1,  0);
-            sizer(-1, +1);
-            sizer( 0, -1);
-            sizer( 0, +1);
-            sizer(+1, -1);
-            sizer(+1,  0);
-            sizer(+1, +1);
+            mForClient.add(mClientWidget);
 
-            auto vbox = new BoxContainer(false, false, 5);
-
-            auto titlebar = new BoxContainer(true);
-
-            mTitleBar = new Label();
-            //mTitleBar.drawBorder = false;
-            mTitleBar.text = mTitle;
-            titlebar.add(mTitleBar);
-
-            auto maximize = new Button();
-            maximize.text = "F";
-            maximize.onClick = &onToggleFullScreen;
-            titlebar.add(maximize, WidgetLayout.Noexpand);
-
-            vbox.add(titlebar, WidgetLayout.Expand(true));
-
-            if (mClient) {
-                mClient.remove();
-                vbox.add(mClient);
-            } else {
-                vbox.add(new Spacer());
+            if (mWindowDecoration.parent !is this) {
+                clear();
+                addChild(mWindowDecoration);
             }
-
-            all.add(vbox, 1, 1);
-
-            addChild(all);
         }
     }
 
@@ -263,23 +309,77 @@ class WindowWidget : Container {
         return mClient;
     }
     void client(Widget w) {
+        if (w is mClient)
+            return;
         mClient = w;
         recreateGui();
     }
 
     WindowProperties properties() {
         WindowProperties res;
-        res.windowTitle = mTitle;
+        res.windowTitle = mTitleBar.text;
         res.background = mBackground.back;
         res.canResize = mCanResize;
         res.zorder = cast(WindowZOrder)zorder;
         return res;
     }
     void properties(WindowProperties props) {
-        mTitleBar.text = mTitle = props.windowTitle;
+        mTitleBar.text = props.windowTitle;
         mBackground.back = props.background;
         mCanResize = props.canResize;
         zorder = props.zorder;
+    }
+
+    /// add a button or anything to the titlebar
+    /// name = unique name; if a part with that name already exists, return
+    /// false and do nothing
+    /// priority = sorted from left to right by priority
+    /// w = the widget; must be non-null, the window code can add/remove this
+    /// widget anytime (i.e. switching fullscreen mode), also, its .layout will
+    /// be used (best choice is WidgetLayout.Noexpand())
+    bool addTitlePart(char[] name, int priority, Widget w) {
+        assert(w !is null);
+
+        if (findTitlePart(name) >= 0)
+            return false;
+
+        mTitleParts ~= TitlePart(name, priority, w);
+        recreateTitle();
+
+        return true;
+    }
+
+    bool removeTitlePart(char[] name) {
+        int index = findTitlePart(name);
+        if (index < 0)
+            return false;
+
+        mTitleParts = mTitleParts[0..index] ~ mTitleParts[index+1..$];
+        recreateTitle();
+
+        return true;
+    }
+
+    private int findTitlePart(char[] name) {
+        foreach (int index, b; mTitleParts) {
+            if (b.name == name)
+                return index;
+        }
+        return -1;
+    }
+
+    private void recreateTitle() {
+        mTitleContainer.clear();
+        mTitleParts.sort;
+        foreach (p; mTitleParts) {
+            mTitleContainer.add(p.widget);
+        }
+    }
+
+    ///the titlebar... do with it what you want, the WindowWidget only uses this
+    ///for the .text property
+    Label titleBar() {
+        return mTitleBar;
     }
 
     void activate() {
@@ -293,6 +393,11 @@ class WindowWidget : Container {
         mBackground.border = focused ? Color(0,0,1) : mBackground.border.init;
     }
 
+    void doAction(char[] s) {
+        if (onKeyBinding)
+            onKeyBinding(this, s);
+    }
+
     //treat all events as handled (?)
     override bool onKeyEvent(KeyInfo key) {
         char[] bind = findBind(key);
@@ -302,9 +407,9 @@ class WindowWidget : Container {
         if (key.isMouseButton())
             activate();
 
-        if (bind == "toggle_fs") {
+        if (bind.length) {
             if (key.isDown())
-                fullScreen = !fullScreen;
+                doAction(bind);
             return true;
         }
 
@@ -356,6 +461,10 @@ class WindowWidget : Container {
                 c.drawFilledRect(Vector2i(0), size, properties.background);
         }
         super.onDraw(c);
+
+        if (highlight) {
+            c.drawFilledRect(Vector2i(0), size, Color(0.7,0.7,0.7,0.7));
+        }
     }
 
     override bool doesCover() {
@@ -363,7 +472,7 @@ class WindowWidget : Container {
     }
 
     char[] toString() {
-        return "["~super.toString~" '"~mTitle~"']";
+        return "["~super.toString~" '"~mTitleBar.text~"']";
     }
 }
 
@@ -372,24 +481,149 @@ class WindowWidget : Container {
 class WindowFrame : Container {
     private {
         WindowWidget[] mWindows;  //all windows
+        ConfigNode mConfig;
+        KeyBindings mKeysWindow, mKeysWM;
+        bool mWindowSelecting;
+        ModifierSet mSelectMods; //to determine if the modifiers were released
+
+        //factories for parts; indexed by their names (but why?)
+        DefPart[char[]] mPartFactory;
+
+        class DefPart {
+            char[] name;
+            bool by_default;
+            int priority;
+
+            //fabricate whatever and add it to the window
+            abstract void addTo(WindowWidget w);
+
+            this(char[] name, ConfigNode node) {
+                this.name = name;
+                by_default = node.getBoolValue("create_by_default", false);
+                priority = node.getIntValue("priority");
+            }
+        }
+
+        class TitlePart : DefPart {
+            this(char[] name, ConfigNode node) { super(name, node); }
+            void addTo(WindowWidget w) {
+                //isn't it funney?
+                w.addTitlePart(name, priority, w.titleBar);
+            }
+        }
+
+        class ButtonPart : DefPart {
+            Texture img;
+            char[] action;
+            this(char[] name, ConfigNode node) {
+                super(name, node);
+                img = globals.resources.resource!(BitmapResource)
+                    (node.getStringValue("image")).get().createTexture();
+                action = node.getStringValue("action");
+            }
+
+            class Holder {
+                WindowWidget w;
+                void onButton(Button sender) {
+                    w.doAction(action);
+                }
+            }
+
+            void addTo(WindowWidget w) {
+                auto b = new Button();
+                b.image = img;
+                b.drawBorder = false;
+                b.setLayout(WidgetLayout.Noexpand());
+                auto h = new Holder; //could use std.bind too, I guess
+                h.w = w;
+                b.onClick = &h.onButton;
+                w.addTitlePart(name, priority, b);
+            }
+        }
     }
 
+    ///callback for "alt+tab"-style window selection (i.e. MS Windoes, IceWM)
+    ///sel_end==true means the modifiers (i.e. alt) were finally released
+    void delegate(bool sel_end) onSelectWindow;
+
     this() {
+        setVirtualFrame(false); //wtf
+
         checkCover = true;
+
+        mConfig = globals.loadConfig("window");
+
+        mKeysWindow = new KeyBindings();
+        mKeysWindow.loadFrom(mConfig.getSubNode("window_bindings"));
+        mKeysWM = new KeyBindings();
+        mKeysWM.loadFrom(mConfig.getSubNode("wm_bindings"));
+
+        foreach (ConfigNode node; mConfig.getSubNode("titleparts")) {
+            auto name = node.name;
+            auto type = node.getStringValue("type");
+            //oh noes, double-factory pattern again... but a switch is fine too
+            DefPart part;
+            switch (type) {
+                case "caption":
+                    part = new TitlePart(name, node);
+                    break;
+                case "img_button":
+                    part = new ButtonPart(name, node);
+                    break;
+                default:
+                    //???
+                    assert(false, "add error handling");
+            }
+            mPartFactory[name] = part;
+        }
+    }
+
+    void addDefaultDecorations(WindowWidget wnd) {
+        foreach (DefPart p; mPartFactory) {
+            if (p.by_default)
+                p.addTo(wnd);
+        }
+    }
+
+    void addDecoration(WindowWidget wnd, char[] name) {
+        mPartFactory[name].addTo(wnd);
     }
 
     void addWindow(WindowWidget wnd) {
         wnd.remove();
         wnd.mManager = this;
+        wnd.bindings = mKeysWindow;
         mWindows ~= wnd;
         addChild(wnd);
     }
 
-    //hm, stupid, you must use this; wnd.remove() would silently fail
-    void removeWindow(WindowWidget wnd) {
-        arrayRemove(mWindows, wnd);
-        wnd.mManager = null;
-        wnd.remove();
+    void addWidget(Widget w) {
+        w.remove();
+        addChild(w);
+    }
+
+    override protected void removeChild(Widget child) {
+        //could be a "real" window; if not, then wtf?
+        auto wnd = cast(WindowWidget)child;
+        if (wnd) {
+            arrayRemove(mWindows, wnd);
+            wnd.mManager = null;
+        }
+        super.removeChild(child);
+    }
+
+    WindowWidget focusWindow() {
+        //code duplication with Container.findLastFocused
+        WindowWidget winner;
+        foreach (c; children()) {
+            auto cur = cast(WindowWidget)c;
+            if (cur && (!winner
+                || getChildFocusAge(cur) > getChildFocusAge(winner)))
+            {
+                winner = cur;
+            }
+        }
+        return winner;
     }
 
     void setWindowPosition(WindowWidget wnd, Vector2i pos) {
@@ -402,10 +636,9 @@ class WindowFrame : Container {
     }
 
     protected override void layoutSizeAllocation() {
-        foreach (WindowWidget w; mWindows) {
-            //maybe want to support invisible window sometime
-            //so if a window isn't parented, it's invisible
-            if (w.parent is this) {
+        foreach (Widget c; children) {
+            auto w = cast(WindowWidget)c;
+            if (w) {
                 Rect2i alloc;
                 if (w.fullScreen) {
                     alloc = widgetBounds();
@@ -415,7 +648,38 @@ class WindowFrame : Container {
                     alloc = Rect2i(p, p + s);
                 }
                 w.layoutContainerAllocate(alloc);
+            } else {
+                c.layoutContainerAllocate(widgetBounds());
             }
         }
+    }
+
+    private bool wsIsSet() {
+        assert(mWindowSelecting);
+        return gFramework.getModifierSetState(mSelectMods);
+    }
+
+    protected override bool onKeyEvent(KeyInfo info) {
+        if (mWindowSelecting) {
+            if (!wsIsSet()) {
+                //modifiers were released => end of selection
+                mWindowSelecting = false;
+                if (onSelectWindow)
+                    onSelectWindow(true);
+            }
+        }
+        auto bnd = mKeysWM.findBinding(info);
+        if (bnd.length == 0)
+            return super.onKeyEvent(info);
+        if (info.isDown()) {
+            if (bnd == "select_window") {
+                mSelectMods = info.mods;
+                mWindowSelecting = true;
+                assert(wsIsSet()); //doesn't work if it doesn't hold true
+                if (onSelectWindow)
+                    onSelectWindow(false);
+            }
+        }
+        return true;
     }
 }

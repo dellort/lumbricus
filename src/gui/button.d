@@ -1,4 +1,7 @@
 module gui.button;
+
+import common.bmpresource;
+import common.common;
 import framework.event;
 import framework.framework;
 import gui.widget;
@@ -11,6 +14,7 @@ class Button : Label {
         bool mMouseOver, mMouseInside;
         bool mMouseDown;   //last reported mouse button click
         bool mButtonState; //down or up (true if down)
+        bool mIsCheckbox, mChecked;
         Time mLastAutoRepeat; //last time an auto repeated click event was sent
     }
 
@@ -27,6 +31,33 @@ class Button : Label {
     void delegate(Button sender) onClick;
     void delegate(Button sender) onRightClick;
     void delegate(Button sender, bool over) onMouseOver;
+
+    bool isCheckbox() {
+        return mIsCheckbox;
+    }
+    void isCheckbox(bool set) {
+        mIsCheckbox = set;
+        if (mIsCheckbox) {
+            drawBorder = false;
+        }
+        updateCheckboxState();
+    }
+
+    bool checked() {
+        return mChecked;
+    }
+    void checked(bool set) {
+        mChecked = set;
+        updateCheckboxState();
+    }
+
+    private void updateCheckboxState() {
+        if (!mIsCheckbox)
+            return;
+        auto imgname = mChecked ? "/checkbox_on" : "/checkbox_off";
+        image = globals.resources.resource!(BitmapResource)(imgname)
+            .get().createTexture();
+    }
 
     override void onDraw(Canvas c) {
         super.onDraw(c);
@@ -71,6 +102,10 @@ class Button : Label {
     private void doClick() {
         //setting this is only useful when autoRepeat enabled
         mLastAutoRepeat = timeCurrentTime();
+        if (mIsCheckbox) {
+            mChecked = !mChecked;
+            updateCheckboxState();
+        }
         if (onClick)
             onClick(this);
     }

@@ -190,6 +190,11 @@ class TestTask : Task {
         editl.prompt = "> ";
         createWindow("EditLine", editl);
         createWindow("Console", new TestFrame6);
+        auto checkbox = new Button();
+        checkbox.isCheckbox = true;
+        checkbox.text = "Hello I'm a checkbox!";
+        checkbox.shrink = true; //for more testing
+        createWindow("CheckBox", checkbox);
 
         auto k = new Button();
         k.text = "Kill!!!1";
@@ -271,7 +276,7 @@ class TestTask2 : Task {
 
     FontTest mFont;
     BoxTest mBox;
-    ScrollBar[3] mBars;
+    ScrollBar[5] mBars;
 
     void onScrollbar(ScrollBar sender) {
         float getcolor(int n) {
@@ -280,9 +285,11 @@ class TestTask2 : Task {
         mFont.font.fore.a = getcolor(0);
         mFont.font.back.a = getcolor(1);
         mFont.updateFont();
-        mBox.box.back.a = getcolor(0);
-        mBox.box.border.a = getcolor(1);
-        Color clear = Color(getcolor(2),1,1);
+        mBox.box.border.a = getcolor(0);
+        mBox.box.back.a = getcolor(1);
+        mBox.box.cornerRadius = mBars[3].curValue;
+        mBox.box.borderWidth = mBars[4].curValue;
+        Color clear = Color(1.0f-getcolor(2),0,0);
         mFont.clear = clear;
         mBox.clear = clear;
 
@@ -301,10 +308,11 @@ class TestTask2 : Task {
         cnt.add(mBox);
         gui.add(cnt);
 
-        auto scr = new TableContainer(2, 3, Vector2i(15, 1));
+        auto scr = new TableContainer(2, 5, Vector2i(15, 1));
         char[][] labels = ["foreground/border alpha", "background alpha",
-            "container red"];
-        int[] values = [128, 128, 0];
+            "container red", "corner size", "border size"];
+        int[] values = [128, 128, 0, 5, 1];
+        int[] maxvals = [255, 255, 255, 50, 50];
 
         for (int n = 0; n < mBars.length; n++) {
             auto la = new Label();
@@ -315,7 +323,7 @@ class TestTask2 : Task {
 
             auto bar = new ScrollBar(true);
             mBars[n] = bar;
-            bar.maxValue = 255;
+            bar.maxValue = maxvals[n];
             bar.curValue = values[n];
             bar.onValueChange = &onScrollbar;
             scr.add(bar, 1, n, WidgetLayout.Border(Vector2i(3)));

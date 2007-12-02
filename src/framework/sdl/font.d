@@ -137,12 +137,13 @@ package class SDLFont : Font {
             //draw manually (oh, this is an xxx)
             foreach (dchar c; text) {
                 Texture surface = getGlyph(c);
-                if (mNeedBackPlain) {
-                    canvas.drawFilledRect(pos, pos+surface.size, props.back, true);
-                }
                 auto npos = pos.x + surface.size.x;
                 if (npos > width)
                     break;
+                if (mNeedBackPlain) {
+                    canvas.drawFilledRect(pos, pos+surface.size, props.back,
+                        true);
+                }
                 canvas.draw(surface, pos);
                 pos.x = npos;
             }

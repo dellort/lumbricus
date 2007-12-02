@@ -21,26 +21,29 @@ version(Windows) {
 }
 
 interface IRCOutput {
-	//Output a line of text
-	void writeChat(char[] nick, char[] s);
-	void writeAction(char[] nick, char[] s);
-	void writeNotice(char[] nick, char[] s);
-	//Write status information
-	void writeInfo(char[] s);
+    //Output a line of text
+    void writeChat(char[] nick, char[] s);
+    void writeAction(char[] nick, char[] s);
+    void writeNotice(char[] nick, char[] s);
+    //Write status information
+    void writeInfo(char[] s);
 
-	//clear list of nicknames
-	void clearNicks();
-	//add a nick to the nick list
-	void addNick(char[] nick);
-	//remove a nick from the list
-	void removeNick(char[] nick);
-	//change an existing nick
-	void changeNick(char[] oldNick, char[] newNick);
+    //clear list of nicknames
+    void clearNicks();
+    //add a nick to the nick list
+    void addNick(char[] nick);
+    //remove a nick from the list
+    void removeNick(char[] nick);
+    //change an existing nick
+    void changeNick(char[] oldNick, char[] newNick);
 }
 
 class WIrcClient : IrcClient {
-    private IRCOutput mOutput;
-    private bool mEnableEvents, mGettingNames;
+    private {
+        IRCOutput mOutput;
+        //bool mEnableEvents;
+        bool mGettingNames;
+    }
 
     this(IRCOutput write) {
         mOutput = write;
@@ -71,12 +74,16 @@ class WIrcClient : IrcClient {
     void disconnect() {
         if (isConnected) {
             mOutput.writeInfo("Disconnected");
-            serverDisconnected();
         }
+        serverDisconnected();
     }
 
     void join(char[] chan) {
-		sendLine("JOIN " ~ chan);
+        sendLine("JOIN " ~ chan);
+    }
+
+    void quit(char[] message) {
+        sendLine("QUIT" ~ (message.length ? " :" ~ message : null));
     }
 
     void say(char[] chan, char[] msg) {
@@ -94,152 +101,158 @@ class WIrcClient : IrcClient {
         mOutput.writeAction(nick, irclib.tools.strip(msg));
     }
 
-	protected override void onChannelMessageReceived(IrcChannelMessage imsg) {
-		mOutput.writeChat(imsg.fromNick,irclib.tools.strip(imsg.message));
-	}
+    protected override void onChannelMessageReceived(IrcChannelMessage imsg) {
+        mOutput.writeChat(imsg.fromNick,irclib.tools.strip(imsg.message));
+    }
 
-	protected override void onChannelActionReceived(IrcChannelMessage imsg) {
-		mOutput.writeAction(imsg.fromNick,irclib.tools.strip(imsg.message));
-	}
+    protected override void onChannelActionReceived(IrcChannelMessage imsg) {
+        mOutput.writeAction(imsg.fromNick,irclib.tools.strip(imsg.message));
+    }
 
-	protected override void onUserNoticeReceived(IrcUserMessage imsg) {
-		mOutput.writeNotice(imsg.fromNick,irclib.tools.strip(imsg.message));
-	}
+    protected override void onUserNoticeReceived(IrcUserMessage imsg) {
+        mOutput.writeNotice(imsg.fromNick,irclib.tools.strip(imsg.message));
+    }
 
-	protected override void onTopicChanged(ChannelTopic ctopic) {
-		mOutput.writeInfo(ctopic.fromNick ~ " has changed the topic to '" ~
-			irclib.tools.strip(ctopic.topic) ~ "'");
-	}
+    protected override void onTopicChanged(ChannelTopic ctopic) {
+        mOutput.writeInfo(ctopic.fromNick ~ " has changed the topic to '" ~
+            irclib.tools.strip(ctopic.topic) ~ "'");
+    }
 
-	protected override void onTopicReply(ChannelTopicReply ctr) {
-		mOutput.writeInfo("Topic is '" ~ irclib.tools.strip(ctr.topic) ~ "'");
-	}
+    protected override void onTopicReply(ChannelTopicReply ctr) {
+        mOutput.writeInfo("Topic is '" ~ irclib.tools.strip(ctr.topic) ~ "'");
+    }
 
-	protected override void onTopicWhoTimeReply(ChannelTopicWhoTimeReply ctwtr) {
-		mOutput.writeInfo("Topic was set by " ~ ctwtr.setter ~ ".");
-	}
+    protected override void onTopicWhoTimeReply(ChannelTopicWhoTimeReply ctwtr) {
+        mOutput.writeInfo("Topic was set by " ~ ctwtr.setter ~ ".");
+    }
 
-	protected override void onChannelJoin(ChannelJoin cjoin) {
-		mOutput.addNick(cjoin.fromNick.dup);
+    protected override void onChannelJoin(ChannelJoin cjoin) {
+        mOutput.addNick(cjoin.fromNick.dup);
 
-		if(cjoin.fromNick == nick) {
-			mOutput.writeInfo("You have joined the channel.");
-		} else {
-			mOutput.writeInfo(cjoin.fromNick ~ " has joined the channel.");
-		}
-	}
+        if(cjoin.fromNick == nick) {
+            mOutput.writeInfo("You have joined the channel.");
+        } else {
+            mOutput.writeInfo(cjoin.fromNick ~ " has joined the channel.");
+        }
+    }
 
-	private void userleft(IrcFrom who, char[] reason) {
-		mOutput.removeNick(who.fromNick);
+    private void userleft(IrcFrom who, char[] reason) {
+        mOutput.removeNick(who.fromNick);
 
-		char[] s;
-		s = who.fromNick ~ " has left the channel";
-		if(reason.length)
-			s ~= " (" ~ reason ~ ")";
-		else
-			s ~= ".";
-		mOutput.writeInfo(s);
-	}
+        char[] s;
+        s = who.fromNick ~ " has left the channel";
+        if(reason.length)
+            s ~= " (" ~ reason ~ ")";
+        else
+            s ~= ".";
+        mOutput.writeInfo(s);
+    }
 
-	protected override void onChannelPart(ChannelPart cpart) {
-		userleft(cpart, cpart.reason);
-	}
+    protected override void onChannelPart(ChannelPart cpart) {
+        userleft(cpart, cpart.reason);
+    }
 
-	protected override void onQuit(IrcQuit iquit) {
-		if(iquit.fromNick != nick)
-			userleft(iquit, iquit.reason);
-	}
+    protected override void onQuit(IrcQuit iquit) {
+        if(iquit.fromNick != nick)
+            userleft(iquit, iquit.reason);
+    }
 
-	protected override void onChannelKick(ChannelKick ckick) {
-		mOutput.removeNick(ckick.kickedNick);
+    protected override void onChannelKick(ChannelKick ckick) {
+        mOutput.removeNick(ckick.kickedNick);
 
-		mOutput.writeInfo(ckick.fromNick ~ " has kicked " ~ ckick.kickedNick ~
-			" from the channel (" ~ irclib.tools.strip(ckick.reason) ~ ")");
-	}
+        mOutput.writeInfo(ckick.fromNick ~ " has kicked " ~ ckick.kickedNick ~
+                " from the channel (" ~ irclib.tools.strip(ckick.reason) ~ ")");
+    }
 
-	protected override void onNick(IrcNick inick) {
-		mOutput.changeNick(inick.fromNick, inick.newNick);
+    protected override void onNick(IrcNick inick) {
+        mOutput.changeNick(inick.fromNick, inick.newNick);
 
-		mOutput.writeInfo(inick.fromNick ~ " is now known as " ~ inick.newNick ~ ".");
-	}
+        mOutput.writeInfo(inick.fromNick ~ " is now known as " ~ inick.newNick ~ ".");
+    }
 
-	protected override void onLoggedIn()
-	{
-		//do something, e.g. join default channel
-	}
+    protected override void onLoggedIn()
+    {
+        //do something, e.g. join default channel
+    }
 
-	protected override void onCommand(char[] prefix, char[] cmd, char[] cmdParams)
-	{
-		char[] s, chan;
+    protected override void onCommand(char[] prefix, char[] cmd, char[] cmdParams)
+    {
+        char[] s, chan;
 
-		switch(cmd)
-		{
-			case "353": // RPL_NAMREPLY
-				if(!mGettingNames)
-				{
-					mGettingNames = true;
-					mOutput.clearNicks();
-				}
+        switch(cmd) {
+            case "353": // RPL_NAMREPLY
+                if(!mGettingNames) {
+                    mGettingNames = true;
+                    mOutput.clearNicks();
+                }
 
-				ircParam(cmdParams); // My nick.
-				ircParam(cmdParams); // Channel type.
-				chan = ircParam(cmdParams);
-				s = ircParam(cmdParams); // The names.
+                ircParam(cmdParams); // My nick.
+                ircParam(cmdParams); // Channel type.
+                chan = ircParam(cmdParams);
+                s = ircParam(cmdParams); // The names.
 
-				foreach(char[] nick; std.string.split(s, " "))
-				{
-					if(nick.length)
-					{
-						if(std.string.find(prefixSymbols, nick[0]) != -1)
-							nick = nick[1 .. nick.length];
-						mOutput.addNick(nick.dup);
-					}
-				}
-				return;
+                foreach(char[] nick; std.string.split(s, " ")) {
+                    if(nick.length) {
+                        if(std.string.find(prefixSymbols, nick[0]) != -1)
+                            nick = nick[1 .. nick.length];
+                        mOutput.addNick(nick.dup);
+                    }
+                }
+                return;
 
-			case "366": // RPL_ENDOFNAMES
-				mGettingNames = false;
+            case "366": // RPL_ENDOFNAMES
+                mGettingNames = false;
 
-				break;
+                break;
 
-			default: ;
-		}
+            default: ;
+        }
 
-		super.onCommand(prefix, cmd, cmdParams);
-	}
+        super.onCommand(prefix, cmd, cmdParams);
+    }
 
     protected override void waitForEvent() {
-	    //don't wait after successful connection,
-	    //events are checked by checkEvents()
-	    mEnableEvents = true;
-	}
+        //nothing
+        //finishConnect calls this
+    }
 
-	protected override void serverDisconnected() {
-	    mEnableEvents = false;
-	}
+    protected override void serverDisconnected() {
+        //mEnableEvents = false;
+        super.serverDisconnected();
+    }
 
-	void checkEvents() {
-	    if (!mEnableEvents)
-            return;
+    void checkEvents() {
+        //if (!mEnableEvents)
+            //return;
+        //if someone DOSes you on IRC, you have lost the game
+        while (doCheck()) {}
+    }
 
-		SocketSet ssread, sswrite;
-		ssread = new SocketSet;
-		sswrite = new SocketSet;
+    //as far as I understand waitForEvent(), it loops and returns only on
+    //disconnection... so, this code duplication is still needed :(
+    private bool doCheck() {
+        if (!socket())
+            return false;
 
-		const uint NUM_BYTES = 1024;
-		ubyte[NUM_BYTES] _data = void;
-		void* data = _data.ptr;
+        bool progress;
 
-		ssread.reset();
-		sswrite.reset();
+        SocketSet ssread, sswrite;
+        ssread = new SocketSet;
+        sswrite = new SocketSet;
+
+        const uint NUM_BYTES = 1024;
+        ubyte[NUM_BYTES] _data = void;
+        void* data = _data.ptr;
+
+        ssread.reset();
+        sswrite.reset();
         ssread.add(socket);
         if(clientQueue.writeBytes)
             sswrite.add(socket);
 
-        int sl;
         //non-blocking
-        sl = Socket.select(ssread, sswrite, null, 0);
-        if(sl != -1) {// Interrupted.
+        auto sl = Socket.select(ssread, sswrite, null, 0);
+        if(sl > 0) {
             if(ssread.isSet(socket))
             {
                 int sv;
@@ -255,11 +268,11 @@ class WIrcClient : IrcClient {
                         {
                             serverDisconnected();
                         }
-                        return; // No more event loop.
+                        return false; // No more event loop.
 
                     case 0: // Connection closed.
                         serverDisconnected();
-                        return; // No more event loop.
+                        return false; // No more event loop.
 
                     default:
                         // Assumes onDataReceived() duplicates the data.
@@ -272,91 +285,20 @@ class WIrcClient : IrcClient {
             {
                 clientQueue.onSendComplete();
             }
+
+            progress = true;
+        } else if (sl == -1) {
+            //interrupted, try again
+            progress = true;
         }
-	}
-}
-
-class WIrcThread : Thread {
-    private WIrcClient mIrc;
-    private char[] mServerPending, mServer;
-    private bool mTerminated;
-
-    this(IRCOutput outp) {
-        super();
-        mIrc = new WIrcClient(outp);
-    }
-
-    override int run() {
-        while (!mTerminated) {
-            if (mServerPending != mServer) {
-                if (mServerPending.length) {
-                    mIrc.connectTo(mServerPending);
-                } else {
-                    mIrc.disconnect();
-                }
-                mServer = mServerPending;
-            }
-            mIrc.checkEvents();
-            yield();
-        }
-        mIrc.disconnect();
-        return 0;
-    }
-
-    void terminate() {
-        mTerminated = true;
-    }
-
-    void nick(char[] n) {
-        mIrc.nick = n;
-    }
-    char[] nick() {
-        return mIrc.nick;
-    }
-
-    void userName(char[] n) {
-        mIrc.userName = n;
-    }
-    char[] userName() {
-        return mIrc.userName;
-    }
-
-    void fullName(char[] n) {
-        mIrc.fullName = n;
-    }
-    char[] fullName() {
-        return mIrc.fullName;
-    }
-
-    void connect(char[] server) {
-        mServerPending = server;
-    }
-
-    void disconnect() {
-        mServerPending = null;
-    }
-
-    void join(char[] chan) {
-		mIrc.join(chan);
-    }
-
-    void say(char[] chan, char[] msg) {
-        mIrc.say(chan, msg);
-    }
-
-    void privmsg(char[] targetnick, char[] msg) {
-        mIrc.privmsg(targetnick, msg);
-    }
-
-    void me(char[] chan, char[] msg) {
-        mIrc.me(chan, msg);
+        return progress;
     }
 }
 
-class IRCFrame : Container, IRCOutput {
+class IRCFrame : Container {
     private Task mOwner;
     private GuiConsole mConsole;
-    private WIrcThread mIrc;
+    private WIrcClient mIrc;
     private char[] mChannel;
     private ConfigNode mCfg;
 
@@ -386,64 +328,74 @@ class IRCFrame : Container, IRCOutput {
         mConsole.cmdline.setPrefix("/", "say");
         addChild(mConsole);
 
-        mIrc = new WIrcThread(this);
+        mIrc = new WIrcClient(new IrcCallback());
         mIrc.nick = mCfg.getStringValue("nick");
         mIrc.userName = mCfg.getStringValue("emailuser");
         mIrc.fullName = mCfg.getStringValue("fullname");
-        mIrc.start();
+    }
+
+    void step() {
+        mIrc.checkEvents();
+    }
+
+    void disconnect() {
+        mIrc.disconnect();
     }
 
     void quit(char[] reason) {
-        mIrc.disconnect();
-        mIrc.terminate();
-        mOwner.terminate();
+        mIrc.quit(reason);
+        //mOwner.terminate();
     }
 
-	void writeChat(char[] nick, char[] s) {
-	    mConsole.console.writefln("<%s> %s",nick,s);
-	}
+    //sorry d0c I like inner classes sooo much!
+    class IrcCallback : IRCOutput {
+        void writeChat(char[] nick, char[] s) {
+            mConsole.console.writefln("<%s> %s",nick,s);
+        }
 
-	void writeAction(char[] nick, char[] s) {
-	    mConsole.console.writefln("%s %s",nick,s);
-	}
+        void writeAction(char[] nick, char[] s) {
+            mConsole.console.writefln("%s %s",nick,s);
+        }
 
-	void writeNotice(char[] nick, char[] s) {
-	    mConsole.console.writefln("-%s- %s",nick,s);
-	}
+        void writeNotice(char[] nick, char[] s) {
+            mConsole.console.writefln("-%s- %s",nick,s);
+        }
 
-	void writeInfo(char[] s) {
-	    mConsole.console.writefln("* "~s);
-	}
+        void writeInfo(char[] s) {
+            this.outer.writeInfo(s);
+        }
 
-	void clearNicks() {
-	    mConsole.console.writefln("~~~ clearNicks");
-	}
+        void clearNicks() {
+            mConsole.console.writefln("~~~ clearNicks");
+        }
 
-	void addNick(char[] nick) {
-	    mConsole.console.writefln("~~~ addNick: "~nick);
-	}
+        void addNick(char[] nick) {
+            mConsole.console.writefln("~~~ addNick: "~nick);
+        }
 
-	void removeNick(char[] nick) {
-	    mConsole.console.writefln("~~~ removeNick: "~nick);
-	}
+        void removeNick(char[] nick) {
+            mConsole.console.writefln("~~~ removeNick: "~nick);
+        }
 
-	void changeNick(char[] oldNick, char[] newNick) {
-	    mConsole.console.writefln("~~~ changeNick: "~oldNick~" -> "~newNick);
-	}
+        void changeNick(char[] oldNick, char[] newNick) {
+            mConsole.console.writefln("~~~ changeNick: "~oldNick~" -> "~newNick);
+        }
+    }
+
+    void writeInfo(char[] s) {
+        mConsole.console.writefln("* "~s);
+    }
 
     void cmdSay(MyBox[] args, Output write) {
         mIrc.say(mChannel, args[0].unbox!(char[]));
     }
 
     void cmdQuit(MyBox[] args, Output write) {
-        char[] reason;
-        if (args.length > 0)
-            reason = args[0].unbox!(char[]);
-        quit(reason);
+        quit(args[0].unbox!(char[]));
     }
 
     void cmdServer(MyBox[] args, Output write) {
-        mIrc.connect(args[0].unbox!(char[]));
+        mIrc.connectTo(args[0].unbox!(char[]));
     }
 
     void cmdJoin(MyBox[] args, Output write) {
@@ -453,7 +405,7 @@ class IRCFrame : Container, IRCOutput {
 
     void cmdPart(MyBox[] args, Output write) {
         char[] chan;
-        if (args.length)
+        if (!args[0].empty())
             chan = args[0].unbox!(char[]);
         writeInfo("Not supported");
     }
@@ -465,7 +417,7 @@ class IRCFrame : Container, IRCOutput {
     void cmdMsg(MyBox[] args, Output write) {
         char[] tn = args[0].unbox!(char[]);
         char[] msg = args[1].unbox!(char[]);
-	    mConsole.console.writefln("-> *%s* %s",tn,msg);
+        mConsole.console.writefln("-> *%s* %s",tn,msg);
         mIrc.privmsg(tn,msg);
     }
 
@@ -475,10 +427,14 @@ class IRCFrame : Container, IRCOutput {
 }
 
 class IRCTask: Task {
+    IRCFrame mIrc;
+
     this(TaskManager tm) {
         super(tm);
 
-        gWindowManager.createWindow(this, new IRCFrame(this), "wIRC",
+        mIrc = new IRCFrame(this);
+
+        gWindowManager.createWindow(this, mIrc, "wIRC",
             Vector2i(600, 400));
     }
 
@@ -486,6 +442,11 @@ class IRCTask: Task {
         TaskFactory.register!(typeof(this))("irc");
     }
 
+    override protected void onFrame() {
+        mIrc.step();
+    }
+
     protected override void onKill() {
+        mIrc.disconnect();
     }
 }

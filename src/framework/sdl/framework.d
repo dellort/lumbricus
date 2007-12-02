@@ -570,28 +570,42 @@ public class SDLCanvas : Canvas {
 
     public void pushState() {
         assert(mStackTop < MAX_STACK);
+
+        gFrameworkSDL.mWasteTime.start();
+
         mStack[mStackTop].clip = sdlsurface.mReal.clip_rect;
         mStack[mStackTop].translate = mTrans;
         mStack[mStackTop].clientstart = mClientStart;
         mStack[mStackTop].clientsize = mClientSize;
         mStackTop++;
+
+        gFrameworkSDL.mWasteTime.stop();
     }
 
     public void popState() {
         assert(mStackTop > 0);
+
+        gFrameworkSDL.mWasteTime.start();
+
         mStackTop--;
         SDL_Rect* rc = &mStack[mStackTop].clip;
         SDL_SetClipRect(sdlsurface.mReal, rc);
         mTrans = mStack[mStackTop].translate;
         mClientStart = mStack[mStackTop].clientstart;
         mClientSize = mStack[mStackTop].clientsize;
+
+        gFrameworkSDL.mWasteTime.stop();
     }
 
     public void setWindow(Vector2i p1, Vector2i p2) {
+        gFrameworkSDL.mWasteTime.start();
+
         addclip(p1, p2);
         mTrans = p1 + mTrans;
         mClientStart = p1 + mTrans;
         mClientSize = p2 - p1;
+
+        gFrameworkSDL.mWasteTime.stop();
     }
 
     //xxx: unify with clip(), or whatever, ..., etc.
@@ -785,7 +799,7 @@ public class FrameworkSDL : Framework {
     private SoundMixer mSoundMixer;
 
     //hurhurhur
-    private PerfTimer mDrawTime, mClearTime, mFlipTime, mInputTime;
+    private PerfTimer mDrawTime, mClearTime, mFlipTime, mInputTime, mWasteTime;
     private PerfTimer[char[]] mTimers;
 
     //return a surface with unspecified size containing this color
@@ -871,6 +885,7 @@ public class FrameworkSDL : Framework {
         timer(mClearTime, "fw_clear");
         timer(mFlipTime, "fw_flip");
         timer(mInputTime, "fw_input");
+        timer(mWasteTime, "fw_waste");
     }
 
     override public void deinitialize() {

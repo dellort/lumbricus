@@ -640,7 +640,7 @@ class StatsWindow : Task {
             }
 
             wnd.client = null; //dirty trick to avoid relayouting all the time
-            table.setSize(2, bla.timerCount+3, false);
+            table.setSize(2, bla.timerCount+3);
 
             int n = 0;
 
