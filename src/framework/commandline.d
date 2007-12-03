@@ -274,8 +274,8 @@ class CommandBucket {
     }
 
     void kill() {
-        foreach (p; mParent)
-            p.removeSub(this);
+        while (mParent.length)
+            mParent[0].removeSub(this);
     }
 
     //clear command cache
