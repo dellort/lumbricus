@@ -42,7 +42,7 @@ debug import std.stdio;
 debug {
     //version = MeasureImgLoadTime;
     version = DrawStats;
-    //with this hack, all alpha surfaces (for which texture cache is enabled)
+    //with this hack, all alpha surfaces (if drawn on the screen)
     //are drawn with a black box around them
     //version = MarkAlpha;
 }
@@ -148,8 +148,6 @@ package class SDLTexture : Texture {
                 case Transparency.Alpha: {
                     if (!checkFormat(conv_from, DisplayFormat.ScreenAlpha)) {
                         nsurf = SDL_DisplayFormatAlpha(conv_from);
-                        version (MarkAlpha)
-                            doMarkAlpha(nsurf);
                     }
                     break;
                 }
@@ -170,17 +168,6 @@ package class SDLTexture : Texture {
 
     void clearCache() {
         releaseCache();
-    }
-}
-
-version (MarkAlpha) {
-    private void doMarkAlpha(SDL_Surface* surface) {
-        Canvas c = (new SDLSurface(surface, false)).startDraw();
-        auto x1 = Vector2i(0), x2 = c.realSize()-Vector2i(1);
-        c.drawRect(x1, x2, Color(0));
-        c.drawLine(x1, x2, Color(0));
-        c.drawLine(x2.Y, x2.X, Color(0));
-        c.endDraw();
     }
 }
 
@@ -702,6 +689,17 @@ public class SDLCanvas : Canvas {
         int res = SDL_BlitSurface(src, &rc, sdlsurface.mReal, &destrc);
         version(DrawStats) gFrameworkSDL.mDrawTime.stop();
         assert(res == 0);
+        version (MarkAlpha) {
+            //only when drawn on screen
+            bool isscreen = sdlsurface is gFrameworkSDL.mScreenSurface;
+            if (isscreen && src.format.Amask != 0) {
+                auto c = Color(0,1,0);
+                destPos -= mTrans;
+                drawRect(destPos, destPos + sourceSize, c);
+                drawLine(destPos, destPos + sourceSize, c);
+                drawLine(destPos + sourceSize.Y, destPos + sourceSize.X, c);
+            }
+        }
     }
 
     //inefficient, wanted this for debugging
