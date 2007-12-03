@@ -18,7 +18,7 @@ import math = std.math;
 import utils.time;
 import utils.perf;
 import utils.drawing;
-import utils.misc : min, max, sizeToHuman;
+import utils.misc : min, max, sizeToHuman, swap;
 import utils.weaklist;
 
 package {
@@ -704,10 +704,12 @@ public class SDLCanvas : Canvas {
 
     //inefficient, wanted this for debugging
     public void drawCircle(Vector2i center, int radius, Color color) {
+        center += mTrans;
+        uint c = sdlsurface.colorToSDLColor(color);
         circle(center.x, center.y, radius,
             (int x1, int x2, int y) {
-                setPixel(Vector2i(x1, y), color);
-                setPixel(Vector2i(x2, y), color);
+                doSetPixel(x1, y, c);
+                doSetPixel(x2, y, c);
             }
         );
     }
@@ -724,28 +726,90 @@ public class SDLCanvas : Canvas {
     }
 
     public void drawLine(Vector2i from, Vector2i to, Color color) {
+        //special cases for vlines/hlines
+        if (from.y == to.y) {
+            to.y++;
+            if (from.x > to.x)
+                swap(from.x, to.x);
+            drawFilledRect(from, to, color, false);
+            return;
+        }
+        if (from.x == to.x) {
+            to.x++;
+            if (from.y > to.y)
+                swap(from.y, to.y);
+            drawFilledRect(from, to, color, false);
+            return;
+        }
+
+        uint c = sdlsurface.colorToSDLColor(color);
         Vector2f d = Vector2f((to-from).x,(to-from).y);
-        Vector2f old = Vector2f(from.x, from.y);
+        Vector2f old = toVector2f(from + mTrans);
         int n = cast(int)(math.fmax(math.fabs(d.x), math.fabs(d.y)));
         d = d / cast(float)n;
         for (int i = 0; i < n; i++) {
             int px = cast(int)(old.x+0.5f);
             int py = cast(int)(old.y+0.5f);
-            setPixel(Vector2i(px, py), color);
+            doSetPixel(px, py, c);
             old = old + d;
         }
     }
 
     public void setPixel(Vector2i p1, Color color) {
-        //xxx: ultra LAME!
-        drawFilledRect(p1, p1+Vector2i(1,1), color);
+        //less lame now
+        p1 += mTrans;
+        doSetPixel(p1.x, p1.y, sdlsurface.colorToSDLColor(color));
+    }
+
+    //warning: unlocked (you must call SDL_LockSurface before),
+    //  inclipped (coordinate must be inside of sdlsurface.mReal.clip_rect)
+    //of course doesn't obey alpha blending in any way
+    static private void doSetPixelLow(SDL_Surface* s, int x, int y, uint color)
+    {
+        void* ptr = s.pixels + s.pitch*y + s.format.BytesPerPixel*x;
+        switch (s.format.BitsPerPixel) {
+            case 8:
+                *cast(ubyte*)ptr = color;
+                break;
+            case 16:
+                *cast(ushort*)ptr = color;
+                break;
+            case 32:
+                *cast(uint*)ptr = color;
+                break;
+            case 24:
+                //this is why 32 bps is usually faster than 24 bps
+                //xxx what about endian etc.
+                ubyte* p = cast(ubyte*)ptr;
+                p[0] = color;
+                p[1] = color >> 8;
+                p[2] = color >> 16;
+                break;
+            default:
+                //err what?
+        }
+    }
+
+    //like doSetPixel, but locks and clips (and operates on this surface)
+    private void doSetPixel(int x, int y, uint color) {
+        SDL_Surface* s = sdlsurface.mReal;
+        assert(!!s);
+        SDL_Rect* rc = &s.clip_rect;
+        if (x < rc.x || y < rc.y || x >= rc.x + rc.w || y >= rc.y + rc.h)
+            return;
+        bool lock = SDL_MUSTLOCK(s);
+        if (lock)
+            SDL_LockSurface(s);
+        doSetPixelLow(s, x, y, color);
+        if (lock)
+            SDL_UnlockSurface(s);
     }
 
     public void drawRect(Vector2i p1, Vector2i p2, Color color) {
         drawLine(p1, Vector2i(p1.x, p2.y), color);
         drawLine(Vector2i(p1.x, p2.y), p2, color);
-        drawLine(p2, Vector2i(p2.x, p1.y), color);
-        drawLine(Vector2i(p2.x, p1.y), p1, color);
+        drawLine(Vector2i(p2.x, p1.y), p2, color);
+        drawLine(p1, Vector2i(p2.x, p1.y), color);
     }
 
     override public void drawFilledRect(Vector2i p1, Vector2i p2, Color color,
