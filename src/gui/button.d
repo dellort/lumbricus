@@ -176,6 +176,9 @@ class Button : Label {
         autoRepeatRate = node.getFloatValue("auto_repeat_rate", autoRepeatRate);
 
         super.loadFrom(loader);
+
+        isCheckbox = node.getBoolValue("check_box", isCheckbox);
+        checked = node.getBoolValue("checked", checked);
     }
 
     static this() {

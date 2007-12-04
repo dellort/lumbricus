@@ -44,7 +44,7 @@ debug {
     version = DrawStats;
     //with this hack, all alpha surfaces (if drawn on the screen)
     //are drawn with a black box around them
-    //version = MarkAlpha;
+    version = MarkAlpha;
 }
 
 version (MeasureImgLoadTime) {
@@ -690,6 +690,8 @@ public class SDLCanvas : Canvas {
         version(DrawStats) gFrameworkSDL.mDrawTime.stop();
         assert(res == 0);
         version (MarkAlpha) {
+            if (!gFrameworkSDL.mDebug)
+                return;
             //only when drawn on screen
             bool isscreen = sdlsurface is gFrameworkSDL.mScreenSurface;
             if (isscreen && src.format.Amask != 0) {
@@ -858,6 +860,8 @@ public class FrameworkSDL : Framework {
 
     package bool mAllowTextureCache = true;
 
+    package bool mDebug;
+
     private SoundMixer mSoundMixer;
 
     //hurhurhur
@@ -971,6 +975,10 @@ public class FrameworkSDL : Framework {
         DerelictSDLImage.unload();
         DerelictSDLttf.unload();
         DerelictSDL.unload();
+    }
+
+    override void setDebug(bool set) {
+        mDebug = set;
     }
 
     override public char[] getInfoString(InfoString s) {

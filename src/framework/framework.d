@@ -304,6 +304,10 @@ public class Framework {
         return "?\n";
     }
 
+    void setDebug(bool set) {
+        //default: nop
+    }
+
     /// Return valid InfoString entry numbers and their name (see InfoString).
     public InfoString[char[]] getInfoStringNames() {
         return [cast(char[])"framework": InfoString.Framework,

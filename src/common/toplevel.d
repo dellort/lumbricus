@@ -235,9 +235,15 @@ private:
         globals.cmdLine.registerCommand("fw_info", &cmdInfoString,
             "Query a info string from the framework, with no argument: list "
             "all info string names", ["text?:Name of the string or 'all'"]);
+        globals.cmdLine.registerCommand("fw_debug", &cmdSetFWDebug,
+            "Switch some debugging stuff in Framework on/off", ["bool:Value"]);
 
         //more like a test
         globals.cmdLine.registerCommand("widget_tree", &cmdWidgetTree, "-");
+    }
+
+    private void cmdSetFWDebug(MyBox[] args, Output write) {
+        gFramework.setDebug(args[0].unbox!(bool));
     }
 
     private void cmdInfoString(MyBox[] args, Output write) {

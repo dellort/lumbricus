@@ -9,6 +9,7 @@ import utils.mybox;
 import framework.commandline;
 import framework.framework;
 import framework.event;
+import framework.filesystem;
 import common.scene;
 import common.common;
 import common.task;
@@ -21,6 +22,8 @@ import gui.loader;
 import gui.mousescroller;
 import gui.wm;
 import utils.log;
+import utils.misc;
+import utils.array;
 import utils.configfile;
 import levelgen.level;
 import levelgen.generator;
@@ -29,6 +32,7 @@ import std.string : format;
 import utils.output;
 
 import std.bind;
+import std.stream;
 
 //for playing the preview
 import game.gametask;
@@ -489,6 +493,8 @@ public class LevelEditor : Task {
 
     Widget mEditor;
     Widget mLoadTemplate;
+    Button[3] mS;
+    Button mCaveCheckbox, mNochangeCheckbox, mPreviewCheckbox;
 
     StringListWidget mLoadTemplateList;
     ConfigNode[] mTemplateList; //temporary during mLoadTemplate
@@ -505,7 +511,7 @@ public class LevelEditor : Task {
             editor = e;
         }
         protected void onDraw(Canvas c) {
-            if (editor.mPreviewImage)
+            if (mPreviewCheckbox.checked && editor.mPreviewImage)
                 c.draw(editor.mPreviewImage, Vector2i(0));
             editor.root.draw(c);
             //selection rectangle
@@ -665,6 +671,14 @@ public class LevelEditor : Task {
             obj.isSelected = false;
             updateParent((EditObject o){o.subselected--;});
         }
+
+        //is this right??? (added this later)
+        updateSelected();
+    }
+
+    private void updateSelected() {
+        updateLexelType();
+        updateNochange();
     }
 
     //enumerate all objects with isSelected==true
@@ -676,6 +690,22 @@ public class LevelEditor : Task {
     {
         void doStuff(EditObject cur) {
             if (cur.isSelected && !(noParents && cur.hasSelectedKids))
+                code(cur);
+            if (cur.hasSelectedKids) {
+                foreach (o; cur.subObjects) {
+                    if (o.subselected > 0) {
+                        doStuff(o);
+                    }
+                }
+            }
+        }
+        doStuff(root);
+    }
+
+    //iterate over everything which is selected or which has selected children
+    private void foreachSelectedAll(void delegate(EditObject obj) code) {
+        void doStuff(EditObject cur) {
+            if (cur.isSelected || cur.hasSelectedKids)
                 code(cur);
             if (cur.hasSelectedKids) {
                 foreach (o; cur.subObjects) {
@@ -722,8 +752,7 @@ public class LevelEditor : Task {
         newPolyAt(Rect2i(100, 100, 500, 500));
 
         commands = new typeof(commands);
-        commands.register(Command("preview", &cmdPreview, "preview"));
-        commands.register(Command("save", &cmdSave, "save edit level"));
+        registerCommands();
         commands.bind(globals.cmdLine);
 
         createGui();
@@ -748,10 +777,26 @@ public class LevelEditor : Task {
 
         setOnClick("preview", (Button, Me me) {me.genPreview;});
         setOnClick("inspt", (Button, Me me) {me.insertPoint;});
-        setOnClick("nochange", (Button, Me me) {me.toggleNochange;});
         setOnClick("addpoly", (Button, Me me) {me.setNewPolygon;});
         setOnClick("play", (Button, Me me) {me.play;});
         setOnClick("load", (Button, Me me) {me.loadTemplate;});
+
+        setOnClick("setnochange", (Button b, Me me)
+            {me.setNochange(b.checked);}
+        );
+        setOnClick("setcave", (Button b, Me me) {me.setCave(b.checked);});
+
+        mS[0] = loader.lookup!(Button)("s1");
+        mS[1] = loader.lookup!(Button)("s2");
+        mS[2] = loader.lookup!(Button)("s3");
+        auto seltype = (Button b, Me me) {me.selLexelType(b);};
+        mS[0].onClick = bind(seltype, _0, this).ptr;
+        mS[1].onClick = mS[0].onClick;
+        mS[2].onClick = mS[0].onClick;
+
+        mNochangeCheckbox = loader.lookup!(Button)("setnochange");
+        mPreviewCheckbox = loader.lookup!(Button)("showpreview");
+        mCaveCheckbox = loader.lookup!(Button)("setcave");
 
         mEditor = loader.lookup("ledit_root");
         mWindow = gWindowManager.createWindowFullscreen(this, mEditor,
@@ -765,6 +810,59 @@ public class LevelEditor : Task {
         mLoadTemplateList = loader.lookup!(StringListWidget)("load_list");
         setOnClick("load_ok", (Button, Me me) {me.loadTemplate_OK;});
         setOnClick("load_cancel", (Button, Me me) {me.loadTemplate_Cancel;});
+    }
+
+    const cLexelTypes = [Lexel.Null, Lexel.SolidSoft, Lexel.SolidHard];
+
+    void selLexelType(Button b) {
+        int n = -1;
+        foreach (int x, b2; mS) {
+            if (b2 is b) { n = x; break; }
+        }
+        if (n < 0)
+            return; //wtf happened?
+
+        //switch the others off (radio button like behaviour)
+        foreach (b2; mS) {
+            if (b2 !is b)
+                b2.checked = false;
+        }
+
+        auto type = cLexelTypes[n];
+
+        //set selection to that type
+        foreachSelected(true,
+            (EditObject obj) {
+                auto poly = cast(EditPolygon)obj;
+                if (poly) {
+                    poly.marker = type;
+                }
+            }
+        );
+    }
+
+    void updateLexelType() {
+        //(overcomplicated)
+        //find the most common marker type from all selected polygons...
+        int[cLexelTypes.length] win;
+        foreachSelectedAll(
+            (EditObject obj) {
+                auto poly = cast(EditPolygon)obj;
+                if (poly) {
+                    foreach (int index, t; cLexelTypes) {
+                        if (poly.marker == t)
+                            win[index]++;
+                    }
+                }
+            }
+        );
+        //...and set that as selection
+        auto winindex = arrayFindHighest(win);
+        if (win[winindex] == 0)
+            winindex = -1; //select nothing if 0
+        foreach (index, b; mS) {
+            b.checked = index == winindex;
+        }
     }
 
     private void loadTemplate() {
@@ -798,6 +896,8 @@ public class LevelEditor : Task {
         clear();
         //currently we throw everything away, except the geometry:
         doLoadGeometry(templ.geometry);
+        //update GUI
+        mCaveCheckbox.checked = levelCaveness != Lexel.Null;
     }
 
     private void doLoadGeometry(LevelGeometry geo) {
@@ -853,15 +953,58 @@ public class LevelEditor : Task {
     }
 
     //for the currently selected lines, toggle the nochange-flag
-    void toggleNochange() {
+    void setNochange(bool s) {
         foreachSelected(false,
             (EditObject obj) {
                 if (cast(EditPLine)obj) {
                     auto line = cast(EditPLine)obj;
-                    line.noChange = !line.noChange;
+                    line.noChange = s;
                 }
             }
         );
+    }
+
+    void updateNochange() {
+        //if one is, show it as "nochange"
+        //looks like checkbox needs middle-state :/
+        //(a disabled state too, if nothing useful is selected)
+        bool nochange;
+        foreachSelected(false,
+            (EditObject obj) {
+                if (cast(EditPLine)obj) {
+                    auto line = cast(EditPLine)obj;
+                    nochange |= line.noChange;
+                }
+            }
+        );
+        mNochangeCheckbox.checked = nochange;
+    }
+
+    void setCave(bool c) {
+        //only support SolidSoft caves hurhur
+        auto ncaveness = c ? Lexel.SolidSoft : Lexel.Null;
+        if (levelCaveness == ncaveness) {
+            return;
+        }
+
+        //convert the whole level on the fly lol
+        foreach (o; root.subObjects) {
+            auto poly = cast(EditPolygon)o;
+            if (!poly)
+                continue;
+            //invert the marker
+            //not that SolidHard markers won't be touched which this
+            if (poly.marker == levelCaveness) {
+                poly.marker = ncaveness;
+            } else if (poly.marker == ncaveness) {
+                poly.marker = levelCaveness;
+            }
+        }
+
+        levelCaveness = ncaveness;
+
+        //reload some GUI states
+        updateSelected();
     }
 
     //create polygon on next selection
@@ -891,19 +1034,32 @@ public class LevelEditor : Task {
     }
 
     void cmdSave(MyBox[] args, Output write) {
+        char[] filename = args[0].unbox!(char[])();
         ConfigNode rootnode = new ConfigNode();
         auto sub = rootnode.getSubNode("templates").getSubNode("");
         saveLevel(sub);
-        auto s = new StringOutput();
-        rootnode.writeFile(s);
-        write.writefln(s.text);
+        try {
+            Stream outp = gFramework.fs.open(filename, FileMode.OutNew);
+            auto s = new StreamOutput(outp);
+            rootnode.writeFile(s);
+            outp.close();
+        } catch (FilesystemException e) {
+            write.writefln("oh noes! something has gone wrong: '%s'", e);
+        }
     }
 
     void cmdPreview(MyBox[] args, Output write) {
         genPreview();
     }
 
+    void registerCommands() {
+        commands.register(Command("preview", &cmdPreview, "preview"));
+        commands.register(Command("save", &cmdSave, "save edit level",
+            ["text...:filename"]));
+    }
+
     void genPreview() {
+        mPreviewCheckbox.checked = true;
         mCurrentPreview = genRenderedLevel();
         if (mCurrentPreview)
             mPreviewImage = mCurrentPreview.image.createTexture();
