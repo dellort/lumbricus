@@ -23,6 +23,9 @@ class ScrollBar : Container {
 
         int mCurValue;
         int mMinValue, mMaxValue, mPageSize;
+        //increment/decrement for button click (small) and area click (large)
+        int mSmallChange = 1;
+        int mLargeChange = 1;
         //scale factor = pixels / value
         double mScaleFactor;
 
@@ -68,7 +71,7 @@ class ScrollBar : Container {
             }
 
             override protected bool onKeyEvent(KeyInfo key) {
-                if (!key.isPress && key.isMouseButton) {
+                if (!key.isPress && key.code == Keycode.MOUSE_LEFT) {
                     drag_active = key.isDown;
                     drag_start = mousePos;
                     captureSet(drag_active);
@@ -104,9 +107,9 @@ class ScrollBar : Container {
 
     private void onAddSub(Button sender) {
         if (sender is mAdd) {
-            curValue = curValue+1;
+            curValue = curValue+mSmallChange;
         } else if (sender is mSub) {
-            curValue = curValue-1;
+            curValue = curValue-mSmallChange;
         }
     }
 
@@ -118,14 +121,14 @@ class ScrollBar : Container {
         //two buttons
 
         auto at = mousePos;
-        if (ki.isMouseButton && mBarArea.isInside(at)) {
+        if (ki.code == Keycode.MOUSE_LEFT && mBarArea.isInside(at)) {
             if (ki.isDown) {
                 //xxx: would need some kind of auto repeat too
                 //also, this looks ugly
                 auto bar = mBar.containedBounds;
                 int dir = (at[mDir] > ((bar.p1 + bar.p2)/2)[mDir]) ? +1 : -1;
                 //multiply dir with the per-click increment (fixed to 1 now)
-                curValue = curValue + dir*1;
+                curValue = curValue + dir*mLargeChange;
             }
             return true;
         }
@@ -242,6 +245,22 @@ class ScrollBar : Container {
         //hmmmm
         curValue = curValue;
         pageSize = pageSize;
+    }
+
+    //increment/decrement for button click
+    int smallChange() {
+        return mSmallChange;
+    }
+    void smallChange(int v) {
+        mSmallChange = max(v, 1);
+    }
+
+    //increment/decrement for empty area click
+    int largeChange() {
+        return mLargeChange;
+    }
+    void largeChange(int v) {
+        mLargeChange = max(v, 1);
     }
 
     ///size of scrolling window, same unit as curValue

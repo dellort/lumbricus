@@ -25,6 +25,11 @@ class SoundMixer : Sound {
 
     this() {
         DerelictSDLMixer.load();
+        if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0) {
+            throw new Exception(format("Could not init SDL audio subsystem: %s",
+                std.string.toString(SDL_GetError())));
+        }
+
         //44.1kHz stereo
         Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
 

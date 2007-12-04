@@ -912,7 +912,7 @@ public class FrameworkSDL : Framework {
         DerelictSDLImage.load();
         DerelictSDLttf.load();
 
-        if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
+        if (SDL_Init(SDL_INIT_VIDEO) < 0) {
             throw new Exception(format("Could not init SDL: %s",
                 std.string.toString(SDL_GetError())));
         }

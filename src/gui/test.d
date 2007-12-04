@@ -213,6 +213,7 @@ class TestTask : Task {
         auto bar2 = new ScrollBar(true);
         bar2.maxValue = 100;
         bar2.pageSize = 30;
+        bar2.largeChange = 30;
         createWindow("Test6", bar2);
 
 //        getFramework.clearColor = Color(1,1,1);
@@ -240,7 +241,8 @@ class TestTask2 : Task {
         Font f;
 
         this() {
-            f = gFramework.getFont("");
+            //need clone() here, or the default font will be freed later
+            f = gFramework.getFont("").clone(font);
         }
 
         override protected void layoutSizeAllocation() {

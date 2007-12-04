@@ -3,9 +3,11 @@ module gui.button;
 import framework.restypes.bitmap;
 import framework.event;
 import framework.framework;
+import framework.font;
 import gui.widget;
 import gui.label;
 import utils.time;
+import utils.timer;
 
 //xxx this is a hack
 class Button : Label {
@@ -14,7 +16,7 @@ class Button : Label {
         bool mMouseDown;   //last reported mouse button click
         bool mButtonState; //down or up (true if down)
         bool mIsCheckbox, mChecked;
-        Time mLastAutoRepeat; //last time an auto repeated click event was sent
+        Timer mAutoRepeatTimer;
     }
 
     ///if true, the Button will send click events while pressed
@@ -25,11 +27,21 @@ class Button : Label {
 
     ///auto repeat rate when autoRepeat is enabled
     ///gives the number of click events spawned per second (clicks/seconds)
-    float autoRepeatRate = 2;
+    Time autoRepeatInterval = timeMsecs(50);
+    Time autoRepeatDelay = timeMsecs(500);
 
     void delegate(Button sender) onClick;
     void delegate(Button sender) onRightClick;
     void delegate(Button sender, bool over) onMouseOver;
+
+    this(Font font = null) {
+        super(font);
+        mAutoRepeatTimer = new Timer(autoRepeatDelay, &autoRepOnTimer);
+        //check time since last click; if framerate is too low, click rate also
+        //drops (which is good since simulate() will not be called if the Widget
+        //is made invisible temporarly...)
+        mAutoRepeatTimer.mode = TimerMode.fixedDelay;
+    }
 
     bool isCheckbox() {
         return mIsCheckbox;
@@ -88,10 +100,12 @@ class Button : Label {
 
         if (state) {
             if (autoRepeat) {
-                mLastAutoRepeat = timeCurrentTime();
                 doClick();
+                mAutoRepeatTimer.interval = autoRepeatDelay;
+                mAutoRepeatTimer.enabled = true;
             }
         } else {
+            mAutoRepeatTimer.enabled = false;
             if (!autoRepeat && mMouseInside) {
                 doClick();
             }
@@ -99,8 +113,6 @@ class Button : Label {
     }
 
     private void doClick() {
-        //setting this is only useful when autoRepeat enabled
-        mLastAutoRepeat = timeCurrentTime();
         if (mIsCheckbox) {
             mChecked = !mChecked;
             updateCheckboxState();
@@ -157,22 +169,23 @@ class Button : Label {
         return true;
     }
 
+    private void autoRepOnTimer(Timer sender) {
+        doClick();
+        sender.interval = autoRepeatInterval;
+    }
+
     override void simulate() {
-        if (!autoRepeat || !mButtonState)
-            return;
-        //check time since last click; if framerate is too low, click rate also
-        //drops (which is good since simulate() will not be called if the Widget
-        //is made invisible temporarly...)
-        Time diff = timeCurrentTime() - mLastAutoRepeat;
-        if (diff.secsf > 1.0f/autoRepeatRate)
-            doClick();
+        mAutoRepeatTimer.update();
     }
 
     override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
 
         autoRepeat = node.getBoolValue("auto_repeat", autoRepeat);
-        autoRepeatRate = node.getFloatValue("auto_repeat_rate", autoRepeatRate);
+        autoRepeatDelay = timeMsecs(node.getIntValue("auto_repeat_delay",
+            autoRepeatDelay.msecs));
+        autoRepeatInterval = timeMsecs(node.getIntValue("auto_repeat_interval",
+            autoRepeatInterval.msecs));
 
         super.loadFrom(loader);
 

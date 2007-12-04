@@ -4,6 +4,16 @@ import utils.time;
 
 alias void delegate(Timer sender) TimerEvent;
 
+///Timer operation modes
+enum TimerMode {
+    ///[default] guarantee an average delay of set interval between events
+    ///one call to update() may fire multiple events
+    accurate,
+    ///waits at least one interval after an event until the next one fires
+    ///no compensation for over-wait, one update() throws exaclty one event
+    fixedDelay,
+}
+
 ///simple timer that fires an event regularly
 ///can be linked to a TimeSource's current() method
 class Timer {
@@ -19,6 +29,8 @@ class Timer {
         Time mTimeLast;
         //event has been fired (if mOneTime == true)
         bool mOneTimeDone;
+        //lazy or accurate mode (see TimerMode comment)
+        TimerMode mMode = TimerMode.accurate;
     }
 
     ///event that is called every interval
@@ -60,6 +72,14 @@ class Timer {
         mInterval = intv;
     }
 
+    ///Timer mode, see TimerMode comments
+    public TimerMode mode() {
+        return mMode;
+    }
+    public void mode(TimerMode m) {
+        mMode = m;
+    }
+
     ///reset progress of current interval and event status (for oneTime)
     public void reset() {
         mTimeLast = mCurTimeDg();
@@ -81,9 +101,15 @@ class Timer {
             return;
 
         Time tcur = mCurTimeDg();
-        if (tcur - mTimeLast >= mInterval) {
+        while (tcur - mTimeLast >= mInterval) {
+            //mInterval may change in event procedure, so evaluate before
+            if (mMode == TimerMode.accurate)
+                mTimeLast += mInterval;
+            else
+                mTimeLast = tcur;
             doOnTimer();
-            mTimeLast += mInterval;
+            if (!mEnabled)
+                return;   //timer got disabled in event call
         }
     }
 }
