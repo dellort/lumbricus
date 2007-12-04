@@ -2,7 +2,6 @@ module common.visual;
 
 import framework.framework;
 import framework.font;
-import common.common;
 import utils.configfile : ConfigNode;
 import utils.misc;
 import utils.rect2;
@@ -87,8 +86,8 @@ struct BoxProperties {
     Color border, back = {1,1,1};
 
     void loadFrom(ConfigNode node) {
-        parseColor(node.getStringValue("border"), border);
-        parseColor(node.getStringValue("back"), back);
+        border.parse(node.getStringValue("border"));
+        back.parse(node.getStringValue("back"));
         borderWidth = node.getIntValue("border_width", borderWidth);
         cornerRadius = node.getIntValue("corner_radius", cornerRadius);
     }
@@ -179,7 +178,7 @@ BoxTex getBox(BoxProps props) {
         bool needAlpha = (props.p.back.a < (1.0f - Color.epsilon))
             || (props.p.border.a < (1.0f - Color.epsilon));
 
-        auto surface = globals.framework.createSurface(size,
+        auto surface = gFramework.createSurface(size,
             needAlpha ? DisplayFormat.ScreenAlpha : DisplayFormat.Screen,
             needAlpha ? Transparency.Alpha : Transparency.None);
 
@@ -250,11 +249,12 @@ BoxTex getBox(BoxProps props) {
                                 aBuf += 1.0f/(cGrid * cGrid);
                         }
                     }
-                    *line = colorToRGBA32(Color(
+                    *line = Color(
                         props.p.border.r*colBuf+props.p.back.r*(1.0f-colBuf),
                         props.p.border.g*colBuf+props.p.back.g*(1.0f-colBuf),
                         props.p.border.b*colBuf+props.p.back.b*(1.0f-colBuf),
-                        aBuf*(border.a*colBuf+props.p.back.a*(1.0f-colBuf))));
+                        aBuf*(border.a*colBuf+props.p.back.a*(1.0f-colBuf)))
+                            .toRGBA32();
                     line++;
                 }
             }
@@ -267,7 +267,7 @@ BoxTex getBox(BoxProps props) {
     }
 
     auto size = Vector2i(q)*2;
-    auto corners = globals.framework.createSurface(size, DisplayFormat.RGBA32,
+    auto corners = gFramework.createSurface(size, DisplayFormat.RGBA32,
         Transparency.Alpha);
     drawCorner(corners);
 

@@ -202,7 +202,7 @@ class TestTask : Task {
         createWindow("hihi", k);
 
         //test loading GUIs from file
-        auto loader = new LoadGui(globals.loadConfig("test_gui"));
+        auto loader = new LoadGui(gFramework.loadConfig("test_gui"));
         loader.load();
         createWindow("Test5", loader.lookup("root"));
 

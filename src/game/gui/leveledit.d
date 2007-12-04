@@ -760,7 +760,7 @@ public class LevelEditor : Task {
 
     void createGui() {
         //"static", non-configfile version was in r351
-        auto loader = new LoadGui(globals.loadConfig("ledit_gui"));
+        auto loader = new LoadGui(gFramework.loadConfig("ledit_gui"));
         loader.addNamedWidget(render, "render");
         loader.load();
 

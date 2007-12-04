@@ -1,10 +1,11 @@
 module game.sprite;
+
+import framework.framework;
 import game.gobject;
 import game.physic;
 import game.animation;
 import game.game;
 import game.gamepublic;
-import common.common;
 import utils.vector2;
 import utils.rect2;
 import utils.configfile;
@@ -342,7 +343,7 @@ class GOSpriteClass {
         FwRef[] fwrefs;
 
         //load animation config files
-        globals.resources.loadResources(config.find("require_resources"));
+        gFramework.resources.loadResources(config.find("require_resources"));
 
         //load collision map
         engine.physicworld.loadCollisions(config.getSubNode("collisions"));
@@ -370,7 +371,7 @@ class GOSpriteClass {
             ssi.keepSelfForce = sc.getBoolValue("keep_selfforce", false);
 
             if (sc["animation"].length > 0) {
-                ssi.animation = globals.resources.resource!(AnimationResource)
+                ssi.animation = gFramework.resources.resource!(AnimationResource)
                     (sc.getPathValue("animation"));
             }
 

@@ -95,7 +95,7 @@ class GuiConsole : Container {
     this(bool standalone = true, CommandLine cmdline = null) {
         mBackColor = Color(0.5,0.5,0.5,0.5); //freaking alpha transparency!!!
 
-        auto font = globals.framework.getFont(standalone
+        auto font = gFramework.getFont(standalone
             ? "sconsole" : "console");
 
         mHeightDiv = standalone ? 1 : 2;
@@ -117,8 +117,8 @@ class GuiConsole : Container {
 
         consoleVisible = standalone; //system console hidden by default
         Color console_color;
-        if (!standalone && parseColor(globals.anyConfig.getSubNode("console")
-            .getStringValue("backcolor"), console_color))
+        if (!standalone && console_color.parse(globals.anyConfig.getSubNode("console")
+            .getStringValue("backcolor")))
         {
             mBackColor = console_color;
             mDrawBackground = true;

@@ -3,8 +3,8 @@ module game.animation;
 import common.scene;
 import common.common;
 import framework.framework;
-import common.resources;
-import common.bmpresource;
+import framework.resources;
+import framework.restypes.bitmap;
 import utils.configfile;
 import utils.misc;
 import utils.array;
@@ -609,7 +609,7 @@ private int paramConvertFreeRot2(int angle, int count) {
 //animation load handlers
 
 private BitmapResource doLoadGraphic(char[] file) {
-    return globals.resources.createResourceFromFile!(BitmapResource)(file,
+    return gFramework.resources.createResourceFromFile!(BitmapResource)(file,
         false,false);
 }
 

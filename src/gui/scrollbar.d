@@ -1,8 +1,7 @@
 module gui.scrollbar;
 
-import common.bmpresource;
-import common.common;
-import common.resources;
+import framework.restypes.bitmap;
+import framework.resources;
 import common.visual;
 import gui.button;
 import gui.container;
@@ -86,14 +85,14 @@ class ScrollBar : Container {
         mDir = horiz ? 0 : 1;
         //xxx: replace text by images
         mAdd = new Button();
-        mAdd.image = globals.resources.resource!(BitmapResource)
+        mAdd.image = gFramework.resources.resource!(BitmapResource)
             (cAddImg[mDir]).get().createTexture();
         //mAdd.text = "A";
         mAdd.onClick = &onAddSub;
         mAdd.autoRepeat = true;
         addChild(mAdd);
         mSub = new Button();
-        mSub.image = globals.resources.resource!(BitmapResource)
+        mSub.image = gFramework.resources.resource!(BitmapResource)
             (cSubImg[mDir]).get().createTexture();
         //mSub.text = "B";
         mSub.onClick = &onAddSub;

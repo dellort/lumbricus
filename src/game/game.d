@@ -302,9 +302,9 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
             (char[] path) {
                 //a weapons file can contain resources, collision map
                 //additions and a list of weapons
-                auto wp_conf = globals.loadConfig(path[0..$-5]);
+                auto wp_conf = gFramework.loadConfig(path[0..$-5]);
                 physicworld.loadCollisions(wp_conf.getSubNode("collisions"));
-                globals.resources.loadResources(wp_conf);
+                gFramework.resources.loadResources(wp_conf);
                 auto list = wp_conf.getSubNode("weapons");
                 foreach (ConfigNode item; list) {
                     loadWeaponClass(item);
@@ -441,15 +441,15 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
 
     //one time initialization, where levle objects etc. should be loaded (?)
     private void loadLevelStuff() {
-        globals.resources.loadResources(globals.loadConfig("stdanims"));
+        gFramework.resources.loadResources(gFramework.loadConfig("stdanims"));
 
         //load weapons
         loadWeapons("weapons");
 
-        auto conf = globals.loadConfig("game");
+        auto conf = gFramework.loadConfig("game");
         //load sprites
         foreach (char[] name, char[] value; conf.getSubNode("sprites")) {
-            auto sprite = globals.loadConfig(value);
+            auto sprite = gFramework.loadConfig(value);
             loadSpriteClass(sprite);
         }
 

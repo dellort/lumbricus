@@ -6,7 +6,6 @@ import framework.framework;
 import framework.event;
 import framework.timesource;
 import common.task;
-import common.common;
 import gui.widget;
 import gui.container;
 import gui.label;
@@ -466,7 +465,7 @@ public class WTris : Task {
     }
 
     private void createGui() {
-        auto loader = new LoadGui(globals.loadConfig("wtris_gui"));
+        auto loader = new LoadGui(gFramework.loadConfig("wtris_gui"));
 
         loader.addNamedWidget(new GameView(), "gameview");
         loader.addNamedWidget(new Preview(), "preview");
@@ -517,7 +516,7 @@ public class WTris : Task {
         thetime = new TimeSource();
 
         //sry for not using "resources"!
-        boxes = globals.loadGraphic("wtrisboxes.png").createTexture();
+        boxes = gFramework.loadImage("wtrisboxes.png").createTexture();
         PIECE_DRAW_W = boxes.size.x / BOX_TYPE_COUNT;
         PIECE_DRAW_H = boxes.size.y;
 

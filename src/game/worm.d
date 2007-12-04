@@ -1,8 +1,8 @@
 module game.worm;
 
+import framework.framework;
 import game.gobject;
 import game.animation;
-import common.common;
 import game.physic;
 import game.game;
 import game.sprite;
@@ -357,7 +357,7 @@ class WormSpriteClass : GOSpriteClass {
         foreach (char[] v; grNode) {
             char[] grv = grNode.getPathValue(v);
             assert(grv.length > 0);
-            gravestones ~= globals.resources.resource!(AnimationResource)
+            gravestones ~= gFramework.resources.resource!(AnimationResource)
                 (grv);
         }
 

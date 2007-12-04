@@ -1,8 +1,7 @@
-module common.resources;
+module framework.resources;
 
 import framework.framework;
 import framework.filesystem;
-import common.common;
 import str = std.string;
 import utils.configfile;
 import utils.log;
@@ -342,7 +341,7 @@ public class Resources {
                     continue;
 
                 mLoadedResourceFiles[file] = true;
-                cfg = globals.loadConfig(file);
+                cfg = gFramework.loadConfig(file);
                 loadResources(cfg);
             }
             return;

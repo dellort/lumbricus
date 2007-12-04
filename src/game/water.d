@@ -3,7 +3,6 @@ module game.water;
 import framework.framework;
 import game.clientengine;
 import game.glevel;
-import common.common;
 import game.animation;
 import common.scene;
 import utils.misc;
@@ -91,11 +90,11 @@ class GameWater {
         size = engine.scene.size;
 
         mEngine = engine;
-        ConfigNode waterConf = globals.loadConfig("water");
-        globals.resources.loadResources(waterConf);
+        ConfigNode waterConf = gFramework.loadConfig("water");
+        gFramework.resources.loadResources(waterConf);
         ConfigNode waterNode = waterConf.getSubNode(waterType);
         Color waterColor;
-        parseColor(waterNode.getStringValue("color"),waterColor);
+        waterColor.parse(waterNode.getStringValue("color"));
         mWaterDrawerFront1 = new WaterDrawerFront1(this, waterColor);
         scenes[Z.front].add(mWaterDrawerFront1);
         mWaterDrawerFront2 = new WaterDrawerFront2(this, waterColor);
@@ -103,7 +102,7 @@ class GameWater {
         mWaterDrawerBack = new WaterDrawerBack(this, waterColor);
         scenes[Z.back].add(mWaterDrawerBack);
         //try {
-            mWaveAnim = globals.resources.resource!(AnimationResource)
+            mWaveAnim = gFramework.resources.resource!(AnimationResource)
                 (waterNode.getPathValue("waves")).get();
             foreach (int i, inout a; mWaveAnimBack) {
                 a = new HorizontalFullsceneAnimator();

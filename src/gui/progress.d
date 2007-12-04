@@ -1,6 +1,5 @@
 module gui.progress;
 
-import common.common;
 import common.visual;
 import framework.framework;
 import gui.container;

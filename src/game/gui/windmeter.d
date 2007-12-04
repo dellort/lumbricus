@@ -1,9 +1,8 @@
 module game.gui.windmeter;
 
 import framework.framework;
-import common.common;
 import common.scene;
-import common.bmpresource;
+import framework.restypes.bitmap;
 import game.clientengine;
 import gui.widget;
 import utils.configfile;
@@ -27,15 +26,15 @@ class WindMeter : Widget {
     this(ClientGameEngine engine) {
         mEngine = engine;
 
-        ConfigNode wmNode = globals.loadConfig("windmeter");
-        globals.resources.loadResources(wmNode);
+        ConfigNode wmNode = gFramework.loadConfig("windmeter");
+        gFramework.resources.loadResources(wmNode);
 
-        mBackgroundTex = globals.resources.resource!(BitmapResource)
+        mBackgroundTex = gFramework.resources.resource!(BitmapResource)
             ("/windmeter_back").get().createTexture();
         mSize = mBackgroundTex.size;
-        mWindLeft = globals.resources.resource!(BitmapResource)
+        mWindLeft = gFramework.resources.resource!(BitmapResource)
             ("/windmeter_left").get().createTexture();
-        mWindRight = globals.resources.resource!(BitmapResource)
+        mWindRight = gFramework.resources.resource!(BitmapResource)
             ("/windmeter_right").get().createTexture();
 
         ConfigNode ctNode = wmNode.getSubNode("center");

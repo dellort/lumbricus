@@ -1,10 +1,9 @@
 module game.sky;
 
 import framework.framework;
-import common.bmpresource;
+import framework.restypes.bitmap;
 import game.clientengine;
 import game.glevel;
-import common.common;
 import game.animation;
 import common.scene;
 import str = std.string;
@@ -104,13 +103,13 @@ class GameSky {
         size = engine.scene.size;
 
         mEngine = engine;
-        ConfigNode skyNode = globals.loadConfig("sky");
-        globals.resources.loadResources(skyNode);
+        ConfigNode skyNode = gFramework.loadConfig("sky");
+        gFramework.resources.loadResources(skyNode);
         Color skyColor = engine.engine.level.skyColor;
 
         Surface bmp = engine.engine.level.skyGradient;
         if (!bmp) {
-            bmp = globals.resources.resource!(BitmapResource)
+            bmp = gFramework.resources.resource!(BitmapResource)
                 ("/default_gradient").get();
         }
         Texture skyTex = bmp.createTexture();
@@ -129,7 +128,7 @@ class GameSky {
         foreach (char[] nodeName; cloudNode) {
             char[] cName = cloudNode.getPathValue(nodeName);
             assert(cName.length > 0);
-            mCloudAnims ~= globals.resources.resource!(AnimationResource)
+            mCloudAnims ~= gFramework.resources.resource!(AnimationResource)
                 (cName).get();
             i++;
         }

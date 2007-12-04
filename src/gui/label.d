@@ -1,7 +1,6 @@
 module gui.label;
 
 import gui.widget;
-import common.common;
 import common.scene;
 import common.visual;
 import framework.framework;
@@ -105,7 +104,7 @@ class Label : Widget {
     }
 
     this(Font font = null) {
-        mFont = font ? font : globals.framework.getFont("label_default");
+        mFont = font ? font : gFramework.getFont("label_default");
         drawBorder = true;
         mBorder = Vector2i(0,0);
     }
@@ -143,7 +142,7 @@ class Label : Widget {
     override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
 
-        auto fnt = globals.framework.fontManager.loadFont(
+        auto fnt = gFramework.fontManager.loadFont(
             node.getStringValue("font"), false);
         if (fnt)
             mFont = fnt;

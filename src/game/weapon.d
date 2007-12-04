@@ -2,8 +2,8 @@ module game.weapon;
 
 import game.gobject;
 import game.animation;
-import common.common;
-import common.bmpresource;
+import framework.framework;
+import framework.restypes.bitmap;
 import game.physic;
 import game.game;
 import game.sprite;
@@ -67,7 +67,7 @@ abstract class WeaponClass {
         value = node.getIntValue("value", 0);
         category = node.getStringValue("category", "none");
 
-        icon = globals.resources.resource!(BitmapResource)
+        icon = gFramework.resources.resource!(BitmapResource)
             (node.getPathValue("icon"));
 
         auto fire = node.findNode("firemode");
@@ -100,7 +100,7 @@ abstract class WeaponClass {
         foreach (int i, char[] name; cWWA2Str) {
             auto val = anis.findValue(name);
             if (val) {
-                animations[i] = globals.resources.resource!(AnimationResource)
+                animations[i] = gFramework.resources.resource!(AnimationResource)
                     (val.parent.getPathValue(val.name));  //argh
             }
         }

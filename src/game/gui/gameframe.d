@@ -1,6 +1,5 @@
 module game.gui.gameframe;
 
-import common.common;
 import common.scene;
 import common.visual;
 import framework.framework;
@@ -111,7 +110,7 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
         gDefaultLog("initializeGameGui");
 
         auto wormbinds = new KeyBindings();
-        wormbinds.loadFrom(globals.loadConfig("wormbinds").getSubNode("binds"));
+        wormbinds.loadFrom(gFramework.loadConfig("wormbinds").getSubNode("binds"));
 
         mGui = new SimpleContainer();
 

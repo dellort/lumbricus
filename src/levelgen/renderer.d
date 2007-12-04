@@ -123,7 +123,7 @@ package class LevelBitmap {
             tex_h = texture.size.y;
         } else {
             //simulate an image consisting of a single transparent pixel
-            plain_evil = colorToRGBA32(mImage.colorkey);
+            plain_evil = mImage.colorkey.toRGBA32();
             tex_data = &plain_evil;
             tex_w = tex_h = 1;
             tex_pitch = 4;
@@ -215,7 +215,7 @@ package class LevelBitmap {
             uint tex_h = texture.size.y;
             uint* texptr = cast(uint*)tex_data;
 
-            uint dsttransparent = colorToRGBA32(mImage.colorkey);
+            uint dsttransparent = mImage.colorkey.toRGBA32();
 
             void* dstptr; uint dstpitch;
             mImage.lockPixelsRGBA32(dstptr, dstpitch);
@@ -365,7 +365,7 @@ package class LevelBitmap {
             sx = mBackImage.size.x; sy = mBackImage.size.y;
         } else {
             //plain evil etc.: if no bitmap available, copy transparent pixel
-            col = colorToRGBA32(mImage.colorkey());
+            col = mImage.colorkey().toRGBA32();
             srcpixels = &col;
             sx = 1; sy = 1;
         }
@@ -387,14 +387,14 @@ package class LevelBitmap {
         //solid ground only (except for SolidHard pxiels: they stay unchanged)
         //because all SolidSoft pixels were cleared above, only the remaining
         //landscape around the destruction will be coloured with this border...
-        col = colorToRGBA32(mBorderColor);
+        col = mBorderColor.toRGBA32();
         circle_masked(pos, radius+4, pixels, pitch, &col, 0, 1, 1,
             cAllMeta, Lexel.SolidSoft);
 
         if (nradius > 0) {
             //clear the center of the destruction (to get rid of that background
             //texture)
-            col = colorToRGBA32(mImage.colorkey());
+            col = mImage.colorkey().toRGBA32();
             circle_masked(pos, nradius, pixels, pitch, &col, 0, 1, 1,
                 cAllMeta, 0);
         }

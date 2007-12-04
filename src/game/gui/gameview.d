@@ -2,7 +2,6 @@ module game.gui.gameview;
 
 import framework.font;
 import framework.framework;
-import common.common;
 import common.scene;
 import game.animation;
 import game.gamepublic;
@@ -90,11 +89,11 @@ class GameView : Container, TeamMemberControlCallback {
             ViewMember[] members;
 
             this(Team t) {
-                bool res = parseColor(cTeamColors[t.color], color);
+                bool res = color.parse(cTeamColors[t.color]);
                 //if fails, adjust either arseColor or cTeamColors...
                 assert(res, "internal error: unparseable team color");
                 //xxx maybe don't load them all separately, but use this.color
-                font = globals.framework.fontManager.loadFont("wormfont_"
+                font = gFramework.fontManager.loadFont("wormfont_"
                     ~ cTeamColors[t.color]);
                 animations = mEngine.getTeamAnimations(t);
 

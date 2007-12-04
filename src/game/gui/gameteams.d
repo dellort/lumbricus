@@ -1,7 +1,6 @@
 ///in-game display of team infos
 module game.gui.gameteams;
 
-import common.common;
 import common.scene;
 import common.visual;
 import framework.framework;
@@ -36,13 +35,13 @@ class TeamWindow : Container {
             teamname.text = teams[n].name;
             //teamname.border = Vector2i(3,3);
             //xxx code duplication with gameview.d
-            teamname.font = globals.framework.fontManager.loadFont("wormfont_"
+            teamname.font = gFramework.fontManager.loadFont("wormfont_"
                 ~ cTeamColors[teams[n].color]);
             table.add(teamname, 0, n, WidgetLayout.Aligned(1, 0));
             auto bar = new Foobar();
             //xxx again code duplication from gameview.d
             Color c;
-            bool res = parseColor(cTeamColors[teams[n].color], c);
+            bool res = c.parse(cTeamColors[teams[n].color]);
             assert(res);
             bar.fill = c;
             mBars[teams[n]] = bar;

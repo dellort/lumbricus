@@ -51,11 +51,8 @@
 			<Add library="DerelictSDLImage" />
 			<Add library="DerelictSDLttf" />
 		</Linker>
-		<Unit filename="common\bmpresource.d" />
 		<Unit filename="common\common.d" />
-		<Unit filename="common\resources.d" />
 		<Unit filename="common\scene.d" />
-		<Unit filename="common\soundresource.d" />
 		<Unit filename="common\task.d" />
 		<Unit filename="common\toplevel.d" />
 		<Unit filename="common\visual.d" />
@@ -63,13 +60,16 @@
 		<Unit filename="derelict\enet\enetfuncs.d" />
 		<Unit filename="derelict\enet\enettypes.d" />
 		<Unit filename="framework\commandline.d" />
-		<Unit filename="framework\console.d" />
 		<Unit filename="framework\event.d" />
 		<Unit filename="framework\filesystem.d" />
 		<Unit filename="framework\font.d" />
 		<Unit filename="framework\framework.d" />
 		<Unit filename="framework\i18n.d" />
+		<Unit filename="framework\keybindings.d" />
 		<Unit filename="framework\keysyms.d" />
+		<Unit filename="framework\resources.d" />
+		<Unit filename="framework\restypes\bitmap.d" />
+		<Unit filename="framework\restypes\sound.d" />
 		<Unit filename="framework\sdl\font.d" />
 		<Unit filename="framework\sdl\framework.d" />
 		<Unit filename="framework\sdl\fwgl.d" />
@@ -144,6 +144,7 @@
 		<Unit filename="net\netlayer.d" />
 		<Unit filename="utils\array.d" />
 		<Unit filename="utils\bitstream.d" />
+		<Unit filename="utils\color.d" />
 		<Unit filename="utils\configfile.d" />
 		<Unit filename="utils\drawing.d" />
 		<Unit filename="utils\factory.d" />

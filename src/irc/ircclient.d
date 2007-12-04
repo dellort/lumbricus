@@ -1,6 +1,5 @@
 module irc.ircclient;
 
-import common.common;
 import common.task;
 import framework.framework;
 import framework.commandline : CommandBucket, Command;
@@ -304,7 +303,7 @@ class IRCFrame : Container {
 
     this(Task owner) {
         mOwner = owner;
-        mCfg = globals.loadConfig("irc");
+        mCfg = gFramework.loadConfig("irc");
 
         mConsole = new GuiConsole;
         mConsole.console.writefln("Welcome to wIRC!");

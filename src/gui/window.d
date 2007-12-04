@@ -1,9 +1,8 @@
 module gui.window;
 
-import common.common;
-import common.bmpresource;
-import common.resources;
 import common.visual;
+import framework.resources;
+import framework.restypes.bitmap;
 import framework.event;
 import framework.framework;
 import gui.boxcontainer;
@@ -517,7 +516,7 @@ class WindowFrame : Container {
             char[] action;
             this(char[] name, ConfigNode node) {
                 super(name, node);
-                img = globals.resources.resource!(BitmapResource)
+                img = gFramework.resources.resource!(BitmapResource)
                     (node.getStringValue("image")).get().createTexture();
                 action = node.getStringValue("action");
             }
@@ -551,7 +550,7 @@ class WindowFrame : Container {
 
         checkCover = true;
 
-        mConfig = globals.loadConfig("window");
+        mConfig = gFramework.loadConfig("window");
 
         mKeysWindow = new KeyBindings();
         mKeysWindow.loadFrom(mConfig.getSubNode("window_bindings"));

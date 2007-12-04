@@ -1,8 +1,7 @@
-module common.bmpresource;
+module framework.restypes.bitmap;
 
 import framework.framework;
-import common.common;
-import common.resources;
+import framework.resources;
 import utils.configfile;
 
 
@@ -47,7 +46,7 @@ protected class BitmapResource : ResourceBase!(Surface) {
             fn = val.parent.getPathValue(val.name);
         else
             fn = val.value;
-        mContents = globals.loadGraphic(fn);
+        mContents = gFramework.loadImage(fn);
     }
 
     override protected void doUnload() {

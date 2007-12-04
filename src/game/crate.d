@@ -2,7 +2,6 @@ module game.crate;
 
 import game.gobject;
 import game.animation;
-import common.common;
 import game.physic;
 import game.game;
 import game.sprite;

@@ -3,7 +3,6 @@ module levelgen.placeobjects;
 import levelgen.level;
 import levelgen.renderer;
 import framework.framework;
-import common.common;
 import utils.random;
 import utils.log;
 import utils.configfile;

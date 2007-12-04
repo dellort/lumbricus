@@ -3,7 +3,6 @@ module gui.messageviewer;
 import framework.framework;
 import framework.font;
 import common.scene;
-import common.common;
 import common.visual;
 import gui.widget;
 import utils.misc;
@@ -28,7 +27,7 @@ private class MessageViewer : Widget {
     const Vector2i cMessageBorders = {7, 3};
 
     this() {
-        mFont = globals.framework.fontManager.loadFont("messages");
+        mFont = gFramework.fontManager.loadFont("messages");
         mMessages = new Queue!(char[]);
         mLastFrame = timeCurrentTime();
     }

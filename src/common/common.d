@@ -10,7 +10,6 @@ import utils.log, utils.output;
 import utils.misc;
 import utils.path;
 import utils.perf;
-import common.resources;
 import std.stream;
 
 public Common globals;
@@ -26,13 +25,10 @@ class Common {
     Output defaultOut;
     CommandLine cmdLine;
     ConfigNode anyConfig;
-    Resources resources;
 
     //high resolution timers which are updated each frame, or so
     //toplevel.d will reset them all!
     PerfTimer[char[]] timers;
-
-    private Log mLogConf;
 
     //both time variables are updated for each frame
     //for graphics stuff (i.e. animations continue to play while game paused)
@@ -60,9 +56,7 @@ class Common {
             timers[name] = cnt;
         }
 
-        resources = new Resources();
-
-        anyConfig = loadConfig("anything");
+        anyConfig = framework.loadConfig("anything");
 
         auto scr = anyConfig.getSubNode("screenmode");
         int w = scr.getIntValue("width", 800);
@@ -73,7 +67,7 @@ class Common {
 
         initLocale();
 
-        framework.fontManager.readFontDefinitions(loadConfig("fonts"));
+        framework.fontManager.readFontDefinitions(framework.loadConfig("fonts"));
 
         //maybe replace by a real arg parser
         if (args.length > 0 && args[0] == "logconsole") {
@@ -96,7 +90,7 @@ class Common {
 
     private void initLocale() {
         char[] langId = anyConfig.getStringValue("language_id", "de");
-        initI18N(cLocalePath, langId, cDefLang, &loadConfig);
+        initI18N(cLocalePath, langId, cDefLang, &framework.loadConfig);
         //try {
             //link locale-specific files into root
             framework.fs.link(cLocalePath ~ '/' ~ langId,"/",false,1);
@@ -129,41 +123,6 @@ class Common {
         } else {
             return translateKeyshortcut(code, mods);
         }
-    }
-
-    Surface loadGraphic(char[] path, Transparency t = Transparency.AutoDetect) {
-        log("load image: %s", path);
-        auto stream = framework.fs.open(path);
-        auto image = framework.loadImage(stream, t);
-        stream.close();
-        return image;
-    }
-
-    ConfigNode loadConfig(char[] section, bool asfilename = false,
-        bool allowFail = false)
-    {
-        VFSPath file = VFSPath(section ~ (asfilename ? "" : ".conf"));
-        log("load config: %s", file);
-        try {
-            scope s = framework.fs.open(file);
-            auto f = new ConfigFile(s, file.get(), &logconf);
-            if (!f.rootnode)
-                throw new Exception("?");
-            return f.rootnode;
-        } catch (Exception e) {
-            if (!allowFail)
-                throw e;
-        }
-        log("config file %s failed to load (allowFail = true)", file);
-        return null;
-    }
-
-    private void logconf(char[] log) {
-        if (!mLogConf) {
-            mLogConf = registerLog("configfile");
-            assert(mLogConf !is null);
-        }
-        mLogConf("%s", log);
     }
 
     public PerfTimer newTimer(char[] name) {

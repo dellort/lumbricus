@@ -6,7 +6,6 @@ import framework.i18n;
 import common.scene;
 import game.clientengine;
 import common.visual;
-import common.common;
 import game.gamepublic;
 import gui.container;
 import gui.label;
@@ -23,7 +22,7 @@ class PrepareDisplay : Container {
         mEngine = engine;
         tr = localeRoot.bindNamespace("gui_prepare");
         mPrepareView = new Label();
-        mPrepareView.font = globals.framework.fontManager.loadFont("messages");
+        mPrepareView.font = gFramework.fontManager.loadFont("messages");
         mPrepareView.border = Vector2i(7, 5);
 
         mLastTime = timeCurrentTime();

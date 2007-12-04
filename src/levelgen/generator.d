@@ -5,8 +5,7 @@ import levelgen.renderer;
 import levelgen.genrandom : GenRandomLevel, LevelGeometry, GeneratorConfig;
 import levelgen.placeobjects;
 import game.animation;
-import common.common;
-import common.bmpresource;
+import framework.restypes.bitmap;
 import framework.framework;
 import framework.filesystem;
 import utils.configfile;
@@ -137,7 +136,7 @@ public class LevelTheme {
         Surface tex;
         char[] tex_name = texNode.getStringValue("texture");
         if (tex_name.length > 0) {
-            tex = globals.resources.resource!(BitmapResource)
+            tex = gFramework.resources.resource!(BitmapResource)
                 (texNode.getPathValue("texture")).get();
         } else {
             //sucky color-border hack
@@ -145,7 +144,7 @@ public class LevelTheme {
             tex = getFramework.createSurface(Vector2i(1, height),
                 DisplayFormat.Best, Transparency.None);
             auto col = Color(0,0,0);
-            parseColor(texNode.getStringValue("color"), col);
+            col.parse(texNode.getStringValue("color"));
             auto canvas = tex.startDraw();
             canvas.drawFilledRect(Vector2i(0, 0), tex.size, col);
             canvas.endDraw();
@@ -160,7 +159,7 @@ public class LevelTheme {
             if (accept_null)
                 return null;
         } else {
-            res = globals.resources.resource!(BitmapResource)
+            res = gFramework.resources.resource!(BitmapResource)
                 (gfxTexNode.getPathValue(markerId)).get();
         }
         if (res is null) {
@@ -170,7 +169,7 @@ public class LevelTheme {
     }
 
     this(ConfigNode gfxNode) {
-        globals.resources.loadResources(gfxNode);
+        gFramework.resources.loadResources(gfxNode);
         gfxTexNode = gfxNode.getSubNode("marker_textures");
         name = gfxNode["name"];
         assert(name.length > 0);
@@ -204,7 +203,7 @@ public class LevelTheme {
 
         //xxx fix this (objects should have more than just a bitmap)
         PlaceableObject createObject(char[] bitmap, bool try_place) {
-            auto bmp = globals.resources.resource!(BitmapResource)(bitmap).get();
+            auto bmp = gFramework.resources.resource!(BitmapResource)(bitmap).get();
             //use ressource name as id
             auto po = new PlaceableObject(bitmap, bmp, try_place);
             objects[po.id] = po;
@@ -224,22 +223,21 @@ public class LevelTheme {
         ConfigNode skyNode = gfxNode.getSubNode("sky");
         char[] skyGradientTex = skyNode.getPathValue("gradient");
         if (skyGradientTex.length > 0)
-            skyGradient = globals.resources.resource!(BitmapResource)
+            skyGradient = gFramework.resources.resource!(BitmapResource)
                 (skyGradientTex).get();
-        parseColor(skyNode.getStringValue("skycolor"),skyColor);
+        skyColor.parse(skyNode.getStringValue("skycolor"));
         char[] skyBackTex = skyNode.getPathValue("backdrop");
         if (skyBackTex.length > 0)
-            skyBackdrop = globals.resources.resource!(BitmapResource)
+            skyBackdrop = gFramework.resources.resource!(BitmapResource)
                 (skyBackTex).get();
         if (skyNode.exists("debris")) {
-            skyDebris = globals.resources.resource!(AnimationResource)
+            skyDebris = gFramework.resources.resource!(AnimationResource)
                 (skyNode.getPathValue("debris"));
         }
 
-        backImage = globals.resources.resource!(BitmapResource)
+        backImage = gFramework.resources.resource!(BitmapResource)
             (gfxNode.getPathValue("soil_tex")).get();
-        parseColor(gfxNode.getStringValue("bordercolor"),
-            borderColor);
+        borderColor.parse(gfxNode.getStringValue("bordercolor"));
 
         //hmpf, read all known markers
         markerTex[Lexel.SolidSoft] = readMarkerTex("LAND", false);
@@ -537,7 +535,7 @@ public class LevelGenerator {
             (char[] path) {
                 ConfigNode config;
                 try {
-                    config = globals.loadConfig(path ~ "level");
+                    config = gFramework.loadConfig(path ~ "level");
                 } catch (FilesystemException e) {
                     //seems it wasn't a valid gfx dir, do nothing, config==null
                     //i.e. the data directory contains .svn
@@ -577,5 +575,5 @@ public class LevelGenerator {
 //xxx maybe rather return a LevelTemplate[]?
 //    or only a char[][], and also a loader function
 ConfigNode loadTemplates() {
-    return globals.loadConfig("levelgen").getSubNode("levelgen_templates");
+    return gFramework.loadConfig("levelgen").getSubNode("levelgen_templates");
 }

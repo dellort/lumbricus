@@ -14,7 +14,7 @@ import gui.container;
 import gui.console;
 import gui.wm;
 import common.common;
-import common.resources;
+import framework.resources;
 import common.task;
 import utils.time;
 import utils.configfile;
@@ -152,7 +152,7 @@ private:
         onVideoInit(false);
 
         keybindings = new KeyBindings();
-        keybindings.loadFrom(globals.loadConfig("binds").getSubNode("binds"));
+        keybindings.loadFrom(gFramework.loadConfig("binds").getSubNode("binds"));
 
         //load a new game
         //newGame();
@@ -311,7 +311,7 @@ private:
         auto file = new File("res.txt", FileMode.OutNew);
         write = new StreamOutput(file);
         int count;
-        globals.resources.enumResources(
+        gFramework.resources.enumResources(
             (char[] full, Resource res) {
                 write.writefln("Full=%s, Id=%s", full, res.id);
                 //write.writef(" refcount=%d,", res.refcount);
@@ -327,7 +327,7 @@ private:
 
     private void cmdResUnload(MyBox[] args, Output write) {
         //can crash; see unloadUnneeded() for details
-        globals.resources.unloadUnneeded();
+        gFramework.resources.unloadUnneeded();
     }
 
     private void cmdGrab(MyBox[] args, Output write) {
@@ -388,12 +388,12 @@ private:
     }
 
     private void cmdFramerate(MyBox[] args, Output write) {
-        globals.framework.fixedFramerate = args[0].unbox!(int)();
+        gFramework.fixedFramerate = args[0].unbox!(int)();
     }
 
     private void onVideoInit(bool depth_only) {
-        globals.log("Changed video: %s", globals.framework.screen.size);
-        mGui.size = globals.framework.screen.size;
+        globals.log("Changed video: %s", gFramework.screen.size);
+        mGui.size = gFramework.screen.size;
     }
 
     private void cmdVideo(MyBox[] args, Output write) {
@@ -401,25 +401,25 @@ private:
         int b = args[1].unbox!(int);
         int c = args[2].unbox!(int);
         try {
-            globals.framework.setVideoMode(a, b, c, mIsFS);
+            gFramework.setVideoMode(a, b, c, mIsFS);
         } catch (Exception e) {
             //failed to set video mode, try again in windowed mode
             mIsFS = false;
-            globals.framework.setVideoMode(a, b, c, mIsFS);
+            gFramework.setVideoMode(a, b, c, mIsFS);
         }
     }
 
     private bool mIsFS;
     private void cmdFS(MyBox[] args, Output write) {
         try {
-            globals.framework.setVideoMode(globals.framework.screen.size.x1,
-                globals.framework.screen.size.x2, globals.framework.bitDepth,
+            gFramework.setVideoMode(gFramework.screen.size.x1,
+                gFramework.screen.size.x2, gFramework.bitDepth,
                 !mIsFS);
         } catch (Exception e) {
             //fullscreen switch failed
             mIsFS = true;
-            globals.framework.setVideoMode(globals.framework.screen.size.x1,
-                globals.framework.screen.size.x2, globals.framework.bitDepth,
+            gFramework.setVideoMode(gFramework.screen.size.x1,
+                gFramework.screen.size.x2, gFramework.bitDepth,
                 !mIsFS);
         }
         mIsFS = !mIsFS;
@@ -550,10 +550,10 @@ private:
     private bool onKeyDown(KeyInfo infos) {
         if (mKeyNameIt) {
             //modifiers are also keys, ignore them
-            if (globals.framework.isModifierKey(infos.code)) {
+            if (gFramework.isModifierKey(infos.code)) {
                 return false;
             }
-            auto mods = globals.framework.getModifierSet();
+            auto mods = gFramework.getModifierSet();
             mGuiConsole.output.writefln("Key: '%s' '%s'",
                 keybindings.unparseBindString(infos.code, mods),
                 globals.translateKeyshortcut(infos.code, mods));
@@ -561,10 +561,10 @@ private:
             return false;
         }
         if (mShowKeyDebug) {
-            globals.log("down: %s", globals.framework.keyinfoToString(infos));
+            globals.log("down: %s", gFramework.keyinfoToString(infos));
         }
         char[] bind = keybindings.findBinding(infos.code,
-            globals.framework.getModifierSet());
+            gFramework.getModifierSet());
         if (bind) {
             if (mShowKeyDebug) {
                 globals.log("Binding '%s'", bind);
@@ -578,7 +578,7 @@ private:
 
     private bool onKeyUp(KeyInfo infos) {
         if (mShowKeyDebug) {
-            globals.log("up: %s", globals.framework.keyinfoToString(infos));
+            globals.log("up: %s", gFramework.keyinfoToString(infos));
         }
         mGui.putOnKeyUp(infos);
         return true;

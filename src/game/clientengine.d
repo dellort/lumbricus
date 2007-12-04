@@ -157,14 +157,14 @@ class ClientGameEngine {
 
         resize(worldSize);
 
-        ConfigNode taCfg = globals.loadConfig("teamanims");
-        globals.resources.loadResources(taCfg);
+        ConfigNode taCfg = gFramework.loadConfig("teamanims");
+        gFramework.resources.loadResources(taCfg);
         mTeamAnims.length = cTeamColors.length;
         foreach (int n, char[] color; cTeamColors) {
             auto cur = &mTeamAnims[n];
 
             AnimationResource loadanim(char[] node) {
-                return globals.resources.resource!(AnimationResource)
+                return gFramework.resources.resource!(AnimationResource)
                     (taCfg.getSubNode(node).getPathValue(color));
             }
 

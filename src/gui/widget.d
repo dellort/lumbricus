@@ -657,7 +657,7 @@ class Spacer : Widget {
 
     override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
-        parseColor(node.getStringValue("color"), color);
+        color.parse(node.getStringValue("color"));
         enableAlpha = node.getBoolValue("enable_alpha", enableAlpha);
         drawBackground = node.getBoolValue("draw_background", drawBackground);
         parseVector(node.getStringValue("min_size"), mMinSize);

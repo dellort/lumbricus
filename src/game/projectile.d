@@ -1,7 +1,7 @@
 module game.projectile;
 
+import framework.framework;
 import game.animation;
-import common.common;
 import game.physic;
 import game.game;
 import game.gobject;
@@ -47,7 +47,7 @@ private class ProjectileWeapon : WeaponClass {
             auto st = spriteclass.initState;
 
             st.physic_properties.loadFromConfig(pr.getSubNode("physics"));
-            st.animation = globals.resources.resource!(AnimationResource)
+            st.animation = gFramework.resources.resource!(AnimationResource)
                 (pr.getPathValue("animation"));
 
             //allow non-ProjectileSpriteClass objects, why not

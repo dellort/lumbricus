@@ -1,7 +1,6 @@
 module gui.button;
 
-import common.bmpresource;
-import common.common;
+import framework.restypes.bitmap;
 import framework.event;
 import framework.framework;
 import gui.widget;
@@ -55,7 +54,7 @@ class Button : Label {
         if (!mIsCheckbox)
             return;
         auto imgname = mChecked ? "/checkbox_on" : "/checkbox_off";
-        image = globals.resources.resource!(BitmapResource)(imgname)
+        image = gFramework.resources.resource!(BitmapResource)(imgname)
             .get().createTexture();
     }
 

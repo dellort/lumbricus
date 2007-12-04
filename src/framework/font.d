@@ -92,10 +92,10 @@ class FontManager {
         }
 
         Color tmp;
-        if (parseColor(font.getStringValue("backcolor"), tmp)) {
+        if (tmp.parse(font.getStringValue("backcolor"))) {
             p.back = tmp;
         }
-        if (parseColor(font.getStringValue("forecolor"), tmp)) {
+        if (tmp.parse(font.getStringValue("forecolor"))) {
             p.fore = tmp;
         }
 

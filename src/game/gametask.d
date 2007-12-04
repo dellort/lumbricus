@@ -2,7 +2,7 @@ module game.gametask;
 
 import common.common;
 import common.task;
-import common.resources;
+import framework.resources;
 import framework.commandline;
 import framework.framework;
 import framework.filesystem;
@@ -170,7 +170,7 @@ class GameTask : Task {
     //periodically called by loader (until we return false)
     private bool initLoadResources() {
         if (!mResPreloader) {
-            mResPreloader = globals.resources.createPreloader();
+            mResPreloader = gFramework.resources.createPreloader();
             mLoadScreen.secondaryActive = true;
         }
         mLoadScreen.secondaryCount = mResPreloader.totalCount();
@@ -387,7 +387,7 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
         auto x = new LevelGenerator();
         if (what == 0) {
             cfg.level =
-                x.renderSavedLevel(globals.loadConfig(mConfig["level_load"]));
+                x.renderSavedLevel(gFramework.loadConfig(mConfig["level_load"]));
         } else if (what == 1) {
             LevelTemplate templ =
                 x.findRandomTemplate(mConfig["level_template"]);
@@ -395,7 +395,7 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
 
             cfg.level = generateAndSaveLevel(x, templ, null, gfx);
         } else if (what == 2) {
-            auto bmp = globals.loadGraphic(mConfig["level_load_bitmap"]);
+            auto bmp = gFramework.loadImage(mConfig["level_load_bitmap"]);
             auto gfx = mConfig["level_gfx"];
             cfg.level = x.generateFromImage(bmp, false, gfx);
         } else {
@@ -403,12 +403,12 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
             throw new Exception("noes noes noes!");
         }
     }
-    auto teamconf = globals.loadConfig("teams");
+    auto teamconf = gFramework.loadConfig("teams");
     cfg.teams = teamconf.getSubNode("teams");
 
     cfg.levelobjects = mConfig.getSubNode("levelobjects");
 
-    auto gamemodecfg = globals.loadConfig("gamemode");
+    auto gamemodecfg = gFramework.loadConfig("gamemode");
     auto modes = gamemodecfg.getSubNode("modes");
     cfg.gamemode = modes.getSubNode(
         mConfig.getStringValue("gamemode",""));

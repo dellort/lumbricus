@@ -871,7 +871,7 @@ public class FrameworkSDL : Framework {
     //return a surface with unspecified size containing this color
     //(used for drawing alpha blended rectangles)
     private Texture insanityCache(Color c) {
-        int key = colorToRGBA32(c);
+        int key = c.toRGBA32();
 
         Texture* s = key in mInsanityCache;
         if (s)

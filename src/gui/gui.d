@@ -2,7 +2,6 @@ module gui.gui;
 
 import framework.framework;
 public import framework.event;
-import common.common;
 import gui.widget;
 import gui.container;
 import std.string;
@@ -25,7 +24,7 @@ class GuiMain {
 
     private class MainFrame : SimpleContainer {
         this() {
-            globals.resources.loadResources(globals.loadConfig("guires"));
+            gFramework.resources.loadResources(gFramework.loadConfig("guires"));
             doMouseEnterLeave(true); //mous always in, initial event
             pollFocusState();
         }

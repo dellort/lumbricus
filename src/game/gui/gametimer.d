@@ -5,7 +5,6 @@ import framework.font;
 import common.scene;
 import game.clientengine;
 import common.visual;
-import common.common;
 import game.gamepublic;
 import gui.container;
 import gui.label;
@@ -22,7 +21,7 @@ class GameTimer : Container {
     this(ClientGameEngine engine) {
         mEngine = engine;
         mTimeView = new Label();
-        mTimeView.font = globals.framework.fontManager.loadFont("time");
+        mTimeView.font = gFramework.fontManager.loadFont("time");
         mTimeView.border = Vector2i(7, 5);
 
         mTimeView.text = str.format("%.2s", 99);
