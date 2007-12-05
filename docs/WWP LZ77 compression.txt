@@ -1,0 +1,10 @@
+LZ77 variant used for image compression in the game "Worms World Party":
+
+
+Input is read byte-wise. Bit counts are from 0 to 7 with 7 being the highest bit. Bit 7 of the current byte is the marker for a length-distance pair. 
+
+If Bit 7 is not set, write the current byte to the output stream and continue.
+
+Else, if Bit 6,5,4,3 (the short-repeat count) are not set, the current byte and the next 2 following define a long repeat. The next 11 bits (bit 2 to 0 and following byte) define the lookback offset, the value of the 3rd byte plus 18 (0x12, one more than the maximum short repeat) sets the length of the block to be copied. In this case, an offset of 0 marks the end of the data stream.
+
+Else, the current byte and the next are a short (15 bit) length-distance pair. Offset is 11 bits again (2-0 and next byte), adding 1 (no abort case here). Bit 6 to 3 (4 bits) plus 2 (0 and 1 repeat length make no sense) set the repeat count.
