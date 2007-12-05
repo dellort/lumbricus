@@ -12,7 +12,7 @@ import utils.vector2;
 ///if any value from BoxProps (see below) changes, the box needs to be
 ///redrawn (sloooow)
 void drawBox(Canvas c, Vector2i pos, Vector2i size, int borderWidth = 1,
-    int cornerRadius = 8, Color back = Color(1,1,1),
+    int cornerRadius = 5, Color back = Color(1,1,1),
     Color border = Color(0,0,0))
 {
     BoxProperties props;

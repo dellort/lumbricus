@@ -2,25 +2,29 @@ module game.gui.windmeter;
 
 import framework.framework;
 import common.scene;
+import common.visual;
 import framework.restypes.bitmap;
 import game.clientengine;
 import gui.widget;
 import utils.configfile;
+import utils.misc;
 import utils.time;
 import utils.vector2;
 
 class WindMeter : Widget {
     private ClientGameEngine mEngine;
     private Vector2i mSize;
-    private Texture mBackgroundTex;
+    //private Texture mBackgroundTex;
     private Texture mWindLeft, mWindRight;
     private float mTexOffsetf = 0;
     private Time mLastTime;
     private Vector2i mPosCenter;
+    private BoxProperties mBoxStyle;
 
     //pixels/sec
     private float mAnimSpeed;
     private int mTexStep;
+    private int mMaxWidth;
     private float mWindScale;
 
     this(ClientGameEngine engine) {
@@ -29,21 +33,25 @@ class WindMeter : Widget {
         ConfigNode wmNode = gFramework.loadConfig("windmeter");
         gFramework.resources.loadResources(wmNode);
 
-        mBackgroundTex = gFramework.resources.resource!(BitmapResource)
-            ("/windmeter_back").get().createTexture();
-        mSize = mBackgroundTex.size;
+        //mBackgroundTex = gFramework.resources.resource!(BitmapResource)
+        //    ("/windmeter_back").get().createTexture();
         mWindLeft = gFramework.resources.resource!(BitmapResource)
             ("/windmeter_left").get().createTexture();
         mWindRight = gFramework.resources.resource!(BitmapResource)
             ("/windmeter_right").get().createTexture();
 
-        ConfigNode ctNode = wmNode.getSubNode("center");
-        mPosCenter.x = ctNode.getIntValue("x",mSize.x/2);
-        mPosCenter.y = ctNode.getIntValue("y",0);
+        int borderdist = wmNode.getIntValue("borderdist", 2);
+        mTexStep = wmNode.getIntValue("textureStep", 8);
+        mAnimSpeed = wmNode.getFloatValue("animSpeed", 40.0f);
+        mWindScale = wmNode.getFloatValue("windScale", 0.5f);
 
-        mTexStep = wmNode.getIntValue("textureStep",8);
-        mAnimSpeed = wmNode.getFloatValue("animSpeed",40.0f);
-        mWindScale = wmNode.getFloatValue("windScale",0.5f);
+        mBoxStyle.loadFrom(wmNode.getSubNode("box"));
+
+        mMaxWidth = mWindLeft.size.x - mTexStep;
+        mSize = Vector2i(2*mMaxWidth + 2*borderdist + 3/*center*/
+            + 2/*round corners*/, mWindLeft.size.y + 2*borderdist);
+        mPosCenter.x = mSize.x/2;
+        mPosCenter.y = borderdist;
 
         mLastTime =  timeCurrentTime();
     }
@@ -58,9 +66,11 @@ class WindMeter : Widget {
         mLastTime = time;
         mTexOffsetf = mTexOffsetf + mAnimSpeed*(deltaT.secsf);
         if (mEngine) {
-            canvas.draw(mBackgroundTex, pos);
+            //canvas.draw(mBackgroundTex, pos);
+            drawBox(canvas, pos, mSize, mBoxStyle);
             float wspeed = mEngine.windSpeed;
-            int anisize = cast(int)(wspeed*mWindScale);
+            int anisize = clampRangeC(cast(int)(wspeed*mWindScale),
+                -mMaxWidth,mMaxWidth);
             if (wspeed < 0)
                 canvas.draw(mWindLeft, pos + Vector2i(mPosCenter.x - 1 + anisize, mPosCenter.y),
                     Vector2i((cast(int)mTexOffsetf)%mTexStep, 0), Vector2i(-anisize, mWindLeft.size.y));
