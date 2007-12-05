@@ -41,9 +41,7 @@
 			<Add library="DerelictSDLttf" />
 			<Add library="DerelictSDLMixer" />
 		</Linker>
-		<Unit filename="common\bmpresource.d" />
 		<Unit filename="common\common.d" />
-		<Unit filename="common\resources.d" />
 		<Unit filename="common\scene.d" />
 		<Unit filename="common\task.d" />
 		<Unit filename="common\toplevel.d" />
@@ -52,13 +50,17 @@
 		<Unit filename="derelict\enet\enetfuncs.d" />
 		<Unit filename="derelict\enet\enettypes.d" />
 		<Unit filename="framework\commandline.d" />
-		<Unit filename="framework\console.d" />
 		<Unit filename="framework\event.d" />
 		<Unit filename="framework\filesystem.d" />
 		<Unit filename="framework\font.d" />
 		<Unit filename="framework\framework.d" />
 		<Unit filename="framework\i18n.d" />
+		<Unit filename="framework\keybindings.d" />
 		<Unit filename="framework\keysyms.d" />
+		<Unit filename="framework\resources.d" />
+		<Unit filename="framework\restypes\bitmap.d" />
+		<Unit filename="framework\restypes\sound.d" />
+		<Unit filename="framework\sdl\font.d" />
 		<Unit filename="framework\sdl\framework.d" />
 		<Unit filename="framework\sdl\fwgl.d" />
 		<Unit filename="framework\sdl\keys.d" />
@@ -109,6 +111,7 @@
 		<Unit filename="gui\label.d" />
 		<Unit filename="gui\list.d" />
 		<Unit filename="gui\loader.d" />
+		<Unit filename="gui\logwindow.d" />
 		<Unit filename="gui\messageviewer.d" />
 		<Unit filename="gui\mousescroller.d" />
 		<Unit filename="gui\progress.d" />
@@ -134,6 +137,7 @@
 		<Unit filename="net\netlayer.d" />
 		<Unit filename="utils\array.d" />
 		<Unit filename="utils\bitstream.d" />
+		<Unit filename="utils\color.d" />
 		<Unit filename="utils\configfile.d" />
 		<Unit filename="utils\drawing.d" />
 		<Unit filename="utils\factory.d" />
@@ -154,6 +158,7 @@
 		<Unit filename="utils\time.d" />
 		<Unit filename="utils\timer.d" />
 		<Unit filename="utils\vector2.d" />
+		<Unit filename="utils\weaklist.d" />
 		<Extensions>
 			<code_completion />
 			<envvars />

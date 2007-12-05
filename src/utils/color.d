@@ -1,7 +1,12 @@
 module utils.color;
 
+import utils.configfile : ConfigNode;
 import utils.strparser;
 import utils.mybox;
+
+//predefined colors - used by the parser
+//global for fun and profit
+Color[char[]] gColors;
 
 public struct Color {
     //values between 0.0 and 1.0, 1.0 means full intensity
@@ -70,20 +75,7 @@ public struct Color {
 
     ///parse color from string s and replace r/g/b/a values
     bool parse(char[] s) {
-        //predefined colors
-        //if you have time, move this into a configfile! :-)
-        Color[char[]] colors;
-        colors["white"] = Color(1.0f);
-        colors["black"] = Color(0.0f);
-        colors["off"] = Color(0.0f);
-        colors["grey"] = Color(0.5f);
-        colors["red"] = Color(1.0f,0,0);
-        colors["blue"] = Color(0,0,1.0f);
-        colors["green"] = Color(0,1.0f,0);
-        colors["yellow"] = Color(1.0f,1.0f,0);
-        colors["magenta"] = Color(1.0f,0,1.0f);
-        colors["cyan"] = Color(0,1.0f,1.0f);
-
+        auto colors = gColors;
         if (s in colors) {
             *this = colors[s];
             return true;
@@ -107,6 +99,15 @@ public struct Color {
         } catch (conv.ConvError e) {
         }
         return false;
+    }
+}
+
+//(try to) load each item from node as color
+void loadColors(ConfigNode node) {
+    foreach (char[] key, char[] value; node) {
+        Color c;
+        if (c.parse(value))
+            gColors[key] = c;
     }
 }
 

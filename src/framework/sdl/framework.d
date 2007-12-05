@@ -854,6 +854,7 @@ public class FrameworkSDL : Framework {
     private SDL_Surface* mScreen;
     private SDLSurface mScreenSurface;
     private PixelFormat* mScreenAlpha;
+    private bool mIsFS;
     private Keycode mSdlToKeycode[int];
 
     private Texture[int] mInsanityCache;
@@ -1085,21 +1086,27 @@ public class FrameworkSDL : Framework {
         return mScreenSurface.mReal.format.BitsPerPixel;
     }
 
-    public void setVideoMode(int widthX, int widthY, int bpp,
-        bool fullscreen)
+    public override void setVideoMode(Vector2i size, int bpp, bool fs)
     {
+        if (bpp < 0)
+            bpp = bitDepth();
+
         SDL_Surface* newscreen;
 
-        newscreen = SDL_SetVideoMode(widthX, widthY, bpp,
-            SDL_HWSURFACE | SDL_DOUBLEBUF | (fullscreen ? SDL_FULLSCREEN : 0));
+        newscreen = SDL_SetVideoMode(size.x, size.y, bpp, SDL_RESIZABLE
+            | SDL_HWSURFACE | SDL_DOUBLEBUF | (fs ? SDL_FULLSCREEN : 0));
 
         if(newscreen is null) {
-            throw new Exception(format("Unable to set %dx%dx%d video mode: %s",
-                widthX, widthY, bpp, std.string.toString(SDL_GetError())));
+            throw new Exception(format("Unable to set %dx%dx%d video mode: %s"
+                "%s",
+                size.x, size.y, bpp, std.string.toString(SDL_GetError()),
+                fs ? " [full screen]" : ""));
         }
 
         mScreen = newscreen;
         mScreenSurface.mReal = mScreen;
+
+        mIsFS = fs;
 
         //find out what SDL thinks is best for using alpha blending on screen
         //(is there a better way than this hack??)
@@ -1116,6 +1123,19 @@ public class FrameworkSDL : Framework {
 
         if (onVideoInit)
             onVideoInit(false);
+    }
+
+    //arrrgjhdgljkgljkgjhl
+    alias Framework.setVideoMode setVideoMode;
+
+    void setFullScreen(bool s) {
+        if (s == mIsFS)
+            return;
+        setVideoMode(mScreenSurface.size, -1, s);
+    }
+
+    public bool fullScreen() {
+        return mIsFS;
     }
 
     package PixelFormat sdlFormatToFramework(SDL_PixelFormat* fmt) {
@@ -1329,6 +1349,9 @@ public class FrameworkSDL : Framework {
                     KeyInfo infos = mouseInfosFromSDL(event.button);
                     doUpdateMousePos(Vector2i(event.button.x, event.button.y));
                     doKeyDown(infos);
+                    break;
+                case SDL_VIDEORESIZE:
+                    setVideoMode(Vector2i(event.resize.w, event.resize.h));
                     break;
                 // exit if SDLK or the window close button are pressed
                 case SDL_QUIT:

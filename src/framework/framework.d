@@ -320,10 +320,16 @@ public class Framework {
         setCurrentTimeDelegate(&getCurrentTime);
     }
 
-    public abstract void setVideoMode(int widthX, int widthY, int bpp,
-        bool fullscreen);
+    public abstract void setVideoMode(Vector2i size, int bpp, bool fullscreen);
+    //version for default arguments
+    public void setVideoMode(Vector2i size, int bpp = -1) {
+        setVideoMode(size, bpp, fullScreen());
+    }
+
+    public abstract void setFullScreen(bool s);
 
     public abstract uint bitDepth();
+    public abstract bool fullScreen();
 
     /// set window title
     public abstract void setCaption(char[] caption);

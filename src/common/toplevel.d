@@ -401,28 +401,19 @@ private:
         int b = args[1].unbox!(int);
         int c = args[2].unbox!(int);
         try {
-            gFramework.setVideoMode(a, b, c, mIsFS);
+            gFramework.setVideoMode(Vector2i(a, b), c);
         } catch (Exception e) {
             //failed to set video mode, try again in windowed mode
-            mIsFS = false;
-            gFramework.setVideoMode(a, b, c, mIsFS);
+            gFramework.setVideoMode(Vector2i(a, b), c, false);
         }
     }
 
-    private bool mIsFS;
     private void cmdFS(MyBox[] args, Output write) {
         try {
-            gFramework.setVideoMode(gFramework.screen.size.x1,
-                gFramework.screen.size.x2, gFramework.bitDepth,
-                !mIsFS);
+            gFramework.setFullScreen(!gFramework.fullScreen);
         } catch (Exception e) {
             //fullscreen switch failed
-            mIsFS = true;
-            gFramework.setVideoMode(gFramework.screen.size.x1,
-                gFramework.screen.size.x2, gFramework.bitDepth,
-                !mIsFS);
         }
-        mIsFS = !mIsFS;
     }
 
     //bind [name action [keys]]

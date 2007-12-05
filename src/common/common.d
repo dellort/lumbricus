@@ -49,6 +49,8 @@ class Common {
 
         log = registerLog("common");
 
+        loadColors(gFramework.loadConfig("colors"));
+
         framework = fw;
 
         //copy the stupid timers
@@ -63,7 +65,7 @@ class Common {
         int h = scr.getIntValue("height", 600);
         int d = scr.getIntValue("depth", 0);
         bool fs = scr.getBoolValue("fullscreen", false);
-        fw.setVideoMode(w, h, d, fs);
+        fw.setVideoMode(Vector2i(w, h), d, fs);
 
         initLocale();
 

@@ -127,4 +127,16 @@ public class LogWindow : Widget, Output {
     override Vector2i layoutSizeRequest() {
         return Vector2i(0);
     }
+
+    override protected bool handleKeyEvent(KeyInfo infos) {
+        bool wd = infos.code == Keycode.MOUSE_WHEELDOWN;
+        bool wu = infos.code == Keycode.MOUSE_WHEELUP;
+        if (wd || wu) {
+            if (infos.isDown()) {
+                scrollBack(wu ? +1 : -1);
+            }
+            return true;
+        }
+        return super.handleKeyEvent(infos);
+    }
 }

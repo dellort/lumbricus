@@ -45,7 +45,10 @@ public class WTris : Task {
         TimeSource thetime;
         Time last_piece;
 
+        const PIECE_DROP_MS = 300;
         const PIECE_STEP_MS = 500;
+        //substracted time per speed
+        const SPEED_SUB_MS = 50;
 
         Texture boxes;
         const BOX_TYPE_COUNT = 7;
@@ -209,7 +212,7 @@ public class WTris : Task {
             c.drawFilledRect(Vector2i(0), size, Color(0.7,0.7,0.7));
 
             int diff = (thetime.current - last_piece).msecs;
-            int foo = cast(int)(PIECE_DRAW_H*(1.0f*diff/PIECE_STEP_MS));
+            int foo = cast(int)(PIECE_DRAW_H*(1.0f*diff/PIECE_DROP_MS));
 
             Vector2i add = border;
 
@@ -343,7 +346,7 @@ public class WTris : Task {
     private void stats_remove_lines(int removed) {
         lines += removed;
         points += removed*removed*speed;
-        speed = points/15 + 1;
+        speed = lines/8 + 1;
         if (speed > 8)
             speed = 8; //max. Speed
         update_gui();
@@ -435,9 +438,11 @@ public class WTris : Task {
             new_piece();
         }
 
-        if ((cur - last_piece).msecs >= PIECE_STEP_MS) {
-            last_piece = cur;
-            if (removing_lines) {
+        uint mstime = (cur - last_piece).msecs;
+
+        if (removing_lines) {
+            if (mstime >= PIECE_DROP_MS) {
+                last_piece = cur;
                 if (remove_state == 0) {
                     //let one timeslice for blinking *g*
                     remove_state = 1;
@@ -452,7 +457,10 @@ public class WTris : Task {
                         remove_line(kill_line);
                     }
                 }
-            } else {
+            }
+        } else {
+            if (mstime >= PIECE_STEP_MS-(speed-1)*SPEED_SUB_MS) {
+                last_piece = cur;
                 //normal move-down
                 move_piece(false);
             }
@@ -481,9 +489,8 @@ public class WTris : Task {
         set_speed = getbla("speed");
 
         msg = loader.lookup!(Label)("msg");
-        msg_parent = loader.lookup!(SimpleContainer)("msg_parent");
 
-        thegui = loader.lookup("wtris_root");
+        thegui = msg_parent = loader.lookup!(SimpleContainer)("wtris_root");
     }
 
     private void update_gui() {
