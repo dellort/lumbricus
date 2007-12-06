@@ -1,29 +1,16 @@
 module animconv;
 
+import aconv.metadata;
 import std.stdio;
 import std.stream;
 import std.file;
 import std.string;
 import std.conv;
 
-struct MyAnimationDescriptor {
-align(1):
-    short framecount;
-    short w;
-    short h;
-    short flags;
-}
-struct MyFrameDescriptor {
-align(1):
-    short offsetx;
-    short offsety;
-    short width;
-    short height;
-}
-
 struct Animation {
+    bool boxPacked = false;
     MyAnimationDescriptor desc;
-    MyFrameDescriptor[] frames;
+    MyFrameDescriptorBoxPacked[] frames;
 }
 
 Animation[] loadMeta(char[] filename) {
@@ -35,14 +22,23 @@ Animation[] loadMeta(char[] filename) {
         MyAnimationDescriptor ad;
         meta.readExact(&ad, ad.sizeof);
         pixels += ad.w*ad.framecount*ad.h;
-        MyFrameDescriptor[] frames;
+        MyFrameDescriptorBoxPacked[] frames;
         frames.length = ad.framecount;
+        bool boxPacked = !!(ad.flags && ANIMDESC_FLAGS_BOXPACKED);
+        //clear box-packed flag
+        ad.flags &= (ANIMDESC_FLAGS_BOXPACKED ^ 0xffff);
 
-        foreach (inout MyFrameDescriptor frame; frames) {
-            meta.readExact(&frame, frame.sizeof);
+        foreach (inout MyFrameDescriptorBoxPacked frame; frames) {
+            if (boxPacked)
+                //box-packed -> read complete structure
+                meta.readExact(&frame, MyFrameDescriptorBoxPacked.sizeof);
+            else
+                //not box-packed -> read only basic fields
+                meta.readExact(&frame, MyFrameDescriptor.sizeof);
         }
 
         res.length = res.length + 1;
+        res[$-1].boxPacked = boxPacked;
         res[$-1].desc = ad;
         res[$-1].frames = frames;
     }

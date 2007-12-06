@@ -42,6 +42,7 @@
 			<Add library="DerelictILU" />
 			<Add library="DerelictUtil" />
 		</Linker>
+		<Unit filename="aconv\metadata.d" />
 		<Unit filename="devil\image.d" />
 		<Unit filename="unworms.d" />
 		<Unit filename="utils\boxpacker.d" />

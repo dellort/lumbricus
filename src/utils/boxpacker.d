@@ -1,4 +1,4 @@
-//This file is adapted from hybrid/BoxPacker.d, part of 
+//This file is adapted from hybrid/BoxPacker.d, part of
 //HybridGui by h3r3tic
 //
 //Web: http://code.google.com/p/h3r3tic/
@@ -7,7 +7,7 @@
 module utils.boxpacker;
 
 import std.math : rndtol;
-import std.stdio;
+//import std.stdio;
 import utils.vector2;
 
 private {
@@ -68,7 +68,7 @@ class BoxPacker {
 
 
 	PackerPage extendCache(Vector2i minSize) {
-		writefln(`BoxPacker: Creating a new cache page: %s`, pages.length);
+		//writefln(`BoxPacker: Creating a new cache page: %s`, pages.length);
 		pages ~= new PackerPage(pageSizeContaining(minSize), pages.length);
 		return pages[$-1];
 	}
@@ -129,7 +129,7 @@ struct PackerLine {
 		res.origin = origin;
 		res.size = size;
 		res.page = page;
-		debug writefln(`* creating a new cache line. origin: %s   size: %s   page: %s`, origin, size, page);
+		//debug writefln(`* creating a new cache line. origin: %s   size: %s   page: %s`, origin, size, page);
 		return res;
 	}
 

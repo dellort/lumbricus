@@ -1,5 +1,6 @@
 module wwpdata.animation;
 
+import aconv.metadata;
 import devil.image;
 import path = std.path;
 import str = std.string;
@@ -10,31 +11,14 @@ import wwpdata.common;
 import utils.boxpacker;
 import utils.vector2;
 
-const ANIMDESC_FLAGS_REPEAT = 0x1;
-const ANIMDESC_FLAGS_BACKWARDS = 0x2;
-
-struct MyAnimationDescriptor {
-align(1):
-    short framecount;
-    short w;
-    short h;
-    short flags;
-}
-struct MyFrameDescriptor {
-align(1):
-    short offsetx;
-    short offsety;
-    short width;
-    short height;
-}
-
 class AnimList {
     Animation[] animations;
 
     void save(char[] outPath, char[] fnBase, bool tosubdir = true) {
         MyAnimationDescriptor animdesc;
         MyFrameDescriptor framedesc;
-        scope stMeta = new File(outPath ~ path.sep ~ fnBase ~ ".meta", FileMode.OutNew);
+        scope stMeta = new File(outPath ~ path.sep ~ fnBase ~ ".meta",
+            FileMode.OutNew);
         foreach (int i, Animation a; animations) {
             char[] afn, apath;
             if (tosubdir) {
@@ -64,26 +48,66 @@ class AnimList {
         }
     }
 
-    void savePacked(char[] outPath, char[] fnBase,
+    void savePacked(char[] outPath, char[] fnBase, bool tosubdir = true,
         Vector2i pageSize = Vector2i(512,512))
     {
+        return;
         scope packer = new BoxPacker;
         packer.pageSize = pageSize;
         Image[] pageImages;
+
+        MyAnimationDescriptor animdesc;
+        MyFrameDescriptorBoxPacked framedesc;
+        scope stMeta = new File(outPath ~ path.sep ~ fnBase ~ ".meta",
+            FileMode.OutNew);
+
+        //pack and draw individual frames onto block images of size pageSize
         foreach (int i, Animation a; animations) {
+            //write animation descriptor to metadata file
+            animdesc.framecount = a.frames.length;
+            animdesc.w = a.boxWidth;
+            animdesc.h = a.boxHeight;
+            animdesc.flags = (a.repeat?ANIMDESC_FLAGS_REPEAT:0)
+                | (a.backwards?ANIMDESC_FLAGS_BACKWARDS:0)
+                | ANIMDESC_FLAGS_BOXPACKED;
+            stMeta.writeBlock(&animdesc, MyAnimationDescriptor.sizeof);
             foreach (int iframe, Animation.FrameInfo fi; a.frames) {
+                //request page and offset for frame from packer
                 Block* newBlock = packer.getBlock(Vector2i(fi.w, fi.h));
                 if (newBlock.page >= pageImages.length) {
+                    //a new page has been started, create a new image
                     auto img = new Image(pageSize.x, pageSize.y, false);
                     img.clear(COLORKEY.r, COLORKEY.g, COLORKEY.b, 1);
                     pageImages ~= img;
                 }
+                //blit frame data from animation onto page image
                 pageImages[newBlock.page].blitRGBData(fi.data.ptr, fi.w, fi.h,
                     newBlock.origin.x, newBlock.origin.y, false);
+                //write frame descriptor to metadata file
+                framedesc.fd.offsetx = fi.x;
+                framedesc.fd.offsety = fi.y;
+                framedesc.fd.width = fi.w;
+                framedesc.fd.height = fi.h;
+                framedesc.pageIndex = newBlock.page;
+                framedesc.pageOffsetx = newBlock.origin.x;
+                framedesc.pageOffsety = newBlock.origin.y;
+                stMeta.writeBlock(&framedesc, MyFrameDescriptorBoxPacked.sizeof);
             }
         }
+        //save all generated block images to disk
         foreach (int i, img; pageImages) {
-            img.save(outPath ~ path.sep ~ fnBase ~ str.toString(i) ~ ".png");
+            char[] pagefn, pagepath;
+            if (tosubdir) {
+                pagefn = "page_" ~ str.toString(i);
+                pagepath = outPath ~ path.sep ~ fnBase;
+                try { mkdir(pagepath); } catch {};
+            } else {
+                pagefn = fnBase ~ str.toString(i);
+                pagepath = outPath;
+            }
+            img.save(pagepath ~ path.sep ~ pagefn ~ ".png");
+            writef("Saving %d/%d   \r",i+1, pageImages.length);
+            fflush(stdout);
         }
     }
 }
