@@ -51,7 +51,6 @@ class AnimList {
     void savePacked(char[] outPath, char[] fnBase, bool tosubdir = true,
         Vector2i pageSize = Vector2i(512,512))
     {
-        return;
         scope packer = new BoxPacker;
         packer.pageSize = pageSize;
         Image[] pageImages;
