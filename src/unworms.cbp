@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="unworms" />
+		<Option makefile_is_custom="1" />
+		<Option pch_mode="2" />
+		<Option compiler="dmd" />
+		<Build>
+			<Target title="Debug">
+				<Option output="..\bin\unworms" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="..\bin" />
+				<Option object_output="obj\" />
+				<Option type="1" />
+				<Option compiler="dmd" />
+				<Compiler>
+					<Add option="-g" />
+					<Add option="-debug" />
+				</Compiler>
+				<Linker>
+					<Add option="-g" />
+				</Linker>
+				<MakeCommands>
+					<Build command="rebuild -g -debug -K-g -L-g -oq..\bin\obj -of..\bin\unworms unworms.d" />
+					<CompileFile command="" />
+					<Clean command="" />
+					<DistClean command="" />
+				</MakeCommands>
+			</Target>
+			<Target title="Release">
+				<Option output="bin\Release\unworms" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj\Release\" />
+				<Option type="1" />
+				<Option compiler="dmd" />
+				<Compiler>
+					<Add option="-O" />
+				</Compiler>
+			</Target>
+		</Build>
+		<Linker>
+			<Add library="DerelictIL" />
+			<Add library="DerelictILU" />
+			<Add library="DerelictUtil" />
+		</Linker>
+		<Unit filename="devil\image.d" />
+		<Unit filename="unworms.d" />
+		<Unit filename="utils\boxpacker.d" />
+		<Unit filename="utils\vector2.d" />
+		<Unit filename="wwpdata\animation.d" />
+		<Unit filename="wwpdata\common.d" />
+		<Unit filename="wwpdata\decompression.d" />
+		<Unit filename="wwpdata\reader.d" />
+		<Unit filename="wwpdata\reader_bnk.d" />
+		<Unit filename="wwpdata\reader_dir.d" />
+		<Unit filename="wwpdata\reader_img.d" />
+		<Unit filename="wwpdata\reader_spr.d" />
+		<Unit filename="wwptools\unworms.d" />
+		<Extensions>
+			<code_completion />
+			<envvars />
+			<debugger />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>
