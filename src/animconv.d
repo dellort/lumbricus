@@ -3,58 +3,92 @@ module animconv;
 import aconv.metadata;
 import std.stdio;
 import std.stream;
-import std.file;
+import stdf = std.file;
 import std.string;
 import std.conv;
-
-struct Animation {
-    bool boxPacked = false;
-    MyAnimationDescriptor desc;
-    MyFrameDescriptorBoxPacked[] frames;
-}
-
-Animation[] loadMeta(char[] filename) {
-    Animation[] res;
-    writefln("open: %s", filename);
-    Stream meta = new File(filename, FileMode.In);
-    int pixels;
-    while (!meta.eof) {
-        MyAnimationDescriptor ad;
-        meta.readExact(&ad, ad.sizeof);
-        pixels += ad.w*ad.framecount*ad.h;
-        MyFrameDescriptorBoxPacked[] frames;
-        frames.length = ad.framecount;
-        bool boxPacked = !!(ad.flags && ANIMDESC_FLAGS_BOXPACKED);
-        //clear box-packed flag
-        ad.flags &= (ANIMDESC_FLAGS_BOXPACKED ^ 0xffff);
-
-        foreach (inout MyFrameDescriptorBoxPacked frame; frames) {
-            if (boxPacked)
-                //box-packed -> read complete structure
-                meta.readExact(&frame, MyFrameDescriptorBoxPacked.sizeof);
-            else
-                //not box-packed -> read only basic fields
-                meta.readExact(&frame, MyFrameDescriptor.sizeof);
-        }
-
-        res.length = res.length + 1;
-        res[$-1].boxPacked = boxPacked;
-        res[$-1].desc = ad;
-        res[$-1].frames = frames;
-    }
-    writefln("pixelsum: %s", pixels);
-    return res;
-}
+import path = std.path;
+import utils.configfile;
+import utils.vector2;
+import utils.output;
+import wwpdata.reader_bnk;
 
 void main(char[][] args) {
-    char[][] lines = splitlines(cast(char[])read("./animations.txt"));
-    char[] cur;
-    void nextLine() {
-        cur = lines[0];
-        lines = lines[1..$];
+    if (args.length < 2) {
+        writefln("Syntax: animconv <conffile> [<workPath>]");
+        return 1;
     }
-    nextLine();
+    char[] conffn = args[1];
+    char[] workPath = "."~path.sep;
+    if (args.length >= 3) {
+        workPath = args[2]~path.sep;
+    }
 
+    void confError(char[] msg) {
+        writefln(msg);
+    }
+
+    ConfigNode animConf = (new ConfigFile(new File(conffn), conffn,
+         &confError)).rootnode;
+
+    //get all animation indices that are used from one bnk file
+    int[] getUsedAnimations(ConfigNode fileNode) {
+        int[] res;
+        foreach (ConfigNode handlerNode; fileNode) {
+            foreach (char[] aniName, char[] aniNums; handlerNode) {
+                char[][] values = split(aniNums);
+                foreach (char[] v; values) {
+                    res ~= toInt(v);
+                }
+            }
+        }
+        return res;
+    }
+
+    foreach (char[] bnkname, ConfigNode bnkNode; animConf) {
+        writefln("Working on %s",bnkname);
+        scope bnkf = new File(workPath ~ bnkname ~ ".bnk");
+        bnkf.seek(4, SeekPos.Set);
+        scope animList = readBnkFile(bnkf);
+        int[] usedAnims = getUsedAnimations(bnkNode);
+        bool[int] filter;
+        foreach (int iani; usedAnims) {
+            filter[iani] = true;
+        }
+        writefln();
+        int maxPageIdx = animList.savePacked(workPath, bnkname, true,
+            Vector2i(512, 512), filter);
+        writefln();
+
+        ConfigNode confOut = (new ConfigFile("","",&confError)).rootnode;
+
+        auto resNode = confOut.getSubNode("resources").getSubNode("atlas")
+            .getSubNode(bnkname);
+        auto pageNode = resNode.getSubNode("pages");
+        for (int i = 0; i <= maxPageIdx; i++) {
+            pageNode.setStringValue("",bnkname ~ "/page_" ~ toString(i)
+                ~ ".png");
+        }
+        resNode.setStringValue("meta", bnkname ~ ".meta");
+
+        scope confst = new File(workPath ~ bnkname ~ ".conf", FileMode.OutNew);
+        auto textstream = new StreamOutput(confst);
+        confOut.writeFile(textstream);
+    }
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+/+
     char[] curfilepat; //something which contains %s
     char[] confname;
     char[][] confout;
@@ -124,3 +158,4 @@ void main(char[][] args) {
         nextLine();
     }
 }
++/

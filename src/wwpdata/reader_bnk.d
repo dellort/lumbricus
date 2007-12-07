@@ -26,7 +26,7 @@ struct WWPBnkChunkHdr {
     uint unk;
 }
 
-void readBnk(Stream st, char[] outputDir, char[] fnBase) {
+AnimList readBnkFile(Stream st) {
     uint dataLen;
     st.readBlock(&dataLen, 4);
 
@@ -78,6 +78,11 @@ void readBnk(Stream st, char[] outputDir, char[] fnBase) {
         }
         alist.animations ~= anim;
     }
+    return alist;
+}
+
+void readBnk(Stream st, char[] outputDir, char[] fnBase) {
+    scope alist = readBnkFile(st);
     writefln();
     writef("Saving\r");
     alist.savePacked(outputDir, fnBase);
