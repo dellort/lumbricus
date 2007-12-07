@@ -2,13 +2,13 @@
 <CodeBlocks_project_file>
 	<FileVersion major="1" minor="6" />
 	<Project>
-		<Option title="extractdata" />
+		<Option title="untile" />
 		<Option makefile_is_custom="1" />
 		<Option pch_mode="2" />
 		<Option compiler="dmd" />
 		<Build>
 			<Target title="Debug">
-				<Option output="..\bin\tools\extractdata" prefix_auto="1" extension_auto="1" />
+				<Option output="..\bin\tools\untile" prefix_auto="1" extension_auto="1" />
 				<Option working_dir="..\bin\tools" />
 				<Option object_output="obj\" />
 				<Option type="1" />
@@ -18,14 +18,14 @@
 					<Add option="-debug" />
 				</Compiler>
 				<MakeCommands>
-					<Build command="rebuild -g -debug -K-g -L-g -oq..\bin\obj -of..\bin\tools\extractdata extractdata.d" />
+					<Build command="rebuild -g -debug -K-g -L-g -I../src -oq../bin/obj -of../bin/tools/untile ../src/untile.d" />
 					<CompileFile command="" />
 					<Clean command="" />
 					<DistClean command="" />
 				</MakeCommands>
 			</Target>
 			<Target title="Release">
-				<Option output="bin\extractdata" prefix_auto="1" extension_auto="1" />
+				<Option output="bin\untile" prefix_auto="1" extension_auto="1" />
 				<Option object_output="obj\" />
 				<Option type="1" />
 				<Option compiler="dmd" />
@@ -34,21 +34,9 @@
 				</Compiler>
 			</Target>
 		</Build>
-		<Unit filename="devil\image.d" />
-		<Unit filename="extractdata.d" />
-		<Unit filename="utils\filetools.d" />
-		<Unit filename="wwpdata\animation.d" />
-		<Unit filename="wwpdata\common.d" />
-		<Unit filename="wwpdata\decompression.d" />
-		<Unit filename="wwpdata\reader.d" />
-		<Unit filename="wwpdata\reader_bnk.d" />
-		<Unit filename="wwpdata\reader_dir.d" />
-		<Unit filename="wwpdata\reader_img.d" />
-		<Unit filename="wwpdata\reader_spr.d" />
-		<Unit filename="wwptools\convert.d" />
-		<Unit filename="wwptools\levelconverter.d" />
-		<Unit filename="wwptools\untile.d" />
-		<Unit filename="wwptools\unworms.d" />
+		<Unit filename="..\src\devil\image.d" />
+		<Unit filename="..\src\untile.d" />
+		<Unit filename="..\src\wwptools\untile.d" />
 		<Extensions>
 			<code_completion />
 			<envvars />

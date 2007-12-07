@@ -21,7 +21,7 @@
 					<Add option="-g" />
 				</Linker>
 				<MakeCommands>
-					<Build command="rebuild -g -debug -K-g -L-g -oq..\bin\obj -of..\bin\tools\unworms unworms.d" />
+					<Build command="rebuild -g -debug -K-g -L-g -I../src -oq../bin/obj -of../bin/tools/unworms ../src/unworms.d" />
 					<CompileFile command="" />
 					<Clean command="" />
 					<DistClean command="" />
@@ -42,20 +42,20 @@
 			<Add library="DerelictILU" />
 			<Add library="DerelictUtil" />
 		</Linker>
-		<Unit filename="aconv\metadata.d" />
-		<Unit filename="devil\image.d" />
-		<Unit filename="unworms.d" />
-		<Unit filename="utils\boxpacker.d" />
-		<Unit filename="utils\vector2.d" />
-		<Unit filename="wwpdata\animation.d" />
-		<Unit filename="wwpdata\common.d" />
-		<Unit filename="wwpdata\decompression.d" />
-		<Unit filename="wwpdata\reader.d" />
-		<Unit filename="wwpdata\reader_bnk.d" />
-		<Unit filename="wwpdata\reader_dir.d" />
-		<Unit filename="wwpdata\reader_img.d" />
-		<Unit filename="wwpdata\reader_spr.d" />
-		<Unit filename="wwptools\unworms.d" />
+		<Unit filename="..\src\aconv\metadata.d" />
+		<Unit filename="..\src\devil\image.d" />
+		<Unit filename="..\src\unworms.d" />
+		<Unit filename="..\src\utils\boxpacker.d" />
+		<Unit filename="..\src\utils\vector2.d" />
+		<Unit filename="..\src\wwpdata\animation.d" />
+		<Unit filename="..\src\wwpdata\common.d" />
+		<Unit filename="..\src\wwpdata\decompression.d" />
+		<Unit filename="..\src\wwpdata\reader.d" />
+		<Unit filename="..\src\wwpdata\reader_bnk.d" />
+		<Unit filename="..\src\wwpdata\reader_dir.d" />
+		<Unit filename="..\src\wwpdata\reader_img.d" />
+		<Unit filename="..\src\wwpdata\reader_spr.d" />
+		<Unit filename="..\src\wwptools\unworms.d" />
 		<Extensions>
 			<code_completion />
 			<envvars />

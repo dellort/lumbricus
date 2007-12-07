@@ -2,13 +2,13 @@
 <CodeBlocks_project_file>
 	<FileVersion major="1" minor="6" />
 	<Project>
-		<Option title="untile" />
+		<Option title="convert" />
 		<Option makefile_is_custom="1" />
 		<Option pch_mode="2" />
 		<Option compiler="dmd" />
 		<Build>
 			<Target title="Debug">
-				<Option output="..\bin\tools\untile" prefix_auto="1" extension_auto="1" />
+				<Option output="..\bin\tools\convert" prefix_auto="1" extension_auto="1" />
 				<Option working_dir="..\bin\tools" />
 				<Option object_output="obj\" />
 				<Option type="1" />
@@ -18,14 +18,14 @@
 					<Add option="-debug" />
 				</Compiler>
 				<MakeCommands>
-					<Build command="rebuild -g -debug -K-g -L-g -oq..\bin\obj -of..\bin\tools\untile untile.d" />
+					<Build command="rebuild -g -debug -K-g -L-g -I../src -oq../bin/obj -of../bin/tools/convert ../src/convert.d" />
 					<CompileFile command="" />
 					<Clean command="" />
 					<DistClean command="" />
 				</MakeCommands>
 			</Target>
 			<Target title="Release">
-				<Option output="bin\untile" prefix_auto="1" extension_auto="1" />
+				<Option output="bin\convert" prefix_auto="1" extension_auto="1" />
 				<Option object_output="obj\" />
 				<Option type="1" />
 				<Option compiler="dmd" />
@@ -34,9 +34,9 @@
 				</Compiler>
 			</Target>
 		</Build>
-		<Unit filename="devil\image.d" />
-		<Unit filename="untile.d" />
-		<Unit filename="wwptools\untile.d" />
+		<Unit filename="..\src\convert.d" />
+		<Unit filename="..\src\devil\wrapper.d" />
+		<Unit filename="..\src\wwptools\convert.d" />
 		<Extensions>
 			<code_completion />
 			<envvars />

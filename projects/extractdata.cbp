@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="extractdata" />
+		<Option makefile_is_custom="1" />
+		<Option pch_mode="2" />
+		<Option compiler="dmd" />
+		<Build>
+			<Target title="Debug">
+				<Option output="..\bin\tools\extractdata" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="..\bin\tools" />
+				<Option object_output="obj\" />
+				<Option type="1" />
+				<Option compiler="dmd" />
+				<Compiler>
+					<Add option="-g" />
+					<Add option="-debug" />
+				</Compiler>
+				<MakeCommands>
+					<Build command="rebuild -g -debug -K-g -L-g -I../src -oq../bin/obj -of../bin/tools/extractdata ../src/extractdata.d" />
+					<CompileFile command="" />
+					<Clean command="" />
+					<DistClean command="" />
+				</MakeCommands>
+			</Target>
+			<Target title="Release">
+				<Option output="bin\extractdata" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj\" />
+				<Option type="1" />
+				<Option compiler="dmd" />
+				<Compiler>
+					<Add option="-O" />
+				</Compiler>
+			</Target>
+		</Build>
+		<Unit filename="..\src\devil\image.d" />
+		<Unit filename="..\src\extractdata.d" />
+		<Unit filename="..\src\utils\filetools.d" />
+		<Unit filename="..\src\wwpdata\animation.d" />
+		<Unit filename="..\src\wwpdata\common.d" />
+		<Unit filename="..\src\wwpdata\decompression.d" />
+		<Unit filename="..\src\wwpdata\reader.d" />
+		<Unit filename="..\src\wwpdata\reader_bnk.d" />
+		<Unit filename="..\src\wwpdata\reader_dir.d" />
+		<Unit filename="..\src\wwpdata\reader_img.d" />
+		<Unit filename="..\src\wwpdata\reader_spr.d" />
+		<Unit filename="..\src\wwptools\convert.d" />
+		<Unit filename="..\src\wwptools\levelconverter.d" />
+		<Unit filename="..\src\wwptools\untile.d" />
+		<Unit filename="..\src\wwptools\unworms.d" />
+		<Extensions>
+			<code_completion />
+			<envvars />
+			<debugger />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>

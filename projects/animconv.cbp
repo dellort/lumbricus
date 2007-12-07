@@ -18,7 +18,10 @@
 				</Compiler>
 			</Target>
 		</Build>
-		<Unit filename="animconv.d" />
+		<Compiler>
+			<Add directory="..\src" />
+		</Compiler>
+		<Unit filename="..\src\animconv.d" />
 		<Extensions>
 			<code_completion />
 			<envvars />

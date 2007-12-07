@@ -1,4 +1,4 @@
-module tools.convert;
+module wwptools.convert;
 
 import devil.image;
 import std.stdio;
