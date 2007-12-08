@@ -3,6 +3,7 @@ module game.gui.gameteams;
 
 import common.scene;
 import common.visual;
+import framework.font;
 import framework.framework;
 import gui.container;
 import gui.label;
@@ -34,15 +35,15 @@ class TeamWindow : Container {
             //xxx proper font and color etc.
             teamname.text = teams[n].name;
             //teamname.border = Vector2i(3,3);
-            //xxx code duplication with gameview.d
-            teamname.font = gFramework.fontManager.loadFont("wormfont_"
-                ~ cTeamColors[teams[n].color]);
-            table.add(teamname, 0, n, WidgetLayout.Aligned(1, 0));
-            auto bar = new Foobar();
             //xxx again code duplication from gameview.d
             Color c;
             bool res = c.parse(cTeamColors[teams[n].color]);
             assert(res);
+            auto st = gFramework.fontManager.getStyle("wormfont");
+            st.fore = c;
+            teamname.font = new Font(st);
+            table.add(teamname, 0, n, WidgetLayout.Aligned(1, 0));
+            auto bar = new Foobar();
             bar.fill = c;
             mBars[teams[n]] = bar;
             WidgetLayout lay; //expand in y, but left-align in x

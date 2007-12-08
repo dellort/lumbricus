@@ -20,6 +20,8 @@ import utils.perf;
 import utils.drawing;
 import utils.misc;
 
+version = MarkAlpha;
+
 package uint simpleColorToSDLColor(SDL_Surface* s, Color color) {
     return SDL_MapRGBA(s.format,cast(ubyte)(255*color.r),
         cast(ubyte)(255*color.g),cast(ubyte)(255*color.b),
@@ -33,6 +35,10 @@ package SDL_Color ColorToSDLColor(Color color) {
     col.b = cast(ubyte)(255*color.b);
     col.unused = cast(ubyte)(255*color.a);
     return col;
+}
+
+package bool sdlIsAlpha(SDL_Surface* s) {
+    return s.format.Amask != 0 && (s.flags & SDL_SRCALPHA);
 }
 
 class SDLSurface : DriverSurface {
@@ -147,7 +153,7 @@ class SDLSurface : DriverSurface {
     //and if using colorkey transparency, return the colorkey
     final uint colorToSDLColor(Color color) {
         if (mData.transparency == Transparency.Colorkey
-            && color.a >= 1.0f - Color.epsilon)
+            && color.a <= Color.epsilon)
         {
             color = mData.colorkey;
         }
@@ -170,7 +176,8 @@ class SDLDriver : FrameworkDriver {
         SDLFontDriver mFontDriver;
 
         //convert stuff to display format if it isn't already
-        bool mEnableCaching;
+        //+ mark all alpha surfaces drawn on the screen
+        bool mEnableCaching, mMarkAlpha;
 
         //instead of a DriverSurface list (we don't need that yet?)
         uint mDriverSurfaceCount;
@@ -210,6 +217,7 @@ class SDLDriver : FrameworkDriver {
         mRGBA32.Bmask = 0x00_00_00_FF;
 
         mEnableCaching = config.getBoolValue("enable_caching", true);
+        mMarkAlpha = config.getBoolValue("mark_alpha", false);
 
         mOpenGL = config.getBoolValue("open_gl", false);
         assert(!mOpenGL);
@@ -301,7 +309,7 @@ class SDLDriver : FrameworkDriver {
     }
 
     package bool isDisplayFormat(SDL_Surface* s, bool alpha) {
-        return cmpPixelFormat(s.format, alpha ? &mPFScreen : &mPFAlphaScreen);
+        return cmpPixelFormat(s.format, alpha ? &mPFAlphaScreen : &mPFScreen);
     }
 
     private bool switchVideoTo(VideoWindowState state) {
@@ -361,7 +369,7 @@ class SDLDriver : FrameworkDriver {
 
     void setInputState(in DriverInputState state) {
         SDL_WM_GrabInput(state.grab_input ? SDL_GRAB_ON : SDL_GRAB_OFF);
-        //SDL_ShowCursor(state.mouse_visible ? SDL_ENABLE : SDL_DISABLE);
+        SDL_ShowCursor(state.mouse_visible ? SDL_ENABLE : SDL_DISABLE);
     }
 
     void setMousePos(Vector2i p) {
@@ -528,22 +536,23 @@ class SDLDriver : FrameworkDriver {
             throw new Exception("image couldn't be loaded: " ~ err);
         }
 
-        return convertFromSDLSurface(surf, transparency, true);
+        return convertFromSDLSurface(surf, transparency, true, true);
     }
 
     Surface convertFromSDLSurface(SDL_Surface* surf, Transparency transparency,
-        bool free_surf)
+        bool free_surf, bool dump = false)
     {
         if (transparency == Transparency.AutoDetect) {
             //guess by looking at the alpha channel
-            transparency = surf.format.Amask != 0 ? Transparency.Alpha
+            transparency = sdlIsAlpha(surf) ? Transparency.Alpha
                 : Transparency.Colorkey;
+            //xxx: could check if colorkey color appears and set it to non-
+            //     transparent if not
         }
 
         SurfaceData data;
         data.size = Vector2i(surf.w, surf.h);
         data.transparency = transparency;
-        data.valid = true;
 
         //possibly convert it to RGBA32 (except if it is already)
         if (!cmpPixelFormat(surf.format, &mRGBA32)) {
@@ -558,6 +567,7 @@ class SDLDriver : FrameworkDriver {
                 SDL_FreeSurface(surf);
                 throw new Exception("out of memory?");
             }
+            SDL_SetAlpha(surf, 0, 0);  //lol SDL
             SDL_BlitSurface(surf, null, ns, null);
             SDL_FreeSurface(ns);
         } else {
@@ -783,8 +793,8 @@ class SDLCanvas : Canvas {
             if (!gSDLDriver.mMarkAlpha)
                 return;
             //only when drawn on screen
-            bool isscreen = mSurface is gDriverSDL.mScreen;
-            if (isscreen && src.format.Amask != 0) {
+            bool isscreen = mSurface is gSDLDriver.mScreen;
+            if (isscreen && sdlIsAlpha(src)) {
                 auto c = Color(0,1,0);
                 destPos -= mTrans;
                 drawRect(destPos, destPos + sourceSize, c);

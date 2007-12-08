@@ -242,7 +242,7 @@ private:
             "Switch some debugging stuff in Framework on/off", ["bool:Value"]);
         +/
         globals.cmdLine.registerCommand("fw_driver", &cmdSetFWDriver,
-            "Set framework driver", ["bool?=true:Caching"]);
+            "Set framework driver", ["bool:Caching", "bool:mark alpha"]);
 
         //more like a test
         globals.cmdLine.registerCommand("widget_tree", &cmdWidgetTree, "-");
@@ -252,6 +252,7 @@ private:
         ConfigNode n = new ConfigNode();
         n["driver"] = "sdl";
         n.setBoolValue("enable_caching", args[0].unbox!(bool));
+        n.setBoolValue("mark_alpha", args[1].unbox!(bool));
         gFramework.scheduleDriverReload(Framework.DriverReload(n));
     }
 

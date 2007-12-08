@@ -299,7 +299,6 @@ public class LevelGenerator {
     {
         Surface createPixelSurface(Color c) {
             SurfaceData s;
-            s.valid = true;
             s.data.length = 4;
             s.pitch = 4;
             s.size = Vector2i(1);

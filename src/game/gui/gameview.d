@@ -93,8 +93,9 @@ class GameView : Container, TeamMemberControlCallback {
                 //if fails, adjust either arseColor or cTeamColors...
                 assert(res, "internal error: unparseable team color");
                 //xxx maybe don't load them all separately, but use this.color
-                font = gFramework.fontManager.loadFont("wormfont_"
-                    ~ cTeamColors[t.color]);
+                auto st = gFramework.fontManager.getStyle("wormfont");
+                st.fore = color;
+                font = new Font(st);
                 animations = mEngine.getTeamAnimations(t);
 
                 foreach (m; t.getMembers()) {

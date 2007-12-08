@@ -98,7 +98,7 @@ abstract class FrameworkDriver {
 }
 
 struct DriverInputState {
-    bool mouse_visible;
+    bool mouse_visible = true;
     bool grab_input;
 }
 
@@ -113,7 +113,6 @@ struct VideoWindowState {
 
 //all surface data - shared between Surface and DriverSurface
 struct SurfaceData {
-    bool valid;
     //convert Surface to display format
     bool enable_cache = true;
     //if this is true, the driver won't steal the pixeldata
@@ -212,7 +211,7 @@ class Surface {
             // :(
             passivate();
         }
-        if (!mDriverSurface) {
+        if (!mDriverSurface && create) {
             mMode = mode;
             mDriverSurface = gFramework.driver.createSurface(mData, mMode);
         }
@@ -463,7 +462,6 @@ class Framework {
 
     Surface createSurface(Vector2i size, Transparency transparency) {
         SurfaceData data;
-        data.valid = true;
         data.size = size;
         data.pitch = size.x*4;
         data.data.length = data.size.y*data.pitch;
