@@ -14,9 +14,9 @@
 				<Option compiler="dmd" />
 				<Option projectResourceIncludeDirsRelation="0" />
 				<MakeCommands>
-					<Build command="rebuild -g -debug -K-g -L-g -I../src -oq../bin/obj -of../bin/lumbricus ../src/lumbricus.d" />
+					<Build command="dmd -run dsss.d build lumbricus.d --debug" />
 					<CompileFile command="" />
-					<Clean command="" />
+					<Clean command="dmd -run dsss.d clean" />
 					<DistClean command="" />
 				</MakeCommands>
 			</Target>
@@ -28,9 +28,9 @@
 				<Option compiler="dmd" />
 				<Option projectResourceIncludeDirsRelation="0" />
 				<MakeCommands>
-					<Build command="rebuild -release -O -I../src -oq../bin/obj -of../bin/lumbricus ../src/lumbricus.d" />
+					<Build command="dmd -run dsss.d build lumbricus.d" />
 					<CompileFile command="" />
-					<Clean command="" />
+					<Clean command="dmd -run dsss.d clean" />
 					<DistClean command="" />
 				</MakeCommands>
 			</Target>

@@ -13,25 +13,25 @@
 				<Option object_output="obj\" />
 				<Option type="1" />
 				<Option compiler="dmd" />
-				<Compiler>
-					<Add option="-g" />
-					<Add option="-debug" />
-				</Compiler>
 				<MakeCommands>
-					<Build command="rebuild -g -debug -K-g -L-g -I../src -oq../bin/obj -of../bin/tools/untile ../src/untile.d" />
+					<Build command="dmd -run dsss.d build untile.d --debug" />
 					<CompileFile command="" />
-					<Clean command="" />
+					<Clean command="dmd -run dsss.d clean" />
 					<DistClean command="" />
 				</MakeCommands>
 			</Target>
 			<Target title="Release">
-				<Option output="bin\untile" prefix_auto="1" extension_auto="1" />
+				<Option output="..\bin\tools\untile" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="..\bin\tools" />
 				<Option object_output="obj\" />
 				<Option type="1" />
 				<Option compiler="dmd" />
-				<Compiler>
-					<Add option="-O" />
-				</Compiler>
+				<MakeCommands>
+					<Build command="dmd -run dsss.d build untile.d" />
+					<CompileFile command="" />
+					<Clean command="dmd -run dsss.d clean" />
+					<DistClean command="" />
+				</MakeCommands>
 			</Target>
 		</Build>
 		<Unit filename="..\src\devil\image.d" />
