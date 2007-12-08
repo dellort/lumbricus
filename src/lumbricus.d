@@ -1,5 +1,9 @@
 module lumbricus;
+import framework.framework;
+
+//also a factory-import
 import framework.sdl.framework;
+
 import framework.filesystem : MountPath;
 import common = common.common;
 import toplevel = common.toplevel;
@@ -11,6 +15,7 @@ import std.stdio;
 
 //these imports register classes in a factory on module initialization
 //so be carefull not to remove them accidently
+
 import gui.test; //GUI test code
 import game.gametask; //the game itself
 import game.gui.preview; //level preview window
@@ -28,7 +33,7 @@ int main(char[][] args)
     //xxx
     rand_seed(1, 1);
 
-    auto fw = new FrameworkSDL(args[0], APP_ID);
+    auto fw = new Framework(args[0], APP_ID);
     fw.setCaption("Lumbricus");
 
     //init filesystem

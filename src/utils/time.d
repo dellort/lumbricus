@@ -215,24 +215,37 @@ public Time timeNull() {
     return t;
 }
 
-//this delegate allows to get the current (framework) time
-//without importing the framework module
+//use the perf counter as time source, lol
+//the perf counter is fast, doesn't wrap in near time, and measures the absolute
+//time (i.e. not the process time) - so why not?
+//ok, might not be available under Win95
+import std.perf;
+
+private PerformanceCounter gCounter;
+//not used anymore... just stores the ptr to timeCurrentTime() now
 private Time delegate() timeGetCurrentTime;
+
+import utils.misc;
+
+static this() {
+    gCounter = new PerformanceCounter();
+    gCounter.start();
+
+    timeGetCurrentTime = toDelegate(&timeCurrentTime);
+}
 
 ///get current (framework) time
 public Time timeCurrentTime() {
-    if (timeGetCurrentTime) {
-        return timeGetCurrentTime();
-    } else {
-        return timeSecs(0);
-    }
+    //this relies on the inner working of std.perf:
+    //  PerformanceCounter.stop() doesn't reset the start time or so, but always
+    //  sets the measured time to the time between the last .start() and the
+    //  current .stop() call
+    gCounter.stop();
+    return timeMusecs(gCounter.microseconds());
 }
 
-///set the delegate that is called to get the current time
-public void setCurrentTimeDelegate(Time delegate() timeDg) {
-    timeGetCurrentTime = timeDg;
-}
 ///returns the time delegate
+///(leftover from old way of getting the time?)
 public Time delegate() getCurrentTimeDelegate() {
     return timeGetCurrentTime;
 }

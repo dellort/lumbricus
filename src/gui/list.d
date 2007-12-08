@@ -204,7 +204,7 @@ class StringListWidget : AbstractListWidget {
     }
 
     this() {
-        font = getFramework.getFont("");
+        font = gFramework.getFont("");
     }
 
     Font font() {
@@ -231,7 +231,7 @@ class StringListWidget : AbstractListWidget {
         auto node = loader.node;
 
         parseVector(node["spacing"], mSpacing);
-        auto fnt = getFramework.fontManager.loadFont(node["font"], false);
+        auto fnt = gFramework.fontManager.loadFont(node["font"], false);
         if (fnt)
             font = fnt;
         checkWidth = node.getBoolValue("check_width", checkWidth);

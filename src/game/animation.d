@@ -8,6 +8,7 @@ import framework.restypes.bitmap;
 import utils.configfile;
 import utils.misc;
 import utils.array;
+import utils.perf;
 import utils.time;
 import utils.log;
 import utils.math;
@@ -70,6 +71,10 @@ static this() {
     gAnimationLoadHandlers["generic"] = &loadGenericAnimation;
     gAnimationLoadHandlers["old"] = &loadOldAnimation;
 }
+
+//how much time is wasted for animations (excluding drawing!)
+private PerfTimer gAniTime;
+private bool gAniTimeCreated;
 
 public enum AnimationParamType {
     Null = 0,
@@ -231,6 +236,10 @@ private:
     }
 
     public this(ProcessedAnimationData ani) {
+        if (!gAniTimeCreated) {
+            gAniTime = globals.newTimer("anims");
+        }
+
         AnimationData data = ani.mData;
 
         void loadSection(inout AnimationSection section, inout Section to) {
@@ -435,6 +444,9 @@ public:
         if (!needTime())
             return;
 
+        gAniTime.start();
+        scope(exit) gAniTime.stop();
+
         auto time = globals.gameTimeAnimations.current;
         if (time == mLast)
             return;     //already updated this frame
@@ -481,6 +493,8 @@ public:
 
         assert(mAnimation !is null);
 
+        gAniTime.start();
+
         if (!mParamCacheValid) {
             for (int n = 0; n < 2; n++) {
                 int usedfor = section.usedfor[n];
@@ -500,6 +514,9 @@ public:
 
         Animation.FrameInfo* fi = section.framePtr(mParams[section.from[0]],
             mParams[section.from[1]]);
+
+        //not rendering itself
+        gAniTime.stop();
 
         //origin is in "at", but center frame in animation itself
         at += (size - fi.size) / 2;

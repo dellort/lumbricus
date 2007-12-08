@@ -114,14 +114,14 @@ private:
         assert(!gTopLevel, "singleton");
         gTopLevel = this;
 
-        auto framework = getFramework();
+        auto framework = gFramework;
 
         mTaskTime = globals.newTimer("tasks");
         mGuiDrawTime = globals.newTimer("gui_draw");
         mGuiFrameTime = globals.newTimer("gui_frame");
         mFrameTime = globals.newTimer("frame_time");
 
-        mGui = new GuiMain(framework.screen.size);
+        mGui = new GuiMain(framework.screenSize);
 
         auto fps = new GuiFps();
         fps.zorder = GUIZOrder.FPS;
@@ -226,26 +226,42 @@ private:
 
         globals.cmdLine.registerCommand("release_caches", &cmdReleaseCaches,
             "Release caches (temporary data)", []);
+        /+
         globals.cmdLine.registerCommand("caching", &cmdSetCaching,
             "Set if texture caching should be done", ["bool:if enabled"]);
+        +/
 
         globals.cmdLine.registerCommand("times", &cmdShowTimers,
             "List timers", []);
 
+        /+
         globals.cmdLine.registerCommand("fw_info", &cmdInfoString,
             "Query a info string from the framework, with no argument: list "
             "all info string names", ["text?:Name of the string or 'all'"]);
         globals.cmdLine.registerCommand("fw_debug", &cmdSetFWDebug,
             "Switch some debugging stuff in Framework on/off", ["bool:Value"]);
+        +/
+        globals.cmdLine.registerCommand("fw_driver", &cmdSetFWDriver,
+            "Set framework driver", ["bool?=true:Caching"]);
 
         //more like a test
         globals.cmdLine.registerCommand("widget_tree", &cmdWidgetTree, "-");
     }
 
+    private void cmdSetFWDriver(MyBox[] args, Output write) {
+        ConfigNode n = new ConfigNode();
+        n["driver"] = "sdl";
+        n.setBoolValue("enable_caching", args[0].unbox!(bool));
+        gFramework.scheduleDriverReload(Framework.DriverReload(n));
+    }
+
+    /+
     private void cmdSetFWDebug(MyBox[] args, Output write) {
         gFramework.setDebug(args[0].unbox!(bool));
     }
+    +/
 
+    /+
     private void cmdInfoString(MyBox[] args, Output write) {
         auto names = gFramework.getInfoStringNames();
         if (args[0].empty) {
@@ -274,6 +290,7 @@ private:
             }
         }
     }
+    +/
 
     private void cmdWidgetTree(MyBox[] args, Output write) {
         int maxdepth;
@@ -298,13 +315,15 @@ private:
     }
 
     private void cmdReleaseCaches(MyBox[] args, Output write) {
-        int released = getFramework.releaseCaches();
+        int released = gFramework.releaseCaches();
         write.writefln("released %s memory consuming house shoes", released);
     }
 
+    /+
     private void cmdSetCaching(MyBox[] args, Output write) {
-        getFramework.setAllowCaching(args[0].unbox!(bool));
+        gFramework.setAllowCaching(args[0].unbox!(bool));
     }
+    +/
 
     private void cmdResList(MyBox[] args, Output write) {
         write.writefln("dumping to res.txt");
@@ -331,7 +350,7 @@ private:
     }
 
     private void cmdGrab(MyBox[] args, Output write) {
-        getFramework.grabInput = args[0].unbox!(bool)();
+        gFramework.grabInput = args[0].unbox!(bool)();
     }
 
     private void cmdPS(MyBox[] args, Output write) {
@@ -392,8 +411,8 @@ private:
     }
 
     private void onVideoInit(bool depth_only) {
-        globals.log("Changed video: %s", gFramework.screen.size);
-        mGui.size = gFramework.screen.size;
+        globals.log("Changed video: %s", gFramework.screenSize);
+        mGui.size = gFramework.screenSize;
     }
 
     private void cmdVideo(MyBox[] args, Output write) {
@@ -410,9 +429,10 @@ private:
 
     private void cmdFS(MyBox[] args, Output write) {
         try {
-            gFramework.setFullScreen(!gFramework.fullScreen);
+            gFramework.fullScreen = !gFramework.fullScreen;
         } catch (Exception e) {
             //fullscreen switch failed
+            write.writefln(e);
         }
     }
 
@@ -491,7 +511,7 @@ private:
     }
 
     private void killShortcut(MyBox[], Output) {
-        getFramework().terminate();
+        gFramework.terminate();
     }
 
     private void testGC(MyBox[] args, Output write) {
@@ -646,8 +666,8 @@ class StatsWindow : Task {
 
             setLine(0, "GC Used", sizeToHuman(gcs.usedsize));
             setLine(1, "GC Poolsize", sizeToHuman(gcs.poolsize));
-            setLine(2, "Weak objects",
-                gFramework.getInfoString(InfoString.Custom0));
+            /*setLine(2, "Weak objects",
+                gFramework.getInfoString(InfoString.Custom0));*/
 
             n += 3;
 

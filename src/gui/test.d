@@ -105,7 +105,7 @@ class TestFrame3 : Container {
         auto label = new Label();
         scroll.add(label);
         label.text = "MouseScroller huhuh!";
-        label.font = getFramework.fontManager.loadFont("test");
+        label.font = gFramework.fontManager.loadFont("test");
         addChild(wind);
     }
 }
@@ -242,7 +242,8 @@ class TestTask2 : Task {
 
         this() {
             //need clone() here, or the default font will be freed later
-            f = gFramework.getFont("").clone(font);
+            font = gFramework.fontManager.getStyle("");
+            updateFont();
         }
 
         override protected void layoutSizeAllocation() {
@@ -254,8 +255,10 @@ class TestTask2 : Task {
             //no idea how to convert these
             font.size = size.y-cBorder.y*4;
             auto oldf = f;
-            f = f.clone(font);
-            oldf.free();
+            f = new Font(font);
+            if (oldf) {
+                oldf.free();
+            }
         }
 
         override void onDraw(Canvas c) {

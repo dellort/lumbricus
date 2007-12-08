@@ -175,16 +175,18 @@ package class LevelBitmap {
                 timeMusecs(cast(int)counter.microseconds));
         }
 
-        mImage.unlockPixels();
+        mImage.unlockPixels(Rect2i(Vector2i(0), mImage.size));
         if (texture !is null) {
-            texture.unlockPixels();
+            texture.unlockPixels(Rect2i.init);
         }
     }
 
     //for RGBA32 format, check if pixel is considered to be transparent
     //hopefully inlined
     private bool is_not_transparent(uint c) {
-        return !!(c & 0xff000000);
+        //return !!(c & 0xff000000);
+        //xxx this sucks!
+        return (c & 0xff00ff) != 0xff00ff;
     }
 
     //it's a strange design decision to do it _that_ way. sorry for that.
@@ -267,8 +269,8 @@ package class LevelBitmap {
                 tmpData[y*mWidth..(y+1)*mWidth] = pline;
             }
 
-            mImage.unlockPixels();
-            texture.unlockPixels();
+            mImage.unlockPixels(Rect2i(Vector2i(0), mImage.size));
+            texture.unlockPixels(Rect2i.init);
         }
 
         debug {
@@ -380,7 +382,7 @@ package class LevelBitmap {
             cAllMeta, Lexel.SolidSoft, Lexel.SolidHard);
 
         if (mBackImage) {
-            mBackImage.unlockPixels();
+            mBackImage.unlockPixels(Rect2i.init);
         }
 
         //draw that funny border; the border is still solid and also is drawn on
@@ -399,7 +401,10 @@ package class LevelBitmap {
                 cAllMeta, 0);
         }
 
-        mImage.unlockPixels();
+        Rect2i bb;
+        bb.p1 = pos - Vector2i(radius);
+        bb.p2 = pos + Vector2i(radius);
+        mImage.unlockPixels(bb);
     }
 
     //calculate normal at that position
@@ -491,7 +496,7 @@ package class LevelBitmap {
                 src++; dst++; dst_meta++;
             }
         }
-        mImage.unlockPixels();
+        mImage.unlockPixels(Rect2i(cx1, cy1, cx2, cy2));
     }
 
     //draw a bitmap, but also modify the level pixels
@@ -505,7 +510,7 @@ package class LevelBitmap {
         void* data; uint pitch;
         source.lockPixelsRGBA32(data, pitch);
         doDrawBmp(p.x, p.y, data, pitch, size.x, size.y, before, after);
-        source.unlockPixels();
+        source.unlockPixels(Rect2i.init);
     }
 
     /+
@@ -537,12 +542,11 @@ package class LevelBitmap {
         mHeight = size.y;
         mLog = registerLog("levelrenderer");
 
-        mImage = getFramework.createSurface(size, DisplayFormat.RGBA32,
-            Transparency.Colorkey);
+        mImage = gFramework.createSurface(size, Transparency.Colorkey);
 
         mLevelData.length = mWidth*mHeight;
 
-        auto c = mImage.startDraw();
+        auto c = gFramework.startOffscreenRendering(mImage);
         c.clear(mImage.colorkey);
         c.endDraw();
     }
@@ -552,8 +556,6 @@ package class LevelBitmap {
     //xxx this is a hack worth to be killed
     public this(Level level) {
         mImage = level.image.clone();
-        auto fmt = getFramework.findPixelFormat(DisplayFormat.RGBA32);
-        mImage.forcePixelFormat(fmt);
 
         mWidth = mImage.size.x;
         mHeight = mImage.size.y;
@@ -571,8 +573,6 @@ package class LevelBitmap {
     //memory managment: you shall not touch the Surface instance in bmp anymore
     public this(Surface bmp) {
         mImage = bmp;
-        auto fmt = getFramework.findPixelFormat(DisplayFormat.RGBA32);
-        mImage.forcePixelFormat(fmt);
 
         mWidth = mImage.size.x;
         mHeight = mImage.size.y;
@@ -594,7 +594,7 @@ package class LevelBitmap {
             }
         }
 
-        mImage.unlockPixels();
+        mImage.unlockPixels(Rect2i.init);
 
         //hm... back image and border-color?
         //put some random stuff (maybe read it from special pixels which could

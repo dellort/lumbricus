@@ -128,7 +128,7 @@ class GuiConsole : Container {
         mCmdline = new CommandLineInstance(mRealCmdline, mLogWindow);
 
         mFadeinTime = timeMsecs(150);
-        mLastTime = gFramework.getCurrentTime();
+        mLastTime = timeCurrentTime();
     }
 
     private void changeHeight() {
@@ -150,7 +150,7 @@ class GuiConsole : Container {
         if ((mShowFlag < 0 && mOffset < mHeight) || ((mShowFlag > 0 &&
             mOffset > 0)))
         {
-            Time dt = gFramework.getCurrentTime() - mLastTime;
+            Time dt = timeCurrentTime() - mLastTime;
             mOffset -= mShowFlag * (dt * mHeight).msecs / mFadeinTime.msecs;
             if (mOffset > mHeight)
                 mOffset = mHeight;
@@ -160,7 +160,7 @@ class GuiConsole : Container {
 
         changeHeight();
 
-        mLastTime = gFramework.getCurrentTime();
+        mLastTime = timeCurrentTime();
 
         super.simulate();
     }

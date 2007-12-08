@@ -6,50 +6,30 @@ import framework.sdl.framework;
 import framework.sdl.rwops;
 import derelict.sdl.sdl;
 import derelict.sdl.ttf;
+
 import std.stream;
 
-import utils.weaklist;
-
-package {
-    struct FontData {
+class SDLFont : DriverFont {
+    private {
+        Surface frags[dchar];
+        bool mNeedBackPlain;   //false if background is completely transp.
+        bool mOpaque;
+        uint mHeight;
+        FontProperties props;
         TTF_Font* font;
-
-        void doFree() {
-            if (font)
-                TTF_CloseFont(font);
-        }
-    }
-    WeakList!(SDLFont, FontData) gFonts;
-}
-
-package class SDLFont : Font {
-    private Texture frags[dchar];
-    private bool mNeedBackPlain;   //false if background is completely transp.
-    private bool mOpaque;
-    private uint mHeight;
-    private FontProperties props;
-    private TTF_Font* font;
-    // Stream is used by TTF_Font, this keeps the reference to it
-    // possibly shared accross font instances
-    private Stream font_stream;
-
-    this(Stream str, FontProperties props, bool need_copy = true) {
-        if (need_copy) {
-            font_stream = new MemoryStream();
-            str.seek(0,SeekPos.Set);
-            font_stream.copyFrom(str);
-        } else {
-            font_stream = str;
-        }
-        init(props);
-        gFonts.add(this);
+        // Stream is used by TTF_Font, this keeps the reference to it
+        // possibly shared accross font instances
+        Stream mFontStream;
     }
 
-    void init(FontProperties props) {
-        font_stream.seek(0,SeekPos.Set);
+    package int refcount = 1;
+
+    this(Stream str, FontProperties props) {
+        mFontStream = str;
+        mFontStream.seek(0,SeekPos.Set);
         this.props = props;
         SDL_RWops* rwops;
-        rwops = rwopsFromStream(font_stream);
+        rwops = rwopsFromStream(mFontStream);
         font = TTF_OpenFontRW(rwops, 0, props.size);
         if (font == null) {
             throw new Exception("Could not load font.");
@@ -69,24 +49,10 @@ package class SDLFont : Font {
         mNeedBackPlain = mNeedBackPlain && !mOpaque;
     }
 
-    void doFree(bool finalizer) {
-        FontData d;
-        d.font = font;
+    void free() {
+        TTF_CloseFont(font);
         font = null;
-        gFonts.remove(this, finalizer, d);
-    }
-
-    ~this() {
-        doFree(true);
-    }
-
-    //warning: defered free etc.
-    override public void free() {
-        doFree(false);
-    }
-
-    bool valid() {
-        return !!font;
+        mFontStream = null;
     }
 
     int cachedGlyphs() {
@@ -95,9 +61,8 @@ package class SDLFont : Font {
 
     int releaseCache() {
         int rel;
-        foreach (Texture t; frags) {
-            t.clearCache();
-            t.getSurface().free();
+        foreach (Surface t; frags) {
+            t.free();
             rel++;
         }
         frags = null;
@@ -108,11 +73,15 @@ package class SDLFont : Font {
         return props;
     }
 
-    public SDLFont clone(FontProperties new_props) {
-        return new SDLFont(font_stream, new_props, false);
+    Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text) {
+        if (w == int.max) {
+            return drawText(canvas, pos, text);
+        } else {
+            return drawTextLimited(canvas, pos, w, text);
+        }
     }
 
-    public Vector2i drawText(Canvas canvas, Vector2i pos, char[] text) {
+    private Vector2i drawText(Canvas canvas, Vector2i pos, char[] text) {
         foreach (dchar c; text) {
             Texture surface = getGlyph(c);
             if (mNeedBackPlain) {
@@ -124,19 +93,19 @@ package class SDLFont : Font {
         return pos;
     }
 
-    public void drawTextLimited(Canvas canvas, Vector2i pos, int width,
+    private Vector2i drawTextLimited(Canvas canvas, Vector2i pos, int width,
         char[] text)
     {
-        Vector2i s = textSize(text);
+        Vector2i s = textSize(text, true);
         if (s.x <= width) {
-            drawText(canvas, pos, text);
+            return drawText(canvas, pos, text);
         } else {
             char[] dotty = "...";
-            int ds = textSize(dotty).x;
+            int ds = textSize(dotty, true).x;
             width -= ds;
             //draw manually (oh, this is an xxx)
             foreach (dchar c; text) {
-                Texture surface = getGlyph(c);
+                Surface surface = getGlyph(c);
                 auto npos = pos.x + surface.size.x;
                 if (npos > width)
                     break;
@@ -147,14 +116,15 @@ package class SDLFont : Font {
                 canvas.draw(surface, pos);
                 pos.x = npos;
             }
-            drawText(canvas, pos, dotty);
+            pos = drawText(canvas, pos, dotty);
+            return pos;
         }
     }
 
-    public Vector2i textSize(char[] text, bool forceHeight = true) {
+    Vector2i textSize(char[] text, bool forceHeight) {
         Vector2i res = Vector2i(0, 0);
         foreach (dchar c; text) {
-            Texture surface = getGlyph(c);
+            Surface surface = getGlyph(c);
             res.x += surface.size.x;
         }
         if (text.length > 0 || forceHeight)
@@ -162,8 +132,8 @@ package class SDLFont : Font {
         return res;
     }
 
-    private Texture getGlyph(dchar c) {
-        Texture* sptr = c in frags;
+    private Surface getGlyph(dchar c) {
+        Surface* sptr = c in frags;
         if (!sptr) {
             frags[c] = renderChar(c);
             sptr = c in frags;
@@ -172,38 +142,98 @@ package class SDLFont : Font {
     }
 
     //color: ignores the alpha value
-    private SDLSurface doRender(dchar c, inout Color color) {
+    private Surface doRender(dchar c, inout Color color) {
         dchar s[2];
         s[0] = c;
         s[1] = '\0';
         SDL_Color col = ColorToSDLColor(color);
+        assert(!!font);
         SDL_Surface* surface = TTF_RenderUNICODE_Blended(font,
             cast(ushort*)s.ptr, col);
         if (surface == null) {
             throw new Exception(format("could not render char %s", c));
         }
-        auto res = new SDLSurface(surface, true);
+        auto res = gSDLDriver.convertFromSDLSurface(surface, Transparency.Alpha,
+            true);
         assert(mHeight == res.size.y);
         return res;
     }
 
-    private Texture renderChar(dchar c) {
+    private Surface renderChar(dchar c) {
         auto tmp = doRender(c, props.fore);
         if (props.fore.a <= (1.0f - Color.epsilon)) {
             tmp.scaleAlpha(props.fore.a);
         }
-        tmp.enableAlpha();
         if (mOpaque) {
-            auto s = gFramework.createSurface(tmp.size, DisplayFormat.Screen,
-                Transparency.None);
-            auto d = s.startDraw();
+            auto s = gFramework.createSurface(tmp.size, Transparency.None);
+            auto d = gSDLDriver.startOffscreenRendering(s);
             d.drawFilledRect(Vector2i(0), s.size, props.back, false);
-            d.draw(tmp.createBitmapTexture(), Vector2i(0));
+            d.draw(tmp, Vector2i(0));
             d.endDraw();
             tmp.free();
-            return s.createTexture();
+            return s;
         } else {
-            return tmp.createTexture();
+            return tmp;
         }
+    }
+}
+
+class SDLFontDriver : FontDriver {
+    private {
+        SDLFont[FontProperties] mFonts;
+    }
+
+    this() {
+        DerelictSDLttf.load();
+
+        if (TTF_Init()==-1) {
+            throw new Exception(format("TTF_Init: %s\n",
+                std.string.toString(TTF_GetError())));
+        }
+    }
+
+    void destroy() {
+        assert(mFonts.length == 0);
+        TTF_Quit();
+        DerelictSDLttf.unload();
+    }
+
+    DriverFont createFont(FontProperties props) {
+        SDLFont* ph = props in mFonts;
+        if (ph) {
+            SDLFont r = *ph;
+            r.refcount++;
+            return r;
+        }
+
+        Stream data = gFramework.fontManager.findFace(props.face);
+        auto f = new SDLFont(data, props);
+        mFonts[props] = f;
+
+        return f;
+    }
+
+    void destroyFont(inout DriverFont a_handle) {
+        auto handle = cast(SDLFont)a_handle;
+        assert(!!handle);
+        auto p = handle.props;
+        assert(handle is mFonts[p]);
+        handle.refcount--;
+        if (handle.refcount < 1) {
+            assert(handle.refcount == 0);
+            handle.releaseCache();
+            handle.free();
+            mFonts.remove(p);
+        }
+        a_handle = null;
+    }
+
+    int releaseCaches() {
+        int count;
+        foreach (SDLFont fh; mFonts) {
+            count += fh.releaseCache();
+            count++;
+        }
+        return count;
     }
 }

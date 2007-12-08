@@ -3,7 +3,27 @@ import framework.framework;
 import utils.configfile;
 import utils.log;
 
+import std.stream;
+
+import utils.weaklist;
+
+package {
+    struct FontKillData {
+        DriverFont font;
+
+        void doFree() {
+            if (font) {
+                Font.freeDriverFont(font);
+            }
+        }
+    }
+    WeakList!(Font, FontKillData) gFonts;
+}
+
+
+///uniquely describes a font, same properties => is the same
 struct FontProperties {
+    char[] face = "default";
     int size = 14;
     Color back = {0.0f,0.0f,0.0f,1.0f};
     Color fore = {1.0f,1.0f,1.0f,1.0f};
@@ -12,21 +32,63 @@ struct FontProperties {
     bool underline;
 }
 
-public class Font {
+class Font {
+    private {
+        FontProperties mProps;
+        DriverFont mFont;
+    }
+
+    this(FontProperties props) {
+        mProps = props;
+        gFonts.add(this);
+    }
+
+    package static void freeDriverFont(inout DriverFont f) {
+        gFramework.fontDriver.destroyFont(f);
+    }
+
+    //if DriverFont isn't loaded yet, load it
+    package void prepare() {
+        if (!mFont) {
+            mFont = gFramework.fontDriver.createFont(mProps);
+        }
+    }
+
+    //unload DriverFont
+    //(which still can be loaded again, later)
+    package bool unload() {
+        if (mFont) {
+            freeDriverFont(mFont);
+            return true;
+        }
+        return false;
+    }
+
     /// draw UTF8 encoded text (use framework singleton to instantiate it)
     /// returns position beyond last drawn glyph
-    public abstract Vector2i drawText(Canvas canvas, Vector2i pos, char[] text);
+    Vector2i drawText(Canvas canvas, Vector2i pos, char[] text) {
+        prepare();
+        return mFont.draw(canvas, pos, int.max, text);
+    }
+
     /// like drawText(), but try not to draw beyond "width"
     /// instead the text is cut and, unlike clipping, will be ended with "..."
-    public abstract void drawTextLimited(Canvas canvas, Vector2i pos, int width,
-        char[] text);
+    Vector2i drawTextLimited(Canvas canvas, Vector2i pos, int width,
+        char[] text)
+    {
+        prepare();
+        return mFont.draw(canvas, pos, width, text);
+    }
+
     /// same for UTF-32
     //public abstract void drawText(Canvas canvas, Vector2i pos, dchar[] text);
     /// return pixel width/height of the text
     /// forceHeight: if true (default), an empty string will return
     ///              (0, fontHeight) instead of (0,0)
-    public abstract Vector2i textSize(char[] text, bool forceHeight = true);
-    //public abstract Vector2i textSize(dchar[] text);
+    Vector2i textSize(char[] text, bool forceHeight = true) {
+        prepare();
+        return mFont.textSize(text, forceHeight);
+    }
 
     ///return the character index closest to posX
     ///(0 for start, text.length for end)
@@ -53,29 +115,81 @@ public class Font {
         return text.length;
     }
 
-    public abstract FontProperties properties();
+    FontProperties properties() {
+        return mProps;
+    }
 
-    ///clone this font, with these new properties
-    ///strangely required because the font face isn't part of FontProperties
-    public abstract Font clone(FontProperties new_props);
+    private void doFree(bool finalizer) {
+        FontKillData k;
+        k.font = mFont;
+        mFont = null;
+        if (!finalizer) {
+            k.doFree();
+            k = k.init; //reset
+        }
+        gFonts.remove(this, finalizer, k);
+    }
 
-    public abstract void free();
+    ~this() {
+        doFree(true);
+    }
+
+    final void free() {
+        doFree(false);
+    }
 }
 
-//NOTE: this class is considered to be "abstract", and must be created by the
-//  framework singleton
-//i.e. framework implementations can replace this
+/// Manages fonts (surprise!)
 class FontManager {
-    private Font[char[]] mIDtoFont;
-    private ConfigNode mNodes;
+    private {
+        Font[char[]] mIDtoFont;
+        ConfigNode mNodes;
+        //why store the font file(s) into memory? I don't know lol
+        MemoryStream[char[]] mFaces;
+    }
+
+    /// Read a font definition file. See data/fonts.conf
+    public void readFontDefinitions(ConfigNode node) {
+        foreach (char[] name, char[] value; node.getSubNode("faces")) {
+            auto ms = new MemoryStream();
+            scope st = gFramework.fs.open(value);
+            ms.copyFrom(st);
+            mFaces[name] = ms;
+        }
+        mNodes = node.getSubNode("styles").clone();
+        mNodes.templatetifyNodes("template");
+    }
+
+    /// Create the specified font
+    Font create(FontProperties props, bool tryHard = true) {
+        //xxx: tryHard etc.
+        return new Font(props);
+    }
 
     /// Create (or return cached result of) a font with properties according
     /// to the corresponding entry in the font config file.
     /// tryHard = never return null (but throw an exception)
-    public Font loadFont(char[] id, bool tryHard = true) {
+    Font loadFont(char[] id, bool tryHard = true) {
         if (id in mIDtoFont)
             return mIDtoFont[id];
 
+        auto p = getStyle(id, false);
+
+        auto f = create(p);
+        if (!f) {
+            if (tryHard)
+                throw new Exception("font >" ~ id ~ "< not found (1)");
+            return null;
+        }
+
+        mIDtoFont[id] = f;
+        return f;
+    }
+
+    ///return the font style for that id
+    /// fail_exception = if it couldn't be found, raise an exception
+    ///   (else return a default)
+    FontProperties getStyle(char[] id, bool fail_exception = false) {
         FontProperties p;
         p.back.a = 0;
         char[] filename;
@@ -85,8 +199,8 @@ class FontManager {
 
         ConfigNode font = mNodes.findNode(id);
         if (!font) {
-            if (!tryHard) //don't default to default
-                return null;
+            if (fail_exception)
+                throw new Exception("font >" ~ id ~ "< not found (2)");
             //std.stdio.writefln("not found: >%s<", id);
             font = mNodes.getSubNode("normal");
         }
@@ -104,35 +218,18 @@ class FontManager {
 
         p.size = font.getIntValue("size", 12);
 
-        filename = font.getStringValue("filename");
-
-        if (!gFramework.fs.exists(filename)) {
-            filename = mNodes.getSubNode("default")
-                .getStringValue("filename", "font.ttf");
-        }
+        p.face = font.getStringValue("face", "default");
 
         p.bold = font.getBoolValue("bold", p.bold);
         p.italic = font.getBoolValue("italic", p.italic);
         p.underline = font.getBoolValue("underline", p.underline);
 
-        auto file = gFramework.fs.open(filename);
-        Font f = gFramework.loadFont(file, p);
-        file.close();
-
-        if (!f) {
-            if (tryHard)
-                throw new Exception("font >" ~ id ~ "< not found");
-            return null;
-        }
-
-        mIDtoFont[id] = f;
-        return f;
+        return p;
     }
 
-    /// Read a font definition file. See data/fonts.conf
-    public void readFontDefinitions(ConfigNode node) {
-        mNodes = node.clone();
-        mNodes.templatetifyNodes("template");
+    //driver uses this
+    MemoryStream findFace(char[] face) {
+        return mFaces[face];
     }
 }
 

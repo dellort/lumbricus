@@ -78,7 +78,7 @@ class Common {
 
         localizedKeynames = localeRoot.bindNamespace("keynames");
 
-        gameTimeAnimations = new TimeSource(&framework.getCurrentTime);
+        gameTimeAnimations = new TimeSource();
         //moved from toplevel.d
         gameTimeAnimations.resetTime();
     }

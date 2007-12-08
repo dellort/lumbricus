@@ -18,45 +18,15 @@ import math = std.math;
 import utils.time;
 import utils.perf;
 import utils.drawing;
-import utils.misc : min, max, sizeToHuman, swap;
-import utils.weaklist;
+import utils.misc;
 
-package {
-    FrameworkSDL gFrameworkSDL;
-
-    struct SurfaceData {
-        SDL_Surface* preal, pcached;
-
-        void doFree() {
-            if (preal)
-                SDL_FreeSurface(preal);
-            if (preal !is pcached && pcached)
-                SDL_FreeSurface(pcached);
-        }
-    }
-    WeakList!(SDLSurface, SurfaceData) gSurfaces;
+package uint simpleColorToSDLColor(SDL_Surface* s, Color color) {
+    return SDL_MapRGBA(s.format,cast(ubyte)(255*color.r),
+        cast(ubyte)(255*color.g),cast(ubyte)(255*color.b),
+        cast(ubyte)(255*color.a));
 }
 
-debug import std.stdio;
-
-debug {
-    //version = MeasureImgLoadTime;
-    version = DrawStats;
-    //with this hack, all alpha surfaces (if drawn on the screen)
-    //are drawn with a black box around them
-    version = MarkAlpha;
-}
-
-version (MeasureImgLoadTime) {
-    import std.perf;
-    Time gSummedImageLoadingTime;
-    uint gSummedImageLoadingSize;
-    uint gSummedImageLoadingSizeUncompressed;
-    uint gSummedImageLoadingCount;
-}
-
-//SDL_Color.unused contains the alpha value
-static SDL_Color ColorToSDLColor(Color color) {
+package SDL_Color ColorToSDLColor(Color color) {
     SDL_Color col;
     col.r = cast(ubyte)(255*color.r);
     col.g = cast(ubyte)(255*color.g);
@@ -65,467 +35,549 @@ static SDL_Color ColorToSDLColor(Color color) {
     return col;
 }
 
-//NOTE: there's also GLTexture :)
-package class SDLTexture : Texture {
-    //mOriginalSurface is the image source, and mCached is the image converted
-    //to screen format
-    private SDLSurface mOriginalSurface;
-    private bool mEnableCache; //see checkCaching()
+class SDLSurface : DriverSurface {
+    SDL_Surface* mSurface;
+    SurfaceData* mData;
+    bool mCacheEnabled;
 
-    package this(SDLSurface source, bool enableCache = true) {
-        mOriginalSurface = source;
-        mEnableCache = enableCache;
-        assert(source !is null);
-    }
-
-    private bool cachingOK() {
-        return mEnableCache && gFrameworkSDL.mAllowTextureCache;
-    }
-
-    //if gFramework.mAllowTextureCache changed
-    package void checkCaching() {
-        //if caching is wished (user requests it and framework allows it)
-        bool shouldCache = cachingOK();
-        //if currently there's a cached surface
-        //mCached can be null, mReal, or a surface with a converted surface
-        bool doesCache = (mOriginalSurface.mCached !is mOriginalSurface.mReal);
-        //if different, clear the cache -> getDrawSurface() does the right thing
-        if (shouldCache != doesCache) {
-            releaseCache();
-        }
-    }
-
-    public void setCaching(bool state) {
-        releaseCache();
-        mEnableCache = state;
-    }
-
-    public Vector2i size() {
-        return mOriginalSurface.size;
-    }
-
-    //return surface that's actually drawn
-    package SDL_Surface* getDrawSurface() {
-        if (!mOriginalSurface.mCached)
-            checkIfScreenFormat();
-        return mOriginalSurface.mCached;
-        //return mOriginalSurface.mReal;
-    }
-
-    public Surface getSurface() {
-        return mOriginalSurface;
-    }
-
-    //check if s is of format fmt
-    //don't know if implementation is correct; but it worked for me
-    private static bool checkFormat(SDL_Surface* s, DisplayFormat fmt) {
-        PixelFormat f = gFrameworkSDL.findPixelFormat(fmt);
-        PixelFormat f2 = gFrameworkSDL.sdlFormatToFramework(s.format);
-        return f == f2;
-    }
-
-    //convert the image to the current screen format (this is done once)
-    package void checkIfScreenFormat() {
-        //xxx insert check if screen depth has changed at all!
-        //xxx also check if you need to convert it at all
-        //else: performance problem with main level surface
-        if (!mOriginalSurface.mCached) {
-            assert(mOriginalSurface !is null);
-            if (!cachingOK()) {
-                mOriginalSurface.mCached = mOriginalSurface.mReal;
-                return;
-            }
-            SDL_Surface* conv_from = mOriginalSurface.mReal;
-            assert(conv_from !is null);
-
-            SDL_Surface* nsurf;
-            switch (mOriginalSurface.mTransp) {
-                case Transparency.Colorkey, Transparency.None: {
-                    if (!checkFormat(conv_from, DisplayFormat.Screen))
-                        nsurf = SDL_DisplayFormat(conv_from);
-                    break;
-                }
-                case Transparency.Alpha: {
-                    if (!checkFormat(conv_from, DisplayFormat.ScreenAlpha)) {
-                        nsurf = SDL_DisplayFormatAlpha(conv_from);
-                    }
-                    break;
-                }
-                default:
-                    assert(false);
-            }
-            mOriginalSurface.mCached = nsurf ? nsurf : mOriginalSurface.mReal;
-        }
-    }
-
-    void releaseCache() {
-        if (mOriginalSurface.mCached) {
-            if (mOriginalSurface.mCached !is mOriginalSurface.mReal)
-                SDL_FreeSurface(mOriginalSurface.mCached);
-            mOriginalSurface.mCached = null;
-        }
-    }
-
-    void clearCache() {
-        releaseCache();
-    }
-}
-
-public class SDLSurface : Surface {
-    //mReal: original surface (any pixelformat)
-    SDL_Surface* mReal;
-    //if non-null, this contains the surface data (to prevent GCing it)
-    //void* mData; incorrect, can be collected before sdl-surface is free'd
-    SDLCanvas mCanvas;
-    Transparency mTransp;
-    Color mColorkey;
-
-    SDLTexture mSDLTexture;
-    SDL_Surface* mCached;
-
-    bool mDidInit, mOwns;
-
-    //own: if this Surface is allowed to free the SDL_Surface
-    void setSurface(SDL_Surface* realsurface, bool own) {
-        assert(mReal is null);
-        mReal = realsurface;
-        assert(!mDidInit); //execute gSurfaces.add() only once
-        mDidInit = true;
-        mOwns = own;
-        gSurfaces.add(this);
-    }
-
-    void doFree(bool finalizer) {
-        SurfaceData d;
-        if (mOwns) {
-            d.preal = mReal;
-            d.pcached = mCached;
-        }
-        mReal = mCached = null;
-        if (!finalizer) {
-            //if not from finalizer, actually can call C functions
-            //so free it now (and not later, by lazy freeing)
-            d.doFree();
-            d = SurfaceData(); //reset
-        }
-        gSurfaces.remove(this, finalizer, d);
-    }
-
-    ~this() {
-        doFree(true);
-    }
-
-    //to avoid memory leaks
-    //warning: only pushes the surface data into the kill list
-    void free() {
-        doFree(false);
-    }
-
-    bool valid() {
-        return !!mReal;
-    }
-
-    //xxx: functionality duplicated across a few places
-    bool hasCache() {
-        return mCached && (mReal !is mCached);
-    }
-
-    public Surface clone() {
-        assert(mReal !is null);
-        auto n = SDL_ConvertSurface(mReal, mReal.format, mReal.flags);
-        auto res = new SDLSurface(n, true);
-        res.mTransp = mTransp;
-        res.mColorkey = mColorkey;
-        return res;
-    }
-
-    public Canvas startDraw() {
-        if (mCanvas is null) {
-            mCanvas = new SDLCanvas(this);
-        }
-        mCanvas.startDraw();
-        return mCanvas;
-    }
-
-    public Vector2i size() {
-        assert(mReal !is null);
-        return Vector2i(mReal.w, mReal.h);
-    }
-
-    private void toSDLPixelFmt(PixelFormat format, out SDL_PixelFormat fmt) {
-        //according to FreeNode/#SDL, SDL fills the loss/shift by itsself
-        fmt.BitsPerPixel = format.depth;
-        fmt.BytesPerPixel = format.bytes;
-        fmt.Rmask = format.mask_r;
-        fmt.Gmask = format.mask_g;
-        fmt.Bmask = format.mask_b;
-        fmt.Amask = format.mask_a;
-        //xxx: what about fmt.colorkey and fmt.alpha? (can it be ignored here?)
-        //should use of the palette be enabled?
-        fmt.palette = null;
-    }
-
-    public void forcePixelFormat(PixelFormat format) {
-        assert(mReal !is null);
-        SDL_PixelFormat fmt;
-        toSDLPixelFmt(format, fmt);
-        SDL_Surface* s = SDL_ConvertSurface(mReal, &fmt, SDL_SWSURFACE);
-        assert(s !is null);
-        //xxx really need to track references to the SDL surface
-        // i.e. using textures which reference to this will crash, omg.
-        free();
-        mReal = s;
-    }
-
-    public void lockPixels(out void* pixels, out uint pitch) {
-        assert(mReal !is null);
-        SDL_LockSurface(mReal);
-        pixels = mReal.pixels;
-        pitch = mReal.pitch;
-    }
-    public void unlockPixels() {
-        SDL_UnlockSurface(mReal);
-    }
-
-    public void lockPixelsRGBA32(out void* pixels, out uint pitch) {
-        assert(mReal !is null);
-        //xxx: this is a fast, but dirty check for the correct format
-        if (mReal.format.BytesPerPixel != 4
-            || mReal.format.Rmask != 0x00ff0000
-            || mReal.format.Gmask != 0x0000ff00
-            || mReal.format.Bmask != 0x000000ff
-            || mReal.format.Amask != 0xff000000)
-        {
-            forcePixelFormat(gFramework.findPixelFormat(DisplayFormat.RGBA32));
-        }
-        lockPixels(pixels, pitch);
-    }
-
-    //only for createMirroredY()
-    void doMirror(T)(SDLSurface ret) {
-        assert(mReal.format.BytesPerPixel == T.sizeof);
-        assert(mReal.format.BytesPerPixel == ret.mReal.format.BytesPerPixel);
-        assert(mReal.w == ret.mReal.w);
-        assert(mReal.h == ret.mReal.h);
-        SDL_LockSurface(mReal);
-        SDL_LockSurface(ret.mReal);
-        for (uint y = 0; y < mReal.h; y++) {
-            T* src = cast(T*)(mReal.pixels+y*mReal.pitch+mReal.w*T.sizeof);
-            T* dst = cast(T*)(ret.mReal.pixels+y*ret.mReal.pitch);
-            for (uint x = 0; x < mReal.w; x++) {
-                src--;
-                *dst = *src;
-                dst++;
-            }
-        }
-        SDL_UnlockSurface(ret.mReal);
-        SDL_UnlockSurface(mReal);
-    }
-    public Surface createMirroredY() {
-        //clone the SDL surface
-        //wouldn't need to actually copy the surface, doMirror below uses this
-        //surface and copies it into the dest, mirrored
-
-        //xxx some violence
-        //if (mReal.format.BytesPerPixel == 3) {
-            //forcePixelFormat(gFramework.findPixelFormat(DisplayFormat.RGBA32));
-        //}
-        //xxx gross hack
-        mReal = SDL_DisplayFormat(mReal);
-
-        SDL_Surface* ns = SDL_ConvertSurface(mReal, mReal.format, SDL_SWSURFACE);
-        auto ret = new SDLSurface(ns);
-        ret.initTransp(mTransp);
-
-        switch (mReal.format.BytesPerPixel) {
-            case 1: doMirror!(ubyte)(ret); break;
-            case 2: doMirror!(ushort)(ret); break;
-            case 4: doMirror!(uint)(ret); break;
-            default:
-                std.stdio.writefln("format.BytesPerPixel = %s", mReal.format.BytesPerPixel);
-                assert(false);
-        }
-
-        return ret;
-    }
-
-    //scale the alpha values of the pixels in the surface to be in the
-    //range 0.0 .. scale
-    void scaleAlpha(float scale) {
-        assert(mReal !is null);
-        ubyte nalpha = cast(ubyte)(scale * 255);
-        if (nalpha == 255)
-            return;
-        //xxx code relies on exact surface format produced by SDL_TTF
-        forcePixelFormat(gFramework.findPixelFormat(DisplayFormat.RGBA32));
-        SDL_LockSurface(mReal);
-        assert(mReal.format.BytesPerPixel == 4);
-        for (int y = 0; y < mReal.h; y++) {
-            ubyte* ptr = cast(ubyte*)mReal.pixels;
-            ptr += y*mReal.pitch;
-            for (int x = 0; x < mReal.w; x++) {
-                uint alpha = ptr[3];
-                alpha = (alpha*nalpha)/255;
-                ptr[3] = cast(ubyte)(alpha);
-                ptr += 4;
-            }
-        }
-        SDL_UnlockSurface(mReal);
-    }
-
-    public void enableColorkey(Color colorkey = cStdColorkey) {
-        assert(mReal);
-
-        uint key = colorToSDLColor(colorkey);
-        mColorkey = colorkey;
-        SDL_SetColorKey(mReal, SDL_SRCCOLORKEY, key);
-        mTransp = Transparency.Colorkey;
-    }
-
-    public void enableAlpha() {
-        assert(mReal !is null);
-
-        SDL_SetAlpha(mReal, SDL_SRCALPHA, SDL_ALPHA_OPAQUE);
-        mTransp = Transparency.Alpha;
-    }
-
-    public Color colorkey() {
-        switch (mTransp) {
-            case Transparency.Alpha:
-                return Color(0, 0, 0, 0);
-            default:
-                return mColorkey;
-        }
-    }
-
-    public Transparency transparency() {
-        return mTransp;
-    }
-
-    //following: all constructors
-    this(SDL_Surface* surface, bool owns = false) {
-        setSurface(surface, owns);
-    }
-    //create a new surface using current depth
-    //xxx: find better solution for enabling alpha...
-    this(Vector2i size, DisplayFormat fmt, Transparency transp) {
-        PixelFormat format = gFrameworkSDL.findPixelFormat(fmt);
-        auto ns = SDL_CreateRGBSurface(SDL_HWSURFACE, size.x, size.y,
-            format.depth, format.mask_r, format.mask_g, format.mask_b,
-            format.mask_a);
-        if (!ns) {
-            writefln("%d %d %d", size.x, size.y, format.depth);
-            throw new Exception("couldn't create surface (1)");
-        }
-        setSurface(ns, true);
-        initTransp(transp);
-    }
-    //create from stream (using SDL_Image)
-    this(Stream st, Transparency transp) {
-        SDL_RWops* ops = rwopsFromStream(st);
-        version (MeasureImgLoadTime) {
-            auto counter = new PerformanceCounter();
-            counter.start();
-        }
-        SDL_Surface* surf = IMG_Load_RW(ops, 0);
-        version (MeasureImgLoadTime) {
-            counter.stop();
-            gSummedImageLoadingTime += timeMusecs(counter.microseconds);
-            gSummedImageLoadingCount++;
-            gSummedImageLoadingSize += st.size;
-            if (surf) {
-                //estimated
-                gSummedImageLoadingSizeUncompressed +=
-                    surf.w*surf.h*surf.format.BytesPerPixel;
-            }
-            writefln("summed image loading time: %s, count: %s, size: %s, "
-                "uncompressed size: %s", gSummedImageLoadingTime,
-                gSummedImageLoadingCount, gSummedImageLoadingSize,
-                gSummedImageLoadingSizeUncompressed);
-        }
-        if (surf) {
-            setSurface(surf, true);
-        } else {
-            char* err = IMG_GetError();
-            throw new Exception("image couldn't be loaded: "~std.string.toString(err));
-        }
-        initTransp(transp);
-    }
-    /+
-    //create from bitmap data, see Framework.createImage
-    this(uint w, uint h, uint pitch, PixelFormat format, Transparency transp,
-        void* data)
-    {
-        if (!data) {
-            void[] alloc;
-            alloc.length = pitch*h*format.bytes;
-            data = alloc.ptr;
-        }
+    //create from Framework's data
+    this(SurfaceData* data) {
         mData = data;
-        //possibly incorrect
-        //xxx: cf. SDLSurface(Vector2i) constructor!
-        auto ns = SDL_CreateRGBSurfaceFrom(data, w, h, format.depth, pitch,
-            format.mask_r, format.mask_g, format.mask_b, format.mask_a);
-        if (!ns)
-            throw new Exception("couldn't create surface (2)");
-        setSurface(ns, true);
-        initTransp(transp);
+        reinit();
     }
-    +/
 
-    private void initTransp(Transparency transp) {
-        if (transp == Transparency.AutoDetect) {
-            //try to auto-detect transparency
-            //if no alpha is used, maybe it uses a colorkey
-            assert(mReal !is null);
-            transp = mReal.format.Amask != 0 ? Transparency.Alpha
-                : Transparency.Colorkey;
+    //release data from driver surface
+    void kill() {
+        releaseSurface();
+    }
+
+    void releaseSurface() {
+        if (mSurface) {
+            SDL_FreeSurface(mSurface);
+            mSurface = null;
         }
-        switch (transp) {
+    }
+
+    void reinit() {
+        releaseSurface();
+
+        bool cc = mData.transparency == Transparency.Colorkey;
+
+        //NOTE: SDL_CreateRGBSurfaceFrom doesn't copy the data... so, be sure
+        //      to keep the pointer, so D won't GC it
+        //fixed RGA32 format :/
+        mSurface = SDL_CreateRGBSurfaceFrom(mData.data.ptr, mData.size.x,
+            mData.size.y, 32, mData.pitch, 0x00FF0000, 0x0000FF00, 0x000000FF,
+            /+cc ? 0 :+/ 0xFF000000);
+        if (!mSurface) {
+            throw new Exception(format("couldn't create SDL surface, size=%s",
+                mData.size));
+        }
+
+        //lol SDL - need to clear any transparency modes first
+        //but I don't understand why (maybe because there's an alpha channel)
+        SDL_SetAlpha(mSurface, 0, 0);
+        //SDL_SetColorKey(mSurface, 0, 0);
+
+        switch (mData.transparency) {
             case Transparency.Alpha: {
-                enableAlpha();
+                SDL_SetAlpha(mSurface, SDL_SRCALPHA, SDL_ALPHA_OPAQUE);
                 break;
             }
             case Transparency.Colorkey: {
-                //use the default colorkey!
-                enableColorkey();
+                uint key = simpleColorToSDLColor(mSurface, mData.colorkey);
+                SDL_SetColorKey(mSurface, SDL_SRCCOLORKEY, key);
                 break;
             }
             default: //rien
         }
+
+        mCacheEnabled = convertToDisplay();
+    }
+
+    void getPixelData() {
+        //nop
+        //this SDLSurface never kills the SurfaceData.data pointer
+        //but still:
+        assert(!SDL_MUSTLOCK(mSurface));
+    }
+
+    void updatePixels(in Rect2i rc) {
+        //almost nop for SDL...
+        if (mCacheEnabled) {
+            reinit();
+        }
+    }
+
+    private bool convertToDisplay() {
+        assert(!!mSurface);
+
+        if (!(mData.enable_cache && gSDLDriver.mEnableCaching)) {
+            return false;
+        }
+
+        SDL_Surface* nsurf;
+        switch (mData.transparency) {
+            case Transparency.Colorkey, Transparency.None: {
+                if (!gSDLDriver.isDisplayFormat(mSurface, false)) {
+                    nsurf = SDL_DisplayFormat(mSurface);
+                }
+                break;
+            }
+            case Transparency.Alpha: {
+                if (!gSDLDriver.isDisplayFormat(mSurface, true)) {
+                    nsurf = SDL_DisplayFormatAlpha(mSurface);
+                }
+                break;
+            }
+            default:
+                assert(false);
+        }
+
+        if (!nsurf)
+            return false;
+
+        SDL_FreeSurface(mSurface);
+        mSurface = nsurf;
+
+        return true;
     }
 
     //includes special handling for the alpha value: if completely transparent,
     //and if using colorkey transparency, return the colorkey
-    uint colorToSDLColor(Color color) {
-        ubyte alpha = cast(ubyte)(255*color.a);
-        if (mTransp == Transparency.Colorkey && alpha == 255) {
-            color = mColorkey;
-            alpha = cast(ubyte)(255*color.a);
+    final uint colorToSDLColor(Color color) {
+        if (mData.transparency == Transparency.Colorkey
+            && color.a >= 1.0f - Color.epsilon)
+        {
+            color = mData.colorkey;
         }
-        return SDL_MapRGBA(mReal.format,cast(ubyte)(255*color.r),
-            cast(ubyte)(255*color.g),cast(ubyte)(255*color.b), alpha);
-    }
-
-    //create a SDLTexture in SDL mode, and a GLTexture in OpenGL mode
-    Texture createTexture() {
-        if (gFrameworkSDL.useGL) {
-            //return new GLTexture(this);
-            assert(false);
-        } else {
-            if (!mSDLTexture) {
-                mSDLTexture = new SDLTexture(this);
-            }
-            return mSDLTexture;
-        }
-    }
-
-    Texture createBitmapTexture() {
-        return new SDLTexture(this, false);
+        return simpleColorToSDLColor(mSurface, color);
     }
 }
 
-public class SDLCanvas : Canvas {
+package {
+    Keycode[int] gSdlToKeycode;
+    SDLDriver gSDLDriver;
+}
+
+
+class SDLDriver : FrameworkDriver {
+    private {
+        Framework mFramework;
+        ConfigNode mConfig;
+        VideoWindowState mCurVideoState;
+
+        SDLFontDriver mFontDriver;
+
+        //convert stuff to display format if it isn't already
+        bool mEnableCaching;
+
+        //instead of a DriverSurface list (we don't need that yet?)
+        uint mDriverSurfaceCount;
+
+        //used only for non-OpenGL rendering
+        //valid fields: BitsPerPixel, Rmask, Gmask, Bmask, Amask
+        SDL_PixelFormat mRGBA32, mPFScreen, mPFAlphaScreen;
+
+        //if OpenGL enabled (if not, use 2D SDL drawing)
+        bool mOpenGL;
+
+        SDL_Surface* mScreen;
+        //depending if OpenGL or plain-old-SDL-2D mode
+        SDLCanvas mScreenCanvas2D;
+        //GLCanvas mScreenCanvasGL;
+
+        //cache for being able to draw alpha blended filled rects without OpenGL
+        Surface[int] mInsanityCache;
+
+        //hurhurhur
+        PerfTimer mDrawTime, mClearTime, mFlipTime, mInputTime, mWasteTime;
+    }
+
+    this(Framework fw, ConfigNode config) {
+        if (gSDLDriver) {
+            assert(false, "singleton!");
+        }
+        gSDLDriver = this;
+
+        mFramework = fw;
+        mConfig = config;
+
+        mRGBA32.BitsPerPixel = 32;
+        mRGBA32.Amask = 0xFF_00_00_00;
+        mRGBA32.Rmask = 0x00_FF_00_00;
+        mRGBA32.Gmask = 0x00_00_FF_00;
+        mRGBA32.Bmask = 0x00_00_00_FF;
+
+        mEnableCaching = config.getBoolValue("enable_caching", true);
+
+        mOpenGL = config.getBoolValue("open_gl", false);
+        assert(!mOpenGL);
+
+        DerelictSDL.load();
+        DerelictSDLImage.load();
+
+        if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+            throw new Exception(format("Could not init SDL: %s",
+                str.toString(SDL_GetError())));
+        }
+
+        SDL_EnableUNICODE(1);
+        SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY,
+            SDL_DEFAULT_REPEAT_INTERVAL);
+
+        //Initialize translation hashmap from array
+        foreach (SDLToKeycode item; g_sdl_to_code) {
+            gSdlToKeycode[item.sdlcode] = item.code;
+        }
+
+        mFontDriver = new SDLFontDriver();
+
+        if (!mOpenGL) {
+            mScreenCanvas2D = new SDLCanvas();
+        } else {
+            assert(false);
+        }
+
+        //for some worthless statistics...
+        void timer(out PerfTimer tmr, char[] name) {
+            tmr = new PerfTimer;
+            //mTimers[name] = tmr;
+        }
+        timer(mDrawTime, "fw_draw");
+        timer(mClearTime, "fw_clear");
+        timer(mFlipTime, "fw_flip");
+        timer(mInputTime, "fw_input");
+        timer(mWasteTime, "fw_waste");
+    }
+
+    void destroy() {
+        //the framework should have destroyed all DriverSurfaces
+        //check that!
+        assert(mDriverSurfaceCount == 0);
+
+        //deinit and unload all SDL dlls (in reverse order)
+        mFontDriver.destroy();
+        mFontDriver = null;
+        SDL_Quit();
+        DerelictSDLImage.unload();
+        DerelictSDL.unload();
+
+        gSDLDriver = null;
+    }
+
+    FontDriver fontDriver() {
+        return mFontDriver;
+    }
+
+    DriverSurface createSurface(SurfaceData* data, SurfaceMode mode) {
+        mDriverSurfaceCount++;
+        switch (mode) {
+            case SurfaceMode.NORMAL:
+                if (mOpenGL) {
+                    assert(false);
+                    return null; //xxx create opengl surface
+                }
+                //fall through
+            case SurfaceMode.OFFSCREEN:
+                return new SDLSurface(data);
+            default:
+                assert(false, "unknown SurfaceMode?");
+        }
+    }
+
+    void killSurface(inout DriverSurface surface) {
+        assert(!!surface);
+        mDriverSurfaceCount--;
+        surface = null;
+    }
+
+    package static bool cmpPixelFormat(SDL_PixelFormat* a, SDL_PixelFormat* b) {
+        return (a.BitsPerPixel == b.BitsPerPixel
+            && a.Rmask == b.Rmask
+            && a.Gmask == b.Gmask
+            && a.Bmask == b.Bmask
+            && a.Amask == b.Amask);
+    }
+
+    package bool isDisplayFormat(SDL_Surface* s, bool alpha) {
+        return cmpPixelFormat(s.format, alpha ? &mPFScreen : &mPFAlphaScreen);
+    }
+
+    private bool switchVideoTo(VideoWindowState state) {
+        if (state.bitdepth < 0)
+            state.bitdepth = 0;
+
+        Vector2i size = state.fullscreen ? state.fs_size : state.window_size;
+
+        SDL_Surface* newscreen = SDL_SetVideoMode(size.x, size.y,
+            state.bitdepth, SDL_RESIZABLE | SDL_HWSURFACE | SDL_DOUBLEBUF
+            | (state.fullscreen ? SDL_FULLSCREEN : 0));
+
+        if(!newscreen) {
+            return false;
+        }
+
+        mCurVideoState = state;
+
+        mScreen = newscreen;
+
+        mPFScreen = *(mScreen.format);
+
+        //xxx: oh well... but it was true for both 32 bit and 16 bit screenmodes
+        mPFAlphaScreen = mRGBA32;
+
+        //i.e. reload textures, get rid of stuff in too low resolution...
+        releaseCaches();
+
+        return true;
+    }
+
+    VideoWindowState getVideoWindowState() {
+        return mCurVideoState;
+    }
+
+    bool setVideoWindowState(in VideoWindowState state) {
+        auto tmp1 = state, tmp2 = mCurVideoState;
+        tmp1.window_caption = tmp2.window_caption = null;
+        bool res = true;
+        if (tmp1 != tmp2 && tmp1.video_active) {
+            res = switchVideoTo(state);
+        }
+        SDL_WM_SetCaption(toStringz(state.window_caption), null);
+        //xxx: what when switching fails?
+        mCurVideoState = state;
+        if (mCurVideoState.video_active)
+            mFramework.driver_doVideoInit();
+        return res;
+    }
+
+    DriverInputState getInputState() {
+        DriverInputState state;
+        state.grab_input = SDL_WM_GrabInput(SDL_GRAB_QUERY) == SDL_GRAB_ON;
+        state.mouse_visible = SDL_ShowCursor(SDL_QUERY) == SDL_ENABLE;
+        return state;
+    }
+
+    void setInputState(in DriverInputState state) {
+        SDL_WM_GrabInput(state.grab_input ? SDL_GRAB_ON : SDL_GRAB_OFF);
+        //SDL_ShowCursor(state.mouse_visible ? SDL_ENABLE : SDL_DISABLE);
+    }
+
+    void setMousePos(Vector2i p) {
+        SDL_WarpMouse(p.x, p.y);
+    }
+
+    bool getModifierState(Modifier mod, bool whatithink) {
+        //special handling for the shift- and numlock-modifiers
+        //since the user might toggle numlock or capslock while we don't have
+        //the keyboard-focus, ask the SDL (which inturn asks the OS)
+        SDLMod modstate = SDL_GetModState();
+        //writefln("state=%s", modstate);
+        if (mod == Modifier.Shift) {
+            //xxx behaviour when caps and shift are both on is maybe OS
+            //dependend; on X11, both states are usually XORed
+            return ((modstate & KMOD_CAPS) != 0) ^ whatithink;
+        //} else if (mod == Modifier.Numlock) {
+        //    return (modstate & KMOD_NUM) != 0;
+        } else {
+            //generic handling for non-toggle modifiers
+            return whatithink;
+        }
+    }
+
+    private Keycode sdlToKeycode(int sdl_sym) {
+        if (sdl_sym in gSdlToKeycode) {
+            return gSdlToKeycode[sdl_sym];
+        } else {
+            return Keycode.INVALID; //sorry
+        }
+    }
+
+    private KeyInfo keyInfosFromSDL(in SDL_KeyboardEvent sdl) {
+        KeyInfo infos;
+        infos.code = sdlToKeycode(sdl.keysym.sym);
+        infos.unicode = sdl.keysym.unicode;
+        infos.mods = mFramework.getModifierSet();
+        return infos;
+    }
+
+    private KeyInfo mouseInfosFromSDL(in SDL_MouseButtonEvent mouse) {
+        KeyInfo infos;
+        infos.code = sdlToKeycode(g_sdl_mouse_button1 + (mouse.button - 1));
+        return infos;
+    }
+
+    Canvas startScreenRendering() {
+        if (!mOpenGL) {
+            assert(!!mScreen);
+            mScreenCanvas2D.startScreenRendering();
+            return mScreenCanvas2D;
+        }
+    }
+
+    void stopScreenRendering() {
+        if (!mOpenGL) {
+            mScreenCanvas2D.stopScreenRendering();
+        }
+    }
+
+    void processInput() {
+        SDL_Event event;
+        while(SDL_PollEvent(&event)) {
+            switch(event.type) {
+                case SDL_KEYDOWN:
+                    KeyInfo infos = keyInfosFromSDL(event.key);
+                    mFramework.driver_doKeyDown(infos);
+                    break;
+                case SDL_KEYUP:
+                    //xxx TODO: SDL provides no unicode translation for KEYUP
+                    KeyInfo infos = keyInfosFromSDL(event.key);
+                    mFramework.driver_doKeyUp(infos);
+                    break;
+                case SDL_MOUSEMOTION:
+                    //update mouse pos after button state
+                    mFramework.driver_doUpdateMousePos(Vector2i(event.motion.x,
+                        event.motion.y));
+                    break;
+                case SDL_MOUSEBUTTONUP:
+                    KeyInfo infos = mouseInfosFromSDL(event.button);
+                    mFramework.driver_doUpdateMousePos(Vector2i(event.button.x,
+                        event.button.y));
+                    mFramework.driver_doKeyUp(infos);
+                    break;
+                case SDL_MOUSEBUTTONDOWN:
+                    KeyInfo infos = mouseInfosFromSDL(event.button);
+                    mFramework.driver_doUpdateMousePos(Vector2i(event.button.x,
+                        event.button.y));
+                    mFramework.driver_doKeyDown(infos);
+                    break;
+                case SDL_VIDEORESIZE:
+                    //setVideoMode(Vector2i(event.resize.w, event.resize.h));
+                    break;
+                // exit if SDLK or the window close button are pressed
+                case SDL_QUIT:
+                    mFramework.driver_doTerminate();
+                    break;
+                default:
+            }
+        }
+    }
+
+    void sleepTime(Time t) {
+        SDL_Delay(t.msecs);
+    }
+
+    Canvas startOffscreenRendering(Surface s) {
+        assert(!!s);
+        auto c = new SDLCanvas(s);
+        c.startDraw();
+        return c;
+    }
+
+    //return a surface with unspecified size containing this color
+    //(used for drawing alpha blended rectangles)
+    private Surface insanityCache(Color c) {
+        int key = c.toRGBA32();
+
+        Surface* s = key in mInsanityCache;
+        if (s)
+            return *s;
+
+        const cTileSize = 64;
+
+        Surface tile = mFramework.createSurface(Vector2i(cTileSize),
+            Transparency.Alpha);
+
+        //xxx: be less wasteful (the Canvas instance)
+        Canvas canvas = mFramework.startOffscreenRendering(tile);
+        //if param. isn't false => infinite recursion :)
+        canvas.drawFilledRect(Vector2i(0), tile.size, c, false);
+        canvas.endDraw();
+        delete canvas;
+
+        tile.enableCaching = true;
+
+        mInsanityCache[key] = tile;
+        return tile;
+    }
+
+    private int releaseInsanityCache() {
+        int rel;
+        foreach (Surface t; mInsanityCache) {
+            t.free();
+            rel++;
+        }
+        mInsanityCache = null;
+        return rel;
+    }
+
+    int releaseCaches() {
+        int count;
+        count += releaseInsanityCache();
+        count += fontDriver.releaseCaches();
+        return count;
+    }
+
+    //this is the SDL_image dependency
+    Surface loadImage(Stream source, Transparency transparency) {
+        SDL_RWops* ops = rwopsFromStream(source);
+        SDL_Surface* surf = IMG_Load_RW(ops, 0);
+        if (!surf) {
+            auto err = str.toString(IMG_GetError());
+            throw new Exception("image couldn't be loaded: " ~ err);
+        }
+
+        return convertFromSDLSurface(surf, transparency, true);
+    }
+
+    Surface convertFromSDLSurface(SDL_Surface* surf, Transparency transparency,
+        bool free_surf)
+    {
+        if (transparency == Transparency.AutoDetect) {
+            //guess by looking at the alpha channel
+            transparency = surf.format.Amask != 0 ? Transparency.Alpha
+                : Transparency.Colorkey;
+        }
+
+        SurfaceData data;
+        data.size = Vector2i(surf.w, surf.h);
+        data.transparency = transparency;
+        data.valid = true;
+
+        //possibly convert it to RGBA32 (except if it is already)
+        if (!cmpPixelFormat(surf.format, &mRGBA32)) {
+            data.pitch = data.size.x*4;
+            data.data.length = data.pitch*data.size.y;
+
+            //xxx code duplication
+            SDL_Surface* ns = SDL_CreateRGBSurfaceFrom(data.data.ptr,
+                surf.w, surf.h, mRGBA32.BitsPerPixel, data.pitch,
+                mRGBA32.Rmask, mRGBA32.Gmask, mRGBA32.Bmask, mRGBA32.Amask);
+            if (!ns) {
+                SDL_FreeSurface(surf);
+                throw new Exception("out of memory?");
+            }
+            SDL_BlitSurface(surf, null, ns, null);
+            SDL_FreeSurface(ns);
+        } else {
+            //just copy the data
+            SDL_LockSurface(surf);
+            data.pitch = surf.pitch;
+            data.data.length = surf.pitch*data.size.y;
+            data.data[] = cast(ubyte[])(surf.pixels[0 .. data.data.length]);
+            SDL_UnlockSurface(surf);
+        }
+
+        if (free_surf) {
+            SDL_FreeSurface(surf);
+        }
+
+        return new Surface(data);
+    }
+}
+
+class SDLCanvas : Canvas {
     const int MAX_STACK = 20;
 
     private {
@@ -541,12 +593,58 @@ public class SDLCanvas : Canvas {
 
         Vector2i mClientSize;
         Vector2i mClientStart;  //origin of window
-        SDLSurface sdlsurface;
+
+        SDL_Surface* mSurface;
+        SDLSurface mSDLSurface;
+    }
+
+
+    void startScreenRendering() {
+        assert(mStackTop == 0);
+        assert(!mSDLSurface);
+        assert(mSurface is null);
+
+        mTrans = Vector2i(0, 0);
+        mSurface = gSDLDriver.mScreen;
+
+        gSDLDriver.mClearTime.start();
+        auto clearColor = Color(0,0,0);
+        SDL_FillRect(mSurface, null, toSDLColor(clearColor));
+        gSDLDriver.mClearTime.stop();
+
+        startDraw();
+    }
+
+    void stopScreenRendering() {
+        assert(mSurface !is null);
+
+        endDraw();
+
+        //TODO: Software backbuffer (or not... not needed with X11/windib)
+        gSDLDriver.mFlipTime.start();
+        SDL_Flip(mSurface);
+        gSDLDriver.mFlipTime.stop();
+
+        mSurface = null;
+    }
+
+    //offscreen rendering (on Surface)
+    this(Surface s) {
+        s.enableCaching = false;
+        SDLSurface sdls = cast(SDLSurface)
+            (s.getDriverSurface(SurfaceMode.OFFSCREEN));
+        assert(!!sdls);
+        //sdls.lock++;
+        mSDLSurface = sdls;
+        mSurface = sdls.mSurface;
+    }
+
+    this() {
     }
 
     package void startDraw() {
         assert(mStackTop == 0);
-        SDL_SetClipRect(sdlsurface.mReal, null);
+        SDL_SetClipRect(mSurface, null);
         mTrans = Vector2i(0, 0);
         pushState();
     }
@@ -558,48 +656,48 @@ public class SDLCanvas : Canvas {
     public void pushState() {
         assert(mStackTop < MAX_STACK);
 
-        gFrameworkSDL.mWasteTime.start();
+        gSDLDriver.mWasteTime.start();
 
-        mStack[mStackTop].clip = sdlsurface.mReal.clip_rect;
+        mStack[mStackTop].clip = mSurface.clip_rect;
         mStack[mStackTop].translate = mTrans;
         mStack[mStackTop].clientstart = mClientStart;
         mStack[mStackTop].clientsize = mClientSize;
         mStackTop++;
 
-        gFrameworkSDL.mWasteTime.stop();
+        gSDLDriver.mWasteTime.stop();
     }
 
     public void popState() {
         assert(mStackTop > 0);
 
-        gFrameworkSDL.mWasteTime.start();
+        gSDLDriver.mWasteTime.start();
 
         mStackTop--;
         SDL_Rect* rc = &mStack[mStackTop].clip;
-        SDL_SetClipRect(sdlsurface.mReal, rc);
+        SDL_SetClipRect(mSurface, rc);
         mTrans = mStack[mStackTop].translate;
         mClientStart = mStack[mStackTop].clientstart;
         mClientSize = mStack[mStackTop].clientsize;
 
-        gFrameworkSDL.mWasteTime.stop();
+        gSDLDriver.mWasteTime.stop();
     }
 
     public void setWindow(Vector2i p1, Vector2i p2) {
-        gFrameworkSDL.mWasteTime.start();
+        gSDLDriver.mWasteTime.start();
 
         addclip(p1, p2);
         mTrans = p1 + mTrans;
         mClientStart = p1 + mTrans;
         mClientSize = p2 - p1;
 
-        gFrameworkSDL.mWasteTime.stop();
+        gSDLDriver.mWasteTime.stop();
     }
 
     //xxx: unify with clip(), or whatever, ..., etc.
     //oh, and this is actually needed in only a _very_ few places (scrolling)
     private void addclip(Vector2i p1, Vector2i p2) {
         p1 += mTrans; p2 += mTrans;
-        SDL_Rect rc = sdlsurface.mReal.clip_rect;
+        SDL_Rect rc = mSurface.clip_rect;
 
         int rcx2 = rc.w + rc.x;
         int rcy2 = rc.h + rc.y;
@@ -613,7 +711,7 @@ public class SDLCanvas : Canvas {
         rc.w = max!(int)(rcx2 - rc.x, 0);
         rc.h = max!(int)(rcy2 - rc.y, 0);
 
-        SDL_SetClipRect(sdlsurface.mReal, &rc);
+        SDL_SetClipRect(mSurface, &rc);
     }
 
     public void clip(Vector2i p1, Vector2i p2) {
@@ -623,7 +721,7 @@ public class SDLCanvas : Canvas {
         rc.y = p1.y;
         rc.w = p2.x-p1.x;
         rc.h = p2.y-p1.y;
-        SDL_SetClipRect(sdlsurface.mReal, &rc);
+        SDL_SetClipRect(mSurface, &rc);
     }
 
     public void translate(Vector2i offset) {
@@ -636,7 +734,7 @@ public class SDLCanvas : Canvas {
     }
 
     public Vector2i realSize() {
-        return sdlsurface.size();
+        return Vector2i(mSurface.w, mSurface.h);
     }
     public Vector2i clientSize() {
         return mClientSize;
@@ -644,7 +742,7 @@ public class SDLCanvas : Canvas {
 
     public Rect2i getVisible() {
         Rect2i res;
-        SDL_Rect rc = sdlsurface.mReal.clip_rect;
+        SDL_Rect rc = mSurface.clip_rect;
         res.p1.x = rc.x;
         res.p1.y = rc.y;
         res.p2.x = rc.x + rc.w;
@@ -654,25 +752,19 @@ public class SDLCanvas : Canvas {
         return res;
     }
 
-    this(SDLSurface surf) {
-        mTrans = Vector2i(0, 0);
-        mStackTop = 0;
-        sdlsurface = surf;
-        //pushState();
-    }
-
-    package Surface surface() {
-        return sdlsurface;
-    }
-
-    public void draw(Texture source, Vector2i destPos,
+    public void draw(Surface source, Vector2i destPos,
         Vector2i sourcePos, Vector2i sourceSize)
     {
-        assert(source !is null);
         destPos += mTrans;
-        SDLTexture sdls = cast(SDLTexture)source;
+
+        assert(source !is null);
+        SDLSurface sdls = cast(SDLSurface)
+            (source.getDriverSurface(SurfaceMode.OFFSCREEN));
         //when this is null, maybe the user passed a GLTexture?
         assert(sdls !is null);
+
+        SDL_Surface* src = sdls.mSurface;
+        assert(src !is null);
 
         SDL_Rect rc, destrc;
         rc.x = cast(short)sourcePos.x;
@@ -681,19 +773,17 @@ public class SDLCanvas : Canvas {
         rc.h = cast(ushort)sourceSize.y;
         destrc.x = cast(short)destPos.x;
         destrc.y = cast(short)destPos.y; //destrc.w/h ignored by SDL_BlitSurface
-        SDL_Surface* src = sdls.getDrawSurface();
-        //if (!src)
-        //    src = sdls.mReal;
-        assert(src !is null);
-        version(DrawStats) gFrameworkSDL.mDrawTime.start();
-        int res = SDL_BlitSurface(src, &rc, sdlsurface.mReal, &destrc);
-        version(DrawStats) gFrameworkSDL.mDrawTime.stop();
+
+        version(DrawStats) gSDLDriver.mDrawTime.start();
+        int res = SDL_BlitSurface(src, &rc, mSurface, &destrc);
         assert(res == 0);
+        version(DrawStats) gSDLDriver.mDrawTime.stop();
+
         version (MarkAlpha) {
-            if (!gFrameworkSDL.mDebug)
+            if (!gSDLDriver.mMarkAlpha)
                 return;
             //only when drawn on screen
-            bool isscreen = sdlsurface is gFrameworkSDL.mScreenSurface;
+            bool isscreen = mSurface is gDriverSDL.mScreen;
             if (isscreen && src.format.Amask != 0) {
                 auto c = Color(0,1,0);
                 destPos -= mTrans;
@@ -704,10 +794,18 @@ public class SDLCanvas : Canvas {
         }
     }
 
+    private uint toSDLColor(Color color) {
+        if (mSDLSurface) {
+            return mSDLSurface.colorToSDLColor(color);
+        } else {
+            return simpleColorToSDLColor(mSurface, color);
+        }
+    }
+
     //inefficient, wanted this for debugging
     public void drawCircle(Vector2i center, int radius, Color color) {
         center += mTrans;
-        uint c = sdlsurface.colorToSDLColor(color);
+        uint c = toSDLColor(color);
         circle(center.x, center.y, radius,
             (int x1, int x2, int y) {
                 doSetPixel(x1, y, c);
@@ -744,7 +842,7 @@ public class SDLCanvas : Canvas {
             return;
         }
 
-        uint c = sdlsurface.colorToSDLColor(color);
+        uint c = toSDLColor(color);
         Vector2f d = Vector2f((to-from).x,(to-from).y);
         Vector2f old = toVector2f(from + mTrans);
         int n = cast(int)(math.fmax(math.fabs(d.x), math.fabs(d.y)));
@@ -760,7 +858,7 @@ public class SDLCanvas : Canvas {
     public void setPixel(Vector2i p1, Color color) {
         //less lame now
         p1 += mTrans;
-        doSetPixel(p1.x, p1.y, sdlsurface.colorToSDLColor(color));
+        doSetPixel(p1.x, p1.y, toSDLColor(color));
     }
 
     //warning: unlocked (you must call SDL_LockSurface before),
@@ -794,7 +892,7 @@ public class SDLCanvas : Canvas {
 
     //like doSetPixel, but locks and clips (and operates on this surface)
     private void doSetPixel(int x, int y, uint color) {
-        SDL_Surface* s = sdlsurface.mReal;
+        SDL_Surface* s = mSurface;
         assert(!!s);
         SDL_Rect* rc = &s.clip_rect;
         if (x < rc.x || y < rc.y || x >= rc.x + rc.w || y >= rc.y + rc.h)
@@ -814,7 +912,7 @@ public class SDLCanvas : Canvas {
         drawLine(p1, Vector2i(p2.x, p1.y), color);
     }
 
-    override public void drawFilledRect(Vector2i p1, Vector2i p2, Color color,
+    public void drawFilledRect(Vector2i p1, Vector2i p2, Color color,
         bool properalpha = true)
     {
         int alpha = cast(ubyte)(color.a*255);
@@ -822,7 +920,7 @@ public class SDLCanvas : Canvas {
             return; //xxx: correct?
         if (true && alpha != 255 && properalpha) {
             //quite insane insanity here!!!
-            Texture s = gFrameworkSDL.insanityCache(color);
+            Texture s = gSDLDriver.insanityCache(color);
             assert(s !is null);
             drawTiled(s, p1, p2-p1);
         } else {
@@ -833,10 +931,9 @@ public class SDLCanvas : Canvas {
             rect.y = p1.y;
             rect.w = p2.x-p1.x;
             rect.h = p2.y-p1.y;
-            version(DrawStats) gFrameworkSDL.mDrawTime.start();
-            int res = SDL_FillRect(sdlsurface.mReal, &rect,
-                sdlsurface.colorToSDLColor(color));
-            version(DrawStats) gFrameworkSDL.mDrawTime.stop();
+            version(DrawStats) gSDLDriver.mDrawTime.start();
+            int res = SDL_FillRect(mSurface, &rect, toSDLColor(color));
+            version(DrawStats) gSDLDriver.mDrawTime.stop();
             assert(res == 0);
         }
     }
@@ -844,542 +941,8 @@ public class SDLCanvas : Canvas {
     public void clear(Color color) {
         drawFilledRect(Vector2i(0, 0)-mTrans, clientSize-mTrans, color, false);
     }
-
-    public void drawText(char[] text) {
-        assert(false);
-    }
 }
 
-public class FrameworkSDL : Framework {
-    private SDL_Surface* mScreen;
-    private SDLSurface mScreenSurface;
-    private PixelFormat* mScreenAlpha;
-    private bool mIsFS;
-    private Keycode mSdlToKeycode[int];
-
-    private Texture[int] mInsanityCache;
-
-    package bool mAllowTextureCache = true;
-
-    package bool mDebug;
-
-    private SoundMixer mSoundMixer;
-
-    //hurhurhur
-    private PerfTimer mDrawTime, mClearTime, mFlipTime, mInputTime, mWasteTime;
-    private PerfTimer[char[]] mTimers;
-
-    //return a surface with unspecified size containing this color
-    //(used for drawing alpha blended rectangles)
-    private Texture insanityCache(Color c) {
-        int key = c.toRGBA32();
-
-        Texture* s = key in mInsanityCache;
-        if (s)
-            return *s;
-
-        SDLSurface tile = createSurface(Vector2i(64, 64), DisplayFormat.Best,
-            Transparency.Alpha);
-        SDL_FillRect(tile.mReal, null, tile.colorToSDLColor(c));
-        auto tex = tile.createTexture();
-        mInsanityCache[key] = tex;
-        return tex;
-    }
-
-    private int releaseInsanityCache() {
-        int rel;
-        foreach (Texture t; mInsanityCache) {
-            t.clearCache();
-            t.getSurface().free();
-            rel++;
-        }
-        mInsanityCache = null;
-        return rel;
-    }
-
-    this(char[] arg0, char[] appId) {
-        super(arg0, appId);
-
-        gSurfaces = new typeof(gSurfaces);
-        gFonts = new typeof(gFonts);
-
-        if (gFrameworkSDL !is null) {
-            throw new Exception("FrameworkSDL is a singleton, sorry.");
-        }
-
-        gFrameworkSDL = this;
-
-        DerelictSDL.load();
-        DerelictSDLImage.load();
-        DerelictSDLttf.load();
-
-        if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-            throw new Exception(format("Could not init SDL: %s",
-                std.string.toString(SDL_GetError())));
-        }
-
-        SDL_EnableUNICODE(1);
-        SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY,
-            SDL_DEFAULT_REPEAT_INTERVAL);
-
-        if (TTF_Init()==-1) {
-            throw new Exception(format("TTF_Init: %s\n",
-                std.string.toString(TTF_GetError())));
-        }
-
-        mScreenSurface = new SDLSurface(null);
-        //mScreenSurface.mIsScreen = true;
-        //mScreenSurface.mNeverCache = true;
-
-        mSoundMixer = new SoundMixer();
-
-        //Initialize translation hashmap from array
-        foreach (SDLToKeycode item; g_sdl_to_code) {
-            mSdlToKeycode[item.sdlcode] = item.code;
-        }
-
-        registerCacheReleaser(&releaseInsanityCache);
-        registerCacheReleaser(&releaseResCaches);
-
-        setCaption("<no caption>");
-
-        //for some worthless statistics...
-        void timer(out PerfTimer tmr, char[] name) {
-            tmr = new PerfTimer;
-            mTimers[name] = tmr;
-        }
-        timer(mDrawTime, "fw_draw");
-        timer(mClearTime, "fw_clear");
-        timer(mFlipTime, "fw_flip");
-        timer(mInputTime, "fw_input");
-        timer(mWasteTime, "fw_waste");
-    }
-
-    override public void deinitialize() {
-        //reap everything hahahaha
-        //this wouldn't catch everything if it was multithreaded
-        foreach (SDLSurface s; gSurfaces.list) {
-            s.free();
-        }
-        foreach (SDLFont f; gFonts.list) {
-            f.free();
-        }
-        //hint: should be no need to run a gc cycle before
-        //  is it race condition free???
-        defered_free();
-
-        mSoundMixer.deinitialize();
-
-        //deinit and unload all SDL dlls (in reverse order)
-        TTF_Quit();
-        SDL_Quit();
-        DerelictSDLImage.unload();
-        DerelictSDLttf.unload();
-        DerelictSDL.unload();
-    }
-
-    override void setDebug(bool set) {
-        mDebug = set;
-    }
-
-    override public char[] getInfoString(InfoString s) {
-        switch (s) {
-            case InfoString.Framework: {
-                char[] version_to_a(SDL_version v) {
-                    return format("%s.%s.%s", v.major, v.minor, v.patch);
-                }
-                SDL_version compiled, linked;
-                SDL_VERSION(&compiled);
-                linked = *SDL_Linked_Version();
-                return format("FrameworkSDL, SDL compiled=%s linked=%s\n",
-                    version_to_a(compiled), version_to_a(linked));
-            }
-            case InfoString.Backend: {
-                char[20] buf;
-                char* res = SDL_VideoDriverName(buf.ptr, buf.length);
-                char[] driver = res ? .toString(res) : "<unintialized>";
-                SDL_VideoInfo info = *SDL_GetVideoInfo();
-
-                //in C, info.flags doesn't exist, but instead there's a bitfield
-                //here are the names of the bitfield entries (in order)
-                char[][] flag_names = ["hw_available", "wm_available",
-                    "blit_hw", "blit_hw_CC", "blit_hw_A", "blit_sw",
-                    "blit_sw_CC", "blit_sw_A", "blit_fill"];
-
-                char[] flags;
-                foreach (int index, name; flag_names) {
-                    bool set = !!(info.flags & (1<<index));
-                    flags ~= format("  %s: %s\n", name, (set ? "1" : "0"));
-                }
-
-                //.alpha and .colorkey fields ignored
-                char[] pxfmt = sdlFormatToFramework(info.vfmt).toString();
-
-                //Framework's pixel formats
-                char[] pxfmts = "Pixel formats:\n";
-                for (int n = DisplayFormat.min; n <= DisplayFormat.max; n++) {
-                    pxfmts ~= format("   %s: %s\n", n,
-                        findPixelFormat(cast(DisplayFormat)n));
-                }
-
-                return format("driver: %s\nflags: \n%svideo_mem = %s\n"
-                    "pixel_fmt = %s\ncurrent WxH = %sx%s\n%s", driver, flags,
-                    sizeToHuman(info.video_mem), pxfmt, info.current_w,
-                    info.current_h, pxfmts);
-            }
-            case InfoString.ResourceList: return resourceString();
-            case InfoString.Custom0: return .toString(weaklist_count());
-            default:
-                return super.getInfoString(s);
-        }
-    }
-
-    char[] resourceString() {
-        char[] res;
-
-        res ~= "Surfaces:\n";
-        int pixelCount, byteCount, cachedBytes;
-        int sCount;
-        foreach (SDLSurface s; gSurfaces.list) {
-            if (!s.valid) //xxx: don't know if or why it should be not valid
-                continue;
-            sCount++;
-            auto pixels = s.size.x*s.size.y;
-            pixelCount += pixels;
-            byteCount += pixels*s.mReal.format.BytesPerPixel;
-            if (s.hasCache())
-                cachedBytes += pixels*s.mCached.format.BytesPerPixel;
-            res ~= format("   [%s] %sx%s\n", s.hasCache() ? "C" : " ", s.size.x,
-                s.size.y);
-        }
-        res ~= format("%s surfaces, %s pixels => %s, cached: %s\n", sCount,
-            pixelCount, sizeToHuman(byteCount), sizeToHuman(cachedBytes));
-
-        res ~= "Fonts:\n";
-        int fCount, cachedGlyphs;
-        foreach (SDLFont f; gFonts.list) {
-            if (!f.valid)
-                continue;
-            fCount++;
-            cachedGlyphs += f.cachedGlyphs();
-        }
-        res ~= format("%s fonts, %s cached glyphs\n", fCount, cachedGlyphs);
-
-        return res;
-    }
-
-    override public PerfTimer[char[]] timers() {
-        return mTimers;
-    }
-
-    package bool useGL() {
-        return false;
-    }
-
-    public void setCaption(char[] caption) {
-        caption = caption ~ '\0';
-        //second arg is the "icon name", the docs don't tell its meaning
-        SDL_WM_SetCaption(caption.ptr, null);
-    }
-
-    public uint bitDepth() {
-        return mScreenSurface.mReal.format.BitsPerPixel;
-    }
-
-    public override void setVideoMode(Vector2i size, int bpp, bool fs)
-    {
-        if (bpp < 0)
-            bpp = bitDepth();
-
-        SDL_Surface* newscreen;
-
-        newscreen = SDL_SetVideoMode(size.x, size.y, bpp, SDL_RESIZABLE
-            | SDL_HWSURFACE | SDL_DOUBLEBUF | (fs ? SDL_FULLSCREEN : 0));
-
-        if(newscreen is null) {
-            throw new Exception(format("Unable to set %dx%dx%d video mode: %s"
-                "%s",
-                size.x, size.y, bpp, std.string.toString(SDL_GetError()),
-                fs ? " [full screen]" : ""));
-        }
-
-        mScreen = newscreen;
-        mScreenSurface.mReal = mScreen;
-
-        mIsFS = fs;
-
-        //find out what SDL thinks is best for using alpha blending on screen
-        //(is there a better way than this hack??)
-        mScreenAlpha = new PixelFormat;
-        auto temp = createSurface(Vector2i(1,1), DisplayFormat.Screen,
-            Transparency.None);
-        auto temp2 = SDL_DisplayFormatAlpha(temp.mReal);
-        *mScreenAlpha = sdlFormatToFramework(temp2.format);
-        SDL_FreeSurface(temp2);
-        temp.free();
-
-        //i.e. reload textures, get rid of stuff in too low resolution...
-        releaseCaches();
-
-        if (onVideoInit)
-            onVideoInit(false);
-    }
-
-    //arrrgjhdgljkgljkgjhl
-    alias Framework.setVideoMode setVideoMode;
-
-    void setFullScreen(bool s) {
-        if (s == mIsFS)
-            return;
-        setVideoMode(mScreenSurface.size, -1, s);
-    }
-
-    public bool fullScreen() {
-        return mIsFS;
-    }
-
-    package PixelFormat sdlFormatToFramework(SDL_PixelFormat* fmt) {
-        PixelFormat ret;
-
-        ret.depth = fmt.BitsPerPixel;
-        ret.bytes = fmt.BytesPerPixel; //xxx: really? reliable?
-        ret.mask_r = fmt.Rmask;
-        ret.mask_g = fmt.Gmask;
-        ret.mask_b = fmt.Bmask;
-        ret.mask_a = fmt.Amask;
-
-        return ret;
-    }
-
-    public PixelFormat findPixelFormat(DisplayFormat fmt) {
-        if (fmt == DisplayFormat.ScreenAlpha) {
-            if (mScreenAlpha)
-                return *mScreenAlpha;
-            //fallback
-            fmt = DisplayFormat.RGBA32;
-        }
-        if (fmt == DisplayFormat.Screen) {
-            return sdlFormatToFramework(mScreen.format);
-        } else {
-            return super.findPixelFormat(fmt);
-        }
-    }
-
-    public bool getModifierState(Modifier mod) {
-        //special handling for the shift- and numlock-modifiers
-        //since the user might toggle numlock or capslock while we don't have
-        //the keyboard-focus, ask the SDL (which inturn asks the OS)
-        SDLMod modstate = SDL_GetModState();
-        //writefln("state=%s", modstate);
-        if (mod == Modifier.Shift) {
-            //xxx behaviour when caps and shift are both on is maybe OS
-            //dependend; on X11, both states are usually XORed
-            return ((modstate & KMOD_CAPS) != 0) ^ super.getModifierState(mod);
-        //} else if (mod == Modifier.Numlock) {
-        //    return (modstate & KMOD_NUM) != 0;
-        } else {
-            //generic handling for non-toggle modifiers
-            return super.getModifierState(mod);
-        }
-    }
-
-    private Keycode sdlToKeycode(int sdl_sym) {
-        if (sdl_sym in mSdlToKeycode) {
-            return mSdlToKeycode[sdl_sym];
-        } else {
-            return Keycode.INVALID; //sorry
-        }
-    }
-
-    public SDLSurface loadImage(Stream st, Transparency transp) {
-        return new SDLSurface(st, transp);
-    }
-
-    /+
-    public SDLSurface createImage(Vector2i size, uint pitch, PixelFormat format,
-        Transparency transp, void* data)
-    {
-        return new SDLSurface(size.x, size.y, pitch, format, transp, data);
-    }
-    +/
-
-    public SDLSurface createSurface(Vector2i size, DisplayFormat fmt,
-        Transparency transp)
-    {
-        return new SDLSurface(size, fmt, transp);
-    }
-
-    public Font loadFont(Stream str, FontProperties fontProps) {
-        auto ret = new SDLFont(str,fontProps);
-        return ret;
-    }
-
-    public Surface screen() {
-        return mScreenSurface;
-    }
-
-    public Sound sound() {
-        return mSoundMixer;
-    }
-
-    protected void run_fw() {
-        // process events
-        mInputTime.start();
-        input();
-        mInputTime.stop();
-
-        // draw to the screen
-        render();
-
-        //TODO: Software backbuffer
-        mFlipTime.start();
-        SDL_Flip(mScreen);
-        mFlipTime.stop();
-
-        // defered free (GC related, sucky Phobos forces this to us)
-        defered_free();
-
-        // yield the rest of the timeslice
-        SDL_Delay(0);
-    }
-
-    void defered_free() {
-        gFonts.cleanup((FontData d) { d.doFree(); });
-        gSurfaces.cleanup((SurfaceData d) { d.doFree(); });
-    }
-
-    int weaklist_count() {
-        return gFonts.countRefs() + gSurfaces.countRefs();
-    }
-
-    int releaseResCaches() {
-        int res;
-
-        foreach (f; gFonts.list) {
-            res += f.releaseCache();
-        }
-
-        foreach (s; gSurfaces.list) {
-            //oh noes, this is awfully stupid!
-            if (s.hasCache()) {
-                s.createTexture().clearCache();
-                res++;
-            }
-        }
-
-        return res;
-    }
-
-    override void setAllowCaching(bool set) {
-        mAllowTextureCache = set;
-        foreach (s; gSurfaces.list) {
-            if (auto t = s.mSDLTexture) {
-                t.checkCaching();
-            }
-        }
-    }
-
-    public void cursorVisible(bool v) {
-        if (v)
-            SDL_ShowCursor(SDL_ENABLE);
-        else
-            SDL_ShowCursor(SDL_DISABLE);
-    }
-    public bool cursorVisible() {
-        int v = SDL_ShowCursor(SDL_QUERY);
-        if (v == SDL_ENABLE)
-            return true;
-        else
-            return false;
-    }
-
-    public void mousePos(Vector2i newPos) {
-        SDL_WarpMouse(newPos.x, newPos.y);
-    }
-
-    public bool grabInput() {
-        int g = SDL_WM_GrabInput(SDL_GRAB_QUERY);
-        return g == SDL_GRAB_ON;
-    }
-
-    public void grabInput(bool grab) {
-        if (grab)
-            SDL_WM_GrabInput(SDL_GRAB_ON);
-        else
-            SDL_WM_GrabInput(SDL_GRAB_OFF);
-    }
-
-    private KeyInfo keyInfosFromSDL(in SDL_KeyboardEvent sdl) {
-        KeyInfo infos;
-        infos.code = sdlToKeycode(sdl.keysym.sym);
-        infos.unicode = sdl.keysym.unicode;
-        infos.mods = getModifierSet();
-        return infos;
-    }
-
-    private KeyInfo mouseInfosFromSDL(in SDL_MouseButtonEvent mouse) {
-        KeyInfo infos;
-        infos.code = sdlToKeycode(g_sdl_mouse_button1 + (mouse.button - 1));
-        return infos;
-    }
-
-    private void input() {
-        SDL_Event event;
-        while(SDL_PollEvent(&event)) {
-            switch(event.type) {
-                case SDL_KEYDOWN:
-                    KeyInfo infos = keyInfosFromSDL(event.key);
-                    doKeyDown(infos);
-                    break;
-                case SDL_KEYUP:
-                    //xxx TODO: SDL provides no unicode translation for KEYUP
-                    KeyInfo infos = keyInfosFromSDL(event.key);
-                    doKeyUp(infos);
-                    break;
-                case SDL_MOUSEMOTION:
-                    //update mouse pos after button state
-                    doUpdateMousePos(Vector2i(event.motion.x, event.motion.y));
-                    break;
-                case SDL_MOUSEBUTTONUP:
-                    KeyInfo infos = mouseInfosFromSDL(event.button);
-                    doUpdateMousePos(Vector2i(event.button.x, event.button.y));
-                    doKeyUp(infos);
-                    break;
-                case SDL_MOUSEBUTTONDOWN:
-                    KeyInfo infos = mouseInfosFromSDL(event.button);
-                    doUpdateMousePos(Vector2i(event.button.x, event.button.y));
-                    doKeyDown(infos);
-                    break;
-                case SDL_VIDEORESIZE:
-                    setVideoMode(Vector2i(event.resize.w, event.resize.h));
-                    break;
-                // exit if SDLK or the window close button are pressed
-                case SDL_QUIT:
-                    doTerminate();
-                    break;
-                default:
-            }
-        }
-    }
-
-    private void render() {
-        mClearTime.start();
-        SDL_FillRect(mScreen, null, mScreenSurface.colorToSDLColor(clearColor));
-        mClearTime.stop();
-        Canvas c = screen.startDraw();
-        if (onFrame) {
-                onFrame(c);
-        }
-        c.endDraw();
-        //SDL_UpdateRect(mScreen,0,0,0,0);
-    }
-
-    public Time getCurrentTime() {
-        int ticks = SDL_GetTicks();
-        return timeMsecs(ticks);
-    }
-
-    public void sleepTime(Time relative) {
-        SDL_Delay(relative.msecs);
-    }
+static this() {
+    FrameworkDriverFactory.register!(SDLDriver)("sdl");
 }

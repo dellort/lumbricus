@@ -193,7 +193,7 @@ class ClientGameEngine {
         detailLevel = 0;
 
         //else you'll get a quite big deltaT on start
-        mEngineTime = new TimeSource(&gFramework.getCurrentTime);
+        mEngineTime = new TimeSource();
         mEngineTime.paused = true;
     }
 
@@ -361,7 +361,7 @@ class ClientGameEngine {
         void draw(Canvas c) {
             if (!levelTexture) {
                 levelTexture = mEngine.gamelevel.image.createTexture();
-                levelTexture.setCaching(false);
+                levelTexture.enableCaching(false);
             }
             c.draw(levelTexture, mEngine.gamelevel.offset);
             /+

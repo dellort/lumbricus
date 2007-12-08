@@ -127,7 +127,7 @@ void init() {
     if (didInit)
         return;
     didInit = true;
-    getFramework.registerCacheReleaser(toDelegate(&releaseBoxCache));
+    gFramework.registerCacheReleaser(toDelegate(&releaseBoxCache));
 }
 
 int releaseBoxCache() {
@@ -179,10 +179,9 @@ BoxTex getBox(BoxProps props) {
             || (props.p.border.a < (1.0f - Color.epsilon));
 
         auto surface = gFramework.createSurface(size,
-            needAlpha ? DisplayFormat.ScreenAlpha : DisplayFormat.Screen,
             needAlpha ? Transparency.Alpha : Transparency.None);
 
-        auto c = surface.startDraw();
+        auto c = gFramework.startOffscreenRendering(surface);
 
         Vector2i p1 = Vector2i(0), p2 = size;
         auto bw = props.p.borderWidth;
@@ -193,6 +192,7 @@ BoxTex getBox(BoxProps props) {
         c.drawFilledRect(p1, p2, props.p.back, false);
 
         c.endDraw();
+        surface.enableCaching = true;
         return surface.createTexture();
     }
 
@@ -201,8 +201,9 @@ BoxTex getBox(BoxProps props) {
     sides[1] = createSide(1);
 
     void drawCorner(Surface s) {
-        auto c = s.startDraw();
+        auto c = gFramework.startOffscreenRendering(s);
         c.drawFilledRect(Vector2i(0),s.size,props.p.back,false);
+        c.endDraw();
 
         //simple distance test, quite expensive though
         //-1 if outside, 0 if hit, 1 if inside
@@ -258,17 +259,16 @@ BoxTex getBox(BoxProps props) {
                     line++;
                 }
             }
-            s.unlockPixels();
+            s.unlockPixels(Rect2i(Vector2i(0), s.size));
         }
 
         drawCircle(Vector2i(0), Vector2f(q,q), q);
 
-        c.endDraw();
+        s.enableCaching = true;
     }
 
     auto size = Vector2i(q)*2;
-    auto corners = gFramework.createSurface(size, DisplayFormat.RGBA32,
-        Transparency.Alpha);
+    auto corners = gFramework.createSurface(size, Transparency.Alpha);
     drawCorner(corners);
 
     //store struct with texture refs in hashmap

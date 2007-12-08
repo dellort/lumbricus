@@ -251,7 +251,7 @@ class EditLine : Widget {
         //selected-text font; only the colors can be changed
         auto props = mFont.properties;
         swap(props.fore, props.back);
-        mSelFont = nfont.clone(props);
+        mSelFont = new Font(props);
 
         needResize(true);
     }

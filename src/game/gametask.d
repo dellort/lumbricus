@@ -287,7 +287,7 @@ class GameTask : Task {
 
     private void cmdSafeLevelTGA(MyBox[] args, Output write) {
         char[] filename = args[0].unbox!(char[])();
-        Stream s = getFramework.fs.open(filename, FileMode.OutNew);
+        Stream s = gFramework.fs.open(filename, FileMode.OutNew);
         saveSurfaceToTGA(mServerEngine.gamelevel.image, s);
         s.close();
     }
@@ -480,7 +480,7 @@ void saveSurfaceToTGA(Surface s, OutputStream stream) {
             }
         }
     } finally {
-        s.unlockPixels();
+        s.unlockPixels(Rect2i.init);
     }
     stream.write(to.toBytes);
 }

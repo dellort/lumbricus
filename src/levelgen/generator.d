@@ -123,7 +123,7 @@ public class LevelTheme {
                 return null;
         } else {
             Stream s = gFramework.fs.open(value);
-            res = getFramework.loadImage(s, Transparency.Colorkey);
+            res = gFramework.loadImage(s, Transparency.Colorkey);
             s.close();
         }
         if (res is null) {
@@ -141,11 +141,11 @@ public class LevelTheme {
         } else {
             //sucky color-border hack
             int height = texNode.getIntValue("height", 1);
-            tex = getFramework.createSurface(Vector2i(1, height),
-                DisplayFormat.Best, Transparency.None);
+            tex = gFramework.createSurface(Vector2i(1, height),
+                Transparency.None);
             auto col = Color(0,0,0);
             col.parse(texNode.getStringValue("color"));
-            auto canvas = tex.startDraw();
+            auto canvas = gFramework.startOffscreenRendering(tex);
             canvas.drawFilledRect(Vector2i(0, 0), tex.size, col);
             canvas.endDraw();
         }
@@ -297,11 +297,21 @@ public class LevelGenerator {
     public Surface renderPreview(LevelGeometry geo, Vector2i size, Color land,
         Color hard_land, Color free)
     {
+        Surface createPixelSurface(Color c) {
+            SurfaceData s;
+            s.valid = true;
+            s.data.length = 4;
+            s.pitch = 4;
+            s.size = Vector2i(1);
+            *cast(uint*)(s.data.ptr) = c.toRGBA32();
+            return new Surface(s);
+        }
+
         //oh well...
         Surface[Lexel] markers;
-        markers[Lexel.SolidSoft] = gFramework.createPixelSurface(land);
-        markers[Lexel.SolidHard] = gFramework.createPixelSurface(hard_land);
-        markers[Lexel.Null] = gFramework.createPixelSurface(free);
+        markers[Lexel.SolidSoft] = createPixelSurface(land);
+        markers[Lexel.SolidHard] = createPixelSurface(hard_land);
+        markers[Lexel.Null] = createPixelSurface(free);
 
         Vector2f scale = toVector2f(size) / toVector2f(geo.size);
         auto renderer = new LevelBitmap(size);

@@ -1,509 +1,492 @@
 module framework.framework;
 
-import std.stream;
-public import utils.vector2;
-public import utils.rect2;
-public import utils.color;
+//dependency hack
+public import framework.enums;
+
+public import framework.drawing;
 public import framework.event;
-public import framework.sound;
 public import framework.keybindings;
-import utils.time;
-import utils.perf;
-import utils.path;
-import framework.font;
-import conv = std.conv;
-import str = std.string;
+public import framework.sound;
+public import utils.color;
+public import utils.rect2;
+public import utils.vector2;
+
 import framework.filesystem;
+import framework.font;
 import framework.resources;
 import config = utils.configfile;
-import utils.log, utils.output;
+import utils.factory;
+import utils.log;
+import utils.misc;
+import utils.output;
+import utils.path;
+import utils.perf;
+import utils.time;
+import utils.weaklist;
+
+import conv = std.conv;
+import std.stream;
+import str = std.string;
 
 debug import std.stdio;
 
-public static Framework gFramework;
+//**** driver stuff
 
-public Framework getFramework() {
-    return gFramework;
+
+///actual surface stored/managed in a driver specific way
+///i.e. SDL_Surface for SDL, a texture in OpenGL...
+///manually memory managment by the Framework and the Driver
+abstract class DriverSurface {
+    ///make sure the pixeldata is in SurfaceData.data
+    ///(a driver might steal it before)
+    abstract void getPixelData();
+    ///update pixels again; it is unspecified if changes to the pixel data will
+    ///be reflected immediately or only after this function is called
+    abstract void updatePixels(in Rect2i rc);
 }
 
-public Color cStdColorkey = {r:1.0f, g:0.0f, b:1.0f, a:0.0f};
-
-enum Transparency {
-    None,
-    Colorkey,
-    Alpha,
-    AutoDetect, //special value: get transparency from file when loading
-                //invalid as surface transparency type
+//needed for texture versus bitmap under SDL's OpenGL
+enum SurfaceMode {
+    ERROR,
+    //normal SDL or OpenGL textures
+    NORMAL,
+    //only normal SDL_Surfaces (including the screen, ironically)
+    OFFSCREEN,
 }
 
-/// default display formats for surfaces (used in constructor-methods)
-/// other formats can be used too, but these are supposed to be "important"
-enum DisplayFormat {
-    /// fastest format for drawing on the screen
-    Screen,
-    /// best format to draw on screen when you need alpha blending
-    ScreenAlpha,
-    /// best display format (usually 32 bit RGBA)
-    Best,
-    /// guaranteed to be 32 bit RGBA
-    //xxx: use alpha transparency, on colorkey, SDL groks up (???)
-    RGBA32,
+abstract class FrameworkDriver {
+    ///create a driver surface from this data... the driver might modify the
+    ///struct pointed to by data at any time
+    abstract DriverSurface createSurface(SurfaceData* data, SurfaceMode mode);
+    ///destroy the surface (leaves this instance back unuseable) and possibly
+    ///write back surface data (also set surface to null)
+    abstract void killSurface(inout DriverSurface surface);
+
+    ///start/stop rendering on screen
+    abstract Canvas startScreenRendering();
+    abstract void stopScreenRendering();
+
+    ///start rendering on a Surface
+    abstract Canvas startOffscreenRendering(Surface surface);
+
+    abstract Surface loadImage(Stream source, Transparency transparency);
+
+    ///release internal caches - does not include DriverSurfaces
+    abstract int releaseCaches();
+
+    abstract void processInput();
+
+    abstract DriverInputState getInputState();
+    abstract void setInputState(in DriverInputState state);
+    abstract void setMousePos(Vector2i p);
+
+    ///give the driver more control about this
+    ///don't ask... was carefully translated from old code
+    abstract bool getModifierState(Modifier mod, bool whatithink);
+
+    abstract VideoWindowState getVideoWindowState();
+    ///returns success (for switching the video mode, only)
+    abstract bool setVideoWindowState(in VideoWindowState state);
+
+    ///sleep for a specific time (grr, Phobos doesn't provide this)
+    abstract void sleepTime(Time relative);
+
+    abstract FontDriver fontDriver();
+
+    ///deinit driver
+    abstract void destroy();
 }
 
-public struct PixelFormat {
-    uint depth; //in bits
-    uint bytes; //per pixel
-    uint mask_r, mask_g, mask_b, mask_a;
+struct DriverInputState {
+    bool mouse_visible;
+    bool grab_input;
+}
 
-    char[] toString() {
-        return str.format("[bits/bytes=%s/%s R/G/B/A=%#08x/%#08x/%#08x/%#08x]",
-            depth, bytes, mask_r, mask_g, mask_b, mask_a);
+struct VideoWindowState {
+    bool video_active;
+    ///sizes for windowed mode/fullscreen
+    Vector2i window_size, fs_size;
+    int bitdepth;
+    bool fullscreen;
+    char[] window_caption;
+}
+
+//all surface data - shared between Surface and DriverSurface
+struct SurfaceData {
+    bool valid;
+    //convert Surface to display format
+    bool enable_cache = true;
+    //if this is true, the driver won't steal the pixeldata
+    //if it's false, DriverSurface could "steal" the pixel data (and free it)
+    //    and pixel data can be also given back (i.e. when killing the surface)
+    //can also be set by the DriverSurface (but only to true)
+    bool keep_pixeldata;
+    Vector2i size;
+    Transparency transparency = Transparency.None;
+    Color colorkey = cStdColorkey;
+    //at least currently, the data always is in the format RGBA32
+    //(mask: 0xAARRGGBB)
+    ubyte[] data;
+    //pitch for data
+    uint pitch;
+}
+
+abstract class DriverFont {
+    //w == int.max for unlimited text
+    abstract Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text);
+    abstract Vector2i textSize(char[] text, bool forceHeight);
+}
+
+abstract class FontDriver {
+    abstract DriverFont createFont(FontProperties props);
+    abstract void destroyFont(inout DriverFont handle);
+    //invalidates all fonts
+    abstract int releaseCaches();
+}
+
+//**** the Framework
+
+Framework gFramework;
+
+const Color cStdColorkey = {r:1.0f, g:0.0f, b:1.0f, a:0.0f};
+
+package {
+    struct SurfaceKillData {
+        //ok, this is a GC'ed pointer, but I assume it's OK, because this
+        //pointer is guaranteed to be live by other references
+        DriverSurface surface;
+
+        void doFree() {
+            if (surface) {
+                Surface.freeDriverSurface(surface);
+            }
+        }
     }
+    WeakList!(Surface, SurfaceKillData) gSurfaces;
 }
 
-public class Surface {
-    //true if this is the single and only screen surface!
-    //(or the backbuffer)
-    //public abstract bool isScreen();
+/// a Surface
+/// This is used by the user and this also can survive framework driver
+/// reinitialization
+/// NOTE: this class is used for garbage collection of surfaces (bad idea, but
+///       we need it), so be careful with pointers to it
+class Surface {
+    private {
+        DriverSurface mDriverSurface;
+        SurfaceData* mData;
+        SurfaceMode mMode;
+    }
 
-    public abstract Vector2i size();
+    package static void freeDriverSurface(inout DriverSurface s) {
+        gFramework.driver.killSurface(s);
+    }
 
-    public abstract Surface clone();
-    public abstract void free();
+    //must be called by any constructor
+    private void init(SurfaceData data, bool copy_data) {
+        assert(!mDriverSurface);
+        mData = new SurfaceData;
+        *mData = data;
+        if (copy_data) {
+            mData.data = mData.data.dup;
+        }
+        gSurfaces.add(this);
+    }
 
-    public abstract Canvas startDraw();
-    //public abstract void endDraw();
+    this(SurfaceData data, bool copy_data = false) {
+        init(data, copy_data);
+    }
 
-    /// set colorkey, all pixels with that color will be transparent
-    public abstract void enableColorkey(Color colorkey = cStdColorkey);
-    /// enable use of the alpha channel
-    public abstract void enableAlpha();
+    ///kill driver's surface, probably copy data back
+    final bool passivate() {
+        if (mDriverSurface) {
+            freeDriverSurface(mDriverSurface);
+            mMode = SurfaceMode.ERROR;
+            return true;
+        }
+        return false;
+    }
 
-    /// hahaha!
-    public abstract void forcePixelFormat(PixelFormat fmt);
-    public abstract void lockPixels(out void* pixels, out uint pitch);
-    /// like lockPixels(), but ensure RGBA32 format before
-    /// (xxx see comment in SDL implementation)
-    public abstract void lockPixelsRGBA32(out void* pixels, out uint pitch);
-    /// must be called after done with lockPixels()
-    public abstract void unlockPixels();
+    ///return and possibly create the driver's surface
+    final DriverSurface getDriverSurface(SurfaceMode mode, bool create = true) {
+        if (mode != mMode) {
+            // :(
+            passivate();
+        }
+        if (!mDriverSurface) {
+            mMode = mode;
+            mDriverSurface = gFramework.driver.createSurface(mData, mMode);
+        }
+        return mDriverSurface;
+    }
+
+    final Vector2i size() {
+        return mData.size;
+    }
+
+    private void doFree(bool finalizer) {
+        SurfaceKillData k;
+        k.surface = mDriverSurface;
+        mDriverSurface = null;
+        if (!finalizer) {
+            //if not from finalizer, actually can call C functions
+            //so free it now (and not later, by lazy freeing)
+            k.doFree();
+            k = k.init; //reset
+        }
+        gSurfaces.remove(this, finalizer, k);
+    }
+
+    ~this() {
+        doFree(true);
+    }
+
+    /// to avoid memory leaks
+    final void free() {
+        doFree(false);
+    }
+
+    bool enableCaching() {
+        return mData.enable_cache;
+    }
+
+    void enableCaching(bool s) {
+        passivate();
+        mData.enable_cache = s;
+    }
+
+    /// direct access to pixels (in RGBA32 format)
+    /// must not call any other surface functions (except size(), colorkey() and
+    /// transparency()) between this and unlockPixels()
+    void lockPixelsRGBA32(out void* pixels, out uint pitch) {
+        if (mDriverSurface) {
+            mDriverSurface.getPixelData();
+        }
+        pixels = mData.data.ptr;
+        pitch = mData.pitch;
+    }
+    /// must be called after done with lockPixelsRGBA32()
+    /// "rc" is for the offset and size of the region to update
+    void unlockPixels(in Rect2i rc) {
+        if (mDriverSurface) {
+            mDriverSurface.updatePixels(rc);
+        }
+    }
 
     /// return colorkey or a 0-alpha black, depending from transparency mode
-    public abstract Color colorkey();
-    public abstract Transparency transparency();
-
-    /// Create a texture from this surface.
-    /// The texture may or may not reflect changes to the surface since this
-    /// function was called. Texture.recreate() will update the Texture.
-    public abstract Texture createTexture();
-    /// hmhm
-    public abstract Texture createBitmapTexture();
-
-    //mirror on Y axis
-    public abstract Surface createMirroredY();
-}
-
-public abstract class Texture {
-    /// return the underlying surface, may not reflect the current state of it
-    public abstract Surface getSurface();
-    public abstract void clearCache();
-    public abstract Vector2i size();
-    public abstract void setCaching(bool state);
-}
-
-/// Draw stuffies!
-//HINT: The framework.sdl will implement this two times: once for SDL and once
-//      for the OpenGL screen!
-public class Canvas {
-    public abstract Vector2i realSize();
-    public abstract Vector2i clientSize();
-
-    /// offset to add to client coords to get position of the fist
-    /// visible upper left point on the screen or canvas (?)
-    //(returns translation relative to last setWindow())
-    public abstract Vector2i clientOffset();
-
-    /// Get the rectangle in client coords which is visible
-    /// (right/bottom borders exclusive)
-    public abstract Rect2i getVisible();
-
-    /// Return true if any part of this rectangle is visible
-    //public abstract bool isVisible(in Vector2i p1, in Vector2i p2);
-
-    //must be called after drawing done
-    public abstract void endDraw();
-
-    public void draw(Texture source, Vector2i destPos) {
-        draw(source, destPos, Vector2i(0, 0), source.size);
+    final Color colorkey() {
+        return mData.transparency == Transparency.Colorkey
+            ? mData.colorkey : Color(0,0,0,0);
     }
 
-    public abstract void draw(Texture source, Vector2i destPos,
-        Vector2i sourcePos, Vector2i sourceSize);
+    final Transparency transparency() {
+        return mData.transparency;
+    }
 
-    public abstract void drawCircle(Vector2i center, int radius, Color color);
-    public abstract void drawFilledCircle(Vector2i center, int radius,
-        Color color);
-    public abstract void drawLine(Vector2i p1, Vector2i p2, Color color);
-    public abstract void drawRect(Vector2i p1, Vector2i p2, Color color);
-    /// properalpha: ignored in OpenGL mode, hack for SDL only mode :(
-    public abstract void drawFilledRect(Vector2i p1, Vector2i p2, Color color,
-        bool properalpha = true);
+    final Surface clone() {
+        passivate();
+        return new Surface(*mData, true);
+    }
 
-    public abstract void clear(Color color);
-
-    /// Set a clipping rect, and use p1 as origin (0, 0)
-    public abstract void setWindow(Vector2i p1, Vector2i p2);
-    /// Add translation offset, by which all coordinates are translated
-    public abstract void translate(Vector2i offset);
-    /// Set the cliprect (doesn't change "window" or so).
-    public abstract void clip(Vector2i p1, Vector2i p2);
-    /// push/pop state as set by setWindow() and translate()
-    public abstract void pushState();
-    public abstract void popState();
-
-    /// Fill the area (destPos, destPos+destSize) with source, tiled on wrap
-    //warning: not very well tested
-    //will be specialized in OpenGL
-    public void drawTiled(Texture source, Vector2i destPos, Vector2i destSize) {
-        int w = source.size.x1;
-        int h = source.size.x2;
-        int x;
-        Vector2i tmp;
-
-        if (w == 0 || h == 0)
-            return;
-
-        int y = 0;
-        while (y < destSize.y) {
-            tmp.y = destPos.y + y;
-            int resty = ((y+h) < destSize.y) ? h : destSize.y - y;
-            x = 0;
-            while (x < destSize.x) {
-                tmp.x = destPos.x + x;
-                int restx = ((x+w) < destSize.x) ? w : destSize.x - x;
-                draw(source, tmp, Vector2i(0, 0), Vector2i(restx, resty));
-                x += restx;
+    void mirrorY() {
+        passivate();
+        for (uint y = 0; y < mData.size.y; y++) {
+            uint* src = cast(uint*)(mData.data.ptr+y*mData.pitch+mData.size.x*4);
+            uint* dst = cast(uint*)(mData.data.ptr+y*mData.pitch);
+            for (uint x = 0; x < mData.size.x/2; x++) {
+                src--;
+                swap(*dst, *src);
+                dst++;
             }
-            y += resty;
         }
     }
+    Surface createMirroredY() {
+        Surface res = clone();
+        res.mirrorY();
+        return res;
+    }
+
+    //special thingy needed for SDLFont
+    void scaleAlpha(float scale) {
+        passivate();
+        ubyte nalpha = cast(ubyte)(scale * 255);
+        if (nalpha == 255)
+            return;
+        for (int y = 0; y < mData.size.y; y++) {
+            ubyte* ptr = mData.data.ptr;
+            ptr += y*mData.pitch;
+            for (int x = 0; x < mData.size.x; x++) {
+                uint alpha = ptr[3];
+                alpha = (alpha*nalpha)/255;
+                ptr[3] = cast(ubyte)(alpha);
+                ptr += 4;
+            }
+        }
+    }
+
+    //these were in Texture, and are useless now
+    void clearCache() {
+    }
+    Surface getSurface() {
+        return this;
+    }
+    Texture createTexture() {
+        return this;
+    }
 }
 
-//returns number of released resources (surfaces, currently)
+//for "compatibility"
+alias Surface Texture;
+
+private const Time cFPSTimeSpan = timeSecs(1); //how often to recalc FPS
+
 public alias int delegate() CacheReleaseDelegate;
 
-/// For Framework.getInfoString()
-/// Entries from Framework.getInfoStringNames() correspond to this
-/// Each entry describes a piece of information which can be queried by calling
-/// Framework.getInfoString().
-enum InfoString {
-    Framework,
-    Backend,
-    ResourceList,
-    Custom0, //hack lol
-}
+class Framework {
+    private {
+        FrameworkDriver mDriver;
+        DriverReload* mDriverReload;
+        ConfigNode mLastWorkingDriver;
 
-/// Contains event- and graphics-handling
-public class Framework {
-    //contains keystate (key down/up) for each key; indexed by Keycode
-    private bool mKeyStateMap[];
-    private bool mCapsLock;
-    private Vector2i mMousePos;
+        bool mShouldTerminate;
 
-    private Time mFPSLastTime;
-    private uint mFPSFrameCount;
-    private float mFPSLastValue;
+        //misc singletons, lol
+        FontManager mFontManager;
+        FileSystem mFilesystem;
+        Log mLog;
+        Log mLogConf;
 
-    private static Time cFPSTimeSpan; //how often to recalc FPS
+        Time mFPSLastTime;
+        uint mFPSFrameCount;
+        float mFPSLastValue;
+        //least time per frame; for fixed framerate (0 to disable)
+        Time mTimePerFrame;
+        Time mLastFrameTime;
 
-    //least time per frame; for fixed framerate (0 to disable)
-    private static Time mTimePerFrame;
+        //contains keystate (key down/up) for each key; indexed by Keycode
+        bool[] mKeyStateMap;
 
-    private Time mLastFrameTime;
+        //for mouse handling
+        Vector2i mMousePos;
+        Vector2i mStoredMousePos, mLockedMousePos, mMouseCorr;
+        bool mLockMouse;
+        int mFooLockCounter;
 
-    //another singelton
-    private FontManager mFontManager;
-    private FileSystem mFilesystem;
-    public Resources resources;
+        //worthless statistics!
+        PerfTimer[char[]] mTimers;
 
-    private bool mEnableEvents = true;
-
-    private Color mClearColor;
-
-    private CacheReleaseDelegate[] mCacheReleasers;
-
-    protected Log log;
-    private Log mLogConf;
-
-    static this() {
-        //initialize time between FPS recalculations
-        cFPSTimeSpan = timeSecs(1);
+        CacheReleaseDelegate[] mCacheReleasers;
     }
 
-    /// Get a string for a specific entry (see InfoString).
-    /// Overridden by the framework implementation.
-    /// Since it can have more than one line, it's always terminated with \n
-    public char[] getInfoString(InfoString s) {
-        return "?\n";
-    }
+    //what the shit
+    Resources resources;
 
-    void setDebug(bool set) {
-        //default: nop
-    }
+    this(char[] arg0, char[] appId) {
+        mLog = registerLog("Fw");
 
-    /// Return valid InfoString entry numbers and their name (see InfoString).
-    public InfoString[char[]] getInfoStringNames() {
-        return [cast(char[])"framework": InfoString.Framework,
-                "backend": InfoString.Backend,
-                "resource_list": InfoString.ResourceList,
-                "custom0": InfoString.Custom0];
-    }
-
-    /// register a callback which is called on releaseCaches()
-    public void registerCacheReleaser(CacheReleaseDelegate callback) {
-        mCacheReleasers ~= callback;
-    }
-
-    /// release all cached data, which can easily created again (i.e. font glyph
-    /// surfaces)
-    /// returns number of freed resources (cf. CacheReleaseDelegate)
-    public int releaseCaches() {
-        int released;
-        foreach (r; mCacheReleasers) {
-            released += r();
-        }
-        return released;
-    }
-
-    /// set texture caching; if set, it could be faster but also memory hungrier
-    public void setAllowCaching(bool set) {
-        //framework could override this
-    }
-
-    /// set a fixed framerate / a maximum framerate
-    /// fps = framerate, or 0 to disable fixed framerate
-    public void fixedFramerate(int fps) {
-        if (fps == 0) {
-            mTimePerFrame = timeMsecs(0);
-        } else {
-            mTimePerFrame = timeMsecs(1000/fps);
-        }
-    }
-
-    public Vector2i mousePos() {
-        return mMousePos;
-    }
-    public abstract void mousePos(Vector2i newPos);
-
-    public void clearColor(Color c) {
-        mClearColor = c;
-    }
-    public Color clearColor() {
-        return mClearColor;
-    }
-
-    public abstract bool grabInput();
-
-    public abstract void grabInput(bool grab);
-
-    public this(char[] arg0, char[] appId) {
-        log = registerLog("Fw");
-        mKeyStateMap = new bool[Keycode.max-Keycode.min+1];
         if (gFramework !is null) {
             throw new Exception("Framework is a singleton");
         }
+        gFramework = this;
+
+        gSurfaces = new typeof(gSurfaces);
+        gFonts = new typeof(gFonts);
 
         mFilesystem = new FileSystem(arg0, appId);
         resources = new Resources();
 
-        gFramework = this;
-        setCurrentTimeDelegate(&getCurrentTime);
+        mKeyStateMap.length = Keycode.max - Keycode.min + 1;
+
+        mFontManager = new FontManager();
+
+        //xxx
+        ConfigNode driver_config = new ConfigNode();
+        driver_config["driver"] = "sdl";
+        replaceDriver(driver_config);
     }
 
-    public abstract void setVideoMode(Vector2i size, int bpp, bool fullscreen);
-    //version for default arguments
-    public void setVideoMode(Vector2i size, int bpp = -1) {
-        setVideoMode(size, bpp, fullScreen());
+    private void replaceDriver(ConfigNode driver) {
+        char[] name = driver.getStringValue("driver");
+        if (!FrameworkDriverFactory.exists(name)) {
+            throw new Exception("doesn't exist: " ~ name);
+        }
+        //deinit old driver
+        VideoWindowState vstate;
+        DriverInputState istate;
+        if (mDriver) {
+            vstate = mDriver.getVideoWindowState();
+            istate = mDriver.getInputState();
+            killDriver();
+        }
+        //new driver
+        mDriver = FrameworkDriverFactory.instantiate(name, this, driver);
+        mDriver.setVideoWindowState(vstate);
+        mDriver.setInputState(istate);
+        mLog("reloaded driver");
     }
 
-    public abstract void setFullScreen(bool s);
+    struct DriverReload {
+        ConfigNode ndriver;
+    }
 
-    public abstract uint bitDepth();
-    public abstract bool fullScreen();
+    void scheduleDriverReload(DriverReload r) {
+        mDriverReload = new DriverReload;
+        *mDriverReload = r;
+    }
 
-    /// set window title
-    public abstract void setCaption(char[] caption);
+    private void checkDriverReload() {
+        if (mDriverReload) {
+            replaceDriver(mDriverReload.ndriver);
+            mDriverReload = null;
+        }
+    }
 
-    public abstract Surface loadImage(Stream st, Transparency transp);
-    public Surface loadImage(char[] path,
-        Transparency t = Transparency.AutoDetect)
-    {
-        log("load image: %s", path);
+    private void killDriver() {
+        releaseCaches();
+        mDriver.destroy();
+        mDriver = null;
+    }
+
+    void deinitialize() {
+        killDriver();
+        // .free() all Surfaces and then do defered_free()?
+    }
+
+    package FrameworkDriver driver() {
+        return mDriver;
+    }
+
+    package FontDriver fontDriver() {
+        return mDriver.fontDriver();
+    }
+
+    //--- Surface handling
+
+    Surface createSurface(Vector2i size, Transparency transparency) {
+        SurfaceData data;
+        data.valid = true;
+        data.size = size;
+        data.pitch = size.x*4;
+        data.data.length = data.size.y*data.pitch;
+        data.transparency = transparency;
+        return new Surface(data);
+    }
+
+    Surface loadImage(Stream st, Transparency transp) {
+        return mDriver.loadImage(st, transp);
+    }
+
+    Surface loadImage(char[] path, Transparency t = Transparency.AutoDetect) {
+        mLog("load image: %s", path);
         scope stream = fs.open(path, FileMode.In);
         auto image = loadImage(stream, t);
         return image;
     }
 
-    /+
-    /// create an image based on the given data and on the pixelformat
-    /// data can be null, in this case, the function allocates (GCed) memory
-    public abstract Surface createImage(Vector2i size, uint pitch,
-        PixelFormat format, Transparency transp, void* data);
-
-    //xxx code duplication, (re)move
-    public Surface createImageRGBA32(Vector2i size, uint pitch,
-        Transparency transp, void* data)
-    {
-        return createImage(size, pitch, findPixelFormat(DisplayFormat.RGBA32),
-            transp, data);
-    }
-    +/
-
-    /// get a "standard" pixel format (sigh)
-    //NOTE: implementor is supposed to overwrite this and to catch the current
-    //  screen format values
-    public PixelFormat findPixelFormat(DisplayFormat fmt) {
-        switch (fmt) {
-            case DisplayFormat.Best, DisplayFormat.RGBA32: {
-                //keep in sync with SDL implementation's lockPixelsRGBA32()
-                PixelFormat ret;
-                ret.depth = 32;
-                ret.bytes = 4;
-                ret.mask_r = 0x00ff0000;
-                ret.mask_g = 0x0000ff00;
-                ret.mask_b = 0x000000ff;
-                ret.mask_a = 0xff000000;
-                return ret;
-            }
-            default:
-                assert(false);
-        }
-    }
-
-    /// create a surface in the current display format
-    public abstract Surface createSurface(Vector2i size, DisplayFormat fmt,
-        Transparency transp);
-
-    /// a surface of size 1x1 with a pixel of given color
-    public Surface createPixelSurface(Color color) {
-        auto surface = createSurface(Vector2i(1, 1), DisplayFormat.RGBA32,
-            Transparency.None);
-        void* data; uint pitch;
-        surface.lockPixelsRGBA32(data, pitch);
-        *(cast(uint*)data) = color.toRGBA32();
-        surface.unlockPixels();
-        return surface;
-    }
-
-    /// load a font, Stream "str" should contain a .ttf file
-    public abstract Font loadFont(Stream str, FontProperties fontProps);
-
-    /// load a font using the font manager
-    public Font getFont(char[] id) {
-        return fontManager.loadFont(id);
-    }
-
-    public FontManager fontManager() {
-        if (!mFontManager)
-            mFontManager = new FontManager();
-        return mFontManager;
-    }
-
-    public abstract Surface screen();
-
-    public FileSystem fs() {
-        return mFilesystem;
-    }
-
-    public abstract Sound sound();
-
-    public config.ConfigNode loadConfig(char[] section, bool asfilename = false,
-        bool allowFail = false)
-    {
-        VFSPath file = VFSPath(section ~ (asfilename ? "" : ".conf"));
-        log("load config: %s", file);
-        try {
-            scope s = fs.open(file);
-            auto f = new config.ConfigFile(s, file.get(), &logconf);
-            if (!f.rootnode)
-                throw new Exception("?");
-            return f.rootnode;
-        } catch (Exception e) {
-            if (!allowFail)
-                throw e;
-        }
-        log("config file %s failed to load (allowFail = true)", file);
-        return null;
-    }
-
-    private void logconf(char[] log) {
-        if (!mLogConf) {
-            mLogConf = registerLog("configfile");
-            assert(mLogConf !is null);
-        }
-        mLogConf("%s", log);
-    }
-
-    /// Main-Loop
-    public void run() {
-        while(!shouldTerminate) {
-            // recalc FPS value
-            Time curtime = getCurrentTime();
-            if (curtime >= mFPSLastTime + cFPSTimeSpan) {
-                mFPSLastValue = (cast(float)mFPSFrameCount
-                    / (curtime - mFPSLastTime).msecs) * 1000.0f;
-                mFPSLastTime = curtime;
-                mFPSFrameCount = 0;
-            }
-
-            run_fw();
-
-            //wait for fixed framerate?
-            Time time = getCurrentTime();
-            Time diff = mTimePerFrame - (time - curtime);
-            if (diff > timeSecs(0)) {
-                sleepTime(diff);
-            }
-
-            //real frame time
-            Time cur = getCurrentTime();
-            mLastFrameTime = cur - curtime;
-
-            //it's a hack!
-            //used by toplevel.d
-            if (onFrameEnd)
-                onFrameEnd();
-
-            mFPSFrameCount++;
-        }
-
-        //make sure to release the grab
-        //at least stupid X11 keeps the grab when the program ends
-        grabInput = false;
-    }
-
-    public abstract void sleepTime(Time relative);
-
-    protected abstract void run_fw();
-
-    /// set to true if run() should exit
-    protected bool shouldTerminate;
-
-    /// requests main loop to terminate
-    public void terminate() {
-        shouldTerminate = true;
-    }
-
-    public abstract Time getCurrentTime();
-
-    /// return number of invocations of onFrame pro second
-    public float FPS() {
-        return mFPSLastValue;
-    }
+    //--- key stuff
 
     /// translate a Keycode to a OS independent key ID string
     /// return null for Keycode.KEY_INVALID
-    public char[] translateKeycodeToKeyID(Keycode code) {
+    char[] translateKeycodeToKeyID(Keycode code) {
         foreach (KeycodeToName item; g_keycode_to_name) {
             if (item.code == code) {
                 return item.name;
@@ -513,7 +496,7 @@ public class Framework {
     }
 
     /// reverse operation of translateKeycodeToKeyID()
-    public Keycode translateKeyIDToKeycode(char[] keyid) {
+    Keycode translateKeyIDToKeycode(char[] keyid) {
         foreach (KeycodeToName item; g_keycode_to_name) {
             if (item.name == keyid) {
                 return item.code;
@@ -522,7 +505,7 @@ public class Framework {
         return Keycode.INVALID;
     }
 
-    public char[] modifierToString(Modifier mod) {
+    char[] modifierToString(Modifier mod) {
         switch (mod) {
             case Modifier.Alt: return "mod_alt";
             case Modifier.Control: return "mod_ctrl";
@@ -530,7 +513,7 @@ public class Framework {
         }
     }
 
-    public bool stringToModifier(char[] str, out Modifier mod) {
+    bool stringToModifier(char[] str, out Modifier mod) {
         switch (str) {
             case "mod_alt": mod = Modifier.Alt; return true;
             case "mod_ctrl": mod = Modifier.Control; return true;
@@ -540,39 +523,56 @@ public class Framework {
         return false;
     }
 
+    char[] keyinfoToString(KeyInfo infos) {
+        char[] res = str.format("key=%s ('%s') unicode='%s'", cast(int)infos.code,
+            translateKeycodeToKeyID(infos.code), infos.unicode);
+
+        //append all modifiers
+        for (Modifier mod = Modifier.min; mod <= Modifier.max; mod++) {
+            if ((1<<mod) & infos.mods) {
+                res ~= str.format(" [%s]", modifierToString(mod));
+            }
+        }
+
+        return res;
+    }
+
     private void updateKeyState(in KeyInfo infos, bool state) {
         assert(infos.code >= Keycode.min && infos.code <= Keycode.max);
         mKeyStateMap[infos.code - Keycode.min] = state;
     }
 
     /// Query if key is currently pressed down (true) or not (false)
-    public bool getKeyState(Keycode code) {
+    bool getKeyState(Keycode code) {
         assert(code >= Keycode.min && code <= Keycode.max);
         return mKeyStateMap[code - Keycode.min];
     }
 
     /// return if Modifier is applied
     public bool getModifierState(Modifier mod) {
-        switch (mod) {
-            case Modifier.Alt:
-                return getKeyState(Keycode.RALT) || getKeyState(Keycode.LALT);
-            case Modifier.Control:
-                return getKeyState(Keycode.RCTRL) || getKeyState(Keycode.LCTRL);
-            case Modifier.Shift:
-                return getKeyState(Keycode.RSHIFT)
-                    || getKeyState(Keycode.LSHIFT);
-            default:
+        bool get() {
+            switch (mod) {
+                case Modifier.Alt:
+                    return getKeyState(Keycode.RALT) || getKeyState(Keycode.LALT);
+                case Modifier.Control:
+                    return getKeyState(Keycode.RCTRL) || getKeyState(Keycode.LCTRL);
+                case Modifier.Shift:
+                    return getKeyState(Keycode.RSHIFT)
+                        || getKeyState(Keycode.LSHIFT);
+                default:
+            }
+            return false;
         }
-        return false;
+        return mDriver.getModifierState(mod, get());
     }
 
     /// return true if all modifiers in the set are applied
     /// empty set applies always
-    public bool getModifierSetState(ModifierSet mods) {
+    bool getModifierSetState(ModifierSet mods) {
         return (getModifierSet() & mods) == mods;
     }
 
-    public bool isModifierKey(Keycode c) {
+    bool isModifierKey(Keycode c) {
         switch (c) {
             case Keycode.RALT, Keycode.RCTRL, Keycode.RSHIFT:
             case Keycode.LALT, Keycode.LCTRL, Keycode.LSHIFT:
@@ -582,7 +582,7 @@ public class Framework {
         }
     }
 
-    public ModifierSet getModifierSet() {
+    ModifierSet getModifierSet() {
         ModifierSet mods;
         for (uint n = Modifier.min; n <= Modifier.max; n++) {
             if (getModifierState(cast(Modifier)n))
@@ -591,33 +591,87 @@ public class Framework {
         return mods;
     }
 
+    ///This will move the mouse cursor to screen center and keep it there
+    ///It is probably a good idea to hide the cursor first, as it will still
+    ///be moveable and generate events, but "snap" back to the locked position
+    ///Events will show the mouse cursor standing at its locked position
+    ///and only show relative motion
+    void lockMouse() {
+        if (!mLockMouse) {
+            mLockedMousePos = screenSize()/2;
+            mStoredMousePos = mousePos;
+            mLockMouse = true;
+            mousePos = mLockedMousePos;
+            //mMouseCorr = mStoredMousePos - mLockedMousePos;
+            mMouseCorr = Vector2i(0);
+            //discard 3 events from now
+            mFooLockCounter = 3;
+        }
+    }
+
+    ///Remove the mouse lock and move the cursor back to where it was before
+    void unlockMouse() {
+        if (mLockMouse) {
+            mousePos = mStoredMousePos;
+            mLockMouse = false;
+            mMouseCorr = Vector2i(0);
+        }
+    }
+
+    void cursorVisible(bool v) {
+        auto state = mDriver.getInputState();
+        state.mouse_visible = v;
+        mDriver.setInputState(state);
+    }
+
+    bool cursorVisible() {
+        return mDriver.getInputState().mouse_visible;
+    }
+
+    Vector2i mousePos() {
+        return mMousePos;
+    }
+
+    //looks like this didn't trigger an event in the old code either
+    void mousePos(Vector2i newPos) {
+        mDriver.setMousePos(newPos);
+    }
+
+    bool grabInput() {
+        return mDriver.getInputState().grab_input;
+    }
+
+    void grabInput(bool grab) {
+        auto state = mDriver.getInputState();
+        state.grab_input = grab;
+        mDriver.setInputState(state);
+    }
+
+    //--- driver input callbacks
+
+    //xxx should be all package or so, but that doesn't work out
+    //  sub packages can't access parent package package-declarations, wtf?
+
     //called from framework implementation... relies on key repeat
-    protected void doKeyDown(KeyInfo infos) {
+    void driver_doKeyDown(KeyInfo infos) {
         infos.type = KeyEventType.Down;
 
         bool was_down = getKeyState(infos.code);
 
         updateKeyState(infos, true);
         if (!was_down) {
-            //if (handleShortcuts(infos, true)) {
-            //    //it did handle the key; don't do anything more with that key
-            //    return;
-            //}
-            if (onKeyDown && mEnableEvents) {
+            if (onKeyDown) {
                 bool handle = onKeyDown(infos);
-                /* commented out, doesn't seem logical
-                if (!handle)
-                    return;*/
             }
         }
 
-        if (onKeyPress != null && mEnableEvents) {
+        if (onKeyPress != null) {
             infos.type = KeyEventType.Press;
             onKeyPress(infos);
         }
     }
 
-    protected void doKeyUp(in KeyInfo infos) {
+    void driver_doKeyUp(in KeyInfo infos) {
         infos.type = KeyEventType.Up;
 
         updateKeyState(infos, false);
@@ -627,17 +681,12 @@ public class Framework {
             doTerminate();
         }
 
-        if (onKeyUp && mEnableEvents) {
+        if (onKeyUp) {
             onKeyUp(infos);
         }
     }
 
-    //returns true if key is a mouse button
-    public static bool keyIsMouseButton(Keycode key) {
-        return key >= cKeycodeMouseStart && key <= cKeycodeMouseEnd;
-    }
-
-    protected void doUpdateMousePos(Vector2i pos) {
+    void driver_doUpdateMousePos(Vector2i pos) {
         if (mMousePos != pos) {
             MouseInfo infos;
             infos.pos = pos;
@@ -658,7 +707,7 @@ public class Framework {
                 mMouseCorr = Vector2i(0);
             }
             mMousePos = pos;
-            if (onMouseMove != null && mEnableEvents) {
+            if (onMouseMove != null) {
                 onMouseMove(infos);
             }
             if (mLockMouse) {
@@ -670,59 +719,131 @@ public class Framework {
         }
     }
 
-    public char[] keyinfoToString(KeyInfo infos) {
-        char[] res = str.format("key=%s ('%s') unicode='%s'", cast(int)infos.code,
-            translateKeycodeToKeyID(infos.code), infos.unicode);
+    //--- font stuff
 
-        //append all modifiers
-        for (Modifier mod = Modifier.min; mod <= Modifier.max; mod++) {
-            if ((1<<mod) & infos.mods) {
-                res ~= str.format(" [%s]", modifierToString(mod));
+    /// load a font using the font manager
+    Font getFont(char[] id) {
+        return fontManager.loadFont(id);
+    }
+
+    FontManager fontManager() {
+        return mFontManager;
+    }
+
+    //--- video mode
+
+    void setVideoMode(Vector2i size, int bpp, bool fullscreen) {
+        VideoWindowState state = mDriver.getVideoWindowState();
+        if (fullscreen) {
+            state.fs_size = size;
+        } else {
+            state.window_size = size;
+        }
+        if (bpp >= 0) {
+            state.bitdepth = bpp;
+        }
+        state.fullscreen = fullscreen;
+        state.video_active = true;
+        mDriver.setVideoWindowState(state);
+    }
+
+    //version for default arguments
+    void setVideoMode(Vector2i size, int bpp = -1) {
+        setVideoMode(size, bpp, fullScreen());
+    }
+
+    bool fullScreen() {
+        return mDriver.getVideoWindowState().fullscreen;
+    }
+
+    void fullScreen(bool s) {
+        VideoWindowState state = mDriver.getVideoWindowState();
+        state.fullscreen = s;
+        mDriver.setVideoWindowState(state);
+    }
+
+    Vector2i screenSize() {
+        VideoWindowState state = mDriver.getVideoWindowState();
+        return state.fullscreen ? state.fs_size : state.window_size;
+    }
+
+    //--- time stuff
+
+    Time lastFrameTime() {
+        return mLastFrameTime;
+    }
+
+    /// return number of invocations of onFrame pro second
+    float FPS() {
+        return mFPSLastValue;
+    }
+
+    /// set a fixed framerate / a maximum framerate
+    /// fps = framerate, or 0 to disable fixed framerate
+    void fixedFramerate(int fps) {
+        if (fps == 0) {
+            mTimePerFrame = timeMsecs(0);
+        } else {
+            mTimePerFrame = timeMsecs(1000/fps);
+        }
+    }
+
+    //--- main loop
+
+    /// Main-Loop
+    void run() {
+        while(!mShouldTerminate) {
+            // recalc FPS value
+            Time curtime = timeCurrentTime();
+            if (curtime >= mFPSLastTime + cFPSTimeSpan) {
+                mFPSLastValue = (cast(float)mFPSFrameCount
+                    / (curtime - mFPSLastTime).msecs) * 1000.0f;
+                mFPSLastTime = curtime;
+                mFPSFrameCount = 0;
             }
+
+            //xxx: whereever this should be?
+            checkDriverReload();
+
+            //mInputTime.start();
+            mDriver.processInput();
+            //mInputTime.stop();
+
+            Canvas c = mDriver.startScreenRendering();
+            if (onFrame) {
+                onFrame(c);
+            }
+            mDriver.stopScreenRendering();
+            c = null;
+
+            // defered free (GC related, sucky Phobos forces this to us)
+            defered_free();
+
+            //wait for fixed framerate?
+            Time time = timeCurrentTime();
+            Time diff = mTimePerFrame - (time - curtime);
+            //even if you don't wait, yield the rest of the timeslice
+            diff = diff > timeSecs(0) ? diff : timeSecs(0);
+            mDriver.sleepTime(diff);
+
+            //real frame time
+            Time cur = timeCurrentTime();
+            mLastFrameTime = cur - curtime;
+
+            //it's a hack!
+            //used by toplevel.d
+            if (onFrameEnd)
+                onFrameEnd();
+
+            mFPSFrameCount++;
         }
 
-        return res;
+        //make sure to release the grab
+        //at least stupid X11 keeps the grab when the program ends
+        grabInput = false;
     }
 
-    public void enableEvents(bool enable) {
-        mEnableEvents = enable;
-    }
-    public bool enableEvents() {
-        return mEnableEvents;
-    }
-
-    private Vector2i mStoredMousePos, mLockedMousePos, mMouseCorr;
-    private bool mLockMouse;
-    private int mFooLockCounter;
-
-    ///This will move the mouse cursor to screen center and keep it there
-    ///It is probably a good idea to hide the cursor first, as it will still
-    ///be moveable and generate events, but "snap" back to the locked position
-    ///Events will show the mouse cursor standing at its locked position
-    ///and only show relative motion
-    public void lockMouse() {
-        if (!mLockMouse) {
-            mLockedMousePos = screen.size/2;
-            mStoredMousePos = mousePos;
-            mLockMouse = true;
-            mousePos = mLockedMousePos;
-            //mMouseCorr = mStoredMousePos - mLockedMousePos;
-            mMouseCorr = Vector2i(0);
-            //discard 3 events from now
-            mFooLockCounter = 3;
-        }
-    }
-
-    ///Remove the mouse lock and move the cursor back to where it was before
-    public void unlockMouse() {
-        if (mLockMouse) {
-            mousePos = mStoredMousePos;
-            mLockMouse = false;
-            mMouseCorr = Vector2i(0);
-        }
-    }
-
-    protected bool doTerminate() {
+    private bool doTerminate() {
         bool term = true;
         if (onTerminate != null) {
             term = onTerminate();
@@ -733,19 +854,118 @@ public class Framework {
         return term;
     }
 
-    ///Cleanups (i.e. free all still used resources)
-    public abstract void deinitialize();
+    /// requests main loop to terminate
+    void terminate() {
+        mShouldTerminate = true;
+    }
 
-    public abstract void cursorVisible(bool v);
-    public abstract bool cursorVisible();
+    //--- misc
 
-    public PerfTimer[char[]] timers() {
+    void setCaption(char[] caption) {
+        VideoWindowState state = mDriver.getVideoWindowState();
+        state.window_caption = caption;
+        mDriver.setVideoWindowState(state);
+    }
+
+    final FileSystem fs() {
+        return mFilesystem;
+    }
+
+    /+final Resources resources() {
+        return mResources;
+    }+/
+
+    config.ConfigNode loadConfig(char[] section, bool asfilename = false,
+        bool allowFail = false)
+    {
+        VFSPath file = VFSPath(section ~ (asfilename ? "" : ".conf"));
+        mLog("load config: %s", file);
+        try {
+            scope s = fs.open(file);
+            auto f = new config.ConfigFile(s, file.get(), &logconf);
+            if (!f.rootnode)
+                throw new Exception("?");
+            return f.rootnode;
+        } catch (Exception e) {
+            if (!allowFail)
+                throw e;
+        }
+        mLog("config file %s failed to load (allowFail = true)", file);
         return null;
     }
 
-    Time lastFrameTime() {
-        return mLastFrameTime;
+    private void logconf(char[] log) {
+        if (!mLogConf) {
+            mLogConf = registerLog("configfile");
+            assert(mLogConf !is null);
+        }
+        mLogConf("%s", log);
     }
+
+    PerfTimer[char[]] timers() {
+        return mTimers;
+    }
+
+    //kill all driver surfaces
+    private int releaseDriverSurfaces() {
+        int count;
+        foreach (Surface s; gSurfaces.list) {
+            if (s.passivate())
+                count++;
+        }
+        return count;
+    }
+
+    private int releaseDriverFonts() {
+        int count;
+        foreach (Font f; gFonts.list) {
+            if (f.unload())
+                count++;
+        }
+        return count;
+    }
+
+    int releaseCaches() {
+        int count;
+        foreach (r; mCacheReleasers) {
+            count += r();
+        }
+        count += mDriver.releaseCaches();
+        count += releaseDriverFonts();
+        count += releaseDriverSurfaces();
+        return count;
+    }
+
+    void registerCacheReleaser(CacheReleaseDelegate callback) {
+        mCacheReleasers ~= callback;
+    }
+
+    void defered_free() {
+        gFonts.cleanup((FontKillData d) { d.doFree(); });
+        gSurfaces.cleanup((SurfaceKillData d) { d.doFree(); });
+    }
+
+    void driver_doVideoInit() {
+        if (onVideoInit) {
+            onVideoInit(false); //xxx: argument
+        }
+    }
+
+    void driver_doTerminate() {
+        bool term = true;
+        if (onTerminate != null) {
+            term = onTerminate();
+        }
+        if (term) {
+            terminate();
+        }
+    }
+
+    Canvas startOffscreenRendering(Surface surface) {
+        return mDriver.startOffscreenRendering(surface);
+    }
+
+    //--- events
 
     /// executed when receiving quit event from framework
     /// return false to abort quit
@@ -768,3 +988,9 @@ public class Framework {
     /// Called after all work for a frame is done
     public void delegate() onFrameEnd;
 }
+
+class FrameworkDriverFactory : StaticFactory!(FrameworkDriver, Framework,
+    ConfigNode)
+{
+}
+

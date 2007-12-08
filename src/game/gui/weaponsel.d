@@ -195,14 +195,14 @@ class WeaponSelWindow : Container {
         }
 
         mWeaponTranslate = new Translator("/weapons/locale");
-        mDFG = getFramework.getFont("weaponsel_side");
+        mDFG = gFramework.getFont("weaponsel_side");
 
         auto all = new BoxContainer(false, false, 4);
         mGridContainer = new SimpleContainer();
         all.add(mGridContainer);
         mWeaponName = new Label();
         mWeaponName.drawBorder = false;
-        mWeaponName.font = getFramework.getFont("weaponsel_down");
+        mWeaponName.font = gFramework.getFont("weaponsel_down");
         mWeaponName.shrink = true;
         mWeaponQuantity = new Label();
         mWeaponQuantity.drawBorder = false;

@@ -354,7 +354,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         mNetUpdateTime = globals.newTimer("game_netupdate");
         mPhysicTime = globals.newTimer("game_physic");
 
-        mGameTime = new TimeSource(&gFramework.getCurrentTime);
+        mGameTime = new TimeSource();
         mGameTime.paused = true;
 
         mObjects = new List!(GameObject)(GameObject.node.getListNodeOffset());
