@@ -137,6 +137,7 @@ private:
 
         gWindowManager = new WindowManager(mGui);
 
+        framework.onUpdate = &onUpdate;
         framework.onFrame = &onFrame;
         framework.onKeyPress = &onKeyPress;
         framework.onKeyDown = &onKeyDown;
@@ -538,7 +539,7 @@ private:
         w.writefln("pageblocks = %s", s.pageblocks);
     }
 
-    private void onFrame(Canvas c) {
+    private void onUpdate() {
         //xxx move?
         globals.gameTimeAnimations.update();
 
@@ -549,7 +550,9 @@ private:
         mGuiFrameTime.start();
         mGui.doFrame(timeCurrentTime());
         mGuiFrameTime.stop();
+    }
 
+    private void onFrame(Canvas c) {
         mGuiDrawTime.start();
         mGui.draw(c);
         mGuiDrawTime.stop();

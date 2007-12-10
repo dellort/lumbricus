@@ -10,6 +10,9 @@ import utils.vector2;
 import framework.sdl.rwops;
 import framework.sdl.soundmixer;
 import framework.sdl.font;
+import framework.sdl.fwgl;
+import derelict.opengl.gl;
+import derelict.opengl.glu;
 import derelict.sdl.sdl;
 import derelict.sdl.image;
 import derelict.sdl.ttf;
@@ -73,7 +76,7 @@ class SDLSurface : DriverSurface {
         //      to keep the pointer, so D won't GC it
         //fixed RGA32 format :/
         mSurface = SDL_CreateRGBSurfaceFrom(mData.data.ptr, mData.size.x,
-            mData.size.y, 32, mData.pitch, 0x00FF0000, 0x0000FF00, 0x000000FF,
+            mData.size.y, 32, mData.pitch, 0x000000FF, 0x0000FF00, 0x00FF0000,
             /+cc ? 0 :+/ 0xFF000000);
         if (!mSurface) {
             throw new Exception(format("couldn't create SDL surface, size=%s",
@@ -161,6 +164,7 @@ class SDLSurface : DriverSurface {
     }
 }
 
+
 package {
     Keycode[int] gSdlToKeycode;
     SDLDriver gSDLDriver;
@@ -189,13 +193,18 @@ class SDLDriver : FrameworkDriver {
         //if OpenGL enabled (if not, use 2D SDL drawing)
         bool mOpenGL;
 
-        SDL_Surface* mScreen;
         //depending if OpenGL or plain-old-SDL-2D mode
         SDLCanvas mScreenCanvas2D;
-        //GLCanvas mScreenCanvasGL;
+        GLCanvas mScreenCanvasGL;
 
         //cache for being able to draw alpha blended filled rects without OpenGL
         Surface[int] mInsanityCache;
+
+    }
+    package {
+        SDL_Surface* mSDLScreen;
+
+        bool glWireframeDebug;
 
         //hurhurhur
         PerfTimer mDrawTime, mClearTime, mFlipTime, mInputTime, mWasteTime;
@@ -211,19 +220,23 @@ class SDLDriver : FrameworkDriver {
         mConfig = config;
 
         mRGBA32.BitsPerPixel = 32;
-        mRGBA32.Amask = 0xFF_00_00_00;
-        mRGBA32.Rmask = 0x00_FF_00_00;
+        mRGBA32.Rmask = 0x00_00_00_FF;
         mRGBA32.Gmask = 0x00_00_FF_00;
-        mRGBA32.Bmask = 0x00_00_00_FF;
+        mRGBA32.Bmask = 0x00_FF_00_00;
+        mRGBA32.Amask = 0xFF_00_00_00;
 
         mEnableCaching = config.getBoolValue("enable_caching", true);
         mMarkAlpha = config.getBoolValue("mark_alpha", false);
 
-        mOpenGL = config.getBoolValue("open_gl", false);
-        assert(!mOpenGL);
+        mOpenGL = config.getBoolValue("open_gl", true);
+        glWireframeDebug = config.getBoolValue("gl_debug_wireframe", false);
 
         DerelictSDL.load();
         DerelictSDLImage.load();
+        if (mOpenGL) {
+            DerelictGL.load();
+            DerelictGLU.load();
+        }
 
         if (SDL_Init(SDL_INIT_VIDEO) < 0) {
             throw new Exception(format("Could not init SDL: %s",
@@ -244,7 +257,7 @@ class SDLDriver : FrameworkDriver {
         if (!mOpenGL) {
             mScreenCanvas2D = new SDLCanvas();
         } else {
-            assert(false);
+            mScreenCanvasGL = new GLCanvas();
         }
 
         //for some worthless statistics...
@@ -268,6 +281,10 @@ class SDLDriver : FrameworkDriver {
         mFontDriver.destroy();
         mFontDriver = null;
         SDL_Quit();
+        if (mOpenGL) {
+            DerelictGL.unload();
+            DerelictGLU.unload();
+        }
         DerelictSDLImage.unload();
         DerelictSDL.unload();
 
@@ -283,8 +300,7 @@ class SDLDriver : FrameworkDriver {
         switch (mode) {
             case SurfaceMode.NORMAL:
                 if (mOpenGL) {
-                    assert(false);
-                    return null; //xxx create opengl surface
+                    return new GLSurface(data);
                 }
                 //fall through
             case SurfaceMode.OFFSCREEN:
@@ -318,22 +334,35 @@ class SDLDriver : FrameworkDriver {
 
         Vector2i size = state.fullscreen ? state.fs_size : state.window_size;
 
+        int vidflags = 0;
+        if (mOpenGL) {
+            SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
+            SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+
+            //OpenGL flags for SDL_SetVideoMode
+            vidflags |= SDL_OPENGL;
+        }
+        else
+            //SDL only flags for SDL_SetVideoMode
+            vidflags |= SDL_HWSURFACE | SDL_DOUBLEBUF;
+        if (state.fullscreen)
+            vidflags |= SDL_FULLSCREEN;
+        else
+            vidflags |= SDL_RESIZABLE;
+
         SDL_Surface* newscreen = SDL_SetVideoMode(size.x, size.y,
-            state.bitdepth, SDL_RESIZABLE | SDL_HWSURFACE | SDL_DOUBLEBUF
-            | (state.fullscreen ? SDL_FULLSCREEN : 0));
+            state.bitdepth, vidflags);
 
         if(!newscreen) {
             return false;
         }
-
-        mCurVideoState = state;
-
-        mScreen = newscreen;
-
-        mPFScreen = *(mScreen.format);
+        mSDLScreen = newscreen;
+        mPFScreen = *(mSDLScreen.format);
 
         //xxx: oh well... but it was true for both 32 bit and 16 bit screenmodes
         mPFAlphaScreen = mRGBA32;
+
+        mCurVideoState = state;
 
         //i.e. reload textures, get rid of stuff in too low resolution...
         releaseCaches();
@@ -417,16 +446,21 @@ class SDLDriver : FrameworkDriver {
     }
 
     Canvas startScreenRendering() {
+        assert(!!mSDLScreen);
         if (!mOpenGL) {
-            assert(!!mScreen);
             mScreenCanvas2D.startScreenRendering();
             return mScreenCanvas2D;
+        } else {
+            mScreenCanvasGL.startScreenRendering();
+            return mScreenCanvasGL;
         }
     }
 
     void stopScreenRendering() {
         if (!mOpenGL) {
             mScreenCanvas2D.stopScreenRendering();
+        } else {
+            mScreenCanvasGL.stopScreenRendering();
         }
     }
 
@@ -608,14 +642,13 @@ class SDLCanvas : Canvas {
         SDLSurface mSDLSurface;
     }
 
-
     void startScreenRendering() {
         assert(mStackTop == 0);
         assert(!mSDLSurface);
         assert(mSurface is null);
 
         mTrans = Vector2i(0, 0);
-        mSurface = gSDLDriver.mScreen;
+        mSurface = gSDLDriver.mSDLScreen;
 
         gSDLDriver.mClearTime.start();
         auto clearColor = Color(0,0,0);
@@ -793,7 +826,7 @@ class SDLCanvas : Canvas {
             if (!gSDLDriver.mMarkAlpha)
                 return;
             //only when drawn on screen
-            bool isscreen = mSurface is gSDLDriver.mScreen;
+            bool isscreen = mSurface is gSDLDriver.mSDLScreen;
             if (isscreen && sdlIsAlpha(src)) {
                 auto c = Color(0,1,0);
                 destPos -= mTrans;

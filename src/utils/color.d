@@ -70,7 +70,7 @@ public struct Color {
         uint gb = cast(ubyte)(255*g);
         uint bb = cast(ubyte)(255*b);
         uint ab = cast(ubyte)(255*a);
-        return ab << 24 | rb << 16 | gb << 8 | bb;
+        return ab << 24 | bb << 16 | gb << 8 | rb;
     }
 
     ///parse color from string s and replace r/g/b/a values

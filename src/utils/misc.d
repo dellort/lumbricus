@@ -43,6 +43,16 @@ T clampRangeO(T)(T val, T low, T high) {
     return (val < low) ? low : val;
 }
 
+/* Quick utility function for texture creation */
+int powerOfTwo(int input) {
+	int value = 1;
+
+	while ( value < input ) {
+		value <<= 1;
+	}
+	return value;
+}
+
 /// Cast object in t to type T, and throw exception if not possible.
 /// Only return null if t was already null.
 T castStrict(T : Object)(Object t) {

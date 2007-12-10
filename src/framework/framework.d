@@ -400,6 +400,8 @@ class Framework {
         //xxx
         ConfigNode driver_config = new ConfigNode();
         driver_config["driver"] = "sdl";
+        driver_config["open_gl"] = "true";
+        driver_config["gl_debug_wireframe"] = "false";
         replaceDriver(driver_config);
     }
 
@@ -807,6 +809,10 @@ class Framework {
             mDriver.processInput();
             //mInputTime.stop();
 
+            if (onUpdate) {
+                onUpdate();
+            }
+
             Canvas c = mDriver.startScreenRendering();
             if (onFrame) {
                 onFrame(c);
@@ -968,6 +974,9 @@ class Framework {
     /// executed when receiving quit event from framework
     /// return false to abort quit
     public bool delegate() onTerminate;
+    /// Event raised every frame before drawing starts#
+    /// Input processing and time advance should happen here
+    public void delegate() onUpdate;
     /// Event raised when the screen is repainted
     public void delegate(Canvas canvas) onFrame;
     /// Event raised on key-down/up events; these events are not auto repeated
