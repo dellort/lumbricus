@@ -145,7 +145,8 @@ class GLSurface : DriverSurface {
         } else {
             assert(mData.pitch == mData.size.x*4);
             assert(rc.p1.x <= mData.size.x && rc.p1.y <= mData.size.y);
-            assert(rc.p2.x <= mData.size.x && rc.p2.y <= mData.size.y);
+            //assert(rc.p2.x <= mData.size.x && rc.p2.y <= mData.size.y);
+            rc.p2.clipAbsEntries(mData.size);
             glBindTexture(GL_TEXTURE_2D, mTexId);
             //make GL read the right data from the full-image array
             glPixelStorei(GL_UNPACK_ROW_LENGTH, mData.pitch/4);
@@ -480,8 +481,17 @@ class GLCanvas : Canvas {
         glDisable(GL_DEPTH_TEST);
 
         //activate blending for proper alpha display
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        switch (glsurf.mData.transparency) {
+            case Transparency.Colorkey:
+                glEnable(GL_ALPHA_TEST);
+                glAlphaFunc(GL_GREATER, 0.1f);
+                break;
+            case Transparency.Alpha:
+                glEnable(GL_BLEND);
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                break;
+            default:
+        }
 
         glBindTexture(GL_TEXTURE_2D, glsurf.mTexId);
 

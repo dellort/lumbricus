@@ -270,8 +270,6 @@ private:
                         cur.flames_in[axis+d_in]++;
                     }
                     //walls stop it always
-                    if (next.impwall)
-                        break;
                     if (n == mStop[index])
                         break;
                     if (cur.wall) {
@@ -280,6 +278,8 @@ private:
                         mStop[index] = n;
                         break;
                     }
+                    if (next.impwall)
+                        break;
                     if (n == mLength - 1)
                         break;
                     cur.flames_out[axis+d_out]++;
