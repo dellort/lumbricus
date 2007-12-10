@@ -1,4 +1,5 @@
-//contains the OpenGL
+//contains the OpenGL part of the SDL driver, not as well separated as it
+//should be
 module framework.sdl.fwgl;
 
 import derelict.opengl.gl;
@@ -20,6 +21,7 @@ class GLSurface : DriverSurface {
     GLuint mTexId;
     Vector2f mTexMax;
     Vector2i mTexSize;
+    bool mError;
 
     //create from Framework's data
     this(SurfaceData* data) {
@@ -50,61 +52,6 @@ class GLSurface : DriverSurface {
             mTexMax.y = cast(float)mData.size.y / mTexSize.y;
         }
 
-        void* texData;
-        uint texPitch;
-        SDL_Surface *texSurface;
-        if (mTexSize!=mData.size || mData.transparency!=Transparency.Alpha) {
-            //size does not fit, or transparency uses colorkeying -> convert
-            SDL_Surface *srcSurface = SDL_CreateRGBSurfaceFrom(mData.data.ptr,
-                mData.size.x, mData.size.y, 32, mData.pitch, 0x000000FF,
-                0x0000FF00, 0x00FF0000, 0xFF000000);
-            assert(srcSurface);
-
-            texSurface = SDL_CreateRGBSurface(SDL_SWSURFACE, mTexSize.x,
-                mTexSize.y, 32, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
-            assert(texSurface);
-
-            //clear transparency - I don't know why, the surface has just been
-            //created and should not have any
-            SDL_SetAlpha(srcSurface, 0, 0);
-            switch (mData.transparency) {
-                case Transparency.Alpha: {
-                    //no transparency handling for alpha surfaces, copy 1:1
-                    break;
-                }
-                case Transparency.Colorkey: {
-                    //activate colorkeying for source surface
-                    uint key = simpleColorToSDLColor(srcSurface,
-                        mData.colorkey);
-                    SDL_SetColorKey(srcSurface, SDL_SRCCOLORKEY, key);
-                    break;
-                }
-                default: //rien
-            }
-
-            //Copy the surface into the GL texture image
-            //Blitting converts colorkey images to alpha images, because only
-            //non-transparent pixels are overwritten
-            SDL_Rect area;
-            area.x = 0;
-            area.y = 0;
-            area.w = mData.size.x;
-            area.h = mData.size.y;
-            SDL_BlitSurface(srcSurface, &area, texSurface, &area);
-            SDL_FreeSurface(srcSurface);
-
-            texData = texSurface.pixels;
-            texPitch = texSurface.pitch;
-            //xxx OpenGL does not have a pitch value and data should be
-            //4-byte-aligned anyway
-            assert(texPitch == texSurface.w*4);
-        } else {
-            //transparency format and alpha match -> use directly
-            texData = mData.data.ptr;
-            texPitch = mData.pitch;
-            assert(texPitch == mData.size.x*4);
-        }
-
         //generate texture and set parameters
         glGenTextures(1, &mTexId);
         glBindTexture(GL_TEXTURE_2D, mTexId);
@@ -112,14 +59,18 @@ class GLSurface : DriverSurface {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-        //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 
-        //glPixelStorei(GL_UNPACK_ROW_LENGTH, texPitch);
+        //since GL 1.1, pixels pointer can be null, which will just
+        //reserve uninitialized memory
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, mTexSize.x, mTexSize.y, 0,
-            GL_RGBA, GL_UNSIGNED_BYTE, texData);
+            GL_RGBA, GL_UNSIGNED_BYTE, null);
+
+        //check for errors (textures larger than maximum size
+        //supported by GL/hardware will fail to load)
         GLenum err = glGetError();
         if (err != GL_NO_ERROR) {
+            //set error flag to prevent changing the texture data
+            mError = true;
             debug writefln("Failed to create texture of size %s",mTexSize);
             //throw new Exception(
             //    "glTexImage2D failed, probably texture was too big. "
@@ -129,41 +80,116 @@ class GLSurface : DriverSurface {
             uint red = 0xff0000ff;
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0,
                 GL_RGBA, GL_UNSIGNED_BYTE, &red);
+        } else {
+            updateTexture(Rect2i(Vector2i(0),mData.size), true);
         }
-        //glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-        if (texSurface)
-            SDL_FreeSurface(texSurface);
     }
 
     void getPixelData() {
         //nop, nothing free'd for now
     }
 
+    //like updatePixels, but assumes texture is already bound (and does
+    //less error checking)
+    private void updateTexture(in Rect2i rc, bool full = false) {
+        void* texData;
+        SDL_Surface *texSurface;
+        if (mData.transparency == Transparency.Colorkey) {
+            //transparency uses colorkeying -> convert to alpha
+            SDL_Surface *srcSurface = SDL_CreateRGBSurfaceFrom(mData.data.ptr,
+                mData.size.x, mData.size.y, 32, mData.pitch, 0x000000FF,
+                0x0000FF00, 0x00FF0000, 0xFF000000);
+            assert(srcSurface);
+
+            texSurface = SDL_CreateRGBSurface(SDL_SWSURFACE, rc.size.x,
+                rc.size.y, 32, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
+            assert(texSurface);
+            //xxx OpenGL does not have a pitch value and data should be
+            //4-byte-aligned anyway
+            assert(texSurface.pitch == texSurface.w*4);
+
+            //clear transparency - I don't know why, the surface has just been
+            //created and should not have any
+            SDL_SetAlpha(srcSurface, 0, 0);
+            //activate colorkeying for source surface
+            uint key = simpleColorToSDLColor(srcSurface,
+                mData.colorkey);
+            SDL_SetColorKey(srcSurface, SDL_SRCCOLORKEY, key);
+
+            //Copy the surface into the GL texture image
+            //Blitting converts colorkey images to alpha images, because only
+            //non-transparent pixels are overwritten
+            SDL_Rect areasrc, areadest;
+            areasrc.x = rc.p1.x;
+            areasrc.y = rc.p1.y;
+            areasrc.w = areadest.w = rc.size.x;
+            areasrc.h = areadest.h = rc.size.y;
+            SDL_BlitSurface(srcSurface, &areasrc, texSurface, &areadest);
+            SDL_FreeSurface(srcSurface);
+
+            texData = texSurface.pixels;
+            full = true;
+        } else {
+            //transparency format matches -> use directly
+            texData = mData.data.ptr;
+            assert(mData.pitch == mData.size.x*4);
+        }
+
+        //make GL read the right data from the full-image array
+        if (!full) {
+            glPixelStorei(GL_UNPACK_ROW_LENGTH, rc.size.x);
+            glPixelStorei(GL_UNPACK_SKIP_ROWS, rc.p1.y);
+            glPixelStorei(GL_UNPACK_SKIP_PIXELS, rc.p1.x);
+        }
+
+        glTexSubImage2D(GL_TEXTURE_2D, 0, rc.p1.x, rc.p1.y, rc.size.x,
+            rc.size.y, GL_RGBA, GL_UNSIGNED_BYTE, texData);
+
+        //reset unpack values
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+        glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+        glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+
+        if (texSurface)
+            SDL_FreeSurface(texSurface);
+    }
+
     void updatePixels(in Rect2i rc) {
+        if (mError)
+            return;  //texture failed to load and contains only 1 pixel
         if (mTexId == TEXID_INVALID) {
             reinit();
         } else {
             assert(mData.pitch == mData.size.x*4);
             assert(rc.p1.x <= mData.size.x && rc.p1.y <= mData.size.y);
-            //assert(rc.p2.x <= mData.size.x && rc.p2.y <= mData.size.y);
             rc.p2.clipAbsEntries(mData.size);
             glBindTexture(GL_TEXTURE_2D, mTexId);
-            //make GL read the right data from the full-image array
-            glPixelStorei(GL_UNPACK_ROW_LENGTH, mData.pitch/4);
-            glPixelStorei(GL_UNPACK_SKIP_ROWS, rc.p1.y);
-            glPixelStorei(GL_UNPACK_SKIP_PIXELS, rc.p1.x);
-            //xxx what about colorkey? currently draws ugly pink rectangles
-            glTexSubImage2D(GL_TEXTURE_2D, 0, rc.p1.x, rc.p1.y, rc.size.x,
-                rc.size.y, GL_RGBA, GL_UNSIGNED_BYTE, mData.data.ptr);
-            //reset unpack values
-            glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-            glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
-            glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+            updateTexture(rc);
+
         }
     }
 
     void getInfos(out char[] desc, out uint extra_data) {
         desc = format("GLSurface, texid=%s", mTexId);
+    }
+
+    void prepareDraw() {
+        glEnable(GL_TEXTURE_2D);
+
+        //activate blending for proper alpha display
+        switch (mData.transparency) {
+            case Transparency.Colorkey:
+                glEnable(GL_ALPHA_TEST);
+                glAlphaFunc(GL_GREATER, 0.1f);
+                break;
+            case Transparency.Alpha:
+                glEnable(GL_BLEND);
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                break;
+            default:
+        }
+
+        glBindTexture(GL_TEXTURE_2D, mTexId);
     }
 }
 
@@ -458,15 +484,22 @@ class GLCanvas : Canvas {
     }
 
     //this will draw the texture source tiled in the destination area
-    //tiling is completely untested, and it is unknown if tiling works
-    //if sourcePos/sourceSize don't match texture size
+    //optimized if no tiling needed or tiling can be done by OpenGL
+    //tiling only works for the above case (i.e. when using the whole texture)
     private void drawTextureInt(Texture source, Vector2i sourcePos,
         Vector2i sourceSize, Vector2i destPos, Vector2i destSize)
     {
+        //clipping, discard anything that would be invisible anyway
+        Vector2i pr1 = destPos+mStack[mStackTop].translate;
+        Vector2i pr2 = pr1+destSize;
+        if (pr1.x > mStack[0].clientsize.x || pr1.y > mStack[0].clientsize.y
+            || pr2.x < 0 || pr2.y < 0)
+            return;
+
         if (gSDLDriver.glWireframeDebug) {
             //wireframe mode
-            drawRect(destPos, destPos+sourceSize, Color(1,1,1));
-            drawLine(destPos, destPos+sourceSize, Color(1,1,1));
+            drawRect(destPos, destPos+destSize, Color(1,1,1));
+            drawLine(destPos, destPos+destSize, Color(1,1,1));
             return;
         }
 
@@ -476,43 +509,71 @@ class GLCanvas : Canvas {
         assert(glsurf !is null);
 
         glPushAttrib(GL_ENABLE_BIT);
-
-        glEnable(GL_TEXTURE_2D);
         glDisable(GL_DEPTH_TEST);
-
-        //activate blending for proper alpha display
-        switch (glsurf.mData.transparency) {
-            case Transparency.Colorkey:
-                glEnable(GL_ALPHA_TEST);
-                glAlphaFunc(GL_GREATER, 0.1f);
-                break;
-            case Transparency.Alpha:
-                glEnable(GL_BLEND);
-                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                break;
-            default:
-        }
-
-        glBindTexture(GL_TEXTURE_2D, glsurf.mTexId);
-
-        Vector2i p1 = destPos;
-        Vector2i p2 = destPos + destSize;
-        //select the right part of the texture (in 0.0-1.0 texture coordinates)
-        Vector2f t1, t2;
-        t1.x = cast(float)sourcePos.x / glsurf.mTexSize.x;
-        t1.y = cast(float)sourcePos.y / glsurf.mTexSize.y;
-        t2.x = cast(float)(sourcePos.x+sourceSize.x) / glsurf.mTexSize.x;
-        t2.y = cast(float)(sourcePos.y+sourceSize.y) / glsurf.mTexSize.y;
-
+        glsurf.prepareDraw();
         glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 
-        //draw textured rect
-        glBegin(GL_QUADS);
-        glTexCoord2f(t1.x, t1.y); glVertex2i(p1.x, p1.y);
-        glTexCoord2f(t1.x, t2.y); glVertex2i(p1.x, p2.y);
-        glTexCoord2f(t2.x, t2.y); glVertex2i(p2.x, p2.y);
-        glTexCoord2f(t2.x, t1.y); glVertex2i(p2.x, p1.y);
-        glEnd();
+        //tiling can be done by OpenGL if texture space is fully used
+        bool glTilex = glsurf.mTexMax.x == 1.0f;
+        bool glTiley = glsurf.mTexMax.y == 1.0f;
+
+        //check if either no tiling is needed, or it can be done entirely by GL
+        bool noTileSpecial = (glTilex || destSize.x <= sourceSize.x)
+            && (glTiley || destSize.y <= sourceSize.y);
+
+        void simpleDraw(Vector2i sourceP, Vector2i destP, Vector2i destS) {
+            Vector2i p1 = destP;
+            Vector2i p2 = destP + destS;
+            Vector2f t1, t2;
+
+            //select the right part of the texture (in 0.0-1.0 coordinates)
+            t1.x = cast(float)sourceP.x / glsurf.mTexSize.x;
+            t1.y = cast(float)sourceP.y / glsurf.mTexSize.y;
+            t2.x = cast(float)(sourceP.x+destS.x) / glsurf.mTexSize.x;
+            t2.y = cast(float)(sourceP.y+destS.y) / glsurf.mTexSize.y;
+
+            //draw textured rect
+            glBegin(GL_QUADS);
+                glTexCoord2f(t1.x, t1.y); glVertex2i(p1.x, p1.y);
+                glTexCoord2f(t1.x, t2.y); glVertex2i(p1.x, p2.y);
+                glTexCoord2f(t2.x, t2.y); glVertex2i(p2.x, p2.y);
+                glTexCoord2f(t2.x, t1.y); glVertex2i(p2.x, p1.y);
+            glEnd();
+        }
+
+        if (noTileSpecial) {
+            //pure OpenGL drawing (and tiling)
+            simpleDraw(sourcePos, destPos, destSize);
+        } else {
+            //manual tiling code, partially using OpenGL tiling if possible
+            //xxx sorry for code duplication, but the differences seemed too big
+            int w = glTilex?destSize.x:sourceSize.x;
+            int h = glTiley?destSize.y:sourceSize.y;
+            int x;
+            Vector2i tmp;
+            Vector2i trans = mStack[mStackTop].translate;
+            Vector2i cs_tr = mStack[0].clientsize - trans;
+
+            int y = 0;
+            while (y < destSize.y) {
+                tmp.y = destPos.y + y;
+                int resty = ((y+h) < destSize.y) ? h : destSize.y - y;
+                //check visibility (y coordinate)
+                if (tmp.y+resty+trans.y > 0 && tmp.y < cs_tr.y) {
+                    x = 0;
+                    while (x < destSize.x) {
+                        tmp.x = destPos.x + x;
+                        int restx = ((x+w) < destSize.x) ? w : destSize.x - x;
+                        //visibility check for x coordinate
+                        if (tmp.x+restx+trans.x > 0 && tmp.x < cs_tr.x)
+                            simpleDraw(Vector2i(0, 0), tmp,
+                                Vector2i(restx, resty));
+                        x += restx;
+                    }
+                }
+                y += resty;
+            }
+        }
 
         glPopAttrib();
     }

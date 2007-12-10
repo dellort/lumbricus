@@ -28,18 +28,16 @@ class SkyDrawer : SceneObject {
 
     void draw(Canvas canvas) {
         if (mParent.enableSkyTex) {
-            for (int x = 0; x < mParent.size.x; x += mSkyTex.size.x) {
-                canvas.draw(mSkyTex, Vector2i(x, mParent.skyOffset));
-            }
+            canvas.drawTiled(mSkyTex, Vector2i(0, mParent.skyOffset),
+                Vector2i(mParent.size.x, mSkyTex.size.y));
             if (mParent.skyOffset > 0)
                 canvas.drawFilledRect(Vector2i(0, 0),
                     Vector2i(mParent.size.x, mParent.skyOffset), mSkyColor);
         }
         if (mSkyBackdrop && mParent.enableSkyBackdrop) {
             int offs = mParent.skyBottom - mSkyBackdrop.size.y;
-            for (int x = canvas.clientOffset.x/6; x < mParent.size.x; x += mSkyBackdrop.size.x) {
-                canvas.draw(mSkyBackdrop, Vector2i(x, offs));
-            }
+            canvas.drawTiled(mSkyBackdrop, Vector2i(canvas.clientOffset.x/6,
+                offs), Vector2i(mParent.size.x, mSkyBackdrop.size.y));
         }
     }
 }
