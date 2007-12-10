@@ -309,7 +309,7 @@ class IRCFrame : Container {
         mConsole.console.writefln("Welcome to wIRC!");
         mConsole.console.writefln("List commands with /help");
         mConsole.cmdline.registerCommand("say", &cmdSay, "hullo!",
-            ["text...:what you say"]);
+            ["text?...=:what you say"]);
         mConsole.cmdline.registerCommand("quit", &cmdQuit, "Quit wIRC",
             ["text...:Quit reason"]);
         mConsole.cmdline.registerCommand("server", &cmdServer,

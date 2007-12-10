@@ -10,6 +10,7 @@ import toplevel = common.toplevel;
 import std.random : rand_seed;
 import utils.log;
 import utils.output;
+import utils.time;
 import std.stream : File, FileMode;
 import std.stdio;
 
@@ -21,6 +22,7 @@ import game.gametask; //the game itself
 import game.gui.preview; //level preview window
 import game.gui.leveledit; //aw
 import game.wtris; //lol
+import game.bomberworm; //?
 import irc.ircclient; //roflmao
 //net tests
 import net.enet_test;

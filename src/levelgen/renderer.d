@@ -546,9 +546,19 @@ package class LevelBitmap {
 
         mLevelData.length = mWidth*mHeight;
 
-        auto c = gFramework.startOffscreenRendering(mImage);
+        void* ptr; uint pitch;
+        mImage.lockPixelsRGBA32(ptr, pitch);
+        for (int y = 0; y < mHeight; y++) {
+            uint* pixel = cast(uint*)(ptr + y*pitch);
+            for (int x = 0; x < mWidth; x++) {
+                *pixel++ = 0xff00ff;
+            }
+        }
+        mImage.unlockPixels(Rect2i(Vector2i(0), mImage.size));
+
+        /+auto c = gFramework.startOffscreenRendering(mImage);
         c.clear(mImage.colorkey);
-        c.endDraw();
+        c.endDraw();+/
     }
 
     //copy the level bitmap, per-pixel-metadata, background image and damage-

@@ -211,7 +211,8 @@ private:
 
         globals.cmdLine.registerCommand("ps", &cmdPS, "list tasks");
         globals.cmdLine.registerCommand("spawn", &cmdSpawn, "create task",
-            ["text:task name (get avilable ones with 'help_spawn')"]);
+            ["text:task name (get available ones with 'help_spawn')"],
+            [&complete_spawn]);
         globals.cmdLine.registerCommand("kill", &cmdKill, "kill a task by ID",
             ["int:task id"]);
         globals.cmdLine.registerCommand("terminate", &cmdTerminate,
@@ -235,10 +236,11 @@ private:
         globals.cmdLine.registerCommand("times", &cmdShowTimers,
             "List timers", []);
 
-        /+
         globals.cmdLine.registerCommand("fw_info", &cmdInfoString,
             "Query a info string from the framework, with no argument: list "
-            "all info string names", ["text?:Name of the string or 'all'"]);
+            "all info string names", ["text?:Name of the string or 'all'"],
+            [&complete_fw_info]);
+        /+
         globals.cmdLine.registerCommand("fw_debug", &cmdSetFWDebug,
             "Switch some debugging stuff in Framework on/off", ["bool:Value"]);
         +/
@@ -263,7 +265,6 @@ private:
     }
     +/
 
-    /+
     private void cmdInfoString(MyBox[] args, Output write) {
         auto names = gFramework.getInfoStringNames();
         if (args[0].empty) {
@@ -292,7 +293,10 @@ private:
             }
         }
     }
-    +/
+
+    private char[][] complete_fw_info() {
+        return gFramework.getInfoStringNames().keys;
+    }
 
     private void cmdWidgetTree(MyBox[] args, Output write) {
         int maxdepth;
@@ -376,6 +380,10 @@ private:
         write.writefln("spawn: instantiated %s -> %s", name, n);
     }
 
+    private char[][] complete_spawn() {
+        return TaskFactory.classes;
+    }
+
     private Task findTask(MyBox[] args, Output write) {
         int id = args[0].unbox!(int)();
         foreach (Task t; taskManager.taskList) {
@@ -431,7 +439,8 @@ private:
 
     private void cmdFS(MyBox[] args, Output write) {
         try {
-            gFramework.fullScreen = !gFramework.fullScreen;
+            gFramework.setVideoMode(gFramework.screenSize, -1,
+                !gFramework.fullScreen);
         } catch (Exception e) {
             //fullscreen switch failed
             write.writefln(e);
@@ -564,14 +573,15 @@ private:
 
     private bool onKeyDown(KeyInfo infos) {
         if (mKeyNameIt) {
+            auto mods = gFramework.getModifierSet();
+            mGuiConsole.output.writefln("Key: '%s' '%s', code=%s mods=%s",
+                keybindings.unparseBindString(infos.code, mods),
+                globals.translateKeyshortcut(infos.code, mods),
+                cast(int)infos.code, cast(int)mods);
             //modifiers are also keys, ignore them
             if (gFramework.isModifierKey(infos.code)) {
                 return false;
             }
-            auto mods = gFramework.getModifierSet();
-            mGuiConsole.output.writefln("Key: '%s' '%s'",
-                keybindings.unparseBindString(infos.code, mods),
-                globals.translateKeyshortcut(infos.code, mods));
             mKeyNameIt = false;
             return false;
         }
@@ -670,8 +680,7 @@ class StatsWindow : Task {
 
             setLine(0, "GC Used", sizeToHuman(gcs.usedsize));
             setLine(1, "GC Poolsize", sizeToHuman(gcs.poolsize));
-            /*setLine(2, "Weak objects",
-                gFramework.getInfoString(InfoString.Custom0));*/
+            setLine(2, "Weak objects", .toString(gFramework.weakObjectsCount));
 
             n += 3;
 

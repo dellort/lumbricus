@@ -158,9 +158,17 @@ class SDLSurface : DriverSurface {
         if (mData.transparency == Transparency.Colorkey
             && color.a <= Color.epsilon)
         {
-            color = mData.colorkey;
+            //color = mData.colorkey;
+            return mSurface.format.colorkey;
         }
         return simpleColorToSDLColor(mSurface, color);
+    }
+
+    void getInfos(out char[] desc, out uint extra_data) {
+        desc = format("c=%s", mCacheEnabled);
+        if (mCacheEnabled) {
+            extra_data = mSurface.pitch * mSurface.h;
+        }
     }
 }
 
@@ -316,16 +324,22 @@ class SDLDriver : FrameworkDriver {
         surface = null;
     }
 
-    package static bool cmpPixelFormat(SDL_PixelFormat* a, SDL_PixelFormat* b) {
+    //ignore_a_alpha_bla = ignore alpha, if there's no alpha channel for a
+    package static bool cmpPixelFormat(SDL_PixelFormat* a, SDL_PixelFormat* b,
+        bool ignore_a_alpha_bla = false)
+    {
         return (a.BitsPerPixel == b.BitsPerPixel
             && a.Rmask == b.Rmask
             && a.Gmask == b.Gmask
             && a.Bmask == b.Bmask
-            && a.Amask == b.Amask);
+            && (ignore_a_alpha_bla && a.Amask == 0
+                ? true : a.Amask == b.Amask));
     }
 
+    //NOTE: disregards screen alpha channel if non-existant
     package bool isDisplayFormat(SDL_Surface* s, bool alpha) {
-        return cmpPixelFormat(s.format, alpha ? &mPFAlphaScreen : &mPFScreen);
+        return cmpPixelFormat(s.format, alpha ? &mPFAlphaScreen : &mPFScreen,
+            true);
     }
 
     private bool switchVideoTo(VideoWindowState state) {
@@ -470,6 +484,7 @@ class SDLDriver : FrameworkDriver {
             switch(event.type) {
                 case SDL_KEYDOWN:
                     KeyInfo infos = keyInfosFromSDL(event.key);
+                    std.stdio.writefln(cast(int)event.key.keysym.scancode);
                     mFramework.driver_doKeyDown(infos);
                     break;
                 case SDL_KEYUP:
@@ -495,7 +510,8 @@ class SDLDriver : FrameworkDriver {
                     mFramework.driver_doKeyDown(infos);
                     break;
                 case SDL_VIDEORESIZE:
-                    //setVideoMode(Vector2i(event.resize.w, event.resize.h));
+                    mFramework.setVideoMode(Vector2i(event.resize.w,
+                        event.resize.h));
                     break;
                 // exit if SDLK or the window close button are pressed
                 case SDL_QUIT:
@@ -618,6 +634,50 @@ class SDLDriver : FrameworkDriver {
         }
 
         return new Surface(data);
+    }
+
+    char[] getDriverInfo() {
+        char[] desc;
+
+        char[] version_to_a(SDL_version v) {
+            return format("%s.%s.%s", v.major, v.minor, v.patch);
+        }
+
+        SDL_version compiled, linked;
+        SDL_VERSION(&compiled);
+        linked = *SDL_Linked_Version();
+        desc ~= format("SDLDriver, SDL compiled=%s linked=%s\n",
+            version_to_a(compiled), version_to_a(linked));
+
+        char[20] buf;
+        char* res = SDL_VideoDriverName(buf.ptr, buf.length);
+        desc ~= format("Driver: %s\n", res ? .toString(res) : "<unintialized>");
+
+        SDL_VideoInfo info = *SDL_GetVideoInfo();
+
+        //in C, info.flags doesn't exist, but instead there's a bitfield
+        //here are the names of the bitfield entries (in order)
+        char[][] flag_names = ["hw_available", "wm_available",
+            "blit_hw", "blit_hw_CC", "blit_hw_A", "blit_sw",
+            "blit_sw_CC", "blit_sw_A", "blit_fill"];
+
+        char[] flags;
+        foreach (int index, name; flag_names) {
+            bool set = !!(info.flags & (1<<index));
+            flags ~= format("  %s: %s\n", name, (set ? "1" : "0"));
+        }
+        desc ~= "Flags:\n" ~ flags;
+
+        desc ~= "Screen:\n";
+        desc ~= format("   size = %sx%s\n", info.current_w, info.current_h);
+        desc ~= format("   video memory = %s\n", sizeToHuman(info.video_mem));
+        SDL_PixelFormat* fmt = info.vfmt;
+        desc ~= format("   pixel format = bits=%s"
+            " R/G/B/A=%#08x/%#08x/%#08x/%#08x\n", fmt.BitsPerPixel, fmt.Rmask,
+            fmt.Gmask, fmt.Bmask, fmt.Amask);
+        desc ~= format("%d driver surfaces\n", mDriverSurfaceCount);
+
+        return desc;
     }
 }
 

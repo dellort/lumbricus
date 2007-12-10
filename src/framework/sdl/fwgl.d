@@ -8,6 +8,7 @@ import framework.framework;
 import framework.sdl.framework;
 import framework.drawing;
 import std.math;
+import std.string;
 import utils.misc;
 
 debug import std.stdio;
@@ -158,6 +159,10 @@ class GLSurface : DriverSurface {
             glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
             glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
         }
+    }
+
+    void getInfos(out char[] desc, out uint extra_data) {
+        desc = format("GLSurface, texid=%s", mTexId);
     }
 }
 

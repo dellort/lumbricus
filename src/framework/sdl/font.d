@@ -8,6 +8,7 @@ import derelict.sdl.sdl;
 import derelict.sdl.ttf;
 
 import std.stream;
+import std.string;
 
 class SDLFont : DriverFont {
     private {
@@ -175,6 +176,10 @@ class SDLFont : DriverFont {
         } else {
             return tmp;
         }
+    }
+
+    char[] getInfos() {
+        return format("glyphs=%d", cachedGlyphs);
     }
 }
 

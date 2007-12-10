@@ -19,8 +19,10 @@ public import utils.output : Output;
 alias MyBox function(char[] args) TypeHandler;
 
 alias void delegate(MyBox[] args, Output write) CommandHandler;
+alias char[][] delegate() CompletionHandler;
 
 TypeHandler[char[]] gCommandLineParsers;
+CompletionHandler[char[]] gCommandLineCompletionHandlers;
 
 static this() {
     gCommandLineParsers["text"] = gBoxParsers[typeid(char[])];
@@ -28,6 +30,11 @@ static this() {
     gCommandLineParsers["float"] = gBoxParsers[typeid(float)];
     gCommandLineParsers["color"] = gBoxParsers[typeid(Color)];
     gCommandLineParsers["bool"] = gBoxParsers[typeid(bool)];
+
+    char[][] complete_bool() {
+        return ["true", "false"];
+    }
+    gCommandLineCompletionHandlers["bool"] = &complete_bool;
 }
 
 //store stuff about a command
@@ -49,7 +56,7 @@ public class Command {
     //   isn't available, then this will be passed to the handler
     // <help> is the help text for that parameter
     static Command opCall(char[] name, CommandHandler handler,
-        char[] helpText, char[][] args = null)
+        char[] helpText, char[][] args = null, CompletionHandler[] compl = null)
     {
         Command cmd = new Command();
         cmd.name = name;
@@ -58,6 +65,7 @@ public class Command {
         cmd.param_help.length = args.length;
         cmd.param_defaults.length = args.length;
         cmd.param_types.length = args.length;
+        cmd.completions.length = args.length;
         int firstOptional = -1;
         foreach (int index, char[] arg; args) {
             char[] help = "no help";
@@ -110,6 +118,15 @@ public class Command {
             }
             cmd.param_types[index] = *phandler;
 
+            CompletionHandler* chandler = arg in gCommandLineCompletionHandlers;
+            if (chandler) {
+                cmd.completions[index] = *chandler;
+            }
+
+            if (index < compl.length && compl[index]) {
+                cmd.completions[index] = compl[index];
+            }
+
             if (have_def) {
                 auto box = (*phandler)(def);
                 if (box.empty()) {
@@ -122,6 +139,11 @@ public class Command {
         cmd.minArgCount = firstOptional < 0 ? args.length : firstOptional;
         return cmd;
     }
+
+    void setCompletionHandler(int narg, CompletionHandler get_completions) {
+        completions[narg] = get_completions;
+    }
+
 private:
     char[] name;
     CommandHandler cmdProc;
@@ -134,62 +156,115 @@ private:
     //pass rest of the commandline as string for the last parameter
     bool textArgument;
 
-    //find any char from anyof in str and return the first one
-    private static int findAny(char[] astr, char[] anyof) {
-        //if you like, you can implement an efficient one, hahaha
-        int first = -1;
-        foreach (char c; anyof) {
-            int r = str.find(astr, c);
-            if (r > first)
-                first = r;
+    //for each param; null item if not available
+    CompletionHandler[] completions;
+
+    public struct CmdItem {
+        //parsed string (i.e. quotes and escapes removed)
+        char[] s;
+        //start and end in the raw string (without surrounding white space)
+        int start, end;
+    }
+    public static CmdItem[] parseLine(char[] cmdline) {
+        CmdItem[] res;
+        int orglen = cmdline.length;
+
+        for (;;) {
+            //leading whitespace
+            cmdline = str.stripl(cmdline);
+
+            if (!cmdline.length)
+                break;
+
+            int start = orglen - cmdline.length;
+
+            //find end of the argument
+            //it end with string end or whitespace, but there can be quotes
+            //in the middle of it, which again can contain whitespace...
+            bool in_quote;
+            bool done;
+            char[] arg_string;
+
+            while (!(done || cmdline.length == 0)) {
+                if (cmdline[0] == '"') {
+                    in_quote = !in_quote;
+                } else {
+                    bool iswh = !in_quote && str.iswhite(cmdline[0]);
+                    if (!iswh) {
+                        arg_string ~= cmdline[0];
+                    } else {
+                        done = true; //NOTE: also strip this whitespace!
+                    }
+                }
+                cmdline = cmdline[1..$];
+            }
+
+            int end = orglen - cmdline.length;
+            res ~= CmdItem(arg_string, start, end);
         }
-        return first;
+
+        return res;
     }
 
-    //cur left whitespace
-    private static char[] trimLeft(char[] s) {
-        while (s.length > 1 && str.iswhite(s[0]))
-            s = s[1..$];
-        return s;
+    //parse the commandline and fix it up to respect the text argument
+    //it just does that, no further error handling or checking etc.
+    public CmdItem[] parseLine2(char[] cmdline) {
+        CmdItem[] items = parseLine(cmdline);
+        if (textArgument) {
+            int start = param_types.length - 1;
+            assert(start >= 0);
+            int end = items.length - 1;
+            if (end >= start) {
+                CmdItem nitem;
+                nitem.start = items[start].start;
+                //hack: if it's the first element, don't kill the whitespace
+                //preceeding it
+                if (start == 0)
+                    nitem.start = 0;
+                nitem.end = items[end].end;
+                //no escaping etc.
+                nitem.s = cmdline[nitem.start .. nitem.end];
+                items = items[0..start] ~ nitem;
+            }
+        }
+        return items;
+    }
+
+    //for per-argument autocompletion
+    // cmdline: complete commandline, cursor: cursor position, points into
+    // cmdline, argument: argument number, preceeding: text in the current
+    // argument, which is preceeding the cursor
+    //returns true if output params are valid
+    public bool findArgAt(char[] cmdline, int cursor, out int argument,
+        out char[] preceeding)
+    {
+        //only parse up to the cursor => simpler
+        assert(cursor >= 0 && cursor <= cmdline.length);
+        CmdItem[] items = parseLine2(cmdline[0..cursor]);
+        if (items.length == 0) {
+            argument = 0;
+        } else {
+            argument = items.length - 1;
+            preceeding = items[argument].s;
+        }
+        return (argument < param_types.length);
     }
 
     //whatever...
     public void parseAndInvoke(char[] cmdline, Output write) {
+        CmdItem[] items = parseLine2(cmdline);
+        int last_item;
         MyBox[] args;
         args.length = param_types.length;
         for (int curarg = 0; curarg < param_types.length; curarg++) {
-            char[] arg_string;
-            //cut leading whitespace only if that's not a textArgument
-            bool isTextArg = (textArgument && param_types.length == curarg+1);
-            if (isTextArg) {
-                arg_string = cmdline;
-                cmdline = null;
-            } else {
-                cmdline = trimLeft(cmdline);
+            MyBox box;
 
-                //find end of the argument
-                //it end with string end or whitespace, but there can be quotes
-                //in the middle of it, which again can contain whitespace...
-                bool in_quote;
-                bool done;
-
-                while (!(done || cmdline.length == 0)) {
-                    if (cmdline[0] == '"') {
-                        in_quote = !in_quote;
-                    } else {
-                        bool iswh = !in_quote && str.iswhite(cmdline[0]);
-                        if (!iswh) {
-                            arg_string ~= cmdline[0];
-                        } else {
-                            done = true; //NOTE: also strip this whitespace!
-                        }
-                    }
-                    cmdline = cmdline[1..$];
-                }
+            if (curarg < items.length) {
+                last_item = curarg;
+                box = param_types[curarg](items[curarg].s);
             }
 
             //complain and throw up if not valid
-            MyBox box = param_types[curarg](arg_string);
             if (box.empty()) {
                 if (curarg < minArgCount) {
                     write.writefln("could not parse argument nr. %s", curarg);
@@ -197,16 +272,13 @@ private:
                 }
                 box = param_defaults[curarg];
             }
-            //xxx stupid hack to support default arguments for strings
-            if (arg_string.length == 0 && curarg >= minArgCount) {
-                box = param_defaults[curarg];
-            }
+
             args[curarg] = box;
         }
-        cmdline = trimLeft(cmdline);
-        if (cmdline.length > 0) {
+
+        if (last_item < cast(int)items.length - 1) {
             write.writefln("Warning: trailing unparsed argument string: '%s'",
-                cmdline);
+                cmdline[items[last_item+1].start .. items[$-1].end]);
         }
 
         //successfully parsed, so...:
@@ -235,6 +307,10 @@ class CommandBucket {
         //      double entries
         int opCmp(Entry* other) {
             return str.cmp(alias_name, other.alias_name);
+        }
+
+        char[] toString() {
+            return alias_name ~ " -> " ~ cmd.name;
         }
     }
 
@@ -345,9 +421,9 @@ public class CommandLine {
     }
 
     public void registerCommand(char[] name, CommandHandler handler,
-        char[] helpText, char[][] args = null)
+        char[] helpText, char[][] args = null, CompletionHandler[] compl = null)
     {
-        registerCommand(Command(name, handler, helpText, args));
+        registerCommand(Command(name, handler, helpText, args, compl));
     }
 
     /// Set a prefix which is required before each command (disable with ""),
@@ -385,6 +461,14 @@ class CommandLineInstance {
         alias CommandBucket.Entry CommandEntry;
     }
 
+    private char[][] complete_command_list() {
+        char[][] res;
+        foreach (CommandEntry e; mCommands.sorted) {
+            res ~= e.alias_name;
+        }
+        return res;
+    }
+
     this(CommandLine cmdline, Output output) {
         mConsole = output;
         mCmdline = cmdline;
@@ -393,7 +477,8 @@ class CommandLineInstance {
         HistoryNode n;
         mHistory = new HistoryList(n.listnode.getListNodeOffset());
         mCommands.registerCommand(Command("help", &cmdHelp,
-            "Show all commands.", ["text?:specific help for a command"]));
+            "Show all commands.", ["text?:specific help for a command"],
+            [&complete_command_list]));
         mCommands.registerCommand(Command("history", &cmdHistory,
             "Show the history.", null));
     }
@@ -493,8 +578,10 @@ class CommandLineInstance {
     }
 
     //get the command part of the command line
-    private bool parseCommand(char[] line, out char[] command, out char[] args,
-        out uint start, out uint end)
+    //start-end: position of command literal, excluding whitespace or prefix
+    //argstart: start-index of the arguments (line.length if none)
+    private bool parseCommand(char[] line, out char[] command, out uint start,
+        out uint end, out uint argstart)
     {
         auto plen = mCmdline.mCommandPrefix.length;
         auto len = line.length;
@@ -506,14 +593,15 @@ class CommandLineInstance {
             if (first_whitespace >= 0) {
                 command = line[0..first_whitespace];
                 end = start + first_whitespace;
-                args = line[first_whitespace+1..$];
+                argstart = end + 1;
             } else {
                 command = line;
                 end = start + line.length;
+                argstart = len;
             }
         } else {
             command = mCmdline.mDefaultCommand;
-            args = line;
+            argstart = 0;
         }
         return command.length > 0;
     }
@@ -521,9 +609,9 @@ class CommandLineInstance {
     /// Execute any command from outside.
     public void execute(char[] cmdline, bool addHistory = true) {
         char[] cmd, args;
-        uint start, end; //not really needed
+        uint start, end, argstart;
 
-        if (!parseCommand(cmdline, cmd, args, start, end)) {
+        if (!parseCommand(cmdline, cmd, start, end, argstart)) {
             //nothing, but show some reaction...
             mConsole.writefln("-");
         } else {
@@ -540,19 +628,37 @@ class CommandLineInstance {
                 mCurrentHistoryEntry = null;
             }
 
-            CommandEntry[] throwup;
-            auto cccmd = find_command_completions(cmd, throwup);
-            auto ccmd = cccmd.cmd;
-            //accept unique partial matches
-            if (!ccmd && throwup.length == 1) {
-                ccmd = throwup[0].cmd;
-            }
+            auto ccmd = findCommand(cmd);
             if (!ccmd) {
                 mConsole.writefln("Unknown command: "~cmd);
             } else {
-                ccmd.parseAndInvoke(args, mConsole);
+                ccmd.parseAndInvoke(cmdline[argstart..$], mConsole);
             }
         }
+    }
+
+    //find a command, even if cmd only partially matches (but is unique)
+    Command findCommand(char[] cmd) {
+        CommandEntry[] throwup;
+        auto cccmd = find_command_completions(cmd, throwup);
+        auto ccmd = cccmd.cmd;
+        //accept unique partial matches
+        if (!ccmd && throwup.length == 1) {
+            ccmd = throwup[0].cmd;
+        }
+        return ccmd;
+    }
+
+    private static char[] common_prefix(char[] s1, char[] s2) {
+        uint slen = min(s1.length, s2.length);
+        for (int n = 0; n < slen; n++) {
+            if (s1[n] != s2[n]) {
+                slen = n;
+                break;
+            }
+        }
+        assert(s1[0..slen] == s2[0..slen]);
+        return s1[0..slen];
     }
 
     /// Replace the text between start and end by text
@@ -563,56 +669,99 @@ class CommandLineInstance {
     /// completed text.
     /// at = cursor position; currently unused
     public void tabCompletion(char[] line, int at, EditDelegate edit) {
-        char[] cmd, args;
-        uint start, end;
-        if (!parseCommand(line, cmd, args, start, end) || start == end)
-            return;
-        CommandEntry[] res;
-        CommandEntry exact = find_command_completions(cmd, res);
+        void do_edit(int start, int end, char[] text) {
+            line = line[0..start] ~ text ~ line[end..$];
+            if (edit)
+                edit(start, end, text);
+        }
 
-        if (res.length == 0) {
+        char[] cmd;
+        uint start, end, argstart;
+        if (!parseCommand(line, cmd, start, end, argstart))
+            return;
+
+        //find out, what or where to complete
+        int arg_e; //position where to insert completion
+        char[] argstr; //(uncompleted) thing which then user wants to complete
+        char[][] all_completions; //list of possible completions
+
+        //NOTE: start==end => "default" command (no prefix)
+        if (at <= end && start != end) {
+            argstr = line[start .. end];
+            arg_e = end;
+            all_completions = complete_command_list();
+        } else {
+            //have to have a command
+            Command ccmd = findCommand(cmd);
+            if (!ccmd) {
+                //no hit - is in arguments, but command isn't recognized
+                return;
+            }
+            auto args = line[argstart..$];
+            int arg;
+            if (!ccmd.findArgAt(args, at - argstart, arg, argstr)) {
+                //no hit - no idea what's going on
+                return;
+            }
+            arg_e = at;
+            CompletionHandler h = ccmd.completions[arg];
+            if (!h) {
+                //no completion provided
+                return;
+            }
+            all_completions = h();
+        }
+
+        //filter completions (remove unuseful ones)
+        char[][] completions;
+        foreach (c; all_completions) {
+            if (c.length >= argstr.length && c[0..argstr.length] == argstr)
+                completions ~= c;
+        }
+
+        if (completions.length == 0) {
             //no hit, too bad, maybe beep?
         } else {
             //get biggest common starting-string of all completions
-            char[] common = res[0].alias_name;
-            foreach (CommandEntry ccmd; res[1..$]) {
-                if (ccmd.alias_name.length < common.length)
-                    common = ccmd.alias_name.dup; //dup: because we set length below
-                //xxx incorrect utf-8 handling
-                foreach (uint index, char c; common) {
-                    if (ccmd.alias_name[index] != c) {
-                        common.length = index;
-                        break;
-                    }
-                }
+            char[] common = completions[0];
+            foreach (char[] item; completions[1..$]) {
+                common = common_prefix(common, item);
             }
+            //mConsole.writefln(" ..: '%s' '%s' %s", common, cmd, res);
+            //mConsole.writefln("s=%s e=%s", start, end);
 
-            if (common.length > cmd.length) {
-                //if there's a common substring longer than the commonrent
-                //  command, extend it
+            if (common.length > argstr.length) {
+                //if there's a common substring longer than the commandline,
+                //  extend it
+                int diff = common.length - argstr.length;
 
-                edit(start, end, common);
+                do_edit(arg_e, arg_e, common[$-diff..$]);
+                arg_e += diff;
             } else {
-                if (res.length > 1) {
+                if (completions.length > 1) {
                     //write them to the output screen
                     mConsole.writefln("Tab completions:");
-                    bool toomuch = (res.length == MAX_AUTO_COMPLETIONS);
-                    if (toomuch) res = res[0..$-1];
-                    foreach (CommandEntry ccmd; res) {
-                        mConsole.writefln("  %s", ccmd.alias_name);
+                    bool toomuch = (completions.length == MAX_AUTO_COMPLETIONS);
+                    if (toomuch) completions = completions[0..$-1];
+                    foreach (char[] item; completions) {
+                        //draw a "|" between the completed and the missing part
+                        mConsole.writefln("  %s|%s", item[0..common.length],
+                            item[common.length..$]);
                     }
                     if (toomuch)
                         mConsole.writefln("...");
                 } else {
-                    //one hit, since the case wasn't catched above, this means
-                    //it's already complete
-                    //insert a space after the command, if there isn't yet
-                    if (!(end < line.length && line[end] == ' '))
-                        edit(end, end, " ");
+                    //was already complete... hm
                 }
             }
-        }
 
+            if (completions.length == 1) {
+                //one hit = > it's complete now (or should be)
+                //insert a space after the command, if there isn't yet
+                if (!(arg_e > 0 && line[arg_e-1] == ' '))
+                    edit(arg_e, arg_e, " ");
+            }
+        }
     }
 
     //if there's a perfect match (whole string equals), then it is returned,
@@ -641,26 +790,4 @@ class CommandLineInstance {
 
         return exact;
     }
-}
-
-debug import std.stdio;
-
-unittest {
-    /+
-    void handler(MyBox[] args, Output write) {
-        foreach(int index, MyBox b; args) {
-            debug writefln("%s: %s", index, boxToString(b));
-        }
-    }
-    auto c1 = Command("foo", &handler, "blah", [
-        "int:hello",
-        "float:bla",
-        "text:huh",
-        "int?=789:fff",
-        "text?=haha:bla2"
-        ]);
-    c1.parseAndInvoke("5   1.2 \"hal  l ooo\"  ", StdioOutput.output);
-
-    debug writefln("commandline.d unittest: passed.");
-    +/
 }

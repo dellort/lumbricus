@@ -35,7 +35,7 @@ struct FontProperties {
 class Font {
     private {
         FontProperties mProps;
-        DriverFont mFont;
+        package DriverFont mFont;
     }
 
     this(FontProperties props) {

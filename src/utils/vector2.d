@@ -106,6 +106,15 @@ public struct Vector2(T) {
         return Vector2(x1/v.x1, x2/v.x2);
     }
 
+    public Vector2 opMod(T scalar) {
+        return Vector2(x1%scalar, x2%scalar);
+    }
+
+    //entry-wise modulo
+    public Vector2 opMod(Vector2 v) {
+        return Vector2(x1%v.x1, x2%v.x2);
+    }
+
     public Vector2 opNeg() {
         return Vector2(-x1, -x2);
     }

@@ -10,6 +10,17 @@ public struct Rect2(T) {
     alias Vector2!(T) Point;
     Point p1, p2;
 
+    /+
+     +  p1   pA
+     +  pB   p2
+     +/
+    Point pA() {
+        return Point(p2.x, p1.y);
+    }
+    Point pB() {
+        return Point(p1.x, p2.y);
+    }
+
     public static Rect2 opCall(Point p1, Point p2) {
         Rect2 r;
         r.p1 = p1;
@@ -18,6 +29,12 @@ public struct Rect2(T) {
     }
     public static Rect2 opCall(T x1, T y1, T x2, T y2) {
         return Rect2(Point(x1, y1), Point(x2, y2));
+    }
+    // opCall(Vector2i(0,0), b)
+    public static Rect2 opCall(Point b) {
+        Rect2 r;
+        r.p2 = b;
+        return r;
     }
 
     //return a rectangle that could be considered to be "empty"

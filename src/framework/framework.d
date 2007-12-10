@@ -43,6 +43,9 @@ abstract class DriverSurface {
     ///update pixels again; it is unspecified if changes to the pixel data will
     ///be reflected immediately or only after this function is called
     abstract void updatePixels(in Rect2i rc);
+
+    //useful debugging infos lol
+    abstract void getInfos(out char[] desc, out uint extra_data);
 }
 
 //needed for texture versus bitmap under SDL's OpenGL
@@ -93,6 +96,9 @@ abstract class FrameworkDriver {
 
     abstract FontDriver fontDriver();
 
+    ///for debugging
+    abstract char[] getDriverInfo();
+
     ///deinit driver
     abstract void destroy();
 }
@@ -134,6 +140,9 @@ abstract class DriverFont {
     //w == int.max for unlimited text
     abstract Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text);
     abstract Vector2i textSize(char[] text, bool forceHeight);
+
+    //useful debugging infos lol
+    abstract char[] getInfos();
 }
 
 abstract class FontDriver {
@@ -339,6 +348,15 @@ alias Surface Texture;
 private const Time cFPSTimeSpan = timeSecs(1); //how often to recalc FPS
 
 public alias int delegate() CacheReleaseDelegate;
+
+/// For Framework.getInfoString()
+/// Entries from Framework.getInfoStringNames() correspond to this
+/// Each entry describes a piece of information which can be queried by calling
+/// Framework.getInfoString().
+enum InfoString {
+    Driver,
+    ResourceList,
+}
 
 class Framework {
     private {
@@ -756,11 +774,13 @@ class Framework {
         return mDriver.getVideoWindowState().fullscreen;
     }
 
+/+
     void fullScreen(bool s) {
         VideoWindowState state = mDriver.getVideoWindowState();
         state.fullscreen = s;
         mDriver.setVideoWindowState(state);
     }
++/
 
     Vector2i screenSize() {
         VideoWindowState state = mDriver.getVideoWindowState();
@@ -967,6 +987,60 @@ class Framework {
 
     Canvas startOffscreenRendering(Surface surface) {
         return mDriver.startOffscreenRendering(surface);
+    }
+
+    /// Get a string for a specific entry (see InfoString).
+    /// Overridden by the framework implementation.
+    /// Since it can have more than one line, it's always terminated with \n
+    char[] getInfoString(InfoString inf) {
+        char[] res;
+        switch (inf) {
+            case InfoString.Driver: {
+                res = mDriver.getDriverInfo();
+                break;
+            }
+            case InfoString.ResourceList: {
+                int cnt, bytes, bytes_extra;
+                res ~= "Surfaces:\n";
+                foreach (s; gSurfaces.list) {
+                    auto d = s.mDriverSurface;
+                    char[] dr_desc;
+                    if (d) {
+                        uint extra;
+                        d.getInfos(dr_desc, extra);
+                        bytes_extra += extra;
+                    }
+                    bytes += s.mData.data.length;
+                    res ~= format("  %s [%s]\n", s.size, dr_desc);
+                    cnt++;
+                }
+                res ~= format("%d surfaces, size=%s, driver_extra=%s\n", cnt,
+                    sizeToHuman(bytes), sizeToHuman(bytes_extra));
+                cnt = 0;
+                res ~= "Fonts:\n";
+                foreach (f; gFonts.list) {
+                    auto d = f.mFont;
+                    res ~= format("  %s/%s [%s]\n", f.properties.face,
+                        f.properties.size, d ? d.getInfos() : "");
+                    cnt++;
+                }
+                res ~= format("%d fonts\n", cnt);
+                break;
+            }
+            default:
+                res = "?\n";
+        }
+        return res;
+    }
+
+    /// Return valid InfoString entry numbers and their name (see InfoString).
+    InfoString[char[]] getInfoStringNames() {
+        return [cast(char[])"driver": InfoString.Driver,
+                "resource_list": InfoString.ResourceList];
+    }
+
+    int weakObjectsCount() {
+        return gSurfaces.countRefs() + gFonts.countRefs();
     }
 
     //--- events
