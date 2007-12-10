@@ -245,7 +245,8 @@ private:
             "Switch some debugging stuff in Framework on/off", ["bool:Value"]);
         +/
         globals.cmdLine.registerCommand("fw_driver", &cmdSetFWDriver,
-            "Set framework driver", ["bool:Caching", "bool:mark alpha"]);
+            "Set framework driver", ["bool:OpenGL", "bool?=true:Caching",
+            "bool?=false:mark alpha"]);
 
         //more like a test
         globals.cmdLine.registerCommand("widget_tree", &cmdWidgetTree, "-");
@@ -254,16 +255,11 @@ private:
     private void cmdSetFWDriver(MyBox[] args, Output write) {
         ConfigNode n = new ConfigNode();
         n["driver"] = "sdl";
-        n.setBoolValue("enable_caching", args[0].unbox!(bool));
-        n.setBoolValue("mark_alpha", args[1].unbox!(bool));
+        n.setBoolValue("open_gl", args[0].unbox!(bool));
+        n.setBoolValue("enable_caching", args[1].unbox!(bool));
+        n.setBoolValue("mark_alpha", args[2].unbox!(bool));
         gFramework.scheduleDriverReload(Framework.DriverReload(n));
     }
-
-    /+
-    private void cmdSetFWDebug(MyBox[] args, Output write) {
-        gFramework.setDebug(args[0].unbox!(bool));
-    }
-    +/
 
     private void cmdInfoString(MyBox[] args, Output write) {
         auto names = gFramework.getInfoStringNames();
@@ -324,12 +320,6 @@ private:
         int released = gFramework.releaseCaches();
         write.writefln("released %s memory consuming house shoes", released);
     }
-
-    /+
-    private void cmdSetCaching(MyBox[] args, Output write) {
-        gFramework.setAllowCaching(args[0].unbox!(bool));
-    }
-    +/
 
     private void cmdResList(MyBox[] args, Output write) {
         write.writefln("dumping to res.txt");

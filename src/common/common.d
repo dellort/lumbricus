@@ -42,7 +42,7 @@ class Common {
     private const cLocalePath = "/locale";
     private const cDefLang = "en";
 
-    this(Framework fw, char[][] args) {
+    this(Framework fw, ConfigNode args) {
         if (globals)
             throw new Exception("Common is a singelton!");
         globals = this;
@@ -71,8 +71,7 @@ class Common {
 
         framework.fontManager.readFontDefinitions(framework.loadConfig("fonts"));
 
-        //maybe replace by a real arg parser
-        if (args.length > 0 && args[0] == "logconsole") {
+        if (args.getBoolValue("logconsole")) {
             defaultOut = StdioOutput.output;
         }
 

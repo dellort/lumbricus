@@ -250,8 +250,8 @@ private:
         return (argument < param_types.length);
     }
 
-    //whatever...
-    public void parseAndInvoke(char[] cmdline, Output write) {
+    //parse and invoke commandline, return if parsing was successful
+    public bool parseAndInvoke(char[] cmdline, Output write) {
         CmdItem[] items = parseLine2(cmdline);
         int last_item;
         MyBox[] args;
@@ -268,7 +268,7 @@ private:
             if (box.empty()) {
                 if (curarg < minArgCount) {
                     write.writefln("could not parse argument nr. %s", curarg);
-                    return;
+                    return false;
                 }
                 box = param_defaults[curarg];
             }
@@ -285,6 +285,8 @@ private:
         if (cmdProc) {
             cmdProc(args, write);
         }
+
+        return true;
     }
 }
 
@@ -503,25 +505,7 @@ class CommandLineInstance {
                 exact = reslist[0];
             }
             if (exact.cmd) {
-                auto c = exact.cmd;
-                mConsole.writefln("Command '%s' ('%s'): %s", exact.alias_name,
-                    c.name, c.helpText);
-                for (int n = 0; n < c.param_types.length; n++) {
-                    //reverse lookup type
-                    foreach (key, value; gCommandLineParsers) {
-                        if (value is c.param_types[n]) {
-                            mConsole.writef("    %s ", key);
-                        }
-                    }
-                    if (n >= c.minArgCount) {
-                        mConsole.writef("[opt] ");
-                    }
-                    mConsole.writefln("%s", c.param_help[n]);
-                }
-                if (c.textArgument) {
-                    mConsole.writefln("    [text-agument]");
-                }
-                mConsole.writefln("%s arguments.", c.param_types.length);
+                show_cmd_help(exact);
                 return;
             } else if (reslist.length) {
                 mConsole.writefln("matches:");
@@ -532,6 +516,28 @@ class CommandLineInstance {
             }
             mConsole.writefln("Command '%s' not found.", foo);
         }
+    }
+
+    private void show_cmd_help(CommandEntry cmd) {
+        auto c = cmd.cmd;
+        mConsole.writefln("Command '%s' ('%s'): %s", cmd.alias_name,
+            c.name, c.helpText);
+        for (int n = 0; n < c.param_types.length; n++) {
+            //reverse lookup type
+            foreach (key, value; gCommandLineParsers) {
+                if (value is c.param_types[n]) {
+                    mConsole.writef("    %s ", key);
+                }
+            }
+            if (n >= c.minArgCount) {
+                mConsole.writef("[opt] ");
+            }
+            mConsole.writefln("%s", c.param_help[n]);
+        }
+        if (c.textArgument) {
+            mConsole.writefln("    [text-agument]");
+        }
+        mConsole.writefln("%s arguments.", c.param_types.length);
     }
 
     private void cmdHistory(MyBox[] args, Output write) {
@@ -629,22 +635,23 @@ class CommandLineInstance {
             }
 
             auto ccmd = findCommand(cmd);
-            if (!ccmd) {
+            if (!ccmd.cmd) {
                 mConsole.writefln("Unknown command: "~cmd);
             } else {
-                ccmd.parseAndInvoke(cmdline[argstart..$], mConsole);
+                if (!ccmd.cmd.parseAndInvoke(cmdline[argstart..$], mConsole)) {
+                    show_cmd_help(ccmd);
+                }
             }
         }
     }
 
     //find a command, even if cmd only partially matches (but is unique)
-    Command findCommand(char[] cmd) {
+    CommandEntry findCommand(char[] cmd) {
         CommandEntry[] throwup;
-        auto cccmd = find_command_completions(cmd, throwup);
-        auto ccmd = cccmd.cmd;
+        auto ccmd = find_command_completions(cmd, throwup);
         //accept unique partial matches
-        if (!ccmd && throwup.length == 1) {
-            ccmd = throwup[0].cmd;
+        if (!ccmd.cmd && throwup.length == 1) {
+            ccmd = throwup[0];
         }
         return ccmd;
     }
@@ -692,7 +699,7 @@ class CommandLineInstance {
             all_completions = complete_command_list();
         } else {
             //have to have a command
-            Command ccmd = findCommand(cmd);
+            Command ccmd = findCommand(cmd).cmd;
             if (!ccmd) {
                 //no hit - is in arguments, but command isn't recognized
                 return;

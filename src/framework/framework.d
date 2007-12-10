@@ -397,7 +397,7 @@ class Framework {
     //what the shit
     Resources resources;
 
-    this(char[] arg0, char[] appId) {
+    this(char[] arg0, char[] appId, config.ConfigNode fwconfig) {
         mLog = registerLog("Fw");
 
         if (gFramework !is null) {
@@ -415,15 +415,15 @@ class Framework {
 
         mFontManager = new FontManager();
 
-        //xxx
-        ConfigNode driver_config = new ConfigNode();
+        auto driver_config = new config.ConfigNode();
         driver_config["driver"] = "sdl";
         driver_config["open_gl"] = "true";
         driver_config["gl_debug_wireframe"] = "false";
+        driver_config.mixinNode(fwconfig.getSubNode("driver"), true);
         replaceDriver(driver_config);
     }
 
-    private void replaceDriver(ConfigNode driver) {
+    private void replaceDriver(config.ConfigNode driver) {
         char[] name = driver.getStringValue("driver");
         if (!FrameworkDriverFactory.exists(name)) {
             throw new Exception("doesn't exist: " ~ name);

@@ -484,7 +484,6 @@ class SDLDriver : FrameworkDriver {
             switch(event.type) {
                 case SDL_KEYDOWN:
                     KeyInfo infos = keyInfosFromSDL(event.key);
-                    std.stdio.writefln(cast(int)event.key.keysym.scancode);
                     mFramework.driver_doKeyDown(infos);
                     break;
                 case SDL_KEYUP:
@@ -675,6 +674,17 @@ class SDLDriver : FrameworkDriver {
         desc ~= format("   pixel format = bits=%s"
             " R/G/B/A=%#08x/%#08x/%#08x/%#08x\n", fmt.BitsPerPixel, fmt.Rmask,
             fmt.Gmask, fmt.Bmask, fmt.Amask);
+
+        desc ~= format("Uses OpenGL: %s\n", mOpenGL);
+        if (mOpenGL) {
+            void dumpglstr(GLenum t, char[] name) {
+                desc ~= format("  %s = %s\n", name, .toString(glGetString(t)));
+            }
+            dumpglstr(GL_VENDOR, "GL_VENDOR");
+            dumpglstr(GL_RENDERER, "GL_RENDERER");
+            dumpglstr(GL_VERSION, "GL_VERSION");
+        }
+
         desc ~= format("%d driver surfaces\n", mDriverSurfaceCount);
 
         return desc;
