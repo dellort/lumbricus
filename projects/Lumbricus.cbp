@@ -3,47 +3,38 @@
 	<FileVersion major="1" minor="6" />
 	<Project>
 		<Option title="Lumbricus" />
+		<Option makefile_is_custom="1" />
 		<Option compiler="dmd" />
 		<Build>
 			<Target title="Debug">
-				<Option output="..\bin\Lumbricus.exe" prefix_auto="0" extension_auto="0" />
+				<Option output="..\bin\lumbricus" prefix_auto="1" extension_auto="1" />
 				<Option working_dir="..\bin" />
 				<Option object_output="..\bin\obj\" />
 				<Option type="1" />
 				<Option compiler="dmd" />
-				<Option parameters="logconsole" />
 				<Option projectResourceIncludeDirsRelation="0" />
-				<Compiler>
-					<Add option="-unittest" />
-					<Add option="-g" />
-					<Add option="-debug" />
-				</Compiler>
-				<Linker>
-					<Add option="-g" />
-				</Linker>
+				<MakeCommands>
+					<Build command="dmd -run dsss.d build lumbricus.d --debug" />
+					<CompileFile command="" />
+					<Clean command="dmd -run dsss.d clean" />
+					<DistClean command="" />
+				</MakeCommands>
 			</Target>
 			<Target title="Release">
-				<Option output="..\bin\Lumbricus.exe" prefix_auto="0" extension_auto="0" />
+				<Option output="..\bin\lumbricus" prefix_auto="1" extension_auto="1" />
 				<Option working_dir="..\bin" />
 				<Option object_output="..\bin\obj\" />
 				<Option type="1" />
 				<Option compiler="dmd" />
 				<Option projectResourceIncludeDirsRelation="0" />
-				<Compiler>
-					<Add option="-O" />
-				</Compiler>
+				<MakeCommands>
+					<Build command="dmd -run dsss.d build lumbricus.d" />
+					<CompileFile command="" />
+					<Clean command="dmd -run dsss.d clean" />
+					<DistClean command="" />
+				</MakeCommands>
 			</Target>
 		</Build>
-		<Compiler>
-			<Add directory="..\src" />
-		</Compiler>
-		<Linker>
-			<Add library="DerelictSDL" />
-			<Add library="DerelictUtil" />
-			<Add library="DerelictSDLImage" />
-			<Add library="DerelictSDLttf" />
-			<Add library="DerelictSDLMixer" />
-		</Linker>
 		<Unit filename="..\src\common\common.d" />
 		<Unit filename="..\src\common\scene.d" />
 		<Unit filename="..\src\common\task.d" />
@@ -53,6 +44,8 @@
 		<Unit filename="..\src\derelict\enet\enetfuncs.d" />
 		<Unit filename="..\src\derelict\enet\enettypes.d" />
 		<Unit filename="..\src\framework\commandline.d" />
+		<Unit filename="..\src\framework\drawing.d" />
+		<Unit filename="..\src\framework\enums.d" />
 		<Unit filename="..\src\framework\event.d" />
 		<Unit filename="..\src\framework\filesystem.d" />
 		<Unit filename="..\src\framework\font.d" />
@@ -72,6 +65,7 @@
 		<Unit filename="..\src\framework\sound.d" />
 		<Unit filename="..\src\framework\timesource.d" />
 		<Unit filename="..\src\game\animation.d" />
+		<Unit filename="..\src\game\bomberworm.d" />
 		<Unit filename="..\src\game\clientengine.d" />
 		<Unit filename="..\src\game\controller.d" />
 		<Unit filename="..\src\game\crate.d" />
@@ -99,7 +93,6 @@
 		<Unit filename="..\src\game\special_weapon.d" />
 		<Unit filename="..\src\game\sprite.d" />
 		<Unit filename="..\src\game\temp.d" />
-		<Unit filename="..\src\game\tools.d" />
 		<Unit filename="..\src\game\water.d" />
 		<Unit filename="..\src\game\weapon.d" />
 		<Unit filename="..\src\game\worm.d" />
@@ -114,7 +107,6 @@
 		<Unit filename="..\src\gui\label.d" />
 		<Unit filename="..\src\gui\list.d" />
 		<Unit filename="..\src\gui\loader.d" />
-		<Unit filename="..\src\gui\logwindow.d" />
 		<Unit filename="..\src\gui\messageviewer.d" />
 		<Unit filename="..\src\gui\mousescroller.d" />
 		<Unit filename="..\src\gui\progress.d" />
@@ -136,7 +128,6 @@
 		<Unit filename="..\src\levelgen\placeobjects.d" />
 		<Unit filename="..\src\levelgen\renderer.d" />
 		<Unit filename="..\src\lumbricus.d" />
-		<Unit filename="..\src\net\enet_test.d" />
 		<Unit filename="..\src\net\netlayer.d" />
 		<Unit filename="..\src\utils\array.d" />
 		<Unit filename="..\src\utils\bitstream.d" />
@@ -161,6 +152,7 @@
 		<Unit filename="..\src\utils\timer.d" />
 		<Unit filename="..\src\utils\vector2.d" />
 		<Unit filename="..\src\utils\weaklist.d" />
+		<Unit filename="..\src\utils\weaktest.d" />
 		<Extensions>
 			<code_completion />
 			<envvars />

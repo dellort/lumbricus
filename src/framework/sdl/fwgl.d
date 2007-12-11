@@ -14,6 +14,34 @@ import utils.misc;
 
 debug import std.stdio;
 
+char[] glErrorToString(GLenum errCode) {
+    switch (errCode) {
+        case GL_NO_ERROR:
+            return "No error";
+            break;
+        case GL_INVALID_ENUM:
+            return "Invalid enum value";
+            break;
+        case GL_INVALID_VALUE:
+            return "Invalid numeric value";
+            break;
+        case GL_INVALID_OPERATION:
+            return "Invalid operation";
+            break;
+        case GL_STACK_OVERFLOW:
+            return "Stack overflow";
+            break;
+        case GL_STACK_UNDERFLOW:
+            return "Stack underflow";
+            break;
+        case GL_OUT_OF_MEMORY:
+            return "Out of memory";
+            break;
+        default:
+            return "Unknown error";
+    }
+}
+
 class GLSurface : DriverSurface {
     const GLuint TEXID_INVALID = 0;
 
@@ -71,7 +99,8 @@ class GLSurface : DriverSurface {
         if (err != GL_NO_ERROR) {
             //set error flag to prevent changing the texture data
             mError = true;
-            debug writefln("Failed to create texture of size %s",mTexSize);
+            debug writefln("Failed to create texture of size %s: %s",mTexSize,
+                glErrorToString(err));
             //throw new Exception(
             //    "glTexImage2D failed, probably texture was too big. "
             //    ~ "Requested size: "~mTexSize.toString);

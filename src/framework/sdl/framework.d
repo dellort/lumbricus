@@ -346,6 +346,9 @@ class SDLDriver : FrameworkDriver {
         if (state.bitdepth < 0)
             state.bitdepth = 0;
 
+        //i.e. reload textures, get rid of stuff in too low resolution...
+        mFramework.releaseCaches();
+
         Vector2i size = state.fullscreen ? state.fs_size : state.window_size;
 
         int vidflags = 0;
@@ -377,9 +380,6 @@ class SDLDriver : FrameworkDriver {
         mPFAlphaScreen = mRGBA32;
 
         mCurVideoState = state;
-
-        //i.e. reload textures, get rid of stuff in too low resolution...
-        releaseCaches();
 
         return true;
     }
