@@ -689,3 +689,65 @@ class StatsWindow : Task {
         TaskFactory.register!(typeof(this))("stats");
     }
 }
+
+import common.animation;
+import gui.boxcontainer;
+import gui.button;
+import gui.scrollbar;
+
+//has to go away D:
+class AniTest : Task {
+    Animation ani;
+    Font font;
+
+    class DrawAni : Widget {
+        protected void onDraw(Canvas c) {
+            ani.pos = size/2;
+            ani.draw(c);
+            Rect2i b = ani.getBounds() + ani.pos;
+            c.drawRect(b.p1, b.p2, Color(1,0,0));
+            font.drawText(c, Vector2i(), format("%s/%s | %s/%s",
+                ani.getTime().msecs, ani.animation.duration.msecs,
+                ani.curFrame, ani.animation.frameCount));
+        }
+
+        Vector2i layoutSizeRequest() {
+            return Vector2i(300, 300);
+        }
+    }
+
+    this(TaskManager mgr) {
+        super(mgr);
+        FontProperties p;
+        p.size = 10;
+        font = new Font(p);
+        auto d = new DrawAni();
+        auto anidata = new AnimationData(
+            gFramework.loadImage("weapons/blackhole_alpha.png"),
+            true, false);
+        ani = new Animation();
+        ani.setAnimation(anidata);
+        auto box = new BoxContainer();
+        box.add(d);
+        auto speed = new ScrollBar(true);
+        speed.maxValue = 300;
+        speed.minValue = 0;
+        speed.curValue = 1;//50;
+        speed.onValueChange = &onChangeSpeed;
+        onChangeSpeed(speed);
+        box.add(speed);
+        gWindowManager.createWindow(this, box, "Ani-Test");
+        globals.gameTimeAnimations.paused = false;
+    }
+
+    void onChangeSpeed(ScrollBar sender) {
+        globals.gameTimeAnimations.slowDown = sender.curValue/150.0f;
+    }
+
+    override void onFrame() {
+    }
+
+    static this() {
+        TaskFactory.register!(typeof(this))("anitest");
+    }
+}

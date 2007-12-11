@@ -9,6 +9,8 @@ public struct Time {
     //represents the time value in microseconds
     private TType_Int timeVal;
 
+    public const Time Null = {0};
+
     //create a new Time structure from an internal value
     //not to be called from another class
     private static Time opCall(TType_Int tVal) {

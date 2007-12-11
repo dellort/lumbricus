@@ -119,8 +119,8 @@ class SceneObjectCentered : SceneObject {
         mPos = p;
     }
 
-    //return approximate radius (needed in special cases, i.e. labels for worms)
-    abstract int getRadius();
+    //return bounds, independent from position (centered around (0,0))
+    abstract Rect2i getBounds();
 }
 
 //xxx kill this, replace by SceneObjectRect
