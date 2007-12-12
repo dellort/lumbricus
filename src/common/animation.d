@@ -3,16 +3,17 @@ module common.animation;
 import common.common;
 import common.scene;
 import framework.framework;
+import framework.restypes.frames;
 import utils.rect2;
 import utils.time;
 import utils.vector2;
 
 class AnimationData {
     private {
-        Frame[] mFrameList;
         int mFrameTimeMS = 20;
         int mLengthMS;
-        Rect2i mBounds;
+        FrameProvider mFrames;
+        int mAnimId;
     }
 
     //repeat the animation
@@ -21,25 +22,8 @@ class AnimationData {
     //if not repeated: keep showing last frame when animation finished
     bool keepLastFrame = false;
 
-    struct Frame {
-        Surface bitmap;
-        //size of that frame (the rest is considered to eb transparent)
-        Vector2i size;
-        //position in bitmap
-        Vector2i sourcePos;
-        //position-bias on screen
-        Vector2i destPos;
-    }
-
     private void postInit() {
-        mLengthMS = mFrameTimeMS * mFrameList.length;
-        mBounds = Rect2i.Empty();
-        foreach (inout f; mFrameList) {
-            assert(!!f.bitmap);
-            mBounds.extend(f.destPos);
-            mBounds.extend(f.destPos+f.size);
-        }
-        assert(mBounds.isNormal());
+        mLengthMS = mFrameTimeMS * mFrames.frameCount(mAnimId);
     }
 
     /+this(ConfigFile node) {
@@ -48,29 +32,21 @@ class AnimationData {
     }+/
 
     //rather for debugging
-    //assumes it's quadratic => width/height = nframes
-    this(Surface anistrip, bool arepeat = true, bool akeeplast = false) {
+    this(FrameProvider frameprov, int animId, bool arepeat = true,
+        bool akeeplast = false)
+    {
         repeat = arepeat;
         keepLastFrame = akeeplast;
-
-        auto w = anistrip.size.y; //quadratic
-        mFrameList.length = anistrip.size.x / w;
-
-        foreach (int index, inout frame; mFrameList) {
-            frame.bitmap = anistrip;
-            frame.sourcePos = Vector2i(index*w, 0);
-            frame.size = Vector2i(w, anistrip.size.y);
-            //position you need to add to the center of the animation to
-            //position the frame right
-            frame.destPos = -frame.size/2; //frame is in the center
-        }
+        mFrames = frameprov;
+        mAnimId = animId;
+        assert(!!mFrames);
 
         postInit();
     }
 
     //deliver the bounds, centered around the center
     final Rect2i bounds() {
-        return mBounds;
+        return mFrames.bounds(mAnimId);
     }
 
     //time to play it (ignores repeat)
@@ -79,7 +55,7 @@ class AnimationData {
     }
 
     int frameCount() {
-        return mFrameList.length;
+        return mFrames.frameCount(mAnimId);
     }
 
     //create mirrored-animation
@@ -126,13 +102,13 @@ class Animation : SceneObjectCentered {
         if (t == mData.mLengthMS) {
             assert(!mData.repeat);
             if (mData.keepLastFrame) {
-                return mData.mFrameList.length-1;
+                return mData.frameCount-1;
             } else {
                 return -1;
             }
         }
         int frame = t / mData.mFrameTimeMS;
-        assert(frame >= 0 && frame < mData.mFrameList.length);
+        assert(frame >= 0 && frame < mData.frameCount);
         return frame;
     }
 
@@ -146,7 +122,7 @@ class Animation : SceneObjectCentered {
         mData = d;
         if (mData) {
             //can't handle these cases
-            assert(mData.mFrameList.length > 0);
+            assert(mData.frameCount > 0);
             assert(mData.mLengthMS > 0);
             assert(mData.mFrameTimeMS > 0);
         }
@@ -163,9 +139,7 @@ class Animation : SceneObjectCentered {
         int frame = curFrame();
         if (frame < 0)
             return;
-        AnimationData.Frame* pFrame = &mData.mFrameList[frame];
-        canvas.draw(pFrame.bitmap, pos + pFrame.destPos, pFrame.sourcePos,
-            pFrame.size);
+        mData.mFrames.draw(canvas, mData.mAnimId, frame, pos);
     }
 
     //I wonder... should it return the current frame's bounds or what?

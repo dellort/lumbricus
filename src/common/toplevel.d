@@ -694,6 +694,7 @@ import common.animation;
 import gui.boxcontainer;
 import gui.button;
 import gui.scrollbar;
+import framework.restypes.frames;
 
 //has to go away D:
 class AniTest : Task {
@@ -723,7 +724,8 @@ class AniTest : Task {
         font = new Font(p);
         auto d = new DrawAni();
         auto anidata = new AnimationData(
-            gFramework.loadImage("weapons/blackhole_alpha.png"),
+            gFramework.resources.resource!(FramesResource)("/blackhole").get(),
+            0,
             true, false);
         ani = new Animation();
         ani.setAnimation(anidata);
