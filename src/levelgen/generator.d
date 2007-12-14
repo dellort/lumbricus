@@ -72,6 +72,10 @@ public class LevelTemplate {
         return mName;
     }
 
+    char[] description() {
+        return mDescription;
+    }
+
     /// generate subdivided geometry from this level
     /// (final subdivision for smooth level curves is done in renderer.d)
     public LevelGeometry generate() {
@@ -87,6 +91,37 @@ public class LevelTemplate {
 
         return res;
     }
+}
+
+//xxx are those generic enough to be moved to utils.array?
+//    relies on item.name() to exist
+
+///Find a named item in an array and fill res with a reference to it
+///Works with structs and classes, but items need to have a property ".name"
+///returns true on success, false if item was not found
+private bool find(T)(T[] items, out T res, char[] name) {
+    foreach (ref T t; items) {
+        if (t.name == name) {
+            res = t;
+            return true;
+        }
+    }
+    return false;
+}
+
+///Like find(), but chooses a random item if the specified item was not found
+///returns false if the array was empty
+private bool findRandom(T)(T[] items, out T res, char[] name = "") {
+    if (items.find(res, name))
+        return true;
+
+    if (items.length > 0) {
+        uint pick = rand.rand() % items.length;
+        res = items[pick];
+        return true;
+    }
+
+    return false;
 }
 
 public class LevelTheme {
@@ -248,7 +283,7 @@ public class LevelTheme {
 /// level generator
 public class LevelGenerator {
     private {
-        ConfigNode mTemplates;
+        LevelTemplate[] mTemplates;
         ConfigNode mGfxNodes;
     }
 
@@ -443,6 +478,11 @@ public class LevelGenerator {
         return doCreateLevel(renderer, templ, gfx);
     }
 
+    ///return the list of known level templates
+    public LevelTemplate[] templates() {
+        return mTemplates;
+    }
+
     //xxx: both find*()s generate new objects on the fly
     public LevelTheme findGfx(char[] name, bool canfail = false) {
         auto res = mGfxNodes.findNode(name);
@@ -454,13 +494,14 @@ public class LevelGenerator {
         return new LevelTheme(res);
     }
     public LevelTemplate findTemplate(char[] name, bool canfail = false) {
-        auto res = mTemplates.findNode(name);
-        if (!res) {
+        LevelTemplate res;
+        bool found = mTemplates.find(res, name);
+        if (!found) {
             if (!canfail)
                 throw new Exception("template '" ~ name ~ " not found");
             return null;
         }
-        return new LevelTemplate(res);
+        return res;
     }
 
     /// generate a random level based on a template
@@ -498,13 +539,14 @@ public class LevelGenerator {
     /// pick a template with name 'name'; if 'name' is not found, return a
     /// random one from the list
     public LevelTemplate findRandomTemplate(char[] name = "") {
-        ConfigNode node = findRandomNode(mTemplates, name);
-        if (!node) {
+        LevelTemplate res;
+        bool found = mTemplates.findRandom(res, name);
+        if (!found) {
             mLog("no level templates!");
             return null;
         }
-        mLog("picked level template: '%s'", node.name);
-        return findTemplate(node.name, false);
+        mLog("picked level template: '%s'", res.name);
+        return res;
     }
     public LevelTheme findRandomGfx(char[] name = "") {
         ConfigNode node = findRandomNode(mGfxNodes, name);
@@ -583,6 +625,12 @@ public class LevelGenerator {
 ///a single template which can be passed to the constructor of LevelTemplate
 //xxx maybe rather return a LevelTemplate[]?
 //    or only a char[][], and also a loader function
-ConfigNode loadTemplates() {
-    return gFramework.loadConfig("levelgen").getSubNode("levelgen_templates");
+LevelTemplate[] loadTemplates() {
+    LevelTemplate[] res;
+    auto templNode = gFramework.loadConfig("levelgen")
+        .getSubNode("levelgen_templates");
+    foreach (ConfigNode sub; templNode) {
+        res ~= new LevelTemplate(sub);
+    }
+    return res;
 }

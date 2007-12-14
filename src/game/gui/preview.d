@@ -1,6 +1,7 @@
 module game.gui.preview;
 
 import framework.framework;
+import framework.i18n;
 import common.task;
 import common.common;
 import gui.widget;
@@ -8,6 +9,7 @@ import gui.container;
 import gui.button;
 import gui.boxcontainer;
 import gui.label;
+import gui.tablecontainer;
 import gui.wm;
 import game.gametask;
 import levelgen.generator;
@@ -15,54 +17,82 @@ import levelgen.level;
 import utils.vector2;
 import utils.rect2;
 
-private class LevelPreviewer : SimpleContainer {
+private class LevelSelector : SimpleContainer {
     private {
-        const cRows = 3;
         const cCols = 2;
-        Button[cRows*cCols] mShowBitmap;
+        const cPrevHeight = 70;
 
-        struct LevelInfo {
-            LevelGeometry geo;
-            LevelTemplate templ;
-        }
+        const Color cColSky = {0.5, 0.5, 1.0};
+        const Color cColLand = {0.8, 0.4, 0.0};
+        const Color cColSolid = {0.0, 0.0, 0.0};
 
-        LevelInfo[cRows*cCols] mLevel;
+        int rowCount;
+        Button[] mShowBitmap;
+        LevelInfo[] mLevel;
+
         LevelGenerator mGenerator;
         Label mLblInfo;
 
         LevelPreviewTask mTask;
     }
 
+    struct LevelInfo {
+        LevelGeometry geo;
+        LevelTemplate templ;
+
+        static LevelInfo opCall(LevelGeometry geo, LevelTemplate templ) {
+            LevelInfo res;
+            res.geo = geo;
+            res.templ = templ;
+            return res;
+        }
+    }
+
+    void delegate(LevelInfo selected) onAccept;
+
     this(LevelPreviewTask bla) {
         mTask = bla;
         mGenerator = new LevelGenerator();
 
-        BoxContainer[cRows+1] buttons_layout;
-        foreach (inout bc; buttons_layout) {
-            bc = new BoxContainer(true, false, 10);
-        }
-        WidgetLayout lay;
-        lay.expand[1] = false; //don't expand in Y
+        //create enough rows to fit all templates
+        rowCount = (mGenerator.templates.length+1)/2;
+        //grid layout for buttons+description
+        TableContainer buttons_layout = new TableContainer(2, rowCount,
+            Vector2i(10, 20));
 
-        mLblInfo = new Label();
-        mLblInfo.text = "Select level to play, right click to regenerate";
-
-        foreach (int i, inout Button sb; mShowBitmap) {
-            sb = new Button();
-            sb.onClick = &play;
+        foreach (int i, LevelTemplate t; mGenerator.templates) {
+            //prepare button
+            auto sb = new Button();
+            sb.onClick = &accept;
             sb.onRightClick = &generate;
+            mShowBitmap ~= sb;
+            //insert info structure (matched by index)
+            mLevel ~= LevelInfo(null, t);
             doGenerate(i);
-            buttons_layout[i/cCols+1].add(sb, lay);
+            //add a description label below
+            auto l = new Label(gFramework.getFont("normal"));
+            l.text = t.description;
+            //this box holds button+label, fixed size
+            auto boxc = new BoxContainer(false, false, 2);
+            boxc.add(sb, WidgetLayout.Noexpand);
+            boxc.add(l, WidgetLayout.Noexpand);
+            buttons_layout.add(boxc, i % cCols, i / cCols);
         }
 
-        buttons_layout[0].add(mLblInfo, lay);
+        //special: aligned to top, but whitespace expanded below
+        WidgetLayout lblLay;
+        lblLay.expand[0] = false;
+        lblLay.fill[1] = false;
+        lblLay.alignment[1] = 0.0f;
+        mLblInfo = new Label();
+        mLblInfo.text = _("levelselect.infotext");
 
-        auto layout = new BoxContainer(false, false, 50);
-        foreach (inout bc; buttons_layout) {
-            layout.add(bc);
-        }
+        auto layout = new BoxContainer(false, false, 10);
 
-        add(layout, WidgetLayout.Aligned(0,0));
+        layout.add(mLblInfo, lblLay);
+        layout.add(buttons_layout);
+
+        add(layout);
     }
 
     private int getIdx(Button which) {
@@ -79,38 +109,47 @@ private class LevelPreviewer : SimpleContainer {
     }
 
     private void doGenerate(int idx) {
-        auto templ = mGenerator.findRandomTemplate("");
+        auto templ = mLevel[idx].templ;
         mLevel[idx].geo = templ.generate();
-        mLevel[idx].templ = templ;
         //scale down (?)
-        auto sz = toVector2i(toVector2f(templ.size)*0.15);
+        auto sz = Vector2i((cPrevHeight*templ.size.x)/templ.size.y, cPrevHeight);
         mShowBitmap[idx].image = mGenerator.renderPreview(mLevel[idx].geo,
-            sz, Color(1,1,1), Color(0.8,0.8,0.8), Color(0.4,0.4,0.4))
+            sz, cColLand, cColSolid, cColSky)
             .createTexture();
         mShowBitmap[idx].needRelayout();
     }
 
-    private void play(Button sender) {
+    private void accept(Button sender) {
         int idx = getIdx(sender);
-        //generate level
-        auto level = generateAndSaveLevel(mGenerator, mLevel[idx].templ,
-            mLevel[idx].geo, null);
-        //start game
-        mTask.play(level);
+        if (onAccept)
+            onAccept(mLevel[idx]);
     }
 }
 
+//this is considered debug code until we have a proper game settings dialog
 class LevelPreviewTask : Task {
     private {
-        LevelPreviewer mWindow;
+        LevelSelector mSelector;
         Window mWMWindow;
         Task mGame;
     }
 
     this(TaskManager tm) {
         super(tm);
-        mWindow = new LevelPreviewer(this);
-        mWMWindow = gWindowManager.createWindow(this, mWindow, "Level Preview");
+        mSelector = new LevelSelector(this);
+        mSelector.onAccept = &lvlAccept;
+        mWMWindow = gWindowManager.createWindow(this, mSelector,
+            _("levelselect.caption"));
+    }
+
+    void lvlAccept(LevelSelector.LevelInfo lvl) {
+        //generate level
+        //big xxx: locks up the game on slow PCs without displaying anything
+        //         (besides using private generator instance)
+        auto level = generateAndSaveLevel(mSelector.mGenerator, lvl.templ,
+            lvl.geo, null);
+        //start game
+        play(level);
     }
 
     //play a level, hide this GUI while doing that, then return

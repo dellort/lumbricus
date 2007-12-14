@@ -497,7 +497,7 @@ public class LevelEditor : Task {
     Button mCaveCheckbox, mNochangeCheckbox, mPreviewCheckbox;
 
     StringListWidget mLoadTemplateList;
-    ConfigNode[] mTemplateList; //temporary during mLoadTemplate
+    LevelTemplate[] mTemplateList; //temporary during mLoadTemplate
 
     //current rectangle-selection mode
     //(what to do if the user draws this rect)
@@ -871,9 +871,9 @@ public class LevelEditor : Task {
         auto templs = loadTemplates(); //NOTE: provided by levelgen.generator
         char[][] names;
         mTemplateList = null;
-        foreach (ConfigNode n; templs) {
-            names ~= n["description"];
-            mTemplateList ~= n;
+        foreach (LevelTemplate t; templs) {
+            names ~= t.description;
+            mTemplateList ~= t;
         }
         mLoadTemplateList.setContents(names);
     }
@@ -888,7 +888,7 @@ public class LevelEditor : Task {
         clear();
         if (sel < 0)
             return;
-        loadFromTemplate(new LevelTemplate(mTemplateList[sel]));
+        loadFromTemplate(mTemplateList[sel]);
     }
 
     void loadFromTemplate(LevelTemplate templ) {
