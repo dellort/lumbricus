@@ -113,6 +113,30 @@ public struct Rect2(T) {
         p2 += value;
     }
 
+    //fit this Rect2 into another Rect2 r
+    //isInside will return true for r.p1 and r.p2
+    void fitInside(Rect2 r) {
+        if (p1.x < r.p1.x)
+            p1.x = r.p1.x;
+        if (p1.y < r.p1.y)
+            p1.y = r.p1.y;
+        if (p2.x >= r.p2.x)
+            p2.x = r.p2.x-1;
+        if (p2.y >= r.p2.y)
+            p2.y = r.p2.y-1;
+    }
+    //same for isInsideB
+    void fitInsideB(Rect2 r) {
+        if (p1.x < r.p1.x)
+            p1.x = r.p1.x;
+        if (p1.y < r.p1.y)
+            p1.y = r.p1.y;
+        if (p2.x > r.p2.x)
+            p2.x = r.p2.x;
+        if (p2.y > r.p2.y)
+            p2.y = r.p2.y;
+    }
+
     //Rect must be normal
     bool isInside(Point p) {
         return (p.x1 >= p1.x1 && p.x2 >= p1.x2 && p.x1 < p2.x1 && p.x2 < p2.x2);

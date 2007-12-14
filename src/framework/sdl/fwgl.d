@@ -190,8 +190,12 @@ class GLSurface : DriverSurface {
             reinit();
         } else {
             assert(mData.pitch == mData.size.x*4);
-            assert(rc.p1.x <= mData.size.x && rc.p1.y <= mData.size.y);
-            rc.p2.clipAbsEntries(mData.size);
+            //caller has to assure that rc intersects with the
+            //texture area at all
+            assert(rc.p1.x < mData.size.x && rc.p1.y < mData.size.y);
+            assert(rc.p2.x > 0 && rc.p2.y > 0);
+            //now clip rc to the texture area
+            rc.fitInsideB(Rect2i(0,0,mData.size.x,mData.size.y));
             glBindTexture(GL_TEXTURE_2D, mTexId);
             updateTexture(rc);
 

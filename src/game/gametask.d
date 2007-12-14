@@ -383,17 +383,17 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
         cfg.level = level;
     } else {
         int what = mConfig.selectValueFrom("level",
-            ["generate", "load", "loadbmp"]);
+            ["generate", "load", "loadbmp"], 0);
         auto x = new LevelGenerator();
         if (what == 0) {
-            cfg.level =
-                x.renderSavedLevel(gFramework.loadConfig(mConfig["level_load"]));
-        } else if (what == 1) {
             LevelTemplate templ =
                 x.findRandomTemplate(mConfig["level_template"]);
             LevelTheme gfx = x.findRandomGfx(mConfig["level_gfx"]);
 
             cfg.level = generateAndSaveLevel(x, templ, null, gfx);
+        } else if (what == 1) {
+            cfg.level =
+                x.renderSavedLevel(gFramework.loadConfig(mConfig["level_load"]));
         } else if (what == 2) {
             auto bmp = gFramework.loadImage(mConfig["level_load_bitmap"]);
             auto gfx = mConfig["level_gfx"];
