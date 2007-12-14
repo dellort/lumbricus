@@ -42,6 +42,7 @@ public Translator localeRoot() {
 ///Use bindNamespace to get a more specific Translator for a sub-namespace
 public class Translator {
     private ConfigNode mNode;
+    private bool mErrorString = true;
 
     //create translator from i18n subnode
     //note that the node may be null, in which case only error strings
@@ -86,6 +87,15 @@ public class Translator {
         return gLocaleRoot.bindNamespace(ns);
     }
 
+    ///true (default): return an error string if no translation was found
+    ///false: return the id if no translation was found
+    bool errorString() {
+        return mErrorString;
+    }
+    void errorString(bool e) {
+        mErrorString = e;
+    }
+
     ///Translate a text, similar to the _() function.
     ///Warning: doesn't do namespace resolution.
     char[] opCall(T...)(char[] id, T t) {
@@ -114,7 +124,10 @@ public class Translator {
             text = data.getStringValue(id, "");
         }
         if (text.length == 0) {
-            text = "ERROR: missing translation for ID '" ~ id ~ "'!";
+            if (mErrorString)
+                text = "ERROR: missing translation for ID '" ~ id ~ "'!";
+            else
+                text = id;
         }
         return trivialFormat(text, t);
     }

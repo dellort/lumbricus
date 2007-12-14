@@ -32,8 +32,6 @@ private class LevelSelector : SimpleContainer {
 
         LevelGenerator mGenerator;
         Label mLblInfo;
-
-        LevelPreviewTask mTask;
     }
 
     struct LevelInfo {
@@ -50,8 +48,7 @@ private class LevelSelector : SimpleContainer {
 
     void delegate(LevelInfo selected) onAccept;
 
-    this(LevelPreviewTask bla) {
-        mTask = bla;
+    this() {
         mGenerator = new LevelGenerator();
 
         //create enough rows to fit all templates
@@ -59,6 +56,9 @@ private class LevelSelector : SimpleContainer {
         //grid layout for buttons+description
         TableContainer buttons_layout = new TableContainer(2, rowCount,
             Vector2i(10, 20));
+
+        auto templ_trans = Translator.ByNamespace("templates");
+        templ_trans.errorString = false;
 
         foreach (int i, LevelTemplate t; mGenerator.templates) {
             //prepare button
@@ -71,7 +71,7 @@ private class LevelSelector : SimpleContainer {
             doGenerate(i);
             //add a description label below
             auto l = new Label(gFramework.getFont("normal"));
-            l.text = t.description;
+            l.text = templ_trans(t.description);
             //this box holds button+label, fixed size
             auto boxc = new BoxContainer(false, false, 2);
             boxc.add(sb, WidgetLayout.Noexpand);
@@ -85,6 +85,7 @@ private class LevelSelector : SimpleContainer {
         lblLay.fill[1] = false;
         lblLay.alignment[1] = 0.0f;
         mLblInfo = new Label();
+        mLblInfo.drawBorder = false;
         mLblInfo.text = _("levelselect.infotext");
 
         auto layout = new BoxContainer(false, false, 10);
@@ -136,7 +137,7 @@ class LevelPreviewTask : Task {
 
     this(TaskManager tm) {
         super(tm);
-        mSelector = new LevelSelector(this);
+        mSelector = new LevelSelector();
         mSelector.onAccept = &lvlAccept;
         mWMWindow = gWindowManager.createWindow(this, mSelector,
             _("levelselect.caption"));

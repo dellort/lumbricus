@@ -10,6 +10,7 @@ import framework.commandline;
 import framework.framework;
 import framework.event;
 import framework.filesystem;
+import framework.i18n;
 import common.scene;
 import common.common;
 import common.task;
@@ -871,8 +872,10 @@ public class LevelEditor : Task {
         auto templs = loadTemplates(); //NOTE: provided by levelgen.generator
         char[][] names;
         mTemplateList = null;
+        auto templ_trans = Translator.ByNamespace("templates");
+        templ_trans.errorString = false;
         foreach (LevelTemplate t; templs) {
-            names ~= t.description;
+            names ~= templ_trans(t.description);
             mTemplateList ~= t;
         }
         mLoadTemplateList.setContents(names);
