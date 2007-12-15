@@ -197,6 +197,8 @@ class Surface {
         if (copy_data) {
             mData.data = mData.data.dup;
         }
+        mData.colorkey = mData.transparency == Transparency.Colorkey
+            ? mData.colorkey : Color(0,0,0,0);
         gSurfaces.add(this);
     }
 
@@ -229,6 +231,11 @@ class Surface {
 
     final Vector2i size() {
         return mData.size;
+    }
+    final Rect2i rect() {
+        Rect2i rc;
+        rc.p2 = mData.size;
+        return rc;
     }
 
     private void doFree(bool finalizer) {
@@ -275,15 +282,14 @@ class Surface {
     /// must be called after done with lockPixelsRGBA32()
     /// "rc" is for the offset and size of the region to update
     void unlockPixels(in Rect2i rc) {
-        if (mDriverSurface) {
+        if (mDriverSurface  && rc != Rect2i.init) {
             mDriverSurface.updatePixels(rc);
         }
     }
 
     /// return colorkey or a 0-alpha black, depending from transparency mode
     final Color colorkey() {
-        return mData.transparency == Transparency.Colorkey
-            ? mData.colorkey : Color(0,0,0,0);
+        return mData.colorkey;
     }
 
     final Transparency transparency() {
@@ -329,6 +335,38 @@ class Surface {
                 ptr += 4;
             }
         }
+    }
+
+    ///works like Canvas.draw, but doesn't do any blending
+    ///surfaces must have same transparency settings (=> same pixel format)
+    ///xxx bitmap memory must not overlap
+    void copyFrom(Surface source, Vector2i destPos, Vector2i sourcePos,
+        Vector2i sourceSize)
+    {
+        //xxx and to avoid blending, I do it manually (Canvas would blend)
+        //  some day, this will be a complete SDL clone (that was sarcasm)
+        //also, renderer.d has sth. similar
+        //SORRY for this implementation
+        Rect2i dest = Rect2i(destPos, destPos + sourceSize);
+        Rect2i src = Rect2i(sourcePos, sourcePos + sourceSize);
+        dest.fitInsideB(rect());
+        src.fitInsideB(source.rect());
+        auto sz = dest.size.min(src.size);
+        assert(sz.x >= 0 && sz.y >= 0);
+        void* pdest; uint destpitch;
+        void* psrc; uint srcpitch;
+        lockPixelsRGBA32(pdest, destpitch);
+        source.lockPixelsRGBA32(psrc, srcpitch);
+        pdest += destpitch*dest.p1.y + dest.p1.x*uint.sizeof;
+        psrc += srcpitch*src.p1.y + src.p1.x*uint.sizeof;
+        for (int y = 0; y < sz.y; y++) {
+            int adv = sz.x*uint.sizeof;
+            pdest[0 .. adv] = psrc[0 .. adv];
+            pdest += destpitch;
+            psrc += srcpitch;
+        }
+        source.unlockPixels(Rect2i.init);
+        unlockPixels(Rect2i(dest.p1, dest.p1 + sz));
     }
 
     //these were in Texture, and are useless now
@@ -480,12 +518,15 @@ class Framework {
 
     //--- Surface handling
 
-    Surface createSurface(Vector2i size, Transparency transparency) {
+    Surface createSurface(Vector2i size, Transparency transparency,
+        Color colorkey = cStdColorkey)
+    {
         SurfaceData data;
         data.size = size;
         data.pitch = size.x*4;
         data.data.length = data.size.y*data.pitch;
         data.transparency = transparency;
+        data.colorkey = colorkey;
         return new Surface(data);
     }
 
@@ -768,6 +809,10 @@ class Framework {
     //version for default arguments
     void setVideoMode(Vector2i size, int bpp = -1) {
         setVideoMode(size, bpp, fullScreen());
+    }
+
+    bool videoActive() {
+        return mDriver.getVideoWindowState().video_active;
     }
 
     bool fullScreen() {

@@ -4,6 +4,7 @@ import framework.framework;
 import framework.font;
 import framework.sdl.framework;
 import framework.sdl.rwops;
+import framework.texturepack;
 import derelict.sdl.sdl;
 import derelict.sdl.ttf;
 
@@ -12,7 +13,8 @@ import std.string;
 
 class SDLFont : DriverFont {
     private {
-        Surface frags[dchar];
+        TextureRef mFrags[dchar];
+        TexturePack mPacker; //if null => one surface per glyph
         bool mNeedBackPlain;   //false if background is completely transp.
         bool mOpaque;
         uint mHeight;
@@ -48,25 +50,34 @@ class SDLFont : DriverFont {
         //or if it's fully opaque (see renderChar())
         mOpaque = (props.back.a > 1.0f - Color.epsilon);
         mNeedBackPlain = mNeedBackPlain && !mOpaque;
+
+        if (gSDLDriver.mUseFontPacker) {
+            mPacker = new TexturePack();
+        }
     }
 
     void free() {
+        releaseCache();
         TTF_CloseFont(font);
         font = null;
         mFontStream = null;
     }
 
     int cachedGlyphs() {
-        return frags.length;
+        return mFrags.length;
     }
 
     int releaseCache() {
         int rel;
-        foreach (Surface t; frags) {
-            t.free();
-            rel++;
+        if (mPacker) {
+            mPacker.free();
+        } else {
+            foreach (TextureRef t; mFrags) {
+                t.surface.free();
+                rel++;
+            }
+            mFrags = null;
         }
-        frags = null;
         return rel;
     }
 
@@ -84,11 +95,11 @@ class SDLFont : DriverFont {
 
     private Vector2i drawText(Canvas canvas, Vector2i pos, char[] text) {
         foreach (dchar c; text) {
-            Texture surface = getGlyph(c);
+            TextureRef surface = getGlyph(c);
             if (mNeedBackPlain) {
                 canvas.drawFilledRect(pos, pos+surface.size, props.back, true);
             }
-            canvas.draw(surface, pos);
+            surface.draw(canvas, pos);
             pos.x += surface.size.x;
         }
         return pos;
@@ -106,7 +117,7 @@ class SDLFont : DriverFont {
             width -= ds;
             //draw manually (oh, this is an xxx)
             foreach (dchar c; text) {
-                Surface surface = getGlyph(c);
+                TextureRef surface = getGlyph(c);
                 auto npos = pos.x + surface.size.x;
                 if (npos > width)
                     break;
@@ -114,7 +125,7 @@ class SDLFont : DriverFont {
                     canvas.drawFilledRect(pos, pos+surface.size, props.back,
                         true);
                 }
-                canvas.draw(surface, pos);
+                surface.draw(canvas, pos);
                 pos.x = npos;
             }
             pos = drawText(canvas, pos, dotty);
@@ -125,7 +136,7 @@ class SDLFont : DriverFont {
     Vector2i textSize(char[] text, bool forceHeight) {
         Vector2i res = Vector2i(0, 0);
         foreach (dchar c; text) {
-            Surface surface = getGlyph(c);
+            TextureRef surface = getGlyph(c);
             res.x += surface.size.x;
         }
         if (text.length > 0 || forceHeight)
@@ -133,11 +144,11 @@ class SDLFont : DriverFont {
         return res;
     }
 
-    private Surface getGlyph(dchar c) {
-        Surface* sptr = c in frags;
+    private TextureRef getGlyph(dchar c) {
+        TextureRef* sptr = c in mFrags;
         if (!sptr) {
-            frags[c] = renderChar(c);
-            sptr = c in frags;
+            mFrags[c] = renderChar(c);
+            sptr = c in mFrags;
         }
         return *sptr;
     }
@@ -160,7 +171,7 @@ class SDLFont : DriverFont {
         return res;
     }
 
-    private Surface renderChar(dchar c) {
+    private Surface doRenderChar2(dchar c) {
         auto tmp = doRender(c, props.fore);
         if (props.fore.a <= (1.0f - Color.epsilon)) {
             tmp.scaleAlpha(props.fore.a);
@@ -178,8 +189,18 @@ class SDLFont : DriverFont {
         }
     }
 
+    private TextureRef renderChar(dchar c) {
+        Surface s = doRenderChar2(c);
+        if (mPacker) {
+            return mPacker.add(s);
+        } else {
+            return TextureRef(s, Vector2i(0), s.size);
+        }
+    }
+
     char[] getInfos() {
-        return format("glyphs=%d", cachedGlyphs);
+        return format("glyphs=%d, pages=%d", cachedGlyphs,
+            mPacker ? mPacker.pages : -1);
     }
 }
 

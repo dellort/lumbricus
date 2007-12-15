@@ -67,6 +67,12 @@ class Common {
         bool fs = scr.getBoolValue("fullscreen", false);
         fw.setVideoMode(Vector2i(w, h), d, fs);
 
+        if (!fw.videoActive) {
+            //this means we're F****D!!1
+            log("ERROR: couldn't initialize video");
+            throw new Exception("can't continue");
+        }
+
         initLocale();
 
         framework.fontManager.readFontDefinitions(framework.loadConfig("fonts"));

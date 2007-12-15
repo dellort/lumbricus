@@ -311,6 +311,29 @@ public class ConfigNode : ConfigItem {
         return sub.getPath(path[pos .. $], create);
     }
 
+    ///parse path into the config node location (create on demand) and the name
+    ///of the value
+    public void parsePath(char[] path, out ConfigNode node, out char[] val) {
+        auto val_start = str.rfind(path, '.');
+        auto pathname = path[0..(val_start >= 0 ? val_start : 0)];
+        val = path[val_start+1..$];
+        node = getPath(pathname, true);
+    }
+
+    public void setStringValueByPath(char[] path, char[] value) {
+        ConfigNode node;
+        char[] valname;
+        parsePath(path, node, valname);
+        node.setStringValue(valname, value);
+    }
+
+    public char[] getStringValueByPath(char[] path) {
+        ConfigNode node;
+        char[] valname;
+        parsePath(path, node, valname);
+        return node.getStringValue(valname);
+    }
+
     //ugly
     //(D lacks support for class variables)
     template TdoFind(T) {

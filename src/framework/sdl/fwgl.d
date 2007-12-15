@@ -166,7 +166,7 @@ class GLSurface : DriverSurface {
 
         //make GL read the right data from the full-image array
         if (!full) {
-            glPixelStorei(GL_UNPACK_ROW_LENGTH, rc.size.x);
+            glPixelStorei(GL_UNPACK_ROW_LENGTH, mData.size.x);
             glPixelStorei(GL_UNPACK_SKIP_ROWS, rc.p1.y);
             glPixelStorei(GL_UNPACK_SKIP_PIXELS, rc.p1.x);
         }
@@ -198,7 +198,6 @@ class GLSurface : DriverSurface {
             rc.fitInsideB(Rect2i(0,0,mData.size.x,mData.size.y));
             glBindTexture(GL_TEXTURE_2D, mTexId);
             updateTexture(rc);
-
         }
     }
 
@@ -482,6 +481,15 @@ class GLCanvas : Canvas {
         glPopMatrix();
     }
 
+    private void markAlpha(Vector2i p, Vector2i size) {
+        if (!gSDLDriver.mMarkAlpha)
+            return;
+        auto c = Color(0,1,0);
+        drawRect(p, p + size, c);
+        drawLine(p, p + size, c);
+        drawLine(p + size.Y, p + size.X, c);
+    }
+
     public void drawFilledRect(Vector2i p1, Vector2i p2, Color color,
         bool properalpha = true)
     {
@@ -504,6 +512,8 @@ class GLCanvas : Canvas {
 
         glPopAttrib();
         glPopMatrix();
+
+        markAlpha(p1, p2-p1);
     }
 
     public void draw(Texture source, Vector2i destPos,
@@ -609,5 +619,7 @@ class GLCanvas : Canvas {
         }
 
         glPopAttrib();
+
+        markAlpha(destPos, sourceSize);
     }
 }

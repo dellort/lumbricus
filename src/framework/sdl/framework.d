@@ -189,7 +189,7 @@ class SDLDriver : FrameworkDriver {
 
         //convert stuff to display format if it isn't already
         //+ mark all alpha surfaces drawn on the screen
-        bool mEnableCaching, mMarkAlpha;
+        package bool mEnableCaching, mMarkAlpha;
 
         //instead of a DriverSurface list (we don't need that yet?)
         uint mDriverSurfaceCount;
@@ -213,6 +213,9 @@ class SDLDriver : FrameworkDriver {
         SDL_Surface* mSDLScreen;
 
         bool glWireframeDebug;
+
+        //for font.d
+        bool mUseFontPacker;
 
         //hurhurhur
         PerfTimer mDrawTime, mClearTime, mFlipTime, mInputTime, mWasteTime;
@@ -238,6 +241,8 @@ class SDLDriver : FrameworkDriver {
 
         mOpenGL = config.getBoolValue("open_gl", true);
         glWireframeDebug = config.getBoolValue("gl_debug_wireframe", false);
+
+        mUseFontPacker = config.getBoolValue("font_packer", true);
 
         DerelictSDL.load();
         DerelictSDLImage.load();
@@ -396,11 +401,11 @@ class SDLDriver : FrameworkDriver {
             res = switchVideoTo(state);
         }
         SDL_WM_SetCaption(toStringz(state.window_caption), null);
-        //xxx: what when switching fails?
         mCurVideoState = state;
+        mCurVideoState.video_active = !!mSDLScreen;
         if (mCurVideoState.video_active)
             mFramework.driver_doVideoInit();
-        return res;
+        return mCurVideoState.video_active;
     }
 
     DriverInputState getInputState() {

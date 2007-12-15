@@ -169,6 +169,98 @@ class TestFrame6 : Container {
     }
 }
 
+//popup test
+class TestFrame7 : Container {
+    Window mWindow;
+    Button mCreate;
+    Vector2i mGravity;
+    CheckBoxGroup mChk;
+    Window mActivePopup;
+    Task mTask;
+    Widget mPopup;
+    ScrollBar mAlign, mLength;
+    Button mVolatile;
+
+    this(Task me) {
+        mTask = me;
+        auto tc = new TableContainer(3, 3, Vector2i(10));
+        Button[4] chk;
+        foreach (inout b; chk) {
+            b = new Button();
+            b.onClick = &onChk;
+            b.isCheckbox = true;
+            mChk.add(b);
+        }
+        tc.add(chk[0], 0, 1);
+        tc.add(chk[1], 1, 0);
+        tc.add(chk[2], 2, 1);
+        tc.add(chk[3], 1, 2);
+        auto inner = new BoxContainer(false);
+        mCreate = new Button();
+        mCreate.text = "Create Popup";
+        mCreate.onClick = &onCreate;
+        inner.add(mCreate);
+        mAlign = new ScrollBar(true);
+        mAlign.maxValue = 99;
+        mAlign.minValue = 0;
+        mAlign.onValueChange = &onAlign;
+        inner.add(mAlign);
+        mLength = new ScrollBar(true);
+        mLength.maxValue = 30;
+        mLength.minValue = 1;
+        mLength.onValueChange = &onAlign;
+        inner.add(mLength);
+        mVolatile = new Button();
+        mVolatile.isCheckbox = true;
+        mVolatile.text = "Volatile";
+        inner.add(mVolatile);
+        tc.add(inner, 1, 1);
+        mWindow = gWindowManager.createWindow(me, tc, "Popup-Test");
+        Label p = new Label();
+        p.text = "Hi! I'm a popup or so!";
+        mPopup = p;
+    }
+
+    void onChk(Button b) {
+        mChk.check(b);
+        update();
+    }
+
+    void onAlign(ScrollBar b) {
+        update();
+    }
+
+    void onCreate(Button b) {
+        if (mActivePopup)
+            mActivePopup.destroy();
+        mActivePopup = gWindowManager.createPopup(mTask, mPopup, mWindow,
+            Vector2i(0), Vector2i(0), false);
+        update();
+        mActivePopup.visible = true;
+    }
+
+    void update() {
+        if (!mActivePopup)
+            return;
+        WindowInitialPlacement p;
+        p.relative = mWindow;
+        p.place = WindowInitialPlacement.Placement.gravity;
+        Vector2i sel(int idx) {
+            switch (idx) {
+                case 0: return Vector2i(-1, 0);
+                case 1: return Vector2i(0, -1);
+                case 2: return Vector2i(+1, 0);
+                default /+3+/: return Vector2i(0, +1);
+            }
+        }
+        p.gravity = sel(mChk.checkedIndex())*mLength.curValue;
+        p.gravityAlign = 1.0f*mAlign.curValue/(mAlign.maxValue+1);
+        mActivePopup.isFocusVolatile = mVolatile.checked;
+        mActivePopup.initialPlacement = p;
+        mActivePopup.updatePlacement();
+    }
+}
+
 //just to show the testframe
 class TestTask : Task {
     //private Widget mWindow;
@@ -195,6 +287,7 @@ class TestTask : Task {
         checkbox.text = "Hello I'm a checkbox!";
         checkbox.shrink = true; //for more testing
         createWindow("CheckBox", checkbox);
+        new TestFrame7(this);
 
         auto k = new Button();
         k.text = "Kill!!!1";

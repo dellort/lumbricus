@@ -88,9 +88,7 @@ ConfigNode parseCmdLine(char[][] args) {
 
         auto has_arg = find(cur, '=');
         auto name = has_arg >= 0 ? cur[0..has_arg] : cur;
-        auto val_start = rfind(name, '.');
-        auto valname = name[val_start+1..$];
-        auto pathname = name[0..(val_start >= 0 ? val_start : 0)];
+
         //get value
         char[] value;
         if (has_arg >= 0) {
@@ -104,8 +102,7 @@ ConfigNode parseCmdLine(char[][] args) {
             args = args[1..$];
         }
 
-        ConfigNode node = res.getPath(pathname, true);
-        node.setStringValue(valname, value);
+        res.setStringValueByPath(name, value);
     }
     return res;
 }

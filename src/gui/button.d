@@ -9,6 +9,35 @@ import gui.label;
 import utils.time;
 import utils.timer;
 
+///small helper to let checkboxes behave like radio buttons
+struct CheckBoxGroup {
+    Button[] buttons;
+
+    int checkedIndex() {
+        foreach (int index, b; buttons) {
+            if (b.checked)
+                return index;
+        }
+        return -1;
+    }
+
+    Button checked() {
+        int n = checkedIndex();
+        return n >= 0 ? buttons[n] : null;
+    }
+
+    void add(Button b) {
+        buttons ~= b;
+        b.checked = false;
+    }
+
+    void check(Button b) {
+        foreach (bu; buttons) {
+            bu.checked = bu is b;
+        }
+    }
+}
+
 //xxx this is a hack
 class Button : Label {
     private {

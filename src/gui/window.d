@@ -22,6 +22,7 @@ import str = std.string;
 enum WindowZOrder {
     Normal = 0,
     High = 10, //always on top
+    Popup = 19,
     Murks = 20,
 }
 
@@ -29,6 +30,7 @@ enum WindowZOrder {
 struct WindowProperties {
     char[] windowTitle = "<huhu, you forgot to set a title!>";
     bool canResize = true;   //disallow user to resize the window
+    bool canMove = true;    //disallow the user to move the window (by kb/mouse)
     Color background = Color(1,1,1); //of the client part of the window
     WindowZOrder zorder; //static zorder
 }
@@ -52,6 +54,7 @@ class WindowWidget : Container {
         WindowFrame mManager;
 
         bool mFullScreen;
+        bool mHasDecorations = true;
         Vector2i mFSSavedPos; //saved window position when in fullscreen mode
 
         //when window is moved around (not for resizing stuff)
@@ -67,6 +70,7 @@ class WindowWidget : Container {
         const cCornerSize = 5;
 
         bool mCanResize = true;
+        bool mCanMove = true;
 
         struct TitlePart {
             char[] name;
@@ -148,6 +152,9 @@ class WindowWidget : Container {
 
     ///catches a window-keybinding
     void delegate(WindowWidget sender, char[] action) onKeyBinding;
+
+    ///invoked when focus was taken
+    void delegate(WindowWidget sender) onFocusLost;
 
     ///always call acceptSize() after resize
     bool alwaysAcceptSize = true;
@@ -250,7 +257,7 @@ class WindowWidget : Container {
             mClientWidget = null;
         }
 
-        if (mFullScreen) {
+        if (mFullScreen || !mHasDecorations) {
             clear();
             if (mClient) {
                 addChild(mClient);
@@ -301,6 +308,19 @@ class WindowWidget : Container {
         }
     }
 
+    ///you can switch off all window decorations (title, buttons, resizers, any
+    ///drawing done by this Window widget) by setting this to false
+    bool hasDecorations() {
+        return mHasDecorations;
+    }
+    void hasDecorations(bool set) {
+        if (mHasDecorations == set)
+            return;
+
+        mHasDecorations = set;
+        recreateGui();
+    }
+
     /// client Widget shown in the window
     /// in fullscreen mode, the Widget's .doesCover method is queried to see if
     /// the background should be cleared (use with care etc.)
@@ -326,6 +346,7 @@ class WindowWidget : Container {
         mTitleBar.text = props.windowTitle;
         mBackground.back = props.background;
         mCanResize = props.canResize;
+        mCanMove = props.canMove;
         zorder = props.zorder;
     }
 
@@ -390,6 +411,9 @@ class WindowWidget : Container {
         super.onFocusChange();
         //a matter of taste
         mBackground.border = focused ? Color(0,0,1) : mBackground.border.init;
+
+        if (!focused && onFocusLost)
+            onFocusLost(this);
     }
 
     void doAction(char[] s) {
@@ -439,7 +463,7 @@ class WindowWidget : Container {
 
     protected bool onMouseMove(MouseInfo mouse) {
         if (mDraging) {
-            if (!mFullScreen && mManager) {
+            if (mCanMove && !mFullScreen && mManager) {
                 mManager.setWindowPosition(this, containedBounds.p1+mouse.rel);
             }
         } else {
@@ -451,12 +475,12 @@ class WindowWidget : Container {
 
     override protected void onDraw(Canvas c) {
         //if fullscreen, the parent clears with this.background
-        if (!mFullScreen) {
+        if (!mFullScreen && mHasDecorations) {
             common.visual.drawBox(c, widgetBounds, mBackground);
         } else {
             //xxx: possibly unnecessary clearing when it really covers the whole
             //  screen; it should use getFramework.clearColor then, maybe
-            if (!mClient || !mClient.doesCover)
+            if (mHasDecorations && (!mClient || !mClient.doesCover))
                 c.drawFilledRect(Vector2i(0), size, properties.background);
         }
         super.onDraw(c);
@@ -467,7 +491,7 @@ class WindowWidget : Container {
     }
 
     override bool doesCover() {
-        return mFullScreen;
+        return mHasDecorations && mFullScreen;
     }
 
     char[] toString() {

@@ -195,6 +195,43 @@ class Widget {
         return Rect2i(Vector2i(0), size);
     }
 
+    ///translate pt, which is in relative's coords, to our coordinate system
+    ///returns if success (which means pt is valid, else pt is unchanged)
+    ///slow because it translates up and down :)
+    final bool translateCoords(Widget relative, ref Vector2i pt) {
+        if (!relative)
+            return false;
+        Vector2i p = pt;
+        while (relative.parent) {
+            p = relative.coordsToParent(p);
+            relative = relative.parent;
+        }
+        //nasty way to do it, but should work
+        auto inv = Vector2i(0, 0);
+        Widget other = this;
+        while (other.parent) {
+            inv = other.coordsToParent(inv);
+            other = other.parent;
+        }
+        //they're both roots, so if same screen <=> same widget
+        if (other !is relative)
+            return false;
+        //translate back
+        pt = p - inv;
+        return true;
+    }
+
+    final bool translateCoords(Widget relative, ref Rect2i prc) {
+        auto rc = prc;
+        if (!translateCoords(relative, rc.p1) ||
+            !translateCoords(relative, rc.p2))
+        {
+            return false;
+        }
+        prc = rc;
+        return true;
+    }
+
     // --- layouting stuff
 
     WidgetLayout layout() {

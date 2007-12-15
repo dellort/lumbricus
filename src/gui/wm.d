@@ -40,15 +40,20 @@ private:
 
 /// used _only_ for initial placement of a window
 struct WindowInitialPlacement {
+    Window relative; //if non-null, placement is relative to this Window
     enum Placement {
         autoplace,
         fullscreen,
         centered,
         manual,
+        gravity,
     }
     Placement place;
     Vector2i manualPos;  //only used if place == manual
     Vector2i defaultSize; //only used if place != fullscreen
+    //for Placement.dependent
+    Vector2i gravity; //direction/length where the Window is attached
+    float gravityAlign = 0; //align on gravity baseline (0.0-1.0f)
 }
 
 class Window {
@@ -60,21 +65,43 @@ class Window {
         WindowInitialPlacement mInitialPlacement;
         WindowProperties mProps;
         bool mCreated; //if it already was placed
+        bool mIsPopup;
     }
+
+    enum Role {
+        App,
+        Popup,
+    }
+
+    ///if this Window loses focus, then close it (useful for popups)
+    ///also changes behaviour of onClose, see there
+    bool isFocusVolatile = false;
 
     ///if this isn't set, closing the window will terminate the task
     ///if it is set, and it returns...
     ///  false: nothing happens
     ///  true: this.visible = false;
+    ///if this isn't set, but isFocusVolatile is true, then the task is not
+    ///terminated... yay nice, simple semantics
     bool delegate(Window sender) onClose;
 
-    this(WindowManager manager, Task owner) {
+    this(WindowManager manager, Task owner, Role role = Role.App) {
         mManager = manager;
         mTask = manager.getTask(owner);
         mWindow = new WindowWidget();
 
-        mManager.mFrame.addDefaultDecorations(mWindow);
-        mWindow.onKeyBinding = &onWindowAction;
+        mIsPopup = role == Role.Popup;
+
+        if (!mIsPopup) {
+            mManager.mFrame.addDefaultDecorations(mWindow);
+            mWindow.onKeyBinding = &onWindowAction;
+        }
+
+        mWindow.onFocusLost = &onFocusLost;
+    }
+
+    bool isAppWindow() {
+        return !mIsPopup;
     }
 
     private void onWindowAction(WindowWidget sender, char[] action) {
@@ -89,13 +116,19 @@ class Window {
                     if (onClose(this))
                         visible = false;
                 } else {
-                    mTask.mTask.terminate();
+                    if (!isFocusVolatile)
+                        mTask.mTask.terminate();
                 }
                 break;
             }
             default:
                 globals.defaultOut.writefln("window action '%s'??", action);
         }
+    }
+
+    private void onFocusLost(WindowWidget sender) {
+        if (isFocusVolatile)
+            visible = false;
     }
 
     /// visibility means if the window is created (but if true, it actually
@@ -118,30 +151,74 @@ class Window {
             mManager.onWindowCreate(this);
 
             if (doplace) {
-                //do placement...
-                mWindow.windowBounds = Rect2i(Vector2i(0),
-                    mInitialPlacement.defaultSize);
-                alias WindowInitialPlacement.Placement Place;
-                switch (mInitialPlacement.place) {
-                    case Place.autoplace:
-                        //implement if you want this
-                        //but to just center it is ok, too
-                    case Place.centered:
-                        mWindow.position = mManager.mFrame.size/2
-                            - mWindow.size/2;
-                        break;
-                    case Place.manual:
-                        mWindow.position = mInitialPlacement.manualPos;
-                        break;
-                    case Place.fullscreen:
-                        mWindow.fullScreen = true;
-                        break;
-                }
+                doPlacement();
             }
+
+            if (isFocusVolatile)
+                mWindow.claimFocus();
         } else {
             mWindow.remove();
             mManager.onWindowDestroy(this);
         }
+    }
+
+    package void doPlacement() {
+        Window relwin = mInitialPlacement.relative;
+        Widget relative = relwin ? relwin.mWindow : null;
+        Vector2i tmp;
+        if (!relative || !mWindow.translateCoords(relative, tmp)) {
+            relative = mManager.mFrame;
+        }
+        assert(!!relative);
+
+        //first set size, so the window can deal with its minimum size etc.
+        mWindow.windowBounds = Rect2i(Vector2i(0),
+            mInitialPlacement.defaultSize);
+
+        //nrc is in coordinates of the widget "relative"
+        Rect2i nrc = Rect2i(Vector2i(0), mWindow.size);
+
+        alias WindowInitialPlacement.Placement Place;
+        switch (mInitialPlacement.place) {
+            case Place.autoplace:
+                //implement if you want this
+                //but to just center it is ok, too
+            case Place.centered:
+                nrc += relative.size/2 - mWindow.size/2;
+                break;
+            case Place.manual:
+                nrc += mInitialPlacement.manualPos;
+                break;
+            case Place.fullscreen:
+                mWindow.fullScreen = true;
+                break;
+            case Place.gravity:
+                Vector2i g = mInitialPlacement.gravity;
+                Vector2i b1, b2;
+                Rect2i prc = relative.containedBounds;
+                b1.x = g.x > 0 ? prc.p2.x : prc.p1.x;
+                b2.x = g.x > 0 ? prc.p1.x : prc.p2.x;
+                b1.y = g.y > 0 ? prc.p2.y : prc.p1.y;
+                b2.y = g.y > 0 ? prc.p1.y : prc.p2.y;
+                Vector2i pdist = g;
+                if (g.x < 0) pdist -= nrc.size.X;
+                if (g.y < 0) pdist -= nrc.size.Y;
+                if (g.x > 0) pdist += prc.size.X;
+                if (g.y > 0) pdist += prc.size.Y;
+                Vector2i al = toVector2i(toVector2f(prc.size - nrc.size)
+                    * mInitialPlacement.gravityAlign);
+                if (g.x == 0) al.y = 0;
+                if (g.y == 0) al.x = 0;
+                pdist += al;
+                nrc += pdist;
+                break;
+        }
+
+        //translate from "relative" widget coordinates to the ones used by the
+        //window, and actually position it
+        bool r = mWindow.parent.translateCoords(relative, nrc);
+        assert(r);
+        mWindow.windowBounds = nrc;
     }
 
     bool visible() {
@@ -158,6 +235,11 @@ class Window {
     }
     WindowInitialPlacement initialPlacement() {
         return mInitialPlacement;
+    }
+
+    void updatePlacement() {
+        if (visible())
+            doPlacement();
     }
 
     /// the client is the user's GUI shown inside the window
@@ -186,6 +268,19 @@ class Window {
     Task task() {
         return mTask.mTask;
     }
+}
+
+///find a WindowManager for Widget w
+///currently always returns the global window manager (gWindowManager), if it's
+///connected to it
+WindowManager findWM(Widget w) {
+    while (w.parent && !cast(WindowManager)w.parent) {
+        auto wm = cast(WindowManager)(w.parent);
+        if (wm is gWindowManager)
+            return gWindowManager;
+        w = w.parent;
+    }
+    return null;
 }
 
 class WindowManager {
@@ -243,6 +338,32 @@ class WindowManager {
         auto ip = w.initialPlacement;
         ip.place = WindowInitialPlacement.Placement.fullscreen;
         w.initialPlacement = ip;
+        w.visible = show;
+        return w;
+    }
+
+    ///create a popup window, which is attached to attach, with the given
+    ///gravity, place_align sets position along gravity base
+    ///gravity should point in an axis aligned direction, i.e. (1,0) means the
+    ///popup is attached the left border of the window
+    Window createPopup(Task task, Widget client, Window attach,
+        Vector2i gravity, Vector2i initSize = Vector2i(0, 0), bool show = true,
+        float place_align = 0)
+    {
+        auto w = new Window(this, task, Window.Role.Popup);
+        w.mWindow.hasDecorations = false;
+        w.client = client;
+        WindowInitialPlacement ip;
+        ip.defaultSize = initSize;
+        ip.place = WindowInitialPlacement.Placement.gravity;
+        ip.gravity = gravity;
+        ip.gravityAlign = place_align;
+        w.initialPlacement = ip;
+        WindowProperties props;
+        props.windowTitle = "?";
+        props.canResize = props.canMove = false;
+        props.zorder = WindowZOrder.Popup;
+        w.properties = props;
         w.visible = show;
         return w;
     }

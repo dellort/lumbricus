@@ -753,3 +753,52 @@ class AniTest : Task {
         TaskFactory.register!(typeof(this))("anitest");
     }
 }
+
+//small hack
+//should be replaced by sth... better
+//maybe until better configfile and GUI stuff is available
+//(maybe configfile schema, generic handling of datatypes)
+class SwitchDriver : Task {
+    char[][] configs = ["enable_caching", "mark_alpha", "open_gl",
+        "gl_debug_wireframe", "font_packer"];
+
+    Button[] mChks;
+
+    this(TaskManager mgr) {
+        super(mgr);
+
+        mChks.length = configs.length;
+
+        auto list = new BoxContainer(false, false, 5);
+        for (int n = 0; n < configs.length; n++) {
+            auto b = new Button();
+            b.text = configs[n];
+            b.isCheckbox = true;
+            mChks[n] = b;
+            list.add(b);
+        }
+
+        auto apply = new Button();
+        apply.text = "Apply";
+        apply.onClick = &onApply;
+        list.add(apply);
+
+        gWindowManager.createWindow(this, list, "Switch driver");
+    }
+
+    void onApply(Button sender) {
+        ConfigNode node = new ConfigNode();
+        node["driver"] = "sdl";
+        foreach (int index, b; mChks) {
+            node.setStringValueByPath(configs[index], b.checked ? "true" : "false");
+        }
+        gFramework.scheduleDriverReload(Framework.DriverReload(node));
+    }
+
+    override void onFrame() {
+    }
+
+    static this() {
+        TaskFactory.register!(typeof(this))("switchdriver");
+    }
+}
