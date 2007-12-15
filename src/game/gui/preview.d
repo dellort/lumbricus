@@ -14,6 +14,7 @@ import gui.wm;
 import game.gametask;
 import levelgen.generator;
 import levelgen.level;
+import std.thread;
 import utils.vector2;
 import utils.rect2;
 
@@ -32,6 +33,8 @@ private class LevelSelector : SimpleContainer {
 
         LevelGenerator mGenerator;
         Label mLblInfo;
+        BoxContainer mLayout;
+        Label mLblWait;
     }
 
     struct LevelInfo {
@@ -88,12 +91,24 @@ private class LevelSelector : SimpleContainer {
         mLblInfo.drawBorder = false;
         mLblInfo.text = _("levelselect.infotext");
 
-        auto layout = new BoxContainer(false, false, 10);
+        mLayout = new BoxContainer(false, false, 10);
 
-        layout.add(mLblInfo, lblLay);
-        layout.add(buttons_layout);
+        mLayout.add(mLblInfo, lblLay);
+        mLayout.add(buttons_layout);
 
-        add(layout);
+        add(mLayout);
+
+        mLblWait = new Label();
+        mLblWait.text = _("levelselect.waiting");
+    }
+
+    void waiting(bool w) {
+        clear();
+        if (w) {
+            add(mLblWait, WidgetLayout.Noexpand);
+        } else {
+            add(mLayout);
+        }
     }
 
     private int getIdx(Button which) {
@@ -127,12 +142,32 @@ private class LevelSelector : SimpleContainer {
     }
 }
 
+class GenThread : Thread {
+    private LevelSelector.LevelInfo mLvlConfig;
+    public Level finalLevel;
+
+    this(LevelSelector.LevelInfo lvl) {
+        super();
+        mLvlConfig = lvl;
+    }
+
+    override int run() {
+        scope gen = new LevelGenerator();
+        finalLevel = generateAndSaveLevel(gen, mLvlConfig.templ,
+            mLvlConfig.geo, null);
+        return 0;
+    }
+}
+
 //this is considered debug code until we have a proper game settings dialog
 class LevelPreviewTask : Task {
     private {
         LevelSelector mSelector;
         Window mWMWindow;
         Task mGame;
+        //background level rendering thread *g*
+        GenThread mThread;
+        bool mThWaiting = false;
     }
 
     this(TaskManager tm) {
@@ -145,17 +180,22 @@ class LevelPreviewTask : Task {
 
     void lvlAccept(LevelSelector.LevelInfo lvl) {
         //generate level
-        //big xxx: locks up the game on slow PCs without displaying anything
-        //         (besides using private generator instance)
-        auto level = generateAndSaveLevel(mSelector.mGenerator, lvl.templ,
-            lvl.geo, null);
+        //fix window size and show as waiting
+        mWMWindow.acceptSize();
+        mSelector.waiting = true;
+        //start generation
+        mThread = new GenThread(lvl);
+        mThread.start();
+        mThWaiting = true;
         //start game
-        play(level);
+        //play(level);
     }
 
     //play a level, hide this GUI while doing that, then return
     void play(Level level) {
         mWMWindow.visible = false;
+        //reset preview dialog
+        mSelector.waiting = false;
 
         assert(!mGame); //hm, no idea
         //create default GameConfig with custom level
@@ -167,6 +207,14 @@ class LevelPreviewTask : Task {
 
     override protected void onFrame() {
         //poll for game death
+        if (mThWaiting) {
+            if (mThread.getState() != Thread.TS.RUNNING) {
+                //level generation finished, now start the game
+                mThWaiting = false;
+                play(mThread.finalLevel);
+                mThread = null;
+            }
+        }
         if (mGame) {
             if (mGame.reallydead) {
                 mGame = null;
