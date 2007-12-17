@@ -170,6 +170,10 @@ class StringListWidget : AbstractListWidget {
         recheckWidths();
     }
 
+    char[][] contents() {
+        return mContents;
+    }
+
     void recheckWidths() {
         if (!mCheckWidth)
             return;

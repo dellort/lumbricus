@@ -156,6 +156,9 @@ class WindowWidget : Container {
     ///invoked when focus was taken
     void delegate(WindowWidget sender) onFocusLost;
 
+    ///in _any_ case the window is removed from the WindowFrame
+    void delegate(WindowWidget sender) onClose;
+
     ///always call acceptSize() after resize
     bool alwaysAcceptSize = true;
 
@@ -494,6 +497,12 @@ class WindowWidget : Container {
         return mHasDecorations && mFullScreen;
     }
 
+    //called by WindowFrame only
+    package void wasRemoved() {
+        if (onClose)
+            onClose(this);
+    }
+
     char[] toString() {
         return "["~super.toString~" '"~mTitleBar.text~"']";
     }
@@ -633,6 +642,8 @@ class WindowFrame : Container {
             wnd.mManager = null;
         }
         super.removeChild(child);
+        if (wnd)
+            wnd.wasRemoved();
     }
 
     WindowWidget focusWindow() {

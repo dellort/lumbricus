@@ -130,7 +130,7 @@ struct SurfaceData {
     Transparency transparency = Transparency.None;
     Color colorkey = cStdColorkey;
     //at least currently, the data always is in the format RGBA32
-    //(mask: 0xAARRGGBB)
+    //(mask: 0xAABBGGRR)
     ubyte[] data;
     //pitch for data
     uint pitch;

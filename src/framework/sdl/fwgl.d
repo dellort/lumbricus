@@ -43,10 +43,10 @@ char[] glErrorToString(GLenum errCode) {
 }
 
 class GLSurface : DriverSurface {
-    const GLuint TEXID_INVALID = 0;
+    const GLuint GLID_INVALID = 0;
 
     SurfaceData* mData;
-    GLuint mTexId;
+    GLuint mTexId = GLID_INVALID;
     Vector2f mTexMax;
     Vector2i mTexSize;
     bool mError;
@@ -58,9 +58,9 @@ class GLSurface : DriverSurface {
     }
 
     void releaseSurface() {
-        if (mTexId != TEXID_INVALID) {
+        if (mTexId != GLID_INVALID) {
             glDeleteTextures(1, &mTexId);
-            mTexId = TEXID_INVALID;
+            mTexId = GLID_INVALID;
         }
     }
 
@@ -186,7 +186,7 @@ class GLSurface : DriverSurface {
     void updatePixels(in Rect2i rc) {
         if (mError)
             return;  //texture failed to load and contains only 1 pixel
-        if (mTexId == TEXID_INVALID) {
+        if (mTexId == GLID_INVALID) {
             reinit();
         } else {
             assert(mData.pitch == mData.size.x*4);
@@ -441,7 +441,7 @@ class GLCanvas : Canvas {
 
     public void drawLine(Vector2i p1, Vector2i p2, Color color) {
         glPushMatrix();
-        glPushAttrib(GL_ENABLE_BIT);
+        glPushAttrib(GL_ENABLE_BIT | GL_CURRENT_BIT);
         glDisable(GL_TEXTURE_2D);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -461,7 +461,7 @@ class GLCanvas : Canvas {
 
     public void drawRect(Vector2i p1, Vector2i p2, Color color) {
         glPushMatrix();
-        glPushAttrib(GL_ENABLE_BIT);
+        glPushAttrib(GL_ENABLE_BIT | GL_CURRENT_BIT);
         glDisable(GL_TEXTURE_2D);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -493,13 +493,16 @@ class GLCanvas : Canvas {
     public void drawFilledRect(Vector2i p1, Vector2i p2, Color color,
         bool properalpha = true)
     {
-        glPushMatrix();
-        glPushAttrib(GL_ENABLE_BIT);
+        //glPushMatrix();
+        glPushAttrib(GL_ENABLE_BIT | GL_CURRENT_BIT);
         glDisable(GL_TEXTURE_2D);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        bool alpha = (color.a <= 1.0f - Color.epsilon);
+        if (alpha) {
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        }
 
-        //har
+        //har (hey...! wtf?)
         glColor4fv(cast(float*)&color);
 
         //glTranslatef(0.5f, 0.5f, 0);
@@ -511,9 +514,10 @@ class GLCanvas : Canvas {
         glEnd();
 
         glPopAttrib();
-        glPopMatrix();
+        //glPopMatrix();
 
-        markAlpha(p1, p2-p1);
+        if (alpha)
+            markAlpha(p1, p2-p1);
     }
 
     public void draw(Texture source, Vector2i destPos,
@@ -554,7 +558,6 @@ class GLCanvas : Canvas {
         glPushAttrib(GL_ENABLE_BIT);
         glDisable(GL_DEPTH_TEST);
         glsurf.prepareDraw();
-        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 
         //tiling can be done by OpenGL if texture space is fully used
         bool glTilex = glsurf.mTexMax.x == 1.0f;
@@ -618,8 +621,13 @@ class GLCanvas : Canvas {
             }
         }
 
+        GLboolean isalpha;
+        if (gSDLDriver.mMarkAlpha)
+            glGetBooleanv(GL_BLEND, &isalpha);
+
         glPopAttrib();
 
-        markAlpha(destPos, sourceSize);
+        if (isalpha)
+            markAlpha(destPos, sourceSize);
     }
 }

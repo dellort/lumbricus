@@ -5,6 +5,7 @@ import gui.wm;
 import gui.widget;
 import gui.button;
 import gui.boxcontainer;
+import gui.dropdownlist;
 import gui.edit;
 import gui.tablecontainer;
 import gui.label;
@@ -171,18 +172,15 @@ class TestFrame6 : Container {
 
 //popup test
 class TestFrame7 : Container {
-    Window mWindow;
     Button mCreate;
     Vector2i mGravity;
     CheckBoxGroup mChk;
     Window mActivePopup;
-    Task mTask;
     Widget mPopup;
     ScrollBar mAlign, mLength;
-    Button mVolatile;
+    Button mVolatile, mInside;
 
-    this(Task me) {
-        mTask = me;
+    this() {
         auto tc = new TableContainer(3, 3, Vector2i(10));
         Button[4] chk;
         foreach (inout b; chk) {
@@ -214,8 +212,12 @@ class TestFrame7 : Container {
         mVolatile.isCheckbox = true;
         mVolatile.text = "Volatile";
         inner.add(mVolatile);
+        mInside = new Button;
+        mInside.isCheckbox = true;
+        mInside.text = "Inside Wnd.";
+        inner.add(mInside);
         tc.add(inner, 1, 1);
-        mWindow = gWindowManager.createWindow(me, tc, "Popup-Test");
+        addChild(tc);
         Label p = new Label();
         p.text = "Hi! I'm a popup or so!";
         mPopup = p;
@@ -233,7 +235,7 @@ class TestFrame7 : Container {
     void onCreate(Button b) {
         if (mActivePopup)
             mActivePopup.destroy();
-        mActivePopup = gWindowManager.createPopup(mTask, mPopup, mWindow,
+        mActivePopup = gWindowManager.createPopup(mPopup, this,
             Vector2i(0), Vector2i(0), false);
         update();
         mActivePopup.visible = true;
@@ -243,7 +245,8 @@ class TestFrame7 : Container {
         if (!mActivePopup)
             return;
         WindowInitialPlacement p;
-        p.relative = mWindow;
+        Widget w = mInside;
+        p.relative = mInside.checked ? w : findWindowForWidget(this).window;
         p.place = WindowInitialPlacement.Placement.gravity;
         Vector2i sel(int idx) {
             switch (idx) {
@@ -258,6 +261,28 @@ class TestFrame7 : Container {
         mActivePopup.isFocusVolatile = mVolatile.checked;
         mActivePopup.initialPlacement = p;
         mActivePopup.updatePlacement();
+    }
+}
+
+class TestFrame8 : Container {
+    DropDownList mList;
+    Label mInfo;
+    int mSelCount;
+
+    void select(DropDownList list) {
+        mInfo.text = str.format("sel %d: '%s'", mSelCount, list.selection);
+        mSelCount++;
+    }
+
+    this() {
+        mList = new DropDownList();
+        mList.onSelect = &select;
+        mList.list.setContents(["hallo", "blablabla", "123...", "foo", "end"]);
+        mInfo = new Label();
+        auto box = new BoxContainer(false);
+        box.add(mList);
+        box.add(mInfo);
+        addChild(box);
     }
 }
 
@@ -287,7 +312,8 @@ class TestTask : Task {
         checkbox.text = "Hello I'm a checkbox!";
         checkbox.shrink = true; //for more testing
         createWindow("CheckBox", checkbox);
-        new TestFrame7(this);
+        createWindow("Popup-Test", new TestFrame7());
+        createWindow("DropDownList", new TestFrame8());
 
         auto k = new Button();
         k.text = "Kill!!!1";

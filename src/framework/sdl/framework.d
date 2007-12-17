@@ -199,7 +199,7 @@ class SDLDriver : FrameworkDriver {
         SDL_PixelFormat mRGBA32, mPFScreen, mPFAlphaScreen;
 
         //if OpenGL enabled (if not, use 2D SDL drawing)
-        bool mOpenGL;
+        package bool mOpenGL;
 
         //depending if OpenGL or plain-old-SDL-2D mode
         SDLCanvas mScreenCanvas2D;

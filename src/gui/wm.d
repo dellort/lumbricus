@@ -40,7 +40,7 @@ private:
 
 /// used _only_ for initial placement of a window
 struct WindowInitialPlacement {
-    Window relative; //if non-null, placement is relative to this Window
+    Widget relative; //if non-null, placement is relative to this Widget
     enum Placement {
         autoplace,
         fullscreen,
@@ -85,6 +85,9 @@ class Window {
     ///terminated... yay nice, simple semantics
     bool delegate(Window sender) onClose;
 
+    ///when the window widget is removed from its container
+    void delegate(Window sender) onDestroy;
+
     this(WindowManager manager, Task owner, Role role = Role.App) {
         mManager = manager;
         mTask = manager.getTask(owner);
@@ -98,6 +101,7 @@ class Window {
         }
 
         mWindow.onFocusLost = &onFocusLost;
+        mWindow.onClose = &onWindowClose;
     }
 
     bool isAppWindow() {
@@ -129,6 +133,11 @@ class Window {
     private void onFocusLost(WindowWidget sender) {
         if (isFocusVolatile)
             visible = false;
+    }
+
+    private void onWindowClose(WindowWidget sender) {
+        if (onDestroy)
+            onDestroy(this);
     }
 
     /// visibility means if the window is created (but if true, it actually
@@ -163,8 +172,7 @@ class Window {
     }
 
     package void doPlacement() {
-        Window relwin = mInitialPlacement.relative;
-        Widget relative = relwin ? relwin.mWindow : null;
+        Widget relative = mInitialPlacement.relative;
         Vector2i tmp;
         if (!relative || !mWindow.translateCoords(relative, tmp)) {
             relative = mManager.mFrame;
@@ -268,16 +276,38 @@ class Window {
     Task task() {
         return mTask.mTask;
     }
+
+    WindowManager manager() {
+        return mManager;
+    }
+
+    //xxx maybe should unify Window and WindowWidget anyway
+    WindowWidget window() {
+        return mWindow;
+    }
 }
 
 ///find a WindowManager for Widget w
 ///currently always returns the global window manager (gWindowManager), if it's
 ///connected to it
 WindowManager findWM(Widget w) {
-    while (w.parent && !cast(WindowManager)w.parent) {
-        auto wm = cast(WindowManager)(w.parent);
-        if (wm is gWindowManager)
+    while (w) {
+        auto wm = cast(WindowFrame)w;
+        if (wm && gWindowManager.mFrame)
             return gWindowManager;
+        w = w.parent;
+    }
+    return null;
+}
+
+///find the nearest Window above this widget, or return null if none
+Window findWindowForWidget(Widget w) {
+    while (w) {
+        auto window = cast(WindowWidget)w;
+        if (window) {
+            auto wm = findWM(window);
+            return wm ? wm.windowFromWidget(window) : null;
+        }
         w = w.parent;
     }
     return null;
@@ -345,12 +375,15 @@ class WindowManager {
     ///create a popup window, which is attached to attach, with the given
     ///gravity, place_align sets position along gravity base
     ///gravity should point in an axis aligned direction, i.e. (1,0) means the
-    ///popup is attached the left border of the window
-    Window createPopup(Task task, Widget client, Window attach,
-        Vector2i gravity, Vector2i initSize = Vector2i(0, 0), bool show = true,
+    ///popup is attached the left border of the widget
+    ///xxx: asserts if no Window (for the task) is found (needs to be fixed)
+    Window createPopup(Widget client, Widget attach, Vector2i gravity,
+        Vector2i initSize = Vector2i(0, 0), bool show = true,
         float place_align = 0)
     {
-        auto w = new Window(this, task, Window.Role.Popup);
+        Window tw = findWindowForWidget(attach);
+        assert(!!tw, "attach must be under a Window");
+        auto w = new Window(this, tw.task, Window.Role.Popup);
         w.mWindow.hasDecorations = false;
         w.client = client;
         WindowInitialPlacement ip;
@@ -358,6 +391,7 @@ class WindowManager {
         ip.place = WindowInitialPlacement.Placement.gravity;
         ip.gravity = gravity;
         ip.gravityAlign = place_align;
+        ip.relative = attach;
         w.initialPlacement = ip;
         WindowProperties props;
         props.windowTitle = "?";
@@ -403,7 +437,7 @@ class WindowManager {
         arrayRemove(w.mTask.mWindows, w);
     }
 
-    private Window windowFromWidget(WindowWidget w) {
+    public Window windowFromWidget(WindowWidget w) {
         foreach (pt; mTaskList) {
             foreach (window; pt.mWindows) {
                 if (window.mWindow is w)

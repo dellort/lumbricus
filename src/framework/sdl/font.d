@@ -1,21 +1,32 @@
 module framework.sdl.font;
 
+import derelict.opengl.gl;
+import derelict.sdl.sdl;
+import derelict.sdl.ttf;
+
 import framework.framework;
 import framework.font;
 import framework.sdl.framework;
 import framework.sdl.rwops;
 import framework.texturepack;
-import derelict.sdl.sdl;
-import derelict.sdl.ttf;
 
 import std.stream;
 import std.string;
 
-class SDLFont : DriverFont {
+bool fontIsOpaque(ref FontProperties props) {
+    return (props.back.a > 1.0f - Color.epsilon);
+}
+
+bool fontNeedsBackPlain(ref FontProperties props) {
+    //Backplain not needed if it's fully transparent or fully opaque
+    return (props.back.a >= Color.epsilon) && !fontIsOpaque(props);
+}
+
+//renderer and cache for font glyphs
+class GlyphCache {
     private {
         TextureRef mFrags[dchar];
         TexturePack mPacker; //if null => one surface per glyph
-        bool mNeedBackPlain;   //false if background is completely transp.
         bool mOpaque;
         uint mHeight;
         FontProperties props;
@@ -45,11 +56,7 @@ class SDLFont : DriverFont {
         mHeight = TTF_FontHeight(font);
         //assert(mHeight == props.size); bleh
 
-        //Backplain not needed if it's fully transparent
-        mNeedBackPlain = (props.back.a >= Color.epsilon);
-        //or if it's fully opaque (see renderChar())
-        mOpaque = (props.back.a > 1.0f - Color.epsilon);
-        mNeedBackPlain = mNeedBackPlain && !mOpaque;
+        mOpaque = fontIsOpaque(props);
 
         if (gSDLDriver.mUseFontPacker) {
             mPacker = new TexturePack();
@@ -81,70 +88,11 @@ class SDLFont : DriverFont {
         return rel;
     }
 
-    public FontProperties properties() {
-        return props;
-    }
-
-    Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text) {
-        if (w == int.max) {
-            return drawText(canvas, pos, text);
-        } else {
-            return drawTextLimited(canvas, pos, w, text);
-        }
-    }
-
-    private Vector2i drawText(Canvas canvas, Vector2i pos, char[] text) {
-        foreach (dchar c; text) {
-            TextureRef surface = getGlyph(c);
-            if (mNeedBackPlain) {
-                canvas.drawFilledRect(pos, pos+surface.size, props.back, true);
-            }
-            surface.draw(canvas, pos);
-            pos.x += surface.size.x;
-        }
-        return pos;
-    }
-
-    private Vector2i drawTextLimited(Canvas canvas, Vector2i pos, int width,
-        char[] text)
-    {
-        Vector2i s = textSize(text, true);
-        if (s.x <= width) {
-            return drawText(canvas, pos, text);
-        } else {
-            char[] dotty = "...";
-            int ds = textSize(dotty, true).x;
-            width -= ds;
-            //draw manually (oh, this is an xxx)
-            foreach (dchar c; text) {
-                TextureRef surface = getGlyph(c);
-                auto npos = pos.x + surface.size.x;
-                if (npos > width)
-                    break;
-                if (mNeedBackPlain) {
-                    canvas.drawFilledRect(pos, pos+surface.size, props.back,
-                        true);
-                }
-                surface.draw(canvas, pos);
-                pos.x = npos;
-            }
-            pos = drawText(canvas, pos, dotty);
-            return pos;
-        }
-    }
-
-    Vector2i textSize(char[] text, bool forceHeight) {
-        Vector2i res = Vector2i(0, 0);
-        foreach (dchar c; text) {
-            TextureRef surface = getGlyph(c);
-            res.x += surface.size.x;
-        }
-        if (text.length > 0 || forceHeight)
-            res.y = TTF_FontHeight(font);
-        return res;
-    }
-
-    private TextureRef getGlyph(dchar c) {
+    //return a (part) of a surface with that glyph
+    //it will be non-transparent for fully opaque fonts, but if the background
+    //contains alpha, the surface is alpha blended and actually doesn't contain
+    //anything of the background color
+    TextureRef getGlyph(dchar c) {
         TextureRef* sptr = c in mFrags;
         if (!sptr) {
             mFrags[c] = renderChar(c);
@@ -197,16 +145,101 @@ class SDLFont : DriverFont {
             return TextureRef(s, Vector2i(0), s.size);
         }
     }
+}
+
+class SDLFont : DriverFont {
+    private {
+        GlyphCache mCache;
+        FontProperties mProps;
+        bool mNeedBackPlain, mUseGL;
+    }
+
+    package int refcount = 1;
+
+    this(GlyphCache glyphs, FontProperties props) {
+        mCache = glyphs;
+        mProps = props;
+        mNeedBackPlain = fontNeedsBackPlain(props);
+        mUseGL = gSDLDriver.mOpenGL  && !fontIsOpaque(props);
+    }
+
+    Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text) {
+        if (w == int.max) {
+            return drawText(canvas, pos, text);
+        } else {
+            return drawTextLimited(canvas, pos, w, text);
+        }
+    }
+
+    private void drawGlyph(Canvas c, TextureRef glyph, Vector2i pos) {
+        if (mNeedBackPlain) {
+            c.drawFilledRect(pos, pos+glyph.size, mProps.back, true);
+        }
+        if (mUseGL) {
+            glPushAttrib(GL_CURRENT_BIT);
+            glColor4f(mProps.fore.r, mProps.fore.g, mProps.fore.b,
+                mProps.fore.a);
+        }
+        glyph.draw(c, pos);
+        if (mUseGL) {
+            glPopAttrib();
+        }
+    }
+
+    private Vector2i drawText(Canvas canvas, Vector2i pos, char[] text) {
+        foreach (dchar c; text) {
+            auto glyph = mCache.getGlyph(c);
+            drawGlyph(canvas, glyph, pos);
+            pos.x += glyph.size.x;
+        }
+        return pos;
+    }
+
+    private Vector2i drawTextLimited(Canvas canvas, Vector2i pos, int width,
+        char[] text)
+    {
+        Vector2i s = textSize(text, true);
+        if (s.x <= width) {
+            return drawText(canvas, pos, text);
+        } else {
+            char[] dotty = "...";
+            int ds = textSize(dotty, true).x;
+            width -= ds;
+            //draw manually (oh, this is an xxx)
+            foreach (dchar c; text) {
+                auto glyph = mCache.getGlyph(c);
+                auto npos = pos.x + glyph.size.x;
+                if (npos > width)
+                    break;
+                drawGlyph(canvas, glyph, pos);
+                pos.x = npos;
+            }
+            pos = drawText(canvas, pos, dotty);
+            return pos;
+        }
+    }
+
+    Vector2i textSize(char[] text, bool forceHeight) {
+        Vector2i res = Vector2i(0, 0);
+        foreach (dchar c; text) {
+            TextureRef surface = mCache.getGlyph(c);
+            res.x += surface.size.x;
+        }
+        if (text.length > 0 || forceHeight)
+            res.y = mCache.mHeight;
+        return res;
+    }
 
     char[] getInfos() {
-        return format("glyphs=%d, pages=%d", cachedGlyphs,
-            mPacker ? mPacker.pages : -1);
+        return format("glyphs=%d, pages=%d", mCache.cachedGlyphs,
+            mCache.mPacker ? mCache.mPacker.pages : -1);
     }
 }
 
 class SDLFontDriver : FontDriver {
     private {
         SDLFont[FontProperties] mFonts;
+        GlyphCache[FontProperties] mGlyphCaches;
     }
 
     this() {
@@ -219,7 +252,8 @@ class SDLFontDriver : FontDriver {
     }
 
     void destroy() {
-        assert(mFonts.length == 0);
+        assert(mFonts.length == 0); //Framework's error
+        assert(mGlyphCaches.length == 0); //our error
         TTF_Quit();
         DerelictSDLttf.unload();
     }
@@ -232,8 +266,27 @@ class SDLFontDriver : FontDriver {
             return r;
         }
 
-        Stream data = gFramework.fontManager.findFace(props.face);
-        auto f = new SDLFont(data, props);
+        FontProperties gc_props = props;
+        //on OpenGL, you can color up surfaces at no costs, so...
+        //not for opaque surfaces, these are rendered as a single surface
+        if (gSDLDriver.mOpenGL && !fontIsOpaque(gc_props)) {
+            //normalize to a standard color
+            gc_props.back = Color(0,0,0,0); //fully transparent
+            gc_props.fore = Color(1,1,1);   //white
+        }
+
+        GlyphCache* pgc = gc_props in mGlyphCaches;
+        GlyphCache gc = pgc ? *pgc : null;
+
+        if (!gc) {
+            Stream data = gFramework.fontManager.findFace(gc_props.face);
+            gc = new GlyphCache(data, gc_props);
+            mGlyphCaches[gc_props] = gc;
+        } else {
+            gc.refcount++;
+        }
+
+        auto f = new SDLFont(gc, props);
         mFonts[props] = f;
 
         return f;
@@ -242,14 +295,19 @@ class SDLFontDriver : FontDriver {
     void destroyFont(inout DriverFont a_handle) {
         auto handle = cast(SDLFont)a_handle;
         assert(!!handle);
-        auto p = handle.props;
+        auto p = handle.mProps;
         assert(handle is mFonts[p]);
         handle.refcount--;
         if (handle.refcount < 1) {
             assert(handle.refcount == 0);
-            handle.releaseCache();
-            handle.free();
             mFonts.remove(p);
+            GlyphCache cache = handle.mCache;
+            cache.refcount--;
+            if (cache.refcount < 1) {
+                cache.releaseCache();
+                cache.free();
+                mGlyphCaches.remove(cache.props);
+            }
         }
         a_handle = null;
     }
@@ -257,7 +315,7 @@ class SDLFontDriver : FontDriver {
     int releaseCaches() {
         int count;
         foreach (SDLFont fh; mFonts) {
-            count += fh.releaseCache();
+            count += fh.mCache.releaseCache();
             count++;
         }
         return count;
