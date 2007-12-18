@@ -230,6 +230,7 @@ class GLCanvas : Canvas {
 
     private {
         struct State {
+            bool enableClip;
             Rect2i clip;
             Vector2i translate;
             Vector2i clientsize;
@@ -246,6 +247,7 @@ class GLCanvas : Canvas {
         mStack[0].clientsize = Vector2i(gSDLDriver.mSDLScreen.w,
             gSDLDriver.mSDLScreen.h);
         mStack[0].clip.p2 = mStack[0].clientsize;
+        mStack[0].enableClip = false;
 
         initGLViewport();
 
@@ -323,6 +325,7 @@ class GLCanvas : Canvas {
         doClip(p1, p2);
     }
     private void doClip(Vector2i p1, Vector2i p2) {
+        mStack[mStackTop].enableClip = true;
         glEnable(GL_SCISSOR_TEST);
         glScissor(p1.x, realSize.y-p2.y, p2.x-p1.x, p2.y-p1.y);
     }
@@ -330,7 +333,6 @@ class GLCanvas : Canvas {
     public void pushState() {
         assert(mStackTop < MAX_STACK);
 
-        glPushAttrib(GL_SCISSOR_BIT);
         glPushMatrix();
         mStack[mStackTop+1] = mStack[mStackTop];
         mStackTop++;
@@ -339,10 +341,11 @@ class GLCanvas : Canvas {
         assert(mStackTop > 0);
 
         glPopMatrix();
-        glPopAttrib();
         mStackTop--;
-        if (glIsEnabled(GL_SCISSOR_TEST))
+        if (mStack[mStackTop].enableClip)
             doClip(mStack[mStackTop].clip.p1, mStack[mStackTop].clip.p2);
+        else
+            glDisable(GL_SCISSOR_TEST);
     }
 
     public void clear(Color color) {
@@ -556,8 +559,10 @@ class GLCanvas : Canvas {
         assert(glsurf !is null);
 
         glPushAttrib(GL_ENABLE_BIT);
+        assert(glGetError() == GL_NO_ERROR);
         glDisable(GL_DEPTH_TEST);
         glsurf.prepareDraw();
+
 
         //tiling can be done by OpenGL if texture space is fully used
         bool glTilex = glsurf.mTexMax.x == 1.0f;

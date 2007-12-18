@@ -225,7 +225,7 @@ class ScrollBar : Container {
         return mMinValue;
     }
     void minValue(int v) {
-        mMinValue = max(v,0);
+        mMinValue = v;  //max(v,0);
         if (mMaxValue < mMinValue)
             mMaxValue = mMinValue;
         //hmmmm
@@ -239,7 +239,7 @@ class ScrollBar : Container {
         return mMaxValue;
     }
     void maxValue(int v) {
-        mMaxValue = max(v,0);
+        mMaxValue = v;  //max(v,0);
         if (mMinValue > mMaxValue)
             mMinValue = mMaxValue;
         //hmmmm

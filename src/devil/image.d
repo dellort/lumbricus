@@ -13,6 +13,8 @@ struct RGBAColor {
     ubyte r, g, b, a;
 }
 
+private bool devilInitialized = false;
+
 class Image {
     int w, h;
     private ILuint mImg;
@@ -119,7 +121,20 @@ class Image {
         }
     }
 
+    private void checkInit() {
+        if (!devilInitialized) {
+            DerelictIL.load();
+            DerelictILU.load();
+
+            ilInit();
+            iluInit();
+
+            devilInitialized = true;
+        }
+    }
+
     this (ILuint img) {
+        checkInit();
         mImg = img;
         ilBindImage(mImg);
         w = ilGetInteger(IL_IMAGE_WIDTH);
@@ -133,6 +148,7 @@ class Image {
     }
 
     this(int aw, int ah, bool alpha) {
+        checkInit();
         w = aw; h = ah;
         this.alpha = alpha;
 
@@ -147,12 +163,4 @@ class Image {
         }
         ilTexImage(w, h, 1, c, fmt, IL_UNSIGNED_BYTE, null);
     }
-}
-
-static this() {
-    DerelictIL.load();
-    DerelictILU.load();
-
-    ilInit();
-    iluInit();
 }

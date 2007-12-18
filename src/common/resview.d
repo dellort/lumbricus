@@ -102,19 +102,21 @@ class OldAnimationHandler : ResViewHandler!(oldanim.AnimationResource) {
     private {
         oldanim.Animator mAnim;
         ScrollBar[2] mParams;
+        Label[2] mParLbl;
     }
 
     this(Resource r) {
         super(r);
 
-        auto table = new TableContainer(2, 2, Vector2i(10,1));
+        auto table = new TableContainer(2, 2, Vector2i(10,1), [true, false]);
         void addp(int n) {
             auto lbl = new Label();
-            lbl.text = format("Param %d:", n);
             lbl.drawBorder = false;
             lbl.font = gFramework.getFont("normal");
+            mParLbl[n] = lbl;
             table.add(lbl, 0, n);
             auto scr = new ScrollBar(true);
+            scr.minValue = -90;
             scr.maxValue = 600;
             scr.onValueChange = &onScrollbar;
             mParams[n] = scr;
@@ -132,11 +134,16 @@ class OldAnimationHandler : ResViewHandler!(oldanim.AnimationResource) {
         mAnim = new oldanim.Animator();
         mAnim.setAnimation(resource.get());
 
+        //update label texts
+        onScrollbar(mParams[0]);
+
         setGUI(box);
     }
 
     private void onScrollbar(ScrollBar sender) {
         mAnim.animationState.setParams(mParams[0].curValue, mParams[1].curValue);
+        for (int n = 0; n < 2; n++)
+            mParLbl[n].text = format("Param %d: %d", n, mParams[n].curValue);
     }
 
     class Viewer : Widget {

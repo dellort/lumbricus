@@ -290,11 +290,12 @@ private:
                 }
                 for (int b = 0; b < to.count[1]; b++) {
                     FrameInfo* info = to.framePtr(a, b);
+                    info.pos = pos;
                     if (section.mirror_Y_B && b >= to.count[1]/2) {
                         //mirror on x-axis (so it's not played backwards)
-                        pos.x = (to.count[0]-1)*section.frameSize.x - pos.x;
+                        info.pos.x = (to.count[0]-1)*section.frameSize.x
+                            - info.pos.x;
                     }
-                    info.pos = pos;
                     info.size = section.frameSize;
                     info.texture = start + b;
                 }

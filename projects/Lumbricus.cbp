@@ -37,6 +37,7 @@
 		</Build>
 		<Unit filename="..\src\common\animation.d" />
 		<Unit filename="..\src\common\common.d" />
+		<Unit filename="..\src\common\resview.d" />
 		<Unit filename="..\src\common\scene.d" />
 		<Unit filename="..\src\common\task.d" />
 		<Unit filename="..\src\common\toplevel.d" />
@@ -65,6 +66,7 @@
 		<Unit filename="..\src\framework\sdl\rwops.d" />
 		<Unit filename="..\src\framework\sdl\soundmixer.d" />
 		<Unit filename="..\src\framework\sound.d" />
+		<Unit filename="..\src\framework\texturepack.d" />
 		<Unit filename="..\src\framework\timesource.d" />
 		<Unit filename="..\src\game\animation.d" />
 		<Unit filename="..\src\game\bomberworm.d" />
