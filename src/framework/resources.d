@@ -18,7 +18,7 @@ private char[][char[]] gNamespaceMap;
 ///Resource references can be stored and passed on without ever actually
 ///loading the file
 ///once loaded, the resource will stay cached unless invalidated
-protected class Resource {
+class Resource {
     ///unique id of resource
     char[] id;
     ///unique numeric id
@@ -96,7 +96,8 @@ protected class Resource {
     abstract TypeInfo type();
 }
 
-private class ResourceBase(T) : Resource {
+class ResourceBase(T) : Resource {
+    alias T Type;
     protected T mContents;
 
     package this(Resources parent, char[] id, ConfigItem item) {

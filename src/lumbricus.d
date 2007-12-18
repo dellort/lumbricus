@@ -28,6 +28,8 @@ import game.gui.leveledit; //aw
 import game.wtris; //lol
 import game.bomberworm; //?
 import irc.ircclient; //roflmao
+//debugging
+import common.resview;
 //net tests
 import net.enet_test;
 //import net.test;

@@ -116,12 +116,29 @@ class ScrollArea : SimpleContainer {
         auto child = getBinChild();
         if (child) {
             Vector2i csize = child.layoutCachedContainerSizeRequest;
+            Vector2i offs = Vector2i(0);
             if (!mScroller) {
-                //as in layoutSizeRequest()
-                csize.x = mEnableScroll[0] ? csize.x : size.x;
-                csize.y = mEnableScroll[1] ? csize.y : size.y;
+                //similar to layoutSizeRequest()
+                void doaxis(int axis) {
+                    if (!mEnableScroll[axis]) {
+                        //exactly as in layoutSizeRequest()
+                        csize[axis] = size[axis];
+                    } else {
+                        //csize okay, but if appropriate:
+                        if (csize[axis] < size[axis]) {
+                            //center
+                            //offs[axis] = size[axis]/2 - csize[axis]/2;
+                            //no, didn't work ^
+                            //overallocate it
+                            //hm maybe use expand layout-property to decide
+                            csize[axis] = size[axis];
+                        }
+                    }
+                }
+                doaxis(0);
+                doaxis(1);
             }
-            child.layoutContainerAllocate(Rect2i(Vector2i(0), csize));
+            child.layoutContainerAllocate(Rect2i(offs, offs + csize));
         }
         updateScrollSize();
     }
@@ -265,6 +282,8 @@ class ScrollWindow : Container {
         int mUpdating;
     }
 
+    bool enableMouseWheel;
+
     /// Use this to set scoll client and properties
     ScrollArea area() {
         return mArea;
@@ -392,6 +411,15 @@ class ScrollWindow : Container {
         }
     }
 
+    void scrollRelative(Vector2i delta) {
+        try {
+            mUpdating++;
+            mArea.offset = mArea.offset + delta;
+        } finally {
+            mUpdating--;
+        }
+    }
+
     //its onPositionChange
     private void onDoScroll(ScrollArea scroller) {
         if (mUpdating)
@@ -427,6 +455,17 @@ class ScrollWindow : Container {
         }
 
         super.loadFrom(loader);
+    }
+
+    override bool onKeyEvent(KeyInfo info) {
+        bool up = info.code == Keycode.MOUSE_WHEELUP;
+        bool down = info.code == Keycode.MOUSE_WHEELDOWN;
+        if (enableMouseWheel && (up || down)) {
+            if (info.isDown)
+                //xxx: arbitrarly chosen value
+                scrollRelative(Vector2i(0, (up ? +1 : -1))*10);
+        }
+        return super.onKeyEvent(info);
     }
 
     static this() {
