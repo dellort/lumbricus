@@ -7,6 +7,7 @@ import framework.font;
 import framework.framework;
 import framework.resources;
 import framework.restypes.bitmap;
+import framework.restypes.frames;
 import gui.boxcontainer;
 import gui.button;
 import gui.container;
@@ -158,6 +159,86 @@ class OldAnimationHandler : ResViewHandler!(oldanim.AnimationResource) {
         Vector2i layoutSizeRequest() {
             return mAnim.size()+Vector2i(2);
         }
+    }
+
+    static this() {
+        registerHandler!(typeof(this), Type);
+    }
+}
+
+class FramesHandler : ResViewHandler!(FramesResource) {
+    private {
+        int mAniId, mFrameIdx;
+        Label mLblAniId, mLblFrameIdx;
+        ScrollBar mSbFrameIdx;
+        FrameProvider mFrames;
+    }
+
+    this(Resource r) {
+        super(r);
+        mFrames = resource.get();
+
+        auto table = new TableContainer(2, 2, Vector2i(10,1), [true, false]);
+
+        Label mkLbl(int n) {
+            auto lbl = new Label();
+            lbl.drawBorder = false;
+            lbl.font = gFramework.getFont("normal");
+            table.add(lbl, 0, n);
+            return lbl;
+        }
+
+        ScrollBar mkSb(int n, int max) {
+            auto scr = new ScrollBar(true);
+            scr.minValue = 0;
+            scr.maxValue = max;
+            table.add(scr, 1, n);
+            return scr;
+        }
+
+        mLblAniId = mkLbl(0);
+        auto scr = mkSb(0, 700);
+        scr.onValueChange = &onScrollbarAni;
+
+        mLblFrameIdx = mkLbl(1);
+        mSbFrameIdx = mkSb(1, 0);  //max value is set from onScrollbar event
+        mSbFrameIdx.onValueChange = &onScrollbarFrame;
+
+        onScrollbarAni(scr);
+        onScrollbarFrame(mSbFrameIdx);
+
+        auto box = new BoxContainer(false, false, 10);
+        table.setLayout(WidgetLayout.Expand(true));
+        box.add(table);
+        box.add(new Viewer());
+
+        setGUI(box);
+    }
+
+    private void onScrollbarAni(ScrollBar sender) {
+        mAniId = sender.curValue;
+        mLblAniId.text = format("Animation ID: %d", mAniId);
+        mSbFrameIdx.maxValue = mFrames.frameCount(mAniId)-1;
+    }
+
+    private void onScrollbarFrame(ScrollBar sender) {
+        mFrameIdx = sender.curValue;
+        mLblFrameIdx.text = format("Frame index: %d", mFrameIdx);
+    }
+
+    class Viewer : Widget {
+        override void onDraw(Canvas c) {
+            //pos is the animation center
+            mFrames.draw(c, mAniId, mFrameIdx, size/2);
+            Vector2i d = size/2;
+            Vector2i b = mFrames.bounds(mAniId).size/2;
+            c.drawRect(d-b-Vector2i(1), d+b+Vector2i(1), Color(0, 0, 0));
+        }
+
+        Vector2i layoutSizeRequest() {
+            return mFrames.bounds(mAniId).size+Vector2i(2);
+        }
+
     }
 
     static this() {
