@@ -10,42 +10,22 @@ import framework.sdl.framework;
 import framework.drawing;
 import std.math;
 import std.string;
+import utf = std.utf;
 import utils.misc;
 
 debug import std.stdio;
 
 char[] glErrorToString(GLenum errCode) {
-    switch (errCode) {
-        case GL_NO_ERROR:
-            return "No error";
-            break;
-        case GL_INVALID_ENUM:
-            return "Invalid enum value";
-            break;
-        case GL_INVALID_VALUE:
-            return "Invalid numeric value";
-            break;
-        case GL_INVALID_OPERATION:
-            return "Invalid operation";
-            break;
-        case GL_STACK_OVERFLOW:
-            return "Stack overflow";
-            break;
-        case GL_STACK_UNDERFLOW:
-            return "Stack underflow";
-            break;
-        case GL_OUT_OF_MEMORY:
-            return "Out of memory";
-            break;
-        default:
-            return "Unknown error";
-    }
+    char[] res = toString(cast(char*)gluErrorString(errCode));
+    //hur, the man page said, "The string is in ISO Latin 1 format." (!=ASCII?)
+    //so check it, not that invalid utf-8 strings leak into the GUI or so
+    utf.validate(res);
+    return res;
 }
 
-class GLSurface : DriverSurface {
+class GLSurface : SDLDriverSurface {
     const GLuint GLID_INVALID = 0;
 
-    SurfaceData* mData;
     GLuint mTexId = GLID_INVALID;
     Vector2f mTexMax;
     Vector2i mTexSize;
@@ -53,7 +33,7 @@ class GLSurface : DriverSurface {
 
     //create from Framework's data
     this(SurfaceData* data) {
-        mData = data;
+        super(data);
         reinit();
     }
 
@@ -524,9 +504,11 @@ class GLCanvas : Canvas {
     }
 
     public void draw(Texture source, Vector2i destPos,
-        Vector2i sourcePos, Vector2i sourceSize)
+        Vector2i sourcePos, Vector2i sourceSize,
+        bool mirrorY = false)
     {
-        drawTextureInt(source, sourcePos, sourceSize, destPos, sourceSize);
+        drawTextureInt(source, sourcePos, sourceSize, destPos, sourceSize,
+            mirrorY);
     }
 
     public void drawTiled(Texture source, Vector2i destPos, Vector2i destSize) {
@@ -537,7 +519,8 @@ class GLCanvas : Canvas {
     //optimized if no tiling needed or tiling can be done by OpenGL
     //tiling only works for the above case (i.e. when using the whole texture)
     private void drawTextureInt(Texture source, Vector2i sourcePos,
-        Vector2i sourceSize, Vector2i destPos, Vector2i destSize)
+        Vector2i sourceSize, Vector2i destPos, Vector2i destSize,
+        bool mirrorY = false)
     {
         //clipping, discard anything that would be invisible anyway
         Vector2i pr1 = destPos+mStack[mStackTop].translate;
@@ -557,6 +540,11 @@ class GLCanvas : Canvas {
         GLSurface glsurf = cast(GLSurface)(source.getDriverSurface(
             SurfaceMode.NORMAL));
         assert(glsurf !is null);
+
+        if (mirrorY) {
+            //(duplicated from SDL code)
+            sourcePos.x = glsurf.mData.size.x - sourcePos.x - sourceSize.x;
+        }
 
         glPushAttrib(GL_ENABLE_BIT);
         assert(glGetError() == GL_NO_ERROR);
@@ -585,10 +573,19 @@ class GLCanvas : Canvas {
 
             //draw textured rect
             glBegin(GL_QUADS);
+
+            if (!mirrorY) {
                 glTexCoord2f(t1.x, t1.y); glVertex2i(p1.x, p1.y);
                 glTexCoord2f(t1.x, t2.y); glVertex2i(p1.x, p2.y);
                 glTexCoord2f(t2.x, t2.y); glVertex2i(p2.x, p2.y);
                 glTexCoord2f(t2.x, t1.y); glVertex2i(p2.x, p1.y);
+            } else {
+                glTexCoord2f(t2.x, t1.y); glVertex2i(p1.x, p1.y);
+                glTexCoord2f(t2.x, t2.y); glVertex2i(p1.x, p2.y);
+                glTexCoord2f(t1.x, t2.y); glVertex2i(p2.x, p2.y);
+                glTexCoord2f(t1.x, t1.y); glVertex2i(p2.x, p1.y);
+            }
+
             glEnd();
         }
 

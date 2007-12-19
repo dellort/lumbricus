@@ -23,10 +23,6 @@ abstract class FrameProvider {
 
     //xxx not my idea, whoever needs this...
     Rect2i bounds(int animId);
-
-    //preload a mirror of animation animId
-    //it is not mandatory to call this but will avoid mid-game jerks
-    void prepareMirror(int animId);
 }
 
 //supports one animation whose frames are aligned horizontally on one bitmap
@@ -40,7 +36,7 @@ abstract class FrameProvider {
 //    or put surface mirroring support into FW
 class FrameProviderStrip : FrameProvider {
     private {
-        Surface mSurface, mSurfaceMirrored;
+        Surface mSurface;
         int mFrameCount;
         Vector2i mFrameSize, mCenterOffset;
         Rect2i mBounds;
@@ -64,16 +60,8 @@ class FrameProviderStrip : FrameProvider {
     {
         //no wrap-around
         assert(frameIdx < mFrameCount);
-        if (mirrored) {
-            prepareMirror(animId);
-            //mirrored drawing, index is inverted to play anim forward
-            c.draw(mSurfaceMirrored, pos+mCenterOffset,
-                Vector2i(mFrameSize.x*(mFrameCount-frameIdx-1), 0), mFrameSize);
-        } else {
-            //normal drawing
-            c.draw(mSurface, pos+mCenterOffset,
-                Vector2i(mFrameSize.x*frameIdx, 0), mFrameSize);
-        }
+        c.draw(mSurface, pos+mCenterOffset,
+            Vector2i(mFrameSize.x*frameIdx, 0), mFrameSize, mirrored);
     }
 
     override int frameCount(int animId) {
@@ -82,11 +70,6 @@ class FrameProviderStrip : FrameProvider {
 
     override Rect2i bounds(int animId) {
         return mBounds;
-    }
-
-    override void prepareMirror(int animId) {
-        if (mSurfaceMirrored is null)
-            mSurfaceMirrored = mSurface.createMirroredY();
     }
 }
 

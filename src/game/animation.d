@@ -26,7 +26,7 @@ AnimationData parseAnimation(ConfigNode from) {
     return gAnimationLoadHandlers[name](from);
 }
 
-Animation loadAnimation(ProcessedAnimationData data) {
+Animation loadAnimation(AnimationData data) {
     return new Animation(data);
 }
 
@@ -89,16 +89,6 @@ struct AnimationData {
     //i.e. there can be an entry and loop animation
     //(used for get-weapon animation)
     AnimationSection[] sections;
-
-    //create internal data for resources
-    ProcessedAnimationData preprocess() {
-        ProcessedAnimationData res;
-        res.mData = *this;
-        foreach (inout AnimationSection s; res.mData.sections) {
-            s.preprocess();
-        }
-        return res;
-    }
 }
 struct AnimationSection {
     //loop: replay animation on end, else stop on last frame (or go to next
@@ -129,36 +119,6 @@ struct AnimationSection {
     bool mirror_Y_B = false;
     //append mirrored (on Y axis) bitmaps to frame rows
     bool mirror_Y_A = false;
-
-    private {
-        bool mPreprocessed = false;
-        BitmapResource[] mMirrors;
-
-        void preprocess() {
-            if (mPreprocessed)
-                return;
-
-            if (mirror_Y_B || mirror_Y_A) {
-                //create mirrors of the yet existing surfaces
-                for (int n = 0; n < bitmaps.length; n++) {
-                    auto mirror = bitmaps[n];
-                    assert(mirror !is null);
-                    //sucks *g*
-                    auto mirrored = mirror.createMirror();
-                    mMirrors ~= mirrored;
-                }
-            }
-
-            mPreprocessed = true;
-        }
-    }
-}
-
-//struct to assert only preprocessed animations are passed to Animation.this()
-struct ProcessedAnimationData {
-    private {
-        AnimationData mData;
-    }
 }
 
 //NOTE: no AnimationData necessary, because "createProcessedAnimation" is
@@ -201,6 +161,9 @@ private:
         //from the time dependant count field
         int frameCount;
 
+        //from which texture on to mirror
+        int mirroredoffset;
+
         ParamConvertDelegate[2] convertParam;
         int[2] Poffset; //offset value added to each of the params
         int[2] usedfor; //reverse for "from", indexed by parameter
@@ -235,15 +198,14 @@ private:
         int texture;
     }
 
-    public this(ProcessedAnimationData ani) {
+    public this(AnimationData ani) {
         if (!gAniTimeCreated) {
             gAniTime = globals.newTimer("anims");
         }
 
-        AnimationData data = ani.mData;
+        AnimationData data = ani;
 
         void loadSection(inout AnimationSection section, inout Section to) {
-            assert(section.mPreprocessed, "must call AnimationData.preprocess");
             //copy and possibly verify
             to.frameTimeMs = section.frameTimeMs;
             to.loop = section.loop;
@@ -254,7 +216,7 @@ private:
             to.Poffset[] = section.paramOffset;
 
             int bitmapoffset = mSurfaces.length;
-            int mirroredoffset;
+            to.mirroredoffset = int.max;
             mSurfaces ~= section.bitmaps;
 
             to.count[0] = section.frameCount;
@@ -263,8 +225,12 @@ private:
             assert(to.count[1] > 0);
 
             if (section.mirror_Y_B || section.mirror_Y_A) {
-                mirroredoffset = mSurfaces.length;
-                mSurfaces ~= section.mMirrors;
+                to.mirroredoffset = mSurfaces.length;
+                //looks strange because we used to actually mirror the surfaces
+                //and to append them to mSurfaces
+                //now, mirroredoffset is used to see of a surface must be
+                //mirrored
+                mSurfaces ~= section.bitmaps;
                 if (section.mirror_Y_A) {
                     to.count[0] *= 2; //by A
                 }
@@ -277,6 +243,9 @@ private:
             mSize.x = max(section.frameSize.x, mSize.x);
             mSize.y = max(section.frameSize.y, mSize.y);
 
+            //stuff commented out with "M:" is because I mirror the coordinates
+            //in the framework
+
             //create frame infos
             to.strips.length = to.count[0] * to.count[1];
             for (int a = 0; a < to.count[0]; a++) {
@@ -285,16 +254,17 @@ private:
                 if (section.mirror_Y_A && a >= to.count[0]/2) {
                     //extends along the x-axis only virtually
                     //actually map to another bitmap with same x-offsets
-                    pos.x = pos.x - (to.count[0]/2)*section.frameSize.x;
-                    start = mirroredoffset;
+                    //M: pos.x = pos.x - (to.count[0]/2)*section.frameSize.x;
+                    pos.x -= to.count[0]*section.frameSize.x;
+                    start = to.mirroredoffset;
                 }
                 for (int b = 0; b < to.count[1]; b++) {
                     FrameInfo* info = to.framePtr(a, b);
                     info.pos = pos;
                     if (section.mirror_Y_B && b >= to.count[1]/2) {
                         //mirror on x-axis (so it's not played backwards)
-                        info.pos.x = (to.count[0]-1)*section.frameSize.x
-                            - info.pos.x;
+                        //M: info.pos.x = (to.count[0]-1)*section.frameSize.x
+                        //M:    - info.pos.x;
                     }
                     info.size = section.frameSize;
                     info.texture = start + b;
@@ -522,7 +492,9 @@ public:
         //origin is in "at", but center frame in animation itself
         at += (size - fi.size) / 2;
         mAnimation.assertStuffLoaded();
-        canvas.draw(mAnimation.mTextures[fi.texture], at, fi.pos, fi.size);
+        bool mirrorY = (fi.texture >= section.mirroredoffset);
+        canvas.draw(mAnimation.mTextures[fi.texture], at, fi.pos, fi.size,
+            mirrorY);
     }
     public Animation currentAnimation() {
         return mAnimation;
@@ -860,21 +832,16 @@ float angleDistance(float a, float b) {
 ///Resource class that holds an animation loaded from a config node
 protected class AnimationResource : ResourceBase!(Animation) {
     private AnimationData mAniData;
-    private ProcessedAnimationData mProcAniData;
 
     this(Resources parent, char[] id, ConfigItem item) {
         super(parent, id, item);
         mAniData = parseAnimation(cast(ConfigNode)item);
-        mProcAniData = mAniData.preprocess();
     }
 
     protected void load() {
         mParent.log("Load animation %s",id);
         //wtf is mRelativePath? not used here.
-        //NOTE: creating an animation shouldn't cost too much
-        //  Animation now loads bitmaps lazily
-        //  (it uses BitmapResource and BitmapResourceProcessed)
-        mContents = loadAnimation(mProcAniData);
+        mContents = loadAnimation(mAniData);
     }
 
     AnimationData animData() {

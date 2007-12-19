@@ -31,7 +31,7 @@ public class Canvas {
     }
 
     public abstract void draw(Texture source, Vector2i destPos,
-        Vector2i sourcePos, Vector2i sourceSize);
+        Vector2i sourcePos, Vector2i sourceSize, bool mirrorY = false);
 
     public abstract void drawCircle(Vector2i center, int radius, Color color);
     public abstract void drawFilledCircle(Vector2i center, int radius,

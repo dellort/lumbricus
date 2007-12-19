@@ -44,23 +44,95 @@ package bool sdlIsAlpha(SDL_Surface* s) {
     return s.format.Amask != 0 && (s.flags & SDL_SRCALPHA);
 }
 
-class SDLSurface : DriverSurface {
-    SDL_Surface* mSurface;
+//common base class for SDLSurface and GLSurface
+class SDLDriverSurface : DriverSurface {
     SurfaceData* mData;
+
+    this(SurfaceData* data) {
+        gSDLDriver.mDriverSurfaceCount++;
+        mData = data;
+    }
+
+    //must be overriden; super method must be called on end
+    void kill() {
+        assert(!!mData, "double kill()?");
+        gSDLDriver.mDriverSurfaceCount--;
+        mData = null;
+    }
+}
+
+void doMirrorY(SurfaceData* data) {
+    for (uint y = 0; y < data.size.y; y++) {
+        uint* src = cast(uint*)(data.data.ptr+y*data.pitch+data.size.x*4);
+        uint* dst = cast(uint*)(data.data.ptr+y*data.pitch);
+        for (uint x = 0; x < data.size.x/2; x++) {
+            src--;
+            swap(*dst, *src);
+            dst++;
+        }
+    }
+}
+
+//cache for effects like mirroring; this is only used when you're using i.e.
+//drawMirrored() on a SDLCanvas (when no OpenGL is used / for offscreen drawing)
+/+final+/ class EffectCache {
+    private {
+        SDLSurface mSource;
+        SDLSurface mMirroredY;
+    }
+
+    this(SDLSurface source) {
+        assert(!!source);
+        mSource = source;
+    }
+
+    //free all surface this class has created
+    //(which means the source surface is not free'd)
+    void kill() {
+        if (mMirroredY) {
+            mMirroredY.kill();
+            mMirroredY = null;
+        }
+    }
+
+    SDLSurface mirroredY() {
+        if (!mMirroredY) {
+            //NOTE: this is a bit unclean. sry!
+            SurfaceData* ndata = new SurfaceData;
+            *ndata = *mSource.mData;
+            ndata.data = ndata.data.dup;
+            doMirrorY(ndata);
+            mMirroredY = new SDLSurface(ndata);
+        }
+        return mMirroredY;
+    }
+}
+
+/+final+/ class SDLSurface : SDLDriverSurface {
+    SDL_Surface* mSurface;
     bool mCacheEnabled;
+
+    //NOTE: the stuff associated with mCacheEnabled doesn't have anything to do
+    //      with this; mEffects is always created if the Canvas needs it
+    EffectCache mEffects;
 
     //create from Framework's data
     this(SurfaceData* data) {
-        mData = data;
+        super(data);
         reinit();
     }
 
     //release data from driver surface
-    void kill() {
+    override void kill() {
         releaseSurface();
+        super.kill();
     }
 
-    void releaseSurface() {
+    private void releaseSurface() {
+        if (mEffects) {
+            mEffects.kill();
+            mEffects = null;
+        }
         if (mSurface) {
             SDL_FreeSurface(mSurface);
             mSurface = null;
@@ -170,6 +242,13 @@ class SDLSurface : DriverSurface {
             extra_data = mSurface.pitch * mSurface.h;
         }
     }
+
+    EffectCache effectCache() {
+        if (!mEffects) {
+            mEffects = new EffectCache(this);
+        }
+        return mEffects;
+    }
 }
 
 
@@ -192,7 +271,7 @@ class SDLDriver : FrameworkDriver {
         package bool mEnableCaching, mMarkAlpha;
 
         //instead of a DriverSurface list (we don't need that yet?)
-        uint mDriverSurfaceCount;
+        package uint mDriverSurfaceCount;
 
         //used only for non-OpenGL rendering
         //valid fields: BitsPerPixel, Rmask, Gmask, Bmask, Amask
@@ -309,7 +388,6 @@ class SDLDriver : FrameworkDriver {
     }
 
     DriverSurface createSurface(SurfaceData* data, SurfaceMode mode) {
-        mDriverSurfaceCount++;
         switch (mode) {
             case SurfaceMode.NORMAL:
                 if (mOpenGL) {
@@ -325,7 +403,9 @@ class SDLDriver : FrameworkDriver {
 
     void killSurface(inout DriverSurface surface) {
         assert(!!surface);
-        mDriverSurfaceCount--;
+        auto bla = cast(SDLDriverSurface)surface;
+        assert(!!bla);
+        bla.kill();
         surface = null;
     }
 
@@ -871,7 +951,7 @@ class SDLCanvas : Canvas {
     }
 
     public void draw(Surface source, Vector2i destPos,
-        Vector2i sourcePos, Vector2i sourceSize)
+        Vector2i sourcePos, Vector2i sourceSize, bool mirrorY = false)
     {
         destPos += mTrans;
 
@@ -880,6 +960,14 @@ class SDLCanvas : Canvas {
             (source.getDriverSurface(SurfaceMode.OFFSCREEN));
         //when this is null, maybe the user passed a GLTexture?
         assert(sdls !is null);
+
+        //possibly need to replace the bitmap
+        if (mirrorY) {
+            auto ec = sdls.effectCache();
+            sdls = ec.mirroredY();
+            //invert the source coordinates as well!
+            sourcePos.x = sdls.mData.size.x - sourcePos.x - sourceSize.x;
+        }
 
         SDL_Surface* src = sdls.mSurface;
         assert(src !is null);

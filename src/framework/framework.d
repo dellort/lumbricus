@@ -166,7 +166,7 @@ package {
 
         void doFree() {
             if (surface) {
-                Surface.freeDriverSurface(surface);
+                gFramework.killDriverSurface(surface);
             }
         }
     }
@@ -183,10 +183,6 @@ class Surface {
         DriverSurface mDriverSurface;
         SurfaceData* mData;
         SurfaceMode mMode;
-    }
-
-    package static void freeDriverSurface(inout DriverSurface s) {
-        gFramework.driver.killSurface(s);
     }
 
     //must be called by any constructor
@@ -209,7 +205,7 @@ class Surface {
     ///kill driver's surface, probably copy data back
     final bool passivate() {
         if (mDriverSurface) {
-            freeDriverSurface(mDriverSurface);
+            gFramework.killDriverSurface(mDriverSurface);
             mMode = SurfaceMode.ERROR;
             return true;
         }
@@ -224,7 +220,7 @@ class Surface {
         }
         if (!mDriverSurface && create) {
             mMode = mode;
-            mDriverSurface = gFramework.driver.createSurface(mData, mMode);
+            mDriverSurface = gFramework.createDriverSurface(mData, mMode);
         }
         return mDriverSurface;
     }
@@ -282,7 +278,8 @@ class Surface {
     /// must be called after done with lockPixelsRGBA32()
     /// "rc" is for the offset and size of the region to update
     void unlockPixels(in Rect2i rc) {
-        if (mDriverSurface  && rc != Rect2i.init) {
+        assert(rc.isNormal());
+        if (mDriverSurface  && rc.size.quad_length > 0) {
             mDriverSurface.updatePixels(rc);
         }
     }
@@ -299,24 +296,6 @@ class Surface {
     final Surface clone() {
         passivate();
         return new Surface(*mData, true);
-    }
-
-    void mirrorY() {
-        passivate();
-        for (uint y = 0; y < mData.size.y; y++) {
-            uint* src = cast(uint*)(mData.data.ptr+y*mData.pitch+mData.size.x*4);
-            uint* dst = cast(uint*)(mData.data.ptr+y*mData.pitch);
-            for (uint x = 0; x < mData.size.x/2; x++) {
-                src--;
-                swap(*dst, *src);
-                dst++;
-            }
-        }
-    }
-    Surface createMirroredY() {
-        Surface res = clone();
-        res.mirrorY();
-        return res;
     }
 
     //special thingy needed for SDLFont
@@ -403,6 +382,10 @@ class Framework {
         ConfigNode mLastWorkingDriver;
 
         bool mShouldTerminate;
+
+        //holds the DriverSurfaces to prevent them being GC'ed
+        //cf. i.e. createDriverSurface()
+        bool[DriverSurface] mDriverSurfaces;
 
         //misc singletons, lol
         FontManager mFontManager;
@@ -508,12 +491,34 @@ class Framework {
         // .free() all Surfaces and then do defered_free()?
     }
 
-    package FrameworkDriver driver() {
+    /+package FrameworkDriver driver() {
         return mDriver;
-    }
+    }+/
 
     package FontDriver fontDriver() {
         return mDriver.fontDriver();
+    }
+
+    //--- DriverSurface handling
+
+    package DriverSurface createDriverSurface(SurfaceData* data, SurfaceMode
+        mode)
+    {
+        DriverSurface res = mDriver.createSurface(data, mode);
+        //expect a new instance
+        assert(!(res in mDriverSurfaces));
+        mDriverSurfaces[res] = true;
+        return res;
+    }
+
+    //objects free'd through this must have been created by createDriverSurface
+    package void killDriverSurface(inout DriverSurface surface) {
+        if (!surface)
+            return;
+        assert(surface in mDriverSurfaces);
+        mDriverSurfaces.remove(surface);
+        mDriver.killSurface(surface);
+        assert(!surface);
     }
 
     //--- Surface handling
