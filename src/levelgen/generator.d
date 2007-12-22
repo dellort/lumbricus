@@ -285,6 +285,7 @@ public class LevelGenerator {
     private {
         LevelTemplate[] mTemplates;
         ConfigNode mGfxNodes;
+        char[][] mGfxThemes;
     }
 
     private void doRenderGeometry(LevelBitmap renderer, LevelGeometry geometry,
@@ -483,6 +484,11 @@ public class LevelGenerator {
         return mTemplates;
     }
 
+    ///returns identifier list of available gfx themes
+    public char[][] gfxThemes() {
+        return mGfxThemes;
+    }
+
     //xxx: both find*()s generate new objects on the fly
     public LevelTheme findGfx(char[] name, bool canfail = false) {
         auto res = mGfxNodes.findNode(name);
@@ -603,6 +609,7 @@ public class LevelGenerator {
                     config["gfxpath"] = path ~ "/";
                     config["name"] = name;
                     assert(!mGfxNodes.hasNode(name), "gfx name already exists");
+                    mGfxThemes ~= name;
                     ConfigNode node = mGfxNodes.getSubNode(name);
                     //xxx: sorry, it just seemed to be too complicated to provide
                     //a function like ConfigNode.addSubNode(ConfigNode node);

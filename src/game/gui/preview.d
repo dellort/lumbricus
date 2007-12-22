@@ -11,6 +11,7 @@ import gui.boxcontainer;
 import gui.label;
 import gui.tablecontainer;
 import gui.wm;
+import gui.dropdownlist;
 import game.gametask;
 import levelgen.generator;
 import levelgen.level;
@@ -30,11 +31,13 @@ private class LevelSelector : SimpleContainer {
         int rowCount;
         Button[] mShowBitmap;
         LevelInfo[] mLevel;
+        char[] mGfx;
 
         LevelGenerator mGenerator;
         Label mLblInfo;
         BoxContainer mLayout;
         Label mLblWait;
+        DropDownList mDdGfx;
     }
 
     struct LevelInfo {
@@ -49,7 +52,7 @@ private class LevelSelector : SimpleContainer {
         }
     }
 
-    void delegate(LevelInfo selected) onAccept;
+    void delegate(LevelInfo selected, char[] gfx) onAccept;
 
     this() {
         mGenerator = new LevelGenerator();
@@ -63,6 +66,8 @@ private class LevelSelector : SimpleContainer {
         auto templ_trans = Translator.ByNamespace("templates");
         templ_trans.errorString = false;
 
+        //generate one button for each level theme
+        //xxx this will get too big if >8 templates, scrollbar?
         foreach (int i, LevelTemplate t; mGenerator.templates) {
             //prepare button
             auto sb = new Button();
@@ -82,6 +87,7 @@ private class LevelSelector : SimpleContainer {
             buttons_layout.add(boxc, i % cCols, i / cCols);
         }
 
+        //"please select" label
         //special: aligned to top, but whitespace expanded below
         WidgetLayout lblLay;
         lblLay.expand[0] = false;
@@ -91,15 +97,39 @@ private class LevelSelector : SimpleContainer {
         mLblInfo.drawBorder = false;
         mLblInfo.text = _("levelselect.infotext");
 
-        mLayout = new BoxContainer(false, false, 10);
+        //Gfx theme dropdown
+        mDdGfx = new DropDownList();
+        mDdGfx.onSelect = &gfxSelect;
+        char[][] themes = ([_("levelselect.randomgfx")] ~ mGenerator.gfxThemes);
+        mDdGfx.list.setContents(themes);
+        mDdGfx.selection = themes[0];
 
+        //Gfx theme info label
+        auto lblGfx = new Label();
+        lblGfx.drawBorder = false;
+        lblGfx.text = _("levelselect.gfxtheme");
+        auto gfxbox = new BoxContainer(true, false, 5);
+        gfxbox.add(lblGfx, WidgetLayout.Noexpand);
+        gfxbox.add(mDdGfx);
+
+        mLayout = new BoxContainer(false, false, 10);
         mLayout.add(mLblInfo, lblLay);
+        mLayout.add(gfxbox, WidgetLayout.Expand(true));
         mLayout.add(buttons_layout);
 
         add(mLayout);
 
+        //"generating level" label, invisible for now
         mLblWait = new Label();
         mLblWait.text = _("levelselect.waiting");
+    }
+
+    void gfxSelect(DropDownList list) {
+        if (list.list.selectedIndex < 1)
+            //first item (random) or nothing was selected
+            mGfx = "";
+        else
+            mGfx = list.selection;
     }
 
     void waiting(bool w) {
@@ -138,23 +168,25 @@ private class LevelSelector : SimpleContainer {
     private void accept(Button sender) {
         int idx = getIdx(sender);
         if (onAccept)
-            onAccept(mLevel[idx]);
+            onAccept(mLevel[idx], mGfx);
     }
 }
 
 class GenThread : Thread {
     private LevelSelector.LevelInfo mLvlConfig;
+    private char[] mGfx;
     public Level finalLevel;
 
-    this(LevelSelector.LevelInfo lvl) {
+    this(LevelSelector.LevelInfo lvl, char[] gfx) {
         super();
         mLvlConfig = lvl;
+        mGfx = gfx;
     }
 
     override int run() {
         scope gen = new LevelGenerator();
         finalLevel = generateAndSaveLevel(gen, mLvlConfig.templ,
-            mLvlConfig.geo, null);
+            mLvlConfig.geo, gen.findRandomGfx(mGfx));
         return 0;
     }
 }
@@ -178,13 +210,13 @@ class LevelPreviewTask : Task {
             _("levelselect.caption"));
     }
 
-    void lvlAccept(LevelSelector.LevelInfo lvl) {
+    void lvlAccept(LevelSelector.LevelInfo lvl, char[] gfx) {
         //generate level
         //fix window size and show as waiting
         mWMWindow.acceptSize();
         mSelector.waiting = true;
         //start generation
-        mThread = new GenThread(lvl);
+        mThread = new GenThread(lvl, gfx);
         mThread.start();
         mThWaiting = true;
         //start game

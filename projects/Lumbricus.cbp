@@ -105,12 +105,14 @@
 		<Unit filename="..\src\gui\button.d" />
 		<Unit filename="..\src\gui\console.d" />
 		<Unit filename="..\src\gui\container.d" />
+		<Unit filename="..\src\gui\dropdownlist.d" />
 		<Unit filename="..\src\gui\edit.d" />
 		<Unit filename="..\src\gui\fps.d" />
 		<Unit filename="..\src\gui\gui.d" />
 		<Unit filename="..\src\gui\label.d" />
 		<Unit filename="..\src\gui\list.d" />
 		<Unit filename="..\src\gui\loader.d" />
+		<Unit filename="..\src\gui\logwindow.d" />
 		<Unit filename="..\src\gui\messageviewer.d" />
 		<Unit filename="..\src\gui\mousescroller.d" />
 		<Unit filename="..\src\gui\progress.d" />
