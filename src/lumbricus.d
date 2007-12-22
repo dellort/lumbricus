@@ -53,6 +53,12 @@ int main(char[][] args)
     fw.fs.mount(MountPath.data, "data/", "/", false, 3);
     fw.fs.mount(MountPath.user, "/", "/", true, 0);
 
+    //commandline switch: --data=some/dir/to/data
+    char[] extradata = cmdargs["data"];
+    if (extradata.length) {
+        fw.fs.mount(MountPath.absolute, extradata, "/", false, -1);
+    }
+
     gLogEverything.destination = new StreamOutput(new File("logall.txt",
         FileMode.OutNew));
 

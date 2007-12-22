@@ -6,7 +6,6 @@
 //License: New BSD License
 module utils.boxpacker;
 
-import std.math : rndtol;
 //import std.stdio;
 import utils.vector2;
 
@@ -20,7 +19,8 @@ private {
 
 	int extendedHeight(int h) {
 		if (0 == h) return 0;
-		int h2 = rndtol(heightExtraMult * h);
+		//(used to use std.math.rndtol() instead of the cast)
+		int h2 = cast(int)(heightExtraMult * h);
 		while (cast(float)h / h2 < acceptableHeightRatio) --h2;
 		//writefln("making %s out of %s", h2, h);
 		assert (h2 >= h);

@@ -195,10 +195,10 @@ private class ProjectileSprite : GObjectSprite {
     override protected void physImpact(PhysicBase other) {
         super.physImpact(other);
 
-        if (myclass.detonateByImpact) {
+        if (myclass.detonateByImpact > 0) {
             detonate(DetonateReason.impact);
         }
-        if (myclass.explosionOnImpact) {
+        if (myclass.explosionOnImpact > 0) {
             engine.explosionAt(physics.pos, myclass.explosionOnImpact, this);
         }
     }
@@ -225,7 +225,7 @@ private class ProjectileSprite : GObjectSprite {
             }
         }
         //an explosion
-        if (myclass.explosionOnDeath) {
+        if (myclass.explosionOnDeath > 0) {
             engine.explosionAt(physics.pos, myclass.explosionOnDeath, this);
         }
 
