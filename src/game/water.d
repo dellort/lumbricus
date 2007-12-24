@@ -109,7 +109,7 @@ class GameWater {
                 a.animator = new Animator();
                 a.animator.setAnimation(mWaveAnim);
                 scenes[Z.back].add(a);
-                a.xoffs = randRange(0,mWaveAnim.size.x);
+                a.xoffs = randRange(0,mWaveAnim.bounds.size.x);
                 a.size = size;
                 a.scrollMult = -0.16666f+i*0.08333f;
             }
@@ -118,7 +118,7 @@ class GameWater {
                 a.animator = new Animator();
                 a.animator.setAnimation(mWaveAnim);
                 scenes[Z.front].add(a);
-                a.xoffs = randRange(0,mWaveAnim.size.x);
+                a.xoffs = randRange(0,mWaveAnim.bounds.size.x);
                 a.size = size;
                 a.scrollMult = 0.0f+i*0.15f;
             }
@@ -165,17 +165,17 @@ class GameWater {
             int waveCenterDiff = 0;
             backAnimTop = waterOffs;
             if (mWaveAnim) {
-                waveCenterDiff = - cast(int)(mWaveAnim.size.y*cWaveAnimMult)
-                    + mWaveAnim.size.y/2;
+                waveCenterDiff = - cast(int)(mWaveAnim.bounds.size.y*cWaveAnimMult)
+                    + mWaveAnim.bounds.size.y/2;
                 foreach_reverse (inout a; mWaveAnimBack) {
                     p -= cWaterLayerDist;
-                    a.ypos = p - cast(int)(mWaveAnim.size.y*cWaveAnimMult);
+                    a.ypos = p - cast(int)(mWaveAnim.bounds.size.y*cWaveAnimMult);
                     a.size = size;
                 }
                 backAnimTop = p + waveCenterDiff;
                 p = waterOffs;
                 foreach (inout a; mWaveAnimFront) {
-                    a.ypos = p - cast(int)(mWaveAnim.size.y*cWaveAnimMult);
+                    a.ypos = p - cast(int)(mWaveAnim.bounds.size.y*cWaveAnimMult);
                     p += cWaterLayerDist;
                 }
                 p = p - cWaterLayerDist + waveCenterDiff;
@@ -204,12 +204,12 @@ class HorizontalFullsceneAnimator : SceneObject {
         if (!animator)
             return;
 
-        int w = animator.size.x;
+        int w = animator.bounds.size.x;
         int soffs = cast(int)(scrollMult*canvas.clientOffset.x);
         for (int x = xoffs-w-soffs; x < size.x; x += w) {
             //due to scrolling parallax, this can get out of the scene
             if (x+w > 0) {
-                animator.pos = Vector2i(x, ypos);
+                animator.pos = Vector2i(x, ypos) - animator.bounds.p1;
                 //XXX I hope canvas does clipping instead of letting sdl to it
                 //answer: no, it will be sent to the sdl (and sdl clips it)
                 animator.draw(canvas);

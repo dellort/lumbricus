@@ -67,7 +67,7 @@ struct GraphicEvent {
 struct GraphicSetEvent {
     Vector2i pos;
     Vector2f dir; //direction + velocity
-    int p1, p2;
+    AnimationParams params;
     bool do_set_ani;
     AnimationResource set_animation; //network had to transfer animation id
     bool set_force;

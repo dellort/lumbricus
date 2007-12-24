@@ -77,7 +77,7 @@ class Beamer : Tool {
         mStartBeaming = true;
         mWhenStart = engine.gameTime.current +
             weapon.animations[WeaponWormAnimations.Fire].get()
-            .getOneTimeDuration();
+            .duration();
     }
 
     override void simulate(float deltaT) {

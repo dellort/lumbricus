@@ -3,79 +3,30 @@ module common.animation;
 import common.common;
 import common.scene;
 import framework.framework;
-import framework.restypes.frames;
+public import framework.restypes.frames;
 import utils.rect2;
 import utils.time;
 import utils.vector2;
 
-class AnimationData {
+class Animator : SceneObjectCentered {
     private {
-        int mFrameTimeMS = 20;
-        int mLengthMS;
-        FrameProvider mFrames;
-        int mAnimId;
-    }
-
-    //repeat the animation
-    bool repeat = true;
-
-    //if not repeated: keep showing last frame when animation finished
-    bool keepLastFrame = false;
-
-    private void postInit() {
-        mLengthMS = mFrameTimeMS * mFrames.frameCount(mAnimId);
-    }
-
-    /+this(ConfigFile node) {
-        ....
-        postInit();
-    }+/
-
-    //rather for debugging
-    this(FrameProvider frameprov, int animId, bool arepeat = true,
-        bool akeeplast = false)
-    {
-        repeat = arepeat;
-        keepLastFrame = akeeplast;
-        mFrames = frameprov;
-        mAnimId = animId;
-        assert(!!mFrames);
-
-        postInit();
-    }
-
-    //deliver the bounds, centered around the center
-    final Rect2i bounds() {
-        return mFrames.bounds(mAnimId);
-    }
-
-    //time to play it (ignores repeat)
-    Time duration() {
-        return timeMsecs(mLengthMS);
-    }
-
-    int frameCount() {
-        return mFrames.frameCount(mAnimId);
-    }
-
-    //create mirrored-animation
-    //AnimationData createMirrored() {
-    //    ... need to get a mirrored version of each frame's bitmap ...
-    //}
-    //or backwards-animation
-    //AnimationData createBackwards() {
-    //    ... reverse frame list ...
-    //}
-}
-
-class Animation : SceneObjectCentered {
-    private {
-        AnimationData mData;
+        Animation mData;
+        AnimationParams mParams;
         Time mStarted;
+        debug Time mLastNow;
 
-        static Time now() {
-            return globals.gameTimeAnimations.current;
+        Time now() {
+            auto n = globals.gameTimeAnimations.current;
+            debug {
+                assert(n >= mLastNow, "time running backwards lol");
+                mLastNow = n;
+            }
+            return n;
         }
+    }
+
+    void setParams(AnimationParams p) {
+        mParams = p;
     }
 
     private int frameTime() {
@@ -84,7 +35,8 @@ class Animation : SceneObjectCentered {
         if (t >= mData.mLengthMS) {
             //if this has happened, we either need to show a new frame,
             //disappear or just stop it
-            if (!mData.repeat) {
+            //xxx
+            if (false && !mData.repeat) {
                 return mData.mLengthMS;
             }
             t = t % mData.mLengthMS;
@@ -117,7 +69,7 @@ class Animation : SceneObjectCentered {
     }
 
     //set new animation; or null to stop all
-    void setAnimation(AnimationData d, Time startAt = Time.Null) {
+    void setAnimation(Animation d, Time startAt = Time.Null) {
         mStarted = now - startAt; //;D
         mData = d;
         if (mData) {
@@ -139,18 +91,18 @@ class Animation : SceneObjectCentered {
         int frame = curFrame();
         if (frame < 0)
             return;
-        mData.mFrames.draw(canvas, mData.mAnimId, frame, pos);
+        mData.drawFrame(canvas, pos, mParams, frame);
     }
 
-    //I wonder... should it return the current frame's bounds or what?
-    Rect2i getBounds() {
+    //shall return the smallest bounding box for all frame, centered around 0/0
+    Rect2i bounds() {
         if (mData) {
             return mData.bounds();
         }
         return Rect2i.init;
     }
 
-    AnimationData animation() {
+    Animation animation() {
         return mData;
     }
 }

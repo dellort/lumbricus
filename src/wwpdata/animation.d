@@ -1,5 +1,6 @@
 module wwpdata.animation;
 
+import aconv.atlaspacker;
 import aconv.metadata;
 import devil.image;
 import path = std.path;
@@ -47,65 +48,19 @@ class AnimList {
             fflush(stdout);
         }
     }
-
-    int savePacked(char[] outPath, char[] fnBase, bool tosubdir = true,
-        Vector2i pageSize = Vector2i(512,512), bool[int] filter = null)
-    {
-        scope packer = new BoxPacker;
-        packer.pageSize = pageSize;
-        Image[] pageImages;
-        int maxPage = -1;
-
-        //pack and draw individual frames onto block images of size pageSize
-        foreach (int i, Animation a; animations) {
-            if ((filter.length > 0) && !(i in filter)) {
-                continue;
-            }
-            //write animation descriptor to metadata file
-            foreach (int iframe, inout Animation.FrameInfo fi; a.frames) {
-                //request page and offset for frame from packer
-                Block* newBlock = packer.getBlock(Vector2i(fi.w, fi.h));
-                if (newBlock.page >= pageImages.length) {
-                    //a new page has been started, create a new image
-                    auto img = new Image(pageSize.x, pageSize.y, false);
-                    img.clear(COLORKEY.r, COLORKEY.g, COLORKEY.b, 1);
-                    pageImages ~= img;
-                    maxPage = newBlock.page;
-                }
-                //blit frame data from animation onto page image
-                pageImages[newBlock.page].blitRGBData(fi.data.ptr, fi.w, fi.h,
-                    newBlock.origin.x, newBlock.origin.y, false);
-                fi.pageIndex = newBlock.page;
-                fi.pageOffsetx = newBlock.origin.x;
-                fi.pageOffsety = newBlock.origin.y;
-            }
-        }
-        //save all generated block images to disk
-        foreach (int i, img; pageImages) {
-            char[] pagefn, pagepath;
-            if (tosubdir) {
-                pagefn = "page_" ~ str.toString(i);
-                pagepath = outPath ~ path.sep ~ fnBase;
-                try { mkdir(pagepath); } catch {};
-            } else {
-                pagefn = fnBase ~ str.toString(i);
-                pagepath = outPath;
-            }
-            img.save(pagepath ~ path.sep ~ pagefn ~ ".png");
-            writef("Saving %d/%d   \r",i+1, pageImages.length);
-            fflush(stdout);
-        }
-        return maxPage;
-    }
 }
 
 class Animation {
     int boxWidth, boxHeight;
     bool repeat, backwards;
 
+    //if bitmaps already were written out
+    bool wasDumped;
+
     struct FrameInfo {
         int x, y, w, h;
-        int pageIndex, pageOffsetx, pageOffsety;
+        int atlasIndex; //page in the atlas it was packaged into (never needed??)
+        int blockIndex; //index of the texture in the atlas
         RGBColor[] data;
 
         static FrameInfo opCall(int x, int y, int w, int h, RGBColor[] frameData) {
@@ -139,5 +94,24 @@ class Animation {
             img.blitRGBData(fi.data.ptr, fi.w, fi.h, i*boxWidth+fi.x, fi.y, false);
         }
         img.save(outPath ~ path.sep ~ fnBase ~ ".png");
+    }
+
+    //store all animation bitmaps into the given texture atlas
+    //simply updates the atlasIndex field for each frame (of all animations)
+    void savePacked(AtlasPacker packer) {
+        if (wasDumped)
+            return;
+        //NOTE: packer guarantees to number the blocks continuously
+        int blockoffset = packer.blockCount();
+        foreach (int iframe, inout FrameInfo fi; frames) {
+            //request page and offset for frame from packer
+            Block block = packer.alloc(Vector2i(fi.w, fi.h));
+            fi.atlasIndex = block.page;
+            fi.blockIndex = blockoffset + iframe;
+            //blit frame data from animation onto page image
+            packer.page(fi.atlasIndex).blitRGBData(fi.data.ptr, fi.w, fi.h,
+                block.origin.x, block.origin.y, false);
+        }
+        wasDumped = true;
     }
 }

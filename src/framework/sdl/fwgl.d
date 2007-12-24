@@ -206,7 +206,7 @@ class GLSurface : SDLDriverSurface {
 }
 
 class GLCanvas : Canvas {
-    const int MAX_STACK = 20;
+    const int MAX_STACK = 30;
 
     private {
         struct State {
@@ -338,15 +338,19 @@ class GLCanvas : Canvas {
     }
 
     public void drawCircle(Vector2i center, int radius, Color color) {
+        glPushAttrib(GL_CURRENT_BIT);
         glColor4fv(cast(float*)&color);
         stroke_circle(center.x, center.y, radius);
+        glPopAttrib();
     }
 
     public void drawFilledCircle(Vector2i center, int radius,
         Color color)
     {
+        glPushAttrib(GL_CURRENT_BIT);
         glColor4fv(cast(float*)&color);
         fill_circle(center.x, center.y, radius);
+        glPopAttrib();
     }
 
     //Code from Luigi, www.dsource.org/projects/luigi, BSD license
@@ -540,11 +544,6 @@ class GLCanvas : Canvas {
         GLSurface glsurf = cast(GLSurface)(source.getDriverSurface(
             SurfaceMode.NORMAL));
         assert(glsurf !is null);
-
-        if (mirrorY) {
-            //(duplicated from SDL code)
-            sourcePos.x = glsurf.mData.size.x - sourcePos.x - sourceSize.x;
-        }
 
         glPushAttrib(GL_ENABLE_BIT);
         assert(glGetError() == GL_NO_ERROR);

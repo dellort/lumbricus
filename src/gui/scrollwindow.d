@@ -418,6 +418,8 @@ class ScrollWindow : Container {
         } finally {
             mUpdating--;
         }
+        //no idea if correct, but it works
+        onDoScroll(area);
     }
 
     //its onPositionChange

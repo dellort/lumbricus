@@ -29,15 +29,16 @@ class GuiAnimator : Widget {
     }
 
     override protected void onDraw(Canvas c) {
+        mAnimator.pos = size/2;
         mAnimator.draw(c);
     }
 
     override Vector2i layoutSizeRequest() {
-        return mAnimator.size;
+        return mAnimator.bounds.size;
     }
 
     void animation(Animation ani) {
-        mAnimator.setNextAnimation(ani, true);
+        mAnimator.setAnimation(ani);
         needResize(true);
     }
 }
@@ -184,8 +185,8 @@ class GameView : Container, TeamMemberControlCallback {
                     //update positions...
                     assert(cachedCG !is null);
                     Vector2i pos;
-                    pos.x = cachedCG.pos.x + cachedCG.size.x/2;
-                    pos.y = cachedCG.pos.y;
+                    pos.x = cachedCG.pos.x;
+                    pos.y = cachedCG.pos.y - cachedCG.bounds.size.y/2;
 
                     void mooh(Widget w) {
                         Vector2i sz = w.size;

@@ -28,6 +28,11 @@ import utils.perf;
 import gc = std.gc;
 import std.stream : File, FileMode;
 
+//import all restypes because of the factories (more for debugging...)
+import framework.restypes.bitmap;
+import framework.restypes.atlas;
+import framework.restypes.frames;
+
 //ZOrders!
 //only for the stuff managed by TopLevel
 //note that Widget.zorder can take any value
@@ -221,6 +226,8 @@ private:
             "list tasks registered at task factory (use for spawn)");
         globals.cmdLine.registerCommand("grab", &cmdGrab, "-", ["bool:onoff"]);
 
+        globals.cmdLine.registerCommand("res_load", &cmdResLoad,
+            "load resources", ["text:resource name"]);
         globals.cmdLine.registerCommand("res_unload", &cmdResUnload,
             "Unload unused resources; currently can crash!", []);
         globals.cmdLine.registerCommand("res_list", &cmdResList,
@@ -343,6 +350,19 @@ private:
     private void cmdResUnload(MyBox[] args, Output write) {
         //can crash; see unloadUnneeded() for details
         gFramework.resources.unloadUnneeded();
+    }
+
+    private void cmdResLoad(MyBox[] args, Output write) {
+        char[] s = args[0].unbox!(char[])();
+        //hacky hacky
+        auto n = new ConfigNode;
+        n["bla"] = s;
+        //xxx: catching any exception can be dangerous
+        try {
+            gFramework.resources.loadResources(n.find("bla"));
+        } catch (Exception e) {
+            write.writefln("failed: %s", e);
+        }
     }
 
     private void cmdGrab(MyBox[] args, Output write) {
@@ -696,6 +716,7 @@ import gui.button;
 import gui.scrollbar;
 import framework.restypes.frames;
 
+/+
 //has to go away D:
 class AniTest : Task {
     Animation ani;
@@ -753,6 +774,7 @@ class AniTest : Task {
         TaskFactory.register!(typeof(this))("anitest");
     }
 }
++/
 
 //small hack
 //should be replaced by sth... better

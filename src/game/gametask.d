@@ -193,7 +193,7 @@ class GameTask : Task {
         //a small wtf: why does client engine have its own time??
         mClientEngine.start();
         //xxx! this is evul!
-        globals.gameTimeAnimations.resetTime();
+        //too evul globals.gameTimeAnimations.resetTime();
 
         //start at level center
         mWindow.scrollToCenter();

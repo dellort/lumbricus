@@ -29,7 +29,6 @@ protected class BitmapResource : ResourceBase!(Surface) {
     }
 
     static this() {
-        ResFactory.register!(typeof(this))("bitmaps");
-        setResourceNamespace!(typeof(this))("bitmap");
+        Resources.registerResourceType!(typeof(this))("bitmaps");
     }
 }

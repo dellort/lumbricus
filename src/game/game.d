@@ -110,9 +110,11 @@ package class ServerGraphicLocalImpl : ServerGraphic {
     }
 
     void setParams(int ap1, int ap2) {
-        if (event.setevent.p1 != ap1 || event.setevent.p2 != ap2) {
-            event.setevent.p1 = ap1;
-            event.setevent.p2 = ap2;
+        AnimationParams np;
+        np.p1 = ap1;
+        np.p2 = ap2;
+        if (event.setevent.params != np) {
+            event.setevent.params = np;
             didchange = true;
         }
     }

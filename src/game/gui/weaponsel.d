@@ -216,7 +216,7 @@ class WeaponSelWindow : Container {
         setChildLayout(all, WidgetLayout.Border(Vector2i(6)));
 
         BoxProperties boxy;
-        boxy.back = Color(0.7,0.7,0.7);
+        boxy.back = Color(0.7,0.7,0.7,0.7);
         drawBoxStyle = boxy;
         drawBox = true;
     }

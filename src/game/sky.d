@@ -137,9 +137,9 @@ class GameSky {
             ci.anim.setAnimation(mCloudAnims[nAnim]);
             scenes[Z.clouds].add(ci.anim);
             //xxx ci.anim.setFrame(randRange(0u,mCloudAnims[nAnim].frameCount));
-            ci.animSizex = mCloudAnims[nAnim].size.x;
+            ci.animSizex = 10;//mCloudAnims[nAnim].bounds.size.x;
             ci.y = randRange(-cCloudHeightRange/2,cCloudHeightRange/2)
-                - mCloudAnims[nAnim].size.y/2;
+                - 5;//mCloudAnims[nAnim].bounds.size.y/2;
             //speed delta to wind speed
             ci.xspeed = randRange(-cCloudSpeedRange/2, cCloudSpeedRange/2);
             nAnim = (nAnim+1)%mCloudAnims.length;
@@ -149,9 +149,9 @@ class GameSky {
             scope (failure) mDebrisAnim = null;
             foreach (inout DebrisInfo di; mDebrisAnimators) {
                 di.anim = new Animator();
-                di.anim.setAnimation(mDebrisAnim);
+                di.anim.setAnimation(mDebrisAnim, timeMsecs(randRange(0,
+                    cast(int)(mDebrisAnim.duration.msecs))));
                 scenes[Z.debris].add(di.anim);
-                //xxx di.anim.setFrame(randRange(0u,mDebrisAnim.frameCount));
                 di.speedPerc = genrand_real1()/2.0+0.5;
             }
         }
@@ -169,18 +169,17 @@ class GameSky {
         updateOffsets();
         foreach (inout CloudInfo ci; mCloudAnimators) {
             ci.x = randRange(-ci.animSizex, scenes[Z.clouds].size.x);
-            ci.anim.pos.y = skyOffset + ci.y;
-            ci.anim.pos.x = cast(int)ci.x;
         }
 
         if (mDebrisAnim) {
             foreach (inout DebrisInfo di; mDebrisAnimators) {
-                di.x = randRange(-mDebrisAnim.size.x, scenes[Z.debris].size.x);
+                di.x = randRange(-mDebrisAnim.bounds.size.x, scenes[Z.debris].size.x);
                 di.y = randRange(skyOffset, skyBottom);
-                di.anim.pos.x = cast(int)di.x;
-                di.anim.pos.y = cast(int)di.y;
             }
         }
+
+        //actually let it set the positions of the scene objects
+        simulate(0);
     }
 
     private void updateOffsets() {
@@ -243,8 +242,7 @@ class GameSky {
                 //XXX this is acceleration, how to get a constant speed from this??
                 ci.x += (ci.xspeed+mEngine.windSpeed)*deltaT;
                 clip(ci.x, ci.animSizex, 0, scenes[Z.clouds].size.x);
-                ci.anim.pos.x = cast(int)ci.x;
-                ci.anim.pos.y = skyOffset + ci.y;
+                ci.anim.pos = Vector2i(cast(int)ci.x, skyOffset + ci.y);
             }
         }
         if (mDebrisAnim && mEnableDebris) {
@@ -253,10 +251,9 @@ class GameSky {
                 //XXX same here
                 di.x += 2*mEngine.windSpeed*deltaT*di.speedPerc;
                 di.y += cDebrisFallSpeed*deltaT;
-                clip(di.x, mDebrisAnim.size.x, 0, scenes[Z.debris].size.x);
-                clip(di.y, mDebrisAnim.size.y, skyOffset, skyBottom);
-                di.anim.pos.x = cast(int)di.x;
-                di.anim.pos.y = cast(int)di.y;
+                clip(di.x, mDebrisAnim.bounds.size.x, 0, scenes[Z.debris].size.x);
+                clip(di.y, mDebrisAnim.bounds.size.y, skyOffset, skyBottom);
+                di.anim.pos = Vector2i(cast(int)di.x, cast(int)di.y);
             }
         }
     }

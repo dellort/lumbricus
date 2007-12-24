@@ -6,8 +6,7 @@ import common.task;
 import framework.font;
 import framework.framework;
 import framework.resources;
-import framework.restypes.bitmap;
-import framework.restypes.frames;
+import framework.allres;
 import gui.boxcontainer;
 import gui.button;
 import gui.container;
@@ -22,6 +21,8 @@ import gui.wm;
 import utils.factory;
 import utils.misc;
 import utils.vector2;
+
+import std.math : PI;
 
 import oldanim = game.animation;
 
@@ -99,6 +100,118 @@ class BitmapHandler : ResViewHandler!(BitmapResource) {
     }
 }
 
+class AtlasHandler : ResViewHandler!(AtlasResource) {
+    private {
+        Widget mViewer;
+        ScrollBar mSel;
+        TextureRef mCur;
+    }
+
+    this(Resource r) {
+        super(r);
+
+        auto box = new BoxContainer(false);
+        mSel = new ScrollBar(true);
+        mSel.onValueChange = &sel;
+        mSel.maxValue = resource.get.count-1;
+        mSel.setLayout(WidgetLayout.Expand(true));
+        box.add(mSel);
+        mCur = resource.get.texture(0);
+        mViewer = new Viewer();
+        box.add(mViewer);
+        setGUI(box);
+    }
+
+    private void sel(ScrollBar sender) {
+        mCur = resource.get.texture(sender.curValue);
+        mViewer.needRelayout();
+    }
+
+    class Viewer : Widget {
+        override void onDraw(Canvas c) {
+            Vector2i d = size/2 - mCur.surface.size/2;
+            c.draw(mCur.surface, d);
+            c.drawRect(d+mCur.origin-Vector2i(1),
+                d+mCur.origin+mCur.size+Vector2i(1),Color(0, 0, 0));
+        }
+
+        Vector2i layoutSizeRequest() {
+            return mCur.surface.size()+Vector2i(2);
+        }
+    }
+
+    static this() {
+        registerHandler!(typeof(this), Type);
+    }
+}
+
+import framework.resfileformats;
+
+class AniHandler : ResViewHandler!(AniFramesResource) {
+    private {
+        Widget mViewer;
+        ScrollBar mSel;
+        SimpleContainer mCont;
+    }
+
+    this(Resource r) {
+        super(r);
+
+        auto box = new BoxContainer(false);
+        mSel = new ScrollBar(true);
+        mSel.onValueChange = &sel;
+        mSel.maxValue = resource.get.count-1;
+        mSel.setLayout(WidgetLayout.Expand(true));
+        box.add(mSel);
+        mCont = new SimpleContainer();
+        auto scroller = new ScrollWindow(mCont);
+        box.add(scroller);
+        setGUI(box);
+    }
+
+    private void sel(ScrollBar sender) {
+        auto frames = resource.get.frames(sender.curValue);
+        mCont.clear();
+        auto table = new TableContainer(frames.counts[0], frames.counts[1],
+            Vector2i(2,2), [true, true]);
+        Rect2i bb = resource.get.boundingBox(sender.curValue);
+        for (int x = 0 ; x < table.width; x++) {
+            for (int y = 0; y < table.height; y++) {
+                auto bmp = new ViewBitmap();
+                auto f = frames.getFrame(x, y);
+                bmp.part = resource.get.images.texture(f.bitmapIndex);
+                bmp.draw = f.drawEffects;
+                bmp.offs = Vector2i(f.centerX, f.centerY);
+                bmp.bnds = bb;
+                bmp.setLayout(WidgetLayout.Noexpand());
+                table.add(bmp, x, y);
+            }
+        }
+        table.setLayout(WidgetLayout.Noexpand());
+        mCont.add(table);
+    }
+
+    class ViewBitmap : Widget {
+        TextureRef part;
+        Vector2i offs;
+        Rect2i bnds;
+        int draw;
+
+        override void onDraw(Canvas c) {
+            c.draw(part.surface, bnds.size/2+offs, part.origin, part.size,
+                !!(draw & FileDrawEffects.MirrorY));
+        }
+
+        Vector2i layoutSizeRequest() {
+            return bnds.size;
+        }
+    }
+
+    static this() {
+        registerHandler!(typeof(this), Type);
+    }
+}
+
 class OldAnimationHandler : ResViewHandler!(oldanim.AnimationResource) {
     private {
         oldanim.Animator mAnim;
@@ -142,22 +255,56 @@ class OldAnimationHandler : ResViewHandler!(oldanim.AnimationResource) {
     }
 
     private void onScrollbar(ScrollBar sender) {
-        mAnim.animationState.setParams(mParams[0].curValue, mParams[1].curValue);
+        AnimationParams p;
+        p.p1 = mParams[0].curValue;
+        p.p2 = mParams[1].curValue;
+        mAnim.setParams(p);
         for (int n = 0; n < 2; n++)
             mParLbl[n].text = format("Param %d: %d", n, mParams[n].curValue);
     }
 
+    private int p1() {
+        return mParams[0].curValue;
+    }
+    private void p1(int v) {
+        mParams[0].curValue = v;
+        onScrollbar(null);
+    }
+
     class Viewer : Widget {
+        const radius = 50;
+        bool md;
         override void onDraw(Canvas c) {
-            Vector2i d = size/2 - resource.get().size/2;
+            auto bnds = mAnim.bounds;
+            Vector2i d = size/2;
             mAnim.pos = d;
             mAnim.draw(c);
-            c.drawRect(d-Vector2i(1), d+resource.get.size+Vector2i(1),
+            c.drawRect(d+bnds.p1-Vector2i(1), d+bnds.p2+Vector2i(1),
                 Color(0, 0, 0));
+            //assume p1() in degrees (0..360)
+            auto dir = Vector2f.fromPolar(radius, (-p1()+180+90)/360.0f*PI*2);
+            c.drawCircle(size/2+toVector2i(dir), 5, Color(1,0,0));
+        }
+
+        override bool onMouseMove(MouseInfo inf) {
+            auto angle = toVector2f(inf.pos-size/2).normal.toAngle;
+            //(not if NaN)
+            if (angle == angle) {
+                p1 = 180+90-cast(int)(angle/PI/2*360);
+            }
+            return true;
+        }
+
+        override bool onKeyEvent(KeyInfo infos) {
+            if (infos.isMouseButton) {
+                md = infos.isDown;
+                return true;
+            }
+            return super.onKeyEvent(infos);
         }
 
         Vector2i layoutSizeRequest() {
-            return mAnim.size()+Vector2i(2);
+            return mAnim.bounds.size()+Vector2i(2);
         }
     }
 
@@ -166,6 +313,9 @@ class OldAnimationHandler : ResViewHandler!(oldanim.AnimationResource) {
     }
 }
 
+/+
+should be ported back!
+has to be merged with OldAnimationHandler, which is now new again
 class FramesHandler : ResViewHandler!(FramesResource) {
     private {
         int mAniId, mFrameIdx;
@@ -245,6 +395,7 @@ class FramesHandler : ResViewHandler!(FramesResource) {
         registerHandler!(typeof(this), Type);
     }
 }
++/
 
 class ResViewerTask : Task {
     this(TaskManager mgr) {
@@ -255,23 +406,41 @@ class ResViewerTask : Task {
 
     class Viewer : Container {
         StringListWidget mList;
+        StringListWidget mResTypeList;
         Button mUpdate;
         SimpleContainer mClient;
         Resource[] mResList;
+        char[][] mResTypes;
+        char[] mCurRes;
         Label mName, mUID, mType;
 
         this() {
             auto side = new BoxContainer(false);
+
             mList = new StringListWidget();
             mList.onSelect = &onSelect;
             auto listwind = new ScrollWindow(mList, [false, true]);
             listwind.enableMouseWheel = true;
             side.add(listwind);
+
+            auto noexp = WidgetLayout.Expand(true);
+
+            auto spacer = new Spacer();
+            spacer.minSize = Vector2i(0, 2);
+            spacer.setLayout(noexp);
+            side.add(spacer);
+
+            mResTypeList = new StringListWidget();
+            mResTypeList.onSelect = &onSelectType;
+            mResTypeList.setLayout(noexp);
+            side.add(mResTypeList);
+
             mUpdate = new Button();
             mUpdate.text = "Update List";
             mUpdate.onClick = &onUpdate;
             mUpdate.setLayout(WidgetLayout.Noexpand());
             side.add(mUpdate);
+
             auto otherside = new BoxContainer(false, false, 5);
             auto props = new TableContainer();
             props.setLayout(WidgetLayout.Expand(true));
@@ -308,7 +477,7 @@ class ResViewerTask : Task {
             all.add(otherside);
             addChild(all);
 
-            doUpdate();
+            doUpdate2();
         }
 
         void doUpdate() {
@@ -317,14 +486,35 @@ class ResViewerTask : Task {
             mResList = null;
             gFramework.resources.enumResources(
                 (char[] fullname, Resource res) {
-                    mResList ~= res;
-                    list ~= fullname;
+                    if (res.restype == mCurRes) {
+                        mResList ~= res;
+                        list ~= res.id;
+                    }
                 }
             );
             mList.setContents(list);
         }
 
+        void doUpdate2() {
+            char[][] list = null;
+            mResTypes = null;
+            foreach (char[] name; gFramework.resources.resourceTypes()) {
+                list ~= name;
+                mResTypes ~= name;
+            }
+            mResTypeList.setContents(list);
+            mCurRes = null;
+            doUpdate();
+        }
+
         private void onUpdate(Button sender) {
+            doUpdate2();
+        }
+
+        private void onSelectType(int index) {
+            mCurRes = null;
+            if (index >= 0)
+                mCurRes = mResTypes[index];
             doUpdate();
         }
 
@@ -334,6 +524,7 @@ class ResViewerTask : Task {
             mType.text = s ? s.type.toString() : "-";
             mClient.clear();
             if (s) {
+                s.get(); //load (even when no handler exists)
                 char[] name = s.type.toString;
                 Widget widget;
                 if (ResViewHandlers.exists(name)) {

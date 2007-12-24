@@ -63,6 +63,9 @@ mainspr {
     mine = "50"
     mine_flashing = "43 50"
   }
+  360m {
+    worm_heavy_fly = "158"
+  }
   360inv {
     bazooka_fly = "58"
     mortar_fly = "62"
@@ -76,9 +79,13 @@ mainspr {
     aim_magenta = "4"
     aim_cyan = "5"
   }
+  twosided {
+    worm_jet = "176"
+  }
   worm_noloop {
     worm_beaming = "434"
     worm_atomtest = "320"
+    worm_jetpack_enter = "341"
   }
   worm_noloop_backwards {
     worm_beaming_backwards = "434"
@@ -86,6 +93,7 @@ mainspr {
   worm {
     worm_walk = "146"
     worm_sniff = "191"
+    worm_stand = "194"
     worm_useairstrike = "425"
     worm_usebeamer = "431"
   }

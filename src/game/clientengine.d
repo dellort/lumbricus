@@ -41,21 +41,20 @@ class ClientGraphic : Animator {
     //called manually from ClientEngine
     void simulate(float deltaT) {
         fpos += velocity * deltaT;
-        size = currentAnimation ? currentAnimation.size : Vector2i(0, 0);
-        pos = toVector2i(fpos) - size/2;
+        pos = toVector2i(fpos);
     }
 
     void sync(GraphicEvent* bla) {
         assert(uid == bla.uid);
         if (bla.setevent.do_set_ani) {
             auto ani = bla.setevent.set_animation;
-            setNextAnimation(ani ? ani.get() : null, bla.setevent.set_force);
+            //setNextAnimation(ani ? ani.get() : null, bla.setevent.set_force);
+            setAnimation(ani ? ani.get() : null);
         }
-        size = currentAnimation ? currentAnimation.size : Vector2i(0, 0);
-        pos = bla.setevent.pos - size/2;
+        pos = bla.setevent.pos;
         fpos = toVector2f(bla.setevent.pos);
         velocity = bla.setevent.dir;
-        animationState.setParams(bla.setevent.p1, bla.setevent.p2);
+        setParams(bla.setevent.params);
     }
 }
 

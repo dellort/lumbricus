@@ -10,8 +10,6 @@ import utils.misc;
 import utils.factory;
 import utils.time;
 
-private char[][char[]] gNamespaceMap;
-
 ///base template for any resource that is held ready for being loaded
 ///resources are loaded on the first call to get(), not when loading them from
 ///file
@@ -21,6 +19,7 @@ private char[][char[]] gNamespaceMap;
 class Resource {
     ///unique id of resource
     char[] id;
+    char[] restype; //hack hack
     ///unique numeric id
     ///useful for networking, has the same meaning across all nodes
     int uid;
@@ -59,7 +58,7 @@ class Resource {
             load();
             mValid = true;
         } catch (Exception e) {
-            char[] errMsg = "Resource " ~ id ~ "(" ~ toString() ~ ") failed to load: "~e.msg;
+            char[] errMsg = "Resource " ~ id ~ " (" ~ toString() ~ ") failed to load: "~e.msg;
             mParent.log(errMsg);
             if (!allowFail)
                 throw new ResourceException(errMsg);
@@ -79,17 +78,6 @@ class Resource {
 
     protected void doUnload() {
         //implement if you need this
-    }
-
-    //Wrapper for Resources.createResource to keep this private
-    protected void createSubResource(char[] type, ConfigItem it,
-        bool allowFail = false, char[] id = "")
-    {
-        mParent.createResource(type,it,allowFail,id);
-    }
-
-    protected static void setResourceNamespace(T : Resource)(char[] id) {
-        gNamespaceMap[ResFactory.lookup!(T)()] = id;
     }
 
     //managed type
@@ -133,6 +121,14 @@ public class Resources {
     //used to assign uids
     private long mCurUid;
 
+    private static char[][char[]] gNamespaceMap;
+    private static TypeInfo[char[]] gRegistered;
+
+    private static class ResFactory : StaticFactory!(Resource, Resources,
+        char[], ConfigItem)
+    {
+    }
+
     this() {
         log = registerLog("Res");
         //log.setBackend(DevNullOutput.output, "null");
@@ -142,10 +138,29 @@ public class Resources {
         return ++mCurUid;
     }
 
+    ///register a class derived from Resource for the internal factory under
+    ///the given name
+    ///the class T to register must have this constructor:
+    ///     this(Resources parent, char[] name, ConfigItem from)
+    ///else compilation will fail somewhere in factory.d
+    static void registerResourceType(T : Resource)(char[] name) {
+        ResFactory.register!(T)(name);
+        setResourceNamespace!(T)(name);
+    }
+
+    private static void setResourceNamespace(T : Resource)(char[] id) {
+        gNamespaceMap[ResFactory.lookup!(T)()] = id;
+    }
+
     void enumResources(void delegate(char[] fullname, Resource res) cb) {
         foreach (char[] fullname, Resource res; mResources) {
             cb(fullname, res);
         }
+    }
+
+    //all registered resource types
+    char[][] resourceTypes() {
+        return ResFactory.classes;
     }
 
     private char[] addNSPrefix(char[] type, char[] resId) {
@@ -169,6 +184,7 @@ public class Resources {
             id = n.filePath ~ it.name;
         if (!(id in mResources)) {
             Resource r = ResFactory.instantiate(type,this,id,it);
+            r.restype = type;
             mResources[addNSPrefix(type,id)] = r;
         }
     }
@@ -177,7 +193,7 @@ public class Resources {
     ///supporting it, currently just BitmapResource)
     ///id will be the filename
     ///markDirty = mark as referenced?
-    public T createResourceFromFile(T)(char[] filename,
+    public T createResourceFromFile(T : Resource)(char[] filename,
         bool allowFail = false, bool markDirty = true)
     {
         char[] id = filename;
@@ -185,25 +201,18 @@ public class Resources {
             ConfigValue v = new ConfigValue;
             v.value = filename;
             Resource r = new T(this,id,v);
+            assert(false, "oh hai, I'm borken code!");
             mResources[addNSPrefix(ResFactory.lookup!(T)(),id)] = r;
         }
         return resource!(T)(id,allowFail, markDirty);
     }
 
-    ///get a reference to a resource by its id
-    /// doref = mark resource as used (for preloading)
-    public T resource(T)(char[] id, bool allowFail = false, bool doref = true) {
-        T ret = doFindResource!(T)(id, allowFail);
-        ret.mRefed |= doref;
-        return ret;
-    }
-
-    private T doFindResource(T)(char[] id, bool allowFail = false) {
+    private T doFindResource(T : Resource)(char[] id, bool allowFail = false) {
         assert(id != "","called resource() with empty id");
         char[] internalId = addNSPrefix(ResFactory.lookup!(T)(),id);
         Resource* r = internalId in mResources;
         if (!r) {
-            char[] errMsg = "Resource "~id~" not defined";
+            char[] errMsg = "Resource "~id~" (" ~ internalId ~ ") not defined";
             log(errMsg);
             if (!allowFail)
                 throw new ResourceException(errMsg);
@@ -217,6 +226,16 @@ public class Resources {
                 throw new ResourceException(errMsg);
             return null;
         }
+        return ret;
+    }
+
+    ///get a reference to a resource by its id
+    /// doref = mark resource as used (for preloading)
+    public T resource(T : Resource)(char[] id, bool allowFail = false,
+        bool doref = true)
+    {
+        T ret = doFindResource!(T)(id, allowFail);
+        ret.mRefed |= doref;
         return ret;
     }
 
@@ -398,8 +417,4 @@ class ResourceException : Exception {
     this(char[] msg) {
         super(msg);
     }
-}
-
-static class ResFactory : StaticFactory!(Resource, Resources, char[], ConfigItem)
-{
 }

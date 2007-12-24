@@ -84,8 +84,10 @@ AnimList readBnkFile(Stream st) {
 void readBnk(Stream st, char[] outputDir, char[] fnBase) {
     scope alist = readBnkFile(st);
     writefln();
-    writef("Saving\r");
-    alist.savePacked(outputDir, fnBase);
+    //lol sry!
+    writefln("no.");
+    //writef("Saving\r");
+    //alist.savePacked(outputDir, fnBase);
     writefln();
 }
 

@@ -246,7 +246,7 @@ class GObjectSprite : GameObject {
         super.simulate(deltaT);
         if (currentState.onAnimationEnd && currentAnimation) {
             if (engine.gameTime.current - animationStarted
-                >= currentAnimation.get.getOneTimeDuration())
+                >= currentAnimation.get.duration())
             {
                 engine.mLog("state transition because of animation end");
                 //time to change; the setState code will reset the animation

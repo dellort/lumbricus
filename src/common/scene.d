@@ -120,7 +120,7 @@ class SceneObjectCentered : SceneObject {
     }
 
     //return bounds, independent from position (centered around (0,0))
-    abstract Rect2i getBounds();
+    abstract Rect2i bounds();
 }
 
 //xxx kill this, replace by SceneObjectRect
