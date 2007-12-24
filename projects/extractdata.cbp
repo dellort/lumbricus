@@ -34,6 +34,8 @@
 				</MakeCommands>
 			</Target>
 		</Build>
+		<Unit filename="..\src\aconv\atlaspacker.d" />
+		<Unit filename="..\src\aconv\metadata.d" />
 		<Unit filename="..\src\devil\image.d" />
 		<Unit filename="..\src\extractdata.d" />
 		<Unit filename="..\src\utils\filetools.d" />
@@ -45,6 +47,7 @@
 		<Unit filename="..\src\wwpdata\reader_dir.d" />
 		<Unit filename="..\src\wwpdata\reader_img.d" />
 		<Unit filename="..\src\wwpdata\reader_spr.d" />
+		<Unit filename="..\src\wwptools\animconv.d" />
 		<Unit filename="..\src\wwptools\convert.d" />
 		<Unit filename="..\src\wwptools\levelconverter.d" />
 		<Unit filename="..\src\wwptools\untile.d" />

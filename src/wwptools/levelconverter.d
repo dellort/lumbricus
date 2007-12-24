@@ -2,7 +2,9 @@ module wwptools.levelconverter;
 
 import utils.filetools;
 import stdf = std.file;
+import str = std.string;
 import std.stream;
+import std.conv;
 import wwptools.convert;
 import wwptools.unworms;
 
@@ -17,11 +19,32 @@ struct BmpDef {
     }
 }
 
+struct ObjDef {
+    char[] objid;
+    int side;
+
+    static ObjDef opCall(char[] objid, int side) {
+        ObjDef ret;
+        ret.objid = objid;
+        ret.side = side;
+        return ret;
+    }
+
+    char[] sideStr() {
+        switch (side) {
+            case 0: return "left";
+            case 1: return "right";
+            case 2: return "ceiling";
+            case 3: return "floor";
+        }
+    }
+}
+
 //convert WWP level directory to lumbricus level directory
 //xxx missing debris animation
 void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
     BmpDef[] definedBitmaps;
-    char[][] definedObjects;
+    ObjDef[] definedObjects;
 
     //extract Level.dir to temp path
     do_unworms(sourcePath~"Level.dir", tmpdir);
@@ -75,8 +98,12 @@ void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
         char[] objname = path.getBaseName(path.getName(inff));
         char[] imgfile = lvlextr~objname~".img";
         do_unworms(imgfile,destPath~"objects");
+        scope infFile = new File(inff);
+        char[][] infLines = str.split(infFile.toString());
+        assert(infLines.length >= 6);
+        int side = toInt(infLines[5]);
         definedBitmaps ~= BmpDef("obj_"~objname,"objects/"~objname~".png");
-        definedObjects ~= "obj_"~objname;
+        definedObjects ~= ObjDef("obj_"~objname, side);
     }
 
     //config file
@@ -97,8 +124,9 @@ void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
     levelconf.writefln(LEVEL_FIXED_2);
 
     levelconf.writefln("objects {");
-    foreach (objid; definedObjects) {
-        levelconf.writefln("  { image = \"%s\" }",objid);
+    foreach (obj; definedObjects) {
+        levelconf.writefln("  { image = \"%s\" side = \"%s\" }",obj.objid,
+            obj.sideStr);
     }
     levelconf.writefln("}");
 }

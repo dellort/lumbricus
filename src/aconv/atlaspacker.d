@@ -92,7 +92,7 @@ class AtlasPacker {
             .getSubNode(fnBase);
         auto pageNode = resNode.getSubNode("pages");
         for (int i = 0; i < mPageImages.length; i++) {
-            pageNode.setStringValue("",fnBase ~ path.sep ~ "page_" ~ str.toString(i)
+            pageNode.setStringValue("",fnBase ~ "/page_" ~ str.toString(i)
                 ~ ".png");
         }
         auto metaname = fnBase ~ ".meta";

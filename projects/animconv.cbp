@@ -49,6 +49,7 @@
 		<Unit filename="..\src\wwpdata\decompression.d" />
 		<Unit filename="..\src\wwpdata\reader.d" />
 		<Unit filename="..\src\wwpdata\reader_bnk.d" />
+		<Unit filename="..\src\wwptools\animconv.d" />
 		<Extensions>
 			<code_completion />
 			<envvars />

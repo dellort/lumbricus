@@ -1,15 +1,18 @@
 module extractdata;
 
-import wwptools.levelconverter;
-import utils.filetools;
+import devil.image;
 import stdf = std.file;
 import path = std.path;
 import std.process;
 import std.stdio;
 import std.stream;
 import std.string : tolower;
+import utils.filetools;
+import utils.configfile;
+import wwptools.levelconverter;
 import wwptools.untile;
 import wwptools.unworms;
+import wwptools.animconv;
 
 void do_extractdata(char[] wormsDir, char[] outputDir) {
     char[] tmpdir = ".";
@@ -25,37 +28,51 @@ void do_extractdata(char[] wormsDir, char[] outputDir) {
     }
     scope iconnames = new File("iconnames.txt",FileMode.In);
 
-    //****** mainspr.bnk ******
+    //****** Extract WWP .dir files ******
     //extract Gfx.dir to current directory (creating a new dir "Gfx")
     do_unworms(gfxdirp, tmpdir);
     scope(exit) remove_dir(tmpdir~path.sep~"Gfx");
     char[] gfxextr = tmpdir~path.sep~"Gfx"~path.sep;
-    //extract mainspr.bnk to output dir (creating a dir "mainspr" and
-    //"mainspr.meta")
-    do_unworms(gfxextr~"mainspr.bnk", outputDir);
-
-    //****** Weapon icons ******
-    //xxx this produces icons with black background, fix needed
-    //convert iconlo.img to png (creates "iconlo.png" in tmp dir)
-    do_unworms(gfxextr~"iconlo.img", tmpdir);
-    scope(exit) stdf.remove(tmpdir~path.sep~"iconlo.png");
-    //prepare directory "weapons"
-    char[] wepDir = outputDir~path.sep~"weapons";
-    trymkdir(wepDir);
-    //extract weapon icons
-    do_untile(tmpdir~path.sep~"iconlo.png",wepDir~path.sep,"icons","icon_","_lo",
-        "_icons.conf",iconnames);
-
-    //****** Water ******
     //extract water (creating dir "Water")
     do_unworms(waterdirp, tmpdir);
     scope(exit) remove_dir(tmpdir~path.sep~"Water");
     char[] waterextr = tmpdir~path.sep~"Water"~path.sep;
+
+    //****** Weapon icons ******
+    //xxx box packing?
+    //convert iconlo.img to png (creates "iconlo.png" in tmp dir)
+    do_unworms(gfxextr~"iconlo.img", tmpdir);
+    scope(exit) stdf.remove(tmpdir~path.sep~"iconlo.png");
+    //apply icons mask
+    Image icMask = new Image("iconmask.png");
+    Image iconImg = new Image(tmpdir~path.sep~"iconlo.png");
+    iconImg.applyAlphaMask(icMask);
+    iconImg.save(tmpdir~path.sep~"iconlo_masked.png");
+    scope(exit) stdf.remove(tmpdir~path.sep~"iconlo_masked.png");
+    //prepare directory "weapons"
+    char[] wepDir = outputDir~path.sep~"weapons";
+    trymkdir(wepDir);
+    //extract weapon icons
+    do_untile(tmpdir~path.sep~"iconlo_masked.png",wepDir~path.sep,"icons",
+        "icon_","_lo", "_icons.conf",iconnames);
+
+    //****** Convert mainspr.bnk / water.bnk using animconv ******
+    //move mainspr.bnk to output dir
+    stdf.rename(gfxextr~"mainspr.bnk",outputDir~path.sep~"mainspr.bnk");
+    scope(exit) stdf.remove(outputDir~path.sep~"mainspr.bnk");
+    //move water.bnk to output dir
     //xxx rename water.bnk to water_blue.bnk, layer.spr to waves.spr
-    stdf.rename(waterextr~"water.bnk",waterextr~"water_blue.bnk");
+    stdf.rename(waterextr~"water.bnk",outputDir~path.sep~"water_blue.bnk");
     stdf.rename(waterextr~"layer.spr",waterextr~"waves_blue.spr");
-    //extract water_blue.bnk to output dir
-    do_unworms(waterextr~"water_blue.bnk",outputDir);
+    scope(exit) stdf.remove(outputDir~path.sep~"water_blue.bnk");
+
+    ConfigNode animConf = (new ConfigFile(new File("animations.txt"),
+        "animations.txt", (char[] msg) { writefln(msg); } )).rootnode;
+
+    //run animconv
+    do_animconv(animConf, outputDir~path.sep);
+
+    //xxx box packing, water.conf
     //extract waves_blue.spr to output dir
     do_unworms(waterextr~"waves_blue.spr",outputDir);
 

@@ -109,6 +109,39 @@ class Image {
         ilClearColour(0, 0, 0, 0);
     }
 
+    //set alpha values of this image to b/w values of another
+    //mask will be converted to RGB, current image to RGBA
+    //invert: Set to true to make white transparent (else black)
+    void applyAlphaMask(Image mask, bool invert = false) {
+        assert(mask.w == w && mask.h == h);
+        mask.bind();
+        ilConvertImage(IL_RGB, IL_UNSIGNED_BYTE);
+        ubyte* maskData = mask.data();
+
+        this.bind();
+        //add alpha channel
+        ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE);
+        ubyte* curData = data();
+        curData += 3;
+        for (int i = 0; i < w*h; i ++) {
+            *curData = *maskData;
+            if (invert)
+                *curData = 255 - *curData;
+            maskData += 3;
+            curData += 4;
+        }
+    }
+
+    ubyte* data() {
+        this.bind();
+        return ilGetData();
+    }
+
+    ILint format() {
+        this.bind();
+        return ilGetInteger(IL_IMAGE_FORMAT);
+    }
+
     void save(char[] filename) {
         ilBindImage(mImg);
 
