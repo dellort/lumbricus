@@ -35,8 +35,7 @@ class Animator : SceneObjectCentered {
         if (t >= mData.mLengthMS) {
             //if this has happened, we either need to show a new frame,
             //disappear or just stop it
-            //xxx
-            if (false && !mData.repeat) {
+            if (!mData.repeat) {
                 return mData.mLengthMS;
             }
             t = t % mData.mLengthMS;

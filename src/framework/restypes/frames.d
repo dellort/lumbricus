@@ -117,6 +117,7 @@ class AnimationStrip : Animation {
 //one instance of this class per binary files, supporting multiple animations
 class AniFrames {
     struct Frames {
+        Rect2i box; //animation box (not really a bounding box, see animconv)
         //for the 2 following arrays, the indices are: 0 == a, 1 == b
         int[2] mapParam; //mMapParam[index] => which of AnimationParamType
         int[2] counts; //frame counts for A and B directions
@@ -155,6 +156,10 @@ class AniFrames {
             anim.frames.length = anim.counts[0] * anim.counts[1];
             data.readExact(anim.frames.ptr, anim.frames.length *
                 typeof(anim.frames[0]).sizeof);
+
+            auto size = Vector2i(fani.size[0], fani.size[1]);
+            anim.box.p1 = -size/2; //(center around (0,0))
+            anim.box.p2 = size + anim.box.p1;
         }
     }
 
@@ -172,7 +177,7 @@ class AniFrames {
     }
 
     //calculate bounds, xxx slight code duplication with drawFrame()
-    Rect2i boundingBox(int frame_index) {
+    Rect2i framesBoundingBox(int frame_index) {
         Rect2i bnds = Rect2i.Empty();
         foreach (inout frame; frames(frame_index).frames) {
             auto image = images.texture(frame.bitmapIndex);
@@ -231,7 +236,7 @@ class ComplicatedAnimation : Animation {
         mImages = frames.images;
         int index = node.getIntValue("index", -1);
         mFrames = frames.frames(index);
-        Rect2i bb = frames.boundingBox(index);
+        Rect2i bb = mFrames.box; // = frames.framesBoundingBox(index);
 
         void loadParamStuff(int index, char[] name) {
             auto val = node.getStringValue(name, "none");

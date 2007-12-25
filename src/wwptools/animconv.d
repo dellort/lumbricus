@@ -24,6 +24,15 @@ enum Mirror {
     Y_B,  //same for axis B
 }
 
+//just for AniFile.add() (not used anywhere else)
+enum AniFlags {
+    None = 0,
+    Repeat = 1, //==Animation.repeat
+    Backwards_A = 2, //reverse the whole source animation (for axis A)
+    AppendBackwards_A = 4, //first normal and then backwards (axis A)
+    KeepLast = 8, //==Animation.keepLastFrame
+}
+
 AnimList gAnimList;  //source animations
 AtlasPacker gPacker; //where the bitmaps go to
 AniFile gAnims;      //where the animation (+ frame descriptors) go to
@@ -36,6 +45,8 @@ private AnimationLoadHandler[char[]] gAnimationLoadHandlers;
 static this() {
     //simple animation
     gAnimationLoadHandlers["simple"] = &loadSimpleAnimation;
+    //same as above, but reversed
+    gAnimationLoadHandlers["simple_backwards"] = &loadSimpleAnimationBackwards;
     //mirror animation on Y axis
     gAnimationLoadHandlers["twosided"] = &loadTwoSidedAnimation;
     //normal worm, standing or walking
@@ -86,15 +97,21 @@ class AniFile {
                       "//change animations.txt instead of this file";
     }
 
+    //flags is a bitfield of AniFlags members
     void add(char[] name, Animation[] src, Param[2] params, Mirror mirror,
-        char[][] param_conv, bool repeat, bool backward = false)
+        char[][] param_conv, int flags = AniFlags.None)
     {
+        //xxx force repeat (will change someday)
+        flags |= AniFlags.Repeat;
         //this writes it to a file and sets the animation's frames .blockIndex
         FileAnimationFrame[][] frames; //indexed [b][a] (lol)
         frames.length = src.length;
         int len_a = src[0].frames.length;
+        Vector2i box = Vector2i(src[0].boxWidth, src[0].boxHeight);
         foreach (int index, s; src) {
             assert(s.frames.length == len_a, "same direction => same length");
+            //this assert is not really important, but what about consistency?
+            assert(box.x == s.boxWidth && box.y == s.boxHeight);
             s.savePacked(atlas);
             foreach (frame; s.frames) {
                 FileAnimationFrame cur;
@@ -106,15 +123,17 @@ class AniFile {
             }
         }
 
-        //find the axis used for the time (either A or B)
-        int time = (params[0] == Param.Time ? 0 : -1);
-        if (time < 0)
-            time = (params[1] == Param.Time ? 1 : -1);
+        if (flags & AniFlags.Backwards_A) {
+            foreach (inout fl; frames) {
+                for (int i = 0; i < fl.length/2; i++) {
+                    swap(fl[i], fl[$-i-1]);
+                }
+            }
+        }
 
         //if the animation should be played reversed every second time, simply
         //append the framelist again in a reversed way
-        if (time >= 0 && backward) {
-            assert(time == 0); //lol, requires different code for B axis
+        if (flags & AniFlags.AppendBackwards_A) {
             foreach (inout fl; frames) {
                 int count = fl.length;
                 for (int i = count-1; i >= 0; i--) {
@@ -131,7 +150,9 @@ class AniFile {
             foreach (inout fl; frames) {
                 int count = fl.length;
                 for (int i = 0; i < count; i++) {
-                    auto cur = fl[i];
+                    //append in reverse order (the only case where we use Y_A
+                    //needs it in this way)
+                    auto cur = fl[count-i-1];
                     cur.drawEffects ^= FileDrawEffects.MirrorY;
                     fl ~= cur;
                 }
@@ -151,15 +172,26 @@ class AniFile {
 
         FileAnimation ani;
         ani.mapParam[] = cast(int[])params;
+        ani.size[0] = box.x;
+        ani.size[1] = box.y;
         ani.frameCount[0] = len_a;
         ani.frameCount[1] = frames.length;
-        ani.flags |= (repeat ? FileAnimationFlags.Repeat : 0);
+        if (flags & AniFlags.Repeat)
+            ani.flags |= FileAnimationFlags.Repeat;
+        if (flags & AniFlags.KeepLast)
+            ani.flags |= FileAnimationFlags.KeepLastFrame;
         //dump as rectangular array
         FileAnimationFrame[] out_frames;
         out_frames.length = ani.frameCount[0] * ani.frameCount[1];
         int index = 0;
         foreach (fl; frames) {
             foreach (f; fl) {
+                //just btw.: fixup mirrored animation offsets
+                //(must be mirrored as well)
+                if (f.drawEffects & FileDrawEffects.MirrorY) {
+                    int w = atlas.block(f.bitmapIndex).w;
+                    f.centerX = -f.centerX - w;
+                }
                 out_frames[index++] = f;
             }
         }
@@ -265,14 +297,16 @@ private void loadWormAnimation(ConfigItem node) {
 }
 
 private void loadWormNoLoopAnimationBack(ConfigItem node) {
-    return doLoadWormAnimation(node, true, true);
+    return doLoadWormAnimation(node, false, true);
 }
 
 private void doLoadWormAnimation(ConfigItem node, bool loop,
     bool backwards = false)
 {
     gAnims.add(node.name, getSimple(node, 1, 3), [Param.Time, Param.P1],
-        Mirror.Y_B, ["step3"], loop, backwards);
+        Mirror.Y_B, ["step3"],
+            (loop ? AniFlags.Repeat | AniFlags.AppendBackwards_A : 0)
+            | (backwards?AniFlags.Backwards_A:0));
 }
 
 private void loadWormWeaponAnimation(ConfigItem node) {
@@ -282,45 +316,55 @@ private void loadWormWeaponAnimation(ConfigItem node) {
     auto anis = getSimple(node, 2, 3);
 
     gAnims.add(node.name, anis[0..3], [Param.Time, Param.P1], Mirror.Y_B,
-        ["step3"], false);
+        ["step3"]);
 
     gAnims.add(node.name ~ "_2", anis[3..6], [Param.P2, Param.P1], Mirror.Y_B,
-        ["step3", "rot180"], false);
+        ["step3", "rot180"]);
 }
 
 private void loadWormWeaponFixedAnimation(ConfigItem node) {
     gAnims.add(node.name, getSimple(node, 1, 3), [Param.Time, Param.P1],
-        Mirror.Y_B, ["step3"], false);
+        Mirror.Y_B, ["step3"]);
 }
 
 private void loadTwoSidedAnimation(ConfigItem node) {
     gAnims.add(node.name, getSimple(node, 1, 1), [Param.Time, Param.P1],
-        Mirror.Y_B, ["twosided"], false);
+        Mirror.Y_B, ["twosided"]);
 }
 
 private void loadSimpleAnimation(ConfigItem node) {
     auto ani = getSimple(node, 1, 1);
 
     gAnims.add(node.name, ani, [Param.Time, Param.P1],
-        Mirror.None, [], ani[0].repeat, ani[0].backwards);
+        Mirror.None, [], (ani[0].repeat ? AniFlags.Repeat : 0)
+            | (ani[0].backwards ? AniFlags.AppendBackwards_A : 0));
+}
+
+private void loadSimpleAnimationBackwards(ConfigItem node) {
+    auto ani = getSimple(node, 1, 1);
+
+    gAnims.add(node.name, ani, [Param.Time, Param.P1],
+        Mirror.None, [], (ani[0].repeat ? AniFlags.Repeat : 0)
+            | (ani[0].backwards ? AniFlags.AppendBackwards_A : 0)
+            | AniFlags.Backwards_A);
 }
 
 private void load360Animation(ConfigItem node) {
     gAnims.add(node.name, getSimple(node, -1, 1), [Param.P1, Param.Time],
-        Mirror.None, ["rot360"], false);
+        Mirror.None, ["rot360"]);
 }
 
 private void load360MAnimation(ConfigItem node) {
     gAnims.add(node.name, getSimple(node, -1, 1), [Param.P1, Param.Time],
-        Mirror.Y_A, ["rot360"], false);
+        Mirror.Y_A, ["rot360"]);
 }
 
 private void load360InvAnimation(ConfigItem node) {
     gAnims.add(node.name, getSimple(node, 1, 1), [Param.P1, Param.Time],
-        Mirror.None, ["rot360inv"], false);
+        Mirror.None, ["rot360inv"]);
 }
 
 private void load180Animation(ConfigItem node) {
     gAnims.add(node.name, getSimple(node, 1, 1), [Param.P1, Param.Time],
-        Mirror.None, ["rot180"], false);
+        Mirror.None, ["rot180"]);
 }

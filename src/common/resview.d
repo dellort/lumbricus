@@ -174,7 +174,7 @@ class AniHandler : ResViewHandler!(AniFramesResource) {
         mCont.clear();
         auto table = new TableContainer(frames.counts[0], frames.counts[1],
             Vector2i(2,2), [true, true]);
-        Rect2i bb = resource.get.boundingBox(sender.curValue);
+        Rect2i bb = resource.get.framesBoundingBox(sender.curValue);
         for (int x = 0 ; x < table.width; x++) {
             for (int y = 0; y < table.height; y++) {
                 auto bmp = new ViewBitmap();
@@ -484,14 +484,25 @@ class ResViewerTask : Task {
             doSelect(null);
             char[][] list;
             mResList = null;
+            struct Sorter {
+                Resource res;
+                int opCmp(Sorter* other) {
+                    return str.cmp(res.id, other.res.id);
+                }
+            }
+            Sorter[] sorted;
             gFramework.resources.enumResources(
                 (char[] fullname, Resource res) {
                     if (res.restype == mCurRes) {
-                        mResList ~= res;
-                        list ~= res.id;
+                        sorted ~= Sorter(res);
                     }
                 }
             );
+            sorted.sort;
+            foreach (s; sorted) {
+                mResList ~= s.res;
+                list ~= s.res.id;
+            }
             mList.setContents(list);
         }
 

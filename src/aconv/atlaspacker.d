@@ -42,6 +42,10 @@ class AtlasPacker {
         return mPageImages[index];
     }
 
+    FileAtlasTexture block(int index) {
+        return mBlocks[index];
+    }
+
     //create new space on any page
     //you can get the block number by calling blockCount() before alloc()
     //it is guaranteed that new blocks are always just appended to the block-

@@ -41,6 +41,7 @@ enum FileAnimationFlags {
 
 struct FileAnimation {
 align(1):
+    short[2] size;  //size in pixels
     int[2] frameCount; //for each direction
     int[2] mapParam;   //mapParam[direction] = param, see FileAnimationParamType
     int flags; //bitfield, see FileAnimationFlags

@@ -83,8 +83,8 @@ private int paramConvertFreeRotInv(int angle, int count) {
 //180 degrees, -90 (down) to +90 (up)
 //(overflows, used for weapons, it's hardcoded that it can use 180 degrees only)
 private int paramConvertFreeRot2(int angle, int count) {
-    assert(angle <= 90);
-    assert(angle >= -90);
+    //assert(angle <= 90);
+    //assert(angle >= -90);
     return map2(angle+90.0f,180.0f,count);
 }
 
