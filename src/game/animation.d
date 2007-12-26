@@ -28,6 +28,7 @@ static this() {
     gAnimationParamConverters["rot360"] = &paramConvertFreeRot;
     gAnimationParamConverters["rot360inv"] = &paramConvertFreeRotInv;
     gAnimationParamConverters["rot180"] = &paramConvertFreeRot2;
+    gAnimationParamConverters["rot180_2"] = &paramConvertFreeRot2_2;
 }
 
 //return the index of the angle in "angles" which is closest to "angle"
@@ -59,9 +60,14 @@ private int map2(float val, float rFrom, int rTo) {
     return cast(int)((val + 0.5f*rFrom/rTo)/rFrom * (rTo-1));
 }
 
+//and finally the DWIM (Do What I Mean) version of map: anything can wrap around
+private int map3(float val, float rFrom, int rTo) {
+    return cast(int)(realmod(val + 0.5f*rFrom/rTo + rFrom,rFrom)/rFrom * rTo);
+}
+
 //default
 private int paramConvertNone(int angle, int count) {
-    return angle;
+    return 0;
 }
 //expects count to be 6 (for the 6 angles)
 private int paramConvertStep3(int angle, int count) {
@@ -86,6 +92,11 @@ private int paramConvertFreeRot2(int angle, int count) {
     //assert(angle <= 90);
     //assert(angle >= -90);
     return map2(angle+90.0f,180.0f,count);
+}
+
+//for the aim not-animation
+private int paramConvertFreeRot2_2(int angle, int count) {
+    return map3(-angle+90.0f,180.0f,count);
 }
 
 //return distance of two angles in radians

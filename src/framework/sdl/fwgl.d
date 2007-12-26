@@ -103,6 +103,8 @@ class GLSurface : SDLDriverSurface {
     private void updateTexture(in Rect2i rc, bool full = false) {
         void* texData;
         SDL_Surface *texSurface;
+        if (rc.size.x <= 0 || rc.size.y <= 0)
+            return;
         if (mData.transparency == Transparency.Colorkey) {
             //transparency uses colorkeying -> convert to alpha
             SDL_Surface *srcSurface = SDL_CreateRGBSurfaceFrom(mData.data.ptr,
@@ -172,8 +174,9 @@ class GLSurface : SDLDriverSurface {
             assert(mData.pitch == mData.size.x*4);
             //caller has to assure that rc intersects with the
             //texture area at all
-            assert(rc.p1.x < mData.size.x && rc.p1.y < mData.size.y);
-            assert(rc.p2.x > 0 && rc.p2.y > 0);
+            //not anymore, I don't see any reason for this
+            //assert(rc.p1.x < mData.size.x && rc.p1.y < mData.size.y);
+            //assert(rc.p2.x > 0 && rc.p2.y > 0);
             //now clip rc to the texture area
             rc.fitInsideB(Rect2i(0,0,mData.size.x,mData.size.y));
             glBindTexture(GL_TEXTURE_2D, mTexId);

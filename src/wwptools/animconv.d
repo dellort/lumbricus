@@ -365,6 +365,6 @@ private void load360InvAnimation(ConfigItem node) {
 }
 
 private void load180Animation(ConfigItem node) {
-    gAnims.add(node.name, getSimple(node, 1, 1), [Param.P1, Param.Time],
-        Mirror.None, ["rot180"]);
+    gAnims.add(node.name, getSimple(node, 1, 1), [Param.P1, Param.Null],
+        Mirror.None, ["rot180_2"]);
 }
