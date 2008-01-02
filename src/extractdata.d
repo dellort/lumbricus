@@ -6,13 +6,25 @@ import path = std.path;
 import std.process;
 import std.stdio;
 import std.stream;
-import std.string : tolower;
+import std.string : tolower, split;
+import std.conv: toUbyte;
 import utils.filetools;
 import utils.configfile;
+import wwpdata.common;
 import wwptools.levelconverter;
 import wwptools.untile;
 import wwptools.unworms;
 import wwptools.animconv;
+
+struct WaterDef {
+    char[] dirName, id;
+    char[] path = "";
+    float r = 0.0f, g = 0.0f, b = 1.0f;
+}
+
+WaterDef[] waterColors = [{"Blue", "blue"}, {"Blue2", "blue2"},
+    {"Green", "green"}, {"Purple", "purple"}, {"Red", "red"},
+    {"yellow", "yellow"}];
 
 void do_extractdata(char[] wormsDir, char[] outputDir) {
     char[] tmpdir = ".";
@@ -21,10 +33,12 @@ void do_extractdata(char[] wormsDir, char[] outputDir) {
     if (!stdf.exists(gfxdirp)) {
         throw new Exception("Invalid directory! Gfx.dir not found.");
     }
-    char[] waterdirp = wormsDir~path.sep~"data"~path.sep~"Water"~path.sep
-        ~"Blue"~path.sep~"Water.dir";
-    if (!stdf.exists(gfxdirp)) {
-        throw new Exception("Invalid directory! Water.dir not found.");
+    foreach (ref WaterDef w; waterColors) {
+        w.path = wormsDir~path.sep~"data"~path.sep~"Water"~path.sep
+            ~w.dirName~path.sep;
+        if (!stdf.exists(w.path)) {
+            throw new Exception("Invalid directory! Water.dir not found.");
+        }
     }
     scope iconnames = new File("iconnames.txt",FileMode.In);
 
@@ -34,9 +48,26 @@ void do_extractdata(char[] wormsDir, char[] outputDir) {
     scope(exit) remove_dir(tmpdir~path.sep~"Gfx");
     char[] gfxextr = tmpdir~path.sep~"Gfx"~path.sep;
     //extract water (creating dir "Water")
-    do_unworms(waterdirp, tmpdir);
-    scope(exit) remove_dir(tmpdir~path.sep~"Water");
-    char[] waterextr = tmpdir~path.sep~"Water"~path.sep;
+    foreach (ref WaterDef w; waterColors) {
+        do_unworms(w.path~"Water.dir", tmpdir);
+        scope(exit) remove_dir(tmpdir~path.sep~"Water");
+        char[] waterextr = tmpdir~path.sep~"Water"~path.sep;
+        //rename water.bnk to water_<color>.bnk, layer.spr to waves_<color>.spr
+        stdf.rename(waterextr~"water.bnk",
+            outputDir~path.sep~"water_"~w.id~".bnk");
+        stdf.rename(waterextr~"layer.spr",
+            tmpdir~path.sep~"waves_"~w.id~".spr");
+        scope colourtxt = new File(w.path~"colour.txt", FileMode.In);
+        char[][] colRGB = split(colourtxt.readLine());
+        assert(colRGB.length == 3);
+        w.r = cast(float)toUbyte(colRGB[0])/255.0f;
+        w.g = cast(float)toUbyte(colRGB[1])/255.0f;
+        w.b = cast(float)toUbyte(colRGB[2])/255.0f;
+    }
+    scope(exit) foreach (ref WaterDef w; waterColors) {
+        stdf.remove(outputDir~path.sep~"water_"~w.id~".bnk");
+        stdf.remove(tmpdir~path.sep~"waves_"~w.id~".spr");
+    }
 
     //****** Weapon icons ******
     //xxx box packing?
@@ -61,10 +92,6 @@ void do_extractdata(char[] wormsDir, char[] outputDir) {
     stdf.rename(gfxextr~"mainspr.bnk",outputDir~path.sep~"mainspr.bnk");
     scope(exit) stdf.remove(outputDir~path.sep~"mainspr.bnk");
     //move water.bnk to output dir
-    //xxx rename water.bnk to water_blue.bnk, layer.spr to waves.spr
-    stdf.rename(waterextr~"water.bnk",outputDir~path.sep~"water_blue.bnk");
-    stdf.rename(waterextr~"layer.spr",waterextr~"waves_blue.spr");
-    scope(exit) stdf.remove(outputDir~path.sep~"water_blue.bnk");
 
     ConfigNode animConf = (new ConfigFile(new File("animations.txt"),
         "animations.txt", (char[] msg) { writefln(msg); } )).rootnode;
@@ -74,7 +101,7 @@ void do_extractdata(char[] wormsDir, char[] outputDir) {
 
     //xxx box packing, water.conf
     //extract waves_blue.spr to output dir
-    do_unworms(waterextr~"waves_blue.spr",outputDir);
+    //do_unworms(waterextr~"waves_blue.spr",outputDir);
 
     //****** Level sets ******
     char[] levelspath = wormsDir~path.sep~"data"~path.sep~"Level";
@@ -88,6 +115,9 @@ void do_extractdata(char[] wormsDir, char[] outputDir) {
         char[] setpath = levelspath~path.sep~setdir;
         //level set identifier
         char[] id = tolower(setdir);
+        //xxx hack for -blabla levels
+        if (id[0] == '-')
+            id = "old" ~ id[1..$];
         //destination path (named by identifier)
         char[] destpath = levelDir~path.sep~id;
         trymkdir(destpath);

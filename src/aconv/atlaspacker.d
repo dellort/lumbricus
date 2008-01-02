@@ -73,7 +73,7 @@ class AtlasPacker {
 
     //save all generated block images to disk
     //also creates a corresponding resource .conf
-    void write(char[] outPath) {
+    void write(char[] outPath, bool textualMeta = false) {
         char[] fnBase = mName;
 
         foreach (int i, img; mPageImages) {
@@ -85,6 +85,7 @@ class AtlasPacker {
             writef("Saving %d/%d   \r",i+1, mPageImages.length);
             fflush(stdout);
         }
+        writefln();
 
         void confError(char[] msg) {
             writefln(msg);
@@ -99,18 +100,26 @@ class AtlasPacker {
             pageNode.setStringValue("",fnBase ~ "/page_" ~ str.toString(i)
                 ~ ".png");
         }
-        auto metaname = fnBase ~ ".meta";
-        resNode.setStringValue("meta", metaname);
+
+        if (textualMeta) {
+            auto metaNode = resNode.getSubNode("meta");
+            foreach (ref FileAtlasTexture t; mBlocks) {
+                metaNode.setStringValue("",t.toString());
+            }
+        } else {
+            auto metaname = fnBase ~ ".meta";
+            resNode.setStringValue("meta", metaname);
+
+            scope metaf = new File(outPath ~ metaname, FileMode.OutNew);
+            //xxx: endian-safety, no one cares, etc...
+            FileAtlas header;
+            header.textureCount = mBlocks.length;
+            metaf.writeExact(&header, header.sizeof);
+            metaf.writeExact(mBlocks.ptr, typeof(mBlocks[0]).sizeof * mBlocks.length);
+        }
 
         scope confst = new File(outPath ~ fnBase ~ ".conf", FileMode.OutNew);
         auto textstream = new StreamOutput(confst);
         confOut.writeFile(textstream);
-
-        scope metaf = new File(outPath ~ metaname, FileMode.OutNew);
-        //xxx: endian-safety, no one cares, etc...
-        FileAtlas header;
-        header.textureCount = mBlocks.length;
-        metaf.writeExact(&header, header.sizeof);
-        metaf.writeExact(mBlocks.ptr, typeof(mBlocks[0]).sizeof * mBlocks.length);
     }
 }

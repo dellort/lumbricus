@@ -581,6 +581,8 @@ public class LevelGenerator {
         return doCreateLevel(rend, templ, theme);
     }
 
+    const cLevelsPath = "/level";
+
     this() {
         mTemplates = loadTemplates();
 
@@ -588,11 +590,12 @@ public class LevelGenerator {
 
         //find and load all gfx config nodes
         //(load them to see if it really exists)
-        gFramework.fs.listdir("level", "*", true,
-            (char[] path) {
+        gFramework.fs.listdir(cLevelsPath, "*", true,
+            (char[] path) {          //path is relative to "level" dir
                 ConfigNode config;
                 try {
-                    config = gFramework.loadConfig(path ~ "level");
+                    config = gFramework.loadConfig(cLevelsPath ~ "/" ~ path
+                        ~ "level");
                 } catch (FilesystemException e) {
                     //seems it wasn't a valid gfx dir, do nothing, config==null
                     //i.e. the data directory contains .svn
@@ -601,12 +604,9 @@ public class LevelGenerator {
                     //get the name of the config node from the path
                     //xxx store name in config file directly
                     assert(path[$-1] == '/');
-                    path = path[0..$-1];
-                    auto pos = str.rfind(path, '/');
-                    char[] name = path[pos+1..$];
-                    char[] prepath = path[0..pos];
+                    char[] name = path[0..$-1];
 
-                    config["gfxpath"] = path ~ "/";
+                    config["gfxpath"] = cLevelsPath ~ "/" ~ path ~ "/";
                     config["name"] = name;
                     assert(!mGfxNodes.hasNode(name), "gfx name already exists");
                     mGfxThemes ~= name;
@@ -618,7 +618,7 @@ public class LevelGenerator {
                     //but this disgusting hack wasn't my idea
                     node.visitAllNodes(
                         (ConfigNode sub) {
-                            sub.setFilePath(path ~ "/");
+                            sub.setFilePath(cLevelsPath ~ "/" ~ path);
                         }
                     );
                 }

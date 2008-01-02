@@ -37,8 +37,11 @@
 		<Compiler>
 			<Add directory="..\src" />
 		</Compiler>
+		<Unit filename="..\src\aconv\atlaspacker.d" />
+		<Unit filename="..\src\aconv\metadata.d" />
 		<Unit filename="..\src\animconv.d" />
 		<Unit filename="..\src\devil\image.d" />
+		<Unit filename="..\src\framework\resfileformats.d" />
 		<Unit filename="..\src\utils\configfile.d" />
 		<Unit filename="..\src\utils\misc.d" />
 		<Unit filename="..\src\utils\output.d" />
@@ -54,6 +57,7 @@
 			<code_completion />
 			<envvars />
 			<debugger />
+			<lib_finder />
 		</Extensions>
 	</Project>
 </CodeBlocks_project_file>

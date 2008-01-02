@@ -209,7 +209,7 @@ class AniFile {
         }
     }
 
-    void write(char[] outPath) {
+    void write(char[] outPath, bool writeConf = true) {
         auto fnBase = mName;
 
         scope dataout = new File(outPath ~ fnBase ~ ".meta", FileMode.OutNew);
@@ -225,9 +225,11 @@ class AniFile {
                 * frames.length);
         }
 
-        scope confst = new File(outPath ~ fnBase ~ ".conf", FileMode.OutNew);
-        auto textstream = new StreamOutput(confst);
-        output_conf.writeFile(textstream);
+        if (writeConf) {
+            scope confst = new File(outPath ~ fnBase ~ ".conf", FileMode.OutNew);
+            auto textstream = new StreamOutput(confst);
+            output_conf.writeFile(textstream);
+        }
     }
 }
 
@@ -239,7 +241,6 @@ void do_animconv(ConfigNode animConf, char[] workPath) {
     foreach (char[] bnkname, ConfigNode bnkNode; animConf) {
         writefln("Working on %s",bnkname);
         scope bnkf = new File(workPath ~ bnkname ~ ".bnk");
-        bnkf.seek(4, SeekPos.Set);
         gAnimList = readBnkFile(bnkf);
 
         //NOTE: of course one could use one atlas or even one AniFile for all

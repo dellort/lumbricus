@@ -39,6 +39,10 @@ void readDir(Stream st, char[] outputDir, char[] fnBase) {
     char[] outPath = outputDir ~ path.sep ~ fnBase;
     try { mkdir(outPath); } catch {};
 
+    char[4] hdr;
+    st.readBlock(hdr.ptr, 4);
+    assert(hdr == "DIR\x1A");
+
     uint dataLen;
     st.readBlock(&dataLen, 4);
 

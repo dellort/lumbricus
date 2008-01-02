@@ -38,6 +38,8 @@
 		<Unit filename="..\src\aconv\metadata.d" />
 		<Unit filename="..\src\devil\image.d" />
 		<Unit filename="..\src\extractdata.d" />
+		<Unit filename="..\src\framework\resfileformats.d" />
+		<Unit filename="..\src\utils\configfile.d" />
 		<Unit filename="..\src\utils\filetools.d" />
 		<Unit filename="..\src\wwpdata\animation.d" />
 		<Unit filename="..\src\wwpdata\common.d" />
@@ -56,6 +58,7 @@
 			<code_completion />
 			<envvars />
 			<debugger />
+			<lib_finder />
 		</Extensions>
 	</Project>
 </CodeBlocks_project_file>

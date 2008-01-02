@@ -72,6 +72,18 @@ class Animation {
             ret.data = frameData;
             return ret;
         }
+
+        void blitOn(Image dest, int x, int y) {
+            dest.blitRGBData(data.ptr, w, h, x, y, false);
+        }
+
+        ///saves only this frames' bitmap colorkeyed without filling box
+        void save(char[] filename) {
+            auto img = new Image(w, h, false);
+            img.clear(COLORKEY.r, COLORKEY.g, COLORKEY.b, 1);
+            blitOn(img, 0, 0);
+            img.save(filename);
+        }
     }
 
     FrameInfo[] frames;
@@ -91,7 +103,7 @@ class Animation {
         auto img = new Image(boxWidth*frames.length, boxHeight, false);
         img.clear(COLORKEY.r, COLORKEY.g, COLORKEY.b, 1);
         foreach (int i, FrameInfo fi; frames) {
-            img.blitRGBData(fi.data.ptr, fi.w, fi.h, i*boxWidth+fi.x, fi.y, false);
+            fi.blitOn(img, i*boxWidth+fi.x, fi.y);
         }
         img.save(outPath ~ path.sep ~ fnBase ~ ".png");
     }
@@ -109,8 +121,8 @@ class Animation {
             fi.atlasIndex = block.page;
             fi.blockIndex = blockoffset + iframe;
             //blit frame data from animation onto page image
-            packer.page(fi.atlasIndex).blitRGBData(fi.data.ptr, fi.w, fi.h,
-                block.origin.x, block.origin.y, false);
+            fi.blitOn(packer.page(fi.atlasIndex), block.origin.x,
+                block.origin.y);
         }
         wasDumped = true;
     }

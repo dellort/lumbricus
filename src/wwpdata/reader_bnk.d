@@ -27,6 +27,10 @@ struct WWPBnkChunkHdr {
 }
 
 AnimList readBnkFile(Stream st) {
+    char[4] hdr;
+    st.readBlock(hdr.ptr, 4);
+    assert(hdr == "BNK\x1A");
+
     uint dataLen;
     st.readBlock(&dataLen, 4);
 
@@ -78,6 +82,7 @@ AnimList readBnkFile(Stream st) {
         }
         alist.animations ~= anim;
     }
+    writefln();
     return alist;
 }
 

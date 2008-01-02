@@ -1,4 +1,4 @@
-module tools.unworms;
+module wwptools.unworms;
 
 import devil.image;
 import std.stream;
@@ -18,6 +18,7 @@ void do_unworms(char[] filename, char[] outputDir) {
 
     char[4] hdr;
     st.readBlock(hdr.ptr, 4);
+    st.seek(0, SeekPos.Set);
     if (hdr in registeredReaders) {
         writefln("Extracting from '%s'...",path.getBaseName(filename));
         WWPReader readFunc = registeredReaders[hdr];

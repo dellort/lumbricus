@@ -1,5 +1,8 @@
 ///description of the binary file formats produced used for some resources
-module common.resfileformats;
+module framework.resfileformats;
+
+import str = std.string: toString, split;
+import std.conv: toShort;
 
 struct FileAtlasTexture {
 align(1):
@@ -7,6 +10,28 @@ align(1):
     short w, h; //size
     short page; //specified in the text .conf file
     short _pad0;//align to next power of 2 lol
+
+    char[] toString() {
+        return str.toString(x) ~ ' ' ~ str.toString(y) ~ ' '
+            ~ str.toString(w) ~ ' ' ~ str.toString(h) ~ ' '
+            ~ str.toString(page);
+    }
+
+    static FileAtlasTexture parseString(char[] s) {
+        FileAtlasTexture ret;
+        char[][] values = str.split(s);
+        assert(values.length >= 4);
+        ret.x = toShort(values[0]);
+        ret.y = toShort(values[1]);
+        ret.w = toShort(values[2]);
+        ret.h = toShort(values[3]);
+        if (values.length > 4) {
+            ret.page = toShort(values[4]);
+        } else {
+            ret.page = 0;
+        }
+        return ret;
+    }
 }
 
 struct FileAtlas {

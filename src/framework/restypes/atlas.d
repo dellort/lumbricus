@@ -40,16 +40,25 @@ class AtlasResource : ResourceBase!(Atlas) {
         auto atlas = new Atlas();
 
         foreach (char[] key, char[] value; node.getSubNode("pages")) {
-            atlas.mPages ~= gFramework.loadImage(value);
+            atlas.mPages ~= gFramework.loadImage(node.fixPathValue(value));
         }
 
-        scope f = gFramework.fs.open(node.getStringValue("meta"));
-        //xxx I shouldn't load stuff directly (endian issues), but who cares?
-        FileAtlas header;
-        f.readExact(&header, header.sizeof);
         FileAtlasTexture[] textures;
-        textures.length = header.textureCount;
-        f.readExact(textures.ptr, typeof(textures[0]).sizeof*textures.length);
+        if (node.hasNode("meta")) {
+            //meta node contains a list of strings with texture information
+            foreach (char[] dummy, char[] metav; node.getSubNode("meta")) {
+                textures ~= FileAtlasTexture.parseString(metav);
+            }
+        } else {
+            //meta data is read from a binary file
+            scope f = gFramework.fs.open(node.getPathValue("meta"));
+            //xxx I shouldn't load stuff directly (endian issues), but who cares?
+            FileAtlas header;
+            f.readExact(&header, header.sizeof);
+            textures.length = header.textureCount;
+            f.readExact(textures.ptr,
+                typeof(textures[0]).sizeof*textures.length);
+        }
         atlas.mTextures = textures;
 
         mContents = atlas;

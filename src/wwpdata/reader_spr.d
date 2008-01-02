@@ -12,7 +12,11 @@ struct WWPSprFrameHdr {
     ushort x1, y1, x2, y2;
 }
 
-void readSpr(Stream st, char[] outputDir, char[] fnBase) {
+AnimList readSprFile(Stream st) {
+    char[4] hdr;
+    st.readBlock(hdr.ptr, 4);
+    assert(hdr == "SPR\x1A");
+
     uint dataLen;
     ubyte bpp, flags;
     st.readBlock(&dataLen, 4);
@@ -45,6 +49,11 @@ void readSpr(Stream st, char[] outputDir, char[] fnBase) {
     }
     auto alist = new AnimList;
     alist.animations ~= anim;
+    return alist;
+}
+
+void readSpr(Stream st, char[] outputDir, char[] fnBase) {
+    scope alist = readSprFile(st);
     alist.save(outputDir, fnBase);
 }
 

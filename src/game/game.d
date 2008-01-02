@@ -304,7 +304,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
             (char[] path) {
                 //a weapons file can contain resources, collision map
                 //additions and a list of weapons
-                auto wp_conf = gFramework.loadConfig(path[0..$-5]);
+                auto wp_conf = gFramework.loadConfig(dir~"/"~path[0..$-5]);
                 physicworld.loadCollisions(wp_conf.getSubNode("collisions"));
                 gFramework.resources.loadResources(wp_conf);
                 auto list = wp_conf.getSubNode("weapons");

@@ -55,7 +55,9 @@
 		<Unit filename="..\src\framework\i18n.d" />
 		<Unit filename="..\src\framework\keybindings.d" />
 		<Unit filename="..\src\framework\keysyms.d" />
+		<Unit filename="..\src\framework\resfileformats.d" />
 		<Unit filename="..\src\framework\resources.d" />
+		<Unit filename="..\src\framework\restypes\atlas.d" />
 		<Unit filename="..\src\framework\restypes\bitmap.d" />
 		<Unit filename="..\src\framework\restypes\frames.d" />
 		<Unit filename="..\src\framework\restypes\sound.d" />
@@ -163,6 +165,7 @@
 			<code_completion />
 			<envvars />
 			<debugger />
+			<lib_finder />
 		</Extensions>
 	</Project>
 </CodeBlocks_project_file>

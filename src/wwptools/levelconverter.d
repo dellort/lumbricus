@@ -1,10 +1,16 @@
 module wwptools.levelconverter;
 
-import utils.filetools;
+import aconv.atlaspacker;
 import stdf = std.file;
 import str = std.string;
 import std.stream;
 import std.conv;
+import std.stdio;
+import utils.filetools;
+import utils.vector2;
+import wwpdata.animation;
+import wwpdata.reader_spr;
+import wwptools.animconv;
 import wwptools.convert;
 import wwptools.unworms;
 
@@ -68,11 +74,22 @@ void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
     definedBitmaps ~= BmpDef("sky_gradient","gradient.png");
 
     //big background image
-    do_unworms(lvlextr~"back.spr",destPath);
-    scope(exit) remove_dir(destPath~"back");
-    scope(exit) stdf.remove(destPath~"back.meta");
-    stdf.rename(destPath~"back"~path.sep~"anim_0.png",destPath~"backdrop.png");
+    scope backSpr = new File(lvlextr~"back.spr");
+    scope AnimList backAl = readSprFile(backSpr);
+    //WWP backgrounds are animation files, although there's only one frame (?)
+    //spr file -> one animation with (at least) one frame, so this is ok
+    backAl.animations[0].frames[0].save(destPath~"backdrop.png");
     definedBitmaps ~= BmpDef("sky_backdrop","backdrop.png");
+
+    //debris with metadata
+    scope debrisPacker = new AtlasPacker("debris_atlas",Vector2i(256));
+    scope debrisAnif = new AniFile("debris", debrisPacker);
+    scope debrisSpr = new File(lvlextr~"debris.spr");
+    scope AnimList debrisAl = readSprFile(debrisSpr);
+    debrisAnif.add("debris", debrisAl.animations, [Param.Time, Param.Null],
+        Mirror.None, [], AniFlags.Repeat);
+    debrisPacker.write(destPath, true);
+    debrisAnif.write(destPath, false);
 
     //bridges
     trymkdir(destPath~"bridge");
@@ -80,8 +97,8 @@ void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
     do_unworms(lvlextr~"bridge-l.img",destPath~"bridge");
     do_unworms(lvlextr~"bridge-r.img",destPath~"bridge");
     definedBitmaps ~= BmpDef("bridge_seg","bridge/bridge.png");
-    definedBitmaps ~= BmpDef("bridge_l","bridge/bridge_l.png");
-    definedBitmaps ~= BmpDef("bridge_r","bridge/bridge_l.png");
+    definedBitmaps ~= BmpDef("bridge_l","bridge/bridge-l.png");
+    definedBitmaps ~= BmpDef("bridge_r","bridge/bridge-r.png");
 
     //floor/ceiling makeover texture
     do_unworms(lvlextr~"grass.img",tmpdir);
@@ -108,8 +125,7 @@ void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
 
     //config file
     scope levelconf = new File(destPath~"level.conf",FileMode.OutNew);
-    levelconf.writefln("resources {");
-    levelconf.writefln("  bitmaps {");
+    levelconf.writefln(LEVEL_HEADER);
     foreach (bmpd; definedBitmaps) {
         levelconf.writefln("    %s = \"%s\"",bmpd.id,bmpd.fn);
     }
@@ -129,10 +145,30 @@ void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
             obj.sideStr);
     }
     levelconf.writefln("}");
+    levelconf.close();
 }
 
 
 //unchanging part of level.conf, part 1 (yeah, backticked string literals!)
+const LEVEL_HEADER = `require_resources = "debris_atlas"
+resources {
+    aniframes {
+        debris_aniframes {
+            atlas = "debris_atlas"
+            datafile = "debris.meta"
+        }
+    }
+    animations {
+        debris {
+            index = "0"
+            aniframes = "debris_aniframes"
+            type = "complicated"
+        }
+    }
+    bitmaps {`;
+
+
+//unchanging part of level.conf, part 2
 const LEVEL_FIXED_1 = `soil_tex = "soiltex"
 
 marker_textures {
@@ -145,7 +181,7 @@ sky {
   backdrop = "sky_backdrop"`;
 
 
-//unchanging part of level.conf, part 2
+//unchanging part of level.conf, part 3
 const LEVEL_FIXED_2 = `  debris = "debris"
 }
 

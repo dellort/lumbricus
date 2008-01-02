@@ -1,4 +1,4 @@
-module tools.untile;
+module wwptools.untile;
 
 import devil.image;
 import path = std.path;

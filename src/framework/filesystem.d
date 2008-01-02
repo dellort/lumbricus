@@ -162,13 +162,15 @@ private class HandlerDirectory : HandlerInstance {
     bool listdir(VFSPath handlerPath, char[] pattern, bool findDirs,
         bool delegate(char[] filename) callback)
     {
+        char[] searchPath = handlerPath.makeAbsolute(mDirPath);
+
         bool cont = true;
         bool listdircb(stdf.DirEntry* de) {
             bool isDir = stdf.isdir(de.name) != 0;
             if (findDirs || !isDir) {
                 //listdir does a path.join with searchpath and found file,
                 //remove this
-                VFSPath vfn = VFSPath(de.name[mDirPath.length..$]);
+                VFSPath vfn = VFSPath(de.name[searchPath.length..$]);
                 //add trailing '/' for directories
                 char[] fn = vfn.get(false, isDir);
                 //match search pattern
@@ -178,8 +180,7 @@ private class HandlerDirectory : HandlerInstance {
             return true;
         }
 
-        char[] p = handlerPath.makeAbsolute(mDirPath);
-        stdf.listdir(p, &listdircb);
+        stdf.listdir(searchPath, &listdircb);
         return cont;
     }
 }

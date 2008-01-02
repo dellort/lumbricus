@@ -8,7 +8,11 @@ import wwpdata.reader;
 
 const IMG_FLAG_COMPRESSED = 0x40;
 
-void readImg(Stream st, char[] outputDir, char[] fnBase) {
+Image readImgFile(Stream st) {
+    char[4] hdr;
+    st.readBlock(hdr.ptr, 4);
+    assert(hdr == "IMG\x1A");
+
     uint dataLen;
     ubyte bpp, flags;
     st.readBlock(&dataLen, 4);
@@ -39,6 +43,11 @@ void readImg(Stream st, char[] outputDir, char[] fnBase) {
 
     auto img = new Image(w, h, false);
     img.blitRGBData(rgbData.ptr, w, h, 0, 0, false);
+    return img;
+}
+
+void readImg(Stream st, char[] outputDir, char[] fnBase) {
+    scope img = readImgFile(st);
     img.save(outputDir ~ path.sep ~ fnBase ~ ".png");
 }
 

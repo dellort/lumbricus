@@ -198,12 +198,13 @@ class AniFramesResource : ResourceBase!(AniFrames) {
     this(Resources parent, char[] id, ConfigItem item) {
         super(parent, id, item);
         mNode = castStrict!(ConfigNode)(mConfig);
-        mAtlas = gFramework.resources.resource!(AtlasResource)(mNode["atlas"]);
+        mAtlas = gFramework.resources.resource!(AtlasResource)(
+            mNode.getPathValue("atlas"));
     }
 
     protected void load() {
         mContents = new AniFrames(mAtlas.get(),
-            gFramework.fs.open(mNode["datafile"]));
+            gFramework.fs.open(mNode.getPathValue("datafile")));
     }
 
     static this() {
@@ -232,7 +233,7 @@ class ComplicatedAnimation : Animation {
 
     this(ConfigNode node) {
         AniFrames frames = gFramework.resources.resource!(AniFramesResource)
-            (node["aniframes"]).get();
+            (node.getPathValue("aniframes")).get();
         mImages = frames.images;
         int index = node.getIntValue("index", -1);
         mFrames = frames.frames(index);
