@@ -14,10 +14,8 @@ struct MyBox {
             //what is used depends from size of stored type (mType)
             //(as in Phobo's boxer.d, try to avoid dynamic memory allocation)
             void[] mDynamicData;
-            void[8] mStaticData;
+            void[mDynamicData.sizeof] mStaticData;
         }
-
-        static assert(this.sizeof == 12);
     }
 
     /// Box data (should work like assignment if there's no opAssign).

@@ -248,6 +248,15 @@ void do_animconv(ConfigNode animConf, char[] workPath) {
         gPacker = new AtlasPacker(bnkname ~ "_atlas");
         gAnims = new AniFile(bnkname, gPacker);
 
+        //if this is true, _all_ bitmaps are loaded from the .bnk-file, even if
+        //they're not needed
+        const bool cLoadAll = false;
+        if (cLoadAll) {
+            foreach (ani; gAnimList.animations) {
+                ani.savePacked(gPacker);
+            }
+        }
+
         foreach (ConfigNode item; bnkNode) {
             if (!(item.name in gAnimationLoadHandlers))
                 throw new Exception("no handler found for: "~item.name);

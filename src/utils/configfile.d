@@ -848,22 +848,8 @@ public class ConfigFile {
         next();
     }
 
-    //(just a test function)
-    /*public void schnitzel() {
-        Token token;
-        char[] str;
-        char[] comm;
-        init_parser();
-        while (nextToken(token, str, comm)) {
-            mErrorOut.writefln("token %s with >%s<, comm=>%s<", cast(int)token, str, comm);
-            if (token == Token.EOF)
-                break;
-        }
-        mErrorOut.writefln("no more tokens");
-    }*/
-
     private struct Position {
-        uint bytePos = 0;
+        size_t bytePos = 0;
         uint charPos = 0;
         uint line = 1;
         uint column = 0;
@@ -984,7 +970,7 @@ public class ConfigFile {
             //check string and replace characters that produce encoding errors
             //due to the copying and the exception handling this is S.L.O.W.
             char[] args = slice.dup;
-            for (uint i = 0; i < args.length; i++) {
+            for (size_t i = 0; i < args.length; i++) {
                 try {
                     //(decode modifies i)
                     utf.decode(args, i);

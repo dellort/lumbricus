@@ -482,6 +482,7 @@ class Framework {
 
     private void killDriver() {
         releaseCaches();
+        assert(mDriverSurfaces.length == 0);
         mDriver.destroy();
         mDriver = null;
     }

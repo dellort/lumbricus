@@ -111,9 +111,8 @@ class WeaponSelWindow : Container {
             mGrid = null;
         }
         //xxx this is all a bit fragile and was written at deep night
-        //first recreate the rows and find out required box size
+        //first recreate the rows
         mRows = null;
-        uint x_max;
         foreach (c; mCategories) {
             mRows[c] = [];
         }
@@ -132,26 +131,18 @@ class WeaponSelWindow : Container {
             auto arr = mRows[c];
             arr ~= w;
             mRows[c] = arr;
-            x_max = max(x_max, arr.length);
-        }
-        //one box for the shortcut
-        x_max++;
-        //count rows
-        uint y_max;
-        foreach (wlist; mRows) {
-            if (wlist.length > 0 || showEmpty)
-                y_max++;
         }
         //create table and insert stuff
-        mGrid = new TableContainer(x_max, y_max, Vector2i(3,3));//, [true, true]);
+        mGrid = new TableContainer(1, 0, Vector2i(3,3));//, [true, true]);
         //mGrid.forceExpand = true;
         //go with the order of categories
-        int y = 0;
         foreach (category; mCategories) {
             auto pwlist = category in mRows;
             if (!showEmpty && (!pwlist || !(*pwlist).length)) {
                 continue;
             }
+
+            int y = mGrid.addRow();
 
             assert(pwlist !is null);
             Weapon[] wlist = *pwlist;
@@ -175,12 +166,14 @@ class WeaponSelWindow : Container {
                 button.onClick = &clickWeapon;
                 button.onMouseOver = &mouseoverWeapon;
                 button.drawBorder = false;
+
+                if (x >= mGrid.width) {
+                    mGrid.setSize(x+1, mGrid.height);
+                }
                 mGrid.add(button, x, y, WidgetLayout.Noexpand);
 
                 x++;
             }
-
-            y++;
         }
 
         //re-add it

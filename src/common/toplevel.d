@@ -782,7 +782,7 @@ class AniTest : Task {
 //(maybe configfile schema, generic handling of datatypes)
 class SwitchDriver : Task {
     char[][] configs = ["enable_caching", "mark_alpha", "open_gl",
-        "gl_debug_wireframe", "font_packer"];
+        "gl_debug_wireframe", "font_packer", "lowquality"];
 
     Button[] mChks;
 

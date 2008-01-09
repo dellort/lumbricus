@@ -44,6 +44,11 @@ class GLSurface : SDLDriverSurface {
         }
     }
 
+    override void kill() {
+        releaseSurface();
+        super.kill();
+    }
+
     void reinit() {
         releaseSurface();
 
@@ -245,7 +250,6 @@ class GLCanvas : Canvas {
     void stopScreenRendering() {
         endDraw();
 
-        //TODO: Software backbuffer (or not... not needed with X11/windib)
         gSDLDriver.mFlipTime.start();
         SDL_GL_SwapBuffers();
         gSDLDriver.mFlipTime.stop();
@@ -272,7 +276,16 @@ class GLCanvas : Canvas {
         glLoadIdentity();
 
         glDisable(GL_SCISSOR_TEST);
-        glEnable(GL_LINE_SMOOTH);
+
+        bool lowquality = gSDLDriver.mOpenGL_LowQuality;
+        if (!lowquality) {
+            glEnable(GL_LINE_SMOOTH);
+        } else {
+            glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST);
+            glDisable(GL_DITHER);
+            //glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
+            glShadeModel(GL_FLAT);
+        }
     }
 
     public Vector2i realSize() {

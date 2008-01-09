@@ -81,6 +81,18 @@ void drawBox(Canvas c, ref Vector2i p, ref Vector2i s, ref BoxProperties props)
     c.drawFilledRect(p + q, p + s - q, props.back, true);
 }
 
+///draw a circle with its center at the specified position
+///props.cornerRadius is the radius of the circle to be drawn
+void drawCircle(Canvas c, Vector2i pos, BoxProperties props) {
+    Vector2i p1, p2;
+    auto d = Vector2i(props.cornerRadius);
+    p1 = pos - d;
+    //NOTE: could speed up drawing by not trying to draw the side textures and
+    //  the interior; add special cases to drawBox if this becomes important
+    //  (only tex.corners had to be drawn once, since it shows already a circle)
+    drawBox(c, p1, d*2, props);
+}
+
 struct BoxProperties {
     int borderWidth = 1, cornerRadius = 5;
     Color border, back = {1,1,1};
@@ -104,6 +116,7 @@ struct BoxTex {
     //corners: quadratic bitmap which looks like
     //         | left-top    |    right-top |
     //         | left-bottom | right-bottom |
+    //this is actually simply a circle, which is used by drawCircle
     Texture corners;
     //sides[0]: | top x-axis    |
     //          | bottom x-axis |
@@ -156,6 +169,12 @@ BoxTex getBox(BoxProps props) {
     auto t = props in boxes;
     if (t)
         return *t;
+
+    auto orgprops = props;
+
+    //avoid blending in of colors which shouldn't be there
+    if (props.p.borderWidth <= 0)
+        props.p.border = props.p.back;
 
     //border color used, except for circle; circle modifies alpha scaling itself
     Color border = props.p.border;
@@ -272,7 +291,7 @@ BoxTex getBox(BoxProps props) {
     drawCorner(corners);
 
     //store struct with texture refs in hashmap
-    boxes[props] = BoxTex(corners.createTexture(), sides);
-    return boxes[props];
+    boxes[orgprops] = BoxTex(corners.createTexture(), sides);
+    return boxes[orgprops];
 }
 

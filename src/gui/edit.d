@@ -297,9 +297,9 @@ uint findPrevWord(char[] str, uint pos) {
 }
 
 //little helpers
-bool isSpace(char[] s, uint pos) {
+bool isSpace(char[] s, size_t pos) {
     return isspace(utf.decode(s, pos)) != 0;
 }
-bool isWord(char[] s, uint pos) {
+bool isWord(char[] s, size_t pos) {
     return isUniAlpha(utf.decode(s, pos)) != 0;
 }

@@ -278,7 +278,7 @@ class SDLDriver : FrameworkDriver {
         SDL_PixelFormat mRGBA32, mPFScreen, mPFAlphaScreen;
 
         //if OpenGL enabled (if not, use 2D SDL drawing)
-        package bool mOpenGL;
+        package bool mOpenGL, mOpenGL_LowQuality;
 
         //depending if OpenGL or plain-old-SDL-2D mode
         SDLCanvas mScreenCanvas2D;
@@ -319,6 +319,7 @@ class SDLDriver : FrameworkDriver {
         mMarkAlpha = config.getBoolValue("mark_alpha", false);
 
         mOpenGL = config.getBoolValue("open_gl", true);
+        mOpenGL_LowQuality = config.getBoolValue("lowquality", false);
         glWireframeDebug = config.getBoolValue("gl_debug_wireframe", false);
 
         mUseFontPacker = config.getBoolValue("font_packer", true);
@@ -438,7 +439,7 @@ class SDLDriver : FrameworkDriver {
 
         int vidflags = 0;
         if (mOpenGL) {
-            SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
+            //SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
             SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
             //OpenGL flags for SDL_SetVideoMode
@@ -446,7 +447,7 @@ class SDLDriver : FrameworkDriver {
         }
         else
             //SDL only flags for SDL_SetVideoMode
-            vidflags |= SDL_HWSURFACE | SDL_DOUBLEBUF;
+            vidflags |= SDL_SWSURFACE | SDL_DOUBLEBUF;
         if (state.fullscreen)
             vidflags |= SDL_FULLSCREEN;
         else
@@ -460,6 +461,10 @@ class SDLDriver : FrameworkDriver {
         }
         mSDLScreen = newscreen;
         mPFScreen = *(mSDLScreen.format);
+
+        if (mScreenCanvasGL) {
+            //xxx move call to GL initialization here
+        }
 
         //xxx: oh well... but it was true for both 32 bit and 16 bit screenmodes
         mPFAlphaScreen = mRGBA32;
