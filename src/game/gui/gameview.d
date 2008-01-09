@@ -41,6 +41,10 @@ class GuiAnimator : Widget {
         mAnimator.setAnimation(ani);
         needResize(true);
     }
+
+    void setPositionCentered(Vector2i newPos) {
+        adjustPosition(newPos - mAnimator.bounds.size/2);
+    }
 }
 
 //GameView is everything which is scrolled
@@ -375,7 +379,7 @@ class GameView : Container, TeamMemberControlCallback {
                     mPointedFor = cur;
                     mPointed.animation = mEngineMemberToOurs[cur].team
                         .animations.pointed.get;
-                    mPointed.adjustPosition(mousePos-mPointed.size/2);
+                    mPointed.setPositionCentered(mousePos);
                 }
                 return true;
             }

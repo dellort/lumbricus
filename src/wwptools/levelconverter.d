@@ -130,7 +130,8 @@ void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
         levelconf.writefln("    %s = \"%s\"",bmpd.id,bmpd.fn);
     }
     levelconf.writefln("  }");
-    levelconf.writefln("}\n");
+    levelconf.writefln("}");
+    levelconf.writefln();
 
     levelconf.writefln("bordercolor = \"%.6f %.6f %.6f\"",colground.r,
         colground.g,colground.b);
@@ -150,26 +151,26 @@ void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
 
 
 //unchanging part of level.conf, part 1 (yeah, backticked string literals!)
-const LEVEL_HEADER = `require_resources = "debris_atlas"
+char[] LEVEL_HEADER = `require_resources = "debris_atlas"
 resources {
-    aniframes {
-        debris_aniframes {
-            atlas = "debris_atlas"
-            datafile = "debris.meta"
-        }
+  aniframes {
+    debris_aniframes {
+      atlas = "debris_atlas"
+      datafile = "debris.meta"
     }
-    animations {
-        debris {
-            index = "0"
-            aniframes = "debris_aniframes"
-            type = "complicated"
-        }
+  }
+  animations {
+    debris {
+      index = "0"
+      aniframes = "debris_aniframes"
+      type = "complicated"
     }
-    bitmaps {`;
+  }
+  bitmaps {`;
 
 
 //unchanging part of level.conf, part 2
-const LEVEL_FIXED_1 = `soil_tex = "soiltex"
+char[] LEVEL_FIXED_1 = `soil_tex = "soiltex"
 
 marker_textures {
   LAND = "land"
@@ -182,7 +183,7 @@ sky {
 
 
 //unchanging part of level.conf, part 3
-const LEVEL_FIXED_2 = `  debris = "debris"
+char[] LEVEL_FIXED_2 = `  debris = "debris"
 }
 
 bridge {
@@ -220,3 +221,13 @@ borders {
   }
 }
 `;
+
+version(Windows) {
+//xxx nasty hack to fix EOL characters on Windows, as backticked strings
+//contain only "\x0A" as end-of-line char
+static this() {
+    LEVEL_HEADER = str.replace(LEVEL_HEADER, "\x0A","\x0D\x0A");
+    LEVEL_FIXED_1 = str.replace(LEVEL_FIXED_1, "\x0A","\x0D\x0A");
+    LEVEL_FIXED_2 = str.replace(LEVEL_FIXED_2, "\x0A","\x0D\x0A");
+}
+}
