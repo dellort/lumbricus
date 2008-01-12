@@ -22,6 +22,33 @@ import utils.configfile;
 import utils.random : random;
 import std.math : PI;
 
+class GfxInfos {
+    ResourceSet resources;
+
+    //indexed by team color
+    PerTeamAnim[] teamAnims;
+
+    Color waterColor;
+
+    void load() {
+        teamAnims.length = cTeamColors.length;
+        foreach (int n, char[] color; cTeamColors) {
+            auto cur = &teamAnims[n];
+
+            Resource!(Animation) loadanim(char[] node) {
+                return resources.resource!(Animation)(node ~ "_" ~ color);
+            }
+
+            cur.arrow = loadanim("darrow");
+            cur.pointed = loadanim("pointed");
+            cur.change = loadanim("change");
+            cur.cursor = loadanim("point");
+            cur.click = loadanim("click");
+            cur.aim = loadanim("aim");
+        }
+    }
+}
+
 struct PerTeamAnim {
     Resource!(Animation) arrow;
     Resource!(Animation) pointed;
@@ -80,6 +107,7 @@ class ClientGameEngine {
     private List!(ClientGraphic) mGraphics;
 
     ResourceSet resources;
+    GfxInfos gfx;
 
     //stuff cached/received/duplicated from the engine
     //(remind that mEngine might disappear because of networking)
@@ -113,15 +141,12 @@ class ClientGameEngine {
     //private WormNameDrawer mDrawer;
     private LevelDrawer mLevelDrawer;
 
-    //indexed by team color
-    private PerTeamAnim[] mTeamAnims;
-
     private PerfTimer mGameDrawTime;
 
     //needed by gameview.d (where all this stuff is drawn)
     //you can move it around if you want
     PerTeamAnim getTeamAnimations(Team t) {
-        return mTeamAnims[t.color];
+        return gfx.teamAnims[t.color];
     }
 
     //inefficient because O(n)
@@ -134,9 +159,10 @@ class ClientGameEngine {
         return null;
     }
 
-    this(GameEnginePublic engine, ResourceSet a_resources) {
+    this(GameEnginePublic engine, GfxInfos a_gfx) {
         mEngine = engine;
-        resources = a_resources;
+        gfx = a_gfx;
+        resources = gfx.resources;
 
         mGraphics = new typeof(mGraphics)(ClientGraphic.node.getListNodeOffset());
 
@@ -160,23 +186,7 @@ class ClientGameEngine {
 
         resize(worldSize);
 
-        mTeamAnims.length = cTeamColors.length;
-        foreach (int n, char[] color; cTeamColors) {
-            auto cur = &mTeamAnims[n];
-
-            Resource!(Animation) loadanim(char[] node) {
-                return resources.resource!(Animation)(node ~ "_" ~ color);
-            }
-
-            cur.arrow = loadanim("darrow");
-            cur.pointed = loadanim("pointed");
-            cur.change = loadanim("change");
-            cur.cursor = loadanim("point");
-            cur.click = loadanim("click");
-            cur.aim = loadanim("aim");
-        }
-
-        mGameWater = new GameWater(this, "blue");
+        mGameWater = new GameWater(this);
         mZScenes[GameZOrder.BackWater].add(mGameWater.scenes[GameWater.Z.back]);
         mZScenes[GameZOrder.LevelWater].add(mGameWater.scenes[GameWater.Z.level]);
         mZScenes[GameZOrder.FrontWater].add(mGameWater.scenes[GameWater.Z.front]);

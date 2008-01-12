@@ -6,25 +6,17 @@ import path = std.path;
 import std.process;
 import std.stdio;
 import std.stream;
-import std.string : tolower, split;
+import std.string : tolower, split, format;
 import std.conv: toUbyte;
 import utils.filetools;
 import utils.configfile;
+import wwpdata.animation;
 import wwpdata.common;
+import wwpdata.reader_spr;
 import wwptools.levelconverter;
 import wwptools.untile;
 import wwptools.unworms;
 import wwptools.animconv;
-
-struct WaterDef {
-    char[] dirName, id;
-    char[] path = "";
-    float r = 0.0f, g = 0.0f, b = 1.0f;
-}
-
-WaterDef[] waterColors = [{"Blue", "blue"}, {"Blue2", "blue2"},
-    {"Green", "green"}, {"Purple", "purple"}, {"Red", "red"},
-    {"yellow", "yellow"}];
 
 void do_extractdata(char[] wormsDir, char[] outputDir) {
     char[] tmpdir = ".";
@@ -33,13 +25,6 @@ void do_extractdata(char[] wormsDir, char[] outputDir) {
     if (!stdf.exists(gfxdirp)) {
         throw new Exception("Invalid directory! Gfx.dir not found.");
     }
-    foreach (ref WaterDef w; waterColors) {
-        w.path = wormsDir~path.sep~"data"~path.sep~"Water"~path.sep
-            ~w.dirName~path.sep;
-        if (!stdf.exists(w.path)) {
-            throw new Exception("Invalid directory! Water.dir not found.");
-        }
-    }
     scope iconnames = new File("iconnames.txt",FileMode.In);
 
     //****** Extract WWP .dir files ******
@@ -47,27 +32,6 @@ void do_extractdata(char[] wormsDir, char[] outputDir) {
     do_unworms(gfxdirp, tmpdir);
     scope(exit) remove_dir(tmpdir~path.sep~"Gfx");
     char[] gfxextr = tmpdir~path.sep~"Gfx"~path.sep;
-    //extract water (creating dir "Water")
-    foreach (ref WaterDef w; waterColors) {
-        do_unworms(w.path~"Water.dir", tmpdir);
-        scope(exit) remove_dir(tmpdir~path.sep~"Water");
-        char[] waterextr = tmpdir~path.sep~"Water"~path.sep;
-        //rename water.bnk to water_<color>.bnk, layer.spr to waves_<color>.spr
-        stdf.rename(waterextr~"water.bnk",
-            outputDir~path.sep~"water_"~w.id~".bnk");
-        stdf.rename(waterextr~"layer.spr",
-            tmpdir~path.sep~"waves_"~w.id~".spr");
-        scope colourtxt = new File(w.path~"colour.txt", FileMode.In);
-        char[][] colRGB = split(colourtxt.readLine());
-        assert(colRGB.length == 3);
-        w.r = cast(float)toUbyte(colRGB[0])/255.0f;
-        w.g = cast(float)toUbyte(colRGB[1])/255.0f;
-        w.b = cast(float)toUbyte(colRGB[2])/255.0f;
-    }
-    scope(exit) foreach (ref WaterDef w; waterColors) {
-        stdf.remove(outputDir~path.sep~"water_"~w.id~".bnk");
-        stdf.remove(tmpdir~path.sep~"waves_"~w.id~".spr");
-    }
 
     //****** Weapon icons ******
     //xxx box packing?
@@ -99,9 +63,46 @@ void do_extractdata(char[] wormsDir, char[] outputDir) {
     //run animconv
     do_animconv(animConf, outputDir~path.sep);
 
-    //xxx box packing, water.conf
-    //extract waves_blue.spr to output dir
-    //do_unworms(waterextr~"waves_blue.spr",outputDir);
+    //extract water sets (uses animconv too)
+    //xxx: like level set, enum subdirectories (code duplication?)
+    char[] waterpath = wormsDir~path.sep~"data"~path.sep~"Water";
+    char[] all_waterout = outputDir~path.sep~"water";
+    trymkdir(all_waterout);
+    char[][] waters = stdf.listdir(waterpath);
+    foreach (wdir; waters) {
+        char[] wpath = waterpath~path.sep~wdir;
+        char[] id = tolower(wdir);
+        char[] waterout = outputDir~path.sep~"water"~path.sep~id~path.sep;
+        trymkdir(waterout);
+        //lame check if it's a water dir
+        if (stdf.isdir(wpath) && stdf.exists(wpath~path.sep~"Water.dir")) {
+            writefln("Converting water set '%s'", id);
+            char[] tmp = tmpdir~path.sep~"watertmp"~path.sep;
+            char[] extrp = tmp~"Water"~path.sep;
+            trymkdir(tmp);
+            do_unworms(wpath~path.sep~"Water.dir", tmp);
+            do_extractbnk("water_anims", extrp~"water.bnk",
+                animConf.getSubNode("water_anims"), waterout);
+
+            auto spr = new File(extrp~"layer.spr", FileMode.In);
+            AnimList water = readSprFile(spr);
+            spr.close();
+            do_write_anims(water, animConf.getSubNode("water_waves"), "waves",
+                waterout);
+
+            scope colourtxt = new File(wpath~path.sep~"colour.txt", FileMode.In);
+            char[][] colRGB = split(colourtxt.readLine());
+            assert(colRGB.length == 3);
+            auto r = cast(float)toUbyte(colRGB[0])/255.0f;
+            auto g = cast(float)toUbyte(colRGB[1])/255.0f;
+            auto b = cast(float)toUbyte(colRGB[2])/255.0f;
+            auto conf = WATER_P1 ~ format("%.2f %.2f %.2f", r, g, b) ~ WATER_P2;
+            stdf.write(waterout~"water.conf", conf);
+
+            //remove temporary files
+            remove_dir(tmp);
+        }
+    }
 
     //****** Level sets ******
     char[] levelspath = wormsDir~path.sep~"data"~path.sep~"Level";
@@ -147,3 +148,13 @@ int main(char[][] args)
     }
     return 0;
 }
+
+//water.conf; parts before and after the water color
+char[] WATER_P1 = `//automatically created by extractdata
+require_resources {
+    "water_anims.conf"
+    "waves.conf"
+}
+color = "`;
+char[] WATER_P2 = `"
+`;

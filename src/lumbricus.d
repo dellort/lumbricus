@@ -34,7 +34,7 @@ import common.resview;
 import net.enet_test;
 //import net.test;
 
-import test;
+//import test;
 
 const char[] APP_ID = "lumbricus";
 

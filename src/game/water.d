@@ -81,7 +81,7 @@ class GameWater {
     }
     Scene[Z.max+1] scenes;  //back, level, front
 
-    this(ClientGameEngine engine, char[] waterType) {
+    this(ClientGameEngine engine) {
         foreach (inout s; scenes) {
             s = new Scene();
             s.rect = engine.scene.rect;
@@ -90,10 +90,8 @@ class GameWater {
         size = engine.scene.size;
 
         mEngine = engine;
-        ConfigNode waterConf = gFramework.loadConfig("water");
-        ConfigNode waterNode = waterConf.getSubNode(waterType);
-        Color waterColor;
-        waterColor.parse(waterNode.getStringValue("color"));
+        Color waterColor = engine.gfx.waterColor;
+
         mWaterDrawerFront1 = new WaterDrawerFront1(this, waterColor);
         scenes[Z.front].add(mWaterDrawerFront1);
         mWaterDrawerFront2 = new WaterDrawerFront2(this, waterColor);
@@ -101,7 +99,7 @@ class GameWater {
         mWaterDrawerBack = new WaterDrawerBack(this, waterColor);
         scenes[Z.back].add(mWaterDrawerBack);
         //try {
-            mWaveAnim = mEngine.resources.get!(Animation)(waterNode["waves"]);
+            mWaveAnim = mEngine.resources.get!(Animation)("water_waves");
             foreach (int i, inout a; mWaveAnimBack) {
                 a = new HorizontalFullsceneAnimator();
                 a.animator = new Animator();

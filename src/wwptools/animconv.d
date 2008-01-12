@@ -235,44 +235,62 @@ class AniFile {
 }
 
 void do_animconv(ConfigNode animConf, char[] workPath) {
+    auto batch = animConf.getSubNode("batch_bnks");
+
+    foreach (char[] bnkname, ConfigNode bnkNode; batch) {
+        do_extractbnk(bnkname, workPath ~ bnkname ~ ".bnk", bnkNode, workPath);
+    }
+}
+
+void do_extractbnk(char[] bnkname, char[] bnkfile, ConfigNode bnkNode,
+    char[] workPath)
+{
     if (workPath.length == 0) {
         workPath = "."~path.sep;
     }
 
-    foreach (char[] bnkname, ConfigNode bnkNode; animConf) {
-        writefln("Working on %s",bnkname);
-        scope bnkf = new File(workPath ~ bnkname ~ ".bnk");
-        gAnimList = readBnkFile(bnkf);
+    writefln("Working on %s",bnkname);
+    scope bnkf = new File(bnkfile);
+    auto anis = readBnkFile(bnkf);
+    do_write_anims(anis, bnkNode, bnkname, workPath);
+}
 
-        //NOTE: of course one could use one atlas or even one AniFile for all
-        // animations, didn't just do that yet to avoid filename collisions
-        gPacker = new AtlasPacker(bnkname ~ "_atlas");
-        gAnims = new AniFile(bnkname, gPacker);
+void do_write_anims(AnimList anims, ConfigNode config, char[] name,
+    char[] workPath)
+{
+    //wtf?
+    gAnimList = anims;
 
-        //if this is true, _all_ bitmaps are loaded from the .bnk-file, even if
-        //they're not needed
-        const bool cLoadAll = false;
-        if (cLoadAll) {
-            foreach (ani; gAnimList.animations) {
-                ani.savePacked(gPacker);
-            }
+    //NOTE: of course one could use one atlas or even one AniFile for all
+    // animations, didn't just do that yet to avoid filename collisions
+    gPacker = new AtlasPacker(name ~ "_atlas");
+    gAnims = new AniFile(name, gPacker);
+
+    writefln("...writing %s...", name);
+
+    //if this is true, _all_ bitmaps are loaded from the .bnk-file, even if
+    //they're not needed
+    const bool cLoadAll = false;
+    if (cLoadAll) {
+        foreach (ani; gAnimList.animations) {
+            ani.savePacked(gPacker);
         }
-
-        foreach (ConfigNode item; bnkNode) {
-            if (!(item.name in gAnimationLoadHandlers))
-                throw new Exception("no handler found for: "~item.name);
-            auto handler = gAnimationLoadHandlers[item.name];
-            foreach (ConfigItem sub; item) {
-                handler(sub);
-            }
-        }
-
-        gPacker.write(workPath);
-        gAnims.write(workPath);
-
-        gPacker = null;
-        gAnims = null;
     }
+
+    foreach (ConfigNode item; config) {
+        if (!(item.name in gAnimationLoadHandlers))
+            throw new Exception("no handler found for: "~item.name);
+        auto handler = gAnimationLoadHandlers[item.name];
+        foreach (ConfigItem sub; item) {
+            handler(sub);
+        }
+    }
+
+    gPacker.write(workPath);
+    gAnims.write(workPath);
+
+    gPacker = null;
+    gAnims = null;
 }
 
 //item must be a ConfigValue and contain exactly n entries

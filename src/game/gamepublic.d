@@ -45,6 +45,8 @@ struct GameConfig {
     //objects which shall be created and placed into the level at initialization
     //(doesn't include the worms, ???)
     ConfigNode levelobjects;
+    //name of the water-set
+    char[] watergfx;
 }
 
 enum GraphicEventType {

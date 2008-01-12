@@ -151,7 +151,8 @@ void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
 
 
 //unchanging part of level.conf, part 1 (yeah, backticked string literals!)
-char[] LEVEL_HEADER = `require_resources {
+char[] LEVEL_HEADER = `//automatically created by extractdata
+require_resources {
   "debris_atlas.conf"
 }
 resources {

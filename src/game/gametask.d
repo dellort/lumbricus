@@ -31,6 +31,7 @@ import utils.configfile;
 
 import std.stream;
 import std.outbuffer;
+import path = std.path;
 
 //these imports register classes in a factory on module initialization
 import game.projectile;
@@ -45,6 +46,7 @@ class GameTask : Task {
         GameEngineAdmin mGameAdmin;
         ClientGameEngine mClientEngine;
         ResourceSet mResources;
+        GfxInfos mGfx;
 
         GameFrame mWindow;
 
@@ -165,19 +167,35 @@ class GameTask : Task {
 
     private bool initClientEngine() {
         //log("initClientEngine");
-        mClientEngine = new ClientGameEngine(mServerEngine, mResources);
+        mClientEngine = new ClientGameEngine(mServerEngine, mGfx);
         return true;
     }
 
     //periodically called by loader (until we return false)
     private bool initLoadResources() {
         if (!mResPreloader) {
+            mGfx = new GfxInfos();
+
             ResourceItem[] reslist;
             //have to select graphic set here
             //you also would load a selected waterset resource file here and
             //  append it to the reslist
             auto graphics = gFramework.resources.loadResources("wwp.conf");
             reslist ~= graphics.getAll();
+
+            //add water resources!
+            //xxx: need a not-hardcoded default
+            char[] water = mGameConfig.watergfx;
+            if (water == "")
+                water = "blue";
+            auto waterfile = "water"~path.sep~water~path.sep~"water.conf";
+            auto watergfx = gFramework.resources.loadResources(waterfile);
+            reslist ~= watergfx.getAll();
+
+            //parse the water color; the server wouldn't need this!
+            auto waterconf = gFramework.loadConfig(waterfile, true);
+            mGfx.waterColor.parse(waterconf["color"]);
+
             //load all items in reslist
             mResPreloader = gFramework.resources.createPreloader(reslist);
             mLoadScreen.secondaryActive = true;
@@ -193,6 +211,8 @@ class GameTask : Task {
             mResources = mResPreloader.createSet();
             mResources.seal(); //disallow addition of more resources
             mResPreloader = null;
+            mGfx.resources = mResources;
+            mGfx.load();
             return true;
         }
     }
@@ -424,6 +444,8 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
     cfg.gamemode = modes.getSubNode(
         mConfig.getStringValue("gamemode",""));
     cfg.weapons = gamemodecfg.getSubNode("weapon_sets");
+
+    cfg.watergfx = mConfig["watergfx"];
 
     return cfg;
 }
