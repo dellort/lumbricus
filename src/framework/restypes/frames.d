@@ -189,22 +189,16 @@ class AniFrames {
     }
 }
 
-class AniFramesResource : ResourceBase!(AniFrames) {
-    private {
-        AtlasResource mAtlas; //"preload"
-        ConfigNode mNode;
-    }
-
-    this(Resources parent, char[] id, ConfigItem item) {
-        super(parent, id, item);
-        mNode = castStrict!(ConfigNode)(mConfig);
-        mAtlas = gFramework.resources.resource!(AtlasResource)(
-            mNode.getPathValue("atlas"));
+class AniFramesResource : ResourceItem {
+    this(ResourceFile context, char[] id, ConfigItem item) {
+        super(context, id, item);
     }
 
     protected void load() {
-        mContents = new AniFrames(mAtlas.get(),
-            gFramework.fs.open(mNode.getPathValue("datafile")));
+        auto node = castStrict!(ConfigNode)(mConfig);
+        auto atlas = castStrict!(Atlas)(mContext.find(node["atlas"]).get());
+        mContents = new AniFrames(atlas,
+            gFramework.fs.open(mContext.fixPath(node["datafile"])));
     }
 
     static this() {
@@ -231,9 +225,7 @@ class ComplicatedAnimation : Animation {
         Atlas mImages;
     }
 
-    this(ConfigNode node) {
-        AniFrames frames = gFramework.resources.resource!(AniFramesResource)
-            (node.getPathValue("aniframes")).get();
+    this(ConfigNode node, AniFrames frames) {
         mImages = frames.images;
         int index = node.getIntValue("index", -1);
         mFrames = frames.frames(index);
@@ -306,9 +298,9 @@ class ComplicatedAnimation : Animation {
 //resource for animation frames
 //will load the anim file on get()
 //config item   type = "xxx"   chooses Animation implementation
-class AnimationResource : ResourceBase!(Animation) {
-    this(Resources parent, char[] id, ConfigItem item) {
-        super(parent, id, item);
+class AnimationResource : ResourceItem {
+    this(ResourceFile context, char[] id, ConfigItem item) {
+        super(context, id, item);
     }
 
     protected void load() {
@@ -317,27 +309,25 @@ class AnimationResource : ResourceBase!(Animation) {
         char[] type = node.getStringValue("type", "");
         switch (type) {
             case "strip":
-                char[] fn = node.getPathValue("file");
+                char[] fn = mContext.fixPath(node["file"]);
                 int frameWidth = node.getIntValue("frame_width", -1);
                 mContents = new AnimationStrip(fn, frameWidth);
                 break;
             case "complicated":
-                mContents = new ComplicatedAnimation(node);
+                auto frames = castStrict!(AniFrames)(
+                    mContext.find(node["aniframes"]).get());
+                mContents = new ComplicatedAnimation(node, frames);
                 break;
             default:
                 //assuming the "prehistoric" thingy used in level themes
-                char[] fn = node.getPathValue("image");
+                char[] fn = mContext.fixPath(node["image"]);
                 int frameWidth = node.getIntValue("width", -1);
-                mContents = new AnimationStrip(fn, frameWidth);
-                mContents.repeat = node.getBoolValue("repeat", true);
+                auto ani = new AnimationStrip(fn, frameWidth);
+                ani.repeat = node.getBoolValue("repeat", true);
+                mContents = ani;
                 break;
                 //assert(false, "Invalid frame resource type");
         }
-    }
-
-    override protected void doUnload() {
-        mContents = null; //let the GC do the work
-        super.doUnload();
     }
 
     static this() {

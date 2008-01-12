@@ -160,23 +160,10 @@ private:
         keybindings = new KeyBindings();
         keybindings.loadFrom(gFramework.loadConfig("binds").getSubNode("binds"));
 
-        //load a new game
-        //newGame();
-
-        /+
-        char[] start = globals.anyConfig["start"];
-        if (start.length > 0) {
-            //create an initial task
-            //don't need the instance, it'll be registered in the TaskManager
-            try {
-                TaskFactory.instantiate(start, taskManager);
-            } catch (ClassNotFoundException e) {
-                mGuiConsole.console.writefln("BIG FAT WARNING: %s", e);
-            }
-        }
-        +/
-
         auto autoexec = globals.anyConfig.getSubNode("autoexec");
+        if (globals.programArgs.findNode("exec")) {
+            autoexec = globals.programArgs.getSubNode("exec");
+        }
         foreach (char[] name, char[] value; autoexec) {
             globals.cmdLine.execute(value);
         }
@@ -334,12 +321,9 @@ private:
         write = new StreamOutput(file);
         int count;
         gFramework.resources.enumResources(
-            (char[] full, Resource res) {
+            (char[] full, ResourceItem res) {
                 write.writefln("Full=%s, Id=%s", full, res.id);
-                //write.writef(" refcount=%d,", res.refcount);
-                write.writef(" uid=%d, loaded=%s, refed=%s", res.uid,
-                    res.isLoaded, "?"); //res.isRefed);
-                write.writefln(" type=%s,", res.type);
+                write.writefln(" loaded=%s,", res.isLoaded);
                 count++;
             }
         );
@@ -353,6 +337,7 @@ private:
     }
 
     private void cmdResLoad(MyBox[] args, Output write) {
+        /+
         char[] s = args[0].unbox!(char[])();
         //hacky hacky
         auto n = new ConfigNode;
@@ -363,6 +348,7 @@ private:
         } catch (Exception e) {
             write.writefln("failed: %s", e);
         }
+        +/
     }
 
     private void cmdGrab(MyBox[] args, Output write) {

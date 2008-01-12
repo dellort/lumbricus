@@ -30,9 +30,9 @@ class Atlas {
     }
 }
 
-class AtlasResource : ResourceBase!(Atlas) {
-    this(Resources parent, char[] id, ConfigItem item) {
-        super(parent, id, item);
+class AtlasResource : ResourceItem {
+    this(ResourceFile context, char[] id, ConfigItem item) {
+        super(context, id, item);
     }
 
     protected void load() {
@@ -40,7 +40,7 @@ class AtlasResource : ResourceBase!(Atlas) {
         auto atlas = new Atlas();
 
         foreach (char[] key, char[] value; node.getSubNode("pages")) {
-            atlas.mPages ~= gFramework.loadImage(node.fixPathValue(value));
+            atlas.mPages ~= gFramework.loadImage(mContext.fixPath(value));
         }
 
         FileAtlasTexture[] textures;
@@ -51,7 +51,7 @@ class AtlasResource : ResourceBase!(Atlas) {
             }
         } else {
             //meta data is read from a binary file
-            scope f = gFramework.fs.open(node.getPathValue("meta"));
+            scope f = gFramework.fs.open(mContext.fixPath(node["meta"]));
             //xxx I shouldn't load stuff directly (endian issues), but who cares?
             FileAtlas header;
             f.readExact(&header, header.sizeof);
@@ -62,13 +62,6 @@ class AtlasResource : ResourceBase!(Atlas) {
         atlas.mTextures = textures;
 
         mContents = atlas;
-    }
-
-    override protected void doUnload() {
-        //if (mContents)
-        //    mContents.free();
-        mContents = null; //let the GC do the work
-        super.doUnload();
     }
 
     static this() {

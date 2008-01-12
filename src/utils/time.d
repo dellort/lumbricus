@@ -2,11 +2,14 @@ module utils.time;
 
 import str = std.string;
 
+//if true, use nanosecond resolution instead of milliseconds
+const bool cNS = true;
+
 //internal type for storing a time value
 private alias long TType_Int;
 
 public struct Time {
-    //represents the time value in microseconds
+    //represents the time value in microseconds (or nanoseconds if cNS == true)
     private TType_Int timeVal;
 
     public const Time Null = {0};
@@ -78,69 +81,85 @@ public struct Time {
 
     ///return string representation of value
     public char[] toString() {
-        //xxx add more formatting
+        const char[][] cTimeName = ["ns", "us", "ms", "s", "min", "h"];
+        //divisior to get from one time unit to the next
+        const int[] cTimeDiv =       [1, 1000, 1000, 1000, 60,    60, 0];
+        //precission which should be used to display the time
+        const int[] cPrec =         [0,   1,    3,     2,   2,     2];
+        long time = nsecs;
         //xxx negative time?
-        if (timeVal < 1000) {
-            return str.format("%d us", timeVal);
-        } else if (timeVal < 1000*1000) {
-            return str.format("%.3f ms", cast(float)timeVal / 1000.0f);
-        } else {
-            return str.format("%.3f s", cast(float)timeVal / (1000.0f*1000.0f));
+        for (int i = 0; ; i++) {
+            if (time < cTimeDiv[i]*cTimeDiv[i+1] || i == cTimeName.length-1) {
+                auto s = str.format("%.*f %s", cPrec[i],
+                    cast(double)time / cTimeDiv[i], cTimeName[i]);
+                return s;
+            }
+            time = time / cTimeDiv[i];
         }
+    }
+
+    ///Get: Time value as nanoseconds
+    public long nsecs() {
+        return cNS ? timeVal : timeVal*1000;
+    }
+
+    ///Set: Time value as nanoseconds
+    public void nsecs(long val) {
+        timeVal = cNS ? val : val/1000;
     }
 
     ///Get: Time value as microseconds
     public long musecs() {
-        return timeVal;
+        return cNS ? timeVal/1000 : timeVal;
     }
 
     ///Set: Time value as microseconds
     public void musecs(long val) {
-        timeVal = val;
+        timeVal = cNS ? val*1000 : val;
     }
 
     ///Get: Time value as milliseconds
     public long msecs() {
-        return timeVal / 1000;
+        return musecs / 1000;
     }
 
     ///Set: Time value as milliseconds
     public void msecs(long val) {
-        timeVal = val * 1000;
+        musecs = val * 1000;
     }
 
     ///Get: Time value as seconds
     public long secs() {
-        return timeVal / (1000 * 1000);
+        return musecs / (1000 * 1000);
     }
 
     public float secsf() {
-        return cast(float)timeVal / (1000.0f * 1000.0f);
+        return cast(float)musecs / (1000.0f * 1000.0f);
     }
 
     ///Set: Time value as seconds
     public void secs(long val) {
-        timeVal = val * (1000 * 1000);
+        musecs = val * (1000 * 1000);
     }
 
     ///Get: Time value as minutes
     public long mins() {
-        return timeVal / (60 * 1000 * 1000);
+        return musecs / (60 * 1000 * 1000);
     }
 
     ///Set: Time value as minutes
     public void mins(long val) {
-        timeVal = val * (60 * 1000 * 1000);
+        musecs = val * (60 * 1000 * 1000);
     }
 
     ///Get: Time value as hours
     public long hours() {
-        return timeVal / (60 * 60 * 1000 * 1000);
+        return musecs / (60 * 60 * 1000 * 1000);
     }
 
     ///Set: Time value as hours
     public void hours(long val) {
-        timeVal = val * (60 * 60 * 1000 * 1000);
+        musecs = val * (60 * 60 * 1000 * 1000);
     }
 
     //return as float in seconds (should only be used for small relative times)
@@ -149,18 +168,22 @@ public struct Time {
     }
 }
 
+///new Time value from nanoseconds
+public Time timeNsecs(long val) {
+    return Time(cNS ? val : val/1000);
+}
 
 ///new Time value from microseconds
 public Time timeMusecs(int val) {
-    return Time(cast(TType_Int)val);
+    return timeMusecs(cast(long)val);
 }
 
 public Time timeMusecs(float val) {
-    return Time(cast(TType_Int)val);
+    return timeMusecs(cast(long)val);
 }
 
 public Time timeMusecs(long val) {
-    return Time(val);
+    return Time(cNS ? val*1000 : val);
 }
 
 ///new Time value from milliseconds

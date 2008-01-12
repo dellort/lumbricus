@@ -31,14 +31,11 @@ class WindMeter : Widget {
         mEngine = engine;
 
         ConfigNode wmNode = gFramework.loadConfig("windmeter");
-        gFramework.resources.loadResources(wmNode);
 
         //mBackgroundTex = gFramework.resources.resource!(BitmapResource)
         //    ("/windmeter_back").get().createTexture();
-        mWindLeft = gFramework.resources.resource!(BitmapResource)
-            ("/windmeter_left").get().createTexture();
-        mWindRight = gFramework.resources.resource!(BitmapResource)
-            ("/windmeter_right").get().createTexture();
+        mWindLeft = engine.resources.get!(Surface)("windmeter_left");
+        mWindRight = engine.resources.get!(Surface)("windmeter_right");
 
         int borderdist = wmNode.getIntValue("borderdist", 2);
         mTexStep = wmNode.getIntValue("textureStep", 8);

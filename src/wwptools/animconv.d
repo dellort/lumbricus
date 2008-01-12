@@ -85,16 +85,17 @@ class AniFile {
         aniframes_name = fnBase ~ "_aniframes";
 
         output_conf = new ConfigNode();
-        output_conf.setStringValue("require_resources", atlas.name);
+        auto first = output_conf.getSubNode("require_resources");
+        first.setStringValue("", atlas.name ~ ".conf");
         auto top = output_conf.getSubNode("resources");
         auto anifile = top.getSubNode("aniframes").getSubNode(aniframes_name);
-        anifile.setStringValue("atlas", "/" ~ atlas.name);
+        anifile.setStringValue("atlas", atlas.name);
         anifile.setStringValue("datafile", anifile_name);
 
         output_anims = top.getSubNode("animations");
 
-        top.comment = "//automatically created by animconv\n"
-                      "//change animations.txt instead of this file";
+        first.comment = "//automatically created by animconv\n"
+                        "//change animations.txt instead of this file";
     }
 
     //flags is a bitfield of AniFlags members
@@ -202,7 +203,7 @@ class AniFile {
         auto node = output_anims.getSubNode(name);
         assert(node["index"] == "", "double entry?: "~name);
         node.setIntValue("index", animations.length-1);
-        node.setStringValue("aniframes", "/" ~ aniframes_name);
+        node.setStringValue("aniframes", aniframes_name);
         node.setStringValue("type", "complicated");
         foreach (int i, s; param_conv) {
             node.setStringValue(format("param_%s", i+1), s);

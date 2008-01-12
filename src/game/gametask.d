@@ -3,6 +3,7 @@ module game.gametask;
 import common.common;
 import common.task;
 import framework.resources;
+import framework.resset;
 import framework.commandline;
 import framework.framework;
 import framework.filesystem;
@@ -43,6 +44,7 @@ class GameTask : Task {
         GameEnginePublic mGame;
         GameEngineAdmin mGameAdmin;
         ClientGameEngine mClientEngine;
+        ResourceSet mResources;
 
         GameFrame mWindow;
 
@@ -125,9 +127,9 @@ class GameTask : Task {
         }
 
         mGameLoader = new Loader();
+        addChunk(&initLoadResources, "resources");
         addChunk(&initGameEngine, "gameengine");
         addChunk(&initClientEngine, "clientengine");
-        addChunk(&initLoadResources, "resources");
         addChunk(&initGameGui, "gui");
         mGameLoader.onFinish = &gameLoaded;
 
@@ -155,7 +157,7 @@ class GameTask : Task {
 
     private bool initGameEngine() {
         //log("initGameEngine");
-        mServerEngine = new GameEngine(mGameConfig);
+        mServerEngine = new GameEngine(mGameConfig, mResources);
         mGame = mServerEngine;
         mGameAdmin = mServerEngine.requestAdmin();
         return true;
@@ -163,14 +165,21 @@ class GameTask : Task {
 
     private bool initClientEngine() {
         //log("initClientEngine");
-        mClientEngine = new ClientGameEngine(mServerEngine);
+        mClientEngine = new ClientGameEngine(mServerEngine, mResources);
         return true;
     }
 
     //periodically called by loader (until we return false)
     private bool initLoadResources() {
         if (!mResPreloader) {
-            mResPreloader = gFramework.resources.createPreloader();
+            ResourceItem[] reslist;
+            //have to select graphic set here
+            //you also would load a selected waterset resource file here and
+            //  append it to the reslist
+            auto graphics = gFramework.resources.loadResources("wwp.conf");
+            reslist ~= graphics.getAll();
+            //load all items in reslist
+            mResPreloader = gFramework.resources.createPreloader(reslist);
             mLoadScreen.secondaryActive = true;
         }
         mLoadScreen.secondaryCount = mResPreloader.totalCount();
@@ -181,6 +190,8 @@ class GameTask : Task {
             return false;
         } else {
             mLoadScreen.secondaryActive = false;
+            mResources = mResPreloader.createSet();
+            mResources.seal(); //disallow addition of more resources
             mResPreloader = null;
             return true;
         }

@@ -102,13 +102,11 @@ class GameSky {
 
         mEngine = engine;
         ConfigNode skyNode = gFramework.loadConfig("sky");
-        gFramework.resources.loadResources(skyNode);
         Color skyColor = engine.engine.level.skyColor;
 
         Surface bmp = engine.engine.level.skyGradient;
         if (!bmp) {
-            bmp = gFramework.resources.resource!(BitmapResource)
-                ("/default_gradient").get();
+            bmp = mEngine.resources.get!(Surface)("default_gradient");
         }
         Texture skyTex = bmp.createTexture();
         mSkyHeight = skyTex.size.y;
@@ -119,16 +117,11 @@ class GameSky {
             skyBackdrop = bmp.createTexture();
         }
 
-        mDebrisAnim = engine.engine.level.skyDebris.get();
+        mDebrisAnim = engine.engine.level.skyDebris;
 
-        int i = 0;
         ConfigNode cloudNode = skyNode.getSubNode("clouds");
-        foreach (char[] nodeName; cloudNode) {
-            char[] cName = cloudNode.getPathValue(nodeName);
-            assert(cName.length > 0);
-            mCloudAnims ~= gFramework.resources.resource!(AnimationResource)
-                (cName).get();
-            i++;
+        foreach (char[] name, char[] value; cloudNode) {
+            mCloudAnims ~= mEngine.resources.get!(Animation)(value);
         }
 
         int nAnim = 0;

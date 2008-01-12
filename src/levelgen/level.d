@@ -36,7 +36,7 @@ public class Level {
     Surface skyGradient;
     Surface skyBackdrop;
     Color skyColor;
-    AnimationResource skyDebris;
+    Animation skyDebris;
 
     public Vector2i size() {
         return mSize;

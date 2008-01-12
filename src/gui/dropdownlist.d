@@ -1,5 +1,7 @@
 module gui.dropdownlist;
 
+import common.common;
+
 import framework.restypes.bitmap;
 import framework.font;
 import framework.framework;
@@ -36,8 +38,7 @@ class DropDownControl : Container {
         drawBox = true;
         mDropDown = new Button();
         //use that down-arrow...
-        mDropDown.image = gFramework.resources.resource!(BitmapResource)
-            ("/scroll_down").get().createTexture();
+        mDropDown.image = globals.guiResources.get!(Surface)("scroll_down");
         mDropDown.onClick = &clickDrownDown;
         mDropDown.setLayout(WidgetLayout.Expand(false));
     }

@@ -132,8 +132,8 @@ class WormSprite : GObjectSprite {
             //else, show normal worm
             auto arm = mWeapon.weapon.animations[WeaponWormAnimations.Arm];
             auto fire = mWeapon.weapon.animations[WeaponWormAnimations.Fire];
-            auto spec = mWeapon.active ? (fire?fire:arm) : arm;
-            if (spec)
+            auto spec = mWeapon.active ? (fire.defined?fire:arm) : arm;
+            if (spec.defined)
                 return spec;
             return super.getAnimationForState(wsc.st_stand);
         }
@@ -354,11 +354,8 @@ class WormSpriteClass : GOSpriteClass {
         gravestones.length = 0;
 
         ConfigNode grNode = config.getSubNode("gravestones");
-        foreach (char[] v; grNode) {
-            char[] grv = grNode.getPathValue(v);
-            assert(grv.length > 0);
-            gravestones ~= gFramework.resources.resource!(AnimationResource)
-                (grv);
+        foreach (char[] name, char[] value; grNode) {
+            gravestones ~= engine.resources.resource!(Animation)(value);
         }
 
         //done, read out the stupid states :/

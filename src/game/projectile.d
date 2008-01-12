@@ -47,8 +47,8 @@ private class ProjectileWeapon : WeaponClass {
             auto st = spriteclass.initState;
 
             st.physic_properties.loadFromConfig(pr.getSubNode("physics"));
-            st.animation = gFramework.resources.resource!(AnimationResource)
-                (pr.getPathValue("animation"));
+            st.animation = engine.resources.resource!(Animation)
+                (pr["animation"]);
 
             //allow non-ProjectileSpriteClass objects, why not
             auto pclass = cast(ProjectileSpriteClass)spriteclass;
@@ -123,7 +123,7 @@ private class ProjectileThrower : Shooter {
 
         //if it has an extra firing, let the owner update it
         //(cf. Worm.getAnimationForState())
-        if (owner && weapon.animations[WeaponWormAnimations.Fire]) {
+        if (owner && weapon.animations[WeaponWormAnimations.Fire].defined) {
             owner.updateAnimation();
         }
     }

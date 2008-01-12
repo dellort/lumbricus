@@ -3,7 +3,7 @@ module game.weapon;
 import game.gobject;
 import game.animation;
 import framework.framework;
-import framework.restypes.bitmap;
+import framework.resset;
 import game.physic;
 import game.game;
 import game.sprite;
@@ -39,7 +39,7 @@ abstract class WeaponClass {
     char[] category; //category-id for this weapon
 
     //for the weapon selection; only needed on client-side
-    BitmapResource icon;
+    Resource!(Surface) icon;
 
     //needed by both client and server (server should verify with this data)
     bool canThrow; //firing from worms direction
@@ -67,8 +67,7 @@ abstract class WeaponClass {
         value = node.getIntValue("value", 0);
         category = node.getStringValue("category", "none");
 
-        icon = gFramework.resources.resource!(BitmapResource)
-            (node.getPathValue("icon"));
+        icon = engine.resources.resource!(Surface)(node["icon"]);
 
         auto fire = node.findNode("firemode");
         if (fire) {
@@ -100,8 +99,8 @@ abstract class WeaponClass {
         foreach (int i, char[] name; cWWA2Str) {
             auto val = anis.findValue(name);
             if (val) {
-                animations[i] = gFramework.resources.resource!(AnimationResource)
-                    (val.parent.getPathValue(val.name));  //argh
+                animations[i] = engine.resources.resource!(Animation)
+                    (val.value);
             }
         }
     }

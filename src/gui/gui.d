@@ -24,7 +24,6 @@ class GuiMain {
 
     private class MainFrame : SimpleContainer {
         this() {
-            gFramework.resources.loadResources(gFramework.loadConfig("guires"));
             doMouseEnterLeave(true); //mous always in, initial event
             pollFocusState();
         }

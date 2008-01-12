@@ -244,7 +244,7 @@ class GObjectSprite : GameObject {
 
     override void simulate(float deltaT) {
         super.simulate(deltaT);
-        if (currentState.onAnimationEnd && currentAnimation) {
+        if (currentState.onAnimationEnd && currentAnimation.defined) {
             if (engine.gameTime.current - animationStarted
                 >= currentAnimation.get.duration())
             {
@@ -342,9 +342,6 @@ class GOSpriteClass {
         }
         FwRef[] fwrefs;
 
-        //load animation config files
-        gFramework.resources.loadResources(config.find("require_resources"));
-
         //load collision map
         engine.physicworld.loadCollisions(config.getSubNode("collisions"));
 
@@ -371,11 +368,11 @@ class GOSpriteClass {
             ssi.keepSelfForce = sc.getBoolValue("keep_selfforce", false);
 
             if (sc["animation"].length > 0) {
-                ssi.animation = gFramework.resources.resource!(AnimationResource)
-                    (sc.getPathValue("animation"));
+                ssi.animation = engine.resources.resource!(Animation)
+                    (sc["animation"]);
             }
 
-            if (!ssi.animation) {
+            if (!ssi.animation.defined) {
                 engine.mLog("WARNING: no animation for state '%s'", ssi.name);
             }
 

@@ -24,22 +24,22 @@ import utils.vector2;
 
 import std.math : PI;
 
-import oldanim = game.animation;
+import game.animation;
 
-class ResViewHandlers : StaticFactory!(ResViewHandlerGeneric, Resource) {
+class ResViewHandlers : StaticFactory!(ResViewHandlerGeneric, Object) {
 }
 
 class ResViewHandlerGeneric {
     private {
-        Resource mResource;
+        Object mResource;
         Widget mGUI;
     }
 
-    Resource resource() {
+    Object resource() {
         return mResource;
     }
 
-    this(Resource r) {
+    this(Object r) {
         mResource = r;
     }
 
@@ -55,13 +55,13 @@ class ResViewHandlerGeneric {
     }
 }
 
-class ResViewHandler(T : Resource) : ResViewHandlerGeneric {
+class ResViewHandler(T : Object) : ResViewHandlerGeneric {
     alias T Type;
     private {
         T mResource;
     }
 
-    this(Resource r) {
+    this(Object r) {
         super(r);
         //lol cast it
         mResource = castStrict!(T)(r);
@@ -71,59 +71,59 @@ class ResViewHandler(T : Resource) : ResViewHandlerGeneric {
         return mResource;
     }
 
-    static void registerHandler(T1 : ResViewHandler, T2 : Resource)() {
-        ResViewHandlers.register!(T1)(typeid(T2.Type).toString());
+    static void registerHandler(T1 : ResViewHandler)() {
+        ResViewHandlers.register!(T1)(T.classinfo.name);
     }
 }
 
-class BitmapHandler : ResViewHandler!(BitmapResource) {
-    this(Resource r) {
+class BitmapHandler : ResViewHandler!(Surface) {
+    this(Object r) {
         super(r);
         setGUI(new Viewer());
     }
 
     class Viewer : Widget {
         override void onDraw(Canvas c) {
-            Vector2i d = size/2 - resource.get().size/2;
-            c.draw(resource.get(), d);
-            c.drawRect(d-Vector2i(1), d+resource.get.size+Vector2i(1),
+            Vector2i d = size/2 - resource.size/2;
+            c.draw(resource, d);
+            c.drawRect(d-Vector2i(1), d+resource.size+Vector2i(1),
                 Color(0, 0, 0));
         }
 
         Vector2i layoutSizeRequest() {
-            return resource.get.size()+Vector2i(2); //with frame hurhur
+            return resource.size()+Vector2i(2); //with frame hurhur
         }
     }
 
     static this() {
-        registerHandler!(typeof(this), Type);
+        registerHandler!(typeof(this));
     }
 }
 
-class AtlasHandler : ResViewHandler!(AtlasResource) {
+class AtlasHandler : ResViewHandler!(Atlas) {
     private {
         Widget mViewer;
         ScrollBar mSel;
         TextureRef mCur;
     }
 
-    this(Resource r) {
+    this(Object r) {
         super(r);
 
         auto box = new BoxContainer(false);
         mSel = new ScrollBar(true);
         mSel.onValueChange = &sel;
-        mSel.maxValue = resource.get.count-1;
+        mSel.maxValue = resource.count-1;
         mSel.setLayout(WidgetLayout.Expand(true));
         box.add(mSel);
-        mCur = resource.get.texture(0);
+        mCur = resource.texture(0);
         mViewer = new Viewer();
         box.add(mViewer);
         setGUI(box);
     }
 
     private void sel(ScrollBar sender) {
-        mCur = resource.get.texture(sender.curValue);
+        mCur = resource.texture(sender.curValue);
         mViewer.needRelayout();
     }
 
@@ -141,26 +141,26 @@ class AtlasHandler : ResViewHandler!(AtlasResource) {
     }
 
     static this() {
-        registerHandler!(typeof(this), Type);
+        registerHandler!(typeof(this));
     }
 }
 
 import framework.resfileformats;
 
-class AniHandler : ResViewHandler!(AniFramesResource) {
+class AniHandler : ResViewHandler!(AniFrames) {
     private {
         Widget mViewer;
         ScrollBar mSel;
         SimpleContainer mCont;
     }
 
-    this(Resource r) {
+    this(Object r) {
         super(r);
 
         auto box = new BoxContainer(false);
         mSel = new ScrollBar(true);
         mSel.onValueChange = &sel;
-        mSel.maxValue = resource.get.count-1;
+        mSel.maxValue = resource.count-1;
         mSel.setLayout(WidgetLayout.Expand(true));
         box.add(mSel);
         mCont = new SimpleContainer();
@@ -170,16 +170,16 @@ class AniHandler : ResViewHandler!(AniFramesResource) {
     }
 
     private void sel(ScrollBar sender) {
-        auto frames = resource.get.frames(sender.curValue);
+        auto frames = resource.frames(sender.curValue);
         mCont.clear();
         auto table = new TableContainer(frames.counts[0], frames.counts[1],
             Vector2i(2,2), [true, true]);
-        Rect2i bb = resource.get.framesBoundingBox(sender.curValue);
+        Rect2i bb = resource.framesBoundingBox(sender.curValue);
         for (int x = 0 ; x < table.width; x++) {
             for (int y = 0; y < table.height; y++) {
                 auto bmp = new ViewBitmap();
                 auto f = frames.getFrame(x, y);
-                bmp.part = resource.get.images.texture(f.bitmapIndex);
+                bmp.part = resource.images.texture(f.bitmapIndex);
                 bmp.draw = f.drawEffects;
                 bmp.offs = Vector2i(f.centerX, f.centerY);
                 bmp.bnds = bb;
@@ -208,18 +208,18 @@ class AniHandler : ResViewHandler!(AniFramesResource) {
     }
 
     static this() {
-        registerHandler!(typeof(this), Type);
+        registerHandler!(typeof(this));
     }
 }
 
-class OldAnimationHandler : ResViewHandler!(oldanim.AnimationResource) {
+class AnimationHandler : ResViewHandler!(Animation) {
     private {
-        oldanim.Animator mAnim;
+        Animator mAnim;
         ScrollBar[2] mParams;
         Label[2] mParLbl;
     }
 
-    this(Resource r) {
+    this(Object r) {
         super(r);
 
         auto table = new TableContainer(2, 2, Vector2i(10,1), [true, false]);
@@ -245,8 +245,8 @@ class OldAnimationHandler : ResViewHandler!(oldanim.AnimationResource) {
         box.add(table);
         box.add(new Viewer());
 
-        mAnim = new oldanim.Animator();
-        mAnim.setAnimation(resource.get());
+        mAnim = new Animator();
+        mAnim.setAnimation(resource);
 
         //update label texts
         onScrollbar(mParams[0]);
@@ -309,7 +309,7 @@ class OldAnimationHandler : ResViewHandler!(oldanim.AnimationResource) {
     }
 
     static this() {
-        registerHandler!(typeof(this), Type);
+        registerHandler!(typeof(this));
     }
 }
 
@@ -409,9 +409,9 @@ class ResViewerTask : Task {
         StringListWidget mResTypeList;
         Button mUpdate;
         SimpleContainer mClient;
-        Resource[] mResList;
-        char[][] mResTypes;
-        char[] mCurRes;
+        ResourceItem[] mResList;
+        ClassInfo[] mResTypes;
+        ClassInfo mCurRes;
         Label mName, mUID, mType;
 
         this() {
@@ -480,20 +480,30 @@ class ResViewerTask : Task {
             doUpdate2();
         }
 
+        //check if sub is equal to or is below c
+        static bool isSub(ClassInfo sub, ClassInfo c) {
+            while (sub) {
+                if (sub is c)
+                    return true;
+                sub = sub.base;
+            }
+            return false;
+        }
+
         void doUpdate() {
-            doSelect(null);
+            doSelect(null, null);
             char[][] list;
             mResList = null;
             struct Sorter {
-                Resource res;
+                ResourceItem res;
                 int opCmp(Sorter* other) {
-                    return str.cmp(res.id, other.res.id);
+                    return str.cmp(res.fullname, other.res.fullname);
                 }
             }
             Sorter[] sorted;
             gFramework.resources.enumResources(
-                (char[] fullname, Resource res) {
-                    if (res.restype == mCurRes) {
+                (char[] fullname, ResourceItem res) {
+                    if (isSub(res.get.classinfo, mCurRes)) {
                         sorted ~= Sorter(res);
                     }
                 }
@@ -501,7 +511,7 @@ class ResViewerTask : Task {
             sorted.sort;
             foreach (s; sorted) {
                 mResList ~= s.res;
-                list ~= s.res.id;
+                list ~= s.res.fullname;
             }
             mList.setContents(list);
         }
@@ -509,9 +519,17 @@ class ResViewerTask : Task {
         void doUpdate2() {
             char[][] list = null;
             mResTypes = null;
-            foreach (char[] name; gFramework.resources.resourceTypes()) {
-                list ~= name;
-                mResTypes ~= name;
+            foreach (name; ResViewHandlers.classes) {
+                auto cinf = ClassInfo.find(name);
+                if (cinf) {
+                    mResTypes ~= cinf;
+                    auto s = cinf.name;
+                    //split to first point
+                    auto t = str.rfind(s, '.');
+                    if (t >= 0)
+                        s = s[t+1..$];
+                    list ~= s;
+                }
             }
             mResTypeList.setContents(list);
             mCurRes = null;
@@ -529,17 +547,17 @@ class ResViewerTask : Task {
             doUpdate();
         }
 
-        private void doSelect(Resource s) {
+        private void doSelect(ResourceItem s, ClassInfo type) {
             mName.text = s ? s.id : "-";
-            mUID.text = s ? format(s.uid) : "-";
-            mType.text = s ? s.type.toString() : "-";
+            //mUID.text = s ? format(s.uid) : "-";
+            //mType.text = s ? s.type.toString() : "-";
             mClient.clear();
             if (s) {
                 s.get(); //load (even when no handler exists)
-                char[] name = s.type.toString;
+                char[] name = type.name;
                 Widget widget;
                 if (ResViewHandlers.exists(name)) {
-                    widget = ResViewHandlers.instantiate(name, s).getGUI();
+                    widget = ResViewHandlers.instantiate(name, s.get).getGUI();
                 } else {
                     widget = new Spacer(); //error lol
                 }
@@ -548,7 +566,7 @@ class ResViewerTask : Task {
         }
 
         private void onSelect(int index) {
-            doSelect(index < 0 ? null : mResList[index]);
+            doSelect(index < 0 ? null : mResList[index], mCurRes);
         }
     }
 

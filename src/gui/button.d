@@ -1,5 +1,6 @@
 module gui.button;
 
+import common.common;
 import framework.restypes.bitmap;
 import framework.event;
 import framework.framework;
@@ -94,9 +95,8 @@ class Button : Label {
     private void updateCheckboxState() {
         if (!mIsCheckbox)
             return;
-        auto imgname = mChecked ? "/checkbox_on" : "/checkbox_off";
-        image = gFramework.resources.resource!(BitmapResource)(imgname)
-            .get().createTexture();
+        auto imgname = mChecked ? "checkbox_on" : "checkbox_off";
+        image = globals.guiResources.get!(Surface)(imgname);
     }
 
     override void onDraw(Canvas c) {

@@ -3,7 +3,7 @@ module game.animation;
 import common.scene;
 import common.common;
 import framework.framework;
-import framework.resources;
+import framework.resset;
 import framework.restypes.bitmap;
 import framework.restypes.frames;
 import utils.configfile;
@@ -16,8 +16,9 @@ import utils.math;
 import math = std.math;
 import str = std.string;
 
-public import framework.allres : AnimationResource;
 public import common.animation;
+
+alias Resource!(Animation) AnimationResource;
 
 static this() {
     //documentation on this stuff see implementations

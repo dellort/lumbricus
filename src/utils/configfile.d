@@ -6,7 +6,6 @@ import str = std.string;
 import std.format;
 import conv = std.conv;
 import utils.output : Output;
-import utils.path;
 import utils.misc : formatfx;
 
 //xxx: desperately moved to here (where else to put it?)
@@ -199,17 +198,6 @@ public class ConfigNode : ConfigItem {
 
     //comment after last item in the node
     private char[] mEndComment;
-
-    //path to config file, used for getPathValue etc
-    private char[] mFilePath;
-
-    public void setFilePath(char[] p) {
-        mFilePath = p;
-    }
-
-    public char[] filePath() {
-        return mFilePath;
-    }
 
     public ConfigNode clone() {
         auto r = new ConfigNode();
@@ -615,21 +603,6 @@ public class ConfigNode : ConfigItem {
         setStringValue(name, str.toString(value));
     }
 
-    //xxx arrrrrrrrrgh remove this horrible hack arrrrrrrrrrrrrrrrrrrrrrrrgh
-    public char[] getPathValue(char[] name, char[] def = "")
-    {
-        char[] res = getStringValue(name, def);
-        return fixPathValue(res);
-    }
-
-    public char[] fixPathValue(char[] orgVal) {
-        if (orgVal.length == 0)
-            return orgVal;
-        if (orgVal[0] == '/')
-            return orgVal;
-        return mFilePath ~ orgVal;
-    }
-
     /// Parse the value as array of values.
     /// Separator is always whitespace.
     //(xxx: should be really generic, but the other accessor functions aren't
@@ -763,7 +736,6 @@ private class ConfigFatalError : Exception {
 /// Used to manage config files. See docs/*.grm for the used format.
 public class ConfigFile {
     private char[] mFilename;
-    private char[] mFilePath;
     private char[] mData;
     private Position mPos;          //current pos in data
     private Position mNextPos;      //position of following char
@@ -794,7 +766,6 @@ public class ConfigFile {
         mData = source;
         mErrorOut = reportError;
         mFilename = filename;
-        mFilePath = getFilePath(mFilename);
         doParse();
     }
 
@@ -804,7 +775,6 @@ public class ConfigFile {
         mData = source.readString(source.size());
         mErrorOut = reportError;
         mFilename = filename;
-        mFilePath = getFilePath(mFilename);
         doParse();
     }
 
@@ -1318,7 +1288,6 @@ public class ConfigFile {
 
         //foo
         node.mEndComment = comm;
-        node.setFilePath(mFilePath);
     }
 
     private void doParse() {

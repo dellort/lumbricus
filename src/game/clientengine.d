@@ -2,6 +2,7 @@ module game.clientengine;
 
 import framework.framework;
 import framework.font;
+import framework.resset;
 import framework.timesource;
 import common.scene;
 import common.common;
@@ -22,12 +23,12 @@ import utils.random : random;
 import std.math : PI;
 
 struct PerTeamAnim {
-    AnimationResource arrow;
-    AnimationResource pointed;
-    AnimationResource change;
-    AnimationResource cursor;
-    AnimationResource click;
-    AnimationResource aim;
+    Resource!(Animation) arrow;
+    Resource!(Animation) pointed;
+    Resource!(Animation) change;
+    Resource!(Animation) cursor;
+    Resource!(Animation) click;
+    Resource!(Animation) aim;
 }
 
 //synced with game.ServerGraphicLocalImpl
@@ -49,7 +50,7 @@ class ClientGraphic : Animator {
         if (bla.setevent.do_set_ani) {
             auto ani = bla.setevent.set_animation;
             //setNextAnimation(ani ? ani.get() : null, bla.setevent.set_force);
-            setAnimation(ani ? ani.get() : null);
+            setAnimation(ani.get()); //can be null
         }
         pos = bla.setevent.pos;
         fpos = toVector2f(bla.setevent.pos);
@@ -77,6 +78,8 @@ class ClientGameEngine {
     private GameEnginePublic mEngine;
 
     private List!(ClientGraphic) mGraphics;
+
+    ResourceSet resources;
 
     //stuff cached/received/duplicated from the engine
     //(remind that mEngine might disappear because of networking)
@@ -131,8 +134,9 @@ class ClientGameEngine {
         return null;
     }
 
-    this(GameEnginePublic engine) {
+    this(GameEnginePublic engine, ResourceSet a_resources) {
         mEngine = engine;
+        resources = a_resources;
 
         mGraphics = new typeof(mGraphics)(ClientGraphic.node.getListNodeOffset());
 
@@ -156,21 +160,18 @@ class ClientGameEngine {
 
         resize(worldSize);
 
-        ConfigNode taCfg = gFramework.loadConfig("teamanims");
-        gFramework.resources.loadResources(taCfg);
         mTeamAnims.length = cTeamColors.length;
         foreach (int n, char[] color; cTeamColors) {
             auto cur = &mTeamAnims[n];
 
-            AnimationResource loadanim(char[] node) {
-                return gFramework.resources.resource!(AnimationResource)
-                    (taCfg.getSubNode(node).getPathValue(color));
+            Resource!(Animation) loadanim(char[] node) {
+                return resources.resource!(Animation)(node ~ "_" ~ color);
             }
 
             cur.arrow = loadanim("darrow");
             cur.pointed = loadanim("pointed");
             cur.change = loadanim("change");
-            cur.cursor = loadanim("cursor");
+            cur.cursor = loadanim("point");
             cur.click = loadanim("click");
             cur.aim = loadanim("aim");
         }

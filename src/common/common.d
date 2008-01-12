@@ -2,6 +2,8 @@ module common.common;
 
 import framework.framework;
 import framework.commandline;
+import framework.resset;
+import framework.resources;
 import framework.timesource;
 import framework.i18n;
 import utils.time;
@@ -20,11 +22,15 @@ public Common globals;
 //the big singleton...
 //also contains some important initialization code
 class Common {
-    Framework framework;
     Log log;
     Output defaultOut;
     CommandLine cmdLine;
     ConfigNode anyConfig;
+    ConfigNode programArgs; //command line for the lumbricus executable
+
+    //oh sorry, didn't know where to put that!
+    //is for guires.conf
+    ResourceSet guiResources;
 
     //high resolution timers which are updated each frame, or so
     //toplevel.d will reset them all!
@@ -42,32 +48,35 @@ class Common {
     private const cLocalePath = "/locale";
     private const cDefLang = "en";
 
-    this(Framework fw, ConfigNode args) {
+    this(ConfigNode args) {
         if (globals)
             throw new Exception("Common is a singelton!");
         globals = this;
 
         log = registerLog("common");
 
+        programArgs = args;
+
         loadColors(gFramework.loadConfig("colors"));
 
-        framework = fw;
+        //GUI resources, this is a bit off here
+        guiResources = gFramework.resources.loadResSet("guires.conf");
 
         //copy the stupid timers
-        foreach (char[] name, PerfTimer cnt; fw.timers) {
+        foreach (char[] name, PerfTimer cnt; gFramework.timers) {
             timers[name] = cnt;
         }
 
-        anyConfig = framework.loadConfig("anything");
+        anyConfig = gFramework.loadConfig("anything");
 
         auto scr = anyConfig.getSubNode("screenmode");
         int w = scr.getIntValue("width", 800);
         int h = scr.getIntValue("height", 600);
         int d = scr.getIntValue("depth", 0);
         bool fs = scr.getBoolValue("fullscreen", false);
-        fw.setVideoMode(Vector2i(w, h), d, fs);
+        gFramework.setVideoMode(Vector2i(w, h), d, fs);
 
-        if (!fw.videoActive) {
+        if (!gFramework.videoActive) {
             //this means we're F****D!!1
             log("ERROR: couldn't initialize video");
             throw new Exception("can't continue");
@@ -75,7 +84,8 @@ class Common {
 
         initLocale();
 
-        framework.fontManager.readFontDefinitions(framework.loadConfig("fonts"));
+        gFramework.fontManager.readFontDefinitions(
+            gFramework.loadConfig("fonts"));
 
         if (args.getBoolValue("logconsole")) {
             defaultOut = StdioOutput.output;
@@ -97,10 +107,10 @@ class Common {
 
     private void initLocale() {
         char[] langId = anyConfig.getStringValue("language_id", "de");
-        initI18N(cLocalePath, langId, cDefLang, &framework.loadConfig);
+        initI18N(cLocalePath, langId, cDefLang, &gFramework.loadConfig);
         //try {
             //link locale-specific files into root
-            framework.fs.link(cLocalePath ~ '/' ~ langId,"/",false,1);
+            gFramework.fs.link(cLocalePath ~ '/' ~ langId,"/",false,1);
         //} catch { xxx: no, don't catch everything
             //don't crash if current locale has no locale-specific files
         //}
@@ -111,11 +121,11 @@ class Common {
         if (!localizedKeynames)
             return "?";
         char[] res = localizedKeynames(
-            framework.translateKeycodeToKeyID(code), "?");
+            gFramework.translateKeycodeToKeyID(code), "?");
         foreachSetModifier(mods,
             (Modifier mod) {
                 res = localizedKeynames(
-                    framework.modifierToString(mod), "?") ~ "+" ~ res;
+                    gFramework.modifierToString(mod), "?") ~ "+" ~ res;
             }
         );
         return res;
@@ -133,7 +143,7 @@ class Common {
     }
 
     public PerfTimer newTimer(char[] name) {
-        auto t = new PerfTimer();
+        auto t = new PerfTimer(true);
         timers[name] = t;
         return t;
     }

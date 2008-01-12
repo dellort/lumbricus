@@ -22,6 +22,7 @@ import utils.random;
 import framework.framework;
 import framework.keysyms;
 import framework.timesource;
+import framework.resset;
 import std.math;
 
 import game.worm;
@@ -163,6 +164,8 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     PlaneTrigger deathzone;
 
     private GraphicEvent* mCurrentEvents;
+
+    ResourceSet resources;
 
     GraphicEvent* currentEvents() {
         return mCurrentEvents;
@@ -306,7 +309,6 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
                 //additions and a list of weapons
                 auto wp_conf = gFramework.loadConfig(dir~"/"~path[0..$-5]);
                 physicworld.loadCollisions(wp_conf.getSubNode("collisions"));
-                gFramework.resources.loadResources(wp_conf);
                 auto list = wp_conf.getSubNode("weapons");
                 foreach (ConfigNode item; list) {
                     loadWeaponClass(item);
@@ -348,7 +350,9 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         waterborder.plane.define(Vector2f(0, val), Vector2f(1, val));
     }
 
-    this(GameConfig config) {
+    this(GameConfig config, ResourceSet a_resources) {
+        resources = a_resources;
+
         assert(config.level !is null);
         mLevel = config.level;
 
@@ -443,8 +447,6 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
 
     //one time initialization, where levle objects etc. should be loaded (?)
     private void loadLevelStuff() {
-        gFramework.resources.loadResources(gFramework.loadConfig("stdanims"));
-
         //load weapons
         loadWeapons("weapons");
 

@@ -9,25 +9,21 @@ import utils.output;
 import utils.misc;
 import utils.factory;
 import utils.time;
+import utils.path;
+
+import framework.resset;
 
 ///base template for any resource that is held ready for being loaded
 ///resources are loaded on the first call to get(), not when loading them from
 ///file
-///Resource references can be stored and passed on without ever actually
-///loading the file
-///once loaded, the resource will stay cached unless invalidated
-class Resource {
+class ResourceItem : ResourceObject {
     ///unique id of resource
     char[] id;
-    char[] restype; //hack hack
-    ///unique numeric id
-    ///useful for networking, has the same meaning across all nodes
-    int uid;
 
+    protected Object mContents;
     private bool mValid = false;
-    protected Resources mParent;
+    protected ResourceFile mContext;
     protected ConfigItem mConfig;
-    package bool mRefed = false;
 
     final bool isLoaded() {
         return mValid;
@@ -37,31 +33,34 @@ class Resource {
         return mConfig;
     }
 
-    package this(Resources parent, char[] id, ConfigItem item)
+    package this(ResourceFile context, char[] id, ConfigItem item)
     {
-        mParent = parent;
+        mContext = context;
         this.id = id;
-        this.uid = parent.getUid();
         mConfig = item;
-        mParent.log("Preparing resource "~id);
+        Resources.log("Preparing resource "~id);
     }
 
     ///get the contents of this resource
-    ///allowFail to ignore load errors (not recommended)
-    abstract Object get(bool allowFail = false);
+    Object get() {
+        if (!mContents) {
+            preload();
+        }
+        return mContents;
+    }
 
-    //preloads the resource from disk, allowFail controls if an exception
-    //is thrown on error
-    package void preload(bool allowFail = false) {
+    //preloads the resource from disk
+    package void preload() {
         try {
-            mParent.log("Loading resource "~id);
+            Resources.log("Loading resource "~id);
             load();
+            assert(!!mContents, "was not loaded?");
             mValid = true;
         } catch (Exception e) {
-            char[] errMsg = "Resource " ~ id ~ " (" ~ toString() ~ ") failed to load: "~e.msg;
-            mParent.log(errMsg);
-            if (!allowFail)
-                throw new ResourceException(errMsg);
+            char[] errMsg = "Resource " ~ id ~ " (" ~ toString()
+                ~ ") failed to load: "~e.msg;
+            Resources.log(errMsg);
+            throw new ResourceException(errMsg);
         }
     }
 
@@ -77,54 +76,76 @@ class Resource {
     abstract protected void load();
 
     protected void doUnload() {
-        //implement if you need this
+        mContents = null; //let the GC do the work
     }
 
-    //managed type
-    abstract TypeInfo type();
+    char[] fullname() {
+        return mContext.filename ~ "::" ~ id;
+    }
 }
 
-class ResourceBase(T) : Resource {
-    alias T Type;
-    protected T mContents;
-
-    package this(Resources parent, char[] id, ConfigItem item) {
-        super(parent, id, item);
-    }
-
-    override protected void doUnload() {
-        mContents = null;
-        super.doUnload();
-    }
-
-    override T get(bool allowFail = false) {
-        if (!mValid)
-            preload(allowFail);
-        return mContents;
-    }
-
-    override TypeInfo type() {
-        return typeid(T);
+//huh trivial
+void addToResourceSet(ResourceSet rs, ResourceItem[] items) {
+    foreach (i; items) {
+        rs.addResource(i, i.id);
     }
 }
 
 alias void delegate(int cur, int total) ResourceLoadProgress;
 
+class ResourceFile {
+    private {
+        bool loading = true;
+        char[] filename, filepath;
+        ResourceFile[] requires;
+        ResourceItem[] resources;
+    }
+
+    private this(char[] fn) {
+        filename = fn;
+        filepath = getFilePath(filename);
+    }
+
+    //correct loading of relative files
+    public char[] fixPath(char[] orgVal) {
+        if (orgVal.length == 0)
+            return orgVal;
+        if (orgVal[0] == '/')
+            return orgVal;
+        return filepath ~ orgVal;
+    }
+
+    //this is for resources which are refered by other resources
+    //obviously only works within a resource file, from now on
+    //NOTE: infinitely slow; if needed rewrite it
+    ResourceItem find(char[] id) {
+        foreach (i; getAll()) {
+            if (i.id == id) {
+                return i;
+            }
+        }
+        throw new ResourceException("resource not found: " ~ id);
+    }
+
+    //all resources including ones from transitive dependencies
+    ResourceItem[] getAll() {
+        ResourceItem[] res;
+        foreach (r; requires) {
+            res ~= r.getAll();
+        }
+        res ~= resources;
+        return res;
+    }
+}
+
 ///the resource manager
-///currently manages:
-///  - bitmap (Surface)
-///  - animations (Animation)
+///this centrally manages all loaded resources; for accessing resources, use
+///ResourceSet from module framework.resset
 public class Resources {
-    private Resource[char[]] mResources;
-    Log log;
-    private bool[char[]] mLoadedResourceFiles;
-    //used to assign uids
-    private long mCurUid;
+    static Log log;
+    private ResourceFile[char[]] mLoadedResourceFiles;
 
-    private static char[][char[]] gNamespaceMap;
-    private static TypeInfo[char[]] gRegistered;
-
-    private static class ResFactory : StaticFactory!(Resource, Resources,
+    private static class ResFactory : StaticFactory!(ResourceItem, ResourceFile,
         char[], ConfigItem)
     {
     }
@@ -134,39 +155,22 @@ public class Resources {
         //log.setBackend(DevNullOutput.output, "null");
     }
 
-    long getUid() {
-        return ++mCurUid;
-    }
-
     ///register a class derived from Resource for the internal factory under
     ///the given name
     ///the class T to register must have this constructor:
     ///     this(Resources parent, char[] name, ConfigItem from)
     ///else compilation will fail somewhere in factory.d
-    static void registerResourceType(T : Resource)(char[] name) {
+    static void registerResourceType(T : ResourceItem)(char[] name) {
         ResFactory.register!(T)(name);
-        setResourceNamespace!(T)(name);
     }
 
-    private static void setResourceNamespace(T : Resource)(char[] id) {
-        gNamespaceMap[ResFactory.lookup!(T)()] = id;
-    }
-
-    void enumResources(void delegate(char[] fullname, Resource res) cb) {
-        foreach (char[] fullname, Resource res; mResources) {
-            cb(fullname, res);
+    //"fullname" is the resource ID, prefixed by the filename
+    void enumResources(void delegate(char[] fullname, ResourceItem res) cb) {
+        foreach (file; mLoadedResourceFiles) {
+            foreach (ResourceItem res; file.resources) {
+                cb(res.fullname, res);
+            }
         }
-    }
-
-    //all registered resource types
-    char[][] resourceTypes() {
-        return ResFactory.classes;
-    }
-
-    private char[] addNSPrefix(char[] type, char[] resId) {
-        assert(type in gNamespaceMap, "'" ~ type ~ "' needs a namespace, set with "
-            ~ "setResourceNamespace()");
-        return gNamespaceMap[type] ~ "_" ~ resId;
     }
 
     //Create a resource directly from a configitem, knowing the
@@ -174,98 +178,98 @@ public class Resources {
     //This is an internal method and should only used from this class
     //and from Resource implementations
     //*** Internal: Use loadResources() instead ***
-    private void createResource(char[] type, ConfigItem it,
-        bool allowFail = false, char[] id = "")
+    private ResourceItem createResource(ResourceFile context, char[] type,
+        ConfigItem it)
     {
-        ConfigNode n = cast(ConfigNode)it;
-        if (!n)
-            n = it.parent;
-        if (id.length == 0)
-            id = n.filePath ~ it.name;
-        if (!(id in mResources)) {
-            Resource r = ResFactory.instantiate(type,this,id,it);
-            r.restype = type;
-            mResources[addNSPrefix(type,id)] = r;
-        }
+        return ResFactory.instantiate(type,context,it.name,it);
     }
 
-    ///hacky: create a resource from a plain filename (only for resources
-    ///supporting it, currently just BitmapResource)
-    ///id will be the filename
-    ///markDirty = mark as referenced?
-    public T createResourceFromFile(T : Resource)(char[] filename,
-        bool allowFail = false, bool markDirty = true)
-    {
-        char[] id = filename;
-        if (!(id in mResources)) {
-            ConfigValue v = new ConfigValue;
-            v.value = filename;
-            Resource r = new T(this,id,v);
-            assert(false, "oh hai, I'm borken code!");
-            mResources[addNSPrefix(ResFactory.lookup!(T)(),id)] = r;
+    ///load a resource file and add them to dest
+    ///configfile_path must be the path to a config file containing nodes like
+    ///"resources" and "require_resources"
+    ///"resources" nodes contain real resources; if they weren't loaded yet, new
+    ///     ResourceItems are created for them so you can actually load them
+    ///"require_resources" nodes lead to recursive loading of other files which
+    ///     are loaded with loadResources(); using the "fixed" path
+    ///the function returnsan object with has the getAll() method to get all
+    ///resources which were found in that file (including dependencies).
+    public ResourceFile loadResources(char[] configfile_path) {
+        //xxx: possibly normalize the filename here!
+        auto fn = configfile_path.dup;
+
+        if (fn in mLoadedResourceFiles) {
+            auto f = mLoadedResourceFiles[fn];
+            if (f.loading) {
+                assert(false, "is dat sum circular dependency?");
+            }
+            return f;
         }
-        return resource!(T)(id,allowFail, markDirty);
+
+        auto res = new ResourceFile(fn);
+        mLoadedResourceFiles[res.filename] = res;
+
+        auto config = gFramework.loadConfig(fn, true);
+
+        foreach (char[] name, char[] value;
+            config.getSubNode("require_resources"))
+        {
+            res.requires ~= loadResources(res.fixPath(value));
+        }
+
+        foreach (ConfigNode r; config.getSubNode("resources")) {
+            auto type = r.name;
+            foreach (ConfigItem i; r) {
+                res.resources ~= createResource(res, type, i);
+            }
+        }
+
+        res.loading = false;
+
+        return res;
     }
 
-    private T doFindResource(T : Resource)(char[] id, bool allowFail = false) {
-        assert(id != "","called resource() with empty id");
-        char[] internalId = addNSPrefix(ResFactory.lookup!(T)(),id);
-        Resource* r = internalId in mResources;
-        if (!r) {
-            char[] errMsg = "Resource "~id~" (" ~ internalId ~ ") not defined";
-            log(errMsg);
-            if (!allowFail)
-                throw new ResourceException(errMsg);
-            return null;
-        }
-        T ret = cast(T)*r;
-        if (!ret) {
-            char[] errMsg = "Resource "~id~" is not of type "~T.stringof;
-            log(errMsg);
-            if (!allowFail)
-                throw new ResourceException(errMsg);
-            return null;
-        }
+    ///just for convenience
+    public ResourceSet loadResSet(char[] configfile_path) {
+        auto res = loadResources(configfile_path).getAll();
+        preloadAll(res);
+        auto ret = new ResourceSet();
+        addToResourceSet(ret, res);
         return ret;
     }
 
-    ///get a reference to a resource by its id
-    /// doref = mark resource as used (for preloading)
-    public T resource(T : Resource)(char[] id, bool allowFail = false,
-        bool doref = true)
-    {
-        T ret = doFindResource!(T)(id, allowFail);
-        ret.mRefed |= doref;
-        return ret;
+    public Preloader createPreloader(ResourceItem[] list) {
+        return new Preloader(list);
+    }
+
+    public void preloadAll(ResourceItem[] list) {
+        foreach (r; list) {
+            r.preload();
+        }
     }
 
     ///support for preloading stuff incrementally (step-by-step)
     ///since D doesn't support coroutines, pack state in an extra class and call
     ///a "progress...()" method periodically
     public final class Preloader {
-        private bool mUsedOnly;
         private int mOffset; //already loaded stuff that isn't in mToLoad
-        private Resource[] mToLoad;
+        private ResourceItem[] mToLoad;
         private int mCurrent; //next res. to load, index into mToLoad
 
-        this(bool used_only) {
-            mUsedOnly = used_only;
+        this(ResourceItem[] list) {
+            log("Preloading %s resources", list.length);
 
-            log("Preloading %s resources", mUsedOnly ? "USED" : "ALL");
-
-            updateToLoad();
+            mToLoad = list.dup;
         }
 
-        private void updateToLoad() {
-            mOffset += mToLoad.length;
-            mToLoad = null;
-            mCurrent = 0;
-            foreach (Resource r; mResources) {
-                bool wantLoad = r.mRefed || !mUsedOnly;
-                if (wantLoad && !r.isLoaded) {
-                    mToLoad ~= r; //inefficient, but optimizing not worthy
-                }
-            }
+        ResourceItem[] list() {
+            return mToLoad;
+        }
+
+        ///for convenience
+        ResourceSet createSet() {
+            auto ret = new ResourceSet();
+            addToResourceSet(ret, list);
+            return ret;
         }
 
         ///total count of resources to load
@@ -292,7 +296,7 @@ public class Resources {
                 if (done) {
                     //still check for maybe newly created resources
                     //(normally shouldn't happen, but it's simple to handle it)
-                    updateToLoad();
+                    //updateToLoad();
 
                     if (done)
                         log("Finished preloading");
@@ -319,97 +323,14 @@ public class Resources {
         }
     }
 
-    ///Create a Preloader, which enables you to incrementally load resources
-    /// used_only = if true, only resources marked as "used" are preloaded
-    public Preloader createPreloader(bool used_only = true) {
-        return new Preloader(used_only);
-    }
-
-    public void preloadUsed(ResourceLoadProgress prog) {
-        createPreloader().loadAll(prog);
-    }
-
     ///Unload all "unnused" resources (whatever that means)
     ///xxx: currently can crash, because surfaces are always freed by force
     ///   actually, Resource or Surface should be refcounted or so to prevent
     //    this; i.e. unload Resource only if underlying object isn't in use
     void unloadUnneeded() {
-        foreach (Resource r; mResources) {
-            r.invalidate();
-        }
-    }
-
-    //load resources as requested in "item"
-    //currently, item shall be a ConfigValue which contains the configfile name
-    //note that this name shouldn't contain a ".conf", argh.
-    //also can be a resources configfile directly
-    void loadResources(ConfigItem item) {
-        if (!item)
-            return;
-
-        ConfigNode cfg;
-
-        auto v = cast(ConfigValue)item;
-        if (v) {
-            //argh
-            ConfigNode n = v.parent;
-            //argh
-            char[][] files = n.getValueArray!(char[])(v.name);
-            foreach (file; files) {
-                file = n.fixPathValue(file);
-                if (file in mLoadedResourceFiles)
-                    continue;
-
-                mLoadedResourceFiles[file] = true;
-                cfg = gFramework.loadConfig(file);
-                loadResources(cfg);
-            }
-            return;
-        } else if (cast(ConfigNode)item) {
-            cfg = cast(ConfigNode)item;
-        } else {
-            assert(false);
-        }
-
-        assert(cfg !is null);
-
-        auto load_further = cfg.find("require_resources");
-        if (load_further !is null) {
-            //xxx: should try to prevent possible recursion
-            loadResources(load_further);
-        }
-
-        //load new introduced resources (not really load them themselves...)
-        foreach (char[] resType, ConfigNode resNode;
-            cfg.getSubNode("resources"))
-        {
-            foreach (char[] name, ConfigNode node; resNode) {
-                createResource(resType, node, true);
-            }
-            foreach (ConfigValue v; resNode) {
-                createResource(resType, v, true);
-            }
-        }
-
-        //add aliases
-        ConfigNode aliasNode = cfg.getSubNode("resource_aliases");
-        foreach (char[] name; aliasNode)
-        {
-            char[] value = aliasNode.getPathValue(name);
-            Resource* aliased = value in mResources;
-            if (!aliased) {
-                log("WARNING: alias '%s' not found", value);
-                continue;
-            }
-            if (name in mResources) {
-                char[] errMsg = "WARNING: alias target '"~name
-                    ~"' already exists";
-                log(errMsg);
-                continue;
-            }
-            log("Alias: %s -> %s",aliasNode.filePath ~ name,value);
-            mResources[aliasNode.filePath ~ name] = *aliased;
-        }
+        //foreach (r; mResources) {
+        //    r.invalidate();
+        //}
     }
 }
 

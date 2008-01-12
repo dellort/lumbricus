@@ -8,6 +8,7 @@ import game.animation;
 import framework.restypes.bitmap;
 import framework.framework;
 import framework.filesystem;
+import framework.resset;
 import utils.configfile;
 import utils.vector2;
 import utils.output;
@@ -127,12 +128,15 @@ private bool findRandom(T)(T[] items, out T res, char[] name = "") {
 public class LevelTheme {
     char[] name;
 
+    //created from configfile
+    ResourceSet resources;
+
     Color borderColor;
     Surface backImage;
     Surface skyGradient;
     Surface skyBackdrop;
     Color skyColor;
-    AnimationResource skyDebris;
+    Animation skyDebris;
     PlaceableObject[char[]] objects;
     PlaceableObject[3] bridge;
     Surface[Lexel] markerTex;
@@ -151,28 +155,11 @@ public class LevelTheme {
         return objects[name];
     }
 
-    private static Surface readTexture(char[] value, bool accept_null) {
-        Surface res;
-        if (value == "-" || value == "") {
-            if (accept_null)
-                return null;
-        } else {
-            Stream s = gFramework.fs.open(value);
-            res = gFramework.loadImage(s, Transparency.Colorkey);
-            s.close();
-        }
-        if (res is null) {
-            throw new Exception("couldn't load texture: "~value);
-        }
-        return res;
-    }
-
     private Surface loadBorderTex(ConfigNode texNode) {
         Surface tex;
         char[] tex_name = texNode.getStringValue("texture");
         if (tex_name.length > 0) {
-            tex = gFramework.resources.resource!(BitmapResource)
-                (texNode.getPathValue("texture")).get();
+            tex = resources.get!(Surface)(texNode["texture"]);
         } else {
             //sucky color-border hack
             int height = texNode.getIntValue("height", 1);
@@ -194,8 +181,7 @@ public class LevelTheme {
             if (accept_null)
                 return null;
         } else {
-            res = gFramework.resources.resource!(BitmapResource)
-                (gfxTexNode.getPathValue(markerId)).get();
+            res = resources.get!(Surface)(gfxTexNode[markerId]);
         }
         if (res is null) {
             throw new Exception("couldn't load texture for marker: "~markerId);
@@ -204,7 +190,10 @@ public class LevelTheme {
     }
 
     this(ConfigNode gfxNode) {
-        gFramework.resources.loadResources(gfxNode);
+        auto conffilename = gfxNode["configpath"];
+        assert(conffilename.length);
+        resources = gFramework.resources.loadResSet(conffilename);
+
         gfxTexNode = gfxNode.getSubNode("marker_textures");
         name = gfxNode["name"];
         assert(name.length > 0);
@@ -238,7 +227,7 @@ public class LevelTheme {
 
         //xxx fix this (objects should have more than just a bitmap)
         PlaceableObject createObject(char[] bitmap, bool try_place) {
-            auto bmp = gFramework.resources.resource!(BitmapResource)(bitmap).get();
+            auto bmp = resources.get!(Surface)(bitmap);
             //use ressource name as id
             auto po = new PlaceableObject(bitmap, bmp, try_place);
             objects[po.id] = po;
@@ -246,32 +235,28 @@ public class LevelTheme {
         }
 
         ConfigNode bridgeNode = gfxNode.getSubNode("bridge");
-        bridge[0] = createObject(bridgeNode.getPathValue("segment"), false);
-        bridge[1] = createObject(bridgeNode.getPathValue("left"), false);
-        bridge[2] = createObject(bridgeNode.getPathValue("right"), false);
+        bridge[0] = createObject(bridgeNode["segment"], false);
+        bridge[1] = createObject(bridgeNode["left"], false);
+        bridge[2] = createObject(bridgeNode["right"], false);
 
         ConfigNode objectsNode = gfxNode.getSubNode("objects");
         foreach (char[] id, ConfigNode onode; objectsNode) {
-            createObject(onode.getPathValue("image"), true);
+            createObject(onode["image"], true);
         }
 
         ConfigNode skyNode = gfxNode.getSubNode("sky");
-        char[] skyGradientTex = skyNode.getPathValue("gradient");
+        char[] skyGradientTex = skyNode["gradient"];
         if (skyGradientTex.length > 0)
-            skyGradient = gFramework.resources.resource!(BitmapResource)
-                (skyGradientTex).get();
+            skyGradient = resources.get!(Surface)(skyGradientTex);
         skyColor.parse(skyNode.getStringValue("skycolor"));
-        char[] skyBackTex = skyNode.getPathValue("backdrop");
+        char[] skyBackTex = skyNode["backdrop"];
         if (skyBackTex.length > 0)
-            skyBackdrop = gFramework.resources.resource!(BitmapResource)
-                (skyBackTex).get();
+            skyBackdrop = resources.get!(Surface)(skyBackTex);
         if (skyNode.exists("debris")) {
-            skyDebris = gFramework.resources.resource!(AnimationResource)
-                (skyNode.getPathValue("debris"));
+            skyDebris = resources.get!(Animation)("debris");
         }
 
-        backImage = gFramework.resources.resource!(BitmapResource)
-            (gfxNode.getPathValue("soil_tex")).get();
+        backImage = resources.get!(Surface)(gfxNode["soil_tex"]);
         borderColor.parse(gfxNode.getStringValue("bordercolor"));
 
         //hmpf, read all known markers
@@ -593,9 +578,9 @@ public class LevelGenerator {
         gFramework.fs.listdir(cLevelsPath, "*", true,
             (char[] path) {          //path is relative to "level" dir
                 ConfigNode config;
+                auto filename = cLevelsPath ~ "/" ~ path ~ "level.conf";
                 try {
-                    config = gFramework.loadConfig(cLevelsPath ~ "/" ~ path
-                        ~ "level");
+                    config = gFramework.loadConfig(filename, true);
                 } catch (FilesystemException e) {
                     //seems it wasn't a valid gfx dir, do nothing, config==null
                     //i.e. the data directory contains .svn
@@ -606,6 +591,9 @@ public class LevelGenerator {
                     assert(path[$-1] == '/');
                     char[] name = path[0..$-1];
 
+                    //warning _very_ gross hack! just search for "configpath"
+                    config["configpath"] = filename;
+
                     config["gfxpath"] = cLevelsPath ~ "/" ~ path ~ "/";
                     config["name"] = name;
                     assert(!mGfxNodes.hasNode(name), "gfx name already exists");
@@ -615,12 +603,6 @@ public class LevelGenerator {
                     //a function like ConfigNode.addSubNode(ConfigNode node);
                     //so, copy it into the new node
                     node.mixinNode(config);
-                    //but this disgusting hack wasn't my idea
-                    node.visitAllNodes(
-                        (ConfigNode sub) {
-                            sub.setFilePath(cLevelsPath ~ "/" ~ path);
-                        }
-                    );
                 }
                 return true;
             }

@@ -151,7 +151,9 @@ void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
 
 
 //unchanging part of level.conf, part 1 (yeah, backticked string literals!)
-char[] LEVEL_HEADER = `require_resources = "debris_atlas"
+char[] LEVEL_HEADER = `require_resources {
+  "debris_atlas.conf"
+}
 resources {
   aniframes {
     debris_aniframes {

@@ -1,8 +1,9 @@
 module gui.scrollbar;
 
+import common.common;
+import common.visual;
 import framework.restypes.bitmap;
 import framework.resources;
-import common.visual;
 import gui.button;
 import gui.container;
 import gui.widget;
@@ -36,8 +37,8 @@ class ScrollBar : Container {
         const int cMinSliderSize = 8;
         const int cDefSliderSize = 16;
 
-        const char[][] cAddImg = ["/scroll_right","/scroll_down"];
-        const char[][] cSubImg = ["/scroll_left","/scroll_up"];
+        const char[][] cAddImg = ["scroll_right","scroll_down"];
+        const char[][] cSubImg = ["scroll_left","scroll_up"];
 
         //that thing which sits between the two buttons
         //xxx: drag and drop code partially copied from window.d
@@ -88,15 +89,13 @@ class ScrollBar : Container {
         mDir = horiz ? 0 : 1;
         //xxx: replace text by images
         mAdd = new Button();
-        mAdd.image = gFramework.resources.resource!(BitmapResource)
-            (cAddImg[mDir]).get().createTexture();
+        mAdd.image = globals.guiResources.get!(Surface)(cAddImg[mDir]);
         //mAdd.text = "A";
         mAdd.onClick = &onAddSub;
         mAdd.autoRepeat = true;
         addChild(mAdd);
         mSub = new Button();
-        mSub.image = gFramework.resources.resource!(BitmapResource)
-            (cSubImg[mDir]).get().createTexture();
+        mSub.image = globals.guiResources.get!(Surface)(cSubImg[mDir]);
         //mSub.text = "B";
         mSub.onClick = &onAddSub;
         mSub.autoRepeat = true;

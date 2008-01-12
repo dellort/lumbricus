@@ -91,7 +91,6 @@ class GameWater {
 
         mEngine = engine;
         ConfigNode waterConf = gFramework.loadConfig("water");
-        gFramework.resources.loadResources(waterConf);
         ConfigNode waterNode = waterConf.getSubNode(waterType);
         Color waterColor;
         waterColor.parse(waterNode.getStringValue("color"));
@@ -102,8 +101,7 @@ class GameWater {
         mWaterDrawerBack = new WaterDrawerBack(this, waterColor);
         scenes[Z.back].add(mWaterDrawerBack);
         //try {
-            mWaveAnim = gFramework.resources.resource!(AnimationResource)
-                (waterNode.getPathValue("waves")).get();
+            mWaveAnim = mEngine.resources.get!(Animation)(waterNode["waves"]);
             foreach (int i, inout a; mWaveAnimBack) {
                 a = new HorizontalFullsceneAnimator();
                 a.animator = new Animator();

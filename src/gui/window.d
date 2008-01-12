@@ -1,5 +1,6 @@
 module gui.window;
 
+import common.common;
 import common.visual;
 import framework.resources;
 import framework.restypes.bitmap;
@@ -549,8 +550,7 @@ class WindowFrame : Container {
             char[] action;
             this(char[] name, ConfigNode node) {
                 super(name, node);
-                img = gFramework.resources.resource!(BitmapResource)
-                    (node.getStringValue("image")).get().createTexture();
+                img = globals.guiResources.get!(Surface)(node["image"]);
                 action = node.getStringValue("action");
             }
 

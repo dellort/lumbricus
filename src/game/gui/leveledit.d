@@ -36,7 +36,7 @@ import std.bind;
 import std.stream;
 
 //for playing the preview
-import game.gametask;
+//import game.gametask;
 
 private:
 
@@ -933,10 +933,10 @@ public class LevelEditor : Task {
         if (!mCurrentPreview)
             return;
         //cut'n'paste from game.gui.preview
-        auto gc = loadGameConfig(globals.anyConfig.getSubNode("newgame"),
-            mCurrentPreview);
+//        auto gc = loadGameConfig(globals.anyConfig.getSubNode("newgame"),
+//            mCurrentPreview);
         //don't care about the game anymore as soon as spawned
-        new GameTask(manager, gc);
+//        new GameTask(manager, gc);
     }
 
     override protected void onKill() {
