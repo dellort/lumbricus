@@ -28,6 +28,11 @@ package class LevelBitmap {
     private Color mBorderColor;
     private Log mLog;
 
+    //blastHole: Size of border around hole that is colored but stays solid
+    private const int cBlastBorder = 4;
+    //blastHole: Distance from explosion outer circle to inner (free) circle
+    private const int cBlastCenterDist = 25;
+
     private int[][int] mCircles; //getCircle()
 
     //because I'm stupid, I'll store all points into a linked lists to be able
@@ -358,7 +363,7 @@ package class LevelBitmap {
         void* pixels; uint pitch;
         mImage.lockPixelsRGBA32(pixels, pitch);
 
-        auto nradius = max(radius-20,0);
+        auto nradius = max(radius - cBlastCenterDist,0);
 
         void* srcpixels; uint srcpitch;
         int sx, sy;
@@ -390,7 +395,7 @@ package class LevelBitmap {
         //because all SolidSoft pixels were cleared above, only the remaining
         //landscape around the destruction will be coloured with this border...
         col = mBorderColor.toRGBA32();
-        circle_masked(pos, radius+4, pixels, pitch, &col, 0, 1, 1,
+        circle_masked(pos, radius+cBlastBorder, pixels, pitch, &col, 0, 1, 1,
             cAllMeta, Lexel.SolidSoft);
 
         if (nradius > 0) {
@@ -402,8 +407,8 @@ package class LevelBitmap {
         }
 
         Rect2i bb;
-        bb.p1 = pos - Vector2i(radius);
-        bb.p2 = pos + Vector2i(radius);
+        bb.p1 = pos - Vector2i(radius+cBlastBorder);
+        bb.p2 = pos + Vector2i(radius+cBlastBorder);
         mImage.unlockPixels(bb);
     }
 
