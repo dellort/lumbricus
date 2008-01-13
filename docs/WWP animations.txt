@@ -1,0 +1,10 @@
+wormsanim:
+129-141: napalm?
+158-159: wurmflug
+176-179: jetpack umdrehen (links nach rechts, einzelbild)
+329-331: banenenbombe holen
+341-342: jetpack starten
+592-594: wurm hält bananenbombe (alle winkel)
+606-609: explosions schriftzüge
+610-622: verschiedene explosions-"ringe"
+623-625: luftblasen (fürs napalm?)

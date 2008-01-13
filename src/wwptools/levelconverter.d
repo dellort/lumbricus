@@ -65,7 +65,7 @@ void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
     definedBitmaps ~= BmpDef("land","text.png");
 
     //solid ground texture (WWP does not have this, use default)
-    stdf.copy("hard.png",destPath~"hard.png");
+    stdf.copy("./hard.png",destPath~"hard.png");
     definedBitmaps ~= BmpDef("solid_land","hard.png");
 
     //Sky gradient

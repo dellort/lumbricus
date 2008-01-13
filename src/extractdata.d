@@ -25,7 +25,7 @@ void do_extractdata(char[] wormsDir, char[] outputDir) {
     if (!stdf.exists(gfxdirp)) {
         throw new Exception("Invalid directory! Gfx.dir not found.");
     }
-    scope iconnames = new File("iconnames.txt",FileMode.In);
+    scope iconnames = new File("./iconnames.txt",FileMode.In);
 
     //****** Extract WWP .dir files ******
     //extract Gfx.dir to current directory (creating a new dir "Gfx")
@@ -39,17 +39,17 @@ void do_extractdata(char[] wormsDir, char[] outputDir) {
     do_unworms(gfxextr~"iconlo.img", tmpdir);
     scope(exit) stdf.remove(tmpdir~path.sep~"iconlo.png");
     //apply icons mask
-    Image icMask = new Image("iconmask.png");
+    Image icMask = new Image("./iconmask.png");
     Image iconImg = new Image(tmpdir~path.sep~"iconlo.png");
     iconImg.applyAlphaMask(icMask);
-    iconImg.save(tmpdir~path.sep~"iconlo_masked.png");
-    scope(exit) stdf.remove(tmpdir~path.sep~"iconlo_masked.png");
+    iconImg.save(tmpdir~path.sep~"icons_masked.png");
+    scope(exit) stdf.remove(tmpdir~path.sep~"icons_masked.png");
     //prepare directory "weapons"
     char[] wepDir = outputDir~path.sep~"weapons";
     trymkdir(wepDir);
     //extract weapon icons
-    do_untile(tmpdir~path.sep~"iconlo_masked.png",wepDir~path.sep,"icons",
-        "icon_","_lo", "_icons.conf",iconnames);
+    do_untile(tmpdir~path.sep~"icons_masked.png",wepDir~path.sep,"icons",
+        "icon_","", "_icons.conf",iconnames);
 
     //****** Convert mainspr.bnk / water.bnk using animconv ******
     //move mainspr.bnk to output dir
@@ -57,7 +57,7 @@ void do_extractdata(char[] wormsDir, char[] outputDir) {
     scope(exit) stdf.remove(outputDir~path.sep~"mainspr.bnk");
     //move water.bnk to output dir
 
-    ConfigNode animConf = (new ConfigFile(new File("animations.txt"),
+    ConfigNode animConf = (new ConfigFile(new File("./animations.txt"),
         "animations.txt", (char[] msg) { writefln(msg); } )).rootnode;
 
     //run animconv
