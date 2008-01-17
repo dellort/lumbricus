@@ -4,7 +4,7 @@ import game.gobject;
 import game.animation;
 import framework.framework;
 import framework.resset;
-import game.physic;
+import physics.world;
 import game.game;
 import game.sprite;
 import utils.misc;

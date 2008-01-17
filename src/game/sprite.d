@@ -2,7 +2,7 @@ module game.sprite;
 
 import framework.framework;
 import game.gobject;
-import game.physic;
+import physics.world;
 import game.animation;
 import game.game;
 import game.gamepublic;

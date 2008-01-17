@@ -2,7 +2,7 @@ module game.game;
 import levelgen.level;
 import game.animation;
 import game.gobject;
-import game.physic;
+import physics.world;
 import game.glevel;
 import game.sprite;
 import game.water;
@@ -708,8 +708,8 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         physicworld.add(expl);
         //some more chaos, if string enough
         //xxx needs moar tweaking
-        if (damage > 50)
-            addEarthQuake(damage, 0.5);
+        //if (damage > 50)
+        //    addEarthQuake(damage, 0.5);
     }
 
     //determine round-active objects

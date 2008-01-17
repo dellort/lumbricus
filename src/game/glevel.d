@@ -8,7 +8,7 @@ import utils.log;
 import utils.misc;
 import drawing = utils.drawing;
 import std.math : sqrt, PI;
-import game.physic;
+import physics.world;
 
 //if deactivated, use a rectangle (which surrounds the old circle)
 //circular looks better on collisions (reflecting from walls)

@@ -2,7 +2,7 @@ module game.special_weapon;
 
 import game.game;
 import game.gobject;
-import game.physic;
+import physics.world;
 import game.sprite;
 import game.weapon;
 import utils.configfile;

@@ -3,7 +3,7 @@ module game.worm;
 import framework.framework;
 import game.gobject;
 import game.animation;
-import game.physic;
+import physics.world;
 import game.game;
 import game.sprite;
 import game.weapon;

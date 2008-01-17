@@ -2,7 +2,7 @@ module game.projectile;
 
 import framework.framework;
 import game.animation;
-import game.physic;
+import physics.world;
 import game.game;
 import game.gobject;
 import game.sprite;
