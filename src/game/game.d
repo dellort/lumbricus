@@ -249,6 +249,9 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     //current water level, now in absolute scene coordinates, no more dupes
     private float mCurrentWaterLevel;
 
+    //generates earthquakes
+    private EarthQuakeForce mEarthQuakeForce;
+
 
     //managment of sprite classes, for findSpriteClass()
     private GOSpriteClass[char[]] mSpriteClasses;
@@ -387,6 +390,12 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         waterborder = new PlaneTrigger();
         waterborder.onTrigger = &underWaterTrigger;
         physicworld.add(waterborder);
+        //Stokes's drag force
+        //xxx controlled by object attribute, change into zone
+        physicworld.add(new StokesDrag);
+        //Earthquake generator
+        mEarthQuakeForce = new EarthQuakeForce();
+        physicworld.add(mEarthQuakeForce);
 
         deathzone = new PlaneTrigger();
         deathzone.onTrigger = &deathzoneTrigger;
@@ -437,7 +446,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     }
 
     float earthQuakeStrength() {
-        return mPhysicWorld.earthQuakeStrength();
+        return mEarthQuakeForce.earthQuakeStrength();
     }
 
     //return skyline offset (used by airstrikes)
@@ -507,12 +516,17 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         mWaterChanger.target = mCurrentWaterLevel - by;
     }
 
+    EarthQuakeForce earthQuakeForce() {
+        return mEarthQuakeForce;
+    }
+
     //strength = force, degrade = multiplier applied all the time after a
     //  physics.cEarthQuakeDegradeInterval
     //this function never overwrites the settings, but adds both values to the
     //existing ones
     void addEarthQuake(float strength, float degrade) {
-        physicworld.addBaseObject(new EarthQuakeDegrader(strength, degrade));
+        physicworld.addBaseObject(new EarthQuakeDegrader(strength, degrade,
+            mEarthQuakeForce));
         mLog("created earth quake, strength=%s, degrade=%s", strength, degrade);
     }
 

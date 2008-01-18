@@ -98,3 +98,19 @@ class GravityCenter : PhysicForce {
         }
     }
 }
+
+//Stokes's drag
+//special case, because it reads the object's mediumViscosity value
+//xxx would be better to apply this in a fixed region and store the viscosity
+//    here (e.g. PhysicForceZone)
+class StokesDrag : PhysicForce {
+    //constant from Stokes's drag
+    const cStokesConstant = 6*PI;
+
+    Vector2f getAccelFor(PhysicObject o, float deltaT) {
+        if (o.posp.mediumViscosity != 0.0f)
+            return ((o.posp.mediumViscosity*cStokesConstant
+                *o.posp.radius)* -o.velocity)/o.posp.mass;
+        return Vector2f.init;
+    }
+}

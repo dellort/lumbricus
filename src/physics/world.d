@@ -9,7 +9,6 @@ import utils.time;
 import utils.vector2;
 import log = utils.log;
 import utils.output;
-import random = utils.random;
 
 public import physics.base;
 public import physics.earthquake;
@@ -22,9 +21,6 @@ public import physics.timedchanger;
 
 //Uncomment to get detailed physics debugging log (slooooow)
 //version = PhysDebug;
-
-//constant from Stokes's drag
-const cStokesConstant = 6*PI;
 
 class PhysicWorld {
     package List!(PhysicBase) mAllObjects;
@@ -67,62 +63,18 @@ class PhysicWorld {
         }
     }
 
-    // --- nasty earth quake code
-
-    //valid per frame
-    private float mEarthQuakeStrength = 0;
-    //the force is updated in intervals according to the strength
-    //reason: would look silly if it changed each frame
-    private Vector2f mEarthQuakeForce;
-    // a bit silly/dangerous: sum up the deltaTs until "change" time is
-    // reached; initialized with NaN to trigger change in first simulate()
-    private float mEarthQuakeLastChangeTime;
-
-    //when something wants to cause an earth quake, it needs to update this
-    //each frame (in PhysicBase.simulate()!)
-    void addEarthQuakePerFrameStrength(float force) {
-        mEarthQuakeStrength += force;
-    }
-
-    float earthQuakeStrength() {
-        return mEarthQuakeStrength;
-    }
-
-    //(code maybe should be in a separate PhysicBase, but that's hard because
-    // its simulate() method is called before and after other simulate methods)
-    private void earthQuakeFrame(float deltaT) {
-        if (mEarthQuakeStrength <= float.epsilon) {
-            mEarthQuakeForce = Vector2f.init;
-            return;
-        }
-
-        mEarthQuakeLastChangeTime += deltaT;
-
-        //NOTE: don't return if mLastChange is NaN
-        //this constant is the update-radnom-vector-change time
-        if (mEarthQuakeLastChangeTime < 0.2)
-            return;
-
-        //new direction
-        //xxx: undeterministic randomness
-        //using an angle here is a simple way to create a normalized vector
-        mEarthQuakeForce = Vector2f.fromPolar(1.0f,
-            random.random() * PI * 2.0f) * mEarthQuakeStrength;
-        mEarthQuakeLastChangeTime = 0;
-    }
-
     // --- simulation, all in one function
 
     private void doSimulate(float deltaT) {
         //is changed per frame by EarthQuakeDegraders, which use the function
         //  addEarthQuakePerFrameStrength()
-        mEarthQuakeStrength = 0;
+        //mEarthQuakeStrength = 0;
 
         foreach (PhysicBase b; mAllObjects) {
             b.simulate(deltaT);
         }
 
-        earthQuakeFrame(deltaT);
+        //earthQuakeFrame(deltaT);
 
         //apply forces
         foreach (PhysicObject o; mObjects) {
@@ -130,19 +82,11 @@ class PhysicWorld {
                 o.velocity += f.getAccelFor(o, deltaT) * deltaT;
             }
 
-            //for earth quake, works like a force (as above)
-            o.velocity += mEarthQuakeForce * deltaT;
-
             //xxx this with addVelocity can't be correct?
             o.velocity += o.selfAddVelocity + (o.selfForce * deltaT);
 
             //remove unwanted parts
             o.velocity = o.velocity.mulEntries(o.posp.fixate);
-
-            //Stokes's drag
-            if (o.posp.mediumViscosity != 0.0f)
-                o.velocity += ((o.posp.mediumViscosity*cStokesConstant
-                    *o.posp.radius)* -o.velocity)/o.posp.mass * deltaT;
 
             //clip components at maximum velocity
             o.velocity = o.velocity.clipAbsEntries(o.posp.velocityConstraint);

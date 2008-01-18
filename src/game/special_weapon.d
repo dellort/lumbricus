@@ -49,7 +49,8 @@ private class AtomtestShooter : Shooter {
         active = true;
         //start it hrhrhr
         engine.raiseWater(base.waterRaise);
-        earthquake = new EarthQuakeDegrader(base.earthquakeStrength, 1.0f);
+        earthquake = new EarthQuakeDegrader(base.earthquakeStrength, 1.0f,
+            engine.earthQuakeForce);
         engine.physicworld.addBaseObject(earthquake);
         endtime = engine.gameTime.current + base.testDuration;
     }
