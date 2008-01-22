@@ -45,6 +45,7 @@ struct POSP {
 
     //maximum absolute value, velocity is cut if over this
     Vector2f velocityConstraint = {float.infinity, float.infinity};
+    float speedLimit = 0.0f;
 
     private char[] mCollisionID;
     char[] collisionID() {
@@ -86,6 +87,7 @@ struct POSP {
         velocityConstraint = readVector(node.getStringValue(
             "velocity_constraint", str.format("%s %s", velocityConstraint.x,
             velocityConstraint.y)));
+        speedLimit = node.getFloatValue("speed_limit", speedLimit);
         //xxx: passes true for the second parameter, which means the ID
         //     is created if it doesn't exist; this is for forward
         //     referencing... it should be replaced by collision classes

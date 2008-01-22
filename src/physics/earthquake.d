@@ -16,11 +16,14 @@ class EarthQuakeForce : PhysicForce {
     private float mEarthQuakeStrength = 0;
     //the force is updated in intervals according to the strength
     //reason: would look silly if it changed each frame
-    private Vector2f mEarthQuakeForce;
+    private Vector2f mEarthQuakeImpulse;
     // a bit silly/dangerous: sum up the deltaTs until "change" time is
     // reached; initialized with NaN to trigger change in first simulate()
     private float mEarthQuakeLastChangeTime;
     private bool mNeedForceUpdate = true;
+
+    //is there any force to apply?
+    private bool mActive = false;
 
     //when something wants to cause an earth quake, it needs to update this
     //each frame (in PhysicBase.simulate()!)
@@ -40,7 +43,8 @@ class EarthQuakeForce : PhysicForce {
     }
 
     //calculate the current frame's earthquake force
-    private void updateForce(float deltaT) {
+    private void updateImpulse(float deltaT) {
+        mActive = false;
         scope(exit) {
             //reset per-frame strength
             mEarthQuakeStrength = 0;
@@ -48,11 +52,12 @@ class EarthQuakeForce : PhysicForce {
             mNeedForceUpdate = false;
         }
         if (mEarthQuakeStrength <= float.epsilon) {
-            mEarthQuakeForce = Vector2f.init;
+            mEarthQuakeImpulse = Vector2f.init;
             mEarthQuakeLastChangeTime = float.init;
             return;
         }
 
+        mActive = true;
         mEarthQuakeLastChangeTime += deltaT;
 
         //NOTE: don't return if mLastChange is NaN
@@ -63,19 +68,22 @@ class EarthQuakeForce : PhysicForce {
         //new direction
         //xxx: undeterministic randomness
         //using an angle here is a simple way to create a normalized vector
-        mEarthQuakeForce = Vector2f.fromPolar(1.0f,
+        mEarthQuakeImpulse = Vector2f.fromPolar(1.0f,
             random.random() * PI * 2.0f) * mEarthQuakeStrength;
         mEarthQuakeLastChangeTime = 0;
     }
 
-    Vector2f getAccelFor(PhysicObject o, float deltaT) {
+    //this _force_ generator applies an impulse, hope this is correct
+    void applyTo(PhysicObject o, float deltaT) {
         //xxx sorry, but this needs to be called after all degrader's simulate
         if (mNeedForceUpdate)
-            updateForce(deltaT);
+            updateImpulse(deltaT);
+        if (!mActive)
+            return;
         //xxx should be applied only to objects on the ground (this is an
         //    _earth_quake, not a skyquake, but this requires major changes
         //    in PhysicObject
-        return mEarthQuakeForce;
+        o.addImpulse(mEarthQuakeImpulse);
     }
 }
 

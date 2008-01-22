@@ -238,7 +238,6 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     private const cSpaceAboveOpenLevel = 1000;
     private const cOpenLevelWidthMultiplier = 3;
 
-    private ConstantForce mGravForce;
     private WindyForce mWindForce;
     private PhysicTimedChangerFloat mWindChanger;
     private const cWindChange = 80.0f;
@@ -405,9 +404,6 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         deathzone.plane.define(Vector2f(0, death_y), Vector2f(1, death_y));
         physicworld.add(deathzone);
 
-        mGravForce = new ConstantForce();
-        physicworld.add(mGravForce);
-
         mWindForce = new WindyForce();
         mWindChanger = new PhysicTimedChangerFloat(0, &windChangerUpdate);
         mWindChanger.changePerSec = cWindChange;
@@ -466,7 +462,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
             loadSpriteClass(sprite);
         }
 
-        mGravForce.accel = Vector2f(0, conf.getFloatValue("gravity",100));
+        mPhysicWorld.gravity = Vector2f(0, conf.getFloatValue("gravity",100));
 
         //hm!?!?
         physicworld.setCollideHandler("hit", &onPhysicHit);
@@ -509,7 +505,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     }
 
     public float gravity() {
-        return mGravForce.accel.y;
+        return mPhysicWorld.gravity.y;
     }
 
     void raiseWater(int by) {

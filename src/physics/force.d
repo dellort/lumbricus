@@ -12,7 +12,7 @@ import physics.physobj;
 class PhysicForce : PhysicBase {
     package mixin ListNodeMixin forces_node;
 
-    abstract Vector2f getAccelFor(PhysicObject o, float deltaT);
+    abstract void applyTo(PhysicObject o, float deltaT);
 
     override /+package+/ void doRemove() {
         super.doRemove();
@@ -24,16 +24,26 @@ class PhysicForce : PhysicBase {
 class ConstantForce : PhysicForce {
     //directed force, in Wormtons
     //(1 Wormton = 10 Milli-Worms * 1 Pixel / Seconds^2 [F=ma])
-    Vector2f accel;
+    Vector2f force;
 
-    Vector2f getAccelFor(PhysicObject, float deltaT) {
-        return accel;
+    void applyTo(PhysicObject o, float deltaT) {
+        o.addForce(force, true);
     }
 }
 
-class WindyForce : ConstantForce {
-    Vector2f getAccelFor(PhysicObject o, float deltaT) {
-        return accel * o.posp.windInfluence;
+//like ConstantForce, but independent of object mass
+class ConstantAccel: PhysicForce {
+    Vector2f accel;
+
+    void applyTo(PhysicObject o, float deltaT) {
+        o.addForce(accel * o.posp.mass, true);
+    }
+}
+
+class WindyForce : ConstantAccel {
+    void applyTo(PhysicObject o, float deltaT) {
+        //xxx physical crap, but the way Worms does it
+        o.addForce(accel * o.posp.mass * o.posp.windInfluence, true);
     }
 }
 
@@ -59,7 +69,7 @@ class ExplosiveForce : PhysicForce {
     }
 
     private float cDistDelta = 0.01f;
-    Vector2f getAccelFor(PhysicObject o, float deltaT) {
+    void applyTo(PhysicObject o, float deltaT) {
         float impulse = damage*cDamageToImpulse;
         Vector2f v = (pos-o.pos);
         float dist = v.length;
@@ -74,8 +84,7 @@ class ExplosiveForce : PhysicForce {
             if (diff != 0 && onReportApply) {
                 onReportApply(cause, o.backlink, diff);
             }
-            return -v.normal()*(impulse/deltaT)*r/o.posp.mass
-                    * o.posp.explosionInfluence;
+            o.addImpulse(-v.normal()*impulse*r*o.posp.explosionInfluence);
         } else {
             return Vector2f(0,0);
         }
@@ -87,14 +96,12 @@ class GravityCenter : PhysicForce {
     Vector2f pos;
 
     private float cDistDelta = 0.01f;
-    Vector2f getAccelFor(PhysicObject o, float deltaT) {
+    void applyTo(PhysicObject o, float deltaT) {
         Vector2f v = (pos-o.pos);
         float dist = v.length;
         if (dist > cDistDelta) {
             float r = (max(radius-dist,0f)/radius);
-            return v.normal()*accel*r;
-        } else {
-            return Vector2f(0,0);
+            o.addForce((v.normal()*accel*r)*o.posp.mass);
         }
     }
 }
@@ -105,12 +112,13 @@ class GravityCenter : PhysicForce {
 //    here (e.g. PhysicForceZone)
 class StokesDrag : PhysicForce {
     //constant from Stokes's drag
-    const cStokesConstant = 6*PI;
+    private const cStokesConstant = -6*PI;
 
-    Vector2f getAccelFor(PhysicObject o, float deltaT) {
-        if (o.posp.mediumViscosity != 0.0f)
-            return ((o.posp.mediumViscosity*cStokesConstant
-                *o.posp.radius)* -o.velocity)/o.posp.mass;
-        return Vector2f.init;
+    void applyTo(PhysicObject o, float deltaT) {
+        if (o.posp.mediumViscosity != 0.0f) {
+            //F = -6*PI*r*eta*v
+            o.addForce(cStokesConstant*o.posp.radius*o.posp.mediumViscosity
+                *o.velocity);
+        }
     }
 }

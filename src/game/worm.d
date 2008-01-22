@@ -146,8 +146,8 @@ class WormSprite : GObjectSprite {
     //movement for walking/jetpack
     void move(Vector2f dir) {
         if (jetpackActivated) {
-            //velocity or force? sigh.
-            Vector2f jetForce = dir.mulEntries(wsc.jetpackAccel);
+            //force!
+            Vector2f jetForce = dir.mulEntries(wsc.jetpackThrust);
             //don't accelerate down
             if (jetForce.y > 0)
                 jetForce.y = 0;
@@ -205,7 +205,7 @@ class WormSprite : GObjectSprite {
             look.y = 0;
             look = look.normal(); //get sign *g*
             look.y = 1;
-            physics.push(look.mulEntries(wsc.jumpStrength));
+            physics.addImpulse(look.mulEntries(wsc.jumpStrength));
         }
     }
 
@@ -329,7 +329,7 @@ class WormSprite : GObjectSprite {
 
 //the factories work over the sprite classes, so we need one
 class WormSpriteClass : GOSpriteClass {
-    Vector2f jetpackAccel;
+    Vector2f jetpackThrust;
     float suicideDamage;
     AnimationResource[] gravestones;
     Vector2f jumpStrength;
@@ -342,11 +342,11 @@ class WormSpriteClass : GOSpriteClass {
     }
     override void loadFromConfig(ConfigNode config) {
         super.loadFromConfig(config);
-        float[] jetAc = config.getValueArray!(float)("jet_velocity", [0f,0f]);
-        if (jetAc.length > 1)
-            jetpackAccel = Vector2f(jetAc[0], jetAc[1]);
+        float[] jetTh = config.getValueArray!(float)("jet_thrust", [0f,0f]);
+        if (jetTh.length > 1)
+            jetpackThrust = Vector2f(jetTh[0], jetTh[1]);
         else
-            jetpackAccel = Vector2f(0);
+            jetpackThrust = Vector2f(0);
         suicideDamage = config.getFloatValue("suicide_damage", 10);
         float[] js = config.getValueArray!(float)("jump_strength",[100,-100]);
         jumpStrength = Vector2f(js[0],js[1]);

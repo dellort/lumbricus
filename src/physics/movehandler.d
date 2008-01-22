@@ -174,7 +174,7 @@ class RopeHandler : PhysicBase, MoveHandler {
         anchor = new PhysicObject();
         auto dir = Vector2f.fromPolar(1, angle);
         anchor.setPos(dir*(anchor.posp.radius+shooter.posp.radius), false);
-        anchor.velocity = dir*10;//hm, speed
+        anchor.velocity_int = dir*10;//hm, speed
         from.world.add(anchor);
         //anchor is flying and searching for ground
         isShooting = true;

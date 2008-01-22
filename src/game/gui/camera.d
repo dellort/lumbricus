@@ -33,7 +33,7 @@ class Camera {
 
     //if the scene was scrolled by the mouse, scroll back to the camera focus
     //after this time
-    private const cScrollIdleTimeMs = 1000;
+    private const cScrollIdleTimeMs = 3000;
     //in pixels the width of the border in which a follower camera becomes
     //active and scrolls towards the followed object again
     private const cCameraBorder = 150;

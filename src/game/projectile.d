@@ -336,7 +336,8 @@ private void spawnsprite(GameEngine engine, int n, SpawnParams params,
     }
 
     //velocity of new object
-    sprite.physics.velocity = about.dir*about.strength;
+    //xxx sry for that, changing the sprite factory didn't seem worth it
+    sprite.physics.setInitialVelocity(about.dir*about.strength);
 
     //pass required parameters
     auto ps = cast(ProjectileSprite)sprite;
@@ -566,6 +567,7 @@ class ProjectileEffectorGravityCenterClass : ProjectileEffectorClass {
 
 class ProjectileEffectorHoming : ProjectileEffector {
     private ProjectileEffectorHomingClass myclass;
+    private Vector2f oldAccel;
 
     this(ProjectileSprite parent, ProjectileEffectorHomingClass type) {
         super(parent, type);
@@ -576,17 +578,18 @@ class ProjectileEffectorHoming : ProjectileEffector {
         super.simulate(deltaT);
         if (mActive) {
             Vector2f totarget = mParent.target - mParent.physics.pos;
-            mParent.physics.velocity += totarget.normal*myclass.force*deltaT;
-            if (mParent.physics.velocity.length > myclass.maxvelocity) {
-                mParent.physics.velocity.length = myclass.maxvelocity;
-            }
+            mParent.physics.addForce(totarget.normal*myclass.force);
         }
     }
 
     override void activate(bool ac) {
-        /*if (ac) {
+        if (ac) {
+            //backup acceleration and set gravity override
+            oldAccel = mParent.physics.acceleration;
+            mParent.physics.acceleration = -mParent.engine.physicworld.gravity;
         } else {
-        }*/
+            mParent.physics.acceleration = oldAccel;
+        }
     }
 }
 

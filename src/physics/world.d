@@ -54,6 +54,7 @@ class PhysicWorld {
     }
 
     private const cPhysTimeStepMs = 10;
+    Vector2f gravity = {0, 0};
 
     public void simulate(Time currentTime) {
         uint ms = currentTime.msecs();
@@ -66,51 +67,20 @@ class PhysicWorld {
     // --- simulation, all in one function
 
     private void doSimulate(float deltaT) {
-        //is changed per frame by EarthQuakeDegraders, which use the function
-        //  addEarthQuakePerFrameStrength()
-        //mEarthQuakeStrength = 0;
-
         foreach (PhysicBase b; mAllObjects) {
             b.simulate(deltaT);
         }
 
-        //earthQuakeFrame(deltaT);
-
-        //apply forces
+        //update all objects
         foreach (PhysicObject o; mObjects) {
+            o.gravity = gravity;
+
+            //apply force generators
             foreach (PhysicForce f; mForceObjects) {
-                o.velocity += f.getAccelFor(o, deltaT) * deltaT;
+                f.applyTo(o, deltaT);
             }
 
-            //xxx this with addVelocity can't be correct?
-            o.velocity += o.selfAddVelocity + (o.selfForce * deltaT);
-
-            //remove unwanted parts
-            o.velocity = o.velocity.mulEntries(o.posp.fixate);
-
-            //clip components at maximum velocity
-            o.velocity = o.velocity.clipAbsEntries(o.posp.velocityConstraint);
-
-            auto vel = o.velocity;
-
-            if (o.isGlued) {
-                //argh. so a velocity is compared to a "force"... sigh.
-                //surface_normal is valid, as objects are always glued to the ground
-                if (vel.length <= o.posp.glueForce && vel*o.surface_normal <= 0) {
-                    //xxx: reset the velocity vector, because else, the object
-                    //     will be unglued even it stands on the ground
-                    //     this should be changed such that the object is only
-                    //     unglued if it actually could be moved...
-                    o.velocity = Vector2f(0);
-                    //skip to next object, don't change position
-                    continue;
-                }
-                o.doUnglue();
-            }
-
-            o.move(vel * deltaT);
-            o.needUpdate();
-            o.checkRotation();
+            o.update(deltaT);
         }
 
         //collide with each other PhysicObjects
@@ -170,8 +140,8 @@ class PhysicWorld {
                 dva *= me.posp.elasticity;
                 dvb *= other.posp.elasticity;
 
-                me.velocity += dva * nd;
-                other.velocity += dvb * nd;
+                me.velocity_int += dva * nd;
+                other.velocity_int += dvb * nd;
 
                 me.needUpdate();
                 other.needUpdate();
@@ -253,7 +223,7 @@ class PhysicWorld {
                         true);
 
                     //direction the worm is flying to
-                    auto flydirection = me.velocity.normal;
+                    auto flydirection = me.velocity_int.normal;
 
                     //force directed against surface
                     //xxx in worms, only vertical speed counts
@@ -267,7 +237,7 @@ class PhysicWorld {
 
                     //mirror velocity on surface
                     Vector2f proj = rnormal * (me.velocity * rnormal);
-                    me.velocity -= proj * (1.0f + me.posp.elasticity);
+                    me.velocity_int -= proj * (1.0f + me.posp.elasticity);
 
                     //bumped against surface -> loss of energy
                     //me.velocity *= me.posp.elasticity;
@@ -282,7 +252,7 @@ class PhysicWorld {
                         version(PhysDebug) mLog("glue object %s", me);
                         //velocity must be set to 0 (or change glue handling)
                         //ok I did change glue handling.
-                        me.velocity = Vector2f(0);
+                        me.velocity_int = Vector2f(0);
                     }
 
                     me.checkRotation();
