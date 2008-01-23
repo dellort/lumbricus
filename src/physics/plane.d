@@ -11,13 +11,14 @@ struct Plane {
         mDistance = mNormal * from;
     }
 
-    bool collide(inout Vector2f pos, float radius) {
-        Vector2f out_pt = pos - mNormal * radius;
-        float dist = mNormal * out_pt;
-        if (dist >= mDistance)
+    bool collide(Vector2f pos, float radius, out Vector2f normal,
+        out float depth)
+    {
+        float dist = pos * mNormal - radius - mDistance;
+        if (dist >= 0)
             return false;
-        float gap = mDistance - dist;
-        pos += mNormal * gap;
+        normal = mNormal;
+        depth = -dist;
         return true;
     }
 }

@@ -655,7 +655,8 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     {
         Vector2f pos = drop;
         bool isfirst = true;
-        while (!physicworld.collideGeometry(drop, radius)) {
+        ContactData contact;   //data not needed
+        while (!physicworld.collideGeometry(drop, radius, contact)) {
             pos = drop;
             //hmpf!
             drop.y += 1;

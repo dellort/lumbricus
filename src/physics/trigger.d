@@ -43,7 +43,10 @@ class PlaneTrigger : PhysicTrigger {
     }
 
     override bool doCollide(Vector2f pos, float radius) {
-        return plane.collide(pos, radius);
+        //out values of plane.collide are not used
+        Vector2f n;
+        float pd;
+        return plane.collide(pos, radius, n, pd);
     }
 }
 

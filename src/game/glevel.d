@@ -19,7 +19,7 @@ version = CircularCollision;
 class LevelGeometry : PhysicGeometry {
     GameLevel level;
 
-    bool collide(inout Vector2f pos, float radius) {
+    bool collide(Vector2f pos, float radius, out ContactData contact) {
         Vector2i dir;
         int pixelcount;
 
@@ -42,12 +42,14 @@ class LevelGeometry : PhysicGeometry {
         //there's a hack in physic.d which handles this (the current collide()
         //interface is too restricted, can't handle it directly
         int n_len = dir.quad_length();
-        if (n_len == 0)
+        if (n_len == 0) {
+            contact.depth = float.infinity;
             return true;
+        }
 
         //auto len = sqrt(cast(float)n_len);
         //auto normal = toVector2f(dir) / len;
-        auto normal = toVector2f(dir).normal;
+        contact.normal = toVector2f(dir).normal;
 
         auto realradius = iradius+0.5f; //checkAt checks -radius <= p <= +radius
         version (CircularCollision) {
@@ -60,10 +62,8 @@ class LevelGeometry : PhysicGeometry {
         //guess how deep the sphere is inside the landscape by dividing the
         //amount of collided pixel by the amount of total pixels in the circle
         float rx = cast(float)pixelcount / totalpixels;
-        auto nf = normal * (rx * radius * 2);
-
-        //the new hopefully less-colliding sphere center
-        pos += nf;
+        contact.depth = rx * radius * 2;
+        //contact.calcPoint(pos, radius);
 
         return true;
     }

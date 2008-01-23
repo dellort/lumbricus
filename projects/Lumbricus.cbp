@@ -98,6 +98,7 @@
 		<Unit filename="..\src\game\special_weapon.d" />
 		<Unit filename="..\src\game\sprite.d" />
 		<Unit filename="..\src\game\temp.d" />
+		<Unit filename="..\src\game\tools.d" />
 		<Unit filename="..\src\game\water.d" />
 		<Unit filename="..\src\game\weapon.d" />
 		<Unit filename="..\src\game\worm.d" />

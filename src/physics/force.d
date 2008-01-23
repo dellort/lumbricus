@@ -75,18 +75,18 @@ class ExplosiveForce : PhysicForce {
         float dist = v.length;
         if (dist > cDistDelta) {
             float r = max(radius-dist,0f)/radius;
+            if (r < float.epsilon)
+                return;
             float before = o.lifepower;
             o.applyDamage(r*damage);
             float diff = before - o.lifepower;
-            //corner cases; i.e. unvincible worm
+            //corner cases; i.e. invincible worm
             if (diff != diff || diff == typeof(diff).infinity)
                 diff = 0;
             if (diff != 0 && onReportApply) {
                 onReportApply(cause, o.backlink, diff);
             }
             o.addImpulse(-v.normal()*impulse*r*o.posp.explosionInfluence);
-        } else {
-            return Vector2f(0,0);
         }
     }
 }

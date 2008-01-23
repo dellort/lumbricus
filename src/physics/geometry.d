@@ -6,6 +6,31 @@ import utils.vector2;
 import physics.base;
 import physics.plane;
 
+struct ContactData {
+    //Vector2f contactPoint;
+    Vector2f normal;    //contact normal, directed out of geometry
+    float depth;  //object depth depth (along normal)
+
+    //void calcPoint(Vector2f pos, float radius) {
+    //    contactPoint = pos - normal * (radius - depth);
+    //}
+
+    //merge another ContactData into this one
+    //xxx this may be total crap, we have no testcase
+    void merge(ContactData other) {
+        if (depth == float.infinity)
+            return;
+        if (other.depth == float.infinity) {
+            depth = float.infinity;
+            return;
+        }
+        Vector2f tmp = (normal*depth) + (other.normal*other.depth);
+        normal = tmp.normal;
+        depth = tmp.length;
+        //contactPoint = (contactPoint + other.contactPoint)/2;
+    }
+}
+
 //a geometric object which represent (almost) static parts of the map
 //i.e. the deathzone (where worms go if they fly too far), the water, and solid
 // border of the level (i.e. upper border in caves)
@@ -26,7 +51,7 @@ class PhysicGeometry : PhysicBase {
     //if outside geometry, return false and don't change pos
     //if inside or touching, return true and set pos to a corrected pos
     //(which is the old pos, moved along the normal at that point in the object)
-    abstract bool collide(inout Vector2f pos, float radius);
+    abstract bool collide(Vector2f pos, float radius, out ContactData contact);
 
     override /+package+/ void doRemove() {
         super.doRemove();
@@ -45,7 +70,10 @@ class PlaneGeometry : PhysicGeometry {
     this() {
     }
 
-    bool collide(inout Vector2f pos, float radius) {
-        return plane.collide(pos, radius);
+    bool collide(Vector2f pos, float radius, out ContactData contact) {
+        bool ret = plane.collide(pos, radius, contact.normal,
+            contact.depth);
+        //contact.calcPoint(pos, radius);
+        return ret;
     }
 }

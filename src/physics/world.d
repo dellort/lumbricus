@@ -71,105 +71,39 @@ class PhysicWorld {
             b.simulate(deltaT);
         }
 
-        //update all objects
-        foreach (PhysicObject o; mObjects) {
-            o.gravity = gravity;
+        //update all objects (force/velocity/collisions)
+        foreach (PhysicObject me; mObjects) {
+            //xxx pass gravity to object (this avoids a reference to world)
+            me.gravity = gravity;
 
             //apply force generators
             foreach (PhysicForce f; mForceObjects) {
-                f.applyTo(o, deltaT);
+                f.applyTo(me, deltaT);
             }
 
-            o.update(deltaT);
-        }
+            //update position and velocity
+            me.update(deltaT);
 
-        //collide with each other PhysicObjects
-        // (0.5*n^2 - n) iterations
-        foreach (PhysicObject me; mObjects) {
+            //collide with each other PhysicObjects
+            // (0.5*n^2 - n) iterations
             //the next two lines mean: iterate over all objects following "me"
             auto other = mObjects.next(me);
             for (;other;other=mObjects.next(other)) {
-
-                //the following stuff handles physically correct collision
-
-                Vector2f d = other.pos - me.pos;
-                float q_dist = d.quad_length();
-                float mindist = other.posp.radius + me.posp.radius;
-
-                //check if they collide at all
-                if (q_dist >= mindist*mindist)
-                    continue;
-
-                CollisionCookie collide;
-
-                //no collision if unwanted
-                if (!canCollide(me, other, collide))
-                    continue;
-
-                //actually collide the stuff....
-
-                //sitting worms are not safe
-                //if it doesn't matter, they'll be glued again in the next frame
-                me.doUnglue();
-                other.doUnglue();
-
-                float dist = sqrt(q_dist);
-                float gap = mindist - dist;
-                Vector2f nd = d / dist;
-
-                if (nd.isNaN()) {
-                    //NaN? maybe because dist was 0
-                    nd = Vector2f(0);
-                }
-
-                //assert(fabs(nd.length()-1.0f) < 0.001);
-
-                me.setPos(me.pos - nd * (0.5f * gap), true);
-                other.setPos(other.pos + nd * (0.5f * gap), true);
-
-                float vca = me.velocity * nd;
-                float vcb = other.velocity * nd;
-
-                float ma = me.posp.mass, mb = other.posp.mass;
-
-                float dva = (vca * (ma - mb) + vcb * 2.0f * mb)
-                            / (ma + mb) - vca;
-                float dvb = (vcb * (mb - ma) + vca * 2.0f * ma)
-                            / (ma + mb) - vcb;
-
-                dva *= me.posp.elasticity;
-                dvb *= other.posp.elasticity;
-
-                me.velocity_int += dva * nd;
-                other.velocity_int += dvb * nd;
-
-                me.needUpdate();
-                other.needUpdate();
-
-                me.checkRotation();
-
-                collide.call(); //call collision handler
-                //xxx: also, should it be possible to glue objects here?
+                checkObjectCollision(me, other);
             }
-        }
 
-        //check for updated geometry objects, and force a full check
-        //if geom has changed
-        bool forceCheck = false;
-        foreach (PhysicGeometry gm; mGeometryObjects) {
-            if (gm.lastKnownGen < gm.generationNo) {
-                //object has changed
-                forceCheck = true;
-                gm.lastKnownGen = gm.generationNo;
+            //no need to check then? (maybe)
+            //xxx if landscape changed => need to check
+            //    <-> landscape changes only after explosions, which unglue
+            //    objects, however land-filling weapons will cause problems
+            if (!me.isGlued) {
+                //check against geometry
+                checkGeometryCollisions(me);
             }
-        }
 
-        //check against geometry
-        foreach (PhysicObject me; mObjects) {
             //check triggers
             //check glued objects too, or else not checking would be
             //misinterpreted as not active
-
             foreach (PhysicTrigger tr; mTriggers) {
                 //handler is unused -> registered handler not called
                 //instead, the trigger calls a delegate... hmmm
@@ -178,94 +112,6 @@ class PhysicWorld {
                 bool always = tr.collision == CollisionType_Invalid;
                 if (always || canCollide(tr, me, handler))
                     tr.collide(me);
-            }
-
-            //no need to check then? (maybe)
-            //xxx if landscape changed => need to check
-            Vector2f normalsum = Vector2f(0);
-
-            if (me.isGlued && !forceCheck)
-                continue;
-
-            foreach (PhysicGeometry gm; mGeometryObjects) {
-                Vector2f npos = me.pos;
-                CollisionCookie cookie;
-                if (canCollide(me, gm, cookie)
-                    && gm.collide(npos, me.posp.radius))
-                {
-                    //kind of hack for LevelGeometry
-                    //if the pos didn't change at all, but a collision was
-                    //reported, assume the object is completely within the
-                    //landscape...
-                    //(xxx: uh, actually a dangerous hack)
-                    if (npos == me.pos) {
-                        //so pull it out along the velocity vector
-                        npos -= me.velocity.normal*me.posp.radius*2;
-                    }
-
-                    Vector2f direction = npos - me.pos;
-                    normalsum += direction;
-
-                    if (!me.isGlued)
-                        cookie.call();
-                    //xxx: glue objects that don't fly fast enough
-                }
-            }
-
-            auto rnormal = normalsum.normal();
-            if (!rnormal.isNaN()) {
-                //don't check again for already glued objects
-                if (!me.isGlued) {
-                    me.checkGroundAngle(normalsum);
-
-                    //set new position ("should" fit)
-                    me.setPos(me.pos + normalsum.mulEntries(me.posp.fixate),
-                        true);
-
-                    //direction the worm is flying to
-                    auto flydirection = me.velocity_int.normal;
-
-                    //force directed against surface
-                    //xxx in worms, only vertical speed counts
-                    auto bump = -(flydirection * rnormal);
-
-                    if (bump < 0)
-                        bump = 0;
-
-                    //use this for damage
-                    me.applyDamage(max(me.velocity.length-me.posp.sustainableForce,0f)*bump*me.posp.fallDamageFactor);
-
-                    //mirror velocity on surface
-                    Vector2f proj = rnormal * (me.velocity * rnormal);
-                    me.velocity_int -= proj * (1.0f + me.posp.elasticity);
-
-                    //bumped against surface -> loss of energy
-                    //me.velocity *= me.posp.elasticity;
-
-                    //we collided with geometry, but were not fast enough!
-                    //  => worm gets glued, hahaha.
-                    //xxx maybe do the gluing somewhere else?
-                    if (me.velocity.mulEntries(me.posp.fixate).length
-                        <= me.posp.glueForce)
-                    {
-                        me.isGlued = true;
-                        version(PhysDebug) mLog("glue object %s", me);
-                        //velocity must be set to 0 (or change glue handling)
-                        //ok I did change glue handling.
-                        me.velocity_int = Vector2f(0);
-                    }
-
-                    me.checkRotation();
-
-                    //what about unglue??
-                    me.needUpdate();
-                }
-            } else {
-                if (me.isGlued) {
-                    //no valid normal although glued -> terrain disappeared
-                    me.doUnglue();
-                    me.needUpdate();
-                }
             }
         }
 
@@ -284,15 +130,169 @@ class PhysicWorld {
         }
     }
 
-    //check how an object would collide with all the geometry
-    bool collideGeometry(inout Vector2f pos, float radius)
-    {
-        bool res = false;
-        foreach (PhysicGeometry gm; mGeometryObjects) {
-            //pos will be changed, that is ok
-            res = res | gm.collide(pos, radius);
+    private void checkObjectCollision(PhysicObject obj1, PhysicObject obj2) {
+        //the following stuff handles physically correct collision
+
+        Vector2f d = obj2.pos - obj1.pos;
+        float q_dist = d.quad_length();
+        float mindist = obj2.posp.radius + obj1.posp.radius;
+
+        //check if they collide at all
+        if (q_dist >= mindist*mindist)
+            return;
+
+        CollisionCookie cookie;
+
+        //no collision if unwanted
+        if (!canCollide(obj1, obj2, cookie))
+            return;
+
+        //actually collide the stuff....
+
+        //sitting worms are not safe
+        //if it doesn't matter, they'll be glued again in the next frame
+        obj1.doUnglue();
+        obj2.doUnglue();
+
+        float dist = sqrt(q_dist);
+        float gap = mindist - dist;
+        Vector2f nd = d / dist;
+
+        if (nd.isNaN()) {
+            //NaN? maybe because dist was 0
+            nd = Vector2f(0);
         }
-        return res;
+
+        //assert(fabs(nd.length()-1.0f) < 0.001);
+
+        obj1.setPos(obj1.pos - nd * (0.5f * gap), true);
+        obj2.setPos(obj2.pos + nd * (0.5f * gap), true);
+
+        float vca = obj1.velocity * nd;
+        float vcb = obj2.velocity * nd;
+
+        float ma = obj1.posp.mass, mb = obj2.posp.mass;
+
+        float dva = (vca * (ma - mb) + vcb * 2.0f * mb)
+                    / (ma + mb) - vca;
+        float dvb = (vcb * (mb - ma) + vca * 2.0f * ma)
+                    / (ma + mb) - vcb;
+
+        dva *= obj1.posp.elasticity;
+        dvb *= obj2.posp.elasticity;
+
+        obj1.velocity_int += dva * nd;
+        obj2.velocity_int += dvb * nd;
+
+        obj1.needUpdate();
+        obj2.needUpdate();
+
+        obj1.checkRotation();
+
+        cookie.call(); //call collision handler
+        //xxx: also, should it be possible to glue objects here?
+    }
+
+    void checkGeometryCollisions(PhysicObject obj) {
+        ContactData contact;
+        if (!collideObjectWithGeometry(obj, contact))
+            return;
+
+        Vector2f depthvec = contact.normal*contact.depth;
+        obj.checkGroundAngle(depthvec);
+
+        //set new position ("should" fit)
+        obj.setPos(obj.pos + depthvec.mulEntries(obj.posp.fixate),
+            true);
+
+        //direction the worm is flying to
+        auto flydirection = obj.velocity_int.normal;
+
+        //force directed against surface
+        //xxx in worms, only vertical speed counts
+        auto bump = -(flydirection * contact.normal);
+
+        if (bump < 0)
+            bump = 0;
+
+        //use this for damage
+        float damage = max(obj.velocity.length - obj.posp.sustainableForce, 0f)
+            * bump * obj.posp.fallDamageFactor;
+        if (damage > 0)
+            obj.applyDamage(damage);
+
+        //mirror velocity on surface
+        Vector2f proj = contact.normal * (obj.velocity * contact.normal);
+        obj.velocity_int -= proj * (1.0f + obj.posp.elasticity);
+
+        //bumped against surface -> loss of energy
+        //obj.velocity *= obj.posp.elasticity;
+
+        //we collided with geometry, but were not fast enough!
+        //  => worm gets glued, hahaha.
+        //xxx maybe do the gluing somewhere else?
+        if (obj.velocity.mulEntries(obj.posp.fixate).length
+            <= obj.posp.glueForce)
+        {
+            obj.isGlued = true;
+            version(PhysDebug) mLog("glue object %s", me);
+            //velocity must be set to 0 (or change glue handling)
+            //ok I did change glue handling.
+            obj.velocity_int = Vector2f(0);
+        }
+
+        obj.checkRotation();
+
+        //what about unglue??
+        obj.needUpdate();
+    }
+
+    //check how an object would collide with all the geometry
+    bool collideGeometry(Vector2f pos, float radius, out ContactData contact)
+    {
+        bool collided = false;
+        foreach (PhysicGeometry gm; mGeometryObjects) {
+            ContactData ncont;
+            if (gm.collide(pos, radius, ncont)) {
+                if (!collided)
+                    contact = ncont;
+                else
+                    contact.merge(ncont);
+                collided = true;
+            }
+        }
+        return collided;
+    }
+
+    bool collideObjectWithGeometry(PhysicObject o, out ContactData contact) {
+        bool collided = false;
+        foreach (PhysicGeometry gm; mGeometryObjects) {
+            CollisionCookie cookie;
+            ContactData ncont;
+            if (canCollide(o, gm, cookie)
+                && gm.collide(o.pos, o.posp.radius, ncont))
+            {
+                //kind of hack for LevelGeometry
+                //if the pos didn't change at all, but a collision was
+                //reported, assume the object is completely within the
+                //landscape...
+                //(xxx: uh, actually a dangerous hack)
+                if (ncont.depth == float.infinity) {
+                    //so pull it out along the velocity vector
+                    ncont.normal = -o.velocity.normal;
+                    ncont.depth = o.posp.radius*2;
+                }
+
+                if (!collided)
+                    contact = ncont;
+                else
+                    contact.merge(ncont);
+                collided = true;
+
+                cookie.call();
+            }
+        }
+        return collided;
     }
 
     //handling of the collision map

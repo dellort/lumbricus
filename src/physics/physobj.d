@@ -7,6 +7,7 @@ import utils.vector2;
 import physics.base;
 import physics.posp;
 import physics.movehandler;
+import physics.geometry;
 
 import std.stdio;
 
@@ -345,7 +346,9 @@ class PhysicObject : PhysicBase {
                     nnpos.y += y;
                     auto tmp = nnpos;
                     //log.registerLog("xxx")("%s %s", nnpos, pos);
-                    bool res = world.collideGeometry(nnpos, posp.radius);
+                    ContactData contact;
+                    bool res = world.collideGeometry(nnpos, posp.radius,
+                        contact);
 
                     if (!res) {
                         world.mLog("walk at %s -> %s", nnpos, nnpos-tmp);
@@ -373,9 +376,12 @@ class PhysicObject : PhysicBase {
 
                         //check ground normal... not good :)
                         //maybe physics should check the normal properly
-                        nnpos = pos;
-                        if (world.collideGeometry(nnpos, posp.radius+cNormalCheck))
-                            checkGroundAngle(nnpos-npos);
+                        if (world.collideGeometry(pos, posp.radius+cNormalCheck,
+                            contact))
+                        {
+                            checkGroundAngle(contact.depth
+                                * contact.normal);
+                        }
 
                         //jup, did walk
                         mIsWalking = true;

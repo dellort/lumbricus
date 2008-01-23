@@ -5,6 +5,7 @@ import utils.vector2;
 
 import physics.base;
 import physics.physobj;
+import physics.geometry;
 
 interface MoveHandler {
     //object which is handled by this object
@@ -126,7 +127,9 @@ class RopeHandler : PhysicBase, MoveHandler {
             const cHalfStep = cSegmentRadius+cSegmentSpacing;
             for (float d = 0; d < len; d += cHalfStep*2) {
                 auto p = ropeSegments[$-1].start + ndir*(d+cHalfStep);
-                if (world.collideGeometry(p, cSegmentRadius)) {
+                ContactData contact;
+                if (world.collideGeometry(p, cSegmentRadius, contact)) {
+                    p = p + contact.normal*contact.depth;
                     //collided => new segment to attach the rope to the
                     //  connection point
                     ropeSegments.length = ropeSegments.length + 1;
