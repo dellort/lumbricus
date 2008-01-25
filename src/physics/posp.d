@@ -43,6 +43,8 @@ struct POSP {
 
     float mediumViscosity = 0.0f;
 
+    float airResistance = 0.0f;
+
     //maximum absolute value, velocity is cut if over this
     Vector2f velocityConstraint = {float.infinity, float.infinity};
     float speedLimit = 0.0f;
@@ -80,6 +82,7 @@ struct POSP {
             damageThreshold);
         mediumViscosity = node.getFloatValue("medium_viscosity",
             mediumViscosity);
+        airResistance = node.getFloatValue("air_resistance", airResistance);
         sustainableForce = node.getFloatValue("sustainable_force",
             sustainableForce);
         fallDamageFactor = node.getFloatValue("fall_damage_factor",

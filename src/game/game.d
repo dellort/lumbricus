@@ -344,7 +344,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     }
 
     void windChangerUpdate(float val) {
-        mWindForce.accel = Vector2f(val,0);
+        mWindForce.windSpeed = Vector2f(val,0);
     }
 
     private void waterChangerUpdate(float val) {
@@ -498,7 +498,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     }
 
     public float windSpeed() {
-        return mWindForce.accel.x;
+        return mWindForce.windSpeed.x;
     }
     public void setWindSpeed(float speed) {
         mWindChanger.target = speed;

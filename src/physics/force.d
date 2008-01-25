@@ -40,10 +40,18 @@ class ConstantAccel: PhysicForce {
     }
 }
 
-class WindyForce : ConstantAccel {
+class WindyForce : PhysicForce {
+    Vector2f windSpeed;
+    private const cStokesConstant = 6*PI;
+
     void applyTo(PhysicObject o, float deltaT) {
-        //xxx physical crap, but the way Worms does it
-        o.addForce(accel * o.posp.mass * o.posp.windInfluence, true);
+        //xxx physical crap, but the way Worms does it (using windSpeed as
+        //    acceleration)
+        o.addForce(windSpeed * o.posp.mass * o.posp.windInfluence, true);
+        if (o.posp.airResistance > 0)
+            //this is a more correct simulation: Stokes's law
+            o.addForce(cStokesConstant*o.posp.radius*o.posp.airResistance
+                *(windSpeed - o.velocity));
     }
 }
 
