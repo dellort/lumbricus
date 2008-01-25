@@ -6,7 +6,7 @@ module game.gamepublic;
 import framework.framework;
 import game.animation;
 import game.glevel;
-import game.weapon;
+import game.weapon.weapon;
 import levelgen.level;
 import utils.configfile;
 import utils.vector2;

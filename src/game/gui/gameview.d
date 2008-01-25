@@ -7,7 +7,7 @@ import game.animation;
 import game.gamepublic;
 import game.clientengine;
 import game.gui.camera;
-import game.weapon;
+import game.weapon.weapon;
 import gui.widget;
 import gui.container;
 import gui.label;

@@ -22,7 +22,7 @@ import game.gui.weaponsel;
 import game.clientengine;
 import game.gamepublic;
 import game.game;
-import game.weapon;
+import game.weapon.weapon;
 import levelgen.level;
 import utils.time;
 import utils.misc;

@@ -1,4 +1,4 @@
-module game.projectile;
+module game.weapon.projectile;
 
 import framework.framework;
 import game.animation;
@@ -6,7 +6,7 @@ import physics.world;
 import game.game;
 import game.gobject;
 import game.sprite;
-import game.weapon;
+import game.weapon.weapon;
 import std.math;
 import str = std.string;
 import utils.misc;

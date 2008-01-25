@@ -107,9 +107,17 @@ batch_bnks {
             worm_bazooka = "446 535"
             worm_mortar = "452 541"
             worm_homing = "452 541"
+            worm_sheeplaucher = "455 544"
             worm_cluster = "326 589"
             worm_grenade = "323 586"
             worm_molotov = "332 595"
+            worm_rope = "492 547"        //special release anim: 495 550
+            worm_uzi = "498 574"         //fire: 577
+            worm_shotgun = "501 553"     //fire: 556 559
+            //worm_bow = "504 526"       //special: limited angle range
+            worm_pistol = "510 568"      //fire: 571
+            worm_minigun = "513 580"     //fire: 583
+            //worm_baseball = "440 529"  //special release anim: 443 532
         }
         worm_weapon_fixed {
             worm_getmine = "398"

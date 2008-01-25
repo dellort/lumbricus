@@ -15,6 +15,7 @@ public import physics.earthquake;
 public import physics.force;
 public import physics.geometry;
 public import physics.physobj;
+import physics.plane;
 public import physics.posp;
 public import physics.trigger;
 public import physics.timedchanger;
@@ -293,6 +294,54 @@ class PhysicWorld {
             }
         }
         return collided;
+    }
+
+    ///Shoot a thin ray into the world and test for object and geometry
+    ///intersection.
+    ///Params:
+    ///  maxLen   = length of the ray, in pixels (range)
+    ///  hitPoint = returns the absolute coords of the hitpoint
+    ///  obj      = return the hit object (null if landscape was hit)
+    bool shootRay(Vector2f start, Vector2f dir, float maxLen,
+        out Vector2f hitPoint, out PhysicObject obj)
+    {
+        //xxx range limit (we have nothing like world bounds)
+        if (maxLen > 10000)
+            maxLen = 10000;
+        dir = dir.normal;
+        const float t_inc = 0.75f;
+        const float ray_radius = 1.0f;
+        //check against objects
+        Ray r;
+        r.define(start, dir);
+        float tmin = float.max;
+        PhysicObject firstColl;
+        foreach (PhysicObject o; mObjects) {
+            float t;
+            if (r.intersect(o.pos, o.posp.radius, t) && t < tmin
+                && t < maxLen)
+            {
+                tmin = t;
+                firstColl = o;
+            }
+        }
+        //check against landscape
+        ContactData contact;
+        for (float t = 0; t < tmin && t < maxLen; t += t_inc) {
+            Vector2f p = start + t*dir;
+            if (collideGeometry(p, ray_radius, contact)) {
+                //found collision before hit object -> stop
+                obj = null;
+                hitPoint = start + dir*t;
+                return true;
+            }
+        }
+        if (firstColl && tmin <= maxLen) {
+            hitPoint = start + dir*tmin;
+            obj = firstColl;
+            return true;
+        }
+        return false;
     }
 
     //handling of the collision map

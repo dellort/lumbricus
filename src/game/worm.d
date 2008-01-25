@@ -6,7 +6,7 @@ import game.animation;
 import physics.world;
 import game.game;
 import game.sprite;
-import game.weapon;
+import game.weapon.weapon;
 import utils.misc;
 import utils.vector2;
 import utils.time;

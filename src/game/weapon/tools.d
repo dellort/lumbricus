@@ -1,8 +1,8 @@
-module game.tools;
+module game.weapon.tools;
 
 import game.game;
 import game.sprite;
-import game.weapon;
+import game.weapon.weapon;
 import game.worm;
 import utils.configfile;
 import utils.factory;

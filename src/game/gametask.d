@@ -34,9 +34,10 @@ import std.outbuffer;
 import path = std.path;
 
 //these imports register classes in a factory on module initialization
-import game.projectile;
-import game.special_weapon;
-import game.tools;
+import game.weapon.projectile;
+import game.weapon.special_weapon;
+import game.weapon.tools;
+import game.weapon.ray;
 
 class GameTask : Task {
     private {

@@ -7,7 +7,7 @@ import framework.framework;
 import framework.font;
 import framework.i18n;
 import game.gamepublic;
-import game.weapon;
+import game.weapon.weapon;
 import gui.boxcontainer;
 import gui.button;
 import gui.container;

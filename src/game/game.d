@@ -10,7 +10,7 @@ import game.sky;
 //import game.scene;
 import common.common;
 import game.controller;
-import game.weapon;
+import game.weapon.weapon;
 import game.gamepublic;
 import utils.mylist;
 import utils.time;
@@ -231,7 +231,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         mGameTime.slowDown = s;
     }
 
-    package Log mLog;
+    public Log mLog;
     private PerfTimer mNetUpdateTime, mPhysicTime;
 
     private const cSpaceBelowLevel = 150;

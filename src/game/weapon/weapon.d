@@ -1,4 +1,4 @@
-module game.weapon;
+module game.weapon.weapon;
 
 import game.gobject;
 import game.animation;
