@@ -250,7 +250,7 @@ class WIrcClient : IrcClient {
             sswrite.add(socket);
 
         //non-blocking
-        auto sl = Socket.select(ssread, sswrite, null, 0);
+        auto sl = Socket.select(ssread, sswrite, null, null);
         if(sl > 0) {
             if(ssread.isSet(socket))
             {

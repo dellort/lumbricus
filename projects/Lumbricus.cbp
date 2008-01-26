@@ -14,9 +14,9 @@
 				<Option compiler="dmd" />
 				<Option projectResourceIncludeDirsRelation="0" />
 				<MakeCommands>
-					<Build command="dmd -run dsss.d build lumbricus.d --debug" />
+					<Build command="dmd -run dsssrun.d build lumbricus.d --debug" />
 					<CompileFile command="" />
-					<Clean command="dmd -run dsss.d clean" />
+					<Clean command="dmd -run dsssrun.d clean" />
 					<DistClean command="" />
 				</MakeCommands>
 			</Target>
@@ -28,15 +28,16 @@
 				<Option compiler="dmd" />
 				<Option projectResourceIncludeDirsRelation="0" />
 				<MakeCommands>
-					<Build command="dmd -run dsss.d build lumbricus.d" />
+					<Build command="dmd -run dsssrun.d build lumbricus.d" />
 					<CompileFile command="" />
-					<Clean command="dmd -run dsss.d clean" />
+					<Clean command="dmd -run dsssrun.d clean" />
 					<DistClean command="" />
 				</MakeCommands>
 			</Target>
 		</Build>
 		<Unit filename="..\src\common\animation.d" />
 		<Unit filename="..\src\common\common.d" />
+		<Unit filename="..\src\common\gcstats.d" />
 		<Unit filename="..\src\common\resview.d" />
 		<Unit filename="..\src\common\scene.d" />
 		<Unit filename="..\src\common\task.d" />

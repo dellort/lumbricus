@@ -25,7 +25,8 @@ import utils.misc;
 import utils.mylist;
 import utils.mybox;
 import utils.perf;
-import gc = std.gc;
+//xxx
+import gc = common.gcstats;
 import std.stream : File, FileMode;
 
 //import all restypes because of the factories (more for debugging...)
