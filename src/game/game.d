@@ -28,128 +28,6 @@ import std.math;
 import game.worm;
 import game.crate;
 
-interface ServerGraphic {
-    //update position
-    void setPos(Vector2i pos);
-    void setVelocity(Vector2f v);
-
-    //update params
-    // p1 is mostly an angle (in degrees), and p2 is mostly unused
-    // (actual meaning depends from animation)
-    void setParams(int p1, int p2);
-
-    //update animation
-    // force = set new animation immediately, else wait until done
-    void setNextAnimation(AnimationResource animation, bool force);
-
-    //visibility of the animation
-    void setVisible(bool v);
-
-    //kill this graphic
-    void remove();
-
-    //if remove() was called
-    bool isDead();
-
-    long getUID();
-}
-
-package class ServerGraphicLocalImpl : ServerGraphic {
-    private mixin ListNodeMixin node;
-
-    long uid;
-
-    //event to be generated, also store local data (currently)
-    GraphicEvent event;
-    bool nalive; //new value for alive
-    bool didchange;
-
-    bool mDead;
-    bool alive; //graphic dead or alive remotely
-
-    //return an event to generate the new state or null if nothing changed
-    GraphicEvent* createEvent() {
-        if (!didchange || (!alive && !nalive))
-            return null;
-
-        //don't send non-Adds if not alive
-        if (!alive && (nalive == alive))
-            return null;
-
-        GraphicEvent* res = new GraphicEvent;
-        *res = event;
-        res.uid = uid;
-        if (!nalive && alive) {
-            res.type = GraphicEventType.Remove;
-        } else if (nalive && !alive) {
-            res.type = GraphicEventType.Add;
-        } else {
-            res.type = GraphicEventType.Change;
-        }
-
-        //reset state machine to capture changes
-        didchange = false;
-        alive = nalive;
-        event.setevent.do_set_ani = false;
-
-        return res;
-    }
-
-    //methods of that interface
-    void setPos(Vector2i apos) {
-        if (event.setevent.pos != apos) {
-            event.setevent.pos = apos;
-            didchange = true;
-        }
-    }
-
-    void setVelocity(Vector2f v) {
-        if (event.setevent.dir != v) {
-            event.setevent.dir = v;
-            didchange = true;
-        }
-    }
-
-    void setParams(int ap1, int ap2) {
-        AnimationParams np;
-        np.p1 = ap1;
-        np.p2 = ap2;
-        if (event.setevent.params != np) {
-            event.setevent.params = np;
-            didchange = true;
-        }
-    }
-
-    void setNextAnimation(AnimationResource animation, bool force) {
-        event.setevent.do_set_ani = true;
-        event.setevent.set_animation = animation;
-        event.setevent.set_force = force;
-        didchange = true;
-    }
-
-    void setVisible(bool v) {
-        nalive = v;
-        if (nalive != alive)
-            didchange = true;
-    }
-
-    void remove() {
-        if (alive) {
-            nalive = false;
-            didchange = true;
-        }
-        mDead = true; //for GameEngine
-    }
-
-    bool isDead() {
-        return mDead;
-    }
-
-    long getUID() {
-        return uid;
-    }
-}
-
 //code to manage a game session (hm, whatever this means)
 //reinstantiated on each "round"
 class GameEngine : GameEnginePublic, GameEngineAdmin {
@@ -157,23 +35,14 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
 
     protected PhysicWorld mPhysicWorld;
     private List!(GameObject) mObjects;
-    public List!(ServerGraphicLocalImpl) mGraphics;
     private Level mLevel;
     private GameLevel mGamelevel;
     PlaneTrigger waterborder;
     PlaneTrigger deathzone;
 
-    private GraphicEvent* mCurrentEvents;
-
     ResourceSet resources;
 
-    GraphicEvent* currentEvents() {
-        return mCurrentEvents;
-    }
-
-    void clearEvents() {
-        mCurrentEvents = null;
-    }
+    GameEngineGraphics graphics;
 
     Level level() {
         return mLevel;
@@ -182,14 +51,6 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     GameLevel gamelevel() {
         return mGamelevel;
     }
-
-    struct EventQueue {
-        GraphicEvent* list;
-        Time time;
-    }
-    EventQueue[] events;
-    const lag = 0;//100; //ms
-    const lagvar = 0; //100
 
     private Vector2i mWorldSize;
 
@@ -232,7 +93,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     }
 
     public Log mLog;
-    private PerfTimer mNetUpdateTime, mPhysicTime;
+    private PerfTimer mPhysicTime;
 
     private const cSpaceBelowLevel = 150;
     private const cSpaceAboveOpenLevel = 1000;
@@ -352,22 +213,20 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         waterborder.plane.define(Vector2f(0, val), Vector2f(1, val));
     }
 
-    this(GameConfig config, ResourceSet a_resources) {
+    this(GameConfig config, ResourceSet a_resources, GameEngineGraphics gr) {
         resources = a_resources;
+        graphics = gr;
 
         assert(config.level !is null);
         mLevel = config.level;
 
         mLog = registerLog("gameengine");
-        mNetUpdateTime = globals.newTimer("game_netupdate");
         mPhysicTime = globals.newTimer("game_physic");
 
         mGameTime = new TimeSource();
         mGameTime.paused = true;
 
         mObjects = new List!(GameObject)(GameObject.node.getListNodeOffset());
-        mGraphics = new typeof(mGraphics)(ServerGraphicLocalImpl.node
-            .getListNodeOffset());
         mPhysicWorld = new PhysicWorld();
 
         Vector2i levelOffset;
@@ -536,11 +395,8 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
 
     long mUids;
 
-    ServerGraphic createGraphic() {
-        auto g = new ServerGraphicLocalImpl();
-        g.uid = mUids;
-        mUids++;
-        mGraphics.insert_tail(g);
+    AnimationGraphic createAnimation() {
+        auto g = graphics.createAnimation;
         return g;
     }
 
@@ -551,53 +407,6 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     protected void simulate() {
         mController.simulate();
     }
-
-    Time blubber;
-    int eventCount;
-
-    void netupdate() {
-        GraphicEvent* currentlist = null;
-        GraphicEvent** lastptr = &currentlist;
-
-        auto cur2 = mGraphics.head;
-        while (cur2) {
-            auto o = cur2;
-            cur2 = mGraphics.next(cur2);
-
-            GraphicEvent* curevent = o.createEvent();
-            if (curevent) {
-                //add to queue (as tail)
-                *lastptr = curevent;
-                lastptr = &curevent.next;
-                curevent.next = null;
-                eventCount++;
-            }
-
-            if (o.mDead)
-                mGraphics.remove(o);
-        }
-
-        if ((mGameTime.current - blubber).secs >= 1) {
-            //gDefaultLog("blubb: %s", eventCount);
-            blubber = mGameTime.current;
-            eventCount = 0;
-        }
-
-        EventQueue current;
-        current.list = currentlist;
-        current.time = mGameTime.current;
-        events ~= current;
-
-        mCurrentEvents = null;
-
-        //take one element back from queue
-        if (events[0].time + timeMsecs(lag+randRange(-25,25)) < mGameTime.current) {
-            mCurrentEvents = events[0].list;
-            events = events[1..$];
-        }
-    }
-
-    Time lastnetupdate;
 
     void doFrame() {
         mGameTime.update();
@@ -621,14 +430,6 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
                     //remove (it's done lazily, and here it's actually removed)
                     mObjects.remove(o);
                 }
-            }
-
-            //all 100ms update
-            if (lastnetupdate + timeMsecs(lagvar) < mGameTime.current) {
-                mNetUpdateTime.start();
-                netupdate();
-                lastnetupdate = mGameTime.current;
-                mNetUpdateTime.stop();
             }
         }
     }

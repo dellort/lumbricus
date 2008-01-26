@@ -180,7 +180,8 @@ void doMirrorY(SurfaceData* data) {
         //nop
         //this SDLSurface never kills the SurfaceData.data pointer
         //but still:
-        assert(!SDL_MUSTLOCK(mSurface));
+        //assert(!SDL_MUSTLOCK(mSurface));
+        //^ no, not a requirement, I think... I hope...
     }
 
     void updatePixels(in Rect2i rc) {
@@ -197,17 +198,37 @@ void doMirrorY(SurfaceData* data) {
             return false;
         }
 
+        bool rle = gSDLDriver.mRLE;
+
         SDL_Surface* nsurf;
+        bool colorkey;
         switch (mData.transparency) {
-            case Transparency.Colorkey, Transparency.None: {
-                if (!gSDLDriver.isDisplayFormat(mSurface, false)) {
+            case Transparency.Colorkey:
+                colorkey = true;
+                //yay, first time in my life I want to fall through!
+            case Transparency.None: {
+                if (rle || !gSDLDriver.isDisplayFormat(mSurface, false)) {
                     nsurf = SDL_DisplayFormat(mSurface);
+                    /+std.stdio.writefln("before: %s",
+                        gSDLDriver.pixelFormatToString(mSurface.format));
+                    std.stdio.writefln("after: %s",
+                        gSDLDriver.pixelFormatToString(nsurf.format));+/
+                    if (rle) {
+                        uint key = simpleColorToSDLColor(nsurf, mData.colorkey);
+                        SDL_SetColorKey(nsurf, (colorkey ? SDL_SRCCOLORKEY : 0)
+                            | SDL_RLEACCEL, key);
+                    }
                 }
                 break;
             }
             case Transparency.Alpha: {
-                if (!gSDLDriver.isDisplayFormat(mSurface, true)) {
+                if (rle || !gSDLDriver.isDisplayFormat(mSurface, true)) {
                     nsurf = SDL_DisplayFormatAlpha(mSurface);
+                    //does RLE with alpha make any sense?
+                    if (rle) {
+                        SDL_SetAlpha(nsurf, SDL_SRCALPHA | SDL_RLEACCEL,
+                            SDL_ALPHA_OPAQUE);
+                    }
                 }
                 break;
             }
@@ -268,7 +289,7 @@ class SDLDriver : FrameworkDriver {
 
         //convert stuff to display format if it isn't already
         //+ mark all alpha surfaces drawn on the screen
-        package bool mEnableCaching, mMarkAlpha;
+        package bool mEnableCaching, mMarkAlpha, mRLE;
 
         //instead of a DriverSurface list (we don't need that yet?)
         package uint mDriverSurfaceCount;
@@ -317,6 +338,7 @@ class SDLDriver : FrameworkDriver {
 
         mEnableCaching = config.getBoolValue("enable_caching", true);
         mMarkAlpha = config.getBoolValue("mark_alpha", false);
+        mRLE = config.getBoolValue("rle", true);
 
         mOpenGL = config.getBoolValue("open_gl", true);
         mOpenGL_LowQuality = config.getBoolValue("lowquality", false);
@@ -725,6 +747,11 @@ class SDLDriver : FrameworkDriver {
         return new Surface(data);
     }
 
+    private char[] pixelFormatToString(SDL_PixelFormat* fmt) {
+        return format("bits=%s R/G/B/A=%#08x/%#08x/%#08x/%#08x",
+            fmt.BitsPerPixel, fmt.Rmask, fmt.Gmask, fmt.Bmask, fmt.Amask);
+    }
+
     char[] getDriverInfo() {
         char[] desc;
 
@@ -761,9 +788,7 @@ class SDLDriver : FrameworkDriver {
         desc ~= format("   size = %sx%s\n", info.current_w, info.current_h);
         desc ~= format("   video memory = %s\n", sizeToHuman(info.video_mem));
         SDL_PixelFormat* fmt = info.vfmt;
-        desc ~= format("   pixel format = bits=%s"
-            " R/G/B/A=%#08x/%#08x/%#08x/%#08x\n", fmt.BitsPerPixel, fmt.Rmask,
-            fmt.Gmask, fmt.Bmask, fmt.Amask);
+        desc ~= format("   pixel format = %s\n", pixelFormatToString(fmt));
 
         desc ~= format("Uses OpenGL: %s\n", mOpenGL);
         if (mOpenGL) {

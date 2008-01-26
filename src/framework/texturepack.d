@@ -26,6 +26,7 @@ struct TextureRef {
 
 ///add small surfaces to bigger textures
 ///like utils.BoxPacker (and internally uses it), but with Surfaces
+///new surfaces are created with caching ddisabled (.enableCaching(false))
 class TexturePack {
     private {
         Packer[TexTypeKey] mPackers;
@@ -87,8 +88,10 @@ class TexturePack {
             //check if the BoxPacker added a page and possibly create it
             while (mPacker.pages.length > mSurfaces.length) {
                 auto cur = mSurfaces.length;
-                mSurfaces ~= gFramework.createSurface(mDefaultSize,
+                auto surface = gFramework.createSurface(mDefaultSize,
                     s.transparency, s.colorkey);
+                surface.enableCaching = false;
+                mSurfaces ~= surface;
             }
             auto dest = mSurfaces[b.page];
             dest.copyFrom(s, b.origin, Vector2i(0), s.size);

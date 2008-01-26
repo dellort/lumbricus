@@ -1,12 +1,14 @@
 //trivial resource viewer (see framework) to ease debugging
 module common.resview;
 
+import common.common;
 import common.task;
 
 import framework.font;
 import framework.framework;
 import framework.resources;
 import framework.allres;
+import framework.timesource;
 import gui.boxcontainer;
 import gui.button;
 import gui.container;
@@ -167,6 +169,7 @@ class AniHandler : ResViewHandler!(AniFrames) {
         auto scroller = new ScrollWindow(mCont);
         box.add(scroller);
         setGUI(box);
+        sel(mSel);
     }
 
     private void sel(ScrollBar sender) {
@@ -181,8 +184,8 @@ class AniHandler : ResViewHandler!(AniFrames) {
                 auto f = frames.getFrame(x, y);
                 bmp.part = resource.images.texture(f.bitmapIndex);
                 bmp.draw = f.drawEffects;
-                bmp.offs = Vector2i(f.centerX, f.centerY);
-                bmp.bnds = bb;
+                bmp.offs = -bb.p1 + Vector2i(f.centerX, f.centerY);
+                bmp.size = bb.size;
                 bmp.setLayout(WidgetLayout.Noexpand());
                 table.add(bmp, x, y);
             }
@@ -194,16 +197,17 @@ class AniHandler : ResViewHandler!(AniFrames) {
     class ViewBitmap : Widget {
         TextureRef part;
         Vector2i offs;
-        Rect2i bnds;
+        Vector2i size;
         int draw;
 
         override void onDraw(Canvas c) {
-            c.draw(part.surface, bnds.size/2+offs, part.origin, part.size,
+            c.draw(part.surface, offs, part.origin, part.size,
                 !!(draw & FileDrawEffects.MirrorY));
+            c.drawRect(Vector2i(), size-Vector2i(1), Color(1,1,0));
         }
 
         Vector2i layoutSizeRequest() {
-            return bnds.size;
+            return size;
         }
     }
 
@@ -214,27 +218,55 @@ class AniHandler : ResViewHandler!(AniFrames) {
 
 class AnimationHandler : ResViewHandler!(Animation) {
     private {
+        TimeSource mTime;
         Animator mAnim;
         ScrollBar[2] mParams;
         Label[2] mParLbl;
+        ScrollBar mFrame;
+        Label mFrameLabel;
+        ScrollBar mSpeed;
+        Label mSpeedLabel;
+        Button mPaused;
     }
 
     this(Object r) {
         super(r);
 
-        auto table = new TableContainer(2, 2, Vector2i(10,1), [true, false]);
-        void addp(int n) {
-            auto lbl = new Label();
+        //lol!
+        //Animator uses this as time source
+        mTime = globals.gameTimeAnimations;
+
+        auto table = new TableContainer(2, 0, Vector2i(10,1), [true, false]);
+
+        auto infos = new Label();
+        infos.font = gFramework.getFont("normal");
+        infos.drawBorder = false;
+        infos.text = "Flags: "
+            ~ (resource.keepLastFrame ? "keepLastFrame, " : "")
+            ~ (resource.repeat ? "repeat, " : " ")
+            ~ format("duration: %s", resource.duration);
+        table.addRow();
+        table.add(infos, 0, table.height-1, 2, 1);
+
+        void addscr(out ScrollBar scr, out Label lbl) {
+            lbl = new Label();
             lbl.drawBorder = false;
             lbl.font = gFramework.getFont("normal");
-            mParLbl[n] = lbl;
-            table.add(lbl, 0, n);
-            auto scr = new ScrollBar(true);
+            scr = new ScrollBar(true);
+            scr.onValueChange = &onScrollbar;
+            table.addRow();
+            table.add(lbl, 0, table.height-1);
+            table.add(scr, 1, table.height-1);
+        }
+
+        void addp(int n) {
+            ScrollBar scr;
+            Label lbl;
+            addscr(scr, lbl);
             scr.minValue = -90;
             scr.maxValue = 600;
-            scr.onValueChange = &onScrollbar;
             mParams[n] = scr;
-            table.add(scr, 1, n);
+            mParLbl[n] = lbl;
         }
 
         addp(0);
@@ -248,8 +280,26 @@ class AnimationHandler : ResViewHandler!(Animation) {
         mAnim = new Animator();
         mAnim.setAnimation(resource);
 
+        addscr(mFrame, mFrameLabel);
+        mFrame.minValue = 0;
+        mFrame.maxValue = mAnim.animation.frameCount-1;
+        //mFrame.onValueChange = &onSetFrame;
+
+        addscr(mSpeed, mSpeedLabel);
+        mSpeed.minValue = 0;
+        mSpeed.maxValue = 100;
+        mSpeed.curValue = mSpeed.maxValue/2;
+
+        table.addRow();
+        mPaused = new Button();
+        mPaused.font = gFramework.getFont("normal");
+        mPaused.isCheckbox = true;
+        mPaused.text = "paused";
+        mPaused.onClick = &onPause;
+        table.add(mPaused, 0, table.height-1, 2, 1);
+
         //update label texts
-        onScrollbar(mParams[0]);
+        onScrollbar(null);
 
         setGUI(box);
     }
@@ -261,6 +311,15 @@ class AnimationHandler : ResViewHandler!(Animation) {
         mAnim.setParams(p);
         for (int n = 0; n < 2; n++)
             mParLbl[n].text = format("Param %d: %d", n, mParams[n].curValue);
+        mFrameLabel.text = format("Frame: %d/%d", mFrame.curValue,
+            mFrame.maxValue);
+        float speed = 2.0f*mSpeed.curValue/mSpeed.maxValue;
+        mTime.slowDown = speed;
+        mSpeedLabel.text = format("Speed: %s", mTime.slowDown);
+    }
+
+    private void onPause(Button sender) {
+        mTime.paused = mPaused.checked;
     }
 
     private int p1() {
@@ -284,6 +343,10 @@ class AnimationHandler : ResViewHandler!(Animation) {
             //assume p1() in degrees (0..360)
             auto dir = Vector2f.fromPolar(radius, (-p1()+180+90)/360.0f*PI*2);
             c.drawCircle(size/2+toVector2i(dir), 5, Color(1,0,0));
+        }
+
+        override void simulate() {
+            mFrame.curValue = mAnim.curFrame;
         }
 
         override bool onMouseMove(MouseInfo inf) {
@@ -312,90 +375,6 @@ class AnimationHandler : ResViewHandler!(Animation) {
         registerHandler!(typeof(this));
     }
 }
-
-/+
-should be ported back!
-has to be merged with OldAnimationHandler, which is now new again
-class FramesHandler : ResViewHandler!(FramesResource) {
-    private {
-        int mAniId, mFrameIdx;
-        Label mLblAniId, mLblFrameIdx;
-        ScrollBar mSbFrameIdx;
-        FrameProvider mFrames;
-    }
-
-    this(Resource r) {
-        super(r);
-        mFrames = resource.get();
-
-        auto table = new TableContainer(2, 2, Vector2i(10,1), [true, false]);
-
-        Label mkLbl(int n) {
-            auto lbl = new Label();
-            lbl.drawBorder = false;
-            lbl.font = gFramework.getFont("normal");
-            table.add(lbl, 0, n);
-            return lbl;
-        }
-
-        ScrollBar mkSb(int n, int max) {
-            auto scr = new ScrollBar(true);
-            scr.minValue = 0;
-            scr.maxValue = max;
-            table.add(scr, 1, n);
-            return scr;
-        }
-
-        mLblAniId = mkLbl(0);
-        auto scr = mkSb(0, 700);
-        scr.onValueChange = &onScrollbarAni;
-
-        mLblFrameIdx = mkLbl(1);
-        mSbFrameIdx = mkSb(1, 0);  //max value is set from onScrollbar event
-        mSbFrameIdx.onValueChange = &onScrollbarFrame;
-
-        onScrollbarAni(scr);
-        onScrollbarFrame(mSbFrameIdx);
-
-        auto box = new BoxContainer(false, false, 10);
-        table.setLayout(WidgetLayout.Expand(true));
-        box.add(table);
-        box.add(new Viewer());
-
-        setGUI(box);
-    }
-
-    private void onScrollbarAni(ScrollBar sender) {
-        mAniId = sender.curValue;
-        mLblAniId.text = format("Animation ID: %d", mAniId);
-        mSbFrameIdx.maxValue = mFrames.frameCount(mAniId)-1;
-    }
-
-    private void onScrollbarFrame(ScrollBar sender) {
-        mFrameIdx = sender.curValue;
-        mLblFrameIdx.text = format("Frame index: %d", mFrameIdx);
-    }
-
-    class Viewer : Widget {
-        override void onDraw(Canvas c) {
-            //pos is the animation center
-            mFrames.draw(c, mAniId, mFrameIdx, size/2);
-            Vector2i d = size/2;
-            Vector2i b = mFrames.bounds(mAniId).size/2;
-            c.drawRect(d-b-Vector2i(1), d+b+Vector2i(1), Color(0, 0, 0));
-        }
-
-        Vector2i layoutSizeRequest() {
-            return mFrames.bounds(mAniId).size+Vector2i(2);
-        }
-
-    }
-
-    static this() {
-        registerHandler!(typeof(this), Type);
-    }
-}
-+/
 
 class ResViewerTask : Task {
     this(TaskManager mgr) {
@@ -436,7 +415,7 @@ class ResViewerTask : Task {
             side.add(mResTypeList);
 
             mUpdate = new Button();
-            mUpdate.text = "Update List";
+            mUpdate.text = "Update        List";
             mUpdate.onClick = &onUpdate;
             mUpdate.setLayout(WidgetLayout.Noexpand());
             side.add(mUpdate);

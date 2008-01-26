@@ -49,30 +49,43 @@ struct GameConfig {
     char[] watergfx;
 }
 
-enum GraphicEventType {
-    None,
-    Add,
-    Change,
-    Remove,
+interface Graphic {
+    //visibility of the animation
+    void setVisible(bool v);
+
+    //kill this graphic
+    void remove();
+
+    long getUID();
+}
+
+//thought to be an interface to a kind of network proxy
+interface AnimationGraphic : Graphic {
+    //update position
+    void setPos(Vector2i pos);
+    void setVelocity(Vector2f v);
+
+    //update params
+    // p1 is mostly an angle (in degrees), and p2 is mostly unused
+    // (actual meaning depends from animation)
+    void setParams(int p1, int p2);
+
+    //update animation
+    // force = set new animation immediately, else wait until done
+    void setNextAnimation(AnimationResource animation, bool force);
+}
+
+interface LineGraphic : Graphic {
+    void setPos(Vector2i p1, Vector2i p2);
+    void setColor(Color c);
 }
 
 const long cInvalidUID = -1;
 
-struct GraphicEvent {
-    GraphicEvent* next; //ad-hoc linked list
-
-    GraphicEventType type;
-    long uid;
-    GraphicSetEvent setevent;
-}
-
-struct GraphicSetEvent {
-    Vector2i pos;
-    Vector2f dir; //direction + velocity
-    AnimationParams params;
-    bool do_set_ani;
-    AnimationResource set_animation; //network had to transfer animation id
-    bool set_force;
+///all graphics which are sent from server to client
+interface GameEngineGraphics {
+    AnimationGraphic createAnimation();
+    LineGraphic createLine();
 }
 
 ///GameEngine public interface
@@ -95,12 +108,6 @@ interface GameEnginePublic {
 
     ///return how strong the earth quake is, 0 if no earth quake active
     float earthQuakeStrength();
-
-    ///list of graphics events for the client to process
-    GraphicEvent* currentEvents();
-
-    ///clear list of currently pending events
-    void clearEvents();
 
     ///get controller interface
     //ControllerPublic controller();

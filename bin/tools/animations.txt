@@ -5,6 +5,10 @@ batch_bnks {
             worm_win = "250"
             crate = "105"
             crate_fly = "108"
+            crate2 = "107" //tool box
+            crate2_fly = "110"
+            crate3 = "106" //health
+            crate3_fly = "109"
             esel = "91"
             banana_fly = "61"
             holy_fly = "66"
@@ -52,10 +56,26 @@ batch_bnks {
             cloud1 = "626"
             cloud2 = "627"
             cloud3 = "628"
+            barell_1 = "119" //1-4 for reflecting "health" status
+            barell_2 = "120"
+            barell_3 = "121"
+            barell_4 = "122"
+            worm_parachute_enter = "296"
+            worm_parachute_fly = "297"
+            worm_bump_into_ground = "301"
+            worm_slow_fly = "287"
+            napalm_fall_1 = "133"
+            napalm_fall_2 = "134"
+            napalm_fall_3 = "135"
+            napalm_fall_4 = "136"
+            napalm_fall_5 = "137"
+            napalm_fall_6 = "138"
         }
         simple_backwards {
             //don't know why, but original animation looks so backwards
             crate_beam = "116"
+            crate2_beam = "118"
+            crate3_beam = "117"
         }
         360 {
             point_red = "30"
@@ -66,14 +86,20 @@ batch_bnks {
             point_cyan = "35"
             mine = "50"
             mine_flashing = "43 50"
+            worm_roll = "157"
         }
         360m {
-            worm_heavy_fly = "158 159"
+            //(the following entries form the animation)
+            worm_heavy_fly = "158 159 160 159"
         }
         360inv {
             bazooka_fly = "58"
             mortar_fly = "62"
             homing_active_fly = "68"
+            napalm_fly_1 = "129"
+            napalm_fly_2 = "130"
+            napalm_fly_3 = "131"
+            napalm_fly_4 = "132"
         }
         180 {
             aim_red = "0"
@@ -85,21 +111,69 @@ batch_bnks {
         }
         twosided {
             worm_jet = "176"
+            //for turnaround animation
+            worm_jet_1 = "177"
+            worm_jet_2 = "178"
+            worm_jet_3 = "179"
+            //vertical/horizontal jetpack exhaust flames
+            //xxx by what are these indexed?
+            //worm_jet_ex_h = "180"
+            //worm_jet_ex_v = "181"
+            //whatever that is (notice that 519 is the same as 520 and 521)
+            worm_jump1 = "518"
+            worm_jump2 = "519"
         }
         worm_noloop {
             worm_beaming = "434"
             worm_atomtest = "320"
             worm_jetpack_enter = "341"
+            worm_parachute_sitdown = "298"
+            worm_enter_sad = "311"
+            //idle anims
+            worm_apple = "244"
+            worm_scratch = "235"
+            worm_confused = "247"
+            worm_sniff = "191"
+            worm_look2 = "275"
+            worm_mustache = "241"
+            worm_pout = "238"
+            worm_slide_leave1 = "305"
+            worm_slide_leave2 = "308"
+
+            worm_wiggle1 = "278"
+            worm_wiggle2 = "281"
+            worm_wiggle3 = "284"
+            worm_wiggle4 = "302"
         }
+        //append reversed, not looping
+        worm_noloop_append_backwards {
+            //idle anims
+            worm_blink_down = "206" //similar
+            worm_blink_up = "209"
+            worm_cool = "218"
+            worm_look_up1 = "221"
+            worm_look_up2 = "338"
+            worm_look1 = "224" //looks to player or so
+            worm_look3 = "404"
+            worm_relieved = "197"
+            worm_sad = "188"
+            worm_wtf = "227" //whatever
+            worm_blink_back = "203" //looks back and blinks
+            worm_swearing = "215"
+            worm_blink = "200"
+        }
+        //play reversed, not looping
         worm_noloop_backwards {
             worm_beaming_backwards = "434"
+            worm_frightened = "212"
         }
         worm {
             worm_walk = "146"
-            worm_sniff = "191"
             worm_stand = "194"
             worm_useairstrike = "425"
             worm_usebeamer = "431"
+
+            worm_slide = "523"
         }
         worm_weapon {
             worm_holy = "335 598"
@@ -107,7 +181,7 @@ batch_bnks {
             worm_bazooka = "446 535"
             worm_mortar = "452 541"
             worm_homing = "452 541"
-            worm_sheeplaucher = "455 544"
+            worm_sheeplauncher = "455 544"
             worm_cluster = "326 589"
             worm_grenade = "323 586"
             worm_molotov = "332 595"

@@ -58,31 +58,137 @@ struct PerTeamAnim {
     Resource!(Animation) aim;
 }
 
-//synced with game.ServerGraphicLocalImpl
-class ClientGraphic : Animator {
+class ClientGraphic : Graphic {
     private mixin ListNodeMixin node;
     long uid = -1;
+    GraphicsHandler handler;
+    bool added;
 
-    Vector2f velocity;
-    Vector2f fpos; //float here, "network" uses int, and that's ok
-
-    //called manually from ClientEngine
-    void simulate(float deltaT) {
-        fpos += velocity * deltaT;
-        pos = toVector2i(fpos);
+    this(GraphicsHandler a_owner) {
+        handler = a_owner;
+        uid = ++a_owner.uids;
     }
 
-    void sync(GraphicEvent* bla) {
-        assert(uid == bla.uid);
-        if (bla.setevent.do_set_ani) {
-            auto ani = bla.setevent.set_animation;
-            //setNextAnimation(ani ? ani.get() : null, bla.setevent.set_force);
-            setAnimation(ani.get()); //can be null
+    void setVisible(bool v) {
+        graphic.active = v;
+        if (!added) {
+            handler.objectScene.add(graphic);
+            handler.mGraphics.insert_tail(this);
+            added = true;
         }
-        pos = bla.setevent.pos;
-        fpos = toVector2f(bla.setevent.pos);
-        velocity = bla.setevent.dir;
-        setParams(bla.setevent.params);
+    }
+    void remove() {
+        if (added) {
+            handler.mGraphics.remove(this);
+            handler.objectScene.remove(graphic);
+            added = false;
+        }
+    }
+    long getUID() {
+        return uid;
+    }
+
+    bool active() {
+        return added && graphic.active;
+    }
+
+    abstract SceneObject graphic();
+}
+
+class ClientAnimationGraphic : ClientGraphic, AnimationGraphic {
+    Animator anim;
+
+    this(GraphicsHandler handler) {
+        super(handler);
+        anim = new Animator();
+    }
+
+    //implementations for AnimationGraphic
+    void setPos(Vector2i pos) {
+        anim.pos = pos;
+    }
+    void setVelocity(Vector2f v) {
+        //not needed
+    }
+    void setParams(int p1, int p2) {
+        AnimationParams p;
+        p.p1 = p1;
+        p.p2 = p2;
+        anim.setParams(p);
+    }
+    void setNextAnimation(AnimationResource animation, bool force) {
+        anim.setAnimation(animation.get());
+    }
+
+    SceneObject graphic() {
+        return anim;
+    }
+
+    Vector2i pos() {
+        return anim.pos;
+    }
+    Rect2i bounds() {
+        return anim.bounds;
+    }
+}
+
+class ClientLineGraphic : ClientGraphic, LineGraphic {
+    Vector2i mP1, mP2;
+    Color mColor;
+    Draw mDraw;
+
+    class Draw : SceneObject {
+        override void draw(Canvas c) {
+            c.drawLine(mP1, mP2, mColor);
+        }
+    }
+
+    this(GraphicsHandler handler) {
+        super(handler);
+        mDraw = new Draw();
+    }
+
+
+    void setPos(Vector2i p1, Vector2i p2) {
+        mP1 = p1;
+        mP2 = p2;
+    }
+    void setColor(Color c) {
+        mColor = c;
+    }
+
+    SceneObject graphic() {
+        return mDraw;
+    }
+}
+
+class GraphicsHandler : GameEngineGraphics {
+    private List!(ClientGraphic) mGraphics;
+
+    long uids;
+    Scene objectScene;
+
+    this() {
+        mGraphics = new typeof(mGraphics)(ClientGraphic.node.getListNodeOffset());
+        objectScene = new Scene();
+    }
+
+    //for interface GameEngineGraphics
+    AnimationGraphic createAnimation() {
+        return new ClientAnimationGraphic(this);
+    }
+    LineGraphic createLine() {
+        return new ClientLineGraphic(this);
+    }
+
+    //inefficient because O(n)
+    //return null if invalid id
+    ClientGraphic findClientGraphic(long id) {
+        foreach (ClientGraphic g; mGraphics) {
+            if (g.uid == id)
+                return g;
+        }
+        return null;
     }
 }
 
@@ -104,10 +210,9 @@ enum GameZOrder {
 class ClientGameEngine {
     private GameEnginePublic mEngine;
 
-    private List!(ClientGraphic) mGraphics;
-
     ResourceSet resources;
     GfxInfos gfx;
+    GraphicsHandler graphics;
 
     //stuff cached/received/duplicated from the engine
     //(remind that mEngine might disappear because of networking)
@@ -149,22 +254,11 @@ class ClientGameEngine {
         return gfx.teamAnims[t.color];
     }
 
-    //inefficient because O(n)
-    //return null if invalid id
-    ClientGraphic findClientGraphic(long id) {
-        foreach (ClientGraphic g; mGraphics) {
-            if (g.uid == id)
-                return g;
-        }
-        return null;
-    }
-
-    this(GameEnginePublic engine, GfxInfos a_gfx) {
+    this(GameEnginePublic engine, GfxInfos a_gfx, GraphicsHandler foo) {
         mEngine = engine;
         gfx = a_gfx;
         resources = gfx.resources;
-
-        mGraphics = new typeof(mGraphics)(ClientGraphic.node.getListNodeOffset());
+        graphics = foo;
 
         mGameDrawTime = globals.newTimer("game_draw_time");
 
@@ -185,6 +279,8 @@ class ClientGameEngine {
         }
 
         resize(worldSize);
+
+        mZScenes[GameZOrder.Objects].add(graphics.objectScene);
 
         mGameWater = new GameWater(this);
         mZScenes[GameZOrder.BackWater].add(mGameWater.scenes[GameWater.Z.back]);
@@ -232,6 +328,10 @@ class ClientGameEngine {
         return logic.getControl();
     }
 
+    ClientGraphic findClientGraphic(long id) {
+        return graphics.findClientGraphic(id);
+    }
+
     void kill() {
         //xxx is this necessary? previously implemented by GameObject
     }
@@ -240,8 +340,6 @@ class ClientGameEngine {
         mEngineTime.update();
 
         float deltaT = mEngineTime.difference.secsf;
-
-        auto grascene = mZScenes[GameZOrder.Objects];
 
         if ((mEngineTime.current - mLastShake).msecs >= cShakeIntervalMs) {
             //something similar is being done in physics.d
@@ -267,54 +365,6 @@ class ClientGameEngine {
         //call simulate(deltaT);
         mGameWater.simulate(deltaT);
         mGameSky.simulate(deltaT);
-
-        //haha, update before next "network" sync
-        foreach (ClientGraphic gra; mGraphics) {
-            gra.simulate(deltaT);
-        }
-
-        //never mind...
-        ClientGraphic cur_c = mGraphics.head;
-        GraphicEvent* cur_s = mEngine.currentEvents;
-        mEngine.clearEvents();
-        //sync client and server
-        while (cur_c && cur_s) {
-            if (cur_c.uid == cur_s.uid) {
-                if (cur_s.type == GraphicEventType.Remove) {
-                    //kill kill kill
-                    ClientGraphic kill = cur_c;
-                    cur_c = mGraphics.next(cur_c);
-                    grascene.remove(kill);
-                    mGraphics.remove(kill);
-                    kill.active = false;
-                } else if (cur_s.type == GraphicEventType.Change) {
-                    //sync up...
-                    cur_c.sync(cur_s);
-                }
-                cur_s = cur_s.next;
-                //only if there are no more events for this uid/object
-                //and if not killed cur_c = mGraphics.next(cur_c);
-            } else {
-                //try to find where they sync up (both lists ordered)
-                if (cur_c.uid > cur_s.uid) {
-                    cur_s = cur_s.next;
-                } else {
-                    cur_c = mGraphics.next(cur_c);
-                }
-            }
-        }
-        //the rest of the events must be add commands
-        while (cur_s) {
-            assert(cur_s.type == GraphicEventType.Add);
-
-            auto ng = new ClientGraphic();
-            ng.uid = cur_s.uid;
-            mGraphics.insert_tail(ng);
-            grascene.add(ng);
-            ng.sync(cur_s);
-
-            cur_s = cur_s.next;
-        }
     }
 
     Scene scene() {
@@ -333,6 +383,7 @@ class ClientGameEngine {
         foreach (Scene e; mZScenes) {
             e.rect = mSceneRect;
         }
+        graphics.objectScene.rect = mSceneRect;
     }
 
     public uint detailLevel() {

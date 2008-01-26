@@ -256,10 +256,11 @@ class Surface {
         doFree(false);
     }
 
+    /// this has no effect in OpenGL mode; in SDL mode, enabled caching might
+    /// speed up blitting, but uses more memory, and updating pixels is S.L.O.W.
     bool enableCaching() {
         return mData.enable_cache;
     }
-
     void enableCaching(bool s) {
         passivate();
         mData.enable_cache = s;
@@ -346,6 +347,20 @@ class Surface {
         }
         source.unlockPixels(Rect2i.init);
         unlockPixels(Rect2i(dest.p1, dest.p1 + sz));
+    }
+
+    ///yay finally
+    ///blit a solid color, non-blending and copying
+    void fill(Rect2i rc, Color color) {
+        rc.fitInsideB(Rect2i(size));
+        uint c = color.toRGBA32();
+        void* px; uint pitch;
+        lockPixelsRGBA32(px, pitch);
+        for (int y = rc.p1.y; y < rc.p2.y; y++) {
+            auto dest = cast(uint*)(px + pitch*y);
+            dest[rc.p1.x .. rc.p2.x] = c;
+        }
+        unlockPixels(rc);
     }
 
     //these were in Texture, and are useless now

@@ -48,6 +48,8 @@ class GameTask : Task {
         ClientGameEngine mClientEngine;
         ResourceSet mResources;
         GfxInfos mGfx;
+        //hack
+        GraphicsHandler mGraphics;
 
         GameFrame mWindow;
 
@@ -160,7 +162,8 @@ class GameTask : Task {
 
     private bool initGameEngine() {
         //log("initGameEngine");
-        mServerEngine = new GameEngine(mGameConfig, mResources);
+        mGraphics = new GraphicsHandler();
+        mServerEngine = new GameEngine(mGameConfig, mResources, mGraphics);
         mGame = mServerEngine;
         mGameAdmin = mServerEngine.requestAdmin();
         return true;
@@ -168,7 +171,7 @@ class GameTask : Task {
 
     private bool initClientEngine() {
         //log("initClientEngine");
-        mClientEngine = new ClientGameEngine(mServerEngine, mGfx);
+        mClientEngine = new ClientGameEngine(mServerEngine, mGfx, mGraphics);
         return true;
     }
 

@@ -146,6 +146,22 @@ void arrayRemoveUnordered(T)(inout T[] arr, T value) {
     arr = arr[0..$-1];
 }
 
+///insert count entries at index
+/// old_array = new_array[0..index] ~ new_array[index+count..$]
+void arrayInsertN(T)(inout T[] arr, uint index, uint count) {
+    //xxx make more efficient
+    T[] tmp = arr[index..$].dup;
+    arr.length = arr.length + count;
+    arr ~= tmp;
+}
+
+///new_arr = old_arr[0..index] ~ old_arr[index+count..$]
+void arrayRemoveN(T)(inout T[] arr, uint index, uint count) {
+    //xxx move trailing elements only instead of building a new array
+    //    (which, btw., would be the whole point of this function)
+    arr = arr[0..index] ~ arr[index+count..$];
+}
+
 //array should be sorted so that pred(arr[i-1], arr[i]) == true for 0<i<$
 //"value" is inserted after the last index i where pred(arr[i], value)
 void arrayInsertSortedTail(T)(inout T[] arr, T value,

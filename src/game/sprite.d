@@ -31,7 +31,7 @@ class GObjectSprite : GameObject {
 
     PhysicObject physics;
     //attention: can be null if object inactive
-    ServerGraphic graphic;
+    AnimationGraphic graphic;
 
     AnimationResource currentAnimation;
     Time animationStarted;
@@ -224,7 +224,7 @@ class GObjectSprite : GameObject {
             graphic = null;
         }
         if (active) {
-            graphic = engine.createGraphic();
+            graphic = engine.createAnimation();
             graphic.setVisible(true);
             physics.checkRotation();
             updateAnimation();

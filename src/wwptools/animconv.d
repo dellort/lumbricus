@@ -56,6 +56,8 @@ static this() {
     //special case
     gAnimationLoadHandlers["worm_noloop_backwards"] =
         &loadWormNoLoopAnimationBack;
+    gAnimationLoadHandlers["worm_noloop_append_backwards"] =
+        &loadWormNoLoopAppendBackwards;
     //worm holding a weapon (with weapon-angle as param2)
     gAnimationLoadHandlers["worm_weapon"] = &loadWormWeaponAnimation;
     //worm holding a weapon that has no aiming animation
@@ -110,7 +112,8 @@ class AniFile {
         int len_a = src[0].frames.length;
         Vector2i box = Vector2i(src[0].boxWidth, src[0].boxHeight);
         foreach (int index, s; src) {
-            assert(s.frames.length == len_a, "same direction => same length");
+            assert(s.frames.length == len_a, "same direction => same length: "
+                ~name);
             //this assert is not really important, but what about consistency?
             assert(box.x == s.boxWidth && box.y == s.boxHeight);
             s.savePacked(atlas);
@@ -329,13 +332,18 @@ private void loadWormNoLoopAnimationBack(ConfigItem node) {
     return doLoadWormAnimation(node, false, true);
 }
 
+private void loadWormNoLoopAppendBackwards(ConfigItem node) {
+    return doLoadWormAnimation(node, false, false, true);
+}
+
 private void doLoadWormAnimation(ConfigItem node, bool loop,
-    bool backwards = false)
+    bool backwards = false, bool append_backwards = false)
 {
     gAnims.add(node.name, getSimple(node, 1, 3), [Param.Time, Param.P1],
         Mirror.Y_B, ["step3"],
             (loop ? AniFlags.Repeat | AniFlags.AppendBackwards_A : 0)
-            | (backwards?AniFlags.Backwards_A:0));
+            | (backwards?AniFlags.Backwards_A:0)
+            | (append_backwards ? AniFlags.AppendBackwards_A : 0));
 }
 
 private void loadWormWeaponAnimation(ConfigItem node) {

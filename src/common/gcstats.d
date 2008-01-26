@@ -18,4 +18,6 @@ version(Tango) {
     void getStats(out GCStats stats) {
         stats = gc_stats();
     }
+} else {
+    public import gcstats;
 }

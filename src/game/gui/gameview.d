@@ -14,6 +14,7 @@ import gui.label;
 import gui.mousescroller;
 import utils.rect2;
 import utils.time;
+import utils.misc;
 import utils.vector2;
 
 import std.string : format;
@@ -118,7 +119,7 @@ class GameView : Container, TeamMemberControlCallback {
             ViewTeam team;
 
             ulong clientGraphic = cInvalidUID;
-            ClientGraphic cachedCG;
+            ClientAnimationGraphic cachedCG;
 
             bool guiIsActive;
 
@@ -162,7 +163,8 @@ class GameView : Container, TeamMemberControlCallback {
                 //events; so findClientGraphic will return null for new graphics
                 //"!cachedCG || " hacks this out
                 if (!cachedCG || ncg != clientGraphic) {
-                    cachedCG = mEngine.findClientGraphic(ncg);
+                    cachedCG = castStrict!(ClientAnimationGraphic)
+                        (mEngine.findClientGraphic(ncg));
                     clientGraphic = ncg;
                 }
                 bool shouldactive = cachedCG && cachedCG.active;

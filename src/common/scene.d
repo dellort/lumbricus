@@ -7,12 +7,6 @@ import utils.rect2;
 
 public import framework.framework : Canvas;
 
-//when drawing a SceneObjectPositioned, clip the canvas to its bound
-//useful to see if size field is correct, but not an intended functionality
-//(because it's slow)
-//xxx currently unfunctional, but who cares
-//version = ClipForDebugging;
-
 ///a scene contains all graphics drawn onto the screen.
 ///each graphic is represented by a SceneObject
 ///all SceneObjects are relative to clientOffset within the Scene's rect
@@ -60,21 +54,7 @@ class Scene : SceneObjectRect {
 
         foreach (obj; mActiveObjects) {
             if (obj.active) {
-                version (ClipForDebugging) {
-                    canvas.pushState();
-
-                    SceneObjectPositioned pobj = cast(SceneObjectPositioned)obj;
-                    if (pobj) {
-                        canvas.clip(pobj.pos, pobj.pos + pobj.size);
-                        obj.draw(canvas);
-                    }
-                }
-
                 obj.draw(canvas);
-
-                version (ClipForDebugging) {
-                    canvas.popState();
-                }
             }
         }
 
@@ -121,10 +101,4 @@ class SceneObjectCentered : SceneObject {
 
     //return bounds, independent from position (centered around (0,0))
     abstract Rect2i bounds();
-}
-
-//xxx kill this, replace by SceneObjectRect
-class SceneObjectPositioned : SceneObject {
-    Vector2i pos;
-    Vector2i size;
 }

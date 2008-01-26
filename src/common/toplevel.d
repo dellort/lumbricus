@@ -215,7 +215,7 @@ private:
         globals.cmdLine.registerCommand("grab", &cmdGrab, "-", ["bool:onoff"]);
 
         globals.cmdLine.registerCommand("res_load", &cmdResLoad,
-            "load resources", ["text:resource name"]);
+            "load resources", ["text:filename"]);
         globals.cmdLine.registerCommand("res_unload", &cmdResUnload,
             "Unload unused resources; currently can crash!", []);
         globals.cmdLine.registerCommand("res_list", &cmdResList,
@@ -338,18 +338,13 @@ private:
     }
 
     private void cmdResLoad(MyBox[] args, Output write) {
-        /+
         char[] s = args[0].unbox!(char[])();
-        //hacky hacky
-        auto n = new ConfigNode;
-        n["bla"] = s;
         //xxx: catching any exception can be dangerous
         try {
-            gFramework.resources.loadResources(n.find("bla"));
+            gFramework.resources.loadResources(s);
         } catch (Exception e) {
             write.writefln("failed: %s", e);
         }
-        +/
     }
 
     private void cmdGrab(MyBox[] args, Output write) {
@@ -697,71 +692,9 @@ class StatsWindow : Task {
     }
 }
 
-import common.animation;
 import gui.boxcontainer;
 import gui.button;
 import gui.scrollbar;
-import framework.restypes.frames;
-
-/+
-//has to go away D:
-class AniTest : Task {
-    Animation ani;
-    Font font;
-
-    class DrawAni : Widget {
-        protected void onDraw(Canvas c) {
-            ani.pos = size/2;
-            ani.draw(c);
-            Rect2i b = ani.getBounds() + ani.pos;
-            c.drawRect(b.p1, b.p2, Color(1,0,0));
-            font.drawText(c, Vector2i(), format("%s/%s | %s/%s",
-                ani.getTime().msecs, ani.animation.duration.msecs,
-                ani.curFrame, ani.animation.frameCount));
-        }
-
-        Vector2i layoutSizeRequest() {
-            return Vector2i(300, 300);
-        }
-    }
-
-    this(TaskManager mgr) {
-        super(mgr);
-        FontProperties p;
-        p.size = 10;
-        font = new Font(p);
-        auto d = new DrawAni();
-        auto anidata = new AnimationData(
-            gFramework.resources.resource!(FramesResource)("/blackhole").get(),
-            0,
-            true, false);
-        ani = new Animation();
-        ani.setAnimation(anidata);
-        auto box = new BoxContainer();
-        box.add(d);
-        auto speed = new ScrollBar(true);
-        speed.maxValue = 300;
-        speed.minValue = 0;
-        speed.curValue = 1;//50;
-        speed.onValueChange = &onChangeSpeed;
-        onChangeSpeed(speed);
-        box.add(speed);
-        gWindowManager.createWindow(this, box, "Ani-Test");
-        globals.gameTimeAnimations.paused = false;
-    }
-
-    void onChangeSpeed(ScrollBar sender) {
-        globals.gameTimeAnimations.slowDown = sender.curValue/150.0f;
-    }
-
-    override void onFrame() {
-    }
-
-    static this() {
-        TaskFactory.register!(typeof(this))("anitest");
-    }
-}
-+/
 
 //small hack
 //should be replaced by sth... better
@@ -769,7 +702,7 @@ class AniTest : Task {
 //(maybe configfile schema, generic handling of datatypes)
 class SwitchDriver : Task {
     char[][] configs = ["enable_caching", "mark_alpha", "open_gl",
-        "gl_debug_wireframe", "font_packer", "lowquality"];
+        "gl_debug_wireframe", "font_packer", "lowquality", "rle"];
 
     Button[] mChks;
 
