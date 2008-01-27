@@ -26,6 +26,59 @@ enum WeaponWormAnimations {
 //WeaponWormAnimations -> string
 const char[][] cWWA2Str = ["arm", "hold", "fire"];
 
+enum PointMode {
+    none,
+    target,
+    instant
+}
+
+struct FireMode {
+    //needed by both client and server (server should verify with this data)
+    bool canThrow; //firing from worms direction
+    bool throwAnyDirection; //false=left or right, true=360 degrees of freedom
+    bool variableThrowStrength; //chooseable throw strength
+    float throwStrength = 0; //force (or whatever) if variable strength is on
+    PointMode point = PointMode.none; //by mouse, i.e. target-searching weapon
+    bool hasTimer; //user can select a timer
+    Time timerFrom; //minimal time chooseable, only used if hasTimer==true
+    Time timerTo;   //maximal time
+    Time relaxtime;
+
+
+    void loadFromConfig(ConfigNode node) {
+        canThrow = node.valueIs("mode", "throw");
+        throwAnyDirection = node.valueIs("direction", "any");
+        variableThrowStrength = node.valueIs("strength_mode", "variable");
+        throwStrength = node.getFloatValue("strength_value", throwStrength);
+        hasTimer = node.getBoolValue("timer");
+        if (hasTimer) {
+            //if you need finer values than seconds, hack this
+            int[] vals = node.getValueArray!(int)("timerrange");
+            if (vals.length == 2) {
+                timerFrom = timeSecs(vals[0]);
+                timerTo = timeSecs(vals[1]);
+            } else if (vals.length == 1) {
+                timerFrom = timeSecs(0);
+                timerTo = timeSecs(vals[0]);
+            } else {
+                //xxx what about some kind of error reporting?
+                hasTimer = false;
+            }
+        }
+        relaxtime = timeSecs(node.getIntValue("relaxtime", 0));
+        char[] pm = node.getStringValue("point");
+        switch (pm) {
+            case "target":
+                point = PointMode.target;
+                break;
+            case "instant":
+                point = PointMode.instant;
+                break;
+            default:
+        }
+    }
+}
+
 //abstract weapon type; only contains generic infos about a weapon
 //this includes how stuff is fired (for the code which does worm controll)
 //(argument against making classes like i.e. WeaponThrowable: no multiple
@@ -41,16 +94,7 @@ abstract class WeaponClass {
     //for the weapon selection; only needed on client-side
     Resource!(Surface) icon;
 
-    //needed by both client and server (server should verify with this data)
-    bool canThrow; //firing from worms direction
-    bool throwAnyDirection; //false=left or right, true=360 degrees of freedom
-    bool variableThrowStrength; //chooseable throw strength
-    float throwStrength; //force (or whatever) if variable strength is on
-    bool canPoint; //by mouse, i.e. target-searching weapon
-    bool hasTimer; //user can select a timer
-    Time timerFrom; //minimal time chooseable, only used if hasTimer==true
-    Time timerTo;   //maximal time
-    Time relaxtime;
+    FireMode fireMode;
 
     //weapon-holding animations
     AnimationResource[WeaponWormAnimations.max+1] animations;
@@ -71,27 +115,7 @@ abstract class WeaponClass {
 
         auto fire = node.findNode("firemode");
         if (fire) {
-            canThrow = fire.valueIs("mode", "throw");
-            throwAnyDirection = fire.valueIs("direction", "any");
-            variableThrowStrength = fire.valueIs("strength_mode", "variable");
-            throwStrength = fire.getFloatValue("strength_value", 0);
-            hasTimer = fire.getBoolValue("timer");
-            if (hasTimer) {
-                //if you need finer values than seconds, hack this
-                int[] vals = fire.getValueArray!(int)("timerrange");
-                if (vals.length == 2) {
-                    timerFrom = timeSecs(vals[0]);
-                    timerTo = timeSecs(vals[1]);
-                } else if (vals.length == 1) {
-                    timerFrom = timeSecs(0);
-                    timerTo = timeSecs(vals[0]);
-                } else {
-                    //xxx what about some kind of error reporting?
-                    hasTimer = false;
-                }
-            }
-            relaxtime = timeSecs(fire.getIntValue("relaxtime", 0));
-            canPoint = fire.getBoolValue("canpoint", false);
+            fireMode.loadFromConfig(fire);
         }
 
         //load the transition animations
@@ -102,6 +126,18 @@ abstract class WeaponClass {
                 animations[i] = engine.resources.resource!(Animation)
                     (val.value);
             }
+        }
+
+        //load projectiles
+        foreach (ConfigNode pr; node.getSubNode("projectiles")) {
+            //if (pr.name in projectiles)
+            //    throw new Exception("projectile already exists: "~pr.name);
+            //instantiate a sprite class
+            //xxx error handling?
+            auto spriteclass = engine.instantiateSpriteClass(pr["type"], pr.name);
+            //projectiles[pr.name] = spriteclass;
+
+            spriteclass.loadFromConfig(pr);
         }
     }
 

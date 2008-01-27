@@ -25,8 +25,8 @@ class RayWeapon: WeaponClass {
     this(GameEngine aengine, ConfigNode node) {
         super(aengine, node);
         //always directed with fixed strength
-        canThrow = true;
-        variableThrowStrength = false;
+        fireMode.canThrow = true;
+        fireMode.variableThrowStrength = false;
         damage = node.getFloatValue("damage", damage);
         count = node.getIntValue("count", count);
         delay = timeSecs(node.getFloatValue("delay", delay.secs));

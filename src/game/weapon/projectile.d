@@ -21,43 +21,11 @@ import utils.factory;
 private class ProjectileWeapon : WeaponClass {
     //GOSpriteClass[char[]] projectiles;
     SpawnParams onFire;
-    //create projectiles in the air (according to point value)
-    //(currently convenience only: only used for loading)
-    bool isAirstrike;
 
     this(GameEngine aengine, ConfigNode node) {
         super(aengine, node);
 
-        isAirstrike = node.getBoolValue("airstrike");
-        if (isAirstrike) {
-            onFire.airstrike = true;
-            canPoint = true;
-        }
-
-        //load projectiles
-        foreach (ConfigNode pr; node.getSubNode("projectiles")) {
-            //if (pr.name in projectiles)
-            //    throw new Exception("projectile already exists: "~pr.name);
-            //instantiate a sprite class
-            //xxx error handling?
-            auto spriteclass = engine.instantiateSpriteClass(pr["type"], pr.name);
-            //projectiles[pr.name] = spriteclass;
-
-            //hm, state stuff unused, so only that state
-            auto st = spriteclass.initState;
-
-            st.physic_properties.loadFromConfig(pr.getSubNode("physics"));
-            st.animation = engine.resources.resource!(Animation)
-                (pr["animation"]);
-
-            //allow non-ProjectileSpriteClass objects, why not
-            auto pclass = cast(ProjectileSpriteClass)spriteclass;
-            if (pclass) {
-                pclass.loadProjectileStuff(pr);
-            }
-        }
-
-        parseSpawn(onFire, node.getSubNode("onfire"));
+        onFire.loadFromConfig(node.getSubNode("onfire"));
     }
 
     ProjectileThrower createShooter(GObjectSprite go) {
@@ -272,21 +240,20 @@ struct SpawnParams {
                               //else use values below
     Vector2f direction;  //intial moving direction, affects spawn point
     float strength = 0;  //initial moving speed into above direction
-}
 
-bool parseSpawn(inout SpawnParams params, ConfigNode config) {
-    params.projectile = config.getStringValue("projectile", params.projectile);
-    params.count = config.getIntValue("count", params.count);
-    params.spawndist = config.getFloatValue("spawndist", params.spawndist);
-    params.delay = timeSecs(config.getIntValue("delay", params.delay.secs));
-    params.random = config.getIntValue("random", params.random);
-    params.airstrike = config.getBoolValue("airstrike", params.airstrike);
-    params.keepVelocity = config.getBoolValue("keep_velocity",
-        params.keepVelocity);
-    float[] dirv = config.getValueArray!(float)("direction", [0, -1]);
-    params.direction = Vector2f(dirv[0], dirv[1]);
-    params.strength = config.getFloatValue("strength_value", params.strength);
-    return true;
+    bool loadFromConfig(ConfigNode config) {
+        projectile = config.getStringValue("projectile", projectile);
+        count = config.getIntValue("count", count);
+        spawndist = config.getFloatValue("spawndist", spawndist);
+        delay = timeSecs(config.getIntValue("delay", delay.secs));
+        random = config.getIntValue("random", random);
+        airstrike = config.getBoolValue("airstrike", airstrike);
+        keepVelocity = config.getBoolValue("keep_velocity", keepVelocity);
+        float[] dirv = config.getValueArray!(float)("direction", [0, -1]);
+        direction = Vector2f(dirv[0], dirv[1]);
+        strength = config.getFloatValue("strength_value", strength);
+        return true;
+    }
 }
 
 //when a new projectile "sprite" was created, init it in all necessary ways
@@ -385,7 +352,14 @@ class ProjectileSpriteClass : GOSpriteClass {
     }
 
     //config = a subnode in the weapons.conf which describes a single projectile
-    void loadProjectileStuff(ConfigNode config) {
+    override void loadFromConfig(ConfigNode config) {
+        //missing super call is intended
+
+        //hm, state stuff unused, so only that state
+        initState.physic_properties.loadFromConfig(config.getSubNode("physics"));
+        initState.animation = engine.resources.resource!(Animation)
+            (config["animation"]);
+
         auto detonatereason = config.getSubNode("detonate_howcome");
         detonateByImpact = detonatereason.getBoolValue("byimpact");
         detonateByTime = detonatereason.getBoolValue("bytime");
@@ -412,7 +386,7 @@ class ProjectileSpriteClass : GOSpriteClass {
         auto spawn = config.getPath("detonate.spawn");
         if (spawn) {
             spawnOnDetonate = new SpawnParams;
-            if (!parseSpawn(*spawnOnDetonate, spawn)) {
+            if (!spawnOnDetonate.loadFromConfig(spawn)) {
                 spawnOnDetonate = null;
             }
             char[] sp = spawn.getStringValue("require_reason");

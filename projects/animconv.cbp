@@ -14,9 +14,9 @@
 				<Option type="1" />
 				<Option compiler="dmd" />
 				<MakeCommands>
-					<Build command="dmd -run dsss.d build animconv.d --debug" />
+					<Build command="dmd -run dsssrun.d build animconv.d --debug" />
 					<CompileFile command="" />
-					<Clean command="dmd -run dsss.d clean" />
+					<Clean command="dmd -run dsssrun.d clean" />
 					<DistClean command="" />
 				</MakeCommands>
 			</Target>
@@ -27,9 +27,9 @@
 				<Option type="1" />
 				<Option compiler="dmd" />
 				<MakeCommands>
-					<Build command="dmd -run dsss.d build animconv.d" />
+					<Build command="dmd -run dsssrun.d build animconv.d" />
 					<CompileFile command="" />
-					<Clean command="dmd -run dsss.d clean" />
+					<Clean command="dmd -run dsssrun.d clean" />
 					<DistClean command="" />
 				</MakeCommands>
 			</Target>

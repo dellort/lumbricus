@@ -376,11 +376,18 @@ class GameView : Container, TeamMemberControlCallback {
                 mController.weaponSetTarget(mousePos);
                 auto cur = mController.getActiveMember();
                 if (cur && mController.currentWeapon &&
-                    mController.currentWeapon.canPoint)
+                    mController.currentWeapon.fireMode.point != PointMode.none)
                 {
                     mPointedFor = cur;
-                    mPointed.animation = mEngineMemberToOurs[cur].team
-                        .animations.pointed.get;
+                    switch (mController.currentWeapon.fireMode.point) {
+                        case PointMode.instant:
+                            mPointed.animation = mEngineMemberToOurs[cur].team
+                                .animations.click.get;
+                            break;
+                        default:
+                            mPointed.animation = mEngineMemberToOurs[cur].team
+                                .animations.pointed.get;
+                    }
                     mPointed.setPositionCentered(mousePos);
                 }
                 return true;

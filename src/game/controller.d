@@ -371,6 +371,9 @@ class ServerTeam : Team {
 
         targetIsSet = true;
         currentTarget = where;
+
+        if (current.currentWeapon.weapon.fireMode.point == PointMode.instant)
+            current.doFire();
     }
 
     //xxx integrate (unused yet)
@@ -640,7 +643,7 @@ class ServerTeamMember : TeamMember {
         Shooter nshooter;
         if (selected) {
             nshooter = selected.createShooter(mWorm);
-            mTeam.allowSetPoint = selected.canPoint;
+            mTeam.allowSetPoint = selected.fireMode.point != PointMode.none;
         }
         mWorm.shooter = nshooter;
     }
@@ -663,8 +666,8 @@ class ServerTeamMember : TeamMember {
         //weaponAngle will be -PI/2 - PI/2, -PI/2 meaning down
         //-> Invert for screen, and add PI/2 if looking left
         info.dir = Vector2f.fromPolar(1.0f, (1-w)*PI/2 - w*worm.weaponAngle);
-        info.strength = shooter.weapon.throwStrength;
-        info.timer = shooter.weapon.timerFrom;
+        info.strength = shooter.weapon.fireMode.throwStrength;
+        info.timer = shooter.weapon.fireMode.timerFrom;
         info.pointto = mTeam.currentTarget;
         shooter.fire(info);
 
@@ -755,8 +758,10 @@ class WeaponSet {
         name = config.name;
         foreach (ConfigNode node; config.getSubNode("weapon_list")) {
             auto weapon = new WeaponItem();
-            weapon.loadFromConfig(node, engine);
-            weapons[weapon.weapon] = weapon;
+            try {
+                weapon.loadFromConfig(node, engine);
+                weapons[weapon.weapon] = weapon;
+            } catch {}
         }
     }
 
@@ -1233,7 +1238,12 @@ class GameController : GameLogicPublic {
                 auto cnt = sub.getIntValue("count");
                 mLog("count %s type %s", cnt, sub["type"]);
                 for (int n = 0; n < cnt; n++) {
-                    placeOnLandscape(mEngine.createSprite(sub["type"]));
+                    try {
+                        placeOnLandscape(mEngine.createSprite(sub["type"]));
+                    } catch {
+                        mLog("Warning: Placing %s objects failed", sub["type"]);
+                        continue;
+                    }
                 }
             } else {
                 mLog("warning: unknown placing mode: '%s'", sub["mode"]);
