@@ -140,6 +140,7 @@
 		<Unit filename="..\src\lumbricus.d" />
 		<Unit filename="..\src\net\netlayer.d" />
 		<Unit filename="..\src\physics\base.d" />
+		<Unit filename="..\src\physics\contact.d" />
 		<Unit filename="..\src\physics\earthquake.d" />
 		<Unit filename="..\src\physics\force.d" />
 		<Unit filename="..\src\physics\geometry.d" />
@@ -178,7 +179,6 @@
 			<code_completion />
 			<envvars />
 			<debugger />
-			<lib_finder />
 		</Extensions>
 	</Project>
 </CodeBlocks_project_file>

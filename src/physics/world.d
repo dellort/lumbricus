@@ -19,6 +19,7 @@ import physics.plane;
 public import physics.posp;
 public import physics.trigger;
 public import physics.timedchanger;
+public import physics.contact;
 
 //Uncomment to get detailed physics debugging log (slooooow)
 //version = PhysDebug;
@@ -90,7 +91,7 @@ class PhysicWorld {
             //the next two lines mean: iterate over all objects following "me"
             auto other = mObjects.next(me);
             for (;other;other=mObjects.next(other)) {
-                checkObjectCollision(me, other);
+                checkObjectCollision(me, other, deltaT);
             }
 
             //no need to check then? (maybe)
@@ -99,7 +100,7 @@ class PhysicWorld {
             //    objects, however land-filling weapons will cause problems
             if (!me.isGlued) {
                 //check against geometry
-                checkGeometryCollisions(me);
+                checkGeometryCollisions(me, deltaT);
             }
 
             //check triggers
@@ -131,15 +132,16 @@ class PhysicWorld {
         }
     }
 
-    private void checkObjectCollision(PhysicObject obj1, PhysicObject obj2) {
+    private void checkObjectCollision(PhysicObject obj1, PhysicObject obj2,
+        float deltaT)
+    {
         //the following stuff handles physically correct collision
 
-        Vector2f d = obj2.pos - obj1.pos;
-        float q_dist = d.quad_length();
-        float mindist = obj2.posp.radius + obj1.posp.radius;
-
+        Vector2f d = obj1.pos - obj2.pos;
+        float dist = d.length;
+        float mindist = obj1.posp.radius + obj2.posp.radius;
         //check if they collide at all
-        if (q_dist >= mindist*mindist)
+        if (dist >= mindist)
             return;
 
         CollisionCookie cookie;
@@ -148,42 +150,13 @@ class PhysicWorld {
         if (!canCollide(obj1, obj2, cookie))
             return;
 
-        //actually collide the stuff....
-
-        //sitting worms are not safe
-        //if it doesn't matter, they'll be glued again in the next frame
-        obj1.doUnglue();
-        obj2.doUnglue();
-
-        float dist = sqrt(q_dist);
-        float gap = mindist - dist;
-        Vector2f nd = d / dist;
-
-        if (nd.isNaN()) {
-            //NaN? maybe because dist was 0
-            nd = Vector2f(0);
-        }
-
-        //assert(fabs(nd.length()-1.0f) < 0.001);
-
-        obj1.setPos(obj1.pos - nd * (0.5f * gap), true);
-        obj2.setPos(obj2.pos + nd * (0.5f * gap), true);
-
-        float vca = obj1.velocity * nd;
-        float vcb = obj2.velocity * nd;
-
-        float ma = obj1.posp.mass, mb = obj2.posp.mass;
-
-        float dva = (vca * (ma - mb) + vcb * 2.0f * mb)
-                    / (ma + mb) - vca;
-        float dvb = (vcb * (mb - ma) + vca * 2.0f * ma)
-                    / (ma + mb) - vcb;
-
-        dva *= obj1.posp.elasticity;
-        dvb *= obj2.posp.elasticity;
-
-        obj1.velocity_int += dva * nd;
-        obj2.velocity_int += dvb * nd;
+        //generate contact and resolve immediately (well, as before)
+        Contact c;
+        c.normal = d/dist;
+        c.depth = mindist - dist;
+        c.obj[0] = obj1;
+        c.obj[1] = obj2;
+        c.resolve(deltaT);
 
         obj1.needUpdate();
         obj2.needUpdate();
@@ -194,40 +167,18 @@ class PhysicWorld {
         //xxx: also, should it be possible to glue objects here?
     }
 
-    void checkGeometryCollisions(PhysicObject obj) {
-        ContactData contact;
+    void checkGeometryCollisions(PhysicObject obj, float deltaT) {
+        GeomContact contact;
         if (!collideObjectWithGeometry(obj, contact))
             return;
 
         Vector2f depthvec = contact.normal*contact.depth;
         obj.checkGroundAngle(depthvec);
 
-        //set new position ("should" fit)
-        obj.setPos(obj.pos + depthvec.mulEntries(obj.posp.fixate),
-            true);
-
-        //direction the worm is flying to
-        auto flydirection = obj.velocity_int.normal;
-
-        //force directed against surface
-        //xxx in worms, only vertical speed counts
-        auto bump = -(flydirection * contact.normal);
-
-        if (bump < 0)
-            bump = 0;
-
-        //use this for damage
-        float damage = max(obj.velocity.length - obj.posp.sustainableForce, 0f)
-            * bump * obj.posp.fallDamageFactor;
-        if (damage > 0)
-            obj.applyDamage(damage);
-
-        //mirror velocity on surface
-        Vector2f proj = contact.normal * (obj.velocity * contact.normal);
-        obj.velocity_int -= proj * (1.0f + obj.posp.elasticity);
-
-        //bumped against surface -> loss of energy
-        //obj.velocity *= obj.posp.elasticity;
+        //generate contact and resolve
+        Contact c;
+        c.fromGeom(contact, obj);
+        c.resolve(deltaT);
 
         //we collided with geometry, but were not fast enough!
         //  => worm gets glued, hahaha.
@@ -249,11 +200,11 @@ class PhysicWorld {
     }
 
     //check how an object would collide with all the geometry
-    bool collideGeometry(Vector2f pos, float radius, out ContactData contact)
+    bool collideGeometry(Vector2f pos, float radius, out GeomContact contact)
     {
         bool collided = false;
         foreach (PhysicGeometry gm; mGeometryObjects) {
-            ContactData ncont;
+            GeomContact ncont;
             if (gm.collide(pos, radius, ncont)) {
                 if (!collided)
                     contact = ncont;
@@ -265,11 +216,11 @@ class PhysicWorld {
         return collided;
     }
 
-    bool collideObjectWithGeometry(PhysicObject o, out ContactData contact) {
+    bool collideObjectWithGeometry(PhysicObject o, out GeomContact contact) {
         bool collided = false;
         foreach (PhysicGeometry gm; mGeometryObjects) {
             CollisionCookie cookie;
-            ContactData ncont;
+            GeomContact ncont;
             if (canCollide(o, gm, cookie)
                 && gm.collide(o.pos, o.posp.radius, ncont))
             {
@@ -326,7 +277,7 @@ class PhysicWorld {
             }
         }
         //check against landscape
-        ContactData contact;
+        GeomContact contact;
         for (float t = 0; t < tmin && t < maxLen; t += t_inc) {
             Vector2f p = start + t*dir;
             if (collideGeometry(p, ray_radius, contact)) {

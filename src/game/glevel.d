@@ -19,7 +19,7 @@ version = CircularCollision;
 class LevelGeometry : PhysicGeometry {
     GameLevel level;
 
-    bool collide(Vector2f pos, float radius, out ContactData contact) {
+    bool collide(Vector2f pos, float radius, out GeomContact contact) {
         Vector2i dir;
         int pixelcount;
 

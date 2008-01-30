@@ -13,7 +13,23 @@ import utils.vector2;
 struct POSP {
     float elasticity = 0.99f; //loss of energy when bumping against a surface
     float radius = 10; //pixels
-    float mass = 10; //in Milli-Worms, 10 Milli-Worms = 1 Worm
+    private float mMass = 10; //in Milli-Worms, 10 Milli-Worms = 1 Worm
+    private float mMassInv = 0.1f; //lol, needed for collision processing
+    //now make sure mMassInv stays valid
+    float mass() {
+        return mMass;
+    }
+    void mass(float m) {
+        assert(m > 0, "Invalid mass value");
+        mMass = m;
+        if (m != float.infinity)
+            mMassInv = 1.0f/m;
+        else
+            mMassInv = 0;
+    }
+    float inverseMass() {
+        return mMassInv;
+    }
 
     //percent of wind influence
     float windInfluence = 0.0f;
@@ -31,15 +47,18 @@ struct POSP {
 
     float walkingSpeed = 10; //pixels per seconds, or so
     float walkingClimb = 10; //pixels of height per 1-pixel which worm can climb
+    bool walkLimitSlopeSpeed = false;
 
     //influence through damage (0 = invincible, 1 = normal)
     float damageable = 0.0f;
     float damageThreshold = 1.0f;
 
-    //amount of force to take before taking fall damage
-    float sustainableForce = 150;
-    //force multiplier
+    //amount of impulse to take before taking fall damage
+    float sustainableImpulse = 150;
+    //impulse multiplier
     float fallDamageFactor = 0.1f;
+    //true to ignore horizontal movement for fall damage calculation
+    bool fallDamageIgnoreX = false;
 
     float mediumViscosity = 0.0f;
 
@@ -77,16 +96,20 @@ struct POSP {
         glueForce = node.getFloatValue("glue_force", glueForce);
         walkingSpeed = node.getFloatValue("walking_speed", walkingSpeed);
         walkingClimb = node.getFloatValue("walking_climb", walkingClimb);
+        walkLimitSlopeSpeed = node.getBoolValue("walk_limit_slope_speed",
+            walkLimitSlopeSpeed);
         damageable = node.getFloatValue("damageable", damageable);
         damageThreshold = node.getFloatValue("damage_threshold",
             damageThreshold);
         mediumViscosity = node.getFloatValue("medium_viscosity",
             mediumViscosity);
         airResistance = node.getFloatValue("air_resistance", airResistance);
-        sustainableForce = node.getFloatValue("sustainable_force",
-            sustainableForce);
+        sustainableImpulse = node.getFloatValue("sustainable_impulse",
+            sustainableImpulse);
         fallDamageFactor = node.getFloatValue("fall_damage_factor",
             fallDamageFactor);
+        fallDamageIgnoreX = node.getBoolValue("fall_damage_ignore_x",
+            fallDamageIgnoreX);
         velocityConstraint = readVector(node.getStringValue(
             "velocity_constraint", str.format("%s %s", velocityConstraint.x,
             velocityConstraint.y)));

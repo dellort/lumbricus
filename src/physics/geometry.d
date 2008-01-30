@@ -6,7 +6,7 @@ import utils.vector2;
 import physics.base;
 import physics.plane;
 
-struct ContactData {
+struct GeomContact {
     //Vector2f contactPoint;
     Vector2f normal;    //contact normal, directed out of geometry
     float depth;  //object depth depth (along normal)
@@ -17,7 +17,7 @@ struct ContactData {
 
     //merge another ContactData into this one
     //xxx this may be total crap, we have no testcase
-    void merge(ContactData other) {
+    void merge(GeomContact other) {
         if (depth == float.infinity)
             return;
         if (other.depth == float.infinity) {
@@ -51,7 +51,7 @@ class PhysicGeometry : PhysicBase {
     //if outside geometry, return false and don't change pos
     //if inside or touching, return true and set pos to a corrected pos
     //(which is the old pos, moved along the normal at that point in the object)
-    abstract bool collide(Vector2f pos, float radius, out ContactData contact);
+    abstract bool collide(Vector2f pos, float radius, out GeomContact contact);
 
     override /+package+/ void doRemove() {
         super.doRemove();
@@ -70,7 +70,7 @@ class PlaneGeometry : PhysicGeometry {
     this() {
     }
 
-    bool collide(Vector2f pos, float radius, out ContactData contact) {
+    bool collide(Vector2f pos, float radius, out GeomContact contact) {
         bool ret = plane.collide(pos, radius, contact.normal,
             contact.depth);
         //contact.calcPoint(pos, radius);

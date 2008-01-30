@@ -127,7 +127,7 @@ class RopeHandler : PhysicBase, MoveHandler {
             const cHalfStep = cSegmentRadius+cSegmentSpacing;
             for (float d = 0; d < len; d += cHalfStep*2) {
                 auto p = ropeSegments[$-1].start + ndir*(d+cHalfStep);
-                ContactData contact;
+                GeomContact contact;
                 if (world.collideGeometry(p, cSegmentRadius, contact)) {
                     p = p + contact.normal*contact.depth;
                     //collided => new segment to attach the rope to the

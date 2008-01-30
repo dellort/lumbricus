@@ -1,15 +1,14 @@
 module physics.physobj;
 
-import std.math : PI, abs;
+import std.math : PI, abs, signbit;
 import utils.mylist;
 import utils.vector2;
+import utils.misc: max;
 
 import physics.base;
 import physics.posp;
 import physics.movehandler;
 import physics.geometry;
-
-import std.stdio;
 
 //simple physical object (has velocity, position, mass, radius, ...)
 class PhysicObject : PhysicBase {
@@ -68,7 +67,8 @@ class PhysicObject : PhysicBase {
         version(PhysDebug) world.mLog("unglue object %s", this);
         //he flies away! arrrgh!
         isGlued = false;
-        mWalkingMode = false;
+        //mWalkingMode = false; (no! object _wants_ to walk, and continue
+        //                       when glued again)
         mIsWalking = false;
         needUpdate();
     }
@@ -83,8 +83,25 @@ class PhysicObject : PhysicBase {
 
     //apply an impulse (always unglues the object)
     //if you have to call this every frame, you're doing something wrong ;)
-    void addImpulse(Vector2f impulse) {
-        velocity_int += impulse * (1.0f/mPosp.mass);
+    //impulses from geometry will cause fall damage
+    void addImpulse(Vector2f impulse, bool fromGeom = false) {
+        velocity_int += impulse * mPosp.inverseMass;
+        if (fromGeom) {
+            //hit against geometry -> fall damage
+            float impulseLen;
+            if (mPosp.fallDamageIgnoreX)
+                //just vertical component
+                impulseLen = abs(impulse.y);
+            else
+                //full impulse
+                impulseLen = impulse.length;
+            //simple linear dependency
+            float damage = max(impulseLen - mPosp.sustainableImpulse, 0f)
+                * mPosp.fallDamageFactor;
+            //use this for damage
+            if (damage > 0)
+                applyDamage(damage);
+        }
         doUnglue();
     }
 
@@ -334,24 +351,20 @@ class PhysicObject : PhysicBase {
                 //notice update before you forget it...
                 needUpdate();
 
-                Vector2f npos = pos + walkTo;
-
                 //look where's bottom
                 //NOTE: y1 > y2 means y1 is _blow_ y2
                 bool first = true;
                 for (float y = +posp.walkingClimb; y >= -posp.walkingClimb; y--)
                 {
 
-                    Vector2f nnpos = npos;
-                    nnpos.y += y;
-                    auto tmp = nnpos;
-                    //log.registerLog("xxx")("%s %s", nnpos, pos);
-                    ContactData contact;
-                    bool res = world.collideGeometry(nnpos, posp.radius,
+                    Vector2f npos = pos + walkTo;
+                    npos.y += y;
+                    GeomContact contact;
+                    bool res = world.collideGeometry(npos, posp.radius,
                         contact);
 
                     if (!res) {
-                        world.mLog("walk at %s -> %s", nnpos, nnpos-tmp);
+                        world.mLog("walk at %s -> %s", npos, npos-mPos);
                         //no collision, consider this to be bottom
 
                         auto oldpos = pos;
@@ -359,13 +372,26 @@ class PhysicObject : PhysicBase {
                         if (first) {
                             //even first tested location => most bottom, fall
                             world.mLog("walk: fall-bottom");
-                            mPos = npos;
+                            mPos += walkTo;
                             doUnglue();
                         } else {
                             world.mLog("walk: bottom at %s", y);
                             //walk to there...
-                            npos.y += y;
-                            mPos = npos;
+                            if (mPosp.walkLimitSlopeSpeed) {
+                                //one pixel at a time, even on steep slopes
+                                //xxx waiting y/walkingSpeed looks odd, but
+                                //    would be more correct
+                                if (abs(y) <= 1)
+                                    mPos += walkTo;
+                                if (y > 0)
+                                    mPos.y += 1;
+                                else if (y < 0)
+                                    mPos.y -= 1;
+                            } else {
+                                //full heigth diff at one, constant x speed
+                                mPos += walkTo;
+                                mPos.y += y;
+                            }
                         }
 
                         //check worm direction...
