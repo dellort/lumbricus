@@ -13,10 +13,11 @@ import game.gui.gameframe;
 import game.clientengine;
 import game.loader;
 import game.gamepublic;
+import game.sequence;
 import game.gui.gameview;
 import game.game;
 import game.sprite;
-import game.crate;
+//import game.crate;
 import gui.container;
 import gui.widget;
 import gui.wm;
@@ -213,11 +214,37 @@ class GameTask : Task {
         } else {
             mLoadScreen.secondaryActive = false;
             mResources = mResPreloader.createSet();
+            loadSequenceStuff();
             mResources.seal(); //disallow addition of more resources
             mResPreloader = null;
             mGfx.resources = mResources;
             mGfx.load();
             return true;
+        }
+    }
+
+    class Wtf : ResourceObject {
+        Object obj;
+        Object get() {
+            return obj;
+        }
+        this(Object o) {
+            obj = o;
+        }
+    }
+
+    private void loadSequenceStuff() {
+        auto conf = gFramework.loadConfig("wwp");
+        conf = conf.getSubNode("sequences");
+        foreach (ConfigNode sub; conf) {
+            auto pload = sub.name in AbstractSequence.loaders;
+            if (!pload) {
+                throw new Exception("sequence loader not found: "~sub.name);
+            }
+            foreach (ConfigNode subsub; sub) {
+                SequenceObject seq = (*pload)(mResources, subsub);
+                mResources.addResource(new Wtf(seq), seq.name);
+            }
         }
     }
 
@@ -378,6 +405,7 @@ class GameTask : Task {
     }
 
     private void cmdCrateTest(MyBox[] args, Output write) {
+        /+
         Vector2f from, to;
         float water = mServerEngine.waterOffset - 10;
         if (!mServerEngine.placeObject(water, 10, from, to, 5)) {
@@ -394,6 +422,7 @@ class GameTask : Task {
         crate.setPos(from);
         crate.active = true;
         write.writefln("drop %s -> %s", from, to);
+        +/
     }
 
     private void cmdShakeTest(MyBox[] args, Output write) {

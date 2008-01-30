@@ -16,6 +16,7 @@ import utils.mylist;
 import utils.time;
 import utils.log;
 import utils.configfile;
+import utils.math;
 import utils.misc;
 import utils.perf;
 import utils.random;
@@ -26,7 +27,7 @@ import framework.resset;
 import std.math;
 
 import game.worm;
-import game.crate;
+//import game.crate;
 
 //code to manage a game session (hm, whatever this means)
 //reinstantiated on each "round"
@@ -393,13 +394,6 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
             mObjects.insert_tail(obj);
     }
 
-    long mUids;
-
-    AnimationGraphic createAnimation() {
-        auto g = graphics.createAnimation;
-        return g;
-    }
-
     PhysicWorld physicworld() {
         return mPhysicWorld;
     }
@@ -537,10 +531,12 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         return false;
     }
 
+    /+
     void collectCrate(CrateSprite crate, PhysicObject obj) {
         GameObject gobj = cast(GameObject)(obj.backlink);
         if (gobj) {
             mController.collectCrate(crate, gobj);
         } //if not then wtf!?
     }
+    +/
 }

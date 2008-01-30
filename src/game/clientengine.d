@@ -11,6 +11,7 @@ import game.water;
 import game.sky;
 import game.animation;
 import game.gamepublic;
+import game.sequence;
 import levelgen.level;
 import utils.mylist;
 import utils.time;
@@ -60,76 +61,25 @@ struct PerTeamAnim {
 
 class ClientGraphic : Graphic {
     private mixin ListNodeMixin node;
-    long uid = -1;
     GraphicsHandler handler;
-    bool added;
 
+    //subclass must call init() after it has run its constructor
     this(GraphicsHandler a_owner) {
         handler = a_owner;
-        uid = ++a_owner.uids;
     }
 
-    void setVisible(bool v) {
-        graphic.active = v;
-        if (!added) {
-            handler.objectScene.add(graphic);
-            handler.mGraphics.insert_tail(this);
-            added = true;
-        }
+    //stupid enforced constructor order...
+    protected void init() {
+        handler.objectScene.add(graphic);
+        handler.mGraphics.insert_tail(this);
     }
+
     void remove() {
-        if (added) {
-            handler.mGraphics.remove(this);
-            handler.objectScene.remove(graphic);
-            added = false;
-        }
-    }
-    long getUID() {
-        return uid;
-    }
-
-    bool active() {
-        return added && graphic.active;
+        handler.mGraphics.remove(this);
+        handler.objectScene.remove(graphic);
     }
 
     abstract SceneObject graphic();
-}
-
-class ClientAnimationGraphic : ClientGraphic, AnimationGraphic {
-    Animator anim;
-
-    this(GraphicsHandler handler) {
-        super(handler);
-        anim = new Animator();
-    }
-
-    //implementations for AnimationGraphic
-    void setPos(Vector2i pos) {
-        anim.pos = pos;
-    }
-    void setVelocity(Vector2f v) {
-        //not needed
-    }
-    void setParams(int p1, int p2) {
-        AnimationParams p;
-        p.p1 = p1;
-        p.p2 = p2;
-        anim.setParams(p);
-    }
-    void setNextAnimation(AnimationResource animation, bool force) {
-        anim.setAnimation(animation.get());
-    }
-
-    SceneObject graphic() {
-        return anim;
-    }
-
-    Vector2i pos() {
-        return anim.pos;
-    }
-    Rect2i bounds() {
-        return anim.bounds;
-    }
 }
 
 class ClientLineGraphic : ClientGraphic, LineGraphic {
@@ -145,9 +95,11 @@ class ClientLineGraphic : ClientGraphic, LineGraphic {
 
     this(GraphicsHandler handler) {
         super(handler);
-        mDraw = new Draw();
     }
 
+    protected void init() {
+        mDraw = new Draw();
+    }
 
     void setPos(Vector2i p1, Vector2i p2) {
         mP1 = p1;
@@ -160,12 +112,18 @@ class ClientLineGraphic : ClientGraphic, LineGraphic {
     SceneObject graphic() {
         return mDraw;
     }
+
+    Rect2i bounds() {
+        //doesn't make a lot of sense, but meh
+        auto rc = Rect2i(mP1, mP2);
+        rc.normalize();
+        return rc;
+    }
 }
 
 class GraphicsHandler : GameEngineGraphics {
     private List!(ClientGraphic) mGraphics;
 
-    long uids;
     Scene objectScene;
 
     this() {
@@ -173,22 +131,12 @@ class GraphicsHandler : GameEngineGraphics {
         objectScene = new Scene();
     }
 
-    //for interface GameEngineGraphics
-    AnimationGraphic createAnimation() {
-        return new ClientAnimationGraphic(this);
+    Sequence createSequence(SequenceObject type) {
+        assert(!!type);
+        return type.instantiate(this); //yay factory
     }
     LineGraphic createLine() {
         return new ClientLineGraphic(this);
-    }
-
-    //inefficient because O(n)
-    //return null if invalid id
-    ClientGraphic findClientGraphic(long id) {
-        foreach (ClientGraphic g; mGraphics) {
-            if (g.uid == id)
-                return g;
-        }
-        return null;
     }
 }
 
@@ -326,10 +274,6 @@ class ClientGameEngine {
     }
     TeamMemberControl controller() {
         return logic.getControl();
-    }
-
-    ClientGraphic findClientGraphic(long id) {
-        return graphics.findClientGraphic(id);
     }
 
     void kill() {

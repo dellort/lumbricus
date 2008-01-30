@@ -205,9 +205,7 @@ class HorizontalFullsceneAnimator : SceneObject {
         for (int x = xoffs-w-soffs; x < size.x; x += w) {
             //due to scrolling parallax, this can get out of the scene
             if (x+w > 0) {
-                animator.pos = Vector2i(x, ypos) - animator.bounds.p1;
-                //XXX I hope canvas does clipping instead of letting sdl to it
-                //answer: no, it will be sent to the sdl (and sdl clips it)
+                animator.pos = Vector2i(x, ypos) - animator.animation.bounds.p1;
                 animator.draw(canvas);
             }
         }

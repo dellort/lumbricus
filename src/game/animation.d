@@ -100,11 +100,3 @@ private int paramConvertFreeRot2_2(int angle, int count) {
     return map3(-angle+90.0f,180.0f,count);
 }
 
-//return distance of two angles in radians
-float angleDistance(float a, float b) {
-    auto r = realmod(a - b, cast(float)math.PI*2);
-    if (r > math.PI) {
-        r = math.PI*2 - r;
-    }
-    return r;
-}

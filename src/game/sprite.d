@@ -6,6 +6,7 @@ import physics.world;
 import game.animation;
 import game.game;
 import game.gamepublic;
+import game.sequence;
 import utils.vector2;
 import utils.rect2;
 import utils.configfile;
@@ -31,12 +32,11 @@ class GObjectSprite : GameObject {
 
     PhysicObject physics;
     //attention: can be null if object inactive
-    AnimationGraphic graphic;
+    Sequence graphic;
 
-    AnimationResource currentAnimation;
-    Time animationStarted;
+    SequenceState currentAnimation;
 
-    int param2;
+    float point_angle = 0;
 
     private bool mIsUnderWater, mWaterUpdated;
 
@@ -46,7 +46,7 @@ class GObjectSprite : GameObject {
 
     //return animations for states; this can be used to "patch" animations for
     //specific states (used for worm.d/weapons)
-    protected AnimationResource getAnimationForState(StaticStateInfo info) {
+    protected SequenceState getAnimationForState(StaticStateInfo info) {
         return info.animation;
     }
 
@@ -62,14 +62,17 @@ class GObjectSprite : GameObject {
         if (wanted_animation !is currentAnimation) {
             //xxx you have to decide: false or true as parameter?
             // true = force, false = wait until current animation done
-            graphic.setNextAnimation(wanted_animation, false);
-            animationStarted = engine.gameTime.current;
+            graphic.setState(wanted_animation);
             currentAnimation = wanted_animation;
         }
 
-        graphic.setPos(toVector2i(physics.pos));
-        graphic.setVelocity(physics.velocity);
-        graphic.setParams(angleToAnimation(physics.lookey), param2);
+        SequenceUpdate update;
+        update.position = toVector2i(physics.pos);
+        update.velocity = physics.velocity;
+        update.rotation_angle = physics.lookey;
+        update.pointto_angle = point_angle;
+
+        graphic.update(update);
     }
 
     static int angleToAnimation(float angle) {
@@ -224,8 +227,7 @@ class GObjectSprite : GameObject {
             graphic = null;
         }
         if (active) {
-            graphic = engine.createAnimation();
-            graphic.setVisible(true);
+            graphic = engine.graphics.createSequence(type.sequenceObject);
             physics.checkRotation();
             updateAnimation();
         }
@@ -244,6 +246,7 @@ class GObjectSprite : GameObject {
 
     override void simulate(float deltaT) {
         super.simulate(deltaT);
+        /+
         if (currentState.onAnimationEnd && currentAnimation.defined) {
             if (engine.gameTime.current - animationStarted
                 >= currentAnimation.get.duration())
@@ -253,6 +256,7 @@ class GObjectSprite : GameObject {
                 setState(currentState.onAnimationEnd, true);
             }
         }
+        +/
         if (!mWaterUpdated) {
             mIsUnderWater = false;
             waterStateChange(false);
@@ -290,7 +294,7 @@ class StaticStateInfo {
     bool noleave; //don't leave this state (explictly excludes onAnimationEnd)
     bool keepSelfForce; //phys.selfForce will be reset unless this is set
 
-    AnimationResource animation;
+    SequenceState animation;
 }
 
 //loads "collisions"-nodes and adds them to the collision map
@@ -300,6 +304,8 @@ class StaticStateInfo {
 class GOSpriteClass {
     GameEngine engine;
     char[] name;
+
+    SequenceObject sequenceObject;
 
     StaticStateInfo[char[]] states;
     StaticStateInfo initState;
@@ -345,6 +351,9 @@ class GOSpriteClass {
         //load collision map
         engine.physicworld.loadCollisions(config.getSubNode("collisions"));
 
+        sequenceObject = engine.resources.resource!(SequenceObject)
+            (config["sequence_object"]).get;
+
         //load states
         //physic stuff is loaded when it's referenced in a state description
         foreach (ConfigNode sc; config.getSubNode("states")) {
@@ -368,11 +377,10 @@ class GOSpriteClass {
             ssi.keepSelfForce = sc.getBoolValue("keep_selfforce", false);
 
             if (sc["animation"].length > 0) {
-                ssi.animation = engine.resources.resource!(Animation)
-                    (sc["animation"]);
+                ssi.animation = sequenceObject.findState(sc["animation"]);
             }
 
-            if (!ssi.animation.defined) {
+            if (!ssi.animation) {
                 engine.mLog("WARNING: no animation for state '%s'", ssi.name);
             }
 

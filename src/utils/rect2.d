@@ -71,6 +71,10 @@ public struct Rect2(T) {
         return p2 - p1;
     }
 
+    Point center() {
+        return p1 + (p2-p1)/2;
+    }
+
     bool isNormal() {
         return (p1.x1 <= p2.x1) && (p1.x2 <= p2.x2);
     }

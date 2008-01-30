@@ -308,7 +308,7 @@ class AnimationHandler : ResViewHandler!(Animation) {
         AnimationParams p;
         p.p1 = mParams[0].curValue;
         p.p2 = mParams[1].curValue;
-        mAnim.setParams(p);
+        mAnim.params = p;
         for (int n = 0; n < 2; n++)
             mParLbl[n].text = format("Param %d: %d", n, mParams[n].curValue);
         mFrameLabel.text = format("Frame: %d/%d", mFrame.curValue,
@@ -338,7 +338,7 @@ class AnimationHandler : ResViewHandler!(Animation) {
             Vector2i d = size/2;
             mAnim.pos = d;
             mAnim.draw(c);
-            c.drawRect(d+bnds.p1-Vector2i(1), d+bnds.p2+Vector2i(1),
+            c.drawRect(bnds.p1-Vector2i(1), bnds.p2+Vector2i(1),
                 Color(0, 0, 0));
             //assume p1() in degrees (0..360)
             auto dir = Vector2f.fromPolar(radius, (-p1()+180+90)/360.0f*PI*2);

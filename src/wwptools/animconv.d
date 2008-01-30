@@ -31,6 +31,7 @@ enum AniFlags {
     Backwards_A = 2, //reverse the whole source animation (for axis A)
     AppendBackwards_A = 4, //first normal and then backwards (axis A)
     KeepLast = 8, //==Animation.keepLastFrame
+    AppendMirroredY_Backwards_B = 16, //special case for jetpack
 }
 
 AnimList gAnimList;  //source animations
@@ -47,8 +48,13 @@ static this() {
     gAnimationLoadHandlers["simple"] = &loadSimpleAnimation;
     //same as above, but reversed
     gAnimationLoadHandlers["simple_backwards"] = &loadSimpleAnimationBackwards;
+    //like simple, but plays backwards again before it ends
+    gAnimationLoadHandlers["simple_append_backwards"] =
+        &loadSimpleAnimationAppendBckwd;
     //mirror animation on Y axis
     gAnimationLoadHandlers["twosided"] = &loadTwoSidedAnimation;
+    //meh
+    gAnimationLoadHandlers["jetpack_turn"] = &loadJetPackTurn;
     //normal worm, standing or walking
     gAnimationLoadHandlers["worm"] = &loadWormAnimation;
     //same as above, but not looping
@@ -145,6 +151,19 @@ class AniFile {
                 }
             }
             len_a *= 2;
+        }
+
+        //special case for jetpack; could avoid this by making framelist
+        //manipulation available to the "user"
+        if (flags & AniFlags.AppendMirroredY_Backwards_B) {
+            foreach_reverse (fl; frames.dup) {
+                //mirror them
+                auto list = fl.dup;
+                foreach (inout a; list) {
+                    a.drawEffects ^= FileDrawEffects.MirrorY;
+                }
+                frames ~= list;
+            }
         }
 
         //create mirrored frames
@@ -369,12 +388,24 @@ private void loadTwoSidedAnimation(ConfigItem node) {
         Mirror.Y_B, ["twosided"]);
 }
 
-private void loadSimpleAnimation(ConfigItem node) {
-    auto ani = getSimple(node, 1, 1);
+private void loadJetPackTurn(ConfigItem node) {
+    gAnims.add(node.name, getSimple(node, -1, 1), [Param.P1, Param.Time],
+        Mirror.Y_A, ["twosided"], AniFlags.AppendMirroredY_Backwards_B);
+}
 
+private void loadSimpleAnimation(ConfigItem node) {
+    loadSimple(node, false);
+}
+
+private void loadSimpleAnimationAppendBckwd(ConfigItem node) {
+    loadSimple(node, true);
+}
+
+private void loadSimple(ConfigItem node, bool append_bck) {
+    auto ani = getSimple(node, 1, 1);
     gAnims.add(node.name, ani, [Param.Time, Param.P1],
         Mirror.None, [], (ani[0].repeat ? AniFlags.Repeat : 0)
-            | (ani[0].backwards ? AniFlags.AppendBackwards_A : 0));
+            | (ani[0].backwards | append_bck ? AniFlags.AppendBackwards_A : 0));
 }
 
 private void loadSimpleAnimationBackwards(ConfigItem node) {

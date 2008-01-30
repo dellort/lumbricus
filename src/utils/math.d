@@ -2,6 +2,7 @@ module utils.math;
 
 public import utils.vector2;// : Vector2f;
 import intr = std.intrinsic;
+import math = std.math;
 
 /// Intersect two lines given (p1+dir_1*t1, p2+dir_2*t2), and return the tX
 /// values, where these lines intersect; returns true if the point is "within".
@@ -53,4 +54,13 @@ out (res) {
 }
 body {
     return intr.bsr(value);
+}
+
+//return distance of two angles in radians
+float angleDistance(float a, float b) {
+    auto r = realmod(a - b, cast(float)math.PI*2);
+    if (r > math.PI) {
+        r = math.PI*2 - r;
+    }
+    return r;
 }

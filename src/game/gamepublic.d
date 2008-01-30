@@ -12,6 +12,8 @@ import utils.configfile;
 import utils.vector2;
 import utils.time;
 
+import game.sequence;
+
 public import game.temp;
 
 /+
@@ -50,41 +52,24 @@ struct GameConfig {
 }
 
 interface Graphic {
-    //visibility of the animation
-    void setVisible(bool v);
+    //centered object position
+    Rect2i bounds();
 
     //kill this graphic
     void remove();
-
-    long getUID();
 }
 
-//thought to be an interface to a kind of network proxy
-interface AnimationGraphic : Graphic {
-    //update position
-    void setPos(Vector2i pos);
-    void setVelocity(Vector2f v);
-
-    //update params
-    // p1 is mostly an angle (in degrees), and p2 is mostly unused
-    // (actual meaning depends from animation)
-    void setParams(int p1, int p2);
-
-    //update animation
-    // force = set new animation immediately, else wait until done
-    void setNextAnimation(AnimationResource animation, bool force);
-}
+//NOTE: in module game.sequence, there's "interface Sequence : Graphic {...}"
 
 interface LineGraphic : Graphic {
     void setPos(Vector2i p1, Vector2i p2);
     void setColor(Color c);
+    Rect2i bounds();
 }
-
-const long cInvalidUID = -1;
 
 ///all graphics which are sent from server to client
 interface GameEngineGraphics {
-    AnimationGraphic createAnimation();
+    Sequence createSequence(SequenceObject type);
     LineGraphic createLine();
 }
 
@@ -236,9 +221,7 @@ interface TeamMember {
 
     int health();
 
-    /// uid of the current member-graphic (maybe always the the worm)
-    /// might return InvalidUID if worm dead, invisible, or similar
-    long getGraphic();
+    Graphic getGraphic();
 }
 
 //a trivial list of weapons and quantity

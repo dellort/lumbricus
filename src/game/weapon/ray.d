@@ -121,7 +121,6 @@ class RenderLaser : GameObject {
         super(aengine, true);
         mLine = aengine.graphics.createLine();
         mLine.setPos(toVector2i(p[0]), toVector2i(p[1]));
-        mLine.setVisible(true);
         mStart = engine.gameTime.current;
         mEnd = mStart + duration;
         mColors = colors.dup;

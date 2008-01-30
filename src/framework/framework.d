@@ -970,16 +970,16 @@ class Framework {
     {
         VFSPath file = VFSPath(section ~ (asfilename ? "" : ".conf"));
         mLog("load config: %s", file);
-        //try {
+        try {
             scope s = fs.open(file);
             auto f = new config.ConfigFile(s, file.get(), &logconf);
             if (!f.rootnode)
                 throw new Exception("?");
             return f.rootnode;
-        //} catch (Exception e) {
-        //    if (!allowFail)
-        //        throw e;
-       // }
+        } catch (FilesystemException e) {
+            if (!allowFail)
+                throw e;
+        }
         mLog("config file %s failed to load (allowFail = true)", file);
         return null;
     }

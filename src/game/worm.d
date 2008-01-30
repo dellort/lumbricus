@@ -52,7 +52,6 @@ class WormSprite : GObjectSprite {
         bool mIsDead;
 
         AnimationResource mGravestone;
-        AnimationResource mUsingWeapon;
     }
 
     float weaponAngle() {
@@ -126,7 +125,8 @@ class WormSprite : GObjectSprite {
         gravestone = 0;
     }
 
-    protected AnimationResource getAnimationForState(StaticStateInfo info) {
+/+
+    protected SequenceState getAnimationForState(StaticStateInfo info) {
         if (currentState is wsc.st_weapon && mWeapon) {
             //return only if there's any specific weapon animation
             //else, show normal worm
@@ -142,6 +142,7 @@ class WormSprite : GObjectSprite {
         }
         return super.getAnimationForState(info);
     }
++/
 
     //movement for walking/jetpack
     void move(Vector2f dir) {
@@ -185,7 +186,7 @@ class WormSprite : GObjectSprite {
             mWeaponAngle = max(mWeaponAngle, cast(float)-PI/2);
             mWeaponAngle = min(mWeaponAngle, cast(float)PI/2);
             //[-PI/2, PI/2] to [-90, 90]
-            param2 = cast(int)(mWeaponAngle/PI*180.0f);
+            point_angle = cast(int)(mWeaponAngle/PI*180.0f);
             updateAnimation();
         }
         //if shooter dies, undraw weapon
@@ -352,7 +353,7 @@ class WormSpriteClass : GOSpriteClass {
         }
 
         //done, read out the stupid states :/
-        st_stand = findState("sit");
+        st_stand = findState("stand");
         st_fly = findState("fly");
         st_walk = findState("walk");
         st_jet = findState("jetpack");

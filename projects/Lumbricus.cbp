@@ -94,6 +94,7 @@
 		<Unit filename="..\src\game\gui\weaponsel.d" />
 		<Unit filename="..\src\game\gui\windmeter.d" />
 		<Unit filename="..\src\game\loader.d" />
+		<Unit filename="..\src\game\sequence.d" />
 		<Unit filename="..\src\game\sky.d" />
 		<Unit filename="..\src\game\sprite.d" />
 		<Unit filename="..\src\game\temp.d" />
@@ -179,6 +180,7 @@
 			<code_completion />
 			<envvars />
 			<debugger />
+			<lib_finder />
 		</Extensions>
 	</Project>
 </CodeBlocks_project_file>

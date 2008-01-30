@@ -118,9 +118,6 @@ class GameView : Container, TeamMemberControlCallback {
             TeamMember member; //from the "engine"
             ViewTeam team;
 
-            ulong clientGraphic = cInvalidUID;
-            ClientAnimationGraphic cachedCG;
-
             bool guiIsActive;
 
             //you might wonder why these labels aren't just drawn directly
@@ -158,16 +155,8 @@ class GameView : Container, TeamMemberControlCallback {
             }
 
             void simulate() {
-                auto ncg = member.getGraphic();
-                //aw, there's the bug that the game is ahead of the graphic
-                //events; so findClientGraphic will return null for new graphics
-                //"!cachedCG || " hacks this out
-                if (!cachedCG || ncg != clientGraphic) {
-                    cachedCG = castStrict!(ClientAnimationGraphic)
-                        (mEngine.findClientGraphic(ncg));
-                    clientGraphic = ncg;
-                }
-                bool shouldactive = cachedCG && cachedCG.active;
+                auto graphic = member.getGraphic();
+                bool shouldactive = !!graphic;
                 if (shouldactive != guiIsActive) {
                     if (!shouldactive) {
                         //hide GUI
@@ -181,7 +170,7 @@ class GameView : Container, TeamMemberControlCallback {
                     guiIsActive = shouldactive;
                 }
                 if (guiIsActive) {
-                    lastKnownPosition = cachedCG.pos;
+                    lastKnownPosition = graphic.bounds.p1;
 
                     //update state
                     if (health_cur != member.health) {
@@ -189,10 +178,9 @@ class GameView : Container, TeamMemberControlCallback {
                         wormPoints.text = format("%s", health_cur);
                     }
                     //update positions...
-                    assert(cachedCG !is null);
-                    Vector2i pos;
-                    pos.x = cachedCG.pos.x;
-                    pos.y = cachedCG.pos.y - cachedCG.bounds.size.y/2;
+                    assert(graphic !is null);
+                    auto pos = graphic.bounds.center;
+                    pos.y -= graphic.bounds.size.y/2;
 
                     void mooh(Widget w) {
                         Vector2i sz = w.size;

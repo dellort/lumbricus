@@ -2,7 +2,7 @@ module game.controller;
 import game.game;
 import game.gobject;
 import game.worm;
-import game.crate;
+//import game.crate;
 import game.sprite;
 import game.weapon.weapon;
 import game.gamepublic;
@@ -496,11 +496,11 @@ class ServerTeamMember : TeamMember {
         return mWorm ? cast(int)mWorm.physics.lifepower : 0;
     }
 
-    long getGraphic() {
+    Graphic getGraphic() {
         if (sprite && sprite.graphic) {
-            return sprite.graphic.getUID();
+            return sprite.graphic;
         }
-        return cInvalidUID;
+        return null;
     }
 
     // --- end TemaMember
@@ -1291,6 +1291,7 @@ class GameController : GameLogicPublic {
         }
     }
 
+    /+
     void collectCrate(CrateSprite crate, GameObject finder) {
         //for some weapons like animal-weapons, transitive should be true
         //and normally a non-collecting weapon should just explode here??
@@ -1313,6 +1314,7 @@ class GameController : GameLogicPublic {
         crate.stuffies = null;
         crate.collected();
     }
+    +/
 
     //place anywhere on landscape
     //returns success

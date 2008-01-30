@@ -6,6 +6,7 @@ import physics.world;
 import game.game;
 import game.gobject;
 import game.sprite;
+import game.sequence;
 import game.weapon.weapon;
 import std.math;
 import str = std.string;
@@ -357,8 +358,10 @@ class ProjectileSpriteClass : GOSpriteClass {
 
         //hm, state stuff unused, so only that state
         initState.physic_properties.loadFromConfig(config.getSubNode("physics"));
-        initState.animation = engine.resources.resource!(Animation)
-            (config["animation"]);
+
+        sequenceObject = engine.resources.resource!(SequenceObject)
+            (config["sequence_object"]).get;
+        initState.animation = sequenceObject.findState(config["animation"]);
 
         auto detonatereason = config.getSubNode("detonate_howcome");
         detonateByImpact = detonatereason.getBoolValue("byimpact");

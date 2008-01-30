@@ -11,7 +11,6 @@ import utils.vector2;
 class Animator : SceneObjectCentered {
     private {
         Animation mData;
-        AnimationParams mParams;
         Time mStarted;
         debug Time mLastNow;
 
@@ -25,9 +24,7 @@ class Animator : SceneObjectCentered {
         }
     }
 
-    void setParams(AnimationParams p) {
-        mParams = p;
-    }
+    AnimationParams params;
 
     private int frameTime() {
         assert(mData && mData.mLengthMS != 0);
@@ -90,19 +87,18 @@ class Animator : SceneObjectCentered {
         int frame = curFrame();
         if (frame < 0)
             return;
-        mData.drawFrame(canvas, pos, mParams, frame);
+        mData.drawFrame(canvas, pos, params, frame);
     }
 
-    //shall return the smallest bounding box for all frame, centered around 0/0
+    //shall return the smallest bounding box for all frame, centered around pos.
     Rect2i bounds() {
         if (mData) {
-            return mData.bounds();
+            return mData.bounds() + pos;
         }
-        return Rect2i.init;
+        return Rect2i.Empty;
     }
 
     Animation animation() {
         return mData;
     }
 }
-

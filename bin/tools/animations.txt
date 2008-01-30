@@ -47,12 +47,6 @@ batch_bnks {
             pointed_yellow = "39"
             pointed_magenta = "40"
             pointed_cyan = "41"
-            click_red = "6"
-            click_blue = "7"
-            click_green = "8"
-            click_yellow = "9"
-            click_magenta = "10"
-            click_cyan = "11"
             cloud1 = "626"
             cloud2 = "627"
             cloud3 = "628"
@@ -63,7 +57,6 @@ batch_bnks {
             worm_parachute_enter = "296"
             worm_parachute_fly = "297"
             worm_bump_into_ground = "301"
-            worm_slow_fly = "287"
             napalm_fall_1 = "133"
             napalm_fall_2 = "134"
             napalm_fall_3 = "135"
@@ -71,11 +64,20 @@ batch_bnks {
             napalm_fall_5 = "137"
             napalm_fall_6 = "138"
         }
+        simple_append_backwards {
+            worm_slow_fly = "287"
+        }
         simple_backwards {
             //don't know why, but original animation looks so backwards
             crate_beam = "116"
             crate2_beam = "118"
             crate3_beam = "117"
+            click_red = "6"
+            click_blue = "7"
+            click_green = "8"
+            click_yellow = "9"
+            click_magenta = "10"
+            click_cyan = "11"
         }
         360 {
             point_red = "30"
@@ -109,12 +111,12 @@ batch_bnks {
             aim_magenta = "4"
             aim_cyan = "5"
         }
+        jetpack_turn {
+            worm_jet_turn_right = "177 178 179"
+            worm_jet_turn_left = "179 178 177"
+        }
         twosided {
             worm_jet = "176"
-            //for turnaround animation
-            worm_jet_1 = "177"
-            worm_jet_2 = "178"
-            worm_jet_3 = "179"
             //vertical/horizontal jetpack exhaust flames
             //xxx by what are these indexed?
             //worm_jet_ex_h = "180"
