@@ -90,11 +90,14 @@ private class ProjectileThrower : Shooter {
         //make active, so projectiles will be shot
         active = true;
 
+        //wut?
+        /+
         //if it has an extra firing, let the owner update it
         //(cf. Worm.getAnimationForState())
         if (owner && weapon.animations[WeaponWormAnimations.Fire].defined) {
             owner.updateAnimation();
         }
+        +/
     }
 }
 
@@ -359,9 +362,13 @@ class ProjectileSpriteClass : GOSpriteClass {
         //hm, state stuff unused, so only that state
         initState.physic_properties.loadFromConfig(config.getSubNode("physics"));
 
+        if (!config.hasValue("sequence_object")) {
+            assert(false, "bla: "~config.name);
+        }
+
         sequenceObject = engine.resources.resource!(SequenceObject)
             (config["sequence_object"]).get;
-        initState.animation = sequenceObject.findState(config["animation"]);
+        initState.animation = sequenceObject.findState("normal");
 
         auto detonatereason = config.getSubNode("detonate_howcome");
         detonateByImpact = detonatereason.getBoolValue("byimpact");

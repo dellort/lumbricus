@@ -989,8 +989,10 @@ public class ConfigFile {
                     do {
                         next();
                     } while (curChar != EOF && !my_isnewline(curChar));
-                } else if (curChar == '*') {
-                    //stream comment, search next "*/"
+                } else if (curChar == '*' || curChar == '+') {
+                    //stream comment, search next "*/" or "+/"
+                    //xxx maybe implement full D style /++/ comments
+                    char term = curChar;
                     bool s = false;
                     do {
                         next();
@@ -999,7 +1001,7 @@ public class ConfigFile {
                             break;
                         }
                         s = false;
-                        if (curChar == '*') {
+                        if (curChar == term) {
                             s = true;
                         }
                     } while (curChar != EOF);

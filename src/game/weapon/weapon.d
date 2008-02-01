@@ -97,7 +97,7 @@ abstract class WeaponClass {
     FireMode fireMode;
 
     //weapon-holding animations
-    AnimationResource[WeaponWormAnimations.max+1] animations;
+    char[][WeaponWormAnimations.max+1] animations;
 
     GameEngine engine() {
         return mEngine;
@@ -123,8 +123,7 @@ abstract class WeaponClass {
         foreach (int i, char[] name; cWWA2Str) {
             auto val = anis.findValue(name);
             if (val) {
-                animations[i] = engine.resources.resource!(Animation)
-                    (val.value);
+                animations[i] =val.value;
             }
         }
 

@@ -51,6 +51,9 @@ static this() {
     //like simple, but plays backwards again before it ends
     gAnimationLoadHandlers["simple_append_backwards"] =
         &loadSimpleAnimationAppendBckwd;
+    //like simple, but force repeat (sigh)
+    gAnimationLoadHandlers["simple_forceloop"] = &loadSimpleForceLoopAnimation;
+    gAnimationLoadHandlers["simple_noloop"] = &loadSimpleNoLoopAnimation;
     //mirror animation on Y axis
     gAnimationLoadHandlers["twosided"] = &loadTwoSidedAnimation;
     //meh
@@ -67,7 +70,7 @@ static this() {
     //worm holding a weapon (with weapon-angle as param2)
     gAnimationLoadHandlers["worm_weapon"] = &loadWormWeaponAnimation;
     //worm holding a weapon that has no aiming animation
-    gAnimationLoadHandlers["worm_weapon_fixed"] = &loadWormWeaponFixedAnimation;
+    gAnimationLoadHandlers["worm_noloop_keeplast"] = &loadWormNoLoopKeepLast;
     //360 degrees graphic, possibly animated
     gAnimationLoadHandlers["360"] = &load360Animation;
     //360 deg, inverted rotation
@@ -110,8 +113,6 @@ class AniFile {
     void add(char[] name, Animation[] src, Param[2] params, Mirror mirror,
         char[][] param_conv, int flags = AniFlags.None)
     {
-        //xxx force repeat (will change someday)
-        flags |= AniFlags.Repeat;
         //this writes it to a file and sets the animation's frames .blockIndex
         FileAnimationFrame[][] frames; //indexed [b][a] (lol)
         frames.length = src.length;
@@ -366,26 +367,23 @@ private void doLoadWormAnimation(ConfigItem node, bool loop,
 }
 
 private void loadWormWeaponAnimation(ConfigItem node) {
-    //xxx can't yet use both animations, one of the outputs is unused
-    //  will be fixed with "Sequences" (which can contain several animations)
-
     auto anis = getSimple(node, 2, 3);
 
-    gAnims.add(node.name, anis[0..3], [Param.Time, Param.P1], Mirror.Y_B,
-        ["step3"]);
+    gAnims.add(node.name ~ "_get", anis[0..3], [Param.Time, Param.P1],
+        Mirror.Y_B, ["step3"]);
 
-    gAnims.add(node.name ~ "_2", anis[3..6], [Param.P2, Param.P1], Mirror.Y_B,
-        ["step3", "rot180"]);
+    gAnims.add(node.name ~ "_hold", anis[3..6], [Param.P2, Param.P1],
+        Mirror.Y_B, ["step3", "rot180"], AniFlags.KeepLast);
 }
 
-private void loadWormWeaponFixedAnimation(ConfigItem node) {
+private void loadWormNoLoopKeepLast(ConfigItem node) {
     gAnims.add(node.name, getSimple(node, 1, 3), [Param.Time, Param.P1],
-        Mirror.Y_B, ["step3"]);
+        Mirror.Y_B, ["step3"], AniFlags.KeepLast);
 }
 
 private void loadTwoSidedAnimation(ConfigItem node) {
     gAnims.add(node.name, getSimple(node, 1, 1), [Param.Time, Param.P1],
-        Mirror.Y_B, ["twosided"]);
+        Mirror.Y_B, ["twosided"], AniFlags.Repeat);
 }
 
 private void loadJetPackTurn(ConfigItem node) {
@@ -403,9 +401,21 @@ private void loadSimpleAnimationAppendBckwd(ConfigItem node) {
 
 private void loadSimple(ConfigItem node, bool append_bck) {
     auto ani = getSimple(node, 1, 1);
-    gAnims.add(node.name, ani, [Param.Time, Param.P1],
+    gAnims.add(node.name, ani, [Param.Time, Param.Null],
         Mirror.None, [], (ani[0].repeat ? AniFlags.Repeat : 0)
             | (ani[0].backwards | append_bck ? AniFlags.AppendBackwards_A : 0));
+}
+
+private void loadSimpleForceLoopAnimation(ConfigItem node) {
+    auto ani = getSimple(node, 1, 1);
+    gAnims.add(node.name, ani, [Param.Time, Param.Null],
+        Mirror.None, [], AniFlags.Repeat);
+}
+
+private void loadSimpleNoLoopAnimation(ConfigItem node) {
+    auto ani = getSimple(node, 1, 1);
+    gAnims.add(node.name, ani, [Param.Time, Param.Null],
+        Mirror.None, []);
 }
 
 private void loadSimpleAnimationBackwards(ConfigItem node) {

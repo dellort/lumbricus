@@ -125,24 +125,20 @@ class WormSprite : GObjectSprite {
         gravestone = 0;
     }
 
-/+
-    protected SequenceState getAnimationForState(StaticStateInfo info) {
-        if (currentState is wsc.st_weapon && mWeapon) {
-            //return only if there's any specific weapon animation
-            //else, show normal worm
-            auto arm = mWeapon.weapon.animations[WeaponWormAnimations.Arm];
-            auto fire = mWeapon.weapon.animations[WeaponWormAnimations.Fire];
-            auto spec = mWeapon.active ? (fire.defined?fire:arm) : arm;
-            if (spec.defined)
-                return spec;
-            return super.getAnimationForState(wsc.st_stand);
+    protected override void setCurrentAnimation() {
+        if (currentState is wsc.st_weapon) {
+            assert(!!mWeapon);
+            char[] w = mWeapon.weapon.animations[WeaponWormAnimations.Arm];
+            auto state = graphic.type.findState(w, true);
+            if (!state) {
+                //no specific weapon animation there
+                state = graphic.type.findState("weapon_unknown");
+            }
+            graphic.setState(state);
+            return;
         }
-        if (currentState is wsc.st_dead) {
-            return mGravestone;
-        }
-        return super.getAnimationForState(info);
+        super.setCurrentAnimation();
     }
-+/
 
     //movement for walking/jetpack
     void move(Vector2f dir) {
@@ -185,8 +181,7 @@ class WormSprite : GObjectSprite {
             mWeaponAngle += mWeaponMove*deltaT*PI/2;
             mWeaponAngle = max(mWeaponAngle, cast(float)-PI/2);
             mWeaponAngle = min(mWeaponAngle, cast(float)PI/2);
-            //[-PI/2, PI/2] to [-90, 90]
-            point_angle = cast(int)(mWeaponAngle/PI*180.0f);
+            point_angle = mWeaponAngle;
             updateAnimation();
         }
         //if shooter dies, undraw weapon
@@ -238,7 +233,7 @@ class WormSprite : GObjectSprite {
             drawWeapon(false);
         }
         //xxx: if weapon is changed, play the correct animations
-        updateAnimation();
+        setCurrentAnimation();
     }
     Shooter shooter() {
         return mWeapon;
@@ -279,7 +274,9 @@ class WormSprite : GObjectSprite {
         if (activate == jetpackActivated())
             return;
 
-        StaticStateInfo wanted = activate ? wsc.st_jet : wsc.st_fly;
+        //lolhack: return to stand state, and if that's wrong (i.e. jetpack
+        //  deactivated in sky), other code will immediately correct the state
+        StaticStateInfo wanted = activate ? wsc.st_jet : wsc.st_stand;
         if (!activate) {
             physics.selfForce = Vector2f(0);
         }

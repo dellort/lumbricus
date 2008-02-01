@@ -75,9 +75,9 @@ class Beamer : Tool {
         //first play animation where worm talks into its communicator
         engine.mLog("wait for beaming");
         mStartBeaming = true;
-        mWhenStart = engine.gameTime.current +
+        mWhenStart = engine.gameTime.current;/+ +
             weapon.animations[WeaponWormAnimations.Fire].get()
-            .duration();
+            .duration();+/
     }
 
     override void simulate(float deltaT) {

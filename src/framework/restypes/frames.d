@@ -68,6 +68,34 @@ abstract class Animation {
     int frameCount() {
         return mFrameCount;
     }
+
+    //default: create a proxy
+    //of course a derived class could override this and create a normal
+    //animation with a reversed frame list
+    Animation reversed() {
+        return new ReversedAnimation(this);
+    }
+}
+
+class ReversedAnimation : Animation {
+    private {
+        Animation mBase;
+    }
+
+    this(Animation base) {
+        mBase = base;
+        doInit(mBase.frameCount, mBase.bounds, mBase.repeat,
+            mBase.keepLastFrame);
+    }
+
+    void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p, int frame) {
+        mBase.drawFrame(c, pos, p, frameCount() - 1 - frame);
+    }
+
+    //hurhur
+    Animation reversed() {
+        return mBase;
+    }
 }
 
 //--- simple old animations

@@ -44,27 +44,16 @@ class GObjectSprite : GameObject {
         return active && !physics.isGlued;
     }
 
-    //return animations for states; this can be used to "patch" animations for
-    //specific states (used for worm.d/weapons)
-    protected SequenceState getAnimationForState(StaticStateInfo info) {
-        return info.animation;
+    //update the animation to the current state
+    //can be overridden
+    protected void setCurrentAnimation() {
+        graphic.setState(currentState.animation);
     }
 
-    //update the animation to the current state and physics status
+    //update animation to physics status etc.
     void updateAnimation() {
         if (!graphic)
             return;
-
-        auto wanted_animation = getAnimationForState(currentState);
-
-        //must not set animation all the time, because setAnimation() resets
-        //the animation (maybe.... or maybe not)
-        if (wanted_animation !is currentAnimation) {
-            //xxx you have to decide: false or true as parameter?
-            // true = force, false = wait until current animation done
-            graphic.setState(wanted_animation);
-            currentAnimation = wanted_animation;
-        }
 
         SequenceUpdate update;
         update.position = toVector2i(physics.pos);
@@ -172,7 +161,10 @@ class GObjectSprite : GameObject {
         //stop all induced forces (e.g. jetpack)
         if (!nstate.keepSelfForce)
             physics.selfForce = Vector2f(0);
-        updateAnimation();
+        if (graphic) {
+            setCurrentAnimation();
+            updateAnimation();
+        }
 
         engine.mLog("force state: %s", nstate.name);
     }
@@ -208,7 +200,10 @@ class GObjectSprite : GameObject {
         if (!nstate.keepSelfForce)
             physics.selfForce = Vector2f(0);
 
-        updateAnimation();
+        if (graphic) {
+            setCurrentAnimation();
+            updateAnimation();
+        }
 
         stateTransition(oldstate, currentState);
         //if this fails, maybe stateTransition called setState()?
@@ -229,6 +224,7 @@ class GObjectSprite : GameObject {
         if (active) {
             graphic = engine.graphics.createSequence(type.sequenceObject);
             physics.checkRotation();
+            setCurrentAnimation();
             updateAnimation();
         }
     }
@@ -246,17 +242,14 @@ class GObjectSprite : GameObject {
 
     override void simulate(float deltaT) {
         super.simulate(deltaT);
-        /+
-        if (currentState.onAnimationEnd && currentAnimation.defined) {
-            if (engine.gameTime.current - animationStarted
-                >= currentAnimation.get.duration())
-            {
+        if (currentState.onAnimationEnd && graphic) {
+            //as requested by d0c, timing is dependend from the animation
+            if (graphic.readyflag) {
                 engine.mLog("state transition because of animation end");
                 //time to change; the setState code will reset the animation
                 setState(currentState.onAnimationEnd, true);
             }
         }
-        +/
         if (!mWaterUpdated) {
             mIsUnderWater = false;
             waterStateChange(false);

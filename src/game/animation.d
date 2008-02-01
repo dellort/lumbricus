@@ -72,20 +72,20 @@ private int paramConvertNone(int angle, int count) {
 }
 //expects count to be 6 (for the 6 angles)
 private int paramConvertStep3(int angle, int count) {
-    static int[] angles = [90,90-45,90+45,270,270+45,270-45];
+    static int[] angles = [180,180+45,180-45,0,0-45,0+45];
     return pickNearestAngle(angles, angle);
 }
 //expects count to be 2 (two sides)
 private int paramConvertTwosided(int angle, int count) {
-    return realmod(angle,360) < 180 ? 0 : 1;
+    return angleLeftRight(cast(float)(angle/180.0f*math.PI), 0, 1);
 }
 //360 degrees freedom
 private int paramConvertFreeRot(int angle, int count) {
-    return map(angle, 360.0f, count);
+    return map(-angle+270, 360.0f, count);
 }
 //360 degrees freedom, inverted spinning direction
 private int paramConvertFreeRotInv(int angle, int count) {
-    return map(-angle, 360.0f, count);
+    return map(-(-angle+270), 360.0f, count);
 }
 //180 degrees, -90 (down) to +90 (up)
 //(overflows, used for weapons, it's hardcoded that it can use 180 degrees only)
@@ -97,6 +97,6 @@ private int paramConvertFreeRot2(int angle, int count) {
 
 //for the aim not-animation
 private int paramConvertFreeRot2_2(int angle, int count) {
-    return map3(-angle+90.0f,180.0f,count);
+    return map3(angle+180,180.0f,count);
 }
 

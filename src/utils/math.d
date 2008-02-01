@@ -64,3 +64,9 @@ float angleDistance(float a, float b) {
     }
     return r;
 }
+
+//return the side the angle is facing
+// if the angle is in between, return left when it points to y+, else right
+T angleLeftRight(T)(float angle, T left, T right) {
+    return (realmod(angle+math.PI/2, math.PI*2) < math.PI) ? right : left;
+}

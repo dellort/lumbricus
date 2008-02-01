@@ -1,7 +1,6 @@
 batch_bnks {
     mainspr {
         simple {
-            worm_die = "516"
             worm_win = "250"
             crate = "105"
             crate_fly = "108"
@@ -67,6 +66,9 @@ batch_bnks {
         simple_append_backwards {
             worm_slow_fly = "287"
         }
+        simple_noloop {
+            worm_die = "516"
+        }
         simple_backwards {
             //don't know why, but original animation looks so backwards
             crate_beam = "116"
@@ -112,8 +114,7 @@ batch_bnks {
             aim_cyan = "5"
         }
         jetpack_turn {
-            worm_jet_turn_right = "177 178 179"
-            worm_jet_turn_left = "179 178 177"
+            worm_jet_turn = "177 178 179"
         }
         twosided {
             worm_jet = "176"
@@ -127,7 +128,6 @@ batch_bnks {
         }
         worm_noloop {
             worm_beaming = "434"
-            worm_atomtest = "320"
             worm_jetpack_enter = "341"
             worm_parachute_sitdown = "298"
             worm_enter_sad = "311"
@@ -153,8 +153,7 @@ batch_bnks {
             worm_blink_down = "206" //similar
             worm_blink_up = "209"
             worm_cool = "218"
-            worm_look_up1 = "221"
-            worm_look_up2 = "338"
+            worm_look_up = "221"
             worm_look1 = "224" //looks to player or so
             worm_look3 = "404"
             worm_relieved = "197"
@@ -195,12 +194,15 @@ batch_bnks {
             worm_minigun = "513 580"     //fire: 583
             //worm_baseball = "440 529"  //special release anim: 443 532
         }
-        worm_weapon_fixed {
+        worm_noloop_keeplast {
+            worm_get_no_weapon = "338"
+
             worm_getmine = "398"
             worm_getairstrike = "422"
             worm_getdynamite = "344"
             worm_getmingvase = "347"
             worm_getbeamer = "428"
+            worm_getatomtest = "320"
         }
     }
 }
@@ -233,7 +235,7 @@ water_anims {
 }
 //for layer.spr
 water_waves {
-    simple {
+    simple_forceloop {
         water_waves = "0"
     }
 }

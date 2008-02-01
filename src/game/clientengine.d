@@ -80,6 +80,11 @@ class ClientGraphic : Graphic {
     }
 
     abstract SceneObject graphic();
+
+    //called per frame
+    //can be overridden, by default does nothing
+    void simulate() {
+    }
 }
 
 class ClientLineGraphic : ClientGraphic, LineGraphic {
@@ -95,10 +100,8 @@ class ClientLineGraphic : ClientGraphic, LineGraphic {
 
     this(GraphicsHandler handler) {
         super(handler);
-    }
-
-    protected void init() {
         mDraw = new Draw();
+        init();
     }
 
     void setPos(Vector2i p1, Vector2i p2) {
@@ -129,6 +132,13 @@ class GraphicsHandler : GameEngineGraphics {
     this() {
         mGraphics = new typeof(mGraphics)(ClientGraphic.node.getListNodeOffset());
         objectScene = new Scene();
+    }
+
+    //call simulate() for all objects
+    void simulate() {
+        foreach (g; mGraphics) {
+            g.simulate();
+        }
     }
 
     Sequence createSequence(SequenceObject type) {
@@ -309,6 +319,8 @@ class ClientGameEngine {
         //call simulate(deltaT);
         mGameWater.simulate(deltaT);
         mGameSky.simulate(deltaT);
+
+        graphics.simulate();
     }
 
     Scene scene() {

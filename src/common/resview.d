@@ -21,6 +21,7 @@ import gui.widget;
 import gui.wm;
 
 import utils.factory;
+import utils.math;
 import utils.misc;
 import utils.vector2;
 
@@ -278,11 +279,10 @@ class AnimationHandler : ResViewHandler!(Animation) {
         box.add(new Viewer());
 
         mAnim = new Animator();
-        mAnim.setAnimation(resource);
 
         addscr(mFrame, mFrameLabel);
         mFrame.minValue = 0;
-        mFrame.maxValue = mAnim.animation.frameCount-1;
+        mFrame.maxValue = resource.frameCount-1;
         //mFrame.onValueChange = &onSetFrame;
 
         addscr(mSpeed, mSpeedLabel);
@@ -302,6 +302,8 @@ class AnimationHandler : ResViewHandler!(Animation) {
         onScrollbar(null);
 
         setGUI(box);
+
+        resetAnim();
     }
 
     private void onScrollbar(ScrollBar sender) {
@@ -330,6 +332,10 @@ class AnimationHandler : ResViewHandler!(Animation) {
         onScrollbar(null);
     }
 
+    private void resetAnim() {
+        mAnim.setAnimation(resource);
+    }
+
     class Viewer : Widget {
         const radius = 50;
         bool md;
@@ -341,7 +347,7 @@ class AnimationHandler : ResViewHandler!(Animation) {
             c.drawRect(bnds.p1-Vector2i(1), bnds.p2+Vector2i(1),
                 Color(0, 0, 0));
             //assume p1() in degrees (0..360)
-            auto dir = Vector2f.fromPolar(radius, (-p1()+180+90)/360.0f*PI*2);
+            auto dir = Vector2f.fromPolar(radius, p1()/360.0f*PI*2);
             c.drawCircle(size/2+toVector2i(dir), 5, Color(1,0,0));
         }
 
@@ -353,14 +359,16 @@ class AnimationHandler : ResViewHandler!(Animation) {
             auto angle = toVector2f(inf.pos-size/2).normal.toAngle;
             //(not if NaN)
             if (angle == angle) {
-                p1 = 180+90-cast(int)(angle/PI/2*360);
+                p1 = realmod(cast(int)(angle/PI/2*360), 360);
             }
             return true;
         }
 
         override bool onKeyEvent(KeyInfo infos) {
             if (infos.isMouseButton) {
-                md = infos.isDown;
+                if (infos.isUp) {
+                    resetAnim();
+                }
                 return true;
             }
             return super.onKeyEvent(infos);
@@ -415,7 +423,7 @@ class ResViewerTask : Task {
             side.add(mResTypeList);
 
             mUpdate = new Button();
-            mUpdate.text = "Update        List";
+            mUpdate.text = "Update               List";
             mUpdate.onClick = &onUpdate;
             mUpdate.setLayout(WidgetLayout.Noexpand());
             side.add(mUpdate);

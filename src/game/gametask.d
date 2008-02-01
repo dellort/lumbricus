@@ -241,7 +241,7 @@ class GameTask : Task {
             if (!pload) {
                 throw new Exception("sequence loader not found: "~sub.name);
             }
-            foreach (ConfigNode subsub; sub) {
+            foreach (ConfigItem subsub; sub) {
                 SequenceObject seq = (*pload)(mResources, subsub);
                 mResources.addResource(new Wtf(seq), seq.name);
             }

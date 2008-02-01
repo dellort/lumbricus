@@ -101,6 +101,14 @@ class SequenceState {
         return false;
     }
 
+    //(takes a name for being able to do forward referencing, must call fixup()
+    // after it and before using it)
+    void enableLeaveTransition(char[] other_state) {
+        Transition t;
+        t.dest_name = other_state;
+        playLeaveTransitions ~= t;
+    }
+
     final char[] name() {
         return mName;
     }
@@ -175,7 +183,7 @@ abstract class AbstractSequence : ClientGraphic, Sequence {
 
     //yay factory pattern again
     //from.name defines the name
-    static SequenceObject delegate(ResourceSet res, ConfigNode from)[char[]]
+    static SequenceObject delegate(ResourceSet res, ConfigItem from)[char[]]
         loaders;
 }
 
@@ -199,9 +207,11 @@ class WormSequenceObject : SequenceObject {
     }
 }
 
-SequenceObject loadWorm(ResourceSet res, ConfigNode from) {
+SequenceObject loadWorm(ResourceSet res, ConfigItem fromitem) {
     alias WormState.SubSequence SubSequence;
     alias WormState.SeqType SeqType;
+
+    auto from = castStrict!(ConfigNode)(fromitem);
 
     auto seq = new WormSequenceObject(from.name);
     foreach (ConfigNode sub; from) {
@@ -214,6 +224,51 @@ SequenceObject loadWorm(ResourceSet res, ConfigNode from) {
                 state.seqs[SeqType.Normal] = [ss];
                 seq.addState(state);
             }
+        } else if (sub.name == "jetpack") {
+            //special case because of enter/leave and turnaround anims
+            auto state = new WormState(seq, "jetpack");
+            SubSequence s_norm, s_enter, s_turn;
+            s_norm.animation = res.get!(Animation)(sub["normal"]);
+            state.seqs[SeqType.Normal] = [s_norm];
+            s_enter.animation = res.get!(Animation)(sub["enter"]);
+            state.seqs[SeqType.Enter] = [s_enter];
+            state.seqs[SeqType.Leave] = state.seqs[SeqType.Enter];
+            state.reverse_subsequence(SeqType.Leave);
+            s_turn.animation = res.get!(Animation)(sub["turn"]);
+            state.seqs[SeqType.TurnAroundY] = [s_turn];
+            seq.addState(state);
+            state.enableLeaveTransition("stand");
+        } else if (sub.name == "weapons") {
+            foreach (ConfigValue s; sub) {
+                char[] get = s.value ~ "_get", hold = s.value ~ "_hold";
+                auto state = new WormState(seq, s.name);
+                SubSequence s_norm, s_enter1, s_enter2;
+                s_norm.animation = res.get!(Animation)(hold);
+                state.seqs[SeqType.Normal] = [s_norm];
+                s_enter1.animation = res.get!(Animation)(get);
+                s_enter2.animation = s_norm.animation;
+                s_enter2.interpolate_angle_id = 1;
+                s_enter2.angle_direction = 0;
+                s_enter2.angle_fixed_value = 0;
+                s_enter2.angular_speed = (PI/2)/0.5;
+                s_enter2.dont_wait_for_animation = true;
+                state.seqs[SeqType.Enter] = [s_enter1, s_enter2];
+                state.seqs[SeqType.Leave] = state.seqs[SeqType.Enter];
+                state.reverse_subsequence(SeqType.Leave);
+                seq.addState(state);
+                state.enableLeaveTransition("stand");
+            }
+        } else if (sub.name == "first_normal_then_empty") {
+            foreach (ConfigValue s; sub) {
+                auto state = new WormState(seq, s.name);
+                SubSequence s1, s2;
+                s1.animation = res.get!(Animation)(s.value);
+                s1.ready = false;
+                s2.reset_animation = true;
+                s2.wait_forever = true;
+                state.seqs[SeqType.Normal] = [s1, s2];
+                seq.addState(state);
+            }
         } else {
             assert(false);
         }
@@ -222,8 +277,24 @@ SequenceObject loadWorm(ResourceSet res, ConfigNode from) {
     return seq;
 }
 
+SequenceObject loadAnimation(ResourceSet res, ConfigItem fromitem) {
+    alias WormState.SubSequence SubSequence;
+    alias WormState.SeqType SeqType;
+
+    auto val = castStrict!(ConfigValue)(fromitem).value;
+    auto seq = new WormSequenceObject(fromitem.name);
+    auto state = new WormState(seq, "normal");
+    SubSequence s_normal;
+    s_normal.animation = res.get!(Animation)(val);
+    state.seqs[SeqType.Normal] = [s_normal];
+    seq.addState(state);
+    seq.fixup();
+    return seq;
+}
+
 static this() {
     AbstractSequence.loaders["worm"] = toDelegate(&loadWorm);
+    AbstractSequence.loaders["animations"] = toDelegate(&loadAnimation);
 }
 
 class WormState : SequenceState {
@@ -235,16 +306,21 @@ class WormState : SequenceState {
     }
     struct SubSequence {
         //readyness flag signaled back (Sequence.readyflag)
-        bool ready;
+        bool ready = true;
 
         //wait for an animation
         Animation animation; //if null, none set
+
+        //yay even more hacks
+        bool dont_wait_for_animation; //don't check animation for state transition
+        bool reset_animation; //set animation even if that field null
+        bool wait_forever; //state just never ends, unless it's aborted from outside
 
         //needed for that weapon thing
         //index of the angle interpolated
         int interpolate_angle_id = -1;
         //rotation speed
-        float angular_speed = 0.1; //rads/sec
+        float angular_speed; //rads/sec
         //the fixed start/end value
         float angle_fixed_value;
         //the interpolation interpolates between fixed_value and the user set
@@ -281,6 +357,20 @@ class WormState : SequenceState {
             }
         }
     }
+
+    //reverse this one in time (data is copied if neccessary)
+    void reverse_subsequence(SeqType type) {
+        auto n = seqs[type].dup;
+        n.reverse; //is inplace
+        //revert animations and angle-interpolation
+        foreach (ref sub; n) {
+            if (sub.animation)
+                sub.animation = sub.animation.reversed();
+            if (sub.angle_direction >= 0)
+                sub.angle_direction = 1-sub.angle_direction;
+        }
+        seqs[type] = n;
+    }
 }
 
 class WormSequence : AbstractSequence {
@@ -295,10 +385,12 @@ private:
     //start time for current SubSequence
     Time mSubSeqStart;
     // [worm, weapon]
-    float[2] angles;
+    float[2] mAngles;
     //if interpolation for an angle is on, this is the user set angle
     // interpolation is between angle_user and SubSequence.fixed_value
-    float angle_user;
+    float mAngleUser;
+    //for turnaround
+    int mSideFacing;
     //and finally, something useful, which does real work!
     Animator mAnimator;
 
@@ -314,9 +406,17 @@ private:
 
     void initSequence(WormState state, SeqType seq) {
         SubSequence* nseq;
-        if (state && state.seqs[seq].length > 0) {
-            nseq = &state.seqs[seq][0];
+
+        if (state) {
+            if (state.seqs[seq].length > 0) {
+                nseq = &state.seqs[seq][0];
+            } else if (seq == SeqType.Enter
+                && state.seqs[SeqType.Normal].length > 0)
+            {
+                nseq = &state.seqs[SeqType.Normal][0];
+            }
         }
+
         initSubSequence(nseq);
     }
 
@@ -332,6 +432,7 @@ private:
         resetSubSequence();
         mCurSubSeq = s;
         mSubSeqStart = now();
+        mSideFacing = 0;
 
         if (s) {
             std.stdio.writefln("substate %s/%s/%s", s.owner.name, cast(int)(s.type), s.index);
@@ -339,14 +440,14 @@ private:
             std.stdio.writefln("reset");
         }
 
-        if (s && s.animation) {
+        if (s && (s.animation || s.reset_animation)) {
             mAnimator.setAnimation(s.animation);
         }
 
         if (s && s.interpolate_angle_id >= 0) {
-            angle_user = angles[s.interpolate_angle_id];
+            mAngleUser = mAngles[s.interpolate_angle_id];
             if (s.angle_direction == 0) {
-                angles[s.interpolate_angle_id] = s.angle_fixed_value;
+                mAngles[s.interpolate_angle_id] = s.angle_fixed_value;
             }
         }
 
@@ -361,26 +462,55 @@ private:
         //check if current animation/interpolation has ended
         //also, actually do angle interpolation if needed
         bool ended = true;
-        ended &= mAnimator.hasFinished();
+        //if keepLastFrame is set, don't look at hasFinished
+        if (mAnimator.animation &&
+            (!mAnimator.hasFinished() || mAnimator.animation.keepLastFrame)
+             && !mCurSubSeq.dont_wait_for_animation)
+        {
+            ended = false;
+        }
         if (mCurSubSeq.interpolate_angle_id >= 0) {
             auto timediff = now() - mSubSeqStart;
             auto dist = timediff.secsf * mCurSubSeq.angular_speed;
-            auto a1 = mCurSubSeq.angle_fixed_value, a2 = angle_user;
+            auto a1 = mCurSubSeq.angle_fixed_value, a2 = mAngleUser;
             if (mCurSubSeq.angle_direction)
                 swap(a1, a2);
             auto anglediff = angleDistance(a1, a2);
             float nangle;
             if (dist >= anglediff) {
-                ended &= true;
                 nangle = a2;
             } else {
-                nangle = a1 + anglediff;
+                ended = false;
+                //xxx a2-a1 is wrong for angles, because angles are modulo 2*PI
+                // for the current use (worm-weapon), this works by luck
+                nangle = a1 + dist*math.copysign(1.0f, a2-a1);
             }
-            angles[mCurSubSeq.interpolate_angle_id] = nangle;
+            mAngles[mCurSubSeq.interpolate_angle_id] = nangle;
             updateAngle();
         }
 
+        ended &= !mCurSubSeq.wait_forever;
+
+        if (mCurSubSeq.type == SeqType.TurnAroundY)
+        std.stdio.writefln("side = %s", angleLeftRight(mAngles[0], -1, +1));
+
+        if (!ended) {
+            //check turnaround, as it is needed for the jetpack
+            if (mCurSubSeq.owner.seqs[SeqType.TurnAroundY].length > 0) {
+                int curside = angleLeftRight(mAngles[0], -1, +1);
+                if (mSideFacing == 0) {
+                    mSideFacing = curside;
+                }
+                if (curside != mSideFacing) {
+                    //side changed => ack and enter the turnaround subsequence
+                    mSideFacing = curside;
+                    initSequence(mCurSubSeq.owner, SeqType.TurnAroundY);
+                }
+            }
+        }
+
         if (ended) {
+            std.stdio.writefln("ended");
             //next step, either the following SubSequence or a new seq/state
             auto next = mCurSubSeq.getNext();
             if (next) {
@@ -415,9 +545,13 @@ private:
         }
     }
 
+    public override void simulate() {
+        updateSubSequence();
+    }
+
     void updateAngle() {
-        mAnimator.params.p1 = cast(int)(angles[0]/PI*180);
-        mAnimator.params.p2 = cast(int)(angles[1]/PI*180);
+        mAnimator.params.p1 = cast(int)(mAngles[0]/PI*180);
+        mAnimator.params.p2 = cast(int)(mAngles[1]/PI*180);
     }
 
     public void update(ref SequenceUpdate v) {
@@ -428,15 +562,15 @@ private:
         //the angle which is interpolated should not be set directly
         auto exclude = mCurSubSeq ? mCurSubSeq.interpolate_angle_id : -1;
         if (exclude < 0) {
-            angles[] = set_angle;
+            mAngles[] = set_angle;
         } else {
             //really must not mess up the "excluded" angle
             for (int i = 0; i < 2; i++) {
                 if (i != exclude)
-                    angles[i] = set_angle[i];
+                    mAngles[i] = set_angle[i];
             }
             //but save the excluded angle somewhere else
-            angle_user = set_angle[exclude];
+            mAngleUser = set_angle[exclude];
         }
         updateAngle();
     }
@@ -461,7 +595,11 @@ private:
             //start new state, skip whatever did go on before
             resetSubSequence();
             mQueuedState = null;
-            initSequence(state, SeqType.Normal);
+            initSequence(state, SeqType.Enter);
+        } else if (mCurSubSeq && play_leave) {
+            //current -> leave
+            initSequence(curstate, SeqType.Leave);
+            mQueuedState = state;
         } else {
             //only queue it
             mQueuedState = state;
@@ -470,8 +608,8 @@ private:
 
     public void getInfos(ref SequenceUpdate v) {
         v.position = mAnimator.pos;
-        v.rotation_angle = angles[0];
-        v.pointto_angle = angles[1];
+        v.rotation_angle = mAngles[0];
+        v.pointto_angle = mAngles[1];
     }
 
     public bool readyflag() {
