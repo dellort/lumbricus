@@ -12,7 +12,8 @@ import wwpdata.animation;
 struct WWPBnkAnimHdr {
     ushort flags, x, y;
     ushort startFrameNr, frameCount;
-    ushort unk;
+    ubyte unk;
+    ubyte frameTimeMS;
 }
 
 struct WWPBnkFrameHdr {
@@ -61,7 +62,7 @@ AnimList readBnkFile(Stream st) {
         fflush(stdout);
         auto anim = new Animation(hanim.x, hanim.y,
             (hanim.flags & WWP_ANIMFLAG_REPEAT) > 0,
-            (hanim.flags & WWP_ANIMFLAG_BACKWARDS) > 0);
+            (hanim.flags & WWP_ANIMFLAG_BACKWARDS) > 0, hanim.frameTimeMS);
         foreach (hframe; frameHdr[hanim.startFrameNr..hanim.startFrameNr+hanim.frameCount]) {
             if (hframe.chunkNr > curChunkIdx) {
                 curChunkIdx = hframe.chunkNr;

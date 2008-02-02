@@ -1,5 +1,6 @@
 batch_bnks {
     mainspr {
+        frametime_def = "50"
         simple {
             worm_win = "250"
             crate = "105"
@@ -209,6 +210,7 @@ batch_bnks {
 //this one is used for all available water sets
 //this is done for all water subdirs in <WWP-root>/data/Water/
 water_anims {
+  frametime_def = "50"
   simple {
     bubble0 = "0"
     bubble1 = "1"

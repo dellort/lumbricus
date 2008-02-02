@@ -26,7 +26,8 @@ struct AnimationParams {
 //for some derived classes see framework.restypes.frames
 abstract class Animation {
     public /+private+/ {
-        int mFrameTimeMS = 50;
+        const int cDefFrameTimeMS = 50;
+        int mFrameTimeMS;
         int mFrameCount;
         int mLengthMS;
         Rect2i mBounds;
@@ -45,12 +46,15 @@ abstract class Animation {
 
     //must call this
     protected void doInit(int aframeCount, Rect2i abounds, bool arepeat = true,
-        bool akeeplast = false)
+        bool akeeplast = false, int aframeTimeMS = cDefFrameTimeMS)
     {
         repeat = arepeat;
         keepLastFrame = akeeplast;
         mFrameCount = aframeCount;
         mBounds = abounds;
+        mFrameTimeMS = aframeTimeMS;
+        if (mFrameTimeMS == 0)
+            mFrameTimeMS = cDefFrameTimeMS;
 
         postInit();
     }
@@ -69,6 +73,10 @@ abstract class Animation {
         return mFrameCount;
     }
 
+    int frameTimeMS() {
+        return mFrameTimeMS;
+    }
+
     //default: create a proxy
     //of course a derived class could override this and create a normal
     //animation with a reversed frame list
@@ -85,7 +93,7 @@ class ReversedAnimation : Animation {
     this(Animation base) {
         mBase = base;
         doInit(mBase.frameCount, mBase.bounds, mBase.repeat,
-            mBase.keepLastFrame);
+            mBase.keepLastFrame, mBase.frameTimeMS);
     }
 
     void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p, int frame) {
@@ -256,6 +264,7 @@ class ComplicatedAnimation : Animation {
     this(ConfigNode node, AniFrames frames) {
         mImages = frames.images;
         int index = node.getIntValue("index", -1);
+        int frameTimeMS = node.getIntValue("frametime", 0);
         mFrames = frames.frames(index);
         Rect2i bb = mFrames.box; // = frames.framesBoundingBox(index);
 
@@ -280,7 +289,7 @@ class ComplicatedAnimation : Animation {
             }
         }
 
-        doInit(framelen, bb);
+        doInit(framelen, bb, true, false, frameTimeMS);
 
         repeat = !!(mFrames.flags & FileAnimationFlags.Repeat);
         keepLastFrame = !!(mFrames.flags & FileAnimationFlags.KeepLastFrame);

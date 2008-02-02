@@ -53,6 +53,7 @@ class AnimList {
 class Animation {
     int boxWidth, boxHeight;
     bool repeat, backwards;
+    int frameTimeMS;
 
     //if bitmaps already were written out
     bool wasDumped;
@@ -88,11 +89,14 @@ class Animation {
 
     FrameInfo[] frames;
 
-    this(int boxWidth, int boxHeight, bool repeat, bool backwards) {
+    this(int boxWidth, int boxHeight, bool repeat, bool backwards,
+        int frameTimeMS = 0)
+    {
         this.boxWidth = boxWidth;
         this.boxHeight = boxHeight;
         this.repeat = repeat;
         this.backwards = backwards;
+        this.frameTimeMS = frameTimeMS;
     }
 
     void addFrame(int x, int y, int w, int h, RGBColor[] frameData) {

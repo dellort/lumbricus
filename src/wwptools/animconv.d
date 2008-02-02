@@ -38,6 +38,10 @@ AnimList gAnimList;  //source animations
 AtlasPacker gPacker; //where the bitmaps go to
 AniFile gAnims;      //where the animation (+ frame descriptors) go to
 
+//default frame duration (set to 0 to prevent writing a default when time is
+//unknown)
+const int cDefFrameTimeMS = 0;
+
 //handlers to load specialized animation descriptions
 //(because the generic one is too barfed)
 private alias void function(ConfigItem node) AnimationLoadHandler;
@@ -88,12 +92,14 @@ class AniFile {
     FileAnimation[] animations;
     FileAnimationFrame[][] animations_frames;
     private char[] mName;
+    private int mDefFrameTimeMS;
 
-    this(char[] fnBase, AtlasPacker a_atlas) {
+    this(char[] fnBase, AtlasPacker a_atlas, int frameTimeDef = 0) {
         atlas = a_atlas;
         mName = fnBase;
         anifile_name = fnBase ~ ".meta";
         aniframes_name = fnBase ~ "_aniframes";
+        mDefFrameTimeMS = frameTimeDef;
 
         output_conf = new ConfigNode();
         auto first = output_conf.getSubNode("require_resources");
@@ -117,6 +123,9 @@ class AniFile {
         FileAnimationFrame[][] frames; //indexed [b][a] (lol)
         frames.length = src.length;
         int len_a = src[0].frames.length;
+        int frameTimeMS = src[0].frameTimeMS;
+        if (frameTimeMS == 0)
+            frameTimeMS = mDefFrameTimeMS;
         Vector2i box = Vector2i(src[0].boxWidth, src[0].boxHeight);
         foreach (int index, s; src) {
             assert(s.frames.length == len_a, "same direction => same length: "
@@ -227,6 +236,8 @@ class AniFile {
         assert(node["index"] == "", "double entry?: "~name);
         node.setIntValue("index", animations.length-1);
         node.setStringValue("aniframes", aniframes_name);
+        if (frameTimeMS > 0)
+            node.setIntValue("frametime",frameTimeMS);
         node.setStringValue("type", "complicated");
         foreach (int i, s; param_conv) {
             node.setStringValue(format("param_%s", i+1), s);
@@ -287,7 +298,8 @@ void do_write_anims(AnimList anims, ConfigNode config, char[] name,
     //NOTE: of course one could use one atlas or even one AniFile for all
     // animations, didn't just do that yet to avoid filename collisions
     gPacker = new AtlasPacker(name ~ "_atlas");
-    gAnims = new AniFile(name, gPacker);
+    gAnims = new AniFile(name, gPacker, config.getIntValue("frametime_def",
+        cDefFrameTimeMS));
 
     writefln("...writing %s...", name);
 
