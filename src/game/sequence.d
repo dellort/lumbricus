@@ -92,9 +92,12 @@ class SequenceState {
 
     //if leave transition should be played when switching to this state
     bool hasLeaveTransition(SequenceState new_state) {
+        if (!new_state)
+            return false;
         if (forceLeaveTransitions)
             return true;
         foreach (ref t; playLeaveTransitions) {
+            assert(!!t.dest, "forgot state.fixup() call?");
             if (t.dest is new_state)
                 return true;
         }
@@ -119,8 +122,7 @@ class SequenceState {
 
     void fixup() {
         foreach (ref t; playLeaveTransitions) {
-            if (t.dest_name.length && !t.dest)
-                t.dest = owner.findState(t.dest_name);
+            t.dest = owner.findState(t.dest_name);
         }
     }
 
@@ -223,6 +225,17 @@ SequenceObject loadWorm(ResourceSet res, ConfigItem fromitem) {
                 ss.animation = res.get!(Animation)(s.value);
                 state.seqs[SeqType.Normal] = [ss];
                 seq.addState(state);
+            }
+        } else if (sub.name == "normal_weapons") {
+            foreach (ConfigValue s; sub) {
+                auto state = new WormState(seq, s.name);
+                SubSequence ss;
+                ss.animation = res.get!(Animation)(s.value);
+                state.seqs[SeqType.Normal] = [ss];
+                state.seqs[SeqType.Leave] = [ss];
+                state.reverse_subsequence(SeqType.Leave);
+                seq.addState(state);
+                state.enableLeaveTransition("stand");
             }
         } else if (sub.name == "jetpack") {
             //special case because of enter/leave and turnaround anims
@@ -349,6 +362,7 @@ class WormState : SequenceState {
     }
 
     override void fixup() {
+        super.fixup();
         foreach (i, inout s; seqs) {
             for (int x = 0; x < s.length; x++) {
                 s[x].owner = this;
@@ -589,8 +603,9 @@ private:
         //look if the leaving sequence should play
         bool play_leave = false;
         if (curstate) {
-            play_leave |= curstate.hasLeaveTransition(mQueuedState);
+            play_leave |= curstate.hasLeaveTransition(sstate);
         }
+        std.stdio.writefln("play leave: ", play_leave);
         if (!mCurSubSeq || !play_leave) {
             //start new state, skip whatever did go on before
             resetSubSequence();

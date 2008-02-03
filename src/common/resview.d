@@ -245,6 +245,7 @@ class AnimationHandler : ResViewHandler!(Animation) {
         infos.text = "Flags: "
             ~ (resource.keepLastFrame ? "keepLastFrame, " : "")
             ~ (resource.repeat ? "repeat, " : " ")
+            ~ format("frametime: %s ", resource.frameTime)
             ~ format("duration: %s", resource.duration);
         table.addRow();
         table.add(infos, 0, table.height-1, 2, 1);
@@ -399,7 +400,7 @@ class ResViewerTask : Task {
         ResourceItem[] mResList;
         ClassInfo[] mResTypes;
         ClassInfo mCurRes;
-        Label mName, mUID, mType;
+        Label mName;
 
         this() {
             auto side = new BoxContainer(false);
@@ -454,8 +455,6 @@ class ResViewerTask : Task {
                 props.add(val, 1, props.height-1);
             }
             addLabel(mName, "Name");
-            addLabel(mUID, "UID");
-            addLabel(mType, "Type");
 
             auto all = new BoxContainer(true, false, 7);
             //xxx: need splitter control
@@ -536,8 +535,6 @@ class ResViewerTask : Task {
 
         private void doSelect(ResourceItem s, ClassInfo type) {
             mName.text = s ? s.id : "-";
-            //mUID.text = s ? format(s.uid) : "-";
-            //mType.text = s ? s.type.toString() : "-";
             mClient.clear();
             if (s) {
                 s.get(); //load (even when no handler exists)

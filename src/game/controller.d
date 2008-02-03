@@ -2,7 +2,7 @@ module game.controller;
 import game.game;
 import game.gobject;
 import game.worm;
-//import game.crate;
+import game.crate;
 import game.sprite;
 import game.weapon.weapon;
 import game.gamepublic;
@@ -1291,7 +1291,6 @@ class GameController : GameLogicPublic {
         }
     }
 
-    /+
     void collectCrate(CrateSprite crate, GameObject finder) {
         //for some weapons like animal-weapons, transitive should be true
         //and normally a non-collecting weapon should just explode here??
@@ -1314,7 +1313,6 @@ class GameController : GameLogicPublic {
         crate.stuffies = null;
         crate.collected();
     }
-    +/
 
     //place anywhere on landscape
     //returns success

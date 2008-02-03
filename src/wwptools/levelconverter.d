@@ -86,8 +86,9 @@ void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
     scope debrisAnif = new AniFile("debris", debrisPacker);
     scope debrisSpr = new File(lvlextr~"debris.spr");
     scope AnimList debrisAl = readSprFile(debrisSpr);
-    debrisAnif.add("debris", debrisAl.animations, [Param.Time, Param.Null],
-        Mirror.None, [], AniFlags.Repeat);
+    auto debrisAni = new AniEntry(debrisAnif, "debris");
+    debrisAni.addFrames(debrisAl.animations);
+    debrisAni.flags = FileAnimationFlags.Repeat;
     debrisPacker.write(destPath, true);
     debrisAnif.write(destPath, false);
 

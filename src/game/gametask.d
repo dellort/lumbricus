@@ -17,7 +17,7 @@ import game.sequence;
 import game.gui.gameview;
 import game.game;
 import game.sprite;
-//import game.crate;
+import game.crate;
 import gui.container;
 import gui.widget;
 import gui.wm;
@@ -405,7 +405,6 @@ class GameTask : Task {
     }
 
     private void cmdCrateTest(MyBox[] args, Output write) {
-        /+
         Vector2f from, to;
         float water = mServerEngine.waterOffset - 10;
         if (!mServerEngine.placeObject(water, 10, from, to, 5)) {
@@ -422,7 +421,6 @@ class GameTask : Task {
         crate.setPos(from);
         crate.active = true;
         write.writefln("drop %s -> %s", from, to);
-        +/
     }
 
     private void cmdShakeTest(MyBox[] args, Output write) {

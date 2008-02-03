@@ -1,5 +1,5 @@
 module game.crate;
-static assert(false);
+
 import game.gobject;
 import game.animation;
 import physics.world;

@@ -77,6 +77,10 @@ abstract class Animation {
         return mFrameTimeMS;
     }
 
+    Time frameTime() {
+        return timeMsecs(mFrameTimeMS);
+    }
+
     //default: create a proxy
     //of course a derived class could override this and create a normal
     //animation with a reversed frame list
