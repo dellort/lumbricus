@@ -37,7 +37,10 @@ struct FireMode {
     bool canThrow; //firing from worms direction
     bool throwAnyDirection; //false=left or right, true=360 degrees of freedom
     bool variableThrowStrength; //chooseable throw strength
-    float throwStrength = 0; //force (or whatever) if variable strength is on
+    //if variableThrowStrength is true, FireInfo.strength is interpolated
+    //between From and To by a player chosen value (that fire strength thing)
+    float throwStrengthFrom = 1;
+    float throwStrengthTo = 1;
     PointMode point = PointMode.none; //by mouse, i.e. target-searching weapon
     bool hasTimer; //user can select a timer
     Time timerFrom; //minimal time chooseable, only used if hasTimer==true
@@ -49,7 +52,16 @@ struct FireMode {
         canThrow = node.valueIs("mode", "throw");
         throwAnyDirection = node.valueIs("direction", "any");
         variableThrowStrength = node.valueIs("strength_mode", "variable");
-        throwStrength = node.getFloatValue("strength_value", throwStrength);
+        if (node.hasValue("strength_value")) {
+            //for "compatibility" only
+            throwStrengthFrom = throwStrengthTo =
+                node.getFloatValue("strength_value");
+        } else {
+            throwStrengthFrom = node.getFloatValue("strength_from",
+                throwStrengthFrom);
+            throwStrengthTo = node.getFloatValue("strength_to",
+                throwStrengthTo);
+        }
         hasTimer = node.getBoolValue("timer");
         if (hasTimer) {
             //if you need finer values than seconds, hack this

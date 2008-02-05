@@ -15,6 +15,7 @@ import game.sequence;
 import levelgen.level;
 import utils.mylist;
 import utils.time;
+import utils.math;
 import utils.misc;
 import utils.vector2;
 import utils.rect2;
@@ -128,10 +129,12 @@ class GraphicsHandler : GameEngineGraphics {
     private List!(ClientGraphic) mGraphics;
 
     Scene objectScene;
+    GfxInfos gfx;
 
-    this() {
+    this(GfxInfos a_gfx) {
         mGraphics = new typeof(mGraphics)(ClientGraphic.node.getListNodeOffset());
         objectScene = new Scene();
+        gfx = a_gfx;
     }
 
     //call simulate() for all objects
@@ -147,6 +150,85 @@ class GraphicsHandler : GameEngineGraphics {
     }
     LineGraphic createLine() {
         return new ClientLineGraphic(this);
+    }
+    TargetCross createTargetCross() {
+        return new TargetCrossImpl(this);
+    }
+}
+
+class TargetCrossImpl : ClientGraphic, TargetCross {
+    //xxx all these constants have to go away (at least the first 5)
+    const cTargetDist = 70; //distance target-cross-center to worm-center
+    const cLoadDist = 15; //start of the load-thing
+    const cLoadLength = 60; //end of it
+    const cColorStart = Color(1,0,0); //colors of the load-thing
+    const cColorEnd = Color(1,1,0);
+    const cRadStart = 3; //min/max radius for these circles
+    const cRadEnd = 10;
+    private {
+        Sequence mAttach;
+        float mLoad = 0.0f;
+        Vector2f mDir; //normalized weapon direction
+        Animator mTarget;
+        Scene mContainer; //(0,0) positioned to worm center
+    }
+
+    class DrawWeaponLoad : SceneObject {
+        void draw(Canvas canvas) {
+            auto start = cLoadDist+cRadStart;
+            auto end = cLoadDist+cast(int)(cLoadLength*mLoad);
+            auto scale = cLoadLength-cRadStart;
+            auto cur = start;
+            while (cur < end) {
+                auto n = (1.0f*(cur-start)/scale);
+                auto col = cColorStart + (cColorEnd-cColorStart)*n;
+                auto rad = cast(int)(cRadStart + (cRadEnd-cRadStart)*n);
+                canvas.drawFilledCircle(toVector2i(mDir*cur), rad, col);
+                cur += 1;
+            }
+        }
+    }
+
+    this(GraphicsHandler handler) {
+        super(handler);
+        mContainer = new Scene();
+        mTarget = new Animator();
+        mTarget.setAnimation(handler.gfx.resources.get!(Animation)("aim_blue"));
+        mContainer.add(mTarget);
+        mContainer.add(new DrawWeaponLoad());
+        init();
+    }
+
+    SceneObject graphic() {
+        return mContainer;
+    }
+
+    //NOTE: I was a bit careless about the "attaching" thing
+    // it doesn't work correctly if the attached object is created before the
+    // attach-to object
+    void attach(Sequence dest) {
+        mAttach = dest;
+    }
+
+    override void simulate() {
+        if (!mAttach)
+            return;
+        SequenceUpdate infos;
+        mAttach.getInfos(infos);
+        mContainer.pos = infos.position;
+        auto angle = fullAngleFromSideAngle(infos.rotation_angle,
+            infos.pointto_angle);
+        mDir = Vector2f.fromPolar(1.0f, angle);
+        mTarget.pos = toVector2i(mDir*cTargetDist);
+        mTarget.params.p1 = cast(int)(angle*180/PI);
+    }
+
+    void setLoad(float load) {
+        mLoad = load;
+    }
+
+    Rect2i bounds() {
+        return Rect2i.Empty();
     }
 }
 
@@ -309,8 +391,8 @@ class ClientGameEngine {
         }
 
         //only these are shaked on an earth quake
-        mZScenes[GameZOrder.Objects].rect = mSceneRect + mShakeOffset;
-        mZScenes[GameZOrder.Level].rect = mSceneRect + mShakeOffset;
+        mZScenes[GameZOrder.Objects].pos = mSceneRect.p1 + mShakeOffset;
+        mZScenes[GameZOrder.Level].pos = mSceneRect.p1 + mShakeOffset;
 
         //hm
         waterOffset = mEngine.waterOffset;
@@ -333,13 +415,13 @@ class ClientGameEngine {
         mGameDrawTime.stop();
     }
 
+    //xxx I guess this has no effect anymore, also a misleading name
     void resize(Vector2i s) {
-        mScene.rect = Rect2i(mScene.rect.p1, mScene.rect.p1 + s);
         mSceneRect = Rect2i(Vector2i(0), s);
         foreach (Scene e; mZScenes) {
-            e.rect = mSceneRect;
+            e.pos = mSceneRect.p1;
         }
-        graphics.objectScene.rect = mSceneRect;
+        graphics.objectScene.pos = mSceneRect.p1;
     }
 
     public uint detailLevel() {

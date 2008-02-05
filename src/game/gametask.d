@@ -163,7 +163,7 @@ class GameTask : Task {
 
     private bool initGameEngine() {
         //log("initGameEngine");
-        mGraphics = new GraphicsHandler();
+        mGraphics = new GraphicsHandler(mGfx);
         mServerEngine = new GameEngine(mGameConfig, mResources, mGraphics);
         mGame = mServerEngine;
         mGameAdmin = mServerEngine.requestAdmin();

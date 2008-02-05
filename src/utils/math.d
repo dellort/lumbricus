@@ -70,3 +70,18 @@ float angleDistance(float a, float b) {
 T angleLeftRight(T)(float angle, T left, T right) {
     return (realmod(angle+math.PI/2, math.PI*2) < math.PI) ? right : left;
 }
+
+//ewww whatever
+//rotation is a full angle (0..PI) and side_angle selects an angle on the left
+//or right side (-PI/2..+PI/2) wherever rotation looks at -> return real angle
+//maybe doesn't really belong here
+float fullAngleFromSideAngle(float rotation, float side_angle) {
+    float w = angleLeftRight(rotation, -1.0f, +1.0f);
+    return (1-w)*math.PI/2 - w*side_angle;
+}
+
+//...and because it's really this what's usually needed...:
+Vector2f dirFromSideAngle(float rotation, float side_angle) {
+    return Vector2f.fromPolar(1.0f,
+        fullAngleFromSideAngle(rotation, side_angle));
+}

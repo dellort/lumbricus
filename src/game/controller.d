@@ -125,11 +125,13 @@ class ServerMemberControl : TeamMemberControl {
         }
     }
 
-    void weaponFire(float strength) {
+    void weaponFire(bool is_down) {
         auto m = activemember;
         if (m) {
-            //TODO: strength parameter
-            m.doFire();
+            if (is_down)
+                m.doFireDown();
+            else
+                m.doFireUp();
         }
     }
 
@@ -373,7 +375,7 @@ class ServerTeam : Team {
         currentTarget = where;
 
         if (current.currentWeapon.weapon.fireMode.point == PointMode.instant)
-            current.doFire();
+            current.doFireDown();
     }
 
     //xxx integrate (unused yet)
@@ -451,6 +453,8 @@ class ServerTeam : Team {
     }
 }
 
+const Time cWeaponLoadTime = timeMsecs(1500);
+
 //member of a team, currently (and maybe always) capsulates a WormSprite object
 class ServerTeamMember : TeamMember {
     ServerTeam mTeam;
@@ -465,6 +469,11 @@ class ServerTeamMember : TeamMember {
         Vector2f mLastMoveVector;
         GameEngine mEngine;
         int lastKnownLifepower;
+        //that thing when you e.g. shoot a bazooka to set the fire strength
+        bool mThrowing;
+        Time mThrowingStarted;
+        //null if not there, instantiated all the time it's needed
+        TargetCross mTargetCross;
     }
 
     this(char[] a_name, ServerTeam a_team) {
@@ -576,6 +585,10 @@ class ServerTeamMember : TeamMember {
                 mWorm.drawWeapon(false);
             }
             mActive = act;
+
+            //only needed because apparently simulate() isn't called anymore when
+            //round has finished, and worm is possibly left with the target cross
+            updateTargetCross();
         }
     }
 
@@ -629,9 +642,9 @@ class ServerTeamMember : TeamMember {
 
         WeaponClass selected;
         if (mCurrentWeapon) {
-            if (!mCurrentWeapon.haveAtLeastOne())
-                return;
-            if (currentWeapon.weapon) {
+            if (!mCurrentWeapon.haveAtLeastOne()) {
+                //nothing, leave selected = null
+            } else if (currentWeapon.weapon) {
                 selected = mCurrentWeapon.weapon;
             }
         }
@@ -648,7 +661,7 @@ class ServerTeamMember : TeamMember {
         mWorm.shooter = nshooter;
     }
 
-    void doFire() {
+    void doFireDown() {
         if (!isControllable)
             return;
 
@@ -658,15 +671,47 @@ class ServerTeamMember : TeamMember {
         if (/*!worm.weaponDrawn ||*/ !worm.shooter)
             return; //go away
 
+        if (shooter.weapon.fireMode.variableThrowStrength) {
+            mThrowing = true;
+            mThrowingStarted = mEngine.gameTime.current;
+            return;
+        } else {
+            reallyFire(shooter.weapon.fireMode.throwStrengthFrom);
+        }
+
+        wormAction();
+    }
+
+    void doFireUp() {
+        if (!mThrowing || !worm.shooter)
+            return;
+        auto strength = currentFireStrength();
+        mThrowing = false;
+        auto fm = worm.shooter.weapon.fireMode;
+        reallyFire(fm.throwStrengthFrom + strength
+            * (fm.throwStrengthTo-fm.throwStrengthFrom));
+    }
+
+    //return the fire strength value, always between 0.0 and 1.0
+    float currentFireStrength() {
+        if (!mThrowing) //what??
+            return 0;
+        auto diff = mEngine.gameTime.current - mThrowingStarted;
+        float s = cast(double)diff.msecs / cWeaponLoadTime.msecs;
+        return clampRangeC(s, 0.0f, 1.0f);
+    }
+
+    void reallyFire(float strength) {
+        if (!worm.shooter)
+            return;
+
+        auto shooter = worm.shooter;
+
         mTeam.parent.mLog("fire: %s", shooter.weapon.name);
 
         FireInfo info;
-        //-1 for left, 1 for right
-        auto w = math.copysign(1.0f, Vector2f.fromPolar(1,worm.physics.lookey).x);
-        //weaponAngle will be -PI/2 - PI/2, -PI/2 meaning down
-        //-> Invert for screen, and add PI/2 if looking left
-        info.dir = Vector2f.fromPolar(1.0f, (1-w)*PI/2 - w*worm.weaponAngle);
-        info.strength = shooter.weapon.fireMode.throwStrength;
+        info.dir = worm.weaponDir();
+        info.strength = strength;
         info.timer = shooter.weapon.fireMode.timerFrom;
         info.pointto = mTeam.currentTarget;
         shooter.fire(info);
@@ -741,6 +786,33 @@ class ServerTeamMember : TeamMember {
         if (mWorm.isStanding())
             //worms are not standing, they are FIGHTING!
             mWorm.drawWeapon(true);
+        auto strength = currentFireStrength();
+        if (mTargetCross) {
+            mTargetCross.setLoad(strength);
+        }
+        //xxx replace comparision by checking against the time, with a small
+        //  delay before actually shooting (like wwp does)
+        if (strength == 1.0f)
+            doFireUp();
+        updateTargetCross();
+    }
+
+    void updateTargetCross() {
+        //create/destroy the target cross
+        bool exists = !!mTargetCross;
+        bool shouldexist = false;
+        if (worm.weaponDrawn() && worm.shooter) {
+            shouldexist = worm.shooter.weapon.fireMode.throwAnyDirection;
+        }
+        if (exists != shouldexist) {
+            if (exists) {
+                mTargetCross.remove();
+                mTargetCross = null;
+            } else {
+                mTargetCross = mEngine.graphics.createTargetCross();
+                mTargetCross.attach(worm.graphic);
+            }
+        }
     }
 
     void youWinNow() {

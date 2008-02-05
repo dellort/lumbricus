@@ -14,10 +14,10 @@ batch_bnks {
                 crate1 = "105"
                 //stupid worms centers the fly animation, comes out wrong
                 crate1_fly = "offset_y:-15; 108"
-                crate2 = "107" //tool box
-                crate2_fly = "offset_y:-12; 110"
-                crate3 = "106" //health
-                crate3_fly = "offset_y:-15; 109"
+                crate2 = "106" //health
+                crate2_fly = "offset_y:-15; 109"
+                crate3 = "107" //tool box
+                crate3_fly = "offset_y:-12; 110"
                 esel = "+repeat; 91"
                 banana_fly = "61"
                 holy_fly = "66"
@@ -86,8 +86,8 @@ batch_bnks {
                     //don't know why, but original animation looks so backwards
                     _flags = "+backwards_a,f:25"
                     crate1_beam = "116"
-                    crate2_beam = "118"
-                    crate3_beam = "117"
+                    crate2_beam = "117"
+                    crate3_beam = "118"
                 }
             }
             //stepwise rotated to cover the full 360 degrees
@@ -302,17 +302,35 @@ water_anims {
         grave3_drown = "8"
         grave4_drown = "9"
         grave5_drown = "10"
+        //granny_drown = "13" wut
+        crate1_drown = "14"
+        crate2_drown = "15"
+        crate3_drown = "16"
         worm_drown = "18"
+        barell_drown = "19"
+        mine_drown = "21"
+        //22-27: drowning team-themed mine
         bazooka_drown = "28"
+        airstrike_drown = "29"
         grenade_drown = "30"
         mortar_drown = "31"
         cluster_drown = "32"
         clustershard_drown = "33"
+        granny_drown = "41"
+        sally_army_drown = "42"
+        cow_drown = "45"
         banana_drown = "50"
         molotov_drown = "51"
         holy_drown = "53"
         homing_active_drown = "54"
         homing_inactive_drown = "55"
+        mingvase_drown = "58"
+        mingshard1_drown = "59"
+        mingshard2_drown = "60"
+        mingshard3_drown = "61"
+        dynamite_drown = "62"
+        //not used by wwp; will we?
+        esel_drown = "65"
     }
 }
 //for layer.spr

@@ -57,7 +57,9 @@ class CrateSprite : GObjectSprite {
         } else {
             //falling too fast -> parachute
             //xxx: if it flies too fast or in a too wrong direction, explode
-            if (physics.velocity.length > myclass.enterParachuteSpeed) {
+            if (currentState !is myclass.st_drowning
+                && physics.velocity.length > myclass.enterParachuteSpeed)
+            {
                 setState(myclass.st_parachute);
             }
         }
@@ -70,7 +72,7 @@ class CrateSpriteClass : GOSpriteClass {
     float enterParachuteSpeed;
     float collectRadius;
 
-    StaticStateInfo st_creation, st_normal, st_parachute;
+    StaticStateInfo st_creation, st_normal, st_parachute, st_drowning;
 
     this(GameEngine e, char[] r) {
         super(e, r);
@@ -85,6 +87,7 @@ class CrateSpriteClass : GOSpriteClass {
         st_creation = findState("creation");
         st_normal = findState("normal");
         st_parachute = findState("parachute");
+        st_drowning = findState("drowning");
     }
     override CrateSprite createSprite() {
         return new CrateSprite(engine, this);

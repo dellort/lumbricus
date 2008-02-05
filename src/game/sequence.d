@@ -15,6 +15,7 @@ import game.clientengine;
 import game.gamepublic;
 
 import std.math : PI;
+import str = std.string;
 
 //--- interface, including implementations of the generic static data classes
 
@@ -305,9 +306,33 @@ SequenceObject loadAnimation(ResourceSet res, ConfigItem fromitem) {
     return seq;
 }
 
+SequenceObject loadAnimationWithDrown(ResourceSet res, ConfigItem fromitem) {
+    alias WormState.SubSequence SubSequence;
+    alias WormState.SeqType SeqType;
+
+    auto value = castStrict!(ConfigValue)(fromitem).value;
+    auto val = str.split(value);
+    if (val.length != 2)
+        assert(false, "at "~fromitem.name);
+    auto seq = new WormSequenceObject(fromitem.name);
+    auto state = new WormState(seq, "normal");
+    SubSequence s_normal;
+    s_normal.animation = res.get!(Animation)(val[0]);
+    state.seqs[SeqType.Normal] = [s_normal];
+    seq.addState(state);
+    auto state2 = new WormState(seq, "drown");
+    s_normal.animation = res.get!(Animation)(val[1]);
+    state2.seqs[SeqType.Normal] = [s_normal];
+    seq.addState(state2);
+    seq.fixup();
+    return seq;
+}
+
 static this() {
     AbstractSequence.loaders["worm"] = toDelegate(&loadWorm);
     AbstractSequence.loaders["animations"] = toDelegate(&loadAnimation);
+    AbstractSequence.loaders["simple_with_drown"] =
+        toDelegate(&loadAnimationWithDrown);
 }
 
 class WormState : SequenceState {
@@ -448,11 +473,13 @@ private:
         mSubSeqStart = now();
         mSideFacing = 0;
 
+        /+
         if (s) {
             std.stdio.writefln("substate %s/%s/%s", s.owner.name, cast(int)(s.type), s.index);
         } else {
             std.stdio.writefln("reset");
         }
+        +/
 
         if (s && (s.animation || s.reset_animation)) {
             mAnimator.setAnimation(s.animation);
@@ -505,8 +532,8 @@ private:
 
         ended &= !mCurSubSeq.wait_forever;
 
-        if (mCurSubSeq.type == SeqType.TurnAroundY)
-        std.stdio.writefln("side = %s", angleLeftRight(mAngles[0], -1, +1));
+        //if (mCurSubSeq.type == SeqType.TurnAroundY)
+            //std.stdio.writefln("side = %s", angleLeftRight(mAngles[0], -1, +1));
 
         if (!ended) {
             //check turnaround, as it is needed for the jetpack
@@ -524,7 +551,7 @@ private:
         }
 
         if (ended) {
-            std.stdio.writefln("ended");
+            //std.stdio.writefln("ended");
             //next step, either the following SubSequence or a new seq/state
             auto next = mCurSubSeq.getNext();
             if (next) {
@@ -598,14 +625,14 @@ private:
         WormState curstate = mCurSubSeq ? mCurSubSeq.owner : null;
         if (curstate is state)
             return;
-        std.stdio.writefln("set state: ", sstate.name);
+        //std.stdio.writefln("set state: ", sstate.name);
         //possibly start state change
         //look if the leaving sequence should play
         bool play_leave = false;
         if (curstate) {
             play_leave |= curstate.hasLeaveTransition(sstate);
         }
-        std.stdio.writefln("play leave: ", play_leave);
+        //std.stdio.writefln("play leave: ", play_leave);
         if (!mCurSubSeq || !play_leave) {
             //start new state, skip whatever did go on before
             resetSubSequence();

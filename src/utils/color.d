@@ -58,10 +58,10 @@ public struct Color {
         a = a*m;
     }
     Color opAdd(Color c2) {
-        return Color(r+c2.r,g+c2.g,b+c2.g,a+c2.a);
+        return Color(r+c2.r,g+c2.g,b+c2.b,a+c2.a);
     }
     Color opSub(Color c2) {
-        return Color(r-c2.r,g-c2.g,b-c2.g,a-c2.a);
+        return Color(r-c2.r,g-c2.g,b-c2.b,a-c2.a);
     }
 
     //xxx: ?

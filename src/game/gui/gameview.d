@@ -289,7 +289,7 @@ class GameView : Container, TeamMemberControlCallback {
     }
 
     override Vector2i layoutSizeRequest() {
-        return mEngine.scene.size;
+        return mEngine.worldSize;
     }
 
     // --- start TeamMemberControlCallback
@@ -324,6 +324,10 @@ class GameView : Container, TeamMemberControlCallback {
             case "down":
                 dirKeyState_rd.y = v;
                 break;
+            //oh hi I'm wrong here
+            case "fire":
+                doFire(!up);
+                return true;
             default:
                 return false;
         }
@@ -350,8 +354,8 @@ class GameView : Container, TeamMemberControlCallback {
     }
 
     //fire current weapon
-    private void doFire() {
-        mController.weaponFire(1.0f);
+    private void doFire(bool is_down) {
+        mController.weaponFire(is_down);
     }
 
     private bool onKeyDown(char[] bind, KeyInfo info) {
@@ -391,10 +395,6 @@ class GameView : Container, TeamMemberControlCallback {
                 mController.jump(JumpMode.normal);
                 return true;
             }
-            case "fire": {
-                doFire();
-                return true;
-            }
             default:
 
         }
@@ -409,7 +409,7 @@ class GameView : Container, TeamMemberControlCallback {
                 mController.currentWeapon.name == wcname)
             {
                 //already selected, fire (possibly again)
-                doFire();
+                doFire(true);
             } else {
                 //draw the weapon
                 //xxx what about instant fire?

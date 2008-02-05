@@ -84,10 +84,10 @@ class GameWater {
     this(ClientGameEngine engine) {
         foreach (inout s; scenes) {
             s = new Scene();
-            s.rect = engine.scene.rect;
+            s.pos = engine.scene.pos;
         }
 
-        size = engine.scene.size;
+        size = engine.worldSize;
 
         mEngine = engine;
         Color waterColor = engine.gfx.waterColor;

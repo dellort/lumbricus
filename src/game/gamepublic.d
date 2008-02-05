@@ -67,10 +67,23 @@ interface LineGraphic : Graphic {
     Rect2i bounds();
 }
 
+interface TargetCross : Graphic {
+    //where position and angle are read from
+    void attach(Sequence dest);
+    //value between 0.0 and 1.0 for the fire strength indicator
+    void setLoad(float load);
+    //won't return anything useful lol
+    Rect2i bounds();
+}
+
 ///all graphics which are sent from server to client
 interface GameEngineGraphics {
     Sequence createSequence(SequenceObject type);
     LineGraphic createLine();
+    //xxx: should take theme-color
+    // not here yet because we need a nice way to identify the team-theme
+    // (other than passing a color string or index value)
+    TargetCross createTargetCross();
 }
 
 ///GameEngine public interface
@@ -318,9 +331,7 @@ xxx handled by setMovement()
     void weaponSetTarget(Vector2i targetPos);
 
     ///actually fire weapon with parameters set before
-    ///needs a preceeding call of weaponStartFire with current weapon to work
-    ///xxx weaponStartFire removed because I didn't know what it was for
-    void weaponFire(float strength);
+    void weaponFire(bool is_down);
 }
 
 interface TeamMemberControlCallback {

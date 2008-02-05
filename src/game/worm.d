@@ -12,6 +12,7 @@ import utils.vector2;
 import utils.time;
 import utils.log;
 import utils.misc;
+import utils.math;
 import utils.configfile;
 import std.math;
 import str = std.string;
@@ -54,8 +55,14 @@ class WormSprite : GObjectSprite {
         AnimationResource mGravestone;
     }
 
+    //-PI/2..+PI/2, actual angle depends from whether worm looks left or right
     float weaponAngle() {
         return mWeaponAngle;
+    }
+
+    //real weapon angle (normalized direction)
+    Vector2f weaponDir() {
+        return dirFromSideAngle(physics.lookey, weaponAngle);
     }
 
     //if can move etc.

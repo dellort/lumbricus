@@ -95,10 +95,10 @@ class GameSky {
     this(ClientGameEngine engine) {
         foreach (inout s; scenes) {
             s = new Scene();
-            s.rect = engine.scene.rect;
+            s.pos = engine.scene.pos;
         }
 
-        size = engine.scene.size;
+        size = engine.worldSize;
 
         mEngine = engine;
         ConfigNode skyNode = gFramework.loadConfig("sky");
@@ -161,12 +161,12 @@ class GameSky {
     void initialize() {
         updateOffsets();
         foreach (inout CloudInfo ci; mCloudAnimators) {
-            ci.x = randRange(-ci.animSizex, scenes[Z.clouds].size.x);
+            ci.x = randRange(-ci.animSizex, size.x);
         }
 
         if (mDebrisAnim) {
             foreach (inout DebrisInfo di; mDebrisAnimators) {
-                di.x = randRange(-mDebrisAnim.bounds.size.x, scenes[Z.debris].size.x);
+                di.x = randRange(-mDebrisAnim.bounds.size.x, size.x);
                 di.y = randRange(skyOffset, skyBottom);
             }
         }
@@ -234,7 +234,7 @@ class GameSky {
             foreach (inout ci; mCloudAnimators) {
                 //XXX this is acceleration, how to get a constant speed from this??
                 ci.x += (ci.xspeed+mEngine.windSpeed)*deltaT;
-                clip(ci.x, ci.animSizex, 0, scenes[Z.clouds].size.x);
+                clip(ci.x, ci.animSizex, 0, size.x);
                 ci.anim.pos = Vector2i(cast(int)ci.x, skyOffset + ci.y);
             }
         }
@@ -244,7 +244,7 @@ class GameSky {
                 //XXX same here
                 di.x += 2*mEngine.windSpeed*deltaT*di.speedPerc;
                 di.y += cDebrisFallSpeed*deltaT;
-                clip(di.x, mDebrisAnim.bounds.size.x, 0, scenes[Z.debris].size.x);
+                clip(di.x, mDebrisAnim.bounds.size.x, 0, size.x);
                 clip(di.y, mDebrisAnim.bounds.size.y, skyOffset, skyBottom);
                 di.anim.pos = Vector2i(cast(int)di.x, cast(int)di.y);
             }

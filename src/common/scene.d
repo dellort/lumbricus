@@ -11,7 +11,7 @@ public import framework.framework : Canvas;
 ///each graphic is represented by a SceneObject
 ///all SceneObjects are relative to clientOffset within the Scene's rect
 ///clientOffset can be used to implement scrolling etc.
-class Scene : SceneObjectRect {
+class Scene : SceneObjectCentered {
     alias List!(SceneObject) SOList;
 
     private {
@@ -44,13 +44,10 @@ class Scene : SceneObjectRect {
         mActiveObjects.clear();
     }
 
-    //NOTE: clips and translates graphic coords
-    //the convention is that invisible objects need to check theirselves if
-    //they're outside the visible region
-    //xxx: check if it's worth to check Scenes itself this way
+    //NOTE: translates graphic coords
     override void draw(Canvas canvas) {
         canvas.pushState();
-        canvas.setWindow(mRect.p1, mRect.p2);
+        canvas.translate(pos);
 
         foreach (obj; mActiveObjects) {
             if (obj.active) {
@@ -59,6 +56,11 @@ class Scene : SceneObjectRect {
         }
 
         canvas.popState();
+    }
+
+    //returns nothing useful
+    Rect2i bounds() {
+        return Rect2i.Empty();
     }
 }
 
@@ -71,6 +73,7 @@ class SceneObject {
     }
 }
 
+/+
 class SceneObjectRect : SceneObject {
     protected Rect2i mRect;
 
@@ -88,6 +91,7 @@ class SceneObjectRect : SceneObject {
         mRect.p2 = mRect.p1 + size;
     }
 }
++/
 
 class SceneObjectCentered : SceneObject {
     protected Vector2i mPos;

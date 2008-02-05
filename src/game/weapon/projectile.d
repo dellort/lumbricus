@@ -370,6 +370,16 @@ class ProjectileSpriteClass : GOSpriteClass {
             (config["sequence_object"]).get;
         initState.animation = sequenceObject.findState("normal");
 
+        if (auto drownani = sequenceObject.findState("drown", true)) {
+            auto drownstate = new StaticStateInfo();
+            drownstate.name = "drowning";
+            drownstate.animation = drownani;
+            drownstate.physic_properties = initState.physic_properties;
+            drownstate.physic_properties.mediumViscosity = 5;
+            drownstate.physic_properties.radius = 1;
+            states[drownstate.name] = drownstate;
+        }
+
         auto detonatereason = config.getSubNode("detonate_howcome");
         detonateByImpact = detonatereason.getBoolValue("byimpact");
         detonateByTime = detonatereason.getBoolValue("bytime");
