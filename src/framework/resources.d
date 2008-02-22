@@ -241,6 +241,10 @@ public class Resources {
         return new Preloader(list);
     }
 
+    public Preloader createPreloader(ResourceSet list) {
+        return new Preloader(list);
+    }
+
     public void preloadAll(ResourceItem[] list) {
         foreach (r; list) {
             r.preload();
@@ -256,9 +260,24 @@ public class Resources {
         private int mCurrent; //next res. to load, index into mToLoad
 
         this(ResourceItem[] list) {
+            doload(list);
+        }
+
+        private void doload(ResourceItem[] list) {
             log("Preloading %s resources", list.length);
 
             mToLoad = list.dup;
+        }
+
+        //does some work to get a ResourceItem[] from a ResourceSet again, meh
+        this(ResourceSet list) {
+            ResourceItem[] rilist;
+            foreach (entry; list.resourceList()) {
+                auto ri = cast(ResourceItem)(entry.wrapper());
+                if (ri)
+                    rilist ~= ri;
+            }
+            doload(rilist);
         }
 
         ResourceItem[] list() {

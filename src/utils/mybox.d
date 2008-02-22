@@ -21,31 +21,76 @@ struct MyBox {
     /// Box data (should work like assignment if there's no opAssign).
     void box(T)(T data) {
         mType = typeid(T);
+        assert(T.sizeof == mType.tsize() && T.sizeof == data.sizeof);
+        copyin(cast(void*)&data);
+    }
+
+    private void copyin(void* ptr) {
         size_t size = mType.tsize();
-        assert(T.sizeof == size && T.sizeof == data.sizeof);
         if (size <= mStaticData.length) {
-            mStaticData[0..size] = (cast(void*)&data)[0..size];
+            mStaticData[0..size] = ptr[0..size];
         } else {
-            mDynamicData = (cast(void*)&data)[0..size].dup;
+            mDynamicData = ptr[0..size].dup;
+        }
+    }
+
+    void boxFromData(TypeInfo T, void[] data) {
+        if (!T) {
+            assert(data.length == 0);
+            nullify();
+            return;
+        }
+        if (T.tsize() != data.length) {
+            throw new MyBoxException("invalid arguments");
+        }
+        mType = T;
+        copyin(data.ptr);
+    }
+
+    //quite unsafe, for the lazy ones
+    void boxFromPtr(TypeInfo T, void* data) {
+        mType = T;
+        copyin(data);
+    }
+
+    private void typecheck(TypeInfo T) {
+        if (T !is mType) {
+            throw new MyBoxException("MyBox says no: unbox "
+                ~ (mType ? mType.toString : "<empty>") ~ " to " ~ T.toString);
         }
     }
 
     /// Unbox; throw an exception if the types are not exactly the same.
     /// Implicit conversion is never supported (not even upcasts).
     T unbox(T)() {
-        if (typeid(T) !is mType) {
-            throw new MyBoxException("MyBox says no: unbox "
-                ~ (mType ? mType.toString : "<empty>") ~ " to " ~ T.stringof);
-        }
-        size_t size = mType.tsize();
+        typecheck(typeid(T));
         T data;
-        assert(T.sizeof == size && T.sizeof == data.sizeof);
+        assert(T.sizeof == mType.tsize() && T.sizeof == data.sizeof);
+        copyout(&data);
+        return data;
+    }
+
+    private void copyout(void* ptr) {
+        size_t size = mType.tsize();
         if (size <= mStaticData.length) {
-            (cast(void*)&data)[0..size] = mStaticData[0..size];
+            ptr[0..size] = mStaticData[0..size];
         } else {
-            (cast(void*)&data)[0..size] = mDynamicData;
+            ptr[0..size] = mDynamicData;
         }
         return data;
+    }
+
+    void unboxToData(TypeInfo T, void[] data) {
+        typecheck(T);
+        if (T.tsize() != data.length) {
+            throw new MyBoxException("invalid arguments");
+        }
+        copyout(data.ptr);
+    }
+
+    void unboxFromPtr(TypeInfo T, void* data) {
+        typecheck(T);
+        copyout(data);
     }
 
     /// Like unbox(), but return type-default if box is empty.

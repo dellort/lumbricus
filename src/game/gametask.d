@@ -16,6 +16,7 @@ import game.gamepublic;
 import game.sequence;
 import game.gui.gameview;
 import game.game;
+import game.gfxset;
 import game.sprite;
 import game.crate;
 import gui.container;
@@ -47,8 +48,7 @@ class GameTask : Task {
         GameEnginePublic mGame;
         GameEngineAdmin mGameAdmin;
         ClientGameEngine mClientEngine;
-        ResourceSet mResources;
-        GfxInfos mGfx;
+        GfxSet mGfx;
         //hack
         GraphicsHandler mGraphics;
 
@@ -164,7 +164,7 @@ class GameTask : Task {
     private bool initGameEngine() {
         //log("initGameEngine");
         mGraphics = new GraphicsHandler(mGfx);
-        mServerEngine = new GameEngine(mGameConfig, mResources, mGraphics);
+        mServerEngine = new GameEngine(mGameConfig, mGfx, mGraphics);
         mGame = mServerEngine;
         mGameAdmin = mServerEngine.requestAdmin();
         return true;
@@ -179,30 +179,10 @@ class GameTask : Task {
     //periodically called by loader (until we return false)
     private bool initLoadResources() {
         if (!mResPreloader) {
-            mGfx = new GfxInfos();
-
-            ResourceItem[] reslist;
-            //have to select graphic set here
-            //you also would load a selected waterset resource file here and
-            //  append it to the reslist
-            auto graphics = gFramework.resources.loadResources("wwp.conf");
-            reslist ~= graphics.getAll();
-
-            //add water resources!
-            //xxx: need a not-hardcoded default
-            char[] water = mGameConfig.watergfx;
-            if (water == "")
-                water = "blue";
-            auto waterfile = "water"~path.sep~water~path.sep~"water.conf";
-            auto watergfx = gFramework.resources.loadResources(waterfile);
-            reslist ~= watergfx.getAll();
-
-            //parse the water color; the server wouldn't need this!
-            auto waterconf = gFramework.loadConfig(waterfile, true);
-            mGfx.waterColor.parse(waterconf["color"]);
+            mGfx = new GfxSet(mGameConfig.gfx);
 
             //load all items in reslist
-            mResPreloader = gFramework.resources.createPreloader(reslist);
+            mResPreloader = gFramework.resources.createPreloader(mGfx.resources);
             mLoadScreen.secondaryActive = true;
         }
         mLoadScreen.secondaryCount = mResPreloader.totalCount();
@@ -213,38 +193,9 @@ class GameTask : Task {
             return false;
         } else {
             mLoadScreen.secondaryActive = false;
-            mResources = mResPreloader.createSet();
-            loadSequenceStuff();
-            mResources.seal(); //disallow addition of more resources
             mResPreloader = null;
-            mGfx.resources = mResources;
-            mGfx.load();
+            mGfx.finishLoading();
             return true;
-        }
-    }
-
-    class Wtf : ResourceObject {
-        Object obj;
-        Object get() {
-            return obj;
-        }
-        this(Object o) {
-            obj = o;
-        }
-    }
-
-    private void loadSequenceStuff() {
-        auto conf = gFramework.loadConfig("wwp");
-        conf = conf.getSubNode("sequences");
-        foreach (ConfigNode sub; conf) {
-            auto pload = sub.name in AbstractSequence.loaders;
-            if (!pload) {
-                throw new Exception("sequence loader not found: "~sub.name);
-            }
-            foreach (ConfigItem subsub; sub) {
-                SequenceObject seq = (*pload)(mResources, subsub);
-                mResources.addResource(new Wtf(seq), seq.name);
-            }
         }
     }
 
@@ -291,6 +242,7 @@ class GameTask : Task {
         if (mstime > cFadeDurationMs) {
             //end of fade
             mFadeOut.remove();
+            mFadeOut = null;
             kill();
         } else {
             float scale = 1.0f*mstime/cFadeDurationMs;
@@ -476,7 +428,7 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
         mConfig.getStringValue("gamemode",""));
     cfg.weapons = gamemodecfg.getSubNode("weapon_sets");
 
-    cfg.watergfx = mConfig["watergfx"];
+    cfg.gfx = mConfig.getSubNode("gfx");
 
     return cfg;
 }

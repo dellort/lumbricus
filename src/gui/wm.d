@@ -13,6 +13,7 @@ import gui.gui;
 import gui.widget;
 import gui.window;
 import utils.array;
+import utils.math;
 import utils.misc;
 import utils.rect2;
 import utils.vector2;
@@ -54,6 +55,7 @@ struct WindowInitialPlacement {
     //for Placement.dependent
     Vector2i gravity; //direction/length where the Window is attached
     float gravityAlign = 0; //align on gravity baseline (0.0-1.0f)
+    bool clipToScreen; //clip against containing screen
 }
 
 class Window {
@@ -201,24 +203,9 @@ class Window {
                 mWindow.fullScreen = true;
                 break;
             case Place.gravity:
-                Vector2i g = mInitialPlacement.gravity;
-                Vector2i b1, b2;
-                Rect2i prc = relative.containedBounds;
-                b1.x = g.x > 0 ? prc.p2.x : prc.p1.x;
-                b2.x = g.x > 0 ? prc.p1.x : prc.p2.x;
-                b1.y = g.y > 0 ? prc.p2.y : prc.p1.y;
-                b2.y = g.y > 0 ? prc.p1.y : prc.p2.y;
-                Vector2i pdist = g;
-                if (g.x < 0) pdist -= nrc.size.X;
-                if (g.y < 0) pdist -= nrc.size.Y;
-                if (g.x > 0) pdist += prc.size.X;
-                if (g.y > 0) pdist += prc.size.Y;
-                Vector2i al = toVector2i(toVector2f(prc.size - nrc.size)
-                    * mInitialPlacement.gravityAlign);
-                if (g.x == 0) al.y = 0;
-                if (g.y == 0) al.x = 0;
-                pdist += al;
-                nrc += pdist;
+                auto al = mInitialPlacement.gravityAlign;
+                nrc += placeRelative(nrc, relative.containedBounds,
+                    mInitialPlacement.gravity, al, al);
                 break;
         }
 
@@ -226,6 +213,11 @@ class Window {
         //window, and actually position it
         bool r = mWindow.parent.translateCoords(relative, nrc);
         assert(r);
+
+        if (mInitialPlacement.clipToScreen) {
+            nrc.fitInside(mManager.mFrame.widgetBounds);
+        }
+
         mWindow.windowBounds = nrc;
     }
 
@@ -376,6 +368,7 @@ class WindowManager {
     ///gravity, place_align sets position along gravity base
     ///gravity should point in an axis aligned direction, i.e. (1,0) means the
     ///popup is attached the left border of the widget
+    ///also, initSize is clipped against the screen (popup doesn't go outside)
     ///xxx: asserts if no Window (for the task) is found (needs to be fixed)
     Window createPopup(Widget client, Widget attach, Vector2i gravity,
         Vector2i initSize = Vector2i(0, 0), bool show = true,
@@ -392,6 +385,7 @@ class WindowManager {
         ip.gravity = gravity;
         ip.gravityAlign = place_align;
         ip.relative = attach;
+        ip.clipToScreen = true; //clip against screen
         w.initialPlacement = ip;
         WindowProperties props;
         props.windowTitle = "?";
@@ -464,6 +458,12 @@ class WindowManager {
             w.mWindow.highlight = true;
             mCurHighlight = w;
         }
+    }
+
+    //container frame for all windows; must not be modified in any way and is
+    //for reference only
+    Widget windowFrame() {
+        return mFrame;
     }
 
     //get all windows managed by this; is slow

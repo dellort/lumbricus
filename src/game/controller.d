@@ -156,7 +156,7 @@ class ServerMemberControl : TeamMemberControl {
 class ServerTeam : Team {
     char[] mName = "unnamed team";
     //this values indices into cTeamColors and the gravestone animations
-    int teamColor, graveStone;
+    TeamTheme teamColor;
     WeaponSet weapons;
     WeaponItem defaultWeapon;
     int initialPoints; //on loading
@@ -183,9 +183,11 @@ class ServerTeam : Team {
     this(ConfigNode node, GameController parent) {
         this.parent = parent;
         mName = node.getStringValue("name", mName);
-        teamColor = node.selectValueFrom("color", cTeamColors, 0);
+        //xxx: error handling (when team-theme not found)
+        teamColor = parent.engine.gfx.teamThemes[node.getStringValue("color",
+            "blue")];
         initialPoints = node.getIntValue("power", 100);
-        graveStone = node.getIntValue("grave", 0);
+        //graveStone = node.getIntValue("grave", 0);
         //the worms currently aren't loaded by theirselves...
         foreach (char[] name, char[] value; node.getSubNode("member_names")) {
             auto worm = new ServerTeamMember(value, this);
@@ -202,7 +204,7 @@ class ServerTeam : Team {
         return mName;
     }
 
-    TeamColor color() {
+    TeamTheme color() {
         return teamColor;
     }
 
@@ -526,7 +528,7 @@ class ServerTeamMember : TeamMember {
         lastKnownLifepower = health;
         //take control over dying, so we can let them die on round end
         mWorm.delayedDeath = true;
-        mWorm.gravestone = mTeam.graveStone;
+        mWorm.gravestone = mTeam.color.graveStone;
         //let Controller place the worm
         mTeam.parent.placeOnLandscape(mWorm);
     }
@@ -809,7 +811,7 @@ class ServerTeamMember : TeamMember {
                 mTargetCross.remove();
                 mTargetCross = null;
             } else {
-                mTargetCross = mEngine.graphics.createTargetCross();
+                mTargetCross = mEngine.graphics.createTargetCross(mTeam.color);
                 mTargetCross.attach(worm.graphic);
             }
         }

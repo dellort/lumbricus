@@ -5,6 +5,7 @@ module game.gamepublic;
 
 import framework.framework;
 import game.animation;
+import game.gfxset : TeamTheme;
 import game.glevel;
 import game.weapon.weapon;
 import levelgen.level;
@@ -47,8 +48,12 @@ struct GameConfig {
     //objects which shall be created and placed into the level at initialization
     //(doesn't include the worms, ???)
     ConfigNode levelobjects;
-    //name of the water-set
-    char[] watergfx;
+    //infos for the graphicset, current items:
+    // - config: string with the name of the gfx set, ".conf" will be appended
+    //   to get the config filename ("wwp" becomes "wwp.conf")
+    // - waterset: string with the name of the waterset (like "blue")
+    //probably should be changed etc., so don't blame me
+    ConfigNode gfx;
 }
 
 interface Graphic {
@@ -80,10 +85,8 @@ interface TargetCross : Graphic {
 interface GameEngineGraphics {
     Sequence createSequence(SequenceObject type);
     LineGraphic createLine();
-    //xxx: should take theme-color
-    // not here yet because we need a nice way to identify the team-theme
-    // (other than passing a color string or index value)
-    TargetCross createTargetCross();
+    //target cross is always themed
+    TargetCross createTargetCross(TeamTheme team);
 }
 
 ///GameEngine public interface
@@ -254,7 +257,7 @@ struct WeaponListItem {
 
 interface Team {
     char[] name();
-    TeamColor color();
+    TeamTheme color();
 
     ///at least one member with alive() == true
     bool alive();
@@ -351,17 +354,3 @@ interface TeamMemberControlCallback {
     //void weaponDraw(char[] weaponId);
 }
 
-//Hint: there's a limited number of predefined colors; that's because sometimes
-//colors are hardcoded in animations, etc.
-//so, these are not just color names, but also linked to these animations
-static const char[][] cTeamColors = [
-    "red",
-    "blue",
-    "green",
-    "yellow",
-    "magenta",
-    "cyan",
-];
-
-//use this datatype to clearly reference an cTeamColors entry
-alias int TeamColor;

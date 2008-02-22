@@ -3,6 +3,7 @@ import levelgen.level;
 import game.animation;
 import game.gobject;
 import physics.world;
+import game.gfxset;
 import game.glevel;
 import game.sprite;
 import game.water;
@@ -41,7 +42,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     PlaneTrigger waterborder;
     PlaneTrigger deathzone;
 
-    ResourceSet resources;
+    GfxSet gfx;
 
     GameEngineGraphics graphics;
 
@@ -214,8 +215,8 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         waterborder.plane.define(Vector2f(0, val), Vector2f(1, val));
     }
 
-    this(GameConfig config, ResourceSet a_resources, GameEngineGraphics gr) {
-        resources = a_resources;
+    this(GameConfig config, GfxSet a_gfx, GameEngineGraphics gr) {
+        gfx = a_gfx;
         graphics = gr;
 
         assert(config.level !is null);

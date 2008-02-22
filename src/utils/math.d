@@ -1,6 +1,7 @@
 module utils.math;
 
 public import utils.vector2;// : Vector2f;
+import utils.rect2;
 import intr = std.intrinsic;
 import math = std.math;
 
@@ -84,4 +85,32 @@ float fullAngleFromSideAngle(float rotation, float side_angle) {
 Vector2f dirFromSideAngle(float rotation, float side_angle) {
     return Vector2f.fromPolar(1.0f,
         fullAngleFromSideAngle(rotation, side_angle));
+}
+
+///place nrc relative to prc (trivial, but has to be somewhere)
+///  nrc = rectangle of the object to be placed
+///  g = the direction and distance (exactly one component of this should be 0)
+///  g_align = alignment of the placement line (in the direction orthogonal to
+///     g); 0.0 = left/top aligned, 1.0 = right/bottom, 0.5 is centered
+///  g_align2 = alignment of nrc along the placement line, similar to g_align
+///  returns the offset to the new position
+Vector2i placeRelative(Rect2i nrc, Rect2i prc, Vector2i g, float g_align = 0.5f,
+    float g_align2 = 0.5f)
+{
+    Vector2i b1, b2;
+    b1.x = g.x > 0 ? prc.p2.x : prc.p1.x;
+    b2.x = g.x > 0 ? prc.p1.x : prc.p2.x;
+    b1.y = g.y > 0 ? prc.p2.y : prc.p1.y;
+    b2.y = g.y > 0 ? prc.p1.y : prc.p2.y;
+    Vector2i pdist = g;
+    if (g.x < 0) pdist -= nrc.size.X;
+    if (g.y < 0) pdist -= nrc.size.Y;
+    if (g.x > 0) pdist += prc.size.X;
+    if (g.y > 0) pdist += prc.size.Y;
+    Vector2i al = toVector2i(toVector2f(prc.size)*g_align
+        - toVector2f(nrc.size)*g_align2);
+    if (g.x == 0) al.y = 0;
+    if (g.y == 0) al.x = 0;
+    pdist += al;
+    return pdist;
 }

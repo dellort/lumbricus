@@ -36,9 +36,7 @@ class TeamWindow : Container {
             teamname.text = teams[n].name;
             //teamname.border = Vector2i(3,3);
             //xxx again code duplication from gameview.d
-            Color c;
-            bool res = c.parse(cTeamColors[teams[n].color]);
-            assert(res);
+            Color c = teams[n].color.color;
             auto st = gFramework.fontManager.getStyle("wormfont");
             st.fore = c;
             teamname.font = new Font(st);

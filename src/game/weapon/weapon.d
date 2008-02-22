@@ -123,7 +123,7 @@ abstract class WeaponClass {
         value = node.getIntValue("value", 0);
         category = node.getStringValue("category", "none");
 
-        icon = engine.resources.resource!(Surface)(node["icon"]);
+        icon = engine.gfx.resources.resource!(Surface)(node["icon"]);
 
         auto fire = node.findNode("firemode");
         if (fire) {

@@ -138,7 +138,7 @@ batch_bnks {
                 aim_cyan = "5"
             }
             {
-                _params = "p1/rot180"
+                _params = "p1/rot360"
                 _flags = "+repeat"
                 out_of_world = "42"
             }
@@ -165,6 +165,12 @@ batch_bnks {
                 worm_parachute_fly = "+append_backwards_a; 297"
                 worm_jump_to_rotate = "-repeat; 287" //no idea
                 worm_jump_back = "-repeat; 288"
+            }
+            //as above, but mirrored
+            {
+                _params = "time,p1/twosided_inv"
+                _flags = "+mirror_y_b,+repeat"
+
                 sheep1 = "161" //has a helmet
                 sheep2 = "162"
                 granny = "171"

@@ -344,7 +344,7 @@ class GOSpriteClass {
         //load collision map
         engine.physicworld.loadCollisions(config.getSubNode("collisions"));
 
-        sequenceObject = engine.resources.resource!(SequenceObject)
+        sequenceObject = engine.gfx.resources.resource!(SequenceObject)
             (config["sequence_object"]).get;
 
         //load states
@@ -364,6 +364,7 @@ class GOSpriteClass {
             auto phys = config.getSubNode("physics").findNode(sc.getStringValue(
                 "physic", ssi.name));
             assert(phys !is null); //xxx better error handling :-)
+            ssi.physic_properties = new POSP();
             ssi.physic_properties.loadFromConfig(phys);
 
             ssi.noleave = sc.getBoolValue("noleave", false);

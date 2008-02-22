@@ -1,28 +1,27 @@
-This is Lumbricus Terrestris. Sorry, it's at a very early planning state,
-there's nothing to see or to play yet.
+This is Lumbricus Terrestris. Sorry, it's at a very early alpha/beta state,
+it is not really ready yet.
 
-WARNING: Yeah sure, you can compile the code, but to run it, the svn misses
-some important bits. Running the program right out of the SVN will crash,
-complaining about strange missing things or files.
+WARNING: Currently needs original worms files to run at all. Probably it only
+works with the version of WWP which was available to us. You need to compile and
+run the program "extractdata" and place the resulting files into the data/data2
+directory.
 
 At some time we'll make sure it works just with the data from this SVN.
 
-If you wonder in what language the already existing code is written in:
-It's Digital Mars D. A nice native compiled, garbage collected C descendant,
-which is modern and wants to be not as f***ed up as C++. There are compilers
-for Windows and Linux. D is still in "development", every new release of the
-Digital Mars D Compiler (DMD) can break any existing D code. (Well, every new
-release of G++ breaks my C++ code too :-) ...oh and that's because of C++, not
-my C++ skills, lol.)
+The code is in the D Programming Language, see:
+http://www.digitalmars.com/d/1.0/
 
-More Information can be found at:
-
-http://www.digitalmars.com/d/index.html
+There's also a little info on our project page:
+https://gna.org/projects/lumbricus
 
 Building it...
 
 A D compiler for D 1.0 is required.
 I.e.: http://www.digitalmars.com/d/1.0/dcompiler.html
+
+Should work under x86 Windows and Linux.
+GDC supports more arches, but at least for amd64 it is slightly broken and won't
+work with this code (format()-ing struct arguments isn't implemented).
 
 Required libraries:
 - Dynamic linked (.dll/.so):
@@ -33,17 +32,10 @@ Required libraries:
   - Derelict for the 3 SDL libraries (http://dsource.org/projects/derelict)
   - Phobos (comes with DMD)
 
-Windows:
-You can use Code::Blocks, but better compile using rebuild; see below.
-
-Linux:
-(Code::Blocks should work too, untested)
-
 1. Get Derelict, and put the files into an include path found by DMD, i.e.
    you can put the files into dmd/src/phobos/derelict/sdl/ or so.
-2. Get rebuild (http://svn.dsource.org/projects/dsss/downloads/rebuild/) and
-   invoke it like:
-   $ rebuild -lldl -oqbin lumbricus.d
-   You also can use dsss and invoke it doing "dsss build" (dsss uses rebuild).
-
-
+2. Get dsss (http://svn.dsource.org/projects/dsss/downloads/) and compile the
+   stuff, I'm not sure how, lol. But usually:
+   $ dsss build TARGET
+   Where TARGET is ../bin/lumbricus and ../bin/extractdata
+   (extractdata is the WWP data converter).

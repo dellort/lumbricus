@@ -260,7 +260,9 @@ SequenceObject loadWorm(ResourceSet res, ConfigItem fromitem) {
                 s_norm.animation = res.get!(Animation)(hold);
                 state.seqs[SeqType.Normal] = [s_norm];
                 s_enter1.animation = res.get!(Animation)(get);
+                s_enter1.ready = false;
                 s_enter2.animation = s_norm.animation;
+                s_enter2.ready = false;
                 s_enter2.interpolate_angle_id = 1;
                 s_enter2.angle_direction = 0;
                 s_enter2.angle_fixed_value = 0;

@@ -81,6 +81,10 @@ class ResourceSet {
             res.resource = castStrict!(T)(mObject.get());
             return res;
         }
+
+        ResourceObject wrapper() {
+            return mObject;
+        }
     }
 
     ///add a resource with that name

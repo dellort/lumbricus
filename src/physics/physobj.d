@@ -15,10 +15,13 @@ class PhysicObject : PhysicBase {
     package mixin ListNodeMixin objects_node;
 
     private POSP mPosp;
-    POSP* posp() {
-        //xxx sorry, this is to avoid strange effects for calls like
-        //obj.posp.prop = value
-        return &mPosp;
+
+    this() {
+        //
+    }
+
+    POSP posp() {
+        return mPosp;
     }
     void posp(POSP p) {
         mPosp = p;

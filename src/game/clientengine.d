@@ -11,6 +11,7 @@ import game.water;
 import game.sky;
 import game.animation;
 import game.gamepublic;
+import game.gfxset;
 import game.sequence;
 import levelgen.level;
 import utils.mylist;
@@ -23,42 +24,6 @@ import utils.perf;
 import utils.configfile;
 import utils.random : random;
 import std.math : PI, pow;
-
-class GfxInfos {
-    ResourceSet resources;
-
-    //indexed by team color
-    PerTeamAnim[] teamAnims;
-
-    Color waterColor;
-
-    void load() {
-        teamAnims.length = cTeamColors.length;
-        foreach (int n, char[] color; cTeamColors) {
-            auto cur = &teamAnims[n];
-
-            Resource!(Animation) loadanim(char[] node) {
-                return resources.resource!(Animation)(node ~ "_" ~ color);
-            }
-
-            cur.arrow = loadanim("darrow");
-            cur.pointed = loadanim("pointed");
-            cur.change = loadanim("change");
-            cur.cursor = loadanim("point");
-            cur.click = loadanim("click");
-            cur.aim = loadanim("aim");
-        }
-    }
-}
-
-struct PerTeamAnim {
-    Resource!(Animation) arrow;
-    Resource!(Animation) pointed;
-    Resource!(Animation) change;
-    Resource!(Animation) cursor;
-    Resource!(Animation) click;
-    Resource!(Animation) aim;
-}
 
 class ClientGraphic : Graphic {
     private mixin ListNodeMixin node;
@@ -129,9 +94,9 @@ class GraphicsHandler : GameEngineGraphics {
     private List!(ClientGraphic) mGraphics;
 
     Scene objectScene;
-    GfxInfos gfx;
+    GfxSet gfx;
 
-    this(GfxInfos a_gfx) {
+    this(GfxSet a_gfx) {
         mGraphics = new typeof(mGraphics)(ClientGraphic.node.getListNodeOffset());
         objectScene = new Scene();
         gfx = a_gfx;
@@ -151,23 +116,12 @@ class GraphicsHandler : GameEngineGraphics {
     LineGraphic createLine() {
         return new ClientLineGraphic(this);
     }
-    TargetCross createTargetCross() {
-        return new TargetCrossImpl(this);
+    TargetCross createTargetCross(TeamTheme team) {
+        return new TargetCrossImpl(this, team);
     }
 }
 
 class TargetCrossImpl : ClientGraphic, TargetCross {
-    //xxx all these constants have to go away (at least the first 6)
-    const cTargetDist = 90.0f; //distance target-cross-center to worm-center
-    const cTargetStartDist = 10.0f;   //initial distance (for animate-away)
-    //animate-away speed, multiplicator per millisecond
-    const cTargetDegrade = 0.96f;
-    const cLoadDist = 15; //start of the load-thing
-    const cLoadLength = 60; //end of it
-    const cColorStart = Color(1,0,0); //colors of the load-thing
-    const cColorEnd = Color(1,1,0);
-    const cRadStart = 3; //min/max radius for these circles
-    const cRadEnd = 10;
     private {
         Sequence mAttach;
         float mLoad = 0.0f;
@@ -179,28 +133,35 @@ class TargetCrossImpl : ClientGraphic, TargetCross {
 
     class DrawWeaponLoad : SceneObject {
         void draw(Canvas canvas) {
-            auto start = cLoadDist+cRadStart;
-            auto end = cLoadDist+cast(int)(cLoadLength*mLoad);
-            auto scale = cLoadLength-cRadStart;
-            auto cur = start;
-            while (cur < end) {
+            auto tcs = handler.gfx.targetCross;
+            auto start = tcs.loadStart + tcs.radStart;
+            auto abs_end = tcs.loadEnd - tcs.radEnd;
+            auto scale = abs_end - start;
+            auto end = start + cast(int)(scale*mLoad);
+            auto cur = start + 1; //omit first circle => invisible at mLoad=0
+            float oldn = 0;
+            int stip;
+            while (cur <= end) {
                 auto n = (1.0f*(cur-start)/scale);
-                auto col = cColorStart + (cColorEnd-cColorStart)*n;
-                auto rad = cast(int)(cRadStart + (cRadEnd-cRadStart)*n);
+                if ((stip % tcs.stipple)==0)
+                    oldn = n;
+                auto col = tcs.colorStart + (tcs.colorEnd-tcs.colorStart)*oldn;
+                auto rad = cast(int)(tcs.radStart+(tcs.radEnd-tcs.radStart)*n);
                 canvas.drawFilledCircle(toVector2i(mDir*cur), rad, col);
-                cur += 1;
+                cur += tcs.add;
+                stip++;
             }
         }
     }
 
-    this(GraphicsHandler handler) {
+    this(GraphicsHandler handler, TeamTheme team) {
         super(handler);
         mContainer = new Scene();
         mTarget = new Animator();
-        mTarget.setAnimation(handler.gfx.resources.get!(Animation)("aim_blue"));
+        mTarget.setAnimation(team.aim.get);
         mContainer.add(mTarget);
         mContainer.add(new DrawWeaponLoad());
-        mTargetOffset = cTargetDist - cTargetStartDist;
+        reset();
         init();
     }
 
@@ -215,6 +176,12 @@ class TargetCrossImpl : ClientGraphic, TargetCross {
         mAttach = dest;
     }
 
+    //reset animation, called after this becomes .active again
+    void reset() {
+        mTargetOffset = handler.gfx.targetCross.targetDist -
+            handler.gfx.targetCross.targetStartDist;
+    }
+
     override void simulate(float deltaT) {
         if (!mAttach)
             return;
@@ -224,13 +191,22 @@ class TargetCrossImpl : ClientGraphic, TargetCross {
         auto angle = fullAngleFromSideAngle(infos.rotation_angle,
             infos.pointto_angle);
         mDir = Vector2f.fromPolar(1.0f, angle);
-        mTarget.pos = toVector2i(mDir*(cTargetDist-mTargetOffset));
+        mTarget.pos = toVector2i(mDir
+            * (handler.gfx.targetCross.targetDist - mTargetOffset));
         mTarget.params.p1 = cast(int)(angle*180/PI);
+
+        bool nactive = mAttach.readyflag;
+        if (mTarget.active != nactive) {
+            mTarget.active = nactive;
+            if (nactive)
+                reset();
+        }
 
         //target cross animation
         //xxx reset on weapon change
         if (mTargetOffset > 0.25f)
-            mTargetOffset *= (pow(cTargetDegrade,deltaT*1000.0f));
+            mTargetOffset *= (pow(handler.gfx.targetCross.targetDegrade,
+                deltaT*1000.0f));
     }
 
     void setLoad(float load) {
@@ -261,7 +237,7 @@ class ClientGameEngine {
     private GameEnginePublic mEngine;
 
     ResourceSet resources;
-    GfxInfos gfx;
+    GfxSet gfx;
     GraphicsHandler graphics;
 
     //stuff cached/received/duplicated from the engine
@@ -298,13 +274,7 @@ class ClientGameEngine {
 
     private PerfTimer mGameDrawTime;
 
-    //needed by gameview.d (where all this stuff is drawn)
-    //you can move it around if you want
-    PerTeamAnim getTeamAnimations(Team t) {
-        return gfx.teamAnims[t.color];
-    }
-
-    this(GameEnginePublic engine, GfxInfos a_gfx, GraphicsHandler foo) {
+    this(GameEnginePublic engine, GfxSet a_gfx, GraphicsHandler foo) {
         mEngine = engine;
         gfx = a_gfx;
         resources = gfx.resources;

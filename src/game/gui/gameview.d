@@ -90,19 +90,17 @@ class GameView : Container, TeamMemberControlCallback {
         class ViewTeam {
             Team team;
             Color color;
-            PerTeamAnim animations;
+            TeamTheme animations;
             Font font;
             ViewMember[] members;
 
             this(Team t) {
-                bool res = color.parse(cTeamColors[t.color]);
-                //if fails, adjust either arseColor or cTeamColors...
-                assert(res, "internal error: unparseable team color");
+                color = t.color.color;
                 //xxx maybe don't load them all separately, but use this.color
                 auto st = gFramework.fontManager.getStyle("wormfont");
                 st.fore = color;
                 font = new Font(st);
-                animations = mEngine.getTeamAnimations(t);
+                animations = t.color();
 
                 foreach (m; t.getMembers()) {
                     auto member = new ViewMember(this, m);

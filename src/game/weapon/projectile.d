@@ -360,13 +360,14 @@ class ProjectileSpriteClass : GOSpriteClass {
         //missing super call is intended
 
         //hm, state stuff unused, so only that state
+        initState.physic_properties = new POSP();
         initState.physic_properties.loadFromConfig(config.getSubNode("physics"));
 
         if (!config.hasValue("sequence_object")) {
             assert(false, "bla: "~config.name);
         }
 
-        sequenceObject = engine.resources.resource!(SequenceObject)
+        sequenceObject = engine.gfx.resources.resource!(SequenceObject)
             (config["sequence_object"]).get;
         initState.animation = sequenceObject.findState("normal");
 
@@ -375,6 +376,8 @@ class ProjectileSpriteClass : GOSpriteClass {
             drownstate.name = "drowning";
             drownstate.animation = drownani;
             drownstate.physic_properties = initState.physic_properties;
+            //must not modify physic_properties (instead copy them)
+            drownstate.physic_properties = drownstate.physic_properties.copy();
             drownstate.physic_properties.mediumViscosity = 5;
             drownstate.physic_properties.radius = 1;
             states[drownstate.name] = drownstate;

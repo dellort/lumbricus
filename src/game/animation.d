@@ -26,6 +26,7 @@ static this() {
     gAnimationParamConverters["none"] = &paramConvertNone;
     gAnimationParamConverters["step3"] = &paramConvertStep3;
     gAnimationParamConverters["twosided"] = &paramConvertTwosided;
+    gAnimationParamConverters["twosided_inv"] = &paramConvertTwosidedInv;
     gAnimationParamConverters["rot360"] = &paramConvertFreeRot;
     gAnimationParamConverters["rot360inv"] = &paramConvertFreeRotInv;
     gAnimationParamConverters["rot180"] = &paramConvertFreeRot2;
@@ -78,6 +79,9 @@ private int paramConvertStep3(int angle, int count) {
 //expects count to be 2 (two sides)
 private int paramConvertTwosided(int angle, int count) {
     return angleLeftRight(cast(float)(angle/180.0f*math.PI), 0, 1);
+}
+private int paramConvertTwosidedInv(int angle, int count) {
+    return angleLeftRight(cast(float)(angle/180.0f*math.PI), 1, 0);
 }
 //360 degrees freedom
 private int paramConvertFreeRot(int angle, int count) {

@@ -55,6 +55,10 @@ class Button : Label {
     ///the first mouse down event; if false, a single event is sent on mouse up
     bool autoRepeat = false;
 
+    ///if this is a checkbox, use the standard checkbox images
+    ///if false, don't touch the image
+    bool useCheckBoxImages = true;
+
     ///auto repeat rate when autoRepeat is enabled
     ///gives the number of click events spawned per second (clicks/seconds)
     Time autoRepeatInterval = timeMsecs(50);
@@ -95,8 +99,10 @@ class Button : Label {
     private void updateCheckboxState() {
         if (!mIsCheckbox)
             return;
-        auto imgname = mChecked ? "checkbox_on" : "checkbox_off";
-        image = globals.guiResources.get!(Surface)(imgname);
+        if (useCheckBoxImages) {
+            auto imgname = mChecked ? "checkbox_on" : "checkbox_off";
+            image = globals.guiResources.get!(Surface)(imgname);
+        }
     }
 
     override void onDraw(Canvas c) {

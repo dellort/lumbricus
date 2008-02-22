@@ -953,7 +953,7 @@ class SDLCanvas : Canvas {
     }
 
     public void translate(Vector2i offset) {
-        mTrans -= offset;
+        mTrans += offset;
     }
 
     //definition: return client coords for screen coord (0, 0)

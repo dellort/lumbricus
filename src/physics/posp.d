@@ -10,7 +10,7 @@ import utils.vector2;
 //contains all values which are considered not-changing physical properties of
 //an object, i.e. they won't be changed by the simulation loop at all
 //code to load from ConfigFile at the end of this file
-struct POSP {
+class POSP {
     float elasticity = 0.99f; //loss of energy when bumping against a surface
     float radius = 10; //pixels
     private float mMass = 10; //in Milli-Worms, 10 Milli-Worms = 1 Worm
@@ -22,10 +22,7 @@ struct POSP {
     void mass(float m) {
         assert(m > 0, "Invalid mass value");
         mMass = m;
-        if (m != float.infinity)
-            mMassInv = 1.0f/m;
-        else
-            mMassInv = 0;
+        mMassInv = 1.0f/m;
     }
     float inverseMass() {
         return mMassInv;
@@ -118,6 +115,14 @@ struct POSP {
         //     is created if it doesn't exist; this is for forward
         //     referencing... it should be replaced by collision classes
         collisionID = node.getStringValue("collide");
+    }
+
+    POSP copy() {
+        auto other = new POSP();
+        foreach (int n, m; this.tupleof) {
+            other.tupleof[n] = m;
+        }
+        return other;
     }
 }
 

@@ -352,7 +352,7 @@ class WormSpriteClass : GOSpriteClass {
 
         ConfigNode grNode = config.getSubNode("gravestones");
         foreach (char[] name, char[] value; grNode) {
-            gravestones ~= engine.resources.resource!(Animation)(value);
+            gravestones ~= engine.gfx.resources.resource!(Animation)(value);
         }
 
         //done, read out the stupid states :/

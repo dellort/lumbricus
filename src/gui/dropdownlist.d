@@ -11,6 +11,7 @@ import gui.boxcontainer;
 import gui.container;
 import gui.label;
 import gui.list;
+import gui.scrollwindow;
 import gui.widget;
 import gui.wm;
 
@@ -86,10 +87,10 @@ class DropDownControl : Container {
             return;
 
         //create the popup and show it...
-        //the popup's height is chosen arbitrarily to w*2 (Any better ideas...?)
+        //the popup's height is chosen arbitrarily (need better ideas...?)
         Vector2i initsize;
         initsize.x = mClientBox.size.x;
-        initsize.y = mClientBox.size.x*2;
+        initsize.y = mClientBox.size.x;
         mActivePopup = gWindowManager.createPopup(mPopupWidget,
             mClientBox, Vector2i(0, 1), initsize, false);
         mActivePopup.onDestroy = &onPopupDestroy;
@@ -100,6 +101,10 @@ class DropDownControl : Container {
 
         if (onPopupOpen)
             onPopupOpen(this);
+    }
+
+    bool popupActive() {
+        return !!mActivePopup;
     }
 
     private void clickDrownDown(Button sender) {
@@ -168,8 +173,11 @@ class DropDownList : Container {
         listpopup.drawBox = true;
         listpopup.drawBoxStyle.cornerRadius = 1;
         listpopup.add(mList);
+        auto listwind = new ScrollWindow(listpopup, [false, true]);
+        listwind.enableMouseWheel = true;
+        listwind.drawBox = true;
         mDropDown = new DropDownControl();
-        mDropDown.setPopupWidget(listpopup);
+        mDropDown.setPopupWidget(listwind);
         mDropDown.setClientWidget(mClient);
         addChild(mDropDown);
         mList.onSelect = &listSelect;
