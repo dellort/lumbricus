@@ -307,11 +307,14 @@ class PhysicObject : PhysicBase {
     private bool mIsWalking;
 
     void setWalking(Vector2f dir) {
+        dir.y = 0;
         walkingTime = 0;
         walkTo = dir;
         //or switch off?
         //NOTE: restrict to X axis
         if (abs(dir.x) < 0.01) {
+            if (!mWalkingMode)
+                return;
             mWalkingMode = false;
         } else {
             //will definitely try to walk, so look into walking direction

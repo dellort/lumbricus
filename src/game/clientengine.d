@@ -22,7 +22,7 @@ import utils.rect2;
 import utils.perf;
 import utils.configfile;
 import utils.random : random;
-import std.math : PI;
+import std.math : PI, pow;
 
 class GfxInfos {
     ResourceSet resources;
@@ -84,7 +84,7 @@ class ClientGraphic : Graphic {
 
     //called per frame
     //can be overridden, by default does nothing
-    void simulate() {
+    void simulate(float deltaT) {
     }
 }
 
@@ -138,9 +138,9 @@ class GraphicsHandler : GameEngineGraphics {
     }
 
     //call simulate() for all objects
-    void simulate() {
+    void simulate(float deltaT) {
         foreach (g; mGraphics) {
-            g.simulate();
+            g.simulate(deltaT);
         }
     }
 
@@ -157,8 +157,11 @@ class GraphicsHandler : GameEngineGraphics {
 }
 
 class TargetCrossImpl : ClientGraphic, TargetCross {
-    //xxx all these constants have to go away (at least the first 5)
-    const cTargetDist = 70; //distance target-cross-center to worm-center
+    //xxx all these constants have to go away (at least the first 6)
+    const cTargetDist = 90.0f; //distance target-cross-center to worm-center
+    const cTargetStartDist = 10.0f;   //initial distance (for animate-away)
+    //animate-away speed, multiplicator per millisecond
+    const cTargetDegrade = 0.96f;
     const cLoadDist = 15; //start of the load-thing
     const cLoadLength = 60; //end of it
     const cColorStart = Color(1,0,0); //colors of the load-thing
@@ -171,6 +174,7 @@ class TargetCrossImpl : ClientGraphic, TargetCross {
         Vector2f mDir; //normalized weapon direction
         Animator mTarget;
         Scene mContainer; //(0,0) positioned to worm center
+        float mTargetOffset;
     }
 
     class DrawWeaponLoad : SceneObject {
@@ -196,6 +200,7 @@ class TargetCrossImpl : ClientGraphic, TargetCross {
         mTarget.setAnimation(handler.gfx.resources.get!(Animation)("aim_blue"));
         mContainer.add(mTarget);
         mContainer.add(new DrawWeaponLoad());
+        mTargetOffset = cTargetDist - cTargetStartDist;
         init();
     }
 
@@ -210,7 +215,7 @@ class TargetCrossImpl : ClientGraphic, TargetCross {
         mAttach = dest;
     }
 
-    override void simulate() {
+    override void simulate(float deltaT) {
         if (!mAttach)
             return;
         SequenceUpdate infos;
@@ -219,8 +224,13 @@ class TargetCrossImpl : ClientGraphic, TargetCross {
         auto angle = fullAngleFromSideAngle(infos.rotation_angle,
             infos.pointto_angle);
         mDir = Vector2f.fromPolar(1.0f, angle);
-        mTarget.pos = toVector2i(mDir*cTargetDist);
+        mTarget.pos = toVector2i(mDir*(cTargetDist-mTargetOffset));
         mTarget.params.p1 = cast(int)(angle*180/PI);
+
+        //target cross animation
+        //xxx reset on weapon change
+        if (mTargetOffset > 0.25f)
+            mTargetOffset *= (pow(cTargetDegrade,deltaT*1000.0f));
     }
 
     void setLoad(float load) {
@@ -402,7 +412,7 @@ class ClientGameEngine {
         mGameWater.simulate(deltaT);
         mGameSky.simulate(deltaT);
 
-        graphics.simulate();
+        graphics.simulate(deltaT);
     }
 
     Scene scene() {

@@ -156,10 +156,9 @@ class WormSprite : GObjectSprite {
             if (jetForce.y > 0)
                 jetForce.y = 0;
             physics.selfForce = jetForce;
-        } else if (weaponDrawn) {
+        } else {
             //invert y to go from screen coords to math coords
             mWeaponMove = -dir.y;
-        } else {
             physics.setWalking(dir);
         }
     }

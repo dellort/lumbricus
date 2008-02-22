@@ -586,7 +586,7 @@ private:
         }
     }
 
-    public override void simulate() {
+    public override void simulate(float deltaT) {
         updateSubSequence();
     }
 
