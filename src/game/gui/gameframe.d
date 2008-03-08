@@ -17,13 +17,14 @@ import game.gui.gameteams;
 import game.gui.gametimer;
 import game.gui.gameview;
 import game.gui.windmeter;
+import game.gui.teaminfo;
 import game.gui.preparedisplay;
 import game.gui.weaponsel;
 import game.clientengine;
 import game.gamepublic;
 import game.game;
 import game.weapon.weapon;
-import levelgen.level;
+//import levelgen.level;
 import utils.time;
 import utils.misc;
 import utils.vector2;
@@ -31,6 +32,7 @@ import utils.log;
 
 class GameFrame : SimpleContainer, GameLogicPublicCallback {
     ClientGameEngine clientengine;
+    GameInfo game;
 
     private MouseScroller mScroller;
     private SimpleContainer mGui;
@@ -48,7 +50,7 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
     void gameLogicRoundTimeUpdate(Time t, bool timePaused) {
     }
     void gameLogicUpdateRoundState() {
-        mTeamWindow.update();
+        mTeamWindow.update(true);
     }
     void gameLogicWeaponListUpdated(Team team) {
         updateWeapons();
@@ -86,13 +88,13 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
     }
 
     //scroll to level center
-    void scrollToCenter() {
-        mScroller.offset = mScroller.centeredOffset(clientengine.engine
-            .gamelevel.offset + clientengine.engine.gamelevel.size/2);
+    void setPosition(Vector2i pos) {
+        mScroller.offset = mScroller.centeredOffset(pos);
     }
 
     override protected void simulate() {
         mCamera.doFrame();
+        game.simulate();
     }
 
     override bool doesCover() {
@@ -106,6 +108,8 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
         clientengine = ce;
 
         clientengine.logic.setGameLogicCallback(this);
+
+        game = new GameInfo(clientengine);
 
         gDefaultLog("initializeGameGui");
 
@@ -126,7 +130,7 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
 
         mCamera = new Camera();
 
-        gameView = new GameView(clientengine, mCamera);
+        gameView = new GameView(clientengine, mCamera, game);
         gameView.onTeamChange = &teamChanged;
         gameView.bindings = wormbinds;
 
@@ -145,7 +149,7 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
 
         add(mWeaponSel, WidgetLayout.Aligned(1, 1, Vector2i(10, 40)));
 
-        mTeamWindow = new TeamWindow(clientengine.logic.getTeams());
+        mTeamWindow = new TeamWindow(game);
         add(mTeamWindow);
     }
 }

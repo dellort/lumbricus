@@ -13,7 +13,9 @@ import game.animation;
 import game.gamepublic;
 import game.gfxset;
 import game.sequence;
-import levelgen.level;
+import game.levelgen.level;
+import game.levelgen.landscape;
+import game.levelgen.renderer;
 import utils.mylist;
 import utils.time;
 import utils.math;
@@ -25,8 +27,23 @@ import utils.configfile;
 import utils.random : random;
 import std.math : PI, pow;
 
+enum GameZOrder {
+    Invisible = 0,
+    Background,
+    BackLayer,
+    BackWater,
+    Landscape,
+    LevelWater,  //water before the level, but behind drowning objects
+    Objects,
+    TargetCross,
+    Names, //what
+    Clouds,
+    FrontWater,
+}
+
 class ClientGraphic : Graphic {
     private mixin ListNodeMixin node;
+    //if handler is null, this means it has been removed
     GraphicsHandler handler;
 
     //subclass must call init() after it has run its constructor
@@ -34,15 +51,28 @@ class ClientGraphic : Graphic {
         handler = a_owner;
     }
 
+    Scene container() {
+        return handler ? handler.zScenes[zorder()] : null;
+    }
+
+    bool active() {
+        return !!handler;
+    }
+
     //stupid enforced constructor order...
     protected void init() {
-        handler.objectScene.add(graphic);
+        container().add(graphic);
         handler.mGraphics.insert_tail(this);
     }
 
+    //NOTE: due to some stupidity, objects can never be added to the scene again
+    //you must recreate them
     void remove() {
+        if (!handler)
+            return;
         handler.mGraphics.remove(this);
-        handler.objectScene.remove(graphic);
+        container().remove(graphic);
+        handler = null;
     }
 
     abstract SceneObject graphic();
@@ -50,6 +80,15 @@ class ClientGraphic : Graphic {
     //called per frame
     //can be overridden, by default does nothing
     void simulate(float deltaT) {
+    }
+
+    //this is my new, slightly retarded way of maintaining a zorder
+    //the function must always return the same zorder value for the same
+    //instance
+    //I'll keep this hack as long as I get sick of it and move the zorder thing
+    //back to common.scene zorder
+    int zorder() {
+        return GameZOrder.Objects;
     }
 }
 
@@ -90,34 +129,73 @@ class ClientLineGraphic : ClientGraphic, LineGraphic {
     }
 }
 
-class GraphicsHandler : GameEngineGraphics {
-    private List!(ClientGraphic) mGraphics;
+class LandscapeGraphicImpl : ClientGraphic, LandscapeGraphic {
+    LevelLandscape mSource;
+    LandscapeBitmap mBitmap;
+    bool mBitmapIsShared;
+    Vector2i mPos;
+    LandscapeDrawer mRender;
 
-    Scene objectScene;
-    GfxSet gfx;
-
-    this(GfxSet a_gfx) {
-        mGraphics = new typeof(mGraphics)(ClientGraphic.node.getListNodeOffset());
-        objectScene = new Scene();
-        gfx = a_gfx;
+    this(GraphicsHandler handler, LevelLandscape from, LandscapeBitmap shared) {
+        //NOTE: simply can set shared to null to test the not-shared case
+        //shared = null;
+        super(handler);
+        mSource = from;
+        mBitmap = shared;
+        mBitmapIsShared = mBitmap !is null;
+        if (!mBitmapIsShared) {
+            mBitmap = new LandscapeBitmap(mSource.landscape);
+        }
+        mRender = new LandscapeDrawer();
+        mRender.bitmap = mBitmap.image();
+        mRender.bitmap.enableCaching(false);
+        init();
     }
 
-    //call simulate() for all objects
-    void simulate(float deltaT) {
-        foreach (g; mGraphics) {
-            g.simulate(deltaT);
+    SceneObject graphic() {
+        return mRender;
+    }
+
+    void setPos(Vector2i p) {
+        mPos = p;
+    }
+
+    void damage(Vector2i pos, int radius) {
+        if (mBitmapIsShared)
+            return;
+        //NOTE: clipping should have been done by the caller already, and the
+        // blastHole function also does clip; so don't care
+        //xxx but this method call is still duplicated from glevel.d
+        mBitmap.blastHole(pos, radius, cBlastBorder);
+    }
+
+    void insert(Vector2i pos, Resource!(Surface) bitmap) {
+        if (mBitmapIsShared)
+            return;
+        Surface bmp = bitmap.get();
+        //whatever the size param is for
+        //the metadata-handling is hardcoded, which is a shame
+        //currently overwrite everything except SolidHard pixels
+        //xxx also duplicated from glevel.d argh
+        mBitmap.drawBitmap(pos, bmp, bmp.size, ~Lexel.SolidHard, 0,
+            Lexel.SolidSoft);
+    }
+
+    //all hail to inner classes
+    private class LandscapeDrawer : SceneObject {
+        Surface bitmap;
+
+        void draw(Canvas c) {
+            c.draw(bitmap, mPos);
         }
     }
 
-    Sequence createSequence(SequenceObject type) {
-        assert(!!type);
-        return type.instantiate(this); //yay factory
+    override int zorder() {
+        return GameZOrder.Landscape;
     }
-    LineGraphic createLine() {
-        return new ClientLineGraphic(this);
-    }
-    TargetCross createTargetCross(TeamTheme team) {
-        return new TargetCrossImpl(this, team);
+
+    Rect2i bounds() {
+        return Rect2i(mBitmap.size()) + mPos;
     }
 }
 
@@ -216,19 +294,52 @@ class TargetCrossImpl : ClientGraphic, TargetCross {
     Rect2i bounds() {
         return Rect2i.Empty();
     }
+
+    override int zorder() {
+        return GameZOrder.TargetCross;
+    }
 }
 
-enum GameZOrder {
-    Invisible = 0,
-    Background,
-    BackLayer,
-    BackWater,
-    Level,
-    LevelWater,  //water before the level, but behind drowning objects
-    Objects,
-    Clouds,
-    Names, //controller.d/WormNameDrawer
-    FrontWater,
+class GraphicsHandler : GameEngineGraphics {
+    private List!(ClientGraphic) mGraphics;
+
+    //of course this is unclean, sucks, etc.
+    Scene[GameZOrder.max+1] zScenes;
+    Scene allScene;
+    GfxSet gfx;
+
+    this(GfxSet a_gfx) {
+        mGraphics = new typeof(mGraphics)(ClientGraphic.node.getListNodeOffset());
+        allScene = new Scene();
+        foreach (ref s; zScenes) {
+            s = new Scene();
+            allScene.add(s);
+        }
+        gfx = a_gfx;
+    }
+
+    //call simulate() for all objects
+    void simulate(float deltaT) {
+        foreach (g; mGraphics) {
+            g.simulate(deltaT);
+        }
+    }
+
+    Sequence createSequence(SequenceObject type) {
+        assert(!!type);
+        return type.instantiate(this); //yay factory
+    }
+    LineGraphic createLine() {
+        return new ClientLineGraphic(this);
+    }
+    TargetCross createTargetCross(TeamTheme team) {
+        return new TargetCrossImpl(this, team);
+    }
+    LandscapeGraphic createLandscape(LevelLandscape from,
+        LandscapeBitmap shared)
+    {
+        return new LandscapeGraphicImpl(this, from, shared);
+    }
 }
 
 //client-side game engine, manages all stuff that does not affect gameplay,
@@ -245,7 +356,6 @@ class ClientGameEngine {
     int waterOffset;
     float windSpeed;
     Vector2i levelOffset, worldSize;
-    int downLine; //used to be: gamelevel.offset.y+gamelevel.size.y
 
     private uint mDetailLevel;
     //not quite clean: Gui drawers can query this / detailLevel changes it
@@ -269,9 +379,6 @@ class ClientGameEngine {
     const cShakeIntervalMs = 100;
     private Time mLastShake;
 
-    //private WormNameDrawer mDrawer;
-    private LevelDrawer mLevelDrawer;
-
     private PerfTimer mGameDrawTime;
 
     this(GameEnginePublic engine, GfxSet a_gfx, GraphicsHandler foo) {
@@ -287,20 +394,16 @@ class ClientGameEngine {
         windSpeed = mEngine.windSpeed;
 
         worldSize = mEngine.worldSize;
-        downLine = mEngine.gamelevel.offset.y+mEngine.gamelevel.size.y;
 
-        mScene = new Scene();
+        mScene = graphics.allScene;
 
         //attention: be sure to keep the order
         //never remove or reinsert items frm the mScene
-        foreach(inout Scene s; mZScenes) {
-            s = new Scene();
-            mScene.add(s);
+        foreach(int i, inout Scene s; mZScenes) {
+            s = graphics.zScenes[i];
         }
 
-        resize(worldSize);
-
-        mZScenes[GameZOrder.Objects].add(graphics.objectScene);
+        mSceneRect = Rect2i(Vector2i(0), worldSize);
 
         mGameWater = new GameWater(this);
         mZScenes[GameZOrder.BackWater].add(mGameWater.scenes[GameWater.Z.back]);
@@ -311,10 +414,6 @@ class ClientGameEngine {
         mZScenes[GameZOrder.Background].add(mGameSky.scenes[GameSky.Z.back]);
         mZScenes[GameZOrder.BackLayer].add(mGameSky.scenes[GameSky.Z.debris]);
         mZScenes[GameZOrder.Clouds].add(mGameSky.scenes[GameSky.Z.clouds]);
-
-        //actual level
-        mLevelDrawer = new LevelDrawer();
-        mZScenes[GameZOrder.Level].add(mLevelDrawer);
 
         detailLevel = 0;
 
@@ -372,7 +471,7 @@ class ClientGameEngine {
 
         //only these are shaked on an earth quake
         mZScenes[GameZOrder.Objects].pos = mSceneRect.p1 + mShakeOffset;
-        mZScenes[GameZOrder.Level].pos = mSceneRect.p1 + mShakeOffset;
+        mZScenes[GameZOrder.Landscape].pos = mSceneRect.p1 + mShakeOffset;
 
         //hm
         waterOffset = mEngine.waterOffset;
@@ -393,15 +492,6 @@ class ClientGameEngine {
         mGameDrawTime.start();
         mScene.draw(canvas);
         mGameDrawTime.stop();
-    }
-
-    //xxx I guess this has no effect anymore, also a misleading name
-    void resize(Vector2i s) {
-        mSceneRect = Rect2i(Vector2i(0), s);
-        foreach (Scene e; mZScenes) {
-            e.pos = mSceneRect.p1;
-        }
-        graphics.objectScene.pos = mSceneRect.p1;
     }
 
     public uint detailLevel() {
@@ -431,50 +521,5 @@ class ClientGameEngine {
     //background => return true if we overpaint everything anyway
     public bool needBackclear() {
         return !mGameSky.enableSkyTex;
-    }
-
-    //all hail to inner classes
-    private class LevelDrawer : SceneObject {
-        Texture levelTexture;
-
-        void draw(Canvas c) {
-            if (!levelTexture) {
-                levelTexture = mEngine.gamelevel.image.createTexture();
-                levelTexture.enableCaching(false);
-            }
-            c.draw(levelTexture, mEngine.gamelevel.offset);
-            /+
-            //debug code to test collision detection
-            Vector2i dir; int pixelcount;
-            auto pos = game.tmp;
-            auto npos = toVector2f(pos);
-            auto testr = 10;
-            if (game.gamelevel.physics.collide(npos, testr)) {
-                c.drawCircle(pos, testr, Color(0,1,0));
-                c.drawCircle(toVector2i(npos), testr, Color(1,1,0));
-            }
-            +/
-            /+
-            //xxx draw debug stuff for physics!
-            foreach (PhysicObject o; game.mEngine.physicworld.mObjects) {
-                //auto angle = o.rotation;
-                auto angle2 = o.ground_angle;
-                auto angle = o.lookey;
-                c.drawCircle(toVector2i(o.pos), cast(int)o.posp.radius, Color(1,1,1));
-                auto p = Vector2f.fromPolar(40, angle) + o.pos;
-                c.drawCircle(toVector2i(p), 5, Color(1,1,0));
-                p = Vector2f.fromPolar(50, angle2) + o.pos;
-                c.drawCircle(toVector2i(p), 5, Color(1,0,1));
-            }
-            +/
-            //more debug stuff...
-            //foreach (GameObject go; game.mEngine.mObjects) {
-                /+if (cast(Worm)go) {
-                    auto w = cast(Worm)go;
-                    auto p = Vector2f.fromPolar(40, w.angle) + w.physics.pos;
-                    c.drawCircle(toVector2i(p), 5, Color(1,0,1));
-                }+/
-            //}
-        }
     }
 }

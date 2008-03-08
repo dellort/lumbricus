@@ -1,7 +1,8 @@
-module levelgen.placeobjects;
+module game.levelgen.placeobjects;
 
-import levelgen.level;
-import levelgen.renderer;
+import game.levelgen.landscape;
+import game.levelgen.level : writeMarker, parseMarker, readVector;
+import game.levelgen.renderer;
 import framework.framework;
 import utils.random;
 import utils.log;
@@ -29,13 +30,14 @@ struct PlaceCommand {
     }
 }
 
-void renderPlacedObject(LevelBitmap renderer, Surface img, in PlaceCommand cmd)
+void renderPlacedObject(LandscapeBitmap renderer, Surface img,
+    in PlaceCommand cmd)
 {
-    renderer.drawBitmap(cmd.at, img, cmd.size, cmd.before, cmd.after);
+    renderer.drawBitmap(cmd.at, img, cmd.size, 255, cmd.before, cmd.after);
 }
 
 //store object positions
-class LevelObjects {
+class LandscapeObjects {
     PlaceItem[] items;
 
     struct PlaceItem {
@@ -84,6 +86,7 @@ public class PlaceableObject {
     Side side;
 
     private Vector2i mDir;
+    //private
 
     Vector2i size() {
         return bitmap.size;
@@ -107,10 +110,10 @@ public class PlaceableObject {
 }
 
 public class PlaceObjects {
-    private LevelBitmap mLevel;
+    private LandscapeBitmap mLevel;
     private Log mLog;
     //journal of added objects
-    private LevelObjects mObjects;
+    private LandscapeObjects mObjects;
 
     //point inside level
     Vector2i randPoint(int border = 0) {
@@ -118,13 +121,13 @@ public class PlaceObjects {
             random(border, mLevel.size.y - border*2));
     }
 
-    public this(LevelBitmap renderer) {
+    public this(LandscapeBitmap renderer) {
         mLevel = renderer;
         mLog = registerLog("placeobjects");
-        mObjects = new LevelObjects();
+        mObjects = new LandscapeObjects();
     }
 
-    LevelObjects objects() {
+    LandscapeObjects objects() {
         return mObjects;
     }
 
@@ -205,6 +208,24 @@ public class PlaceObjects {
     }
 
     //tries to place an object using the try-and-error (TM) algorithm
+    //NOTE about how Hedgewars 0.9.0 does it: it has a list of rectangles per
+    //  object which must be inside or outside (only 1 rectangle for inside)
+    //  it walks over the whole level in a grid-like way (y with fixed distance,
+    //  x with random increments), and enters all possible positions into a list
+    //  after that, it randomly selects some entries from that list and adds
+    //  the object to the level at this position
+    //  the collision testing is done by checking only the 4 lines that make up
+    //  a rectangle, which always works correctly if objects are smaller than
+    //  connected pieces of visible pieces (no "isles" which could be contained
+    //  completely within an object)
+    //  also, placing objects on top of others is avoided by explicit checks
+    //did I miss anything?
+    //my opinion:
+    //  - how collision testing is done: good, steal it!
+    //    probably even partitionate level objects into collision-rects
+    //  - that list-of-possible-positions thing: potentially avoids checking
+    //    positions twice, also less random numbers need to be generated, but
+    //    I'm not really convinced?
     public uint placeObjects(uint retry, uint maxobjs, PlaceableObject obj) {
         uint count = 0;
         Vector2i line = Vector2i(obj.size.x/6*4, 2);

@@ -37,6 +37,11 @@ public struct Rect2(T) {
         return r;
     }
 
+    //rect at point p with that size
+    public static Rect2 Span(Point p, Point size) {
+        return Rect2(p, p + size);
+    }
+
     //return a rectangle that could be considered to be "empty"
     // .isNormal() will return false, and the first .extend() will make the
     // rectangle to exactly the extended point, and also makes isNormal()==true
@@ -150,13 +155,10 @@ public struct Rect2(T) {
             && p.x1 <= p2.x1 && p.x2 <= p2.x2);
     }
 
-    //returns if any point of other is inside "this"
-    bool contains(in Rect2 other) {
-        return isInside(other.p1) || isInside(other.p2);
-    }
-
-    bool intersects(in Rect2 other) {
-        return contains(other) ||other.contains(*this);
+    //border is exclusive
+    bool intersects(in Rect2 rc) {
+        return (rc.p2.x1 > p1.x1 && rc.p2.x2 > p1.x2
+            && rc.p1.x1 < p2.x1 && rc.p1.x2 < p2.x2);
     }
 
     //clip pt to this rect; isInsideB(clip(pt)) will always return true

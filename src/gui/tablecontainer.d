@@ -141,9 +141,15 @@ class TableContainer : PublicContainer {
 
         //remove children that have invalid table coordinates
         //iterates backwards; .remove calls removeChildren => array changes
+        Widget[] removelist; //removing triggers relayout -> delay it
         for (int n = mChildren.length-1; n >= 0; n--) {
-            if (!checkCoordinates(mChildren[n]))
-                mChildren[n].w.remove();
+            if (!checkCoordinates(mChildren[n])) {
+                removelist ~= mChildren[n].w;
+                mChildren = mChildren[0..n] ~ mChildren[n+1..$];
+            }
+        }
+        foreach (w; removelist) {
+            w.remove();
         }
 
         needRelayout();
@@ -197,9 +203,22 @@ class TableContainer : PublicContainer {
     override protected void removeChild(Widget w) {
         int index = find_pc(w);
         if (index >= 0) {
-            mChildren = mChildren[0..index] ~ mChildren[index..$];
+            mChildren = mChildren[0..index] ~ mChildren[index+1..$];
         }
         super.removeChild(w);
+    }
+
+    void getChildRowCol(Widget w, out int x, out int y, out int s_x,
+        out int s_y)
+    {
+        int index = find_pc(w);
+        if (index < 0)
+            throw new Exception("getChildRowCol: bad parameter");
+        auto pc = mChildren[index];
+        x = pc.p[0];
+        y = pc.p[1];
+        s_x = pc.join[0];
+        s_y = pc.join[1];
     }
 
     //some stupid code needed this sigh
@@ -209,6 +228,20 @@ class TableContainer : PublicContainer {
                 return pc.w;
         }
         return null;
+    }
+
+    //find all children which cover a cell in the given range (cf. add())
+    //never calls d twice for a child
+    void findCellsAt(int x, int y, int s_x, int s_y, void delegate(Widget c) d)
+    {
+        //lol why not
+        auto rc = Rect2i.Span(Vector2i(x, y), Vector2i(s_x, s_y));
+        foreach (inout pc; mChildren) {
+            auto rc2 = Rect2i.Span(Vector2i(pc.p[0], pc.p[1]),
+                Vector2i(pc.join[0], pc.join[1]));
+            if (rc2.intersects(rc) && pc.w)
+                d(pc.w);
+        }
     }
 
     //process size request for one direction
@@ -337,13 +370,19 @@ class TableContainer : PublicContainer {
 
         //and then assign them
         foreach (inout pc; mChildren) {
-            Rect2i box;
-            box.p1.x = mHeaders[0][pc.p[0]].allocA;
-            box.p1.y = mHeaders[1][pc.p[1]].allocA;
-            box.p2.x = mHeaders[0][pc.p[0] + pc.join[0] - 1].allocB;
-            box.p2.y = mHeaders[1][pc.p[1] + pc.join[1] - 1].allocB;
-            pc.w.layoutContainerAllocate(box);
+            pc.w.layoutContainerAllocate(cellRect(pc.p[0], pc.p[1], pc.join[0],
+                pc.join[1]));
         }
+    }
+
+    //similar to the cell's allocated size (without cell spacing)
+    Rect2i cellRect(int x, int y, int s_x = 1, int s_y = 1) {
+        Rect2i box;
+        box.p1.x = mHeaders[0][x].allocA;
+        box.p1.y = mHeaders[1][y].allocA;
+        box.p2.x = mHeaders[0][x + s_x - 1].allocB;
+        box.p2.y = mHeaders[1][y + s_y - 1].allocB;
+        return box;
     }
 
     //xxx change this to use public methods only

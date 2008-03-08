@@ -30,6 +30,15 @@ T_to[] arrayMap(T_from, T_to)(T_from[] arr, T_to delegate(T_from x) del) {
     return res;
 }
 
+T[] arrayFilter(T)(T[] arr, bool delegate(T x) pred) {
+    T[] res;
+    foreach (i; arr) {
+        if (pred(i))
+            res ~= i;
+    }
+    return res;
+}
+
 //return next after w, wraps around, if w==null, return first element, if any
 //returns always w if arr == [T]
 //shall work like w==null if w not in array
@@ -215,11 +224,11 @@ unittest {
     debug writefln("array.d unittest: passed.");
 }
 
-/+ it works, but it's ridiculous
-
-//xxx: improve, this is unnecessarly unefficient!
+//including this because I'm far too lazy to do it right
+//if you want efficiency, use something different (like D's builtin .sort)
 //someone said: steal it from
 //http://www.dsource.org/projects/tango/browser/trunk/tango/core/Array.d
+//anyway, sort so that pred(arr[n], arr[n+1]) is true
 void arraySort(T)(inout T[] arr, bool delegate(T a, T b) pred) {
     T[] narr;
     foreach (inout x; arr) {
@@ -235,7 +244,6 @@ unittest {
     arraySort(foo, (int a, int b) {return a <= b;});
     assert(foo == should);
 }
-+/
 
 //utf-8 strings are arrays too
 

@@ -93,7 +93,7 @@ class ResourceSet {
             assert(false, "seal() was already called");
         }
         if (name in mResByName) {
-            throw new ResourceException("double entry: " ~ name);
+            throw new ResourceException(name, "double entry");
         }
         auto entry = new Entry();
         entry.mName = name;
@@ -111,27 +111,43 @@ class ResourceSet {
         return mResByName.values;
     }
 
-    Entry resourceByName(char[] name) {
+    Entry resourceByName(char[] name, bool canfail = false) {
         auto pres = name in mResByName;
         if (!pres) {
-            throw new ResourceException("resource not found: " ~ name);
+            if (!canfail) {
+                throw new ResourceException(name, "resource not found");
+            } else {
+                return null;
+            }
         }
         return *pres;
     }
 
     ///get a resource by name...
-    Resource!(T) resource(T)(char[] name) {
-        return resourceByName(name).resource!(T)();
+    Resource!(T) resource(T)(char[] name, bool canfail = false) {
+        auto res = resourceByName(name, canfail);
+        if (canfail && !res) {
+            Resource!(T) nothing;
+            return nothing;
+        }
+        return res.resource!(T)();
     }
 
     ///only the resource itself, by name (when ref. to id or name isn't needed)
-    T get(T)(char[] name) {
-        return resource!(T)(name).get();
+    T get(T)(char[] name, bool canfail = false) {
+        return resource!(T)(name, canfail).get();
     }
 }
 
-class ResourceException : Exception {
-    this(char[] msg) {
-        super(msg);
+///use this for recoverable loading errors
+class LoadException : Exception {
+    this(char[] name, char[] why) {
+        super("Failed to load '" ~ name ~ "': " ~ why ~ ".");
+    }
+}
+
+class ResourceException : LoadException {
+    this(char[] a, char[] b) {
+        super(a, b);
     }
 }

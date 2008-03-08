@@ -700,13 +700,46 @@ class SDLDriver : FrameworkDriver {
         return convertFromSDLSurface(surf, transparency, true, true);
     }
 
+    //convert SDL color to our Color struct; do _not_ try to check the colorkey
+    //to convert it to a transparent color, and also throw away the alpha value
+    //there doesn't seem to be a SDL version for this, I hate SDL!!!
+    private static Color fromSDLColor(SDL_PixelFormat* fmt, uint c) {
+        Color r;
+        if (!fmt.palette) {
+            //warning, untested (I think, maybe)
+            float conv(uint mask, uint shift, uint loss) {
+                return (((c & mask) >> shift) << loss)/255.0f;
+            }
+            r.r = conv(fmt.Rmask, fmt.Rshift, fmt.Rloss);
+            r.g = conv(fmt.Gmask, fmt.Gshift, fmt.Gloss);
+            r.b = conv(fmt.Bmask, fmt.Bshift, fmt.Bloss);
+        } else {
+            //palette... sigh!
+            assert(c < fmt.palette.ncolors, "WHAT THE SHIT");
+            SDL_Color s = fmt.palette.colors[c];
+            r.r = s.r/255.0f;
+            r.g = s.g/255.0f;
+            r.b = s.b/255.0f;
+            r.a = s.unused/255.0f;
+            assert(ColorToSDLColor(r) == s);
+        }
+        return r;
+    }
+
+    //warning: modifies the source surface!
     Surface convertFromSDLSurface(SDL_Surface* surf, Transparency transparency,
         bool free_surf, bool dump = false)
     {
-        if (transparency == Transparency.AutoDetect) {
+        bool detect_transparency = (transparency == Transparency.AutoDetect);
+        if (detect_transparency) {
             //guess by looking at the alpha channel
-            transparency = sdlIsAlpha(surf) ? Transparency.Alpha
-                : Transparency.Colorkey;
+            if (sdlIsAlpha(surf)) {
+                transparency = Transparency.Alpha;
+            } else if (surf.flags & SDL_SRCCOLORKEY) {
+                transparency = Transparency.Colorkey;
+            } else {
+                transparency = Transparency.None;
+            }
             //xxx: could check if colorkey color appears and set it to non-
             //     transparent if not
         }
@@ -714,6 +747,16 @@ class SDLDriver : FrameworkDriver {
         SurfaceData data;
         data.size = Vector2i(surf.w, surf.h);
         data.transparency = transparency;
+
+        if (transparency == Transparency.Colorkey) {
+            //NOTE: the png loader from SDL_Image sometimes uses the colorkey
+            data.colorkey = fromSDLColor(surf.format, surf.format.colorkey);
+        }
+
+        if (detect_transparency && transparency == Transparency.None) {
+            //NOTE: this is mostly a hack... use the default colorkey
+            data.transparency = Transparency.Colorkey;
+        }
 
         //possibly convert it to RGBA32 (except if it is already)
         if (!cmpPixelFormat(surf.format, &mRGBA32)) {
@@ -728,7 +771,8 @@ class SDLDriver : FrameworkDriver {
                 SDL_FreeSurface(surf);
                 throw new Exception("out of memory?");
             }
-            SDL_SetAlpha(surf, 0, 0);  //lol SDL
+            SDL_SetAlpha(surf, 0, 0);  //lol SDL, disable all transparencies
+            SDL_SetColorKey(surf, 0, 0);
             SDL_BlitSurface(surf, null, ns, null);
             SDL_FreeSurface(ns);
         } else {
@@ -813,7 +857,7 @@ class SDLCanvas : Canvas {
         struct State {
             SDL_Rect clip;
             Vector2i translate;
-            Vector2i clientstart, clientsize;
+            Vector2i clientsize;
         }
 
         Vector2i mTrans;
@@ -821,7 +865,6 @@ class SDLCanvas : Canvas {
         uint mStackTop; //point to next free stack item (i.e. 0 on empty stack)
 
         Vector2i mClientSize;
-        Vector2i mClientStart;  //origin of window
 
         SDL_Surface* mSurface;
         SDLSurface mSDLSurface;
@@ -888,7 +931,6 @@ class SDLCanvas : Canvas {
 
         mStack[mStackTop].clip = mSurface.clip_rect;
         mStack[mStackTop].translate = mTrans;
-        mStack[mStackTop].clientstart = mClientStart;
         mStack[mStackTop].clientsize = mClientSize;
         mStackTop++;
 
@@ -904,7 +946,6 @@ class SDLCanvas : Canvas {
         SDL_Rect* rc = &mStack[mStackTop].clip;
         SDL_SetClipRect(mSurface, rc);
         mTrans = mStack[mStackTop].translate;
-        mClientStart = mStack[mStackTop].clientstart;
         mClientSize = mStack[mStackTop].clientsize;
 
         gSDLDriver.mWasteTime.stop();
@@ -915,7 +956,6 @@ class SDLCanvas : Canvas {
 
         addclip(p1, p2);
         mTrans = p1 + mTrans;
-        mClientStart = p1 + mTrans;
         mClientSize = p2 - p1;
 
         gSDLDriver.mWasteTime.stop();

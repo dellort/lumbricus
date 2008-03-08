@@ -135,6 +135,9 @@ class Widget {
         Vector2i mAddToPos;
     }
 
+    ///clip graphics to the inside
+    bool doClipping = true;
+
     final Container parent() {
         return mParent;
     }
@@ -479,9 +482,16 @@ class Widget {
 
     void doDraw(Canvas c) {
         c.pushState();
-        //map (0,0) to the position of the widget and clip by widget-size
-        c.setWindow(mContainedWidgetBounds.p1+mAddToPos,
-            mContainedWidgetBounds.p2+mAddToPos);
+        if (doClipping) {
+            //map (0,0) to the position of the widget and clip by widget-size
+            c.setWindow(mContainedWidgetBounds.p1+mAddToPos,
+                mContainedWidgetBounds.p2+mAddToPos);
+        } else {
+            //xxx don't know if this enough, since setWindow() also affects the
+            //clientSize() stuff; but then again, GUI widgets which use this
+            //rely on clipping
+            c.translate(mContainedWidgetBounds.p1+mAddToPos);
+        }
 
         //user's draw routine
         onDraw(c);
@@ -506,6 +516,9 @@ class Widget {
     protected void onDraw(Canvas c) {
     }
 
+    ///when drawing, add an additional offset to the Widget for the purpose of
+    ///animation - it has no influence on anything else like input handling, the
+    ///reported Widget position, or Widget layouting
     void setAddToPos(Vector2i delta) {
         mAddToPos = delta;
     }

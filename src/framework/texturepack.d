@@ -38,9 +38,8 @@ class TexturePack {
         }
     }
 
-    const cDefaultSize = Vector2i(512, 512);
     ///the size is the minimum size of each page, c.f. add()
-    this(Vector2i minsize = cDefaultSize) {
+    this(Vector2i minsize = Surface.cStdSize) {
         mDefaultSize = minsize;
     }
 

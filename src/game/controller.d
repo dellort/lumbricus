@@ -155,8 +155,8 @@ class ServerMemberControl : TeamMemberControl {
 
 class ServerTeam : Team {
     char[] mName = "unnamed team";
-    //this values indices into cTeamColors and the gravestone animations
     TeamTheme teamColor;
+    int gravestone;
     WeaponSet weapons;
     WeaponItem defaultWeapon;
     int initialPoints; //on loading
@@ -195,7 +195,9 @@ class ServerTeam : Team {
         }
         //xxx error handling
         weapons = parent.initWeaponSet(node["weapon_set"]);
-        //yyy defaultWeapon = weapons.byId(node["default_weapon"]);
+        //what's a default weapon? I don't know, so I can't bring it back
+        //defaultWeapon = weapons.byId(node["default_weapon"]);
+        gravestone = node.getIntValue("grave", 0);
     }
 
     // --- start Team
@@ -514,7 +516,7 @@ class ServerTeamMember : TeamMember {
         return null;
     }
 
-    // --- end TemaMember
+    // --- end TeamMember
 
     private void place() {
         if (mWorm)
@@ -528,7 +530,7 @@ class ServerTeamMember : TeamMember {
         lastKnownLifepower = health;
         //take control over dying, so we can let them die on round end
         mWorm.delayedDeath = true;
-        mWorm.gravestone = mTeam.color.graveStone;
+        mWorm.gravestone = mTeam.gravestone;
         //let Controller place the worm
         mTeam.parent.placeOnLandscape(mWorm);
     }
@@ -832,10 +834,8 @@ class WeaponSet {
         name = config.name;
         foreach (ConfigNode node; config.getSubNode("weapon_list")) {
             auto weapon = new WeaponItem();
-            try {
-                weapon.loadFromConfig(node, engine);
-                weapons[weapon.weapon] = weapon;
-            } catch {}
+            weapon.loadFromConfig(node, engine);
+            weapons[weapon.weapon] = weapon;
         }
     }
 
@@ -1403,8 +1403,9 @@ class GameController : GameLogicPublic {
             //the original game blows a hole into the level at a random
             //position, and then places a small bridge for the worm
             //but for now... just barf and complain
-            auto level = mEngine.gamelevel;
-            npos = toVector2f(level.offset + level.size / 2);
+            //auto level = mEngine.gamelevel;
+            //npos = toVector2f(level.offset + level.size / 2);
+            npos = toVector2f(mEngine.worldSize)/2; //yyy
             mLog("couldn't place '%s'!", sprite);
             if (!must_place)
                 return false;

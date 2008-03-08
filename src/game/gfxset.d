@@ -12,6 +12,8 @@ import path = std.path;
 
 //references all graphic/sound (no sounds yet) resources etc.
 class GfxSet {
+    ConfigNode config;
+
     ResourceSet resources;
 
     //keyed by the theme name (TeamTheme.name)
@@ -41,8 +43,7 @@ class GfxSet {
     }
 
     private void loadSequenceStuff() {
-        auto conf = gFramework.loadConfig("wwp");
-        conf = conf.getSubNode("sequences");
+        auto conf = config.getSubNode("sequences");
         foreach (ConfigNode sub; conf) {
             auto pload = sub.name in AbstractSequence.loaders;
             if (!pload) {
@@ -64,15 +65,16 @@ class GfxSet {
 
         resources = new ResourceSet();
 
-        auto graphics = gFramework.resources.loadResources(gfxname ~ ".conf");
+        config = gFramework.resources.loadConfigForRes(gfxname ~ ".conf");
+        auto graphics = gFramework.resources.loadResources(config);
         addToResourceSet(resources, graphics.getAll());
 
-        auto waterfile = "water"~path.sep~watername~path.sep~"water.conf";
+        auto waterfile = gFramework.resources.loadConfigForRes("water"~path.sep
+            ~watername~path.sep~"water.conf");
         auto watergfx = gFramework.resources.loadResources(waterfile);
         addToResourceSet(resources, watergfx.getAll());
 
-        auto waterconf = gFramework.loadConfig(waterfile, true);
-        waterColor.parse(waterconf["color"]);
+        waterColor.parse(waterfile["color"]);
 
         //xxx if you want, add code to load targetCross here
     }
@@ -109,19 +111,16 @@ class TeamTheme {
     Resource!(Animation) click;
     Resource!(Animation) aim;
 
-    //in wwp, the gravestone is selectable per team (gravestones itself are not
-    //team specific) => this member can be set arbitrarly
-    //xxx replace by an animation (or Sequence)
-    int graveStone;
-
-    //the name used to identify the theme, currently equals to color string
+    //the name used to identify the theme
+    //does not anymore equal to color string, see colors.conf
     char[] name() {
         return cTeamColors[colorIndex];
     }
 
     this(ResourceSet resources, int index) {
         colorIndex = index;
-        color.parse(name()); //if it fails, it is messed up
+        char[] colorname = cTeamColors[colorIndex];
+        color.parse("team_" ~ colorname); //if it fails, it is messed up
 
         Resource!(Animation) loadanim(char[] node) {
             return resources.resource!(Animation)(node ~ "_" ~ name());

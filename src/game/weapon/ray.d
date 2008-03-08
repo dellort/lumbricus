@@ -84,7 +84,7 @@ private class RayShooter: Shooter {
         PhysicObject o;
         Vector2f hitPoint;
         bool hit = engine.physicworld.shootRay(npos, ndir,
-            engine.level.size.length, hitPoint, o);
+            /+engine.level.size.length+/ 1000, hitPoint, o);
         if (hit) {
             engine.explosionAt(hitPoint, base.damage, owner);
         }

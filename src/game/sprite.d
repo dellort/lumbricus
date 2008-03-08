@@ -32,8 +32,8 @@ class GObjectSprite : GameObject {
 
     PhysicObject physics;
     //attention: can be null if object inactive
+    //if it gets active again it's recreated again LOL
     Sequence graphic;
-
     SequenceState currentAnimation;
 
     float point_angle = 0;
@@ -47,6 +47,9 @@ class GObjectSprite : GameObject {
     //update the animation to the current state
     //can be overridden
     protected void setCurrentAnimation() {
+        if (!graphic)
+            return;
+
         graphic.setState(currentState.animation);
     }
 

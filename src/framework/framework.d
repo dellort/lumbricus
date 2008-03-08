@@ -185,6 +185,9 @@ class Surface {
         SurfaceMode mMode;
     }
 
+    ///"best" size for a large texture
+    const cStdSize = Vector2i(512, 512);
+
     //must be called by any constructor
     private void init(SurfaceData data, bool copy_data) {
         assert(!mDriverSurface);
@@ -290,13 +293,47 @@ class Surface {
         return mData.colorkey;
     }
 
+    /// set the colorkey
+    void colorkey(Color c) {
+        passivate();
+        mData.colorkey = c; //I hope this works?
+    }
+
     final Transparency transparency() {
         return mData.transparency;
+    }
+
+    //omg dirty and slow hack!
+    //note how this code is explicitly endian-unsafe by using bit operations
+    //  here, and byte-pointer access in scaleAlpha
+    //if the pixel is considered to be transparent
+    //raw is the value obtained by *cast(uint*)(ptr_to_pixel)
+    //if this has alpha transparency, >= 0.5 is not transparent
+    final bool isTransparent(uint raw) {
+        switch (transparency()) {
+            case Transparency.None:
+                return false;
+            case Transparency.Colorkey:
+                return (raw << 8) == (colorkey().toRGBA32() << 8);
+            case Transparency.Alpha:
+                return (raw >> 24) < 128;
+            default:
+                assert(false);
+        }
     }
 
     final Surface clone() {
         passivate();
         return new Surface(*mData, true);
+    }
+
+    //return a Surface with a copy of a subrectangle of this
+    final Surface subrect(Rect2i rc) {
+        auto sz = rc.size();
+        rc.fitInsideB(Rect2i(sz));
+        auto s = gFramework.createSurface(sz, transparency, colorkey);
+        s.copyFrom(this, Vector2i(0), rc.p1, sz);
+        return s;
     }
 
     //special thingy needed for SDLFont

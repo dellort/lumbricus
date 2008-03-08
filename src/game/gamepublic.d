@@ -4,11 +4,14 @@
 module game.gamepublic;
 
 import framework.framework;
+import framework.resset : Resource;
 import game.animation;
 import game.gfxset : TeamTheme;
 import game.glevel;
 import game.weapon.weapon;
-import levelgen.level;
+import game.levelgen.level;
+//import game.levelgen.landscape;
+import game.levelgen.renderer;
 import utils.configfile;
 import utils.vector2;
 import utils.time;
@@ -81,22 +84,43 @@ interface TargetCross : Graphic {
     Rect2i bounds();
 }
 
+//this is the level bitmap (aka Landscape etc.); it is precreated in the level
+//generation/rendering step and it is modified by punching holes into it
+//  damage() isn't listed as method here
+interface LandscapeGraphic : Graphic {
+    void setPos(Vector2i pos);
+    //what LandscapeBitmap bitmap();
+
+    //xxx these methods should be moved out to GameEngineGraphics?
+    //pos is in world coordinates for both methods
+    void damage(Vector2i pos, int radius);
+    void insert(Vector2i pos, Resource!(Surface) bitmap);
+}
+
 ///all graphics which are sent from server to client
 interface GameEngineGraphics {
     Sequence createSequence(SequenceObject type);
     LineGraphic createLine();
     //target cross is always themed
     TargetCross createTargetCross(TeamTheme team);
+    //the second parameter can be null; if it isn't, it's the directly shared
+    //LandscapeBitmap instance between the server and client code
+    LandscapeGraphic createLandscape(LevelLandscape from,
+        LandscapeBitmap shared);
+    //meh I don't know, maybe this should be put here
+    //void damageLandscape(...);
 }
 
 ///GameEngine public interface
 interface GameEnginePublic {
+    /+
     ///callbacks (only at most one callback interface possible)
     void setGameEngineCalback(GameEngineCallback gec);
 
     ///called if the client did setup everything
     ///i.e. if the client-engine was initialized, all callbacks set...
     void signalReadiness();
+    +/
 
     ///get an administrator interface (xxx add some sort of protection)
     GameEngineAdmin requestAdmin();
@@ -115,9 +139,6 @@ interface GameEnginePublic {
 
     ///level being played
     Level level();
-
-    ///another level (xxx maybe join those?)
-    GameLevel gamelevel();
 
     ///total size of game world
     Vector2i worldSize();

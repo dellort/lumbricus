@@ -5,6 +5,7 @@ import game.gobject;
 import game.animation;
 import physics.world;
 import game.game;
+import game.sequence;
 import game.sprite;
 import game.weapon.weapon;
 import utils.misc;
@@ -52,7 +53,7 @@ class WormSprite : GObjectSprite {
 
         bool mIsDead;
 
-        AnimationResource mGravestone;
+        int mGravestone;
     }
 
     //-PI/2..+PI/2, actual angle depends from whether worm looks left or right
@@ -71,8 +72,9 @@ class WormSprite : GObjectSprite {
     }
 
     void gravestone(int grave) {
-        assert(grave >= 0 && grave < wsc.gravestones.length);
-        mGravestone = wsc.gravestones[grave];
+        //assert(grave >= 0 && grave < wsc.gravestones.length);
+        //mGravestone = wsc.gravestones[grave];
+        mGravestone = grave;
     }
 
     void delayedDeath(bool delay) {
@@ -133,6 +135,9 @@ class WormSprite : GObjectSprite {
     }
 
     protected override void setCurrentAnimation() {
+        if (!graphic)
+            return;
+
         if (currentState is wsc.st_weapon) {
             assert(!!mWeapon);
             char[] w = mWeapon.weapon.animations[WeaponWormAnimations.Arm];
@@ -250,14 +255,9 @@ class WormSprite : GObjectSprite {
     {
         super.stateTransition(from, to);
 
-        bool todead = from is wsc.st_die;
-        if (!mIsDead && (todead || currentState is wsc.st_drowning)) {
-            engine.mLog("set dead flag for %s", this);
+        if (!mIsDead && (currentState is wsc.st_drowning)) {
+            //die by drowning - are there more actions needed?
             mIsDead = true;
-            if (todead) {
-                //explosion!
-                engine.explosionAt(physics.pos, wsc.suicideDamage, this);
-            }
         }
 
         if (from is wsc.st_beaming) {
@@ -268,6 +268,18 @@ class WormSprite : GObjectSprite {
             //whatever, when you beam the worm into the air
             //xxx replace by propper handing in physics.d
             physics.doUnglue();
+        }
+
+        //die by blowing up
+        if (to is wsc.st_dead) {
+            mIsDead = true;
+            die();
+            //explosion!
+            engine.explosionAt(physics.pos, wsc.suicideDamage, this);
+            auto grave = castStrict!(GravestoneSprite)(
+                engine.createSprite("grave"));
+            grave.setGravestone(mGravestone);
+            grave.setPos(physics.pos);
         }
     }
 
@@ -328,7 +340,7 @@ class WormSprite : GObjectSprite {
 class WormSpriteClass : GOSpriteClass {
     Vector2f jetpackThrust;
     float suicideDamage;
-    AnimationResource[] gravestones;
+    //SequenceObject[] gravestones;
     Vector2f jumpStrength;
 
     StaticStateInfo st_stand, st_fly, st_walk, st_jet, st_weapon, st_dead,
@@ -348,12 +360,14 @@ class WormSpriteClass : GOSpriteClass {
         float[] js = config.getValueArray!(float)("jump_strength",[100,-100]);
         jumpStrength = Vector2f(js[0],js[1]);
 
+        /+
         gravestones.length = 0;
 
         ConfigNode grNode = config.getSubNode("gravestones");
         foreach (char[] name, char[] value; grNode) {
-            gravestones ~= engine.gfx.resources.resource!(Animation)(value);
+            gravestones ~= engine.gfx.resources.get!(SequenceObject)(value);
         }
+        +/
 
         //done, read out the stupid states :/
         st_stand = findState("stand");
@@ -376,3 +390,78 @@ class WormSpriteClass : GOSpriteClass {
     }
 }
 
+class GravestoneSprite : GObjectSprite {
+    private {
+        GravestoneSpriteClass gsc;
+        int mType;
+    }
+
+    void setGravestone(int n) {
+        assert(n >= 0);
+        if (n >= gsc.normal.length) {
+            //what to do?
+            assert(false, "gravestone not found");
+        }
+        mType = n;
+        setCurrentAnimation();
+    }
+
+    protected override void setCurrentAnimation() {
+        if (!graphic)
+            return;
+
+        SequenceState st;
+        if (currentState is gsc.st_normal) {
+            st = gsc.normal[mType];
+        } else if (currentState is gsc.st_drown) {
+            st = gsc.drown[mType];
+        } else {
+            assert(false);
+        }
+
+        graphic.setState(st);
+    }
+
+    this(GameEngine e, GravestoneSpriteClass s) {
+        super(e, s);
+        gsc = s;
+        active = true;
+    }
+}
+
+class GravestoneSpriteClass : GOSpriteClass {
+    StaticStateInfo st_normal, st_drown;
+
+    //indexed by type
+    SequenceState[] normal;
+    SequenceState[] drown;
+
+    this(GameEngine e, char[] r) {
+        super(e, r);
+    }
+
+    override void loadFromConfig(ConfigNode config) {
+        super.loadFromConfig(config);
+
+        st_normal = findState("normal");
+        st_drown = findState("drown");
+
+        //try to find as much gravestones as there are
+        for (int n = 0; ; n++) {
+            auto s_n = sequenceObject.findState(str.format("n%s", n), true);
+            auto s_d = sequenceObject.findState(str.format("drown%s", n), true);
+            if (!(s_n && s_d))
+                break;
+            normal ~= s_n;
+            drown ~= s_d;
+        }
+    }
+
+    override GravestoneSprite createSprite() {
+        return new GravestoneSprite(engine, this);
+    }
+
+    static this() {
+        SpriteClassFactory.register!(typeof(this))("grave_mc");
+    }
+}

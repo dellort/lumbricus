@@ -675,12 +675,23 @@ public class ConfigNode : ConfigItem {
     /// that name.
     /// node = node to be mixed in
     /// overwrite = if names exist in both this and node, use the one from node
-    public void mixinNode(ConfigNode node, bool overwrite = false) {
+    /// recursive = if there are two ConfigNodes in both this and node, merge
+    ///    them by calling mixinNode(..., overwrite, true) on them
+    public void mixinNode(ConfigNode node, bool overwrite = false,
+        bool recursive = true)
+    {
         if (!node)
             return;
         assert(node !is this);
         foreach (ConfigItem item; node) {
             auto item2 = find(item.name);
+            auto n1 = cast(ConfigNode)item;
+            auto n2 = cast(ConfigNode)item2;
+            if (recursive && item2 && n1 && n2)
+            {
+                n1.mixinNode(n2, overwrite, true);
+                continue;
+            }
             if (overwrite && item2) {
                 remove(item2);
                 item2 = null;
@@ -722,6 +733,14 @@ public class ConfigNode : ConfigItem {
         //xxx: add method to stream to determine if it's a file... or so
         //stream.writeString(ConfigFile.cUtf8Bom);
         doWrite(stream, 0);
+    }
+
+    //does a deep copy if the node and its subnodes
+    //result is unparented
+    public ConfigNode copy() {
+        auto n = new ConfigNode();
+        n.mixinNode(this, true);
+        return n;
     }
 }
 

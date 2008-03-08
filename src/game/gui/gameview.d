@@ -8,6 +8,7 @@ import game.gamepublic;
 import game.clientengine;
 import game.gui.camera;
 import game.weapon.weapon;
+import game.gui.teaminfo;
 import gui.widget;
 import gui.container;
 import gui.label;
@@ -58,6 +59,7 @@ class GameView : Container, TeamMemberControlCallback {
         ClientGameEngine mEngine;
         GameLogicPublic mLogic;
         TeamMemberControl mController;
+        GameInfo mGame;
         Container mGuiFrame;
 
         Camera mCamera;
@@ -69,8 +71,6 @@ class GameView : Container, TeamMemberControlCallback {
         //for worm-name drawing
         ViewMember[] mAllMembers;
         ViewMember[TeamMember] mEngineMemberToOurs;
-
-        ViewTeam[Team] mTeams;
 
         //arrow which points on currently active worm (goes away when he moves)
         GuiAnimator mArrow;
@@ -87,34 +87,9 @@ class GameView : Container, TeamMemberControlCallback {
             Widget widget;
         }
 
-        class ViewTeam {
-            Team team;
-            Color color;
-            TeamTheme animations;
-            Font font;
-            ViewMember[] members;
-
-            this(Team t) {
-                color = t.color.color;
-                //xxx maybe don't load them all separately, but use this.color
-                auto st = gFramework.fontManager.getStyle("wormfont");
-                st.fore = color;
-                font = new Font(st);
-                animations = t.color();
-
-                foreach (m; t.getMembers()) {
-                    auto member = new ViewMember(this, m);
-                    members ~= member;
-                    mAllMembers ~= member;
-                    mEngineMemberToOurs[m] = member;
-                }
-            }
-        }
-
         //per-member class
         class ViewMember : CameraObject {
-            TeamMember member; //from the "engine"
-            ViewTeam team;
+            TeamMemberInfo member; //from the "engine"
 
             bool guiIsActive;
 
@@ -132,28 +107,23 @@ class GameView : Container, TeamMemberControlCallback {
             Vector2i lastKnownPosition;
             bool cameraActivated;
 
-            this(ViewTeam parent, TeamMember m) {
+            this(TeamMemberInfo m) {
                 member = m;
-                team = parent;
-                wormName = new Label();
-                wormName.font = team.font;
-                wormName.text = m.name;
-                //wormName.border = Vector2i(3);
-                wormPoints = new Label();
-                wormPoints.font = wormName.font;
-                wormPoints.border = wormName.border;
+                wormName = m.owner.createLabel();
+                wormName.text = m.member.name();
+                wormPoints = m.owner.createLabel();
             }
 
             Vector2i getCameraPosition() {
                 return lastKnownPosition;
             }
             bool isCameraAlive() {
-                cameraActivated &= member.active();
+                cameraActivated &= member.member.active();
                 return cameraActivated;
             }
 
             void simulate() {
-                auto graphic = member.getGraphic();
+                auto graphic = member.member.getGraphic();
                 bool shouldactive = !!graphic;
                 if (shouldactive != guiIsActive) {
                     if (!shouldactive) {
@@ -171,8 +141,8 @@ class GameView : Container, TeamMemberControlCallback {
                     lastKnownPosition = graphic.bounds.p1;
 
                     //update state
-                    if (health_cur != member.health) {
-                        health_cur = member.health;
+                    if (health_cur != member.currentHealth()) {
+                        health_cur = member.currentHealth();
                         wormPoints.text = format("%s", health_cur);
                     }
                     //update positions...
@@ -193,7 +163,7 @@ class GameView : Container, TeamMemberControlCallback {
                     forArrow = pos;
 
                     //activate camera if it should and wasn't yet
-                    if (!cameraActivated && member.active()) {
+                    if (!cameraActivated && member.member.active()) {
                         cameraActivated = true;
                         mCamera.setCameraFocus(this);
                     }
@@ -218,7 +188,7 @@ class GameView : Container, TeamMemberControlCallback {
             //make sure the arrow is active
             ViewMember vm = mEngineMemberToOurs[cur];
             if (!mArrow.parent) {
-                mArrow.animation = vm.team.animations.arrow.get;
+                mArrow.animation = vm.member.owner.theme.arrow.get;
                 addChild(mArrow);
             }
             Vector2i pos = vm.forArrow;
@@ -264,12 +234,13 @@ class GameView : Container, TeamMemberControlCallback {
         return true;
     }
 
-    this(ClientGameEngine engine, Camera cam) {
+    this(ClientGameEngine engine, Camera cam, GameInfo game) {
         mArrowDelta = timeSecs(5);
         mArrow = new GuiAnimator();
         mPointed = new GuiAnimator();
 
         mEngine = engine;
+        mGame = game;
 
         mCamera = cam;
 
@@ -278,9 +249,12 @@ class GameView : Container, TeamMemberControlCallback {
         mController = mEngine.controller;
 
         //load the teams and also the members
-        foreach (Team t; mEngine.logic.getTeams()) {
-            ViewTeam vt = new ViewTeam(t);
-            mTeams[t] = vt;
+        foreach (TeamInfo t; game.teams) {
+            foreach (TeamMemberInfo m; t.members) {
+                ViewMember vt = new ViewMember(m);
+                mAllMembers ~= vt;
+                mEngineMemberToOurs[m.member] = vt;
+            }
         }
 
         mController.setTeamMemberControlCallback(this);
@@ -371,12 +345,12 @@ class GameView : Container, TeamMemberControlCallback {
                     mPointedFor = cur;
                     switch (mController.currentWeapon.fireMode.point) {
                         case PointMode.instant:
-                            mPointed.animation = mEngineMemberToOurs[cur].team
-                                .animations.click.get;
+                            mPointed.animation = mEngineMemberToOurs[cur].member
+                                .owner.theme.click.get;
                             break;
                         default:
-                            mPointed.animation = mEngineMemberToOurs[cur].team
-                                .animations.pointed.get;
+                            mPointed.animation = mEngineMemberToOurs[cur].member
+                                .owner.theme.pointed.get;
                     }
                     mPointed.setPositionCentered(mousePos);
                 }

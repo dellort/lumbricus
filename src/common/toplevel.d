@@ -348,7 +348,14 @@ private:
     }
 
     private void cmdGrab(MyBox[] args, Output write) {
-        gFramework.grabInput = args[0].unbox!(bool)();
+        auto state = args[0].unbox!(bool)();
+        gFramework.grabInput = state;
+        gFramework.cursorVisible = !state;
+        if (state) {
+            gFramework.lockMouse();
+        } else {
+            gFramework.unlockMouse();
+        }
     }
 
     private void cmdPS(MyBox[] args, Output write) {

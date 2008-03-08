@@ -49,6 +49,8 @@ struct ObjDef {
 //convert WWP level directory to lumbricus level directory
 //xxx missing debris animation
 void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
+    BmpDef[] envBitmaps;
+    BmpDef[] landBitmaps;
     BmpDef[] definedBitmaps;
     ObjDef[] definedObjects;
 
@@ -59,7 +61,7 @@ void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
     lvlextr ~= path.sep;
     //Soil back texture
     do_unworms(lvlextr~"soil.img",destPath);
-    definedBitmaps ~= BmpDef("soiltex","soil.png");
+    landBitmaps ~= BmpDef("soiltex","soil.png");
     //Level front texture
     do_unworms(lvlextr~"text.img",destPath);
     definedBitmaps ~= BmpDef("land","text.png");
@@ -71,7 +73,7 @@ void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
     //Sky gradient
     do_unworms(lvlextr~"gradient.img",destPath);
     RGBTriple colsky = convertSky(destPath~"gradient.png");
-    definedBitmaps ~= BmpDef("sky_gradient","gradient.png");
+    envBitmaps ~= BmpDef("sky_gradient","gradient.png");
 
     //big background image
     scope backSpr = new File(lvlextr~"back.spr");
@@ -79,7 +81,7 @@ void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
     //WWP backgrounds are animation files, although there's only one frame (?)
     //spr file -> one animation with (at least) one frame, so this is ok
     backAl.animations[0].frames[0].save(destPath~"backdrop.png");
-    definedBitmaps ~= BmpDef("sky_backdrop","backdrop.png");
+    envBitmaps ~= BmpDef("sky_backdrop","backdrop.png");
 
     //debris with metadata
     scope debrisPacker = new AtlasPacker("debris_atlas",Vector2i(256));
@@ -124,114 +126,180 @@ void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
         definedObjects ~= ObjDef("obj_"~objname, side);
     }
 
-    //config file
-    scope levelconf = new File(destPath~"level.conf",FileMode.OutNew);
-    levelconf.writefln(LEVEL_HEADER);
-    foreach (bmpd; definedBitmaps) {
-        levelconf.writefln("    %s = \"%s\"",bmpd.id,bmpd.fn);
+    char[][char[]] stuff;
+
+    char[] makeBmps(BmpDef[] bitmaps) {
+        char[] res;
+        foreach (bmpd; bitmaps) {
+            res ~= str.format("%s = \"%s\"\n",bmpd.id,bmpd.fn);
+        }
+        return res;
     }
-    levelconf.writefln("  }");
-    levelconf.writefln("}");
-    levelconf.writefln();
 
-    levelconf.writefln("bordercolor = \"%.6f %.6f %.6f\"",colground.r,
-        colground.g,colground.b);
-    levelconf.writefln(LEVEL_FIXED_1);
-    levelconf.writefln("  skycolor = \"%.6f %.6f %.6f\"",colsky.r,
-        colsky.g,colsky.b);
-    levelconf.writefln(LEVEL_FIXED_2);
+    stuff["landgen_bitmaps"] = makeBmps(definedBitmaps);
+    stuff["land_bitmaps"] = makeBmps(landBitmaps);
+    stuff["env_bitmaps"] = makeBmps(envBitmaps);
 
-    levelconf.writefln("objects {");
+    char[] fmtColor(RGBTriple c) {
+        return str.format("%.6f %.6f %.6f", c.r, c.g, c.b);
+    }
+
+    char[] objs;
     foreach (obj; definedObjects) {
-        levelconf.writefln("  { image = \"%s\" side = \"%s\" }",obj.objid,
+        objs ~= str.format("{ image = \"%s\" side = \"%s\" }\n",obj.objid,
             obj.sideStr);
     }
-    levelconf.writefln("}");
-    levelconf.close();
+    stuff["landgen_objects"] = objs;
+
+    stuff["bordercolor"] = fmtColor(colground);
+    stuff["skycolor"] = fmtColor(colsky);
+
+    char[] levelconf = fillTemplate(LEVEL_CONF, stuff);
+
+    version(Windows) {
+        //xxx nasty hack to fix EOL characters on Windows, as backticked strings
+        //contain only "\x0A" as end-of-line char
+        levelconf = str.replace(levelconf, "\x0A","\x0D\x0A");
+    }
+
+    stdf.write(destPath~"level.conf", levelconf);
 }
 
+//replace each %key% in template_str by the value stuff[key]
+//it fixes up indentation because the output must be pretty (HAHAHAHA)
+//if the value contains a trailing \n, don't include that in the output
+char[] fillTemplate(char[] template_str, char[][char[]] stuff) {
+    //slow and simple
+    char[] res = template_str;
+    foreach (char[] key, char[] value; stuff) {
+        char[] find = '%' ~ key ~ '%';
+        //before inserting the value into the result string, add indentation
+        //(which is why I don't use str.replace())
+        int nextpos = 0;
+        for (;;) {
+            auto pos = str.find(res[nextpos..$], find);
+            if (pos < 0)
+                break;
+            pos += nextpos;
+            nextpos = pos + find.length;
 
-//unchanging part of level.conf, part 1 (yeah, backticked string literals!)
-char[] LEVEL_HEADER = `//automatically created by extractdata
-require_resources {
-  "debris_atlas.conf"
+            //find out identation
+            int n = pos - 1;
+            while (n >= 0) {
+                if (res[n] != ' ')
+                    break;
+                n--;
+            }
+            char[] indent;
+            indent.length = pos - n - 1;
+            indent[] = ' ';
+
+            //indent
+            if (value.length && value[$-1] == '\n')
+                value = value[0..$-1];
+            value = str.join(str.split(value, "\n"), "\n" ~ indent);
+
+            //replace
+            res = res[0 .. pos] ~ value ~ res[nextpos .. $];
+            nextpos = pos + value.length;
+        }
+    }
+    return res;
 }
-resources {
-  aniframes {
-    debris_aniframes {
-      atlas = "debris_atlas"
-      datafile = "debris.meta"
+
+//level.conf template (yeah, backticked string literals!)
+char[] LEVEL_CONF = `//automatically created by extractdata
+environment {
+  require_resources {
+    "debris_atlas.conf"
+  }
+
+  resources {
+    aniframes {
+      debris_aniframes {
+        atlas = "debris_atlas"
+        datafile = "debris.meta"
+      }
+    }
+    animations {
+      debris {
+        index = "0"
+        aniframes = "debris_aniframes"
+        type = "complicated"
+      }
+    }
+    bitmaps {
+      %env_bitmaps%
     }
   }
-  animations {
-    debris {
-      index = "0"
-      aniframes = "debris_aniframes"
-      type = "complicated"
-    }
-  }
-  bitmaps {`;
 
-
-//unchanging part of level.conf, part 2
-char[] LEVEL_FIXED_1 = `soil_tex = "soiltex"
-
-marker_textures {
-  LAND = "land"
-  SOLID_LAND = "solid_land"
-}
-
-sky {
   gradient = "sky_gradient"
-  backdrop = "sky_backdrop"`;
-
-
-//unchanging part of level.conf, part 3
-char[] LEVEL_FIXED_2 = `  debris = "debris"
+  backdrop = "sky_backdrop"
+  skycolor = "%skycolor%"
+  debris = "debris"
 }
 
-bridge {
-  //a bridge
-  //bitmap filenames for the various bridge parts
-  segment = "bridge_seg"
-  left = "bridge_l"
-  right = "bridge_r"
-}
-
-borders {
-  {
-    //paint a border texture, where the
-    //pixel-types a and b come together
-    marker_a = "LAND"
-    marker_b = "FREE"
-    //"up", "down" or "both"
-    direction = "both"
-    texture_up {
-      texture = "ground_up"
-    }
-    texture_down {
-      texture = "ground_down"
+landscape {
+  resources {
+    bitmaps {
+      %land_bitmaps%
     }
   }
-  {
-    marker_a = "SOLID_LAND"
-    marker_b = "LAND"
-    direction = "both"
-    //specify a color instead of a texture
-    texture_both {
-      color = "0 0 0"
-      height = "6"
+
+  border_color = "%bordercolor%" //border_color or border_tex
+  soil_tex = "soiltex" //soil_color or soil_tex
+}
+
+landscapegen {
+  resources {
+    bitmaps {
+      %landgen_bitmaps%
+    }
+  }
+
+  objects {
+    %landgen_objects%
+  }
+
+  marker_textures {
+    LAND = "land"
+    SOLID_LAND = "solid_land"
+  }
+
+  bridge {
+    //a bridge
+    //bitmap filenames for the various bridge parts
+    segment = "bridge_seg"
+    left = "bridge_l"
+    right = "bridge_r"
+  }
+
+  borders {
+    {
+        //paint a border texture, where the
+        //pixel-types a and b come together
+        marker_a = "LAND"
+        marker_b = "FREE"
+        //"up", "down" or "both"
+        direction = "both"
+        texture_up {
+            texture = "ground_up"
+        }
+        texture_down {
+            texture = "ground_down"
+        }
+    }
+    {
+        marker_a = "SOLID_LAND"
+        marker_b = "LAND"
+        direction = "both"
+        //specify a color instead of a texture
+        texture_both {
+            color = "0 0 0"
+            height = "6"
+        }
     }
   }
 }
 `;
 
-version(Windows) {
-//xxx nasty hack to fix EOL characters on Windows, as backticked strings
-//contain only "\x0A" as end-of-line char
-static this() {
-    LEVEL_HEADER = str.replace(LEVEL_HEADER, "\x0A","\x0D\x0A");
-    LEVEL_FIXED_1 = str.replace(LEVEL_FIXED_1, "\x0A","\x0D\x0A");
-    LEVEL_FIXED_2 = str.replace(LEVEL_FIXED_2, "\x0A","\x0D\x0A");
-}
-}

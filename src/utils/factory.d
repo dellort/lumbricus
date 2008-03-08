@@ -6,6 +6,13 @@ class ClassNotFoundException : Exception {
     }
 }
 
+class WrapNotFoundException : Exception {
+    this(Exception e, char[] msg) {
+        super("wrapped exception, this was thrown when trying to instantiate " ~
+            msg ~ ": " ~ e.toString());
+    }
+}
+
 //a small factory template
 //ConstructorArgs is a tuple which is passed as constructor arguments
 class Factory(T, ConstructorArgs...) {
@@ -46,7 +53,16 @@ class Factory(T, ConstructorArgs...) {
         if (!del) {
             throw new ClassNotFoundException("class '"~name~"' not found.");
         }
-        return (*del)(args);
+        T res;
+        try {
+            res = (*del)(args);
+        } catch (ClassNotFoundException cnfe) {
+            //wrap the exception, else someone might catch the wrong exception
+            //(I had several debugging nightmares because it wasn't done)
+            throw new WrapNotFoundException(cnfe, "class "~T.stringof
+                ~" with name '"~name~"'");
+        }
+        return res;
     }
 
     //return true if a class is registered under this name

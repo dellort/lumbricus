@@ -1,5 +1,5 @@
 module game.game;
-import levelgen.level;
+import game.levelgen.level;
 import game.animation;
 import game.gobject;
 import physics.world;
@@ -38,7 +38,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     protected PhysicWorld mPhysicWorld;
     private List!(GameObject) mObjects;
     private Level mLevel;
-    private GameLevel mGamelevel;
+    GameLandscape[] gameLandscapes;
     PlaneTrigger waterborder;
     PlaneTrigger deathzone;
 
@@ -46,12 +46,16 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
 
     GameEngineGraphics graphics;
 
+    //called when damageable landscape should be destroyed
+    //xxx de-hackify please
+    void delegate(Vector2i pos, int radius)[] onDestroyLandscape;
+
     Level level() {
         return mLevel;
     }
 
-    GameLevel gamelevel() {
-        return mGamelevel;
+    GameLandscape[] getGameLandscapes() {
+        return gameLandscapes;
     }
 
     private Vector2i mWorldSize;
@@ -60,16 +64,6 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
 
     GameLogicPublic logic() {
         return mController;
-    }
-
-    //from GameEnginePublic
-    void signalReadiness() {
-        //client signaled readiness
-        assert(false);
-    }
-    void setGameEngineCalback(GameEngineCallback gec) {
-        //TODO!
-        assert(false);
     }
 
     Vector2i worldSize() {
@@ -231,21 +225,15 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         mObjects = new List!(GameObject)(GameObject.node.getListNodeOffset());
         mPhysicWorld = new PhysicWorld();
 
-        Vector2i levelOffset;
-        if (level.isCave) {
-            mWorldSize = mLevel.size + Vector2i(0, cSpaceBelowLevel);
-            levelOffset = Vector2i(0, 0);
-        } else {
-            mWorldSize = Vector2i(cOpenLevelWidthMultiplier*mLevel.size.x,
-                mLevel.size.y+cSpaceBelowLevel+cSpaceAboveOpenLevel);
-            levelOffset = Vector2i(cast(int)((cOpenLevelWidthMultiplier-1)/2.0f
-                *mLevel.size.x), cSpaceAboveOpenLevel);
+        mWorldSize = mLevel.worldSize;
+
+        foreach (o; level.objects) {
+            if (auto ls = cast(LevelLandscape)o) {
+                //xxx landscapes should keep track of themselves
+                gameLandscapes ~= new GameLandscape(this, ls);
+            }
         }
 
-        mGamelevel = new GameLevel(mLevel, levelOffset);
-
-        //to enable level-bitmap collision
-        physicworld.add(mGamelevel.physics);
         //various level borders
         waterborder = new PlaneTrigger();
         waterborder.onTrigger = &underWaterTrigger;
@@ -274,8 +262,8 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         setWindSpeed(-150);   //what unit is that???
 
         //physics timed changer for water offset
-        mWaterChanger = new PhysicTimedChangerFloat(mGamelevel.offset.y
-            + mGamelevel.size.y - mGamelevel.waterLevelInit, &waterChangerUpdate);
+        mWaterChanger = new PhysicTimedChangerFloat(mLevel.waterBottomY,
+            &waterChangerUpdate);
         mWaterChanger.changePerSec = cWaterRaisingSpeed;
         physicworld.addBaseObject(mWaterChanger);
 
@@ -308,7 +296,11 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
 
     //return skyline offset (used by airstrikes)
     float skyline() {
-        return mGamelevel.offset.y;
+        return level.airstrikeY;
+    }
+
+    bool allowAirstrikes() {
+        return level.airstrikeAllow;
     }
 
     //one time initialization, where levle objects etc. should be loaded (?)
@@ -370,7 +362,10 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     }
 
     void raiseWater(int by) {
-        mWaterChanger.target = mCurrentWaterLevel - by;
+        //argh why is mCurrentWaterLevel a float??
+        int t = cast(int)mCurrentWaterLevel - by;
+        t = min(t, mLevel.waterTopY); //don't grow beyond limit?
+        mWaterChanger.target = t;
     }
 
     EarthQuakeForce earthQuakeForce() {
@@ -481,14 +476,22 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     bool placeObject(float y_max, int retrycount, out Vector2f drop,
         out Vector2f dest, float radius)
     {
-        //clip y_max to level borders
-        y_max = max(y_max, 1.0f*mGamelevel.offset.y);
-        y_max = min(y_max, 1.0f*mGamelevel.offset.y + mGamelevel.size.y);
-        for (;retrycount > 0; retrycount--) {
-            drop.y = randRange(1.0f*mGamelevel.offset.y, y_max);
-            drop.x = mGamelevel.offset.x + randRange(0, mGamelevel.size.x);
-            if (placeObject(drop, y_max, dest, radius))
-                return true;
+        //xxx this should probably cooperate with the physics, which has methods
+        //  for this anyway (remember the ray weapons)
+        //  this means you'd enumerate static level objects, check if it's
+        //  suitable for worms, select a random position, and then cast a ray to
+        //  downwards find a position where a worm/mine can stand
+        //but for now, I'm too lazy, so here is some ugly hack, have fun
+        foreach (gl; gameLandscapes) {
+            //clip y_max to level borders
+            y_max = max(y_max, 1.0f*gl.offset.y);
+            y_max = min(y_max, 1.0f*gl.offset.y + gl.size.y);
+            for (;retrycount > 0; retrycount--) {
+                drop.y = randRange(1.0f*gl.offset.y, y_max);
+                drop.x = gl.offset.x + randRange(0, gl.size.x);
+                if (placeObject(drop, y_max, dest, radius))
+                    return true;
+            }
         }
         return false;
     }
@@ -511,9 +514,11 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         expl.pos = pos;
         expl.onReportApply = &onDamage;
         expl.cause = cause;
-        mGamelevel.damage(toVector2i(pos), cast(int)(expl.radius/2.0f));
+        foreach (d; onDestroyLandscape) {
+            d(toVector2i(pos), cast(int)(expl.radius/2.0f));
+        }
         physicworld.add(expl);
-        //some more chaos, if string enough
+        //some more chaos, if strong enough
         //xxx needs moar tweaking
         //if (damage > 50)
         //    addEarthQuake(damage, 0.5);

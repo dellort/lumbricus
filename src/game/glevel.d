@@ -1,8 +1,11 @@
 module game.glevel;
 
 import framework.framework;
-import levelgen.level;
-import levelgen.renderer;
+import game.gamepublic;
+import game.game;
+import game.gobject;
+import game.levelgen.level;
+import game.levelgen.renderer;
 import utils.vector2;
 import utils.log;
 import utils.misc;
@@ -16,8 +19,8 @@ import physics.world;
 version = CircularCollision;
 
 //collision handling
-class LevelGeometry : PhysicGeometry {
-    GameLevel level;
+private class LandscapeGeometry : PhysicGeometry {
+    GameLandscape ls;
 
     bool collide(Vector2f pos, float radius, out GeomContact contact) {
         Vector2i dir;
@@ -25,12 +28,12 @@ class LevelGeometry : PhysicGeometry {
 
         version (CircularCollision) {
             int iradius = cast(int)radius;
-            level.mLevel.checkAt(toVector2i(pos) - level.mOffset,
+            ls.mLandscape.checkAt(toVector2i(pos) - ls.mOffset,
                 iradius, true, dir, pixelcount);
         } else {
             //make it a bit smaller?
             int iradius = cast(int)(radius/5*4);
-            level.mLevel.checkAt(toVector2i(pos) - level.mOffset,
+            ls.mLandscape.checkAt(toVector2i(pos) - ls.mOffset,
                 iradius, false, dir, pixelcount);
         }
 
@@ -69,47 +72,58 @@ class LevelGeometry : PhysicGeometry {
     }
 }
 
-//in-game ("loaded") version of levelgen.level.Level
-class GameLevel {
-    private LevelBitmap mLevel;
-    //private int[int] mPixelSum; //don't ask
-    //in a cave, the level borders are solid
-    private bool mIsCave;
-    //offset of the level bitmap inside the world coordinates
-    //i.e. worldcoords = mOffset + levelcoords
-    private Vector2i mOffset;
-    private Vector2i mSize;
-    //initial water level
-    private uint mWaterLevel;
+//handle landscape objects, large damagable static physic objects, represented
+//by a bitmap
+class GameLandscape : GameObject {
+    private {
+        LandscapeBitmap mLandscape;
+        //offset of the level bitmap inside the world coordinates
+        //i.e. worldcoords = mOffset + levelcoords
+        Vector2i mOffset;
+        Vector2i mSize;
 
-    private LevelGeometry mPhysics;
+        LandscapeGeometry mPhysics;
 
-    this(Level level, Vector2i at) {
-        assert(level !is null);
-        mSize = level.size;
-        mIsCave = level.isCave;
-        mWaterLevel = level.waterLevel;
-        mOffset = at;
+        //used to display it in the client
+        LandscapeGraphic mGraphic;
+    }
 
-        mLevel = new LevelBitmap(level);
+    this(GameEngine aengine, LevelLandscape land) {
+        assert(land && land.landscape);
+        super(aengine, true);
 
-        mPhysics = new LevelGeometry();
-        mPhysics.level = this;
+        mSize = land.landscape.size;
+        mOffset = land.position;
+
+        //landscape landscape landscape landscape
+        mLandscape = new LandscapeBitmap(land.landscape);
+
+        mPhysics = new LandscapeGeometry();
+        mPhysics.ls = this;
+
+        //to enable level-bitmap collision
+        engine.physicworld.add(mPhysics);
+        engine.onDestroyLandscape ~= &damage;
+
+        mGraphic = engine.graphics.createLandscape(land, mLandscape);
+        mGraphic.setPos(mOffset);
     }
 
     public void damage(Vector2i pos, int radius) {
         if (radius <= 0)
             return;
-        mLevel.blastHole(pos - mOffset, radius);
-        mPhysics.generationNo++;
-    }
+        pos -= mOffset;
+        auto vr = Vector2i(radius + cBlastBorder);
+        if (Rect2i(mSize).intersects(Rect2i(-vr, vr) + pos)) {
+            mLandscape.blastHole(pos, radius, cBlastBorder);
+            mPhysics.generationNo++;
 
-    public uint waterLevelInit() {
-        return mWaterLevel;
+            mGraphic.damage(mOffset, radius);
+        }
     }
 
     public Surface image() {
-        return mLevel.image;
+        return mLandscape.image;
     }
 
     public Vector2i offset() {
@@ -120,8 +134,12 @@ class GameLevel {
         return mSize;
     }
 
-    public LevelGeometry physics() {
+    /+public LandscapeGeometry physics() {
         return mPhysics;
+    }+/
+
+    bool activity() {
+        return false;
     }
 }
 

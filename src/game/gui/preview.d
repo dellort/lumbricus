@@ -13,8 +13,8 @@ import gui.tablecontainer;
 import gui.wm;
 import gui.dropdownlist;
 import game.gametask;
-import levelgen.generator;
-import levelgen.level;
+import game.levelgen.generator;
+import game.levelgen.level;
 import std.thread;
 import utils.vector2;
 import utils.rect2;
@@ -33,7 +33,7 @@ private class LevelSelector : SimpleContainer {
         LevelInfo[] mLevel;
         char[] mGfx;
 
-        LevelGenerator mGenerator;
+        LevelGeneratorShared mGenerator;
         Label mLblInfo;
         BoxContainer mLayout;
         Label mLblWait;
@@ -41,24 +41,16 @@ private class LevelSelector : SimpleContainer {
     }
 
     struct LevelInfo {
-        LevelGeometry geo;
-        LevelTemplate templ;
-
-        static LevelInfo opCall(LevelGeometry geo, LevelTemplate templ) {
-            LevelInfo res;
-            res.geo = geo;
-            res.templ = templ;
-            return res;
-        }
+        GenerateFromTemplate generator;
     }
 
-    void delegate(LevelInfo selected, char[] gfx) onAccept;
+    void delegate(LevelInfo selected) onAccept;
 
     this() {
-        mGenerator = new LevelGenerator();
+        mGenerator = new LevelGeneratorShared();
 
         //create enough rows to fit all templates
-        rowCount = (mGenerator.templates.length+1)/2;
+        rowCount = (mGenerator.templates.all.length+1)/2;
         //grid layout for buttons+description
         TableContainer buttons_layout = new TableContainer(2, rowCount,
             Vector2i(10, 20));
@@ -68,14 +60,14 @@ private class LevelSelector : SimpleContainer {
 
         //generate one button for each level theme
         //xxx this will get too big if >8 templates, scrollbar?
-        foreach (int i, LevelTemplate t; mGenerator.templates) {
+        foreach (int i, LevelTemplate t; mGenerator.templates.all) {
             //prepare button
             auto sb = new Button();
             sb.onClick = &accept;
             sb.onRightClick = &generate;
             mShowBitmap ~= sb;
             //insert info structure (matched by index)
-            mLevel ~= LevelInfo(null, t);
+            mLevel ~= LevelInfo(new GenerateFromTemplate(mGenerator, t));
             doGenerate(i);
             //add a description label below
             auto l = new Label(gFramework.getFont("normal"));
@@ -100,7 +92,8 @@ private class LevelSelector : SimpleContainer {
         //Gfx theme dropdown
         mDdGfx = new DropDownList();
         mDdGfx.onSelect = &gfxSelect;
-        char[][] themes = ([_("levelselect.randomgfx")] ~ mGenerator.gfxThemes);
+        char[][] themes = ([_("levelselect.randomgfx")]
+            ~ mGenerator.themes.names());
         mDdGfx.list.setContents(themes);
         mDdGfx.selection = themes[0];
 
@@ -155,20 +148,20 @@ private class LevelSelector : SimpleContainer {
     }
 
     private void doGenerate(int idx) {
-        auto templ = mLevel[idx].templ;
-        mLevel[idx].geo = templ.generate();
-        //scale down (?)
-        auto sz = Vector2i((cPrevHeight*templ.size.x)/templ.size.y, cPrevHeight);
-        mShowBitmap[idx].image = mGenerator.renderPreview(mLevel[idx].geo,
-            sz, cColLand, cColSolid, cColSky)
-            .createTexture();
-        mShowBitmap[idx].needRelayout();
+        auto gen = mLevel[idx].generator;
+        gen.generate();
+        float as = gen.previewAspect();
+        if (as != as)
+            as = 1;
+        auto sz = Vector2i(cast(int)(cPrevHeight*as), cPrevHeight);
+        mShowBitmap[idx].image = gen.preview(sz);
     }
 
     private void accept(Button sender) {
         int idx = getIdx(sender);
+        mLevel[idx].generator.selectTheme(mGenerator.themes.findRandom(mGfx));
         if (onAccept)
-            onAccept(mLevel[idx], mGfx);
+            onAccept(mLevel[idx]);
     }
 }
 
@@ -177,16 +170,13 @@ class GenThread : Thread {
     private char[] mGfx;
     public Level finalLevel;
 
-    this(LevelSelector.LevelInfo lvl, char[] gfx) {
+    this(LevelSelector.LevelInfo lvl) {
         super();
         mLvlConfig = lvl;
-        mGfx = gfx;
     }
 
     override int run() {
-        scope gen = new LevelGenerator();
-        finalLevel = generateAndSaveLevel(gen, mLvlConfig.templ,
-            mLvlConfig.geo, gen.findRandomGfx(mGfx));
+        finalLevel = mLvlConfig.generator.render();
         return 0;
     }
 }
@@ -210,13 +200,13 @@ class LevelPreviewTask : Task {
             _("levelselect.caption"));
     }
 
-    void lvlAccept(LevelSelector.LevelInfo lvl, char[] gfx) {
+    void lvlAccept(LevelSelector.LevelInfo lvl) {
         //generate level
         //fix window size and show as waiting
         mWMWindow.acceptSize();
         mSelector.waiting = true;
         //start generation
-        mThread = new GenThread(lvl, gfx);
+        mThread = new GenThread(lvl);
         mThread.start();
         mThWaiting = true;
         //start game
@@ -235,6 +225,9 @@ class LevelPreviewTask : Task {
         //xxx: do some task-death-notification or so... (currently: polling)
         //currently, the game can't really return anyway...
         mGame = new GameTask(manager, gc);
+        /+auto lbl = new Label();
+        lbl.image = (cast(LevelLandscape)level.objects[0]).landscape.image();
+        gWindowManager.createWindow(this, lbl, "hurrr");+/
     }
 
     override protected void onFrame() {

@@ -13,7 +13,7 @@ import utils.misc;
 class Foobar : Widget {
     BoxProperties border;
     Vector2i spacing = {2, 2};
-    private BoxProperties mFill;
+    private Color mFill;
     private Vector2i mMinSize = {0, 0};
     private int mWidth = 0;
 
@@ -21,7 +21,7 @@ class Foobar : Widget {
     float percent = 1.0f;
 
     void fill(Color c) {
-        mFill.back = c;
+        mFill = c;
     }
 
     Vector2i minSize() {
@@ -33,7 +33,6 @@ class Foobar : Widget {
     }
 
     this() {
-        mFill.borderWidth = 0;
     }
 
     Vector2i layoutSizeRequest() {
@@ -44,7 +43,8 @@ class Foobar : Widget {
 
     //border on the left and right
     private int xpadding() {
-        return border.cornerRadius + mFill.cornerRadius + spacing.x;
+        //two boxes, the outside and the inside ones
+        return border.cornerRadius*2 + spacing.x;
     }
 
     //set width of the bar; in pixels; when width=0, the minimal size is showed
@@ -60,6 +60,9 @@ class Foobar : Widget {
         s.p2.x = s.p1.x + pad + cast(int)((s.p2.x - s.p1.x - pad*2) * percent);
         drawBox(c, s, border);
         s.extendBorder(-spacing);
-        drawBox(c, s, mFill);
+        BoxProperties fill = border;
+        fill.back = mFill;
+        fill.borderWidth = 0;
+        drawBox(c, s, fill);
     }
 }

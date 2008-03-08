@@ -19,11 +19,13 @@ import game.game;
 import game.gfxset;
 import game.sprite;
 import game.crate;
+import game.levelgen.level;
+import game.levelgen.generator;
 import gui.container;
 import gui.widget;
 import gui.wm;
-import levelgen.level;
-import levelgen.generator;
+import utils.array;
+import utils.misc;
 import utils.mybox;
 import utils.output;
 import utils.time;
@@ -33,13 +35,49 @@ import utils.configfile;
 
 import std.stream;
 import std.outbuffer;
-import path = std.path;
+import str = std.string;
 
 //these imports register classes in a factory on module initialization
 import game.weapon.projectile;
 import game.weapon.special_weapon;
 import game.weapon.tools;
 import game.weapon.ray;
+
+//this is a test: it explodes the landscape graphic into several smaller ones
+Level fuzzleLevel(Level level) {
+    return level; //comment out for testing
+
+    const cTile = 128;
+    const cSpace = 2; //even more for testing only
+    const cTileSize = cTile + cSpace;
+
+    auto rlevel = level.copy();
+    //remove all landscapes from new level
+    rlevel.objects = arrayFilter(rlevel.objects, (LevelItem i) {
+        return !cast(LevelLandscape)i;
+    });
+    foreach (o; level.objects) {
+        if (auto ls = cast(LevelLandscape)o) {
+            auto sx = (ls.landscape.size.x + cTileSize - 1) / cTileSize;
+            auto sy = (ls.landscape.size.y + cTileSize - 1) / cTileSize;
+            for (int y = 0; y < sy; y++) {
+                for (int x = 0; x < sx; x++) {
+                    auto nls = castStrict!(LevelLandscape)(ls.copy);
+                    nls.name = format("%s_%s_%s", nls.name, x, y);
+                    auto offs = Vector2i(x, y) * cTileSize;
+                    auto soffs = Vector2i(x, y) * cTile;
+                    nls.position += offs;
+                    nls.landscape = ls.landscape.
+                        cutOutRect(Rect2i(Vector2i(cTile))+soffs);
+                    nls.owner = rlevel;
+                    rlevel.objects ~= nls;
+                }
+            }
+        }
+    }
+
+    return rlevel;
+}
 
 class GameTask : Task {
     private {
@@ -115,6 +153,11 @@ class GameTask : Task {
     //it's not clear when initialization is finished (but it shows a loader gui)
     private void initGame(GameConfig cfg) {
         mGameConfig = cfg;
+
+        //save last played level functionality
+        saveLevel(mGameConfig.level);
+
+        mGameConfig.level = fuzzleLevel(mGameConfig.level);
 
         mCmds = new CommandBucket();
         registerCommands();
@@ -209,7 +252,8 @@ class GameTask : Task {
         //too evul globals.gameTimeAnimations.resetTime();
 
         //start at level center
-        mWindow.scrollToCenter();
+        //clientengine.engine.gamelevel.offset + clientengine.engine.gamelevel.size/2
+        mWindow.setPosition(mServerEngine.worldSize/2);
 
         //remove this, so the game becomes visible
         mLoadScreen.remove();
@@ -226,6 +270,12 @@ class GameTask : Task {
     }
 
     override void terminate() {
+        //this is called when the window is closed
+        //go boom
+        kill();
+    }
+
+    void terminateWithFadeOut() {
         if (!mFadeOut) {
             mFadeOut = new Spacer();
             mFadeOut.color = cFadeStart;
@@ -261,7 +311,7 @@ class GameTask : Task {
 
                 //maybe
                 if (mClientEngine.gameEnded)
-                    terminate();
+                    terminateWithFadeOut();
             }
         } else {
             if (mDelayedFirstFrame) {
@@ -301,9 +351,10 @@ class GameTask : Task {
 
     private void cmdSafeLevelTGA(MyBox[] args, Output write) {
         char[] filename = args[0].unbox!(char[])();
-        Stream s = gFramework.fs.open(filename, FileMode.OutNew);
+        /+Stream s = gFramework.fs.open(filename, FileMode.OutNew);
         saveSurfaceToTGA(mServerEngine.gamelevel.image, s);
-        s.close();
+        s.close();+/
+        assert(false);//yyy
     }
 
     private void cmdWeapon(MyBox[] args, Output write) {
@@ -393,30 +444,31 @@ class GameTask : Task {
 GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
     //log("loadConfig");
     GameConfig cfg;
+
     if (level) {
         cfg.level = level;
     } else {
         int what = mConfig.selectValueFrom("level",
             ["generate", "load", "loadbmp"], 0);
-        auto x = new LevelGenerator();
+        auto x = new LevelGeneratorShared();
         if (what == 0) {
-            LevelTemplate templ =
-                x.findRandomTemplate(mConfig["level_template"]);
-            LevelTheme gfx = x.findRandomGfx(mConfig["level_gfx"]);
-
-            cfg.level = generateAndSaveLevel(x, templ, null, gfx);
+            auto gen = new GenerateFromTemplate(x, cast(LevelTemplate)null);
+            cfg.level = gen.render();
         } else if (what == 1) {
-            cfg.level =
-                x.renderSavedLevel(gFramework.loadConfig(mConfig["level_load"]));
+            cfg.level = loadSavedLevel(x,
+                gFramework.loadConfig(mConfig["level_load"], true));
         } else if (what == 2) {
-            auto bmp = gFramework.loadImage(mConfig["level_load_bitmap"]);
-            auto gfx = mConfig["level_gfx"];
-            cfg.level = x.generateFromImage(bmp, false, gfx);
+            auto gen = new GenerateFromBitmap(x);
+            auto fn = mConfig["level_load_bitmap"];
+            gen.bitmap(gFramework.loadImage(fn), fn);
+            gen.selectTheme(x.themes.findRandom(mConfig["level_gfx"]));
+            cfg.level = gen.render();
         } else {
             //wrong string in configfile or internal error
             throw new Exception("noes noes noes!");
         }
     }
+
     auto teamconf = gFramework.loadConfig("teams");
     cfg.teams = teamconf.getSubNode("teams");
 
@@ -433,19 +485,10 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
     return cfg;
 }
 
-//xxx doesn't really belong here
-//generate level and save generated level as lastlevel.conf
-//any param other than gen can be null
-Level generateAndSaveLevel(LevelGenerator gen, LevelTemplate templ,
-    LevelGeometry geo, LevelTheme gfx)
-{
-    templ = templ ? templ : gen.findRandomTemplate("");
-    gfx = gfx ? gfx : gen.findRandomGfx("");
-    //be so friendly and save it
-    ConfigNode saveto = new ConfigNode();
-    auto res = gen.renderLevelGeometry(templ, geo, gfx, saveto);
-    saveConfig(saveto, "lastlevel.conf");
-    return res;
+void saveLevel(Level g) {
+    if (g.saved) {
+        saveConfig(g.saved, "lastlevel.conf");
+    }
 }
 
 //dirty hacky lib to dump a surface to a file

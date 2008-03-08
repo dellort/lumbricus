@@ -60,7 +60,7 @@ class ResourceItem : ResourceObject {
             char[] errMsg = "Resource " ~ id ~ " (" ~ toString()
                 ~ ") failed to load: "~e.msg;
             Resources.log(errMsg);
-            throw new ResourceException(errMsg);
+            throw new ResourceException(id, errMsg);
         }
     }
 
@@ -80,7 +80,7 @@ class ResourceItem : ResourceObject {
     }
 
     char[] fullname() {
-        return mContext.filename ~ "::" ~ id;
+        return mContext.resource_id ~ "::" ~ id;
     }
 }
 
@@ -96,14 +96,15 @@ alias void delegate(int cur, int total) ResourceLoadProgress;
 class ResourceFile {
     private {
         bool loading = true;
-        char[] filename, filepath;
+        char[] resource_id; //mostly the filename, but see loadResources()
+        char[] filepath; //path where the resource files are
         ResourceFile[] requires;
         ResourceItem[] resources;
     }
 
-    private this(char[] fn) {
-        filename = fn;
-        filepath = getFilePath(filename);
+    private this(char[] id, char[] path) {
+        resource_id = id;
+        filepath = path;
     }
 
     //correct loading of relative files
@@ -124,7 +125,7 @@ class ResourceFile {
                 return i;
             }
         }
-        throw new ResourceException("resource not found: " ~ id);
+        throw new ResourceException(id, "resource not found");
     }
 
     //all resources including ones from transitive dependencies
@@ -184,43 +185,88 @@ public class Resources {
         return ResFactory.instantiate(type,context,it.name,it);
     }
 
+    const cResourcePathName = "resource_path";
+
     ///load a resource file and add them to dest
-    ///configfile_path must be the path to a config file containing nodes like
-    ///"resources" and "require_resources"
+    ///config itself or any parent must contain a value named "resource_path"
+    ///(Resources.cResourcePathName) which contains the full path to the
+    ///configfile (meh, probably bring back the old hack in configfile.d)
+    ///also, the following nodes from config are read:
     ///"resources" nodes contain real resources; if they weren't loaded yet, new
     ///     ResourceItems are created for them so you can actually load them
     ///"require_resources" nodes lead to recursive loading of other files which
     ///     are loaded with loadResources(); using the "fixed" path
-    ///the function returnsan object with has the getAll() method to get all
+    ///the function returns an object with has the getAll() method to get all
     ///resources which were found in that file (including dependencies).
-    public ResourceFile loadResources(char[] configfile_path) {
-        //xxx: possibly normalize the filename here!
-        auto fn = configfile_path.dup;
+    public ResourceFile loadResources(ConfigNode config) {
+        assert(!!config);
 
-        if (fn in mLoadedResourceFiles) {
-            auto f = mLoadedResourceFiles[fn];
+        //find the path value
+        auto parent = config;
+        while (parent && !parent.findValue(cResourcePathName)) {
+            parent = parent.parent();
+        }
+
+        if (!parent) {
+            throw new LoadException("?", "not a resource configfile");
+        }
+
+        char[] filepath = parent[cResourcePathName];
+        //xxx: possibly normalize the filepath here!
+        auto path = getFilePath(filepath);
+        //for root-dir filenames like "bla.conf"
+        if (path == "")
+            path = "/";
+
+        if (!gFramework.fs.pathExists(path)) {
+            throw new LoadException(filepath, "loadResources(): bad parameters");
+        }
+
+        //create a ConfigNode path to have a unique ID for this resource section
+        //(when several resource sections are in one file)
+        char[] config_path = "/";
+        auto cur = config;
+        while (cur !is parent) {
+            assert(!!cur);
+            config_path ~= cur.name ~ "/";
+            cur = cur.parent;
+        }
+
+        //arbitrary but for this resource file/section unique ID
+        auto id = filepath ~ '#' ~ config_path;
+
+        if (id in mLoadedResourceFiles) {
+            auto f = mLoadedResourceFiles[id];
             if (f.loading) {
                 assert(false, "is dat sum circular dependency?");
             }
             return f;
         }
 
-        auto res = new ResourceFile(fn);
-        mLoadedResourceFiles[res.filename] = res;
+        auto res = new ResourceFile(id, path);
+        mLoadedResourceFiles[res.resource_id] = res;
 
-        auto config = gFramework.loadConfig(fn, true);
+        try {
 
-        foreach (char[] name, char[] value;
-            config.getSubNode("require_resources"))
-        {
-            res.requires ~= loadResources(res.fixPath(value));
-        }
-
-        foreach (ConfigNode r; config.getSubNode("resources")) {
-            auto type = r.name;
-            foreach (ConfigItem i; r) {
-                res.resources ~= createResource(res, type, i);
+            foreach (char[] name, char[] value;
+                config.getSubNode("require_resources"))
+            {
+                res.requires ~= loadResources(res.fixPath(value));
             }
+
+            foreach (ConfigNode r; config.getSubNode("resources")) {
+                auto type = r.name;
+                foreach (ConfigItem i; r) {
+                    res.resources ~= createResource(res, type, i);
+                }
+            }
+
+        } catch (LoadException e) {
+            //roll back; delete the file
+            //because there are no circular references, recursively loaded files
+            //are either loaded OK, or will be removed recursively
+            mLoadedResourceFiles.remove(res.resource_id);
+            throw e;
         }
 
         res.loading = false;
@@ -228,13 +274,31 @@ public class Resources {
         return res;
     }
 
+    ///provided for simplicity
+    public ResourceFile loadResources(char[] conffile) {
+        return loadResources(loadConfigForRes(conffile));
+    }
+
+    ///also just for simplicity
+    public static ConfigNode loadConfigForRes(char[] path) {
+        ConfigNode config = gFramework.loadConfig(path, true);
+        config[cResourcePathName] = path;
+        return config;
+    }
+
     ///just for convenience
-    public ResourceSet loadResSet(char[] configfile_path) {
-        auto res = loadResources(configfile_path).getAll();
+    ///config needs to fulfil the same requirements as in loadResources()
+    public ResourceSet loadResSet(ConfigNode config) {
+        auto res = loadResources(config).getAll();
         preloadAll(res);
         auto ret = new ResourceSet();
         addToResourceSet(ret, res);
         return ret;
+    }
+
+    //meh
+    public ResourceSet loadResSet(char[] file) {
+        return loadResSet(loadConfigForRes(file));
     }
 
     public Preloader createPreloader(ResourceItem[] list) {
@@ -258,6 +322,7 @@ public class Resources {
         private int mOffset; //already loaded stuff that isn't in mToLoad
         private ResourceItem[] mToLoad;
         private int mCurrent; //next res. to load, index into mToLoad
+        private LoadException mError; //error state
 
         this(ResourceItem[] list) {
             doload(list);
@@ -304,13 +369,26 @@ public class Resources {
 
         ///(not updated once all requested resources were loaded)
         bool done() {
-            return loadedCount >= totalCount;
+            return !mError && loadedCount >= totalCount;
         }
+
+        /+ ///if there was a loader error, throw the catched exception
+        ///(always of type LoadException)
+        void checkError() {
+            if (mError)
+                throw mError;
+        }+/
 
         ///load count-many resources
         void progressSteps(int count) {
-            while (count-- > 0 && !done) {
-                mToLoad[mCurrent].get();
+            while (count-- > 0 && !done && !mError) {
+                try {
+                    mToLoad[mCurrent].get();
+                } catch (LoadException e) {
+                    //remember error, throw it anyway
+                    mError = e;
+                    throw e;
+                }
                 mCurrent++;
                 if (done) {
                     //still check for maybe newly created resources
@@ -327,14 +405,16 @@ public class Resources {
         ///this is useful to i.e. update the screen while loading
         void progressTimed(Time return_after) {
             Time start = timeCurrentTime;
-            while (!done && timeCurrentTime() - start <= return_after) {
+            while (!done && timeCurrentTime() - start <= return_after
+                && !mError)
+            {
                 progressSteps(1);
             }
         }
 
         ///load everything in one go, no incremental loading (old behaviour)
         void loadAll(ResourceLoadProgress progress = null) {
-            while (!done) {
+            while (!done && !mError) {
                 progressSteps(1);
                 if (progress)
                     progress(loadedCount, totalCount);
@@ -350,11 +430,5 @@ public class Resources {
         //foreach (r; mResources) {
         //    r.invalidate();
         //}
-    }
-}
-
-class ResourceException : Exception {
-    this(char[] msg) {
-        super(msg);
     }
 }

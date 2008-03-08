@@ -54,7 +54,7 @@ class Label : Widget {
         }
         mFinalBorderSize = border;
         if (mDrawBorder) {
-            auto corner = mBorderStyle.cornerRadius/2;
+            auto corner = mBorderStyle.cornerRadius/3;
             mFinalBorderSize += Vector2i(mBorderStyle.borderWidth + corner);
         }
         return csize + mFinalBorderSize*2;

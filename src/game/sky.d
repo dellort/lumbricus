@@ -5,6 +5,7 @@ import framework.restypes.bitmap;
 import game.clientengine;
 import game.glevel;
 import game.animation;
+import game.levelgen.level : EnvironmentTheme;
 import common.scene;
 import str = std.string;
 import utils.misc;
@@ -51,7 +52,6 @@ class GameSky {
     private bool mEnableClouds = true;
     private bool mEnableDebris = true;
     private bool mCloudsVisible;
-    private int mSkyHeight;
 
     bool enableSkyBackdrop = true;
     bool enableSkyTex = true;
@@ -100,24 +100,26 @@ class GameSky {
 
         size = engine.worldSize;
 
-        mEngine = engine;
-        ConfigNode skyNode = gFramework.loadConfig("sky");
-        Color skyColor = engine.engine.level.skyColor;
+        EnvironmentTheme theme = engine.engine.level.theme;
 
-        Surface bmp = engine.engine.level.skyGradient;
+        mEngine = engine;
+        ConfigNode skyNode = engine.gfx.config.getSubNode("sky");
+        Color skyColor = theme.skyColor;
+
+        Surface bmp = theme.skyGradient;
         if (!bmp) {
             bmp = mEngine.resources.get!(Surface)("default_gradient");
         }
         Texture skyTex = bmp.createTexture();
-        mSkyHeight = skyTex.size.y;
+        //mSkyHeight = skyTex.size.y;
 
-        bmp = engine.engine.level.skyBackdrop;
+        bmp = theme.skyBackdrop;
         Texture skyBackdrop = null;
         if (bmp) {
             skyBackdrop = bmp.createTexture();
         }
 
-        mDebrisAnim = engine.engine.level.skyDebris;
+        mDebrisAnim = theme.skyDebris;
 
         ConfigNode cloudNode = skyNode.getSubNode("clouds");
         foreach (char[] name, char[] value; cloudNode) {
@@ -176,25 +178,25 @@ class GameSky {
     }
 
     private void updateOffsets() {
-        skyOffset = mEngine.waterOffset-mSkyHeight;
+        skyOffset = mEngine.engine.level.skyTopY;
         if (skyOffset > 0)
             mCloudsVisible = true;
         else
             mCloudsVisible = false;
         skyBottom = mEngine.waterOffset;
+        //update cloud visibility status
+        enableClouds(mEnableClouds);
     }
 
     public void enableClouds(bool enable) {
         mEnableClouds = enable;
-        if (mCloudsVisible) {
-            if (enable) {
-                foreach (inout ci; mCloudAnimators) {
-                    ci.anim.active = true;
-                }
-            } else {
-                foreach (inout ci; mCloudAnimators) {
-                    ci.anim.active = false;
-                }
+        if (mCloudsVisible && enable) {
+            foreach (inout ci; mCloudAnimators) {
+                ci.anim.active = true;
+            }
+        } else {
+            foreach (inout ci; mCloudAnimators) {
+                ci.anim.active = false;
             }
         }
     }
