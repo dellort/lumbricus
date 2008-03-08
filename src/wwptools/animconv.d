@@ -1,7 +1,6 @@
 module wwptools.animconv;
 
 import aconv.atlaspacker;
-import aconv.metadata;
 import std.stdio;
 import std.stream;
 import stdf = std.file;

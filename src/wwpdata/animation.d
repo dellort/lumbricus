@@ -1,7 +1,6 @@
 module wwpdata.animation;
 
 import aconv.atlaspacker;
-import aconv.metadata;
 import devil.image;
 import path = std.path;
 import str = std.string;
@@ -16,8 +15,6 @@ class AnimList {
     Animation[] animations;
 
     void save(char[] outPath, char[] fnBase, bool tosubdir = true) {
-        MyAnimationDescriptor animdesc;
-        MyFrameDescriptor framedesc;
         scope stMeta = new File(outPath ~ path.sep ~ fnBase ~ ".meta",
             FileMode.OutNew);
         foreach (int i, Animation a; animations) {
@@ -31,19 +28,6 @@ class AnimList {
                 apath = outPath;
             }
             a.save(apath, afn);
-            animdesc.framecount = a.frames.length;
-            animdesc.w = a.boxWidth;
-            animdesc.h = a.boxHeight;
-            animdesc.flags = (a.repeat?ANIMDESC_FLAGS_REPEAT:0)
-                | (a.backwards?ANIMDESC_FLAGS_BACKWARDS:0);
-            stMeta.writeBlock(&animdesc, MyAnimationDescriptor.sizeof);
-            foreach (int iframe, Animation.FrameInfo fi; a.frames) {
-                framedesc.offsetx = iframe*a.boxWidth + fi.x;
-                framedesc.offsety = fi.y;
-                framedesc.width = fi.w;
-                framedesc.height = fi.h;
-                stMeta.writeBlock(&framedesc, MyFrameDescriptor.sizeof);
-            }
             writef("Saving %d/%d   \r",i+1, animations.length);
             fflush(stdout);
         }
