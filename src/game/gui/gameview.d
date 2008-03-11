@@ -1,5 +1,6 @@
 module game.gui.gameview;
 
+import common.common;
 import framework.font;
 import framework.framework;
 import common.scene;
@@ -49,6 +50,49 @@ class GuiAnimator : Widget {
     }
 }
 
+//this is a try to get rid of the code duplication (although it's too late)
+//it's rather trivial, but annoying
+//when started, it interpolates from one value to another in a given time span
+//T must be a scalar, like float or int
+//timesource is currently fixed to that animation stuff
+//all fields are read-only (in gameframe I have some code for changing "targets")
+struct InterpolateLinearTime(T) {
+    Time startTime, duration;
+    T start;
+    T target;
+
+    static Time currentTime() {
+        return globals.gameTimeAnimations.current();
+    }
+
+    void init(Time a_duration, T a_start, T a_target) {
+        startTime = currentTime();
+        duration = a_duration;
+        start = a_start;
+        target = a_target;
+    }
+
+    T value() {
+        auto d = currentTime() - startTime;
+        if (d >= duration) {
+            return target;
+        }
+        //have to scale it without knowing what datatype it is
+        return start + cast(T)((target - start)
+            * (cast(float)d.msecs / duration.msecs));
+    }
+
+    //return if the value is still changing (false when this is uninitialized)
+    bool inProgress() {
+        return currentTime() < startTime + duration;
+    }
+}
+
+const Time cArrowDelta = timeSecs(5);
+//time and length (in pixels) the health damage indicator will move upwards
+const Time cHealthHintTime = timeMsecs(1500);
+const int cHealthHintDistance = 150;
+
 //GameView is everything which is scrolled
 //it displays the game directly and also handles input directly
 //also draws worm labels
@@ -79,8 +123,6 @@ class GameView : Container, TeamMemberControlCallback {
         //xxx find better way to make this disappear
         TeamMember mPointedFor;
 
-        Time mArrowDelta;
-
         Time mLastTime, mCurrentTime;
 
         struct AnimateMoveWidget {
@@ -97,7 +139,13 @@ class GameView : Container, TeamMemberControlCallback {
             //instead we use the GUI... well but there's no reason
             //it's just plain stupid :D
             Label wormName;
-            Label wormPoints;
+            Label wormPoints; //oh, it used to be named "points"
+
+            //label which displays how much health was lost
+            //starts from real health label, moves up, and disappears
+            Label healthHint;
+
+            InterpolateLinearTime!(int) moveHealth;
 
             //animation of lifepower-countdown
             //int health_from, health_to;
@@ -112,6 +160,7 @@ class GameView : Container, TeamMemberControlCallback {
                 wormName = m.owner.createLabel();
                 wormName.text = m.member.name();
                 wormPoints = m.owner.createLabel();
+                healthHint = m.owner.createLabel();
             }
 
             Vector2i getCameraPosition() {
@@ -130,6 +179,7 @@ class GameView : Container, TeamMemberControlCallback {
                         //hide GUI
                         wormName.remove();
                         wormPoints.remove();
+                        healthHint.remove();
                     } else {
                         //show GUI
                         this.outer.addChild(wormName);
@@ -141,8 +191,8 @@ class GameView : Container, TeamMemberControlCallback {
                     lastKnownPosition = graphic.bounds.p1;
 
                     //update state
-                    if (health_cur != member.currentHealth()) {
-                        health_cur = member.currentHealth();
+                    if (health_cur != member.currentHealth) {
+                        health_cur = member.currentHealth;
                         wormPoints.text = format("%s", health_cur);
                     }
                     //update positions...
@@ -167,6 +217,30 @@ class GameView : Container, TeamMemberControlCallback {
                         cameraActivated = true;
                         mCamera.setCameraFocus(this);
                     }
+
+                    //for healthHint
+                    //I simply trigger it when the health value changes, and
+                    //when currently no label is displayed
+                    //the label is only removed as soon as the health value is
+                    //constant again
+                    //slight duplication of the logic in gameframes
+                    if (moveHealth.inProgress()) {
+                        //pos is leftover from above, move and center it
+                        pos.y -= moveHealth.value();
+                        healthHint.adjustPosition(pos-healthHint.size.X/2);
+                    } else {
+                        auto diff =  member.realHealth() - member.currentHealth;
+                        if (diff < 0) {
+                            //start (only for damages, not upgrades => "< 0")
+                            moveHealth.init(cHealthHintTime, 0,
+                                cHealthHintDistance);
+                            healthHint.text = format("%s", -diff);
+                            this.outer.addChild(healthHint);
+                        } else {
+                            //possibly remove (could be already removed)
+                            healthHint.remove();
+                        }
+                    }
                 }
             }
         }
@@ -183,7 +257,7 @@ class GameView : Container, TeamMemberControlCallback {
         TeamMember cur = mController.getActiveMember();
 
         if (cur &&
-            mCurrentTime - mController.currentLastAction() > mArrowDelta)
+            mCurrentTime - mController.currentLastAction() > cArrowDelta)
         {
             //make sure the arrow is active
             ViewMember vm = mEngineMemberToOurs[cur];
@@ -235,7 +309,6 @@ class GameView : Container, TeamMemberControlCallback {
     }
 
     this(ClientGameEngine engine, Camera cam, GameInfo game) {
-        mArrowDelta = timeSecs(5);
         mArrow = new GuiAnimator();
         mPointed = new GuiAnimator();
 

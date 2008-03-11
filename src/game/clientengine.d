@@ -12,6 +12,7 @@ import game.sky;
 import game.animation;
 import game.gamepublic;
 import game.gfxset;
+import game.glevel;
 import game.sequence;
 import game.levelgen.level;
 import game.levelgen.landscape;
@@ -130,26 +131,36 @@ class ClientLineGraphic : ClientGraphic, LineGraphic {
 }
 
 class LandscapeGraphicImpl : ClientGraphic, LandscapeGraphic {
-    LevelLandscape mSource;
+    //LevelLandscape mSource;
     LandscapeBitmap mBitmap;
     bool mBitmapIsShared;
     Vector2i mPos;
     LandscapeDrawer mRender;
 
     this(GraphicsHandler handler, LevelLandscape from, LandscapeBitmap shared) {
+        super(handler);
+        //mSource = from;
+        myinit(shared, {return new LandscapeBitmap(from.landscape);});
+    }
+
+    //i = called to create that bitmap locally if it's not shared
+    private void myinit(LandscapeBitmap shared, LandscapeBitmap delegate() i) {
         //NOTE: simply can set shared to null to test the not-shared case
         //shared = null;
-        super(handler);
-        mSource = from;
         mBitmap = shared;
         mBitmapIsShared = mBitmap !is null;
         if (!mBitmapIsShared) {
-            mBitmap = new LandscapeBitmap(mSource.landscape);
+            mBitmap = i();
         }
         mRender = new LandscapeDrawer();
         mRender.bitmap = mBitmap.image();
         mRender.bitmap.enableCaching(false);
         init();
+    }
+
+    this(GraphicsHandler handler, Vector2i size, LandscapeBitmap shared) {
+        super(handler);
+        myinit(shared, {return new LandscapeBitmap(size, null);});
     }
 
     SceneObject graphic() {
@@ -163,22 +174,13 @@ class LandscapeGraphicImpl : ClientGraphic, LandscapeGraphic {
     void damage(Vector2i pos, int radius) {
         if (mBitmapIsShared)
             return;
-        //NOTE: clipping should have been done by the caller already, and the
-        // blastHole function also does clip; so don't care
-        //xxx but this method call is still duplicated from glevel.d
-        mBitmap.blastHole(pos, radius, cBlastBorder);
+        landscapeDamage(mBitmap, pos, radius);
     }
 
     void insert(Vector2i pos, Resource!(Surface) bitmap) {
         if (mBitmapIsShared)
             return;
-        Surface bmp = bitmap.get();
-        //whatever the size param is for
-        //the metadata-handling is hardcoded, which is a shame
-        //currently overwrite everything except SolidHard pixels
-        //xxx also duplicated from glevel.d argh
-        mBitmap.drawBitmap(pos, bmp, bmp.size, ~Lexel.SolidHard, 0,
-            Lexel.SolidSoft);
+        landscapeInsert(mBitmap, pos, bitmap);
     }
 
     //all hail to inner classes
@@ -340,6 +342,9 @@ class GraphicsHandler : GameEngineGraphics {
     {
         return new LandscapeGraphicImpl(this, from, shared);
     }
+    LandscapeGraphic createLandscape(Vector2i size, LandscapeBitmap shared) {
+        return new LandscapeGraphicImpl(this, size, shared);
+    }
 }
 
 //client-side game engine, manages all stuff that does not affect gameplay,
@@ -376,7 +381,7 @@ class ClientGameEngine {
     private Vector2i mShakeOffset;
     //time after which a new shake offset is computed (to make shaking framerate
     //  independent), in ms
-    const cShakeIntervalMs = 100;
+    const cShakeIntervalMs = 50;
     private Time mLastShake;
 
     private PerfTimer mGameDrawTime;
@@ -457,7 +462,7 @@ class ClientGameEngine {
         float deltaT = mEngineTime.difference.secsf;
 
         if ((mEngineTime.current - mLastShake).msecs >= cShakeIntervalMs) {
-            //something similar is being done in physics.d
+            //something similar is being done in earthquake.d
             //the point of not using the physic's value is to reduce client-
             //  server communication a bit
 

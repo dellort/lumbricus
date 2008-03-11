@@ -451,6 +451,12 @@ class ServerTeam : Team {
         }
     }
 
+    void updateHealth() {
+        foreach (m; mMembers) {
+            m.updateHealth();
+        }
+    }
+
     void addWeapon(WeaponClass w) {
         weapons.addWeapon(w);
         parent.updateWeaponStats(null);
@@ -473,6 +479,7 @@ class ServerTeamMember : TeamMember {
         Vector2f mLastMoveVector;
         GameEngine mEngine;
         int lastKnownLifepower;
+        int mCurrentHealth; //health value reported to client
         //that thing when you e.g. shoot a bazooka to set the fire strength
         bool mThrowing;
         Time mThrowingStarted;
@@ -486,6 +493,11 @@ class ServerTeamMember : TeamMember {
         mEngine = mTeam.parent.engine;
     }
 
+    //send new health value to client
+    void updateHealth() {
+        mCurrentHealth = health();
+    }
+
     // --- start TeamMember
 
     char[] name() {
@@ -496,17 +508,12 @@ class ServerTeamMember : TeamMember {
         return mTeam;
     }
 
-    bool alive() {
-        //xxx this is fishy
-        return isAlive;
-    }
-
     bool active() {
         return mActive;
     }
 
-    int health() {
-        return mWorm ? cast(int)mWorm.physics.lifepower : 0;
+    int currentHealth() {
+        return mCurrentHealth;
     }
 
     Graphic getGraphic() {
@@ -518,6 +525,15 @@ class ServerTeamMember : TeamMember {
 
     // --- end TeamMember
 
+    bool alive() {
+        //xxx this is fishy
+        return isAlive;
+    }
+
+    int health() {
+        return isAlive() ? cast(int)mWorm.physics.lifepower : 0;
+    }
+
     private void place() {
         if (mWorm)
             return;
@@ -528,6 +544,7 @@ class ServerTeamMember : TeamMember {
         assert(mWorm !is null);
         mWorm.physics.lifepower = mTeam.initialPoints;
         lastKnownLifepower = health;
+        updateHealth();
         //take control over dying, so we can let them die on round end
         mWorm.delayedDeath = true;
         mWorm.gravestone = mTeam.gravestone;
@@ -563,7 +580,7 @@ class ServerTeamMember : TeamMember {
 
     //xxx should be named: round lost?
     bool lifeLost() {
-        return mWorm.physics.lifepower < lastKnownLifepower;
+        return health() < lastKnownLifepower;
     }
 
     void setActive(bool act) {
@@ -1095,6 +1112,13 @@ class GameController : GameLogicPublic {
         return false;
     }
 
+    //send clients new health values
+    private void updateHealth() {
+        foreach (t; mTeams) {
+            t.updateHealth();
+        }
+    }
+
     private RoundState doState(Time deltaT) {
         switch (mCurrentRoundState) {
             case RoundState.prepare:
@@ -1200,6 +1224,7 @@ class GameController : GameLogicPublic {
                 currentTeam = null;
                 break;
             case RoundState.cleaningUp:
+                updateHealth(); //hmmm
                 //see doState()
                 break;
             case RoundState.nextOnHold:

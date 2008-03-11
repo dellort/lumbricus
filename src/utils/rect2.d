@@ -146,7 +146,6 @@ public struct Rect2(T) {
             p2.y = r.p2.y;
     }
 
-    //Rect must be normal
     bool isInside(Point p) {
         return (p.x1 >= p1.x1 && p.x2 >= p1.x2 && p.x1 < p2.x1 && p.x2 < p2.x2);
     }
@@ -159,6 +158,62 @@ public struct Rect2(T) {
     bool intersects(in Rect2 rc) {
         return (rc.p2.x1 > p1.x1 && rc.p2.x2 > p1.x2
             && rc.p1.x1 < p2.x1 && rc.p1.x2 < p2.x2);
+    }
+
+    //return true if this contains rc completely
+    bool contains(in Rect2 rc) {
+        return (p1.x1 <= rc.p1.x1 && p2.x1 >= rc.p2.x1
+            && p1.x2 <= rc.p1.x2 && p2.x2 >= rc.p2.x2);
+    }
+
+    //the common rectangle covered by both rectangles
+    //result.isNormal() will return false if there's no intersection
+    Rect2 intersection(in Rect2 rc) {
+        Rect2 r;
+        r.p1.x1 = max(p1.x1, rc.p1.x1);
+        r.p1.x2 = max(p1.x2, rc.p1.x2);
+        r.p2.x1 = min(p2.x1, rc.p2.x1);
+        r.p2.x2 = min(p2.x2, rc.p2.x2);
+        return r;
+    }
+
+    //substract the rectangles in list from this, and return what's left over
+    //the rects in list may intersect, and the resulting rects won't intersect
+    Rect2[] substractRects(Rect2[] list) {
+        Rect2[] cur = [*this]; //cur = what's left over
+        foreach (ref rem; list) {
+            Rect2[] cur2;
+            foreach (ref rc; cur) {
+                //substract rem from rc, which either removes rc2, possibly
+                //modifies it, or adds up to 3 additional rectangles
+                if (!rc.intersects(rem)) {
+                    cur2 ~= rc;
+                    continue;
+                } else if (rem.contains(rc)) {
+                    //remove this one, so don't readd
+                    continue;
+                }
+                //intersect in some irky way => up to 4 rects
+                //top/bottom and the 4 corners
+                if (rc.p1.y < rem.p1.y) {
+                    cur2 ~= Rect2(rc.p1, Point(rc.p2.x, rem.p1.y));
+                }
+                if (rc.p2.y > rem.p2.y) {
+                    cur2 ~= Rect2(Point(rc.p1.x, rem.p2.y), rc.p2);
+                }
+                //left/right
+                T y1 = max(rem.p1.y, rc.p1.y);
+                T y2 = min(rem.p2.y, rc.p2.y);
+                if (rc.p1.x < rem.p1.x) {
+                    cur2 ~= Rect2(Point(rc.p1.x, y1), Point(rem.p1.x, y2));
+                }
+                if (rc.p2.x > rem.p2.x) {
+                    cur2 ~= Rect2(Point(rem.p2.x, y1), Point(rc.p2.x, y2));
+                }
+            }
+            cur = cur2;
+        }
+        return cur;
     }
 
     //clip pt to this rect; isInsideB(clip(pt)) will always return true

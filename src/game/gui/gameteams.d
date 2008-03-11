@@ -58,7 +58,7 @@ class TeamWindow : Container {
 
         //cells both expanded and homogeneous in x-dir => centered correctly
         //will give you headaches if you want more than two columns
-        auto table = new TableContainer(2, 0, Vector2i(3),
+        auto table = new TableContainer(2, 0, Vector2i(3, 2),
             [true, true], [true, false]);
 
         TeamInfo[] teams = game.teams.values;
@@ -82,11 +82,12 @@ class TeamWindow : Container {
             //mMaxHealth = max(mMaxHealth, teams[n].totalHealth);
         }
 
-        addChild(table);
         //no clipping because the animation moves the labels outside the
         //clipping area
         table.doClipping = false;
         table.setLayout(WidgetLayout.Aligned(0, 1, Vector2i(0, 7)));
+
+        addChild(table);
 
         mTable = table;
     }
@@ -95,7 +96,7 @@ class TeamWindow : Container {
     this updates the livepoints etc. from the shared client team infos
     if doanimation is true, the animation as known from worms is started: the
     team labels are resorted and changed until it reflects the actual situation
-    it works as follows (similat to bubblesort):
+    it works as follows (similar to bubblesort):
     1. go from top to bottom through the GUI label list
     2. if there is a team which has higher livepoints than the team before, do:
         2.1. move winner up/loser down on a half circle like way
@@ -104,10 +105,8 @@ class TeamWindow : Container {
     3. the losers are now at the end, if there are losers which died:
         3.1. move the losers out of the screen
     during all that, animating() returns true
-    theres also that thing that the health is counted down (the number in the
-    worm health label is counted down, a label with the number of lost health is
-    shown and moved upwards, and the team health bars get smaller), but that
-    needs to be done somewhere else
+    theres also that thing that the health is counted down, this is in
+    gameframe.d; during that update(false) is called to update the bar widths
     +/
     void update(bool doanimation) {
         foreach (TeamInfo team, Foobar bar; mBars) {
@@ -216,7 +215,6 @@ class TeamWindow : Container {
                         mTable.getChildRowCol(w, x, y, sx, sy);
                         w.remove();
                         mTable.add(w, x, row, sx, sy);
-                        mTable.getChildRowCol(w, x, y, sx, sy);
                     }
                 }
 
@@ -278,9 +276,8 @@ class TeamWindow : Container {
                 //try to guess how much the table would shrink if you remove the
                 //last line
                 int r = currentRemoveLines;
-                int remove_y = mTable.cellRect(0, mTable.height()
-                    - r, 1, r).size.y +
-                    mTable.cellSpacing.y;
+                int remove_y = mTable.cellRect(0, mTable.height() - r, 1, r)
+                    .size.y + mTable.cellSpacing.y;
                 mTable.setAddToPos(Vector2i(0, cast(int)(remove_y*progress)));
             }
         }

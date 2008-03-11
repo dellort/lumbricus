@@ -365,8 +365,6 @@ class LandscapeBitmap {
 
         assert(radius >= 0);
         assert(blast_border >= 0);
-        //this methods seems to be the only place where mTheme really is needed
-        assert(!!mTheme, "needs a theme");
 
         uint col;
 
@@ -405,7 +403,8 @@ class LandscapeBitmap {
         //the center is cleared later to achieve this
         //in the same call, mask all pixels with SolidHard to remove any
         //SolidSoft pixels...
-        doCircle(radius, mTheme.backImage, mTheme.backColor,
+        doCircle(radius, mTheme ? mTheme.backImage : null,
+            mTheme ? mTheme.backColor : Color(0,0,0),
             cAllMeta, Lexel.SolidSoft, Lexel.SolidHard);
 
         int blast_radius = radius + blast_border;
@@ -414,8 +413,10 @@ class LandscapeBitmap {
         //solid ground only (except for SolidHard pxiels: they stay unchanged)
         //because all SolidSoft pixels were cleared above, only the remaining
         //landscape around the destruction will be coloured with this border...
-        doCircle(blast_radius, mTheme.borderImage, mTheme.borderColor,
-            cAllMeta, Lexel.SolidSoft);
+        if (mTheme) {
+            doCircle(blast_radius, mTheme.borderImage, mTheme.borderColor,
+                cAllMeta, Lexel.SolidSoft);
+        }
 
         if (nradius > 0) {
             //clear the center of the destruction (to get rid of that background
@@ -498,26 +499,34 @@ class LandscapeBitmap {
     }
 
     //oh yeah, manual bitmap drawing code!
-    private void doDrawBmp(int px, int py, void* data, uint pitch, int w, int h,
+    private void doDrawBmp(int px, int py, Surface source, int w, int h,
         ubyte meta_mask, ubyte meta_cmp, Lexel after)
     {
-        void* dstptr; uint dstpitch;
-        mImage.lockPixelsRGBA32(dstptr, dstpitch);
         //clip
+        w = min(w, source.size.x);
+        h = min(h, source.size.y);
         int cx1 = max(px, 0);
         int cy1 = max(py, 0);
-        int cx2 = min(cast(int)mWidth, px+w);  //exclusive
-        int cy2 = min(cast(int)mHeight, py+h);
+        int cx2 = min!(int)(mWidth, px+w);  //exclusive
+        int cy2 = min!(int)(mHeight, py+h);
         assert(cx2-cx1 <= w);
         assert(cy2-cy1 <= h);
+        if (cx1 >= cx2 || cy1 >= cy2)
+            return;
+
+        void* data; uint pitch;
+        source.lockPixelsRGBA32(data, pitch);
+        void* dstptr; uint dstpitch;
+        mImage.lockPixelsRGBA32(dstptr, dstpitch);
+
         for (int y = cy1; y < cy2; y++) {
             //offset to relevant start of source scanline
             uint* src = cast(uint*)(data + pitch*(y-py) + (cx1-px)*uint.sizeof);
             uint* dst = cast(uint*)(dstptr + dstpitch*y + cx1*uint.sizeof);
             Lexel* dst_meta = &mLevelData[mWidth*y+cx1];
             for (int x = cx1; x < cx2; x++) {
-                if (is_not_transparent(*src)
-                    && (*dst_meta & meta_mask) == meta_cmp)
+                if (!source.isTransparent(*src)
+                    && ((*dst_meta & meta_mask) == meta_cmp))
                 {
                     *dst_meta = after;
                     //actually copy pixel
@@ -526,7 +535,9 @@ class LandscapeBitmap {
                 src++; dst++; dst_meta++;
             }
         }
+
         mImage.unlockPixels(Rect2i(cx1, cy1, cx2, cy2));
+        source.unlockPixels(Rect2i.init);
     }
 
     //draw a bitmap, but also modify the level pixels
@@ -535,13 +546,8 @@ class LandscapeBitmap {
     public void drawBitmap(Vector2i p, Surface source, Vector2i size,
         ubyte meta_mask, ubyte meta_cmp, Lexel after)
     {
-        size.x = min(size.x, source.size.x);
-        size.y = min(size.y, source.size.y);
-        void* data; uint pitch;
-        source.lockPixelsRGBA32(data, pitch);
-        doDrawBmp(p.x, p.y, data, pitch, size.x, size.y, meta_mask, meta_cmp,
-            after);
-        source.unlockPixels(Rect2i.init);
+        //ewww what has this become
+        doDrawBmp(p.x, p.y, source, size.x, size.y, meta_mask, meta_cmp, after);
     }
 
     /+

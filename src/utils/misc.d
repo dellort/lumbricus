@@ -58,7 +58,8 @@ int powerOfTwo(int input) {
 T castStrict(T : Object)(Object t) {
     T res = cast(T)t;
     if (t && !res) {
-        throw new Exception("could not cast");
+        throw new Exception("could not cast "~t.classinfo.name~" to "
+            ~T.classinfo.name);
     }
     return res;
 }

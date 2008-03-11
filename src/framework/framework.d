@@ -6,6 +6,7 @@ public import framework.enums;
 public import framework.drawing;
 public import framework.event;
 public import framework.keybindings;
+public import framework.resset; //rly?
 public import framework.sound;
 public import utils.color;
 public import utils.rect2;
@@ -282,7 +283,8 @@ class Surface {
     /// must be called after done with lockPixelsRGBA32()
     /// "rc" is for the offset and size of the region to update
     void unlockPixels(in Rect2i rc) {
-        assert(rc.isNormal());
+        if (!rc.isNormal()) //now means it is empty
+            return;
         if (mDriverSurface  && rc.size.quad_length > 0) {
             mDriverSurface.updatePixels(rc);
         }

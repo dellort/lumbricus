@@ -65,6 +65,10 @@ public struct Time {
         return Time(cast(TType_Int)(timeVal / f));
     }
 
+    public int opDiv(Time t) {
+        return timeVal / t.timeVal;
+    }
+
     public int opEquals(Time t2) {
         return timeVal == t2.timeVal;
     }

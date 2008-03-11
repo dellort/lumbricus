@@ -107,6 +107,8 @@ interface GameEngineGraphics {
     //LandscapeBitmap instance between the server and client code
     LandscapeGraphic createLandscape(LevelLandscape from,
         LandscapeBitmap shared);
+    //yay create a new empty landscape for fun
+    LandscapeGraphic createLandscape(Vector2i size, LandscapeBitmap shared);
     //meh I don't know, maybe this should be put here
     //void damageLandscape(...);
 }
@@ -250,13 +252,16 @@ interface TeamMember {
     Team team();
 
     ///worm is healthy (synonym for health()>0)
-    ///i.e. can return false even if worm is still shown on the screen
+    ///can return false even if worm is still shown on the screen
     bool alive();
 
     ///if there's at least one TeamMemberControl which refers to this (?)
     bool active();
 
-    int health();
+    ///might be under 0
+    ///the controller updates this from time to time, so it probably doesn't
+    ///reflect the real situation
+    int currentHealth();
 
     Graphic getGraphic();
 }
@@ -280,13 +285,8 @@ interface Team {
     char[] name();
     TeamTheme color();
 
-    ///at least one member with alive() == true
-    bool alive();
-
-    ///like in alive()
+    ///at least one member with active() == true
     bool active();
-
-    int totalHealth();
 
     /// weapons of this team, always up-to-date
     /// might return null if it's "private" and you shouldn't see it

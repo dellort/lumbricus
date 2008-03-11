@@ -4,6 +4,7 @@ import framework.framework;
 import game.gamepublic;
 import game.game;
 import game.gobject;
+import game.levelgen.landscape;
 import game.levelgen.level;
 import game.levelgen.renderer;
 import utils.vector2;
@@ -72,6 +73,22 @@ private class LandscapeGeometry : PhysicGeometry {
     }
 }
 
+//these 2 functions are used by the server and client code
+public void landscapeDamage(LandscapeBitmap ls, Vector2i pos, int radius) {
+    //NOTE: clipping should have been done by the caller already, and the
+    // blastHole function also does clip; so don't care
+    ls.blastHole(pos, radius, cBlastBorder);
+}
+public void landscapeInsert(LandscapeBitmap ls, Vector2i pos,
+    Resource!(Surface) bitmap)
+{
+    Surface bmp = bitmap.get();
+    //whatever the size param is for
+    //the metadata-handling is hardcoded, which is a shame
+    //currently overwrite everything except SolidHard pixels
+    ls.drawBitmap(pos, bmp, bmp.size, Lexel.SolidHard, 0, Lexel.SolidSoft);
+}
+
 //handle landscape objects, large damagable static physic objects, represented
 //by a bitmap
 class GameLandscape : GameObject {
@@ -98,15 +115,32 @@ class GameLandscape : GameObject {
         //landscape landscape landscape landscape
         mLandscape = new LandscapeBitmap(land.landscape);
 
+        mGraphic = engine.graphics.createLandscape(land, mLandscape);
+
+        init();
+    }
+
+    this(GameEngine aengine, Rect2i rc) {
+        super(aengine, true);
+
+        mSize = rc.size;
+        mOffset = rc.p1;
+
+        mLandscape = new LandscapeBitmap(mSize, null);
+
+        mGraphic = engine.graphics.createLandscape(mSize, mLandscape);
+
+        init();
+    }
+
+    void init() {
+        mGraphic.setPos(mOffset);
+
         mPhysics = new LandscapeGeometry();
         mPhysics.ls = this;
 
         //to enable level-bitmap collision
         engine.physicworld.add(mPhysics);
-        engine.onDestroyLandscape ~= &damage;
-
-        mGraphic = engine.graphics.createLandscape(land, mLandscape);
-        mGraphic.setPos(mOffset);
     }
 
     public void damage(Vector2i pos, int radius) {
@@ -115,11 +149,19 @@ class GameLandscape : GameObject {
         pos -= mOffset;
         auto vr = Vector2i(radius + cBlastBorder);
         if (Rect2i(mSize).intersects(Rect2i(-vr, vr) + pos)) {
-            mLandscape.blastHole(pos, radius, cBlastBorder);
+            landscapeDamage(mLandscape, pos, radius);
             mPhysics.generationNo++;
 
             mGraphic.damage(mOffset, radius);
         }
+    }
+
+    public void insert(Vector2i pos, Resource!(Surface) bitmap) {
+        //not so often called (like damage()), leave clipping to whoever
+        pos -= mOffset;
+        landscapeInsert(mLandscape, pos, bitmap);
+        mPhysics.generationNo++; //?
+        mGraphic.insert(pos, bitmap);
     }
 
     public Surface image() {

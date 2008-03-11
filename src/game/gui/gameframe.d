@@ -1,5 +1,6 @@
 module game.gui.gameframe;
 
+import common.common;
 import common.scene;
 import common.visual;
 import framework.framework;
@@ -30,6 +31,11 @@ import utils.misc;
 import utils.vector2;
 import utils.log;
 
+import std.math;
+
+//time for which it takes to add/remove 1 health point in the animation
+const Time cTimePerHealthTick = timeMsecs(4);
+
 class GameFrame : SimpleContainer, GameLogicPublicCallback {
     ClientGameEngine clientengine;
     GameInfo game;
@@ -46,11 +52,12 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
 
     private Camera mCamera;
 
+    private Time mLastFrameTime, mRestTime;
+
     //xxx this be awful hack
     void gameLogicRoundTimeUpdate(Time t, bool timePaused) {
     }
     void gameLogicUpdateRoundState() {
-        mTeamWindow.update(true);
     }
     void gameLogicWeaponListUpdated(Team team) {
         updateWeapons();
@@ -92,9 +99,38 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
         mScroller.offset = mScroller.centeredOffset(pos);
     }
 
+    //if you have an event, which shall occur all duration times, return the
+    //number of events which fit in t and return the rest time in t (divmod)
+    static int removeNTimes(ref Time t, Time duration) {
+        int r = t/duration;
+        t -= duration*r;
+        return r;
+    }
+
     override protected void simulate() {
+        auto curtime = globals.gameTimeAnimations.current;
+        if (mLastFrameTime == Time.init)
+            mLastFrameTime = curtime;
+        auto delta = curtime - mLastFrameTime;
+        mLastFrameTime = curtime;
+
         mCamera.doFrame();
-        game.simulate();
+
+        //take care of counting down the health value
+        mRestTime += delta;
+        int change = removeNTimes(mRestTime, cTimePerHealthTick);
+        assert(change >= 0);
+        bool finished = true;
+        foreach (TeamMemberInfo tmi; game.allMembers) {
+            int diff = tmi.realHealth() - tmi.currentHealth;
+            if (diff != 0) {
+                finished = false;
+                int c = min(abs(diff), change);
+                tmi.currentHealth += (diff < 0) ? -c : c;
+            }
+        }
+        //only do the rest (like animated sorting) when all was counted down
+        mTeamWindow.update(finished);
     }
 
     override bool doesCover() {

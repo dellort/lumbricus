@@ -200,6 +200,17 @@ private class ProjectileSprite : GObjectSprite {
         if (myclass.explosionOnDeath > 0) {
             engine.explosionAt(physics.pos, myclass.explosionOnDeath, this);
         }
+        if (myclass.bitmapOnDeath.defined()) {
+            auto p = toVector2i(physics.pos);
+            auto res = myclass.bitmapOnDeath;
+            p -= res.get.size / 2;
+            engine.insertIntoLandscape(p, res);
+        }
+
+        if (myclass.quakeOnDeathStrength > 0) {
+            engine.addEarthQuake(myclass.quakeOnDeathStrength,
+                myclass.quakeOnDeathDegrade);
+        }
 
         //effects are removed by die()
         die();
@@ -351,6 +362,12 @@ class ProjectileSpriteClass : GOSpriteClass {
     float explosionOnDeath;
     float explosionOnImpact;
 
+    Resource!(Surface) bitmapOnDeath;
+
+    //nan if none
+    float quakeOnDeathStrength;
+    float quakeOnDeathDegrade;
+
     override ProjectileSprite createSprite() {
         return new ProjectileSprite(engine, this);
     }
@@ -435,6 +452,16 @@ class ProjectileSpriteClass : GOSpriteClass {
         auto expl = config.getPath("detonate.explosion", true);
         explosionOnDeath = expl.getFloatValue("damage", float.nan);
         explosionOnImpact = config.getFloatValue("explosion_on_impact", float.nan);
+
+        if (auto bitmap = config.getPath("detonate.bitmap")) {
+            bitmapOnDeath = engine.gfx.resources
+                .resource!(Surface)(bitmap["source"]);
+        }
+
+        if (auto quake = config.getPath("detonate.earthquake")) {
+            quakeOnDeathStrength = quake.getFloatValue("strength");
+            quakeOnDeathDegrade = quake.getFloatValue("degrade");
+        }
     }
 
 

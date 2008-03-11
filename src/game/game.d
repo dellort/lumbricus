@@ -46,10 +46,6 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
 
     GameEngineGraphics graphics;
 
-    //called when damageable landscape should be destroyed
-    //xxx de-hackify please
-    void delegate(Vector2i pos, int radius)[] onDestroyLandscape;
-
     Level level() {
         return mLevel;
     }
@@ -514,14 +510,40 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         expl.pos = pos;
         expl.onReportApply = &onDamage;
         expl.cause = cause;
-        foreach (d; onDestroyLandscape) {
-            d(toVector2i(pos), cast(int)(expl.radius/2.0f));
-        }
+        damageLandscape(toVector2i(pos), cast(int)(expl.radius/2.0f));
         physicworld.add(expl);
         //some more chaos, if strong enough
         //xxx needs moar tweaking
         //if (damage > 50)
         //    addEarthQuake(damage, 0.5);
+    }
+
+    //destroy a circular area of the damageable landscape
+    void damageLandscape(Vector2i pos, int radius) {
+        foreach (ls; gameLandscapes) {
+            ls.damage(pos, radius);
+        }
+    }
+
+    //insert bitmap into the landscape
+    //(bitmap is a Resource for the network mode, if we'll ever have one)
+    void insertIntoLandscape(Vector2i pos, Resource!(Surface) bitmap) {
+        Rect2i[] covered;
+        foreach (ls; gameLandscapes) {
+            covered ~= Rect2i.Span(ls.offset(), ls.size());
+        }
+        //this is if the objects is inserted so that the landscape doesn't cover
+        //it fully - possibly create new landscapes to overcome this yay
+        Rect2i[] uncovered
+            = Rect2i.Span(pos, bitmap.get.size).substractRects(covered);
+        foreach (rc; uncovered) {
+            assert(rc.size().x > 0 && rc.size().y > 0);
+            gameLandscapes ~= new GameLandscape(this, rc);
+        }
+        //really insert
+        foreach (ls; gameLandscapes) {
+            ls.insert(pos, bitmap);
+        }
     }
 
     //determine round-active objects

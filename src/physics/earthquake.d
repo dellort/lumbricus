@@ -1,11 +1,14 @@
 module physics.earthquake;
 
+import utils.time;
 import utils.vector2;
 import random = utils.random;
 
 import physics.base;
 import physics.force;
 import physics.physobj;
+
+const Time cEarthQuakeChangeTime = timeMsecs(200);
 
 //causes a one-frame earthquake with the strength accumulated by
 //addEarthQuakePerFrameStrength, use EarthQuakeDegrader to generate strength
@@ -14,6 +17,8 @@ import physics.physobj;
 class EarthQuakeForce : PhysicForce {
     //valid per frame
     private float mEarthQuakeStrength = 0;
+    //last valid value
+    private float mLastStrength = 0;
     //the force is updated in intervals according to the strength
     //reason: would look silly if it changed each frame
     private Vector2f mEarthQuakeImpulse;
@@ -32,7 +37,7 @@ class EarthQuakeForce : PhysicForce {
     }
 
     float earthQuakeStrength() {
-        return mEarthQuakeStrength;
+        return mLastStrength;
     }
 
     //can't update the force directly, as EarthQuakeDegraders may add strength
@@ -47,6 +52,7 @@ class EarthQuakeForce : PhysicForce {
         mActive = false;
         scope(exit) {
             //reset per-frame strength
+            mLastStrength = mEarthQuakeStrength;
             mEarthQuakeStrength = 0;
             //set updated flag
             mNeedForceUpdate = false;
@@ -60,9 +66,8 @@ class EarthQuakeForce : PhysicForce {
         mActive = true;
         mEarthQuakeLastChangeTime += deltaT;
 
-        //NOTE: don't return if mLastChange is NaN
-        //this constant is the update-radnom-vector-change time
-        if (mEarthQuakeLastChangeTime < 0.2)
+        //NOTE: don't return if mEathQuakeLastChangeTime is NaN
+        if (mEarthQuakeLastChangeTime < cEarthQuakeChangeTime.secs())
             return;
 
         //new direction
@@ -80,6 +85,8 @@ class EarthQuakeForce : PhysicForce {
             updateImpulse(deltaT);
         if (!mActive)
             return;
+        //influence on objects disabled
+        return;
         //xxx should be applied only to objects on the ground (this is an
         //    _earth_quake, not a skyquake, but this requires major changes
         //    in PhysicObject
@@ -123,7 +130,7 @@ class EarthQuakeDegrader : PhysicBase {
 
         //if strength is too small, die
         //what would be a good value to trigger destruction?
-        if (mStrength < 0.2)
+        if (mStrength < 0.01)
             dead = true;
 
         mLastChange = 0;

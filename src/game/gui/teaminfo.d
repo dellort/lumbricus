@@ -30,11 +30,6 @@ class GameInfo {
             teams[t] = team;
         }
     }
-
-    //called on each frame
-    //do whatever there is useful to do
-    void simulate() {
-    }
 }
 
 class TeamInfo {
@@ -58,10 +53,13 @@ class TeamInfo {
         return res;
     }
 
-    //the current health, possibly rapidly changing for the purpose of animation
-    //(counting down the health after damage)
+    //sum of all team member's TeamMemberInfo.currentHealth()
     int currentHealth() {
-        return team.totalHealth();
+        int sum = 0;
+        foreach (m; members) {
+            sum += m.currentHealth;
+        }
+        return sum;
     }
 
     this(GameInfo a_owner, Team t) {
@@ -89,14 +87,19 @@ class TeamMemberInfo {
     TeamInfo owner;
     TeamMember member;
 
-    //similar to TeamInfo.currentHealth(), only for the team member
-    //also won't go below 0
-    int currentHealth() {
-        return member.health();
+    //the "animated" health value, which is counted up/down to the real value
+    //get the (not really) real value through realHealth()
+    //(both this and realHealth are clipped to 0)
+    int currentHealth;
+
+    //similar to member.currentHealth(), but clipped to 0
+    int realHealth() {
+        return max(member.currentHealth(), 0);
     }
 
     this(TeamInfo a_owner, TeamMember m) {
         owner = a_owner;
         member = m;
+        currentHealth = realHealth();
     }
 }

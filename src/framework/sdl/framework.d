@@ -751,6 +751,8 @@ class SDLDriver : FrameworkDriver {
         if (transparency == Transparency.Colorkey) {
             //NOTE: the png loader from SDL_Image sometimes uses the colorkey
             data.colorkey = fromSDLColor(surf.format, surf.format.colorkey);
+            //xxx if the image uses the palette, we really should make sure that
+            //  there isn't another palette entry with the same color?
         }
 
         if (detect_transparency && transparency == Transparency.None) {

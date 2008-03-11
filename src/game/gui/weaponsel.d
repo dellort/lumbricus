@@ -35,7 +35,7 @@ class WeaponSelWindow : Container {
             }
 
             int opCmp(Weapon* w) {
-                auto res = w.type.value - this.type.value;
+                auto res = -(w.type.value - this.type.value);
                 //if of same value compare untranslated names instead
                 if (res == 0)
                     res = cmp(this.type.name, w.type.name);
