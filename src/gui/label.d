@@ -27,6 +27,8 @@ class Label : Widget {
     Color background = {0,0,0,0};
 
     void image(Texture img) {
+        if (img is mImage)
+            return;
         mImage = img;
         needResize(true);
     }

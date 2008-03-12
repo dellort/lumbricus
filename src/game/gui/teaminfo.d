@@ -10,6 +10,7 @@ import game.gamepublic;
 import game.clientengine;
 import game.weapon.weapon;
 import gui.label;
+import gui.widget;
 import utils.rect2;
 import utils.time;
 import utils.misc;
@@ -50,6 +51,7 @@ class TeamInfo {
         res.font = font;
         res.text = team.name();
         res.borderStyle = box;
+        res.setLayout(WidgetLayout.Aligned(-1, -1));
         return res;
     }
 

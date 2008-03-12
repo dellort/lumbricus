@@ -338,6 +338,9 @@ interface TeamMemberControl {
     void weaponDraw(WeaponClass weaponId);
 
     WeaponClass currentWeapon();
+    ///show the weapon as an icon near the worm; used when the weapon can not be
+    ///displayed directly (like when worm is on a jetpack)
+    bool displayWeaponIcon();
 
     ///set grenade timer (cf. Weapon for useful values)
     void weaponSetTimer(Time timer);

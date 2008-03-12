@@ -1,5 +1,6 @@
 module game.gui.camera;
 
+import framework.timesource;
 import gui.mousescroller;
 import utils.rect2;
 import utils.time;
@@ -30,6 +31,8 @@ class Camera {
     private CameraStyle mCameraStyle;
     private CameraObject mCameraFollowObject;
     private bool mCameraFollowLock;
+    private TimeSource mTime;
+    private Time mLastScrollOur, mLastScrollExtern;
 
     //if the scene was scrolled by the mouse, scroll back to the camera focus
     //after this time
@@ -38,12 +41,31 @@ class Camera {
     //active and scrolls towards the followed object again
     private const cCameraBorder = 150;
 
+    public void paused(bool set) {
+        mTime.paused = set;
+    }
+
+    this() {
+        mTime = new TimeSource();
+    }
+
     public void doFrame() {
         if (!control)
             return;
 
-        long curTimeMs = timeCurrentTime.msecs;
-        long lastAction = control.lastMouseScroll().msecs;
+        mTime.update();
+
+        auto ctime = control.lastMouseScroll();
+
+        if (ctime != mLastScrollExtern) {
+            //we also could try to provide a function to translate times between
+            //timesources... (possible?)
+            mLastScrollOur = mTime.current();
+            mLastScrollExtern = ctime;
+        }
+
+        long curTimeMs = mTime.current().msecs;
+        long lastAction = mLastScrollOur.msecs;
 
         //check for camera
         if (mCameraFollowObject && mCameraFollowObject.isCameraAlive &&

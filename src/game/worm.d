@@ -54,6 +54,8 @@ class WormSprite : GObjectSprite {
         bool mIsDead;
 
         int mGravestone;
+
+        bool mWeaponAsIcon;
     }
 
     //-PI/2..+PI/2, actual angle depends from whether worm looks left or right
@@ -142,7 +144,8 @@ class WormSprite : GObjectSprite {
             assert(!!mWeapon);
             char[] w = mWeapon.weapon.animations[WeaponWormAnimations.Arm];
             auto state = graphic.type.findState(w, true);
-            if (!state) {
+            mWeaponAsIcon = !state;
+            if (mWeaponAsIcon) {
                 //no specific weapon animation there
                 state = graphic.type.findState("weapon_unknown");
             }
@@ -225,8 +228,17 @@ class WormSprite : GObjectSprite {
 
         setState(draw ? wsc.st_weapon : wsc.st_stand);
     }
+    //xxx kind of wrong, weapon can be selected in jetpack mode etc. too, needs
+    //to be fixed or redefined, the controller is broken anyway
     bool weaponDrawn() {
         return currentState is wsc.st_weapon;
+    }
+
+    //if weapon needs to be displayed outside the worm
+    //slightly bogus in the same way like weaponDrawn()
+    bool displayWeaponIcon() {
+        //hm not very nice
+        return mWeaponAsIcon && weaponDrawn;
     }
 
     //xxx: clearify relationship between shooter and so on

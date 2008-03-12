@@ -7,6 +7,7 @@ import common.scene;
 import game.animation;
 import game.gamepublic;
 import game.clientengine;
+import game.sequence;
 import game.gui.camera;
 import game.weapon.weapon;
 import game.gui.teaminfo;
@@ -16,6 +17,7 @@ import gui.label;
 import gui.mousescroller;
 import utils.rect2;
 import utils.time;
+import utils.math;
 import utils.misc;
 import utils.vector2;
 
@@ -29,6 +31,7 @@ class GuiAnimator : Widget {
 
     this() {
         mAnimator = new Animator();
+        setLayout(WidgetLayout.Aligned(-1, -1));
     }
 
     override protected void onDraw(Canvas c) {
@@ -46,7 +49,7 @@ class GuiAnimator : Widget {
     }
 
     void setPositionCentered(Vector2i newPos) {
-        adjustPosition(newPos - mAnimator.bounds.size/2);
+        setAddToPos(newPos - mAnimator.bounds.size/2);
     }
 }
 
@@ -72,6 +75,16 @@ struct InterpolateLinearTime(T) {
         target = a_target;
     }
 
+    //start so that it behaves like with init(), but value() is already at
+    //a_value (which means the startTime is adjusted so that it fits)
+    //xxx would be simpler if there was a speed value rather than the
+    //  start/target/time values
+    void initBetween(Time a_duration, T a_start, T a_value, T a_target) {
+        init(a_duration, a_start, a_target);
+        float progress = cast(float)(a_value - a_start) / (a_target - a_start);
+        startTime -= a_duration * progress;
+    }
+
     T value() {
         auto d = currentTime() - startTime;
         if (d >= duration) {
@@ -82,22 +95,99 @@ struct InterpolateLinearTime(T) {
             * (cast(float)d.msecs / duration.msecs));
     }
 
+    Time endTime() {
+        return startTime + duration;
+    }
+
+    //return if the value is still changing (false when this is uninitialized)
+    bool inProgress() {
+        return currentTime() < endTime;
+    }
+}
+
+//interpolate according to a mapping function
+struct InterpolateFnTime(T) {
+    Time startTime, duration;
+    T start;
+    T target;
+    //the mapping function; inp is the time scaled to 0..1; the result is 0..1
+    //and will be scaled to start..target
+    float delegate(float inp) fn;
+
+    static Time currentTime() {
+        return timeCurrentTime();//globals.gameTimeAnimations.current();
+    }
+
+    void init(Time a_duration, T a_start, T a_target) {
+        startTime = currentTime();
+        duration = a_duration;
+        start = a_start;
+        target = a_target;
+        assert(!!fn, "function not set");
+    }
+
+    T value() {
+        if (!fn)
+            return start;
+        auto d = currentTime() - startTime;
+        if (d >= duration) {
+            return target;
+        }
+        //have to scale it without knowing what datatype it is
+        return start + cast(T)((target - start)
+            * fn(cast(float)d.msecs / duration.msecs));
+    }
+
+    Time endTime() {
+        return startTime + duration;
+    }
+
+
     //return if the value is still changing (false when this is uninitialized)
     bool inProgress() {
         return currentTime() < startTime + duration;
     }
+
+    //set everything to init except fn
+    void reset() {
+        startTime = duration = Time.init;
+        start = target = T.init;
+    }
+}
+
+//sc, result = [0,1] -> [0,1], exponential-like curve
+//a, r = where to cut off the curve
+float interpolateExponential(float sc, float a = 4.0f, float r = 2.0f) {
+    //to stay within [0,1], substract the not reached difference to 0
+    float s(float sc) { return 1.0f - (math.exp(sc * -a) - sc * math.exp(-a)); }
+    return s(sc*r)/s(r);
 }
 
 const Time cArrowDelta = timeSecs(5);
 //time and length (in pixels) the health damage indicator will move upwards
-const Time cHealthHintTime = timeMsecs(1500);
-const int cHealthHintDistance = 150;
+const Time cHealthHintTime = timeMsecs(1000);
+const int cHealthHintDistance = 75;
+//time before the label disappears
+const Time cHealthHintWait = timeMsecs(500);
+//same as above for the worm labels when they're shown/hidden for active worms
+const Time cLabelsMoveTimeUp = timeMsecs(300); //moving up
+const Time cLabelsMoveTimeDown = timeMsecs(1000); //and down
+const int cLabelsMoveDistance = 200;
+//time swap left/right position of weapon icon
+const Time cWeaponIconMoveTime = timeMsecs(300);
 
 //GameView is everything which is scrolled
 //it displays the game directly and also handles input directly
 //also draws worm labels
 class GameView : Container, TeamMemberControlCallback {
     void delegate() onTeamChange;
+
+    //for setSettings()
+    struct GUITeamMemberSettings {
+        bool showTeam = false;
+        bool showName = true;
+        bool showPoints = true;
+    }
 
     private {
         ClientGameEngine mEngine;
@@ -116,30 +206,37 @@ class GameView : Container, TeamMemberControlCallback {
         ViewMember[] mAllMembers;
         ViewMember[TeamMember] mEngineMemberToOurs;
 
-        //arrow which points on currently active worm (goes away when he moves)
-        GuiAnimator mArrow;
+        GUITeamMemberSettings mTeamGUISettings;
+        int mCycleLabels = 2;
+
         //marker for targets of homing weapons
         GuiAnimator mPointed;
         //xxx find better way to make this disappear
-        TeamMember mPointedFor;
+        TeamMemberInfo mPointedFor;
 
-        Time mLastTime, mCurrentTime;
-
-        struct AnimateMoveWidget {
-            Widget widget;
-        }
+        ViewMember activeWorm;
 
         //per-member class
         class ViewMember : CameraObject {
             TeamMemberInfo member; //from the "engine"
 
-            bool guiIsActive;
-
             //you might wonder why these labels aren't just drawn directly
             //instead we use the GUI... well but there's no reason
             //it's just plain stupid :D
+            Label wormTeam;
             Label wormName;
             Label wormPoints; //oh, it used to be named "points"
+            //for the alternative weapon display
+            Label weaponIcon;
+
+            InterpolateFnTime!(float) moveWeaponIcon;
+
+            //arrow which points on currently active worm (goes away when he moves)
+            //(there's only one per GUI, but keeping it here is simpler)
+            GuiAnimator arrow;
+
+            InterpolateLinearTime!(int) moveLabels;
+            //bool beingActive; //last active state to detect state change
 
             //label which displays how much health was lost
             //starts from real health label, moves up, and disappears
@@ -147,20 +244,34 @@ class GameView : Container, TeamMemberControlCallback {
 
             InterpolateLinearTime!(int) moveHealth;
 
-            //animation of lifepower-countdown
-            //int health_from, health_to;
-            int health_cur;
+            int health_cur = int.max;
+            int lastHealthHintTarget = int.max;
 
-            Vector2i forArrow;
-            Vector2i lastKnownPosition;
             bool cameraActivated;
+            Vector2i lastKnownPosition;
 
             this(TeamMemberInfo m) {
                 member = m;
+                wormTeam = m.owner.createLabel();
                 wormName = m.owner.createLabel();
                 wormName.text = m.member.name();
                 wormPoints = m.owner.createLabel();
                 healthHint = m.owner.createLabel();
+                weaponIcon = m.owner.createLabel();
+                weaponIcon.text = "";
+                arrow = new GuiAnimator();
+                arrow.animation = member.owner.theme.arrow.get;
+                moveWeaponIcon.fn = &interpolate2Exp;
+                //get rid of nan
+                moveWeaponIcon.start = moveWeaponIcon.target = 0;
+            }
+
+            //looks like this:   | 0.0 slow ... fast 0.5 fast ... slow 1.0 |
+            float interpolate2Exp(float inp) {
+                auto dir = inp < 0.5f;
+                inp = dir ? 0.5f - inp : inp - 0.5f;
+                auto res = interpolateExponential(inp) / 2;
+                return dir ? 0.5f - res : res + 0.5f;
             }
 
             Vector2i getCameraPosition() {
@@ -171,46 +282,44 @@ class GameView : Container, TeamMemberControlCallback {
                 return cameraActivated;
             }
 
+            void removeGUI() {
+                wormTeam.remove();
+                wormName.remove();
+                wormPoints.remove();
+                healthHint.remove();
+                arrow.remove();
+                weaponIcon.remove();
+            }
+
+            //use these with the label stuff
+            void setWPos(Widget w, Vector2i pos) {
+                w.setAddToPos(pos);
+            }
+            void setWVisible(Widget w, bool visible) {
+                if (!visible) {
+                    //ensure invisibility
+                    w.remove();
+                    return;
+                }
+                //ensure visibility
+                if (!w.parent()) {
+                    this.outer.addChild(w);
+                }
+            }
+
             void simulate() {
                 auto graphic = member.member.getGraphic();
-                bool shouldactive = !!graphic;
-                if (shouldactive != guiIsActive) {
-                    if (!shouldactive) {
-                        //hide GUI
-                        wormName.remove();
-                        wormPoints.remove();
-                        healthHint.remove();
-                    } else {
-                        //show GUI
-                        this.outer.addChild(wormName);
-                        this.outer.addChild(wormPoints);
-                    }
-                    guiIsActive = shouldactive;
-                }
-                if (guiIsActive) {
+                bool guiIsActive = !!graphic;
+                if (!guiIsActive) {
+                    removeGUI();
+                } else if (guiIsActive) {
+                    assert(graphic !is null);
                     lastKnownPosition = graphic.bounds.p1;
 
-                    //update state
                     if (health_cur != member.currentHealth) {
                         health_cur = member.currentHealth;
                         wormPoints.text = format("%s", health_cur);
                     }
-                    //update positions...
-                    assert(graphic !is null);
-                    auto pos = graphic.bounds.center;
-                    pos.y -= graphic.bounds.size.y/2;
-
-                    void mooh(Widget w) {
-                        Vector2i sz = w.size;
-                        Rect2i booh = void;
-                        pos.y -= sz.y;
-                        auto p = pos;
-                        p.x -= sz.x/2; //center
-                        w.adjustPosition(p);
-                    }
-                    mooh(wormPoints);
-                    mooh(wormName);
-                    forArrow = pos;
 
                     //activate camera if it should and wasn't yet
                     if (!cameraActivated && member.member.active()) {
@@ -218,62 +327,197 @@ class GameView : Container, TeamMemberControlCallback {
                         mCamera.setCameraFocus(this);
                     }
 
+                    //labels are positioned above pos
+                    auto pos = graphic.bounds.center;
+                    pos.y -= graphic.bounds.size.y/2;
+
+                    bool isActiveWorm = this is activeWorm;
+
+                    //whether labels should move up or down
+                    //initiate movement into this direction if not yet
+                    bool doMoveDown;
+
+                    if (isActiveWorm) {
+                        auto currentTime = mEngine.engineTime.current();
+                        bool didmove = (currentTime
+                            - mController.currentLastAction()) < cArrowDelta;
+                        doMoveDown = !didmove;
+                    } else {
+                        //move labels down, but arrow is invisible
+                        doMoveDown = true;
+                    }
+
+                    //if the moving direction isn't correct, reverse it
+                    if (doMoveDown != (moveLabels.target <= moveLabels.start)) {
+                        if (doMoveDown) {
+                            //make labels visible & move down
+                            moveLabels.initBetween(cLabelsMoveTimeDown,
+                                cLabelsMoveDistance, moveLabels.value, 0);
+                        } else {
+                            //move up
+                            moveLabels.initBetween(cLabelsMoveTimeUp,
+                                0, moveLabels.value, cLabelsMoveDistance);
+                        }
+                    }
+
+                    bool showLabels = true;
+
+                    if (!moveLabels.inProgress() && !doMoveDown) {
+                        showLabels = !isActiveWorm;
+                    }
+
+                    //(.value() isn't necessarily changing all the time)
+                    pos.y -= moveLabels.value();
+
+                    //that weapon label
+                    auto amember = mController.getActiveMember();
+                    bool weapon_visible = (amember is member.member)
+                        && mController.displayWeaponIcon();
+
+                    setWVisible(weaponIcon, weapon_visible);
+
+                    if (weapon_visible) {
+                        //NOTE: wwp animates the appearance/disappearance of
+                        // the weapon label; when it disappears, it shrinks and
+                        // moves towards the worm; we don't do that (yet?)
+                        //for now, only animate the left/right change of the
+                        //worm
+
+                        weaponIcon.image = mController.currentWeapon.icon.get;
+
+                        //possibly fix the animation
+                        //get where worm looks too
+                        bool faceLeft;
+                        if (auto se = cast(Sequence)graphic) {
+                            SequenceUpdate sd;
+                            se.getInfos(sd);
+                            faceLeft = angleLeftRight(sd.rotation_angle, true,
+                                false);
+                        }
+                        if (moveWeaponIcon.start == moveWeaponIcon.target) {
+                            //rather a cheap trick to distinguish initialization
+                            //from not-animating state
+                            moveWeaponIcon.start = faceLeft ? 1 : 0;
+                            moveWeaponIcon.target = faceLeft ? 0 : 1;
+                            moveWeaponIcon.duration = Time.Null;
+                        } else {
+                            bool rtol = moveWeaponIcon.start
+                                > moveWeaponIcon.target;
+                            if (rtol != faceLeft) {
+                                if (moveWeaponIcon.inProgress()) {
+                                    //change direction (works because
+                                    //interpolation function is symmetric)
+                                    swap(moveWeaponIcon.start,
+                                        moveWeaponIcon.target);
+                                    auto cur = moveWeaponIcon.currentTime;
+                                    auto diff = cur
+                                        - moveWeaponIcon.startTime;
+                                    diff = moveWeaponIcon.duration - diff;
+                                    moveWeaponIcon.startTime = cur - diff;
+                                } else {
+                                    moveWeaponIcon.init(cWeaponIconMoveTime,
+                                        faceLeft ? 1 : 0, faceLeft ? 0 : 1);
+                                }
+                            }
+                        }
+
+                        //set the position
+                        float wip = moveWeaponIcon.value();
+                        auto npos = placeRelative(Rect2i(weaponIcon.size()),
+                            graphic.bounds, Vector2i(0, -1), wip, 0.5f);
+                        npos += graphic.bounds.p1;
+                        setWPos(weaponIcon, npos);
+                    } else {
+                        moveWeaponIcon.reset();
+                        moveWeaponIcon.start = moveWeaponIcon.target = 0;
+                    }
+
+                    void mooh(bool vis, Widget w) {
+                        setWVisible(w, vis);
+                        if (!vis)
+                            return;
+                        Vector2i sz = w.size;
+                        pos.y -= sz.y;
+                        //pos.y -= 1; //some spacing, but it looks ugly
+                        auto p = pos;
+                        p.x -= sz.x/2; //center
+                        setWPos(w, p);
+                    }
+                    auto tlv = showLabels && !weapon_visible;
+                    mooh(tlv && mTeamGUISettings.showPoints, wormPoints);
+                    mooh(tlv && mTeamGUISettings.showName, wormName);
+                    mooh(tlv && mTeamGUISettings.showTeam, wormTeam);
+                    //label already placed, but adjust position for arrow
+                    if (weapon_visible) {
+                        pos.y -= weaponIcon.size.y;
+                    }
+                    mooh(showLabels && isActiveWorm, arrow);
+
                     //for healthHint
                     //I simply trigger it when the health value changes, and
                     //when currently no label is displayed
                     //the label is only removed as soon as the health value is
                     //constant again
                     //slight duplication of the logic in gameframes
-                    if (moveHealth.inProgress()) {
-                        //pos is leftover from above, move and center it
-                        pos.y -= moveHealth.value();
-                        healthHint.adjustPosition(pos-healthHint.size.X/2);
-                    } else {
-                        auto diff =  member.realHealth() - member.currentHealth;
-                        if (diff < 0) {
+                    if (moveHealth.currentTime >= moveHealth.endTime
+                        + cHealthHintWait)
+                    {
+                        //ensure it's removed
+                        healthHint.remove();
+                        //probably start a new animation
+                        auto target = member.currentHealth;
+                        auto diff =  member.member.currentHealth() - target;
+                        //compare target and realHealth to see if health is
+                        //really changing (diff can still be != 0 if not)
+                        if (diff < 0 && target != lastHealthHintTarget
+                            && target != member.realHealth())
+                        {
                             //start (only for damages, not upgrades => "< 0")
                             moveHealth.init(cHealthHintTime, 0,
                                 cHealthHintDistance);
                             healthHint.text = format("%s", -diff);
                             this.outer.addChild(healthHint);
-                        } else {
-                            //possibly remove (could be already removed)
-                            healthHint.remove();
+                            //this is to avoid restarting the label animation
+                            //several times when counting down takes longer than
+                            //to display the fill health damage hint animation
+                            lastHealthHintTarget = target;
                         }
                     }
+                    if (healthHint.parent()) {
+                        //pos is leftover from above, move and center it
+                        pos.y -= moveHealth.value();
+                        setWPos(healthHint, pos-healthHint.size.X/2);
+                    }
                 }
-            }
+            } // simulate
+        } //ViewMember
+    } //private
+
+    /+void updateGUI() {
+        foreach (m; mAllMembers) {
+            m.updateGUI();
         }
+    }+/
+
+    void setGUITeamMemberSettings(GUITeamMemberSettings s) {
+        mTeamGUISettings = s;
+        //updateGUI();
     }
 
     private void doSim() {
-        mLastTime = mCurrentTime;
-        mCurrentTime = mEngine.engineTime.current;
+        mCamera.paused = mEngine.engineTime.paused();
 
         foreach (m; mAllMembers) {
             m.simulate();
         }
 
-        TeamMember cur = mController.getActiveMember();
-
-        if (cur &&
-            mCurrentTime - mController.currentLastAction() > cArrowDelta)
-        {
-            //make sure the arrow is active
-            ViewMember vm = mEngineMemberToOurs[cur];
-            if (!mArrow.parent) {
-                mArrow.animation = vm.member.owner.theme.arrow.get;
-                addChild(mArrow);
-            }
-            Vector2i pos = vm.forArrow;
-            pos.y -= mArrow.size.y;
-            pos.x -= mArrow.size.x/2;
-            mArrow.adjustPosition(pos);
-        } else {
-            mArrow.remove();
+        activeWorm = null;
+        if (auto am = mController.getActiveMember()) {
+            auto pam = am in mEngineMemberToOurs;
+            activeWorm = pam ? *pam : null;
         }
 
-        bool p_active = (mPointedFor is cur) && !!cur;
+        bool p_active = activeWorm && (mPointedFor is activeWorm.member);
         if (!mPointed.parent && p_active) {
             addChild(mPointed);
         }
@@ -281,24 +525,6 @@ class GameView : Container, TeamMemberControlCallback {
             mPointedFor = null;
             mPointed.remove;
         }
-    }
-
-    //at least if child is one of the worm labels, don't relayout the whole GUI
-    //just allocate the child to the requested size; but it still seems to be
-    //a bit stupid...
-    //of course breaks layouting of other elements, but there are none
-    override protected void requestedRelayout(Widget child) {
-        //just readjust the size / position is fixed
-        auto size = child.layoutCachedContainerSizeRequest();
-        auto bounds = child.containedBounds();
-        bounds.p2 = bounds.p1 + size;
-        child.manualRelayout(bounds);
-    }
-
-    //block out automatic layouting of labels etc.
-    //could be dangerous if my code in container.d/widget.d assumes ungood stuff
-    protected override void layoutSizeAllocation() {
-        //mooh
     }
 
     override bool canHaveFocus() {
@@ -309,7 +535,6 @@ class GameView : Container, TeamMemberControlCallback {
     }
 
     this(ClientGameEngine engine, Camera cam, GameInfo game) {
-        mArrow = new GuiAnimator();
         mPointed = new GuiAnimator();
 
         mEngine = engine;
@@ -415,7 +640,7 @@ class GameView : Container, TeamMemberControlCallback {
                 if (cur && mController.currentWeapon &&
                     mController.currentWeapon.fireMode.point != PointMode.none)
                 {
-                    mPointedFor = cur;
+                    mPointedFor = mGame.allMembers[cur];
                     switch (mController.currentWeapon.fireMode.point) {
                         case PointMode.instant:
                             mPointed.animation = mEngineMemberToOurs[cur].member
@@ -428,6 +653,15 @@ class GameView : Container, TeamMemberControlCallback {
                     mPointed.setPositionCentered(mousePos);
                 }
                 return true;
+            }
+            case "toggle_labels": {
+                mCycleLabels = (mCycleLabels+1) %  4;
+                auto t = mCycleLabels;
+                GUITeamMemberSettings s; //what a stupid type name
+                s.showPoints = t >= 1;
+                s.showName = t >= 2;
+                s.showTeam = t >= 3;
+                setGUITeamMemberSettings(s);
             }
             default:
         }

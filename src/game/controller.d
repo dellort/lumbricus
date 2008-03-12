@@ -114,6 +114,14 @@ class ServerMemberControl : TeamMemberControl {
         return null;
     }
 
+    bool displayWeaponIcon() {
+        auto m = activemember;
+        if (m) {
+            return m.displayWeaponIcon();
+        }
+        return false;
+    }
+
     void weaponSetTimer(Time timer) {
         //TODO
     }
@@ -427,7 +435,7 @@ class ServerTeam : Team {
             //already dead -> boring
             //also bail out here if worm drowned/is drowning
             if (!worm || worm.isReallyDead()) {
-                m.mWorm = null;
+                m.removeWorm();
                 continue;
             }
 
@@ -479,6 +487,7 @@ class ServerTeamMember : TeamMember {
         Vector2f mLastMoveVector;
         GameEngine mEngine;
         int lastKnownLifepower;
+        int mLastKnownPhysicHealth;
         int mCurrentHealth; //health value reported to client
         //that thing when you e.g. shoot a bazooka to set the fire strength
         bool mThrowing;
@@ -491,6 +500,12 @@ class ServerTeamMember : TeamMember {
         this.mName = a_name;
         this.mTeam = a_team;
         mEngine = mTeam.parent.engine;
+    }
+
+    void removeWorm() {
+        if (mWorm)
+            mLastKnownPhysicHealth = cast(int)mWorm.physics.lifepower;
+        mWorm = null;
     }
 
     //send new health value to client
@@ -531,7 +546,16 @@ class ServerTeamMember : TeamMember {
     }
 
     int health() {
-        return isAlive() ? cast(int)mWorm.physics.lifepower : 0;
+        //hack to display negative values
+        //the thing is that a worm can be dead even if the physics report a
+        //positive value - OTOH, we do want these negative values... HACK GO!
+        //mLastKnownPhysicHealth is there because mWorm could disappear
+        auto h = mWorm ? cast(int)mWorm.physics.lifepower : mLastKnownPhysicHealth;
+        if (isAlive()) {
+            return h;
+        } else {
+            return h < 0 ? h : 0;
+        }
     }
 
     private void place() {
@@ -590,7 +614,7 @@ class ServerTeamMember : TeamMember {
             //member is being activated
             mActive = act;
             mWormAction = false;
-            mLastAction = timeMusecs(0);
+            mLastAction = timeSecs(-40); //xxx not kosher
             lastKnownLifepower = health;
             //select last used weapon, select default if none
             if (!mCurrentWeapon)
@@ -640,6 +664,13 @@ class ServerTeamMember : TeamMember {
 
     WeaponItem currentWeapon() {
         return mCurrentWeapon;
+    }
+
+    bool displayWeaponIcon() {
+        if (!mWorm)
+            return false;
+        return (!mWorm.weaponDrawn() && currentWeapon())
+            || mWorm.displayWeaponIcon;
     }
 
     void selectWeapon(WeaponItem weapon) {
