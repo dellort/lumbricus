@@ -10,8 +10,21 @@ final float cNormalCheck = 5;
 
 //the physics stuff uses an ID to test if collision between objects is wanted
 //all physic objects (type PhysicBase) have an CollisionType
-typedef uint CollisionType;
-const CollisionType_Invalid = uint.max;
+//ok, it's not really an integer ID anymore, but has the same purpose
+class CollisionType {
+    char[] name;
+    bool undefined = true; //true if this is an unresolved forward reference
+
+    //index into the collision-matrix
+    int index;
+
+    //needed because of forward referencing etc.
+    CollisionType superclass;
+    CollisionType[] subclasses;
+}
+
+//it's illegal to use CollisionType_Invalid in PhysicBase.collision
+const CollisionType CollisionType_Invalid = null;
 
 alias void delegate(PhysicBase a, PhysicBase b) CollideDelegate;
 

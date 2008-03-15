@@ -44,7 +44,7 @@ class PhysicGeometry : PhysicBase {
 
     override protected void addedToWorld() {
         //register fixed collision id "ground" on first call
-        collision = world.findCollisionID("ground", true);
+        collision = world.findCollisionID("ground");
     }
 
 

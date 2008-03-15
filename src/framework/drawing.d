@@ -42,6 +42,9 @@ public class Canvas {
     public abstract void drawFilledRect(Vector2i p1, Vector2i p2, Color color,
         bool properalpha = true);
 
+    /// draw a vertical gradient at rc from color c1 to c2
+    public abstract void drawVGradient(Rect2i rc, Color c1, Color c2);
+
     public abstract void clear(Color color);
 
     /// Set a clipping rect, and use p1 as origin (0, 0)

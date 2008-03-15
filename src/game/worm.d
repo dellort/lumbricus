@@ -317,10 +317,6 @@ class WormSprite : GObjectSprite {
         return currentState is wsc.st_stand;
     }
 
-    bool isSitting() {
-        return isStanding() || currentState is wsc.st_weapon;
-    }
-
     override protected void physUpdate() {
         if (!isDelayedDying) {
             if (!jetpackActivated) {
@@ -371,15 +367,6 @@ class WormSpriteClass : GOSpriteClass {
         suicideDamage = config.getFloatValue("suicide_damage", 10);
         float[] js = config.getValueArray!(float)("jump_strength",[100,-100]);
         jumpStrength = Vector2f(js[0],js[1]);
-
-        /+
-        gravestones.length = 0;
-
-        ConfigNode grNode = config.getSubNode("gravestones");
-        foreach (char[] name, char[] value; grNode) {
-            gravestones ~= engine.gfx.resources.get!(SequenceObject)(value);
-        }
-        +/
 
         //done, read out the stupid states :/
         st_stand = findState("stand");

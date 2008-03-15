@@ -24,7 +24,7 @@ import std.string;
 import gui.test; //GUI test code
 import game.gametask; //the game itself
 import game.gui.preview; //level preview window
-//broken import game.gui.leveledit; //aw
+import game.gui.leveledit; //aw
 import game.wtris; //lol
 import game.bomberworm; //?
 import irc.ircclient; //roflmao

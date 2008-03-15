@@ -286,6 +286,32 @@ class TestFrame8 : Container {
     }
 }
 
+//not really GUI related
+class TestGradient : Container {
+    Button mChk;
+    class Draw : Widget {
+        override void onDraw(Canvas c) {
+            auto rc = widgetBounds();
+            rc.extendBorder(Vector2i(-20));
+            if (mChk.checked) {
+                c.drawVGradient(rc, Color(1,0,0), Color(0,1,0));
+            } else {
+                c.drawFilledRect(rc.p1, rc.p2, Color(1,0,0));
+            }
+        }
+    }
+    this() {
+        auto b = new BoxContainer(false);
+        auto d = new Draw();
+        b.add(d);
+        mChk = new Button();
+        mChk.isCheckbox = true;
+        mChk.text = "gradient versus solid rect";
+        b.add(mChk, WidgetLayout.Noexpand());
+        addChild(b);
+    }
+}
+
 //just to show the testframe
 class TestTask : Task {
     //private Widget mWindow;
@@ -314,6 +340,7 @@ class TestTask : Task {
         createWindow("CheckBox", checkbox);
         createWindow("Popup-Test", new TestFrame7());
         createWindow("DropDownList", new TestFrame8());
+        createWindow("Test gradient", new TestGradient());
 
         auto k = new Button();
         k.text = "Kill!!!1";

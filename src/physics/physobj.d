@@ -26,7 +26,7 @@ class PhysicObject : PhysicBase {
     void posp(POSP p) {
         mPosp = p;
         //new POSP -> check values
-        collision = world.findCollisionID(mPosp.collisionID, true);
+        collision = world.findCollisionID(mPosp.collisionID);
     }
 
     package Vector2f mPos; //pixels

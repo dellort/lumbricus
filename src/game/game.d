@@ -233,6 +233,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         //various level borders
         waterborder = new PlaneTrigger();
         waterborder.onTrigger = &underWaterTrigger;
+        waterborder.collision = physicworld.findCollisionID("water");
         physicworld.add(waterborder);
         //Stokes's drag force
         //xxx controlled by object attribute, change into zone
@@ -242,6 +243,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         physicworld.add(mEarthQuakeForce);
 
         deathzone = new PlaneTrigger();
+        deathzone.collision = physicworld.collideAlways();
         deathzone.onTrigger = &deathzoneTrigger;
         //xxx: at least as high as highest object in the game
         //     else objects will disappear too early
@@ -314,22 +316,15 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         mPhysicWorld.gravity = Vector2f(0, conf.getFloatValue("gravity",100));
 
         //hm!?!?
-        physicworld.setCollideHandler("hit", &onPhysicHit);
+        mPhysicWorld.setCollideHandler(&onPhysicHit);
 
-        //this barfs up if setCollideHandler()s were missed
-        physicworld.checkCollisionHandlers();
+        //error when a reference to a collision type is missing
+        mPhysicWorld.checkCollisionHandlers();
     }
 
-    //called when a and b hit using the "hit" collision
-    //i.e. the worm.conf contains this:
-    //  collisions {
-    //        worm {
-    //            ground = "hit"
-    //    }}
-    //"hit" means onPhysicHit is called, with worm as "a" and ground as "b"
-    //
+    //called when a and b touch in physics
     private void onPhysicHit(PhysicBase a, PhysicBase b) {
-        //exactly as the old bahviour
+        //exactly as the old behaviour
         auto xa = cast(GObjectSprite)(a.backlink);
         if (xa) xa.doImpact(b);
         auto xb = cast(GObjectSprite)(b.backlink);

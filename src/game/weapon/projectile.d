@@ -693,7 +693,7 @@ class ProjectileEffectorProximitySensor : ProjectileEffector {
         myclass = type;
         mTrigger = new CircularTrigger(mParent.physics.pos, myclass.radius);
         mTrigger.collision = mParent.engine.physicworld.findCollisionID(
-            myclass.collision, true);
+            myclass.collision);
         mTrigger.onTrigger = &trigTrigger;
         mFireTime = timeNever();
     }

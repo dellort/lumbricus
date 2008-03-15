@@ -355,7 +355,7 @@ class GLCanvas : Canvas {
 
     public void drawCircle(Vector2i center, int radius, Color color) {
         glPushAttrib(GL_CURRENT_BIT);
-        glColor4fv(cast(float*)&color);
+        glColor4fv(color.ptr);
         stroke_circle(center.x, center.y, radius);
         glPopAttrib();
     }
@@ -364,7 +364,7 @@ class GLCanvas : Canvas {
         Color color)
     {
         glPushAttrib(GL_CURRENT_BIT);
-        glColor4fv(cast(float*)&color);
+        glColor4fv(color.ptr);
         fill_circle(center.x, center.y, radius);
         glPopAttrib();
     }
@@ -449,7 +449,7 @@ class GLCanvas : Canvas {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-        glColor4fv(cast(float*)&color);
+        glColor4fv(color.ptr);
 
         //fixes blurry lines with GL_LINE_SMOOTH
         glTranslatef(0.5f, 0.5f, 0);
@@ -469,7 +469,7 @@ class GLCanvas : Canvas {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-        glColor4fv(cast(float*)&color);
+        glColor4fv(color.ptr);
 
         //fixes blurry lines with GL_LINE_SMOOTH
         glTranslatef(0.5f, 0.5f, 0);
@@ -496,24 +496,29 @@ class GLCanvas : Canvas {
     public void drawFilledRect(Vector2i p1, Vector2i p2, Color color,
         bool properalpha = true)
     {
+        Color[2] c;
+        c[0] = c[1] = color;
+        doDrawRect(p1, p2, c);
+    }
+
+    void doDrawRect(Vector2i p1, Vector2i p2, Color[2] c) {
         //glPushMatrix();
         glPushAttrib(GL_ENABLE_BIT | GL_CURRENT_BIT);
         glDisable(GL_TEXTURE_2D);
-        bool alpha = (color.a <= 1.0f - Color.epsilon);
+        bool alpha = (c[0].hasAlpha() || c[1].hasAlpha());
         if (alpha) {
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }
 
-        //har (hey...! wtf?)
-        glColor4fv(cast(float*)&color);
-
         //glTranslatef(0.5f, 0.5f, 0);
         glBegin(GL_QUADS);
+            glColor4fv(c[0].ptr);
+            glVertex2i(p2.x, p1.y);
             glVertex2i(p1.x, p1.y);
+            glColor4fv(c[1].ptr);
             glVertex2i(p1.x, p2.y);
             glVertex2i(p2.x, p2.y);
-            glVertex2i(p2.x, p1.y);
         glEnd();
 
         glPopAttrib();
@@ -521,6 +526,13 @@ class GLCanvas : Canvas {
 
         if (alpha)
             markAlpha(p1, p2-p1);
+    }
+
+    public void drawVGradient(Rect2i rc, Color c1, Color c2) {
+        Color[2] c;
+        c[0] = c1;
+        c[1] = c2;
+        doDrawRect(rc.p1, rc.p2, c);
     }
 
     public void draw(Texture source, Vector2i destPos,

@@ -22,6 +22,8 @@ import game.crate;
 import game.levelgen.level;
 import game.levelgen.generator;
 import gui.container;
+import gui.label;
+import gui.tablecontainer;
 import gui.widget;
 import gui.wm;
 import utils.array;
@@ -347,14 +349,75 @@ class GameTask : Task {
         mCmds.register(Command("crate_test", &cmdCrateTest, "drop a crate"));
         mCmds.register(Command("shake_test", &cmdShakeTest, "earth quake test",
             ["float:strength", "float:degrade (multiplier < 1.0)"]));
+        mCmds.register(Command("show_collide", &cmdShowCollide, "show collision"
+            " bitmaps"));
+    }
+
+    class ShowCollide : Container {
+        class Cell : SimpleContainer {
+            bool bla, blu;
+            override void onDraw(Canvas c) {
+                c.drawRect(Vector2i(0), size()-Vector2i(1), Color(0));
+                if (bla || blu) {
+                    Color cl = bla ? Color(0.7) : Color(0.9);
+                    c.drawFilledRect(Vector2i(1), size()-Vector2i(1), cl);
+                }
+                super.onDraw(c);
+            }
+        }
+        this() {
+            auto ph = mServerEngine.physicworld;
+            auto types = ph.collisionTypes;
+            auto table = new TableContainer(types.length+1, types.length+1,
+                Vector2i(2));
+            void addc(int x, int y, Label l) {
+                Cell c = new Cell();
+                c.bla = (y>0) && (x > y);
+                c.blu = (y>0) && (x==y);
+                l.drawBorder = false;
+                l.font = gFramework.getFont("normal");
+                c.add(l, WidgetLayout.Aligned(0, 0, Vector2i(1)));
+                table.add(c, x, y);
+            }
+            //column/row headers
+            for (int n = 0; n < types.length; n++) {
+                auto l = new Label();
+                l.text = types[n].name;
+                addc(0, n+1, l);
+                l = new Label();
+                l.text = types[n].name;
+                addc(n+1, 0, l);
+            }
+            int y = 1;
+            foreach (t; types) {
+                int x = 1;
+                foreach (t2; types) {
+                    Label lbl = new Label();
+                    if (ph.canCollide(t, t2)) {
+                        lbl.image = globals.guiResources.get!(Surface)
+                            ("window_close"); //that icon is good enough
+                    }
+                    addc(x, y, lbl);
+                    x++;
+                }
+                y++;
+            }
+            addChild(table);
+        }
+    }
+
+    private void cmdShowCollide(MyBox[] args, Output write) {
+        if (!mServerEngine)
+            return;
+        gWindowManager.createWindow(this, new ShowCollide(),
+            "Collision matrix");
     }
 
     private void cmdSafeLevelTGA(MyBox[] args, Output write) {
         char[] filename = args[0].unbox!(char[])();
-        /+Stream s = gFramework.fs.open(filename, FileMode.OutNew);
-        saveSurfaceToTGA(mServerEngine.gamelevel.image, s);
-        s.close();+/
-        assert(false);//yyy
+        Stream s = gFramework.fs.open(filename, FileMode.OutNew);
+        saveSurfaceToTGA(mServerEngine.gameLandscapes[0].image, s);
+        s.close();
     }
 
     private void cmdWeapon(MyBox[] args, Output write) {
@@ -527,9 +590,9 @@ void saveSurfaceToTGA(Surface s, OutputStream stream) {
                 //trivial alpha check... and if so, write a colorkey
                 //this, of course, is a dirty hack
                 if (*data >> 24) {
-                    b = *data; to.write(b);
-                    b = *data >> 8; to.write(b);
                     b = *data >> 16; to.write(b);
+                    b = *data >> 8; to.write(b);
+                    b = *data; to.write(b);
                 } else {
                     b = 255; to.write(b);
                     b = 0; to.write(b);

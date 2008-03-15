@@ -420,6 +420,10 @@ class WindowWidget : Container {
             onFocusLost(this);
     }
 
+    override bool greedyFocus() {
+        return true;
+    }
+
     void doAction(char[] s) {
         if (onKeyBinding)
             onKeyBinding(this, s);

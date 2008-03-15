@@ -1216,6 +1216,22 @@ class SDLCanvas : Canvas {
         }
     }
 
+    public void drawVGradient(Rect2i rc, Color c1, Color c2) {
+        auto dy = rc.p2.y - rc.p1.y;
+        auto dc = c2 - c1;
+        //xxx clip against y?
+        auto a = rc.p1;
+        auto b = Vector2i(rc.p2.x, a.y + 1);
+        for (int y = 0; y < dy; y++) {
+            //SDL's FillRect is probably quite good at drawing solid horizontal
+            //lines, so there's no reason not to use it
+            //drawFilledRect of course still has a lot of overhead...
+            drawFilledRect(a, b, c1 + dc * (1.0f*y/dy));
+            a.y++;
+            b.y++;
+        }
+    }
+
     public void clear(Color color) {
         drawFilledRect(Vector2i(0, 0)-mTrans, clientSize-mTrans, color, false);
     }

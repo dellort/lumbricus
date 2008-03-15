@@ -26,9 +26,9 @@ import utils.log;
 import utils.misc;
 import utils.array;
 import utils.configfile;
-import levelgen.level;
-import levelgen.generator;
-import levelgen.genrandom;
+import game.levelgen.level;
+import game.levelgen.generator;
+import game.levelgen.genrandom;
 import std.string : format;
 import utils.output;
 
@@ -42,13 +42,6 @@ private:
 
 //added to all bounding boxes to increase tolerance
 const int cBoundingBorder = 2;
-
-Rect2i emptyBB() {
-    return Rect2i(0, 0, -1, -1);
-}
-bool isEmptyBB(Rect2i r) {
-    return (r == emptyBB());
-}
 
 class EditObject {
     List!(EditObject) subObjects;
@@ -90,21 +83,23 @@ class EditObject {
     //members can override this
     protected void doUpdateBoundingBox() {
         void addBB(Rect2i b) {
-            if (isEmptyBB(bounds)) {
+            if (!bounds.isNormal()) {
                 bounds = b;
             } else {
-                if (!isEmptyBB(b))
+                if (b.isNormal())
                     bounds.extend(b);
             }
         }
 
-        bounds = emptyBB();
+        bounds = Rect2i.Empty();
         foreach (o; subObjects) {
             addBB(o.bounds);
         }
 
-        bounds.p1 -= Vector2i(cBoundingBorder);
-        bounds.p2 += Vector2i(cBoundingBorder);
+        if (bounds.isNormal()) {
+            bounds.p1 -= Vector2i(cBoundingBorder);
+            bounds.p2 += Vector2i(cBoundingBorder);
+        }
     }
 
     //changed points or subobjects
@@ -869,7 +864,8 @@ public class LevelEditor : Task {
     private void loadTemplate() {
         //exchange the Window's GUI to display the dialog, oh what evilness
         mWindow.client = mLoadTemplate;
-        auto templs = loadTemplates(); //NOTE: provided by levelgen.generator
+        auto lgen = new LevelGeneratorShared();
+        auto templs = lgen.templates.all();
         char[][] names;
         mTemplateList = null;
         auto templ_trans = Translator.ByNamespace("templates");
@@ -898,15 +894,23 @@ public class LevelEditor : Task {
         assert(!!templ);
         clear();
         //currently we throw everything away, except the geometry:
-        doLoadGeometry(templ.geometry);
+        //if there's one lol; I extended the Level, but not the level editor
+        //so it's natural there's information loss
+        //also it's not very nice to load the stuff manually sigh
+        auto node = templ.data.getPath("objects.land0");
+        if (node && node["type"] == "landscape_template") {
+            auto geo = new LandscapeGeometry();
+            geo.loadFrom(node);
+            doLoadGeometry(geo);
+        }
         //update GUI
         mCaveCheckbox.checked = levelCaveness != Lexel.Null;
     }
 
-    private void doLoadGeometry(LevelGeometry geo) {
+    private void doLoadGeometry(LandscapeGeometry geo) {
         levelSize = geo.size;
-        levelCaveness = geo.caveness;
-        foreach (LevelGeometry.Polygon p; geo.polygons) {
+        levelCaveness = geo.fill;
+        foreach (LandscapeGeometry.Polygon p; geo.polygons) {
             //xxx: only loads the point-list, nothing else
             auto poly = new EditPolygon();
             poly.initLine(p.points);
@@ -1016,15 +1020,21 @@ public class LevelEditor : Task {
     }
 
     void saveLevel(ConfigNode sub) {
-        LevelGeometry geo = new LevelGeometry();
+        sub["description"] = "levelgenerator";
+        sub["load_defaults"] = (levelCaveness == Lexel.Null) ? "isle" : "cave";
+
+        auto ls0 = sub.getPath("objects.land0", true);
+        ls0["type"] = "landscape_template";
+
+        auto geo = new LandscapeGeometry();
         geo.size = levelSize;
-        geo.caveness = levelCaveness;
+        geo.fill = levelCaveness;
 
         foreach (o; root.subObjects) {
             if (!cast(EditPolygon)o)
                 continue;
             EditPolygon p = cast(EditPolygon)o;
-            LevelGeometry.Polygon curpoly;
+            LandscapeGeometry.Polygon curpoly;
             curpoly.points = p.getPoints();
             curpoly.nochange = p.getNoChangeable();
             curpoly.marker = p.marker;
@@ -1033,7 +1043,7 @@ public class LevelEditor : Task {
             geo.polygons ~= curpoly;
         }
 
-        geo.saveTo(sub);
+        geo.saveTo(ls0);
     }
 
     void cmdSave(MyBox[] args, Output write) {
@@ -1064,22 +1074,30 @@ public class LevelEditor : Task {
     void genPreview() {
         mPreviewCheckbox.checked = true;
         mCurrentPreview = genRenderedLevel();
-        if (mCurrentPreview)
-            mPreviewImage = mCurrentPreview.image.createTexture();
+        if (mCurrentPreview) {
+            foreach (obj; mCurrentPreview.objects) {
+                if (auto ls = cast(LevelLandscape)obj) {
+                    mPreviewImage = ls.landscape.image;
+                    break;
+                }
+            }
+        }
     }
 
     Level genRenderedLevel() {
         //create a level generator configfile...
         ConfigNode config = new ConfigNode();
         saveLevel(config);
-        auto templ = new LevelTemplate(config);
-        auto generator = new LevelGenerator();
-        auto gfx = generator.findRandomGfx("gpl");
-        return generator.renderLevel(templ, gfx);
+        auto shared = new LevelGeneratorShared();
+        //second parameter is the "name", don't know what it was for
+        auto templ = new LevelTemplate(config, "hallo");
+        auto generator = new GenerateFromTemplate(shared, templ);
+        generator.selectTheme(shared.themes.findRandom("gpl"));
+        return generator.render();
     }
 
     static this() {
-        TaskFactory.register!(typeof(this))("ledit");
+        TaskFactory.register!(typeof(this))("leveledit");
     }
 }
 

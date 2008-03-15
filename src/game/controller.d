@@ -669,13 +669,20 @@ class ServerTeamMember : TeamMember {
     bool displayWeaponIcon() {
         if (!mWorm)
             return false;
-        return (!mWorm.weaponDrawn() && currentWeapon())
-            || mWorm.displayWeaponIcon;
+        //this is probably still bogus, what about other possible stuff like
+        //ropes etc. that could be added later?
+        //suggestion: define when exactly a worm can throw a weapon and attempt
+        //to display the weapon icon in these situations
+        return mWorm.displayWeaponIcon ||
+            (currentWeapon() && mWorm.jetpackActivated);
     }
 
     void selectWeapon(WeaponItem weapon) {
         if (!isControllable)
             return;
+        if (weapon is mCurrentWeapon)
+            return;
+        wormAction();
         mCurrentWeapon = weapon;
         if (mCurrentWeapon)
             if (!mCurrentWeapon.haveAtLeastOne())

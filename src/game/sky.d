@@ -129,9 +129,9 @@ class GameSky {
         int nAnim = 0;
         foreach (inout CloudInfo ci; mCloudAnimators) {
             ci.anim = new Animator();
-            ci.anim.setAnimation(mCloudAnims[nAnim]);
+            ci.anim.setAnimation(mCloudAnims[nAnim], timeMsecs(randRange(0,
+                    cast(int)(mCloudAnims[nAnim].duration.msecs))));
             scenes[Z.clouds].add(ci.anim);
-            //xxx ci.anim.setFrame(randRange(0u,mCloudAnims[nAnim].frameCount));
             ci.animSizex = 10;//mCloudAnims[nAnim].bounds.size.x;
             ci.y = randRange(-cCloudHeightRange/2,cCloudHeightRange/2)
                 - 5;//mCloudAnims[nAnim].bounds.size.y/2;

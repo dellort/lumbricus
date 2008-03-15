@@ -216,6 +216,10 @@ class Container : Widget {
         recheckChildFocus(child);
     }
 
+    package static Log log() {
+        return registerLog("GUI");
+    }
+
     private void findNextFocusOnKill(Widget child) {
         if (!isTopLevel) {
             //this can't have happened because this is _only_ called if the
@@ -224,7 +228,7 @@ class Container : Widget {
             //xxx sometimes fails for unknown reaons *g*
             //    assert(parent !is null);
             if (!parent) {
-                registerLog("GUI")("warning: !parent condition failed");
+                log()("warning: !parent condition failed");
                 return;
             }
             parent.findNextFocusOnKill(child);
@@ -232,6 +236,7 @@ class Container : Widget {
         } else {
             child.pollFocusState();
             Widget nfocus = findLastFocused();
+            log()("focus for kill: %s", nfocus);
             if (nfocus)
                 nfocus.claimFocus();
         }
@@ -268,12 +273,12 @@ class Container : Widget {
 
     //doesn't set the global focus; do "go.focused = true;" for that
     package void localFocus(Widget go) {
+        log()("attempt to focus %s", go);
         if (go is mFocus)
             return;
 
         if (mFocus) {
-            version (LogFocus)
-                gDefaultLog("remove local focus: %s from %s", mFocus, this);
+            log()("remove local focus: %s from %s", mFocus, this);
             auto tmp = mFocus;
             mFocus = null;
             tmp.pollFocusState();
@@ -281,8 +286,7 @@ class Container : Widget {
         mFocus = go;
         if (go && go.canHaveFocus) {
             go.mFocusAge = ++mCurrentFocusAge;
-            version (LogFocus)
-                gDefaultLog("set local focus: %s for %s", mFocus, this);
+            log()("set local focus: %s for %s", mFocus, this);
             go.pollFocusState();
         }
     }

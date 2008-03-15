@@ -512,6 +512,7 @@ class WindowManager {
                 write.writefln("        pos: ", w.mWindow.windowBounds);
                 write.writefln("        fullscreen: ", w.mWindow.fullScreen);
                 write.writefln("        focused: ", w.mWindow.focused);
+                write.writefln("        focus age: ", w.mWindow.mFocusAge);
             }
         }
     }

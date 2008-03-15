@@ -19,6 +19,12 @@ public struct Color {
     //most 8 bits
     public static const float epsilon = 0.3f * 1.0f/255;
 
+    /// to help the OpenGL code; use with glColor4fv
+    /// (unclean but better than to cast Color* to float* like it was before)
+    float* ptr() {
+        return &r;
+    }
+
     /// clamp all components to the range [0.0, 1.0]
     public void clamp() {
         if (r < 0.0f) r = 0.0f;
@@ -62,6 +68,11 @@ public struct Color {
     }
     Color opSub(Color c2) {
         return Color(r-c2.r,g-c2.g,b-c2.b,a-c2.a);
+    }
+
+    ///if alpha value is <= 1.0 - epsilon
+    bool hasAlpha() {
+        return a <= 1.0f - epsilon;
     }
 
     //xxx: ?

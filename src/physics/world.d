@@ -3,7 +3,8 @@ module physics.world;
 import str = std.string;
 import std.math : sqrt, PI;
 import utils.misc;
-import utils.array : aaReverseLookup;
+import utils.array : arrayMap;
+import utils.configfile;
 import utils.mylist;
 import utils.time;
 import utils.vector2;
@@ -107,12 +108,7 @@ class PhysicWorld {
             //check glued objects too, or else not checking would be
             //misinterpreted as not active
             foreach (PhysicTrigger tr; mTriggers) {
-                //handler is unused -> registered handler not called
-                //instead, the trigger calls a delegate... hmmm
-                CollisionCookie handler;
-                //xxx: not good, but had to hack it back, sigh
-                bool always = tr.collision == CollisionType_Invalid;
-                if (always || canCollide(tr, me, handler))
+                if (canCollide(tr, me))
                     tr.collide(me);
             }
         }
@@ -144,10 +140,8 @@ class PhysicWorld {
         if (dist >= mindist)
             return;
 
-        CollisionCookie cookie;
-
         //no collision if unwanted
-        if (!canCollide(obj1, obj2, cookie))
+        if (!canCollide(obj1, obj2))
             return;
 
         //generate contact and resolve immediately (well, as before)
@@ -163,7 +157,7 @@ class PhysicWorld {
 
         obj1.checkRotation();
 
-        cookie.call(); //call collision handler
+        callCollide(obj1, obj2); //call collision handler
         //xxx: also, should it be possible to glue objects here?
     }
 
@@ -219,11 +213,8 @@ class PhysicWorld {
     bool collideObjectWithGeometry(PhysicObject o, out GeomContact contact) {
         bool collided = false;
         foreach (PhysicGeometry gm; mGeometryObjects) {
-            CollisionCookie cookie;
             GeomContact ncont;
-            if (canCollide(o, gm, cookie)
-                && gm.collide(o.pos, o.posp.radius, ncont))
-            {
+            if (canCollide(o, gm) && gm.collide(o.pos, o.posp.radius, ncont)) {
                 //kind of hack for LevelGeometry
                 //if the pos didn't change at all, but a collision was
                 //reported, assume the object is completely within the
@@ -241,7 +232,7 @@ class PhysicWorld {
                     contact.merge(ncont);
                 collided = true;
 
-                cookie.call();
+                callCollide(o, gm);
             }
         }
         return collided;
@@ -296,167 +287,226 @@ class PhysicWorld {
     }
 
     //handling of the collision map
+private:
 
-    //for now, do it this strange way, rectangular array would be better, faster
-    //and more sane, but: you don't know the upper bounds of the array yet
-    private struct Collide {
-        CollisionType a, b;
+    CollisionType[char[]] mCollisionNames;
+    CollisionType[] mCollisions; //indexed by CollisionType.index
+    //pairs of things which collide with each other
+    CollisionType[2][] mHits;
+
+    //CollisionType.index indexes into this, see canCollide()
+    bool[][] mTehMatrix;
+
+    //if there are still unresolved CollisionType forward references
+    //used for faster error checking (in canCollide() which is a hot-spot)
+    bool mHadCTFwRef = true;
+
+    //special types
+    CollisionType mCTAlways, mCTNever, mCTAll;
+
+    CollideDelegate mCollideHandler;
+
+    CollisionType newCollisionType(char[] name) {
+        assert(!(name in mCollisionNames));
+        auto t = new CollisionType();
+        t.name = name;
+        mCollisionNames[t.name] = t;
+        t.index = mCollisions.length;
+        mCollisions ~= t;
+        mHadCTFwRef = true; //because this is one
+        return t;
     }
-    private int[Collide] mCollisionMap;
-    private CollisionType mCollisionAlloc;
 
-    private CollideDelegate[] mCollideHandlers;
-    private int[char[]] mCollideHandlerToIndex;
-
-    CollisionType newCollisionType() {
-        return ++mCollisionAlloc;
+    public CollisionType collideNever() {
+        return mCTNever;
     }
-
-    //considered to be private; result of canCollide
-    //this is used to call the collision handler (was: PhysicBase.onImpact)
-    //this is done using .call(), all other members are opaque
-    //intention: avoid a second lookup into the collision map on impact
-    //           also, maybe the arguments need to be reverted
-    struct CollisionCookie {
-        private PhysicBase a, b;
-        private CollideDelegate oncollide;
-
-        void call() {
-            oncollide(a, b);
-        }
-    }
-
-    private int getCollisionHandlerIndex(char[] name, bool maybecreate) {
-        if (!(name in mCollideHandlerToIndex)) {
-            if (!maybecreate)
-                return -1;
-            mCollideHandlerToIndex[name] = mCollideHandlers.length;
-            mCollideHandlers ~= null;
-        }
-
-        return mCollideHandlerToIndex[name];
+    public CollisionType collideAlways() {
+        return mCTAlways;
     }
 
     //associate a collision handler with code
     //this can handle forward-referencing
-    void setCollideHandler(char[] name, CollideDelegate oncollide) {
-        int index = getCollisionHandlerIndex(name, true);
-
-        if (mCollideHandlers[index] !is null) {
-            //already set, but there can be only one handler
-            throw new Exception("collide-handler '"~name~"' is already set!");
-        }
-
-        if (!oncollide)
-            oncollide = &collide_nohandler;
-
-        mCollideHandlers[index] = oncollide;
+    public void setCollideHandler(CollideDelegate oncollide) {
+        mCollideHandler = oncollide;
     }
 
-    private void collide_nohandler(PhysicBase a, PhysicBase b) {
+    public bool canCollide(CollisionType a, CollisionType b) {
+        if (mHadCTFwRef) {
+            checkCollisionHandlers();
+        }
+        assert(a && b, "no null parameters allowed, use collideNever/Always");
+        assert(!a.undefined && !b.undefined, "undefined collision type");
+        return mTehMatrix[a.index][b.index];
     }
 
-    //a should colide with b, and reverse (if allow_reverse is true)
-    //  handler_name = name of the handler; can handle forward-refs
-    //raises an error if collision is already set
-    void setCollide(CollisionType a, CollisionType b, char[] handler_name,
-        bool allow_reverse = true)
-    {
-        bool rev;
-        int cook = doCollisionLookup(a, b, rev);
-        if (cook >= 0) {
-            throw new Exception(str.format("there is already a collision set"
-                " between '%s' and '%s' (handler='%s', reverse=%s), can't"
-                " set handler to '%s'!",
-                aaReverseLookup(mCollisionTypeNames, a, "?"),
-                aaReverseLookup(mCollisionTypeNames, b, "?"),
-                aaReverseLookup(mCollideHandlerToIndex, cook, "?"),
-                rev,
-                handler_name));
-        }
-        mCollisionMap[Collide(a, b)] =
-            getCollisionHandlerIndex(handler_name, true);
+    public bool canCollide(PhysicBase a, PhysicBase b) {
+        assert(a && b);
+        if (!a.collision)
+            assert(false, "no collision for "~a.toString());
+        if (!b.collision)
+            assert(false, "no collision for "~b.toString());
+        return canCollide(a.collision, b.collision);
     }
 
-    private int doCollisionLookup(CollisionType a, CollisionType b,
-        out bool revert)
-    {
-        int* ptr = Collide(a, b) in mCollisionMap;
-        if (!ptr) {
-            ptr = Collide(b, a) in mCollisionMap;
-            revert = true;
-        }
-        if (ptr) {
-            return *ptr;
-        } else {
-            return -1;
-        }
-    }
-
-    bool canCollide(PhysicBase a, PhysicBase b, out CollisionCookie stuff) {
-        bool revert;
-        int cookie = doCollisionLookup(a.collision, b.collision, revert);
-
-        if (cookie < 0)
-            return false;
-
-        stuff.a = revert ? b : a;
-        stuff.b = revert ? a : b;
-        stuff.oncollide = mCollideHandlers[cookie];
-
-        return true;
+    //call the collision handler for these two objects
+    public void callCollide(PhysicBase a, PhysicBase b) {
+        assert(!!mCollideHandler);
+        mCollideHandler(a, b);
     }
 
     //check if all collision handlers were set; if not throw an error
-    void checkCollisionHandlers() {
+    public void checkCollisionHandlers() {
         char[][] errors;
 
-        foreach(int index, handler; mCollideHandlers) {
-            if (!handler) {
-                errors ~= aaReverseLookup(mCollideHandlerToIndex, index, "?");
+        foreach(t; mCollisions) {
+            if (t.undefined) {
+                errors ~= t.name;
             }
         }
 
         if (errors.length > 0) {
-            throw new Exception(str.format("the following collision handlers"
-                " weren't set: %s", errors));
+            throw new Exception(str.format("the following collision names were"
+                " referenced, but not defined: %s", errors));
         }
+
+        mHadCTFwRef = false;
     }
 
-    //collision handling stuff: map names to the registered IDs
-    //used by loadCollisions() and findCollisionID()
-    private CollisionType[char[]] mCollisionTypeNames;
-
     //find a collision ID by name
-    //  doregister = if true, register on not-exist, else throw exception
-    CollisionType findCollisionID(char[] name, bool doregister = false) {
-        if (name in mCollisionTypeNames)
-            return mCollisionTypeNames[name];
-
-        if (!doregister) {
-            mLog("WARNING: collision name '%s' not found", name);
-            throw new Exception("mooh");
+    public CollisionType findCollisionID(char[] name) {
+        if (name.length == 0) {
+            return mCTNever;
         }
 
-        auto nt = newCollisionType();
-        mCollisionTypeNames[name] = nt;
-        return nt;
+        if (name in mCollisionNames)
+            return mCollisionNames[name];
+
+        //a forward reference
+        //checkCollisionHandlers() verifies if these are resolved
+        return newCollisionType(name);
+    }
+
+    public CollisionType[] collisionTypes() {
+        return mCollisions.dup;
+    }
+
+    //will rebuild mTehMatrix
+    void rebuildCollisionStuff() {
+        //return an array containing all transitive subclasses of cur
+        CollisionType[] getAll(CollisionType cur) {
+            CollisionType[] res = [cur];
+            foreach (s; cur.subclasses) {
+                res ~= getAll(s);
+            }
+            return res;
+        }
+
+        //set if a and b should collide to what
+        void setCollide(CollisionType a, CollisionType b, bool what = true) {
+            mTehMatrix[a.index][b.index] = what;
+            mTehMatrix[b.index][a.index] = what;
+        }
+
+        mCTAlways.undefined = false;
+        mCTNever.undefined = false;
+        mCTAll.undefined = false;
+        mHadCTFwRef = false;
+
+        //allocate/clear the matrix
+        mTehMatrix.length = mCollisions.length;
+        foreach (ref line; mTehMatrix) {
+            line.length = mTehMatrix.length;
+            line[] = false;
+        }
+
+        foreach (ct; mCollisions) {
+            mHadCTFwRef |= ct.undefined;
+        }
+
+        //relatively hack-like, put in all unparented collisions as subclasses,
+        //without setting their parent member, else loadCollisions could cause
+        //problems etc.; do that only for getAll()
+        mCTAll.subclasses = null;
+        foreach (ct; mCollisions) {
+            if (!ct.superclass && ct !is mCTAll)
+                mCTAll.subclasses ~= ct;
+        }
+
+        foreach (CollisionType[2] entry; mHits) {
+            auto a = getAll(entry[0]);
+            auto b = getAll(entry[1]);
+            foreach (xa; a) {
+                foreach (xb; b) {
+                    setCollide(xa, xb);
+                }
+            }
+        }
+
+        foreach (ct; mCollisions) {
+            setCollide(mCTAlways, ct, true);
+            setCollide(mCTNever, ct, false);
+        }
+        //lol paradox
+        setCollide(mCTAlways, mCTNever, false);
     }
 
     //"collisions" node from i.e. worm.conf
-    void loadCollisions(ConfigNode node) {
-        //list of collision IDs, which map to...
-        foreach (ConfigNode sub; node) {
-            CollisionType obj_a = findCollisionID(sub.name, true);
-            //... a list of "collision ID" -> "action" pairs
-            foreach (char[] name, char[] value; sub) {
-                CollisionType obj_b = findCollisionID(name, true);
-                setCollide(obj_a, obj_b, value);
+    public void loadCollisions(ConfigNode node) {
+        auto defines = str.split(node.getStringValue("define"));
+        foreach (d; defines) {
+            auto cid = findCollisionID(d);
+            if (!cid.undefined) {
+                throw new Exception("collision name '" ~ cid.name
+                    ~ "' redefined");
+            }
+            cid.undefined = false;
+        }
+        foreach (char[] name, char[] value; node.getSubNode("classes")) {
+            //each entry is class = superclass
+            auto cls = findCollisionID(name);
+            auto supercls = findCollisionID(value);
+            if (cls.superclass) {
+                throw new Exception("collision class '" ~ cls.name ~ "' already"
+                    ~ " has a superclass");
+            }
+            cls.superclass = supercls;
+            //this is what we really need
+            supercls.subclasses ~= cls;
+            //check for cirular stuff
+            auto t = cls;
+            CollisionType[] trace = [t];
+            while (t) {
+                t = t.superclass;
+                trace ~= t;
+                if (t is cls) {
+                    throw new Exception("circular subclass relation: " ~
+                        str.join(arrayMap(trace, (CollisionType x) {
+                            return x.name;
+                        }), " -> ") ~ ".");
+                }
             }
         }
+        foreach (char[] name, char[] value; node.getSubNode("hit")) {
+            //each value is an array of collision ids which collide with "name"
+            auto hits = arrayMap(str.split(value), (char[] id) {
+                return findCollisionID(id);
+            });
+            auto ct = findCollisionID(name);
+            foreach (h; hits) {
+                mHits ~= [ct, h];
+            }
+        }
+        rebuildCollisionStuff();
     }
 
-    this() {
+    void initCT() {
+        mCTAlways = findCollisionID("always");
+        mCTAll = findCollisionID("all");
+        mCTNever = findCollisionID("never");
+    }
+
+    public this() {
+        initCT();
         mObjects = new List!(PhysicObject)(PhysicObject.objects_node.getListNodeOffset());
         mAllObjects = new List!(PhysicBase)(PhysicBase.allobjects_node.getListNodeOffset());
         mForceObjects = new List!(PhysicForce)(PhysicForce.forces_node.getListNodeOffset());
