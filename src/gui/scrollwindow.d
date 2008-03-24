@@ -86,12 +86,13 @@ class ScrollArea : SimpleContainer {
         return mClientSize;
     }
 
-    //same as child.coordsToParent, but uses current scroll destination instead
-    //of actual position
-    //xxx doesn't work with mScroller
-    final Vector2i fromClientCoordsScroll(Vector2i p) {
-        auto child = getBinChild();
-        return child ? p + toVector2i(mScrollDest) : p;
+    //return the rectangle of the scroll client which is (should be) visible
+    //unlike .offset, the rectangle coords usually are positive
+    //offs = scroll offset (like .offset() or .scrollDestination())
+    final Rect2i visibleArea(Vector2i offs) {
+        assert(!mScroller, "what was this thing about again???");
+        //xxx incorrect when child is smaller than scroll window
+        return Rect2i.Span(-offs, size());
     }
 
     override protected Vector2i layoutSizeRequest() {
@@ -212,6 +213,13 @@ class ScrollArea : SimpleContainer {
 
     // --- (optional) smooth scrolling (works completely in top of the rest)
 
+    ///current scroll destination, or when smooth scrolling is disabled, the
+    ///current offset
+    Vector2i scrollDestination() {
+        //mScrollDest is invalid when not scrolling arrrgh
+        return mEnableSmoothScrolling ? toVector2i(mScrollDest) : offset();
+    }
+
     ///Stop all active scrolling and stay at the currently visible position
     public void stopSmoothScrolling() {
         mEnableSmoothScrolling = false;
@@ -219,8 +227,9 @@ class ScrollArea : SimpleContainer {
 
     ///smoothly make offs to new offset
     public void scrollToSmooth(Vector2i offs) {
-        stopSmoothScrolling();
-        scrollDeltaSmooth(-offs);
+        //xxx I guess what was here in r456 was wrong?
+        //stopSmoothScrolling();
+        scrollDeltaSmooth(toVector2i(mScrollDest)-offs);
     }
 
     public void scrollDeltaSmooth(Vector2i d) {

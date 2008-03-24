@@ -4,6 +4,8 @@ import utils.configfile : ConfigNode;
 import utils.strparser;
 import utils.mybox;
 
+import math = std.math;
+
 //predefined colors - used by the parser
 //global for fun and profit
 Color[char[]] gColors;
@@ -27,14 +29,16 @@ public struct Color {
 
     /// clamp all components to the range [0.0, 1.0]
     public void clamp() {
-        if (r < 0.0f) r = 0.0f;
-        if (r > 1.0f) r = 1.0f;
-        if (g < 0.0f) g = 0.0f;
-        if (g > 1.0f) g = 1.0f;
-        if (b < 0.0f) b = 0.0f;
-        if (b > 1.0f) b = 1.0f;
-        if (a < 0.0f) a = 0.0f;
-        if (a > 1.0f) a = 1.0f;
+        r = clampChannel(r);
+        g = clampChannel(g);
+        b = clampChannel(b);
+        a = clampChannel(a);
+    }
+
+    static float clampChannel(float c) {
+        if (c < 0.0f) c = 0.0f;
+        if (c > 1.0f) c = 1.0f;
+        return c;
     }
 
     public static Color opCall(float r, float g, float b, float a) {
@@ -50,6 +54,20 @@ public struct Color {
     }
     public static Color opCall(float c) {
         return opCall(c,c,c);
+    }
+
+    ///convert ubyte to a float as used by Color ([0..255] -> [0..1])
+    static float fromByte(ubyte c) {
+        return c/255.0f;
+    }
+    ///reverse of fromByte(), doesn't clamp or range check
+    static ubyte toByte(float c) {
+        return cast(ubyte)(c*255);
+    }
+
+    //create Color where each channel is converted from [0..255] to [0..1]
+    static Color fromBytes(ubyte r, ubyte g, ubyte b, ubyte a) {
+        return Color(fromByte(r), fromByte(g), fromByte(b), fromByte(a));
     }
 
     Color opMul(float m) {
@@ -68,6 +86,31 @@ public struct Color {
     }
     Color opSub(Color c2) {
         return Color(r-c2.r,g-c2.g,b-c2.b,a-c2.a);
+    }
+
+    //the following 4 functions are taken/modified from xzgv (GPL)
+    //whatever they mean, whatever they're correct or not...
+    static float dimmer(float color, float brightness) {
+        return clampChannel(color+brightness);
+    }
+    static float contrastup(float color, float contrast) {
+        return clampChannel(0.5f + (color - 0.5f)*contrast);
+    }
+    static float setgamma(float color, float g) {
+        return math.pow(color, 1.0f/g);
+    }
+    //return modified color
+    Color applyBCG(float brightness, float contrast, float gamma) {
+        Color res;
+        float apply(float c) {
+            //xzgv author says it's debatable where gamma should be applied lol
+            return dimmer(contrastup(setgamma(c, gamma), contrast), brightness);
+        }
+        res.r = apply(r);
+        res.g = apply(g);
+        res.b = apply(b);
+        res.a = a;
+        return res;
     }
 
     ///if alpha value is <= 1.0 - epsilon

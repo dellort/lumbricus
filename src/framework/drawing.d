@@ -36,13 +36,27 @@ public class Canvas {
     public abstract void drawCircle(Vector2i center, int radius, Color color);
     public abstract void drawFilledCircle(Vector2i center, int radius,
         Color color);
+
+    /// the first and last pixels are always included
     public abstract void drawLine(Vector2i p1, Vector2i p2, Color color);
+
+    /// the right/bottom border of the passed rectangle (Rect2i(p1, p2) for the
+    /// first method) is exclusive!
     public abstract void drawRect(Vector2i p1, Vector2i p2, Color color);
-    /// properalpha: ignored in OpenGL mode, hack for SDL only mode :(
-    public abstract void drawFilledRect(Vector2i p1, Vector2i p2, Color color,
-        bool properalpha = true);
+    public void drawRect(Rect2i rc, Color color) {
+        drawRect(rc.p1, rc.p2, color);
+    }
+
+    /// like with drawRect, bottom/right border is exclusive
+    /// use Surface.fill() when the alpha channel should be copied to the
+    /// destination surface (without doing alpha blending)
+    public abstract void drawFilledRect(Vector2i p1, Vector2i p2, Color color);
+    public void drawFilledRect(Rect2i rc, Color color) {
+        drawFilledRect(rc.p1, rc.p2, color);
+    }
 
     /// draw a vertical gradient at rc from color c1 to c2
+    /// bottom/right border is exclusive
     public abstract void drawVGradient(Rect2i rc, Color c1, Color c2);
 
     public abstract void clear(Color color);
@@ -58,7 +72,6 @@ public class Canvas {
     public abstract void popState();
 
     /// Fill the area (destPos, destPos+destSize) with source, tiled on wrap
-    //warning: not very well tested
     //will be specialized in OpenGL
     public void drawTiled(Texture source, Vector2i destPos, Vector2i destSize) {
         int w = source.size.x1;

@@ -100,12 +100,12 @@ class GenerateFromTemplate : LevelGenerator {
 
         //bawww, I made it too complicated again
         static class Land {
-            LevelLandscape land;
+            LevelLandscape land; //last generated one
             char[] prerender_id;
             LandscapeTemplate geo_template;
             LandscapeGeometry geo_generated;
             bool placeObjects;
-            LandscapeObjects objects;
+            LandscapeObjects objects, gen_objects;
         }
 
         //indexed by LevelLandscape.name
@@ -117,6 +117,11 @@ class GenerateFromTemplate : LevelGenerator {
 
     void selectTheme(LevelTheme theme) {
         mCurTheme = theme;
+    }
+
+    //selected theme or null; the autoselected theme after render()
+    LevelTheme theme() {
+        return mCurTheme;
     }
 
     //only supports levels with one landscape, which are generated from
@@ -200,8 +205,9 @@ class GenerateFromTemplate : LevelGenerator {
                     }
                     if (objs) {
                         landscapeRenderObjects(renderer, objs, gt);
-                        objs.saveTo(onode.getSubNode("objects"));
                     }
+                    rland.gen_objects = objs;
+                    rland.gen_objects.saveTo(onode.getSubNode("objects"));
                     rendered = renderer.createLandscape(true);
                     rland.geo_generated.saveTo(onode.getSubNode("geometry"));
                     type = "landscape_generated";
@@ -219,6 +225,7 @@ class GenerateFromTemplate : LevelGenerator {
                 }
                 assert(!!rendered, "no landscape was rendered");
                 land.landscape = rendered;
+                rland.land = land;
                 onode.setStringValue("type", type);
                 onode.setStringValue("position", str.format("%s %s",
                     land.position.x, land.position.y));
@@ -245,6 +252,28 @@ class GenerateFromTemplate : LevelGenerator {
                 land.geo_generated = land.geo_template.generate();
             }
         }
+    }
+
+    //used by the level editor to display the generated geometry
+    //this sucks of course because there should be a "proper" public data
+    //structure which can contain templates/generated/rendered levels
+    struct Generated {
+        LevelLandscape ls;
+        LandscapeGeometry geo;
+        LandscapeObjects objs;
+    }
+    Generated[] listGenerated() {
+        Generated[] res;
+        foreach (land; mLand) {
+            Generated d;
+            d.ls = land.land;
+            d.geo = land.geo_generated;
+            if (!d.geo && land.geo_template)
+                d.geo = land.geo_template.geometry();
+            d.objs = land.gen_objects;
+            res ~= d;
+        }
+        return res;
     }
 
     //create a Level again from its Level.saved member (all generated levels can
@@ -622,9 +651,7 @@ class LandscapeGenTheme {
                     Transparency.None);
                 auto col = Color(0,0,0);
                 col.parse(texNode.getStringValue("color"));
-                auto canvas = gFramework.startOffscreenRendering(tex);
-                canvas.drawFilledRect(Vector2i(0, 0), tex.size, col);
-                canvas.endDraw();
+                tex.fill(Rect2i(tex.size), col);
             }
             return tex;
         }
@@ -961,6 +988,7 @@ Surface landscapeRenderPreview(LandscapeGeometry geo, Vector2i size,
     foreach (bitmap; markers) {
         bitmap.free();
     }
+    nocolor.free();
 
     return renderer.releaseImage();
 }

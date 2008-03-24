@@ -307,7 +307,7 @@ class Surface {
 
     //omg dirty and slow hack!
     //note how this code is explicitly endian-unsafe by using bit operations
-    //  here, and byte-pointer access in scaleAlpha
+    //  here, and byte-pointer access in mapColorChannels()
     //if the pixel is considered to be transparent
     //raw is the value obtained by *cast(uint*)(ptr_to_pixel)
     //if this has alpha transparency, >= 0.5 is not transparent
@@ -333,6 +333,11 @@ class Surface {
     final Surface subrect(Rect2i rc) {
         auto sz = rc.size();
         rc.fitInsideB(Rect2i(sz));
+        if (!rc.isNormal()) {
+            //completely outside, simply create a 0-sized surface
+            //xxx don't know if SDL or OpenGL are ok with this
+            rc = Rect2i.init;
+        }
         auto s = gFramework.createSurface(sz, transparency, colorkey);
         s.copyFrom(this, Vector2i(0), rc.p1, sz);
         return s;
@@ -340,20 +345,56 @@ class Surface {
 
     //special thingy needed for SDLFont
     void scaleAlpha(float scale) {
+        mapColorChannels((Color c) {
+            c.a *= scale;
+            return c;
+        });
+    }
+
+    //see Color.applyBCG()
+    void applyBCG(float brightness, float contrast, float gamma) {
+        mapColorChannels((Color c) {
+            return c.applyBCG(brightness, contrast, gamma);
+        });
+    }
+
+    ///for each pixel (and color channel) change the color to fn(original_color)
+    ///because really doing that for each Color would be too slow, this is only
+    ///done per channel (fn() is used to contruct the lookup table)
+    void mapColorChannels(Color delegate(Color c) fn) {
+        ubyte[256][4] map;
+        for (int n = 0; n < 256; n++) {
+            Color c;
+            c.r = c.g = c.b = c.a = Color.fromByte(n);
+            c = fn(c);
+            c.clamp();
+            map[0][n] = Color.toByte(c.r);
+            map[1][n] = Color.toByte(c.g);
+            map[2][n] = Color.toByte(c.b);
+            map[3][n] = Color.toByte(c.a);
+        }
+        mapColorChannels(map);
+    }
+
+    //change each colorchannel according to colormap
+    //channels are r=0, g=1, b=2, a=3
+    void mapColorChannels(ubyte[256][4] colormap) {
         passivate();
-        ubyte nalpha = cast(ubyte)(scale * 255);
-        if (nalpha == 255)
-            return;
+        void* data; uint pitch;
+        lockPixelsRGBA32(data, pitch);
         for (int y = 0; y < mData.size.y; y++) {
-            ubyte* ptr = mData.data.ptr;
-            ptr += y*mData.pitch;
-            for (int x = 0; x < mData.size.x; x++) {
-                uint alpha = ptr[3];
-                alpha = (alpha*nalpha)/255;
-                ptr[3] = cast(ubyte)(alpha);
+            ubyte* ptr = cast(ubyte*)data;
+            ptr += y*pitch;
+            auto w = mData.size.x;
+            for (int x = 0; x < w; x++) {
+                ptr[0] = colormap[0][ptr[0]];
+                ptr[1] = colormap[1][ptr[1]];
+                ptr[2] = colormap[2][ptr[2]];
+                ptr[3] = colormap[3][ptr[3]];
                 ptr += 4;
             }
         }
+        unlockPixels(Rect2i(size()));
     }
 
     ///works like Canvas.draw, but doesn't do any blending
@@ -370,6 +411,11 @@ class Surface {
         Rect2i src = Rect2i(sourcePos, sourcePos + sourceSize);
         dest.fitInsideB(rect());
         src.fitInsideB(source.rect());
+        if (!dest.isNormal() || !src.isNormal())
+            return; //no overlap
+        //check memory overlap
+        debug if (source is this && dest.intersects(src))
+            assert(false, "copyFrom(): overlapping memory");
         auto sz = dest.size.min(src.size);
         assert(sz.x >= 0 && sz.y >= 0);
         void* pdest; uint destpitch;
@@ -392,6 +438,8 @@ class Surface {
     ///blit a solid color, non-blending and copying
     void fill(Rect2i rc, Color color) {
         rc.fitInsideB(Rect2i(size));
+        if (!rc.isNormal())
+            return;
         uint c = color.toRGBA32();
         void* px; uint pitch;
         lockPixelsRGBA32(px, pitch);
@@ -400,16 +448,6 @@ class Surface {
             dest[rc.p1.x .. rc.p2.x] = c;
         }
         unlockPixels(rc);
-    }
-
-    //these were in Texture, and are useless now
-    void clearCache() {
-    }
-    Surface getSurface() {
-        return this;
-    }
-    Texture createTexture() {
-        return this;
     }
 }
 

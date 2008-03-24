@@ -6,8 +6,7 @@ import gui.widget;
 import utils.time;
 import utf = std.utf;
 import utils.output;
-import utils.misc : min, max;
-import std.stdarg : va_list;
+import utils.misc : min, max, va_list;
 
 public class LogWindow : Widget, Output {
     //maximum entries the backlog stores

@@ -2,6 +2,7 @@ module game.levelgen.genrandom;
 
 import game.levelgen.level : Lexel, readVector, parseMarker, readPointList,
     readUIntList, writeMarker, writePointList, writeUIntList;
+import utils.array : arrayMap;
 import utils.vector2;
 import utils.mylist;
 import utils.math : lineIntersect;
@@ -152,7 +153,7 @@ private class Segment {
     //one of these points is redundant
     Point a, b;
     Group group;
-    bool changeable = true;
+    bool changeable = true; //if false, means _both_ points must not be changed
     mixin ListNodeMixin node;
 
     this(Group group, Point a, Point b) {
@@ -200,6 +201,18 @@ private struct SegmentRange {
             return SegmentRange(to_group);
         return SegmentRange(to_group, a, b);
     }
+
+    bool changeable() {
+        if (isEmpty() || !group.changeable)
+            return false;
+        for (auto cur = start; ; cur = group.segments.ring_next(cur)) {
+            if (!(cur.changeable))
+                return false;
+            if (cur is last)
+                return true;
+        }
+        //unreachable
+    }
 }
 
 //a Group is a single polygon
@@ -233,24 +246,18 @@ private final class Group {
             return true;
         }
 
+        this.changeable = changeable;
+
         if (pts.length < 3)
             return null;
 
-        Point last = pts[0];
-        uint index = 1;
-        foreach(Point pt; pts[1..$]) {
-            Segment s = new Segment(this, last, pt);
-            s.changeable = isChangeable(index-1);
+        for (int n = 0; n < pts.length; n++) {
+            Segment s = new Segment(this, pts[n], pts[(n+1) % $]);
+            s.changeable = isChangeable(n);
             segments.insert_tail(s);
-            index++;
-            last = pt;
         }
 
-        Segment close = new Segment(this, pts[$-1], pts[0]);
-        segments.insert_tail(close);
-        close.changeable = isChangeable(pts.length-1);
-
-        return close;
+        return segments.tail;
     }
 
     //whether a group needs to test intersection with another
@@ -275,7 +282,7 @@ private final class Group {
             Point p = cur.a, np = next.a, onp = next.b;
             //check if np is near enough line between p and onp to kill it
             float d = np.distance_from(p, onp-p);
-            if (d < dist && next.changeable) {
+            if (d < dist && cur.changeable && next.changeable) {
                 segments.remove(next);
                 cur.b = onp;
                 if (segments.isEmpty) //oops, shouldn't really happen
@@ -300,6 +307,7 @@ private final class Group {
         Segment start = range.start;
         Segment last = range.last;
 
+        assert(range.changeable());
         assert(range.group is this);
 
         //remove segments after start and before last
@@ -396,7 +404,7 @@ private:
                 float d = (s.b-s.a).length;
                 auto r = SegmentRange(group, s, s);
                 assert(!r.isEmpty);
-                if (s.changeable) {
+                if (r.changeable()) {
                     doWormsify(r, 0.1f, 0.9f, random2()*2*PI/2+0.4,
                         random2()*0.5f+PI, d*0.2f, d*2.5f, 2.0f,
                         config.pix_epsilon);
@@ -448,7 +456,8 @@ private:
             //sense!
 
             bool reset = false;
-            bool dosubdiv = cur.changeable;
+            auto range = SegmentRange(group, start, cur);
+            bool dosubdiv = range.changeable();
             //the longer, the higher the probability to subdivide
             dosubdiv &= prob >= random()*0.5f;
             //condition above could always be true, so fuzzify it a bit
@@ -460,7 +469,6 @@ private:
 
             if (dosubdiv) {
                 //muh
-                auto r = SegmentRange(group, start, cur);
 
                 float ratio_front_len, ratio_len, rotsign;
                 if (config.remove_or_add > random()) {
@@ -475,7 +483,7 @@ private:
                     ratio_len = config.len_ratio_remove;
                 }
 
-                doWormsify(r, 0.1f, 0.9f, rotsign*random()*PI/2,
+                doWormsify(range, 0.1f, 0.9f, rotsign*random()*PI/2,
                     PI + random2()*0.4f, cur_d*ratio_front_len,
                     cur_d*ratio_len, 2.0f, config.pix_epsilon);
 
@@ -533,7 +541,6 @@ private:
         g.init(points, unchangeable, changeable);
         g.meaning = marker;
         g.visible = visible;
-        g.changeable = changeable;
     }
 
     private Point[] getRect(float margin) {
@@ -553,8 +560,7 @@ private:
     //formerly a "public" constructor, or so
     private void reinit(uint width, uint height) {
         mWidth = width; mHeight = height;
-        Group s;
-        mGroups = new GroupList(s.node.getListNodeOffset());
+        mGroups = new GroupList(Group.node.getListNodeOffset());
 
         //init border
         addPolygon(getRect(10), null, Lexel.INVALID, false, false);
@@ -574,15 +580,6 @@ private:
         config = aconfig;
     }
 
-    //convert Vector2i[] -> Vector2f
-    private static Vector2f[] blablubb(Vector2i[] points) {
-        auto np = new Vector2f[points.length];
-        for (int n = 0; n < np.length; n++) {
-            np[n] = toVector2f(points[n]);
-        }
-        return np;
-    }
-
     //generate a new LandscapeGeometry instance from the set one
     //  data = contains init data, aka level template
     public LandscapeGeometry generate() {
@@ -594,8 +591,8 @@ private:
             setAsCave(mData.fill);
         }
         foreach (LandscapeGeometry.Polygon p; mData.polygons) {
-            addPolygon(blablubb(p.points), p.nochange, p.marker, p.changeable,
-                p.visible);
+            addPolygon(arrayMap(p.points, (Vector2i p) {return toVector2f(p);}),
+                p.nochange, p.marker, p.changeable, p.visible);
         }
 
         //generate
@@ -628,19 +625,8 @@ private:
             cur++;
         }
 
-        //...and render them
-
         //randomize the texture offset, looks better sometimes
-        /+Vector2f tex_offset = Vector2f(0, 0);
-        if (group.texture !is null) {
-            tex_offset.x = group.texture.size.x * random();
-            tex_offset.y = group.texture.size.y * random();
-        }+/
         auto texoffset = Vector2f(random(), random());
-
-        //former code *g*
-        //renderer.addPolygon(pts, nosubdiv, group.visible, tex_offset,
-        //    group.texture, group.meaning);
 
         LandscapeGeometry.Polygon res;
         res.points = pts;
@@ -767,13 +753,8 @@ private:
         shape[1] = shape[1] + start + newdir;
         shape[2] = shape[2] + start + newdir;
 
-        splicify(at, shape);
+        at.group.splicify(at, shape);
 
         return true;
-    }
-
-    //see Group.splicify
-    void splicify(SegmentRange at, Point[] insert) {
-        at.group.splicify(at, insert);
     }
 }

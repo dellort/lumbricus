@@ -196,6 +196,10 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         throw new Exception("weapon class " ~ name ~ " not found");
     }
 
+    WeaponClass[] weaponList() {
+        return mWeaponClasses.values;
+    }
+
     void windChangerUpdate(float val) {
         mWindForce.windSpeed = Vector2f(val,0);
     }
@@ -355,7 +359,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     void raiseWater(int by) {
         //argh why is mCurrentWaterLevel a float??
         int t = cast(int)mCurrentWaterLevel - by;
-        t = min(t, mLevel.waterTopY); //don't grow beyond limit?
+        t = max(t, mLevel.waterTopY); //don't grow beyond limit?
         mWaterChanger.target = t;
     }
 

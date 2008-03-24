@@ -250,12 +250,6 @@ class GameTask : Task {
         mServerEngine.start();
         //a small wtf: why does client engine have its own time??
         mClientEngine.start();
-        //xxx! this is evul!
-        //too evul globals.gameTimeAnimations.resetTime();
-
-        //start at level center
-        //clientengine.engine.gamelevel.offset + clientengine.engine.gamelevel.size/2
-        mWindow.setPosition(mServerEngine.worldSize/2);
 
         //remove this, so the game becomes visible
         mLoadScreen.remove();
@@ -281,7 +275,6 @@ class GameTask : Task {
         if (!mFadeOut) {
             mFadeOut = new Spacer();
             mFadeOut.color = cFadeStart;
-            mFadeOut.enableAlpha = true;
             mGameFrame.add(mFadeOut);
             mFadeStartTime = timeCurrentTime;
         }
@@ -335,9 +328,11 @@ class GameTask : Task {
         mCmds.register(Command("wind", &cmdSetWind,
             "Change wind speed", ["float:wind speed"]));
         mCmds.register(Command("cameradisable", &cmdCameraDisable,
-            "disable game camera"));
+            "disable game camera", ["bool?:disable"]));
         mCmds.register(Command("detail", &cmdDetail,
             "switch detail level", ["int?:detail level (if not given: cycle)"]));
+        mCmds.register(Command("cyclenamelabels", &cmdNames, "worm name labels",
+            ["int?:how much to show (if not given: cycle)"]));
         mCmds.register(Command("slow", &cmdSlow, "set slowdown",
             ["float:slow down",
              "text?:ani or game"]));
@@ -357,11 +352,11 @@ class GameTask : Task {
         class Cell : SimpleContainer {
             bool bla, blu;
             override void onDraw(Canvas c) {
-                c.drawRect(Vector2i(0), size()-Vector2i(1), Color(0));
                 if (bla || blu) {
                     Color cl = bla ? Color(0.7) : Color(0.9);
-                    c.drawFilledRect(Vector2i(1), size()-Vector2i(1), cl);
+                    c.drawFilledRect(widgetBounds, cl);
                 }
+                c.drawRect(widgetBounds, Color(0));
                 super.onDraw(c);
             }
         }
@@ -382,10 +377,10 @@ class GameTask : Task {
             //column/row headers
             for (int n = 0; n < types.length; n++) {
                 auto l = new Label();
-                l.text = types[n].name;
+                l.text = str.format("%s: %s", n, types[n].name);
                 addc(0, n+1, l);
                 l = new Label();
-                l.text = types[n].name;
+                l.text = format("%s", n);//types[n].name;
                 addc(n+1, 0, l);
             }
             int y = 1;
@@ -426,8 +421,11 @@ class GameTask : Task {
     }
 
     private void cmdCameraDisable(MyBox[] args, Output write) {
-        //if (gameView)
-          //  gameView.view.setCameraFocus(null);
+        if (mWindow) {
+            mWindow.enableCamera = !args[0].unboxMaybe!(bool)
+                (mWindow.enableCamera);
+            write.writefln("set camera enable: %s", mWindow.enableCamera);
+        }
     }
 
     private void cmdDetail(MyBox[] args, Output write) {
@@ -436,6 +434,15 @@ class GameTask : Task {
         int c = args[0].unboxMaybe!(int)(-1);
         mClientEngine.detailLevel = c >= 0 ? c : mClientEngine.detailLevel + 1;
         write.writefln("set detailLevel to %s", mClientEngine.detailLevel);
+    }
+
+    private void cmdNames(MyBox[] args, Output write) {
+        if (!mWindow || !mWindow.gameView)
+            return;
+        auto v = mWindow.gameView;
+        auto c = args[0].unboxMaybe!(int)(v.nameLabelLevel + 1);
+        v.nameLabelLevel = c;
+        write.writefln("set nameLabelLevel to %s", v.nameLabelLevel);
     }
 
     private void cmdSetWind(MyBox[] args, Output write) {

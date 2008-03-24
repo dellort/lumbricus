@@ -27,6 +27,7 @@ interface CameraObject {
 ///xxx also it's a bit annoying to use MouseScroller
 class Camera {
     MouseScroller control;
+    bool enable = true;
 
     private CameraStyle mCameraStyle;
     private CameraObject mCameraFollowObject;
@@ -68,26 +69,26 @@ class Camera {
         long lastAction = mLastScrollOur.msecs;
 
         //check for camera
+        //there's the following issue/non-issue: if an object moves, the camera
+        //should follow it - but that only works if you didn't move the camera
+        //for during the last idle time
         if (mCameraFollowObject && mCameraFollowObject.isCameraAlive &&
-            (curTimeMs - lastAction > cScrollIdleTimeMs || mCameraFollowLock))
+            (curTimeMs - lastAction >= cScrollIdleTimeMs || mCameraFollowLock)
+            && enable)
         {
             auto pos = mCameraFollowObject.getCameraPosition;
-            pos = control.fromClientCoordsScroll(pos);
+            auto visible = control.visibleArea(control.scrollDestination);
             switch (mCameraStyle) {
                 case CameraStyle.Normal:
                     auto border = Vector2i(cCameraBorder);
-                    Rect2i clip = Rect2i(border, control.size - border);
-                    if (!clip.isInsideB(pos)) {
-                        auto npos = clip.clip(pos);
+                    visible.extendBorder(-border);
+                    if (!visible.isInsideB(pos)) {
+                        auto npos = visible.clip(pos);
                         control.scrollDeltaSmooth(pos-npos);
-                        //xxx: needed or not? both behaves stupid
-                        //control.noticeAction();
                     }
                     break;
                 case CameraStyle.Center:
-                    auto posCenter = control.size/2;
-                    control.scrollDeltaSmooth(pos-posCenter);
-                    control.noticeAction();
+                    control.scrollDeltaSmooth(pos - visible.center());
                     break;
                 default:
                     //dead or so
@@ -101,12 +102,17 @@ class Camera {
     ///  resetIdleTime = set to true to start the cam movement immediately
     ///                  without waiting for user idle
     public void setCameraFocus(CameraObject obj, CameraStyle cs
-         = CameraStyle.Normal, bool lock = false)
+         = CameraStyle.Normal, bool lock = false, bool resetIdleTime = true)
     {
         if (!obj)
             cs = CameraStyle.Dead;
         mCameraFollowObject = obj;
         mCameraStyle = cs;
         mCameraFollowLock = lock;
+        if (resetIdleTime) {
+            //evil, blatant hack
+            //with this, the time datatype must support negative times
+            mLastScrollOur = mTime.current() - timeMsecs(cScrollIdleTimeMs);
+        }
     }
 }

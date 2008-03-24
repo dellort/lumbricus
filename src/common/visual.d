@@ -78,7 +78,7 @@ void drawBox(Canvas c, ref Vector2i p, ref Vector2i s, ref BoxProperties props)
     }
 
     //interrior
-    c.drawFilledRect(p + q, p + s - q, props.back, true);
+    c.drawFilledRect(p + q, p + s - q, props.back);
 }
 
 ///draw a circle with its center at the specified position
@@ -147,8 +147,7 @@ int releaseBoxCache() {
     int rel;
 
     void killtex(Texture t) {
-        t.clearCache();
-        t.getSurface().free();
+        t.free();
         rel++;
     }
 
@@ -200,19 +199,16 @@ BoxTex getBox(BoxProps props) {
         auto surface = gFramework.createSurface(size,
             needAlpha ? Transparency.Alpha : Transparency.None);
 
-        auto c = gFramework.startOffscreenRendering(surface);
-
         Vector2i p1 = Vector2i(0), p2 = size;
         auto bw = props.p.borderWidth;
         p1[inv] = bw;
         p2[inv] = p2[inv] - bw;
 
-        c.drawFilledRect(Vector2i(0), size, border, false);
-        c.drawFilledRect(p1, p2, props.p.back, false);
+        surface.fill(Rect2i(size), border);
+        surface.fill(Rect2i(p1, p2), props.p.back);
 
-        c.endDraw();
         surface.enableCaching = true;
-        return surface.createTexture();
+        return surface;
     }
 
     Texture[2] sides; //will be BoxText.sides
@@ -220,9 +216,7 @@ BoxTex getBox(BoxProps props) {
     sides[1] = createSide(1);
 
     void drawCorner(Surface s) {
-        auto c = gFramework.startOffscreenRendering(s);
-        c.drawFilledRect(Vector2i(0),s.size,props.p.back,false);
-        c.endDraw();
+        s.fill(Rect2i(s.size), props.p.back);
 
         //simple distance test, quite expensive though
         //-1 if outside, 0 if hit, 1 if inside
@@ -291,7 +285,7 @@ BoxTex getBox(BoxProps props) {
     drawCorner(corners);
 
     //store struct with texture refs in hashmap
-    boxes[orgprops] = BoxTex(corners.createTexture(), sides);
+    boxes[orgprops] = BoxTex(corners, sides);
     return boxes[orgprops];
 }
 

@@ -102,6 +102,7 @@ abstract class WeaponClass {
     char[] name; //weapon name, translateable string
     int value;  //see config file
     char[] category; //category-id for this weapon
+    bool isAirstrike; //needed to exlude it from cave levels
 
     //for the weapon selection; only needed on client-side
     Resource!(Surface) icon;
@@ -122,6 +123,7 @@ abstract class WeaponClass {
         name = node.name;
         value = node.getIntValue("value", 0);
         category = node.getStringValue("category", "none");
+        isAirstrike = node.getBoolValue("airstrike", false);
 
         icon = engine.gfx.resources.resource!(Surface)(node["icon"]);
 

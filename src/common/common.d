@@ -1,5 +1,6 @@
 module common.common;
 
+import framework.filesystem;
 import framework.framework;
 import framework.commandline;
 import framework.resset;
@@ -57,6 +58,10 @@ class Common {
 
         programArgs = args;
 
+        if (args.getBoolValue("logconsole")) {
+            defaultOut = StdioOutput.output;
+        }
+
         loadColors(gFramework.loadConfig("colors"));
 
         //GUI resources, this is a bit off here
@@ -87,10 +92,6 @@ class Common {
         gFramework.fontManager.readFontDefinitions(
             gFramework.loadConfig("fonts"));
 
-        if (args.getBoolValue("logconsole")) {
-            defaultOut = StdioOutput.output;
-        }
-
         localizedKeynames = localeRoot.bindNamespace("keynames");
 
         gameTimeAnimations = new TimeSource();
@@ -106,14 +107,17 @@ class Common {
     }
 
     private void initLocale() {
-        char[] langId = anyConfig.getStringValue("language_id", "de");
+        char[] langId = programArgs["language_id"];
+        if (!langId.length)
+            langId = anyConfig.getStringValue("language_id", "de");
         initI18N(cLocalePath, langId, cDefLang, &gFramework.loadConfig);
-        //try {
+        try {
             //link locale-specific files into root
             gFramework.fs.link(cLocalePath ~ '/' ~ langId,"/",false,1);
-        //} catch { xxx: no, don't catch everything
+        } catch (FilesystemException e) {
             //don't crash if current locale has no locale-specific files
-        //}
+            gDefaultLog("catched %s", e);
+        }
     }
 
     //translate into translated user-readable string

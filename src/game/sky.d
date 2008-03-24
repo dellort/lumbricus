@@ -106,18 +106,13 @@ class GameSky {
         ConfigNode skyNode = engine.gfx.config.getSubNode("sky");
         Color skyColor = theme.skyColor;
 
-        Surface bmp = theme.skyGradient;
-        if (!bmp) {
-            bmp = mEngine.resources.get!(Surface)("default_gradient");
+        auto skyTex = theme.skyGradient;
+        if (!skyTex) {
+            skyTex = mEngine.resources.get!(Surface)("default_gradient");
         }
-        Texture skyTex = bmp.createTexture();
         //mSkyHeight = skyTex.size.y;
 
-        bmp = theme.skyBackdrop;
-        Texture skyBackdrop = null;
-        if (bmp) {
-            skyBackdrop = bmp.createTexture();
-        }
+        auto skyBackdrop = theme.skyBackdrop;
 
         mDebrisAnim = theme.skyDebris;
 
@@ -183,7 +178,7 @@ class GameSky {
             mCloudsVisible = true;
         else
             mCloudsVisible = false;
-        skyBottom = mEngine.waterOffset;
+        skyBottom = mEngine.engine.level.waterBottomY;
         //update cloud visibility status
         enableClouds(mEnableClouds);
     }

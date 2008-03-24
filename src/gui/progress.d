@@ -63,6 +63,7 @@ class Foobar : Widget {
         BoxProperties fill = border;
         fill.back = mFill;
         fill.borderWidth = 0;
+        fill.cornerRadius = fill.cornerRadius-1; //whatever
         drawBox(c, s, fill);
     }
 }

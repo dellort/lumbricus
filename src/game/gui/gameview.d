@@ -314,7 +314,7 @@ class GameView : Container, TeamMemberControlCallback {
                     removeGUI();
                 } else if (guiIsActive) {
                     assert(graphic !is null);
-                    lastKnownPosition = graphic.bounds.p1;
+                    lastKnownPosition = graphic.bounds.center;
 
                     if (health_cur != member.currentHealth) {
                         health_cur = member.currentHealth;
@@ -504,6 +504,19 @@ class GameView : Container, TeamMemberControlCallback {
         //updateGUI();
     }
 
+    int nameLabelLevel() {
+        return mCycleLabels;
+    }
+    void nameLabelLevel(int x) {
+        mCycleLabels = x % 4;
+        auto t = mCycleLabels;
+        GUITeamMemberSettings s; //what a stupid type name
+        s.showPoints = t >= 1;
+        s.showName = t >= 2;
+        s.showTeam = t >= 3;
+        setGUITeamMemberSettings(s);
+    }
+
     private void doSim() {
         mCamera.paused = mEngine.engineTime.paused();
 
@@ -653,15 +666,6 @@ class GameView : Container, TeamMemberControlCallback {
                     mPointed.setPositionCentered(mousePos);
                 }
                 return true;
-            }
-            case "toggle_labels": {
-                mCycleLabels = (mCycleLabels+1) %  4;
-                auto t = mCycleLabels;
-                GUITeamMemberSettings s; //what a stupid type name
-                s.showPoints = t >= 1;
-                s.showName = t >= 2;
-                s.showTeam = t >= 3;
-                setGUITeamMemberSettings(s);
             }
             default:
         }

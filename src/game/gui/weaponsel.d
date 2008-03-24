@@ -26,25 +26,76 @@ class WeaponSelWindow : Container {
         //from the config file
         char[][] mCategories;
 
-        struct Weapon {
-            WeaponClass type;
-            int quantity; //as in WeaponItem
+        //weapon or placeholder for a weapon
+        class Cell : Container {
+            WeaponClass weapon;
+            int quantity;
+            bool enabled;
+
+            Button active;  //enabled, selectable weapon
+            Label inactive; //disabled weapon (like airstrikes in caves)
 
             bool infinite() {
                 return quantity == WeaponListItem.QUANTITY_INFINITE;
             }
 
-            int opCmp(Weapon* w) {
-                auto res = -(w.type.value - this.type.value);
+            this(WeaponClass c) {
+                weapon = c;
+                active = new Button();
+                mButtonToCell[active] = this;
+                active.image = weapon.icon.get;
+                active.onClick = &clickWeapon;
+                active.onMouseOver = &mouseoverWeapon;
+                active.drawBorder = false;
+                inactive = new Label();
+                inactive.drawBorder = false;
+                auto dimg = active.image.clone;
+                //make the image look disabled
+                dimg.applyBCG(-0.3, 0.5f, 2.5f);
+                inactive.image = dimg;
+            }
+
+            //enable/disable etc. weapon based on the list
+            void update(WeaponList list) {
+                enabled = false;
+                quantity = 0;
+                //weapon is probably not in this list; then quantity is 0
+                foreach (ref w; list) {
+                    if (w.type is weapon) {
+                        quantity = w.quantity;
+                        enabled = w.enabled;
+                        break;
+                    }
+                }
+                active.remove();
+                inactive.remove();
+                if (quantity > 0) {
+                    addChild(enabled ? active : inactive);
+                }
+            }
+
+            //used by init() code to sort row lines
+            //(not used by the GUI or so)
+            int opCmp(Cell w) {
+                auto res = -(w.weapon.value - this.weapon.value);
                 //if of same value compare untranslated names instead
                 if (res == 0)
-                    res = cmp(this.type.name, w.type.name);
+                    res = cmp(this.weapon.name, w.weapon.name);
                 return res;
             }
+
+            override protected Vector2i layoutSizeRequest() {
+                auto s1 = active.layoutCachedContainerSizeRequest();
+                auto s2 = inactive.layoutCachedContainerSizeRequest();
+                //so that removing a weapon doesn't change size!
+                return s1.max(s2);
+            }
         }
+
         //kind of SICK
-        Weapon[Button] mButtonToWeapon;
-        Weapon[][char[]] mRows;
+        Cell[Button] mButtonToCell; //(reverse of Cell.active)
+        Cell[][char[]] mRows;
+        Cell[] mAll;
         TableContainer mGrid;
         SimpleContainer mGridContainer;
         Label mWeaponName;
@@ -67,11 +118,15 @@ class WeaponSelWindow : Container {
         auto parr = b in mRows;
         if (!parr)
             return false;
-        Weapon[] arr = *parr;
+        Cell[] arr = *parr;
         if (!arr.length)
             return true; //key shortcut catched
         //sry was lazy!
-        WeaponClass[] foo = arrayMap(arr, (Weapon w) { return w.type; });
+        WeaponClass[] foo;
+        foreach (Cell w; arr) {
+            if (w.enabled && w.quantity > 0)
+                foo ~= w.weapon;
+        }
         auto nc = arrayFindNext(foo, c);
         if (nc && onSelectWeapon)
             onSelectWeapon(nc);
@@ -79,20 +134,20 @@ class WeaponSelWindow : Container {
     }
 
     private void clickWeapon(Button sender) {
-        Weapon* w = sender in mButtonToWeapon;
+        Cell* w = sender in mButtonToCell;
         assert(w !is null);
 
         if (onSelectWeapon) {
-            onSelectWeapon(w.type);
+            onSelectWeapon(w.weapon);
         }
     }
 
     private void mouseoverWeapon(Button sender, bool over) {
-        Weapon* w = sender in mButtonToWeapon;
+        Cell* w = sender in mButtonToCell;
         assert(w !is null);
 
         if (over) {
-            mWeaponName.text = mWeaponTranslate(w.type.name);
+            mWeaponName.text = mWeaponTranslate(w.weapon.name);
             mWeaponQuantity.text = w.infinite ? "" : format("x%s", w.quantity);
         } else {
             mWeaponName.text = "";
@@ -103,27 +158,53 @@ class WeaponSelWindow : Container {
     //recreate the whole GUI when weapons change
     //(finer update granularity didn't seem to be worth it)
     public void update(WeaponList weapons) {
+        foreach (Cell c; mAll) {
+            c.update(weapons);
+        }
+        debug {
+            //check if there's an entry in weapons for which no Cell exists
+            foreach (w; weapons) {
+                bool found;
+                foreach (c; mAll) {
+                    if (w.type is c.weapon) {
+                        found = true;
+                        break;
+                    }
+                }
+                assert(found, format("weapon '%s' was not known at init time!",
+                    w.type.name));
+            }
+        }
+    }
+
+    //recreate the whole GUI
+    //should be only needed once, at initialization
+    public void init(WeaponClass[] weapons) {
         //set this to true to also show rows with no weapons in them!
         bool showEmpty = false;
 
+        //destroy old GUI, if any
         if (mGrid) {
             mGrid.remove();
             mGrid = null;
         }
+        mAll = null;
+        mButtonToCell = null;
+        mRows = null;
+
+        //for each WeaponClass a Cell
+        mAll.length = weapons.length;
+        for (int n = 0; n < mAll.length; n++) {
+            mAll[n] = new Cell(weapons[n]);
+        }
+
         //xxx this is all a bit fragile and was written at deep night
         //first recreate the rows
-        mRows = null;
         foreach (c; mCategories) {
             mRows[c] = [];
         }
-        foreach (wi; weapons) {
-            if (wi.quantity <= 0)
-                continue;
-
-            Weapon w;
-            w.type = wi.type;
-            w.quantity = wi.quantity;
-            auto c = w.type.category;
+        foreach (w; mAll) {
+            auto c = w.weapon.category;
             if (!(c in mRows)) {
                 mCategories ~= c; //violence!
                 mRows[c] = [];
@@ -145,7 +226,7 @@ class WeaponSelWindow : Container {
             int y = mGrid.addRow();
 
             assert(pwlist !is null);
-            Weapon[] wlist = *pwlist;
+            Cell[] wlist = *pwlist;
             wlist.sort; //see Weapon; order by weapon-value
 
             //reverse-resolve shortcut and show
@@ -159,18 +240,11 @@ class WeaponSelWindow : Container {
 
             //add the weapon icons
             int x = 1;
-            foreach (Weapon w; wlist) {
-                auto button = new Button();
-                mButtonToWeapon[button] = w;
-                button.image = w.type.icon.get.createTexture();
-                button.onClick = &clickWeapon;
-                button.onMouseOver = &mouseoverWeapon;
-                button.drawBorder = false;
-
+            foreach (Cell c; wlist) {
                 if (x >= mGrid.width) {
                     mGrid.setSize(x+1, mGrid.height);
                 }
-                mGrid.add(button, x, y, WidgetLayout.Noexpand);
+                mGrid.add(c, x, y, WidgetLayout.Noexpand);
 
                 x++;
             }

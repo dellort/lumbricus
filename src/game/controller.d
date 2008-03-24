@@ -241,11 +241,14 @@ class ServerTeam : Team {
         //convert WeaponSet to WeaponList
         WeaponItem[] items = weapons.weapons.values;
         WeaponList list;
-        list.length = items.length;
-        for (int n = 0; n < list.length; n++) {
-            list[n].type = items[n].weapon;
-            list[n].quantity = items[n].infinite ?
-                WeaponListItem.QUANTITY_INFINITE : items[n].count;
+        foreach (item; items) {
+            WeaponListItem nitem;
+            nitem.type = item.weapon;
+            nitem.quantity = item.infinite ?
+                WeaponListItem.QUANTITY_INFINITE : item.count;
+            nitem.enabled = item.canUse();
+            if (nitem.quantity > 0)
+                list ~= nitem;
         }
         return list;
     }
@@ -685,7 +688,7 @@ class ServerTeamMember : TeamMember {
         wormAction();
         mCurrentWeapon = weapon;
         if (mCurrentWeapon)
-            if (!mCurrentWeapon.haveAtLeastOne())
+            if (!mCurrentWeapon.canUse())
                 mCurrentWeapon = null;
         updateWeapon();
     }
@@ -701,7 +704,7 @@ class ServerTeamMember : TeamMember {
 
         WeaponClass selected;
         if (mCurrentWeapon) {
-            if (!mCurrentWeapon.haveAtLeastOne()) {
+            if (!mCurrentWeapon.canUse()) {
                 //nothing, leave selected = null
             } else if (currentWeapon.weapon) {
                 selected = mCurrentWeapon.weapon;
@@ -784,7 +787,7 @@ class ServerTeamMember : TeamMember {
         mCurrentWeapon.decrease();
         mTeam.parent.updateWeaponStats(this);
         /+ not valid anymore (weapon still can be active)
-        if (!mCurrentWeapon.haveAtLeastOne())
+        if (!mCurrentWeapon.canUse())
             //nothing left? put away
             selectWeapon(cast(WeaponItem)null);
         +/
@@ -881,15 +884,16 @@ class ServerTeamMember : TeamMember {
 }
 
 class WeaponSet {
+    GameEngine engine;
     WeaponItem[WeaponClass] weapons;
     char[] name;
 
     //config = item from "weapon_sets"
-    void readFromConfig(ConfigNode config, GameEngine engine) {
+    this (GameEngine aengine, ConfigNode config) {
+        engine = aengine;
         name = config.name;
         foreach (ConfigNode node; config.getSubNode("weapon_list")) {
-            auto weapon = new WeaponItem();
-            weapon.loadFromConfig(node, engine);
+            auto weapon = new WeaponItem(this, node);
             weapons[weapon.weapon] = weapon;
         }
     }
@@ -903,8 +907,7 @@ class WeaponSet {
     void addWeapon(WeaponClass c) {
         WeaponItem item = byId(c);
         if (!item) {
-            item = new WeaponItem();
-            item.mContainer = this;
+            item = new WeaponItem(this);
             item.mWeapon = c;
             weapons[c] = item;
         }
@@ -916,6 +919,7 @@ class WeaponSet {
 
 class WeaponItem {
     private {
+        GameEngine mEngine;
         WeaponSet mContainer;
         WeaponClass mWeapon;
         int mQuantity;
@@ -924,6 +928,12 @@ class WeaponItem {
 
     bool haveAtLeastOne() {
         return mQuantity > 0 || mInfiniteQuantity;
+    }
+
+    bool canUse() {
+        if (!haveAtLeastOne())
+            return false;
+        return !mWeapon.isAirstrike || mEngine.level.airstrikeAllow;
     }
 
     void decrease() {
@@ -942,20 +952,22 @@ class WeaponItem {
         return infinite ? typeof(mQuantity).max : mQuantity;
     }
 
-    //an item in "weapon_list"
-    void loadFromConfig(ConfigNode config, GameEngine engine) {
+    this (WeaponSet parent) {
+        mContainer = parent;
+        mEngine = parent.engine;
+    }
+
+    //config = an item in "weapon_list"
+    this (WeaponSet parent, ConfigNode config) {
+        this(parent);
         //xxx error handling
         auto w = config["type"];
-        mWeapon = engine.findWeaponClass(w);
+        mWeapon = mEngine.findWeaponClass(w);
         if (config.valueIs("quantity", "inf")) {
             mInfiniteQuantity = true;
         } else {
             mQuantity = config.getIntValue("quantity", 0);
         }
-    }
-
-    //only instantiated from WeaponSet
-    private this() {
     }
 }
 
@@ -1057,6 +1069,10 @@ class GameController : GameLogicPublic {
     ///xxx: read comment for this in gamepublic.d
     TeamMemberControl getControl() {
         return control;
+    }
+
+    WeaponClass[] weaponList() {
+        return mEngine.weaponList();
     }
 
     //--- end GameLogicPublic
@@ -1329,9 +1345,7 @@ class GameController : GameLogicPublic {
 
     WeaponSet initWeaponSet(char[] id) {
         ConfigNode ws = mWeaponSets[id];
-        auto set = new WeaponSet();
-        set.readFromConfig(ws, mEngine);
-        return set;
+        return new WeaponSet(mEngine, ws);
     }
 
     //config = the "teams" node, i.e. from data/data/teams.conf

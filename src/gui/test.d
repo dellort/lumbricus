@@ -22,8 +22,10 @@ import framework.font;
 import framework.commandline : CommandBucket, Command;
 import utils.mybox;
 import utils.output;
+import utils.perf;
 import utils.time;
 import utils.array;
+import utils.log;
 import utils.rect2;
 import utils.vector2;
 import str = std.string;
@@ -495,5 +497,145 @@ class TestTask2 : Task {
 
     static this() {
         TaskFactory.register!(typeof(this))("alphatest");
+    }
+}
+
+class TestTask3 : Task {
+    ScrollBar[4] mBars;
+    ImgView mView;
+    char[] filename = "storedlevels/bla.png";
+    Label mValues;
+    StringListWidget mFList;
+
+    void apply(Surface s) {
+        float b = 2.0f*mBars[0].curValue/mBars[0].maxValue - 1.0f;
+        float c = 2.0f*mBars[1].curValue/mBars[1].maxValue;
+        float g = 10.0f*mBars[2].curValue/mBars[2].maxValue;
+        float a = 1.0f*mBars[3].curValue/mBars[3].maxValue;
+        auto t = new PerfTimer(true);
+        t.start();
+        s.mapColorChannels((Color cl) {
+            cl = cl.applyBCG(b, c, g);
+            cl.a *= a;
+            return cl;
+        });
+        t.stop();
+        mValues.text = str.format("size=%s, took=%s, b=%s, c=%s, g=%s, a=%s",
+            s.size, t.time, b, c, g, a);
+    }
+
+    class ImgView : Widget {
+        Surface source, current;
+
+        //warning, frees old surface
+        void setSource(Surface s) {
+            if (source)
+                source.free();
+            source = s;
+            update();
+            needRelayout();
+        }
+
+        void update() {
+            if (current)
+                current.free();
+            current = null;
+            if (source) {
+                current = source.clone();
+                apply(current);
+            }
+        }
+
+        protected override Vector2i layoutSizeRequest() {
+            return current ? current.size() : Vector2i(0);
+        }
+
+        override void onDraw(Canvas c) {
+            if (current)
+                c.draw(current, Vector2i(0));
+        }
+    }
+
+    void onScrollbar(ScrollBar sender) {
+        mView.update();
+    }
+
+    void onSelFile(int index) {
+        if (index >= 0) {
+            Surface img;
+            try {
+                img = gFramework.loadImage(mFList.contents[index]);
+            } catch (Exception e) {
+                mValues.text = "couldn't load, " ~ e.toString;
+            }
+            mView.setSource(img);
+        }
+    }
+
+    this(TaskManager tm) {
+        super(tm);
+
+        //yes, most code copypasted from alphatest
+        auto tgui = new BoxContainer(true, false, 3);
+        mFList = new StringListWidget();
+        mFList.onSelect = &onSelFile;
+        mFList.checkWidth = true;
+        auto listwind = new ScrollWindow(mFList, [false, true]);
+        listwind.enableMouseWheel = true;
+        tgui.add(listwind, WidgetLayout.Expand(false));
+        auto gui = new BoxContainer(false, false, 3);
+        tgui.add(gui);
+        mView = new ImgView();
+        auto cnt = new ScrollWindow();
+        cnt.setScrollArea(new MouseScroller());
+        cnt.area.add(mView);
+        gui.add(cnt);
+
+        auto scr = new TableContainer(2, 4, Vector2i(15, 1));
+        char[][] labels = ["brightness", "contrast", "gamma", "alpha"];
+        int[] values = [50, 50, 10, 100];
+        int[] maxvals = [100, 100, 100, 100];
+
+        for (int n = 0; n < mBars.length; n++) {
+            auto la = new Label();
+            la.font = gFramework.getFont("normal");
+            la.text = labels[n];
+            la.drawBorder = false;
+            scr.add(la, 0, n, WidgetLayout.Aligned(-1,0));
+
+            auto bar = new ScrollBar(true);
+            mBars[n] = bar;
+            bar.maxValue = maxvals[n];
+            bar.curValue = values[n];
+            bar.onValueChange = &onScrollbar;
+            scr.add(bar, 1, n, WidgetLayout.Border(Vector2i(3)));
+        }
+
+        auto sp = new Spacer();
+        sp.minSize = Vector2i(0,2);
+        sp.color = Color(0);
+        gui.add(sp, WidgetLayout.Expand(true));
+
+        gui.add(scr, WidgetLayout.Expand(true));
+
+        mValues = new Label();
+        mValues.font = gFramework.getFont("normal");
+        mValues.drawBorder = false;
+        gui.add(mValues, WidgetLayout.Aligned(-1, 0));
+
+        char[][] files;
+        gFramework.fs.listdir("/", "*", false,
+            (char[] path) {
+                files ~= path;
+                return true;
+            }
+        );
+        mFList.setContents(files);
+
+        gWindowManager.createWindow(this, tgui, "BCG test", Vector2i(450, 300));
+    }
+
+    static this() {
+        TaskFactory.register!(typeof(this))("bcg");
     }
 }

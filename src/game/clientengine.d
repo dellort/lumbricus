@@ -360,7 +360,8 @@ class ClientGameEngine {
     //(remind that mEngine might disappear because of networking)
     int waterOffset;
     float windSpeed;
-    Vector2i levelOffset, worldSize;
+    //worldCenter: don't really know what it is, used for camera start position
+    Vector2i worldSize, worldCenter;
 
     private uint mDetailLevel;
     //not quite clean: Gui drawers can query this / detailLevel changes it
@@ -399,6 +400,13 @@ class ClientGameEngine {
         windSpeed = mEngine.windSpeed;
 
         worldSize = mEngine.worldSize;
+
+        //whatever this is! at least it kind of works
+        Rect2i bb = Rect2i.Empty;
+        foreach (g; graphics.mGraphics) {
+            bb.extend(g.bounds);
+        }
+        worldCenter = bb.center;
 
         mScene = graphics.allScene;
 

@@ -523,7 +523,7 @@ public class WTris : Task {
         thetime = new TimeSource();
 
         //sry for not using "resources"!
-        boxes = gFramework.loadImage("wtrisboxes.png").createTexture();
+        boxes = gFramework.loadImage("wtrisboxes.png");
         PIECE_DRAW_W = boxes.size.x / BOX_TYPE_COUNT;
         PIECE_DRAW_H = boxes.size.y;
 

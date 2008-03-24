@@ -38,14 +38,20 @@ import net.enet_test;
 
 const char[] APP_ID = "lumbricus";
 
-/++
-Documentation of commandline switches:
+//of course it would be nicer to automatically generate the following thing, but
+//OTOH, it isn't really worth the fuzz
+const cCommandLineHelp =
+`Partial documentation of commandline switches:
+    --help
+        Output this and exit.
+    --language_id
+        Set language ID (de, en)
     --driver.xxx=yyy
         Set property xxx of the fwconfig stuff passed to the Framework to yyy,
         i.e. to disable use of OpenGL:
         --driver.open_gl=false
     --exec.=xxx
-        Execute "xxx" on the commandline, i.e. this starts task1 and task2:
+        Execute "xxx" on the commandline, e.g. this starts task1 and task2:
         --exec.="spawn task1" --exec.="spawn task2"
         (the dot "." turns exec into a list, and a list is expected for exec)
         The "autoexec" list in anything.conf isn't executed if an --exec. is
@@ -53,15 +59,21 @@ Documentation of commandline switches:
     --data=xxx
         Mount xxx as extra data directory (with highest priority, i.e. it
         overrides the standard paths).
-Also see parseCmdLine() for how parsing works.
-++/
-int main(char[][] args)
-{
+    --logconsole
+        Output all log output on stdio.`;
+//Also see parseCmdLine() for how parsing works.
+
+void main(char[][] args) {
     //xxx
     rand_seed(1, 1);
 
     ConfigNode cmdargs = parseCmdLine(args[1..$]);
     //cmdargs.writeFile(StdioOutput.output);
+
+    if (cmdargs.getBoolValue("help")) {
+        writefln(cCommandLineHelp);
+        return;
+    }
 
     auto fw = new Framework(args[0], APP_ID, cmdargs);
     fw.setCaption("Lumbricus");
@@ -90,8 +102,6 @@ int main(char[][] args)
     fw.deinitialize();
 
     writefln("Bye!");
-
-    return 0;
 }
 
 //godawful primitive commandline parser
@@ -102,12 +112,17 @@ int main(char[][] args)
 //contains the value "123"
 //also, if <argname> contains a "=", the following string will be interpreted as
 //<arg>
+//now args without values are also allowed; the value is set to "true" then
 ConfigNode parseCmdLine(char[][] args) {
+    bool startsArg(char[] s) {
+        return s.length >= 3 && s[0..2] == "--";
+    }
+
     ConfigNode res = new ConfigNode();
     while (args.length) {
         auto cur = args[0];
         args = args[1..$];
-        if (cur.length < 3 || cur[0..2] != "--") {
+        if (!startsArg(cur)) {
             writefln("command line argument: --argname expected");
             break;
         }
@@ -121,12 +136,13 @@ ConfigNode parseCmdLine(char[][] args) {
         if (has_arg >= 0) {
             value = cur[has_arg+1..$];
         } else {
-            if (!args.length) {
-                writefln("command line argument: value expected");
-                break;
+            if (args.length && !startsArg(args[0])) {
+                value = args[0];
+                args = args[1..$];
+            } else {
+                //hurrr, assume it's a boolean switch => default to true
+                value = "true";
             }
-            value = args[0];
-            args = args[1..$];
         }
 
         res.setStringValueByPath(name, value);

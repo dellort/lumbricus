@@ -29,6 +29,7 @@ import utils.configfile;
 import game.levelgen.level;
 import game.levelgen.generator;
 import game.levelgen.genrandom;
+import game.levelgen.placeobjects;
 import std.string : format;
 import utils.output;
 
@@ -216,7 +217,7 @@ class EditObject {
         //by default, draw the bounding box, then all subobjects
         auto c = isHighlighted ? Color(1,1,1,0.4) : Color(1,1,1,0.2);
         if (cast(EditRoot)this is null) {
-            canvas.drawFilledRect(bounds.p1, bounds.p2, c, true);
+            canvas.drawFilledRect(bounds.p1, bounds.p2, c);
         }
         foreach (o; subObjects) {
             o.draw(canvas);
@@ -254,7 +255,7 @@ class EditPoint : EditObject {
 
     void draw(Canvas canvas) {
         auto c = isHighlighted ? Color(1,1,1) : Color(0.5,0.5,0.5);
-        canvas.drawFilledRect(bounds.p1, bounds.p2, c, true);
+        canvas.drawFilledRect(bounds.p1, bounds.p2, c);
     }
 }
 
@@ -483,14 +484,15 @@ public class LevelEditor : Task {
     Vector2i levelSize = {2000, 700};
 
     Level mCurrentPreview;
-    Texture mPreviewImage;
+    Texture mPreviewImage, mPreview2;
 
     Window mWindow;
 
     Widget mEditor;
     Widget mLoadTemplate;
     Button[3] mS;
-    Button mCaveCheckbox, mNochangeCheckbox, mPreviewCheckbox;
+    Button mCaveCheckbox, mNochangeCheckbox, mPreviewCheckbox,
+        mPreview2Checkbox;
 
     StringListWidget mLoadTemplateList;
     LevelTemplate[] mTemplateList; //temporary during mLoadTemplate
@@ -509,12 +511,14 @@ public class LevelEditor : Task {
         protected void onDraw(Canvas c) {
             if (mPreviewCheckbox.checked && editor.mPreviewImage)
                 c.draw(editor.mPreviewImage, Vector2i(0));
+            if (mPreview2Checkbox.checked && editor.mPreview2)
+                c.draw(editor.mPreview2, Vector2i(0));
             editor.root.draw(c);
             //selection rectangle
             if (editor.isSelecting) {
                 auto sel = Rect2i(editor.selectStart, editor.selectEnd);
                 sel.normalize();
-                c.drawFilledRect(sel.p1, sel.p2, Color(0.5, 0.5, 0.5, 0.5), true);
+                c.drawFilledRect(sel.p1, sel.p2, Color(0.5, 0.5, 0.5, 0.5));
             }
         }
 
@@ -526,10 +530,6 @@ public class LevelEditor : Task {
         }
 
         Vector2i layoutSizeRequest() {
-            //this is considered to be the default & maximum size of a level
-            //xxx should return root.bounds.p2 instead; currently not done
-            // because there's no mouse-capture, and so mouse events outside
-            // the Widget are always lost
             return levelSize;
         }
 
@@ -792,6 +792,7 @@ public class LevelEditor : Task {
 
         mNochangeCheckbox = loader.lookup!(Button)("setnochange");
         mPreviewCheckbox = loader.lookup!(Button)("showpreview");
+        mPreview2Checkbox = loader.lookup!(Button)("showpreview2");
         mCaveCheckbox = loader.lookup!(Button)("setcave");
 
         mEditor = loader.lookup("ledit_root");
@@ -1072,16 +1073,9 @@ public class LevelEditor : Task {
     }
 
     void genPreview() {
-        mPreviewCheckbox.checked = true;
-        mCurrentPreview = genRenderedLevel();
-        if (mCurrentPreview) {
-            foreach (obj; mCurrentPreview.objects) {
-                if (auto ls = cast(LevelLandscape)obj) {
-                    mPreviewImage = ls.landscape.image;
-                    break;
-                }
-            }
-        }
+        if (!mPreviewCheckbox.checked && !mPreview2Checkbox.checked)
+            mPreviewCheckbox.checked = true;
+        genRenderedLevel();
     }
 
     Level genRenderedLevel() {
@@ -1093,7 +1087,58 @@ public class LevelEditor : Task {
         auto templ = new LevelTemplate(config, "hallo");
         auto generator = new GenerateFromTemplate(shared, templ);
         generator.selectTheme(shared.themes.findRandom("gpl"));
-        return generator.render();
+        mCurrentPreview = generator.render();
+        assert(!!mCurrentPreview);
+        //xxx: there might be several landscapes with different positions etc.
+        mPreviewImage = mPreview2 = null;
+        foreach (obj; mCurrentPreview.objects) {
+            if (auto ls = cast(LevelLandscape)obj) {
+                mPreviewImage = ls.landscape.image;
+                break;
+            }
+        }
+        foreach (d; generator.listGenerated()) {
+            if (d.ls && (d.ls.landscape.image is mPreviewImage) && d.geo) {
+                mPreview2 = renderGeoWireframe(d.geo, generator.theme, d.objs);
+            }
+        }
+        return mCurrentPreview;
+    }
+
+    //render a wireframe image of the geometry and the objects
+    Surface renderGeoWireframe(LandscapeGeometry geo, LevelTheme theme,
+        LandscapeObjects objs)
+    {
+        auto s = gFramework.createSurface(geo.size, Transparency.Colorkey);
+        s.fill(Rect2i(s.size), s.colorkey());
+        auto c = gFramework.startOffscreenRendering(s);
+        doRenderGeoWireframe(c, geo, theme ? theme.genTheme : null, objs);
+        c.endDraw();
+        return s;
+    }
+    void doRenderGeoWireframe(Canvas c, LandscapeGeometry geo,
+        LandscapeGenTheme theme, LandscapeObjects objs)
+    {
+        foreach (p; geo.polygons) {
+            auto plist = p.points.dup;
+            if (plist.length == 0)
+                continue;
+            plist ~= plist[0]; //close polygon
+            for (int n = 0; n < plist.length-1; n++) {
+                c.drawLine(plist[n], plist[n+1], Color(1,1,1));
+                Rect2i r;
+                r.p1 = r.p2 = plist[n];
+                r.extendBorder(Vector2i(2));
+                c.drawFilledRect(r, Color(0.7));
+            }
+        }
+        if (!theme || !objs)
+            return;
+        foreach (p; objs.items) {
+            auto obj = theme.findObject(p.id);
+            auto rc = Rect2i.Span(p.params.at, p.params.size);
+            c.drawRect(rc, Color(0.7, 0.7, 0.7));
+        }
     }
 
     static this() {

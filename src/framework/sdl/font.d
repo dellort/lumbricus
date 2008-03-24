@@ -121,13 +121,13 @@ class GlyphCache {
 
     private Surface doRenderChar2(dchar c) {
         auto tmp = doRender(c, props.fore);
-        if (props.fore.a <= (1.0f - Color.epsilon)) {
+        if (props.fore.hasAlpha()) {
             tmp.scaleAlpha(props.fore.a);
         }
         if (mOpaque) {
             auto s = gFramework.createSurface(tmp.size, Transparency.None);
             auto d = gSDLDriver.startOffscreenRendering(s);
-            d.drawFilledRect(Vector2i(0), s.size, props.back, false);
+            d.drawFilledRect(Vector2i(0), s.size, props.back);
             d.draw(tmp, Vector2i(0));
             d.endDraw();
             tmp.free();
@@ -173,7 +173,7 @@ class SDLFont : DriverFont {
 
     private void drawGlyph(Canvas c, TextureRef glyph, Vector2i pos) {
         if (mNeedBackPlain) {
-            c.drawFilledRect(pos, pos+glyph.size, mProps.back, true);
+            c.drawFilledRect(pos, pos+glyph.size, mProps.back);
         }
         if (mUseGL) {
             glPushAttrib(GL_CURRENT_BIT);

@@ -113,7 +113,7 @@ class Label : Widget {
 
     override void onDraw(Canvas canvas) {
         if (background.a >= Color.epsilon) {
-            canvas.drawFilledRect(Vector2i(0), size, background, true);
+            canvas.drawFilledRect(Vector2i(0), size, background);
         }
         auto b = mFinalBorderSize;
         if (drawBorder) {

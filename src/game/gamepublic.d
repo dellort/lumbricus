@@ -220,6 +220,10 @@ interface GameLogicPublic {
     ///xxx: should return an array for the case where two teams are active on
     ///on client at the same time?
     TeamMemberControl getControl();
+
+    ///list of _all_ possible weapons, which are useable during the game
+    ///Team.getWeapons() must never return a Weapon not covered by this list
+    WeaponClass[] weaponList();
 }
 
 //to be implemented by the client
@@ -272,12 +276,16 @@ struct WeaponListItem {
     WeaponClass type;
     //quantity or the magic value QUANTITY_INFINITE if unrestricted amount
     int quantity;
+    //if weapon is allowed by the game controller (e.g. no airstrikes in caves)
+    bool enabled;
 
+    //value is guaranteed to be an int > 0
     const int QUANTITY_INFINITE = int.max;
 
     ///return if a weapon is available
+    //warning: rarely used, does not define when weapon is really available
     bool available() {
-        return quantity > 0;
+        return enabled && (quantity > 0);
     }
 }
 

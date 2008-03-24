@@ -67,7 +67,7 @@ class Container : Widget {
 
         onAddChild(o);
 
-        if (o.greedyFocus && o.canHaveFocus)
+        if (o.greedyFocus())
             o.claimFocus();
         //just to be sure
         o.needRelayout();
@@ -172,7 +172,7 @@ class Container : Widget {
     protected override Widget findLastFocused() {
         Widget winner = null;
         foreach (cur; mWidgets) {
-            if (cur.canHaveFocus &&
+            if (childCanHaveFocus(cur) &&
                 (!winner || (winner.mFocusAge < cur.mFocusAge)))
             {
                 winner = cur;
@@ -198,7 +198,7 @@ class Container : Widget {
         assert(child !is null);
         assert(child.parent is this);
 
-        if (child.canHaveFocus) {
+        if (childCanHaveFocus(child)) {
             if (child.greedyFocus) {
                 child.claimFocus();
             }
@@ -214,10 +214,6 @@ class Container : Widget {
     //fuck
     package void doRecheckChildFocus(Widget child) {
         recheckChildFocus(child);
-    }
-
-    package static Log log() {
-        return registerLog("GUI");
     }
 
     private void findNextFocusOnKill(Widget child) {
@@ -258,7 +254,7 @@ class Container : Widget {
         while (index < mWidgets.length) {
             auto cur = mWidgets[index];
             //try to find a new focus and if so, be happy
-            if (cur.nextFocus()) {
+            if (childCanHaveFocus(cur) && cur.nextFocus()) {
                 return true;
             }
             index++;
@@ -273,18 +269,24 @@ class Container : Widget {
 
     //doesn't set the global focus; do "go.focused = true;" for that
     package void localFocus(Widget go) {
-        log()("attempt to focus %s", go);
+        log()("%s: attempt to focus %s", this, go);
+        assert(!go || go.parent is this);
         if (go is mFocus)
             return;
 
         if (mFocus) {
-            log()("remove local focus: %s from %s", mFocus, this);
+            //xxx from now on don't clear focus if go is not focusable
+            if (go && !childCanHaveFocus(go)) {
+                log()("don't unfocus %s on %s for %s", mFocus, this, go);
+                return;
+            }
+            log()("remove local focus: %s from %s for %s", mFocus, this, go);
             auto tmp = mFocus;
             mFocus = null;
             tmp.pollFocusState();
         }
         mFocus = go;
-        if (go && go.canHaveFocus) {
+        if (go && childCanHaveFocus(go)) {
             go.mFocusAge = ++mCurrentFocusAge;
             log()("set local focus: %s for %s", mFocus, this);
             go.pollFocusState();
@@ -374,12 +376,31 @@ class Container : Widget {
         return true;
     }
 
+    //if an arbitrary child can have input of any kind, if not, the widget
+    //(almost?) behaves as if it doesn't exist for the mouse/keyboard
+    //also affects focus handling
+    //call recheckChildInput() if the returned value changed for a Widget
+    protected bool childCanHaveInput(Widget w) {
+        assert(w.parent is this);
+        return true;
+    }
+
+    protected void recheckChildInput(Widget w) {
+        assert(w.parent is this);
+        recheckChildFocus(w);
+    }
+
+    protected final bool childCanHaveFocus(Widget w) {
+        return childCanHaveInput(w) && w.canHaveFocus();
+    }
+
     override protected void onMouseEnterLeave(bool mouseIsInside) {
         //if it's inside, rely on mouse-event stuff
         if (mouseIsInside)
             return;
         foreach (o; mWidgets) {
-            o.doMouseEnterLeave(mouseIsInside);
+            if (childCanHaveInput(o))
+                o.doMouseEnterLeave(mouseIsInside);
         }
     }
 
@@ -441,6 +462,9 @@ class Container : Widget {
             auto child = zchild.w;
             auto clientmp = child.coordsFromParent(mouse);
 
+            if (!childCanHaveInput(child))
+                continue;
+
             //mouse capture means mEventCaptured gets all events
             bool captured = child is mEventCaptured;
             bool capturing = mEventCaptured !is null;
@@ -465,6 +489,7 @@ class Container : Widget {
     //returns if action could be performed
     bool childSetCapture(Widget child, bool set) {
         assert(child.parent is this);
+        assert(childCanHaveInput(child), "what should I do?");
         if (set) {
             if (mEventCaptured)
                 return false;

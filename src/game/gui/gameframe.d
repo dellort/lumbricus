@@ -53,6 +53,7 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
     private Camera mCamera;
 
     private Time mLastFrameTime, mRestTime;
+    private bool mFirstFrame = true;
 
     //xxx this be awful hack
     void gameLogicRoundTimeUpdate(Time t, bool timePaused) {
@@ -94,6 +95,14 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
         return super.onKeyEvent(k);
     }
 
+    void enableCamera(bool set) {
+        mCamera.enable = set;
+    }
+
+    bool enableCamera() {
+        return mCamera.enable;
+    }
+
     //scroll to level center
     void setPosition(Vector2i pos) {
         mScroller.offset = mScroller.centeredOffset(pos);
@@ -113,6 +122,13 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
             mLastFrameTime = curtime;
         auto delta = curtime - mLastFrameTime;
         mLastFrameTime = curtime;
+
+        //some hack
+        if (mFirstFrame) {
+            mFirstFrame = false;
+            //scroll to level center
+            setPosition(clientengine.worldCenter);
+        }
 
         mCamera.doFrame();
 
@@ -187,5 +203,7 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
 
         mTeamWindow = new TeamWindow(game);
         add(mTeamWindow);
+
+        mWeaponSel.init(clientengine.logic.weaponList());
     }
 }

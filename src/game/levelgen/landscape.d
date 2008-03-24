@@ -123,6 +123,8 @@ nobody needs it, scrub it
     Landscape cutOutRect(Rect2i rc) {
         rc.fitInsideB(Rect2i(mImage.size()));
         //copy out the subrect from the metadata
+        if (!rc.isNormal())
+            return null; //negative sizes duh
         Lexel[] ndata;
         ndata.length = rc.size.x * rc.size.y;
         uint sx = rc.size.x;

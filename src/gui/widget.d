@@ -138,6 +138,10 @@ class Widget {
     ///clip graphics to the inside
     bool doClipping = true;
 
+    package static Log log() {
+        return registerLog("GUI");
+    }
+
     final Container parent() {
         return mParent;
     }
@@ -497,8 +501,7 @@ class Widget {
         onDraw(c);
 
         version (WidgetDebug) {
-            c.drawRect(Vector2i(0), size - Vector2i(1,1),
-                Color(1,focused ? 1 : 0,0));
+            c.drawRect(widgetBounds, Color(1,focused ? 1 : 0,0));
         }
 
         c.popState();
@@ -531,6 +534,8 @@ class Widget {
 
     /// Return true if this can have a focus (used for treatment of <tab>).
     /// default implementation: return false
+    /// use Container.childCanHaveFocus() to know the real value, because
+    /// Containers might disable their children for stupid reasons SIGH
     bool canHaveFocus() {
         return false;
     }
@@ -550,15 +555,19 @@ class Widget {
     }
 
     /// claim global focus (try to make this.focused() == true)
-    final void claimFocus() {
+    /// return success
+    final bool claimFocus() {
         //in some cases, this might even safe you from infinite loops
         if (focused)
-            return;
+            return true;
         //set focus: recursively claim focus on parents
         if (parent) {
             parent.localFocus = this; //local
-            parent.claimFocus();      //global (recurse upwards)
+            if (!localFocused())
+                return false;
+            return parent.claimFocus();      //global (recurse upwards)
         }
+        return isTopLevel();
     }
 
     /// if globally focused
@@ -578,9 +587,9 @@ class Widget {
     /// Containers return true if another sub-Widget could be focused without
     ///   wrapping the internal list
     bool nextFocus() {
+        //xxx slightly incorrect because of canHaveFocus
         if (canHaveFocus && !focused) {
-            claimFocus();
-            return true;
+            return claimFocus();
         }
         return false;
     }
@@ -588,8 +597,7 @@ class Widget {
     /// called when focused() changes
     /// default implementation: set Widget zorder to front
     protected void onFocusChange() {
-        version (LogFocus)
-            gDefaultLog("global focus change for %s: %s", this, mHasFocus);
+        log()("global focus change for %s: %s", this, mHasFocus);
         //also adjust zorder, else it looks strange
         if (focused)
             toFront();
@@ -682,7 +690,6 @@ interface GuiLoader {
 //just a trivial Widget: have a minimum size and draw a color on its background
 class Spacer : Widget {
     Color color = {1.0f,0,0};
-    bool enableAlpha;
     bool drawBackground = true;
 
     private Vector2i mMinSize;
@@ -697,7 +704,7 @@ class Spacer : Widget {
 
     override protected void onDraw(Canvas c) {
         if (drawBackground) {
-            c.drawFilledRect(Vector2i(0), size, color, enableAlpha);
+            c.drawFilledRect(widgetBounds, color);
         }
     }
 
@@ -708,7 +715,6 @@ class Spacer : Widget {
     override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
         color.parse(node.getStringValue("color"));
-        enableAlpha = node.getBoolValue("enable_alpha", enableAlpha);
         drawBackground = node.getBoolValue("draw_background", drawBackground);
         parseVector(node.getStringValue("min_size"), mMinSize);
         super.loadFrom(loader);

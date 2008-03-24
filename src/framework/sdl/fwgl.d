@@ -463,6 +463,9 @@ class GLCanvas : Canvas {
     }
 
     public void drawRect(Vector2i p1, Vector2i p2, Color color) {
+        if (p1.x >= p2.x || p1.y >= p2.y)
+            return;
+
         glPushMatrix();
         glPushAttrib(GL_ENABLE_BIT | GL_CURRENT_BIT);
         glDisable(GL_TEXTURE_2D);
@@ -475,9 +478,9 @@ class GLCanvas : Canvas {
         glTranslatef(0.5f, 0.5f, 0);
         glBegin(GL_LINE_LOOP);
             glVertex2i(p1.x, p1.y);
-            glVertex2i(p1.x, p2.y);
-            glVertex2i(p2.x, p2.y);
-            glVertex2i(p2.x, p1.y);
+            glVertex2i(p1.x, p2.y-1);
+            glVertex2i(p2.x-1, p2.y-1);
+            glVertex2i(p2.x-1, p1.y);
         glEnd();
 
         glPopAttrib();
@@ -493,16 +496,17 @@ class GLCanvas : Canvas {
         drawLine(p + size.Y, p + size.X, c);
     }
 
-    public void drawFilledRect(Vector2i p1, Vector2i p2, Color color,
-        bool properalpha = true)
-    {
+    public void drawFilledRect(Vector2i p1, Vector2i p2, Color color) {
         Color[2] c;
         c[0] = c[1] = color;
         doDrawRect(p1, p2, c);
     }
 
     void doDrawRect(Vector2i p1, Vector2i p2, Color[2] c) {
-        //glPushMatrix();
+        if (p1.x >= p2.x || p1.y >= p2.y)
+            return;
+
+        glPushMatrix();
         glPushAttrib(GL_ENABLE_BIT | GL_CURRENT_BIT);
         glDisable(GL_TEXTURE_2D);
         bool alpha = (c[0].hasAlpha() || c[1].hasAlpha());
@@ -511,7 +515,9 @@ class GLCanvas : Canvas {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }
 
-        //glTranslatef(0.5f, 0.5f, 0);
+        //xxx WTF? I don't understand this (the -1), but the result still looks
+        //right (equal to SDL's rendering), so I keep this (wtf...)
+        glTranslatef(0.5f, 0.5f-1.0f, 0);
         glBegin(GL_QUADS);
             glColor4fv(c[0].ptr);
             glVertex2i(p2.x, p1.y);
@@ -522,7 +528,7 @@ class GLCanvas : Canvas {
         glEnd();
 
         glPopAttrib();
-        //glPopMatrix();
+        glPopMatrix();
 
         if (alpha)
             markAlpha(p1, p2-p1);

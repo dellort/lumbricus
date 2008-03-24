@@ -3,6 +3,12 @@ module utils.misc;
 import str = std.string;
 import utf = std.utf;
 import fmt = std.format; //wtf, can cause conflicts in other modules
+
+//if you're trying to compile this under Linux with Tango, Tangobos and dmd,
+//then delete tango/import/std/stdarg.di; this file seems to be completely
+//bogus (but they say gdc needs it); at least it doesn't always define va_list
+//deleting that file will make dsss/rebuild/dmd to use
+//tango/import/tangobos/std/stdarg.d
 import std.stdarg : va_list;
 
 T min(T)(T v1, T v2) {

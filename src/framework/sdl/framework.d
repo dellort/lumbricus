@@ -658,12 +658,7 @@ class SDLDriver : FrameworkDriver {
         Surface tile = mFramework.createSurface(Vector2i(cTileSize),
             Transparency.Alpha);
 
-        //xxx: be less wasteful (the Canvas instance)
-        Canvas canvas = mFramework.startOffscreenRendering(tile);
-        //if param. isn't false => infinite recursion :)
-        canvas.drawFilledRect(Vector2i(0), tile.size, c, false);
-        canvas.endDraw();
-        delete canvas;
+        tile.fill(Rect2i(tile.size), c);
 
         tile.enableCaching = true;
 
@@ -1098,25 +1093,28 @@ class SDLCanvas : Canvas {
     {
         circle(center.x, center.y, radius,
             (int x1, int x2, int y) {
-                drawFilledRect(Vector2i(x1, y), Vector2i(x2, y+1), color, false);
+                drawFilledRect(Vector2i(x1, y), Vector2i(x2, y+1), color);
             }
         );
     }
 
+    //last pixel included
     public void drawLine(Vector2i from, Vector2i to, Color color) {
         //special cases for vlines/hlines
         if (from.y == to.y) {
             to.y++;
             if (from.x > to.x)
                 swap(from.x, to.x);
-            drawFilledRect(from, to, color, false);
+            to.x++; //because the 2nd border is exclusive in drawFilledRect
+            drawFilledRect(from, to, color);
             return;
         }
         if (from.x == to.x) {
             to.x++;
             if (from.y > to.y)
                 swap(from.y, to.y);
-            drawFilledRect(from, to, color, false);
+            to.y++;
+            drawFilledRect(from, to, color);
             return;
         }
 
@@ -1184,19 +1182,23 @@ class SDLCanvas : Canvas {
     }
 
     public void drawRect(Vector2i p1, Vector2i p2, Color color) {
+        if (p1.x >= p2.x || p1.y >= p2.y)
+            return;
+        p2.x -= 1; //border exclusive
+        p2.y -= 1;
         drawLine(p1, Vector2i(p1.x, p2.y), color);
         drawLine(Vector2i(p1.x, p2.y), p2, color);
         drawLine(Vector2i(p2.x, p1.y), p2, color);
         drawLine(p1, Vector2i(p2.x, p1.y), color);
     }
 
-    public void drawFilledRect(Vector2i p1, Vector2i p2, Color color,
-        bool properalpha = true)
-    {
+    public void drawFilledRect(Vector2i p1, Vector2i p2, Color color) {
+        if (p1.x >= p2.x || p1.y >= p2.y)
+            return;
         int alpha = cast(ubyte)(color.a*255);
-        if (alpha == 0 && properalpha)
+        if (alpha == 0)
             return; //xxx: correct?
-        if (true && alpha != 255 && properalpha) {
+        if (alpha != 255) {
             //quite insane insanity here!!!
             Texture s = gSDLDriver.insanityCache(color);
             assert(s !is null);
@@ -1233,7 +1235,7 @@ class SDLCanvas : Canvas {
     }
 
     public void clear(Color color) {
-        drawFilledRect(Vector2i(0, 0)-mTrans, clientSize-mTrans, color, false);
+        drawFilledRect(Vector2i(0, 0)-mTrans, clientSize-mTrans, color);
     }
 }
 
