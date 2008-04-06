@@ -10,6 +10,7 @@ import utils.misc;
 import utils.factory;
 import utils.time;
 import utils.path;
+import utils.perf;
 
 import framework.resset;
 
@@ -323,12 +324,14 @@ public class Resources {
         private ResourceItem[] mToLoad;
         private int mCurrent; //next res. to load, index into mToLoad
         private LoadException mError; //error state
+        private PerfTimer mTime;
 
         this(ResourceItem[] list) {
             doload(list);
         }
 
         private void doload(ResourceItem[] list) {
+            mTime = new PerfTimer(true);
             log("Preloading %s resources", list.length);
 
             mToLoad = list.dup;
@@ -383,6 +386,8 @@ public class Resources {
         void progressSteps(int count) {
             while (count-- > 0 && !done && !mError) {
                 try {
+                    mTime.start();
+                    scope(exit) mTime.stop();
                     mToLoad[mCurrent].get();
                 } catch (LoadException e) {
                     //remember error, throw it anyway
@@ -396,7 +401,7 @@ public class Resources {
                     //updateToLoad();
 
                     if (done)
-                        log("Finished preloading");
+                        log("Finished preloading, time="~mTime.time.toString());
                 }
             }
         }

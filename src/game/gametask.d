@@ -221,7 +221,7 @@ class GameTask : Task {
         return true;
     }
 
-    //periodically called by loader (until we return false)
+    //periodically called by loader (stopped when we return true)
     private bool initLoadResources() {
         if (!mResPreloader) {
             mGfx = new GfxSet(mGameConfig.gfx);

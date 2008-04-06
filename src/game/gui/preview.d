@@ -94,6 +94,7 @@ private class LevelSelector : SimpleContainer {
         mDdGfx.onSelect = &gfxSelect;
         char[][] themes = ([_("levelselect.randomgfx")]
             ~ mGenerator.themes.names());
+        themes.sort;
         mDdGfx.list.setContents(themes);
         mDdGfx.selection = themes[0];
 

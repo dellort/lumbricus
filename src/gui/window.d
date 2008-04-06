@@ -127,7 +127,6 @@ class WindowWidget : Container {
                 if (!key.isPress && key.isMouseButton) {
                     drag_active = key.isDown;
                     drag_start = mousePos;
-                    captureSet(drag_active);
                 }
                 return key.isMouseButton || super.onKeyEvent(key);
             }
@@ -429,6 +428,10 @@ class WindowWidget : Container {
             onKeyBinding(this, s);
     }
 
+    override bool allowInputForChild(Widget child, InputEvent event) {
+        return !(event.isKeyEvent && findBind(event.keyEvent) != "");
+    }
+
     //treat all events as handled (?)
     override bool onKeyEvent(KeyInfo key) {
         char[] bind = findBind(key);
@@ -448,7 +451,6 @@ class WindowWidget : Container {
             //stop draging by any further mouse-up event
             if (key.isMouseButton && !key.isPress && !key.isDown) {
                 mDraging = false;
-                captureDisable();
             }
             //mask events from children while dragging
             return true;
@@ -459,11 +461,7 @@ class WindowWidget : Container {
 
         //if a mouse click wasn't handled, start draging the window around
         if (!handled && key.isMouseButton && !key.isPress && key.isDown) {
-            if (captureEnable()) {
-                //if capture couldn't be set, maybe another capture is active
-                //play around with TestFrame3 in test.d to see if it works
-                mDraging = true;
-            }
+            mDraging = true;
         }
 
         return true;
@@ -695,6 +693,14 @@ class WindowFrame : Container {
     private bool wsIsSet() {
         assert(mWindowSelecting);
         return gFramework.getModifierSetState(mSelectMods);
+    }
+
+    override bool allowInputForChild(Widget child, InputEvent event) {
+        if (mWindowSelecting)
+            return false;
+        if (event.isKeyEvent && mKeysWM.findBinding(event.keyEvent))
+            return false;
+        return true;
     }
 
     protected override bool onKeyEvent(KeyInfo info) {

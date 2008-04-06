@@ -34,12 +34,12 @@ public void foreachSetModifier(ModifierSet s, void delegate(Modifier m) cb) {
 }
 
 enum KeyEventType {
-    Down,
-    Up,
-    Press
+    Down, ///key pressed down
+    Up, ///key released
+    Press ///triggered on key down; but unlike Down, this is also autorepeated
 }
 
-/// Information about a key press
+/// Information about a key press, this also covers mouse buttons
 public struct KeyInfo {
     /// type of event
     KeyEventType type;
@@ -76,11 +76,43 @@ public struct KeyInfo {
         return str.format("[KeyInfo: ev=%s code=%d mods=%d ch='%s']",
             ["down", "up", "press"][type],
             cast(int)code, cast(int)mods,
-            cast(dchar)(isPrintable ? unicode : '?'));
+            isPrintable ? [unicode] : "None");
     }
 }
 
 public struct MouseInfo {
     Vector2i pos;
     Vector2i rel;
+
+    char[] toString() {
+        return str.format("[MouseInfo: pos=%s rel=%s]", pos, rel);
+    }
+}
+
+//xxx invent something better, this looks like the very stupid C/SDL way
+//  also, this should be strictly about input events, nothing else
+//also note that the GUI code needs to copy and modify the mouse positions,
+//because mouse positions are Widget-relative, which is why this is a struct
+struct InputEvent {
+    Vector2i mousePos; //always valid
+    bool isKeyEvent;
+    bool isMouseEvent;
+    KeyInfo keyEvent; //valid if isKeyEvent
+    MouseInfo mouseEvent; //valid if isMouseEvent
+
+    //return if this is a mouse move or a mouse click event
+    bool isMouseRelated() {
+        return isMouseEvent || (isKeyEvent && keyEvent.isMouseButton);
+    }
+
+    char[] toString() {
+        char[] s;
+        if (isKeyEvent)
+            s = keyEvent.toString();
+        else if (isMouseEvent)
+            s = mouseEvent.toString();
+        else
+            s = "?";
+        return "Event " ~ s;
+    }
 }

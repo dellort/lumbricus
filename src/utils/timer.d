@@ -1,5 +1,6 @@
 module utils.timer;
 
+import utils.misc;
 import utils.time;
 
 alias void delegate(Timer sender) TimerEvent;
@@ -40,7 +41,7 @@ class Timer {
         mInterval = interval;
         mCurTimeDg = curTimeDg;
         if (!mCurTimeDg) {
-            mCurTimeDg = getCurrentTimeDelegate;
+            mCurTimeDg = toDelegate(&timeCurrentTime);
         }
         onTimer = ev;
         reset();

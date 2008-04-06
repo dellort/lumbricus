@@ -41,8 +41,6 @@ class Container : Widget {
         bool mIsBinFrame;
         //also grows only; used to do "soft" zorder
         int mLastZOrder2;
-
-        Widget mEventCaptured;
     }
 
     common.visual.BoxProperties drawBoxStyle;
@@ -83,9 +81,16 @@ class Container : Widget {
             assert(false, "was not child of this");
         }
 
-        if (o is mEventCaptured)
-            childSetCapture(mEventCaptured, false);
+        //if (o is mEventCaptured)
+          //  childSetCapture(mEventCaptured, false);
 
+        //copy... when a function is iterating through these arrays and calls
+        //this function (through event handling), and we modify the array, and
+        //then return to that function, it gets fucked up
+        //but if these functions use foreach (copies the array descriptor), and
+        //we copy the array memory, we're relatively safe *SIGH!*
+        mWidgets = mWidgets.dup;
+        mZWidgets = mZWidgets.dup;
         arrayRemove(mWidgets, o);
         arrayRemove(mZWidgets, ZWidget(o));
         o.mParent = null;
@@ -122,7 +127,10 @@ class Container : Widget {
     }
 
     private void updateZOrder(Widget child) {
+        //if (child.mZOrder2 == mLastZOrder2)
+            //return; //try to avoid redundant updates
         child.mZOrder2 = ++mLastZOrder2;
+        mZWidgets = mZWidgets.dup;
         mZWidgets.sort;
     }
 
@@ -360,8 +368,8 @@ class Container : Widget {
 
     // --- input handling
 
-    override bool testMouse(Vector2i pos) {
-        if (!super.testMouse(pos))
+    override bool onTestMouse(Vector2i pos) {
+        if (!super.onTestMouse(pos))
             return false;
 
         //virtual frame => only if a child was hit
@@ -391,119 +399,167 @@ class Container : Widget {
     }
 
     protected final bool childCanHaveFocus(Widget w) {
+        assert(w.parent is this);
         return childCanHaveInput(w) && w.canHaveFocus();
     }
 
-    override protected void onMouseEnterLeave(bool mouseIsInside) {
+    override void doMouseEnterLeave(bool mouseIsInside) {
         //if it's inside, rely on mouse-event stuff
         if (mouseIsInside)
             return;
         foreach (o; mWidgets) {
-            if (childCanHaveInput(o))
+            //if it can't have input, still deliver go-out events
+            if (childCanHaveInput(o) || !mouseIsInside)
                 o.doMouseEnterLeave(mouseIsInside);
         }
+        super.doMouseEnterLeave(mouseIsInside);
     }
 
-    override protected bool onKeyEvent(KeyInfo key) {
-        //first try to handle locally
-        //the super.-method also invokes the old onKey*() functions
-        if (super.onKeyEvent(key))
-            return true;
-
-        bool ok;
-
-        //event wasn't handled, handle by child objects
-        if (!key.isMouseButton) {
-            //normal key: dispatch by focus
-            //when captured, the captured one gets all events
-            if (!mEventCaptured) {
-                ok = mFocus && mFocus.handleKeyEvent(key);
-            } else {
-                ok = mEventCaptured.handleKeyEvent(key);
-            }
-        } else {
-            //mouse key: dispatch by mouse position
-            ok = checkChildrenMouseEvent(mousePos,
-                (Widget child) {
-                    //attention: local return within a delegate
-                    return child.handleKeyEvent(key);
-                }
-            );
-        }
-
-        return ok;
-    }
-
-    override protected bool onMouseMove(MouseInfo mouse) {
-        //first handle locally (currently the super-method is empty, hmm)
-        if (super.onMouseMove(mouse))
-            return true;
-
-        return checkChildrenMouseEvent(mouse.pos,
-            (Widget child) {
-                //mouse-struct needs to be translated to the child
-                mouse.pos = child.mousePos; //xxx: unkosher?
-                return child.handleMouseEvent(mouse);
-            }
-        );
-    }
-
-    //enumerate all children which would handle the event for mousepos "mouse"
-    //the check_child-delegate is supposed to actually call the child's event-
-    //handler; it returns whether to child did handle the event
-    protected bool checkChildrenMouseEvent(Vector2i mouse,
-        bool delegate(Widget child) check_child)
-    {
-        Widget got_it;
-
-        //check if any children are hit by this
-        //objects towards the end of the array are later drawn => _reverse
-        foreach_reverse (zchild; mZWidgets) {
-            auto child = zchild.w;
-            auto clientmp = child.coordsFromParent(mouse);
-
-            if (!childCanHaveInput(child))
-                continue;
-
-            //mouse capture means mEventCaptured gets all events
-            bool captured = child is mEventCaptured;
-            bool capturing = mEventCaptured !is null;
-
-            if ((capturing && captured)
-                || (!capturing && child.testMouse(clientmp)))
-            {
-                child.updateMousePos(clientmp);
-                child.doMouseEnterLeave(true);
-                //(try to) deliver event, but only if noone got it yet
-                if (!got_it && check_child(child))
-                    got_it = child;
-            } else {
-                child.doMouseEnterLeave(false);
-            }
-        }
-
-        return got_it !is null;
-    }
-
-    //you should use Widget.captureEnable/captureDisable/captureSet
-    //returns if action could be performed
-    bool childSetCapture(Widget child, bool set) {
+    //special function which enables containers to steal events from the
+    //children in special situations - if this returns false, events are not
+    //dispatched to the children, even if they could accept them
+    //even if this returns true, the usual can-have-input checks are made
+    protected bool allowInputForChild(Widget child, InputEvent event) {
         assert(child.parent is this);
-        assert(childCanHaveInput(child), "what should I do?");
-        if (set) {
-            if (mEventCaptured)
-                return false;
-            mEventCaptured = child;
-            //propagate upwards
-            bool res = captureSet(true);
-            if (!res)
-                mEventCaptured = null;
-            return res;
+        return true;
+    }
+
+    //return an event changed so that the child can handle it; currently
+    //translates the mouse positions to the child's coordinate system
+    //child must be a direct child of this
+    InputEvent translateEvent(Widget child, InputEvent event) {
+        assert(child.parent is this);
+        debug if (event.isMouseEvent)
+            assert(event.mousePos == event.mouseEvent.pos);
+        event.mousePos = child.coordsFromParent(event.mousePos);
+        if (event.isMouseEvent) {
+            event.mouseEvent.pos = event.mousePos;
+        }
+        return event;
+    }
+
+    //find a child which wants/can take the input event
+    //use the result of the function on this.dispatchInputEvent(), which
+    //actually changes state
+    override Widget findInputDispatchChild(InputEvent event)
+    out (res) {
+        assert(!res || res is this || res.parent is this);
+    }
+    body {
+        Widget res;
+        bool byMousePos;
+
+        auto main = getTopLevel();
+        if (!main) //normally shouldn't happen
+            return null;
+        //user capturing has priority over mouse capturing
+        auto capture = main.captureUser ? main.captureUser : main.captureMouse;
+        //find a child which leads to the capture'd Widget (captureTo)
+        Widget captureTo;
+        if (capture && capture !is this) {
+            foreach (w; mWidgets) {
+                if (capture.isTransitiveChildOf(w)) {
+                    captureTo = w;
+                    break;
+                }
+            }
+        }
+
+        debug if (captureTo)
+            assert(capture);
+
+        //probably set res, if w can/wants accept input
+        void tryw(Widget w) {
+            if (!w)
+                return;
+            assert(!w || w.parent is this);
+            if (w && childCanHaveInput(w) && allowInputForChild(w, event)) {
+                //xxx insert further checks
+                res = w;
+            }
+        }
+
+        if (event.isKeyEvent) {
+            if (!event.keyEvent.isMouseButton) {
+                //normal key: dispatch by focus
+                //when captured, the captured one gets all events
+                if (!capture) {
+                    tryw(mFocus);
+                } else {
+                    tryw(captureTo);
+                }
+            } else {
+                //mouse key: dispatch by mouse position
+                byMousePos = true;
+            }
+        } else if (event.isMouseEvent) {
+            byMousePos = true;
         } else {
-            if (mEventCaptured !is child)
-                return false;
-            mEventCaptured = null;
-            return captureSet(false);
+            assert(false);
+        }
+
+        if (byMousePos) {
+            assert(!res);
+
+            //objects towards the end of the array are later drawn => _reverse
+            //(in ambiguous cases, mouse should pick what's visible first)
+            foreach_reverse (zchild; mZWidgets) {
+                auto child = zchild.w;
+                auto cevent = translateEvent(child, event);
+                auto clientmp = cevent.mousePos;
+
+                //happens rarely, e.g. when an input event handler called by us
+                //removes a widget which has a lower zorder
+                //xxx probably can't happen anymore with the new input dispatching??
+                if (child.parent !is this)
+                    continue;
+
+                if (!childCanHaveInput(child))
+                    continue;
+
+                //mouse capture means capture gets all events
+                //captureTo is a direct child widget which leas to capture
+                bool captured = child is captureTo;
+                bool capturing = capture !is null;
+
+                if ((capturing && captured)
+                    || (!capturing && child.testMouse(clientmp)))
+                {
+                    tryw(child);
+                    //if child wasn't accepted, continue search
+                    if (res)
+                        break;
+                }
+            }
+        }
+
+        if (!res)
+            res = this;
+
+        return res;
+    }
+
+    protected override void dispatchInputEvent(InputEvent event) {
+        Widget child = findInputDispatchChild(event);
+
+        if (event.isMouseRelated()) {
+            foreach (zchild; mWidgets) {
+                if (zchild.parent !is this) {
+                    assert(false);
+                    continue;
+                }
+
+                if (zchild !is child) {
+                    zchild.doMouseEnterLeave(false);
+                }
+            }
+        }
+
+        if (child is this) {
+            super.dispatchInputEvent(event);
+        } else {
+            InputEvent cevent = translateEvent(child, event);
+            child.doDispatchInputEvent(cevent);
         }
     }
 
@@ -571,6 +627,12 @@ class PublicContainer : Container {
 ///by coincidence only needs to add more accessors to the original Container
 ///also supports loading of children widgets using loadFrom()
 class SimpleContainer : PublicContainer {
+    bool mouseEvents = true; //xxx silly hack
+
+    override bool onTestMouse(Vector2i pos) {
+        return mouseEvents ? super.onTestMouse(pos) : false;
+    }
+
     /// Add an element to the GUI, which gets automatically cleaned up later.
     void add(Widget obj) {
         addChild(obj);

@@ -6,9 +6,12 @@ works with the version of WWP which was available to us. You need to compile and
 run the program "extractdata" and place the resulting files into the data/data2
 directory.
 
+Actually, Lumbricus is completely independent from WWP and can't read WWP
+datafiles (which is why there's an extra converter).
 At some time we'll make sure it works just with the data from this SVN.
+We would need a graphic artists to produce a free, nice-looking game.
 
-The code is in the D Programming Language, see:
+The code is written in the D Programming Language, see:
 http://www.digitalmars.com/d/1.0/
 
 There's also a little info on our project page:
@@ -16,12 +19,27 @@ https://gna.org/projects/lumbricus
 
 Building it...
 
-A D compiler for D 1.0 is required.
-I.e.: http://www.digitalmars.com/d/1.0/dcompiler.html
+- A D compiler for D 1.x is required, pick up the latest version of dmd or gdc:
+  -> http://www.digitalmars.com/d/download.html
+  D 2.x will _not_ work, it is a different language from D 1.x!
 
-Should work under x86 Windows and Linux.
-GDC supports more arches, but at least for amd64 it is slightly broken and won't
-work with this code (format()-ing struct arguments isn't implemented).
+  DMD should work under x86 Windows and Linux.
+  GDC supports more arches, but at least for amd64 it is slightly broken and
+  won't work with this code (format()-ing struct arguments isn't implemented).
+
+- DSSS is the build program we use
+  -> http://www.dsource.org/projects/dsss
+
+- Derelict, which is a bunch of wrappers for C libraries, especially SDL
+  -> http://dsource.org/projects/derelict
+  xxx: describe how to use dsss net to auto-install all dependencies?
+
+- When it's all correctly set up, go into the trunk/src/ dir and compile
+  Lumbricus by executing this command on the commandline:
+    dsss build
+  And to build the WWP data converter:
+    dsss build ../bin/tools/extractdata
+  The resulting binaries are put into trunk/bin/ and trunk/bin/tools/
 
 Required libraries:
 - Dynamic linked (.dll/.so):
@@ -29,13 +47,27 @@ Required libraries:
   - SDL_image
   - SDL_ttf
 - Static linked D libraries:
-  - Derelict for the 3 SDL libraries (http://dsource.org/projects/derelict)
+  - Derelict for the 3 SDL libraries
   - Phobos (comes with DMD)
+The WWP data converter ("extractdata") also needs DevIL.
 
-1. Get Derelict, and put the files into an include path found by DMD, i.e.
-   you can put the files into dmd/src/phobos/derelict/sdl/ or so.
-2. Get dsss (http://svn.dsource.org/projects/dsss/downloads/) and compile the
-   stuff, I'm not sure how, lol. But usually:
-   $ dsss build TARGET
-   Where TARGET is ../bin/lumbricus and ../bin/extractdata
-   (extractdata is the WWP data converter).
+Using the WWP data converter:
+  extractdata expects the Worms(TM) directory and an output
+  dir as arguments, and converts the file to images/conf-files Lumbricus can
+  understand. Call it like this:
+
+    extractdata pathtowwp lumbricus_trunk/data/data2
+
+  Note that some datafiles from trunk/bin/tools/ need to be in extractdata's
+  path.
+
+  The WWP datafiles just contain lists of compressed images/animations, which
+  are obviously (?) only addressed by their index-number. So we had to create
+  our own description file, which maps the animation index to a name. This is
+  trunk/bin/tools/animations.txt. If your WWP datafiles are somehow different,
+  the animation numbers in animations.txt may need to be changed.
+
+  To inspect the WWP datafiles, you can unpack them with unworms (using
+  extractdata is impractical, because it only converts the animations in
+  animations.txt). Compile unworms with "dsss build ../bin/tools/unworms". You
+  can call it on .dir, .bnk, .img and .spr files.

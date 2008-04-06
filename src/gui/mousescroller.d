@@ -1,5 +1,6 @@
 module gui.mousescroller;
 
+import common.common;
 import gui.scrollwindow;
 import gui.widget;
 import framework.event;
@@ -26,6 +27,19 @@ class MouseScroller : ScrollArea {
         mLastMouseScroll = timeCurrentTime();
     }
 
+    override MouseCursor mouseCursor() {
+        return mMouseScrolling ? MouseCursor.None : super.mouseCursor();
+    }
+
+    private bool checkReleaseLock() {
+        if (mMouseScrolling && isLinked())
+            return true;
+        captureSet(false);
+        //gFramework.grabInput = false;
+        gFramework.mouseLocked = false;
+        return false;
+    }
+
     public bool mouseScrolling() {
         return mMouseScrolling;
     }
@@ -33,20 +47,25 @@ class MouseScroller : ScrollArea {
         if (enable == mMouseScrolling)
             return;
         if (enable) {
-            if (!captureEnable()) {
-                //to avoid some problems when draging around the containing
-                //window (TestFrame3 in test.d)
+            if (gFramework.mouseLocked() /+ || gFramework.grabInput()+/)
+                return;
+            //[setting the capture seems to get rid of some strange corner case
+            // situations (test: while mouse scrolling is active, resize the
+            // window so that the mouse-lock position is outside the window; can
+            // be easily done with fullscreen -> windowed mode switching)]
+            if (!captureSet(true)) {
                 return; //refuse
             }
-            gFramework.grabInput = true;
-            gFramework.cursorVisible = false;
-            gFramework.lockMouse();
+            //removed the grab; if the SDL driver needs it to grab for some
+            //strange reasons, it can do that by itself anyway
+            //gFramework.grabInput = true;
+            gFramework.mouseLocked = true;
+            //use that silly callback in the case when this widget was removed
+            //from the GUI while mouse scrolling was enabled
+            globals.addFrameCallback(&checkReleaseLock);
             stopSmoothScrolling();
         } else {
-            captureDisable();
-            gFramework.grabInput = false;
-            gFramework.cursorVisible = true;
-            gFramework.unlockMouse();
+            checkReleaseLock();
         }
         mMouseScrolling = enable;
     }
@@ -71,6 +90,15 @@ class MouseScroller : ScrollArea {
             return true;
         }
         return super.onMouseMove(mi);
+    }
+
+    protected override bool allowInputForChild(Widget child, InputEvent event) {
+        if (event.isKeyEvent && event.keyEvent.code == Keycode.MOUSE_RIGHT)
+            return false;
+        //catch only mouse events
+        if (mMouseScrolling)
+            return !event.isMouseRelated();
+        return true;
     }
 
     override void loadFrom(GuiLoader loader) {

@@ -181,6 +181,8 @@ const Time cWeaponIconMoveTime = timeMsecs(300);
 //also draws worm labels
 class GameView : Container, TeamMemberControlCallback {
     void delegate() onTeamChange;
+    // :(
+    void delegate(char[] category) onSelectCategory;
 
     //for setSettings()
     struct GUITeamMemberSettings {
@@ -682,12 +684,15 @@ class GameView : Container, TeamMemberControlCallback {
 
         }
 
+        bool isPrefix(char[] s, char[] prefix) {
+            return s.length >= prefix.length && s[0..prefix.length] == prefix;
+        }
+
         //try if it's a wapon shortcut
         //(oh lol, kind of unclean?)
         const cWShortcut = "weapon_";
-        auto len = cWShortcut.length;
-        if (bind.length >= len && bind[0..len] == cWShortcut) {
-            auto wcname = bind[len..$];
+        if (isPrefix(bind, cWShortcut)) {
+            auto wcname = bind[cWShortcut.length..$];
             if (mController.currentWeapon &&
                 mController.currentWeapon.name == wcname)
             {
@@ -700,6 +705,14 @@ class GameView : Container, TeamMemberControlCallback {
                 WeaponClass c = findWeapon(wcname);
                 mController.weaponDraw(c);
             }
+        }
+
+        //I see a pattern...
+        const cCShortcut = "category_";
+        if (isPrefix(bind, cCShortcut)) {
+            auto cname = bind[cCShortcut.length..$];
+            if (onSelectCategory)
+                onSelectCategory(cname);
         }
 
         //nothing found
@@ -722,7 +735,7 @@ class GameView : Container, TeamMemberControlCallback {
     }
 
     //grrr
-    override bool testMouse(Vector2i pos) {
+    override bool onTestMouse(Vector2i pos) {
         return true;
     }
 

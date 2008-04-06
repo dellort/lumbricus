@@ -187,4 +187,25 @@ public class KeyBindings {
             callback(e.bound_to, k.code, cast(ModifierSet)k.required_mods);
         }
     }
+
+    /// For a given key event (code, mods) check whether a or b wins, and return
+    /// the winner. If the event matches neither a nor b, return null. If both
+    /// match equally (it's a draw), always return a.
+    /// Both a and b can be null, null ones are handled as no-match.
+    public static KeyBindings compareBindings(KeyBindings a, KeyBindings b,
+        Keycode code, ModifierSet mods)
+    {
+        int wa = a ? a.checkBinding(code, mods) : -1;
+        int wb = b ? b.checkBinding(code, mods) : -1;
+        if (wa >= wb && wa >= 0)
+            return a;
+        else if (wb >= 0)
+            return b;
+        return null;
+    }
+    public static KeyBindings compareBindings(KeyBindings a, KeyBindings b,
+        KeyInfo info)
+    {
+        return compareBindings(a, b, info.code, info.mods);
+    }
 }

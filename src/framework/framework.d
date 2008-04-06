@@ -107,6 +107,7 @@ abstract class FrameworkDriver {
 struct DriverInputState {
     bool mouse_visible = true;
     bool grab_input;
+    bool mouse_locked;
 }
 
 struct VideoWindowState {
@@ -189,9 +190,7 @@ class Surface {
     ///"best" size for a large texture
     const cStdSize = Vector2i(512, 512);
 
-    //must be called by any constructor
-    private void init(SurfaceData data, bool copy_data) {
-        assert(!mDriverSurface);
+    this(SurfaceData data, bool copy_data = false) {
         mData = new SurfaceData;
         *mData = data;
         if (copy_data) {
@@ -200,10 +199,6 @@ class Surface {
         mData.colorkey = mData.transparency == Transparency.Colorkey
             ? mData.colorkey : Color(0,0,0,0);
         gSurfaces.add(this);
-    }
-
-    this(SurfaceData data, bool copy_data = false) {
-        init(data, copy_data);
     }
 
     ///kill driver's surface, probably copy data back
@@ -256,8 +251,15 @@ class Surface {
     }
 
     /// to avoid memory leaks
-    final void free() {
+    /// free_data = free even the surface struct and the pixel array
+    ///     (use with care)
+    final void free(bool free_data = false) {
         doFree(false);
+        if (free_data) {
+            delete mData.data;
+            delete mData;
+        }
+        mData = null;
     }
 
     /// this has no effect in OpenGL mode; in SDL mode, enabled caching might
@@ -266,6 +268,8 @@ class Surface {
         return mData.enable_cache;
     }
     void enableCaching(bool s) {
+        if (mData.enable_cache == s)
+            return;
         passivate();
         mData.enable_cache = s;
     }
@@ -325,8 +329,11 @@ class Surface {
     }
 
     final Surface clone() {
+        return subrect(rect());
+        /+
         passivate();
         return new Surface(*mData, true);
+        +/
     }
 
     //return a Surface with a copy of a subrectangle of this
@@ -379,7 +386,6 @@ class Surface {
     //change each colorchannel according to colormap
     //channels are r=0, g=1, b=2, a=3
     void mapColorChannels(ubyte[256][4] colormap) {
-        passivate();
         void* data; uint pitch;
         lockPixelsRGBA32(data, pitch);
         for (int y = 0; y < mData.size.y; y++) {
@@ -387,14 +393,15 @@ class Surface {
             ptr += y*pitch;
             auto w = mData.size.x;
             for (int x = 0; x < w; x++) {
-                ptr[0] = colormap[0][ptr[0]];
-                ptr[1] = colormap[1][ptr[1]];
-                ptr[2] = colormap[2][ptr[2]];
-                ptr[3] = colormap[3][ptr[3]];
+                //avoiding bounds checking: array[index] => *(array.ptr + index)
+                ptr[0] = *(colormap[0].ptr + ptr[0]); //colormap[0][ptr[0]];
+                ptr[1] = *(colormap[1].ptr + ptr[1]); //colormap[1][ptr[1]];
+                ptr[2] = *(colormap[2].ptr + ptr[2]); //colormap[2][ptr[2]];
+                ptr[3] = *(colormap[3].ptr + ptr[3]); //colormap[3][ptr[3]];
                 ptr += 4;
             }
         }
-        unlockPixels(Rect2i(size()));
+        unlockPixels(rect());
     }
 
     ///works like Canvas.draw, but doesn't do any blending
@@ -424,8 +431,8 @@ class Surface {
         source.lockPixelsRGBA32(psrc, srcpitch);
         pdest += destpitch*dest.p1.y + dest.p1.x*uint.sizeof;
         psrc += srcpitch*src.p1.y + src.p1.x*uint.sizeof;
+        int adv = sz.x*uint.sizeof;
         for (int y = 0; y < sz.y; y++) {
-            int adv = sz.x*uint.sizeof;
             pdest[0 .. adv] = psrc[0 .. adv];
             pdest += destpitch;
             psrc += srcpitch;
@@ -457,6 +464,15 @@ alias Surface Texture;
 private const Time cFPSTimeSpan = timeSecs(1); //how often to recalc FPS
 
 public alias int delegate() CacheReleaseDelegate;
+
+///what mouse cursor to display
+///currently only about the visibility of the mouse cursor; could be easily
+///extended to display an arbitrary mono-colored bitmap (SDL supports it)
+///(in this case, turn this into a class)
+enum MouseCursor {
+    None,
+    Standard,
+}
 
 /// For Framework.getInfoString()
 /// Entries from Framework.getInfoStringNames() correspond to this
@@ -497,9 +513,6 @@ class Framework {
 
         //for mouse handling
         Vector2i mMousePos;
-        Vector2i mStoredMousePos, mLockedMousePos, mMouseCorr;
-        bool mLockMouse;
-        int mFooLockCounter;
 
         //worthless statistics!
         PerfTimer[char[]] mTimers;
@@ -700,9 +713,23 @@ class Framework {
     }
 
     /// Query if key is currently pressed down (true) or not (false)
-    bool getKeyState(Keycode code) {
+    final bool getKeyState(Keycode code) {
         assert(code >= Keycode.min && code <= Keycode.max);
         return mKeyStateMap[code - Keycode.min];
+    }
+
+    /// query if any of the checked set of keys is currently down
+    ///     keyboard = check normal keyboard keys
+    ///     mouse = check mouse buttons
+    bool anyButtonPressed(bool keyboard = true, bool mouse = true) {
+        for (auto n = Keycode.min; n <= Keycode.max; n++) {
+            auto ismouse = keycodeIsMouseButton(n);
+            if (!(ismouse ? mouse : keyboard))
+                continue;
+            if (getKeyState(n))
+                return true;
+        }
+        return false;
     }
 
     /// return if Modifier is applied
@@ -751,38 +778,28 @@ class Framework {
     ///This will move the mouse cursor to screen center and keep it there
     ///It is probably a good idea to hide the cursor first, as it will still
     ///be moveable and generate events, but "snap" back to the locked position
-    ///Events will show the mouse cursor standing at its locked position
-    ///and only show relative motion
-    void lockMouse() {
-        if (!mLockMouse) {
-            mLockedMousePos = screenSize()/2;
-            mStoredMousePos = mousePos;
-            mLockMouse = true;
-            mousePos = mLockedMousePos;
-            //mMouseCorr = mStoredMousePos - mLockedMousePos;
-            mMouseCorr = Vector2i(0);
-            //discard 3 events from now
-            mFooLockCounter = 3;
-        }
-    }
-
-    ///Remove the mouse lock and move the cursor back to where it was before
-    void unlockMouse() {
-        if (mLockMouse) {
-            mousePos = mStoredMousePos;
-            mLockMouse = false;
-            mMouseCorr = Vector2i(0);
-        }
-    }
-
-    void cursorVisible(bool v) {
+    ///Events and mousePos() will show the mouse cursor standing at its locked
+    ///position and only show relative motion
+    void mouseLocked(bool set) {
         auto state = mDriver.getInputState();
-        state.mouse_visible = v;
+        state.mouse_locked = set;
         mDriver.setInputState(state);
     }
+    bool mouseLocked() {
+        return mDriver.getInputState().mouse_locked;
+    }
 
-    bool cursorVisible() {
-        return mDriver.getInputState().mouse_visible;
+    ///appaerance of the mouse pointer when it is inside the video window
+    void mouseCursor(MouseCursor cursor) {
+        if (cursor == mouseCursor)
+            return;
+        auto state = mDriver.getInputState();
+        state.mouse_visible = (cursor != MouseCursor.None);
+        mDriver.setInputState(state);
+    }
+    MouseCursor mouseCursor() {
+        return mDriver.getInputState().mouse_visible ? MouseCursor.Standard
+            : MouseCursor.None;
     }
 
     Vector2i mousePos() {
@@ -816,16 +833,20 @@ class Framework {
         bool was_down = getKeyState(infos.code);
 
         updateKeyState(infos, true);
-        if (!was_down) {
-            if (onKeyDown) {
-                bool handle = onKeyDown(infos);
-            }
-        }
 
-        if (onKeyPress != null) {
-            infos.type = KeyEventType.Press;
-            onKeyPress(infos);
+        if (!onInput)
+            return;
+
+        InputEvent event;
+        event.keyEvent = infos;
+        event.isKeyEvent = true;
+        event.mousePos = mousePos();
+
+        if (!was_down) {
+            onInput(event);
         }
+        event.keyEvent.type = KeyEventType.Press;
+        onInput(event);
     }
 
     void driver_doKeyUp(in KeyInfo infos) {
@@ -838,41 +859,30 @@ class Framework {
             doTerminate();
         }
 
-        if (onKeyUp) {
-            onKeyUp(infos);
-        }
+        if (!onInput)
+            return;
+
+        InputEvent event;
+        event.keyEvent = infos;
+        event.isKeyEvent = true;
+        event.mousePos = mousePos();
+
+        onInput(event);
     }
 
-    void driver_doUpdateMousePos(Vector2i pos) {
-        if (mMousePos != pos) {
-            MouseInfo infos;
-            infos.pos = pos;
-            infos.rel = pos - mMousePos;
-            if (mLockMouse) {
-                //xxx this hack throws away the first 3 relative motions
-                //when in locked mode to fix SDL stupidness
-                mFooLockCounter--;
-                if (mFooLockCounter > 0)
-                    infos.rel = Vector2i(0);
-                else
-                    mFooLockCounter = 0;
-                //pretend mouse to be at stored position
-                infos.pos = mStoredMousePos;
-                //correct the last cursor position change made
-                infos.rel += mMouseCorr;
-                //correction has been used, reset
-                mMouseCorr = Vector2i(0);
-            }
-            mMousePos = pos;
-            if (onMouseMove != null) {
-                onMouseMove(infos);
-            }
-            if (mLockMouse) {
-                mousePos = mLockedMousePos;
-                //save position change to subtract later, as this will
-                //generate an event
-                mMouseCorr += (pos-mLockedMousePos);
-            }
+    //rel is the relative movement; needed for locked mouse mode
+    void driver_doUpdateMousePos(Vector2i pos, Vector2i rel) {
+        if (mMousePos == pos && rel == Vector2i(0))
+            return;
+
+        mMousePos = pos;
+
+        if (onInput) {
+            InputEvent event;
+            event.isMouseEvent = true;
+            event.mousePos = event.mouseEvent.pos = mMousePos;
+            event.mouseEvent.rel = rel;
+            onInput(event);
         }
     }
 
@@ -1196,15 +1206,8 @@ class Framework {
     public void delegate() onUpdate;
     /// Event raised when the screen is repainted
     public void delegate(Canvas canvas) onFrame;
-    /// Event raised on key-down/up events; these events are not auto repeated
-    //return false if keys were handled (for onKeyDown: onKeyPress handling)
-    public bool delegate(KeyInfo key) onKeyDown;
-    public bool delegate(KeyInfo key) onKeyUp;
-    /// Event raised on key-down; this event is auto repeated
-    public void delegate(KeyInfo key) onKeyPress;
-    /// Event raised when the mouse pointer is changed
-    /// Note that mouse button are managed by the onKey* events
-    public void delegate(MouseInfo mouse) onMouseMove;
+    /// Input events, see InputEvent
+    public void delegate(InputEvent input) onInput;
     /// Event raised on initialization (before first onFrame) and when the
     /// screen size or format changes.
     public void delegate(bool depth_only) onVideoInit;

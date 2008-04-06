@@ -1,6 +1,8 @@
 module common.task;
+import utils.array : aaDup;
 import utils.factory;
 import utils.log;
+import utils.misc;
 import utils.md;
 
 /// something which can get created, listed, and destroyed
@@ -98,6 +100,7 @@ class TaskManager {
     private void registerTask(Task task) {
         assert(!task.mManager);
         int id = ++mTaskIDAlloc;
+        mTaskList = aaDup(mTaskList);
         mTaskList[id] = task;
         task.mManager = this;
         task.mTaskID = id;
@@ -106,6 +109,7 @@ class TaskManager {
 
     //called by Task.kill() only
     private void killTask(Task task) {
+        mTaskList = aaDup(mTaskList);
         mTaskList.remove(task.mTaskID);
         mLog("task killed: %s", task.mTaskID);
     }
@@ -113,8 +117,12 @@ class TaskManager {
     //called from TopLevel on each frame
     public void doFrame() {
         //oh, and the order how the Tasks are called is undefined anyway
+        //safe iteration: before modification, mTaskList is copied, and the
+        //foreach() runs over the "old" list; also the old list could contain
+        //already killed Tasks, so this needs to be checked too
         foreach (Task t; mTaskList) {
-            t.doFrame();
+            if (t.alive())
+                t.doFrame();
         }
     }
 

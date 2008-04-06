@@ -16,6 +16,7 @@ import gui.label;
 import gui.list;
 import gui.scrollbar;
 import gui.scrollwindow;
+import gui.splitter;
 import gui.tablecontainer;
 import gui.widget;
 import gui.wm;
@@ -424,7 +425,7 @@ class ResViewerTask : Task {
             side.add(mResTypeList);
 
             mUpdate = new Button();
-            mUpdate.text = "Update               List";
+            mUpdate.text = "Update List";
             mUpdate.onClick = &onUpdate;
             mUpdate.setLayout(WidgetLayout.Noexpand());
             side.add(mUpdate);
@@ -456,11 +457,10 @@ class ResViewerTask : Task {
             }
             addLabel(mName, "Name");
 
-            auto all = new BoxContainer(true, false, 7);
-            //xxx: need splitter control
-            side.setLayout(WidgetLayout.Expand(false));
-            all.add(side);
-            all.add(otherside);
+            auto all = new Splitter(true);
+            //side.setLayout(WidgetLayout.Expand(false));
+            all.setChild(0, side);
+            all.setChild(1, otherside);
             addChild(all);
 
             doUpdate2();

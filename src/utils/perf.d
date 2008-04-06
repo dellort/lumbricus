@@ -3,6 +3,10 @@ module utils.perf;
 import std.perf;
 import utils.time;
 
+//to enable a per-thread CPU time counter, which does silly and hacky stuff
+//it's only useful for debugging, because I don't know how to use a profiler
+//version = UseFishyStuff;
+
 class TimerImpl {
     ///timer runs continuously; use time to query the current one
     ///the start value is undefined and arbitrary
@@ -22,6 +26,8 @@ class PerfTimerImpl : TimerImpl {
         return timeMusecs(counter.microseconds());
     }
 }
+
+version (UseFishyStuff) {
 
 version (Windows) {
     //actually almost exactly the same as PerfTimerImpl
@@ -79,6 +85,13 @@ version (Windows) {
         }
     }
 }
+
+} else { //version (UseFishyStuff)
+
+//the problemless "solution" which should work for everyone
+alias PerfTimerImpl ThreadTimerImpl;
+
+} //not version (UseFishyStuff)
 
 ///wraps std.perf.PerformanceCounter
 ///differences: .stop doesn't reset the counter or so, and calling .start

@@ -44,11 +44,11 @@ const cCommandLineHelp =
 `Partial documentation of commandline switches:
     --help
         Output this and exit.
-    --language_id
+    --language_id=ID
         Set language ID (de, en)
     --driver.xxx=yyy
         Set property xxx of the fwconfig stuff passed to the Framework to yyy,
-        i.e. to disable use of OpenGL:
+        e.g. to disable use of OpenGL:
         --driver.open_gl=false
     --exec.=xxx
         Execute "xxx" on the commandline, e.g. this starts task1 and task2:

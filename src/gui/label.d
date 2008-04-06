@@ -26,6 +26,11 @@ class Label : Widget {
 
     Color background = {0,0,0,0};
 
+    //no mouse events
+    override bool onTestMouse(Vector2i) {
+        return false;
+    }
+
     void image(Texture img) {
         if (img is mImage)
             return;

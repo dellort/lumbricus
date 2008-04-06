@@ -1,3 +1,4 @@
+//connects GUI, Task-stuff and the framework; also contains general stuff
 module common.toplevel;
 
 import std.string;
@@ -56,7 +57,6 @@ private:
 
     TaskManager taskManager;
 
-    bool mShowKeyDebug = false;
     bool mKeyNameIt = false;
 
     PerfTimer mTaskTime, mGuiDrawTime, mGuiFrameTime;
@@ -145,10 +145,7 @@ private:
 
         framework.onUpdate = &onUpdate;
         framework.onFrame = &onFrame;
-        framework.onKeyPress = &onKeyPress;
-        framework.onKeyDown = &onKeyDown;
-        framework.onKeyUp = &onKeyUp;
-        framework.onMouseMove = &onMouseMove;
+        framework.onInput = &onInput;
         framework.onVideoInit = &onVideoInit;
         framework.onFrameEnd = &onFrameEnd;
 
@@ -350,12 +347,8 @@ private:
     private void cmdGrab(MyBox[] args, Output write) {
         auto state = args[0].unbox!(bool)();
         gFramework.grabInput = state;
-        gFramework.cursorVisible = !state;
-        if (state) {
-            gFramework.lockMouse();
-        } else {
-            gFramework.unlockMouse();
-        }
+        //gFramework.cursorVisible = !state;
+        gFramework.mouseLocked = state;
     }
 
     private void cmdPS(MyBox[] args, Output write) {
@@ -555,6 +548,8 @@ private:
         taskManager.doFrame();
         mTaskTime.stop();
 
+        globals.callFrameCallBacks();
+
         mGuiFrameTime.start();
         mGui.doFrame(timeCurrentTime());
         mGuiFrameTime.stop();
@@ -566,51 +561,41 @@ private:
         mGuiDrawTime.stop();
     }
 
-    private void onKeyPress(KeyInfo infos) {
-        mGui.putOnKeyPress(infos);
-    }
+    private void onInput(InputEvent event) {
+        //for debugging
+        //but something similar will be needed for a proper keybindings editor
+        if (mKeyNameIt && event.isKeyEvent) {
+            if (!event.keyEvent.isDown())
+                return;
 
-    private bool onKeyDown(KeyInfo infos) {
-        if (mKeyNameIt) {
-            auto mods = gFramework.getModifierSet();
+            auto mods = event.keyEvent.mods;
+            auto code = event.keyEvent.code;
+
             mGuiConsole.output.writefln("Key: '%s' '%s', code=%s mods=%s",
-                keybindings.unparseBindString(infos.code, mods),
-                globals.translateKeyshortcut(infos.code, mods),
-                cast(int)infos.code, cast(int)mods);
+                keybindings.unparseBindString(code, mods),
+                globals.translateKeyshortcut(code, mods),
+                cast(int)code, cast(int)mods);
+
             //modifiers are also keys, ignore them
-            if (gFramework.isModifierKey(infos.code)) {
-                return false;
+            if (!gFramework.isModifierKey(code)) {
+                mKeyNameIt = false;
             }
-            mKeyNameIt = false;
-            return false;
+
+            return;
         }
-        if (mShowKeyDebug) {
-            globals.log("down: %s", gFramework.keyinfoToString(infos));
-        }
-        char[] bind = keybindings.findBinding(infos.code,
-            gFramework.getModifierSet());
-        if (bind) {
-            if (mShowKeyDebug) {
-                globals.log("Binding '%s'", bind);
+
+        //execute global shortcuts
+        if (event.isKeyEvent) {
+            char[] bind = keybindings.findBinding(event.keyEvent);
+            if (bind.length > 0) {
+                if (event.keyEvent.isDown())
+                    globals.cmdLine.execute(bind);
+                return;
             }
-            globals.cmdLine.execute(bind);
-            return false;
         }
-        mGui.putOnKeyDown(infos);
-        return true;
-    }
 
-    private bool onKeyUp(KeyInfo infos) {
-        if (mShowKeyDebug) {
-            globals.log("up: %s", gFramework.keyinfoToString(infos));
-        }
-        mGui.putOnKeyUp(infos);
-        return true;
-    }
-
-    private void onMouseMove(MouseInfo mouse) {
-        //globals.log("%s", mouse.pos);
-        mGui.putOnMouseMove(mouse);
+        //deliver event to the GUI
+        mGui.putInput(event);
     }
 }
 

@@ -137,15 +137,15 @@ class TeamTheme {
 
 //I feel a little bit guilty to place this here, but who cares
 struct TargetCrossSettings {
-    int targetDist = 70; //distance target-cross-center to worm-center
+    int targetDist = 90; //distance target-cross-center to worm-center
     int targetStartDist = 10;   //initial distance (for animate-away)
     int loadStart = 8; //start of the load-thing
-    int loadEnd = 80; //end of it
+    int loadEnd = 100; //end of it
     Color colorStart = Color(1,0,0); //colors of the load-thing
     Color colorEnd = Color(1,1,0);
     int radStart = 3; //min/max radius for these circles
     int radEnd = 10;
     int add = 1; //distance of circle centers
-    int stipple = 5; //change color after that number of circles (>0, in pixels)
+    int stipple = 7; //change color after that number of circles (>0, in pixels)
     float targetDegrade = 0.98f; //animate-away speed, multiplicator per millisecond
 }

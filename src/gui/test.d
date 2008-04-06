@@ -10,9 +10,11 @@ import gui.edit;
 import gui.tablecontainer;
 import gui.label;
 import gui.list;
+import gui.logwindow;
 import gui.mousescroller;
 import gui.scrollbar;
 import gui.scrollwindow;
+import gui.splitter;
 import gui.loader;
 import common.common;
 import common.task;
@@ -288,6 +290,29 @@ class TestFrame8 : Container {
     }
 }
 
+class TestFrame9 : Container {
+    class T : Container {
+        this(int r) {
+            auto x = new Label();
+            x.text = str.format(r);
+            auto props = gFramework.getFont("normal").properties();
+            props.size += r*10; //just to have different request sizes
+            x.font = new Font(props);
+            addChild(x);
+        }
+        override void onDraw(Canvas c) {
+            super.onDraw(c);
+            c.drawRect(widgetBounds, Color(0));
+        }
+    }
+    this() {
+        auto s = new Splitter(false);
+        s.setChild(0, new T(0));
+        s.setChild(1, new T(1));
+        addChild(s);
+    }
+}
+
 //not really GUI related
 class TestGradient : Container {
     Button mChk;
@@ -342,6 +367,7 @@ class TestTask : Task {
         createWindow("CheckBox", checkbox);
         createWindow("Popup-Test", new TestFrame7());
         createWindow("DropDownList", new TestFrame8());
+        createWindow("Splitter", new TestFrame9());
         createWindow("Test gradient", new TestGradient());
 
         auto k = new Button();
@@ -632,10 +658,101 @@ class TestTask3 : Task {
         );
         mFList.setContents(files);
 
+        mView.setSource(gFramework.loadImage(filename));
+
         gWindowManager.createWindow(this, tgui, "BCG test", Vector2i(450, 300));
     }
 
     static this() {
         TaskFactory.register!(typeof(this))("bcg");
+    }
+}
+
+//write GUI events into a log window
+class TestTask4 : Task {
+    template ReportEvents() {
+        Output log;
+
+        override bool canHaveFocus() {
+            return true;
+        }
+
+        override bool greedyFocus() {
+            return true;
+        }
+
+        override bool onMouseMove(MouseInfo m) {
+            log.writefln("%s: %s", this, m);
+            return true;
+        }
+
+        override bool onKeyEvent(KeyInfo info) {
+            log.writefln("%s: %s %s", this, info, gFramework.keyinfoToString(info));
+            if (info.isDown() && info.code == Keycode.MOUSE_RIGHT)
+                gFramework.mouseLocked = !gFramework.mouseLocked;
+            return true;
+        }
+
+        override void onMouseEnterLeave(bool mouseIsInside) {
+            log.writefln("%s: onMouseEnterLeave(%s)", this, mouseIsInside);
+        }
+
+        override Vector2i layoutSizeRequest() {
+            log.writefln("%s: layoutSizeRequest()", this);
+            return Vector2i(0);
+        }
+
+        override void layoutSizeAllocation() {
+            log.writefln("%s: layoutSizeAllocation(), size=%s", this, size());
+        }
+
+        override void onFocusChange() {
+            log.writefln("%s: focus change, local=%s global=%s", this,
+                localFocused(), focused());
+            super.onFocusChange();
+        }
+
+        override void onDraw(Canvas c) {
+            c.drawFilledCircle(mousePos(), 5, Color(1,0,0));
+        }
+    }
+
+    class W1 : Widget {
+        mixin ReportEvents;
+        char[] toString() {
+            return "W1";
+        }
+    }
+
+    private void mouseLock(Button sender) {
+        gFramework.mouseLocked = sender.checked();
+    }
+
+    this(TaskManager tm) {
+        super(tm);
+
+        auto log = new LogWindow(gFramework.getFont("normal"));
+
+        auto x = new W1();
+        x.log = log;
+        auto t = gWindowManager.createWindow(this, x, "huh", Vector2i(400, 200));
+
+        auto wnd = gWindowManager.createWindow(this, log, "log",
+            Vector2i(400, 175), false);
+        auto wip = wnd.initialPlacement;
+        wip.place = wip.Placement.gravity;
+        wip.gravity = Vector2i(0, 10);
+        wip.relative = t.client();
+        wnd.initialPlacement = wip;
+        wnd.visible = true;
+
+        /+auto blubb = new Button();
+        blubb.text = "lock";
+        blubb.isCheckbox = true;
+        blubb.onClick = &mouseLock;
+        gWindowManager.createWindow(this, blubb, "...");+/
+    }
+    static this() {
+        TaskFactory.register!(typeof(this))("events");
     }
 }

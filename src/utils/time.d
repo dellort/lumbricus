@@ -251,16 +251,10 @@ public Time timeNull() {
 import std.perf;
 
 private PerformanceCounter gCounter;
-//not used anymore... just stores the ptr to timeCurrentTime() now
-private Time delegate() timeGetCurrentTime;
-
-import utils.misc;
 
 static this() {
     gCounter = new PerformanceCounter();
     gCounter.start();
-
-    timeGetCurrentTime = toDelegate(&timeCurrentTime);
 }
 
 ///get current (framework) time
@@ -273,8 +267,3 @@ public Time timeCurrentTime() {
     return timeMusecs(gCounter.microseconds());
 }
 
-///returns the time delegate
-///(leftover from old way of getting the time?)
-public Time delegate() getCurrentTimeDelegate() {
-    return timeGetCurrentTime;
-}

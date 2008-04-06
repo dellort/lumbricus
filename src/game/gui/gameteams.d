@@ -287,9 +287,4 @@ class TeamWindow : Container {
             mUpdating = checkSort() || checkMoveOut();
         }
     }
-
-    //don't eat mouse events
-    override bool testMouse(Vector2i pos) {
-        return false;
-    }
 }

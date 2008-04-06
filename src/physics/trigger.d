@@ -13,12 +13,15 @@ import physics.plane;
 class PhysicTrigger : PhysicBase {
     package mixin ListNodeMixin triggers_node;
 
+    //trigger when object does _not_ collide
+    bool inverse;
+
     void delegate(PhysicTrigger sender, PhysicObject other) onTrigger;
 
     //return true when object is inside, false otherwise
     bool collide(PhysicObject obj) {
         bool coll = doCollide(obj.pos, obj.posp.radius);
-        if (coll && onTrigger)
+        if ((coll ^ inverse) && onTrigger)
             onTrigger(this, obj);
         return coll;
     }

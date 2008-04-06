@@ -899,6 +899,8 @@ class WeaponSet {
     }
 
     WeaponItem byId(WeaponClass weaponId) {
+        if (!weaponId)
+            return null;
         if (weaponId in weapons)
             return weapons[weaponId];
         return null;

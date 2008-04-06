@@ -311,7 +311,7 @@ private void spawnsprite(GameEngine engine, int n, SpawnParams params,
         float width = params.spawndist * (params.count-1);
         //center around pointed
         pos.x = about.pointto.x - width/2 + params.spawndist * n;
-        pos.y = sprite.engine.skyline()+100;
+        pos.y = sprite.engine.level.airstrikeY;
         sprite.setPos(pos);
         //patch for below *g*, direct into gravity direction
         about.dir = Vector2f(0, 1);
@@ -397,6 +397,7 @@ class ProjectileSpriteClass : GOSpriteClass {
             drownstate.physic_properties = drownstate.physic_properties.copy();
             drownstate.physic_properties.mediumViscosity = 5;
             drownstate.physic_properties.radius = 1;
+            drownstate.physic_properties.collisionID = "projectile_drown";
             states[drownstate.name] = drownstate;
         }
 

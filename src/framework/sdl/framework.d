@@ -284,6 +284,7 @@ class SDLDriver : FrameworkDriver {
         Framework mFramework;
         ConfigNode mConfig;
         VideoWindowState mCurVideoState;
+        DriverInputState mInputState;
 
         SDLFontDriver mFontDriver;
 
@@ -308,6 +309,13 @@ class SDLDriver : FrameworkDriver {
         //cache for being able to draw alpha blended filled rects without OpenGL
         Surface[int] mInsanityCache;
 
+        SDL_Cursor* mCursorStd, mCursorNull;
+
+        //only used by the mouse lock code
+        Vector2i mMousePos;
+        Vector2i mStoredMousePos, mLockedMousePos, mMouseCorr;
+        bool mLockMouse;
+        int mFooLockCounter;
     }
     package {
         SDL_Surface* mSDLScreen;
@@ -356,6 +364,13 @@ class SDLDriver : FrameworkDriver {
         if (SDL_Init(SDL_INIT_VIDEO) < 0) {
             throw new Exception(format("Could not init SDL: %s",
                 str.toString(SDL_GetError())));
+        }
+
+        mCursorStd = SDL_GetCursor();
+        ubyte[(32*32)/8] cursor; //init with 0, which means all-transparent
+        mCursorNull = SDL_CreateCursor(cursor.ptr, cursor.ptr, 32, 32, 0, 0);
+        if (!mCursorNull) {
+            throw new Exception("couldn't create SDL cursor");
         }
 
         SDL_EnableUNICODE(1);
@@ -516,15 +531,27 @@ class SDLDriver : FrameworkDriver {
     }
 
     DriverInputState getInputState() {
-        DriverInputState state;
-        state.grab_input = SDL_WM_GrabInput(SDL_GRAB_QUERY) == SDL_GRAB_ON;
-        state.mouse_visible = SDL_ShowCursor(SDL_QUERY) == SDL_ENABLE;
-        return state;
+        //SDL_ShowCursor(SDL_QUERY);
+        return mInputState;
     }
 
     void setInputState(in DriverInputState state) {
+        if (state == mInputState)
+            return;
+        setLockMouse(state.mouse_locked);
         SDL_WM_GrabInput(state.grab_input ? SDL_GRAB_ON : SDL_GRAB_OFF);
         SDL_ShowCursor(state.mouse_visible ? SDL_ENABLE : SDL_DISABLE);
+        //Derelict's SDL_QUERY is wrong, which caused me some hours of debugging
+        //derelict/sdl/events.d ->
+        //   enum : Uint8 {
+        //      SDL_QUERY           = cast(Uint8)-1,
+        //<- derelict
+        //but it really should be -1, not 255
+        //so this call did crap: SDL_ShowCursor(SDL_QUERY);
+        // WHO THE FUCK DID COME UP WITH "enum : Uint8"??? RAGE RAGE RAGE RAGE
+        //I even thought hiding the cursor didn't work at all, so I had this:
+        //SDL_SetCursor(state.mouse_visible ? mCursorStd : mCursorNull);
+        mInputState = state;
     }
 
     void setMousePos(Vector2i p) {
@@ -590,6 +617,58 @@ class SDLDriver : FrameworkDriver {
         }
     }
 
+    void setLockMouse(bool s) {
+        if (s == mLockMouse)
+            return;
+
+        if (!mLockMouse) {
+            mLockedMousePos = Vector2i(mSDLScreen.w, mSDLScreen.h)/2;
+            mStoredMousePos = mMousePos;
+            setMousePos(mLockedMousePos);
+            //mMouseCorr = mStoredMousePos - mLockedMousePos;
+            mMouseCorr = Vector2i(0);
+            //discard 3 events from now
+            mFooLockCounter = 3;
+        } else {
+            setMousePos(mStoredMousePos);
+            mMousePos = mStoredMousePos; //avoid a large rel on next update
+            mLockMouse = false;
+            mMouseCorr = Vector2i(0);
+        }
+
+        mLockMouse = s;
+    }
+
+    void updateMousePos(Vector2i pos) {
+        if (mMousePos == pos)
+            return;
+
+        auto npos = pos;
+        auto nrel = pos - mMousePos;
+
+        mMousePos = pos;
+
+        if (mLockMouse) {
+            //xxx this hack throws away the first 3 relative motions
+            //when in locked mode to fix SDL stupidness
+            mFooLockCounter--;
+            if (mFooLockCounter > 0)
+                nrel = Vector2i(0);
+            else
+                mFooLockCounter = 0;
+            //pretend mouse to be at stored position
+            npos = mStoredMousePos;
+            //correct the last cursor position change made
+            nrel += mMouseCorr;
+            setMousePos(mLockedMousePos);
+            //save position change to subtract later, as this will
+            //generate an event
+            mMouseCorr = (pos-mLockedMousePos);
+        }
+
+        mFramework.driver_doUpdateMousePos(npos, nrel);
+    }
+
     void processInput() {
         SDL_Event event;
         while(SDL_PollEvent(&event)) {
@@ -605,19 +684,16 @@ class SDLDriver : FrameworkDriver {
                     break;
                 case SDL_MOUSEMOTION:
                     //update mouse pos after button state
-                    mFramework.driver_doUpdateMousePos(Vector2i(event.motion.x,
-                        event.motion.y));
+                    updateMousePos(Vector2i(event.motion.x, event.motion.y));
                     break;
                 case SDL_MOUSEBUTTONUP:
                     KeyInfo infos = mouseInfosFromSDL(event.button);
-                    mFramework.driver_doUpdateMousePos(Vector2i(event.button.x,
-                        event.button.y));
+                    updateMousePos(Vector2i(event.button.x, event.button.y));
                     mFramework.driver_doKeyUp(infos);
                     break;
                 case SDL_MOUSEBUTTONDOWN:
                     KeyInfo infos = mouseInfosFromSDL(event.button);
-                    mFramework.driver_doUpdateMousePos(Vector2i(event.button.x,
-                        event.button.y));
+                    updateMousePos(Vector2i(event.button.x, event.button.y));
                     mFramework.driver_doKeyDown(infos);
                     break;
                 case SDL_VIDEORESIZE:
@@ -1138,7 +1214,7 @@ class SDLCanvas : Canvas {
     }
 
     //warning: unlocked (you must call SDL_LockSurface before),
-    //  inclipped (coordinate must be inside of sdlsurface.mReal.clip_rect)
+    //  unclipped (coordinate must be inside of sdlsurface.mReal.clip_rect)
     //of course doesn't obey alpha blending in any way
     static private void doSetPixelLow(SDL_Surface* s, int x, int y, uint color)
     {

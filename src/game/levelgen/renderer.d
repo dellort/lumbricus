@@ -17,7 +17,7 @@ import math = std.math;
 
 import std.stdio;
 
-debug import std.perf;
+debug import utils.perf;
 
 public alias Vector2f Point;
 
@@ -169,7 +169,7 @@ class LandscapeBitmap {
         }
 
         debug {
-            auto counter = new PerformanceCounter();
+            auto counter = new PerfTimer(true);
             counter.start();
         }
 
@@ -177,8 +177,7 @@ class LandscapeBitmap {
 
         debug {
             counter.stop();
-            mLog("render.d: polygon rendered in %s",
-                timeMusecs(cast(int)counter.microseconds));
+            mLog("render.d: polygon rendered in %s", counter.time);
         }
 
         mImage.unlockPixels(Rect2i(Vector2i(0), mImage.size));
@@ -230,35 +229,39 @@ class LandscapeBitmap {
             void* dstptr; uint dstpitch;
             mImage.lockPixelsRGBA32(dstptr, dstpitch);
 
-            //the algorithm was more or less ripped from Matthias' code
-            ubyte[] pline = new ubyte[mWidth]; //initialized to 0
+            ubyte[] apline = new ubyte[mWidth]; //initialized to 0
             int start = up ? mHeight-1 : 0;
             for (int y = start; y >= 0 && y <= mHeight-1; y += dir) {
                 uint* scanline = cast(uint*)(dstptr + y*dstpitch);
+                Lexel* meta_scanline = &mLevelData[y*mWidth];
+                ubyte* poldline = &tmpData[y*mWidth];
+                ubyte* ppline = &apline[0];
                 for (int x = 0; x < mWidth; x++) {
-                    int cur = y*mWidth+x;
+                    //the data written into ppline is used by the next pass in
+                    //the other direction
+                    ubyte pline = *ppline;
 
-                    if (mLevelData[cur] == a) {
-                        if (pline[x] == 0xFF)
-                            pline[x] = tex_h+1;
-                        if (pline[x] > 0)
-                            pline[x] -= 1;
-                    } else if (mLevelData[cur] == b) {
-                        pline[x] = 0xFF;
+                    if (*meta_scanline == a) {
+                        if (pline == 0xFF)
+                            pline = tex_h+1;
+                        if (pline > 0)
+                            pline -= 1;
+                    } else if (*meta_scanline == b) {
+                        pline = 0xFF;
                     } else {
-                        pline[x] = 0;
+                        pline = 0;
                     }
 
+                    *ppline = pline;
+
                     //set the pixel accordingly
-                    //comparison with tmpData ensures that up and down texture
+                    //comparison with *oldpline ensures that up and down texture
                     //use the same part of the available space
-                    if (pline[x] > 0 && pline[x] < 0xFF &&
-                        pline[x] > tmpData[y*mWidth+x])
-                    {
+                    if (pline > 0 && pline < 0xFF && pline > *poldline) {
                         uint* texel = texptr + x%tex_w;
-                        uint texy = (tex_h-pline[x])%tex_h;
+                        uint texy = (tex_h-pline)%tex_h;
                         texel = cast(uint*)(cast(void*)texel + texy*tex_pitch);
-                        if (is_not_transparent(*texel))
+                        if (!texture.isTransparent(*texel))
                             *scanline = *texel;
                         else {
                             //XXX assumption: parts of the texture that should
@@ -266,23 +269,28 @@ class LandscapeBitmap {
                             if (texy < tex_h/2) {
                                 //set current pixel transparent
                                 *scanline = dsttransparent;
-                                mLevelData[cur] = Lexel.Null;
+                                *meta_scanline = Lexel.Null;
                             }
                         }
                     }
 
                     scanline++;
+                    meta_scanline++;
+                    ppline++;
+                    poldline++;
                 }
                 //save current pline for next pass in other direction
-                tmpData[y*mWidth..(y+1)*mWidth] = pline;
+                tmpData[y*mWidth..(y+1)*mWidth] = apline;
             }
+
+            delete apline;
 
             mImage.unlockPixels(Rect2i(Vector2i(0), mImage.size));
             texture.unlockPixels(Rect2i.init);
         }
 
         debug {
-            auto counter = new PerformanceCounter();
+            auto counter = new PerfTimer(true);
             counter.start();
         }
 
@@ -298,8 +306,7 @@ class LandscapeBitmap {
 
         debug {
             counter.stop();
-            mLog("render.d: border drawn in %s",
-                timeMusecs(cast(int)counter.microseconds));
+            mLog("render.d: border drawn in %s", counter.time());
         }
     }
 
@@ -576,29 +583,16 @@ class LandscapeBitmap {
 
     //theme can be null
     public this(Vector2i size, LandscapeTheme theme) {
-        mWidth = size.x;
-        mHeight = size.y;
-        mLog = registerLog("levelrenderer");
-
         mImage = gFramework.createSurface(size, Transparency.Colorkey);
-
-        mLevelData.length = mWidth*mHeight;
         mImage.fill(Rect2i(mImage.size), mImage.colorkey());
-
-        mTheme = theme;
+        this(mImage, theme, false);
     }
 
     //copy the level bitmap, per-pixel-metadata and theme from ls
     public this(Landscape ls) {
-        mImage = ls.image.clone();
+        this(ls.image.clone(), ls.theme(), false);
 
-        mWidth = ls.size.x;
-        mHeight = ls.size.y;
-        mLog = registerLog("levelrenderer");
-
-        mLevelData = ls.data.dup;
-
-        mTheme = ls.theme();
+        mLevelData[] = ls.data;
     }
 
     //create using the bitmap and pixel data
@@ -627,20 +621,28 @@ class LandscapeBitmap {
         return lvl;
     }
 
-    //this creates the metadata from the image's transparency information
+    //create from a bitmap; also used as common constructor
+    //bmp = the landscape-bitmap, must not be null
+    //theme = can be null; used for blastHole()
+    //import_bmp = create the metadata from the image's transparency information
+    //      if false, initialize metadata with Lexel.init
     //memory managment: you shall not touch the Surface instance in bmp anymore
-    public this(Surface bmp, LandscapeTheme theme) {
+    public this(Surface bmp, LandscapeTheme theme, bool import_bmp = true) {
         mImage = bmp;
 
         mWidth = mImage.size.x;
         mHeight = mImage.size.y;
+        mLevelData.length = mWidth*mHeight;
+
         mLog = registerLog("levelrenderer");
 
-        assert(!!theme);
         mTheme = theme;
 
         //create mask
-        mLevelData.length = mWidth*mHeight;
+
+        if (!import_bmp)
+            return;
+
         void* ptr; uint pitch;
         mImage.lockPixelsRGBA32(ptr, pitch);
 

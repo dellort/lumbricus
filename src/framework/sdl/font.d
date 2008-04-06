@@ -110,6 +110,11 @@ class GlyphCache {
         assert(!!font);
         SDL_Surface* surface = TTF_RenderUNICODE_Blended(font,
             cast(ushort*)s.ptr, col);
+        if (!surface) {
+            //error fallback, render as '?'
+            surface = TTF_RenderUNICODE_Blended(font,
+                cast(ushort*)("?\0"d.ptr), col);
+        }
         if (surface == null) {
             throw new Exception(format("could not render char %s", c));
         }

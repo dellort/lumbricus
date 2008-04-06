@@ -15,7 +15,7 @@ import utils.log;
 //debugging (draw a red frame for the widget's bounds)
 //version = WidgetDebug;
 
-//layout parameters for dealing with i.e. size overallocation
+//layout parameters for dealing with e.g. size overallocation
 //you can define borders and what happens, if a widget gets more space than it
 //wanted
 struct WidgetLayout {
@@ -155,6 +155,38 @@ class Widget {
 
     ///return true is this is the root window
     bool isTopLevel() {
+        return false;
+    }
+
+    //recursively searches the tree until toplevel-widget is found
+    //returns null if the Widget-tree is unlinked from the GUI
+    package MainFrame getTopLevel() {
+        Widget w = this;
+        while (w) {
+            if (auto m = cast(MainFrame)w)
+                return m;
+            w = w.parent;
+        }
+        return null;
+    }
+
+    ///return if the Widget is linked into the GUI hierarchy, which means it
+    ///can be visible, receive events, do layouting etc...
+    ///simply having a parent is not enough for this for various silly reasons
+    final bool isLinked() {
+        //it's ok if it's reachable
+        return !!getTopLevel();
+    }
+
+    ///return true if other is a direct or indirect parent of this
+    /// also returns true for a.isTransitiveChildOf(a)
+    final bool isTransitiveChildOf(Widget other) {
+        auto cur = this;
+        while (cur) {
+            if (cur is other)
+                return true;
+            cur = cur.parent;
+        }
         return false;
     }
 
@@ -348,11 +380,6 @@ class Widget {
         }
     }
 
-    ///manually set the position/size, outside the normal layouting process
-    final void manualRelayout(Rect2i c) {
-        layoutContainerAllocate(c);
-    }
-
     /// Size including the not-really-client-area.
     protected Vector2i layoutContainerSizeRequest() {
         auto msize = layoutSizeRequest();
@@ -394,12 +421,21 @@ class Widget {
 
     // --- input handling
 
-    //check if the mouse "hits" this gui object
-    //by default just look if it's inside the bounding rect
-    //but for the sake of overengineering, anything is possible
-    bool testMouse(Vector2i pos) {
+    ///check if the mouse "hits" this gui object
+    ///by default all what the bounding box can get, but for the sake of
+    ///overengineering, anything is possible
+    protected bool onTestMouse(Vector2i pos) {
+        return true;
+    }
+
+    ///Check where the Widget should receive mouse events
+    /// pos = mouse position in local coordinates
+    ///(like onTestMouse; this wrapper function is here to enforce the
+    ///restriction to widget bounds)
+    final bool testMouse(Vector2i pos) {
         auto s = size;
-        return (pos.x >= 0 && pos.y >= 0 && pos.x < s.x && pos.y < s.y);
+        return (pos.x >= 0 && pos.y >= 0 && pos.x < s.x && pos.y < s.y)
+            && onTestMouse(pos);
     }
 
     //event handler which can be overridden by the user
@@ -416,11 +452,12 @@ class Widget {
 
     //return true only if you want block this event for children
     //no meaning for non-Container Widgets (?)
+    //  (actually, when children are overlapping and this returns true, the
+    //   other (overlapping) children won't get the mouse event)
     protected bool onMouseMove(MouseInfo mouse) {
         return false;
     }
 
-    //notification if this.testMouse() changed on a mouse move event
     protected void onMouseEnterLeave(bool mouseIsInside) {
     }
 
@@ -459,13 +496,48 @@ class Widget {
         mMousePos = pos;
     }
 
-    bool handleMouseEvent(MouseInfo mi) {
-        return onMouseMove(mi);
+    //return if any mouse button is down; this should be ok even "during"
+    //dispatching input, because the Framework's getKeyState() is synchronous to
+    //the events it pushes into the GUI
+    static bool anyMouseButtonPressed() {
+        return gFramework.anyButtonPressed(false, true);
     }
 
-    //return true if event was handled
-    bool handleKeyEvent(KeyInfo info) {
-        return onKeyEvent(info);
+    //called whenever an input event passes through this
+    final void doDispatchInputEvent(InputEvent event) {
+        if (event.isMouseRelated) {
+            updateMousePos(event.mousePos);
+            doMouseEnterLeave(true);
+        }
+        dispatchInputEvent(event);
+    }
+
+    protected void dispatchInputEvent(InputEvent event) {
+        //when this is called it means this Widget definitely gets the event
+        auto m = getTopLevel();
+        if (event.isMouseRelated() && m) {
+            //usually used for the mouse cursor
+            m.mouseWidget = this;
+            //care about capturing - if we get the event and a mouse button
+            //is hold, we should receive all other mouse events until no
+            //mouse button is down anymore (see MainFrame)
+            if (!m.captureMouse && anyMouseButtonPressed()) {
+                log()("capture: %s -> %s", m.captureMouse, this);
+                m.captureMouse = this;
+            }
+        }
+       // std.stdio.writefln("disp: %s %s", this, event);
+        if (event.isKeyEvent) {
+            onKeyEvent(event.keyEvent);
+        } else if (event.isMouseEvent) {
+            onMouseMove(event.mouseEvent);
+        }
+    }
+
+    //only useful for Container
+    //normal Widgets can only return this, or null to refuse the input
+    Widget findInputDispatchChild(InputEvent event) {
+        return this;
     }
 
     //load a set of key bindings for this control (used only for own events)
@@ -475,6 +547,12 @@ class Widget {
     }
 
     // --- simulation and drawing
+
+    //what cursor should be displayed when the mouse is over this Widget
+    //(GUI picks the deepest Widget in the hierarchy where mouse events go to)
+    MouseCursor mouseCursor() {
+        return MouseCursor.Standard;
+    }
 
     //overridden by Container
     void internalSimulate() {
@@ -508,7 +586,7 @@ class Widget {
     }
 
     //can be used with Container.checkCover (used if that is true)
-    //a return value of true means it cover's the _container's_ area compeltely
+    //a return value of true means it covers the _container's_ area completely
     //the container then doesn't draw all widgets with lower zorder
     //use with care
     bool doesCover() {
@@ -634,24 +712,19 @@ class Widget {
 
     //keyboard events are delivered even to non-focusable Widgets when captured
 
-    //the return values tell if the capture could be enabled or if there was
-    //a capture to disable
-
-    //this will capture all parent Widgets too, and if there already exists
-    //another capture which is not in this line, the other will be canceled
-    final bool captureEnable() {
-        return captureSet(true);
-    }
-
-    //remove capture (including parent captures)
-    final bool captureDisable() {
-        return captureSet(false);
-    }
-
+    //return value: if operation was successful (a capture can only be canceled/
+    //replaced by the Widget which did set it)
     final bool captureSet(bool set) {
-        if (!parent)
+        auto m = getTopLevel();
+        if (!m)
+            return !set;
+        if (m.captureUser && m.captureUser !is this)
+            return false;
+        if ((m.captureUser is this) == set)
             return true;
-        return parent.childSetCapture(this, set);
+        //really set/unset
+        m.captureUser = set ? this : null;
+        return true;
     }
 
     // --- blabla rest

@@ -75,7 +75,6 @@ class ScrollBar : Container {
                 if (!key.isPress && key.code == Keycode.MOUSE_LEFT) {
                     drag_active = key.isDown;
                     drag_start = mousePos;
-                    captureSet(drag_active);
                 }
                 return key.isMouseButton || super.onKeyEvent(key);
             }
@@ -135,7 +134,7 @@ class ScrollBar : Container {
     }
 
     //prevent Container from returning false if no child is hit
-    override bool testMouse(Vector2i pos) {
+    override bool onTestMouse(Vector2i pos) {
         return true;
     }
 

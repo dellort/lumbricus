@@ -249,10 +249,12 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         deathzone = new PlaneTrigger();
         deathzone.collision = physicworld.collideAlways();
         deathzone.onTrigger = &deathzoneTrigger;
-        //xxx: at least as high as highest object in the game
-        //     else objects will disappear too early
-        auto death_y = worldSize.y + 30;
-        deathzone.plane.define(Vector2f(0, death_y), Vector2f(1, death_y));
+        deathzone.inverse = true;
+        //the trigger is inverse, and triggers only when the physic object is
+        //completely in the deathzone, but graphics are often larger :(
+        auto death_y = worldSize.y + 20;
+        //because trigger is inverse, the plane must be defined inverted too
+        deathzone.plane.define(Vector2f(1, death_y), Vector2f(0, death_y));
         physicworld.add(deathzone);
 
         mWindForce = new WindyForce();

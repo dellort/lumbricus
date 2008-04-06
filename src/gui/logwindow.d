@@ -127,7 +127,7 @@ public class LogWindow : Widget, Output {
         return Vector2i(0);
     }
 
-    override protected bool handleKeyEvent(KeyInfo infos) {
+    override protected bool onKeyEvent(KeyInfo infos) {
         bool wd = infos.code == Keycode.MOUSE_WHEELDOWN;
         bool wu = infos.code == Keycode.MOUSE_WHEELUP;
         if (wd || wu) {
@@ -136,6 +136,6 @@ public class LogWindow : Widget, Output {
             }
             return true;
         }
-        return super.handleKeyEvent(infos);
+        return super.onKeyEvent(infos);
     }
 }

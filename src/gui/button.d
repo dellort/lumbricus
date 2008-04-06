@@ -42,7 +42,8 @@ struct CheckBoxGroup {
 //xxx this is a hack
 class Button : Label {
     private {
-        bool mMouseOver, mMouseInside;
+        bool mMouseOver; //mouse is inside Widget or captured
+        bool mMouseInside; //mouse is really inside the Widget
         bool mMouseDown;   //last reported mouse button click
         bool mButtonState; //down or up (true if down)
         bool mIsCheckbox, mChecked;
@@ -75,6 +76,11 @@ class Button : Label {
         //drops (which is good since simulate() will not be called if the Widget
         //is made invisible temporarly...)
         mAutoRepeatTimer.mode = TimerMode.fixedDelay;
+    }
+
+    //undo what was set in label.d
+    override bool onTestMouse(Vector2i) {
+        return true;
     }
 
     bool isCheckbox() {
@@ -121,12 +127,15 @@ class Button : Label {
     override protected void onMouseEnterLeave(bool mouseIsInside) {
         super.onMouseEnterLeave(mouseIsInside);
         mMouseOver = mouseIsInside;
+        if (!mMouseOver)
+            mMouseInside = false;
         if (onMouseOver) {
             onMouseOver(this, mouseIsInside);
         }
     }
 
-    //mButtonState: false -> true
+    //state = if button is up (false) or down (true)
+    //so normally, going from true -> false generates a click event
     private void buttonSetState(bool state) {
         if (state == mButtonState)
             return;
@@ -157,22 +166,13 @@ class Button : Label {
     }
 
     override protected bool onKeyEvent(KeyInfo key) {
-        if (key.code == Keycode.MOUSE_LEFT /*&& bounds.isInside(mousePos)*/) {
+        if (key.code == Keycode.MOUSE_LEFT) {
             if (key.isDown) {
-                //capturing is used to track if the mouse moves inside/outside
-                //the button (if mouse is pressed, it stays captured)
-                if (captureEnable()) {
-                    mMouseDown = true;
-                    buttonSetState(true);
-                }
+                mMouseDown = true;
+                buttonSetState(true);
             } else if (key.isUp) {
                 mMouseDown = false;
-                captureDisable();
                 buttonSetState(false);
-                //xxx: nasty nasty hack (to make it look better, can be removed)
-                //should be handled in widget.d or so
-                if (!mMouseInside)
-                    doMouseEnterLeave(false);
             }
             return true;
         }
@@ -189,11 +189,6 @@ class Button : Label {
         mMouseInside = testMouse(mi.pos);
 
         if (!mMouseInside) {
-            //if button is pressed, keep captured (normal behaviour across GUIs
-            //such as win32, GTK)
-            if (!mMouseDown) {
-                captureDisable();
-            }
             buttonSetState(false);
         } else {
             //true if mouse enters again and button is still pressed

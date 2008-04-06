@@ -39,6 +39,10 @@ class WeaponSelWindow : Container {
                 return quantity == WeaponListItem.QUANTITY_INFINITE;
             }
 
+            bool visible() {
+                return active.parent || inactive.parent;
+            }
+
             this(WeaponClass c) {
                 weapon = c;
                 active = new Button();
@@ -76,7 +80,8 @@ class WeaponSelWindow : Container {
 
             //used by init() code to sort row lines
             //(not used by the GUI or so)
-            int opCmp(Cell w) {
+            override int opCmp(Object o) {
+                auto w = castStrict!(typeof(this))(o); //blergh
                 auto res = -(w.weapon.value - this.weapon.value);
                 //if of same value compare untranslated names instead
                 if (res == 0)
@@ -101,6 +106,9 @@ class WeaponSelWindow : Container {
         Label mWeaponName;
         Label mWeaponQuantity;
 
+        //currently shown weapon in the info-line below the weapon grid
+        WeaponClass mWeaponInfoline;
+
         Translator mWeaponTranslate;
 
         Font mDFG;
@@ -113,9 +121,8 @@ class WeaponSelWindow : Container {
     //also hack-liek
     //checks if "key" is a shortcut, and if so, cycle the weapon
     //c is the currently selected weapon
-    bool checkNextWeaponInCategoryShortcut(KeyInfo key, WeaponClass c) {
-        char[] b = selectionBindings.findBinding(key);
-        auto parr = b in mRows;
+    bool checkNextWeaponInCategoryShortcut(char[] category, WeaponClass c) {
+        auto parr = category in mRows;
         if (!parr)
             return false;
         Cell[] arr = *parr;
@@ -146,7 +153,20 @@ class WeaponSelWindow : Container {
         Cell* w = sender in mButtonToCell;
         assert(w !is null);
 
-        if (over) {
+        mWeaponInfoline = over ? w.weapon : null;
+        updateWeaponInfoline();
+    }
+
+    private void updateWeaponInfoline() {
+        Cell w;
+        foreach (Cell c; mAll) {
+            if (c.weapon is mWeaponInfoline) {
+                w = c;
+                break;
+            }
+        }
+
+        if (w && w.visible()) {
             mWeaponName.text = mWeaponTranslate(w.weapon.name);
             mWeaponQuantity.text = w.infinite ? "" : format("x%s", w.quantity);
         } else {
@@ -161,6 +181,7 @@ class WeaponSelWindow : Container {
         foreach (Cell c; mAll) {
             c.update(weapons);
         }
+        updateWeaponInfoline();
         debug {
             //check if there's an entry in weapons for which no Cell exists
             foreach (w; weapons) {
@@ -232,8 +253,10 @@ class WeaponSelWindow : Container {
             //reverse-resolve shortcut and show
             auto shortcut = new Label();
             //and yes, the shortcut bind-name is the category-id itself
+            const cCShortcut = "category_"; //xxx duplicated in gameview.d
             shortcut.text = selectionBindings ?
-                globals.translateBind(selectionBindings, category) : category;
+                globals.translateBind(selectionBindings, cCShortcut ~ category)
+                : category;
             shortcut.font = mDFG;
             shortcut.drawBorder = false;
             mGrid.add(shortcut, 0, y, WidgetLayout.Noexpand);

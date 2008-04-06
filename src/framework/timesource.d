@@ -1,4 +1,5 @@
 module framework.timesource;
+import utils.misc;
 import utils.time;
 
 interface TimeSourcePublic {
@@ -45,7 +46,7 @@ final class TimeSource : TimeSourcePublic {
     this(Time delegate() curTimeDg = null) {
         mCurTimeDg = curTimeDg;
         if (!mCurTimeDg) {
-            mCurTimeDg = getCurrentTimeDelegate();
+            mCurTimeDg = toDelegate(&timeCurrentTime);
         }
         initTime();
     }

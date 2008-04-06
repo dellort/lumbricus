@@ -15,6 +15,15 @@ public K aaReverseLookup(K, V)(V[K] aa, V value, K def) {
     return def;
 }
 
+//duplicate an AA (why doesn't D provide this?)
+public V[K] aaDup(K, V)(V[K] aa) {
+    V[K] res;
+    foreach (K k, V v; aa) {
+        res[k] = v;
+    }
+    return res;
+}
+
 //useful for class[] -> interface[] conversion!
 T_to[] arrayCastCopyImplicit(T_to, T_from)(T_from[] arr) {
     return arrayMap(arr, (T_from x) { T_to f = x; return f; });

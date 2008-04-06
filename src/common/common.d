@@ -7,6 +7,7 @@ import framework.resset;
 import framework.resources;
 import framework.timesource;
 import framework.i18n;
+import utils.array;
 import utils.time;
 import utils.configfile;
 import utils.log, utils.output;
@@ -36,6 +37,11 @@ class Common {
     //high resolution timers which are updated each frame, or so
     //toplevel.d will reset them all!
     PerfTimer[char[]] timers;
+
+    //another hack, see addFrameCallback()
+    private {
+        bool delegate()[] mFrameCallbacks;
+    }
 
     //both time variables are updated for each frame
     //for graphics stuff (i.e. animations continue to play while game paused)
@@ -150,6 +156,27 @@ class Common {
         auto t = new PerfTimer(true);
         timers[name] = t;
         return t;
+    }
+
+    //cb will be called each frame between Task and GUI updates
+    //if return value of cb is false, the cb is removed from the list
+    //better use the Task stuff or override Widget.simulate()
+    void addFrameCallback(bool delegate() cb) {
+        //memory will be copied (unlike as in "mFrameCallbacks ~= cb;")
+        mFrameCallbacks = mFrameCallbacks ~ cb;
+    }
+    void callFrameCallBacks() {
+        //robust enough to deal with additions/removals during iterating
+        int[] mRemoveList;
+        foreach (int idx, cb; mFrameCallbacks) {
+            if (!cb())
+                mRemoveList ~= idx;
+        }
+        //works even after modifications because the only possible change is
+        //adding new callbacks
+        foreach_reverse (x; mRemoveList) {
+            mFrameCallbacks = mFrameCallbacks[0..x] ~ mFrameCallbacks[x+1..$];
+        }
     }
 }
 

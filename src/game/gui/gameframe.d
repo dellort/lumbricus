@@ -70,9 +70,7 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
 
     private void updateWeapons() {
         Team t = clientengine.logic.getControl.getActiveTeam();
-        if (t) {
-            mWeaponSel.update(t.getWeapons());
-        }
+        mWeaponSel.update(t ? t.getWeapons() : null);
     }
 
     private void teamChanged() {
@@ -83,16 +81,9 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
         clientengine.logic.getControl.weaponDraw(c);
     }
 
-    //could be unclean: catch weapon selection shortcut before passing it down
-    //to GameView (the GUI does that part)
-    protected override bool onKeyEvent(KeyInfo k) {
-        if (k.isDown) {
-            //noone knows why it doesn't simply pass the bind, instead of k
-            auto c = clientengine.logic.getControl.currentWeapon;
-            if (mWeaponSel.checkNextWeaponInCategoryShortcut(k, c))
-                return true;
-        }
-        return super.onKeyEvent(k);
+    private void selectCategory(char[] category) {
+        auto c = clientengine.logic.getControl.currentWeapon;
+        mWeaponSel.checkNextWeaponInCategoryShortcut(category, c);
     }
 
     void enableCamera(bool set) {
@@ -169,6 +160,9 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
         wormbinds.loadFrom(gFramework.loadConfig("wormbinds").getSubNode("binds"));
 
         mGui = new SimpleContainer();
+        //needed because I messed up input handling
+        //no children of mGui can receive mouse events
+        mGui.mouseEvents = false;
 
         mGui.add(new WindMeter(clientengine),
             WidgetLayout.Aligned(1, 1, Vector2i(10, 10)));
@@ -184,6 +178,7 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
 
         gameView = new GameView(clientengine, mCamera, game);
         gameView.onTeamChange = &teamChanged;
+        gameView.onSelectCategory = &selectCategory;
         gameView.bindings = wormbinds;
 
         mScroller = new MouseScroller();

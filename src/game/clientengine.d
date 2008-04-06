@@ -218,17 +218,22 @@ class TargetCrossImpl : ClientGraphic, TargetCross {
             auto abs_end = tcs.loadEnd - tcs.radEnd;
             auto scale = abs_end - start;
             auto end = start + cast(int)(scale*mLoad);
-            auto cur = start + 1; //omit first circle => invisible at mLoad=0
+            auto rstart = start + 1; //omit first circle => invisible at mLoad=0
             float oldn = 0;
             int stip;
-            while (cur <= end) {
+            auto cur = end;
+            //NOTE: when firing, the load-colors look like they were animated;
+            //  actually that's because the stipple-offset is changing when the
+            //  mLoad value changes => stipple pattern moves with mLoad and the
+            //  color look like they were changing
+            while (cur >= rstart) {
                 auto n = (1.0f*(cur-start)/scale);
                 if ((stip % tcs.stipple)==0)
                     oldn = n;
                 auto col = tcs.colorStart + (tcs.colorEnd-tcs.colorStart)*oldn;
                 auto rad = cast(int)(tcs.radStart+(tcs.radEnd-tcs.radStart)*n);
                 canvas.drawFilledCircle(toVector2i(mDir*cur), rad, col);
-                cur += tcs.add;
+                cur -= tcs.add;
                 stip++;
             }
         }
@@ -239,8 +244,8 @@ class TargetCrossImpl : ClientGraphic, TargetCross {
         mContainer = new Scene();
         mTarget = new Animator();
         mTarget.setAnimation(team.aim.get);
-        mContainer.add(mTarget);
         mContainer.add(new DrawWeaponLoad());
+        mContainer.add(mTarget);
         reset();
         init();
     }

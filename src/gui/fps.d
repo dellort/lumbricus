@@ -2,8 +2,6 @@ module gui.fps;
 
 import framework.font;
 import framework.framework;
-import common.scene;
-import common.visual;
 import gui.widget;
 import std.string;
 import utils.time;
@@ -25,7 +23,7 @@ class GuiFps : Widget {
         return Vector2i(0);
     }
 
-    override bool testMouse(Vector2i pos) {
+    override bool onTestMouse(Vector2i pos) {
         return false;
     }
 }
