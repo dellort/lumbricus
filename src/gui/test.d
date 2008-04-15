@@ -756,3 +756,63 @@ class TestTask4 : Task {
         TaskFactory.register!(typeof(this))("events");
     }
 }
+
+//silly off-by-one test
+//should show 2 rectangles:
+//1st rectangle: a filled red rect rectangle, and on each of the 4 corners, a
+//   black dot; the dot must be outside the rectangle by 1 pixel (if the
+//   rectangle had a one pixel-wide border, the dots would be the corners of the
+//   unfilled rectangle which forms that border)
+//2nd rectangle: same as above, but the rectangle is unfilled
+//   inside the unfilled rect, there's a filled yellow rectangle with a 1 pixel
+//   thick black border (but see how that's actually drawn)
+//   there should be a 1 pixel undrawn (= white) space between the red and the
+//   black lines
+//error on my machine, when the hack in fwgl.d is disabled: filled rectangles
+//   look like 1 was added to all y coordinates
+class OffByOneTest : Task {
+    class W : Widget {
+        Surface bmp;
+        this() {
+            //black pixel
+            bmp = gFramework.createSurface(Vector2i(1), Transparency.None);
+            bmp.fill(bmp.rect(), Color(0,0,0));
+        }
+        override void onDraw(Canvas c) {
+            auto rc = widgetBounds();
+            auto rc1 = rc;
+            rc1.p2.x /= 2;
+            rc1.extendBorder(Vector2i(-20));
+            //4 points drawn such that they only touch with the interrior of rc
+            //the right/bottom line of rc is not a part of rc anymore
+            void drawPts(Rect2i rc) {
+                c.draw(bmp, rc.p1 - bmp.size);
+                c.draw(bmp, rc.p2);
+                c.draw(bmp, rc.pA() - Vector2i(0, bmp.size.y));
+                c.draw(bmp, rc.pB() - Vector2i(bmp.size.x, 0));
+            }
+            drawPts(rc1);
+            c.drawFilledRect(rc1, Color(1,0,0));
+            auto rc2 = rc;
+            rc2.p2.x /= 2;
+            rc2 += Vector2i(rc2.p2.x, 0);
+            rc2.extendBorder(Vector2i(-20));
+            drawPts(rc2);
+            c.drawRect(rc2, Color(1,0,0));
+            rc2.extendBorder(Vector2i(-2));
+            //check for correct tiling...
+            c.drawTiled(bmp, rc2.p1, rc2.size());
+            rc2.extendBorder(Vector2i(-1));
+            c.drawFilledRect(rc2, Color(1,1,0));
+        }
+    }
+
+    this(TaskManager tm) {
+        super(tm);
+
+        gWindowManager.createWindow(this, new W(), "off-by-one", Vector2i(400, 200));
+    }
+    static this() {
+        TaskFactory.register!(typeof(this))("offbyone");
+    }
+}

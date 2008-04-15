@@ -127,7 +127,7 @@ struct SurfaceData {
     //if it's false, DriverSurface could "steal" the pixel data (and free it)
     //    and pixel data can be also given back (i.e. when killing the surface)
     //can also be set by the DriverSurface (but only to true)
-    bool keep_pixeldata;
+    //bool keep_pixeldata; unused
     Vector2i size;
     Transparency transparency = Transparency.None;
     Color colorkey = cStdColorkey;

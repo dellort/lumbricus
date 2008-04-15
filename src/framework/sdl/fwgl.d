@@ -270,10 +270,13 @@ class GLCanvas : Canvas {
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
         //standard top-zero coordinates
-        glOrtho(0, mStack[0].clientsize.x, mStack[0].clientsize.y, 0, 0, 128);
+        glOrtho(0, mStack[0].clientsize.x, 0, mStack[0].clientsize.y, 0, 128);
 
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
+        glScalef(1, -1, 1);
+        glTranslatef(0, -mStack[0].clientsize.y, 0);
+        //glTranslatef(0, 1, 0);
 
         glDisable(GL_SCISSOR_TEST);
 
@@ -465,6 +468,8 @@ class GLCanvas : Canvas {
     public void drawRect(Vector2i p1, Vector2i p2, Color color) {
         if (p1.x >= p2.x || p1.y >= p2.y)
             return;
+        p2.x -= 1; //border exclusive
+        p2.y -= 1;
 
         glPushMatrix();
         glPushAttrib(GL_ENABLE_BIT | GL_CURRENT_BIT);
@@ -478,9 +483,9 @@ class GLCanvas : Canvas {
         glTranslatef(0.5f, 0.5f, 0);
         glBegin(GL_LINE_LOOP);
             glVertex2i(p1.x, p1.y);
-            glVertex2i(p1.x, p2.y-1);
-            glVertex2i(p2.x-1, p2.y-1);
-            glVertex2i(p2.x-1, p1.y);
+            glVertex2i(p1.x, p2.y);
+            glVertex2i(p2.x, p2.y);
+            glVertex2i(p2.x, p1.y);
         glEnd();
 
         glPopAttrib();
@@ -505,6 +510,8 @@ class GLCanvas : Canvas {
     void doDrawRect(Vector2i p1, Vector2i p2, Color[2] c) {
         if (p1.x >= p2.x || p1.y >= p2.y)
             return;
+        //p2.x -= 1; //border exclusive
+        //p2.y -= 1;
 
         glPushMatrix();
         glPushAttrib(GL_ENABLE_BIT | GL_CURRENT_BIT);
