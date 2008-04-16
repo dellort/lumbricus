@@ -513,7 +513,7 @@ class GLCanvas : Canvas {
         //p2.x -= 1; //border exclusive
         //p2.y -= 1;
 
-        glPushMatrix();
+        //glPushMatrix();
         glPushAttrib(GL_ENABLE_BIT | GL_CURRENT_BIT);
         glDisable(GL_TEXTURE_2D);
         bool alpha = (c[0].hasAlpha() || c[1].hasAlpha());
@@ -524,7 +524,7 @@ class GLCanvas : Canvas {
 
         //xxx WTF? I don't understand this (the -1), but the result still looks
         //right (equal to SDL's rendering), so I keep this (wtf...)
-        glTranslatef(0.5f, 0.5f-1.0f, 0);
+        //glTranslatef(0.5f, 0.5f-1.0f, 0);
         glBegin(GL_QUADS);
             glColor4fv(c[0].ptr);
             glVertex2i(p2.x, p1.y);
@@ -535,7 +535,7 @@ class GLCanvas : Canvas {
         glEnd();
 
         glPopAttrib();
-        glPopMatrix();
+        //glPopMatrix();
 
         if (alpha)
             markAlpha(p1, p2-p1);
