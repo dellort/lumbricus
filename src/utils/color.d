@@ -66,7 +66,7 @@ public struct Color {
     }
 
     //create Color where each channel is converted from [0..255] to [0..1]
-    static Color fromBytes(ubyte r, ubyte g, ubyte b, ubyte a) {
+    static Color fromBytes(ubyte r, ubyte g, ubyte b, ubyte a = 255) {
         return Color(fromByte(r), fromByte(g), fromByte(b), fromByte(a));
     }
 

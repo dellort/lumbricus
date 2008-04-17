@@ -46,6 +46,7 @@
 		<Unit filename="..\src\derelict\enet\enet.d" />
 		<Unit filename="..\src\derelict\enet\enetfuncs.d" />
 		<Unit filename="..\src\derelict\enet\enettypes.d" />
+		<Unit filename="..\src\framework\allres.d" />
 		<Unit filename="..\src\framework\commandline.d" />
 		<Unit filename="..\src\framework\drawing.d" />
 		<Unit filename="..\src\framework\enums.d" />
@@ -58,6 +59,7 @@
 		<Unit filename="..\src\framework\keysyms.d" />
 		<Unit filename="..\src\framework\resfileformats.d" />
 		<Unit filename="..\src\framework\resources.d" />
+		<Unit filename="..\src\framework\resset.d" />
 		<Unit filename="..\src\framework\restypes\atlas.d" />
 		<Unit filename="..\src\framework\restypes\bitmap.d" />
 		<Unit filename="..\src\framework\restypes\frames.d" />
@@ -77,9 +79,9 @@
 		<Unit filename="..\src\game\controller.d" />
 		<Unit filename="..\src\game\crate.d" />
 		<Unit filename="..\src\game\game.d" />
-		<Unit filename="..\src\game\gameinterface.d" />
 		<Unit filename="..\src\game\gamepublic.d" />
 		<Unit filename="..\src\game\gametask.d" />
+		<Unit filename="..\src\game\gfxset.d" />
 		<Unit filename="..\src\game\glevel.d" />
 		<Unit filename="..\src\game\gobject.d" />
 		<Unit filename="..\src\game\gui\camera.d" />
@@ -91,8 +93,15 @@
 		<Unit filename="..\src\game\gui\loadingscreen.d" />
 		<Unit filename="..\src\game\gui\preparedisplay.d" />
 		<Unit filename="..\src\game\gui\preview.d" />
+		<Unit filename="..\src\game\gui\teaminfo.d" />
 		<Unit filename="..\src\game\gui\weaponsel.d" />
 		<Unit filename="..\src\game\gui\windmeter.d" />
+		<Unit filename="..\src\game\levelgen\generator.d" />
+		<Unit filename="..\src\game\levelgen\genrandom.d" />
+		<Unit filename="..\src\game\levelgen\landscape.d" />
+		<Unit filename="..\src\game\levelgen\level.d" />
+		<Unit filename="..\src\game\levelgen\placeobjects.d" />
+		<Unit filename="..\src\game\levelgen\renderer.d" />
 		<Unit filename="..\src\game\loader.d" />
 		<Unit filename="..\src\game\sequence.d" />
 		<Unit filename="..\src\game\sky.d" />
@@ -123,6 +132,7 @@
 		<Unit filename="..\src\gui\progress.d" />
 		<Unit filename="..\src\gui\scrollbar.d" />
 		<Unit filename="..\src\gui\scrollwindow.d" />
+		<Unit filename="..\src\gui\splitter.d" />
 		<Unit filename="..\src\gui\tablecontainer.d" />
 		<Unit filename="..\src\gui\test.d" />
 		<Unit filename="..\src\gui\widget.d" />
@@ -133,11 +143,6 @@
 		<Unit filename="..\src\irclib\client.d" />
 		<Unit filename="..\src\irclib\protocol.d" />
 		<Unit filename="..\src\irclib\tools.d" />
-		<Unit filename="..\src\levelgen\generator.d" />
-		<Unit filename="..\src\levelgen\genrandom.d" />
-		<Unit filename="..\src\levelgen\level.d" />
-		<Unit filename="..\src\levelgen\placeobjects.d" />
-		<Unit filename="..\src\levelgen\renderer.d" />
 		<Unit filename="..\src\lumbricus.d" />
 		<Unit filename="..\src\net\netlayer.d" />
 		<Unit filename="..\src\physics\base.d" />

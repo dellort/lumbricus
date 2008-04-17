@@ -31,7 +31,22 @@ RGBTriple convertGround(char[] filename, char[] destPath = ".") {
 //skycolor (from the first pixel, so the sky is continued seeminglessly)
 RGBTriple convertSky(char[] filename) {
     scope imgIn = new Image(filename);
-    RGBAColor col = imgIn.getPixel(0,0);
-    return RGBTriple(cast(float)col.r/255, cast(float)col.g/255,
-        cast(float)col.b/255);
+    RGBAColor cTmp;
+    float rAvg = 0, gAvg = 0, bAvg = 0;
+    int pixCount = 0;
+    for (int y = imgIn.h/2-1; y < imgIn.h/2+1; y++) {
+        for (int x = 0; x < imgIn.w; x++) {
+            cTmp = imgIn.getPixel(x, y);
+            rAvg += cTmp.r; gAvg += cTmp.g; bAvg += cTmp.b;
+            pixCount++;
+        }
+    }
+    rAvg /= pixCount; gAvg /= pixCount; bAvg /= pixCount;
+    RGBAColor colStart = imgIn.getPixel(0,0);
+    RGBAColor colEnd = imgIn.getPixel(0,imgIn.h-1);
+    std.stdio.writefln("%3d %3d %3d",colStart.r,colStart.g,colStart.b);
+    std.stdio.writefln("%3.0f %3.0f %3.0f",rAvg,gAvg,bAvg);
+    std.stdio.writefln("%3d %3d %3d",colEnd.r,colEnd.g,colEnd.b);
+    return RGBTriple(cast(float)colStart.r/255, cast(float)colStart.g/255,
+        cast(float)colStart.b/255);
 }

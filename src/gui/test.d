@@ -320,8 +320,13 @@ class TestGradient : Container {
         override void onDraw(Canvas c) {
             auto rc = widgetBounds();
             rc.extendBorder(Vector2i(-20));
+            Rect2i rc2;
+            rc2 = rc;
+            rc2.p1.y = rc.p2.y/2;
+            rc.p2.y = rc.p2.y/2;
             if (mChk.checked) {
-                c.drawVGradient(rc, Color(1,0,0), Color(0,1,0));
+                c.drawVGradient(rc, Color.fromBytes(16,20,40), Color.fromBytes(46,23,0));
+                c.drawVGradient(rc2, Color.fromBytes(46,23,0), Color.fromBytes(2,1,0));
             } else {
                 c.drawFilledRect(rc.p1, rc.p2, Color(1,0,0));
             }
