@@ -72,7 +72,7 @@ void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
 
     //Sky gradient
     do_unworms(lvlextr~"gradient.img",destPath);
-    RGBTriple colsky = convertSky(destPath~"gradient.png");
+    GradientDef skyGradient = convertSky(destPath~"gradient.png");
     envBitmaps ~= BmpDef("sky_gradient","gradient.png");
 
     //big background image
@@ -152,7 +152,7 @@ void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
     stuff["landgen_objects"] = objs;
 
     stuff["bordercolor"] = fmtColor(colground);
-    stuff["skycolor"] = fmtColor(colsky);
+    stuff["skycolor"] = fmtColor(skyGradient.top);
 
     char[] levelconf = fillTemplate(LEVEL_CONF, stuff);
 

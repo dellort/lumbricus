@@ -211,6 +211,12 @@ class GLSurface : SDLDriverSurface {
 
         glBindTexture(GL_TEXTURE_2D, mTexId);
     }
+
+    void endDraw() {
+        glDisable(GL_TEXTURE_2D);
+        glDisable(GL_ALPHA_TEST);
+        glDisable(GL_BLEND);
+    }
 }
 
 class GLCanvas : Canvas {
@@ -357,19 +363,17 @@ class GLCanvas : Canvas {
     }
 
     public void drawCircle(Vector2i center, int radius, Color color) {
-        glPushAttrib(GL_CURRENT_BIT);
         glColor4fv(color.ptr);
         stroke_circle(center.x, center.y, radius);
-        glPopAttrib();
+        glColor3f(1.0f, 1.0f, 1.0f);
     }
 
     public void drawFilledCircle(Vector2i center, int radius,
         Color color)
     {
-        glPushAttrib(GL_CURRENT_BIT);
         glColor4fv(color.ptr);
         fill_circle(center.x, center.y, radius);
-        glPopAttrib();
+        glColor3f(1.0f, 1.0f, 1.0f);
     }
 
     //Code from Luigi, www.dsource.org/projects/luigi, BSD license
@@ -446,10 +450,6 @@ class GLCanvas : Canvas {
     //<-- Luigi end
 
     public void drawLine(Vector2i p1, Vector2i p2, Color color) {
-        glPushMatrix();
-        glPushAttrib(GL_ENABLE_BIT | GL_CURRENT_BIT);
-        glDisable(GL_TEXTURE_2D);
-        glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
         glColor4fv(color.ptr);
@@ -460,9 +460,10 @@ class GLCanvas : Canvas {
             glVertex2i(p1.x, p1.y);
             glVertex2i(p2.x, p2.y);
         glEnd();
+        glTranslatef(-0.5f, -0.5f, 0);
 
-        glPopAttrib();
-        glPopMatrix();
+        glColor3f(1.0f, 1.0f, 1.0f);
+        glDisable(GL_BLEND);
     }
 
     public void drawRect(Vector2i p1, Vector2i p2, Color color) {
@@ -471,9 +472,6 @@ class GLCanvas : Canvas {
         p2.x -= 1; //border exclusive
         p2.y -= 1;
 
-        glPushMatrix();
-        glPushAttrib(GL_ENABLE_BIT | GL_CURRENT_BIT);
-        glDisable(GL_TEXTURE_2D);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -487,9 +485,10 @@ class GLCanvas : Canvas {
             glVertex2i(p2.x, p2.y);
             glVertex2i(p2.x, p1.y);
         glEnd();
+        glTranslatef(-0.5f, -0.5f, 0);
 
-        glPopAttrib();
-        glPopMatrix();
+        glColor3f(1.0f, 1.0f, 1.0f);
+        glDisable(GL_BLEND);
     }
 
     private void markAlpha(Vector2i p, Vector2i size) {
@@ -513,9 +512,6 @@ class GLCanvas : Canvas {
         //p2.x -= 1; //border exclusive
         //p2.y -= 1;
 
-        //glPushMatrix();
-        glPushAttrib(GL_ENABLE_BIT | GL_CURRENT_BIT);
-        glDisable(GL_TEXTURE_2D);
         bool alpha = (c[0].hasAlpha() || c[1].hasAlpha());
         if (alpha) {
             glEnable(GL_BLEND);
@@ -534,8 +530,8 @@ class GLCanvas : Canvas {
             glVertex2i(p2.x, p2.y);
         glEnd();
 
-        glPopAttrib();
-        //glPopMatrix();
+        glDisable(GL_BLEND);
+        glColor3f(1.0f, 1.0f, 1.0f);
 
         if (alpha)
             markAlpha(p1, p2-p1);
@@ -586,7 +582,7 @@ class GLCanvas : Canvas {
             SurfaceMode.NORMAL));
         assert(glsurf !is null);
 
-        glPushAttrib(GL_ENABLE_BIT);
+        //glPushAttrib(GL_ENABLE_BIT);
         assert(glGetError() == GL_NO_ERROR);
         glDisable(GL_DEPTH_TEST);
         glsurf.prepareDraw();
@@ -667,7 +663,7 @@ class GLCanvas : Canvas {
         if (gSDLDriver.mMarkAlpha)
             glGetBooleanv(GL_BLEND, &isalpha);
 
-        glPopAttrib();
+        glsurf.endDraw();
 
         if (isalpha)
             markAlpha(destPos, sourceSize);

@@ -8,6 +8,10 @@ struct RGBTriple {
     float r, g, b;
 }
 
+struct GradientDef {
+    RGBTriple top, half, bottom;
+}
+
 //Take a grass.png converted from worms and split it into grounddown.png
 //and groundup.png (last one flipped)
 //output a line specifying bordercolor which is in the right box of grass.png
@@ -29,8 +33,11 @@ RGBTriple convertGround(char[] filename, char[] destPath = ".") {
 
 //Take a gradient.png converted from worms and output a line specifying
 //skycolor (from the first pixel, so the sky is continued seeminglessly)
-RGBTriple convertSky(char[] filename) {
+GradientDef convertSky(char[] filename) {
+    GradientDef ret;
+    //load image
     scope imgIn = new Image(filename);
+    //average over a width x 3 area at the image center to get 3rd color
     RGBAColor cTmp;
     float rAvg = 0, gAvg = 0, bAvg = 0;
     int pixCount = 0;
@@ -42,11 +49,15 @@ RGBTriple convertSky(char[] filename) {
         }
     }
     rAvg /= pixCount; gAvg /= pixCount; bAvg /= pixCount;
+    //top color
     RGBAColor colStart = imgIn.getPixel(0,0);
+    //bottom color
     RGBAColor colEnd = imgIn.getPixel(0,imgIn.h-1);
-    std.stdio.writefln("%3d %3d %3d",colStart.r,colStart.g,colStart.b);
-    std.stdio.writefln("%3.0f %3.0f %3.0f",rAvg,gAvg,bAvg);
-    std.stdio.writefln("%3d %3d %3d",colEnd.r,colEnd.g,colEnd.b);
-    return RGBTriple(cast(float)colStart.r/255, cast(float)colStart.g/255,
+    //convert to float
+    ret.top = RGBTriple(cast(float)colStart.r/255, cast(float)colStart.g/255,
         cast(float)colStart.b/255);
+    ret.half = RGBTriple(rAvg/255, gAvg/255, bAvg/255);
+    ret.bottom = RGBTriple(cast(float)colEnd.r/255, cast(float)colEnd.g/255,
+        cast(float)colEnd.b/255);
+    return ret;
 }

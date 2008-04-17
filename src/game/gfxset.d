@@ -141,8 +141,8 @@ struct TargetCrossSettings {
     int targetStartDist = 10;   //initial distance (for animate-away)
     int loadStart = 8; //start of the load-thing
     int loadEnd = 100; //end of it
-    Color colorStart = Color(1,0,0); //colors of the load-thing
-    Color colorEnd = Color(1,1,0);
+    Color colorStart = Color(0.8,0,0); //colors of the load-thing
+    Color colorEnd = Color(1,1,0.3);
     int radStart = 3; //min/max radius for these circles
     int radEnd = 10;
     int add = 1; //distance of circle centers

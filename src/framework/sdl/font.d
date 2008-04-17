@@ -169,6 +169,14 @@ class SDLFont : DriverFont {
     }
 
     Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text) {
+        if (mUseGL) {
+            glPushAttrib(GL_CURRENT_BIT);
+            glColor4f(mProps.fore.r, mProps.fore.g, mProps.fore.b,
+                mProps.fore.a);
+        }
+        scope(exit) if (mUseGL) {
+            glPopAttrib();
+        }
         if (w == int.max) {
             return drawText(canvas, pos, text);
         } else {
@@ -180,15 +188,7 @@ class SDLFont : DriverFont {
         if (mNeedBackPlain) {
             c.drawFilledRect(pos, pos+glyph.size, mProps.back);
         }
-        if (mUseGL) {
-            glPushAttrib(GL_CURRENT_BIT);
-            glColor4f(mProps.fore.r, mProps.fore.g, mProps.fore.b,
-                mProps.fore.a);
-        }
         glyph.draw(c, pos);
-        if (mUseGL) {
-            glPopAttrib();
-        }
     }
 
     private Vector2i drawText(Canvas canvas, Vector2i pos, char[] text) {
