@@ -156,12 +156,6 @@ void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
 
     char[] levelconf = fillTemplate(LEVEL_CONF, stuff);
 
-    version(Windows) {
-        //xxx nasty hack to fix EOL characters on Windows, as backticked strings
-        //contain only "\x0A" as end-of-line char
-        levelconf = str.replace(levelconf, "\x0A","\x0D\x0A");
-    }
-
     stdf.write(destPath~"level.conf", levelconf);
 }
 
@@ -208,7 +202,7 @@ char[] fillTemplate(char[] template_str, char[][char[]] stuff) {
 }
 
 //level.conf template (yeah, backticked string literals!)
-char[] LEVEL_CONF = `//automatically created by extractdata
+const char[] LEVEL_CONF = `//automatically created by extractdata
 environment {
   require_resources {
     "debris_atlas.conf"

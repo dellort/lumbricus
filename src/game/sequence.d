@@ -266,7 +266,9 @@ SequenceObject loadWorm(ResourceSet res, ConfigItem fromitem) {
                 s_enter2.interpolate_angle_id = 1;
                 s_enter2.angle_direction = 0;
                 s_enter2.angle_fixed_value = 0;
-                s_enter2.angular_speed = (PI/2)/0.5;
+                //s_enter2.angular_speed = (PI/2)/0.5;
+                s_enter2.angular_speed = 0.100;
+                s_enter2.fixed_angular_time = true;
                 s_enter2.dont_wait_for_animation = true;
                 state.seqs[SeqType.Enter] = [s_enter1, s_enter2];
                 state.seqs[SeqType.Leave] = state.seqs[SeqType.Enter];
@@ -361,6 +363,8 @@ class WormState : SequenceState {
         int interpolate_angle_id = -1;
         //rotation speed
         float angular_speed; //rads/sec
+        //select if angular_speed is speed or animation total time
+        bool fixed_angular_time;
         //the fixed start/end value
         float angle_fixed_value;
         //the interpolation interpolates between fixed_value and the user set
@@ -514,11 +518,16 @@ private:
         }
         if (mCurSubSeq.interpolate_angle_id >= 0) {
             auto timediff = now() - mSubSeqStart;
-            auto dist = timediff.secsf * mCurSubSeq.angular_speed;
             auto a1 = mCurSubSeq.angle_fixed_value, a2 = mAngleUser;
             if (mCurSubSeq.angle_direction)
                 swap(a1, a2);
             auto anglediff = angleDistance(a1, a2);
+            float dist;
+            if (!mCurSubSeq.fixed_angular_time) {
+                dist = timediff.secsf * mCurSubSeq.angular_speed;
+            } else {
+                dist = anglediff * timediff.secsf/mCurSubSeq.angular_speed;
+            }
             float nangle;
             if (dist >= anglediff) {
                 nangle = a2;

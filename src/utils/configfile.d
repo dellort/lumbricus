@@ -433,7 +433,7 @@ public class ConfigNode : ConfigItem {
         void writeLine(char[] stuff) {
             stream.writeString(indent_str);
             stream.writeString(stuff);
-            stream.writeString(str.newline);
+            stream.writeString(newline);
         }
 
         void writeComment(char[] comment) {
@@ -467,7 +467,7 @@ public class ConfigNode : ConfigItem {
 
             item.doWrite(stream, level+1);
 
-            stream.writeString(str.newline);
+            stream.writeString(newline);
         }
 
         writeComment(mEndComment);

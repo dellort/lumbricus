@@ -35,7 +35,6 @@
 			</Target>
 		</Build>
 		<Unit filename="..\src\aconv\atlaspacker.d" />
-		<Unit filename="..\src\aconv\metadata.d" />
 		<Unit filename="..\src\devil\image.d" />
 		<Unit filename="..\src\extractdata.d" />
 		<Unit filename="..\src\framework\resfileformats.d" />
