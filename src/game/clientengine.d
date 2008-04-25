@@ -209,6 +209,7 @@ class TargetCrossImpl : ClientGraphic, TargetCross {
         Animator mTarget;
         Scene mContainer; //(0,0) positioned to worm center
         float mTargetOffset;
+        float mRotationOffset;
     }
 
     class DrawWeaponLoad : SceneObject {
@@ -265,13 +266,16 @@ class TargetCrossImpl : ClientGraphic, TargetCross {
     void reset() {
         mTargetOffset = handler.gfx.targetCross.targetDist -
             handler.gfx.targetCross.targetStartDist;
+        mRotationOffset = PI*2;
     }
 
     override void simulate(float deltaT) {
         if (!mAttach)
             return;
 
-        bool nactive = mAttach.readyflag;
+        //NOTE: in this case, the readyflag is true, if the weapon is already
+        // fully rotated into the target direction
+        bool nactive = true; //mAttach.readyflag;
         if (mTarget.active != nactive) {
             mTarget.active = nactive;
             if (nactive)
@@ -286,13 +290,16 @@ class TargetCrossImpl : ClientGraphic, TargetCross {
         mDir = Vector2f.fromPolar(1.0f, angle);
         mTarget.pos = toVector2i(mDir
             * (handler.gfx.targetCross.targetDist - mTargetOffset));
-        mTarget.params.p1 = cast(int)(angle*180/PI);
+        mTarget.params.p1 = cast(int)((angle + mRotationOffset)*180/PI);
 
         //target cross animation
         //xxx reset on weapon change
-        if (mTargetOffset > 0.25f)
-            mTargetOffset *= (pow(handler.gfx.targetCross.targetDegrade,
+        if (mTargetOffset > 0.25f) {
+            auto decrease = (pow(handler.gfx.targetCross.targetDegrade,
                 deltaT*1000.0f));
+            mTargetOffset *= decrease;
+            mRotationOffset *= decrease;
+        }
     }
 
     void setLoad(float load) {

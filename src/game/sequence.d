@@ -661,8 +661,17 @@ private:
 
     public void getInfos(ref SequenceUpdate v) {
         v.position = mAnimator.pos;
-        v.rotation_angle = mAngles[0];
-        v.pointto_angle = mAngles[1];
+        float[2] angles;
+        angles[] = mAngles;
+        //argh, code duplication from somewhere above to get the target angle
+        if (mCurSubSeq && mCurSubSeq.interpolate_angle_id >= 0) {
+            auto a1 = mCurSubSeq.angle_fixed_value, a2 = mAngleUser;
+            if (mCurSubSeq.angle_direction)
+                swap(a1, a2);
+            angles[mCurSubSeq.interpolate_angle_id] = a2;
+        }
+        v.rotation_angle = angles[0];
+        v.pointto_angle = angles[1];
     }
 
     public bool readyflag() {
