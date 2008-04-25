@@ -144,7 +144,7 @@ class TeamWindow : Container {
         }
         if (lines_to_remove == 0)
             return false;
-        startRemoveLines(lines_to_remove);
+        startRemoveLines(1);
         return true;
     }
 
@@ -256,9 +256,11 @@ class TeamWindow : Container {
             //meh that looks exactly like above
             //also, that duration is per line
             float progress = 1.0f*(curt - currentRemoveStart).msecs
-                / (cRemoveLinesDuration.msecs*currentRemoveLines);
+                / (cRemoveLinesDuration.msecs*currentRemoveLines) - 0.5f;
 
-            if (progress >= 1.0f) {
+            if (progress < 0) {
+                //nop, wait
+            } else if (progress >= 1.0f) {
                 //end of animation, really remove stuff
                 mTable.setAddToPos(Vector2i(0));
                 for (int n = 0; n < currentRemoveLines; n++) {

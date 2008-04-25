@@ -270,6 +270,14 @@ class TargetCrossImpl : ClientGraphic, TargetCross {
     override void simulate(float deltaT) {
         if (!mAttach)
             return;
+
+        bool nactive = mAttach.readyflag;
+        if (mTarget.active != nactive) {
+            mTarget.active = nactive;
+            if (nactive)
+                reset();
+        }
+
         SequenceUpdate infos;
         mAttach.getInfos(infos);
         mContainer.pos = infos.position;
@@ -279,13 +287,6 @@ class TargetCrossImpl : ClientGraphic, TargetCross {
         mTarget.pos = toVector2i(mDir
             * (handler.gfx.targetCross.targetDist - mTargetOffset));
         mTarget.params.p1 = cast(int)(angle*180/PI);
-
-        bool nactive = mAttach.readyflag;
-        if (mTarget.active != nactive) {
-            mTarget.active = nactive;
-            if (nactive)
-                reset();
-        }
 
         //target cross animation
         //xxx reset on weapon change

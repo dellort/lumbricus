@@ -399,10 +399,10 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         mGameTime.update();
 
         if (!mGameTime.paused) {
-            simulate();
             mPhysicTime.start();
             mPhysicWorld.simulate(mGameTime.current);
             mPhysicTime.stop();
+            simulate();
             //update game objects
             //NOTE: objects might be inserted/removed while iterating
             //      maybe one should implement a safe iterator...
