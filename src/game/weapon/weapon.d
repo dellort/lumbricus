@@ -163,6 +163,7 @@ abstract class WeaponClass {
 //for Shooter.fire(FireInfo)
 struct FireInfo {
     Vector2f dir = Vector2f.nan; //normalized throw direction
+    Vector2f surfNormal = Vector2f(-1, 0);   //impact surface normal
     float strength = 1.0f; //as allowed in the weapon config
     Time timer;     //selected time, in the range dictated by the weapon
     Vector2f pointto = Vector2f.nan; //if weapon can point to somewhere

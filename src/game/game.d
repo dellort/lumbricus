@@ -329,12 +329,14 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     }
 
     //called when a and b touch in physics
-    private void onPhysicHit(PhysicBase a, PhysicBase b) {
+    private void onPhysicHit(Contact c) {
         //exactly as the old behaviour
-        auto xa = cast(GObjectSprite)(a.backlink);
-        if (xa) xa.doImpact(b);
-        auto xb = cast(GObjectSprite)(b.backlink);
-        if (xb) xb.doImpact(a);
+        auto xa = cast(GObjectSprite)(c.obj[0].backlink);
+        if (xa) xa.doImpact(c.obj[1], c.normal);
+        if (c.obj[1]) {
+            auto xb = cast(GObjectSprite)(c.obj[1].backlink);
+            if (xb) xb.doImpact(c.obj[0], -c.normal);
+        }
     }
 
     private void underWaterTrigger(PhysicTrigger sender, PhysicObject other) {

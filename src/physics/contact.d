@@ -6,6 +6,8 @@ import physics.base;
 import physics.physobj;
 import physics.geometry;
 
+alias void delegate(Contact c) CollideDelegate;
+
 //mostly stolen from "Game Physics Engine Development" by Ian Millington
 struct Contact {
     ///colliding objects, obj[1] will be null for geometry collisions

@@ -107,11 +107,12 @@ class GObjectSprite : GameObject {
         +/
     }
 
-    protected void physImpact(PhysicBase other) {
+    protected void physImpact(PhysicBase other, Vector2f normal) {
     }
 
-    void doImpact(PhysicBase other) {
-        physImpact(other);
+    //normal always points away from other object
+    void doImpact(PhysicBase other, Vector2f normal) {
+        physImpact(other, normal);
     }
 
     protected void physDie() {

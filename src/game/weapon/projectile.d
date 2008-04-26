@@ -164,11 +164,11 @@ private class ProjectileSprite : GObjectSprite {
         }
     }
 
-    override protected void physImpact(PhysicBase other) {
-        super.physImpact(other);
+    override protected void physImpact(PhysicBase other, Vector2f normal) {
+        super.physImpact(other, normal);
 
         if (myclass.detonateByImpact > 0) {
-            detonate(DetonateReason.impact);
+            detonate(DetonateReason.impact, normal);
         }
         if (myclass.explosionOnImpact > 0) {
             engine.explosionAt(physics.pos, myclass.explosionOnImpact, this);
@@ -176,7 +176,9 @@ private class ProjectileSprite : GObjectSprite {
     }
 
     //called when projectile goes off
-    protected void detonate(DetonateReason reason) {
+    protected void detonate(DetonateReason reason,
+        Vector2f surfNormal = Vector2f(0, -1))
+    {
         //various actions possible when blowing up
         //spawning
         if (myclass.spawnOnDetonate &&
@@ -185,6 +187,7 @@ private class ProjectileSprite : GObjectSprite {
             FireInfo info;
             //whatever seems useful...
             info.dir = physics.velocity.normal;
+            info.surfNormal = surfNormal;
             info.strength = physics.velocity.length; //xxx confusing units :-)
             info.pointto = target;   //keep target for spawned projectiles
 
@@ -242,6 +245,12 @@ private class ProjectileSprite : GObjectSprite {
     }
 }
 
+enum InitVelocity {
+    parent,
+    backfire,
+    fixed,
+}
+
 //information about how to spawn something
 //from the "onfire" or "death.spawn" config sections in weapons.conf
 struct SpawnParams {
@@ -251,8 +260,11 @@ struct SpawnParams {
     Time delay;          //delay between spawns
     int random = 0;      //angle in which to spread projectiles randomly
     bool airstrike;      //shoot from the air
-    bool keepVelocity = true; //if true, use strength/dir from FireInfo
+    InitVelocity initVelocity;//how the initial projectile velocity is generated
+    /*bool keepVelocity = true; //if true, use strength/dir from FireInfo
                               //else use values below
+    bool backFire = false;  //spawn projectiles away from surface
+                            //overrides  */
     Vector2f direction;  //intial moving direction, affects spawn point
     float strength = 0;  //initial moving speed into above direction
 
@@ -263,7 +275,18 @@ struct SpawnParams {
         delay = timeSecs(config.getIntValue("delay", delay.secs));
         random = config.getIntValue("random", random);
         airstrike = config.getBoolValue("airstrike", airstrike);
-        keepVelocity = config.getBoolValue("keep_velocity", keepVelocity);
+        //keepVelocity = config.getBoolValue("keep_velocity", keepVelocity);
+        char[] vel = config.getStringValue("initial_velocity", "parent");
+        switch (vel) {
+            case "backfire":
+                initVelocity = InitVelocity.backfire;
+                break;
+            case "fixed":
+                initVelocity = InitVelocity.fixed;
+                break;
+            default:
+                initVelocity = InitVelocity.parent;
+        }
         float[] dirv = config.getValueArray!(float)("direction", [0, -1]);
         direction = Vector2f(dirv[0], dirv[1]);
         strength = config.getFloatValue("strength_value", strength);
@@ -287,10 +310,20 @@ private void spawnsprite(GameEngine engine, int n, SpawnParams params,
     GObjectSprite sprite = engine.createSprite(params.projectile);
     sprite.createdBy = shootby_object;
 
-    if (!params.keepVelocity) {
-        //don't use strength/direction from FireInfo
-        about.dir = params.direction;
-        about.strength = params.strength;
+    switch (params.initVelocity) {
+        case InitVelocity.fixed:
+            //use values from config file, not from FireInfo
+            about.dir = params.direction;
+            about.strength = params.strength;
+            break;
+        case InitVelocity.backfire:
+            //use configured strength, but throw projectiles back along
+            //surface normal
+            about.dir = about.surfNormal;
+            about.strength = params.strength;
+            break;
+        default:
+            //use strength/direction from FireInfo
     }
 
     if (!params.airstrike) {

@@ -157,7 +157,7 @@ class PhysicWorld {
 
         obj1.checkRotation();
 
-        callCollide(obj1, obj2); //call collision handler
+        callCollide(c); //call collision handler
         //xxx: also, should it be possible to glue objects here?
     }
 
@@ -191,6 +191,8 @@ class PhysicWorld {
 
         //what about unglue??
         obj.needUpdate();
+
+        callCollide(c);
     }
 
     //check how an object would collide with all the geometry
@@ -231,8 +233,6 @@ class PhysicWorld {
                 else
                     contact.merge(ncont);
                 collided = true;
-
-                callCollide(o, gm);
             }
         }
         return collided;
@@ -349,9 +349,9 @@ private:
     }
 
     //call the collision handler for these two objects
-    public void callCollide(PhysicBase a, PhysicBase b) {
+    public void callCollide(Contact c) {
         assert(!!mCollideHandler);
-        mCollideHandler(a, b);
+        mCollideHandler(c);
     }
 
     //check if all collision handlers were set; if not throw an error

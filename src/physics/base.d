@@ -26,8 +26,6 @@ class CollisionType {
 //it's illegal to use CollisionType_Invalid in PhysicBase.collision
 const CollisionType CollisionType_Invalid = null;
 
-alias void delegate(PhysicBase a, PhysicBase b) CollideDelegate;
-
 //base type for physic objects (which are contained in a PhysicWorld)
 class PhysicBase {
     package mixin ListNodeMixin allobjects_node;
