@@ -29,30 +29,30 @@ struct WWPBnkChunkHdr {
 
 AnimList readBnkFile(Stream st) {
     char[4] hdr;
-    st.readBlock(hdr.ptr, 4);
+    st.readExact(hdr.ptr, 4);
     assert(hdr == "BNK\x1A");
 
     uint dataLen;
-    st.readBlock(&dataLen, 4);
+    st.readExact(&dataLen, 4);
 
     WWPPalette pal = WWPPalette.read(st);
     st.seek(2, SeekPos.Current);
 
     uint animCount, frameCount, chunkCount;
     WWPBnkAnimHdr[] animHdr;
-    st.readBlock(&animCount, 4);
+    st.readExact(&animCount, 4);
     animHdr.length = animCount;
-    st.readBlock(animHdr.ptr, WWPBnkAnimHdr.sizeof*animCount);
+    st.readExact(animHdr.ptr, WWPBnkAnimHdr.sizeof*animCount);
 
     WWPBnkFrameHdr[] frameHdr;
-    st.readBlock(&frameCount, 4);
+    st.readExact(&frameCount, 4);
     frameHdr.length = frameCount;
-    st.readBlock(frameHdr.ptr, WWPBnkFrameHdr.sizeof*frameCount);
+    st.readExact(frameHdr.ptr, WWPBnkFrameHdr.sizeof*frameCount);
 
     WWPBnkChunkHdr[] chunkHdr;
-    st.readBlock(&chunkCount, 4);
+    st.readExact(&chunkCount, 4);
     chunkHdr.length = chunkCount;
-    st.readBlock(chunkHdr.ptr, WWPBnkChunkHdr.sizeof*chunkCount);
+    st.readExact(chunkHdr.ptr, WWPBnkChunkHdr.sizeof*chunkCount);
 
     int curChunkIdx = -1;
     ubyte[] chunkDecomp;
@@ -73,7 +73,7 @@ AnimList readBnkFile(Stream st) {
                     len = chunkHdr[curChunkIdx+1].startOffset - chunkHdr[curChunkIdx].startOffset;
                 }
                 ubyte[] buf = new ubyte[len];
-                st.readBlock(buf.ptr, len);
+                st.readExact(buf.ptr, len);
                 chunkDecomp = wormsDecompress(buf, chunkHdr[curChunkIdx].decompSize);
             }
             int fwidth = hframe.x2-hframe.x1;

@@ -56,7 +56,7 @@ Using the WWP data converter:
   dir as arguments, and converts the file to images/conf-files Lumbricus can
   understand. Call it like this:
 
-    extractdata pathtowwp lumbricus_trunk/data/data2
+   extractdata lumbricus_trunk/data/wimport pathtowwp lumbricus_trunk/data/data2
 
   Note that some datafiles from trunk/bin/tools/ need to be in extractdata's
   path.

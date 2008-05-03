@@ -1,0 +1,6 @@
+config/data files needed by extractdata to convert the WWP data files
+supply a path to this directory as first argument to extractdata
+
+copyright notes:
+- iconmask.png was handmade by d0c
+- hard.png is from GIMP

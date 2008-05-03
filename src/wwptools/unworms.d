@@ -16,17 +16,29 @@ void do_unworms(char[] filename, char[] outputDir) {
     char[] fnBase = path.getBaseName(path.getName(filename));
     scope st = new File(filename, FileMode.In);
 
+    if (auto readFunc = findReader(st)) {
+        writefln("Extracting from '%s'...",path.getBaseName(filename));
+        readFunc(st, outputDir, fnBase);
+    }
+}
+
+WWPReader findReader(Stream st) {
     char[4] hdr;
-    st.readBlock(hdr.ptr, 4);
+    st.seek(0, SeekPos.Set);
+    st.readExact(hdr.ptr, 4);
     st.seek(0, SeekPos.Set);
     if (hdr in registeredReaders) {
-        writefln("Extracting from '%s'...",path.getBaseName(filename));
-        WWPReader readFunc = registeredReaders[hdr];
-        readFunc(st, outputDir, fnBase);
+        return registeredReaders[hdr];
     } else {
         writefln("Error: Unknown filetype");
-        return 1;
+        return null;
     }
+}
 
-    return 0;
+//stream-version of unworms
+//pathBase = what getBaseName returns for the filename st was opened from
+void do_unworms(Stream st, char[] pathBase, char[] outputDir) {
+    if (auto readFunc = findReader(st)) {
+        readFunc(st, outputDir, pathBase);
+    }
 }

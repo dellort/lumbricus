@@ -12,12 +12,10 @@ struct GradientDef {
     RGBTriple top, half, bottom;
 }
 
-//Take a grass.png converted from worms and split it into grounddown.png
+//Take a grass.png converted from worms (imgIn) and split it into grounddown.png
 //and groundup.png (last one flipped)
 //output a line specifying bordercolor which is in the right box of grass.png
-RGBTriple convertGround(char[] filename, char[] destPath = ".") {
-    scope imgIn = new Image(filename);
-
+RGBTriple convertGround(Image imgIn, char[] destPath = ".") {
     scope imgDown = new Image(64,imgIn.h,false);
     imgDown.blit(imgIn,0,0,64,imgIn.h,0,0);
     imgDown.save(destPath~path.sep~"grounddown.png");
@@ -33,10 +31,8 @@ RGBTriple convertGround(char[] filename, char[] destPath = ".") {
 
 //Take a gradient.png converted from worms and output a line specifying
 //skycolor (from the first pixel, so the sky is continued seeminglessly)
-GradientDef convertSky(char[] filename) {
+GradientDef convertSky(Image imgIn) {
     GradientDef ret;
-    //load image
-    scope imgIn = new Image(filename);
     //average over a width x 3 area at the image center to get 3rd color
     RGBAColor cTmp;
     float rAvg = 0, gAvg = 0, bAvg = 0;

@@ -15,10 +15,10 @@ struct WWPPalette {
     static WWPPalette read(Stream st) {
         WWPPalette ret;
         ushort palSize;
-        st.readBlock(&palSize, 2);
+        st.readExact(&palSize, 2);
         ret.palEntries.length = palSize;
         foreach (inout pe; ret.palEntries) {
-            st.readBlock(&pe, 3);
+            st.readExact(&pe, 3);
         }
         return ret;
     }

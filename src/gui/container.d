@@ -452,8 +452,15 @@ class Container : Widget {
         auto main = getTopLevel();
         if (!main) //normally shouldn't happen
             return null;
-        //user capturing has priority over mouse capturing
+        //user capturing has priority over mouse capturing (??? that's unkosher)
         auto capture = main.captureUser ? main.captureUser : main.captureMouse;
+
+        //we are the or an indirect child of the captured Widget
+        // => disable capturing code, normal input handling
+        if (capture && this.isTransitiveChildOf(capture)) {
+            capture = null;
+        }
+
         //find a child which leads to the capture'd Widget (captureTo)
         Widget captureTo;
         if (capture && capture !is this) {
@@ -518,7 +525,7 @@ class Container : Widget {
                     continue;
 
                 //mouse capture means capture gets all events
-                //captureTo is a direct child widget which leas to capture
+                //captureTo is a direct child widget which leads to capture
                 bool captured = child is captureTo;
                 bool capturing = capture !is null;
 

@@ -12,60 +12,57 @@ import utils.filetools;
 import utils.configfile;
 import wwpdata.animation;
 import wwpdata.common;
+import wwpdata.reader_img;
+import wwpdata.reader_dir;
 import wwpdata.reader_spr;
 import wwptools.levelconverter;
 import wwptools.untile;
 import wwptools.unworms;
 import wwptools.animconv;
 
-void do_extractdata(char[] wormsDir, char[] outputDir) {
-    char[] tmpdir = ".";
+void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir) {
+    wormsDir = wormsDir ~ path.sep;
+    importDir = importDir ~ path.sep;
 
-    char[] gfxdirp = wormsDir~path.sep~"data"~path.sep~"Gfx"~path.sep~"Gfx.dir";
+    char[] gfxdirp = wormsDir~"data"~path.sep~"Gfx"~path.sep~"Gfx.dir";
     if (!stdf.exists(gfxdirp)) {
         throw new Exception("Invalid directory! Gfx.dir not found.");
     }
-    scope iconnames = new File("./iconnames.txt",FileMode.In);
+    scope iconnames = new File(importDir ~ "iconnames.txt",FileMode.In);
 
     //****** Extract WWP .dir files ******
     //extract Gfx.dir to current directory (creating a new dir "Gfx")
-    do_unworms(gfxdirp, tmpdir);
-    scope(exit) remove_dir(tmpdir~path.sep~"Gfx");
-    char[] gfxextr = tmpdir~path.sep~"Gfx"~path.sep;
+    Dir gfxdir = new Dir(gfxdirp);
 
     //****** Weapon icons ******
     //xxx box packing?
     //convert iconlo.img to png (creates "iconlo.png" in tmp dir)
-    do_unworms(gfxextr~"iconlo.img", tmpdir);
-    scope(exit) stdf.remove(tmpdir~path.sep~"iconlo.png");
+    Image iconlo = readImgFile(gfxdir.open("iconlo.img"));
     //apply icons mask
-    Image icMask = new Image("./iconmask.png");
-    Image iconImg = new Image(tmpdir~path.sep~"iconlo.png");
-    iconImg.applyAlphaMask(icMask);
-    iconImg.save(tmpdir~path.sep~"icons_masked.png");
-    scope(exit) stdf.remove(tmpdir~path.sep~"icons_masked.png");
+    Image icMask = new Image(importDir ~ "iconmask.png");
+    iconlo.applyAlphaMask(icMask);
     //prepare directory "weapons"
     char[] wepDir = outputDir~path.sep~"weapons";
     trymkdir(wepDir);
     //extract weapon icons
-    do_untile(tmpdir~path.sep~"icons_masked.png",wepDir~path.sep,"icons",
+    //(NOTE: icons_masked.png isn't opened as file, it's only for the basename)
+    //(NOTE 2: actually, the parameter isn't used at all, lol)
+    do_untile(iconlo, "icons_masked.png",wepDir~path.sep,"icons",
         "icon_","", "_icons.conf",iconnames);
 
     //****** Convert mainspr.bnk / water.bnk using animconv ******
-    //move mainspr.bnk to output dir
-    stdf.rename(gfxextr~"mainspr.bnk",outputDir~path.sep~"mainspr.bnk");
-    scope(exit) stdf.remove(outputDir~path.sep~"mainspr.bnk");
-    //move water.bnk to output dir
+    Stream mainspr = gfxdir.open("mainspr.bnk");
 
-    ConfigNode animConf = (new ConfigFile(new File("./animations.txt"),
+    ConfigNode animConf = (new ConfigFile(new File(importDir ~ "animations.txt"),
         "animations.txt", (char[] msg) { writefln(msg); } )).rootnode;
 
     //run animconv
-    do_animconv(animConf, outputDir~path.sep);
+    do_extractbnk("mainspr", mainspr, animConf.getSubNode("mainspr"),
+        outputDir~path.sep);
 
     //extract water sets (uses animconv too)
     //xxx: like level set, enum subdirectories (code duplication?)
-    char[] waterpath = wormsDir~path.sep~"data"~path.sep~"Water";
+    char[] waterpath = wormsDir~"data"~path.sep~"Water";
     char[] all_waterout = outputDir~path.sep~"water";
     trymkdir(all_waterout);
     char[][] waters = stdf.listdir(waterpath);
@@ -77,16 +74,12 @@ void do_extractdata(char[] wormsDir, char[] outputDir) {
         //lame check if it's a water dir
         if (stdf.isdir(wpath) && stdf.exists(wpath~path.sep~"Water.dir")) {
             writefln("Converting water set '%s'", id);
-            char[] tmp = tmpdir~path.sep~"watertmp"~path.sep;
-            char[] extrp = tmp~"Water"~path.sep;
-            trymkdir(tmp);
-            do_unworms(wpath~path.sep~"Water.dir", tmp);
-            do_extractbnk("water_anims", extrp~"water.bnk",
+            Dir waterdir = new Dir(wpath~path.sep~"Water.dir");
+            do_extractbnk("water_anims", waterdir.open("water.bnk"),
                 animConf.getSubNode("water_anims"), waterout);
 
-            auto spr = new File(extrp~"layer.spr", FileMode.In);
+            auto spr = waterdir.open("layer.spr");
             AnimList water = readSprFile(spr);
-            spr.close();
             do_write_anims(water, animConf.getSubNode("water_waves"), "waves",
                 waterout);
 
@@ -98,14 +91,11 @@ void do_extractdata(char[] wormsDir, char[] outputDir) {
             auto b = cast(float)toUbyte(colRGB[2])/255.0f;
             auto conf = WATER_P1 ~ format("%.2f %.2f %.2f", r, g, b) ~ WATER_P2;
             stdf.write(waterout~"water.conf", conf);
-
-            //remove temporary files
-            remove_dir(tmp);
         }
     }
 
     //****** Level sets ******
-    char[] levelspath = wormsDir~path.sep~"data"~path.sep~"Level";
+    char[] levelspath = wormsDir~"data"~path.sep~"Level";
     //prepare output dir
     char[] levelDir = outputDir~path.sep~"level";
     trymkdir(levelDir);
@@ -124,25 +114,30 @@ void do_extractdata(char[] wormsDir, char[] outputDir) {
         trymkdir(destpath);
         if (stdf.isdir(setpath)) {
             writefln("Converting level set '%s'",id);
-            convert_level(setpath~path.sep,destpath~path.sep,tmpdir);
+            convert_level(setpath~path.sep,destpath~path.sep,importDir);
         }
     }
 }
 
 int main(char[][] args)
 {
-    if (args.length < 2) {
-        writefln("Syntax: extractdata <wormsMainDir> [<outputDir>]");
+    if (args.length < 3) {
+        writefln("Syntax: extractdata <importDir> <wormsMainDir> [<outputDir>]");
+        writefln("  <importDir>: your-svn-root/trunk/lumbricus/data/wimport");
+        writefln("  <wormsMainDir>: worms main dir, e.g. where your wwp.exe is");
+        writefln("  <outputDir>: where to write stuff to (default is current"
+            " dir, but it really");
+        writefln("               should be your-svn-root/trunk/lumbricus/data/data2");
         return 1;
     }
     char[] outputDir;
-    if (args.length >= 3)
-        outputDir = args[2];
+    if (args.length >= 4)
+        outputDir = args[3];
     else
         outputDir = ".";
     trymkdir(outputDir);
     try {
-        do_extractdata(args[1], outputDir);
+        do_extractdata(args[1], args[2], outputDir);
     } catch (Exception e) {
         writefln("Error: %s",e.msg);
     }

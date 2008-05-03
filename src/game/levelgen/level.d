@@ -16,8 +16,14 @@ class EnvironmentTheme {
     Color skyColor;
 
     //used to draw the background; both can be null
-    Surface skyGradient; //xxx make the gradient drawn by the framework
+    Surface skyGradient; //if null, use the color fields below
     Surface skyBackdrop;
+
+    //(I don't want a "generic" gradient description struct, because that would
+    // go too far again, because I'd add gradient directions, color runs, etc.)
+    Color skyGradientTop;
+    Color skyGradientHalf;
+    Color skyGradientBottom;
 
     //can be null
     Animation skyDebris;
@@ -30,6 +36,13 @@ class EnvironmentTheme {
         skyBackdrop = res.get!(Surface)(node["backdrop"], true);
         skyDebris = res.get!(Animation)(node["debris"], true);
         skyColor.parse(node.getStringValue("skycolor"));
+
+        //(sky.d uses skyGradient if it exists anyway)
+        if (auto sub = node.findNode("sky_gradient")) {
+            skyGradientTop.parse(sub["top"]);
+            skyGradientHalf.parse(sub["half"]);
+            skyGradientBottom.parse(sub["bottom"]);
+        }
     }
 }
 

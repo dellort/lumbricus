@@ -9,6 +9,8 @@ import std.stdio;
 import utils.filetools;
 import utils.vector2;
 import wwpdata.animation;
+import wwpdata.reader_img;
+import wwpdata.reader_dir;
 import wwpdata.reader_spr;
 import wwptools.animconv;
 import wwptools.convert;
@@ -48,36 +50,34 @@ struct ObjDef {
 
 //convert WWP level directory to lumbricus level directory
 //xxx missing debris animation
-void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
+void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
+{
     BmpDef[] envBitmaps;
     BmpDef[] landBitmaps;
     BmpDef[] definedBitmaps;
     ObjDef[] definedObjects;
 
-    //extract Level.dir to temp path
-    do_unworms(sourcePath~"Level.dir", tmpdir);
-    char[] lvlextr = tmpdir~path.sep~"Level";
-    scope(exit) remove_dir(lvlextr);
-    lvlextr ~= path.sep;
+    Dir ldir = new Dir(sourcePath~"Level.dir");
     //Soil back texture
-    do_unworms(lvlextr~"soil.img",destPath);
+    ldir.unworms("soil.img",destPath);
     landBitmaps ~= BmpDef("soiltex","soil.png");
     //Level front texture
-    do_unworms(lvlextr~"text.img",destPath);
+    ldir.unworms("text.img",destPath);
     definedBitmaps ~= BmpDef("land","text.png");
 
     //solid ground texture (WWP does not have this, use default)
-    stdf.copy("./hard.png",destPath~"hard.png");
+    stdf.copy(importPath ~ "hard.png",destPath~"hard.png");
     definedBitmaps ~= BmpDef("solid_land","hard.png");
 
     //Sky gradient
-    do_unworms(lvlextr~"gradient.img",destPath);
-    GradientDef skyGradient = convertSky(destPath~"gradient.png");
-    envBitmaps ~= BmpDef("sky_gradient","gradient.png");
+    auto gradient = readImgFile(ldir.open("gradient.img"));
+    GradientDef skyGradient = convertSky(gradient);
+    //-- gradient.save(destPath~"gradient.png");
+    //-- envBitmaps ~= BmpDef("sky_gradient","gradient.png");
+    //skyGradient is used below
 
     //big background image
-    scope backSpr = new File(lvlextr~"back.spr");
-    scope AnimList backAl = readSprFile(backSpr);
+    scope AnimList backAl = readSprFile(ldir.open("back.spr"));
     //WWP backgrounds are animation files, although there's only one frame (?)
     //spr file -> one animation with (at least) one frame, so this is ok
     backAl.animations[0].frames[0].save(destPath~"backdrop.png");
@@ -86,7 +86,7 @@ void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
     //debris with metadata
     scope debrisPacker = new AtlasPacker("debris_atlas",Vector2i(256));
     scope debrisAnif = new AniFile("debris", debrisPacker);
-    scope debrisSpr = new File(lvlextr~"debris.spr");
+    scope debrisSpr = ldir.open("debris.spr");
     scope AnimList debrisAl = readSprFile(debrisSpr);
     auto debrisAni = new AniEntry(debrisAnif, "debris");
     debrisAni.addFrames(debrisAl.animations);
@@ -96,29 +96,26 @@ void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
 
     //bridges
     trymkdir(destPath~"bridge");
-    do_unworms(lvlextr~"bridge.img",destPath~"bridge");
-    do_unworms(lvlextr~"bridge-l.img",destPath~"bridge");
-    do_unworms(lvlextr~"bridge-r.img",destPath~"bridge");
+    ldir.unworms("bridge.img",destPath~"bridge");
+    ldir.unworms("bridge-l.img",destPath~"bridge");
+    ldir.unworms("bridge-r.img",destPath~"bridge");
     definedBitmaps ~= BmpDef("bridge_seg","bridge/bridge.png");
     definedBitmaps ~= BmpDef("bridge_l","bridge/bridge-l.png");
     definedBitmaps ~= BmpDef("bridge_r","bridge/bridge-r.png");
 
     //floor/ceiling makeover texture
-    do_unworms(lvlextr~"grass.img",tmpdir);
-    scope(exit) stdf.remove(tmpdir~path.sep~"grass.png");
-    RGBTriple colground = convertGround(tmpdir~path.sep~"grass.png",
-        destPath);
+    scope grassimg = readImgFile(ldir.open("grass.img"));
+    RGBTriple colground = convertGround(grassimg, destPath);
     definedBitmaps ~= BmpDef("ground_up","groundup.png");
     definedBitmaps ~= BmpDef("ground_down","grounddown.png");
 
     //objects
     trymkdir(destPath~"objects");
-    char[][] inffiles = stdf.listdir(lvlextr,"*.inf");
+    char[][] inffiles = ldir.listdir("*.inf");
     foreach (inff; inffiles) {
         char[] objname = path.getBaseName(path.getName(inff));
-        char[] imgfile = lvlextr~objname~".img";
-        do_unworms(imgfile,destPath~"objects");
-        scope infFile = new File(inff);
+        ldir.unworms(objname~".img",destPath~"objects");
+        scope infFile = ldir.open(inff);
         char[][] infLines = str.split(infFile.toString());
         assert(infLines.length >= 6);
         int side = toInt(infLines[5]);
@@ -152,7 +149,10 @@ void convert_level(char[] sourcePath, char[] destPath, char[] tmpdir) {
     stuff["landgen_objects"] = objs;
 
     stuff["bordercolor"] = fmtColor(colground);
-    stuff["skycolor"] = fmtColor(skyGradient.top);
+    stuff["sky_top"] = fmtColor(skyGradient.top);
+    stuff["sky_half"] = fmtColor(skyGradient.half);
+    stuff["sky_bottom"] = fmtColor(skyGradient.bottom);
+    stuff["skycolor"] = stuff["sky_top"];
 
     char[] levelconf = fillTemplate(LEVEL_CONF, stuff);
 
@@ -227,7 +227,12 @@ environment {
     }
   }
 
-  gradient = "sky_gradient"
+  //gradient = "sky_gradient"
+  sky_gradient {
+    top = "%sky_top%"
+    half = "%sky_half%"
+    bottom = "%sky_bottom%"
+  }
   backdrop = "sky_backdrop"
   skycolor = "%skycolor%"
   debris = "debris"

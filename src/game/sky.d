@@ -19,18 +19,33 @@ class SkyDrawer : SceneObject {
     private Color mSkyColor;
     private Texture mSkyTex;
     private Texture mSkyBackdrop;
+    private Color[3] mGradient;
 
-    this(GameSky parent, Color skyColor, Texture skyTex, Texture skyBackdrop) {
+    this(GameSky parent, EnvironmentTheme theme) {
         mParent = parent;
-        mSkyColor = skyColor;
-        mSkyTex = skyTex;
-        mSkyBackdrop = skyBackdrop;
+        mSkyColor = theme.skyColor;
+        mSkyTex = theme.skyGradient;
+        mSkyBackdrop = theme.skyBackdrop;
+        mGradient[0] = theme.skyGradientTop;
+        mGradient[1] = theme.skyGradientHalf;
+        mGradient[2] = theme.skyGradientBottom;
     }
 
     void draw(Canvas canvas) {
         if (mParent.enableSkyTex) {
-            canvas.drawTiled(mSkyTex, Vector2i(0, mParent.skyOffset),
-                Vector2i(mParent.size.x, mSkyTex.size.y));
+            if (mSkyTex) {
+                canvas.drawTiled(mSkyTex, Vector2i(0, mParent.skyOffset),
+                    Vector2i(mParent.size.x, mSkyTex.size.y));
+            } else {
+                //skyBottom defines the height, which doesnt come from the theme
+                auto rcf = Rect2i(0, mParent.skyOffset, mParent.size.x,
+                    mParent.skyBottom);
+                auto rc1 = Rect2i.Span(rcf.p1, Vector2i(rcf.size.x,
+                    rcf.size.y/2));
+                auto rc2 = Rect2i(Vector2i(rcf.p1.x, rc1.p2.y), rcf.p2);
+                canvas.drawVGradient(rc1, mGradient[0], mGradient[1]);
+                canvas.drawVGradient(rc2, mGradient[1], mGradient[2]);
+            }
             if (mParent.skyOffset > 0)
                 canvas.drawFilledRect(Vector2i(0, 0),
                     Vector2i(mParent.size.x, mParent.skyOffset), mSkyColor);
@@ -106,14 +121,6 @@ class GameSky {
         ConfigNode skyNode = engine.gfx.config.getSubNode("sky");
         Color skyColor = theme.skyColor;
 
-        auto skyTex = theme.skyGradient;
-        if (!skyTex) {
-            skyTex = mEngine.resources.get!(Surface)("default_gradient");
-        }
-        //mSkyHeight = skyTex.size.y;
-
-        auto skyBackdrop = theme.skyBackdrop;
-
         mDebrisAnim = theme.skyDebris;
 
         ConfigNode cloudNode = skyNode.getSubNode("clouds");
@@ -146,7 +153,7 @@ class GameSky {
             }
         }
 
-        mSkyDrawer = new SkyDrawer(this, skyColor, skyTex, skyBackdrop);
+        mSkyDrawer = new SkyDrawer(this, theme);
         scenes[Z.back].add(mSkyDrawer);
 
         //xxx make sure mEngine.waterOffset is valid for this call

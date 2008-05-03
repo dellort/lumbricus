@@ -264,15 +264,7 @@ class AniFile {
     }
 }
 
-void do_animconv(ConfigNode animConf, char[] workPath) {
-    auto batch = animConf.getSubNode("batch_bnks");
-
-    foreach (char[] bnkname, ConfigNode bnkNode; batch) {
-        do_extractbnk(bnkname, workPath ~ bnkname ~ ".bnk", bnkNode, workPath);
-    }
-}
-
-void do_extractbnk(char[] bnkname, char[] bnkfile, ConfigNode bnkNode,
+void do_extractbnk(char[] bnkname, Stream bnkfile, ConfigNode bnkNode,
     char[] workPath)
 {
     if (workPath.length == 0) {
@@ -280,8 +272,7 @@ void do_extractbnk(char[] bnkname, char[] bnkfile, ConfigNode bnkNode,
     }
 
     writefln("Working on %s",bnkname);
-    scope bnkf = new File(bnkfile);
-    auto anis = readBnkFile(bnkf);
+    auto anis = readBnkFile(bnkfile);
     do_write_anims(anis, bnkNode, bnkname, workPath);
 }
 

@@ -130,6 +130,7 @@ class Image {
             maskData += 3;
             curData += 4;
         }
+        alpha = true; //lolwut?
     }
 
     ubyte* data() {

@@ -17,10 +17,19 @@ import std.stream;
 ///             file is written
 ///  namefile = stream where image names are read from (one name per line,
 ///             can be null)
+///in-memory-version:
+///  img = instead of filename
+///  filename = to get the name of the thing (filename is never opened or so)
 void do_untile(char[] filename, char[] destPath, char[] imgPath,
     char[] nameHead, char[] nameTail, char[] confName, Stream namefile)
 {
-    auto img = new Image(filename);
+    scope auto img = new Image(filename);
+    do_untile(img, filename, destPath, imgPath, nameHead, nameTail, confName,
+        namefile);
+}
+void do_untile(Image img, char[] filename, char[] destPath, char[] imgPath,
+    char[] nameHead, char[] nameTail, char[] confName, Stream namefile)
+{
     char[] fnbase = path.getBaseName(path.getName(filename));
 
     Stream conffile;
