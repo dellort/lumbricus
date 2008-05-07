@@ -349,12 +349,6 @@ class PhysicObject : PhysicBase {
         }
         mIsWalking = false;
 
-        if (mWalkingMode) {
-            auto ndir = dir.normal();
-            if (!ndir.isNaN())
-                mIntendedLookAngle = ndir.toAngle();
-        }
-
         needUpdate();
     }
 
@@ -448,6 +442,10 @@ class PhysicObject : PhysicBase {
 
                         //jup, did walk
                         mIsWalking = true;
+
+                        auto ndir = walkTo.normal();
+                        if (!ndir.isNaN())
+                            mIntendedLookAngle = ndir.toAngle();
 
                         return;
                     }
