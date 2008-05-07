@@ -397,7 +397,7 @@ private:
             }
         }
 
-        override protected bool onKeyEvent(KeyInfo info) {
+        override protected void onKeyEvent(KeyInfo info) {
             foreach (e; mObjects) {
                 auto p = cast(Player)e;
                 if (!p)
@@ -406,10 +406,9 @@ private:
                 if (bind.length) {
                     if (!info.isPress)
                         p.updateKey(bind, info.isDown);
-                    return true;
+                    return;
                 }
             }
-            return super.onKeyEvent(info);
         }
 
         bool canHaveFocus() {

@@ -29,20 +29,18 @@ class Splitter : Container {
                 minSize = Vector2i(5);
             }
 
-            override bool onKeyEvent(KeyInfo info) {
+            override void onKeyEvent(KeyInfo info) {
                 if (info.isMouseButton() && !info.isPress()) {
                     mDraging = info.isDown();
                     mStartDrag = mousePos();
                 }
-                return true;
             }
 
-            override bool onMouseMove(MouseInfo info) {
+            override void onMouseMove(MouseInfo info) {
                 if (mDraging) {
                     auto p = (containedBounds().p1+info.pos-mStartDrag)[mDir];
                     splitPos = p + mSplitFix;
                 }
-                return true;
             }
         }
     }

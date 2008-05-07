@@ -248,12 +248,10 @@ public class WTris : Task {
             return true;
         }
 
-        override protected bool onKeyEvent(KeyInfo key) {
+        override protected void onKeyEvent(KeyInfo key) {
             if (key.isDown) {
-                if (onKeyDown(key))
-                    return true;
+                onKeyDown(key);
             }
-            return super.onKeyEvent(key);
         }
 
         private bool onKeyDown(KeyInfo key) {

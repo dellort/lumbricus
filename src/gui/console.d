@@ -166,14 +166,8 @@ class GuiConsole : Container {
     }
 
     //catch all events
-    override bool onKeyEvent(KeyInfo infos) {
-        super.onKeyEvent(infos);
+    override void onKeyEvent(KeyInfo infos) {
         mEdit.claimFocus();
-        return true;
-    }
-    override bool onMouseMove(MouseInfo infos) {
-        super.onMouseMove(infos);
-        return true;
     }
 
     override protected void layoutSizeAllocation() {

@@ -71,16 +71,14 @@ package class MainFrame : SimpleContainer {
             && key.code == Keycode.TAB);
     }
 
-    protected override bool onKeyEvent(KeyInfo key) {
+    protected override void onKeyEvent(KeyInfo key) {
         if (key.isDown && modifierIsSet(key.mods, Modifier.Control)
             && key.code == Keycode.TAB)
         {
             bool res = nextFocus();
             if (!res)
                 nextFocus();
-            return true;
         }
-        return super.onKeyEvent(key);
     }
 
     void doFrame() {

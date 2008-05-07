@@ -127,15 +127,13 @@ public class LogWindow : Widget, Output {
         return Vector2i(0);
     }
 
-    override protected bool onKeyEvent(KeyInfo infos) {
+    override protected void onKeyEvent(KeyInfo infos) {
         bool wd = infos.code == Keycode.MOUSE_WHEELDOWN;
         bool wu = infos.code == Keycode.MOUSE_WHEELUP;
         if (wd || wu) {
             if (infos.isDown()) {
                 scrollBack(wu ? +1 : -1);
             }
-            return true;
         }
-        return super.onKeyEvent(infos);
     }
 }

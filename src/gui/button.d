@@ -165,7 +165,7 @@ class Button : Label {
             onClick(this);
     }
 
-    override protected bool onKeyEvent(KeyInfo key) {
+    override protected void onKeyEvent(KeyInfo key) {
         if (key.code == Keycode.MOUSE_LEFT) {
             if (key.isDown) {
                 mMouseDown = true;
@@ -174,18 +174,16 @@ class Button : Label {
                 mMouseDown = false;
                 buttonSetState(false);
             }
-            return true;
+            return;
         }
         if (key.code == Keycode.MOUSE_RIGHT) {
             if (key.isUp && onRightClick) {
                 onRightClick(this);
             }
-            return true;
         }
-        return super.onKeyEvent(key);
     }
 
-    override protected bool onMouseMove(MouseInfo mi) {
+    override protected void onMouseMove(MouseInfo mi) {
         mMouseInside = testMouse(mi.pos);
 
         if (!mMouseInside) {
@@ -195,8 +193,6 @@ class Button : Label {
             if (mMouseDown)
                 buttonSetState(true);
         }
-
-        return true;
     }
 
     private void autoRepOnTimer(Timer sender) {

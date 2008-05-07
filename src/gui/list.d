@@ -106,7 +106,7 @@ class AbstractListWidget : Widget {
         return true;
     }
 
-    override protected bool onKeyEvent(KeyInfo key) {
+    override protected void onKeyEvent(KeyInfo key) {
         switch (key.code) {
             case Keycode.DOWN: {
                 if (key.isPress && selectedIndex+1 < count)
@@ -126,13 +126,7 @@ class AbstractListWidget : Widget {
                 break;
             }
             default:
-                return false;
         }
-        return super.onKeyEvent(key);
-    }
-
-    override bool onMouseMove(MouseInfo info) {
-        return super.onMouseMove(info);
     }
 
     /// draw an item with that index on canvas at rc

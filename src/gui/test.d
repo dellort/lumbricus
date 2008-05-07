@@ -686,16 +686,14 @@ class TestTask4 : Task {
             return true;
         }
 
-        override bool onMouseMove(MouseInfo m) {
+        override void onMouseMove(MouseInfo m) {
             log.writefln("%s: %s", this, m);
-            return true;
         }
 
-        override bool onKeyEvent(KeyInfo info) {
+        override void onKeyEvent(KeyInfo info) {
             log.writefln("%s: %s %s", this, info, gFramework.keyinfoToString(info));
             if (info.isDown() && info.code == Keycode.MOUSE_RIGHT)
                 gFramework.mouseLocked = !gFramework.mouseLocked;
-            return true;
         }
 
         override void onMouseEnterLeave(bool mouseIsInside) {

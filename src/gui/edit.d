@@ -144,12 +144,12 @@ class EditLine : Widget {
         return mFont.findIndex(mCurline, x - mFont.textSize(mPrompt).x);
     }
 
-    override bool onKeyEvent(KeyInfo info) {
+    override void onKeyEvent(KeyInfo info) {
         if (info.isPress && handleKeyPress(info)) {
             //make cursor visible when a keypress was handled
             mCursorVisible = true;
             mCursorTimer.reset();
-            return true;
+            return;
         }
         if (info.isMouseButton) { //take focus when clicked
             if (!info.isPress && info.code == Keycode.MOUSE_LEFT) {
@@ -164,18 +164,15 @@ class EditLine : Widget {
                 }
             }
             claimFocus();
-            return true;
+            return;
         }
-        return super.onKeyEvent(info);
     }
 
-    override bool onMouseMove(MouseInfo info) {
+    override void onMouseMove(MouseInfo info) {
         if (mMouseDown) {
             mSelEnd = indexAtX(mousePos.x);
             mCursor = mSelEnd;
-            return true;
         }
-        return super.onMouseMove(info);
     }
 
     override Vector2i layoutSizeRequest() {

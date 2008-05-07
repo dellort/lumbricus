@@ -73,23 +73,19 @@ class MouseScroller : ScrollArea {
         mouseScrolling(!mMouseScrolling);
     }
 
-    override protected bool onKeyEvent(KeyInfo key) {
+    override protected void onKeyEvent(KeyInfo key) {
         if (key.code == Keycode.MOUSE_RIGHT) {
             if (key.isDown) {
                 mouseScrollToggle();
             }
-            return true;
         }
-        return super.onKeyEvent(key);
     }
 
-    override bool onMouseMove(MouseInfo mi) {
+    override void onMouseMove(MouseInfo mi) {
         if (mMouseScrolling) {
             scrollDeltaSmooth(mi.rel);
             noticeAction();
-            return true;
         }
-        return super.onMouseMove(mi);
     }
 
     protected override bool allowInputForChild(Widget child, InputEvent event) {

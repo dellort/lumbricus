@@ -56,7 +56,7 @@ class ScrollBar : Container {
                 return Vector2i(0);
             }
 
-            override protected bool onMouseMove(MouseInfo mouse) {
+            override protected void onMouseMove(MouseInfo mouse) {
                 if (drag_active) {
                     //get position within the container
                     assert(parent && this.outer.parent);
@@ -65,18 +65,14 @@ class ScrollBar : Container {
 
                     curValue = cast(int)((pos[mDir] - mBarArea.p1[mDir]
                         + 0.5*mScaleFactor) / mScaleFactor) + mMinValue;
-
-                    return true;
                 }
-                return false;
             }
 
-            override protected bool onKeyEvent(KeyInfo key) {
+            override protected void onKeyEvent(KeyInfo key) {
                 if (!key.isPress && key.code == Keycode.MOUSE_LEFT) {
                     drag_active = key.isDown;
                     drag_start = mousePos;
                 }
-                return key.isMouseButton || super.onKeyEvent(key);
             }
         }
     }
@@ -111,10 +107,7 @@ class ScrollBar : Container {
         }
     }
 
-    override protected bool onKeyEvent(KeyInfo ki) {
-        if (super.onKeyEvent(ki))
-            return true;
-
+    override protected void onKeyEvent(KeyInfo ki) {
         //nothing was hit -> free area of scrollbar, between the bar and the
         //two buttons
 
@@ -128,9 +121,7 @@ class ScrollBar : Container {
                 //multiply dir with the per-click increment (fixed to 1 now)
                 curValue = curValue + dir*mLargeChange;
             }
-            return true;
         }
-        return false;
     }
 
     //prevent Container from returning false if no child is hit

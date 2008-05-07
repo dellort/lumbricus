@@ -589,14 +589,13 @@ public class LevelEditor : Task {
             return true;
         }
 
-        override protected bool onKeyEvent(KeyInfo ki) {
+        override protected void onKeyEvent(KeyInfo ki) {
             auto b = findBind(ki);
-            return (ki.isDown && onKeyDown(b, ki))
-                || (ki.isUp && onKeyUp(b, ki))
-                || super.onKeyEvent(ki);
+            (ki.isDown && onKeyDown(b, ki))
+                || (ki.isUp && onKeyUp(b, ki));
         }
 
-        override bool onMouseMove(MouseInfo info) {
+        override void onMouseMove(MouseInfo info) {
             if (isDraging) {
                 didReallyDrag = true;
                 auto move = -dragRel + (info.pos - dragPick);
@@ -621,7 +620,6 @@ public class LevelEditor : Task {
             if (isSelecting) {
                 selectEnd = info.pos;
             }
-            return true;
         }
     } //RenderEditor
 

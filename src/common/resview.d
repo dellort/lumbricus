@@ -357,23 +357,18 @@ class AnimationHandler : ResViewHandler!(Animation) {
             mFrame.curValue = mAnim.curFrame;
         }
 
-        override bool onMouseMove(MouseInfo inf) {
+        override void onMouseMove(MouseInfo inf) {
             auto angle = toVector2f(inf.pos-size/2).normal.toAngle;
             //(not if NaN)
             if (angle == angle) {
                 p1 = realmod(cast(int)(angle/PI/2*360), 360);
             }
-            return true;
         }
 
-        override bool onKeyEvent(KeyInfo infos) {
-            if (infos.isMouseButton) {
-                if (infos.isUp) {
-                    resetAnim();
-                }
-                return true;
+        override void onKeyEvent(KeyInfo infos) {
+            if (infos.isMouseButton && infos.isUp) {
+                resetAnim();
             }
-            return super.onKeyEvent(infos);
         }
 
         Vector2i layoutSizeRequest() {

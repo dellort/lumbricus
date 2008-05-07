@@ -439,23 +439,12 @@ class Widget {
     }
 
     //event handler which can be overridden by the user
-    //this function shall return true if the event was handled
-    //if it doesn't handle an event, an overridden method must call the super-
-    //handler and return its result
-    //NOTE about down/up/press events: even though you react only i.e. on key-up
-    // events in a specific case, always catch down- and press-events as well,
-    // else other Widgets might receive this events, leading to stupid confusion
-    protected bool onKeyEvent(KeyInfo info) {
-        //default: do nothing, return false (to indicate "unhandled")
-        return false;
+    //the default implementation is always empty and doesn't need to be called
+    protected void onKeyEvent(KeyInfo info) {
     }
 
-    //return true only if you want block this event for children
-    //no meaning for non-Container Widgets (?)
-    //  (actually, when children are overlapping and this returns true, the
-    //   other (overlapping) children won't get the mouse event)
-    protected bool onMouseMove(MouseInfo mouse) {
-        return false;
+    //handler for mouse move events
+    protected void onMouseMove(MouseInfo mouse) {
     }
 
     protected void onMouseEnterLeave(bool mouseIsInside) {

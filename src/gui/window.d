@@ -94,7 +94,7 @@ class WindowWidget : Container {
             bool drag_active;
             Vector2i drag_start;
 
-            override protected bool onMouseMove(MouseInfo mouse) {
+            override protected void onMouseMove(MouseInfo mouse) {
                 if (drag_active && mCanResize) {
                     //get position within the window's parent
                     assert(parent && this.outer.parent);
@@ -118,17 +118,14 @@ class WindowWidget : Container {
                         }
                     }
                     this.outer.windowBounds = bounds;
-                    return true;
                 }
-                return false;
             }
 
-            override protected bool onKeyEvent(KeyInfo key) {
+            override protected void onKeyEvent(KeyInfo key) {
                 if (!key.isPress && key.isMouseButton) {
                     drag_active = key.isDown;
                     drag_start = mousePos;
                 }
-                return key.isMouseButton || super.onKeyEvent(key);
             }
 
             Vector2i layoutSizeRequest() {
@@ -433,7 +430,7 @@ class WindowWidget : Container {
     }
 
     //treat all events as handled (?)
-    override bool onKeyEvent(KeyInfo key) {
+    override void onKeyEvent(KeyInfo key) {
         char[] bind = findBind(key);
 
         //and if the mouse was clicked _anywhere_, make sure window is on top
@@ -444,7 +441,7 @@ class WindowWidget : Container {
         if (bind.length) {
             if (key.isDown())
                 doAction(bind);
-            return true;
+            return;
         }
 
         if (mDraging) {
@@ -453,21 +450,17 @@ class WindowWidget : Container {
                 mDraging = false;
             }
             //mask events from children while dragging
-            return true;
+            return;
         }
-
-        //let the children handle key events
-        bool handled = super.onKeyEvent(key);
 
         //if a mouse click wasn't handled, start draging the window around
-        if (!handled && key.isMouseButton && !key.isPress && key.isDown) {
+        //xxx mostly inactive (filtered out by allowInputForChild())
+        if (key.isMouseButton && !key.isPress && key.isDown) {
             mDraging = true;
         }
-
-        return true;
     }
 
-    protected bool onMouseMove(MouseInfo mouse) {
+    protected void onMouseMove(MouseInfo mouse) {
         if (mDraging) {
             if (mCanMove && !mFullScreen && mManager) {
                 mManager.setWindowPosition(this, containedBounds.p1+mouse.rel);
@@ -475,8 +468,6 @@ class WindowWidget : Container {
         } else {
             super.onMouseMove(mouse);
         }
-        //always return true => all events as handled
-        return true;
     }
 
     override protected void onDraw(Canvas c) {
@@ -703,7 +694,7 @@ class WindowFrame : Container {
         return true;
     }
 
-    protected override bool onKeyEvent(KeyInfo info) {
+    protected override void onKeyEvent(KeyInfo info) {
         if (mWindowSelecting) {
             if (!wsIsSet()) {
                 //modifiers were released => end of selection
@@ -714,7 +705,7 @@ class WindowFrame : Container {
         }
         auto bnd = mKeysWM.findBinding(info);
         if (bnd.length == 0)
-            return super.onKeyEvent(info);
+            return;
         if (info.isDown()) {
             if (bnd == "select_window") {
                 mSelectMods = info.mods;
@@ -724,6 +715,5 @@ class WindowFrame : Container {
                     onSelectWindow(false);
             }
         }
-        return true;
     }
 }

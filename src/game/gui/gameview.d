@@ -719,19 +719,13 @@ class GameView : Container, TeamMemberControlCallback {
         return false;
     }
 
-    override protected bool onKeyEvent(KeyInfo ki) {
+    override protected void onKeyEvent(KeyInfo ki) {
         auto bind = findBind(ki);
         if (ki.isDown && onKeyDown(bind, ki)) {
-            return true;
+            return;
         } else if (ki.isUp) {
-            if (handleDirKey(bind, true))
-                return true;
+            handleDirKey(bind, true);
         }
-        return super.onKeyEvent(ki);
-    }
-
-    override protected bool onMouseMove(MouseInfo mouse) {
-        return false;
     }
 
     //grrr
