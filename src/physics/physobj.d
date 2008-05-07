@@ -321,7 +321,6 @@ class PhysicObject : PhysicBase {
             mWalkingMode = false;
         } else {
             //will definitely try to walk, so look into walking direction
-            checkRotation2(pos-dir);
             mWalkingMode = true;
         }
         mIsWalking = false;
@@ -353,6 +352,8 @@ class PhysicObject : PhysicBase {
                     world.mLog("no walk because not glued");
                     return;
                 }
+
+                checkRotation2(pos-walkTo);
 
                 //notice update before you forget it...
                 needUpdate();

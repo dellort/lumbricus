@@ -643,7 +643,6 @@ class ServerTeamMember : TeamMember {
     void jump(JumpMode j) {
         if (!isControllable)
             return;
-        mWorm.drawWeapon(false);
         switch (j) {
             case JumpMode.normal:
                 mWorm.jump();
@@ -819,11 +818,6 @@ class ServerTeamMember : TeamMember {
         if (!isControllable || vec == mLastMoveVector) {
             mWorm.move(Vector2f(0));
             return;
-        }
-
-        if (vec.x != 0) {
-            //requested walk -> put away weapon
-            mWorm.drawWeapon(false);
         }
 
         mLastMoveVector = vec;
