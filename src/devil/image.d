@@ -197,4 +197,10 @@ class Image {
         }
         ilTexImage(w, h, 1, c, fmt, IL_UNSIGNED_BYTE, null);
     }
+
+    void free() {
+        w = h = 0;
+        ilDeleteImages(1, &mImg);
+        mImg = 0;
+    }
 }

@@ -122,4 +122,14 @@ class AtlasPacker {
         auto textstream = new StreamOutput(confst);
         confOut.writeFile(textstream);
     }
+
+    //also frees the images (violently)
+    void free() {
+        mPacker = null;
+        foreach (i; mPageImages) {
+            i.free();
+        }
+        delete mPageImages;
+        delete mBlocks;
+    }
 }

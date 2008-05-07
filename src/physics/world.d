@@ -65,6 +65,7 @@ class PhysicWorld {
             mLastTime += cPhysTimeStepMs;
             doSimulate(cast(float)cPhysTimeStepMs/1000.0f);
         }
+        //checkUpdates();
     }
 
     // --- simulation, all in one function
@@ -113,6 +114,10 @@ class PhysicWorld {
             }
         }
 
+        checkUpdates();
+    }
+
+    void checkUpdates() {
         //do updates
         PhysicBase obj = mAllObjects.head();
         while (obj) {

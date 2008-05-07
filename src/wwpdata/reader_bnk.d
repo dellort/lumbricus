@@ -74,7 +74,9 @@ AnimList readBnkFile(Stream st) {
                 }
                 ubyte[] buf = new ubyte[len];
                 st.readExact(buf.ptr, len);
+                delete chunkDecomp;
                 chunkDecomp = wormsDecompress(buf, chunkHdr[curChunkIdx].decompSize);
+                delete buf;
             }
             int fwidth = hframe.x2-hframe.x1;
             int fheight = hframe.y2-hframe.y1;
@@ -83,6 +85,10 @@ AnimList readBnkFile(Stream st) {
         }
         alist.animations ~= anim;
     }
+    delete chunkDecomp;
+    delete animHdr;
+    delete frameHdr;
+    delete chunkHdr;
     writefln();
     return alist;
 }

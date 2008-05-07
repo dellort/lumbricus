@@ -82,6 +82,7 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir) {
             AnimList water = readSprFile(spr);
             do_write_anims(water, animConf.getSubNode("water_waves"), "waves",
                 waterout);
+            water.free();
 
             scope colourtxt = new File(wpath~path.sep~"colour.txt", FileMode.In);
             char[][] colRGB = split(colourtxt.readLine());

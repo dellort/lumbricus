@@ -32,6 +32,14 @@ class AnimList {
             fflush(stdout);
         }
     }
+
+    //free the data violently (with delete)
+    void free() {
+        foreach (a; animations) {
+            a.free();
+        }
+        delete animations;
+    }
 }
 
 class Animation {
@@ -113,5 +121,12 @@ class Animation {
                 block.origin.y);
         }
         wasDumped = true;
+    }
+
+    void free() {
+        foreach (ref f; frames) {
+            delete f.data;
+        }
+        delete frames;
     }
 }

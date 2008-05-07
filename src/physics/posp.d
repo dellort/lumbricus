@@ -46,6 +46,8 @@ class POSP {
     float walkingClimb = 10; //pixels of height per 1-pixel which worm can climb
     bool walkLimitSlopeSpeed = false;
 
+    bool jetpackLooking; //calc looking-angle as needed for worms with jetpacks
+
     //influence through damage (0 = invincible, 1 = normal)
     float damageable = 0.0f;
     float damageThreshold = 1.0f;
@@ -111,6 +113,7 @@ class POSP {
             "velocity_constraint", str.format("%s %s", velocityConstraint.x,
             velocityConstraint.y)));
         speedLimit = node.getFloatValue("speed_limit", speedLimit);
+        jetpackLooking = node.getBoolValue("jetpack_looking", jetpackLooking);
         //xxx: passes true for the second parameter, which means the ID
         //     is created if it doesn't exist; this is for forward
         //     referencing... it should be replaced by collision classes

@@ -171,7 +171,6 @@ class PhysicObject : PhysicBase {
 
         needUpdate();
         checkRotation();
-
     }
 
     char[] toString() {
@@ -231,24 +230,47 @@ class PhysicObject : PhysicBase {
     //last known surface normal
     Vector2f surface_normal;
 
+    //angle where the worm wants to look to
+    //the worm is mostly forced to look somewhere else, but when there's still
+    //some degree of freedom, this is used
+    //(e.g. worm sits -> angle must fit to ground, but could look left or right)
+    //automatically set to walking direction when walking is started,
+    //and to flying direction during flying
+    private float mIntendedLookAngle = 0;
+
     //set rotation (using velocity)
     public void checkRotation() {
+        if (posp.jetpackLooking) {
+            auto ndir = selfForce.normal();
+            if (!ndir.isNaN()) {
+                //special case: moving straight up/down
+                //jetpack is either left or right, so keep last direction
+                if (ndir.x != 0)
+                    mIntendedLookAngle = ndir.toAngle();
+            }
+            return;
+        }
+
         auto len = velocity.length;
         //xxx insert a well chosen value here
         //NOTE: this check also prevents NaNs from getting through
         //intention is that changes must be big enough to change worm direction
         if (len > 0.001) {
             rotation = (velocity/len).toAngle();
+            mIntendedLookAngle = rotation; //(set only when unglued)
         }
     }
     //set rotation (using move-vector from oldpos to pos)
+    /+
     private void checkRotation2(Vector2f oldpos) {
         Vector2f dir = pos-oldpos;
         auto len = dir.length;
         if (len > 0.001) {
             rotation = (dir/len).toAngle();
+            checkRotation();
         }
     }
+    +/
 
     //whenever this object touches the ground, call this with the depth*normal
     //  vector
@@ -261,14 +283,16 @@ class PhysicObject : PhysicBase {
     }
 
     //angle where the worm looks to, or is forced to look to (i.e. when sitting)
-    float lookey(bool forceGlue = false) {
-        if (!isGlued || forceGlue) {
+    float lookey() {
+        if (posp.jetpackLooking)
+            return mIntendedLookAngle;
+        if (!isGlued) {
             return rotation;
         } else {
             float angle = ground_angle+PI/2;
             //hm!?!?
             auto a = Vector2f.fromPolar(1, angle);
-            auto b = Vector2f.fromPolar(1, rotation);
+            auto b = Vector2f.fromPolar(1, mIntendedLookAngle);
             if (a*b < 0)
                 angle += PI; //+180 degrees
             //modf sucks!
@@ -325,6 +349,12 @@ class PhysicObject : PhysicBase {
         }
         mIsWalking = false;
 
+        if (mWalkingMode) {
+            auto ndir = dir.normal();
+            if (!ndir.isNaN())
+                mIntendedLookAngle = ndir.toAngle();
+        }
+
         needUpdate();
     }
 
@@ -353,7 +383,7 @@ class PhysicObject : PhysicBase {
                     return;
                 }
 
-                checkRotation2(pos-walkTo);
+                //checkRotation2(pos-walkTo);
 
                 //notice update before you forget it...
                 needUpdate();

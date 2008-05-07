@@ -262,6 +262,12 @@ class AniFile {
             output_conf.writeFile(textstream);
         }
     }
+
+    void free() {
+        atlas.free();
+        atlas = null;
+        //rest isn't probably worth to delete?
+    }
 }
 
 void do_extractbnk(char[] bnkname, Stream bnkfile, ConfigNode bnkNode,
@@ -274,6 +280,7 @@ void do_extractbnk(char[] bnkname, Stream bnkfile, ConfigNode bnkNode,
     writefln("Working on %s",bnkname);
     auto anis = readBnkFile(bnkfile);
     do_write_anims(anis, bnkNode, bnkname, workPath);
+    anis.free();
 }
 
 void do_write_anims(AnimList anims, ConfigNode config, char[] name,
@@ -309,8 +316,12 @@ void do_write_anims(AnimList anims, ConfigNode config, char[] name,
     gPacker.write(workPath);
     gAnims.write(workPath);
 
+    gAnims.free();
+    gPacker.free();
+
     gPacker = null;
     gAnims = null;
+    gAnimList = null;
 }
 
 //item must be a ConfigValue and contain exactly n entries

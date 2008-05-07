@@ -32,10 +32,10 @@ Image readImgFile(Stream st) {
     dataLen -= st.position;
     ubyte[] data = new ubyte[dataLen];
     st.readExact(data.ptr, dataLen);
-    ubyte[] imgData;
+    ubyte[] imgData, decomp;
 
     if (flags & IMG_FLAG_COMPRESSED) {
-        imgData = wormsDecompress(data, w*h);
+        decomp = imgData = wormsDecompress(data, w*h);
     } else {
         imgData = data[0..w*h];
     }
@@ -43,12 +43,18 @@ Image readImgFile(Stream st) {
 
     auto img = new Image(w, h, false);
     img.blitRGBData(rgbData.ptr, w, h, 0, 0, false);
+
+    delete rgbData;
+    delete decomp;
+    delete data;
+
     return img;
 }
 
 void readImg(Stream st, char[] outputDir, char[] fnBase) {
     scope img = readImgFile(st);
     img.save(outputDir ~ path.sep ~ fnBase ~ ".png");
+    img.free();
 }
 
 static this() {
