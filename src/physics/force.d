@@ -130,3 +130,15 @@ class StokesDrag : PhysicForce {
         }
     }
 }
+
+//proxy class to apply a force to one specific object
+class ObjectForce : PhysicForce {
+    PhysicObject target;
+    PhysicForce force;
+
+    void applyTo(PhysicObject o, float deltaT) {
+        if (o == target) {
+            force.applyTo(target, deltaT);
+        }
+    }
+}

@@ -626,17 +626,24 @@ class ProjectileEffectorGravityCenterClass : ProjectileEffectorClass {
 class ProjectileEffectorHoming : ProjectileEffector {
     private ProjectileEffectorHomingClass myclass;
     private Vector2f oldAccel;
+    private ObjectForce objForce;
+    private ConstantForce homingForce;
 
     this(ProjectileSprite parent, ProjectileEffectorHomingClass type) {
         super(parent, type);
         myclass = type;
+        homingForce = new ConstantForce();
+        objForce = new ObjectForce();
+        objForce.target = mParent.physics;
+        objForce.force = homingForce;
     }
 
     override void simulate(float deltaT) {
         super.simulate(deltaT);
         if (mActive) {
             Vector2f totarget = mParent.target - mParent.physics.pos;
-            mParent.physics.addForce(totarget.normal*myclass.force);
+            //mParent.physics.addForce(totarget.normal*myclass.force);
+            homingForce.force = totarget.normal*myclass.force;
         }
     }
 
@@ -645,8 +652,10 @@ class ProjectileEffectorHoming : ProjectileEffector {
             //backup acceleration and set gravity override
             oldAccel = mParent.physics.acceleration;
             mParent.physics.acceleration = -mParent.engine.physicworld.gravity;
+            mParent.engine.physicworld.add(objForce);
         } else {
             mParent.physics.acceleration = oldAccel;
+            objForce.doRemove();
         }
     }
 }
