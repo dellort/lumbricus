@@ -626,7 +626,6 @@ class ProjectileEffectorGravityCenterClass : ProjectileEffectorClass {
 class ProjectileEffectorHoming : ProjectileEffector {
     private ProjectileEffectorHomingClass myclass;
     private Vector2f oldAccel;
-    private const float velocityInfluence = 0.01f;
     private ObjectForce objForce;
     private ConstantForce homingForce;
 
@@ -648,9 +647,8 @@ class ProjectileEffectorHoming : ProjectileEffector {
             Vector2f cmpTurn = totarget.project_vector(
                 mParent.physics.velocity.orthogonal);
             float velFactor = 1.0f / (1.0f +
-                mParent.physics.velocity.length * velocityInfluence);
-            std.stdio.writefln(velFactor);
-            cmpTurn *= 0.01;
+                mParent.physics.velocity.length * myclass.velocityInfluence);
+            cmpTurn *= velFactor;
             totarget = cmpAccel + cmpTurn;
             //mParent.physics.addForce(totarget.normal*myclass.force);
             homingForce.force = totarget.normal*myclass.force;
@@ -673,11 +671,13 @@ class ProjectileEffectorHoming : ProjectileEffector {
 class ProjectileEffectorHomingClass : ProjectileEffectorClass {
     float force;
     float maxvelocity;
+    float velocityInfluence = 0.001f;
 
     this(ConfigNode node) {
         super(node);
         force = node.getIntValue("force",100);
         maxvelocity = node.getIntValue("max_velocity",500);
+        velocityInfluence = node.getFloatValue("velocity_influence", 0.001f);
     }
 
     override ProjectileEffectorHoming createEffector(ProjectileSprite parent) {
