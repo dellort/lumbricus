@@ -204,6 +204,12 @@ public struct Vector2(T) {
         return ((*this - start) * dir) / dir.quad_length;
     }
 
+    //return the projected component of this on the vector other
+    Vector2 project_vector(Vector2 other) {
+        T len = other.length;
+        return (*this * other)/(len * len) * other;
+    }
+
     //if point is inside the rect formed by pos and size
     //the border of that rect is exclusive
     public bool isInside(Vector2 pos, Vector2 size) {
