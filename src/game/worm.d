@@ -192,11 +192,13 @@ class WormSprite : GObjectSprite {
             //when user presses key to change weapon angle
             //can rotate through all 180 degrees in 5 seconds
             //(given abs(mWeaponMove) == 1)
-            mWeaponAngle += mWeaponMove*deltaT*PI/2;
-            mWeaponAngle = max(mWeaponAngle, cast(float)-PI/2);
-            mWeaponAngle = min(mWeaponAngle, cast(float)PI/2);
-            point_angle = mWeaponAngle;
-            updateAnimation();
+            if (abs(mWeaponMove) > 0.0001) {
+                mWeaponAngle += mWeaponMove*deltaT*PI/2;
+                mWeaponAngle = max(mWeaponAngle, cast(float)-PI/2);
+                mWeaponAngle = min(mWeaponAngle, cast(float)PI/2);
+                point_angle = mWeaponAngle;
+                updateAnimation();
+            }
         }
         //if shooter dies, undraw weapon
         //xxx doesn't work yet, shooter starts as active=false (wtf)

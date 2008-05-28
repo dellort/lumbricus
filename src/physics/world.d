@@ -288,6 +288,7 @@ class PhysicWorld {
             obj = firstColl;
             return true;
         }
+        hitPoint = start + dir*maxLen;
         return false;
     }
 

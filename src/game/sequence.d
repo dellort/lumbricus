@@ -634,8 +634,13 @@ private:
         if (state is mQueuedState)
             return;
         WormState curstate = mCurSubSeq ? mCurSubSeq.owner : null;
-        if (curstate is state)
+        if (curstate is state) {
+            //got request to go back to current state while still in transition
+            //to different mQueuedState -> change target to current
+            if (mQueuedState !is null)
+                mQueuedState = curstate;
             return;
+        }
         //std.stdio.writefln("set state: ", sstate.name);
         //possibly start state change
         //look if the leaving sequence should play

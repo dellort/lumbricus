@@ -343,13 +343,15 @@ class PhysicObject : PhysicBase {
             if (!mWalkingMode)
                 return;
             mWalkingMode = false;
+            if (mIsWalking) {
+                mIsWalking = false;
+
+                needUpdate();
+            }
         } else {
             //will definitely try to walk, so look into walking direction
             mWalkingMode = true;
         }
-        mIsWalking = false;
-
-        needUpdate();
     }
 
     //if object _attempts_ to walk
@@ -378,9 +380,6 @@ class PhysicObject : PhysicBase {
                 }
 
                 //checkRotation2(pos-walkTo);
-
-                //notice update before you forget it...
-                needUpdate();
 
                 //look where's bottom
                 //NOTE: y1 > y2 means y1 is _blow_ y2
@@ -447,6 +446,9 @@ class PhysicObject : PhysicBase {
                         if (!ndir.isNaN())
                             mIntendedLookAngle = ndir.toAngle();
 
+                        //notice update before you forget it...
+                        needUpdate();
+
                         return;
                     }
 
@@ -454,7 +456,11 @@ class PhysicObject : PhysicBase {
                 }
 
                 //if nothing was done, the worm (or the cow :) just can't walk
-                mIsWalking = false;
+                if (mIsWalking) {
+                    mIsWalking = false;
+                    //only if state actually changed
+                    needUpdate();
+                }
             }
         }
     }
