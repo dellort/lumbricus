@@ -1,6 +1,6 @@
 module physics.physobj;
 
-import std.math : PI, abs, signbit;
+import std.math : PI, abs;
 import utils.mylist;
 import utils.vector2;
 import utils.misc: max;
@@ -293,12 +293,19 @@ class PhysicObject : PhysicBase {
             //hm!?!?
             auto a = Vector2f.fromPolar(1, angle);
             auto b = Vector2f.fromPolar(1, mIntendedLookAngle);
-            if (a*b < 0)
-                angle += PI; //+180 degrees
-            //modf sucks!
-            while (angle > PI*2) {
-                angle -= PI*2;
+            float sp = a*b;
+            if (sp < 0) {
+                a = -a;     //invert for right looking direction
+                sp = -sp;
             }
+
+            //check for 90 deg special case (both vectors are normalized)
+            if (sp < 0.01) {
+                //don't allow 90/270 deg, instead modify the vector
+                //to point into intended look direction
+                a += 0.01*b;
+            }
+            angle = a.toAngle();  //lol
             return angle;
         }
     }
