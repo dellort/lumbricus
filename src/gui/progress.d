@@ -44,7 +44,8 @@ class Foobar : Widget {
     //border on the left and right
     private int xpadding() {
         //two boxes, the outside and the inside ones
-        return border.cornerRadius*2 + spacing.x;
+        //return border.cornerRadius*2 + spacing.x;
+        return border.cornerRadius; //effective spacing: /2
     }
 
     //set width of the bar; in pixels; when width=0, the minimal size is showed
