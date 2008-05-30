@@ -9,7 +9,7 @@ import gui.widget;
 import gui.container;
 import gui.label;
 import gui.wm;
-import std.random;
+import utils.random;
 import utils.time;
 import utils.vector2;
 

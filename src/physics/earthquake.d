@@ -74,7 +74,7 @@ class EarthQuakeForce : PhysicForce {
         //xxx: undeterministic randomness
         //using an angle here is a simple way to create a normalized vector
         mEarthQuakeImpulse = Vector2f.fromPolar(1.0f,
-            random.random() * PI * 2.0f) * mEarthQuakeStrength;
+            world.rnd.nextDouble() * PI * 2.0f) * mEarthQuakeStrength;
         mEarthQuakeLastChangeTime = 0;
     }
 

@@ -46,6 +46,8 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
 
     GameEngineGraphics graphics;
 
+    Random rnd;
+
     Level level() {
         return mLevel;
     }
@@ -210,6 +212,9 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     }
 
     this(GameConfig config, GfxSet a_gfx, GameEngineGraphics gr) {
+        rnd = new Random();
+        //xxx
+        rnd.seed(1);
         gfx = a_gfx;
         graphics = gr;
 
@@ -223,7 +228,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         mGameTime.paused = true;
 
         mObjects = new List!(GameObject)(GameObject.node.getListNodeOffset());
-        mPhysicWorld = new PhysicWorld();
+        mPhysicWorld = new PhysicWorld(rnd);
 
         mWorldSize = mLevel.worldSize;
 
@@ -486,8 +491,8 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
             y_max = max(y_max, 1.0f*gl.offset.y);
             y_max = min(y_max, 1.0f*gl.offset.y + gl.size.y);
             for (;retrycount > 0; retrycount--) {
-                drop.y = randRange(1.0f*gl.offset.y, y_max);
-                drop.x = gl.offset.x + randRange(0, gl.size.x);
+                drop.y = rnd.nextRange(1.0f*gl.offset.y, y_max);
+                drop.x = gl.offset.x + rnd.nextRange(0, gl.size.x);
                 if (placeObject(drop, y_max, dest, radius))
                     return true;
             }

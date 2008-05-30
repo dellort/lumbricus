@@ -334,7 +334,7 @@ private void spawnsprite(GameEngine engine, int n, SpawnParams params,
 
         if (params.random) {
             //random rotation angle for dir vector, in rads
-            float theta = (genrand_real1()-0.5f)*params.random*PI/180.0f;
+            float theta = (engine.rnd.nextDouble()-0.5f)*params.random*PI/180.0f;
             about.dir = about.dir.rotated(theta);
         }
 
@@ -521,7 +521,8 @@ class ProjectileEffector {
         myclass = type;
         birthTime = mParent.engine.gameTime.current;
         if (myclass.randomDelay)
-            delay = timeMsecs(myclass.delay.msecs*genrand_real1());
+            delay = timeMsecs(myclass.delay.msecs
+                * parent.engine.rnd.nextDouble());
         else
             delay = myclass.delay;
     }

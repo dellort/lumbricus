@@ -1,36 +1,47 @@
 module utils.random;
-import rand = std.random;
 
-//copyright: search for mt19937ar.c (BSD)
+public import utils.rndkiss;
+
+private Random rngShared;
+
+uint rand() {
+    return rngShared.next();
+}
+
+void rand_seed(uint s) {
+    rngShared.seed(s);
+}
+
 /* generates a random number on [0,1]-real-interval */
 double genrand_real1()
 {
-    return rand.rand()*(1.0/4294967295.0);
-    /* divided by 2^32-1 */
+    return rngShared.nextDouble();
 }
 /* generates a random number on [0,1)-real-interval */
 double genrand_real2()
 {
-    return rand.rand()*(1.0/4294967296.0);
-    /* divided by 2^32 */
+    return rngShared.nextDouble2();
 }
 
 //[0.0f, 1.0f]
 float random() {
-    return genrand_real1();
+    return rngShared.nextDouble();
 }
 
 //-1.0f..1.0f
 float random2() {
-    return (random()-0.5f)*2.0f;
+    return rngShared.nextDouble3();
 }
 
 //[from, to)
 int random(int from, int to) {
-    return rand.rand() % (to-from) + from;
+    return rngShared.next(from, to);
 }
 
 T randRange(T)(T min, T max) {
-    auto r = rand.rand();
-    return cast(T)(min + (max-min+1)*genrand_real2());
+    return rngShared.nextRange(min, max);
+}
+
+static this() {
+    rngShared = new Random();
 }

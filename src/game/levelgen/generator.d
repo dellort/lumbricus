@@ -19,7 +19,7 @@ import utils.factory;
 import std.stream;
 import str = std.string;
 import conv = std.conv;
-import rand = std.random;
+import rand = utils.random;
 import utils.misc;
 
 debug {

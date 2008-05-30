@@ -6,6 +6,7 @@ import utils.misc;
 import utils.array : arrayMap;
 import utils.configfile;
 import utils.mylist;
+import utils.random;
 import utils.time;
 import utils.vector2;
 import log = utils.log;
@@ -34,6 +35,7 @@ class PhysicWorld {
     private uint mLastTime;
 
     package log.Log mLog;
+    Random rnd;
 
     public void add(PhysicObject obj) {
         mObjects.insert_tail(obj);
@@ -511,7 +513,13 @@ private:
         mCTNever = findCollisionID("never");
     }
 
-    public this() {
+    ///r = random number generator to use, null will create a new instance
+    public this(Random r) {
+        if (r) {
+            rnd = new Random();
+        } else {
+            rnd = r;
+        }
         initCT();
         mObjects = new List!(PhysicObject)(PhysicObject.objects_node.getListNodeOffset());
         mAllObjects = new List!(PhysicBase)(PhysicBase.allobjects_node.getListNodeOffset());

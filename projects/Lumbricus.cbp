@@ -175,6 +175,7 @@
 		<Unit filename="..\src\utils\queue.d" />
 		<Unit filename="..\src\utils\random.d" />
 		<Unit filename="..\src\utils\rect2.d" />
+		<Unit filename="..\src\utils\rndkiss.d" />
 		<Unit filename="..\src\utils\strparser.d" />
 		<Unit filename="..\src\utils\time.d" />
 		<Unit filename="..\src\utils\timer.d" />

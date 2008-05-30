@@ -77,7 +77,7 @@ private class RayShooter: Shooter {
 
     //fires one shot with random spread
     private void fireRound() {
-        float a = base.spread*genrand_real1() - base.spread/2.0f;
+        float a = base.spread*engine.rnd.nextDouble() - base.spread/2.0f;
         float dist = owner.physics.posp.radius + 2;
         Vector2f ndir = fireInfo.dir.rotated(a*PI/180.0f);
         Vector2f npos = owner.physics.pos+ndir*dist;

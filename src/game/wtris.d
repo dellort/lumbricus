@@ -11,7 +11,7 @@ import gui.container;
 import gui.label;
 import gui.loader;
 import gui.wm;
-import std.random;
+import utils.random;
 import utils.time;
 import utils.vector2;
 import std.string : format;

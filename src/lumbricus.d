@@ -11,9 +11,9 @@ import toplevel = common.toplevel;
 import utils.configfile;
 import utils.log;
 import utils.output;
+import utils.random;
 import utils.time;
 
-import std.random : rand_seed;
 import std.stdio;
 import std.stream : File, FileMode;
 import std.string;
@@ -65,7 +65,7 @@ const cCommandLineHelp =
 
 void main(char[][] args) {
     //xxx
-    rand_seed(1, 1);
+    rand_seed(1);
 
     ConfigNode cmdargs = parseCmdLine(args[1..$]);
     //cmdargs.writeFile(StdioOutput.output);
