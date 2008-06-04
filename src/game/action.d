@@ -195,7 +195,7 @@ abstract class Action : GameObject {
     protected void initialStep() {}
 
     ///run deferred actions here (don't forget the done() call)
-    void simulate(float deltaT) {
+    override void simulate(float deltaT) {
     }
 
     //called by action handler when work is complete
@@ -209,5 +209,47 @@ abstract class Action : GameObject {
 
     bool activity() {
         return mActivity;
+    }
+}
+
+///DelayAction: simple action that pauses execution for some msecs
+class DelayActionClass : ActionClass {
+    Time delay;
+
+    void loadFromConfig(ConfigNode node) {
+        delay = timeMsecs(node.getIntValue("ms",1000));
+    }
+
+    DelayAction createInstance(GameEngine eng) {
+        return new DelayAction(this, eng);
+    }
+
+    static this() {
+        ActionClassFactory.register!(typeof(this))("delay");
+    }
+}
+
+class DelayAction : Action {
+    private {
+        Time mInitTime, mFinishTime;
+        DelayActionClass myclass;
+    }
+
+    this(DelayActionClass base, GameEngine eng) {
+        super(base, eng);
+        myclass = base;
+    }
+
+    override protected void initialStep() {
+        mInitTime = engine.gameTime.current;
+        mFinishTime = mInitTime + myclass.delay;
+        //check for 0 delay special case
+        if (myclass.delay == timeNull)
+            done();
+    }
+
+    override void simulate(float deltaT) {
+        if (engine.gameTime.current > mFinishTime)
+            done();
     }
 }
