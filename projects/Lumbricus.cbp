@@ -73,6 +73,7 @@
 		<Unit filename="..\src\framework\sound.d" />
 		<Unit filename="..\src\framework\texturepack.d" />
 		<Unit filename="..\src\framework\timesource.d" />
+		<Unit filename="..\src\game\action.d" />
 		<Unit filename="..\src\game\animation.d" />
 		<Unit filename="..\src\game\bomberworm.d" />
 		<Unit filename="..\src\game\clientengine.d" />
@@ -186,7 +187,6 @@
 			<code_completion />
 			<envvars />
 			<debugger />
-			<lib_finder />
 		</Extensions>
 	</Project>
 </CodeBlocks_project_file>
