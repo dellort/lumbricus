@@ -26,6 +26,7 @@ class ActionContainer {
         if (p) {
             return *p;
         }
+        return null;
     }
 
     /** Load the whole thing from a config node
@@ -41,18 +42,28 @@ class ActionContainer {
     */
     void loadFromConfig(ConfigNode node) {
         //list of named subnodes, each containing an ActionClass
-        //xxx same code as in ActionListClass
         foreach (char[] name, ConfigNode n; node) {
-            //empty type value defaults to "list" -> less writing
-            char[] type = n.getStringValue("type", "list");
-            if (ActionClassFactory.exists(type)) {
-                auto ac = ActionClassFactory.instantiate(type);
-                ac.loadFromConfig(n);
+            auto ac = actionFromConfig(n);
+            if (ac) {
                 //names are unique
                 mActions[name] = ac;
             }
         }
     }
+}
+
+///load an action class from a ConfigNode, returns null if class was not found
+ActionClass actionFromConfig(ConfigNode node) {
+    if (node is null)
+        return null;
+    //empty type value defaults to "list" -> less writing
+    char[] type = node.getStringValue("type", "list");
+    if (ActionClassFactory.exists(type)) {
+        auto ac = ActionClassFactory.instantiate(type);
+        ac.loadFromConfig(node);
+        return ac;
+    }
+    return null;
 }
 
 
@@ -69,6 +80,9 @@ enum ALExecType {
     parallel,
 }
 
+alias void* ActionParT;
+alias ActionParT[char[]] ActionParams;
+
 //overengineered for sure: allows recursive structures ;)
 ///a list of ActionClass instances
 class ActionListClass : ActionClass {
@@ -76,6 +90,9 @@ class ActionListClass : ActionClass {
     ActionClass[] actions;
     ///see AlExecType
     ALExecType execType = ALExecType.sequential;
+    ///number of loops over all actions
+    int repeatCount = 1;
+    Time repeatDelay = Time.Null;
 
     void loadFromConfig(ConfigNode node) {
         //parameters for _this_ list
@@ -83,15 +100,18 @@ class ActionListClass : ActionClass {
         if (et == "parallel") {
             execType = ALExecType.parallel;
         }
+        repeatCount = node.getIntValue("repeat", 1);
+        repeatDelay = timeMsecs(node.getIntValue("repeat_delay", 0));
         //now load contained actions
         foreach (ConfigNode n; node) {
-            //empty type value defaults to "list" -> less writing
-            char[] type = n.getStringValue("type", "list");
-            if (ActionClassFactory.exists(type)) {
-                auto ac = ActionClassFactory.instantiate(type);
-                ac.loadFromConfig(n);
+            auto ac = actionFromConfig(n);
+            if (ac) {
                 actions ~= ac;
             }
+        }
+        if (actions.length == 0) {
+            //xxx
+            throw new Exception("Sorry, empty action list not allowed");
         }
     }
 
@@ -109,12 +129,14 @@ class ActionList : Action {
     private {
         //same as in ActionListClass
         Action[] mActions;
-        //current action (for sequential mode)
-        int mCurrent = 0;
-        //ready flag (sequential mode)
-        bool mReady = true;
-        //count finished actions (parallel mode)
-        int mDoneCounter = 0;
+        //next action due for execution
+        int mCurrent;
+        //count of finished actions
+        int mDoneCounter;
+        //repetition counter
+        int mRepCounter;
+        Time mAllDoneTime, mNextLoopTime;
+        bool mAborting;
     }
 
     ActionListClass myclass;
@@ -122,23 +144,44 @@ class ActionList : Action {
     this(ActionListClass base, GameEngine eng) {
         super(base, eng);
         myclass = base;
-        foreach (ActionClass ac; myclass.actions) {
-            mActions ~= ac.createInstance(eng);
-        }
+        mRepCounter = myclass.repeatCount;
     }
 
     //callback method for Actions (meaning an action completed)
     private void acFinish(Action sender) {
         mDoneCounter++;
+        if (mAborting)
+            return;
         //an action finished -> run the next one
         if (myclass.execType == ALExecType.sequential) {
             if (mDoneCounter < mActions.length) {
                 runNextAction();
+                return;
             }
         }
         //all done? then forward done flag
         if (mDoneCounter >= mActions.length) {
-            done();
+            mAllDoneTime = engine.gameTime.current;
+            mNextLoopTime = mAllDoneTime + myclass.repeatDelay;
+            mRepCounter--;
+            if (mRepCounter <= 0) {
+                done();
+            } else {
+                //and the whole thing once again
+                if (myclass.repeatDelay == Time.Null) {
+                    initialStep();
+                } else {
+                    active = true;
+                }
+            }
+        }
+    }
+
+    //only called while waiting for next loop
+    override void simulate(float deltaT) {
+        if (engine.gameTime.current >= mNextLoopTime) {
+            active = false;
+            initialStep();
         }
     }
 
@@ -147,10 +190,21 @@ class ActionList : Action {
         if (mCurrent >= mActions.length)
             return;
         mActions[mCurrent].onFinish = &acFinish;
-        mActions[mCurrent].execute();
+        //this must be the last statement
+        mActions[mCurrent++].execute(mParams);
     }
 
     override protected void initialStep() {
+        //create actions
+        //those are created here (and again for every loop) because Action
+        //is for one-time-execution (GameObject.die is called on finish)
+        //xxx waste of memory
+        mActions = null;
+        foreach (ActionClass ac; myclass.actions) {
+            mActions ~= ac.createInstance(engine);
+        }
+        mDoneCounter = 0;
+        mCurrent = 0;
         //check for empty list
         if (mActions.length == 0) {
             done();
@@ -166,6 +220,17 @@ class ActionList : Action {
             runNextAction();
         }
     }
+
+    override void abort() {
+        //forward abort call
+        mAborting = true;
+        foreach (Action ac; mActions) {
+            ac.abort();
+        }
+        assert(mDoneCounter >= mActions.length,
+            "Should have all done() calls here");
+        super.abort();
+    }
 }
 
 ///base class for actions (one-time execution)
@@ -173,6 +238,8 @@ class ActionList : Action {
 abstract class Action : GameObject {
     private ActionClass myclass;
     private bool mActivity = true;
+    protected ActionParams mParams;
+    protected bool mHasRun;
 
     void delegate(Action sender) onFinish;
 
@@ -182,12 +249,30 @@ abstract class Action : GameObject {
         myclass = base;
     }
 
-    void execute() {
+    protected final T* getPar(T)(char[] id) {
+        ActionParT* pt = id in mParams;
+        if (pt) {
+            return cast(T*)*pt;
+        } else {
+            return null;
+        }
+    }
+
+    final void execute() {
+        //one-time only
+        if (mHasRun)
+            return;
+        mHasRun = true;
         initialStep();
         if (mActivity) {
             //still work to do -> add to GameEngine for later processing
             active = true;
         }
+    }
+
+    final void execute(ActionParams p) {
+        mParams = p;
+        execute();
     }
 
     ///main action procedures, call done() when action is finished
@@ -199,7 +284,7 @@ abstract class Action : GameObject {
     }
 
     //called by action handler when work is complete
-    private void done() {
+    protected final void done() {
         if (onFinish) {
             onFinish(this);
         }
@@ -207,8 +292,19 @@ abstract class Action : GameObject {
         kill();
     }
 
-    bool activity() {
+    final bool activity() {
         return mActivity;
+    }
+
+    ///stop all activity asap
+    void abort() {
+        //just stop deferred activity
+        //if overriding, make sure this leads to a done() call
+        //if there has not been one before
+        if (!mHasRun || active) {
+            mHasRun = true;
+            done();
+        }
     }
 }
 
@@ -217,7 +313,7 @@ class DelayActionClass : ActionClass {
     Time delay;
 
     void loadFromConfig(ConfigNode node) {
-        delay = timeMsecs(node.getIntValue("ms",1000));
+        delay = timeMsecs(node.getIntValue("delay",1000));
     }
 
     DelayAction createInstance(GameEngine eng) {
@@ -249,7 +345,7 @@ class DelayAction : Action {
     }
 
     override void simulate(float deltaT) {
-        if (engine.gameTime.current > mFinishTime)
+        if (engine.gameTime.current >= mFinishTime)
             done();
     }
 }

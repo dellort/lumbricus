@@ -682,9 +682,9 @@ class ServerTeamMember : TeamMember {
     void selectWeapon(WeaponItem weapon) {
         if (!isControllable)
             return;
-        if (weapon is mCurrentWeapon)
-            return;
-        wormAction();
+        if (weapon !is mCurrentWeapon) {
+            wormAction();
+        }
         mCurrentWeapon = weapon;
         if (mCurrentWeapon)
             if (!mCurrentWeapon.canUse())
@@ -887,8 +887,12 @@ class WeaponSet {
         engine = aengine;
         name = config.name;
         foreach (ConfigNode node; config.getSubNode("weapon_list")) {
-            auto weapon = new WeaponItem(this, node);
-            weapons[weapon.weapon] = weapon;
+            try {
+                auto weapon = new WeaponItem(this, node);
+                weapons[weapon.weapon] = weapon;
+            } catch (Exception e) {
+                aengine.mLog("Error in weapon set '"~name~"': "~e.msg);
+            }
         }
     }
 

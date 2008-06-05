@@ -3,6 +3,7 @@ module game.weapon.projectile;
 import framework.framework;
 import game.animation;
 import physics.world;
+import game.action;
 import game.game;
 import game.gobject;
 import game.sprite;
@@ -20,13 +21,15 @@ import utils.random;
 import utils.factory;
 
 private class ProjectileWeapon : WeaponClass {
-    //GOSpriteClass[char[]] projectiles;
-    SpawnParams onFire;
+    ActionClass onFire;
 
     this(GameEngine aengine, ConfigNode node) {
         super(aengine, node);
-
-        onFire.loadFromConfig(node.getSubNode("onfire"));
+        onFire = actionFromConfig(node.getSubNode("onfire"));
+        if (!onFire) {
+            //xxx error handling...
+            throw new Exception("Projectile weapon needs onfire action");
+        }
     }
 
     ProjectileThrower createShooter(GObjectSprite go) {
@@ -41,54 +44,45 @@ private class ProjectileWeapon : WeaponClass {
 //standard projectile shooter for projectiles which are started from the worm
 //(as opposed to air strikes etc.)
 private class ProjectileThrower : Shooter {
-    ProjectileWeapon pweapon;
-    SpawnParams spawnParams;
-    int spawnCount;      //how many projectiles still to shoot
-    Time lastSpawn;
-    FireInfo fireInfo;
+    private {
+        ProjectileWeapon pweapon;
+        FireInfo fireInfo;
+        Action mFireAction;
+    }
 
     this(ProjectileWeapon base, GObjectSprite a_owner, GameEngine engine) {
         super(base, a_owner, engine);
         pweapon = base;
     }
 
-    override void simulate(float deltaT) {
-        super.simulate(deltaT);
-
-        //care about spawning!
-        while (spawnCount > 0
-            && engine.gameTime.current - lastSpawn >= spawnParams.delay)
-        {
-            spawnCount--;
-            lastSpawn = engine.gameTime.current;
-
-            auto n = spawnParams.count - (spawnCount + 1); //rgh
-            spawnsprite(engine, n, spawnParams, fireInfo, owner.physics, owner);
-        }
-        if (spawnCount == 0) {
-            active = false;
-        }
+    bool activity() {
+        return !!mFireAction;
     }
 
-    bool activity() {
-        return active; //rly?
+    void fireFinish(Action sender) {
+        mFireAction = null;
     }
 
     void fire(FireInfo info) {
-        if (active) {
+        if (mFireAction) {
             //try to interrupt
             interruptFiring();
             //if still active: no.
-            if (active)
+            if (mFireAction)
                 return;
         }
 
         fireInfo = info;
-        spawnParams = pweapon.onFire;
-        spawnCount = spawnParams.count;
-        //set lastSpawn? doesn't seem to be needed
-        //make active, so projectiles will be shot
-        active = true;
+        //create firing action
+        mFireAction = pweapon.onFire.createInstance(engine);
+        mFireAction.onFinish = &fireFinish;
+        //set parameters and let action do the rest
+        //parameter stuff is a big xxx
+        ActionParams p;
+          p["fireinfo"] = &fireInfo;
+          p["owner_phys"] = &owner.physics;
+          p["owner_game"] = &owner;
+        mFireAction.execute(p);
 
         //wut?
         /+
@@ -98,6 +92,10 @@ private class ProjectileThrower : Shooter {
             owner.updateAnimation();
         }
         +/
+    }
+
+    override void interruptFiring() {
+        mFireAction.abort();
     }
 }
 
@@ -363,6 +361,51 @@ private void spawnsprite(GameEngine engine, int n, SpawnParams params,
 
     //set fire to it
     sprite.active = true;
+}
+
+//action classes for spawning stuff
+//xxx move somewhere else
+class SpawnActionClass : ActionClass {
+    SpawnParams sparams;
+
+    void loadFromConfig(ConfigNode node) {
+        sparams.loadFromConfig(node);
+    }
+
+    DelayAction createInstance(GameEngine eng) {
+        return new SpawnAction(this, eng);
+    }
+
+    static this() {
+        ActionClassFactory.register!(typeof(this))("spawn");
+    }
+}
+
+class SpawnAction : Action {
+    private {
+        SpawnActionClass myclass;
+        FireInfo* fi;
+        PhysicObject shootby;
+        GameObject shootby_obj;
+    }
+
+    this(SpawnActionClass base, GameEngine eng) {
+        super(base, eng);
+        myclass = base;
+    }
+
+    override protected void initialStep() {
+        //xxx parameter stuff is a bit weird
+        fi = getPar!(FireInfo)("fireinfo");
+        shootby = *getPar!(PhysicObject)("owner_phys");
+        shootby_obj = *getPar!(GameObject)("owner_game");
+        //delay is not used, use ActionList looping for this
+        for (int n = 0; n < myclass.sparams.count; n++) {
+            spawnsprite(engine, n, myclass.sparams, *fi, shootby,
+                shootby_obj);
+        }
+        done();
+    }
 }
 
 //xxx:
