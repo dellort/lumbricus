@@ -109,6 +109,7 @@
 		<Unit filename="..\src\game\sprite.d" />
 		<Unit filename="..\src\game\temp.d" />
 		<Unit filename="..\src\game\water.d" />
+		<Unit filename="..\src\game\weapon\actions.d" />
 		<Unit filename="..\src\game\weapon\projectile.d" />
 		<Unit filename="..\src\game\weapon\ray.d" />
 		<Unit filename="..\src\game\weapon\special_weapon.d" />

@@ -252,7 +252,7 @@ class PhysicWorld {
     ///  hitPoint = returns the absolute coords of the hitpoint
     ///  obj      = return the hit object (null if landscape was hit)
     bool shootRay(Vector2f start, Vector2f dir, float maxLen,
-        out Vector2f hitPoint, out PhysicObject obj)
+        out Vector2f hitPoint, out PhysicObject obj, out Vector2f normal)
     {
         //xxx range limit (we have nothing like world bounds)
         if (maxLen > 10000)
@@ -282,12 +282,14 @@ class PhysicWorld {
                 //found collision before hit object -> stop
                 obj = null;
                 hitPoint = start + dir*t;
+                normal = contact.normal;
                 return true;
             }
         }
         if (firstColl && tmin <= maxLen) {
             hitPoint = start + dir*tmin;
             obj = firstColl;
+            normal = (hitPoint - obj.pos).normal;
             return true;
         }
         hitPoint = start + dir*maxLen;

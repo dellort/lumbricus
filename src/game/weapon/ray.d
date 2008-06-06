@@ -3,8 +3,10 @@ module game.weapon.ray;
 import game.game;
 import game.gobject;
 import physics.world;
+import game.action;
 import game.sprite;
 import game.weapon.weapon;
+import game.weapon.projectile;
 import game.gamepublic;
 import std.math: PI;
 import utils.vector2;
@@ -14,10 +16,7 @@ import utils.log;
 import utils.random;
 import utils.time;
 
-class RayWeapon: WeaponClass {
-    float damage = 5.0f;   //damage of one hit
-    int count = 1;         //number of bullets
-    Time delay;            //delay between bullets
+class RayWeapon: ProjectileWeapon {
     float spread = 0;      //random spread (degrees)
     Time lineTime;         //time for which a laser-like line is displayed
     Color[2] lineColors;   //[cold, hot] colors (interpolated during lineTime)
@@ -25,11 +24,7 @@ class RayWeapon: WeaponClass {
     this(GameEngine aengine, ConfigNode node) {
         super(aengine, node);
         //always directed with fixed strength
-        fireMode.canThrow = true;
         fireMode.variableThrowStrength = false;
-        damage = node.getFloatValue("damage", damage);
-        count = node.getIntValue("count", count);
-        delay = timeSecs(node.getFloatValue("delay", delay.secs));
         spread = node.getFloatValue("spread", spread);
         lineTime = timeSecs(node.getFloatValue("linetime", lineTime.secs));
         lineColors[0].parse(node["color1"]);
@@ -37,7 +32,7 @@ class RayWeapon: WeaponClass {
     }
 
     //using SpecialShooter here leads to dmd lockup (at least with dsss)
-    Shooter createShooter(GObjectSprite owner) {
+    RayShooter createShooter(GObjectSprite owner) {
         return new RayShooter(this, owner, engine);
     }
 
@@ -46,67 +41,42 @@ class RayWeapon: WeaponClass {
     }
 }
 
-private class RayShooter: Shooter {
+private class RayShooter: ProjectileThrower {
     RayWeapon base;
-    FireInfo fireInfo;
-    int remain;      //number of bullets still to fire
-    Time lastShot;
+    private Vector2f mOwnerPos;
 
     this(RayWeapon base, GObjectSprite a_owner, GameEngine engine) {
         super(base, a_owner, engine);
         this.base = base;
     }
 
-    bool activity() {
-        return active;
-    }
-
-    void fire(FireInfo info) {
-        if (active) {
-            //try to interrupt
-            interruptFiring();
-            //if still active: no.
-            if (active)
-                return;
-        }
-
-        fireInfo = info;
-        remain = base.count;
-        active = true;
-    }
-
-    //fires one shot with random spread
-    private void fireRound() {
+    override void fireRound(Action sender) {
+        //shoot the ray with random spread and adjust fireinfo
         float a = base.spread*engine.rnd.nextDouble() - base.spread/2.0f;
         float dist = owner.physics.posp.radius + 2;
         Vector2f ndir = fireInfo.dir.rotated(a*PI/180.0f);
-        Vector2f npos = owner.physics.pos+ndir*dist;
+        Vector2f npos = mOwnerPos + ndir*dist;
         PhysicObject o;
-        Vector2f hitPoint;
+        Vector2f hitPoint, normal;
         bool hit = engine.physicworld.shootRay(npos, ndir,
-            /+engine.level.size.length+/ 1000, hitPoint, o);
+            /+engine.level.size.length+/ 1000, hitPoint, o, normal);
         if (hit) {
-            engine.explosionAt(hitPoint, base.damage, owner);
+            fireInfo.pos = hitPoint;
+        } else {
+            fireInfo.pos = Vector2f.nan;
         }
+        //away from shooting object, so don't use radius
+        fireInfo.shootbyRadius = 0;
+        fireInfo.surfNormal = normal;
         if (base.lineTime > timeSecs(0)) {
             new RenderLaser(engine, [npos, hitPoint], base.lineTime,
                 [base.lineColors[0], base.lineColors[1], base.lineColors[0]]);
         }
     }
 
-    override void simulate(float deltaT) {
-        //shoot bullets
-        while (remain > 0
-            && engine.gameTime.current - lastShot >= base.delay)
-        {
-            remain--;
-            lastShot = engine.gameTime.current;
-
-            fireRound();
-        }
-        if (remain == 0) {
-            active = false;
-        }
+    override void fire(FireInfo info) {
+        mOwnerPos = owner.physics.pos;
+        super.fire(info);
     }
 }
 

@@ -858,7 +858,9 @@ class ServerTeamMember : TeamMember {
         bool exists = !!mTargetCross;
         bool shouldexist = false;
         if (worm.weaponDrawn() && worm.shooter) {
-            shouldexist = worm.shooter.weapon.fireMode.throwAnyDirection;
+            //xxx special cases not handled, just turns on/off crosshair
+            shouldexist =
+                worm.shooter.weapon.fireMode.direction != ThrowDirection.fixed;
         }
         if (exists != shouldexist) {
             if (exists) {

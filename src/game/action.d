@@ -81,7 +81,37 @@ enum ALExecType {
 }
 
 alias void* ActionParT;
-alias ActionParT[char[]] ActionParams;
+//alias ActionParT[char[]] ActionParams;
+
+///holder for action parameters
+//xxx make this better
+struct ActionParams {
+    private ActionParT[char[]] mParams;
+
+    //called whenever a parameter is accessed
+    void delegate(ActionParams* sender, char[] id) onBeforeRead;
+
+    ActionParT opIndex(char[] id) {
+        return mParams[id];
+    }
+
+    ActionParT opIndexAssign(ActionParT p, char[] id) {
+        mParams[id] = p;
+        return p;
+    }
+
+    //actions have to use this to read parameters, or callback won't work
+    T* getPar(T)(char[] id) {
+        if (onBeforeRead)
+            onBeforeRead(this, id);
+        ActionParT* pt = id in mParams;
+        if (pt) {
+            return cast(T*)*pt;
+        } else {
+            return null;
+        }
+    }
+}
 
 //overengineered for sure: allows recursive structures ;)
 ///a list of ActionClass instances
@@ -139,6 +169,8 @@ class ActionList : Action {
         bool mAborting;
     }
 
+    //called before every loop over all actions
+    void delegate(Action sender) onStartLoop;
     ActionListClass myclass;
 
     this(ActionListClass base, GameEngine eng) {
@@ -191,7 +223,7 @@ class ActionList : Action {
             return;
         mActions[mCurrent].onFinish = &acFinish;
         //this must be the last statement
-        mActions[mCurrent++].execute(mParams);
+        mActions[mCurrent++].execute(params);
     }
 
     override protected void initialStep() {
@@ -205,6 +237,8 @@ class ActionList : Action {
         }
         mDoneCounter = 0;
         mCurrent = 0;
+        if (onStartLoop)
+            onStartLoop(this);
         //check for empty list
         if (mActions.length == 0) {
             done();
@@ -238,9 +272,10 @@ class ActionList : Action {
 abstract class Action : GameObject {
     private ActionClass myclass;
     private bool mActivity = true;
-    protected ActionParams mParams;
     protected bool mHasRun;
 
+    ActionParams params;
+    void delegate(Action sender) onExecute;
     void delegate(Action sender) onFinish;
 
     this(ActionClass base, GameEngine eng) {
@@ -249,16 +284,9 @@ abstract class Action : GameObject {
         myclass = base;
     }
 
-    protected final T* getPar(T)(char[] id) {
-        ActionParT* pt = id in mParams;
-        if (pt) {
-            return cast(T*)*pt;
-        } else {
-            return null;
-        }
-    }
-
     final void execute() {
+        if (onExecute)
+            onExecute(this);
         //one-time only
         if (mHasRun)
             return;
@@ -271,7 +299,7 @@ abstract class Action : GameObject {
     }
 
     final void execute(ActionParams p) {
-        mParams = p;
+        params = p;
         execute();
     }
 

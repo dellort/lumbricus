@@ -9,6 +9,7 @@ import game.gobject;
 import game.sprite;
 import game.sequence;
 import game.weapon.weapon;
+import game.weapon.actions;
 import std.math;
 import str = std.string;
 import utils.misc;
@@ -46,9 +47,9 @@ private class ProjectileWeapon : WeaponClass {
 private class ProjectileThrower : Shooter {
     private {
         ProjectileWeapon pweapon;
-        FireInfo fireInfo;
         Action mFireAction;
     }
+    protected FireInfo fireInfo;
 
     this(ProjectileWeapon base, GObjectSprite a_owner, GameEngine engine) {
         super(base, a_owner, engine);
@@ -63,6 +64,15 @@ private class ProjectileThrower : Shooter {
         mFireAction = null;
     }
 
+    void fireReadParam(ActionParams* sender, char[] id) {
+        //called before a parameter is read
+    }
+
+    void fireRound(Action sender) {
+        //if the outer fire action is a list, called every loop, else once
+        //before firing
+    }
+
     void fire(FireInfo info) {
         if (mFireAction) {
             //try to interrupt
@@ -73,6 +83,8 @@ private class ProjectileThrower : Shooter {
         }
 
         fireInfo = info;
+        fireInfo.pos = owner.physics.pos;
+        fireInfo.shootbyRadius = owner.physics.posp.radius;
         //create firing action
         mFireAction = pweapon.onFire.createInstance(engine);
         mFireAction.onFinish = &fireFinish;
@@ -80,8 +92,18 @@ private class ProjectileThrower : Shooter {
         //parameter stuff is a big xxx
         ActionParams p;
           p["fireinfo"] = &fireInfo;
-          p["owner_phys"] = &owner.physics;
           p["owner_game"] = &owner;
+        p.onBeforeRead = &fireReadParam;
+
+        //xxx this is hacky
+        auto al = cast(ActionList)mFireAction;
+        if (al) {
+            al.onStartLoop = &fireRound;
+        } else {
+            //no list? so just one-time call when mFireAction is run
+            mFireAction.onExecute = &fireRound;
+        }
+
         mFireAction.execute(p);
 
         //wut?
@@ -188,13 +210,14 @@ private class ProjectileSprite : GObjectSprite {
             info.surfNormal = surfNormal;
             info.strength = physics.velocity.length; //xxx confusing units :-)
             info.pointto = target;   //keep target for spawned projectiles
+            info.pos = physics.pos;
+            info.shootbyRadius = physics.posp.radius;
 
             //xxx: if you want the spawn-delay to be considered, there'd be two
             // ways: create a GameObject which does this (or do it in
             // this.simulate), or use the Shooter class
             for (int n = 0; n < myclass.spawnOnDetonate.count; n++) {
-                spawnsprite(engine, n, *myclass.spawnOnDetonate, info, physics,
-                    this);
+                spawnsprite(engine, n, *myclass.spawnOnDetonate, info, this);
             }
         }
         //an explosion
@@ -299,14 +322,14 @@ struct SpawnParams {
 // sprite = new projectile sprite, which will be initialized and set active now
 // shootby = maybe need shooter position, size and velocity
 // shootby_object = for tracking who-shot-which
-private void spawnsprite(GameEngine engine, int n, SpawnParams params,
-    FireInfo about, PhysicObject shootby, GameObject shootby_object)
+void spawnsprite(GameEngine engine, int n, SpawnParams params,
+    FireInfo about, GameObject shootbyObject)
 {
-    assert(shootby !is null);
+    //assert(shootby !is null);
     assert(n >= 0 && n < params.count);
 
     GObjectSprite sprite = engine.createSprite(params.projectile);
-    sprite.createdBy = shootby_object;
+    sprite.createdBy = shootbyObject;
 
     switch (params.initVelocity) {
         case InitVelocity.fixed:
@@ -327,7 +350,7 @@ private void spawnsprite(GameEngine engine, int n, SpawnParams params,
     if (!params.airstrike) {
         //place it
         //1.5 is a fuzzy value to prevent that the objects are "too near"
-        float dist = (shootby.posp.radius + sprite.physics.posp.radius) * 1.5f;
+        float dist = (about.shootbyRadius + sprite.physics.posp.radius) * 1.5f;
         dist += params.spawndist;
 
         if (params.random) {
@@ -336,7 +359,7 @@ private void spawnsprite(GameEngine engine, int n, SpawnParams params,
             about.dir = about.dir.rotated(theta);
         }
 
-        sprite.setPos(shootby.pos + about.dir*dist);
+        sprite.setPos(about.pos + about.dir*dist);
     } else {
         Vector2f pos;
         float width = params.spawndist * (params.count-1);
@@ -396,13 +419,13 @@ class SpawnAction : Action {
 
     override protected void initialStep() {
         //xxx parameter stuff is a bit weird
-        fi = getPar!(FireInfo)("fireinfo");
-        shootby = *getPar!(PhysicObject)("owner_phys");
-        shootby_obj = *getPar!(GameObject)("owner_game");
-        //delay is not used, use ActionList looping for this
-        for (int n = 0; n < myclass.sparams.count; n++) {
-            spawnsprite(engine, n, myclass.sparams, *fi, shootby,
-                shootby_obj);
+        fi = params.getPar!(FireInfo)("fireinfo");
+        shootby_obj = *params.getPar!(GameObject)("owner_game");
+        if (!fi.pos.isNaN) {
+            //delay is not used, use ActionList looping for this
+            for (int n = 0; n < myclass.sparams.count; n++) {
+                spawnsprite(engine, n, myclass.sparams, *fi, shootby_obj);
+            }
         }
         done();
     }

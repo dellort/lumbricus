@@ -32,10 +32,17 @@ enum PointMode {
     instant
 }
 
+///directions the user is allowed to set (not necessarily real fire direction)
+enum ThrowDirection {
+    fixed,      //no user direction setting (you still have worm orientation)
+    any,       //full 360 freedom
+    threeway,  //sloping-up, straight, sloping-down (think of blowtorch)
+    vlimit,    //90deg freedom only (up/down limited)
+}
+
 struct FireMode {
     //needed by both client and server (server should verify with this data)
-    bool canThrow; //firing from worms direction
-    bool throwAnyDirection; //false=left or right, true=360 degrees of freedom
+    ThrowDirection direction; //what directions the user can choose
     bool variableThrowStrength; //chooseable throw strength
     //if variableThrowStrength is true, FireInfo.strength is interpolated
     //between From and To by a player chosen value (that fire strength thing)
@@ -49,8 +56,19 @@ struct FireMode {
 
 
     void loadFromConfig(ConfigNode node) {
-        canThrow = node.valueIs("mode", "throw");
-        throwAnyDirection = node.valueIs("direction", "any");
+        switch (node.getStringValue("direction", "fixed")) {
+            case "any":
+                direction = ThrowDirection.any;
+                break;
+            case "threeway":
+                direction = ThrowDirection.threeway;
+                break;
+            case "vlimit":
+                direction = ThrowDirection.vlimit;
+                break;
+            default:
+                direction = ThrowDirection.fixed;
+        }
         variableThrowStrength = node.valueIs("strength_mode", "variable");
         if (node.hasValue("strength_value")) {
             //for "compatibility" only
@@ -166,6 +184,8 @@ struct FireInfo {
     Vector2f surfNormal = Vector2f(-1, 0);   //impact surface normal
     float strength = 1.0f; //as allowed in the weapon config
     Time timer;     //selected time, in the range dictated by the weapon
+    Vector2f pos;     //position of shooter
+    float shootbyRadius = 0.0f;
     Vector2f pointto = Vector2f.nan; //if weapon can point to somewhere
 }
 
