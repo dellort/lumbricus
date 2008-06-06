@@ -40,10 +40,10 @@ class ActionContainer {
             }
           }
     */
-    void loadFromConfig(ConfigNode node) {
+    void loadFromConfig(GameEngine eng, ConfigNode node) {
         //list of named subnodes, each containing an ActionClass
         foreach (char[] name, ConfigNode n; node) {
-            auto ac = actionFromConfig(n);
+            auto ac = actionFromConfig(eng, n);
             if (ac) {
                 //names are unique
                 mActions[name] = ac;
@@ -53,14 +53,14 @@ class ActionContainer {
 }
 
 ///load an action class from a ConfigNode, returns null if class was not found
-ActionClass actionFromConfig(ConfigNode node) {
+ActionClass actionFromConfig(GameEngine eng, ConfigNode node) {
     if (node is null)
         return null;
     //empty type value defaults to "list" -> less writing
     char[] type = node.getStringValue("type", "list");
     if (ActionClassFactory.exists(type)) {
         auto ac = ActionClassFactory.instantiate(type);
-        ac.loadFromConfig(node);
+        ac.loadFromConfig(eng, node);
         return ac;
     }
     return null;
@@ -69,7 +69,7 @@ ActionClass actionFromConfig(ConfigNode node) {
 
 ///base class for ActionClass factory classes (lol, double factory again...)
 abstract class ActionClass {
-    abstract void loadFromConfig(ConfigNode node);
+    abstract void loadFromConfig(GameEngine eng, ConfigNode node);
 
     abstract Action createInstance(GameEngine eng);
 }
@@ -124,7 +124,7 @@ class ActionListClass : ActionClass {
     int repeatCount = 1;
     Time repeatDelay = Time.Null;
 
-    void loadFromConfig(ConfigNode node) {
+    void loadFromConfig(GameEngine eng, ConfigNode node) {
         //parameters for _this_ list
         char[] et = node.getStringValue("exec", "sequential");
         if (et == "parallel") {
@@ -134,7 +134,7 @@ class ActionListClass : ActionClass {
         repeatDelay = timeMsecs(node.getIntValue("repeat_delay", 0));
         //now load contained actions
         foreach (ConfigNode n; node) {
-            auto ac = actionFromConfig(n);
+            auto ac = actionFromConfig(eng, n);
             if (ac) {
                 actions ~= ac;
             }
@@ -340,7 +340,7 @@ abstract class Action : GameObject {
 class DelayActionClass : ActionClass {
     Time delay;
 
-    void loadFromConfig(ConfigNode node) {
+    void loadFromConfig(GameEngine eng, ConfigNode node) {
         delay = timeMsecs(node.getIntValue("delay",1000));
     }
 

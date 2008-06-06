@@ -56,49 +56,6 @@ class Tool : Shooter {
     }
 }
 
-class Beamer : Tool {
-    private {
-        bool mStartBeaming;
-        Time mWhenStart;
-        Vector2f mDest;
-    }
-
-    this(ToolClass b, WormSprite o) {
-        super(b, o);
-    }
-
-    override void fire(FireInfo info) {
-        if (active)
-            return; //while beaming
-        active = true;
-        mDest = info.pointto;
-        //first play animation where worm talks into its communicator
-        engine.mLog("wait for beaming");
-        mStartBeaming = true;
-        mWhenStart = engine.gameTime.current;/+ +
-            weapon.animations[WeaponWormAnimations.Fire].get()
-            .duration();+/
-    }
-
-    override void simulate(float deltaT) {
-        super.simulate(deltaT);
-        if (mStartBeaming) {
-            if (mWhenStart <= engine.gameTime.current) {
-                engine.mLog("start beaming");
-                mStartBeaming = false;
-                mWorm.beamTo(mDest);
-            }
-        } else if (!mWorm.isBeaming) {
-            active = false;
-            engine.mLog("end beaming");
-        }
-    }
-
-    static this() {
-        ToolsFactory.register!(typeof(this))("beamer");
-    }
-}
-
 class Jetpack : Tool {
     private {
         bool mUsed;

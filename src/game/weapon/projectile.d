@@ -26,7 +26,7 @@ private class ProjectileWeapon : WeaponClass {
 
     this(GameEngine aengine, ConfigNode node) {
         super(aengine, node);
-        onFire = actionFromConfig(node.getSubNode("onfire"));
+        onFire = actionFromConfig(aengine, node.getSubNode("onfire"));
         if (!onFire) {
             //xxx error handling...
             throw new Exception("Projectile weapon needs onfire action");
@@ -391,7 +391,7 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
 class SpawnActionClass : ActionClass {
     SpawnParams sparams;
 
-    void loadFromConfig(ConfigNode node) {
+    void loadFromConfig(GameEngine eng, ConfigNode node) {
         sparams.loadFromConfig(node);
     }
 
