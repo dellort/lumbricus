@@ -385,6 +385,7 @@ class Surface {
 
     //change each colorchannel according to colormap
     //channels are r=0, g=1, b=2, a=3
+    //xxx is awfully slow and handling of transparency is fundamentally broken
     void mapColorChannels(ubyte[256][4] colormap) {
         void* data; uint pitch;
         lockPixelsRGBA32(data, pitch);
@@ -393,11 +394,13 @@ class Surface {
             ptr += y*pitch;
             auto w = mData.size.x;
             for (int x = 0; x < w; x++) {
-                //avoiding bounds checking: array[index] => *(array.ptr + index)
-                ptr[0] = *(colormap[0].ptr + ptr[0]); //colormap[0][ptr[0]];
-                ptr[1] = *(colormap[1].ptr + ptr[1]); //colormap[1][ptr[1]];
-                ptr[2] = *(colormap[2].ptr + ptr[2]); //colormap[2][ptr[2]];
-                ptr[3] = *(colormap[3].ptr + ptr[3]); //colormap[3][ptr[3]];
+                //if (!isTransparent(*cast(int*)ptr)) {
+                    //avoiding bounds checking: array[index] => *(array.ptr + index)
+                    ptr[0] = *(colormap[0].ptr + ptr[0]); //colormap[0][ptr[0]];
+                    ptr[1] = *(colormap[1].ptr + ptr[1]); //colormap[1][ptr[1]];
+                    ptr[2] = *(colormap[2].ptr + ptr[2]); //colormap[2][ptr[2]];
+                    ptr[3] = *(colormap[3].ptr + ptr[3]); //colormap[3][ptr[3]];
+                //}
                 ptr += 4;
             }
         }
@@ -497,6 +500,7 @@ class Framework {
 
         //misc singletons, lol
         FontManager mFontManager;
+        Sound mSound;
         FileSystem mFilesystem;
         Log mLog;
         Log mLogConf;
@@ -533,6 +537,7 @@ class Framework {
 
         gSurfaces = new typeof(gSurfaces);
         gFonts = new typeof(gFonts);
+        gSounds = new typeof(gSounds);
 
         mFilesystem = new FileSystem(arg0, appId);
         resources = new Resources();
@@ -540,6 +545,7 @@ class Framework {
         mKeyStateMap.length = Keycode.max - Keycode.min + 1;
 
         mFontManager = new FontManager();
+        mSound = new Sound();
 
         auto driver_config = new config.ConfigNode();
         driver_config["driver"] = "sdl";
@@ -560,6 +566,7 @@ class Framework {
         if (mDriver) {
             vstate = mDriver.getVideoWindowState();
             istate = mDriver.getInputState();
+            mSound.beforeKill();
             killDriver();
         }
         //new driver
@@ -586,7 +593,7 @@ class Framework {
     }
 
     private void killDriver() {
-        releaseCaches();
+        releaseCaches(true);
         assert(mDriverSurfaces.length == 0);
         mDriver.destroy();
         mDriver = null;
@@ -886,7 +893,7 @@ class Framework {
         }
     }
 
-    //--- font stuff
+    //--- font stuff, sound
 
     /// load a font using the font manager
     Font getFont(char[] id) {
@@ -895,6 +902,10 @@ class Framework {
 
     FontManager fontManager() {
         return mFontManager;
+    }
+
+    Sound sound() {
+        return mSound;
     }
 
     //--- video mode
@@ -977,6 +988,9 @@ class Framework {
 
             //xxx: whereever this should be?
             checkDriverReload();
+
+            //and where should this be???
+            mSound.tick();
 
             //mInputTime.start();
             mDriver.processInput();
@@ -1102,7 +1116,18 @@ class Framework {
         return count;
     }
 
-    int releaseCaches() {
+    private int releaseDriverSounds(bool force) {
+        int count;
+        foreach (SoundBase s; gSounds.list) {
+            if (s.release(force))
+                count++;
+        }
+        return count;
+    }
+
+    //force: for sounds; if true, sounds are released too, but this leads to
+    //a hearable interruption
+    int releaseCaches(bool force) {
         int count;
         foreach (r; mCacheReleasers) {
             count += r();
@@ -1110,6 +1135,7 @@ class Framework {
         count += mDriver.releaseCaches();
         count += releaseDriverFonts();
         count += releaseDriverSurfaces();
+        count += releaseDriverSounds(force);
         return count;
     }
 
@@ -1120,6 +1146,7 @@ class Framework {
     void defered_free() {
         gFonts.cleanup((FontKillData d) { d.doFree(); });
         gSurfaces.cleanup((SurfaceKillData d) { d.doFree(); });
+        gSounds.cleanup((SoundKillData d) { d.doFree(); });
     }
 
     void driver_doVideoInit() {

@@ -369,6 +369,8 @@ class ClientGameEngine {
     GfxSet gfx;
     GraphicsHandler graphics;
 
+    private Music mMusic;
+
     //stuff cached/received/duplicated from the engine
     //(remind that mEngine might disappear because of networking)
     int waterOffset;
@@ -446,6 +448,8 @@ class ClientGameEngine {
         //else you'll get a quite big deltaT on start
         mEngineTime = new TimeSource();
         mEngineTime.paused = true;
+
+        initSound();
     }
 
     //actually start the game (called after resources were preloaded)
@@ -474,7 +478,12 @@ class ClientGameEngine {
     }
 
     void kill() {
-        //xxx is this necessary? previously implemented by GameObject
+        mMusic.stop();
+    }
+
+    private void initSound() {
+        mMusic = resources.get!(Music)("game");
+        mMusic.play();
     }
 
     void doFrame() {

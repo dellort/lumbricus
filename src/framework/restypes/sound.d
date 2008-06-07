@@ -7,48 +7,36 @@ import framework.sound;
 import std.stream;
 import utils.configfile;
 
-class SampleResource : ResourceBase!(Sample) {
-    this(Resources parent, char[] id, ConfigItem item) {
-        super(parent, id, item);
+class SampleResource : ResourceItem {
+    this(ResourceFile context, char[] id, ConfigItem item) {
+        super(context, id, item);
     }
 
     protected void load() {
         ConfigValue val = cast(ConfigValue)mConfig;
         assert(val !is null);
-        char[] fn;
-        if (mConfig.parent)
-            fn = val.parent.getPathValue(val.name);
-        else
-            fn = val.value;
-        Stream st = gFramework.fs.open(fn, FileMode.In);
-        mContents = gFramework.sound.createSample(st);
+        char[] path = mContext.fixPath(val.value);
+        mContents = gFramework.sound.createSample(path);
     }
 
     static this() {
-        ResFactory.register!(typeof(this))("samples");
-        setResourceNamespace!(typeof(this))("sample");
+        Resources.registerResourceType!(typeof(this))("samples");
     }
 }
 
-class MusicResource : ResourceBase!(Music) {
-    this(Resources parent, char[] id, ConfigItem item) {
-        super(parent, id, item);
+class MusicResource : ResourceItem {
+    this(ResourceFile context, char[] id, ConfigItem item) {
+        super(context, id, item);
     }
 
     protected void load() {
         ConfigValue val = cast(ConfigValue)mConfig;
         assert(val !is null);
-        char[] fn;
-        if (mConfig.parent)
-            fn = val.parent.getPathValue(val.name);
-        else
-            fn = val.value;
-        Stream st = gFramework.fs.open(fn, FileMode.In);
-        mContents = gFramework.sound.createMusic(st);
+        char[] path = mContext.fixPath(val.value);
+        mContents = gFramework.sound.createMusic(path);
     }
 
     static this() {
-        ResFactory.register!(typeof(this))("music");
-        setResourceNamespace!(typeof(this))("music");
+        Resources.registerResourceType!(typeof(this))("music");
     }
 }

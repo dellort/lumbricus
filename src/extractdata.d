@@ -22,9 +22,20 @@ import wwptools.animconv;
 
 void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir) {
     wormsDir = wormsDir ~ path.sep;
+    auto wormsDataDir = wormsDir ~ "data" ~ path.sep;
     importDir = importDir ~ path.sep;
 
-    char[] gfxdirp = wormsDir~"data"~path.sep~"Gfx"~path.sep~"Gfx.dir";
+    ConfigNode loadWImportConfig(char[] file) {
+        return (new ConfigFile(new File(importDir ~ file),
+        file, (char[] msg) { writefln(msg); } )).rootnode;
+    }
+    void writeConfig(ConfigNode node, char[] dest) {
+        scope confst = new File(dest, FileMode.OutNew);
+        auto textstream = new StreamOutput(confst);
+        node.writeFile(textstream);
+    }
+
+    char[] gfxdirp = wormsDataDir~"Gfx"~path.sep~"Gfx.dir";
     if (!stdf.exists(gfxdirp)) {
         throw new Exception("Invalid directory! Gfx.dir not found.");
     }
@@ -50,11 +61,27 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir) {
     do_untile(iconlo, "icons_masked.png",wepDir~path.sep,"icons",
         "icon_","", "_icons.conf",iconnames);
 
+    //****** Sounds ******
+    ConfigNode sndConf = loadWImportConfig("sounds.txt");
+    foreach (ConfigNode sub; sndConf.getSubNode("sounds")) {
+        writefln("Copying sounds '%s'", sub.name());
+        auto newres = new ConfigNode();
+        auto reslist = newres.getPath("resources.samples", true);
+        char[] destp = sub["dest_path"]~path.sep;
+        char[] destp_out = outputDir~path.sep~destp;
+        trymkdir(destp_out);
+        char[] sourcep = wormsDataDir~path.sep~sub["source_path"]~path.sep;
+        foreach (char[] name, char[] value; sub.getSubNode("files")) {
+            stdf.copy(sourcep~value, destp_out~path.sep~value);
+            reslist.setStringValue(name, destp~value);
+        }
+        writeConfig(newres, outputDir~path.sep~sub["conffile"]);
+    }
+
     //****** Convert mainspr.bnk / water.bnk using animconv ******
     Stream mainspr = gfxdir.open("mainspr.bnk");
 
-    ConfigNode animConf = (new ConfigFile(new File(importDir ~ "animations.txt"),
-        "animations.txt", (char[] msg) { writefln(msg); } )).rootnode;
+    ConfigNode animConf = loadWImportConfig("animations.txt");
 
     //run animconv
     do_extractbnk("mainspr", mainspr, animConf.getSubNode("mainspr"),
@@ -62,7 +89,7 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir) {
 
     //extract water sets (uses animconv too)
     //xxx: like level set, enum subdirectories (code duplication?)
-    char[] waterpath = wormsDir~"data"~path.sep~"Water";
+    char[] waterpath = wormsDataDir~"Water";
     char[] all_waterout = outputDir~path.sep~"water";
     trymkdir(all_waterout);
     char[][] waters = stdf.listdir(waterpath);
@@ -96,7 +123,7 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir) {
     }
 
     //****** Level sets ******
-    char[] levelspath = wormsDir~"data"~path.sep~"Level";
+    char[] levelspath = wormsDataDir~"Level";
     //prepare output dir
     char[] levelDir = outputDir~path.sep~"level";
     trymkdir(levelDir);

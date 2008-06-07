@@ -219,7 +219,7 @@ private:
             "List all resources", []);
 
         globals.cmdLine.registerCommand("release_caches", &cmdReleaseCaches,
-            "Release caches (temporary data)", []);
+            "Release caches (temporary data)", ["bool?=true:force"]);
         /+
         globals.cmdLine.registerCommand("caching", &cmdSetCaching,
             "Set if texture caching should be done", ["bool:if enabled"]);
@@ -309,7 +309,7 @@ private:
     }
 
     private void cmdReleaseCaches(MyBox[] args, Output write) {
-        int released = gFramework.releaseCaches();
+        int released = gFramework.releaseCaches(args[0].unbox!(bool));
         write.writefln("released %s memory consuming house shoes", released);
     }
 
@@ -694,7 +694,8 @@ import gui.scrollbar;
 //(maybe configfile schema, generic handling of datatypes)
 class SwitchDriver : Task {
     char[][] configs = ["enable_caching", "mark_alpha", "open_gl",
-        "gl_debug_wireframe", "font_packer", "lowquality", "rle"];
+        "gl_debug_wireframe", "font_packer", "lowquality", "rle",
+        "enable_sound"];
 
     Button[] mChks;
 

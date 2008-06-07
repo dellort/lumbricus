@@ -7,23 +7,119 @@ import framework.sound;
 import framework.sdl.rwops;
 import std.stream;
 import str = std.string;
+import utils.array;
+import utils.misc;
 import utils.time;
 
 private void throwError() {
     throw new Exception("Sound error: " ~ str.toString(Mix_GetError()));
 }
 
-class SoundMixer : Sound {
-    protected float[Volume.max+1] volume;
-    private SampleMixer[] mSamples;
-    private MusicMixer[] mMusics;
+class SDLChannel : DriverChannel {
+    SDLSoundDriver mParent;
+    int mChannel; //SDL_mixer channel number
 
-    private const cChannelCount = 32;
+    void setPos(ref SoundSourcePosition pos) {
+        float l = 1.0f, r = 1.0f;
+        //no idea how to use this correctly, so I came up with some crap
+        float x = pos.position.x;
+        l = x > 0 ? 1.0f - x : 1.0f;
+        r = x < 0 ? 1.0f + x : 1.0f;
+        Mix_SetPanning(mChannel, cast(int)(clampRangeC(l, 0.0f, 1.0f)*255),
+            cast(int)(clampRangeC(r, 0.0f, 1.0f)*255));
+    }
 
-    //currently playing music, set by MusicMixer.play
-    private MusicMixer mCurrentMusic;
+    void play(DriverSound s, bool loop) {
+        auto ss = castStrict!(SDLSound)(s);
+        assert(ss && ss.type() == SoundType.sfx && ss.mChunk);
+        assert(!!reserved_for, "channel wasn't reserved, but is being used");
 
-    this() {
+        Mix_PlayChannel(mChannel, ss.mChunk, loop ? -1 : 0);
+    }
+
+    void stop(bool unreserve) {
+        Mix_HaltChannel(mChannel);
+        if (unreserve) {
+            reserved_for = null;
+        }
+    }
+
+    void check() {
+        if (Mix_Playing(mChannel) == 0)
+            reserved_for = null;
+    }
+}
+
+class SDLSound : DriverSound {
+    //exactly one of these is non-null, depending on what it is
+    Mix_Chunk* mChunk;
+    Mix_Music* mMusic;
+    Stream mSource;
+    SDLSoundDriver mDriver;
+    Time mLength;
+
+    this(SDLSoundDriver drv, DriverSoundData data) {
+        mDriver = drv;
+        mDriver.mSounds ~= this;
+        mSource = gFramework.fs.open(data.filename);
+        SDL_RWops* ops = rwopsFromStream(mSource);
+        switch (data.type) {
+            case SoundType.music:
+                mMusic = Mix_LoadMUS_RW(ops);
+                break;
+            case SoundType.sfx:
+                mChunk = Mix_LoadWAV_RW(ops, 1);
+                mSource.close();
+                mSource = null;
+                break;
+        }
+        if (!mMusic && !mChunk)
+            throwError();
+
+        if (mChunk) {
+            //hopefully correct? not tested yet
+            int samples = mChunk.alen / mDriver.bytes_per_sample;
+            mLength = timeMsecs(1000*samples / mDriver.frequency);
+        } else if (mMusic) {
+            // :(
+            mLength = Time.Null;
+        }
+    }
+
+    SoundType type() {
+        return mChunk ? SoundType.sfx : SoundType.music;
+    }
+
+    Time length() {
+        return mLength;
+    }
+
+    private void free() {
+        if (mChunk)
+            Mix_FreeChunk(mChunk);
+        if (mMusic)
+            Mix_FreeMusic(mMusic);
+        mChunk = null;
+        mMusic = null;
+    }
+}
+
+class SDLSoundDriver : SoundDriver {
+    package {
+        float[SoundType.max+1] volume;
+        SDLSound[] mSounds; //samples+music
+        int frequency;
+        //per sample and channel
+        int bytes_per_sample;
+        SDLChannel[] mChannels;
+        Mix_Music* mLastPlayed;
+    }
+
+    const cDefaultChannelCount = 32;
+
+    this(ConfigNode config) {
+        std.stdio.writefln("loading sdl_mixer");
+
         DerelictSDLMixer.load();
         if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0) {
             throw new Exception(format("Could not init SDL audio subsystem: %s",
@@ -31,174 +127,136 @@ class SoundMixer : Sound {
         }
 
         //44.1kHz stereo
-        Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
-
-        //allocate 32 mixing channels
-        Mix_AllocateChannels(cChannelCount);
-
-        volume[Volume.music] = 1.0f;
-        volume[Volume.sfx] = 1.0f;
-    }
-
-    public void tick() {
-        //SDL_Mixer does not need this
-    }
-
-    public void deinitialize() {
-        foreach (s; mSamples) s.close;
-        foreach (m; mMusics) m.close;
-        Mix_CloseAudio();
-        DerelictSDLMixer.unload();
-    }
-
-    public Music createMusic(Stream st, bool ownsStream = true) {
-        MusicMixer mus = new MusicMixer(this, st, ownsStream);
-        mMusics ~= mus;
-        return mus;
-    }
-
-    public Sample createSample(Stream st, bool ownsStream = true) {
-        SampleMixer sample = new SampleMixer(this, st, ownsStream);
-        mSamples ~= sample;
-        return sample;
-    }
-
-    public void setVolume(Volume v, float value) {
-        volume[v] = value;
-    }
-
-    private void setCurrentMusic(MusicMixer mus) {
-        mCurrentMusic = mus;
-    }
-
-    private MusicMixer currentMusicInt() {
-        return mCurrentMusic;
-    }
-
-    public Music currentMusic() {
-        return mCurrentMusic;
-    }
-}
-
-class MusicMixer : Music {
-    private SoundMixer mParent;
-    private Mix_Music* mMusic;
-    private Stream mSrc;
-    private bool mOwnsStream;
-    private bool mOpen;
-
-    private this(SoundMixer parent, Stream st, bool ownsStream) {
-        mParent = parent;
-        mSrc = st;
-        mOwnsStream = ownsStream;
-
-        SDL_RWops* ops = rwopsFromStream(st);
-        mMusic = Mix_LoadMUS_RW(ops);
-        if (!mMusic)
+        if (Mix_OpenAudio(config.getIntValue("frequency", 44100), AUDIO_S16SYS,
+            2, 2048) == -1)
+        {
             throwError();
-        mOpen = true;
-    }
-
-    public void close() {
-        if (!mOpen)
-            return;
-        mOpen = false;
-
-        if (mParent.currentMusicInt == this)
-            mParent.setCurrentMusic(null);
-
-        Mix_FreeMusic(mMusic);
-        if (mOwnsStream)
-            mSrc.close();
-    }
-
-    public void play(Time start = timeMusecs(0),
-        Time fadeinTime = timeMusecs(0))
-    {
-        if (!mOpen)
-            return;
-
-        mParent.setCurrentMusic(this);
-        Mix_FadeInMusicPos(mMusic, -1, fadeinTime.msecs, start.secsf);
-    }
-
-    public void paused(bool p) {
-        if (mParent.currentMusicInt != this)
-            return;
-        if (!mOpen)
-            return;
-
-        if (p)
-            Mix_PauseMusic();
-        else
-            Mix_ResumeMusic();
-    }
-
-    public bool playing() {
-        if (mParent.currentMusicInt == this && Mix_PlayingMusic())
-            return true;
-        return false;
-    }
-
-    public void stop() {
-        if (playing) {
-            Mix_HaltMusic();
-            mParent.setCurrentMusic(null);
         }
-    }
 
-    public void fadeOut(Time fadeTime) {
-        if (playing)
-            Mix_FadeOutMusic(fadeTime.msecs);
-    }
-
-    public Time position() {
-        throw new Exception("Music.position: Not supported");
-        return timeSecs(0);
-    }
-
-    public Time length() {
-        throw new Exception("Music.length: Not supported");
-        return timeSecs(0);
-    }
-}
-
-class SampleMixer : Sample {
-    private Mix_Chunk* mChunk;
-    private SoundMixer mParent;
-    private bool mOpen;
-
-    private this(SoundMixer parent, Stream st, bool ownsStream) {
-        mParent = parent;
-        SDL_RWops* ops = rwopsFromStream(st);
-        //if ownsStream == true, stream is closed by this call
-        mChunk = Mix_LoadWAV_RW(ops, ownsStream);
-        if (!mChunk)
+        //get bytes per sample to be able to calculate the length of samples
+        int freq;
+        Uint16 format;
+        int channels;
+        if (Mix_QuerySpec(&freq, &format, &channels) == 0) {
             throwError();
-        mOpen = true;
-    }
-
-    public void close() {
-        if (!mOpen)
-            return;
-        mOpen = false;
-
-        //stop all channels still playing the sample
-        for (int i = 0; i < SoundMixer.cChannelCount; i++) {
-            if (Mix_GetChunk(i) == mChunk) {
-                Mix_HaltChannel(i);
+        }
+        //better way?
+        static int bytes(Uint16 format) {
+            switch (format) {
+                case AUDIO_U8, AUDIO_S8:
+                    return 1;
+                case AUDIO_U16LSB, AUDIO_S16LSB, AUDIO_U16MSB, AUDIO_S16MSB:
+                    return 2;
+                default:
+                    throw new Exception("unknown audio format");
             }
         }
-        Mix_FreeChunk(mChunk);
-        mChunk = null;
+        bytes_per_sample = bytes(format)*channels;
+        frequency = freq;
+
+        //allocate 32 mixing channels
+        mChannels.length = config.getIntValue("channels", cDefaultChannelCount);
+        Mix_AllocateChannels(mChannels.length);
+
+        foreach (int index, ref c; mChannels) {
+            c = new SDLChannel();
+            c.owner = this;
+            c.mParent = this;
+            c.mChannel = index;
+        }
+
+        volume[SoundType.music] = 1.0f;
+        volume[SoundType.sfx] = 1.0f;
+
+        std.stdio.writefln("loaded sdl_mixer");
     }
 
-    public void play() {
-        if (!mOpen)
-            return;
+    DriverChannel getChannel(Object reserve_for) {
+        foreach (c; mChannels) {
+            c.check();
+            if (!c.reserved_for) {
+                c.reserved_for = reserve_for;
+                return c;
+            }
+        }
+        return null;
+    }
 
-        Mix_VolumeChunk(mChunk, cast(int)(mParent.volume[Volume.sfx]
-            *MIX_MAX_VOLUME));
-        Mix_PlayChannel(-1, mChunk, 0);
+    void tick() {
+    }
+
+    DriverSound loadSound(DriverSoundData data) {
+        return new SDLSound(this, data);
+    }
+
+    void closeSound(DriverSound s) {
+        std.stdio.writefln("close sound %s", s);
+        auto ss = castStrict!(SDLSound)(s);
+        if (ss.mChunk) {
+            //stop from playing on any channels
+            foreach (c; mChannels) {
+                if (Mix_GetChunk(c.mChannel) == ss.mChunk)
+                    c.stop(true);
+            }
+        } else if (ss.mMusic) {
+            if (ss.mMusic is mLastPlayed) {
+                mLastPlayed = null;
+                Mix_HaltMusic();
+            }
+        }
+        arrayRemoveUnordered(mSounds, ss);
+        ss.free();
+    }
+
+    void setVolume(SoundType v, float value) {
+        volume[v] = value;
+        Mix_Volume(-1, cast(int)(volume[SoundType.sfx]*MIX_MAX_VOLUME));
+        Mix_VolumeMusic(cast(int)(volume[SoundType.music]*MIX_MAX_VOLUME));
+    }
+
+    void destroy() {
+        std.stdio.writefln("unloading sdl_mixer");
+        //caller must make sure all stuff has been unloaded
+        assert(mSounds.length == 0);
+        Mix_CloseAudio();
+        SDL_QuitSubSystem(SDL_INIT_AUDIO);
+        DerelictSDLMixer.unload();
+        std.stdio.writefln("unloaded sdl_mixer");
+    }
+
+    void musicPlay(DriverSound m, Time startAt, Time fade) {
+        auto ss = castStrict!(SDLSound)(m);
+        if (!ss) {
+            Mix_HaltMusic();
+            mLastPlayed = null;
+            return;
+        }
+        std.stdio.writefln("play!");
+        assert(ss.type() == SoundType.music && ss.mMusic);
+        Mix_FadeInMusicPos(ss.mMusic, -1, fade.msecs, startAt.secsf);
+        mLastPlayed = ss.mMusic;
+    }
+
+    void musicFadeOut(Time fadetime) {
+        Mix_FadeOutMusic(fadetime.msecs);
+    }
+
+    void musicGetState(out MusicState state, out Time pos) {
+        //SDL_mixer makes it too hard to support pos
+        if (!Mix_PlayingMusic())
+            return MusicState.Stopped;
+        state = Mix_PausedMusic() ? MusicState.Paused : MusicState.Playing;
+    }
+
+    void musicPause(bool pause) {
+        if (!Mix_PlayingMusic())
+            return;
+        if (!!Mix_PausedMusic() == pause)
+            return;
+        if (pause) {
+            Mix_PauseMusic();
+        } else {
+            Mix_ResumeMusic();
+        }
     }
 }

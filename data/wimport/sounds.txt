@@ -1,0 +1,38 @@
+//warning: case of filenames must match exactly
+
+//each node here produces a resource file of the same name
+//the problem is that sounds are locale dependend (ouch!)
+// => solution: locale specific sound resources
+sounds {
+    normal {
+        //path for the sound effects listed here
+        source_path = "Wav/Effects"
+        //put sounds into /sound_samples/ and conf to /sounds.conf
+        dest_path = "sound_samples"
+        conffile = "sounds.conf"
+        files {
+            //I didn't find the right file, so enjoy this!
+            test1 = "FrenchAnthem.wav"
+            test2 = "ScalesOfJustice.wav"
+            test3 = "HOLYGRENADE.WAV"
+        }
+    }
+    /* -- not implemented
+    sounds_de {
+        //include all the sounds from node "normal", which weren't defined here
+        //yet (this means you can do language specific overrides for "normal")
+        include = "normal"
+        path = "User/Speech/German"
+        files {
+            byebye = "BYEBYE.WAV"
+        }
+    }
+    sounds_en {
+        include = "normal"
+        path = "User/Speech/German"
+        files {
+            byebye = "BYEBYE.WAV"
+        }
+    }
+    */
+}

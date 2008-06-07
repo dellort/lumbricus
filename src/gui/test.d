@@ -477,7 +477,7 @@ class TestTask2 : Task {
         mFont.clear = clear;
         mBox.clear = clear;
 
-        gFramework.releaseCaches();
+        gFramework.releaseCaches(false);
     }
 
     this(TaskManager tm) {
@@ -593,9 +593,15 @@ class TestTask3 : Task {
 
     void onSelFile(int index) {
         if (index >= 0) {
+            loadFile(mFList.contents[index]);
+        }
+    }
+
+    void loadFile(char[] fn) {
+        if (fn != "") {
             Surface img;
             try {
-                img = gFramework.loadImage(mFList.contents[index]);
+                img = gFramework.loadImage(fn);
             } catch (Exception e) {
                 mValues.text = "couldn't load, " ~ e.toString;
             }
@@ -663,7 +669,7 @@ class TestTask3 : Task {
         );
         mFList.setContents(files);
 
-        mView.setSource(gFramework.loadImage(filename));
+        loadFile(filename);
 
         gWindowManager.createWindow(this, tgui, "BCG test", Vector2i(450, 300));
     }

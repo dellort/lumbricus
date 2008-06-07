@@ -339,6 +339,7 @@ class SDLDriver : FrameworkDriver {
         mConfig = config;
 
         mRGBA32.BitsPerPixel = 32;
+        //xxx: endian, etc...
         mRGBA32.Rmask = 0x00_00_00_FF;
         mRGBA32.Gmask = 0x00_00_FF_00;
         mRGBA32.Bmask = 0x00_FF_00_00;
@@ -390,6 +391,15 @@ class SDLDriver : FrameworkDriver {
             mScreenCanvasGL = new GLCanvas();
         }
 
+        //init sound
+        if (config.getBoolValue("enable_sound")) {
+            mFramework.sound.reinit(new SDLSoundDriver(
+                config.getSubNode("sound")));
+        } else {
+            //(null sound device)
+            mFramework.sound.close();
+        }
+
         //for some worthless statistics...
         void timer(out PerfTimer tmr, char[] name) {
             tmr = new PerfTimer;
@@ -408,6 +418,7 @@ class SDLDriver : FrameworkDriver {
         assert(mDriverSurfaceCount == 0);
 
         //deinit and unload all SDL dlls (in reverse order)
+        mFramework.sound.close();
         mFontDriver.destroy();
         mFontDriver = null;
         SDL_Quit();
@@ -470,7 +481,7 @@ class SDLDriver : FrameworkDriver {
             state.bitdepth = 0;
 
         //i.e. reload textures, get rid of stuff in too low resolution...
-        mFramework.releaseCaches();
+        mFramework.releaseCaches(false);
 
         Vector2i size = state.fullscreen ? state.fs_size : state.window_size;
 

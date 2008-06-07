@@ -24,9 +24,11 @@ import gui.wm;
 import utils.factory;
 import utils.math;
 import utils.misc;
+import utils.time;
 import utils.vector2;
 
 import std.math : PI;
+import str = std.string;
 
 import game.animation;
 
@@ -96,6 +98,147 @@ class BitmapHandler : ResViewHandler!(Surface) {
 
         Vector2i layoutSizeRequest() {
             return resource.size()+Vector2i(2); //with frame hurhur
+        }
+    }
+
+    static this() {
+        registerHandler!(typeof(this));
+    }
+}
+
+class MusicHandler : ResViewHandler!(Music) {
+    this(Object r) {
+        super(r);
+        setGUI(new Viewer());
+    }
+
+    char[] state() {
+        switch (resource.state) {
+            case MusicState.Stopped: return "stopped";
+            case MusicState.Playing: return "playing";
+            case MusicState.Paused: return "paused";
+        }
+    }
+
+    class Viewer : SimpleContainer {
+        Label lblstate;
+        this() {
+            auto box = new BoxContainer(false);
+            void button(char[] c, void delegate(Button) cb) {
+                auto b = new Button();
+                b.text = c;
+                b.onClick = cb;
+                box.add(b);
+            }
+            button("play", &onPlay);
+            button("stop", &onStop);
+            button("pause", &onPause);
+            button("fade", &onFade);
+            lblstate = new Label();
+            lblstate.drawBorder = false;
+            box.add(lblstate);
+            addChild(box);
+        }
+        void onPlay(Button s) {
+            resource.state = MusicState.Playing;
+        }
+        void onStop(Button s) {
+            resource.state = MusicState.Stopped;
+        }
+        void onPause(Button s) {
+            resource.state = MusicState.Paused;
+        }
+        void onFade(Button s) {
+            resource.fadeOut(timeSecs(2));
+        }
+        override void simulate() {
+            lblstate.text = (resource.isCurrent() ? "c " : "- ") ~ state()
+                ~ (gFramework.sound.available() ? " a" : " n");
+        }
+    }
+
+    static this() {
+        registerHandler!(typeof(this));
+    }
+}
+
+class SampleHandler : ResViewHandler!(Sample) {
+    this(Object r) {
+        super(r);
+        setGUI(new Viewer());
+    }
+
+    bool loop, tick;
+    Channel ch;
+    SoundSourcePosition pos;
+
+    class Viewer : SimpleContainer {
+        this() {
+            ch = gFramework.sound.createChannel();
+            auto al = WidgetLayout.Aligned(-1, 0);
+            auto box = new BoxContainer(false);
+            auto info = new Label();
+            info.text = str.format("Length: %s", resource.length());
+            info.drawBorder = false;
+            box.add(info, al);
+            Button button(char[] c, void delegate(Button) cb) {
+                auto b = new Button();
+                b.text = c;
+                b.onClick = cb;
+                box.add(b, al);
+                return b;
+            }
+            auto chk = button("loop?", &onLoop);
+            chk.isCheckbox = true;
+            auto chk2 = button("tick?", &onTick);
+            chk2.isCheckbox = true;
+            chk2.checked = true;
+            onTick(chk2);
+            button("play", &onPlay);
+            button("stop", &onStop);
+            box.add(new Position());
+            addChild(box);
+        }
+        void onLoop(Button b) {
+            loop = b.checked();
+        }
+        void onPlay(Button b) {
+            ch.play(resource, loop);
+        }
+        void onStop(Button b) {
+            ch.stop();
+        }
+        void onTick(Button b) {
+            tick = b.checked();
+        }
+        override void simulate() {
+            if (tick) {
+                ch.position = pos;
+                ch.tick();
+            }
+        }
+    }
+
+    class Position : Widget {
+        Font f;
+        char[] msg;
+        Rect2i box;
+        override void onMouseMove(MouseInfo mi) {
+            auto sz = widgetBounds().size();
+            auto center = sz/2;
+            int len = min(sz.x, sz.y)/2 - 10; //border=10
+            box.p1 = center-Vector2i(len);
+            box.p2 = center+Vector2i(len);
+            auto p = mousePos() - center;
+            pos.position = (toVector2f(p)/len);
+            msg = str.format("%s -> %s", mousePos(), pos.position);
+        }
+        override void onDraw(Canvas c) {
+            if (!f)
+                f = gFramework.getFont("normal");
+            c.drawRect(box, Color(0,0,0));
+            c.drawCircle(mousePos(), 5, Color(1,0,0));
+            f.drawText(c, Vector2i(0), msg);
         }
     }
 

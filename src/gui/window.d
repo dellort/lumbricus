@@ -426,7 +426,8 @@ class WindowWidget : Container {
     }
 
     override bool allowInputForChild(Widget child, InputEvent event) {
-        return !(event.isKeyEvent && findBind(event.keyEvent) != "");
+        return !mDraging
+            && !(event.isKeyEvent && findBind(event.keyEvent) != "");
     }
 
     //treat all events as handled (?)

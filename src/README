@@ -1,6 +1,8 @@
 This is Lumbricus Terrestris. Sorry, it's at a very early alpha/beta state,
 it is not really ready yet.
 
+Slogan: "Instead of following the KISS principle, we bring you THIS!"
+
 WARNING: Currently needs original worms files to run at all. Probably it only
 works with the version of WWP which was available to us. You need to compile and
 run the program "extractdata" and place the resulting files into the data/data2
