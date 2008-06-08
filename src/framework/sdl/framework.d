@@ -8,9 +8,9 @@ import std.stdio;
 import std.string;
 import utils.vector2;
 import framework.sdl.rwops;
-import framework.sdl.soundmixer;
 import framework.sdl.font;
 import framework.sdl.fwgl;
+import framework.sdl.sdl;
 import derelict.opengl.gl;
 import derelict.opengl.glu;
 import derelict.sdl.sdl;
@@ -355,15 +355,16 @@ class SDLDriver : FrameworkDriver {
 
         mUseFontPacker = config.getBoolValue("font_packer", true);
 
-        DerelictSDL.load();
+        sdlInit();
+
         DerelictSDLImage.load();
         if (mOpenGL) {
             DerelictGL.load();
             DerelictGLU.load();
         }
 
-        if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-            throw new Exception(format("Could not init SDL: %s",
+        if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0) {
+            throw new Exception(format("Could not init SDL video: %s",
                 str.toString(SDL_GetError())));
         }
 
@@ -392,13 +393,12 @@ class SDLDriver : FrameworkDriver {
         }
 
         //init sound
-        if (config.getBoolValue("enable_sound")) {
-            mFramework.sound.reinit(new SDLSoundDriver(
-                config.getSubNode("sound")));
-        } else {
-            //(null sound device)
-            mFramework.sound.close();
-        }
+        char[] sounddriver = config.getBoolValue("enable_sound")
+            ? "sdl_mixer" : "null";
+        sounddriver = config.getStringValue("sound_driver", sounddriver);
+
+        mFramework.sound.reinit(SoundDriverFactory.instantiate(sounddriver,
+            gFramework.sound(), config.getSubNode("sound")));
 
         //for some worthless statistics...
         void timer(out PerfTimer tmr, char[] name) {
@@ -421,13 +421,13 @@ class SDLDriver : FrameworkDriver {
         mFramework.sound.close();
         mFontDriver.destroy();
         mFontDriver = null;
-        SDL_Quit();
+        SDL_QuitSubSystem(SDL_INIT_VIDEO);
         if (mOpenGL) {
             DerelictGL.unload();
             DerelictGLU.unload();
         }
         DerelictSDLImage.unload();
-        DerelictSDL.unload();
+        sdlQuit();
 
         gSDLDriver = null;
     }

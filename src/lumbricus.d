@@ -3,6 +3,8 @@ import framework.framework;
 
 //also a factory-import
 import framework.sdl.framework;
+import framework.sdl.soundmixer;
+import framework.openal;
 
 import framework.filesystem : MountPath;
 import common = common.common;

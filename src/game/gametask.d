@@ -118,7 +118,6 @@ class GameTask : Task {
     }
     private void gamePaused(bool set) {
         mGameAdmin.setPaused(set);
-        mClientEngine.engineTime.paused = set;
     }
 
     //not happy with this; but who cares

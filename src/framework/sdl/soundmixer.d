@@ -5,6 +5,7 @@ import derelict.sdl.sdl;
 import framework.framework;
 import framework.sound;
 import framework.sdl.rwops;
+import framework.sdl.sdl;
 import std.stream;
 import str = std.string;
 import utils.array;
@@ -117,8 +118,11 @@ class SDLSoundDriver : SoundDriver {
 
     const cDefaultChannelCount = 32;
 
-    this(ConfigNode config) {
+    this(Sound base, ConfigNode config) {
+        assert(base is gFramework.sound()); //lol
         std.stdio.writefln("loading sdl_mixer");
+
+        sdlInit();
 
         DerelictSDLMixer.load();
         if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0) {
@@ -221,6 +225,7 @@ class SDLSoundDriver : SoundDriver {
         Mix_CloseAudio();
         SDL_QuitSubSystem(SDL_INIT_AUDIO);
         DerelictSDLMixer.unload();
+        sdlQuit();
         std.stdio.writefln("unloaded sdl_mixer");
     }
 
@@ -258,5 +263,9 @@ class SDLSoundDriver : SoundDriver {
         } else {
             Mix_ResumeMusic();
         }
+    }
+
+    static this() {
+        SoundDriverFactory.register!(typeof(this))("sdl_mixer");
     }
 }

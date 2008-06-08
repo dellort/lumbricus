@@ -486,8 +486,21 @@ class ClientGameEngine {
         mMusic.play();
     }
 
+    bool oldpause; //hack, so you can pause the music independent from the game
+
     void doFrame() {
+        //lol pause state
+        auto ispaused = mEngine.paused();
+        engineTime.paused = ispaused;
         mEngineTime.update();
+
+        if (mMusic) {
+            if (oldpause != ispaused)
+                mMusic.paused = ispaused;
+            oldpause = ispaused;
+        }
+
+        //bail out here if game is paused??
 
         float deltaT = mEngineTime.difference.secsf;
 

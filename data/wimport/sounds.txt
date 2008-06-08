@@ -1,7 +1,7 @@
 //warning: case of filenames must match exactly
 
-//each node here produces a resource file of the same name
-//the problem is that sounds are locale dependend (ouch!)
+//each node here produces a resource file
+//the problem is that some sounds are locale dependend (ouch!)
 // => solution: locale specific sound resources
 sounds {
     normal {
@@ -11,7 +11,6 @@ sounds {
         dest_path = "sound_samples"
         conffile = "sounds.conf"
         files {
-            //I didn't find the right file, so enjoy this!
             test1 = "FrenchAnthem.wav"
             test2 = "ScalesOfJustice.wav"
             test3 = "HOLYGRENADE.WAV"

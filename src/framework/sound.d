@@ -3,7 +3,8 @@ module framework.sound;
 private import
     std.stream,
     utils.time;
-import framework.framework, utils.time, utils.vector2, utils.weaklist;
+import framework.framework, utils.configfile, utils.factory, utils.time,
+    utils.vector2, utils.weaklist;
 
 public enum SoundType {
     error,
@@ -115,7 +116,7 @@ public class Sound {
     }
 
     this() {
-        mDriver = new NullSound();
+        mDriver = new NullSound(this, null);
     }
 
     //disassociate from current sound driver
@@ -126,7 +127,7 @@ public class Sound {
         assert(mDriverSounds.length == 0);
         std.stdio.writefln("destroy");
         mDriver.destroy();
-        mDriver = new NullSound();
+        mDriver = new NullSound(this, null);
     }
 
     //save audio-state before all DriverSounds are free'd and close()/reinit()
@@ -467,6 +468,9 @@ class Channel {
 class NullSound : SoundDriver {
     MusicState mustate;
 
+    this(Sound base, ConfigNode config) {
+    }
+
     DriverChannel getChannel(Object reserve_for) {
         return null;
     }
@@ -513,4 +517,11 @@ class NullSound : SoundDriver {
             return;
         mustate = pause ? MusicState.Paused : MusicState.Playing;
     }
+
+    static this() {
+        SoundDriverFactory.register!(typeof(this))("null");
+    }
+}
+
+class SoundDriverFactory : StaticFactory!(SoundDriver, Sound, ConfigNode) {
 }

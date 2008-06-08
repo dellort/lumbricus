@@ -72,8 +72,11 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir) {
         trymkdir(destp_out);
         char[] sourcep = wormsDataDir~path.sep~sub["source_path"]~path.sep;
         foreach (char[] name, char[] value; sub.getSubNode("files")) {
-            stdf.copy(sourcep~value, destp_out~path.sep~value);
-            reslist.setStringValue(name, destp~value);
+            //doesn't really work if value contains a path
+            auto ext = tolower(path.getExt(value));
+            auto outfname = name~"."~ext;
+            stdf.copy(sourcep~value, destp_out~path.sep~outfname);
+            reslist.setStringValue(name, destp~outfname);
         }
         writeConfig(newres, outputDir~path.sep~sub["conffile"]);
     }
