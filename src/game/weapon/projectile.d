@@ -21,7 +21,7 @@ import utils.log;
 import utils.random;
 import utils.factory;
 
-private class ProjectileWeapon : WeaponClass {
+private class ActionWeapon : WeaponClass {
     ActionClass onFire;
 
     this(GameEngine aengine, ConfigNode node) {
@@ -29,31 +29,31 @@ private class ProjectileWeapon : WeaponClass {
         onFire = actionFromConfig(aengine, node.getSubNode("onfire"));
         if (!onFire) {
             //xxx error handling...
-            throw new Exception("Projectile weapon needs onfire action");
+            throw new Exception("Action-based weapon needs onfire action");
         }
     }
 
-    ProjectileThrower createShooter(GObjectSprite go) {
-        return new ProjectileThrower(this, go, mEngine);
+    ActionShooter createShooter(GObjectSprite go) {
+        return new ActionShooter(this, go, mEngine);
     }
 
     static this() {
-        WeaponClassFactory.register!(typeof(this))("projectile_mc");
+        WeaponClassFactory.register!(typeof(this))("action");
     }
 }
 
 //standard projectile shooter for projectiles which are started from the worm
 //(as opposed to air strikes etc.)
-private class ProjectileThrower : Shooter {
+private class ActionShooter : Shooter {
     private {
-        ProjectileWeapon pweapon;
+        ActionWeapon myclass;
         Action mFireAction;
     }
     protected FireInfo fireInfo;
 
-    this(ProjectileWeapon base, GObjectSprite a_owner, GameEngine engine) {
+    this(ActionWeapon base, GObjectSprite a_owner, GameEngine engine) {
         super(base, a_owner, engine);
-        pweapon = base;
+        myclass = base;
     }
 
     bool activity() {
@@ -86,7 +86,7 @@ private class ProjectileThrower : Shooter {
         fireInfo.pos = owner.physics.pos;
         fireInfo.shootbyRadius = owner.physics.posp.radius;
         //create firing action
-        mFireAction = pweapon.onFire.createInstance(engine);
+        mFireAction = myclass.onFire.createInstance(engine);
         mFireAction.onFinish = &fireFinish;
         //set parameters and let action do the rest
         //parameter stuff is a big xxx
@@ -278,7 +278,6 @@ struct SpawnParams {
     char[] projectile;
     float spawndist = 2; //distance between shooter and new projectile
     int count = 1;       //number of projectiles to spawn
-    Time delay;          //delay between spawns
     int random = 0;      //angle in which to spread projectiles randomly
     bool airstrike;      //shoot from the air
     InitVelocity initVelocity;//how the initial projectile velocity is generated
@@ -293,7 +292,6 @@ struct SpawnParams {
         projectile = config.getStringValue("projectile", projectile);
         count = config.getIntValue("count", count);
         spawndist = config.getFloatValue("spawndist", spawndist);
-        delay = timeSecs(config.getIntValue("delay", delay.secs));
         random = config.getIntValue("random", random);
         airstrike = config.getBoolValue("airstrike", airstrike);
         //keepVelocity = config.getBoolValue("keep_velocity", keepVelocity);
@@ -395,7 +393,7 @@ class SpawnActionClass : ActionClass {
         sparams.loadFromConfig(node);
     }
 
-    DelayAction createInstance(GameEngine eng) {
+    SpawnAction createInstance(GameEngine eng) {
         return new SpawnAction(this, eng);
     }
 
@@ -404,12 +402,9 @@ class SpawnActionClass : ActionClass {
     }
 }
 
-class SpawnAction : Action {
+class SpawnAction : WeaponAction {
     private {
         SpawnActionClass myclass;
-        FireInfo* fi;
-        PhysicObject shootby;
-        GameObject shootby_obj;
     }
 
     this(SpawnActionClass base, GameEngine eng) {
@@ -418,13 +413,11 @@ class SpawnAction : Action {
     }
 
     override protected void initialStep() {
-        //xxx parameter stuff is a bit weird
-        fi = params.getPar!(FireInfo)("fireinfo");
-        shootby_obj = *params.getPar!(GameObject)("owner_game");
-        if (!fi.pos.isNaN) {
+        super.initialStep();
+        if (!mFireInfo.pos.isNaN) {
             //delay is not used, use ActionList looping for this
             for (int n = 0; n < myclass.sparams.count; n++) {
-                spawnsprite(engine, n, myclass.sparams, *fi, shootby_obj);
+                spawnsprite(engine, n, myclass.sparams, *mFireInfo, mShootbyObj);
             }
         }
         done();

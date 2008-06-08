@@ -177,7 +177,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
 
     //a weapon subnode of weapons.conf
     void loadWeaponClass(ConfigNode weapon) {
-        char[] type = weapon.getStringValue("type", "notype");
+        char[] type = weapon.getStringValue("type", "action");
         //xxx error handling
         //hope you never need to debug this code!
         WeaponClass c = WeaponClassFactory.instantiate(type, this, weapon);

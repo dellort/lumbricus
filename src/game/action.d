@@ -313,6 +313,8 @@ abstract class Action : GameObject {
 
     //called by action handler when work is complete
     protected final void done() {
+        if (!mActivity)
+            return;
         if (onFinish) {
             onFinish(this);
         }
@@ -336,16 +338,19 @@ abstract class Action : GameObject {
     }
 }
 
-///DelayAction: simple action that pauses execution for some msecs
-class DelayActionClass : ActionClass {
-    Time delay;
+//------------------------------------------------------------------------
+
+///TimedAction: simple action that pauses execution for some msecs
+///can also serve as base class for actions requiring a lifetime
+class TimedActionClass : ActionClass {
+    Time duration;
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
-        delay = timeMsecs(node.getIntValue("delay",1000));
+        duration = timeMsecs(node.getIntValue("duration",1000));
     }
 
-    DelayAction createInstance(GameEngine eng) {
-        return new DelayAction(this, eng);
+    TimedAction createInstance(GameEngine eng) {
+        return new TimedAction(this, eng);
     }
 
     static this() {
@@ -353,27 +358,58 @@ class DelayActionClass : ActionClass {
     }
 }
 
-class DelayAction : Action {
+class TimedAction : Action {
     private {
-        Time mInitTime, mFinishTime;
-        DelayActionClass myclass;
+        Time mFinishTime;
+        TimedActionClass myclass;
+        bool mDeferredInit = false;
     }
 
-    this(DelayActionClass base, GameEngine eng) {
+    this(TimedActionClass base, GameEngine eng) {
         super(base, eng);
         myclass = base;
     }
 
-    override protected void initialStep() {
-        mInitTime = engine.gameTime.current;
-        mFinishTime = mInitTime + myclass.delay;
+    //hehe... (use the 3 functions below)
+    override final protected void initialStep() {
+        mFinishTime = engine.gameTime.current + myclass.duration;
+        doImmediate();
         //check for 0 delay special case
-        if (myclass.delay == timeNull)
+        if (myclass.duration > Time.Null && mActivity) {
+            initDeferred();
+            //may have called done() in initDeferred()
+            if (mActivity)
+                mDeferredInit = true;
+        } else {
             done();
+        }
+    }
+
+    //all empty, this action just waits (override this)
+    protected void doImmediate() {
+        //always gets called
+    }
+
+    protected void initDeferred() {
+        //just gets called when duration > 0 (and no done() call in immediate)
+        //call done() here to avoid setting the timer
+    }
+
+    protected void cleanupDeferred() {
+        //just gets called when initDeferred was run (without done() call)
     }
 
     override void simulate(float deltaT) {
-        if (engine.gameTime.current >= mFinishTime)
+        if (engine.gameTime.current >= mFinishTime) {
+            cleanupDeferred();
             done();
+        }
+    }
+
+    override void abort() {
+        if (mDeferredInit)
+            cleanupDeferred();
+        super.abort();
     }
 }
+

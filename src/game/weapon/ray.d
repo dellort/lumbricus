@@ -16,7 +16,7 @@ import utils.log;
 import utils.random;
 import utils.time;
 
-class RayWeapon: ProjectileWeapon {
+class RayWeapon: ActionWeapon {
     float spread = 0;      //random spread (degrees)
     Time lineTime;         //time for which a laser-like line is displayed
     Color[2] lineColors;   //[cold, hot] colors (interpolated during lineTime)
@@ -37,11 +37,11 @@ class RayWeapon: ProjectileWeapon {
     }
 
     static this() {
-        WeaponClassFactory.register!(RayWeapon)("ray_mc");
+        WeaponClassFactory.register!(typeof(this))("ray");
     }
 }
 
-private class RayShooter: ProjectileThrower {
+private class RayShooter: ActionShooter {
     RayWeapon base;
     private Vector2f mOwnerPos;
 

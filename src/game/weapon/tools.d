@@ -38,7 +38,7 @@ class ToolClass : WeaponClass {
     }
 
     static this() {
-        WeaponClassFactory.register!(typeof(this))("tools_mc");
+        WeaponClassFactory.register!(typeof(this))("tool");
     }
 }
 

@@ -12,6 +12,28 @@ import utils.configfile;
 import utils.time;
 import utils.vector2;
 
+///Base class for weapon-activated actions (just for parameter handling)
+class WeaponAction : Action {
+    protected {
+        FireInfo* mFireInfo;
+        GameObject mShootbyObj;
+    }
+
+    this(ActionClass base, GameEngine eng) {
+        super(base, eng);
+    }
+
+    override protected void initialStep() {
+        super.initialStep();
+        mFireInfo = params.getPar!(FireInfo)("fireinfo");
+        mShootbyObj = *params.getPar!(GameObject)("owner_game");
+        //obligatory parameters for WeaponAction
+        assert(!!mFireInfo && !!mShootbyObj);
+    }
+}
+
+//------------------------------------------------------------------------
+
 ///Causes an explosion at FireInfo.pos
 class ExplosionActionClass : ActionClass {
     float damage = 5.0f;
@@ -29,12 +51,9 @@ class ExplosionActionClass : ActionClass {
     }
 }
 
-class ExplosionAction : Action {
+class ExplosionAction : WeaponAction {
     private {
         ExplosionActionClass myclass;
-        FireInfo* fi;
-        PhysicObject shootby;
-        GameObject shootby_obj;
     }
 
     this(ExplosionActionClass base, GameEngine eng) {
@@ -43,11 +62,9 @@ class ExplosionAction : Action {
     }
 
     override protected void initialStep() {
-        //xxx parameter stuff is a bit weird
-        fi = params.getPar!(FireInfo)("fireinfo");
-        shootby_obj = *params.getPar!(GameObject)("owner_game");
-        if (!fi.pos.isNaN)
-            engine.explosionAt(fi.pos, myclass.damage, shootby_obj);
+        super.initialStep();
+        if (!mFireInfo.pos.isNaN)
+            engine.explosionAt(mFireInfo.pos, myclass.damage, mShootbyObj);
         done();
     }
 }
@@ -72,11 +89,9 @@ class BeamActionClass : ActionClass {
     }
 }
 
-class BeamAction : Action {
+class BeamAction : WeaponAction {
     private {
         BeamActionClass myclass;
-        FireInfo* fi;
-        PhysicObject shootby;
         WormSprite mWorm;
 
         Vector2f mDest;
@@ -88,14 +103,14 @@ class BeamAction : Action {
     }
 
     override protected void initialStep() {
+        super.initialStep();
         //xxx parameter stuff is a bit weird
-        fi = params.getPar!(FireInfo)("fireinfo");
-        mWorm = cast(WormSprite)*params.getPar!(GameObject)("owner_game");
-        if (!fi.pos.isNaN && mWorm) {
+        mWorm = cast(WormSprite)mShootbyObj;
+        if (!mFireInfo.pos.isNaN && mWorm) {
             if (myclass.usePos)
-                mDest = fi.pos;
+                mDest = mFireInfo.pos;
             else
-                mDest = fi.pointto;
+                mDest = mFireInfo.pointto;
             //WormSprite.beamTo does all the work, just wait for it to finish
             engine.mLog("start beaming");
             mWorm.beamTo(mDest);
@@ -136,12 +151,9 @@ class InsertBitmapActionClass : ActionClass {
     }
 }
 
-class InsertBitmapAction : Action {
+class InsertBitmapAction : WeaponAction {
     private {
         InsertBitmapActionClass myclass;
-        FireInfo* fi;
-        PhysicObject shootby;
-        GameObject shootby_obj;
     }
 
     this(InsertBitmapActionClass base, GameEngine eng) {
@@ -150,12 +162,10 @@ class InsertBitmapAction : Action {
     }
 
     override protected void initialStep() {
-        //xxx parameter stuff is a bit weird
-        fi = params.getPar!(FireInfo)("fireinfo");
-        shootby_obj = *params.getPar!(GameObject)("owner_game");
-        if (!fi.pos.isNaN && myclass.bitmap.defined()) {
+        super.initialStep();
+        if (!mFireInfo.pos.isNaN && myclass.bitmap.defined()) {
             //centered at FireInfo.pos
-            auto p = toVector2i(fi.pos);
+            auto p = toVector2i(mFireInfo.pos);
             auto res = myclass.bitmap;
             p -= res.get.size / 2;
             engine.insertIntoLandscape(p, res);
@@ -167,15 +177,14 @@ class InsertBitmapAction : Action {
 //------------------------------------------------------------------------
 
 ///Causes an earthquake and returns only after its finished
-class EarthquakeActionClass : ActionClass {
+class EarthquakeActionClass : TimedActionClass {
     float strength, degrade;
-    Time duration;
     int waterRaise;
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
+        super.loadFromConfig(eng, node);
         strength = node.getFloatValue("strength", 100.0f);
         degrade = node.getFloatValue("degrade", 1.0f);
-        duration = timeMsecs(node.getIntValue("duration_ms", 1000));
         waterRaise = node.getIntValue("water_raise", 0);
     }
 
@@ -188,7 +197,7 @@ class EarthquakeActionClass : ActionClass {
     }
 }
 
-class EarthquakeAction : Action {
+class EarthquakeAction : TimedAction {
     private {
         EarthquakeActionClass myclass;
         PhysicBase mEarthquake;
@@ -200,40 +209,26 @@ class EarthquakeAction : Action {
         myclass = base;
     }
 
-    override protected void initialStep() {
-        //raise water
+    override protected void doImmediate() {
         if (myclass.waterRaise > 0) {
             engine.raiseWater(myclass.waterRaise);
         }
-        //earthquake
-        if (myclass.duration >= Time.Null && myclass.strength >= 0) {
+    }
+
+    override protected void initDeferred() {
+        if (myclass.strength > 0) {
             mEarthquake = new EarthQuakeDegrader(myclass.strength,
                 myclass.degrade, engine.earthQuakeForce);
             engine.physicworld.addBaseObject(mEarthquake);
-            //wait for it to finish
-            mEndtime = engine.gameTime.current + myclass.duration;
         } else {
             done();
         }
     }
 
-    override void simulate(float deltaT) {
-        super.simulate(deltaT);
-        if (engine.gameTime.current >= mEndtime) {
-            mEarthquake.dead = true;
-            mEarthquake = null;
-            done();
-        }
-    }
-
-    override void abort() {
-        //make sure earthquake stops on abort
+    override protected void cleanupDeferred() {
         //xxx not sure about that, what if worm drowns?
-        if (mEarthquake) {
-            mEarthquake.dead = true;
-            mEarthquake = null;
-        }
-        super.abort();
+        mEarthquake.dead = true;
+        mEarthquake = null;
     }
 }
 
