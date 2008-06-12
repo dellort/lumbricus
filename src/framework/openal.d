@@ -19,6 +19,14 @@ private void throwALUTError(char[] msg) {
         alutGetErrorString(alutGetError())));
 }
 
+private void checkALError(char[] msg) {
+    int code = alGetError();
+    if (code != AL_NO_ERROR) {
+        throw new Exception("call of "~msg~" failed: "~str.toString(
+            alGetString(code)));
+    }
+}
+
 private ALSoundDriver gBase;
 
 class ALChannel : DriverChannel {
@@ -29,6 +37,7 @@ class ALChannel : DriverChannel {
     this() {
         owner = gBase;
         alGenSources(1, &source);
+        checkALError("alGenSources");
     }
 
     void setPos(ref SoundSourcePosition pos) {
@@ -65,6 +74,7 @@ class ALChannel : DriverChannel {
     ALint state() {
         ALint s;
         alGetSourcei(source, AL_SOURCE_STATE, &s);
+        checkALError("alGetSourcei");
         return s;
     }
 

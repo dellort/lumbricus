@@ -23,12 +23,13 @@ class WeaponAction : Action {
         super(base, eng);
     }
 
-    override protected void initialStep() {
+    override protected ActionRes initialStep() {
         super.initialStep();
         mFireInfo = params.getPar!(FireInfo)("fireinfo");
         mShootbyObj = *params.getPar!(GameObject)("owner_game");
         //obligatory parameters for WeaponAction
-        assert(!!mFireInfo && !!mShootbyObj);
+        assert(mFireInfo && !!mShootbyObj);
+        return ActionRes.done;
     }
 }
 
@@ -61,11 +62,11 @@ class ExplosionAction : WeaponAction {
         myclass = base;
     }
 
-    override protected void initialStep() {
+    override protected ActionRes initialStep() {
         super.initialStep();
         if (!mFireInfo.pos.isNaN)
             engine.explosionAt(mFireInfo.pos, myclass.damage, mShootbyObj);
-        done();
+        return ActionRes.done;
     }
 }
 
@@ -102,7 +103,7 @@ class BeamAction : WeaponAction {
         myclass = base;
     }
 
-    override protected void initialStep() {
+    override protected ActionRes initialStep() {
         super.initialStep();
         //xxx parameter stuff is a bit weird
         mWorm = cast(WormSprite)mShootbyObj;
@@ -114,9 +115,10 @@ class BeamAction : WeaponAction {
             //WormSprite.beamTo does all the work, just wait for it to finish
             engine.mLog("start beaming");
             mWorm.beamTo(mDest);
+            return ActionRes.moreWork;
         } else {
             //error
-            done();
+            return ActionRes.done;
         }
     }
 
@@ -161,7 +163,7 @@ class InsertBitmapAction : WeaponAction {
         myclass = base;
     }
 
-    override protected void initialStep() {
+    override protected ActionRes initialStep() {
         super.initialStep();
         if (!mFireInfo.pos.isNaN && myclass.bitmap.defined()) {
             //centered at FireInfo.pos
@@ -170,7 +172,7 @@ class InsertBitmapAction : WeaponAction {
             p -= res.get.size / 2;
             engine.insertIntoLandscape(p, res);
         }
-        done();
+        return ActionRes.done;
     }
 }
 
@@ -201,7 +203,6 @@ class EarthquakeAction : TimedAction {
     private {
         EarthquakeActionClass myclass;
         PhysicBase mEarthquake;
-        Time mEndtime;
     }
 
     this(EarthquakeActionClass base, GameEngine eng) {
@@ -209,19 +210,21 @@ class EarthquakeAction : TimedAction {
         myclass = base;
     }
 
-    override protected void doImmediate() {
+    override protected ActionRes doImmediate() {
         if (myclass.waterRaise > 0) {
             engine.raiseWater(myclass.waterRaise);
         }
+        return ActionRes.moreWork;
     }
 
-    override protected void initDeferred() {
+    override protected ActionRes initDeferred() {
         if (myclass.strength > 0) {
             mEarthquake = new EarthQuakeDegrader(myclass.strength,
                 myclass.degrade, engine.earthQuakeForce);
             engine.physicworld.addBaseObject(mEarthquake);
+            return ActionRes.moreWork;
         } else {
-            done();
+            return ActionRes.done;
         }
     }
 

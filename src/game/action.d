@@ -41,6 +41,9 @@ class ActionContainer {
           }
     */
     void loadFromConfig(GameEngine eng, ConfigNode node) {
+        mActions = null;
+        if (!node)
+            return;
         //list of named subnodes, each containing an ActionClass
         foreach (char[] name, ConfigNode n; node) {
             auto ac = actionFromConfig(eng, n);
@@ -62,8 +65,10 @@ ActionClass actionFromConfig(GameEngine eng, ConfigNode node) {
         auto ac = ActionClassFactory.instantiate(type);
         ac.loadFromConfig(eng, node);
         return ac;
+    } else {
+        eng.mLog("Action type "~type~" not found.");
+        return null;
     }
-    return null;
 }
 
 
@@ -166,7 +171,7 @@ class ActionList : Action {
         //repetition counter
         int mRepCounter;
         Time mAllDoneTime, mNextLoopTime;
-        bool mAborting;
+        bool mAborting, mDoneFlag, mWaitingForNextLoop;
     }
 
     //called before every loop over all actions
@@ -176,7 +181,12 @@ class ActionList : Action {
     this(ActionListClass base, GameEngine eng) {
         super(base, eng);
         myclass = base;
-        mRepCounter = myclass.repeatCount;
+        //create actions
+        foreach (ActionClass ac; myclass.actions) {
+            auto newInst = ac.createInstance(engine);
+            newInst.onFinish = &acFinish;
+            mActions ~= newInst;
+        }
     }
 
     //callback method for Actions (meaning an action completed)
@@ -196,13 +206,15 @@ class ActionList : Action {
             mAllDoneTime = engine.gameTime.current;
             mNextLoopTime = mAllDoneTime + myclass.repeatDelay;
             mRepCounter--;
-            if (mRepCounter <= 0) {
-                done();
+            //note: can be <0, which means infinite execution
+            if (mRepCounter == 0) {
+                listDone();
             } else {
                 //and the whole thing once again
                 if (myclass.repeatDelay == Time.Null) {
-                    initialStep();
+                    runLoop();
                 } else {
+                    mWaitingForNextLoop = true;
                     active = true;
                 }
             }
@@ -211,9 +223,12 @@ class ActionList : Action {
 
     //only called while waiting for next loop
     override void simulate(float deltaT) {
+        if (!mWaitingForNextLoop)
+            return;
         if (engine.gameTime.current >= mNextLoopTime) {
             active = false;
-            initialStep();
+            mWaitingForNextLoop = false;
+            runLoop();
         }
     }
 
@@ -221,29 +236,26 @@ class ActionList : Action {
     private void runNextAction() {
         if (mCurrent >= mActions.length)
             return;
-        mActions[mCurrent].onFinish = &acFinish;
-        //this must be the last statement
-        mActions[mCurrent++].execute(params);
+        mCurrent++;
+        //this must be the last statement here
+        mActions[mCurrent-1].execute(params);
     }
 
-    override protected void initialStep() {
-        //create actions
-        //those are created here (and again for every loop) because Action
-        //is for one-time-execution (GameObject.die is called on finish)
-        //xxx waste of memory
-        mActions = null;
-        foreach (ActionClass ac; myclass.actions) {
-            mActions ~= ac.createInstance(engine);
+    override protected ActionRes initialStep() {
+        mDoneFlag = false;
+        mRepCounter = myclass.repeatCount;
+        //check for empty list
+        if (mActions.length == 0) {
+            return ActionRes.done;
         }
+        return runLoop();
+    }
+
+    private ActionRes runLoop() {
         mDoneCounter = 0;
         mCurrent = 0;
         if (onStartLoop)
             onStartLoop(this);
-        //check for empty list
-        if (mActions.length == 0) {
-            done();
-            return;
-        }
         if (myclass.execType == ALExecType.parallel) {
             //run all actions at once, without waiting for done() callbacks
             foreach (Action a; mActions) {
@@ -253,6 +265,17 @@ class ActionList : Action {
             //execute one action only
             runNextAction();
         }
+        if (mDoneFlag)
+            return ActionRes.done;
+        else
+            return ActionRes.moreWork;
+    }
+
+    private void listDone() {
+        if (active)
+            done();
+        else
+            mDoneFlag = true;
     }
 
     override void abort() {
@@ -267,12 +290,17 @@ class ActionList : Action {
     }
 }
 
-///base class for actions (one-time execution)
+enum ActionRes {
+    done ,
+    moreWork,
+}
+
+///base class for actions (can run multiple times, but only after the finish
+///call)
 //GameObject, lol
 abstract class Action : GameObject {
     private ActionClass myclass;
-    private bool mActivity = true;
-    protected bool mHasRun;
+    private bool mActivity;
 
     ActionParams params;
     void delegate(Action sender) onExecute;
@@ -287,14 +315,15 @@ abstract class Action : GameObject {
     final void execute() {
         if (onExecute)
             onExecute(this);
-        //one-time only
-        if (mHasRun)
-            return;
-        mHasRun = true;
-        initialStep();
-        if (mActivity) {
+        //not reentrant
+        assert(!mActivity, "Action is still active");
+        mActivity = true;
+        if (initialStep() == ActionRes.moreWork) {
             //still work to do -> add to GameEngine for later processing
             active = true;
+        } else {
+            //Warning: may run execute() again from callback
+            done();
         }
     }
 
@@ -303,9 +332,11 @@ abstract class Action : GameObject {
         execute();
     }
 
-    ///main action procedures, call done() when action is finished
-    ///direct actions
-    protected void initialStep() {}
+    ///main action procedure for immediate actions
+    ///return true if more work is needed
+    protected ActionRes initialStep() {
+        return ActionRes.done;
+    }
 
     ///run deferred actions here (don't forget the done() call)
     override void simulate(float deltaT) {
@@ -313,13 +344,14 @@ abstract class Action : GameObject {
 
     //called by action handler when work is complete
     protected final void done() {
+        //only if currently processing action
         if (!mActivity)
             return;
+        mActivity = false;
+        active = false;
         if (onFinish) {
             onFinish(this);
         }
-        mActivity = false;
-        kill();
     }
 
     final bool activity() {
@@ -331,10 +363,7 @@ abstract class Action : GameObject {
         //just stop deferred activity
         //if overriding, make sure this leads to a done() call
         //if there has not been one before
-        if (!mHasRun || active) {
-            mHasRun = true;
-            done();
-        }
+        done();
     }
 }
 
@@ -344,9 +373,11 @@ abstract class Action : GameObject {
 ///can also serve as base class for actions requiring a lifetime
 class TimedActionClass : ActionClass {
     Time duration;
+    bool randomDuration;
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         duration = timeMsecs(node.getIntValue("duration",1000));
+        randomDuration = node.getBoolValue("random_duration",false);
     }
 
     TimedAction createInstance(GameEngine eng) {
@@ -371,28 +402,36 @@ class TimedAction : Action {
     }
 
     //hehe... (use the 3 functions below)
-    override final protected void initialStep() {
-        mFinishTime = engine.gameTime.current + myclass.duration;
-        doImmediate();
-        //check for 0 delay special case
-        if (myclass.duration > Time.Null && mActivity) {
-            initDeferred();
-            //may have called done() in initDeferred()
-            if (mActivity)
-                mDeferredInit = true;
+    override final protected ActionRes initialStep() {
+        Time aDuration;
+        if (myclass.randomDuration)
+            aDuration = timeMsecs(myclass.duration.msecs
+                * engine.rnd.nextDouble());
+        else
+            aDuration = myclass.duration;
+        mFinishTime = engine.gameTime.current + aDuration;
+        if (doImmediate() == ActionRes.moreWork) {
+            //check for 0 delay special case
+            if (aDuration > Time.Null)
+                mDeferredInit = (initDeferred() == ActionRes.moreWork);
+            if (!mDeferredInit)
+                return ActionRes.done;
         } else {
-            done();
+            return ActionRes.done;
         }
+        return ActionRes.moreWork;
     }
 
     //all empty, this action just waits (override this)
-    protected void doImmediate() {
+    protected ActionRes doImmediate() {
         //always gets called
+        return ActionRes.moreWork;
     }
 
-    protected void initDeferred() {
+    protected ActionRes initDeferred() {
         //just gets called when duration > 0 (and no done() call in immediate)
         //call done() here to avoid setting the timer
+        return ActionRes.moreWork;
     }
 
     protected void cleanupDeferred() {

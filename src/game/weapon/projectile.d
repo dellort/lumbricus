@@ -135,8 +135,8 @@ private class ProjectileSprite : GObjectSprite {
     Time detonateTimer;
     Time glueTime;   //time when projectile got glued
     bool gluedCache; //last value of physics.isGlued
-    ProjectileEffector[] effectors;
     Vector2f target;
+    private Action mCreateAction;
 
     Time detonateTime() {
         if (myclass.detonateByTime) {
@@ -158,10 +158,6 @@ private class ProjectileSprite : GObjectSprite {
 
     override void simulate(float deltaT) {
         super.simulate(deltaT);
-
-        foreach (eff; effectors) {
-            eff.simulate(deltaT);
-        }
 
         if (engine.gameTime.current > detonateTime) {
             //start glued checking when projectile wants to blow
@@ -240,11 +236,20 @@ private class ProjectileSprite : GObjectSprite {
         die();
     }
 
+    void runAction(char[] id) {
+        auto ac = myclass.actions.action(id);
+        if (ac) {
+            auto a = ac.createInstance(engine);
+            //ActionParams p;
+            //  p["fireinfo"] = &fireInfo;
+            //  p["owner_game"] = &owner;
+        }
+    }
+
     override protected void die() {
         //remove constant effects
-        foreach (eff; effectors) {
-            eff.die();
-        }
+        if (mCreateAction)
+            mCreateAction.abort();
 
         //actually die (byebye)
         super.die();
@@ -258,10 +263,12 @@ private class ProjectileSprite : GObjectSprite {
         assert(myclass !is null);
         birthTime = engine.gameTime.current;
 
-        foreach (effcls; myclass.effects) {
-            auto peff = effcls.createEffector(this);
-            peff.birthTime = birthTime;
-            effectors ~= peff;
+        auto ac = myclass.actions.action("oncreate");
+        if (ac) {
+            mCreateAction = ac.createInstance(engine);
+            ActionParams p;
+              p["projectile"] = &this;
+            mCreateAction.execute(p);
         }
     }
 }
@@ -412,7 +419,7 @@ class SpawnAction : WeaponAction {
         myclass = base;
     }
 
-    override protected void initialStep() {
+    override protected ActionRes initialStep() {
         super.initialStep();
         if (!mFireInfo.pos.isNaN) {
             //delay is not used, use ActionList looping for this
@@ -420,7 +427,7 @@ class SpawnAction : WeaponAction {
                 spawnsprite(engine, n, myclass.sparams, *mFireInfo, mShootbyObj);
             }
         }
-        done();
+        return ActionRes.done;
     }
 }
 
@@ -446,7 +453,6 @@ class ProjectileSpriteClass : GOSpriteClass {
 
     //non-null if to spawn anything on death
     SpawnParams* spawnOnDetonate;
-    ProjectileEffectorClass[] effects;
     bool spawnLimitReason = false;
     DetonateReason spawnRequire;
 
@@ -460,6 +466,8 @@ class ProjectileSpriteClass : GOSpriteClass {
     float quakeOnDeathStrength;
     float quakeOnDeathDegrade;
 
+    ActionContainer actions;
+
     override ProjectileSprite createSprite() {
         return new ProjectileSprite(engine, this);
     }
@@ -467,6 +475,7 @@ class ProjectileSpriteClass : GOSpriteClass {
     //config = a subnode in the weapons.conf which describes a single projectile
     override void loadFromConfig(ConfigNode config) {
         //missing super call is intended
+        actions.loadFromConfig(engine, config.getSubNode("actions"));
 
         //hm, state stuff unused, so only that state
         initState.physic_properties = new POSP();
@@ -510,11 +519,6 @@ class ProjectileSpriteClass : GOSpriteClass {
         }
 
         inactiveWhenGlued = config.getBoolValue("inactive_when_glued");
-
-        auto effectsNode = config.getSubNode("effects");
-        foreach (ConfigNode n; effectsNode) {
-            effects ~= ProjectileEffectorFactory.instantiate(n["name"],n);
-        }
 
         auto spawn = config.getPath("detonate.spawn");
         if (spawn) {
@@ -560,6 +564,7 @@ class ProjectileSpriteClass : GOSpriteClass {
 
     this(GameEngine e, char[] r) {
         super(e, r);
+        actions = new ActionContainer();
     }
 
     static this() {
@@ -567,297 +572,259 @@ class ProjectileSpriteClass : GOSpriteClass {
     }
 }
 
-//feature request for d0c: make effectors to be derived from GameObject
-class ProjectileEffector {
-    Time birthTime, startTime, delay;
-    protected ProjectileSprite mParent;
-    private ProjectileEffectorClass myclass;
-    private bool mActive;
+//------------------------------------------------------------------------
 
-    //create effect
-    this(ProjectileSprite parent, ProjectileEffectorClass type) {
-        mParent = parent;
-        myclass = type;
-        birthTime = mParent.engine.gameTime.current;
-        if (myclass.randomDelay)
-            delay = timeMsecs(myclass.delay.msecs
-                * parent.engine.rnd.nextDouble());
-        else
-            delay = myclass.delay;
+///Base class for constant projectile actions
+class ProjectileAction : TimedAction {
+    protected {
+        ProjectileSprite mParent;
     }
 
-    void active(bool ac) {
-        if (ac != mActive) {
-            activate(ac);
-            mActive = ac;
-        }
-    }
-    bool active() {
-        return mActive;
+    this(TimedActionClass base, GameEngine eng) {
+        super(base, eng);
     }
 
-    Time dietime() {
-        if (myclass.lifetime > timeMusecs(0)) {
-            return birthTime + myclass.lifetime;
-        } else {
-            return timeNever();
-        }
-    }
-
-    abstract void activate(bool ac);
-
-    //do effect
-    void simulate(float deltaT) {
-        if (mParent.engine.gameTime.current - birthTime >= delay) {
-            active = true;
-            startTime = mParent.engine.gameTime.current + delay;
-        }
-        if (mParent.engine.gameTime.current > dietime) {
-            die();
-        }
-    }
-
-    //remove effect
-    void die() {
-        active = false;
+    override protected ActionRes doImmediate() {
+        super.doImmediate();
+        mParent = *params.getPar!(ProjectileSprite)("projectile");
+        //obligatory parameters for WeaponAction
+        assert(!!mParent);
+        return ActionRes.moreWork;
     }
 }
 
-//feature request to d0c: make this derived from GameObject
-//(would be good for having an .activity())
-class ProjectileEffectorClass {
-    Time lifetime, delay;
-    bool randomDelay;
-
-    this(ConfigNode node) {
-        lifetime = timeSecs(node.getFloatValue("lifetime",0));
-        delay = timeSecs(node.getFloatValue("delay",0.0f));
-        randomDelay = node.getBoolValue("random_delay",false);
+class ProjectileActionClass : TimedActionClass {
+    void loadFromConfig(GameEngine eng, ConfigNode node) {
+        super.loadFromConfig(eng, node);
+        if (!node.findValue("duration"))
+            duration = timeNever();
     }
-
-    abstract ProjectileEffector createEffector(ProjectileSprite parent);
 }
 
-class ProjectileEffectorGravityCenter : ProjectileEffector {
-    private ProjectileEffectorGravityCenterClass myclass;
-    private GravityCenter mGravForce;
+//------------------------------------------------------------------------
 
-    this(ProjectileSprite parent, ProjectileEffectorGravityCenterClass type) {
-        super(parent, type);
-        myclass = type;
+class GravityCenterAction : ProjectileAction {
+    private {
+        GravityCenterActionClass myclass;
+        GravityCenter mGravForce;
+    }
+
+    this(GravityCenterActionClass base, GameEngine eng) {
+        super(base, eng);
+        myclass = base;
+    }
+
+    protected ActionRes initDeferred() {
         mGravForce = new GravityCenter();
         mGravForce.accel = myclass.gravity;
         mGravForce.radius = myclass.radius;
         mGravForce.pos = mParent.physics.pos;
+        engine.physicworld.add(mGravForce);
+        return ActionRes.moreWork;
+    }
+
+    protected void cleanupDeferred() {
+        mGravForce.dead = true;
     }
 
     override void simulate(float deltaT) {
         super.simulate(deltaT);
         mGravForce.pos = mParent.physics.pos;
     }
-
-    override void activate(bool ac) {
-        if (ac) {
-            mParent.engine.physicworld.add(mGravForce);
-        } else {
-            mGravForce.dead = true;
-        }
-    }
 }
 
-class ProjectileEffectorGravityCenterClass : ProjectileEffectorClass {
+class GravityCenterActionClass : ProjectileActionClass {
     float gravity, radius;
 
-    this(ConfigNode node) {
-        super(node);
+    void loadFromConfig(GameEngine eng, ConfigNode node) {
+        super.loadFromConfig(eng, node);
         gravity = node.getFloatValue("gravity",0);
         radius = node.getFloatValue("radius",100);
     }
 
-    override ProjectileEffectorGravityCenter createEffector(ProjectileSprite parent) {
-        return new ProjectileEffectorGravityCenter(parent, this);
+    GravityCenterAction createInstance(GameEngine eng) {
+        return new GravityCenterAction(this, eng);
     }
 
     static this() {
-        ProjectileEffectorFactory.register!(typeof(this))("gravitycenter");
+        ActionClassFactory.register!(typeof(this))("gravitycenter");
     }
 }
 
-class ProjectileEffectorHoming : ProjectileEffector {
-    private ProjectileEffectorHomingClass myclass;
-    private Vector2f oldAccel;
-    private ObjectForce objForce;
-    private ConstantForce homingForce;
+//------------------------------------------------------------------------
 
-    this(ProjectileSprite parent, ProjectileEffectorHomingClass type) {
-        super(parent, type);
-        myclass = type;
+class HomingAction : ProjectileAction {
+    private {
+        HomingActionClass myclass;
+        Vector2f oldAccel;
+        ObjectForce objForce;
+        ConstantForce homingForce;
+    }
+
+    this(HomingActionClass base, GameEngine eng) {
+        super(base, eng);
+        myclass = base;
+    }
+
+    protected ActionRes initDeferred() {
         homingForce = new ConstantForce();
         objForce = new ObjectForce();
         objForce.target = mParent.physics;
         objForce.force = homingForce;
+        //backup acceleration and set gravity override
+        oldAccel = mParent.physics.acceleration;
+        mParent.physics.acceleration = -engine.physicworld.gravity;
+        engine.physicworld.add(objForce);
+        return ActionRes.moreWork;
+    }
+
+    protected void cleanupDeferred() {
+        mParent.physics.acceleration = oldAccel;
+        objForce.dead = true;
     }
 
     override void simulate(float deltaT) {
         super.simulate(deltaT);
-        if (mActive) {
-            Vector2f totarget = mParent.target - mParent.physics.pos;
-            Vector2f cmpAccel = totarget.project_vector(
-                mParent.physics.velocity);
-            Vector2f cmpTurn = totarget.project_vector(
-                mParent.physics.velocity.orthogonal);
-            float velFactor = 1.0f / (1.0f +
-                mParent.physics.velocity.length * myclass.velocityInfluence);
-            cmpTurn *= velFactor;
-            totarget = cmpAccel + cmpTurn;
-            //mParent.physics.addForce(totarget.normal*myclass.force);
-            homingForce.force = totarget.normal*myclass.force;
-        }
-    }
-
-    override void activate(bool ac) {
-        if (ac) {
-            //backup acceleration and set gravity override
-            oldAccel = mParent.physics.acceleration;
-            mParent.physics.acceleration = -mParent.engine.physicworld.gravity;
-            mParent.engine.physicworld.add(objForce);
-        } else {
-            mParent.physics.acceleration = oldAccel;
-            objForce.doRemove();
-        }
+        Vector2f totarget = mParent.target - mParent.physics.pos;
+        Vector2f cmpAccel = totarget.project_vector(
+            mParent.physics.velocity);
+        Vector2f cmpTurn = totarget.project_vector(
+            mParent.physics.velocity.orthogonal);
+        float velFactor = 1.0f / (1.0f +
+            mParent.physics.velocity.length * myclass.velocityInfluence);
+        cmpTurn *= velFactor;
+        totarget = cmpAccel + cmpTurn;
+        //mParent.physics.addForce(totarget.normal*myclass.force);
+        homingForce.force = totarget.normal*myclass.force;
     }
 }
 
-class ProjectileEffectorHomingClass : ProjectileEffectorClass {
+class HomingActionClass : ProjectileActionClass {
     float force;
     float maxvelocity;
     float velocityInfluence = 0.001f;
 
-    this(ConfigNode node) {
-        super(node);
+    void loadFromConfig(GameEngine eng, ConfigNode node) {
+        super.loadFromConfig(eng, node);
         force = node.getIntValue("force",100);
         maxvelocity = node.getIntValue("max_velocity",500);
         velocityInfluence = node.getFloatValue("velocity_influence", 0.001f);
     }
 
-    override ProjectileEffectorHoming createEffector(ProjectileSprite parent) {
-        return new ProjectileEffectorHoming(parent, this);
+    HomingAction createInstance(GameEngine eng) {
+        return new HomingAction(this, eng);
     }
 
     static this() {
-        ProjectileEffectorFactory.register!(typeof(this))("homing");
+        ActionClassFactory.register!(typeof(this))("homing");
     }
 }
 
-class ProjectileEffectorExplode : ProjectileEffector {
-    private ProjectileEffectorExplodeClass myclass;
-    private Time mLast;
+//------------------------------------------------------------------------
 
-    this(ProjectileSprite parent, ProjectileEffectorExplodeClass type) {
-        super(parent, type);
-        myclass = type;
+//HUGE xxx: Can't use ExplosionAction here because of parameter mismatch :(
+//this does _exactly_ the same
+class ExplodeAction : ProjectileAction {
+    private {
+        ExplodeActionClass myclass;
     }
 
-    override void simulate(float deltaT) {
-        super.simulate(deltaT);
-        if (mActive) {
-            if (mParent.engine.gameTime.current - mLast > myclass.interval) {
-                mLast += myclass.interval;
-                mParent.engine.explosionAt(mParent.physics.pos, myclass.damage,
-                    mParent);
-            }
-        }
+    this(ExplodeActionClass base, GameEngine eng) {
+        super(base, eng);
+        myclass = base;
     }
 
-    override void activate(bool ac) {
-        if (ac) {
-            mLast = birthTime + delay - myclass.interval;
-        } else {
-        }
+
+    protected ActionRes initDeferred() {
+        engine.explosionAt(mParent.physics.pos, myclass.damage,
+            mParent);
+        return ActionRes.done;
     }
 }
 
-class ProjectileEffectorExplodeClass : ProjectileEffectorClass {
-    Time interval;
+class ExplodeActionClass : TimedActionClass {
     float damage;
 
-    this(ConfigNode node) {
-        super(node);
-        interval = timeSecs(node.getFloatValue("interval",1.0f));
+    void loadFromConfig(GameEngine eng, ConfigNode node) {
+        super.loadFromConfig(eng, node);
         damage = node.getIntValue("damage",50);
     }
 
-    override ProjectileEffectorExplode createEffector(ProjectileSprite parent) {
-        return new ProjectileEffectorExplode(parent, this);
+     ExplodeAction createInstance(GameEngine eng) {
+        return new ExplodeAction(this, eng);
     }
 
     static this() {
-        ProjectileEffectorFactory.register!(typeof(this))("explode");
+        ActionClassFactory.register!(typeof(this))("explosion_pr");
     }
 }
 
-class ProjectileEffectorProximitySensor : ProjectileEffector {
-    private ProjectileEffectorProximitySensorClass myclass;
-    private CircularTrigger mTrigger;
-    private Time mFireTime;
+//------------------------------------------------------------------------
 
-    this(ProjectileSprite parent, ProjectileEffectorProximitySensorClass type) {
-        super(parent, type);
-        myclass = type;
+class ProximitySensorAction : ProjectileAction {
+    private {
+        ProximitySensorActionClass myclass;
+        CircularTrigger mTrigger;
+        Time mFireTime;
+    }
+
+    this(ProximitySensorActionClass base, GameEngine eng) {
+        super(base, eng);
+        myclass = base;
+    }
+
+    protected ActionRes initDeferred() {
+        assert(mParent !is null);
+        assert(mParent !is null);
+        assert(mParent.physics !is null);
+        assert(myclass !is null);
+        assert(engine !is null);
         mTrigger = new CircularTrigger(mParent.physics.pos, myclass.radius);
-        mTrigger.collision = mParent.engine.physicworld.findCollisionID(
+        mTrigger.collision = engine.physicworld.findCollisionID(
             myclass.collision);
         mTrigger.onTrigger = &trigTrigger;
         mFireTime = timeNever();
+        engine.physicworld.add(mTrigger);
+        return ActionRes.moreWork;
+    }
+
+    protected void cleanupDeferred() {
+        mTrigger.dead = true;
     }
 
     private void trigTrigger(PhysicTrigger sender, PhysicObject other) {
-        if (mActive && mFireTime == timeNever()) {
-            mFireTime = mParent.engine.gameTime.current + myclass.triggerDelay;
+        if (mFireTime == timeNever()) {
+            mFireTime = engine.gameTime.current + myclass.triggerDelay;
         }
     }
 
     override void simulate(float deltaT) {
         super.simulate(deltaT);
         mTrigger.pos = mParent.physics.pos;
-        if (mActive) {
-            if (mParent.engine.gameTime.current >= mFireTime) {
-                //xxx implement different actions
-                mParent.detonate(DetonateReason.sensor);
-            }
-        }
-    }
-
-    override void activate(bool ac) {
-        if (ac) {
-            mParent.engine.physicworld.add(mTrigger);
-        } else {
-            mTrigger.dead = true;
+        if (engine.gameTime.current >= mFireTime) {
+            //xxx implement different actions
+            mParent.detonate(DetonateReason.sensor);
         }
     }
 }
 
-class ProjectileEffectorProximitySensorClass : ProjectileEffectorClass {
+class ProximitySensorActionClass : ProjectileActionClass {
     float radius;
     Time triggerDelay;   //time from triggering from firing
     char[] collision;
 
-    this(ConfigNode node) {
-        super(node);
+    void loadFromConfig(GameEngine eng, ConfigNode node) {
+        super.loadFromConfig(eng, node);
         radius = node.getFloatValue("radius",20);
         triggerDelay = timeSecs(node.getFloatValue("trigger_delay",1.0f));
         collision = node.getStringValue("collision","proxsensor");
     }
 
-    override ProjectileEffectorProximitySensor createEffector(ProjectileSprite parent) {
-        return new ProjectileEffectorProximitySensor(parent, this);
+     ProximitySensorAction createInstance(GameEngine eng) {
+        return new ProximitySensorAction(this, eng);
     }
 
     static this() {
-        ProjectileEffectorFactory.register!(typeof(this))("proximitysensor");
+        ActionClassFactory.register!(typeof(this))("proximitysensor");
     }
-}
-
-static class ProjectileEffectorFactory : StaticFactory!(
-    ProjectileEffectorClass, ConfigNode) {
 }
