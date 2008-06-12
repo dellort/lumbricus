@@ -267,7 +267,7 @@ private class ProjectileSprite : GObjectSprite {
         if (ac) {
             mCreateAction = ac.createInstance(engine);
             ActionParams p;
-              p["projectile"] = &this;
+              p["projectile"] = cast(void*)this;
             mCreateAction.execute(p);
         }
     }
@@ -586,7 +586,7 @@ class ProjectileAction : TimedAction {
 
     override protected ActionRes doImmediate() {
         super.doImmediate();
-        mParent = *params.getPar!(ProjectileSprite)("projectile");
+        mParent = cast(ProjectileSprite)params.getPar!(void*)("projectile");
         //obligatory parameters for WeaponAction
         assert(!!mParent);
         return ActionRes.moreWork;
@@ -597,7 +597,7 @@ class ProjectileActionClass : TimedActionClass {
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         super.loadFromConfig(eng, node);
         if (!node.findValue("duration"))
-            duration = timeNever();
+            duration = timeHours(12378999);
     }
 }
 
@@ -774,11 +774,6 @@ class ProximitySensorAction : ProjectileAction {
     }
 
     protected ActionRes initDeferred() {
-        assert(mParent !is null);
-        assert(mParent !is null);
-        assert(mParent.physics !is null);
-        assert(myclass !is null);
-        assert(engine !is null);
         mTrigger = new CircularTrigger(mParent.physics.pos, myclass.radius);
         mTrigger.collision = engine.physicworld.findCollisionID(
             myclass.collision);
