@@ -41,6 +41,7 @@ class ALChannel : DriverChannel {
     }
 
     void setPos(ref SoundSourcePosition pos) {
+        alSource3f(source, AL_POSITION, pos.position.x, pos.position.y, 0.0f);
     }
 
     void play(DriverSound s, bool loop) {
@@ -225,6 +226,7 @@ class ALSoundDriver : SoundDriver {
 
     void musicFadeOut(Time fadetime) {
         //???
+        musicPlay(null, Time.Null, Time.Null);
     }
 
     void musicGetState(out MusicState state, out Time pos) {

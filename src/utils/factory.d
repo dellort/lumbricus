@@ -19,6 +19,7 @@ class Factory(T, ConstructorArgs...) {
     alias T delegate(ConstructorArgs) constructorCallback;
     private constructorCallback[char[]] mConstructors;
     private char[][TypeInfo] mInverseLookup;
+    private TypeInfo[ClassInfo] mCiToTi;
 
     //can't be named register(), because... hm? DMD is just borken.
     void registerByDelegate(char[] name, constructorCallback create) {
@@ -40,6 +41,7 @@ class Factory(T, ConstructorArgs...) {
 
         registerByDelegate(name, &inst);
         mInverseLookup[typeid(X)] = name;
+        mCiToTi[X.classinfo] = typeid(X);
     }
 
     //register using the unqualified class name
@@ -75,7 +77,19 @@ class Factory(T, ConstructorArgs...) {
     }
 
     char[] lookup(X : T)() {
-        return mInverseLookup[typeid(X)];
+        return lookupDynamic(typeid(X));
+    }
+
+    char[] lookupDynamic(TypeInfo t) {
+        auto pname = t in mInverseLookup;
+        return pname ? *pname : "";
+    }
+
+    //why thank you D for this extra hashmap needed in this case
+    //(no way for ClassInfo -> TypeInfo?)
+    char[] lookupDynamic(ClassInfo ci) {
+        auto pt = ci in mCiToTi;
+        return pt ? lookupDynamic(*pt) : null;
     }
 }
 

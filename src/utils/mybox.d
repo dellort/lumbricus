@@ -1,7 +1,19 @@
 module utils.mybox;
 
+import str = std.string;
+
 class MyBoxException : Exception {
     this(char[] msg) { super(msg); }
+}
+
+//dynamically check if sub is equal to or is below c
+bool isSubClass(ClassInfo sub, ClassInfo c) {
+    while (sub) {
+        if (sub is c)
+            return true;
+        sub = sub.base;
+    }
+    return false;
 }
 
 /// most simple, but generic class that works similar to std.Boxer
@@ -88,7 +100,7 @@ struct MyBox {
         copyout(data.ptr);
     }
 
-    void unboxFromPtr(TypeInfo T, void* data) {
+    void unboxToPtr(TypeInfo T, void* data) {
         typecheck(T);
         copyout(data);
     }
@@ -169,6 +181,34 @@ struct MyBox {
             throw new MyBoxException("can't compare different types.");
         }
         return mType.compare(data().ptr, b.data().ptr) == 0;
+    }
+
+    /// If the contained type is a subclass of Object or an Interface, return
+    /// it as Object; else, return... null? (uh, not so good)
+    Object asObject() {
+        if (cast(TypeInfo_Class)type()) {
+            //this "should" be safe... hurrr
+            Object o;
+            unboxToPtr(type(), cast(void*)(&o));
+            return o;
+        } else if (auto ci = cast(TypeInfo_Interface)type()) {
+            //???
+            assert(false);
+        }
+        return null;
+    }
+
+    ///convert a box which contains an Object of any type to the class type to
+    void convertObject(TypeInfo to) {
+        auto cur = cast(TypeInfo_Class)type();
+        auto toc = cast(TypeInfo_Class)to;
+        if (!cur || !toc)
+            throw new MyBoxException("incompatible types.");
+        //xxx wrong, but it was 3:10 am
+        if (!isSubClass(cur.info, toc.info) && !isSubClass(toc.info, cur.info))
+            throw new MyBoxException(str.format("inconvertible types: %s %s.",
+                cur, toc));
+        mType = toc;
     }
 
     /// Default constructor: Empty box.
@@ -252,10 +292,21 @@ unittest {
     assert(thrown);
 
     //just to be sure MyBox will work for object references
-    class Foo {
+    interface X {
+    }
+    class Foo : X {
         char[34] blubber;
     }
     static assert(Foo.sizeof == (void*).sizeof);
+
+    MyBox box3;
+    Foo f = new Foo();
+    box3.box!(Foo)(f);
+    assert(box3.asObject() is f);
+    //box3.box!(X)(f);
+    //assert(box3.toObject() is f);
+    box3.box!(long)(123);
+    assert(box3.asObject() is null);
 
     debug writefln("mybox.d unittest: passed.");
 }

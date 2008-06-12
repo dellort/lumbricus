@@ -61,11 +61,16 @@ int powerOfTwo(int input) {
 
 /// Cast object in t to type T, and throw exception if not possible.
 /// Only return null if t was already null.
-T castStrict(T : Object)(Object t) {
+T castStrict(T)(Object t) {
+    //static assert (is(T == class) || is(T == interface));
     T res = cast(T)t;
     if (t && !res) {
-        throw new Exception("could not cast "~t.classinfo.name~" to "
-            ~T.classinfo.name);
+        static if (is(T == class)) {
+            throw new Exception("could not cast "~t.classinfo.name~" to "
+                ~T.classinfo.name);
+        } else {
+            throw new Exception("figure it out yourself");
+        }
     }
     return res;
 }
