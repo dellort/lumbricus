@@ -90,19 +90,18 @@ enum ALExecType {
 final class ActionContext {
     //return boxed parameters
     //xxx type must match Action's expectation (no checking)
-    private MyBox delegate(char[] id) mParamDg;
+    MyBox delegate(char[] id) paramDg;
+    //override Action's activity check by setting this
+    bool delegate() activityCheck;
 
-    this() {
-    }
-
-    this(MyBox delegate(char[] id) paramDg) {
-        mParamDg = paramDg;
+    this(MyBox delegate(char[] id) params = null) {
+        paramDg = params;
     }
 
     final T getPar(T)(char[] id) {
         MyBox b;
-        if (mParamDg)
-            b = mParamDg(id);
+        if (paramDg)
+            b = paramDg(id);
         if (!b.empty) {
             return b.unbox!(T);
         } else {
@@ -112,8 +111,8 @@ final class ActionContext {
 
     final T getParDef(T)(char[] id, T def = T.init) {
         MyBox b;
-        if (mParamDg)
-            b = mParamDg(id);
+        if (paramDg)
+            b = paramDg(id);
         if (!b.empty) {
             return b.unbox!(T);
         } else {
@@ -232,7 +231,9 @@ class ActionList : Action {
         if (engine.gameTime.current >= mNextLoopTime) {
             active = false;
             mWaitingForNextLoop = false;
-            runLoop();
+            if (runLoop() == ActionRes.done) {
+                done();
+            }
         }
     }
 
@@ -276,10 +277,7 @@ class ActionList : Action {
     }
 
     private void listDone() {
-        if (active)
-            done();
-        else
-            mDoneFlag = true;
+        mDoneFlag = true;
     }
 
     override void abort() {
@@ -362,6 +360,8 @@ abstract class Action : GameObject {
     }
 
     final bool activity() {
+        if (context.activityCheck)
+            return context.activityCheck();
         return mActivity;
     }
 

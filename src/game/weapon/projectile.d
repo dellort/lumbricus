@@ -280,6 +280,8 @@ private class ProjectileSprite : GObjectSprite {
         if (ac) {
             mCreateAction = ac.createInstance(engine);
             auto ctx = new ActionContext(&readParam);
+            //use our activity checker (think of mines)
+            ctx.activityCheck = &activity;
             mCreateAction.execute(ctx);
         }
     }
