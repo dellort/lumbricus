@@ -125,32 +125,23 @@ private class ActionShooter : Shooter {
     }
 }
 
-private enum DetonateReason {
-    unknown,
-    impact,
-    timeout,
-    sensor,
-}
-
 private class ProjectileSprite : GObjectSprite {
     ProjectileSpriteClass myclass;
     Time birthTime;
-    //only used if mylcass.dieByTime && !myclass.useFixedDeathTime
+    //only used if myclass.dieByTime && !myclass.useFixedDeathTime
     Time detonateTimer;
     Time glueTime;   //time when projectile got glued
     bool gluedCache; //last value of physics.isGlued
     Vector2f target;
     private Action mCreateAction;
+    private bool mTimerDone = false;
+    private FireInfo mFireInfo;
 
     Time detonateTime() {
-        if (myclass.detonateByTime) {
-            if (!myclass.useFixedDetonateTime)
-                return birthTime + detonateTimer;
-            else
-                return birthTime + myclass.fixedDetonateTime;
-        } else {
-            return timeNever();
-        }
+        if (!myclass.useFixedDetonateTime)
+            return birthTime + detonateTimer;
+        else
+            return birthTime + myclass.fixedDetonateTime;
     }
 
     override bool activity() {
@@ -178,8 +169,10 @@ private class ProjectileSprite : GObjectSprite {
             }
             //this will do 0 >= 0 for projectiles not needing glue
             if (engine.gameTime.current - glueTime >= myclass.minimumGluedTime) {
-                engine.mLog("detonate by time");
-                detonate(DetonateReason.timeout);
+                if (!mTimerDone) {
+                    doEvent("ontimer");
+                    mTimerDone = true;
+                }
             }
         }
     }
@@ -187,66 +180,40 @@ private class ProjectileSprite : GObjectSprite {
     override protected void physImpact(PhysicBase other, Vector2f normal) {
         super.physImpact(other, normal);
 
-        if (myclass.detonateByImpact > 0) {
-            detonate(DetonateReason.impact, normal);
-        }
-        if (myclass.explosionOnImpact > 0) {
-            engine.explosionAt(physics.pos, myclass.explosionOnImpact, this);
-        }
+        doEvent("onimpact", normal);
     }
 
-    //called when projectile goes off
-    protected void detonate(DetonateReason reason,
-        Vector2f surfNormal = Vector2f(0, -1))
-    {
-        //various actions possible when blowing up
-        //spawning
-        if (myclass.spawnOnDetonate &&
-            (!myclass.spawnLimitReason || reason == myclass.spawnRequire))
-        {
-            FireInfo info;
-            //whatever seems useful...
-            info.dir = physics.velocity.normal;
-            info.surfNormal = surfNormal;
-            info.strength = physics.velocity.length; //xxx confusing units :-)
-            info.pointto = target;   //keep target for spawned projectiles
-            info.pos = physics.pos;
-            info.shootbyRadius = physics.posp.radius;
-
-            //xxx: if you want the spawn-delay to be considered, there'd be two
-            // ways: create a GameObject which does this (or do it in
-            // this.simulate), or use the Shooter class
-            for (int n = 0; n < myclass.spawnOnDetonate.count; n++) {
-                spawnsprite(engine, n, *myclass.spawnOnDetonate, info, this);
-            }
-        }
-        //an explosion
-        if (myclass.explosionOnDeath > 0) {
-            engine.explosionAt(physics.pos, myclass.explosionOnDeath, this);
-        }
-        if (myclass.bitmapOnDeath.defined()) {
-            auto p = toVector2i(physics.pos);
-            auto res = myclass.bitmapOnDeath;
-            p -= res.get.size / 2;
-            engine.insertIntoLandscape(p, res);
-        }
-
-        if (myclass.quakeOnDeathStrength > 0) {
-            engine.addEarthQuake(myclass.quakeOnDeathStrength,
-                myclass.quakeOnDeathDegrade);
-        }
-
-        //effects are removed by die()
-        die();
+    //fill the FireInfo struct with current data
+    private void updateFireInfo(Vector2f surfNormal = Vector2f(0, -1)) {
+        mFireInfo.dir = physics.velocity.normal;
+        mFireInfo.surfNormal = surfNormal;
+        mFireInfo.strength = physics.velocity.length; //xxx confusing units :-)
+        mFireInfo.pointto = target;   //keep target for spawned projectiles
+        mFireInfo.pos = physics.pos;
+        mFireInfo.shootbyRadius = physics.posp.radius;
     }
 
-    void runAction(char[] id) {
+    ///runs a projectile-specific event defined in the config file
+    //xxx should be private, but is used by some actions
+    void doEvent(char[] id, Vector2f surfNormal = Vector2f(0, -1)) {
+        //get current data
+        updateFireInfo(surfNormal);
+        engine.mLog("Projectile: Execute event "~id);
         auto ac = myclass.actions.action(id);
         if (ac) {
             auto a = ac.createInstance(engine);
-            //ActionParams p;
-            //  p["fireinfo"] = &fireInfo;
-            //  p["owner_game"] = &owner;
+            auto ctx = new ActionContext(&readParam);
+            a.execute(ctx);
+        }
+        if (id == "ondetonate") {
+            //reserved event that kills the projectile
+            die();
+            return;
+        }
+        if (id in myclass.detonateMap) {
+            //current event should cause the projectile to detonate
+            //xxx reserved identifier
+            doEvent("ondetonate", surfNormal);
         }
     }
 
@@ -263,6 +230,10 @@ private class ProjectileSprite : GObjectSprite {
         switch (id) {
             case "projectile":
                 return MyBox.Box(this);
+            case "owner_game":
+                return MyBox.Box(cast(GameObject)this);
+            case "fireinfo":
+                return MyBox.Box(&mFireInfo);
             default:
                 return MyBox();
         }
@@ -455,9 +426,6 @@ class SpawnAction : WeaponAction {
 //can load weapon config from configfile, see weapons.conf; it's a projectile
 class ProjectileSpriteClass : GOSpriteClass {
     //r/o fields
-    bool detonateByImpact;
-
-    bool detonateByTime;
     bool useFixedDetonateTime;
     Time fixedDetonateTime;
     Time minimumGluedTime;
@@ -465,22 +433,8 @@ class ProjectileSpriteClass : GOSpriteClass {
     //when glued, consider it as inactive (so next round can start); i.e. mines
     bool inactiveWhenGlued;
 
-    //non-null if to spawn anything on death
-    SpawnParams* spawnOnDetonate;
-    bool spawnLimitReason = false;
-    DetonateReason spawnRequire;
-
-    //nan for no explosion, else this is the damage strength
-    float explosionOnDeath;
-    float explosionOnImpact;
-
-    Resource!(Surface) bitmapOnDeath;
-
-    //nan if none
-    float quakeOnDeathStrength;
-    float quakeOnDeathDegrade;
-
     ActionContainer actions;
+    bool[char[]] detonateMap;
 
     override ProjectileSprite createSprite() {
         return new ProjectileSprite(engine, this);
@@ -516,63 +470,25 @@ class ProjectileSpriteClass : GOSpriteClass {
             states[drownstate.name] = drownstate;
         }
 
-        auto detonatereason = config.getSubNode("detonate_howcome");
-        detonateByImpact = detonatereason.getBoolValue("byimpact");
-        detonateByTime = detonatereason.getBoolValue("bytime");
-        minimumGluedTime = timeSecs(detonatereason.getFloatValue("gluetime",
+        auto detonateNode = config.getSubNode("detonate");
+        minimumGluedTime = timeSecs(detonateNode.getFloatValue("gluetime",
             0));
-        if (detonateByTime) {
-            if (detonatereason.valueIs("lifetime", "$LIFETIME$")) {
-                useFixedDetonateTime = false;
-            } else {
-                useFixedDetonateTime = true;
-                //currently in seconds
-                fixedDetonateTime =
-                    timeSecs(detonatereason.getFloatValue("lifetime"));
+        if (detonateNode.valueIs("lifetime", "$LIFETIME$")) {
+            useFixedDetonateTime = false;
+        } else {
+            useFixedDetonateTime = true;
+            //currently in seconds, xxx what about default value?
+            fixedDetonateTime =
+                timeSecs(detonateNode.getFloatValue("lifetime", 3.0f));
+        }
+        foreach (char[] name, char[] value; detonateNode) {
+            //xxx sry
+            if (value == "true" && name != "ondetonate") {
+                detonateMap[name] = true;
             }
         }
 
         inactiveWhenGlued = config.getBoolValue("inactive_when_glued");
-
-        auto spawn = config.getPath("detonate.spawn");
-        if (spawn) {
-            spawnOnDetonate = new SpawnParams;
-            if (!spawnOnDetonate.loadFromConfig(spawn)) {
-                spawnOnDetonate = null;
-            }
-            char[] sp = spawn.getStringValue("require_reason");
-            spawnLimitReason = true;
-            switch (sp) {
-                case "unknown":
-                    spawnRequire = DetonateReason.unknown;
-                    break;
-                case "impact":
-                    spawnRequire = DetonateReason.impact;
-                    break;
-                case "timeout":
-                    spawnRequire = DetonateReason.timeout;
-                    break;
-                case "sensor":
-                    spawnRequire = DetonateReason.sensor;
-                    break;
-                default:
-                    spawnLimitReason = false;
-                    break;
-            }
-        }
-        auto expl = config.getPath("detonate.explosion", true);
-        explosionOnDeath = expl.getFloatValue("damage", float.nan);
-        explosionOnImpact = config.getFloatValue("explosion_on_impact", float.nan);
-
-        if (auto bitmap = config.getPath("detonate.bitmap")) {
-            bitmapOnDeath = engine.gfx.resources
-                .resource!(Surface)(bitmap["source"]);
-        }
-
-        if (auto quake = config.getPath("detonate.earthquake")) {
-            quakeOnDeathStrength = quake.getFloatValue("strength");
-            quakeOnDeathDegrade = quake.getFloatValue("degrade");
-        }
     }
 
 
@@ -811,8 +727,10 @@ class ProximitySensorAction : ProjectileAction {
         super.simulate(deltaT);
         mTrigger.pos = mParent.physics.pos;
         if (engine.gameTime.current >= mFireTime) {
-            //xxx implement different actions
-            mParent.detonate(DetonateReason.sensor);
+            //execute trigger event (which maybe blows the projectile)
+            mParent.doEvent(myclass.eventId);
+            //xxx implement multi-activation sensors
+            done();
         }
     }
 }
@@ -820,13 +738,14 @@ class ProximitySensorAction : ProjectileAction {
 class ProximitySensorActionClass : ProjectileActionClass {
     float radius;
     Time triggerDelay;   //time from triggering from firing
-    char[] collision;
+    char[] collision, eventId;
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         super.loadFromConfig(eng, node);
         radius = node.getFloatValue("radius",20);
         triggerDelay = timeSecs(node.getFloatValue("trigger_delay",1.0f));
         collision = node.getStringValue("collision","proxsensor");
+        eventId = node.getStringValue("event","ontrigger");
     }
 
      ProximitySensorAction createInstance(GameEngine eng) {

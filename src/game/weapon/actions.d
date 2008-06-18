@@ -233,6 +233,16 @@ class EarthquakeAction : TimedAction {
         mEarthquake.dead = true;
         mEarthquake = null;
     }
+
+    override void simulate(float deltaT) {
+        if (mEarthquake.dead) {
+            //earthquake has fully degraded
+            cleanupDeferred();
+            done();
+        } else {
+            super.simulate(deltaT);
+        }
+    }
 }
 
 //------------------------------------------------------------------------

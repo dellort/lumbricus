@@ -97,7 +97,7 @@ class LoadingScreen : Container {
             updateSecondary();
             mSecondary.zorder = 1;
             mSecondary.fill = Color(0,1.0,0);
-            mSecondary.minSize = Vector2i(0, 50); //height of the bar
+            mSecondary.minSize = Vector2i(0, 25); //height of the bar
             mSecondaryFrame.add(mSecondary);
             auto background = new Spacer();
             background.color = Color(0.5);

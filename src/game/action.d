@@ -53,6 +53,12 @@ class ActionContainer {
                 mActions[name] = ac;
             }
         }
+        //scan values and resolve references (no recursion, sorry)
+        foreach (char[] name, char[] value; node) {
+            if (value.length > 0 && value in mActions) {
+                mActions[name] = mActions[value];
+            }
+        }
     }
 }
 
@@ -218,7 +224,6 @@ class ActionList : Action {
                     runLoop();
                 } else {
                     mWaitingForNextLoop = true;
-                    active = true;
                 }
             }
         }
@@ -229,11 +234,8 @@ class ActionList : Action {
         if (!mWaitingForNextLoop)
             return;
         if (engine.gameTime.current >= mNextLoopTime) {
-            active = false;
             mWaitingForNextLoop = false;
-            if (runLoop() == ActionRes.done) {
-                done();
-            }
+            runLoop();
         }
     }
 
@@ -277,7 +279,10 @@ class ActionList : Action {
     }
 
     private void listDone() {
-        mDoneFlag = true;
+        if (active)
+            done();
+        else
+            mDoneFlag = true;
     }
 
     override void abort() {
