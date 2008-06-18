@@ -25,8 +25,8 @@ class WeaponAction : Action {
 
     override protected ActionRes initialStep() {
         super.initialStep();
-        mFireInfo = params.getPar!(FireInfo)("fireinfo");
-        mShootbyObj = *params.getPar!(GameObject)("owner_game");
+        mFireInfo = context.getPar!(FireInfo*)("fireinfo");
+        mShootbyObj = context.getPar!(GameObject)("owner_game");
         //obligatory parameters for WeaponAction
         assert(mFireInfo && !!mShootbyObj);
         return ActionRes.done;

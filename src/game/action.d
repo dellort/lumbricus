@@ -9,6 +9,7 @@ import utils.mylist;
 import utils.time;
 import utils.factory;
 import utils.configfile;
+public import utils.mybox;
 
 class ActionClassFactory : StaticFactory!(ActionClass)
 {
@@ -85,35 +86,38 @@ enum ALExecType {
     parallel,
 }
 
-alias void* ActionParT;
-//alias ActionParT[char[]] ActionParams;
+///Calling context for an Action instance, passed with execute()
+final class ActionContext {
+    //return boxed parameters
+    //xxx type must match Action's expectation (no checking)
+    private MyBox delegate(char[] id) mParamDg;
 
-///holder for action parameters
-//xxx make this better
-struct ActionParams {
-    private ActionParT[char[]] mParams;
-
-    //called whenever a parameter is accessed
-    void delegate(ActionParams* sender, char[] id) onBeforeRead;
-
-    ActionParT opIndex(char[] id) {
-        return mParams[id];
+    this() {
     }
 
-    ActionParT opIndexAssign(ActionParT p, char[] id) {
-        mParams[id] = p;
-        return p;
+    this(MyBox delegate(char[] id) paramDg) {
+        mParamDg = paramDg;
     }
 
-    //actions have to use this to read parameters, or callback won't work
-    T* getPar(T)(char[] id) {
-        if (onBeforeRead)
-            onBeforeRead(this, id);
-        ActionParT* pt = id in mParams;
-        if (pt) {
-            return cast(T*)*pt;
+    final T getPar(T)(char[] id) {
+        MyBox b;
+        if (mParamDg)
+            b = mParamDg(id);
+        if (!b.empty) {
+            return b.unbox!(T);
         } else {
-            return null;
+            throw new Exception("Missing parameter: "~id);
+        }
+    }
+
+    final T getParDef(T)(char[] id, T def = T.init) {
+        MyBox b;
+        if (mParamDg)
+            b = mParamDg(id);
+        if (!b.empty) {
+            return b.unbox!(T);
+        } else {
+            return def;
         }
     }
 }
@@ -238,7 +242,7 @@ class ActionList : Action {
             return;
         mCurrent++;
         //this must be the last statement here
-        mActions[mCurrent-1].execute(params);
+        mActions[mCurrent-1].execute(context);
     }
 
     override protected ActionRes initialStep() {
@@ -302,7 +306,7 @@ abstract class Action : GameObject {
     private ActionClass myclass;
     private bool mActivity;
 
-    ActionParams params;
+    ActionContext context;
     void delegate(Action sender) onExecute;
     void delegate(Action sender) onFinish;
 
@@ -313,6 +317,7 @@ abstract class Action : GameObject {
     }
 
     final void execute() {
+        context = new ActionContext();
         if (onExecute)
             onExecute(this);
         //not reentrant
@@ -327,8 +332,8 @@ abstract class Action : GameObject {
         }
     }
 
-    final void execute(ActionParams p) {
-        params = p;
+    final void execute(ActionContext ctx) {
+        context = ctx;
         execute();
     }
 

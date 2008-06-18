@@ -64,8 +64,15 @@ private class ActionShooter : Shooter {
         mFireAction = null;
     }
 
-    void fireReadParam(ActionParams* sender, char[] id) {
-        //called before a parameter is read
+    protected MyBox fireReadParam(char[] id) {
+        switch (id) {
+            case "fireinfo":
+                return MyBox.Box(&fireInfo);
+            case "owner_game":
+                return MyBox.Box!(GameObject)(owner);
+            default:
+                return MyBox();
+        }
     }
 
     void fireRound(Action sender) {
@@ -90,10 +97,6 @@ private class ActionShooter : Shooter {
         mFireAction.onFinish = &fireFinish;
         //set parameters and let action do the rest
         //parameter stuff is a big xxx
-        ActionParams p;
-          p["fireinfo"] = &fireInfo;
-          p["owner_game"] = &owner;
-        p.onBeforeRead = &fireReadParam;
 
         //xxx this is hacky
         auto al = cast(ActionList)mFireAction;
@@ -104,7 +107,8 @@ private class ActionShooter : Shooter {
             mFireAction.onExecute = &fireRound;
         }
 
-        mFireAction.execute(p);
+        auto ctx = new ActionContext(&fireReadParam);
+        mFireAction.execute(ctx);
 
         //wut?
         /+
@@ -255,6 +259,15 @@ private class ProjectileSprite : GObjectSprite {
         super.die();
     }
 
+    protected MyBox readParam(char[] id) {
+        switch (id) {
+            case "projectile":
+                return MyBox.Box(this);
+            default:
+                return MyBox();
+        }
+    }
+
     this(GameEngine engine, ProjectileSpriteClass type) {
         super(engine, type);
 
@@ -266,9 +279,8 @@ private class ProjectileSprite : GObjectSprite {
         auto ac = myclass.actions.action("oncreate");
         if (ac) {
             mCreateAction = ac.createInstance(engine);
-            ActionParams p;
-              p["projectile"] = cast(void*)this;
-            mCreateAction.execute(p);
+            auto ctx = new ActionContext(&readParam);
+            mCreateAction.execute(ctx);
         }
     }
 }
@@ -586,7 +598,7 @@ class ProjectileAction : TimedAction {
 
     override protected ActionRes doImmediate() {
         super.doImmediate();
-        mParent = cast(ProjectileSprite)params.getPar!(void*)("projectile");
+        mParent = context.getPar!(ProjectileSprite)("projectile");
         //obligatory parameters for WeaponAction
         assert(!!mParent);
         return ActionRes.moreWork;
