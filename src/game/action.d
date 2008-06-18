@@ -317,7 +317,9 @@ abstract class Action : GameObject {
     }
 
     final void execute() {
-        context = new ActionContext();
+        //create empty context if not set
+        if (!context)
+            context = new ActionContext();
         if (onExecute)
             onExecute(this);
         //not reentrant

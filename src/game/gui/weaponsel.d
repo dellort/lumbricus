@@ -16,6 +16,7 @@ import gui.tablecontainer;
 import gui.widget;
 
 import utils.array;
+import utils.random;
 import utils.misc;
 import utils.vector2;
 
@@ -110,6 +111,8 @@ class WeaponSelWindow : Container {
         WeaponClass mWeaponInfoline;
 
         Translator mWeaponTranslate;
+        char[][] mWeaponPostfixes;
+        int mFooCode;
 
         Font mDFG;
     }
@@ -157,6 +160,15 @@ class WeaponSelWindow : Container {
         updateWeaponInfoline();
     }
 
+    private char[] translateWeapon(char[] id) {
+        auto tr = mWeaponTranslate(id);
+        int hash = 123 + mFooCode;
+        foreach (char c; tr) {
+            hash ^= c;
+        }
+        return tr ~ mWeaponPostfixes[hash % mWeaponPostfixes.length];
+    }
+
     private void updateWeaponInfoline() {
         Cell w;
         foreach (Cell c; mAll) {
@@ -167,7 +179,7 @@ class WeaponSelWindow : Container {
         }
 
         if (w && w.visible()) {
-            mWeaponName.text = mWeaponTranslate(w.weapon.name);
+            mWeaponName.text = translateWeapon(w.weapon.name);
             mWeaponQuantity.text = w.infinite ? "" : format("x%s", w.quantity);
         } else {
             mWeaponName.text = "";
@@ -286,6 +298,10 @@ class WeaponSelWindow : Container {
 
         mWeaponTranslate = new Translator("/weapons/locale");
         mDFG = gFramework.getFont("weaponsel_side");
+        auto foo = Translator.ByNamespace("weaponsfoo");
+        mWeaponPostfixes = foo.values();
+
+        mFooCode = randRange(0, 255);
 
         auto all = new BoxContainer(false, false, 4);
         mGridContainer = new SimpleContainer();

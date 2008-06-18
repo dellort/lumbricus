@@ -64,6 +64,16 @@ public class Translator {
         return new Translator(node);
     }
 
+    ///hack
+    char[][] values() {
+        char[][] res;
+        assert(!!mNode);
+        foreach (char[] name, char[] value; mNode) {
+            res ~= value;
+        }
+        return res;
+    }
+
     ///load a language file from a language/locale directory
     ///initI18N() must have been called before
     this(char[] localePath) {
