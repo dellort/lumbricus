@@ -178,6 +178,7 @@ class Image {
     }
 
     this(char[] file) {
+        checkInit();
         this(loadImage(file));
     }
 

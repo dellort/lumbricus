@@ -26,7 +26,6 @@ mainspr {
             clustershard = "64"
             homing_inactive_fly = "69"
             molotov_fly = "65"
-            napalm_yellow_big = "134"
             dynamite = "87"
             mingvase = "83"
             mingshard1 = "84"

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="animutil" />
+		<Option makefile_is_custom="1" />
+		<Option compiler="dmd" />
+		<Build>
+			<Target title="Debug">
+				<Option output="..\bin\tools\animutil" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="..\bin" />
+				<Option object_output="..\bin\obj\" />
+				<Option type="1" />
+				<Option compiler="dmd" />
+				<Option projectResourceIncludeDirsRelation="0" />
+				<MakeCommands>
+					<Build command="dmd -run dsssrun.d build animutil.d --debug" />
+					<CompileFile command="" />
+					<Clean command="dmd -run dsssrun.d clean animutil.d" />
+					<DistClean command="" />
+				</MakeCommands>
+			</Target>
+			<Target title="Release">
+				<Option output="..\bin\tools\animutil" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="..\bin" />
+				<Option object_output="..\bin\obj\" />
+				<Option type="1" />
+				<Option compiler="dmd" />
+				<Option projectResourceIncludeDirsRelation="0" />
+				<MakeCommands>
+					<Build command="dmd -run dsssrun.d build animutil.d" />
+					<CompileFile command="" />
+					<Clean command="dmd -run dsssrun.d clean animutil.d" />
+					<DistClean command="" />
+				</MakeCommands>
+			</Target>
+		</Build>
+		<Unit filename="..\src\aconv\atlaspacker.d" />
+		<Unit filename="..\src\animutil.d" />
+		<Unit filename="..\src\devil\image.d" />
+		<Unit filename="..\src\utils\boxpacker.d" />
+		<Unit filename="..\src\utils\vector2.d" />
+		<Unit filename="..\src\wwpdata\animation.d" />
+		<Unit filename="..\src\wwptools\animconv.d" />
+		<Extensions>
+			<code_completion />
+			<envvars />
+			<debugger />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>

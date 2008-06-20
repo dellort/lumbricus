@@ -54,20 +54,28 @@ class Animation {
         int x, y, w, h;
         int atlasIndex; //page in the atlas it was packaged into (never needed??)
         int blockIndex; //index of the texture in the atlas
-        RGBColor[] data;
+        Image frameImg;
 
-        static FrameInfo opCall(int x, int y, int w, int h, RGBColor[] frameData) {
+        static FrameInfo opCall(int x, int y, Image frameData) {
             FrameInfo ret;
             ret.x = x;
             ret.y = y;
-            ret.w = w;
-            ret.h = h;
-            ret.data = frameData;
+            ret.w = frameData.w;
+            ret.h = frameData.h;
+            ret.frameImg = frameData;
             return ret;
         }
 
+        static FrameInfo opCall(int x, int y, int w, int h,
+            RGBColor[] frameData)
+        {
+            auto img = new Image(w, h, false);
+            img.blitRGBData(frameData.ptr, w, h, x, y, false);
+            return opCall(x, y, img);
+        }
+
         void blitOn(Image dest, int x, int y) {
-            dest.blitRGBData(data.ptr, w, h, x, y, false);
+            dest.blit(frameImg, 0, 0, w, h, x, y);
         }
 
         ///saves only this frames' bitmap colorkeyed without filling box
@@ -93,6 +101,10 @@ class Animation {
 
     void addFrame(int x, int y, int w, int h, RGBColor[] frameData) {
         frames ~= FrameInfo(x, y, w, h, frameData);
+    }
+
+    void addFrame(int x, int y, Image frameImg) {
+        frames ~= FrameInfo(x, y, frameImg);
     }
 
     void save(char[] outPath, char[] fnBase) {
@@ -125,7 +137,7 @@ class Animation {
 
     void free() {
         foreach (ref f; frames) {
-            delete f.data;
+            delete f.frameImg;
         }
         delete frames;
     }
