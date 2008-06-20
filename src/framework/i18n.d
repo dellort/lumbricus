@@ -65,11 +65,12 @@ public class Translator {
     }
 
     ///hack
-    char[][] values() {
+    char[][] names() {
         char[][] res;
-        assert(!!mNode);
+        if (!mNode)
+            return null;
         foreach (char[] name, char[] value; mNode) {
-            res ~= value;
+            res ~= name;
         }
         return res;
     }

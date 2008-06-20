@@ -110,7 +110,7 @@ class WeaponSelWindow : Container {
         //currently shown weapon in the info-line below the weapon grid
         WeaponClass mWeaponInfoline;
 
-        Translator mWeaponTranslate;
+        Translator mWeaponTranslate, mWeaponFooTranslate;
         char[][] mWeaponPostfixes;
         int mFooCode;
 
@@ -162,11 +162,14 @@ class WeaponSelWindow : Container {
 
     private char[] translateWeapon(char[] id) {
         auto tr = mWeaponTranslate(id);
-        int hash = 123 + mFooCode;
+        auto count = mWeaponPostfixes.length;
+        if (count == 0)
+            return tr;
+        uint hash = 123 + mFooCode;
         foreach (char c; tr) {
             hash ^= c;
         }
-        return tr ~ mWeaponPostfixes[hash % mWeaponPostfixes.length];
+        return mWeaponFooTranslate(mWeaponPostfixes[hash % count], tr);
     }
 
     private void updateWeaponInfoline() {
@@ -298,8 +301,8 @@ class WeaponSelWindow : Container {
 
         mWeaponTranslate = new Translator("/weapons/locale");
         mDFG = gFramework.getFont("weaponsel_side");
-        auto foo = Translator.ByNamespace("weaponsfoo");
-        mWeaponPostfixes = foo.values();
+        mWeaponFooTranslate = Translator.ByNamespace("weaponsfoo");
+        mWeaponPostfixes = mWeaponFooTranslate.names();
 
         mFooCode = randRange(0, 255);
 

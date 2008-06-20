@@ -211,9 +211,6 @@ class WormSequenceObject : SequenceObject {
 }
 
 SequenceObject loadWorm(ResourceSet res, ConfigItem fromitem) {
-    alias WormState.SubSequence SubSequence;
-    alias WormState.SeqType SeqType;
-
     auto from = castStrict!(ConfigNode)(fromitem);
 
     auto seq = new WormSequenceObject(from.name);
@@ -222,7 +219,7 @@ SequenceObject loadWorm(ResourceSet res, ConfigItem fromitem) {
             foreach (ConfigValue s; sub) {
                 //simple animation, state = animation
                 auto state = new WormState(seq, s.name);
-                SubSequence ss;
+                auto ss = new SubSequence;
                 ss.animation = res.get!(Animation)(s.value);
                 state.seqs[SeqType.Normal] = [ss];
                 seq.addState(state);
@@ -230,7 +227,7 @@ SequenceObject loadWorm(ResourceSet res, ConfigItem fromitem) {
         } else if (sub.name == "normal_weapons") {
             foreach (ConfigValue s; sub) {
                 auto state = new WormState(seq, s.name);
-                SubSequence ss;
+                auto ss = new SubSequence;
                 ss.animation = res.get!(Animation)(s.value);
                 state.seqs[SeqType.Normal] = [ss];
                 state.seqs[SeqType.Leave] = [ss];
@@ -241,7 +238,9 @@ SequenceObject loadWorm(ResourceSet res, ConfigItem fromitem) {
         } else if (sub.name == "jetpack") {
             //special case because of enter/leave and turnaround anims
             auto state = new WormState(seq, "jetpack");
-            SubSequence s_norm, s_enter, s_turn;
+            auto s_norm = new SubSequence;
+            auto s_enter = new SubSequence;
+            auto s_turn = new SubSequence;
             s_norm.animation = res.get!(Animation)(sub["normal"]);
             state.seqs[SeqType.Normal] = [s_norm];
             s_enter.animation = res.get!(Animation)(sub["enter"]);
@@ -256,7 +255,9 @@ SequenceObject loadWorm(ResourceSet res, ConfigItem fromitem) {
             foreach (ConfigValue s; sub) {
                 char[] get = s.value ~ "_get", hold = s.value ~ "_hold";
                 auto state = new WormState(seq, s.name);
-                SubSequence s_norm, s_enter1, s_enter2;
+                auto s_norm = new SubSequence;
+                auto s_enter1 = new SubSequence;
+                auto s_enter2 = new SubSequence;
                 s_norm.animation = res.get!(Animation)(hold);
                 state.seqs[SeqType.Normal] = [s_norm];
                 s_enter1.animation = res.get!(Animation)(get);
@@ -279,7 +280,8 @@ SequenceObject loadWorm(ResourceSet res, ConfigItem fromitem) {
         } else if (sub.name == "first_normal_then_empty") {
             foreach (ConfigValue s; sub) {
                 auto state = new WormState(seq, s.name);
-                SubSequence s1, s2;
+                auto s1 = new SubSequence;
+                auto s2 = new SubSequence;
                 s1.animation = res.get!(Animation)(s.value);
                 s1.ready = false;
                 s2.reset_animation = true;
@@ -296,13 +298,10 @@ SequenceObject loadWorm(ResourceSet res, ConfigItem fromitem) {
 }
 
 SequenceObject loadAnimation(ResourceSet res, ConfigItem fromitem) {
-    alias WormState.SubSequence SubSequence;
-    alias WormState.SeqType SeqType;
-
     auto val = castStrict!(ConfigValue)(fromitem).value;
     auto seq = new WormSequenceObject(fromitem.name);
     auto state = new WormState(seq, "normal");
-    SubSequence s_normal;
+    auto s_normal = new SubSequence;
     s_normal.animation = res.get!(Animation)(val);
     state.seqs[SeqType.Normal] = [s_normal];
     seq.addState(state);
@@ -311,20 +310,18 @@ SequenceObject loadAnimation(ResourceSet res, ConfigItem fromitem) {
 }
 
 SequenceObject loadAnimationWithDrown(ResourceSet res, ConfigItem fromitem) {
-    alias WormState.SubSequence SubSequence;
-    alias WormState.SeqType SeqType;
-
     auto value = castStrict!(ConfigValue)(fromitem).value;
     auto val = str.split(value);
     if (val.length != 2)
         assert(false, "at "~fromitem.name);
     auto seq = new WormSequenceObject(fromitem.name);
     auto state = new WormState(seq, "normal");
-    SubSequence s_normal;
+    auto s_normal = new SubSequence;
     s_normal.animation = res.get!(Animation)(val[0]);
     state.seqs[SeqType.Normal] = [s_normal];
     seq.addState(state);
     auto state2 = new WormState(seq, "drown");
+    s_normal = new SubSequence;
     s_normal.animation = res.get!(Animation)(val[1]);
     state2.seqs[SeqType.Normal] = [s_normal];
     seq.addState(state2);
@@ -339,51 +336,61 @@ static this() {
         toDelegate(&loadAnimationWithDrown);
 }
 
-class WormState : SequenceState {
-    enum SeqType {
-        //Enter, Leave = transition from/to other sub-states
-        //Normal = what is looped when entering was done
-        //TurnAroundY = played when worm rotation changes left/right side
-        None, Enter, Leave, Normal, TurnAroundY,
+enum SeqType {
+    //Enter, Leave = transition from/to other sub-states
+    //Normal = what is looped when entering was done
+    //TurnAroundY = played when worm rotation changes left/right side
+    None, Enter, Leave, Normal, TurnAroundY,
+}
+
+class SubSequence {
+    //readyness flag signaled back (Sequence.readyflag)
+    bool ready = true;
+
+    //wait for an animation
+    Animation animation; //if null, none set
+
+    //yay even more hacks
+    bool dont_wait_for_animation; //don't check animation for state transition
+    bool reset_animation; //set animation even if that field null
+    bool wait_forever; //state just never ends, unless it's aborted from outside
+
+    //needed for that weapon thing
+    //index of the angle interpolated
+    int interpolate_angle_id = -1;
+    //rotation speed
+    float angular_speed; //rads/sec
+    //select if angular_speed is speed or animation total time
+    bool fixed_angular_time;
+    //the fixed start/end value
+    float angle_fixed_value;
+    //the interpolation interpolates between fixed_value and the user set
+    //value - direction=0: fixed_value starts, =1: starts with user's value
+    int angle_direction;
+
+    //indices into to seqs array which point to this (for getNext)
+    WormState owner;
+    SeqType type;
+    int index;
+
+    SubSequence getNext() {
+        SubSequence[] cur = owner.seqs[type];
+        if ((index+1) >= cur.length)
+            return null;
+        return cur[index+1];
     }
-    struct SubSequence {
-        //readyness flag signaled back (Sequence.readyflag)
-        bool ready = true;
 
-        //wait for an animation
-        Animation animation; //if null, none set
-
-        //yay even more hacks
-        bool dont_wait_for_animation; //don't check animation for state transition
-        bool reset_animation; //set animation even if that field null
-        bool wait_forever; //state just never ends, unless it's aborted from outside
-
-        //needed for that weapon thing
-        //index of the angle interpolated
-        int interpolate_angle_id = -1;
-        //rotation speed
-        float angular_speed; //rads/sec
-        //select if angular_speed is speed or animation total time
-        bool fixed_angular_time;
-        //the fixed start/end value
-        float angle_fixed_value;
-        //the interpolation interpolates between fixed_value and the user set
-        //value - direction=0: fixed_value starts, =1: starts with user's value
-        int angle_direction;
-
-        //indices into to seqs array which point to this (for getNext)
-        WormState owner;
-        SeqType type;
-        int index;
-
-        SubSequence* getNext() {
-            SubSequence[] cur = owner.seqs[type];
-            if ((index+1) >= cur.length)
-                return null;
-            return &cur[index+1];
+    //meh
+    SubSequence copy() {
+        SubSequence res = new SubSequence();
+        foreach (int index, x; this.tupleof) {
+            res.tupleof[index] = this.tupleof[index];
         }
+        return res;
     }
+}
 
+class WormState : SequenceState {
     SubSequence[][SeqType.max+1] seqs;
     //go to this state after the "enter" subseq. was played
     Transition auto_leave;
@@ -406,6 +413,9 @@ class WormState : SequenceState {
     //reverse this one in time (data is copied if neccessary)
     void reverse_subsequence(SeqType type) {
         auto n = seqs[type].dup;
+        foreach (ref x; n) {
+            x = x.copy();
+        }
         n.reverse; //is inplace
         //revert animations and angle-interpolation
         foreach (ref sub; n) {
@@ -420,13 +430,11 @@ class WormState : SequenceState {
 
 class WormSequence : AbstractSequence {
 private:
-    alias WormState.SubSequence SubSequence;
-    alias WormState.SeqType SeqType;
     //state from Sequence (I didn't bother to support several queued states,
     //because we'll maybe never need them)
     WormState mQueuedState;
     //current subsequence, also defines current state (.owner param)
-    SubSequence* mCurSubSeq;
+    SubSequence mCurSubSeq;
     //start time for current SubSequence
     Time mSubSeqStart;
     // [worm, weapon]
@@ -436,6 +444,9 @@ private:
     float mAngleUser;
     //for turnaround
     int mSideFacing;
+    //keep track when animation in mAnimator "most likely" ends, instead of
+    //using mAnimator.hasFinished() => no feedback from mAnimator needed
+    Time mAnimationStart;
     //and finally, something useful, which does real work!
     Animator mAnimator;
 
@@ -450,15 +461,15 @@ private:
     }
 
     void initSequence(WormState state, SeqType seq) {
-        SubSequence* nseq;
+        SubSequence nseq;
 
         if (state) {
             if (state.seqs[seq].length > 0) {
-                nseq = &state.seqs[seq][0];
+                nseq = state.seqs[seq][0];
             } else if (seq == SeqType.Enter
                 && state.seqs[SeqType.Normal].length > 0)
             {
-                nseq = &state.seqs[SeqType.Normal][0];
+                nseq = state.seqs[SeqType.Normal][0];
             }
         }
 
@@ -473,7 +484,7 @@ private:
     //make s the currently played thingy
     //xxx: remove updateSubSequence() call and guarantee it's called somewhere
     //  else (so that no recursion is possible)
-    void initSubSequence(SubSequence* s) {
+    void initSubSequence(SubSequence s) {
         resetSubSequence();
         mCurSubSeq = s;
         mSubSeqStart = now();
@@ -489,6 +500,7 @@ private:
 
         if (s && (s.animation || s.reset_animation)) {
             mAnimator.setAnimation(s.animation);
+            mAnimationStart = now();
         }
 
         if (s && s.interpolate_angle_id >= 0) {
@@ -510,9 +522,9 @@ private:
         //also, actually do angle interpolation if needed
         bool ended = true;
         //if keepLastFrame is set, don't look at hasFinished
-        if (mAnimator.animation &&
-            (!mAnimator.hasFinished() || mAnimator.animation.keepLastFrame)
-             && !mCurSubSeq.dont_wait_for_animation)
+        auto anim = mCurSubSeq.animation;
+        if (anim && ((now() - mAnimationStart < anim.duration)
+            || anim.keepLastFrame) && !mCurSubSeq.dont_wait_for_animation)
         {
             ended = false;
         }
@@ -685,6 +697,7 @@ private:
     }
 
     public Rect2i bounds() {
+        //xxx
         return type.bb + mAnimator.pos;
     }
 
