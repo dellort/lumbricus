@@ -291,8 +291,7 @@ class ActionList : Action {
         foreach (Action ac; mActions) {
             ac.abort();
         }
-        assert(mDoneCounter >= mActions.length,
-            "Should have all done() calls here");
+        //not all actions had to be running, so no check here
         super.abort();
     }
 }

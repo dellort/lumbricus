@@ -184,9 +184,8 @@ private class ProjectileSprite : GObjectSprite {
     }
 
     //fill the FireInfo struct with current data
-    private void updateFireInfo(Vector2f surfNormal = Vector2f(0, -1)) {
+    private void updateFireInfo() {
         mFireInfo.dir = physics.velocity.normal;
-        mFireInfo.surfNormal = surfNormal;
         mFireInfo.strength = physics.velocity.length; //xxx confusing units :-)
         mFireInfo.pointto = target;   //keep target for spawned projectiles
         mFireInfo.pos = physics.pos;
@@ -196,9 +195,11 @@ private class ProjectileSprite : GObjectSprite {
     ///runs a projectile-specific event defined in the config file
     //xxx should be private, but is used by some actions
     void doEvent(char[] id, Vector2f surfNormal = Vector2f(0, -1)) {
-        //get current data
-        updateFireInfo(surfNormal);
-        engine.mLog("Projectile: Execute event "~id);
+        //set surface normal (only for impact events)
+        //note: other mFireInfo fields are updated on read
+        mFireInfo.surfNormal = surfNormal;
+        //logging: this is slow (esp. napalm)
+        //engine.mLog("Projectile: Execute event "~id);
         auto ac = myclass.actions.action(id);
         if (ac) {
             auto a = ac.createInstance(engine);
@@ -215,6 +216,8 @@ private class ProjectileSprite : GObjectSprite {
             //xxx reserved identifier
             doEvent("ondetonate", surfNormal);
         }
+        //reset normal (only valid during impact event)
+        mFireInfo.surfNormal = Vector2f(0, -1);
     }
 
     override protected void die() {
@@ -233,6 +236,8 @@ private class ProjectileSprite : GObjectSprite {
             case "owner_game":
                 return MyBox.Box(cast(GameObject)this);
             case "fireinfo":
+                //get current FireInfo data (physics)
+                updateFireInfo();
                 return MyBox.Box(&mFireInfo);
             default:
                 return MyBox();
