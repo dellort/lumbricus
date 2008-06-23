@@ -41,6 +41,7 @@
 		<Unit filename="..\src\utils\boxpacker.d" />
 		<Unit filename="..\src\utils\vector2.d" />
 		<Unit filename="..\src\wwpdata\animation.d" />
+		<Unit filename="..\src\wwpdata\common.d" />
 		<Unit filename="..\src\wwptools\animconv.d" />
 		<Extensions>
 			<code_completion />

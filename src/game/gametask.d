@@ -224,6 +224,7 @@ class GameTask : Task {
     private bool initLoadResources() {
         if (!mResPreloader) {
             mGfx = new GfxSet(mGameConfig.gfx);
+            loadWeaponSets();
 
             //load all items in reslist
             mResPreloader = gFramework.resources.createPreloader(mGfx.resources);
@@ -240,6 +241,33 @@ class GameTask : Task {
             mResPreloader = null;
             mGfx.finishLoading();
             return true;
+        }
+    }
+
+    private void loadWeaponSets() {
+        //xxx for weapon set stuff:
+        //    weapon ids are assumed to be unique between sets
+        foreach (char[] ws; mGameConfig.weaponsets) {
+            char[] dir = "weapons/"~ws;
+            //load resources for weapon set (from set.conf)
+            auto conf = gFramework.resources.loadConfigForRes(dir
+                ~ "/set.conf");
+            auto resfile = gFramework.resources.loadResources(conf);
+            addToResourceSet(mGfx.resources, resfile.getAll());
+            //load mapping file matching gfx set
+            //if no mapping exists, fail
+            auto mappingsNode = conf.getSubNode("mappings");
+            char[] mappingFile = mappingsNode.getStringValue(mGfx.gfxId);
+            auto mapConf = gFramework.loadConfig(dir~"/"~mappingFile,true,true);
+            if (mapConf) {
+                mGfx.addSequenceNode(mapConf.getSubNode("sequences"));
+            } else {
+                //xxx better error handling
+                throw new Exception("Missing mapping of weaponset '" ~ ws
+                    ~ "' to gfx theme '" ~ mGfx.gfxId ~ "'");
+            }
+            //load weaponset locale
+            localeRoot.addLocaleDir("weapons", dir ~ "/locale");
         }
     }
 
@@ -550,6 +578,10 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
     cfg.weapons = gamemodecfg.getSubNode("weapon_sets");
 
     cfg.gfx = mConfig.getSubNode("gfx");
+    cfg.weaponsets = mConfig.getValueArray!(char[])("weaponsets");
+    if (cfg.weaponsets.length == 0) {
+        cfg.weaponsets ~= "default";
+    }
 
     return cfg;
 }

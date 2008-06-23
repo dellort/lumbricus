@@ -79,6 +79,17 @@ public class Translator {
     ///initI18N() must have been called before
     this(char[] localePath) {
         assert(gCurrentLanguage.length > 0, "Call initI18N() before");
+        auto node = localeNodeFromPath(localePath);
+        this(node);
+    }
+
+    void addLocaleDir(char[] targetId, char[] localePath) {
+        ConfigNode newNode = mNode.getSubNode(targetId);
+        auto node = localeNodeFromPath(localePath);
+        newNode.mixinNode(node);
+    }
+
+    private ConfigNode localeNodeFromPath(char[] localePath) {
         char[] localeFile = localePath ~ '/' ~ gCurrentLanguage;
         char[] fallbackFile = localePath ~ '/' ~ gFallbackLanguage;
         ConfigNode node = gConfigLoader(localeFile, false, true);
@@ -89,7 +100,7 @@ public class Translator {
             log("WARNING: Failed to load any locale file from " ~ localePath
                 ~ " with language '" ~ gCurrentLanguage ~ "', fallback '"
                 ~ gFallbackLanguage ~ "'");
-        this(node);
+        return node;
     }
 
     ///argh: before r333, the constructor did exactly this

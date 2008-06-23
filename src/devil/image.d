@@ -11,6 +11,8 @@ import derelict.devil.ilu;
 
 struct RGBAColor {
     ubyte r, g, b, a;
+
+    const RGBAColor Transparent = {0, 0, 0, 0};
 }
 
 private bool devilInitialized = false;
@@ -64,14 +66,14 @@ class Image {
         ilSetPixels(xdst, ydst, 0, aw, ah, 1, fmt, IL_UNSIGNED_BYTE, data);
     }
 
-    Image rotated(float angle) {
+    Image rotated(float angle, RGBAColor clearColor = RGBAColor.Transparent) {
         ILuint imgName;
         ilGenImages(1, &imgName);
         ilBindImage(imgName);
 
         ilCopyImage(mImg);
 
-        //ilClearColour(0,0,0,0);
+        ilClearColour(clearColor.r,clearColor.g,clearColor.b,clearColor.a);
 
         iluRotate(angle);
 
@@ -100,6 +102,10 @@ class Image {
         this.bind();
         ilCopyPixels(x, y, 0, 1, 1, 1, IL_RGBA, IL_UNSIGNED_BYTE, &ret);
         return ret;
+    }
+
+    void clear(RGBAColor clearColor = RGBAColor.Transparent) {
+        clear(clearColor.r,clearColor.g,clearColor.b,clearColor.a);
     }
 
     void clear(ubyte r, ubyte g, ubyte b, ubyte a) {

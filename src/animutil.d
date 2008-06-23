@@ -9,6 +9,7 @@ import aconv.atlaspacker;
 import devil.image;
 import utils.vector2;
 import wwptools.animconv;
+import wwpdata.common;
 import wwpdata.animation;
 
 const cSyntax =
@@ -46,9 +47,13 @@ int main(char[][] args)
     animAni[0] = new Animation(img.w, img.h, true, false, 50);
 
     //rotate source image and create 36 frames
+    RGBAColor clearColor;
+    if (!alpha)
+        clearColor = RGBAColor(COLORKEY.r, COLORKEY.g, COLORKEY.b, 255);
+
     Image curFrame;
     for (int i = 0; i < 36; i++) {
-        curFrame = img.rotated(i*10);
+        curFrame = img.rotated(i*10, clearColor);
         animAni[0].addFrame(0, 0, curFrame);
     }
     //fill AniEntry

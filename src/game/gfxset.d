@@ -4,7 +4,7 @@ import common.animation;
 import framework.framework;
 import framework.resset;
 import framework.resources : ResourceObject, addToResourceSet;
-import game.sequence; //only for loading grr
+import game.sequence : loadSequences; //only for loading grr
 import utils.color;
 import utils.configfile;
 
@@ -12,7 +12,10 @@ import path = std.path;
 
 //references all graphic/sound (no sounds yet) resources etc.
 class GfxSet {
+    char[] gfxId;
+    //xxx only needed by sky.d
     ConfigNode config;
+    ConfigNode[] sequenceConfig;
 
     ResourceSet resources;
 
@@ -31,28 +34,9 @@ class GfxSet {
         }
     }
 
-    //omg hack
-    private static class SequenceWrapper : ResourceObject {
-        Object obj;
-        Object get() {
-            return obj;
-        }
-        this(Object o) {
-            obj = o;
-        }
-    }
-
     private void loadSequenceStuff() {
-        auto conf = config.getSubNode("sequences");
-        foreach (ConfigNode sub; conf) {
-            auto pload = sub.name in AbstractSequence.loaders;
-            if (!pload) {
-                throw new Exception("sequence loader not found: "~sub.name);
-            }
-            foreach (ConfigItem subsub; sub) {
-                SequenceObject seq = (*pload)(resources, subsub);
-                resources.addResource(new SequenceWrapper(seq), seq.name);
-            }
+        foreach (conf; sequenceConfig) {
+            loadSequences(resources, conf);
         }
     }
 
@@ -60,12 +44,12 @@ class GfxSet {
     //the constructor does allmost all the work, but you have to call
     //finishLoading() too; in between, you can preload the resources
     this(ConfigNode gfx) {
-        char[] gfxname = gfx.getStringValue("config", "wwp");
+        gfxId = gfx.getStringValue("config", "wwp");
         char[] watername = gfx.getStringValue("waterset", "blue");
 
         resources = new ResourceSet();
 
-        config = gFramework.resources.loadConfigForRes(gfxname ~ ".conf");
+        config = gFramework.resources.loadConfigForRes(gfxId ~ ".conf");
         auto graphics = gFramework.resources.loadResources(config);
         addToResourceSet(resources, graphics.getAll());
 
@@ -76,7 +60,15 @@ class GfxSet {
 
         waterColor.parse(waterfile["color"]);
 
+        //sequences from gfx set (more can be added by addSequenceNode)
+        sequenceConfig ~= config.getSubNode("sequences");
+
         //xxx if you want, add code to load targetCross here
+    }
+
+    //Params: n = the "sequences" node, containing loaders
+    void addSequenceNode(ConfigNode n) {
+        sequenceConfig ~= n;
     }
 
     //call after resources have been preloaded

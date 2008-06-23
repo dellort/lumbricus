@@ -299,7 +299,7 @@ class WeaponSelWindow : Container {
             mCategories ~= value;
         }
 
-        mWeaponTranslate = new Translator("/weapons/locale");
+        mWeaponTranslate = Translator.ByNamespace("weapons");
         mDFG = gFramework.getFont("weaponsel_side");
         mWeaponFooTranslate = Translator.ByNamespace("weaponsfoo");
         mWeaponPostfixes = mWeaponFooTranslate.names();

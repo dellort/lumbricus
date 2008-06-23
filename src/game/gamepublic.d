@@ -45,6 +45,7 @@ currently, only local-roundbased-one-screen is the only possible setup
 ///Initial game configuration
 struct GameConfig {
     Level level;
+    char[][] weaponsets;
     ConfigNode teams;
     ConfigNode weapons;
     ConfigNode gamemode;

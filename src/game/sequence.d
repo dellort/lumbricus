@@ -3,6 +3,7 @@ module game.sequence;
 import common.animation;
 import common.common;
 import common.scene;
+import framework.resources : ResourceObject;
 import framework.resset;
 import utils.configfile;
 import utils.math;
@@ -169,7 +170,27 @@ interface Sequence : Graphic {
     abstract bool readyflag();
 }
 
+///Load a bunch of sequences from a ConfigNode and make resources
+void loadSequences(ResourceSet res, ConfigNode seqList) {
+    foreach (ConfigNode sub; seqList) {
+        auto pload = sub.name in AbstractSequence.loaders;
+        if (!pload) {
+            throw new Exception("sequence loader not found: "~sub.name);
+        }
+        foreach (ConfigItem subsub; sub) {
+            SequenceObject seq = (*pload)(res, subsub);
+        }
+    }
+}
+
+///--- stuff needed for wwp worms
+//(this all can be completely hidden from the rest of the game due to the
+// factory pattern...)
+
+private:
+
 ///blergh
+//loading stuff is private now
 abstract class AbstractSequence : ClientGraphic, Sequence {
     private {
         SequenceObject mType;
@@ -190,12 +211,6 @@ abstract class AbstractSequence : ClientGraphic, Sequence {
         loaders;
 }
 
-///--- stuff needed for wwp worms
-//(this all can be completely hidden from the rest of the game due to the
-// factory pattern...)
-
-private:
-
 class WormSequenceObject : SequenceObject {
     this(char[] a_name) {
         super(a_name);
@@ -210,10 +225,28 @@ class WormSequenceObject : SequenceObject {
     }
 }
 
+//omg hack
+private static class SequenceWrapper : ResourceObject {
+    Object obj;
+    Object get() {
+        return obj;
+    }
+    this(Object o) {
+        obj = o;
+    }
+}
+
 SequenceObject loadWorm(ResourceSet res, ConfigItem fromitem) {
     auto from = castStrict!(ConfigNode)(fromitem);
 
-    auto seq = new WormSequenceObject(from.name);
+    //check if sequence already exists
+    //by this, states can be added to an existing sequence later
+    //xxx special implementation for loadWorm, make this generic
+    auto seq = res.get!(SequenceObject)(from.name, true);
+    if (!seq) {
+        seq = new WormSequenceObject(from.name);
+        res.addResource(new SequenceWrapper(seq), seq.name);
+    }
     foreach (ConfigNode sub; from) {
         if (sub.name == "normal") {
             foreach (ConfigValue s; sub) {
@@ -306,6 +339,7 @@ SequenceObject loadAnimation(ResourceSet res, ConfigItem fromitem) {
     state.seqs[SeqType.Normal] = [s_normal];
     seq.addState(state);
     seq.fixup();
+    res.addResource(new SequenceWrapper(seq), seq.name);
     return seq;
 }
 
@@ -326,6 +360,7 @@ SequenceObject loadAnimationWithDrown(ResourceSet res, ConfigItem fromitem) {
     state2.seqs[SeqType.Normal] = [s_normal];
     seq.addState(state2);
     seq.fixup();
+    res.addResource(new SequenceWrapper(seq), seq.name);
     return seq;
 }
 

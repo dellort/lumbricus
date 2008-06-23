@@ -157,14 +157,22 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         res.loadFromConfig(sprite);
     }
 
-    //load all weapons from "weapons" subdir
+    //load all weapons from one weapon set (directory containing set.conf)
+    //loads only collisions and weapon behavior, no resources/sequences
     private void loadWeapons(char[] dir) {
+        auto set_conf = gFramework.loadConfig(dir~"/set");
+        auto coll_conf = gFramework.loadConfig(dir ~ "/"
+            ~ set_conf.getStringValue("collisions","collisions.conf"),true,true);
+        if (coll_conf)
+            physicworld.loadCollisions(coll_conf.getSubNode("collisions"));
         //load all .conf files found
-        gFramework.fs.listdir(dir, "*.conf", false,
+        char[] weaponsdir = dir ~ "/weapons";
+        gFramework.fs.listdir(weaponsdir, "*.conf", false,
             (char[] path) {
                 //a weapons file can contain resources, collision map
                 //additions and a list of weapons
-                auto wp_conf = gFramework.loadConfig(dir~"/"~path[0..$-5]);
+                auto wp_conf = gFramework.loadConfig(weaponsdir ~ "/"
+                    ~ path[0..$-5]);
                 physicworld.loadCollisions(wp_conf.getSubNode("collisions"));
                 auto list = wp_conf.getSubNode("weapons");
                 foreach (ConfigNode item; list) {
@@ -278,6 +286,11 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
 
         mObjects = new List!(GameObject)(GameObject.node.getListNodeOffset());
 
+        //load weapons
+        foreach (char[] ws; config.weaponsets) {
+            loadWeapons("weapons/"~ws);
+        }
+
         loadLevelStuff();
 
         //NOTE: GameController relies on many stuff at initialization
@@ -314,9 +327,6 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
 
     //one time initialization, where levle objects etc. should be loaded (?)
     private void loadLevelStuff() {
-        //load weapons
-        loadWeapons("weapons");
-
         auto conf = gFramework.loadConfig("game");
         //load sprites
         foreach (char[] name, char[] value; conf.getSubNode("sprites")) {
