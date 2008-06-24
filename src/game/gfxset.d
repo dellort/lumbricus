@@ -50,20 +50,24 @@ class GfxSet {
         resources = new ResourceSet();
 
         config = gFramework.resources.loadConfigForRes(gfxId ~ ".conf");
-        auto graphics = gFramework.resources.loadResources(config);
-        addToResourceSet(resources, graphics.getAll());
+        addGfxSet(config);
 
-        auto waterfile = gFramework.resources.loadConfigForRes("water"~path.sep
-            ~watername~path.sep~"water.conf");
+        auto waterfile = gFramework.resources.loadConfigForRes("water/"
+            ~ watername ~ "/water.conf");
         auto watergfx = gFramework.resources.loadResources(waterfile);
         addToResourceSet(resources, watergfx.getAll());
 
         waterColor.parse(waterfile["color"]);
 
-        //sequences from gfx set (more can be added by addSequenceNode)
-        sequenceConfig ~= config.getSubNode("sequences");
-
         //xxx if you want, add code to load targetCross here
+    }
+
+    void addGfxSet(ConfigNode conf) {
+        //resources
+        auto resfile = gFramework.resources.loadResources(conf);
+        addToResourceSet(resources, resfile.getAll());
+        //sequences
+        addSequenceNode(conf.getSubNode("sequences"));
     }
 
     //Params: n = the "sequences" node, containing loaders

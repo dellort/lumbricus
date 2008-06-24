@@ -55,11 +55,13 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir) {
     //prepare directory "weapons"
     char[] wepDir = outputDir~path.sep~"weapons";
     trymkdir(wepDir);
+    //prepare directory for weapon set "default"
+    wepDir ~= path.sep~"default";
+    trymkdir(wepDir);
     //extract weapon icons
-    //(NOTE: icons_masked.png isn't opened as file, it's only for the basename)
-    //(NOTE 2: actually, the parameter isn't used at all, lol)
-    do_untile(iconlo, "icons_masked.png",wepDir~path.sep,"icons",
-        "icon_","", "_icons.conf",iconnames);
+    //(NOTE: using namefile, so no filename for basename)
+    do_untile(iconlo, "", wepDir~path.sep, "icons", "icon_", "",
+        "_icons.conf",iconnames);
 
     //****** Sounds ******
     ConfigNode sndConf = loadWImportConfig("sounds.txt");

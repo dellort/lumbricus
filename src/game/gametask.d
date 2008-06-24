@@ -249,22 +249,16 @@ class GameTask : Task {
         //    weapon ids are assumed to be unique between sets
         foreach (char[] ws; mGameConfig.weaponsets) {
             char[] dir = "weapons/"~ws;
-            //load resources for weapon set (from set.conf)
+            //load set.conf as gfx set (resources and sequences)
             auto conf = gFramework.resources.loadConfigForRes(dir
                 ~ "/set.conf");
-            auto resfile = gFramework.resources.loadResources(conf);
-            addToResourceSet(mGfx.resources, resfile.getAll());
-            //load mapping file matching gfx set
-            //if no mapping exists, fail
+            mGfx.addGfxSet(conf);
+            //load mapping file matching gfx set, if it exists
             auto mappingsNode = conf.getSubNode("mappings");
             char[] mappingFile = mappingsNode.getStringValue(mGfx.gfxId);
             auto mapConf = gFramework.loadConfig(dir~"/"~mappingFile,true,true);
             if (mapConf) {
                 mGfx.addSequenceNode(mapConf.getSubNode("sequences"));
-            } else {
-                //xxx better error handling
-                throw new Exception("Missing mapping of weaponset '" ~ ws
-                    ~ "' to gfx theme '" ~ mGfx.gfxId ~ "'");
             }
             //load weaponset locale
             localeRoot.addLocaleDir("weapons", dir ~ "/locale");
