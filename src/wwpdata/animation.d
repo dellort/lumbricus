@@ -70,7 +70,7 @@ class Animation {
             RGBColor[] frameData)
         {
             auto img = new Image(w, h, false);
-            img.blitRGBData(frameData.ptr, w, h, x, y, false);
+            img.blitRGBData(frameData.ptr, w, h, 0, 0, false);
             return opCall(x, y, img);
         }
 
