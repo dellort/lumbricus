@@ -33,18 +33,14 @@ void times(int count, void delegate() code) {
 
 //clamp to closed range, i.e. val is adjusted so that it fits into [low, high]
 T clampRangeC(T)(T val, T low, T high) {
-    if (val < low) {
-        return low;
-    } else if (val > high) {
-        return high;
-    } else {
-        return val;
-    }
+    if (val > high)
+        val = high;
+    return (val < low) ? low : val;
 }
 
 //clamp to open range, [low, high), makes sense for integers only
 T clampRangeO(T)(T val, T low, T high) {
-    if (val > high)
+    if (val >= high)
         val = high - 1;
     return (val < low) ? low : val;
 }

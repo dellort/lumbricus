@@ -62,12 +62,6 @@ mainspr {
             barell_2 = "120"
             barell_3 = "121"
             barell_4 = "122"
-            napalm_fall_1 = "133"
-            napalm_fall_2 = "134"
-            napalm_fall_3 = "135"
-            napalm_fall_4 = "136"
-            napalm_fall_5 = "137"
-            napalm_fall_6 = "138"
 
             {
                 _flags = "f:25"
@@ -116,13 +110,21 @@ mainspr {
             bazooka_fly = "58"
             mortar_fly = "62"
             homing_active_fly = "68"
-            napalm_fly_1 = "129"
-            napalm_fly_2 = "130"
-            napalm_fly_3 = "131"
-            napalm_fly_4 = "132"
 
             super_sheep1 = "163 164"
             super_sheep2 = "165 166"
+        }
+        {
+            _params = "p1/rot360inv,p2/linear100"
+            _flags = "+repeat"
+
+            napalm_fly = "132 131 130 129"
+        }
+        {
+            _params = "time,p2/linear100"
+            _flags = "+repeat"
+
+            napalm_fall = "f:20; 133 134 135 136 137 138"
         }
         //covers only 180 degrees, it is symmetric => no mirror needed
         {

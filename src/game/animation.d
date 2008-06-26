@@ -31,6 +31,7 @@ static this() {
     gAnimationParamConverters["rot360inv"] = &paramConvertFreeRotInv;
     gAnimationParamConverters["rot180"] = &paramConvertFreeRot2;
     gAnimationParamConverters["rot180_2"] = &paramConvertFreeRot2_2;
+    gAnimationParamConverters["linear100"] = &paramConvertLinear100;
 }
 
 //return the index of the angle in "angles" which is closest to "angle"
@@ -104,3 +105,9 @@ private int paramConvertFreeRot2_2(int angle, int count) {
     return map3(angle+180,180.0f,count);
 }
 
+//0-100 mapped directly to animation frames with clipping
+//(the do-it-yourself converter)
+private int paramConvertLinear100(int value, int count) {
+    value = clampRangeC(value, 0, 100);
+    return cast(int)(cast(float)value/101.0f * count);
+}

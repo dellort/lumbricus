@@ -10,6 +10,7 @@ import utils.math;
 import utils.misc;
 import utils.rect2;
 import utils.time;
+import utils.random;
 import utils.vector2;
 
 import game.clientengine;
@@ -364,11 +365,29 @@ SequenceObject loadAnimationWithDrown(ResourceSet res, ConfigItem fromitem) {
     return seq;
 }
 
+SequenceObject loadNapalm(ResourceSet res, ConfigItem fromitem) {
+    auto value = castStrict!(ConfigValue)(fromitem).value;
+    auto val = str.split(value);
+    if (val.length != 2)
+        assert(false, "at "~fromitem.name);
+    auto seq = new NapalmSequenceObject(fromitem.name);
+    //lol... need a "normal" state, or ProjectileWeaponClass will crash
+    auto state = new SequenceState(seq, "normal");
+    seq.addState(state);
+
+    //load animations
+    seq.animFall = res.get!(Animation)(val[0]);
+    seq.animFly = res.get!(Animation)(val[1]);
+    res.addResource(new SequenceWrapper(seq), seq.name);
+    return seq;
+}
+
 static this() {
     AbstractSequence.loaders["worm"] = toDelegate(&loadWorm);
     AbstractSequence.loaders["animations"] = toDelegate(&loadAnimation);
     AbstractSequence.loaders["simple_with_drown"] =
         toDelegate(&loadAnimationWithDrown);
+    AbstractSequence.loaders["napalm"] = toDelegate(&loadNapalm);
 }
 
 enum SeqType {
@@ -729,6 +748,91 @@ private:
     public bool readyflag() {
         //if no state, consider it ready
         return !mCurSubSeq || mCurSubSeq.ready;
+    }
+
+    public Rect2i bounds() {
+        //xxx
+        return type.bb + mAnimator.pos;
+    }
+
+    public SceneObject graphic() {
+        return mAnimator;
+    }
+}
+
+class NapalmSequenceObject : SequenceObject {
+    //static napalm animations, switching is done manually
+    Animation animFall, animFly;
+
+    this(char[] a_name) {
+        super(a_name);
+    }
+
+    AbstractSequence instantiate(GraphicsHandler owner) {
+        return new NapalmSequence(owner, this);
+    }
+
+    Rect2i bb() {
+        //whatever...
+        return Rect2i(-3, -3, 3, 3);
+    }
+}
+
+class NapalmSequence : AbstractSequence {
+    private {
+        Animator mAnimator;
+        SequenceUpdate mLastUpdate;
+        NapalmSequenceObject myclass;
+
+        //xxx make this configurable
+        //velocity where fly animation begins
+        const cTresholdVelocity = 300.0f;
+        //velocity where fly animation is at maximum
+        const cFullVelocity = 450.0f;
+        const cVelDelta = cFullVelocity - cTresholdVelocity;
+    }
+
+    this(GraphicsHandler a_owner, SequenceObject a_type) {
+        super(a_owner, a_type);
+        mAnimator = new Animator();
+        myclass = castStrict!(NapalmSequenceObject)(a_type);
+        init();
+    }
+
+    void update(ref SequenceUpdate v) {
+        mLastUpdate = v;
+        mAnimator.pos = v.position;
+        float speed = v.velocity.length;
+        if (speed < cTresholdVelocity) {
+            //slow napalm
+            if (mAnimator.animation !is myclass.animFall)
+                mAnimator.setAnimation(myclass.animFall, timeMsecs(randRange(0,
+                    cast(int)(myclass.animFall.duration.msecs))));
+            //xxx controls size (0-100), use damage or whatever
+            mAnimator.params.p2 = 30;
+        } else {
+            //fast napalm
+            if (mAnimator.animation !is myclass.animFly)
+                mAnimator.setAnimation(myclass.animFly);
+            mAnimator.params.p1 = cast(int)(v.rotation_angle*180.0f/PI);
+            mAnimator.params.p2 = cast(int)(100
+                * (speed-cTresholdVelocity) / cVelDelta);
+        }
+    }
+
+    //state stuff is unused
+    void setState(SequenceState state) {
+        //
+    }
+
+    //just returns info from update
+    void getInfos(ref SequenceUpdate v) {
+        v = mLastUpdate;
+    }
+
+    bool readyflag() {
+        //ignored
+        return true;
     }
 
     public Rect2i bounds() {
