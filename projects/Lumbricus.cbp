@@ -150,6 +150,8 @@
 		<Unit filename="..\src\lumbricus.d" />
 		<Unit filename="..\src\net\netlayer.d" />
 		<Unit filename="..\src\physics\base.d" />
+		<Unit filename="..\src\physics\broadphase.d" />
+		<Unit filename="..\src\physics\collisionmap.d" />
 		<Unit filename="..\src\physics\contact.d" />
 		<Unit filename="..\src\physics\earthquake.d" />
 		<Unit filename="..\src\physics\force.d" />
@@ -158,6 +160,7 @@
 		<Unit filename="..\src\physics\physobj.d" />
 		<Unit filename="..\src\physics\plane.d" />
 		<Unit filename="..\src\physics\posp.d" />
+		<Unit filename="..\src\physics\sortandsweep.d" />
 		<Unit filename="..\src\physics\timedchanger.d" />
 		<Unit filename="..\src\physics\trigger.d" />
 		<Unit filename="..\src\physics\world.d" />

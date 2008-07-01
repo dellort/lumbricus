@@ -27,11 +27,6 @@ class PhysicTrigger : PhysicBase {
     }
 
     abstract protected bool doCollide(Vector2f pos, float radius);
-
-    override /+package+/ void doRemove() {
-        super.doRemove();
-        world.mTriggers.remove(this);
-    }
 }
 
 //plane separating world, objects can be on one side (in) or the other (out)

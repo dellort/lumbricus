@@ -221,7 +221,7 @@ class EarthquakeAction : TimedAction {
         if (myclass.strength > 0) {
             mEarthquake = new EarthQuakeDegrader(myclass.strength,
                 myclass.degrade, engine.earthQuakeForce);
-            engine.physicworld.addBaseObject(mEarthquake);
+            engine.physicworld.add(mEarthquake);
             return ActionRes.moreWork;
         } else {
             return ActionRes.done;

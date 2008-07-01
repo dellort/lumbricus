@@ -710,7 +710,7 @@ class ProximitySensorAction : ProjectileAction {
 
     protected ActionRes initDeferred() {
         mTrigger = new CircularTrigger(mParent.physics.pos, myclass.radius);
-        mTrigger.collision = engine.physicworld.findCollisionID(
+        mTrigger.collision = engine.physicworld.collide.findCollisionID(
             myclass.collision);
         mTrigger.onTrigger = &trigTrigger;
         mFireTime = timeNever();

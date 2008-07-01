@@ -3,7 +3,7 @@ module physics.world;
 import str = std.string;
 import std.math : sqrt, PI;
 import utils.misc;
-import utils.array : arrayMap;
+import utils.array;
 import utils.configfile;
 import utils.mylist;
 import utils.random;
@@ -22,40 +22,49 @@ public import physics.posp;
 public import physics.trigger;
 public import physics.timedchanger;
 public import physics.contact;
+import physics.collisionmap;
+import physics.broadphase;
+import physics.sortandsweep;
 
 //Uncomment to get detailed physics debugging log (slooooow)
 //version = PhysDebug;
 
 class PhysicWorld {
-    package List!(PhysicBase) mAllObjects;
-    package List!(PhysicForce) mForceObjects;
-    package List!(PhysicGeometry) mGeometryObjects;
-    package List!(PhysicObject) mObjects;
-    package List!(PhysicTrigger) mTriggers;
+    private List!(PhysicBase) mAllObjects;
+    private List!(PhysicForce) mForceObjects;
+    private List!(PhysicGeometry) mGeometryObjects;
+    private List!(PhysicObject) mObjects;
+    private List!(PhysicTrigger) mTriggers;
     private uint mLastTime;
+
+    private PhysicObject[] mObjArr;
+    private BroadPhase broadphase;
 
     package log.Log mLog;
     Random rnd;
+    CollisionMap collide;
 
-    public void add(PhysicObject obj) {
-        mObjects.insert_tail(obj);
-        addBaseObject(obj);
+    public void add(PhysicBase obj) {
+        obj.world = this;
+        mAllObjects.insert_tail(obj);
+        if (auto o = cast(PhysicForce)obj)    mForceObjects.insert_tail(o);
+        if (auto o = cast(PhysicGeometry)obj) mGeometryObjects.insert_tail(o);
+        if (auto o = cast(PhysicObject)obj) {
+            mObjects.insert_tail(o);
+            mObjArr ~= o;
+        }
+        if (auto o = cast(PhysicTrigger)obj)  mTriggers.insert_tail(o);
     }
-    public void add(PhysicForce obj) {
-        mForceObjects.insert_tail(obj);
-        addBaseObject(obj);
-    }
-    public void add(PhysicGeometry obj) {
-        mGeometryObjects.insert_tail(obj);
-        addBaseObject(obj);
-    }
-    public void add(PhysicTrigger obj) {
-        mTriggers.insert_tail(obj);
-        addBaseObject(obj);
-    }
-    public void addBaseObject(PhysicBase bobj) {
-        bobj.world = this;
-        mAllObjects.insert_tail(bobj);
+
+    private void remove(PhysicBase obj) {
+        mAllObjects.remove(obj);
+        if (auto o = cast(PhysicForce)obj)    mForceObjects.remove(o);
+        if (auto o = cast(PhysicGeometry)obj) mGeometryObjects.remove(o);
+        if (auto o = cast(PhysicObject)obj) {
+            mObjects.remove(o);
+            arrayRemoveUnordered(mObjArr, o);
+        }
+        if (auto o = cast(PhysicTrigger)obj)  mTriggers.remove(o);
     }
 
     private const cPhysTimeStepMs = 10;
@@ -89,15 +98,12 @@ class PhysicWorld {
 
             //update position and velocity
             me.update(deltaT);
+        }
 
-            //collide with each other PhysicObjects
-            // (0.5*n^2 - n) iterations
-            //the next two lines mean: iterate over all objects following "me"
-            auto other = mObjects.next(me);
-            for (;other;other=mObjects.next(other)) {
-                checkObjectCollision(me, other, deltaT);
-            }
+        //collideObjects(deltaT);
+        broadphase.collide(mObjArr, deltaT);
 
+        foreach (PhysicObject me; mObjects) {
             //no need to check then? (maybe)
             //xxx if landscape changed => need to check
             //    <-> landscape changes only after explosions, which unglue
@@ -111,7 +117,7 @@ class PhysicWorld {
             //check glued objects too, or else not checking would be
             //misinterpreted as not active
             foreach (PhysicTrigger tr; mTriggers) {
-                if (canCollide(tr, me))
+                if (collide.canCollide(tr, me))
                     tr.collide(me);
             }
         }
@@ -129,7 +135,7 @@ class PhysicWorld {
             }
             if (obj.dead) {
                 obj.doDie();
-                obj.doRemove();
+                remove(obj);
             }
             obj = next;
         }
@@ -148,7 +154,7 @@ class PhysicWorld {
             return;
 
         //no collision if unwanted
-        if (!canCollide(obj1, obj2))
+        if (!collide.canCollide(obj1, obj2))
             return;
 
         //generate contact and resolve immediately (well, as before)
@@ -164,7 +170,7 @@ class PhysicWorld {
 
         obj1.checkRotation();
 
-        callCollide(c); //call collision handler
+        collide.callCollide(c); //call collision handler
         //xxx: also, should it be possible to glue objects here?
     }
 
@@ -199,7 +205,7 @@ class PhysicWorld {
         //what about unglue??
         obj.needUpdate();
 
-        callCollide(c);
+        collide.callCollide(c);
     }
 
     //check how an object would collide with all the geometry
@@ -223,7 +229,7 @@ class PhysicWorld {
         bool collided = false;
         foreach (PhysicGeometry gm; mGeometryObjects) {
             GeomContact ncont;
-            if (canCollide(o, gm) && gm.collide(o.pos, o.posp.radius, ncont)) {
+            if (collide.canCollide(o, gm) && gm.collide(o.pos, o.posp.radius, ncont)) {
                 //kind of hack for LevelGeometry
                 //if the pos didn't change at all, but a collision was
                 //reported, assume the object is completely within the
@@ -296,225 +302,6 @@ class PhysicWorld {
         return false;
     }
 
-    //handling of the collision map
-private:
-
-    CollisionType[char[]] mCollisionNames;
-    CollisionType[] mCollisions; //indexed by CollisionType.index
-    //pairs of things which collide with each other
-    CollisionType[2][] mHits;
-
-    //CollisionType.index indexes into this, see canCollide()
-    bool[][] mTehMatrix;
-
-    //if there are still unresolved CollisionType forward references
-    //used for faster error checking (in canCollide() which is a hot-spot)
-    bool mHadCTFwRef = true;
-
-    //special types
-    CollisionType mCTAlways, mCTNever, mCTAll;
-
-    CollideDelegate mCollideHandler;
-
-    CollisionType newCollisionType(char[] name) {
-        assert(!(name in mCollisionNames));
-        auto t = new CollisionType();
-        t.name = name;
-        mCollisionNames[t.name] = t;
-        t.index = mCollisions.length;
-        mCollisions ~= t;
-        mHadCTFwRef = true; //because this is one
-        return t;
-    }
-
-    public CollisionType collideNever() {
-        return mCTNever;
-    }
-    public CollisionType collideAlways() {
-        return mCTAlways;
-    }
-
-    //associate a collision handler with code
-    //this can handle forward-referencing
-    public void setCollideHandler(CollideDelegate oncollide) {
-        mCollideHandler = oncollide;
-    }
-
-    public bool canCollide(CollisionType a, CollisionType b) {
-        if (mHadCTFwRef) {
-            checkCollisionHandlers();
-        }
-        assert(a && b, "no null parameters allowed, use collideNever/Always");
-        assert(!a.undefined && !b.undefined, "undefined collision type");
-        return mTehMatrix[a.index][b.index];
-    }
-
-    public bool canCollide(PhysicBase a, PhysicBase b) {
-        assert(a && b);
-        if (!a.collision)
-            assert(false, "no collision for "~a.toString());
-        if (!b.collision)
-            assert(false, "no collision for "~b.toString());
-        return canCollide(a.collision, b.collision);
-    }
-
-    //call the collision handler for these two objects
-    public void callCollide(Contact c) {
-        assert(!!mCollideHandler);
-        mCollideHandler(c);
-    }
-
-    //check if all collision handlers were set; if not throw an error
-    public void checkCollisionHandlers() {
-        char[][] errors;
-
-        foreach(t; mCollisions) {
-            if (t.undefined) {
-                errors ~= t.name;
-            }
-        }
-
-        if (errors.length > 0) {
-            throw new Exception(str.format("the following collision names were"
-                " referenced, but not defined: %s", errors));
-        }
-
-        mHadCTFwRef = false;
-    }
-
-    //find a collision ID by name
-    public CollisionType findCollisionID(char[] name) {
-        if (name.length == 0) {
-            return mCTNever;
-        }
-
-        if (name in mCollisionNames)
-            return mCollisionNames[name];
-
-        //a forward reference
-        //checkCollisionHandlers() verifies if these are resolved
-        return newCollisionType(name);
-    }
-
-    public CollisionType[] collisionTypes() {
-        return mCollisions.dup;
-    }
-
-    //will rebuild mTehMatrix
-    void rebuildCollisionStuff() {
-        //return an array containing all transitive subclasses of cur
-        CollisionType[] getAll(CollisionType cur) {
-            CollisionType[] res = [cur];
-            foreach (s; cur.subclasses) {
-                res ~= getAll(s);
-            }
-            return res;
-        }
-
-        //set if a and b should collide to what
-        void setCollide(CollisionType a, CollisionType b, bool what = true) {
-            mTehMatrix[a.index][b.index] = what;
-            mTehMatrix[b.index][a.index] = what;
-        }
-
-        mCTAlways.undefined = false;
-        mCTNever.undefined = false;
-        mCTAll.undefined = false;
-        mHadCTFwRef = false;
-
-        //allocate/clear the matrix
-        mTehMatrix.length = mCollisions.length;
-        foreach (ref line; mTehMatrix) {
-            line.length = mTehMatrix.length;
-            line[] = false;
-        }
-
-        foreach (ct; mCollisions) {
-            mHadCTFwRef |= ct.undefined;
-        }
-
-        //relatively hack-like, put in all unparented collisions as subclasses,
-        //without setting their parent member, else loadCollisions could cause
-        //problems etc.; do that only for getAll()
-        mCTAll.subclasses = null;
-        foreach (ct; mCollisions) {
-            if (!ct.superclass && ct !is mCTAll)
-                mCTAll.subclasses ~= ct;
-        }
-
-        foreach (CollisionType[2] entry; mHits) {
-            auto a = getAll(entry[0]);
-            auto b = getAll(entry[1]);
-            foreach (xa; a) {
-                foreach (xb; b) {
-                    setCollide(xa, xb);
-                }
-            }
-        }
-
-        foreach (ct; mCollisions) {
-            setCollide(mCTAlways, ct, true);
-            setCollide(mCTNever, ct, false);
-        }
-        //lol paradox
-        setCollide(mCTAlways, mCTNever, false);
-    }
-
-    //"collisions" node from i.e. worm.conf
-    public void loadCollisions(ConfigNode node) {
-        auto defines = str.split(node.getStringValue("define"));
-        foreach (d; defines) {
-            auto cid = findCollisionID(d);
-            if (!cid.undefined) {
-                throw new Exception("collision name '" ~ cid.name
-                    ~ "' redefined");
-            }
-            cid.undefined = false;
-        }
-        foreach (char[] name, char[] value; node.getSubNode("classes")) {
-            //each entry is class = superclass
-            auto cls = findCollisionID(name);
-            auto supercls = findCollisionID(value);
-            if (cls.superclass) {
-                throw new Exception("collision class '" ~ cls.name ~ "' already"
-                    ~ " has a superclass");
-            }
-            cls.superclass = supercls;
-            //this is what we really need
-            supercls.subclasses ~= cls;
-            //check for cirular stuff
-            auto t = cls;
-            CollisionType[] trace = [t];
-            while (t) {
-                t = t.superclass;
-                trace ~= t;
-                if (t is cls) {
-                    throw new Exception("circular subclass relation: " ~
-                        str.join(arrayMap(trace, (CollisionType x) {
-                            return x.name;
-                        }), " -> ") ~ ".");
-                }
-            }
-        }
-        foreach (char[] name, char[] value; node.getSubNode("hit")) {
-            //each value is an array of collision ids which collide with "name"
-            auto hits = arrayMap(str.split(value), (char[] id) {
-                return findCollisionID(id);
-            });
-            auto ct = findCollisionID(name);
-            foreach (h; hits) {
-                mHits ~= [ct, h];
-            }
-        }
-        rebuildCollisionStuff();
-    }
-
-    void initCT() {
-        mCTAlways = findCollisionID("always");
-        mCTAll = findCollisionID("all");
-        mCTNever = findCollisionID("never");
-    }
-
     ///r = random number generator to use, null will create a new instance
     public this(Random r) {
         if (r) {
@@ -522,7 +309,8 @@ private:
         } else {
             rnd = r;
         }
-        initCT();
+        collide = new CollisionMap();
+        broadphase = new BPSortAndSweep(&checkObjectCollision);
         mObjects = new List!(PhysicObject)(PhysicObject.objects_node.getListNodeOffset());
         mAllObjects = new List!(PhysicBase)(PhysicBase.allobjects_node.getListNodeOffset());
         mForceObjects = new List!(PhysicForce)(PhysicForce.forces_node.getListNodeOffset());

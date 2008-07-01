@@ -383,7 +383,7 @@ class GameTask : Task {
         }
         this() {
             auto ph = mServerEngine.physicworld;
-            auto types = ph.collisionTypes;
+            auto types = ph.collide.collisionTypes;
             auto table = new TableContainer(types.length+1, types.length+1,
                 Vector2i(2));
             void addc(int x, int y, Label l) {
@@ -409,7 +409,7 @@ class GameTask : Task {
                 int x = 1;
                 foreach (t2; types) {
                     Label lbl = new Label();
-                    if (ph.canCollide(t, t2)) {
+                    if (ph.collide.canCollide(t, t2)) {
                         lbl.image = globals.guiResources.get!(Surface)
                             ("window_close"); //that icon is good enough
                     }

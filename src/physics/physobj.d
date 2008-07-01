@@ -26,7 +26,7 @@ class PhysicObject : PhysicBase {
     void posp(POSP p) {
         mPosp = p;
         //new POSP -> check values
-        collision = world.findCollisionID(mPosp.collisionID);
+        collision = world.collide.findCollisionID(mPosp.collisionID);
     }
 
     package Vector2f mPos; //pixels
@@ -175,12 +175,6 @@ class PhysicObject : PhysicBase {
 
     char[] toString() {
         return str.format("[%s: %s %s]", toHash(), pos, velocity);
-    }
-
-    override /+package+/ void doRemove() {
-        super.doRemove();
-        //objects_node.removeFromList();
-        world.mObjects.remove(this);
     }
 
     override void doDie() {

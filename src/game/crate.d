@@ -30,7 +30,7 @@ class CrateSprite : GObjectSprite {
 
         collectTrigger = new CircularTrigger(Vector2f(), myclass.collectRadius);
         collectTrigger.collision
-            = engine.physicworld.findCollisionID("crate_collect");
+            = engine.physicworld.collide.findCollisionID("crate_collect");
         collectTrigger.onTrigger = &oncollect;
         //doesntwork
         //collectTrigger.collision = physics.collision;

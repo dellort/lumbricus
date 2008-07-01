@@ -44,7 +44,7 @@ class PhysicGeometry : PhysicBase {
 
     override protected void addedToWorld() {
         //register fixed collision id "ground" on first call
-        collision = world.findCollisionID("ground");
+        collision = world.collide.findCollisionID("ground");
     }
 
 
@@ -52,11 +52,6 @@ class PhysicGeometry : PhysicBase {
     //if inside or touching, return true and set pos to a corrected pos
     //(which is the old pos, moved along the normal at that point in the object)
     abstract bool collide(Vector2f pos, float radius, out GeomContact contact);
-
-    override /+package+/ void doRemove() {
-        super.doRemove();
-        world.mGeometryObjects.remove(this);
-    }
 }
 
 //a plane which divides space into two regions (inside and outside plane)

@@ -164,7 +164,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         auto coll_conf = gFramework.loadConfig(dir ~ "/"
             ~ set_conf.getStringValue("collisions","collisions.conf"),true,true);
         if (coll_conf)
-            physicworld.loadCollisions(coll_conf.getSubNode("collisions"));
+            physicworld.collide.loadCollisions(coll_conf.getSubNode("collisions"));
         //load all .conf files found
         char[] weaponsdir = dir ~ "/weapons";
         gFramework.fs.listdir(weaponsdir, "*.conf", false,
@@ -173,7 +173,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
                 //additions and a list of weapons
                 auto wp_conf = gFramework.loadConfig(weaponsdir ~ "/"
                     ~ path[0..$-5]);
-                physicworld.loadCollisions(wp_conf.getSubNode("collisions"));
+                physicworld.collide.loadCollisions(wp_conf.getSubNode("collisions"));
                 auto list = wp_conf.getSubNode("weapons");
                 foreach (ConfigNode item; list) {
                     loadWeaponClass(item);
@@ -250,7 +250,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         //various level borders
         waterborder = new PlaneTrigger();
         waterborder.onTrigger = &underWaterTrigger;
-        waterborder.collision = physicworld.findCollisionID("water");
+        waterborder.collision = physicworld.collide.findCollisionID("water");
         physicworld.add(waterborder);
         //Stokes's drag force
         //xxx controlled by object attribute, change into zone
@@ -260,7 +260,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         physicworld.add(mEarthQuakeForce);
 
         deathzone = new PlaneTrigger();
-        deathzone.collision = physicworld.collideAlways();
+        deathzone.collision = physicworld.collide.collideAlways();
         deathzone.onTrigger = &deathzoneTrigger;
         deathzone.inverse = true;
         //the trigger is inverse, and triggers only when the physic object is
@@ -274,7 +274,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         mWindChanger = new PhysicTimedChangerFloat(0, &windChangerUpdate);
         mWindChanger.changePerSec = cWindChange;
         physicworld.add(mWindForce);
-        physicworld.addBaseObject(mWindChanger);
+        physicworld.add(mWindChanger);
         //xxx make this configurable or initialize randomly
         setWindSpeed(-150);   //what unit is that???
 
@@ -282,7 +282,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         mWaterChanger = new PhysicTimedChangerFloat(mLevel.waterBottomY,
             &waterChangerUpdate);
         mWaterChanger.changePerSec = cWaterRaisingSpeed;
-        physicworld.addBaseObject(mWaterChanger);
+        physicworld.add(mWaterChanger);
 
         mObjects = new List!(GameObject)(GameObject.node.getListNodeOffset());
 
@@ -337,10 +337,10 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         mPhysicWorld.gravity = Vector2f(0, conf.getFloatValue("gravity",100));
 
         //hm!?!?
-        mPhysicWorld.setCollideHandler(&onPhysicHit);
+        mPhysicWorld.collide.setCollideHandler(&onPhysicHit);
 
         //error when a reference to a collision type is missing
-        mPhysicWorld.checkCollisionHandlers();
+        mPhysicWorld.collide.checkCollisionHandlers();
     }
 
     //called when a and b touch in physics
@@ -391,7 +391,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     //this function never overwrites the settings, but adds both values to the
     //existing ones
     void addEarthQuake(float strength, float degrade) {
-        physicworld.addBaseObject(new EarthQuakeDegrader(strength, degrade,
+        physicworld.add(new EarthQuakeDegrader(strength, degrade,
             mEarthQuakeForce));
         mLog("created earth quake, strength=%s, degrade=%s", strength, degrade);
     }

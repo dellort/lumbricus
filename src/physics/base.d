@@ -99,9 +99,4 @@ class PhysicBase {
             }
         }
     }
-
-    /+package+/ void doRemove() {
-        //allobjects_node.removeFromList();
-        world.mAllObjects.remove(this);
-    }
 }

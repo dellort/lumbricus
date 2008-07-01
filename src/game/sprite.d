@@ -339,7 +339,7 @@ class GOSpriteClass {
         FwRef[] fwrefs;
 
         //load collision map
-        engine.physicworld.loadCollisions(config.getSubNode("collisions"));
+        engine.physicworld.collide.loadCollisions(config.getSubNode("collisions"));
 
         sequenceObject = engine.gfx.resources.resource!(SequenceObject)
             (config["sequence_object"]).get;

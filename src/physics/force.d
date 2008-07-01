@@ -13,12 +13,6 @@ class PhysicForce : PhysicBase {
     package mixin ListNodeMixin forces_node;
 
     abstract void applyTo(PhysicObject o, float deltaT);
-
-    override /+package+/ void doRemove() {
-        super.doRemove();
-        //forces_node.removeFromList();
-        world.mForceObjects.remove(this);
-    }
 }
 
 class ConstantForce : PhysicForce {
