@@ -85,6 +85,11 @@ interface TargetCross : Graphic {
     Rect2i bounds();
 }
 
+//for homing weapons
+interface TargetIndicator : Graphic {
+    void setPos(Vector2i p);
+}
+
 //this is the level bitmap (aka Landscape etc.); it is precreated in the level
 //generation/rendering step and it is modified by punching holes into it
 //  damage() isn't listed as method here
@@ -104,6 +109,9 @@ interface GameEngineGraphics {
     LineGraphic createLine();
     //target cross is always themed
     TargetCross createTargetCross(TeamTheme team);
+    //target for homing weapons, themed
+    TargetIndicator createTargetIndicator(TeamTheme team, Vector2i pos,
+        PointMode mode);
     //the second parameter can be null; if it isn't, it's the directly shared
     //LandscapeBitmap instance between the server and client code
     LandscapeGraphic createLandscape(LevelLandscape from,

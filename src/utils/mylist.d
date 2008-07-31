@@ -256,10 +256,12 @@ public class List(T) {
     public int opApply(int delegate(inout T) del) {
         T cur = head();
         while (cur !is null) {
+            //cache next element, as cur could get invalid during the call
+            T nextTmp = next(cur);
             int res = del(cur);
             if (res)
                 return res;
-            cur = next(cur);
+            cur = nextTmp;
         }
         return 0;
     }

@@ -211,11 +211,6 @@ class GameView : Container, TeamMemberControlCallback {
         GUITeamMemberSettings mTeamGUISettings;
         int mCycleLabels = 2;
 
-        //marker for targets of homing weapons
-        GuiAnimator mPointed;
-        //xxx find better way to make this disappear
-        TeamMemberInfo mPointedFor;
-
         ViewMember activeWorm;
 
         //per-member class
@@ -531,15 +526,6 @@ class GameView : Container, TeamMemberControlCallback {
             auto pam = am in mEngineMemberToOurs;
             activeWorm = pam ? *pam : null;
         }
-
-        bool p_active = activeWorm && (mPointedFor is activeWorm.member);
-        if (!mPointed.parent && p_active) {
-            addChild(mPointed);
-        }
-        if (!p_active) {
-            mPointedFor = null;
-            mPointed.remove;
-        }
     }
 
     override bool canHaveFocus() {
@@ -550,8 +536,6 @@ class GameView : Container, TeamMemberControlCallback {
     }
 
     this(ClientGameEngine engine, Camera cam, GameInfo game) {
-        mPointed = new GuiAnimator();
-
         mEngine = engine;
         mGame = game;
 
@@ -651,22 +635,6 @@ class GameView : Container, TeamMemberControlCallback {
             }
             case "pointy": {
                 mController.weaponSetTarget(mousePos);
-                auto cur = mController.getActiveMember();
-                if (cur && mController.currentWeapon &&
-                    mController.currentWeapon.fireMode.point != PointMode.none)
-                {
-                    mPointedFor = mGame.allMembers[cur];
-                    switch (mController.currentWeapon.fireMode.point) {
-                        case PointMode.instant:
-                            mPointed.animation = mEngineMemberToOurs[cur].member
-                                .owner.theme.click.get;
-                            break;
-                        default:
-                            mPointed.animation = mEngineMemberToOurs[cur].member
-                                .owner.theme.pointed.get;
-                    }
-                    mPointed.setPositionCentered(mousePos);
-                }
                 return true;
             }
             default:

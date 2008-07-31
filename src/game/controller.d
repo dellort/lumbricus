@@ -182,7 +182,8 @@ class ServerTeam : Team {
         bool mOnHold;
 
         //if you can click anything, if true, also show that animation
-        bool mAllowSetPoint;
+        PointMode mPointMode;
+        TargetIndicator mCurrentTargetInd;
 
         Vector2f movementVec = {0, 0};
     }
@@ -334,7 +335,7 @@ class ServerTeam : Team {
         } else {
             //deactivating
             current = null;
-            allowSetPoint(false);
+            setPointMode(PointMode.none);
             setOnHold(false);
             mActive = act;
         }
@@ -376,21 +377,39 @@ class ServerTeam : Team {
         return 0;
     }
 
-    void allowSetPoint(bool set) {
-        if (mAllowSetPoint == set)
+    //note: also clears the target indicator
+    void setPointMode(PointMode mode) {
+        if (mPointMode == mode)
             return;
-        mAllowSetPoint = set;
+        mPointMode = mode;
         targetIsSet = false;
+        setIndicator(null);
     }
     void doSetPoint(Vector2f where) {
-        if (!mAllowSetPoint || !isControllable)
+        if (mPointMode == PointMode.none || !isControllable)
             return;
 
         targetIsSet = true;
         currentTarget = where;
 
-        if (current.currentWeapon.weapon.fireMode.point == PointMode.instant)
+        TargetIndicator t = parent.engine.graphics.createTargetIndicator(color,
+            toVector2i(where), mPointMode);
+
+        if (mPointMode == PointMode.target) {
+            //targetting mode (homing) -> save point reference
+            setIndicator(t);
+        }
+        if (mPointMode == PointMode.instant) {
+            //instant mode -> fire and forget
             current.doFireDown();
+            targetIsSet = false;
+        }
+    }
+    private void setIndicator(TargetIndicator ind) {
+        //only one cross indicator
+        if (mCurrentTargetInd)
+            mCurrentTargetInd.remove();
+        mCurrentTargetInd = ind;
     }
 
     //xxx integrate (unused yet)
@@ -717,7 +736,7 @@ class ServerTeamMember : TeamMember {
         Shooter nshooter;
         if (selected) {
             nshooter = selected.createShooter(mWorm);
-            mTeam.allowSetPoint = selected.fireMode.point != PointMode.none;
+            mTeam.setPointMode(selected.fireMode.point);
         }
         mWorm.shooter = nshooter;
     }

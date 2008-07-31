@@ -14,6 +14,7 @@ import game.gamepublic;
 import game.gfxset;
 import game.glevel;
 import game.sequence;
+import game.weapon.weapon;
 import game.levelgen.level;
 import game.levelgen.landscape;
 import game.levelgen.renderer;
@@ -315,6 +316,57 @@ class TargetCrossImpl : ClientGraphic, TargetCross {
     }
 }
 
+//point-thingy when clicking with the mouse
+class TargetIndicatorImpl : ClientGraphic, TargetIndicator {
+    private {
+        Animator mPoint;
+        PointMode mMode;
+    }
+
+    this(GraphicsHandler handler, TeamTheme team, Vector2i pos, PointMode mode)
+    {
+        super(handler);
+        mPoint = new Animator();
+        //select animation based on weapon mode
+        switch(mode) {
+            case PointMode.target:
+                mPoint.setAnimation(team.pointed.get);
+                break;
+            case PointMode.instant:
+                mPoint.setAnimation(team.click.get);
+                break;
+            default:
+                assert(false);
+        }
+        mPoint.pos = pos;
+        mMode = mode;
+        init();
+    }
+
+    SceneObject graphic() {
+        return mPoint;
+    }
+
+    void setPos(Vector2i p) {
+        mPoint.pos = p;
+    }
+
+    override void simulate(float deltaT) {
+        //self-remove if instant animation has finished
+        //xxx make generic, there may be other similar graphics
+        if (mPoint.hasFinished && mMode == PointMode.instant)
+            remove();
+    }
+
+    override int zorder() {
+        return GameZOrder.TargetCross;
+    }
+
+    Rect2i bounds() {
+        return mPoint.bounds;
+    }
+}
+
 class GraphicsHandler : GameEngineGraphics {
     private List!(ClientGraphic) mGraphics;
 
@@ -349,6 +401,11 @@ class GraphicsHandler : GameEngineGraphics {
     }
     TargetCross createTargetCross(TeamTheme team) {
         return new TargetCrossImpl(this, team);
+    }
+    TargetIndicator createTargetIndicator(TeamTheme team, Vector2i pos,
+        PointMode mode)
+    {
+        return new TargetIndicatorImpl(this, team, pos, mode);
     }
     LandscapeGraphic createLandscape(LevelLandscape from,
         LandscapeBitmap shared)
