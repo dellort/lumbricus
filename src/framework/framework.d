@@ -968,7 +968,7 @@ class Framework {
         if (fps == 0) {
             mTimePerFrame = timeMsecs(0);
         } else {
-            mTimePerFrame = timeMsecs(1000/fps);
+            mTimePerFrame = timeMusecs(1000000/fps);
         }
     }
 
@@ -976,6 +976,7 @@ class Framework {
 
     /// Main-Loop
     void run() {
+        Time waitTime;
         while(!mShouldTerminate) {
             // recalc FPS value
             Time curtime = timeCurrentTime();
@@ -1012,13 +1013,17 @@ class Framework {
 
             //wait for fixed framerate?
             Time time = timeCurrentTime();
-            Time diff = mTimePerFrame - (time - curtime);
+            //target waiting time
+            waitTime += mTimePerFrame - (time - curtime);
             //even if you don't wait, yield the rest of the timeslice
-            diff = diff > timeSecs(0) ? diff : timeSecs(0);
-            mDriver.sleepTime(diff);
+            waitTime = waitTime > timeSecs(0) ? waitTime : timeSecs(0);
+            mDriver.sleepTime(waitTime);
 
             //real frame time
             Time cur = timeCurrentTime();
+            //subtract the time that was really waited, to cover the
+            //inaccuracy of Driver.sleepTime()
+            waitTime -= (cur - time);
             mLastFrameTime = cur - curtime;
 
             //it's a hack!
