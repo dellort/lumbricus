@@ -153,6 +153,19 @@ class AniEntry {
         }
     }
 
+    //special case for wwp walking animation: I don't know what team17 devs
+    //drank when writing their code, but forward movements seems to be
+    //integrated into the animation, which is removed by this code
+    void fixWwpWalkAni() {
+        foreach (inout fl; mFrames) {
+            for (int i = 0; i < fl.length; i++) {
+                std.stdio.writefln("%d: %d",i,fl[i].centerX);
+                fl[i].centerX += (i*10)/15;
+            }
+            std.stdio.writefln("---");
+        }
+    }
+
     //length of axis A, return 0 if empty framearray
     int length_a() {
         return mFrames.length ? mFrames[0].length : 0;
@@ -471,6 +484,10 @@ private void loadGeneralW(ConfigNode node) {
         ani.addFrames(anims);
 
         ani.frameTimeMS = intFlag("f");
+
+        //lol, xxx reproduce thoughts of wwp devs
+        if (boolFlag("walkfix"))
+            ani.fixWwpWalkAni();
 
         if (boolFlag("repeat"))
             ani.flags |= FileAnimationFlags.Repeat;

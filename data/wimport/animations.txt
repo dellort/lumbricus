@@ -190,7 +190,7 @@ mainspr {
                 worm_stand = "194"
                 worm_slide = "523"
             }
-            worm_walk = "+repeat; 146"
+            worm_walk = "+repeat,+walkfix,f:25; 146"
             {
                 _flags = "+keeplast"
 

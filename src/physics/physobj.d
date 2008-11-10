@@ -365,103 +365,106 @@ class PhysicObject : PhysicBase {
         return mIsWalking;
     }
 
+    //xxx reserved for later, refactor out
+    //(thinking of non-linear movement)
+    Vector2f calcDist(float deltaT, Vector2f dir, float speed) {
+        return dir * speed * deltaT;
+    }
+
     override /+package+/ void simulate(float deltaT) {
         super.simulate(deltaT);
         //take care of walking, walkingSpeed > 0 marks walking enabled
         if (isWalkingMode()) {
-            walkingTime -= deltaT;
-            if (walkingTime <= 0) {
-                walkingTime = 1.0 / posp.walkingSpeed; //time for one pixel
-                //actually walk (or try to)
+            Vector2f walkDist = calcDist(deltaT, walkTo, posp.walkingSpeed);
+            //actually walk (or try to)
 
-                //must stand on surface when walking
-                if (!isGlued) {
-                    world.mLog("no walk because not glued");
+            //must stand on surface when walking
+            if (!isGlued) {
+                world.mLog("no walk because not glued");
+                return;
+            }
+
+            //checkRotation2(pos-walkTo);
+
+            //look where's bottom
+            //NOTE: y1 > y2 means y1 is _blow_ y2
+            bool first = true;
+            for (float y = +posp.walkingClimb; y >= -posp.walkingClimb; y--)
+            {
+
+                Vector2f npos = pos + walkDist;
+                npos.y += y;
+                GeomContact contact;
+                bool res = world.collideGeometry(npos, posp.radius,
+                    contact);
+
+                if (!res) {
+                    world.mLog("walk at %s -> %s", npos, npos-mPos);
+                    //no collision, consider this to be bottom
+
+                    auto oldpos = pos;
+
+                    if (first) {
+                        //even first tested location => most bottom, fall
+                        world.mLog("walk: fall-bottom");
+                        mPos += walkDist;
+                        doUnglue();
+                    } else {
+                        world.mLog("walk: bottom at %s", y);
+                        //walk to there...
+                        if (mPosp.walkLimitSlopeSpeed) {
+                            //one pixel at a time, even on steep slopes
+                            //xxx waiting y/walkingSpeed looks odd, but
+                            //    would be more correct
+                            if (abs(y) <= 1)
+                                mPos += walkDist;
+                            if (y > 0)
+                                mPos.y += 1;
+                            else if (y < 0)
+                                mPos.y -= 1;
+                        } else {
+                            //full heigth diff at one, constant x speed
+                            mPos += walkDist;
+                            mPos.y += y;
+                        }
+                    }
+
+                    //check worm direction...
+                    //disabled because: want worm to look to the real
+                    //walking direction, this breaks when walking into caves
+                    //where the worm gets stuck
+                    //checkRotation2(oldpos);
+
+                    //check ground normal... not good :)
+                    //maybe physics should check the normal properly
+                    if (world.collideGeometry(pos, posp.radius+cNormalCheck,
+                        contact))
+                    {
+                        checkGroundAngle(contact.depth
+                            * contact.normal);
+                    }
+
+                    //jup, did walk
+                    mIsWalking = true;
+
+                    auto ndir = walkDist.normal();
+                    if (!ndir.isNaN())
+                        mIntendedLookAngle = ndir.toAngle();
+
+                    //notice update before you forget it...
+                    needUpdate();
+
                     return;
                 }
 
-                //checkRotation2(pos-walkTo);
+                first = false;
+            }
 
-                //look where's bottom
-                //NOTE: y1 > y2 means y1 is _blow_ y2
-                bool first = true;
-                for (float y = +posp.walkingClimb; y >= -posp.walkingClimb; y--)
-                {
-
-                    Vector2f npos = pos + walkTo;
-                    npos.y += y;
-                    GeomContact contact;
-                    bool res = world.collideGeometry(npos, posp.radius,
-                        contact);
-
-                    if (!res) {
-                        world.mLog("walk at %s -> %s", npos, npos-mPos);
-                        //no collision, consider this to be bottom
-
-                        auto oldpos = pos;
-
-                        if (first) {
-                            //even first tested location => most bottom, fall
-                            world.mLog("walk: fall-bottom");
-                            mPos += walkTo;
-                            doUnglue();
-                        } else {
-                            world.mLog("walk: bottom at %s", y);
-                            //walk to there...
-                            if (mPosp.walkLimitSlopeSpeed) {
-                                //one pixel at a time, even on steep slopes
-                                //xxx waiting y/walkingSpeed looks odd, but
-                                //    would be more correct
-                                if (abs(y) <= 1)
-                                    mPos += walkTo;
-                                if (y > 0)
-                                    mPos.y += 1;
-                                else if (y < 0)
-                                    mPos.y -= 1;
-                            } else {
-                                //full heigth diff at one, constant x speed
-                                mPos += walkTo;
-                                mPos.y += y;
-                            }
-                        }
-
-                        //check worm direction...
-                        //disabled because: want worm to look to the real
-                        //walking direction, this breaks when walking into caves
-                        //where the worm gets stuck
-                        //checkRotation2(oldpos);
-
-                        //check ground normal... not good :)
-                        //maybe physics should check the normal properly
-                        if (world.collideGeometry(pos, posp.radius+cNormalCheck,
-                            contact))
-                        {
-                            checkGroundAngle(contact.depth
-                                * contact.normal);
-                        }
-
-                        //jup, did walk
-                        mIsWalking = true;
-
-                        auto ndir = walkTo.normal();
-                        if (!ndir.isNaN())
-                            mIntendedLookAngle = ndir.toAngle();
-
-                        //notice update before you forget it...
-                        needUpdate();
-
-                        return;
-                    }
-
-                    first = false;
-                }
-
-                //if nothing was done, the worm (or the cow :) just can't walk
-                if (mIsWalking) {
-                    mIsWalking = false;
-                    //only if state actually changed
-                    needUpdate();
-                }
+            //if nothing was done, the worm (or the cow :) just can't walk
+            if (mIsWalking) {
+                mIsWalking = false;
+                //only if state actually changed
+                needUpdate();
             }
         }
     }
