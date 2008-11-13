@@ -164,6 +164,7 @@
 		<Unit filename="..\src\physics\timedchanger.d" />
 		<Unit filename="..\src\physics\trigger.d" />
 		<Unit filename="..\src\physics\world.d" />
+		<Unit filename="..\src\physics\zone.d" />
 		<Unit filename="..\src\utils\array.d" />
 		<Unit filename="..\src\utils\bitstream.d" />
 		<Unit filename="..\src\utils\color.d" />

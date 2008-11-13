@@ -17,7 +17,8 @@ import str = std.string;
 class CrateSprite : GObjectSprite {
     private {
         CrateSpriteClass myclass;
-        CircularTrigger collectTrigger;
+        PhysicZoneCircle crateZone;
+        ZoneTrigger collectTrigger;
     }
 
     //type will be mostly WeaponClass for weapon-crates
@@ -28,7 +29,8 @@ class CrateSprite : GObjectSprite {
         super(engine, spriteclass);
         myclass = spriteclass;
 
-        collectTrigger = new CircularTrigger(Vector2f(), myclass.collectRadius);
+        crateZone = new PhysicZoneCircle(Vector2f(), myclass.collectRadius);
+        collectTrigger = new ZoneTrigger(crateZone);
         collectTrigger.collision
             = engine.physicworld.collide.findCollisionID("crate_collect");
         collectTrigger.onTrigger = &oncollect;
@@ -53,7 +55,7 @@ class CrateSprite : GObjectSprite {
     }
 
     override protected void physUpdate() {
-        collectTrigger.pos = physics.pos;
+        crateZone.pos = physics.pos;
         if (physics.isGlued) {
             setState(myclass.st_normal);
         } else {

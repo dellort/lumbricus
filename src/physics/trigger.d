@@ -6,6 +6,7 @@ import utils.mylist;
 import physics.base;
 import physics.physobj;
 import physics.plane;
+import physics.zone;
 
 //base class for trigger regions
 //objects can be inside or outside and will trigger a callback when inside
@@ -20,47 +21,25 @@ class PhysicTrigger : PhysicBase {
 
     //return true when object is inside, false otherwise
     bool collide(PhysicObject obj) {
-        bool coll = doCollide(obj.pos, obj.posp.radius);
+        bool coll = doCollide(obj);
         if ((coll ^ inverse) && onTrigger)
             onTrigger(this, obj);
         return coll;
     }
 
-    abstract protected bool doCollide(Vector2f pos, float radius);
+    abstract protected bool doCollide(PhysicObject obj);
 }
 
-//plane separating world, objects can be on one side (in) or the other (out)
-class PlaneTrigger : PhysicTrigger {
-    Plane plane;
+//trigger that checks objects against a zone
+//xxx are there really other types of triggers?
+class ZoneTrigger : PhysicTrigger {
+    PhysicZone zone;
 
-    this(Vector2f from, Vector2f to) {
-        plane.define(from, to);
+    this(PhysicZone z) {
+        zone = z;
     }
 
-    this() {
+    override bool doCollide(PhysicObject obj) {
+        return zone.check(obj);
     }
-
-    override bool doCollide(Vector2f pos, float radius) {
-        //out values of plane.collide are not used
-        Vector2f n;
-        float pd;
-        return plane.collide(pos, radius, n, pd);
-    }
-}
-
-//circular trigger area with position and radius
-//(you could call it proximity sensor)
-class CircularTrigger : PhysicTrigger {
-    float radius;
-    Vector2f pos;
-
-    this(Vector2f pos, float rad) {
-        radius = rad;
-        this.pos = pos;
-    }
-
-    override bool doCollide(Vector2f opos, float orad) {
-        return (opos-pos).quad_length < (radius*radius + orad*orad);
-    }
-
 }

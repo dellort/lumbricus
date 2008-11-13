@@ -6,6 +6,7 @@ import utils.misc;
 
 import physics.base;
 import physics.physobj;
+import physics.zone;
 
 //wind, gravitation, ...
 //what about explosions?
@@ -110,9 +111,8 @@ class GravityCenter : PhysicForce {
 
 //Stokes's drag
 //special case, because it reads the object's mediumViscosity value
-//xxx would be better to apply this in a fixed region and store the viscosity
-//    here (e.g. PhysicForceZone)
-class StokesDrag : PhysicForce {
+//(StokesDragFixed uses a force-specific fixed viscosity)
+class StokesDragObject : PhysicForce {
     //constant from Stokes's drag
     private const cStokesConstant = -6*PI;
 
@@ -125,14 +125,58 @@ class StokesDrag : PhysicForce {
     }
 }
 
+//Stokes's drag, applies a fixed viscosity to all objects
+//best used together with ForceZone
+class StokesDragFixed : PhysicForce {
+    //constant from Stokes's drag
+    private const cStokesConstant = -6*PI;
+    //medium viscosity
+    float viscosity = 0.0f;
+
+    this(float visc = 0.0f) {
+        viscosity = visc;
+    }
+
+    void applyTo(PhysicObject o, float deltaT) {
+        if (viscosity != 0.0f) {
+            //F = -6*PI*r*eta*v
+            o.addForce(cStokesConstant*o.posp.radius*viscosity*o.velocity);
+        }
+    }
+}
+
 //proxy class to apply a force to one specific object
 class ObjectForce : PhysicForce {
     PhysicObject target;
     PhysicForce force;
 
+    this(PhysicForce f, PhysicObject t) {
+        force = f;
+        target = t;
+    }
+
     void applyTo(PhysicObject o, float deltaT) {
-        if (o == target) {
+        if (o is target) {
             force.applyTo(target, deltaT);
+        }
+    }
+}
+
+//proxy class to apply a force only to objects inside a zone
+class ForceZone : PhysicForce {
+    PhysicForce force;
+    PhysicZone zone;
+    bool invert;
+
+    this(PhysicForce f, PhysicZone z, bool inv = false) {
+        force = f;
+        zone = z;
+        invert = inv;
+    }
+
+    void applyTo(PhysicObject o, float deltaT) {
+        if (zone.check(o) ^ invert) {
+            force.applyTo(o, deltaT);
         }
     }
 }

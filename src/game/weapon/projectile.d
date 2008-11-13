@@ -469,7 +469,6 @@ class ProjectileSpriteClass : GOSpriteClass {
             drownstate.physic_properties = initState.physic_properties;
             //must not modify physic_properties (instead copy them)
             drownstate.physic_properties = drownstate.physic_properties.copy();
-            drownstate.physic_properties.mediumViscosity = 5;
             drownstate.physic_properties.radius = 1;
             drownstate.physic_properties.collisionID = "projectile_drown";
             states[drownstate.name] = drownstate;
@@ -603,9 +602,7 @@ class HomingAction : ProjectileAction {
 
     protected ActionRes initDeferred() {
         homingForce = new ConstantForce();
-        objForce = new ObjectForce();
-        objForce.target = mParent.physics;
-        objForce.force = homingForce;
+        objForce = new ObjectForce(homingForce, mParent.physics);
         //backup acceleration and set gravity override
         oldAccel = mParent.physics.acceleration;
         mParent.physics.acceleration = -engine.physicworld.gravity;
@@ -699,7 +696,8 @@ class ExplodeActionClass : TimedActionClass {
 class ProximitySensorAction : ProjectileAction {
     private {
         ProximitySensorActionClass myclass;
-        CircularTrigger mTrigger;
+        ZoneTrigger mTrigger;
+        PhysicZoneCircle mZone;
         Time mFireTime;
     }
 
@@ -709,7 +707,8 @@ class ProximitySensorAction : ProjectileAction {
     }
 
     protected ActionRes initDeferred() {
-        mTrigger = new CircularTrigger(mParent.physics.pos, myclass.radius);
+        mZone = new PhysicZoneCircle(mParent.physics.pos, myclass.radius);
+        mTrigger = new ZoneTrigger(mZone);
         mTrigger.collision = engine.physicworld.collide.findCollisionID(
             myclass.collision);
         mTrigger.onTrigger = &trigTrigger;
@@ -730,7 +729,7 @@ class ProximitySensorAction : ProjectileAction {
 
     override void simulate(float deltaT) {
         super.simulate(deltaT);
-        mTrigger.pos = mParent.physics.pos;
+        mZone.pos = mParent.physics.pos;
         if (engine.gameTime.current >= mFireTime) {
             //execute trigger event (which maybe blows the projectile)
             mParent.doEvent(myclass.eventId);

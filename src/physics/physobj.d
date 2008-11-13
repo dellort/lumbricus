@@ -294,10 +294,10 @@ class PhysicObject : PhysicBase {
             }
 
             //check for 90 deg special case (both vectors are normalized)
-            if (sp < 0.01) {
+            if (sp < 0.1) {
                 //don't allow 90/270 deg, instead modify the vector
                 //to point into intended look direction
-                a += 0.01*b;
+                a += 0.1*b;
             }
             angle = a.toAngle();  //lol
             return angle;

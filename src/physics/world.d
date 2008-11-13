@@ -22,6 +22,7 @@ public import physics.posp;
 public import physics.trigger;
 public import physics.timedchanger;
 public import physics.contact;
+public import physics.zone;
 import physics.collisionmap;
 import physics.broadphase;
 import physics.sortandsweep;

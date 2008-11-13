@@ -39,8 +39,8 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     private List!(GameObject) mObjects;
     private Level mLevel;
     GameLandscape[] gameLandscapes;
-    PlaneTrigger waterborder;
-    PlaneTrigger deathzone;
+    PhysicZonePlane waterborder;
+    PhysicZonePlane deathzone;
 
     GfxSet gfx;
 
@@ -248,32 +248,35 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         }
 
         //various level borders
-        waterborder = new PlaneTrigger();
-        waterborder.onTrigger = &underWaterTrigger;
-        waterborder.collision = physicworld.collide.findCollisionID("water");
-        physicworld.add(waterborder);
+        waterborder = new PhysicZonePlane();
+        auto wb = new ZoneTrigger(waterborder);
+        wb.onTrigger = &underWaterTrigger;
+        wb.collision = physicworld.collide.findCollisionID("water");
+        physicworld.add(wb);
         //Stokes's drag force
-        //xxx controlled by object attribute, change into zone
-        physicworld.add(new StokesDrag);
+        physicworld.add(new ForceZone(new StokesDragFixed(5.0f), waterborder));
+        //xxx additional object-attribute controlled Stokes's drag
+        physicworld.add(new StokesDragObject());
         //Earthquake generator
         mEarthQuakeForce = new EarthQuakeForce();
         physicworld.add(mEarthQuakeForce);
 
-        deathzone = new PlaneTrigger();
-        deathzone.collision = physicworld.collide.collideAlways();
-        deathzone.onTrigger = &deathzoneTrigger;
-        deathzone.inverse = true;
+        deathzone = new PhysicZonePlane();
+        auto dz = new ZoneTrigger(deathzone);
+        dz.collision = physicworld.collide.collideAlways();
+        dz.onTrigger = &deathzoneTrigger;
+        dz.inverse = true;
         //the trigger is inverse, and triggers only when the physic object is
         //completely in the deathzone, but graphics are often larger :(
         auto death_y = worldSize.y + 20;
         //because trigger is inverse, the plane must be defined inverted too
         deathzone.plane.define(Vector2f(1, death_y), Vector2f(0, death_y));
-        physicworld.add(deathzone);
+        physicworld.add(dz);
 
         mWindForce = new WindyForce();
         mWindChanger = new PhysicTimedChangerFloat(0, &windChangerUpdate);
         mWindChanger.changePerSec = cWindChange;
-        physicworld.add(mWindForce);
+        physicworld.add(new ForceZone(mWindForce, waterborder, true));
         physicworld.add(mWindChanger);
         //xxx make this configurable or initialize randomly
         setWindSpeed(-150);   //what unit is that???
