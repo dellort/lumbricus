@@ -77,7 +77,8 @@ class Animator : SceneObjectCentered {
     }
 
     bool hasFinished() {
-        assert(!!mData);
+        if (!mData)
+            return true;
         return (frameTime == mData.mLengthMS);
     }
 

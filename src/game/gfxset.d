@@ -27,6 +27,8 @@ class GfxSet {
     //how the target cross looks like
     TargetCrossSettings targetCross;
 
+    ExplosionSettings expl;
+
     private void loadTeamThemes() {
         for (int n = 0; n < TeamTheme.cTeamColors.length; n++) {
             auto tt = new TeamTheme(resources, n);
@@ -38,6 +40,10 @@ class GfxSet {
         foreach (conf; sequenceConfig) {
             loadSequences(resources, conf);
         }
+    }
+
+    private void loadExplosions() {
+        expl.load(config.getSubNode("explosions"), resources);
     }
 
     //gfx = GameConfig.gfx
@@ -81,6 +87,7 @@ class GfxSet {
         loadSequenceStuff();
         resources.seal(); //disallow addition of more resources
         loadTeamThemes();
+        loadExplosions();
     }
 }
 
@@ -144,4 +151,32 @@ struct TargetCrossSettings {
     int add = 1; //distance of circle centers
     int stipple = 7; //change color after that number of circles (>0, in pixels)
     float targetDegrade = 0.98f; //animate-away speed, multiplicator per millisecond
+}
+
+struct ExplosionSettings {
+    //animations for different explosion sizes
+    Resource!(Animation)[4] shockwave1, shockwave2, comicText;
+    //tresholds to choose animations matching size
+    int[] sizeTreshold = [25, 100, 150, 200];
+
+    void load(ConfigNode conf, ResourceSet res) {
+        char[][] sw1 = conf.getValueArray!(char[])("shockwave1");
+        foreach (int i, resid; sw1) {
+            shockwave1[i] = res.resource!(Animation)(resid);
+        }
+
+        char[][] sw2 = conf.getValueArray!(char[])("shockwave2");
+        foreach (int i, resid; sw2) {
+            shockwave2[i] = res.resource!(Animation)(resid);
+        }
+
+        char[][] txt = conf.getValueArray!(char[])("comictext");
+        foreach (int i, resid; txt) {
+            comicText[i] = res.resource!(Animation)(resid);
+        }
+
+        int[] st = conf.getValueArray!(int)("sizetreshold",sizeTreshold);
+        if (st.length >= 4)
+            sizeTreshold = st;
+    }
 }

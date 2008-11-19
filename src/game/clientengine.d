@@ -367,6 +367,105 @@ class TargetIndicatorImpl : ClientGraphic, TargetIndicator {
     }
 }
 
+//creates shockwave-animation for an explosion (like in wwp)
+//currently creates no particles, but could in the future
+class ExplosionGfxImpl : ClientGraphic, ExplosionGfx {
+    private {
+        Animator mShockwave1, mShockwave2, mComicText;
+        int mDiameter;
+    }
+
+    this(GraphicsHandler handler, Vector2i pos, int diameter) {
+        super(handler);
+        mShockwave1 = new Animator();
+        mShockwave2 = new Animator();
+        mComicText = new Animator();
+
+        setDiameter(diameter);
+        setPos(pos);
+        init();
+    }
+
+    //need to override this because multiple animations are used
+    protected override void init() {
+        //xxx same z-order for all 3, relies on addition order
+        container().add(mShockwave1);
+        container().add(mShockwave2);
+        container().add(mComicText);
+        handler.mGraphics.insert_tail(this);
+    }
+
+    //same as above
+    override void remove() {
+        if (!handler)
+            return;
+        handler.mGraphics.remove(this);
+        container().remove(mShockwave1);
+        container().remove(mShockwave2);
+        container().remove(mComicText);
+        handler = null;
+    }
+
+    //selects animations matching diameter
+    //diameter tresholds are read from gfxset config file
+    void setDiameter(int d) {
+        if (d < handler.gfx.expl.sizeTreshold[0]) {
+            //below treshold, no animation
+            //xxx catch this case in engine to avoid network traffic
+            mShockwave1.setAnimation(null);
+            mShockwave2.setAnimation(null);
+            mComicText.setAnimation(null);
+        } else if (d < handler.gfx.expl.sizeTreshold[1]) {
+            //tiny explosion without text
+            mShockwave1.setAnimation(handler.gfx.expl.shockwave1[0].get);
+            mShockwave2.setAnimation(handler.gfx.expl.shockwave2[0].get);
+            mComicText.setAnimation(null);
+        } else if (d < handler.gfx.expl.sizeTreshold[2]) {
+            //medium-sized, may have small text
+            mShockwave1.setAnimation(handler.gfx.expl.shockwave1[1].get);
+            mShockwave2.setAnimation(handler.gfx.expl.shockwave2[1].get);
+            int txt = random(-1,3);
+            if (txt >= 0)
+                mComicText.setAnimation(handler.gfx.expl.comicText[txt].get);
+        } else if (d < handler.gfx.expl.sizeTreshold[3]) {
+            //big, always with text
+            mShockwave1.setAnimation(handler.gfx.expl.shockwave1[2].get);
+            mShockwave2.setAnimation(handler.gfx.expl.shockwave2[2].get);
+            mComicText.setAnimation(handler.gfx.expl.comicText[random(0,4)].get);
+        } else {
+            //huge, always text
+            mShockwave1.setAnimation(handler.gfx.expl.shockwave1[3].get);
+            mShockwave2.setAnimation(handler.gfx.expl.shockwave2[3].get);
+            mComicText.setAnimation(handler.gfx.expl.comicText[random(0,4)].get);
+        }
+    }
+
+    void setPos(Vector2i p) {
+        mShockwave1.pos = p;
+        mShockwave2.pos = p;
+        mComicText.pos = p;
+    }
+
+    SceneObject graphic() {
+        return mShockwave1;
+    }
+
+    override void simulate(float deltaT) {
+        //self-remove after all animations are finished
+        if (mShockwave1.hasFinished && mShockwave2.hasFinished &&
+            mComicText.hasFinished)
+            remove();
+    }
+
+    override int zorder() {
+        return GameZOrder.TargetCross;
+    }
+
+    Rect2i bounds() {
+        return mShockwave1.bounds;
+    }
+}
+
 class GraphicsHandler : GameEngineGraphics {
     private List!(ClientGraphic) mGraphics;
 
@@ -414,6 +513,10 @@ class GraphicsHandler : GameEngineGraphics {
     }
     LandscapeGraphic createLandscape(Vector2i size, LandscapeBitmap shared) {
         return new LandscapeGraphicImpl(this, size, shared);
+    }
+
+    ExplosionGfx createExplosionGfx(Vector2i pos, int diameter) {
+        return new ExplosionGfxImpl(this, pos, diameter);
     }
 }
 

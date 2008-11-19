@@ -90,6 +90,12 @@ interface TargetIndicator : Graphic {
     void setPos(Vector2i p);
 }
 
+interface ExplosionGfx : Graphic {
+    void setPos(Vector2i p);
+    //size of explosion, in pixels
+    void setDiameter(int d);
+}
+
 //this is the level bitmap (aka Landscape etc.); it is precreated in the level
 //generation/rendering step and it is modified by punching holes into it
 //  damage() isn't listed as method here
@@ -120,6 +126,7 @@ interface GameEngineGraphics {
     LandscapeGraphic createLandscape(Vector2i size, LandscapeBitmap shared);
     //meh I don't know, maybe this should be put here
     //void damageLandscape(...);
+    ExplosionGfx createExplosionGfx(Vector2i pos, int diameter);
 }
 
 ///GameEngine public interface

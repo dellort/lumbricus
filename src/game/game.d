@@ -533,6 +533,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         expl.cause = cause;
         damageLandscape(toVector2i(pos), cast(int)(expl.radius/2.0f));
         physicworld.add(expl);
+        graphics.createExplosionGfx(toVector2i(pos), cast(int)expl.radius);
         //some more chaos, if strong enough
         //xxx needs moar tweaking
         //if (damage > 50)
