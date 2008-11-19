@@ -58,10 +58,40 @@ mainspr {
             cloud1 = "626"
             cloud2 = "627"
             cloud3 = "628"
-            barell_1 = "119" //1-4 for reflecting "health" status
-            barell_2 = "120"
-            barell_3 = "121"
-            barell_4 = "122"
+            
+            expl_foom = "606"
+            expl_biff = "607"
+            expl_poot = "608"
+            expl_pow = "609"
+            expl_outer_size1 = "610"
+            expl_outer_size2 = "611"
+            expl_outer_size3 = "612"
+            expl_outer_size4 = "613"
+            expl_inner_size1 = "614"
+            expl_inner_size2 = "615"
+            expl_inner_size3 = "616"
+            expl_inner_size4 = "617"
+            expl_smallblue = "88"
+            
+            smoke_white_size1 = "619"
+            smoke_white_size2 = "620"
+            smoke_white_size3 = "621"
+            smoke_white_size4 = "622"
+            smoke_black_size1 = "623"
+            smoke_black_size2 = "624"
+            smoke_black_size3 = "625"
+            
+            smokepuff_yellow = "139"
+            smokepuff_white = "140"
+            smokepuff_grey = "141"
+            
+            {
+                _flags = "-use_bnk_flags,-repeat"
+                hit_yellow = "125"   //123 seems to be the same
+                hit_skincolor = "127"
+                hit_red = "128"
+                fire_particle = "f:35; 93"
+            }
 
             {
                 _flags = "f:25"
@@ -88,8 +118,6 @@ mainspr {
             _params = "p1/rot360,time"
             _flags = "+repeat"
 
-            mine = "50"
-            mine_flashing = "f:500; 43 50"
             worm_roll = "157"
 
             point_red = "30"
@@ -104,15 +132,18 @@ mainspr {
         }
         //same as above, but angle is inverted (lol wtf)
         {
-            _params = "p1/rot360inv"
+            _params = "p1/rot360inv,time"
             _flags = "+repeat"
+
+            mine = "50"
+            mine_flashing = "f:250; 43 50"
 
             bazooka_fly = "58"
             mortar_fly = "62"
             homing_active_fly = "68"
 
-            super_sheep1 = "163 164"
-            super_sheep2 = "165 166"
+            super_sheep1 = "f:150; 163 164"
+            super_sheep2 = "f:150; 165 166"
         }
         {
             _params = "p1/rot360inv,p2/linear100"
@@ -125,6 +156,7 @@ mainspr {
             _flags = "+repeat"
 
             napalm_fall = "f:20; 133 134 135 136 137 138"
+            barell = "119 120 121 122" //1-4 for reflecting "health" status
         }
         //covers only 180 degrees, it is symmetric => no mirror needed
         {
@@ -223,10 +255,10 @@ mainspr {
                 worm_slide_leave1 = "305"
                 worm_slide_leave2 = "308"
 
-                worm_wiggle1 = "278"
-                worm_wiggle2 = "281"
-                worm_wiggle3 = "284"
-                worm_wiggle4 = "302"
+                worm_jump_enter = "278"
+                worm_wiggle1 = "281"
+                worm_wiggle2 = "284"
+                worm_wiggle3 = "302"
             }
             {
                 _flags = "+append_backwards_a"

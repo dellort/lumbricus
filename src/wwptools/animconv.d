@@ -159,10 +159,8 @@ class AniEntry {
     void fixWwpWalkAni() {
         foreach (inout fl; mFrames) {
             for (int i = 0; i < fl.length; i++) {
-                std.stdio.writefln("%d: %d",i,fl[i].centerX);
                 fl[i].centerX += (i*10)/15;
             }
-            std.stdio.writefln("---");
         }
     }
 
