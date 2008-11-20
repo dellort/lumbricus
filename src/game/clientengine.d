@@ -14,6 +14,7 @@ import game.gamepublic;
 import game.gfxset;
 import game.glevel;
 import game.sequence;
+import game.weapon.types;
 import game.weapon.weapon;
 import game.levelgen.level;
 import game.levelgen.landscape;

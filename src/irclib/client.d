@@ -1,14 +1,14 @@
 /*
 	Copyright (C) 2005-2007 Christopher E. Miller
-	
+
 	This software is provided 'as-is', without any express or implied
 	warranty.  In no event will the authors be held liable for any damages
 	arising from the use of this software.
-	
+
 	Permission is granted to anyone to use this software for any purpose,
 	including commercial applications, and to alter it and redistribute it
 	freely, subject to the following restrictions:
-	
+
 	1. The origin of this software must not be misrepresented; you must not
 	   claim that you wrote the original software. If you use this software
 	   in a product, an acknowledgment in the product documentation would be
@@ -23,49 +23,49 @@ module irclib.client;
 package
 {
 	import irclib.protocol;
-	
-	
+
+
 	version(Tango)
 	{
-		import tango.math.Random;
-		
+		import tango.math.random.Kiss;
+
 		uint ilRand()
 		{
-			return tango.math.Random.Random.shared.next();
+			return tango.math.random.Kiss.Kiss.shared.toInt();
 		}
-		
-		
+
+
 		import tango.text.convert.Integer;
-		
+
 		char[] ilSizetToString(size_t num)
 		{
 			char[16] buf;
-			return tango.text.convert.Integer.format!(char, size_t)(buf, num).dup;
+			return tango.text.convert.Integer.format(buf, num).dup;
 		}
-		
-		
+
+
 		import tango.net.Socket;
-		
+
 		alias tango.net.Socket.NetHost ilInternetHost;
-		
+
 		alias tango.net.Socket.IPv4Address ilInternetAddress;
 	}
 	else
 	{
 		import std.random;
-		
+
 		alias std.random.rand ilRand;
-		
-		
+
+
 		import std.string;
-		
+
 		alias std.string.toString ilSizetToString;
-		
-		
+
+
 		import std.socket;
-		
+
 		alias std.socket.InternetHost ilInternetHost;
-		
+
 		alias std.socket.InternetAddress ilInternetAddress;
 	}
 }
@@ -87,16 +87,16 @@ class IrcClient: IrcProtocol
 {
 	///
 	const ushort DEFAULT_PORT = 6667;
-	
-	
+
+
 	///
 	this(char[] serverHost, ushort serverPort)
 	{
 		_serverHost = serverHost;
 		_serverPort = serverPort;
 	}
-	
-	
+
+
 	/// "server.host" or "server.host:port"
 	this(char[] serverHostAndPort)
 	{
@@ -113,43 +113,43 @@ class IrcClient: IrcProtocol
 			_serverPort = ilStringToUshort(serverHostAndPort[i + 1 .. serverHostAndPort.length]);
 		}
 	}
-	
-	
+
+
 	///
 	this()
 	{
 	}
-	
-	
+
+
 	/// Property: set
 	final void serverHost(char[] host) // setter
 	{
 		_serverHost = host;
 	}
-	
-	
+
+
 	/// Property: get
 	final char[] serverHost() // getter
 	{
 		return _serverHost;
 	}
-	
-	
+
+
 	/// Property: set
 	final void serverPort(ushort port) // setter
 	{
 		_serverPort = port;
 	}
-	
-	
+
+
 	/// Property: get
 	final ushort serverPort() // getter
 	{
 		return _serverPort;
 	}
-	
-	
-	
+
+
+
 	/// This function should begin resolving host and call finishHostResolve() when completed successfully.
 	/// This implementation calls InternetHost.getHostByName(). Override to change behavior.
 	protected void prepareHostResolve(char[] host)
@@ -162,9 +162,9 @@ class IrcClient: IrcProtocol
 		}
 		throw new IrcClientException("Unable to resolve host " ~ host ~ ".");
 	}
-	
-	
-	
+
+
+
 	/// Calls connect() with a random address from the InternetHost and the serverPort. Override to change behavior.
 	protected void finishHostResolve(ilInternetHost ih)
 	in
@@ -174,12 +174,12 @@ class IrcClient: IrcProtocol
 	body
 	{
 		uint ipaddr;
-		
+
 		ipaddr = ih.addrList[ilRand() % ih.addrList.length];
 		connect(new ilInternetAddress(ipaddr, _serverPort));
 	}
-	
-	
+
+
 	/// This function should begin connecting the socket to the specified address and call finishConnection() when connected successfully.
 	/// This implementation calls Socket.connect(). Override to change behavior.
 	/// The socket property should be used to get the socket to connect on.
@@ -188,8 +188,8 @@ class IrcClient: IrcProtocol
 		sock.connect(ia);
 		finishConnection();
 	}
-	
-	
+
+
 	/// The connection is established and now it's time to communicate with the server.
 	/// The socket *must not* be blocking by the time the IQueue is created.
 	/// This function should call IrcProtocol.serverConnected() with a new IQueue and call waitForEvent() to wait for socket events.
@@ -199,8 +199,8 @@ class IrcClient: IrcProtocol
 		serverConnected(_cqueue = new ClientQueue(sock), _serverHost);
 		waitForEvent();
 	}
-	
-	
+
+
 	/// This function should wait for socket events, manipulate the queue, and call the appropriate server events of IrcProtocol.
 	/// The IrcProtocol.queue property can be used to get the queue.
 	/// This implementation calls Socket.select().  Override to change behavior.
@@ -210,22 +210,22 @@ class IrcClient: IrcProtocol
 		SocketSet ssread, sswrite;
 		ssread = new SocketSet;
 		sswrite = new SocketSet;
-		
+
 		const uint NUM_BYTES = 1024;
 		ubyte[NUM_BYTES] _data = void;
 		void* data = _data.ptr;
-		
+
 		for(;; ssread.reset(), sswrite.reset())
 		{
 			ssread.add(sock);
 			if(_cqueue.writeBytes)
 				sswrite.add(sock);
-			
+
 			int sl;
 			sl = Socket.select(ssread, sswrite, null);
 			if(-1 == sl) // Interrupted.
 				continue;
-			
+
 			if(ssread.isSet(sock))
 			{
 				int sv;
@@ -242,37 +242,37 @@ class IrcClient: IrcProtocol
 							serverDisconnected();
 						}
 						return; // No more event loop.
-						
+
 					case 0: // Connection closed.
 						serverDisconnected();
 						return; // No more event loop.
-					
+
 					default:
 						// Assumes onDataReceived() duplicates the data.
 						_cqueue.onDataReceived(data[0 .. sv]);
 						serverReadData(); // Tell the IrcProtocol about the new data.
 				}
 			}
-			
+
 			if(sswrite.isSet(sock))
 			{
 				_cqueue.onSendComplete();
 			}
 		}
 	}
-	
-	
+
+
 	///
 	protected void onConnectionError()
 	{
 	}
-	
-	
+
+
 	version(Tango)
 		private const bool _IS_TANGO = true;
 	else
 		private const bool _IS_TANGO = false;
-	
+
 	static if(_IS_TANGO && is(typeof(&Socket.detach)))
 	{
 		final void socketClose()
@@ -287,8 +287,8 @@ class IrcClient: IrcProtocol
 			sock.close();
 		}
 	}
-	
-	
+
+
 	///
 	protected override void serverDisconnected()
 	{
@@ -298,13 +298,13 @@ class IrcClient: IrcProtocol
 			socketClose();
 			sock = null;
 		}
-		
+
 		_cqueue = null;
-		
+
 		super.serverDisconnected();
 	}
-	
-	
+
+
 	///
 	final void connect()
 	{
@@ -320,16 +320,16 @@ class IrcClient: IrcProtocol
 			prepareHostResolve(_serverHost);
 		}
 	}
-	
-	
+
+
 	/// Override to use different socket types.
 	protected Socket createSocket()
 	{
 		//return new TcpSocket();
 		return new Socket(cast(AddressFamily)AddressFamily.INET, SocketType.STREAM, ProtocolType.TCP);
 	}
-	
-	
+
+
 	/// Does not bother resolving serverHost and connects to remoteAddress.
 	/// Params:
 	/// 	remoteAddress = should be an IP address of serverHost.
@@ -338,22 +338,22 @@ class IrcClient: IrcProtocol
 		sock = createSocket();
 		prepareConnection(remoteAddress);
 	}
-	
-	
+
+
 	/// Property: get
 	protected final Socket socket() // getter
 	{
 		return sock;
 	}
-	
-	
+
+
 	/// Property: get
 	protected final ClientQueue clientQueue() // getter
 	{
 		return _cqueue;
 	}
-	
-	
+
+
 	private:
 	Socket sock;
 	ClientQueue _cqueue;
@@ -370,8 +370,8 @@ class ClientQueue: IQueue
 	{
 		this.sock = sock;
 	}
-	
-	
+
+
 	///
 	void onSendComplete()
 	{
@@ -386,15 +386,15 @@ class ClientQueue: IQueue
 				writebuf = tempwritebuf[sv .. tempwritebuf.length];
 		}
 	}
-	
-	
+
+
 	///
 	void onDataReceived(void[] data)
 	{
 		readbuf ~= data;
 	}
-	
-	
+
+
 	// Returns the number of bytes written.
 	private int _writeNow(void[] data)
 	{
@@ -403,21 +403,21 @@ class ClientQueue: IQueue
 			buf = data[0 .. 4096];
 		else
 			buf = data;
-		
+
 		int sv;
 		sv = sock.send(buf);
 		if(Socket.ERROR == sv)
 			throw new IrcClientException("Unable to send " ~ ilSizetToString(buf.length) ~ " bytes.");
 		return sv;
 	}
-	
-	
+
+
 	///
 	void write(void[] data)
 	{
 		// If buf.length == 0, go ahead and send, otherwise
 		// I'm waiting for onSendComplete().
-		
+
 		if(!writebuf.length)
 		{
 			int sv;
@@ -438,8 +438,8 @@ class ClientQueue: IQueue
 			writebuf ~= data;
 		}
 	}
-	
-	
+
+
 	///
 	void[] read(int nbytes)
 	{
@@ -448,8 +448,8 @@ class ClientQueue: IQueue
 		readbuf = readbuf[nbytes .. readbuf.length];
 		return result;
 	}
-	
-	
+
+
 	///
 	void[] read()
 	{
@@ -458,36 +458,36 @@ class ClientQueue: IQueue
 		readbuf = null;
 		return result;
 	}
-	
-	
+
+
 	///
 	void[] peek()
 	{
 		return readbuf;
 	}
-	
-	
+
+
 	/// Property: get the number of bytes in the write queue.
 	int writeBytes() // getter
 	{
 		return writebuf.length;
 	}
-	
-	
+
+
 	// Property: get the number of bytes in the read queue.
 	int readBytes() // getter
 	{
 		return readbuf.length;
 	}
-	
-	
+
+
 	/// Property: get
 	final Socket socket() // getter
 	{
 		return sock;
 	}
-	
-	
+
+
 	private:
 	Socket sock;
 	void[] writebuf, readbuf;

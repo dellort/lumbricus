@@ -4,6 +4,7 @@ import game.gobject;
 import game.worm;
 import game.crate;
 import game.sprite;
+import game.weapon.types;
 import game.weapon.weapon;
 import game.gamepublic;
 import utils.vector2;

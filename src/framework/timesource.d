@@ -46,7 +46,7 @@ final class TimeSource : TimeSourcePublic {
     this(Time delegate() curTimeDg = null) {
         mCurTimeDg = curTimeDg;
         if (!mCurTimeDg) {
-            mCurTimeDg = toDelegate(&timeCurrentTime);
+            mCurTimeDg = timeCurrentTimeDg;
         }
         initTime();
     }

@@ -41,7 +41,7 @@ class Timer {
         mInterval = interval;
         mCurTimeDg = curTimeDg;
         if (!mCurTimeDg) {
-            mCurTimeDg = toDelegate(&timeCurrentTime);
+            mCurTimeDg = timeCurrentTimeDg;
         }
         onTimer = ev;
         reset();

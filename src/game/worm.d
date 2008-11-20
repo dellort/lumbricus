@@ -7,6 +7,7 @@ import physics.world;
 import game.game;
 import game.sequence;
 import game.sprite;
+import game.weapon.types;
 import game.weapon.weapon;
 import utils.misc;
 import utils.vector2;

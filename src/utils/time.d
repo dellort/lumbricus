@@ -1,6 +1,7 @@
 module utils.time;
 
 import str = std.string;
+import utils.misc : toDelegate;
 
 //if true, use nanosecond resolution instead of milliseconds
 const bool cNS = true;
@@ -267,3 +268,10 @@ public Time timeCurrentTime() {
     return timeMusecs(gCounter.microseconds());
 }
 
+//xxx: using toDelegate(&timeCurrentTime) multiple times produces linker
+//errors with dmd+Tango, so the resulting delegate is stored here (wtf...)
+Time delegate() timeCurrentTimeDg;
+
+static this() {
+    timeCurrentTimeDg = toDelegate(&timeCurrentTime);
+}
