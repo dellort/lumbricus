@@ -284,8 +284,8 @@ class TargetCrossImpl : ClientGraphic, TargetCross {
                 reset();
         }
 
-        SequenceUpdate infos;
-        mAttach.getInfos(infos);
+        auto infos = cast(WormSequenceUpdate)mAttach.getInfos();
+        assert(!!infos,"Can only attach a target cross to worm sprites");
         mContainer.pos = infos.position;
         auto angle = fullAngleFromSideAngle(infos.rotation_angle,
             infos.pointto_angle);

@@ -60,20 +60,24 @@ mainspr {
             cloud3 = "628"
             
             {
-                _flags = "f:25"
+                _flags = "f:13"
                 expl_foom = "606"
                 expl_biff = "607"
                 expl_poot = "608"
                 expl_pow = "609"
                 expl_outer_size1 = "610"
                 expl_outer_size2 = "611"
-                expl_outer_size3 = "612"
-                expl_outer_size4 = "613"
                 expl_inner_size1 = "614"
                 expl_inner_size2 = "615"
+                expl_smallblue = "88"
+            }
+            {
+                //big explosions only have 3 frames, whereas small ones have 7
+                _flags = "f:25"
+                expl_outer_size3 = "612"
+                expl_outer_size4 = "613"
                 expl_inner_size3 = "616"
                 expl_inner_size4 = "617"
-                expl_smallblue = "88"
             }
             
             smoke_white_size1 = "619"
@@ -120,8 +124,6 @@ mainspr {
         {
             _params = "p1/rot360,time"
             _flags = "+repeat"
-
-            worm_roll = "157"
 
             point_red = "30"
             point_blue = "31"
@@ -192,15 +194,17 @@ mainspr {
             _flags = "+mirror_y_b,+repeat"
 
             //whatever that is (notice that 519 is the same as 520 and 521)
-            worm_jump1 = "f:100; 518"
-            worm_jump2 = "f:100; 519"
+            worm_jump = "f:100; 518"
+            worm_jump_back = "-repeat; 288"
+            worm_jump_to_fall = "-repeat; 287" //no idea
+            worm_fall = "f:100; 519"
+
+            worm_roll = "f:13; 157"
 
             worm_jet = "176"
             worm_bump_into_ground = "-repeat; 301"
             worm_parachute_enter = "-repeat; 296"
             worm_parachute_fly = "+append_backwards_a; 297"
-            worm_jump_to_rotate = "-repeat; 287" //no idea
-            worm_jump_back = "-repeat; 288"
         }
         //as above, but mirrored
         {

@@ -35,8 +35,7 @@ class GObjectSprite : GameObject {
     //if it gets active again it's recreated again LOL
     Sequence graphic;
     SequenceState currentAnimation;
-
-    float point_angle = 0;
+    protected SequenceUpdate seqUpdate;
 
     private bool mIsUnderWater, mWaterUpdated;
 
@@ -54,17 +53,23 @@ class GObjectSprite : GameObject {
     }
 
     //update animation to physics status etc.
-    void updateAnimation() {
+    final void updateAnimation() {
         if (!graphic)
             return;
 
-        SequenceUpdate update;
-        update.position = toVector2i(physics.pos);
-        update.velocity = physics.velocity;
-        update.rotation_angle = physics.lookey;
-        update.pointto_angle = point_angle;
+        fillAnimUpdate();
 
-        graphic.update(update);
+        graphic.update(seqUpdate);
+    }
+
+    protected SequenceUpdate createSequenceUpdate() {
+        return new SequenceUpdate();
+    }
+
+    protected void fillAnimUpdate() {
+        seqUpdate.position = toVector2i(physics.pos);
+        seqUpdate.velocity = physics.velocity;
+        seqUpdate.rotation_angle = physics.lookey;
     }
 
     protected void physUpdate() {
@@ -259,6 +264,8 @@ class GObjectSprite : GameObject {
 
         assert(type !is null);
         this.type = type;
+
+        seqUpdate = createSequenceUpdate();
 
         physics = new PhysicObject();
         physics.backlink = this;

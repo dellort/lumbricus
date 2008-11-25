@@ -386,8 +386,7 @@ class GameView : Container, TeamMemberControlCallback {
                         //get where worm looks too
                         bool faceLeft;
                         if (auto se = cast(Sequence)graphic) {
-                            SequenceUpdate sd;
-                            se.getInfos(sd);
+                            SequenceUpdate sd = se.getInfos();
                             faceLeft = angleLeftRight(sd.rotation_angle, true,
                                 false);
                         }

@@ -156,6 +156,17 @@ class WormSprite : GObjectSprite {
         super.setCurrentAnimation();
     }
 
+    protected override WormSequenceUpdate createSequenceUpdate() {
+        return new WormSequenceUpdate();
+    }
+
+    protected override void fillAnimUpdate() {
+        super.fillAnimUpdate();
+        auto wsu = cast(WormSequenceUpdate)seqUpdate;
+        assert(!!wsu);
+        wsu.pointto_angle = mWeaponAngle;
+    }
+
     //movement for walking/jetpack
     void move(Vector2f dir) {
         if (jetpackActivated) {
@@ -197,7 +208,6 @@ class WormSprite : GObjectSprite {
                 mWeaponAngle += mWeaponMove*deltaT*PI/2;
                 mWeaponAngle = max(mWeaponAngle, cast(float)-PI/2);
                 mWeaponAngle = min(mWeaponAngle, cast(float)PI/2);
-                point_angle = mWeaponAngle;
                 updateAnimation();
             }
         }

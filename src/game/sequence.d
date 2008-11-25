@@ -135,12 +135,17 @@ class SequenceState {
     }
 }
 
-struct SequenceUpdate {
+class SequenceUpdate {
     Vector2i position;
     Vector2f velocity;
     float rotation_angle; //worm itself, always 0 .. PI*2
-    float pointto_angle; //for weapon angle, always 0 .. PI
     //bool visible;
+}
+
+//special update class for worm sequence, which allows to introduce custom
+//sequence modifiers without changing GObjectSprite
+class WormSequenceUpdate : SequenceUpdate {
+    float pointto_angle; //for weapon angle, always 0 .. PI
 }
 
 ///A sprite (but it's named Sequence because the name sprite is already used in
@@ -154,7 +159,7 @@ interface Sequence : Graphic {
 
     ///modify position etc.; uses only information for which sth. is implemented
     ///(e.g. it won't use velocity most time)
-    abstract void update(ref SequenceUpdate v);
+    abstract void update(SequenceUpdate v);
 
     ///initiate state change, which might be changed lazily
     ///only has an effect if the state is different from the currently targeted
@@ -163,7 +168,7 @@ interface Sequence : Graphic {
 
     ///query current position etc.
     //(e.g. target cross needs infos about the weapon angle)
-    abstract void getInfos(ref SequenceUpdate v);
+    abstract SequenceUpdate getInfos();
 
     ///the animation-system can signal readyness back to the game logic with
     ///this (as requested by d0c)
@@ -503,6 +508,7 @@ private:
     Time mAnimationStart;
     //and finally, something useful, which does real work!
     Animator mAnimator;
+    WormSequenceUpdate retSeqUpdate;
 
     Time now() {
         return globals.gameTimeAnimations.current();
@@ -511,6 +517,8 @@ private:
     this(GraphicsHandler a_owner, SequenceObject a_type) {
         super(a_owner, a_type);
         mAnimator = new Animator();
+        //for speed: don't create a new class on each getInfos call
+        retSeqUpdate = new WormSequenceUpdate();
         init();
     }
 
@@ -672,11 +680,15 @@ private:
         mAnimator.params.p2 = cast(int)(mAngles[1]/PI*180);
     }
 
-    public void update(ref SequenceUpdate v) {
+    public void update(SequenceUpdate v) {
         mAnimator.pos = v.position;
         float[2] set_angle;
         set_angle[0] = v.rotation_angle;
-        set_angle[1] = v.pointto_angle;
+        auto wsu = cast(WormSequenceUpdate)v;
+        if (wsu)
+            set_angle[1] = wsu.pointto_angle;
+        else
+            set_angle[1] = 0;
         //the angle which is interpolated should not be set directly
         auto exclude = mCurSubSeq ? mCurSubSeq.interpolate_angle_id : -1;
         if (exclude < 0) {
@@ -730,8 +742,8 @@ private:
         }
     }
 
-    public void getInfos(ref SequenceUpdate v) {
-        v.position = mAnimator.pos;
+    public SequenceUpdate getInfos() {
+        retSeqUpdate.position = mAnimator.pos;
         float[2] angles;
         angles[] = mAngles;
         //argh, code duplication from somewhere above to get the target angle
@@ -741,8 +753,9 @@ private:
                 swap(a1, a2);
             angles[mCurSubSeq.interpolate_angle_id] = a2;
         }
-        v.rotation_angle = angles[0];
-        v.pointto_angle = angles[1];
+        retSeqUpdate.rotation_angle = angles[0];
+        retSeqUpdate.pointto_angle = angles[1];
+        return retSeqUpdate;
     }
 
     public bool readyflag() {
@@ -799,7 +812,7 @@ class NapalmSequence : AbstractSequence {
         init();
     }
 
-    void update(ref SequenceUpdate v) {
+    void update(SequenceUpdate v) {
         mLastUpdate = v;
         mAnimator.pos = v.position;
         float speed = v.velocity.length;
@@ -826,8 +839,8 @@ class NapalmSequence : AbstractSequence {
     }
 
     //just returns info from update
-    void getInfos(ref SequenceUpdate v) {
-        v = mLastUpdate;
+    SequenceUpdate getInfos() {
+        return mLastUpdate;
     }
 
     bool readyflag() {

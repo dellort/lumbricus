@@ -116,6 +116,7 @@
 		<Unit filename="..\src\game\weapon\ray.d" />
 		<Unit filename="..\src\game\weapon\special_weapon.d" />
 		<Unit filename="..\src\game\weapon\tools.d" />
+		<Unit filename="..\src\game\weapon\types.d" />
 		<Unit filename="..\src\game\weapon\weapon.d" />
 		<Unit filename="..\src\game\worm.d" />
 		<Unit filename="..\src\game\wtris.d" />
