@@ -7,6 +7,7 @@ import game.animation;
 import game.game;
 import game.gamepublic;
 import game.sequence;
+import game.action;
 import utils.vector2;
 import utils.rect2;
 import utils.configfile;
@@ -37,7 +38,12 @@ class GObjectSprite : GameObject {
     SequenceState currentAnimation;
     protected SequenceUpdate seqUpdate;
 
+    private Action mCreateAction, mStateAction;
+
     private bool mIsUnderWater, mWaterUpdated;
+
+    private Action[] mActiveActionsGlobal;
+    private Action[] mActiveActionsState;
 
     bool activity() {
         return active && !physics.isGlued;
@@ -106,6 +112,7 @@ class GObjectSprite : GameObject {
     }
 
     protected void physImpact(PhysicBase other, Vector2f normal) {
+        doEvent("onimpact");
     }
 
     //normal always points away from other object
@@ -129,6 +136,7 @@ class GObjectSprite : GameObject {
     //called when object should die
     //this implementation kills it immediately
     protected void die() {
+        doEvent("ondie");
         active = false;
         physics.dead = true;
         engine.mLog("really die: %s", type.name);
@@ -259,6 +267,33 @@ class GObjectSprite : GameObject {
         mWaterUpdated = false;
     }
 
+    protected MyBox readParam(char[] id) {
+        switch (id) {
+            default:
+                return MyBox();
+        }
+    }
+
+    void doEvent(char[] id) {
+        void execAction(char[] id, bool state = false) {
+            ActionClass ac;
+            if (state) ac = currentState.actions.action(id);
+            else ac = type.actions.action(id);
+            if (ac) {
+                auto a = ac.createInstance(engine);
+                auto ctx = new ActionContext(&readParam);
+                a.execute(ctx);
+                if (a.active) {
+                    if (state) mActiveActionsState ~= a;
+                    else mActiveActionsGlobal ~= a;
+                }
+            }
+        }
+
+        execAction(id, false);
+        execAction(id, true);
+    }
+
     protected this(GameEngine engine, GOSpriteClass type) {
         super(engine, false);
 
@@ -272,10 +307,12 @@ class GObjectSprite : GameObject {
 
         engine.physicworld.add(physics);
 
-        setStateForced(type.initState);
-
         physics.onUpdate = &physUpdate;
         physics.onDie = &physDie;
+
+        setStateForced(type.initState);
+
+        doEvent("oncreate");
     }
 }
 
@@ -292,6 +329,12 @@ class StaticStateInfo {
     bool keepSelfForce; //phys.selfForce will be reset unless this is set
 
     SequenceState animation;
+
+    ActionContainer actions;
+
+    this() {
+        actions = new ActionContainer();
+    }
 }
 
 //loads "collisions"-nodes and adds them to the collision map
@@ -306,6 +349,8 @@ class GOSpriteClass {
 
     StaticStateInfo[char[]] states;
     StaticStateInfo initState;
+
+    ActionContainer actions;
 
     StaticStateInfo findState(char[] name, bool canfail = false) {
         StaticStateInfo* state = name in states;
@@ -334,6 +379,8 @@ class GOSpriteClass {
         ssi.name = "defaultstate";
         states[ssi.name] = ssi;
         initState = ssi;
+
+        actions = new ActionContainer();
     }
 
     void loadFromConfig(ConfigNode config) {
@@ -344,12 +391,20 @@ class GOSpriteClass {
             char[] name;
         }
         FwRef[] fwrefs;
+        //xxx sry...
+        struct FwRefAc {
+            ActionContainer* patch;
+            char[] name;
+        }
+        FwRefAc[] fwrefsac;
 
         //load collision map
         engine.physicworld.collide.loadCollisions(config.getSubNode("collisions"));
 
         sequenceObject = engine.gfx.resources.resource!(SequenceObject)
             (config["sequence_object"]).get;
+
+        actions.loadFromConfig(engine, config.getSubNode("actions"));
 
         //load states
         //physic stuff is loaded when it's referenced in a state description
@@ -390,6 +445,16 @@ class GOSpriteClass {
                 fwrefs ~= r;
             }
 
+            auto acnode = sc.findNode("actions");
+            if (acnode) {
+                ssi.actions = new ActionContainer();
+                ssi.actions.loadFromConfig(engine, acnode);
+            } else {
+                FwRefAc r;
+                r.name = sc.getStringValue("actions",config["initstate"]);
+                r.patch = &ssi.actions;
+                fwrefsac ~= r;
+            }
         } //foreach state to load
 
         //resolve forward refs
@@ -400,6 +465,14 @@ class GOSpriteClass {
         StaticStateInfo* init = config["initstate"] in states;
         if (init && *init)
             initState = *init;
+
+        foreach (FwRefAc r; fwrefsac) {
+            auto st = findState(r.name);
+            //use initstate actions if not set
+            if (!st)
+                st = initState;
+            *r.patch = st.actions;
+        }
 
         //at least the constructor created a default state
         assert(initState !is null);

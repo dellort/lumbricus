@@ -168,9 +168,17 @@ public class KeyBindings {
     }
 
     public void loadFrom(config.ConfigNode node) {
-        foreach (char[] name, char[] value; node) {
-            if (!addBinding(name, str.tolower(value))) {
-                debug writefln("could not bind '%s' '%s'", name, value);
+        foreach (config.ConfigItem v; node) {
+            char[] cmd, key;
+            if (auto n = cast(config.ConfigNode)v) {
+                cmd = n["cmd"];
+                key = n["key"];
+            } else {
+                cmd = v.name;
+                key = (cast(config.ConfigValue)v).value;
+            }
+            if (!addBinding(cmd, str.tolower(key))) {
+                debug writefln("could not bind '%s' '%s'", cmd, key);
             }
         }
     }
