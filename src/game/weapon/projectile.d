@@ -133,7 +133,6 @@ private class ProjectileSprite : GObjectSprite {
     Time glueTime;   //time when projectile got glued
     bool gluedCache; //last value of physics.isGlued
     Vector2f target;
-    private Action mCreateAction;
     private bool mTimerDone = false;
     private FireInfo mFireInfo;
 
@@ -179,8 +178,6 @@ private class ProjectileSprite : GObjectSprite {
 
     override protected void physImpact(PhysicBase other, Vector2f normal) {
         super.physImpact(other, normal);
-
-        doEvent("onimpact", normal);
     }
 
     //fill the FireInfo struct with current data
@@ -190,57 +187,28 @@ private class ProjectileSprite : GObjectSprite {
         mFireInfo.pointto = target;   //keep target for spawned projectiles
         mFireInfo.pos = physics.pos;
         mFireInfo.shootbyRadius = physics.posp.radius;
+        mFireInfo.surfNormal = mLastImpactNormal;
     }
 
     ///runs a projectile-specific event defined in the config file
     //xxx should be private, but is used by some actions
-    void doEvent(char[] id, Vector2f surfNormal = Vector2f(0, -1)) {
-        //set surface normal (only for impact events)
-        //note: other mFireInfo fields are updated on read
-        mFireInfo.surfNormal = surfNormal;
-        //logging: this is slow (esp. napalm)
-        //engine.mLog("Projectile: Execute event "~id);
-        auto ac = myclass.actions.action(id);
-        if (ac) {
-            auto a = ac.createInstance(engine);
-            auto ctx = new ActionContext(&readParam);
-            a.execute(ctx);
-        }
-        if (id == "ondetonate") {
-            //reserved event that kills the projectile
-            die();
-            return;
-        }
-        if (id in myclass.detonateMap) {
-            //current event should cause the projectile to detonate
-            //xxx reserved identifier
-            doEvent("ondetonate", surfNormal);
-        }
-        //reset normal (only valid during impact event)
-        mFireInfo.surfNormal = Vector2f(0, -1);
+    override void doEvent(char[] id) {
+        super.doEvent(id);
     }
 
     override protected void die() {
-        //remove constant effects
-        if (mCreateAction)
-            mCreateAction.abort();
-
         //actually die (byebye)
         super.die();
     }
 
     protected MyBox readParam(char[] id) {
         switch (id) {
-            case "projectile":
-                return MyBox.Box(this);
-            case "owner_game":
-                return MyBox.Box(cast(GameObject)this);
             case "fireinfo":
                 //get current FireInfo data (physics)
                 updateFireInfo();
                 return MyBox.Box(&mFireInfo);
             default:
-                return MyBox();
+                return super.readParam(id);
         }
     }
 
@@ -251,15 +219,6 @@ private class ProjectileSprite : GObjectSprite {
         myclass = type;
         assert(myclass !is null);
         birthTime = engine.gameTime.current;
-
-        auto ac = myclass.actions.action("oncreate");
-        if (ac) {
-            mCreateAction = ac.createInstance(engine);
-            auto ctx = new ActionContext(&readParam);
-            //use our activity checker (think of mines)
-            ctx.activityCheck = &activity;
-            mCreateAction.execute(ctx);
-        }
     }
 }
 
@@ -438,9 +397,6 @@ class ProjectileSpriteClass : GOSpriteClass {
     //when glued, consider it as inactive (so next round can start); i.e. mines
     bool inactiveWhenGlued;
 
-    ActionContainer actions;
-    bool[char[]] detonateMap;
-
     override ProjectileSprite createSprite() {
         return new ProjectileSprite(engine, this);
     }
@@ -508,26 +464,26 @@ class ProjectileSpriteClass : GOSpriteClass {
 
 //------------------------------------------------------------------------
 
-///Base class for constant projectile actions
-class ProjectileAction : TimedAction {
+///Base class for constant sprite actions
+class SpriteAction : TimedAction {
     protected {
-        ProjectileSprite mParent;
+        GObjectSprite mParent;
     }
 
-    this(TimedActionClass base, GameEngine eng) {
+    this(SpriteActionClass base, GameEngine eng) {
         super(base, eng);
     }
 
     override protected ActionRes doImmediate() {
         super.doImmediate();
-        mParent = context.getPar!(ProjectileSprite)("projectile");
+        mParent = context.getPar!(GObjectSprite)("sprite");
         //obligatory parameters for WeaponAction
         assert(!!mParent);
         return ActionRes.moreWork;
     }
 }
 
-class ProjectileActionClass : TimedActionClass {
+class SpriteActionClass : TimedActionClass {
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         super.loadFromConfig(eng, node);
         if (!node.findValue("duration"))
@@ -537,7 +493,7 @@ class ProjectileActionClass : TimedActionClass {
 
 //------------------------------------------------------------------------
 
-class GravityCenterAction : ProjectileAction {
+class GravityCenterAction : SpriteAction {
     private {
         GravityCenterActionClass myclass;
         GravityCenter mGravForce;
@@ -567,7 +523,7 @@ class GravityCenterAction : ProjectileAction {
     }
 }
 
-class GravityCenterActionClass : ProjectileActionClass {
+class GravityCenterActionClass : SpriteActionClass {
     float gravity, radius;
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
@@ -587,7 +543,7 @@ class GravityCenterActionClass : ProjectileActionClass {
 
 //------------------------------------------------------------------------
 
-class HomingAction : ProjectileAction {
+class HomingAction : SpriteAction {
     private {
         HomingActionClass myclass;
         Vector2f oldAccel;
@@ -601,6 +557,8 @@ class HomingAction : ProjectileAction {
     }
 
     protected ActionRes initDeferred() {
+        assert(!!(cast(ProjectileSprite)mParent),
+            "Homing action only valid for projectiles");
         homingForce = new ConstantForce();
         objForce = new ObjectForce(homingForce, mParent.physics);
         //backup acceleration and set gravity override
@@ -617,7 +575,8 @@ class HomingAction : ProjectileAction {
 
     override void simulate(float deltaT) {
         super.simulate(deltaT);
-        Vector2f totarget = mParent.target - mParent.physics.pos;
+        Vector2f totarget = (cast(ProjectileSprite)mParent).target
+            - mParent.physics.pos;
         Vector2f cmpAccel = totarget.project_vector(
             mParent.physics.velocity);
         Vector2f cmpTurn = totarget.project_vector(
@@ -631,7 +590,7 @@ class HomingAction : ProjectileAction {
     }
 }
 
-class HomingActionClass : ProjectileActionClass {
+class HomingActionClass : SpriteActionClass {
     float force;
     float maxvelocity;
     float velocityInfluence = 0.001f;
@@ -656,7 +615,7 @@ class HomingActionClass : ProjectileActionClass {
 
 //HUGE xxx: Can't use ExplosionAction here because of parameter mismatch :(
 //this does _exactly_ the same
-class ExplodeAction : ProjectileAction {
+class ExplodeAction : SpriteAction {
     private {
         ExplodeActionClass myclass;
     }
@@ -666,7 +625,6 @@ class ExplodeAction : ProjectileAction {
         myclass = base;
     }
 
-
     protected ActionRes initDeferred() {
         engine.explosionAt(mParent.physics.pos, myclass.damage,
             mParent);
@@ -674,7 +632,7 @@ class ExplodeAction : ProjectileAction {
     }
 }
 
-class ExplodeActionClass : TimedActionClass {
+class ExplodeActionClass : SpriteActionClass {
     float damage;
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
@@ -693,7 +651,7 @@ class ExplodeActionClass : TimedActionClass {
 
 //------------------------------------------------------------------------
 
-class ProximitySensorAction : ProjectileAction {
+class ProximitySensorAction : SpriteAction {
     private {
         ProximitySensorActionClass myclass;
         ZoneTrigger mTrigger;
@@ -739,7 +697,7 @@ class ProximitySensorAction : ProjectileAction {
     }
 }
 
-class ProximitySensorActionClass : ProjectileActionClass {
+class ProximitySensorActionClass : SpriteActionClass {
     float radius;
     Time triggerDelay;   //time from triggering from firing
     char[] collision, eventId;

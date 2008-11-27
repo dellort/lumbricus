@@ -55,7 +55,7 @@ class POSP {
     //amount of impulse to take before taking fall damage
     float sustainableImpulse = 150;
     //impulse multiplier
-    float fallDamageFactor = 0.1f;
+    float fallDamageFactor = 0.0f;
     //true to ignore horizontal movement for fall damage calculation
     bool fallDamageIgnoreX = false;
 

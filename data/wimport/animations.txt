@@ -161,7 +161,7 @@ mainspr {
             _flags = "+repeat"
 
             napalm_fall = "f:20; 133 134 135 136 137 138"
-            barell = "119 120 121 122" //1-4 for reflecting "health" status
+            barrel = "119 120 121 122" //1-4 for reflecting "health" status
         }
         //covers only 180 degrees, it is symmetric => no mirror needed
         {
@@ -352,7 +352,7 @@ water_anims {
         crate2_drown = "15"
         crate3_drown = "16"
         worm_drown = "18"
-        barell_drown = "19"
+        barrel_drown = "19"
         mine_drown = "21"
         //22-27: drowning team-themed mine
         bazooka_drown = "28"

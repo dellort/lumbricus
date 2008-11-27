@@ -45,6 +45,8 @@ class GObjectSprite : GameObject {
     private Action[] mActiveActionsGlobal;
     private Action[] mActiveActionsState;
 
+    protected Vector2f mLastImpactNormal = {0, -1};
+
     bool activity() {
         return active && !physics.isGlued;
     }
@@ -81,6 +83,9 @@ class GObjectSprite : GameObject {
     protected void physUpdate() {
         updateAnimation();
 
+        if (physics.lifepower <= 0)
+            doEvent("onzerolife");
+
         /+
         yyy move this code into the client's GUI
         this can't be here because this depends from what part of the level
@@ -112,7 +117,9 @@ class GObjectSprite : GameObject {
     }
 
     protected void physImpact(PhysicBase other, Vector2f normal) {
+        mLastImpactNormal = normal;
         doEvent("onimpact");
+        mLastImpactNormal = Vector2f(0, -1);
     }
 
     //normal always points away from other object
@@ -269,12 +276,19 @@ class GObjectSprite : GameObject {
 
     protected MyBox readParam(char[] id) {
         switch (id) {
+            case "sprite":
+                return MyBox.Box(this);
+            case "owner_game":
+                return MyBox.Box(cast(GameObject)this);
             default:
                 return MyBox();
         }
     }
 
     void doEvent(char[] id) {
+        //logging: this is slow (esp. napalm)
+        //engine.mLog("Projectile: Execute event "~id);
+
         void execAction(char[] id, bool state = false) {
             ActionClass ac;
             if (state) ac = currentState.actions.action(id);
@@ -292,6 +306,17 @@ class GObjectSprite : GameObject {
 
         execAction(id, false);
         execAction(id, true);
+
+        if (id == "ondetonate") {
+            //reserved event that kills the sprite
+            die();
+            return;
+        }
+        if (id in type.detonateMap || id in currentState.detonateMap) {
+            //current event should cause the projectile to detonate
+            //xxx reserved identifier
+            doEvent("ondetonate");
+        }
     }
 
     protected this(GameEngine engine, GOSpriteClass type) {
@@ -304,6 +329,7 @@ class GObjectSprite : GameObject {
 
         physics = new PhysicObject();
         physics.backlink = this;
+        physics.lifepower = type.initialHp;
 
         engine.physicworld.add(physics);
 
@@ -332,6 +358,8 @@ class StaticStateInfo {
 
     ActionContainer actions;
 
+    bool[char[]] detonateMap;
+
     this() {
         actions = new ActionContainer();
     }
@@ -351,6 +379,10 @@ class GOSpriteClass {
     StaticStateInfo initState;
 
     ActionContainer actions;
+
+    bool[char[]] detonateMap;
+
+    float initialHp = float.infinity;
 
     StaticStateInfo findState(char[] name, bool canfail = false) {
         StaticStateInfo* state = name in states;
@@ -406,6 +438,16 @@ class GOSpriteClass {
 
         actions.loadFromConfig(engine, config.getSubNode("actions"));
 
+        auto detonateNode = config.getSubNode("detonate");
+        foreach (char[] name, char[] value; detonateNode) {
+            //xxx sry
+            if (value == "true" && name != "ondetonate") {
+                detonateMap[name] = true;
+            }
+        }
+
+        initialHp = config.getFloatValue("initial_hp", initialHp);
+
         //load states
         //physic stuff is loaded when it's referenced in a state description
         foreach (ConfigNode sc; config.getSubNode("states")) {
@@ -451,9 +493,17 @@ class GOSpriteClass {
                 ssi.actions.loadFromConfig(engine, acnode);
             } else {
                 FwRefAc r;
-                r.name = sc.getStringValue("actions",config["initstate"]);
+                r.name = sc.getStringValue("actions");
                 r.patch = &ssi.actions;
                 fwrefsac ~= r;
+            }
+
+            auto detonateNode = config.getSubNode("detonate");
+            foreach (char[] name, char[] value; detonateNode) {
+                //xxx sry
+                if (value == "true" && name != "ondetonate") {
+                    detonateMap[name] = true;
+                }
             }
         } //foreach state to load
 
@@ -467,11 +517,12 @@ class GOSpriteClass {
             initState = *init;
 
         foreach (FwRefAc r; fwrefsac) {
-            auto st = findState(r.name);
+            auto st = findState(r.name, true);
             //use initstate actions if not set
-            if (!st)
-                st = initState;
-            *r.patch = st.actions;
+            //if (!st)
+            //    st = initState;
+            if (st)
+                *r.patch = st.actions;
         }
 
         //at least the constructor created a default state
