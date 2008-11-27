@@ -144,6 +144,13 @@ class GObjectSprite : GameObject {
     //this implementation kills it immediately
     protected void die() {
         doEvent("ondie");
+        //cleanup old global actions still running (like oncreate)
+        foreach (a; mActiveActionsGlobal) {
+            if (a.active)
+                a.abort();
+        }
+        mActiveActionsGlobal = null;
+
         active = false;
         physics.dead = true;
         engine.mLog("really die: %s", type.name);
@@ -189,6 +196,14 @@ class GObjectSprite : GameObject {
     //when called: currentState is to
     //must not call setState (alone danger for recursion forbids it)
     protected void stateTransition(StaticStateInfo from, StaticStateInfo to) {
+        //cleanup old per-state actions still running
+        foreach (a; mActiveActionsState) {
+            if (a.active)
+                a.abort();
+        }
+        mActiveActionsState = null;
+        //run state-initialization event
+        doEvent("oncreate", true);
     }
 
     //do a (possibly) soft transition to the new state
@@ -285,26 +300,34 @@ class GObjectSprite : GameObject {
         }
     }
 
-    void doEvent(char[] id) {
+    ///runs a sprite-specific event defined in the config file
+    //xxx should be private, but is used by some actions
+    void doEvent(char[] id, bool stateonly = false) {
         //logging: this is slow (esp. napalm)
         //engine.mLog("Projectile: Execute event "~id);
 
+        //run a global or state-specific action by id, if defined
         void execAction(char[] id, bool state = false) {
             ActionClass ac;
             if (state) ac = currentState.actions.action(id);
             else ac = type.actions.action(id);
             if (ac) {
+                //run action if found
                 auto a = ac.createInstance(engine);
                 auto ctx = new ActionContext(&readParam);
+                //ctx.activityCheck = &activity;
                 a.execute(ctx);
                 if (a.active) {
+                    //action still reports active after execute call, so add
+                    //it to the active actions list to allow later cleanup
                     if (state) mActiveActionsState ~= a;
                     else mActiveActionsGlobal ~= a;
                 }
             }
         }
 
-        execAction(id, false);
+        if (!stateonly)
+            execAction(id, false);
         execAction(id, true);
 
         if (id == "ondetonate") {
@@ -338,6 +361,7 @@ class GObjectSprite : GameObject {
 
         setStateForced(type.initState);
 
+        //"oncreate" is the sprite or state initialize event
         doEvent("oncreate");
     }
 }

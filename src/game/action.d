@@ -239,6 +239,19 @@ class ActionList : Action {
         }
     }
 
+    override protected bool customActivity() {
+        //special case: not waiting for next loop, and all actions report
+        //no activity -> at least one has to be using customActivity()
+        if (!mWaitingForNextLoop) {
+            bool act = false;
+            foreach (a; mActions) {
+                act |= a.activity();
+            }
+            return act;
+        }
+        return true;
+    }
+
     //run next action in queue
     private void runNextAction() {
         if (mCurrent >= mActions.length)
@@ -366,7 +379,17 @@ abstract class Action : GameObject {
     final bool activity() {
         if (context.activityCheck)
             return context.activityCheck();
-        return mActivity;
+        return mActivity && customActivity();
+    }
+
+    ///custom (to-override) activity checker to allow situations where
+    ///an action still in the game loop should not be considered active
+    ///only considered when action is already running deferred
+    //this is dangerous: return false only if you know that your action will
+    //not affect gameplay, and the state of your action will not change
+    //in a no-activity situation (esp. not go done)
+    protected bool customActivity() {
+        return true;
     }
 
     ///stop all activity asap

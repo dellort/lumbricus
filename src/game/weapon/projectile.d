@@ -190,12 +190,6 @@ private class ProjectileSprite : GObjectSprite {
         mFireInfo.surfNormal = mLastImpactNormal;
     }
 
-    ///runs a projectile-specific event defined in the config file
-    //xxx should be private, but is used by some actions
-    override void doEvent(char[] id) {
-        super.doEvent(id);
-    }
-
     override protected void die() {
         //actually die (byebye)
         super.die();
@@ -683,6 +677,10 @@ class ProximitySensorAction : SpriteAction {
         if (mFireTime == timeNever()) {
             mFireTime = engine.gameTime.current + myclass.triggerDelay;
         }
+    }
+
+    override protected bool customActivity() {
+        return mFireTime != timeNever();
     }
 
     override void simulate(float deltaT) {
