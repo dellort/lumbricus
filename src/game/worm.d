@@ -197,6 +197,12 @@ class WormSprite : GObjectSprite {
         setState(wsc.st_beaming);
     }
 
+    void abortBeaming() {
+        if (isBeaming)
+            //xxx is that enough? what about animation?
+            setStateForced(wsc.st_stand);
+    }
+
     //overwritten from GObject.simulate()
     override void simulate(float deltaT) {
         super.simulate(deltaT);

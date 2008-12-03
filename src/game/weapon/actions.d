@@ -127,8 +127,17 @@ class BeamAction : WeaponAction {
         if (!mWorm.isBeaming) {
             //beaming is over, finish
             engine.mLog("end beaming");
+            mWorm = null;
             done();
         }
+    }
+
+    override void abort() {
+        if (mWorm) {
+            if (mWorm.isBeaming)
+                mWorm.abortBeaming();
+        }
+        done();
     }
 }
 

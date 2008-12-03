@@ -504,7 +504,7 @@ class ServerTeamMember : TeamMember {
     private {
         WeaponItem mCurrentWeapon;
         bool mActive;
-        Time mLastAction;
+        Time mLastAction, mStandTime;
         WormSprite mWorm;
         bool mWormAction;
         Vector2f mLastMoveVector;
@@ -648,6 +648,7 @@ class ServerTeamMember : TeamMember {
             move(Vector2f(0));
             mLastAction = timeMusecs(0);
             mWormAction = false;
+            mThrowing = false;
             if (isAlive) {
                 mWorm.activateJetpack(false);
                 mWorm.drawWeapon(false);
@@ -764,7 +765,7 @@ class ServerTeamMember : TeamMember {
     }
 
     void doFireUp() {
-        if (!mThrowing || !worm.shooter)
+        if (!isControllable || !mThrowing || !worm.shooter)
             return;
         auto strength = currentFireStrength();
         mThrowing = false;
@@ -859,9 +860,15 @@ class ServerTeamMember : TeamMember {
     void simulate() {
         if (!mActive)
             return;
-        if (mWorm.isStanding())
+        if (mWorm.isStanding()) {
+            if (mStandTime == timeNever())
+                mStandTime = mEngine.gameTime.current;
             //worms are not standing, they are FIGHTING!
-            mWorm.drawWeapon(true);
+            if (mEngine.gameTime.current - mStandTime > timeMsecs(250))
+                mWorm.drawWeapon(true);
+        } else {
+            mStandTime = timeNever();
+        }
         auto strength = currentFireStrength();
         if (mTargetCross) {
             mTargetCross.setLoad(strength);
@@ -896,6 +903,24 @@ class ServerTeamMember : TeamMember {
     void youWinNow() {
         if (mWorm)
             mWorm.setState(mWorm.findState("win"));
+    }
+
+    bool delayedAction() {
+        //check for any activity that might justify control beyond end-of-round
+        //e.g. still charging a weapon, still firing a multi-shot weapon
+        bool ac = mThrowing;
+        if (worm.shooter)
+            ac |= worm.shooter.activity;
+        return ac;
+    }
+
+    void forceAbort() {
+        //forced stop of all action (like when being damaged)
+        mThrowing = false;
+        if (worm.shooter) {
+            if (worm.shooter.activity)
+                worm.shooter.interruptFiring();
+        }
     }
 }
 
@@ -1011,7 +1036,7 @@ class GameController : GameLogicPublic {
         //xxx for loading only
         ConfigNode[char[]] mWeaponSets;
 
-        Time mRoundRemaining, mPrepareRemaining, mWinRemaining;
+        Time mRoundRemaining, mPrepareRemaining, mWinRemaining, mCleanupWait;
         //time a round takes
         Time mTimePerRound;
         //extra time before round time to switch seats etc
@@ -1206,14 +1231,22 @@ class GameController : GameLogicPublic {
                     return RoundState.playing;
                 break;
             case RoundState.playing:
-                mRoundRemaining = mRoundRemaining - deltaT;
-                if (mRoundRemaining < timeMusecs(0))
-                    return RoundState.waitForSilence;
+                mRoundRemaining = max(mRoundRemaining - deltaT, timeNull);
                 if (!mCurrentTeam.current)
                     return RoundState.waitForSilence;
-                if (!mCurrentTeam.current.isAlive
-                    || mCurrentTeam.current.lifeLost)
+                if (mRoundRemaining <= timeMusecs(0))   //timeout
+                {
+                    //check if we need to wait because worm is performing
+                    //a non-abortable action
+                    if (!mCurrentTeam.current.delayedAction)
+                        return RoundState.waitForSilence;
+                }
+                if (!mCurrentTeam.current.isAlive       //active worm dead
+                    || mCurrentTeam.current.lifeLost)   //active worm damaged
+                {
+                    mCurrentTeam.current.forceAbort();
                     return RoundState.waitForSilence;
+                }
                 break;
             case RoundState.waitForSilence:
                 if (!mEngine.checkForActivity) {
@@ -1223,9 +1256,11 @@ class GameController : GameLogicPublic {
                 break;
             case RoundState.cleaningUp:
                 mRoundRemaining = timeSecs(0);
+                mCleanupWait = max(mCleanupWait - deltaT, timeNull);
                 //not yet
-                return checkDyingWorms()
-                    ? RoundState.waitForSilence : RoundState.nextOnHold;
+                if (mCleanupWait <= timeMusecs(0))
+                    return checkDyingWorms()
+                        ? RoundState.waitForSilence : RoundState.nextOnHold;
                 break;
             case RoundState.nextOnHold:
                 if (messageIsIdle() && objectsIdle())
@@ -1300,6 +1335,7 @@ class GameController : GameLogicPublic {
                 currentTeam = null;
                 break;
             case RoundState.cleaningUp:
+                mCleanupWait = timeMsecs(400);
                 updateHealth(); //hmmm
                 //see doState()
                 break;

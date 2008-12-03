@@ -38,6 +38,10 @@ class POSP {
     //immobile objects will have fixate.length == 0
     //maybe should be 1 or 0, else funny things might happen
     Vector2f fixate = {1.0f,1.0f};
+    //set fixate to {1.0f,1.0f} when damaged
+    //note that this is one-way: can never get fixated again without
+    //setting new posp
+    bool damageUnfixate = false;
 
     //xxx maybe redefine to minimum velocity required to start simulaion again
     float glueForce = 0; //force required to move a glued worm away
@@ -92,6 +96,7 @@ class POSP {
             explosionInfluence);
         fixate = readVector(node.getStringValue("fixate", str.format("%s %s",
             fixate.x, fixate.y)));
+        damageUnfixate = node.getBoolValue("damage_unfixate", damageUnfixate);
         glueForce = node.getFloatValue("glue_force", glueForce);
         walkingSpeed = node.getFloatValue("walking_speed", walkingSpeed);
         walkingClimb = node.getFloatValue("walking_climb", walkingClimb);

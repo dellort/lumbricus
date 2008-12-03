@@ -27,6 +27,7 @@ class PhysicObject : PhysicBase {
         mPosp = p;
         //new POSP -> check values
         collision = world.collide.findCollisionID(mPosp.collisionID);
+        mUseFixate = true;
     }
 
     package Vector2f mPos; //pixels
@@ -51,6 +52,8 @@ class PhysicObject : PhysicBase {
 
     //per-frame force accumulator
     private Vector2f mForceAccum;
+    //xxx can't change posp, so this is needed to go from fixate to free
+    private bool mUseFixate = true;
 
     final Vector2f pos() {
         return mPos;
@@ -137,7 +140,8 @@ class PhysicObject : PhysicBase {
         velocity_int += a * deltaT;
 
         //remove unwanted parts
-        velocity_int = velocity.mulEntries(mPosp.fixate);
+        if (mUseFixate)
+            velocity_int = velocity.mulEntries(mPosp.fixate);
 
         //clip components at maximum velocity
         velocity_int = velocity.clipAbsEntries(mPosp.velocityConstraint);
@@ -313,6 +317,8 @@ class PhysicObject : PhysicBase {
         //world.mLog("damage: %s/%s", severity, delta);
         if (abs(delta) > posp.damageThreshold) {
             lifepower += delta;
+            if (mPosp.damageUnfixate)
+                mUseFixate = false;
             needUpdate();
             //die muaha
             //xxx rather not (WormSprite is died by GameController)
