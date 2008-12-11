@@ -10,6 +10,9 @@ import physics.posp;
 import physics.movehandler;
 import physics.geometry;
 
+const cDamageCauseFall = 0;
+const cDamageCauseDeath = -1;
+
 //simple physical object (has velocity, position, mass, radius, ...)
 class PhysicObject : PhysicBase {
     package mixin ListNodeMixin objects_node;
@@ -92,7 +95,7 @@ class PhysicObject : PhysicBase {
     //impulses from geometry will cause fall damage
     void addImpulse(Vector2f impulse, bool fromGeom = false) {
         velocity_int += impulse * mPosp.inverseMass;
-        if (fromGeom) {
+        if (fromGeom && !isGlued) {
             //hit against geometry -> fall damage
             float impulseLen;
             if (mPosp.fallDamageIgnoreX)
@@ -106,7 +109,7 @@ class PhysicObject : PhysicBase {
                 * mPosp.fallDamageFactor;
             //use this for damage
             if (damage > 0)
-                applyDamage(damage);
+                applyDamage(damage, cDamageCauseFall);
         }
         doUnglue();
     }
@@ -310,15 +313,18 @@ class PhysicObject : PhysicBase {
 
     //****************** Damage and lifepower ********************
 
+    public void delegate(float amout, int cause) onDamage;
     float lifepower = float.infinity;
 
-    void applyDamage(float severity) {
+    void applyDamage(float severity, int cause) {
         auto delta = -severity*posp.damageable;
         //world.mLog("damage: %s/%s", severity, delta);
         if (abs(delta) > posp.damageThreshold) {
             lifepower += delta;
             if (mPosp.damageUnfixate)
                 mUseFixate = false;
+            if (onDamage)
+                onDamage(delta, cause);
             needUpdate();
             //die muaha
             //xxx rather not (WormSprite is died by GameController)
@@ -335,14 +341,12 @@ class PhysicObject : PhysicBase {
     //********** Walking code, xxx put this anywhere but not here ***********
 
     //used during simulation
-    float walkingTime = 0; //time until next pixel will be walked on
     Vector2f walkTo; //direction
     private bool mWalkingMode;
     private bool mIsWalking;
 
     void setWalking(Vector2f dir) {
         dir.y = 0;
-        walkingTime = 0;
         walkTo = dir;
         //or switch off?
         //NOTE: restrict to X axis

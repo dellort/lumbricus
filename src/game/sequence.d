@@ -166,6 +166,10 @@ interface Sequence : Graphic {
     ///state
     abstract void setState(SequenceState state);
 
+    ///query the "real" (i.e. currently being displayed) state
+    ///may return null
+    abstract SequenceState getCurrentState();
+
     ///query current position etc.
     //(e.g. target cross needs infos about the weapon angle)
     abstract SequenceUpdate getInfos();
@@ -742,6 +746,10 @@ private:
         }
     }
 
+    public SequenceState getCurrentState() {
+        return mCurSubSeq ? mCurSubSeq.owner : null;
+    }
+
     public SequenceUpdate getInfos() {
         retSeqUpdate.position = mAnimator.pos;
         float[2] angles;
@@ -836,6 +844,10 @@ class NapalmSequence : AbstractSequence {
     //state stuff is unused
     void setState(SequenceState state) {
         //
+    }
+
+    public SequenceState getCurrentState() {
+        return null;
     }
 
     //just returns info from update

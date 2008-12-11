@@ -7,6 +7,7 @@ import game.sprite;
 import game.weapon.types;
 import game.weapon.weapon;
 import game.gamepublic;
+import physics.world;
 import utils.vector2;
 import utils.configfile;
 import utils.log;
@@ -418,7 +419,7 @@ class ServerTeam : Team {
         parent.mRoundRemaining *= 2;
     }
     void dieNow() {
-        mCurrent.worm.physics.applyDamage(100000);
+        mCurrent.worm.physics.applyDamage(100000, cDamageCauseDeath);
     }
 
     //select (and draw) a weapon by its id
@@ -664,13 +665,7 @@ class ServerTeamMember : TeamMember {
     void jump(JumpMode j) {
         if (!isControllable)
             return;
-        switch (j) {
-            case JumpMode.normal:
-                mWorm.jump();
-                break;
-            default:
-                assert(false, "Implement");
-        }
+        mWorm.jump(j);
         wormAction();
     }
 

@@ -9,6 +9,7 @@ import game.sequence;
 import game.sprite;
 import game.weapon.types;
 import game.weapon.weapon;
+import game.temp;  //whatever, importing gamepublic doesn't give me JumpMode
 import utils.misc;
 import utils.vector2;
 import utils.time;
@@ -45,6 +46,8 @@ class WormSprite : GObjectSprite {
 
         //beam destination, only valid while state is st_beaming
         Vector2f mBeamDest;
+        //cached movement, will be applied in simulate
+        Vector2f mMoveVector;
 
         //selected weapon
         Shooter mWeapon;
@@ -57,6 +60,19 @@ class WormSprite : GObjectSprite {
         int mGravestone;
 
         bool mWeaponAsIcon;
+
+        enum FlyMode {
+            fall,
+            slide,
+            roll,
+            heavy,
+        }
+        FlyMode mLastFlyMode;
+        Time mLastFlyChange, mLastDmg;
+
+        SequenceState[FlyMode.max+1] mFlyState;
+
+        JumpMode mJumpMode;
     }
 
     //-PI/2..+PI/2, actual angle depends from whether worm looks left or right
@@ -137,6 +153,16 @@ class WormSprite : GObjectSprite {
         gravestone = 0;
     }
 
+    override protected void updateActive() {
+        super.updateActive();
+        if (graphic) {
+            mFlyState[FlyMode.fall] = graphic.type.findState("fly_fall",true);
+            mFlyState[FlyMode.slide] = graphic.type.findState("fly_slide",true);
+            mFlyState[FlyMode.roll] = graphic.type.findState("fly_roll",true);
+            mFlyState[FlyMode.heavy] = graphic.type.findState("fly_heavy",true);
+        }
+    }
+
     protected override void setCurrentAnimation() {
         if (!graphic)
             return;
@@ -152,6 +178,20 @@ class WormSprite : GObjectSprite {
             }
             graphic.setState(state);
             return;
+        }
+        if (currentState is wsc.st_jump) {
+            switch (mJumpMode) {
+                case JumpMode.normal:
+                    auto state = graphic.type.findState("jump_normal", true);
+                    graphic.setState(state);
+                    break;
+                case JumpMode.backFlip:
+                    auto state = graphic.type.findState("jump_backflip", true);
+                    graphic.setState(state);
+                    break;
+                default:
+                    assert(false, "Implement");
+            }
         }
         super.setCurrentAnimation();
     }
@@ -177,9 +217,7 @@ class WormSprite : GObjectSprite {
                 jetForce.y = 0;
             physics.selfForce = jetForce;
         } else {
-            //invert y to go from screen coords to math coords
-            mWeaponMove = -dir.y;
-            physics.setWalking(dir);
+            mMoveVector = dir;
         }
     }
 
@@ -206,6 +244,16 @@ class WormSprite : GObjectSprite {
     //overwritten from GObject.simulate()
     override void simulate(float deltaT) {
         super.simulate(deltaT);
+
+        //check if the worm is really allowed to move
+        if (currentState.canAim) {
+            //invert y to go from screen coords to math coords
+            mWeaponMove = -mMoveVector.y;
+        }
+        if (currentState.canWalk) {
+            physics.setWalking(mMoveVector);
+        }
+
         if (weaponDrawn) {
             //when user presses key to change weapon angle
             //can rotate through all 180 degrees in 5 seconds
@@ -223,13 +271,10 @@ class WormSprite : GObjectSprite {
           //  shooter = null;
     }
 
-    void jump() {
-        if (physics.isGlued && !jetpackActivated) {
-            auto look = Vector2f.fromPolar(1, physics.lookey);
-            look.y = 0;
-            look = look.normal(); //get sign *g*
-            look.y = 1;
-            physics.addImpulse(look.mulEntries(wsc.jumpStrength));
+    void jump(JumpMode m) {
+        if (currentState.canWalk) {
+            mJumpMode = m;
+            setState(wsc.st_jump_start);
         }
     }
 
@@ -300,6 +345,22 @@ class WormSprite : GObjectSprite {
             //xxx replace by propper handing in physics.d
             physics.doUnglue();
         }
+        if (to is wsc.st_jump) {
+            auto look = Vector2f.fromPolar(1, physics.lookey);
+            look.y = 0;
+            look = look.normal(); //get sign *g*
+            look.y = 1;
+            switch (mJumpMode) {
+                case JumpMode.normal:
+                    physics.addImpulse(look.mulEntries(wsc.jumpStNormal));
+                    break;
+                case JumpMode.backFlip:
+                    physics.addImpulse(look.mulEntries(wsc.jumpStBackflip));
+                    break;
+                default:
+                    assert(false, "Implement");
+            }
+        }
 
         //die by blowing up
         if (to is wsc.st_dead) {
@@ -312,6 +373,29 @@ class WormSprite : GObjectSprite {
             grave.setGravestone(mGravestone);
             grave.setPos(physics.pos);
         }
+
+        //stop movement if not possible
+        if (!currentState.canAim) {
+            //invert y to go from screen coords to math coords
+            mWeaponMove = 0;
+        }
+        if (!currentState.canWalk) {
+            physics.setWalking(Vector2f(0));
+        }
+    }
+
+    //xxx sorry for that
+    override void setState(StaticStateInfo nstate, bool for_end = false) {
+        if (nstate is wsc.st_stand &&
+            (currentState is wsc.st_fly || currentState is wsc.st_jump)) {
+            super.setState(wsc.st_getup, for_end);
+            return;
+        }
+        super.setState(nstate, for_end);
+    }
+
+    override WormStateInfo currentState() {
+        return cast(WormStateInfo)super.currentState;
     }
 
     bool jetpackActivated() {
@@ -336,23 +420,75 @@ class WormSprite : GObjectSprite {
         return currentState is wsc.st_stand;
     }
 
+    private void setFlyAnim(FlyMode m) {
+        if (!graphic)
+            return;
+        if (currentState is wsc.st_fly) {
+            //don't change to often
+            if (m < mLastFlyMode &&
+                engine.gameTime.current - mLastFlyChange < timeMsecs(200))
+                return;
+            graphic.setState(mFlyState[m]);
+            mLastFlyChange = engine.gameTime.current;
+            mLastFlyMode = m;
+        }
+    }
+
+    override protected void physImpact(PhysicBase other, Vector2f normal) {
+        super.physImpact(other, normal);
+        if (currentState is wsc.st_fly) {
+            //impact -> roll
+            if (physics.velocity.length >= wsc.rollVelocity)
+                setFlyAnim(FlyMode.roll);
+            else
+                //too slow? so use slide animation
+                //xxx not so sure about that
+                setFlyAnim(FlyMode.slide);
+        }
+    }
+
+    override protected void physDamage(float amout, int cause) {
+        super.physDamage(amout, cause);
+        if (cause != cDamageCauseExplosion)
+            return;
+        if (currentState is wsc.st_fly) {
+            //when damaged in-flight, switch to heavy animation
+            //xxx better react to impulse rather than damage
+            setFlyAnim(FlyMode.heavy);
+        }
+        mLastDmg = engine.gameTime.current;
+    }
+
     override protected void physUpdate() {
         if (!isDelayedDying) {
             if (!jetpackActivated) {
                 //update walk animation
                 if (physics.isGlued) {
-                    bool walk = physics.isWalking;
-                    setState(walk ? wsc.st_walk : wsc.st_stand);
+                    bool walkst = currentState is wsc.st_walk;
+                    if (walkst != physics.isWalking)
+                        setState(physics.isWalking ? wsc.st_walk : wsc.st_stand);
                 }
 
                 //update if worm is flying around...
-                //xxx replace by state-attributes or so *g*
-                bool onGround = currentState is wsc.st_stand
-                    || currentState is wsc.st_walk
-                    || currentState is wsc.st_weapon;
+                bool onGround = currentState.isGrounded;
                 if (physics.isGlued != onGround) {
                     setState(physics.isGlued ? wsc.st_stand : wsc.st_fly);
+                    //recent damage -> ungluing possibly caused by explosion
+                    //xxx better physics feedback
+                    if (engine.gameTime.current - mLastDmg < timeMsecs(100))
+                        setFlyAnim(FlyMode.heavy);
                 }
+                if (currentState is wsc.st_fly && graphic) {
+                    //worm is falling to fast -> use roll animation
+                    if (physics.velocity.length >= wsc.rollVelocity)
+                        if (graphic.getCurrentState is mFlyState[FlyMode.fall]
+                         || graphic.getCurrentState is mFlyState[FlyMode.slide])
+                            setFlyAnim(FlyMode.roll);
+                }
+                if (currentState is wsc.st_jump && physics.velocity.y > 0) {
+                    setState(wsc.st_fly);
+                }
+
             }
             //check death
             if (active && shouldDie() && !delayedDeath()) {
@@ -363,15 +499,33 @@ class WormSprite : GObjectSprite {
     }
 }
 
+//contains custom state attributes for worm sprites
+class WormStateInfo : StaticStateInfo {
+    bool isGrounded = false;    //is this a standing-on-ground state
+    bool canWalk = false;       //should the worm be allowed to walk
+    bool canAim = false;        //can the target cross be moved
+
+    override void loadFromConfig(ConfigNode sc, ConfigNode physNode,
+        GOSpriteClass owner)
+    {
+        super.loadFromConfig(sc, physNode, owner);
+        isGrounded = sc.getBoolValue("is_grounded", isGrounded);
+        canWalk = sc.getBoolValue("can_walk", canWalk);
+        canAim = sc.getBoolValue("can_aim", canAim);
+    }
+}
+
 //the factories work over the sprite classes, so we need one
 class WormSpriteClass : GOSpriteClass {
     Vector2f jetpackThrust;
     float suicideDamage;
     //SequenceObject[] gravestones;
-    Vector2f jumpStrength;
+    Vector2f jumpStNormal, jumpStBackflip;
+    float rollVelocity = 400;
 
-    StaticStateInfo st_stand, st_fly, st_walk, st_jet, st_weapon, st_dead,
-        st_die, st_drowning, st_beaming, st_reverse_beaming;
+    WormStateInfo st_stand, st_fly, st_walk, st_jet, st_weapon, st_dead,
+        st_die, st_drowning, st_beaming, st_reverse_beaming, st_getup,
+        st_jump_start, st_jump;
 
     this(GameEngine e, char[] r) {
         super(e, r);
@@ -384,8 +538,10 @@ class WormSpriteClass : GOSpriteClass {
         else
             jetpackThrust = Vector2f(0);
         suicideDamage = config.getFloatValue("suicide_damage", 10);
-        float[] js = config.getValueArray!(float)("jump_strength",[100,-100]);
-        jumpStrength = Vector2f(js[0],js[1]);
+        float[] js = config.getValueArray!(float)("jump_st_normal",[100,-100]);
+        jumpStNormal = Vector2f(js[0],js[1]);
+        js = config.getValueArray!(float)("jump_st_backflip",[-20,-150]);
+        jumpStBackflip = Vector2f(js[0],js[1]);
 
         //done, read out the stupid states :/
         st_stand = findState("stand");
@@ -398,9 +554,20 @@ class WormSpriteClass : GOSpriteClass {
         st_drowning = findState("drowning");
         st_beaming = findState("beaming");
         st_reverse_beaming = findState("reverse_beaming");
+        st_getup = findState("getup");
+        st_jump_start = findState("jump_start");
+        st_jump = findState("jump");
     }
     override WormSprite createSprite() {
         return new WormSprite(engine, this);
+    }
+
+    override StaticStateInfo createStateInfo() {
+        return new WormStateInfo();
+    }
+
+    override WormStateInfo findState(char[] name, bool canfail = false) {
+        return cast(WormStateInfo)super.findState(name, canfail);
     }
 
     static this() {

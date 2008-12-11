@@ -50,6 +50,9 @@ class WindyForce : PhysicForce {
     }
 }
 
+//xxx need to manually sync these
+const cDamageCauseExplosion = 1;
+
 //feature request to d0c: make it last more than one frame :)
 //(over several frames should it should be more stable )
 class ExplosiveForce : PhysicForce {
@@ -81,7 +84,7 @@ class ExplosiveForce : PhysicForce {
             if (r < float.epsilon)
                 return;
             float before = o.lifepower;
-            o.applyDamage(r*damage);
+            o.applyDamage(r*damage, cDamageCauseExplosion);
             float diff = before - o.lifepower;
             //corner cases; i.e. invincible worm
             if (diff != diff || diff == typeof(diff).infinity)

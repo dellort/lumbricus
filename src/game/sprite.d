@@ -29,7 +29,6 @@ static class SpriteClassFactory
 //also provides loading from ConfigFiles and state managment
 class GObjectSprite : GameObject {
     GOSpriteClass type;
-    StaticStateInfo currentState; //must not be null
 
     PhysicObject physics;
     //attention: can be null if object inactive
@@ -38,6 +37,7 @@ class GObjectSprite : GameObject {
     SequenceState currentAnimation;
     protected SequenceUpdate seqUpdate;
 
+    private StaticStateInfo mCurrentState; //must not be null
     private Action mCreateAction, mStateAction;
 
     private bool mIsUnderWater, mWaterUpdated;
@@ -49,6 +49,13 @@ class GObjectSprite : GameObject {
 
     bool activity() {
         return active && !physics.isGlued;
+    }
+
+    StaticStateInfo currentState() {
+        return mCurrentState;
+    }
+    private void currentState(StaticStateInfo n) {
+        mCurrentState = n;
     }
 
     //update the animation to the current state
@@ -125,6 +132,10 @@ class GObjectSprite : GameObject {
     //normal always points away from other object
     void doImpact(PhysicBase other, Vector2f normal) {
         physImpact(other, normal);
+    }
+
+    protected void physDamage(float amout, int cause) {
+        doEvent("ondamage");
     }
 
     protected void physDie() {
@@ -358,6 +369,7 @@ class GObjectSprite : GameObject {
 
         physics.onUpdate = &physUpdate;
         physics.onDie = &physDie;
+        physics.onDamage = &physDamage;
 
         setStateForced(type.initState);
 
@@ -375,8 +387,9 @@ class StaticStateInfo {
 
     //automatic transition to this state if animation finished
     StaticStateInfo onAnimationEnd;
-    bool noleave; //don't leave this state (explictly excludes onAnimationEnd)
-    bool keepSelfForce; //phys.selfForce will be reset unless this is set
+    //don't leave this state (explictly excludes onAnimationEnd)
+    bool noleave = false;
+    bool keepSelfForce = false;//phys.selfForce will be reset unless this is set
 
     SequenceState animation;
 
@@ -384,8 +397,69 @@ class StaticStateInfo {
 
     bool[char[]] detonateMap;
 
+    private {
+        //for forward references
+        char[] onEndTmp, actionsTmp;
+    }
+
     this() {
         actions = new ActionContainer();
+    }
+
+    void loadFromConfig(ConfigNode sc, ConfigNode physNode, GOSpriteClass owner)
+    {
+        name = sc.name;
+
+        //physic stuff, already loaded physic-types are not cached
+        //NOTE: if no "physic" value given, use state-name for physics
+        auto phys = physNode.findNode(sc.getStringValue("physic", name));
+        assert(phys !is null); //xxx better error handling :-)
+        physic_properties = new POSP();
+        physic_properties.loadFromConfig(phys);
+
+        noleave = sc.getBoolValue("noleave", noleave);
+        keepSelfForce = sc.getBoolValue("keep_selfforce", keepSelfForce);
+
+        if (sc["animation"].length > 0) {
+            animation = owner.sequenceObject.findState(sc["animation"]);
+        }
+
+        if (!animation) {
+            owner.engine.mLog("WARNING: no animation for state '%s'", name);
+        }
+
+        onEndTmp = sc["on_animation_end"];
+
+        auto acnode = sc.findNode("actions");
+        if (acnode) {
+            //"actions" is a node containing action defs
+            actions = new ActionContainer();
+            actions.loadFromConfig(owner.engine, acnode);
+        } else {
+            //"actions" is a reference to another state
+            actionsTmp = sc["actions"];
+        }
+
+        auto detonateNode = sc.getSubNode("detonate");
+        foreach (char[] name, char[] value; detonateNode) {
+            //xxx sry
+            if (value == "true" && name != "ondetonate") {
+                detonateMap[name] = true;
+            }
+        }
+    }
+
+    void fixup(GOSpriteClass owner) {
+        if (actionsTmp.length > 0) {
+            auto st = owner.findState(actionsTmp, true);
+            if (st)
+                actions = st.actions;
+            actionsTmp = null;
+        }
+        if (onEndTmp.length > 0) {
+            onAnimationEnd = owner.findState(onEndTmp, true);
+            onEndTmp = null;
+        }
     }
 }
 
@@ -440,20 +514,6 @@ class GOSpriteClass {
     }
 
     void loadFromConfig(ConfigNode config) {
-        POSP[char[]] posps;
-
-        struct FwRef {
-            StaticStateInfo* patch;
-            char[] name;
-        }
-        FwRef[] fwrefs;
-        //xxx sry...
-        struct FwRefAc {
-            ActionContainer* patch;
-            char[] name;
-        }
-        FwRefAc[] fwrefsac;
-
         //load collision map
         engine.physicworld.collide.loadCollisions(config.getSubNode("collisions"));
 
@@ -475,83 +535,33 @@ class GOSpriteClass {
         //load states
         //physic stuff is loaded when it's referenced in a state description
         foreach (ConfigNode sc; config.getSubNode("states")) {
-            auto ssi = new StaticStateInfo();
-            ssi.name = sc.name;
+            auto ssi = createStateInfo();
+            ssi.loadFromConfig(sc, config.getSubNode("physics"), this);
             states[ssi.name] = ssi;
 
             //make the first state the init state (possibly overriden by
             //"initstate" later)
             if (!initState)
                 initState = ssi;
-
-            //physic stuff, already loaded physic-types are not cached
-            //NOTE: if no "physic" value given, use state-name for physics
-            auto phys = config.getSubNode("physics").findNode(sc.getStringValue(
-                "physic", ssi.name));
-            assert(phys !is null); //xxx better error handling :-)
-            ssi.physic_properties = new POSP();
-            ssi.physic_properties.loadFromConfig(phys);
-
-            ssi.noleave = sc.getBoolValue("noleave", false);
-            ssi.keepSelfForce = sc.getBoolValue("keep_selfforce", false);
-
-            if (sc["animation"].length > 0) {
-                ssi.animation = sequenceObject.findState(sc["animation"]);
-            }
-
-            if (!ssi.animation) {
-                engine.mLog("WARNING: no animation for state '%s'", ssi.name);
-            }
-
-            char[] onend = sc["on_animation_end"];
-            if (onend.length) {
-                FwRef r;
-                r.name = onend;
-                r.patch = &ssi.onAnimationEnd;
-                fwrefs ~= r;
-            }
-
-            auto acnode = sc.findNode("actions");
-            if (acnode) {
-                ssi.actions = new ActionContainer();
-                ssi.actions.loadFromConfig(engine, acnode);
-            } else {
-                FwRefAc r;
-                r.name = sc.getStringValue("actions");
-                r.patch = &ssi.actions;
-                fwrefsac ~= r;
-            }
-
-            auto detonateNode = config.getSubNode("detonate");
-            foreach (char[] name, char[] value; detonateNode) {
-                //xxx sry
-                if (value == "true" && name != "ondetonate") {
-                    detonateMap[name] = true;
-                }
-            }
         } //foreach state to load
 
         //resolve forward refs
-        foreach (FwRef r; fwrefs) {
-            *r.patch = findState(r.name);
+        foreach (s; states) {
+            s.fixup(this);
         }
 
         StaticStateInfo* init = config["initstate"] in states;
         if (init && *init)
             initState = *init;
 
-        foreach (FwRefAc r; fwrefsac) {
-            auto st = findState(r.name, true);
-            //use initstate actions if not set
-            //if (!st)
-            //    st = initState;
-            if (st)
-                *r.patch = st.actions;
-        }
-
         //at least the constructor created a default state
         assert(initState !is null);
         assert(states.length > 0);
+    }
+
+    //for derived classes: return your StateInfo class here
+    protected StaticStateInfo createStateInfo() {
+        return new StaticStateInfo();
     }
 
     static this() {
