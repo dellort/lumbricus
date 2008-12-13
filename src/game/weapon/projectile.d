@@ -716,3 +716,134 @@ class ProximitySensorActionClass : SpriteActionClass {
         ActionClassFactory.register!(typeof(this))("proximitysensor");
     }
 }
+
+//------------------------------------------------------------------------
+
+//makes the parent projectile walk in looking direction
+class WalkerAction : SpriteAction {
+    private {
+        WalkerActionClass myclass;
+    }
+
+    this(WalkerActionClass base, GameEngine eng) {
+        super(base, eng);
+        myclass = base;
+    }
+
+    protected ActionRes initDeferred() {
+        Vector2f walk = Vector2f.fromPolar(1.0f, mParent.physics.lookey);
+        walk.y = 0;
+        walk = walk.normal;
+        mParent.physics.setWalking(walk);
+        return ActionRes.done;
+    }
+}
+
+class WalkerActionClass : SpriteActionClass {
+    void loadFromConfig(GameEngine eng, ConfigNode node) {
+        super.loadFromConfig(eng, node);
+    }
+
+     WalkerAction createInstance(GameEngine eng) {
+        return new WalkerAction(this, eng);
+    }
+
+    static this() {
+        ActionClassFactory.register!(typeof(this))("walker");
+    }
+}
+
+//------------------------------------------------------------------------
+
+//will trigger an event when the parent projectile is no longer moving
+//(independant of gluing)
+class StuckTriggerAction : SpriteAction {
+    private {
+        struct DeltaSample {
+            Time t;
+            float delta = 0;
+        }
+
+        StuckTriggerActionClass myclass;
+        Vector2f mPosOld;
+        DeltaSample[] mSamples;
+    }
+
+    this(StuckTriggerActionClass base, GameEngine eng) {
+        super(base, eng);
+        myclass = base;
+    }
+
+    protected ActionRes initDeferred() {
+        mPosOld = mParent.physics.pos;
+        return ActionRes.moreWork;
+    }
+
+    protected void cleanupDeferred() {
+    }
+
+    //adds a position-change sample to the list (with timestamp)
+    private void addSample(float delta) {
+        Time t = engine.gameTime.current;
+        foreach (ref s; mSamples) {
+            if (t - s.t > myclass.triggerDelay) {
+                //found invalid sample -> replace
+                s.t = t;
+                s.delta = delta;
+                return;
+            }
+        }
+        //no invalid sample found -> allocate new
+        DeltaSample s;
+        s.t = t;
+        s.delta = delta;
+        mSamples ~= s;
+    }
+
+    //sums position changes within trigger_delay interval
+    //older samples are ignored
+    private float integrate() {
+        Time t = engine.gameTime.current;
+        float ret = 0.0f;
+        foreach (ref s; mSamples) {
+            if (t - s.t <= myclass.triggerDelay) {
+                ret += s.delta;
+            }
+        }
+        return ret;
+    }
+
+    override void simulate(float deltaT) {
+        super.simulate(deltaT);
+        Vector2f p = mParent.physics.pos;
+        addSample((mPosOld-p).length);
+        mPosOld = p;
+        if (integrate() < myclass.treshold) {
+            //execute trigger event (which maybe blows the projectile)
+            mParent.doEvent(myclass.eventId);
+            done();
+        }
+    }
+}
+
+class StuckTriggerActionClass : SpriteActionClass {
+    float radius;
+    Time triggerDelay;   //time from triggering from firing
+    float treshold = 5.0f;
+    char[] collision, eventId;
+
+    void loadFromConfig(GameEngine eng, ConfigNode node) {
+        super.loadFromConfig(eng, node);
+        triggerDelay = timeSecs(node.getFloatValue("trigger_delay",0.25f));
+        treshold = node.getFloatValue("treshold",treshold);
+        eventId = node.getStringValue("event","ontrigger");
+    }
+
+    StuckTriggerAction createInstance(GameEngine eng) {
+        return new StuckTriggerAction(this, eng);
+    }
+
+    static this() {
+        ActionClassFactory.register!(typeof(this))("stucktrigger");
+    }
+}
