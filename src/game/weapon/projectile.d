@@ -734,17 +734,23 @@ class WalkerAction : SpriteAction {
         Vector2f walk = Vector2f.fromPolar(1.0f, mParent.physics.lookey);
         walk.y = 0;
         walk = walk.normal;
+        if (myclass.inverseDirection)
+            walk.x = -walk.x;
         mParent.physics.setWalking(walk);
         return ActionRes.done;
     }
 }
 
 class WalkerActionClass : SpriteActionClass {
+    bool inverseDirection = false;
+
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         super.loadFromConfig(eng, node);
+        inverseDirection = node.getBoolValue("inverse_direction",
+            inverseDirection);
     }
 
-     WalkerAction createInstance(GameEngine eng) {
+    WalkerAction createInstance(GameEngine eng) {
         return new WalkerAction(this, eng);
     }
 
@@ -767,6 +773,7 @@ class StuckTriggerAction : SpriteAction {
         StuckTriggerActionClass myclass;
         Vector2f mPosOld;
         DeltaSample[] mSamples;
+        bool mActivated = false;
     }
 
     this(StuckTriggerActionClass base, GameEngine eng) {
@@ -790,6 +797,8 @@ class StuckTriggerAction : SpriteAction {
                 //found invalid sample -> replace
                 s.t = t;
                 s.delta = delta;
+                //one triggerDelay has passed
+                mActivated = true;
                 return;
             }
         }
@@ -805,9 +814,11 @@ class StuckTriggerAction : SpriteAction {
     private float integrate() {
         Time t = engine.gameTime.current;
         float ret = 0.0f;
+        int c;
         foreach (ref s; mSamples) {
             if (t - s.t <= myclass.triggerDelay) {
                 ret += s.delta;
+                c++;
             }
         }
         return ret;
@@ -818,10 +829,16 @@ class StuckTriggerAction : SpriteAction {
         Vector2f p = mParent.physics.pos;
         addSample((mPosOld-p).length);
         mPosOld = p;
-        if (integrate() < myclass.treshold) {
+        if (integrate() < myclass.treshold && mActivated) {
             //execute trigger event (which maybe blows the projectile)
             mParent.doEvent(myclass.eventId);
-            done();
+            if (myclass.multiple) {
+                //reset
+                mActivated = false;
+                mSamples = null;
+            } else {
+                done();
+            }
         }
     }
 }
@@ -830,12 +847,14 @@ class StuckTriggerActionClass : SpriteActionClass {
     float radius;
     Time triggerDelay;   //time from triggering from firing
     float treshold = 5.0f;
+    bool multiple = false;
     char[] collision, eventId;
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         super.loadFromConfig(eng, node);
         triggerDelay = timeSecs(node.getFloatValue("trigger_delay",0.25f));
         treshold = node.getFloatValue("treshold",treshold);
+        multiple = node.getBoolValue("multiple",multiple);
         eventId = node.getStringValue("event","ontrigger");
     }
 

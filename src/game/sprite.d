@@ -155,12 +155,6 @@ class GObjectSprite : GameObject {
     //this implementation kills it immediately
     protected void die() {
         doEvent("ondie");
-        //cleanup old global actions still running (like oncreate)
-        foreach (a; mActiveActionsGlobal) {
-            if (a.active)
-                a.abort();
-        }
-        mActiveActionsGlobal = null;
 
         active = false;
         physics.dead = true;
@@ -207,14 +201,18 @@ class GObjectSprite : GameObject {
     //when called: currentState is to
     //must not call setState (alone danger for recursion forbids it)
     protected void stateTransition(StaticStateInfo from, StaticStateInfo to) {
+        cleanStateActions();
+        //run state-initialization event
+        doEvent("oncreate", true);
+    }
+
+    private void cleanStateActions() {
         //cleanup old per-state actions still running
         foreach (a; mActiveActionsState) {
             if (a.active)
                 a.abort();
         }
         mActiveActionsState = null;
-        //run state-initialization event
-        doEvent("oncreate", true);
     }
 
     //do a (possibly) soft transition to the new state
@@ -269,6 +267,16 @@ class GObjectSprite : GameObject {
             physics.checkRotation();
             setCurrentAnimation();
             updateAnimation();
+            //"oncreate" is the sprite or state initialize event
+            doEvent("oncreate");
+        } else {
+            cleanStateActions();
+            //cleanup old global actions still running (like oncreate)
+            foreach (a; mActiveActionsGlobal) {
+                if (a.active)
+                    a.abort();
+            }
+            mActiveActionsGlobal = null;
         }
     }
 
@@ -372,9 +380,6 @@ class GObjectSprite : GameObject {
         physics.onDamage = &physDamage;
 
         setStateForced(type.initState);
-
-        //"oncreate" is the sprite or state initialize event
-        doEvent("oncreate");
     }
 }
 
