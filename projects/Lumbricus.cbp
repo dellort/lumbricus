@@ -157,6 +157,7 @@
 		<Unit filename="..\src\physics\earthquake.d" />
 		<Unit filename="..\src\physics\force.d" />
 		<Unit filename="..\src\physics\geometry.d" />
+		<Unit filename="..\src\physics\links.d" />
 		<Unit filename="..\src\physics\movehandler.d" />
 		<Unit filename="..\src\physics\physobj.d" />
 		<Unit filename="..\src\physics\plane.d" />

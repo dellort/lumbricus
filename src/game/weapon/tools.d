@@ -4,6 +4,7 @@ import game.game;
 import game.sprite;
 import game.weapon.weapon;
 import game.worm;
+import physics.world;
 import utils.configfile;
 import utils.factory;
 import utils.time;
@@ -90,15 +91,37 @@ class Jetpack : Tool {
 }
 
 class Rope : Tool {
+    private {
+        bool mUsed;
+        PhysicConstraint mRope;
+    }
+
     this(ToolClass b, WormSprite o) {
         super(b, o);
     }
 
     override void fire(FireInfo info) {
+        //xxx this is just debug code
+        if (!mUsed) {
+            float len = (mWorm.physics.pos - info.pointto).length * 0.9f;
+            mRope = new PhysicConstraint(mWorm.physics, info.pointto, len, 0.1, true);
+            engine.physicworld.add(mRope);
+            mUsed = true;
+            active = true;
+        } else {
+            mRope.dead = true;
+            mUsed = false;
+            active = false;
+        }
     }
 
     override void simulate(float deltaT) {
         super.simulate(deltaT);
+    }
+
+    override void interruptFiring() {
+        mRope.dead = true;
+        active = false;
     }
 
     static this() {

@@ -6,6 +6,7 @@
 module physics.sortandsweep;
 
 import physics.broadphase;
+import physics.contact;
 import utils.array;
 import utils.vector2;
 
@@ -16,7 +17,7 @@ class BPSortAndSweep : BroadPhase {
         super(col);
     }
 
-    void collide(ref PhysicObject[] shapes, float deltaT) {
+    void collide(ref PhysicObject[] shapes, CollideDelegate contactHandler) {
         shellSort(shapes, mSortAxis);
 
         /// Sweep the array for collisions
@@ -37,7 +38,7 @@ class BPSortAndSweep : BroadPhase {
                 if (shapes[j].pos[mSortAxis] - shapes[j].posp.radius
                     > shapes[i].pos[mSortAxis] + shapes[i].posp.radius) break;
 
-                collideFine(shapes[i], shapes[j], deltaT);
+                collideFine(shapes[i], shapes[j], contactHandler);
             }
         }
 

@@ -347,7 +347,9 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     }
 
     //called when a and b touch in physics
-    private void onPhysicHit(Contact c) {
+    private void onPhysicHit(ref Contact c) {
+        if (c.source == ContactSource.generator)
+            return;
         //exactly as the old behaviour
         auto xa = cast(GObjectSprite)(c.obj[0].backlink);
         if (xa) xa.doImpact(c.obj[1], c.normal);

@@ -23,6 +23,7 @@ public import physics.trigger;
 public import physics.timedchanger;
 public import physics.contact;
 public import physics.zone;
+public import physics.links;
 import physics.collisionmap;
 import physics.broadphase;
 import physics.sortandsweep;
@@ -36,10 +37,13 @@ class PhysicWorld {
     private List!(PhysicGeometry) mGeometryObjects;
     private List!(PhysicObject) mObjects;
     private List!(PhysicTrigger) mTriggers;
+    private List!(PhysicContactGen) mContactGenerators;
     private uint mLastTime;
 
     private PhysicObject[] mObjArr;
     private BroadPhase broadphase;
+    private Contact[] mContacts;
+    private int mContactCount;
 
     package log.Log mLog;
     Random rnd;
@@ -55,6 +59,8 @@ class PhysicWorld {
             mObjArr ~= o;
         }
         if (auto o = cast(PhysicTrigger)obj)  mTriggers.insert_tail(o);
+        if (auto o = cast(PhysicContactGen)obj)
+            mContactGenerators.insert_tail(o);
     }
 
     private void remove(PhysicBase obj) {
@@ -66,6 +72,7 @@ class PhysicWorld {
             arrayRemoveUnordered(mObjArr, o);
         }
         if (auto o = cast(PhysicTrigger)obj)  mTriggers.remove(o);
+        if (auto o = cast(PhysicContactGen)obj) mContactGenerators.remove(o);
     }
 
     private const cPhysTimeStepMs = 10;
@@ -101,8 +108,10 @@ class PhysicWorld {
             me.update(deltaT);
         }
 
-        //collideObjects(deltaT);
-        broadphase.collide(mObjArr, deltaT);
+        broadphase.collide(mObjArr, &handleContact);
+        foreach (PhysicContactGen cg; mContactGenerators) {
+            cg.process(&handleContact);
+        }
 
         foreach (PhysicObject me; mObjects) {
             //no need to check then? (maybe)
@@ -111,7 +120,7 @@ class PhysicWorld {
             //    objects, however land-filling weapons will cause problems
             if (!me.isGlued) {
                 //check against geometry
-                checkGeometryCollisions(me, deltaT);
+                checkGeometryCollisions(me, &handleContact);
             }
 
             //check triggers
@@ -123,7 +132,37 @@ class PhysicWorld {
             }
         }
 
+        resolveContacts(deltaT);
+
         checkUpdates();
+    }
+
+    private void handleContact(ref Contact c) {
+        if (mContactCount >= mContacts.length) {
+            //no more room
+            mContacts.length = mContacts.length + 64; //another arbitrary number
+        }
+        mContacts[mContactCount] = c;
+        mContactCount++;
+    }
+
+    private void resolveContacts(float deltaT) {
+        //xxx simple iteration, i heard rumors about better algorithms ;)
+        for (int i = 0; i < mContactCount; i++) {
+            //resolve contact
+            mContacts[i].resolve(deltaT);
+            //update involved objects
+            foreach (o; mContacts[i].obj) {
+                if (o) {
+                    o.checkRotation();
+                    o.needUpdate();
+                }
+            }
+            //call collide event handler
+            collide.callCollide(mContacts[i]); //call collision handler
+        }
+        //clear list of contacts
+        mContactCount = 0;
     }
 
     void checkUpdates() {
@@ -143,7 +182,7 @@ class PhysicWorld {
     }
 
     private void checkObjectCollision(PhysicObject obj1, PhysicObject obj2,
-        float deltaT)
+        CollideDelegate contactHandler)
     {
         //the following stuff handles physically correct collision
 
@@ -160,22 +199,15 @@ class PhysicWorld {
 
         //generate contact and resolve immediately (well, as before)
         Contact c;
-        c.normal = d/dist;
-        c.depth = mindist - dist;
-        c.obj[0] = obj1;
-        c.obj[1] = obj2;
-        c.resolve(deltaT);
+        c.fromObj(obj1, obj2, d/dist, mindist - dist);
+        contactHandler(c);
 
-        obj1.needUpdate();
-        obj2.needUpdate();
-
-        obj1.checkRotation();
-
-        collide.callCollide(c); //call collision handler
         //xxx: also, should it be possible to glue objects here?
     }
 
-    void checkGeometryCollisions(PhysicObject obj, float deltaT) {
+    private void checkGeometryCollisions(PhysicObject obj,
+        CollideDelegate contactHandler)
+    {
         GeomContact contact;
         if (!collideObjectWithGeometry(obj, contact))
             return;
@@ -186,7 +218,7 @@ class PhysicWorld {
         //generate contact and resolve
         Contact c;
         c.fromGeom(contact, obj);
-        c.resolve(deltaT);
+        contactHandler(c);
 
         //we collided with geometry, but were not fast enough!
         //  => worm gets glued, hahaha.
@@ -200,13 +232,6 @@ class PhysicWorld {
             //ok I did change glue handling.
             obj.velocity_int = Vector2f(0);
         }
-
-        obj.checkRotation();
-
-        //what about unglue??
-        obj.needUpdate();
-
-        collide.callCollide(c);
     }
 
     //check how an object would collide with all the geometry
@@ -317,6 +342,8 @@ class PhysicWorld {
         mForceObjects = new List!(PhysicForce)(PhysicForce.forces_node.getListNodeOffset());
         mGeometryObjects = new List!(PhysicGeometry)(PhysicGeometry.geometries_node.getListNodeOffset());
         mTriggers = new List!(PhysicTrigger)(PhysicTrigger.triggers_node.getListNodeOffset());
+        mContactGenerators = new List!(PhysicContactGen)(PhysicContactGen.cgen_node.getListNodeOffset());
+        mContacts.length = 1024;  //xxx arbitrary number
         mLog = log.registerLog("physlog");
     }
 }

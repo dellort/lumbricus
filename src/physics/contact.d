@@ -1,12 +1,19 @@
 module physics.contact;
 
+import utils.mylist;
 import utils.vector2;
 
 import physics.base;
 import physics.physobj;
 import physics.geometry;
 
-alias void delegate(Contact c) CollideDelegate;
+alias void delegate(ref Contact c) CollideDelegate;
+
+enum ContactSource {
+    object,
+    geometry,
+    generator,
+}
 
 //mostly stolen from "Game Physics Engine Development" by Ian Millington
 struct Contact {
@@ -16,9 +23,14 @@ struct Contact {
     Vector2f normal;
     ///penetration depth
     float depth;
+    ///coeff. of restitution
+    float restitution;
 
     ///(out) object position change due to penetration resolution
     Vector2f[2] objShift;
+
+    ///how this contact was generated
+    ContactSource source = ContactSource.object;
 
     ///Fill data from a geometry collision
     //xxx unify this
@@ -27,6 +39,24 @@ struct Contact {
         depth = c.depth;
         obj[0] = o;
         obj[1] = null;
+        source = ContactSource.geometry;
+        restitution = obj[0].posp.elasticity;
+    }
+
+    void fromObj(PhysicObject obj1, PhysicObject obj2, Vector2f n, float d) {
+        obj[0] = obj1;
+        obj[1] = obj2;
+        normal = n;
+        depth = d;
+        source = ContactSource.object;
+
+        //calculate cor (coeff. of restitution) of this collision
+        //xxx I have absolutely no idea if this makes sense,
+        //    there's no info on this anywhere
+        restitution = obj[0].posp.elasticity;
+        if (obj[1])
+            //stupid average, multiplication would also be possible
+            restitution = (restitution + obj[1].posp.elasticity)/2.0f;
     }
 
     ///Resolve contact velocity and penetration
@@ -48,7 +78,7 @@ struct Contact {
 
     //make sure glued objects get unglued if necessary
     private void matchGlueState() {
-        if (!obj[1])
+        if (source == ContactSource.geometry)
             return;
         //xxx doesn't work because of walking, which collides 2 glued objects
         /*if (obj[0].isGlued ^ obj[1].isGlued) {
@@ -59,6 +89,8 @@ struct Contact {
         }*/
         if (obj[0].isGlued)
             obj[0].doUnglue();
+        if (!obj[1])
+            return;
         if (obj[1].isGlued)
             obj[1].doUnglue();
     }
@@ -66,14 +98,6 @@ struct Contact {
     //resolve separating velocity, calculating the post-collide velocities
     //of both objects involved
     private void resolveVel(float deltaT) {
-        //calculate cor (coeff. of restitution) of this collision
-        //xxx I have absolutely no idea if this makes sense,
-        //    there's no info on this anywhere
-        float restitution = obj[0].posp.elasticity;
-        if (obj[1])
-            //stupid average, multiplication would also be possible
-            restitution = (restitution + obj[1].posp.elasticity)/2.0f;
-
         float vSep = calcSepVel();
         if (vSep >= 0)
             //not moving, or moving apart (for whatever reason, dunno if ever)
@@ -145,4 +169,10 @@ struct Contact {
             objShift[1] = Vector2f.init;
         }
     }
+}
+
+class PhysicContactGen : PhysicBase {
+    package mixin ListNodeMixin cgen_node;
+
+    abstract void process(CollideDelegate contactHandler);
 }
