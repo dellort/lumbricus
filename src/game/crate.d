@@ -5,6 +5,7 @@ import game.animation;
 import physics.world;
 import game.game;
 import game.sprite;
+import game.actionsprite;
 import utils.misc;
 import utils.vector2;
 import utils.time;
@@ -14,7 +15,7 @@ import utils.configfile;
 import std.math;
 import str = std.string;
 
-class CrateSprite : GObjectSprite {
+class CrateSprite : ActionSprite {
     private {
         CrateSpriteClass myclass;
         PhysicZoneCircle crateZone;
@@ -72,7 +73,7 @@ class CrateSprite : GObjectSprite {
 }
 
 //the factories work over the sprite classes, so we need one
-class CrateSpriteClass : GOSpriteClass {
+class CrateSpriteClass : ActionSpriteClass {
     float enterParachuteSpeed;
     float collectRadius;
 

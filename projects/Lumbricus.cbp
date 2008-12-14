@@ -76,6 +76,7 @@
 		<Unit filename="..\src\framework\texturepack.d" />
 		<Unit filename="..\src\framework\timesource.d" />
 		<Unit filename="..\src\game\action.d" />
+		<Unit filename="..\src\game\actionsprite.d" />
 		<Unit filename="..\src\game\animation.d" />
 		<Unit filename="..\src\game\bomberworm.d" />
 		<Unit filename="..\src\game\clientengine.d" />
@@ -109,11 +110,14 @@
 		<Unit filename="..\src\game\sequence.d" />
 		<Unit filename="..\src\game\sky.d" />
 		<Unit filename="..\src\game\sprite.d" />
+		<Unit filename="..\src\game\spriteactions.d" />
 		<Unit filename="..\src\game\temp.d" />
 		<Unit filename="..\src\game\water.d" />
 		<Unit filename="..\src\game\weapon\actions.d" />
+		<Unit filename="..\src\game\weapon\actionweapon.d" />
 		<Unit filename="..\src\game\weapon\projectile.d" />
 		<Unit filename="..\src\game\weapon\ray.d" />
+		<Unit filename="..\src\game\weapon\spawn.d" />
 		<Unit filename="..\src\game\weapon\special_weapon.d" />
 		<Unit filename="..\src\game\weapon\tools.d" />
 		<Unit filename="..\src\game\weapon\types.d" />

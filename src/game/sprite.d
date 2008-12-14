@@ -2,12 +2,12 @@ module game.sprite;
 
 import framework.framework;
 import game.gobject;
-import physics.world;
 import game.animation;
 import game.game;
 import game.gamepublic;
 import game.sequence;
-import game.action;
+import physics.world;
+
 import utils.vector2;
 import utils.rect2;
 import utils.configfile;
@@ -28,7 +28,7 @@ static class SpriteClassFactory
 //object which represents a PhysicObject and an animation on the screen
 //also provides loading from ConfigFiles and state managment
 class GObjectSprite : GameObject {
-    GOSpriteClass type;
+    protected GOSpriteClass mType;
 
     PhysicObject physics;
     //attention: can be null if object inactive
@@ -38,20 +38,19 @@ class GObjectSprite : GameObject {
     protected SequenceUpdate seqUpdate;
 
     private StaticStateInfo mCurrentState; //must not be null
-    private Action mCreateAction, mStateAction;
 
     private bool mIsUnderWater, mWaterUpdated;
-
-    private Action[] mActiveActionsGlobal;
-    private Action[] mActiveActionsState;
-
-    protected Vector2f mLastImpactNormal = {0, -1};
 
     bool activity() {
         return active && !physics.isGlued;
     }
 
+    GOSpriteClass type() {
+        return mType;
+    }
+
     StaticStateInfo currentState() {
+        assert(!!mCurrentState);
         return mCurrentState;
     }
     private void currentState(StaticStateInfo n) {
@@ -90,9 +89,6 @@ class GObjectSprite : GameObject {
     protected void physUpdate() {
         updateAnimation();
 
-        if (physics.lifepower <= 0)
-            doEvent("onzerolife");
-
         /+
         yyy move this code into the client's GUI
         this can't be here because this depends from what part of the level
@@ -124,9 +120,6 @@ class GObjectSprite : GameObject {
     }
 
     protected void physImpact(PhysicBase other, Vector2f normal) {
-        mLastImpactNormal = normal;
-        doEvent("onimpact");
-        mLastImpactNormal = Vector2f(0, -1);
     }
 
     //normal always points away from other object
@@ -135,7 +128,6 @@ class GObjectSprite : GameObject {
     }
 
     protected void physDamage(float amout, int cause) {
-        doEvent("ondamage");
     }
 
     protected void physDie() {
@@ -154,8 +146,6 @@ class GObjectSprite : GameObject {
     //called when object should die
     //this implementation kills it immediately
     protected void die() {
-        doEvent("ondie");
-
         active = false;
         physics.dead = true;
         engine.mLog("really die: %s", type.name);
@@ -201,18 +191,6 @@ class GObjectSprite : GameObject {
     //when called: currentState is to
     //must not call setState (alone danger for recursion forbids it)
     protected void stateTransition(StaticStateInfo from, StaticStateInfo to) {
-        cleanStateActions();
-        //run state-initialization event
-        doEvent("oncreate", true);
-    }
-
-    private void cleanStateActions() {
-        //cleanup old per-state actions still running
-        foreach (a; mActiveActionsState) {
-            if (a.active)
-                a.abort();
-        }
-        mActiveActionsState = null;
     }
 
     //do a (possibly) soft transition to the new state
@@ -267,16 +245,6 @@ class GObjectSprite : GameObject {
             physics.checkRotation();
             setCurrentAnimation();
             updateAnimation();
-            //"oncreate" is the sprite or state initialize event
-            doEvent("oncreate");
-        } else {
-            cleanStateActions();
-            //cleanup old global actions still running (like oncreate)
-            foreach (a; mActiveActionsGlobal) {
-                if (a.active)
-                    a.abort();
-            }
-            mActiveActionsGlobal = null;
         }
     }
 
@@ -308,64 +276,11 @@ class GObjectSprite : GameObject {
         mWaterUpdated = false;
     }
 
-    protected MyBox readParam(char[] id) {
-        switch (id) {
-            case "sprite":
-                return MyBox.Box(this);
-            case "owner_game":
-                return MyBox.Box(cast(GameObject)this);
-            default:
-                return MyBox();
-        }
-    }
-
-    ///runs a sprite-specific event defined in the config file
-    //xxx should be private, but is used by some actions
-    void doEvent(char[] id, bool stateonly = false) {
-        //logging: this is slow (esp. napalm)
-        //engine.mLog("Projectile: Execute event "~id);
-
-        //run a global or state-specific action by id, if defined
-        void execAction(char[] id, bool state = false) {
-            ActionClass ac;
-            if (state) ac = currentState.actions.action(id);
-            else ac = type.actions.action(id);
-            if (ac) {
-                //run action if found
-                auto a = ac.createInstance(engine);
-                auto ctx = new ActionContext(&readParam);
-                //ctx.activityCheck = &activity;
-                a.execute(ctx);
-                if (a.active) {
-                    //action still reports active after execute call, so add
-                    //it to the active actions list to allow later cleanup
-                    if (state) mActiveActionsState ~= a;
-                    else mActiveActionsGlobal ~= a;
-                }
-            }
-        }
-
-        if (!stateonly)
-            execAction(id, false);
-        execAction(id, true);
-
-        if (id == "ondetonate") {
-            //reserved event that kills the sprite
-            die();
-            return;
-        }
-        if (id in type.detonateMap || id in currentState.detonateMap) {
-            //current event should cause the projectile to detonate
-            //xxx reserved identifier
-            doEvent("ondetonate");
-        }
-    }
-
     protected this(GameEngine engine, GOSpriteClass type) {
         super(engine, false);
 
         assert(type !is null);
-        this.type = type;
+        mType = type;
 
         seqUpdate = createSequenceUpdate();
 
@@ -398,17 +313,9 @@ class StaticStateInfo {
 
     SequenceState animation;
 
-    ActionContainer actions;
-
-    bool[char[]] detonateMap;
-
     private {
         //for forward references
-        char[] onEndTmp, actionsTmp;
-    }
-
-    this() {
-        actions = new ActionContainer();
+        char[] onEndTmp;
     }
 
     void loadFromConfig(ConfigNode sc, ConfigNode physNode, GOSpriteClass owner)
@@ -434,33 +341,9 @@ class StaticStateInfo {
         }
 
         onEndTmp = sc["on_animation_end"];
-
-        auto acnode = sc.findNode("actions");
-        if (acnode) {
-            //"actions" is a node containing action defs
-            actions = new ActionContainer();
-            actions.loadFromConfig(owner.engine, acnode);
-        } else {
-            //"actions" is a reference to another state
-            actionsTmp = sc["actions"];
-        }
-
-        auto detonateNode = sc.getSubNode("detonate");
-        foreach (char[] name, char[] value; detonateNode) {
-            //xxx sry
-            if (value == "true" && name != "ondetonate") {
-                detonateMap[name] = true;
-            }
-        }
     }
 
     void fixup(GOSpriteClass owner) {
-        if (actionsTmp.length > 0) {
-            auto st = owner.findState(actionsTmp, true);
-            if (st)
-                actions = st.actions;
-            actionsTmp = null;
-        }
         if (onEndTmp.length > 0) {
             onAnimationEnd = owner.findState(onEndTmp, true);
             onEndTmp = null;
@@ -480,10 +363,6 @@ class GOSpriteClass {
 
     StaticStateInfo[char[]] states;
     StaticStateInfo initState;
-
-    ActionContainer actions;
-
-    bool[char[]] detonateMap;
 
     float initialHp = float.infinity;
 
@@ -510,12 +389,10 @@ class GOSpriteClass {
         engine.registerSpriteClass(regname, this);
 
         //create a default state to have at least one state at all
-        auto ssi = new StaticStateInfo();
+        auto ssi = createStateInfo();
         ssi.name = "defaultstate";
         states[ssi.name] = ssi;
         initState = ssi;
-
-        actions = new ActionContainer();
     }
 
     void loadFromConfig(ConfigNode config) {
@@ -524,16 +401,6 @@ class GOSpriteClass {
 
         sequenceObject = engine.gfx.resources.resource!(SequenceObject)
             (config["sequence_object"]).get;
-
-        actions.loadFromConfig(engine, config.getSubNode("actions"));
-
-        auto detonateNode = config.getSubNode("detonate");
-        foreach (char[] name, char[] value; detonateNode) {
-            //xxx sry
-            if (value == "true" && name != "ondetonate") {
-                detonateMap[name] = true;
-            }
-        }
 
         initialHp = config.getFloatValue("initial_hp", initialHp);
 

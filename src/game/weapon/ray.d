@@ -8,6 +8,7 @@ import game.sprite;
 import game.weapon.weapon;
 import game.weapon.projectile;
 import game.gamepublic;
+import game.weapon.actionweapon;
 import std.math: PI;
 import utils.vector2;
 import utils.configfile;

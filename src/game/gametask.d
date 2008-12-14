@@ -44,6 +44,7 @@ import game.weapon.projectile;
 import game.weapon.special_weapon;
 import game.weapon.tools;
 import game.weapon.ray;
+import game.weapon.spawn;
 
 //this is a test: it explodes the landscape graphic into several smaller ones
 Level fuzzleLevel(Level level) {
