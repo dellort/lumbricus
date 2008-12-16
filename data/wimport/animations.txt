@@ -362,6 +362,7 @@ water_anims {
         mortar_drown = "31"
         cluster_drown = "32"
         clustershard_drown = "33"
+        sheep_drown = "36"
         granny_drown = "41"
         sally_army_drown = "42"
         skunk_drown = "43"

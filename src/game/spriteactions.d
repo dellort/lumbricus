@@ -219,6 +219,59 @@ class WalkerActionClass : SpriteActionClass {
 
 //------------------------------------------------------------------------
 
+//makes the parent projectile jump randomly when glued
+class RandomJumpAction : SpriteAction {
+    private {
+        RandomJumpActionClass myclass;
+    }
+
+    this(RandomJumpActionClass base, GameEngine eng) {
+        super(base, eng);
+        myclass = base;
+    }
+
+    protected ActionRes initDeferred() {
+        return ActionRes.moreWork;
+    }
+
+    override void simulate(float deltaT) {
+        float p = myclass.jumpsPerSec * deltaT;
+        if (engine.rnd.nextDouble2() < p && mParent.physics.isGlued) {
+            doJump();
+        }
+    }
+
+    private void doJump() {
+        auto look = Vector2f.fromPolar(1, mParent.physics.lookey);
+        look.y = 0;
+        look = look.normal(); //get sign *g*
+        look.y = 1;
+        mParent.physics.addImpulse(look.mulEntries(myclass.jumpStrength));
+    }
+}
+
+class RandomJumpActionClass : SpriteActionClass {
+    Vector2f jumpStrength;
+    float jumpsPerSec = 1.0f;   //probability of a jump, per second
+
+    void loadFromConfig(GameEngine eng, ConfigNode node) {
+        super.loadFromConfig(eng, node);
+        float[] js = node.getValueArray!(float)("jump_strength",[100,-100]);
+        jumpStrength = Vector2f(js[0],js[1]);
+        jumpsPerSec = node.getFloatValue("jumps_per_sec",jumpsPerSec);
+    }
+
+    RandomJumpAction createInstance(GameEngine eng) {
+        return new RandomJumpAction(this, eng);
+    }
+
+    static this() {
+        ActionClassFactory.register!(typeof(this))("random_jump");
+    }
+}
+
+//------------------------------------------------------------------------
+
 //will trigger an event when the parent projectile is no longer moving
 //(independant of gluing)
 class StuckTriggerAction : SpriteAction {
