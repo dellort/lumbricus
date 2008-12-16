@@ -17,11 +17,12 @@ import utils.log;
 import utils.factory;
 
 private class ActionWeapon : WeaponClass {
-    ActionClass onFire;
+    ActionClass onFire, onBlowup;
 
     this(GameEngine aengine, ConfigNode node) {
         super(aengine, node);
         onFire = actionFromConfig(aengine, node.getSubNode("onfire"));
+        onBlowup = actionFromConfig(aengine, node.getSubNode("onblowup", false));
         if (!onFire) {
             //xxx error handling...
             throw new Exception("Action-based weapon needs onfire action");

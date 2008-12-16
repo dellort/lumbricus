@@ -4,8 +4,12 @@ import game.gobject;
 import game.animation;
 import physics.world;
 import game.game;
+import game.controller;
+import game.weapon.weapon;
 import game.sprite;
 import game.actionsprite;
+import game.action;
+import game.weapon.actionweapon;
 import utils.misc;
 import utils.vector2;
 import utils.time;
@@ -15,6 +19,67 @@ import utils.configfile;
 import std.math;
 import str = std.string;
 
+///Base class for stuff in crates that can be collected by worms
+class Collectable {
+    ///The crate is being collected by a worm
+    abstract void collect(CrateSprite parent, ServerTeamMember member);
+
+    ///The crate explodes
+    void blow(CrateSprite parent) {
+        //default is do nothing
+    }
+}
+
+///Adds a weapon to your inventory
+class CollectableWeapon : Collectable {
+    WeaponClass weapon;
+    int quantity;
+
+    this(WeaponClass w, int quantity = 1) {
+        weapon = w;
+        this.quantity = quantity;
+    }
+
+    void collect(CrateSprite parent, ServerTeamMember member) {
+        member.mTeam.addWeapon(weapon, quantity);
+    }
+
+    override void blow(CrateSprite parent) {
+        //think about the crate-sheep
+        //xxx maybe make this more generic
+        auto aw = cast(ActionWeapon)weapon;
+        if (aw.onBlowup) {
+            auto ac = aw.onBlowup.createInstance(parent.engine);
+            //run in context of parent crate
+            auto ctx = new ActionContext(&parent.readParam);
+            ac.execute(ctx);
+        }
+    }
+}
+
+///Gives the collecting worm some health
+class CollectableMedkit : Collectable {
+    int amount;
+
+    this(int amount = 50) {
+        this.amount = amount;
+    }
+
+    void collect(CrateSprite parent, ServerTeamMember member) {
+        //xxx not sure if the controller can handle it
+        member.worm.physics.lifepower += amount;
+    }
+}
+
+///Blows up the crate without giving the worm anything
+///Note that you can add other collectables in the same crate
+class CollectableBomb : Collectable {
+    void collect(CrateSprite parent, ServerTeamMember member) {
+        //harharhar :D
+        parent.detonate();
+    }
+}
+
 class CrateSprite : ActionSprite {
     private {
         CrateSpriteClass myclass;
@@ -22,9 +87,8 @@ class CrateSprite : ActionSprite {
         ZoneTrigger collectTrigger;
     }
 
-    //type will be mostly WeaponClass for weapon-crates
-    //other crates (tool, medi) contain stuff I didn't think about yet
-    Object[] stuffies;
+    //contents of the crate
+    Collectable[] stuffies;
 
     protected this (GameEngine engine, CrateSpriteClass spriteclass) {
         super(engine, spriteclass);
@@ -40,8 +104,15 @@ class CrateSprite : ActionSprite {
         engine.physicworld.add(collectTrigger);
     }
 
-    public void collected() {
+    private void collected() {
+        stuffies = null;
         die();
+    }
+
+    void blowStuffies() {
+        foreach (Collectable c; stuffies) {
+            c.blow(this);
+        }
     }
 
     override protected void die() {
@@ -52,7 +123,36 @@ class CrateSprite : ActionSprite {
     private void oncollect(PhysicTrigger sender, PhysicObject other) {
         if (other is physics)
             return; //lol
-        engine.collectCrate(this, other);
+        auto goOther = cast(GameObject)(other.backlink);
+        if (goOther)
+            collectCrate(goOther);
+    }
+
+    void collectCrate(GameObject finder) {
+        //for some weapons like animal-weapons, transitive should be true
+        //and normally a non-collecting weapon should just explode here??
+        auto member = engine.controller.memberFromGameObject(finder, false);
+        if (!member) {
+            engine.mLog("crate %s can't be collected by %s", this, finder);
+            return;
+        }
+        //only collect crates when it's your turn
+        if (!member.active)
+            return;
+        engine.mLog("%s collects crate %s", member, this);
+        //transfer stuffies
+        foreach (Collectable c; stuffies) {
+            c.collect(this, member);
+        }
+        //and destroy crate
+        collected();
+    }
+
+    override void doEvent(char[] id, bool stateonly = false) {
+        super.doEvent(id, stateonly);
+        if (id == "ondetonate") {
+            blowStuffies();
+        }
     }
 
     override protected void physUpdate() {

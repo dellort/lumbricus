@@ -168,6 +168,11 @@ class ActionSprite : GObjectSprite {
         }
     }
 
+    //shortcut to blow up the sprite
+    void detonate() {
+        doEvent("ondetonate");
+    }
+
     protected this(GameEngine engine, GOSpriteClass type) {
         super(engine, type);
     }

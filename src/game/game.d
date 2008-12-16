@@ -60,7 +60,14 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
 
     private GameController mController;
 
+    //Part of interface GameEnginePublic
     GameLogicPublic logic() {
+        return mController;
+    }
+
+    //Direct server-side access to controller
+    //NOT part of GameEnginePublic
+    GameController controller() {
         return mController;
     }
 
@@ -581,12 +588,5 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
                 return true;
         }
         return false;
-    }
-
-    void collectCrate(CrateSprite crate, PhysicObject obj) {
-        GameObject gobj = cast(GameObject)(obj.backlink);
-        if (gobj) {
-            mController.collectCrate(crate, gobj);
-        } //if not then wtf!?
     }
 }

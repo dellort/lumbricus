@@ -107,7 +107,10 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
         Vector2f pos;
         float width = params.spawndist * (params.count-1);
         //center around pointed
-        pos.x = about.pointto.x - width/2 + params.spawndist * n;
+        float x = about.pos.x;
+        if (!about.pointto.isNaN)
+            x = about.pointto.x;
+        pos.x = x - width/2 + params.spawndist * n;
         pos.y = sprite.engine.level.airstrikeY;
         sprite.setPos(pos);
         //patch for below *g*, direct into gravity direction

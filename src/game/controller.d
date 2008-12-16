@@ -489,8 +489,8 @@ class ServerTeam : Team {
         }
     }
 
-    void addWeapon(WeaponClass w) {
-        weapons.addWeapon(w);
+    void addWeapon(WeaponClass w, int quantity = 1) {
+        weapons.addWeapon(w, quantity);
         parent.updateWeaponStats(null);
     }
 }
@@ -946,7 +946,7 @@ class WeaponSet {
         return null;
     }
 
-    void addWeapon(WeaponClass c) {
+    void addWeapon(WeaponClass c, int quantity = 1) {
         WeaponItem item = byId(c);
         if (!item) {
             item = new WeaponItem(this);
@@ -954,7 +954,7 @@ class WeaponSet {
             weapons[c] = item;
         }
         if (!item.infinite) {
-            item.mQuantity++;
+            item.mQuantity += quantity;
         }
     }
 }
@@ -1030,6 +1030,7 @@ class GameController : GameLogicPublic {
 
         //xxx for loading only
         ConfigNode[char[]] mWeaponSets;
+        private WeaponClass[] mCrateList;
 
         Time mRoundRemaining, mPrepareRemaining, mWinRemaining, mCleanupWait;
         //time a round takes
@@ -1421,6 +1422,14 @@ class GameController : GameLogicPublic {
         foreach (ConfigNode item; config) {
             mWeaponSets[item.name] = item;
         }
+        char[][] crateList = config.getValueArray("crate_list", [""]);
+        foreach (crateItem; crateList) {
+            try {
+                mCrateList ~= engine.findWeaponClass(crateItem);
+            } catch (Exception e) {
+                engine.mLog("Error in crate list: "~e.msg);
+            }
+        }
     }
 
     //create and place worms when necessary
@@ -1495,29 +1504,6 @@ class GameController : GameLogicPublic {
         }
     }
 
-    void collectCrate(CrateSprite crate, GameObject finder) {
-        //for some weapons like animal-weapons, transitive should be true
-        //and normally a non-collecting weapon should just explode here??
-        auto member = memberFromGameObject(finder, false);
-        if (!member) {
-            mLog("crate %s can't be collected by %s", crate, finder);
-            return;
-        }
-        mLog("%s collects crate %s", member, crate);
-        //transfer stuffies
-        foreach (Object o; crate.stuffies) {
-            auto w = cast(WeaponClass)o;
-            if (w) {
-                member.mTeam.addWeapon(w);
-            } else {
-                mLog("unknown crate item: %s", o);
-            }
-        }
-        //and destroy crate
-        crate.stuffies = null;
-        crate.collected();
-    }
-
     //place anywhere on landscape
     //returns success
     //  must_place = if true, this must not return false
@@ -1544,5 +1530,43 @@ class GameController : GameLogicPublic {
         sprite.setPos(npos);
         sprite.active = true;
         return true;
+    }
+
+    //choose a random weapon based on crate_list
+    //returns null if none was found
+    WeaponClass chooseRandomForCrate() {
+        if (mCrateList.length > 0) {
+            int r = engine.rnd.next(0, mCrateList.length);
+            return mCrateList[r];
+        } else {
+            return null;
+        }
+    }
+
+    void dropCrate() {
+        Vector2f from, to;
+        float water = engine.waterOffset - 10;
+        if (!engine.placeObject(water, 10, from, to, 5)) {
+            mLog("couldn't find a safe drop-position");
+            return;
+        }
+        auto content = chooseRandomForCrate();
+        if (content) {
+            GObjectSprite s = engine.createSprite("crate");
+            CrateSprite crate = cast(CrateSprite)s;
+            assert(!!crate);
+            //put stuffies into it
+            crate.stuffies = [new CollectableWeapon(content, 1)];
+            if (engine.rnd.next(0, 10) == 0) {
+                //add a bomb to that :D
+                crate.stuffies ~= new CollectableBomb();
+            }
+            //actually start it
+            crate.setPos(from);
+            crate.active = true;
+            mLog("drop %s -> %s", from, to);
+        } else {
+            mLog("failed to create crate contents");
+        }
     }
 }

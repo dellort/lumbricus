@@ -34,6 +34,7 @@ import utils.time;
 import utils.vector2;
 import utils.log;
 import utils.configfile;
+import utils.random;
 
 import std.stream;
 import std.outbuffer;
@@ -500,22 +501,7 @@ class GameTask : Task {
     }
 
     private void cmdCrateTest(MyBox[] args, Output write) {
-        Vector2f from, to;
-        float water = mServerEngine.waterOffset - 10;
-        if (!mServerEngine.placeObject(water, 10, from, to, 5)) {
-            write.writefln("couldn't find a safe drop-position");
-            return;
-        }
-        GObjectSprite s = mServerEngine.createSprite("crate");
-        CrateSprite crate = cast(CrateSprite)s;
-        assert(!!crate);
-        //put stuffies into it
-        Object esel = mServerEngine.findWeaponClass("esel");
-        crate.stuffies = [esel, esel];
-        //actually start it
-        crate.setPos(from);
-        crate.active = true;
-        write.writefln("drop %s -> %s", from, to);
+        mServerEngine.controller.dropCrate();
     }
 
     private void cmdShakeTest(MyBox[] args, Output write) {
