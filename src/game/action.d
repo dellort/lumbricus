@@ -9,6 +9,7 @@ import utils.mylist;
 import utils.time;
 import utils.factory;
 import utils.configfile;
+import utils.randval;
 public import utils.mybox;
 
 class ActionClassFactory : StaticFactory!(ActionClass)
@@ -136,7 +137,7 @@ class ActionListClass : ActionClass {
     ALExecType execType = ALExecType.sequential;
     ///number of loops over all actions
     int repeatCount = 1;
-    Time repeatDelay = Time.Null;
+    RandomInt repeatDelayMs = {0, 0};
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         //parameters for _this_ list
@@ -145,7 +146,8 @@ class ActionListClass : ActionClass {
             execType = ALExecType.parallel;
         }
         repeatCount = node.getIntValue("repeat", 1);
-        repeatDelay = timeMsecs(node.getIntValue("repeat_delay", 0));
+        repeatDelayMs = RandomInt(node.getStringValue("repeat_delay", "0"),
+            eng.rnd);
         //now load contained actions
         foreach (ConfigNode n; node) {
             auto ac = actionFromConfig(eng, n);
@@ -181,6 +183,7 @@ class ActionList : Action {
         int mRepCounter;
         Time mAllDoneTime, mNextLoopTime;
         bool mAborting, mDoneFlag, mWaitingForNextLoop;
+        RandomInt repeatDelayMs = {0, 0};
     }
 
     //called before every loop over all actions
@@ -190,6 +193,7 @@ class ActionList : Action {
     this(ActionListClass base, GameEngine eng) {
         super(base, eng);
         myclass = base;
+        repeatDelayMs = base.repeatDelayMs;
         //create actions
         foreach (ActionClass ac; myclass.actions) {
             auto newInst = ac.createInstance(engine);
@@ -213,14 +217,15 @@ class ActionList : Action {
         //all done? then forward done flag
         if (mDoneCounter >= mActions.length) {
             mAllDoneTime = engine.gameTime.current;
-            mNextLoopTime = mAllDoneTime + myclass.repeatDelay;
+            mNextLoopTime = mAllDoneTime
+                + timeMsecs(repeatDelayMs.nextValue());
             mRepCounter--;
             //note: can be <0, which means infinite execution
             if (mRepCounter == 0) {
                 listDone();
             } else {
                 //and the whole thing once again
-                if (myclass.repeatDelay == Time.Null) {
+                if (repeatDelayMs.value == 0) {
                     runLoop();
                 } else {
                     mWaitingForNextLoop = true;
@@ -406,12 +411,10 @@ abstract class Action : GameObject {
 ///TimedAction: simple action that pauses execution for some msecs
 ///can also serve as base class for actions requiring a lifetime
 class TimedActionClass : ActionClass {
-    Time duration;
-    bool randomDuration;
+    RandomInt durationMs;
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
-        duration = timeMsecs(node.getIntValue("duration",1000));
-        randomDuration = node.getBoolValue("random_duration",false);
+        durationMs = RandomInt(node.getStringValue("duration","1000"), eng.rnd);
     }
 
     TimedAction createInstance(GameEngine eng) {
@@ -437,12 +440,7 @@ class TimedAction : Action {
 
     //hehe... (use the 3 functions below)
     override final protected ActionRes initialStep() {
-        Time aDuration;
-        if (myclass.randomDuration)
-            aDuration = timeMsecs(myclass.duration.msecs
-                * engine.rnd.nextDouble());
-        else
-            aDuration = myclass.duration;
+        Time aDuration = timeMsecs(myclass.durationMs.sample());
         mFinishTime = engine.gameTime.current + aDuration;
         if (doImmediate() == ActionRes.moreWork) {
             //check for 0 delay special case

@@ -11,6 +11,7 @@ import physics.world;
 import utils.configfile;
 import utils.time;
 import utils.vector2;
+import utils.randval;
 
 ///Base class for weapon-activated actions (just for parameter handling)
 class WeaponAction : Action {
@@ -37,10 +38,10 @@ class WeaponAction : Action {
 
 ///Causes an explosion at FireInfo.pos
 class ExplosionActionClass : ActionClass {
-    float damage = 5.0f;
+    RandomFloat damage;
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
-        damage = node.getFloatValue("damage", damage);
+        damage = RandomFloat(node.getStringValue("damage", "5.0"));
     }
 
     ExplosionAction createInstance(GameEngine eng) {
@@ -65,7 +66,8 @@ class ExplosionAction : WeaponAction {
     override protected ActionRes initialStep() {
         super.initialStep();
         if (!mFireInfo.pos.isNaN)
-            engine.explosionAt(mFireInfo.pos, myclass.damage, mShootbyObj);
+            engine.explosionAt(mFireInfo.pos, myclass.damage.sample(),
+                mShootbyObj);
         return ActionRes.done;
     }
 }

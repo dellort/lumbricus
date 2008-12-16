@@ -22,6 +22,7 @@ import utils.time;
 import utils.configfile;
 import utils.log;
 import utils.random;
+import utils.randval;
 import utils.factory;
 
 ///Base class for constant sprite actions
@@ -47,7 +48,7 @@ class SpriteActionClass : TimedActionClass {
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         super.loadFromConfig(eng, node);
         if (!node.findValue("duration"))
-            duration = timeHours(12378999);
+            durationMs = RandomInt(1237899900);
     }
 }
 
