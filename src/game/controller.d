@@ -104,7 +104,7 @@ class ServerMemberControl : TeamMemberControl {
     void weaponDraw(WeaponClass w) {
         auto m = activemember;
         if (m) {
-            m.selectWeapon(w);
+            m.selectWeaponByClass(w);
         }
     }
 
@@ -188,6 +188,7 @@ class ServerTeam : Team {
         TargetIndicator mCurrentTargetInd;
 
         Vector2f movementVec = {0, 0};
+        bool mAlternateControl;
     }
 
     //node = the node describing a single team
@@ -209,6 +210,7 @@ class ServerTeam : Team {
         //what's a default weapon? I don't know, so I can't bring it back
         //defaultWeapon = weapons.byId(node["default_weapon"]);
         gravestone = node.getIntValue("grave", 0);
+        mAlternateControl = node.getStringValue("control") != "worms";
     }
 
     // --- start Team
@@ -261,6 +263,10 @@ class ServerTeam : Team {
     }
 
     // --- end Team
+
+    bool alternateControl() {
+        return mAlternateControl;
+    }
 
     private void placeMembers() {
         foreach (ServerTeamMember m; mMembers) {
@@ -403,7 +409,7 @@ class ServerTeam : Team {
         }
         if (mPointMode == PointMode.instant) {
             //instant mode -> fire and forget
-            current.doFireDown();
+            current.doFireDown(true);
             targetIsSet = false;
         }
     }
@@ -495,17 +501,15 @@ class ServerTeam : Team {
     }
 }
 
-const Time cWeaponLoadTime = timeMsecs(1500);
-
 //member of a team, currently (and maybe always) capsulates a WormSprite object
-class ServerTeamMember : TeamMember {
+class ServerTeamMember : TeamMember, WormController {
     ServerTeam mTeam;
     char[] mName = "unnamed worm";
 
     private {
         WeaponItem mCurrentWeapon;
         bool mActive;
-        Time mLastAction, mStandTime;
+        Time mLastAction;
         WormSprite mWorm;
         bool mWormAction;
         Vector2f mLastMoveVector;
@@ -513,11 +517,6 @@ class ServerTeamMember : TeamMember {
         int lastKnownLifepower;
         int mLastKnownPhysicHealth;
         int mCurrentHealth; //health value reported to client
-        //that thing when you e.g. shoot a bazooka to set the fire strength
-        bool mThrowing;
-        Time mThrowingStarted;
-        //null if not there, instantiated all the time it's needed
-        TargetCross mTargetCross;
     }
 
     this(char[] a_name, ServerTeam a_team) {
@@ -596,6 +595,9 @@ class ServerTeamMember : TeamMember {
         //take control over dying, so we can let them die on round end
         mWorm.delayedDeath = true;
         mWorm.gravestone = mTeam.gravestone;
+        mWorm.teamColor = mTeam.color;
+        //set feedback interface to this class
+        mWorm.wcontrol = this;
         //let Controller place the worm
         mTeam.parent.placeOnLandscape(mWorm);
     }
@@ -649,23 +651,21 @@ class ServerTeamMember : TeamMember {
             move(Vector2f(0));
             mLastAction = timeMusecs(0);
             mWormAction = false;
-            mThrowing = false;
             if (isAlive) {
                 mWorm.activateJetpack(false);
-                mWorm.drawWeapon(false);
             }
+            mWorm.weapon = null;
             mActive = act;
-
-            //only needed because apparently simulate() isn't called anymore when
-            //round has finished, and worm is possibly left with the target cross
-            updateTargetCross();
         }
     }
 
     void jump(JumpMode j) {
         if (!isControllable)
             return;
-        mWorm.jump(j);
+        if (mWorm.allowAlternate())
+            doAlternateFire();
+        else
+            mWorm.jump(j);
         wormAction();
     }
 
@@ -691,8 +691,7 @@ class ServerTeamMember : TeamMember {
         //ropes etc. that could be added later?
         //suggestion: define when exactly a worm can throw a weapon and attempt
         //to display the weapon icon in these situations
-        return mWorm.displayWeaponIcon ||
-            (currentWeapon() && mWorm.jetpackActivated);
+        return mWorm.displayWeaponIcon;
     }
 
     void selectWeapon(WeaponItem weapon) {
@@ -708,7 +707,7 @@ class ServerTeamMember : TeamMember {
         updateWeapon();
     }
 
-    void selectWeapon(WeaponClass id) {
+    void selectWeaponByClass(WeaponClass id) {
         selectWeapon(mTeam.weapons.byId(id));
     }
 
@@ -730,82 +729,73 @@ class ServerTeamMember : TeamMember {
         } else {
             messageAdd(_("msgnoweapon"));
         }*/
-        Shooter nshooter;
         if (selected) {
-            nshooter = selected.createShooter(mWorm);
             mTeam.setPointMode(selected.fireMode.point);
+        } else {
+            mTeam.setPointMode(PointMode.none);
         }
-        mWorm.shooter = nshooter;
+        mWorm.weapon = selected;
     }
 
-    void doFireDown() {
+    void doFireDown(bool forceSelected = false) {
         if (!isControllable)
             return;
 
-        auto shooter = worm.shooter;
-
-        //in jetpack mode, weapon still can be active, but not "drawn"
-        if (/*!worm.weaponDrawn ||*/ !worm.shooter)
-            return; //go away
-
-        if (shooter.weapon.fireMode.variableThrowStrength) {
-            mThrowing = true;
-            mThrowingStarted = mEngine.gameTime.current;
-            return;
-        } else {
-            reallyFire(shooter.weapon.fireMode.throwStrengthFrom);
+        if (mWorm.allowAlternate && !forceSelected && !mTeam.alternateControl) {
+            //non-alternate (worms-like) control -> spacebar disables
+            //background weapon if possible (like jetpack)
+            mWorm.fireAlternate();
+            wormAction();
+        } else
+        if (worm.fire()) {
+            wormAction();
         }
-
-        wormAction();
     }
 
     void doFireUp() {
-        if (!isControllable || !mThrowing || !worm.shooter)
-            return;
-        auto strength = currentFireStrength();
-        mThrowing = false;
-        auto fm = worm.shooter.weapon.fireMode;
-        reallyFire(fm.throwStrengthFrom + strength
-            * (fm.throwStrengthTo-fm.throwStrengthFrom));
-    }
-
-    //return the fire strength value, always between 0.0 and 1.0
-    float currentFireStrength() {
-        if (!mThrowing) //what??
-            return 0;
-        auto diff = mEngine.gameTime.current - mThrowingStarted;
-        float s = cast(double)diff.msecs / cWeaponLoadTime.msecs;
-        return clampRangeC(s, 0.0f, 1.0f);
-    }
-
-    void reallyFire(float strength) {
-        if (!worm.shooter)
+        if (!isControllable)
             return;
 
-        auto shooter = worm.shooter;
-
-        mTeam.parent.mLog("fire: %s", shooter.weapon.name);
-
-        FireInfo info;
-        info.dir = worm.weaponDir();
-        info.strength = strength;
-        info.timer = shooter.weapon.fireMode.timerFrom;
-        info.pointto = mTeam.currentTarget;
-        shooter.fire(info);
-
-        didFire();
-        wormAction();
+        if (worm.fire(true)) {
+            wormAction();
+        }
     }
 
-    void didFire() {
-        assert(mCurrentWeapon !is null);
-        mCurrentWeapon.decrease();
+    void doAlternateFire() {
+        if (!isControllable)
+            return;
+
+        if (mTeam.alternateControl) {
+            //alternate (new-lumbricus) control: alternate-fire button (return)
+            //refires background weapon (like jetpack-deactivation)
+            if (mWorm.allowAlternate()) {
+                mWorm.fireAlternate();
+                wormAction();
+            }
+        } else {
+            //worms-like: alternate-fire button (return) fires selected
+            //weapon if in secondary mode
+            if (mWorm.allowFireSecondary()) {
+                if (worm.fire()) {
+                    wormAction();
+                }
+            }
+        }
+    }
+
+    Vector2f getTarget() {
+        return mTeam.currentTarget;
+    }
+
+    void reduceAmmo(Shooter sh) {
+        WeaponItem wi = mTeam.weapons.byId(sh.weapon);
+        assert(!!wi);
+        wi.decrease();
         mTeam.parent.updateWeaponStats(this);
-        /+ not valid anymore (weapon still can be active)
-        if (!mCurrentWeapon.canUse())
-            //nothing left? put away
-            selectWeapon(cast(WeaponItem)null);
-        +/
+        if (!wi.canUse)
+            //weapon ran out of ammo
+            sh.interruptFiring();
+        updateWeapon();
         //xxx select next weapon when current is empty... oh sigh
         //xxx also, select current weapon if we still have one, but weapon is
         //    undrawn! (???)
@@ -855,44 +845,6 @@ class ServerTeamMember : TeamMember {
     void simulate() {
         if (!mActive)
             return;
-        if (mWorm.isStanding()) {
-            if (mStandTime == timeNever())
-                mStandTime = mEngine.gameTime.current;
-            //worms are not standing, they are FIGHTING!
-            if (mEngine.gameTime.current - mStandTime > timeMsecs(250))
-                mWorm.drawWeapon(true);
-        } else {
-            mStandTime = timeNever();
-        }
-        auto strength = currentFireStrength();
-        if (mTargetCross) {
-            mTargetCross.setLoad(strength);
-        }
-        //xxx replace comparision by checking against the time, with a small
-        //  delay before actually shooting (like wwp does)
-        if (strength == 1.0f)
-            doFireUp();
-        updateTargetCross();
-    }
-
-    void updateTargetCross() {
-        //create/destroy the target cross
-        bool exists = !!mTargetCross;
-        bool shouldexist = false;
-        if (worm.weaponDrawn() && worm.shooter) {
-            //xxx special cases not handled, just turns on/off crosshair
-            shouldexist =
-                worm.shooter.weapon.fireMode.direction != ThrowDirection.fixed;
-        }
-        if (exists != shouldexist) {
-            if (exists) {
-                mTargetCross.remove();
-                mTargetCross = null;
-            } else {
-                mTargetCross = mEngine.graphics.createTargetCross(mTeam.color);
-                mTargetCross.attach(worm.graphic);
-            }
-        }
     }
 
     void youWinNow() {
@@ -903,19 +855,12 @@ class ServerTeamMember : TeamMember {
     bool delayedAction() {
         //check for any activity that might justify control beyond end-of-round
         //e.g. still charging a weapon, still firing a multi-shot weapon
-        bool ac = mThrowing;
-        if (worm.shooter)
-            ac |= worm.shooter.activity;
-        return ac;
+        return worm.delayedAction;
     }
 
     void forceAbort() {
         //forced stop of all action (like when being damaged)
-        mThrowing = false;
-        if (worm.shooter) {
-            if (worm.shooter.activity)
-                worm.shooter.interruptFiring();
-        }
+        mWorm.forceAbort();
     }
 }
 

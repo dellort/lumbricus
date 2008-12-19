@@ -188,6 +188,8 @@ class ActionList : Action {
 
     //called before every loop over all actions
     void delegate(Action sender) onStartLoop;
+    //called when all actions of current loop are done
+    void delegate(Action sender) onEndLoop;
     ActionListClass myclass;
 
     this(ActionListClass base, GameEngine eng) {
@@ -216,6 +218,8 @@ class ActionList : Action {
         }
         //all done? then forward done flag
         if (mDoneCounter >= mActions.length) {
+            if (onEndLoop)
+                onEndLoop(this);
             mAllDoneTime = engine.gameTime.current;
             mNextLoopTime = mAllDoneTime
                 + timeMsecs(repeatDelayMs.nextValue());
@@ -281,6 +285,8 @@ class ActionList : Action {
         mCurrent = 0;
         if (onStartLoop)
             onStartLoop(this);
+        if (mAborting)
+            return ActionRes.done;
         if (myclass.execType == ALExecType.parallel) {
             //run all actions at once, without waiting for done() callbacks
             foreach (Action a; mActions) {

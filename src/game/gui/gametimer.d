@@ -28,9 +28,6 @@ class GameTimer : Container {
         //ew!
         mInitSize = mTimeView.font.textSize(mTimeView.text);
 
-        addChild(mTimeView);
-        setChildLayout(mTimeView, WidgetLayout.Noexpand);
-
         mLastTime = timeCurrentTime();
     }
 
@@ -57,10 +54,10 @@ class GameTimer : Container {
         if (active != mActive) {
             mActive = active;
             if (mActive) {
-                //xxx
-                //scene.add(mTimeView);
+                addChild(mTimeView);
+                setChildLayout(mTimeView, WidgetLayout.Noexpand);
             } else {
-                //scene.remove(mTimeView);
+                removeChild(mTimeView);
             }
         }
     }

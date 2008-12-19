@@ -57,7 +57,11 @@ private class ActionShooter : Shooter {
     }
 
     void fireFinish(Action sender) {
+        //xxx no list? so run after-loop event manually
+        if (!cast(ActionList)sender)
+            roundFired(sender);
         mFireAction = null;
+        finished();
     }
 
     protected MyBox fireReadParam(char[] id) {
@@ -74,9 +78,19 @@ private class ActionShooter : Shooter {
     void fireRound(Action sender) {
         //if the outer fire action is a list, called every loop, else once
         //before firing
+        fireInfo.pos = owner.physics.pos;
     }
 
-    void fire(FireInfo info) {
+    void roundFired(Action sender) {
+        //called after every loop
+        reduceAmmo();
+    }
+
+    void readjust(Vector2f dir) {
+        fireInfo.dir = dir;
+    }
+
+    protected void doFire(FireInfo info) {
         if (mFireAction) {
             //try to interrupt
             interruptFiring();
@@ -86,7 +100,6 @@ private class ActionShooter : Shooter {
         }
 
         fireInfo = info;
-        fireInfo.pos = owner.physics.pos;
         fireInfo.shootbyRadius = owner.physics.posp.radius;
         //create firing action
         mFireAction = myclass.onFire.createInstance(engine);
@@ -98,6 +111,7 @@ private class ActionShooter : Shooter {
         auto al = cast(ActionList)mFireAction;
         if (al) {
             al.onStartLoop = &fireRound;
+            al.onEndLoop = &roundFired;
         } else {
             //no list? so just one-time call when mFireAction is run
             mFireAction.onExecute = &fireRound;
@@ -117,6 +131,7 @@ private class ActionShooter : Shooter {
     }
 
     override void interruptFiring() {
-        mFireAction.abort();
+        if (mFireAction)
+            mFireAction.abort();
     }
 }

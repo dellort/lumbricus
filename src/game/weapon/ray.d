@@ -44,7 +44,6 @@ class RayWeapon: ActionWeapon {
 
 private class RayShooter: ActionShooter {
     RayWeapon base;
-    private Vector2f mOwnerPos;
 
     this(RayWeapon base, GObjectSprite a_owner, GameEngine engine) {
         super(base, a_owner, engine);
@@ -56,7 +55,7 @@ private class RayShooter: ActionShooter {
         float a = base.spread*engine.rnd.nextDouble() - base.spread/2.0f;
         float dist = owner.physics.posp.radius + 2;
         Vector2f ndir = fireInfo.dir.rotated(a*PI/180.0f);
-        Vector2f npos = mOwnerPos + ndir*dist;
+        Vector2f npos = owner.physics.pos + ndir*dist;
         PhysicObject o;
         Vector2f hitPoint, normal;
         bool hit = engine.physicworld.shootRay(npos, ndir,
@@ -75,9 +74,13 @@ private class RayShooter: ActionShooter {
         }
     }
 
-    override void fire(FireInfo info) {
-        mOwnerPos = owner.physics.pos;
-        super.fire(info);
+    override void roundFired(Action sender) {
+        //no reduceAmmo here
+    }
+
+    override protected void doFire(FireInfo info) {
+        super.doFire(info);
+        reduceAmmo();
     }
 }
 

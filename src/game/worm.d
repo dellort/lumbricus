@@ -10,6 +10,7 @@ import game.sprite;
 import game.weapon.types;
 import game.weapon.weapon;
 import game.temp;  //whatever, importing gamepublic doesn't give me JumpMode
+import game.gamepublic;
 import utils.misc;
 import utils.vector2;
 import utils.time;
@@ -37,12 +38,19 @@ interface IControllable {
 }
 **/
 
+interface WormController {
+    Vector2f getTarget();
+
+    void reduceAmmo(Shooter sh);
+}
+
+const Time cWeaponLoadTime = timeMsecs(1500);
+
 class WormSprite : GObjectSprite {
     private {
         WormSpriteClass wsc;
 
         float mWeaponAngle = 0;
-        float mWeaponMove = 0;
 
         //beam destination, only valid while state is st_beaming
         Vector2f mBeamDest;
@@ -50,7 +58,9 @@ class WormSprite : GObjectSprite {
         Vector2f mMoveVector;
 
         //selected weapon
-        Shooter mWeapon;
+        WeaponClass mWeapon;
+        Shooter mShooterMain, mShooterSec;
+        Time mStandTime;
 
         //by default off, GameController can use this
         bool mDelayedDeath;
@@ -73,7 +83,18 @@ class WormSprite : GObjectSprite {
         SequenceState[FlyMode.max+1] mFlyState;
 
         JumpMode mJumpMode;
+
+        //null if not there, instantiated all the time it's needed
+        TargetCross mTargetCross;
+
+        //that thing when you e.g. shoot a bazooka to set the fire strength
+        bool mThrowing, mFireDown;
+        Time mThrowingStarted;
     }
+
+    TeamTheme teamColor;
+
+    WormController wcontrol;
 
     //-PI/2..+PI/2, actual angle depends from whether worm looks left or right
     float weaponAngle() {
@@ -83,6 +104,11 @@ class WormSprite : GObjectSprite {
     //real weapon angle (normalized direction)
     Vector2f weaponDir() {
         return dirFromSideAngle(physics.lookey, weaponAngle);
+    }
+
+    //weaponDir with horizontal firing angle (only considers lookey)
+    Vector2f weaponDirHor() {
+        return dirFromSideAngle(physics.lookey, 0);
     }
 
     //if can move etc.
@@ -141,7 +167,6 @@ class WormSprite : GObjectSprite {
 
     void updateControl() {
         if (!haveAnyControl()) {
-            drawWeapon(false);
             activateJetpack(false);
         }
     }
@@ -168,14 +193,19 @@ class WormSprite : GObjectSprite {
             return;
 
         if (currentState is wsc.st_weapon) {
-            assert(!!mWeapon);
-            char[] w = mWeapon.weapon.animations[WeaponWormAnimations.Arm];
+            auto curW = mWeapon;
+            if (mShooterMain && mShooterMain.activity)
+                curW = mShooterMain.weapon;
+            assert(!!curW);
+
+            char[] w = curW.animations[WeaponWormAnimations.Arm];
             auto state = graphic.type.findState(w, true);
-            mWeaponAsIcon = !state;
-            if (mWeaponAsIcon) {
+            bool noState = !state;
+            if (noState) {
                 //no specific weapon animation there
                 state = graphic.type.findState("weapon_unknown");
             }
+            mWeaponAsIcon = noState || curW !is mWeapon;
             graphic.setState(state);
             return;
         }
@@ -245,26 +275,53 @@ class WormSprite : GObjectSprite {
     override void simulate(float deltaT) {
         super.simulate(deltaT);
 
+        float weaponMove;
         //check if the worm is really allowed to move
         if (currentState.canAim) {
             //invert y to go from screen coords to math coords
-            mWeaponMove = -mMoveVector.y;
+            weaponMove = -mMoveVector.y;
         }
-        if (currentState.canWalk) {
-            physics.setWalking(mMoveVector);
+        if (currentState.canWalk && !mThrowing) {
+            //no walk while shooting (or charging)
+            if (!mShooterMain || !mShooterMain.activity)
+                physics.setWalking(mMoveVector);
         }
 
-        if (weaponDrawn) {
-            //when user presses key to change weapon angle
-            //can rotate through all 180 degrees in 5 seconds
-            //(given abs(mWeaponMove) == 1)
-            if (abs(mWeaponMove) > 0.0001) {
-                mWeaponAngle += mWeaponMove*deltaT*PI/2;
-                mWeaponAngle = max(mWeaponAngle, cast(float)-PI/2);
-                mWeaponAngle = min(mWeaponAngle, cast(float)PI/2);
-                updateAnimation();
-            }
+        //when user presses key to change weapon angle
+        //can rotate through all 180 degrees in 5 seconds
+        //(given abs(weaponMove) == 1)
+        if (abs(weaponMove) > 0.0001) {
+            mWeaponAngle += weaponMove*deltaT*PI/2;
+            mWeaponAngle = max(mWeaponAngle, cast(float)-PI/2);
+            mWeaponAngle = min(mWeaponAngle, cast(float)PI/2);
+            updateAnimation();
+            checkReadjust();
         }
+
+        if (isStanding() && mWeapon) {
+            if (mStandTime == timeNever())
+                mStandTime = engine.gameTime.current;
+            //worms are not standing, they are FIGHTING!
+            if (engine.gameTime.current - mStandTime > timeMsecs(350)) {
+                setState(wsc.st_weapon);
+            }
+        } else {
+            mStandTime = timeNever();
+        }
+
+        auto strength = currentFireStrength();
+        if (mTargetCross) {
+            mTargetCross.setLoad(strength);
+        }
+        //xxx replace comparision by checking against the time, with a small
+        //  delay before actually shooting (like wwp does)
+        if (mThrowing && strength == 1.0f)
+            fire(true);
+
+        //check if fire button is being held down, waiting for right state
+        if (mFireDown)
+            mFireDown = !fire();
+
         //if shooter dies, undraw weapon
         //xxx doesn't work yet, shooter starts as active=false (wtf)
         //if (mWeapon && !mWeapon.active)
@@ -278,52 +335,224 @@ class WormSprite : GObjectSprite {
         }
     }
 
-    void drawWeapon(bool draw) {
-        if (draw == weaponDrawn)
-            return;
-        if (draw) {
-            if (currentState !is wsc.st_stand)
-                return;
-            if (!haveAnyControl())
-                return;
-            if (!mWeapon)
-                return;
-        }
-
-        setState(draw ? wsc.st_weapon : wsc.st_stand);
-    }
-    //xxx kind of wrong, weapon can be selected in jetpack mode etc. too, needs
-    //to be fixed or redefined, the controller is broken anyway
-    bool weaponDrawn() {
-        return currentState is wsc.st_weapon;
-    }
-
     //if weapon needs to be displayed outside the worm
-    //slightly bogus in the same way like weaponDrawn()
     bool displayWeaponIcon() {
-        //hm not very nice
-        return mWeaponAsIcon && weaponDrawn;
+        //two cases here: a) we are in weapon state, but have no animation
+        bool show = currentState is wsc.st_weapon && mWeaponAsIcon;
+        //b) main weapon is busy, but secondary is ready
+        //   (meaning worm animation is showing primary weapon)
+        show |= allowFireSecondary();
+        return show;
     }
 
     //xxx: clearify relationship between shooter and so on
-    void shooter(Shooter sh) {
-        //xxx: haha, not sure if this is right
-        //is to disallow interrupting i.e. for guns
-        if (mWeapon) {
-            if (mWeapon.active)
-                mWeapon.interruptFiring();
-            if (mWeapon.active)
-                return; //interrupting didn't work
+    void weapon(WeaponClass w) {
+        mWeapon = w;
+        if (w) {
+            if (currentState is wsc.st_stand)
+                setState(wsc.st_weapon);
+            //xxx: if weapon is changed, play the correct animations
+            setCurrentAnimation();
+            updateTargetCross();
+        } else {
+            if (!mShooterMain || !mShooterMain.activity) {
+                if (currentState is wsc.st_weapon)
+                    setState(wsc.st_stand);
+            }
         }
-        mWeapon = sh;
-        if (!sh) {
-            drawWeapon(false);
+    }
+    WeaponClass weapon() {
+        return mWeapon;
+    }
+
+    bool fire(bool keyUp = false) {
+        if (allowFireSecondary()) {
+            //secondary fire is possible, so do that instead
+            //  (main weapon could only be refired here)
+            if (keyUp)
+                return false;
+            if (mShooterSec && mShooterSec.activity) {
+                //think of firing a supersheep on a rope
+                mShooterSec.refire();
+                return true;
+            }
+            if (!mWeapon)
+                return false;
+
+            //no variable strength here
+            fireWeapon(mShooterSec, mWeapon.fireMode.throwStrengthFrom);
+            return true;
         }
-        //xxx: if weapon is changed, play the correct animations
+
+        //not firing a secondary weapon, allow main fire key for alternate, too
+        if (allowAlternate()) {
+            if (!keyUp) {
+                return fireAlternate();
+            }
+            return false;
+        }
+
+        //no-no
+        if (!mWeapon)
+            return false;
+        //check if in wrong state, like flying around
+        if (!currentState.canFire) {
+            //wrong state? so save keypress to fire when state is right
+            mFireDown = !keyUp;
+            return false;
+        }
+        if (currentState is wsc.st_stand)
+            //draw weapon
+            setState(wsc.st_weapon);
+
+        if (!keyUp) {
+            //start firing
+            if (mWeapon.fireMode.variableThrowStrength) {
+                //charge strength
+                mThrowing = true;
+                mThrowingStarted = engine.gameTime.current;
+            } else {
+                //fire instantly with default strength
+                fireWeapon(mShooterMain, mWeapon.fireMode.throwStrengthFrom);
+            }
+        } else {
+            //fire key released, really fire variable-strength weapon
+            if (!mThrowing)
+                return false;
+            auto strength = currentFireStrength();
+            mThrowing = false;
+            auto fm = mWeapon.fireMode;
+            fireWeapon(mShooterMain, fm.throwStrengthFrom + strength
+                * (fm.throwStrengthTo-fm.throwStrengthFrom));
+        }
+
+        return true;
+    }
+
+    bool fireAlternate() {
+        if (!allowAlternate())
+            return false;
+
+        //pressed fire button again while shooter is active,
+        //so don't fire another round but let the shooter handle it
+        mShooterMain.refire();
+
+        return true;
+    }
+
+    //would the alternate-fire-button have an effect
+    bool allowAlternate() {
+        return mShooterMain && mShooterMain.activity();
+    }
+
+    //allow firing the current weapon as secondary weapon
+    bool allowFireSecondary() {
+        //main shooter is active and shooter's weapon allows secondary weapons
+        //also, can't fire a weapon allowing secondary weapons (jetpack) here
+        //note that possibly mShooterMain.weapon != mWeapon
+        return mShooterMain && mShooterMain.activity()
+            && mShooterMain.weapon.allowSecondary
+            && mWeapon && !mWeapon.allowSecondary;
+    }
+
+    //return the fire strength value, always between 0.0 and 1.0
+    private float currentFireStrength() {
+        if (!mThrowing) //what??
+            return 0;
+        auto diff = engine.gameTime.current - mThrowingStarted;
+        float s = cast(double)diff.msecs / cWeaponLoadTime.msecs;
+        return clampRangeC(s, 0.0f, 1.0f);
+    }
+
+    private void checkReadjust() {
+        if (mShooterMain && mShooterMain.activity)
+            mShooterMain.readjust(weaponDir());
+        if (mShooterSec && mShooterSec.activity)
+            mShooterSec.readjust(weaponDir());
+    }
+
+    //fire currently selected weapon (mWeapon) as main weapon
+    //will also create the shooter if necessary
+    private void fireWeapon(ref Shooter sh, float strength,
+        bool fixedDir = false)
+    {
+        if (!mWeapon)
+            return;
+        if (!sh || sh.weapon != mWeapon)
+            sh = mWeapon.createShooter(this);
+
+        engine.mLog("fire: %s", mWeapon.name);
+
+        FireInfo info;
+        if (fixedDir)
+            info.dir = weaponDirHor();
+        else
+            info.dir = weaponDir();
+        info.strength = strength;
+        info.timer = mWeapon.fireMode.timerFrom;
+        if (wcontrol)
+            info.pointto = wcontrol.getTarget;
+        else
+            info.pointto = physics.pos;
+        sh.ammoCb = &reduceAmmo;
+        sh.finishCb = &shooterFinish;
+        sh.fire(info);
+    }
+
+    //callback from shooter when a round was fired
+    private void reduceAmmo(Shooter sh) {
+        if (wcontrol)
+            wcontrol.reduceAmmo(sh);
+    }
+
+    private void shooterFinish(Shooter sh) {
+        if (!mWeapon) {
+            //check for delayed state change weapon->stand because
+            //main weapon was unset
+            //xxx is this case even possible?
+            if (!mShooterMain || !mShooterMain.activity) {
+                if (currentState is wsc.st_weapon)
+                    setState(wsc.st_stand);
+            }
+        }
+        //shooter is done, so check if we need to switch animation
         setCurrentAnimation();
     }
-    Shooter shooter() {
-        return mWeapon;
+
+    private void updateTargetCross() {
+        //create/destroy the target cross
+        bool exists = !!mTargetCross;
+        bool shouldexist = false;
+        if (currentState is wsc.st_weapon && mWeapon) {
+            //xxx special cases not handled, just turns on/off crosshair
+            shouldexist = mWeapon.fireMode.direction != ThrowDirection.fixed;
+        }
+        if (exists != shouldexist) {
+            if (exists) {
+                mTargetCross.remove();
+                mTargetCross = null;
+            } else {
+                mTargetCross = engine.graphics.createTargetCross(teamColor);
+                mTargetCross.attach(graphic);
+            }
+        }
+    }
+
+    bool delayedAction() {
+        bool ac = mThrowing;
+        if (mShooterMain)
+            ac |= mShooterMain.delayedAction;
+        if (mShooterSec)
+            ac |= mShooterSec.delayedAction;
+        return ac;
+    }
+
+    void forceAbort() {
+        if (mShooterSec && mShooterSec.activity)
+            mShooterSec.interruptFiring();
+        if (mShooterMain && mShooterMain.activity)
+            mShooterMain.interruptFiring();
+        mWeapon = null;
     }
 
     override protected void stateTransition(StaticStateInfo from,
@@ -362,6 +591,10 @@ class WormSprite : GObjectSprite {
             }
         }
 
+        if (from is wsc.st_weapon || to is wsc.st_weapon) {
+            updateTargetCross();
+        }
+
         //die by blowing up
         if (to is wsc.st_dead) {
             mIsDead = true;
@@ -375,10 +608,6 @@ class WormSprite : GObjectSprite {
         }
 
         //stop movement if not possible
-        if (!currentState.canAim) {
-            //invert y to go from screen coords to math coords
-            mWeaponMove = 0;
-        }
         if (!currentState.canWalk) {
             physics.setWalking(Vector2f(0));
         }
@@ -490,6 +719,7 @@ class WormSprite : GObjectSprite {
                 }
 
             }
+            checkReadjust();
             //check death
             if (active && shouldDie() && !delayedDeath()) {
                 finallyDie();
@@ -504,6 +734,7 @@ class WormStateInfo : StaticStateInfo {
     bool isGrounded = false;    //is this a standing-on-ground state
     bool canWalk = false;       //should the worm be allowed to walk
     bool canAim = false;        //can the target cross be moved
+    bool canFire = false;       //can the main weapon be fired
 
     override void loadFromConfig(ConfigNode sc, ConfigNode physNode,
         GOSpriteClass owner)
@@ -512,6 +743,7 @@ class WormStateInfo : StaticStateInfo {
         isGrounded = sc.getBoolValue("is_grounded", isGrounded);
         canWalk = sc.getBoolValue("can_walk", canWalk);
         canAim = sc.getBoolValue("can_aim", canAim);
+        canFire = sc.getBoolValue("can_fire", canFire);
     }
 }
 

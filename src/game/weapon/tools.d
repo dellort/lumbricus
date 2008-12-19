@@ -46,6 +46,11 @@ class ToolClass : WeaponClass {
 class Tool : Shooter {
     protected ToolClass mToolClass;
     protected WormSprite mWorm;
+
+    override bool delayedAction() {
+        return false;
+    }
+
     this(ToolClass base, WormSprite a_owner) {
         super(base, a_owner, a_owner.engine);
         mToolClass = base;
@@ -58,31 +63,30 @@ class Tool : Shooter {
 }
 
 class Jetpack : Tool {
-    private {
-        bool mUsed;
-    }
-
     this(ToolClass b, WormSprite o) {
         super(b, o);
     }
 
-    override void fire(FireInfo info) {
-        if (!mUsed) {
-            mWorm.activateJetpack(true);
-            mUsed = true;
-            active = true;
-        } else {
-            //second fire: deactivate jetpack again
-            mWorm.activateJetpack(false);
-            active = false;
-        }
+    override protected void doFire(FireInfo info) {
+        reduceAmmo();
+        mWorm.activateJetpack(true);
+        active = true;
+    }
+
+    override protected void doRefire() {
+        //second fire: deactivate jetpack again
+        mWorm.activateJetpack(false);
+        active = false;
+        finished();
     }
 
     override void simulate(float deltaT) {
         super.simulate(deltaT);
         //if it was used but it's not active anymore => die
-        if (mUsed && !mWorm.jetpackActivated())
+        if (!mWorm.jetpackActivated()) {
             active = false;
+            finished();
+        }
     }
 
     static this() {
@@ -100,28 +104,27 @@ class Rope : Tool {
         super(b, o);
     }
 
-    override void fire(FireInfo info) {
-        //xxx this is just debug code
-        if (!mUsed) {
-            float len = (mWorm.physics.pos - info.pointto).length * 0.9f;
-            mRope = new PhysicConstraint(mWorm.physics, info.pointto, len, 0.1, true);
-            engine.physicworld.add(mRope);
-            mUsed = true;
-            active = true;
-        } else {
-            mRope.dead = true;
-            mUsed = false;
-            active = false;
-        }
+    override protected void doFire(FireInfo info) {
+        reduceAmmo();
+        float len = (mWorm.physics.pos - info.pointto).length * 0.9f;
+        mRope = new PhysicConstraint(mWorm.physics, info.pointto, len, 0.1, true);
+        engine.physicworld.add(mRope);
+        active = true;
     }
 
-    override void simulate(float deltaT) {
-        super.simulate(deltaT);
+    override protected void doRefire() {
+        //second fire: deactivate rope
+        mRope.dead = true;
+        active = false;
+        finished();
     }
 
     override void interruptFiring() {
-        mRope.dead = true;
-        active = false;
+        if (active) {
+            mRope.dead = true;
+            active = false;
+            finished();
+        }
     }
 
     static this() {

@@ -19,6 +19,8 @@ static class WeaponClassFactory
 {
 }
 
+alias void delegate(Shooter sh) ShooterCallback;
+
 //abstract weapon type; only contains generic infos about a weapon
 //this includes how stuff is fired (for the code which does worm controll)
 //(argument against making classes like i.e. WeaponThrowable: no multiple
@@ -28,9 +30,11 @@ abstract class WeaponClass {
 
     //generally read-only fields
     char[] name; //weapon name, translateable string
-    int value;  //see config file
-    char[] category; //category-id for this weapon
-    bool isAirstrike; //needed to exlude it from cave levels
+    int value = 0;  //see config file
+    char[] category = "none"; //category-id for this weapon
+    bool isAirstrike = false; //needed to exlude it from cave levels
+    bool allowSecondary = false;  //allow selecting and firing a second
+                                  //weapon while active
 
     //for the weapon selection; only needed on client-side
     Resource!(Surface) icon;
@@ -49,9 +53,10 @@ abstract class WeaponClass {
         assert(mEngine !is null);
 
         name = node.name;
-        value = node.getIntValue("value", 0);
-        category = node.getStringValue("category", "none");
-        isAirstrike = node.getBoolValue("airstrike", false);
+        value = node.getIntValue("value", value);
+        category = node.getStringValue("category", category);
+        isAirstrike = node.getBoolValue("airstrike", isAirstrike);
+        allowSecondary = node.getBoolValue("allow_secondary", allowSecondary);
 
         icon = engine.gfx.resources.resource!(Surface)(node["icon"]);
 
@@ -108,6 +113,9 @@ class Shooter : GameObject {
     protected WeaponClass mClass;
     protected GObjectSprite owner;
 
+    //shooters should call this to reduce owner's ammo by 1
+    ShooterCallback ammoCb, finishCb;
+
     protected this(WeaponClass base, GObjectSprite a_owner, GameEngine engine) {
         super(engine, false);
         assert(base !is null);
@@ -115,11 +123,40 @@ class Shooter : GameObject {
         owner = a_owner;
     }
 
+    protected void reduceAmmo() {
+        if (ammoCb)
+            ammoCb(this);
+    }
+
+    protected void finished() {
+        if (finishCb)
+            finishCb(this);
+    }
+
+    bool delayedAction() {
+        return activity;
+    }
+
     public WeaponClass weapon() {
         return mClass;
     }
 
-    abstract void fire(FireInfo info);
+    //fire (i.e. activate) weapon
+    final void fire(FireInfo info) {
+        assert(!activity);
+        doFire(info);
+    }
+
+    //fire again (i.e. trigger special actions, like deactivating)
+    final void refire() {
+        assert(activity);
+        doRefire();
+    }
+
+    abstract protected void doFire(FireInfo info);
+
+    protected void doRefire() {
+    }
 
     //required for nasty weapons like guns which keep you from doing useful
     //things like running away
@@ -128,12 +165,7 @@ class Shooter : GameObject {
     }
 
     //often the worm can change shooting direction while the weapon still fires
-    //if this returns true, calls to readjust() are allowed (??)
-    bool canReAdjust() {
-        return !isFiring();
-    }
-
-    void readjust(FireInfo info) {
+    void readjust(Vector2f dir) {
     }
 
     //used by a worm to notify that the worm was interrupted while firing
