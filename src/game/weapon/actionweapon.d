@@ -62,6 +62,10 @@ private class ActionShooter : Shooter, RefireTrigger {
         return !!mFireAction || canRefire;
     }
 
+    override bool delayedAction() {
+        return !!mFireAction;
+    }
+
     void fireFinish(Action sender) {
         //xxx no list? so run after-loop event manually
         if (!cast(ActionList)sender)

@@ -110,8 +110,12 @@ class ActionSprite : GObjectSprite {
 
     //fill the FireInfo struct with current data
     protected void updateFireInfo() {
-        mFireInfo.dir = physics.velocity.normal;
         mFireInfo.strength = physics.velocity.length; //xxx confusing units :-)
+        if (mFireInfo.strength > 0)
+            mFireInfo.dir = physics.velocity.normal;
+        else
+            //NaN protection
+            mFireInfo.dir = Vector2f(0, -1);
         mFireInfo.pos = physics.pos;
         mFireInfo.shootbyRadius = physics.posp.radius;
         mFireInfo.surfNormal = mLastImpactNormal;
