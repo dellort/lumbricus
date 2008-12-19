@@ -161,9 +161,9 @@ private class ActionShooter : Shooter, RefireTrigger {
         +/
     }
 
-    protected void doRefire() {
+    protected bool doRefire() {
         if (!canRefire())
-            return;
+            return false;
         auto curs = mRefireSprites.dup;
         mRefireSprites = null;
         foreach (as; curs) {
@@ -173,6 +173,7 @@ private class ActionShooter : Shooter, RefireTrigger {
         }
         if (mRefireSprites.length == 0)
             finished();
+        return true;
     }
 
     override bool isFixed() {

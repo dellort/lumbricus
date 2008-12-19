@@ -73,11 +73,12 @@ class Jetpack : Tool {
         active = true;
     }
 
-    override protected void doRefire() {
+    override protected bool doRefire() {
         //second fire: deactivate jetpack again
         mWorm.activateJetpack(false);
         active = false;
         finished();
+        return true;
     }
 
     override void simulate(float deltaT) {
@@ -112,11 +113,12 @@ class Rope : Tool {
         active = true;
     }
 
-    override protected void doRefire() {
+    override protected bool doRefire() {
         //second fire: deactivate rope
         mRope.dead = true;
         active = false;
         finished();
+        return true;
     }
 
     override void interruptFiring() {

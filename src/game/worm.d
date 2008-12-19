@@ -88,7 +88,7 @@ class WormSprite : GObjectSprite {
         TargetCross mTargetCross;
 
         //that thing when you e.g. shoot a bazooka to set the fire strength
-        bool mThrowing, mFireDown;
+        bool mThrowing;
         Time mThrowingStarted;
     }
 
@@ -318,10 +318,6 @@ class WormSprite : GObjectSprite {
         if (mThrowing && strength == 1.0f)
             fire(true);
 
-        //check if fire button is being held down, waiting for right state
-        if (mFireDown)
-            mFireDown = !fire();
-
         //if shooter dies, undraw weapon
         //xxx doesn't work yet, shooter starts as active=false (wtf)
         //if (mWeapon && !mWeapon.active)
@@ -396,11 +392,8 @@ class WormSprite : GObjectSprite {
         if (!mWeapon)
             return false;
         //check if in wrong state, like flying around
-        if (!currentState.canFire) {
-            //wrong state? so save keypress to fire when state is right
-            mFireDown = !keyUp;
+        if (!currentState.canFire)
             return false;
-        }
         if (currentState is wsc.st_stand)
             //draw weapon
             setState(wsc.st_weapon);
@@ -435,9 +428,7 @@ class WormSprite : GObjectSprite {
 
         //pressed fire button again while shooter is active,
         //so don't fire another round but let the shooter handle it
-        mShooterMain.refire();
-
-        return true;
+        return mShooterMain.refire();
     }
 
     //would the alternate-fire-button have an effect
@@ -517,6 +508,7 @@ class WormSprite : GObjectSprite {
         }
         //shooter is done, so check if we need to switch animation
         setCurrentAnimation();
+        updateTargetCross();
     }
 
     private void updateTargetCross() {
@@ -525,7 +517,8 @@ class WormSprite : GObjectSprite {
         bool shouldexist = false;
         if (currentState is wsc.st_weapon && mWeapon) {
             //xxx special cases not handled, just turns on/off crosshair
-            shouldexist = mWeapon.fireMode.direction != ThrowDirection.fixed;
+            shouldexist = mWeapon.fireMode.direction != ThrowDirection.fixed &&
+                !allowAlternate();
         }
         if (exists != shouldexist) {
             if (exists) {

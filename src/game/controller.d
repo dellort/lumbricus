@@ -517,6 +517,7 @@ class ServerTeamMember : TeamMember, WormController {
         int lastKnownLifepower;
         int mLastKnownPhysicHealth;
         int mCurrentHealth; //health value reported to client
+        bool mFireDown;
     }
 
     this(char[] a_name, ServerTeam a_team) {
@@ -741,18 +742,23 @@ class ServerTeamMember : TeamMember, WormController {
         if (!isControllable)
             return;
 
+        bool success = false;
         if (mWorm.allowAlternate && !forceSelected && !mTeam.alternateControl) {
             //non-alternate (worms-like) control -> spacebar disables
             //background weapon if possible (like jetpack)
-            mWorm.fireAlternate();
+            success = mWorm.fireAlternate();
             wormAction();
-        } else
-        if (worm.fire()) {
-            wormAction();
+        } else {
+            success = worm.fire();
         }
+        //don't forget a keypress that had no effect
+        mFireDown = !success;
+        if (success)
+            wormAction();
     }
 
     void doFireUp() {
+        mFireDown = false;
         if (!isControllable)
             return;
 
@@ -845,6 +851,10 @@ class ServerTeamMember : TeamMember, WormController {
     void simulate() {
         if (!mActive)
             return;
+
+        //check if fire button is being held down, waiting for right state
+        if (mFireDown)
+            doFireDown();
     }
 
     void youWinNow() {

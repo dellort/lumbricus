@@ -148,14 +148,15 @@ class Shooter : GameObject {
     }
 
     //fire again (i.e. trigger special actions, like deactivating)
-    final void refire() {
+    final bool refire() {
         assert(activity);
-        doRefire();
+        return doRefire();
     }
 
     abstract protected void doFire(FireInfo info);
 
-    protected void doRefire() {
+    protected bool doRefire() {
+        return false;
     }
 
     //required for nasty weapons like guns which keep you from doing useful
