@@ -66,7 +66,7 @@ struct SpawnParams {
 // shootby = maybe need shooter position, size and velocity
 // shootby_object = for tracking who-shot-which
 void spawnsprite(GameEngine engine, int n, SpawnParams params,
-    FireInfo about, GameObject shootbyObject)
+    FireInfo about, GameObject shootbyObject, RefireTrigger tr)
 {
     //assert(shootby !is null);
     assert(n >= 0 && n < params.count);
@@ -127,6 +127,10 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
         ps.detonateTimer = about.timer;
         ps.target = about.pointto;
     }
+    auto as = cast(ActionSprite)sprite;
+    if (as) {
+        as.refireTrigger = tr;
+    }
 
     //set fire to it
     sprite.active = true;
@@ -162,10 +166,12 @@ class SpawnAction : WeaponAction {
 
     override protected ActionRes initialStep() {
         super.initialStep();
+        auto rft = context.getPar!(RefireTrigger)("refire_trigger");
         if (!mFireInfo.pos.isNaN) {
             //delay is not used, use ActionList looping for this
             for (int n = 0; n < myclass.sparams.count; n++) {
-                spawnsprite(engine, n, myclass.sparams, *mFireInfo, mShootbyObj);
+                spawnsprite(engine, n, myclass.sparams, *mFireInfo, mShootbyObj,
+                    rft);
             }
         }
         return ActionRes.done;

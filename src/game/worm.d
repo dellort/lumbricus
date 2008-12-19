@@ -283,7 +283,7 @@ class WormSprite : GObjectSprite {
         }
         if (currentState.canWalk && !mThrowing) {
             //no walk while shooting (or charging)
-            if (!mShooterMain || !mShooterMain.activity)
+            if (!mShooterMain || !mShooterMain.isFixed)
                 physics.setWalking(mMoveVector);
         }
 

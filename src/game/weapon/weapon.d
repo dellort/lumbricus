@@ -181,6 +181,6 @@ class Shooter : GameObject {
     //invariant: isFiring() => active()
     bool isFiring() {
         //default implementation: link with activity
-        return active;
+        return activity;
     }
 }

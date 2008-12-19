@@ -18,6 +18,10 @@ import utils.log;
 import utils.factory;
 import utils.time;
 
+interface RefireTrigger {
+    void addSprite(ActionSprite s);
+}
+
 class ActionSprite : GObjectSprite {
     protected Vector2f mLastImpactNormal = {0, -1};
     protected FireInfo mFireInfo;
@@ -29,6 +33,8 @@ class ActionSprite : GObjectSprite {
 
         Action[] mActiveActionsGlobal;
         Action[] mActiveActionsState;
+
+        RefireTrigger mRefireTrigger;
     }
 
     override ActionSpriteClass type() {
@@ -121,9 +127,17 @@ class ActionSprite : GObjectSprite {
                 //get current FireInfo data (physics)
                 updateFireInfo();
                 return MyBox.Box(&mFireInfo);
+            case "refire_trigger":
+                return MyBox.Box(mRefireTrigger);
             default:
                 return MyBox();
         }
+    }
+
+    void refireTrigger(RefireTrigger tr) {
+        mRefireTrigger = tr;
+        if (tr && type.canRefire)
+            tr.addSprite(this);
     }
 
     ///runs a sprite-specific event defined in the config file
@@ -229,6 +243,7 @@ class ActionStateInfo : StaticStateInfo {
 
 class ActionSpriteClass : GOSpriteClass {
     ActionContainer actions;
+    bool canRefire = false;
 
     bool[char[]] detonateMap;
 
@@ -245,7 +260,13 @@ class ActionSpriteClass : GOSpriteClass {
     override void loadFromConfig(ConfigNode config) {
         super.loadFromConfig(config);
 
+        asLoadFromConfig(config);
+    }
+
+    protected void asLoadFromConfig(ConfigNode config) {
         actions.loadFromConfig(engine, config.getSubNode("actions"));
+
+        canRefire = config.getBoolValue("can_refire", canRefire);
 
         auto detonateNode = config.getSubNode("detonate");
         foreach (char[] name, char[] value; detonateNode) {

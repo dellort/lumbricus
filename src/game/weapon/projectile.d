@@ -128,7 +128,7 @@ class ProjectileSpriteClass : ActionSpriteClass {
     //config = a subnode in the weapons.conf which describes a single projectile
     override void loadFromConfig(ConfigNode config) {
         //missing super call is intended
-        actions.loadFromConfig(engine, config.getSubNode("actions"));
+        asLoadFromConfig(config);
 
         //hm, state stuff unused, so only that state
         initState.physic_properties = new POSP();
@@ -155,8 +155,7 @@ class ProjectileSpriteClass : ActionSpriteClass {
         }
 
         auto detonateNode = config.getSubNode("detonate");
-        minimumGluedTime = timeSecs(detonateNode.getFloatValue("gluetime",
-            0));
+        minimumGluedTime = timeSecs(detonateNode.getFloatValue("gluetime", 0));
         if (detonateNode.valueIs("lifetime", "$LIFETIME$")) {
             useFixedDetonateTime = false;
         } else {
@@ -164,12 +163,6 @@ class ProjectileSpriteClass : ActionSpriteClass {
             //currently in seconds, xxx what about default value?
             fixedDetonateTime =
                 timeSecs(detonateNode.getFloatValue("lifetime", 3.0f));
-        }
-        foreach (char[] name, char[] value; detonateNode) {
-            //xxx sry
-            if (value == "true" && name != "ondetonate") {
-                detonateMap[name] = true;
-            }
         }
 
         inactiveWhenGlued = config.getBoolValue("inactive_when_glued");
