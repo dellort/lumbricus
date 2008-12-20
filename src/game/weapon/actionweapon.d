@@ -184,5 +184,9 @@ private class ActionShooter : Shooter, RefireTrigger {
     override void interruptFiring() {
         if (mFireAction)
             mFireAction.abort();
+        else if (canRefire()) {
+            mRefireSprites = null;
+            finished();
+        }
     }
 }

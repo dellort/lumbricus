@@ -647,6 +647,10 @@ class GameView : Container, TeamMemberControlCallback {
                 mController.jump(JumpMode.normal);
                 return true;
             }
+            case "jump2": {
+                mController.jump(JumpMode.straightUp);
+                return true;
+            }
             default:
 
         }

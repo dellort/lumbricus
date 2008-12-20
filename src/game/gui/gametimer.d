@@ -37,7 +37,7 @@ class GameTimer : Container {
             auto controller = mEngine.engine.logic;
             if (controller.currentRoundState() == RoundState.prepare
                 || controller.currentRoundState() == RoundState.playing
-                || controller.currentRoundState() == RoundState.cleaningUp)
+                /*|| controller.currentRoundState() == RoundState.cleaningUp*/)
             {
                 active = true;
                 //little hack to show correct time

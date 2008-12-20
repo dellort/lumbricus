@@ -656,6 +656,9 @@ class ServerTeamMember : TeamMember, WormController {
                 mWorm.activateJetpack(false);
             }
             mWorm.weapon = null;
+            //stop all action when round ends
+            mWorm.forceAbort();
+            mFireDown = false;
             mActive = act;
         }
     }

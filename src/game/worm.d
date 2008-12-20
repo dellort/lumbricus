@@ -211,7 +211,7 @@ class WormSprite : GObjectSprite {
         }
         if (currentState is wsc.st_jump) {
             switch (mJumpMode) {
-                case JumpMode.normal:
+                case JumpMode.normal, JumpMode.smallBack, JumpMode.straightUp:
                     auto state = graphic.type.findState("jump_normal", true);
                     graphic.setState(state);
                     break;
@@ -328,6 +328,10 @@ class WormSprite : GObjectSprite {
         if (currentState.canWalk) {
             mJumpMode = m;
             setState(wsc.st_jump_start);
+        } else if (currentState is wsc.st_jump_start) {
+            //double-click
+            if (mJumpMode == JumpMode.normal) mJumpMode = JumpMode.smallBack;
+            if (mJumpMode == JumpMode.straightUp) mJumpMode = JumpMode.backFlip;
         }
     }
 
@@ -572,16 +576,7 @@ class WormSprite : GObjectSprite {
             look.y = 0;
             look = look.normal(); //get sign *g*
             look.y = 1;
-            switch (mJumpMode) {
-                case JumpMode.normal:
-                    physics.addImpulse(look.mulEntries(wsc.jumpStNormal));
-                    break;
-                case JumpMode.backFlip:
-                    physics.addImpulse(look.mulEntries(wsc.jumpStBackflip));
-                    break;
-                default:
-                    assert(false, "Implement");
-            }
+            physics.addImpulse(look.mulEntries(wsc.jumpStrength[mJumpMode]));
         }
 
         if (from is wsc.st_weapon || to is wsc.st_weapon) {
@@ -745,7 +740,7 @@ class WormSpriteClass : GOSpriteClass {
     Vector2f jetpackThrust;
     float suicideDamage;
     //SequenceObject[] gravestones;
-    Vector2f jumpStNormal, jumpStBackflip;
+    Vector2f jumpStrength[JumpMode.max+1];
     float rollVelocity = 400;
 
     WormStateInfo st_stand, st_fly, st_walk, st_jet, st_weapon, st_dead,
@@ -763,10 +758,15 @@ class WormSpriteClass : GOSpriteClass {
         else
             jetpackThrust = Vector2f(0);
         suicideDamage = config.getFloatValue("suicide_damage", 10);
-        float[] js = config.getValueArray!(float)("jump_st_normal",[100,-100]);
-        jumpStNormal = Vector2f(js[0],js[1]);
-        js = config.getValueArray!(float)("jump_st_backflip",[-20,-150]);
-        jumpStBackflip = Vector2f(js[0],js[1]);
+
+        Vector2f getJs(char[] nid) {
+            float[] js = config.getValueArray!(float)(nid,[100,-100]);
+            return Vector2f(js[0],js[1]);
+        }
+        jumpStrength[JumpMode.normal] = getJs("jump_st_normal");
+        jumpStrength[JumpMode.smallBack] = getJs("jump_st_smallback");
+        jumpStrength[JumpMode.straightUp] = getJs("jump_st_straightup");
+        jumpStrength[JumpMode.backFlip] = getJs("jump_st_backflip");
 
         //done, read out the stupid states :/
         st_stand = findState("stand");
