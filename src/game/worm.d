@@ -608,10 +608,12 @@ class WormSprite : GObjectSprite {
     //xxx sorry for that
     override void setState(StaticStateInfo nstate, bool for_end = false) {
         if (nstate is wsc.st_stand &&
-            (currentState is wsc.st_fly || currentState is wsc.st_jump)) {
-            super.setState(wsc.st_getup, for_end);
-            return;
+            (currentState is wsc.st_fly || currentState is wsc.st_jump))
+        {
+            nstate = wsc.st_getup;
         }
+        //if (nstate !is wsc.st_stand)
+          //  std.stdio.writefln(nstate.name);
         super.setState(nstate, for_end);
     }
 
@@ -707,7 +709,7 @@ class WormSprite : GObjectSprite {
                             setFlyAnim(FlyMode.roll);
                 }
                 if (currentState is wsc.st_jump && physics.velocity.y > 0) {
-                    setState(wsc.st_fly);
+                    setState(wsc.st_jump_to_fly);
                 }
 
             }
@@ -749,7 +751,7 @@ class WormSpriteClass : GOSpriteClass {
 
     WormStateInfo st_stand, st_fly, st_walk, st_jet, st_weapon, st_dead,
         st_die, st_drowning, st_beaming, st_reverse_beaming, st_getup,
-        st_jump_start, st_jump;
+        st_jump_start, st_jump, st_jump_to_fly;
 
     this(GameEngine e, char[] r) {
         super(e, r);
@@ -786,6 +788,7 @@ class WormSpriteClass : GOSpriteClass {
         st_getup = findState("getup");
         st_jump_start = findState("jump_start");
         st_jump = findState("jump");
+        st_jump_to_fly = findState("jump_to_fly");
     }
     override WormSprite createSprite() {
         return new WormSprite(engine, this);

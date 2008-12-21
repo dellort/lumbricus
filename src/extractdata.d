@@ -20,7 +20,9 @@ import wwptools.untile;
 import wwptools.unworms;
 import wwptools.animconv;
 
-void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir) {
+void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
+    bool nolevelthemes)
+{
     wormsDir = wormsDir ~ path.sep;
     auto wormsDataDir = wormsDir ~ "data" ~ path.sep;
     importDir = importDir ~ path.sep;
@@ -128,6 +130,8 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir) {
     }
 
     //****** Level sets ******
+    if (nolevelthemes)
+        return;
     char[] levelspath = wormsDataDir~"Level";
     //prepare output dir
     char[] levelDir = outputDir~path.sep~"level";
@@ -154,13 +158,33 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir) {
 
 int main(char[][] args)
 {
-    if (args.length < 3) {
-        writefln("Syntax: extractdata <importDir> <wormsMainDir> [<outputDir>]");
+    bool usageerror;
+    bool nolevelthemes;
+    while (args.length > 1) {
+        auto opt = args[1];
+        if (opt.length == 0 || opt[0] != '-')
+            break;
+        args = args[0] ~ args[2..$];
+        if (opt == "-T") {
+            nolevelthemes = true;
+        } else if (opt == "--") {
+            //stop argument parsing, standard on Linux
+            break;
+        } else {
+            writefln("unknown option: %s", opt);
+            usageerror = true;
+        }
+    }
+    if (args.length < 3 || usageerror) {
+        writefln("Syntax: extractdata [options] <importDir> <wormsMainDir>"
+            " [<outputDir>]");
         writefln("  <importDir>: your-svn-root/trunk/lumbricus/data/wimport");
         writefln("  <wormsMainDir>: worms main dir, e.g. where your wwp.exe is");
         writefln("  <outputDir>: where to write stuff to (default is current"
             " dir, but it really");
         writefln("               should be your-svn-root/trunk/lumbricus/data/data2");
+        writefln("Options:");
+        writefln("  -T  don't extract/convert/write level themes");
         return 1;
     }
     char[] outputDir;
@@ -170,7 +194,7 @@ int main(char[][] args)
         outputDir = ".";
     trymkdir(outputDir);
     try {
-        do_extractdata(args[1], args[2], outputDir);
+        do_extractdata(args[1], args[2], outputDir, nolevelthemes);
     } catch (Exception e) {
         writefln("Error: %s",e.msg);
     }

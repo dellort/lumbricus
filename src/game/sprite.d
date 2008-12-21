@@ -18,6 +18,7 @@ import std.math : abs, PI;
 import cmath = std.c.math;
 import utils.factory;
 import utils.time;
+import utils.mybox;
 
 //factory to instantiate sprite classes, this is a small wtf
 static class SpriteClassFactory

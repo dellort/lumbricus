@@ -14,6 +14,7 @@ import physics.world;
 import utils.vector2;
 import utils.configfile;
 import utils.misc;
+import utils.mybox;
 import utils.log;
 import utils.factory;
 import utils.time;

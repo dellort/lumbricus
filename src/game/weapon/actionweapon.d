@@ -12,6 +12,7 @@ import game.sequence;
 import game.weapon.weapon;
 import utils.array;
 import utils.misc;
+import utils.mybox;
 import utils.vector2;
 import utils.configfile;
 import utils.log;

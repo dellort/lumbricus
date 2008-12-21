@@ -354,7 +354,7 @@ mainspr {
                 worm_shotgun_prepare = "f:200; 556"  //actually 556 -> 553 timed
                 worm_shotgun_fire = "f:200; 559"
                 //throw animation for grenades etc.
-                worm_throw = "f:250; 601"   
+                worm_throw = "f:250; 601"
                 worm_baseball_fire = "f:250; 532"
                 worm_rope_fire = "550"
             }
@@ -432,7 +432,7 @@ water_anims {
         homing_inactive_drown = "55"
         {
             _flags = "+repeat"   //why?? all others have repeat flag set in the bnk
-            
+
             mingvase_drown = "58"
             mingshard1_drown = "59"
             mingshard2_drown = "60"
@@ -443,7 +443,7 @@ water_anims {
             //not used by wwp; will we?
             esel_drown = "65"
         }
-        
+
         {
             //not drowning, but flying underwater animations
             _params = "p1/rot360inv,time"

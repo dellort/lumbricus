@@ -11,8 +11,12 @@ import utils.vector2 : Vector2, Vector2i, Vector2f;
 //xxx function, should be delegate
 //convention: return empty box if not parseable
 alias MyBox function(char[] s) BoxParseString;
+//stupidity note: std.format() can do the same, but varargs suck so much in D,
+// that this functionality can't be used without writing unportable code
+alias char[] function(MyBox box) BoxUnParse;
 
 BoxParseString[TypeInfo] gBoxParsers;
+BoxUnParse[TypeInfo] gBoxUnParsers;
 
 MyBox stringToBoxTypeID(TypeInfo info, char[] s) {
     return gBoxParsers[info](s);
@@ -22,6 +26,10 @@ MyBox stringToBox(T)(char[] s) {
     return stringToBoxTypeID(typeid(T), s);
 }
 
+char[] boxToString(MyBox box) {
+    return gBoxUnParsers[box.type()](box);
+}
+
 static this() {
     gBoxParsers[typeid(char[])] = &boxParseStr;
     gBoxParsers[typeid(int)] = &boxParseInt;
@@ -29,6 +37,18 @@ static this() {
     gBoxParsers[typeid(bool)] = &boxParseBool;
     gBoxParsers[typeid(Vector2i)] = &boxParseVector2i;
     gBoxParsers[typeid(Vector2f)] = &boxParseVector2f;
+    addTrivialUnParsers!(byte, int, long, short, ubyte, uint, ulong, ushort,
+        char, float, double, bool)();
+    gBoxUnParsers[typeid(Vector2i)] = &boxUnParseVector2i;
+    gBoxUnParsers[typeid(Vector2f)] = &boxUnParseVector2f;
+}
+
+private void addTrivialUnParsers(T...)() {
+    foreach (x; T) {
+        gBoxUnParsers[typeid(x)] = function char[](MyBox box) {
+            return str.toString(box.unbox!(x));
+        };
+    }
 }
 
 //the nop
@@ -92,32 +112,18 @@ public MyBox boxParseVector2f(char[] s) {
     return boxParseVector!(float)(s, &conv.toFloat);
 }
 
+public char[] boxUnParseVector2f(MyBox b) {
+    auto v = b.unbox!(Vector2f)();
+    return str.format("%s %s", v.x, v.y);
+}
+
+public char[] boxUnParseVector2i(MyBox b) {
+    auto v = b.unbox!(Vector2i)();
+    return str.format("%s %s", v.x, v.y);
+}
+
 debug import std.stdio;
 debug import std.format;
-
-/+
-//some horrible testcode, to be killed *g*
-debug void testParse(char[] input) {
-    writefln("parsing: '%s':", input);
-    foreach (TypeInfo t, BoxParseString parser; gBoxParsers) {
-        MyBox box = parser(input);
-        if (box.type) {
-            assert(t is box.type);
-            writefln("  %s: '%s'", box.type.toString(), boxToString(box));
-        }
-    }
-    std.stdio.writefln("fin.");
-}
-
-char[] boxToString(MyBox box) {
-    char[] res;
-    //EVIL, PURE EVIL
-    //the doFormat() function expects data.ptr to be aligned like on
-    //the stack
-    doFormat((dchar c) {res ~= c;}, [box.type], box.data.ptr);
-    return res;
-}
-+/
 
 unittest {
     assert(boxParseInt("123").unbox!(int) == 123);

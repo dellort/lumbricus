@@ -25,6 +25,18 @@ void swap(T)(inout T a, inout T b) {
     b = t;
 }
 
+bool startsWith(char[] str, char[] prefix) {
+    if (str.length < prefix.length)
+        return false;
+    return str[0..prefix.length] == prefix;
+}
+
+bool endsWith(char[] str, char[] suffix) {
+    if (str.length < suffix.length)
+        return false;
+    return str[$-suffix.length..$] == suffix;
+}
+
 //execute code count-times
 void times(int count, void delegate() code) {
     while (count--)
