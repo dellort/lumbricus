@@ -71,19 +71,11 @@ private class ActionShooter : Shooter, RefireTrigger {
         if (!cast(ActionList)sender)
             roundFired(sender);
         mFireAction = null;
-        if (!canRefire)
+        if (!activity)
             finished();
     }
 
     private bool canRefire() {
-        foreach (int i, sp; mRefireSprites) {
-            //remove dead sprites
-            if (!sp.active) {
-                if (i < mRefireSprites.length-1)
-                    mRefireSprites[i] = mRefireSprites[$-1];
-                mRefireSprites.length = mRefireSprites.length - 1;
-            }
-        }
         //only sprites with refire possible are in this list
         return mRefireSprites.length > 0;
     }
@@ -102,8 +94,15 @@ private class ActionShooter : Shooter, RefireTrigger {
     }
 
     //interface RefireTrigger.addSprite
-    void addSprite(ActionSprite s) {
+    void addRefire(ActionSprite s) {
         mRefireSprites ~= s;
+    }
+
+    void removeRefire(ActionSprite s) {
+        arrayRemoveUnordered(mRefireSprites, s, true);
+        if (!activity)
+            //all possible refire sprites died by themselves
+            finished();
     }
 
     void fireRound(Action sender) {
@@ -171,7 +170,8 @@ private class ActionShooter : Shooter, RefireTrigger {
             //themselves to the mRefireSprites list
             as.doEvent("onrefire");
         }
-        if (mRefireSprites.length == 0)
+        //check if all refire sprites got blown up
+        if (!activity)
             finished();
         return true;
     }

@@ -589,4 +589,22 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         }
         return false;
     }
+
+    void activityDebug() {
+        mLog("-- Active game objects:");
+        int i;
+        foreach (GameObject o; mObjects) {
+            if (o.activity) {
+                i++;
+                if (cast(GObjectSprite)o) {
+                    mLog("%s at %s in state %s", o.toString(),
+                        (cast(GObjectSprite)o).physics.pos,
+                        (cast(GObjectSprite)o).currentState.name);
+                } else {
+                    mLog("%s", o.toString());
+                }
+            }
+        }
+        mLog("-- %s objects active",i);
+    }
 }

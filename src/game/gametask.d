@@ -369,6 +369,8 @@ class GameTask : Task {
             ["float:strength", "float:degrade (multiplier < 1.0)"]));
         mCmds.register(Command("show_collide", &cmdShowCollide, "show collision"
             " bitmaps"));
+        mCmds.register(Command("activity", &cmdActivityTest,
+            "list active game objects"));
     }
 
     class ShowCollide : Container {
@@ -508,6 +510,10 @@ class GameTask : Task {
         float strength = args[0].unbox!(float);
         float degrade = args[1].unbox!(float);
         mServerEngine.addEarthQuake(strength, degrade);
+    }
+
+    private void cmdActivityTest(MyBox[] args, Output write) {
+        mServerEngine.activityDebug();
     }
 
     static this() {

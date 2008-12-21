@@ -153,7 +153,11 @@
 		<Unit filename="..\src\irclib\protocol.d" />
 		<Unit filename="..\src\irclib\tools.d" />
 		<Unit filename="..\src\lumbricus.d" />
+		<Unit filename="..\src\net\encode.d" />
+		<Unit filename="..\src\net\enet_test.d" />
+		<Unit filename="..\src\net\marshall2.d" />
 		<Unit filename="..\src\net\netlayer.d" />
+		<Unit filename="..\src\net\netobject.d" />
 		<Unit filename="..\src\physics\base.d" />
 		<Unit filename="..\src\physics\broadphase.d" />
 		<Unit filename="..\src\physics\collisionmap.d" />

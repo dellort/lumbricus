@@ -32,6 +32,7 @@ struct SpawnParams {
                             //overrides  */
     Vector2f direction;  //intial moving direction, affects spawn point
     float strength = 0;  //initial moving speed into above direction
+    char[] initState = "";  //override sprite initstate (careful with that)
 
     bool loadFromConfig(ConfigNode config) {
         projectile = config.getStringValue("projectile", projectile);
@@ -54,6 +55,7 @@ struct SpawnParams {
         float[] dirv = config.getValueArray!(float)("direction", [0, -1]);
         direction = Vector2f(dirv[0], dirv[1]);
         strength = config.getFloatValue("strength_value", strength);
+        initState = config.getStringValue("initstate", initState);
         return true;
     }
 }
@@ -131,6 +133,9 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
     if (as) {
         as.refireTrigger = tr;
     }
+    auto ssi = sprite.type.findState(params.initState, true);
+    if (ssi)
+        sprite.setStateForced(ssi);
 
     //set fire to it
     sprite.active = true;

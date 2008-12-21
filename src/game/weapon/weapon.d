@@ -112,6 +112,7 @@ struct FireInfo {
 class Shooter : GameObject {
     protected WeaponClass mClass;
     protected GObjectSprite owner;
+    private bool mWorking;   //only for finishCb event
 
     //shooters should call this to reduce owner's ammo by 1
     ShooterCallback ammoCb, finishCb;
@@ -129,6 +130,9 @@ class Shooter : GameObject {
     }
 
     protected void finished() {
+        if (!mWorking)
+            return;
+        mWorking = false;
         if (finishCb)
             finishCb(this);
     }
@@ -144,6 +148,7 @@ class Shooter : GameObject {
     //fire (i.e. activate) weapon
     final void fire(FireInfo info) {
         assert(!activity);
+        mWorking = true;
         doFire(info);
     }
 

@@ -27,6 +27,13 @@ mainspr {
             sallyshard = "67"
             homing_inactive_fly = "69"
             molotov_fly = "65"
+            sheepstrike_fly = "71"
+            carpet_fly = "72"
+            sheepstrike_burning_fly = "73"
+            meteor_fly = "75"
+            mbbomb_fly = "80"
+            letterbomb1_fly = "81"
+            letterbomb2_fly = "82"
             dynamite = "87"
             mingvase = "83"
             mingshard1 = "84"
@@ -59,7 +66,7 @@ mainspr {
             cloud1 = "626"
             cloud2 = "627"
             cloud3 = "628"
-            
+
             {
                 _flags = "f:13"
                 expl_foom = "606"
@@ -80,7 +87,7 @@ mainspr {
                 expl_inner_size3 = "616"
                 expl_inner_size4 = "617"
             }
-            
+
             smoke_white_size1 = "619"
             smoke_white_size2 = "620"
             smoke_white_size3 = "621"
@@ -88,11 +95,11 @@ mainspr {
             smoke_black_size1 = "623"
             smoke_black_size2 = "624"
             smoke_black_size3 = "625"
-            
+
             smokepuff_yellow = "139"
             smokepuff_white = "140"
             smokepuff_grey = "141"
-            
+
             {
                 _flags = "-use_bnk_flags,-repeat"
                 hit_yellow = "125"   //123 seems to be the same
@@ -112,6 +119,10 @@ mainspr {
             }
 
             worm_die = "-use_bnk_flags; 516"
+            worm_frozen = "+repeat; 491"
+            worm_frozen_idle1 = "488"
+            worm_frozen_idle2 = "489"
+            worm_frozen_idle3 = "490"
 
             {
                 //don't know why, but original animation looks so backwards
@@ -144,12 +155,15 @@ mainspr {
             mine = "50"
             mine_flashing = "f:250; 43 50"
 
+            arrow_fly = "57"
             bazooka_fly = "58"
+            magicbullet_fly = "59"
             mortar_fly = "62"
             homing_active_fly = "68"
+            airstrike_fly = "70"
 
-            super_sheep1 = "f:150; 163 164"
-            super_sheep2 = "f:150; 165 166"
+            supersheep_red = "f:150; 163 164"
+            supersheep_blue = "f:150; 165 166"
         }
         {
             _params = "p1/rot360inv,p2/linear100"
@@ -201,6 +215,7 @@ mainspr {
             worm_fall = "f:100; 519"
 
             worm_roll = "f:13; 157"
+            worm_firepunch = "522"
 
             worm_jet = "176"
             worm_bump_into_ground = "-repeat; 301"
@@ -218,6 +233,9 @@ mainspr {
             sally_army = "172"
             cow1 = "173"
             cow2 = "174" //what?
+            mole_walk = "175"
+            skunk_inactive = "+append_backwards_a; 182"
+            skunk_active = "+append_backwards_a; 183"
         }
         //worm, where the worm can look into 6 directions
         //there's an animation for each of the first 3 directions
@@ -232,7 +250,14 @@ mainspr {
             }
             worm_walk = "+repeat,+walkfix,f:25; 146"
             {
-                _flags = "+keeplast"
+                //explanation for weapon animations:
+                //   get: played when weapon is selected
+                //   hold: played while aiming (not all weapons have this)
+                //   prepare: played after pressing space, but before actually firing
+                //   fire: played after or while firing (sometimes repeated)
+                //   release: played after firing when weapon is put away (most
+                //            weapons will play "get" backwards)
+                _flags = "+keeplast,f:25"
 
                 worm_get_no_weapon = "338"
                 worm_getmine = "398"
@@ -240,11 +265,19 @@ mainspr {
                 worm_getdynamite = "344"
                 worm_getmingvase = "347"
                 worm_getbeamer = "428"
+                worm_gethelmet = "317"
                 worm_getatomtest = "320"
                 worm_getcow = "350"
                 worm_getsheep = "353"
                 worm_getgranny = "356"
+                worm_getskunk = "359"
+                worm_getmole = "362"
                 worm_getsally_army = "365"
+                //worm_getdrill = "368"  //wtf, 369/370 are longer???
+                worm_getprod = "372"
+                worm_getaxe = "407"
+                worm_getheadband = "419"
+                worm_getfreezer = "479"
             }
             {
                 worm_beaming = "f:25; 434"
@@ -267,6 +300,21 @@ mainspr {
                 worm_wiggle1 = "281"
                 worm_wiggle2 = "284"
                 worm_wiggle3 = "302"
+                worm_wiggle_headband = "395"
+
+                //special weapon fire/release animations
+                worm_prod_fire = "375"
+                worm_prod_release = "378"
+                worm_baseball_release = "f:25; 443"
+                worm_rope_release = "f:25; 495"
+                worm_axe_prepare = "410"
+                worm_axe_fire1 = "413"    //played in order
+                worm_axe_fire2 = "416"
+                //generic release animation for thrown stuff
+                worm_throw_release = "437"
+                worm_frozen_enter = "482"
+                worm_dragonball_prepare = "388"
+                worm_dragonball_release = "391"
             }
             {
                 _flags = "+append_backwards_a"
@@ -293,17 +341,23 @@ mainspr {
                 _flags = "+backwards_a"
                 worm_beaming_backwards = "f:25; 434"
                 worm_frightened = "212"
+                worm_frozen_leave = "485"
             }
-        }
-        {
-            _flags = "x:3,+mirror_y_b,+keeplast"
-            _params = "p2/rot180,p1/step3"
+            {
+                //xxx mostly animations that would require time as the third
+                //    parameter (which is not supported)
+                _params = "p2/rot180,p1/step3"
 
-            worm_pistol_fire = "f:500; 571"
-            worm_uzi_fire = "f:200; 577"
-            worm_minigun_fire = "f:200; 583"
-            worm_shotgun_fire_1 = "f:200; 556"
-            worm_shotgun_fire_2 = "f:200; 559"
+                worm_pistol_fire = "f:500; 571"      //568, 571 alternating with repeat
+                worm_uzi_fire = "f:200; 577"         //574, 577
+                worm_minigun_fire = "f:200; 583"     //580, 583
+                worm_shotgun_prepare = "f:200; 556"  //actually 556 -> 553 timed
+                worm_shotgun_fire = "f:200; 559"
+                //throw animation for grenades etc.
+                worm_throw = "f:250; 601"   
+                worm_baseball_fire = "f:250; 532"
+                worm_rope_fire = "550"
+            }
         }
     }
     //special code for worm weapons; each entry generates two animations
@@ -318,15 +372,13 @@ mainspr {
         worm_cluster = "326 589"
         worm_grenade = "323 586"
         worm_molotov = "332 595"
-        worm_rope = "492 547"        //special release anim: 495 550
+        worm_rope = "492 547"
         worm_uzi = "498 574"
         worm_shotgun = "501 553"
         //worm_bow = "504 526"       //special: limited angle range
         worm_pistol = "510 568"
         worm_minigun = "513 580"
-        //the one with _2 is the special release anim (when weapon is used)
-        //worm_baseball_1 = "440 529"
-        //worm_baseball_2 = "443 532"
+        worm_baseball = "440 529"
         worm_flamethrower = "449 538"
     }
 }
@@ -354,6 +406,7 @@ water_anims {
         crate3_drown = "16"
         worm_drown = "18"
         barrel_drown = "19"
+        meteor_drown = "20"
         mine_drown = "21"
         //22-27: drowning team-themed mine
         bazooka_drown = "28"
@@ -362,7 +415,12 @@ water_anims {
         mortar_drown = "31"
         cluster_drown = "32"
         clustershard_drown = "33"
+        arrow_drown = "35"
         sheep_drown = "36"
+        carpet_drown = "37"
+        sheepstrike_drown = "38"
+        sheepstrike_burning_drown = "39"  //lol?!
+        mbbomb_drown = "40"
         granny_drown = "41"
         sally_army_drown = "42"
         skunk_drown = "43"
@@ -371,15 +429,31 @@ water_anims {
         molotov_drown = "51"
         sallyshard_drown = "52"
         holy_drown = "53"
-        homing_active_drown = "54"
         homing_inactive_drown = "55"
-        mingvase_drown = "58"
-        mingshard1_drown = "59"
-        mingshard2_drown = "60"
-        mingshard3_drown = "61"
-        dynamite_drown = "62"
-        //not used by wwp; will we?
-        esel_drown = "65"
+        {
+            _flags = "+repeat"   //why?? all others have repeat flag set in the bnk
+            
+            mingvase_drown = "58"
+            mingshard1_drown = "59"
+            mingshard2_drown = "60"
+            mingshard3_drown = "61"
+            dynamite_drown = "62"
+            letter1_drown = "63"
+            letter2_drown = "64"
+            //not used by wwp; will we?
+            esel_drown = "65"
+        }
+        
+        {
+            //not drowning, but flying underwater animations
+            _params = "p1/rot360inv,time"
+            _flags = "+repeat"
+
+            magicbullet_underwater = "34"
+            homing_active_underwater = "54"
+
+            supersheep_blue_underwater = "f:150; 56 57"
+        }
     }
 }
 //for layer.spr

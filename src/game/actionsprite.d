@@ -19,7 +19,9 @@ import utils.factory;
 import utils.time;
 
 interface RefireTrigger {
-    void addSprite(ActionSprite s);
+    void addRefire(ActionSprite s);
+
+    void removeRefire(ActionSprite s);
 }
 
 class ActionSprite : GObjectSprite {
@@ -29,12 +31,12 @@ class ActionSprite : GObjectSprite {
     private {
         Action mCreateAction, mStateAction;
 
-        bool mIsUnderWater, mWaterUpdated;
-
         Action[] mActiveActionsGlobal;
         Action[] mActiveActionsState;
 
         RefireTrigger mRefireTrigger;
+
+        bool mEnableEvents = true;
     }
 
     override ActionSpriteClass type() {
@@ -65,6 +67,9 @@ class ActionSprite : GObjectSprite {
 
     override protected void die() {
         doEvent("ondie");
+        //remove from shooter's refire list
+        if (mRefireTrigger && type.canRefire)
+            mRefireTrigger.removeRefire(this);
         super.die();
     }
 
@@ -74,18 +79,31 @@ class ActionSprite : GObjectSprite {
         StaticStateInfo to)
     {
         super.stateTransition(from, to);
-        cleanStateActions();
+        cleanActiveActions(mActiveActionsState);
+        //no events if disabled by state info
+        auto asi = cast(ActionStateInfo)to;
+        assert(!!asi);
+        enableEvents = !asi.disableEvents;
+        if (!mEnableEvents) {
+            //stop all global actions in a no-event state
+            cleanActiveActions(mActiveActionsGlobal);
+            //if entering a no-events state, remove this class from refire list
+            //xxx readding later not possible because shooter might have died
+            //    by then
+            if (mRefireTrigger && type.canRefire)
+                mRefireTrigger.removeRefire(this);
+        }
         //run state-initialization event
         doEvent("oncreate", true);
     }
 
-    private void cleanStateActions() {
-        //cleanup old per-state actions still running
-        foreach (a; mActiveActionsState) {
+    private void cleanActiveActions(ref Action[] actionsList) {
+        //check an array of actions for actions still running and stop
+        foreach (a; actionsList) {
             if (a.active)
                 a.abort();
         }
-        mActiveActionsState = null;
+        actionsList = null;
     }
 
     override ActionStateInfo findState(char[] name) {
@@ -98,13 +116,9 @@ class ActionSprite : GObjectSprite {
             //"oncreate" is the sprite or state initialize event
             doEvent("oncreate");
         } else {
-            cleanStateActions();
+            cleanActiveActions(mActiveActionsState);
             //cleanup old global actions still running (like oncreate)
-            foreach (a; mActiveActionsGlobal) {
-                if (a.active)
-                    a.abort();
-            }
-            mActiveActionsGlobal = null;
+            cleanActiveActions(mActiveActionsGlobal);
         }
     }
 
@@ -141,12 +155,14 @@ class ActionSprite : GObjectSprite {
     void refireTrigger(RefireTrigger tr) {
         mRefireTrigger = tr;
         if (tr && type.canRefire)
-            tr.addSprite(this);
+            tr.addRefire(this);
     }
 
     ///runs a sprite-specific event defined in the config file
     //xxx should be private, but is used by some actions
     void doEvent(char[] id, bool stateonly = false) {
+        if (!mEnableEvents)
+            return;
         //logging: this is slow (esp. napalm)
         //engine.mLog("Projectile: Execute event "~id);
 
@@ -191,6 +207,14 @@ class ActionSprite : GObjectSprite {
         doEvent("ondetonate");
     }
 
+    //set to disable event processing (also disables death by ondetonate event)
+    void enableEvents(bool enable) {
+        mEnableEvents = enable;
+    }
+    bool enableEvents() {
+        return mEnableEvents;
+    }
+
     protected this(GameEngine engine, GOSpriteClass type) {
         super(engine, type);
     }
@@ -200,6 +224,8 @@ class ActionStateInfo : StaticStateInfo {
     ActionContainer actions;
 
     bool[char[]] detonateMap;
+
+    bool disableEvents = false;
 
     private {
         //for forward references
@@ -224,6 +250,8 @@ class ActionStateInfo : StaticStateInfo {
             //"actions" is a reference to another state
             actionsTmp = sc["actions"];
         }
+
+        disableEvents = sc.getBoolValue("disable_events", disableEvents);
 
         auto detonateNode = sc.getSubNode("detonate");
         foreach (char[] name, char[] value; detonateNode) {
@@ -281,7 +309,7 @@ class ActionSpriteClass : GOSpriteClass {
         }
     }
 
-    override protected StaticStateInfo createStateInfo() {
+    override protected ActionStateInfo createStateInfo() {
         return new ActionStateInfo();
     }
 

@@ -265,6 +265,8 @@ class ScrollBar : Container {
     }
     void pageSize(int ps) {
         mPageSize = max(ps,0);
+        if (mPageSize > 0)
+            largeChange = mPageSize;
         adjustBar();
     }
 }

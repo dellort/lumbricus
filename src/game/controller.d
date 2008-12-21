@@ -666,9 +666,8 @@ class ServerTeamMember : TeamMember, WormController {
     void jump(JumpMode j) {
         if (!isControllable)
             return;
-        if (mWorm.allowAlternate())
-            doAlternateFire();
-        else
+        //try alternate fire, if not possible jump instead
+        if (!doAlternateFire())
             mWorm.jump(j);
         wormAction();
     }
@@ -770,16 +769,19 @@ class ServerTeamMember : TeamMember, WormController {
         }
     }
 
-    void doAlternateFire() {
+    //returns true if the keypress was taken
+    bool doAlternateFire() {
         if (!isControllable)
-            return;
+            return false;
 
         if (mTeam.alternateControl) {
             //alternate (new-lumbricus) control: alternate-fire button (return)
             //refires background weapon (like jetpack-deactivation)
-            if (mWorm.allowAlternate()) {
+            if (mWorm.allowAlternate())
+            {
                 mWorm.fireAlternate();
                 wormAction();
+                return true;
             }
         } else {
             //worms-like: alternate-fire button (return) fires selected
@@ -788,8 +790,10 @@ class ServerTeamMember : TeamMember, WormController {
                 if (worm.fire()) {
                     wormAction();
                 }
+                return true;
             }
         }
+        return false;
     }
 
     Vector2f getTarget() {

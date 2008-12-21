@@ -528,7 +528,7 @@ class ResViewerTask : Task {
     this(TaskManager mgr) {
         super(mgr);
         gWindowManager.createWindow(this, new Viewer(), "Res Viewer",
-            Vector2i(650, 400));
+            Vector2i(750, 500));
     }
 
     class Viewer : Container {

@@ -54,6 +54,43 @@ class SpriteActionClass : TimedActionClass {
 
 //------------------------------------------------------------------------
 
+class SetStateAction : SpriteAction {
+    private {
+        SetStateActionClass myclass;
+    }
+
+    this(SetStateActionClass base, GameEngine eng) {
+        super(base, eng);
+        myclass = base;
+    }
+
+    protected ActionRes initDeferred() {
+        auto ssi = mParent.type.findState(myclass.state);
+        if (ssi)
+            mParent.setState(ssi);
+        return ActionRes.done;
+    }
+}
+
+class SetStateActionClass : SpriteActionClass {
+    char[] state;
+
+    void loadFromConfig(GameEngine eng, ConfigNode node) {
+        super.loadFromConfig(eng, node);
+        state = node.getStringValue("state","");
+    }
+
+    SetStateAction createInstance(GameEngine eng) {
+        return new SetStateAction(this, eng);
+    }
+
+    static this() {
+        ActionClassFactory.register!(typeof(this))("state");
+    }
+}
+
+//------------------------------------------------------------------------
+
 class GravityCenterAction : SpriteAction {
     private {
         GravityCenterActionClass myclass;

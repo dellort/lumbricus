@@ -154,10 +154,12 @@ void arrayRemove(T)(inout T[] arr, T value) {
 }
 
 //like arrayRemove(), but order of array elements isn't kept -> faster
-void arrayRemoveUnordered(T)(inout T[] arr, T value) {
+void arrayRemoveUnordered(T)(inout T[] arr, T value, bool allowFail = false) {
     auto index = arraySearch(arr, value);
-    if (index < 0)
+    if (index < 0) {
+        if (allowFail) return;
         throw new Exception("arrayRemoveUnordered: element not in array");
+    }
     if (arr.length >= 1) {
         arr[index] = arr[$-1];
     }

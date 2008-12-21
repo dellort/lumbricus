@@ -24,7 +24,7 @@ import utils.factory;
 
 private class ProjectileSprite : ActionSprite {
     ProjectileSpriteClass myclass;
-    Time birthTime;
+    Time stateTime;
     //only used if myclass.dieByTime && !myclass.useFixedDeathTime
     Time detonateTimer;
     Time glueTime;   //time when projectile got glued
@@ -32,11 +32,11 @@ private class ProjectileSprite : ActionSprite {
     Vector2f target;
     private bool mTimerDone = false;
 
-    Time detonateTime() {
-        if (!myclass.useFixedDetonateTime)
-            return birthTime + detonateTimer;
+    Time detonateTimeState() {
+        if (!currentState.useFixedDetonateTime)
+            return stateTime + detonateTimer;
         else
-            return birthTime + myclass.fixedDetonateTime;
+            return stateTime + currentState.fixedDetonateTime;
     }
 
     override bool activity() {
@@ -46,10 +46,22 @@ private class ProjectileSprite : ActionSprite {
         return active && !(physics.isGlued && myclass.inactiveWhenGlued);
     }
 
+    override ProjectileStateInfo currentState() {
+        return cast(ProjectileStateInfo)super.currentState();
+    }
+
+    override protected void stateTransition(StaticStateInfo from,
+        StaticStateInfo to)
+    {
+        super.stateTransition(from, to);
+        stateTime = engine.gameTime.current;
+        mTimerDone = false;
+    }
+
     override void simulate(float deltaT) {
         super.simulate(deltaT);
 
-        if (engine.gameTime.current > detonateTime) {
+        if (engine.gameTime.current > detonateTimeState) {
             //start glued checking when projectile wants to blow
             if (physics.isGlued) {
                 if (!gluedCache) {
@@ -63,7 +75,9 @@ private class ProjectileSprite : ActionSprite {
                 gluedCache = false;
             }
             //this will do 0 >= 0 for projectiles not needing glue
-            if (engine.gameTime.current - glueTime >= myclass.minimumGluedTime) {
+            if (engine.gameTime.current - glueTime >=
+                currentState.minimumGluedTime)
+            {
                 if (!mTimerDone) {
                     doEvent("ontimer");
                     mTimerDone = true;
@@ -100,7 +114,35 @@ private class ProjectileSprite : ActionSprite {
         assert(type !is null);
         myclass = type;
         assert(myclass !is null);
-        birthTime = engine.gameTime.current;
+        stateTime = engine.gameTime.current;
+    }
+}
+
+class ProjectileStateInfo : ActionStateInfo {
+    //r/o fields
+    bool useFixedDetonateTime;
+    Time fixedDetonateTime;
+    Time minimumGluedTime;
+
+    override void loadFromConfig(ConfigNode sc, ConfigNode physNode,
+        GOSpriteClass owner)
+    {
+        super.loadFromConfig(sc, physNode, owner);
+
+        loadDetonateConfig(sc);
+    }
+
+    private void loadDetonateConfig(ConfigNode sc) {
+        auto detonateNode = sc.getSubNode("detonate");
+        minimumGluedTime = timeSecs(detonateNode.getFloatValue("gluetime", 0));
+        if (detonateNode.valueIs("lifetime", "$LIFETIME$")) {
+            useFixedDetonateTime = false;
+        } else {
+            useFixedDetonateTime = true;
+            //currently in seconds, xxx what about default value?
+            fixedDetonateTime =
+                timeSecs(detonateNode.getFloatValue("lifetime", 999999.0f));
+        }
     }
 }
 
@@ -113,11 +155,6 @@ private class ProjectileSprite : ActionSprite {
 
 //can load weapon config from configfile, see weapons.conf; it's a projectile
 class ProjectileSpriteClass : ActionSpriteClass {
-    //r/o fields
-    bool useFixedDetonateTime;
-    Time fixedDetonateTime;
-    Time minimumGluedTime;
-
     //when glued, consider it as inactive (so next round can start); i.e. mines
     bool inactiveWhenGlued;
 
@@ -127,47 +164,50 @@ class ProjectileSpriteClass : ActionSpriteClass {
 
     //config = a subnode in the weapons.conf which describes a single projectile
     override void loadFromConfig(ConfigNode config) {
-        //missing super call is intended
-        asLoadFromConfig(config);
+        bool stateful = config.getBoolValue("stateful", false);
+        if (stateful)
+            //treat like a normal sprite
+            super.loadFromConfig(config);
+        else {
+            //missing super call is intended
+            asLoadFromConfig(config);
 
-        //hm, state stuff unused, so only that state
-        initState.physic_properties = new POSP();
-        initState.physic_properties.loadFromConfig(config.getSubNode("physics"));
+            //hm, state stuff unused, so only that state
+            initState.physic_properties = new POSP();
+            initState.physic_properties.loadFromConfig(config.getSubNode("physics"));
 
-        if (!config.hasValue("sequence_object")) {
-            assert(false, "bla: "~config.name);
-        }
+            if (!config.hasValue("sequence_object")) {
+                assert(false, "bla: "~config.name);
+            }
 
-        sequenceObject = engine.gfx.resources.resource!(SequenceObject)
-            (config["sequence_object"]).get;
-        initState.animation = sequenceObject.findState("normal");
+            sequenceObject = engine.gfx.resources.resource!(SequenceObject)
+                (config["sequence_object"]).get;
+            initState.animation = sequenceObject.findState("normal");
 
-        if (auto drownani = sequenceObject.findState("drown", true)) {
-            auto drownstate = createStateInfo();
-            drownstate.name = "drowning";
-            drownstate.animation = drownani;
-            drownstate.physic_properties = initState.physic_properties;
-            //must not modify physic_properties (instead copy them)
-            drownstate.physic_properties = drownstate.physic_properties.copy();
-            drownstate.physic_properties.radius = 1;
-            drownstate.physic_properties.collisionID = "projectile_drown";
-            states[drownstate.name] = drownstate;
-        }
+            if (auto drownani = sequenceObject.findState("drown", true)) {
+                auto drownstate = createStateInfo();
+                drownstate.name = "drowning";
+                drownstate.animation = drownani;
+                //no events underwater
+                drownstate.disableEvents = true;
+                drownstate.physic_properties = initState.physic_properties;
+                //must not modify physic_properties (instead copy them)
+                drownstate.physic_properties = drownstate.physic_properties.copy();
+                drownstate.physic_properties.radius = 1;
+                drownstate.physic_properties.collisionID = "projectile_drown";
+                states[drownstate.name] = drownstate;
+            }
 
-        auto detonateNode = config.getSubNode("detonate");
-        minimumGluedTime = timeSecs(detonateNode.getFloatValue("gluetime", 0));
-        if (detonateNode.valueIs("lifetime", "$LIFETIME$")) {
-            useFixedDetonateTime = false;
-        } else {
-            useFixedDetonateTime = true;
-            //currently in seconds, xxx what about default value?
-            fixedDetonateTime =
-                timeSecs(detonateNode.getFloatValue("lifetime", 3.0f));
-        }
+            (cast(ProjectileStateInfo)initState).loadDetonateConfig(config);
+        }  //if stateful
 
         inactiveWhenGlued = config.getBoolValue("inactive_when_glued");
     }
 
+
+    override protected ProjectileStateInfo createStateInfo() {
+        return new ProjectileStateInfo();
+    }
 
     this(GameEngine e, char[] r) {
         super(e, r);

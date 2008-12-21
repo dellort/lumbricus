@@ -365,6 +365,7 @@ class WormSprite : GObjectSprite {
         return mWeapon;
     }
 
+    //fire (or refire) the selected weapon (mWeapon)
     bool fire(bool keyUp = false) {
         if (allowFireSecondary()) {
             //secondary fire is possible, so do that instead
@@ -379,15 +380,15 @@ class WormSprite : GObjectSprite {
             if (!mWeapon)
                 return false;
 
-            //no variable strength here
-            fireWeapon(mShooterSec, mWeapon.fireMode.throwStrengthFrom);
+            //no variable strength here, fixed angle
+            fireWeapon(mShooterSec, mWeapon.fireMode.throwStrengthFrom, true);
             return true;
         }
 
         //not firing a secondary weapon, allow main fire key for alternate, too
-        if (allowAlternate()) {
+        if (mShooterMain && mShooterMain.activity()) {
             if (!keyUp) {
-                return fireAlternate();
+                return mShooterMain.refire();
             }
             return false;
         }
@@ -426,6 +427,8 @@ class WormSprite : GObjectSprite {
         return true;
     }
 
+    //alternate fire refires the active main weapon if it can't be refired
+    //with the main button because a secondary weapon needs the control
     bool fireAlternate() {
         if (!allowAlternate())
             return false;
@@ -437,7 +440,8 @@ class WormSprite : GObjectSprite {
 
     //would the alternate-fire-button have an effect
     bool allowAlternate() {
-        return mShooterMain && mShooterMain.activity();
+        return mShooterMain && mShooterMain.activity()
+            && mShooterMain.weapon.allowSecondary;
     }
 
     //allow firing the current weapon as secondary weapon
