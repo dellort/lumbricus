@@ -388,9 +388,15 @@ abstract class Action : GameObject {
     }
 
     final bool activity() {
-        if (context.activityCheck)
-            return context.activityCheck();
-        return mActivity && customActivity();
+        if (mActivity) {
+            assert(!!context);
+            //context/custom activity checker can only make an active action
+            //appear inactive, not the other way round
+            if (context.activityCheck)
+                return context.activityCheck();
+            return customActivity();
+        }
+        return false;
     }
 
     ///custom (to-override) activity checker to allow situations where

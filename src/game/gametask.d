@@ -370,7 +370,7 @@ class GameTask : Task {
         mCmds.register(Command("show_collide", &cmdShowCollide, "show collision"
             " bitmaps"));
         mCmds.register(Command("activity", &cmdActivityTest,
-            "list active game objects"));
+            "list active game objects", ["bool?:list all objects"]));
     }
 
     class ShowCollide : Container {
@@ -513,7 +513,7 @@ class GameTask : Task {
     }
 
     private void cmdActivityTest(MyBox[] args, Output write) {
-        mServerEngine.activityDebug();
+        mServerEngine.activityDebug(args[0].unboxMaybe!(bool));
     }
 
     static this() {

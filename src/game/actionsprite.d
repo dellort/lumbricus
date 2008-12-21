@@ -162,7 +162,7 @@ class ActionSprite : GObjectSprite {
     ///runs a sprite-specific event defined in the config file
     //xxx should be private, but is used by some actions
     void doEvent(char[] id, bool stateonly = false) {
-        if (!mEnableEvents)
+        if (!mEnableEvents || !active)
             return;
         //logging: this is slow (esp. napalm)
         //engine.mLog("Projectile: Execute event "~id);
