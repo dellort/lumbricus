@@ -5,7 +5,7 @@ module physics.zone;
 
 import utils.vector2;
 import utils.rect2;
-import utils.mylist;
+import utils.list2;
 
 import physics.base;
 import physics.physobj;

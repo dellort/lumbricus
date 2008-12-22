@@ -6,7 +6,6 @@ import framework.event;
 import str = std.string;
 import utf = std.utf;
 
-import utils.mylist;
 import utils.mybox;
 import utils.array;
 import utils.output;
@@ -443,19 +442,11 @@ public class CommandLine {
 ///stateful part of the commandline (i.e. history)
 class CommandLineInstance {
     private {
-        //this was the only list class available :-(
-        alias List!(HistoryNode) HistoryList;
-
-        class HistoryNode {
-            char[] stuff;
-            mixin ListNodeMixin listnode;
-        }
-
         CommandLine mCmdline;
         CommandBucket mCommands;
         Output mConsole;
-        HistoryList mHistory;
-        HistoryNode mCurrentHistoryEntry;
+        char[][] mHistory;
+        int mCurrentHistoryEntry = 0;
 
         const uint MAX_HISTORY_ENTRIES = 20;
         const uint MAX_AUTO_COMPLETIONS = 10;
@@ -476,8 +467,6 @@ class CommandLineInstance {
         mCmdline = cmdline;
         mCommands = new CommandBucket;
         mCommands.addSub(mCmdline.mCommands);
-        HistoryNode n;
-        mHistory = new HistoryList(n.listnode.getListNodeOffset());
         mCommands.registerCommand(Command("help", &cmdHelp,
             "Show all commands.", ["text?:specific help for a command"],
             [&complete_command_list]));
@@ -542,45 +531,48 @@ class CommandLineInstance {
 
     private void cmdHistory(MyBox[] args, Output write) {
         mConsole.writefln("History:");
-        foreach (HistoryNode hist; mHistory) {
-            mConsole.writefln("   "~hist.stuff);
+        foreach (char[] hist; mHistory) {
+            mConsole.writefln("   "~hist);
         }
     }
 
     /// Search through the history, dir is either -1 or +1
+    /// Returns entry, the "cur" param is the current commandline
     /// Returned string must not be modified.
+    /* Rules about history editing:
+       - going to an entry, modifying it, and hitting enter just appends a
+         new entry to the history
+       - modifying an entry and, without hitting enter, going to another entry,
+         changes the entry in the history and doesn't create a new entry
+    */
     public char[] selectHistory(char[] cur, int dir) {
+        setHistory(cur);
+
         if (dir == -1) {
-            HistoryNode next_hist;
-            if (mCurrentHistoryEntry) {
-                next_hist = mHistory.prev(mCurrentHistoryEntry);
-            } else {
-                next_hist = mHistory.tail();
-            }
-            if (next_hist) {
-                return select_history_entry(next_hist);
-            }
+            if (mCurrentHistoryEntry - 1 >= 0)
+                mCurrentHistoryEntry -= 1;
         } else if (dir == +1) {
-            if (mCurrentHistoryEntry) {
-                HistoryNode next_hist = mHistory.next(mCurrentHistoryEntry);
-                return select_history_entry(next_hist);
-            }
+            if (mCurrentHistoryEntry + 1 < mHistory.length)
+                mCurrentHistoryEntry += 1;
         }
-        return cur;
+
+        if (mCurrentHistoryEntry < mHistory.length) {
+            return mHistory[mCurrentHistoryEntry];
+        } else {
+            return cur;
+        }
     }
 
-    private char[] select_history_entry(HistoryNode newentry) {
-        char[] newline;
-
-        mCurrentHistoryEntry = newentry;
-
-        if (newentry) {
-            newline = newentry.stuff;
-        } else {
-            newline = null;
+    private void setHistory(char[] line) {
+        if (line.length == 0)
+            return;
+        line = line.dup;
+        if (!mHistory.length || mCurrentHistoryEntry >= mHistory.length) {
+            mHistory ~= line;
+            mCurrentHistoryEntry = mHistory.length - 1;
         }
-
-        return newline;
+        //save back old entry (might be a nop in most cases)
+        mHistory[mCurrentHistoryEntry] = line;
     }
 
     //get the command part of the command line
@@ -622,16 +614,18 @@ class CommandLineInstance {
             mConsole.writefln("-");
         } else {
             if (addHistory) {
-                //into the history
-                HistoryNode histent = new HistoryNode();
-                histent.stuff = cmdline.dup;
-                mHistory.insert_tail(histent);
-
-                if (mHistory.count() > MAX_HISTORY_ENTRIES) {
-                    mHistory.remove(mHistory.head);
+                if (mCurrentHistoryEntry != mHistory.length - 1) {
+                    //modified older entry, append to end
+                    if (cmdline.length)
+                        mHistory ~= cmdline.dup;
+                } else {
+                    //as usual
+                    setHistory(cmdline);
                 }
-
-                mCurrentHistoryEntry = null;
+                if (mHistory.length > MAX_HISTORY_ENTRIES) {
+                    mHistory = mHistory[1..$];
+                }
+                mCurrentHistoryEntry = mHistory.length;
             }
 
             auto ccmd = findCommand(cmd);

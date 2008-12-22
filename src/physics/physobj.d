@@ -1,7 +1,7 @@
 module physics.physobj;
 
 import std.math : PI, abs;
-import utils.mylist;
+import utils.list2;
 import utils.vector2;
 import utils.misc: max;
 
@@ -15,7 +15,7 @@ const cDamageCauseDeath = -1;
 
 //simple physical object (has velocity, position, mass, radius, ...)
 class PhysicObject : PhysicBase {
-    package mixin ListNodeMixin objects_node;
+    package ListNode objects_node;
 
     private POSP mPosp;
 

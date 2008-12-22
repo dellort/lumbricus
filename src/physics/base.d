@@ -1,6 +1,6 @@
 module physics.base;
 
-import utils.mylist;
+import utils.list2;
 
 import physics.world;
 
@@ -28,7 +28,7 @@ const CollisionType CollisionType_Invalid = null;
 
 //base type for physic objects (which are contained in a PhysicWorld)
 class PhysicBase {
-    package mixin ListNodeMixin allobjects_node;
+    package ListNode base_node;
     //private bool mNeedSimulation;
     private bool mNeedUpdate;
     PhysicWorld mWorld;

@@ -1,7 +1,7 @@
 module common.scene;
 
 import framework.framework;
-import utils.mylist;
+import utils.list2;
 import utils.vector2;
 import utils.rect2;
 
@@ -12,14 +12,12 @@ public import framework.framework : Canvas;
 ///all SceneObjects are relative to clientOffset within the Scene's rect
 ///clientOffset can be used to implement scrolling etc.
 class Scene : SceneObjectCentered {
-    alias List!(SceneObject) SOList;
-
     private {
-        SOList mActiveObjects;
+        List2!(SceneObject) mActiveObjects;
     }
 
     this() {
-        mActiveObjects = new SOList(SceneObject.allobjects.getListNodeOffset());
+        mActiveObjects = new List2!(SceneObject)();
     }
 
     /// Add an object to the scene.
@@ -28,15 +26,15 @@ class Scene : SceneObjectCentered {
     /// xxx currently only supports one container-scene per SceneObject, maybe
     /// I want to change that??? (and: how then? maybe need to allocate listnodes)
     void add(SceneObject obj) {
-        assert(!mActiveObjects.contains(obj));
-        mActiveObjects.insert_tail(obj);
+        assert(!mActiveObjects.contains(obj.node));
+        obj.node = mActiveObjects.add(obj);
     }
 
     /// Remove an object from the scene.
     /// The z-orders of the other objects remain untouched.
     void remove(SceneObject obj) {
-        assert(mActiveObjects.contains(obj));
-        mActiveObjects.remove(obj);
+        assert(mActiveObjects.contains(obj.node));
+        mActiveObjects.remove(obj.node);
     }
 
     /// Remove all sub objects
@@ -65,7 +63,7 @@ class Scene : SceneObjectCentered {
 }
 
 class SceneObject {
-    private mixin ListNodeMixin allobjects;
+    private ListNode node;
     bool active = true;
 
     //render callback; coordinates relative to containing SceneObject

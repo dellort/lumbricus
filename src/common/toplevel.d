@@ -23,7 +23,6 @@ import utils.factory;
 import utils.log;
 import utils.output;
 import utils.misc;
-import utils.mylist;
 import utils.mybox;
 import utils.perf;
 //xxx

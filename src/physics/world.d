@@ -5,7 +5,7 @@ import std.math : sqrt, PI;
 import utils.misc;
 import utils.array;
 import utils.configfile;
-import utils.mylist;
+import utils.list2;
 import utils.random;
 import utils.time;
 import utils.vector2;
@@ -32,12 +32,12 @@ import physics.sortandsweep;
 //version = PhysDebug;
 
 class PhysicWorld {
-    private List!(PhysicBase) mAllObjects;
-    private List!(PhysicForce) mForceObjects;
-    private List!(PhysicGeometry) mGeometryObjects;
-    private List!(PhysicObject) mObjects;
-    private List!(PhysicTrigger) mTriggers;
-    private List!(PhysicContactGen) mContactGenerators;
+    private List2!(PhysicBase) mAllObjects;
+    private List2!(PhysicForce) mForceObjects;
+    private List2!(PhysicGeometry) mGeometryObjects;
+    private List2!(PhysicObject) mObjects;
+    private List2!(PhysicTrigger) mTriggers;
+    private List2!(PhysicContactGen) mContactGenerators;
     private uint mLastTime;
 
     private PhysicObject[] mObjArr;
@@ -51,28 +51,35 @@ class PhysicWorld {
 
     public void add(PhysicBase obj) {
         obj.world = this;
-        mAllObjects.insert_tail(obj);
-        if (auto o = cast(PhysicForce)obj)    mForceObjects.insert_tail(o);
-        if (auto o = cast(PhysicGeometry)obj) mGeometryObjects.insert_tail(o);
+        obj.base_node = mAllObjects.insert_tail(obj);
+        if (auto o = cast(PhysicForce)obj)
+            o.forces_node = mForceObjects.insert_tail(o);
+        if (auto o = cast(PhysicGeometry)obj)
+            o.geometries_node = mGeometryObjects.insert_tail(o);
         if (auto o = cast(PhysicObject)obj) {
-            mObjects.insert_tail(o);
+            o.objects_node = mObjects.insert_tail(o);
             mObjArr ~= o;
         }
-        if (auto o = cast(PhysicTrigger)obj)  mTriggers.insert_tail(o);
+        if (auto o = cast(PhysicTrigger)obj)
+            o.triggers_node = mTriggers.insert_tail(o);
         if (auto o = cast(PhysicContactGen)obj)
-            mContactGenerators.insert_tail(o);
+            o.cgen_node = mContactGenerators.insert_tail(o);
     }
 
     private void remove(PhysicBase obj) {
-        mAllObjects.remove(obj);
-        if (auto o = cast(PhysicForce)obj)    mForceObjects.remove(o);
-        if (auto o = cast(PhysicGeometry)obj) mGeometryObjects.remove(o);
+        mAllObjects.remove(obj.base_node);
+        if (auto o = cast(PhysicForce)obj)
+            mForceObjects.remove(o.forces_node);
+        if (auto o = cast(PhysicGeometry)obj)
+            mGeometryObjects.remove(o.geometries_node);
         if (auto o = cast(PhysicObject)obj) {
-            mObjects.remove(o);
+            mObjects.remove(o.objects_node);
             arrayRemoveUnordered(mObjArr, o);
         }
-        if (auto o = cast(PhysicTrigger)obj)  mTriggers.remove(o);
-        if (auto o = cast(PhysicContactGen)obj) mContactGenerators.remove(o);
+        if (auto o = cast(PhysicTrigger)obj)
+            mTriggers.remove(o.triggers_node);
+        if (auto o = cast(PhysicContactGen)obj)
+            mContactGenerators.remove(o.cgen_node);
     }
 
     private const cPhysTimeStepMs = 10;
@@ -167,9 +174,7 @@ class PhysicWorld {
 
     void checkUpdates() {
         //do updates
-        PhysicBase obj = mAllObjects.head();
-        while (obj) {
-            auto next = mAllObjects.next(obj);
+        foreach (PhysicBase obj; mAllObjects) {
             if (!obj.dead && obj.needsUpdate) {
                 obj.doUpdate();
             }
@@ -177,7 +182,6 @@ class PhysicWorld {
                 obj.doDie();
                 remove(obj);
             }
-            obj = next;
         }
     }
 
@@ -337,12 +341,12 @@ class PhysicWorld {
         }
         collide = new CollisionMap();
         broadphase = new BPSortAndSweep(&checkObjectCollision);
-        mObjects = new List!(PhysicObject)(PhysicObject.objects_node.getListNodeOffset());
-        mAllObjects = new List!(PhysicBase)(PhysicBase.allobjects_node.getListNodeOffset());
-        mForceObjects = new List!(PhysicForce)(PhysicForce.forces_node.getListNodeOffset());
-        mGeometryObjects = new List!(PhysicGeometry)(PhysicGeometry.geometries_node.getListNodeOffset());
-        mTriggers = new List!(PhysicTrigger)(PhysicTrigger.triggers_node.getListNodeOffset());
-        mContactGenerators = new List!(PhysicContactGen)(PhysicContactGen.cgen_node.getListNodeOffset());
+        mObjects = new List2!(PhysicObject)();
+        mAllObjects = new List2!(PhysicBase)();
+        mForceObjects = new List2!(PhysicForce)();
+        mGeometryObjects = new List2!(PhysicGeometry)();
+        mTriggers = new List2!(PhysicTrigger)();
+        mContactGenerators = new List2!(PhysicContactGen)();
         mContacts.length = 1024;  //xxx arbitrary number
         mLog = log.registerLog("physlog");
     }

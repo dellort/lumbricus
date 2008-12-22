@@ -1,6 +1,6 @@
 module physics.geometry;
 
-import utils.mylist;
+import utils.list2;
 import utils.vector2;
 
 import physics.base;
@@ -36,7 +36,7 @@ struct GeomContact {
 // border of the level (i.e. upper border in caves)
 //also used for the bitmap part of the level
 class PhysicGeometry : PhysicBase {
-    package mixin ListNodeMixin geometries_node;
+    package ListNode geometries_node;
 
     //generation counter, increased on every change
     int generationNo = 0;

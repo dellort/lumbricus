@@ -1,7 +1,7 @@
 module physics.trigger;
 
 import utils.vector2;
-import utils.mylist;
+import utils.list2;
 
 import physics.base;
 import physics.physobj;
@@ -12,7 +12,7 @@ import physics.zone;
 //objects can be inside or outside and will trigger a callback when inside
 //remember to set id for trigger handler
 class PhysicTrigger : PhysicBase {
-    package mixin ListNodeMixin triggers_node;
+    package ListNode triggers_node;
 
     //trigger when object does _not_ collide
     bool inverse;

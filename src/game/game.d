@@ -13,7 +13,7 @@ import common.common;
 import game.controller;
 import game.weapon.weapon;
 import game.gamepublic;
-import utils.mylist;
+import utils.list2;
 import utils.time;
 import utils.log;
 import utils.configfile;
@@ -36,7 +36,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     private TimeSource mGameTime;
 
     protected PhysicWorld mPhysicWorld;
-    private List!(GameObject) mObjects;
+    private List2!(GameObject) mObjects;
     private Level mLevel;
     GameLandscape[] gameLandscapes;
     PhysicZonePlane waterborder;
@@ -242,7 +242,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         mGameTime = new TimeSource();
         mGameTime.paused = true;
 
-        mObjects = new List!(GameObject)(GameObject.node.getListNodeOffset());
+        mObjects = new List2!(GameObject)();
         mPhysicWorld = new PhysicWorld(rnd);
 
         mWorldSize = mLevel.worldSize;
@@ -294,7 +294,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         mWaterChanger.changePerSec = cWaterRaisingSpeed;
         physicworld.add(mWaterChanger);
 
-        mObjects = new List!(GameObject)(GameObject.node.getListNodeOffset());
+        //what mObjects = new List2!(GameObject)();
 
         //load weapons
         foreach (char[] ws; config.weaponsets) {
@@ -411,9 +411,9 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     void ensureAdded(GameObject obj) {
         assert(obj.active);
         //in case of lazy removal
-        //note that .contains is O(1)
-        if (!mObjects.contains(obj))
-            mObjects.insert_tail(obj);
+        //note that .contains is O(1) if used with .node
+        if (!mObjects.contains(obj.node))
+            obj.node = mObjects.add(obj);
     }
 
     PhysicWorld physicworld() {
@@ -434,17 +434,14 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
             simulate();
             //update game objects
             //NOTE: objects might be inserted/removed while iterating
-            //      maybe one should implement a safe iterator...
-            GameObject cur = mObjects.head;
+            //      List.opApply can deal with that
             float deltat = mGameTime.difference.secsf;
-            while (cur) {
-                auto o = cur;
-                cur = mObjects.next(cur);
+            foreach (GameObject o; mObjects) {
                 if (o.active) {
                     o.simulate(deltat);
                 } else {
                     //remove (it's done lazily, and here it's actually removed)
-                    mObjects.remove(o);
+                    mObjects.remove(o.node);
                 }
             }
         }
@@ -453,10 +450,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     //remove all objects etc. from the scene
     void kill() {
         //must iterate savely
-        GameObject cur = mObjects.head;
-        while (cur) {
-            auto o = cur;
-            cur = mObjects.next(cur);
+        foreach (GameObject o; mObjects) {
             o.kill();
         }
     }

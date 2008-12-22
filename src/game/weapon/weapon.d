@@ -10,7 +10,6 @@ import game.sprite;
 import game.weapon.types;
 import utils.misc;
 import utils.vector2;
-import utils.mylist;
 import utils.time;
 import utils.factory;
 

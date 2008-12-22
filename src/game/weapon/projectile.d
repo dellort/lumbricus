@@ -15,7 +15,6 @@ import std.math;
 import str = std.string;
 import utils.misc;
 import utils.vector2;
-import utils.mylist;
 import utils.time;
 import utils.configfile;
 import utils.log;

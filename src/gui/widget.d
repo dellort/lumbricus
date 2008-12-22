@@ -6,7 +6,6 @@ import gui.container;
 import gui.gui;
 import utils.configfile;
 import utils.factory;
-import utils.mylist;
 import utils.time;
 import utils.vector2;
 import utils.rect2;

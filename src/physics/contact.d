@@ -1,6 +1,6 @@
 module physics.contact;
 
-import utils.mylist;
+import utils.list2;
 import utils.vector2;
 
 import physics.base;
@@ -172,7 +172,7 @@ struct Contact {
 }
 
 class PhysicContactGen : PhysicBase {
-    package mixin ListNodeMixin cgen_node;
+    package ListNode cgen_node;
 
     abstract void process(CollideDelegate contactHandler);
 }

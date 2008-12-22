@@ -5,7 +5,6 @@ import game.gobject;
 
 import utils.misc;
 import utils.vector2;
-import utils.mylist;
 import utils.time;
 import utils.factory;
 import utils.configfile;

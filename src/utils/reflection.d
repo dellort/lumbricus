@@ -854,7 +854,7 @@ static this() {
 debug:
 
 import utils.strparser;
-import utils.mylist;
+import utils.list2;
 
 enum X {
     xa,
@@ -875,7 +875,7 @@ class Test1 {
     X e;
     Test2 f;
     S g;
-    List!(Test2) h;
+    List2!(Test2) h;
 
     void foo() {
     }
@@ -892,7 +892,7 @@ class Test2 {
     float b = 2.45;
     Test1[] c;
 
-    mixin ListNodeMixin foo;
+    ListNode foo;
 
     public this(ReflectCtor ct) {
     }

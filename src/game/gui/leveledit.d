@@ -4,7 +4,7 @@
 module game.gui.leveledit;
 import utils.vector2;
 import utils.rect2;
-import utils.mylist;
+import utils.list2;
 import utils.mybox;
 import framework.commandline;
 import framework.framework;
@@ -45,8 +45,7 @@ private:
 const int cBoundingBorder = 2;
 
 class EditObject {
-    List!(EditObject) subObjects;
-    mixin ListNodeMixin node;
+    List2!(EditObject) subObjects;
     Rect2i bounds;
     EditObject parent;
     //sum of sub-objects, that are selected (including this)
@@ -59,7 +58,7 @@ class EditObject {
     bool isMoving;
 
     this() {
-        subObjects = new List!(EditObject)(EditObject.node.getListNodeOffset());
+        subObjects = new List2!(EditObject)();
     }
 
     bool isHighlighted() {
@@ -159,7 +158,7 @@ class EditObject {
         assert(sub.parent is null);
         sub.parent = this;
         if (to_tail) {
-            subObjects.insert_tail(sub);
+            subObjects.add(sub);
         } else {
             subObjects.insert_head(sub);
         }
@@ -176,13 +175,13 @@ class EditObject {
         if (pick(p)) {
             //backwards, because objects with higher zorder (== drawn at last)
             //should also be picked preferably
-            auto cur = subObjects.tail;
-            while (cur) {
-                if (cur.pick(p)) {
-                    return cur;
-                }
-                cur = subObjects.prev(cur);
+            //xxx replaced backwards iteration by forward iteration + suckiness
+            EditObject last;
+            foreach (EditObject cur; subObjects) {
+                if (cur.pick(p))
+                    last = cur;
             }
+            return last;
         }
         return null;
     }

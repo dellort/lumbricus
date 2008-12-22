@@ -19,7 +19,7 @@ import game.weapon.weapon;
 import game.levelgen.level;
 import game.levelgen.landscape;
 import game.levelgen.renderer;
-import utils.mylist;
+import utils.list2;
 import utils.time;
 import utils.math;
 import utils.misc;
@@ -45,7 +45,7 @@ enum GameZOrder {
 }
 
 class ClientGraphic : Graphic {
-    private mixin ListNodeMixin node;
+    private ListNode node;
     //if handler is null, this means it has been removed
     GraphicsHandler handler;
 
@@ -65,7 +65,7 @@ class ClientGraphic : Graphic {
     //stupid enforced constructor order...
     protected void init() {
         container().add(graphic);
-        handler.mGraphics.insert_tail(this);
+        node = handler.mGraphics.add(this);
     }
 
     //NOTE: due to some stupidity, objects can never be added to the scene again
@@ -73,7 +73,7 @@ class ClientGraphic : Graphic {
     void remove() {
         if (!handler)
             return;
-        handler.mGraphics.remove(this);
+        handler.mGraphics.remove(node);
         container().remove(graphic);
         handler = null;
     }
@@ -393,14 +393,14 @@ class ExplosionGfxImpl : ClientGraphic, ExplosionGfx {
         container().add(mShockwave1);
         container().add(mShockwave2);
         container().add(mComicText);
-        handler.mGraphics.insert_tail(this);
+        node = handler.mGraphics.add(this);
     }
 
     //same as above
     override void remove() {
         if (!handler)
             return;
-        handler.mGraphics.remove(this);
+        handler.mGraphics.remove(node);
         container().remove(mShockwave1);
         container().remove(mShockwave2);
         container().remove(mComicText);
@@ -468,7 +468,7 @@ class ExplosionGfxImpl : ClientGraphic, ExplosionGfx {
 }
 
 class GraphicsHandler : GameEngineGraphics {
-    private List!(ClientGraphic) mGraphics;
+    private List2!(ClientGraphic) mGraphics;
 
     //of course this is unclean, sucks, etc.
     Scene[GameZOrder.max+1] zScenes;
@@ -476,7 +476,7 @@ class GraphicsHandler : GameEngineGraphics {
     GfxSet gfx;
 
     this(GfxSet a_gfx) {
-        mGraphics = new typeof(mGraphics)(ClientGraphic.node.getListNodeOffset());
+        mGraphics = new typeof(mGraphics)();
         allScene = new Scene();
         foreach (ref s; zScenes) {
             s = new Scene();

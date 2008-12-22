@@ -1,7 +1,7 @@
 module game.gobject;
 
 import game.game;
-import utils.mylist;
+import utils.list2;
 import utils.time;
 
 //not really abstract, but should not be created
@@ -13,7 +13,7 @@ abstract class GameObject {
     GameObject createdBy;
 
     //for GameEngine
-    package mixin ListNodeMixin node;
+    ListNode node;
 
     GameEngine engine() {
         return mEngine;

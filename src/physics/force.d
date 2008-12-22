@@ -1,7 +1,7 @@
 module physics.force;
 
 import utils.vector2;
-import utils.mylist;
+import utils.list2;
 import utils.misc;
 
 import physics.base;
@@ -11,7 +11,7 @@ import physics.zone;
 //wind, gravitation, ...
 //what about explosions?
 class PhysicForce : PhysicBase {
-    package mixin ListNodeMixin forces_node;
+    package ListNode forces_node;
 
     abstract void applyTo(PhysicObject o, float deltaT);
 }
