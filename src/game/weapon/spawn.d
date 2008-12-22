@@ -9,6 +9,7 @@ import game.weapon.actions;
 import game.weapon.weapon;
 import game.weapon.projectile;
 import utils.configfile;
+import utils.reflection;
 import utils.vector2;
 
 enum InitVelocity {
@@ -146,6 +147,13 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
 class SpawnActionClass : ActionClass {
     SpawnParams sparams;
 
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
+
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         sparams.loadFromConfig(node);
     }
@@ -167,6 +175,10 @@ class SpawnAction : WeaponAction {
     this(SpawnActionClass base, GameEngine eng) {
         super(base, eng);
         myclass = base;
+    }
+
+    this (ReflectCtor c) {
+        super(c);
     }
 
     override protected ActionRes initialStep() {

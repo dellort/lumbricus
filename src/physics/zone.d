@@ -3,6 +3,7 @@ module physics.zone;
 ///A "zone" is a region in space, which objects can occupy (or not)
 ///Base functionality is to check if an object is inside
 
+import utils.reflection;
 import utils.vector2;
 import utils.rect2;
 import utils.list2;
@@ -13,6 +14,13 @@ import physics.plane;
 
 //utility class, no extension of PhysicBase
 class PhysicZone {
+    this() {
+    }
+
+    static void registerstuff(ReflectCtor c) {
+        c.types().registerClasses!(PhysicZonePlane, PhysicZoneCircle);
+    }
+
     bool check(PhysicObject obj) {
         //currently only circular objects, maybe more will follow (yeah, sure xD)
         return checkCircle(obj.pos, obj.posp.radius);
@@ -32,6 +40,9 @@ class PhysicZonePlane : PhysicZone {
     this() {
     }
 
+    this (ReflectCtor c) {
+    }
+
     override bool checkCircle(Vector2f pos, float radius) {
         //out values of plane.collide are not used
         Vector2f n;
@@ -49,6 +60,9 @@ class PhysicZoneCircle : PhysicZone {
     this(Vector2f pos, float rad) {
         radius = rad;
         this.pos = pos;
+    }
+
+    this (ReflectCtor c) {
     }
 
     override bool checkCircle(Vector2f opos, float orad) {

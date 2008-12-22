@@ -6,8 +6,7 @@ module framework.resset;
 import utils.misc;
 
 ///manages a single resource
-interface ResourceObject {
-
+class ResourceObject {
     ///the resource, must return always the same object
     abstract Object get();
 }
@@ -15,11 +14,14 @@ interface ResourceObject {
 ///contains the resource itself and a handle to the real entry in ResourceSet
 ///this struct can be obtained via ResourceSet.Entry.resource!(T)()
 struct Resource(T : Object) {
-    T resource;
+    //xxx: the motivation for this was optimization, but it doesn't work well
+    //     together with serialization
+    //private T resource;
     ResourceSet.Entry entry;
 
     final T get() {
-        return resource;
+        //return resource;
+        return entry ? castStrict!(T)(entry.mObject.get()) : T.init;
     }
 
     char[] name() {
@@ -78,7 +80,7 @@ class ResourceSet {
         Resource!(T) resource(T)() {
             Resource!(T) res;
             res.entry = this;
-            res.resource = castStrict!(T)(mObject.get());
+            //res.resource = castStrict!(T)(mObject.get());
             return res;
         }
 

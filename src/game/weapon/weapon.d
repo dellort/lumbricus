@@ -12,6 +12,7 @@ import utils.misc;
 import utils.vector2;
 import utils.time;
 import utils.factory;
+import utils.reflection;
 
 static class WeaponClassFactory
     : StaticFactory!(WeaponClass, GameEngine, ConfigNode)
@@ -86,6 +87,10 @@ abstract class WeaponClass {
         }
     }
 
+    //xxx class
+    this (ReflectCtor c) {
+    }
+
     //just a factory
     //users call fire() on them to actually activate them
     //  go == entity which fires it (its physical properties will be used)
@@ -108,7 +113,7 @@ struct FireInfo {
 //always created by WeaponClass.createShooter()
 //practically a factory for projectiles *g* (mostly, but not necessarily)
 //projectiles can work completely independend from this class
-class Shooter : GameObject {
+abstract class Shooter : GameObject {
     protected WeaponClass mClass;
     protected GObjectSprite owner;
     private bool mWorking;   //only for finishCb event
@@ -121,6 +126,10 @@ class Shooter : GameObject {
         assert(base !is null);
         mClass = base;
         owner = a_owner;
+    }
+
+    this (ReflectCtor c) {
+        super(c);
     }
 
     protected void reduceAmmo() {

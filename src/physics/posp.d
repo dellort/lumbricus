@@ -3,6 +3,7 @@ module physics.posp;
 import conv = std.conv;
 import str = std.string;
 import utils.configfile : ConfigNode;
+import utils.reflection;
 import utils.vector2;
 
 //PhysicalObjectStaticProperties
@@ -131,6 +132,11 @@ class POSP {
             other.tupleof[n] = m;
         }
         return other;
+    }
+
+    this() {
+    }
+    this (ReflectCtor c) {
     }
 }
 

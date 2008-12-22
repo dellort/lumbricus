@@ -1,5 +1,6 @@
 module physics.trigger;
 
+import utils.reflection;
 import utils.vector2;
 import utils.list2;
 
@@ -19,6 +20,11 @@ class PhysicTrigger : PhysicBase {
 
     void delegate(PhysicTrigger sender, PhysicObject other) onTrigger;
 
+    this() {
+    }
+    this (ReflectCtor c) {
+    }
+
     //return true when object is inside, false otherwise
     bool collide(PhysicObject obj) {
         bool coll = doCollide(obj);
@@ -37,6 +43,9 @@ class ZoneTrigger : PhysicTrigger {
 
     this(PhysicZone z) {
         zone = z;
+    }
+
+    this (ReflectCtor c) {
     }
 
     override bool doCollide(PhysicObject obj) {

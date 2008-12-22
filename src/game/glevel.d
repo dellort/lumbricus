@@ -10,6 +10,7 @@ import game.levelgen.renderer;
 import utils.vector2;
 import utils.log;
 import utils.misc;
+import utils.reflection;
 import drawing = utils.drawing;
 import std.math : sqrt, PI;
 import physics.world;
@@ -20,8 +21,13 @@ import physics.world;
 version = CircularCollision;
 
 //collision handling
-private class LandscapeGeometry : PhysicGeometry {
+class LandscapeGeometry : PhysicGeometry {
     GameLandscape ls;
+
+    this (ReflectCtor c) {
+    }
+    this () {
+    }
 
     bool collide(Vector2f pos, float radius, out GeomContact contact) {
         Vector2i dir;
@@ -131,6 +137,10 @@ class GameLandscape : GameObject {
         mGraphic = engine.graphics.createLandscape(mSize, mLandscape);
 
         init();
+    }
+
+    this (ReflectCtor c) {
+        super(c);
     }
 
     void init() {

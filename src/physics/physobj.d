@@ -4,6 +4,7 @@ import std.math : PI, abs;
 import utils.list2;
 import utils.vector2;
 import utils.misc: max;
+import utils.reflection;
 
 import physics.base;
 import physics.posp;
@@ -21,6 +22,9 @@ class PhysicObject : PhysicBase {
 
     this() {
         //
+    }
+
+    this (ReflectCtor c) {
     }
 
     POSP posp() {

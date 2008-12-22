@@ -4,11 +4,17 @@
 //except for the support of O(1) remove()/contains()
 module utils.list2;
 
+import utils.reflection;
+
 //xxx: I do not know why, but referencing this as List2(T).Node causes linker
 //     errors... dmd is a goddamn piece of garbage, I hope LDC is useable soon
 //Note that any use of this object from "outside" is an optimization anyway.
 class ListNode {
     private Object owner;
+    this() {
+    }
+    this (ReflectCtor c) {
+    }
 }
 
 class List2(T) {
@@ -17,12 +23,20 @@ class List2(T) {
     static class Node : ListNode {
         private Node prev, next;
         T value;
+        this() {
+        }
+        this (ReflectCtor c) {
+        }
     }
 
     this() {
         head_tail = new Node();
         head_tail.owner = this;
         clear();
+    }
+
+    this (ReflectCtor c) {
+        c.types().registerClass!(Node);
     }
 
     //O(n)

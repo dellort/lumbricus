@@ -7,6 +7,7 @@ import utils.array;
 import utils.configfile;
 import utils.list2;
 import utils.random;
+import utils.reflection;
 import utils.time;
 import utils.vector2;
 import log = utils.log;
@@ -27,6 +28,7 @@ public import physics.links;
 import physics.collisionmap;
 import physics.broadphase;
 import physics.sortandsweep;
+import physics.movehandler;
 
 //Uncomment to get detailed physics debugging log (slooooow)
 //version = PhysDebug;
@@ -48,6 +50,19 @@ class PhysicWorld {
     package log.Log mLog;
     Random rnd;
     CollisionMap collide;
+
+    this (ReflectCtor c) {
+        Types t = c.types();
+        t.registerClasses!(typeof(mAllObjects), typeof(mForceObjects),
+            typeof(mGeometryObjects), typeof(mObjects), typeof(mTriggers),
+            typeof(mContactGenerators));
+        t.registerClasses!(CollisionMap, PhysicConstraint, RopeHandler, POSP,
+            BPSortAndSweep, PhysicTimedChangerVector2f, PhysicBase,
+            PhysicTimedChangerFloat, ZoneTrigger);
+        BroadPhase.registerstuff(c);
+        PhysicZone.registerstuff(c);
+        PhysicForce.registerstuff(c);
+    }
 
     public void add(PhysicBase obj) {
         obj.world = this;

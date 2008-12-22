@@ -1,6 +1,7 @@
 module physics.movehandler;
 
 import std.math : signbit;
+import utils.reflection;
 import utils.vector2;
 
 import physics.base;
@@ -181,6 +182,9 @@ class RopeHandler : PhysicBase, MoveHandler {
         from.world.add(anchor);
         //anchor is flying and searching for ground
         isShooting = true;
+    }
+
+    this (ReflectCtor c) {
     }
 
     override void doDie() {

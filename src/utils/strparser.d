@@ -41,6 +41,7 @@ static this() {
         char, float, double, bool)();
     gBoxUnParsers[typeid(Vector2i)] = &boxUnParseVector2i;
     gBoxUnParsers[typeid(Vector2f)] = &boxUnParseVector2f;
+    gBoxUnParsers[typeid(char[])] = &boxUnParseStr;
 }
 
 private void addTrivialUnParsers(T...)() {
@@ -54,6 +55,9 @@ private void addTrivialUnParsers(T...)() {
 //the nop
 public MyBox boxParseStr(char[] s) {
     return MyBox.Box!(char[])(s);
+}
+public char[] boxUnParseStr(MyBox b) {
+    return b.unbox!(char[]);
 }
 
 //stolen from configfile.d

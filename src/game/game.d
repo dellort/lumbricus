@@ -21,6 +21,7 @@ import utils.math;
 import utils.misc;
 import utils.perf;
 import utils.random;
+import utils.reflection;
 import framework.framework;
 import framework.keysyms;
 import framework.timesource;
@@ -119,6 +120,11 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
 
     //same for weapons (also such a two-stage factory, which creastes Shooters)
     private WeaponClass[char[]] mWeaponClasses;
+
+    this (ReflectCtor c) {
+        c.types().registerClass!(typeof(mObjects));
+    }
+
 
     //factory for GOSpriteClasses
     //the constructor of GOSpriteClasses will call:

@@ -9,6 +9,7 @@ import utils.time;
 import utils.factory;
 import utils.configfile;
 import utils.randval;
+import utils.reflection;
 public import utils.mybox;
 
 class ActionClassFactory : StaticFactory!(ActionClass)
@@ -19,6 +20,12 @@ class ActionClassFactory : StaticFactory!(ActionClass)
 class ActionContainer {
     private {
         ActionClass[char[]] mActions;
+    }
+
+    //xxx class
+    this (ReflectCtor c) {
+    }
+    this () {
     }
 
     ///get an ActionClass by its id
@@ -84,6 +91,12 @@ abstract class ActionClass {
     abstract void loadFromConfig(GameEngine eng, ConfigNode node);
 
     abstract Action createInstance(GameEngine eng);
+
+    //xxx class
+    this (ReflectCtor c) {
+    }
+    this () {
+    }
 }
 
 ///Specify how the list will be executed: one-by-one or all at once
@@ -102,6 +115,9 @@ final class ActionContext {
 
     this(MyBox delegate(char[] id) params = null) {
         paramDg = params;
+    }
+
+    this (ReflectCtor c) {
     }
 
     final T getPar(T)(char[] id) {
@@ -137,6 +153,13 @@ class ActionListClass : ActionClass {
     ///number of loops over all actions
     int repeatCount = 1;
     RandomInt repeatDelayMs = {0, 0};
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         //parameters for _this_ list
@@ -201,6 +224,10 @@ class ActionList : Action {
             newInst.onFinish = &acFinish;
             mActions ~= newInst;
         }
+    }
+
+    this (ReflectCtor c) {
+        super(c);
     }
 
     //callback method for Actions (meaning an action completed)
@@ -341,6 +368,10 @@ abstract class Action : GameObject {
         myclass = base;
     }
 
+    this (ReflectCtor c) {
+        super(c);
+    }
+
     final void execute() {
         //create empty context if not set
         if (!context)
@@ -424,6 +455,13 @@ abstract class Action : GameObject {
 class TimedActionClass : ActionClass {
     RandomInt durationMs;
 
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
+
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         durationMs = RandomInt(node.getStringValue("duration","1000"), eng.rnd);
     }
@@ -447,6 +485,10 @@ class TimedAction : Action {
     this(TimedActionClass base, GameEngine eng) {
         super(base, eng);
         myclass = base;
+    }
+
+    this (ReflectCtor c) {
+        super(c);
     }
 
     //hehe... (use the 3 functions below)

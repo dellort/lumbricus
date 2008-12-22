@@ -1,6 +1,7 @@
 module physics.timedchanger;
 
 import std.math : copysign;
+import utils.reflection;
 import utils.vector2;
 
 import physics.base;
@@ -20,6 +21,9 @@ template PhysicTimedChanger(T) {
     this(T startValue, void delegate(T newValue) valChange) {
         onValueChange = valChange;
         value = startValue;
+    }
+
+    this (ReflectCtor c) {
     }
 
     void value(T v) {

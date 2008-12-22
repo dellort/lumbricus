@@ -8,6 +8,7 @@ module physics.sortandsweep;
 import physics.broadphase;
 import physics.contact;
 import utils.array;
+import utils.reflection;
 import utils.vector2;
 
 class BPSortAndSweep : BroadPhase {
@@ -15,6 +16,10 @@ class BPSortAndSweep : BroadPhase {
 
     this(CollideFineDg col) {
         super(col);
+    }
+
+    this (ReflectCtor c) {
+        super(c);
     }
 
     void collide(ref PhysicObject[] shapes, CollideDelegate contactHandler) {

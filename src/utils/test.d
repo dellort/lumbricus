@@ -7,4 +7,8 @@ class Test {
     int a;
     protected int b;
     private int c;
+    package int d;
+
+    struct S {
+    }
 }

@@ -2,6 +2,7 @@ module game.gobject;
 
 import game.game;
 import utils.list2;
+import utils.reflection;
 import utils.time;
 
 //not really abstract, but should not be created
@@ -44,6 +45,9 @@ abstract class GameObject {
         assert(aengine !is null);
         mEngine = aengine;
         active = start_active;
+    }
+
+    this (ReflectCtor c) {
     }
 
     //deltaT = seconds since last frame (game time)

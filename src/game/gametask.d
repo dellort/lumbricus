@@ -19,6 +19,7 @@ import game.game;
 import game.gfxset;
 import game.sprite;
 import game.crate;
+import game.gobject;
 import game.levelgen.level;
 import game.levelgen.generator;
 import gui.container;
@@ -35,6 +36,7 @@ import utils.vector2;
 import utils.log;
 import utils.configfile;
 import utils.random;
+import utils.reflection;
 
 import std.stream;
 import std.outbuffer;
@@ -46,6 +48,8 @@ import game.weapon.special_weapon;
 import game.weapon.tools;
 import game.weapon.ray;
 import game.weapon.spawn;
+
+Types serialize_types;
 
 //this is a test: it explodes the landscape graphic into several smaller ones
 Level fuzzleLevel(Level level) {
@@ -112,6 +116,9 @@ class GameTask : Task {
 
         //argh, another step of indirection :/
         SimpleContainer mGameFrame;
+
+        //for save & load support
+        Object[char[]] mExternalObjects;
     }
 
     //just for the paused-command?
@@ -242,6 +249,7 @@ class GameTask : Task {
             mLoadScreen.secondaryActive = false;
             mResPreloader = null;
             mGfx.finishLoading();
+            finishedResourceLoading();
             return true;
         }
     }
@@ -265,6 +273,29 @@ class GameTask : Task {
             //load weaponset locale
             localeRoot.addLocaleDir("weapons", dir ~ "/locale");
         }
+    }
+
+    private void finishedResourceLoading() {
+        //support game save/restore: add all resources and some stuff from gfx
+        // as external objects
+        addExternal("gfx", mGfx);
+        foreach (char[] key, TeamTheme tt; mGfx.teamThemes) {
+            addExternal("gfx_theme::" ~ key, tt);
+        }
+        foreach (ResourceSet.Entry res; mGfx.resources.resourceList()) {
+            addExternal("res::" ~ res.name(), res);
+        }
+    }
+
+    private void externalObjects() {
+        //before saving or loading a game
+        addExternal("clientengine", mClientEngine);
+        addExternal("graphicshandler", mGraphics);
+    }
+
+    void addExternal(char[] name, Object o) {
+        assert (!(name in mExternalObjects));
+        mExternalObjects[name] = o;
     }
 
     private void gameLoaded(Loader sender) {
@@ -371,6 +402,7 @@ class GameTask : Task {
             " bitmaps"));
         mCmds.register(Command("activity", &cmdActivityTest,
             "list active game objects", ["bool?:list all objects"]));
+        mCmds.register(Command("ser_dump", &cmdSerDump, "serialiation dump"));
     }
 
     class ShowCollide : Container {
@@ -514,6 +546,11 @@ class GameTask : Task {
 
     private void cmdActivityTest(MyBox[] args, Output write) {
         mServerEngine.activityDebug(args[0].unboxMaybe!(bool));
+    }
+
+    private void cmdSerDump(MyBox[] args, Output write) {
+        debugDumpTypeInfos(serialize_types);
+        debugDumpClassGraph(serialize_types, mServerEngine);
     }
 
     static this() {

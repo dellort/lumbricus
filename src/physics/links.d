@@ -1,6 +1,7 @@
 module physics.links;
 
 import std.math: abs;
+import utils.reflection;
 import utils.vector2;
 
 import physics.base;
@@ -28,6 +29,9 @@ class PhysicConstraint : PhysicContactGen {
         this.length = length;
         this.restitution = restitution;
         this.isCable = isCable;
+    }
+
+    this (ReflectCtor c) {
     }
 
     override void process(CollideDelegate contactHandler) {

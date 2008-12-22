@@ -25,6 +25,7 @@ import std.string;
 
 import gui.test; //GUI test code
 import game.gametask; //the game itself
+import game.serialize_register : initGameSerialization;
 import game.gui.preview; //level preview window
 import game.gui.leveledit; //aw
 import game.wtris; //lol
@@ -68,6 +69,8 @@ const cCommandLineHelp =
 void main(char[][] args) {
     //xxx
     rand_seed(1);
+
+    initGameSerialization();
 
     ConfigNode cmdargs = parseCmdLine(args[1..$]);
     //cmdargs.writeFile(StdioOutput.output);

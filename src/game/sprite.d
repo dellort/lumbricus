@@ -19,6 +19,7 @@ import cmath = std.c.math;
 import utils.factory;
 import utils.time;
 import utils.mybox;
+import utils.reflection;
 
 //factory to instantiate sprite classes, this is a small wtf
 static class SpriteClassFactory
@@ -297,6 +298,10 @@ class GObjectSprite : GameObject {
 
         setStateForced(type.initState);
     }
+
+    this (ReflectCtor c) {
+        super(c);
+    }
 }
 
 
@@ -317,6 +322,12 @@ class StaticStateInfo {
     private {
         //for forward references
         char[] onEndTmp;
+    }
+
+    //xxx class
+    this (ReflectCtor c) {
+    }
+    this () {
     }
 
     void loadFromConfig(ConfigNode sc, ConfigNode physNode, GOSpriteClass owner)
@@ -366,6 +377,10 @@ class GOSpriteClass {
     StaticStateInfo initState;
 
     float initialHp = float.infinity;
+
+    //xxx class
+    this (ReflectCtor c) {
+    }
 
     StaticStateInfo findState(char[] name, bool canfail = false) {
         StaticStateInfo* state = name in states;

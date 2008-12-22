@@ -16,6 +16,7 @@ import utils.time;
 import utils.log;
 import utils.misc;
 import utils.configfile;
+import utils.reflection;
 import std.math;
 import str = std.string;
 
@@ -28,6 +29,11 @@ class Collectable {
     void blow(CrateSprite parent) {
         //default is do nothing
     }
+
+    this () {
+    }
+    this (ReflectCtor c) {
+    }
 }
 
 ///Adds a weapon to your inventory
@@ -38,6 +44,9 @@ class CollectableWeapon : Collectable {
     this(WeaponClass w, int quantity = 1) {
         weapon = w;
         this.quantity = quantity;
+    }
+
+    this (ReflectCtor c) {
     }
 
     void collect(CrateSprite parent, ServerTeamMember member) {
@@ -65,6 +74,9 @@ class CollectableMedkit : Collectable {
         this.amount = amount;
     }
 
+    this (ReflectCtor c) {
+    }
+
     void collect(CrateSprite parent, ServerTeamMember member) {
         //xxx not sure if the controller can handle it
         member.worm.physics.lifepower += amount;
@@ -74,6 +86,11 @@ class CollectableMedkit : Collectable {
 ///Blows up the crate without giving the worm anything
 ///Note that you can add other collectables in the same crate
 class CollectableBomb : Collectable {
+    this (ReflectCtor c) {
+    }
+    this() {
+    }
+
     void collect(CrateSprite parent, ServerTeamMember member) {
         //harharhar :D
         parent.detonate();
@@ -102,6 +119,10 @@ class CrateSprite : ActionSprite {
         //doesntwork
         //collectTrigger.collision = physics.collision;
         engine.physicworld.add(collectTrigger);
+    }
+
+    this (ReflectCtor c) {
+        super(c);
     }
 
     private void collected() {
@@ -178,6 +199,11 @@ class CrateSpriteClass : ActionSpriteClass {
     float collectRadius;
 
     StaticStateInfo st_creation, st_normal, st_parachute, st_drowning;
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
 
     this(GameEngine e, char[] r) {
         super(e, r);

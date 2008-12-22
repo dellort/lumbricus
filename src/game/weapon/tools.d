@@ -7,6 +7,7 @@ import game.worm;
 import physics.world;
 import utils.configfile;
 import utils.factory;
+import utils.reflection;
 import utils.time;
 import utils.vector2;
 
@@ -29,6 +30,11 @@ class ToolClass : WeaponClass {
         mSubType = node.getStringValue("subtype", "none");
     }
 
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+
     override Shooter createShooter(GObjectSprite go) {
         //for now, only worms are enabled to use tools
         //(because of special control methods, i.e. for jetpacks, ropes...)
@@ -43,7 +49,7 @@ class ToolClass : WeaponClass {
     }
 }
 
-class Tool : Shooter {
+abstract class Tool : Shooter {
     protected ToolClass mToolClass;
     protected WormSprite mWorm;
 
@@ -57,6 +63,10 @@ class Tool : Shooter {
         mWorm = a_owner;
     }
 
+    this (ReflectCtor c) {
+        super(c);
+    }
+
     bool activity() {
         return active;
     }
@@ -65,6 +75,10 @@ class Tool : Shooter {
 class Jetpack : Tool {
     this(ToolClass b, WormSprite o) {
         super(b, o);
+    }
+
+    this (ReflectCtor c) {
+        super(c);
     }
 
     override protected void doFire(FireInfo info) {
@@ -103,6 +117,10 @@ class Rope : Tool {
 
     this(ToolClass b, WormSprite o) {
         super(b, o);
+    }
+
+    this (ReflectCtor c) {
+        super(c);
     }
 
     override protected void doFire(FireInfo info) {

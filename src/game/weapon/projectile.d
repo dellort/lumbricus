@@ -20,8 +20,9 @@ import utils.configfile;
 import utils.log;
 import utils.random;
 import utils.factory;
+import utils.reflection;
 
-private class ProjectileSprite : ActionSprite {
+class ProjectileSprite : ActionSprite {
     ProjectileSpriteClass myclass;
     Time stateTime;
     //only used if myclass.dieByTime && !myclass.useFixedDeathTime
@@ -115,6 +116,10 @@ private class ProjectileSprite : ActionSprite {
         assert(myclass !is null);
         stateTime = engine.gameTime.current;
     }
+
+    this (ReflectCtor c) {
+        super(c);
+    }
 }
 
 class ProjectileStateInfo : ActionStateInfo {
@@ -122,6 +127,13 @@ class ProjectileStateInfo : ActionStateInfo {
     bool useFixedDetonateTime;
     Time fixedDetonateTime;
     Time minimumGluedTime;
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
 
     override void loadFromConfig(ConfigNode sc, ConfigNode physNode,
         GOSpriteClass owner)
@@ -212,6 +224,11 @@ class ProjectileSpriteClass : ActionSpriteClass {
         super(e, r);
     }
 
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+
     static this() {
         SpriteClassFactory.register!(typeof(this))("projectile_mc");
     }
@@ -230,6 +247,10 @@ class HomingAction : SpriteAction {
     this(HomingActionClass base, GameEngine eng) {
         super(base, eng);
         myclass = base;
+    }
+
+    this (ReflectCtor c) {
+        super(c);
     }
 
     protected ActionRes initDeferred() {
@@ -270,6 +291,13 @@ class HomingActionClass : SpriteActionClass {
     float force;
     float maxvelocity;
     float velocityInfluence = 0.001f;
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         super.loadFromConfig(eng, node);

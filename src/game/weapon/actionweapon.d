@@ -17,10 +17,16 @@ import utils.vector2;
 import utils.configfile;
 import utils.log;
 import utils.factory;
+import utils.reflection;
 
 private class ActionWeapon : WeaponClass {
     ActionClass onFire, onBlowup;
     //bool waitRefire = false;
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
 
     this(GameEngine aengine, ConfigNode node) {
         super(aengine, node);
@@ -56,6 +62,10 @@ private class ActionShooter : Shooter, RefireTrigger {
     this(ActionWeapon base, GObjectSprite a_owner, GameEngine engine) {
         super(base, a_owner, engine);
         myclass = base;
+    }
+
+    this (ReflectCtor c) {
+        super(c);
     }
 
     bool activity() {

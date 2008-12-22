@@ -18,6 +18,7 @@ import utils.mybox;
 import utils.log;
 import utils.factory;
 import utils.time;
+import utils.reflection;
 
 interface RefireTrigger {
     void addRefire(ActionSprite s);
@@ -219,6 +220,10 @@ class ActionSprite : GObjectSprite {
     protected this(GameEngine engine, GOSpriteClass type) {
         super(engine, type);
     }
+
+    this (ReflectCtor c) {
+        super(c);
+    }
 }
 
 class ActionStateInfo : StaticStateInfo {
@@ -231,6 +236,11 @@ class ActionStateInfo : StaticStateInfo {
     private {
         //for forward references
         char[] actionsTmp;
+    }
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
     }
 
     this() {
@@ -284,6 +294,11 @@ class ActionSpriteClass : GOSpriteClass {
         super(engine, regname);
 
         actions = new ActionContainer();
+    }
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
     }
 
     ActionSprite createSprite() {

@@ -1,5 +1,6 @@
 module physics.base;
 
+import utils.reflection;
 import utils.list2;
 
 import physics.world;
@@ -21,6 +22,11 @@ class CollisionType {
     //needed because of forward referencing etc.
     CollisionType superclass;
     CollisionType[] subclasses;
+
+    this() {
+    }
+    this (ReflectCtor c) {
+    }
 }
 
 //it's illegal to use CollisionType_Invalid in PhysicBase.collision
@@ -44,6 +50,11 @@ class PhysicBase {
     //used for collisions- and damage-reporting
     //currently is either null or stores a GObjectSprite instance
     Object backlink;
+
+    this() {
+    }
+    this (ReflectCtor c) {
+    }
 
     PhysicWorld world() {
         return mWorld;

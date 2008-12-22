@@ -1,6 +1,7 @@
 module physics.force;
 
 import utils.vector2;
+import utils.reflection;
 import utils.list2;
 import utils.misc;
 
@@ -14,12 +15,23 @@ class PhysicForce : PhysicBase {
     package ListNode forces_node;
 
     abstract void applyTo(PhysicObject o, float deltaT);
+
+    static void registerstuff(ReflectCtor c) {
+        c.types().registerClasses!(ConstantForce, ConstantAccel, WindyForce,
+            ExplosiveForce, GravityCenter, StokesDragObject, StokesDragFixed,
+            ObjectForce, ForceZone);
+    }
 }
 
 class ConstantForce : PhysicForce {
     //directed force, in Wormtons
     //(1 Wormton = 10 Milli-Worms * 1 Pixel / Seconds^2 [F=ma])
     Vector2f force;
+
+    this() {
+    }
+    this (ReflectCtor c) {
+    }
 
     void applyTo(PhysicObject o, float deltaT) {
         o.addForce(force, true);
@@ -30,6 +42,11 @@ class ConstantForce : PhysicForce {
 class ConstantAccel: PhysicForce {
     Vector2f accel;
 
+    this() {
+    }
+    this (ReflectCtor c) {
+    }
+
     void applyTo(PhysicObject o, float deltaT) {
         o.addForce(accel * o.posp.mass, true);
     }
@@ -38,6 +55,11 @@ class ConstantAccel: PhysicForce {
 class WindyForce : PhysicForce {
     Vector2f windSpeed;
     private const cStokesConstant = 6*PI;
+
+    this() {
+    }
+    this (ReflectCtor c) {
+    }
 
     void applyTo(PhysicObject o, float deltaT) {
         //xxx physical crap, but the way Worms does it (using windSpeed as
@@ -61,6 +83,9 @@ class ExplosiveForce : PhysicForce {
     Object cause;
 
     void delegate(Object cause, Object victim, float damage) onReportApply;
+
+    this (ReflectCtor c) {
+    }
 
     this() {
         //one time
@@ -101,6 +126,11 @@ class GravityCenter : PhysicForce {
     float accel, radius;
     Vector2f pos;
 
+    this() {
+    }
+    this (ReflectCtor c) {
+    }
+
     private float cDistDelta = 0.01f;
     void applyTo(PhysicObject o, float deltaT) {
         Vector2f v = (pos-o.pos);
@@ -118,6 +148,11 @@ class GravityCenter : PhysicForce {
 class StokesDragObject : PhysicForce {
     //constant from Stokes's drag
     private const cStokesConstant = -6*PI;
+
+    this() {
+    }
+    this (ReflectCtor c) {
+    }
 
     void applyTo(PhysicObject o, float deltaT) {
         if (o.posp.mediumViscosity != 0.0f) {
@@ -140,6 +175,9 @@ class StokesDragFixed : PhysicForce {
         viscosity = visc;
     }
 
+    this (ReflectCtor c) {
+    }
+
     void applyTo(PhysicObject o, float deltaT) {
         if (viscosity != 0.0f) {
             //F = -6*PI*r*eta*v
@@ -152,6 +190,9 @@ class StokesDragFixed : PhysicForce {
 class ObjectForce : PhysicForce {
     PhysicObject target;
     PhysicForce force;
+
+    this (ReflectCtor c) {
+    }
 
     this(PhysicForce f, PhysicObject t) {
         force = f;
@@ -170,6 +211,9 @@ class ForceZone : PhysicForce {
     PhysicForce force;
     PhysicZone zone;
     bool invert;
+
+    this (ReflectCtor c) {
+    }
 
     this(PhysicForce f, PhysicZone z, bool inv = false) {
         force = f;

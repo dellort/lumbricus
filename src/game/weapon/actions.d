@@ -12,6 +12,8 @@ import utils.configfile;
 import utils.time;
 import utils.vector2;
 import utils.randval;
+import utils.reflection;
+
 
 ///Base class for weapon-activated actions (just for parameter handling)
 class WeaponAction : Action {
@@ -22,6 +24,10 @@ class WeaponAction : Action {
 
     this(ActionClass base, GameEngine eng) {
         super(base, eng);
+    }
+
+    this (ReflectCtor c) {
+        super(c);
     }
 
     override protected ActionRes initialStep() {
@@ -39,6 +45,13 @@ class WeaponAction : Action {
 ///Causes an explosion at FireInfo.pos
 class ExplosionActionClass : ActionClass {
     RandomFloat damage;
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         damage = RandomFloat(node.getStringValue("damage", "5.0"));
@@ -63,6 +76,10 @@ class ExplosionAction : WeaponAction {
         myclass = base;
     }
 
+    this (ReflectCtor c) {
+        super(c);
+    }
+
     override protected ActionRes initialStep() {
         super.initialStep();
         if (!mFireInfo.pos.isNaN)
@@ -78,6 +95,13 @@ class ExplosionAction : WeaponAction {
 class BeamActionClass : ActionClass {
     //beam to FireInfo.pos (FireInfo.pointto otherwise)
     bool usePos = false;
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         usePos = node.valueIs("target", "pos");
@@ -103,6 +127,10 @@ class BeamAction : WeaponAction {
     this(BeamActionClass base, GameEngine eng) {
         super(base, eng);
         myclass = base;
+    }
+
+    this (ReflectCtor c) {
+        super(c);
     }
 
     override protected ActionRes initialStep() {
@@ -149,6 +177,13 @@ class BeamAction : WeaponAction {
 class InsertBitmapActionClass : ActionClass {
     Resource!(Surface) bitmap;
 
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
+
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         //prepare bitmap resource
         bitmap = eng.gfx.resources.resource!(Surface)(
@@ -174,6 +209,10 @@ class InsertBitmapAction : WeaponAction {
         myclass = base;
     }
 
+    this (ReflectCtor c) {
+        super(c);
+    }
+
     override protected ActionRes initialStep() {
         super.initialStep();
         if (!mFireInfo.pos.isNaN && myclass.bitmap.defined()) {
@@ -193,6 +232,13 @@ class InsertBitmapAction : WeaponAction {
 class EarthquakeActionClass : TimedActionClass {
     float strength, degrade;
     int waterRaise;
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         super.loadFromConfig(eng, node);
@@ -219,6 +265,10 @@ class EarthquakeAction : TimedAction {
     this(EarthquakeActionClass base, GameEngine eng) {
         super(base, eng);
         myclass = base;
+    }
+
+    this (ReflectCtor c) {
+        super(c);
     }
 
     override protected ActionRes doImmediate() {

@@ -15,6 +15,7 @@ import utils.time;
 import utils.misc;
 import utils.array;
 import utils.queue;
+import utils.reflection;
 
 import framework.i18n;
 
@@ -32,6 +33,11 @@ class ServerMemberControl : TeamMemberControl {
         this(GameController c) {
             ctl = c;
         }
+    }
+
+    this (ReflectCtor c) {
+    }
+    this () {
     }
 
     void setTeamMemberControlCallback(TeamMemberControlCallback tmcc) {
@@ -211,6 +217,9 @@ class ServerTeam : Team {
         //defaultWeapon = weapons.byId(node["default_weapon"]);
         gravestone = node.getIntValue("grave", 0);
         mAlternateControl = node.getStringValue("control") != "worms";
+    }
+
+    this (ReflectCtor c) {
     }
 
     // --- start Team
@@ -524,6 +533,9 @@ class ServerTeamMember : TeamMember, WormController {
         this.mName = a_name;
         this.mTeam = a_team;
         mEngine = mTeam.parent.engine;
+    }
+
+    this (ReflectCtor c) {
     }
 
     void removeWorm() {
@@ -900,6 +912,9 @@ class WeaponSet {
         }
     }
 
+    this (ReflectCtor c) {
+    }
+
     WeaponItem byId(WeaponClass weaponId) {
         if (!weaponId)
             return null;
@@ -972,6 +987,9 @@ class WeaponItem {
         } else {
             mQuantity = config.getIntValue("quantity", 0);
         }
+    }
+
+    this (ReflectCtor c) {
     }
 }
 
@@ -1046,6 +1064,10 @@ class GameController : GameLogicPublic {
 
         mMessages = new Queue!(Message);
         mLastMsgTime = timeSecs(-cMessageTime);
+    }
+
+    this (ReflectCtor c) {
+        c.types().registerClass!(typeof(mMessages));
     }
 
     //--- start GameLogicPublic

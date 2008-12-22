@@ -23,6 +23,7 @@ import utils.log;
 import utils.random;
 import utils.randval;
 import utils.factory;
+import utils.reflection;
 
 ///Base class for constant sprite actions
 class SpriteAction : TimedAction {
@@ -32,6 +33,10 @@ class SpriteAction : TimedAction {
 
     this(SpriteActionClass base, GameEngine eng) {
         super(base, eng);
+    }
+
+    this (ReflectCtor c) {
+        super(c);
     }
 
     override protected ActionRes doImmediate() {
@@ -49,6 +54,13 @@ class SpriteActionClass : TimedActionClass {
         if (!node.findValue("duration"))
             durationMs = RandomInt(1237899900);
     }
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
 }
 
 //------------------------------------------------------------------------
@@ -63,6 +75,10 @@ class SetStateAction : SpriteAction {
         myclass = base;
     }
 
+    this (ReflectCtor c) {
+        super(c);
+    }
+
     protected ActionRes initDeferred() {
         auto ssi = mParent.type.findState(myclass.state);
         if (ssi)
@@ -73,6 +89,13 @@ class SetStateAction : SpriteAction {
 
 class SetStateActionClass : SpriteActionClass {
     char[] state;
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         super.loadFromConfig(eng, node);
@@ -101,6 +124,10 @@ class GravityCenterAction : SpriteAction {
         myclass = base;
     }
 
+    this (ReflectCtor c) {
+        super(c);
+    }
+
     protected ActionRes initDeferred() {
         mGravForce = new GravityCenter();
         mGravForce.accel = myclass.gravity;
@@ -122,6 +149,13 @@ class GravityCenterAction : SpriteAction {
 
 class GravityCenterActionClass : SpriteActionClass {
     float gravity, radius;
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         super.loadFromConfig(eng, node);
@@ -151,6 +185,10 @@ class ProximitySensorAction : SpriteAction {
     this(ProximitySensorActionClass base, GameEngine eng) {
         super(base, eng);
         myclass = base;
+    }
+
+    this (ReflectCtor c) {
+        super(c);
     }
 
     protected ActionRes initDeferred() {
@@ -195,6 +233,13 @@ class ProximitySensorActionClass : SpriteActionClass {
     Time triggerDelay;   //time from triggering from firing
     char[] collision, eventId;
 
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
+
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         super.loadFromConfig(eng, node);
         radius = node.getFloatValue("radius",20);
@@ -203,7 +248,7 @@ class ProximitySensorActionClass : SpriteActionClass {
         eventId = node.getStringValue("event","ontrigger");
     }
 
-     ProximitySensorAction createInstance(GameEngine eng) {
+    ProximitySensorAction createInstance(GameEngine eng) {
         return new ProximitySensorAction(this, eng);
     }
 
@@ -225,6 +270,10 @@ class WalkerAction : SpriteAction {
         myclass = base;
     }
 
+    this (ReflectCtor c) {
+        super(c);
+    }
+
     protected ActionRes initDeferred() {
         Vector2f walk = Vector2f.fromPolar(1.0f, mParent.physics.lookey);
         walk.y = 0;
@@ -238,6 +287,13 @@ class WalkerAction : SpriteAction {
 
 class WalkerActionClass : SpriteActionClass {
     bool inverseDirection = false;
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         super.loadFromConfig(eng, node);
@@ -267,6 +323,10 @@ class RandomJumpAction : SpriteAction {
         myclass = base;
     }
 
+    this (ReflectCtor c) {
+        super(c);
+    }
+
     protected ActionRes initDeferred() {
         return ActionRes.moreWork;
     }
@@ -290,6 +350,13 @@ class RandomJumpAction : SpriteAction {
 class RandomJumpActionClass : SpriteActionClass {
     Vector2f jumpStrength;
     float jumpsPerSec = 1.0f;   //probability of a jump, per second
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         super.loadFromConfig(eng, node);
@@ -327,6 +394,10 @@ class StuckTriggerAction : SpriteAction {
     this(StuckTriggerActionClass base, GameEngine eng) {
         super(base, eng);
         myclass = base;
+    }
+
+    this (ReflectCtor c) {
+        super(c);
     }
 
     protected ActionRes initDeferred() {
@@ -397,6 +468,13 @@ class StuckTriggerActionClass : SpriteActionClass {
     float treshold = 5.0f;
     bool multiple = false;
     char[] collision, eventId;
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         super.loadFromConfig(eng, node);

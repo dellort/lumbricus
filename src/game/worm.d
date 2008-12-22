@@ -18,6 +18,7 @@ import utils.log;
 import utils.misc;
 import utils.math;
 import utils.configfile;
+import utils.reflection;
 import std.math;
 import str = std.string;
 
@@ -176,6 +177,10 @@ class WormSprite : GObjectSprite {
         wsc = spriteclass;
 
         gravestone = 0;
+    }
+
+    this (ReflectCtor c) {
+        super(c);
     }
 
     override protected void updateActive() {
@@ -730,6 +735,13 @@ class WormStateInfo : StaticStateInfo {
     bool canAim = false;        //can the target cross be moved
     bool canFire = false;       //can the main weapon be fired
 
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
+
     override void loadFromConfig(ConfigNode sc, ConfigNode physNode,
         GOSpriteClass owner)
     {
@@ -752,6 +764,11 @@ class WormSpriteClass : GOSpriteClass {
     WormStateInfo st_stand, st_fly, st_walk, st_jet, st_weapon, st_dead,
         st_die, st_drowning, st_beaming, st_reverse_beaming, st_getup,
         st_jump_start, st_jump, st_jump_to_fly;
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
 
     this(GameEngine e, char[] r) {
         super(e, r);
@@ -844,6 +861,10 @@ class GravestoneSprite : GObjectSprite {
         gsc = s;
         active = true;
     }
+
+    this (ReflectCtor c) {
+        super(c);
+    }
 }
 
 class GravestoneSpriteClass : GOSpriteClass {
@@ -852,6 +873,11 @@ class GravestoneSpriteClass : GOSpriteClass {
     //indexed by type
     SequenceState[] normal;
     SequenceState[] drown;
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
 
     this(GameEngine e, char[] r) {
         super(e, r);

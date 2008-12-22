@@ -68,7 +68,7 @@ struct SafePtr {
     //  memory = you must provide some space, where the SafePtr will point to
     //           this is because SafePtr is always a pointer to the object
     //           reference, and casting interfaces might change the reference
-    SafePtr mostSpecificClass(void** memory) {
+    SafePtr mostSpecificClass(void** memory, bool may_fail = false) {
         if (type is null || ptr is null)
             return *this;
         auto rt = cast(ReferenceType)type;
@@ -77,8 +77,10 @@ struct SafePtr {
         Object o = rt.castFrom(*cast(void**)ptr);
         assert (!!o);
         ReferenceType* rt2 = o.classinfo in type.mOwner.mCItoT;
-        if (!rt2)
+        if (!rt2 && !may_fail)
             throw new Exception("class not found, maybe it is not reflected?");
+        if (!rt2)
+            return SafePtr(null, null);
         *memory = (*rt2).castTo(o);
         return SafePtr(*rt2, memory);
     }
@@ -87,6 +89,11 @@ struct SafePtr {
     T* castTo(T)() {
         check(typeid(T));
         return cast(T*)ptr;
+    }
+
+    static SafePtr get(T)(Type t, T* ptr) {
+        assert (t.typeInfo() == typeid(T));
+        return SafePtr(t, ptr);
     }
 
     MyBox box() {
@@ -127,9 +134,11 @@ static this() {
 
 ///Types used to make a reflected class' constructor different from the
 ///standard constructor
+///oh, and also includes a way to get the Types class
 ///The constructor of a reflected class looks like this:
 ///  this(ReflectCtor c) {} //durrrr
 interface ReflectCtor {
+    Types types();
 }
 
 bool isReflectableClass(T)() {
@@ -143,6 +152,13 @@ class Types {
         ReferenceType[ClassInfo] mCItoT;
         //D types to internal ones
         Type[TypeInfo] mTItoT;
+        FooHandler mFoo;
+    }
+
+    private class FooHandler : ReflectCtor {
+        override Types types() {
+            return this.outer;
+        }
     }
 
     final Type[] allTypes() {
@@ -174,18 +190,47 @@ class Types {
         throw new Exception("Type for TypeInfo >"~ti.toString()~"< not found");
     }
 
+    //special handling for superclasses: this might not be instantiable (if they
+    //are abstract), but they still need to be analyzed
+    private final Class registerSuperClass(T)(Object dummy) {
+        //static if (is(T == Object)) {
+        //    return null;
+        //} else {
+            assert (!!dummy);
+            assert (!!cast(T)dummy);
+            return doRegister!(T)(cast(T)dummy);
+        //}
+    }
+
     final Class registerClass(T)() {
-        static assert (isReflectableClass!(T)(), "not reflectable");
+        static assert (isReflectableClass!(T)(), "not reflectable: "~T.stringof);
+        ReflectCtor c = mFoo;
+        T dummy = new T(c);
+        return doRegister!(T)(dummy);
+    }
+
+    private Class doRegister(T)(T dummy) {
         TypeInfo ti = typeid(T);
         ReferenceType t = castStrict!(ReferenceType)(getType!(T)());
         //already described? it's called recursively?
         if (t.klass())
             return t.klass();
-        ReflectCtor c;
-        T dummy = new T(c);
         auto def = new DefineClass(this, t, dummy);
         def.autoclass!(T)();
         return t.klass();
+    }
+
+    final void registerClasses(T...)() {
+        foreach (x; T) {
+            registerClass!(x)();
+        }
+    }
+
+    //for all types call getType()
+    final void encounter(T...)() {
+        foreach (x; T) {
+            getType!(x)();
+        }
     }
 
     private void addType(Type t) {
@@ -224,8 +269,8 @@ class Types {
             return EnumType.create!(T)(this);
         } else static if (is(T T2 : T2[])) { //array, T2 is element type
             return ArrayType.create!(T)(this);
-        /*} else static if (isAssocArrayType!(T)) {
-            return new MapTypeImpl!(T)(this);*/
+        } else static if (isAssocArrayType!(T)) {
+            return MapType.create!(T)(this);
         } else {
             //nothing found
             assert(false, "can't handle type " ~ T.stringof);
@@ -233,10 +278,12 @@ class Types {
     }
 
     this() {
+        mFoo = new FooHandler();
         //there are a lot of more base types in D, it's ridiculous!
         //add if needed
         addBaseTypes!(char, byte, ubyte, short, ushort, int, uint, long, ulong,
             float, double, real, bool)();
+        getType!(Object)();
         writefln("done");
     }
 }
@@ -296,7 +343,7 @@ class StructuredType : Type {
 //interfaces or object references
 class ReferenceType : StructuredType {
     private {
-        bool mIsInterface; //?
+        bool mIsInterface;
         void* function(Object obj) mCastTo;
         Object function(void* ptr) mCastFrom;
     }
@@ -304,6 +351,10 @@ class ReferenceType : StructuredType {
     //don't use this, use create(T)(a_owner)
     private this(Types a_owner, TypeInfo a_ti) {
         super(a_owner, a_ti);
+    }
+
+    final bool isInterface() {
+        return mIsInterface;
     }
 
     //returns null, if the conversion is not possible
@@ -435,7 +486,7 @@ class EnumType : Type {
 class ArrayType : Type {
     private {
         Type mMember;  //type of the array items
-        bool mIsStatic;
+        int mStaticLength;
         Array function(ArrayType t, SafePtr array) mGetArray;
         void function(ArrayType t, SafePtr array, size_t len) mSetLength;
     }
@@ -455,6 +506,11 @@ class ArrayType : Type {
     //use create()
     private this(Types a_owner, TypeInfo a_ti) {
         super(a_owner, a_ti);
+    }
+
+    //-1 if not a static array, else the length
+    final int staticLength() {
+        return mStaticLength;
     }
 
     final Type memberType() {
@@ -479,9 +535,13 @@ class ArrayType : Type {
         } else {
             static assert (false, "not an array type");
         }
-        t.mIsStatic = isStaticArray!(T);
+        t.mStaticLength = -1;
+        if (isStaticArray!(T)) {
+            T x;
+            t.mStaticLength = x.length; //T.init doesn't work???
+        }
         t.mSetLength = function void(ArrayType t, SafePtr array, size_t len) {
-            static if (isStaticArray!(T)) {
+            static if (!isStaticArray!(T)) {
                 T* ta = array.castTo!(T)();
                 (*ta).length = len;
             } else {
@@ -500,17 +560,21 @@ class ArrayType : Type {
     }
 
     override char[] toString() {
-        return "ArrayType[" ~ mMember.toString() ~ "]";
+        if (staticLength() < 0) {
+            return "ArrayType[" ~ mMember.toString() ~ "]";
+        } else {
+            return str.format("ArrayType[%s[%d]]", mMember, staticLength());
+        }
     }
 }
 
-/*
 class MapType : Type {
     private {
         Type mKey, mValue;  //aa is Value[Key]
         bool mIsStatic;
     }
 
+    //use create()
     private this(Types a_owner, TypeInfo a_ti) {
         super(a_owner, a_ti);
     }
@@ -523,13 +587,28 @@ class MapType : Type {
     abstract void setKey(SafePtr map, SafePtr key, SafePtr value);
     //like "foreach(key, value; map) { cb(key, value); }"
     abstract void iterate(SafePtr map,
-        void delegate cb(SafePtr key, SafePtr value));
+        void delegate(SafePtr key, SafePtr value) cb);
+
+    private static MapType create(T)(Types a_owner) {
+        //MapType t = new MapType(a_owner, typeid(T));
+        //return t;
+        return new MapTypeImpl!(T)(a_owner);
+    }
 }
 
-class MapTypeImpl(T) : Type {
+//--> stolen from tango
+//use this because "static if (is(T T2 : T2[T3]))" doesn't work
+//http://www.dsource.org/projects/tango/browser/trunk/tango/core/Traits.d?rev=4134#L253
+private template isAssocArrayType( T ) {
+    const bool isAssocArrayType = is( typeof(T.init.values[0])
+        [typeof(T.init.keys[0])] == T );
+}
+//<--
+
+class MapTypeImpl(T) : MapType {
     static assert(isAssocArrayType!(T));
     alias typeof(T.init.values[0]) V;
-    alias typeof(T.init.values[0]) K;
+    alias typeof(T.init.keys[0]) K;
 
     private this(Types a_owner) {
         super(a_owner, typeid(T));
@@ -542,7 +621,8 @@ class MapTypeImpl(T) : Type {
     }
 
     override SafePtr getValuePtr(SafePtr map, SafePtr key) {
-        return (*key.castTo!(K)()) in (*map.castTo!(T)());
+        return SafePtr.get!(V)(mValue,
+            (*key.castTo!(K)()) in (*map.castTo!(T)()));
     }
 
     override void setKey(SafePtr map, SafePtr key, SafePtr value) {
@@ -550,25 +630,37 @@ class MapTypeImpl(T) : Type {
     }
 
     override void iterate(SafePtr map,
-        void delegate cb(SafePtr key, SafePtr value))
+        void delegate(SafePtr key, SafePtr value) cb)
     {
-        foreach (K key, V value; *map.castTo!(T)()) {
+        foreach (K key, ref V value; *map.castTo!(T)()) {
             cb(SafePtr.get!(K)(mKey, &key), SafePtr.get!(V)(mValue, &value));
         }
     }
-}
-*/
 
-/*
+    override char[] toString() {
+        return str.format("MapType[%s, %s]", mKey, mValue);
+    }
+}
+
 class DelegateType : Type {
 
     //NOTE: although there is is(T T2 == delegate), where T2 should be the
     //  function type of the delegate, this doesn't work as I thought or it
     //  is buggy, so work it around
-    T tmp;
-    alias typeof((cast(T)null).funcptr) T2;
+    //T tmp;
+    //alias typeof((cast(T)null).funcptr) T2;
+
+    //use create()
+    private this(Types a_owner, TypeInfo a_ti) {
+        super(a_owner, a_ti);
+    }
+
+    private static DelegateType create(T)(Types a_owner) {
+        DelegateType t = new DelegateType(a_owner, typeid(T));
+        //xxx: etc.
+        return t;
+    }
 }
-*/
 
 ///Describes the contents of a class or a struct
 ///This is not derived from Type, because ReferenceType is actually used to
@@ -591,7 +683,8 @@ class Class {
         mClassSize = mCI.init.length;
         mDummy = dummy;
         assert (mOwner.typeInfo() is cti);
-        assert (cti.info is dummy.classinfo);
+        //xxx: dummy can be a subclass of cti, check this?
+        //assert (cti.info is dummy.classinfo);
         assert (!a_owner.mClass);
         a_owner.mClass = this;
     }
@@ -722,6 +815,11 @@ class ClassMethod : ClassElement {
     }
 }
 
+char[] structFullyQualifiedName(T)() {
+    //better way?
+    return typeid(T).toString();
+}
+
 class DefineClass {
     private {
         Class mClass;
@@ -740,15 +838,17 @@ class DefineClass {
         mBase = a_owner;
     }
 
+    //also used for structs
     void autoclass(T)() {
-        mClass.mName = T.stringof;
         T obj;
         static if (is(T == class)) {
             assert (!!mClass.mDummy);
             obj = castStrict!(T)(mClass.mDummy);
             T obj_addr = obj;
+            mClass.mName = mClass.mCI.name;
         } else {
             T* obj_addr = &obj;
+            mClass.mName = structFullyQualifiedName!(T);
         }
         size_t[] offsets;
         Type[] member_types;
@@ -801,7 +901,8 @@ class DefineClass {
         //handle super classes
         static if (is(T S == super)) {
             static if (!is(S[0] == Object)) {
-                mClass.mSuper = mBase.registerClass!(S[0])();
+                //mClass.mSuper = mBase.registerClass!(S[0])();
+                mClass.mSuper = mBase.registerSuperClass!(S[0])(mClass.mDummy);
             }
         }
     }
@@ -840,6 +941,7 @@ class DefineClass {
     }
 }
 
+//unittest, as static ctor because failures can lead to silent breakages
 import utils.test : Test;
 static this() {
     Test z = new Test();
@@ -847,14 +949,14 @@ static this() {
     foreach (int index, x; z.tupleof) {
         res ~= z.tupleof[index].stringof ~ "|";
     }
-    assert (res == "z.a|z.b|z.c|");
+    assert (res == "z.a|z.b|z.c|z.d|");
+    assert (structFullyQualifiedName!(Test.S) == "utils.test.Test.S");
 }
 
 //-------
 debug:
 
 import utils.strparser;
-import utils.list2;
 
 enum X {
     xa,
@@ -875,7 +977,6 @@ class Test1 {
     X e;
     Test2 f;
     S g;
-    List2!(Test2) h;
 
     void foo() {
     }
@@ -892,8 +993,6 @@ class Test2 {
     float b = 2.45;
     Test1[] c;
 
-    ListNode foo;
-
     public this(ReflectCtor ct) {
     }
 
@@ -904,6 +1003,7 @@ class Test2 {
 class Test3 : Test1 {
     ushort a = 1;
     char[] b = "hullo";
+    float[3] c = [0.3, 0.5, 0.7];
 
     public this(ReflectCtor ct) {
     }
@@ -915,6 +1015,16 @@ class Test3 : Test1 {
 void main() {
     Types t = new Types();
     Class c = t.registerClass!(Test1)();
+    Test1 x = new Test1();
+    x.g.c = new Test2();
+    x.g.c.c ~= x;
+    x.g.c.c ~= new Test3();
+    t.registerClass!(Test3)();
+    debugDumpTypeInfos(t);
+    debugDumpClassGraph(t, x);
+}
+
+void debugDumpTypeInfos(Types t) {
     foreach (Type type; t.allTypes()) {
         writefln("%s", type);
         if (auto rt = cast(StructuredType)type) {
@@ -929,11 +1039,10 @@ void main() {
             }
         }
     }
-    Test1 x = new Test1();
-    x.g.c = new Test2();
-    x.g.c.c ~= x;
-    x.g.c.c ~= new Test3();
-    t.registerClass!(Test3)();
+}
+
+void debugDumpClassGraph(Types t, Object x) {
+    char[][TypeInfo] unknown;
     SafePtr px = t.ptrOf(x);
     bool[void*] done;
     SafePtr[] items = [px];
@@ -966,12 +1075,30 @@ void main() {
         }
         if (auto st = cast(StructuredType)cur.type) {
             void* tmp;
+            TypeInfo orgtype = cur.type.typeInfo;
+            assert (!!orgtype);
             if (cast(ReferenceType)cur.type)
-                cur = cur.mostSpecificClass(&tmp);
-            writefln("%s %s %#8x:", cast(StructType)st ? "class" : "struct",
+                cur = cur.mostSpecificClass(&tmp, true);
+            if (cur.type is null) {
+                if (orgtype in unknown)
+                    continue;
+                char[] info = "unencountered";
+                if (auto tic = cast(TypeInfo_Class)orgtype) {
+                    if (cur.ptr) {
+                        void** p = cast(void**)cur.ptr;
+                        Object o = cast(Object)*p;
+                        info ~= " [ci: " ~ o.classinfo.name ~ "]";
+                    }
+                }
+                unknown[orgtype] = info;
+                writefln("unknown class");
+                continue;
+            }
+            writefln("%s %s %#8x:", cast(StructType)st ? "struct" : "class",
                 cur.type, cur.ptr);
             Class xc = castStrict!(StructuredType)(cur.type).klass();
             if (!xc) {
+                unknown[cur.type.typeInfo] = "no info";
                 writefln("  no info");
                 continue;
             }
@@ -987,6 +1114,8 @@ void main() {
                 xc = xc.superClass();
             }
         } else if (auto art = cast(ArrayType)cur.type) {
+            writefln("array %s len=%d %#8x:", cur.type, art.getArray(cur).length,
+                cur.ptr);
             writef("    [");
             ArrayType.Array arr = art.getArray(cur);
             for (int i = 0; i < arr.length; i++) {
@@ -998,6 +1127,15 @@ void main() {
             writefln("]");
         }
     }
+    writefln("unknown types:");
+    foreach (TypeInfo k, char[] v; unknown) {
+        char[] more = v;
+        if (auto tic = cast(TypeInfo_Class)k) {
+            more ~= " (" ~ tic.info.name ~ ")";
+        }
+        writefln("'%s': %s", k, more);
+    }
+    writefln("done.");
 }
 
 /+

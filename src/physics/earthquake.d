@@ -1,5 +1,6 @@
 module physics.earthquake;
 
+import utils.reflection;
 import utils.time;
 import utils.vector2;
 import random = utils.random;
@@ -29,6 +30,11 @@ class EarthQuakeForce : PhysicForce {
 
     //is there any force to apply?
     private bool mActive = false;
+
+    this () {
+    }
+    this (ReflectCtor c) {
+    }
 
     //when something wants to cause an earth quake, it needs to update this
     //each frame (in PhysicBase.simulate()!)
@@ -114,6 +120,9 @@ class EarthQuakeDegrader : PhysicBase {
         mDegrade = degrade;
         mForce = eqForce;
         assert(!!mForce);
+    }
+
+    this (ReflectCtor c) {
     }
 
     override /+package+/ void simulate(float deltaT) {

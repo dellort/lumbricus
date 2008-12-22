@@ -1,5 +1,6 @@
 module physics.contact;
 
+import utils.reflection;
 import utils.list2;
 import utils.vector2;
 
@@ -175,4 +176,9 @@ class PhysicContactGen : PhysicBase {
     package ListNode cgen_node;
 
     abstract void process(CollideDelegate contactHandler);
+
+    this() {
+    }
+    this (ReflectCtor c) {
+    }
 }

@@ -5,6 +5,7 @@ import physics.contact;
 
 import utils.array : arrayMap;
 import utils.configfile;
+import utils.reflection;
 
 //handling of the collision map
 class CollisionMap {
@@ -24,6 +25,9 @@ class CollisionMap {
     CollisionType mCTAlways, mCTNever, mCTAll;
 
     CollideDelegate mCollideHandler;
+
+    this (ReflectCtor c) {
+    }
 
     CollisionType newCollisionType(char[] name) {
         assert(!(name in mCollisionNames));
