@@ -47,6 +47,13 @@ interface WormController {
 
 const Time cWeaponLoadTime = timeMsecs(1500);
 
+enum FlyMode {
+    fall,
+    slide,
+    roll,
+    heavy,
+}
+
 class WormSprite : GObjectSprite {
     private {
         WormSpriteClass wsc;
@@ -72,16 +79,8 @@ class WormSprite : GObjectSprite {
 
         bool mWeaponAsIcon;
 
-        enum FlyMode {
-            fall,
-            slide,
-            roll,
-            heavy,
-        }
         FlyMode mLastFlyMode;
         Time mLastFlyChange, mLastDmg;
-
-        SequenceState[FlyMode.max+1] mFlyState;
 
         JumpMode mJumpMode;
 
@@ -183,16 +182,6 @@ class WormSprite : GObjectSprite {
         super(c);
     }
 
-    override protected void updateActive() {
-        super.updateActive();
-        if (graphic) {
-            mFlyState[FlyMode.fall] = graphic.type.findState("fly_fall",true);
-            mFlyState[FlyMode.slide] = graphic.type.findState("fly_slide",true);
-            mFlyState[FlyMode.roll] = graphic.type.findState("fly_roll",true);
-            mFlyState[FlyMode.heavy] = graphic.type.findState("fly_heavy",true);
-        }
-    }
-
     protected override void setCurrentAnimation() {
         if (!graphic)
             return;
@@ -204,11 +193,11 @@ class WormSprite : GObjectSprite {
             assert(!!curW);
 
             char[] w = curW.animations[WeaponWormAnimations.Arm];
-            auto state = graphic.type.findState(w, true);
+            auto state = wsc.findSequenceState(w, true);
             bool noState = !state;
             if (noState) {
                 //no specific weapon animation there
-                state = graphic.type.findState("weapon_unknown");
+                state = wsc.findSequenceState("weapon_unknown");
             }
             mWeaponAsIcon = noState || curW !is mWeapon;
             graphic.setState(state);
@@ -217,11 +206,11 @@ class WormSprite : GObjectSprite {
         if (currentState is wsc.st_jump) {
             switch (mJumpMode) {
                 case JumpMode.normal, JumpMode.smallBack, JumpMode.straightUp:
-                    auto state = graphic.type.findState("jump_normal", true);
+                    auto state = wsc.findSequenceState("jump_normal", true);
                     graphic.setState(state);
                     break;
                 case JumpMode.backFlip:
-                    auto state = graphic.type.findState("jump_backflip", true);
+                    auto state = wsc.findSequenceState("jump_backflip", true);
                     graphic.setState(state);
                     break;
                 default:
@@ -539,7 +528,7 @@ class WormSprite : GObjectSprite {
                 mTargetCross = null;
             } else {
                 mTargetCross = engine.graphics.createTargetCross(teamColor);
-                mTargetCross.attach(graphic);
+                mTargetCross.attach(seqUpdate);
             }
         }
     }
@@ -656,7 +645,7 @@ class WormSprite : GObjectSprite {
             if (m < mLastFlyMode &&
                 engine.gameTime.current - mLastFlyChange < timeMsecs(200))
                 return;
-            graphic.setState(mFlyState[m]);
+            graphic.setState(wsc.flyState[m]);
             mLastFlyChange = engine.gameTime.current;
             mLastFlyMode = m;
         }
@@ -709,8 +698,8 @@ class WormSprite : GObjectSprite {
                 if (currentState is wsc.st_fly && graphic) {
                     //worm is falling to fast -> use roll animation
                     if (physics.velocity.length >= wsc.rollVelocity)
-                        if (graphic.getCurrentState is mFlyState[FlyMode.fall]
-                         || graphic.getCurrentState is mFlyState[FlyMode.slide])
+                        if (graphic.getCurrentState is wsc.flyState[FlyMode.fall]
+                         || graphic.getCurrentState is wsc.flyState[FlyMode.slide])
                             setFlyAnim(FlyMode.roll);
                 }
                 if (currentState is wsc.st_jump && physics.velocity.y > 0) {
@@ -765,6 +754,10 @@ class WormSpriteClass : GOSpriteClass {
         st_die, st_drowning, st_beaming, st_reverse_beaming, st_getup,
         st_jump_start, st_jump, st_jump_to_fly;
 
+    //alias WormSprite.FlyMode FlyMode;
+
+    SequenceState[FlyMode.max+1] flyState;
+
     //xxx class
     this (ReflectCtor c) {
         super(c);
@@ -806,6 +799,11 @@ class WormSpriteClass : GOSpriteClass {
         st_jump_start = findState("jump_start");
         st_jump = findState("jump");
         st_jump_to_fly = findState("jump_to_fly");
+
+        flyState[FlyMode.fall] = findSequenceState("fly_fall",true);
+        flyState[FlyMode.slide] = findSequenceState("fly_slide",true);
+        flyState[FlyMode.roll] = findSequenceState("fly_roll",true);
+        flyState[FlyMode.heavy] = findSequenceState("fly_heavy",true);
     }
     override WormSprite createSprite() {
         return new WormSprite(engine, this);
@@ -891,8 +889,8 @@ class GravestoneSpriteClass : GOSpriteClass {
 
         //try to find as much gravestones as there are
         for (int n = 0; ; n++) {
-            auto s_n = sequenceObject.findState(str.format("n%s", n), true);
-            auto s_d = sequenceObject.findState(str.format("drown%s", n), true);
+            auto s_n = findSequenceState(str.format("n%s", n), true);
+            auto s_d = findSequenceState(str.format("drown%s", n), true);
             if (!(s_n && s_d))
                 break;
             normal ~= s_n;

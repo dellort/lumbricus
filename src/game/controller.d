@@ -569,7 +569,7 @@ class ServerTeamMember : TeamMember, WormController {
 
     Graphic getGraphic() {
         if (sprite && sprite.graphic) {
-            return sprite.graphic;
+            return sprite.graphic.graphic;
         }
         return null;
     }

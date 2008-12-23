@@ -41,6 +41,7 @@ import utils.reflection;
 import std.stream;
 import std.outbuffer;
 import str = std.string;
+static import std.file;
 
 //these imports register classes in a factory on module initialization
 import game.weapon.projectile;
@@ -118,7 +119,7 @@ class GameTask : Task {
         SimpleContainer mGameFrame;
 
         //for save & load support
-        Object[char[]] mExternalObjects;
+        char[][Object] mExternalObjects;
     }
 
     //just for the paused-command?
@@ -283,8 +284,16 @@ class GameTask : Task {
             addExternal("gfx_theme::" ~ key, tt);
         }
         foreach (ResourceSet.Entry res; mGfx.resources.resourceList()) {
-            addExternal("res::" ~ res.name(), res);
+            //this depends from resset.d's struct Resource
+            //currently, the user has the direct resource object, so this must
+            //be added as external object reference
+            addExternal("res::" ~ res.name(), res.wrapper.get());
         }
+        //extra handling for SequenceState.setDisplayClass() (uarghl)
+        addExternal("wsd_classinfo", WormStateDisplay.classinfo);
+        addExternal("nsd_classinfo", NapalmStateDisplay.classinfo);
+        //various
+        // ... gametime, random generator, log...
     }
 
     private void externalObjects() {
@@ -294,8 +303,8 @@ class GameTask : Task {
     }
 
     void addExternal(char[] name, Object o) {
-        assert (!(name in mExternalObjects));
-        mExternalObjects[name] = o;
+        //assert (!(name in mExternalObjects));
+        mExternalObjects[o] = name;
     }
 
     private void gameLoaded(Loader sender) {
@@ -550,7 +559,9 @@ class GameTask : Task {
 
     private void cmdSerDump(MyBox[] args, Output write) {
         debugDumpTypeInfos(serialize_types);
-        debugDumpClassGraph(serialize_types, mServerEngine);
+        //debugDumpClassGraph(serialize_types, mServerEngine);
+        char[] res = dumpGraph(serialize_types, mServerEngine, mExternalObjects);
+        std.file.write("dump_graph.dot", res);
     }
 
     static this() {
@@ -667,4 +678,102 @@ void saveSurfaceToTGA(Surface s, OutputStream stream) {
         s.unlockPixels(Rect2i.init);
     }
     stream.write(to.toBytes);
+}
+
+
+char[] dumpGraph(Types t, Object root, char[][Object] externals) {
+    char[] r;
+    int id_alloc;
+    int[Object] visited; //map to id
+    Object[] to_visit;
+    r ~= `graph "a" {` \n;
+    to_visit ~= root;
+    visited[root] = ++id_alloc;
+    //some other stuff
+    bool[char[]] unknown, unregistered;
+
+    void delegate(int cur, SafePtr ptr, Class c) fwdDoStructMembers;
+
+    void doField(int cur, SafePtr ptr) {
+        if (auto s = cast(StructType)ptr.type) {
+            assert (!!s.klass());
+            fwdDoStructMembers(cur, ptr, s.klass());
+        } else if (auto rt = cast(ReferenceType)ptr.type) {
+            //object reference
+            Object n = ptr.toObject();
+            if (!n)
+                return;
+            int other;
+            if (auto po = n in visited) {
+                other = *po;
+            } else {
+                other = ++id_alloc;
+                visited[n] = other;
+                to_visit ~= n;
+            }
+            r ~= str.format("%d -- %d\n", cur, other);
+        } else if (auto art = cast(ArrayType)ptr.type) {
+            ArrayType.Array arr = art.getArray(ptr);
+            for (int i = 0; i < arr.length; i++) {
+                doField(cur, arr.get(i));
+            }
+        }
+    }
+
+    void doStructMembers(int cur, SafePtr ptr, Class c) {
+        foreach (ClassMember m; c.members()) {
+            doField(cur, m.get(ptr));
+        }
+    }
+
+    fwdDoStructMembers = &doStructMembers;
+
+    while (to_visit.length) {
+        Object cur = to_visit[0];
+        to_visit = to_visit[1..$];
+        int id = visited[cur];
+        if (auto pname = cur in externals) {
+            r ~= str.format(`%d [label="ext: %s"];` \n, id, *pname);
+            continue;
+        }
+        SafePtr indirect = t.ptrOf(cur);
+        void* tmp;
+        SafePtr ptr = indirect.mostSpecificClass(&tmp, true);
+        if (!ptr.type) {
+            //the actual class was never seen at runtime
+            r ~= str.format(`%d [label="unknown: %s"];` \n, id,
+                cur.classinfo.name);
+            unknown[cur.classinfo.name] = true;
+            continue;
+        }
+        auto rt = castStrict!(ReferenceType)(ptr.type);
+        assert (!rt.isInterface());
+        Class c = rt.klass();
+        if (!c) {
+            //class wasn't registered for reflection
+            r ~= str.format(`%d [label="unregistered: %s"];` \n, id,
+                cur.classinfo.name);
+            unregistered[cur.classinfo.name] = true;
+            continue;
+        }
+        r ~= str.format(`%d [label="class: %s"];` \n, id, cur.classinfo.name);
+        while (c) {
+            ptr.type = c.owner(); //dangerous, but should be ok
+            doStructMembers(id, ptr, c);
+            c = c.superClass();
+        }
+    }
+    r ~= "}\n";
+
+    char[][] s_unknown = unknown.keys, s_unreged = unregistered.keys;
+    s_unknown.sort;
+    s_unreged.sort;
+    std.stdio.writefln("Completely unknown:");
+    foreach (x; s_unknown)
+        std.stdio.writefln("  %s", x);
+    std.stdio.writefln("Unregistered:");
+    foreach (x; s_unreged)
+        std.stdio.writefln("  %s", x);
+
+    return r;
 }

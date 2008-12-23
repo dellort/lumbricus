@@ -1,9 +1,15 @@
 module game.sequence;
 
+enum SeqType {
+    //Enter, Leave = transition from/to other sub-states
+    //Normal = what is looped when entering was done
+    //TurnAroundY = played when worm rotation changes left/right side
+    None, Enter, Leave, Normal, TurnAroundY,
+}
+
 import common.animation;
 import common.common;
 import common.scene;
-import framework.resources : ResourceObject;
 import framework.resset;
 import utils.configfile;
 import utils.math;
@@ -11,36 +17,28 @@ import utils.misc;
 import utils.rect2;
 import utils.time;
 import utils.random;
+import utils.reflection;
 import utils.vector2;
 
-import game.clientengine;
 import game.gamepublic;
+import game.game;
 
 import std.math : PI;
 import str = std.string;
 
-//--- interface, including implementations of the generic static data classes
+static void function(GameEngine engine, ConfigItem from)[char[]]
+    loaders;
 
-///static data about an object with all its states, e.g. a worm
-///
-class SequenceObject {
+///all states, one instance per GameEngine, get via GameEngine.sequenceStates
+class SequenceStateList {
     private {
-        char[] mName;
         SequenceState[char[]] mStates;
     }
 
-    final char[] name() {
-        return mName;
+    this () {
     }
-
-    this(char[] a_name) {
-        mName = a_name;
+    this (ReflectCtor c) {
     }
-
-    ///return an approximate bounding box; for use by graphics attached to a
-    ///sequence (e.g. target cross or worm labels)
-    ///the box is centered around (0, 0)
-    abstract Rect2i bb();
 
     ///return a state by name; return null if not found, if !allow_notfound,
     ///then raise an error instead of returning null
@@ -60,6 +58,7 @@ class SequenceObject {
         if (findState(state.name, true))
             assert(false, "double state: "~state.name);
         mStates[state.name] = state;
+        state.fixup();
     }
 
     void fixup() {
@@ -67,17 +66,17 @@ class SequenceObject {
             s.fixup();
         }
     }
-
-    abstract AbstractSequence instantiate(GraphicsHandler owner);
 }
 
 ///static data about a single state
 ///(at least used as a handle for the state by the Sequence owner... could use a
 /// a simple string to identify the state, but I haet simple strings)
 class SequenceState {
+    final GameEngine engine;
     private {
-        SequenceObject mOwner;
         char[] mName;
+        ClassInfo mDisplayClass;
+        StateDisplay delegate(Sequence owner) mCreateDisplayObj;
     }
     protected {
         //if the leave transition is always played by default
@@ -119,19 +118,36 @@ class SequenceState {
         return mName;
     }
 
-    final SequenceObject owner() {
-        return mOwner;
-    }
-
     void fixup() {
         foreach (ref t; playLeaveTransitions) {
-            t.dest = owner.findState(t.dest_name);
+            t.dest = engine.sequenceStates.findState(t.dest_name);
         }
     }
 
-    this(SequenceObject a_owner, char[] name) {
-        mOwner = a_owner;
+    void setDisplayClass(T)() {
+        mCreateDisplayObj = &instantiate!(T);
+        mDisplayClass = T.classinfo;
+    }
+
+    private StateDisplay instantiate(T)(Sequence owner) {
+        return new T(owner);
+    }
+
+    final bool displayObjectOk(Object o) {
+        return o && o.classinfo is mDisplayClass;
+    }
+
+    final StateDisplay createDisplayObject(Sequence owner) {
+        assert (!!mCreateDisplayObj);
+        return mCreateDisplayObj(owner);
+    }
+
+    this(GameEngine a_engine, char[] name) {
+        engine = a_engine;
         mName = name;
+    }
+
+    this (ReflectCtor c) {
     }
 }
 
@@ -140,362 +156,308 @@ class SequenceUpdate {
     Vector2f velocity;
     float rotation_angle; //worm itself, always 0 .. PI*2
     //bool visible;
+
+    this () {
+    }
+    this (ReflectCtor c) {
+    }
 }
 
 //special update class for worm sequence, which allows to introduce custom
 //sequence modifiers without changing GObjectSprite
 class WormSequenceUpdate : SequenceUpdate {
     float pointto_angle; //for weapon angle, always 0 .. PI
+
+    this () {
+    }
+    this (ReflectCtor c) {
+    }
 }
 
 ///A sprite (but it's named Sequence because the name sprite is already used in
 ///game.sprite for a game logic thingy). Displays animations and also can
 ///trigger sound and particle effects (not yet).
 ///This is the public interface to it.
-interface Sequence : Graphic {
-    ///as what this Sequence was instantiated; never changes (SequenceObject is
-    ///possibly bound to the class implementing this interface)
-    abstract SequenceObject type();
+class Sequence {
+    final GameEngine engine;
+
+    protected {
+        //state from Sequence (I didn't bother to support several queued states,
+        //because we'll maybe never need them)
+        SequenceState mQueuedState;
+        StateDisplay mDisplay;
+        StateDisplay mOthers;
+        SequenceUpdate mUpdate;
+
+        static SequenceUpdate nullUpdate;
+    }
+
+    this(GameEngine a_engine) {
+        engine = a_engine;
+        //to simplify things (no null check required)
+        if (!nullUpdate)
+            nullUpdate = new SequenceUpdate();
+        mUpdate = nullUpdate;
+    }
+
+    this (ReflectCtor c) {
+    }
 
     ///modify position etc.; uses only information for which sth. is implemented
     ///(e.g. it won't use velocity most time)
-    abstract void update(SequenceUpdate v);
+    void setUpdater(SequenceUpdate v) {
+        assert (!!v);
+        mUpdate = v;
+    }
 
-    ///initiate state change, which might be changed lazily
-    ///only has an effect if the state is different from the currently targeted
-    ///state
-    abstract void setState(SequenceState state);
-
-    ///query the "real" (i.e. currently being displayed) state
-    ///may return null
-    abstract SequenceState getCurrentState();
-
-    ///query current position etc.
+    ///query current position etc. - fields change as the simulation progresses
     //(e.g. target cross needs infos about the weapon angle)
-    abstract SequenceUpdate getInfos();
+    SequenceUpdate getInfos() {
+        return mUpdate;
+    }
+
+    //only for "compatibility" (needs to be changed anyway)
+    Graphic graphic() {
+        return mDisplay ? mDisplay.graphic : null;
+    }
 
     ///the animation-system can signal readyness back to the game logic with
     ///this (as requested by d0c)
     ///by default, it is signaled on the end of a state change
-    abstract bool readyflag();
-}
+    bool readyflag() {
+        return !mDisplay || mDisplay.readyFlag();
+    }
 
-///Load a bunch of sequences from a ConfigNode and make resources
-void loadSequences(ResourceSet res, ConfigNode seqList) {
-    foreach (ConfigNode sub; seqList) {
-        auto pload = sub.name in AbstractSequence.loaders;
-        if (!pload) {
-            throw new Exception("sequence loader not found: "~sub.name);
+    //should be called every frame
+    void simulate() {
+        if (mDisplay)
+            mDisplay.simulate();
+    }
+
+    //don't need it anymore
+    void remove() {
+        setDisplay(null);
+    }
+
+    ///query the "real" (i.e. currently being displayed) state
+    ///may return null
+    final SequenceState getCurrentState() {
+        return mDisplay ? mDisplay.getCurrentState() : null;
+    }
+
+    ///initiate state change, which might be changed lazily
+    ///only has an effect if the state is different from the currently targeted
+    ///state
+    public void setState(SequenceState state) {
+        if (!state)
+            return;
+        if (state is mQueuedState)
+            return;
+        SequenceState curstate = getCurrentState();
+        if (curstate is state) {
+            //got request to go back to current state while still in transition
+            //to different mQueuedState -> change target to current
+            if (mQueuedState !is null)
+                mQueuedState = curstate;
+            return;
         }
-        foreach (ConfigItem subsub; sub) {
-            SequenceObject seq = (*pload)(res, subsub);
+        //std.stdio.writefln("set state: ", sstate.name);
+        //possibly start state change
+        //look if the leaving sequence should play
+        bool play_leave = false;
+        if (curstate) {
+            play_leave |= curstate.hasLeaveTransition(state);
         }
-    }
-}
-
-///--- stuff needed for wwp worms
-//(this all can be completely hidden from the rest of the game due to the
-// factory pattern...)
-
-private:
-
-///blergh
-//loading stuff is private now
-abstract class AbstractSequence : ClientGraphic, Sequence {
-    private {
-        SequenceObject mType;
-    }
-
-    this(GraphicsHandler a_owner, SequenceObject a_type) {
-        super(a_owner);
-        mType = a_type;
-    }
-
-    final override SequenceObject type() {
-        return mType;
-    }
-
-    //yay factory pattern again
-    //from.name defines the name
-    static SequenceObject delegate(ResourceSet res, ConfigItem from)[char[]]
-        loaders;
-}
-
-class WormSequenceObject : SequenceObject {
-    this(char[] a_name) {
-        super(a_name);
-    }
-
-    AbstractSequence instantiate(GraphicsHandler owner) {
-        return new WormSequence(owner, this);
-    }
-
-    Rect2i bb() {
-        return Rect2i(-30, -30, 30, 30);
-    }
-}
-
-//omg hack
-private static class SequenceWrapper : ResourceObject {
-    Object obj;
-    Object get() {
-        return obj;
-    }
-    this(Object o) {
-        obj = o;
-    }
-}
-
-SequenceObject loadWorm(ResourceSet res, ConfigItem fromitem) {
-    auto from = castStrict!(ConfigNode)(fromitem);
-
-    //check if sequence already exists
-    //by this, states can be added to an existing sequence later
-    //xxx special implementation for loadWorm, make this generic
-    auto seq = res.get!(SequenceObject)(from.name, true);
-    if (!seq) {
-        seq = new WormSequenceObject(from.name);
-        res.addResource(new SequenceWrapper(seq), seq.name);
-    }
-    foreach (ConfigNode sub; from) {
-        if (sub.name == "normal") {
-            foreach (ConfigValue s; sub) {
-                //simple animation, state = animation
-                auto state = new WormState(seq, s.name);
-                auto ss = new SubSequence;
-                ss.animation = res.get!(Animation)(s.value);
-                state.seqs[SeqType.Normal] = [ss];
-                seq.addState(state);
-            }
-        } else if (sub.name == "normal_weapons") {
-            foreach (ConfigValue s; sub) {
-                auto state = new WormState(seq, s.name);
-                auto ss = new SubSequence;
-                ss.animation = res.get!(Animation)(s.value);
-                state.seqs[SeqType.Normal] = [ss];
-                state.seqs[SeqType.Leave] = [ss];
-                state.reverse_subsequence(SeqType.Leave);
-                seq.addState(state);
-                state.enableLeaveTransition("stand");
-            }
-        } else if (sub.name == "jetpack") {
-            //special case because of enter/leave and turnaround anims
-            auto state = new WormState(seq, "jetpack");
-            auto s_norm = new SubSequence;
-            auto s_enter = new SubSequence;
-            auto s_turn = new SubSequence;
-            s_norm.animation = res.get!(Animation)(sub["normal"]);
-            state.seqs[SeqType.Normal] = [s_norm];
-            s_enter.animation = res.get!(Animation)(sub["enter"]);
-            state.seqs[SeqType.Enter] = [s_enter];
-            state.seqs[SeqType.Leave] = state.seqs[SeqType.Enter];
-            state.reverse_subsequence(SeqType.Leave);
-            s_turn.animation = res.get!(Animation)(sub["turn"]);
-            state.seqs[SeqType.TurnAroundY] = [s_turn];
-            seq.addState(state);
-            state.enableLeaveTransition("stand");
-        } else if (sub.name == "weapons") {
-            foreach (ConfigValue s; sub) {
-                char[] get = s.value ~ "_get", hold = s.value ~ "_hold";
-                auto state = new WormState(seq, s.name);
-                auto s_norm = new SubSequence;
-                auto s_enter1 = new SubSequence;
-                auto s_enter2 = new SubSequence;
-                s_norm.animation = res.get!(Animation)(hold);
-                state.seqs[SeqType.Normal] = [s_norm];
-                s_enter1.animation = res.get!(Animation)(get);
-                s_enter1.ready = false;
-                s_enter2.animation = s_norm.animation;
-                s_enter2.ready = false;
-                s_enter2.interpolate_angle_id = 1;
-                s_enter2.angle_direction = 0;
-                s_enter2.angle_fixed_value = 0;
-                //s_enter2.angular_speed = (PI/2)/0.5;
-                s_enter2.angular_speed = 0.100;
-                s_enter2.fixed_angular_time = true;
-                s_enter2.dont_wait_for_animation = true;
-                state.seqs[SeqType.Enter] = [s_enter1, s_enter2];
-                state.seqs[SeqType.Leave] = state.seqs[SeqType.Enter];
-                state.reverse_subsequence(SeqType.Leave);
-                seq.addState(state);
-                state.enableLeaveTransition("stand");
-            }
-        } else if (sub.name == "first_normal_then_empty") {
-            foreach (ConfigValue s; sub) {
-                auto state = new WormState(seq, s.name);
-                auto s1 = new SubSequence;
-                auto s2 = new SubSequence;
-                s1.animation = res.get!(Animation)(s.value);
-                s1.ready = false;
-                s2.reset_animation = true;
-                s2.wait_forever = true;
-                state.seqs[SeqType.Normal] = [s1, s2];
-                seq.addState(state);
-            }
+        //std.stdio.writefln("play leave: ", play_leave);
+        if (!curstate || !play_leave) {
+            //start new state, skip whatever did go on before
+            mQueuedState = null;
+            setDisplay(state);
+            mDisplay.enterState(state);
+        } else if (curstate && play_leave) { //yyy
+            //current -> leave
+            mQueuedState = state;
+            mDisplay.leaveState();
         } else {
-            assert(false);
+            //only queue it
+            mQueuedState = state;
         }
     }
-    seq.fixup();
-    return seq;
-}
 
-SequenceObject loadAnimation(ResourceSet res, ConfigItem fromitem) {
-    auto val = castStrict!(ConfigValue)(fromitem).value;
-    auto seq = new WormSequenceObject(fromitem.name);
-    auto state = new WormState(seq, "normal");
-    auto s_normal = new SubSequence;
-    s_normal.animation = res.get!(Animation)(val);
-    state.seqs[SeqType.Normal] = [s_normal];
-    seq.addState(state);
-    seq.fixup();
-    res.addResource(new SequenceWrapper(seq), seq.name);
-    return seq;
-}
-
-SequenceObject loadAnimationWithDrown(ResourceSet res, ConfigItem fromitem) {
-    auto value = castStrict!(ConfigValue)(fromitem).value;
-    auto val = str.split(value);
-    if (val.length != 2)
-        assert(false, "at "~fromitem.name);
-    auto seq = new WormSequenceObject(fromitem.name);
-    auto state = new WormState(seq, "normal");
-    auto s_normal = new SubSequence;
-    s_normal.animation = res.get!(Animation)(val[0]);
-    state.seqs[SeqType.Normal] = [s_normal];
-    seq.addState(state);
-    auto state2 = new WormState(seq, "drown");
-    s_normal = new SubSequence;
-    s_normal.animation = res.get!(Animation)(val[1]);
-    state2.seqs[SeqType.Normal] = [s_normal];
-    seq.addState(state2);
-    seq.fixup();
-    res.addResource(new SequenceWrapper(seq), seq.name);
-    return seq;
-}
-
-SequenceObject loadNapalm(ResourceSet res, ConfigItem fromitem) {
-    auto value = castStrict!(ConfigValue)(fromitem).value;
-    auto val = str.split(value);
-    if (val.length != 2)
-        assert(false, "at "~fromitem.name);
-    auto seq = new NapalmSequenceObject(fromitem.name);
-    //lol... need a "normal" state, or ProjectileWeaponClass will crash
-    auto state = new SequenceState(seq, "normal");
-    seq.addState(state);
-
-    //load animations
-    seq.animFall = res.get!(Animation)(val[0]);
-    seq.animFly = res.get!(Animation)(val[1]);
-    res.addResource(new SequenceWrapper(seq), seq.name);
-    return seq;
-}
-
-static this() {
-    AbstractSequence.loaders["worm"] = toDelegate(&loadWorm);
-    AbstractSequence.loaders["animations"] = toDelegate(&loadAnimation);
-    AbstractSequence.loaders["simple_with_drown"] =
-        toDelegate(&loadAnimationWithDrown);
-    AbstractSequence.loaders["napalm"] = toDelegate(&loadNapalm);
-}
-
-enum SeqType {
-    //Enter, Leave = transition from/to other sub-states
-    //Normal = what is looped when entering was done
-    //TurnAroundY = played when worm rotation changes left/right side
-    None, Enter, Leave, Normal, TurnAroundY,
-}
-
-class SubSequence {
-    //readyness flag signaled back (Sequence.readyflag)
-    bool ready = true;
-
-    //wait for an animation
-    Animation animation; //if null, none set
-
-    //yay even more hacks
-    bool dont_wait_for_animation; //don't check animation for state transition
-    bool reset_animation; //set animation even if that field null
-    bool wait_forever; //state just never ends, unless it's aborted from outside
-
-    //needed for that weapon thing
-    //index of the angle interpolated
-    int interpolate_angle_id = -1;
-    //rotation speed
-    float angular_speed; //rads/sec
-    //select if angular_speed is speed or animation total time
-    bool fixed_angular_time;
-    //the fixed start/end value
-    float angle_fixed_value;
-    //the interpolation interpolates between fixed_value and the user set
-    //value - direction=0: fixed_value starts, =1: starts with user's value
-    int angle_direction;
-
-    //indices into to seqs array which point to this (for getNext)
-    WormState owner;
-    SeqType type;
-    int index;
-
-    SubSequence getNext() {
-        SubSequence[] cur = owner.seqs[type];
-        if ((index+1) >= cur.length)
-            return null;
-        return cur[index+1];
-    }
-
-    //meh
-    SubSequence copy() {
-        SubSequence res = new SubSequence();
-        foreach (int index, x; this.tupleof) {
-            res.tupleof[index] = this.tupleof[index];
+    //set mDisplay to an object that can show newstate
+    private void setDisplay(SequenceState newstate) {
+        //mOthers is a singly linked list, that contains all display objects
+        // which were created for this Sequence object
+        //insert old mDisplay into this list, search the list for a useable
+        // object, and remove that object from the list
+        //this is intended to avoid reallocation of display objects
+        StateDisplay old = mDisplay;
+        if (mDisplay) {
+            //common case: doesn't change
+            if (newstate && newstate.displayObjectOk(mDisplay))
+                return;
+            mDisplay.mNext = mOthers;
+            mOthers = mDisplay;
+            mDisplay = null;
         }
-        return res;
+        if (old)
+            old.disable();
+        if (!newstate)
+            return;
+        StateDisplay* cur = &mOthers;
+        while (*cur && !newstate.displayObjectOk(*cur)) {
+            cur = &(*cur).mNext;
+        }
+        if (*cur) {
+            mDisplay = *cur;
+            *cur = (*cur).mNext;
+        } else {
+            mDisplay = newstate.createDisplayObject(this);
+        }
+        assert (newstate.displayObjectOk(mDisplay));
+        mDisplay.enable();
     }
 }
 
-class WormState : SequenceState {
-    SubSequence[][SeqType.max+1] seqs;
-    //go to this state after the "enter" subseq. was played
-    Transition auto_leave;
+//
+class StateDisplay {
+    final Sequence owner;
+    //only for Sequence.setDisplay()
+    private StateDisplay mNext;
 
-    this(SequenceObject a_owner, char[] name) {
+    this (Sequence a_owner) {
+        owner = a_owner;
+    }
+
+    this (ReflectCtor c) {
+    }
+
+    void enterState(SequenceState state) {
+    }
+
+    //play leave transition animation, if available
+    void leaveState() {
+    }
+
+    abstract SequenceState getCurrentState();
+
+    void simulate() {
+    }
+
+    bool readyFlag() {
+        return true;
+    }
+
+    //prepare to use / don't use anymore this display object
+    void enable() {
+    }
+    void disable() {
+    }
+
+    abstract Graphic graphic();
+
+    Time now() {
+        return globals.gameTimeAnimations.current();
+    }
+}
+
+//(only creates and keeps the animation thing)
+class AniStateDisplay : StateDisplay {
+    AnimationGraphic mAnimator;
+
+    this (Sequence a_owner) {
+        super(a_owner);
+    }
+
+    this (ReflectCtor c) {
+        super(c);
+    }
+
+    //xxx this is incredibly stupid
+    override void enable() {
+        mAnimator = owner.engine.graphics.createAnimation();
+    }
+    override void disable() {
+        mAnimator.remove();
+        mAnimator = null;
+    }
+
+    Graphic graphic() {
+        return mAnimator;
+    }
+}
+
+class NapalmStateDisplay : AniStateDisplay {
+    NapalmState myclass;
+    Animation last_animation;
+
+    //xxx make this configurable
+    //velocity where fly animation begins
+    const cTresholdVelocity = 300.0f;
+    //velocity where fly animation is at maximum
+    const cFullVelocity = 450.0f;
+    const cVelDelta = cFullVelocity - cTresholdVelocity;
+
+    this (Sequence a_owner) {
+        super(a_owner);
+    }
+
+    this (ReflectCtor c) {
+        super(c);
+    }
+
+    void enterState(SequenceState state) {
+        myclass = cast(NapalmState)state;
+    }
+
+    SequenceState getCurrentState() {
+        return myclass;
+    }
+
+    override void simulate() {
+        if (!myclass)
+            return;
+        SequenceUpdate v = owner.mUpdate;
+        float speed = v.velocity.length;
+        Animation new_animation;
+        AnimationParams params;
+        if (speed < cTresholdVelocity) {
+            //slow napalm
+            if (last_animation !is myclass.animFall)
+                new_animation = myclass.animFall;
+            //xxx controls size (0-100), use damage or whatever
+            params.p2 = 30;
+        } else {
+            //fast napalm
+            if (last_animation !is myclass.animFly)
+                new_animation = myclass.animFly;
+            params.p1 = cast(int)(v.rotation_angle*180.0f/PI);
+            params.p2 = cast(int)(100
+                * (speed-cTresholdVelocity) / cVelDelta);
+        }
+        if (new_animation) {
+            mAnimator.setAnimation(new_animation, timeMsecs(randRange(0,
+                cast(int)(new_animation.duration.msecs))));
+            last_animation = new_animation;
+        }
+        mAnimator.update(v.position, params);
+    }
+}
+
+class NapalmState : SequenceState {
+    Animation animFly, animFall;
+
+    this(GameEngine a_owner, char[] name) {
         super(a_owner, name);
+        setDisplayClass!(NapalmStateDisplay)();
     }
 
-    override void fixup() {
-        super.fixup();
-        foreach (i, inout s; seqs) {
-            for (int x = 0; x < s.length; x++) {
-                s[x].owner = this;
-                s[x].type = cast(SeqType)i;
-                s[x].index = x;
-            }
-        }
-    }
-
-    //reverse this one in time (data is copied if neccessary)
-    void reverse_subsequence(SeqType type) {
-        auto n = seqs[type].dup;
-        foreach (ref x; n) {
-            x = x.copy();
-        }
-        n.reverse; //is inplace
-        //revert animations and angle-interpolation
-        foreach (ref sub; n) {
-            if (sub.animation)
-                sub.animation = sub.animation.reversed();
-            if (sub.angle_direction >= 0)
-                sub.angle_direction = 1-sub.angle_direction;
-        }
-        seqs[type] = n;
+    this (ReflectCtor c) {
+        super(c);
     }
 }
 
-class WormSequence : AbstractSequence {
-private:
-    //state from Sequence (I didn't bother to support several queued states,
-    //because we'll maybe never need them)
-    WormState mQueuedState;
+class WormStateDisplay : AniStateDisplay {
     //current subsequence, also defines current state (.owner param)
     SubSequence mCurSubSeq;
     //start time for current SubSequence
@@ -510,24 +472,36 @@ private:
     //keep track when animation in mAnimator "most likely" ends, instead of
     //using mAnimator.hasFinished() => no feedback from mAnimator needed
     Time mAnimationStart;
-    //and finally, something useful, which does real work!
-    Animator mAnimator;
-    WormSequenceUpdate retSeqUpdate;
 
-    Time now() {
-        return globals.gameTimeAnimations.current();
+    this (Sequence a_owner) {
+        super(a_owner);
     }
 
-    this(GraphicsHandler a_owner, SequenceObject a_type) {
-        super(a_owner, a_type);
-        mAnimator = new Animator();
-        //for speed: don't create a new class on each getInfos call
-        retSeqUpdate = new WormSequenceUpdate();
-        init();
+    this (ReflectCtor c) {
+        super(c);
+    }
+
+    override void enterState(SequenceState state) {
+        initSequence(cast(WormState)state, SeqType.Enter);
+    }
+
+    override void leaveState() {
+        initSequence(mCurSubSeq ? mCurSubSeq.owner : null, SeqType.Leave);
+    }
+
+    SequenceState getCurrentState() {
+        return mCurSubSeq ? mCurSubSeq.owner : null;
+    }
+
+    override bool readyFlag() {
+        //if no state, consider it ready
+        return !mCurSubSeq || mCurSubSeq.ready;
     }
 
     void initSequence(WormState state, SeqType seq) {
         SubSequence nseq;
+
+        resetSubSequence();
 
         if (state) {
             if (state.seqs[seq].length > 0) {
@@ -584,6 +558,8 @@ private:
             return;
         }
 
+        assert (!!owner);
+
         //check if current animation/interpolation has ended
         //also, actually do angle interpolation if needed
         bool ended = true;
@@ -616,7 +592,9 @@ private:
                 nangle = a1 + dist*math.copysign(1.0f, a2-a1);
             }
             mAngles[mCurSubSeq.interpolate_angle_id] = nangle;
-            updateAngle();
+            //updateAngle();
+            //xxx: in the earlier version, angle was updated each frame
+            //     now it waits for the next simulate()
         }
 
         ended &= !mCurSubSeq.wait_forever;
@@ -626,7 +604,9 @@ private:
 
         if (!ended) {
             //check turnaround, as it is needed for the jetpack
-            if (mCurSubSeq.owner.seqs[SeqType.TurnAroundY].length > 0) {
+            if (mCurSubSeq.type == SeqType.Normal
+                && mCurSubSeq.owner.seqs[SeqType.TurnAroundY].length > 0)
+            {
                 int curside = angleLeftRight(mAngles[0], -1, +1);
                 if (mSideFacing == 0) {
                     mSideFacing = curside;
@@ -637,9 +617,8 @@ private:
                     initSequence(mCurSubSeq.owner, SeqType.TurnAroundY);
                 }
             }
-        }
-
-        if (ended) {
+            return;
+        } else {
             //std.stdio.writefln("ended");
             //next step, either the following SubSequence or a new seq/state
             auto next = mCurSubSeq.getNext();
@@ -657,36 +636,31 @@ private:
                         initSequence(mCurSubSeq.owner, SeqType.Normal);
                     } else {
                         resetSubSequence();
-                        if (!mQueuedState) {
-                            setState(leave_state);
+                        if (!owner.mQueuedState) {
+                            owner.setState(leave_state);
                         } else {
-                            auto nextstate = mQueuedState;
-                            mQueuedState = null;
-                            initSequence(nextstate, SeqType.Enter);
+                            auto nextstate = owner.mQueuedState;
+                            owner.mQueuedState = null;
+                            enterState(nextstate);
                         }
                     }
-                } else if (mCurSubSeq.type == SeqType.Leave && mQueuedState) {
+                } else if (mCurSubSeq.type == SeqType.Leave
+                    && owner.mQueuedState)
+                {
                     //actually enter new state
-                    auto nextstate = mQueuedState;
-                    mQueuedState = null;
-                    initSequence(nextstate, SeqType.Enter);
+                    //xxx unclean
+                    auto nextstate = owner.mQueuedState;
+                    owner.mQueuedState = null;
+                    enterState(nextstate);
                 }
             }
         }
     }
 
-    public override void simulate(float deltaT) {
+    override void simulate() {
         updateSubSequence();
-    }
-
-    void updateAngle() {
-        mAnimator.params.p1 = cast(int)(mAngles[0]/PI*180);
-        mAnimator.params.p2 = cast(int)(mAngles[1]/PI*180);
-    }
-
-    public void update(SequenceUpdate v) {
-        mAnimator.pos = v.position;
         float[2] set_angle;
+        auto v = owner.mUpdate;
         set_angle[0] = v.rotation_angle;
         auto wsu = cast(WormSequenceUpdate)v;
         if (wsu)
@@ -706,166 +680,263 @@ private:
             //but save the excluded angle somewhere else
             mAngleUser = set_angle[exclude];
         }
-        updateAngle();
-    }
-
-    public void setState(SequenceState sstate) {
-        auto state = castStrict!(WormState)(sstate);
-        if (!state)
-            return;
-        if (state is mQueuedState)
-            return;
-        WormState curstate = mCurSubSeq ? mCurSubSeq.owner : null;
-        if (curstate is state) {
-            //got request to go back to current state while still in transition
-            //to different mQueuedState -> change target to current
-            if (mQueuedState !is null)
-                mQueuedState = curstate;
-            return;
-        }
-        //std.stdio.writefln("set state: ", sstate.name);
-        //possibly start state change
-        //look if the leaving sequence should play
-        bool play_leave = false;
-        if (curstate) {
-            play_leave |= curstate.hasLeaveTransition(sstate);
-        }
-        //std.stdio.writefln("play leave: ", play_leave);
-        if (!mCurSubSeq || !play_leave) {
-            //start new state, skip whatever did go on before
-            resetSubSequence();
-            mQueuedState = null;
-            initSequence(state, SeqType.Enter);
-        } else if (mCurSubSeq && play_leave) {
-            //current -> leave
-            initSequence(curstate, SeqType.Leave);
-            mQueuedState = state;
-        } else {
-            //only queue it
-            mQueuedState = state;
-        }
-    }
-
-    public SequenceState getCurrentState() {
-        return mCurSubSeq ? mCurSubSeq.owner : null;
-    }
-
-    public SequenceUpdate getInfos() {
-        retSeqUpdate.position = mAnimator.pos;
-        float[2] angles;
-        angles[] = mAngles;
-        //argh, code duplication from somewhere above to get the target angle
-        if (mCurSubSeq && mCurSubSeq.interpolate_angle_id >= 0) {
-            auto a1 = mCurSubSeq.angle_fixed_value, a2 = mAngleUser;
-            if (mCurSubSeq.angle_direction)
-                swap(a1, a2);
-            angles[mCurSubSeq.interpolate_angle_id] = a2;
-        }
-        retSeqUpdate.rotation_angle = angles[0];
-        retSeqUpdate.pointto_angle = angles[1];
-        return retSeqUpdate;
-    }
-
-    public bool readyflag() {
-        //if no state, consider it ready
-        return !mCurSubSeq || mCurSubSeq.ready;
-    }
-
-    public Rect2i bounds() {
-        //xxx
-        return type.bb + mAnimator.pos;
-    }
-
-    public SceneObject graphic() {
-        return mAnimator;
+        AnimationParams p;
+        p.p1 = cast(int)(mAngles[0]/PI*180);
+        p.p2 = cast(int)(mAngles[1]/PI*180);
+        mAnimator.update(v.position, p);
     }
 }
 
-class NapalmSequenceObject : SequenceObject {
-    //static napalm animations, switching is done manually
-    Animation animFall, animFly;
+class SubSequence {
+    //readyness flag signaled back (Sequence.readyflag)
+    bool ready = true;
 
-    this(char[] a_name) {
-        super(a_name);
+    //wait for an animation
+    Animation animation; //if null, none set
+
+    //yay even more hacks
+    bool dont_wait_for_animation; //don't check animation for state transition
+    bool reset_animation; //set animation even if that field null
+    bool wait_forever; //state just never ends, unless it's aborted from outside
+
+    //needed for that weapon thing
+    //index of the angle interpolated
+    int interpolate_angle_id = -1;
+    //rotation speed
+    float angular_speed; //rads/sec
+    //select if angular_speed is speed or animation total time
+    bool fixed_angular_time;
+    //the fixed start/end value
+    float angle_fixed_value;
+    //the interpolation interpolates between fixed_value and the user set
+    //value - direction=0: fixed_value starts, =1: starts with user's value
+    int angle_direction;
+
+    //indices into to seqs array which point to this (for getNext)
+    WormState owner;
+    SeqType type;
+    int index;
+
+    SubSequence getNext() {
+        SubSequence[] cur = owner.seqs[type];
+        if ((index+1) >= cur.length)
+            return null;
+        return cur[index+1];
     }
 
-    AbstractSequence instantiate(GraphicsHandler owner) {
-        return new NapalmSequence(owner, this);
+    //meh
+    SubSequence copy() {
+        SubSequence res = new SubSequence;
+        foreach (int index, x; this.tupleof) {
+            res.tupleof[index] = this.tupleof[index];
+        }
+        return res;
     }
 
-    Rect2i bb() {
-        //whatever...
-        return Rect2i(-3, -3, 3, 3);
+    this () {
+    }
+    this (ReflectCtor c) {
     }
 }
 
-class NapalmSequence : AbstractSequence {
-    private {
-        Animator mAnimator;
-        SequenceUpdate mLastUpdate;
-        NapalmSequenceObject myclass;
+class WormState : SequenceState {
+    SubSequence[][SeqType.max+1] seqs;
+    //go to this state after the "enter" subseq. was played
+    Transition auto_leave;
 
-        //xxx make this configurable
-        //velocity where fly animation begins
-        const cTresholdVelocity = 300.0f;
-        //velocity where fly animation is at maximum
-        const cFullVelocity = 450.0f;
-        const cVelDelta = cFullVelocity - cTresholdVelocity;
+    this(GameEngine a_owner, char[] name) {
+        super(a_owner, name);
+        setDisplayClass!(WormStateDisplay)();
     }
 
-    this(GraphicsHandler a_owner, SequenceObject a_type) {
-        super(a_owner, a_type);
-        mAnimator = new Animator();
-        myclass = castStrict!(NapalmSequenceObject)(a_type);
-        init();
+    this (ReflectCtor c) {
+        super(c);
     }
 
-    void update(SequenceUpdate v) {
-        mLastUpdate = v;
-        mAnimator.pos = v.position;
-        float speed = v.velocity.length;
-        if (speed < cTresholdVelocity) {
-            //slow napalm
-            if (mAnimator.animation !is myclass.animFall)
-                mAnimator.setAnimation(myclass.animFall, timeMsecs(randRange(0,
-                    cast(int)(myclass.animFall.duration.msecs))));
-            //xxx controls size (0-100), use damage or whatever
-            mAnimator.params.p2 = 30;
-        } else {
-            //fast napalm
-            if (mAnimator.animation !is myclass.animFly)
-                mAnimator.setAnimation(myclass.animFly);
-            mAnimator.params.p1 = cast(int)(v.rotation_angle*180.0f/PI);
-            mAnimator.params.p2 = cast(int)(100
-                * (speed-cTresholdVelocity) / cVelDelta);
+    override void fixup() {
+        super.fixup();
+        foreach (i, inout s; seqs) {
+            for (int x = 0; x < s.length; x++) {
+                s[x].owner = this;
+                s[x].type = cast(SeqType)i;
+                s[x].index = x;
+            }
         }
     }
 
-    //state stuff is unused
-    void setState(SequenceState state) {
-        //
+    //reverse this one in time (data is copied if neccessary)
+    void reverse_subsequence(SeqType type) {
+        auto n = seqs[type].dup;
+        foreach (ref x; n) {
+            x = x.copy();
+        }
+        n.reverse; //is inplace
+        //revert animations and angle-interpolation
+        foreach (ref sub; n) {
+            if (sub.animation)
+                sub.animation = sub.animation.reversed();
+            if (sub.angle_direction >= 0)
+                sub.angle_direction = 1-sub.angle_direction;
+        }
+        seqs[type] = n;
     }
+}
 
-    public SequenceState getCurrentState() {
-        return null;
-    }
+//------------
 
-    //just returns info from update
-    SequenceUpdate getInfos() {
-        return mLastUpdate;
+///Load a bunch of sequences from a ConfigNode (like "sequences" in wwp.conf)
+void loadSequences(GameEngine engine, ConfigNode seqList) {
+    foreach (ConfigNode sub; seqList) {
+        auto pload = sub.name in loaders;
+        if (!pload) {
+            throw new Exception("sequence loader not found: "~sub.name);
+        }
+        foreach (ConfigItem subsub; sub) {
+            (*pload)(engine, subsub);
+        }
     }
+}
 
-    bool readyflag() {
-        //ignored
-        return true;
-    }
+void addState(GameEngine engine, SequenceState state) {
+    engine.sequenceStates.addState(state);
+}
 
-    public Rect2i bounds() {
-        //xxx
-        return type.bb + mAnimator.pos;
-    }
+Animation getAni(GameEngine e, char[] name) {
+    return e.gfx.resources.get!(Animation)(name);
+}
 
-    public SceneObject graphic() {
-        return mAnimator;
-    }
+char[] getValue(ConfigItem fromitem) {
+    if (!cast(ConfigValue)fromitem)
+        assert (false, fromitem.name ~ " is not a config value");
+    return castStrict!(ConfigValue)(fromitem).value;
+}
+
+void loadNormal(GameEngine engine, ConfigItem fromitem) {
+    auto value = getValue(fromitem);
+    //simple animation, state = animation
+    auto state = new WormState(engine, fromitem.name);
+    auto ss = new SubSequence;
+    ss.animation = getAni(engine, value);
+    state.seqs[SeqType.Normal] = [ss];
+    addState(engine, state);
+}
+
+void loadWormNormalWeapons(GameEngine engine, ConfigItem fromitem) {
+    auto value = getValue(fromitem);
+    auto state = new WormState(engine, fromitem.name);
+    auto ss = new SubSequence;
+    ss.animation = getAni(engine, value);
+    state.seqs[SeqType.Normal] = [ss];
+    state.seqs[SeqType.Leave] = [ss];
+    state.reverse_subsequence(SeqType.Leave);
+    state.enableLeaveTransition("s_worm_stand");
+    addState(engine, state);
+}
+
+//special case because of enter/leave and turnaround anims
+void loadWormJetpack(GameEngine engine, ConfigItem fromitem) {
+    auto sub = castStrict!(ConfigNode)(fromitem);
+    auto state = new WormState(engine, fromitem.name);
+    auto s_norm = new SubSequence;
+    auto s_enter = new SubSequence;
+    auto s_turn = new SubSequence;
+    s_norm.animation = getAni(engine, sub["normal"]);
+    state.seqs[SeqType.Normal] = [s_norm];
+    s_enter.animation = getAni(engine, sub["enter"]);
+    state.seqs[SeqType.Enter] = [s_enter];
+    state.seqs[SeqType.Leave] = state.seqs[SeqType.Enter];
+    state.reverse_subsequence(SeqType.Leave);
+    s_turn.animation = getAni(engine, sub["turn"]);
+    state.seqs[SeqType.TurnAroundY] = [s_turn];
+    state.enableLeaveTransition("s_worm_stand");
+    addState(engine, state);
+}
+
+void loadWormWeapons(GameEngine engine, ConfigItem fromitem) {
+    auto value = getValue(fromitem);
+    char[] get = value ~ "_get", hold = value ~ "_hold";
+    auto state = new WormState(engine, fromitem.name);
+    auto s_norm = new SubSequence;
+    auto s_enter1 = new SubSequence;
+    auto s_enter2 = new SubSequence;
+    s_norm.animation = getAni(engine, hold);
+    state.seqs[SeqType.Normal] = [s_norm];
+    s_enter1.animation = getAni(engine, get);
+    s_enter1.ready = false;
+    s_enter2.animation = s_norm.animation;
+    s_enter2.ready = false;
+    s_enter2.interpolate_angle_id = 1;
+    s_enter2.angle_direction = 0;
+    s_enter2.angle_fixed_value = 0;
+    //s_enter2.angular_speed = (PI/2)/0.5;
+    s_enter2.angular_speed = 0.100;
+    s_enter2.fixed_angular_time = true;
+    s_enter2.dont_wait_for_animation = true;
+    state.seqs[SeqType.Enter] = [s_enter1, s_enter2];
+    state.seqs[SeqType.Leave] = state.seqs[SeqType.Enter];
+    state.reverse_subsequence(SeqType.Leave);
+    state.enableLeaveTransition("s_worm_stand");
+    addState(engine, state);
+}
+
+void loadFirstNormalThenEmpty(GameEngine engine, ConfigItem fromitem) {
+    auto value = getValue(fromitem);
+    auto state = new WormState(engine, fromitem.name);
+    auto s1 = new SubSequence;
+    auto s2 = new SubSequence;
+    s1.animation = getAni(engine, value);
+    s1.ready = false;
+    s2.reset_animation = true;
+    s2.wait_forever = true;
+    state.seqs[SeqType.Normal] = [s1, s2];
+    addState(engine, state);
+}
+
+void loadAnimation(GameEngine engine, ConfigItem fromitem) {
+    auto value = getValue(fromitem);
+    auto state = new WormState(engine, fromitem.name);
+    auto s_normal = new SubSequence;
+    s_normal.animation = getAni(engine, value);
+    state.seqs[SeqType.Normal] = [s_normal];
+    addState(engine, state);
+}
+
+void loadAnimationWithDrown(GameEngine engine, ConfigItem fromitem) {
+    auto value = getValue(fromitem);
+    auto val = str.split(value);
+    if (val.length != 2)
+        assert(false, "at "~fromitem.name);
+    auto state = new WormState(engine, fromitem.name ~ "_normal");
+    auto s_normal = new SubSequence;
+    s_normal.animation = getAni(engine, val[0]);
+    state.seqs[SeqType.Normal] = [s_normal];
+    addState(engine, state);
+    auto state2 = new WormState(engine, fromitem.name ~ "_drown");
+    s_normal = new SubSequence;
+    s_normal.animation = getAni(engine, val[1]);
+    state2.seqs[SeqType.Normal] = [s_normal];
+    addState(engine, state2);
+}
+
+void loadNapalm(GameEngine engine, ConfigItem fromitem) {
+    auto value = getValue(fromitem);
+    auto val = str.split(value);
+    if (val.length != 2)
+        assert(false, "at "~fromitem.name);
+    auto state = new NapalmState(engine, fromitem.name);
+    //load animations
+    state.animFall = getAni(engine, val[0]);
+    state.animFly = getAni(engine, val[1]);
+    addState(engine, state);
+}
+
+static this() {
+    loaders["normal"] = &loadNormal;
+    loaders["worm_normal_weapons"] = &loadWormNormalWeapons;
+    loaders["worm_jetpack"] = &loadWormJetpack;
+    loaders["worm_weapons"] = &loadWormWeapons;
+    loaders["first_normal_then_empty"] = &loadFirstNormalThenEmpty;
+    loaders["animations"] = &loadAnimation;
+    loaders["simple_with_drown"] = &loadAnimationWithDrown;
+    loaders["napalm"] = &loadNapalm;
 }

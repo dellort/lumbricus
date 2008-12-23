@@ -17,7 +17,8 @@ import utils.configfile;
 import utils.vector2;
 import utils.time;
 
-import game.sequence;
+//lol compiler breaks horribly with this selective import uncommented
+import game.sequence;// : SequenceUpdate;
 
 public import game.temp;
 
@@ -69,7 +70,11 @@ interface Graphic {
     void remove();
 }
 
-//NOTE: in module game.sequence, there's "interface Sequence : Graphic {...}"
+interface AnimationGraphic : Graphic {
+    void update(ref Vector2i pos, ref AnimationParams params);
+    //void setAnimation(Resource!(Animation) animation); yyy
+    void setAnimation(Animation animation, Time startAt = Time.Null);
+}
 
 interface LineGraphic : Graphic {
     void setPos(Vector2i p1, Vector2i p2);
@@ -79,7 +84,7 @@ interface LineGraphic : Graphic {
 
 interface TargetCross : Graphic {
     //where position and angle are read from
-    void attach(Sequence dest);
+    void attach(SequenceUpdate dest);
     //value between 0.0 and 1.0 for the fire strength indicator
     void setLoad(float load);
     //won't return anything useful lol
@@ -112,7 +117,7 @@ interface LandscapeGraphic : Graphic {
 
 ///all graphics which are sent from server to client
 interface GameEngineGraphics {
-    Sequence createSequence(SequenceObject type);
+    AnimationGraphic createAnimation();
     LineGraphic createLine();
     //target cross is always themed
     TargetCross createTargetCross(TeamTheme team);

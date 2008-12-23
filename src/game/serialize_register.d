@@ -7,9 +7,9 @@ import utils.reflection;
 import game.action, game.actionsprite, game.controller, game.crate, game.game,
     game.glevel, game.spriteactions, game.sprite, game.worm,
     game.weapon.actions, game.weapon.actionweapon, game.weapon.projectile,
-    game.weapon.ray, game.weapon.spawn, game.weapon.tools, game.weapon.weapon;
+    game.weapon.ray, game.weapon.spawn, game.weapon.tools, game.weapon.weapon,
+    game.sequence;
 import physics.world;
-import game.gfxset;
 
 import game.gametask : serialize_types;
 
@@ -20,7 +20,9 @@ void initGameSerialization() {
         TimedAction, ActionSprite, GameController, ServerMemberControl,
         ServerTeam, ServerTeamMember, WeaponSet, WeaponItem, CollectableBomb,
         CollectableWeapon, CollectableMedkit, CrateSprite, GameLandscape,
-        LandscapeGeometry, GObjectSprite, WeaponAction, ExplosionAction,
+        LandscapeGeometry, SpriteAction, SetStateAction, GravityCenterAction,
+        ProximitySensorAction, WalkerAction, RandomJumpAction,
+        StuckTriggerAction, GObjectSprite, WeaponAction, ExplosionAction,
         BeamAction, InsertBitmapAction, EarthquakeAction, ActionShooter,
         ProjectileSprite, HomingAction, RayShooter, RenderLaser, SpawnAction,
         Jetpack, Rope, WormSprite, GravestoneSprite);
@@ -34,7 +36,9 @@ void initGameSerialization() {
         BeamActionClass, InsertBitmapActionClass, EarthquakeActionClass,
         ActionWeapon, ProjectileStateInfo, ProjectileSpriteClass,
         HomingActionClass, RayWeapon, SpawnActionClass, ToolClass,
-        WormStateInfo, WormSpriteClass, GravestoneSpriteClass);
-    //serialize_types.registerClasses!(GfxSet);
+        WormStateInfo, WormSpriteClass, GravestoneSpriteClass,
+        SequenceStateList, SequenceState, SequenceUpdate, WormSequenceUpdate,
+        Sequence, NapalmStateDisplay, NapalmState, WormStateDisplay,
+        SubSequence, WormState);
 }
 

@@ -4,7 +4,7 @@ import common.animation;
 import framework.framework;
 import framework.resset;
 import framework.resources : ResourceObject, addToResourceSet;
-import game.sequence : loadSequences; //only for loading grr
+//import game.sequence : loadSequences; //only for loading grr
 import utils.color;
 import utils.configfile;
 
@@ -36,11 +36,11 @@ class GfxSet {
         }
     }
 
-    private void loadSequenceStuff() {
+    /+private void loadSequenceStuff() {
         foreach (conf; sequenceConfig) {
             loadSequences(resources, conf);
         }
-    }
+    }+/
 
     private void loadExplosions() {
         expl.load(config.getSubNode("explosions"), resources);
@@ -84,7 +84,7 @@ class GfxSet {
     //call after resources have been preloaded
     void finishLoading() {
         //loaded after all this because Sequences depend from Animations etc.
-        loadSequenceStuff();
+        //loadSequenceStuff();
         resources.seal(); //disallow addition of more resources
         loadTeamThemes();
         loadExplosions();

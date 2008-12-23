@@ -13,6 +13,7 @@ import common.common;
 import game.controller;
 import game.weapon.weapon;
 import game.gamepublic;
+import game.sequence;
 import utils.list2;
 import utils.time;
 import utils.log;
@@ -120,6 +121,8 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
 
     //same for weapons (also such a two-stage factory, which creastes Shooters)
     private WeaponClass[char[]] mWeaponClasses;
+
+    SequenceStateList sequenceStates;
 
     this (ReflectCtor c) {
         c.types().registerClass!(typeof(mObjects));
@@ -300,7 +303,12 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         mWaterChanger.changePerSec = cWaterRaisingSpeed;
         physicworld.add(mWaterChanger);
 
-        //what mObjects = new List2!(GameObject)();
+        sequenceStates = new SequenceStateList();
+
+        //load sequences
+        foreach (ConfigNode node; gfx.sequenceConfig) {
+            loadSequences(this, node);
+        }
 
         //load weapons
         foreach (char[] ws; config.weaponsets) {

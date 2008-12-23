@@ -191,11 +191,12 @@ class ProjectileSpriteClass : ActionSpriteClass {
                 assert(false, "bla: "~config.name);
             }
 
-            sequenceObject = engine.gfx.resources.resource!(SequenceObject)
-                (config["sequence_object"]).get;
-            initState.animation = sequenceObject.findState("normal");
+            //sequenceObject = engine.gfx.resources.resource!(SequenceObject)
+            //    (config["sequence_object"]).get;
+            sequencePrefix = config["sequence_object"];
+            initState.animation = findSequenceState("normal");
 
-            if (auto drownani = sequenceObject.findState("drown", true)) {
+            if (auto drownani = findSequenceState("drown", true)) {
                 auto drownstate = createStateInfo();
                 drownstate.name = "drowning";
                 drownstate.animation = drownani;

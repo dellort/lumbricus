@@ -215,7 +215,7 @@ class InsertBitmapAction : WeaponAction {
 
     override protected ActionRes initialStep() {
         super.initialStep();
-        if (!mFireInfo.pos.isNaN && myclass.bitmap.defined()) {
+        if (!mFireInfo.pos.isNaN && myclass.bitmap.get() !is null) {
             //centered at FireInfo.pos
             auto p = toVector2i(mFireInfo.pos);
             auto res = myclass.bitmap;

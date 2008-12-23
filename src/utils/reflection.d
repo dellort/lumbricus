@@ -53,9 +53,11 @@ struct SafePtr {
     //this is like "Object x = something(); return (void*)x;"
     //in other cases, return the ptr itself (that's do-what-I-mean sometimes)
     void* realptr() {
-        if (!cast(ReferenceType)type)
-            return ptr;
-        return *cast(void**)ptr;
+        if (auto rt = cast(ReferenceType)type) {
+            if (!rt.isInterface())
+                return *cast(void**)ptr;
+        }
+        return ptr;
     }
 
     //if null object reference
@@ -68,14 +70,11 @@ struct SafePtr {
     //  memory = you must provide some space, where the SafePtr will point to
     //           this is because SafePtr is always a pointer to the object
     //           reference, and casting interfaces might change the reference
+    //           e.g. void* tmp; SafePtr p_tmp = x.mostSpecificClass(&tmp, ...)
     SafePtr mostSpecificClass(void** memory, bool may_fail = false) {
-        if (type is null || ptr is null)
-            return *this;
-        auto rt = cast(ReferenceType)type;
-        if (!rt)
-            throw new Exception("mostSpecificClass() on non-reference ptr");
-        Object o = rt.castFrom(*cast(void**)ptr);
-        assert (!!o);
+        Object o = toObject();
+        if (!o)
+            return SafePtr(null, null); //was a null reference
         ReferenceType* rt2 = o.classinfo in type.mOwner.mCItoT;
         if (!rt2 && !may_fail)
             throw new Exception("class not found, maybe it is not reflected?");
@@ -83,6 +82,25 @@ struct SafePtr {
             return SafePtr(null, null);
         *memory = (*rt2).castTo(o);
         return SafePtr(*rt2, memory);
+    }
+
+    SafePtr toObjectPtr(void** memory) {
+        Object o = toObject();
+        if (!o)
+            return SafePtr(null, null);
+        *memory = cast(void*)o;
+        return SafePtr(type.mOwner.tiToT(typeid(typeof(o))), memory);
+    }
+
+    Object toObject(bool may_fail = false) {
+        if (type is null || ptr is null)
+            return null;
+        auto rt = cast(ReferenceType)type;
+        if (!rt && !may_fail)
+            throw new Exception("toObject() on non-reference ptr");
+        if (!rt)
+            return null;
+        return rt.castFrom(*cast(void**)ptr);
     }
 
     //"strict" typed cast (no implicit conversions)
@@ -308,6 +326,10 @@ class Type {
 
     final size_t size() {
         return mSize;
+    }
+
+    final Types owner() {
+        return mOwner;
     }
 }
 
@@ -674,6 +696,7 @@ class Class {
         size_t mClassSize; //just used for verificating stuff
         char[] mName;
         ClassElement[] mElements;
+        ClassMember[] mMembers;
         Object mDummy; //for default values
     }
 
@@ -703,10 +726,16 @@ class Class {
             assert (old.name() != e.name());
         }
         mElements = mElements ~ e;
+        if (auto me = cast(ClassMember)e)
+            mMembers ~= me;
     }
 
     final ClassElement[] elements() {
         return mElements;
+    }
+
+    final ClassMember[] members() {
+        return mMembers;
     }
 
     final char[] name() {
@@ -727,6 +756,10 @@ class Class {
 
     final bool isStruct() {
         return !isClass();
+    }
+
+    final StructuredType owner() {
+        return mOwner;
     }
 }
 

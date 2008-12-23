@@ -75,7 +75,8 @@ class GObjectSprite : GameObject {
 
         fillAnimUpdate();
 
-        graphic.update(seqUpdate);
+        //graphic.update(seqUpdate);
+        graphic.simulate();
     }
 
     protected SequenceUpdate createSequenceUpdate() {
@@ -243,7 +244,8 @@ class GObjectSprite : GameObject {
             graphic = null;
         }
         if (active) {
-            graphic = engine.graphics.createSequence(type.sequenceObject);
+            graphic = new Sequence(engine);
+            graphic.setUpdater(seqUpdate);
             physics.checkRotation();
             setCurrentAnimation();
             updateAnimation();
@@ -276,6 +278,9 @@ class GObjectSprite : GameObject {
             waterStateChange(false);
         }
         mWaterUpdated = false;
+        //xxx: added with sequence-messup
+        if (graphic)
+            graphic.simulate();
     }
 
     protected this(GameEngine engine, GOSpriteClass type) {
@@ -345,7 +350,7 @@ class StaticStateInfo {
         keepSelfForce = sc.getBoolValue("keep_selfforce", keepSelfForce);
 
         if (sc["animation"].length > 0) {
-            animation = owner.sequenceObject.findState(sc["animation"]);
+            animation = owner.findSequenceState(sc["animation"]);
         }
 
         if (!animation) {
@@ -371,7 +376,8 @@ class GOSpriteClass {
     GameEngine engine;
     char[] name;
 
-    SequenceObject sequenceObject;
+    //SequenceObject sequenceObject;
+    char[] sequencePrefix;
 
     StaticStateInfo[char[]] states;
     StaticStateInfo initState;
@@ -415,8 +421,10 @@ class GOSpriteClass {
         //load collision map
         engine.physicworld.collide.loadCollisions(config.getSubNode("collisions"));
 
-        sequenceObject = engine.gfx.resources.resource!(SequenceObject)
-            (config["sequence_object"]).get;
+        //sequenceObject = engine.gfx.resources.resource!(SequenceObject)
+          //  (config["sequence_object"]).get;
+        //explanation see worm.conf
+        sequencePrefix = config["sequence_object"];
 
         initialHp = config.getFloatValue("initial_hp", initialHp);
 
@@ -450,6 +458,13 @@ class GOSpriteClass {
     //for derived classes: return your StateInfo class here
     protected StaticStateInfo createStateInfo() {
         return new StaticStateInfo();
+    }
+
+    SequenceState findSequenceState(char[] pseudo_name,
+        bool allow_not_found = false)
+    {
+        return engine.sequenceStates.findState(sequencePrefix ~ '_' ~
+            pseudo_name, allow_not_found);
     }
 
     static this() {

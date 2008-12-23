@@ -44,6 +44,7 @@ enum GameZOrder {
     FrontWater,
 }
 
+//oh god, this design really sucks, can't someone kill it?
 class ClientGraphic : Graphic {
     private ListNode node;
     //if handler is null, this means it has been removed
@@ -92,6 +93,33 @@ class ClientGraphic : Graphic {
     //back to common.scene zorder
     int zorder() {
         return GameZOrder.Objects;
+    }
+}
+
+class ClientAnimationGraphic : ClientGraphic, AnimationGraphic {
+    Animator mAnimator;
+
+    this(GraphicsHandler handler) {
+        super(handler);
+        mAnimator = new Animator();
+        init();
+    }
+
+    override void update(ref Vector2i pos, ref AnimationParams params) {
+        mAnimator.pos = pos;
+        mAnimator.params = params;
+    }
+
+    override void setAnimation(Animation animation, Time startAt = Time.Null) {
+        mAnimator.setAnimation(animation, startAt);
+    }
+
+    SceneObject graphic() {
+        return mAnimator;
+    }
+
+    Rect2i bounds() {
+        return mAnimator.bounds();
     }
 }
 
@@ -205,7 +233,7 @@ class LandscapeGraphicImpl : ClientGraphic, LandscapeGraphic {
 
 class TargetCrossImpl : ClientGraphic, TargetCross {
     private {
-        Sequence mAttach;
+        SequenceUpdate mAttach;
         float mLoad = 0.0f;
         Vector2f mDir; //normalized weapon direction
         Animator mTarget;
@@ -260,7 +288,7 @@ class TargetCrossImpl : ClientGraphic, TargetCross {
     //NOTE: I was a bit careless about the "attaching" thing
     // it doesn't work correctly if the attached object is created before the
     // attach-to object
-    void attach(Sequence dest) {
+    void attach(SequenceUpdate dest) {
         mAttach = dest;
     }
 
@@ -284,7 +312,7 @@ class TargetCrossImpl : ClientGraphic, TargetCross {
                 reset();
         }
 
-        auto infos = cast(WormSequenceUpdate)mAttach.getInfos();
+        auto infos = cast(WormSequenceUpdate)mAttach;
         assert(!!infos,"Can only attach a target cross to worm sprites");
         mContainer.pos = infos.position;
         auto angle = fullAngleFromSideAngle(infos.rotation_angle,
@@ -492,9 +520,8 @@ class GraphicsHandler : GameEngineGraphics {
         }
     }
 
-    Sequence createSequence(SequenceObject type) {
-        assert(!!type);
-        return type.instantiate(this); //yay factory
+    AnimationGraphic createAnimation() {
+        return new ClientAnimationGraphic(this);
     }
     LineGraphic createLine() {
         return new ClientLineGraphic(this);

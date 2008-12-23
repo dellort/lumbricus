@@ -14,20 +14,22 @@ class ResourceObject {
 ///contains the resource itself and a handle to the real entry in ResourceSet
 ///this struct can be obtained via ResourceSet.Entry.resource!(T)()
 struct Resource(T : Object) {
-    //xxx: the motivation for this was optimization, but it doesn't work well
-    //     together with serialization
-    //private T resource;
-    ResourceSet.Entry entry;
+    private T resource;
+    //entry must not be referenced from the game engine (serialization issues)
+    //ResourceSet.Entry entry;
+    private char[] mName;
 
     final T get() {
-        //return resource;
-        return entry ? castStrict!(T)(entry.mObject.get()) : T.init;
+        return resource;
+        //return entry ? castStrict!(T)(entry.mObject.get()) : T.init;
     }
 
     char[] name() {
-        return entry.name;
+        //return entry.name;
+        return mName;
     }
 
+/+
     int id() {
         return entry.id;
     }
@@ -37,6 +39,7 @@ struct Resource(T : Object) {
     bool defined() {
         return entry !is null;
     }
++/
 }
 
 ///a ResourceSet holds a set of resources and can be i.e. used to do level
@@ -79,8 +82,9 @@ class ResourceSet {
         ///a cast exception is thrown if resource can't be cast to T
         Resource!(T) resource(T)() {
             Resource!(T) res;
-            res.entry = this;
-            //res.resource = castStrict!(T)(mObject.get());
+            //res.entry = this;
+            res.resource = castStrict!(T)(mObject.get());
+            res.mName = mName;
             return res;
         }
 

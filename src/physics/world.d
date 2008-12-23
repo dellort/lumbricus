@@ -58,7 +58,7 @@ class PhysicWorld {
             typeof(mContactGenerators));
         t.registerClasses!(CollisionMap, PhysicConstraint, RopeHandler, POSP,
             BPSortAndSweep, PhysicTimedChangerVector2f, PhysicBase,
-            PhysicTimedChangerFloat, ZoneTrigger);
+            PhysicObject, PhysicTimedChangerFloat, ZoneTrigger);
         BroadPhase.registerstuff(c);
         PhysicZone.registerstuff(c);
         PhysicForce.registerstuff(c);
