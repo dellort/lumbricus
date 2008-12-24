@@ -79,7 +79,7 @@ class LandscapeGeometry : PhysicGeometry {
     }
 }
 
-//these 2 functions are used by the server and client code
+//these 2 functions are used by the server and client code (network case)
 public void landscapeDamage(LandscapeBitmap ls, Vector2i pos, int radius) {
     //NOTE: clipping should have been done by the caller already, and the
     // blastHole function also does clip; so don't care
@@ -121,8 +121,6 @@ class GameLandscape : GameObject {
         //landscape landscape landscape landscape
         mLandscape = new LandscapeBitmap(land.landscape);
 
-        mGraphic = engine.graphics.createLandscape(land, mLandscape);
-
         init();
     }
 
@@ -134,8 +132,6 @@ class GameLandscape : GameObject {
 
         mLandscape = new LandscapeBitmap(mSize, null);
 
-        mGraphic = engine.graphics.createLandscape(mSize, mLandscape);
-
         init();
     }
 
@@ -144,7 +140,7 @@ class GameLandscape : GameObject {
     }
 
     void init() {
-        mGraphic.setPos(mOffset);
+        mGraphic = engine.graphics.createLandscape(mOffset, mLandscape);
 
         mPhysics = new LandscapeGeometry();
         mPhysics.ls = this;
@@ -162,7 +158,8 @@ class GameLandscape : GameObject {
             landscapeDamage(mLandscape, pos, radius);
             mPhysics.generationNo++;
 
-            mGraphic.damage(mOffset, radius);
+            //this was for replication of the bitmap over network
+            //mGraphic.damage(mOffset, radius);
         }
     }
 
@@ -171,11 +168,15 @@ class GameLandscape : GameObject {
         pos -= mOffset;
         landscapeInsert(mLandscape, pos, bitmap);
         mPhysics.generationNo++; //?
-        mGraphic.insert(pos, bitmap);
+        //mGraphic.insert(pos, bitmap);
     }
 
     public Surface image() {
         return mLandscape.image;
+    }
+
+    public LandscapeBitmap landscape_bitmap() {
+        return mLandscape;
     }
 
     public Vector2i offset() {

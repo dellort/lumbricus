@@ -110,6 +110,18 @@ class Level {
         }
         return nlevel;
     }
+
+    //xxx should be changed, for now it's fine
+    Vector2i worldCenter() {
+        Vector2i center;
+        foreach (o; objects) {
+            if (auto land = cast(LevelLandscape)o) {
+                center = land.position + land.landscape.size/2;
+                break;
+            }
+        }
+        return center;
+    }
 }
 
 //used for the landscape and mines

@@ -58,10 +58,12 @@ class PhysicWorld {
             typeof(mContactGenerators));
         t.registerClasses!(CollisionMap, PhysicConstraint, RopeHandler, POSP,
             BPSortAndSweep, PhysicTimedChangerVector2f, PhysicBase,
+            CollisionType, EarthQuakeForce, EarthQuakeDegrader,
             PhysicObject, PhysicTimedChangerFloat, ZoneTrigger);
         BroadPhase.registerstuff(c);
         PhysicZone.registerstuff(c);
         PhysicForce.registerstuff(c);
+        t.registerMethod(this, &checkObjectCollision, "checkObjectCollision");
     }
 
     public void add(PhysicBase obj) {
@@ -349,11 +351,11 @@ class PhysicWorld {
 
     ///r = random number generator to use, null will create a new instance
     public this(Random r) {
-        if (r) {
-            rnd = new Random();
-        } else {
-            rnd = r;
+        if (!r) {
+            //rnd = new Random();
+            assert(false, "you must");
         }
+        rnd = r;
         collide = new CollisionMap();
         broadphase = new BPSortAndSweep(&checkObjectCollision);
         mObjects = new List2!(PhysicObject)();

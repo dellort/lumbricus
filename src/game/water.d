@@ -74,37 +74,27 @@ class GameWater {
 
     Vector2i size;
 
-    enum Z {
-        back,
-        level,
-        front,
-    }
-    Scene[Z.max+1] scenes;  //back, level, front
-
     this(ClientGameEngine engine) {
-        foreach (inout s; scenes) {
-            s = new Scene();
-            s.pos = engine.scene.pos;
-        }
-
         size = engine.worldSize;
 
         mEngine = engine;
         Color waterColor = engine.gfx.waterColor;
 
+        Scene scene = mEngine.scene;
+
         mWaterDrawerFront1 = new WaterDrawerFront1(this, waterColor);
-        scenes[Z.front].add(mWaterDrawerFront1);
+        scene.add(mWaterDrawerFront1, GameZOrder.FrontWater);
         mWaterDrawerFront2 = new WaterDrawerFront2(this, waterColor);
-        scenes[Z.level].add(mWaterDrawerFront2);
+        scene.add(mWaterDrawerFront2, GameZOrder.LevelWater);
         mWaterDrawerBack = new WaterDrawerBack(this, waterColor);
-        scenes[Z.back].add(mWaterDrawerBack);
+        scene.add(mWaterDrawerBack, GameZOrder.BackWater);
         //try {
             mWaveAnim = mEngine.resources.get!(Animation)("water_waves");
             foreach (int i, inout a; mWaveAnimBack) {
                 a = new HorizontalFullsceneAnimator();
                 a.animator = new Animator();
                 a.animator.setAnimation(mWaveAnim);
-                scenes[Z.back].add(a);
+                scene.add(a, GameZOrder.BackWater);
                 a.xoffs = randRange(0,mWaveAnim.bounds.size.x);
                 a.size = size;
                 a.scrollMult = -0.16666f+i*0.08333f;
@@ -113,7 +103,7 @@ class GameWater {
                 a = new HorizontalFullsceneAnimator();
                 a.animator = new Animator();
                 a.animator.setAnimation(mWaveAnim);
-                scenes[Z.front].add(a);
+                scene.add(a, GameZOrder.FrontWater);
                 a.xoffs = randRange(0,mWaveAnim.bounds.size.x);
                 a.size = size;
                 a.scrollMult = 0.0f+i*0.15f;
@@ -154,7 +144,7 @@ class GameWater {
         return mSimpleMode;
     }
 
-    void simulate(float deltaT) {
+    void simulate() {
         if (mEngine.waterOffset != mStoredWaterLevel) {
             waterOffs = mEngine.waterOffset;
             uint p = waterOffs;

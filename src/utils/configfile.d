@@ -8,6 +8,9 @@ import conv = std.conv;
 import utils.output : Output;
 import utils.misc : formatfx;
 
+//xxx: for now
+import utils.reflection;
+
 //xxx: desperately moved to here (where else to put it?)
 import utils.vector2;
 bool parseVector(char[] s, inout Vector2i value) {
@@ -100,6 +103,11 @@ public abstract class ConfigItem {
     private char[] mName;
     private ConfigNode mParent;
 
+    this() {
+    }
+    this(ReflectCtor c) {
+    }
+
     public char[] name() {
         return mName;
     }
@@ -168,6 +176,12 @@ public class ConfigValue : ConfigItem {
     //value can contain anything (as long as it is valid UTF-8)
     public char[] value;
 
+    this() {
+    }
+    this(ReflectCtor c) {
+        super(c);
+    }
+
     protected override void doWrite(Output stream, uint level) {
         if (name.length > 0) {
             stream.writeString(" = "c);
@@ -198,6 +212,11 @@ public class ConfigNode : ConfigItem {
 
     //comment after last item in the node
     private char[] mEndComment;
+
+    this() {
+    }
+    this(ReflectCtor c) {
+    }
 
     public ConfigNode clone() {
         auto r = new ConfigNode();

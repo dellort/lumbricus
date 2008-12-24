@@ -31,6 +31,7 @@ abstract class Animation {
         int mFrameCount;
         int mLengthMS;
         Rect2i mBounds;
+        ReversedAnimation mReversed;
     }
 
     //read-only lol
@@ -85,7 +86,9 @@ abstract class Animation {
     //of course a derived class could override this and create a normal
     //animation with a reversed frame list
     Animation reversed() {
-        return new ReversedAnimation(this);
+        if (!mReversed)
+            mReversed = new ReversedAnimation(this);
+        return mReversed;
     }
 }
 

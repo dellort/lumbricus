@@ -44,264 +44,131 @@ enum GameZOrder {
     FrontWater,
 }
 
-//oh god, this design really sucks, can't someone kill it?
-class ClientGraphic : Graphic {
-    private ListNode node;
-    //if handler is null, this means it has been removed
-    GraphicsHandler handler;
 
-    //subclass must call init() after it has run its constructor
-    this(GraphicsHandler a_owner) {
-        handler = a_owner;
+class ClientAnimationGraphic : Animator {
+    AnimationGraphic mInfo;
+
+    this(AnimationGraphic info) {
+        zorder = GameZOrder.Objects;
+        mInfo = info;
+        mInfo.set = true; //force initialization
+        timeSource = mInfo.owner.timebase;
     }
 
-    Scene container() {
-        return handler ? handler.zScenes[zorder()] : null;
-    }
-
-    bool active() {
-        return !!handler;
-    }
-
-    //stupid enforced constructor order...
-    protected void init() {
-        container().add(graphic);
-        node = handler.mGraphics.add(this);
-    }
-
-    //NOTE: due to some stupidity, objects can never be added to the scene again
-    //you must recreate them
-    void remove() {
-        if (!handler)
+    override void draw(Canvas c) {
+        if (mInfo.removed) {
+            removeThis();
             return;
-        handler.mGraphics.remove(node);
-        container().remove(graphic);
-        handler = null;
-    }
-
-    abstract SceneObject graphic();
-
-    //called per frame
-    //can be overridden, by default does nothing
-    void simulate(float deltaT) {
-    }
-
-    //this is my new, slightly retarded way of maintaining a zorder
-    //the function must always return the same zorder value for the same
-    //instance
-    //I'll keep this hack as long as I get sick of it and move the zorder thing
-    //back to common.scene zorder
-    int zorder() {
-        return GameZOrder.Objects;
-    }
-}
-
-class ClientAnimationGraphic : ClientGraphic, AnimationGraphic {
-    Animator mAnimator;
-
-    this(GraphicsHandler handler) {
-        super(handler);
-        mAnimator = new Animator();
-        init();
-    }
-
-    override void update(ref Vector2i pos, ref AnimationParams params) {
-        mAnimator.pos = pos;
-        mAnimator.params = params;
-    }
-
-    override void setAnimation(Animation animation, Time startAt = Time.Null) {
-        mAnimator.setAnimation(animation, startAt);
-    }
-
-    SceneObject graphic() {
-        return mAnimator;
-    }
-
-    Rect2i bounds() {
-        return mAnimator.bounds();
-    }
-}
-
-class ClientLineGraphic : ClientGraphic, LineGraphic {
-    Vector2i mP1, mP2;
-    Color mColor;
-    Draw mDraw;
-
-    class Draw : SceneObject {
-        override void draw(Canvas c) {
-            c.drawLine(mP1, mP2, mColor);
         }
-    }
-
-    this(GraphicsHandler handler) {
-        super(handler);
-        mDraw = new Draw();
-        init();
-    }
-
-    void setPos(Vector2i p1, Vector2i p2) {
-        mP1 = p1;
-        mP2 = p2;
-    }
-    void setColor(Color c) {
-        mColor = c;
-    }
-
-    SceneObject graphic() {
-        return mDraw;
-    }
-
-    Rect2i bounds() {
-        //doesn't make a lot of sense, but meh
-        auto rc = Rect2i(mP1, mP2);
-        rc.normalize();
-        return rc;
+        pos = mInfo.pos;
+        params = mInfo.params;
+        if (mInfo.set) {
+            setAnimation2(mInfo.animation, mInfo.animation_start);
+            mInfo.set = false;
+        }
+        super.draw(c);
     }
 }
 
-class LandscapeGraphicImpl : ClientGraphic, LandscapeGraphic {
-    //LevelLandscape mSource;
-    LandscapeBitmap mBitmap;
-    bool mBitmapIsShared;
-    Vector2i mPos;
-    LandscapeDrawer mRender;
+class ClientLineGraphic : SceneObject {
+    LineGraphic mInfo;
 
-    this(GraphicsHandler handler, LevelLandscape from, LandscapeBitmap shared) {
-        super(handler);
-        //mSource = from;
-        myinit(shared, {return new LandscapeBitmap(from.landscape);});
+    this(LineGraphic info) {
+        zorder = GameZOrder.TargetCross;
+        mInfo = info;
     }
 
-    //i = called to create that bitmap locally if it's not shared
-    private void myinit(LandscapeBitmap shared, LandscapeBitmap delegate() i) {
-        //NOTE: simply can set shared to null to test the not-shared case
-        //shared = null;
-        mBitmap = shared;
-        mBitmapIsShared = mBitmap !is null;
-        if (!mBitmapIsShared) {
-            mBitmap = i();
-        }
-        mRender = new LandscapeDrawer();
-        mRender.bitmap = mBitmap.image();
-        mRender.bitmap.enableCaching(false);
-        init();
-    }
-
-    this(GraphicsHandler handler, Vector2i size, LandscapeBitmap shared) {
-        super(handler);
-        myinit(shared, {return new LandscapeBitmap(size, null);});
-    }
-
-    SceneObject graphic() {
-        return mRender;
-    }
-
-    void setPos(Vector2i p) {
-        mPos = p;
-    }
-
-    void damage(Vector2i pos, int radius) {
-        if (mBitmapIsShared)
+    override void draw(Canvas c) {
+        if (mInfo.removed) {
+            removeThis();
             return;
-        landscapeDamage(mBitmap, pos, radius);
-    }
-
-    void insert(Vector2i pos, Resource!(Surface) bitmap) {
-        if (mBitmapIsShared)
-            return;
-        landscapeInsert(mBitmap, pos, bitmap);
-    }
-
-    //all hail to inner classes
-    private class LandscapeDrawer : SceneObject {
-        Surface bitmap;
-
-        void draw(Canvas c) {
-            c.draw(bitmap, mPos);
         }
-    }
-
-    override int zorder() {
-        return GameZOrder.Landscape;
-    }
-
-    Rect2i bounds() {
-        return Rect2i(mBitmap.size()) + mPos;
+        c.drawLine(mInfo.p1, mInfo.p2, mInfo.color);
     }
 }
 
-class TargetCrossImpl : ClientGraphic, TargetCross {
+class LandscapeGraphicImpl : SceneObject {
+    LandscapeGraphic mInfo;
+    Surface bitmap;
+
+    this(LandscapeGraphic info) {
+        mInfo = info;
+        zorder = GameZOrder.Landscape;
+        bitmap = info.shared.image();
+        bitmap.enableCaching(false);
+    }
+
+    void draw(Canvas c) {
+        if (mInfo.removed) {
+            removeThis();
+            return;
+        }
+        c.draw(bitmap, mInfo.pos);
+    }
+}
+
+class TargetCrossImpl : SceneObject {
     private {
-        SequenceUpdate mAttach;
-        float mLoad = 0.0f;
+        TargetCross mInfo;
         Vector2f mDir; //normalized weapon direction
         Animator mTarget;
-        Scene mContainer; //(0,0) positioned to worm center
         float mTargetOffset;
         float mRotationOffset;
+        GfxSet mGfx;
+        TimeSource timebase;
     }
 
-    class DrawWeaponLoad : SceneObject {
-        void draw(Canvas canvas) {
-            auto tcs = handler.gfx.targetCross;
-            auto start = tcs.loadStart + tcs.radStart;
-            auto abs_end = tcs.loadEnd - tcs.radEnd;
-            auto scale = abs_end - start;
-            auto end = start + cast(int)(scale*mLoad);
-            auto rstart = start + 1; //omit first circle => invisible at mLoad=0
-            float oldn = 0;
-            int stip;
-            auto cur = end;
-            //NOTE: when firing, the load-colors look like they were animated;
-            //  actually that's because the stipple-offset is changing when the
-            //  mLoad value changes => stipple pattern moves with mLoad and the
-            //  color look like they were changing
-            while (cur >= rstart) {
-                auto n = (1.0f*(cur-start)/scale);
-                if ((stip % tcs.stipple)==0)
-                    oldn = n;
-                auto col = tcs.colorStart + (tcs.colorEnd-tcs.colorStart)*oldn;
-                auto rad = cast(int)(tcs.radStart+(tcs.radEnd-tcs.radStart)*n);
-                canvas.drawFilledCircle(toVector2i(mDir*cur), rad, col);
-                cur -= tcs.add;
-                stip++;
-            }
-        }
-    }
-
-    this(GraphicsHandler handler, TeamTheme team) {
-        super(handler);
-        mContainer = new Scene();
+    this(TargetCross info, GfxSet gfx) {
+        zorder = GameZOrder.TargetCross;
+        mGfx = gfx;
+        mInfo = info;
+        timebase = mInfo.owner.timebase;
         mTarget = new Animator();
-        mTarget.setAnimation(team.aim.get);
-        mContainer.add(new DrawWeaponLoad());
-        mContainer.add(mTarget);
+        mTarget.timeSource = timebase;
+        mTarget.setAnimation(mInfo.theme.aim.get);
         reset();
-        init();
     }
 
-    SceneObject graphic() {
-        return mContainer;
-    }
-
-    //NOTE: I was a bit careless about the "attaching" thing
-    // it doesn't work correctly if the attached object is created before the
-    // attach-to object
-    void attach(SequenceUpdate dest) {
-        mAttach = dest;
+    void doDraw(Canvas canvas, Vector2i pos) {
+        auto tcs = mGfx.targetCross;
+        auto start = tcs.loadStart + tcs.radStart;
+        auto abs_end = tcs.loadEnd - tcs.radEnd;
+        auto scale = abs_end - start;
+        auto end = start + cast(int)(scale*mInfo.load);
+        auto rstart = start + 1; //omit first circle => invisible at mLoad=0
+        float oldn = 0;
+        int stip;
+        auto cur = end;
+        //NOTE: when firing, the load-colors look like they were animated;
+        //  actually that's because the stipple-offset is changing when the
+        //  mLoad value changes => stipple pattern moves with mLoad and the
+        //  color look like they were changing
+        while (cur >= rstart) {
+            auto n = (1.0f*(cur-start)/scale);
+            if ((stip % tcs.stipple)==0)
+                oldn = n;
+            auto col = tcs.colorStart + (tcs.colorEnd-tcs.colorStart)*oldn;
+            auto rad = cast(int)(tcs.radStart+(tcs.radEnd-tcs.radStart)*n);
+            canvas.drawFilledCircle(pos + toVector2i(mDir*cur), rad, col);
+            cur -= tcs.add;
+            stip++;
+        }
     }
 
     //reset animation, called after this becomes .active again
     void reset() {
-        mTargetOffset = handler.gfx.targetCross.targetDist -
-            handler.gfx.targetCross.targetStartDist;
+        mTargetOffset = mGfx.targetCross.targetDist -
+            mGfx.targetCross.targetStartDist;
         mRotationOffset = PI*2;
     }
 
-    override void simulate(float deltaT) {
-        if (!mAttach)
+    override void draw(Canvas c) {
+        if (!mInfo.attach)
             return;
+        if (mInfo.removed) {
+            removeThis();
+            return;
+        }
 
         //NOTE: in this case, the readyflag is true, if the weapon is already
         // fully rotated into the target direction
@@ -312,239 +179,151 @@ class TargetCrossImpl : ClientGraphic, TargetCross {
                 reset();
         }
 
-        auto infos = cast(WormSequenceUpdate)mAttach;
+        if (mInfo.doreset) {
+            mInfo.doreset = false;
+            reset();
+        }
+
+        auto infos = cast(WormSequenceUpdate)mInfo.attach;
         assert(!!infos,"Can only attach a target cross to worm sprites");
-        mContainer.pos = infos.position;
+        auto pos = infos.position;
         auto angle = fullAngleFromSideAngle(infos.rotation_angle,
             infos.pointto_angle);
         mDir = Vector2f.fromPolar(1.0f, angle);
-        mTarget.pos = toVector2i(mDir
-            * (handler.gfx.targetCross.targetDist - mTargetOffset));
+        mTarget.pos = pos + toVector2i(mDir
+            * (mGfx.targetCross.targetDist - mTargetOffset));
         mTarget.params.p1 = cast(int)((angle + mRotationOffset)*180/PI);
 
         //target cross animation
         //xxx reset on weapon change
         if (mTargetOffset > 0.25f) {
-            auto decrease = (pow(handler.gfx.targetCross.targetDegrade,
+            auto deltaT = timebase.difference.secsf;
+            auto decrease = (pow(mGfx.targetCross.targetDegrade,
                 deltaT*1000.0f));
             mTargetOffset *= decrease;
             mRotationOffset *= decrease;
         }
-    }
 
-    void setLoad(float load) {
-        mLoad = load;
-    }
-
-    Rect2i bounds() {
-        return Rect2i.Empty();
-    }
-
-    override int zorder() {
-        return GameZOrder.TargetCross;
+        mTarget.draw(c);
+        doDraw(c, pos);
     }
 }
 
 //point-thingy when clicking with the mouse
-class TargetIndicatorImpl : ClientGraphic, TargetIndicator {
+class TargetIndicatorImpl : Animator {
     private {
-        Animator mPoint;
-        PointMode mMode;
+        TargetIndicator mInfo;
     }
 
-    this(GraphicsHandler handler, TeamTheme team, Vector2i pos, PointMode mode)
-    {
-        super(handler);
-        mPoint = new Animator();
+    this(TargetIndicator info) {
+        zorder = GameZOrder.TargetCross;
+        mInfo = info;
+        timeSource = mInfo.owner.timebase;
         //select animation based on weapon mode
-        switch(mode) {
+        switch(mInfo.mode) {
             case PointMode.target:
-                mPoint.setAnimation(team.pointed.get);
+                setAnimation(mInfo.theme.pointed.get);
                 break;
             case PointMode.instant:
-                mPoint.setAnimation(team.click.get);
+                setAnimation(mInfo.theme.click.get);
                 break;
             default:
                 assert(false);
         }
-        mPoint.pos = pos;
-        mMode = mode;
-        init();
+        pos = mInfo.pos;
     }
 
-    SceneObject graphic() {
-        return mPoint;
-    }
-
-    void setPos(Vector2i p) {
-        mPoint.pos = p;
-    }
-
-    override void simulate(float deltaT) {
+    override void draw(Canvas c) {
         //self-remove if instant animation has finished
         //xxx make generic, there may be other similar graphics
-        if (mPoint.hasFinished && mMode == PointMode.instant)
-            remove();
-    }
+        if ((hasFinished() && mInfo.mode == PointMode.instant)
+            || mInfo.removed)
+        {
+            removeThis();
+            mInfo.remove();
+        }
 
-    override int zorder() {
-        return GameZOrder.TargetCross;
-    }
-
-    Rect2i bounds() {
-        return mPoint.bounds;
+        super.draw(c);
     }
 }
 
 //creates shockwave-animation for an explosion (like in wwp)
 //currently creates no particles, but could in the future
-class ExplosionGfxImpl : ClientGraphic, ExplosionGfx {
+class ExplosionGfxImpl : SceneObjectCentered {
     private {
+        ExplosionGfx mInfo;
         Animator mShockwave1, mShockwave2, mComicText;
         int mDiameter;
+        GfxSet mGfx;
     }
 
-    this(GraphicsHandler handler, Vector2i pos, int diameter) {
-        super(handler);
+    this(ExplosionGfx info, GfxSet gfx) {
+        zorder = GameZOrder.TargetCross;
+        mGfx = gfx;
+        mInfo = info;
         mShockwave1 = new Animator();
         mShockwave2 = new Animator();
         mComicText = new Animator();
+        auto p = mInfo.pos;
+        mShockwave1.pos = p;
+        mShockwave2.pos = p;
+        mComicText.pos = p;
+        mShockwave1.timeSource = mInfo.owner.timebase;
+        mShockwave2.timeSource = mInfo.owner.timebase;
+        mComicText.timeSource = mInfo.owner.timebase;
 
-        setDiameter(diameter);
-        setPos(pos);
-        init();
-    }
-
-    //need to override this because multiple animations are used
-    protected override void init() {
-        //xxx same z-order for all 3, relies on addition order
-        container().add(mShockwave1);
-        container().add(mShockwave2);
-        container().add(mComicText);
-        node = handler.mGraphics.add(this);
-    }
-
-    //same as above
-    override void remove() {
-        if (!handler)
-            return;
-        handler.mGraphics.remove(node);
-        container().remove(mShockwave1);
-        container().remove(mShockwave2);
-        container().remove(mComicText);
-        handler = null;
+        setDiameter(mInfo.diameter);
     }
 
     //selects animations matching diameter
     //diameter tresholds are read from gfxset config file
     void setDiameter(int d) {
-        if (d < handler.gfx.expl.sizeTreshold[0]) {
+        int s = -1, t = -1;
+        if (d < mGfx.expl.sizeTreshold[0]) {
             //below treshold, no animation
             //xxx catch this case in engine to avoid network traffic
-            mShockwave1.setAnimation(null);
-            mShockwave2.setAnimation(null);
-            mComicText.setAnimation(null);
-        } else if (d < handler.gfx.expl.sizeTreshold[1]) {
+        } else if (d < mGfx.expl.sizeTreshold[1]) {
             //tiny explosion without text
-            mShockwave1.setAnimation(handler.gfx.expl.shockwave1[0].get);
-            mShockwave2.setAnimation(handler.gfx.expl.shockwave2[0].get);
-            mComicText.setAnimation(null);
-        } else if (d < handler.gfx.expl.sizeTreshold[2]) {
+            s = 0;
+        } else if (d < mGfx.expl.sizeTreshold[2]) {
             //medium-sized, may have small text
-            mShockwave1.setAnimation(handler.gfx.expl.shockwave1[1].get);
-            mShockwave2.setAnimation(handler.gfx.expl.shockwave2[1].get);
-            int txt = random(-1,3);
-            if (txt >= 0)
-                mComicText.setAnimation(handler.gfx.expl.comicText[txt].get);
-        } else if (d < handler.gfx.expl.sizeTreshold[3]) {
+            s = 1;
+            t = random(-1,3);
+        } else if (d < mGfx.expl.sizeTreshold[3]) {
             //big, always with text
-            mShockwave1.setAnimation(handler.gfx.expl.shockwave1[2].get);
-            mShockwave2.setAnimation(handler.gfx.expl.shockwave2[2].get);
-            mComicText.setAnimation(handler.gfx.expl.comicText[random(0,4)].get);
+            s = 2;
+            t = random(0,4);
         } else {
             //huge, always text
-            mShockwave1.setAnimation(handler.gfx.expl.shockwave1[3].get);
-            mShockwave2.setAnimation(handler.gfx.expl.shockwave2[3].get);
-            mComicText.setAnimation(handler.gfx.expl.comicText[random(0,4)].get);
+            s = 3;
+            t = random(0,4);
+        }
+        Time st = mInfo.start;
+        if (s >= 0) {
+            mShockwave1.setAnimation2(mGfx.expl.shockwave1[s].get, st);
+            mShockwave2.setAnimation2(mGfx.expl.shockwave2[s].get, st);
+        }
+        if (t >= 0) {
+            mComicText.setAnimation2(mGfx.expl.comicText[t].get, st);
         }
     }
 
-    void setPos(Vector2i p) {
-        mShockwave1.pos = p;
-        mShockwave2.pos = p;
-        mComicText.pos = p;
-    }
-
-    SceneObject graphic() {
-        return mShockwave1;
-    }
-
-    override void simulate(float deltaT) {
+    override void draw(Canvas c) {
         //self-remove after all animations are finished
-        if (mShockwave1.hasFinished && mShockwave2.hasFinished &&
-            mComicText.hasFinished)
-            remove();
-    }
-
-    override int zorder() {
-        return GameZOrder.TargetCross;
-    }
-
-    Rect2i bounds() {
-        return mShockwave1.bounds;
-    }
-}
-
-class GraphicsHandler : GameEngineGraphics {
-    private List2!(ClientGraphic) mGraphics;
-
-    //of course this is unclean, sucks, etc.
-    Scene[GameZOrder.max+1] zScenes;
-    Scene allScene;
-    GfxSet gfx;
-
-    this(GfxSet a_gfx) {
-        mGraphics = new typeof(mGraphics)();
-        allScene = new Scene();
-        foreach (ref s; zScenes) {
-            s = new Scene();
-            allScene.add(s);
+        if ((mShockwave1.hasFinished && mShockwave2.hasFinished &&
+            mComicText.hasFinished) || mInfo.removed)
+        {
+            removeThis();
+            //uh, how strange (but it wasn't my idea ;D)
+            mInfo.remove();
         }
-        gfx = a_gfx;
+        mShockwave1.draw(c);
+        mShockwave2.draw(c);
+        mComicText.draw(c);
     }
 
-    //call simulate() for all objects
-    void simulate(float deltaT) {
-        foreach (g; mGraphics) {
-            g.simulate(deltaT);
-        }
-    }
-
-    AnimationGraphic createAnimation() {
-        return new ClientAnimationGraphic(this);
-    }
-    LineGraphic createLine() {
-        return new ClientLineGraphic(this);
-    }
-    TargetCross createTargetCross(TeamTheme team) {
-        return new TargetCrossImpl(this, team);
-    }
-    TargetIndicator createTargetIndicator(TeamTheme team, Vector2i pos,
-        PointMode mode)
-    {
-        return new TargetIndicatorImpl(this, team, pos, mode);
-    }
-    LandscapeGraphic createLandscape(LevelLandscape from,
-        LandscapeBitmap shared)
-    {
-        return new LandscapeGraphicImpl(this, from, shared);
-    }
-    LandscapeGraphic createLandscape(Vector2i size, LandscapeBitmap shared) {
-        return new LandscapeGraphicImpl(this, size, shared);
-    }
-
-    ExplosionGfx createExplosionGfx(Vector2i pos, int diameter) {
-        return new ExplosionGfxImpl(this, pos, diameter);
+    override Rect2i bounds() {
+        return Rect2i.Empty();
     }
 }
 
@@ -555,7 +334,7 @@ class ClientGameEngine {
 
     ResourceSet resources;
     GfxSet gfx;
-    GraphicsHandler graphics;
+    GameEngineGraphics server_graphics;
 
     private Music mMusic;
 
@@ -571,7 +350,6 @@ class ClientGameEngine {
     bool enableSpiffyGui;
 
     private Scene mScene;
-    private Scene[GameZOrder.max+1] mZScenes;
 
     //normal position of the scenes nested in mScene
     private Rect2i mSceneRect;
@@ -590,11 +368,13 @@ class ClientGameEngine {
 
     private PerfTimer mGameDrawTime;
 
-    this(GameEnginePublic engine, GfxSet a_gfx, GraphicsHandler foo) {
+    this(GameEnginePublic engine, GfxSet a_gfx) {
         mEngine = engine;
         gfx = a_gfx;
         resources = gfx.resources;
-        graphics = foo;
+
+        mEngineTime = new TimeSource();
+        mEngineTime.paused = true;
 
         mGameDrawTime = globals.newTimer("game_draw_time");
 
@@ -603,39 +383,24 @@ class ClientGameEngine {
         windSpeed = mEngine.windSpeed;
 
         worldSize = mEngine.worldSize;
+        worldCenter = mEngine.worldCenter;
 
-        //whatever this is! at least it kind of works
-        Rect2i bb = Rect2i.Empty;
-        foreach (g; graphics.mGraphics) {
-            bb.extend(g.bounds);
-        }
-        worldCenter = bb.center;
-
-        mScene = graphics.allScene;
-
-        //attention: be sure to keep the order
-        //never remove or reinsert items frm the mScene
-        foreach(int i, inout Scene s; mZScenes) {
-            s = graphics.zScenes[i];
-        }
+        mScene = new Scene();
 
         mSceneRect = Rect2i(Vector2i(0), worldSize);
 
         mGameWater = new GameWater(this);
-        mZScenes[GameZOrder.BackWater].add(mGameWater.scenes[GameWater.Z.back]);
-        mZScenes[GameZOrder.LevelWater].add(mGameWater.scenes[GameWater.Z.level]);
-        mZScenes[GameZOrder.FrontWater].add(mGameWater.scenes[GameWater.Z.front]);
-
         mGameSky = new GameSky(this);
-        mZScenes[GameZOrder.Background].add(mGameSky.scenes[GameSky.Z.back]);
-        mZScenes[GameZOrder.BackLayer].add(mGameSky.scenes[GameSky.Z.debris]);
-        mZScenes[GameZOrder.Clouds].add(mGameSky.scenes[GameSky.Z.clouds]);
+
+        server_graphics = engine.getGraphics();
+        //(if there are objects in "add_objects", these should be appended at
+        // the end of "objects"; 2 times move_to_list() to keep the zorder)
+        server_graphics.add_objects.move_to_list(server_graphics.objects);
+        server_graphics.objects.move_to_list(server_graphics.add_objects);
+        //in case the game is reloaded
+        updateGraphics();
 
         detailLevel = 0;
-
-        //else you'll get a quite big deltaT on start
-        mEngineTime = new TimeSource();
-        mEngineTime.paused = true;
 
         initSound();
     }
@@ -674,6 +439,37 @@ class ClientGameEngine {
         mMusic.play();
     }
 
+    //synchronize graphics list
+    //graphics currently are removed lazily using the "removed" flag
+    private void updateGraphics() {
+        void add(SceneObject s) {
+            scene.add(s);
+        }
+
+        foreach (Graphic g; server_graphics.add_objects) {
+            assert (!g.removed);
+            //urghs, but interface methods (like .createAnimation()) can't be
+            //used when loading from a saved game
+            if (auto ani = cast(AnimationGraphic)g) {
+                add(new ClientAnimationGraphic(ani));
+            } else if (auto line = cast(LineGraphic)g) {
+                add(new ClientLineGraphic(line));
+            } else if (auto land = cast(LandscapeGraphic)g) {
+                add(new LandscapeGraphicImpl(land));
+            } else if (auto tc = cast(TargetCross)g) {
+                add(new TargetCrossImpl(tc, gfx));
+            } else if (auto ti = cast(TargetIndicator)g) {
+                add(new TargetIndicatorImpl(ti));
+            } else if (auto eg = cast(ExplosionGfx)g) {
+                add(new ExplosionGfxImpl(eg, gfx));
+            } else {
+                assert (false, "unknown type: "~g.toString());
+            }
+            server_graphics.add_objects.remove(g.node);
+            server_graphics.objects.addNode(g.node);
+        }
+    }
+
     bool oldpause; //hack, so you can pause the music independent from the game
 
     void doFrame() {
@@ -688,9 +484,9 @@ class ClientGameEngine {
             oldpause = ispaused;
         }
 
-        //bail out here if game is paused??
+        updateGraphics();
 
-        float deltaT = mEngineTime.difference.secsf;
+        //bail out here if game is paused??
 
         if ((mEngineTime.current - mLastShake).msecs >= cShakeIntervalMs) {
             //something similar is being done in earthquake.d
@@ -706,18 +502,15 @@ class ClientGameEngine {
         }
 
         //only these are shaked on an earth quake
-        mZScenes[GameZOrder.Objects].pos = mSceneRect.p1 + mShakeOffset;
-        mZScenes[GameZOrder.Landscape].pos = mSceneRect.p1 + mShakeOffset;
+        //...used to shake only Objects and Landscape, but now it's ok too
+        mScene.pos = mSceneRect.p1 + mShakeOffset;
 
         //hm
         waterOffset = mEngine.waterOffset;
         windSpeed = mEngine.windSpeed;
 
-        //call simulate(deltaT);
-        mGameWater.simulate(deltaT);
-        mGameSky.simulate(deltaT);
-
-        graphics.simulate(deltaT);
+        mGameWater.simulate();
+        mGameSky.simulate();
     }
 
     Scene scene() {

@@ -36,7 +36,7 @@ import std.math;
 //time for which it takes to add/remove 1 health point in the animation
 const Time cTimePerHealthTick = timeMsecs(4);
 
-class GameFrame : SimpleContainer, GameLogicPublicCallback {
+class GameFrame : SimpleContainer {
     ClientGameEngine clientengine;
     GameInfo game;
 
@@ -55,15 +55,9 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
     private Time mLastFrameTime, mRestTime;
     private bool mFirstFrame = true;
 
-    //xxx this be awful hack
-    void gameLogicRoundTimeUpdate(Time t, bool timePaused) {
-    }
-    void gameLogicUpdateRoundState() {
-    }
-    void gameLogicWeaponListUpdated(Team team) {
-        updateWeapons();
-    }
-    void gameShowMessage(char[] msgid, char[][] args) {
+    private int mMsgChangeCounter, mWeaponChangeCounter;
+
+    void showMessage(char[] msgid, char[][] args) {
         char[] translated = localeRoot.translateWithArray(msgid, args);
         mMessageViewer.addMessage(translated);
     }
@@ -138,6 +132,21 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
         }
         //only do the rest (like animated sorting) when all was counted down
         mTeamWindow.update(finished);
+
+        int c = clientengine.logic().getMessageChangeCounter();
+        if (c != mMsgChangeCounter) {
+            mMsgChangeCounter = c;
+            char[] id;
+            char[][] args;
+            clientengine.logic().getLastMessage(id, args);
+            showMessage(id, args);
+        }
+
+        c = clientengine.logic().getWeaponListChangeCounter();
+        if (c != mWeaponChangeCounter) {
+            mWeaponChangeCounter = c;
+            updateWeapons();
+        }
     }
 
     override bool doesCover() {
@@ -149,8 +158,6 @@ class GameFrame : SimpleContainer, GameLogicPublicCallback {
 
     this(ClientGameEngine ce) {
         clientengine = ce;
-
-        clientengine.logic.setGameLogicCallback(this);
 
         game = new GameInfo(clientengine);
 

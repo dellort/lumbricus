@@ -5,6 +5,7 @@ module game.gamepublic;
 
 import framework.framework;
 import framework.resset : Resource;
+import framework.timesource;
 import game.animation;
 import game.gfxset : TeamTheme;
 import game.glevel;
@@ -16,6 +17,8 @@ import game.levelgen.renderer;
 import utils.configfile;
 import utils.vector2;
 import utils.time;
+import utils.list2;
+import utils.reflection;
 
 //lol compiler breaks horribly with this selective import uncommented
 import game.sequence;// : SequenceUpdate;
@@ -62,78 +65,229 @@ struct GameConfig {
     ConfigNode gfx;
 }
 
-interface Graphic {
-    //centered object position
-    Rect2i bounds();
+//for now, these are concrete classes...
+//generally, you have the problem, that these objects contain both server and
+// client state, e.g. the position, the currently played animation, the position
+// in the animation playback... so now, these classes contain all state (uh,
+// most state) that is used by the client engine to display stuff, especially
+// this is needed when saving & restoring is involved
+//hurrr.... feel free to unhack it
+//game engine shall only use the methods to access stuff
+class GameEngineGraphics {
+    //add_objects is for the client engine, to get to know about new objects
+    List2!(Graphic) add_objects, objects;
+    //in the network case, delivers the server engine's time of the last update
+    //for now, it's always the game time
+    TimeSource timebase;
 
-    //kill this graphic
-    void remove();
+    this (TimeSource ts) {
+        objects = new typeof(objects);
+        add_objects = new typeof(objects);
+        timebase = ts;
+    }
+    this (ReflectCtor c) {
+        c.types().registerClass!(typeof(objects))();
+    }
+
+    void remove(Graphic n) {
+        if (objects.contains(n.node)) {
+            objects.remove(n.node);
+        } else {
+            assert (n.removed);
+        }
+        n.removed = true;
+    }
+
+    private void doadd(Graphic g) {
+        g.node = add_objects.add(g);
+    }
+
+    AnimationGraphic createAnimation() {
+        auto n = new AnimationGraphic(this);
+        doadd(n);
+        return n;
+    }
+
+    TargetIndicator createTargetIndicator(TeamTheme theme, Vector2i pos,
+        PointMode mode)
+    {
+        auto n = new TargetIndicator(this);
+        n.theme = theme;
+        n.pos = pos;
+        n.mode = mode;
+        doadd(n);
+        return n;
+    }
+
+    LineGraphic createLine() {
+        auto n = new LineGraphic(this);
+        doadd(n);
+        return n;
+    }
+
+    TargetCross createTargetCross(TeamTheme theme, SequenceUpdate attach) {
+        auto n = new TargetCross(this);
+        n.theme = theme;
+        n.attach = attach;
+        doadd(n);
+        return n;
+    }
+
+    ExplosionGfx createExplosionGfx(Vector2i pos, int diameter) {
+        auto n = new ExplosionGfx(this);
+        n.pos = pos;
+        n.diameter = diameter;
+        n.start = timebase.current();
+        doadd(n);
+        return n;
+    }
+
+    //xxx stuff about sharing etc. removed (it is still in r533)
+    //    the idea was that with networking (= unshared LandscapeBitmap), on
+    //    creation, only a game.levelgen.landscape.Landscape is passed, and
+    //    further modifications to the landscape are replicated by transfering
+    //    only damage(pos, radius) calls etc.
+    //    when networking is introduced, one has to care about this again
+    LandscapeGraphic createLandscape(Vector2i pos, LandscapeBitmap shared) {
+        auto n = new LandscapeGraphic(this);
+        n.pos = pos;
+        n.shared = shared;
+        doadd(n);
+        return n;
+    }
 }
 
-interface AnimationGraphic : Graphic {
-    void update(ref Vector2i pos, ref AnimationParams params);
-    //void setAnimation(Resource!(Animation) animation); yyy
-    void setAnimation(Animation animation, Time startAt = Time.Null);
+class Graphic {
+    GameEngineGraphics owner;
+    ListNode node;
+    bool removed;
+
+    this (GameEngineGraphics a_owner) {
+        owner = a_owner;
+    }
+    this (ReflectCtor c) {
+    }
+
+    void remove() {
+        owner.remove(this);
+    }
 }
 
-interface LineGraphic : Graphic {
-    void setPos(Vector2i p1, Vector2i p2);
-    void setColor(Color c);
-    Rect2i bounds();
+class AnimationGraphic : Graphic {
+    Animation animation;
+    Time animation_start;
+    bool set;
+    //xxx use SequenceUpdate directly?
+    Vector2i pos;
+    AnimationParams params;
+
+    this (GameEngineGraphics a_owner) {
+        super(a_owner);
+    }
+    this (ReflectCtor c) {
+        super(c);
+    }
+
+    final void update(ref Vector2i a_pos, ref AnimationParams a_params) {
+        pos = a_pos;
+        params = a_params;
+    }
+
+    final void setAnimation(Animation a_animation, Time startAt = Time.Null) {
+        animation = a_animation;
+        animation_start = owner.timebase.current() + startAt;
+        set = true;
+    }
 }
 
-interface TargetCross : Graphic {
-    //where position and angle are read from
-    void attach(SequenceUpdate dest);
-    //value between 0.0 and 1.0 for the fire strength indicator
-    void setLoad(float load);
-    //won't return anything useful lol
-    Rect2i bounds();
+class LineGraphic : Graphic {
+    Vector2i p1, p2;
+    Color color;
+
+    this (GameEngineGraphics a_owner) {
+        super(a_owner);
+    }
+    this (ReflectCtor c) {
+        super(c);
+    }
+
+    void setPos(Vector2i a_p1, Vector2i a_p2) {
+        p1 = a_p1;
+        p2 = a_p2;
+    }
+
+    void setColor(Color c) {
+        color = c;
+    }
 }
 
 //for homing weapons
-interface TargetIndicator : Graphic {
-    void setPos(Vector2i p);
+class TargetIndicator : Graphic {
+    Vector2i pos;
+    TeamTheme theme;
+    PointMode mode;
+
+    this (GameEngineGraphics a_owner)
+    {
+        super(a_owner);
+    }
+    this (ReflectCtor c) {
+        super(c);
+    }
 }
 
-interface ExplosionGfx : Graphic {
-    void setPos(Vector2i p);
-    //size of explosion, in pixels
-    void setDiameter(int d);
+class TargetCross : Graphic {
+    TeamTheme theme;
+    SequenceUpdate attach; //where position and angle are read from
+    float load = 0.0f;
+    bool doreset;
+
+    this (GameEngineGraphics a_owner) {
+        super(a_owner);
+    }
+    this (ReflectCtor c) {
+        super(c);
+    }
+
+    //value between 0.0 and 1.0 for the fire strength indicator
+    void setLoad(float a_load) {
+        load = a_load;
+    }
+
+    void reset() {
+        doreset = true;
+    }
 }
 
-//this is the level bitmap (aka Landscape etc.); it is precreated in the level
-//generation/rendering step and it is modified by punching holes into it
-//  damage() isn't listed as method here
-interface LandscapeGraphic : Graphic {
-    void setPos(Vector2i pos);
-    //what LandscapeBitmap bitmap();
+class ExplosionGfx : Graphic {
+    Vector2i pos;
+    int diameter;
+    Time start;
 
-    //xxx these methods should be moved out to GameEngineGraphics?
+    this (GameEngineGraphics a_owner) {
+        super(a_owner);
+    }
+    this (ReflectCtor c) {
+        super(c);
+    }
+}
+
+class LandscapeGraphic : Graphic {
+    LandscapeBitmap shared; //special handling when the game is saved
+    Vector2i pos;
+
+    this (GameEngineGraphics a_owner) {
+        super(a_owner);
+    }
+    this (ReflectCtor c) {
+        super(c);
+    }
+
     //pos is in world coordinates for both methods
-    void damage(Vector2i pos, int radius);
-    void insert(Vector2i pos, Resource!(Surface) bitmap);
+    //void damage(Vector2i pos, int radius);
+    //void insert(Vector2i pos, Resource!(Surface) bitmap);
 }
 
-///all graphics which are sent from server to client
-interface GameEngineGraphics {
-    AnimationGraphic createAnimation();
-    LineGraphic createLine();
-    //target cross is always themed
-    TargetCross createTargetCross(TeamTheme team);
-    //target for homing weapons, themed
-    TargetIndicator createTargetIndicator(TeamTheme team, Vector2i pos,
-        PointMode mode);
-    //the second parameter can be null; if it isn't, it's the directly shared
-    //LandscapeBitmap instance between the server and client code
-    LandscapeGraphic createLandscape(LevelLandscape from,
-        LandscapeBitmap shared);
-    //yay create a new empty landscape for fun
-    LandscapeGraphic createLandscape(Vector2i size, LandscapeBitmap shared);
-    //meh I don't know, maybe this should be put here
-    //void damageLandscape(...);
-    ExplosionGfx createExplosionGfx(Vector2i pos, int diameter);
-}
 
 ///GameEngine public interface
 interface GameEnginePublic {
@@ -164,8 +318,10 @@ interface GameEnginePublic {
     ///level being played
     Level level();
 
-    ///total size of game world
+    ///xxx really should return a level (both server and client should have it)
+    ///total size of game world and camera start
     Vector2i worldSize();
+    Vector2i worldCenter();
 
     ///is the game time paused?
     bool paused();
@@ -175,6 +331,8 @@ interface GameEnginePublic {
 
     ///return the GameLogic singleton
     GameLogicPublic logic();
+
+    GameEngineGraphics getGraphics();
 }
 
 ///administrator interface to game
@@ -220,8 +378,6 @@ enum RoundState {
 ///it's not per-team
 ///xxx: this looks as if it work only work
 interface GameLogicPublic {
-    ///only one callback possible
-    void setGameLogicCallback(GameLogicPublicCallback glpc);
 
     ///all participating teams (even dead ones)
     Team[] getTeams();
@@ -246,31 +402,19 @@ interface GameLogicPublic {
     ///list of _all_ possible weapons, which are useable during the game
     ///Team.getWeapons() must never return a Weapon not covered by this list
     WeaponClass[] weaponList();
-}
-
-//to be implemented by the client
-interface GameLogicPublicCallback {
-    ///Time remaining of teams' round time, shown ticking down if not paused
-    ///not all game modes have to use this
-    void gameLogicRoundTimeUpdate(Time t, bool timePaused);
-
-    //called if currentRoundState() changed
-    void gameLogicUpdateRoundState();
-
-    ///called when the WeaponList of a specific team updates
-    ///team is null if for all teams
-    ///xxx: does it belong here?
-    void gameLogicWeaponListUpdated(Team team);
 
     ///let the client display a message (like it's done on round's end etc.)
     ///this is a bit complicated because message shall be translated on the
     ///client (i.e. one client might prefer Klingon, while the other is used
     ///to Latin); so msgid and args are passed to the translation functions
-    void gameShowMessage(char[] msgid, char[][] args);
+    ///this returns a value, that is incremented everytime a new message is
+    ///available
+    int getMessageChangeCounter();
+    ///message can be read out with this
+    void getLastMessage(out char[] msgid, out char[][] msg);
 
-    ///you shall update all game stats; these are:
-    ///- Healthiness of all teams.
-    //xxx void gameLogicUpdateStats();
+    ///value increments, if the weapon list of any team changes
+    int getWeaponListChangeCounter();
 }
 
 interface TeamMember {
@@ -330,9 +474,6 @@ interface Team {
 //this should be also per-client, but it isn't per Team (!)
 //i.e. in non-networked multiplayer mode, there's only one of this
 interface TeamMemberControl {
-    //there is only one callback interface
-    void setTeamMemberControlCallback(TeamMemberControlCallback tmcc);
-
     ///currently active worm, null if none
     TeamMember getActiveMember();
 
@@ -390,21 +531,3 @@ xxx handled by setMovement()
     ///actually fire weapon with parameters set before
     void weaponFire(bool is_down);
 }
-
-interface TeamMemberControlCallback {
-    ///another team member has become active/inactive
-    ///setting null means gaining/losing control of the current member
-    ///one example is round-ended or worm switching
-    void controlMemberChanged();
-
-    void controlWalkStateChanged();
-
-    ///what kinds of weapons can be used at the current member state
-    ///e.g. no weapons while in mid-air
-    void controlWeaponModeChanged();
-
-    ///feedback for drawing weapons, as weapon selection may be changed by
-    ///controller (out of ammo, jetpack activated, ...) (xxx should it be?)
-    //void weaponDraw(char[] weaponId);
-}
-

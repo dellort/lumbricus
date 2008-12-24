@@ -96,23 +96,11 @@ class GameSky {
     private DebrisInfo[cNumDebris] mDebrisAnimators;
     private Animation mDebrisAnim;
 
-    enum Z {
-        back,
-        debris,
-        clouds,
-    }
-    Scene[Z.max+1] scenes;
-
     Vector2i size;
 
     ///create data structures and load textures, however no
     ///game-related values are used
     this(ClientGameEngine engine) {
-        foreach (inout s; scenes) {
-            s = new Scene();
-            s.pos = engine.scene.pos;
-        }
-
         size = engine.worldSize;
 
         EnvironmentTheme theme = engine.engine.level.theme;
@@ -122,6 +110,8 @@ class GameSky {
         Color skyColor = theme.skyColor;
 
         mDebrisAnim = theme.skyDebris;
+
+        Scene scene = mEngine.scene;
 
         ConfigNode cloudNode = skyNode.getSubNode("clouds");
         foreach (char[] name, char[] value; cloudNode) {
@@ -133,7 +123,7 @@ class GameSky {
             ci.anim = new Animator();
             ci.anim.setAnimation(mCloudAnims[nAnim], timeMsecs(randRange(0,
                     cast(int)(mCloudAnims[nAnim].duration.msecs))));
-            scenes[Z.clouds].add(ci.anim);
+            scene.add(ci.anim, GameZOrder.Clouds);
             ci.animSizex = 10;//mCloudAnims[nAnim].bounds.size.x;
             ci.y = randRange(-cCloudHeightRange/2,cCloudHeightRange/2)
                 - 5;//mCloudAnims[nAnim].bounds.size.y/2;
@@ -148,13 +138,13 @@ class GameSky {
                 di.anim = new Animator();
                 di.anim.setAnimation(mDebrisAnim, timeMsecs(randRange(0,
                     cast(int)(mDebrisAnim.duration.msecs))));
-                scenes[Z.debris].add(di.anim);
+                scene.add(di.anim, GameZOrder.BackLayer);
                 di.speedPerc = genrand_real1()/2.0+0.5;
             }
         }
 
         mSkyDrawer = new SkyDrawer(this, theme);
-        scenes[Z.back].add(mSkyDrawer);
+        scene.add(mSkyDrawer, GameZOrder.Background);
 
         //xxx make sure mEngine.waterOffset is valid for this call
         initialize();
@@ -176,7 +166,7 @@ class GameSky {
         }
 
         //actually let it set the positions of the scene objects
-        simulate(0);
+        simulate();
     }
 
     private void updateOffsets() {
@@ -224,7 +214,7 @@ class GameSky {
         return mEnableDebris;
     }
 
-    void simulate(float deltaT) {
+    void simulate() {
         void clip(inout float v, float s, float min, float max) {
             if (v > max)
                 v -= (max-min) + s;
@@ -233,6 +223,8 @@ class GameSky {
         }
 
         updateOffsets();
+
+        float deltaT = mEngine.engineTime.difference.secsf;
 
         if (mCloudsVisible && mEnableClouds) {
             foreach (inout ci; mCloudAnimators) {

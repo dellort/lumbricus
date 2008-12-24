@@ -341,6 +341,7 @@ class WormSprite : GObjectSprite {
 
     //xxx: clearify relationship between shooter and so on
     void weapon(WeaponClass w) {
+        auto oldweapon = mWeapon;
         mWeapon = w;
         if (w) {
             if (currentState is wsc.st_stand)
@@ -348,6 +349,10 @@ class WormSprite : GObjectSprite {
             //xxx: if weapon is changed, play the correct animations
             setCurrentAnimation();
             updateTargetCross();
+            //replay the cross-moves-out animation
+            if (mTargetCross && mWeapon !is oldweapon) {
+                mTargetCross.reset();
+            }
         } else {
             if (!mShooterMain || !mShooterMain.activity) {
                 if (currentState is wsc.st_weapon)
@@ -527,8 +532,8 @@ class WormSprite : GObjectSprite {
                 mTargetCross.remove();
                 mTargetCross = null;
             } else {
-                mTargetCross = engine.graphics.createTargetCross(teamColor);
-                mTargetCross.attach(seqUpdate);
+                mTargetCross = engine.graphics.createTargetCross(teamColor,
+                    seqUpdate);
             }
         }
     }

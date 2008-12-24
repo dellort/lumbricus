@@ -29,6 +29,8 @@ import framework.timesource;
 import framework.resset;
 import std.math;
 
+import game.levelgen.renderer;// : LandscapeBitmap;
+
 import game.worm;
 import game.crate;
 
@@ -76,6 +78,9 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     Vector2i worldSize() {
         return mWorldSize;
     }
+    Vector2i worldCenter() {
+        return mLevel.worldCenter;
+    }
 
     GameEngineAdmin requestAdmin() {
         return this;
@@ -96,7 +101,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     }
 
     public Log mLog;
-    private PerfTimer mPhysicTime;
+    //private PerfTimer mPhysicTime;
 
     private const cSpaceBelowLevel = 150;
     private const cSpaceAboveOpenLevel = 1000;
@@ -125,7 +130,13 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     SequenceStateList sequenceStates;
 
     this (ReflectCtor c) {
-        c.types().registerClass!(typeof(mObjects));
+        auto t = c.types();
+        t.registerClass!(typeof(mObjects));
+        t.registerMethod(this, &deathzoneTrigger, "deathzoneTrigger");
+        t.registerMethod(this, &underWaterTrigger, "underWaterTrigger");
+        t.registerMethod(this, &windChangerUpdate, "windChangerUpdate");
+        t.registerMethod(this, &waterChangerUpdate, "waterChangerUpdate");
+        t.registerMethod(this, &onPhysicHit, "onPhysicHit");
     }
 
 
@@ -235,21 +246,22 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         waterborder.plane.define(Vector2f(0, val), Vector2f(1, val));
     }
 
-    this(GameConfig config, GfxSet a_gfx, GameEngineGraphics gr) {
+    this(GameConfig config, GfxSet a_gfx) {
         rnd = new Random();
         //xxx
         rnd.seed(1);
         gfx = a_gfx;
-        graphics = gr;
 
         assert(config.level !is null);
         mLevel = config.level;
 
         mLog = registerLog("gameengine");
-        mPhysicTime = globals.newTimer("game_physic");
+        //mPhysicTime = globals.newTimer("game_physic");
 
         mGameTime = new TimeSource();
         mGameTime.paused = true;
+
+        graphics = new GameEngineGraphics(mGameTime);
 
         mObjects = new List2!(GameObject)();
         mPhysicWorld = new PhysicWorld(rnd);
@@ -322,9 +334,23 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         mController = new GameController(this, config);
     }
 
+    //landscape bitmaps need special handling in many cases
+    //xxx: need somehow to be identified
+    LandscapeBitmap[] landscapeBitmaps() {
+        LandscapeBitmap[] res;
+        foreach (x; gameLandscapes) {
+            res ~= x.landscape_bitmap();
+        }
+        return res;
+    }
+
     //actually start the game (called after resources were preloaded)
     void start() {
         mGameTime.paused = false;
+    }
+
+    GameEngineGraphics getGraphics() {
+        return graphics;
     }
 
     TimeSource gameTime() {
@@ -442,9 +468,9 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         mGameTime.update();
 
         if (!mGameTime.paused) {
-            mPhysicTime.start();
+            //mPhysicTime.start();
             mPhysicWorld.simulate(mGameTime.current);
-            mPhysicTime.stop();
+            //mPhysicTime.stop();
             simulate();
             //update game objects
             //NOTE: objects might be inserted/removed while iterating

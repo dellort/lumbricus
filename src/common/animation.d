@@ -3,6 +3,7 @@ module common.animation;
 import common.common;
 import common.scene;
 import framework.framework;
+import framework.timesource;
 public import framework.restypes.frames;
 import utils.rect2;
 import utils.time;
@@ -15,7 +16,8 @@ class Animator : SceneObjectCentered {
         debug Time mLastNow;
 
         Time now() {
-            auto n = globals.gameTimeAnimations.current;
+            auto n = timeSource ? timeSource.current
+                : globals.gameTimeAnimations.current;
             debug {
                 assert(n >= mLastNow, "time running backwards lol");
                 mLastNow = n;
@@ -23,6 +25,11 @@ class Animator : SceneObjectCentered {
             return n;
         }
     }
+
+    //if null, a default time source is used
+    //must be set before any of the functions is called, else it might happen
+    //that now() thinks the time is running backwards
+    TimeSourcePublic timeSource;
 
     AnimationParams params;
 
@@ -66,7 +73,14 @@ class Animator : SceneObjectCentered {
 
     //set new animation; or null to stop all
     void setAnimation(Animation d, Time startAt = Time.Null) {
-        mStarted = now - startAt; //;D
+        setAnimation2(d, now - startAt);
+    }
+    //with absolute start time
+    void setAnimation2(Animation d, Time startTime) {
+        mStarted = startTime;
+        //xxx
+        if (mStarted > now())
+            mStarted = now();
         mData = d;
         if (mData) {
             //can't handle these cases

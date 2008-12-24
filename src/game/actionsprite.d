@@ -223,6 +223,7 @@ class ActionSprite : GObjectSprite {
 
     this (ReflectCtor c) {
         super(c);
+        c.types().registerMethod(this, &readParam, "readParam");
     }
 }
 

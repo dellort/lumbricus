@@ -179,7 +179,7 @@ const Time cWeaponIconMoveTime = timeMsecs(300);
 //GameView is everything which is scrolled
 //it displays the game directly and also handles input directly
 //also draws worm labels
-class GameView : Container, TeamMemberControlCallback {
+class GameView : Container {
     void delegate() onTeamChange;
     // :(
     void delegate(char[] category) onSelectCategory;
@@ -311,7 +311,23 @@ class GameView : Container, TeamMemberControlCallback {
                     removeGUI();
                 } else if (guiIsActive) {
                     assert(graphic !is null);
-                    lastKnownPosition = graphic.bounds.center;
+                    //xxx hurf hurf
+                    auto ag = cast(AnimationGraphic)graphic;
+                    assert (!!ag, "not attached to a worm?");
+                    Animation ani = ag.animation;
+                    lastKnownPosition = ag.pos;
+                    Rect2i bounds;
+                    /+
+                    //assert (!!ani, "should be there because it is active");
+                    if (!ani) { //???
+                        bounds.p1 = Vector2i(0,0);
+                        bounds.p2 = Vector2i(1,1);
+                    }
+                    +/
+                    //ughh
+                    const d = 30;
+                    bounds = Rect2i(-d, -d, d, d);
+                    bounds += ag.pos;
 
                     if (health_cur != member.currentHealth) {
                         health_cur = member.currentHealth;
@@ -325,8 +341,8 @@ class GameView : Container, TeamMemberControlCallback {
                     }
 
                     //labels are positioned above pos
-                    auto pos = graphic.bounds.center;
-                    pos.y -= graphic.bounds.size.y/2;
+                    auto pos = bounds.center;
+                    pos.y -= bounds.size.y/2;
 
                     bool isActiveWorm = this is activeWorm;
 
@@ -420,8 +436,8 @@ class GameView : Container, TeamMemberControlCallback {
                         //set the position
                         float wip = moveWeaponIcon.value();
                         auto npos = placeRelative(Rect2i(weaponIcon.size()),
-                            graphic.bounds, Vector2i(0, -1), wip, 0.5f);
-                        npos += graphic.bounds.p1;
+                            bounds, Vector2i(0, -1), wip, 0.5f);
+                        npos += bounds.p1;
                         setWPos(weaponIcon, npos);
                     } else {
                         moveWeaponIcon.reset();
@@ -552,30 +568,11 @@ class GameView : Container, TeamMemberControlCallback {
                 mEngineMemberToOurs[m.member] = vt;
             }
         }
-
-        mController.setTeamMemberControlCallback(this);
     }
 
     override Vector2i layoutSizeRequest() {
         return mEngine.worldSize;
     }
-
-    // --- start TeamMemberControlCallback
-
-    void controlMemberChanged() {
-        //currently needed for weapon update
-        if (onTeamChange) {
-            onTeamChange();
-        }
-    }
-
-    void controlWalkStateChanged() {
-    }
-
-    void controlWeaponModeChanged() {
-    }
-
-    // --- end TeamMemberControlCallback
 
     private bool handleDirKey(char[] bind, bool up) {
         int v = up ? 0 : 1;

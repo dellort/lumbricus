@@ -75,8 +75,6 @@ class SequenceState {
     final GameEngine engine;
     private {
         char[] mName;
-        ClassInfo mDisplayClass;
-        StateDisplay delegate(Sequence owner) mCreateDisplayObj;
     }
     protected {
         //if the leave transition is always played by default
@@ -124,23 +122,8 @@ class SequenceState {
         }
     }
 
-    void setDisplayClass(T)() {
-        mCreateDisplayObj = &instantiate!(T);
-        mDisplayClass = T.classinfo;
-    }
-
-    private StateDisplay instantiate(T)(Sequence owner) {
-        return new T(owner);
-    }
-
-    final bool displayObjectOk(Object o) {
-        return o && o.classinfo is mDisplayClass;
-    }
-
-    final StateDisplay createDisplayObject(Sequence owner) {
-        assert (!!mCreateDisplayObj);
-        return mCreateDisplayObj(owner);
-    }
+    abstract bool displayObjectOk(StateDisplay o);
+    abstract StateDisplay createDisplayObject(Sequence owner);
 
     this(GameEngine a_engine, char[] name) {
         engine = a_engine;
@@ -449,11 +432,18 @@ class NapalmState : SequenceState {
 
     this(GameEngine a_owner, char[] name) {
         super(a_owner, name);
-        setDisplayClass!(NapalmStateDisplay)();
     }
 
     this (ReflectCtor c) {
         super(c);
+    }
+
+    bool displayObjectOk(StateDisplay o) {
+        return !!cast(NapalmStateDisplay)o;
+    }
+
+    StateDisplay createDisplayObject(Sequence owner) {
+        return new NapalmStateDisplay(owner);
     }
 }
 
@@ -746,7 +736,6 @@ class WormState : SequenceState {
 
     this(GameEngine a_owner, char[] name) {
         super(a_owner, name);
-        setDisplayClass!(WormStateDisplay)();
     }
 
     this (ReflectCtor c) {
@@ -779,6 +768,14 @@ class WormState : SequenceState {
                 sub.angle_direction = 1-sub.angle_direction;
         }
         seqs[type] = n;
+    }
+
+    bool displayObjectOk(StateDisplay o) {
+        return !!cast(WormStateDisplay)o;
+    }
+
+    StateDisplay createDisplayObject(Sequence owner) {
+        return new WormStateDisplay(owner);
     }
 }
 

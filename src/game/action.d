@@ -228,6 +228,7 @@ class ActionList : Action {
 
     this (ReflectCtor c) {
         super(c);
+        c.types().registerMethod(this, &acFinish, "acFinish");
     }
 
     //callback method for Actions (meaning an action completed)

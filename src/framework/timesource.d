@@ -2,18 +2,27 @@ module framework.timesource;
 import utils.misc;
 import utils.time;
 
-interface TimeSourcePublic {
-    Time current();
+debug import std.stdio : writefln;
 
-    Time difference();
+//(changed in r533, I hate interfaces, but love useless microoptimizations)
+class TimeSourcePublic {
+    protected {
+        //current time
+        Time mSimTime;
+    }
 
-    void paused(bool p);
+    //simulated time (don't forget to call update())
+    final Time current() {
+        return mSimTime;
+    }
 
-    bool paused();
+    abstract Time difference();
 
-    void slowDown(float factor);
+    abstract void paused(bool p);
+    abstract bool paused();
 
-    float slowDown();
+    abstract void slowDown(float factor);
+    abstract float slowDown();
 }
 
 final class TimeSource : TimeSourcePublic {
@@ -21,8 +30,7 @@ final class TimeSource : TimeSourcePublic {
         //current time source (set using nextFrame())
         Time mExternalTime;
 
-        //current time
-        Time mSimTime, mLastSimTime;
+        Time mLastSimTime;
 
         Time mStartTime;  //absolute time of start (pretty useless)
         //not-slowed-down time, also quite useless/dangerous to use
@@ -41,6 +49,10 @@ final class TimeSource : TimeSourcePublic {
         int mFixedTimeStep = 0; //0 if invalid
 
         Time delegate() mCurTimeDg;
+
+        //huh
+        Time mLastExternalTime;
+        Time mCompensate;
     }
 
     this(Time delegate() curTimeDg = null) {
@@ -51,9 +63,11 @@ final class TimeSource : TimeSourcePublic {
         initTime();
     }
 
-    //initialize time to 0
-    void initTime() {
+    //initialize time to 0 (or the given time)
+    void initTime(Time timeoffset = Time.Null) {
         mExternalTime = mCurTimeDg();
+        mLastExternalTime = mExternalTime;
+        mCompensate = timeSecs(0);
 
         mPauseMode = false;
         mStartTime = mExternalTime;
@@ -61,10 +75,7 @@ final class TimeSource : TimeSourcePublic {
         mPausedTime = timeSecs(0);
 
         mLastRealTime = timeSecs(0);
-        mSimTime = timeSecs(0);
-        mSimTime = timeSecs(0);
-        mLastSimTime = timeSecs(0);
-        mLastTime = timeSecs(0);
+        mSimTime = mLastSimTime = mLastTime = timeoffset;
         slowDown = 1;
     }
 
@@ -91,6 +102,7 @@ final class TimeSource : TimeSourcePublic {
     //set the slowdown multiplier, 1 = normal, <1 = slower, >1 = faster
     void slowDown(float factor) {
         assert(factor == factor);
+        assert(factor >= 0.0f);
 
         auto realtime = mPseudoTime;
 
@@ -104,28 +116,41 @@ final class TimeSource : TimeSourcePublic {
         return mSlowDown;
     }
 
-    //simulated time (don't forget to call update())
-    Time current() {
-        return mSimTime;
-    }
-
     Time difference() {
         return mSimTime - mLastSimTime;
     }
 
     //update time!
-    //after this, a new deltaT and/or frameCount
     public void update() {
-        mExternalTime = mCurTimeDg();
+        mExternalTime = mCurTimeDg() + mCompensate;
 
+        //happens when I suspend+resume my Linux system xD
+        if (mExternalTime < mLastExternalTime) {
+            Time error = mLastExternalTime - mExternalTime;
+            debug writefln("WARNING: time goes backward by %s!", error);
+            //compensate and do as if no time passed
+            mCompensate += error;
+            mExternalTime += error;
+        }
+
+        mLastExternalTime = mExternalTime;
         mLastSimTime = mSimTime;
 
         if (!mPauseMode) {
             mPseudoTime = mExternalTime - mStartTime - mPausedTime;
 
-            auto realtime = mPseudoTime;
+            Time diff = mPseudoTime - mLastRealTime;
 
-            mSimTime = mLastTime + (realtime - mLastRealTime) * mSlowDown;
+            //because of floating point precission issues; I guess this would
+            //solve it... or so
+            if (diff > timeSecs(3)) {
+                slowDown(slowDown());
+                diff = timeNull();
+            }
+
+            mSimTime = mLastTime + diff * mSlowDown;
+
+            assert(mSimTime >= mLastSimTime);
         }
     }
 }

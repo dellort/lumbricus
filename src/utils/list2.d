@@ -60,6 +60,18 @@ class List2(T) {
         return n;
     }
 
+    //uh
+    void addNode(ListNode node) {
+        auto n = cast(Node)node;
+        assert (!!n);
+        assert (!n.owner);
+        n.owner = this;
+        n.next = head_tail;
+        n.prev = head_tail.prev;
+        n.next.prev = n;
+        n.prev.next = n;
+    }
+
     alias add insert_tail;
 
     Node insert_head(T value) {
@@ -106,12 +118,23 @@ class List2(T) {
     //O(1)
     void remove(ListNode node) {
         if (node.owner !is this)
-            throw new Exception("not in list");
+            throw new Exception("not in list (2)");
         Node n = cast(Node)node;
         assert (!!n);
         n.next.prev = n.prev;
         n.prev.next = n.next;
         n.owner = null;
+    }
+
+    //O(n)
+    void move_to_list(List2 other) {
+        Node cur = head_tail.next;
+        while (cur !is head_tail) {
+            Node next = cur.next;
+            remove(cur);
+            other.addNode(cur);
+            cur = next;
+        }
     }
 
     int opApply(int delegate(inout T) del) {
@@ -125,5 +148,76 @@ class List2(T) {
             cur = nextTmp;
         }
         return 0;
+    }
+
+    //cheap but functional; it's a struct, so memory managment isn't an issue
+    //the iterator always points to either an element in the list, or to "null"
+    //"null" has the first element as next element, and the last as previous
+    //(and actually, "null" points to head_tail)
+    //if the element, that the iterator points to, is removed, undefined
+    //behaviour results (except Iterator.remove); all other modifcations are ok
+    struct Iterator {
+        private {
+            List2 owner;
+            Node current;
+        }
+
+        static Iterator opCall(List2 a_owner) {
+            assert (!!a_owner);
+            Iterator iter;
+            iter.owner = a_owner;
+            iter.current = a_owner.head_tail;
+            iter.head();
+            return iter;
+        }
+
+        //points to an actual element
+        bool valid() {
+            assert (!!current);
+            return current !is owner.head_tail;
+        }
+
+        T value() {
+            if (!valid())
+                throw new Exception("value() called for null element");
+            return current.value;
+        }
+
+        //return T.init if iterator points to null element
+        T peek() {
+            if (!valid()) {
+                T t;
+                return t; //shouldn't T.init work here
+            }
+            return current.value;
+        }
+
+        //remove the current element (illegal if !valid())
+        //after this, the iterator points to the previous element, or null, if
+        //this element was the first element in the list
+        void remove() {
+            assert (!!current);
+            if (!valid())
+                throw new Exception("trying to remove null element");
+            Node r = current;
+            current = r.prev;
+            owner.remove(r);
+        }
+
+        //seek to first element
+        void head() {
+            assert (!!owner);
+            current = owner.head_tail.next;
+        }
+
+        void next() {
+            assert (!!current);
+            current = current.next;
+        }
+    }
+
+    //iterator will point to first element (or null if list empty)
+    Iterator iterator() {
+        return Iterator(this);
     }
 }

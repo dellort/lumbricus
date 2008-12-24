@@ -189,6 +189,7 @@ class ProximitySensorAction : SpriteAction {
 
     this (ReflectCtor c) {
         super(c);
+        c.types().registerMethod(this, &trigTrigger, "trigTrigger");
     }
 
     protected ActionRes initDeferred() {

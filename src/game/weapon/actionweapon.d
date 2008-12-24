@@ -66,6 +66,10 @@ private class ActionShooter : Shooter, RefireTrigger {
 
     this (ReflectCtor c) {
         super(c);
+        c.types().registerMethod(this, &fireFinish, "fireFinish");
+        c.types().registerMethod(this, &fireRound, "fireRound");
+        c.types().registerMethod(this, &roundFired, "roundFired");
+        c.types().registerMethod(this, &fireReadParam, "fireReadParam");
     }
 
     bool activity() {

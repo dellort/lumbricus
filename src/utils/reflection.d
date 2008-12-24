@@ -109,6 +109,10 @@ struct SafePtr {
         return cast(T*)ptr;
     }
 
+    T read(T)() {
+        return *castTo!(T)();
+    }
+
     static SafePtr get(T)(Type t, T* ptr) {
         assert (t.typeInfo() == typeid(T));
         return SafePtr(t, ptr);
@@ -170,6 +174,7 @@ class Types {
         ReferenceType[ClassInfo] mCItoT;
         //D types to internal ones
         Type[TypeInfo] mTItoT;
+        ClassMethod[void*] mMethodMap;
         FooHandler mFoo;
     }
 
@@ -213,27 +218,30 @@ class Types {
     private final Class registerSuperClass(T)(Object dummy) {
         //static if (is(T == Object)) {
         //    return null;
-        //} else {
-            assert (!!dummy);
-            assert (!!cast(T)dummy);
-            return doRegister!(T)(cast(T)dummy);
         //}
+        assert (!!dummy);
+        assert (!!cast(T)dummy);
+        return doRegister!(T)(cast(T)dummy, null);
     }
 
     final Class registerClass(T)() {
         static assert (isReflectableClass!(T)(), "not reflectable: "~T.stringof);
         ReflectCtor c = mFoo;
-        T dummy = new T(c);
-        return doRegister!(T)(dummy);
+        return doRegister!(T)(null, { return new T(c); });
     }
 
-    private Class doRegister(T)(T dummy) {
-        TypeInfo ti = typeid(T);
+    private Class doRegister(T)(T dummy, T delegate() inst) {
         ReferenceType t = castStrict!(ReferenceType)(getType!(T)());
-        //already described? it's called recursively?
         if (t.klass())
             return t.klass();
-        auto def = new DefineClass(this, t, dummy);
+        auto cti = castStrict!(TypeInfo_Class)(t.typeInfo());
+        auto klass = new Class(t, cti);
+        assert (t.klass() is klass);
+        klass.mName = cti.info.name;
+        if (!dummy)
+            dummy = inst();
+        klass.mDummy = dummy;
+        auto def = new DefineClass(this, klass);
         def.autoclass!(T)();
         return t.klass();
     }
@@ -244,12 +252,33 @@ class Types {
         }
     }
 
+    //NOTE: the owner field is required to check if the delegate points really
+    //      to an object method (and not into the stack or so) (debugging)
+    //name must be provided explicitely, there seems to be no other way
+    final void registerMethod(T)(Object owner, T del, char[] name) {
+        static assert (is(T == delegate));
+        if (del.ptr !is cast(void*)owner)
+            throw new Exception("not an object method?");
+        Class klass = findClass(owner);
+        //user is supposed to call registerMethod() in the reflection ctor, so
+        //this shouldn't happen
+        if (!klass)
+            throw new Exception("class not registered");
+        DelegateType dgt = cast(DelegateType)getType!(T)();
+        assert (!!dgt);
+        void* ptr = del.funcptr;
+        assert (ptr.sizeof == del.funcptr.sizeof);
+        klass.addMethod(dgt, ptr, name);
+    }
+
+/+
     //for all types call getType()
     final void encounter(T...)() {
         foreach (x; T) {
             getType!(x)();
         }
     }
++/
 
     private void addType(Type t) {
         assert(!(t.mTI in mTItoT));
@@ -302,7 +331,62 @@ class Types {
         addBaseTypes!(char, byte, ubyte, short, ushort, int, uint, long, ulong,
             float, double, real, bool)();
         getType!(Object)();
-        writefln("done");
+    }
+
+    //returns true on success
+    //if failed, return false and leave obj/method untouched
+    bool readDelegate(SafePtr ptr, ref Object obj, ref ClassMethod method) {
+        auto dgt = cast(DelegateType)ptr.type;
+        if (!dgt) {
+            //writefln("not a delegate type!");
+            return false;
+        }
+        assert (!!ptr.ptr);
+        D_Delegate* dp = cast(D_Delegate*)ptr.ptr;
+        if (dp.ptr is null) {
+            obj = null;
+            method = null;
+            return true;
+        }
+        ClassMethod* pm = dp.funcptr in mMethodMap;
+        if (!pm) {
+            //writefln("method not found");
+            return false;
+        }
+        ClassMethod m = *pm;
+        //if the code pointer points to a method, the ptr argument should be
+        //the this pointer for the object (can't point into the stack etc.)
+        Object o = cast(Object)dp.ptr;
+        Class k = findClass(o);
+        //can happen, when the actual object is derived from a registered one
+        //(which is why we have a ClassMethod m, but not a Class)
+        if (!k) {
+            //writefln("class not registered");
+            return false;
+        }
+        /+ xxx
+        if (!k.isSubTypeOf(m.klass())) {
+            writefln("%s %s %s", k.name, m.klass.name, m.name);
+        }
+        assert (k.isSubTypeOf(m.klass()));
+        +/
+        obj = o;
+        method = m;
+        return true;
+    }
+
+    //overwrite the variable, which ptr points to, with obj/method
+    void writeDelegate(SafePtr ptr, Object obj, ClassMethod method) {
+        auto dgt = cast(DelegateType)ptr.type;
+        if (!dgt)
+            throw new Exception("not a delegate pointer");
+        assert (!!ptr.ptr);
+        D_Delegate* dp = cast(D_Delegate*)ptr.ptr;
+        Class k = findClass(obj);
+        assert (!!k);
+        assert (k.isSubTypeOf(method.klass()));
+        dp.ptr = cast(void*)obj;
+        dp.funcptr = method.address();
     }
 }
 
@@ -489,6 +573,10 @@ class EnumType : Type {
         super(a_owner, a_ti);
     }
 
+    final Type underlying() {
+        return mUnderlying;
+    }
+
     private static EnumType create(T)(Types a_owner) {
         EnumType t = new EnumType(a_owner, typeid(T));
         static if (is(T T2 == enum)) {
@@ -665,13 +753,6 @@ class MapTypeImpl(T) : MapType {
 }
 
 class DelegateType : Type {
-
-    //NOTE: although there is is(T T2 == delegate), where T2 should be the
-    //  function type of the delegate, this doesn't work as I thought or it
-    //  is buggy, so work it around
-    //T tmp;
-    //alias typeof((cast(T)null).funcptr) T2;
-
     //use create()
     private this(Types a_owner, TypeInfo a_ti) {
         super(a_owner, a_ti);
@@ -681,6 +762,13 @@ class DelegateType : Type {
         DelegateType t = new DelegateType(a_owner, typeid(T));
         //xxx: etc.
         return t;
+    }
+
+    override char[] toString() {
+        //note that the return value from TypeInfo_Delegate.toString() looks
+        //like D syntax, but the arguments are not included
+        //e.g. "long delegate(int z)" => "long delegate()"
+        return "DelegateType[" ~ typeInfo().toString() ~ "...]";
     }
 }
 
@@ -697,14 +785,14 @@ class Class {
         char[] mName;
         ClassElement[] mElements;
         ClassMember[] mMembers;
+        ClassMethod[] mMethods;
         Object mDummy; //for default values
     }
 
-    private this(ReferenceType a_owner, TypeInfo_Class cti, Object dummy) {
+    private this(ReferenceType a_owner, TypeInfo_Class cti) {
         mOwner = a_owner;
         mCI = cti.info;
         mClassSize = mCI.init.length;
-        mDummy = dummy;
         assert (mOwner.typeInfo() is cti);
         //xxx: dummy can be a subclass of cti, check this?
         //assert (cti.info is dummy.classinfo);
@@ -728,6 +816,8 @@ class Class {
         mElements = mElements ~ e;
         if (auto me = cast(ClassMember)e)
             mMembers ~= me;
+        if (auto md = cast(ClassMethod)e)
+            mMethods ~= md;
     }
 
     final ClassElement[] elements() {
@@ -736,6 +826,10 @@ class Class {
 
     final ClassMember[] members() {
         return mMembers;
+    }
+
+    final ClassMethod[] methods() {
+        return mMethods;
     }
 
     final char[] name() {
@@ -761,6 +855,42 @@ class Class {
     final StructuredType owner() {
         return mOwner;
     }
+
+    private void addMethod(DelegateType dgt, void* funcptr, char[] name) {
+        foreach (ClassMethod m; mMethods) {
+            if (m.name() == name) {
+                if (m.mDgType !is dgt || m.mAddress !is funcptr)
+                    throw new Exception("different method with same name");
+                return;
+            }
+        }
+        if (auto mp = funcptr in owner.owner.mMethodMap) {
+            ClassMethod other = *mp;
+            //for a class hierarchy, all ctors are called, when a dummy object
+            //is created, and so, a subclass will try to register all methods
+            //from a super class
+            //note that supertypes register their methods first...
+            // simply assume that this.isSubTypeOf(other.klass())==true
+            //can't really check that, too much foobar which prevents that
+            //xxx won't work if the superclass is abstract, maybe just add all
+            //    possible classes to the address? ClassMethod[][void*] map
+            assert (name == other.name);
+            //writefln("huh: %s: %s %s", name, this.name, other.klass.name);
+            return;
+        }
+        new ClassMethod(this, dgt, funcptr, name);
+    }
+
+    //return if "this" is inherited from (or the same as) "other"
+    final bool isSubTypeOf(Class other) {
+        Class cur = this;
+        while (cur) {
+            if (cur is other)
+                return true;
+            cur = cur.mSuper;
+        }
+        return false;
+    }
 }
 
 //share code for ClassMember & ClassMethod
@@ -778,6 +908,10 @@ class ClassElement {
 
     final char[] name() {
         return mName;
+    }
+
+    final Class klass() {
+        return mOwner;
     }
 }
 
@@ -819,15 +953,25 @@ class ClassMember : ClassElement {
 class ClassMethod : ClassElement {
     private {
         //type of the function ptr of the delegate
-        TypeInfo_Function mFunctionTI;
+        DelegateType mDgType;
         //address of the code
         void* mAddress;
     }
 
-    private this(Class a_owner, char[] a_name, TypeInfo fti, void* addr) {
+    private this(Class a_owner, DelegateType dgt, void* addr, char[] a_name) {
         super(a_owner, a_name);
-        mFunctionTI = castStrict!(TypeInfo_Function)(fti);
+        mDgType = dgt;
         mAddress = addr;
+        Types t = mOwner.mOwner.mOwner; //oh absurdity
+        //xxx maybe could happen if the user registers two virtual functions
+        //    (overridden ones, with the same name), and then removes the one
+        //    in the sub class => no compiletime or runtime error, but this
+        assert (!(addr in t.mMethodMap));
+        t.mMethodMap[addr] = this;
+    }
+
+    final void* address() {
+        return mAddress;
     }
 
     ///invoke the method with a signature known at compile-time
@@ -837,7 +981,7 @@ class ClassMethod : ClassElement {
     /// ptr = object on which the method should be called
     T_ret invoke(T_ret, T...)(SafePtr ptr, T args) {
         alias T_ret delegate(T) dg_t;
-        if (typeid(dg_t) !is mTI)
+        if (typeid(dg_t) !is mDgType.typeInfo())
             throw new Exception("wrong signature for method call");
         ptr.check(mOwner.mTI);
         DgConvert!(dg_t) dgc;
@@ -860,9 +1004,8 @@ class DefineClass {
     }
 
     //ti = TypeInfo of the defined class
-    this(Types a_owner, ReferenceType t, Object dummy) {
-        auto cti = castStrict!(TypeInfo_Class)(t.typeInfo());
-        mClass = new Class(t, cti, dummy);
+    this(Types a_owner, Class k) {
+        mClass = k;
         mBase = a_owner;
     }
 
@@ -878,7 +1021,7 @@ class DefineClass {
             assert (!!mClass.mDummy);
             obj = castStrict!(T)(mClass.mDummy);
             T obj_addr = obj;
-            mClass.mName = mClass.mCI.name;
+            //uh, moved getting the name
         } else {
             T* obj_addr = &obj;
             mClass.mName = structFullyQualifiedName!(T);
@@ -898,9 +1041,11 @@ class DefineClass {
             //doesn't work! search for "dmd tupleof-enum bug"
             //char[] name = obj.tupleof[i].stringof;
             //recurse!
+            /+ probably not a good idea: instantiates a lot of templates
             static if (isReflectableClass!(typeof(x))()) {
                 mBase.registerClass!(typeof(x))();
             }
+            +/
         }
         //since the direct approach doesn't work, do this to get member names:
         //parse the tupleof string
@@ -1045,7 +1190,7 @@ class Test3 : Test1 {
     }
 }
 
-void main() {
+void not_main() {
     Types t = new Types();
     Class c = t.registerClass!(Test1)();
     Test1 x = new Test1();
@@ -1067,6 +1212,8 @@ void debugDumpTypeInfos(Types t) {
                     if (auto m = cast(ClassMember)e) {
                         writefln("  - %s @ %s : %s", m.name(), m.offset(),
                             m.type());
+                    } else if (auto m = cast(ClassMethod)e) {
+                        writefln("  - %s() @ %#x", m.name(), m.address());
                     }
                 }
             }

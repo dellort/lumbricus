@@ -83,11 +83,32 @@ class GfxSet {
 
     //call after resources have been preloaded
     void finishLoading() {
+        reversedHack();
         //loaded after all this because Sequences depend from Animations etc.
         //loadSequenceStuff();
         resources.seal(); //disallow addition of more resources
         loadTeamThemes();
         loadExplosions();
+    }
+
+    //sequence.d wants to reverse some animations, and calls Animation.reversed()
+    //that means a new reference to a non-serializable object is created, but
+    //the object isn't catched by the resource system
+    void reversedHack() {
+        foreach (e; resources.resourceList().dup) {
+            if (auto ani = cast(Animation)e.wrapper.get()) {
+                auto rani = new ReverseAnimationResource();
+                rani.ani = ani.reversed();
+                resources.addResource(rani, "reversed_" ~ e.name());
+            }
+        }
+    }
+}
+
+class ReverseAnimationResource : ResourceObject {
+    Animation ani;
+    override Object get() {
+        return ani;
     }
 }
 

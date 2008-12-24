@@ -37,6 +37,7 @@ import utils.log;
 import utils.configfile;
 import utils.random;
 import utils.reflection;
+import utils.serialize;
 
 import std.stream;
 import std.outbuffer;
@@ -50,6 +51,7 @@ import game.weapon.tools;
 import game.weapon.ray;
 import game.weapon.spawn;
 
+//initialized by serialize_register.d
 Types serialize_types;
 
 //this is a test: it explodes the landscape graphic into several smaller ones
@@ -96,8 +98,6 @@ class GameTask : Task {
         GameEngineAdmin mGameAdmin;
         ClientGameEngine mClientEngine;
         GfxSet mGfx;
-        //hack
-        GraphicsHandler mGraphics;
 
         GameFrame mWindow;
 
@@ -217,8 +217,7 @@ class GameTask : Task {
 
     private bool initGameEngine() {
         //log("initGameEngine");
-        mGraphics = new GraphicsHandler(mGfx);
-        mServerEngine = new GameEngine(mGameConfig, mGfx, mGraphics);
+        mServerEngine = new GameEngine(mGameConfig, mGfx);
         mGame = mServerEngine;
         mGameAdmin = mServerEngine.requestAdmin();
         return true;
@@ -226,7 +225,7 @@ class GameTask : Task {
 
     private bool initClientEngine() {
         //log("initClientEngine");
-        mClientEngine = new ClientGameEngine(mServerEngine, mGfx, mGraphics);
+        mClientEngine = new ClientGameEngine(mServerEngine, mGfx);
         return true;
     }
 
@@ -289,9 +288,6 @@ class GameTask : Task {
             //be added as external object reference
             addExternal("res::" ~ res.name(), res.wrapper.get());
         }
-        //extra handling for SequenceState.setDisplayClass() (uarghl)
-        addExternal("wsd_classinfo", WormStateDisplay.classinfo);
-        addExternal("nsd_classinfo", NapalmStateDisplay.classinfo);
         //various
         // ... gametime, random generator, log...
     }
@@ -299,7 +295,6 @@ class GameTask : Task {
     private void externalObjects() {
         //before saving or loading a game
         addExternal("clientengine", mClientEngine);
-        addExternal("graphicshandler", mGraphics);
     }
 
     void addExternal(char[] name, Object o) {
@@ -560,8 +555,25 @@ class GameTask : Task {
     private void cmdSerDump(MyBox[] args, Output write) {
         debugDumpTypeInfos(serialize_types);
         //debugDumpClassGraph(serialize_types, mServerEngine);
-        char[] res = dumpGraph(serialize_types, mServerEngine, mExternalObjects);
-        std.file.write("dump_graph.dot", res);
+        //char[] res = dumpGraph(serialize_types, mServerEngine, mExternalObjects);
+        //std.file.write("dump_graph.dot", res);
+        auto ctx = new SerializeContext(serialize_types);
+        auto writer = new SerializeOutConfig(ctx);
+        foreach (Object o, char[] name; mExternalObjects) {
+            writer.addExternal(o, name);
+        }
+        writer.addExternal(mServerEngine.gameTime, "gametime");
+        for (int i = 0; i < mServerEngine.landscapeBitmaps().length; i++) {
+            writer.addExternal(mServerEngine.landscapeBitmaps()[i],
+                str.format("landscape_%s", i));
+        }
+        writer.addExternal(mServerEngine.rnd, "random");
+        writer.addExternal(mServerEngine.level, "level");
+        //no, this can't be done so, another solution is needed
+        writer.addIgnoreClass(Log.classinfo);
+        //actually serialize
+        writer.writeObject(mServerEngine);
+        saveConfig(writer.finish(), "savegame.conf");
     }
 
     static this() {

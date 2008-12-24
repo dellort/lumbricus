@@ -26,7 +26,6 @@ import math = std.math;
 //this is per client (and not per-team)
 class ServerMemberControl : TeamMemberControl {
     private {
-        TeamMemberControlCallback mBack;
         //xxx the controller needs to be replaced by sth. "better" hahaha
         GameController ctl;
 
@@ -38,13 +37,6 @@ class ServerMemberControl : TeamMemberControl {
     this (ReflectCtor c) {
     }
     this () {
-    }
-
-    void setTeamMemberControlCallback(TeamMemberControlCallback tmcc) {
-        //refuse overwriting :)
-        assert(mBack is null);
-
-        mBack = tmcc;
     }
 
     private ServerTeamMember activemember() {
@@ -148,23 +140,6 @@ class ServerMemberControl : TeamMemberControl {
                 m.doFireDown();
             else
                 m.doFireUp();
-        }
-    }
-
-    //back-proxy *g*
-    void memberChanged() {
-        if (mBack) {
-            mBack.controlMemberChanged();
-        }
-    }
-    void walkStateChanged() {
-        if (mBack) {
-            mBack.controlWalkStateChanged();
-        }
-    }
-    void weaponModeChanged() {
-        if (mBack) {
-            mBack.controlWeaponModeChanged();
         }
     }
 }
@@ -1024,21 +999,18 @@ class GameController : GameLogicPublic {
             char[][] args;
         }
         Queue!(Message) mMessages; //GUI messages which are sent to the clients
+        Message mLastMessage;
+        int mMessageChangeCounter;
         //time between messages, how they are actually displayed
         //is up to the gui
         const cMessageTime = 1.5f;
         Time mLastMsgTime;
-        //called whenever a message should be sent to the gui, which
-        //will show it asap
-        void delegate(char[]) mMessageCb;
+
+        int mWeaponListChangeCounter;
 
         RoundState mCurrentRoundState = RoundState.nextOnHold;
 
         ServerMemberControl control;
-        GameLogicPublicCallback controlBack;
-        //state associated with controlBack
-        bool lastReportedPauseState;
-        RoundState lastReportedRoundState;
     }
 
     this(GameEngine engine, GameConfig config) {
@@ -1072,11 +1044,6 @@ class GameController : GameLogicPublic {
 
     //--- start GameLogicPublic
 
-    void setGameLogicCallback(GameLogicPublicCallback glpc) {
-        assert(controlBack is null);
-        controlBack = glpc;
-    }
-
     Team[] getTeams() {
         return arrayCastCopyImplicit!(Team, ServerTeam)(mTeams);
     }
@@ -1102,28 +1069,30 @@ class GameController : GameLogicPublic {
         return mEngine.weaponList();
     }
 
+    int getMessageChangeCounter() {
+        return mMessageChangeCounter;
+    }
+
+    void getLastMessage(out char[] msgid, out char[][] msg) {
+        msgid = mLastMessage.id;
+        msg = mLastMessage.args;
+    }
+
+    int getWeaponListChangeCounter() {
+        return mWeaponListChangeCounter;
+    }
+
     //--- end GameLogicPublic
 
     void updateClientRoundStateTime() {
-        if (!controlBack)
-            return;
-
-        if (currentRoundState() != lastReportedRoundState) {
-            lastReportedRoundState = currentRoundState();
-            controlBack.gameLogicUpdateRoundState();
-        }
-
-        if (mEngine.gameTime.paused != lastReportedPauseState) {
-            lastReportedPauseState = mEngine.gameTime.paused;
-            controlBack.gameLogicRoundTimeUpdate(currentRoundTime,
-                lastReportedPauseState);
-        }
     }
 
     void updateWeaponStats(TeamMember m) {
-        if (controlBack) {
-            controlBack.gameLogicWeaponListUpdated(m ? m.team : null);
-        }
+        changeWeaponList(m ? m.team : null);
+    }
+
+    private void changeWeaponList(Team t) {
+        mWeaponListChangeCounter++;
     }
 
     GameEngine engine() {
@@ -1132,6 +1101,11 @@ class GameController : GameLogicPublic {
 
     private void messageAdd(char[] msg, char[][] args = null) {
         mMessages.push(Message(msg, args));
+    }
+
+    private void changeMessageStatus(Message msg) {
+        mMessageChangeCounter++;
+        mLastMessage = msg;
     }
 
     private bool messageIsIdle() {
@@ -1165,8 +1139,7 @@ class GameController : GameLogicPublic {
                 Message msg = mMessages.pop();
                 //note that messages will get lost if callback is not set,
                 //this is intended
-                if (controlBack)
-                    controlBack.gameShowMessage(msg.id, msg.args);
+                changeMessageStatus(msg);
                 mLastMsgTime = mEngine.gameTime.current;
             }
         }
@@ -1333,11 +1306,6 @@ class GameController : GameLogicPublic {
                 currentTeam = null;
                 break;
         }
-
-        //report it! but not too early, the changes must first have been made
-        if (controlBack) {
-            controlBack.gameLogicUpdateRoundState();
-        }
     }
 
     void currentTeam(ServerTeam t) {
@@ -1349,7 +1317,7 @@ class GameController : GameLogicPublic {
         if (mCurrentTeam)
             mCurrentTeam.setActive(true);
         //xxx: not sure
-        control.memberChanged();
+        changeWeaponList(mCurrentTeam);
     }
     ServerTeam currentTeam() {
         return mCurrentTeam;

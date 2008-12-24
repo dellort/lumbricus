@@ -306,6 +306,9 @@ class GObjectSprite : GameObject {
 
     this (ReflectCtor c) {
         super(c);
+        c.types().registerMethod(this, &physUpdate, "physUpdate");
+        c.types().registerMethod(this, &physDie, "physDie");
+        c.types().registerMethod(this, &physDamage, "physDamage");
     }
 }
 
