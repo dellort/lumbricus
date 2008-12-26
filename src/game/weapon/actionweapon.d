@@ -57,11 +57,12 @@ private class ActionShooter : Shooter, RefireTrigger {
         //holds a list of sprites that can execute the onrefire event
         ActionSprite[] mRefireSprites;
     }
-    protected FireInfo fireInfo;
+    protected WrapFireInfo fireInfo;
 
     this(ActionWeapon base, GObjectSprite a_owner, GameEngine engine) {
         super(base, a_owner, engine);
         myclass = base;
+        fireInfo = new WrapFireInfo;
     }
 
     this (ReflectCtor c) {
@@ -98,7 +99,7 @@ private class ActionShooter : Shooter, RefireTrigger {
     protected MyBox fireReadParam(char[] id) {
         switch (id) {
             case "fireinfo":
-                return MyBox.Box(&fireInfo);
+                return MyBox.Box(fireInfo);
             case "owner_game":
                 return MyBox.Box!(GameObject)(owner);
             case "refire_trigger":
@@ -123,7 +124,7 @@ private class ActionShooter : Shooter, RefireTrigger {
     void fireRound(Action sender) {
         //if the outer fire action is a list, called every loop, else once
         //before firing
-        fireInfo.pos = owner.physics.pos;
+        fireInfo.info.pos = owner.physics.pos;
     }
 
     void roundFired(Action sender) {
@@ -132,7 +133,7 @@ private class ActionShooter : Shooter, RefireTrigger {
     }
 
     void readjust(Vector2f dir) {
-        fireInfo.dir = dir;
+        fireInfo.info.dir = dir;
     }
 
     protected void doFire(FireInfo info) {
@@ -144,8 +145,8 @@ private class ActionShooter : Shooter, RefireTrigger {
                 return;
         }
 
-        fireInfo = info;
-        fireInfo.shootbyRadius = owner.physics.posp.radius;
+        fireInfo.info = info;
+        fireInfo.info.shootbyRadius = owner.physics.posp.radius;
         //create firing action
         mFireAction = myclass.onFire.createInstance(engine);
         mFireAction.onFinish = &fireFinish;

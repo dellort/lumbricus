@@ -72,6 +72,10 @@ public class Log : Output {
         writeTo(backend);
         writeTo(gLogEverything);
     }
+
+    char[] toString() {
+        return "Log: >" ~ mCategory ~ "<";
+    }
 }
 
 /// Register a log-category. There's one Log object per category-string, i.e.

@@ -90,6 +90,9 @@ class WormSprite : GObjectSprite {
         //that thing when you e.g. shoot a bazooka to set the fire strength
         bool mThrowing;
         Time mThrowingStarted;
+
+        //same like seqUpdate, but the exact type (I haet casting)
+        WormSequenceUpdate wseqUpdate;
     }
 
     TeamTheme teamColor;
@@ -180,6 +183,11 @@ class WormSprite : GObjectSprite {
 
     this (ReflectCtor c) {
         super(c);
+        c.types().registerMethod(this, &physDamage, "physDamage");
+        c.types().registerMethod(this, &physImpact, "physImpact");
+        c.types().registerMethod(this, &physUpdate, "physUpdate");
+        c.types().registerMethod(this, &shooterFinish, "shooterFinish");
+        c.types().registerMethod(this, &reduceAmmo, "reduceAmmo");
     }
 
     protected override void setCurrentAnimation() {
@@ -220,8 +228,8 @@ class WormSprite : GObjectSprite {
         super.setCurrentAnimation();
     }
 
-    protected override WormSequenceUpdate createSequenceUpdate() {
-        return new WormSequenceUpdate();
+    protected override void createSequenceUpdate() {
+        seqUpdate = wseqUpdate = new WormSequenceUpdate();
     }
 
     protected override void fillAnimUpdate() {
@@ -243,6 +251,7 @@ class WormSprite : GObjectSprite {
         } else {
             mMoveVector = dir;
         }
+        wseqUpdate.keystate = dir;
     }
 
     bool isBeaming() {

@@ -52,6 +52,8 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
 
     Random rnd;
 
+    GameConfig gameConfig;
+
     Level level() {
         return mLevel;
     }
@@ -137,6 +139,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         t.registerMethod(this, &windChangerUpdate, "windChangerUpdate");
         t.registerMethod(this, &waterChangerUpdate, "waterChangerUpdate");
         t.registerMethod(this, &onPhysicHit, "onPhysicHit");
+        t.registerMethod(this, &onDamage, "onDamage");
     }
 
 
@@ -251,6 +254,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         //xxx
         rnd.seed(1);
         gfx = a_gfx;
+        gameConfig = config;
 
         assert(config.level !is null);
         mLevel = config.level;

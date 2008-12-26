@@ -14,11 +14,11 @@ import utils.vector2;
 import utils.randval;
 import utils.reflection;
 
-
 ///Base class for weapon-activated actions (just for parameter handling)
 class WeaponAction : Action {
     protected {
-        FireInfo* mFireInfo;
+        //NO. JUST NO. FireInfo* mFireInfo;
+        WrapFireInfo mFireInfo;
         GameObject mShootbyObj;
     }
 
@@ -32,7 +32,7 @@ class WeaponAction : Action {
 
     override protected ActionRes initialStep() {
         super.initialStep();
-        mFireInfo = context.getPar!(FireInfo*)("fireinfo");
+        mFireInfo = context.getPar!(WrapFireInfo)("fireinfo");
         mShootbyObj = context.getPar!(GameObject)("owner_game");
         //obligatory parameters for WeaponAction
         assert(mFireInfo && !!mShootbyObj);
@@ -82,8 +82,8 @@ class ExplosionAction : WeaponAction {
 
     override protected ActionRes initialStep() {
         super.initialStep();
-        if (!mFireInfo.pos.isNaN)
-            engine.explosionAt(mFireInfo.pos, myclass.damage.sample(),
+        if (!mFireInfo.info.pos.isNaN)
+            engine.explosionAt(mFireInfo.info.pos, myclass.damage.sample(),
                 mShootbyObj);
         return ActionRes.done;
     }
@@ -137,11 +137,11 @@ class BeamAction : WeaponAction {
         super.initialStep();
         //xxx parameter stuff is a bit weird
         mWorm = cast(WormSprite)mShootbyObj;
-        if (!mFireInfo.pos.isNaN && mWorm) {
+        if (!mFireInfo.info.pos.isNaN && mWorm) {
             if (myclass.usePos)
-                mDest = mFireInfo.pos;
+                mDest = mFireInfo.info.pos;
             else
-                mDest = mFireInfo.pointto;
+                mDest = mFireInfo.info.pointto;
             //WormSprite.beamTo does all the work, just wait for it to finish
             engine.mLog("start beaming");
             mWorm.beamTo(mDest);
@@ -215,9 +215,9 @@ class InsertBitmapAction : WeaponAction {
 
     override protected ActionRes initialStep() {
         super.initialStep();
-        if (!mFireInfo.pos.isNaN && myclass.bitmap.get() !is null) {
+        if (!mFireInfo.info.pos.isNaN && myclass.bitmap.get() !is null) {
             //centered at FireInfo.pos
-            auto p = toVector2i(mFireInfo.pos);
+            auto p = toVector2i(mFireInfo.info.pos);
             auto res = myclass.bitmap;
             p -= res.get.size / 2;
             engine.insertIntoLandscape(p, res);

@@ -29,7 +29,6 @@ class LandscapeBitmap {
     private uint mWidth, mHeight;
     private Surface mImage;
     private Lexel[] mLevelData;
-    private LandscapeTheme mTheme;
     private Log mLog;
 
     //blastHole: Distance from explosion outer circle to inner (free) circle
@@ -367,7 +366,10 @@ class LandscapeBitmap {
     //  blast_border = added to radius for the area of the solid but modified
     //     area (on the border, the image is changed, but not the metadata) is
     //     pixels outside the circle (radius+blast_border) aren't touched)
-    public void blastHole(Vector2i pos, int radius, int blast_border) {
+    //  theme = bitmaps to use as background etc. (can be null)
+    public void blastHole(Vector2i pos, int radius, int blast_border,
+        LandscapeTheme theme = null)
+    {
         const ubyte cAllMeta = Lexel.SolidSoft | Lexel.SolidHard;
 
         assert(radius >= 0);
@@ -410,8 +412,8 @@ class LandscapeBitmap {
         //the center is cleared later to achieve this
         //in the same call, mask all pixels with SolidHard to remove any
         //SolidSoft pixels...
-        doCircle(radius, mTheme ? mTheme.backImage : null,
-            mTheme ? mTheme.backColor : Color(0,0,0),
+        doCircle(radius, theme ? theme.backImage : null,
+            theme ? theme.backColor : Color(0,0,0),
             cAllMeta, Lexel.SolidSoft, Lexel.SolidHard);
 
         int blast_radius = radius + blast_border;
@@ -420,8 +422,8 @@ class LandscapeBitmap {
         //solid ground only (except for SolidHard pxiels: they stay unchanged)
         //because all SolidSoft pixels were cleared above, only the remaining
         //landscape around the destruction will be coloured with this border...
-        if (mTheme) {
-            doCircle(blast_radius, mTheme.borderImage, mTheme.borderColor,
+        if (theme) {
+            doCircle(blast_radius, theme.borderImage, theme.borderColor,
                 cAllMeta, Lexel.SolidSoft);
         }
 
@@ -581,16 +583,15 @@ class LandscapeBitmap {
         return mImage;
     }
 
-    //theme can be null
-    public this(Vector2i size, LandscapeTheme theme) {
+    public this(Vector2i size) {
         mImage = gFramework.createSurface(size, Transparency.Colorkey);
         mImage.fill(Rect2i(mImage.size), mImage.colorkey());
-        this(mImage, theme, false);
+        this(mImage, false);
     }
 
-    //copy the level bitmap, per-pixel-metadata and theme from ls
+    //copy the level bitmap and per-pixel-metadata
     public this(Landscape ls) {
-        this(ls.image.clone(), ls.theme(), false);
+        this(ls.image.clone(), false);
 
         mLevelData[] = ls.data;
     }
@@ -598,7 +599,7 @@ class LandscapeBitmap {
     //create using the bitmap and pixel data
     //  release_this = don't copy image and metadata, instead, leave them to
     //                 level and set own fields to null
-    public Landscape createLandscape(bool release_this) {
+    public Landscape createLandscape(LandscapeTheme theme, bool release_this) {
         Surface img;
         Lexel[] data;
         if (release_this) {
@@ -609,12 +610,11 @@ class LandscapeBitmap {
             data = mLevelData.dup;
         }
 
-        auto lvl = new Landscape(img, data, mTheme);
+        auto lvl = new Landscape(img, data, theme);
 
         if (release_this) {
             mImage = null;
             mLevelData = null;
-            mTheme = null;
             mWidth = mHeight = 0;
         }
 
@@ -623,11 +623,10 @@ class LandscapeBitmap {
 
     //create from a bitmap; also used as common constructor
     //bmp = the landscape-bitmap, must not be null
-    //theme = can be null; used for blastHole()
     //import_bmp = create the metadata from the image's transparency information
     //      if false, initialize metadata with Lexel.init
     //memory managment: you shall not touch the Surface instance in bmp anymore
-    public this(Surface bmp, LandscapeTheme theme, bool import_bmp = true) {
+    public this(Surface bmp, bool import_bmp = true) {
         mImage = bmp;
 
         mWidth = mImage.size.x;
@@ -635,8 +634,6 @@ class LandscapeBitmap {
         mLevelData.length = mWidth*mHeight;
 
         mLog = registerLog("levelrenderer");
-
-        mTheme = theme;
 
         //create mask
 

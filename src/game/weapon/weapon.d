@@ -21,6 +21,14 @@ static class WeaponClassFactory
 
 alias void delegate(Shooter sh) ShooterCallback;
 
+class WrapFireInfo { //wee so Java like
+    FireInfo info;
+    this (ReflectCtor c) {
+    }
+    this () {
+    }
+}
+
 //abstract weapon type; only contains generic infos about a weapon
 //this includes how stuff is fired (for the code which does worm controll)
 //(argument against making classes like i.e. WeaponThrowable: no multiple

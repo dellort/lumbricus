@@ -23,6 +23,17 @@ char[] glErrorToString(GLenum errCode) {
     return res;
 }
 
+private bool checkGLError(char[] msg, bool crash = false) {
+    GLenum err = glGetError();
+    if (err == GL_NO_ERROR)
+        return false;
+    debug writefln("Warning: GL error at '%s': %s", msg,
+        glErrorToString(err));
+    if (crash)
+        assert(false, "not continuing");
+    return true;
+}
+
 class GLSurface : SDLDriverSurface {
     const GLuint GLID_INVALID = 0;
 
@@ -80,12 +91,10 @@ class GLSurface : SDLDriverSurface {
 
         //check for errors (textures larger than maximum size
         //supported by GL/hardware will fail to load)
-        GLenum err = glGetError();
-        if (err != GL_NO_ERROR) {
+        if (checkGLError("loading texture")) {
             //set error flag to prevent changing the texture data
             mError = true;
-            debug writefln("Failed to create texture of size %s: %s",mTexSize,
-                glErrorToString(err));
+            debug writefln("Failed to create texture of size %s.",mTexSize);
             //throw new Exception(
             //    "glTexImage2D failed, probably texture was too big. "
             //    ~ "Requested size: "~mTexSize.toString);
@@ -583,7 +592,7 @@ class GLCanvas : Canvas {
         assert(glsurf !is null);
 
         //glPushAttrib(GL_ENABLE_BIT);
-        assert(glGetError() == GL_NO_ERROR);
+        checkGLError("draw texture", true);
         glDisable(GL_DEPTH_TEST);
         glsurf.prepareDraw();
 

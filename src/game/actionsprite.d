@@ -28,7 +28,7 @@ interface RefireTrigger {
 
 class ActionSprite : GObjectSprite {
     protected Vector2f mLastImpactNormal = {0, -1};
-    protected FireInfo mFireInfo;
+    protected WrapFireInfo mFireInfo;
 
     private {
         Action mCreateAction, mStateAction;
@@ -126,15 +126,15 @@ class ActionSprite : GObjectSprite {
 
     //fill the FireInfo struct with current data
     protected void updateFireInfo() {
-        mFireInfo.strength = physics.velocity.length; //xxx confusing units :-)
-        if (mFireInfo.strength > 0)
-            mFireInfo.dir = physics.velocity.normal;
+        mFireInfo.info.strength = physics.velocity.length; //xxx confusing units :-)
+        if (mFireInfo.info.strength > 0)
+            mFireInfo.info.dir = physics.velocity.normal;
         else
             //NaN protection
-            mFireInfo.dir = Vector2f(0, -1);
-        mFireInfo.pos = physics.pos;
-        mFireInfo.shootbyRadius = physics.posp.radius;
-        mFireInfo.surfNormal = mLastImpactNormal;
+            mFireInfo.info.dir = Vector2f(0, -1);
+        mFireInfo.info.pos = physics.pos;
+        mFireInfo.info.shootbyRadius = physics.posp.radius;
+        mFireInfo.info.surfNormal = mLastImpactNormal;
     }
 
     protected MyBox readParam(char[] id) {
@@ -146,7 +146,7 @@ class ActionSprite : GObjectSprite {
             case "fireinfo":
                 //get current FireInfo data (physics)
                 updateFireInfo();
-                return MyBox.Box(&mFireInfo);
+                return MyBox.Box(mFireInfo);
             case "refire_trigger":
                 return MyBox.Box(mRefireTrigger);
             default:
@@ -219,11 +219,15 @@ class ActionSprite : GObjectSprite {
 
     protected this(GameEngine engine, GOSpriteClass type) {
         super(engine, type);
+        mFireInfo = new WrapFireInfo();
     }
 
     this (ReflectCtor c) {
         super(c);
         c.types().registerMethod(this, &readParam, "readParam");
+        c.types().registerMethod(this, &physDamage, "physDamage");
+        c.types().registerMethod(this, &physImpact, "physImpact");
+        c.types().registerMethod(this, &physUpdate, "physUpdate");
     }
 }
 

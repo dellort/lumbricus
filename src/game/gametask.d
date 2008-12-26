@@ -8,6 +8,7 @@ import framework.commandline;
 import framework.framework;
 import framework.filesystem;
 import framework.i18n;
+import framework.timesource;
 import game.gui.loadingscreen;
 import game.gui.gameframe;
 import game.clientengine;
@@ -20,8 +21,10 @@ import game.gfxset;
 import game.sprite;
 import game.crate;
 import game.gobject;
+import game.levelgen.landscape;
 import game.levelgen.level;
 import game.levelgen.generator;
+import game.levelgen.renderer;
 import gui.container;
 import gui.label;
 import gui.tablecontainer;
@@ -31,6 +34,7 @@ import utils.array;
 import utils.misc;
 import utils.mybox;
 import utils.output;
+import utils.rect2;
 import utils.time;
 import utils.vector2;
 import utils.log;
@@ -120,6 +124,10 @@ class GameTask : Task {
 
         //for save & load support
         char[][Object] mExternalObjects;
+
+        //temporary when loading a game
+        SerializeInConfig mSaveGame;
+        Time mSavedTime;
     }
 
     //just for the paused-command?
@@ -158,21 +166,63 @@ class GameTask : Task {
         auto props = wnd.properties;
         props.background = Color(0); //black :)
         wnd.properties = props;
+
+        mCmds = new CommandBucket();
+        registerCommands();
+        mCmds.bind(globals.cmdLine);
     }
 
     //start game intialization
     //it's not clear when initialization is finished (but it shows a loader gui)
     private void initGame(GameConfig cfg) {
-        mGameConfig = cfg;
+        if (!cfg.load_savegame) {
+            mGameConfig = cfg;
 
-        //save last played level functionality
-        saveLevel(mGameConfig.level);
+            //save last played level functionality
+            saveLevel(mGameConfig.level);
 
-        mGameConfig.level = fuzzleLevel(mGameConfig.level);
-
-        mCmds = new CommandBucket();
-        registerCommands();
-        mCmds.bind(globals.cmdLine);
+            mGameConfig.level = fuzzleLevel(mGameConfig.level);
+        } else {
+            serialize_types.registerClasses!(SaveGameData1, SaveGameData2);
+            auto ctx = new SerializeContext(serialize_types);
+            mSaveGame = new SerializeInConfig(ctx, cfg.load_savegame);
+            auto sg1 = mSaveGame.readObjectT!(SaveGameData1)();
+            auto levelconffile = new ConfigFile(sg1.level, "some_savegame", null);
+            auto gen = new GenerateFromSaved(new LevelGeneratorShared(),
+                levelconffile.rootnode());
+            //xxx: stupidly, the level is re-rendered, although it is not needed
+            Level level = gen.render();
+            mSaveGame.addExternal(level, "level");
+            auto sg2 = mSaveGame.readObjectT!(SaveGameData2)();
+            mGameConfig = sg2.config;
+            mSavedTime = sg2.gametime;
+            //urgh
+            foreach (int n, SaveGameData2.LevelBitmapInfo bmp; sg2.bitmaps) {
+                //xxx: transparency, colorkey?
+                Surface s = gFramework.createSurface(bmp.size, Transparency.Colorkey);
+                LandscapeBitmap lb = new LandscapeBitmap(s, false);
+                if (lb.levelData().length != bmp.lexels.length
+                    || bmp.image.length != bmp.size.x*bmp.size.y*uint.sizeof)
+                {
+                    throw new Exception("size mismatches in bitmap");
+                }
+                lb.levelData()[] = cast(Lexel[])bmp.lexels;
+                void* pixels;
+                uint pitch;
+                s.lockPixelsRGBA32(pixels, pitch);
+                uint offset = 0, linesize = bmp.size.x*uint.sizeof;
+                for (int i = 0; i < bmp.size.y; i++) {
+                    pixels[0 .. linesize] =
+                        cast(byte[])bmp.image[offset .. offset + linesize];
+                    pixels += pitch;
+                    offset += linesize;
+                }
+                s.unlockPixels(Rect2i(bmp.size));
+                delete bmp.image;
+                delete bmp.lexels;
+                mSaveGame.addExternal(lb, str.format("landscape_%s", n));
+            }
+        }
 
         mLoadScreen = new LoadingScreen();
         mLoadScreen.zorder = 10;
@@ -206,6 +256,8 @@ class GameTask : Task {
             mClientEngine.kill();
             mClientEngine = null;
         }
+        mGame = null;
+        mGameAdmin = null;
     }
 
     private bool initGameGui() {
@@ -217,7 +269,29 @@ class GameTask : Task {
 
     private bool initGameEngine() {
         //log("initGameEngine");
-        mServerEngine = new GameEngine(mGameConfig, mGfx);
+        if (!mSaveGame) {
+            mServerEngine = new GameEngine(mGameConfig, mGfx);
+        } else {
+            //analogous to saveGame()
+            foreach (Object o, char[] name; mExternalObjects) {
+                mSaveGame.addExternal(o, name);
+            }
+            foreach (int index, LevelItem o; mGameConfig.level.objects) {
+                mSaveGame.addExternal(o, str.format("levelobject_%s", index));
+            }
+            auto ntime = new TimeSource();
+            ntime.initTime(mSavedTime);
+            ntime.paused = true;
+            mSaveGame.addExternal(ntime, "gametime");
+            //should we save the random seed? because of determinism etc.
+            mSaveGame.addExternal(new Random(), "random");
+            //sucks, need other solution etc.
+            mSaveGame.addExternal(registerLog("gameengine"), "engine_log");
+            mSaveGame.addExternal(registerLog("gamecontroller"), "controller_log");
+            mSaveGame.addExternal(registerLog("physlog"), "physic_log");
+            //
+            mServerEngine = mSaveGame.readObjectT!(GameEngine)();
+        }
         mGame = mServerEngine;
         mGameAdmin = mServerEngine.requestAdmin();
         return true;
@@ -379,6 +453,116 @@ class GameTask : Task {
         doFade();
     }
 
+    ConfigNode saveGame() {
+        GameEngine engine = mServerEngine;
+        serialize_types.registerClasses!(SaveGameData1, SaveGameData2);
+        auto ctx = new SerializeContext(serialize_types);
+        auto writer = new SerializeOutConfig(ctx);
+
+        //step 1
+        auto sg1 = new SaveGameData1();
+        Level level = engine.gameConfig.level;
+        sg1.level = level.saved.writeAsString();
+        writer.writeObject(sg1);
+        //loading: read sg1 and create Level
+
+        //step 2
+        writer.addExternal(level, "level");
+        auto sg2 = new SaveGameData2();
+        sg2.config = engine.gameConfig;
+        sg2.gametime = engine.gameTime.current;
+        //manually save each landscape bitmap
+        //this is a special case, because unlike all other bitmaps (and
+        //animations etc.), these are modified by the game
+        auto bitmaps = engine.landscapeBitmaps();
+        for (int n = 0; n < bitmaps.length; n++) {
+            LandscapeBitmap lb = bitmaps[n];
+            writer.addExternal(lb, str.format("landscape_%s", n));
+            SaveGameData2.LevelBitmapInfo info;
+            info.size = lb.size();
+            info.lexels = cast(byte[])lb.levelData();
+            auto bmp = lb.image();
+            info.image.length = bmp.size.x*bmp.size.y*uint.sizeof;
+            void* pixels;
+            uint pitch;
+            bmp.lockPixelsRGBA32(pixels, pitch);
+            uint offset = 0, linesize = bmp.size.x*uint.sizeof;
+            for (int i = 0; i < bmp.size.y; i++) {
+                info.image[offset .. offset + linesize]
+                    = cast(byte[])pixels[0 .. linesize];
+                pixels += pitch;
+                offset += linesize;
+            }
+            bmp.unlockPixels(Rect2i.Empty);
+            sg2.bitmaps ~= info;
+        }
+        writer.writeObject(sg2);
+        //loading: add previously loaded level as external, read sg2,
+        //reconstruct LandscapeBitmaps, add them as external references
+
+        //step 3
+        //these are all resources
+        foreach (Object o, char[] name; mExternalObjects) {
+            writer.addExternal(o, name);
+        }
+        //this sucks, currently only needed to get the LandscapeTheme (glevel.d)
+        foreach (int index, LevelItem o; level.objects) {
+            writer.addExternal(o, str.format("levelobject_%s", index));
+        }
+        //new TimeSource is created manually on loading
+        writer.addExternal(engine.gameTime, "gametime");
+        //should we save the random seed? because of determinism etc.
+        writer.addExternal(engine.rnd, "random");
+        //no, this can't be done so, another solution is needed
+        writer.addExternal(engine.mLog, "engine_log");
+        writer.addExternal(engine.controller.mLog, "controller_log");
+        writer.addExternal(engine.physicworld.mLog, "physic_log");
+        //actually serialize
+        writer.writeObject(engine);
+        //loading: based on sg2.config, load all required resources; recreate
+        //gameTime (by using the time stored in sg2), create something for
+        //"random", add them as externals; load the GameEngine and done.
+
+        return writer.finish();
+    }
+
+    //first part of the savegame data; this is to load the Level object
+    static class SaveGameData1 {
+        //this is Level.saved as a string (like a .conf)
+        //use GenerateFromSaved to turn this into a Level
+        char[] level;
+
+        this() {
+        }
+        this(ReflectCtor c) {
+        }
+    }
+
+    //second part; the GameConfig can't be loaded without somehow having a Level
+    //object, so there are two steps
+    static class SaveGameData2 {
+        //xxx slightly unclean, serializes ConfigNodes
+        //why the fuck does GameConfig contain a Level anyway?
+        GameConfig config;
+        Time gametime;
+        //sorted by the order they appear in GameEngine.landscapeBitmaps()
+        LevelBitmapInfo[] bitmaps;
+
+        //used to reconstruct a LandscapeBitmap
+        struct LevelBitmapInfo {
+            Vector2i size;
+            //RGBA32 coded image (concatenated scanlines)
+            byte[] image;
+            //that nasty per-pixel metadata
+            byte[] lexels;
+        }
+
+        this() {
+        }
+        this(ReflectCtor c) {
+        }
+    }
+
     //game specific commands
     private void registerCommands() {
         mCmds.register(Command("raisewater", &cmdRaiseWater,
@@ -407,6 +591,7 @@ class GameTask : Task {
         mCmds.register(Command("activity", &cmdActivityTest,
             "list active game objects", ["bool?:list all objects"]));
         mCmds.register(Command("ser_dump", &cmdSerDump, "serialiation dump"));
+        mCmds.register(Command("savetest", &cmdSaveTest, "save and reload"));
     }
 
     class ShowCollide : Container {
@@ -557,23 +742,27 @@ class GameTask : Task {
         //debugDumpClassGraph(serialize_types, mServerEngine);
         //char[] res = dumpGraph(serialize_types, mServerEngine, mExternalObjects);
         //std.file.write("dump_graph.dot", res);
-        auto ctx = new SerializeContext(serialize_types);
-        auto writer = new SerializeOutConfig(ctx);
-        foreach (Object o, char[] name; mExternalObjects) {
-            writer.addExternal(o, name);
-        }
-        writer.addExternal(mServerEngine.gameTime, "gametime");
-        for (int i = 0; i < mServerEngine.landscapeBitmaps().length; i++) {
-            writer.addExternal(mServerEngine.landscapeBitmaps()[i],
-                str.format("landscape_%s", i));
-        }
-        writer.addExternal(mServerEngine.rnd, "random");
-        writer.addExternal(mServerEngine.level, "level");
-        //no, this can't be done so, another solution is needed
-        writer.addIgnoreClass(Log.classinfo);
-        //actually serialize
-        writer.writeObject(mServerEngine);
-        saveConfig(writer.finish(), "savegame.conf");
+        ConfigNode cfg = saveGame();
+        saveConfig(cfg, "savegame.conf");
+    }
+
+    private void cmdSaveTest(MyBox[] args, Output write) {
+        ConfigNode cfg = saveGame();
+        saveConfig(cfg, "test_savegame.conf");
+        unloadGame();
+        if (mWindow) mWindow.remove();
+        mWindow = null;
+        mGameConfig = mGameConfig.init;
+        mGfx = null;
+        if (mLoadScreen) mLoadScreen.remove();
+        mLoadScreen = null;
+        mGameLoader = null;
+        mResPreloader = null;
+        mExternalObjects = null;
+        mSaveGame = null;
+        GameConfig ncfg;
+        ncfg.load_savegame = cfg;
+        initGame(ncfg);
     }
 
     static this() {
@@ -593,7 +782,7 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
         cfg.level = level;
     } else {
         int what = mConfig.selectValueFrom("level",
-            ["generate", "load", "loadbmp"], 0);
+            ["generate", "load", "loadbmp", "restore"], 0);
         auto x = new LevelGeneratorShared();
         if (what == 0) {
             auto gen = new GenerateFromTemplate(x, cast(LevelTemplate)null);
@@ -607,6 +796,9 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
             gen.bitmap(gFramework.loadImage(fn), fn);
             gen.selectTheme(x.themes.findRandom(mConfig["level_gfx"]));
             cfg.level = gen.render();
+        } else if (what == 3) {
+            cfg.load_savegame = gFramework.loadConfig(mConfig["level_restore"]);
+            return cfg;
         } else {
             //wrong string in configfile or internal error
             throw new Exception("noes noes noes!");

@@ -93,7 +93,7 @@ class ProjectileSprite : ActionSprite {
     //fill the FireInfo struct with current data
     override protected void updateFireInfo() {
         super.updateFireInfo();
-        mFireInfo.pointto = target;   //keep target for spawned projectiles
+        mFireInfo.info.pointto = target;   //keep target for spawned projectiles
     }
 
     override protected void die() {

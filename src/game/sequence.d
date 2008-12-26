@@ -148,8 +148,11 @@ class SequenceUpdate {
 
 //special update class for worm sequence, which allows to introduce custom
 //sequence modifiers without changing GObjectSprite
+//xxx why is this in this module?
 class WormSequenceUpdate : SequenceUpdate {
     float pointto_angle; //for weapon angle, always 0 .. PI
+    //just used to display jetpack exhaust flames
+    Vector2f keystate;
 
     this () {
     }
@@ -340,7 +343,7 @@ class StateDisplay {
     abstract Graphic graphic();
 
     Time now() {
-        return globals.gameTimeAnimations.current();
+        return owner.engine.gameTime.current();
     }
 }
 
@@ -462,6 +465,9 @@ class WormStateDisplay : AniStateDisplay {
     //keep track when animation in mAnimator "most likely" ends, instead of
     //using mAnimator.hasFinished() => no feedback from mAnimator needed
     Time mAnimationStart;
+    //only for jetpack
+    AnimationGraphic[2] mJetFlames;
+    Time[2] mJetFlamesStart;
 
     this (Sequence a_owner) {
         super(a_owner);
@@ -674,6 +680,48 @@ class WormStateDisplay : AniStateDisplay {
         p.p1 = cast(int)(mAngles[0]/PI*180);
         p.p2 = cast(int)(mAngles[1]/PI*180);
         mAnimator.update(v.position, p);
+        //all updates for jetpack flames
+        //why is the jetpack so ridiculously complicated?
+        WormState state = mCurSubSeq ? mCurSubSeq.owner : null;
+        if (!state.is_jetpack) {
+            if (mJetFlames[0]) {
+                mJetFlames[0].remove();
+                mJetFlames[1].remove();
+                mJetFlames[] = null;
+            }
+        } else if (wsu) {
+            if (!mJetFlames[0]) {
+                mJetFlames[0] = owner.engine.graphics.createAnimation();
+                mJetFlames[1] = owner.engine.graphics.createAnimation();
+            }
+            mJetFlames[0].update(v.position, p);
+            mJetFlames[1].update(v.position, p);
+            bool[2] down;
+            down[0] = wsu.keystate.x != 0;
+            down[1] = wsu.keystate.y < 0;
+            Time t = now();
+            //for each direction, do the following: if the expected state does
+            //not equal the needed animation, reverse the current animation, so
+            //that the flame looks looks like it e.g. grows back
+            //the animation start time is adjusted so that the switch to the
+            //reversed animation is seamless
+            for (int n = 0; n < 2; n++) {
+                AnimationGraphic cur = mJetFlames[n];
+                auto needed = down[n] ? state.flames[n] : state.rflames[n];
+                if (!cur.animation) {
+                    //so that the last frame is displayed
+                    cur.setAnimation(needed, -needed.duration());
+                }
+                if (cur.animation is needed)
+                    continue;
+                auto tdiff = t - cur.animation_start;
+                if (tdiff >= needed.duration()) {
+                    cur.setAnimation(needed);
+                } else {
+                    cur.setAnimation(needed, -(needed.duration() - tdiff));
+                }
+            }
+        }
     }
 }
 
@@ -733,6 +781,10 @@ class WormState : SequenceState {
     SubSequence[][SeqType.max+1] seqs;
     //go to this state after the "enter" subseq. was played
     Transition auto_leave;
+    //jetpack only
+    bool is_jetpack;
+    Animation[2] flames;
+    Animation[2] rflames;
 
     this(GameEngine a_owner, char[] name) {
         super(a_owner, name);
@@ -845,6 +897,11 @@ void loadWormJetpack(GameEngine engine, ConfigItem fromitem) {
     state.reverse_subsequence(SeqType.Leave);
     s_turn.animation = getAni(engine, sub["turn"]);
     state.seqs[SeqType.TurnAroundY] = [s_turn];
+    state.flames[0] = getAni(engine, sub["flame_x"]);
+    state.flames[1] = getAni(engine, sub["flame_y"]);
+    state.rflames[0] = state.flames[0].reversed();
+    state.rflames[1] = state.flames[1].reversed();
+    state.is_jetpack = true;
     state.enableLeaveTransition("s_worm_stand");
     addState(engine, state);
 }

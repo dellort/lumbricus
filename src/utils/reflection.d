@@ -113,9 +113,46 @@ struct SafePtr {
         return *castTo!(T)();
     }
 
+    void write(T)(T data) {
+        *castTo!(T) = data;
+    }
+
     static SafePtr get(T)(Type t, T* ptr) {
         assert (t.typeInfo() == typeid(T));
         return SafePtr(t, ptr);
+    }
+
+    //return if "from" can be assigned to a variable pointed to by "this"
+    //doesn't follow D semantics: if the cast fails, the destination isn't
+    //assigned null, but is left untouched
+    //warning: this.type must not be null
+    //throws exception if type infos insufficient to check the cast
+    //  (but actually, one could only use ClassInfo?)
+    bool castAndAssignObject(Object from) {
+        assert (!!type);
+        auto rt = cast(ReferenceType)type;
+        if (!rt)
+            throw new Exception("target not an object or interface type");
+        /+auto klass = rt.klass();
+        if (!klass)
+            throw new Exception("no type info for: "~rt.toString());
+        void** tptr = cast(void**)ptr;
+        if (!from) {
+            *tptr = null;
+            return true;
+        }
+        Class c = type.mOwner.findClass(from);
+        if (!c)
+            throw new Exception("no type info for: "~from.classinfo.name);
+        if (!c.isSubTypeOf(klass))
+            return false;
+        *cast(void**)ptr = cast(void*)from;+/
+        //lol
+        void* p = rt.castTo(from);
+        if (!p && from)
+            return false;
+        *cast(void**)ptr = p;
+        return true;
     }
 
     MyBox box() {
@@ -175,6 +212,7 @@ class Types {
         //D types to internal ones
         Type[TypeInfo] mTItoT;
         ClassMethod[void*] mMethodMap;
+        Class[char[]] mClassMap;
         FooHandler mFoo;
     }
 
@@ -189,8 +227,15 @@ class Types {
     }
 
     final Class findClass(Object o) {
+        if (!o)
+            return null;
         ReferenceType* pt = o.classinfo in mCItoT;
         return pt ? (*pt).klass() : null;
+    }
+
+    final Class findClassByName(char[] name) {
+        Class* pc = name in mClassMap;
+        return pc ? *pc : null;
     }
 
     final SafePtr ptrOf(T)(ref T x) {
@@ -221,16 +266,22 @@ class Types {
         //}
         assert (!!dummy);
         assert (!!cast(T)dummy);
-        return doRegister!(T)(cast(T)dummy, null);
+        static if (!isReflectableClass!(T)) {
+            //abstract, but actually still reflectable base class?
+            return doRegister!(T)(cast(T)dummy, null);
+        } else {
+            return registerClass!(T)();
+        }
     }
 
     final Class registerClass(T)() {
         static assert (isReflectableClass!(T)(), "not reflectable: "~T.stringof);
-        ReflectCtor c = mFoo;
-        return doRegister!(T)(null, { return new T(c); });
+        return doRegister!(T)(null, (ReflectCtor c) {
+            return cast(Object)new T(c); }
+        );
     }
 
-    private Class doRegister(T)(T dummy, T delegate() inst) {
+    private Class doRegister(T)(T dummy, Object delegate(ReflectCtor c) inst) {
         ReferenceType t = castStrict!(ReferenceType)(getType!(T)());
         if (t.klass())
             return t.klass();
@@ -238,8 +289,14 @@ class Types {
         auto klass = new Class(t, cti);
         assert (t.klass() is klass);
         klass.mName = cti.info.name;
-        if (!dummy)
-            dummy = inst();
+        assert (!(klass.mName in mClassMap));
+        mClassMap[klass.mName] = klass;
+        klass.mCreateDg = inst;
+        if (!dummy) {
+            ReflectCtor c = mFoo;
+            dummy = cast(T)inst(c);
+        }
+        assert (!!dummy);
         klass.mDummy = dummy;
         auto def = new DefineClass(this, klass);
         def.autoclass!(T)();
@@ -376,17 +433,23 @@ class Types {
     }
 
     //overwrite the variable, which ptr points to, with obj/method
-    void writeDelegate(SafePtr ptr, Object obj, ClassMethod method) {
+    //return false if failed (wrong types)
+    bool writeDelegate(SafePtr ptr, Object obj, ClassMethod method) {
         auto dgt = cast(DelegateType)ptr.type;
         if (!dgt)
             throw new Exception("not a delegate pointer");
         assert (!!ptr.ptr);
         D_Delegate* dp = cast(D_Delegate*)ptr.ptr;
-        Class k = findClass(obj);
-        assert (!!k);
-        assert (k.isSubTypeOf(method.klass()));
+        if (obj) {
+            Class k = findClass(obj);
+            assert (!!k);
+            assert (k.isSubTypeOf(method.klass()));
+            if (method.mDgType !is ptr.type)
+                return false;
+        }
         dp.ptr = cast(void*)obj;
-        dp.funcptr = method.address();
+        dp.funcptr = method ? method.address() : null;
+        return true;
     }
 }
 
@@ -477,6 +540,8 @@ class ReferenceType : StructuredType {
     /// 1. interface <=> interface
     /// 2. object <=> interface
     ///can_fail: if false, throw an Exception if conversion failed.
+    ///xxx slightly unsafe, because it can return a pointer to a variable with
+    ///    a completely different type
     final SafePtr castAny(SafePtr from, bool can_fail = false) {
         if (from.type is this)
             return from;
@@ -623,11 +688,16 @@ class ArrayType : Type {
         return mStaticLength;
     }
 
+    final bool isStatic() {
+        return mStaticLength >= 0;
+    }
+
     final Type memberType() {
         return mMember;
     }
 
     //return a copy of the array descriptor
+    //xxx doesn't match with D semantics, blergh
     Array getArray(SafePtr array) {
         array.checkExactNotNull(this, "Array.getArray()");
         return mGetArray(this, array);
@@ -695,6 +765,11 @@ class MapType : Type {
     abstract SafePtr getValuePtr(SafePtr map, SafePtr key);
     //like "map[key] = value;"
     abstract void setKey(SafePtr map, SafePtr key, SafePtr value);
+    //this fuckery is to enable us to deserialize a map without allocating
+    //"dummy" memory for key/value, and then call setKey to copy them in
+    //both delegates are guaranteed to be called only once, key is called first
+    abstract void setKey2(SafePtr map, void delegate(SafePtr key) dg_getKey,
+        void delegate(SafePtr value) dg_getValue);
     //like "foreach(key, value; map) { cb(key, value); }"
     abstract void iterate(SafePtr map,
         void delegate(SafePtr key, SafePtr value) cb);
@@ -737,6 +812,16 @@ class MapTypeImpl(T) : MapType {
 
     override void setKey(SafePtr map, SafePtr key, SafePtr value) {
         (*map.castTo!(T)())[*key.castTo!(K)()] = *value.castTo!(V)();
+    }
+
+    override void setKey2(SafePtr map, void delegate(SafePtr key) dg_getKey,
+        void delegate(SafePtr value) dg_getValue)
+    {
+        K key;
+        V value;
+        dg_getKey(SafePtr.get!(K)(mKey, &key));
+        dg_getValue(SafePtr.get!(V)(mValue, &value));
+        (*map.castTo!(T)())[key] = value;
     }
 
     override void iterate(SafePtr map,
@@ -787,6 +872,7 @@ class Class {
         ClassMember[] mMembers;
         ClassMethod[] mMethods;
         Object mDummy; //for default values
+        Object delegate(ReflectCtor c) mCreateDg;
     }
 
     private this(ReferenceType a_owner, TypeInfo_Class cti) {
@@ -876,7 +962,8 @@ class Class {
             //    possible classes to the address? ClassMethod[][void*] map
             assert (name == other.name);
             //writefln("huh: %s: %s %s", name, this.name, other.klass.name);
-            return;
+            //ok, add the method anyway, who cares
+            //return;
         }
         new ClassMethod(this, dgt, funcptr, name);
     }
@@ -890,6 +977,21 @@ class Class {
             cur = cur.mSuper;
         }
         return false;
+    }
+
+    final Types types() {
+        return mOwner.mOwner;
+    }
+
+    final Object newInstance() {
+        if (!mCreateDg) {
+            writefln("no: %s", name());
+            return null;
+        }
+        Object o = mCreateDg(types().mFoo);
+        assert (!!o);
+        assert (types.findClass(o) is this);
+        return o;
     }
 }
 
@@ -966,7 +1068,7 @@ class ClassMethod : ClassElement {
         //xxx maybe could happen if the user registers two virtual functions
         //    (overridden ones, with the same name), and then removes the one
         //    in the sub class => no compiletime or runtime error, but this
-        assert (!(addr in t.mMethodMap));
+//        assert (!(addr in t.mMethodMap));
         t.mMethodMap[addr] = this;
     }
 

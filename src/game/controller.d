@@ -975,7 +975,7 @@ class WeaponItem {
 class GameController : GameLogicPublic {
     private {
         GameEngine mEngine;
-        Log mLog;
+        public /+weewee+/ Log mLog;
 
         ServerTeam[] mTeams;
         ServerTeam mCurrentTeam;

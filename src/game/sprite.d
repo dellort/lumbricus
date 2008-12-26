@@ -79,8 +79,9 @@ class GObjectSprite : GameObject {
         graphic.simulate();
     }
 
-    protected SequenceUpdate createSequenceUpdate() {
-        return new SequenceUpdate();
+    //can be overriden by user, but he must set seqUpdate
+    protected void createSequenceUpdate() {
+        seqUpdate = new SequenceUpdate();
     }
 
     protected void fillAnimUpdate() {
@@ -289,7 +290,7 @@ class GObjectSprite : GameObject {
         assert(type !is null);
         mType = type;
 
-        seqUpdate = createSequenceUpdate();
+        createSequenceUpdate();
 
         physics = new PhysicObject();
         physics.backlink = this;

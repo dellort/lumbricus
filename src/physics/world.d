@@ -47,7 +47,7 @@ class PhysicWorld {
     private Contact[] mContacts;
     private int mContactCount;
 
-    package log.Log mLog;
+    /+package+/ log.Log mLog;
     Random rnd;
     CollisionMap collide;
 

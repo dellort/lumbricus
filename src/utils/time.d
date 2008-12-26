@@ -84,6 +84,10 @@ public struct Time {
             return 0;
     }
 
+    public Time opNeg() {
+        return Time(-timeVal);
+    }
+
     ///return string representation of value
     public char[] toString() {
         const char[][] cTimeName = ["ns", "us", "ms", "s", "min", "h"];

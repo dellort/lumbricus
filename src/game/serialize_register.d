@@ -27,7 +27,7 @@ void initGameSerialization() {
         BeamAction, InsertBitmapAction, EarthquakeAction, ActionShooter,
         ProjectileSprite, HomingAction, RayShooter, RenderLaser, Sequence,
         SequenceUpdate, SpawnAction, Jetpack, Rope, WormSprite,
-        GravestoneSprite, WormSequenceUpdate,
+        GravestoneSprite, WormSequenceUpdate, WrapFireInfo,
         GameEngineGraphics, AnimationGraphic, LineGraphic, TargetIndicator,
         TargetCross, ExplosionGfx, LandscapeGraphic);
     //stuff that (maybe) should not be serialized

@@ -200,10 +200,6 @@ mainspr {
             _flags = "+mirror_y_a,+append_mirror_y_backwards_b,+backwards2_a"
             worm_jet_turn = "177 178 179"
         }
-        //vertical/horizontal jetpack exhaust flames
-        //xxx by what are these indexed?
-        //worm_jet_ex_h = "180"
-        //worm_jet_ex_v = "181"
         {
             _params = "time,p1/twosided"
             _flags = "+mirror_y_b,+repeat"
@@ -221,6 +217,13 @@ mainspr {
             worm_bump_into_ground = "-repeat; 301"
             worm_parachute_enter = "-repeat; 296"
             worm_parachute_fly = "+append_backwards_a; 297"
+
+            //vertical/horizontal jetpack exhaust flames
+            {
+                _flags = "-repeat,+keeplast"
+                worm_jet_ex_h = "offset_x:+16,offset_y:+3; 180"
+                worm_jet_ex_v = "offset_x:+8,offset_y:+16; 181"
+            }
         }
         //as above, but mirrored
         {

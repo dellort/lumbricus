@@ -80,10 +80,12 @@ class LandscapeGeometry : PhysicGeometry {
 }
 
 //these 2 functions are used by the server and client code (network case)
-public void landscapeDamage(LandscapeBitmap ls, Vector2i pos, int radius) {
+public void landscapeDamage(LandscapeBitmap ls, Vector2i pos, int radius,
+    LandscapeTheme theme)
+{
     //NOTE: clipping should have been done by the caller already, and the
     // blastHole function also does clip; so don't care
-    ls.blastHole(pos, radius, cBlastBorder);
+    ls.blastHole(pos, radius, cBlastBorder, theme);
 }
 public void landscapeInsert(LandscapeBitmap ls, Vector2i pos,
     Resource!(Surface) bitmap)
@@ -100,6 +102,7 @@ public void landscapeInsert(LandscapeBitmap ls, Vector2i pos,
 class GameLandscape : GameObject {
     private {
         LandscapeBitmap mLandscape;
+        LevelLandscape mOriginal;
         //offset of the level bitmap inside the world coordinates
         //i.e. worldcoords = mOffset + levelcoords
         Vector2i mOffset;
@@ -115,6 +118,7 @@ class GameLandscape : GameObject {
         assert(land && land.landscape);
         super(aengine, true);
 
+        mOriginal = land;
         mSize = land.landscape.size;
         mOffset = land.position;
 
@@ -130,7 +134,7 @@ class GameLandscape : GameObject {
         mSize = rc.size;
         mOffset = rc.p1;
 
-        mLandscape = new LandscapeBitmap(mSize, null);
+        mLandscape = new LandscapeBitmap(mSize);
 
         init();
     }
@@ -155,7 +159,8 @@ class GameLandscape : GameObject {
         pos -= mOffset;
         auto vr = Vector2i(radius + cBlastBorder);
         if (Rect2i(mSize).intersects(Rect2i(-vr, vr) + pos)) {
-            landscapeDamage(mLandscape, pos, radius);
+            landscapeDamage(mLandscape, pos, radius,
+                mOriginal ? mOriginal.landscape.theme : null);
             mPhysics.generationNo++;
 
             //this was for replication of the bitmap over network

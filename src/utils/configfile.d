@@ -5,8 +5,12 @@ import utf = std.utf;
 import str = std.string;
 import std.format;
 import conv = std.conv;
-import utils.output : Output;
+import utils.output : Output, StringOutput;
 import utils.misc : formatfx;
+
+//only for byte[]
+import zlib = std.zlib;
+import base64 = std.base64;
 
 //xxx: for now
 import utils.reflection;
@@ -652,6 +656,48 @@ public class ConfigNode : ConfigItem {
         return res;
     }
 
+    public void setByteArrayValue(char[] name, byte[] data,
+        bool allow_compress = false)
+    {
+        setStringValue(name, encodeByteArray(data, allow_compress));
+    }
+
+    public byte[] getByteArrayValue(char[] name, byte[] def = null) {
+        return decodeByteArray(getStringValue(name), def);
+    }
+
+    static char[] encodeByteArray(byte[] data, bool compress) {
+        //
+        if (!data.length)
+            return "[]";
+        void[] garbage1;
+        if (compress) {
+            auto ndata = zlib.compress(data, 9);
+            assert (ndata.ptr !is data.ptr);
+            garbage1 = ndata;
+            data = cast(byte[])ndata;
+        }
+        char[] res = base64.encode(cast(char[])data);
+        delete garbage1;
+        return res;
+    }
+
+    static byte[] decodeByteArray(char[] input, byte[] def) {
+        if (input == "[]")
+            return null;
+        char[] buf;
+        try {
+            buf = base64.decode(input);
+        } catch (base64.Base64Exception e) {
+            return def;
+        }
+        try {
+            return cast(byte[])zlib.uncompress(buf);
+        } catch (zlib.ZlibException e) {
+            return def;
+        }
+    }
+
     //compare values in a non-strict way (i.e. not byte-exact)
     //xxx: maybe at least case insensitive, also maybe strip whitespace
     private bool doCompareValueFuzzy(char[] s1, char[] s2) {
@@ -752,6 +798,12 @@ public class ConfigNode : ConfigItem {
         //xxx: add method to stream to determine if it's a file... or so
         //stream.writeString(ConfigFile.cUtf8Bom);
         doWrite(stream, 0);
+    }
+
+    public char[] writeAsString() {
+        auto sout = new StringOutput;
+        writeFile(sout);
+        return sout.text;
     }
 
     //does a deep copy if the node and its subnodes
@@ -870,6 +922,10 @@ public class ConfigFile {
     //fatal==true: parsing won't be continued (abort by throwing an exception)
     private void reportError(bool fatal, ...) {
         mErrorCount++;
+
+        if (!mErrorOut)
+            throw new Exception("no configfile error handler set, no detailed"
+                " error messages for you.");
 
         //xxx: add possibility to translate error messages
         mErrorOut(str.format("ConfigFile, error in %s(%s,%s): ", mFilename,

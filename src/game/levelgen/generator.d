@@ -191,8 +191,7 @@ class GenerateFromTemplate : LevelGenerator {
                 char[] type;
                 if (rland.geo_generated) {
                     auto renderer =
-                        new LandscapeBitmap(rland.geo_generated.size,
-                            mCurTheme.landscapeTheme);
+                        new LandscapeBitmap(rland.geo_generated.size);
                     auto gt = mCurTheme.genTheme();
                     landscapeRenderGeometry(renderer, rland.geo_generated, gt);
                     LandscapeObjects objs = rland.objects;
@@ -208,7 +207,8 @@ class GenerateFromTemplate : LevelGenerator {
                     }
                     rland.gen_objects = objs;
                     rland.gen_objects.saveTo(onode.getSubNode("objects"));
-                    rendered = renderer.createLandscape(true);
+                    rendered = renderer.createLandscape(
+                        mCurTheme.landscapeTheme, true);
                     rland.geo_generated.saveTo(onode.getSubNode("geometry"));
                     type = "landscape_generated";
                 } else if (rland.prerender_id != "") {
@@ -431,8 +431,8 @@ class GenerateFromBitmap : LevelGenerator {
             return;
         updateTheme();
         //hurrrr isn't it fun
-        auto bmp = new LandscapeBitmap(mBitmap, mTheme.landscapeTheme());
-        mLandscape = bmp.createLandscape(true);
+        auto bmp = new LandscapeBitmap(mBitmap);
+        mLandscape = bmp.createLandscape(mTheme.landscapeTheme(), true);
     }
 
     void isCave(bool set) {
@@ -967,7 +967,7 @@ Surface landscapeRenderPreview(LandscapeGeometry geo, Vector2i size,
     auto nocolor = createPixelSurface(Color(0, 0, 0));
 
     Vector2f scale = toVector2f(size) / toVector2f(geo.size);
-    auto renderer = new LandscapeBitmap(size, null);
+    auto renderer = new LandscapeBitmap(size);
 
     //draw background (not drawn when it's not a cave!)
     //(actually, a FillRect would be enough, but...)

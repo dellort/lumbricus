@@ -63,6 +63,9 @@ struct GameConfig {
     // - waterset: string with the name of the waterset (like "blue")
     //probably should be changed etc., so don't blame me
     ConfigNode gfx;
+
+    //xxx hack that was convenient BUT MUST DIE PLEASE KILL ME
+    ConfigNode load_savegame;
 }
 
 //for now, these are concrete classes...
@@ -92,7 +95,11 @@ class GameEngineGraphics {
     void remove(Graphic n) {
         if (objects.contains(n.node)) {
             objects.remove(n.node);
+        } else if (add_objects.contains(n.node)) {
+            add_objects.remove(n.node);
         } else {
+            if (!n.removed)
+                std.stdio.writefln(n);
             assert (n.removed);
         }
         n.removed = true;

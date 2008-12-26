@@ -184,10 +184,10 @@ class SpawnAction : WeaponAction {
     override protected ActionRes initialStep() {
         super.initialStep();
         auto rft = context.getPar!(RefireTrigger)("refire_trigger");
-        if (!mFireInfo.pos.isNaN) {
+        if (!mFireInfo.info.pos.isNaN) {
             //delay is not used, use ActionList looping for this
             for (int n = 0; n < myclass.sparams.count; n++) {
-                spawnsprite(engine, n, myclass.sparams, *mFireInfo, mShootbyObj,
+                spawnsprite(engine, n, myclass.sparams, mFireInfo.info, mShootbyObj,
                     rft);
             }
         }

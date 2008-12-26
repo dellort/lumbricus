@@ -64,20 +64,20 @@ class RayShooter: ActionShooter {
         //shoot the ray with random spread and adjust fireinfo
         float a = base.spread*engine.rnd.nextDouble() - base.spread/2.0f;
         float dist = owner.physics.posp.radius + 2;
-        Vector2f ndir = fireInfo.dir.rotated(a*PI/180.0f);
+        Vector2f ndir = fireInfo.info.dir.rotated(a*PI/180.0f);
         Vector2f npos = owner.physics.pos + ndir*dist;
         PhysicObject o;
         Vector2f hitPoint, normal;
         bool hit = engine.physicworld.shootRay(npos, ndir,
             /+engine.level.size.length+/ 1000, hitPoint, o, normal);
         if (hit) {
-            fireInfo.pos = hitPoint;
+            fireInfo.info.pos = hitPoint;
         } else {
-            fireInfo.pos = Vector2f.nan;
+            fireInfo.info.pos = Vector2f.nan;
         }
         //away from shooting object, so don't use radius
-        fireInfo.shootbyRadius = 0;
-        fireInfo.surfNormal = normal;
+        fireInfo.info.shootbyRadius = 0;
+        fireInfo.info.surfNormal = normal;
         if (base.lineTime > timeSecs(0)) {
             new RenderLaser(engine, [npos, hitPoint], base.lineTime,
                 [base.lineColors[0], base.lineColors[1], base.lineColors[0]]);

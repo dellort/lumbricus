@@ -241,6 +241,7 @@ class TargetIndicatorImpl : Animator {
         {
             removeThis();
             mInfo.remove();
+            return;
         }
 
         super.draw(c);
