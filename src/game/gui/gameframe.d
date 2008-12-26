@@ -54,6 +54,7 @@ class GameFrame : SimpleContainer {
 
     private Time mLastFrameTime, mRestTime;
     private bool mFirstFrame = true;
+    public Vector2i mScrollToAtStart; //even more hacky
 
     private int mMsgChangeCounter, mWeaponChangeCounter;
 
@@ -92,6 +93,12 @@ class GameFrame : SimpleContainer {
     void setPosition(Vector2i pos) {
         mScroller.offset = mScroller.centeredOffset(pos);
     }
+    Vector2i getPosition() {
+        return mScroller.uncenteredOffset(mScroller.offset);
+    }
+    void resetCamera() {
+        mCamera.reset();
+    }
 
     //if you have an event, which shall occur all duration times, return the
     //number of events which fit in t and return the rest time in t (divmod)
@@ -112,7 +119,7 @@ class GameFrame : SimpleContainer {
         if (mFirstFrame) {
             mFirstFrame = false;
             //scroll to level center
-            setPosition(clientengine.worldCenter);
+            setPosition(mScrollToAtStart);
         }
 
         mCamera.doFrame();
@@ -207,5 +214,7 @@ class GameFrame : SimpleContainer {
         add(mTeamWindow);
 
         mWeaponSel.init(clientengine.logic.weaponList());
+
+        mScrollToAtStart = clientengine.worldCenter;
     }
 }

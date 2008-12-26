@@ -50,6 +50,11 @@ class Camera {
         mTime = new TimeSource();
     }
 
+    void reset() {
+        if (control)
+            control.noticeAction();
+    }
+
     public void doFrame() {
         if (!control)
             return;

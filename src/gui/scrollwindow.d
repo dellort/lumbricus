@@ -206,6 +206,10 @@ class ScrollArea : SimpleContainer {
         //aim: mOffset + pos == size/2
         return size/2 - pos;
     }
+    ///reverse
+    Vector2i uncenteredOffset(Vector2i pos) {
+        return size/2 - pos;
+    }
 
     void scrollDelta(Vector2i d) {
         offset = mOffset - d;

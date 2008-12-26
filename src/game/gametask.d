@@ -128,6 +128,8 @@ class GameTask : Task {
         //temporary when loading a game
         SerializeInConfig mSaveGame;
         Time mSavedTime;
+        Vector2i mSavedViewPosition;
+        bool mSavedSetViewPosition;
     }
 
     //just for the paused-command?
@@ -222,6 +224,8 @@ class GameTask : Task {
                 delete bmp.lexels;
                 mSaveGame.addExternal(lb, str.format("landscape_%s", n));
             }
+            mSavedViewPosition = sg2.viewpos;
+            mSavedSetViewPosition = true;
         }
 
         mLoadScreen = new LoadingScreen();
@@ -263,6 +267,12 @@ class GameTask : Task {
     private bool initGameGui() {
         mWindow = new GameFrame(mClientEngine);
         mGameFrame.add(mWindow);
+        if (mSavedSetViewPosition) {
+            mSavedSetViewPosition = false;
+            //mWindow.setPosition(mSavedViewPosition, false);
+            mWindow.mScrollToAtStart = mSavedViewPosition;
+            mWindow.resetCamera();
+        }
 
         return true;
     }
@@ -496,6 +506,7 @@ class GameTask : Task {
             bmp.unlockPixels(Rect2i.Empty);
             sg2.bitmaps ~= info;
         }
+        sg2.viewpos = mWindow.getPosition();
         writer.writeObject(sg2);
         //loading: add previously loaded level as external, read sg2,
         //reconstruct LandscapeBitmaps, add them as external references
@@ -545,6 +556,7 @@ class GameTask : Task {
         //why the fuck does GameConfig contain a Level anyway?
         GameConfig config;
         Time gametime;
+        Vector2i viewpos;
         //sorted by the order they appear in GameEngine.landscapeBitmaps()
         LevelBitmapInfo[] bitmaps;
 
