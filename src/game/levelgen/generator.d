@@ -86,7 +86,9 @@ abstract class LevelGenerator {
     ///aspect ratio of the preview picture, returns size_x/size_y
     abstract float previewAspect();
     ///create and render the previously loaded/generated Level and return it
-    abstract Level render();
+    /// render_bitmaps: if false, don't render bitmaps, which are e.g. saved in
+    ///                 a savegame anyway
+    abstract Level render(bool render_bitmaps = true);
 }
 
 ///generate/render a level from a template
@@ -113,7 +115,8 @@ class GenerateFromTemplate : LevelGenerator {
     }
 
     //prerender_id -> landscape
-    Landscape[char[]] prerendered;
+    LandscapeBitmap[char[]] prerendered;
+    LandscapeTheme[char[]] prerendered_theme; //parallel array
 
     void selectTheme(LevelTheme theme) {
         mCurTheme = theme;
@@ -147,7 +150,7 @@ class GenerateFromTemplate : LevelGenerator {
         return cast(float)geo.size.x/geo.size.y;
     }
 
-    override Level render() {
+    override Level render(bool render_bitmaps = true) {
         if (!mCurTheme) {
             mCurTheme = mShared.themes.findRandom();
             if (!mCurTheme)
@@ -158,6 +161,7 @@ class GenerateFromTemplate : LevelGenerator {
 
         Level nlevel = mUnrendered.copy();
         nlevel.theme = mCurTheme.environmentTheme;
+        nlevel.landBounds = Rect2i.Empty();
 
         auto saveto = new ConfigNode();
         nlevel.saved = saveto;
@@ -187,28 +191,33 @@ class GenerateFromTemplate : LevelGenerator {
                 auto land = castStrict!(LevelLandscape)(o);
 
                 Land rland = mLand[land.name];
-                Landscape rendered;
+                LandscapeBitmap rendered;
+                LandscapeTheme rendered_theme;
                 char[] type;
                 if (rland.geo_generated) {
-                    auto renderer =
-                        new LandscapeBitmap(rland.geo_generated.size);
-                    auto gt = mCurTheme.genTheme();
-                    landscapeRenderGeometry(renderer, rland.geo_generated, gt);
-                    LandscapeObjects objs = rland.objects;
-                    //never place objects in generated levels
-                    onode.setBoolValue("allow_place_objects", false);
-                    if (rland.placeObjects && !objs) {
-                        objs = landscapePlaceObjects(renderer, gt);
-                        //don't set rland.objects, because rland.objects is
-                        //only for objects which were loaded, not generated
+                    land.size = rland.geo_generated.size;
+                    if (render_bitmaps) {
+                        auto renderer =
+                            new LandscapeBitmap(rland.geo_generated.size);
+                        auto gt = mCurTheme.genTheme();
+                        landscapeRenderGeometry(renderer, rland.geo_generated,
+                            gt);
+                        LandscapeObjects objs = rland.objects;
+                        //never place objects in generated levels
+                        onode.setBoolValue("allow_place_objects", false);
+                        if (rland.placeObjects && !objs) {
+                            objs = landscapePlaceObjects(renderer, gt);
+                            //don't set rland.objects, because rland.objects is
+                            //only for objects which were loaded, not generated
+                        }
+                        if (objs) {
+                            landscapeRenderObjects(renderer, objs, gt);
+                        }
+                        rland.gen_objects = objs;
+                        rland.gen_objects.saveTo(onode.getSubNode("objects"));
+                        rendered = renderer;
                     }
-                    if (objs) {
-                        landscapeRenderObjects(renderer, objs, gt);
-                    }
-                    rland.gen_objects = objs;
-                    rland.gen_objects.saveTo(onode.getSubNode("objects"));
-                    rendered = renderer.createLandscape(
-                        mCurTheme.landscapeTheme, true);
+                    rendered_theme = mCurTheme.landscapeTheme;
                     rland.geo_generated.saveTo(onode.getSubNode("geometry"));
                     type = "landscape_generated";
                 } else if (rland.prerender_id != "") {
@@ -218,17 +227,25 @@ class GenerateFromTemplate : LevelGenerator {
                             ~ rland.prerender_id ~ "' not found");
                     }
                     rendered = *p;
+                    land.size = rendered.size;
+                    rendered_theme = prerendered_theme[rland.prerender_id];
                     onode.setStringValue("prerender_id", rland.prerender_id);
                     type = "landscape_prerendered";
                 } else {
                     assert(false, "nothing to render?");
                 }
-                assert(!!rendered, "no landscape was rendered");
+                if (render_bitmaps)
+                    assert(!!rendered, "no landscape was rendered");
+                assert(!!rendered_theme, "no landscape theme selected");
                 land.landscape = rendered;
+                land.landscape_theme = rendered_theme;
                 rland.land = land;
                 onode.setStringValue("type", type);
                 onode.setStringValue("position", str.format("%s %s",
                     land.position.x, land.position.y));
+                //onode.setStringValue("size", str.format("%s %s",
+                  //  land.size.x, land.size.y));
+                nlevel.landBounds.extend(Rect2i.Span(land.position, land.size));
             } else {
                 assert(false);
             }
@@ -391,7 +408,8 @@ class GenerateFromBitmap : LevelGenerator {
         LevelTheme mTheme;
         Surface mBitmap;
         char[] mFilename;
-        Landscape mLandscape;
+        LandscapeBitmap mLandscape;
+        LandscapeTheme mLandscapeTheme;
     }
 
     //make sure mGenerate is not null
@@ -414,6 +432,7 @@ class GenerateFromBitmap : LevelGenerator {
         auto templ = new LevelTemplate(node, "imported");
         mGenerate = new GenerateFromTemplate(mShared, templ);
         mGenerate.prerendered["import0"] = mLandscape;
+        mGenerate.prerendered_theme["import0"] = mLandscapeTheme;
         mGenerate.selectTheme(mTheme);
     }
 
@@ -431,8 +450,9 @@ class GenerateFromBitmap : LevelGenerator {
             return;
         updateTheme();
         //hurrrr isn't it fun
-        auto bmp = new LandscapeBitmap(mBitmap);
-        mLandscape = bmp.createLandscape(mTheme.landscapeTheme(), true);
+        mLandscape = new LandscapeBitmap(mBitmap);
+        mLandscapeTheme = mTheme.landscapeTheme();
+        assert (!!mLandscapeTheme);
     }
 
     void isCave(bool set) {
@@ -474,7 +494,7 @@ class GenerateFromBitmap : LevelGenerator {
         update();
         return mGenerate ? mGenerate.previewAspect() : float.nan;
     }
-    Level render() {
+    Level render(bool render_stuff = true) {
         update();
         Level res = mGenerate ? mGenerate.render() : null;
         if (res) {
@@ -535,8 +555,8 @@ class GenerateFromSaved : LevelGenerator {
         return mReal.preview(size);
     }
 
-    override Level render() {
-        return mReal.render();
+    override Level render(bool render_bitmaps = true) {
+        return mReal.render(render_bitmaps);
     }
 
     override float previewAspect() {

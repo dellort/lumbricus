@@ -122,8 +122,8 @@ class GameLandscape : GameObject {
         mSize = land.landscape.size;
         mOffset = land.position;
 
-        //landscape landscape landscape landscape
-        mLandscape = new LandscapeBitmap(land.landscape);
+        //landscape landscape landscape
+        mLandscape = land.landscape.copy();
 
         init();
     }
@@ -160,7 +160,7 @@ class GameLandscape : GameObject {
         auto vr = Vector2i(radius + cBlastBorder);
         if (Rect2i(mSize).intersects(Rect2i(-vr, vr) + pos)) {
             landscapeDamage(mLandscape, pos, radius,
-                mOriginal ? mOriginal.landscape.theme : null);
+                mOriginal ? mOriginal.landscape_theme : null);
             mPhysics.generationNo++;
 
             //this was for replication of the bitmap over network

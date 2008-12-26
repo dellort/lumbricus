@@ -122,11 +122,9 @@ class GameTask : Task {
         //argh, another step of indirection :/
         SimpleContainer mGameFrame;
 
-        //for save & load support
-        char[][Object] mExternalObjects;
-
         //temporary when loading a game
         SerializeInConfig mSaveGame;
+        RNGState mSavedRandomSeed;
         Time mSavedTime;
         Vector2i mSavedViewPosition;
         bool mSavedSetViewPosition;
@@ -192,12 +190,13 @@ class GameTask : Task {
             auto levelconffile = new ConfigFile(sg1.level, "some_savegame", null);
             auto gen = new GenerateFromSaved(new LevelGeneratorShared(),
                 levelconffile.rootnode());
-            //xxx: stupidly, the level is re-rendered, although it is not needed
-            Level level = gen.render();
+            //false parameter prevents re-rendering
+            Level level = gen.render(false);
             mSaveGame.addExternal(level, "level");
             auto sg2 = mSaveGame.readObjectT!(SaveGameData2)();
             mGameConfig = sg2.config;
             mSavedTime = sg2.gametime;
+            mSavedRandomSeed = sg2.randomstate;
             //urgh
             foreach (int n, SaveGameData2.LevelBitmapInfo bmp; sg2.bitmaps) {
                 //xxx: transparency, colorkey?
@@ -283,9 +282,7 @@ class GameTask : Task {
             mServerEngine = new GameEngine(mGameConfig, mGfx);
         } else {
             //analogous to saveGame()
-            foreach (Object o, char[] name; mExternalObjects) {
-                mSaveGame.addExternal(o, name);
-            }
+            addResources(mSaveGame);
             foreach (int index, LevelItem o; mGameConfig.level.objects) {
                 mSaveGame.addExternal(o, str.format("levelobject_%s", index));
             }
@@ -293,8 +290,10 @@ class GameTask : Task {
             ntime.initTime(mSavedTime);
             ntime.paused = true;
             mSaveGame.addExternal(ntime, "gametime");
-            //should we save the random seed? because of determinism etc.
-            mSaveGame.addExternal(new Random(), "random");
+            //
+            auto rnd = new Random();
+            rnd.state = mSavedRandomSeed;
+            mSaveGame.addExternal(rnd, "random");
             //sucks, need other solution etc.
             mSaveGame.addExternal(registerLog("gameengine"), "engine_log");
             mSaveGame.addExternal(registerLog("gamecontroller"), "controller_log");
@@ -333,7 +332,6 @@ class GameTask : Task {
             mLoadScreen.secondaryActive = false;
             mResPreloader = null;
             mGfx.finishLoading();
-            finishedResourceLoading();
             return true;
         }
     }
@@ -359,31 +357,19 @@ class GameTask : Task {
         }
     }
 
-    private void finishedResourceLoading() {
+    private void addResources(SerializeBase sb) {
         //support game save/restore: add all resources and some stuff from gfx
         // as external objects
-        addExternal("gfx", mGfx);
+        sb.addExternal(mGfx, "gfx");
         foreach (char[] key, TeamTheme tt; mGfx.teamThemes) {
-            addExternal("gfx_theme::" ~ key, tt);
+            sb.addExternal(tt, "gfx_theme::" ~ key);
         }
         foreach (ResourceSet.Entry res; mGfx.resources.resourceList()) {
             //this depends from resset.d's struct Resource
             //currently, the user has the direct resource object, so this must
             //be added as external object reference
-            addExternal("res::" ~ res.name(), res.wrapper.get());
+            sb.addExternal(res.wrapper.get(), "res::" ~ res.name());
         }
-        //various
-        // ... gametime, random generator, log...
-    }
-
-    private void externalObjects() {
-        //before saving or loading a game
-        addExternal("clientengine", mClientEngine);
-    }
-
-    void addExternal(char[] name, Object o) {
-        //assert (!(name in mExternalObjects));
-        mExternalObjects[o] = name;
     }
 
     private void gameLoaded(Loader sender) {
@@ -507,22 +493,21 @@ class GameTask : Task {
             sg2.bitmaps ~= info;
         }
         sg2.viewpos = mWindow.getPosition();
+        sg2.randomstate = engine.rnd.state;
         writer.writeObject(sg2);
         //loading: add previously loaded level as external, read sg2,
         //reconstruct LandscapeBitmaps, add them as external references
 
         //step 3
-        //these are all resources
-        foreach (Object o, char[] name; mExternalObjects) {
-            writer.addExternal(o, name);
-        }
+        //resources
+        addResources(writer);
         //this sucks, currently only needed to get the LandscapeTheme (glevel.d)
         foreach (int index, LevelItem o; level.objects) {
             writer.addExternal(o, str.format("levelobject_%s", index));
         }
         //new TimeSource is created manually on loading
         writer.addExternal(engine.gameTime, "gametime");
-        //should we save the random seed? because of determinism etc.
+        //random seed saved in sg2.randomstate
         writer.addExternal(engine.rnd, "random");
         //no, this can't be done so, another solution is needed
         writer.addExternal(engine.mLog, "engine_log");
@@ -557,6 +542,7 @@ class GameTask : Task {
         GameConfig config;
         Time gametime;
         Vector2i viewpos;
+        RNGState randomstate;
         //sorted by the order they appear in GameEngine.landscapeBitmaps()
         LevelBitmapInfo[] bitmaps;
 
@@ -604,6 +590,12 @@ class GameTask : Task {
             "list active game objects", ["bool?:list all objects"]));
         mCmds.register(Command("ser_dump", &cmdSerDump, "serialiation dump"));
         mCmds.register(Command("savetest", &cmdSaveTest, "save and reload"));
+        mCmds.register(Command("save", &cmdSaveGame, "save game",
+            ["text:name of the savegame (/savegames/<name>.conf)"]));
+        Command load = Command("load", &cmdLoadGame, "load game",
+            ["text?:name of the savegame, if none given, list all available"]);
+        load.setCompletionHandler(0, &listSavegames);
+        mCmds.register(load);
     }
 
     class ShowCollide : Container {
@@ -759,8 +751,11 @@ class GameTask : Task {
     }
 
     private void cmdSaveTest(MyBox[] args, Output write) {
-        ConfigNode cfg = saveGame();
-        saveConfig(cfg, "test_savegame.conf");
+        doSave("test_temp");
+        doLoad("test_temp");
+    }
+
+    private void unloadResetAndLoadSavegame(ConfigNode savegame) {
         unloadGame();
         if (mWindow) mWindow.remove();
         mWindow = null;
@@ -770,11 +765,65 @@ class GameTask : Task {
         mLoadScreen = null;
         mGameLoader = null;
         mResPreloader = null;
-        mExternalObjects = null;
         mSaveGame = null;
         GameConfig ncfg;
-        ncfg.load_savegame = cfg;
+        ncfg.load_savegame = savegame;
         initGame(ncfg);
+    }
+
+    const cSavegamePath = "/savegames/";
+    const cSavegameExt = ".conf";
+
+    void doSave(char[] name) {
+        //xxx detect invalid characters in name etc., but not now
+        ConfigNode saved = saveGame();
+        saveConfig(saved, cSavegamePath ~ name ~ cSavegameExt);
+    }
+
+    bool doLoad(char[] name) {
+        auto saved = gFramework.loadConfig(cSavegamePath ~ name ~ cSavegameExt,
+            true, true);
+        if (!saved)
+            return false;
+        //xxx catch exceptions etc.
+        unloadResetAndLoadSavegame(saved);
+        return true;
+    }
+
+    char[][] listSavegames() {
+        char[][] list;
+        gFramework.fs.listdir(cSavegamePath, "*" ~ cSavegameExt, false,
+            (char[] filename) {
+                if (endsWith(filename, cSavegameExt)) {
+                    list ~= filename[0 .. $ - cSavegameExt.length];
+                }
+                return true;
+            }
+        );
+        return list;
+    }
+
+    private void cmdSaveGame(MyBox[] args, Output write) {
+        auto name = args[0].unbox!(char[]);
+        doSave(name);
+        write.writefln("saved.");
+    }
+
+    private void cmdLoadGame(MyBox[] args, Output write) {
+        auto name = args[0].unboxMaybe!(char[]);
+        if (name == "") {
+            //list all savegames
+            write.writefln("Savegames:");
+            foreach (s; listSavegames()) {
+                write.writefln("  %s", s);
+            }
+            write.writefln("done.");
+        } else {
+            write.writefln("Loading: %s", name);
+            bool success = doLoad(name);
+            if (!success)
+                write.writefln("loading failed!");
+        }
     }
 
     static this() {

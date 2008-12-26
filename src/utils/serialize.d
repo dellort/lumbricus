@@ -202,10 +202,13 @@ class SerializeOutConfig : SerializeConfig {
                 D_Delegate* dgp = cast(D_Delegate*)ptr.ptr;
                 //warning: this might crash, if the delegate points to the
                 //         stack or a struct; we simply can't tell
-                debug writefln("hello, serialize.d might crash here.");
-                throw new SerializeError(str.format("couldn't write delegate, "
-                    "dest-class: %s function: %#x",
-                    (cast(Object)dgp.ptr).classinfo.name, dgp.funcptr));
+                char[] what = "enable version debug to see why";
+                debug {
+                    writefln("hello, serialize.d might crash here.");
+                    what = str.format("dest-class: %s function: %#x",
+                        (cast(Object)dgp.ptr).classinfo.name, dgp.funcptr);
+                }
+                throw new SerializeError("couldn't write delegate, "~what);
             }
             auto sub = cur.getSubNode(member);
             sub["dg_object"] = doWriteObject(file, dg_o);

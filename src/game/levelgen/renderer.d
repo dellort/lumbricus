@@ -590,35 +590,33 @@ class LandscapeBitmap {
     }
 
     //copy the level bitmap and per-pixel-metadata
-    public this(Landscape ls) {
-        this(ls.image.clone(), false);
-
-        mLevelData[] = ls.data;
+    public this(Surface bmp, Lexel[] a_data, bool copy = true) {
+        this(copy ? bmp.clone() : bmp, false);
+        //xxx: don't copy
+        mLevelData[] = a_data;
     }
 
-    //create using the bitmap and pixel data
-    //  release_this = don't copy image and metadata, instead, leave them to
-    //                 level and set own fields to null
-    public Landscape createLandscape(LandscapeTheme theme, bool release_this) {
-        Surface img;
-        Lexel[] data;
-        if (release_this) {
-            img = mImage;
-            data = mLevelData;
-        } else {
-            img = mImage.clone();
-            data = mLevelData.dup;
+    LandscapeBitmap copy() {
+        return new LandscapeBitmap(mImage, mLevelData);
+    }
+
+    //create a new Landscape which contains a copy of a subrectangle of this
+    LandscapeBitmap cutOutRect(Rect2i rc) {
+        rc.fitInsideB(Rect2i(mImage.size()));
+        //copy out the subrect from the metadata
+        if (!rc.isNormal())
+            return null; //negative sizes duh
+        Lexel[] ndata;
+        ndata.length = rc.size.x * rc.size.y;
+        uint sx = rc.size.x;
+        int o1 = 0;
+        int o2 = rc.p1.y*mWidth + rc.p1.x;
+        for (int y = 0; y < rc.size.y; y++) {
+            ndata[o1 .. o1 + sx] = mLevelData[o2 .. o2 + sx];
+            o1 += sx;
+            o2 += mWidth;
         }
-
-        auto lvl = new Landscape(img, data, theme);
-
-        if (release_this) {
-            mImage = null;
-            mLevelData = null;
-            mWidth = mHeight = 0;
-        }
-
-        return lvl;
+        return new LandscapeBitmap(mImage.subrect(rc), ndata, false);
     }
 
     //create from a bitmap; also used as common constructor

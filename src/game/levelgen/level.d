@@ -7,6 +7,7 @@ import game.levelgen.landscape;
 import utils.configfile;
 import utils.color;
 import utils.misc;
+import utils.rect2;
 import utils.vector2;
 
 //contains graphics about the global level "environment", which is currently how
@@ -62,6 +63,8 @@ class Level {
 
     //defines the world size; the rectangular area of everything you can view
     Vector2i worldSize;
+    //bounding box for the contained landscape(s), and possibly everything else
+    Rect2i landBounds;
 
     //allow airstrikes?
     bool airstrikeAllow;
@@ -111,16 +114,8 @@ class Level {
         return nlevel;
     }
 
-    //xxx should be changed, for now it's fine
     Vector2i worldCenter() {
-        Vector2i center;
-        foreach (o; objects) {
-            if (auto land = cast(LevelLandscape)o) {
-                center = land.position + land.landscape.size/2;
-                break;
-            }
-        }
-        return center;
+        return landBounds.center();
     }
 }
 
@@ -147,8 +142,10 @@ class LevelItem {
 }*/
 
 class LevelLandscape : LevelItem {
-    Vector2i position;
-    Landscape landscape;
+    Vector2i position, size;
+    LandscapeTheme landscape_theme;
+    //may be null, if the Level was render()ed with render_bitmaps=false
+    LandscapeBitmap landscape;
     //for each landscape side if there should be an impenetrable wall
     //bool[4] impenetrable;
 
@@ -156,6 +153,7 @@ class LevelLandscape : LevelItem {
         super.copyFrom(other);
         auto o = castStrict!(LevelLandscape)(other);
         position = o.position;
+        size = o.size;
         //if (o.landscape)
           //  landscape = o.landscape.copy();
         landscape = o.landscape;
