@@ -123,6 +123,8 @@ class CrateSprite : ActionSprite {
 
     this (ReflectCtor c) {
         super(c);
+        Types t = c.types();
+        t.registerMethod(this, &oncollect, "oncollect");
     }
 
     private void collected() {

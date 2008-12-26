@@ -53,6 +53,7 @@ class PhysicWorld {
 
     this (ReflectCtor c) {
         Types t = c.types();
+        c.transient(this, &mContacts);
         t.registerClasses!(typeof(mAllObjects), typeof(mForceObjects),
             typeof(mGeometryObjects), typeof(mObjects), typeof(mTriggers),
             typeof(mContactGenerators));
@@ -64,6 +65,8 @@ class PhysicWorld {
         PhysicZone.registerstuff(c);
         PhysicForce.registerstuff(c);
         t.registerMethod(this, &checkObjectCollision, "checkObjectCollision");
+        //initialization
+        mContacts.length = 1024;
     }
 
     public void add(PhysicBase obj) {

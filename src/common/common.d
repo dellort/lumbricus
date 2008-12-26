@@ -15,6 +15,7 @@ import utils.misc;
 import utils.path;
 import utils.perf;
 import std.stream;
+import zlib = std.zlib;
 
 public Common globals;
 
@@ -181,11 +182,35 @@ class Common {
 }
 
 //arrgh
-void saveConfig(ConfigNode node, char[] filename) {
+void saveConfig(ConfigNode node, char[] filename, bool compress = false) {
+    if (compress) {
+        saveConfigGz(node, filename~".gz");
+        return;
+    }
     auto stream = gFramework.fs.open(filename, FileMode.OutNew);
     try {
         auto textstream = new StreamOutput(stream);
         node.writeFile(textstream);
+    } finally {
+        stream.close();
+    }
+}
+
+void saveConfigGz(ConfigNode node, char[] filename) {
+    const ubyte[] cGzipHdr = [0x1f, 0x8b, 8, 0x0, 0, 0, 0, 0, 2, 3];
+    auto stream = gFramework.fs.open(filename, FileMode.OutNew);
+    try {
+        ubyte[] txt = cast(ubyte[])node.writeAsString();
+        uint crc = zlib.crc32(0, txt);
+        uint len = txt.length;
+
+        ubyte[] ndata = cast(ubyte[])zlib.compress(txt, 9);
+
+        stream.write(cGzipHdr);
+        //lolhack: kill zlib wrapper
+        stream.write(ndata[2..$-4]);
+        stream.write(crc);
+        stream.write(len);
     } finally {
         stream.close();
     }

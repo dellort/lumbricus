@@ -198,6 +198,11 @@ static this() {
 ///  this(ReflectCtor c) {} //durrrr
 interface ReflectCtor {
     Types types();
+
+    ///mark a class member as transient (not serialized)
+    ///member is still accessible for reflection
+    ///set instance to this
+    void transient(Object instance, void* member);
 }
 
 bool isReflectableClass(T)() {
@@ -214,11 +219,23 @@ class Types {
         ClassMethod[void*] mMethodMap;
         Class[char[]] mClassMap;
         FooHandler mFoo;
+        void delegate(size_t) mTransientHandler;
     }
 
     private class FooHandler : ReflectCtor {
         override Types types() {
             return this.outer;
+        }
+
+        //need instance pointer because called while in constructor
+        override void transient(Object instance, void* member) {
+            if (this.outer.mTransientHandler) {
+                assert(!!instance && member);
+                //get relative offset
+                auto p_obj = cast(void*)instance;
+                size_t rel_offset = cast(size_t)member - cast(size_t)p_obj;
+                this.outer.mTransientHandler(rel_offset);
+            }
         }
     }
 
@@ -292,9 +309,17 @@ class Types {
         assert (!(klass.mName in mClassMap));
         mClassMap[klass.mName] = klass;
         klass.mCreateDg = inst;
+
+        void membTransient(size_t relOffset) {
+            klass.addTransientMember(relOffset);
+        }
+
         if (!dummy) {
+            mTransientHandler = &membTransient;
             ReflectCtor c = mFoo;
             dummy = cast(T)inst(c);
+            //only during registration
+            mTransientHandler = null;
         }
         assert (!!dummy);
         klass.mDummy = dummy;
@@ -869,10 +894,11 @@ class Class {
         size_t mClassSize; //just used for verificating stuff
         char[] mName;
         ClassElement[] mElements;
-        ClassMember[] mMembers;
+        ClassMember[] mMembers, mNTMembers;
         ClassMethod[] mMethods;
         Object mDummy; //for default values
         Object delegate(ReflectCtor c) mCreateDg;
+        bool[size_t] mTransientCache;  //
     }
 
     private this(ReferenceType a_owner, TypeInfo_Class cti) {
@@ -900,10 +926,17 @@ class Class {
             assert (old.name() != e.name());
         }
         mElements = mElements ~ e;
-        if (auto me = cast(ClassMember)e)
+        if (auto me = cast(ClassMember)e) {
             mMembers ~= me;
+            if (!(me.offset in mTransientCache))
+                mNTMembers ~= me;
+        }
         if (auto md = cast(ClassMethod)e)
             mMethods ~= md;
+    }
+
+    private void addTransientMember(size_t relOffset) {
+        mTransientCache[relOffset] = true;
     }
 
     final ClassElement[] elements() {
@@ -912,6 +945,10 @@ class Class {
 
     final ClassMember[] members() {
         return mMembers;
+    }
+
+    final ClassMember[] nontransientMembers() {
+        return mNTMembers;
     }
 
     final ClassMethod[] methods() {
@@ -1025,9 +1062,9 @@ class ClassMember : ClassElement {
     }
 
     private this(Class a_owner, char[] a_name, Type a_type, size_t a_offset) {
-        super(a_owner, a_name);
         mType = a_type;
         mOffset = a_offset;
+        super(a_owner, a_name);
     }
 
     final Type type() {
@@ -1047,6 +1084,39 @@ class ClassMember : ClassElement {
         void* ptr = obj.realptr();
         assert (!!ptr);
         return SafePtr(mType, ptr + mOffset);
+    }
+
+    ///check if this member is set to the default value on the passed object
+    bool isInit(SafePtr obj) {
+        bool cmp(byte* a, byte* b, size_t len) {
+            //bytewise comparison
+            for (int i = 0; i < len; i++) {
+                if (a[i] != b[i])
+                    return false;
+            }
+            return true;
+        }
+
+        SafePtr memberPtr = get(obj);
+        byte* bptr_m = cast(byte*)memberPtr.ptr;
+        assert(bptr_m);
+        if (mOwner.isClass) {
+            //class, check against dummy instance
+            byte* bptr_def = (cast(byte*)mOwner.mDummy) + mOffset;
+            return cmp(bptr_m, bptr_def, type.size);
+        } else {
+            //struct, check against typeinfo
+            //attention: checks against default struct initializer,
+            //    not member initializer in class definition
+            void[] def = mOwner.type.typeInfo.init;
+            //not sure when exactly this fails
+            if (def.ptr) {
+                assert(def.length == mOwner.type.size);
+                byte* bptr_def = (cast(byte*)def.ptr) + mOffset;
+                return cmp(bptr_m, bptr_def, type.size);
+            }
+        }
+        return false;
     }
 }
 

@@ -132,9 +132,12 @@ class SerializeOutConfig : SerializeConfig {
             //(not for structs)
             auto dest = is_struct ? cur : cur.addUnnamedNode();
             ptr.type = ck.type(); //should be safe...
-            foreach (ClassMember m; ck.members()) {
-                SafePtr mptr = m.get(ptr);
-                doWriteMember(file, dest, m.name(), mptr);
+            foreach (ClassMember m; ck.nontransientMembers()) {
+                //don't write default values
+                if (is_struct || !m.isInit(ptr)) {
+                    SafePtr mptr = m.get(ptr);
+                    doWriteMember(file, dest, m.name(), mptr);
+                }
             }
             ck = ck.superClass();
         }
@@ -321,7 +324,7 @@ class SerializeInConfig : SerializeConfig {
         //urgh, should have a ConfigNode iterator or so
         void doit(ConfigNode dest) {
             ptr.type = ck.type(); //should be safe...
-            foreach (ClassMember m; ck.members()) {
+            foreach (ClassMember m; ck.nontransientMembers()) {
                 SafePtr mptr = m.get(ptr);
                 doReadMember(file, dest, m.name(), mptr);
             }
@@ -344,6 +347,10 @@ class SerializeInConfig : SerializeConfig {
     private void doReadMember(ConfigNode file, ConfigNode cur, char[] member,
         SafePtr ptr)
     {
+        if (!cur.hasValue(member) && !cur.hasNode(member)) {
+            //std.stdio.writefln("%s not found, using default",member);
+            return;
+        }
         if (auto et = cast(EnumType)ptr.type) {
             //dirty trick...
             ptr.type = et.underlying();
@@ -369,7 +376,7 @@ class SerializeInConfig : SerializeConfig {
                 typeError(ptr);
             auto sub = cur.findNode(member);
             if (!sub)
-                throw new SerializeError("?");
+                throw new SerializeError("struct ? -- "~st.toString~"::"~member);
             doReadMembers(file, sub, k, ptr);
             return;
         }

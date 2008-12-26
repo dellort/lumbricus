@@ -742,7 +742,7 @@ class GameTask : Task {
     }
 
     private void cmdSerDump(MyBox[] args, Output write) {
-        debugDumpTypeInfos(serialize_types);
+        //debugDumpTypeInfos(serialize_types);
         //debugDumpClassGraph(serialize_types, mServerEngine);
         //char[] res = dumpGraph(serialize_types, mServerEngine, mExternalObjects);
         //std.file.write("dump_graph.dot", res);

@@ -1241,11 +1241,9 @@ public class ConfigFile {
                 } else if (curChar >= 'a' && curChar <= 'f') {
                     val = curChar - 'a' + 10;
                 } else {
-                    //if (!printed_error) {
-                        reportError(false, "expected %s hex digits", digits-i);
-                        //printed_error = true;
-                        break;
-                    //}
+                    if (i == 0)
+                        reportError(false, "expected %s hex digits max", digits);
+                    break;
                 }
                 next();
                 value = (value << 8) | val;

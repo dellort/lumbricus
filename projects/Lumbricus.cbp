@@ -108,6 +108,7 @@
 		<Unit filename="..\src\game\levelgen\renderer.d" />
 		<Unit filename="..\src\game\loader.d" />
 		<Unit filename="..\src\game\sequence.d" />
+		<Unit filename="..\src\game\serialize_register.d" />
 		<Unit filename="..\src\game\sky.d" />
 		<Unit filename="..\src\game\sprite.d" />
 		<Unit filename="..\src\game\spriteactions.d" />
@@ -177,10 +178,15 @@
 		<Unit filename="..\src\physics\zone.d" />
 		<Unit filename="..\src\utils\array.d" />
 		<Unit filename="..\src\utils\bitstream.d" />
+		<Unit filename="..\src\utils\boxpacker.d" />
+		<Unit filename="..\src\utils\buffer.d" />
 		<Unit filename="..\src\utils\color.d" />
 		<Unit filename="..\src\utils\configfile.d" />
 		<Unit filename="..\src\utils\drawing.d" />
 		<Unit filename="..\src\utils\factory.d" />
+		<Unit filename="..\src\utils\filetools.d" />
+		<Unit filename="..\src\utils\gzip.d" />
+		<Unit filename="..\src\utils\list2.d" />
 		<Unit filename="..\src\utils\log.d" />
 		<Unit filename="..\src\utils\math.d" />
 		<Unit filename="..\src\utils\md.d" />
@@ -194,8 +200,11 @@
 		<Unit filename="..\src\utils\random.d" />
 		<Unit filename="..\src\utils\randval.d" />
 		<Unit filename="..\src\utils\rect2.d" />
+		<Unit filename="..\src\utils\reflection.d" />
 		<Unit filename="..\src\utils\rndkiss.d" />
+		<Unit filename="..\src\utils\serialize.d" />
 		<Unit filename="..\src\utils\strparser.d" />
+		<Unit filename="..\src\utils\test.d" />
 		<Unit filename="..\src\utils\time.d" />
 		<Unit filename="..\src\utils\timer.d" />
 		<Unit filename="..\src\utils\vector2.d" />

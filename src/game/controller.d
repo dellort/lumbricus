@@ -1036,6 +1036,8 @@ class GameController : GameLogicPublic {
 
         mMessages = new Queue!(Message);
         mLastMsgTime = timeSecs(-cMessageTime);
+        //only valid while loading
+        mWeaponSets = null;
     }
 
     this (ReflectCtor c) {
