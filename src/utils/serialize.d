@@ -3,6 +3,7 @@ module utils.serialize;
 import utils.configfile;
 import utils.reflection;
 import utils.misc;
+import utils.queue;
 
 import str = std.string;
 
@@ -86,13 +87,30 @@ class SerializeOutConfig : SerializeConfig {
     private {
         int mIDAlloc;
         int[Object] mObject2Id;
+        Queue!(Object) mObjectQueue;
     }
 
     this(SerializeContext a_ctx) {
         super(a_ctx, new ConfigNode());
+        mObjectQueue = new Queue!(Object);
     }
 
-    private char[] doWriteObject(ConfigNode file, Object o) {
+    private bool doWriteNextObject(ConfigNode file) {
+        if (mObjectQueue.empty)
+            return false;
+        Object o = mObjectQueue.pop;
+        SafePtr ptr = mCtx.mTypes.ptrOf(o);
+        Class klass = mCtx.mTypes.findClass(o);
+        if (!klass)
+            typeError(ptr, "can't serialize ["~o.toString()~"]");
+        auto nid = mObject2Id[o];
+        auto node = file.getSubNode(str.format("%d", nid));
+        node["type"] = klass.name();
+        doWriteMembers(file, node, klass, ptr);
+        return true;
+    }
+
+    private char[] queueObject(Object o) {
         if (o is null) {
             return "null";
         }
@@ -107,15 +125,9 @@ class SerializeOutConfig : SerializeConfig {
                 return "lolignored";
         }
         //(note that ptr actually points to "o", á la "ptr = &o;")
-        SafePtr ptr = mCtx.mTypes.ptrOf(o);
-        Class klass = mCtx.mTypes.findClass(o);
-        if (!klass)
-            typeError(ptr, "can't serialize ["~o.toString()~"]");
         auto nid = ++mIDAlloc;
         mObject2Id[o] = nid;
-        auto node = file.getSubNode(str.format("%d", nid));
-        node["type"] = klass.name();
-        doWriteMembers(file, node, klass, ptr);
+        mObjectQueue.push(o);
         return str.format("#%d", nid);
     }
 
@@ -158,7 +170,7 @@ class SerializeOutConfig : SerializeConfig {
         }
         if (cast(ReferenceType)ptr.type) {
             //object references
-            cur[member] = doWriteObject(file, ptr.toObject());
+            cur[member] = queueObject(ptr.toObject());
             return;
         }
         if (auto st = cast(StructType)ptr.type) {
@@ -214,7 +226,7 @@ class SerializeOutConfig : SerializeConfig {
                 throw new SerializeError("couldn't write delegate, "~what);
             }
             auto sub = cur.getSubNode(member);
-            sub["dg_object"] = doWriteObject(file, dg_o);
+            sub["dg_object"] = queueObject(dg_o);
             //sub["dg_method"] = dg_m ?
               //  str.format("%s::%s", dg_m.klass.name, dg_m.name) : "null";
             sub["dg_method"] = dg_m ? dg_m.name : "null";
@@ -242,7 +254,8 @@ class SerializeOutConfig : SerializeConfig {
 
     void writeObject(Object o) {
         ConfigNode cur = mFile.getSubNode("serialized").addUnnamedNode();
-        cur["_object"] = doWriteObject(cur, o);
+        cur["_object"] = queueObject(o);
+        while (doWriteNextObject(cur)) {}
     }
 
     ConfigNode finish() {

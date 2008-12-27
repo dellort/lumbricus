@@ -14,6 +14,7 @@ import utils.log, utils.output;
 import utils.misc;
 import utils.path;
 import utils.perf;
+import utils.gzip;
 import std.stream;
 import zlib = std.zlib;
 
@@ -182,6 +183,7 @@ class Common {
 }
 
 //arrgh
+//compress = true: do gzip compression, adds .gz to filename
 void saveConfig(ConfigNode node, char[] filename, bool compress = false) {
     if (compress) {
         saveConfigGz(node, filename~".gz");
@@ -196,21 +198,14 @@ void saveConfig(ConfigNode node, char[] filename, bool compress = false) {
     }
 }
 
+//same as above, always gzipped
+//will not modify file extension
 void saveConfigGz(ConfigNode node, char[] filename) {
-    const ubyte[] cGzipHdr = [0x1f, 0x8b, 8, 0x0, 0, 0, 0, 0, 2, 3];
     auto stream = gFramework.fs.open(filename, FileMode.OutNew);
     try {
         ubyte[] txt = cast(ubyte[])node.writeAsString();
-        uint crc = zlib.crc32(0, txt);
-        uint len = txt.length;
-
-        ubyte[] ndata = cast(ubyte[])zlib.compress(txt, 9);
-
-        stream.write(cGzipHdr);
-        //lolhack: kill zlib wrapper
-        stream.write(ndata[2..$-4]);
-        stream.write(crc);
-        stream.write(len);
+        ubyte[] gz = gzipData(txt);
+        stream.write(gz);
     } finally {
         stream.close();
     }

@@ -24,10 +24,12 @@ import utils.path;
 import utils.perf;
 import utils.time;
 import utils.weaklist;
+import utils.gzip;
 
 import conv = std.conv;
 import std.stream;
 import str = std.string;
+import zlib = std.zlib;
 
 debug import std.stdio;
 
@@ -1074,17 +1076,29 @@ class Framework {
     config.ConfigNode loadConfig(char[] section, bool asfilename = false,
         bool allowFail = false)
     {
-        VFSPath file = VFSPath(section ~ (asfilename ? "" : ".conf"));
+        char[] fnConf = section ~ (asfilename ? "" : ".conf");
+        VFSPath file = VFSPath(fnConf);
+        VFSPath fileGz = VFSPath(fnConf~".gz");
+        if (!fs.exists(file) && fs.exists(fileGz)) {
+            //found gzipped file instead of original
+            file = fileGz;
+        }
         mLog("load config: %s", file);
         try {
             scope s = fs.open(file);
-            auto f = new config.ConfigFile(s, file.get(), &logconf);
+            char[] data = s.readString(s.size());
+            //try unpacking, does nothing for txt files
+            char[] ndata = cast(char[])tryUnGzip(cast(ubyte[])data);
+            auto f = new config.ConfigFile(ndata, file.get(), &logconf);
             if (!f.rootnode)
                 throw new Exception("?");
             return f.rootnode;
         } catch (FilesystemException e) {
             if (!allowFail)
                 throw e;
+        } catch (zlib.ZlibException e) {
+            if (!allowFail)
+                throw new Exception("Decompression failed: "~e.msg);
         }
         mLog("config file %s failed to load (allowFail = true)", file);
         return null;

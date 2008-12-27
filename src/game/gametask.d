@@ -42,6 +42,7 @@ import utils.configfile;
 import utils.random;
 import utils.reflection;
 import utils.serialize;
+import utils.path;
 
 import std.stream;
 import std.outbuffer;
@@ -591,7 +592,7 @@ class GameTask : Task {
         mCmds.register(Command("ser_dump", &cmdSerDump, "serialiation dump"));
         mCmds.register(Command("savetest", &cmdSaveTest, "save and reload"));
         mCmds.register(Command("save", &cmdSaveGame, "save game",
-            ["text:name of the savegame (/savegames/<name>.conf)"]));
+            ["text?:name of the savegame (/savegames/<name>.conf)"]));
         Command load = Command("load", &cmdLoadGame, "load game",
             ["text?:name of the savegame, if none given, list all available"]);
         load.setCompletionHandler(0, &listSavegames);
@@ -742,7 +743,7 @@ class GameTask : Task {
     }
 
     private void cmdSerDump(MyBox[] args, Output write) {
-        //debugDumpTypeInfos(serialize_types);
+        debugDumpTypeInfos(serialize_types);
         //debugDumpClassGraph(serialize_types, mServerEngine);
         //char[] res = dumpGraph(serialize_types, mServerEngine, mExternalObjects);
         //std.file.write("dump_graph.dot", res);
@@ -772,16 +773,18 @@ class GameTask : Task {
     }
 
     const cSavegamePath = "/savegames/";
-    const cSavegameExt = ".conf";
+    const cSavegameExt = ".conf.gz";
+    const cSavegameExtLoad = ".conf";
+    const cSavegameDefName = "save";
 
     void doSave(char[] name) {
         //xxx detect invalid characters in name etc., but not now
         ConfigNode saved = saveGame();
-        saveConfig(saved, cSavegamePath ~ name ~ cSavegameExt);
+        saveConfigGz(saved, cSavegamePath ~ name ~ cSavegameExt);
     }
 
     bool doLoad(char[] name) {
-        auto saved = gFramework.loadConfig(cSavegamePath ~ name ~ cSavegameExt,
+        auto saved = gFramework.loadConfig(cSavegamePath~name~cSavegameExtLoad,
             true, true);
         if (!saved)
             return false;
@@ -792,7 +795,7 @@ class GameTask : Task {
 
     char[][] listSavegames() {
         char[][] list;
-        gFramework.fs.listdir(cSavegamePath, "*" ~ cSavegameExt, false,
+        gFramework.fs.listdir(cSavegamePath, "*", false,
             (char[] filename) {
                 if (endsWith(filename, cSavegameExt)) {
                     list ~= filename[0 .. $ - cSavegameExt.length];
@@ -804,9 +807,17 @@ class GameTask : Task {
     }
 
     private void cmdSaveGame(MyBox[] args, Output write) {
-        auto name = args[0].unbox!(char[]);
+        auto name = args[0].unboxMaybe!(char[]);
+        if (name.length == 0) {
+            //guess name
+            int i = 1;
+            while (gFramework.fs.exists(VFSPath(cSavegamePath
+                ~ cSavegameDefName ~ str.toString(i) ~ cSavegameExt)))
+                i++;
+            name = cSavegameDefName ~ str.toString(i);
+        }
         doSave(name);
-        write.writefln("saved.");
+        write.writefln("saved game as '%s'.",name);
     }
 
     private void cmdLoadGame(MyBox[] args, Output write) {
