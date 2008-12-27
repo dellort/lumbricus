@@ -272,6 +272,13 @@ class SerializeInConfig : SerializeConfig {
         //for each readObject() call
         ConfigNode[] mObjectNodes;
         Object[int] mId2Object;
+
+        struct QO {
+            ConfigNode node;
+            Class klass;
+            Object o;
+        }
+        QO[] mObjectQueue;
     }
 
     this(SerializeContext a_ctx, ConfigNode a_file) {
@@ -281,7 +288,8 @@ class SerializeInConfig : SerializeConfig {
         }
     }
 
-    private Object doReadObject(ConfigNode file, char[] id) {
+    //return an already deserialized object (no on-demand loading)
+    private Object getObject(char[] id) {
         if (id == "null") {
             return null;
         }
@@ -297,24 +305,8 @@ class SerializeInConfig : SerializeConfig {
             if (oid == -1)
                 throw new SerializeError("malformed ID (2): "~id);
             auto pobj = oid in mId2Object;
-            if (!pobj) {
-                //actually deserialize
-                ConfigNode node = file.findNode(str.format("%d", oid));
-                if (!node)
-                    throw new SerializeError("ID not found: "~id);
-                char[] type = node["type"];
-                Class klass = mCtx.mTypes.findClassByName(type);
-                if (!klass)
-                    throw new SerializeError("class not found: "~type);
-                Object res = klass.newInstance();
-                if (!res)
-                    throw new SerializeError("class could not be instantiated: "
-                        ~type);
-                pobj = &res;
-                SafePtr ptr = mCtx.mTypes.ptrOf(res);
-                mId2Object[oid] = res;
-                doReadMembers(file, node, klass, ptr);
-            }
+            if (!pobj)
+                throw new SerializeError("invalid object id (not found): "~id);
             return *pobj;
         }
         if (id.length > 4 && id[0..4] == "ext#") {
@@ -327,7 +319,40 @@ class SerializeInConfig : SerializeConfig {
         throw new SerializeError("malformed ID (3): "~id);
     }
 
-    private void doReadMembers(ConfigNode file, ConfigNode cur, Class klass,
+    //deserialize all objects in file
+    private void doReadObjects(ConfigNode file) {
+        //read all objects without members
+        foreach (ConfigNode node; file) {
+            //actually deserialize
+            int oid = -1;
+            try {
+                oid = conv.toInt(node.name);
+            } catch (conv.ConvError e) {
+            } catch (conv.ConvOverflowError e) {
+            }
+            //no error here, deserialize object nodes only
+            if (oid >= 0) {
+                char[] type = node["type"];
+                Class klass = mCtx.mTypes.findClassByName(type);
+                if (!klass)
+                    throw new SerializeError("class not found: "~type);
+                Object res = klass.newInstance();
+                if (!res)
+                    throw new SerializeError("class could not be instantiated: "
+                        ~type);
+                mId2Object[oid] = res;
+                mObjectQueue ~= QO(node, klass, res);
+            }
+        }
+        //set all members
+        foreach (qo; mObjectQueue) {
+            SafePtr ptr = mCtx.mTypes.ptrOf(qo.o);
+            doReadMembers(qo.node, qo.klass, ptr);
+        }
+        mObjectQueue = null;
+    }
+
+    private void doReadMembers(ConfigNode cur, Class klass,
         SafePtr ptr)
     {
         assert (!!klass);
@@ -339,7 +364,7 @@ class SerializeInConfig : SerializeConfig {
             ptr.type = ck.type(); //should be safe...
             foreach (ClassMember m; ck.nontransientMembers()) {
                 SafePtr mptr = m.get(ptr);
-                doReadMember(file, dest, m.name(), mptr);
+                doReadMember(dest, m.name(), mptr);
             }
         }
         if (is_struct) {
@@ -357,8 +382,7 @@ class SerializeInConfig : SerializeConfig {
             new SerializeError("what 2.");
     }
 
-    private void doReadMember(ConfigNode file, ConfigNode cur, char[] member,
-        SafePtr ptr)
+    private void doReadMember(ConfigNode cur, char[] member, SafePtr ptr)
     {
         if (!cur.hasValue(member) && !cur.hasNode(member)) {
             //std.stdio.writefln("%s not found, using default",member);
@@ -377,7 +401,7 @@ class SerializeInConfig : SerializeConfig {
             //object references
             //if (!rt.klass())
               //  typeError(ptr);
-            Object o = doReadObject(file, cur[member]);
+            Object o = getObject(cur[member]);
             if (!ptr.castAndAssignObject(o))
                 throw new SerializeError("can't assign, t="~ptr.type.toString
                     ~", o="~(o?o.classinfo.name:"null"));
@@ -390,7 +414,7 @@ class SerializeInConfig : SerializeConfig {
             auto sub = cur.findNode(member);
             if (!sub)
                 throw new SerializeError("struct ? -- "~st.toString~"::"~member);
-            doReadMembers(file, sub, k, ptr);
+            doReadMembers(sub, k, ptr);
             return;
         }
         if (ptr.type is mCtx.mTypes.getType!(char[])()) {
@@ -424,7 +448,7 @@ class SerializeInConfig : SerializeConfig {
             }
             for (int i = 0; i < arr.length; i++) {
                 SafePtr eptr = arr.get(i);
-                doReadMember(file, sub, str.format("%d", i), eptr);
+                doReadMember(sub, str.format("%d", i), eptr);
             }
             return;
         }
@@ -435,10 +459,10 @@ class SerializeInConfig : SerializeConfig {
             foreach (ConfigNode subsub; sub) {
                 map.setKey2(ptr,
                     (SafePtr key) {
-                        doReadMember(file, subsub, "key", key);
+                        doReadMember(subsub, "key", key);
                     },
                     (SafePtr value) {
-                        doReadMember(file, subsub, "value", value);
+                        doReadMember(subsub, "value", value);
                     }
                 );
             }
@@ -448,7 +472,7 @@ class SerializeInConfig : SerializeConfig {
             auto sub = cur.findNode(member);
             if (!sub)
                 throw new SerializeError("? (4)");
-            Object dest = doReadObject(file, sub["dg_object"]);
+            Object dest = getObject(sub["dg_object"]);
             char[] method = sub["dg_method"];
             ClassMethod m;
             if (dest) {
@@ -528,7 +552,8 @@ class SerializeInConfig : SerializeConfig {
             throw new SerializeError("no more objects for readObject()");
         ConfigNode cur = mObjectNodes[0];
         mObjectNodes = mObjectNodes[1..$];
-        return doReadObject(cur, cur["_object"]);
+        doReadObjects(cur);
+        return getObject(cur["_object"]);
     }
 
     //like readObject(), but cast to T and make failure a deserialization error
