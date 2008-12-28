@@ -1,5 +1,6 @@
 module gui.loader;
 
+import framework.i18n;
 import gui.container;
 import gui.widget;
 import utils.configfile;
@@ -16,6 +17,7 @@ class LoadGui {
         Factory!(Widget) mFactory;
         ConfigNode mTemplates;
         ConfigNode mConfig;
+        Translator mLocale;
 
         class Loader : GuiLoader {
             ConfigNode mNode;
@@ -29,6 +31,10 @@ class LoadGui {
             }
             Widget loadWidget(ConfigItem from) {
                 return loadFrom(from);
+            }
+
+            Translator locale() {
+                return mLocale;
             }
         }
     }
@@ -134,12 +140,19 @@ class LoadGui {
         mConfig = node;
         mTemplates = mConfig.getSubNode("templates");
         mTemplates.templatetifyNodes(cTemplate);
+
+
     }
 
     ///create and actually load GUI
     void load() {
         if (mRoot)
             return;
+        char[] loc = mConfig["locale"];
+        //returns copy of localeRoot if loc == ""
+        mLocale = Translator.ByNamespace(loc);
+        //no "missing id" if no translation was found, just return string
+        mLocale.errorString = false;
         foreach (char[] name, ConfigNode c; mConfig.getSubNode("elements")) {
             //hm, I resisted from that, it would be a hack
             //c.setStringValue("name", name);

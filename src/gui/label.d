@@ -154,7 +154,7 @@ class Label : Widget {
         if (fnt)
             mFont = fnt;
 
-        mText = node.getStringValue("text", mText);
+        mText = loader.locale()(node.getStringValue("text", mText));
         parseVector(node.getStringValue("border"), mBorder);
         mShrink = node.getBoolValue("shrink", mShrink);
         mDrawBorder = node.getBoolValue("draw_border", mDrawBorder);

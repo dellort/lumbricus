@@ -38,6 +38,7 @@ import std.stream;
 
 //for playing the preview
 import game.gametask;
+import game.setup;
 
 private:
 

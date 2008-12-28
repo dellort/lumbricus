@@ -13,6 +13,7 @@ import gui.tablecontainer;
 import gui.wm;
 import gui.dropdownlist;
 import game.gametask;
+import game.setup;
 import game.levelgen.generator;
 import game.levelgen.level;
 import std.thread;

@@ -419,8 +419,12 @@ class TableContainer : PublicContainer {
             } else {
                 //allow explicit relocation, but it isn't required
                 parseVector(child.getStringValue("table_at"), pos);
-                add(loader.loadWidget(child), pos.x, pos.y);
-                skip(1);
+                Vector2i span;
+                //xxx error checking
+                if (!parseVector(child.getStringValue("table_span"), span))
+                    span = Vector2i(1, 1);
+                add(loader.loadWidget(child), pos.x, pos.y, span.x, span.y);
+                skip(span.x*span.y);
             }
         }
 

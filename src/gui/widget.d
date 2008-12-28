@@ -2,6 +2,7 @@ module gui.widget;
 
 import framework.framework;
 import framework.event;
+import framework.i18n;
 import gui.container;
 import gui.gui;
 import utils.configfile;
@@ -746,6 +747,8 @@ interface GuiLoader {
     //load another Widget which can be used i.e. as a child
     //"from" is a ConfigNode or ConfigValue
     Widget loadWidget(ConfigItem from);
+    //locale of current config file
+    Translator locale();
 }
 
 //just a trivial Widget: have a minimum size and draw a color on its background

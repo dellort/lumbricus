@@ -21,6 +21,7 @@ import game.gfxset;
 import game.sprite;
 import game.crate;
 import game.gobject;
+import game.setup;
 import game.levelgen.landscape;
 import game.levelgen.level;
 import game.levelgen.generator;
@@ -756,7 +757,7 @@ class GameTask : Task {
         doLoad("test_temp");
     }
 
-    private void unloadResetAndLoadSavegame(ConfigNode savegame) {
+    private void unloadResetAndRestart(GameConfig cfg) {
         unloadGame();
         if (mWindow) mWindow.remove();
         mWindow = null;
@@ -767,15 +768,8 @@ class GameTask : Task {
         mGameLoader = null;
         mResPreloader = null;
         mSaveGame = null;
-        GameConfig ncfg;
-        ncfg.load_savegame = savegame;
-        initGame(ncfg);
+        initGame(cfg);
     }
-
-    const cSavegamePath = "/savegames/";
-    const cSavegameExt = ".conf.gz";
-    const cSavegameExtLoad = ".conf";
-    const cSavegameDefName = "save";
 
     void doSave(char[] name) {
         //xxx detect invalid characters in name etc., but not now
@@ -784,26 +778,16 @@ class GameTask : Task {
     }
 
     bool doLoad(char[] name) {
-        auto saved = gFramework.loadConfig(cSavegamePath~name~cSavegameExtLoad,
-            true, true);
-        if (!saved)
+        GameConfig ncfg;
+        if (!loadSavegame(name, ncfg))
             return false;
         //xxx catch exceptions etc.
-        unloadResetAndLoadSavegame(saved);
+        unloadResetAndRestart(ncfg);
         return true;
     }
 
     char[][] listSavegames() {
-        char[][] list;
-        gFramework.fs.listdir(cSavegamePath, "*", false,
-            (char[] filename) {
-                if (endsWith(filename, cSavegameExt)) {
-                    list ~= filename[0 .. $ - cSavegameExt.length];
-                }
-                return true;
-            }
-        );
-        return list;
+        return listAvailableSavegames();
     }
 
     private void cmdSaveGame(MyBox[] args, Output write) {
@@ -840,61 +824,6 @@ class GameTask : Task {
     static this() {
         TaskFactory.register!(typeof(this))("game");
     }
-}
-
-//xxx doesn't really belong here
-//not to be called by GameTask; instead, anyone who wants to start a game can
-//call this to the params out from a configfile
-//GameTask shoiuld not be responsible to choose any game configuration for you
-GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
-    //log("loadConfig");
-    GameConfig cfg;
-
-    if (level) {
-        cfg.level = level;
-    } else {
-        int what = mConfig.selectValueFrom("level",
-            ["generate", "load", "loadbmp", "restore"], 0);
-        auto x = new LevelGeneratorShared();
-        if (what == 0) {
-            auto gen = new GenerateFromTemplate(x, cast(LevelTemplate)null);
-            cfg.level = gen.render();
-        } else if (what == 1) {
-            cfg.level = loadSavedLevel(x,
-                gFramework.loadConfig(mConfig["level_load"], true));
-        } else if (what == 2) {
-            auto gen = new GenerateFromBitmap(x);
-            auto fn = mConfig["level_load_bitmap"];
-            gen.bitmap(gFramework.loadImage(fn), fn);
-            gen.selectTheme(x.themes.findRandom(mConfig["level_gfx"]));
-            cfg.level = gen.render();
-        } else if (what == 3) {
-            cfg.load_savegame = gFramework.loadConfig(mConfig["level_restore"]);
-            return cfg;
-        } else {
-            //wrong string in configfile or internal error
-            throw new Exception("noes noes noes!");
-        }
-    }
-
-    auto teamconf = gFramework.loadConfig("teams");
-    cfg.teams = teamconf.getSubNode("teams");
-
-    cfg.levelobjects = mConfig.getSubNode("levelobjects");
-
-    auto gamemodecfg = gFramework.loadConfig("gamemode");
-    auto modes = gamemodecfg.getSubNode("modes");
-    cfg.gamemode = modes.getSubNode(
-        mConfig.getStringValue("gamemode",""));
-    cfg.weapons = gamemodecfg.getSubNode("weapon_sets");
-
-    cfg.gfx = mConfig.getSubNode("gfx");
-    cfg.weaponsets = mConfig.getValueArray!(char[])("weaponsets");
-    if (cfg.weaponsets.length == 0) {
-        cfg.weaponsets ~= "default";
-    }
-
-    return cfg;
 }
 
 void saveLevel(Level g) {
