@@ -187,6 +187,10 @@ class AnimationGraphic : Graphic {
     //xxx use SequenceUpdate directly?
     Vector2i pos;
     AnimationParams params;
+    //xxx this is a hack only to make something in gameview.d work again
+    //    I don't know what we really should do here etc....
+    //    maybe make Sequence a "client" object again?
+    SequenceUpdate more;
 
     this (GameEngineGraphics a_owner) {
         super(a_owner);

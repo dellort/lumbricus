@@ -133,21 +133,6 @@ struct SafePtr {
         auto rt = cast(ReferenceType)type;
         if (!rt)
             throw new Exception("target not an object or interface type");
-        /+auto klass = rt.klass();
-        if (!klass)
-            throw new Exception("no type info for: "~rt.toString());
-        void** tptr = cast(void**)ptr;
-        if (!from) {
-            *tptr = null;
-            return true;
-        }
-        Class c = type.mOwner.findClass(from);
-        if (!c)
-            throw new Exception("no type info for: "~from.classinfo.name);
-        if (!c.isSubTypeOf(klass))
-            return false;
-        *cast(void**)ptr = cast(void*)from;+/
-        //lol
         void* p = rt.castTo(from);
         if (!p && from)
             return false;
@@ -896,7 +881,8 @@ class Class {
         ClassElement[] mElements;
         ClassMember[] mMembers, mNTMembers;
         ClassMethod[] mMethods;
-        Object mDummy; //for default values
+        Object mDummy; //for default values - only if isClass()
+        void[] mInit; //for default values - only if isStruct()
         Object delegate(ReflectCtor c) mCreateDg;
         bool[size_t] mTransientCache;  //
     }
@@ -906,8 +892,6 @@ class Class {
         mCI = cti.info;
         mClassSize = mCI.init.length;
         assert (mOwner.typeInfo() is cti);
-        //xxx: dummy can be a subclass of cti, check this?
-        //assert (cti.info is dummy.classinfo);
         assert (!a_owner.mClass);
         a_owner.mClass = this;
     }
@@ -917,6 +901,14 @@ class Class {
         mClassSize = a_owner.size();
         assert (!a_owner.mClass);
         a_owner.mClass = this;
+        //TypeInfo.init() can be null
+        //for the sake of generality, allocate a byte array in this case
+        TypeInfo ti = mOwner.typeInfo();
+        mInit = ti.init();
+        if (!mInit.length) {
+            mInit = new byte[ti.tsize()];
+        }
+        assert (mInit.length == mOwner.size());
     }
 
     private void addElement(ClassElement e) {
@@ -1005,6 +997,21 @@ class Class {
         new ClassMethod(this, dgt, funcptr, name);
     }
 
+    //find a method by name; also searches superclasses
+    //return null if not found
+    final ClassMethod findMethod(char[] name) {
+        Class ck = this;
+        outer: while (ck) {
+            foreach (ClassMethod curm; ck.methods()) {
+                if (curm.name() == name) {
+                    return curm;
+                }
+            }
+            ck = ck.superClass();
+        }
+        return null;
+    }
+
     //return if "this" is inherited from (or the same as) "other"
     final bool isSubTypeOf(Class other) {
         Class cur = this;
@@ -1088,35 +1095,20 @@ class ClassMember : ClassElement {
 
     ///check if this member is set to the default value on the passed object
     bool isInit(SafePtr obj) {
-        bool cmp(byte* a, byte* b, size_t len) {
-            //bytewise comparison
-            for (int i = 0; i < len; i++) {
-                if (a[i] != b[i])
-                    return false;
-            }
-            return true;
-        }
-
         SafePtr memberPtr = get(obj);
         byte* bptr_m = cast(byte*)memberPtr.ptr;
         assert(bptr_m);
+        byte* bptr_def;
         if (mOwner.isClass) {
             //class, check against dummy instance
-            byte* bptr_def = (cast(byte*)mOwner.mDummy) + mOffset;
-            return cmp(bptr_m, bptr_def, type.size);
+            bptr_def = (cast(byte*)mOwner.mDummy) + mOffset;
         } else {
             //struct, check against typeinfo
             //attention: checks against default struct initializer,
             //    not member initializer in class definition
-            void[] def = mOwner.type.typeInfo.init;
-            //not sure when exactly this fails
-            if (def.ptr) {
-                assert(def.length == mOwner.type.size);
-                byte* bptr_def = (cast(byte*)def.ptr) + mOffset;
-                return cmp(bptr_m, bptr_def, type.size);
-            }
+            bptr_def = (cast(byte*)mOwner.mInit.ptr) + mOffset;
         }
-        return false;
+        return bptr_m[0..type.size] == bptr_def[0..type.size];
     }
 }
 

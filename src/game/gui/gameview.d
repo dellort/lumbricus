@@ -401,8 +401,8 @@ class GameView : Container {
                         //possibly fix the animation
                         //get where worm looks too
                         bool faceLeft;
-                        if (auto se = cast(Sequence)graphic) {
-                            SequenceUpdate sd = se.getInfos();
+                        if (ag.more) {
+                            SequenceUpdate sd = ag.more;
                             faceLeft = angleLeftRight(sd.rotation_angle, true,
                                 false);
                         }

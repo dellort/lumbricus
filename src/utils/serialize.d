@@ -9,6 +9,53 @@ import str = std.string;
 
 debug import std.stdio : writefln;
 
+debug = CountClasses;
+
+/+
+Not-so-obvious limitations of the implemented serialization mechanism:
+- (Obvious one) All classes in the serialized object graph must be registered.
+- After serialization, arrays that pointed to the same data don't do that
+  anymore. E.g.:
+    class A {
+        int[] x;
+        int[] y;
+    }
+    A a = new A();
+    a.x = [1,2,3];
+    a.y = a.x;
+    assert(a.x.ptr is a.y.ptr); //of course succeeds
+    serialize(a);
+    A b = deserialize();
+    assert(b.x == b.y);         //succeeds
+    assert(b.x.ptr is b.y.ptr); //fails
+  Reason: referential integrity is maintained only across objects. Arrays are
+    simply copied. It would be too complicated, especially when array slices are
+    involved. If slices are disregarded, it wouldn't be that hard to handle
+    arrays correctly, but because so much data is in arrays (e.g. strings), it
+    probably would be rather inefficient.
+  The same is true for maps (aka AAs).
+  xxx: because AA variables either point to the same actual AA or are distinct,
+       these might be simpler to implement; but you somehow have to extract the
+       reference to the actual AA from the AA variable?
+- Recursive arrays/maps that point to themselves don't work. Example:
+    struct S {
+        S[] guu;
+    }
+    S[] h;
+    h.length = 1;
+    h[0].guu = h;
+  This will lead to a stack overflow when trying to serialize a class containing
+  this array. Same reason as above.
+- Enums are written as casted integers. Not doing so would require the user to
+  register a name for each enum item.
+  xxx: maybe one could at least add a check for .min and .max
+- Delegates work, but all methods have to be registered with a name. This also
+  means that all classes, that contain such methods, must be reflectable.
+- Not supported at all: pointers, function pointers, typedefs, unions, void[].
+- D standard classes like TypeInfo or ClassInfo are not supported.
+  (Although they could, under certain conditions.)
++/
+
 //type informations: mostly the stuff from utils.reflection, and possibly hooks
 // for custom serializtion of special object types
 class SerializeContext {
@@ -21,6 +68,7 @@ class SerializeContext {
     }
 }
 
+typedef Exception SerializeError;
 
 //base class for serializers/deserializers
 //"external" objects: objects which aren't serialized, but which are still
@@ -62,14 +110,36 @@ class SerializeBase {
             source.type, source.type.typeInfo(), add));
     }
 
+    //these functions are here because the inheritance hierarchy is hard to get
+    //right (especially with all my ridiculous base classes); maybe interfaces
+    //could be used, but these suck, also: templates?
+
+    //several objects can be written sequentially; these can be read in the same
+    //order when deserializing (like with a stream)
+    //the object can depend from previously written objects (they share they
+    //same object graph)
+    void writeObject(Object o) {
+        assert (false);
+    }
+
+    //parallel to writeObject()
+    Object readObject() {
+        assert (false);
+        return null;
+    }
+
+    //like readObject(), but cast to T and make failure a deserialization error
+    //by default, the result also must be non-null
+    T readObjectT(T)(bool can_be_null = false) {
+        auto o = readObject();
+        T t = cast(T)o;
+        if (o && !t)
+            throw new SerializeError("unexpected object type");
+        if (!o && !can_be_null)
+            throw new SerializeError("object is null");
+        return t;
+    }
 }
-
-typedef Exception SerializeError;
-
-/+interface SerializeOut {
-    abstract void writeObject(Object o);
-    abstract void addExternal(Object o, char[] id);
-}+/
 
 abstract class SerializeConfig : SerializeBase {
     private {
@@ -88,6 +158,9 @@ class SerializeOutConfig : SerializeConfig {
         int mIDAlloc;
         int[Object] mObject2Id;
         Queue!(Object) mObjectQueue;
+        debug (CountClasses) {
+            int[Class] mCounter;
+        }
     }
 
     this(SerializeContext a_ctx) {
@@ -99,10 +172,19 @@ class SerializeOutConfig : SerializeConfig {
         if (mObjectQueue.empty)
             return false;
         Object o = mObjectQueue.pop;
+        //(note that ptr actually points to "o", á la "ptr = &o;")
         SafePtr ptr = mCtx.mTypes.ptrOf(o);
         Class klass = mCtx.mTypes.findClass(o);
         if (!klass)
             typeError(ptr, "can't serialize ["~o.toString()~"]");
+        debug (CountClasses) {
+            auto pc = klass in mCounter;
+            if (pc) {
+                (*pc)++;
+            } else {
+                mCounter[klass] = 1;
+            }
+        }
         auto nid = mObject2Id[o];
         auto node = file.getSubNode(str.format("%d", nid));
         node["type"] = klass.name();
@@ -124,7 +206,6 @@ class SerializeOutConfig : SerializeConfig {
             if (o.classinfo is i)
                 return "lolignored";
         }
-        //(note that ptr actually points to "o", á la "ptr = &o;")
         auto nid = ++mIDAlloc;
         mObject2Id[o] = nid;
         mObjectQueue.push(o);
@@ -245,25 +326,56 @@ class SerializeOutConfig : SerializeConfig {
     private char[] blergh(T...)(SafePtr ptr) {
         foreach (x; T) {
             if (ptr.type.typeInfo() is typeid(x)) {
-                return str.format("%s", ptr.read!(x)());
+                char[] fmt = "%s";
+                static if (is(x == double) || is(x == float))
+                    fmt = "%a";
+                return str.format(fmt, ptr.read!(x)());
             }
         }
         typeError(ptr, "basetype");
         return "";
     }
 
-    void writeObject(Object o) {
+    override void writeObject(Object o) {
         ConfigNode cur = mFile.getSubNode("serialized").addUnnamedNode();
         cur["_object"] = queueObject(o);
         while (doWriteNextObject(cur)) {}
     }
 
     ConfigNode finish() {
+        /+
         auto exts = mFile.getSubNode("externals");
         foreach (char[] name; mExternals) {
             exts.setStringValue("", name);
         }
+        +/
+        debug (CountClasses) {
+            printAnnoyingStats();
+        }
         return mFile;
+    }
+
+    debug (CountClasses)
+    private void printAnnoyingStats() {
+        struct P {
+            int count;
+            Class c;
+            int opCmp(P* other) {
+                return count - other.count;
+            }
+        }
+        P[] list;
+        foreach (Class cl, int count; mCounter) {
+            list ~= P(count, cl);
+        }
+        list.sort;
+        writefln("Class count:");
+        int sum = 0;
+        foreach (x; list) {
+            writefln("  %4d  %s", x.count, x.c.name);
+            sum += x.count;
+        }
+        writefln("done, sum=%d.", sum);
     }
 }
 
@@ -272,13 +384,6 @@ class SerializeInConfig : SerializeConfig {
         //for each readObject() call
         ConfigNode[] mObjectNodes;
         Object[int] mId2Object;
-
-        struct QO {
-            ConfigNode node;
-            Class klass;
-            Object o;
-        }
-        QO[] mObjectQueue;
     }
 
     this(SerializeContext a_ctx, ConfigNode a_file) {
@@ -321,6 +426,12 @@ class SerializeInConfig : SerializeConfig {
 
     //deserialize all objects in file
     private void doReadObjects(ConfigNode file) {
+        struct QO {
+            ConfigNode node;
+            Class klass;
+            Object o;
+        }
+        QO[] objects;
         //read all objects without members
         foreach (ConfigNode node; file) {
             //actually deserialize
@@ -330,26 +441,25 @@ class SerializeInConfig : SerializeConfig {
             } catch (conv.ConvError e) {
             } catch (conv.ConvOverflowError e) {
             }
-            //no error here, deserialize object nodes only
-            if (oid >= 0) {
-                char[] type = node["type"];
-                Class klass = mCtx.mTypes.findClassByName(type);
-                if (!klass)
-                    throw new SerializeError("class not found: "~type);
-                Object res = klass.newInstance();
-                if (!res)
-                    throw new SerializeError("class could not be instantiated: "
-                        ~type);
-                mId2Object[oid] = res;
-                mObjectQueue ~= QO(node, klass, res);
-            }
+            //error here, because this contains object nodes only
+            if (oid < 0)
+                throw new SerializeError("malformed ID: "~node.name);
+            char[] type = node["type"];
+            Class klass = mCtx.mTypes.findClassByName(type);
+            if (!klass)
+                throw new SerializeError("class not found: "~type);
+            Object res = klass.newInstance();
+            if (!res)
+                throw new SerializeError("class could not be instantiated: "
+                    ~type);
+            mId2Object[oid] = res;
+            objects ~= QO(node, klass, res);
         }
         //set all members
-        foreach (qo; mObjectQueue) {
+        foreach (qo; objects) {
             SafePtr ptr = mCtx.mTypes.ptrOf(qo.o);
             doReadMembers(qo.node, qo.klass, ptr);
         }
-        mObjectQueue = null;
     }
 
     private void doReadMembers(ConfigNode cur, Class klass,
@@ -476,19 +586,9 @@ class SerializeInConfig : SerializeConfig {
             char[] method = sub["dg_method"];
             ClassMethod m;
             if (dest) {
-                //SafePtr optr = mCtx.mTypes.ptrOf(dest);
                 Class c = mCtx.mTypes.findClass(dest);
                 assert (!!c); //we deserialized it
-                Class ck = c;
-                outer: while (ck) {
-                    foreach (ClassMethod curm; ck.methods()) {
-                        if (curm.name() == method) {
-                            m = curm;
-                            break outer;
-                        }
-                    }
-                    ck = ck.superClass();
-                }
+                m = c.findMethod(method);
                 if (!m)
                     throw new SerializeError("method for delegate was not "
                         "found, name: "~method~" object: "~c.type.toString);
@@ -511,7 +611,7 @@ class SerializeInConfig : SerializeConfig {
         foreach (x; T) {
             if (ptr.type.typeInfo() is typeid(x)) {
                 try {
-                    //there don't seem to be anything generically useable functions
+                    //there don't seem to be any generically useable functions
                     //this is ok too for now
                     x val;
                     static if (is(x == char)) {
@@ -540,14 +640,15 @@ class SerializeInConfig : SerializeConfig {
                 } catch (conv.ConvError e) {
                 } catch (conv.ConvOverflowError e) {
                 }
-                throw new SerializeError("conversion failed: '"~s~"' -> "~ptr.type.toString);
+                throw new SerializeError("conversion failed: '"~s~"' -> "
+                    ~ptr.type.toString);
             }
         }
         typeError(ptr, "basetype");
         return "";
     }
 
-    Object readObject() {
+    override Object readObject() {
         if (!mObjectNodes.length)
             throw new SerializeError("no more objects for readObject()");
         ConfigNode cur = mObjectNodes[0];

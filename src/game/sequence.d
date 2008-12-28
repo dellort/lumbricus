@@ -680,6 +680,7 @@ class WormStateDisplay : AniStateDisplay {
         p.p1 = cast(int)(mAngles[0]/PI*180);
         p.p2 = cast(int)(mAngles[1]/PI*180);
         mAnimator.update(v.position, p);
+        mAnimator.more = v;
         //all updates for jetpack flames
         //why is the jetpack so ridiculously complicated?
         WormState state = mCurSubSeq ? mCurSubSeq.owner : null;
