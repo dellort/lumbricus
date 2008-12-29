@@ -156,7 +156,7 @@ class Button : Label {
         }
     }
 
-    private void doClick() {
+    protected void doClick() {
         if (mIsCheckbox) {
             mChecked = !mChecked;
             updateCheckboxState();
