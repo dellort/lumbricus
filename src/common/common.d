@@ -198,14 +198,45 @@ void saveConfig(ConfigNode node, char[] filename, bool compress = false) {
     }
 }
 
+class GZStreamOutput : OutputHelper {
+    private {
+        Stream output_stream;
+        GZWriter writer;
+    }
+
+    this(Stream s) {
+        assert (!!s);
+        output_stream = s;
+        writer = new GZWriter(&doWrite);
+    }
+
+    void finish() {
+        assert (!!output_stream);
+        writer.finish();
+        output_stream = null;
+        writer = null;
+    }
+
+    private void doWrite(ubyte[] s) {
+        output_stream.writeExact(s.ptr, s.length);
+    }
+
+    override void writeString(char[] str) {
+        writer.write(cast(ubyte[])str);
+    }
+}
+
 //same as above, always gzipped
 //will not modify file extension
 void saveConfigGz(ConfigNode node, char[] filename) {
     auto stream = gFramework.fs.open(filename, FileMode.OutNew);
     try {
-        ubyte[] txt = cast(ubyte[])node.writeAsString();
+        /*ubyte[] txt = cast(ubyte[])node.writeAsString();
         ubyte[] gz = gzipData(txt);
-        stream.write(gz);
+        stream.write(gz);*/
+        auto w = new GZStreamOutput(stream);
+        node.writeFile(w);
+        w.finish();
     } finally {
         stream.close();
     }

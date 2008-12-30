@@ -91,7 +91,7 @@ class GameConfig {
     }
 
     //xxx hack that was convenient BUT MUST DIE PLEASE KILL ME
-    ConfigNode load_savegame;
+    char[] load_savegame; //now a filename
 }
 
 //for now, these are concrete classes...

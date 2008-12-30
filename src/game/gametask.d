@@ -174,6 +174,10 @@ class GameTask : Task {
         mCmds.bind(globals.cmdLine);
     }
 
+    struct BmpHeader {
+        int sx, sy;
+    }
+
     //start game intialization
     //it's not clear when initialization is finished (but it shows a loader gui)
     private void initGame(GameConfig cfg) {
@@ -185,9 +189,39 @@ class GameTask : Task {
 
             mGameConfig.level = fuzzleLevel(mGameConfig.level);
         } else {
+            ZReader reader = new ZReader(cfg.load_savegame);
+
+            //------ bitmaps
+            LandscapeBitmap[] bitmaps;
+            int bmp_count;
+            reader.read_ptr(&bmp_count, bmp_count.sizeof);
+            while (bmp_count > 0) {
+                bmp_count--;
+                BmpHeader bheader;
+                reader.read_ptr(&bheader, bheader.sizeof);
+                auto size = Vector2i(bheader.sx, bheader.sy);
+                //xxx: transparency, colorkey?
+                Surface s = gFramework.createSurface(size, Transparency.Colorkey);
+                LandscapeBitmap lb = new LandscapeBitmap(s, false);
+                bitmaps ~= lb;
+                auto lexels = lb.levelData();
+                reader.read_ptr(lexels.ptr, Lexel.sizeof*lexels.length);
+                void* pixels;
+                uint pitch;
+                s.lockPixelsRGBA32(pixels, pitch);
+                uint linesize = size.x*uint.sizeof;
+                for (int i = 0; i < size.y; i++) {
+                    reader.read_ptr(pixels, linesize);
+                    pixels += pitch;
+                }
+                s.unlockPixels(Rect2i(size));
+            }
+
+            //------- game data
+            ConfigNode savegame = reader.readConfigFile();
             serialize_types.registerClass!(SaveGameHeader);
             auto ctx = new SerializeContext(serialize_types);
-            mSaveGame = new SerializeInConfig(ctx, cfg.load_savegame);
+            mSaveGame = new SerializeInConfig(ctx, savegame);
             auto sg = mSaveGame.readObjectT!(SaveGameHeader)();
             auto configfile = new ConfigFile(sg.config, "some_savegame", null);
             mGameConfig = new GameConfig();
@@ -202,33 +236,13 @@ class GameTask : Task {
             mSavedTime = sg.gametime;
             mSavedRandomSeed = sg.randomstate;
             //urgh
-            foreach (int n, SaveGameHeader.LevelBitmapInfo bmp; sg.bitmaps) {
-                //xxx: transparency, colorkey?
-                Surface s = gFramework.createSurface(bmp.size, Transparency.Colorkey);
-                LandscapeBitmap lb = new LandscapeBitmap(s, false);
-                if (lb.levelData().length != bmp.lexels.length
-                    || bmp.image.length != bmp.size.x*bmp.size.y*uint.sizeof)
-                {
-                    throw new Exception("size mismatches in bitmap");
-                }
-                lb.levelData()[] = cast(Lexel[])bmp.lexels;
-                void* pixels;
-                uint pitch;
-                s.lockPixelsRGBA32(pixels, pitch);
-                uint offset = 0, linesize = bmp.size.x*uint.sizeof;
-                for (int i = 0; i < bmp.size.y; i++) {
-                    pixels[0 .. linesize] =
-                        cast(byte[])bmp.image[offset .. offset + linesize];
-                    pixels += pitch;
-                    offset += linesize;
-                }
-                s.unlockPixels(Rect2i(bmp.size));
-                delete bmp.image;
-                delete bmp.lexels;
+            foreach (int n, LandscapeBitmap lb; bitmaps) {
                 mSaveGame.addExternal(lb, str.format("landscape_%s", n));
             }
             mSavedViewPosition = sg.viewpos;
             mSavedSetViewPosition = true;
+
+            reader.close();
         }
 
         mLoadScreen = new LoadingScreen();
@@ -453,8 +467,34 @@ class GameTask : Task {
         doFade();
     }
 
-    ConfigNode saveGame() {
+    void saveGame(ZWriter zwriter) {
         GameEngine engine = mServerEngine;
+
+        //---- bitmaps
+        auto bitmaps = engine.landscapeBitmaps();
+        int bmp_count = bitmaps.length;
+        zwriter.write_ptr(&bmp_count, bmp_count.sizeof);
+        foreach (LandscapeBitmap lb; bitmaps) {
+            BmpHeader bheader;
+            bheader.sx = lb.size.x;
+            bheader.sy = lb.size.y;
+            zwriter.write_ptr(&bheader, bheader.sizeof);
+            auto size = lb.size();
+            Lexel[] lexels = lb.levelData();
+            zwriter.write_ptr(lexels.ptr, Lexel.sizeof*lexels.length);
+            auto bmp = lb.image();
+            assert (bmp.size == size);
+            void* pixels;
+            uint pitch;
+            bmp.lockPixelsRGBA32(pixels, pitch);
+            uint linesize = size.x*uint.sizeof;
+            for (int i = 0; i < size.y; i++) {
+                zwriter.write_ptr(pixels, linesize);
+                pixels += pitch;
+            }
+            bmp.unlockPixels(Rect2i.Empty);
+        }
+
         serialize_types.registerClass!(SaveGameHeader);
         auto ctx = new SerializeContext(serialize_types);
         auto writer = new SerializeOutConfig(ctx);
@@ -471,27 +511,9 @@ class GameTask : Task {
         //manually save each landscape bitmap
         //this is a special case, because unlike all other bitmaps (and
         //animations etc.), these are modified by the game
-        auto bitmaps = engine.landscapeBitmaps();
         for (int n = 0; n < bitmaps.length; n++) {
             LandscapeBitmap lb = bitmaps[n];
             writer.addExternal(lb, str.format("landscape_%s", n));
-            SaveGameHeader.LevelBitmapInfo info;
-            info.size = lb.size();
-            info.lexels = cast(byte[])lb.levelData();
-            auto bmp = lb.image();
-            info.image.length = bmp.size.x*bmp.size.y*uint.sizeof;
-            void* pixels;
-            uint pitch;
-            bmp.lockPixelsRGBA32(pixels, pitch);
-            uint offset = 0, linesize = bmp.size.x*uint.sizeof;
-            for (int i = 0; i < bmp.size.y; i++) {
-                info.image[offset .. offset + linesize]
-                    = cast(byte[])pixels[0 .. linesize];
-                pixels += pitch;
-                offset += linesize;
-            }
-            bmp.unlockPixels(Rect2i.Empty);
-            sg.bitmaps ~= info;
         }
         sg.viewpos = mWindow.getPosition();
         sg.randomstate = engine.rnd.state;
@@ -517,7 +539,8 @@ class GameTask : Task {
         //gameTime (by using the time stored in sg2), create something for
         //"random", add them as externals; load the GameEngine and done.
 
-        return writer.finish();
+        ConfigNode g = writer.finish();
+        zwriter.writeConfigFile(g);
     }
 
     static class SaveGameHeader {
@@ -525,17 +548,6 @@ class GameTask : Task {
         Time gametime;
         Vector2i viewpos;
         RNGState randomstate;
-        //sorted by the order they appear in GameEngine.landscapeBitmaps()
-        LevelBitmapInfo[] bitmaps;
-
-        //used to reconstruct a LandscapeBitmap
-        struct LevelBitmapInfo {
-            Vector2i size;
-            //RGBA32 coded image (concatenated scanlines)
-            byte[] image;
-            //that nasty per-pixel metadata
-            byte[] lexels;
-        }
 
         this() {
         }
@@ -728,8 +740,8 @@ class GameTask : Task {
         //debugDumpClassGraph(serialize_types, mServerEngine);
         //char[] res = dumpGraph(serialize_types, mServerEngine, mExternalObjects);
         //std.file.write("dump_graph.dot", res);
-        ConfigNode cfg = saveGame();
-        saveConfig(cfg, "savegame.conf");
+        //ConfigNode cfg = saveGame();
+        //saveConfig(cfg, "savegame.conf");
     }
 
     private void cmdSaveTest(MyBox[] args, Output write) {
@@ -753,8 +765,12 @@ class GameTask : Task {
 
     void doSave(char[] name) {
         //xxx detect invalid characters in name etc., but not now
-        ConfigNode saved = saveGame();
-        saveConfigGz(saved, cSavegamePath ~ name ~ cSavegameExt);
+        char[] path = cSavegamePath ~ name ~ cSavegameExt;
+        //ConfigNode saved = saveGame();
+        //saveConfigGz(saved, path);
+        ZWriter writer = new ZWriter(path);
+        saveGame(writer);
+        writer.close();
     }
 
     bool doLoad(char[] name) {
@@ -961,4 +977,102 @@ char[] dumpGraph(Types t, Object root, char[][Object] externals) {
         std.stdio.writefln("  %s", x);
 
     return r;
+}
+
+import gzip = utils.gzip;
+
+//write an "archive", the only point is to support streaming + compression
+//could be changed to output the zip or tar format
+//tar would contain compressed file (instead of being a tar.gz)
+class ZWriter {
+    private {
+        gzip.GZWriter mWriter;
+        Stream mOut;
+    }
+
+    this(char[] f) {
+        mOut = gFramework.fs.open(f, FileMode.OutNew);
+        mWriter = new gzip.GZWriter(&doWrite);
+    }
+
+    private void doWrite(ubyte[] data) {
+        mOut.writeExact(data.ptr, data.length);
+    }
+
+    void write(ubyte[] data) {
+        mWriter.write(data);
+    }
+    void write_ptr(void* ptr, size_t size) {
+        write(cast(ubyte[])(ptr[0..size]));
+    }
+
+    private class MyOutput : OutputHelper {
+        override void writeString(char[] str) {
+            this.outer.write(cast(ubyte[])str);
+        }
+    }
+
+    void writeConfigFile(ConfigNode n) {
+        n.writeFile(new MyOutput());
+    }
+
+    void close() {
+        mWriter.finish();
+        mWriter = null;
+        mOut.close();
+        mOut = null;
+    }
+}
+
+class ZReader {
+    private {
+        gzip.GZReader mReader;
+        Stream mIn;
+        ubyte[] mBuffer;
+    }
+
+    this(char[] f) {
+        mIn = gFramework.fs.open(f, FileMode.In);
+        mBuffer.length = 64*1024;
+        mReader = new gzip.GZReader(&doRead);
+    }
+
+    private ubyte[] doRead() {
+        uint res = mIn.read(mBuffer);
+        if (res < mBuffer.length) {
+            assert (mIn.eof());
+        }
+        return mBuffer[0..res];
+    }
+
+    ubyte[] read(ubyte[] data) {
+        return mReader.read(data);
+    }
+    void read_ptr(void* ptr, size_t size) {
+        ubyte[] res = read(cast(ubyte[])(ptr[0..size]));
+        if (res.length != size)
+            throw new Exception("read error: not enough data available");
+    }
+
+    ConfigNode readConfigFile() {
+        //xxx: this is a major wtf: I don't know how much data to read (because
+        //     I don't store the size), so I read everything lol
+        //it's also inefficient
+        //how to fix: write the size somewhere (like .zip does)
+        ubyte[] bla, res;
+        bla.length = 64*1024;
+        while (bla.length) {
+            bla = read(bla);
+            res ~= bla;
+        }
+        auto f = new ConfigFile(cast(char[])res, "zreader", null);
+        return f.rootnode();
+    }
+
+    void close() {
+        mReader.finish();
+        mReader = null;
+        mIn.close();
+        mIn = null;
+    }
 }

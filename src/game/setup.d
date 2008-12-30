@@ -12,7 +12,7 @@ import utils.configfile;
 import utils.misc;
 
 const cSavegamePath = "/savegames/";
-const cSavegameExt = ".conf.gz";
+const cSavegameExt = ".what";
 const cSavegameDefName = "save";
 
 //xxx doesn't really belong here
@@ -42,7 +42,8 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
             gen.selectTheme(x.themes.findRandom(mConfig["level_gfx"]));
             cfg.level = gen.render();
         } else if (what == 3) {
-            cfg.load_savegame = gFramework.loadConfig(mConfig["level_restore"]);
+            //cfg.load_savegame = gFramework.loadConfig(mConfig["level_restore"]);
+            cfg.load_savegame = mConfig["level_restore"];
             return cfg;
         } else {
             //wrong string in configfile or internal error
@@ -87,12 +88,12 @@ char[][] listAvailableSavegames() {
 
 bool loadSavegame(char[] save, out GameConfig cfg) {
     cfg = new GameConfig();
-    auto saved = gFramework.loadConfig(cSavegamePath~save,
+    /+auto saved = gFramework.loadConfig(cSavegamePath~save,
         false, true);
     if (!saved)
         return false;
     if (!saved.getSubNode("serialized", false))
-        return false;
-    cfg.load_savegame = saved;
+        return false;+/
+    cfg.load_savegame = cSavegamePath ~ save ~ cSavegameExt;
     return true;
 }
