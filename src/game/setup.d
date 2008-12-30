@@ -21,7 +21,7 @@ const cSavegameDefName = "save";
 //GameTask shoiuld not be responsible to choose any game configuration for you
 GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
     //log("loadConfig");
-    GameConfig cfg;
+    GameConfig cfg = new GameConfig();
 
     if (level) {
         cfg.level = level;
@@ -49,6 +49,8 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
             throw new Exception("noes noes noes!");
         }
     }
+
+    cfg.saved_level = cfg.level.saved;
 
     auto teamconf = gFramework.loadConfig("teams");
     cfg.teams = teamconf.getSubNode("teams");
@@ -84,6 +86,7 @@ char[][] listAvailableSavegames() {
 }
 
 bool loadSavegame(char[] save, out GameConfig cfg) {
+    cfg = new GameConfig();
     auto saved = gFramework.loadConfig(cSavegamePath~save,
         false, true);
     if (!saved)

@@ -64,8 +64,8 @@ Types serialize_types;
 Level fuzzleLevel(Level level) {
     return level; //comment out for testing
 
-    const cTile = 128;
-    const cSpace = 2; //even more for testing only
+    const cTile = 512;
+    const cSpace = 4; //even more for testing only
     const cTileSize = cTile + cSpace;
 
     auto rlevel = level.copy();
@@ -75,8 +75,8 @@ Level fuzzleLevel(Level level) {
     });
     foreach (o; level.objects) {
         if (auto ls = cast(LevelLandscape)o) {
-            auto sx = (ls.landscape.size.x + cTileSize - 1) / cTileSize;
-            auto sy = (ls.landscape.size.y + cTileSize - 1) / cTileSize;
+            auto sx = (ls.landscape.size.x + cTile - 1) / cTile;
+            auto sy = (ls.landscape.size.y + cTile - 1) / cTile;
             for (int y = 0; y < sy; y++) {
                 for (int x = 0; x < sx; x++) {
                     auto nls = castStrict!(LevelLandscape)(ls.copy);
@@ -185,22 +185,24 @@ class GameTask : Task {
 
             mGameConfig.level = fuzzleLevel(mGameConfig.level);
         } else {
-            serialize_types.registerClasses!(SaveGameData1, SaveGameData2);
+            serialize_types.registerClass!(SaveGameHeader);
             auto ctx = new SerializeContext(serialize_types);
             mSaveGame = new SerializeInConfig(ctx, cfg.load_savegame);
-            auto sg1 = mSaveGame.readObjectT!(SaveGameData1)();
-            auto levelconffile = new ConfigFile(sg1.level, "some_savegame", null);
+            auto sg = mSaveGame.readObjectT!(SaveGameHeader)();
+            auto configfile = new ConfigFile(sg.config, "some_savegame", null);
+            mGameConfig = new GameConfig();
+            mGameConfig.load(configfile.rootnode());
             auto gen = new GenerateFromSaved(new LevelGeneratorShared(),
-                levelconffile.rootnode());
+                mGameConfig.saved_level);
             //false parameter prevents re-rendering
             Level level = gen.render(false);
+            mGameConfig.level = level;
             mSaveGame.addExternal(level, "level");
-            auto sg2 = mSaveGame.readObjectT!(SaveGameData2)();
-            mGameConfig = sg2.config;
-            mSavedTime = sg2.gametime;
-            mSavedRandomSeed = sg2.randomstate;
+            mSaveGame.addExternal(mGameConfig, "gameconfig");
+            mSavedTime = sg.gametime;
+            mSavedRandomSeed = sg.randomstate;
             //urgh
-            foreach (int n, SaveGameData2.LevelBitmapInfo bmp; sg2.bitmaps) {
+            foreach (int n, SaveGameHeader.LevelBitmapInfo bmp; sg.bitmaps) {
                 //xxx: transparency, colorkey?
                 Surface s = gFramework.createSurface(bmp.size, Transparency.Colorkey);
                 LandscapeBitmap lb = new LandscapeBitmap(s, false);
@@ -225,7 +227,7 @@ class GameTask : Task {
                 delete bmp.lexels;
                 mSaveGame.addExternal(lb, str.format("landscape_%s", n));
             }
-            mSavedViewPosition = sg2.viewpos;
+            mSavedViewPosition = sg.viewpos;
             mSavedSetViewPosition = true;
         }
 
@@ -453,22 +455,19 @@ class GameTask : Task {
 
     ConfigNode saveGame() {
         GameEngine engine = mServerEngine;
-        serialize_types.registerClasses!(SaveGameData1, SaveGameData2);
+        serialize_types.registerClass!(SaveGameHeader);
         auto ctx = new SerializeContext(serialize_types);
         auto writer = new SerializeOutConfig(ctx);
 
-        //step 1
-        auto sg1 = new SaveGameData1();
-        Level level = engine.gameConfig.level;
-        sg1.level = level.saved.writeAsString();
-        writer.writeObject(sg1);
-        //loading: read sg1 and create Level
-
-        //step 2
+        auto sg = new SaveGameHeader();
+        auto gameconfig = engine.gameConfig;
+        ConfigNode conf = gameconfig.save();
+        sg.config = conf.writeAsString();
+        Level level = gameconfig.level;
         writer.addExternal(level, "level");
-        auto sg2 = new SaveGameData2();
-        sg2.config = engine.gameConfig;
-        sg2.gametime = engine.gameTime.current;
+        writer.addExternal(gameconfig, "gameconfig");
+
+        sg.gametime = engine.gameTime.current;
         //manually save each landscape bitmap
         //this is a special case, because unlike all other bitmaps (and
         //animations etc.), these are modified by the game
@@ -476,7 +475,7 @@ class GameTask : Task {
         for (int n = 0; n < bitmaps.length; n++) {
             LandscapeBitmap lb = bitmaps[n];
             writer.addExternal(lb, str.format("landscape_%s", n));
-            SaveGameData2.LevelBitmapInfo info;
+            SaveGameHeader.LevelBitmapInfo info;
             info.size = lb.size();
             info.lexels = cast(byte[])lb.levelData();
             auto bmp = lb.image();
@@ -492,15 +491,12 @@ class GameTask : Task {
                 offset += linesize;
             }
             bmp.unlockPixels(Rect2i.Empty);
-            sg2.bitmaps ~= info;
+            sg.bitmaps ~= info;
         }
-        sg2.viewpos = mWindow.getPosition();
-        sg2.randomstate = engine.rnd.state;
-        writer.writeObject(sg2);
-        //loading: add previously loaded level as external, read sg2,
-        //reconstruct LandscapeBitmaps, add them as external references
+        sg.viewpos = mWindow.getPosition();
+        sg.randomstate = engine.rnd.state;
+        writer.writeObject(sg);
 
-        //step 3
         //resources
         addResources(writer);
         //this sucks, currently only needed to get the LandscapeTheme (glevel.d)
@@ -524,24 +520,8 @@ class GameTask : Task {
         return writer.finish();
     }
 
-    //first part of the savegame data; this is to load the Level object
-    static class SaveGameData1 {
-        //this is Level.saved as a string (like a .conf)
-        //use GenerateFromSaved to turn this into a Level
-        char[] level;
-
-        this() {
-        }
-        this(ReflectCtor c) {
-        }
-    }
-
-    //second part; the GameConfig can't be loaded without somehow having a Level
-    //object, so there are two steps
-    static class SaveGameData2 {
-        //xxx slightly unclean, serializes ConfigNodes
-        //why the fuck does GameConfig contain a Level anyway?
-        GameConfig config;
+    static class SaveGameHeader {
+        char[] config; //saved GameConfig
         Time gametime;
         Vector2i viewpos;
         RNGState randomstate;

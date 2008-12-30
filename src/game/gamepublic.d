@@ -48,8 +48,9 @@ currently, only local-roundbased-one-screen is the only possible setup
 +/
 
 ///Initial game configuration
-struct GameConfig {
+class GameConfig {
     Level level;
+    ConfigNode saved_level; //is level.saved
     char[][] weaponsets;
     ConfigNode teams;
     ConfigNode weapons;
@@ -63,6 +64,31 @@ struct GameConfig {
     // - waterset: string with the name of the waterset (like "blue")
     //probably should be changed etc., so don't blame me
     ConfigNode gfx;
+
+    ConfigNode save() {
+        //xxx: not nice. but for now...
+        ConfigNode to = new ConfigNode();
+        to.getSubNode("level").mixinNode(saved_level);
+        to.getSubNode("teams").mixinNode(teams);
+        to.getSubNode("weapons").mixinNode(weapons);
+        to.getSubNode("gamemode").mixinNode(gamemode);
+        to.getSubNode("levelobjects").mixinNode(levelobjects);
+        to.getSubNode("gfx").mixinNode(gfx);
+        to.setValueArray!(char[])("weaponsets", weaponsets);
+        return to;
+    }
+
+    void load(ConfigNode n) {
+        level = null;
+        load_savegame = null;
+        saved_level = n.getSubNode("level");
+        teams = n.getSubNode("teams");
+        weapons = n.getSubNode("weapons");
+        gamemode = n.getSubNode("gamemode");
+        levelobjects = n.getSubNode("levelobjects");
+        gfx = n.getSubNode("gfx");
+        weaponsets = n.getValueArray!(char[])("weaponsets");
+    }
 
     //xxx hack that was convenient BUT MUST DIE PLEASE KILL ME
     ConfigNode load_savegame;

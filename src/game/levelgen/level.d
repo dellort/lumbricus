@@ -157,6 +157,7 @@ class LevelLandscape : LevelItem {
         //if (o.landscape)
           //  landscape = o.landscape.copy();
         landscape = o.landscape;
+        landscape_theme = o.landscape_theme;
     }
 }
 

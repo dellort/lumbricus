@@ -515,6 +515,11 @@ class Widget {
                 m.captureMouse = this;
             }
         }
+        if (event.isKeyEvent) {
+            //set focus on key event, especially on mouse clicks
+            //xxx: mouse wheel will set focus too, is that ok?
+            claimFocus();
+        }
        // std.stdio.writefln("disp: %s %s", this, event);
         if (event.isKeyEvent) {
             onKeyEvent(event.keyEvent);

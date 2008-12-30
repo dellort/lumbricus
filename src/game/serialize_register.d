@@ -44,5 +44,5 @@ void initGameSerialization() {
         SequenceStateList, NapalmStateDisplay, NapalmState, WormStateDisplay,
         SubSequence, WormState);
     //hopefully will get removed again
-    serialize_types.registerClasses!(ConfigNode, ConfigValue);
+    //serialize_types.registerClasses!(ConfigNode, ConfigValue);
 }

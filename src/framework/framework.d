@@ -340,13 +340,13 @@ class Surface {
 
     //return a Surface with a copy of a subrectangle of this
     final Surface subrect(Rect2i rc) {
-        auto sz = rc.size();
-        rc.fitInsideB(Rect2i(sz));
+        rc.fitInsideB(rect());
         if (!rc.isNormal()) {
             //completely outside, simply create a 0-sized surface
             //xxx don't know if SDL or OpenGL are ok with this
             rc = Rect2i.init;
         }
+        auto sz = rc.size();
         auto s = gFramework.createSurface(sz, transparency, colorkey);
         s.copyFrom(this, Vector2i(0), rc.p1, sz);
         return s;

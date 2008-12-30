@@ -472,6 +472,15 @@ class ScrollWindow : Container {
         super.loadFrom(loader);
     }
 
+    //xxx: makes it impossible to scroll in further nested ScrollWindows using
+    //     the mousehweel
+    override bool allowInputForChild(Widget child, InputEvent event) {
+        if (!event.isKeyEvent)
+            return true;
+        Keycode c = event.keyEvent.code;
+        return !(c == Keycode.MOUSE_WHEELUP || c == Keycode.MOUSE_WHEELDOWN);
+    }
+
     override void onKeyEvent(KeyInfo info) {
         bool up = info.code == Keycode.MOUSE_WHEELUP;
         bool down = info.code == Keycode.MOUSE_WHEELDOWN;
