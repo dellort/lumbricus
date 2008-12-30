@@ -157,7 +157,8 @@ class SerializeOutConfig : SerializeConfig {
     private {
         int mIDAlloc;
         int[Object] mObject2Id;
-        Queue!(Object) mObjectQueue;
+        Object[] mObjectStack;
+        int mOSIdx = 0;
         debug (CountClasses) {
             int[Class] mCounter;
         }
@@ -165,13 +166,13 @@ class SerializeOutConfig : SerializeConfig {
 
     this(SerializeContext a_ctx) {
         super(a_ctx, new ConfigNode());
-        mObjectQueue = new Queue!(Object);
     }
 
     private bool doWriteNextObject(ConfigNode file) {
-        if (mObjectQueue.empty)
+        if (mOSIdx <= 0)
             return false;
-        Object o = mObjectQueue.pop;
+        mOSIdx--;
+        Object o = mObjectStack[mOSIdx];
         //(note that ptr actually points to "o", á la "ptr = &o;")
         SafePtr ptr = mCtx.mTypes.ptrOf(o);
         Class klass = mCtx.mTypes.findClass(o);
@@ -208,7 +209,10 @@ class SerializeOutConfig : SerializeConfig {
         }
         auto nid = ++mIDAlloc;
         mObject2Id[o] = nid;
-        mObjectQueue.push(o);
+        if (mOSIdx >= mObjectStack.length)
+            mObjectStack.length = mObjectStack.length*2;
+        mObjectStack[mOSIdx] = o;
+        mOSIdx++;
         return str.format("#%d", nid);
     }
 
@@ -337,6 +341,7 @@ class SerializeOutConfig : SerializeConfig {
     }
 
     override void writeObject(Object o) {
+        mObjectStack.length = 1024;
         ConfigNode cur = mFile.getSubNode("serialized").addUnnamedNode();
         cur["_object"] = queueObject(o);
         while (doWriteNextObject(cur)) {}

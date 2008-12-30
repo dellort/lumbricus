@@ -79,8 +79,8 @@ class ProjectileSprite : ActionSprite {
                 currentState.minimumGluedTime)
             {
                 if (!mTimerDone) {
-                    doEvent("ontimer");
                     mTimerDone = true;
+                    doEvent("ontimer");
                 }
             }
         }
@@ -211,6 +211,10 @@ class ProjectileSpriteClass : ActionSpriteClass {
             }
 
             (cast(ProjectileStateInfo)initState).loadDetonateConfig(config);
+
+            foreach (s; states) {
+                s.fixup(this);
+            }
         }  //if stateful
 
         inactiveWhenGlued = config.getBoolValue("inactive_when_glued");

@@ -65,7 +65,10 @@ class GObjectSprite : GameObject {
         if (!graphic)
             return;
 
-        graphic.setState(currentState.animation);
+        if (mIsUnderWater && currentState.animationWater)
+            graphic.setState(currentState.animationWater);
+        else
+            graphic.setState(currentState.animation);
     }
 
     //update animation to physics status etc.
@@ -92,6 +95,12 @@ class GObjectSprite : GameObject {
 
     protected void physUpdate() {
         updateAnimation();
+
+        if (!mWaterUpdated && mIsUnderWater) {
+            mIsUnderWater = false;
+            waterStateChange(false);
+        }
+        mWaterUpdated = false;
 
         /+
         yyy move this code into the client's GUI
@@ -142,9 +151,11 @@ class GObjectSprite : GameObject {
     }
 
     void exterminate() {
-        //_always_ die completely (or are there exceptions?)
-        engine.mLog("exterminate in deathzone: %s", type.name);
-        die();
+        if (!currentState.deathZoneImmune) {
+            //_always_ die completely (or are there exceptions?)
+            engine.mLog("exterminate in deathzone: %s", type.name);
+            die();
+        }
     }
 
     //called when object should die
@@ -158,13 +169,20 @@ class GObjectSprite : GameObject {
     protected void waterStateChange(bool under) {
         //do something that involves an object and a lot of water
         if (under) {
-            auto st = type.findState("drowning", true);
+            auto st = currentState.onDrown;
             if (st) {
                 setState(st);
             } else {
-                //no drowning state -> die now
-                die();
+                if (currentState.animationWater)
+                    //object has special underwater animation -> don't die
+                    setCurrentAnimation();
+                else
+                    //no drowning state -> die now
+                    die();
             }
+        } else {
+            if (!currentState.onDrown && currentState.animationWater)
+                setCurrentAnimation();
         }
     }
 
@@ -190,6 +208,8 @@ class GObjectSprite : GameObject {
         }
 
         engine.mLog("force state: %s", nstate.name);
+
+        waterStateChange(mIsUnderWater);
     }
 
     //when called: currentState is to
@@ -231,6 +251,9 @@ class GObjectSprite : GameObject {
         stateTransition(oldstate, currentState);
         //if this fails, maybe stateTransition called setState()?
         assert(currentState is nstate);
+
+        //update water state (to catch an underwater state transition)
+        waterStateChange(mIsUnderWater);
     }
 
     //never returns null
@@ -256,11 +279,11 @@ class GObjectSprite : GameObject {
     //called by GameEngine on each frame if it's really under water
     //xxx: TriggerEnter/TriggerExit was more beautiful, so maybe bring it back
     final void isUnderWater() {
+        mWaterUpdated = true;
+
         if (mIsUnderWater)
             return;
-
         mIsUnderWater = true;
-        mWaterUpdated = true;
         waterStateChange(true);
     }
 
@@ -274,11 +297,6 @@ class GObjectSprite : GameObject {
                 setState(currentState.onAnimationEnd, true);
             }
         }
-        if (!mWaterUpdated) {
-            mIsUnderWater = false;
-            waterStateChange(false);
-        }
-        mWaterUpdated = false;
         //xxx: added with sequence-messup
         if (graphic)
             graphic.simulate();
@@ -321,20 +339,24 @@ class StaticStateInfo {
     POSP physic_properties;
 
     //automatic transition to this state if animation finished
-    StaticStateInfo onAnimationEnd;
+    StaticStateInfo onAnimationEnd, onDrown;
     //don't leave this state (explictly excludes onAnimationEnd)
     bool noleave = false;
     bool keepSelfForce = false;//phys.selfForce will be reset unless this is set
+    bool deathZoneImmune = false;  //don't die in deathzone
 
-    SequenceState animation;
+    SequenceState animation, animationWater;
 
     private {
         //for forward references
         char[] onEndTmp;
+        char[] onDrownTmp = "drowning";
     }
 
     //xxx class
     this (ReflectCtor c) {
+        c.transient(this, &onEndTmp);
+        c.transient(this, &onDrownTmp);
     }
     this () {
     }
@@ -352,9 +374,13 @@ class StaticStateInfo {
 
         noleave = sc.getBoolValue("noleave", noleave);
         keepSelfForce = sc.getBoolValue("keep_selfforce", keepSelfForce);
+        deathZoneImmune = sc.getBoolValue("deathzone_immune", deathZoneImmune);
 
         if (sc["animation"].length > 0) {
             animation = owner.findSequenceState(sc["animation"]);
+        }
+        if (sc["animation_water"].length > 0) {
+            animationWater = owner.findSequenceState(sc["animation_water"]);
         }
 
         if (!animation) {
@@ -362,12 +388,16 @@ class StaticStateInfo {
         }
 
         onEndTmp = sc["on_animation_end"];
+        onDrownTmp = sc.getStringValue("drownstate", "drowning");
     }
 
     void fixup(GOSpriteClass owner) {
         if (onEndTmp.length > 0) {
             onAnimationEnd = owner.findState(onEndTmp, true);
             onEndTmp = null;
+        }
+        if (onDrownTmp.length > 0) {
+            onDrown = owner.findState(onDrownTmp, true);
         }
     }
 }

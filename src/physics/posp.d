@@ -65,6 +65,8 @@ class POSP {
     bool fallDamageIgnoreX = false;
 
     float mediumViscosity = 0.0f;
+    //modifier for drag force (think of object shape, 1.0 = full)
+    float stokesModifier = 1.0f;
 
     float airResistance = 0.0f;
 
@@ -108,6 +110,7 @@ class POSP {
             damageThreshold);
         mediumViscosity = node.getFloatValue("medium_viscosity",
             mediumViscosity);
+        stokesModifier = node.getFloatValue("stokes_modifier", stokesModifier);
         airResistance = node.getFloatValue("air_resistance", airResistance);
         sustainableImpulse = node.getFloatValue("sustainable_impulse",
             sustainableImpulse);

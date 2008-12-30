@@ -57,6 +57,7 @@
 		<Unit filename="..\data\data\weapons\default\mapping_wwp.conf" />
 		<Unit filename="..\data\data\weapons\default\set.conf" />
 		<Unit filename="..\data\data\weapons\default\weapons\airstrike.conf" />
+		<Unit filename="..\data\data\weapons\default\weapons\aquasheep.conf" />
 		<Unit filename="..\data\data\weapons\default\weapons\atomtest.conf" />
 		<Unit filename="..\data\data\weapons\default\weapons\banana.conf" />
 		<Unit filename="..\data\data\weapons\default\weapons\bazooka.conf" />
@@ -88,6 +89,7 @@
 		<Unit filename="..\data\data\weapons\default\weapons\shotgun.conf" />
 		<Unit filename="..\data\data\weapons\default\weapons\superbanana.conf" />
 		<Unit filename="..\data\data\weapons\default\weapons\superrope.conf" />
+		<Unit filename="..\data\data\weapons\default\weapons\supersheep.conf" />
 		<Unit filename="..\data\data\weapons\default\weapons\uzi.conf" />
 		<Unit filename="..\data\data\welcome_gui.conf" />
 		<Unit filename="..\data\data\windmeter.conf" />

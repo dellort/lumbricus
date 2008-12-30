@@ -158,7 +158,7 @@ class StokesDragObject : PhysicForce {
         if (o.posp.mediumViscosity != 0.0f) {
             //F = -6*PI*r*eta*v
             o.addForce(cStokesConstant*o.posp.radius*o.posp.mediumViscosity
-                *o.velocity);
+                *o.velocity*o.posp.stokesModifier);
         }
     }
 }
@@ -181,7 +181,8 @@ class StokesDragFixed : PhysicForce {
     void applyTo(PhysicObject o, float deltaT) {
         if (viscosity != 0.0f) {
             //F = -6*PI*r*eta*v
-            o.addForce(cStokesConstant*o.posp.radius*viscosity*o.velocity);
+            o.addForce(cStokesConstant*o.posp.radius*viscosity*o.velocity
+                *o.posp.stokesModifier);
         }
     }
 }
