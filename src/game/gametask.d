@@ -189,14 +189,22 @@ class GameTask : Task {
 
             mGameConfig.level = fuzzleLevel(mGameConfig.level);
         } else {
-            ZReader reader = new ZReader(cfg.load_savegame);
+            auto tehfile = new TarArchive(cfg.load_savegame, true);
 
             //------ bitmaps
             LandscapeBitmap[] bitmaps;
             int bmp_count;
-            reader.read_ptr(&bmp_count, bmp_count.sizeof);
-            while (bmp_count > 0) {
-                bmp_count--;
+            for (;;) {
+                ZReader reader = tehfile.openReadStream(str.format("bitmap_%s",
+                    bitmaps.length), true);
+                if (!reader)
+                    break;
+                //xxx: idea: write the bitmap as a png; this either can be an
+                //     uncompressed png stored as a .gz stream, or a png that
+                //     just deflates scanlines or so (it's probably possible,
+                //     but I don't know png good enough)
+                //     the loader code can use gFramework.loadImage() (but that
+                //     requires a seekable stream)
                 BmpHeader bheader;
                 reader.read_ptr(&bheader, bheader.sizeof);
                 auto size = Vector2i(bheader.sx, bheader.sy);
@@ -215,15 +223,17 @@ class GameTask : Task {
                     pixels += pitch;
                 }
                 s.unlockPixels(Rect2i(size));
+                reader.close();
             }
 
             //------- game data
+            ZReader reader = tehfile.openReadStream("gamedata.conf");
             ConfigNode savegame = reader.readConfigFile();
             serialize_types.registerClass!(SaveGameHeader);
             auto ctx = new SerializeContext(serialize_types);
             mSaveGame = new SerializeInConfig(ctx, savegame);
             auto sg = mSaveGame.readObjectT!(SaveGameHeader)();
-            auto configfile = new ConfigFile(sg.config, "some_savegame", null);
+            auto configfile = new ConfigFile(sg.config, "gamedata.conf", null);
             mGameConfig = new GameConfig();
             mGameConfig.load(configfile.rootnode());
             auto gen = new GenerateFromSaved(new LevelGeneratorShared(),
@@ -243,6 +253,7 @@ class GameTask : Task {
             mSavedSetViewPosition = true;
 
             reader.close();
+            tehfile.close();
         }
 
         mLoadScreen = new LoadingScreen();
@@ -467,14 +478,14 @@ class GameTask : Task {
         doFade();
     }
 
-    void saveGame(ZWriter zwriter) {
+    void saveGame(TarArchive tehfile) {
         GameEngine engine = mServerEngine;
 
         //---- bitmaps
         auto bitmaps = engine.landscapeBitmaps();
-        int bmp_count = bitmaps.length;
-        zwriter.write_ptr(&bmp_count, bmp_count.sizeof);
-        foreach (LandscapeBitmap lb; bitmaps) {
+        foreach (int index, LandscapeBitmap lb; bitmaps) {
+            ZWriter zwriter = tehfile.openWriteStream(str.format("bitmap_%s",
+                index));
             BmpHeader bheader;
             bheader.sx = lb.size.x;
             bheader.sy = lb.size.y;
@@ -493,6 +504,7 @@ class GameTask : Task {
                 pixels += pitch;
             }
             bmp.unlockPixels(Rect2i.Empty);
+            zwriter.close();
         }
 
         serialize_types.registerClass!(SaveGameHeader);
@@ -540,7 +552,9 @@ class GameTask : Task {
         //"random", add them as externals; load the GameEngine and done.
 
         ConfigNode g = writer.finish();
+        ZWriter zwriter = tehfile.openWriteStream("gamedata.conf");
         zwriter.writeConfigFile(g);
+        zwriter.close();
     }
 
     static class SaveGameHeader {
@@ -768,7 +782,7 @@ class GameTask : Task {
         char[] path = cSavegamePath ~ name ~ cSavegameExt;
         //ConfigNode saved = saveGame();
         //saveConfigGz(saved, path);
-        ZWriter writer = new ZWriter(path);
+        TarArchive writer = new TarArchive(path, false);
         saveGame(writer);
         writer.close();
     }
@@ -991,7 +1005,12 @@ class ZWriter {
     }
 
     this(char[] f) {
-        mOut = gFramework.fs.open(f, FileMode.OutNew);
+        this(gFramework.fs.open(f, FileMode.OutNew));
+    }
+
+    this(Stream s) {
+        assert (!!s);
+        mOut = s;
         mWriter = new gzip.GZWriter(&doWrite);
     }
 
@@ -1032,7 +1051,12 @@ class ZReader {
     }
 
     this(char[] f) {
-        mIn = gFramework.fs.open(f, FileMode.In);
+        this(gFramework.fs.open(f, FileMode.In));
+    }
+
+    this(Stream s) {
+        assert (!!s);
+        mIn = s;
         mBuffer.length = 64*1024;
         mReader = new gzip.GZReader(&doRead);
     }
@@ -1074,5 +1098,194 @@ class ZReader {
         mReader = null;
         mIn.close();
         mIn = null;
+    }
+}
+
+class TarArchive {
+    private {
+        Stream mFile;
+        Entry[] mEntries;
+        bool mReading;
+
+        struct Entry {
+            char[] name;
+            ulong size;
+            ulong offset; //the the file header
+            bool writing;
+        }
+
+        //http://en.wikipedia.org/wiki/Tar_(file_format)
+        struct TarHeader {
+            char[100] filename;
+            char[8] mode;
+            char[8] user, group;
+            char[12] filesize;
+            char[12] moddate;
+            char[8] checksum;
+            char[1] link;
+            char[100] linkedfile;
+            char[255] pad;
+
+            char[] getchecksum() {
+                TarHeader copy = *this;
+                copy.checksum[] = ' ';
+                char* ptr = cast(char*)&copy;
+                int s = 0;
+                for (int n = 0; n < copy.sizeof; n++) {
+                    s += cast(ubyte)ptr[n];
+                }
+                auto res = str.format("0%05o", s);
+                res ~= "\0 ";
+                assert (res.length == 8);
+                return res;
+            }
+
+            bool iszero() {
+                char* ptr = cast(char*)this;
+                for (int n = 0; n < TarHeader.sizeof; n++) {
+                    if (ptr[n] != '\0')
+                        return false;
+                }
+                return true;
+            }
+        }
+
+        static assert (TarHeader.sizeof == 512);
+    }
+
+    //read==true: read mode, else write mode
+    //read and write mode are completely separate, don't mix
+    this(char[] f, bool read) {
+        mFile = gFramework.fs.open(f, read ? FileMode.In : FileMode.OutNew);
+        assert (mFile.seekable);
+        mReading = read;
+        if (mReading) {
+            while (!mFile.eof()) {
+                Entry e;
+                TarHeader h;
+                e.offset = mFile.position();
+                mFile.readExact(&h, h.sizeof);
+                if (h.iszero()) //eof
+                    break;
+                //"so relying on the first white space trimmed six digits for
+                // checksum yields better compatibility."
+                if (h.getchecksum()[0..6] != h.checksum[0..6])
+                    throw new Exception("tar error");
+                char[] getField(char[] f) {
+                    assert (f.length > 0);
+                    //else we had a buffer overflow with toString
+                    //xxx: utf safety?
+                    if (h.filename[$-1] != '\0')
+                        throw new Exception("tar error");
+                    return str.toString(&f[0]);
+                }
+                e.name = getField(h.filename).dup;
+                char[] sz = getField(h.filesize);
+                //parse octal by myself, Phobos is too stupid to do it
+                ulong isz = 0;
+                while (sz.length) {
+                    int digit = sz[0] - '0';
+                    if (digit < 0 || digit > 7)
+                        throw new Exception("tar error");
+                    isz = isz*8 + digit;
+                    sz = sz[1..$];
+                }
+                e.size = isz;
+                //normal file?
+                if (h.link[0] == '0' || h.link[0] == '\0')
+                    mEntries ~= e;
+                mFile.position = mFile.position + e.size;
+                align512();
+            }
+        }
+    }
+
+    ZReader openReadStream(char[] name, bool can_fail = false) {
+        name = name ~ ".gz";
+        foreach (Entry e; mEntries) {
+            if (e.name == name) {
+                auto s = new SliceStream(mFile, e.offset + 512,
+                    e.offset + 512 + e.size);
+                s.nestClose = false;
+                return new ZReader(s);
+            }
+        }
+        if (can_fail)
+            return null;
+        throw new Exception("tar entry not found");
+    }
+
+    static ubyte[512] waste;
+
+    //NOTE: sequential writing is assumed, e.g. only one stream at a time
+    ZWriter openWriteStream(char[] name) {
+        finishLastFile();
+        Entry e;
+        e.name = name ~ ".gz";
+        e.offset = mFile.position();
+        e.writing = true;
+        mEntries ~= e;
+        mFile.writeExact(waste.ptr, waste.sizeof);
+        auto s = new SliceStream(mFile, mFile.position());
+        s.nestClose = false; //stupid phobos, this took me some time
+        auto res = new ZWriter(s);
+        assert (mFile.seekable);
+        return res;
+    }
+
+    private void finishLastFile() {
+        assert (mFile.seekable);
+        if (!mEntries.length)
+            return;
+        Entry* e = &mEntries[$-1];
+        if (!e.writing)
+            return;
+        e.writing = false;
+        //SliceStream doesn't set parent seek position
+        //so use the size to find out how much was written
+        mFile.position = mFile.size;
+        e.size = mFile.position() - (e.offset + 512);
+        align512();
+    }
+
+    private void align512() {
+        //aw, unlike unix streams, seeking beyond the end is not allowed?
+        ulong npos = (mFile.position() + 511) & ~511UL;
+        if (npos <= mFile.size()) {
+            mFile.position = npos;
+        } else {
+            if (mReading)
+                throw new Exception("tar error (file unaligned)");
+            ulong todo = npos - mFile.position();
+            assert (todo < 512);
+            mFile.writeExact(&waste[0], todo);
+        }
+        assert ((mFile.position & 511) == 0);
+    }
+
+    void close() {
+        if (!mReading) {
+            finishLastFile();
+            //write all headers
+            foreach (Entry e;  mEntries) {
+                TarHeader h;
+                (cast(char*)&h)[0..h.sizeof] = '\0';
+                h.filename[0..e.name.length] = e.name;
+                char[] sz = str.format("%011o", e.size) ~ '\0';
+                assert (sz.length == 12);
+                h.filesize[] = sz;
+                h.link[0] = '0';
+                h.mode[] = "0000660\0"; //rw-rw----
+                h.checksum[] = h.getchecksum();
+                mFile.position = e.offset;
+                mFile.writeExact(&h, h.sizeof);
+            }
+            //close header, twice
+            mFile.position = mFile.size;
+            for (int n = 0; n < 2; n++)
+                mFile.writeExact(waste.ptr, waste.sizeof);
+        }
+        mFile.close();
+        mFile = null;
     }
 }

@@ -12,7 +12,7 @@ import utils.configfile;
 import utils.misc;
 
 const cSavegamePath = "/savegames/";
-const cSavegameExt = ".what";
+const cSavegameExt = ".tar";
 const cSavegameDefName = "save";
 
 //xxx doesn't really belong here
