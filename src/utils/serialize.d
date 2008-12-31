@@ -178,6 +178,8 @@ class SerializeOutConfig : SerializeConfig {
         Class klass = mCtx.mTypes.findClass(o);
         if (!klass)
             typeError(ptr, "can't serialize ["~o.toString()~"]");
+        Object defobj = klass.defaultValues();
+        SafePtr defptr = mCtx.mTypes.ptrOf(defobj);
         debug (CountClasses) {
             auto pc = klass in mCounter;
             if (pc) {
@@ -189,7 +191,7 @@ class SerializeOutConfig : SerializeConfig {
         auto nid = mObject2Id[o];
         auto node = file.getSubNode(str.format("%d", nid));
         node["type"] = klass.name();
-        doWriteMembers(file, node, klass, ptr);
+        doWriteMembers(file, node, klass, ptr, defptr);
         return true;
     }
 
@@ -217,7 +219,7 @@ class SerializeOutConfig : SerializeConfig {
     }
 
     private void doWriteMembers(ConfigNode file, ConfigNode cur, Class klass,
-        SafePtr ptr)
+        SafePtr ptr, SafePtr defptr)
     {
         assert (!!klass);
         //each class in the inheritance hierarchy gets a node (structs not)
@@ -229,24 +231,30 @@ class SerializeOutConfig : SerializeConfig {
             //(not for structs)
             auto dest = is_struct ? cur : cur.addUnnamedNode();
             ptr.type = ck.type(); //should be safe...
+            defptr.type = ptr.type;
             foreach (ClassMember m; ck.nontransientMembers()) {
-                //don't write default values
-                if (is_struct || !m.isInit(ptr)) {
-                    SafePtr mptr = m.get(ptr);
-                    doWriteMember(file, dest, m.name(), mptr);
-                }
+                SafePtr mptr = m.get(ptr);
+                SafePtr mdptr = defptr.ptr ? m.get(defptr) : SafePtr.Null;
+                doWriteMember(file, dest, m.name(), mptr, mdptr);
             }
             ck = ck.superClass();
         }
     }
 
     private void doWriteMember(ConfigNode file, ConfigNode cur, char[] member,
-        SafePtr ptr)
+        SafePtr ptr, SafePtr defptr)
     {
+        if (defptr.type is ptr.type && !!defptr.ptr) {
+            //if a defptr is available, compare against its contents, to see if
+            //the ptr contains just a default value
+            if (ptr.type.op_is(ptr, defptr))
+                return;
+        }
         if (auto et = cast(EnumType)ptr.type) {
             //dirty trick: do as if it was an integer; should be bitcompatible
             //don't try this at home!
             ptr.type = et.underlying();
+            defptr.type = ptr.type;
             //fall through to BaseType
         }
         if (cast(BaseType)ptr.type) {
@@ -263,7 +271,7 @@ class SerializeOutConfig : SerializeConfig {
             Class k = st.klass();
             if (!k)
                 typeError(ptr);
-            doWriteMembers(file, cur.getSubNode(member), k, ptr);
+            doWriteMembers(file, cur.getSubNode(member), k, ptr, defptr);
             return;
         }
         //handle string arrays differently, having them as real arrays is... urgh
@@ -282,7 +290,9 @@ class SerializeOutConfig : SerializeConfig {
             sub["length"] = str.format("%s", arr.length);
             for (int i = 0; i < arr.length; i++) {
                 SafePtr eptr = arr.get(i);
-                doWriteMember(file, sub, str.format("%d", i), eptr);
+                //about default value: not sure, depends if static array?
+                doWriteMember(file, sub, str.format("%d", i), eptr,
+                    SafePtr.Null); //eptr.type.initPtr());
             }
             return;
         }
@@ -290,8 +300,8 @@ class SerializeOutConfig : SerializeConfig {
             auto sub = cur.getSubNode(member);
             map.iterate(ptr, (SafePtr key, SafePtr value) {
                 auto subsub = sub.addUnnamedNode();
-                doWriteMember(file, subsub, "key", key);
-                doWriteMember(file, subsub, "value", value);
+                doWriteMember(file, subsub, "key", key, key.type.initPtr());
+                doWriteMember(file, subsub, "value", value, value.type.initPtr());
             });
             return;
         }

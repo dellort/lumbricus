@@ -26,6 +26,8 @@ struct SafePtr {
     Type type;
     void* ptr;
 
+    static const SafePtr Null = {null, null};
+
     //throw an appropriate exception if types are incompatible
     void check(TypeInfo ti) {
         if (ti !is type.mTI)
@@ -468,12 +470,33 @@ class Type {
         Types mOwner;
         TypeInfo mTI;
         size_t mSize;
+        void[] mInit;
     }
 
     private this(Types a_owner, TypeInfo a_ti) {
         mOwner = a_owner;
         mTI = a_ti;
         mSize = mTI.tsize();
+        mInit = mTI.init();
+        //this check can be removed - just wanted to see if we maybe allocate
+        //too much memory due to this function
+        if (mSize > 16*1024)
+            assert(false, "that's very big data: "~mTI.toString());
+        if (!mInit.length) {
+            mInit = new ubyte[mSize];
+        }
+        if (mInit.length != mSize) {
+            //ok, it seems for static arrays, TypeInfo.init() contains only the
+            //init data for the first element to save memory
+            assert (!!cast(TypeInfo_StaticArray)mTI);
+            assert ((mSize/mInit.length)*mInit.length == mSize);
+            //fix by repeating the first element
+            size_t oldlen = mInit.length;
+            mInit.length = mSize;
+            for (int n = 1; n < mSize/oldlen; n++) {
+                mInit[n*oldlen .. (n+1)*oldlen] = mInit[0..oldlen];
+            }
+        }
         mOwner.addType(this);
     }
 
@@ -485,8 +508,28 @@ class Type {
         return mSize;
     }
 
+    //default value, if this type is declared "stand alone" without initializer
+    final void[] initData() {
+        return mInit;
+    }
+
+    //same as initData, actually redundant, maybe remove initData()
+    final SafePtr initPtr() {
+        return SafePtr(this, mInit.ptr);
+    }
+
     final Types owner() {
         return mOwner;
+    }
+
+    //compare two values with the is operator
+    //the types of both pa and pb must be this type
+    //xxx: currently do a byte-for-byte comparision, which "should" be ok in
+    //     most cases
+    bool op_is(SafePtr pa, SafePtr pb) {
+        if (pa.type != this || pb.type != this)
+            throw new Exception("type error");
+        return pa.ptr[0..mSize] == pb.ptr[0..mSize];
     }
 }
 
@@ -904,10 +947,7 @@ class Class {
         //TypeInfo.init() can be null
         //for the sake of generality, allocate a byte array in this case
         TypeInfo ti = mOwner.typeInfo();
-        mInit = ti.init();
-        if (!mInit.length) {
-            mInit = new byte[ti.tsize()];
-        }
+        mInit = mOwner.initData();
         assert (mInit.length == mOwner.size());
     }
 
@@ -1036,6 +1076,12 @@ class Class {
         assert (!!o);
         assert (types.findClass(o) is this);
         return o;
+    }
+
+    //everything about this is read-only
+    //null for structs
+    final Object defaultValues() {
+        return mDummy;
     }
 }
 
