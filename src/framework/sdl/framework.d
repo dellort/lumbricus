@@ -432,6 +432,13 @@ class SDLDriver : FrameworkDriver {
         gSDLDriver = null;
     }
 
+    int getFeatures() {
+        if (mOpenGL)
+            return DriverFeatures.canvasScaling;
+        else
+            return 0;
+    }
+
     FontDriver fontDriver() {
         return mFontDriver;
     }
@@ -1078,6 +1085,10 @@ class SDLCanvas : Canvas {
 
     public void translate(Vector2i offset) {
         mTrans += offset;
+    }
+
+    public void setScale(Vector2f z) {
+        //not supported
     }
 
     //definition: return client coords for screen coord (0, 0)

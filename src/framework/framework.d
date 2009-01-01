@@ -60,6 +60,10 @@ enum SurfaceMode {
     OFFSCREEN,
 }
 
+enum DriverFeatures {
+    canvasScaling = 1,
+}
+
 abstract class FrameworkDriver {
     ///create a driver surface from this data... the driver might modify the
     ///struct pointed to by data at any time
@@ -101,6 +105,10 @@ abstract class FrameworkDriver {
 
     ///for debugging
     abstract char[] getDriverInfo();
+
+    ///return an or'ed combination of optional DriverFeatures
+    ///this driver supports
+    abstract int getFeatures();
 
     ///deinit driver
     abstract void destroy();
@@ -612,6 +620,10 @@ class Framework {
 
     package FontDriver fontDriver() {
         return mDriver.fontDriver();
+    }
+
+    int driverFeatures() {
+        return mDriver.getFeatures();
     }
 
     //--- DriverSurface handling

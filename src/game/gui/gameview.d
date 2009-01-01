@@ -175,6 +175,11 @@ const Time cLabelsMoveTimeDown = timeMsecs(1000); //and down
 const int cLabelsMoveDistance = 200;
 //time swap left/right position of weapon icon
 const Time cWeaponIconMoveTime = timeMsecs(300);
+//time to zoom out
+const Time cZoomTime = timeMsecs(500);
+//min/max zooming level
+const float cZoomMin = 0.6f;
+const float cZoomMax = 1.0f;
 
 //GameView is everything which is scrolled
 //it displays the game directly and also handles input directly
@@ -203,6 +208,8 @@ class GameView : Container {
         //key state for LEFT/RIGHT and UP/DOWN
         Vector2i dirKeyState_lu = {0, 0};  //left/up
         Vector2i dirKeyState_rd = {0, 0};  //right/down
+
+        float mZoomChange = 1.0f, mCurZoom = 1.0f;
 
         //for worm-name drawing
         ViewMember[] mAllMembers;
@@ -648,6 +655,10 @@ class GameView : Container {
                 mController.jump(JumpMode.straightUp);
                 return true;
             }
+            case "zoom": {
+                mZoomChange = -1;
+                return true;
+            }
             default:
 
         }
@@ -687,12 +698,25 @@ class GameView : Container {
         return false;
     }
 
+    private bool onKeyUp(char[] bind, KeyInfo info) {
+        if (handleDirKey(bind, true))
+            return true;
+        switch (bind) {
+            case "zoom": {
+                mZoomChange = 1;
+                return true;
+            }
+            default:
+        }
+        return false;
+    }
+
     override protected void onKeyEvent(KeyInfo ki) {
         auto bind = findBind(ki);
         if (ki.isDown && onKeyDown(bind, ki)) {
             return;
         } else if (ki.isUp) {
-            handleDirKey(bind, true);
+            onKeyUp(bind, ki);
         }
     }
 
@@ -701,7 +725,14 @@ class GameView : Container {
         return true;
     }
 
+    float zoomLevel() {
+        return mCurZoom;
+    }
+
     override void simulate() {
+        float zc = mZoomChange*(cZoomMax-cZoomMin)/cZoomTime.secsf
+            * globals.gameTimeAnimations.difference.secsf;
+        mCurZoom = clampRangeC(mCurZoom+zc, cZoomMin, cZoomMax);
         super.simulate();
         doSim();
     }

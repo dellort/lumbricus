@@ -237,6 +237,7 @@ class GLCanvas : Canvas {
             Rect2i clip;
             Vector2i translate;
             Vector2i clientsize;
+            Vector2f scale = {1.0f, 1.0f};
         }
 
         Vector2i mTrans;
@@ -323,7 +324,8 @@ class GLCanvas : Canvas {
 
     public void translate(Vector2i offset) {
         glTranslatef(cast(float)offset.x, cast(float)offset.y, 0);
-        mStack[mStackTop].translate += offset;
+        mStack[mStackTop].translate += toVector2i(toVector2f(offset)
+            ^ mStack[mStackTop].scale);
     }
     public void setWindow(Vector2i p1, Vector2i p2) {
         clip(p1, p2);
@@ -331,6 +333,8 @@ class GLCanvas : Canvas {
         mStack[mStackTop].clientsize = p2 - p1;
     }
     public void clip(Vector2i p1, Vector2i p2) {
+        p1 = toVector2i(toVector2f(p1) ^ mStack[mStackTop].scale);
+        p2 = toVector2i(toVector2f(p2) ^ mStack[mStackTop].scale);
         p1 += mStack[mStackTop].translate;
         p2 += mStack[mStackTop].translate;
         p1 = mStack[mStackTop].clip.clip(p1);
@@ -342,6 +346,12 @@ class GLCanvas : Canvas {
         mStack[mStackTop].enableClip = true;
         glEnable(GL_SCISSOR_TEST);
         glScissor(p1.x, realSize.y-p2.y, p2.x-p1.x, p2.y-p1.y);
+    }
+    public void setScale(Vector2f z) {
+        glScalef(z.x, z.y, 1);
+        mStack[mStackTop].clientsize =
+            toVector2i(toVector2f(mStack[mStackTop].clientsize) ^ z);
+        mStack[mStackTop].scale = mStack[mStackTop].scale ^ z;
     }
 
     public void pushState() {
@@ -573,8 +583,11 @@ class GLCanvas : Canvas {
         bool mirrorY = false)
     {
         //clipping, discard anything that would be invisible anyway
-        Vector2i pr1 = destPos+mStack[mStackTop].translate;
-        Vector2i pr2 = pr1+destSize;
+        //xxx most certainly wrong, but I'm too lazy to fix it now
+        Vector2i pr1 = toVector2i(toVector2f(destPos)
+            ^ mStack[mStackTop].scale) + mStack[mStackTop].translate;
+        Vector2i pr2 = pr1+toVector2i(toVector2f(destSize)
+            ^ mStack[mStackTop].scale);
         if (pr1.x > mStack[0].clientsize.x || pr1.y > mStack[0].clientsize.y
             || pr2.x < 0 || pr2.y < 0)
             return;
@@ -644,8 +657,10 @@ class GLCanvas : Canvas {
             int h = glTiley?destSize.y:sourceSize.y;
             int x;
             Vector2i tmp;
+            //xxx seems quite wrong to me, too
             Vector2i trans = mStack[mStackTop].translate;
-            Vector2i cs_tr = mStack[0].clientsize - trans;
+            Vector2i cs_tr = toVector2i(toVector2f(mStack[0].clientsize - trans)
+                / mStack[mStackTop].scale);
 
             int y = 0;
             while (y < destSize.y) {

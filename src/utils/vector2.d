@@ -254,7 +254,7 @@ public Vector2f toVector2f(Vector2i v) {
 
 public Vector2i toVector2i(Vector2f v) {
     Vector2i res;
-    res.x1 = cast(int)(v.x1+0.5f);
-    res.x2 = cast(int)(v.x2+0.5f);
+    res.x1 = cast(int)(v.x1<0?v.x1-0.5f:v.x1+0.5f);
+    res.x2 = cast(int)(v.x2<0?v.x2-0.5f:v.x2+0.5f);
     return res;
 }

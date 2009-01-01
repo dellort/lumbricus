@@ -133,6 +133,10 @@ class Widget {
         //this is added to the graphical position of the widget (onDraw)
         //it is intended to support animations (without messing up the layouting)
         Vector2i mAddToPos;
+
+        //current content scaling, as set by scale()
+        //used only if the fw driver supports it
+        Vector2f mScale = {1.0f, 1.0f};
     }
 
     ///clip graphics to the inside
@@ -211,12 +215,18 @@ class Widget {
     ///translate parent's coordinates (i.e. containedBounds()) to the Widget's
     ///coords (i.e. mousePos(), in case of containers: child object coordinates)
     final Vector2i coordsFromParent(Vector2i pos) {
-        return pos - mContainedWidgetBounds.p1;
+        if (canScale)
+            return doScalei(pos - mContainedWidgetBounds.p1);
+        else
+            return pos - mContainedWidgetBounds.p1;
     }
 
     ///coordsToParent(coordsFromParent(p)) == p
     final Vector2i coordsToParent(Vector2i pos) {
-        return pos + mContainedWidgetBounds.p1;
+        if (canScale)
+            return doScale(pos) + mContainedWidgetBounds.p1;
+        else
+            return pos + mContainedWidgetBounds.p1;
     }
 
     ///rectangle the Widget takes up in parent container
@@ -226,7 +236,10 @@ class Widget {
 
     ///widget size
     final Vector2i size() {
-        return mContainedWidgetBounds.size;
+        if (canScale)
+            return doScalei(mContainedWidgetBounds.size);
+        else
+            return mContainedWidgetBounds.size;
     }
 
     ///rectangle of the Widget in its own coordinates (.p1 is always (0,0))
@@ -269,6 +282,34 @@ class Widget {
         }
         prc = rc;
         return true;
+    }
+
+    ///Set current content scaling factor
+    ///Setting this changes size() and forces a relayout
+    void scale(Vector2f s) {
+        if (s != mScale) {
+            mScale = s;
+            //xxx this could be quite expensive, implement better way to
+            //    propagate the changed size()
+            needRelayout();
+        }
+    }
+    Vector2f scale() {
+        return mScale;
+    }
+
+    //utility methods, stupid int/float conversions
+    protected Vector2i doScale(Vector2i org) {
+        return toVector2i(toVector2f(org) ^ mScale);
+    }
+    protected Vector2i doScalei(Vector2i org) {
+        return toVector2i(toVector2f(org) / mScale);
+    }
+
+    //returns true if current driver supports Canvas.setScale
+    //xxx can be removed if we fully switch to OpenGL
+    protected bool canScale() {
+        return (gFramework.driverFeatures & DriverFeatures.canvasScaling) > 0;
     }
 
     // --- layouting stuff
@@ -568,6 +609,8 @@ class Widget {
             //rely on clipping
             c.translate(mContainedWidgetBounds.p1+mAddToPos);
         }
+        if (canScale)
+            c.setScale(mScale);
 
         //user's draw routine
         onDraw(c);

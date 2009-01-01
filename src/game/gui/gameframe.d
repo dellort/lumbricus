@@ -154,6 +154,8 @@ class GameFrame : SimpleContainer {
             mWeaponChangeCounter = c;
             updateWeapons();
         }
+
+        mScroller.scale = Vector2f(gameView.zoomLevel, gameView.zoomLevel);
     }
 
     override bool doesCover() {

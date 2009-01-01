@@ -67,6 +67,11 @@ public class Canvas {
     public abstract void translate(Vector2i offset);
     /// Set the cliprect (doesn't change "window" or so).
     public abstract void clip(Vector2i p1, Vector2i p2);
+    /// Set the factor by which all drawing will be scaled
+    /// (also affects clientSize) for the current state
+    /// Scale factor multiplies, absolutely and even per-state (opengl logic...)
+    public abstract void setScale(Vector2f sc);
+
     /// push/pop state as set by setWindow() and translate()
     public abstract void pushState();
     public abstract void popState();

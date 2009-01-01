@@ -37,6 +37,7 @@ class ScrollArea : SimpleContainer {
 
         Vector2f mScrollDest, mScrollOffset;
         long mTimeLast;
+        Vector2i mLastUpdateSize;
 
         const cScrollStepMs = 10;
         const float K_SCROLL = 0.01f;
@@ -155,11 +156,16 @@ class ScrollArea : SimpleContainer {
         } else if (child) {
             mClientSize = child.layoutCachedContainerSizeRequest();
             auto msize = size;
+            if (mLastUpdateSize != msize) {
+                //keep contents centered if ScrollArea size changes
+                mOffset += (msize - mLastUpdateSize)/2;
+            }
             auto diff = mClientSize - msize;
             //if it's too small, the child will be layouted using the
             //normal Widget layout stuff (on this axis)
             ssize.x = diff.x > 0 ? diff.x : 0;
             ssize.y = diff.y > 0 ? diff.y : 0;
+            mLastUpdateSize = msize;
         }
 
         mScrollSize.x = mEnableScroll[0] ? ssize.x : 0;
