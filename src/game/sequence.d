@@ -412,7 +412,11 @@ class NapalmStateDisplay : AniStateDisplay {
             if (last_animation !is myclass.animFall)
                 new_animation = myclass.animFall;
             //xxx controls size (0-100), use damage or whatever
-            params.p2 = 30;
+            auto nsu = cast(NapalmSequenceUpdate)v;
+            if (nsu)
+                params.p2 = nsu.decay;
+            else
+                params.p2 = 30;
         } else {
             //fast napalm
             if (last_animation !is myclass.animFly)
@@ -427,6 +431,15 @@ class NapalmStateDisplay : AniStateDisplay {
             last_animation = new_animation;
         }
         mAnimator.update(v.position, params);
+    }
+}
+
+class NapalmSequenceUpdate : SequenceUpdate {
+    int decay;
+
+    this () {
+    }
+    this (ReflectCtor c) {
     }
 }
 

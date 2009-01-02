@@ -265,7 +265,7 @@ class ScrollArea : SimpleContainer {
                     (mScrollDest - mScrollOffset)*K_SCROLL*cScrollStepMs;
                 mTimeLast += cScrollStepMs;
             }
-            offset = toVector2i(mScrollOffset-Vector2f(.5f));
+            offset = toVector2i(mScrollOffset);
         } else {
             mEnableSmoothScrolling = false;
         }

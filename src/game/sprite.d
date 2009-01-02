@@ -140,7 +140,7 @@ class GObjectSprite : GameObject {
         physImpact(other, normal);
     }
 
-    protected void physDamage(float amout, int cause) {
+    protected void physDamage(float amount, int cause) {
     }
 
     protected void physDie() {

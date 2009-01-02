@@ -56,6 +56,7 @@ import game.weapon.special_weapon;
 import game.weapon.tools;
 import game.weapon.ray;
 import game.weapon.spawn;
+import game.weapon.napalm;
 
 //initialized by serialize_register.d
 Types serialize_types;

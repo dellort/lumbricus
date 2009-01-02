@@ -185,6 +185,7 @@
 		<Unit filename="..\src\game\water.d" />
 		<Unit filename="..\src\game\weapon\actions.d" />
 		<Unit filename="..\src\game\weapon\actionweapon.d" />
+		<Unit filename="..\src\game\weapon\napalm.d" />
 		<Unit filename="..\src\game\weapon\projectile.d" />
 		<Unit filename="..\src\game\weapon\ray.d" />
 		<Unit filename="..\src\game\weapon\spawn.d" />

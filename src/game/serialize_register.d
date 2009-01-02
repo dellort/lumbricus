@@ -8,7 +8,7 @@ import game.action, game.actionsprite, game.controller, game.crate, game.game,
     game.gamepublic, game.glevel, game.spriteactions, game.sprite, game.worm,
     game.weapon.actions, game.weapon.actionweapon, game.weapon.projectile,
     game.weapon.ray, game.weapon.spawn, game.weapon.tools, game.weapon.weapon,
-    game.sequence;
+    game.weapon.napalm, game.sequence;
 import physics.world;
 import utils.configfile;
 
@@ -29,7 +29,8 @@ void initGameSerialization() {
         SequenceUpdate, SpawnAction, Jetpack, Rope, WormSprite,
         GravestoneSprite, WormSequenceUpdate, WrapFireInfo,
         GameEngineGraphics, AnimationGraphic, LineGraphic, TargetIndicator,
-        TargetCross, ExplosionGfx, LandscapeGraphic);
+        TargetCross, ExplosionGfx, LandscapeGraphic, NapalmSequenceUpdate,
+        NapalmSprite);
     //stuff that (maybe) should not be serialized
     //all ctors are marked with "xxx class"
     serialize_types.registerClasses!(ActionContainer, ActionListClass,
@@ -42,7 +43,7 @@ void initGameSerialization() {
         HomingActionClass, RayWeapon, SpawnActionClass, ToolClass,
         WormStateInfo, WormSpriteClass, GravestoneSpriteClass,
         SequenceStateList, NapalmStateDisplay, NapalmState, WormStateDisplay,
-        SubSequence, WormState);
+        SubSequence, WormState, NapalmSpriteClass);
     //hopefully will get removed again
     //serialize_types.registerClasses!(ConfigNode, ConfigValue);
 }
