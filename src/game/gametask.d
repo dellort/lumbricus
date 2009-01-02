@@ -44,9 +44,10 @@ import utils.random;
 import utils.reflection;
 import utils.serialize;
 import utils.path;
+import utils.archive;
+import utils.snapshot;
 
 import std.stream;
-import std.outbuffer;
 import str = std.string;
 static import std.file;
 
@@ -186,11 +187,14 @@ class GameTask : Task {
             mGameConfig = cfg;
 
             //save last played level functionality
-            saveLevel(mGameConfig.level);
+            if (mGameConfig.level.saved) {
+                saveConfig(mGameConfig.level.saved, "lastlevel.conf");
+            }
 
             mGameConfig.level = fuzzleLevel(mGameConfig.level);
         } else {
-            auto tehfile = new TarArchive(cfg.load_savegame, true);
+            scope st = gFramework.fs.open(cfg.load_savegame, FileMode.In);
+            scope tehfile = new TarArchive(st, true);
 
             //------ bitmaps
             LandscapeBitmap[] bitmaps;
@@ -605,6 +609,8 @@ class GameTask : Task {
             ["text?:name of the savegame, if none given, list all available"]);
         load.setCompletionHandler(0, &listSavegames);
         mCmds.register(load);
+        mCmds.register(Command("snap", &cmdSnapTest, "snapshot test",
+            ["int:1=store, 2=load, 3=store+load"]));
     }
 
     class ShowCollide : Container {
@@ -670,7 +676,7 @@ class GameTask : Task {
     private void cmdSafeLevelTGA(MyBox[] args, Output write) {
         char[] filename = args[0].unbox!(char[])();
         Stream s = gFramework.fs.open(filename, FileMode.OutNew);
-        saveSurfaceToTGA(mServerEngine.gameLandscapes[0].image, s);
+        mServerEngine.gameLandscapes[0].image.saveImage(s);
         s.close();
     }
 
@@ -750,6 +756,30 @@ class GameTask : Task {
         mServerEngine.activityDebug(args[0].unboxMaybe!(bool));
     }
 
+    private void cmdSnapTest(MyBox[] args, Output write) {
+        int arg = args[0].unbox!(int);
+        if (arg & 1) {
+            doEngineSnap();
+        }
+        if (arg & 2) {
+            doEngineUnsnap();
+        }
+    }
+
+    Time snap_game_time;
+
+    private void doEngineSnap() {
+        snap_game_time = mServerEngine.gameTime.current();
+        snap(serialize_types, mServerEngine);
+    }
+
+    private void doEngineUnsnap() {
+        unsnap(serialize_types);
+        //important: readd graphics, because they could have changed
+        mClientEngine.readd_graphics();
+        mServerEngine.gameTime.initTime(snap_game_time);
+    }
+
     private void cmdSerDump(MyBox[] args, Output write) {
         debugDumpTypeInfos(serialize_types);
         //debugDumpClassGraph(serialize_types, mServerEngine);
@@ -783,7 +813,8 @@ class GameTask : Task {
         char[] path = cSavegamePath ~ name ~ cSavegameExt;
         //ConfigNode saved = saveGame();
         //saveConfigGz(saved, path);
-        TarArchive writer = new TarArchive(path, false);
+        scope st = gFramework.fs.open(path, FileMode.OutNew);
+        scope writer = new TarArchive(st, false);
         saveGame(writer);
         writer.close();
     }
@@ -834,459 +865,5 @@ class GameTask : Task {
 
     static this() {
         TaskFactory.register!(typeof(this))("game");
-    }
-}
-
-void saveLevel(Level g) {
-    if (g.saved) {
-        saveConfig(g.saved, "lastlevel.conf");
-    }
-}
-
-//dirty hacky lib to dump a surface to a file
-//as far as I've seen we're not linked to any library which can write images
-void saveSurfaceToTGA(Surface s, OutputStream stream) {
-    OutBuffer to = new OutBuffer;
-    try {
-        void* pvdata;
-        uint pitch;
-        s.lockPixelsRGBA32(pvdata, pitch);
-        ubyte b;
-        b = 0;
-        to.write(b); //image id, whatever
-        to.write(b); //no palette
-        b = 2;
-        to.write(b); //uncompressed 24 bit RGB
-        short sh;
-        sh = 0;
-        to.write(sh); //skip plalette
-        to.write(sh);
-        b = 0;
-        to.write(b);
-        to.write(sh); //x/y coordinates
-        to.write(sh);
-        sh = s.size.x; to.write(sh); //w/h
-        sh = s.size.y; to.write(sh);
-        b = 24;
-        to.write(b);
-        b = 0;
-        to.write(b); //??
-        //dump picture data as 24 bbp
-        //TGA seems to be upside down
-        for (int y = s.size.y-1; y >= 0; y--) {
-            uint* data = cast(uint*)(pvdata+pitch*y);
-            for (int x = 0; x < s.size.x; x++) {
-                //trivial alpha check... and if so, write a colorkey
-                //this, of course, is a dirty hack
-                if (*data >> 24) {
-                    b = *data >> 16; to.write(b);
-                    b = *data >> 8; to.write(b);
-                    b = *data; to.write(b);
-                } else {
-                    b = 255; to.write(b);
-                    b = 0; to.write(b);
-                    b = 255; to.write(b);
-                }
-                data++;
-            }
-        }
-    } finally {
-        s.unlockPixels(Rect2i.init);
-    }
-    stream.write(to.toBytes);
-}
-
-
-char[] dumpGraph(Types t, Object root, char[][Object] externals) {
-    char[] r;
-    int id_alloc;
-    int[Object] visited; //map to id
-    Object[] to_visit;
-    r ~= `graph "a" {` \n;
-    to_visit ~= root;
-    visited[root] = ++id_alloc;
-    //some other stuff
-    bool[char[]] unknown, unregistered;
-
-    void delegate(int cur, SafePtr ptr, Class c) fwdDoStructMembers;
-
-    void doField(int cur, SafePtr ptr) {
-        if (auto s = cast(StructType)ptr.type) {
-            assert (!!s.klass());
-            fwdDoStructMembers(cur, ptr, s.klass());
-        } else if (auto rt = cast(ReferenceType)ptr.type) {
-            //object reference
-            Object n = ptr.toObject();
-            if (!n)
-                return;
-            int other;
-            if (auto po = n in visited) {
-                other = *po;
-            } else {
-                other = ++id_alloc;
-                visited[n] = other;
-                to_visit ~= n;
-            }
-            r ~= str.format("%d -- %d\n", cur, other);
-        } else if (auto art = cast(ArrayType)ptr.type) {
-            ArrayType.Array arr = art.getArray(ptr);
-            for (int i = 0; i < arr.length; i++) {
-                doField(cur, arr.get(i));
-            }
-        }
-    }
-
-    void doStructMembers(int cur, SafePtr ptr, Class c) {
-        foreach (ClassMember m; c.members()) {
-            doField(cur, m.get(ptr));
-        }
-    }
-
-    fwdDoStructMembers = &doStructMembers;
-
-    while (to_visit.length) {
-        Object cur = to_visit[0];
-        to_visit = to_visit[1..$];
-        int id = visited[cur];
-        if (auto pname = cur in externals) {
-            r ~= str.format(`%d [label="ext: %s"];` \n, id, *pname);
-            continue;
-        }
-        SafePtr indirect = t.ptrOf(cur);
-        void* tmp;
-        SafePtr ptr = indirect.mostSpecificClass(&tmp, true);
-        if (!ptr.type) {
-            //the actual class was never seen at runtime
-            r ~= str.format(`%d [label="unknown: %s"];` \n, id,
-                cur.classinfo.name);
-            unknown[cur.classinfo.name] = true;
-            continue;
-        }
-        auto rt = castStrict!(ReferenceType)(ptr.type);
-        assert (!rt.isInterface());
-        Class c = rt.klass();
-        if (!c) {
-            //class wasn't registered for reflection
-            r ~= str.format(`%d [label="unregistered: %s"];` \n, id,
-                cur.classinfo.name);
-            unregistered[cur.classinfo.name] = true;
-            continue;
-        }
-        r ~= str.format(`%d [label="class: %s"];` \n, id, cur.classinfo.name);
-        while (c) {
-            ptr.type = c.owner(); //dangerous, but should be ok
-            doStructMembers(id, ptr, c);
-            c = c.superClass();
-        }
-    }
-    r ~= "}\n";
-
-    char[][] s_unknown = unknown.keys, s_unreged = unregistered.keys;
-    s_unknown.sort;
-    s_unreged.sort;
-    std.stdio.writefln("Completely unknown:");
-    foreach (x; s_unknown)
-        std.stdio.writefln("  %s", x);
-    std.stdio.writefln("Unregistered:");
-    foreach (x; s_unreged)
-        std.stdio.writefln("  %s", x);
-
-    return r;
-}
-
-import gzip = utils.gzip;
-
-//write an "archive", the only point is to support streaming + compression
-//could be changed to output the zip or tar format
-//tar would contain compressed file (instead of being a tar.gz)
-class ZWriter {
-    private {
-        gzip.GZWriter mWriter;
-        Stream mOut;
-    }
-
-    this(char[] f) {
-        this(gFramework.fs.open(f, FileMode.OutNew));
-    }
-
-    this(Stream s) {
-        assert (!!s);
-        mOut = s;
-        mWriter = new gzip.GZWriter(&doWrite);
-    }
-
-    private void doWrite(ubyte[] data) {
-        mOut.writeExact(data.ptr, data.length);
-    }
-
-    void write(ubyte[] data) {
-        mWriter.write(data);
-    }
-    void write_ptr(void* ptr, size_t size) {
-        write(cast(ubyte[])(ptr[0..size]));
-    }
-
-    private class MyOutput : OutputHelper {
-        override void writeString(char[] str) {
-            this.outer.write(cast(ubyte[])str);
-        }
-    }
-
-    void writeConfigFile(ConfigNode n) {
-        n.writeFile(new MyOutput());
-    }
-
-    void close() {
-        mWriter.finish();
-        mWriter = null;
-        mOut.close();
-        mOut = null;
-    }
-}
-
-class ZReader {
-    private {
-        gzip.GZReader mReader;
-        Stream mIn;
-        ubyte[] mBuffer;
-    }
-
-    this(char[] f) {
-        this(gFramework.fs.open(f, FileMode.In));
-    }
-
-    this(Stream s) {
-        assert (!!s);
-        mIn = s;
-        mBuffer.length = 64*1024;
-        mReader = new gzip.GZReader(&doRead);
-    }
-
-    private ubyte[] doRead() {
-        uint res = mIn.read(mBuffer);
-        if (res < mBuffer.length) {
-            assert (mIn.eof());
-        }
-        return mBuffer[0..res];
-    }
-
-    ubyte[] read(ubyte[] data) {
-        return mReader.read(data);
-    }
-    void read_ptr(void* ptr, size_t size) {
-        ubyte[] res = read(cast(ubyte[])(ptr[0..size]));
-        if (res.length != size)
-            throw new Exception("read error: not enough data available");
-    }
-
-    ConfigNode readConfigFile() {
-        //xxx: this is a major wtf: I don't know how much data to read (because
-        //     I don't store the size), so I read everything lol
-        //it's also inefficient
-        //how to fix: write the size somewhere (like .zip does)
-        ubyte[] bla, res;
-        bla.length = 64*1024;
-        while (bla.length) {
-            bla = read(bla);
-            res ~= bla;
-        }
-        auto f = new ConfigFile(cast(char[])res, "zreader", null);
-        return f.rootnode();
-    }
-
-    void close() {
-        mReader.finish();
-        mReader = null;
-        mIn.close();
-        mIn = null;
-    }
-}
-
-class TarArchive {
-    private {
-        Stream mFile;
-        Entry[] mEntries;
-        bool mReading;
-
-        struct Entry {
-            char[] name;
-            ulong size;
-            ulong offset; //the the file header
-            bool writing;
-        }
-
-        //http://en.wikipedia.org/wiki/Tar_(file_format)
-        struct TarHeader {
-            char[100] filename;
-            char[8] mode;
-            char[8] user, group;
-            char[12] filesize;
-            char[12] moddate;
-            char[8] checksum;
-            char[1] link;
-            char[100] linkedfile;
-            char[255] pad;
-
-            char[] getchecksum() {
-                TarHeader copy = *this;
-                copy.checksum[] = ' ';
-                char* ptr = cast(char*)&copy;
-                int s = 0;
-                for (int n = 0; n < copy.sizeof; n++) {
-                    s += cast(ubyte)ptr[n];
-                }
-                auto res = str.format("0%05o", s);
-                res ~= "\0 ";
-                assert (res.length == 8);
-                return res;
-            }
-
-            bool iszero() {
-                char* ptr = cast(char*)this;
-                for (int n = 0; n < TarHeader.sizeof; n++) {
-                    if (ptr[n] != '\0')
-                        return false;
-                }
-                return true;
-            }
-        }
-
-        static assert (TarHeader.sizeof == 512);
-    }
-
-    //read==true: read mode, else write mode
-    //read and write mode are completely separate, don't mix
-    this(char[] f, bool read) {
-        mFile = gFramework.fs.open(f, read ? FileMode.In : FileMode.OutNew);
-        assert (mFile.seekable);
-        mReading = read;
-        if (mReading) {
-            while (!mFile.eof()) {
-                Entry e;
-                TarHeader h;
-                e.offset = mFile.position();
-                mFile.readExact(&h, h.sizeof);
-                if (h.iszero()) //eof
-                    break;
-                //"so relying on the first white space trimmed six digits for
-                // checksum yields better compatibility."
-                if (h.getchecksum()[0..6] != h.checksum[0..6])
-                    throw new Exception("tar error");
-                char[] getField(char[] f) {
-                    assert (f.length > 0);
-                    //else we had a buffer overflow with toString
-                    //xxx: utf safety?
-                    if (h.filename[$-1] != '\0')
-                        throw new Exception("tar error");
-                    return str.toString(&f[0]);
-                }
-                e.name = getField(h.filename).dup;
-                char[] sz = getField(h.filesize);
-                //parse octal by myself, Phobos is too stupid to do it
-                ulong isz = 0;
-                while (sz.length) {
-                    int digit = sz[0] - '0';
-                    if (digit < 0 || digit > 7)
-                        throw new Exception("tar error");
-                    isz = isz*8 + digit;
-                    sz = sz[1..$];
-                }
-                e.size = isz;
-                //normal file?
-                if (h.link[0] == '0' || h.link[0] == '\0')
-                    mEntries ~= e;
-                mFile.position = mFile.position + e.size;
-                align512();
-            }
-        }
-    }
-
-    ZReader openReadStream(char[] name, bool can_fail = false) {
-        name = name ~ ".gz";
-        foreach (Entry e; mEntries) {
-            if (e.name == name) {
-                auto s = new SliceStream(mFile, e.offset + 512,
-                    e.offset + 512 + e.size);
-                s.nestClose = false;
-                return new ZReader(s);
-            }
-        }
-        if (can_fail)
-            return null;
-        throw new Exception("tar entry not found");
-    }
-
-    static ubyte[512] waste;
-
-    //NOTE: sequential writing is assumed, e.g. only one stream at a time
-    ZWriter openWriteStream(char[] name) {
-        finishLastFile();
-        Entry e;
-        e.name = name ~ ".gz";
-        e.offset = mFile.position();
-        e.writing = true;
-        mEntries ~= e;
-        mFile.writeExact(waste.ptr, waste.sizeof);
-        auto s = new SliceStream(mFile, mFile.position());
-        s.nestClose = false; //stupid phobos, this took me some time
-        auto res = new ZWriter(s);
-        assert (mFile.seekable);
-        return res;
-    }
-
-    private void finishLastFile() {
-        assert (mFile.seekable);
-        if (!mEntries.length)
-            return;
-        Entry* e = &mEntries[$-1];
-        if (!e.writing)
-            return;
-        e.writing = false;
-        //SliceStream doesn't set parent seek position
-        //so use the size to find out how much was written
-        mFile.position = mFile.size;
-        e.size = mFile.position() - (e.offset + 512);
-        align512();
-    }
-
-    private void align512() {
-        //aw, unlike unix streams, seeking beyond the end is not allowed?
-        ulong npos = (mFile.position() + 511) & ~511UL;
-        if (npos <= mFile.size()) {
-            mFile.position = npos;
-        } else {
-            if (mReading)
-                throw new Exception("tar error (file unaligned)");
-            ulong todo = npos - mFile.position();
-            assert (todo < 512);
-            mFile.writeExact(&waste[0], todo);
-        }
-        assert ((mFile.position & 511) == 0);
-    }
-
-    void close() {
-        if (!mReading) {
-            finishLastFile();
-            //write all headers
-            foreach (Entry e;  mEntries) {
-                TarHeader h;
-                (cast(char*)&h)[0..h.sizeof] = '\0';
-                h.filename[0..e.name.length] = e.name;
-                char[] sz = str.format("%011o", e.size) ~ '\0';
-                assert (sz.length == 12);
-                h.filesize[] = sz;
-                h.link[0] = '0';
-                h.mode[] = "0000660\0"; //rw-rw----
-                h.checksum[] = h.getchecksum();
-                mFile.position = e.offset;
-                mFile.writeExact(&h, h.sizeof);
-            }
-            //close header, twice
-            mFile.position = mFile.size;
-            for (int n = 0; n < 2; n++)
-                mFile.writeExact(waste.ptr, waste.sizeof);
-        }
-        mFile.close();
-        mFile = null;
     }
 }

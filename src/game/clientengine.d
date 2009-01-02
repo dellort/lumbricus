@@ -390,16 +390,7 @@ class ClientGameEngine {
 
         mSceneRect = Rect2i(Vector2i(0), worldSize);
 
-        mGameWater = new GameWater(this);
-        mGameSky = new GameSky(this);
-
-        server_graphics = engine.getGraphics();
-        //(if there are objects in "add_objects", these should be appended at
-        // the end of "objects"; 2 times move_to_list() to keep the zorder)
-        server_graphics.add_objects.move_to_list(server_graphics.objects);
-        server_graphics.objects.move_to_list(server_graphics.add_objects);
-        //in case the game is reloaded
-        updateGraphics();
+        readd_graphics();
 
         detailLevel = 0;
 
@@ -413,6 +404,22 @@ class ClientGameEngine {
 
     bool gameEnded() {
         return mEngine.logic.currentRoundState == RoundState.end;
+    }
+
+    void readd_graphics() {
+        mScene.clear();
+
+        //xxx
+        mGameWater = new GameWater(this);
+        mGameSky = new GameSky(this);
+
+        server_graphics = engine.getGraphics();
+        //(if there are objects in "add_objects", these should be appended at
+        // the end of "objects"; 2 times move_to_list() to keep the zorder)
+        server_graphics.add_objects.move_to_list(server_graphics.objects);
+        server_graphics.objects.move_to_list(server_graphics.add_objects);
+        //in case the game is reloaded
+        updateGraphics();
     }
 
     TimeSourcePublic engineTime() {

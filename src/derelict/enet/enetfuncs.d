@@ -127,7 +127,7 @@ GenericLoader DerelictENet;
 static this() {
     DerelictENet.setup(
         "enet.dll",
-        "libenet.so",
+        "libenet.so.2",
         "",
         &load
     );

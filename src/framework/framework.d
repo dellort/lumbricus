@@ -30,6 +30,7 @@ import conv = std.conv;
 import std.stream;
 import str = std.string;
 import zlib = std.zlib;
+import std.outbuffer;
 
 debug import std.stdio;
 
@@ -183,6 +184,10 @@ package {
         }
     }
     WeakList!(Surface, SurfaceKillData) gSurfaces;
+}
+
+enum ImageFormat {
+    tga,    //lol, no more supported
 }
 
 /// a Surface
@@ -468,6 +473,68 @@ class Surface {
             dest[rc.p1.x .. rc.p2.x] = c;
         }
         unlockPixels(rc);
+    }
+
+    void saveImage(OutputStream stream, ImageFormat fmt = ImageFormat.tga) {
+        switch (fmt) {
+            case ImageFormat.tga:
+                saveToTGA(stream);
+            default:
+                assert(false, "Not implemented");
+        }
+    }
+
+    //dirty hacky lib to dump a surface to a file
+    //as far as I've seen we're not linked to any library which can write images
+    private void saveToTGA(OutputStream stream) {
+        OutBuffer to = new OutBuffer;
+        try {
+            void* pvdata;
+            uint pitch;
+            lockPixelsRGBA32(pvdata, pitch);
+            ubyte b;
+            b = 0;
+            to.write(b); //image id, whatever
+            to.write(b); //no palette
+            b = 2;
+            to.write(b); //uncompressed 24 bit RGB
+            short sh;
+            sh = 0;
+            to.write(sh); //skip plalette
+            to.write(sh);
+            b = 0;
+            to.write(b);
+            to.write(sh); //x/y coordinates
+            to.write(sh);
+            sh = size.x; to.write(sh); //w/h
+            sh = size.y; to.write(sh);
+            b = 24;
+            to.write(b);
+            b = 0;
+            to.write(b); //??
+            //dump picture data as 24 bbp
+            //TGA seems to be upside down
+            for (int y = size.y-1; y >= 0; y--) {
+                uint* data = cast(uint*)(pvdata+pitch*y);
+                for (int x = 0; x < size.x; x++) {
+                    //trivial alpha check... and if so, write a colorkey
+                    //this, of course, is a dirty hack
+                    if (*data >> 24) {
+                        b = *data >> 16; to.write(b);
+                        b = *data >> 8; to.write(b);
+                        b = *data; to.write(b);
+                    } else {
+                        b = 255; to.write(b);
+                        b = 0; to.write(b);
+                        b = 255; to.write(b);
+                    }
+                    data++;
+                }
+            }
+        } finally {
+            unlockPixels(Rect2i.init);
+        }
+        stream.write(to.toBytes);
     }
 }
 

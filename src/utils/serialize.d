@@ -139,6 +139,106 @@ class SerializeBase {
             throw new SerializeError("object is null");
         return t;
     }
+
+
+    //debug: write out the object graph in graphviz format
+    //here because it needs Types and mExternals
+    char[] dumpGraph(Object root) {
+        char[] r;
+        int id_alloc;
+        int[Object] visited; //map to id
+        Object[] to_visit;
+        r ~= `graph "a" {` \n;
+        to_visit ~= root;
+        visited[root] = ++id_alloc;
+        //some other stuff
+        bool[char[]] unknown, unregistered;
+
+        void delegate(int cur, SafePtr ptr, Class c) fwdDoStructMembers;
+
+        void doField(int cur, SafePtr ptr) {
+            if (auto s = cast(StructType)ptr.type) {
+                assert (!!s.klass());
+                fwdDoStructMembers(cur, ptr, s.klass());
+            } else if (auto rt = cast(ReferenceType)ptr.type) {
+                //object reference
+                Object n = ptr.toObject();
+                if (!n)
+                    return;
+                int other;
+                if (auto po = n in visited) {
+                    other = *po;
+                } else {
+                    other = ++id_alloc;
+                    visited[n] = other;
+                    to_visit ~= n;
+                }
+                r ~= str.format("%d -- %d\n", cur, other);
+            } else if (auto art = cast(ArrayType)ptr.type) {
+                ArrayType.Array arr = art.getArray(ptr);
+                for (int i = 0; i < arr.length; i++) {
+                    doField(cur, arr.get(i));
+                }
+            }
+        }
+
+        void doStructMembers(int cur, SafePtr ptr, Class c) {
+            foreach (ClassMember m; c.members()) {
+                doField(cur, m.get(ptr));
+            }
+        }
+
+        fwdDoStructMembers = &doStructMembers;
+
+        while (to_visit.length) {
+            Object cur = to_visit[0];
+            to_visit = to_visit[1..$];
+            int id = visited[cur];
+            if (auto pname = cur in mExternals) {
+                r ~= str.format(`%d [label="ext: %s"];` \n, id, *pname);
+                continue;
+            }
+            SafePtr indirect = mCtx.mTypes.ptrOf(cur);
+            void* tmp;
+            SafePtr ptr = indirect.mostSpecificClass(&tmp, true);
+            if (!ptr.type) {
+                //the actual class was never seen at runtime
+                r ~= str.format(`%d [label="unknown: %s"];` \n, id,
+                    cur.classinfo.name);
+                unknown[cur.classinfo.name] = true;
+                continue;
+            }
+            auto rt = castStrict!(ReferenceType)(ptr.type);
+            assert (!rt.isInterface());
+            Class c = rt.klass();
+            if (!c) {
+                //class wasn't registered for reflection
+                r ~= str.format(`%d [label="unregistered: %s"];` \n, id,
+                    cur.classinfo.name);
+                unregistered[cur.classinfo.name] = true;
+                continue;
+            }
+            r ~= str.format(`%d [label="class: %s"];` \n, id, cur.classinfo.name);
+            while (c) {
+                ptr.type = c.owner(); //dangerous, but should be ok
+                doStructMembers(id, ptr, c);
+                c = c.superClass();
+            }
+        }
+        r ~= "}\n";
+
+        char[][] s_unknown = unknown.keys, s_unreged = unregistered.keys;
+        s_unknown.sort;
+        s_unreged.sort;
+        std.stdio.writefln("Completely unknown:");
+        foreach (x; s_unknown)
+            std.stdio.writefln("  %s", x);
+        std.stdio.writefln("Unregistered:");
+        foreach (x; s_unreged)
+            std.stdio.writefln("  %s", x);
+
+        return r;
+    }
 }
 
 abstract class SerializeConfig : SerializeBase {
@@ -670,17 +770,5 @@ class SerializeInConfig : SerializeConfig {
         mObjectNodes = mObjectNodes[1..$];
         doReadObjects(cur);
         return getObject(cur["_object"]);
-    }
-
-    //like readObject(), but cast to T and make failure a deserialization error
-    //by default, the result also must be non-null
-    T readObjectT(T)(bool can_be_null = false) {
-        auto o = readObject();
-        T t = cast(T)o;
-        if (o && !t)
-            throw new SerializeError("unexpected object type");
-        if (!o && !can_be_null)
-            throw new SerializeError("object is null");
-        return t;
     }
 }

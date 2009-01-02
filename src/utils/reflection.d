@@ -433,6 +433,7 @@ class Types {
             //writefln("class not registered");
             return false;
         }
+        //assert (k.isSubTypeOf(method.klass()));
         /+ xxx
         if (!k.isSubTypeOf(m.klass())) {
             writefln("%s %s %s", k.name, m.klass.name, m.name);
@@ -455,7 +456,8 @@ class Types {
         if (obj) {
             Class k = findClass(obj);
             assert (!!k);
-            assert (k.isSubTypeOf(method.klass()));
+            //xxx for now disregard the following assert() urgs
+            //assert (k.isSubTypeOf(method.klass()));
             if (method.mDgType !is ptr.type)
                 return false;
         }
@@ -565,6 +567,7 @@ class StructuredType : Type {
 //interfaces or object references
 class ReferenceType : StructuredType {
     private {
+        ClassInfo mInfo;
         bool mIsInterface;
         void* function(Object obj) mCastTo;
         Object function(void* ptr) mCastFrom;
@@ -573,10 +576,22 @@ class ReferenceType : StructuredType {
     //don't use this, use create(T)(a_owner)
     private this(Types a_owner, TypeInfo a_ti) {
         super(a_owner, a_ti);
+        auto cit = cast(TypeInfo_Class)mTI;
+        auto iit = cast(TypeInfo_Interface)mTI;
+        assert (cit || iit);
+        if (cit) {
+            mInfo = cit.info;
+        } else {
+            mInfo = iit.info;
+        }
     }
 
     final bool isInterface() {
         return mIsInterface;
+    }
+
+    final ClassInfo classInfo() {
+        return mInfo;
     }
 
     //returns null, if the conversion is not possible
@@ -804,12 +819,18 @@ class ArrayType : Type {
 class MapType : Type {
     private {
         Type mKey, mValue;  //aa is Value[Key]
-        bool mIsStatic;
     }
 
     //use create()
     private this(Types a_owner, TypeInfo a_ti) {
         super(a_owner, a_ti);
+    }
+
+    final Type keyType() {
+        return mKey;
+    }
+    final Type valueType() {
+        return mValue;
     }
 
     //length of the aa
