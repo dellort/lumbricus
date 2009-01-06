@@ -47,11 +47,11 @@ enum GameZOrder {
 
 class ClientAnimationGraphic : Animator {
     AnimationGraphic mInfo;
+    int last_set_ts = -1;
 
     this(AnimationGraphic info) {
         zorder = GameZOrder.Objects;
         mInfo = info;
-        mInfo.set = true; //force initialization
         timeSource = mInfo.owner.timebase;
     }
 
@@ -62,9 +62,9 @@ class ClientAnimationGraphic : Animator {
         }
         pos = mInfo.pos;
         params = mInfo.params;
-        if (mInfo.set) {
+        if (mInfo.set_timestamp != last_set_ts) {
             setAnimation2(mInfo.animation, mInfo.animation_start);
-            mInfo.set = false;
+            last_set_ts = mInfo.set_timestamp;
         }
         super.draw(c);
     }
@@ -209,45 +209,6 @@ class TargetCrossImpl : SceneObject {
     }
 }
 
-//point-thingy when clicking with the mouse
-class TargetIndicatorImpl : Animator {
-    private {
-        TargetIndicator mInfo;
-    }
-
-    this(TargetIndicator info) {
-        zorder = GameZOrder.TargetCross;
-        mInfo = info;
-        timeSource = mInfo.owner.timebase;
-        //select animation based on weapon mode
-        switch(mInfo.mode) {
-            case PointMode.target:
-                setAnimation(mInfo.theme.pointed.get);
-                break;
-            case PointMode.instant:
-                setAnimation(mInfo.theme.click.get);
-                break;
-            default:
-                assert(false);
-        }
-        pos = mInfo.pos;
-    }
-
-    override void draw(Canvas c) {
-        //self-remove if instant animation has finished
-        //xxx make generic, there may be other similar graphics
-        if ((hasFinished() && mInfo.mode == PointMode.instant)
-            || mInfo.removed)
-        {
-            removeThis();
-            mInfo.remove();
-            return;
-        }
-
-        super.draw(c);
-    }
-}
-
 //creates shockwave-animation for an explosion (like in wwp)
 //currently creates no particles, but could in the future
 class ExplosionGfxImpl : SceneObjectCentered {
@@ -336,6 +297,7 @@ class ClientGameEngine {
     ResourceSet resources;
     GfxSet gfx;
     GameEngineGraphics server_graphics;
+    ulong server_graphics_last_checked_frame;
 
     private Music mMusic;
 
@@ -414,10 +376,7 @@ class ClientGameEngine {
         mGameSky = new GameSky(this);
 
         server_graphics = engine.getGraphics();
-        //(if there are objects in "add_objects", these should be appended at
-        // the end of "objects"; 2 times move_to_list() to keep the zorder)
-        server_graphics.add_objects.move_to_list(server_graphics.objects);
-        server_graphics.objects.move_to_list(server_graphics.add_objects);
+        server_graphics_last_checked_frame = 0;
         //in case the game is reloaded
         updateGraphics();
     }
@@ -454,8 +413,21 @@ class ClientGameEngine {
             scene.add(s);
         }
 
-        foreach (Graphic g; server_graphics.add_objects) {
-            assert (!g.removed);
+        assert (server_graphics.last_objects_frame
+            >= server_graphics_last_checked_frame);
+
+        if (server_graphics.last_objects_frame
+            == server_graphics_last_checked_frame)
+        {
+            return;
+        }
+
+        foreach (Graphic g; server_graphics.objects) {
+            if (g.removed)
+                continue;
+            //already has been added
+            if (g.frame_added <= server_graphics_last_checked_frame)
+                continue;
             //urghs, but interface methods (like .createAnimation()) can't be
             //used when loading from a saved game
             if (auto ani = cast(AnimationGraphic)g) {
@@ -466,16 +438,15 @@ class ClientGameEngine {
                 add(new LandscapeGraphicImpl(land));
             } else if (auto tc = cast(TargetCross)g) {
                 add(new TargetCrossImpl(tc, gfx));
-            } else if (auto ti = cast(TargetIndicator)g) {
-                add(new TargetIndicatorImpl(ti));
             } else if (auto eg = cast(ExplosionGfx)g) {
                 add(new ExplosionGfxImpl(eg, gfx));
             } else {
                 assert (false, "unknown type: "~g.toString());
             }
-            server_graphics.add_objects.remove(g.node);
-            server_graphics.objects.addNode(g.node);
         }
+
+        server_graphics_last_checked_frame
+            = server_graphics.last_objects_frame;
     }
 
     bool oldpause; //hack, so you can pause the music independent from the game

@@ -487,6 +487,7 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         mGameTime.update();
 
         if (!mGameTime.paused) {
+            graphics.current_frame++;
             //mPhysicTime.start();
             mPhysicWorld.simulate(mGameTime.current);
             //mPhysicTime.stop();

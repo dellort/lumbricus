@@ -90,6 +90,11 @@ class GameConfig {
         weaponsets = n.getValueArray!(char[])("weaponsets");
     }
 
+    //the following stuff should probably be moved to something in game.setup
+    //it doesn't really affect the game itself, but rather how it's started
+
+    bool as_pseudo_server;
+
     //xxx hack that was convenient BUT MUST DIE PLEASE KILL ME
     char[] load_savegame; //now a filename
 }
@@ -104,14 +109,18 @@ class GameConfig {
 //game engine shall only use the methods to access stuff
 class GameEngineGraphics {
     //add_objects is for the client engine, to get to know about new objects
-    List2!(Graphic) add_objects, objects;
+    List2!(Graphic) objects;
     //in the network case, delivers the server engine's time of the last update
     //for now, it's always the game time
     TimeSource timebase;
+    //incremented on each update
+    ulong current_frame = 1;
+    //last frame when something was added to objects
+    //(object changes/removal requires the client to poll the object's state)
+    ulong last_objects_frame;
 
     this (TimeSource ts) {
         objects = new typeof(objects);
-        add_objects = new typeof(objects);
         timebase = ts;
     }
     this (ReflectCtor c) {
@@ -121,33 +130,22 @@ class GameEngineGraphics {
     void remove(Graphic n) {
         if (objects.contains(n.node)) {
             objects.remove(n.node);
-        } else if (add_objects.contains(n.node)) {
-            add_objects.remove(n.node);
         } else {
-            if (!n.removed)
-                std.stdio.writefln(n);
+            //if (!n.removed)
+            //    std.stdio.writefln(n);
             assert (n.removed);
         }
         n.removed = true;
     }
 
     private void doadd(Graphic g) {
-        g.node = add_objects.add(g);
+        g.node = objects.add(g);
+        g.frame_added = current_frame;
+        last_objects_frame = current_frame;
     }
 
     AnimationGraphic createAnimation() {
         auto n = new AnimationGraphic(this);
-        doadd(n);
-        return n;
-    }
-
-    TargetIndicator createTargetIndicator(TeamTheme theme, Vector2i pos,
-        PointMode mode)
-    {
-        auto n = new TargetIndicator(this);
-        n.theme = theme;
-        n.pos = pos;
-        n.mode = mode;
         doadd(n);
         return n;
     }
@@ -194,6 +192,7 @@ class Graphic {
     GameEngineGraphics owner;
     ListNode node;
     bool removed;
+    ulong frame_added;
 
     this (GameEngineGraphics a_owner) {
         owner = a_owner;
@@ -209,7 +208,7 @@ class Graphic {
 class AnimationGraphic : Graphic {
     Animation animation;
     Time animation_start;
-    bool set;
+    int set_timestamp; //incremented everytime the animation is reset
     //xxx use SequenceUpdate directly?
     Vector2i pos;
     AnimationParams params;
@@ -229,11 +228,26 @@ class AnimationGraphic : Graphic {
         pos = a_pos;
         params = a_params;
     }
+    final void update(ref Vector2i a_pos) {
+        pos = a_pos;
+    }
 
     final void setAnimation(Animation a_animation, Time startAt = Time.Null) {
         animation = a_animation;
         animation_start = owner.timebase.current() + startAt;
-        set = true;
+        set_timestamp++;
+    }
+
+    //don't know if this is consistent with Animator.hasFinished()
+    //but here, it removes if currently a frame is displayed
+    //stupid code duplication
+    final bool hasFinished() {
+        if (!animation)
+            return true;
+        if (animation.repeat || animation.keepLastFrame)
+            return false;
+        return (owner.timebase.current
+            >= animation_start + animation.duration());
     }
 }
 
@@ -255,21 +269,6 @@ class LineGraphic : Graphic {
 
     void setColor(Color c) {
         color = c;
-    }
-}
-
-//for homing weapons
-class TargetIndicator : Graphic {
-    Vector2i pos;
-    TeamTheme theme;
-    PointMode mode;
-
-    this (GameEngineGraphics a_owner)
-    {
-        super(a_owner);
-    }
-    this (ReflectCtor c) {
-        super(c);
     }
 }
 
@@ -388,6 +387,7 @@ interface GameEngineAdmin {
     void setSlowDown(float slow);
 }
 
+/+
 ///calls from engine into clients
 interface GameEngineCallback {
     ///cause damage; if explode is true, play corresponding particle effects
@@ -399,6 +399,7 @@ interface GameEngineCallback {
     ///- or slowdown set.
     void onEngineStateChanged();
 }
++/
 
 enum RoundState {
     prepare,    //player ready

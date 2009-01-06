@@ -22,6 +22,9 @@ import game.sprite;
 import game.crate;
 import game.gobject;
 import game.setup;
+import game.netclient;
+import game.netshared;
+import game.netserver;
 import game.levelgen.landscape;
 import game.levelgen.level;
 import game.levelgen.generator;
@@ -101,10 +104,12 @@ Level fuzzleLevel(Level level) {
 class GameTask : Task {
     private {
         GameConfig mGameConfig;
-        GameEngine mServerEngine;
+        GameEngine mServerEngine; //can be null, if a client in a network game!
         GameEnginePublic mGame;
         GameEngineAdmin mGameAdmin;
         ClientGameEngine mClientEngine;
+        NetClient mNetClient;
+        NetServer mNetServer;
         GfxSet mGfx;
 
         GameFrame mWindow;
@@ -159,6 +164,26 @@ class GameTask : Task {
 
         createWindow();
         initGame(cfg);
+    }
+
+    this(TaskManager tm, PseudoNetwork pseudo_client) {
+        super(tm);
+
+        createWindow();
+
+        //real network: probably has to wait some time until config is
+        //available? (wait for server)
+        mNetClient = new NetClient(pseudo_client);
+        mGameConfig = mNetClient.gameConfig();
+        assert (!!mGameConfig);
+        //xxx: rendering should be done elsewhere
+        if (!mGameConfig.level) {
+            auto gen = new GenerateFromSaved(new LevelGeneratorShared(),
+                mGameConfig.saved_level);
+            mGameConfig.level = gen.render();
+            assert (!!mGameConfig.level);
+        }
+        doInit();
     }
 
     private void createWindow() {
@@ -261,6 +286,13 @@ class GameTask : Task {
             tehfile.close();
         }
 
+        doInit();
+    }
+
+    void doInit() {
+        assert (!!mGameConfig);
+        assert (!!mGameConfig.level);
+
         mLoadScreen = new LoadingScreen();
         mLoadScreen.zorder = 10;
         mGameFrame.add(mLoadScreen);
@@ -312,8 +344,15 @@ class GameTask : Task {
 
     private bool initGameEngine() {
         //log("initGameEngine");
-        if (!mSaveGame) {
+        if (mNetClient) {
+            //must wait until server ready (I think it's always ready on the
+            //first try with pseudo networking)
+            if (!mNetClient.game())
+                return false; //wait for next frame (busy waiting)
+            mGame = mNetClient.game();
+        } else if (!mSaveGame) {
             mServerEngine = new GameEngine(mGameConfig, mGfx);
+            mGame = mServerEngine;
         } else {
             //analogous to saveGame()
             addResources(mSaveGame);
@@ -334,15 +373,21 @@ class GameTask : Task {
             mSaveGame.addExternal(registerLog("physlog"), "physic_log");
             //
             mServerEngine = mSaveGame.readObjectT!(GameEngine)();
+            mGame = mServerEngine;
         }
-        mGame = mServerEngine;
-        mGameAdmin = mServerEngine.requestAdmin();
+        mGameAdmin = mGame.requestAdmin();
+
+        if (mGameConfig.as_pseudo_server && !mNetServer) {
+            mNetServer = new NetServer(mServerEngine);
+            new GameTask(manager(), mNetServer.pseudoNetwork());
+        }
+
         return true;
     }
 
     private bool initClientEngine() {
         //log("initClientEngine");
-        mClientEngine = new ClientGameEngine(mServerEngine, mGfx);
+        mClientEngine = new ClientGameEngine(mGame, mGfx);
         return true;
     }
 
@@ -409,7 +454,8 @@ class GameTask : Task {
     private void gameLoaded(Loader sender) {
         //idea: start in paused mode, release poause at end to not need to
         //      reset the gametime
-        mServerEngine.start();
+        if (mServerEngine)
+            mServerEngine.start();
         //a small wtf: why does client engine have its own time??
         mClientEngine.start();
 
@@ -459,16 +505,28 @@ class GameTask : Task {
 
     override protected void onFrame() {
         if (mGameLoader.fullyLoaded) {
+            if (mNetServer) {
+                mNetServer.frame_receive();
+            }
             if (mServerEngine) {
                 mServerEngine.doFrame();
             }
+            if (mNetServer) {
+                mNetServer.frame_send();
+            }
 
+            if (mNetClient) {
+                mNetClient.frame_receive();
+            }
             if (mClientEngine) {
                 mClientEngine.doFrame();
 
                 //maybe
                 if (mClientEngine.gameEnded)
                     terminateWithFadeOut();
+            }
+            if (mNetClient) {
+                mNetClient.frame_send();
             }
         } else {
             if (mDelayedFirstFrame) {
@@ -484,6 +542,8 @@ class GameTask : Task {
     }
 
     void saveGame(TarArchive tehfile) {
+        if (!mServerEngine)
+            throw new Exception("can't save network game as client");
         GameEngine engine = mServerEngine;
 
         //---- bitmaps
@@ -674,6 +734,8 @@ class GameTask : Task {
     }
 
     private void cmdSafeLevelTGA(MyBox[] args, Output write) {
+        if (!mServerEngine)
+            return;
         char[] filename = args[0].unbox!(char[])();
         Stream s = gFramework.fs.open(filename, FileMode.OutNew);
         mServerEngine.gameLandscapes[0].image.saveImage(s);
@@ -743,20 +805,28 @@ class GameTask : Task {
     }
 
     private void cmdCrateTest(MyBox[] args, Output write) {
+        if (!mServerEngine)
+            return;
         mServerEngine.controller.dropCrate();
     }
 
     private void cmdShakeTest(MyBox[] args, Output write) {
+        if (!mServerEngine)
+            return;
         float strength = args[0].unbox!(float);
         float degrade = args[1].unbox!(float);
         mServerEngine.addEarthQuake(strength, degrade);
     }
 
     private void cmdActivityTest(MyBox[] args, Output write) {
+        if (!mServerEngine)
+            return;
         mServerEngine.activityDebug(args[0].unboxMaybe!(bool));
     }
 
     private void cmdSnapTest(MyBox[] args, Output write) {
+        if (!mServerEngine)
+            return;
         int arg = args[0].unbox!(int);
         if (arg & 1) {
             doEngineSnap();

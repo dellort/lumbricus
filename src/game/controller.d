@@ -167,7 +167,7 @@ class ServerTeam : Team {
 
         //if you can click anything, if true, also show that animation
         PointMode mPointMode;
-        TargetIndicator mCurrentTargetInd;
+        AnimationGraphic mCurrentTargetInd;
 
         Vector2f movementVec = {0, 0};
         bool mAlternateControl;
@@ -385,23 +385,34 @@ class ServerTeam : Team {
         targetIsSet = true;
         currentTarget = where;
 
-        TargetIndicator t = parent.engine.graphics.createTargetIndicator(color,
-            toVector2i(where), mPointMode);
+        AnimationGraphic t = parent.engine.graphics.createAnimation();
 
-        if (mPointMode == PointMode.target) {
-            //targetting mode (homing) -> save point reference
-            setIndicator(t);
+        switch(mPointMode) {
+            case PointMode.target:
+                t.setAnimation(color.pointed.get);
+                break;
+            case PointMode.instant:
+                t.setAnimation(color.click.get);
+                break;
+            default:
+                assert(false);
         }
+
+        t.update(toVector2i(where));
+
+        setIndicator(t);
+
         if (mPointMode == PointMode.instant) {
             //instant mode -> fire and forget
             current.doFireDown(true);
             targetIsSet = false;
         }
     }
-    private void setIndicator(TargetIndicator ind) {
+    private void setIndicator(AnimationGraphic ind) {
         //only one cross indicator
-        if (mCurrentTargetInd)
+        if (mCurrentTargetInd) {
             mCurrentTargetInd.remove();
+        }
         mCurrentTargetInd = ind;
     }
 
@@ -438,6 +449,11 @@ class ServerTeam : Team {
     }
 
     void simulate() {
+        if (mCurrentTargetInd) {
+            if (mCurrentTargetInd.hasFinished()) {
+                setIndicator(null);
+            }
+        }
         if (!mActive)
             return;
         if (mCurrent)
