@@ -10,7 +10,7 @@ import game.animation;
 import game.gfxset : TeamTheme;
 import game.glevel;
 import game.weapon.types;
-import game.weapon.weapon;
+//import game.weapon.weapon;
 import game.levelgen.level;
 //import game.levelgen.landscape;
 import game.levelgen.renderer;
@@ -410,6 +410,17 @@ enum RoundState {
     end,        //everything ended!
 }
 
+class WeaponHandle {
+    Resource!(Surface) icon;
+    char[] name;
+    int value;
+    char[] category;
+
+    //serializable for simplicity
+    this () {}
+    this (ReflectCtor c) {}
+}
+
 ///interface to the server's GameLogic
 ///the server can have this per-client to do client-specific actions
 ///it's not per-team
@@ -438,7 +449,7 @@ interface GameLogicPublic {
 
     ///list of _all_ possible weapons, which are useable during the game
     ///Team.getWeapons() must never return a Weapon not covered by this list
-    WeaponClass[] weaponList();
+    WeaponHandle[] weaponList();
 
     ///let the client display a message (like it's done on round's end etc.)
     ///this is a bit complicated because message shall be translated on the
@@ -476,7 +487,7 @@ interface TeamMember {
 //a trivial list of weapons and quantity
 alias WeaponListItem[] WeaponList;
 struct WeaponListItem {
-    WeaponClass type;
+    WeaponHandle type;
     //quantity or the magic value QUANTITY_INFINITE if unrestricted amount
     int quantity;
     //if weapon is allowed by the game controller (e.g. no airstrikes in caves)
@@ -526,7 +537,7 @@ interface TeamMemberControl {
     void selectNextMember();
 
     ///what kind of movement control is possible
-    WalkState walkState();
+    //WalkState walkState();
 
     ///make the active worm jump
     void jump(JumpMode mode);
@@ -540,12 +551,12 @@ interface TeamMemberControl {
 
     ///what kinds of weapons can be used at the current member state
     ///e.g. no weapons while in mid-air
-    WeaponMode weaponMode();
+    //WeaponMode weaponMode();
 
     ///select weapon weaponId for the active worm
-    void weaponDraw(WeaponClass weaponId);
+    void weaponDraw(WeaponHandle weaponId);
 
-    WeaponClass currentWeapon();
+    WeaponHandle currentWeapon();
     ///show the weapon as an icon near the worm; used when the weapon can not be
     ///displayed directly (like when worm is on a jetpack)
     bool displayWeaponIcon();

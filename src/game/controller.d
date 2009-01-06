@@ -99,17 +99,18 @@ class ServerMemberControl : TeamMemberControl {
         return WeaponMode.none;
     }
 
-    void weaponDraw(WeaponClass w) {
+    void weaponDraw(WeaponHandle w) {
         auto m = activemember;
         if (m) {
-            m.selectWeaponByClass(w);
+            m.selectWeaponByClass(ctl.engine.wh2wc(w));
         }
     }
 
-    WeaponClass currentWeapon() {
+    WeaponHandle currentWeapon() {
         auto m = activemember;
         if (m) {
-            return m.currentWeapon ? m.currentWeapon.weapon : null;
+            return m.currentWeapon ?
+                ctl.engine.wc2wh(m.currentWeapon.weapon) : null;
         }
         return null;
     }
@@ -232,7 +233,7 @@ class ServerTeam : Team {
         WeaponList list;
         foreach (item; items) {
             WeaponListItem nitem;
-            nitem.type = item.weapon;
+            nitem.type = parent.engine.wc2wh(item.weapon);
             nitem.quantity = item.infinite ?
                 WeaponListItem.QUANTITY_INFINITE : item.count;
             nitem.enabled = item.canUse();
@@ -1067,8 +1068,12 @@ class GameController : GameLogicPublic {
         return control;
     }
 
-    WeaponClass[] weaponList() {
-        return mEngine.weaponList();
+    WeaponHandle[] weaponList() {
+        WeaponHandle[] res;
+        foreach (c; mEngine.weaponList()) {
+            res ~= engine.wc2wh(c);
+        }
+        return res;
     }
 
     int getMessageChangeCounter() {

@@ -72,7 +72,7 @@ class GameFrame : SimpleContainer {
         updateWeapons();
     }
 
-    private void selectWeapon(WeaponClass c) {
+    private void selectWeapon(WeaponHandle c) {
         clientengine.logic.getControl.weaponDraw(c);
     }
 

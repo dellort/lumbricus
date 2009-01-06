@@ -849,6 +849,7 @@ class WormState : SequenceState {
 
 ///Load a bunch of sequences from a ConfigNode (like "sequences" in wwp.conf)
 void loadSequences(GameEngine engine, ConfigNode seqList) {
+    init_loaders();
     foreach (ConfigNode sub; seqList) {
         auto pload = sub.name in loaders;
         if (!pload) {
@@ -998,7 +999,12 @@ void loadNapalm(GameEngine engine, ConfigItem fromitem) {
     addState(engine, state);
 }
 
-static this() {
+private bool m_loaders_initialized;
+
+private void init_loaders() {
+    if (m_loaders_initialized)
+        return;
+    m_loaders_initialized = true;
     loaders["normal"] = &loadNormal;
     loaders["worm_normal_weapons"] = &loadWormNormalWeapons;
     loaders["worm_jetpack"] = &loadWormJetpack;

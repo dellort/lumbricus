@@ -236,6 +236,21 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
         throw new Exception("weapon class " ~ name ~ " not found");
     }
 
+    //sry
+    WeaponHandle findWeaponHandle(char[] name) {
+        auto wc = findWeaponClass(name, true);
+        //logic error, don't call this function if the name doesn't exist
+        assert (!!wc, "no weapon handle: "~name);
+        assert (!!wc.handle);
+        return wc.handle;
+    }
+    WeaponHandle wc2wh(WeaponClass c) {
+        return c ? findWeaponHandle(c.name) : null;
+    }
+    WeaponClass wh2wc(WeaponHandle h) {
+        return h ? findWeaponClass(h.name) : null;
+    }
+
     WeaponClass[] weaponList() {
         return mWeaponClasses.values;
     }

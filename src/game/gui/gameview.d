@@ -612,7 +612,7 @@ class GameView : Container {
 
     //find a WeaponClass of the weapon named "name" in the current team's
     //weapon-set (or return null)
-    private WeaponClass findWeapon(char[] name) {
+    private WeaponHandle findWeapon(char[] name) {
         auto team = mController.getActiveTeam();
         if (!team)
             return null;
@@ -681,7 +681,7 @@ class GameView : Container {
                 //draw the weapon
                 //xxx what about instant fire?
                 //    would have to wait until weapon ready
-                WeaponClass c = findWeapon(wcname);
+                WeaponHandle c = findWeapon(wcname);
                 mController.weaponDraw(c);
             }
         }
