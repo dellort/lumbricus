@@ -159,10 +159,12 @@ class TarArchive {
     //read==true: read mode, else write mode
     //read and write mode are completely separate, don't mix
     this(Stream f, bool read) {
+        assert (!!f);
         if (read)
             assert(f.readable);
         else
             assert(f.writeable);
+        mFile = f;
         assert (mFile.seekable);
         mReading = read;
         if (mReading) {
