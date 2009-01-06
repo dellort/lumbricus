@@ -475,9 +475,6 @@ class WormStateDisplay : AniStateDisplay {
     float mAngleUser;
     //for turnaround
     int mSideFacing;
-    //keep track when animation in mAnimator "most likely" ends, instead of
-    //using mAnimator.hasFinished() => no feedback from mAnimator needed
-    Time mAnimationStart;
     //only for jetpack
     AnimationGraphic[2] mJetFlames;
     Time[2] mJetFlamesStart;
@@ -549,7 +546,6 @@ class WormStateDisplay : AniStateDisplay {
 
         if (s && (s.animation || s.reset_animation)) {
             mAnimator.setAnimation(s.animation);
-            mAnimationStart = now();
         }
 
         if (s && s.interpolate_angle_id >= 0) {
@@ -574,8 +570,8 @@ class WormStateDisplay : AniStateDisplay {
         bool ended = true;
         //if keepLastFrame is set, don't look at hasFinished
         auto anim = mCurSubSeq.animation;
-        if (anim && ((now() - mAnimationStart < anim.duration)
-            || anim.keepLastFrame) && !mCurSubSeq.dont_wait_for_animation)
+        if (anim && !mAnimator.hasFinished() &&
+            !mCurSubSeq.dont_wait_for_animation)
         {
             ended = false;
         }
