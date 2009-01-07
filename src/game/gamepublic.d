@@ -336,9 +336,6 @@ interface GameEnginePublic {
     void signalReadiness();
     +/
 
-    ///get an administrator interface (xxx add some sort of protection)
-    GameEngineAdmin requestAdmin();
-
     ///current water offset
     int waterOffset();
 
@@ -369,22 +366,6 @@ interface GameEnginePublic {
     GameLogicPublic logic();
 
     GameEngineGraphics getGraphics();
-}
-
-///administrator interface to game
-///contains functions to change game/world state
-interface GameEngineAdmin {
-    ///raise water level
-    void raiseWater(int by);
-
-    ///change wind speed
-    void setWindSpeed(float speed);
-
-    ///pause game
-    void setPaused(bool paused);
-
-    ///slow down game time
-    void setSlowDown(float slow);
 }
 
 /+
@@ -431,7 +412,8 @@ interface GameLogicPublic {
     ///all participating teams (even dead ones)
     Team[] getTeams();
 
-    //xxx Team[] getActiveTeams();
+    ///all currently playing teams (not just the controlled one)
+    Team[] getActiveTeams();
 
     RoundState currentRoundState();
 
@@ -446,7 +428,8 @@ interface GameLogicPublic {
 
     ///xxx: should return an array for the case where two teams are active on
     ///on client at the same time?
-    TeamMemberControl getControl();
+    ///xxx this can't be here, different for every client
+    ClientControl getControl();
 
     ///list of _all_ possible weapons, which are useable during the game
     ///Team.getWeapons() must never return a Weapon not covered by this list
@@ -482,6 +465,14 @@ interface TeamMember {
     ///reflect the real situation
     int currentHealth();
 
+    ///last time this worm did an action (or so)
+    Time lastAction();
+
+    WeaponHandle getCurrentWeapon();
+    ///show the weapon as an icon near the worm; used when the weapon can not be
+    ///displayed directly (like when worm is on a jetpack)
+    bool displayWeaponIcon();
+    
     Graphic getGraphic();
 }
 
@@ -516,67 +507,19 @@ interface Team {
     WeaponList getWeapons();
 
     TeamMember[] getMembers();
-    //??? TeamMember getActiveMember();
+    
+    ///currently active worm, null if none
+    TeamMember getActiveMember();
 }
 
 //calls from client to server which control a worm
 //this should be also per-client, but it isn't per Team (!)
 //i.e. in non-networked multiplayer mode, there's only one of this
-interface TeamMemberControl {
-    ///currently active worm, null if none
-    TeamMember getActiveMember();
-
-    ///redundant to getActiveMember and TeamMember.team
-    Team getActiveTeam();
-
-    ///last time a worm did an action (or so)
-    Time currentLastAction();
-
-    ///select the next worm in row
-    ///this does not have to work, nothing will happen if selecting is not
-    ///possible
-    void selectNextMember();
-
-    ///what kind of movement control is possible
-    //WalkState walkState();
-
-    ///make the active worm jump
-    void jump(JumpMode mode);
-
-    ///set the movement vector for the active worm
-    ///only the sign counts, speed is always fixed
-    ///the worm will move by this vector from this call on
-    ///(0,0) to stop
-    ///note that the worm may stop by itself for several explosive reasons
-    void setMovement(Vector2i m);
-
-    ///what kinds of weapons can be used at the current member state
-    ///e.g. no weapons while in mid-air
-    //WeaponMode weaponMode();
-
-    ///select weapon weaponId for the active worm
-    void weaponDraw(WeaponHandle weaponId);
-
-    WeaponHandle currentWeapon();
-    ///show the weapon as an icon near the worm; used when the weapon can not be
-    ///displayed directly (like when worm is on a jetpack)
-    bool displayWeaponIcon();
-
-    ///set grenade timer (cf. Weapon for useful values)
-    void weaponSetTimer(Time timer);
-
-/+
-xxx handled by setMovement()
-    ///set firing angle, possible angles depend on selected weapon
-    ///will be rounded for weapons with fixed angles
-    void weaponAim(float angle);
-+/
-
-    ///set target of targetting weapon, showing a big X on the hated opponent
-    ///how the target is accquired (e.g. mouse click, use same as last, ...)
-    ///is handled by the client
-    void weaponSetTarget(Vector2i targetPos);
-
-    ///actually fire weapon with parameters set before
-    void weaponFire(bool is_down);
+interface ClientControl {
+	///TeamMember that would receive keypresses
+	///a member of one team from GameLogicPublic.getActiveTeams()
+	///_not_ always the same member or null
+	TeamMember getControlledMember();
+	
+    void executeCommand(char[] cmd);
 }

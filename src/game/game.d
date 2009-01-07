@@ -36,7 +36,7 @@ import game.crate;
 
 //code to manage a game session (hm, whatever this means)
 //reinstantiated on each "round"
-class GameEngine : GameEnginePublic, GameEngineAdmin {
+class GameEngine : GameEnginePublic {
     private TimeSource mGameTime;
 
     protected PhysicWorld mPhysicWorld;
@@ -82,10 +82,6 @@ class GameEngine : GameEnginePublic, GameEngineAdmin {
     }
     Vector2i worldCenter() {
         return mLevel.worldCenter;
-    }
-
-    GameEngineAdmin requestAdmin() {
-        return this;
     }
 
     bool paused() {

@@ -1090,7 +1090,7 @@ class Class {
 
     final Object newInstance() {
         if (!mCreateDg) {
-            writefln("no: %s", name());
+            debug writefln("no: %s", name());
             return null;
         }
         Object o = mCreateDg(types().mFoo);

@@ -393,7 +393,7 @@ class ClientGameEngine {
     GameLogicPublic logic() {
         return mEngine.logic;
     }
-    TeamMemberControl controller() {
+    ClientControl controller() {
         return logic.getControl();
     }
 

@@ -434,8 +434,8 @@ public class CommandLine {
         mDefaultCommand = default_command;
     }
 
-    public void execute(char[] cmdline) {
-        mDefInstance.execute(cmdline, false);
+    public bool execute(char[] cmdline, bool silentOnError = false) {
+        return mDefInstance.execute(cmdline, false, silentOnError);
     }
 }
 
@@ -605,13 +605,18 @@ class CommandLineInstance {
     }
 
     /// Execute any command from outside.
-    public void execute(char[] cmdline, bool addHistory = true) {
+    public bool execute(char[] cmdline, bool addHistory = true, 
+        bool silentOnError = false) 
+    {
         char[] cmd, args;
         uint start, end, argstart;
 
         if (!parseCommand(cmdline, cmd, start, end, argstart)) {
             //nothing, but show some reaction...
             mConsole.writefln("-");
+            //command failed to parse -> report as eaten, 
+            //will fail on other instances as well
+            return true;
         } else {
             if (addHistory) {
                 if (mCurrentHistoryEntry != mHistory.length - 1) {
@@ -630,11 +635,14 @@ class CommandLineInstance {
 
             auto ccmd = findCommand(cmd);
             if (!ccmd.cmd) {
-                mConsole.writefln("Unknown command: "~cmd);
+            	if (!silentOnError)
+            		mConsole.writefln("Unknown command: "~cmd);
+                return false;
             } else {
                 if (!ccmd.cmd.parseAndInvoke(cmdline[argstart..$], mConsole)) {
                     show_cmd_help(ccmd);
                 }
+                return true;
             }
         }
     }

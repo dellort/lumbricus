@@ -516,7 +516,7 @@ class Widget {
     final char[] findBind(KeyInfo k) {
         char[] bind;
         if (mBindings) {
-            bind = mBindings.findBinding(k);
+            bind = mBindings.findBinding(k, mousePos);
         }
         return bind;
     }

@@ -9,7 +9,7 @@ import str = std.string;
 
 debug import std.stdio : writefln;
 
-debug = CountClasses;
+debug debug = CountClasses;
 
 /+
 Not-so-obvious limitations of the implemented serialization mechanism:

@@ -3,6 +3,7 @@ module game.gui.gameview;
 import common.common;
 import framework.font;
 import framework.framework;
+import framework.commandline;
 import common.scene;
 import game.animation;
 import game.gamepublic;
@@ -199,15 +200,11 @@ class GameView : Container {
     private {
         ClientGameEngine mEngine;
         GameLogicPublic mLogic;
-        TeamMemberControl mController;
+        ClientControl mController;
         GameInfo mGame;
         Container mGuiFrame;
 
         Camera mCamera;
-
-        //key state for LEFT/RIGHT and UP/DOWN
-        Vector2i dirKeyState_lu = {0, 0};  //left/up
-        Vector2i dirKeyState_rd = {0, 0};  //right/down
 
         float mZoomChange = 1.0f, mCurZoom = 1.0f;
 
@@ -217,6 +214,9 @@ class GameView : Container {
 
         GUITeamMemberSettings mTeamGUISettings;
         int mCycleLabels = 2;
+        
+        CommandLine mCmd;
+        CommandBucket mCmds;
 
         ViewMember activeWorm;
 
@@ -359,8 +359,8 @@ class GameView : Container {
 
                     if (isActiveWorm) {
                         auto currentTime = mEngine.engineTime.current();
-                        bool didmove = (currentTime
-                            - mController.currentLastAction()) < cArrowDelta;
+                        bool didmove = (currentTime	- mController.
+                    		getControlledMember.lastAction()) < cArrowDelta;
                         doMoveDown = !didmove;
                     } else {
                         //move labels down, but arrow is invisible
@@ -390,9 +390,9 @@ class GameView : Container {
                     pos.y -= moveLabels.value();
 
                     //that weapon label
-                    auto amember = mController.getActiveMember();
+                    auto amember = mController.getControlledMember();
                     bool weapon_visible = (amember is member.member)
-                        && mController.displayWeaponIcon();
+                        && amember.displayWeaponIcon();
 
                     setWVisible(weaponIcon, weapon_visible);
 
@@ -403,7 +403,7 @@ class GameView : Container {
                         //for now, only animate the left/right change of the
                         //worm
 
-                        weaponIcon.image = mController.currentWeapon.icon.get;
+                        weaponIcon.image = amember.getCurrentWeapon.icon.get;
 
                         //possibly fix the animation
                         //get where worm looks too
@@ -539,14 +539,14 @@ class GameView : Container {
     private void doSim() {
         mCamera.paused = mEngine.engineTime.paused();
 
-        foreach (m; mAllMembers) {
-            m.simulate();
-        }
-
         activeWorm = null;
-        if (auto am = mController.getActiveMember()) {
+        if (auto am = mController.getControlledMember()) {
             auto pam = am in mEngineMemberToOurs;
             activeWorm = pam ? *pam : null;
+        }
+        
+        foreach (m; mAllMembers) {
+            m.simulate();
         }
     }
 
@@ -575,48 +575,37 @@ class GameView : Container {
                 mEngineMemberToOurs[m.member] = vt;
             }
         }
+        
+        mCmd = new CommandLine(globals.defaultOut);
+        mCmds = new CommandBucket();
+        mCmds.register(Command("category", &cmdCategory, "-", 
+        	["text:catname"]));
+        mCmds.register(Command("zoom", &cmdZoom, "-", ["bool:is_down"]));
+        mCmds.bind(mCmd);
+    }
+    
+    private void cmdCategory(MyBox[] args, Output write) {
+        char[] catname = args[0].unbox!(char[]);
+        if (onSelectCategory)
+            onSelectCategory(catname);
+    }
+
+    private void cmdZoom(MyBox[] args, Output write) {
+        bool isDown = args[0].unbox!(bool);
+        mZoomChange = isDown?-1:1;
     }
 
     override Vector2i layoutSizeRequest() {
         return mEngine.worldSize;
     }
 
-    private bool handleDirKey(char[] bind, bool up) {
-        int v = up ? 0 : 1;
-        switch (bind) {
-            case "left":
-                dirKeyState_lu.x = v;
-                break;
-            case "right":
-                dirKeyState_rd.x = v;
-                break;
-            case "up":
-                dirKeyState_lu.y = v;
-                break;
-            case "down":
-                dirKeyState_rd.y = v;
-                break;
-            //oh hi I'm wrong here
-            case "fire":
-                doFire(!up);
-                return true;
-            default:
-                return false;
-        }
-
-        auto movementVec = dirKeyState_rd-dirKeyState_lu;
-        mController.setMovement(movementVec);
-
-        return true;
-    }
-
     //find a WeaponClass of the weapon named "name" in the current team's
     //weapon-set (or return null)
     private WeaponHandle findWeapon(char[] name) {
-        auto team = mController.getActiveTeam();
-        if (!team)
+        auto cm = mController.getControlledMember();
+        if (!cm)
             return null;
-        WeaponList weapons = team.getWeapons();
+        WeaponList weapons = cm.team.getWeapons();
         foreach (w; weapons) {
             if (w.type.name == name) {
                 return w.available ? w.type : null;
@@ -625,98 +614,13 @@ class GameView : Container {
         return null;
     }
 
-    //fire current weapon
-    private void doFire(bool is_down) {
-        mController.weaponFire(is_down);
-    }
-
-    private bool onKeyDown(char[] bind, KeyInfo info) {
-        switch (bind) {
-            case "selectworm": {
-                mController.selectNextMember();
-                return true;
-            }
-            case "pointy": {
-                mController.weaponSetTarget(mousePos);
-                return true;
-            }
-            default:
-        }
-
-        if (handleDirKey(bind, false))
-            return true;
-
-        switch (bind) {
-            case "jump": {
-                mController.jump(JumpMode.normal);
-                return true;
-            }
-            case "jump2": {
-                mController.jump(JumpMode.straightUp);
-                return true;
-            }
-            case "zoom": {
-                mZoomChange = -1;
-                return true;
-            }
-            default:
-
-        }
-
-        bool isPrefix(char[] s, char[] prefix) {
-            return s.length >= prefix.length && s[0..prefix.length] == prefix;
-        }
-
-        //try if it's a wapon shortcut
-        //(oh lol, kind of unclean?)
-        const cWShortcut = "weapon_";
-        if (isPrefix(bind, cWShortcut)) {
-            auto wcname = bind[cWShortcut.length..$];
-            if (mController.currentWeapon &&
-                mController.currentWeapon.name == wcname)
-            {
-                //already selected, fire (possibly again)
-                doFire(true);
-            } else {
-                //draw the weapon
-                //xxx what about instant fire?
-                //    would have to wait until weapon ready
-                WeaponHandle c = findWeapon(wcname);
-                mController.weaponDraw(c);
-            }
-        }
-
-        //I see a pattern...
-        const cCShortcut = "category_";
-        if (isPrefix(bind, cCShortcut)) {
-            auto cname = bind[cCShortcut.length..$];
-            if (onSelectCategory)
-                onSelectCategory(cname);
-        }
-
-        //nothing found
-        return false;
-    }
-
-    private bool onKeyUp(char[] bind, KeyInfo info) {
-        if (handleDirKey(bind, true))
-            return true;
-        switch (bind) {
-            case "zoom": {
-                mZoomChange = 1;
-                return true;
-            }
-            default:
-        }
-        return false;
-    }
-
     override protected void onKeyEvent(KeyInfo ki) {
         auto bind = findBind(ki);
-        if (ki.isDown && onKeyDown(bind, ki)) {
+        if ((ki.isDown || ki.isUp()) && bind) {
+        	//if not processed locally, send
+        	if (!mCmd.execute(bind, true))
+        		mController.executeCommand(bind);
             return;
-        } else if (ki.isUp) {
-            onKeyUp(bind, ki);
         }
     }
 

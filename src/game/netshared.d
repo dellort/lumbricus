@@ -30,10 +30,7 @@ class GameState {
     char[][] msg;
     int weaponlistcc;
     TeamState[] teams; //indexed by TeamState.index
-    MemberState active_member;
-    Time current_last_action;
-    WeaponHandle current_weapon;
-    bool display_weapon_icon;
+    TeamState[] activeteams;
     //xxx: immutable, doesn't need to be synced over net all the time
     //     use an init-packet?
     WeaponHandle[] weaponlist;
@@ -52,6 +49,7 @@ class TeamState {
     bool active;
     WeaponList weapons;
     MemberState[] members; //indexed by MemberState.index
+    MemberState active_member;
 
     this () {
     }
@@ -66,7 +64,19 @@ class MemberState {
     bool alive;
     bool active;
     int current_health;
+    Time last_action;
+    WeaponHandle current_weapon;
+    bool display_weapon_icon;
     Graphic graphic;
+
+    this () {
+    }
+    this (ReflectCtor c) {
+    }
+}
+
+class ClientState {
+	MemberState controlledMember;
 
     this () {
     }
@@ -133,6 +143,7 @@ class InitPacket {
 //completely locally shared
 class PseudoNetwork {
     GameState server_to_client;
+    ClientState server_to_one_client;
     NetEventQueue client_to_server; //item type is ClientEvent
     InitPacket client_init;
 }

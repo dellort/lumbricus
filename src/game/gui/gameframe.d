@@ -64,8 +64,8 @@ class GameFrame : SimpleContainer {
     }
 
     private void updateWeapons() {
-        Team t = clientengine.logic.getControl.getActiveTeam();
-        mWeaponSel.update(t ? t.getWeapons() : null);
+        TeamMember t = clientengine.logic.getControl.getControlledMember();
+        mWeaponSel.update(t ? t.team.getWeapons() : null);
     }
 
     private void teamChanged() {
@@ -73,12 +73,13 @@ class GameFrame : SimpleContainer {
     }
 
     private void selectWeapon(WeaponHandle c) {
-        clientengine.logic.getControl.weaponDraw(c);
+        clientengine.logic.getControl.executeCommand("weapon "~c.name);
     }
 
     private void selectCategory(char[] category) {
-        auto c = clientengine.logic.getControl.currentWeapon;
-        mWeaponSel.checkNextWeaponInCategoryShortcut(category, c);
+        auto m = clientengine.logic.getControl.getControlledMember();
+        mWeaponSel.checkNextWeaponInCategoryShortcut(category, 
+        	m?m.getCurrentWeapon():null);
     }
 
     void enableCamera(bool set) {

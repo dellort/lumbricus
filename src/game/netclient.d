@@ -6,6 +6,7 @@ import str = std.string;
 
 import game.levelgen.level;
 import game.setup;
+import utils.array;
 import utils.configfile;
 import utils.time;
 import utils.vector2;
@@ -13,6 +14,7 @@ import utils.vector2;
 class NetClient {
     private {
         GameState state;
+        ClientState clientstate;
         GSFunctions stuff;
         char[][] commands;
         NetEventQueue update;
@@ -21,6 +23,7 @@ class NetClient {
 
     this(PseudoNetwork pseudo) {
         state = pseudo.server_to_client;
+        clientstate = pseudo.server_to_one_client;
         update = pseudo.client_to_server;
         stuff = new GSFunctions(this);
         //xxx: this shouldn't render the level or load resources
@@ -64,10 +67,10 @@ class NetClient {
 }
 
 //just implements the interfaces and redirects calls to GameState etc.
-class GSFunctions : GameEnginePublic, GameLogicPublic, GameEngineAdmin,
-    TeamMemberControl
+class GSFunctions : GameEnginePublic, GameLogicPublic, ClientControl
 {
     GameState state;
+    ClientState clientstate;
     GSTeam[] teams;
     Team[] teams2; //lol
     NetClient client;
@@ -75,6 +78,7 @@ class GSFunctions : GameEnginePublic, GameLogicPublic, GameEngineAdmin,
     this(NetClient a_client) {
         client = a_client;
         state = client.state;
+        clientstate = client.clientstate;
         foreach (TeamState t; state.teams) {
             teams ~= new GSTeam(t);
             teams2 ~= teams[$-1];
@@ -83,10 +87,6 @@ class GSFunctions : GameEnginePublic, GameLogicPublic, GameEngineAdmin,
     }
 
     //--- GameEnginePublic
-
-    GameEngineAdmin requestAdmin() {
-        return this; //lol
-    }
 
     int waterOffset() {
         return state.water_offset;
@@ -128,30 +128,17 @@ class GSFunctions : GameEnginePublic, GameLogicPublic, GameEngineAdmin,
         return state.graphics;
     }
 
-    //--- GameEngineAdmin
-
-    void raiseWater(int by) {
-        client.commands ~= str.format("raise_water %s", by);
-    }
-
-    void setWindSpeed(float speed) {
-        client.commands ~= str.format("set_wind %s", speed);
-    }
-
-    void setPaused(bool paused) {
-        client.commands ~= str.format("set_pause %s", paused);
-    }
-
-    void setSlowDown(float slow) {
-        client.commands ~= str.format("slow_down %s", slow);
-    }
-
     //--- GameLogicPublic
 
     Team[] getTeams() {
         return teams2;
     }
 
+    Team[] getActiveTeams() {
+        return arrayMap(state.activeteams, 
+        	(TeamState t) { return teams2[t.index]; } );
+    }
+    
     RoundState currentRoundState() {
         return state.roundstate;
     }
@@ -164,7 +151,7 @@ class GSFunctions : GameEnginePublic, GameLogicPublic, GameEngineAdmin,
         return state.preparetime;
     }
 
-    TeamMemberControl getControl() {
+    ClientControl getControl() {
         return this; //hurrr
     }
 
@@ -185,65 +172,20 @@ class GSFunctions : GameEnginePublic, GameLogicPublic, GameEngineAdmin,
         return state.weaponlistcc;
     }
 
-    //--- TeamMemberControl
+    //--- ClientControl
 
     //xxx: most of control probably needs to be changed so, that it is
     //     connection-specific
 
-    TeamMember getActiveMember() {
-        if (!state.active_member)
+    TeamMember getControlledMember() {
+        if (!clientstate.controlledMember)
             return null;
-        MemberState m = state.active_member;
-        return teams[m.team.index].members[m.index];
+        GSTeam t = teams[clientstate.controlledMember.team.index];
+        return t.members2[clientstate.controlledMember.index];
     }
-
-    Team getActiveTeam() {
-        if (!state.active_member)
-            return null;
-        return teams[state.active_member.team.index];
-    }
-
-    Time currentLastAction() {
-        return state.current_last_action;
-    }
-
-    WeaponHandle currentWeapon() {
-        return state.current_weapon;
-    }
-
-    bool displayWeaponIcon() {
-        return state.display_weapon_icon;
-    }
-
-    //"writing" functions
-
-    void selectNextMember() {
-        client.commands ~= "next_member";
-    }
-
-    void jump(JumpMode mode) {
-        client.commands ~= str.format("jump %s", cast(int)mode);
-    }
-
-    void setMovement(Vector2i m) {
-        client.commands ~= str.format("move %s %s", m.x, m.y);
-    }
-
-    void weaponDraw(WeaponHandle weaponId) {
-        client.commands ~= str.format("draw_weapon %s", weaponId ?
-            weaponId.name : "-");
-    }
-
-    void weaponSetTimer(Time timer) {
-        client.commands ~= str.format("set_timer %s", timer.msecs());
-    }
-
-    void weaponSetTarget(Vector2i targetPos) {
-        client.commands ~= str.format("set_target %s %s", targetPos.x, targetPos.y);
-    }
-
-    void weaponFire(bool is_down) {
-        client.commands ~= str.format("weapon_fire %s", is_down);
+    
+    void executeCommand(char[] cmd) {
+    	client.commands ~= cmd;
     }
 }
 
@@ -280,6 +222,12 @@ class GSTeam : Team {
     TeamMember[] getMembers() {
         return members2;
     }
+    
+    TeamMember getActiveMember() {
+        if (!team.active_member)
+            return null;
+    	return members2[team.active_member.index];
+    }
 }
 
 class GSTeamMember : TeamMember {
@@ -311,6 +259,18 @@ class GSTeamMember : TeamMember {
         return member.current_health;
     }
 
+    Time lastAction() {
+        return member.last_action;
+    }
+
+    WeaponHandle getCurrentWeapon() {
+        return member.current_weapon;
+    }
+
+    bool displayWeaponIcon() {
+        return member.display_weapon_icon;
+    }
+    
     Graphic getGraphic() {
         return member.graphic;
     }

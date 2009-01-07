@@ -106,8 +106,8 @@ class GameTask : Task {
         GameConfig mGameConfig;
         GameEngine mServerEngine; //can be null, if a client in a network game!
         GameEnginePublic mGame;
-        GameEngineAdmin mGameAdmin;
         ClientGameEngine mClientEngine;
+        ClientControl mControl;
         NetClient mNetClient;
         NetServer mNetServer;
         GfxSet mGfx;
@@ -144,7 +144,7 @@ class GameTask : Task {
         return mGame.paused;
     }
     private void gamePaused(bool set) {
-        mGameAdmin.setPaused(set);
+		mControl.executeCommand("set_paused "~str.toString(set));
     }
 
     //not happy with this; but who cares
@@ -326,7 +326,6 @@ class GameTask : Task {
             mClientEngine = null;
         }
         mGame = null;
-        mGameAdmin = null;
     }
 
     private bool initGameGui() {
@@ -375,12 +374,12 @@ class GameTask : Task {
             mServerEngine = mSaveGame.readObjectT!(GameEngine)();
             mGame = mServerEngine;
         }
-        mGameAdmin = mGame.requestAdmin();
 
         if (mGameConfig.as_pseudo_server && !mNetServer) {
             mNetServer = new NetServer(mServerEngine);
             new GameTask(manager(), mNetServer.pseudoNetwork());
         }
+        mControl = mGame.logic().getControl();
 
         return true;
     }
@@ -773,11 +772,13 @@ class GameTask : Task {
     }
 
     private void cmdSetWind(MyBox[] args, Output write) {
-        mGameAdmin.setWindSpeed(args[0].unbox!(float)());
+    	float spd = args[0].unbox!(float);
+		mControl.executeCommand("set_wind "~str.toString(spd));
     }
 
     private void cmdRaiseWater(MyBox[] args, Output write) {
-        mGameAdmin.raiseWater(args[0].unbox!(int)());
+    	int by = args[0].unbox!(int);
+		mControl.executeCommand("raise_water "~str.toString(by));
     }
 
     //slow time <whatever>
@@ -794,7 +795,7 @@ class GameTask : Task {
         float g = setgame ? val : mGame.slowDown;
         float a = setani ? val : globals.gameTimeAnimations.slowDown;
         write.writefln("set slowdown: game=%s animations=%s", g, a);
-        mGameAdmin.setSlowDown(g);
+        mControl.executeCommand("slow_down" ~ str.toString(g));
         mClientEngine.engineTime.slowDown = g;
         globals.gameTimeAnimations.slowDown = a;
     }
@@ -851,7 +852,7 @@ class GameTask : Task {
     }
 
     private void cmdSerDump(MyBox[] args, Output write) {
-        debugDumpTypeInfos(serialize_types);
+        debug debugDumpTypeInfos(serialize_types);
         //debugDumpClassGraph(serialize_types, mServerEngine);
         //char[] res = dumpGraph(serialize_types, mServerEngine, mExternalObjects);
         //std.file.write("dump_graph.dot", res);

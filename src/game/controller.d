@@ -1,4 +1,7 @@
 module game.controller;
+
+import common.common;
+import framework.commandline;
 import game.game;
 import game.gobject;
 import game.worm;
@@ -24,13 +27,32 @@ import math = std.math;
 
 //nasty proxy to the currently active TeamMember
 //this is per client (and not per-team)
-class ServerMemberControl : TeamMemberControl {
+class ClientControlImpl : ClientControl {
     private {
         //xxx the controller needs to be replaced by sth. "better" hahaha
         GameController ctl;
+        CommandBucket mCmds;
+        CommandLine mCmd;
+
+        //key state for LEFT/RIGHT and UP/DOWN
+        Vector2i dirKeyState_lu = {0, 0};  //left/up
+        Vector2i dirKeyState_rd = {0, 0};  //right/down
 
         this(GameController c) {
             ctl = c;
+            //output should be sent back to the client...?
+            mCmd = new CommandLine(globals.defaultOut);
+            mCmds = new CommandBucket();
+            mCmds.register(Command("next_member", &cmdNextMember, "-"));
+            mCmds.register(Command("jump", &cmdJump, "-", ["bool:alternate"]));
+            mCmds.register(Command("move", &cmdMove, "-", ["text:key", "bool:is_down"]));
+            mCmds.register(Command("weapon", &cmdDrawWeapon, "-",
+                ["text:name"]));
+            mCmds.register(Command("set_timer", &cmdSetTimer, "-", ["int:ms"]));
+            mCmds.register(Command("set_target", &cmdSetTarget, "-",
+                ["int:x", "int:y"]));
+            mCmds.register(Command("weapon_fire", &cmdFire, "-", ["bool:is_down"]));
+            mCmds.bind(mCmd);
         }
     }
 
@@ -45,103 +67,106 @@ class ServerMemberControl : TeamMemberControl {
         }
         return null;
     }
-
-    TeamMember getActiveMember() {
-        return activemember();
+    
+    //-- Start ClientControl implementation
+    
+    void executeCommand(char[] cmd) {
+    	if (!mCmd.execute(cmd, true))
+    		ctl.clientExecute(this, cmd);
     }
 
-    Team getActiveTeam() {
-        return ctl.mCurrentTeam;
-    }
+	TeamMember getControlledMember() {
+		return activemember;
+	}
 
-    Time currentLastAction() {
-        auto c = activemember;
-        if (c) {
-            return c.lastAction;
-        }
-        return timeSecs(0);
-    }
+    //-- End ClientControl implementation
 
-    void selectNextMember() {
+	private void cmdNextMember(MyBox[] args, Output write) {
         auto c = activemember;
         if (c) {
             c.mTeam.doChooseWorm();
         }
     }
 
-    WalkState walkState() {
-        auto m = activemember;
-        if (m) {
-            return m.walkState;
-        }
-        return WalkState.noMovement;
-    }
-
-    void jump(JumpMode mode) {
+    private void cmdJump(MyBox[] args, Output write) {
+    	//arg = true -> alternate jump, else normal jump
+    	//xxx maybe redefine JumpMode
+        JumpMode mode = 
+        	args[0].unbox!(bool)?JumpMode.straightUp:JumpMode.normal;
         auto m = activemember;
         if (m) {
             m.jump(mode);
         }
     }
 
-    void setMovement(Vector2i dir) {
+    private bool handleDirKey(char[] key, bool up) {
+        int v = up ? 0 : 1;
+        switch (key) {
+            case "left":
+                dirKeyState_lu.x = v;
+                break;
+            case "right":
+                dirKeyState_rd.x = v;
+                break;
+            case "up":
+                dirKeyState_lu.y = v;
+                break;
+            case "down":
+                dirKeyState_rd.y = v;
+                break;
+            default:
+                return false;
+        }
+
+        auto movementVec = dirKeyState_rd-dirKeyState_lu;
         auto m = activemember;
         if (m) {
-            m.doMove(dir);
+            m.doMove(movementVec);
         }
+
+        return true;
     }
 
-    WeaponMode weaponMode() {
-        if (activemember) {
-            //TODO
-            return WeaponMode.full;
-        }
-        return WeaponMode.none;
+    private void cmdMove(MyBox[] args, Output write) {
+    	char[] key = args[0].unbox!(char[]);
+    	bool isDown = args[1].unbox!(bool);
+    	handleDirKey(key, !isDown);
     }
 
-    void weaponDraw(WeaponHandle w) {
+    private void cmdDrawWeapon(MyBox[] args, Output write) {
+        char[] t = args[0].unbox!(char[]);
+        WeaponClass wc;
+        if (t != "-")
+            wc = ctl.engine.findWeaponClass(t, true);
         auto m = activemember;
         if (m) {
-            m.selectWeaponByClass(ctl.engine.wh2wc(w));
+            m.selectWeaponByClass(wc);
         }
     }
 
-    WeaponHandle currentWeapon() {
-        auto m = activemember;
-        if (m) {
-            return m.currentWeapon ?
-                ctl.engine.wc2wh(m.currentWeapon.weapon) : null;
-        }
-        return null;
-    }
-
-    bool displayWeaponIcon() {
-        auto m = activemember;
-        if (m) {
-            return m.displayWeaponIcon();
-        }
-        return false;
-    }
-
-    void weaponSetTimer(Time timer) {
+    private void cmdSetTimer(MyBox[] args, Output write) {
+        Time t = timeMsecs(args[0].unbox!(int));
         //TODO
     }
 
-    void weaponSetTarget(Vector2i targetPos) {
+    private void cmdSetTarget(MyBox[] args, Output write) {
+        Vector2i targetPos = Vector2i(args[0].unbox!(int),
+            args[1].unbox!(int));
         auto m = activemember;
         if (m && m.mTeam) {
             m.mTeam.doSetPoint(toVector2f(targetPos));
         }
     }
 
-    void weaponFire(bool is_down) {
+    private void cmdFire(MyBox[] args, Output write) {
+    	bool isDown = args[0].unbox!(bool);
         auto m = activemember;
         if (m) {
-            if (is_down)
+            if (isDown)
                 m.doFireDown();
             else
                 m.doFireUp();
-        }
+        }    
     }
 }
 
@@ -245,6 +270,10 @@ class ServerTeam : Team {
 
     TeamMember[] getMembers() {
         return arrayCastCopyImplicit!(TeamMember, ServerTeamMember)(mMembers);
+    }
+    
+    TeamMember getActiveMember() {
+    	return current;
     }
 
     // --- end Team
@@ -686,6 +715,10 @@ class ServerTeamMember : TeamMember, WormController {
         //no other possibilities currently
         return WalkState.walk;
     }
+    
+    WeaponHandle getCurrentWeapon() {
+        return currentWeapon ? mEngine.wc2wh(currentWeapon.weapon) : null;
+    }
 
     WeaponItem currentWeapon() {
         return mCurrentWeapon;
@@ -1027,13 +1060,16 @@ class GameController : GameLogicPublic {
 
         RoundState mCurrentRoundState = RoundState.nextOnHold;
 
-        ServerMemberControl control;
+        ClientControl control;
+        
+        CommandLine mCmd;
+        CommandBucket mCmds;
     }
 
     this(GameEngine engine, GameConfig config) {
         mEngine = engine;
 
-        control = new ServerMemberControl(this);
+        control = new ClientControlImpl(this);
 
         mLog = registerLog("gamecontroller");
 
@@ -1055,10 +1091,40 @@ class GameController : GameLogicPublic {
         mLastMsgTime = timeSecs(-cMessageTime);
         //only valid while loading
         mWeaponSets = null;
+        
+        mCmd = new CommandLine(globals.defaultOut);
+        mCmds = new CommandBucket();
+        mCmds.register(Command("raise_water", &cmdRaiseWater, "-", ["int:by"]));
+        mCmds.register(Command("set_wind", &cmdSetWind, "-", ["float:speed"]));
+        mCmds.register(Command("set_pause", &cmdSetPause, "-", ["bool:state"]));
+        mCmds.register(Command("slow_down", &cmdSlowDown, "-", ["float:slow"]));
+        mCmds.bind(mCmd);
     }
 
     this (ReflectCtor c) {
         c.types().registerClass!(typeof(mMessages));
+    }
+
+    //this is where the old GameEngineAdmin went into
+    bool clientExecute(ClientControlImpl c, char[] cmd) {
+    	//xxx security check or something
+    	return mCmd.execute(cmd);
+    }
+    
+    private void cmdRaiseWater(MyBox[] args, Output write) {
+        engine.raiseWater(args[0].unbox!(int));
+    }
+
+    private void cmdSetWind(MyBox[] args, Output write) {
+    	engine.setWindSpeed(args[0].unbox!(float));
+    }
+
+    private void cmdSetPause(MyBox[] args, Output write) {
+    	engine.setPaused(args[0].unbox!(bool));
+    }
+
+    private void cmdSlowDown(MyBox[] args, Output write) {
+    	engine.setSlowDown(args[0].unbox!(float));
     }
 
     //--- start GameLogicPublic
@@ -1080,7 +1146,7 @@ class GameController : GameLogicPublic {
     }
 
     ///xxx: read comment for this in gamepublic.d
-    TeamMemberControl getControl() {
+    ClientControl getControl() {
         return control;
     }
 
@@ -1103,6 +1169,13 @@ class GameController : GameLogicPublic {
 
     int getWeaponListChangeCounter() {
         return mWeaponListChangeCounter;
+    }
+    
+    Team[] getActiveTeams() {
+    	if (mCurrentTeam)
+    		return [cast(Team)mCurrentTeam];
+    	else
+    		return null;
     }
 
     //--- end GameLogicPublic

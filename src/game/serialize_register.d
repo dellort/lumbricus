@@ -18,7 +18,7 @@ void initGameSerialization() {
     serialize_types = new Types();
     serialize_types.registerClasses!(GameEngine, PhysicWorld,
         GameController, WormSprite, GameLandscape, ActionContext, ActionList,
-        TimedAction, ActionSprite, GameController, ServerMemberControl,
+        TimedAction, ActionSprite, GameController, ClientControlImpl,
         ServerTeam, ServerTeamMember, WeaponSet, WeaponItem, CollectableBomb,
         CollectableWeapon, CollectableMedkit, CrateSprite, GameLandscape,
         LandscapeGeometry, SpriteAction, SetStateAction, GravityCenterAction,

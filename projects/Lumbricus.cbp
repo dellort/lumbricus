@@ -175,6 +175,9 @@
 		<Unit filename="..\src\game\levelgen\placeobjects.d" />
 		<Unit filename="..\src\game\levelgen\renderer.d" />
 		<Unit filename="..\src\game\loader.d" />
+		<Unit filename="..\src\game\netclient.d" />
+		<Unit filename="..\src\game\netserver.d" />
+		<Unit filename="..\src\game\netshared.d" />
 		<Unit filename="..\src\game\sequence.d" />
 		<Unit filename="..\src\game\serialize_register.d" />
 		<Unit filename="..\src\game\setup.d" />
