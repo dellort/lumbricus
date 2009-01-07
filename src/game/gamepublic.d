@@ -239,8 +239,8 @@ class AnimationGraphic : Graphic {
     }
 
     //don't know if this is consistent with Animator.hasFinished()
-    //but here, it removes if currently a frame is displayed
-    //stupid code duplication
+    //but here, it returns true if currently a frame is displayed
+    //stupid code duplication with common.animation
     final bool hasFinished() {
         if (!animation)
             return true;

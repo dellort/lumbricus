@@ -144,12 +144,14 @@ private class ClientInput {
     GameEngine engine;
     GameLogicPublic logic;
     TeamMemberControl control;
+    GameEngineAdmin admin;
 
     this(NetServer a_server) {
         server = a_server;
         engine = server.engine;
         logic = engine.logic();
         control = logic.getControl();
+        admin = engine.requestAdmin();
         //output should be sent back to the client...?
         cmd = new CommandLine(globals.defaultOut);
         cmds = new CommandBucket();
@@ -162,6 +164,10 @@ private class ClientInput {
         cmds.register(Command("set_target", &cmdSetTarget, "-",
             ["int:x", "int:y"]));
         cmds.register(Command("weapon_fire", &cmdFire, "-", ["bool:is_down"]));
+        cmds.register(Command("raise_water", &cmdRaiseWater, "-", ["int:by"]));
+        cmds.register(Command("set_wind", &cmdSetWind, "-", ["float:speed"]));
+        cmds.register(Command("set_pause", &cmdSetPause, "-", ["bool:state"]));
+        cmds.register(Command("slow_down", &cmdSlowDown, "-", ["float:slow"]));
         cmds.bind(cmd);
     }
 
@@ -198,6 +204,22 @@ private class ClientInput {
 
     private void cmdFire(MyBox[] args, Output write) {
         control.weaponFire(args[0].unbox!(bool));
+    }
+
+    private void cmdRaiseWater(MyBox[] args, Output write) {
+        admin.raiseWater(args[0].unbox!(int));
+    }
+
+    private void cmdSetWind(MyBox[] args, Output write) {
+        admin.setWindSpeed(args[0].unbox!(float));
+    }
+
+    private void cmdSetPause(MyBox[] args, Output write) {
+        admin.setPaused(args[0].unbox!(bool));
+    }
+
+    private void cmdSlowDown(MyBox[] args, Output write) {
+        admin.setSlowDown(args[0].unbox!(float));
     }
 
     void command(char[] a_cmd) {
