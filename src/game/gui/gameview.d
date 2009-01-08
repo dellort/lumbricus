@@ -22,7 +22,7 @@ import utils.math;
 import utils.misc;
 import utils.vector2;
 
-import std.string : format;
+import str = std.string;
 
 //arrrrgh
 class GuiAnimator : Widget {
@@ -338,7 +338,7 @@ class GameView : Container {
 
                     if (health_cur != member.currentHealth) {
                         health_cur = member.currentHealth;
-                        wormPoints.text = format("%s", health_cur);
+                        wormPoints.text = str.format("%s", health_cur);
                     }
 
                     //activate camera if it should and wasn't yet
@@ -494,7 +494,7 @@ class GameView : Container {
                             //start (only for damages, not upgrades => "< 0")
                             moveHealth.init(cHealthHintTime, 0,
                                 cHealthHintDistance);
-                            healthHint.text = format("%s", -diff);
+                            healthHint.text = str.format("%s", -diff);
                             this.outer.addChild(healthHint);
                             //this is to avoid restarting the label animation
                             //several times when counting down takes longer than
@@ -614,8 +614,21 @@ class GameView : Container {
         return null;
     }
 
+    //takes a binding string from KeyBindings and replaces params
+    //  %d -> true if key was pressed, false if released
+    //  %mx, %my -> mouse position
+    //also, will not trigger an up event for commands without %d param
+    private char[] processBinding(char[] bind, bool isUp) {
+        //no up/down parameter, and key was released -> no event
+        if (str.find(bind, "%d") < 0 && isUp)
+            return null;
+        bind = str.replace(bind, "%d", str.toString(!isUp));
+        bind = str.replace(bind, "%mx", str.toString(mousePos.x));
+        bind = str.replace(bind, "%my", str.toString(mousePos.y));
+        return bind;
+    }
     override protected void onKeyEvent(KeyInfo ki) {
-        auto bind = findBind(ki);
+        auto bind = processBinding(findBind(ki), ki.isUp);
         if ((ki.isDown || ki.isUp()) && bind) {
             //if not processed locally, send
             if (!mCmd.execute(bind, true))

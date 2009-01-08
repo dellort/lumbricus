@@ -173,7 +173,11 @@ class ClientControlImpl : ClientControl {
 
     private void cmdSetTimer(MyBox[] args, Output write) {
         Time t = timeMsecs(args[0].unbox!(int));
-        //TODO
+        auto m = activemember;
+        if (m) {
+            //range checked later
+            m.doSetTimer(t);
+        }
     }
 
     private void cmdSetTarget(MyBox[] args, Output write) {
@@ -463,6 +467,7 @@ class ServerTeam : Team {
         if (mPointMode == PointMode.instant) {
             //instant mode -> fire and forget
             current.doFireDown(true);
+            current.doFireUp();
             targetIsSet = false;
         }
     }
@@ -804,6 +809,13 @@ class ServerTeamMember : TeamMember, WormController {
             mTeam.setPointMode(PointMode.none);
         }
         mWorm.weapon = selected;
+    }
+
+    void doSetTimer(Time t) {
+        if (!isControllable)
+            return;
+
+        mWorm.setWeaponTimer(t);
     }
 
     void doFireDown(bool forceSelected = false) {

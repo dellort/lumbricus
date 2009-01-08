@@ -86,26 +86,6 @@ public class KeyBindings {
         return findBinding(info.code, info.mods);
     }
 
-    //like above, but replace command parameters:
-    //  %d -> true if key was pressed, false if released
-    //  %mx, %my -> mouse position
-    //also, will not trigger an up event for commands without %d param
-    public char[] findBinding(KeyInfo info, Vector2i mousePos) {
-        Entry* e = doFindBinding(info.code, info.mods);
-        if (!e) {
-            return null;
-        } else {
-            char[] ret = e.bound_to;
-            //no up/down parameter, and key was released -> no event
-            if (str.find(ret, "%d") < 0 && info.isUp())
-                return null;
-            ret = str.replace(ret, "%d", str.toString(!info.isUp()));
-            ret = str.replace(ret, "%mx", str.toString(mousePos.x));
-            ret = str.replace(ret, "%my", str.toString(mousePos.y));
-            return ret;
-        }
-    }
-
     //parse a whitespace separated list of strings into sth. that can be passed
     //to addBinding()
     public bool parseBindString(char[] bindstr, out Keycode out_code,

@@ -91,6 +91,8 @@ class WormSprite : GObjectSprite {
         bool mThrowing;
         Time mThrowingStarted;
 
+        Time mWeaponTimer;
+
         //same like seqUpdate, but the exact type (I haet casting)
         WormSequenceUpdate wseqUpdate;
     }
@@ -355,6 +357,9 @@ class WormSprite : GObjectSprite {
         if (w) {
             if (currentState is wsc.st_stand)
                 setState(wsc.st_weapon);
+            if (mWeaponTimer == Time.Null)
+                //xxx should this be configurable?
+                mWeaponTimer = (w.fireMode.timerFrom+w.fireMode.timerTo)/2;
             //xxx: if weapon is changed, play the correct animations
             setCurrentAnimation();
             updateTargetCross();
@@ -363,6 +368,7 @@ class WormSprite : GObjectSprite {
                 mTargetCross.reset();
             }
         } else {
+            mWeaponTimer = Time.Null;
             if (!mShooterMain || !mShooterMain.activity) {
                 if (currentState is wsc.st_weapon)
                     setState(wsc.st_stand);
@@ -462,6 +468,11 @@ class WormSprite : GObjectSprite {
             && mWeapon && !mWeapon.allowSecondary;
     }
 
+    void setWeaponTimer(Time t) {
+        //range checked when actually firing
+        mWeaponTimer = t;
+    }
+
     //return the fire strength value, always between 0.0 and 1.0
     private float currentFireStrength() {
         if (!mThrowing) //what??
@@ -496,7 +507,8 @@ class WormSprite : GObjectSprite {
         else
             info.dir = weaponDir();
         info.strength = strength;
-        info.timer = mWeapon.fireMode.timerFrom;
+        info.timer = clampRangeC(mWeaponTimer, mWeapon.fireMode.timerFrom,
+            mWeapon.fireMode.timerTo);
         if (wcontrol)
             info.pointto = wcontrol.getTarget;
         else
