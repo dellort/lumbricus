@@ -248,7 +248,7 @@ class PhysicWorld {
         //  => worm gets glued, hahaha.
         //xxx maybe do the gluing somewhere else?
         if (obj.velocity.mulEntries(obj.posp.fixate).length
-            <= obj.posp.glueForce)
+            <= obj.posp.glueForce && obj.surface_normal.y < 0)
         {
             obj.isGlued = true;
             version(PhysDebug) mLog("glue object %s", me);

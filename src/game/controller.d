@@ -185,6 +185,7 @@ class ServerTeam : Team {
 
     private {
         ServerTeamMember[] mMembers;  //all members (will not change in-game)
+        TeamMember[] mMembers2;
         ServerTeamMember mCurrent;  //active worm that will receive user input
         ServerTeamMember mLastActive;  //worm that played last (to choose next)
         bool mActive;         //is this team playing?
@@ -212,6 +213,7 @@ class ServerTeam : Team {
             auto worm = new ServerTeamMember(value, this);
             mMembers ~= worm;
         }
+        mMembers2 = arrayCastCopyImplicit!(TeamMember, ServerTeamMember)(mMembers);
         //xxx error handling
         weapons = parent.initWeaponSet(node["weapon_set"]);
         //what's a default weapon? I don't know, so I can't bring it back
@@ -269,7 +271,7 @@ class ServerTeam : Team {
     }
 
     TeamMember[] getMembers() {
-        return arrayCastCopyImplicit!(TeamMember, ServerTeamMember)(mMembers);
+        return mMembers2;
     }
 
     TeamMember getActiveMember() {
@@ -1028,6 +1030,8 @@ class GameController : GameLogicPublic {
         public /+weewee+/ Log mLog;
 
         ServerTeam[] mTeams;
+        Team[] mTeams2;
+
         ServerTeam mCurrentTeam;
         ServerTeam mLastTeam;
 
@@ -1130,7 +1134,7 @@ class GameController : GameLogicPublic {
     //--- start GameLogicPublic
 
     Team[] getTeams() {
-        return arrayCastCopyImplicit!(Team, ServerTeam)(mTeams);
+        return mTeams2;
     }
 
     RoundState currentRoundState() {
@@ -1456,6 +1460,7 @@ class GameController : GameLogicPublic {
         foreach (ConfigNode sub; config) {
             addTeam(sub);
         }
+        mTeams2 = arrayCastCopyImplicit!(Team, ServerTeam)(mTeams);
         placeWorms();
     }
 

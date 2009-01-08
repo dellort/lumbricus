@@ -96,7 +96,11 @@ class NetServer {
         state.preparetime = logic.currentPrepareTime();
         state.msgcounter = logic.getMessageChangeCounter();
         logic.getLastMessage(state.msgid, state.msg);
-        state.weaponlistcc = logic.getWeaponListChangeCounter();
+
+        bool weapons_changed;
+        int oldwcounter = logic.getWeaponListChangeCounter();
+        weapons_changed = init || (oldwcounter != state.weaponlistcc);
+        state.weaponlistcc = oldwcounter;
 
         state.activeteams = null;
         clientstate.controlledMember = null;
@@ -141,7 +145,8 @@ class NetServer {
             }
             //normal fields (but still won't change very often)
             ts.active = t.active();
-            ts.weapons = t.getWeapons();
+            if (weapons_changed)
+                ts.weapons = t.getWeapons();
             if (ts.active)
                 state.activeteams ~= ts;
         }

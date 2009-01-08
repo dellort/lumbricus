@@ -45,9 +45,9 @@ class PrepareDisplay : Container {
         auto logic = mEngine.logic;
         //auto controller = mEngine ? mEngine.engine.controller : null;
         if (logic.currentRoundState() == RoundState.prepare
-            && logic.getActiveTeams())
+            && logic.getControl.getControlledMember)
         {
-            Team curTeam = logic.getActiveTeams()[0];
+            Team curTeam = logic.getControl.getControlledMember.team;
             active = true;
             char[] teamName = curTeam.name;
             //little hack to show correct time
