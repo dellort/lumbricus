@@ -138,6 +138,7 @@ class SequenceUpdate {
     Vector2i position;
     Vector2f velocity;
     float rotation_angle; //worm itself, always 0 .. PI*2
+    float lifePercent;  //percent of initial life remaining, may go > 1.0
     //bool visible;
 
     this () {
@@ -664,11 +665,17 @@ class WormStateDisplay : AniStateDisplay {
 
     override void simulate() {
         updateSubSequence();
+        WormState state = mCurSubSeq ? mCurSubSeq.owner : null;
         float[2] set_angle;
         auto v = owner.mUpdate;
         set_angle[0] = v.rotation_angle;
         auto wsu = cast(WormSequenceUpdate)v;
-        if (wsu)
+        if (state.p2_damage) {
+            //lol, code below converts back to deg
+            const float cDmgToRad = 100.0f/180.0f*PI;
+            set_angle[1] = max(0f, (1.0f-v.lifePercent)*cDmgToRad);
+        }
+        else if (wsu)
             set_angle[1] = wsu.pointto_angle;
         else
             set_angle[1] = 0;
@@ -692,7 +699,6 @@ class WormStateDisplay : AniStateDisplay {
         mAnimator.more = v;
         //all updates for jetpack flames
         //why is the jetpack so ridiculously complicated?
-        WormState state = mCurSubSeq ? mCurSubSeq.owner : null;
         if (!state.is_jetpack) {
             if (mJetFlames[0]) {
                 mJetFlames[0].remove();
@@ -792,7 +798,7 @@ class WormState : SequenceState {
     //go to this state after the "enter" subseq. was played
     Transition auto_leave;
     //jetpack only
-    bool is_jetpack;
+    bool is_jetpack, p2_damage;
     Animation[2] flames;
     Animation[2] rflames;
 
@@ -878,6 +884,17 @@ void loadNormal(GameEngine engine, ConfigItem fromitem) {
     auto ss = new SubSequence;
     ss.animation = getAni(engine, value);
     state.seqs[SeqType.Normal] = [ss];
+    addState(engine, state);
+}
+
+void loadNormalDamage(GameEngine engine, ConfigItem fromitem) {
+    auto value = getValue(fromitem);
+    //simple animation, state = animation, using damage for p2
+    auto state = new WormState(engine, fromitem.name);
+    auto ss = new SubSequence;
+    ss.animation = getAni(engine, value);
+    state.seqs[SeqType.Normal] = [ss];
+    state.p2_damage = true;
     addState(engine, state);
 }
 
@@ -1002,6 +1019,7 @@ private void init_loaders() {
         return;
     m_loaders_initialized = true;
     loaders["normal"] = &loadNormal;
+    loaders["normal_damage"] = &loadNormalDamage;
     loaders["worm_normal_weapons"] = &loadWormNormalWeapons;
     loaders["worm_jetpack"] = &loadWormJetpack;
     loaders["worm_weapons"] = &loadWormWeapons;

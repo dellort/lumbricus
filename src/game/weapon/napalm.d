@@ -37,8 +37,13 @@ class NapalmSprite : ProjectileSprite {
 
     //percentage of decayTime that remains, negative if passed
     private float decayPercent() {
-        return (mDecaySecs - (engine.gameTime.current - mLightupTime).secsf)
+        float p = (mDecaySecs - (engine.gameTime.current - mLightupTime).secsf)
             / mDecaySecs;
+        if (p > 0)
+            //faster decay for tiny napalm
+            return sqrt(p);
+        else
+            return p;
     }
 
     //call to reset decaying (like after an explosion)

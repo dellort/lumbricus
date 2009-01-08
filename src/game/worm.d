@@ -655,6 +655,9 @@ class WormSprite : GObjectSprite {
         if (!graphic)
             return;
         if (currentState is wsc.st_fly) {
+            //going for roll or heavy flight -> look in flying direction
+            if (m == FlyMode.roll || m == FlyMode.heavy)
+                physics.resetLook();
             //don't change to often
             if (m < mLastFlyMode &&
                 engine.gameTime.current - mLastFlyChange < timeMsecs(200))

@@ -1,6 +1,6 @@
 module physics.physobj;
 
-import std.math : PI, abs;
+import std.math : PI, abs, isnan;
 import utils.list2;
 import utils.vector2;
 import utils.misc: max;
@@ -241,7 +241,7 @@ class PhysicObject : PhysicBase {
     //(e.g. worm sits -> angle must fit to ground, but could look left or right)
     //automatically set to walking direction when walking is started,
     //and to flying direction during flying
-    private float mIntendedLookAngle = 0;
+    private Vector2f mIntendedLook = Vector2f.nan;
 
     //set rotation (using velocity)
     public void checkRotation() {
@@ -251,7 +251,7 @@ class PhysicObject : PhysicBase {
                 //special case: moving straight up/down
                 //jetpack is either left or right, so keep last direction
                 if (ndir.x != 0)
-                    mIntendedLookAngle = ndir.toAngle();
+                    mIntendedLook = ndir;
             }
             return;
         }
@@ -262,20 +262,8 @@ class PhysicObject : PhysicBase {
         //intention is that changes must be big enough to change worm direction
         if (len > 0.001) {
             rotation = (velocity/len).toAngle();
-            mIntendedLookAngle = rotation; //(set only when unglued)
         }
     }
-    //set rotation (using move-vector from oldpos to pos)
-    /+
-    private void checkRotation2(Vector2f oldpos) {
-        Vector2f dir = pos-oldpos;
-        auto len = dir.length;
-        if (len > 0.001) {
-            rotation = (dir/len).toAngle();
-            checkRotation();
-        }
-    }
-    +/
 
     //whenever this object touches the ground, call this with the depth*normal
     //  vector
@@ -287,17 +275,28 @@ class PhysicObject : PhysicBase {
         }
     }
 
+    //manual reset of mIntendedLook
+    void resetLook() {
+        mIntendedLook = Vector2f.nan;
+    }
+
     //angle where the worm looks to, or is forced to look to (i.e. when sitting)
     float lookey() {
-        if (posp.jetpackLooking)
-            return mIntendedLookAngle;
         if (!isGlued) {
-            return rotation;
+            if (mIntendedLook.isNaN)
+                //no forced looking direction available
+                return rotation;
+            else
+                //when flying and forced rotation is set, always use it
+                return mIntendedLook.toAngle;
         } else {
-            float angle = ground_angle+PI/2;
-            //hm!?!?
-            auto a = Vector2f.fromPolar(1, angle);
-            auto b = Vector2f.fromPolar(1, mIntendedLookAngle);
+            //glued but look invalid -> use last rotation
+            if (mIntendedLook.isNaN)
+                mIntendedLook = Vector2f.fromPolar(1, rotation);
+            //glued, use left/right from mIntendedLook and
+            //combine with surface normal
+            auto a = surface_normal.orthogonal;    //parallel to surface
+            auto b = mIntendedLook;                //walking direction
             float sp = a*b;
             if (sp < 0) {
                 a = -a;     //invert for right looking direction
@@ -310,8 +309,7 @@ class PhysicObject : PhysicBase {
                 //to point into intended look direction
                 a += 0.1*b;
             }
-            angle = a.toAngle();  //lol
-            return angle;
+            return a.toAngle();  //lol
         }
     }
 
@@ -463,7 +461,7 @@ class PhysicObject : PhysicBase {
 
                     auto ndir = walkDist.normal();
                     if (!ndir.isNaN())
-                        mIntendedLookAngle = ndir.toAngle();
+                        mIntendedLook = ndir;
 
                     //notice update before you forget it...
                     needUpdate();

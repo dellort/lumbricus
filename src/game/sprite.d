@@ -91,6 +91,11 @@ class GObjectSprite : GameObject {
         seqUpdate.position = toVector2i(physics.pos);
         seqUpdate.velocity = physics.velocity;
         seqUpdate.rotation_angle = physics.lookey;
+        if (type.initialHp == float.infinity ||
+            physics.lifepower == float.infinity)
+            seqUpdate.lifePercent = 1.0f;
+        else
+            seqUpdate.lifePercent = max(physics.lifepower / type.initialHp, 0f);
     }
 
     protected void physUpdate() {

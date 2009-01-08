@@ -45,13 +45,17 @@ class ClientControlImpl : ClientControl {
             mCmds = new CommandBucket();
             mCmds.register(Command("next_member", &cmdNextMember, "-"));
             mCmds.register(Command("jump", &cmdJump, "-", ["bool:alternate"]));
-            mCmds.register(Command("move", &cmdMove, "-", ["text:key", "bool:is_down"]));
+            mCmds.register(Command("move", &cmdMove, "-", ["text:key",
+                "bool:is_down"]));
             mCmds.register(Command("weapon", &cmdDrawWeapon, "-",
                 ["text:name"]));
             mCmds.register(Command("set_timer", &cmdSetTimer, "-", ["int:ms"]));
             mCmds.register(Command("set_target", &cmdSetTarget, "-",
                 ["int:x", "int:y"]));
-            mCmds.register(Command("weapon_fire", &cmdFire, "-", ["bool:is_down"]));
+            mCmds.register(Command("weapon_fire", &cmdFire, "-",
+                ["bool:is_down"]));
+            mCmds.register(Command("selectandfire", &cmdDrawAndFire, "-",
+                ["text:name", "bool:is_down"]));
             mCmds.bind(mCmd);
         }
     }
@@ -141,6 +145,29 @@ class ClientControlImpl : ClientControl {
         auto m = activemember;
         if (m) {
             m.selectWeaponByClass(wc);
+        }
+    }
+
+    //select a weapon and fire when ready
+    //reacts like a spacebar press, meaning the key has to be held
+    //down if the weapon is not ready or it will not fire
+    private void cmdDrawAndFire(MyBox[] args, Output write) {
+        char[] t = args[0].unbox!(char[]);
+        bool isDown = args[1].unbox!(bool);
+        auto m = activemember;
+        if (isDown) {
+            WeaponClass wc;
+            if (t != "-")
+                wc = ctl.engine.findWeaponClass(t, true);
+            if (m) {
+                m.selectWeaponByClass(wc);
+                //doFireDown will save the keypress and wait if not ready
+                //xxx what about doFireUp() call?
+                m.doFireDown();
+            }
+        } else {
+            if (m)
+                m.doFireUp();
         }
     }
 
