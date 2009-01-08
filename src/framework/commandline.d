@@ -605,8 +605,8 @@ class CommandLineInstance {
     }
 
     /// Execute any command from outside.
-    public bool execute(char[] cmdline, bool addHistory = true, 
-        bool silentOnError = false) 
+    public bool execute(char[] cmdline, bool addHistory = true,
+        bool silentOnError = false)
     {
         char[] cmd, args;
         uint start, end, argstart;
@@ -614,7 +614,7 @@ class CommandLineInstance {
         if (!parseCommand(cmdline, cmd, start, end, argstart)) {
             //nothing, but show some reaction...
             mConsole.writefln("-");
-            //command failed to parse -> report as eaten, 
+            //command failed to parse -> report as eaten,
             //will fail on other instances as well
             return true;
         } else {
@@ -635,8 +635,8 @@ class CommandLineInstance {
 
             auto ccmd = findCommand(cmd);
             if (!ccmd.cmd) {
-            	if (!silentOnError)
-            		mConsole.writefln("Unknown command: "~cmd);
+                if (!silentOnError)
+                    mConsole.writefln("Unknown command: "~cmd);
                 return false;
             } else {
                 if (!ccmd.cmd.parseAndInvoke(cmdline[argstart..$], mConsole)) {

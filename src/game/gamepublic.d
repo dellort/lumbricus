@@ -472,7 +472,7 @@ interface TeamMember {
     ///show the weapon as an icon near the worm; used when the weapon can not be
     ///displayed directly (like when worm is on a jetpack)
     bool displayWeaponIcon();
-    
+
     Graphic getGraphic();
 }
 
@@ -507,7 +507,7 @@ interface Team {
     WeaponList getWeapons();
 
     TeamMember[] getMembers();
-    
+
     ///currently active worm, null if none
     TeamMember getActiveMember();
 }
@@ -516,10 +516,10 @@ interface Team {
 //this should be also per-client, but it isn't per Team (!)
 //i.e. in non-networked multiplayer mode, there's only one of this
 interface ClientControl {
-	///TeamMember that would receive keypresses
-	///a member of one team from GameLogicPublic.getActiveTeams()
-	///_not_ always the same member or null
-	TeamMember getControlledMember();
-	
+    ///TeamMember that would receive keypresses
+    ///a member of one team from GameLogicPublic.getActiveTeams()
+    ///_not_ always the same member or null
+    TeamMember getControlledMember();
+
     void executeCommand(char[] cmd);
 }

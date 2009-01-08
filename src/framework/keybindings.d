@@ -3,7 +3,7 @@ module framework.keybindings;
 import framework.framework;
 import config = utils.configfile;
 import utils.vector2;
-import str = std.string; 
+import str = std.string;
 
 debug import std.stdio;
 
@@ -78,10 +78,10 @@ public class KeyBindings {
         if (!e) {
             return null;
         } else {
-        	return e.bound_to;
+            return e.bound_to;
         }
     }
-    
+
     public char[] findBinding(KeyInfo info) {
         return findBinding(info.code, info.mods);
     }
@@ -95,14 +95,14 @@ public class KeyBindings {
         if (!e) {
             return null;
         } else {
-        	char[] ret = e.bound_to;
-        	//no up/down parameter, and key was released -> no event
-        	if (str.find(ret, "%d") < 0 && info.isUp())
-        		return null;
-        	ret = str.replace(ret, "%d", str.toString(!info.isUp()));
-        	ret = str.replace(ret, "%mx", str.toString(mousePos.x));
-        	ret = str.replace(ret, "%my", str.toString(mousePos.y));
-        	return ret;
+            char[] ret = e.bound_to;
+            //no up/down parameter, and key was released -> no event
+            if (str.find(ret, "%d") < 0 && info.isUp())
+                return null;
+            ret = str.replace(ret, "%d", str.toString(!info.isUp()));
+            ret = str.replace(ret, "%mx", str.toString(mousePos.x));
+            ret = str.replace(ret, "%my", str.toString(mousePos.y));
+            return ret;
         }
     }
 

@@ -214,7 +214,7 @@ class GameView : Container {
 
         GUITeamMemberSettings mTeamGUISettings;
         int mCycleLabels = 2;
-        
+
         CommandLine mCmd;
         CommandBucket mCmds;
 
@@ -359,8 +359,8 @@ class GameView : Container {
 
                     if (isActiveWorm) {
                         auto currentTime = mEngine.engineTime.current();
-                        bool didmove = (currentTime	- mController.
-                    		getControlledMember.lastAction()) < cArrowDelta;
+                        bool didmove = (currentTime - mController.
+                            getControlledMember.lastAction()) < cArrowDelta;
                         doMoveDown = !didmove;
                     } else {
                         //move labels down, but arrow is invisible
@@ -544,7 +544,7 @@ class GameView : Container {
             auto pam = am in mEngineMemberToOurs;
             activeWorm = pam ? *pam : null;
         }
-        
+
         foreach (m; mAllMembers) {
             m.simulate();
         }
@@ -575,15 +575,15 @@ class GameView : Container {
                 mEngineMemberToOurs[m.member] = vt;
             }
         }
-        
+
         mCmd = new CommandLine(globals.defaultOut);
         mCmds = new CommandBucket();
-        mCmds.register(Command("category", &cmdCategory, "-", 
-        	["text:catname"]));
+        mCmds.register(Command("category", &cmdCategory, "-",
+            ["text:catname"]));
         mCmds.register(Command("zoom", &cmdZoom, "-", ["bool:is_down"]));
         mCmds.bind(mCmd);
     }
-    
+
     private void cmdCategory(MyBox[] args, Output write) {
         char[] catname = args[0].unbox!(char[]);
         if (onSelectCategory)
@@ -617,9 +617,9 @@ class GameView : Container {
     override protected void onKeyEvent(KeyInfo ki) {
         auto bind = findBind(ki);
         if ((ki.isDown || ki.isUp()) && bind) {
-        	//if not processed locally, send
-        	if (!mCmd.execute(bind, true))
-        		mController.executeCommand(bind);
+            //if not processed locally, send
+            if (!mCmd.execute(bind, true))
+                mController.executeCommand(bind);
             return;
         }
     }

@@ -76,7 +76,7 @@ class MemberState {
 }
 
 class ClientState {
-	MemberState controlledMember;
+    MemberState controlledMember;
 
     this () {
     }

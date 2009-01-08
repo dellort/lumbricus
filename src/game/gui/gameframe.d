@@ -78,8 +78,8 @@ class GameFrame : SimpleContainer {
 
     private void selectCategory(char[] category) {
         auto m = clientengine.logic.getControl.getControlledMember();
-        mWeaponSel.checkNextWeaponInCategoryShortcut(category, 
-        	m?m.getCurrentWeapon():null);
+        mWeaponSel.checkNextWeaponInCategoryShortcut(category,
+            m?m.getCurrentWeapon():null);
     }
 
     void enableCamera(bool set) {

@@ -144,7 +144,7 @@ class GameTask : Task {
         return mGame.paused;
     }
     private void gamePaused(bool set) {
-		mControl.executeCommand("set_paused "~str.toString(set));
+        mControl.executeCommand("set_paused "~str.toString(set));
     }
 
     //not happy with this; but who cares
@@ -772,13 +772,13 @@ class GameTask : Task {
     }
 
     private void cmdSetWind(MyBox[] args, Output write) {
-    	float spd = args[0].unbox!(float);
-		mControl.executeCommand("set_wind "~str.toString(spd));
+        float spd = args[0].unbox!(float);
+        mControl.executeCommand("set_wind "~str.toString(spd));
     }
 
     private void cmdRaiseWater(MyBox[] args, Output write) {
-    	int by = args[0].unbox!(int);
-		mControl.executeCommand("raise_water "~str.toString(by));
+        int by = args[0].unbox!(int);
+        mControl.executeCommand("raise_water "~str.toString(by));
     }
 
     //slow time <whatever>

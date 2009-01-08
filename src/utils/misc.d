@@ -59,12 +59,12 @@ T clampRangeO(T)(T val, T low, T high) {
 
 /* Quick utility function for texture creation */
 int powerOfTwo(int input) {
-	int value = 1;
+    int value = 1;
 
-	while ( value < input ) {
-		value <<= 1;
-	}
-	return value;
+    while ( value < input ) {
+        value <<= 1;
+    }
+    return value;
 }
 
 /// Cast object in t to type T, and throw exception if not possible.

@@ -71,7 +71,7 @@ class NetServer {
             init = true;
         }
         if (!clientstate) {
-        	clientstate = new ClientState();
+            clientstate = new ClientState();
         }
 
         if (init) {
@@ -130,20 +130,20 @@ class NetServer {
                 ms.alive = m.alive();
                 ms.active = m.active();
                 if (ms.active)
-                	ts.active_member = ms;
+                    ts.active_member = ms;
                 ms.current_health = m.currentHealth();
                 ms.display_weapon_icon = m.displayWeaponIcon();
                 ms.last_action = m.lastAction();
                 ms.current_weapon = m.getCurrentWeapon();
                 ms.graphic = m.getGraphic();
                 if (m == control.getControlledMember())
-                	clientstate.controlledMember = ms; 
+                    clientstate.controlledMember = ms;
             }
             //normal fields (but still won't change very often)
             ts.active = t.active();
             ts.weapons = t.getWeapons();
             if (ts.active)
-            	state.activeteams ~= ts;
+                state.activeteams ~= ts;
         }
     }
 }

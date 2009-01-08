@@ -135,10 +135,10 @@ class GSFunctions : GameEnginePublic, GameLogicPublic, ClientControl
     }
 
     Team[] getActiveTeams() {
-        return arrayMap(state.activeteams, 
-        	(TeamState t) { return teams2[t.index]; } );
+        return arrayMap(state.activeteams,
+            (TeamState t) { return teams2[t.index]; } );
     }
-    
+
     RoundState currentRoundState() {
         return state.roundstate;
     }
@@ -183,9 +183,9 @@ class GSFunctions : GameEnginePublic, GameLogicPublic, ClientControl
         GSTeam t = teams[clientstate.controlledMember.team.index];
         return t.members2[clientstate.controlledMember.index];
     }
-    
+
     void executeCommand(char[] cmd) {
-    	client.commands ~= cmd;
+        client.commands ~= cmd;
     }
 }
 
@@ -222,11 +222,11 @@ class GSTeam : Team {
     TeamMember[] getMembers() {
         return members2;
     }
-    
+
     TeamMember getActiveMember() {
         if (!team.active_member)
             return null;
-    	return members2[team.active_member.index];
+        return members2[team.active_member.index];
     }
 }
 
@@ -270,7 +270,7 @@ class GSTeamMember : TeamMember {
     bool displayWeaponIcon() {
         return member.display_weapon_icon;
     }
-    
+
     Graphic getGraphic() {
         return member.graphic;
     }

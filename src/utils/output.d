@@ -48,7 +48,7 @@ public class StdioOutput : OutputHelper {
     public static Output output;
 
     void writeString(char[] str) {
-    	stdio.writef("%s", str);
+        stdio.writef("%s", str);
     }
 
     static this() {
