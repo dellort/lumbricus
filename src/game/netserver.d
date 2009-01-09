@@ -13,16 +13,19 @@ import common.common : globals;
 //used by server-side
 class NetServer {
     private {
+        class Connection {
+            PseudoNetwork net;
+            //there should be one client for each connection
+            //additionally, each client would have a list of teams which it can
+            //control
+            ClientInput client;
+        }
+
         GameEngine engine;
+        InitPacket init;
         GameState state;
-        //xxx should be per-client
-        ClientState clientstate;
         MemberState[TeamMember] member_server2state;
-        PseudoNetwork net;
-        //there should be one client for each connection
-        //additionally, each client would have a list of teams which it can
-        //control
-        ClientInput client;
+        Connection[] mConnections;
     }
 
     //create a server for pseudo-networking
@@ -30,27 +33,37 @@ class NetServer {
     this(GameEngine a_engine) {
         engine = a_engine;
         writeState();
-        net = new PseudoNetwork();
-        net.client_init = new InitPacket();
-        net.client_init.config = engine.gameConfig.save.writeAsString();
-        net.server_to_client = state;
-        net.server_to_one_client = clientstate;
-        net.client_to_server = new NetEventQueue();
-        client = new ClientInput(this);
+        init = new InitPacket();
+        init.config = engine.gameConfig.save.writeAsString();
     }
 
-    PseudoNetwork pseudoNetwork() {
-        return net;
+    //establish a client connection
+    PseudoNetwork connect() {
+        //only one connection for now
+        assert(mConnections.length == 0, "TODO");
+        auto con = new Connection();
+        con.net = new PseudoNetwork();
+        con.net.client_init = init;
+        con.net.shared_state = state;
+        con.net.client_to_server = new NetEventQueue();
+        //xxx: establish a per-client controller connection here
+        auto ctrl = engine.controller.connectClient();
+        con.client = new ClientInput(this, ctrl);
+        mConnections ~= con;
+        writeState();
+        return con.net;
     }
 
     //receive a frame from a client
     //dispatches input
     void frame_receive() {
-        NetEvent[] events = net.client_to_server.receive();
-        foreach (e; events) {
-            auto ce = castStrict!(ClientEvent)(e);
-            foreach (char[] cmd; ce.commands) {
-                client.command(cmd);
+        foreach (con; mConnections) {
+            NetEvent[] events = con.net.client_to_server.receive();
+            foreach (e; events) {
+                auto ce = castStrict!(ClientEvent)(e);
+                foreach (char[] cmd; ce.commands) {
+                    con.client.command(cmd);
+                }
             }
         }
     }
@@ -63,15 +76,11 @@ class NetServer {
     //dump all infos from the server into the shared state
     private void writeState() {
         GameLogicPublic logic = engine.logic();
-        ClientControl control = logic.getControl();
 
         bool init;
         if (!state) {
             state = new GameState();
             init = true;
-        }
-        if (!clientstate) {
-            clientstate = new ClientState();
         }
 
         if (init) {
@@ -103,7 +112,6 @@ class NetServer {
         state.weaponlistcc = oldwcounter;
 
         state.activeteams = null;
-        clientstate.controlledMember = null;
         foreach (int n, Team t; logic.getTeams()) {
             //xxx: actually, the team list is considered to be immutable
             //     this is only for initialization
@@ -140,8 +148,6 @@ class NetServer {
                 ms.last_action = m.lastAction();
                 ms.current_weapon = m.getCurrentWeapon();
                 ms.graphic = m.getGraphic();
-                if (m == control.getControlledMember())
-                    clientstate.controlledMember = ms;
             }
             //normal fields (but still won't change very often)
             ts.active = t.active();
@@ -150,20 +156,32 @@ class NetServer {
             if (ts.active)
                 state.activeteams ~= ts;
         }
+
+        foreach (con; mConnections) {
+            writeClientState(con);
+        }
+    }
+
+    private void writeClientState(Connection con) {
+        if (!con.net.client_state) {
+            con.net.client_state = new ClientState();
+        }
+        auto m = con.client.control.getControlledMember();
+        if (m) {
+            con.net.client_state.controlledMember = member_server2state[m];
+        } else {
+            con.net.client_state.controlledMember = null;
+        }
     }
 }
 
 private class ClientInput {
     NetServer server;
-    GameEngine engine;
-    GameLogicPublic logic;
     ClientControl control;
 
-    this(NetServer a_server) {
+    this(NetServer a_server, ClientControl a_control) {
         server = a_server;
-        engine = server.engine;
-        logic = engine.logic();
-        control = logic.getControl();
+        control = a_control;
     }
 
     void command(char[] a_cmd) {

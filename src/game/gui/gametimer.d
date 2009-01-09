@@ -3,23 +3,29 @@ module game.gui.gametimer;
 import framework.framework;
 import framework.font;
 import common.scene;
-import game.clientengine;
 import common.visual;
+import game.clientengine;
 import game.gamepublic;
+import game.gui.teaminfo;
 import gui.container;
 import gui.label;
 import gui.widget;
 import utils.time;
 
 class GameTimer : Container {
-    private ClientGameEngine mEngine;
-    private Label mTimeView;
-    private bool mActive;
-    private Time mLastTime;
-    private Vector2i mInitSize;
+    private {
+        GameInfo mGame;
+        Label mTimeView;
+        bool mActive;
+        Time mLastTime;
+        Vector2i mInitSize;
+        BoxProperties mBoxProps;
+    }
 
-    this(ClientGameEngine engine) {
-        mEngine = engine;
+    this(GameInfo game) {
+        mGame = game;
+
+        mBoxProps.borderWidth = 2;
         mTimeView = new Label();
         mTimeView.font = gFramework.fontManager.loadFont("time");
         mTimeView.border = Vector2i(7, 5);
@@ -33,15 +39,14 @@ class GameTimer : Container {
 
     override void simulate() {
         bool active;
-        if (mEngine) {
-            auto controller = mEngine.engine.logic;
-            if (controller.currentRoundState() == RoundState.prepare
-                || controller.currentRoundState() == RoundState.playing
-                /*|| controller.currentRoundState() == RoundState.cleaningUp*/)
-            {
+        if (mGame) {
+            auto m = mGame.control.getControlledMember();
+            if (m) {
                 active = true;
+                mBoxProps.border = mGame.allMembers[m].owner.color;
+                mTimeView.borderStyle = mBoxProps;
                 //little hack to show correct time
-                Time rt = controller.currentRoundTime()-timeMsecs(1);;
+                Time rt = mGame.logic.currentRoundTime()-timeMsecs(1);;
                 mTimeView.text = str.format("%.2s", rt.secs >= -1 ? rt.secs+1 : 0);
                 //needRelayout();
             } else {

@@ -22,8 +22,8 @@ class NetClient {
     }
 
     this(PseudoNetwork pseudo) {
-        state = pseudo.server_to_client;
-        clientstate = pseudo.server_to_one_client;
+        state = pseudo.shared_state;
+        clientstate = pseudo.client_state;
         update = pseudo.client_to_server;
         stuff = new GSFunctions(this);
         //xxx: this shouldn't render the level or load resources
@@ -56,6 +56,11 @@ class NetClient {
 
     //in case of real networking: will return null until fully initialized
     GameEnginePublic game() {
+        return stuff;
+    }
+
+    ClientControl control() {
+        //another hrhrhr
         return stuff;
     }
 
@@ -143,16 +148,16 @@ class GSFunctions : GameEnginePublic, GameLogicPublic, ClientControl
         return state.roundstate;
     }
 
+    bool gameEnded() {
+        return currentRoundState == RoundState.end;
+    }
+
     Time currentRoundTime() {
         return state.roundtime;
     }
 
     Time currentPrepareTime() {
         return state.preparetime;
-    }
-
-    ClientControl getControl() {
-        return this; //hurrr
     }
 
     WeaponHandle[] weaponList() {

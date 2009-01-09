@@ -142,6 +142,9 @@ class PhysicObject : PhysicBase {
         assert(deltaT > 0);
 
         //Update velocity
+        Vector2f t;
+        if (!mIntendedLook.isNaN)
+            t = mIntendedLook * mPosp.thrust;
         Vector2f a = gravity + acceleration
             + (mForceAccum + selfForce) * (1.0f/mPosp.mass);
         velocity_int += a * deltaT;
@@ -280,6 +283,10 @@ class PhysicObject : PhysicBase {
         mIntendedLook = Vector2f.nan;
     }
 
+    void forceLook(Vector2f l) {
+        mIntendedLook = l.normal;
+    }
+
     //angle where the worm looks to, or is forced to look to (i.e. when sitting)
     float lookey() {
         if (!isGlued) {
@@ -292,7 +299,7 @@ class PhysicObject : PhysicBase {
         } else {
             //glued but look invalid -> use last rotation
             if (mIntendedLook.isNaN)
-                mIntendedLook = Vector2f.fromPolar(1, rotation);
+                return rotation;
             //glued, use left/right from mIntendedLook and
             //combine with surface normal
             auto a = surface_normal.orthogonal;    //parallel to surface

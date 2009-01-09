@@ -557,15 +557,15 @@ class GameView : Container {
         return true;
     }
 
-    this(ClientGameEngine engine, Camera cam, GameInfo game) {
-        mEngine = engine;
+    this(Camera cam, GameInfo game) {
+        mEngine = game.cengine;
         mGame = game;
 
         mCamera = cam;
 
         //hacky?
-        mLogic = mEngine.logic;
-        mController = mEngine.controller;
+        mLogic = game.logic;
+        mController = game.control;
 
         //load the teams and also the members
         foreach (TeamInfo t; game.teams) {

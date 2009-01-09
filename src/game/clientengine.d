@@ -364,10 +364,6 @@ class ClientGameEngine {
         mEngineTime.paused = false;
     }
 
-    bool gameEnded() {
-        return mEngine.logic.currentRoundState == RoundState.end;
-    }
-
     void readd_graphics() {
         mScene.clear();
 
@@ -387,14 +383,6 @@ class ClientGameEngine {
 
     GameEnginePublic engine() {
         return mEngine;
-    }
-
-    //hacky?
-    GameLogicPublic logic() {
-        return mEngine.logic;
-    }
-    ClientControl controller() {
-        return logic.getControl();
     }
 
     void kill() {

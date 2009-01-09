@@ -70,6 +70,8 @@ class POSP {
 
     float airResistance = 0.0f;
 
+    float thrust = 0.0f;
+
     //maximum absolute value, velocity is cut if over this
     Vector2f velocityConstraint = {float.infinity, float.infinity};
     float speedLimit = 0.0f;
@@ -123,6 +125,7 @@ class POSP {
             velocityConstraint.y)));
         speedLimit = node.getFloatValue("speed_limit", speedLimit);
         jetpackLooking = node.getBoolValue("jetpack_looking", jetpackLooking);
+        thrust = node.getFloatValue("thrust", thrust);
         //xxx: passes true for the second parameter, which means the ID
         //     is created if it doesn't exist; this is for forward
         //     referencing... it should be replaced by collision classes

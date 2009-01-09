@@ -19,12 +19,16 @@ import utils.vector2;
 class GameInfo {
     ClientGameEngine cengine;
     GameEnginePublic engine;
+    GameLogicPublic logic;
+    ClientControl control;
     TeamInfo[Team] teams;
     TeamMemberInfo[TeamMember] allMembers;
 
-    this(ClientGameEngine a_engine) {
+    this(ClientGameEngine a_engine, ClientControl ct) {
         cengine = a_engine;
         engine = cengine.engine();
+        logic = engine.logic;
+        control = ct;
 
         foreach (t; engine.logic().getTeams()) {
             auto team = new TeamInfo(this, t);

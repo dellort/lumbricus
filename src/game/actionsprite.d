@@ -20,12 +20,6 @@ import utils.factory;
 import utils.time;
 import utils.reflection;
 
-interface RefireTrigger {
-    void addRefire(ActionSprite s);
-
-    void removeRefire(ActionSprite s);
-}
-
 class ActionSprite : GObjectSprite {
     protected Vector2f mLastImpactNormal = {0, -1};
     protected WrapFireInfo mFireInfo;
@@ -35,8 +29,6 @@ class ActionSprite : GObjectSprite {
 
         Action[] mActiveActionsGlobal;
         Action[] mActiveActionsState;
-
-        RefireTrigger mRefireTrigger;
 
         bool mEnableEvents = true;
     }
@@ -69,9 +61,6 @@ class ActionSprite : GObjectSprite {
 
     override protected void die() {
         doEvent("ondie");
-        //remove from shooter's refire list
-        if (mRefireTrigger && type.canRefire)
-            mRefireTrigger.removeRefire(this);
         super.die();
     }
 
@@ -89,11 +78,6 @@ class ActionSprite : GObjectSprite {
         if (!mEnableEvents) {
             //stop all global actions in a no-event state
             cleanActiveActions(mActiveActionsGlobal);
-            //if entering a no-events state, remove this class from refire list
-            //xxx readding later not possible because shooter might have died
-            //    by then
-            if (mRefireTrigger && type.canRefire)
-                mRefireTrigger.removeRefire(this);
         }
         //run state-initialization event
         doEvent("oncreate", true);
@@ -147,17 +131,9 @@ class ActionSprite : GObjectSprite {
                 //get current FireInfo data (physics)
                 updateFireInfo();
                 return MyBox.Box(mFireInfo);
-            case "refire_trigger":
-                return MyBox.Box(mRefireTrigger);
             default:
                 return MyBox();
         }
-    }
-
-    void refireTrigger(RefireTrigger tr) {
-        mRefireTrigger = tr;
-        if (tr && type.canRefire)
-            tr.addRefire(this);
     }
 
     ///runs a sprite-specific event defined in the config file

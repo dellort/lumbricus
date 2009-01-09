@@ -10,6 +10,7 @@ import game.gobject;
 import game.sprite;
 import game.sequence;
 import game.weapon.weapon;
+import game.weapon.projectile;
 import utils.array;
 import utils.misc;
 import utils.mybox;
@@ -50,12 +51,12 @@ private class ActionWeapon : WeaponClass {
 
 //standard projectile shooter for projectiles which are started from the worm
 //(as opposed to air strikes etc.)
-private class ActionShooter : Shooter, RefireTrigger {
+private class ActionShooter : Shooter, ProjectileFeedback {
     private {
         ActionWeapon myclass;
         Action mFireAction;
         //holds a list of sprites that can execute the onrefire event
-        ActionSprite[] mRefireSprites;
+        ProjectileSprite[] mRefireSprites;
     }
     protected WrapFireInfo fireInfo;
 
@@ -102,19 +103,19 @@ private class ActionShooter : Shooter, RefireTrigger {
                 return MyBox.Box(fireInfo);
             case "owner_game":
                 return MyBox.Box!(GameObject)(owner);
-            case "refire_trigger":
-                return MyBox.Box!(RefireTrigger)(this);
+            case "feedback":
+                return MyBox.Box!(ProjectileFeedback)(this);
             default:
                 return MyBox();
         }
     }
 
-    //interface RefireTrigger.addSprite
-    void addRefire(ActionSprite s) {
+    //interface ProjectileFeedback.addSprite
+    void addRefire(ProjectileSprite s) {
         mRefireSprites ~= s;
     }
 
-    void removeRefire(ActionSprite s) {
+    void removeRefire(ProjectileSprite s) {
         arrayRemoveUnordered(mRefireSprites, s, true);
         if (!activity)
             //all possible refire sprites died by themselves

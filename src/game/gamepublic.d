@@ -417,6 +417,8 @@ interface GameLogicPublic {
 
     RoundState currentRoundState();
 
+    bool gameEnded();
+
     //BIIIIG xxxXXXXXXXXXXX:
     //why can it query the current time all the time? what about network?
 
@@ -425,11 +427,6 @@ interface GameLogicPublic {
 
     ///only for RoundState.prepare
     Time currentPrepareTime();
-
-    ///xxx: should return an array for the case where two teams are active on
-    ///on client at the same time?
-    ///xxx this can't be here, different for every client
-    ClientControl getControl();
 
     ///list of _all_ possible weapons, which are useable during the game
     ///Team.getWeapons() must never return a Weapon not covered by this list

@@ -64,7 +64,7 @@ class GameFrame : SimpleContainer {
     }
 
     private void updateWeapons() {
-        TeamMember t = clientengine.logic.getControl.getControlledMember();
+        TeamMember t = game.control.getControlledMember();
         mWeaponSel.update(t ? t.team.getWeapons() : null);
     }
 
@@ -73,11 +73,11 @@ class GameFrame : SimpleContainer {
     }
 
     private void selectWeapon(WeaponHandle c) {
-        clientengine.logic.getControl.executeCommand("weapon "~c.name);
+        game.control.executeCommand("weapon "~c.name);
     }
 
     private void selectCategory(char[] category) {
-        auto m = clientengine.logic.getControl.getControlledMember();
+        auto m = game.control.getControlledMember();
         mWeaponSel.checkNextWeaponInCategoryShortcut(category,
             m?m.getCurrentWeapon():null);
     }
@@ -141,16 +141,16 @@ class GameFrame : SimpleContainer {
         //only do the rest (like animated sorting) when all was counted down
         mTeamWindow.update(finished);
 
-        int c = clientengine.logic().getMessageChangeCounter();
+        int c = game.logic.getMessageChangeCounter();
         if (c != mMsgChangeCounter) {
             mMsgChangeCounter = c;
             char[] id;
             char[][] args;
-            clientengine.logic().getLastMessage(id, args);
+            game.logic.getLastMessage(id, args);
             showMessage(id, args);
         }
 
-        c = clientengine.logic().getWeaponListChangeCounter();
+        c = game.logic.getWeaponListChangeCounter();
         if (c != mWeaponChangeCounter) {
             mWeaponChangeCounter = c;
             updateWeapons();
@@ -166,11 +166,10 @@ class GameFrame : SimpleContainer {
         return gameView.doesCover();
     }
 
-    this(ClientGameEngine ce) {
-        clientengine = ce;
+    this(GameInfo g) {
+        game = g;
 
-        game = new GameInfo(clientengine);
-
+        clientengine = game.cengine;
         gDefaultLog("initializeGameGui");
 
         auto wormbinds = new KeyBindings();
@@ -183,17 +182,17 @@ class GameFrame : SimpleContainer {
 
         mGui.add(new WindMeter(clientengine),
             WidgetLayout.Aligned(1, 1, Vector2i(10, 10)));
-        mGui.add(new GameTimer(clientengine),
+        mGui.add(new GameTimer(game),
             WidgetLayout.Aligned(-1, 1, Vector2i(5,5)));
 
-        mGui.add(new PrepareDisplay(clientengine));
+        mGui.add(new PrepareDisplay(game));
 
         mMessageViewer = new MessageViewer();
         mGui.add(mMessageViewer);
 
         mCamera = new Camera();
 
-        gameView = new GameView(clientengine, mCamera, game);
+        gameView = new GameView(mCamera, game);
         gameView.onTeamChange = &teamChanged;
         gameView.onSelectCategory = &selectCategory;
         gameView.bindings = wormbinds;
@@ -216,7 +215,7 @@ class GameFrame : SimpleContainer {
         mTeamWindow = new TeamWindow(game);
         add(mTeamWindow);
 
-        mWeaponSel.init(clientengine.logic.weaponList());
+        mWeaponSel.init(game.logic.weaponList());
 
         mScrollToAtStart = clientengine.worldCenter;
     }

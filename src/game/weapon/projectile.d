@@ -21,16 +21,27 @@ import utils.log;
 import utils.random;
 import utils.factory;
 import utils.reflection;
+import utils.mybox;
+
+interface ProjectileFeedback {
+    void addRefire(ProjectileSprite s);
+
+    void removeRefire(ProjectileSprite s);
+}
 
 class ProjectileSprite : ActionSprite {
     ProjectileSpriteClass myclass;
-    Time stateTime;
     //only used if myclass.dieByTime && !myclass.useFixedDeathTime
     Time detonateTimer;
-    Time glueTime;   //time when projectile got glued
-    bool gluedCache; //last value of physics.isGlued
     Vector2f target;
-    private bool mTimerDone = false;
+
+    private {
+        Time stateTime;
+        Time glueTime;   //time when projectile got glued
+        bool gluedCache; //last value of physics.isGlued
+        bool mTimerDone = false;
+        ProjectileFeedback mFeedback;
+    }
 
     Time detonateTimeState() {
         if (!currentState.useFixedDetonateTime)
@@ -56,6 +67,19 @@ class ProjectileSprite : ActionSprite {
         super.stateTransition(from, to);
         stateTime = engine.gameTime.current;
         mTimerDone = false;
+        if (!enableEvents) {
+            //if entering a no-events state, remove this class from refire list
+            //xxx readding later not possible because shooter might have died
+            //    by then
+            if (mFeedback && type.canRefire)
+                mFeedback.removeRefire(this);
+        }
+    }
+
+    void setFeedback(ProjectileFeedback tr) {
+        mFeedback = tr;
+        if (tr && type.canRefire)
+            tr.addRefire(this);
     }
 
     override void simulate(float deltaT) {
@@ -97,12 +121,17 @@ class ProjectileSprite : ActionSprite {
     }
 
     override protected void die() {
+        //remove from shooter's refire list
+        if (mFeedback && type.canRefire)
+            mFeedback.removeRefire(this);
         //actually die (byebye)
         super.die();
     }
 
     protected MyBox readParam(char[] id) {
         switch (id) {
+            case "feedback":
+                return MyBox.Box(mFeedback);
             default:
                 return super.readParam(id);
         }

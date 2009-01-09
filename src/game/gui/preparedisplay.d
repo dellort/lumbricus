@@ -4,8 +4,9 @@ import framework.framework;
 import framework.font;
 import framework.i18n;
 import common.scene;
-import game.clientengine;
 import common.visual;
+import game.clientengine;
+import game.gui.teaminfo;
 import game.gamepublic;
 import gui.container;
 import gui.label;
@@ -16,10 +17,10 @@ class PrepareDisplay : Container {
     private Label mPrepareView;
     private Time mLastTime;
     private Translator tr;
-    private ClientGameEngine mEngine;
+    private GameInfo mGame;
 
-    this(ClientGameEngine engine) {
-        mEngine = engine;
+    this(GameInfo game) {
+        mGame = game;
         tr = localeRoot.bindNamespace("gui_prepare");
         mPrepareView = new Label();
         mPrepareView.font = gFramework.fontManager.loadFont("messages");
@@ -42,12 +43,12 @@ class PrepareDisplay : Container {
 
     override void simulate() {
         Time cur = timeCurrentTime();
-        auto logic = mEngine.logic;
+        auto logic = mGame.logic;
         //auto controller = mEngine ? mEngine.engine.controller : null;
         if (logic.currentRoundState() == RoundState.prepare
-            && logic.getControl.getControlledMember)
+            && mGame.control.getControlledMember)
         {
-            Team curTeam = logic.getControl.getControlledMember.team;
+            Team curTeam = mGame.control.getControlledMember.team;
             active = true;
             char[] teamName = curTeam.name;
             //little hack to show correct time

@@ -81,7 +81,7 @@ class ClientControlImpl : ClientControl {
     //-- Start ClientControl implementation
 
     void executeCommand(char[] cmd) {
-        if (!mCmd.execute(cmd, true))
+        if (cmd.startsWith("help") || !mCmd.execute(cmd, true))
             ctl.clientExecute(this, cmd);
     }
 
@@ -168,10 +168,10 @@ class ClientControlImpl : ClientControl {
             if (m) {
                 m.selectWeaponByClass(wc);
                 //doFireDown will save the keypress and wait if not ready
-                //xxx what about doFireUp() call?
                 m.doFireDown();
             }
         } else {
+            //key was released (like fire behavior)
             if (m)
                 m.doFireUp();
         }
@@ -1147,10 +1147,19 @@ class GameController : GameLogicPublic {
     private void createCmd() {
         mCmd = new CommandLine(globals.defaultOut);
         mCmds = new CommandBucket();
-        mCmds.register(Command("raise_water", &cmdRaiseWater, "-", ["int:by"]));
-        mCmds.register(Command("set_wind", &cmdSetWind, "-", ["float:speed"]));
-        mCmds.register(Command("set_pause", &cmdSetPause, "-", ["bool:state"]));
-        mCmds.register(Command("slow_down", &cmdSlowDown, "-", ["float:slow"]));
+        mCmds.register(Command("raise_water", &cmdRaiseWater,
+            "Increase water height", ["int:by"]));
+        mCmds.register(Command("set_wind", &cmdSetWind,
+            "Change wind speed (+/- for right/left)", ["float:speed"]));
+        mCmds.register(Command("set_pause", &cmdSetPause, "Pause game",
+            ["bool:state"]));
+        mCmds.register(Command("slow_down", &cmdSlowDown,
+            "Change the speed gametime passes at", ["float:slow"]));
+        mCmds.register(Command("crate_test", &cmdCrateTest, "drop a crate"));
+        mCmds.register(Command("shake_test", &cmdShakeTest, "earth quake test",
+            ["float:strength", "float:degrade (multiplier < 1.0)"]));
+        mCmds.register(Command("activity", &cmdActivityDebug,
+            "list active game objects", ["bool?:list all objects"]));
         mCmds.bind(mCmd);
     }
 
@@ -1184,6 +1193,20 @@ class GameController : GameLogicPublic {
         engine.setSlowDown(args[0].unbox!(float));
     }
 
+    private void cmdCrateTest(MyBox[] args, Output write) {
+        dropCrate();
+    }
+
+    private void cmdShakeTest(MyBox[] args, Output write) {
+        float strength = args[0].unbox!(float);
+        float degrade = args[1].unbox!(float);
+        engine.addEarthQuake(strength, degrade);
+    }
+
+    private void cmdActivityDebug(MyBox[] args, Output write) {
+        engine.activityDebug(args[0].unboxMaybe!(bool));
+    }
+
     //--- start GameLogicPublic
 
     Team[] getTeams() {
@@ -1194,17 +1217,16 @@ class GameController : GameLogicPublic {
         return mCurrentRoundState;
     }
 
+    bool gameEnded() {
+        return currentRoundState == RoundState.end;
+    }
+
     Time currentRoundTime() {
         return mRoundRemaining;
     }
 
     Time currentPrepareTime() {
         return mPrepareRemaining;
-    }
-
-    ///xxx: read comment for this in gamepublic.d
-    ClientControl getControl() {
-        return control;
     }
 
     WeaponHandle[] weaponList() {
@@ -1236,6 +1258,11 @@ class GameController : GameLogicPublic {
     }
 
     //--- end GameLogicPublic
+
+    ///xxx: needs to be redefined for multiple connections
+    ClientControl connectClient() {
+        return control;
+    }
 
     void updateClientRoundStateTime() {
     }

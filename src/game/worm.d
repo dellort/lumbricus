@@ -628,7 +628,8 @@ class WormSprite : GObjectSprite {
     //xxx sorry for that
     override void setState(StaticStateInfo nstate, bool for_end = false) {
         if (nstate is wsc.st_stand &&
-            (currentState is wsc.st_fly || currentState is wsc.st_jump))
+            (currentState is wsc.st_fly || currentState is wsc.st_jump ||
+            currentState is wsc.st_jump_to_fly))
         {
             nstate = wsc.st_getup;
         }

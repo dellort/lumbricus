@@ -11,6 +11,7 @@ import framework.i18n;
 import framework.timesource;
 import game.gui.loadingscreen;
 import game.gui.gameframe;
+import game.gui.teaminfo;
 import game.clientengine;
 import game.loader;
 import game.gamepublic;
@@ -108,11 +109,14 @@ class GameTask : Task {
         GameEnginePublic mGame;
         ClientGameEngine mClientEngine;
         ClientControl mControl;
+        GameInfo mGameInfo;
         NetClient mNetClient;
         NetServer mNetServer;
         GfxSet mGfx;
 
-        GameFrame mWindow;
+        GameFrame mGameFrame;
+        //argh, another step of indirection :/
+        SimpleContainer mWindow;
 
         LoadingScreen mLoadScreen;
         Loader mGameLoader;
@@ -127,9 +131,6 @@ class GameTask : Task {
         Time mFadeStartTime;
 
         bool mDelayedFirstFrame; //draw screen before loading first chunk
-
-        //argh, another step of indirection :/
-        SimpleContainer mGameFrame;
 
         //temporary when loading a game
         SerializeInConfig mSaveGame;
@@ -187,8 +188,8 @@ class GameTask : Task {
     }
 
     private void createWindow() {
-        mGameFrame = new SimpleContainer();
-        auto wnd = gWindowManager.createWindowFullscreen(this, mGameFrame,
+        mWindow = new SimpleContainer();
+        auto wnd = gWindowManager.createWindowFullscreen(this, mWindow,
             "lumbricus");
         //background is mostly invisible, except when loading and at low
         //detail levels (where the background isn't completely overdrawn)
@@ -295,7 +296,7 @@ class GameTask : Task {
 
         mLoadScreen = new LoadingScreen();
         mLoadScreen.zorder = 10;
-        mGameFrame.add(mLoadScreen);
+        mWindow.add(mLoadScreen);
 
         auto load_txt = Translator.ByNamespace("loading.game");
         char[][] chunks;
@@ -329,13 +330,13 @@ class GameTask : Task {
     }
 
     private bool initGameGui() {
-        mWindow = new GameFrame(mClientEngine);
-        mGameFrame.add(mWindow);
+        mGameInfo = new GameInfo(mClientEngine, mControl);
+        mGameFrame = new GameFrame(mGameInfo);
+        mWindow.add(mGameFrame);
         if (mSavedSetViewPosition) {
             mSavedSetViewPosition = false;
-            //mWindow.setPosition(mSavedViewPosition, false);
-            mWindow.mScrollToAtStart = mSavedViewPosition;
-            mWindow.resetCamera();
+            mGameFrame.mScrollToAtStart = mSavedViewPosition;
+            mGameFrame.resetCamera();
         }
 
         return true;
@@ -349,6 +350,7 @@ class GameTask : Task {
             if (!mNetClient.game())
                 return false; //wait for next frame (busy waiting)
             mGame = mNetClient.game();
+            mControl = mNetClient.control();
         } else if (!mSaveGame) {
             mServerEngine = new GameEngine(mGameConfig, mGfx);
             mGame = mServerEngine;
@@ -377,9 +379,11 @@ class GameTask : Task {
 
         if (mGameConfig.as_pseudo_server && !mNetServer) {
             mNetServer = new NetServer(mServerEngine);
-            new GameTask(manager(), mNetServer.pseudoNetwork());
+            new GameTask(manager(), mNetServer.connect());
         }
-        mControl = mGame.logic().getControl();
+        //xxx (well, you know)
+        if (!mControl)
+            mControl = mServerEngine.controller.connectClient();
 
         return true;
     }
@@ -466,8 +470,8 @@ class GameTask : Task {
         //smash it up (forced kill; unforced goes into terminate())
         unloadGame();
         mCmds.kill();
-        if (mWindow)
-            mWindow.remove(); //from GUI
+        if (mGameFrame)
+            mGameFrame.remove(); //from GUI
         if (mLoadScreen)
             mLoadScreen.remove();
     }
@@ -482,7 +486,7 @@ class GameTask : Task {
         if (!mFadeOut) {
             mFadeOut = new Spacer();
             mFadeOut.color = cFadeStart;
-            mGameFrame.add(mFadeOut);
+            mWindow.add(mFadeOut);
             mFadeStartTime = timeCurrentTime;
         }
     }
@@ -521,7 +525,7 @@ class GameTask : Task {
                 mClientEngine.doFrame();
 
                 //maybe
-                if (mClientEngine.gameEnded)
+                if (mGame.logic.gameEnded)
                     terminateWithFadeOut();
             }
             if (mNetClient) {
@@ -591,7 +595,7 @@ class GameTask : Task {
             LandscapeBitmap lb = bitmaps[n];
             writer.addExternal(lb, str.format("landscape_%s", n));
         }
-        sg.viewpos = mWindow.getPosition();
+        sg.viewpos = mGameFrame.getPosition();
         sg.randomstate = engine.rnd.state;
         writer.writeObject(sg);
 
@@ -635,10 +639,6 @@ class GameTask : Task {
 
     //game specific commands
     private void registerCommands() {
-        mCmds.register(Command("raisewater", &cmdRaiseWater,
-            "increase waterline", ["int:water level"]));
-        mCmds.register(Command("wind", &cmdSetWind,
-            "Change wind speed", ["float:wind speed"]));
         mCmds.register(Command("cameradisable", &cmdCameraDisable,
             "disable game camera", ["bool?:disable"]));
         mCmds.register(Command("detail", &cmdDetail,
@@ -649,17 +649,10 @@ class GameTask : Task {
             ["float:slow down",
              "text?:ani or game"]));
         mCmds.register(Command("pause", &cmdPause, "pause"));
-        mCmds.register(Command("weapon", &cmdWeapon,
-            "Debug: Select a weapon by id", ["text:Weapon ID"]));
         mCmds.register(Command("saveleveltga", &cmdSafeLevelTGA, "dump TGA",
             ["text:filename"]));
-        mCmds.register(Command("crate_test", &cmdCrateTest, "drop a crate"));
-        mCmds.register(Command("shake_test", &cmdShakeTest, "earth quake test",
-            ["float:strength", "float:degrade (multiplier < 1.0)"]));
         mCmds.register(Command("show_collide", &cmdShowCollide, "show collision"
             " bitmaps"));
-        mCmds.register(Command("activity", &cmdActivityTest,
-            "list active game objects", ["bool?:list all objects"]));
         mCmds.register(Command("ser_dump", &cmdSerDump, "serialiation dump"));
         mCmds.register(Command("savetest", &cmdSaveTest, "save and reload"));
         mCmds.register(Command("save", &cmdSaveGame, "save game",
@@ -670,6 +663,8 @@ class GameTask : Task {
         mCmds.register(load);
         mCmds.register(Command("snap", &cmdSnapTest, "snapshot test",
             ["int:1=store, 2=load, 3=store+load"]));
+        mCmds.register(Command("server", &cmdExecServer,
+            "Run a command on the server", ["text...:command"]));
     }
 
     class ShowCollide : Container {
@@ -741,16 +736,11 @@ class GameTask : Task {
         s.close();
     }
 
-    private void cmdWeapon(MyBox[] args, Output write) {
-        char[] wid = args[0].unboxMaybe!(char[])("");
-        write.writefln("xxx reimplement if you want this");
-    }
-
     private void cmdCameraDisable(MyBox[] args, Output write) {
-        if (mWindow) {
-            mWindow.enableCamera = !args[0].unboxMaybe!(bool)
-                (mWindow.enableCamera);
-            write.writefln("set camera enable: %s", mWindow.enableCamera);
+        if (mGameFrame) {
+            mGameFrame.enableCamera = !args[0].unboxMaybe!(bool)
+                (mGameFrame.enableCamera);
+            write.writefln("set camera enable: %s", mGameFrame.enableCamera);
         }
     }
 
@@ -763,22 +753,12 @@ class GameTask : Task {
     }
 
     private void cmdNames(MyBox[] args, Output write) {
-        if (!mWindow || !mWindow.gameView)
+        if (!mGameFrame || !mGameFrame.gameView)
             return;
-        auto v = mWindow.gameView;
+        auto v = mGameFrame.gameView;
         auto c = args[0].unboxMaybe!(int)(v.nameLabelLevel + 1);
         v.nameLabelLevel = c;
         write.writefln("set nameLabelLevel to %s", v.nameLabelLevel);
-    }
-
-    private void cmdSetWind(MyBox[] args, Output write) {
-        float spd = args[0].unbox!(float);
-        mControl.executeCommand("set_wind "~str.toString(spd));
-    }
-
-    private void cmdRaiseWater(MyBox[] args, Output write) {
-        int by = args[0].unbox!(int);
-        mControl.executeCommand("raise_water "~str.toString(by));
     }
 
     //slow time <whatever>
@@ -805,24 +785,10 @@ class GameTask : Task {
         globals.gameTimeAnimations.paused = !globals.gameTimeAnimations.paused;
     }
 
-    private void cmdCrateTest(MyBox[] args, Output write) {
-        if (!mServerEngine)
-            return;
-        mServerEngine.controller.dropCrate();
-    }
-
-    private void cmdShakeTest(MyBox[] args, Output write) {
-        if (!mServerEngine)
-            return;
-        float strength = args[0].unbox!(float);
-        float degrade = args[1].unbox!(float);
-        mServerEngine.addEarthQuake(strength, degrade);
-    }
-
-    private void cmdActivityTest(MyBox[] args, Output write) {
-        if (!mServerEngine)
-            return;
-        mServerEngine.activityDebug(args[0].unboxMaybe!(bool));
+    private void cmdExecServer(MyBox[] args, Output write) {
+        //send command to the server
+        char[] srvCmd = args[0].unbox!(char[]);
+        mControl.executeCommand(srvCmd);
     }
 
     private void cmdSnapTest(MyBox[] args, Output write) {

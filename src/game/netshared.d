@@ -142,8 +142,8 @@ class InitPacket {
 
 //completely locally shared
 class PseudoNetwork {
-    GameState server_to_client;
-    ClientState server_to_one_client;
+    GameState shared_state;
+    ClientState client_state;
     NetEventQueue client_to_server; //item type is ClientEvent
     InitPacket client_init;
 }
