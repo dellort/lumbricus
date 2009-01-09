@@ -31,12 +31,12 @@ class Atlas {
 }
 
 class AtlasResource : ResourceItem {
-    this(ResourceFile context, char[] id, ConfigItem item) {
+    this(ResourceFile context, char[] id, ConfigNode item) {
         super(context, id, item);
     }
 
     protected void load() {
-        auto node = cast(ConfigNode)mConfig;
+        auto node = mConfig;
         auto atlas = new Atlas();
 
         foreach (char[] key, char[] value; node.getSubNode("pages")) {
@@ -44,14 +44,15 @@ class AtlasResource : ResourceItem {
         }
 
         FileAtlasTexture[] textures;
-        if (node.hasNode("meta")) {
+        auto meta = node.getSubNode("meta");
+        if (meta.hasSubNodes()) {
             //meta node contains a list of strings with texture information
-            foreach (char[] dummy, char[] metav; node.getSubNode("meta")) {
+            foreach (char[] dummy, char[] metav; meta) {
                 textures ~= FileAtlasTexture.parseString(metav);
             }
         } else {
             //meta data is read from a binary file
-            scope f = gFramework.fs.open(mContext.fixPath(node["meta"]));
+            scope f = gFramework.fs.open(mContext.fixPath(meta.value));
             //xxx I shouldn't load stuff directly (endian issues), but who cares?
             FileAtlas header;
             f.readExact(&header, header.sizeof);

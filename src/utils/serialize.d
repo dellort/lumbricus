@@ -143,7 +143,7 @@ class SerializeBase {
 
     //debug: write out the object graph in graphviz format
     //here because it needs Types and mExternals
-    char[] dumpGraph(Object root) {
+    debug char[] dumpGraph(Object root) {
         char[] r;
         int id_alloc;
         int[Object] visited; //map to id
@@ -230,12 +230,12 @@ class SerializeBase {
         char[][] s_unknown = unknown.keys, s_unreged = unregistered.keys;
         s_unknown.sort;
         s_unreged.sort;
-        std.stdio.writefln("Completely unknown:");
+        writefln("Completely unknown:");
         foreach (x; s_unknown)
-            std.stdio.writefln("  %s", x);
-        std.stdio.writefln("Unregistered:");
+            writefln("  %s", x);
+        writefln("Unregistered:");
         foreach (x; s_unreged)
-            std.stdio.writefln("  %s", x);
+            writefln("  %s", x);
 
         return r;
     }
@@ -549,6 +549,8 @@ class SerializeInConfig : SerializeConfig {
         QO[] objects;
         //read all objects without members
         foreach (ConfigNode node; file) {
+            if (node.value.length)
+                continue;
             //actually deserialize
             int oid = -1;
             try {
@@ -598,6 +600,8 @@ class SerializeInConfig : SerializeConfig {
             return;
         }
         foreach (ConfigNode dest; cur) {
+            if (dest.name.length)
+                continue; //oops, hack
             if (!ck)
                 new SerializeError("what.");
             doit(dest);

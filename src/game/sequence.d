@@ -26,7 +26,7 @@ import game.game;
 import std.math : PI;
 import str = std.string;
 
-static void function(GameEngine engine, ConfigItem from)[char[]]
+static void function(GameEngine engine, ConfigNode from)[char[]]
     loaders;
 
 ///all states, one instance per GameEngine, get via GameEngine.sequenceStates
@@ -857,7 +857,7 @@ void loadSequences(GameEngine engine, ConfigNode seqList) {
         if (!pload) {
             throw new Exception("sequence loader not found: "~sub.name);
         }
-        foreach (ConfigItem subsub; sub) {
+        foreach (ConfigNode subsub; sub) {
             (*pload)(engine, subsub);
         }
     }
@@ -871,13 +871,11 @@ Animation getAni(GameEngine e, char[] name) {
     return e.gfx.resources.get!(Animation)(name);
 }
 
-char[] getValue(ConfigItem fromitem) {
-    if (!cast(ConfigValue)fromitem)
-        assert (false, fromitem.name ~ " is not a config value");
-    return castStrict!(ConfigValue)(fromitem).value;
+char[] getValue(ConfigNode fromitem) {
+    return fromitem.value;
 }
 
-void loadNormal(GameEngine engine, ConfigItem fromitem) {
+void loadNormal(GameEngine engine, ConfigNode fromitem) {
     auto value = getValue(fromitem);
     //simple animation, state = animation
     auto state = new WormState(engine, fromitem.name);
@@ -887,7 +885,7 @@ void loadNormal(GameEngine engine, ConfigItem fromitem) {
     addState(engine, state);
 }
 
-void loadNormalDamage(GameEngine engine, ConfigItem fromitem) {
+void loadNormalDamage(GameEngine engine, ConfigNode fromitem) {
     auto value = getValue(fromitem);
     //simple animation, state = animation, using damage for p2
     auto state = new WormState(engine, fromitem.name);
@@ -898,7 +896,7 @@ void loadNormalDamage(GameEngine engine, ConfigItem fromitem) {
     addState(engine, state);
 }
 
-void loadWormNormalWeapons(GameEngine engine, ConfigItem fromitem) {
+void loadWormNormalWeapons(GameEngine engine, ConfigNode fromitem) {
     auto value = getValue(fromitem);
     auto state = new WormState(engine, fromitem.name);
     auto ss = new SubSequence;
@@ -911,8 +909,8 @@ void loadWormNormalWeapons(GameEngine engine, ConfigItem fromitem) {
 }
 
 //special case because of enter/leave and turnaround anims
-void loadWormJetpack(GameEngine engine, ConfigItem fromitem) {
-    auto sub = castStrict!(ConfigNode)(fromitem);
+void loadWormJetpack(GameEngine engine, ConfigNode fromitem) {
+    auto sub = fromitem;
     auto state = new WormState(engine, fromitem.name);
     auto s_norm = new SubSequence;
     auto s_enter = new SubSequence;
@@ -934,7 +932,7 @@ void loadWormJetpack(GameEngine engine, ConfigItem fromitem) {
     addState(engine, state);
 }
 
-void loadWormWeapons(GameEngine engine, ConfigItem fromitem) {
+void loadWormWeapons(GameEngine engine, ConfigNode fromitem) {
     auto value = getValue(fromitem);
     char[] get = value ~ "_get", hold = value ~ "_hold";
     auto state = new WormState(engine, fromitem.name);
@@ -961,7 +959,7 @@ void loadWormWeapons(GameEngine engine, ConfigItem fromitem) {
     addState(engine, state);
 }
 
-void loadFirstNormalThenEmpty(GameEngine engine, ConfigItem fromitem) {
+void loadFirstNormalThenEmpty(GameEngine engine, ConfigNode fromitem) {
     auto value = getValue(fromitem);
     auto state = new WormState(engine, fromitem.name);
     auto s1 = new SubSequence;
@@ -974,7 +972,7 @@ void loadFirstNormalThenEmpty(GameEngine engine, ConfigItem fromitem) {
     addState(engine, state);
 }
 
-void loadAnimation(GameEngine engine, ConfigItem fromitem) {
+void loadAnimation(GameEngine engine, ConfigNode fromitem) {
     auto value = getValue(fromitem);
     auto state = new WormState(engine, fromitem.name);
     auto s_normal = new SubSequence;
@@ -983,7 +981,7 @@ void loadAnimation(GameEngine engine, ConfigItem fromitem) {
     addState(engine, state);
 }
 
-void loadAnimationWithDrown(GameEngine engine, ConfigItem fromitem) {
+void loadAnimationWithDrown(GameEngine engine, ConfigNode fromitem) {
     auto value = getValue(fromitem);
     auto val = str.split(value);
     if (val.length != 2)
@@ -1000,7 +998,7 @@ void loadAnimationWithDrown(GameEngine engine, ConfigItem fromitem) {
     addState(engine, state2);
 }
 
-void loadNapalm(GameEngine engine, ConfigItem fromitem) {
+void loadNapalm(GameEngine engine, ConfigNode fromitem) {
     auto value = getValue(fromitem);
     auto val = str.split(value);
     if (val.length != 2)

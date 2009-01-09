@@ -190,6 +190,10 @@ interface ReflectCtor {
     ///member is still accessible for reflection
     ///set instance to this
     void transient(Object instance, void* member);
+
+    ///with this function, the ctor can ask if the transient members shall be
+    ///recreated (false for dummy members, true when deserializing objects)
+    bool recreateTransient();
 }
 
 bool isReflectableClass(T)() {
@@ -206,23 +210,29 @@ class Types {
         ClassMethod[void*] mMethodMap;
         Class[char[]] mClassMap;
         FooHandler mFoo;
-        void delegate(size_t) mTransientHandler;
     }
 
     private class FooHandler : ReflectCtor {
+        void delegate(size_t) mTransientHandler;
+        bool mRecreate;
+
         override Types types() {
             return this.outer;
         }
 
         //need instance pointer because called while in constructor
         override void transient(Object instance, void* member) {
-            if (this.outer.mTransientHandler) {
+            if (mTransientHandler) {
                 assert(!!instance && member);
                 //get relative offset
                 auto p_obj = cast(void*)instance;
                 size_t rel_offset = cast(size_t)member - cast(size_t)p_obj;
-                this.outer.mTransientHandler(rel_offset);
+                mTransientHandler(rel_offset);
             }
+        }
+
+        override bool recreateTransient() {
+            return mRecreate;
         }
     }
 
@@ -302,11 +312,15 @@ class Types {
         }
 
         if (!dummy) {
-            mTransientHandler = &membTransient;
+            //ctors can be called recursively
+            //(when using registerClass() in a ctor)
+            auto old = mFoo.mTransientHandler;
+            mFoo.mTransientHandler = &membTransient;
+            mFoo.mRecreate = false;
             ReflectCtor c = mFoo;
             dummy = cast(T)inst(c);
             //only during registration
-            mTransientHandler = null;
+            mFoo.mTransientHandler = old;
         }
         assert (!!dummy);
         klass.mDummy = dummy;
@@ -1093,7 +1107,9 @@ class Class {
             debug writefln("no: %s", name());
             return null;
         }
-        Object o = mCreateDg(types().mFoo);
+        auto c = types().mFoo;
+        c.mRecreate = true;
+        Object o = mCreateDg(c);
         assert (!!o);
         assert (types.findClass(o) is this);
         return o;

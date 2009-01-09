@@ -40,6 +40,10 @@ class ClientControlImpl : ClientControl {
 
         this(GameController c) {
             ctl = c;
+            createCmd();
+        }
+
+        void createCmd() {
             //output should be sent back to the client...?
             mCmd = new CommandLine(globals.defaultOut);
             mCmds = new CommandBucket();
@@ -61,8 +65,10 @@ class ClientControlImpl : ClientControl {
     }
 
     this (ReflectCtor c) {
-    }
-    this () {
+        c.transient(this, &mCmds);
+        c.transient(this, &mCmd);
+        if (c.recreateTransient())
+            createCmd();
     }
 
     private ServerTeamMember activemember() {
@@ -1135,6 +1141,10 @@ class GameController : GameLogicPublic {
         //only valid while loading
         mWeaponSets = null;
 
+        createCmd();
+    }
+
+    private void createCmd() {
         mCmd = new CommandLine(globals.defaultOut);
         mCmds = new CommandBucket();
         mCmds.register(Command("raise_water", &cmdRaiseWater, "-", ["int:by"]));
@@ -1146,6 +1156,10 @@ class GameController : GameLogicPublic {
 
     this (ReflectCtor c) {
         c.types().registerClass!(typeof(mMessages));
+        c.transient(this, &mCmds);
+        c.transient(this, &mCmd);
+        if (c.recreateTransient())
+            createCmd();
     }
 
     //this is where the old GameEngineAdmin went into

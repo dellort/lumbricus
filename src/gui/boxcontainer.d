@@ -110,7 +110,7 @@ class BoxContainer : SimpleContainer {
         mCellSpacing = node.getIntValue("cell_spacing", mCellSpacing);
         mDir = node.selectValueFrom("direction", ["x", "y"], 0);
         //reload children; order in list decides layout
-        foreach (ConfigItem child; node.getSubNode("cells")) {
+        foreach (ConfigNode child; node.getSubNode("cells")) {
             add(loader.loadWidget(child));
         }
         super.loadFrom(loader);

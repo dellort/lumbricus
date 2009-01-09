@@ -90,6 +90,15 @@ private bool my_isid(dchar c) {
     return r;
 }
 
+private bool is_config_id(char[] name) {
+    //xxx: doesn't parse the utf-8, that's ok depending what my_isid() does
+    for (int n = 0; n < name.length; n++) {
+        if (!my_isid(name[n]))
+            return false;
+    }
+    return true;
+}
+
 /// This exception is thrown when an invalid name is used.
 public class ConfigInvalidName : Exception {
     public char[] invalidName;
@@ -99,41 +108,48 @@ public class ConfigInvalidName : Exception {
     }
 }
 
-public abstract class ConfigItem {
+/// a subtree in a ConfigFile, can contain named and unnamed values and nodes
+public class ConfigNode {
+    private {
+        char[] mName;
+        ConfigNode mParent;
+        ConfigNode[] mItems;
+        //contains only "named" items
+        ConfigNode[char[]] mNamedItems;
+    }
+
+    //value can contain anything (as long as it is valid UTF-8)
+    public char[] value;
+
+    //comment before theline, which defined this node
     public char[] comment;
-    private char[] mName;
-    private ConfigNode mParent;
+    //comment after last item in the node (only useful if there are subnodes)
+    public char[] endComment;
+
+    public ConfigNode clone() {
+        auto r = new ConfigNode();
+        r.endComment = endComment;
+        r.comment = comment;
+        r.value = value;
+        r.mName = mName;
+        r.mParent = null;
+        foreach (ConfigNode item; this) {
+            ConfigNode n = item.clone();
+            r.doAdd(n);
+        }
+        return r;
+    }
+
+    public ConfigNode parent() {
+        return mParent;
+    }
 
     public char[] name() {
         return mName;
     }
 
-    protected abstract void doWrite(Output stream, uint level);
-
-    //throws ConfigInvalidName on error
-    //keep in sync with parser
-    public static void checkName(char[] name) {
-        if (!doCheckName(name))
-            throw new ConfigInvalidName(name);
-    }
-
-    //note: empty names are also legal
-    private static bool doCheckName(char[] name) {
-        foreach (dchar c; name) {
-            if (!my_isid(c)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    //call from doRemove() only!
-    private void doUnlink(ConfigNode parent) {
-        assert(mParent is parent);
-        assert(mParent !is null);
-        mParent = null;
-        //not sure if the name should be cleared...
-        mName = "";
+    public bool hasSubNodes() {
+        return !!mItems.length;
     }
 
     public void rename(char[] new_name) {
@@ -141,7 +157,7 @@ public abstract class ConfigItem {
         if (!parent)
             throw new Exception("cannot rename: no parent");
         parent.doRemove(this);
-        ConfigItem conflict = parent.find(new_name);
+        ConfigNode conflict = parent.find(new_name);
         if (conflict) {
             conflict.resolveConflict(new_name);
         }
@@ -154,69 +170,8 @@ public abstract class ConfigItem {
         assert(mName != conflict_name);
     }
 
-    public abstract ConfigItem clone();
-    //called by the doClone()s
-    private void helpClone(ConfigItem org) {
-        comment = org.comment;
-        mName = org.mName;
-        mParent = null;
-    }
-
-    public ConfigNode parent() {
-        return mParent;
-    }
-}
-
-/// a ConfigFile value, this is always encoded as string
-public class ConfigValue : ConfigItem {
-    //value can contain anything (as long as it is valid UTF-8)
-    public char[] value;
-
-    protected override void doWrite(Output stream, uint level) {
-        if (name.length > 0) {
-            stream.writeString(" = "c);
-        }
-        stream.writeString("\"");
-        stream.writeString(ConfigFile.doEscape(value));
-        stream.writeString("\""); //" <- hack for Kates syntax highlighter, lol
-    }
-
-    public ConfigValue clone() {
-        auto r = new ConfigValue();
-        r.value = value;
-        r.helpClone(this);
-        return r;
-    }
-
-    //TODO: add properties like asInt etc.
-}
-
-/// a subtree in a ConfigFile, can contain named and unnamed values and nodes
-public class ConfigNode : ConfigItem {
-    //TODO: should be replaced by a linked list
-    //this list is used to preserve the order
-    private ConfigItem[] mItems;
-
-    //contains only "named" items
-    private ConfigItem[char[]] mNamedItems;
-
-    //comment after last item in the node
-    private char[] mEndComment;
-
-    public ConfigNode clone() {
-        auto r = new ConfigNode();
-        r.mEndComment = mEndComment;
-        r.helpClone(this);
-        foreach (ConfigItem item; this) {
-            ConfigItem n = item.clone();
-            r.doAdd(n);
-        }
-        return r;
-    }
-
-    private void doAdd(ConfigItem item) {
+    private void doAdd(ConfigNode item) {
         assert(item.mParent is null);
-        assert(doCheckName(item.mName));
 
         //add only to hashtable if "named" item
         if (item.mName.length > 0) {
@@ -226,14 +181,19 @@ public class ConfigNode : ConfigItem {
 
         //very inefficient
         mItems.length = mItems.length + 1;
-        mItems[mItems.length-1] = item;
+        mItems[$-1] = item;
 
         item.mParent = this;
     }
 
-    private void doRemove(ConfigItem item) {
+    private void doRemove(ConfigNode item) {
+        if (!item)
+            return;
+
         char[] name = item.mName;
-        item.doUnlink(this);
+
+        assert(item.mParent is this);
+        item.mParent = null;
 
         if (name.length > 0) {
             assert(name in mNamedItems);
@@ -251,15 +211,14 @@ public class ConfigNode : ConfigItem {
 
     /// unlink all contained config items
     public void clear() {
-        //this is stupid, but will change when a linked list is used for mItems
-        for (int n = mItems.length - 1; n >= 0; n--) {
-            doRemove(mItems[n]);
+        while (mItems.length) {
+            doRemove(mItems[0]);
         }
     }
 
-    /// find an entry, can be either a ConfigNode or a ConfigValue
+    /// find an entry
     /// for uncomplicated access, use functions like i.e. getStringValue()
-    public ConfigItem find(char[] name) {
+    public ConfigNode find(char[] name) {
         if (name in mNamedItems) {
             return mNamedItems[name];
         } else {
@@ -274,10 +233,9 @@ public class ConfigNode : ConfigItem {
     public bool remove(char[] name) {
         return remove(find(name));
     }
-    public bool remove(ConfigItem item) {
+    public bool remove(ConfigNode item) {
         if (item is null)
             return false;
-        assert(item.mParent is this);
         doRemove(item);
         return true;
     }
@@ -326,49 +284,28 @@ public class ConfigNode : ConfigItem {
         return node.getStringValue(valname);
     }
 
-    //ugly
-    //(D lacks support for class variables)
-    template TdoFind(T) {
-        //add something... also handles "unnamed" items
-        //(always return new item on empty name)
-        private T doFind(char[] name, bool create) {
-            ConfigItem item = find(name);
-            T sub = cast(T)item;
-            if (sub !is null || !create)
-                return sub;
-            if (item) {
-                //xxx: what to do with item? just to delete it seems unfriendly
-                //other possibilities:
-                // - convert 'item' to text and put it into the comment of the
-                //   new node (=> keep user frustration low)
-                // - put ConfigNode and ConfigValue both into ConfigItem
-                //   (so a Node can have a value)
-                // - separate namespace between nodes and values
-                //doRemove(item);
-                //why not simply rename it? this will do that:
-                item.resolveConflict(item.name);
-                item = null;
-            }
-
-            //create & add
-            //xxx: should invalid names always be checked, or only when
-            //     attempting to create nodes with invalid names?
-            checkName(name);
-            sub = new T();
-            sub.mName = name;
-            doAdd(sub);
+    //add something... also handles "unnamed" items
+    //(always return new item on empty name)
+    private ConfigNode doFind(char[] name, bool create) {
+        ConfigNode sub = find(name);
+        if (sub !is null || !create)
             return sub;
-        }
+
+        //create & add
+        sub = new ConfigNode();
+        sub.mName = name;
+        doAdd(sub);
+        return sub;
     }
 
     /// like find(), but return null if item has the wrong type
     /// for create==true, create a new / overwrite existing values/nodes
     /// instead of returning null
-    public ConfigValue findValue(char[] name, bool create = false) {
-        return TdoFind!(ConfigValue).doFind(name, create);
+    public ConfigNode findValue(char[] name, bool create = false) {
+        return doFind(name, create);
     }
     public ConfigNode findNode(char[] name, bool create = false) {
-        return TdoFind!(ConfigNode).doFind(name, create);
+        return doFind(name, create);
     }
 
     public bool hasValue(char[] name) {
@@ -394,7 +331,7 @@ public class ConfigNode : ConfigItem {
 
     /// Access a value by name, return 'default' if it doesn't exist.
     public char[] getStringValue(char[] name, char[] def = "") {
-        ConfigValue value = findValue(name);
+        auto value = findValue(name);
         if (value is null) {
             return def;
         } else {
@@ -404,7 +341,7 @@ public class ConfigNode : ConfigItem {
 
     /// Create/overwrite a string value ('name = "value"')
     public void setStringValue(char[] name, char[] value) {
-        ConfigValue val = findValue(name, true);
+        auto val = findValue(name, true);
         val.value = value;
     }
 
@@ -417,22 +354,25 @@ public class ConfigNode : ConfigItem {
     }
 
     //internally used by ConfigFile
-    package ConfigValue addValue(char[] name, char[] value, char[] comment) {
-        ConfigValue val = findValue(name, true);
+    package ConfigNode addValue(char[] name, char[] value, char[] comment) {
+        auto val = findValue(name, true);
         val.value = value;
         val.comment = comment;
         return val;
     }
     package ConfigNode addNode(char[] name, char[] comment) {
-        ConfigNode node = findNode(name, true);
+        auto node = findNode(name, true);
         node.comment = comment;
         return node;
     }
 
-    void doWrite(Output stream, uint level) {
+    private void doWrite(Output stream, uint level) {
         //always use this... on some systems, \n might not be mapped to 0xa
         char[] newline = "\x0a";
-        char[] indent_str = str.repeat(" ", 4*level);
+        const int indent = 4;
+        //xxx this could produce major garbage collection thrashing when writing
+        //    big files
+        char[] indent_str = str.repeat(" ", indent*level);
 
         void writeLine(char[] stuff) {
             stream.writeString(indent_str);
@@ -450,106 +390,110 @@ public class ConfigNode : ConfigItem {
             }
         }
 
-        if (level != 0) {
-            //unnamed item: no space between name and rest
-            if (this.name.length > 0) {
-                stream.writeString(" ");
-            }
-            stream.writeString("{"c);
-            stream.writeString(newline);
+        void writeValue(char[] v) {
+            stream.writeString("\"");
+            stream.writeString(ConfigFile.doEscape(v));
+            stream.writeString("\"");
         }
 
-        foreach (ConfigItem item; this) {
-            writeComment(item.comment);
+        bool name_is_funny = !is_config_id(name);
 
-            stream.writeString(indent_str);
-
-            char[] name = item.name;
-            if (name.length > 0) {
+        void writeName(bool ext) {
+            if (ext || !name.length) {
+                //new syntax, which allows spaces etc. in names
+                stream.writeString("+ ");
+                writeValue(name);
+            } else {
                 stream.writeString(name);
             }
+        }
 
-            item.doWrite(stream, level+1);
+        //"level!=0": hack for rootnode
+        if ((level != 0) && !mItems.length) {
+            //a normal name=value entry
+            //xxx will throw away endComment for sub-nodes which are empty
+            if (name.length > 0) {
+                writeName(name_is_funny);
+                stream.writeString(" = ");
+            }
+            writeValue(value);
+            return;
+        }
 
+        bool have_value = value.length != 0;
+
+        /+
+        //ah this sucks, but nothing can be done about it
+        //note that the root node can't have a name either
+        if (level == 0 && have_value) {
+            throw new Exception("can't save root ConfigNodes that have a value");
+        }
+        +/
+
+        if (level != 0) {
+            if (name.length > 0 || have_value) {
+                writeName(name_is_funny || have_value);
+                if (have_value) {
+                    stream.writeString(" ");
+                    writeValue(value);
+                }
+                stream.writeString(" ");
+            }
+            stream.writeString("{");
             stream.writeString(newline);
         }
 
-        writeComment(mEndComment);
+        foreach (ConfigNode item; this) {
+            writeComment(item.comment);
+            stream.writeString(indent_str);
+            item.doWrite(stream, level+1);
+            stream.writeString(newline);
+        }
+
+        writeComment(endComment);
 
         if (level != 0) {
             //this is a hack
-            stream.writeString(indent_str[0..length-4]);
-            stream.writeString ("}"c);
+            stream.writeString(indent_str[0 .. $-indent]);
+            stream.writeString ("}");
         }
     }
 
-    //foreach(ConfigItem; ConfigNode)
-    public int opApply(int delegate(inout ConfigItem) del) {
-        foreach (ConfigItem item; mItems) {
-            int res = del(item);
+    //foreach(ConfigNode; ConfigNode) enumerate subnodes
+    public int opApply(int delegate(inout ConfigNode) del) {
+        foreach (ConfigNode n; mItems) {
+            int res = del(n);
             if (res)
                 return res;
         }
         return 0;
     }
 
-    //foreach(ConfigNode; ConfigNode) enumerate subnodes
-    public int opApply(int delegate(inout ConfigNode) del) {
-        foreach (ConfigItem item; mItems) {
-            ConfigNode n = cast(ConfigNode)item;
-            if (n !is null) {
-                int res = del(n);
-                if (res)
-                    return res;
-            }
-        }
-        return 0;
-    }
-
     //foreach(char[], ConfigNode; ConfigNode) enumerate subnodes with name
     public int opApply(int delegate(inout char[], inout ConfigNode) del) {
-        foreach (ConfigItem item; mItems) {
-            ConfigNode n = cast(ConfigNode)item;
-            if (n !is null) {
-                char[] tmp = n.name;
-                int res = del(tmp, n);
-                if (res)
-                    return res;
-            }
+        foreach (ConfigNode n; mItems) {
+            char[] tmp = n.name;
+            int res = del(tmp, n);
+            if (res)
+                return res;
         }
         return 0;
     }
 
     //foreach(char[], char[]; ConfigNode) enumerate (name, value) pairs
     public int opApply(int delegate(inout char[], inout char[]) del) {
-        foreach (ConfigItem item; mItems) {
-            ConfigValue v = cast(ConfigValue)item;
-            if (v !is null) {
-                char[] tmp = v.name;
-                int res = del(tmp, v.value);
-                if (res)
-                    return res;
-            }
-        }
-        return 0;
-    }
-
-    //foreach(ConfigValue; ConfigNode) enumerate values
-    public int opApply(int delegate(inout ConfigValue) del) {
-        foreach (ConfigItem item; mItems) {
-            ConfigValue v = cast(ConfigValue)item;
-            if (v !is null) {
-                int res = del(v);
-                if (res)
-                    return res;
-            }
+        foreach (ConfigNode v; mItems) {
+            char[] tmp = v.name;
+            int res = del(tmp, v.value);
+            if (res)
+                return res;
         }
         return 0;
     }
 
     //foreach(char[]; ConfigNode) enumerate names
     public int opApply(int delegate(inout char[]) del) {
-        foreach (ConfigItem item; mItems) {
+        foreach (ConfigNode item; mItems) {
             char[] tmp = item.name;
             int res = del(tmp);
             if (res)
@@ -559,25 +503,12 @@ public class ConfigNode : ConfigItem {
     }
 
     ///visit all existing (transitive) subitems, including "this"
-    public void visitAllItems(void delegate(ConfigItem item) visitor) {
+    public void visitAllNodes(void delegate(ConfigNode item) visitor) {
         visitor(this);
-        foreach (ConfigItem item; mItems) {
+        foreach (ConfigNode item; mItems) {
             visitor(item);
-            ConfigNode node = cast(ConfigNode)item;
-            if (node) {
-                node.visitAllItems(visitor);
-            }
+            item.visitAllNodes(visitor);
         }
-    }
-
-    public void visitAllNodes(void delegate(ConfigNode node) visitor) {
-        visitAllItems(
-            (ConfigItem item) {
-                auto node = cast(ConfigNode)item;
-                if (node)
-                    visitor(node);
-            }
-        );
     }
 
     public int getIntValue(char[] name, int def = 0) {
@@ -741,10 +672,10 @@ public class ConfigNode : ConfigItem {
         if (!node)
             return;
         assert(node !is this);
-        foreach (ConfigItem item; node) {
+        foreach (ConfigNode item; node) {
             auto item2 = find(item.name);
-            auto n1 = cast(ConfigNode)item;
-            auto n2 = cast(ConfigNode)item2;
+            auto n1 = item;
+            auto n2 = item2;
             if (recursive && item2 && n1 && n2)
             {
                 n1.mixinNode(n2, overwrite, true);
@@ -1048,7 +979,8 @@ public class ConfigFile {
         VALUE,  //a value, "String" in "<Node>"
         ASSIGN, //'='
         OPEN,   //'{'
-        CLOSE   //'}'
+        CLOSE,  //'}'
+        PLUS,   //'+'
     }
 
     //str contains an identifier/value for Token.ID/Token.VALUE (else "")
@@ -1109,6 +1041,7 @@ public class ConfigFile {
             case '{': token = Token.OPEN; break;
             case '}': token = Token.CLOSE; break;
             case '=': token = Token.ASSIGN; break;
+            case '+': token = Token.PLUS; break;
             default: token = Token.ERROR;
         }
 
@@ -1298,11 +1231,15 @@ public class ConfigFile {
         return output;
     }
 
+    private bool isVal(Token token) {
+        return token == Token.VALUE || token == Token.ID;
+    }
+
     private void parseNode(ConfigNode node, bool toplevel) {
         Token token;
         char[] str;
         char[] comm;
-        char[] waste;
+        char[] waste, waste2;
         char[] id;
 
         for (;;) {
@@ -1362,6 +1299,46 @@ public class ConfigFile {
                 continue;
             }
 
+            if (token == Token.PLUS) {
+                //the ID of the new node is expected to follow
+                nextToken(token, str, waste);
+                if (!isVal(token)) {
+                    reportError(true, "after '+': id or value expected");
+                    continue;
+                }
+                id = str;
+
+                ConfigNode newnode = node.addNode(id, comm);
+                //now, either an id/value, a '=', or a '{'
+                nextToken(token, str, waste);
+
+                if (token == Token.ASSIGN) {
+                    //id/value to assign to the node as value
+                    nextToken(token, str, waste);
+                    if (!isVal(token)) {
+                        reportError(true, "after '=': id or value expected");
+                        continue;
+                    }
+                    newnode.value = str;
+                    continue;
+                }
+
+                //optional value
+                if (isVal(token)) {
+                    newnode.value = str;
+                    nextToken(token, str, waste);
+                }
+
+                if (token != Token.OPEN) {
+                    reportError(true, "what.");
+                    continue;
+                }
+
+                parseNode(newnode, false);
+
+                continue;
+            }
+
             //invalid tokens, report hopefully helpful error messages
             if (id.length != 0) {
                 reportError(false, "identifier is expected to be followed by"
@@ -1374,11 +1351,11 @@ public class ConfigFile {
         }
 
         //foo
-        node.mEndComment = comm;
+        node.endComment = comm;
     }
 
     private void doParse() {
-        clear();
+        mRootnode = new ConfigNode();
 
         try {
             init_parser();
@@ -1401,16 +1378,111 @@ public class ConfigFile {
         return mErrorCount != 0;
     }
 
-    public void clear() {
-        if (mRootnode !is null) {
-            mRootnode.doUnlink(null);
-        }
-        mRootnode = new ConfigNode();
-    }
-
     public void writeFile(Output stream) {
         if (rootnode !is null) {
             rootnode.writeFile(stream);
         }
     }
 }
+
+debug:
+
+import std.stdio;
+
+private bool test_error;
+
+ConfigNode debugParseFile(char[] f) {
+    void err(char[] msg) {
+        writefln("configfile unittest: %s", msg);
+        test_error = true;
+    }
+    auto p = new ConfigFile(f, "test", &err);
+    return p.rootnode();
+}
+
+char[] t1 =
+`//hr
+foo = "123"
+//hu
+moo {
+    //ha
+    goo = "456"
+    //na
+}
+//fa
+`;
+
+char[] t2 =
+`+ "foo hu" = "456"
+`;
+
+char[] t3 =
+`+ "foo hu" "456" {
+    goo = "5676"
+}
+`;
+
+char[] t4 =
+`+ "foo hu" {
+    + "goo g" = "5676"
+}
+`;
+
+unittest {
+    auto n1 = debugParseFile(t1);
+    auto s1 = n1.writeAsString();
+    assert (s1 == t1);
+
+    auto n2 = debugParseFile(t2);
+    auto s2 = n2.writeAsString();
+    assert (n2["foo hu"] == "456");
+    assert (s2 == t2);
+
+    auto n3 = debugParseFile(t3);
+    auto s3 = n3.writeAsString();
+    assert (n3["foo hu"] == "456");
+    assert (n3.getSubNode("foo hu")["goo"] == "5676");
+    assert (s3 == t3);
+
+    auto n4 = debugParseFile(t4);
+    auto s4 = n4.writeAsString();
+    assert (s4 == t4);
+
+    assert (!test_error);
+    writefln("configfile.d: unittest success");
+}
+
+/+
+Lexer:
+    it's all utf-8
+    newlines count as whitespace
+    comments
+    escapes in strings
+
+Syntax:
+    //normal syntax
+
+    <file> = <nodelist>
+    <nodelist> = <node>*
+    <id> = A-Z a-z 0-9 _
+    <value> = '"' any utf-8 + escape sequences '"'
+    //normal name/value pairs
+    <node> = <id> '=' <value>
+    //normal unnamed values (for lists)
+    <node> = <value>
+    //normal named/unnamed sub-node
+    <node> = [<id>] '{' <nodelist> '}'
+
+    //extensions
+
+    <val> = <id>|<value>
+    //name/value pair, where the name can contain any chars
+    <node> = '+' <val> '=' <val>
+    //named subnodes with names same as above
+    //first val is the name, second the value (empty string if ommitted)
+    <node> = '+' <val> [<val>] '{' <nodelist> '}'
+
+e.g. >+node "123" { }< is equal to >"node" = 123<
+Attention: >"some node id" { }< will not work as expected; it does the same as
+    the old code and create two nodes
++/

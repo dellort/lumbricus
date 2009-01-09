@@ -233,12 +233,12 @@ class AniFrames {
 }
 
 class AniFramesResource : ResourceItem {
-    this(ResourceFile context, char[] id, ConfigItem item) {
+    this(ResourceFile context, char[] id, ConfigNode item) {
         super(context, id, item);
     }
 
     protected void load() {
-        auto node = castStrict!(ConfigNode)(mConfig);
+        auto node = mConfig;
         auto atlas = castStrict!(Atlas)(mContext.find(node["atlas"]).get());
         mContents = new AniFrames(atlas,
             gFramework.fs.open(mContext.fixPath(node["datafile"])));
@@ -343,12 +343,12 @@ class ComplicatedAnimation : Animation {
 //will load the anim file on get()
 //config item   type = "xxx"   chooses Animation implementation
 class AnimationResource : ResourceItem {
-    this(ResourceFile context, char[] id, ConfigItem item) {
+    this(ResourceFile context, char[] id, ConfigNode item) {
         super(context, id, item);
     }
 
     protected void load() {
-        ConfigNode node = cast(ConfigNode)mConfig;
+        ConfigNode node = mConfig;
         assert(node !is null);
         char[] type = node.getStringValue("type", "");
         switch (type) {

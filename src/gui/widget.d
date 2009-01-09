@@ -792,9 +792,8 @@ class Widget {
 interface GuiLoader {
     //node specific to the currently loaded Widget
     ConfigNode node();
-    //load another Widget which can be used i.e. as a child
-    //"from" is a ConfigNode or ConfigValue
-    Widget loadWidget(ConfigItem from);
+    //load another Widget which can be used e.g. as a child
+    Widget loadWidget(ConfigNode from);
     //locale of current config file
     Translator locale();
 }

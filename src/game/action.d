@@ -172,6 +172,10 @@ class ActionListClass : ActionClass {
             eng.rnd);
         //now load contained actions
         foreach (ConfigNode n; node) {
+            //xxx added this when ConfigValue was removed
+            //    try to skip entries which were ConfigValues
+            if (!n.hasSubNodes())
+                continue;
             auto ac = actionFromConfig(eng, n);
             if (ac) {
                 actions ~= ac;

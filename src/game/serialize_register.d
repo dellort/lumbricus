@@ -44,6 +44,4 @@ void initGameSerialization() {
         WormStateInfo, WormSpriteClass, GravestoneSpriteClass,
         SequenceStateList, NapalmStateDisplay, NapalmState, WormStateDisplay,
         SubSequence, WormState, NapalmSpriteClass);
-    //hopefully will get removed again
-    //serialize_types.registerClasses!(ConfigNode, ConfigValue);
 }

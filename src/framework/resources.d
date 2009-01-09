@@ -24,17 +24,17 @@ class ResourceItem : ResourceObject {
     protected Object mContents;
     private bool mValid = false;
     protected ResourceFile mContext;
-    protected ConfigItem mConfig;
+    protected ConfigNode mConfig;
 
     final bool isLoaded() {
         return mValid;
     }
 
-    public ConfigItem config() {
+    public ConfigNode config() {
         return mConfig;
     }
 
-    package this(ResourceFile context, char[] id, ConfigItem item)
+    package this(ResourceFile context, char[] id, ConfigNode item)
     {
         mContext = context;
         this.id = id;
@@ -148,7 +148,7 @@ public class Resources {
     private ResourceFile[char[]] mLoadedResourceFiles;
 
     private static class ResFactory : StaticFactory!(ResourceItem, ResourceFile,
-        char[], ConfigItem)
+        char[], ConfigNode)
     {
     }
 
@@ -160,7 +160,7 @@ public class Resources {
     ///register a class derived from Resource for the internal factory under
     ///the given name
     ///the class T to register must have this constructor:
-    ///     this(Resources parent, char[] name, ConfigItem from)
+    ///     this(Resources parent, char[] name, ConfigNode from)
     ///else compilation will fail somewhere in factory.d
     static void registerResourceType(T : ResourceItem)(char[] name) {
         ResFactory.register!(T)(name);
@@ -181,7 +181,7 @@ public class Resources {
     //and from Resource implementations
     //*** Internal: Use loadResources() instead ***
     private ResourceItem createResource(ResourceFile context, char[] type,
-        ConfigItem it)
+        ConfigNode it)
     {
         return ResFactory.instantiate(type,context,it.name,it);
     }
@@ -204,7 +204,7 @@ public class Resources {
 
         //find the path value
         auto parent = config;
-        while (parent && !parent.findValue(cResourcePathName)) {
+        while (parent && !parent.findNode(cResourcePathName)) {
             parent = parent.parent();
         }
 
@@ -257,7 +257,7 @@ public class Resources {
 
             foreach (ConfigNode r; config.getSubNode("resources")) {
                 auto type = r.name;
-                foreach (ConfigItem i; r) {
+                foreach (ConfigNode i; r) {
                     res.resources ~= createResource(res, type, i);
                 }
             }

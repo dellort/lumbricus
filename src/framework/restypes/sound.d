@@ -8,14 +8,12 @@ import std.stream;
 import utils.configfile;
 
 class SampleResource : ResourceItem {
-    this(ResourceFile context, char[] id, ConfigItem item) {
+    this(ResourceFile context, char[] id, ConfigNode item) {
         super(context, id, item);
     }
 
     protected void load() {
-        ConfigValue val = cast(ConfigValue)mConfig;
-        assert(val !is null);
-        char[] path = mContext.fixPath(val.value);
+        char[] path = mContext.fixPath(mConfig.value);
         mContents = gFramework.sound.createSample(path);
     }
 
@@ -25,14 +23,12 @@ class SampleResource : ResourceItem {
 }
 
 class MusicResource : ResourceItem {
-    this(ResourceFile context, char[] id, ConfigItem item) {
+    this(ResourceFile context, char[] id, ConfigNode item) {
         super(context, id, item);
     }
 
     protected void load() {
-        ConfigValue val = cast(ConfigValue)mConfig;
-        assert(val !is null);
-        char[] path = mContext.fixPath(val.value);
+        char[] path = mContext.fixPath(mConfig.value);
         mContents = gFramework.sound.createMusic(path);
     }
 

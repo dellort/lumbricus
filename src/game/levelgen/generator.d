@@ -58,7 +58,7 @@ class LevelGeneratorShared {
         templates.update();
 
         generatorConfig = gFramework.loadConfig("levelgenerator");
-        foreach (ConfigValue v; generatorConfig.getSubNode("preview_colors")) {
+        foreach (ConfigNode v; generatorConfig.getSubNode("preview_colors")) {
             Color c;
             c.parse(v.value);
             previewColors[parseMarker(v.name)] = c;

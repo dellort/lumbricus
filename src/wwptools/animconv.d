@@ -318,6 +318,8 @@ void do_write_anims(AnimList anims, ConfigNode config, char[] name,
     }
 
     foreach (ConfigNode item; config) {
+        if (!item.hasSubNodes())
+            continue;
         if (!(item.name in gAnimationLoadHandlers))
             throw new Exception("no handler found for: "~item.name);
         auto handler = gAnimationLoadHandlers[item.name];
@@ -335,10 +337,10 @@ void do_write_anims(AnimList anims, ConfigNode config, char[] name,
     gAnimList = null;
 }
 
-//item must be a ConfigValue and contain exactly n entries
+//val must contain exactly n entries separated by whitespace
 //these are parsed as numbers and the animations with these indices is returned
 //x is the number of animations which are read consecutively for each entry
-//so getSimple(ConfigValue("x1 x2"),2,3) returns [x1.1, x1.2, x1.3, x2.1, ...]
+//so getSimple("x1 x2",2,3) returns [x1.1, x1.2, x1.3, x2.1, ...]
 //actual number of returned animations is n*x
 //when n is -1, n is set to the number of components found in the string
 Animation[] getSimple(char[] val, int n, int x) {
@@ -359,7 +361,7 @@ Animation[] getSimple(char[] val, int n, int x) {
 }
 
 private void loadWormWeaponAnimation(ConfigNode basenode) {
-    foreach (ConfigValue node; basenode) {
+    foreach (ConfigNode node; basenode) {
         auto anis = getSimple(node.value, 2, 3);
 
         auto get = new AniEntry(gAnims, node.name ~ "_get");
@@ -536,12 +538,10 @@ private void loadGeneralW(ConfigNode node) {
         }
     }
 
-    void loadRec(char[][] flags, AniParams params, ConfigItem node) {
-        auto subnode = cast(ConfigNode)node;
-        auto value = cast(ConfigValue)node;
-        if (subnode) {
-            char[] flagstr = subnode.getStringValue(cFlagItem);
-            char[] paramstr = subnode.getStringValue(cParamItem);
+    void loadRec(char[][] flags, AniParams params, ConfigNode node) {
+        if (node.value.length == 0) {
+            char[] flagstr = node.getStringValue(cFlagItem);
+            char[] paramstr = node.getStringValue(cParamItem);
             auto subflags = flags.dup;
             subflags ~= parseFlags(flagstr, true);
             if (flagstr.length > 0)
@@ -549,16 +549,16 @@ private void loadGeneralW(ConfigNode node) {
             if (paramstr.length > 0) {
                 parseParams(paramstr, params);
             }
-            foreach (ConfigItem s; subnode) {
+            foreach (ConfigNode s; node) {
                 loadRec(subflags, params, s);
             }
-        } else if (value) {
-            if (value.name == cFlagItem || value.name == cParamItem)
+        } else {
+            if (node.name == cFlagItem || node.name == cParamItem)
                 return;
-            auto val = value.value;
+            auto val = node.value;
             auto subflags = flags.dup;
             subflags ~= parseFlags(val, false);
-            loadAnim(subflags, params, value.name, val);
+            loadAnim(subflags, params, node.name, val);
         }
     }
 

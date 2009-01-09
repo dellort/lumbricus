@@ -29,7 +29,7 @@ class LoadGui {
             ConfigNode node() {
                 return mNode;
             }
-            Widget loadWidget(ConfigItem from) {
+            Widget loadWidget(ConfigNode from) {
                 return loadFrom(from);
             }
 
@@ -50,7 +50,7 @@ class LoadGui {
     //templates: allow to mixin stuff from a "central" place
     //(template = include values and nodes from another ConfigNode)
     private void doTemplates(ConfigNode node) {
-        auto templ = node.findValue(cTemplate);
+        auto templ = node.findNode(cTemplate);
         if (templ) {
             auto mix = mTemplates.findNode(templ.value);
             if (!mix)
@@ -61,10 +61,7 @@ class LoadGui {
     }
 
     //load a single Widget
-    Widget loadFrom(ConfigItem from) {
-        auto node = cast(ConfigNode)from;
-        assert(!!node);
-
+    Widget loadFrom(ConfigNode node) {
         doTemplates(node);
 
         Widget res;

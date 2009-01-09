@@ -6,14 +6,12 @@ import utils.configfile;
 
 ///Resource class for bitmaps
 protected class BitmapResource : ResourceItem {
-    this(ResourceFile context, char[] id, ConfigItem item) {
+    this(ResourceFile context, char[] id, ConfigNode item) {
         super(context, id, item);
     }
 
     protected void load() {
-        ConfigValue val = cast(ConfigValue)mConfig;
-        assert(val !is null);
-        mContents = gFramework.loadImage(mContext.fixPath(val.value));
+        mContents = gFramework.loadImage(mContext.fixPath(mConfig.value));
     }
 
     static this() {

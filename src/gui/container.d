@@ -657,7 +657,7 @@ class SimpleContainer : PublicContainer {
         auto children = node.findNode("children");
         if (children) {
             clear();
-            foreach (ConfigItem sub; children) {
+            foreach (ConfigNode sub; children) {
                 add(loader.loadWidget(sub));
             }
         }
