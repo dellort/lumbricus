@@ -43,6 +43,8 @@ interface WormController {
     Vector2f getTarget();
 
     void reduceAmmo(Shooter sh);
+
+    void doneFiring(Shooter sh);
 }
 
 const Time cWeaponLoadTime = timeMsecs(1500);
@@ -100,6 +102,15 @@ class WormSprite : GObjectSprite {
     TeamTheme teamColor;
 
     WormController wcontrol;
+
+    override bool activity() {
+        return super.activity() || mThrowing
+            || currentState == wsc.st_jump_start
+            || currentState == wsc.st_beaming
+            || currentState == wsc.st_reverse_beaming
+            || currentState == wsc.st_getup
+            || isDelayedDying;
+    }
 
     //-PI/2..+PI/2, actual angle depends from whether worm looks left or right
     float weaponAngle() {
@@ -537,6 +548,8 @@ class WormSprite : GObjectSprite {
         //shooter is done, so check if we need to switch animation
         setCurrentAnimation();
         updateTargetCross();
+        if (wcontrol)
+            wcontrol.doneFiring(sh);
     }
 
     private void updateTargetCross() {

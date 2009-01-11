@@ -16,24 +16,37 @@ import utils.mybox;
 class ModeRoundbased : Gamemode {
     private {
         RoundState mCurrentRoundState = RoundState.nextOnHold;
-        Time mWinRemaining, mCleanupWait;
+        Time mWaitStart;
 
         //time a round takes
         Time mTimePerRound;
         //extra time before round time to switch seats etc
         Time mHotseatSwitchTime;
+        //time the worm can still move after firing a weapon
+        Time mRetreatTime;
+        //can the active worm be chosen in prepare state?
+        bool mAllowSelect;
+        //multi-shot mode (true -> firing a weapon doesn't end the round)
+        bool mMultishot;
 
         ServerTeam mCurrentTeam;
         ServerTeam mLastTeam;
 
         RoundbasedStatus mStatus;
+
+        const cSilenceWait = timeMsecs(400);
+        const cNextRoundWait = timeMsecs(750);
+        //how long winning animation is shown
+        const cWinTime = timeSecs(5);
     }
 
     this(GameController parent, ConfigNode config) {
         super(parent, config);
         mTimePerRound = timeSecs(config.getIntValue("roundtime",15));
-        mHotseatSwitchTime = timeSecs(
-            config.getIntValue("hotseattime",5));
+        mHotseatSwitchTime = timeSecs(config.getIntValue("hotseattime",5));
+        mRetreatTime = timeSecs(config.getIntValue("retreattime",5));
+        mAllowSelect = config.getBoolValue("allowselect", mAllowSelect);
+        mMultishot = config.getBoolValue("multishot", mMultishot);
     }
 
     override void initialize() {
@@ -75,7 +88,8 @@ class ModeRoundbased : Gamemode {
                     return RoundState.playing;
                 break;
             case RoundState.playing:
-                mStatus.roundRemaining = max(mStatus.roundRemaining - deltaT, timeNull);
+                mStatus.roundRemaining = max(mStatus.roundRemaining - deltaT,
+                    timeNull);
                 if (!mCurrentTeam.current)
                     return RoundState.waitForSilence;
                 if (mStatus.roundRemaining <= timeMusecs(0))   //timeout
@@ -85,34 +99,48 @@ class ModeRoundbased : Gamemode {
                     if (!mCurrentTeam.current.delayedAction)
                         return RoundState.waitForSilence;
                 }
+                //if not in multishot mode, firing ends the round
+                if (!mMultishot && mCurrentTeam.current.weaponUsed)
+                    return RoundState.retreat;
                 if (!mCurrentTeam.current.isAlive       //active worm dead
                     || mCurrentTeam.current.lifeLost)   //active worm damaged
                 {
-                    mCurrentTeam.current.forceAbort();
                     return RoundState.waitForSilence;
                 }
                 break;
+            //only used if mMultishot == false
+            case RoundState.retreat:
+                //give him some time to run, hehe
+                if (engine.gameTime.current-mWaitStart > mRetreatTime
+                    || !mCurrentTeam.current.isAlive
+                    || mCurrentTeam.current.lifeLost)
+                    return RoundState.waitForSilence;
+                break;
             case RoundState.waitForSilence:
+                //check over a period, to avoid one-frame errors
                 if (!engine.checkForActivity) {
-                    //hope the game stays inactive
-                    return RoundState.cleaningUp;
+                    if (engine.gameTime.current-mWaitStart > cSilenceWait) {
+                        //hope the game stays inactive
+                        return RoundState.cleaningUp;
+                    }
+                } else {
+                    mWaitStart = engine.gameTime.current;
                 }
                 break;
             case RoundState.cleaningUp:
                 mStatus.roundRemaining = timeSecs(0);
-                mCleanupWait = max(mCleanupWait - deltaT, timeNull);
-                //not yet
-                if (mCleanupWait <= timeMusecs(0))
-                    return logic.checkDyingWorms()
-                        ? RoundState.waitForSilence : RoundState.nextOnHold;
+                //if there are more to blow up, go back to waiting
+                return logic.checkDyingWorms()
+                    ? RoundState.waitForSilence : RoundState.nextOnHold;
                 break;
             case RoundState.nextOnHold:
-                if (logic.messageIsIdle() && logic.objectsIdle())
+                //wait some msecs to show the health labels
+                if (logic.messageIsIdle() && logic.objectsIdle()
+                    && engine.gameTime.current-mWaitStart > cNextRoundWait)
                     return RoundState.prepare;
                 break;
             case RoundState.winning:
-                mWinRemaining -= deltaT;
-                if (mWinRemaining < timeMusecs(0))
+                if (engine.gameTime.current-mWaitStart > cWinTime)
                     return RoundState.end;
                 break;
             case RoundState.end:
@@ -163,34 +191,44 @@ class ModeRoundbased : Gamemode {
 
                 mLastTeam = next;
                 currentTeam = next;
+                if (mAllowSelect)
+                    mCurrentTeam.allowSelect = true;
                 logic.mLog("active: %s", next);
 
                 break;
             case RoundState.playing:
-                if (mCurrentTeam)
-                    mCurrentTeam.setOnHold(false);
+                assert(mCurrentTeam);
+                mCurrentTeam.setOnHold(false);
+                if (mAllowSelect)
+                    mCurrentTeam.allowSelect = false;
                 mStatus.prepareRemaining = timeMusecs(0);
                 break;
+            case RoundState.retreat:
+                mWaitStart = engine.gameTime.current;
+                mCurrentTeam.current.setLimitedMode();
+                break;
             case RoundState.waitForSilence:
+                mWaitStart = engine.gameTime.current;
                 //no control while blowing up worms
-                if (mCurrentTeam)
+                if (mCurrentTeam) {
+                    mCurrentTeam.current.forceAbort();
                     mCurrentTeam.setOnHold(true);
+                }
                 //if it's the round's end, also take control early enough
                 currentTeam =  null;
                 break;
             case RoundState.cleaningUp:
-                mCleanupWait = timeMsecs(400);
                 logic.updateHealth(); //hmmm
                 //see doState()
                 break;
             case RoundState.nextOnHold:
+                mWaitStart = engine.gameTime.current;
                 currentTeam = null;
                 logic.messageAdd("msgnextround");
                 mStatus.roundRemaining = timeMusecs(0);
                 break;
             case RoundState.winning:
-                //how long winning animation is showed
-                mWinRemaining = timeSecs(5);
+                mWaitStart = engine.gameTime.current;
                 break;
             case RoundState.end:
                 logic.messageAdd("msggameend");

@@ -45,6 +45,7 @@ abstract class WeaponClass {
     bool isAirstrike = false; //needed to exlude it from cave levels
     bool allowSecondary = false;  //allow selecting and firing a second
                                   //weapon while active
+    bool dontEndRound = false;
 
     //for the weapon selection; only needed on client-side
     Resource!(Surface) icon;
@@ -70,6 +71,7 @@ abstract class WeaponClass {
         category = node.getStringValue("category", category);
         isAirstrike = node.getBoolValue("airstrike", isAirstrike);
         allowSecondary = node.getBoolValue("allow_secondary", allowSecondary);
+        dontEndRound = node.getBoolValue("dont_end_round", dontEndRound);
 
         icon = engine.gfx.resources.resource!(Surface)(node["icon"]);
 

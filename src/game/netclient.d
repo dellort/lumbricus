@@ -234,6 +234,10 @@ class GSTeam : Team {
             return null;
         return members2[team.active_member.index];
     }
+
+    bool allowSelect() {
+        return team.allowselect;
+    }
 }
 
 class GSTeamMember : TeamMember {

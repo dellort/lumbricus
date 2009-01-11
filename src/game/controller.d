@@ -226,7 +226,6 @@ class ServerTeam : Team {
     Vector2f currentTarget;
     bool targetIsSet;
     GameController parent;
-    bool allowSelect;   //can next worm be selected by user (tab)
     bool forcedFinish;
 
     private {
@@ -243,6 +242,7 @@ class ServerTeam : Team {
 
         Vector2f movementVec = {0, 0};
         bool mAlternateControl;
+        bool mAllowSelect;   //can next worm be selected by user (tab)
     }
 
     //node = the node describing a single team
@@ -322,6 +322,10 @@ class ServerTeam : Team {
 
     TeamMember getActiveMember() {
         return current;
+    }
+
+    bool allowSelect() {
+        return mAllowSelect;
     }
 
     // --- end Team
@@ -426,9 +430,13 @@ class ServerTeam : Team {
         return true;
     }
 
+    void allowSelect(bool allow) {
+        mAllowSelect = allow;
+    }
+
     ///choose next in reaction to user keypress
     void doChooseWorm() {
-        if (!mActive || !mCurrent || !allowSelect)
+        if (!mActive || !mCurrent || !mAllowSelect)
             return;
         //activates next, and deactivates current
         //special case: only one left -> current() will do nothing
@@ -598,6 +606,8 @@ class ServerTeamMember : TeamMember, WormController {
         int mLastKnownPhysicHealth;
         int mCurrentHealth; //health value reported to client
         bool mFireDown;
+        bool mWeaponUsed;
+        bool mLimitedMode;
     }
 
     this(char[] a_name, ServerTeam a_team) {
@@ -725,6 +735,8 @@ class ServerTeamMember : TeamMember, WormController {
             mActive = act;
             mWormAction = false;
             mLastAction = timeSecs(-40); //xxx not kosher
+            mWeaponUsed = false;
+            mLimitedMode = false;
             lastKnownLifepower = health;
             //select last used weapon, select default if none
             if (!mCurrentWeapon)
@@ -744,6 +756,13 @@ class ServerTeamMember : TeamMember, WormController {
             mFireDown = false;
             mActive = act;
         }
+    }
+
+    void setLimitedMode() {
+        //can only leave this by deactivating
+        mLimitedMode = true;
+        mWorm.weapon = null;
+        mFireDown = false;
     }
 
     void jump(JumpMode j) {
@@ -785,7 +804,7 @@ class ServerTeamMember : TeamMember, WormController {
     }
 
     void selectWeapon(WeaponItem weapon) {
-        if (!isControllable)
+        if (!isControllable || mLimitedMode)
             return;
         if (weapon !is mCurrentWeapon) {
             wormAction();
@@ -802,7 +821,7 @@ class ServerTeamMember : TeamMember, WormController {
     }
 
     //update weapon state of current worm (when new weapon selected)
-    void updateWeapon() {
+    private void updateWeapon() {
         if (!mActive || !isAlive)
             return;
 
@@ -828,7 +847,7 @@ class ServerTeamMember : TeamMember, WormController {
     }
 
     void doSetTimer(Time t) {
-        if (!isControllable)
+        if (!isControllable || mLimitedMode)
             return;
 
         mWorm.setWeaponTimer(t);
@@ -906,6 +925,16 @@ class ServerTeamMember : TeamMember, WormController {
         //xxx select next weapon when current is empty... oh sigh
         //xxx also, select current weapon if we still have one, but weapon is
         //    undrawn! (???)
+    }
+
+    void doneFiring(Shooter sh) {
+        if (!sh.weapon.dontEndRound)
+            mWeaponUsed = true;
+    }
+
+    //has the worm fired something since he became active?
+    bool weaponUsed() {
+        return mWeaponUsed;
     }
 
     Time lastAction() {

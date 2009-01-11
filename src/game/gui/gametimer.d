@@ -46,8 +46,9 @@ class GameTimer : Container {
 
         bool active;
         if (mGame) {
+            int state = mGame.logic.currentGameState;
             auto m = mGame.control.getControlledMember();
-            if (m) {
+            if (state == RoundState.prepare || state == RoundState.playing) {
                 active = true;
                 mBoxProps.border = mGame.allMembers[m].owner.color;
                 mTimeView.borderStyle = mBoxProps;

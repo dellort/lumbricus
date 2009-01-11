@@ -52,6 +52,7 @@ class TeamState {
     WeaponList weapons;
     MemberState[] members; //indexed by MemberState.index
     MemberState active_member;
+    bool allowselect;
 
     this () {
     }

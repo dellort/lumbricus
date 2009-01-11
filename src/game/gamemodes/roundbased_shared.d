@@ -5,6 +5,7 @@ import utils.time;
 enum RoundState : int {
     prepare,    //player ready
     playing,    //round running
+    retreat,    //still moving after firing a weapon
     waitForSilence, //before entering cleaningUp: wait for no-activity
     cleaningUp, //worms losing hp etc, may occur during round
     nextOnHold, //next round about to start (drop crates, ...)

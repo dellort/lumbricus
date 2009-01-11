@@ -152,6 +152,7 @@ class NetServer {
             }
             //normal fields (but still won't change very often)
             ts.active = t.active();
+            ts.allowselect = t.allowSelect();
             if (weapons_changed)
                 ts.weapons = t.getWeapons();
             if (ts.active)

@@ -497,6 +497,9 @@ interface Team {
 
     ///currently active worm, null if none
     TeamMember getActiveMember();
+
+    ///is it possible to choose another worm (tab key)
+    bool allowSelect();
 }
 
 //calls from client to server which control a worm
