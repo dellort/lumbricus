@@ -7,6 +7,7 @@ import common.visual;
 import game.clientengine;
 import game.gamepublic;
 import game.gui.teaminfo;
+import game.gamemodes.roundbased_shared;
 import gui.container;
 import gui.label;
 import gui.widget;
@@ -16,7 +17,7 @@ class GameTimer : Container {
     private {
         GameInfo mGame;
         Label mTimeView;
-        bool mActive;
+        bool mActive, mEnabled;
         Time mLastTime;
         Vector2i mInitSize;
         BoxProperties mBoxProps;
@@ -35,9 +36,14 @@ class GameTimer : Container {
         mInitSize = mTimeView.font.textSize(mTimeView.text);
 
         mLastTime = timeCurrentTime();
+
+        mEnabled = game.logic.gamemode == cRoundbased;
     }
 
     override void simulate() {
+        if (!mEnabled)
+            return;
+
         bool active;
         if (mGame) {
             auto m = mGame.control.getControlledMember();
@@ -45,8 +51,10 @@ class GameTimer : Container {
                 active = true;
                 mBoxProps.border = mGame.allMembers[m].owner.color;
                 mTimeView.borderStyle = mBoxProps;
+                auto st = mGame.logic.gamemodeStatus;
                 //little hack to show correct time
-                Time rt = mGame.logic.currentRoundTime()-timeMsecs(1);;
+                Time rt = st.unbox!(RoundbasedStatus).roundRemaining
+                    - timeMsecs(1);;
                 mTimeView.text = str.format("%.2s", rt.secs >= -1 ? rt.secs+1 : 0);
                 //needRelayout();
             } else {

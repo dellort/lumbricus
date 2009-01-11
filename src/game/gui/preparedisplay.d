@@ -8,16 +8,20 @@ import common.visual;
 import game.clientengine;
 import game.gui.teaminfo;
 import game.gamepublic;
+import game.gamemodes.roundbased_shared;
 import gui.container;
 import gui.label;
 import gui.widget;
 import utils.time;
 
 class PrepareDisplay : Container {
-    private Label mPrepareView;
-    private Time mLastTime;
-    private Translator tr;
-    private GameInfo mGame;
+    private {
+        Label mPrepareView;
+        Time mLastTime;
+        Translator tr;
+        GameInfo mGame;
+        bool mEnabled;
+    }
 
     this(GameInfo game) {
         mGame = game;
@@ -27,6 +31,8 @@ class PrepareDisplay : Container {
         mPrepareView.border = Vector2i(7, 5);
 
         mLastTime = timeCurrentTime();
+
+        mEnabled = game.logic.gamemode == cRoundbased;
     }
 
     private void active(bool active) {
@@ -42,17 +48,22 @@ class PrepareDisplay : Container {
     }
 
     override void simulate() {
+        if (!mEnabled)
+            return;
+
         Time cur = timeCurrentTime();
         auto logic = mGame.logic;
         //auto controller = mEngine ? mEngine.engine.controller : null;
-        if (logic.currentRoundState() == RoundState.prepare
+        if (logic.currentGameState() == RoundState.prepare
             && mGame.control.getControlledMember)
         {
             Team curTeam = mGame.control.getControlledMember.team;
             active = true;
             char[] teamName = curTeam.name;
+            auto st = mGame.logic.gamemodeStatus;
             //little hack to show correct time
-            Time pt = logic.currentPrepareTime()-timeMsecs(1);
+            Time pt = st.unbox!(RoundbasedStatus).prepareRemaining
+                - timeMsecs(1);;
             mPrepareView.text = tr("teamgetready", teamName,
                 pt.secs >= 0 ? pt.secs+1 : 0);
         } else {

@@ -99,8 +99,9 @@ class ReversedAnimation : Animation {
 
     this(Animation base) {
         mBase = base;
+        //keepLastFrame makes no sense here (last frame becomes the first)
         doInit(mBase.frameCount, mBase.bounds, mBase.repeat,
-            mBase.keepLastFrame, mBase.frameTimeMS);
+            false, mBase.frameTimeMS);
     }
 
     void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p, int frame) {

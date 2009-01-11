@@ -10,6 +10,7 @@ import utils.array;
 import utils.configfile;
 import utils.time;
 import utils.vector2;
+import utils.mybox;
 
 class NetClient {
     private {
@@ -144,20 +145,20 @@ class GSFunctions : GameEnginePublic, GameLogicPublic, ClientControl
             (TeamState t) { return teams2[t.index]; } );
     }
 
-    RoundState currentRoundState() {
-        return state.roundstate;
+    char[] gamemode() {
+        return state.gamemode;
+    }
+
+    int currentGameState() {
+        return state.gamestate;
     }
 
     bool gameEnded() {
-        return currentRoundState == RoundState.end;
+        return currentGameState < 0;
     }
 
-    Time currentRoundTime() {
-        return state.roundtime;
-    }
-
-    Time currentPrepareTime() {
-        return state.preparetime;
+    MyBox gamemodeStatus() {
+        return state.gamemodestatus;
     }
 
     WeaponHandle[] weaponList() {

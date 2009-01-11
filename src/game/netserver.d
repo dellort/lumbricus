@@ -7,6 +7,7 @@ import game.weapon.weapon;
 import utils.misc;
 import utils.time;
 import utils.vector2;
+import utils.mybox;
 
 import common.common : globals;
 
@@ -90,6 +91,7 @@ class NetServer {
             state.world_center = engine.worldCenter();
 
             state.weaponlist = logic.weaponList();
+            state.gamemode = logic.gamemode();
         }
 
         state.servertime = state.graphics.timebase.current();
@@ -100,9 +102,8 @@ class NetServer {
         state.paused = engine.paused();
         state.slow_down = engine.slowDown();
 
-        state.roundstate = logic.currentRoundState();
-        state.roundtime = logic.currentRoundTime();
-        state.preparetime = logic.currentPrepareTime();
+        state.gamestate = logic.currentGameState();
+        state.gamemodestatus = logic.gamemodeStatus();
         state.msgcounter = logic.getMessageChangeCounter();
         logic.getLastMessage(state.msgid, state.msg);
 

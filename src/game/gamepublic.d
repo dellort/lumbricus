@@ -19,6 +19,7 @@ import utils.vector2;
 import utils.time;
 import utils.list2;
 import utils.reflection;
+import utils.mybox;
 
 //lol compiler breaks horribly with this selective import uncommented
 import game.sequence;// : SequenceUpdate;
@@ -382,16 +383,6 @@ interface GameEngineCallback {
 }
 +/
 
-enum RoundState {
-    prepare,    //player ready
-    playing,    //round running
-    waitForSilence, //before entering cleaningUp: wait for no-activity
-    cleaningUp, //worms losing hp etc, may occur during round
-    nextOnHold, //next round about to start (drop crates, ...)
-    winning,    //short state to show the happy survivors
-    end,        //everything ended!
-}
-
 class WeaponHandle {
     Resource!(Surface) icon;
     char[] name;
@@ -415,18 +406,17 @@ interface GameLogicPublic {
     ///all currently playing teams (not just the controlled one)
     Team[] getActiveTeams();
 
-    RoundState currentRoundState();
+    char[] gamemode();
 
+    ///Returns a gamemode-specific state value
+    /// a value < 0 always means the game has ended
+    int currentGameState();
+
+    ///True if game has ended (equiv. currentGameState < 0)
     bool gameEnded();
 
-    //BIIIIG xxxXXXXXXXXXXX:
-    //why can it query the current time all the time? what about network?
-
-    //display this to the user when RoundState.playing or .prepare
-    Time currentRoundTime();
-
-    ///only for RoundState.prepare
-    Time currentPrepareTime();
+    ///Status of selected gamemode (may contain timing, scores or whatever)
+    MyBox gamemodeStatus();
 
     ///list of _all_ possible weapons, which are useable during the game
     ///Team.getWeapons() must never return a Weapon not covered by this list

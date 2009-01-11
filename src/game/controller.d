@@ -10,6 +10,7 @@ import game.sprite;
 import game.weapon.types;
 import game.weapon.weapon;
 import game.gamepublic;
+import game.gamemodes.base;
 import physics.world;
 import utils.vector2;
 import utils.configfile;
@@ -37,6 +38,8 @@ class ClientControlImpl : ClientControl {
         //key state for LEFT/RIGHT and UP/DOWN
         Vector2i dirKeyState_lu = {0, 0};  //left/up
         Vector2i dirKeyState_rd = {0, 0};  //right/down
+
+        ServerTeam mActiveTeam;
 
         this(GameController c) {
             ctl = c;
@@ -72,10 +75,16 @@ class ClientControlImpl : ClientControl {
     }
 
     private ServerTeamMember activemember() {
-        if (ctl.mCurrentTeam) {
-            return ctl.mCurrentTeam.mCurrent;
+        if (mActiveTeam) {
+            return mActiveTeam.current;
         }
         return null;
+    }
+
+    //called by controller: give this client control of the passed team,
+    //or take it by passing null
+    void assignTeam(ServerTeam t) {
+        mActiveTeam = t;
     }
 
     //-- Start ClientControl implementation
@@ -379,7 +388,8 @@ class ServerTeam : Team {
     }
 
     ///set if this team should be able to move/play
-    void setActive(bool act) {
+    //module-private (not to be used by gamemodes)
+    private void setActive(bool act) {
         if (act == mActive)
             return;
         if (act) {
@@ -487,7 +497,7 @@ class ServerTeam : Team {
 
     //xxx integrate (unused yet)
     void applyDoubleTime() {
-        parent.mRoundRemaining *= 2;
+        //parent.mRoundRemaining *= 2;
     }
     void dieNow() {
         mCurrent.worm.physics.applyDamage(100000, cDamageCauseDeath);
@@ -1076,9 +1086,7 @@ class GameController : GameLogicPublic {
 
         ServerTeam[] mTeams;
         Team[] mTeams2;
-
-        ServerTeam mCurrentTeam;
-        ServerTeam mLastTeam;
+        Team[] mActiveTeams;
 
         ServerTeamMember[GameObject] mGameObjectToMember;
 
@@ -1086,11 +1094,6 @@ class GameController : GameLogicPublic {
         ConfigNode[char[]] mWeaponSets;
         private WeaponClass[] mCrateList;
 
-        Time mRoundRemaining, mPrepareRemaining, mWinRemaining, mCleanupWait;
-        //time a round takes
-        Time mTimePerRound;
-        //extra time before round time to switch seats etc
-        Time mHotseatSwitchTime;
         bool mIsAnythingGoingOn; // (= hack)
 
         struct Message {
@@ -1107,12 +1110,13 @@ class GameController : GameLogicPublic {
 
         int mWeaponListChangeCounter;
 
-        RoundState mCurrentRoundState = RoundState.nextOnHold;
-
-        ClientControl control;
+        ClientControlImpl control;
 
         CommandLine mCmd;
         CommandBucket mCmds;
+
+        Gamemode mGamemode;
+        char[] mGamemodeId;
     }
 
     this(GameEngine engine, GameConfig config) {
@@ -1132,9 +1136,9 @@ class GameController : GameLogicPublic {
             loadLevelObjects(config.levelobjects);
         }
 
-        mTimePerRound = timeSecs(config.gamemode.getIntValue("roundtime",15));
-        mHotseatSwitchTime = timeSecs(
-            config.gamemode.getIntValue("hotseattime",5));
+        mGamemodeId = config.gamemode["mode"];
+        mGamemode = GamemodeFactory.instantiate(mGamemodeId, this,
+            config.gamemode);
 
         mMessages = new Queue!(Message);
         mLastMsgTime = timeSecs(-cMessageTime);
@@ -1213,20 +1217,20 @@ class GameController : GameLogicPublic {
         return mTeams2;
     }
 
-    RoundState currentRoundState() {
-        return mCurrentRoundState;
+    char[] gamemode() {
+        return mGamemodeId;
+    }
+
+    int currentGameState() {
+        return mGamemode.state;
     }
 
     bool gameEnded() {
-        return currentRoundState == RoundState.end;
+        return mGamemode.ended;
     }
 
-    Time currentRoundTime() {
-        return mRoundRemaining;
-    }
-
-    Time currentPrepareTime() {
-        return mPrepareRemaining;
+    MyBox gamemodeStatus() {
+        return mGamemode.getStatus;
     }
 
     WeaponHandle[] weaponList() {
@@ -1251,10 +1255,7 @@ class GameController : GameLogicPublic {
     }
 
     Team[] getActiveTeams() {
-        if (mCurrentTeam)
-            return [cast(Team)mCurrentTeam];
-        else
-            return null;
+        return mActiveTeams;
     }
 
     //--- end GameLogicPublic
@@ -1279,7 +1280,7 @@ class GameController : GameLogicPublic {
         return mEngine;
     }
 
-    private void messageAdd(char[] msg, char[][] args = null) {
+    void messageAdd(char[] msg, char[][] args = null) {
         mMessages.push(Message(msg, args));
     }
 
@@ -1288,7 +1289,7 @@ class GameController : GameLogicPublic {
         mLastMessage = msg;
     }
 
-    private bool messageIsIdle() {
+    bool messageIsIdle() {
         return mMessages.empty;
     }
 
@@ -1298,6 +1299,7 @@ class GameController : GameLogicPublic {
         messageAdd("msggamestart", null);
 
         deactivateAll();
+        mGamemode.initialize();
     }
 
     void simulate() {
@@ -1306,9 +1308,7 @@ class GameController : GameLogicPublic {
         if (!mIsAnythingGoingOn) {
             startGame();
         } else {
-            RoundState next = doState(diffT);
-            if (next != mCurrentRoundState)
-                transition(next);
+            mGamemode.simulate();
 
             foreach (t; mTeams)
                 t.simulate();
@@ -1328,16 +1328,8 @@ class GameController : GameLogicPublic {
         updateClientRoundStateTime();
     }
 
-    private void deactivateAll() {
-        foreach (t; mTeams) {
-            t.setActive(false);
-        }
-        mCurrentTeam = null;
-        mLastTeam = null;
-    }
-
     //return true if there are dying worms
-    private bool checkDyingWorms() {
+    bool checkDyingWorms() {
         foreach (t; mTeams) {
             //death is in no hurry, one worm a frame
             if (t.checkDyingMembers())
@@ -1347,160 +1339,42 @@ class GameController : GameLogicPublic {
     }
 
     //send clients new health values
-    private void updateHealth() {
+    void updateHealth() {
         foreach (t; mTeams) {
             t.updateHealth();
         }
     }
 
-    private RoundState doState(Time deltaT) {
-        switch (mCurrentRoundState) {
-            case RoundState.prepare:
-                mPrepareRemaining = mPrepareRemaining - deltaT;
-                if (mCurrentTeam.teamAction())
-                    //worm moved -> exit prepare phase
-                    return RoundState.playing;
-                if (mPrepareRemaining < timeMusecs(0))
-                    return RoundState.playing;
-                break;
-            case RoundState.playing:
-                mRoundRemaining = max(mRoundRemaining - deltaT, timeNull);
-                if (!mCurrentTeam.current)
-                    return RoundState.waitForSilence;
-                if (mRoundRemaining <= timeMusecs(0))   //timeout
-                {
-                    //check if we need to wait because worm is performing
-                    //a non-abortable action
-                    if (!mCurrentTeam.current.delayedAction)
-                        return RoundState.waitForSilence;
-                }
-                if (!mCurrentTeam.current.isAlive       //active worm dead
-                    || mCurrentTeam.current.lifeLost)   //active worm damaged
-                {
-                    mCurrentTeam.current.forceAbort();
-                    return RoundState.waitForSilence;
-                }
-                break;
-            case RoundState.waitForSilence:
-                if (!mEngine.checkForActivity) {
-                    //hope the game stays inactive
-                    return RoundState.cleaningUp;
-                }
-                break;
-            case RoundState.cleaningUp:
-                mRoundRemaining = timeSecs(0);
-                mCleanupWait = max(mCleanupWait - deltaT, timeNull);
-                //not yet
-                if (mCleanupWait <= timeMusecs(0))
-                    return checkDyingWorms()
-                        ? RoundState.waitForSilence : RoundState.nextOnHold;
-                break;
-            case RoundState.nextOnHold:
-                if (messageIsIdle() && objectsIdle())
-                    return RoundState.prepare;
-                break;
-            case RoundState.winning:
-                mWinRemaining -= deltaT;
-                if (mWinRemaining < timeMusecs(0))
-                    return RoundState.end;
-                break;
-            case RoundState.end:
-                break;
-        }
-        return mCurrentRoundState;
+    ServerTeam[] teams() {
+        return mTeams;
     }
 
-    private void transition(RoundState st) {
-    again:
-        assert(st != mCurrentRoundState);
-        mLog("state transition %s -> %s", cast(int)mCurrentRoundState,
-            cast(int)st);
-        mCurrentRoundState = st;
-        switch (st) {
-            case RoundState.prepare:
-                mRoundRemaining = mTimePerRound;
-                mPrepareRemaining = mHotseatSwitchTime;
-
-                //select next team/worm
-                ServerTeam next = arrayFindNextPred(mTeams, mLastTeam,
-                    (ServerTeam t) {
-                        return t.isAlive();
-                    }
-                );
-                currentTeam = null;
-
-                //check if at least two teams are alive
-                int aliveTeams;
-                foreach (t; mTeams) {
-                    aliveTeams += t.isAlive() ? 1 : 0;
-                }
-
-                assert((aliveTeams == 0) != !!next); //no teams, no next
-
-                if (aliveTeams < 2) {
-                    if (aliveTeams == 0) {
-                        messageAdd("msgnowin");
-                        st = RoundState.end;
-                    } else {
-                        next.youWinNow();
-                        messageAdd("msgwin", [next.name]);
-                        st = RoundState.winning;
-                    }
-                    //very sry
-                    goto again;
-                }
-
-                mLastTeam = next;
-                currentTeam = next;
-                mLog("active: %s", next);
-
-                break;
-            case RoundState.playing:
-                if (mCurrentTeam)
-                    mCurrentTeam.setOnHold(false);
-                mPrepareRemaining = timeMusecs(0);
-                break;
-            case RoundState.waitForSilence:
-                //no control while blowing up worms
-                if (mCurrentTeam)
-                    mCurrentTeam.setOnHold(true);
-                //if it's the round's end, also take control early enough
-                currentTeam = null;
-                break;
-            case RoundState.cleaningUp:
-                mCleanupWait = timeMsecs(400);
-                updateHealth(); //hmmm
-                //see doState()
-                break;
-            case RoundState.nextOnHold:
-                currentTeam = null;
-                messageAdd("msgnextround");
-                mRoundRemaining = timeMusecs(0);
-                break;
-            case RoundState.winning:
-                //how long winning animation is showed
-                mWinRemaining = timeSecs(5);
-                break;
-            case RoundState.end:
-                messageAdd("msggameend");
-                currentTeam = null;
-                break;
-        }
-    }
-
-    void currentTeam(ServerTeam t) {
-        if (mCurrentTeam is t)
+    void activateTeam(ServerTeam t, bool active = true) {
+        if (!t)
             return;
-        if (mCurrentTeam)
-            mCurrentTeam.setActive(false);
-        mCurrentTeam = t;
-        if (mCurrentTeam)
-            mCurrentTeam.setActive(true);
+        if (t.active == active)
+            return;
+        t.setActive(active);
+        if (active) {
+            //xxx This is just for debugging, until client handling is complete
+            assert(mActiveTeams.length == 0);
+            control.assignTeam(t);
+            mActiveTeams ~= t;
+        } else {
+            control.assignTeam(null);
+            //should not fail
+            arrayRemoveUnordered(mActiveTeams, t);
+        }
+
         //xxx: not sure
-        changeWeaponList(mCurrentTeam);
+        changeWeaponList(t);
     }
-    ServerTeam currentTeam() {
-        return mCurrentTeam;
+
+    void deactivateAll() {
+        foreach (t; mTeams) {
+            t.setActive(false);
+        }
+        mActiveTeams = null;
     }
 
     bool objectsIdle() {
@@ -1509,16 +1383,6 @@ class GameController : GameLogicPublic {
                 return false;
         }
         return true;
-    }
-
-    public Team[] activeTeams() {
-        Team[] res;
-        foreach (t; mTeams) {
-            if (t.isActive) {
-                res ~= t;
-            }
-        }
-        return res;
     }
 
     //actually still stupid debugging code
@@ -1596,11 +1460,6 @@ class GameController : GameLogicPublic {
             }
         }
         mLog("done placing level objects");
-    }
-
-    void selectWeapon(WeaponClass weaponId) {
-        if (mCurrentTeam)
-            mCurrentTeam.selectWeapon(weaponId);
     }
 
     //associate go with member; used i.e. for who-damages-who reporting

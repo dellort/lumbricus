@@ -9,6 +9,7 @@ import game.levelgen.level;
 import utils.reflection;
 import utils.time;
 import utils.vector2;
+import utils.mybox;
 
 //values set by the server, replicated by the client
 class GameState {
@@ -23,8 +24,9 @@ class GameState {
     Vector2i world_size, world_center;
     bool paused;
     float slow_down;
-    RoundState roundstate;
-    Time roundtime, preparetime;
+    char[] gamemode;
+    int gamestate;
+    MyBox gamemodestatus;
     int msgcounter;
     char[] msgid;
     char[][] msg;

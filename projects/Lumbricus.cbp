@@ -150,6 +150,9 @@
 		<Unit filename="..\src\game\controller.d" />
 		<Unit filename="..\src\game\crate.d" />
 		<Unit filename="..\src\game\game.d" />
+		<Unit filename="..\src\game\gamemodes\base.d" />
+		<Unit filename="..\src\game\gamemodes\roundbased.d" />
+		<Unit filename="..\src\game\gamemodes\roundbased_shared.d" />
 		<Unit filename="..\src\game\gamepublic.d" />
 		<Unit filename="..\src\game\gametask.d" />
 		<Unit filename="..\src\game\gfxset.d" />
