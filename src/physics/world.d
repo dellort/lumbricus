@@ -216,6 +216,11 @@ class PhysicWorld {
         //check if they collide at all
         if (dist >= mindist)
             return;
+        if (dist <= 0) {
+            //objects are exactly at the same pos, move aside anyway
+            dist = mindist/2;
+            d = Vector2f(0, dist);
+        }
 
         //no collision if unwanted
         if (!collide.canCollide(obj1, obj2))

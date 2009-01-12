@@ -640,6 +640,32 @@ class GameEngine : GameEnginePublic {
         return false;
     }
 
+    //count game objects of type T currently in the game
+    int countObjects(T)() {
+        int ret = 0;
+        foreach (GameObject o; mObjects) {
+            if (cast(T)o)
+                ret++;
+        }
+        return ret;
+    }
+
+    //count sprites with passed spriteclass name currently in the game
+    int countSprites(char[] name) {
+        auto sc = findSpriteClass(name, true);
+        if (!sc)
+            return 0;
+        int ret = 0;
+        foreach (GameObject o; mObjects) {
+            auto s = cast(GObjectSprite)o;
+            if (s) {
+                if (s.type == sc)
+                    ret++;
+            }
+        }
+        return ret;
+    }
+
     void activityDebug(bool all = false) {
         mLog("-- Active game objects:");
         int i;

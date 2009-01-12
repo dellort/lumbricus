@@ -15,7 +15,7 @@ import utils.mybox;
 
 class ModeRoundbased : Gamemode {
     private {
-        RoundState mCurrentRoundState = RoundState.nextOnHold;
+        RoundState mCurrentRoundState = RoundState.cleaningUp;
         Time mWaitStart;
 
         //time a round takes
@@ -28,11 +28,14 @@ class ModeRoundbased : Gamemode {
         bool mAllowSelect;
         //multi-shot mode (true -> firing a weapon doesn't end the round)
         bool mMultishot;
+        float mCrateProb = 0.9f;
+        int mMaxCrates = 8;
 
         ServerTeam mCurrentTeam;
         ServerTeam mLastTeam;
 
         RoundbasedStatus mStatus;
+        int mCrateCtr = 1;
 
         const cSilenceWait = timeMsecs(400);
         const cNextRoundWait = timeMsecs(750);
@@ -47,6 +50,8 @@ class ModeRoundbased : Gamemode {
         mRetreatTime = timeSecs(config.getIntValue("retreattime",5));
         mAllowSelect = config.getBoolValue("allowselect", mAllowSelect);
         mMultishot = config.getBoolValue("multishot", mMultishot);
+        mCrateProb = config.getFloatValue("crateprob", mCrateProb);
+        mMaxCrates = config.getIntValue("maxcrates", mMaxCrates);
     }
 
     override void initialize() {
@@ -130,8 +135,17 @@ class ModeRoundbased : Gamemode {
             case RoundState.cleaningUp:
                 mStatus.roundRemaining = timeSecs(0);
                 //if there are more to blow up, go back to waiting
-                return logic.checkDyingWorms()
-                    ? RoundState.waitForSilence : RoundState.nextOnHold;
+                if (logic.checkDyingWorms())
+                    return RoundState.waitForSilence;
+                //probably drop a crate, if not too many on the field already
+                if (mCrateCtr > 0 && engine.rnd.nextDouble2 < mCrateProb
+                    && engine.countSprites("crate") < mMaxCrates)
+                {
+                    logic.dropCrate();
+                    mCrateCtr--;
+                    return RoundState.waitForSilence;
+                }
+                return RoundState.nextOnHold;
                 break;
             case RoundState.nextOnHold:
                 //wait some msecs to show the health labels
@@ -159,6 +173,7 @@ class ModeRoundbased : Gamemode {
             case RoundState.prepare:
                 mStatus.roundRemaining = mTimePerRound;
                 mStatus.prepareRemaining = mHotseatSwitchTime;
+                mCrateCtr = 1;
 
                 //select next team/worm
                 ServerTeam next = arrayFindNextPred(logic.teams, mLastTeam,

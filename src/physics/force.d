@@ -101,6 +101,7 @@ class ExplosiveForce : PhysicForce {
 
     private float cDistDelta = 0.01f;
     void applyTo(PhysicObject o, float deltaT) {
+        assert(damage != 0f && !isnan(damage));
         float impulse = damage*cDamageToImpulse;
         Vector2f v = (pos-o.pos);
         float dist = v.length;
