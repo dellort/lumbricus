@@ -26,7 +26,6 @@ class GameTimer : Container {
     this(GameInfo game) {
         mGame = game;
 
-        mBoxProps.borderWidth = 2;
         mTimeView = new Label();
         mTimeView.font = gFramework.fontManager.loadFont("time");
         mTimeView.border = Vector2i(7, 5);
@@ -47,10 +46,21 @@ class GameTimer : Container {
         bool active;
         if (mGame) {
             int state = mGame.logic.currentGameState;
-            auto m = mGame.control.getControlledMember();
-            if (state == RoundState.prepare || state == RoundState.playing) {
+            Team[] t = mGame.logic.getActiveTeams;
+            TeamMember m;
+            if (t.length > 0)
+                m = t[0].getActiveMember;
+            if ((state == RoundState.prepare || state == RoundState.playing)
+                && m)
+            {
                 active = true;
                 mBoxProps.border = mGame.allMembers[m].owner.color;
+                if (m == mGame.control.getControlledMember) {
+                    //broad border if it's the own worm
+                    mBoxProps.borderWidth = 2;
+                } else {
+                    mBoxProps.borderWidth = 1;
+                }
                 mTimeView.borderStyle = mBoxProps;
                 auto st = mGame.logic.gamemodeStatus;
                 //little hack to show correct time

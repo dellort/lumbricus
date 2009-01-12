@@ -83,8 +83,11 @@ class ClientControlImpl : ClientControl {
 
     //called by controller: give this client control of the passed team,
     //or take it by passing null
-    void assignTeam(ServerTeam t) {
+    void assignedTeam(ServerTeam t) {
         mActiveTeam = t;
+    }
+    ServerTeam assignedTeam() {
+        return mActiveTeam;
     }
 
     //-- Start ClientControl implementation
@@ -1139,7 +1142,7 @@ class GameController : GameLogicPublic {
 
         int mWeaponListChangeCounter;
 
-        ClientControlImpl control;
+        ClientControlImpl[ServerTeam] control;
 
         CommandLine mCmd;
         CommandBucket mCmds;
@@ -1150,8 +1153,6 @@ class GameController : GameLogicPublic {
 
     this(GameEngine engine, GameConfig config) {
         mEngine = engine;
-
-        control = new ClientControlImpl(this);
 
         mLog = registerLog("gamecontroller");
 
@@ -1291,10 +1292,19 @@ class GameController : GameLogicPublic {
 
     ///xxx: needs to be redefined for multiple connections
     ClientControl connectClient() {
-        return control;
+        ClientControlImpl cc = new ClientControlImpl(this);
+        //for debugging: give all teams to the first connected client
+        foreach (t; mTeams) {
+            setTeamControl(t, cc);
+        }
+        return cc;
     }
 
-    void updateClientRoundStateTime() {
+    private bool setTeamControl(ServerTeam t, ClientControlImpl cc) {
+        if (t in control)
+            return false;
+        control[t] = cc;
+        return true;
     }
 
     void updateWeaponStats(TeamMember m) {
@@ -1352,9 +1362,6 @@ class GameController : GameLogicPublic {
                 mLastMsgTime = mEngine.gameTime.current;
             }
         }
-
-
-        updateClientRoundStateTime();
     }
 
     //return true if there are dying worms
@@ -1384,13 +1391,18 @@ class GameController : GameLogicPublic {
         if (t.active == active)
             return;
         t.setActive(active);
+        auto cc = aaIfIn(control, t);
         if (active) {
-            //xxx This is just for debugging, until client handling is complete
             assert(mActiveTeams.length == 0);
-            control.assignTeam(t);
+            if (cc) {
+                //no "hot-swapping", deactivate old team first
+                assert(!cc.assignedTeam);
+                cc.assignedTeam = t;
+            }
             mActiveTeams ~= t;
         } else {
-            control.assignTeam(null);
+            if (cc)
+                cc.assignedTeam = null;
             //should not fail
             arrayRemoveUnordered(mActiveTeams, t);
         }
@@ -1401,7 +1413,7 @@ class GameController : GameLogicPublic {
 
     void deactivateAll() {
         foreach (t; mTeams) {
-            t.setActive(false);
+            activateTeam(t, false);
         }
         mActiveTeams = null;
     }

@@ -112,7 +112,8 @@ class NetServer {
         weapons_changed = init || (oldwcounter != state.weaponlistcc);
         state.weaponlistcc = oldwcounter;
 
-        state.activeteams = null;
+        state.activeteams.length = logic.getActiveTeams().length;
+        int activeCtr = 0;  //xxx
         foreach (int n, Team t; logic.getTeams()) {
             //xxx: actually, the team list is considered to be immutable
             //     this is only for initialization
@@ -155,8 +156,12 @@ class NetServer {
             ts.allowselect = t.allowSelect();
             if (weapons_changed)
                 ts.weapons = t.getWeapons();
-            if (ts.active)
-                state.activeteams ~= ts;
+            if (ts.active) {
+                //avoid reserving memory
+                assert(activeCtr < state.activeteams.length);
+                state.activeteams[activeCtr] = ts;
+                activeCtr++;
+            }
         }
 
         foreach (con; mConnections) {

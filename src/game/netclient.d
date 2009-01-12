@@ -52,7 +52,11 @@ class NetClient {
     }
 
     void frame_receive() {
-        //oh well, everything is done automatically?
+        stuff.activeteams.length = state.activeteams.length;
+        foreach (int i, ref TeamState t; state.activeteams) {
+            stuff.activeteams[i] = stuff.teams2[t.index];
+        }
+        //oh well, everything else is done automatically?
     }
 
     //in case of real networking: will return null until fully initialized
@@ -79,6 +83,7 @@ class GSFunctions : GameEnginePublic, GameLogicPublic, ClientControl
     ClientState clientstate;
     GSTeam[] teams;
     Team[] teams2; //lol
+    Team[] activeteams;
     NetClient client;
 
     this(NetClient a_client) {
@@ -141,8 +146,7 @@ class GSFunctions : GameEnginePublic, GameLogicPublic, ClientControl
     }
 
     Team[] getActiveTeams() {
-        return arrayMap(state.activeteams,
-            (TeamState t) { return teams2[t.index]; } );
+        return activeteams;
     }
 
     char[] gamemode() {
