@@ -1576,12 +1576,12 @@ class GameController : GameLogicPublic {
         }
     }
 
-    void dropCrate() {
+    bool dropCrate() {
         Vector2f from, to;
         float water = engine.waterOffset - 10;
         if (!engine.placeObject(water, 10, from, to, 5)) {
             mLog("couldn't find a safe drop-position");
-            return;
+            return false;
         }
         auto content = chooseRandomForCrate();
         if (content) {
@@ -1598,8 +1598,10 @@ class GameController : GameLogicPublic {
             crate.setPos(from);
             crate.active = true;
             mLog("drop %s -> %s", from, to);
+            return true;
         } else {
             mLog("failed to create crate contents");
         }
+        return false;
     }
 }

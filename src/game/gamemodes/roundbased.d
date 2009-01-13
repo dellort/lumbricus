@@ -137,20 +137,47 @@ class ModeRoundbased : Gamemode {
                 //if there are more to blow up, go back to waiting
                 if (logic.checkDyingWorms())
                     return RoundState.waitForSilence;
-                //probably drop a crate, if not too many on the field already
-                if (mCrateCtr > 0 && engine.rnd.nextDouble2 < mCrateProb
-                    && engine.countSprites("crate") < mMaxCrates)
-                {
-                    logic.dropCrate();
-                    mCrateCtr--;
-                    return RoundState.waitForSilence;
+
+                //wait some msecs to show the health labels
+                if (engine.gameTime.current-mWaitStart > cNextRoundWait) {
+                    //check if at least two teams are alive
+                    int aliveTeams;
+                    ServerTeam firstAlive;
+                    foreach (t; logic.teams) {
+                        if (t.isAlive()) {
+                            aliveTeams++;
+                            firstAlive = t;
+                        }
+                    }
+
+                    if (aliveTeams < 2) {
+                        if (aliveTeams == 0) {
+                            logic.messageAdd("msgnowin");
+                            return RoundState.end;
+                        } else {
+                            assert(firstAlive);
+                            firstAlive.youWinNow();
+                            logic.messageAdd("msgwin", [firstAlive.name]);
+                            return RoundState.winning;
+                        }
+                    }
+
+                    //probably drop a crate, if not too many on the field already
+                    if (mCrateCtr > 0 && engine.rnd.nextDouble2 < mCrateProb
+                        && engine.countSprites("crate") < mMaxCrates)
+                    {
+                        mCrateCtr--;
+                        if (logic.dropCrate()) {
+                            logic.messageAdd("msgcrate");
+                            return RoundState.waitForSilence;
+                        }
+                    }
+
+                    return RoundState.nextOnHold;
                 }
-                return RoundState.nextOnHold;
                 break;
             case RoundState.nextOnHold:
-                //wait some msecs to show the health labels
-                if (logic.messageIsIdle() && logic.objectsIdle()
-                    && engine.gameTime.current-mWaitStart > cNextRoundWait)
+                if (logic.messageIsIdle() && logic.objectsIdle())
                     return RoundState.prepare;
                 break;
             case RoundState.winning:
@@ -164,7 +191,6 @@ class ModeRoundbased : Gamemode {
     }
 
     private void transition(RoundState st) {
-    again:
         assert(st != mCurrentRoundState);
         logic.mLog("state transition %s -> %s", cast(int)mCurrentRoundState,
             cast(int)st);
@@ -183,26 +209,7 @@ class ModeRoundbased : Gamemode {
                 );
                 currentTeam = null;
 
-                //check if at least two teams are alive
-                int aliveTeams;
-                foreach (t; logic.teams) {
-                    aliveTeams += t.isAlive() ? 1 : 0;
-                }
-
-                assert((aliveTeams == 0) != !!next); //no teams, no next
-
-                if (aliveTeams < 2) {
-                    if (aliveTeams == 0) {
-                        logic.messageAdd("msgnowin");
-                        st = RoundState.end;
-                    } else {
-                        next.youWinNow();
-                        logic.messageAdd("msgwin", [next.name]);
-                        st = RoundState.winning;
-                    }
-                    //very sry
-                    goto again;
-                }
+                assert(next); //should've dropped out in nextOnHold otherwise
 
                 mLastTeam = next;
                 currentTeam = next;
@@ -233,11 +240,12 @@ class ModeRoundbased : Gamemode {
                 currentTeam =  null;
                 break;
             case RoundState.cleaningUp:
+                //next call causes health countdown, so wait a little
+                mWaitStart = engine.gameTime.current;
                 logic.updateHealth(); //hmmm
                 //see doState()
                 break;
             case RoundState.nextOnHold:
-                mWaitStart = engine.gameTime.current;
                 currentTeam = null;
                 logic.messageAdd("msgnextround");
                 mStatus.roundRemaining = timeMusecs(0);

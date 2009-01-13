@@ -54,7 +54,7 @@ class ProjectileSprite : ActionSprite {
         //most weapons are always "active", so the exceptions have to
         //explicitely specify when they're actually "inactive"
         //this includes non-exploding mines
-        return active && !(physics.isGlued && myclass.inactiveWhenGlued);
+        return active && !(physics.isGlued && currentState.inactiveWhenGlued);
     }
 
     override ProjectileStateInfo currentState() {
@@ -154,6 +154,8 @@ class ProjectileSprite : ActionSprite {
 class ProjectileStateInfo : ActionStateInfo {
     //r/o fields
     bool useFixedDetonateTime;
+    //when glued, consider it as inactive (so next round can start); i.e. mines
+    bool inactiveWhenGlued;
     Time fixedDetonateTime;
     Time minimumGluedTime;
 
@@ -175,6 +177,7 @@ class ProjectileStateInfo : ActionStateInfo {
     private void loadDetonateConfig(ConfigNode sc) {
         auto detonateNode = sc.getSubNode("detonate");
         minimumGluedTime = timeSecs(detonateNode.getFloatValue("gluetime", 0));
+        inactiveWhenGlued = sc.getBoolValue("inactive_when_glued");
         if (detonateNode.valueIs("lifetime", "$LIFETIME$")) {
             useFixedDetonateTime = false;
         } else {
@@ -195,9 +198,6 @@ class ProjectileStateInfo : ActionStateInfo {
 
 //can load weapon config from configfile, see weapons.conf; it's a projectile
 class ProjectileSpriteClass : ActionSpriteClass {
-    //when glued, consider it as inactive (so next round can start); i.e. mines
-    bool inactiveWhenGlued;
-
     override ProjectileSprite createSprite() {
         return new ProjectileSprite(engine, this);
     }
@@ -245,8 +245,6 @@ class ProjectileSpriteClass : ActionSpriteClass {
                 s.fixup(this);
             }
         }  //if stateful
-
-        inactiveWhenGlued = config.getBoolValue("inactive_when_glued");
     }
 
 

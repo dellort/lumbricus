@@ -21,6 +21,7 @@ class PrepareDisplay : Container {
         Translator tr;
         GameInfo mGame;
         bool mEnabled;
+        BoxProperties mBoxProps;
     }
 
     this(GameInfo game) {
@@ -29,6 +30,8 @@ class PrepareDisplay : Container {
         mPrepareView = new Label();
         mPrepareView.font = gFramework.fontManager.loadFont("messages");
         mPrepareView.border = Vector2i(7, 5);
+
+        mBoxProps.borderWidth = 2;
 
         mLastTime = timeCurrentTime();
 
@@ -58,6 +61,9 @@ class PrepareDisplay : Container {
             && mGame.control.getControlledMember)
         {
             Team curTeam = mGame.control.getControlledMember.team;
+            //set box border color
+            mBoxProps.border = mGame.teams[curTeam].color;
+            mPrepareView.borderStyle = mBoxProps;
             active = true;
             char[] teamName = curTeam.name;
             auto st = mGame.logic.gamemodeStatus;

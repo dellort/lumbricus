@@ -26,7 +26,7 @@ import game.sequence;// : SequenceUpdate;
 
 public import game.temp;
 
-/+
+/*
 Possible game setups
 --------------------------
 We have to think about which setups shall be possible in the feature.
@@ -46,7 +46,7 @@ I thought of these (first level hardware setup, second one game setups).
         . as in round based case
 xxx complete this :)
 currently, only local-roundbased-one-screen is the only possible setup
-+/
+*/
 
 ///Initial game configuration
 class GameConfig {
@@ -328,14 +328,14 @@ class LandscapeGraphic : Graphic {
 
 ///GameEngine public interface
 interface GameEnginePublic {
-    /+
+    /*
     ///callbacks (only at most one callback interface possible)
     void setGameEngineCalback(GameEngineCallback gec);
 
     ///called if the client did setup everything
     ///i.e. if the client-engine was initialized, all callbacks set...
     void signalReadiness();
-    +/
+    */
 
     ///current water offset
     int waterOffset();
@@ -369,7 +369,7 @@ interface GameEnginePublic {
     GameEngineGraphics getGraphics();
 }
 
-/+
+/*
 ///calls from engine into clients
 interface GameEngineCallback {
     ///cause damage; if explode is true, play corresponding particle effects
@@ -381,7 +381,7 @@ interface GameEngineCallback {
     ///- or slowdown set.
     void onEngineStateChanged();
 }
-+/
+*/
 
 class WeaponHandle {
     Resource!(Surface) icon;
