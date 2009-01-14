@@ -164,6 +164,8 @@ mainspr {
 
             supersheep_red = "f:150; 163 164"
             supersheep_blue = "f:150; 165 166"
+
+            worm_rope = "156"
         }
         {
             _params = "p1/rot360inv,p2/linear100"

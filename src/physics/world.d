@@ -357,6 +357,29 @@ class PhysicWorld {
         return false;
     }
 
+    bool thickRay(Vector2f p1, Vector2f p2, float r, out Vector2f hit1,
+        out Vector2f hit2)
+    {
+        bool first = false;
+        auto dir = p2 - p1;
+        float len = dir.length;
+        auto ndir = dir / len;
+        float halfStep = r*0.5;
+        for (float d = 0; d < len; d += halfStep*2) {
+            auto p = p1 + ndir*(d+halfStep);
+            GeomContact contact;
+            if (collideGeometry(p, r, contact)) {
+                if (contact.depth != float.infinity)
+                    p = p + contact.normal*contact.depth;
+                if (!first)
+                    hit1 = p;
+                first = true;
+                hit2 = p;
+            }
+        }
+        return first;
+    }
+
     ///r = random number generator to use, null will create a new instance
     public this(Random r) {
         if (!r) {

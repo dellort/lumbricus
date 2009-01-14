@@ -49,6 +49,7 @@ class PhysicConstraint : PhysicContactGen {
         c.source = ContactSource.generator;
 
         Vector2f n = (anchor - obj.pos).normal;
+        assert(!n.isNaN);
 
         if (deltaLen > 0) {
             //too long

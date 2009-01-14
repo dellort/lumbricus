@@ -97,6 +97,9 @@ class WormSprite : GObjectSprite {
 
         //same like seqUpdate, but the exact type (I haet casting)
         WormSequenceUpdate wseqUpdate;
+
+        PhysicConstraint mRope;
+        void delegate(Vector2f mv) mRopeMove;
     }
 
     TeamTheme teamColor;
@@ -301,6 +304,9 @@ class WormSprite : GObjectSprite {
             //no walk while shooting (or charging)
             if (!mShooterMain || !mShooterMain.isFixed)
                 physics.setWalking(mMoveVector);
+        }
+        if (currentState is wsc.st_rope) {
+            mRopeMove(mMoveVector);
         }
 
         //when user presses key to change weapon angle
@@ -673,6 +679,20 @@ class WormSprite : GObjectSprite {
         setState(wanted);
     }
 
+    bool ropeActivated() {
+        return currentState is wsc.st_rope;
+    }
+
+    void activateRope(void delegate(Vector2f mv) ropeMove) {
+        if (!!ropeMove == ropeActivated())
+            return;
+
+        mRopeMove = ropeMove;
+        StaticStateInfo wanted = !!ropeMove ? wsc.st_rope : wsc.st_stand;
+        setState(wanted);
+        physics.doUnglue();
+    }
+
     bool isStanding() {
         return currentState is wsc.st_stand;
     }
@@ -795,7 +815,7 @@ class WormSpriteClass : GOSpriteClass {
 
     WormStateInfo st_stand, st_fly, st_walk, st_jet, st_weapon, st_dead,
         st_die, st_drowning, st_beaming, st_reverse_beaming, st_getup,
-        st_jump_start, st_jump, st_jump_to_fly;
+        st_jump_start, st_jump, st_jump_to_fly, st_rope;
 
     //alias WormSprite.FlyMode FlyMode;
 
@@ -842,6 +862,7 @@ class WormSpriteClass : GOSpriteClass {
         st_jump_start = findState("jump_start");
         st_jump = findState("jump");
         st_jump_to_fly = findState("jump_to_fly");
+        st_rope = findState("rope");
 
         flyState[FlyMode.fall] = findSequenceState("fly_fall",true);
         flyState[FlyMode.slide] = findSequenceState("fly_slide",true);

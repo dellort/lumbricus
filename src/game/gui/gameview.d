@@ -636,6 +636,11 @@ class GameView : Container {
             return;
         }
     }
+    /*protected void onMouseMove(MouseInfo mouse) {
+        auto bind = processBinding("set_target %mx %my", false);
+        if (gFramework.getKeyState(Keycode.MOUSE_LEFT))
+            mController.executeCommand(bind);
+    }*/
 
     //grrr
     override bool onTestMouse(Vector2i pos) {
