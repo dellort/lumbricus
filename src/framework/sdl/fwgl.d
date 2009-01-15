@@ -468,8 +468,9 @@ class GLCanvas : Canvas {
     }
     //<-- Luigi end
 
-    public void drawLine(Vector2i p1, Vector2i p2, Color color) {
+    public void drawLine(Vector2i p1, Vector2i p2, Color color, int width = 1) {
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glLineWidth(width);
 
         glColor4fv(color.ptr);
 

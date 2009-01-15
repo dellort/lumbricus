@@ -357,27 +357,35 @@ class PhysicWorld {
         return false;
     }
 
+    ///shoot a thick ray of passed radius between p1 and p2 and
+    ///check for landscape collisions
+    ///returns true if collided
+    ///hit1 returns first hitpoint, hit2 the last (undefined if no collision)
     bool thickRay(Vector2f p1, Vector2f p2, float r, out Vector2f hit1,
         out Vector2f hit2)
     {
-        bool first = false;
+        bool hitLandscape = false;
         auto dir = p2 - p1;
         float len = dir.length;
+        if (len == 0f)
+            return false;
         auto ndir = dir / len;
-        float halfStep = r;
+        //subtracting r at both sides to avoid hitting landscape at
+        //beside start/end of line
         for (float d = r; d < len-r; d += r) {
-            auto p = p1 + ndir*(d);
+            auto p = p1 + ndir*d;
             GeomContact contact;
             if (collideGeometry(p, r, contact)) {
                 if (contact.depth != float.infinity)
+                    //move out of landscape
                     p = p + contact.normal*contact.depth;
-                if (!first)
+                if (!hitLandscape)
                     hit1 = p;
-                first = true;
+                hitLandscape = true;
                 hit2 = p;
             }
         }
-        return first;
+        return hitLandscape;
     }
 
     ///r = random number generator to use, null will create a new instance

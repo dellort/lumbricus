@@ -83,7 +83,7 @@ class ClientLineGraphic : SceneObject {
             removeThis();
             return;
         }
-        c.drawLine(mInfo.p1, mInfo.p2, mInfo.color);
+        c.drawLine(mInfo.p1, mInfo.p2, mInfo.color, mInfo.width);
     }
 }
 

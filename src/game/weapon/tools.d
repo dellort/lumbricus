@@ -5,6 +5,7 @@ import game.sprite;
 import game.weapon.weapon;
 import game.worm;
 import game.gamepublic;
+import game.sequence;
 import physics.world;
 import utils.configfile;
 import utils.factory;
@@ -115,7 +116,45 @@ class Jetpack : Tool {
     }
 }
 
-class Rope : Tool {
+
+class RopeClass : WeaponClass {
+    int shootSpeed = 1000;
+    int maxLength = 1000;
+    int moveSpeed = 500;
+    int swingForce = 3000;
+
+    SequenceState anchorAnim;
+
+    this(GameEngine engine, ConfigNode node) {
+        super(engine, node);
+        shootSpeed = node.getIntValue("shoot_speed", shootSpeed);
+        maxLength = node.getIntValue("max_length", maxLength);
+        moveSpeed = node.getIntValue("move_speed", moveSpeed);
+        swingForce = node.getIntValue("swing_force", swingForce);
+
+        anchorAnim = engine.sequenceStates.findState(node["anchor_anim"]);
+    }
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+
+    override Shooter createShooter(GObjectSprite go) {
+        //for now, only worms are enabled to use tools
+        //(because of special control methods, i.e. for jetpacks, ropes...)
+        auto worm = cast(WormSprite)(go);
+        if (!worm)
+            throw new Exception(format("not a worm: %s", go));
+        return new Rope(this, worm);
+    }
+
+    static this() {
+        WeaponClassFactory.register!(typeof(this))("rope");
+    }
+}
+
+class Rope : Shooter {
     private {
         bool mUsed;
         PhysicConstraint mRope;
@@ -124,12 +163,11 @@ class Rope : Tool {
         Vector2f mShootDir;
         Time mShootStart;
         Vector2f mMoveVec;
+        SequenceUpdate mSeqUpdate;
+        Sequence mAnchorGraphic;
+        const cRopeColor = Color(0.8, 0.8, 0.8);
 
-        const cShootSpeed = 1000;
-        const cMaxLength = 1000;
-        const cMoveSpeed = 500;
-        const cSwingForce = 3000;
-
+        const cSegmentRadius = 3;
         //segments go from anchor to object
         //(because segments are added in LIFO-order as the object moves around)
         RopeSegment[] ropeSegments;
@@ -145,14 +183,27 @@ class Rope : Tool {
                 return (end-start).normal;
             }
         }
+        RopeClass myclass;
     }
+    protected WormSprite mWorm;
 
-    this(ToolClass b, WormSprite o) {
-        super(b, o);
+    this(RopeClass base, WormSprite a_owner) {
+        super(base, a_owner, a_owner.engine);
+        myclass = base;
+        mWorm = a_owner;
+        mSeqUpdate = new SequenceUpdate();
     }
 
     this (ReflectCtor c) {
         super(c);
+    }
+
+    override bool delayedAction() {
+        return false;
+    }
+
+    bool activity() {
+        return active;
     }
 
     override protected void doFire(FireInfo info) {
@@ -160,17 +211,19 @@ class Rope : Tool {
         mShootDir = info.dir;
         mShootStart = engine.gameTime.current;
         mLine = engine.graphics.createLine;
-        mLine.setColor(Color(1,0,0));
+        mLine.setColor(cRopeColor);
+        mLine.setWidth(2);
+        mAnchorGraphic = new Sequence(engine);
+        mAnchorGraphic.setUpdater(mSeqUpdate);
+        mAnchorGraphic.setState(myclass.anchorAnim);
         active = true;
-        /*if (!engine.physicworld.thickRay(mWorm.physics.pos, info.pointto, 3, hit1, hit2)) {
+        /*if (!engine.physicworld.thickRay(mWorm.physics.pos, info.pointto, 3,
+            hit1, hit2))
+        {
             hit2 = mWorm.physics.pos;
             hit1 = info.pointto;
         }
         mLine2.setPos(toVector2i(hit2), toVector2i(info.pointto));*/
-        /*float len = (mWorm.physics.pos - info.pointto).length * 0.9f;
-        mRope = new PhysicConstraint(mWorm.physics, info.pointto, len, 0.1, true);
-        engine.physicworld.add(mRope);
-        active = true;*/
     }
 
     override protected bool doRefire() {
@@ -198,6 +251,10 @@ class Rope : Tool {
     }
 
     private void abortRope() {
+        if (mAnchorGraphic) {
+            mAnchorGraphic.remove();
+            mAnchorGraphic = null;
+        }
         if (!mRope)
             return;
         mRope.dead = true;
@@ -217,28 +274,38 @@ class Rope : Tool {
 
     private void segmentInit(ref RopeSegment seg) {
         seg.line = engine.graphics.createLine();
-        seg.line.setColor(Color(0,1,0));
+        seg.line.setColor(cRopeColor);
+        seg.line.setWidth(2);
     }
 
     private void ropeMove(Vector2f mv) {
         mMoveVec = mv;
     }
 
+    private void updateAnchorAnim(Vector2f pos, Vector2f toAnchor) {
+        mSeqUpdate.position = toVector2i(pos);
+        mSeqUpdate.velocity = Vector2f(0);
+        mSeqUpdate.rotation_angle = toAnchor.toAngle();
+        mSeqUpdate.lifePercent = 1.0f;
+        mAnchorGraphic.simulate();
+    }
+
     override void simulate(float deltaT) {
         super.simulate(deltaT);
         if (mShooting) {
             float t = (engine.gameTime.current - mShootStart).secsf;
-            auto p2 = mWorm.physics.pos + mShootDir*cShootSpeed*t;
+            auto p2 = mWorm.physics.pos + mShootDir*myclass.shootSpeed*t;
             mLine.setPos(toVector2i(mWorm.physics.pos), toVector2i(p2));
+            updateAnchorAnim(p2, p2 - mWorm.physics.pos);
             float len = (mWorm.physics.pos-p2).length;
-            if (len > cMaxLength) {
+            if (len > myclass.maxLength) {
                 abortShoot();
                 return;
             }
 
             Vector2f hit1, hit2;
-            if (engine.physicworld.thickRay(mWorm.physics.pos, p2, 3,
-                hit1, hit2))
+            if (engine.physicworld.thickRay(mWorm.physics.pos, p2,
+                cSegmentRadius, hit1, hit2))
             {
                 abortShoot();
                 if (len > 15) {
@@ -246,7 +313,8 @@ class Rope : Tool {
                     ropeSegments[0].start = hit1;
                     ropeSegments[0].end = mWorm.physics.pos;
                     segmentInit(ropeSegments[0]);
-                    mRope = new PhysicConstraint(mWorm.physics, hit1, len, 0.8, false);
+                    mRope = new PhysicConstraint(mWorm.physics, hit1, len, 0.8,
+                        false);
                     engine.physicworld.add(mRope);
                     mWorm.activateRope(&ropeMove);
                     active = true;
@@ -272,7 +340,8 @@ class Rope : Tool {
                 auto old = ropeSegments[$-2];
                 //check on which side of the plane (old.start, old.end) the new
                 //position is
-                bool d = !!signbit((old.start-old.end)*(old.end-wormPos).orthogonal);
+                bool d = !!signbit((old.start-old.end)
+                    * (old.end-wormPos).orthogonal);
                 if (d != old.hit) {
                     debug writefln("remove segment");
                     //remove it
@@ -291,11 +360,12 @@ class Rope : Tool {
             //I think to make it 100% correct you had to pick the best match
             //of all of the possible collisions, but it isn't worth it
             Vector2f hit1, hit2;
-            if (engine.physicworld.thickRay(ropeSegments[$-1].start, wormPos, 3,
-                hit1, hit2) && (wormPos-hit1).quad_length > 3)
+            if (engine.physicworld.thickRay(ropeSegments[$-1].start, wormPos,
+                cSegmentRadius, hit1, hit2) && (wormPos-hit1).quad_length > 3)
             {
                 if (hit1 != hit2)
-                    debug writefln("seg: h1 %s, h2 %s, worm %s",hit1,hit2, wormPos);
+                    debug writefln("seg: h1 %s, h2 %s, worm %s",hit1,hit2,
+                        wormPos);
                 else
                     debug writefln("seg: h1 %s, worm %s",hit1, wormPos);
                 //collided => new segment to attach the rope to the
@@ -321,17 +391,22 @@ class Rope : Tool {
         mRope.anchor = ropeSegments[$-1].start;
 
         auto swingdir = -(mRope.anchor - mWorm.physics.pos).normal.orthogonal;
-        //mWorm.physics.selfForce = swingdir*mMoveVec.x*cSwingForce;
-        mWorm.physics.selfForce = mMoveVec.X*cSwingForce;
+        //worm swinging (left/right keys)
+        mWorm.physics.selfForce = mMoveVec.X*myclass.swingForce;
 
         if (mMoveVec.y) {
+            //length adjustment of rope (up/down keys)
+            //calculate length, excluding last segment
             float rope_len = 0;
             foreach (ref seg; ropeSegments[0..$-1]) {
                 rope_len += (seg.end - seg.start).length;
             }
-            auto lastSegLen = (ropeSegments[$-1].end - ropeSegments[$-1].start).length;
-            auto maxLen = cMaxLength - rope_len;
-            auto nlen = lastSegLen + mMoveVec.y*cMoveSpeed*deltaT;
+            auto lastSegLen = (ropeSegments[$-1].end
+                - ropeSegments[$-1].start).length;
+            //max length of last segment
+            auto maxLen = myclass.maxLength - rope_len;
+            //new length of last segment
+            auto nlen = lastSegLen + mMoveVec.y*myclass.moveSpeed*deltaT;
             auto destlen = clampRangeC!(float)(nlen, 0, maxLen);
             if (destlen > 0)
                 mRope.length = destlen;
@@ -342,9 +417,7 @@ class Rope : Tool {
             seg.line.setPos(toVector2i(seg.start), toVector2i(seg.end));
         }
         mWorm.physics.forceLook(swingdir);
-    }
-
-    static this() {
-        ToolsFactory.register!(typeof(this))("rope");
+        updateAnchorAnim(ropeSegments[0].start, ropeSegments[0].start
+            - ropeSegments[0].end);
     }
 }

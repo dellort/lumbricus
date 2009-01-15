@@ -161,6 +161,7 @@ mainspr {
             mortar_fly = "62"
             homing_active_fly = "68"
             airstrike_fly = "70"
+            rope_anchor = "78"
 
             supersheep_red = "f:150; 163 164"
             supersheep_blue = "f:150; 165 166"

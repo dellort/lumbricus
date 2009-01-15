@@ -1197,7 +1197,9 @@ class SDLCanvas : Canvas {
     }
 
     //last pixel included
-    public void drawLine(Vector2i from, Vector2i to, Color color) {
+    //width not supported
+    public void drawLine(Vector2i from, Vector2i to, Color color, int width = 1)
+    {
         //special cases for vlines/hlines
         if (from.y == to.y) {
             to.y++;

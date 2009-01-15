@@ -255,6 +255,7 @@ class AnimationGraphic : Graphic {
 class LineGraphic : Graphic {
     Vector2i p1, p2;
     Color color;
+    int width = 1;
 
     this (GameEngineGraphics a_owner) {
         super(a_owner);
@@ -266,6 +267,10 @@ class LineGraphic : Graphic {
     void setPos(Vector2i a_p1, Vector2i a_p2) {
         p1 = a_p1;
         p2 = a_p2;
+    }
+
+    void setWidth(int w) {
+        width = w;
     }
 
     void setColor(Color c) {

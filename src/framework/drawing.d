@@ -38,7 +38,8 @@ public class Canvas {
         Color color);
 
     /// the first and last pixels are always included
-    public abstract void drawLine(Vector2i p1, Vector2i p2, Color color);
+    public abstract void drawLine(Vector2i p1, Vector2i p2, Color color,
+        int width = 1);
 
     /// the right/bottom border of the passed rectangle (Rect2i(p1, p2) for the
     /// first method) is exclusive!
