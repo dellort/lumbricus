@@ -280,6 +280,10 @@ class GLCanvas : Canvas {
         assert(mStackTop == 0);
     }
 
+    public int features() {
+        return gSDLDriver.getFeatures();
+    }
+
     private void initGLViewport() {
         glViewport(0, 0, mStack[0].clientsize.x, mStack[0].clientsize.y);
 
@@ -692,5 +696,33 @@ class GLCanvas : Canvas {
 
         if (isalpha)
             markAlpha(destPos, sourceSize);
+    }
+
+    public void drawQuad(Surface source, Vertex2i[4] quad) {
+        //xxx code duplication with above, sorry I was too lazy
+
+        assert(source !is null);
+        GLSurface glsurf = cast(GLSurface)(source.getDriverSurface(
+            SurfaceMode.NORMAL));
+        assert(glsurf !is null);
+
+        //glPushAttrib(GL_ENABLE_BIT);
+        checkGLError("draw texture 2", true);
+        glDisable(GL_DEPTH_TEST);
+        glsurf.prepareDraw();
+
+
+        glBegin(GL_QUADS);
+
+        for (int i = 0; i < 4; i++) {
+            auto tx = cast(float)quad[i].t.x / glsurf.mTexSize.x;
+            auto ty = cast(float)quad[i].t.y / glsurf.mTexSize.y;
+            glTexCoord2f(tx, ty);
+            glVertex2i(quad[i].p.x, quad[i].p.y);
+        }
+
+        glEnd();
+
+        glsurf.endDraw();
     }
 }

@@ -413,7 +413,7 @@ class LandscapeBitmap {
         //in the same call, mask all pixels with SolidHard to remove any
         //SolidSoft pixels...
         doCircle(radius, theme ? theme.backImage : null,
-            theme ? theme.backColor : Color(0,0,0),
+            theme ? theme.backColor : mImage.colorkey(),
             cAllMeta, Lexel.SolidSoft, Lexel.SolidHard);
 
         int blast_radius = radius + blast_border;

@@ -63,6 +63,8 @@ enum SurfaceMode {
 
 enum DriverFeatures {
     canvasScaling = 1,
+    //basically, if a 3D engine is available
+    transformedQuads = 2,
 }
 
 abstract class FrameworkDriver {

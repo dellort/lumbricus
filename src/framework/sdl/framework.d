@@ -433,10 +433,12 @@ class SDLDriver : FrameworkDriver {
     }
 
     int getFeatures() {
-        if (mOpenGL)
-            return DriverFeatures.canvasScaling;
-        else
-            return 0;
+        int features = 0;
+        if (mOpenGL) {
+            features = features | DriverFeatures.canvasScaling
+                | DriverFeatures.transformedQuads;
+        }
+        return features;
     }
 
     FontDriver fontDriver() {
@@ -1015,6 +1017,10 @@ class SDLCanvas : Canvas {
         assert(mStackTop == 0);
     }
 
+    public int features() {
+        return gSDLDriver.getFeatures();
+    }
+
     public void pushState() {
         assert(mStackTop < MAX_STACK);
 
@@ -1336,6 +1342,10 @@ class SDLCanvas : Canvas {
 
     public void clear(Color color) {
         drawFilledRect(Vector2i(0, 0)-mTrans, clientSize-mTrans, color);
+    }
+
+    //unsupported
+    public void drawQuad(Surface tex, Vertex2i[4] quad) {
     }
 }
 

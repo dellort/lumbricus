@@ -1,5 +1,6 @@
 module game.weapon.tools;
 
+import framework.framework;
 import game.game;
 import game.sprite;
 import game.weapon.weapon;
@@ -122,6 +123,8 @@ class RopeClass : WeaponClass {
     int maxLength = 1000;
     int moveSpeed = 500;
     int swingForce = 3000;
+    Color ropeColor = Color(1);
+    Resource!(Surface) ropeSegment;
 
     SequenceState anchorAnim;
 
@@ -131,6 +134,11 @@ class RopeClass : WeaponClass {
         maxLength = node.getIntValue("max_length", maxLength);
         moveSpeed = node.getIntValue("move_speed", moveSpeed);
         swingForce = node.getIntValue("swing_force", swingForce);
+
+        ropeColor.parse(node["rope_color"]);
+        auto resseg = node["rope_segment"];
+        if (resseg.length)
+            ropeSegment = engine.gfx.resources.resource!(Surface)(resseg);
 
         anchorAnim = engine.sequenceStates.findState(node["anchor_anim"]);
     }
@@ -165,7 +173,8 @@ class Rope : Shooter {
         Vector2f mMoveVec;
         SequenceUpdate mSeqUpdate;
         Sequence mAnchorGraphic;
-        const cRopeColor = Color(0.8, 0.8, 0.8);
+        //for calculating texoffset
+        int segment_length = 1;
 
         const cSegmentRadius = 3;
         //segments go from anchor to object
@@ -178,6 +187,8 @@ class Rope : Shooter {
             //(invalid for the last segment)
             bool hit;
             LineGraphic line;
+            //offset for texture, so that it is drawn continuously
+            int texoffset;
 
             Vector2f direction() {
                 return (end-start).normal;
@@ -192,6 +203,10 @@ class Rope : Shooter {
         myclass = base;
         mWorm = a_owner;
         mSeqUpdate = new SequenceUpdate();
+        if (auto tex = myclass.ropeSegment.get()) {
+            if (tex.size.x > 0)
+                segment_length = tex.size.x;
+        }
     }
 
     this (ReflectCtor c) {
@@ -211,9 +226,7 @@ class Rope : Shooter {
         mShooting = true;
         mShootDir = info.dir;
         mShootStart = engine.gameTime.current;
-        mLine = engine.graphics.createLine;
-        mLine.setColor(cRopeColor);
-        mLine.setWidth(2);
+        mLine = createRopeLine();
         mAnchorGraphic = new Sequence(engine);
         mAnchorGraphic.setUpdater(mSeqUpdate);
         mAnchorGraphic.setState(myclass.anchorAnim);
@@ -273,10 +286,16 @@ class Rope : Shooter {
         seg.line = null;
     }
 
+    private LineGraphic createRopeLine() {
+        auto line = engine.graphics.createLine();
+        line.setColor(myclass.ropeColor);
+        line.setWidth(2);
+        line.setTexture(myclass.ropeSegment);
+        return line;
+    }
+
     private void segmentInit(ref RopeSegment seg) {
-        seg.line = engine.graphics.createLine();
-        seg.line.setColor(cRopeColor);
-        seg.line.setWidth(2);
+        seg.line = createRopeLine();
     }
 
     private void ropeMove(Vector2f mv) {
@@ -371,7 +390,8 @@ class Rope : Shooter {
                     debug writefln("seg: h1 %s, worm %s",hit1, wormPos);
                 //collided => new segment to attach the rope to the
                 //  connection point
-                if (ropeSegments.length > 100)
+                //xxx: small hack to make it more robust
+                if (ropeSegments.length > 500)
                     break;
                 ropeSegments.length = ropeSegments.length + 1;
                 segmentInit(ropeSegments[$-1]);
@@ -381,7 +401,10 @@ class Rope : Shooter {
                 ropeSegments[$-2].end = hit1;
                 ropeSegments[$-1].start = hit1;
                 ropeSegments[$-1].end = wormPos;
-                mRope.length = (wormPos - hit1).length;
+                auto len = (wormPos - hit1).length;
+                ropeSegments[$-1].texoffset = (cast(int)len +
+                    ropeSegments[$-2].texoffset) % segment_length;
+                mRope.length = len;
                 //.hit is invalid
                 //try for more collisions or whatever
                 continue outer_loop;
@@ -418,6 +441,7 @@ class Rope : Shooter {
         foreach (ref seg; ropeSegments) {
             assert (!!seg.line);
             seg.line.setPos(toVector2i(seg.start), toVector2i(seg.end));
+            seg.line.setTextureOffset(seg.texoffset);
         }
         mWorm.physics.forceLook(swingdir);
         updateAnchorAnim(ropeSegments[0].start, ropeSegments[0].start

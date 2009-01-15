@@ -83,7 +83,13 @@ class ClientLineGraphic : SceneObject {
             removeThis();
             return;
         }
-        c.drawLine(mInfo.p1, mInfo.p2, mInfo.color, mInfo.width);
+        Surface tex = mInfo.texture.get();
+        if (tex) {
+            c.drawTexLine(mInfo.p1, mInfo.p2, tex, mInfo.texoffset,
+                mInfo.color);
+        } else {
+            c.drawLine(mInfo.p1, mInfo.p2, mInfo.color, mInfo.width);
+        }
     }
 }
 
@@ -282,10 +288,6 @@ class ExplosionGfxImpl : SceneObjectCentered {
         mShockwave1.draw(c);
         mShockwave2.draw(c);
         mComicText.draw(c);
-    }
-
-    override Rect2i bounds() {
-        return Rect2i.Empty();
     }
 }
 

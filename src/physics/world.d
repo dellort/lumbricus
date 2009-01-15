@@ -28,7 +28,6 @@ public import physics.links;
 import physics.collisionmap;
 import physics.broadphase;
 import physics.sortandsweep;
-import physics.movehandler;
 
 //Uncomment to get detailed physics debugging log (slooooow)
 //version = PhysDebug;
@@ -57,7 +56,7 @@ class PhysicWorld {
         t.registerClasses!(typeof(mAllObjects), typeof(mForceObjects),
             typeof(mGeometryObjects), typeof(mObjects), typeof(mTriggers),
             typeof(mContactGenerators));
-        t.registerClasses!(CollisionMap, PhysicConstraint, RopeHandler, POSP,
+        t.registerClasses!(CollisionMap, PhysicConstraint, POSP,
             BPSortAndSweep, PhysicTimedChangerVector2f, PhysicBase,
             CollisionType, EarthQuakeForce, EarthQuakeDegrader,
             PhysicObject, PhysicTimedChangerFloat, ZoneTrigger);

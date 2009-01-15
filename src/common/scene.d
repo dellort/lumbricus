@@ -100,13 +100,6 @@ class Scene : SceneObjectCentered {
 
         canvas.popState();
     }
-
-    //returns nothing useful
-    //probably can never be useful; sometimes I even reassign the SceneObject
-    //position in draw()
-    override Rect2i bounds() {
-        return Rect2i.Empty();
-    }
 }
 
 class SceneObject {
@@ -145,15 +138,5 @@ class SceneObject {
 }
 
 class SceneObjectCentered : SceneObject {
-    protected Vector2i mPos = {0, 0};
-
-    final Vector2i pos() {
-        return mPos;
-    }
-    final void pos(Vector2i p) {
-        mPos = p;
-    }
-
-    //return bounds, independent from position (centered around (0,0))
-    abstract Rect2i bounds();
+    Vector2i pos = {0, 0};
 }

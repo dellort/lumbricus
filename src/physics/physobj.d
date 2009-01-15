@@ -8,7 +8,6 @@ import utils.reflection;
 
 import physics.base;
 import physics.posp;
-import physics.movehandler;
 import physics.geometry;
 
 const cDamageCauseFall = 0;
@@ -196,37 +195,18 @@ class PhysicObject : PhysicBase {
         super.doDie();
     }
 
-    //****************** MoveHandler *********************
-
-    MoveHandler moveHandler;
-
-    //(assert validity)
-    private void checkHandler() {
-        if (moveHandler)
-            assert(moveHandler.handledObject is this);
-    }
-
     //set new position
     //  correction = true: small fixup of the position (i.e. collision handling)
     //  correction = false: violent reset of the position (i.e. beamers)
+    //xxx correction not used anymore, because we have constraints now
     final void setPos(Vector2f npos, bool correction) {
-        checkHandler();
-        if (moveHandler) {
-            moveHandler.setPosition(npos, correction);
-        } else {
-            mPos = npos;
-        }
+        mPos = npos;
     }
 
     //move the object by this vector
     //the object might modify the vector or so on its own (ropes do that)
     final void move(Vector2f delta) {
-        checkHandler();
-        if (moveHandler) {
-            moveHandler.doMove(delta);
-        } else {
-            mPos += delta;
-        }
+        mPos += delta;
     }
 
     //******************** Rotation and surface normal **********************

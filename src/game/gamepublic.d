@@ -256,6 +256,8 @@ class LineGraphic : Graphic {
     Vector2i p1, p2;
     Color color;
     int width = 1;
+    Resource!(Surface) texture;
+    int texoffset = 0;
 
     this (GameEngineGraphics a_owner) {
         super(a_owner);
@@ -275,6 +277,17 @@ class LineGraphic : Graphic {
 
     void setColor(Color c) {
         color = c;
+    }
+
+    //if the backend is OpenGL, use a texture instead of the color to draw
+    //the line; the line is as thick as the height of tex
+    //both the color and the line width are ignored
+    //SDL still will use the color to actually draw the line
+    void setTexture(Resource!(Surface) tex) {
+        texture = tex;
+    }
+    void setTextureOffset(int offs) {
+        texoffset = offs;
     }
 }
 
