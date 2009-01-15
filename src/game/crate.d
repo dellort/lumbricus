@@ -102,6 +102,7 @@ class CrateSprite : ActionSprite {
         CrateSpriteClass myclass;
         PhysicZoneCircle crateZone;
         ZoneTrigger collectTrigger;
+        bool mNoParachute;
     }
 
     //contents of the crate
@@ -171,6 +172,12 @@ class CrateSprite : ActionSprite {
         collected();
     }
 
+    void unParachute() {
+        if (currentState == myclass.st_parachute)
+            setState(myclass.st_normal);
+        mNoParachute = true;
+    }
+
     override void doEvent(char[] id, bool stateonly = false) {
         super.doEvent(id, stateonly);
         if (id == "ondetonate") {
@@ -182,11 +189,13 @@ class CrateSprite : ActionSprite {
         crateZone.pos = physics.pos;
         if (physics.isGlued) {
             setState(myclass.st_normal);
+            mNoParachute = false;
         } else {
             //falling too fast -> parachute
             //xxx: if it flies too fast or in a too wrong direction, explode
             if (currentState !is myclass.st_drowning
-                && physics.velocity.length > myclass.enterParachuteSpeed)
+                && physics.velocity.length > myclass.enterParachuteSpeed
+                && !mNoParachute)
             {
                 setState(myclass.st_parachute);
             }

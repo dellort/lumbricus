@@ -4,6 +4,7 @@ module devil.image;
 import str = std.string;
 import derelict.devil.il;
 import derelict.devil.ilu;
+import derelict.util.exception;
 
 //pragma(lib,"DerelictIL");
 //pragma(lib,"DerelictILU");
@@ -163,6 +164,7 @@ class Image {
 
     private void checkInit() {
         if (!devilInitialized) {
+            Derelict_SetMissingProcCallback(&DerelictMissingProcCallback);
             DerelictIL.load();
             DerelictILU.load();
 
@@ -210,4 +212,11 @@ class Image {
         ilDeleteImages(1, &mImg);
         mImg = 0;
     }
+}
+
+bool DerelictMissingProcCallback(char[] libName, char[] procName)  {
+    //those fail to load from official windows dlls (tested 1.7.3 and 1.7.5)
+    if (procName == "iluConvolution") return true;
+    if (procName == "iluSetLanguage") return true;
+    return false;
 }

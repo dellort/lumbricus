@@ -128,7 +128,7 @@ class Rope : Tool {
         const cShootSpeed = 1000;
         const cMaxLength = 1000;
         const cMoveSpeed = 500;
-        const cSwingForce = 7000;
+        const cSwingForce = 3000;
 
         //segments go from anchor to object
         //(because segments are added in LIFO-order as the object moves around)
@@ -292,12 +292,15 @@ class Rope : Tool {
             //of all of the possible collisions, but it isn't worth it
             Vector2f hit1, hit2;
             if (engine.physicworld.thickRay(ropeSegments[$-1].start, wormPos, 3,
-                hit1, hit2) && (wormPos-hit1).quad_length != 0)
+                hit1, hit2) && (wormPos-hit1).quad_length > 3)
             {
+                if (hit1 != hit2)
+                    debug writefln("seg: h1 %s, h2 %s, worm %s",hit1,hit2, wormPos);
+                else
+                    debug writefln("seg: h1 %s, worm %s",hit1, wormPos);
                 //collided => new segment to attach the rope to the
                 //  connection point
                 ropeSegments.length = ropeSegments.length + 1;
-                debug writefln("new segment: %s", ropeSegments.length);
                 segmentInit(ropeSegments[$-1]);
                 auto st = ropeSegments[$-2].start;
                 ropeSegments[$-2].hit =
@@ -318,7 +321,8 @@ class Rope : Tool {
         mRope.anchor = ropeSegments[$-1].start;
 
         auto swingdir = -(mRope.anchor - mWorm.physics.pos).normal.orthogonal;
-        mWorm.physics.selfForce = swingdir*mMoveVec.x*cSwingForce;
+        //mWorm.physics.selfForce = swingdir*mMoveVec.x*cSwingForce;
+        mWorm.physics.selfForce = mMoveVec.X*cSwingForce;
 
         if (mMoveVec.y) {
             float rope_len = 0;

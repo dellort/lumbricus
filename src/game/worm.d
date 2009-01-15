@@ -725,6 +725,10 @@ class WormSprite : GObjectSprite {
                 //xxx not so sure about that
                 setFlyAnim(FlyMode.slide);
         }
+        if (currentState is wsc.st_rope && !other) {
+            if (mMoveVector.x != 0)
+                physics.addImpulse(normal*wsc.ropeImpulse, true);
+        }
     }
 
     override protected void physDamage(float amout, int cause) {
@@ -812,6 +816,7 @@ class WormSpriteClass : GOSpriteClass {
     //SequenceObject[] gravestones;
     Vector2f jumpStrength[JumpMode.max+1];
     float rollVelocity = 400;
+    float ropeImpulse = 700;
 
     WormStateInfo st_stand, st_fly, st_walk, st_jet, st_weapon, st_dead,
         st_die, st_drowning, st_beaming, st_reverse_beaming, st_getup,
@@ -837,6 +842,7 @@ class WormSpriteClass : GOSpriteClass {
         else
             jetpackThrust = Vector2f(0);
         suicideDamage = config.getFloatValue("suicide_damage", 10);
+        ropeImpulse = config.getFloatValue("rope_impulse", ropeImpulse);
 
         Vector2f getJs(char[] nid) {
             float[] js = config.getValueArray!(float)(nid,[100,-100]);

@@ -215,6 +215,9 @@ class ClientControlImpl : ClientControl {
                 m.doFireDown();
             else
                 m.doFireUp();
+        } else {
+            //spacebar for crate
+            ctl.clientExecute(this, "unparachute");
         }
     }
 }
@@ -1149,6 +1152,8 @@ class GameController : GameLogicPublic {
 
         Gamemode mGamemode;
         char[] mGamemodeId;
+
+        CrateSprite mLastCrate;  //just to drop it on spacebar
     }
 
     this(GameEngine engine, GameConfig config) {
@@ -1187,6 +1192,8 @@ class GameController : GameLogicPublic {
             "Change wind speed (+/- for right/left)", ["float:speed"]));
         mCmds.register(Command("set_pause", &cmdSetPause, "Pause game",
             ["bool:state"]));
+        mCmds.register(Command("unparachute", &cmdInstantDropCrate,
+            "Un-parachute a crate", []));
         mCmds.register(Command("slow_down", &cmdSlowDown,
             "Change the speed gametime passes at", ["float:slow"]));
         mCmds.register(Command("crate_test", &cmdCrateTest, "drop a crate"));
@@ -1239,6 +1246,10 @@ class GameController : GameLogicPublic {
 
     private void cmdActivityDebug(MyBox[] args, Output write) {
         engine.activityDebug(args[0].unboxMaybe!(bool));
+    }
+
+    private void cmdInstantDropCrate(MyBox[] args, Output write) {
+        mLastCrate.unParachute();
     }
 
     //--- start GameLogicPublic
@@ -1360,6 +1371,10 @@ class GameController : GameLogicPublic {
                 //this is intended
                 changeMessageStatus(msg);
                 mLastMsgTime = mEngine.gameTime.current;
+            }
+
+            if (mLastCrate) {
+                if (!mLastCrate.active) mLastCrate = null;
             }
         }
     }
@@ -1597,6 +1612,7 @@ class GameController : GameLogicPublic {
             //actually start it
             crate.setPos(from);
             crate.active = true;
+            mLastCrate = crate;
             mLog("drop %s -> %s", from, to);
             return true;
         } else {

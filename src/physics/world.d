@@ -364,9 +364,9 @@ class PhysicWorld {
         auto dir = p2 - p1;
         float len = dir.length;
         auto ndir = dir / len;
-        float halfStep = r*0.5;
-        for (float d = 0; d < len; d += halfStep*2) {
-            auto p = p1 + ndir*(d+halfStep);
+        float halfStep = r;
+        for (float d = r; d < len-r; d += r) {
+            auto p = p1 + ndir*(d);
             GeomContact contact;
             if (collideGeometry(p, r, contact)) {
                 if (contact.depth != float.infinity)
