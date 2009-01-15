@@ -7,6 +7,7 @@ import game.controller;
 import game.gamepublic;
 
 import utils.factory;
+import utils.reflection;
 import utils.mybox;
 
 //factory to instantiate gamemodes
@@ -22,6 +23,9 @@ class Gamemode {
     this(GameController parent, ConfigNode config) {
         engine = parent.engine;
         logic = parent;
+    }
+
+    this(ReflectCtor c) {
     }
 
     ///Initialize gamemode (check requirements or whatever)

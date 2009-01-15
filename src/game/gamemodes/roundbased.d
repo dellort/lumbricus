@@ -9,6 +9,7 @@ import game.gamemodes.base;
 import game.gamemodes.roundbased_shared;
 
 import utils.array;
+import utils.reflection;
 import utils.time;
 import utils.misc;
 import utils.mybox;
@@ -52,6 +53,10 @@ class ModeRoundbased : Gamemode {
         mMultishot = config.getBoolValue("multishot", mMultishot);
         mCrateProb = config.getFloatValue("crateprob", mCrateProb);
         mMaxCrates = config.getIntValue("maxcrates", mMaxCrates);
+    }
+
+    this(ReflectCtor c) {
+        super(c);
     }
 
     override void initialize() {

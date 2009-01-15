@@ -168,6 +168,17 @@ class GameTask : Task {
         initGame(cfg);
     }
 
+    //sorry for this hack... definitely needs to be cleaned up
+    this(TaskManager tm, bool pseudonet) {
+        super(tm);
+
+        createWindow();
+
+        ConfigNode node = globals.anyConfig.getSubNode("newgame");
+        node.setBoolValue("as_pseudo_server", pseudonet);
+        initGame(loadGameConfig(node));
+    }
+
     this(TaskManager tm, PseudoNetwork pseudo_client) {
         super(tm);
 
@@ -297,6 +308,7 @@ class GameTask : Task {
 
         mLoadScreen = new LoadingScreen();
         mLoadScreen.zorder = 10;
+        assert (!!mWindow);
         mWindow.add(mLoadScreen);
 
         auto load_txt = Translator.ByNamespace("loading.game");
@@ -843,6 +855,7 @@ class GameTask : Task {
         mGameLoader = null;
         mResPreloader = null;
         mSaveGame = null;
+        createWindow(); //???
         initGame(cfg);
     }
 

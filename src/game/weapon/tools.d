@@ -196,6 +196,7 @@ class Rope : Shooter {
 
     this (ReflectCtor c) {
         super(c);
+        c.types().registerMethod(this, &ropeMove, "ropeMove");
     }
 
     override bool delayedAction() {
@@ -370,6 +371,8 @@ class Rope : Shooter {
                     debug writefln("seg: h1 %s, worm %s",hit1, wormPos);
                 //collided => new segment to attach the rope to the
                 //  connection point
+                if (ropeSegments.length > 100)
+                    break;
                 ropeSegments.length = ropeSegments.length + 1;
                 segmentInit(ropeSegments[$-1]);
                 auto st = ropeSegments[$-2].start;

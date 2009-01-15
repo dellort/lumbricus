@@ -215,7 +215,8 @@ class GameFrame : SimpleContainer {
         mTeamWindow = new TeamWindow(game);
         add(mTeamWindow);
 
-        mWeaponSel.init(game.logic.weaponList());
+        WeaponHandle[] wlist = game.logic.weaponList();
+        mWeaponSel.init(wlist);
 
         mScrollToAtStart = clientengine.worldCenter;
     }

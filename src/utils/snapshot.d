@@ -297,7 +297,7 @@ void snap(Types serTypes, Object snapObj) {
                     what = str.format("dest-class: %s function: %#x",
                         (cast(Object)dgp.ptr).classinfo.name, dgp.funcptr);
                 }
-                assert (false);
+                throw new Exception("can't snapshot: "~what);
             }
             int id = queueObject(dg_o);
             snap_write(&id);
