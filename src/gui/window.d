@@ -222,8 +222,8 @@ class WindowWidget : Container {
 
         mTitleContainer = new BoxContainer(true);
         auto tmp = new SimpleContainer();
-        tmp.drawBox = true;
-        tmp.add(mTitleContainer, WidgetLayout.Border(Vector2i(3, 1)));
+        tmp.drawBorder = true;
+        tmp.add(mTitleContainer, WidgetLayout.Border(Vector2i(1, 0)));
         vbox.add(tmp, WidgetLayout.Expand(true));
 
         mForClient = vbox;

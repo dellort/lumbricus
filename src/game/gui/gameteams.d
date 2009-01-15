@@ -112,7 +112,7 @@ class TeamWindow : Container {
         foreach (TeamInfo team, Foobar bar; mBars) {
             //bar.percent = mMaxHealth ? 1.0f*team.totalHealth/mMaxHealth : 0;
             //this makes 10 life points exactly a pixel on the screen
-            bar.width = team.currentHealth / 10;
+            bar.minSize = Vector2i(team.currentHealth / 10, 0);
         }
 
         if (doanimation) {

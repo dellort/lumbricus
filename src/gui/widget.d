@@ -1,5 +1,6 @@
 module gui.widget;
 
+import common.visual;
 import framework.framework;
 import framework.event;
 import framework.i18n;
@@ -137,10 +138,24 @@ class Widget {
         //current content scaling, as set by scale()
         //used only if the fw driver supports it
         Vector2f mScale = {1.0f, 1.0f};
+
+        //minimum total size, including border and padding
+        Vector2i mMinSize;
+        //border around widget, adds to size
+        BoxProperties mBorderStyle;
+        bool mDrawBorder;
+        Rect2i mBorderArea;   //just for drawing
+
+        //invisible widgets don't draw anything, and don't accept
+        //or forward events
+        bool mVisible = true;
+        //disabled widgets are drawn in gray and don't accept events
+        bool mEnabled = true;
     }
 
     ///clip graphics to the inside
     bool doClipping = true;
+    float highlightAlpha = 0f;
 
     package static Log log() {
         return registerLog("GUI");
@@ -210,6 +225,56 @@ class Widget {
         if (mParent) {
             mParent.doSetChildToFront(this);
         }
+    }
+
+    final void minSize(Vector2i s) {
+        mMinSize = s;
+        needResize(true);
+    }
+    final Vector2i minSize() {
+        return mMinSize;
+    }
+
+    void borderStyle(BoxProperties style) {
+        mBorderStyle = style;
+        needResize(true);
+    }
+    BoxProperties borderStyle() {
+        return mBorderStyle;
+    }
+
+    void drawBorder(bool set) {
+        mDrawBorder = set;
+        needResize(true);
+    }
+    bool drawBorder() {
+        return mDrawBorder;
+    }
+
+    ///Show or hide the widget
+    ///Only affects drawing and events, has no influence on layout
+    void visible(bool set) {
+        mVisible = set;
+    }
+    bool visible() {
+        return mVisible;
+    }
+
+    ///enable/disable the widget
+    ///disabling a widget will gray it out and disable events for this widget
+    ///and all children
+    void enabled(bool set) {
+        mEnabled = set;
+    }
+    bool enabled() {
+        return mEnabled;
+    }
+
+    private Vector2i bordersize() {
+        if (mDrawBorder)
+            return Vector2i(mBorderStyle.borderWidth
+                + mBorderStyle.cornerRadius/3);
+        return Vector2i(0);
     }
 
     ///translate parent's coordinates (i.e. containedBounds()) to the Widget's
@@ -428,7 +493,8 @@ class Widget {
         msize.x += mLayout.pad*2; //both borders for each component
         msize.y += mLayout.pad*2;
         msize += mLayout.padA + mLayout.padB;
-        return msize;
+        msize += bordersize*2;
+        return msize.max(mMinSize);
     }
 
     /// according to WidgetLayout, adjust area such that the Widget feels warm
@@ -458,6 +524,9 @@ class Widget {
         auto bb = mLayout.padB + pad;
         area.p1 += offset + ba;
         area.p2 = area.p1 + rsize - ba - bb;
+        mBorderArea = area;
+        area.p1 += bordersize;
+        area.p2 -= bordersize;
     }
 
     // --- input handling
@@ -474,6 +543,8 @@ class Widget {
     ///(like onTestMouse; this wrapper function is here to enforce the
     ///restriction to widget bounds)
     final bool testMouse(Vector2i pos) {
+        if (!mVisible || !mEnabled)
+            return false;
         auto s = size;
         return (pos.x >= 0 && pos.y >= 0 && pos.x < s.x && pos.y < s.y)
             && onTestMouse(pos);
@@ -535,6 +606,8 @@ class Widget {
 
     //called whenever an input event passes through this
     final void doDispatchInputEvent(InputEvent event) {
+        if (!mVisible || !mEnabled)
+            return;
         if (event.isMouseRelated) {
             updateMousePos(event.mousePos);
             doMouseEnterLeave(true);
@@ -598,7 +671,12 @@ class Widget {
     }
 
     void doDraw(Canvas c) {
+        if (!mVisible)
+            return;
         c.pushState();
+        if (drawBorder) {
+            drawBox(c, mBorderArea+mAddToPos, mBorderStyle);
+        }
         if (doClipping) {
             //map (0,0) to the position of the widget and clip by widget-size
             c.setWindow(mContainedWidgetBounds.p1+mAddToPos,
@@ -620,6 +698,19 @@ class Widget {
         }
 
         c.popState();
+
+        if (!mEnabled) {
+            //disabled, so overdraw with gray
+            c.drawFilledRect(mBorderArea + mAddToPos, Color(0.5,0.5,0.5,0.5));
+        } else {
+            //small optical hack: highlighting
+            //feel free to replace this by better looking rendering
+            //here because of drawing to nonclient area
+            if (highlightAlpha > 0) {
+                c.drawFilledRect(mBorderArea + mAddToPos,
+                    Color(1,1,1,highlightAlpha));
+            }
+        }
     }
 
     //can be used with Container.checkCover (used if that is true)
@@ -779,6 +870,15 @@ class Widget {
         }
 
         zorder = loader.node.getIntValue("zorder", zorder);
+        mVisible = loader.node.getBoolValue("visible", mVisible);
+        mEnabled = loader.node.getBoolValue("enabled", mEnabled);
+        parseVector(loader.node.getStringValue("min_size"), mMinSize);
+
+        mDrawBorder = loader.node.getBoolValue("draw_border", mDrawBorder);
+
+        auto bnode = loader.node.findNode("border_style");
+        if (bnode)
+            mBorderStyle.loadFrom(bnode);
 
         //xxx: load KeyBindings somehow?
         //...
@@ -803,31 +903,16 @@ class Spacer : Widget {
     Color color = {1.0f,0,0};
     bool drawBackground = true;
 
-    private Vector2i mMinSize;
-
-    void minSize(Vector2i s) {
-        mMinSize = s;
-        needResize(true);
-    }
-    Vector2i minSize() {
-        return mMinSize;
-    }
-
     override protected void onDraw(Canvas c) {
         if (drawBackground) {
             c.drawFilledRect(widgetBounds, color);
         }
     }
 
-    Vector2i layoutSizeRequest() {
-        return mMinSize;
-    }
-
     override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
         color.parse(node.getStringValue("color"));
         drawBackground = node.getBoolValue("draw_background", drawBackground);
-        parseVector(node.getStringValue("min_size"), mMinSize);
         super.loadFrom(loader);
     }
 

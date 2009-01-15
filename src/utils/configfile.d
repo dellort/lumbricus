@@ -329,6 +329,13 @@ public class ConfigNode {
         return mItems.length;
     }
 
+    ///if count > 0, return first node, else return null
+    ConfigNode first() {
+        if (mItems.length > 0)
+            return mItems[0];
+        return null;
+    }
+
     /// Access a value by name, return 'default' if it doesn't exist.
     public char[] getStringValue(char[] name, char[] def = "") {
         auto value = findValue(name);

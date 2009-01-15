@@ -254,7 +254,7 @@ class ServerTeam : Team {
     //node = the node describing a single team
     this(ConfigNode node, GameController parent) {
         this.parent = parent;
-        mName = node.getStringValue("name", mName);
+        mName = node.name;
         //xxx: error handling (when team-theme not found)
         teamColor = parent.engine.gfx.teamThemes[node.getStringValue("color",
             "blue")];

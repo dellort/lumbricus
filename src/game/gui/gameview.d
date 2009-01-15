@@ -455,7 +455,7 @@ class GameView : Container {
                         setWVisible(w, vis);
                         if (!vis)
                             return;
-                        Vector2i sz = w.size;
+                        Vector2i sz = w.requestSize;
                         pos.y -= sz.y;
                         //pos.y -= 1; //some spacing, but it looks ugly
                         auto p = pos;

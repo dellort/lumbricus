@@ -1,6 +1,7 @@
 module gui.label;
 
 import gui.widget;
+import common.common;
 import common.scene;
 import common.visual;
 import framework.framework;
@@ -15,8 +16,6 @@ class Label : Widget {
         Vector2i mBorder;
         bool mShrink;
         Texture mImage;
-        BoxProperties mBorderStyle;
-        bool mDrawBorder;
         //calculated by layoutSizeRequest
         Vector2i mFinalBorderSize;
         int mTextHeight;
@@ -41,14 +40,6 @@ class Label : Widget {
         return mImage;
     }
 
-    void borderStyle(BoxProperties style) {
-        mBorderStyle = style;
-        needResize(true);
-    }
-    BoxProperties borderStyle() {
-        return mBorderStyle;
-    }
-
     override Vector2i layoutSizeRequest() {
         auto csize = mFont.textSize(mText,!mImage);
         mTextHeight = csize.y;
@@ -59,20 +50,7 @@ class Label : Widget {
             csize.x += mImage.size.x + (mText.length ? cSpacing : 0);
             csize.y = max(csize.y, mImage.size.y);
         }
-        mFinalBorderSize = border;
-        if (mDrawBorder) {
-            auto corner = mBorderStyle.cornerRadius/3;
-            mFinalBorderSize += Vector2i(mBorderStyle.borderWidth + corner);
-        }
-        return csize + mFinalBorderSize*2;
-    }
-
-    void drawBorder(bool set) {
-        mDrawBorder = set;
-        needResize(true);
-    }
-    bool drawBorder() {
-        return mDrawBorder;
+        return csize + border*2;
     }
 
     void text(char[] txt) {
@@ -120,10 +98,7 @@ class Label : Widget {
         if (background.a >= Color.epsilon) {
             canvas.drawFilledRect(Vector2i(0), size, background);
         }
-        auto b = mFinalBorderSize;
-        if (drawBorder) {
-            drawBox(canvas, widgetBounds, mBorderStyle);
-        }
+        auto b = border;
         //xxx replace manual centering code etc. by sth. automatic
         auto diff = size - b*2;
         int x = b.x;
@@ -157,13 +132,11 @@ class Label : Widget {
         mText = loader.locale()(node.getStringValue("text", mText));
         parseVector(node.getStringValue("border"), mBorder);
         mShrink = node.getBoolValue("shrink", mShrink);
-        mDrawBorder = node.getBoolValue("draw_border", mDrawBorder);
 
-        auto bnode = node.findNode("border_style");
-        if (bnode)
-            mBorderStyle.loadFrom(bnode);
-
-        //xxx: maybe also load image
+        char[] img = node.getStringValue("image");
+        if (img.length > 0) {
+            image = globals.guiResources.get!(Surface)(img);
+        }
 
         super.loadFrom(loader);
     }

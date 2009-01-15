@@ -65,6 +65,9 @@ class Button : Label {
     Time autoRepeatInterval = timeMsecs(50);
     Time autoRepeatDelay = timeMsecs(500);
 
+    ///True to light up the button on mouseover/click
+    bool enableHighlight = true;
+
     void delegate(Button sender) onClick;
     void delegate(Button sender) onRightClick;
     void delegate(Button sender, bool over) onMouseOver;
@@ -113,14 +116,15 @@ class Button : Label {
 
     override void onDraw(Canvas c) {
         super.onDraw(c);
-        //*g*
-        if (mMouseOver) {
-            c.drawFilledRect(Vector2i(0), size, Color(1,1,1,0.3));
-        }
-        //small optical hack: make it visible if the button is pressed
-        //feel free to replace this by better looking rendering
-        if (mButtonState) {
-            c.drawFilledRect(Vector2i(0), size, Color(1,1,1,0.7));
+        if (enableHighlight) {
+            //setting this here is not nice, but works
+            highlightAlpha = 0;
+            if (mMouseOver) {
+                highlightAlpha = 0.3;
+            }
+            if (mButtonState) {
+                highlightAlpha = 0.7;
+            }
         }
     }
 
@@ -217,6 +221,7 @@ class Button : Label {
 
         isCheckbox = node.getBoolValue("check_box", isCheckbox);
         checked = node.getBoolValue("checked", checked);
+        enableHighlight = node.getBoolValue("enable_highlight",enableHighlight);
     }
 
     static this() {

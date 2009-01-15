@@ -43,9 +43,6 @@ class Container : Widget {
         int mLastZOrder2;
     }
 
-    common.visual.BoxProperties drawBoxStyle;
-    bool drawBox = false;
-
     ///use Widget.doesCover
     protected bool checkCover = false;
 
@@ -580,9 +577,6 @@ class Container : Widget {
     }
 
     override protected void onDraw(Canvas c) {
-        if (drawBox) {
-            common.visual.drawBox(c, widgetBounds, drawBoxStyle);
-        }
         if (!checkCover) {
             foreach (obj; mZWidgets) {
                 obj.w.doDraw(c);
@@ -661,9 +655,6 @@ class SimpleContainer : PublicContainer {
                 add(loader.loadWidget(sub));
             }
         }
-
-        //hmpf
-        drawBox = node.getBoolValue("draw_box", drawBox);
 
         super.loadFrom(loader);
     }

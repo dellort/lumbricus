@@ -19,8 +19,10 @@ class AbstractListWidget : Widget {
         int mRHeight = 1; //real height
         int mCount;
         int mSelected = cUnselected;
+        int mHoverIndex = cUnselected;
         //twice on all border for each coord.
         Vector2i mSpacing = {5,1};
+        bool mMouseInside;
     }
 
     const cUnselected = -1;
@@ -97,7 +99,8 @@ class AbstractListWidget : Widget {
             //if (visible.p2.y <= rc.p1.y ||
             if (index >= mCount)
                 break;
-            drawItem(canvas, rc, index, index == mSelected);
+            drawItem(canvas, rc, index,
+                mHoverIndex>cUnselected?index==mHoverIndex:index==mSelected);
             index++;
         }
     }
@@ -119,14 +122,35 @@ class AbstractListWidget : Widget {
                 break;
             }
             case Keycode.MOUSE_LEFT: {
-                if (key.isDown) {
-                    int index = mousePos.y / mRHeight;
-                    selectedIndex = index>=count ? count-1 : index;
+                mHoverIndex = cUnselected;
+                int newIndex = mousePos.y / mRHeight;
+                newIndex = newIndex>=count ? count-1 : newIndex;
+                if (key.isDown && mMouseInside) {
+                    mHoverIndex = newIndex;
+                }
+                if (key.isUp && mMouseInside) {
+                    selectedIndex = newIndex;
                 }
                 break;
             }
             default:
         }
+    }
+
+    override protected void onMouseMove(MouseInfo mi) {
+        mMouseInside = testMouse(mi.pos);
+        if (gFramework.getKeyState(Keycode.MOUSE_LEFT) && mMouseInside) {
+            int index = mousePos.y / mRHeight;
+            mHoverIndex = index>=count ? count-1 : index;
+        } else {
+            mHoverIndex = cUnselected;
+        }
+    }
+
+    override protected void onMouseEnterLeave(bool mouseIsInside) {
+        super.onMouseEnterLeave(mouseIsInside);
+        if (!mouseIsInside)
+            mMouseInside = false;
     }
 
     /// draw an item with that index on canvas at rc

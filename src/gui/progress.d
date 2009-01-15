@@ -14,8 +14,6 @@ class Foobar : Widget {
     BoxProperties border;
     Vector2i spacing = {2, 2};
     private Color mFill;
-    private Vector2i mMinSize = {0, 0};
-    private int mWidth = 0;
 
     ///between 0 and 1
     float percent = 1.0f;
@@ -24,21 +22,11 @@ class Foobar : Widget {
         mFill = c;
     }
 
-    Vector2i minSize() {
-        return mMinSize;
-    }
-    void minSize(Vector2i s) {
-        mMinSize = s;
-        needResize(true);
-    }
-
     this() {
     }
 
     Vector2i layoutSizeRequest() {
-        int x = max(mMinSize.x, xpadding*2);
-        x += mWidth;
-        return Vector2i(x, mMinSize.y);
+        return Vector2i(0, xpadding*2);
     }
 
     //border on the left and right
@@ -46,12 +34,6 @@ class Foobar : Widget {
         //two boxes, the outside and the inside ones
         //return border.cornerRadius*2 + spacing.x;
         return border.cornerRadius; //effective spacing: /2
-    }
-
-    //set width of the bar; in pixels; when width=0, the minimal size is showed
-    void width(int w) {
-        mWidth = max(0, w);
-        needResize(true);
     }
 
     override protected void onDraw(Canvas c) {

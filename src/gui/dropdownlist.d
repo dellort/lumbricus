@@ -1,6 +1,7 @@
 module gui.dropdownlist;
 
 import common.common;
+import common.visual;
 
 import framework.restypes.bitmap;
 import framework.font;
@@ -36,7 +37,7 @@ class DropDownControl : Container {
     void delegate(DropDownControl sender, bool success) onPopupClose;
 
     this() {
-        drawBox = true;
+        drawBorder = true;
         mDropDown = new Button();
         //use that down-arrow...
         mDropDown.image = globals.guiResources.get!(Surface)("scroll_down");
@@ -55,7 +56,7 @@ class DropDownControl : Container {
         mClientBox = new BoxContainer(true);
         mClientBox.add(w);
         mClientBox.add(mDropDown);
-        mClientBox.setLayout(WidgetLayout.Border(Vector2i(3)));
+        mClientBox.setLayout(WidgetLayout.Border(Vector2i(0)));
         addChild(mClientBox);
     }
 
@@ -112,7 +113,7 @@ class DropDownControl : Container {
     }
 }
 
-class DropDownSelect : Label {
+class DropDownSelect : Button {
     private {
         bool mState;
         Font[2] mFonts;
@@ -121,7 +122,13 @@ class DropDownSelect : Label {
     this() {
         drawBorder = false;
         shrink = true;
+        enableHighlight = false;
         font = font; //update mFonts
+    }
+
+    override bool onTestMouse(Vector2i) {
+        //click-through if dropped down
+        return !mState;
     }
 
     alias Label.font font;
@@ -133,6 +140,7 @@ class DropDownSelect : Label {
         p.fore.r = 1.0f - p.fore.r;
         p.fore.g = 1.0f - p.fore.g;
         p.fore.b = 1.0f - p.fore.b;
+        p.back.a = 0.0;
         mFonts[1] = new Font(p);
 
         super.font(mFonts[mState ? 1 : 0]);
@@ -168,14 +176,13 @@ class DropDownList : Container {
 
     this() {
         mClient = new DropDownSelect();
+        mClient.onClick = &clientClick;
         mList = new StringListWidget();
         auto listpopup = new SimpleContainer();
-        listpopup.drawBox = true;
-        listpopup.drawBoxStyle.cornerRadius = 1;
         listpopup.add(mList);
         auto listwind = new ScrollWindow(listpopup, [false, true]);
         listwind.enableMouseWheel = true;
-        listwind.drawBox = true;
+        listwind.drawBorder = true;
         mDropDown = new DropDownControl();
         mDropDown.setPopupWidget(listwind);
         mDropDown.setClientWidget(mClient);
@@ -212,8 +219,26 @@ class DropDownList : Container {
         mClient.dropdownState = false;
     }
 
+    private void clientClick(Button sender) {
+        if (!mDropDown.popupActive)
+            mDropDown.popup;
+    }
+
     ///get the list; the DropDownList reserves the StringListWidget.onSelect
     StringListWidget list() {
         return mList;
+    }
+
+    void loadFrom(GuiLoader loader) {
+        auto node = loader.node;
+        auto fnt = gFramework.fontManager.loadFont(
+            node.getStringValue("label_font"), false);
+        if (fnt)
+            mClient.font = fnt;
+        super.loadFrom(loader);
+    }
+
+    static this() {
+        WidgetFactory.register!(typeof(this))("dropdownlist");
     }
 }

@@ -322,11 +322,11 @@ class WeaponSelWindow : Container {
         all.add(hbox);
 
         addChild(all);
-        setChildLayout(all, WidgetLayout.Border(Vector2i(6)));
+        setChildLayout(all, WidgetLayout.Border(Vector2i(4)));
 
         BoxProperties boxy;
         boxy.back = Color(0.7,0.7,0.7,0.7);
-        drawBoxStyle = boxy;
-        drawBox = true;
+        borderStyle = boxy;
+        drawBorder = true;
     }
 }

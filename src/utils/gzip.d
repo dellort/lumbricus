@@ -1,6 +1,8 @@
 module utils.gzip;
 
+import utils.output;
 import zlib = std.zlib;
+import std.stream;
 
 enum {
     MAX_WBITS = 15,  //from zconf.h
@@ -42,6 +44,34 @@ ubyte[] gzipData(ubyte[] data) {
     *cast(uint*)tmp.ptr = len; ret ~= tmp;
 
     return ret;
+}
+
+class GZStreamOutput : OutputHelper {
+    private {
+        Stream output_stream;
+        GZWriter writer;
+    }
+
+    this(Stream s) {
+        assert (!!s);
+        output_stream = s;
+        writer = new GZWriter(&doWrite);
+    }
+
+    void finish() {
+        assert (!!output_stream);
+        writer.finish();
+        output_stream = null;
+        writer = null;
+    }
+
+    private void doWrite(ubyte[] s) {
+        output_stream.writeExact(s.ptr, s.length);
+    }
+
+    override void writeString(char[] str) {
+        writer.write(cast(ubyte[])str);
+    }
 }
 
 import czlib = etc.c.zlib;

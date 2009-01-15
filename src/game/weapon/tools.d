@@ -320,6 +320,7 @@ class Rope : Shooter {
             float len = (mWorm.physics.pos-p2).length;
             if (len > myclass.maxLength) {
                 abortShoot();
+                abortRope();
                 return;
             }
 
@@ -338,6 +339,8 @@ class Rope : Shooter {
                     engine.physicworld.add(mRope);
                     mWorm.activateRope(&ropeMove);
                     active = true;
+                } else {
+                    abortRope();
                 }
             }
         }

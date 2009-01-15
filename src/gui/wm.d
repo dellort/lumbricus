@@ -534,7 +534,7 @@ private:
 
     public this(WindowManager wm) {
         this.mWm = wm;
-        drawBox = true;
+        drawBorder = true;
         WindowManager.TaskListEntry[] wnds = wm.getWindowList();
         int window_lines, task_lines;
         auto table = new TableContainer(2, 2, Vector2i(3, 3));
@@ -566,7 +566,7 @@ private:
             }
         }
 
-        table.setLayout(WidgetLayout.Border(Vector2i(3, 5)));
+        table.setLayout(WidgetLayout.Border(Vector2i(1, 3)));
         addChild(table);
     }
 
