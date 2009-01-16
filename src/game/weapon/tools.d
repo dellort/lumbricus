@@ -17,7 +17,7 @@ import utils.color;
 import utils.misc;
 
 import std.string : format;
-import std.math : signbit;
+import std.math : signbit, abs;
 
 debug import std.stdio;
 
@@ -119,10 +119,11 @@ class Jetpack : Tool {
 
 
 class RopeClass : WeaponClass {
-    int shootSpeed = 1000;
-    int maxLength = 1000;
-    int moveSpeed = 500;
-    int swingForce = 3000;
+    int shootSpeed = 1000;     //speed when firing
+    int maxLength = 1000;      //max full rope length
+    int moveSpeed = 500;       //up/down speed along rope
+    int swingForce = 3000;     //force applied when rope points down
+    int swingForceUp = 1000;   //force when rope points up
     Color ropeColor = Color(1);
     Resource!(Surface) ropeSegment;
 
@@ -134,6 +135,7 @@ class RopeClass : WeaponClass {
         maxLength = node.getIntValue("max_length", maxLength);
         moveSpeed = node.getIntValue("move_speed", moveSpeed);
         swingForce = node.getIntValue("swing_force", swingForce);
+        swingForceUp = node.getIntValue("swing_force_up", swingForceUp);
 
         ropeColor.parse(node["rope_color"]);
         auto resseg = node["rope_segment"];
@@ -243,8 +245,13 @@ class Rope : Shooter {
             //deactivated while swinging -> allow in-air refire
             mSecondShot = true;
             //angle of last rope segment, mirrored along y axis for next shot
-            mShootDir = (ropeSegments[$-1].start - ropeSegments[$-1].end).normal;
-            mShootDir.x = -mShootDir.x;
+            mShootDir = ropeSegments[$-1].start - ropeSegments[$-1].end;
+            mShootDir.x = -mShootDir.x;         //mirror along y axis
+            mShootDir.y = -abs(mShootDir.y);     //always shoot upwards
+            float ax = -abs(mShootDir.x);        //at least 45deg up
+            if (ax < mShootDir.y)
+                mShootDir.y = ax;
+            mShootDir = mShootDir.normal;
             abortShoot();
             abortRope();
         } else if (mSecondShot) {
@@ -455,7 +462,10 @@ class Rope : Shooter {
 
         auto swingdir = -(mRope.anchor - mWorm.physics.pos).normal.orthogonal;
         //worm swinging (left/right keys)
-        mWorm.physics.selfForce = mMoveVec.X*myclass.swingForce;
+        if ((ropeSegments[$-1].end - ropeSegments[$-1].start).y < 0)
+            mWorm.physics.selfForce = mMoveVec.X*myclass.swingForceUp;
+        else
+            mWorm.physics.selfForce = mMoveVec.X*myclass.swingForce;
 
         if (mMoveVec.y) {
             //length adjustment of rope (up/down keys)

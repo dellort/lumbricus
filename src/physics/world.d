@@ -387,6 +387,22 @@ class PhysicWorld {
         return hitLandscape;
     }
 
+    ///Move the passed point out of any geometry it hits inside the radius r
+    //xxx what about objects? should be handled too
+    bool freePoint(ref Vector2f p, float r) {
+        GeomContact contact;
+        //r+4 chosen by experiment
+        if (collideGeometry(p, r+4, contact)) {
+            if (contact.depth == float.infinity)
+                return false;
+            p = p + contact.normal*contact.depth;
+        }
+        if (collideGeometry(p, r, contact))
+            //still inside? maybe it was a tiny cave oslt
+            return false;
+        return true;
+    }
+
     ///r = random number generator to use, null will create a new instance
     public this(Random r) {
         if (!r) {

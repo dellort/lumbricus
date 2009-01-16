@@ -17,7 +17,9 @@ const char[][] cWWA2Str = ["arm", "hold", "fire"];
 enum PointMode {
     none,
     target,
-    instant
+    instant,
+    instantFree,    //like instant, but not inside objects/geometry
+                    //(will be moved out by controller)
 }
 
 ///directions the user is allowed to set (not necessarily real fire direction)
@@ -91,6 +93,9 @@ struct FireMode {
                 break;
             case "instant":
                 point = PointMode.instant;
+                break;
+            case "instant_free":
+                point = PointMode.instantFree;
                 break;
             default:
         }

@@ -474,6 +474,12 @@ class ServerTeam : Team {
         if (mPointMode == PointMode.none || !isControllable)
             return;
 
+        if (mPointMode == PointMode.instantFree) {
+            //move point out of landscape
+            if (!parent.engine.physicworld.freePoint(where, 6))
+                return;
+        }
+
         targetIsSet = true;
         currentTarget = where;
 
@@ -483,7 +489,7 @@ class ServerTeam : Team {
             case PointMode.target:
                 t.setAnimation(color.pointed.get);
                 break;
-            case PointMode.instant:
+            case PointMode.instant, PointMode.instantFree:
                 t.setAnimation(color.click.get);
                 break;
             default:
@@ -494,7 +500,9 @@ class ServerTeam : Team {
 
         setIndicator(t);
 
-        if (mPointMode == PointMode.instant) {
+        if (mPointMode == PointMode.instant
+            || mPointMode == PointMode.instantFree)
+        {
             //instant mode -> fire and forget
             current.doFireDown(true);
             current.doFireUp();
@@ -627,7 +635,7 @@ class ServerTeamMember : TeamMember, WormController {
 
     void removeWorm() {
         if (mWorm)
-            mLastKnownPhysicHealth = cast(int)mWorm.physics.lifepower;
+            mLastKnownPhysicHealth = mWorm.physics.lifepowerInt;
         mWorm = null;
     }
 
@@ -673,7 +681,7 @@ class ServerTeamMember : TeamMember, WormController {
         //the thing is that a worm can be dead even if the physics report a
         //positive value - OTOH, we do want these negative values... HACK GO!
         //mLastKnownPhysicHealth is there because mWorm could disappear
-        auto h = mWorm ? cast(int)mWorm.physics.lifepower : mLastKnownPhysicHealth;
+        auto h = mWorm ? mWorm.physics.lifepowerInt : mLastKnownPhysicHealth;
         if (isAlive()) {
             return h;
         } else {
@@ -1249,7 +1257,8 @@ class GameController : GameLogicPublic {
     }
 
     private void cmdInstantDropCrate(MyBox[] args, Output write) {
-        mLastCrate.unParachute();
+        if (mLastCrate)
+            mLastCrate.unParachute();
     }
 
     //--- start GameLogicPublic
