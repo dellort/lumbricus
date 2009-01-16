@@ -16,7 +16,7 @@ import utils.mybox;
 
 class ModeRoundbased : Gamemode {
     private {
-        RoundState mCurrentRoundState = RoundState.cleaningUp;
+        RoundState mCurrentRoundState = RoundState.waitForSilence;
         Time mWaitStart;
 
         //time a round takes

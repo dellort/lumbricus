@@ -100,6 +100,7 @@ class WormSprite : GObjectSprite {
 
         PhysicConstraint mRope;
         void delegate(Vector2f mv) mRopeMove;
+        bool mRopeCanRefire;
     }
 
     TeamTheme teamColor;
@@ -182,6 +183,12 @@ class WormSprite : GObjectSprite {
             assert(shouldDie());
             setState(wsc.st_die);
         }
+    }
+
+    override protected void die() {
+        //just to be safe
+        mIsDead = true;
+        super.die();
     }
 
     void updateControl() {
@@ -691,6 +698,13 @@ class WormSprite : GObjectSprite {
         StaticStateInfo wanted = !!ropeMove ? wsc.st_rope : wsc.st_stand;
         setState(wanted);
         physics.doUnglue();
+        physics.resetLook();
+        if (!ropeMove)
+            mRopeCanRefire = true;
+    }
+
+    bool ropeCanRefire() {
+        return mRopeCanRefire;
     }
 
     bool isStanding() {
@@ -716,6 +730,7 @@ class WormSprite : GObjectSprite {
 
     override protected void physImpact(PhysicBase other, Vector2f normal) {
         super.physImpact(other, normal);
+        mRopeCanRefire = false;
         if (currentState is wsc.st_fly) {
             //impact -> roll
             if (physics.velocity.length >= wsc.rollVelocity)
@@ -733,6 +748,7 @@ class WormSprite : GObjectSprite {
 
     override protected void physDamage(float amout, int cause) {
         super.physDamage(amout, cause);
+        mRopeCanRefire = false;
         if (cause != cDamageCauseExplosion)
             return;
         if (currentState is wsc.st_fly) {
@@ -751,6 +767,7 @@ class WormSprite : GObjectSprite {
                     bool walkst = currentState is wsc.st_walk;
                     if (walkst != physics.isWalking)
                         setState(physics.isWalking ? wsc.st_walk : wsc.st_stand);
+                    mRopeCanRefire = false;
                 }
 
                 //update if worm is flying around...

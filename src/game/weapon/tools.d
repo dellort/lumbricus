@@ -173,6 +173,8 @@ class Rope : Shooter {
         Vector2f mMoveVec;
         SequenceUpdate mSeqUpdate;
         Sequence mAnchorGraphic;
+        bool mSecondShot = false;
+        const cSecondShotVector = Vector2f(0, -1000);
         //for calculating texoffset
         int segment_length = 1;
 
@@ -223,14 +225,9 @@ class Rope : Shooter {
     }
 
     override protected void doFire(FireInfo info) {
-        mShooting = true;
-        mShootDir = info.dir;
-        mShootStart = engine.gameTime.current;
-        mLine = createRopeLine();
-        mAnchorGraphic = new Sequence(engine);
-        mAnchorGraphic.setUpdater(mSeqUpdate);
-        mAnchorGraphic.setState(myclass.anchorAnim);
         active = true;
+        mShootDir = info.dir;
+        shootRope();
         /*if (!engine.physicworld.thickRay(mWorm.physics.pos, info.pointto, 3,
             hit1, hit2))
         {
@@ -242,28 +239,57 @@ class Rope : Shooter {
 
     override protected bool doRefire() {
         //second fire: deactivate rope
-        abortShoot();
-        abortRope();
-        finished();
+        if (mRope) {
+            //deactivated while swinging -> allow in-air refire
+            mSecondShot = true;
+            //angle of last rope segment, mirrored along y axis for next shot
+            mShootDir = (ropeSegments[$-1].start - ropeSegments[$-1].end).normal;
+            mShootDir.x = -mShootDir.x;
+            abortShoot();
+            abortRope();
+        } else if (mSecondShot) {
+            //velocity vector, rotated upwards, for next shot
+            //  (not sure what's better)
+            //Vector2f v = mWorm.physics.velocity;
+            //mShootDir = (v + cSecondShotVector).normal;
+            shootRope();
+            mSecondShot = false;
+        } else {
+            //hit button while rope is still flying
+            //xxx maybe not
+            interruptFiring();
+        }
         return true;
     }
 
     override void interruptFiring() {
         if (active) {
+            active = false;
             abortShoot();
             abortRope();
+            mSecondShot = false;
             finished();
         }
     }
 
+    private void shootRope() {
+        mShooting = true;
+        mShootStart = engine.gameTime.current;
+        mLine = createRopeLine();
+        mAnchorGraphic = new Sequence(engine);
+        mAnchorGraphic.setUpdater(mSeqUpdate);
+        mAnchorGraphic.setState(myclass.anchorAnim);
+    }
+
+    //abort the flying (unattached) rope
     private void abortShoot() {
-        active = false;
         mShooting = false;
         if (mLine)
             mLine.remove;
         mLine = null;
     }
 
+    //abort the attached rope
     private void abortRope() {
         if (mAnchorGraphic) {
             mAnchorGraphic.remove();
@@ -319,8 +345,7 @@ class Rope : Shooter {
             updateAnchorAnim(p2, p2 - mWorm.physics.pos);
             float len = (mWorm.physics.pos-p2).length;
             if (len > myclass.maxLength) {
-                abortShoot();
-                abortRope();
+                interruptFiring();
                 return;
             }
 
@@ -330,23 +355,32 @@ class Rope : Shooter {
             {
                 abortShoot();
                 if (len > 15) {
+                    //first hit removes ammo, further ones don't
+                    if (!mSecondShot)
+                        reduceAmmo();
                     ropeSegments.length = 1;
                     ropeSegments[0].start = hit1;
                     ropeSegments[0].end = mWorm.physics.pos;
+                    //not using len here because the rope might have overshot
+                    auto ropeLen = (ropeSegments[0].end
+                        - ropeSegments[0].start).length;
                     segmentInit(ropeSegments[0]);
-                    mRope = new PhysicConstraint(mWorm.physics, hit1, len, 0.8,
-                        false);
+                    mRope = new PhysicConstraint(mWorm.physics, hit1, ropeLen,
+                        0.8, false);
                     engine.physicworld.add(mRope);
                     mWorm.activateRope(&ropeMove);
-                    active = true;
                 } else {
-                    abortRope();
+                    interruptFiring();
                 }
             }
         }
 
-        if (!mRope)
+        if (!mRope) {
+            if (mSecondShot && !mWorm.ropeCanRefire) {
+                interruptFiring();
+            }
             return;
+        }
 
         Vector2f wormPos = mWorm.physics.pos;
 

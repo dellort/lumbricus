@@ -666,7 +666,9 @@ class GameEngine : GameEnginePublic {
         return ret;
     }
 
-    void activityDebug(bool all = false) {
+    void activityDebug(char[] mode = "") {
+        bool all = (mode == "all");
+        bool fix = (mode == "fix");
         mLog("-- Active game objects:");
         int i;
         foreach (GameObject o; mObjects) {
@@ -674,6 +676,13 @@ class GameEngine : GameEnginePublic {
             if (o.activity) {
                 sa = "Active ";
                 i++;
+                if (fix) {
+                    sa = "Killed active ";
+                    auto s = cast(GObjectSprite)(o);
+                    if (s)
+                        s.exterminate();
+                    o.kill();
+                }
             } else {
                 if (!all) continue;
             }

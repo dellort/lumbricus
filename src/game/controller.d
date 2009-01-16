@@ -1200,7 +1200,7 @@ class GameController : GameLogicPublic {
         mCmds.register(Command("shake_test", &cmdShakeTest, "earth quake test",
             ["float:strength", "float:degrade (multiplier < 1.0)"]));
         mCmds.register(Command("activity", &cmdActivityDebug,
-            "list active game objects", ["bool?:list all objects"]));
+            "list active game objects", ["text?:all/fix"]));
         mCmds.bind(mCmd);
     }
 
@@ -1245,7 +1245,7 @@ class GameController : GameLogicPublic {
     }
 
     private void cmdActivityDebug(MyBox[] args, Output write) {
-        engine.activityDebug(args[0].unboxMaybe!(bool));
+        engine.activityDebug(args[0].unboxMaybe!(char[]));
     }
 
     private void cmdInstantDropCrate(MyBox[] args, Output write) {
