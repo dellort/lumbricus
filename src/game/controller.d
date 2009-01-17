@@ -28,6 +28,7 @@ import math = std.math;
 
 //nasty proxy to the currently active TeamMember
 //this is per client (and not per-team)
+//xxx independent from controller, maybe shouldn't be here
 class ClientControlImpl : ClientControl {
     private {
         //xxx the controller needs to be replaced by sth. "better" hahaha
@@ -39,12 +40,7 @@ class ClientControlImpl : ClientControl {
         Vector2i dirKeyState_lu = {0, 0};  //left/up
         Vector2i dirKeyState_rd = {0, 0};  //right/down
 
-        ServerTeam mActiveTeam;
-
-        this(GameController c) {
-            ctl = c;
-            createCmd();
-        }
+        ServerTeam[] mOwnedTeams;
 
         void createCmd() {
             //output should be sent back to the client...?
@@ -67,27 +63,21 @@ class ClientControlImpl : ClientControl {
         }
     }
 
-    this (ReflectCtor c) {
-        c.transient(this, &mCmds);
-        c.transient(this, &mCmd);
-        if (c.recreateTransient())
-            createCmd();
+    this(GameController c) {
+        ctl = c;
+        createCmd();
+        //multiple clients for one team? rather not, but cannot be checked here
+        //xxx implement client-team assignment
+        foreach (t; ctl.teams)
+            mOwnedTeams ~= t;
     }
 
     private ServerTeamMember activemember() {
-        if (mActiveTeam) {
-            return mActiveTeam.current;
+        foreach (t; mOwnedTeams) {
+            if (t.active)
+                return t.current;
         }
         return null;
-    }
-
-    //called by controller: give this client control of the passed team,
-    //or take it by passing null
-    void assignedTeam(ServerTeam t) {
-        mActiveTeam = t;
-    }
-    ServerTeam assignedTeam() {
-        return mActiveTeam;
     }
 
     //-- Start ClientControl implementation
@@ -1153,8 +1143,6 @@ class GameController : GameLogicPublic {
 
         int mWeaponListChangeCounter;
 
-        ClientControlImpl[ServerTeam] control;
-
         CommandLine mCmd;
         CommandBucket mCmds;
 
@@ -1310,23 +1298,6 @@ class GameController : GameLogicPublic {
 
     //--- end GameLogicPublic
 
-    ///xxx: needs to be redefined for multiple connections
-    ClientControl connectClient() {
-        ClientControlImpl cc = new ClientControlImpl(this);
-        //for debugging: give all teams to the first connected client
-        foreach (t; mTeams) {
-            setTeamControl(t, cc);
-        }
-        return cc;
-    }
-
-    private bool setTeamControl(ServerTeam t, ClientControlImpl cc) {
-        if (t in control)
-            return false;
-        control[t] = cc;
-        return true;
-    }
-
     void updateWeaponStats(TeamMember m) {
         changeWeaponList(m ? m.team : null);
     }
@@ -1415,18 +1386,10 @@ class GameController : GameLogicPublic {
         if (t.active == active)
             return;
         t.setActive(active);
-        auto cc = aaIfIn(control, t);
         if (active) {
             assert(mActiveTeams.length == 0);
-            if (cc) {
-                //no "hot-swapping", deactivate old team first
-                assert(!cc.assignedTeam);
-                cc.assignedTeam = t;
-            }
             mActiveTeams ~= t;
         } else {
-            if (cc)
-                cc.assignedTeam = null;
             //should not fail
             arrayRemoveUnordered(mActiveTeams, t);
         }

@@ -2,6 +2,7 @@ module game.netserver;
 
 import framework.commandline;
 import game.game;
+import game.controller;
 import game.netshared;
 import game.weapon.weapon;
 import utils.misc;
@@ -19,7 +20,7 @@ class NetServer {
             //there should be one client for each connection
             //additionally, each client would have a list of teams which it can
             //control
-            ClientInput client;
+            ClientControl client;
         }
 
         GameEngine engine;
@@ -48,8 +49,7 @@ class NetServer {
         con.net.shared_state = state;
         con.net.client_to_server = new NetEventQueue();
         //xxx: establish a per-client controller connection here
-        auto ctrl = engine.controller.connectClient();
-        con.client = new ClientInput(this, ctrl);
+        con.client = new ClientControlImpl(engine.controller);
         mConnections ~= con;
         writeState();
         return con.net;
@@ -63,7 +63,7 @@ class NetServer {
             foreach (e; events) {
                 auto ce = castStrict!(ClientEvent)(e);
                 foreach (char[] cmd; ce.commands) {
-                    con.client.command(cmd);
+                    con.client.executeCommand(cmd);
                 }
             }
         }
@@ -173,25 +173,11 @@ class NetServer {
         if (!con.net.client_state) {
             con.net.client_state = new ClientState();
         }
-        auto m = con.client.control.getControlledMember();
+        auto m = con.client.getControlledMember();
         if (m) {
             con.net.client_state.controlledMember = member_server2state[m];
         } else {
             con.net.client_state.controlledMember = null;
         }
-    }
-}
-
-private class ClientInput {
-    NetServer server;
-    ClientControl control;
-
-    this(NetServer a_server, ClientControl a_control) {
-        server = a_server;
-        control = a_control;
-    }
-
-    void command(char[] a_cmd) {
-        control.executeCommand(a_cmd);
     }
 }

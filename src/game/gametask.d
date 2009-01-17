@@ -18,6 +18,7 @@ import game.gamepublic;
 import game.sequence;
 import game.gui.gameview;
 import game.game;
+import game.controller;
 import game.gfxset;
 import game.sprite;
 import game.crate;
@@ -396,7 +397,7 @@ class GameTask : Task {
         }
         //xxx (well, you know)
         if (!mControl)
-            mControl = mServerEngine.controller.connectClient();
+            mControl = new ClientControlImpl(mServerEngine.controller);
 
         return true;
     }
@@ -855,6 +856,7 @@ class GameTask : Task {
         mGameLoader = null;
         mResPreloader = null;
         mSaveGame = null;
+        mControl = null;
         createWindow(); //???
         initGame(cfg);
     }
