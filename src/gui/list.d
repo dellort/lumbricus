@@ -125,7 +125,7 @@ class AbstractListWidget : Widget {
                 mHoverIndex = cUnselected;
                 int newIndex = mousePos.y / mRHeight;
                 newIndex = newIndex>=count ? count-1 : newIndex;
-                if (key.isDown && mMouseInside) {
+                if ((key.isDown || key.isPress) && mMouseInside) {
                     mHoverIndex = newIndex;
                 }
                 if (key.isUp && mMouseInside) {

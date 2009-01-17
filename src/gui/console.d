@@ -68,6 +68,11 @@ class GuiConsole : Container {
             }
             return true;
         }
+
+        //needs <tab> for autocompletion
+        override protected bool usesTabKey() {
+            return true;
+        }
     }
 
     final Output output() {

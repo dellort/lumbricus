@@ -420,6 +420,13 @@ class WindowWidget : Container {
         return true;
     }
 
+    override void nextFocus(bool invertDir = false) {
+        //cycle when last widget was reached
+        if (!containerNextFocus(invertDir))
+            containerNextFocus(invertDir);
+        //never leave the window with <tab>, so nop here
+    }
+
     void doAction(char[] s) {
         if (onKeyBinding)
             onKeyBinding(this, s);

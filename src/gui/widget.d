@@ -629,13 +629,23 @@ class Widget {
                 m.captureMouse = this;
             }
         }
+        // std.stdio.writefln("disp: %s %s", this, event);
         if (event.isKeyEvent) {
+            //check for <tab> key
+            if (event.keyEvent.isDown && event.keyEvent.code == Keycode.TAB
+                && findBind(event.keyEvent) == "" && !usesTabKey)
+            {
+                if (modifierIsExact(event.keyEvent.mods, Modifier.Shift)) {
+                    nextFocus(true);
+                    return;
+                } else if (event.keyEvent.mods == 0) {
+                    nextFocus();
+                    return;
+                }
+            }
             //set focus on key event, especially on mouse clicks
             //xxx: mouse wheel will set focus too, is that ok?
             claimFocus();
-        }
-       // std.stdio.writefln("disp: %s %s", this, event);
-        if (event.isKeyEvent) {
             onKeyEvent(event.keyEvent);
         } else if (event.isMouseEvent) {
             onMouseMove(event.mouseEvent);
@@ -652,6 +662,12 @@ class Widget {
     void loadBindings(ConfigNode node) {
         bindings = new KeyBindings();
         bindings.loadFrom(node);
+    }
+
+    //override if you internally use the <tab> key (blocks <tab> focus changing)
+    //(keybindings can always override, no need to use this)
+    protected bool usesTabKey() {
+        return false;
     }
 
     // --- simulation and drawing
@@ -786,18 +802,15 @@ class Widget {
         return parent ? parent.localFocus is this : isTopLevel;
     }
 
-    /// focus the next element; returns if a new focus could be set
-    /// used to focus to the next element using <tab>
-    /// normal Widgets return true and claim focus if they weren't focused
-    ///   else they return false and don't do anything
-    /// Containers return true if another sub-Widget could be focused without
-    ///   wrapping the internal list
-    bool nextFocus() {
-        //xxx slightly incorrect because of canHaveFocus
-        if (canHaveFocus && !focused) {
-            return claimFocus();
-        }
-        return false;
+    /// focus the next element inside (containers) or after this widget
+    /// used to focus the next element using <tab>
+    /// normal Widgets call their parent to focus the next widget
+    /// Containers try to focus the next child and call their parent
+    ///    if that fails
+    /// set invertDir = true to go to the previous element
+    void nextFocus(bool invertDir = false) {
+        if (mParent)
+            mParent.nextFocus(invertDir);
     }
 
     /// called when focused() changes

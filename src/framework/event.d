@@ -32,6 +32,16 @@ public void foreachSetModifier(ModifierSet s, void delegate(Modifier m) cb) {
         if (modifierIsSet(s, m)) cb(m);
     }
 }
+public bool modifierIsExact(ModifierSet s, Modifier[] mods) {
+    ModifierSet flags;
+    foreach (ref m; mods) {
+        flags += 1<<m;
+    }
+    return s == flags;
+}
+public bool modifierIsExact(ModifierSet s, Modifier mod) {
+    return s == 1<<mod;
+}
 
 enum KeyEventType {
     Down, ///key pressed down

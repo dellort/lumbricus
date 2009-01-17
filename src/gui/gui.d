@@ -62,22 +62,8 @@ package class MainFrame : SimpleContainer {
         }
     }
 
-    protected bool allowInputForChild(Widget child, InputEvent event) {
-        if (!event.isKeyEvent)
-            return true;
-        auto key = event.keyEvent;
-        return !(key.isDown && modifierIsSet(key.mods, Modifier.Control)
-            && key.code == Keycode.TAB);
-    }
-
-    protected override void onKeyEvent(KeyInfo key) {
-        if (key.isDown && modifierIsSet(key.mods, Modifier.Control)
-            && key.code == Keycode.TAB)
-        {
-            bool res = nextFocus();
-            if (!res)
-                nextFocus();
-        }
+    override void nextFocus(bool invertDir = false) {
+        //no tab focus change on global level
     }
 
     void doFrame() {

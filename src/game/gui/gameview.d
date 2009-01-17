@@ -537,6 +537,7 @@ class GameView : Container {
     }
 
     private void doSim() {
+        mCamera.doFrame();
         mCamera.paused = mEngine.engineTime.paused();
 
         activeWorm = null;
@@ -557,11 +558,11 @@ class GameView : Container {
         return true;
     }
 
-    this(Camera cam, GameInfo game) {
+    this(GameInfo game) {
         mEngine = game.cengine;
         mGame = game;
 
-        mCamera = cam;
+        mCamera = new Camera();
 
         //hacky?
         mLogic = game.logic;
@@ -576,11 +577,18 @@ class GameView : Container {
             }
         }
 
+        //xxx currently, there's no way to run these commands from the console
         mCmd = new CommandLine(globals.defaultOut);
         mCmds = new CommandBucket();
         mCmds.register(Command("category", &cmdCategory, "-",
             ["text:catname"]));
         mCmds.register(Command("zoom", &cmdZoom, "-", ["bool:is_down"]));
+        mCmds.register(Command("cyclenamelabels", &cmdNames, "worm name labels",
+            ["int?:how much to show (if not given: cycle)"]));
+        mCmds.register(Command("detail", &cmdDetail,
+            "switch detail level", ["int?:detail level (if not given: cycle)"]));
+        mCmds.register(Command("cameradisable", &cmdCameraDisable,
+            "disable game camera", ["bool?:disable"]));
         mCmds.bind(mCmd);
     }
 
@@ -593,6 +601,38 @@ class GameView : Container {
     private void cmdZoom(MyBox[] args, Output write) {
         bool isDown = args[0].unbox!(bool);
         mZoomChange = isDown?-1:1;
+    }
+
+    private void cmdNames(MyBox[] args, Output write) {
+        auto c = args[0].unboxMaybe!(int)(nameLabelLevel + 1);
+        nameLabelLevel = c;
+        write.writefln("set nameLabelLevel to %s", nameLabelLevel);
+    }
+
+    private void cmdDetail(MyBox[] args, Output write) {
+        if (!mEngine)
+            return;
+        int c = args[0].unboxMaybe!(int)(-1);
+        mEngine.detailLevel = c >= 0 ? c : mEngine.detailLevel + 1;
+        write.writefln("set detailLevel to %s", mEngine.detailLevel);
+    }
+
+    private void cmdCameraDisable(MyBox[] args, Output write) {
+        enableCamera = !args[0].unboxMaybe!(bool)(enableCamera);
+        write.writefln("set camera enable: %s", enableCamera);
+    }
+
+    Camera camera() {
+        return mCamera;
+    }
+    void enableCamera(bool set) {
+        mCamera.enable = set;
+    }
+    bool enableCamera() {
+        return mCamera.enable;
+    }
+    void resetCamera() {
+        mCamera.reset();
     }
 
     override Vector2i layoutSizeRequest() {

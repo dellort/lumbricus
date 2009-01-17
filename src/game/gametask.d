@@ -349,8 +349,7 @@ class GameTask : Task {
         mWindow.add(mGameFrame);
         if (mSavedSetViewPosition) {
             mSavedSetViewPosition = false;
-            mGameFrame.mScrollToAtStart = mSavedViewPosition;
-            mGameFrame.resetCamera();
+            mGameFrame.setPosition(mSavedViewPosition);
         }
 
         return true;
@@ -653,12 +652,6 @@ class GameTask : Task {
 
     //game specific commands
     private void registerCommands() {
-        mCmds.register(Command("cameradisable", &cmdCameraDisable,
-            "disable game camera", ["bool?:disable"]));
-        mCmds.register(Command("detail", &cmdDetail,
-            "switch detail level", ["int?:detail level (if not given: cycle)"]));
-        mCmds.register(Command("cyclenamelabels", &cmdNames, "worm name labels",
-            ["int?:how much to show (if not given: cycle)"]));
         mCmds.register(Command("slow", &cmdSlow, "set slowdown",
             ["float:slow down",
              "text?:ani or game"]));
@@ -748,31 +741,6 @@ class GameTask : Task {
         Stream s = gFramework.fs.open(filename, FileMode.OutNew);
         mServerEngine.gameLandscapes[0].image.saveImage(s);
         s.close();
-    }
-
-    private void cmdCameraDisable(MyBox[] args, Output write) {
-        if (mGameFrame) {
-            mGameFrame.enableCamera = !args[0].unboxMaybe!(bool)
-                (mGameFrame.enableCamera);
-            write.writefln("set camera enable: %s", mGameFrame.enableCamera);
-        }
-    }
-
-    private void cmdDetail(MyBox[] args, Output write) {
-        if (!mClientEngine)
-            return;
-        int c = args[0].unboxMaybe!(int)(-1);
-        mClientEngine.detailLevel = c >= 0 ? c : mClientEngine.detailLevel + 1;
-        write.writefln("set detailLevel to %s", mClientEngine.detailLevel);
-    }
-
-    private void cmdNames(MyBox[] args, Output write) {
-        if (!mGameFrame || !mGameFrame.gameView)
-            return;
-        auto v = mGameFrame.gameView;
-        auto c = args[0].unboxMaybe!(int)(v.nameLabelLevel + 1);
-        v.nameLabelLevel = c;
-        write.writefln("set nameLabelLevel to %s", v.nameLabelLevel);
     }
 
     //slow time <whatever>

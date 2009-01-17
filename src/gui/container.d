@@ -41,6 +41,9 @@ class Container : Widget {
         bool mIsBinFrame;
         //also grows only; used to do "soft" zorder
         int mLastZOrder2;
+        //for onFocusChange: if true, use last instead of first widget
+        //  if nothing was focused before
+        bool mInverseFocus;
     }
 
     ///use Widget.doesCover
@@ -243,33 +246,42 @@ class Container : Widget {
         }
     }
 
-    override bool nextFocus() {
+    override void nextFocus(bool invertDir = false) {
         //the container itself also should be focusable
         //so possibly set focus already
-        bool ok = super.nextFocus();
+        if (!containerNextFocus(invertDir))
+            super.nextFocus(invertDir);
+    }
 
+    protected bool containerNextFocus(bool invertDir = false) {
         //try to next-focus the children
 
         int index = arraySearch(mWidgets, mFocus);
         if (index < 0) {
             assert(mFocus is null); //else not-added Widget would be focused
-            index = 0; //start with first
+            index = invertDir?mWidgets.length-1:0; //start with first/last
         }
 
-        while (index < mWidgets.length) {
+        while (index < mWidgets.length && index >= 0) {
             auto cur = mWidgets[index];
             //try to find a new focus and if so, be happy
-            if (childCanHaveFocus(cur) && cur.nextFocus()) {
-                return true;
+            //xxx slightly incorrect because of canHaveFocus
+            if (childCanHaveFocus(cur) && cur.canHaveFocus && !cur.focused) {
+                //hack to invert initial focus direction for containers
+                if (auto ct = cast(Container)cur)
+                    ct.setInverseFocus(invertDir);
+                if (cur.claimFocus())
+                    return true;
             }
-            index++;
+            index += invertDir?-1:1;
         }
-
         //reset, so it starts cycling again if we're focused next time
-        if (!ok)
-            localFocus = null;
+        localFocus = null;
+        return false;
+    }
 
-        return ok;
+    private void setInverseFocus(bool inv) {
+        mInverseFocus = inv;
     }
 
     //doesn't set the global focus; do "go.focused = true;" for that
@@ -304,6 +316,9 @@ class Container : Widget {
 
     override void onFocusChange() {
         super.onFocusChange();
+        //try to activate a a focusable widget
+        if (focused && !mFocus)
+            containerNextFocus(mInverseFocus);
         //propagate focus change downwards...
         foreach (o; mWidgets) {
             o.pollFocusState();

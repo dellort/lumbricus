@@ -39,24 +39,24 @@ const Time cTimePerHealthTick = timeMsecs(4);
 class GameFrame : SimpleContainer {
     ClientGameEngine clientengine;
     GameInfo game;
-
-    private MouseScroller mScroller;
-    private SimpleContainer mGui;
     GameView gameView;
 
-    private WeaponSelWindow mWeaponSel;
+    private {
+        MouseScroller mScroller;
+        SimpleContainer mGui;
 
-    private TeamWindow mTeamWindow;
+        WeaponSelWindow mWeaponSel;
 
-    private MessageViewer mMessageViewer;
+        TeamWindow mTeamWindow;
 
-    private Camera mCamera;
+        MessageViewer mMessageViewer;
 
-    private Time mLastFrameTime, mRestTime;
-    private bool mFirstFrame = true;
-    public Vector2i mScrollToAtStart; //even more hacky
+        Time mLastFrameTime, mRestTime;
+        bool mFirstFrame = true;
+        Vector2i mScrollToAtStart;
 
-    private int mMsgChangeCounter, mWeaponChangeCounter;
+        int mMsgChangeCounter, mWeaponChangeCounter;
+    }
 
     void showMessage(char[] msgid, char[][] args) {
         char[] translated = localeRoot.translateWithArray(msgid, args);
@@ -82,23 +82,18 @@ class GameFrame : SimpleContainer {
             m?m.getCurrentWeapon():null);
     }
 
-    void enableCamera(bool set) {
-        mCamera.enable = set;
-    }
-
-    bool enableCamera() {
-        return mCamera.enable;
-    }
-
     //scroll to level center
     void setPosition(Vector2i pos) {
-        mScroller.offset = mScroller.centeredOffset(pos);
+        if (mFirstFrame) {
+            //cannot scroll yet because gui layouting is not done
+            mScrollToAtStart = pos;
+        } else {
+            mScroller.offset = mScroller.centeredOffset(pos);
+            gameView.resetCamera;
+        }
     }
     Vector2i getPosition() {
         return mScroller.uncenteredOffset(mScroller.offset);
-    }
-    void resetCamera() {
-        mCamera.reset();
     }
 
     //if you have an event, which shall occur all duration times, return the
@@ -122,8 +117,6 @@ class GameFrame : SimpleContainer {
             //scroll to level center
             setPosition(mScrollToAtStart);
         }
-
-        mCamera.doFrame();
 
         //take care of counting down the health value
         mRestTime += delta;
@@ -190,9 +183,7 @@ class GameFrame : SimpleContainer {
         mMessageViewer = new MessageViewer();
         mGui.add(mMessageViewer);
 
-        mCamera = new Camera();
-
-        gameView = new GameView(mCamera, game);
+        gameView = new GameView(game);
         gameView.onTeamChange = &teamChanged;
         gameView.onSelectCategory = &selectCategory;
         gameView.bindings = wormbinds;
@@ -203,7 +194,7 @@ class GameFrame : SimpleContainer {
         add(mScroller);
         add(mGui);
 
-        mCamera.control = mScroller;
+        gameView.camera.control = mScroller;
 
         mWeaponSel = new WeaponSelWindow();
         mWeaponSel.onSelectWeapon = &selectWeapon;
@@ -218,6 +209,6 @@ class GameFrame : SimpleContainer {
         WeaponHandle[] wlist = game.logic.weaponList();
         mWeaponSel.init(wlist);
 
-        mScrollToAtStart = clientengine.worldCenter;
+        setPosition(clientengine.worldCenter);
     }
 }
