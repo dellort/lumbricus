@@ -14,11 +14,11 @@ class Label : Widget {
         char[] mText;
         Font mFont;
         Vector2i mBorder;
-        bool mShrink;
+        bool mShrink, mCenterX;
         Texture mImage;
         //calculated by layoutSizeRequest
         Vector2i mFinalBorderSize;
-        int mTextHeight;
+        Vector2i mTextSize;
 
         const cSpacing = 3; //between images and text
     }
@@ -42,7 +42,7 @@ class Label : Widget {
 
     override Vector2i layoutSizeRequest() {
         auto csize = mFont.textSize(mText,!mImage);
-        mTextHeight = csize.y;
+        mTextSize = csize;
         if (mShrink) {
             csize.x = 0;
         }
@@ -88,6 +88,13 @@ class Label : Widget {
         return mShrink;
     }
 
+    void centerX(bool c) {
+        mCenterX = c;
+    }
+    bool centerX() {
+        return mCenterX;
+    }
+
     this(Font font = null) {
         mFont = font ? font : gFramework.getFont("label_default");
         drawBorder = true;
@@ -113,7 +120,10 @@ class Label : Widget {
         if (!mText.length)
             return;
         Vector2i p = Vector2i(x, b.y);
-        p.y = p.y + diff.y/2 - mTextHeight/2;
+        if (mCenterX)
+            p = p + diff/2 - mTextSize/2;
+        else
+            p.y = p.y + diff.y/2 - mTextSize.y/2;
         if (!mShrink) {
             mFont.drawText(canvas, p, mText);
         } else {
@@ -132,6 +142,7 @@ class Label : Widget {
         mText = loader.locale()(node.getStringValue("text", mText));
         parseVector(node.getStringValue("border"), mBorder);
         mShrink = node.getBoolValue("shrink", mShrink);
+        mCenterX = node.getBoolValue("center_x", mCenterX);
 
         char[] img = node.getStringValue("image");
         if (img.length > 0) {

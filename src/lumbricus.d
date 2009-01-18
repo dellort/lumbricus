@@ -26,10 +26,10 @@ import std.string;
 import gui.test; //GUI test code
 import game.gametask; //the game itself
 import game.serialize_register : initGameSerialization;
-import game.gui.preview; //level preview window
 import game.gui.leveledit; //aw
 import game.gui.welcome;
 import game.gui.teamedit;
+import game.gui.setup_local;
 import game.wtris; //lol
 import game.bomberworm; //?
 import irc.ircclient; //roflmao

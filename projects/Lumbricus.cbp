@@ -167,6 +167,7 @@
 		<Unit filename="..\src\game\gui\loadingscreen.d" />
 		<Unit filename="..\src\game\gui\preparedisplay.d" />
 		<Unit filename="..\src\game\gui\preview.d" />
+		<Unit filename="..\src\game\gui\setup_local.d" />
 		<Unit filename="..\src\game\gui\teamedit.d" />
 		<Unit filename="..\src\game\gui\teaminfo.d" />
 		<Unit filename="..\src\game\gui\weaponsel.d" />

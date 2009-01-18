@@ -423,7 +423,8 @@ class TableContainer : PublicContainer {
                 //xxx error checking
                 if (!parseVector(child.getStringValue("table_span"), span))
                     span = Vector2i(1, 1);
-                add(loader.loadWidget(child), pos.x, pos.y, span.x, span.y);
+                if (auto w = loader.loadWidget(child))
+                    add(w, pos.x, pos.y, span.x, span.y);
                 skip(span.x*span.y);
             }
         }

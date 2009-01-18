@@ -4,6 +4,7 @@ import utils.configfile;
 import utils.log;
 
 import std.stream;
+import utf = std.utf;
 
 import utils.weaklist;
 
@@ -90,14 +91,17 @@ class Font {
         return mFont.textSize(text, forceHeight);
     }
 
-    ///return the character index closest to posX
+    ///return the utf character index closest to posX
     ///(0 for start, text.length for end)
     ///posX is relative to left edge of text
     public uint findIndex(char[] text, int posX) {
-        //yay, first non-abstract method
-        int twold = 0;
+        if (text.length == 0)
+            return 0;
+        int twold = 0, ilast = 0;
         //check width from start until it is over the requested position
-        for (int i = 1; i <= text.length; i++) {
+        for (int i = utf.stride(text, 0); i <= text.length;
+            i += utf.stride(text, i))
+        {
             int twidth = textSize(text[0..i]).x;
             if (twidth > posX) {
                 //over-shot position -> clicked between current and last pos
@@ -107,9 +111,10 @@ class Font {
                     //after center -> next index
                     return i;
                 else
-                    return i-1;
+                    return ilast;
             }
             twold = twidth;
+            ilast = i;
         }
         //no match -> must be after the string
         return text.length;

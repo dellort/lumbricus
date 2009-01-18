@@ -12,8 +12,6 @@ import gui.label;
 import gui.tablecontainer;
 import gui.wm;
 import gui.dropdownlist;
-import game.gametask;
-import game.setup;
 import game.levelgen.generator;
 import game.levelgen.level;
 import std.thread;
@@ -45,7 +43,7 @@ private class LevelSelector : SimpleContainer {
         GenerateFromTemplate generator;
     }
 
-    void delegate(LevelInfo selected) onAccept;
+    void delegate(LevelGenerator selected) onAccept;
 
     this() {
         mGenerator = new LevelGeneratorShared();
@@ -163,95 +161,6 @@ private class LevelSelector : SimpleContainer {
         int idx = getIdx(sender);
         mLevel[idx].generator.selectTheme(mGenerator.themes.findRandom(mGfx));
         if (onAccept)
-            onAccept(mLevel[idx]);
-    }
-}
-
-class GenThread : Thread {
-    private LevelSelector.LevelInfo mLvlConfig;
-    private char[] mGfx;
-    public Level finalLevel;
-
-    this(LevelSelector.LevelInfo lvl) {
-        super();
-        mLvlConfig = lvl;
-    }
-
-    override int run() {
-        finalLevel = mLvlConfig.generator.render();
-        return 0;
-    }
-}
-
-//this is considered debug code until we have a proper game settings dialog
-class LevelPreviewTask : Task {
-    private {
-        LevelSelector mSelector;
-        Window mWMWindow;
-        Task mGame;
-        //background level rendering thread *g*
-        GenThread mThread;
-        bool mThWaiting = false;
-    }
-
-    this(TaskManager tm) {
-        super(tm);
-        mSelector = new LevelSelector();
-        mSelector.onAccept = &lvlAccept;
-        mWMWindow = gWindowManager.createWindow(this, mSelector,
-            _("levelselect.caption"));
-    }
-
-    void lvlAccept(LevelSelector.LevelInfo lvl) {
-        //generate level
-        //fix window size and show as waiting
-        mWMWindow.acceptSize();
-        mSelector.waiting = true;
-        //start generation
-        mThread = new GenThread(lvl);
-        mThread.start();
-        mThWaiting = true;
-        //start game
-        //play(level);
-    }
-
-    //play a level, hide this GUI while doing that, then return
-    void play(Level level) {
-        mWMWindow.visible = false;
-        //reset preview dialog
-        mSelector.waiting = false;
-
-        assert(!mGame); //hm, no idea
-        //create default GameConfig with custom level
-        auto gc = loadGameConfig(globals.anyConfig.getSubNode("newgame"), level);
-        //xxx: do some task-death-notification or so... (currently: polling)
-        //currently, the game can't really return anyway...
-        mGame = new GameTask(manager, gc);
-        /+auto lbl = new Label();
-        lbl.image = (cast(LevelLandscape)level.objects[0]).landscape.image();
-        gWindowManager.createWindow(this, lbl, "hurrr");+/
-    }
-
-    override protected void onFrame() {
-        //poll for game death
-        if (mThWaiting) {
-            if (mThread.getState() != Thread.TS.RUNNING) {
-                //level generation finished, now start the game
-                mThWaiting = false;
-                play(mThread.finalLevel);
-                mThread = null;
-            }
-        }
-        if (mGame) {
-            if (mGame.reallydead) {
-                mGame = null;
-                //show GUI again
-                mWMWindow.visible = true;
-            }
-        }
-    }
-
-    static this() {
-        TaskFactory.register!(typeof(this))("levelpreview");
+            onAccept(mLevel[idx].generator);
     }
 }
