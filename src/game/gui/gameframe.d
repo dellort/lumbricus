@@ -56,10 +56,11 @@ class GameFrame : SimpleContainer {
         Vector2i mScrollToAtStart;
 
         int mMsgChangeCounter, mWeaponChangeCounter;
+        Translator mLocaleMsg;
     }
 
-    void showMessage(char[] msgid, char[][] args) {
-        char[] translated = localeRoot.translateWithArray(msgid, args);
+    void showMessage(char[] msgid, char[][] args, uint rnd) {
+        char[] translated = mLocaleMsg.translateWithArrayMC(msgid, args, rnd);
         mMessageViewer.addMessage(translated);
     }
 
@@ -139,8 +140,9 @@ class GameFrame : SimpleContainer {
             mMsgChangeCounter = c;
             char[] id;
             char[][] args;
-            game.logic.getLastMessage(id, args);
-            showMessage(id, args);
+            uint rnd;
+            game.logic.getLastMessage(id, args, rnd);
+            showMessage(id, args, rnd);
         }
 
         c = game.logic.getWeaponListChangeCounter();
@@ -208,6 +210,8 @@ class GameFrame : SimpleContainer {
 
         WeaponHandle[] wlist = game.logic.weaponList();
         mWeaponSel.init(wlist);
+
+        mLocaleMsg = Translator.ByNamespace("game_msg");
 
         setPosition(clientengine.worldCenter);
     }

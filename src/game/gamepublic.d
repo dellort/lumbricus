@@ -446,9 +446,11 @@ interface GameLogicPublic {
     ///to Latin); so msgid and args are passed to the translation functions
     ///this returns a value, that is incremented everytime a new message is
     ///available
+    ///a random int is passed along, so all clients with the same locale
+    ///will select the same message
     int getMessageChangeCounter();
     ///message can be read out with this
-    void getLastMessage(out char[] msgid, out char[][] msg);
+    void getLastMessage(out char[] msgid, out char[][] msg, out uint rnd);
 
     ///value increments, if the weapon list of any team changes
     int getWeaponListChangeCounter();

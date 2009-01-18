@@ -75,7 +75,7 @@ class WormSprite : GObjectSprite {
         //by default off, GameController can use this
         bool mDelayedDeath;
 
-        bool mIsDead;
+        bool mIsDead, mHasDrowned;
 
         int mGravestone;
 
@@ -168,6 +168,11 @@ class WormSprite : GObjectSprite {
     //returns true if suiciding is also done
     bool isReallyReallyDead() {
         return mIsDead && currentState is wsc.st_dead;
+    }
+
+    //true if worm has died by drowning (may still be floating down)
+    bool hasDrowned() {
+        return isReallyDead() && mHasDrowned;
     }
 
     //if suicide animation played
@@ -610,6 +615,7 @@ class WormSprite : GObjectSprite {
         if (!mIsDead && (currentState is wsc.st_drowning)) {
             //die by drowning - are there more actions needed?
             mIsDead = true;
+            mHasDrowned = true;
         }
 
         if (from is wsc.st_beaming) {
@@ -633,6 +639,9 @@ class WormSprite : GObjectSprite {
             updateTargetCross();
         }
 
+        if (to is wsc.st_die) {
+            mIsDead = true;
+        }
         //die by blowing up
         if (to is wsc.st_dead) {
             mIsDead = true;

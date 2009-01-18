@@ -30,6 +30,7 @@ class GameState {
     int msgcounter;
     char[] msgid;
     char[][] msg;
+    uint msg_rnd;
     int weaponlistcc;
     TeamState[] teams; //indexed by TeamState.index
     TeamState[] activeteams;

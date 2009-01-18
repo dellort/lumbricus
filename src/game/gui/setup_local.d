@@ -30,15 +30,32 @@ class LocalGameSetupTask : Task {
         Window mWindow;
         DropDownList mSavedLevels;
         DropDownList mTemplates;
-        Button mLevelBtn;
+        Button mLevelBtn, mGoBtn;
 
         LevelGeneratorShared mGenerator;
         LevelGenerator mCurrentLevel;
         TeamEditorTask mTeameditTask;
-        StringListWidget mAllTeams;
+        StringListWidget mAllTeamsList, mActiveTeamsList;
+
+        const cMaxPower = 200;
+
+        //holds team info specific to current game (not saved in teams.conf)
+        struct TeamDef {
+            //percentage of global power value this team gets
+            float handicap = 1.0f;
+
+            void saveTo(ConfigNode node) {
+                node.setIntValue("power", cast(int)(cMaxPower*handicap));
+            }
+        }
+
+        ConfigNode mTeams;       //as loaded from teams.conf
+        //list of team ids for the game
+        //note that it might contain invalid (deleted) teams
+        TeamDef[char[]] mActiveTeams;
 
         Window mLevelWindow;
-        LevelSelector mSelector;
+        LevelSelector mSelector;  //8-level window, created once and reused then
 
         //background level rendering thread *g*
         LvlGenThread mThread;
@@ -58,7 +75,8 @@ class LocalGameSetupTask : Task {
         auto loader = new LoadGui(config);
         loader.load();
         loader.lookup!(Button)("cancel").onClick = &cancelClick;
-        loader.lookup!(Button)("go").onClick = &goClick;
+        mGoBtn = loader.lookup!(Button)("go");
+        mGoBtn.onClick = &goClick;
         loader.lookup!(Button)("editteams").onClick = &editteamsClick;
 
         mLevelBtn = loader.lookup!(Button)("btn_level");
@@ -79,7 +97,10 @@ class LocalGameSetupTask : Task {
         mTemplates = loader.lookup!(DropDownList)("dd_templates");
         mTemplates.selection = "TODO";
 
-        mAllTeams = loader.lookup!(StringListWidget)("list_allteams");
+        mAllTeamsList = loader.lookup!(StringListWidget)("list_allteams");
+        mAllTeamsList.onSelect = &allteamsSelect;
+        mActiveTeamsList = loader.lookup!(StringListWidget)("list_activeteams");
+        mActiveTeamsList.onSelect = &activeteamsSelect;
 
         mSetup = loader.lookup("gamesetup_root");
         mWaiting = loader.lookup("waiting_root");
@@ -150,16 +171,76 @@ class LocalGameSetupTask : Task {
         mSetup.enabled = false;
     }
 
+    //reload teams from config file and show in dialog
     private void loadTeams() {
         auto conf = gFramework.loadConfig("teams");
         if (!conf)
             return;
-        auto tc = conf.getSubNode("teams");
-        char[][] teams;
-        foreach (ConfigNode t; tc) {
-            teams ~= t.name;
+        mTeams = conf.getSubNode("teams");
+        updateTeams();
+    }
+
+    //refresh team display in the dialog without reloading
+    private void updateTeams() {
+        char[][] teams, actteams;
+        foreach (ConfigNode t; mTeams) {
+            if (t["id"] in mActiveTeams) {
+                actteams ~= t.name;
+            } else
+                teams ~= t.name;
         }
-        mAllTeams.setContents(teams);
+        teams.sort;
+        actteams.sort;
+        mGoBtn.enabled = actteams.length>1;
+        mAllTeamsList.setContents(teams);
+        mActiveTeamsList.setContents(actteams);
+    }
+
+    private void allteamsSelect(int index) {
+        if (index < 0)
+            return;
+        //team names are unique, but may change
+        auto tNode = mTeams.getSubNode(mAllTeamsList.contents[index]);
+        assert(tNode);
+        activateTeam(tNode["id"], true);
+        updateTeams();
+    }
+
+    private void activeteamsSelect(int index) {
+        if (index < 0)
+            return;
+        auto tNode = mTeams.getSubNode(mActiveTeamsList.contents[index]);
+        assert(tNode);
+        activateTeam(tNode["id"], false);
+        updateTeams();
+    }
+
+    //mark a team as (in)active, i.e. (not) participating on the game
+    //teams are remembered by id, because the name might change
+    private void activateTeam(char[] teamId, bool active) {
+        if (active) {
+            if (!(teamId in mActiveTeams)) {
+                mActiveTeams[teamId] = TeamDef();
+            }
+        } else {
+            if (teamId in mActiveTeams)
+                mActiveTeams.remove(teamId);
+        }
+    }
+
+    //write active teams into a ConfigNode the engine can use
+    private ConfigNode buildGameTeams() {
+        ConfigNode ret = new ConfigNode();
+        foreach (ConfigNode t; mTeams) {
+            if (t["id"] in mActiveTeams) {
+                //write team definition from teams.conf
+                auto tNode = ret.getSubNode(t.name);
+                tNode.mixinNode(t);
+                //write game-specific values from TeamDef
+                mActiveTeams[t["id"]].saveTo(tNode);
+            }
+        }
+        return ret;
     }
 
     private void goClick(Button sender) {
@@ -185,6 +266,7 @@ class LocalGameSetupTask : Task {
         assert(!mGame); //hm, no idea
         //create default GameConfig with custom level
         auto gc = loadGameConfig(globals.anyConfig.getSubNode("newgame"), level);
+        gc.teams = buildGameTeams();
         //xxx: do some task-death-notification or so... (currently: polling)
         //currently, the game can't really return anyway...
         mGame = new GameTask(manager, gc);

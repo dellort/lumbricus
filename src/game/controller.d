@@ -557,6 +557,9 @@ class ServerTeam : Team {
             //already dead -> boring
             //also bail out here if worm drowned/is drowning
             if (!worm || worm.isReallyDead()) {
+                if (worm && worm.hasDrowned())
+                    //xxx maybe show these earlier, but how?
+                    parent.messageAdd("msgdrown", [m.name]);
                 m.removeWorm();
                 continue;
             }
@@ -565,6 +568,7 @@ class ServerTeam : Team {
             if (worm.shouldDie() && !worm.isDelayedDying()) {
                 //unhealthy, not suiciding
                 worm.finallyDie();
+                parent.messageAdd("msgdie", [m.name]);
                 assert(worm.isDelayedDying() || worm.isDead());
                 return true;
             } else if (worm.isDelayedDying()) {
@@ -1283,9 +1287,10 @@ class GameController : GameLogicPublic {
         return mMessageChangeCounter;
     }
 
-    void getLastMessage(out char[] msgid, out char[][] msg) {
+    void getLastMessage(out char[] msgid, out char[][] msg, out uint rnd) {
         msgid = mLastMessage.id;
         msg = mLastMessage.args;
+        rnd = engine.rnd.next;
     }
 
     int getWeaponListChangeCounter() {

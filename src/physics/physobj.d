@@ -310,8 +310,8 @@ class PhysicObject : PhysicBase {
         //world.mLog("damage: %s/%s", severity, delta);
         if (abs(delta) > posp.damageThreshold) {
             lifepower += delta;
-            //make sure object is dead if lifepowerInt() reports 0
-            if (lifepower < 0.5f)
+            //make sure object is dead if lifepowerInt() reports <= 0
+            if (lifepower < 0.5f && lifepower > 0f)
                 lifepower = 0f;
             if (mPosp.damageUnfixate)
                 mUseFixate = false;

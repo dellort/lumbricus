@@ -29,6 +29,7 @@ class TeamEditorTask : Task {
         ConfigNode mTeamConf, mTeams;
         ConfigNode mEditedTeam;
         int mNewTeamColIdx = 0;
+        int mLastTeamId = -1;
     }
 
     this(TaskManager tm) {
@@ -36,6 +37,7 @@ class TeamEditorTask : Task {
 
         mTeamConf = gFramework.loadConfig("teams");
         mTeams = mTeamConf.getSubNode("teams");
+        mLastTeamId = mTeamConf.getIntValue("lastid", mLastTeamId);
 
         auto loader = new LoadGui(gFramework.loadConfig("teamedit_gui"));
         loader.load();
@@ -136,6 +138,9 @@ class TeamEditorTask : Task {
             }
             //create team
             auto newTeam = mTeams.getSubNode(newName);
+            //assign id
+            mLastTeamId++;
+            newTeam.setIntValue("id", mLastTeamId);
             //set defaults
             newTeam["color"] = TeamTheme.cTeamColors[mNewTeamColIdx];
             //different color for each new team
@@ -241,6 +246,7 @@ class TeamEditorTask : Task {
 
     //save button clicked
     private void okClick(Button sender) {
+        mTeamConf.setIntValue("lastid", mLastTeamId);
         saveConfig(mTeamConf, "teams.conf");
         kill();
     }

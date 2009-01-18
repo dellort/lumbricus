@@ -130,21 +130,49 @@ public class Translator {
         return translateWithArray(id, bla);
     }
 
-    char[] translateWithArray(char[] id, char[][] args) {
+    private char[] lastId(char[] id) {
         int pos = rfind(id, '.');
         if (pos < 0)
             assert(pos == -1);
+        return id[pos+1 .. $];
+    }
+
+    char[] translateWithArray(char[] id, char[][] args) {
         ConfigNode subnode;
         if (mNode)
-            subnode = mNode.getPath(id[0 .. (pos<0?0:pos)], false);
-        return DoTranslate(subnode, id[pos+1 .. $], args);
+            subnode = mNode.getPath(id, false);
+        return DoTranslate(subnode, lastId(id), args);
+    }
+
+    /** like translateWithArray, but with multiple-choice based on rnd, e.g.
+      id {
+          "Option 1"
+          "Option 2"
+      }
+    */
+    char[] translateWithArrayMC(char[] id, char[][] args, uint rnd) {
+        ConfigNode subnode;
+        if (mNode)
+            subnode = mNode.getPath(id, false);
+        if (subnode && subnode.count > 0) {
+            //if the node was found and contains multiple values, select one
+            rnd = rnd % subnode.count;
+            uint curIdx = 0;
+            foreach (ConfigNode node; subnode) {
+                if (curIdx == rnd) {
+                    subnode = node;
+                    break;
+                }
+                curIdx++;
+            }
+        }
+        return DoTranslate(subnode, lastId(id), args);
     }
 
     private char[] DoTranslate(ConfigNode data, char[] id, char[][] t) {
         char[] text;
-        if (data) {
-            text = data.getStringValue(id, "");
-        }
+        if (data)
+            text = data.value;
         if (text.length == 0) {
             if (mErrorString)
                 text = "ERROR: missing translation for ID '" ~ id ~ "'!";

@@ -173,9 +173,10 @@ class GSFunctions : GameEnginePublic, GameLogicPublic, ClientControl
         return state.msgcounter;
     }
 
-    void getLastMessage(out char[] msgid, out char[][] msg) {
+    void getLastMessage(out char[] msgid, out char[][] msg, out uint rnd) {
         msgid = state.msgid;
         msg = state.msg;
+        rnd = state.msg_rnd;
     }
 
     int getWeaponListChangeCounter() {

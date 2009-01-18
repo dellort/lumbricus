@@ -105,7 +105,7 @@ class NetServer {
         state.gamestate = logic.currentGameState();
         state.gamemodestatus = logic.gamemodeStatus();
         state.msgcounter = logic.getMessageChangeCounter();
-        logic.getLastMessage(state.msgid, state.msg);
+        logic.getLastMessage(state.msgid, state.msg, state.msg_rnd);
 
         bool weapons_changed;
         int oldwcounter = logic.getWeaponListChangeCounter();
