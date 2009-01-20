@@ -160,6 +160,24 @@ class PhysicWorld {
 
         resolveContacts(deltaT);
 
+
+        foreach (PhysicObject obj; mObjects) {
+            //we collided with geometry, but were not fast enough!
+            //  => worm gets glued, hahaha.
+            //xxx maybe do the gluing somewhere else?
+            if (obj.onSurface) {
+                if (obj.velocity.length <= obj.posp.glueForce
+                    && obj.surface_normal.y < 0)
+                {
+                    obj.isGlued = true;
+                    version(PhysDebug) mLog("glue object %s", me);
+                    //velocity must be set to 0 (or change glue handling)
+                    //ok I did change glue handling.
+                    obj.velocity_int = Vector2f(0);
+                }
+            }
+        }
+
         checkUpdates();
     }
 
@@ -247,19 +265,6 @@ class PhysicWorld {
         Contact c;
         c.fromGeom(contact, obj);
         contactHandler(c);
-
-        //we collided with geometry, but were not fast enough!
-        //  => worm gets glued, hahaha.
-        //xxx maybe do the gluing somewhere else?
-        if (obj.velocity.mulEntries(obj.posp.fixate).length
-            <= obj.posp.glueForce && obj.surface_normal.y < 0)
-        {
-            obj.isGlued = true;
-            version(PhysDebug) mLog("glue object %s", me);
-            //velocity must be set to 0 (or change glue handling)
-            //ok I did change glue handling.
-            obj.velocity_int = Vector2f(0);
-        }
     }
 
     //check how an object would collide with all the geometry

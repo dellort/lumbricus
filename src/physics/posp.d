@@ -72,6 +72,10 @@ class POSP {
 
     float thrust = 0.0f;
 
+    float friction = 0.05f;
+    float bounceAbsorb = 0.0f;
+    float slideAbsorb = 0.0f;
+
     //maximum absolute value, velocity is cut if over this
     Vector2f velocityConstraint = {float.infinity, float.infinity};
     float speedLimit = 0.0f;
@@ -126,6 +130,9 @@ class POSP {
         speedLimit = node.getFloatValue("speed_limit", speedLimit);
         jetpackLooking = node.getBoolValue("jetpack_looking", jetpackLooking);
         thrust = node.getFloatValue("thrust", thrust);
+        friction = node.getFloatValue("friction", friction);
+        slideAbsorb = node.getFloatValue("slide_absorb", slideAbsorb);
+        bounceAbsorb = node.getFloatValue("bounce_absorb", bounceAbsorb);
         //xxx: passes true for the second parameter, which means the ID
         //     is created if it doesn't exist; this is for forward
         //     referencing... it should be replaced by collision classes

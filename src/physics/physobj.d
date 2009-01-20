@@ -3,12 +3,13 @@ module physics.physobj;
 import std.math : PI, abs, isnan;
 import utils.list2;
 import utils.vector2;
-import utils.misc: max;
+import utils.misc: min, max;
 import utils.reflection;
 
 import physics.base;
 import physics.posp;
 import physics.geometry;
+import physics.links;
 
 const cDamageCauseFall = 0;
 const cDamageCauseDeath = -1;
@@ -33,13 +34,27 @@ class PhysicObject : PhysicBase {
         mPosp = p;
         //new POSP -> check values
         collision = world.collide.findCollisionID(mPosp.collisionID);
-        mUseFixate = true;
+        if (mPosp.fixate.x < float.epsilon || mPosp.fixate.y < float.epsilon) {
+            if (!mFixateConstraint) {
+                mFixateConstraint = new PhysicFixate(this, mPosp.fixate);
+                mWorld.add(mFixateConstraint);
+            }
+            mFixateConstraint.fixate = mPosp.fixate;
+        } else {
+            if (mFixateConstraint) {
+                mFixateConstraint.dead = true;
+                mFixateConstraint = null;
+            }
+        }
     }
 
     package Vector2f mPos; //pixels
+    private PhysicFixate mFixateConstraint;
 
     bool isGlued;    //for sitting worms (can't be moved that easily)
     bool mHadUpdate;  //flag to see if update() has run at least once
+    bool mOnSurface;
+    int mSurfaceCtr;
 
     //in pixels per second, readonly for external code!
     package Vector2f velocity_int = {0,0};
@@ -58,8 +73,6 @@ class PhysicObject : PhysicBase {
 
     //per-frame force accumulator
     private Vector2f mForceAccum;
-    //xxx can't change posp, so this is needed to go from fixate to free
-    private bool mUseFixate = true;
 
     final Vector2f pos() {
         return mPos;
@@ -76,12 +89,15 @@ class PhysicObject : PhysicBase {
     //the worm couldn't adhere to the rock surface anymore
     //called from the PhysicWorld simulation loop only
     /+private+/ void doUnglue() {
+        if (!isGlued)
+            return;
         version(PhysDebug) world.mLog("unglue object %s", this);
         //he flies away! arrrgh!
         isGlued = false;
         //mWalkingMode = false; (no! object _wants_ to walk, and continue
         //                       when glued again)
         mIsWalking = false;
+        mOnSurface = true;
         needUpdate();
     }
 
@@ -121,6 +137,10 @@ class PhysicObject : PhysicBase {
         mForceAccum = Vector2f.init;
     }
 
+    bool onSurface() {
+        return mOnSurface;
+    }
+
     void update(float deltaT) {
         mHadUpdate = true;
         scope(exit) clearAccumulators();
@@ -140,17 +160,42 @@ class PhysicObject : PhysicBase {
         assert(mPosp.mass > 0, "Zero mass forbidden");
         assert(deltaT > 0);
 
+        if (mOnSurface || mSurfaceCtr > 0) {
+            //sliding on surface, so apply friction
+            //velocity relative to surface
+            Vector2f vrel =
+                velocity_int.project_vector(surface_normal.orthogonal);
+            float len = vrel.length;
+            if (len > 0.1f) {
+                //all forces on object
+                Vector2f fAll = (gravity + acceleration)*mPosp.mass
+                    + mForceAccum + selfForce;
+                //normal force
+                Vector2f fN = fAll.project_vector(-surface_normal);
+                if (mSurfaceCtr < 0) {
+                    //start sliding, so stop if not fast enough
+                    //xxx kind of a hack to allow worms to jump normally
+                    if (len < mPosp.slideAbsorb)
+                        //remove vrel component from velocity
+                        velocity_int -= vrel;
+                } else
+                    mForceAccum += -mPosp.friction*fN.length*(vrel/len);
+            }
+        }
+
+        if (mOnSurface)
+            mSurfaceCtr = max(mSurfaceCtr+1, 4);
+        else
+            mSurfaceCtr = min(mSurfaceCtr-1, 4);
+        mOnSurface = false;
+
         //Update velocity
         Vector2f t;
         if (!mIntendedLook.isNaN)
             t = mIntendedLook * mPosp.thrust;
         Vector2f a = gravity + acceleration
-            + (mForceAccum + selfForce) * (1.0f/mPosp.mass);
+            + (mForceAccum + selfForce) * mPosp.inverseMass;
         velocity_int += a * deltaT;
-
-        //remove unwanted parts
-        if (mUseFixate)
-            velocity_int = velocity.mulEntries(mPosp.fixate);
 
         //clip components at maximum velocity
         velocity_int = velocity.clipAbsEntries(mPosp.velocityConstraint);
@@ -201,6 +246,8 @@ class PhysicObject : PhysicBase {
     //xxx correction not used anymore, because we have constraints now
     final void setPos(Vector2f npos, bool correction) {
         mPos = npos;
+        if (mFixateConstraint)
+            mFixateConstraint.updatePos();
     }
 
     //move the object by this vector
@@ -255,6 +302,7 @@ class PhysicObject : PhysicBase {
         if (len > 0.001) {
             surface_normal = (dir/len);
             ground_angle = surface_normal.toAngle();
+            mOnSurface = true;
         }
     }
 
@@ -313,8 +361,10 @@ class PhysicObject : PhysicBase {
             //make sure object is dead if lifepowerInt() reports <= 0
             if (lifepower < 0.5f && lifepower > 0f)
                 lifepower = 0f;
-            if (mPosp.damageUnfixate)
-                mUseFixate = false;
+            if (mPosp.damageUnfixate && mFixateConstraint) {
+                mFixateConstraint.dead = true;
+                mFixateConstraint = null;
+            }
             if (onDamage)
                 onDamage(delta, cause);
             needUpdate();

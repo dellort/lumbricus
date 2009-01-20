@@ -68,3 +68,57 @@ class PhysicConstraint : PhysicContactGen {
         contactHandler(c);
     }
 }
+
+class PhysicFixate : PhysicContactGen {
+    PhysicObject obj;
+    //fixate vector, x/y != 0 to fixate on that axis
+    private Vector2f mFixate;
+
+    //position on time of fixate
+    private Vector2f mFixatePos;
+
+    private const cTolerance = 0.01f;
+
+    this(PhysicObject obj, Vector2f fixate) {
+        this.obj = obj;
+        this.fixate = fixate;
+        updatePos();
+    }
+
+    this (ReflectCtor c) {
+    }
+
+    void updatePos() {
+        mFixatePos = obj.pos;
+    }
+
+    void fixate(Vector2f fix) {
+        mFixate.x = fix.x>float.epsilon?0.0f:1.0f;
+        mFixate.y = fix.y>float.epsilon?0.0f:1.0f;
+    }
+
+    override void process(CollideDelegate contactHandler) {
+        Vector2f dist = (mFixatePos - obj.pos).mulEntries(mFixate);
+
+        float distLen = dist.length;
+        //check if current length is within tolerance
+        if (abs(distLen) < cTolerance)
+            return;
+
+        //generate contact to fix position difference
+        Contact c;
+        c.obj[0] = obj;
+        c.obj[1] = null;
+        c.source = ContactSource.generator;
+
+        Vector2f n = dist/distLen;
+        assert(!n.isNaN);
+
+        c.normal = n;
+        c.depth = distLen;
+
+        c.restitution = 1.0;
+
+        contactHandler(c);
+    }
+}

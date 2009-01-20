@@ -109,6 +109,11 @@ struct Contact {
         //new separating velocity, after collision
         float vSepNew = -vSep * restitution;
 
+        //if not fast enough, a geometry bounce gets eaten
+        //(note that we still apply gravity compensation)
+        if (!obj[1] && vSepNew < obj[0].posp.bounceAbsorb)
+            vSepNew = 0;
+
         //calculate closing velocity caused by acceleration, and remove it
         //this is supposed to make resting contacts more stable
         Vector2f acc = obj[0].gravity + obj[0].acceleration;
