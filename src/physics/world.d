@@ -59,7 +59,7 @@ class PhysicWorld {
         t.registerClasses!(CollisionMap, PhysicConstraint, POSP,
             BPSortAndSweep, PhysicTimedChangerVector2f, PhysicBase,
             CollisionType, EarthQuakeForce, EarthQuakeDegrader,
-            PhysicObject, PhysicTimedChangerFloat, ZoneTrigger);
+            PhysicObject, PhysicTimedChangerFloat, ZoneTrigger, PhysicFixate);
         BroadPhase.registerstuff(c);
         PhysicZone.registerstuff(c);
         PhysicForce.registerstuff(c);
@@ -160,24 +160,6 @@ class PhysicWorld {
 
         resolveContacts(deltaT);
 
-
-        foreach (PhysicObject obj; mObjects) {
-            //we collided with geometry, but were not fast enough!
-            //  => worm gets glued, hahaha.
-            //xxx maybe do the gluing somewhere else?
-            if (obj.onSurface) {
-                if (obj.velocity.length <= obj.posp.glueForce
-                    && obj.surface_normal.y < 0)
-                {
-                    obj.isGlued = true;
-                    version(PhysDebug) mLog("glue object %s", me);
-                    //velocity must be set to 0 (or change glue handling)
-                    //ok I did change glue handling.
-                    obj.velocity_int = Vector2f(0);
-                }
-            }
-        }
-
         checkUpdates();
     }
 
@@ -255,11 +237,17 @@ class PhysicWorld {
         CollideDelegate contactHandler)
     {
         GeomContact contact;
+        if (obj.posp.extendNormalcheck) {
+            //more expensive check that also yields a normal if the object
+            //is "close by" to the surface
+            if (collideObjectWithGeometry(obj, contact, true))
+                obj.checkGroundAngle(contact.normal*contact.depth);
+        }
         if (!collideObjectWithGeometry(obj, contact))
             return;
 
-        Vector2f depthvec = contact.normal*contact.depth;
-        obj.checkGroundAngle(depthvec);
+        if (!obj.posp.extendNormalcheck)
+            obj.checkGroundAngle(contact.normal*contact.depth);
 
         //generate contact and resolve
         Contact c;
@@ -284,11 +272,15 @@ class PhysicWorld {
         return collided;
     }
 
-    bool collideObjectWithGeometry(PhysicObject o, out GeomContact contact) {
+    bool collideObjectWithGeometry(PhysicObject o, out GeomContact contact,
+        bool entendRadius = false)
+    {
         bool collided = false;
         foreach (PhysicGeometry gm; mGeometryObjects) {
             GeomContact ncont;
-            if (collide.canCollide(o, gm) && gm.collide(o.pos, o.posp.radius, ncont)) {
+            if (collide.canCollide(o, gm) && gm.collide(o.pos,
+                o.posp.radius+(entendRadius?4:0), ncont))
+            {
                 //kind of hack for LevelGeometry
                 //if the pos didn't change at all, but a collision was
                 //reported, assume the object is completely within the

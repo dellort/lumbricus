@@ -167,8 +167,8 @@ class LocalGameSetupTask : Task {
     }
 
     private void editteamsClick(Button sender) {
-        mTeameditTask = new TeamEditorTask(manager);
-        mSetup.enabled = false;
+        if (!mTeameditTask)
+            mTeameditTask = new TeamEditorTask(manager);
     }
 
     //reload teams from config file and show in dialog
@@ -281,7 +281,6 @@ class LocalGameSetupTask : Task {
             if (mTeameditTask.reallydead) {
                 loadTeams();
                 mTeameditTask = null;
-                mSetup.enabled = true;
             }
         }
         if (mLevelWindow) {

@@ -751,7 +751,7 @@ class WormSprite : GObjectSprite {
         }
         if (currentState is wsc.st_rope && !other) {
             if (mMoveVector.x != 0)
-                physics.addImpulse(normal*wsc.ropeImpulse, true);
+                physics.addImpulse(normal*wsc.ropeImpulse);
         }
     }
 

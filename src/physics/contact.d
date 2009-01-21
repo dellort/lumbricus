@@ -111,8 +111,11 @@ struct Contact {
 
         //if not fast enough, a geometry bounce gets eaten
         //(note that we still apply gravity compensation)
-        if (!obj[1] && vSepNew < obj[0].posp.bounceAbsorb)
+        if (source == ContactSource.geometry
+            && vSepNew < obj[0].posp.bounceAbsorb)
+        {
             vSepNew = 0;
+        }
 
         //calculate closing velocity caused by acceleration, and remove it
         //this is supposed to make resting contacts more stable
@@ -140,7 +143,7 @@ struct Contact {
         Vector2f impulsePerIMass = impulse * normal;
 
         //apply impulses
-        obj[0].addImpulse(impulsePerIMass, !obj[1]);
+        obj[0].addImpulse(impulsePerIMass, source == ContactSource.geometry);
         if (obj[1])
             obj[1].addImpulse(-impulsePerIMass);
     }

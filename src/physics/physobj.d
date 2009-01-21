@@ -51,7 +51,18 @@ class PhysicObject : PhysicBase {
     package Vector2f mPos; //pixels
     private PhysicFixate mFixateConstraint;
 
-    bool isGlued;    //for sitting worms (can't be moved that easily)
+    private bool mIsGlued;    //for sitting worms (can't be moved that easily)
+
+    bool isGlued() {
+        return mIsGlued;
+    }
+    package void glueObject() {
+        mIsGlued = true;
+        //velocity must be set to 0 (or change glue handling)
+        //ok I did change glue handling.
+        velocity_int = Vector2f(0);
+    }
+
     bool mHadUpdate;  //flag to see if update() has run at least once
     bool mOnSurface;
     int mSurfaceCtr;
@@ -93,11 +104,11 @@ class PhysicObject : PhysicBase {
             return;
         version(PhysDebug) world.mLog("unglue object %s", this);
         //he flies away! arrrgh!
-        isGlued = false;
+        mIsGlued = false;
         //mWalkingMode = false; (no! object _wants_ to walk, and continue
         //                       when glued again)
         mIsWalking = false;
-        mOnSurface = true;
+        mOnSurface = false;
         needUpdate();
     }
 
@@ -130,7 +141,17 @@ class PhysicObject : PhysicBase {
             if (damage > 0)
                 applyDamage(damage, cDamageCauseFall);
         }
-        doUnglue();
+        if (fromGeom && velocity_int.length < mPosp.glueForce
+            && surface_normal.y < 0)
+        {
+            //we collided with geometry, but were not fast enough!
+            //  => worm gets glued, hahaha.
+            //xxx maybe do the gluing somewhere else?
+            glueObject;
+            version(PhysDebug) mLog("glue object %s", me);
+        } else {
+            doUnglue();
+        }
     }
 
     private void clearAccumulators() {
