@@ -37,6 +37,8 @@ private class LevelSelector : SimpleContainer {
         Label mLblWait;
         DropDownList mDdGfx;
         PainterWidget mPainter;
+        Button[] mChkDrawMode;
+        GenerateFromTemplate mLastLevel;
     }
 
     struct LevelInfo {
@@ -80,7 +82,7 @@ private class LevelSelector : SimpleContainer {
                 break;
             //prepare button
             auto sb = loader.lookup!(Button)("level"~str.toString(i));
-            sb.onClick = &accept;
+            sb.onClick = &levelClick;
             sb.onRightClick = &generate;
             mShowBitmap ~= sb;
             //insert info structure (matched by index)
@@ -94,6 +96,16 @@ private class LevelSelector : SimpleContainer {
         loader.lookup!(Button)("btn_clear").onClick = &clearClick;
         loader.lookup!(Button)("btn_fill").onClick = &fillClick;
         loader.lookup!(Button)("btn_cancel").onClick = &cancelClick;
+        loader.lookup!(Button)("btn_ok").onClick = &okClick;
+
+        mChkDrawMode ~= loader.lookup!(Button)("chk_circle");
+        mChkDrawMode[$-1].onClick = &chkCircleClick;
+        mChkDrawMode ~= loader.lookup!(Button)("chk_square");
+        mChkDrawMode[$-1].onClick = &chkSquareClick;
+        mChkDrawMode ~= loader.lookup!(Button)("chk_line");
+        mChkDrawMode[$-1].onClick = &chkLineClick;
+        mChkDrawMode ~= loader.lookup!(Button)("chk_rect");
+        mChkDrawMode[$-1].onClick = &chkRectClick;
 
         mLayout = loader.lookup!(Widget)("levelpreview_root");
         add(mLayout);
@@ -105,6 +117,38 @@ private class LevelSelector : SimpleContainer {
 
     private void fillClick(Button sender) {
         mPainter.fillSolidSoft();
+    }
+
+    private void chkCircleClick(Button sender) {
+        foreach (b; mChkDrawMode) {
+            if (b != sender)
+                b.checked = false;
+        }
+        mPainter.setDrawMode(DrawMode.circle);
+    }
+
+    private void chkSquareClick(Button sender) {
+        foreach (b; mChkDrawMode) {
+            if (b != sender)
+                b.checked = false;
+        }
+        mPainter.setDrawMode(DrawMode.square);
+    }
+
+    private void chkLineClick(Button sender) {
+        foreach (b; mChkDrawMode) {
+            if (b != sender)
+                b.checked = false;
+        }
+        mPainter.setDrawMode(DrawMode.line);
+    }
+
+    private void chkRectClick(Button sender) {
+        foreach (b; mChkDrawMode) {
+            if (b != sender)
+                b.checked = false;
+        }
+        mPainter.setDrawMode(DrawMode.rect);
     }
 
     private void gfxSelect(DropDownList list) {
@@ -147,15 +191,29 @@ private class LevelSelector : SimpleContainer {
         mShowBitmap[idx].image = gen.preview(sz);
     }
 
-    private void accept(Button sender) {
+    private void levelClick(Button sender) {
         int idx = getIdx(sender);
-        mLevel[idx].generator.selectTheme(mGenerator.themes.findRandom(mGfx));
-        if (onAccept)
-            onAccept(mLevel[idx].generator);
+        //--> xxx Stupid debug code following
+        //what we actually need: "something" to render only the Lexel[]
+        //  (no textures, no objects) and store it in a way that
+        //  allows applying textures and objects later
+        Level lvl = mLevel[idx].generator.render();
+        auto land = cast(LevelLandscape)lvl.objects[0];
+        assert(!!land);
+        mPainter.levelData = land.landscape.levelData;
+        mPainter.fullUpdate();
+        mLastLevel = mLevel[idx].generator;
+        //<-- end of stupidity
     }
 
     private void cancelClick(Button sender) {
         if (onAccept)
             onAccept(null);
+    }
+
+    private void okClick(Button sender) {
+        mLastLevel.selectTheme(mGenerator.themes.findRandom(mGfx));
+        if (onAccept)
+            onAccept(mLastLevel);
     }
 }

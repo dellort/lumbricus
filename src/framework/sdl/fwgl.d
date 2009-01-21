@@ -386,17 +386,27 @@ class GLCanvas : Canvas {
     }
 
     public void drawCircle(Vector2i center, int radius, Color color) {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
         glColor4fv(color.ptr);
         stroke_circle(center.x, center.y, radius);
         glColor3f(1.0f, 1.0f, 1.0f);
+
+        glDisable(GL_BLEND);
     }
 
     public void drawFilledCircle(Vector2i center, int radius,
         Color color)
     {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
         glColor4fv(color.ptr);
         fill_circle(center.x, center.y, radius);
         glColor3f(1.0f, 1.0f, 1.0f);
+
+        glDisable(GL_BLEND);
     }
 
     //Code from Luigi, www.dsource.org/projects/luigi, BSD license
@@ -473,6 +483,7 @@ class GLCanvas : Canvas {
     //<-- Luigi end
 
     public void drawLine(Vector2i p1, Vector2i p2, Color color, int width = 1) {
+        glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glLineWidth(width);
 
@@ -488,6 +499,7 @@ class GLCanvas : Canvas {
 
         glColor3f(1.0f, 1.0f, 1.0f);
         glDisable(GL_BLEND);
+        glLineWidth(1);
     }
 
     public void drawRect(Vector2i p1, Vector2i p2, Color color) {

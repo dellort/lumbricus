@@ -1,7 +1,7 @@
 module utils.drawing;
 
-//copied from sdl_gfx (and modified)
-//original: sdlgfx-2.0.9, SDL_gfxPrimitives.c: filledCircleColor()
+//from http://en.wikipedia.org/wiki/Midpoint_circle_algorithm
+//(modified for filling)
 void circle(int x, int y, int r,
     void delegate(int x1, int x2, int y) cb)
 {
@@ -9,42 +9,25 @@ void circle(int x, int y, int r,
         return;
 
     int cx = 0, cy = r;
-    int ocx = cx-1, ocy = cy+1;
-    int df = r - 1;
-    int d_e = 3;
-    int d_se = -2 * r + 5;
+    int df = 1 - r;
+    int ddf_x = 0;
+    int ddf_y = -2 * r;
 
-    bool draw = true;
-
-    do {
-        if (draw) {
-            if (cy > 0) {
-                cb(x - cx, x + cx, y + cy);
-                cb(x - cx, x + cx, y - cy);
-            } else {
-                cb(x - cx, x + cx, y);
-            }
-            draw = false;
-        }
-        if (cx != cy) {
-            if (cx) {
-                cb(x - cy, x + cy, y - cx);
-                cb(x - cy, x + cy, y + cx);
-            } else {
-                cb(x - cy, x + cy, y);
-            }
-        }
-        if (df < 0) {
-            df += d_e;
-            d_e += 2;
-            d_se += 2;
-        } else {
-            df += d_se;
-            d_e += 2;
-            d_se += 4;
+    while (cx < cy) {
+        cb(x-cy,x+cy,y+cx);
+        cb(x-cy,x+cy,y-cx);
+        if (df >= 0)  {
+            cb(x-cx,x+cx,y+cy);
+            cb(x-cx,x+cx,y-cy);
             cy--;
-            draw = true;
+            ddf_y += 2;
+            df += ddf_y;
         }
+
+        ddf_x += 2;
+        df += ddf_x + 1;
         cx++;
-    } while (cx <= cy);
+    }
+    cb(x-cy,x+cy,y+cx);
+    cb(x-cy,x+cy,y-cx);
 }

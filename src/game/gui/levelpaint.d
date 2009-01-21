@@ -2,7 +2,6 @@ module game.gui.levelpaint;
 
 import framework.framework;
 import framework.i18n;
-import common.task;
 import common.common;
 import common.visual;
 import game.gfxset;
@@ -31,6 +30,13 @@ private uint rgba32(Color c) {
         | (cast(ubyte)(255*c.g)<<8) | (cast(ubyte)(255*c.r));
 }
 
+enum DrawMode {
+    circle,
+    square,
+    line,
+    rect,
+}
+
 class PainterWidget : Widget {
     Lexel[] levelData;
 
@@ -45,13 +51,22 @@ class PainterWidget : Widget {
             rgba32(cLexelToColor[1]), rgba32(cLexelToColor[2])];
         const cPenRadius = [10, 75];
         const cPenChange = 5;
+        const cPenColor = Color(1, 0, 0, 0.5);
 
         Vector2i mLevelSize = Vector2i(2000, 700);
         Rect2i mLevelRect;
-        Lexel mPaintMode = Lexel.INVALID;
+        Lexel mPaintLexel = Lexel.INVALID;
         int mPenRadius = 30;
         Lexel[] mScaledLevel;
-        Vector2i mMouseLast;
+        Vector2i mMouseLast, mClickPos, mClickPosLevel;
+        bool mMouseInside, mMouseDown;
+        DrawMode mDrawMode = DrawMode.circle;
+
+        enum PMState {
+            down,
+            up,
+            move,
+        }
     }
 
     this() {
@@ -84,22 +99,56 @@ class PainterWidget : Widget {
 
     protected void onDraw(Canvas c) {
         c.draw(mImage, Vector2i(0, 0));
+        if (mMouseInside) {
+            //draw the current pen for visual feedback of what will be drawn
+            int r = cast(int)(mPenRadius*cPaintScale);
+            switch (mDrawMode) {
+                case DrawMode.circle:
+                    c.drawFilledCircle(mousePos, r, cPenColor);
+                    break;
+                case DrawMode.square:
+                    c.drawFilledRect(mousePos-Vector2i(r), mousePos+Vector2i(r),
+                        cPenColor);
+                    break;
+                case DrawMode.line:
+                    //overlaps at start and end, feel free to do it properly
+                    c.drawFilledCircle(mousePos, r, cPenColor);
+                    if (mMouseDown) {
+                        c.drawFilledCircle(mClickPos, r, cPenColor);
+                        c.drawLine(mClickPos, mousePos, cPenColor, 2*r);
+                    }
+                    break;
+                case DrawMode.rect:
+                    //draws a thin rectangle and four circles at the edges
+                    c.drawFilledCircle(mousePos, r, cPenColor);
+                    if (mMouseDown) {
+                        c.drawFilledCircle(mClickPos, r, cPenColor);
+                        c.drawFilledCircle(mClickPos.X+mousePos.Y, r,cPenColor);
+                        c.drawFilledCircle(mClickPos.Y+mousePos.X, r,cPenColor);
+                        Rect2i rc = Rect2i(mClickPos, mousePos);
+                        rc.normalize;
+                        //sry, opengl rects with thick borders look stupid
+                        c.drawRect(rc, cPenColor);
+                    }
+                    break;
+            }
+        }
     }
 
     private bool onKeyDown(char[] bind, KeyInfo infos) {
         if (infos.code == Keycode.MOUSE_LEFT) {
-            mPaintMode = Lexel.SolidSoft;
-            paintAtMouse(true);
+            mPaintLexel = Lexel.SolidSoft;
+            paintAtMouse(PMState.down);
             return true;
         }
         if (infos.code == Keycode.MOUSE_MIDDLE) {
-            mPaintMode = Lexel.SolidHard;
-            paintAtMouse(true);
+            mPaintLexel = Lexel.SolidHard;
+            paintAtMouse(PMState.down);
             return true;
         }
         if (infos.code == Keycode.MOUSE_RIGHT) {
-            mPaintMode = Lexel.Null;
-            paintAtMouse(true);
+            mPaintLexel = Lexel.Null;
+            paintAtMouse(PMState.down);
             return true;
         }
         if (infos.code == Keycode.MOUSE_WHEELUP) {
@@ -117,7 +166,8 @@ class PainterWidget : Widget {
         if (infos.code == Keycode.MOUSE_LEFT
             || infos.code == Keycode.MOUSE_MIDDLE
             || infos.code == Keycode.MOUSE_RIGHT) {
-            mPaintMode = Lexel.INVALID;
+            paintAtMouse(PMState.up);
+            mPaintLexel = Lexel.INVALID;
             return true;
         }
         return false;
@@ -129,39 +179,97 @@ class PainterWidget : Widget {
             || (ki.isUp && onKeyUp(b, ki));
     }
 
-    override void onMouseMove(MouseInfo info) {
-        if (mPaintMode != Lexel.INVALID) {
+    override protected void onMouseMove(MouseInfo info) {
+        if (mPaintLexel != Lexel.INVALID) {
             paintAtMouse();
         }
     }
 
-    private void paintAtMouse(bool clicked = false) {
+    override protected void onMouseEnterLeave(bool mouseIsInside) {
+        mMouseInside = mouseIsInside;
+    }
+
+    private void paintAtMouse(PMState s = PMState.move) {
+        if ((s == PMState.down && mMouseDown) ||
+            (s == PMState.up && !mMouseDown))
+            return;
         Vector2i levelPos = Vector2i(
             cast(int)(mLevelSize.x*(cast(float)mousePos.x)/mImage.size.x),
             cast(int)(mLevelSize.y*(cast(float)mousePos.y)/mImage.size.y));
-        if (clicked)
+
+        if (s == PMState.up) {
+            mMouseDown = false;
+            if (mDrawMode == DrawMode.line)
+                doPaint(mClickPosLevel, levelPos);
+            if (mDrawMode == DrawMode.rect) {
+                doPaint(mClickPosLevel, mClickPosLevel.Y+levelPos.X);
+                doPaint(mClickPosLevel.Y+levelPos.X, levelPos);
+                doPaint(levelPos, mClickPosLevel.X+levelPos.Y);
+                doPaint(mClickPosLevel.X+levelPos.Y, mClickPosLevel);
+            }
+        }
+        if (s == PMState.down) {
+            mMouseDown = true;
             mMouseLast = levelPos;
-        doPaint(mMouseLast, levelPos);
+            mClickPos = mousePos;
+            mClickPosLevel = levelPos;
+        }
+        if (s == PMState.move || s == PMState.down) {
+            if (mDrawMode == DrawMode.circle || mDrawMode == DrawMode.square)
+                doPaint(mMouseLast, levelPos, mDrawMode == DrawMode.square);
+        }
         mMouseLast = levelPos;
     }
 
     //called with absolute position in final level (0, 0)-mLevelSize
-    //draw a line from p1 to p2, using mPaintMode and mPenRadius
-    private void doPaint(Vector2i p1, Vector2i p2) {
-        assert(mPaintMode >= 0 && mPaintMode < 3);
+    //draw a line from p1 to p2, using mPaintLexel and mPenRadius
+    private void doPaint(Vector2i p1, Vector2i p2, bool square = false) {
+        assert(mPaintLexel >= 0 && mPaintLexel < 3);
+
+        //just for convenience
+        void drawRect(Vector2i p, int radius,
+            void delegate(int x1, int x2, int y) dg)
+        {
+            for (int y = p.y-radius; y < p.y+radius; y++) {
+                dg(p.x-radius, p.x+radius-1, y);
+            }
+        }
 
         void drawThickLine(Vector2i p1, Vector2i p2, int radius, Vector2i size,
             void delegate(int x1, int x2, int y) dg)
         {
-            drawing.circle(p1.x, p1.y, radius, dg);
+            if (square)
+                drawRect(p1, radius, dg);
+            else
+                drawing.circle(p1.x, p1.y, radius, dg);
             if (p1 != p2) {
-                drawing.circle(p2.x, p2.y, radius, dg);
+                if (square)
+                    drawRect(p2, radius, dg);
+                else
+                    drawing.circle(p2.x, p2.y, radius, dg);
                 Vector2f[4] poly;
-                Vector2f line_o = toVector2f(p2-p1).orthogonal.normal;
-                poly[0] = toVector2f(p1)-line_o*radius;
-                poly[1] = toVector2f(p1)+line_o*radius;
-                poly[2] = toVector2f(p2)+line_o*radius;
-                poly[3] = toVector2f(p2)-line_o*radius;
+                if (!square) {
+                    Vector2f line_o = toVector2f(p2-p1).orthogonal.normal;
+                    poly[0] = toVector2f(p1)-line_o*radius;
+                    poly[1] = toVector2f(p1)+line_o*radius;
+                    poly[2] = toVector2f(p2)+line_o*radius;
+                    poly[3] = toVector2f(p2)-line_o*radius;
+                } else {
+                    int r = radius;
+                    if (p1.x > p2.x && p1.y > p2.y
+                        || p1.x < p2.x && p1.y < p2.y)
+                    {
+                        poly[0] = toVector2f(p1+Vector2i(r, -r));
+                        poly[1] = toVector2f(p1+Vector2i(-r, r));
+                        poly[2] = toVector2f(p2+Vector2i(-r, r));
+                        poly[3] = toVector2f(p2+Vector2i(r, -r));
+                    } else {
+                        poly[0] = toVector2f(p1+Vector2i(r, r));
+                        poly[1] = toVector2f(p1+Vector2i(-r, -r));
+                        poly[2] = toVector2f(p2+Vector2i(-r, -r));
+                        poly[3] = toVector2f(p2+Vector2i(r, r));
+                    }
+                }
                 rasterizePolygon(size.x, size.y, poly, false, dg);
             }
         }
@@ -173,7 +281,7 @@ class PainterWidget : Widget {
             if (x2 >= mLevelSize.x) x2 = mLevelSize.x-1;
             int ly = y*mLevelSize.x;
             for (int x = x1; x <= x2; x++) {
-                levelData[ly+x] = mPaintMode;
+                levelData[ly+x] = mPaintLexel;
             }
         }
         drawThickLine(p1, p2, mPenRadius, mLevelSize, &scanline);
@@ -196,8 +304,8 @@ class PainterWidget : Widget {
             uint* dstptr = cast(uint*)(pixels+pitch*y)+x1;
             for (int x = x1; x <= x2; x++) {
                 //actually, the following line is not necessary
-                mScaledLevel[ly+x] = mPaintMode;
-                *dstptr = cLexelToRGBA32[mPaintMode];
+                mScaledLevel[ly+x] = mPaintLexel;
+                *dstptr = cLexelToRGBA32[mPaintLexel];
                 dstptr++;
             }
         }
@@ -228,10 +336,14 @@ class PainterWidget : Widget {
         fill(Lexel.Null);
     }
 
+    void setDrawMode(DrawMode dm) {
+        mDrawMode = dm;
+    }
+
     //refresh the whole scaled lexel cache and image (e.g. after clearing,
     //   or loading an existing level)
     //xxx this is quite slow
-    private void fullUpdate() {
+    void fullUpdate() {
         assert(mScaledLevel.length == mImage.size.x*mImage.size.y);
         assert(levelData.length == mLevelSize.x*mLevelSize.y);
 
@@ -259,30 +371,10 @@ class PainterWidget : Widget {
                 dstptr++;
             }
         }
-        mImage.unlockPixels(Rect2i.init);
+        mImage.unlockPixels(mImage.rect);
     }
 
     override Vector2i layoutSizeRequest() {
         return mImage.size;
-    }
-}
-
-class LevelPaintTask : Task {
-    private {
-        PainterWidget mPainter;
-        Window mWindow;
-    }
-
-    this(TaskManager tm) {
-        super(tm);
-
-        mPainter = new PainterWidget();
-
-        mWindow = gWindowManager.createWindow(this, mPainter,
-            _("levelpaint.caption"));
-    }
-
-    static this() {
-        TaskFactory.register!(typeof(this))("levelpaint");
     }
 }

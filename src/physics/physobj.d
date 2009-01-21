@@ -267,7 +267,7 @@ class PhysicObject : PhysicBase {
     //xxx correction not used anymore, because we have constraints now
     final void setPos(Vector2f npos, bool correction) {
         mPos = npos;
-        if (mFixateConstraint)
+        if (mFixateConstraint && !correction)
             mFixateConstraint.updatePos();
     }
 
