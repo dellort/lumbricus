@@ -27,9 +27,11 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
     auto wormsDataDir = wormsDir ~ "data" ~ path.sep;
     importDir = importDir ~ path.sep;
 
+    void conferr(char[] msg) { writefln(msg); }
+
     ConfigNode loadWImportConfig(char[] file) {
         return (new ConfigFile(new File(importDir ~ file),
-        file, (char[] msg) { writefln(msg); } )).rootnode;
+        file, &conferr)).rootnode;
     }
     void writeConfig(ConfigNode node, char[] dest) {
         scope confst = new File(dest, FileMode.OutNew);

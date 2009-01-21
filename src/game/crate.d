@@ -1,5 +1,7 @@
 module game.crate;
 
+import framework.i18n;
+
 import game.gobject;
 import game.animation;
 import physics.world;
@@ -24,6 +26,10 @@ import str = std.string;
 class Collectable {
     ///The crate is being collected by a worm
     abstract void collect(CrateSprite parent, ServerTeamMember member);
+
+    //translation ID for contents; used to display collect messages
+    //could also be used for crate-spy
+    abstract char[] id();
 
     ///The crate explodes
     void blow(CrateSprite parent) {
@@ -53,6 +59,10 @@ class CollectableWeapon : Collectable {
         member.mTeam.addWeapon(weapon, quantity);
     }
 
+    char[] id() {
+        return "weapons." ~ weapon.name;
+    }
+
     override void blow(CrateSprite parent) {
         //think about the crate-sheep
         //xxx maybe make this more generic
@@ -77,6 +87,10 @@ class CollectableMedkit : Collectable {
     this (ReflectCtor c) {
     }
 
+    char[] id() {
+        return "crate_medkit";
+    }
+
     void collect(CrateSprite parent, ServerTeamMember member) {
         //xxx not sure if the controller can handle it
         member.worm.physics.lifepower += amount;
@@ -89,6 +103,10 @@ class CollectableBomb : Collectable {
     this (ReflectCtor c) {
     }
     this() {
+    }
+
+    char[] id() {
+        return "crate_bomb";
     }
 
     void collect(CrateSprite parent, ServerTeamMember member) {
@@ -166,6 +184,8 @@ class CrateSprite : ActionSprite {
         engine.mLog("%s collects crate %s", member, this);
         //transfer stuffies
         foreach (Collectable c; stuffies) {
+            engine.controller.messageAdd("collect_item", [member.name(),
+                _(c.id())]);
             c.collect(this, member);
         }
         //and destroy crate

@@ -265,7 +265,7 @@ unittest {
     //NOTE: assume compiler sets init to null, because int is intialized with
     //      zero; doesn't need to be true.
     if (typeid(int).init.length > 0) {
-        writefln("mybox.d unittest: zero-init not tested!");
+        debug writefln("mybox.d unittest: zero-init not tested!");
     }
     box.initDynamic(typeid(int));
     assert(box.unbox!(int) == 0);

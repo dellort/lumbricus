@@ -341,6 +341,7 @@ class GameTask : Task {
             mClientEngine = null;
         }
         mGame = null;
+        mControl = null;
     }
 
     private bool initGameGui() {

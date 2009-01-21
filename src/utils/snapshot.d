@@ -11,7 +11,7 @@ size_t snap_cur; //data position in snap_data
 size_t snap_read_pos; //same, for reading
 size_t snap_last_object;
 Object[] snap_objects;
-int[Object] snap_obj2index;
+bool[Object] snap_objmarked;
 SnapDescriptor[Class] snap_class2desc;
 //actually used during writing
 SnapDescriptor[ClassInfo] snap_ci2desc;
@@ -216,22 +216,25 @@ void snap_read_items(T)(void* base, size_t[] offsets) {
 void snap(Types serTypes, Object snapObj) {
     snap_cur = 0;
     snap_objects.length = 0;
-    snap_obj2index = null;
+    //snap_objmarked
     snap_last_object = 0;
 
     int lookups;
 
-    int queueObject(Object o) {
+    void queueObject(Object o) {
         if (!o)
-            return -1;
-        if (auto pid = o in snap_obj2index) {
-            lookups++;
-            return *pid;
+            return;
+        lookups++;
+        bool* pmark = o in snap_objmarked;
+        if (!pmark) {
+            snap_objmarked[o] = false;
+            pmark = o in snap_objmarked;
+            assert (!!pmark);
         }
-        int id = snap_objects.length;
+        if (*pmark)
+            return;
+        *pmark = true;
         snap_objects ~= o;
-        snap_obj2index[o] = id;
-        return id;
     }
 
     void writeItem(void* ptr, SnapDescriptor desc) {
@@ -244,14 +247,11 @@ void snap(Types serTypes, Object snapObj) {
             return;
         for (int n = 0; n < desc.objects.length; n++) {
             SnapDescriptor.RefMember m = desc.objects[n];
+            void* raw = *cast(void**)(ptr + m.offset);
+            snap_write(&raw);
             //(actually, castFrom is only needed for interfaces)
-            Object o = m.type.castFrom(*cast(void**)(ptr + m.offset));
-            //when the snapshot is read, the reader simply looks into the
-            //snap_objects array; even if the snapshot isn't read back into the
-            //old objects, readers can find out the class of the object to
-            //instantiate it
-            int id = queueObject(o);
-            snap_write(&id);
+            Object o = m.type.castFrom(raw);
+            queueObject(o);
         }
         for (int n = 0; n < desc.arrays.length; n++) {
             SnapDescriptor.ArrayMember m = desc.arrays[n];
@@ -299,14 +299,8 @@ void snap(Types serTypes, Object snapObj) {
                 }
                 throw new Exception("can't snapshot: "~what);
             }
-            int id = queueObject(dg_o);
-            snap_write(&id);
-            //xxx: as long as the snapshot only needs to be loadable from RAM,
-            //     one can just write this
-            //     note that the GC doesn't scan the snap data, so this breaks
-            //     if either serialize_types is freed, or D introduces a
-            //     moving GC
-            //xxx 2: why do I write objects as IDs, then??
+            queueObject(dg_o);
+            snap_write(&dg_o);
             snap_write(&dg_m);
         }
     }
@@ -314,6 +308,11 @@ void snap(Types serTypes, Object snapObj) {
     //size_t oldsize = snap_data.length;
     PerfTimer timer = new PerfTimer(true);
     timer.start();
+
+    //xxx: memory is never freed
+    foreach (k, ref v; snap_objmarked) {
+        v = false;
+    }
 
     queueObject(snapObj);
 
@@ -354,16 +353,8 @@ void unsnap(Types serTypes) {
             return;
         for (int n = 0; n < desc.objects.length; n++) {
             SnapDescriptor.RefMember m = desc.objects[n];
-            Object o = readRef();
-            SafePtr mp = SafePtr(m.type, ptr + m.offset);
-            //NOTE: should be able to write unchecked
-            //one can even avoid the cast, if the uncasted ptr is written into
-            //the data stream
-            //actually, it could be handled as pod32 (or whatever the ptr size
-            //is), the writer just needs to add the object to the write queue
-            if (!mp.castAndAssignObject(o)) {
-                assert (false);
-            }
+            void** raw = cast(void**)(ptr + m.offset);
+            snap_read(raw);
         }
         for (int n = 0; n < desc.arrays.length; n++) {
             SnapDescriptor.ArrayMember m = desc.arrays[n];
@@ -381,9 +372,12 @@ void unsnap(Types serTypes) {
             //      data segment (not portable, not generally possible)
             //   2. reallocate the array memory (SLOW)
             //   3. compare the data, and only copy if it has changed (slow too)
+            //      also, must force reallocation if something has changed
+            //      we don't know if it points into the data segment!
             m.t.setLength(ap, len);
             ArrayType.Array arr = m.t.getArray(ap);
             assert (arr.ptr.type is m.item.type);
+            assert (arr.length == len);
             //xxx assume the above problem about the data segment only happens
             //    with PODs; but in some cases, this could go wrong
             if (!m.item.is_full_pod) {
@@ -396,8 +390,14 @@ void unsnap(Types serTypes) {
                 void* psrc = &snap_data[snap_read_pos];
                 assert (arr.ptr.ptr is arr.get(0).ptr);
                 void* pdest = arr.ptr.ptr;
-                if (psrc[0..copy] != pdest[0..copy])
+                if (psrc[0..copy] != pdest[0..copy]) {
+                    //force reallocation
+                    m.t.assign(ap, m.t.initPtr());
+                    m.t.setLength(ap, len);
+                    arr = m.t.getArray(ap);
+                    pdest = arr.ptr.ptr;
                     pdest[0..copy] = psrc[0..copy];
+                }
                 snap_read_pos += copy;
             }
         }
@@ -421,8 +421,9 @@ void unsnap(Types serTypes) {
         for (int n = 0; n < desc.dgs.length; n++) {
             SnapDescriptor.DgMember m = desc.dgs[n];
             SafePtr dp = SafePtr(m.t, ptr + m.offset);
-            Object dg_o = readRef();
+            Object dg_o;
             ClassMethod dg_m;
+            snap_read(&dg_o);
             snap_read(&dg_m);
             //NOTE: because we know that the data is right, we could use an
             //      unchecked way to write the actual delegate...

@@ -543,9 +543,16 @@ class Type {
     //xxx: currently do a byte-for-byte comparision, which "should" be ok in
     //     most cases
     bool op_is(SafePtr pa, SafePtr pb) {
-        if (pa.type != this || pb.type != this)
+        if (pa.type !is this || pb.type !is this)
             throw new Exception("type error");
         return pa.ptr[0..mSize] == pb.ptr[0..mSize];
+    }
+
+    //xxx: same as in op_is()
+    final void assign(SafePtr dest, SafePtr src) {
+        if (dest.type !is src.type)
+            throw new Exception("type error");
+        dest.ptr[0..mSize] = src.ptr[0..mSize];
     }
 }
 
