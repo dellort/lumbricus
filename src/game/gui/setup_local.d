@@ -156,8 +156,10 @@ class LocalGameSetupTask : Task {
     }
 
     private void lvlAccept(LevelGenerator gen) {
-        setCurrentLevel(gen);
-        mSavedLevels.selection = "";
+        if (gen) {
+            setCurrentLevel(gen);
+            mSavedLevels.selection = "";
+        }
         mLevelWindow.visible = false;
     }
 

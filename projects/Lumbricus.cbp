@@ -164,6 +164,7 @@
 		<Unit filename="..\src\game\gui\gametimer.d" />
 		<Unit filename="..\src\game\gui\gameview.d" />
 		<Unit filename="..\src\game\gui\leveledit.d" />
+		<Unit filename="..\src\game\gui\levelpaint.d" />
 		<Unit filename="..\src\game\gui\loadingscreen.d" />
 		<Unit filename="..\src\game\gui\preparedisplay.d" />
 		<Unit filename="..\src\game\gui\preview.d" />

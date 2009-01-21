@@ -140,7 +140,7 @@ class LandscapeBitmap {
         void* dstptr; uint dstpitch;
         mImage.lockPixelsRGBA32(dstptr, dstpitch);
 
-        void drawScanline(int y, int x1, int x2) {
+        void drawScanline(int x1, int x2, int y) {
             assert(x1 <= x2);
             assert(y >= 0 && y < mHeight);
             //clipping (maybe rasterizePolygon should do that)
@@ -698,8 +698,8 @@ private int myround(float f) {
     return cast(int)(f+0.5f);
 }
 
-private void rasterizePolygon(uint width, uint height, Vector2f[] points,
-    bool invert, void delegate (int y, int x1, int x2) renderScanline)
+void rasterizePolygon(uint width, uint height, Vector2f[] points,
+    bool invert, void delegate (int x1, int x2, int y) renderScanline)
 {
     if (points.length < 3)
         return;
@@ -816,15 +816,15 @@ private void rasterizePolygon(uint width, uint height, Vector2f[] points,
             if (last) {
                 assert(last_xmin <= edge.xmin);
                 if (last_xmin > edge.xmin) {
-                    renderScanline(y, myround(last.xmin-last.m1),
-                        myround(edge.xmin));
+                    renderScanline(myround(last.xmin-last.m1),
+                        myround(edge.xmin), y);
                 }
             }
             c = !c;
             assert(y <= edge.ymax);
             if (last && !c) {
-                renderScanline(y, myround(last.xmin-last.m1),
-                    myround(edge.xmin));
+                renderScanline(myround(last.xmin-last.m1),
+                    myround(edge.xmin), y);
             }
             //advance
             last_xmin = edge.xmin;
