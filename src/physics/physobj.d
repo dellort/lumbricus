@@ -1,6 +1,6 @@
 module physics.physobj;
 
-import std.math : PI, abs, isnan;
+import stdx.math : PI, abs, isnan;
 import utils.list2;
 import utils.vector2;
 import utils.misc: min, max;
@@ -10,6 +10,8 @@ import physics.base;
 import physics.posp;
 import physics.geometry;
 import physics.links;
+
+import str = stdx.string;
 
 const cDamageCauseFall = 0;
 const cDamageCauseDeath = -1;

@@ -1,10 +1,10 @@
 module utils.log;
 
 import utils.output;
-import stdformat = std.format;
-import stdio = std.stdio;
+import stdformat = stdx.format;
+import stdio = stdx.stdio;
 import utils.time;
-import std.stdarg : va_list;
+import utils.misc : va_list;
 
 /// Access to all Log objects created so far.
 Log[char[]] gAllLogs;

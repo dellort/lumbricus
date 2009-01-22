@@ -1,10 +1,10 @@
 module wwpdata.reader_dir;
 
-import str = std.string;
-import path = std.path;
-import std.file;
-import std.stream;
-import std.stdio;
+import str = stdx.string;
+import path = stdx.path;
+import stdx.file;
+import stdx.stream;
+import stdx.stdio;
 import wwpdata.common;
 import wwpdata.reader;
 import wwptools.unworms;

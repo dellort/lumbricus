@@ -52,9 +52,8 @@ import utils.path;
 import utils.archive;
 import utils.snapshot;
 
-import std.stream;
-import str = std.string;
-static import std.file;
+import stdx.stream;
+import str = stdx.string;
 
 //these imports register classes in a factory on module initialization
 import game.weapon.projectile;
@@ -88,7 +87,7 @@ Level fuzzleLevel(Level level) {
             for (int y = 0; y < sy; y++) {
                 for (int x = 0; x < sx; x++) {
                     auto nls = castStrict!(LevelLandscape)(ls.copy);
-                    nls.name = format("%s_%s_%s", nls.name, x, y);
+                    nls.name = str.format("%s_%s_%s", nls.name, x, y);
                     auto offs = Vector2i(x, y) * cTileSize;
                     auto soffs = Vector2i(x, y) * cTile;
                     nls.position += offs;
@@ -707,7 +706,7 @@ class GameTask : Task {
                 l.text = str.format("%s: %s", n, types[n].name);
                 addc(0, n+1, l);
                 l = new Label();
-                l.text = format("%s", n);//types[n].name;
+                l.text = str.format("%s", n);//types[n].name;
                 addc(n+1, 0, l);
             }
             int y = 1;

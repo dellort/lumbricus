@@ -14,7 +14,7 @@ import gui.wm;
 import utils.random;
 import utils.time;
 import utils.vector2;
-import std.string : format;
+import stdx.string : format;
 
 //registers itself as Task "wtris"
 public class WTris : Task {

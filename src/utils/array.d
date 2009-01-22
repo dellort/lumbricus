@@ -1,5 +1,5 @@
 module utils.array;
-import utf = std.utf;
+import utf = stdx.utf;
 
 //aaIfIn(a,b) works like a[b], but if !(a in b), return null
 public V aaIfIn(K, V)(V[K] aa, K key) {
@@ -212,7 +212,7 @@ void arrayInsertSortedTail(T)(inout T[] arr, T value,
     }
 }
 
-debug import std.stdio;
+debug import stdx.stdio;
 
 unittest {
     int[] testAIST(int[] arr, int v) {

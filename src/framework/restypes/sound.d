@@ -4,7 +4,7 @@ import framework.resources;
 import framework.filesystem;
 import framework.framework;
 import framework.sound;
-import std.stream;
+import stdx.stream;
 import utils.configfile;
 
 class SampleResource : ResourceItem {

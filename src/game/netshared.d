@@ -6,6 +6,7 @@ module game.netshared;
 public import game.gamepublic;
 
 import game.levelgen.level;
+import game.gfxset;
 import utils.reflection;
 import utils.time;
 import utils.vector2;

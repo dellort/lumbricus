@@ -1,8 +1,8 @@
 ///description of the binary file formats produced used for some resources
 module framework.resfileformats;
 
-import str = std.string: toString, split;
-import std.conv: toShort;
+import str = stdx.string: toString, split;
+import stdx.conv: toShort;
 
 struct FileAtlasTexture {
 align(1):

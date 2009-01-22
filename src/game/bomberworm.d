@@ -9,12 +9,13 @@ import gui.widget;
 import gui.container;
 import gui.label;
 import gui.wm;
+import utils.configfile;
 import utils.random;
 import utils.time;
 import utils.vector2;
 
-import std.string;
-import std.math : abs;
+import stdx.string;
+import stdx.math : abs;
 
 //Pyro clone, which again was a bomberman clone
 class BomberWorm : Task {

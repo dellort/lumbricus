@@ -7,7 +7,9 @@ import framework.framework;
 import utils.random;
 import utils.log;
 import utils.configfile;
-debug import std.stdio;
+
+import str = stdx.string;
+debug import stdx.stdio;
 
 //how an object is placed
 struct PlaceCommand {

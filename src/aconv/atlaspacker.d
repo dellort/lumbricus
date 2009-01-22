@@ -1,11 +1,11 @@
 module aconv.atlaspacker;
 
 import devil.image;
-import path = std.path;
-import str = std.string;
-import std.file;
-import std.stream;
-import std.stdio;
+import path = stdx.path;
+import str = stdx.string;
+import stdx.file;
+import stdx.stream;
+import stdx.stdio;
 import wwpdata.common;
 import framework.resfileformats : FileAtlas, FileAtlasTexture;
 import utils.boxpacker;
@@ -91,7 +91,7 @@ class AtlasPacker {
             try { mkdir(pagepath); } catch {};
             img.save(pagepath ~ path.sep ~ pagefn ~ ".png");
             writef("Saving %d/%d   \r",i+1, mPageImages.length);
-            fflush(stdout);
+            //fflush(stdout);
         }
         writefln();
 

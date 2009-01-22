@@ -1,6 +1,6 @@
 module utils.mybox;
 
-import str = std.string;
+import str = stdx.string;
 
 class MyBoxException : Exception {
     this(char[] msg) { super(msg); }
@@ -226,7 +226,7 @@ struct MyBox {
     }
 }
 
-debug import std.stdio;
+debug import stdx.stdio;
 
 unittest {
     MyBox box;

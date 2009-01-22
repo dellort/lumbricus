@@ -6,11 +6,14 @@ import framework.framework;
 import framework.sound;
 import framework.sdl.rwops;
 import framework.sdl.sdl;
-import std.stream;
-import str = std.string;
+import stdx.stream;
+import str = stdx.string;
 import utils.array;
 import utils.misc;
 import utils.time;
+import utils.configfile;
+
+debug import stdx.stdio;
 
 private void throwError() {
     throw new Exception("Sound error: " ~ str.toString(Mix_GetError()));
@@ -120,14 +123,14 @@ class SDLSoundDriver : SoundDriver {
 
     this(Sound base, ConfigNode config) {
         assert(base is gFramework.sound()); //lol
-        std.stdio.writefln("loading sdl_mixer");
+        debug writefln("loading sdl_mixer");
 
         sdlInit();
 
         DerelictSDLMixer.load();
         if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0) {
-            throw new Exception(format("Could not init SDL audio subsystem: %s",
-                std.string.toString(SDL_GetError())));
+            throw new Exception(str.format("Could not init SDL audio subsystem:"
+                " %s", str.toString(SDL_GetError())));
         }
 
         //44.1kHz stereo
@@ -172,7 +175,7 @@ class SDLSoundDriver : SoundDriver {
         volume[SoundType.music] = 1.0f;
         volume[SoundType.sfx] = 1.0f;
 
-        std.stdio.writefln("loaded sdl_mixer");
+        debug writefln("loaded sdl_mixer");
     }
 
     DriverChannel getChannel(Object reserve_for) {
@@ -194,7 +197,7 @@ class SDLSoundDriver : SoundDriver {
     }
 
     void closeSound(DriverSound s) {
-        std.stdio.writefln("close sound %s", s);
+        debug writefln("close sound %s", s);
         auto ss = castStrict!(SDLSound)(s);
         if (ss.mChunk) {
             //stop from playing on any channels
@@ -219,14 +222,14 @@ class SDLSoundDriver : SoundDriver {
     }
 
     void destroy() {
-        std.stdio.writefln("unloading sdl_mixer");
+        debug writefln("unloading sdl_mixer");
         //caller must make sure all stuff has been unloaded
         assert(mSounds.length == 0);
         Mix_CloseAudio();
         SDL_QuitSubSystem(SDL_INIT_AUDIO);
         DerelictSDLMixer.unload();
         sdlQuit();
-        std.stdio.writefln("unloaded sdl_mixer");
+        debug writefln("unloaded sdl_mixer");
     }
 
     void musicPlay(DriverSound m, Time startAt, Time fade) {
@@ -236,7 +239,7 @@ class SDLSoundDriver : SoundDriver {
             mLastPlayed = null;
             return;
         }
-        std.stdio.writefln("play!");
+        debug writefln("play!");
         assert(ss.type() == SoundType.music && ss.mMusic);
         Mix_FadeInMusicPos(ss.mMusic, -1, fade.msecs, startAt.secsf);
         mLastPlayed = ss.mMusic;

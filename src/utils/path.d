@@ -1,7 +1,7 @@
 module utils.path;
 
-import str = std.string;
-import stdp = std.path;
+import str = stdx.string;
+import stdp = stdx.path;
 
 char[] getFilePath(char[] fullname)
     out (result)
@@ -240,7 +240,7 @@ struct VFSPath {
     }
 }
 
-debug import std.stdio;
+debug import stdx.stdio;
 
 unittest {
     VFSPath v, v2;

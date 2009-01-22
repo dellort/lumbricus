@@ -8,6 +8,8 @@ import physics.base;
 import physics.physobj;
 import physics.geometry;
 
+import math = stdx.math;
+
 alias void delegate(ref Contact c) CollideDelegate;
 
 enum ContactSource {
@@ -38,7 +40,7 @@ struct Contact {
     void fromGeom(GeomContact c, PhysicObject o) {
         normal = c.normal;
         depth = c.depth;
-        assert(!normal.isNaN && !isnan(depth));
+        assert(!normal.isNaN && !math.isnan(depth));
         obj[0] = o;
         obj[1] = null;
         source = ContactSource.geometry;
@@ -50,7 +52,7 @@ struct Contact {
         obj[1] = obj2;
         normal = n;
         depth = d;
-        assert(!normal.isNaN && !isnan(depth));
+        assert(!normal.isNaN && !math.isnan(depth));
         source = ContactSource.object;
 
         //calculate cor (coeff. of restitution) of this collision

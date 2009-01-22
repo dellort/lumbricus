@@ -138,7 +138,7 @@ class MulticastDelegate(DelegateArgs...) : MDSubscriber!(DelegateArgs) {
 }
 
 //argh no unittest-import
-debug import std.stdio;
+debug import stdx.stdio;
 
 unittest {
     //simple stupid base functionality

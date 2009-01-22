@@ -12,8 +12,8 @@ import utils.array;
 import utils.output;
 import utils.vector2;
 
-import std.stdio;
-import std.string;
+import stdx.stdio;
+import stdx.string;
 
 class TestEnet : Task {
     private {

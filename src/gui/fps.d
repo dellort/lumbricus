@@ -3,7 +3,7 @@ module gui.fps;
 import framework.font;
 import framework.framework;
 import gui.widget;
-import std.string;
+import stdx.string;
 import utils.time;
 
 class GuiFps : Widget {

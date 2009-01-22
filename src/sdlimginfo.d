@@ -1,8 +1,8 @@
 import derelict.sdl.sdl;
 import derelict.sdl.image;
 
-import std.stdio;
-import str = std.string;
+import stdx.stdio;
+import str = stdx.string;
 
 //take a filename as argument, load it with sdl_image, output pixelformat
 //useful for debugging

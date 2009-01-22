@@ -1,11 +1,11 @@
 module wwptools.levelconverter;
 
 import aconv.atlaspacker;
-import stdf = std.file;
-import str = std.string;
-import std.stream;
-import std.conv;
-import std.stdio;
+import stdf = stdx.file;
+import str = stdx.string;
+import stdx.stream;
+import stdx.conv;
+import stdx.stdio;
 import utils.filetools;
 import utils.vector2;
 import wwpdata.animation;

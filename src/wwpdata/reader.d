@@ -1,6 +1,6 @@
 module wwpdata.reader;
 
-import std.stream;
+import stdx.stream;
 
 alias void function(Stream st, char[] outputDir, char[] fnBase) WWPReader;
 

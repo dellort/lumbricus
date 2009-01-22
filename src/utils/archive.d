@@ -1,10 +1,12 @@
 module utils.archive;
 
-import std.stream;
+import stdx.stream;
 
 import gzip = utils.gzip;
 import utils.output;
 import utils.configfile;
+
+import str = stdx.string;
 
 //write an "archive", the only point is to support streaming + compression
 //could be changed to output the zip or tar format

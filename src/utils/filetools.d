@@ -1,7 +1,7 @@
 module utils.filetools;
 
-import stdf = std.file;
-import path = std.path;
+import stdf = stdx.file;
+import path = stdx.path;
 
 void remove_dir(char[] dirpath) {
     try {
@@ -13,7 +13,7 @@ void remove_dir(char[] dirpath) {
             else
                 stdf.remove(fullpath);
         }
-        stdf.rmdir(dirpath);
+        stdf.remove(dirpath);
     } catch {}
 }
 

@@ -1,14 +1,19 @@
 module framework.filesystem;
 
-import path = std.path;
-import stdf = std.file;
-import cstdlib = std.c.stdlib;
-import str = std.string;
-import std.stream;
+import path = stdx.path;
+import stdf = stdx.file;
+import str = stdx.string;
+import stdx.stream;
 import utils.misc;
 import utils.log;
 import utils.output;
 import utils.path;
+
+version (Tango) {
+    import cstdlib = tango.stdc.stdlib;
+} else {
+    import cstdlib = std.c.stdlib;
+}
 
 private Log log;
 
@@ -174,7 +179,7 @@ private class HandlerDirectory : HandlerInstance {
                 //add trailing '/' for directories
                 char[] fn = vfn.get(false, isDir);
                 //match search pattern
-                if (std.path.fnmatch(fn, pattern))
+                if (path.fnmatch(fn, pattern))
                     return (cont = callback(fn));
             }
             return true;

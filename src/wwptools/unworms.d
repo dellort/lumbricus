@@ -1,11 +1,11 @@
 module wwptools.unworms;
 
 import devil.image;
-import std.stream;
-import std.stdio;
-import path = std.path;
-import std.file;
-import str = std.string;
+import stdx.stream;
+import stdx.stdio;
+import path = stdx.path;
+import stdx.file;
+import str = stdx.string;
 import wwpdata.reader;
 import wwpdata.reader_bnk;
 import wwpdata.reader_dir;

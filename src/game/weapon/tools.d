@@ -16,10 +16,10 @@ import utils.vector2;
 import utils.color;
 import utils.misc;
 
-import std.string : format;
-import std.math : signbit, abs;
+import stdx.string : format;
+import stdx.math : signbit, abs;
 
-debug import std.stdio;
+debug import stdx.stdio;
 
 //sub-factory used by ToolClass (stupid double-factory)
 class ToolsFactory : StaticFactory!(Tool, ToolClass, WormSprite) {

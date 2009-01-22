@@ -3,9 +3,9 @@ module framework.sdl.framework;
 import framework.framework;
 import framework.font;
 import framework.event;
-import std.stream;
-import std.stdio;
-import std.string;
+import stdx.stream;
+import stdx.stdio;
+import str = stdx.string;
 import utils.vector2;
 import framework.sdl.rwops;
 import framework.sdl.font;
@@ -17,11 +17,12 @@ import derelict.sdl.sdl;
 import derelict.sdl.image;
 import derelict.sdl.ttf;
 import framework.sdl.keys;
-import math = std.math;
+import math = stdx.math;
 import utils.time;
 import utils.perf;
 import utils.drawing;
 import utils.misc;
+import utils.configfile;
 
 version = MarkAlpha;
 
@@ -151,8 +152,8 @@ void doMirrorY(SurfaceData* data) {
             mData.size.y, 32, mData.pitch, 0x000000FF, 0x0000FF00, 0x00FF0000,
             /+cc ? 0 :+/ 0xFF000000);
         if (!mSurface) {
-            throw new Exception(format("couldn't create SDL surface, size=%s",
-                mData.size));
+            throw new Exception(str.format("couldn't create SDL surface, "
+                "size=%s", mData.size));
         }
 
         //lol SDL - need to clear any transparency modes first
@@ -258,7 +259,7 @@ void doMirrorY(SurfaceData* data) {
     }
 
     void getInfos(out char[] desc, out uint extra_data) {
-        desc = format("c=%s", mCacheEnabled);
+        desc = str.format("c=%s", mCacheEnabled);
         if (mCacheEnabled) {
             extra_data = mSurface.pitch * mSurface.h;
         }
@@ -364,7 +365,7 @@ class SDLDriver : FrameworkDriver {
         }
 
         if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0) {
-            throw new Exception(format("Could not init SDL video: %s",
+            throw new Exception(str.format("Could not init SDL video: %s",
                 str.toString(SDL_GetError())));
         }
 
@@ -542,7 +543,7 @@ class SDLDriver : FrameworkDriver {
         if (tmp1 != tmp2 && tmp1.video_active) {
             res = switchVideoTo(state);
         }
-        SDL_WM_SetCaption(toStringz(state.window_caption), null);
+        SDL_WM_SetCaption(str.toStringz(state.window_caption), null);
         mCurVideoState = state;
         mCurVideoState.video_active = !!mSDLScreen;
         if (mCurVideoState.video_active)
@@ -885,7 +886,7 @@ class SDLDriver : FrameworkDriver {
     }
 
     private char[] pixelFormatToString(SDL_PixelFormat* fmt) {
-        return format("bits=%s R/G/B/A=%#08x/%#08x/%#08x/%#08x",
+        return str.format("bits=%s R/G/B/A=%#08x/%#08x/%#08x/%#08x",
             fmt.BitsPerPixel, fmt.Rmask, fmt.Gmask, fmt.Bmask, fmt.Amask);
     }
 
@@ -893,18 +894,19 @@ class SDLDriver : FrameworkDriver {
         char[] desc;
 
         char[] version_to_a(SDL_version v) {
-            return format("%s.%s.%s", v.major, v.minor, v.patch);
+            return str.format("%s.%s.%s", v.major, v.minor, v.patch);
         }
 
         SDL_version compiled, linked;
         SDL_VERSION(&compiled);
         linked = *SDL_Linked_Version();
-        desc ~= format("SDLDriver, SDL compiled=%s linked=%s\n",
+        desc ~= str.format("SDLDriver, SDL compiled=%s linked=%s\n",
             version_to_a(compiled), version_to_a(linked));
 
         char[20] buf;
         char* res = SDL_VideoDriverName(buf.ptr, buf.length);
-        desc ~= format("Driver: %s\n", res ? .toString(res) : "<unintialized>");
+        desc ~= str.format("Driver: %s\n", res ? str.toString(res)
+            : "<unintialized>");
 
         SDL_VideoInfo info = *SDL_GetVideoInfo();
 
@@ -917,27 +919,29 @@ class SDLDriver : FrameworkDriver {
         char[] flags;
         foreach (int index, name; flag_names) {
             bool set = !!(info.flags & (1<<index));
-            flags ~= format("  %s: %s\n", name, (set ? "1" : "0"));
+            flags ~= str.format("  %s: %s\n", name, (set ? "1" : "0"));
         }
         desc ~= "Flags:\n" ~ flags;
 
         desc ~= "Screen:\n";
-        desc ~= format("   size = %sx%s\n", info.current_w, info.current_h);
-        desc ~= format("   video memory = %s\n", sizeToHuman(info.video_mem));
+        desc ~= str.format("   size = %sx%s\n", info.current_w, info.current_h);
+        desc ~= str.format("   video memory = %s\n",
+            sizeToHuman(info.video_mem));
         SDL_PixelFormat* fmt = info.vfmt;
-        desc ~= format("   pixel format = %s\n", pixelFormatToString(fmt));
+        desc ~= str.format("   pixel format = %s\n", pixelFormatToString(fmt));
 
-        desc ~= format("Uses OpenGL: %s\n", mOpenGL);
+        desc ~= str.format("Uses OpenGL: %s\n", mOpenGL);
         if (mOpenGL) {
             void dumpglstr(GLenum t, char[] name) {
-                desc ~= format("  %s = %s\n", name, .toString(glGetString(t)));
+                desc ~= str.format("  %s = %s\n", name,
+                    str.toString(glGetString(t)));
             }
             dumpglstr(GL_VENDOR, "GL_VENDOR");
             dumpglstr(GL_RENDERER, "GL_RENDERER");
             dumpglstr(GL_VERSION, "GL_VERSION");
         }
 
-        desc ~= format("%d driver surfaces\n", mDriverSurfaceCount);
+        desc ~= str.format("%d driver surfaces\n", mDriverSurfaceCount);
 
         return desc;
     }
@@ -1068,13 +1072,13 @@ class SDLCanvas : Canvas {
         int rcy2 = rc.h + rc.y;
 
         //common rect of old cliprect and (p1,p2)
-        rc.x = max!(int)(rc.x, p1.x);
-        rc.y = max!(int)(rc.y, p1.y);
-        rcx2 = min!(int)(rcx2, p2.x);
-        rcy2 = min!(int)(rcy2, p2.y);
+        rc.x = max(rc.x, p1.x);
+        rc.y = max(rc.y, p1.y);
+        rcx2 = min(rcx2, p2.x);
+        rcy2 = min(rcy2, p2.y);
 
-        rc.w = max!(int)(rcx2 - rc.x, 0);
-        rc.h = max!(int)(rcy2 - rc.y, 0);
+        rc.w = max(rcx2 - rc.x, 0);
+        rc.h = max(rcy2 - rc.y, 0);
 
         SDL_SetClipRect(mSurface, &rc);
     }

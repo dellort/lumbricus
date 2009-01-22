@@ -13,9 +13,7 @@ import utils.mylist;
 import utils.log;
 import utils.misc;
 import drawing = utils.drawing;
-import math = std.math;
-
-import std.stdio;
+import math = stdx.math;
 
 debug import utils.perf;
 
@@ -26,7 +24,7 @@ public alias Vector2f Point;
 const int cBlastBorder = 4;
 
 class LandscapeBitmap {
-    private uint mWidth, mHeight;
+    private int mWidth, mHeight;
     private Surface mImage;
     private Lexel[] mLevelData;
     private Log mLog;
@@ -456,15 +454,15 @@ class LandscapeBitmap {
 
         //dir and count are initialized with 0
 
-        int ly1 = max!(int)(st.y - radius, 0);
-        int ly2 = min!(int)(st.y + radius + 1, mHeight);
+        int ly1 = max(st.y - radius, 0);
+        int ly2 = min(st.y + radius + 1, mHeight);
         for (int y = ly1; y < ly2; y++) {
             int xoffs = radius;
             if (circle) {
                  xoffs -= acircle[y-st.y+radius];
             }
-            int lx1 = max!(int)(st.x - xoffs, 0);
-            int lx2 = min!(int)(st.x + xoffs + 1, mWidth);
+            int lx1 = max(st.x - xoffs, 0);
+            int lx2 = min(st.x + xoffs + 1, mWidth);
             int pl = y*mWidth + lx1;
             for (int x = lx1; x < lx2; x++) {
                 if (mLevelData[pl] != 0) {
@@ -516,8 +514,8 @@ class LandscapeBitmap {
         h = min(h, source.size.y);
         int cx1 = max(px, 0);
         int cy1 = max(py, 0);
-        int cx2 = min!(int)(mWidth, px+w);  //exclusive
-        int cy2 = min!(int)(mHeight, py+h);
+        int cx2 = min(mWidth, px+w);  //exclusive
+        int cy2 = min(mHeight, py+h);
         assert(cx2-cx1 <= w);
         assert(cy2-cy1 <= h);
         if (cx1 >= cx2 || cy1 >= cy2)

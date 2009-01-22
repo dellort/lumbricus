@@ -1,10 +1,12 @@
 module utils.snapshot;
 
-import std.stdio;
+import stdx.stdio;
 import utils.perf;
 import utils.reflection;
 import utils.misc;
 import utils.time;
+
+import str = stdx.string;
 
 ubyte[] snap_data;
 size_t snap_cur; //data position in snap_data

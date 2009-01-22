@@ -1,6 +1,6 @@
 module utils.randval;
 
-import str = std.string;
+import str = stdx.string;
 import utils.misc;
 import utils.random;
 

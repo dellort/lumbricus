@@ -16,9 +16,9 @@ import utils.output;
 import utils.log;
 import utils.array;
 import utils.factory;
-import std.stream;
-import str = std.string;
-import conv = std.conv;
+import stdx.stream;
+import str = stdx.string;
+import conv = stdx.conv;
 import rand = utils.random;
 import utils.misc;
 
@@ -866,6 +866,10 @@ class LevelThemes {
                 //xxx how to correctly cut that '/' off? the name is important
                 //  to know and must be OS independent
                 auto name = path;
+
+                if (!name.length) //yyy tangobos does this
+                    return true;
+
                 assert(name.length > 0 && name[$-1] == '/');
                 name = name[0..$-1];
 

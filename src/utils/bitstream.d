@@ -241,7 +241,7 @@ final class BitStream {
     }
 }
 
-debug import std.stdio;
+debug import stdx.stdio;
 
 unittest {
     BitStream s = new BitStream();

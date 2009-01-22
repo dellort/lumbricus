@@ -2,7 +2,7 @@ module framework.resources;
 
 import framework.framework;
 import framework.filesystem;
-import str = std.string;
+import str = stdx.string;
 import utils.configfile;
 import utils.log;
 import utils.output;

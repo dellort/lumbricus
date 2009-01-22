@@ -2,7 +2,7 @@
 module framework.event;
 
 import utils.vector2;
-import str = std.string;
+import str = stdx.string;
 public import framework.keysyms;
 
 public enum Modifier {

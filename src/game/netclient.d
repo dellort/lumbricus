@@ -2,10 +2,11 @@ module game.netclient;
 
 public import game.netshared;
 
-import str = std.string;
+import str = stdx.string;
 
 import game.levelgen.level;
 import game.setup;
+import game.gfxset;
 import utils.array;
 import utils.configfile;
 import utils.time;

@@ -15,7 +15,7 @@ import gui.loader;
 import gui.list;
 import utils.configfile;
 
-import str = std.string;
+import str = stdx.string;
 
 class TeamEditorTask : Task {
     private {

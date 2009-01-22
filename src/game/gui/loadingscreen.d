@@ -8,7 +8,7 @@ import gui.container;
 import gui.label;
 import gui.progress;
 import gui.widget;
-import str = std.string;
+import str = stdx.string;
 import utils.time;
 import utils.vector2;
 

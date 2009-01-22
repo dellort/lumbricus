@@ -1,7 +1,7 @@
 module framework.sound;
 
 private import
-    std.stream,
+    stdx.stream,
     utils.time;
 import framework.framework, utils.configfile, utils.factory, utils.time,
     utils.vector2, utils.weaklist;
@@ -125,7 +125,7 @@ public class Sound {
         if (!available())
             return;
         assert(mDriverSounds.length == 0);
-        std.stdio.writefln("destroy");
+        //std.stdio.writefln("destroy");
         mDriver.destroy();
         mDriver = new NullSound(this, null);
     }
@@ -164,8 +164,8 @@ public class Sound {
             assert(mstate == mCurrentMusic.state());
             //only happens if the driver was reinitialized or if the music
             //DriverSound was (temporarily destroyed)
-            std.stdio.writefln("fixup music state %s -> %s",
-                cast(int)mstate, cast(int)mExpectedMusicState);
+            //std.stdio.writefln("fixup music state %s -> %s",
+              //  cast(int)mstate, cast(int)mExpectedMusicState);
             mCurrentMusic.state = mExpectedMusicState;
         }
     }

@@ -1,11 +1,11 @@
 module wwptools.untile;
 
 import devil.image;
-import path = std.path;
-import stdf = std.file;
-import str = std.string;
-import std.stdio;
-import std.stream;
+import path = stdx.path;
+import stdf = stdx.file;
+import str = stdx.string;
+import stdx.stdio;
+import stdx.stream;
 import utils.configfile;
 import utils.output : StreamOutput; //silly wrapper
 

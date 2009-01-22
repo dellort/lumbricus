@@ -1,6 +1,5 @@
 module utils.perf;
 
-import std.perf;
 import utils.time;
 
 //to enable a per-thread CPU time counter, which does silly and hacky stuff
@@ -14,16 +13,8 @@ class TimerImpl {
 }
 
 class PerfTimerImpl : TimerImpl {
-    PerformanceCounter counter;
-    this() {
-        counter = new PerformanceCounter();
-        counter.start();
-    }
     Time time() {
-        //abuse the fact how PerformanceCounter works internally
-        //(.stop() doesn't change any state; only updates the current duration)
-        counter.stop();
-        return timeMusecs(counter.microseconds());
+        return timeCurrentTime();
     }
 }
 

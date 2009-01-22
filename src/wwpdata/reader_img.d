@@ -1,8 +1,8 @@
 module wwpdata.reader_img;
 
 import devil.image;
-import std.stream;
-import path = std.path;
+import stdx.stream;
+import path = stdx.path;
 import wwpdata.common;
 import wwpdata.reader;
 

@@ -2,11 +2,11 @@ module wwpdata.animation;
 
 import aconv.atlaspacker;
 import devil.image;
-import path = std.path;
-import str = std.string;
-import std.file;
-import std.stream;
-import std.stdio;
+import path = stdx.path;
+import str = stdx.string;
+import stdx.file;
+import stdx.stream;
+import stdx.stdio;
 import wwpdata.common;
 import utils.boxpacker;
 import utils.vector2;
@@ -29,7 +29,7 @@ class AnimList {
             }
             a.save(apath, afn);
             writef("Saving %d/%d   \r",i+1, animations.length);
-            fflush(stdout);
+            //fflush(stdout);
         }
     }
 

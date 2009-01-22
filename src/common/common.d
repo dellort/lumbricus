@@ -15,8 +15,7 @@ import utils.misc;
 import utils.path;
 import utils.perf;
 import utils.gzip;
-import std.stream;
-import zlib = std.zlib;
+import stdx.stream;
 
 public Common globals;
 

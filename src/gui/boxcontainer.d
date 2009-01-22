@@ -4,6 +4,7 @@ import gui.widget;
 import utils.configfile;
 import utils.vector2;
 import utils.rect2;
+import utils.misc;
 
 ///contains boxes in a row
 class BoxContainer : SimpleContainer {

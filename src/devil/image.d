@@ -1,7 +1,7 @@
 // abstract devil a bit
 module devil.image;
 
-import str = std.string;
+import str = stdx.string;
 import derelict.devil.il;
 import derelict.devil.ilu;
 import derelict.util.exception;

@@ -3,6 +3,7 @@ module game.controller;
 import common.common;
 import framework.commandline;
 import game.game;
+import game.gfxset;
 import game.gobject;
 import game.worm;
 import game.crate;
@@ -23,8 +24,8 @@ import utils.reflection;
 
 import framework.i18n;
 
-import str = std.string;
-import math = std.math;
+import str = stdx.string;
+import math = stdx.math;
 
 //nasty proxy to the currently active TeamMember
 //this is per client (and not per-team)

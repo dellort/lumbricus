@@ -1,11 +1,10 @@
 module utils.output;
 
-import std.format;
-import std.utf;
-import stdio = std.stdio;
-import std.stream;
-import utils.misc : formatfx;
-import std.stdarg : va_list;
+import stdx.format;
+import stdx.utf;
+import stdio = stdx.stdio;
+import stdx.stream;
+import utils.misc : formatfx, va_list;
 
 /// interface for a generic text output stream (D currently lacks support for
 /// text streams, so we have to do it)

@@ -20,7 +20,7 @@ import utils.random;
 import utils.misc;
 import utils.vector2;
 
-import std.string : format, cmp;
+import stdx.string : format, cmp;
 
 class WeaponSelWindow : Container {
     private {

@@ -16,9 +16,9 @@ import utils.output;
 import utils.random;
 import utils.time;
 
-import std.stdio;
-import std.stream : File, FileMode;
-import std.string;
+import stdx.stdio;
+import stdx.stream : File, FileMode;
+import stdx.string;
 
 //these imports register classes in a factory on module initialization
 //so be carefull not to remove them accidentally
@@ -26,18 +26,19 @@ import std.string;
 import gui.test; //GUI test code
 import game.gametask; //the game itself
 import game.serialize_register : initGameSerialization;
-import game.gui.leveledit; //aw
+//import game.gui.leveledit; //aw
 import game.gui.welcome;
 import game.gui.teamedit;
 import game.gui.setup_local;
 import game.gui.levelpaint;
 import game.wtris; //lol
 import game.bomberworm; //?
-import irc.ircclient; //roflmao
+//--tango import irc.ircclient; //roflmao
 //debugging
 import common.resview;
 //net tests
-import net.enet_test;
+//--compiling this module with LDC results in a segfault
+//--import net.enet_test;
 //import net.test;
 
 //import test;

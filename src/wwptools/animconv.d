@@ -1,12 +1,12 @@
 module wwptools.animconv;
 
 import aconv.atlaspacker;
-import std.stdio;
-import std.stream;
-import stdf = std.file;
-import std.string;
-import std.conv;
-import path = std.path;
+import stdx.stdio;
+import stdx.stream;
+import stdf = stdx.file;
+import stdx.string;
+import stdx.conv;
+import path = stdx.path;
 import utils.configfile;
 import utils.misc;
 import utils.vector2;

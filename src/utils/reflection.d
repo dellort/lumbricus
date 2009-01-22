@@ -1,13 +1,33 @@
 //doing all those things which D/Phobos should provide us
 module utils.reflection;
 
-import std.ctype : isalnum;
-import str = std.string;
-import std.traits : isStaticArray;
+import stdx.ctype : isalnum;
+import str = stdx.string;
 import utils.misc;
 import utils.mybox;
 
-debug import std.stdio;
+debug import stdx.stdio;
+
+version (Tango) {
+
+import tango.core.Traits : isAssocArrayType, isStaticArrayType;
+
+alias isStaticArrayType isStaticArray;
+
+} else {
+
+//--> stolen from tango
+//use this because "static if (is(T T2 : T2[T3]))" doesn't work
+//http://www.dsource.org/projects/tango/browser/trunk/tango/core/Traits.d?rev=4134#L253
+private template isAssocArrayType( T ) {
+    const bool isAssocArrayType = is( typeof(T.init.values[0])
+        [typeof(T.init.keys[0])] == T );
+}
+//<--
+
+import std.traits : isStaticArray;
+
+}
 
 ///Pointer which carries type infos
 ///Compared to D, the type is the type pointed to
@@ -875,15 +895,6 @@ class MapType : Type {
         return new MapTypeImpl!(T)(a_owner);
     }
 }
-
-//--> stolen from tango
-//use this because "static if (is(T T2 : T2[T3]))" doesn't work
-//http://www.dsource.org/projects/tango/browser/trunk/tango/core/Traits.d?rev=4134#L253
-private template isAssocArrayType( T ) {
-    const bool isAssocArrayType = is( typeof(T.init.values[0])
-        [typeof(T.init.keys[0])] == T );
-}
-//<--
 
 class MapTypeImpl(T) : MapType {
     static assert(isAssocArrayType!(T));

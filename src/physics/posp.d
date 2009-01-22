@@ -1,7 +1,7 @@
 module physics.posp;
 
-import conv = std.conv;
-import str = std.string;
+import conv = stdx.conv;
+import str = stdx.string;
 import utils.configfile : ConfigNode;
 import utils.reflection;
 import utils.vector2;

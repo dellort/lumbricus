@@ -21,8 +21,8 @@ import gui.loader;
 import gui.list;
 import utils.configfile;
 
-import std.thread;
-import str = std.string;
+//import std.thread;
+import str = stdx.string;
 
 class LocalGameSetupTask : Task {
     private {
@@ -58,8 +58,8 @@ class LocalGameSetupTask : Task {
         LevelSelector mSelector;  //8-level window, created once and reused then
 
         //background level rendering thread *g*
-        LvlGenThread mThread;
-        bool mThWaiting = false;
+        //LvlGenThread mThread;
+        //bool mThWaiting = false;
         Task mGame;
 
         const cSavedLevelsPath = "storedlevels/";
@@ -250,9 +250,11 @@ class LocalGameSetupTask : Task {
         mWindow.acceptSize();
         mWindow.client = mWaiting;
 
-        mThread = new LvlGenThread(mCurrentLevel);
-        mThread.start();
-        mThWaiting = true;
+        //mThread = new LvlGenThread(mCurrentLevel);
+        //mThread.start();
+        //mThWaiting = true;
+        auto finalLevel = mCurrentLevel.render();
+        play(finalLevel);
     }
 
     private void cancelClick(Button sender) {
@@ -292,6 +294,7 @@ class LocalGameSetupTask : Task {
                 mSetup.enabled = true;
             }
         }
+        /+
         if (mThWaiting) {
             //level is being generated
             if (mThread.getState() != Thread.TS.RUNNING) {
@@ -301,6 +304,7 @@ class LocalGameSetupTask : Task {
                 mThread = null;
             }
         }
+        +/
         //poll for game death
         if (mGame) {
             if (mGame.reallydead) {
@@ -316,6 +320,7 @@ class LocalGameSetupTask : Task {
     }
 }
 
+/+
 class LvlGenThread : Thread {
     private LevelGenerator mLvlGen;
     public Level finalLevel;
@@ -330,3 +335,4 @@ class LvlGenThread : Thread {
         return 0;
     }
 }
++/

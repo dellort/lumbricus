@@ -12,6 +12,8 @@ import utils.rect2;
 import utils.time;
 import utils.log;
 
+import str = stdx.string;
+
 class Container : Widget {
     private {
         //helper
@@ -24,7 +26,7 @@ class Container : Widget {
                 return w.mZOrder - o.w.mZOrder;
             }
             char[] toString() {
-                return std.string.format("%s(%s,%s)", w, w.mZOrder, w.mZOrder2);
+                return str.format("%s(%s,%s)", w, w.mZOrder, w.mZOrder2);
             }
         }
 

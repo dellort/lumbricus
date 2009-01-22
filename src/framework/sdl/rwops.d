@@ -1,7 +1,7 @@
 module framework.sdl.rwops;
 
 import derelict.sdl.sdl;
-import std.stream;
+import stdx.stream;
 
 extern (C) {
   int rw_seek (SDL_RWops *context, int offset, int whence) {

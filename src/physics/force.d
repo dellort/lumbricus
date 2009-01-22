@@ -9,6 +9,8 @@ import physics.base;
 import physics.physobj;
 import physics.zone;
 
+import math = stdx.math;
+
 //wind, gravitation, ...
 //what about explosions?
 class PhysicForce : PhysicBase {
@@ -54,7 +56,7 @@ class ConstantAccel: PhysicForce {
 
 class WindyForce : PhysicForce {
     Vector2f windSpeed;
-    private const cStokesConstant = 6*PI;
+    private const cStokesConstant = 6*math.PI;
 
     this() {
     }
@@ -101,7 +103,7 @@ class ExplosiveForce : PhysicForce {
 
     private float cDistDelta = 0.01f;
     void applyTo(PhysicObject o, float deltaT) {
-        assert(damage != 0f && !isnan(damage));
+        assert(damage != 0f && !math.isnan(damage));
         float impulse = damage*cDamageToImpulse;
         Vector2f v = (pos-o.pos);
         float dist = v.length;
@@ -148,7 +150,7 @@ class GravityCenter : PhysicForce {
 //(StokesDragFixed uses a force-specific fixed viscosity)
 class StokesDragObject : PhysicForce {
     //constant from Stokes's drag
-    private const cStokesConstant = -6*PI;
+    private const cStokesConstant = -6*math.PI;
 
     this() {
     }
@@ -168,7 +170,7 @@ class StokesDragObject : PhysicForce {
 //best used together with ForceZone
 class StokesDragFixed : PhysicForce {
     //constant from Stokes's drag
-    private const cStokesConstant = -6*PI;
+    private const cStokesConstant = -6*math.PI;
     //medium viscosity
     float viscosity = 0.0f;
 

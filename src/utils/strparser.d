@@ -2,9 +2,9 @@
 //(including native types).
 module utils.strparser;
 import utils.mybox;
-import conv = std.conv;
-import str = std.string;
-import std.format : doFormat;
+import conv = stdx.conv;
+import str = stdx.string;
+import stdx.format : doFormat;
 
 import utils.vector2 : Vector2, Vector2i, Vector2f;
 
@@ -126,8 +126,7 @@ public char[] boxUnParseVector2i(MyBox b) {
     return str.format("%s %s", v.x, v.y);
 }
 
-debug import std.stdio;
-debug import std.format;
+debug import stdx.stdio;
 
 unittest {
     assert(boxParseInt("123").unbox!(int) == 123);

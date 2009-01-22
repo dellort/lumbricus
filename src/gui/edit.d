@@ -9,9 +9,9 @@ import utils.time;
 import utils.timer;
 import utils.vector2;
 
-import std.ctype : isspace;
-import std.uni : isUniAlpha;
-import utf = std.utf;
+import stdx.ctype : isspace;
+import stdx.uni : isUniAlpha;
+import utf = stdx.utf;
 
 ///simple editline
 class EditLine : Widget {

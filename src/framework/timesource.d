@@ -2,7 +2,7 @@ module framework.timesource;
 import utils.misc;
 import utils.time;
 
-debug import std.stdio : writefln;
+debug import stdx.stdio : writefln;
 
 //(changed in r533, I hate interfaces, but love useless microoptimizations)
 class TimeSourcePublic {

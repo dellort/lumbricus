@@ -1,7 +1,7 @@
 //connects GUI, Task-stuff and the framework; also contains general stuff
 module common.toplevel;
 
-import std.string;
+import stdx.string;
 import framework.font;
 import framework.keysyms;
 import framework.framework;
@@ -26,8 +26,8 @@ import utils.misc;
 import utils.mybox;
 import utils.perf;
 //xxx
-import gc = common.gcstats;
-import std.stream : File, FileMode;
+import gc = utils.gcabstr;
+import stdx.stream : File, FileMode;
 
 //import all restypes because of the factories (more for debugging...)
 import framework.restypes.bitmap;
@@ -521,7 +521,7 @@ private:
         gc.GCStats s1, s2;
         gc.getStats(s1);
         counter.start();
-        gc.fullCollect();
+        gc.gcFullCollect();
         counter.stop();
         gc.getStats(s2);
         write.writefln("GC fullcollect: %s, free'd %s KB", counter.time,

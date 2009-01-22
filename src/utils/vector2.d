@@ -1,7 +1,7 @@
 module utils.vector2;
 
-import str = std.string;
-import math = std.math;
+import str = stdx.string;
+import math = stdx.math;
 
 
 public struct Vector2(T) {
@@ -35,7 +35,7 @@ public struct Vector2(T) {
     }
 
     public static Vector2 fromPolar(T length, T angle) {
-        return Vector2(cast(T)math.cos(angle), cast(T)math.sin(angle))*length;
+        return Vector2(cast(T)math.cos(angle*1.0), cast(T)math.sin(angle*1.0))*length;
     }
 
     public Vector2 X() {
@@ -218,8 +218,8 @@ public struct Vector2(T) {
     }
 
     public Vector2 rotated(T angle_rads) {
-        T mat11 = cast(T)math.cos(angle_rads);
-        T mat12 = cast(T)math.sin(angle_rads);
+        T mat11 = cast(T)math.cos(angle_rads*1.0);
+        T mat12 = cast(T)math.sin(angle_rads*1.0);
         T mat21 = -mat12;
         T mat22 = mat11;
 

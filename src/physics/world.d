@@ -1,7 +1,7 @@
 module physics.world;
 
-import str = std.string;
-import std.math : sqrt, PI;
+import str = stdx.string;
+import stdx.math : sqrt, PI;
 import utils.misc;
 import utils.array;
 import utils.configfile;

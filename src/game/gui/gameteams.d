@@ -19,7 +19,7 @@ import utils.misc;
 import utils.time;
 import utils.vector2;
 
-import std.math : PI;
+import stdx.math : PI;
 
 //the team-bars on the bottom of the screen
 class TeamWindow : Container {

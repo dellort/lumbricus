@@ -1,6 +1,6 @@
 module physics.links;
 
-import std.math: abs;
+import stdx.math: abs;
 import utils.reflection;
 import utils.vector2;
 

@@ -1,10 +1,9 @@
 module wwpdata.reader_bnk;
 
 import devil.image;
-import std.stream;
-import path = std.path;
-import std.stdio;
-import std.c.stdio;
+import stdx.stream;
+import path = stdx.path;
+import stdx.stdio;
 import wwpdata.common;
 import wwpdata.reader;
 import wwpdata.animation;

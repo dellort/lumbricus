@@ -20,7 +20,7 @@ import utils.log;
 import utils.factory;
 import utils.reflection;
 
-private class ActionWeapon : WeaponClass {
+class ActionWeapon : WeaponClass {
     ActionClass onFire, onBlowup;
     //bool waitRefire = false;
 
@@ -51,7 +51,7 @@ private class ActionWeapon : WeaponClass {
 
 //standard projectile shooter for projectiles which are started from the worm
 //(as opposed to air strikes etc.)
-private class ActionShooter : Shooter, ProjectileFeedback {
+class ActionShooter : Shooter, ProjectileFeedback {
     private {
         ActionWeapon myclass;
         Action mFireAction;

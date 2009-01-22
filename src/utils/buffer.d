@@ -92,7 +92,7 @@ final class BufferWrite {
     }
 }
 
-debug import std.stdio;
+debug import stdx.stdio;
 
 unittest {
     auto wr = new BufferWrite();

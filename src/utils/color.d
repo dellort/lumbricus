@@ -4,7 +4,9 @@ import utils.configfile : ConfigNode;
 import utils.strparser;
 import utils.mybox;
 
-import math = std.math;
+import math = stdx.math;
+import str = stdx.string;
+import conv = stdx.conv;
 
 //predefined colors - used by the parser
 //global for fun and profit

@@ -1,8 +1,8 @@
 module wwptools.convert;
 
 import devil.image;
-import std.stdio;
-import path = std.path;
+import stdx.stdio;
+import path = stdx.path;
 
 struct RGBTriple {
     float r, g, b;

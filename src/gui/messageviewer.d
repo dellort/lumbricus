@@ -9,7 +9,7 @@ import utils.misc;
 import utils.time;
 import utils.queue;
 
-private class MessageViewer : Widget {
+class MessageViewer : Widget {
     private Queue!(char[]) mMessages;
     private char[] mCurrentMessage;
     private Font mFont;

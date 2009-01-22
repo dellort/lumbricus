@@ -3,9 +3,9 @@ module framework.i18n;
 import framework.filesystem;
 import utils.configfile;
 import utils.log;
-import std.format;
-import std.string;
-import std.conv;
+import stdx.format;
+import stdx.string;
+import stdx.conv;
 
 //NOTE: because normal varargs suck infinitely in D (you have to deal with
 //    _arguments and _argptr), and because it's not simple to convert these

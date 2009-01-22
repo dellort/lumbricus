@@ -1,6 +1,6 @@
 module physics.plane;
 
-import std.math: sqrt;
+import stdx.math: sqrt;
 import utils.vector2;
 import utils.misc;
 

@@ -3,9 +3,9 @@ module framework.keybindings;
 import framework.framework;
 import config = utils.configfile;
 import utils.vector2;
-import str = std.string;
+import str = stdx.string;
 
-debug import std.stdio;
+debug import stdx.stdio;
 
 /// Map key combinations to IDs (strings).
 public class KeyBindings {

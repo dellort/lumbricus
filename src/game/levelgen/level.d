@@ -166,8 +166,8 @@ class LevelLandscape : LevelItem {
 //xxx these should be moved away, they really don't belong here
 package:
 
-import conv = std.conv;
-import str = std.string;
+import conv = stdx.conv;
+import str = stdx.string;
 
 private static char[][] marker_strings = ["FREE", "LAND", "SOLID_LAND"];
 

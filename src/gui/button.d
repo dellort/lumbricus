@@ -69,6 +69,7 @@ class Button : Label {
     bool enableHighlight = true;
 
     void delegate(Button sender) onClick;
+    void delegate() onClick2;
     void delegate(Button sender) onRightClick;
     void delegate(Button sender, bool over) onMouseOver;
 
@@ -167,6 +168,8 @@ class Button : Label {
         }
         if (onClick)
             onClick(this);
+        if (onClick2)
+            onClick2();
     }
 
     override protected void onKeyEvent(KeyInfo key) {

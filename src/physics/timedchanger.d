@@ -1,6 +1,6 @@
 module physics.timedchanger;
 
-import std.math : copysign;
+import stdx.math : copysign;
 import utils.reflection;
 import utils.vector2;
 

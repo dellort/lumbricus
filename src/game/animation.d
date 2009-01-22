@@ -13,8 +13,7 @@ import utils.perf;
 import utils.time;
 import utils.log;
 import utils.math;
-import math = std.math;
-import str = std.string;
+import math = stdx.math;
 
 public import common.animation;
 

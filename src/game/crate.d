@@ -19,8 +19,8 @@ import utils.log;
 import utils.misc;
 import utils.configfile;
 import utils.reflection;
-import std.math;
-import str = std.string;
+import stdx.math;
+import str = stdx.string;
 
 ///Base class for stuff in crates that can be collected by worms
 class Collectable {

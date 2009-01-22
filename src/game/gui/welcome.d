@@ -17,7 +17,7 @@ import gui.list;
 import game.gamepublic;
 import game.gametask;
 import game.gui.preview;
-import game.gui.leveledit;
+//import game.gui.leveledit;
 import game.setup;
 
 //xxx this maybe shouldn't be here

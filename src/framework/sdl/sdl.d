@@ -1,7 +1,7 @@
 module framework.sdl.sdl;
 
 import derelict.sdl.sdl;
-import std.string;
+import stdx.string;
 
 //this is not really needed; it's just here to make framework.sdl.framework
 //more independent from soundmixer.d, so sdl_mixer can be kept out more easily

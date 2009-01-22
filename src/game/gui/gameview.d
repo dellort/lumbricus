@@ -22,7 +22,8 @@ import utils.math;
 import utils.misc;
 import utils.vector2;
 
-import str = std.string;
+import str = stdx.string;
+import math = stdx.math;
 
 //arrrrgh
 class GuiAnimator : Widget {

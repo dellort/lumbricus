@@ -13,6 +13,8 @@ import gui.label;
 import gui.widget;
 import utils.time;
 
+import str = stdx.string;
+
 class GameTimer : Container {
     private {
         GameInfo mGame;

@@ -18,7 +18,7 @@ import utils.misc;
 import utils.rect2;
 import utils.vector2;
 
-import str = std.string;
+import str = stdx.string;
 
 enum WindowZOrder {
     Normal = 0,

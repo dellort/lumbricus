@@ -13,8 +13,8 @@ import utils.rect2;
 import utils.time;
 import utils.vector2;
 
-import std.stream;
-debug import std.stdio;
+import stdx.stream;
+debug import stdx.stdio;
 
 //xxx the following two types should be in common.animation
 

@@ -1,16 +1,16 @@
 module utils.configfile;
 
-import std.stream;
-import utf = std.utf;
-import str = std.string;
-import std.format;
-import conv = std.conv;
+import stdx.stream;
+import utf = stdx.utf;
+import str = stdx.string;
+import stdx.format;
+import conv = stdx.conv;
 import utils.output : Output, StringOutput;
 import utils.misc : formatfx;
 
 //only for byte[]
-import zlib = std.zlib;
-import base64 = std.base64;
+//import zlib = std.zlib;
+import base64 = stdx.base64;
 
 //xxx: desperately moved to here (where else to put it?)
 import utils.vector2;
@@ -586,21 +586,22 @@ public class ConfigNode {
         }
         setStringValue(name, str.join(s, " "));
     }
-
-    public void setByteArrayValue(char[] name, byte[] data,
+/+
+    public void setByteArrayValue(char[] name, ubyte[] data,
         bool allow_compress = false)
     {
         setStringValue(name, encodeByteArray(data, allow_compress));
     }
 
-    public byte[] getByteArrayValue(char[] name, byte[] def = null) {
+    public ubyte[] getByteArrayValue(char[] name, ubyte[] def = null) {
         return decodeByteArray(getStringValue(name), def);
     }
 
-    static char[] encodeByteArray(byte[] data, bool compress) {
+    static char[] encodeByteArray(ubyte[] data, bool compress) {
         //
         if (!data.length)
             return "[]";
+        /+
         void[] garbage1;
         if (compress) {
             auto ndata = zlib.compress(data, 9);
@@ -608,27 +609,31 @@ public class ConfigNode {
             garbage1 = ndata;
             data = cast(byte[])ndata;
         }
-        char[] res = base64.encode(cast(char[])data);
-        delete garbage1;
+        +/
+        char[] res = base64.encode(data);
+        //delete garbage1;
         return res;
     }
 
-    static byte[] decodeByteArray(char[] input, byte[] def) {
+    static ubyte[] decodeByteArray(char[] input, ubyte[] def) {
         if (input == "[]")
             return null;
-        char[] buf;
+        ubyte[] buf;
         try {
             buf = base64.decode(input);
         } catch (base64.Base64Exception e) {
             return def;
         }
+        /+
         try {
             return cast(byte[])zlib.uncompress(buf);
         } catch (zlib.ZlibException e) {
             return def;
         }
+        +/
+        return buf;
     }
-
++/
     //compare values in a non-strict way (i.e. not byte-exact)
     //xxx: maybe at least case insensitive, also maybe strip whitespace
     private bool doCompareValueFuzzy(char[] s1, char[] s2) {
@@ -1394,7 +1399,7 @@ public class ConfigFile {
 
 debug:
 
-import std.stdio;
+import stdx.stdio;
 
 private bool test_error;
 

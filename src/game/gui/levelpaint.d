@@ -23,7 +23,7 @@ import utils.misc;
 import drawing = utils.drawing;
 import rand = utils.random;
 
-import str = std.string;
+import str = stdx.string;
 
 private uint rgba32(Color c) {
     return (cast(ubyte)(255*c.a)<<24) | (cast(ubyte)(255*c.b)<<16)

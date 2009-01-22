@@ -7,6 +7,8 @@ import utils.array : arrayMap;
 import utils.configfile;
 import utils.reflection;
 
+import str = stdx.string;
+
 //handling of the collision map
 class CollisionMap {
     CollisionType[char[]] mCollisionNames;

@@ -1,6 +1,6 @@
 module wwpdata.common;
 
-import std.stream;
+import stdx.stream;
 import wwpdata.decompression;
 
 struct RGBColor {

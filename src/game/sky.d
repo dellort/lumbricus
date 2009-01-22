@@ -7,7 +7,6 @@ import game.glevel;
 import game.animation;
 import game.levelgen.level : EnvironmentTheme;
 import common.scene;
-import str = std.string;
 import utils.misc;
 import utils.time;
 import utils.vector2;

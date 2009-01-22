@@ -1,6 +1,6 @@
 module utils.time;
 
-import str = std.string;
+import str = stdx.string;
 import utils.misc : toDelegate;
 
 //if true, use nanosecond resolution instead of milliseconds
@@ -253,23 +253,40 @@ public Time timeNull() {
 //the perf counter is fast, doesn't wrap in near time, and measures the absolute
 //time (i.e. not the process time) - so why not?
 //ok, might not be available under Win95
-import std.perf;
 
-private PerformanceCounter gCounter;
+version (Tango) {
 
-static this() {
-    gCounter = new PerformanceCounter();
-    gCounter.start();
-}
+    import tango.time.StopWatch;
+    private StopWatch gTimer;
 
-///get current (framework) time
-public Time timeCurrentTime() {
-    //this relies on the inner working of std.perf:
-    //  PerformanceCounter.stop() doesn't reset the start time or so, but always
-    //  sets the measured time to the time between the last .start() and the
-    //  current .stop() call
-    gCounter.stop();
-    return timeMusecs(gCounter.microseconds());
+    static this()  {
+        gTimer.start();
+    }
+
+    public Time timeCurrentTime() {
+        return timeMusecs(cast(long)gTimer.microsec());
+    }
+
+} else {
+
+    import std.perf;
+    private PerformanceCounter gCounter;
+
+    static this() {
+        gCounter = new PerformanceCounter();
+        gCounter.start();
+    }
+
+    ///get current (framework) time
+    public Time timeCurrentTime() {
+        //this relies on the inner working of std.perf:
+        //  PerformanceCounter.stop() doesn't reset the start time or so, but
+        //  always sets the measured time to the time between the last .start()
+        //  and the current .stop() call
+        gCounter.stop();
+        return timeMusecs(gCounter.microseconds());
+    }
+
 }
 
 //xxx: using toDelegate(&timeCurrentTime) multiple times produces linker

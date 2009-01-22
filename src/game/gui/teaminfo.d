@@ -7,6 +7,7 @@ import common.visual;
 import framework.font;
 import framework.framework;
 import game.gamepublic;
+import game.gfxset;
 import game.clientengine;
 import game.weapon.weapon;
 import gui.label;

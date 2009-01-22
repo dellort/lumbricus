@@ -1,6 +1,6 @@
 module unworms;
 
-import std.stdio;
+import stdx.stdio;
 import wwptools.unworms;
 
 int main(char[][] args)

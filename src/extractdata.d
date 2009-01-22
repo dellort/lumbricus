@@ -1,13 +1,12 @@
 module extractdata;
 
 import devil.image;
-import stdf = std.file;
-import path = std.path;
-import std.process;
-import std.stdio;
-import std.stream;
-import std.string : tolower, split, format, replace;
-import std.conv: toUbyte;
+import stdf = stdx.file;
+import path = stdx.path;
+import stdx.stdio;
+import stdx.stream;
+import stdx.string : tolower, split, format, replace;
+import stdx.conv: toUbyte;
 import utils.filetools;
 import utils.configfile;
 import wwpdata.animation;

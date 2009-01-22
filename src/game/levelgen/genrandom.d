@@ -7,10 +7,10 @@ import utils.vector2;
 import utils.mylist;
 import utils.math : lineIntersect;
 import framework = framework.framework : Color;
-import std.math : PI;
+import stdx.math : PI;
 import utils.random;
 import utils.configfile : ConfigNode;
-import str = std.string;
+import str = stdx.string;
 
 //about textures: currently marker implies texture
 
@@ -141,7 +141,7 @@ struct GeneratorConfig {
 }
 
 
-debug import std.stdio;
+debug import stdx.stdio;
 
 //debugging: dump polygon outlines into the levle image
 //version = dump_polygons;

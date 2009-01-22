@@ -9,7 +9,7 @@ import game.weapon.weapon;
 import game.weapon.projectile;
 import game.gamepublic;
 import game.weapon.actionweapon;
-import std.math: PI;
+import stdx.math: PI;
 import utils.vector2;
 import utils.configfile;
 import utils.color;

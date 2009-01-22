@@ -19,10 +19,9 @@ import game.gui.levelpaint;
 import utils.vector2;
 import utils.rect2;
 
-import std.thread;
 import str = std.string;
 
-private class LevelSelector : SimpleContainer {
+class LevelSelector : SimpleContainer {
     private {
         int mPreviewHeight = 70;
 

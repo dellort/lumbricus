@@ -3,8 +3,8 @@ import framework.framework;
 import utils.configfile;
 import utils.log;
 
-import std.stream;
-import utf = std.utf;
+import stdx.stream;
+import utf = stdx.utf;
 
 import utils.weaklist;
 

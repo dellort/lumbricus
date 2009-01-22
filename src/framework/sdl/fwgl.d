@@ -8,12 +8,12 @@ import derelict.sdl.sdl;
 import framework.framework;
 import framework.sdl.framework;
 import framework.drawing;
-import std.math;
-import std.string;
-import utf = std.utf;
+import stdx.math;
+import stdx.string;
+import utf = stdx.utf;
 import utils.misc;
 
-debug import std.stdio;
+debug import stdx.stdio;
 
 char[] glErrorToString(GLenum errCode) {
     char[] res = toString(cast(char*)gluErrorString(errCode));

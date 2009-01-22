@@ -4,11 +4,14 @@ import derelict.openal.al;
 import derelict.openal.alut;
 import framework.framework;
 import framework.sound;
-import std.stream;
-import str = std.string;
+import stdx.stream;
+import str = stdx.string;
 import utils.array;
 import utils.misc;
 import utils.time;
+import utils.configfile;
+
+debug import stdx.stdio;
 
 private void throwError() {
     throw new Exception("Sound error: " ~ str.toString(null));
@@ -186,7 +189,7 @@ class ALSoundDriver : SoundDriver {
     }
 
     void closeSound(DriverSound s) {
-        std.stdio.writefln("close sound %s", s);
+        debug writefln("close sound %s", s);
         auto as = castStrict!(ALSound)(s);
         foreach (c; mChannels) {
             if (as.mALBuffer == c.lastbuffer)
@@ -202,7 +205,7 @@ class ALSoundDriver : SoundDriver {
     }
 
     void destroy() {
-        std.stdio.writefln("unloading OpenAL");
+        debug writefln("unloading OpenAL");
         //caller must make sure all stuff has been unloaded
         assert(mSounds.length == 0);
         foreach (c; mChannels) {
@@ -212,7 +215,7 @@ class ALSoundDriver : SoundDriver {
         alutExit();
         DerelictALUT.unload();
         DerelictAL.unload();
-        std.stdio.writefln("unloaded OpenAL");
+        debug writefln("unloaded OpenAL");
     }
 
     void musicPlay(DriverSound m, Time startAt, Time fade) {

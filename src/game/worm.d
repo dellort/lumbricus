@@ -5,6 +5,7 @@ import game.gobject;
 import game.animation;
 import physics.world;
 import game.game;
+import game.gfxset;
 import game.sequence;
 import game.sprite;
 import game.weapon.types;
@@ -19,8 +20,8 @@ import utils.misc;
 import utils.math;
 import utils.configfile;
 import utils.reflection;
-import std.math;
-import str = std.string;
+import stdx.math;
+import str = stdx.string;
 
 /**
   just an idea:

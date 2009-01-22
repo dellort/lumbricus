@@ -5,9 +5,10 @@ import utils.reflection;
 import utils.misc;
 import utils.queue;
 
-import str = std.string;
+import str = stdx.string;
+import conv = stdx.conv;
 
-debug import std.stdio : writefln;
+debug import stdx.stdio : writefln;
 
 debug debug = CountClasses;
 
@@ -379,11 +380,13 @@ class SerializeOutConfig : SerializeConfig {
             cur[member] = ptr.read!(char[])();
             return;
         }
+        /+
         //byte[] too, because for game saving, the bitmap is a byte[]
-        if (ptr.type is mCtx.mTypes.getType!(byte[])()) {
-            cur.setByteArrayValue(member, ptr.read!(byte[]), true);
+        if (ptr.type is mCtx.mTypes.getType!(ubyte[])()) {
+            cur.setByteArrayValue(member, ptr.read!(ubyte[]), true);
             return;
         }
+        +/
         if (auto art = cast(ArrayType)ptr.type) {
             auto sub = cur.getSubNode(member);
             ArrayType.Array arr = art.getArray(ptr);
@@ -651,12 +654,14 @@ class SerializeInConfig : SerializeConfig {
             ptr.write!(char[])(cur[member]);
             return;
         }
+        /+
         //byte[] too, because for game saving, the bitmap is a byte[]
-        if (ptr.type is mCtx.mTypes.getType!(byte[])()) {
+        if (ptr.type is mCtx.mTypes.getType!(ubyte[])()) {
             //xxx error handling
-            ptr.write!(byte[])(cur.getByteArrayValue(member));
+            ptr.write!(ubyte[])(cur.getByteArrayValue(member));
             return;
         }
+        +/
         if (auto art = cast(ArrayType)ptr.type) {
             ArrayType.Array arr = art.getArray(ptr);
             auto sub = cur.findNode(member);

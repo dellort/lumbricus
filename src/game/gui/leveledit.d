@@ -27,14 +27,14 @@ import utils.misc;
 import utils.array;
 import utils.configfile;
 import game.levelgen.level;
+import game.levelgen.landscape;
 import game.levelgen.generator;
 import game.levelgen.genrandom;
 import game.levelgen.placeobjects;
-import std.string : format;
 import utils.output;
 
-import std.bind;
-import std.stream;
+//import stdx.bind;
+import stdx.stream;
 
 //for playing the preview
 import game.gametask;
@@ -752,6 +752,13 @@ public class LevelEditor : Task {
         createGui();
     }
 
+    private void btn_setnochange(Button b) {
+        setNochange(b.checked);
+    }
+    private void btn_setcave(Button b) {
+        setCave(b.checked);
+    }
+
     void createGui() {
         //"static", non-configfile version was in r351
         auto loader = new LoadGui(gFramework.loadConfig("ledit_gui"));
@@ -764,27 +771,29 @@ public class LevelEditor : Task {
         alias typeof(this) Me;
 
         //button events, sigh
-        void setOnClick(char[] name, void delegate(Button, Me) onclick) {
+        //bind removed because LDC barfed on it, old version in r582
+        void setOnClick2(char[] name, void delegate() onclick) {
             auto b = loader.lookup!(Button)(name);
-            b.onClick = bind(onclick, _0, this).ptr;
+            b.onClick2 = onclick;
+        }
+        void setOnClick(char[] name, void delegate(Button b) onclick) {
+            auto b = loader.lookup!(Button)(name);
+            b.onClick = onclick;
         }
 
-        setOnClick("preview", (Button, Me me) {me.genPreview;});
-        setOnClick("inspt", (Button, Me me) {me.insertPoint;});
-        setOnClick("addpoly", (Button, Me me) {me.setNewPolygon;});
-        setOnClick("play", (Button, Me me) {me.play;});
-        setOnClick("load", (Button, Me me) {me.loadTemplate;});
+        setOnClick2("preview", &genPreview);
+        setOnClick2("inspt", &insertPoint);
+        setOnClick2("addpoly", &setNewPolygon);
+        setOnClick2("play", &play);
+        setOnClick2("load", &loadTemplate);
 
-        setOnClick("setnochange", (Button b, Me me)
-            {me.setNochange(b.checked);}
-        );
-        setOnClick("setcave", (Button b, Me me) {me.setCave(b.checked);});
+        setOnClick("setnochange", &btn_setnochange);
+        setOnClick("setcave", &btn_setcave);
 
         mS[0] = loader.lookup!(Button)("s1");
         mS[1] = loader.lookup!(Button)("s2");
         mS[2] = loader.lookup!(Button)("s3");
-        auto seltype = (Button b, Me me) {me.selLexelType(b);};
-        mS[0].onClick = bind(seltype, _0, this).ptr;
+        mS[0].onClick = &selLexelType;
         mS[1].onClick = mS[0].onClick;
         mS[2].onClick = mS[0].onClick;
 
@@ -803,8 +812,8 @@ public class LevelEditor : Task {
         //that other dialog to load templates
         mLoadTemplate = loader.lookup("load_templ");
         mLoadTemplateList = loader.lookup!(StringListWidget)("load_list");
-        setOnClick("load_ok", (Button, Me me) {me.loadTemplate_OK;});
-        setOnClick("load_cancel", (Button, Me me) {me.loadTemplate_Cancel;});
+        setOnClick2("load_ok", &loadTemplate_OK);
+        setOnClick2("load_cancel", &loadTemplate_Cancel);
     }
 
     const cLexelTypes = [Lexel.Null, Lexel.SolidSoft, Lexel.SolidHard];

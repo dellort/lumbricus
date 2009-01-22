@@ -9,6 +9,7 @@ import game.gamepublic;
 import utils.factory;
 import utils.reflection;
 import utils.mybox;
+import utils.configfile;
 
 //factory to instantiate gamemodes
 static class GamemodeFactory

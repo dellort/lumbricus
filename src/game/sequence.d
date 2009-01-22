@@ -23,8 +23,8 @@ import utils.vector2;
 import game.gamepublic;
 import game.game;
 
-import std.math : PI;
-import str = std.string;
+import math = stdx.math;
+import str = stdx.string;
 
 static void function(GameEngine engine, ConfigNode from)[char[]]
     loaders;
@@ -422,7 +422,7 @@ class NapalmStateDisplay : AniStateDisplay {
             //fast napalm
             if (last_animation !is myclass.animFly)
                 new_animation = myclass.animFly;
-            params.p1 = cast(int)(v.rotation_angle*180.0f/PI);
+            params.p1 = cast(int)(v.rotation_angle*180.0f/math.PI);
             params.p2 = cast(int)(100
                 * (speed-cTresholdVelocity) / cVelDelta);
         }
@@ -672,7 +672,7 @@ class WormStateDisplay : AniStateDisplay {
         auto wsu = cast(WormSequenceUpdate)v;
         if (state.p2_damage) {
             //lol, code below converts back to deg
-            const float cDmgToRad = 100.0f/180.0f*PI;
+            const float cDmgToRad = 100.0f/180.0f*math.PI;
             set_angle[1] = max(0f, (1.0f-v.lifePercent)*cDmgToRad);
         }
         else if (wsu)
@@ -693,8 +693,8 @@ class WormStateDisplay : AniStateDisplay {
             mAngleUser = set_angle[exclude];
         }
         AnimationParams p;
-        p.p1 = cast(int)(mAngles[0]/PI*180);
-        p.p2 = cast(int)(mAngles[1]/PI*180);
+        p.p1 = cast(int)(mAngles[0]/math.PI*180);
+        p.p2 = cast(int)(mAngles[1]/math.PI*180);
         mAnimator.update(v.position, p);
         mAnimator.more = v;
         //all updates for jetpack flames

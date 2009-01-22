@@ -27,8 +27,8 @@ import utils.misc;
 import utils.time;
 import utils.vector2;
 
-import std.math : PI;
-import str = std.string;
+import stdx.math : PI;
+import str = stdx.string;
 
 import game.animation;
 
@@ -389,8 +389,8 @@ class AnimationHandler : ResViewHandler!(Animation) {
         infos.text = "Flags: "
             ~ (resource.keepLastFrame ? "keepLastFrame, " : "")
             ~ (resource.repeat ? "repeat, " : " ")
-            ~ format("frametime: %s ", resource.frameTime)
-            ~ format("duration: %s", resource.duration);
+            ~ str.format("frametime: %s ", resource.frameTime)
+            ~ str.format("duration: %s", resource.duration);
         table.addRow();
         table.add(infos, 0, table.height-1, 2, 1);
 
@@ -457,12 +457,12 @@ class AnimationHandler : ResViewHandler!(Animation) {
         p.p2 = mParams[1].curValue;
         mAnim.params = p;
         for (int n = 0; n < 2; n++)
-            mParLbl[n].text = format("Param %d: %d", n, mParams[n].curValue);
-        mFrameLabel.text = format("Frame: %d/%d", mFrame.curValue,
+            mParLbl[n].text = str.format("Param %d: %d", n, mParams[n].curValue);
+        mFrameLabel.text = str.format("Frame: %d/%d", mFrame.curValue,
             mFrame.maxValue);
         float speed = 2.0f*mSpeed.curValue/mSpeed.maxValue;
         mTime.slowDown = speed;
-        mSpeedLabel.text = format("Speed: %s", mTime.slowDown);
+        mSpeedLabel.text = str.format("Speed: %s", mTime.slowDown);
     }
 
     private void onPause(Button sender) {

@@ -8,7 +8,6 @@ import framework.resources : ResourceObject, addToResourceSet;
 import utils.color;
 import utils.configfile;
 
-import path = std.path;
 
 //references all graphic/sound (no sounds yet) resources etc.
 class GfxSet {

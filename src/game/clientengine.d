@@ -28,7 +28,7 @@ import utils.rect2;
 import utils.perf;
 import utils.configfile;
 import utils.random : random;
-import std.math : PI, pow;
+import stdx.math : PI, pow;
 
 enum GameZOrder {
     Invisible = 0,

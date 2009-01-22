@@ -3,9 +3,10 @@ module framework.commandline;
 import framework.framework;
 import framework.event;
 
-import str = std.string;
-import utf = std.utf;
+import str = stdx.string;
+import utf = stdx.utf;
 
+import utils.misc;
 import utils.mybox;
 import utils.array;
 import utils.output;
@@ -385,7 +386,7 @@ class CommandBucket {
                     if (e.alias_name == last_entry) {
                         change = true;
                         n_entry++;
-                        e.alias_name = format("%s_%d", last_entry, n_entry);
+                        e.alias_name = str.format("%s_%d", last_entry, n_entry);
                     } else {
                         last_entry = e.alias_name;
                         n_entry = 1;

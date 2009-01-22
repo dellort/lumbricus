@@ -1,8 +1,12 @@
 module utils.weaklist;
 
-import std.c.stdlib : malloc, free;
-//import std.c.linux.linux;
-import gc = std.gc;
+version (Tango) {
+    import tango.stdc.stdlib : malloc, free;
+} else {
+    import std.c.stdlib : malloc, free;
+}
+
+import utils.gcabstr;
 
 ///Simple support for weakpointers.
 ///T should be a pointer-like type (pointers, objects, interfaces)
@@ -31,11 +35,11 @@ class WeakList(T, Data = Dummy) {
     //protected from calls from other threads and especially be safe for
     //.remove() calls called from GC finalizers (=> disable GC)
     private void sync(void delegate() m) {
-        gc.disable();
+        gcDisable();
         synchronized(this) {
             m();
         }
-        gc.enable();
+        gcEnable();
     }
 
     /// Add a pointer to the list. The pointer isn't GC-tracked. The caller is

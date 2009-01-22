@@ -10,8 +10,8 @@ import framework.sdl.framework;
 import framework.sdl.rwops;
 import framework.texturepack;
 
-import std.stream;
-import std.string;
+import stdx.stream;
+import stdx.string;
 
 bool fontIsOpaque(ref FontProperties props) {
     return (props.back.a > 1.0f - Color.epsilon);
@@ -252,7 +252,7 @@ class SDLFontDriver : FontDriver {
 
         if (TTF_Init()==-1) {
             throw new Exception(format("TTF_Init: %s\n",
-                std.string.toString(TTF_GetError())));
+                .toString(TTF_GetError())));
         }
     }
 

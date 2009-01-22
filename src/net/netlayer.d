@@ -1,8 +1,8 @@
 module net.netlayer;
 
 import derelict.enet.enet;
-import str = std.string;
-import conv = std.conv;
+import str = stdx.string;
+import conv = stdx.conv;
 
 pragma(lib,"DerelictUtil");
 

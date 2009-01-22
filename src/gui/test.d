@@ -30,7 +30,7 @@ import utils.array;
 import utils.log;
 import utils.rect2;
 import utils.vector2;
-import str = std.string;
+import str = stdx.string;
 
 import gui.window;
 

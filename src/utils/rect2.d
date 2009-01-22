@@ -1,7 +1,7 @@
 module utils.rect2;
 import utils.vector2;
 import utils.misc : min, max;
-import std.string : format;
+import stdx.string : format;
 
 //T is the most underlying type, i.e. float or int
 //NOTE: most member functions expect the rect to be in "normal" form

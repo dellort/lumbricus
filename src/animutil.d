@@ -1,9 +1,9 @@
 module animutil;
 
-import str = std.string;
-import path = std.path;
-import std.stdio;
-import std.conv;
+import str = stdx.string;
+import path = stdx.path;
+import stdx.stdio;
+import stdx.conv;
 
 import aconv.atlaspacker;
 import devil.image;

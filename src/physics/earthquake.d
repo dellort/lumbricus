@@ -9,6 +9,8 @@ import physics.base;
 import physics.force;
 import physics.physobj;
 
+import math = stdx.math;
+
 const Time cEarthQuakeChangeTime = timeMsecs(200);
 
 //causes a one-frame earthquake with the strength accumulated by
@@ -80,7 +82,7 @@ class EarthQuakeForce : PhysicForce {
         //xxx: undeterministic randomness
         //using an angle here is a simple way to create a normalized vector
         mEarthQuakeImpulse = Vector2f.fromPolar(1.0f,
-            world.rnd.nextDouble() * PI * 2.0f) * mEarthQuakeStrength;
+            world.rnd.nextDouble() * math.PI * 2.0f) * mEarthQuakeStrength;
         mEarthQuakeLastChangeTime = 0;
     }
 

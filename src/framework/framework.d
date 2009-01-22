@@ -26,13 +26,11 @@ import utils.time;
 import utils.weaklist;
 import utils.gzip;
 
-import conv = std.conv;
-import std.stream;
-import str = std.string;
-import zlib = std.zlib;
-import std.outbuffer;
+import conv = stdx.conv;
+import stdx.stream;
+import str = stdx.string;
 
-debug import std.stdio;
+debug import stdx.stdio;
 
 //**** driver stuff
 
@@ -489,7 +487,7 @@ class Surface {
     //dirty hacky lib to dump a surface to a file
     //as far as I've seen we're not linked to any library which can write images
     private void saveToTGA(OutputStream stream) {
-        OutBuffer to = new OutBuffer;
+        auto to = stream;
         try {
             void* pvdata;
             uint pitch;
@@ -536,7 +534,7 @@ class Surface {
         } finally {
             unlockPixels(Rect2i.init);
         }
-        stream.write(to.toBytes);
+        //stream.write(to.toBytes);
     }
 }
 
@@ -569,7 +567,7 @@ class Framework {
     private {
         FrameworkDriver mDriver;
         DriverReload* mDriverReload;
-        ConfigNode mLastWorkingDriver;
+        config.ConfigNode mLastWorkingDriver;
 
         bool mShouldTerminate;
 
@@ -656,7 +654,7 @@ class Framework {
     }
 
     struct DriverReload {
-        ConfigNode ndriver;
+        config.ConfigNode ndriver;
     }
 
     void scheduleDriverReload(DriverReload r) {
@@ -1160,27 +1158,40 @@ class Framework {
         char[] fnConf = section ~ (asfilename ? "" : ".conf");
         VFSPath file = VFSPath(fnConf);
         VFSPath fileGz = VFSPath(fnConf~".gz");
+        bool gzipped;
         if (!fs.exists(file) && fs.exists(fileGz)) {
             //found gzipped file instead of original
             file = fileGz;
+            gzipped = true;
         }
         mLog("load config: %s", file);
+        char[] data;
         try {
-            scope s = fs.open(file);
-            char[] data = s.readString(s.size());
-            //try unpacking, does nothing for txt files
-            char[] ndata = cast(char[])tryUnGzip(cast(ubyte[])data);
-            auto f = new config.ConfigFile(ndata, file.get(), &logconf);
-            if (!f.rootnode)
-                throw new Exception("?");
-            return f.rootnode;
+            Stream stream = fs.open(file);
+            scope (exit) { if (stream) stream.close(); }
+            assert (!!stream);
+            data = stream.readString(stream.size());
         } catch (FilesystemException e) {
             if (!allowFail)
                 throw e;
-        } catch (zlib.ZlibException e) {
-            if (!allowFail)
-                throw new Exception("Decompression failed: "~e.msg);
+            goto error;
         }
+        if (gzipped) {
+            try {
+                data = cast(char[])gunzipData(cast(ubyte[])data);
+            } catch (ZlibException e) {
+                if (!allowFail)
+                    throw new Exception("Decompression failed: "~e.msg);
+                goto error;
+            }
+        }
+        //xxx: if parsing fails? etc.
+        auto f = new config.ConfigFile(data, file.get(), &logconf);
+        if (!f.rootnode)
+            throw new Exception("?");
+        return f.rootnode;
+
+    error:
         mLog("config file %s failed to load (allowFail = true)", file);
         return null;
     }
@@ -1291,20 +1302,20 @@ class Framework {
                         bytes_extra += extra;
                     }
                     bytes += s.mData.data.length;
-                    res ~= format("  %s [%s]\n", s.size, dr_desc);
+                    res ~= str.format("  %s [%s]\n", s.size, dr_desc);
                     cnt++;
                 }
-                res ~= format("%d surfaces, size=%s, driver_extra=%s\n", cnt,
-                    sizeToHuman(bytes), sizeToHuman(bytes_extra));
+                res ~= str.format("%d surfaces, size=%s, driver_extra=%s\n",
+                    cnt, sizeToHuman(bytes), sizeToHuman(bytes_extra));
                 cnt = 0;
                 res ~= "Fonts:\n";
                 foreach (f; gFonts.list) {
                     auto d = f.mFont;
-                    res ~= format("  %s/%s [%s]\n", f.properties.face,
+                    res ~= str.format("  %s/%s [%s]\n", f.properties.face,
                         f.properties.size, d ? d.getInfos() : "");
                     cnt++;
                 }
-                res ~= format("%d fonts\n", cnt);
+                res ~= str.format("%d fonts\n", cnt);
                 break;
             }
             default:
@@ -1344,7 +1355,7 @@ class Framework {
 }
 
 class FrameworkDriverFactory : StaticFactory!(FrameworkDriver, Framework,
-    ConfigNode)
+    config.ConfigNode)
 {
 }
 

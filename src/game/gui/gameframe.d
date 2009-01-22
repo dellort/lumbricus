@@ -31,7 +31,7 @@ import utils.misc;
 import utils.vector2;
 import utils.log;
 
-import std.math;
+import stdx.math;
 
 //time for which it takes to add/remove 1 health point in the animation
 const Time cTimePerHealthTick = timeMsecs(4);

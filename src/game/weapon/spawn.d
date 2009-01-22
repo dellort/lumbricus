@@ -12,6 +12,8 @@ import utils.configfile;
 import utils.reflection;
 import utils.vector2;
 
+import math = stdx.math;
+
 enum InitVelocity {
     parent,
     backfire,
@@ -101,7 +103,8 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
 
         if (params.random) {
             //random rotation angle for dir vector, in rads
-            float theta = (engine.rnd.nextDouble()-0.5f)*params.random*PI/180.0f;
+            float theta = (engine.rnd.nextDouble()-0.5f)*params.random
+                *math.PI/180.0f;
             about.dir = about.dir.rotated(theta);
         }
 
