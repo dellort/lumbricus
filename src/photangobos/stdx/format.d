@@ -46,7 +46,12 @@ version (Tango) {
 } else {
     private import std.c.stdlib;
     private import std.c.string;
-    private import std.c.stdio : snprintf;
+    version(Windows) {
+        private import std.c.stdio : _snprintf;
+        alias _snprintf snprintf;
+    } else {
+        private import std.c.stdio : snprintf;
+    }
 }
 
 private import stdx.varghelper;

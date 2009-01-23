@@ -31,6 +31,11 @@ import game.levelgen.landscape;
 import game.levelgen.level;
 import game.levelgen.generator;
 import game.levelgen.renderer;
+//--> following 2 imports are not actually needed, but avoid linker errors
+//    on windows with game.gui.leveledit disabled in lumbricus.d
+import game.levelgen.placeobjects;
+import game.levelgen.genrandom;
+//<--
 import gui.container;
 import gui.label;
 import gui.tablecontainer;

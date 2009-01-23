@@ -20,6 +20,7 @@ import stdx.format;
 
 version (Tango) {
     import tango.io.Console;
+    import tango.stdc.stdio : printf;
     import stdx.utf;
 
     public import stdx.base;

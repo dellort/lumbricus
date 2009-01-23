@@ -19,7 +19,7 @@ import game.gui.levelpaint;
 import utils.vector2;
 import utils.rect2;
 
-import str = std.string;
+import str = stdx.string;
 
 class LevelSelector : SimpleContainer {
     private {

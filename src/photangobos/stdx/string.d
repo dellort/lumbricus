@@ -35,10 +35,18 @@ version (Tango) {
     import tango.stdc.stdlib;
     import tango.stdc.string;
     import tango.stdc.stdio;
+    version(Win32) {
+        private extern (C) int memicmp (char *, char *, uint);
+    }
 } else {
     import std.c.stdlib;
     import std.c.string;
     import std.c.stdio;
+}
+
+version(linux) {
+    private extern (C) int strncasecmp (char *, char*, uint);
+    private alias strncasecmp memicmp;
 }
 
 private import stdx.utf;
@@ -157,29 +165,7 @@ int icmp(char[] s1, char[] s2)
 
     if (s2.length < len)
 	len = s2.length;
-    version (Win32)
-    {
-	result = memicmp(s1.ptr, s2.ptr, len);
-    }
-    version (linux)
-    {
-	for (size_t i = 0; i < len; i++)
-	{
-	    if (s1[i] != s2[i])
-	    {
-		char c1 = s1[i];
-		char c2 = s2[i];
-
-		if (c1 >= 'A' && c1 <= 'Z')
-		    c1 += cast(int)'a' - cast(int)'A';
-		if (c2 >= 'A' && c2 <= 'Z')
-		    c2 += cast(int)'a' - cast(int)'A';
-		result = cast(int)c1 - cast(int)c2;
-		if (result)
-		    break;
-	    }
-	}
-    }
+    result = memicmp(s1.ptr, s2.ptr, len);
     if (result == 0)
 	result = cast(int)s1.length - cast(int)s2.length;
     return result;
