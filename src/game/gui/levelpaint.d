@@ -25,11 +25,6 @@ import rand = utils.random;
 
 import str = stdx.string;
 
-private uint rgba32(Color c) {
-    return (cast(ubyte)(255*c.a)<<24) | (cast(ubyte)(255*c.b)<<16)
-        | (cast(ubyte)(255*c.g)<<8) | (cast(ubyte)(255*c.r));
-}
-
 enum DrawMode {
     circle,
     square,
@@ -38,20 +33,21 @@ enum DrawMode {
 }
 
 class PainterWidget : Widget {
-    Lexel[] levelData;
-
     private {
+        Lexel[] mLevelData;
+
         Surface mImage;
 
         const cPaintScale = 0.33;
         //CTFE ftw
-        const Color[3] cLexelToColor = [Color(0.2, 0.2, 1.0),
+        const Color[Lexel.Max+1] cDefLexelToColor = [Color(0.2, 0.2, 1.0),
             Color(1, 1, 1), Color(0, 0, 0)];
-        const uint[3] cLexelToRGBA32 = [rgba32(cLexelToColor[0]),
-            rgba32(cLexelToColor[1]), rgba32(cLexelToColor[2])];
         const cPenRadius = [10, 75];
         const cPenChange = 5;
         const cPenColor = Color(1, 0, 0, 0.5);
+
+        Color[Lexel.Max+1] mLexelToColor;
+        uint[Lexel.Max+1] mLexelToRGBA32;
 
         Vector2i mLevelSize = Vector2i(2000, 700);
         Rect2i mLevelRect;
@@ -69,25 +65,22 @@ class PainterWidget : Widget {
         }
     }
 
+    void delegate(PainterWidget sender) onChange;
+
     this() {
+        setColors(cDefLexelToColor);
+
         auto drawSize = toVector2i(toVector2f(mLevelSize)*cPaintScale);
         mImage = gFramework.createSurface(drawSize, Transparency.None, Color(0));
         mLevelRect.p2 = mLevelSize;
         mScaledLevel = new Lexel[drawSize.x*drawSize.y];
 
-        levelData = new Lexel[mLevelSize.x*mLevelSize.y];
-        fill(Lexel.Null);
+        mLevelData = new Lexel[mLevelSize.x*mLevelSize.y];
+        clear();
     }
 
     this(LandscapeBitmap level) {
-        mLevelSize = level.size;
-        auto drawSize = toVector2i(toVector2f(mLevelSize)*cPaintScale);
-        mImage = gFramework.createSurface(drawSize, Transparency.None, Color(0));
-        mLevelRect.p2 = mLevelSize;
-        mScaledLevel = new Lexel[drawSize.x*drawSize.y];
-
-        levelData = level.levelData.dup;
-        fullUpdate();
+        setData(level.levelData.dup, level.size);
     }
 
     override bool canHaveFocus() {
@@ -270,7 +263,7 @@ class PainterWidget : Widget {
                         poly[3] = toVector2f(p2+Vector2i(r, r));
                     }
                 }
-                rasterizePolygon(size.x, size.y, poly, false, dg);
+                drawing.rasterizePolygon(size.x, size.y, poly, false, dg);
             }
         }
 
@@ -281,7 +274,7 @@ class PainterWidget : Widget {
             if (x2 >= mLevelSize.x) x2 = mLevelSize.x-1;
             int ly = y*mLevelSize.x;
             for (int x = x1; x <= x2; x++) {
-                levelData[ly+x] = mPaintLexel;
+                mLevelData[ly+x] = mPaintLexel;
             }
         }
         drawThickLine(p1, p2, mPenRadius, mLevelSize, &scanline);
@@ -305,7 +298,7 @@ class PainterWidget : Widget {
             for (int x = x1; x <= x2; x++) {
                 //actually, the following line is not necessary
                 mScaledLevel[ly+x] = mPaintLexel;
-                *dstptr = cLexelToRGBA32[mPaintLexel];
+                *dstptr = mLexelToRGBA32[mPaintLexel];
                 dstptr++;
             }
         }
@@ -317,15 +310,20 @@ class PainterWidget : Widget {
         mod.extendBorder(Vector2i(r_sc+1, r_sc+1));
         mod.fitInsideB(mImage.rect);
         mImage.unlockPixels(mod);
+
+        if (onChange)
+            onChange(this);
     }
 
     //fill the whole level with l
     private void fill(Lexel l) {
         assert(l != Lexel.INVALID);
-        levelData[] = l;
+        mLevelData[] = l;
         //this should be faster than calling fullUpdate()
         mScaledLevel[] = l;
-        mImage.fill(mImage.rect, cLexelToColor[l]);
+        mImage.fill(mImage.rect, mLexelToColor[l]);
+        if (onChange)
+            onChange(this);
     }
 
     void fillSolidSoft() {
@@ -345,19 +343,10 @@ class PainterWidget : Widget {
     //xxx this is quite slow
     void fullUpdate() {
         assert(mScaledLevel.length == mImage.size.x*mImage.size.y);
-        assert(levelData.length == mLevelSize.x*mLevelSize.y);
+        assert(mLevelData.length == mLevelSize.x*mLevelSize.y);
 
         //scale down from full size to image size
-        mScaledLevel[] = Lexel.Null;
-        for (int y = 0; y < mLevelSize.y; y++) {
-            int ly = y*mLevelSize.x;
-            int py = cast(int)(y*cPaintScale)*mImage.size.x;
-            for (int x = 0; x < mLevelSize.x; x++) {
-                Lexel cur = levelData[ly+x];
-                int px = cast(int)(x*cPaintScale);
-                mScaledLevel[py+px] = max(mScaledLevel[py+px],cur);
-            }
-        }
+        scaleLexels(mLevelData, mScaledLevel, mLevelSize, mImage.size);
 
         //transfer lexel data to image
         void* pixels; uint pitch;
@@ -366,7 +355,7 @@ class PainterWidget : Widget {
             uint* dstptr = cast(uint*)(pixels+pitch*y);
             int lsrc = y*mImage.size.x;
             for (int x = 0; x < mImage.size.x; x++) {
-                uint col = cLexelToRGBA32[mScaledLevel[lsrc+x]];
+                uint col = mLexelToRGBA32[mScaledLevel[lsrc+x]];
                 *dstptr = col;
                 dstptr++;
             }
@@ -376,5 +365,52 @@ class PainterWidget : Widget {
 
     override Vector2i layoutSizeRequest() {
         return mImage.size;
+    }
+
+    Vector2i levelSize() {
+        return mLevelSize;
+    }
+
+    Lexel[] levelData() {
+        return mLevelData;
+    }
+
+    void setData(Lexel[] data, Vector2i size) {
+        mLevelSize = size;
+        auto drawSize = toVector2i(toVector2f(mLevelSize)*cPaintScale);
+        if (mImage)
+            mImage.free;
+        mImage = gFramework.createSurface(drawSize, Transparency.None, Color(0));
+        mLevelRect.p2 = mLevelSize;
+        mScaledLevel = new Lexel[drawSize.x*drawSize.y];
+
+        mLevelData = data;
+        fullUpdate();
+        if (onChange)
+            onChange(this);
+    }
+
+    void setColors(Color[] cols) {
+        for (int i = 0; i <= Lexel.Max; i++) {
+            if (i < cols.length) {
+                mLexelToColor[i] = cols[i];
+                mLexelToRGBA32[i] = cols[i].toRGBA32();
+            }
+        }
+    }
+
+    override void loadFrom(GuiLoader loader) {
+        auto node = loader.node;
+
+        Color[] colors;
+        foreach (char[] n, char[] value; node.getSubNode("colors")) {
+            Color c;
+            c.parse(value);
+            colors ~= c;
+        }
+        setColors(colors);
+        clear();
+
+        super.loadFrom(loader);
     }
 }

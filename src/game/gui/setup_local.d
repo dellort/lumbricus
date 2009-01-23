@@ -108,6 +108,8 @@ class LocalGameSetupTask : Task {
             _("gamesetup.caption_local"));
 
         loadLastPlayedLevel();
+        if (!mCurrentLevel)
+            levelClick(mLevelBtn);
         loadTeams();
     }
 
@@ -121,9 +123,11 @@ class LocalGameSetupTask : Task {
     }
 
     private void loadLastPlayedLevel() {
-        scope level = gFramework.loadConfig(cLastlevelConf);
-        auto gen = new GenerateFromSaved(mGenerator, level);
-        setCurrentLevel(gen);
+        scope level = gFramework.loadConfig(cLastlevelConf, false, true);
+        if (level) {
+            auto gen = new GenerateFromSaved(mGenerator, level);
+            setCurrentLevel(gen);
+        }
     }
 
     private void levelSelect(DropDownList sender) {
@@ -149,6 +153,7 @@ class LocalGameSetupTask : Task {
             mSelector = new LevelSelector();
             mSelector.onAccept = &lvlAccept;
         }
+        mSelector.loadLevel(mCurrentLevel);
         mLevelWindow = gWindowManager.createWindow(this, mSelector,
             _("levelselect.caption"));
         mLevelWindow.onClose = &levelWindowClose;

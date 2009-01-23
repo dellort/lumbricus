@@ -43,6 +43,40 @@ class LandscapeBitmap {
     }
     private alias List!(Vertex*) VertexList;
 
+    private struct TexData {
+        //also not good and nice
+        uint pitch, w, h;
+        void* data;
+        Vector2i offs;
+
+        private uint plain_evil;
+        private Surface mSurface;
+
+        static TexData opCall(Surface s, Vector2i offs, Color fallback) {
+            TexData ret;
+            ret.mSurface = s;
+            if (s !is null) {
+                s.lockPixelsRGBA32(ret.data, ret.pitch);
+                ret.w = s.size.x;
+                ret.h = s.size.y;
+            } else {
+                //simulate an image consisting of a single transparent pixel
+                ret.plain_evil = fallback.toRGBA32();
+                ret.data = &ret.plain_evil;
+                ret.w = ret.h = 1;
+                ret.pitch = 4;
+            }
+            ret.offs = offs;
+            return ret;
+        }
+
+        void release() {
+            if (mSurface !is null)
+                mSurface.unlockPixels(Rect2i.init);
+        }
+    }
+
+
     //steps = number of subdivisions
     //start = start of the subdivision
     private static void cornercut(VertexList verts, int steps, float start) {
@@ -86,6 +120,8 @@ class LandscapeBitmap {
     {
         if (!visible)
             return;
+        //if no image available, just set the mLevelData[]
+        bool textured = !!mImage;
 
         VertexList vertices = new VertexList(Vertex.getListNodeOffset());
 
@@ -115,28 +151,14 @@ class LandscapeBitmap {
 
         delete vertices;
 
-        //also not good and nice
-        uint tex_pitch, tex_w, tex_h;
-        void* tex_data;
-        uint plain_evil;
-
-        if (texture !is null) {
-            texture.lockPixelsRGBA32(tex_data, tex_pitch);
-            tex_w = texture.size.x;
-            tex_h = texture.size.y;
-        } else {
-            //simulate an image consisting of a single transparent pixel
-            plain_evil = mImage.colorkey.toRGBA32();
-            tex_data = &plain_evil;
-            tex_w = tex_h = 1;
-            tex_pitch = 4;
-        }
-
-        int tex_offset_x = texture_offset.x;
-        int tex_offset_y = texture_offset.y;
-
         void* dstptr; uint dstpitch;
-        mImage.lockPixelsRGBA32(dstptr, dstpitch);
+        TexData tex;
+
+        if (textured) {
+            tex = TexData(texture, texture_offset, mImage.colorkey);
+
+            mImage.lockPixelsRGBA32(dstptr, dstpitch);
+        }
 
         void drawScanline(int x1, int x2, int y) {
             assert(x1 <= x2);
@@ -148,19 +170,25 @@ class LandscapeBitmap {
                 x1 = 0;
             if (x2 > mWidth)
                 x2 = mWidth;
-            uint ty = (y + tex_offset_y) % tex_h;
-            uint* dst = cast(uint*)(dstptr +  y*dstpitch + x1*uint.sizeof);
-            uint* texptr = cast(uint*)(tex_data + ty*tex_pitch);
+            uint ty;
+            uint* dst;
+            uint* texptr;
+            if (textured) {
+                ty = (y + tex.offs.y) % tex.h;
+                dst = cast(uint*)(dstptr +  y*dstpitch + x1*uint.sizeof);
+                texptr = cast(uint*)(tex.data + ty*tex.pitch);
+            }
             Lexel* markerptr = &mLevelData[y*mWidth+x1];
             for (uint x = x1; x < x2; x++) {
-                if (visible) {
-                    uint* texel = texptr + (x + tex_offset_x) % tex_w;
+                if (visible && textured) {
+                    uint* texel = texptr + (x + tex.offs.x) % tex.w;
                     *dst = *texel;
                 }
 
                 *markerptr = marker;
 
-                dst++;
+                if (textured)
+                    dst++;
                 markerptr++;
             }
         }
@@ -170,16 +198,74 @@ class LandscapeBitmap {
             counter.start();
         }
 
-        rasterizePolygon(mWidth, mHeight, urgs, false, &drawScanline);
+        drawing.rasterizePolygon(mWidth, mHeight, urgs, false, &drawScanline);
 
         debug {
             counter.stop();
             mLog("render.d: polygon rendered in %s", counter.time);
         }
 
+        if (textured) {
+            mImage.unlockPixels(Rect2i(Vector2i(0), mImage.size));
+            tex.release();
+        }
+    }
+
+    //create a level image from the Lexel[] by applying textures
+    //overrides image if already created
+    //arrays are indexed by Lexel
+    void texturizeData(Surface[] textures, Vector2i[] texOffsets) {
+        //prepare image
+        if (!mImage) {
+            mImage = gFramework.createSurface(size, Transparency.Colorkey);
+            mImage.fill(Rect2i(mImage.size), mImage.colorkey());
+        }
+        assert(mLevelData.length == mImage.size.x*mImage.size.y);
+
+        //prepare textures (one for each marker)
+        TexData[Lexel.Max+1] texData;
+        for (int idx = 0; idx <= Lexel.Max; idx++) {
+            Surface t;
+            if (idx < textures.length)
+                t = textures[idx];
+            if (idx < texOffsets.length)
+                texData[idx] = TexData(t, texOffsets[idx], mImage.colorkey);
+            else
+                //no texOffset was given for this index
+                texData[idx] = TexData(t, Vector2i(0), mImage.colorkey);
+        }
+
+        void* dstptr; uint dstpitch;
+        mImage.lockPixelsRGBA32(dstptr, dstpitch);
+
+        uint*[Lexel.Max+1] texptr;
+
+        for (int y = 0; y < size.y; y++) {
+            //for each texture, get pointer to current texture line
+            for (int i = 0; i < texptr.length; i++) {
+                int ty = (y + texData[i].offs.y) % texData[i].h;
+                texptr[i] = cast(uint*)(texData[i].data
+                    + ty*texData[i].pitch);
+            }
+            //current line in data array
+            Lexel* src = mLevelData.ptr + y*size.x;
+            //destination pixel
+            uint* dst = cast(uint*)(dstptr +  y*dstpitch);
+            for (int x = 0; x < size.x; x++) {
+                Lexel l = *src;
+                if (l >= texData.length)
+                    l = Lexel.init;
+                uint* texel = texptr[l]
+                    + (x + texData[l].offs.x) % texData[l].w;
+                *dst = *texel;
+                dst++;
+                src++;
+            }
+        }
+
         mImage.unlockPixels(Rect2i(Vector2i(0), mImage.size));
-        if (texture !is null) {
-            texture.unlockPixels(Rect2i.init);
+        foreach (ref TexData t; texData) {
+            t.release();
         }
     }
 
@@ -202,6 +288,7 @@ class LandscapeBitmap {
     public void drawBorder(Lexel a, Lexel b, bool do_up, bool do_down,
         Surface tex_up, Surface tex_down)
     {
+        assert(!!mImage, "No border drawing for data-only renderer");
         //it always scans in the given direction; to draw both borders where "a"
         //is on top ob "b" and where "b" is on top of "a", you have to call this
         //twice (which isn't a problem, since you might want to use different
@@ -368,6 +455,7 @@ class LandscapeBitmap {
     public void blastHole(Vector2i pos, int radius, int blast_border,
         LandscapeTheme theme = null)
     {
+        assert(!!mImage, "Not for data-only renderer");
         const ubyte cAllMeta = Lexel.SolidSoft | Lexel.SolidHard;
 
         assert(radius >= 0);
@@ -553,6 +641,7 @@ class LandscapeBitmap {
     public void drawBitmap(Vector2i p, Surface source, Vector2i size,
         ubyte meta_mask, ubyte meta_cmp, Lexel after)
     {
+        assert(!!mImage, "Not for data-only renderer");
         //ewww what has this become
         doDrawBmp(p.x, p.y, source, size.x, size.y, meta_mask, meta_cmp, after);
     }
@@ -565,6 +654,7 @@ class LandscapeBitmap {
     public void drawBitmap(Vector2i p, Surface source, Vector2i sp,
         Vector2i size, Lexel before, Lexel after)
     {
+        assert(!!mImage, "Not for data-only renderer");
         size.x = min(size.x + sp.x, source.size.x) - sp.x;
         size.y = min(size.y + sp.y, source.size.y) - sp.y;
         void* data, uint pitch;
@@ -581,21 +671,11 @@ class LandscapeBitmap {
         return mImage;
     }
 
-    public this(Vector2i size) {
-        mImage = gFramework.createSurface(size, Transparency.Colorkey);
-        mImage.fill(Rect2i(mImage.size), mImage.colorkey());
-        this(mImage, false);
-    }
-
-    //copy the level bitmap and per-pixel-metadata
-    public this(Surface bmp, Lexel[] a_data, bool copy = true) {
-        this(copy ? bmp.clone() : bmp, false);
-        //xxx: don't copy
-        mLevelData[] = a_data;
-    }
-
-    LandscapeBitmap copy() {
-        return new LandscapeBitmap(mImage, mLevelData);
+    LandscapeBitmap copy(bool dataOnly = false) {
+        if (!mImage || dataOnly)
+            return new LandscapeBitmap(size, true, mLevelData.dup);
+        else
+            return new LandscapeBitmap(mImage, mLevelData);
     }
 
     //create a new Landscape which contains a copy of a subrectangle of this
@@ -617,19 +697,43 @@ class LandscapeBitmap {
         return new LandscapeBitmap(mImage.subrect(rc), ndata, false);
     }
 
+    //create an empty Landscape of passed size
+    //  dataOnly: false will also generate a textured Landscape bitmap,
+    //            true only creates a Lexel[] (this.image will return null)
+    //  data: set to copy Lexel data, null to start empty
+    public this(Vector2i size, bool dataOnly = false, Lexel[] data = null) {
+        mWidth = size.x;
+        mHeight = size.y;
+        if (data.length > 0)
+            mLevelData = data;
+        else
+            mLevelData.length = mWidth*mHeight;
+        assert(mLevelData.length == mWidth*mHeight);
+
+        mLog = registerLog("levelrenderer");
+
+        if (!dataOnly) {
+            mImage = gFramework.createSurface(size, Transparency.Colorkey);
+            mImage.fill(Rect2i(mImage.size), mImage.colorkey());
+        }
+    }
+
+    //copy the level bitmap and per-pixel-metadata
+    //make sure Surface size and data size match
+    public this(Surface bmp, Lexel[] a_data, bool copy = true) {
+        //xxx: don't copy
+        this(bmp.size, true, a_data);
+        mImage = copy ? bmp.clone() : bmp;
+    }
+
     //create from a bitmap; also used as common constructor
     //bmp = the landscape-bitmap, must not be null
     //import_bmp = create the metadata from the image's transparency information
     //      if false, initialize metadata with Lexel.init
     //memory managment: you shall not touch the Surface instance in bmp anymore
     public this(Surface bmp, bool import_bmp = true) {
+        this(bmp.size, true);
         mImage = bmp;
-
-        mWidth = mImage.size.x;
-        mHeight = mImage.size.y;
-        mLevelData.length = mWidth*mHeight;
-
-        mLog = registerLog("levelrenderer");
 
         //create mask
 
@@ -654,17 +758,19 @@ class LandscapeBitmap {
     }
 
     public void free() {
+        assert(!!mImage, "Not for data-only renderer");
         mImage.free();
     }
 
     public Surface releaseImage() {
+        assert(!!mImage, "Not for data-only renderer");
         auto img = mImage;
         mImage = null;
         return img;
     }
 
     public Vector2i size() {
-        return mImage.size;
+        return Vector2i(mWidth, mHeight);
     }
 
     public Lexel[] levelData() {
@@ -673,170 +779,3 @@ class LandscapeBitmap {
 }
 
 
-//rasterizePolygon(): completely naive Y-X polygon rasterization algorithm
-//the polygon is defined by the items of "points", it's implicitely closed with
-//the edge (points[$-1], points[0])
-//no edges must intersect with each other
-//the algorithm also could handle several polygons (as long as they don't
-//intersect), but I didn't need that functionality
-
-//NOTE: The even-odd filling rule is used; and somehow the usual corner-cases
-//  don't (seem to) happen (because the edges are removed from the active edge
-//  list before the edges join each other, so to say). Maybe there's also input
-//  data for which the current implementation outputs garbage...
-
-private struct Edge {
-    int ymax;
-    double xmin;
-    double m1;
-    Edge* next; //next in scanline or AEL
-}
-
-private int myround(float f) {
-    return cast(int)(f+0.5f);
-}
-
-void rasterizePolygon(uint width, uint height, Vector2f[] points,
-    bool invert, void delegate (int x1, int x2, int y) renderScanline)
-{
-    if (points.length < 3)
-        return;
-
-    //note: leave entries in per_scanline[y] unsorted
-    //I sort them inefficiently when inserting them into the AEL
-    Edge*[] per_scanline;
-    per_scanline.length = height;
-
-    //convert points array and create Edge structs and insert them
-    void add_edge(in Vector2f a, in Vector2f b) {
-        Edge* edge = new Edge();
-
-        bool invert = false;
-        if (a.y > b.y) {
-            a.swap(b);
-            invert = true;
-        }
-
-        int ymin = myround(a.y);
-        edge.ymax = myround(b.y);
-
-        //throw away horizontal segments or if not visible
-        if (edge.ymax == ymin || edge.ymax < 0 || ymin >= cast(int)height) {
-            return;
-        }
-
-        auto d = b-a;
-        edge.m1 = cast(double)d.x / d.y; //x increment for each y increment
-
-        if (ymin < 0) {
-            //clipping, xxx: seems to work, but untested
-            a.x = a.x += edge.m1*(-ymin);
-            a.y = 0;
-            ymin = 0;
-        }
-        assert(ymin >= 0);
-
-        edge.xmin = a.x;
-
-        if (ymin >= height)
-            return;
-
-        edge.next = per_scanline[ymin];
-        per_scanline[ymin] = edge;
-    }
-
-    for (uint n = 0; n < points.length-1; n++) {
-        add_edge(points[n], points[n+1]);
-    }
-    add_edge(points[$-1], points[0]);
-
-    //umm, I wonder if this trick always works
-    if (invert) {
-        add_edge(Vector2f(0, 0), Vector2f(0, height));
-        add_edge(Vector2f(width, 0), Vector2f(width, height));
-    }
-
-    Edge* ael;
-    Edge* resort_edges_first;
-    Edge* resort_edges_last;
-
-    for (uint y = 0; y < height; y++) {
-        //copy new edges into the AEL
-        Edge* newedge = per_scanline[y];
-
-        //somewhat hacky way to resort something
-        if (resort_edges_last) {
-            resort_edges_last.next = newedge;
-            newedge = resort_edges_first;
-            resort_edges_first = resort_edges_last = null;
-        }
-
-        while (newedge) {
-            Edge* next = newedge.next;
-            newedge.next = null;
-
-            //AEL must be sorted, so that e1.xmin <= e2.xmin etc.
-            //since edges that are inserted can have the same starting-
-            //point, use the increased value
-            //all my approaches to keep the AEL sorted failed (numeric problems)
-            //  so resort the AEL as soon as the sorting condition is violated
-            Edge** ptr = &ael;
-            while (*ptr && (*ptr).xmin < newedge.xmin) {
-                ptr = &(*ptr).next;
-            }
-            newedge.next = *ptr;
-            *ptr = newedge;
-
-            newedge = next;
-        }
-
-        //delete old edges
-        Edge** cur = &ael;
-        while (*cur) {
-            if (y >= (*cur).ymax) {
-                *cur = (*cur).next;
-            } else {
-                cur = &(*cur).next;
-            }
-        }
-
-        if (ael is null)
-            continue;
-
-        //draw and advance
-        Edge* edge = ael;
-        uint r = 0;
-        bool c = false;
-        Edge* last;
-        float last_xmin;
-        bool need_resort = false;
-        while (edge) {
-            if (last) {
-                assert(last_xmin <= edge.xmin);
-                if (last_xmin > edge.xmin) {
-                    renderScanline(myround(last.xmin-last.m1),
-                        myround(edge.xmin), y);
-                }
-            }
-            c = !c;
-            assert(y <= edge.ymax);
-            if (last && !c) {
-                renderScanline(myround(last.xmin-last.m1),
-                    myround(edge.xmin), y);
-            }
-            //advance
-            last_xmin = edge.xmin;
-            edge.xmin += edge.m1;
-            if (last && last.xmin > edge.xmin)
-                need_resort = true;
-            last = edge;
-            edge = edge.next;
-            r++;
-        }
-        if (need_resort) {
-            resort_edges_first = ael;
-            resort_edges_last = last;
-            ael = null;
-        }
-    }
-}

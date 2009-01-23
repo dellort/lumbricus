@@ -85,6 +85,8 @@ abstract class LevelGenerator {
     abstract Surface preview(Vector2i size);
     ///aspect ratio of the preview picture, returns size_x/size_y
     abstract float previewAspect();
+    ///just render the landscape mask, not the image
+    abstract LandscapeLexels renderData();
     ///create and render the previously loaded/generated Level and return it
     /// render_bitmaps: if false, don't render bitmaps, which are e.g. saved in
     ///                 a savegame anyway
@@ -106,6 +108,7 @@ class GenerateFromTemplate : LevelGenerator {
             char[] prerender_id;
             LandscapeTemplate geo_template;
             LandscapeGeometry geo_generated;
+            LandscapeLexels geo_pregenerated;
             bool placeObjects;
             LandscapeObjects objects, gen_objects;
         }
@@ -132,22 +135,43 @@ class GenerateFromTemplate : LevelGenerator {
     //probably should call generate() before this
     override Surface preview(Vector2i size) {
         LandscapeGeometry geo;
+        LandscapeLexels lex;
         if (mLand.length == 1) {
             geo = mLand.values[0].geo_generated;
+            lex = mLand.values[0].geo_pregenerated;
         }
-        if (!geo)
+        if (!geo && !lex)
             return null;
-        return landscapeRenderPreview(geo, size, mShared.previewColors);
+        if (lex)
+            return landscapeRenderPreview(lex, size, mShared.previewColors);
+        else
+            return landscapeRenderPreview(geo, size, mShared.previewColors);
     }
 
     override float previewAspect() {
         LandscapeGeometry geo;
+        LandscapeLexels lex;
         if (mLand.length == 1) {
+            geo = mLand.values[0].geo_generated;
+            lex = mLand.values[0].geo_pregenerated;
+        }
+        if (lex)
+            return cast(float)lex.size.x/lex.size.y;
+        if (geo)
+            return cast(float)geo.size.x/geo.size.y;
+        return float.nan;
+    }
+
+    override LandscapeLexels renderData() {
+        LandscapeGeometry geo;
+        if (mLand.length == 1) {
+            if (mLand.values[0].geo_pregenerated)
+                return mLand.values[0].geo_pregenerated;
             geo = mLand.values[0].geo_generated;
         }
         if (!geo)
-            return float.nan;
-        return cast(float)geo.size.x/geo.size.y;
+            return null;
+        return landscapeRenderData(geo, geo.size);
     }
 
     override Level render(bool render_bitmaps = true) {
@@ -194,14 +218,21 @@ class GenerateFromTemplate : LevelGenerator {
                 LandscapeBitmap rendered;
                 LandscapeTheme rendered_theme;
                 char[] type;
-                if (rland.geo_generated) {
-                    land.size = rland.geo_generated.size;
+                if (rland.geo_generated || rland.geo_pregenerated) {
+                    if (rland.geo_generated)
+                        land.size = rland.geo_generated.size;
+                    else
+                        land.size = rland.geo_pregenerated.size;
                     if (render_bitmaps) {
-                        auto renderer =
-                            new LandscapeBitmap(rland.geo_generated.size);
                         auto gt = mCurTheme.genTheme();
-                        landscapeRenderGeometry(renderer, rland.geo_generated,
-                            gt);
+                        LandscapeBitmap renderer;
+                        if (rland.geo_generated) {
+                            renderer = landscapeRenderGeometry(
+                                rland.geo_generated, gt);
+                        } else {
+                            renderer = landscapeRenderPregenerated(
+                                rland.geo_pregenerated, gt);
+                        }
                         LandscapeObjects objs = rland.objects;
                         //never place objects in generated levels
                         onode.setBoolValue("allow_place_objects", false);
@@ -210,16 +241,23 @@ class GenerateFromTemplate : LevelGenerator {
                             //don't set rland.objects, because rland.objects is
                             //only for objects which were loaded, not generated
                         }
+                        rland.gen_objects = objs;
                         if (objs) {
                             landscapeRenderObjects(renderer, objs, gt);
+                            rland.gen_objects.saveTo(onode.getSubNode("objects"));
                         }
-                        rland.gen_objects = objs;
-                        rland.gen_objects.saveTo(onode.getSubNode("objects"));
                         rendered = renderer;
                     }
                     rendered_theme = mCurTheme.landscapeTheme;
-                    rland.geo_generated.saveTo(onode.getSubNode("geometry"));
-                    type = "landscape_generated";
+                    if (rland.geo_generated) {
+                        rland.geo_generated.saveTo(
+                            onode.getSubNode("geometry"));
+                        type = "landscape_generated";
+                    } else {
+                        rland.geo_pregenerated.saveTo(
+                            onode.getSubNode("lexeldata"));
+                        type = "landscape_pregenerated";
+                    }
                 } else if (rland.prerender_id != "") {
                     auto p = rland.prerender_id in prerendered;
                     if (!p) {
@@ -305,7 +343,9 @@ class GenerateFromTemplate : LevelGenerator {
     }
 
     //generate a level from templ; if this is null, pick a random one
-    this(LevelGeneratorShared shared, LevelTemplate templ) {
+    this(LevelGeneratorShared shared, LevelTemplate templ,
+        LandscapeLexels data = null)
+    {
         mShared = shared;
 
         if (!templ) {
@@ -331,13 +371,13 @@ class GenerateFromTemplate : LevelGenerator {
             node.mixinNode(tnode, false);
         }
 
-        loadStuff(node);
+        loadStuff(node, data);
 
         //mUnrendered.name = templ.name;
         //mUnrendered.description = templ.description;
     }
 
-    private void loadStuff(ConfigNode node) {
+    private void loadStuff(ConfigNode node, LandscapeLexels data = null) {
         //actually load the full template or saved generated level
 
         mUnrendered = new Level();
@@ -362,7 +402,10 @@ class GenerateFromTemplate : LevelGenerator {
             bool is_landtemplate = (t == "landscape_template");
             bool is_landrendered = (t == "landscape_prerendered");
             bool is_landgen = (t == "landscape_generated");
-            if (is_landtemplate || is_landrendered || is_landgen) {
+            bool is_landpregen = (t == "landscape_pregenerated");
+            if (is_landtemplate || is_landrendered || is_landgen
+                || is_landpregen)
+            {
                 auto land = new LevelLandscape();
                 mUnrendered.objects ~= land;
                 land.owner = mUnrendered;
@@ -383,6 +426,14 @@ class GenerateFromTemplate : LevelGenerator {
                     l2.geo_generated.loadFrom(onode.getSubNode("geometry"));
                 } else if (is_landrendered) {
                     l2.prerender_id = onode.getStringValue("prerender_id");
+                } else if (is_landpregen) {
+                    if (data) {
+                        l2.geo_pregenerated = data;
+                    } else {
+                        l2.geo_pregenerated = new LandscapeLexels();
+                        l2.geo_pregenerated.loadFrom(
+                            onode.getSubNode("lexeldata"));
+                    }
                 } else {
                     assert(false);
                 }
@@ -494,6 +545,9 @@ class GenerateFromBitmap : LevelGenerator {
         update();
         return mGenerate ? mGenerate.previewAspect() : float.nan;
     }
+    override LandscapeLexels renderData() {
+        return mGenerate ? mGenerate.renderData() : null;
+    }
     Level render(bool render_stuff = true) {
         update();
         Level res = mGenerate ? mGenerate.render() : null;
@@ -553,6 +607,10 @@ class GenerateFromSaved : LevelGenerator {
 
     override Surface preview(Vector2i size) {
         return mReal.preview(size);
+    }
+
+    override LandscapeLexels renderData() {
+        return mReal.renderData();
     }
 
     override Level render(bool render_bitmaps = true) {
@@ -799,6 +857,42 @@ public class LevelTheme {
     }
 }
 
+class LandscapeLexels {
+    Vector2i size;
+    Lexel[] levelData;
+
+    this() {
+    }
+
+    void loadFrom(ConfigNode node) {
+        //levelData = cast(Lexel[])node.getByteArrayValue("data");
+        int[] size_ar = node.getValueArray("size", [0, 0]);
+        size.x = size_ar[0]; size.y = size_ar[1];
+        if (size.x == 0 || size.y == 0 || size.x*size.y != levelData.length) {
+            throw new Exception("Pregenerated level failed to load");
+        }
+    }
+
+    void saveTo(ConfigNode node) {
+        node.setValueArray("size", [size.x, size.y]);
+        //node.setByteArrayValue("data", cast(ubyte[])levelData, true);
+    }
+
+    GenerateFromTemplate generator(LevelGeneratorShared shared, bool isCave,
+        bool placeObjects)
+    {
+        auto gc = shared.generatorConfig;
+        auto node = gc.getSubNode("import_pregenerated").clone();
+        auto cave_node = "import_" ~ (isCave ? "cave" : "nocave");
+        node.mixinNode(gc.getSubNode(cave_node), false, true);
+        if (placeObjects) {
+            node.mixinNode(gc.getSubNode("import_placeobjects"), true, true);
+        }
+        auto templ = new LevelTemplate(node, "imported");
+        return new GenerateFromTemplate(shared, templ, this);
+    }
+}
+
 //common code for LevelThemes/LevelTemplates ("list" managment)
 //T is expected to have a property/member named "name"
 template BlaList(T : Object) {
@@ -926,9 +1020,10 @@ class LevelTemplates {
 
 //---- and finally, the actual render functions
 
-void landscapeRenderGeometry(LandscapeBitmap renderer,
-    LandscapeGeometry geometry, LandscapeGenTheme gfx)
+LandscapeBitmap landscapeRenderGeometry(LandscapeGeometry geometry,
+    LandscapeGenTheme gfx)
 {
+    auto renderer = new LandscapeBitmap(geometry.size);
     assert(renderer && geometry && gfx);
 
     debug {
@@ -965,11 +1060,34 @@ void landscapeRenderGeometry(LandscapeBitmap renderer,
         counter.stop();
         mLog("borders: %s", counter.time());
     }
+    return renderer;
+}
+
+LandscapeBitmap landscapeRenderPregenerated(LandscapeLexels lexelData,
+    LandscapeGenTheme gfx)
+{
+    auto renderer = new LandscapeBitmap(lexelData.size, true,
+        lexelData.levelData);
+    assert(renderer && lexelData && gfx);
+
+    //geometry is already done, so just apply textures
+    Surface[] textures;
+    for (Lexel i = Lexel.Null; i <= Lexel.Max; i++) {
+        textures ~= aaIfIn(gfx.markerTex, i);
+    }
+    renderer.texturizeData(textures, null);
+
+    //borders, must come after geometry
+    foreach (b; gfx.borders) {
+        renderer.drawBorder(b.markers[0], b.markers[1], b.action[0],
+            b.action[1], b.textures[0], b.textures[1]);
+    }
+    return renderer;
 }
 
 /// render a fast, ugly preview; just to see the geometry
 /// returns a surface, which shall be freed by the user himself
-Surface landscapeRenderPreview(LandscapeGeometry geo, Vector2i size,
+Surface landscapeRenderPreview(T)(T land, Vector2i size,
     Color[Lexel] colors)
 {
     Surface createPixelSurface(Color c) {
@@ -981,32 +1099,46 @@ Surface landscapeRenderPreview(LandscapeGeometry geo, Vector2i size,
         return new Surface(s);
     }
 
-    //oh well...
-    Surface[Lexel] markers;
-    foreach (Lexel lex, Color c; colors) {
-        markers[lex] = createPixelSurface(c);
-    }
-
     //just the fallback for markers[]
     auto nocolor = createPixelSurface(Color(0, 0, 0));
 
-    Vector2f scale = toVector2f(size) / toVector2f(geo.size);
-    auto renderer = new LandscapeBitmap(size);
+    //oh well...
+    Surface[Lexel.Max+1] markers;
+    for (Lexel lex = Lexel.Null; lex <= Lexel.Max; lex++) {
+        if (lex in colors)
+            markers[lex] = createPixelSurface(colors[lex]);
+        else
+            markers[lex] = nocolor;
+    }
 
-    //draw background (not drawn when it's not a cave!)
-    //(actually, a FillRect would be enough, but...)
-    renderer.addPolygon([Vector2i(), size.X, size, size.Y], true,
-        Vector2i(), markers[Lexel.Null], Lexel.Null, false, null, 0, 0);
 
-    foreach (LandscapeGeometry.Polygon p; geo.polygons) {
-        //scale down the points first
-        auto npts = p.points.dup;
-        foreach (inout Vector2i point; npts) {
-            point = toVector2i(toVector2f(point).mulEntries(scale));
+    Vector2f scale = toVector2f(size) / toVector2f(land.size);
+    static if (is(T: LandscapeGeometry)) {
+        auto renderer = new LandscapeBitmap(size);
+
+        //draw background (not drawn when it's not a cave!)
+        //(actually, a FillRect would be enough, but...)
+        renderer.addPolygon([Vector2i(), size.X, size, size.Y], true,
+            Vector2i(), markers[Lexel.Null], Lexel.Null, false, null, 0, 0);
+
+        foreach (LandscapeGeometry.Polygon p; land.polygons) {
+            //scale down the points first
+            auto npts = p.points.dup;
+            foreach (inout Vector2i point; npts) {
+                point = toVector2i(toVector2f(point).mulEntries(scale));
+            }
+            auto color = (p.marker <= Lexel.Max) ? markers[p.marker] : nocolor;
+            renderer.addPolygon(npts, p.visible, Vector2i(0, 0),
+                color, p.marker, p.changeable, p.nochange, 1, 0.25f);
         }
-        auto color = (p.marker in markers) ? markers[p.marker] : nocolor;
-        renderer.addPolygon(npts, p.visible, Vector2i(0, 0),
-            color, p.marker, p.changeable, p.nochange, 1, 0.25f);
+    } else static if (is(T: LandscapeLexels)) {
+        //scale down to preview size
+        Lexel[] data = scaleLexels(land.levelData, land.size, size);
+
+        auto renderer = new LandscapeBitmap(size, true, data);
+        renderer.texturizeData(markers, null);
+    } else {
+        static assert(false);
     }
 
     foreach (bitmap; markers) {
@@ -1015,6 +1147,63 @@ Surface landscapeRenderPreview(LandscapeGeometry geo, Vector2i size,
     nocolor.free();
 
     return renderer.releaseImage();
+}
+
+void scaleLexels(Lexel[] dataIn, Lexel[] dataOut,
+    Vector2i orgSize, Vector2i newSize)
+{
+    assert(dataOut.length == newSize.x*newSize.y);
+    assert(dataIn.length == orgSize.x*orgSize.y);
+    assert(newSize.x <= orgSize.x && newSize.y <= orgSize.y,
+        "Can only scale down");
+
+    //scale down from full size to image size
+    Vector2f scale = Vector2f((cast(float)newSize.x)/orgSize.x,
+        (cast(float)newSize.y)/orgSize.y);
+    for (int y = 0; y < orgSize.y; y++) {
+        int ly = y*orgSize.x;
+        int py = cast(int)(y*scale.y)*newSize.x;
+        for (int x = 0; x < orgSize.x; x++) {
+            Lexel cur = dataIn[ly+x];
+            int px = cast(int)(x*scale.x);
+            dataOut[py+px] = max(dataOut[py+px],cur);
+        }
+    }
+}
+
+Lexel[] scaleLexels(Lexel[] data, Vector2i orgSize, Vector2i newSize) {
+    if (newSize == orgSize)
+        return data;
+    Lexel[] ret;
+    ret.length = newSize.x*newSize.y;
+    scaleLexels(data, ret, orgSize, newSize);
+    return ret;
+}
+
+/// render only the Landscape data, no image
+LandscapeLexels landscapeRenderData(LandscapeGeometry geo, Vector2i size) {
+    auto ret = new LandscapeLexels();
+    Vector2f scale = toVector2f(size) / toVector2f(geo.size);
+    scope renderer = new LandscapeBitmap(size, true);
+
+    //draw background (not drawn when it's not a cave!)
+    //(actually, a FillRect would be enough, but...)
+    renderer.addPolygon([Vector2i(), size.X, size, size.Y], true,
+        Vector2i(), null, Lexel.Null, false, null, 0, 0);
+
+    foreach (LandscapeGeometry.Polygon p; geo.polygons) {
+        //scale down the points first
+        auto npts = p.points.dup;
+        foreach (inout Vector2i point; npts) {
+            point = toVector2i(toVector2f(point).mulEntries(scale));
+        }
+        renderer.addPolygon(npts, p.visible, Vector2i(0, 0),
+            null, p.marker, p.changeable, p.nochange, 5, 0.25f);
+    }
+
+    ret.levelData = renderer.levelData();
+    ret.size = size;
+    return ret;
 }
 
 //try to place the objects (listed in gfx) into the level bitmap in renderer

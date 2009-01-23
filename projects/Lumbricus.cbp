@@ -104,7 +104,6 @@
 		<Unit filename="..\data\wimport\animations.txt" />
 		<Unit filename="..\src\common\animation.d" />
 		<Unit filename="..\src\common\common.d" />
-		<Unit filename="..\src\common\gcstats.d" />
 		<Unit filename="..\src\common\resview.d" />
 		<Unit filename="..\src\common\scene.d" />
 		<Unit filename="..\src\common\task.d" />

@@ -15,6 +15,7 @@ import gui.dropdownlist;
 import gui.loader;
 import game.levelgen.generator;
 import game.levelgen.level;
+import game.levelgen.landscape;
 import game.gui.levelpaint;
 import utils.vector2;
 import utils.rect2;
@@ -37,7 +38,9 @@ class LevelSelector : SimpleContainer {
         DropDownList mDdGfx;
         PainterWidget mPainter;
         Button[] mChkDrawMode;
-        GenerateFromTemplate mLastLevel;
+        //last selected level, null if the level has been modified
+        LevelGenerator mLastLevel;
+        bool mIsCave = false, mPlaceObjects = true;
     }
 
     struct LevelInfo {
@@ -56,9 +59,11 @@ class LevelSelector : SimpleContainer {
 
         auto conf = gFramework.loadConfig("levelpreview_gui");
         auto loader = new LoadGui(conf);
-        mPainter = new PainterWidget();
-        loader.addNamedWidget(mPainter, "painter");
+        loader.registerWidget!(PainterWidget)("painter");
         loader.load();
+
+        mPainter = loader.lookup!(PainterWidget)("painter");
+        mPainter.onChange = &painterChange;
 
         mDdGfx = loader.lookup!(DropDownList)("dd_gfx");
         mDdGfx.onSelect = &gfxSelect;
@@ -96,6 +101,8 @@ class LevelSelector : SimpleContainer {
         loader.lookup!(Button)("btn_fill").onClick = &fillClick;
         loader.lookup!(Button)("btn_cancel").onClick = &cancelClick;
         loader.lookup!(Button)("btn_ok").onClick = &okClick;
+        loader.lookup!(Button)("chk_iscave").onClick = &chkIsCaveClick;
+        loader.lookup!(Button)("chk_objects").onClick = &chkObjectsClick;
 
         mChkDrawMode ~= loader.lookup!(Button)("chk_circle");
         mChkDrawMode[$-1].onClick = &chkCircleClick;
@@ -108,6 +115,15 @@ class LevelSelector : SimpleContainer {
 
         mLayout = loader.lookup!(Widget)("levelpreview_root");
         add(mLayout);
+    }
+
+    void loadLevel(LevelGenerator lvl) {
+        if (lvl) {
+            LandscapeLexels lex = lvl.renderData();
+            if (lex)
+                mPainter.setData(lex.levelData, lex.size);
+            mLastLevel = lvl;
+        }
     }
 
     private void clearClick(Button sender) {
@@ -148,6 +164,20 @@ class LevelSelector : SimpleContainer {
                 b.checked = false;
         }
         mPainter.setDrawMode(DrawMode.rect);
+    }
+
+    private void chkIsCaveClick(Button sender) {
+        mIsCave = sender.checked;
+        painterChange(mPainter);
+    }
+
+    private void chkObjectsClick(Button sender) {
+        mPlaceObjects = sender.checked;
+        painterChange(mPainter);
+    }
+
+    private void painterChange(PainterWidget sender) {
+        mLastLevel = null;
     }
 
     private void gfxSelect(DropDownList list) {
@@ -192,17 +222,7 @@ class LevelSelector : SimpleContainer {
 
     private void levelClick(Button sender) {
         int idx = getIdx(sender);
-        //--> xxx Stupid debug code following
-        //what we actually need: "something" to render only the Lexel[]
-        //  (no textures, no objects) and store it in a way that
-        //  allows applying textures and objects later
-        Level lvl = mLevel[idx].generator.render();
-        auto land = cast(LevelLandscape)lvl.objects[0];
-        assert(!!land);
-        mPainter.levelData = land.landscape.levelData;
-        mPainter.fullUpdate();
-        mLastLevel = mLevel[idx].generator;
-        //<-- end of stupidity
+        loadLevel(mLevel[idx].generator);
     }
 
     private void cancelClick(Button sender) {
@@ -211,8 +231,17 @@ class LevelSelector : SimpleContainer {
     }
 
     private void okClick(Button sender) {
-        mLastLevel.selectTheme(mGenerator.themes.findRandom(mGfx));
+        LevelGenerator lvl = mLastLevel;
+        if (!lvl) {
+            LandscapeLexels lex = new LandscapeLexels();
+            lex.levelData = mPainter.levelData;
+            lex.size = mPainter.levelSize;
+            lvl = lex.generator(mGenerator, mIsCave, mPlaceObjects);
+        }
+        auto gen = cast(GenerateFromTemplate)lvl;
+        if (gen)
+            gen.selectTheme(mGenerator.themes.findRandom(mGfx));
         if (onAccept)
-            onAccept(mLastLevel);
+            onAccept(gen);
     }
 }

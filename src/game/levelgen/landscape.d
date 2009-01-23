@@ -14,7 +14,8 @@ public enum Lexel : ubyte {
     SolidSoft = 1, // destroyable ground
     SolidHard = 2, // undestroyable ground
 
-    INVALID = 255
+    INVALID = 255,
+    Max = 2,       //marker for highest valid value
 }
 
 //the part of the themeing which is still needed for a fully rendered level
