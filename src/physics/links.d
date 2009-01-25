@@ -7,6 +7,7 @@ import utils.vector2;
 import physics.base;
 import physics.contact;
 import physics.physobj;
+import physics.posp;
 
 class PhysicConstraint : PhysicContactGen {
     PhysicObject obj;

@@ -191,7 +191,7 @@ class PhysicWorld {
         mContactCount = 0;
     }
 
-    void checkUpdates() {
+    private void checkUpdates() {
         //do updates
         foreach (PhysicBase obj; mAllObjects) {
             if (!obj.dead && obj.needsUpdate) {

@@ -6,6 +6,13 @@ import utils.configfile : ConfigNode;
 import utils.reflection;
 import utils.vector2;
 
+//moved here because "is forward referenced"...
+enum ContactSource {
+    object,
+    geometry,
+    generator,
+}
+
 //PhysicalObjectStaticProperties
 //challenge: find a better name
 //contains all values which are considered not-changing physical properties of

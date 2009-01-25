@@ -868,14 +868,56 @@ class LandscapeLexels {
         //levelData = cast(Lexel[])node.getByteArrayValue("data");
         int[] size_ar = node.getValueArray("size", [0, 0]);
         size.x = size_ar[0]; size.y = size_ar[1];
-        if (size.x == 0 || size.y == 0 || size.x*size.y != levelData.length) {
+        if (size.x == 0 || size.y == 0 || levelData.length % 2 != 0) {
             throw new Exception("Pregenerated level failed to load");
         }
+        levelData.length = size.x*size.y;
+        rleDecode(node["data"], levelData);
     }
 
     void saveTo(ConfigNode node) {
         node.setValueArray("size", [size.x, size.y]);
+        node.setStringValue("data", rleEncode(levelData));
         //node.setByteArrayValue("data", cast(ubyte[])levelData, true);
+    }
+
+    const ubyte cFirst = cast(ubyte)'#';
+    const byte cDist = cast(ubyte)'~' - cFirst;
+
+    private char[] rleEncode(Lexel[] data) {
+        char[] ret;
+        Lexel last;
+        ubyte rep;
+        foreach (Lexel l; data) {
+            if (rep == 0) {
+                last = l;
+                rep = 1;
+            } else if (l == last && rep < cDist) {
+                rep++;
+            } else {
+                ret ~= cast(char)(rep + cFirst);
+                ret ~= cast(char)(last + cFirst);
+                last = l;
+                rep = 1;
+            }
+        }
+        if (rep != 0) {
+            ret ~= cast(char)(rep + cFirst);
+            ret ~= cast(char)(last + cFirst);
+        }
+        return ret;
+    }
+
+    private void rleDecode(char[] data, ref Lexel[] buf) {
+        int p;
+        for (int i = 0; i < data.length; i += 2) {
+            ubyte rep = cast(ubyte)data[i] - cFirst;
+            Lexel l = cast(Lexel)(cast(ubyte)data[i+1] - cFirst);
+            if (p+rep > buf.length)
+                throw new Exception("RLE decoding failed");
+            buf[p..p+rep] = l;
+            p += rep;
+        }
     }
 
     GenerateFromTemplate generator(LevelGeneratorShared shared, bool isCave,

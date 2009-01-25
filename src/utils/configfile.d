@@ -14,14 +14,21 @@ import base64 = stdx.base64;
 
 //xxx: desperately moved to here (where else to put it?)
 import utils.vector2;
-bool parseVector(char[] s, inout Vector2i value) {
+bool parseVector(T)(char[] s, inout Vector2!(T) value) {
     char[][] items = str.split(s);
     if (items.length != 2) {
         return false;
     }
-    int a, b;
-    if (!parseInt(items[0], a) || !parseInt(items[1], b))
-        return false;
+    T a, b;
+    static if (is(T : int)) {
+        if (!parseInt(items[0], a) || !parseInt(items[1], b))
+            return false;
+    } else static if (is(T : float)) {
+        if (!parseFloat(items[0], a) || !parseFloat(items[1], b))
+            return false;
+    } else {
+        static assert(false);
+    }
     value.x = a;
     value.y = b;
     return true;
@@ -518,74 +525,167 @@ public class ConfigNode {
         }
     }
 
-    public int getIntValue(char[] name, int def = 0) {
-        int res = def;
-        parseInt(getStringValue(name), res);
-        return res;
-    }
-    public void setIntValue(char[] name, int value) {
-        setStringValue(name, str.toString(value));
+    ///Get the value of the current node, parsed as type T
+    ///If the value cannot be converted to T (parsing failed), return def
+    //currently supports:
+    //  char[]
+    //  byte[], ubyte[] (as base64)
+    //  bool, int, float (as string)
+    //  Vector2, bool[], int[], float[] (as space-separated string)
+    //  other arrays of above types (as list of unnamed subnode)
+    public T getCurValue(T)(T def = T.init) {
+        static if (is(T : char[])) {
+            return value;
+        } else static if (is(T : byte[]) || is(T : ubyte[])) {
+            static assert(false, "Dunno why");
+            //no compression
+            //return cast(T)base64.decode(value);
+        } else static if (is(T T2 : Vector2!(T2))) {
+            //Vector2i or Vector2f, written as "x y"
+            T res = def;
+            parseVector!(T)(value, res);
+            return res;
+        } else static if (is(T == bool)) {
+            bool res = def;
+            parseBool(value, res);
+            return res;
+        } else static if (is(T : int)) {
+            int res = def;
+            parseInt(value, res);
+            return res;
+        } else static if (is(T : float)) {
+            float res = def;
+            parseFloat(value, res);
+            return res;
+        } else static if (is(T T2 : T2[])) {
+            // Parse the value as array of values.
+            // Separator is always whitespace.
+            static if (is(T2 == bool) || is(T2 : int) || is(T2 : float)) {
+                //xxx: Phobos API decides how string is parsed
+                auto array = str.split(value);
+                auto res = new T2[array.length];
+                foreach (int i, char[] s; array) {
+                    T2 n;
+                    static if (is(T2 == bool)) {
+                        //(one invalid value makes everything fail)
+                        if (!parseBool(s, n))
+                            return def;
+                    } else static if (is(T2 : int)) {
+                        if (!parseInt(s, n))
+                            return def;
+                    } else static if (is(T2: float)) {
+                        if (!parseFloat(s, n))
+                            return def;
+                    } else {
+                        static assert(false);
+                    }
+                    res[i] = n;
+                }
+                return res;
+            } else static if (is(T2 : char[])) {
+                //xxx: this is a hack, code in next case would be better
+                return str.split(value, " ");
+            } else {
+                //read all (unnamed) subnodes
+                auto res = new T2[mItems.length];
+                foreach (ConfigNode n; mItems) {
+                    res ~= n.getCurValue!(T2)(T2.def);
+                }
+            }
+        } else {
+            static assert(false, "Implement me");
+        }
     }
 
-    public bool getBoolValue(char[] name, bool def = false) {
-        bool res = def;
-        parseBool(getStringValue(name), res);
-        return res;
-    }
-    public void setBoolValue(char[] name, bool value) {
-        setStringValue(name, value ? "true" : "false");
+    ///Set the value of the current node to value
+    ///Note: may create a more complex structure than simply setting the value;
+    ///      only safe way to read it is using getCurValue!(T)()
+    //for a list of types, see getCurValue
+    public void setCurValue(T)(T value) {
+        static if (is(T : char[])) {
+            this.value = value;
+        } else static if (is(T : byte[]) || is(T : ubyte[])) {
+            static assert(false, "Dunno why");
+            //no compression here, if you want it, use setByteArrayValue()
+            //this.value = base64.encode(cast(ubyte[])data);
+        } else static if (is(T T2 : Vector2!(T2))) {
+            //Vector2i or Vector2f, written as "x y"
+            this.value = str.toString(value.x) ~ " " ~ str.toString(value.y);
+        } else static if (is(T == bool)) {
+            this.value = value ? "true" : "false";
+        } else static if (is(T : int)) {
+            this.value = str.toString(value);
+        } else static if (is(T : float)) {
+            this.value = str.toString(value);
+        } else static if (is(T T2 : T2[])) {
+            //saving of array types
+            static if (is(T2 == bool) || is(T2 : int) || is(T2 : float)) {
+                //basic types are packed into one string
+                char[][] s;
+                foreach (T2 t; value) {
+                    s ~= str.toString(t);
+                }
+                this.value = str.join(s, " ");
+            } else static if (is(T2 : char[])) {
+                //xxx: doesn't work for strings with spaces, should be
+                //     using next case
+                this.value = str.join(value, " ");
+            } else {
+                //other array types (like char[][]) create unnamed values
+                this.value = "";
+                clear();
+                foreach (T2 v; value) {
+                    setValue("", v);
+                }
+            }
+        } else {
+            static assert(false, "Implement me");
+        }
     }
 
-    public float getFloatValue(char[] name, float def = float.nan) {
-        float res = def;
-        parseFloat(getStringValue(name), res);
-        return res;
-    }
-    public void setFloatValue(char[] name, float value) {
-        setStringValue(name, str.toString(value));
-    }
-
-    /// Parse the value as array of values.
-    /// Separator is always whitespace.
-    //(xxx: should be really generic, but the other accessor functions aren't
-    // templated yet)
-    public T[] getValueArray(T)(char[] name, T[] def = null) {
+    ///Read the value of a named subnode of the current node
+    ///return def if the value was not found, or parsing as T failed
+    public T getValue(T)(char[] name, T def = T.init) {
         auto v = findValue(name);
         if (!v)
             return def;
-        //xxx: Phobos API decides how string is parsed
-        auto array = str.split(v.value);
-        auto res = new T[array.length];
-        foreach (int i, char[] s; array) {
-            T n;
-            static if (is(T : char[])) {
-                n = s;
-            } else static if (is(T : int)) {
-                //(one invalid value makes everything fail)
-                if (!parseInt(s, n))
-                    return def;
-            } else static if (is(T: float)) {
-                if (!parseFloat(s, n))
-                    return def;
-            } else {
-                assert(false);
-            }
-            res[i] = n;
-        }
-        return res;
+        return v.getCurValue!(T)(def);
     }
-    //sigh, it's all a hack etc.
+
+    ///Set the value of a named subnode of the current node to value
+    ///see also setCurValue
+    public void setValue(T)(char[] name, T value) {
+        auto val = findValue(name, true);
+        val.setCurValue!(T)(value);
+    }
+
+    ///Legacy accessor functions follow
+    // -->
+    public int getIntValue(char[] name, int def = 0) {
+        return getValue(name, def);
+    }
+    public void setIntValue(char[] name, int value) {
+        setValue(name, value);
+    }
+    public bool getBoolValue(char[] name, bool def = false) {
+        return getValue(name, def);
+    }
+    public void setBoolValue(char[] name, bool value) {
+        setValue(name, value);
+    }
+    public float getFloatValue(char[] name, float def = float.nan) {
+        return getValue(name, def);
+    }
+    public void setFloatValue(char[] name, float value) {
+        setValue(name, value);
+    }
+    public T[] getValueArray(T)(char[] name, T[] def = null) {
+        return getValue(name, def);
+    }
     public void setValueArray(T)(char[] name, T[] v) {
-        char[][] s;
-        static if (is(T == char[])) {
-            s = v;
-        } else {
-            foreach (T t; v) {
-                s ~= str.toString(t);
-            }
-        }
-        setStringValue(name, str.join(s, " "));
+        setValue(name, v);
     }
+    //<-- end legacy accessor functions
 /+
     public void setByteArrayValue(char[] name, ubyte[] data,
         bool allow_compress = false)

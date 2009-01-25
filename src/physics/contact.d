@@ -7,16 +7,11 @@ import utils.vector2;
 import physics.base;
 import physics.physobj;
 import physics.geometry;
+import physics.posp;
 
 import math = stdx.math;
 
 alias void delegate(ref Contact c) CollideDelegate;
-
-enum ContactSource {
-    object,
-    geometry,
-    generator,
-}
 
 //mostly stolen from "Game Physics Engine Development" by Ian Millington
 struct Contact {
@@ -83,7 +78,7 @@ struct Contact {
 
     //make sure glued objects get unglued if necessary
     private void matchGlueState() {
-        if (source == ContactSource.geometry)
+        if (source != ContactSource.object)
             return;
         //xxx doesn't work because of walking, which collides 2 glued objects
         /*if (obj[0].isGlued ^ obj[1].isGlued) {
@@ -145,9 +140,9 @@ struct Contact {
         Vector2f impulsePerIMass = impulse * normal;
 
         //apply impulses
-        obj[0].addImpulse(impulsePerIMass, source == ContactSource.geometry);
+        obj[0].addImpulse(impulsePerIMass, source);
         if (obj[1])
-            obj[1].addImpulse(-impulsePerIMass);
+            obj[1].addImpulse(-impulsePerIMass, source);
     }
 
     //resolve object penetration, to move objects out of each other

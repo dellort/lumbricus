@@ -118,40 +118,44 @@ class PhysicObject : PhysicBase {
     //constant forces won't unglue the object
     void addForce(Vector2f force, bool constant = false) {
         mForceAccum += force;
-        if (!constant)
+        if (!constant) {
             doUnglue();
+        }
     }
 
     //apply an impulse (always unglues the object)
     //if you have to call this every frame, you're doing something wrong ;)
     //impulses from geometry will cause fall damage
-    void addImpulse(Vector2f impulse, bool fromGeom = false) {
+    void addImpulse(Vector2f impulse,
+        ContactSource source = ContactSource.object)
+    {
         velocity_int += impulse * mPosp.inverseMass;
-        if (fromGeom && !isGlued) {
-            //hit against geometry -> fall damage
-            float impulseLen;
-            if (mPosp.fallDamageIgnoreX)
-                //just vertical component
-                impulseLen = abs(impulse.y);
-            else
-                //full impulse
-                impulseLen = impulse.length;
-            //simple linear dependency
-            float damage = max(impulseLen - mPosp.sustainableImpulse, 0f)
-                * mPosp.fallDamageFactor;
-            //use this for damage
-            if (damage > 0)
-                applyDamage(damage, cDamageCauseFall);
+        if (source == ContactSource.geometry) {
+            if (!isGlued) {
+                //hit against geometry -> fall damage
+                float impulseLen;
+                if (mPosp.fallDamageIgnoreX)
+                    //just vertical component
+                    impulseLen = abs(impulse.y);
+                else
+                    //full impulse
+                    impulseLen = impulse.length;
+                //simple linear dependency
+                float damage = max(impulseLen - mPosp.sustainableImpulse, 0f)
+                    * mPosp.fallDamageFactor;
+                //use this for damage
+                if (damage > 0)
+                    applyDamage(damage, cDamageCauseFall);
+            }
+            if (velocity_int.length < mPosp.glueForce && surface_normal.y < 0) {
+                //we collided with geometry, but were not fast enough!
+                //  => worm gets glued, hahaha.
+                //xxx maybe do the gluing somewhere else?
+                glueObject;
+                version(PhysDebug) mLog("glue object %s", me);
+            }
         }
-        if (fromGeom && velocity_int.length < mPosp.glueForce
-            && surface_normal.y < 0)
-        {
-            //we collided with geometry, but were not fast enough!
-            //  => worm gets glued, hahaha.
-            //xxx maybe do the gluing somewhere else?
-            glueObject;
-            version(PhysDebug) mLog("glue object %s", me);
-        } else {
+        if (source == ContactSource.object) {
             doUnglue();
         }
     }
