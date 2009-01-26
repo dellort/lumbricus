@@ -525,6 +525,16 @@ public class ConfigNode {
         }
     }
 
+    private static char[] structProcName(char[] tupleString) {
+        //struct.tupleof is always fully qualified (obj.x), so get the
+        //string after the last .
+        int p = str.rfind(tupleString, '.');
+        assert(p > 0 && p < tupleString.length-1);
+        //xxx maybe do more name processing here, like replacing capitals by
+        //    underscores
+        return tupleString[p+1..$];
+    }
+
     ///Get the value of the current node, parsed as type T
     ///If the value cannot be converted to T (parsing failed), return def
     //currently supports:
@@ -591,7 +601,16 @@ public class ConfigNode {
                 foreach (ConfigNode n; mItems) {
                     res ~= n.getCurValue!(T2)(T2.def);
                 }
+                return res;
             }
+        } else static if (is(T == struct)) {
+            T res;
+            foreach (int idx, x; res.tupleof) {
+                res.tupleof[idx] = getValue(
+                    structProcName(res.tupleof[idx].stringof),
+                    def.tupleof[idx]);
+            }
+            return res;
         } else {
             static assert(false, "Implement me");
         }
@@ -636,6 +655,14 @@ public class ConfigNode {
                 clear();
                 foreach (T2 v; value) {
                     setValue("", v);
+                }
+            }
+        } else static if (is(T == struct)) {
+            this.value = "";
+            clear();
+            foreach (int idx, x; value.tupleof) {
+                if (x != T.init.tupleof[idx]) {
+                    setValue(structProcName(value.tupleof[idx].stringof), x);
                 }
             }
         } else {
