@@ -511,33 +511,58 @@ class GameEngine : GameEnginePublic {
         }
     }
 
+    Rect2f getLandscapeArea() {
+        Rect2f landArea = Rect2f(toVector2f(worldSize)/2,
+            toVector2f(worldSize)/2);
+        if (gameLandscapes.length > 0)
+            landArea = Rect2f(toVector2f(gameLandscapes[0].offset),
+                toVector2f(gameLandscapes[0].offset));
+        foreach (gl; gameLandscapes) {
+            landArea.extend(toVector2f(gl.offset));
+            landArea.extend(toVector2f(gl.offset + gl.size));
+        }
+        return landArea;
+    }
+
+    //minimum distance between placed objects
+    private const cMinDistance = 50.0f;
+    //position increment for deterministic placement
+    private const cIncDistance = 55.0f;
+
     //try to place an object into the landscape
-    //essentially finds the first collision under "drop" and checks the normal
+    //essentially finds the first collision under "drop", then checks the
+    //normal and distance to other objects
     //success only when only the LevelGeometry object is hit
     //  drop = any startpoint
     //  dest = where it is dropped (will have same x value as drop)
     //returns if dest contains a useful value
-    bool placeObject(Vector2f drop, float y_max, out Vector2f dest,
-        float radius)
+    bool placeObject(Vector2f drop, float y_max, float radius,
+        out Vector2f dest)
     {
+        if (drop.y >= y_max)
+            return false;
         Vector2f pos = drop;
-        bool isfirst = true;
-        GeomContact contact;   //data not needed
-        while (!physicworld.collideGeometry(drop, radius, contact)) {
-            pos = drop;
-            //hmpf!
-            drop.y += 1;
-            if (drop.y > y_max)
-                return false;
-            isfirst = false;
+        GeomContact contact;
+        //cast a ray downwards from drop
+        if (!physicworld.thickRay(drop, Vector2f(0, 1), y_max - drop.y, radius,
+            pos, contact))
+        {
+            return false;
         }
-        if (isfirst) //don't place inside landscape
+        if (contact.depth == float.infinity)
+            //most likely, drop was inside the landscape
             return false;
         //had a collision, check normal
-        Vector2f normal = (drop-pos).normal;
-        float dist = abs(angleDistance(normal.toAngle(), 90.0f/180*PI));
-        //if (dist < 20.0f/180*PI) { always is true or so, for unkown reasons
-        if (true) {
+        if (contact.normal.y < 0 && abs(contact.normal.x) < -contact.normal.y )
+        {
+            //check distance to other sprites
+            foreach (GameObject o; mObjects) {
+                auto s = cast(GObjectSprite)o;
+                if (s) {
+                    if ((s.physics.pos - pos).length < cMinDistance)
+                        return false;
+                }
+            }
             dest = pos;
             return true;
         } else {
@@ -545,32 +570,99 @@ class GameEngine : GameEnginePublic {
         }
     }
 
+    //place an object deterministically on the landscape
+    //checks a position grid with shrinking cell size for a successful placement
+    //returns the first free position found
+    bool placeObjectDet(float y_max, float radius, out Vector2f drop,
+        out Vector2f dest)
+    {
+        //get placement area (landscape area)
+        Rect2f area = Rect2f(0, 0, 99999999f, y_max);
+        area.fitInside(getLandscapeArea());
+
+        //multiplier (controls grid size)
+        int multiplier = 16;
+
+        while (multiplier > 0) {
+            float xx = cIncDistance * multiplier;
+            float x = area.p1.x + realmod(xx, area.size.x);
+            float y = area.p1.y + multiplier*cIncDistance;
+            while (y < area.p2.y) {
+                drop.x = x;
+                drop.y = y;
+                if (placeObject(drop, area.p2.y, radius, dest))
+                    return true;
+                x += cIncDistance * multiplier;
+                if (x > area.p2.x) {
+                    y += cIncDistance * max(multiplier/4, 1);
+                    x = x - area.size.x;
+                }
+            }
+            multiplier--;
+        }
+        return false;
+    }
+
     //places an object at a random (x,y)-position, where y <= y_max
     //use y_max to prevent placement under the water, or to start dopping from
     //the sky (instead of anywhere)
     //  retrycount = times it tries again until it gives up
-    bool placeObject(float y_max, int retrycount, out Vector2f drop,
-        out Vector2f dest, float radius)
+    bool placeObjectRandom(float y_max, float radius, int retrycount,
+        out Vector2f drop, out Vector2f dest)
     {
-        //xxx this should probably cooperate with the physics, which has methods
-        //  for this anyway (remember the ray weapons)
-        //  this means you'd enumerate static level objects, check if it's
-        //  suitable for worms, select a random position, and then cast a ray to
-        //  downwards find a position where a worm/mine can stand
-        //but for now, I'm too lazy, so here is some ugly hack, have fun
-        foreach (gl; gameLandscapes) {
-            //clip y_max to level borders
-            y_max = max(y_max, 1.0f*gl.offset.y);
-            y_max = min(y_max, 1.0f*gl.offset.y + gl.size.y);
-            for (;retrycount > 0; retrycount--) {
-                drop.y = rnd.nextRange(1.0f*gl.offset.y, y_max);
-                drop.x = gl.offset.x + rnd.nextRange(0, gl.size.x);
-                if (placeObject(drop, y_max, dest, radius))
-                    return true;
-            }
+        Rect2f area = Rect2f(0, 0, 99999999f, y_max);
+        area.fitInside(getLandscapeArea());
+        for (;retrycount > 0; retrycount--) {
+            drop.x = rnd.nextRange(area.p1.x, area.p2.x);
+            drop.y = rnd.nextRange(area.p1.y, area.p2.y);
+            if (placeObject(drop, area.p2.y, radius, dest))
+                return true;
         }
         return false;
     }
+
+    //Queued placing:
+    //as placeObjectDet always returns the same positions for the same call
+    //order, use queuePlaceOnLandscape() to add all sprites to the queue,
+    //then call finishPlace() to randomize the queue and place them all
+    GObjectSprite[] mPlaceQueue;
+
+    void queuePlaceOnLandscape(GObjectSprite sprite) {
+        mPlaceQueue ~= sprite;
+    }
+    void finishPlace() {
+        //randomize place queue
+        for (int i = 0; i < mPlaceQueue.length; i++) {
+            GObjectSprite tmp;
+            int idx = rnd.next(0, mPlaceQueue.length);
+            tmp = mPlaceQueue[idx];
+            mPlaceQueue[idx] = mPlaceQueue[i];
+            mPlaceQueue[i] = tmp;
+        }
+
+        foreach (GObjectSprite sprite; mPlaceQueue) {
+            Vector2f npos, tmp;
+            //first 10: minimum distance from water
+            //second 10: retry count
+            if (!placeObjectDet(waterOffset-10, sprite.physics.posp.radius,
+                tmp, npos))
+            {
+                //placement unsuccessful
+                //the original game blows a hole into the level at a random
+                //position, and then places a small bridge for the worm
+                //but for now... just barf and complain
+                //auto level = gamelevel;
+                //npos = toVector2f(level.offset + level.size / 2);
+                npos = toVector2f(worldSize)/2; //yyy
+                mLog("couldn't place '%s'!", sprite);
+            }
+            mLog("placed '%s' at %s", sprite, npos);
+            sprite.setPos(npos);
+            sprite.active = true;
+        }
+        mPlaceQueue = null;
+    }
+
 
     //hack
     //sry!

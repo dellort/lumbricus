@@ -1182,6 +1182,8 @@ class GameController : GameLogicPublic {
         mWeaponSets = null;
 
         createCmd();
+
+        mEngine.finishPlace();
     }
 
     private void createCmd() {
@@ -1530,32 +1532,10 @@ class GameController : GameLogicPublic {
         }
     }
 
-    //place anywhere on landscape
-    //returns success
-    //  must_place = if true, this must not return false
-    bool placeOnLandscape(GObjectSprite sprite, bool must_place = true) {
-        Vector2f npos, tmp;
-        auto water_y = mEngine.waterOffset;
-        //first 10: minimum distance from water
-        //second 10: retry count
-        if (!mEngine.placeObject(water_y-10, 10, tmp, npos,
-            sprite.physics.posp.radius))
-        {
-            //placement unsuccessful
-            //the original game blows a hole into the level at a random
-            //position, and then places a small bridge for the worm
-            //but for now... just barf and complain
-            //auto level = mEngine.gamelevel;
-            //npos = toVector2f(level.offset + level.size / 2);
-            npos = toVector2f(mEngine.worldSize)/2; //yyy
-            mLog("couldn't place '%s'!", sprite);
-            if (!must_place)
-                return false;
-        }
-        mLog("placed '%s' at %s", sprite, npos);
-        sprite.setPos(npos);
-        sprite.active = true;
-        return true;
+    //queue for placing anywhere on landscape
+    //call engine.finishPlace() when done with all sprites
+    void placeOnLandscape(GObjectSprite sprite, bool must_place = true) {
+        mEngine.queuePlaceOnLandscape(sprite);
     }
 
     //choose a random weapon based on crate_list
@@ -1572,7 +1552,7 @@ class GameController : GameLogicPublic {
     bool dropCrate() {
         Vector2f from, to;
         float water = engine.waterOffset - 10;
-        if (!engine.placeObject(water, 10, from, to, 5)) {
+        if (!engine.placeObjectRandom(water, 5, 25, from, to)) {
             mLog("couldn't find a safe drop-position");
             return false;
         }

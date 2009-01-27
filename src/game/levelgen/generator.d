@@ -1109,7 +1109,7 @@ LandscapeBitmap landscapeRenderPregenerated(LandscapeLexels lexelData,
     LandscapeGenTheme gfx)
 {
     auto renderer = new LandscapeBitmap(lexelData.size, true,
-        lexelData.levelData);
+        lexelData.levelData.dup);
     assert(renderer && lexelData && gfx);
 
     //geometry is already done, so just apply textures

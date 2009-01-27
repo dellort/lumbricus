@@ -553,7 +553,7 @@ public class ConfigNode {
         } else static if (is(T T2 : Vector2!(T2))) {
             //Vector2i or Vector2f, written as "x y"
             T res = def;
-            parseVector!(T)(value, res);
+            parseVector!(T2)(value, res);
             return res;
         } else static if (is(T == bool)) {
             bool res = def;

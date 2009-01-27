@@ -384,6 +384,24 @@ class PhysicWorld {
         return hitLandscape;
     }
 
+    bool thickRay(Vector2f start, Vector2f dir, float maxLen, float r,
+        out Vector2f hit, out GeomContact contact)
+    {
+        //subtracting r at both sides to avoid hitting landscape at
+        //beside start/end of line
+        for (float d = r; d < maxLen-r; d += r) {
+            auto p = start + dir*d;
+            if (collideGeometry(p, r, contact)) {
+                if (contact.depth != float.infinity)
+                    //move out of landscape
+                    p = p + contact.normal*contact.depth;
+                    hit = p;
+                    return true;
+            }
+        }
+        return false;
+    }
+
     ///Move the passed point out of any geometry it hits inside the radius r
     //xxx what about objects? should be handled too
     bool freePoint(ref Vector2f p, float r) {
