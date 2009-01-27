@@ -511,7 +511,7 @@ class GameEngine : GameEnginePublic {
         }
     }
 
-    Rect2f getLandscapeArea() {
+    Rect2f getLandscapeArea(bool forPlace = true) {
         Rect2f landArea = Rect2f(toVector2f(worldSize)/2,
             toVector2f(worldSize)/2);
         if (gameLandscapes.length > 0)
@@ -521,6 +521,9 @@ class GameEngine : GameEnginePublic {
             landArea.extend(toVector2f(gl.offset));
             landArea.extend(toVector2f(gl.offset + gl.size));
         }
+        if (forPlace)
+            //add some space at the top for object placement
+            landArea.p1.y = max(landArea.p1.y - 50f, 0);
         return landArea;
     }
 
@@ -528,6 +531,8 @@ class GameEngine : GameEnginePublic {
     private const cMinDistance = 50.0f;
     //position increment for deterministic placement
     private const cIncDistance = 55.0f;
+    //distance when creating a platform in empty space
+    private const cPlatformDistance = 90.0f;
 
     //try to place an object into the landscape
     //essentially finds the first collision under "drop", then checks the
@@ -535,49 +540,82 @@ class GameEngine : GameEnginePublic {
     //success only when only the LevelGeometry object is hit
     //  drop = any startpoint
     //  dest = where it is dropped (will have same x value as drop)
+    //  inAir = true to place exactly at drop and create a hole/platform
     //returns if dest contains a useful value
     bool placeObject(Vector2f drop, float y_max, float radius,
-        out Vector2f dest)
+        out Vector2f dest, bool inAir = false)
     {
-        if (drop.y >= y_max)
+        Rect2f area = Rect2f(0, 0, worldSize.x, y_max);
+        area.fitInside(getLandscapeArea());
+        if (!area.isInside(drop))
             return false;
+
         Vector2f pos = drop;
-        GeomContact contact;
-        //cast a ray downwards from drop
-        if (!physicworld.thickRay(drop, Vector2f(0, 1), y_max - drop.y, radius,
-            pos, contact))
-        {
-            return false;
-        }
-        if (contact.depth == float.infinity)
-            //most likely, drop was inside the landscape
-            return false;
-        //had a collision, check normal
-        if (contact.normal.y < 0 && abs(contact.normal.x) < -contact.normal.y )
-        {
+        if (inAir) {
+            int holeRadius = cast(int)cPlatformDistance/2;
+
+            //don't place half the platform outside the level area
+            area.extendBorder(Vector2f(-holeRadius, -holeRadius));
+            if (!area.isInside(pos))
+                return false;
+
             //check distance to other sprites
             foreach (GameObject o; mObjects) {
                 auto s = cast(GObjectSprite)o;
                 if (s) {
-                    if ((s.physics.pos - pos).length < cMinDistance)
+                    if ((s.physics.pos - pos).length < cPlatformDistance+10f)
                         return false;
                 }
             }
+
+            //checks ok, remove land and create platform
+            damageLandscape(toVector2i(pos), holeRadius);
+            //xxx: can't access level theme resources here
+            auto res = gfx.resources.resource!(Surface)("place_platform");
+            Surface bmp = res.get();
+            insertIntoLandscape(Vector2i(cast(int)pos.x-bmp.size.x/2,
+                cast(int)pos.y+bmp.size.y/2), res);
             dest = pos;
             return true;
         } else {
-            return false;
+            GeomContact contact;
+            //cast a ray downwards from drop
+            if (!physicworld.thickRay(drop, Vector2f(0, 1), y_max - drop.y,
+                radius, pos, contact))
+            {
+                return false;
+            }
+            if (contact.depth == float.infinity)
+                //most likely, drop was inside the landscape
+                return false;
+            //had a collision, check normal
+            if (contact.normal.y < 0
+                && abs(contact.normal.x) < -contact.normal.y)
+            {
+                //check distance to other sprites
+                foreach (GameObject o; mObjects) {
+                    auto s = cast(GObjectSprite)o;
+                    if (s) {
+                        if ((s.physics.pos - pos).length < cMinDistance)
+                            return false;
+                    }
+                }
+                dest = pos;
+                return true;
+            } else {
+                return false;
+            }
         }
     }
 
     //place an object deterministically on the landscape
     //checks a position grid with shrinking cell size for a successful placement
     //returns the first free position found
-    bool placeObjectDet(float y_max, float radius, out Vector2f drop,
+    bool placeOnLandscapeDet(float y_max, float radius, out Vector2f drop,
         out Vector2f dest)
     {
         //get placement area (landscape area)
-        Rect2f area = Rect2f(0, 0, 99999999f, y_max);
+        Rect2f area = Rect2f(0, 0, worldSize.x, y_max);
         area.fitInside(getLandscapeArea());
 
         //multiplier (controls grid size)
@@ -586,7 +624,7 @@ class GameEngine : GameEnginePublic {
         while (multiplier > 0) {
             float xx = cIncDistance * multiplier;
             float x = area.p1.x + realmod(xx, area.size.x);
-            float y = area.p1.y + multiplier*cIncDistance;
+            float y = area.p1.y + max((multiplier-1)/4, 0)*cIncDistance;
             while (y < area.p2.y) {
                 drop.x = x;
                 drop.y = y;
@@ -598,7 +636,7 @@ class GameEngine : GameEnginePublic {
                     x = x - area.size.x;
                 }
             }
-            multiplier--;
+            multiplier /= 2;
         }
         return false;
     }
@@ -607,15 +645,16 @@ class GameEngine : GameEnginePublic {
     //use y_max to prevent placement under the water, or to start dopping from
     //the sky (instead of anywhere)
     //  retrycount = times it tries again until it gives up
+    //  inAir = true to create a platform instead of searching for landscape
     bool placeObjectRandom(float y_max, float radius, int retrycount,
-        out Vector2f drop, out Vector2f dest)
+        out Vector2f drop, out Vector2f dest, bool inAir = false)
     {
-        Rect2f area = Rect2f(0, 0, 99999999f, y_max);
+        Rect2f area = Rect2f(0, 0, worldSize.x, y_max);
         area.fitInside(getLandscapeArea());
         for (;retrycount > 0; retrycount--) {
             drop.x = rnd.nextRange(area.p1.x, area.p2.x);
             drop.y = rnd.nextRange(area.p1.y, area.p2.y);
-            if (placeObject(drop, area.p2.y, radius, dest))
+            if (placeObject(drop, area.p2.y, radius, dest, inAir))
                 return true;
         }
         return false;
@@ -644,17 +683,20 @@ class GameEngine : GameEnginePublic {
             Vector2f npos, tmp;
             //first 10: minimum distance from water
             //second 10: retry count
-            if (!placeObjectDet(waterOffset-10, sprite.physics.posp.radius,
+            if (!placeOnLandscapeDet(waterOffset-10, sprite.physics.posp.radius,
                 tmp, npos))
             {
                 //placement unsuccessful
-                //the original game blows a hole into the level at a random
-                //position, and then places a small bridge for the worm
-                //but for now... just barf and complain
-                //auto level = gamelevel;
-                //npos = toVector2f(level.offset + level.size / 2);
-                npos = toVector2f(worldSize)/2; //yyy
-                mLog("couldn't place '%s'!", sprite);
+                //create a platform at a random position
+                if (placeObjectRandom(waterOffset-10,
+                    sprite.physics.posp.radius, 50, tmp, npos, true))
+                {
+                    mLog("placing '%s' in air!", sprite);
+                } else {
+                    mLog("couldn't place '%s'!", sprite);
+                    //xxx
+                    npos = toVector2f(worldSize)/2;
+                }
             }
             mLog("placed '%s' at %s", sprite, npos);
             sprite.setPos(npos);

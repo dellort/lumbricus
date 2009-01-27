@@ -1552,7 +1552,7 @@ class GameController : GameLogicPublic {
     bool dropCrate() {
         Vector2f from, to;
         float water = engine.waterOffset - 10;
-        if (!engine.placeObjectRandom(water, 5, 25, from, to)) {
+        if (!engine.placeObjectRandom(water, 10, 25, from, to)) {
             mLog("couldn't find a safe drop-position");
             return false;
         }
