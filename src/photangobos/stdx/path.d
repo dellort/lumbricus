@@ -283,11 +283,8 @@ string getBaseName(string fullname)
 		if (fullname[i - 1] == ':' || fullname[i - 1] == '\\')
 		    break;
 	    }
-	    version(linux)
-	    {
 		if (fullname[i - 1] == '/')
 		    break;
-	    }
 	}
 	return fullname[i .. fullname.length];
     }

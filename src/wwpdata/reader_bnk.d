@@ -58,7 +58,7 @@ AnimList readBnkFile(Stream st) {
     auto alist = new AnimList;
     foreach (int ianim, WWPBnkAnimHdr hanim; animHdr) {
         writef("Animation %d/%d   \r",ianim+1, animCount);
-        fflush(stdout);
+        //fflush(stdout);
         auto anim = new Animation(hanim.x, hanim.y,
             (hanim.flags & WWP_ANIMFLAG_REPEAT) > 0,
             (hanim.flags & WWP_ANIMFLAG_BACKWARDS) > 0, hanim.frameTimeMS);

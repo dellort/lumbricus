@@ -3,6 +3,7 @@
 	<FileVersion major="1" minor="6" />
 	<Project>
 		<Option title="untile" />
+		<Option makefile="makefile" />
 		<Option makefile_is_custom="1" />
 		<Option pch_mode="2" />
 		<Option compiler="dmd" />
@@ -14,9 +15,9 @@
 				<Option type="1" />
 				<Option compiler="dmd" />
 				<MakeCommands>
-					<Build command="dmd -run dsssrun.d build untile.d --debug" />
+					<Build command="make build T=untile" />
 					<CompileFile command="" />
-					<Clean command="dmd -run dsssrun.d clean" />
+					<Clean command="make clean" />
 					<DistClean command="" />
 				</MakeCommands>
 			</Target>
@@ -27,9 +28,9 @@
 				<Option type="1" />
 				<Option compiler="dmd" />
 				<MakeCommands>
-					<Build command="dmd -run dsssrun.d build untile.d" />
+					<Build command="make release T=untile" />
 					<CompileFile command="" />
-					<Clean command="dmd -run dsssrun.d clean" />
+					<Clean command="make clean" />
 					<DistClean command="" />
 				</MakeCommands>
 			</Target>

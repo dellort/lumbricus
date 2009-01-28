@@ -194,11 +194,11 @@ int main(char[][] args)
     else
         outputDir = ".";
     trymkdir(outputDir);
-    try {
+    //try {
         do_extractdata(args[1], args[2], outputDir, nolevelthemes);
-    } catch (Exception e) {
-        writefln("Error: %s",e.msg);
-    }
+    //} catch (Exception e) {
+    //    writefln("Error: %s",e.msg);
+    //}
     return 0;
 }
 

@@ -467,6 +467,9 @@ void doFormat(void delegate(dchar) putc, TypeInfo[] arguments, va_list r_argptr)
     uint flags;
     int field_width;
     int precision;
+    
+    if (arguments.length == 0)
+        return;
 
     void*[10] args_storage; //could alloca()
     void*[] args = getArgs(arguments, r_argptr, args_storage);

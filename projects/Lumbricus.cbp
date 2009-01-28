@@ -3,6 +3,7 @@
 	<FileVersion major="1" minor="6" />
 	<Project>
 		<Option title="Lumbricus" />
+		<Option makefile="makefile" />
 		<Option makefile_is_custom="1" />
 		<Option compiler="dmd" />
 		<Build>
@@ -14,9 +15,9 @@
 				<Option compiler="dmd" />
 				<Option projectResourceIncludeDirsRelation="0" />
 				<MakeCommands>
-					<Build command="dmd -run dsssrun.d build lumbricus.d --debug" />
+					<Build command="make build T=lumbricus" />
 					<CompileFile command="" />
-					<Clean command="dmd -run dsssrun.d clean" />
+					<Clean command="make clean" />
 					<DistClean command="" />
 				</MakeCommands>
 			</Target>
@@ -28,9 +29,9 @@
 				<Option compiler="dmd" />
 				<Option projectResourceIncludeDirsRelation="0" />
 				<MakeCommands>
-					<Build command="dmd -run dsssrun.d build lumbricus.d" />
+					<Build command="make release T=lumbricus" />
 					<CompileFile command="" />
-					<Clean command="dmd -run dsssrun.d clean" />
+					<Clean command="make clean" />
 					<DistClean command="" />
 				</MakeCommands>
 			</Target>
