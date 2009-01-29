@@ -24,6 +24,7 @@ import drawing = utils.drawing;
 import rand = utils.random;
 
 import str = stdx.string;
+import stdx.math : abs;
 
 enum DrawMode {
     circle,
@@ -38,8 +39,7 @@ class PainterWidget : Widget {
 
         Surface mImage;
 
-        const cPaintScale = 0.33;
-        //CTFE ftw
+        //can be overridden by config file
         const Color[Lexel.Max+1] cDefLexelToColor = [Color(0.2, 0.2, 1.0),
             Color(1, 1, 1), Color(0, 0, 0)];
         const cPenRadius = [10, 75];
@@ -49,6 +49,8 @@ class PainterWidget : Widget {
         Color[Lexel.Max+1] mLexelToColor;
         uint[Lexel.Max+1] mLexelToRGBA32;
 
+        float mPaintScale;
+        Vector2i mFitInto = Vector2i(650, 250);
         Vector2i mLevelSize = Vector2i(2000, 700);
         Rect2i mLevelRect;
         Lexel mPaintLexel = Lexel.INVALID;
@@ -65,18 +67,12 @@ class PainterWidget : Widget {
         }
     }
 
+    //called when levelData is changed (also by external calls like setData)
     void delegate(PainterWidget sender) onChange;
 
     this() {
         setColors(cDefLexelToColor);
-
-        auto drawSize = toVector2i(toVector2f(mLevelSize)*cPaintScale);
-        mImage = gFramework.createSurface(drawSize, Transparency.None, Color(0));
-        mLevelRect.p2 = mLevelSize;
-        mScaledLevel = new Lexel[drawSize.x*drawSize.y];
-
-        mLevelData = new Lexel[mLevelSize.x*mLevelSize.y];
-        clear();
+        setData(null, mLevelSize);
     }
 
     this(LandscapeBitmap level) {
@@ -90,11 +86,43 @@ class PainterWidget : Widget {
         return true;
     }
 
+    private bool shiftDown() {
+        return gFramework.getKeyState(Keycode.LSHIFT)
+            || gFramework.getKeyState(Keycode.RSHIFT);
+    }
+
+    private void straightenLine(Vector2i lineFrom, ref Vector2i lineTo) {
+        Vector2i d = lineTo - lineFrom;
+        //4 areas in a quadrant: sin(22.5°) = 0.38
+        if (0.38*abs(d.x) > abs(d.y))
+            //90° left/right
+            d.y = 0;
+        else if (0.38*abs(d.y) > abs(d.x))
+            //90° up/down
+            d.x = 0;
+        else {
+            //45°
+            int c = (abs(d.x) + abs(d.y))/2;
+            d.x = d.x<0 ? -c : c;
+            d.y = d.y<0 ? -c : c;
+        }
+        lineTo = lineFrom + d;
+    }
+
+    private void straightenRect(Vector2i lineFrom, ref Vector2i lineTo) {
+        Vector2i d = lineTo - lineFrom;
+        //just 45°, which makes a square
+        int c = (abs(d.x) + abs(d.y))/2;
+        d.x = d.x<0 ? -c : c;
+        d.y = d.y<0 ? -c : c;
+        lineTo = lineFrom + d;
+    }
+
     protected void onDraw(Canvas c) {
         c.draw(mImage, Vector2i(0, 0));
         if (mMouseInside) {
             //draw the current pen for visual feedback of what will be drawn
-            int r = cast(int)(mPenRadius*cPaintScale);
+            int r = cast(int)(mPenRadius*mPaintScale);
             switch (mDrawMode) {
                 case DrawMode.circle:
                     c.drawFilledCircle(mousePos, r, cPenColor);
@@ -104,24 +132,34 @@ class PainterWidget : Widget {
                         cPenColor);
                     break;
                 case DrawMode.line:
-                    //overlaps at start and end, feel free to do it properly
-                    c.drawFilledCircle(mousePos, r, cPenColor);
                     if (mMouseDown) {
+                        Vector2i lineTo = mousePos;
+                        if (shiftDown)
+                            straightenLine(mClickPos, lineTo);
+                        //overlaps at start and end, feel free to do it properly
                         c.drawFilledCircle(mClickPos, r, cPenColor);
-                        c.drawLine(mClickPos, mousePos, cPenColor, 2*r);
+                        c.drawFilledCircle(lineTo, r, cPenColor);
+                        c.drawLine(mClickPos, lineTo, cPenColor, 2*r);
+                    } else {
+                        c.drawFilledCircle(mousePos, r, cPenColor);
                     }
                     break;
                 case DrawMode.rect:
                     //draws a thin rectangle and four circles at the edges
-                    c.drawFilledCircle(mousePos, r, cPenColor);
                     if (mMouseDown) {
+                        Vector2i lineTo = mousePos;
+                        if (shiftDown)
+                            straightenRect(mClickPos, lineTo);
                         c.drawFilledCircle(mClickPos, r, cPenColor);
-                        c.drawFilledCircle(mClickPos.X+mousePos.Y, r,cPenColor);
-                        c.drawFilledCircle(mClickPos.Y+mousePos.X, r,cPenColor);
-                        Rect2i rc = Rect2i(mClickPos, mousePos);
+                        c.drawFilledCircle(mClickPos.X+lineTo.Y, r,cPenColor);
+                        c.drawFilledCircle(mClickPos.Y+lineTo.X, r,cPenColor);
+                        c.drawFilledCircle(lineTo, r, cPenColor);
+                        Rect2i rc = Rect2i(mClickPos, lineTo);
                         rc.normalize;
                         //sry, opengl rects with thick borders look stupid
                         c.drawRect(rc, cPenColor);
+                    } else {
+                        c.drawFilledCircle(mousePos, r, cPenColor);
                     }
                     break;
             }
@@ -192,13 +230,19 @@ class PainterWidget : Widget {
 
         if (s == PMState.up) {
             mMouseDown = false;
-            if (mDrawMode == DrawMode.line)
-                doPaint(mClickPosLevel, levelPos);
+            Vector2i lineTo = levelPos;
+            if (mDrawMode == DrawMode.line) {
+                if (shiftDown)
+                    straightenLine(mClickPosLevel, lineTo);
+                doPaint(mClickPosLevel, lineTo);
+            }
             if (mDrawMode == DrawMode.rect) {
-                doPaint(mClickPosLevel, mClickPosLevel.Y+levelPos.X);
-                doPaint(mClickPosLevel.Y+levelPos.X, levelPos);
-                doPaint(levelPos, mClickPosLevel.X+levelPos.Y);
-                doPaint(mClickPosLevel.X+levelPos.Y, mClickPosLevel);
+                if (shiftDown)
+                    straightenRect(mClickPosLevel, lineTo);
+                doPaint(mClickPosLevel, mClickPosLevel.Y+lineTo.X);
+                doPaint(mClickPosLevel.Y+lineTo.X, lineTo);
+                doPaint(lineTo, mClickPosLevel.X+lineTo.Y);
+                doPaint(mClickPosLevel.X+lineTo.Y, mClickPosLevel);
             }
         }
         if (s == PMState.down) {
@@ -281,9 +325,9 @@ class PainterWidget : Widget {
 
 
         //points scaled to image width
-        Vector2i p1_sc = toVector2i(toVector2f(p1)*cPaintScale);
-        Vector2i p2_sc = toVector2i(toVector2f(p2)*cPaintScale);
-        int r_sc = cast(int)(mPenRadius*cPaintScale);
+        Vector2i p1_sc = toVector2i(toVector2f(p1)*mPaintScale);
+        Vector2i p2_sc = toVector2i(toVector2f(p2)*mPaintScale);
+        int r_sc = cast(int)(mPenRadius*mPaintScale);
 
         //draw into displayed image
         void* pixels; uint pitch;
@@ -375,17 +419,26 @@ class PainterWidget : Widget {
         return mLevelData;
     }
 
+    //load a level of passed size
+    //pass data = null to create a new, empty level
     void setData(Lexel[] data, Vector2i size) {
         mLevelSize = size;
-        auto drawSize = toVector2i(toVector2f(mLevelSize)*cPaintScale);
+        //fit the level into mFitInto, keeping aspect ratio
+        auto drawSize = mLevelSize.fitKeepAR(mFitInto);
+        mPaintScale = cast(float)drawSize.x/mLevelSize.x;
         if (mImage)
             mImage.free;
         mImage = gFramework.createSurface(drawSize, Transparency.None, Color(0));
         mLevelRect.p2 = mLevelSize;
         mScaledLevel = new Lexel[drawSize.x*drawSize.y];
 
-        mLevelData = data;
-        fullUpdate();
+        if (data.length > 0) {
+            mLevelData = data;
+            fullUpdate();
+        } else {
+            mLevelData = new Lexel[size.x*size.y];
+            clear();
+        }
         if (onChange)
             onChange(this);
     }
@@ -402,6 +455,7 @@ class PainterWidget : Widget {
     override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
 
+        mFitInto = node.getValue("fit_into", mFitInto);
         Color[] colors;
         foreach (char[] n, char[] value; node.getSubNode("colors")) {
             Color c;

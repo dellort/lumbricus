@@ -40,7 +40,7 @@ class LevelSelector : SimpleContainer {
         Button[] mChkDrawMode;
         //last selected level, null if the level has been modified
         LevelGenerator mLastLevel;
-        bool mIsCave = false, mPlaceObjects = true;
+        Button mIsCave, mPlaceObjects;
     }
 
     struct LevelInfo {
@@ -101,8 +101,10 @@ class LevelSelector : SimpleContainer {
         loader.lookup!(Button)("btn_fill").onClick = &fillClick;
         loader.lookup!(Button)("btn_cancel").onClick = &cancelClick;
         loader.lookup!(Button)("btn_ok").onClick = &okClick;
-        loader.lookup!(Button)("chk_iscave").onClick = &chkIsCaveClick;
-        loader.lookup!(Button)("chk_objects").onClick = &chkObjectsClick;
+        mIsCave = loader.lookup!(Button)("chk_iscave");
+        mIsCave.onClick = &chkIsCaveClick;
+        mPlaceObjects = loader.lookup!(Button)("chk_objects");
+        mPlaceObjects.onClick = &chkObjectsClick;
 
         mChkDrawMode ~= loader.lookup!(Button)("chk_circle");
         mChkDrawMode[$-1].onClick = &chkCircleClick;
@@ -122,6 +124,9 @@ class LevelSelector : SimpleContainer {
             LandscapeLexels lex = lvl.renderData();
             if (lex)
                 mPainter.setData(lex.levelData, lex.size);
+            //xxx how to get that?
+            //mIsCave.checked = ??;
+            mPlaceObjects.checked = true;
             mLastLevel = lvl;
         }
     }
@@ -167,12 +172,10 @@ class LevelSelector : SimpleContainer {
     }
 
     private void chkIsCaveClick(Button sender) {
-        mIsCave = sender.checked;
         painterChange(mPainter);
     }
 
     private void chkObjectsClick(Button sender) {
-        mPlaceObjects = sender.checked;
         painterChange(mPainter);
     }
 
@@ -236,7 +239,8 @@ class LevelSelector : SimpleContainer {
             LandscapeLexels lex = new LandscapeLexels();
             lex.levelData = mPainter.levelData;
             lex.size = mPainter.levelSize;
-            lvl = lex.generator(mGenerator, mIsCave, mPlaceObjects);
+            lvl = lex.generator(mGenerator, mIsCave.checked,
+                mPlaceObjects.checked);
         }
         auto gen = cast(GenerateFromTemplate)lvl;
         if (gen)
