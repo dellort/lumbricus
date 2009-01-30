@@ -13,15 +13,6 @@ import framework.texturepack;
 import stdx.stream;
 import stdx.string;
 
-bool fontIsOpaque(ref FontProperties props) {
-    return (props.back.a > 1.0f - Color.epsilon);
-}
-
-bool fontNeedsBackPlain(ref FontProperties props) {
-    //Backplain not needed if it's fully transparent or fully opaque
-    return (props.back.a >= Color.epsilon) && !fontIsOpaque(props);
-}
-
 //renderer and cache for font glyphs
 class GlyphCache {
     private {
@@ -56,7 +47,7 @@ class GlyphCache {
         mHeight = TTF_FontHeight(font);
         //assert(mHeight == props.size); bleh
 
-        mOpaque = fontIsOpaque(props);
+        mOpaque = props.isOpaque;
 
         if (gSDLDriver.mUseFontPacker) {
             mPacker = new TexturePack();
@@ -164,8 +155,8 @@ class SDLFont : DriverFont {
     this(GlyphCache glyphs, FontProperties props) {
         mCache = glyphs;
         mProps = props;
-        mNeedBackPlain = fontNeedsBackPlain(props);
-        mUseGL = gSDLDriver.mOpenGL  && !fontIsOpaque(props);
+        mNeedBackPlain = props.needsBackPlain;
+        mUseGL = gSDLDriver.mOpenGL  && !props.isOpaque;
     }
 
     Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text) {
@@ -274,7 +265,7 @@ class SDLFontDriver : FontDriver {
         FontProperties gc_props = props;
         //on OpenGL, you can color up surfaces at no costs, so...
         //not for opaque surfaces, these are rendered as a single surface
-        if (gSDLDriver.mOpenGL && !fontIsOpaque(gc_props)) {
+        if (gSDLDriver.mOpenGL && !gc_props.isOpaque) {
             //normalize to a standard color
             gc_props.back = Color(0,0,0,0); //fully transparent
             gc_props.fore = Color(1,1,1);   //white

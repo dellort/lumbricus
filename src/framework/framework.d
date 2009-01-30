@@ -475,10 +475,11 @@ class Surface {
         unlockPixels(rc);
     }
 
-    void saveImage(OutputStream stream, ImageFormat fmt = ImageFormat.tga) {
+    void saveImage(Stream stream, ImageFormat fmt = ImageFormat.tga) {
         switch (fmt) {
             case ImageFormat.tga:
                 saveToTGA(stream);
+                break;
             default:
                 assert(false, "Not implemented");
         }
@@ -486,8 +487,8 @@ class Surface {
 
     //dirty hacky lib to dump a surface to a file
     //as far as I've seen we're not linked to any library which can write images
-    private void saveToTGA(OutputStream stream) {
-        auto to = stream;
+    private void saveToTGA(Stream stream) {
+        scope to = new MemoryStream();
         try {
             void* pvdata;
             uint pitch;
@@ -508,9 +509,12 @@ class Surface {
             to.write(sh);
             sh = size.x; to.write(sh); //w/h
             sh = size.y; to.write(sh);
-            b = 24;
+            if (transparency == Transparency.Alpha)
+                b = 32;
+            else
+                b = 24;
             to.write(b);
-            b = 0;
+            b = 8;
             to.write(b); //??
             //dump picture data as 24 bbp
             //TGA seems to be upside down
@@ -519,14 +523,11 @@ class Surface {
                 for (int x = 0; x < size.x; x++) {
                     //trivial alpha check... and if so, write a colorkey
                     //this, of course, is a dirty hack
-                    if (*data >> 24) {
-                        b = *data >> 16; to.write(b);
-                        b = *data >> 8; to.write(b);
-                        b = *data; to.write(b);
-                    } else {
-                        b = 255; to.write(b);
-                        b = 0; to.write(b);
-                        b = 255; to.write(b);
+                    b = (*data >> 16) & 0xff; to.write(b);
+                    b = (*data >> 8) & 0xff; to.write(b);
+                    b = *data & 0xff; to.write(b);
+                    if (transparency == Transparency.Alpha) {
+                        b = (*data >> 24) & 0xff; to.write(b);
                     }
                     data++;
                 }
@@ -534,7 +535,7 @@ class Surface {
         } finally {
             unlockPixels(Rect2i.init);
         }
-        //stream.write(to.toBytes);
+        stream.copyFrom(to);
     }
 }
 

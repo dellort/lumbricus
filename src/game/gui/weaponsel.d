@@ -315,7 +315,7 @@ class WeaponSelWindow : Container {
         mWeaponName.shrink = true;
         mWeaponQuantity = new Label();
         mWeaponQuantity.drawBorder = false;
-        mWeaponQuantity.font = mWeaponName.font;
+        mWeaponQuantity.font = gFramework.getFont("weaponsel_down_bold");
         auto hbox = new BoxContainer(true, false, 10);
         hbox.add(mWeaponName, WidgetLayout.Expand(true));
         hbox.add(mWeaponQuantity, WidgetLayout.Noexpand);

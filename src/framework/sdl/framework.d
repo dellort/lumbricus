@@ -385,7 +385,7 @@ class SDLDriver : FrameworkDriver {
             gSdlToKeycode[item.sdlcode] = item.code;
         }
 
-        mFontDriver = new SDLFontDriver();
+        mFontDriver = new typeof(mFontDriver)();
 
         if (!mOpenGL) {
             mScreenCanvas2D = new SDLCanvas();

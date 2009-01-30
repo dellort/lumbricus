@@ -14,7 +14,9 @@ class PhysicConstraint : PhysicContactGen {
     ///fixed point in the world
     Vector2f anchor;
     ///desired length
-    float length;
+    float length, lengthChange;
+    ///length limit (for lengthChange)
+    float maxLength = float.infinity;
     ///cor (bounciness) for this cable
     float restitution;
     ///false will also enforce minimum length
@@ -35,7 +37,14 @@ class PhysicConstraint : PhysicContactGen {
     this (ReflectCtor c) {
     }
 
-    override void process(CollideDelegate contactHandler) {
+    override void process(float deltaT, CollideDelegate contactHandler) {
+        if (lengthChange > float.epsilon || lengthChange < -float.epsilon) {
+            length += lengthChange*deltaT;
+            if (length < float.epsilon)
+                length = 0f;
+            if (length > maxLength)
+                length = maxLength;
+        }
         float currentLen = (obj.pos - anchor).length;
         float deltaLen = currentLen - length;
 
@@ -68,6 +77,16 @@ class PhysicConstraint : PhysicContactGen {
 
         contactHandler(c);
     }
+
+    override void afterResolve(float deltaT) {
+        //check if the length has been fully corrected by contact resolution
+        float currentLen = (obj.pos - anchor).length;
+        float deltaLen = currentLen - length;
+
+        //if not, assume we hit something, and set new length to actual length
+        if (abs(deltaLen) > cTolerance)
+            length = currentLen;
+    }
 }
 
 class PhysicFixate : PhysicContactGen {
@@ -98,7 +117,7 @@ class PhysicFixate : PhysicContactGen {
         mFixate.y = fix.y>float.epsilon?0.0f:1.0f;
     }
 
-    override void process(CollideDelegate contactHandler) {
+    override void process(float deltaT, CollideDelegate contactHandler) {
         Vector2f dist = (mFixatePos - obj.pos).mulEntries(mFixate);
 
         float distLen = dist.length;

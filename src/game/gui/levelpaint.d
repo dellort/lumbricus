@@ -452,6 +452,10 @@ class PainterWidget : Widget {
         }
     }
 
+    override MouseCursor mouseCursor() {
+        return MouseCursor.None;
+    }
+
     override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
 

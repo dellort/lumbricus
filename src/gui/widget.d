@@ -85,6 +85,8 @@ struct WidgetLayout {
         expand[1] = node.getBoolValue("expand_y", expand[1]);
         alignment[0] = node.getFloatValue("align_x", alignment[0]);
         alignment[1] = node.getFloatValue("align_y", alignment[1]);
+        fill[0] = node.getFloatValue("fill_x", fill[0]);
+        fill[1] = node.getFloatValue("fill_y", fill[1]);
     }
 }
 

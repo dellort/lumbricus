@@ -182,7 +182,10 @@ struct Contact {
 class PhysicContactGen : PhysicBase {
     package ListNode cgen_node;
 
-    abstract void process(CollideDelegate contactHandler);
+    abstract void process(float deltaT, CollideDelegate contactHandler);
+
+    void afterResolve(float deltaT) {
+    }
 
     this() {
     }

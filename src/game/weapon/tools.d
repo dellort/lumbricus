@@ -121,7 +121,7 @@ class Jetpack : Tool {
 class RopeClass : WeaponClass {
     int shootSpeed = 1000;     //speed when firing
     int maxLength = 1000;      //max full rope length
-    int moveSpeed = 500;       //up/down speed along rope
+    int moveSpeed = 200;       //up/down speed along rope
     int swingForce = 3000;     //force applied when rope points down
     int swingForceUp = 1000;   //force when rope points up
     Color ropeColor = Color(1);
@@ -432,6 +432,9 @@ class Rope : Shooter {
                         wormPos);
                 else
                     debug writefln("seg: h1 %s, worm %s",hit1, wormPos);
+                //don't create segments too close to the worm
+                if ((hit1 - wormPos).length < 10)
+                    break;
                 //collided => new segment to attach the rope to the
                 //  connection point
                 //xxx: small hack to make it more robust
@@ -476,13 +479,18 @@ class Rope : Shooter {
             }
             auto lastSegLen = (ropeSegments[$-1].end
                 - ropeSegments[$-1].start).length;
-            //max length of last segment
-            auto maxLen = myclass.maxLength - rope_len;
-            //new length of last segment
-            auto nlen = lastSegLen + mMoveVec.y*myclass.moveSpeed*deltaT;
-            auto destlen = clampRangeC!(float)(nlen, 0, maxLen);
-            if (destlen > 0)
-                mRope.length = destlen;
+            if (rope_len + lastSegLen <= 15.1 && mMoveVec.y < 0) {
+                //enforce minimum length
+                mRope.lengthChange = 0;
+                mRope.length = 15 - rope_len;
+            } else {
+                //max length of last segment
+                mRope.maxLength = myclass.maxLength - rope_len;
+                //new length of last segment
+                mRope.lengthChange = mMoveVec.y*myclass.moveSpeed;
+            }
+        } else {
+            mRope.lengthChange = 0;
         }
 
         foreach (ref seg; ropeSegments) {

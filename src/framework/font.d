@@ -31,6 +31,15 @@ struct FontProperties {
     bool bold;
     bool italic;
     bool underline;
+
+    bool isOpaque() {
+        return (back.a > 1.0f - Color.epsilon);
+    }
+
+    bool needsBackPlain() {
+        //Backplain not needed if it's fully transparent or fully opaque
+        return (back.a >= Color.epsilon) && !isOpaque();
+    }
 }
 
 class Font {
@@ -95,13 +104,10 @@ class Font {
     ///(0 for start, text.length for end)
     ///posX is relative to left edge of text
     public uint findIndex(char[] text, int posX) {
-        if (text.length == 0)
-            return 0;
-        int twold = 0, ilast = 0;
+        int twold = 0, ilast = 0, i = 0;
         //check width from start until it is over the requested position
-        for (int i = utf.stride(text, 0); i <= text.length;
-            i += utf.stride(text, i))
-        {
+        while (i < text.length) {
+            i += utf.stride(text, i);
             int twidth = textSize(text[0..i]).x;
             if (twidth > posX) {
                 //over-shot position -> clicked between current and last pos

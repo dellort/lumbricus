@@ -34,6 +34,51 @@ private bool checkGLError(char[] msg, bool crash = false) {
     return true;
 }
 
+/*
+abstract class DrawCache {
+}
+
+class DrawCacheGl : DrawCache {
+    private {
+        Texture mSource;
+        Vector2i mDest, mSourcePos, mSourceSize, mAdvance;
+        GLuint mListId = 0;
+        GLuint mCachedTexId = 0;
+    }
+
+    this(Texture source, Vector2i destOffset,
+        Vector2i sourcePos, Vector2i sourceSize, Vector2i advance)
+    {
+        mSource = source;
+        mDest = destOffset;
+        mSourcePos = sourcePos;
+        mSourceSize = sourceSize;
+        mAdvance = advance;
+    }
+
+    void validate() {
+        assert(mSource !is null);
+        GLSurface glsurf = cast(GLSurface)(mSource.getDriverSurface(
+            SurfaceMode.NORMAL));
+        assert(glsurf !is null);
+        if (mListId == 0 || mCachedTexId != glsurf.mTexId) {
+            mCachedTexId = glsurf.mTexId;
+            mListId = glGenLists(1);
+            assert(mListId > 0, "glGenLists failed");
+            glNewList(mListId, GL_COMPILE);
+            glsurf.prepareDraw2();
+            GLCanvas.simpleDraw(mSourcePos, mDest, mSourceSize, glsurf, false);
+            glTranslatef(cast(float)mAdvance.x, cast(float)mAdvance.y, 0f);
+            glEndList();
+        }
+    }
+
+    void call() {
+        glCallList(mListId);
+    }
+}
+*/
+
 class GLSurface : SDLDriverSurface {
     const GLuint GLID_INVALID = 0;
 
@@ -226,6 +271,21 @@ class GLSurface : SDLDriverSurface {
         glDisable(GL_ALPHA_TEST);
         glDisable(GL_BLEND);
     }
+
+    /*
+    private void prepareDraw2() {
+        glBindTexture(GL_TEXTURE_2D, mTexId);
+    }
+
+    DrawCache cachePrepare(Texture source, Vector2i destOffset,
+        Vector2i sourcePos, Vector2i sourceSize, Vector2i advance)
+    {
+        auto ret = new DrawCacheGl(source, destOffset, sourcePos, sourceSize,
+            advance);
+        ret.validate();
+        return ret;
+    }
+    */
 }
 
 class GLCanvas : Canvas {
@@ -489,13 +549,15 @@ class GLCanvas : Canvas {
 
         glColor4fv(color.ptr);
 
+        float trans = width%2==0?0f:0.5f;
+
         //fixes blurry lines with GL_LINE_SMOOTH
-        glTranslatef(0.5f, 0.5f, 0);
+        glTranslatef(trans, trans, 0);
         glBegin(GL_LINES);
             glVertex2i(p1.x, p1.y);
             glVertex2i(p2.x, p2.y);
         glEnd();
-        glTranslatef(-0.5f, -0.5f, 0);
+        glTranslatef(-trans, -trans, 0);
 
         glColor3f(1.0f, 1.0f, 1.0f);
         glDisable(GL_BLEND);
@@ -592,6 +654,36 @@ class GLCanvas : Canvas {
         drawTextureInt(source, Vector2i(0,0), source.size, destPos, destSize);
     }
 
+    private static void simpleDraw(Vector2i sourceP, Vector2i destP, Vector2i destS,
+        GLSurface gls, bool mirrorY = false) {
+        Vector2i p1 = destP;
+        Vector2i p2 = destP + destS;
+        Vector2f t1, t2;
+
+        //select the right part of the texture (in 0.0-1.0 coordinates)
+        t1.x = cast(float)sourceP.x / gls.mTexSize.x;
+        t1.y = cast(float)sourceP.y / gls.mTexSize.y;
+        t2.x = cast(float)(sourceP.x+destS.x) / gls.mTexSize.x;
+        t2.y = cast(float)(sourceP.y+destS.y) / gls.mTexSize.y;
+
+        //draw textured rect
+        glBegin(GL_QUADS);
+
+        if (!mirrorY) {
+            glTexCoord2f(t1.x, t1.y); glVertex2i(p1.x, p1.y);
+            glTexCoord2f(t1.x, t2.y); glVertex2i(p1.x, p2.y);
+            glTexCoord2f(t2.x, t2.y); glVertex2i(p2.x, p2.y);
+            glTexCoord2f(t2.x, t1.y); glVertex2i(p2.x, p1.y);
+        } else {
+            glTexCoord2f(t2.x, t1.y); glVertex2i(p1.x, p1.y);
+            glTexCoord2f(t2.x, t2.y); glVertex2i(p1.x, p2.y);
+            glTexCoord2f(t1.x, t2.y); glVertex2i(p2.x, p2.y);
+            glTexCoord2f(t1.x, t1.y); glVertex2i(p2.x, p1.y);
+        }
+
+        glEnd();
+    }
+
     //this will draw the texture source tiled in the destination area
     //optimized if no tiling needed or tiling can be done by OpenGL
     //tiling only works for the above case (i.e. when using the whole texture)
@@ -635,38 +727,9 @@ class GLCanvas : Canvas {
         bool noTileSpecial = (glTilex || destSize.x <= sourceSize.x)
             && (glTiley || destSize.y <= sourceSize.y);
 
-        void simpleDraw(Vector2i sourceP, Vector2i destP, Vector2i destS) {
-            Vector2i p1 = destP;
-            Vector2i p2 = destP + destS;
-            Vector2f t1, t2;
-
-            //select the right part of the texture (in 0.0-1.0 coordinates)
-            t1.x = cast(float)sourceP.x / glsurf.mTexSize.x;
-            t1.y = cast(float)sourceP.y / glsurf.mTexSize.y;
-            t2.x = cast(float)(sourceP.x+destS.x) / glsurf.mTexSize.x;
-            t2.y = cast(float)(sourceP.y+destS.y) / glsurf.mTexSize.y;
-
-            //draw textured rect
-            glBegin(GL_QUADS);
-
-            if (!mirrorY) {
-                glTexCoord2f(t1.x, t1.y); glVertex2i(p1.x, p1.y);
-                glTexCoord2f(t1.x, t2.y); glVertex2i(p1.x, p2.y);
-                glTexCoord2f(t2.x, t2.y); glVertex2i(p2.x, p2.y);
-                glTexCoord2f(t2.x, t1.y); glVertex2i(p2.x, p1.y);
-            } else {
-                glTexCoord2f(t2.x, t1.y); glVertex2i(p1.x, p1.y);
-                glTexCoord2f(t2.x, t2.y); glVertex2i(p1.x, p2.y);
-                glTexCoord2f(t1.x, t2.y); glVertex2i(p2.x, p2.y);
-                glTexCoord2f(t1.x, t1.y); glVertex2i(p2.x, p1.y);
-            }
-
-            glEnd();
-        }
-
         if (noTileSpecial) {
             //pure OpenGL drawing (and tiling)
-            simpleDraw(sourcePos, destPos, destSize);
+            simpleDraw(sourcePos, destPos, destSize, glsurf, mirrorY);
         } else {
             //manual tiling code, partially using OpenGL tiling if possible
             //xxx sorry for code duplication, but the differences seemed too big
@@ -692,7 +755,7 @@ class GLCanvas : Canvas {
                         //visibility check for x coordinate
                         if (tmp.x+restx+trans.x > 0 && tmp.x < cs_tr.x)
                             simpleDraw(Vector2i(0, 0), tmp,
-                                Vector2i(restx, resty));
+                                Vector2i(restx, resty), glsurf, mirrorY);
                         x += restx;
                     }
                 }
@@ -737,4 +800,38 @@ class GLCanvas : Canvas {
 
         glsurf.endDraw();
     }
+
+    /*
+    public void cachedBegin(Vector2i destPos, Transparency tr) {
+        glPushMatrix();
+        glEnable(GL_TEXTURE_2D);
+        glDisable(GL_DEPTH_TEST);
+        switch (tr) {
+            case Transparency.Colorkey:
+                glEnable(GL_ALPHA_TEST);
+                glAlphaFunc(GL_GREATER, 0.1f);
+                break;
+            case Transparency.Alpha:
+                glEnable(GL_BLEND);
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                break;
+            default:
+        }
+        glTranslatef(cast(float)destPos.x, cast(float)destPos.y, 0f);
+    }
+
+    public void cachedDraw(DrawCache cache) {
+        auto c = cast(DrawCacheGl)cache;
+        assert(!!c);
+        c.validate();
+        c.call();
+    }
+
+    public void cachedEnd() {
+        glPopMatrix();
+        glDisable(GL_TEXTURE_2D);
+        glDisable(GL_ALPHA_TEST);
+        glDisable(GL_BLEND);
+    }
+    */
 }

@@ -133,6 +133,7 @@
 		<Unit filename="..\src\framework\restypes\frames.d" />
 		<Unit filename="..\src\framework\restypes\sound.d" />
 		<Unit filename="..\src\framework\sdl\font.d" />
+		<Unit filename="..\src\framework\sdl\fontft.d" />
 		<Unit filename="..\src\framework\sdl\framework.d" />
 		<Unit filename="..\src\framework\sdl\fwgl.d" />
 		<Unit filename="..\src\framework\sdl\keys.d" />

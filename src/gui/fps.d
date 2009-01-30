@@ -8,11 +8,17 @@ import utils.time;
 
 class GuiFps : Widget {
     private Font mFont;
+    private Vector2i mPos;
+    private float mFps;
+    private char[] mText;
 
     protected override void onDraw(Canvas c) {
-        auto text = format("FPS: %1.2f", gFramework.FPS);
-        auto pos = (size - mFont.textSize(text)).X;
-        mFont.drawText(c, pos, text);
+        if (gFramework.FPS != mFps) {
+            mFps = gFramework.FPS;
+            mText = format("FPS: %1.2f", mFps);
+            mPos = (size - mFont.textSize(mText)).X;
+        }
+        mFont.drawText(c, mPos, mText);
     }
 
     this() {

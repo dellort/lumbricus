@@ -136,7 +136,7 @@ class PhysicWorld {
 
         broadphase.collide(mObjArr, &handleContact);
         foreach (PhysicContactGen cg; mContactGenerators) {
-            cg.process(&handleContact);
+            cg.process(deltaT, &handleContact);
         }
 
         foreach (PhysicObject me; mObjects) {
@@ -159,6 +159,10 @@ class PhysicWorld {
         }
 
         resolveContacts(deltaT);
+
+        foreach (PhysicContactGen cg; mContactGenerators) {
+            cg.afterResolve(deltaT);
+        }
 
         checkUpdates();
     }
