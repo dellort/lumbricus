@@ -41,6 +41,7 @@ class GObjectSprite : GameObject {
     private StaticStateInfo mCurrentState; //must not be null
 
     private bool mIsUnderWater, mWaterUpdated;
+    protected static LogStruct!("game.sprite") log;
 
     bool activity() {
         return active && !physics.isGlued;
@@ -158,7 +159,7 @@ class GObjectSprite : GameObject {
     void exterminate() {
         if (!currentState.deathZoneImmune) {
             //_always_ die completely (or are there exceptions?)
-            engine.mLog("exterminate in deathzone: %s", type.name);
+            log("exterminate in deathzone: %s", type.name);
             die();
         }
     }
@@ -168,7 +169,7 @@ class GObjectSprite : GameObject {
     protected void die() {
         active = false;
         physics.dead = true;
-        engine.mLog("really die: %s", type.name);
+        log("really die: %s", type.name);
     }
 
     protected void waterStateChange(bool under) {
@@ -212,7 +213,7 @@ class GObjectSprite : GameObject {
             updateAnimation();
         }
 
-        engine.mLog("force state: %s", nstate.name);
+        log("force state: %s", nstate.name);
 
         waterStateChange(mIsUnderWater);
     }
@@ -239,7 +240,7 @@ class GObjectSprite : GameObject {
             assert(nstate is currentState.onAnimationEnd);
         }
 
-        engine.mLog("state %s -> %s", currentState.name, nstate.name);
+        log("state %s -> %s", currentState.name, nstate.name);
 
         auto oldstate = currentState;
         currentState = nstate;
@@ -297,7 +298,7 @@ class GObjectSprite : GameObject {
         if (currentState.onAnimationEnd && graphic) {
             //as requested by d0c, timing is dependend from the animation
             if (graphic.readyflag) {
-                engine.mLog("state transition because of animation end");
+                log("state transition because of animation end");
                 //time to change; the setState code will reset the animation
                 setState(currentState.onAnimationEnd, true);
             }
@@ -389,7 +390,7 @@ class StaticStateInfo {
         }
 
         if (!animation) {
-            owner.engine.mLog("WARNING: no animation for state '%s'", name);
+            owner.log("WARNING: no animation for state '%s'", name);
         }
 
         onEndTmp = sc["on_animation_end"];
@@ -422,6 +423,8 @@ class GOSpriteClass {
     StaticStateInfo initState;
 
     float initialHp = float.infinity;
+
+    protected static LogStruct!("game.spriteclass") log;
 
     //xxx class
     this (ReflectCtor c) {

@@ -349,7 +349,7 @@ class RandomJumpAction : SpriteAction {
 }
 
 class RandomJumpActionClass : SpriteActionClass {
-    Vector2f jumpStrength;
+    Vector2f jumpStrength = {100f, -100f};
     float jumpsPerSec = 1.0f;   //probability of a jump, per second
 
     //xxx class
@@ -361,8 +361,7 @@ class RandomJumpActionClass : SpriteActionClass {
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         super.loadFromConfig(eng, node);
-        float[] js = node.getValueArray!(float)("jump_strength",[100,-100]);
-        jumpStrength = Vector2f(js[0],js[1]);
+        jumpStrength = node.getValue("jump_strength", jumpStrength);
         jumpsPerSec = node.getFloatValue("jumps_per_sec",jumpsPerSec);
     }
 

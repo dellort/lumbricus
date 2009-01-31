@@ -95,3 +95,50 @@ public Log findLog(char[] category) {
     }
     return null;
 }
+
+///Stupid proxy that allows to specify the log identifier with the declaration,
+///and have the log created on demand, i.e.
+///  private LogStruct!("mylog") log;
+struct LogStruct(char[] cId) {
+    private Log mLog;
+
+    private void check() {
+        if (!mLog)
+            mLog = registerLog(cId);
+    }
+
+    Log logClass() {
+        check();
+        return mLog;
+    }
+
+    void opCall(...) {
+        writef_ind(true, _arguments, _argptr);
+    }
+
+    void setBackend(Output backend, char[] backend_name) {
+        check();
+        mLog.setBackend(backend, backend_name);
+    }
+
+    char[] category() {
+        return cId;
+    }
+
+    void writef(...) {
+        writef_ind(false, _arguments, _argptr);
+    }
+    void writefln(...) {
+        writef_ind(true, _arguments, _argptr);
+    }
+
+    void writeString(char[] str) {
+        check();
+        mLog.writeString(str);
+    }
+
+    void writef_ind(bool newline, TypeInfo[] arguments, va_list argptr) {
+        check();
+        mLog.writef_ind(newline, arguments, argptr);
+    }
+}

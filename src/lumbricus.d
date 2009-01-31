@@ -84,6 +84,9 @@ void main(char[][] args) {
         return;
     }
 
+    gLogEverything.destination = new StreamOutput(new File("logall.txt",
+        FileMode.In | FileMode.OutNew));
+
     auto fw = new Framework(args[0], APP_ID, cmdargs);
     fw.setCaption("Lumbricus");
 
@@ -98,9 +101,6 @@ void main(char[][] args) {
     if (extradata.length) {
         fw.fs.mount(MountPath.absolute, extradata, "/", false, -1);
     }
-
-    gLogEverything.destination = new StreamOutput(new File("logall.txt",
-        FileMode.OutNew));
 
     new common.Common(cmdargs);
     //installs callbacks to framework, which get called in the mainloop

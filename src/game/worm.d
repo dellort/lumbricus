@@ -291,7 +291,7 @@ class WormSprite : GObjectSprite {
     void beamTo(Vector2f npos) {
         //if (!isSitting())
         //    return; //only can beam when standing
-        engine.mLog("beam to: %s", npos);
+        log("beam to: %s", npos);
         //xxx: check and lock destination
         mBeamDest = npos;
         setState(wsc.st_beaming);
@@ -529,7 +529,7 @@ class WormSprite : GObjectSprite {
         if (!sh || sh.weapon != mWeapon)
             sh = mWeapon.createShooter(this);
 
-        engine.mLog("fire: %s", mWeapon.name);
+        log("fire: %s", mWeapon.name);
 
         FireInfo info;
         if (fixedDir)
@@ -838,7 +838,7 @@ class WormStateInfo : StaticStateInfo {
 
 //the factories work over the sprite classes, so we need one
 class WormSpriteClass : GOSpriteClass {
-    Vector2f jetpackThrust;
+    Vector2f jetpackThrust = {0f, 0f};
     float suicideDamage;
     //SequenceObject[] gravestones;
     Vector2f jumpStrength[JumpMode.max+1];
@@ -863,17 +863,12 @@ class WormSpriteClass : GOSpriteClass {
     }
     override void loadFromConfig(ConfigNode config) {
         super.loadFromConfig(config);
-        float[] jetTh = config.getValueArray!(float)("jet_thrust", [0f,0f]);
-        if (jetTh.length > 1)
-            jetpackThrust = Vector2f(jetTh[0], jetTh[1]);
-        else
-            jetpackThrust = Vector2f(0);
+        jetpackThrust = config.getValue("jet_thrust", jetpackThrust);
         suicideDamage = config.getFloatValue("suicide_damage", 10);
         ropeImpulse = config.getFloatValue("rope_impulse", ropeImpulse);
 
         Vector2f getJs(char[] nid) {
-            float[] js = config.getValueArray!(float)(nid,[100,-100]);
-            return Vector2f(js[0],js[1]);
+            return config.getValue(nid,Vector2f(100,-100));
         }
         jumpStrength[JumpMode.normal] = getJs("jump_st_normal");
         jumpStrength[JumpMode.smallBack] = getJs("jump_st_smallback");

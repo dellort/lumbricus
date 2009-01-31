@@ -770,8 +770,8 @@ class ServerTeamMember : TeamMember, WormController {
     void setLimitedMode() {
         //can only leave this by deactivating
         mLimitedMode = true;
-        mWorm.weapon = null;
         mFireDown = false;
+        updateWeapon();
     }
 
     void jump(JumpMode j) {
@@ -836,7 +836,7 @@ class ServerTeamMember : TeamMember, WormController {
 
         WeaponClass selected;
         if (mCurrentWeapon) {
-            if (!mCurrentWeapon.canUse()) {
+            if (!mCurrentWeapon.canUse() || mLimitedMode) {
                 //nothing, leave selected = null
             } else if (currentWeapon.weapon) {
                 selected = mCurrentWeapon.weapon;
@@ -1027,7 +1027,8 @@ class WeaponSet {
                 auto weapon = new WeaponItem(this, node);
                 weapons[weapon.weapon] = weapon;
             } catch (Exception e) {
-                aengine.mLog("Error in weapon set '"~name~"': "~e.msg);
+                registerLog("game.controller")
+                    ("Error in weapon set '"~name~"': "~e.msg);
             }
         }
     }
@@ -1120,7 +1121,7 @@ class WeaponItem {
 class GameController : GameLogicPublic {
     private {
         GameEngine mEngine;
-        public /+weewee+/ Log mLog;
+        static LogStruct!("game.controller") log;
 
         ServerTeam[] mTeams;
         Team[] mTeams2;
@@ -1159,8 +1160,6 @@ class GameController : GameLogicPublic {
 
     this(GameEngine engine, GameConfig config) {
         mEngine = engine;
-
-        mLog = registerLog("gamecontroller");
 
         if (config.weapons) {
             loadWeaponSets(config.weapons);
@@ -1460,42 +1459,42 @@ class GameController : GameLogicPublic {
             try {
                 mCrateList ~= engine.findWeaponClass(crateItem);
             } catch (Exception e) {
-                engine.mLog("Error in crate list: "~e.msg);
+                log("Error in crate list: "~e.msg);
             }
         }
     }
 
     //create and place worms when necessary
     private void placeWorms() {
-        mLog("placing worms...");
+        log("placing worms...");
 
         foreach (t; mTeams) {
             t.placeMembers();
         }
 
-        mLog("placing worms done.");
+        log("placing worms done.");
     }
 
     private void loadLevelObjects(ConfigNode objs) {
-        mLog("placing level objects");
+        log("placing level objects");
         foreach (ConfigNode sub; objs) {
             auto mode = sub.getStringValue("mode", "unknown");
             if (mode == "random") {
                 auto cnt = sub.getIntValue("count");
-                mLog("count %s type %s", cnt, sub["type"]);
+                log("count %s type %s", cnt, sub["type"]);
                 for (int n = 0; n < cnt; n++) {
                     try {
                         placeOnLandscape(mEngine.createSprite(sub["type"]));
                     } catch {
-                        mLog("Warning: Placing %s objects failed", sub["type"]);
+                        log("Warning: Placing %s objects failed", sub["type"]);
                         continue;
                     }
                 }
             } else {
-                mLog("warning: unknown placing mode: '%s'", sub["mode"]);
+                log("warning: unknown placing mode: '%s'", sub["mode"]);
             }
         }
-        mLog("done placing level objects");
+        log("done placing level objects");
     }
 
     //associate go with member; used i.e. for who-damages-who reporting
@@ -1526,9 +1525,9 @@ class GameController : GameLogicPublic {
         auto m1 = memberFromGameObject(cause, true);
         auto m2 = memberFromGameObject(victim, false);
         if (!m1 || !m2) {
-            mLog("unknown damage %s/%s %s/%s %s", cause, victim, m1, m2, damage);
+            log("unknown damage %s/%s %s/%s %s", cause, victim, m1, m2, damage);
         } else {
-            mLog("worm %s injured %s by %s", m1, m2, damage);
+            log("worm %s injured %s by %s", m1, m2, damage);
         }
     }
 
@@ -1553,7 +1552,7 @@ class GameController : GameLogicPublic {
         Vector2f from, to;
         float water = engine.waterOffset - 10;
         if (!engine.placeObjectRandom(water, 10, 25, from, to)) {
-            mLog("couldn't find a safe drop-position");
+            log("couldn't find a safe drop-position");
             return false;
         }
         auto content = chooseRandomForCrate();
@@ -1571,10 +1570,10 @@ class GameController : GameLogicPublic {
             crate.setPos(from);
             crate.active = true;
             mLastCrate = crate;
-            mLog("drop %s -> %s", from, to);
+            log("drop %s -> %s", from, to);
             return true;
         } else {
-            mLog("failed to create crate contents");
+            log("failed to create crate contents");
         }
         return false;
     }

@@ -296,6 +296,8 @@ class SerializeOutConfig : SerializeConfig {
         return true;
     }
 
+    //queue an object for writing, or return id reference if already written
+    //if this returns an empty string, it means the object is ignored
     private char[] queueObject(Object o) {
         if (o is null) {
             return "null";
@@ -308,7 +310,7 @@ class SerializeOutConfig : SerializeConfig {
         }
         foreach (i; mIgnored) {
             if (o.classinfo is i)
-                return "lolignored";
+                return "";
         }
         auto nid = ++mIDAlloc;
         mObject2Id[o] = nid;
@@ -364,7 +366,9 @@ class SerializeOutConfig : SerializeConfig {
         }
         if (cast(ReferenceType)ptr.type) {
             //object references
-            cur[member] = queueObject(ptr.toObject());
+            char[] id = queueObject(ptr.toObject());
+            if (id != "")
+                cur[member] = id;
             return;
         }
         if (auto st = cast(StructType)ptr.type) {
@@ -424,7 +428,9 @@ class SerializeOutConfig : SerializeConfig {
                 throw new SerializeError("couldn't write delegate, "~what);
             }
             auto sub = cur.getSubNode(member);
-            sub["dg_object"] = queueObject(dg_o);
+            char[] id = queueObject(dg_o);
+            assert(id.length > 0, "Delegate to ignored object not allowed");
+            sub["dg_object"] = id;
             //sub["dg_method"] = dg_m ?
               //  str.format("%s::%s", dg_m.klass.name, dg_m.name) : "null";
             sub["dg_method"] = dg_m ? dg_m.name : "null";

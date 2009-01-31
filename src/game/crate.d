@@ -175,13 +175,13 @@ class CrateSprite : ActionSprite {
         //and normally a non-collecting weapon should just explode here??
         auto member = engine.controller.memberFromGameObject(finder, false);
         if (!member) {
-            engine.mLog("crate %s can't be collected by %s", this, finder);
+            log("crate %s can't be collected by %s", this, finder);
             return;
         }
         //only collect crates when it's your turn
         if (!member.active)
             return;
-        engine.mLog("%s collects crate %s", member, this);
+        log("%s collects crate %s", member, this);
         //transfer stuffies
         foreach (Collectable c; stuffies) {
             engine.controller.messageAdd("collect_item", [member.name(),

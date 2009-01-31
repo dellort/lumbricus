@@ -260,7 +260,6 @@ class Rope : Shooter {
             //Vector2f v = mWorm.physics.velocity;
             //mShootDir = (v + cSecondShotVector).normal;
             shootRope();
-            mSecondShot = false;
         } else {
             //hit button while rope is still flying
             //xxx maybe not

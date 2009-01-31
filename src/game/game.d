@@ -98,7 +98,7 @@ class GameEngine : GameEnginePublic {
         mGameTime.slowDown = s;
     }
 
-    public Log mLog;
+    private static LogStruct!("game.game") log;
     //private PerfTimer mPhysicTime;
 
     private const cSpaceBelowLevel = 150;
@@ -270,7 +270,6 @@ class GameEngine : GameEnginePublic {
         assert(config.level !is null);
         mLevel = config.level;
 
-        mLog = registerLog("gameengine");
         //mPhysicTime = globals.newTimer("game_physic");
 
         mGameTime = new TimeSource();
@@ -460,7 +459,7 @@ class GameEngine : GameEnginePublic {
     void addEarthQuake(float strength, float degrade) {
         physicworld.add(new EarthQuakeDegrader(strength, degrade,
             mEarthQuakeForce));
-        mLog("created earth quake, strength=%s, degrade=%s", strength, degrade);
+        log("created earth quake, strength=%s, degrade=%s", strength, degrade);
     }
 
     void ensureAdded(GameObject obj) {
@@ -691,14 +690,14 @@ class GameEngine : GameEnginePublic {
                 if (placeObjectRandom(waterOffset-10,
                     sprite.physics.posp.radius, 50, tmp, npos, true))
                 {
-                    mLog("placing '%s' in air!", sprite);
+                    log("placing '%s' in air!", sprite);
                 } else {
-                    mLog("couldn't place '%s'!", sprite);
+                    log("couldn't place '%s'!", sprite);
                     //xxx
                     npos = toVector2f(worldSize)/2;
                 }
             }
-            mLog("placed '%s' at %s", sprite, npos);
+            log("placed '%s' at %s", sprite, npos);
             sprite.setPos(npos);
             sprite.active = true;
         }
@@ -712,7 +711,7 @@ class GameEngine : GameEnginePublic {
         auto a = cast(GameObject)cause;
         auto b = cast(GameObject)victim;
         if (!a || !b) {
-            mLog("WARNING: unknown damage: %s %s %s", cause, victim, damage);
+            log("WARNING: unknown damage: %s %s %s", cause, victim, damage);
         } else {
             mController.reportViolence(a, b, damage);
         }
@@ -803,7 +802,7 @@ class GameEngine : GameEnginePublic {
     void activityDebug(char[] mode = "") {
         bool all = (mode == "all");
         bool fix = (mode == "fix");
-        mLog("-- Active game objects:");
+        log("-- Active game objects:");
         int i;
         foreach (GameObject o; mObjects) {
             char[] sa = "Dormant ";
@@ -821,13 +820,13 @@ class GameEngine : GameEnginePublic {
                 if (!all) continue;
             }
             if (cast(GObjectSprite)o) {
-                mLog("%s%s at %s in state %s", sa, o.toString(),
+                log("%s%s at %s in state %s", sa, o.toString(),
                     (cast(GObjectSprite)o).physics.pos,
                     (cast(GObjectSprite)o).currentState.name);
             } else {
-                mLog("%s%s", sa, o.toString());
+                log("%s%s", sa, o.toString());
             }
         }
-        mLog("-- %s objects reporting activity",i);
+        log("-- %s objects reporting activity",i);
     }
 }

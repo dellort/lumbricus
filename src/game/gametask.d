@@ -386,10 +386,6 @@ class GameTask : Task {
             auto rnd = new Random();
             rnd.state = mSavedRandomSeed;
             mSaveGame.addExternal(rnd, "random");
-            //sucks, need other solution etc.
-            mSaveGame.addExternal(registerLog("gameengine"), "engine_log");
-            mSaveGame.addExternal(registerLog("gamecontroller"), "controller_log");
-            mSaveGame.addExternal(registerLog("physlog"), "physic_log");
             //
             mServerEngine = mSaveGame.readObjectT!(GameEngine)();
             mGame = mServerEngine;
@@ -627,10 +623,6 @@ class GameTask : Task {
         writer.addExternal(engine.gameTime, "gametime");
         //random seed saved in sg2.randomstate
         writer.addExternal(engine.rnd, "random");
-        //no, this can't be done so, another solution is needed
-        writer.addExternal(engine.mLog, "engine_log");
-        writer.addExternal(engine.controller.mLog, "controller_log");
-        writer.addExternal(engine.physicworld.mLog, "physic_log");
         //actually serialize
         writer.writeObject(engine);
         //loading: based on sg2.config, load all required resources; recreate

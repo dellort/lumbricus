@@ -11,6 +11,7 @@ import utils.configfile;
 import utils.randval;
 import utils.reflection;
 public import utils.mybox;
+import utils.log;
 
 class ActionClassFactory : StaticFactory!(ActionClass)
 {
@@ -80,7 +81,7 @@ ActionClass actionFromConfig(GameEngine eng, ConfigNode node) {
         ac.loadFromConfig(eng, node);
         return ac;
     } else {
-        eng.mLog("Action type "~type~" not found.");
+        registerLog("game.action")("Action type "~type~" not found.");
         return null;
     }
 }
@@ -362,6 +363,7 @@ enum ActionRes {
 abstract class Action : GameObject {
     private ActionClass myclass;
     private bool mActivity;
+    protected static LogStruct!("game.action") log;
 
     ActionContext context;
     void delegate(Action sender) onExecute;

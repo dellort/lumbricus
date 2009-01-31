@@ -5,6 +5,7 @@ import utils.list2;
 import utils.vector2;
 import utils.misc: min, max;
 import utils.reflection;
+import utils.log;
 
 import physics.base;
 import physics.posp;
@@ -21,6 +22,7 @@ class PhysicObject : PhysicBase {
     package ListNode objects_node;
 
     private POSP mPosp;
+    private static LogStruct!("physics.obj") log;
 
     this() {
         //
@@ -104,7 +106,7 @@ class PhysicObject : PhysicBase {
     /+private+/ void doUnglue() {
         if (!isGlued)
             return;
-        version(PhysDebug) world.mLog("unglue object %s", this);
+        version(PhysDebug) log("unglue object %s", this);
         //he flies away! arrrgh!
         mIsGlued = false;
         //mWalkingMode = false; (no! object _wants_ to walk, and continue
@@ -382,7 +384,7 @@ class PhysicObject : PhysicBase {
 
     void applyDamage(float severity, int cause) {
         auto delta = -severity*posp.damageable;
-        //world.mLog("damage: %s/%s", severity, delta);
+        //log("damage: %s/%s", severity, delta);
         if (abs(delta) > posp.damageThreshold) {
             lifepower += delta;
             //make sure object is dead if lifepowerInt() reports <= 0
@@ -459,7 +461,7 @@ class PhysicObject : PhysicBase {
 
             //must stand on surface when walking
             if (!isGlued) {
-                world.mLog("no walk because not glued");
+                log("no walk because not glued");
                 return;
             }
 
@@ -478,18 +480,18 @@ class PhysicObject : PhysicBase {
                     contact);
 
                 if (!res) {
-                    world.mLog("walk at %s -> %s", npos, npos-mPos);
+                    log("walk at %s -> %s", npos, npos-mPos);
                     //no collision, consider this to be bottom
 
                     auto oldpos = pos;
 
                     if (first) {
                         //even first tested location => most bottom, fall
-                        world.mLog("walk: fall-bottom");
+                        log("walk: fall-bottom");
                         mPos += walkDist;
                         doUnglue();
                     } else {
-                        world.mLog("walk: bottom at %s", y);
+                        log("walk: bottom at %s", y);
                         //walk to there...
                         if (mPosp.walkLimitSlopeSpeed) {
                             //one pixel at a time, even on steep slopes

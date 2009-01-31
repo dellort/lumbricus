@@ -10,7 +10,7 @@ import utils.random;
 import utils.reflection;
 import utils.time;
 import utils.vector2;
-import log = utils.log;
+import utils.log;
 import utils.output;
 
 public import physics.base;
@@ -46,7 +46,7 @@ class PhysicWorld {
     private Contact[] mContacts;
     private int mContactCount;
 
-    /+package+/ log.Log mLog;
+    private static LogStruct!("physics") log;
     Random rnd;
     CollisionMap collide;
 
@@ -438,6 +438,5 @@ class PhysicWorld {
         mTriggers = new List2!(PhysicTrigger)();
         mContactGenerators = new List2!(PhysicContactGen)();
         mContacts.length = 1024;  //xxx arbitrary number
-        mLog = log.registerLog("physlog");
     }
 }

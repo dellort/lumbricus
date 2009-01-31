@@ -1231,7 +1231,7 @@ class SDLCanvas : Canvas {
         uint c = toSDLColor(color);
         Vector2f d = Vector2f((to-from).x,(to-from).y);
         Vector2f old = toVector2f(from + mTrans);
-        int n = cast(int)(math.fmax(math.fabs(d.x), math.fabs(d.y)));
+        int n = cast(int)(max(math.fabs(d.x), math.fabs(d.y)));
         d = d / cast(float)n;
         for (int i = 0; i < n; i++) {
             int px = cast(int)(old.x+0.5f);

@@ -866,8 +866,7 @@ class LandscapeLexels {
 
     void loadFrom(ConfigNode node) {
         //levelData = cast(Lexel[])node.getByteArrayValue("data");
-        int[] size_ar = node.getValueArray("size", [0, 0]);
-        size.x = size_ar[0]; size.y = size_ar[1];
+        size = node.getValue("size", size);
         if (size.x == 0 || size.y == 0 || levelData.length % 2 != 0) {
             throw new Exception("Pregenerated level failed to load");
         }
@@ -876,7 +875,7 @@ class LandscapeLexels {
     }
 
     void saveTo(ConfigNode node) {
-        node.setValueArray("size", [size.x, size.y]);
+        node.setValue("size", size);
         node.setStringValue("data", rleEncode(levelData));
         //node.setByteArrayValue("data", cast(ubyte[])levelData, true);
     }

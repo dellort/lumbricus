@@ -143,7 +143,7 @@ class BeamAction : WeaponAction {
             else
                 mDest = mFireInfo.info.pointto;
             //WormSprite.beamTo does all the work, just wait for it to finish
-            engine.mLog("start beaming");
+            log("start beaming");
             mWorm.beamTo(mDest);
             return ActionRes.moreWork;
         } else {
@@ -156,7 +156,7 @@ class BeamAction : WeaponAction {
         super.simulate(deltaT);
         if (!mWorm.isBeaming) {
             //beaming is over, finish
-            engine.mLog("end beaming");
+            log("end beaming");
             mWorm = null;
             done();
         }

@@ -195,7 +195,7 @@ struct ExplosionSettings {
             comicText[i] = res.resource!(Animation)(resid);
         }
 
-        int[] st = conf.getValueArray!(int)("sizetreshold",sizeTreshold);
+        int[] st = conf.getValue("sizetreshold",sizeTreshold);
         if (st.length >= 4)
             sizeTreshold = st;
     }

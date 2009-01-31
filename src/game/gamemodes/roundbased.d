@@ -14,11 +14,13 @@ import utils.reflection;
 import utils.time;
 import utils.misc;
 import utils.mybox;
+import utils.log;
 
 class ModeRoundbased : Gamemode {
     private {
         RoundState mCurrentRoundState = RoundState.waitForSilence;
         Time mWaitStart;
+        static LogStruct!("gamemodes.roundbased") log;
 
         //time a round takes
         Time mTimePerRound;
@@ -198,7 +200,7 @@ class ModeRoundbased : Gamemode {
 
     private void transition(RoundState st) {
         assert(st != mCurrentRoundState);
-        logic.mLog("state transition %s -> %s", cast(int)mCurrentRoundState,
+        log("state transition %s -> %s", cast(int)mCurrentRoundState,
             cast(int)st);
         mCurrentRoundState = st;
         switch (st) {
@@ -221,7 +223,7 @@ class ModeRoundbased : Gamemode {
                 currentTeam = next;
                 if (mAllowSelect)
                     mCurrentTeam.allowSelect = true;
-                logic.mLog("active: %s", next);
+                log("active: %s", next);
 
                 break;
             case RoundState.playing:

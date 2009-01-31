@@ -33,7 +33,7 @@ struct SpawnParams {
                               //else use values below
     bool backFire = false;  //spawn projectiles away from surface
                             //overrides  */
-    Vector2f direction;  //intial moving direction, affects spawn point
+    Vector2f direction ={0f, -1f};//intial moving direction, affects spawn point
     float strength = 0;  //initial moving speed into above direction
     char[] initState = "";  //override sprite initstate (careful with that)
 
@@ -55,8 +55,7 @@ struct SpawnParams {
             default:
                 initVelocity = InitVelocity.parent;
         }
-        float[] dirv = config.getValueArray!(float)("direction", [0, -1]);
-        direction = Vector2f(dirv[0], dirv[1]);
+        direction = config.getValue("direction", direction);
         strength = config.getFloatValue("strength_value", strength);
         initState = config.getStringValue("initstate", initState);
         return true;
