@@ -2,6 +2,7 @@ module game.gametask;
 
 import common.common;
 import common.task;
+import common.loadsave;
 import framework.resources;
 import framework.resset;
 import framework.commandline;
@@ -108,7 +109,7 @@ Level fuzzleLevel(Level level) {
     return rlevel;
 }
 
-class GameTask : Task {
+class GameTask : StatefulTask {
     private {
         GameConfig mGameConfig;
         GameEngine mServerEngine; //can be null, if a client in a network game!
@@ -204,6 +205,13 @@ class GameTask : Task {
         doInit();
     }
 
+    this(TaskManager tm, TarArchive savedState) {
+        super(tm);
+
+        createWindow();
+        initFromSave(savedState);
+    }
+
     private void createWindow() {
         mWindow = new SimpleContainer();
         auto wnd = gWindowManager.createWindowFullscreen(this, mWindow,
@@ -226,83 +234,81 @@ class GameTask : Task {
     //start game intialization
     //it's not clear when initialization is finished (but it shows a loader gui)
     private void initGame(GameConfig cfg) {
-        if (!cfg.load_savegame) {
-            mGameConfig = cfg;
+        mGameConfig = cfg;
 
-            //save last played level functionality
-            if (mGameConfig.level.saved) {
-                saveConfig(mGameConfig.level.saved, "lastlevel.conf");
-            }
-
-            mGameConfig.level = fuzzleLevel(mGameConfig.level);
-        } else {
-            scope st = gFramework.fs.open(cfg.load_savegame, FileMode.In);
-            scope tehfile = new TarArchive(st, true);
-
-            //------ bitmaps
-            LandscapeBitmap[] bitmaps;
-            int bmp_count;
-            for (;;) {
-                ZReader reader = tehfile.openReadStream(str.format("bitmap_%s",
-                    bitmaps.length), true);
-                if (!reader)
-                    break;
-                //xxx: idea: write the bitmap as a png; this either can be an
-                //     uncompressed png stored as a .gz stream, or a png that
-                //     just deflates scanlines or so (it's probably possible,
-                //     but I don't know png good enough)
-                //     the loader code can use gFramework.loadImage() (but that
-                //     requires a seekable stream)
-                BmpHeader bheader;
-                reader.read_ptr(&bheader, bheader.sizeof);
-                auto size = Vector2i(bheader.sx, bheader.sy);
-                //xxx: transparency, colorkey?
-                Surface s = gFramework.createSurface(size, Transparency.Colorkey);
-                LandscapeBitmap lb = new LandscapeBitmap(s, false);
-                bitmaps ~= lb;
-                auto lexels = lb.levelData();
-                reader.read_ptr(lexels.ptr, Lexel.sizeof*lexels.length);
-                void* pixels;
-                uint pitch;
-                s.lockPixelsRGBA32(pixels, pitch);
-                uint linesize = size.x*uint.sizeof;
-                for (int i = 0; i < size.y; i++) {
-                    reader.read_ptr(pixels, linesize);
-                    pixels += pitch;
-                }
-                s.unlockPixels(Rect2i(size));
-                reader.close();
-            }
-
-            //------- game data
-            ZReader reader = tehfile.openReadStream("gamedata.conf");
-            ConfigNode savegame = reader.readConfigFile();
-            serialize_types.registerClass!(SaveGameHeader);
-            auto ctx = new SerializeContext(serialize_types);
-            mSaveGame = new SerializeInConfig(ctx, savegame);
-            auto sg = mSaveGame.readObjectT!(SaveGameHeader)();
-            auto configfile = new ConfigFile(sg.config, "gamedata.conf", null);
-            mGameConfig = new GameConfig();
-            mGameConfig.load(configfile.rootnode());
-            auto gen = new GenerateFromSaved(new LevelGeneratorShared(),
-                mGameConfig.saved_level);
-            //false parameter prevents re-rendering
-            Level level = gen.render(false);
-            mGameConfig.level = level;
-            mSaveGame.addExternal(level, "level");
-            mSaveGame.addExternal(mGameConfig, "gameconfig");
-            mSavedTime = sg.gametime;
-            mSavedRandomSeed = sg.randomstate;
-            //urgh
-            foreach (int n, LandscapeBitmap lb; bitmaps) {
-                mSaveGame.addExternal(lb, str.format("landscape_%s", n));
-            }
-            mSavedViewPosition = sg.viewpos;
-            mSavedSetViewPosition = true;
-
-            reader.close();
-            tehfile.close();
+        //save last played level functionality
+        if (mGameConfig.level.saved) {
+            saveConfig(mGameConfig.level.saved, "lastlevel.conf");
         }
+
+        mGameConfig.level = fuzzleLevel(mGameConfig.level);
+
+        doInit();
+    }
+
+    private void initFromSave(TarArchive tehfile) {
+        //------ bitmaps
+        LandscapeBitmap[] bitmaps;
+        int bmp_count;
+        for (;;) {
+            ZReader reader = tehfile.openReadStream(str.format("bitmap_%s",
+                bitmaps.length), true);
+            if (!reader)
+                break;
+            //xxx: idea: write the bitmap as a png; this either can be an
+            //     uncompressed png stored as a .gz stream, or a png that
+            //     just deflates scanlines or so (it's probably possible,
+            //     but I don't know png good enough)
+            //     the loader code can use gFramework.loadImage() (but that
+            //     requires a seekable stream)
+            BmpHeader bheader;
+            reader.read_ptr(&bheader, bheader.sizeof);
+            auto size = Vector2i(bheader.sx, bheader.sy);
+            //xxx: transparency, colorkey?
+            Surface s = gFramework.createSurface(size, Transparency.Colorkey);
+            LandscapeBitmap lb = new LandscapeBitmap(s, false);
+            bitmaps ~= lb;
+            auto lexels = lb.levelData();
+            reader.read_ptr(lexels.ptr, Lexel.sizeof*lexels.length);
+            void* pixels;
+            uint pitch;
+            s.lockPixelsRGBA32(pixels, pitch);
+            uint linesize = size.x*uint.sizeof;
+            for (int i = 0; i < size.y; i++) {
+                reader.read_ptr(pixels, linesize);
+                pixels += pitch;
+            }
+            s.unlockPixels(Rect2i(size));
+            reader.close();
+        }
+
+        //------- game data
+        ZReader reader = tehfile.openReadStream("gamedata.conf");
+        ConfigNode savegame = reader.readConfigFile();
+        serialize_types.registerClass!(SaveGameHeader);
+        auto ctx = new SerializeContext(serialize_types);
+        mSaveGame = new SerializeInConfig(ctx, savegame);
+        auto sg = mSaveGame.readObjectT!(SaveGameHeader)();
+        auto configfile = new ConfigFile(sg.config, "gamedata.conf", null);
+        mGameConfig = new GameConfig();
+        mGameConfig.load(configfile.rootnode());
+        auto gen = new GenerateFromSaved(new LevelGeneratorShared(),
+            mGameConfig.saved_level);
+        //false parameter prevents re-rendering
+        Level level = gen.render(false);
+        mGameConfig.level = level;
+        mSaveGame.addExternal(level, "level");
+        mSaveGame.addExternal(mGameConfig, "gameconfig");
+        mSavedTime = sg.gametime;
+        mSavedRandomSeed = sg.randomstate;
+        //urgh
+        foreach (int n, LandscapeBitmap lb; bitmaps) {
+            mSaveGame.addExternal(lb, str.format("landscape_%s", n));
+        }
+        mSavedViewPosition = sg.viewpos;
+        mSavedSetViewPosition = true;
+
+        reader.close();
 
         doInit();
     }
@@ -480,9 +486,23 @@ class GameTask : Task {
         mLoadScreen.remove();
     }
 
+    private void unloadAndReset() {
+        unloadGame();
+        if (mWindow) mWindow.remove();
+        mWindow = null;
+        mGameConfig = mGameConfig.init;
+        mGfx = null;
+        if (mLoadScreen) mLoadScreen.remove();
+        mLoadScreen = null;
+        mGameLoader = null;
+        mResPreloader = null;
+        mSaveGame = null;
+        mControl = null;
+    }
+
     override protected void onKill() {
         //smash it up (forced kill; unforced goes into terminate())
-        unloadGame();
+        unloadAndReset();
         mCmds.kill();
         if (mGameFrame)
             mGameFrame.remove(); //from GUI
@@ -558,7 +578,8 @@ class GameTask : Task {
         doFade();
     }
 
-    void saveGame(TarArchive tehfile) {
+    //implements StatefulTask
+    override void saveState(TarArchive tehfile) {
         if (!mServerEngine)
             throw new Exception("can't save network game as client");
         GameEngine engine = mServerEngine;
@@ -658,13 +679,6 @@ class GameTask : Task {
         mCmds.register(Command("show_collide", &cmdShowCollide, "show collision"
             " bitmaps"));
         mCmds.register(Command("ser_dump", &cmdSerDump, "serialiation dump"));
-        mCmds.register(Command("savetest", &cmdSaveTest, "save and reload"));
-        mCmds.register(Command("save", &cmdSaveGame, "save game",
-            ["text?:name of the savegame (/savegames/<name>.conf)"]));
-        Command load = Command("load", &cmdLoadGame, "load game",
-            ["text?:name of the savegame, if none given, list all available"]);
-        load.setCompletionHandler(0, &listSavegames);
-        mCmds.register(load);
         mCmds.register(Command("snap", &cmdSnapTest, "snapshot test",
             ["int:1=store, 2=load, 3=store+load"]));
         mCmds.register(Command("server", &cmdExecServer,
@@ -805,83 +819,14 @@ class GameTask : Task {
         //saveConfig(cfg, "savegame.conf");
     }
 
-    private void cmdSaveTest(MyBox[] args, Output write) {
-        doSave("test_temp");
-        doLoad("test_temp");
-    }
+    const cSaveId = "lumbricus";
 
-    private void unloadResetAndRestart(GameConfig cfg) {
-        unloadGame();
-        if (mWindow) mWindow.remove();
-        mWindow = null;
-        mGameConfig = mGameConfig.init;
-        mGfx = null;
-        if (mLoadScreen) mLoadScreen.remove();
-        mLoadScreen = null;
-        mGameLoader = null;
-        mResPreloader = null;
-        mSaveGame = null;
-        mControl = null;
-        createWindow(); //???
-        initGame(cfg);
-    }
-
-    void doSave(char[] name) {
-        //xxx detect invalid characters in name etc., but not now
-        char[] path = cSavegamePath ~ name ~ cSavegameExt;
-        //ConfigNode saved = saveGame();
-        //saveConfigGz(saved, path);
-        scope st = gFramework.fs.open(path, FileMode.OutNew);
-        scope writer = new TarArchive(st, false);
-        saveGame(writer);
-        writer.close();
-    }
-
-    bool doLoad(char[] name) {
-        GameConfig ncfg;
-        if (!loadSavegame(name, ncfg))
-            return false;
-        //xxx catch exceptions etc.
-        unloadResetAndRestart(ncfg);
-        return true;
-    }
-
-    char[][] listSavegames() {
-        return listAvailableSavegames();
-    }
-
-    private void cmdSaveGame(MyBox[] args, Output write) {
-        auto name = args[0].unboxMaybe!(char[]);
-        if (name.length == 0) {
-            //guess name
-            int i = 1;
-            while (gFramework.fs.exists(VFSPath(cSavegamePath
-                ~ cSavegameDefName ~ str.toString(i) ~ cSavegameExt)))
-                i++;
-            name = cSavegameDefName ~ str.toString(i);
-        }
-        doSave(name);
-        write.writefln("saved game as '%s'.",name);
-    }
-
-    private void cmdLoadGame(MyBox[] args, Output write) {
-        auto name = args[0].unboxMaybe!(char[]);
-        if (name == "") {
-            //list all savegames
-            write.writefln("Savegames:");
-            foreach (s; listSavegames()) {
-                write.writefln("  %s", s);
-            }
-            write.writefln("done.");
-        } else {
-            write.writefln("Loading: %s", name);
-            bool success = doLoad(name);
-            if (!success)
-                write.writefln("loading failed!");
-        }
+    override char[] saveId() {
+        return cSaveId;
     }
 
     static this() {
         TaskFactory.register!(typeof(this))("game");
+        StatefulFactory.register!(typeof(this))(cSaveId);
     }
 }

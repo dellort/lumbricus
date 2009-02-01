@@ -81,7 +81,6 @@ class GameConfig {
 
     void load(ConfigNode n) {
         level = null;
-        load_savegame = null;
         saved_level = n.getSubNode("level");
         teams = n.getSubNode("teams");
         weapons = n.getSubNode("weapons");
@@ -95,9 +94,6 @@ class GameConfig {
     //it doesn't really affect the game itself, but rather how it's started
 
     bool as_pseudo_server;
-
-    //xxx hack that was convenient BUT MUST DIE PLEASE KILL ME
-    char[] load_savegame; //now a filename
 }
 
 //for now, these are concrete classes...

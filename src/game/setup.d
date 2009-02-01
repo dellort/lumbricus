@@ -10,10 +10,7 @@ import game.levelgen.level;
 import game.levelgen.generator;
 import utils.configfile;
 import utils.misc;
-
-const cSavegamePath = "/savegames/";
-const cSavegameExt = ".tar";
-const cSavegameDefName = "save";
+import utils.archive;
 
 //xxx doesn't really belong here
 //not to be called by GameTask; instead, anyone who wants to start a game can
@@ -27,7 +24,7 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
         cfg.level = level;
     } else {
         int what = mConfig.selectValueFrom("level",
-            ["generate", "load", "loadbmp", "restore"], 0);
+            ["generate", "load", "loadbmp"], 0);
         auto x = new LevelGeneratorShared();
         if (what == 0) {
             auto gen = new GenerateFromTemplate(x, cast(LevelTemplate)null);
@@ -41,10 +38,6 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
             gen.bitmap(gFramework.loadImage(fn), fn);
             gen.selectTheme(x.themes.findRandom(mConfig["level_gfx"]));
             cfg.level = gen.render();
-        } else if (what == 3) {
-            //cfg.load_savegame = gFramework.loadConfig(mConfig["level_restore"]);
-            cfg.load_savegame = mConfig["level_restore"];
-            return cfg;
         } else {
             //wrong string in configfile or internal error
             throw new Exception("noes noes noes!");
@@ -73,29 +66,4 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
     }
 
     return cfg;
-}
-
-char[][] listAvailableSavegames() {
-    char[][] list;
-    gFramework.fs.listdir(cSavegamePath, "*", false,
-        (char[] filename) {
-            if (endsWith(filename, cSavegameExt)) {
-                list ~= filename[0 .. $ - cSavegameExt.length];
-            }
-            return true;
-        }
-    );
-    return list;
-}
-
-bool loadSavegame(char[] save, out GameConfig cfg) {
-    cfg = new GameConfig();
-    /+auto saved = gFramework.loadConfig(cSavegamePath~save,
-        false, true);
-    if (!saved)
-        return false;
-    if (!saved.getSubNode("serialized", false))
-        return false;+/
-    cfg.load_savegame = cSavegamePath ~ save ~ cSavegameExt;
-    return true;
 }

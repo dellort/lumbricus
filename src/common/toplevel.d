@@ -15,6 +15,7 @@ import gui.container;
 import gui.console;
 import gui.wm;
 import common.common;
+import common.loadsave;
 import framework.resources;
 import common.task;
 import utils.time;
@@ -69,6 +70,8 @@ private:
     int mLastTimerStatsFrames;
     bool mLastTimerInitialized;
     int mTimerStatsGeneration;
+
+    LoadSaveHandler mLoadSave;
 
     void onFrameEnd() {
         mFrameTime.stop();
@@ -139,6 +142,8 @@ private:
         initConsole();
 
         taskManager = new TaskManager();
+
+        mLoadSave = new LoadSaveHandler(taskManager);
 
         gWindowManager = new WindowManager(mGui);
 

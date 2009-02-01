@@ -274,6 +274,8 @@ class TarArchive {
     }
 
     void close() {
+        if (!mFile)
+            return;
         if (!mReading) {
             finishLastFile();
             //write all headers

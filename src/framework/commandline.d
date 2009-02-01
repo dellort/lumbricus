@@ -88,12 +88,12 @@ public class Command {
                 have_def = true;
             }
 
-            //on of ... or ? (they're mutual anyway)
+            //on of ... or ?, or both
             bool isTextArgument;
-             if (arg.length > 4 && arg[$-3..$] == "...") {
+            if (arg.length > 4 && arg[$-3..$] == "...") {
                 isTextArgument = true;
                 arg = arg[0..$-3];
-             }
+            }
             bool isOptional;
             if (arg.length > 1 && arg[$-1] == '?') {
                 isOptional = true;

@@ -305,24 +305,19 @@ class FileSystem {
     }
 
     ///Return path to application's executable file, with trailing '/'
-    ///XXX test this on Linux
     protected char[] getAppPath(char[] arg0) {
         char[] appPath;
-        version(Windows) {
-            //win: args[0] contains full path to executable
-            appPath = path.getDirName(arg0);
+        //on win and lin, args[0] is the (sometimes relative to cwd, sometimes
+        //  absolute) path to the executable
+        char[] curDir = addTrailingPathDelimiter(stdf.getcwd());
+        char[] dirname = path.getDirName(arg0);
+        if (path.isabs(dirname)) {
+            //sometimes, the path is absolute
+            appPath = dirname;
+        } else if (dirname != ".") {
+            appPath = curDir ~ dirname;
         } else {
-            //lin: args[0] is relative to current directory
-            char[] curDir = addTrailingPathDelimiter(stdf.getcwd());
-            char[] dirname = path.getDirName(arg0);
-            if (dirname.length > 0 && dirname[0] == path.sep[0]) {
-                //sometimes, the path is absolute
-                appPath = dirname;
-            } else if (dirname != ".") {
-                appPath = curDir ~ dirname;
-            } else {
-                appPath = curDir;
-            }
+            appPath = curDir;
         }
 
         appPath = addTrailingPathDelimiter(appPath);
@@ -655,6 +650,27 @@ class FileSystem {
             }
         }
         return false;
+    }
+
+    ///get a unique (non-existing) filename in path with extension ext
+    ///if the file already exists, either replace %s with or append 2,3 etc.
+    char[] getUniqueFilename(char[] path, char[] nameTemplate, char[] ext,
+        out int tries)
+    {
+        const cValidChars = "-+!.,;a-zA-Z0-9()[]";
+
+        char[] fn = str.format(nameTemplate, "");
+        char[] ret;
+        int i = 2;
+        //detect invalid characters in name by str.tr
+        while (exists(ret = path
+            ~ str.tr(fn, cValidChars, "_", "c") ~ ext))
+        {
+            fn = str.format(nameTemplate, i);
+            i++;
+        }
+        tries = i-1;
+        return ret;
     }
 
     package static void registerHandler(MountPointHandler h) {

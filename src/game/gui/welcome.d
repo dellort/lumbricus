@@ -5,6 +5,7 @@ import framework.commandline;
 import framework.i18n;
 import common.task;
 import common.common;
+import common.loadsave;
 import gui.widget;
 import gui.container;
 import gui.button;
@@ -14,11 +15,7 @@ import gui.tablecontainer;
 import gui.wm;
 import gui.loader;
 import gui.list;
-import game.gamepublic;
-import game.gametask;
-import game.gui.preview;
-//import game.gui.leveledit;
-import game.setup;
+import game.gametask;  //xxx
 
 //xxx this maybe shouldn't be here
 class CommandButton : Button {
@@ -104,12 +101,13 @@ class LoadGameTask : Task {
         Widget mLoadGame;
         Window mLoadWindow;
         StringListWidget mLoadList;
+        SavegameData[] mSaves;
     }
 
     this(TaskManager tm) {
         super(tm);
-        char[][] saves = listAvailableSavegames();
-        if (saves.length > 0) {
+        mSaves = listAvailableSavegames();
+        if (mSaves.length > 0) {
             auto loader = new LoadGui(gFramework.loadConfig("loadgame_gui"));
             loader.load();
 
@@ -119,7 +117,11 @@ class LoadGameTask : Task {
             loader.lookup!(Button)("cancel").onClick = &loadCancel;
             mLoadList = loader.lookup!(StringListWidget)("loadlist");
 
-            mLoadList.setContents(saves);
+            char[][] saveNames;
+            foreach (ref s; mSaves) {
+                saveNames ~= s.toString();
+            }
+            mLoadList.setContents(saveNames);
             //select the first entry
             mLoadList.selectedIndex = 0;
             mLoadWindow = gWindowManager.createWindow(this, mLoadGame,
@@ -133,12 +135,8 @@ class LoadGameTask : Task {
     void loadOK(Button sender) {
         if (mLoadList.selectedIndex < 0)
             return;
-        GameConfig cfg;
-        if (loadSavegame(mLoadList.contents[mLoadList.selectedIndex],cfg)) {
-            //xxx see above
-            new GameTask(manager, cfg);
+        if (mSaves[mLoadList.selectedIndex].load())
             mLoadWindow.destroy;
-        }
     }
 
     void loadCancel(Button sender) {
