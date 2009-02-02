@@ -241,7 +241,7 @@ final class BitStream {
     }
 }
 
-debug import stdx.stdio;
+debug import tango.io.Stdout;
 
 unittest {
     BitStream s = new BitStream();
@@ -307,5 +307,5 @@ unittest {
     s.bitPos = 0;
     assert(s.readSigned!(int)(4) == -5);
 
-    debug writefln("bitstream.d unittest: passed.");
+    debug Stdout.formatln("bitstream.d unittest: passed.");
 }

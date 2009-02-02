@@ -27,7 +27,7 @@ import framework.framework;
 import framework.keysyms;
 import framework.timesource;
 import framework.resset;
-import stdx.math;
+import tango.math.Math;
 
 import game.levelgen.renderer;// : LandscapeBitmap;
 

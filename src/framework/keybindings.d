@@ -5,7 +5,7 @@ import config = utils.configfile;
 import utils.vector2;
 import str = stdx.string;
 
-debug import stdx.stdio;
+debug import tango.io.Stdout;
 
 /// Map key combinations to IDs (strings).
 public class KeyBindings {
@@ -181,7 +181,7 @@ public class KeyBindings {
                 key = v.value;
             }
             if (!addBinding(cmd, str.tolower(key))) {
-                debug writefln("could not bind '%s' '%s'", cmd, key);
+                debug Stdout.formatln("could not bind '{}' '{}'", cmd, key);
             }
         }
     }

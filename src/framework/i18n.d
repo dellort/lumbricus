@@ -5,7 +5,7 @@ import utils.configfile;
 import utils.log;
 import stdx.format;
 import stdx.string;
-import stdx.conv;
+import tango.util.Convert;
 
 //NOTE: because normal varargs suck infinitely in D (you have to deal with
 //    _arguments and _argptr), and because it's not simple to convert these
@@ -228,8 +228,8 @@ private char[] trivialFormat(char[] text, char[][] t) {
             //interpret format string: currently it contains a number only
             int s;
             try {
-                s = toInt(formatstr);
-            } catch (ConvError e) {
+                s = to!(int)(formatstr);
+            } catch (ConversionException e) {
                 return "ERROR: invalid number: '" ~ formatstr ~ "'!";
             }
             if (s < 0 || s >= t.length) {

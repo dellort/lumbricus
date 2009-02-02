@@ -1,6 +1,6 @@
 module utils.snapshot;
 
-import stdx.stdio;
+import tango.io.Stdout;
 import utils.perf;
 import utils.reflection;
 import utils.misc;
@@ -295,7 +295,7 @@ void snap(Types serTypes, Object snapObj) {
                 D_Delegate* dgp = cast(D_Delegate*)dp.ptr;
                 char[] what = "enable version debug to see why";
                 debug {
-                    writefln("hello, serialize.d might crash here.");
+                    Stdout.formatln("hello, serialize.d might crash here.");
                     what = str.format("dest-class: %s function: %#x",
                         (cast(Object)dgp.ptr).classinfo.name, dgp.funcptr);
                 }
@@ -329,7 +329,7 @@ void snap(Types serTypes, Object snapObj) {
     }
 
     timer.stop();
-    writefln("t=%s, oc=%s, ls=%s, size=%s (%s)",
+    Stdout.formatln("t={}, oc={}, ls={}, size={} ({})",
         timer.time, snap_last_object, lookups, sizeToHuman(snap_cur),
         sizeToHuman(snap_data.length));
 }
@@ -448,5 +448,5 @@ void unsnap(Types serTypes) {
     }
 
     timer.stop();
-    writefln("t=%s", timer.time);
+    Stdout.formatln("t={}", timer.time);
 }

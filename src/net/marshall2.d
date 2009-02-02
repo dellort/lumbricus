@@ -305,7 +305,7 @@ void unserialize(T)(NetReader rd, ref T data) {
     marshall.read(rd, &data, &def);
 }
 
-debug import std.stdio;
+debug import tango.io.Stdout;
 debug struct Test {
     int a = 1;
     char b = 2;
@@ -351,5 +351,5 @@ unittest {
         "s[int.char.byte.uint.ubyte.short.long.ulong.ushort.bool"
         ".s[int.A[6/short].].float.]");
 
-    debug writefln("net.marshall2 unittest passed.");
+    debug Stdout.formatln("net.marshall2 unittest passed.");
 }

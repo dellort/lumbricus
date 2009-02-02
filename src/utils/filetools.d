@@ -1,23 +1,21 @@
 module utils.filetools;
 
-import stdf = stdx.file;
-import path = stdx.path;
+import tango.io.model.IFile : FileConst;
+import path = tango.io.Path;
 
 void remove_dir(char[] dirpath) {
     try {
-        char[][] files = stdf.listdir(dirpath);
-        foreach (f; files) {
-            char[] fullpath = dirpath~path.sep~f;
-            if (stdf.isdir(fullpath))
-                remove_dir(fullpath);
+        foreach (f; path.children(dirpath)) {
+            if (f.folder)
+                remove_dir(f.path ~ f.name);
             else
-                stdf.remove(fullpath);
+                path.remove(f.path ~ f.name);
         }
-        stdf.remove(dirpath);
+        path.remove(dirpath);
     } catch {}
 }
 
 void trymkdir(char[] dir) {
-    try { stdf.mkdir(dir); } catch {}
+    try { path.createFolder(dir); } catch {}
 }
 

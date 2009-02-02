@@ -13,7 +13,7 @@ import utils.perf;
 import utils.time;
 import utils.log;
 import utils.math;
-import math = stdx.math;
+import math = tango.math.Math;
 
 public import common.animation;
 

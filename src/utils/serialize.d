@@ -6,9 +6,9 @@ import utils.misc;
 import utils.queue;
 
 import str = stdx.string;
-import conv = stdx.conv;
+import conv = tango.util.Convert;
 
-debug import stdx.stdio : writefln;
+debug import tango.io.Stdout;
 
 debug debug = CountClasses;
 
@@ -231,12 +231,12 @@ class SerializeBase {
         char[][] s_unknown = unknown.keys, s_unreged = unregistered.keys;
         s_unknown.sort;
         s_unreged.sort;
-        writefln("Completely unknown:");
+        Stdout.formatln("Completely unknown:");
         foreach (x; s_unknown)
-            writefln("  %s", x);
-        writefln("Unregistered:");
+            Stdout.formatln("  {}", x);
+        Stdout.formatln("Unregistered:");
         foreach (x; s_unreged)
-            writefln("  %s", x);
+            Stdout.formatln("  {}", x);
 
         return r;
     }
@@ -421,7 +421,7 @@ class SerializeOutConfig : SerializeConfig {
                 //         stack or a struct; we simply can't tell
                 char[] what = "enable version debug to see why";
                 debug {
-                    writefln("hello, serialize.d might crash here.");
+                    Stdout.formatln("hello, serialize.d might crash here.");
                     what = str.format("dest-class: %s function: %#x",
                         (cast(Object)dgp.ptr).classinfo.name, dgp.funcptr);
                 }
@@ -493,13 +493,13 @@ class SerializeOutConfig : SerializeConfig {
             list ~= P(count, cl);
         }
         list.sort;
-        writefln("Class count:");
+        Stdout.formatln("Class count:");
         int sum = 0;
         foreach (x; list) {
-            writefln("  %4d  %s", x.count, x.c.name);
+            Stdout.formatln("  {:d4}  {}", x.count, x.c.name);
             sum += x.count;
         }
-        writefln("done, sum=%d.", sum);
+        Stdout.formatln("done, sum={:d}.", sum);
     }
 }
 
@@ -527,9 +527,8 @@ class SerializeInConfig : SerializeConfig {
         if (id[0] == '#') {
             int oid = -1;
             try {
-                oid = conv.toInt(id[1..$]);
-            } catch (conv.ConvError e) {
-            } catch (conv.ConvOverflowError e) {
+                oid = conv.to!(int)(id[1..$]);
+            } catch (conv.ConversionException e) {
             }
             if (oid == -1)
                 throw new SerializeError("malformed ID (2): "~id);
@@ -563,9 +562,8 @@ class SerializeInConfig : SerializeConfig {
             //actually deserialize
             int oid = -1;
             try {
-                oid = conv.toInt(node.name);
-            } catch (conv.ConvError e) {
-            } catch (conv.ConvOverflowError e) {
+                oid = conv.to!(int)(node.name);
+            } catch (conv.ConversionException e) {
             }
             //error here, because this contains object nodes only
             if (oid < 0)
@@ -623,7 +621,7 @@ class SerializeInConfig : SerializeConfig {
     private void doReadMember(ConfigNode cur, char[] member, SafePtr ptr)
     {
         if (!cur.hasValue(member) && !cur.hasNode(member)) {
-            //std.stdio.writefln("%s not found, using default",member);
+            //Stdout.formatln("{} not found, using default",member);
             return;
         }
         if (auto et = cast(EnumType)ptr.type) {
@@ -675,9 +673,8 @@ class SerializeInConfig : SerializeConfig {
                 throw new SerializeError("? (2)");
             int length = -1;
             try {
-                length = conv.toInt(sub["length"]);
-            } catch (conv.ConvError e) {
-            } catch (conv.ConvOverflowError e) { //oh god the pain
+                length = conv.to!(int)(sub["length"]);
+            } catch (conv.ConversionException e) {
             }
             if (art.isStatic()) {
                 if (arr.length != length)
@@ -745,30 +742,29 @@ class SerializeInConfig : SerializeConfig {
                     //this is ok too for now
                     x val;
                     static if (is(x == char)) {
-                        val = conv.toUbyte(s);
+                        val = conv.to!(ubyte)(s);
                     } else static if (isUnsigned!(x)) {
-                        val = conv.toUlong(s);
+                        val = conv.to!(ulong)(s);
                     } else static if (isSigned!(x)) {
-                        val = conv.toLong(s);
+                        val = conv.to!(long)(s);
                     } else static if (is(x == float)) {
-                        val = conv.toFloat(s);
+                        val = conv.to!(float)(s);
                     } else static if (is(x == double)) {
-                        val = conv.toDouble(s);
+                        val = conv.to!(double)(s);
                     } else static if (is(x == bool)) {
                         if (s == "true") {
                             val = true;
                         } else if (s == "false") {
                             val = false;
                         } else {
-                            throw new conv.ConvError("not bool: "~s);
+                            throw new conv.ConversionException("not bool: "~s);
                         }
                     } else {
                         static assert (false);
                     }
                     ptr.write!(x)(val);
                     return;
-                } catch (conv.ConvError e) {
-                } catch (conv.ConvOverflowError e) {
+                } catch (conv.ConversionException e) {
                 }
                 throw new SerializeError("conversion failed: '"~s~"' -> "
                     ~ptr.type.toString);

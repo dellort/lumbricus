@@ -16,7 +16,7 @@ import utils.output;
 import utils.random;
 import utils.time;
 
-import stdx.stdio;
+import tango.io.Stdout;
 import stdx.stream : File, FileMode;
 import stdx.string;
 
@@ -80,7 +80,7 @@ void main(char[][] args) {
     //cmdargs.writeFile(StdioOutput.output);
 
     if (cmdargs.getBoolValue("help")) {
-        writefln(cCommandLineHelp);
+        Stdout.formatln(cCommandLineHelp);
         return;
     }
 
@@ -110,7 +110,7 @@ void main(char[][] args) {
 
     fw.deinitialize();
 
-    writefln("Bye!");
+    Stdout.formatln("Bye!");
 }
 
 //godawful primitive commandline parser
@@ -132,7 +132,7 @@ ConfigNode parseCmdLine(char[][] args) {
         auto cur = args[0];
         args = args[1..$];
         if (!startsArg(cur)) {
-            writefln("command line argument: --argname expected");
+            Stdout.formatln("command line argument: --argname expected");
             break;
         }
         cur = cur[2..$];

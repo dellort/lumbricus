@@ -1,6 +1,6 @@
 module physics.physobj;
 
-import stdx.math : PI, abs, isnan;
+import tango.math.Math : PI, abs, isNaN;
 import utils.list2;
 import utils.vector2;
 import utils.misc: min, max;

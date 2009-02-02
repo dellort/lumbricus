@@ -1,7 +1,7 @@
 module utils.path;
 
 import str = stdx.string;
-import stdp = stdx.path;
+import tango.io.model.IFile : FileConst;
 
 char[] getFilePath(char[] fullname)
     out (result)
@@ -74,7 +74,7 @@ struct VFSPath {
         //cut off all trailing separators
         while (absParent[$-1] == '/' || absParent[$-1] == '\\')
             absParent = absParent[0..$-1];
-        char[] p = str.replace(mPath,"/",stdp.sep);
+        char[] p = str.replace(mPath,"/",FileConst.PathSeparatorString);
         return absParent ~ p;
     }
 
@@ -240,7 +240,7 @@ struct VFSPath {
     }
 }
 
-debug import stdx.stdio;
+debug import tango.io.Stdout;
 
 unittest {
     VFSPath v, v2;
@@ -291,8 +291,8 @@ unittest {
 
     v.set("/foo/bar");
     version(Windows) {
-        assert(v.makeAbsolute(r"C:\Test\") == r"C:\Test\foo\bar");
-        assert(v.makeAbsolute(r"C:\Test") == r"C:\Test\foo\bar");
+        assert(v.makeAbsolute(r"C:\Test\") == r"C:\Test/foo/bar");
+        assert(v.makeAbsolute(r"C:\Test") == r"C:\Test/foo/bar");
         v.set("");
         assert(v.makeAbsolute(r"C:\Test") == r"C:\Test");
     }
@@ -338,5 +338,5 @@ unittest {
     assert(v.parent.parent.parent.mPath == "");
     assert(v.parent.parent.parent.parent.mPath == "");
 
-    debug writefln("path.d unittest: passed");
+    debug Stdout.formatln("path.d unittest: passed");
 }

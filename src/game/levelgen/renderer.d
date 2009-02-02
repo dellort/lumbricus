@@ -13,7 +13,7 @@ import utils.mylist;
 import utils.log;
 import utils.misc;
 import drawing = utils.drawing;
-import math = stdx.math;
+import math = tango.math.Math;
 
 debug import utils.perf;
 

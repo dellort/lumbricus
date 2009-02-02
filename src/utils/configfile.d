@@ -4,7 +4,9 @@ import stdx.stream;
 import utf = stdx.utf;
 import str = stdx.string;
 import stdx.format;
-import conv = stdx.conv;
+import conv = tango.util.Convert;
+import tango.text.convert.Float : toFloat;
+import tango.core.Exception;
 import utils.output : Output, StringOutput;
 import utils.misc : formatfx;
 
@@ -37,10 +39,12 @@ bool parseVector(T)(char[] s, inout Vector2!(T) value) {
 //returns false: conversion failed, value is unmodified
 public bool parseInt(char[] s, inout int value) {
     try {
-        value = conv.toInt(s);
+        //tango.text.convert.Integer.toInt() parses an empty string as 0
+        if (s.length == 0)
+            return false;
+        value = conv.to!(int)(s);
         return true;
-    } catch (conv.ConvOverflowError e) {
-    } catch (conv.ConvError e) {
+    } catch (conv.ConversionException e) {
     }
     return false;
 }
@@ -48,13 +52,13 @@ public bool parseInt(char[] s, inout int value) {
 //cf. parseInt
 public bool parseFloat(char[] s, inout float value) {
     try {
-        //as of DMD 0.163, std.conv.toFloat() parses an empty string as 0.0f
+        //tango.text.convert.Float.toFloat() parses an empty string as 0.0f
+        //also, tango.util.Convert.to!(float) seems to be major crap
         if (s.length == 0)
             return false;
-        value = conv.toFloat(s);
+        value = toFloat(s);
         return true;
-    } catch (conv.ConvOverflowError e) {
-    } catch (conv.ConvError e) {
+    } catch (IllegalArgumentException e) {
     }
     return false;
 }
@@ -93,7 +97,7 @@ private bool my_isid(dchar c) {
         || (c >= 'a' && c <= 'z')
         || (c >= '0' && c <= '9')
         || (c == '_');
-    //std.stdio.writefln("%s -> %s", c, r);
+    //Stdout.formatln("{} -> {}", c, r);
     return r;
 }
 
@@ -1526,13 +1530,13 @@ public class ConfigFile {
 
 debug:
 
-import stdx.stdio;
+import tango.io.Stdout;
 
 private bool test_error;
 
 ConfigNode debugParseFile(char[] f) {
     void err(char[] msg) {
-        writefln("configfile unittest: %s", msg);
+        Stdout.formatln("configfile unittest: {}", msg);
         test_error = true;
     }
     auto p = new ConfigFile(f, "test", &err);
@@ -1588,7 +1592,7 @@ unittest {
     assert (s4 == t4);
 
     assert (!test_error);
-    writefln("configfile.d: unittest success");
+    Stdout.formatln("configfile.d: unittest success");
 }
 
 /+

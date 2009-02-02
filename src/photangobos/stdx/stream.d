@@ -1528,7 +1528,7 @@ class File: Stream {
     }
     return 0;
   }
-import stdx.stdio;
+import tango.io.Stdout;
   // run a few tests
   unittest {
     File file = new File;
@@ -1552,7 +1552,7 @@ import stdx.stdio;
     file.open("stream.$$$");
     // should be ok to read
     assert(file.readable);
-    writefln("s: %s", file.size);
+    Stdout.formatln("s: {}", file.size);
     assert(file.available == file.size);
     char[] line = file.readLine();
     char[] exp = "Testing stream.d:";

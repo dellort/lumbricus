@@ -20,7 +20,7 @@ import utils.misc;
 import utils.math;
 import utils.configfile;
 import utils.reflection;
-import stdx.math;
+import tango.math.Math;
 import str = stdx.string;
 
 /**
@@ -670,7 +670,7 @@ class WormSprite : GObjectSprite {
             nstate = wsc.st_getup;
         }
         //if (nstate !is wsc.st_stand)
-          //  std.stdio.writefln(nstate.name);
+          //  Stdout.formatln(nstate.name);
         super.setState(nstate, for_end);
     }
 

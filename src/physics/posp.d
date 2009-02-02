@@ -1,6 +1,6 @@
 module physics.posp;
 
-import conv = stdx.conv;
+import tango.util.Convert;
 import str = stdx.string;
 import utils.configfile : ConfigNode;
 import utils.reflection;
@@ -172,7 +172,7 @@ private Vector2f readVector(char[] s) {
         throw new Exception("invalid point value");
     }
     Vector2f pt;
-    pt.x = conv.toFloat(items[0]);
-    pt.y = conv.toFloat(items[1]);
+    pt.x = to!(float)(items[0]);
+    pt.y = to!(float)(items[1]);
     return pt;
 }

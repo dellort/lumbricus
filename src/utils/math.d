@@ -3,7 +3,7 @@ module utils.math;
 public import utils.vector2;// : Vector2f;
 import utils.rect2;
 import intr = std.intrinsic;
-import math = stdx.math;
+import math = tango.math.Math;
 
 /// Intersect two lines given (p1+dir_1*t1, p2+dir_2*t2), and return the tX
 /// values, where these lines intersect; returns true if the point is "within".

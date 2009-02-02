@@ -26,11 +26,10 @@ import utils.time;
 import utils.weaklist;
 import utils.gzip;
 
-import conv = stdx.conv;
 import stdx.stream;
 import str = stdx.string;
 
-debug import stdx.stdio;
+debug import tango.io.Stdout;
 
 //**** driver stuff
 

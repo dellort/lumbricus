@@ -7,7 +7,7 @@ import utils.vector2;
 import utils.mylist;
 import utils.math : lineIntersect;
 import framework = framework.framework : Color;
-import stdx.math : PI;
+import tango.math.Math : PI;
 import utils.random;
 import utils.configfile : ConfigNode;
 import str = stdx.string;
@@ -141,7 +141,7 @@ struct GeneratorConfig {
 }
 
 
-debug import stdx.stdio;
+debug import tango.io.Stdout;
 
 //debugging: dump polygon outlines into the levle image
 //version = dump_polygons;
@@ -315,7 +315,7 @@ private final class Group {
             Segment cur = segments.ring_next(start);
             if (start is last || cur is last)
                 break;
-            //debug writefln("remove %s %s", cur.a.toString, cur.b.toString);
+            //debug Stdout.formatln("remove {} {}", cur.a.toString, cur.b.toString);
             segments.remove(cur);
         }
 

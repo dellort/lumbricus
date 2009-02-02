@@ -1,9 +1,12 @@
 module framework.filesystem;
 
-import path = stdx.path;
-import stdf = stdx.file;
 import str = stdx.string;
 import stdx.stream;
+import tango.util.PathUtil;
+import tfs = tango.io.FileSystem;
+import tango.io.FilePath;
+import tpath = tango.io.Path;
+import tango.core.Exception : IOException;
 import utils.misc;
 import utils.log;
 import utils.output;
@@ -42,7 +45,7 @@ class FilesystemException : Exception {
 
 ///return true if dir exists and is a directory, false otherwise
 public bool dirExists(char[] dir) {
-    if (stdf.exists(dir) && stdf.isdir(dir))
+    if (tpath.exists(dir) && tpath.isFolder(dir))
         return true;
     else
         return false;
@@ -134,12 +137,12 @@ private class HandlerDirectory : HandlerInstance {
     bool exists(VFSPath handlerPath) {
         char[] p = handlerPath.makeAbsolute(mDirPath);
         version(FSDebug) log("Checking for existance: '%s'",p);
-        return stdf.exists(p) && stdf.isfile(p);
+        return tpath.exists(p) && !tpath.isFolder(p);
     }
 
     bool pathExists(VFSPath handlerPath) {
         char[] p = handlerPath.makeAbsolute(mDirPath);
-        return stdf.exists(p) && stdf.isdir(p);
+        return tpath.exists(p) && tpath.isFolder(p);
     }
 
     private void createPath(VFSPath handlerPath) {
@@ -150,7 +153,7 @@ private class HandlerDirectory : HandlerInstance {
             //recursively create parent dir
             createPath(handlerPath.parent);
             //create last path
-            stdf.mkdir(handlerPath.makeAbsolute(mDirPath));
+            tpath.createFolder(handlerPath.makeAbsolute(mDirPath));
         }
     }
 
@@ -169,24 +172,22 @@ private class HandlerDirectory : HandlerInstance {
     {
         char[] searchPath = handlerPath.makeAbsolute(mDirPath);
 
-        bool cont = true;
-        bool listdircb(stdf.DirEntry* de) {
-            bool isDir = stdf.isdir(de.name) != 0;
-            if (findDirs || !isDir) {
+        foreach (de; tpath.children(searchPath)) {
+            if (findDirs || !de.folder) {
                 //listdir does a path.join with searchpath and found file,
                 //remove this
-                VFSPath vfn = VFSPath(de.name[searchPath.length..$]);
+                VFSPath vfn = VFSPath(de.name);
                 //add trailing '/' for directories
-                char[] fn = vfn.get(false, isDir);
+                char[] fn = vfn.get(false, de.folder);
                 //match search pattern
-                if (path.fnmatch(fn, pattern))
-                    return (cont = callback(fn));
+                if (patternMatch(fn, pattern)) {
+                    if (!callback(fn))
+                        return false;
+                }
             }
-            return true;
         }
 
-        stdf.listdir(searchPath, &listdircb);
-        return cont;
+        return true;
     }
 }
 
@@ -309,15 +310,13 @@ class FileSystem {
         char[] appPath;
         //on win and lin, args[0] is the (sometimes relative to cwd, sometimes
         //  absolute) path to the executable
-        char[] curDir = addTrailingPathDelimiter(stdf.getcwd());
-        char[] dirname = path.getDirName(arg0);
-        if (path.isabs(dirname)) {
+        char[] curDir = addTrailingPathDelimiter(tfs.FileSystem.getDirectory());
+        auto exePath = new FilePath(arg0);
+        if (exePath.isAbsolute()) {
             //sometimes, the path is absolute
-            appPath = dirname;
-        } else if (dirname != ".") {
-            appPath = curDir ~ dirname;
+            appPath = exePath.path;
         } else {
-            appPath = curDir;
+            appPath = normalize(FilePath.join(exePath.path, curDir));
         }
 
         appPath = addTrailingPathDelimiter(appPath);
@@ -348,8 +347,8 @@ class FileSystem {
 
         //try to create user directory
         try {
-            stdf.mkdir(userPath);
-        } catch (stdf.FileException e) {
+            tpath.createFolder(userPath);
+        } catch (IOException e) {
             //directory already exists, do nothing
         }
         return userPath;
@@ -420,7 +419,7 @@ class FileSystem {
             case MountPath.data:
                 foreach (char[] p; mDataPaths) {
                     absPath = p ~ sysPath;
-                    if (stdf.exists(absPath))
+                    if (tpath.exists(absPath))
                         break;
                 }
                 break;
@@ -431,7 +430,7 @@ class FileSystem {
                 absPath = sysPath;
                 break;
         }
-        if (!stdf.exists(absPath))
+        if (!tpath.exists(absPath))
             throw new FilesystemException("Failed to mount "~sysPath
                 ~": Path/file not found");
 

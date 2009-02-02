@@ -25,7 +25,7 @@ import utils.reflection;
 import framework.i18n;
 
 import str = stdx.string;
-import math = stdx.math;
+import math = tango.math.Math;
 
 //nasty proxy to the currently active TeamMember
 //this is per client (and not per-team)

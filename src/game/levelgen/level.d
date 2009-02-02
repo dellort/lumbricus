@@ -166,7 +166,7 @@ class LevelLandscape : LevelItem {
 //xxx these should be moved away, they really don't belong here
 package:
 
-import conv = stdx.conv;
+import tango.util.Convert;
 import str = stdx.string;
 
 private static char[][] marker_strings = ["FREE", "LAND", "SOLID_LAND"];
@@ -217,7 +217,7 @@ Vector2i[] readPointList(ConfigNode node) {
 }
 uint[] readUIntList(ConfigNode node) {
     return readList!(uint)(node, (char[] item) {
-        return conv.toUint(item);
+        return to!(uint)(item);
     });
 }
 

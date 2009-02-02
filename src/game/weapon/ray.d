@@ -9,7 +9,7 @@ import game.weapon.weapon;
 import game.weapon.projectile;
 import game.gamepublic;
 import game.weapon.actionweapon;
-import stdx.math: PI;
+import tango.math.Math: PI;
 import utils.vector2;
 import utils.configfile;
 import utils.color;

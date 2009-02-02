@@ -138,7 +138,7 @@ class MulticastDelegate(DelegateArgs...) : MDSubscriber!(DelegateArgs) {
 }
 
 //argh no unittest-import
-debug import stdx.stdio;
+debug import tango.io.Stdout;
 
 unittest {
     //simple stupid base functionality
@@ -155,5 +155,5 @@ unittest {
     simple.call();
     assert(b1 && !b2);
 
-    debug writefln("md.d unittest: passed.");
+    debug Stdout.formatln("md.d unittest: passed.");
 }

@@ -23,7 +23,7 @@ import utils.misc;
 import utils.vector2;
 
 import str = stdx.string;
-import math = stdx.math;
+import math = tango.math.Math;
 
 //arrrrgh
 class GuiAnimator : Widget {

@@ -12,7 +12,7 @@ import utils.log;
 import utils.misc;
 import utils.reflection;
 import drawing = utils.drawing;
-import stdx.math : sqrt, PI;
+import tango.math.Math : sqrt, PI;
 import physics.world;
 
 //if deactivated, use a rectangle (which surrounds the old circle)

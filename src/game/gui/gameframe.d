@@ -31,7 +31,7 @@ import utils.misc;
 import utils.vector2;
 import utils.log;
 
-import stdx.math;
+import tango.math.Math;
 
 //time for which it takes to add/remove 1 health point in the animation
 const Time cTimePerHealthTick = timeMsecs(4);

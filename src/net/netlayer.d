@@ -2,7 +2,7 @@ module net.netlayer;
 
 import derelict.enet.enet;
 import str = stdx.string;
-import conv = stdx.conv;
+import tango.util.Convert;
 
 pragma(lib,"DerelictUtil");
 
@@ -30,7 +30,7 @@ struct NetAddress {
         ushort p = 0;
         if (index >= 0) {
             try {
-                p = conv.toUshort(name[index+1..$]);
+                p = to!(ushort)(name[index+1..$]);
             } catch { //sucks, don't care
             }
         }

@@ -129,7 +129,7 @@ class GameEngineGraphics {
             objects.remove(n.node);
         } else {
             //if (!n.removed)
-            //    std.stdio.writefln(n);
+            //    Stdout.formatln(n);
             assert (n.removed);
         }
         n.removed = true;

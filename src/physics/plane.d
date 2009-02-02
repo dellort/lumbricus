@@ -1,6 +1,6 @@
 module physics.plane;
 
-import stdx.math: sqrt;
+import tango.math.Math: sqrt;
 import utils.vector2;
 import utils.misc;
 

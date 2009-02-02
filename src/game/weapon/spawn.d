@@ -12,7 +12,7 @@ import utils.configfile;
 import utils.reflection;
 import utils.vector2;
 
-import math = stdx.math;
+import math = tango.math.Math;
 
 enum InitVelocity {
     parent,

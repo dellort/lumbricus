@@ -212,7 +212,7 @@ class FontManager {
         if (!font) {
             if (fail_exception)
                 throw new Exception("font >" ~ id ~ "< not found (2)");
-            //std.stdio.writefln("not found: >%s<", id);
+            //Stdout.formatln("not found: >{}<", id);
             font = mNodes.getSubNode("normal");
         }
 

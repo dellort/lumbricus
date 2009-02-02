@@ -2,7 +2,6 @@ module utils.log;
 
 import utils.output;
 import stdformat = stdx.format;
-import stdio = stdx.stdio;
 import utils.time;
 import utils.misc : va_list;
 

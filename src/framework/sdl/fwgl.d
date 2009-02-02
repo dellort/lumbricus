@@ -8,12 +8,12 @@ import derelict.sdl.sdl;
 import framework.framework;
 import framework.sdl.framework;
 import framework.drawing;
-import stdx.math;
+import tango.math.Math;
 import stdx.string;
 import utf = stdx.utf;
 import utils.misc;
 
-debug import stdx.stdio;
+debug import tango.io.Stdout;
 
 char[] glErrorToString(GLenum errCode) {
     char[] res = toString(cast(char*)gluErrorString(errCode));
@@ -27,7 +27,7 @@ private bool checkGLError(char[] msg, bool crash = false) {
     GLenum err = glGetError();
     if (err == GL_NO_ERROR)
         return false;
-    debug writefln("Warning: GL error at '%s': %s", msg,
+    debug Stdout.formatln("Warning: GL error at '{}': {}", msg,
         glErrorToString(err));
     if (crash)
         assert(false, "not continuing");
@@ -139,7 +139,7 @@ class GLSurface : SDLDriverSurface {
         if (checkGLError("loading texture")) {
             //set error flag to prevent changing the texture data
             mError = true;
-            debug writefln("Failed to create texture of size %s.",mTexSize);
+            debug Stdout.formatln("Failed to create texture of size {}.",mTexSize);
             //throw new Exception(
             //    "glTexImage2D failed, probably texture was too big. "
             //    ~ "Requested size: "~mTexSize.toString);

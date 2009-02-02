@@ -11,7 +11,7 @@ import utils.misc;
 import utils.time;
 import utils.configfile;
 
-debug import stdx.stdio;
+debug import tango.io.Stdout;
 
 private void throwError() {
     throw new Exception("Sound error: " ~ str.toString(null));
@@ -189,7 +189,7 @@ class ALSoundDriver : SoundDriver {
     }
 
     void closeSound(DriverSound s) {
-        debug writefln("close sound %s", s);
+        debug Stdout.formatln("close sound {}", s);
         auto as = castStrict!(ALSound)(s);
         foreach (c; mChannels) {
             if (as.mALBuffer == c.lastbuffer)
@@ -205,7 +205,7 @@ class ALSoundDriver : SoundDriver {
     }
 
     void destroy() {
-        debug writefln("unloading OpenAL");
+        debug Stdout.formatln("unloading OpenAL");
         //caller must make sure all stuff has been unloaded
         assert(mSounds.length == 0);
         foreach (c; mChannels) {
@@ -215,7 +215,7 @@ class ALSoundDriver : SoundDriver {
         alutExit();
         DerelictALUT.unload();
         DerelictAL.unload();
-        debug writefln("unloaded OpenAL");
+        debug Stdout.formatln("unloaded OpenAL");
     }
 
     void musicPlay(DriverSound m, Time startAt, Time fade) {

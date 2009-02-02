@@ -14,7 +14,7 @@ import utils.configfile;
 import utils.misc;
 import utils.log;
 import utils.math;
-import stdx.math : abs, PI;
+import tango.math.Math : abs, PI;
 import utils.factory;
 import utils.time;
 import utils.mybox;

@@ -5,7 +5,7 @@ import utils.misc;
 import utils.mylist;
 
 debug(noise) {
-    import std.stdio;
+    import tango.io.Stdout;
 }
 
 //increment on incompatible protocol changes, hurhurhur
@@ -332,7 +332,7 @@ class NetObjectServer : NetObjectEndpoint {
 
         //remove obj_client from snapshot and write removal-event
         void do_delete() {
-            debug(noise) writefln("delete %s", obj_client.id);
+            debug(noise) Stdout.formatln("delete {}", obj_client.id);
             write_id(obj_client.id);
             write_bool(wr, false); //change flag
             //remove from list
@@ -345,14 +345,14 @@ class NetObjectServer : NetObjectEndpoint {
             foreach(o; mOwner.mObjects) {
                 writef("%s ",o.id);
             }
-            writefln();
+            Stdout.formatln();
             writef("client: ");
             auto p = mSingleFrame.list;
             while (p) {
                 writef("%s ",p.id);
                 p = p.next;
             }
-            writefln();
+            Stdout.formatln();
         }
 
         //synchronize both lists; write updates into stream if necessary
@@ -367,9 +367,9 @@ class NetObjectServer : NetObjectEndpoint {
                     //update local list
                     obj_client.snapshot_data = obj_server.lastSnapshot;
                     obj_client.frame = obj_server.frame;
-                    debug(noise) writefln("change %s", obj_server.id);
+                    debug(noise) Stdout.formatln("change {}", obj_server.id);
                 } else
-                    debug(noise) writefln("nochange %s", obj_server.id);
+                    debug(noise) Stdout.formatln("nochange {}", obj_server.id);
                 //advance both
                 obj_server = server_list.next(obj_server);
                 client_list = &obj_client.next;
@@ -381,7 +381,7 @@ class NetObjectServer : NetObjectEndpoint {
                 assert(obj_server.id < obj_client.id);
                 //can't happen because an old object must always be included in
                 //the snapshot, and new objects have the highest id all around
-                debug(noise) writefln("ffff %s %s", obj_server.id, obj_client.id);
+                debug(noise) Stdout.formatln("ffff {} {}", obj_server.id, obj_client.id);
                 assert(false);
             }
         }
@@ -405,7 +405,7 @@ class NetObjectServer : NetObjectEndpoint {
             obj_client.snapshot_data = obj_server.lastSnapshot;
             obj_client.frame = obj_server.frame;
 
-            debug(noise) writefln("new %s", obj_server.id);
+            debug(noise) Stdout.formatln("new {}", obj_server.id);
 
             obj_server = server_list.next(obj_server);
         }

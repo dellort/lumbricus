@@ -2,7 +2,7 @@
 module utils.weaktest;
 import std.thread;
 import std.random;
-import std.stdio;
+import tango.io.Stdout;
 import std.string;
 import utils.weaklist;
 import gc = std.gc;
@@ -66,7 +66,7 @@ int dotest(void* arg) {
             foreach (t; x) assert(t);
             delete x;
             x = null; //prevent "leak"
-            writefln("%#x: %s", cast(void*)Thread.getThis(), l);
+            Stdout.formatln("{:x#}: {}", cast(void*)Thread.getThis(), l);
         }
     }
     return 0;
@@ -76,7 +76,7 @@ void main() {
     gList = new typeof(gList);
     for (int n = 0; n < 6; n++) {
         auto t = new Thread(&dotest, null);
-        writefln("spawn %#x", cast(void*)t);
+        Stdout.formatln("spawn {:x#}", cast(void*)t);
         t.start();
     }
     for (;;) {

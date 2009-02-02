@@ -9,7 +9,7 @@ import physics.base;
 import physics.force;
 import physics.physobj;
 
-import math = stdx.math;
+import math = tango.math.Math;
 
 const Time cEarthQuakeChangeTime = timeMsecs(200);
 

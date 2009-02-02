@@ -125,7 +125,7 @@ public class Sound {
         if (!available())
             return;
         assert(mDriverSounds.length == 0);
-        //std.stdio.writefln("destroy");
+        //Stdout.formatln("destroy");
         mDriver.destroy();
         mDriver = new NullSound(this, null);
     }
@@ -164,7 +164,7 @@ public class Sound {
             assert(mstate == mCurrentMusic.state());
             //only happens if the driver was reinitialized or if the music
             //DriverSound was (temporarily destroyed)
-            //std.stdio.writefln("fixup music state %s -> %s",
+            //Stdout.formatln("fixup music state {} -> {}",
               //  cast(int)mstate, cast(int)mExpectedMusicState);
             mCurrentMusic.state = mExpectedMusicState;
         }

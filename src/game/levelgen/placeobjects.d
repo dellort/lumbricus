@@ -9,7 +9,7 @@ import utils.log;
 import utils.configfile;
 
 import str = stdx.string;
-debug import stdx.stdio;
+debug import tango.io.Stdout;
 
 //how an object is placed
 struct PlaceCommand {

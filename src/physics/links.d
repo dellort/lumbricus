@@ -1,6 +1,6 @@
 module physics.links;
 
-import stdx.math: abs;
+import tango.math.Math: abs;
 import utils.reflection;
 import utils.vector2;
 

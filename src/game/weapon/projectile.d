@@ -11,7 +11,7 @@ import game.sprite;
 import game.sequence;
 import game.spriteactions;
 import game.weapon.weapon;
-import stdx.math;
+import tango.math.Math;
 import str = stdx.string;
 import utils.misc;
 import utils.vector2;

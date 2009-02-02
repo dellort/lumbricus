@@ -2,7 +2,7 @@ module utils.output;
 
 import stdx.format;
 import stdx.utf;
-import stdio = stdx.stdio;
+import tango.io.Stdout;
 import stdx.stream;
 import utils.misc : formatfx, va_list;
 
@@ -47,7 +47,7 @@ public class StdioOutput : OutputHelper {
     public static Output output;
 
     void writeString(char[] str) {
-        stdio.writef("%s", str);
+        Stdout(str).flush;
     }
 
     static this() {

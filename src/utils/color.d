@@ -4,9 +4,9 @@ import utils.configfile : ConfigNode;
 import utils.strparser;
 import utils.mybox;
 
-import math = stdx.math;
+import math = tango.math.Math;
 import str = stdx.string;
-import conv = stdx.conv;
+import conv = tango.util.Convert;
 
 //predefined colors - used by the parser
 //global for fun and profit
@@ -142,17 +142,16 @@ public struct Color {
             return false;
         try {
             Color newc;
-            newc.r = conv.toFloat(values[0]);
-            newc.g = conv.toFloat(values[1]);
-            newc.b = conv.toFloat(values[2]);
+            newc.r = conv.to!(float)(values[0]);
+            newc.g = conv.to!(float)(values[1]);
+            newc.b = conv.to!(float)(values[2]);
             newc.a = 1.0f;
             if (values.length > 3) {
-                newc.a = conv.toFloat(values[3]);
+                newc.a = conv.to!(float)(values[3]);
             }
             *this = newc;
             return true;
-        } catch (conv.ConvOverflowError e) {
-        } catch (conv.ConvError e) {
+        } catch (conv.ConversionException e) {
         }
         return false;
     }

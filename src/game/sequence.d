@@ -23,7 +23,8 @@ import utils.vector2;
 import game.gamepublic;
 import game.game;
 
-import math = stdx.math;
+import math = tango.math.Math;
+import ieee = tango.math.IEEE;
 import str = stdx.string;
 
 static void function(GameEngine engine, ConfigNode from)[char[]]
@@ -248,14 +249,14 @@ class Sequence {
                 mQueuedState = curstate;
             return;
         }
-        //std.stdio.writefln("set state: ", sstate.name);
+        //Stdout.formatln("set state: ", sstate.name);
         //possibly start state change
         //look if the leaving sequence should play
         bool play_leave = false;
         if (curstate) {
             play_leave |= curstate.hasLeaveTransition(state);
         }
-        //std.stdio.writefln("play leave: ", play_leave);
+        //Stdout.formatln("play leave: ", play_leave);
         if (!curstate || !play_leave) {
             //start new state, skip whatever did go on before
             mQueuedState = null;
@@ -539,9 +540,9 @@ class WormStateDisplay : AniStateDisplay {
 
         /+
         if (s) {
-            std.stdio.writefln("substate %s/%s/%s", s.owner.name, cast(int)(s.type), s.index);
+            Stdout.formatln("substate {}/{}/{}", s.owner.name, cast(int)(s.type), s.index);
         } else {
-            std.stdio.writefln("reset");
+            Stdout.formatln("reset");
         }
         +/
 
@@ -595,7 +596,7 @@ class WormStateDisplay : AniStateDisplay {
                 ended = false;
                 //xxx a2-a1 is wrong for angles, because angles are modulo 2*PI
                 // for the current use (worm-weapon), this works by luck
-                nangle = a1 + dist*math.copysign(1.0f, a2-a1);
+                nangle = a1 + dist*ieee.copysign(1.0f, a2-a1);
             }
             mAngles[mCurSubSeq.interpolate_angle_id] = nangle;
             //updateAngle();
@@ -606,7 +607,7 @@ class WormStateDisplay : AniStateDisplay {
         ended &= !mCurSubSeq.wait_forever;
 
         //if (mCurSubSeq.type == SeqType.TurnAroundY)
-            //std.stdio.writefln("side = %s", angleLeftRight(mAngles[0], -1, +1));
+            //Stdout.formatln("side = {}", angleLeftRight(mAngles[0], -1, +1));
 
         if (!ended) {
             //check turnaround, as it is needed for the jetpack
@@ -625,7 +626,7 @@ class WormStateDisplay : AniStateDisplay {
             }
             return;
         } else {
-            //std.stdio.writefln("ended");
+            //Stdout.formatln("ended");
             //next step, either the following SubSequence or a new seq/state
             auto next = mCurSubSeq.getNext();
             if (next) {

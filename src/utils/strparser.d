@@ -2,7 +2,9 @@
 //(including native types).
 module utils.strparser;
 import utils.mybox;
-import conv = stdx.conv;
+import conv = tango.util.Convert;
+import tango.text.convert.Float : toFloat;
+import tango.core.Exception;
 import str = stdx.string;
 import stdx.format : doFormat;
 
@@ -63,20 +65,20 @@ public char[] boxUnParseStr(MyBox b) {
 //stolen from configfile.d
 public MyBox boxParseInt(char[] s) {
     try {
-        return MyBox.Box!(int)(conv.toInt(s));
-    } catch (conv.ConvOverflowError e) {
-    } catch (conv.ConvError e) {
+        //tango.text.convert.Integer.toInt() parses an empty string as 0
+        if (s.length > 0)
+            return MyBox.Box!(int)(conv.to!(int)(s));
+    } catch (conv.ConversionException e) {
     }
     return MyBox();
 }
 public MyBox boxParseFloat(char[] s) {
     try {
-        //as of DMD 0.163, std.conv.toFloat() parses an empty string as 0.0f
-        if (s.length == 0)
-            return MyBox();
-        return MyBox.Box!(float)(conv.toFloat(s));
-    } catch (conv.ConvOverflowError e) {
-    } catch (conv.ConvError e) {
+        //tango.text.convert.Float.toFloat() parses an empty string as 0.0f
+        //also, tango.util.Convert.to!(float) seems to be major crap
+        if (s.length > 0)
+            return MyBox.Box!(float)(toFloat(s));
+    } catch (IllegalArgumentException e) {
     }
     return MyBox();
 }
@@ -94,26 +96,25 @@ public MyBox boxParseBool(char[] s) {
 }
 
 //3rd place of code duplication
-private MyBox boxParseVector(T)(char[] s, T function(char[]) convert) {
+private MyBox boxParseVector(T)(char[] s) {
     char[][] items = str.split(s);
     if (items.length != 2) {
         return MyBox();
     }
     try {
         Vector2!(T) pt;
-        pt.x = convert(items[0]);
-        pt.y = convert(items[1]);
+        pt.x = conv.to!(T)(items[0]);
+        pt.y = conv.to!(T)(items[1]);
         return MyBox.Box!(Vector2!(T))(pt);
-    } catch (conv.ConvOverflowError e) {
-    } catch (conv.ConvError e) {
+    } catch (conv.ConversionException e) {
     }
     return MyBox();
 }
 public MyBox boxParseVector2i(char[] s) {
-    return boxParseVector!(int)(s, &conv.toInt);
+    return boxParseVector!(int)(s);
 }
 public MyBox boxParseVector2f(char[] s) {
-    return boxParseVector!(float)(s, &conv.toFloat);
+    return boxParseVector!(float)(s);
 }
 
 public char[] boxUnParseVector2f(MyBox b) {
@@ -126,7 +127,7 @@ public char[] boxUnParseVector2i(MyBox b) {
     return str.format("%s %s", v.x, v.y);
 }
 
-debug import stdx.stdio;
+debug import tango.io.Stdout;
 
 unittest {
     assert(boxParseInt("123").unbox!(int) == 123);
@@ -152,5 +153,5 @@ unittest {
     debug testParse("1 2.0");
     +/
 
-    debug writefln("strparser.d unittest: passed.");
+    debug Stdout.formatln("strparser.d unittest: passed.");
 }

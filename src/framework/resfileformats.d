@@ -2,7 +2,7 @@
 module framework.resfileformats;
 
 import str = stdx.string: toString, split;
-import stdx.conv: toShort;
+import tango.util.Convert;
 
 struct FileAtlasTexture {
 align(1):
@@ -21,12 +21,12 @@ align(1):
         FileAtlasTexture ret;
         char[][] values = str.split(s);
         assert(values.length >= 4);
-        ret.x = toShort(values[0]);
-        ret.y = toShort(values[1]);
-        ret.w = toShort(values[2]);
-        ret.h = toShort(values[3]);
+        ret.x = to!(short)(values[0]);
+        ret.y = to!(short)(values[1]);
+        ret.w = to!(short)(values[2]);
+        ret.h = to!(short)(values[3]);
         if (values.length > 4) {
-            ret.page = toShort(values[4]);
+            ret.page = to!(short)(values[4]);
         } else {
             ret.page = 0;
         }

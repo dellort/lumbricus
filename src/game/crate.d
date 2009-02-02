@@ -19,7 +19,7 @@ import utils.log;
 import utils.misc;
 import utils.configfile;
 import utils.reflection;
-import stdx.math;
+import tango.math.Math;
 import str = stdx.string;
 
 ///Base class for stuff in crates that can be collected by worms

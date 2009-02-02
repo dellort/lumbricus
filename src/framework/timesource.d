@@ -2,7 +2,7 @@ module framework.timesource;
 import utils.misc;
 import utils.time;
 
-debug import stdx.stdio : writefln;
+debug import tango.io.Stdout;
 
 //(changed in r533, I hate interfaces, but love useless microoptimizations)
 class TimeSourcePublic {
@@ -127,7 +127,7 @@ final class TimeSource : TimeSourcePublic {
         //happens when I suspend+resume my Linux system xD
         if (mExternalTime < mLastExternalTime) {
             Time error = mLastExternalTime - mExternalTime;
-            debug writefln("WARNING: time goes backward by %s!", error);
+            debug Stdout.formatln("WARNING: time goes backward by {}!", error);
             //compensate and do as if no time passed
             mCompensate += error;
             mExternalTime += error;

@@ -1,7 +1,8 @@
 module utils.vector2;
 
 import str = stdx.string;
-import math = stdx.math;
+import math = tango.math.Math;
+import ieee = tango.math.IEEE;
 
 
 public struct Vector2(T) {
@@ -142,8 +143,8 @@ public struct Vector2(T) {
     }
 
     public Vector2 clipAbsEntries(Vector2 clip) {
-        return Vector2((math.abs(x) > clip.x)?cast(T)math.copysign(clip.x, x):x,
-            (math.abs(y) > clip.y)?cast(T)math.copysign(clip.y, y):y);
+        return Vector2((math.abs(x) > clip.x)?cast(T)ieee.copysign(clip.x, x):x,
+            (math.abs(y) > clip.y)?cast(T)ieee.copysign(clip.y, y):y);
     }
 
     //return vector with entry-wise maxima of this and other

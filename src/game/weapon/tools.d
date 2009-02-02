@@ -17,9 +17,10 @@ import utils.color;
 import utils.misc;
 
 import stdx.string : format;
-import stdx.math : signbit, abs;
+import tango.math.Math : abs;
+import tango.math.IEEE : signbit;
 
-debug import stdx.stdio;
+debug import tango.io.Stdout;
 
 //sub-factory used by ToolClass (stupid double-factory)
 class ToolsFactory : StaticFactory!(Tool, ToolClass, WormSprite) {
@@ -406,7 +407,7 @@ class Rope : Shooter {
                 bool d = !!signbit((old.start-old.end)
                     * (old.end-wormPos).orthogonal);
                 if (d != old.hit) {
-                    debug writefln("remove segment");
+                    debug Stdout.formatln("remove segment");
                     //remove it
                     segmentDead(ropeSegments[$-1]);
                     ropeSegments.length = ropeSegments.length - 1;
@@ -427,10 +428,10 @@ class Rope : Shooter {
                 cSegmentRadius, hit1, hit2) && (wormPos-hit1).quad_length > 3)
             {
                 if (hit1 != hit2)
-                    debug writefln("seg: h1 %s, h2 %s, worm %s",hit1,hit2,
-                        wormPos);
+                    debug Stdout.formatln("seg: h1 {}, h2 {}, worm {}", hit1,
+                        hit2, wormPos);
                 else
-                    debug writefln("seg: h1 %s, worm %s",hit1, wormPos);
+                    debug Stdout.formatln("seg: h1 {}, worm {}",hit1, wormPos);
                 //don't create segments too close to the worm
                 if ((hit1 - wormPos).length < 10)
                     break;

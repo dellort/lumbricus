@@ -9,8 +9,8 @@ import utils.time;
 import utils.timer;
 import utils.vector2;
 
-import stdx.ctype : isspace;
-import stdx.uni : isUniAlpha;
+import tango.text.Util : isSpace;
+import tango.text.Unicode : isLetterOrDigit;
 import utf = stdx.utf;
 
 ///simple editline
@@ -269,11 +269,11 @@ uint findNextWord(char[] str, uint pos) {
     bool what = isWord(str, pos);
     while (pos < str.length) {
         pos = charNext(str, pos);
-        if (isWord(str, pos) != what || isSpace(str, pos))
+        if (isWord(str, pos) != what || isSpaceAt(str, pos))
             break;
     }
     //but overjump spaces, if any
-    while (pos < str.length && isSpace(str, pos))
+    while (pos < str.length && isSpaceAt(str, pos))
         pos = charNext(str, pos);
     return pos;
 }
@@ -281,12 +281,12 @@ uint findNextWord(char[] str, uint pos) {
 uint findPrevWord(char[] str, uint pos) {
     pos = charPrev(str, pos);
     //overjump spaces, if any
-    while (pos > 0 && isSpace(str, pos))
+    while (pos > 0 && isSpaceAt(str, pos))
         pos = charPrev(str, pos);
     bool what = isWord(str, pos);
     while (pos > 0) {
         auto npos = charPrev(str, pos);
-        if (isWord(str, npos) != what || isSpace(str, npos))
+        if (isWord(str, npos) != what || isSpaceAt(str, npos))
             break;
         pos = npos;
     }
@@ -294,9 +294,9 @@ uint findPrevWord(char[] str, uint pos) {
 }
 
 //little helpers
-bool isSpace(char[] s, size_t pos) {
-    return isspace(utf.decode(s, pos)) != 0;
+bool isSpaceAt(char[] s, size_t pos) {
+    return isSpace(utf.decode(s, pos));
 }
 bool isWord(char[] s, size_t pos) {
-    return isUniAlpha(utf.decode(s, pos)) != 0;
+    return isLetterOrDigit(utf.decode(s, pos));
 }

@@ -12,7 +12,7 @@ import utils.array;
 import utils.output;
 import utils.vector2;
 
-import stdx.stdio;
+import tango.io.Stdout;
 import stdx.string;
 
 class TestEnet : Task {

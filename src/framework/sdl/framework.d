@@ -4,7 +4,7 @@ import framework.framework;
 import framework.font;
 import framework.event;
 import stdx.stream;
-import stdx.stdio;
+import tango.io.Stdout;
 import str = stdx.string;
 import utils.vector2;
 import framework.sdl.rwops;
@@ -17,7 +17,7 @@ import derelict.sdl.sdl;
 import derelict.sdl.image;
 import derelict.sdl.ttf;
 import framework.sdl.keys;
-import math = stdx.math;
+import math = tango.math.Math;
 import utils.time;
 import utils.perf;
 import utils.drawing;
@@ -210,9 +210,9 @@ void doMirrorY(SurfaceData* data) {
             case Transparency.None: {
                 if (rle || !gSDLDriver.isDisplayFormat(mSurface, false)) {
                     nsurf = SDL_DisplayFormat(mSurface);
-                    /+std.stdio.writefln("before: %s",
+                    /+Stdout.formatln("before: {}",
                         gSDLDriver.pixelFormatToString(mSurface.format));
-                    std.stdio.writefln("after: %s",
+                    Stdout.formatln("after: {}",
                         gSDLDriver.pixelFormatToString(nsurf.format));+/
                     if (rle) {
                         uint key = simpleColorToSDLColor(nsurf, mData.colorkey);

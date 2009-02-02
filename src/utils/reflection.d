@@ -1,12 +1,12 @@
 //doing all those things which D/Phobos should provide us
 module utils.reflection;
 
-import stdx.ctype : isalnum;
+import tango.stdc.ctype : isalnum;
 import str = stdx.string;
 import utils.misc;
 import utils.mybox;
 
-debug import stdx.stdio;
+debug import tango.io.Stdout;
 
 version (Tango) {
 
@@ -470,7 +470,7 @@ class Types {
         //assert (k.isSubTypeOf(method.klass()));
         /+ xxx
         if (!k.isSubTypeOf(m.klass())) {
-            writefln("%s %s %s", k.name, m.klass.name, m.name);
+            Stdout.formatln("{} {} {}", k.name, m.klass.name, m.name);
         }
         assert (k.isSubTypeOf(m.klass()));
         +/
@@ -1122,7 +1122,7 @@ class Class {
 
     final Object newInstance() {
         if (!mCreateDg) {
-            debug writefln("no: %s", name());
+            debug Stdout.formatln("no: {}", name());
             return null;
         }
         auto c = types().mFoo;
@@ -1469,16 +1469,16 @@ void not_main() {
 
 void debugDumpTypeInfos(Types t) {
     foreach (Type type; t.allTypes()) {
-        writefln("%s", type);
+        Stdout.formatln("{}", type);
         if (auto rt = cast(StructuredType)type) {
             if (auto cl = rt.klass()) {
-                writefln("  structured type '%s', known members:", cl.name());
+                Stdout.formatln("  structured type '{}', known members:", cl.name());
                 foreach (ClassElement e; cl.elements()) {
                     if (auto m = cast(ClassMember)e) {
-                        writefln("  - %s @ %s : %s", m.name(), m.offset(),
+                        Stdout.formatln("  - {} @ {} : {}", m.name(), m.offset(),
                             m.type());
                     } else if (auto m = cast(ClassMethod)e) {
-                        writefln("  - %s() @ %#x", m.name(), m.address());
+                        Stdout.formatln("  - {}() @ {:x#}", m.name(), m.address());
                     }
                 }
             }
@@ -1536,15 +1536,15 @@ void debugDumpClassGraph(Types t, Object x) {
                     }
                 }
                 unknown[orgtype] = info;
-                writefln("unknown class");
+                Stdout.formatln("unknown class");
                 continue;
             }
-            writefln("%s %s %#8x:", cast(StructType)st ? "struct" : "class",
+            Stdout.formatln("{} {} {:x8#}:", cast(StructType)st ? "struct" : "class",
                 cur.type, cur.ptr);
             Class xc = castStrict!(StructuredType)(cur.type).klass();
             if (!xc) {
                 unknown[cur.type.typeInfo] = "no info";
-                writefln("  no info");
+                Stdout.formatln("  no info");
                 continue;
             }
             while (xc) {
@@ -1552,35 +1552,35 @@ void debugDumpClassGraph(Types t, Object x) {
                 foreach (ClassElement e; xc.elements()) {
                     if (auto m = cast(ClassMember)e) {
                         SafePtr pm = m.get(cur);
-                        writefln("  %s = (%#8x) '%s'", m.name(), pm.ptr, sp2str(pm));
+                        Stdout.formatln("  {} = ({:x8#}) '{}'", m.name(), pm.ptr, sp2str(pm));
                         check(pm);
                     }
                 }
                 xc = xc.superClass();
             }
         } else if (auto art = cast(ArrayType)cur.type) {
-            writefln("array %s len=%d %#8x:", cur.type, art.getArray(cur).length,
+            Stdout.formatln("array {} len={:d} {:x8#}:", cur.type, art.getArray(cur).length,
                 cur.ptr);
-            writef("    [");
+            Stdout("    [");
             ArrayType.Array arr = art.getArray(cur);
             for (int i = 0; i < arr.length; i++) {
                 if (i != 0)
-                    writef(", ");
-                writef(sp2str(arr.get(i)));
+                    Stdout(", ");
+                Stdout(sp2str(arr.get(i)));
                 check(arr.get(i));
             }
-            writefln("]");
+            Stdout.formatln("]");
         }
     }
-    writefln("unknown types:");
+    Stdout.formatln("unknown types:");
     foreach (TypeInfo k, char[] v; unknown) {
         char[] more = v;
         if (auto tic = cast(TypeInfo_Class)k) {
             more ~= " (" ~ tic.info.name ~ ")";
         }
-        writefln("'%s': %s", k, more);
+        Stdout.formatln("'{}': {}", k, more);
     }
-    writefln("done.");
+    Stdout.formatln("done.");
 }
 
 /+
@@ -1588,7 +1588,7 @@ This is what I call "dmd tupleof-enum bug":
 
 Source:
 
-import std.stdio;
+import tango.io.Stdout;
 
 enum X {
   bla
@@ -1601,9 +1601,9 @@ class Test {
 
 void main() {
    Test t = new Test();
-   writefln(t.tupleof.stringof);
+   Stdout.formatln(t.tupleof.stringof);
    foreach (int i, x; t.tupleof) {
-       writefln(t.tupleof[i].stringof);
+       Stdout.formatln(t.tupleof[i].stringof);
    }
 }
 

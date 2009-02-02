@@ -1,6 +1,6 @@
 module physics.timedchanger;
 
-import stdx.math : copysign;
+import tango.math.IEEE : copysign;
 import utils.reflection;
 import utils.vector2;
 
