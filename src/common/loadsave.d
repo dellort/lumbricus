@@ -16,6 +16,7 @@ import utils.mybox;
 import utils.misc;
 import utils.log;
 
+import str = stdx.string;
 import stdx.stream;
 
 const cSavegamePath = "/savegames/";

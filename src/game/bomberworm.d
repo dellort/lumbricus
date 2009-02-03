@@ -13,6 +13,7 @@ import utils.configfile;
 import utils.random;
 import utils.time;
 import utils.vector2;
+import utils.misc;
 
 import stdx.string;
 import tango.math.Math : abs;

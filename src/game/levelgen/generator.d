@@ -947,7 +947,7 @@ template BlaList(T : Object) {
             }
         }
         if (!canfail)
-            throw new Exception("item '" ~ name ~ " not found");
+            throw new Exception("item '" ~ name ~ "' not found");
         return null;
     }
 

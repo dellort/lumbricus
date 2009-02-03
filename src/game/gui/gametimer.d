@@ -12,6 +12,7 @@ import gui.container;
 import gui.label;
 import gui.widget;
 import utils.time;
+import utils.misc;
 
 import str = stdx.string;
 

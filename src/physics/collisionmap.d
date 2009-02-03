@@ -6,6 +6,7 @@ import physics.contact;
 import utils.array : arrayMap;
 import utils.configfile;
 import utils.reflection;
+import utils.misc;
 
 import str = stdx.string;
 

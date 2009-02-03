@@ -7,6 +7,7 @@ import framework.framework;
 import utils.random;
 import utils.log;
 import utils.configfile;
+import utils.misc;
 
 import str = stdx.string;
 debug import tango.io.Stdout;
