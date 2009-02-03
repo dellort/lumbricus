@@ -159,7 +159,7 @@ class GObjectSprite : GameObject {
     void exterminate() {
         if (!currentState.deathZoneImmune) {
             //_always_ die completely (or are there exceptions?)
-            log("exterminate in deathzone: %s", type.name);
+            log("exterminate in deathzone: {}", type.name);
             die();
         }
     }
@@ -169,7 +169,7 @@ class GObjectSprite : GameObject {
     protected void die() {
         active = false;
         physics.dead = true;
-        log("really die: %s", type.name);
+        log("really die: {}", type.name);
     }
 
     protected void waterStateChange(bool under) {
@@ -213,7 +213,7 @@ class GObjectSprite : GameObject {
             updateAnimation();
         }
 
-        log("force state: %s", nstate.name);
+        log("force state: {}", nstate.name);
 
         waterStateChange(mIsUnderWater);
     }
@@ -240,7 +240,7 @@ class GObjectSprite : GameObject {
             assert(nstate is currentState.onAnimationEnd);
         }
 
-        log("state %s -> %s", currentState.name, nstate.name);
+        log("state {} -> {}", currentState.name, nstate.name);
 
         auto oldstate = currentState;
         currentState = nstate;
@@ -390,7 +390,7 @@ class StaticStateInfo {
         }
 
         if (!animation) {
-            owner.log("WARNING: no animation for state '%s'", name);
+            owner.log("WARNING: no animation for state '{}'", name);
         }
 
         onEndTmp = sc["on_animation_end"];

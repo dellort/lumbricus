@@ -3,8 +3,8 @@ module framework.i18n;
 import framework.filesystem;
 import utils.configfile;
 import utils.log;
-import stdx.format;
 import stdx.string;
+import utils.misc;
 import tango.util.Convert;
 
 //NOTE: because normal varargs suck infinitely in D (you have to deal with
@@ -125,7 +125,7 @@ public class Translator {
         //yes, it's a bit sad; it was soo nice before (r341)
         char[][] bla;
         foreach (y; t) {
-            bla ~= format("%s", y);
+            bla ~= myformat("{}", y);
         }
         return translateWithArray(id, bla);
     }

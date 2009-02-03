@@ -13,6 +13,8 @@ import framework.texturepack;
 import stdx.stream;
 import stdx.string;
 
+import utils.misc;
+
 //renderer and cache for font glyphs
 class GlyphCache {
     private {
@@ -107,7 +109,7 @@ class GlyphCache {
                 cast(ushort*)("?\0"d.ptr), col);
         }
         if (surface == null) {
-            throw new Exception(format("could not render char %s", c));
+            throw new Exception(myformat("could not render char {}", c));
         }
         auto res = gSDLDriver.convertFromSDLSurface(surface, Transparency.Alpha,
             true);
@@ -227,7 +229,7 @@ class SDLFont : DriverFont {
     }
 
     char[] getInfos() {
-        return format("glyphs=%d, pages=%d", mCache.cachedGlyphs,
+        return myformat("glyphs={}, pages={}", mCache.cachedGlyphs,
             mCache.mPacker ? mCache.mPacker.pages : -1);
     }
 }
@@ -242,7 +244,7 @@ class SDLFontDriver : FontDriver {
         DerelictSDLttf.load();
 
         if (TTF_Init()==-1) {
-            throw new Exception(format("TTF_Init: %s\n",
+            throw new Exception(myformat("TTF_Init: {}\n",
                 .toString(TTF_GetError())));
         }
     }

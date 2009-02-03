@@ -734,7 +734,7 @@ class Framework {
     }
 
     Surface loadImage(char[] path, Transparency t = Transparency.AutoDetect) {
-        mLog("load image: %s", path);
+        mLog("load image: {}", path);
         scope stream = fs.open(path, FileMode.In);
         auto image = loadImage(stream, t);
         return image;
@@ -782,13 +782,13 @@ class Framework {
     }
 
     char[] keyinfoToString(KeyInfo infos) {
-        char[] res = myformat("key=%s ('%s') unicode='%s'", cast(int)infos.code,
+        char[] res = myformat("key={} ('{}') unicode='{}'", cast(int)infos.code,
             translateKeycodeToKeyID(infos.code), infos.unicode);
 
         //append all modifiers
         for (Modifier mod = Modifier.min; mod <= Modifier.max; mod++) {
             if ((1<<mod) & infos.mods) {
-                res ~= myformat(" [%s]", modifierToString(mod));
+                res ~= myformat(" [{}]", modifierToString(mod));
             }
         }
 
@@ -1164,7 +1164,7 @@ class Framework {
             file = fileGz;
             gzipped = true;
         }
-        mLog("load config: %s", file);
+        mLog("load config: {}", file);
         char[] data;
         try {
             Stream stream = fs.open(file);
@@ -1192,7 +1192,7 @@ class Framework {
         return f.rootnode;
 
     error:
-        mLog("config file %s failed to load (allowFail = true)", file);
+        mLog("config file {} failed to load (allowFail = true)", file);
         return null;
     }
 
@@ -1201,7 +1201,7 @@ class Framework {
             mLogConf = registerLog("configfile");
             assert(mLogConf !is null);
         }
-        mLogConf("%s", log);
+        mLogConf("{}", log);
     }
 
     PerfTimer[char[]] timers() {
@@ -1302,20 +1302,20 @@ class Framework {
                         bytes_extra += extra;
                     }
                     bytes += s.mData.data.length;
-                    res ~= myformat("  %s [%s]\n", s.size, dr_desc);
+                    res ~= myformat("  {} [{}]\n", s.size, dr_desc);
                     cnt++;
                 }
-                res ~= myformat("%d surfaces, size=%s, driver_extra=%s\n",
+                res ~= myformat("{} surfaces, size={}, driver_extra={}\n",
                     cnt, sizeToHuman(bytes), sizeToHuman(bytes_extra));
                 cnt = 0;
                 res ~= "Fonts:\n";
                 foreach (f; gFonts.list) {
                     auto d = f.mFont;
-                    res ~= myformat("  %s/%s [%s]\n", f.properties.face,
+                    res ~= myformat("  {}/{} [{}]\n", f.properties.face,
                         f.properties.size, d ? d.getInfos() : "");
                     cnt++;
                 }
-                res ~= myformat("%d fonts\n", cnt);
+                res ~= myformat("{} fonts\n", cnt);
                 break;
             }
             default:

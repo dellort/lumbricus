@@ -65,7 +65,7 @@ SavegameData[] listAvailableSavegames() {
                     list ~= s;
                 } catch (Exception e) {
                     //don't crash
-                    registerLog("common.loadsave")("Savegame '%s' is invalid: %s",
+                    registerLog("common.loadsave")("Savegame '{}' is invalid: {}",
                         filename, e.msg);
                 }
             }
@@ -88,7 +88,7 @@ SavegameData createSavegame(char[] taskId, char[] name, char[] description,
     //construct a unique filename
     int i;
     ret.path = gFramework.fs.getUniqueFilename(cSavegamePath,
-        taskId ~ "_" ~ name ~ "%s", cSavegameExt, i);
+        taskId ~ "_" ~ name ~ "{}", cSavegameExt, i);
     if (i > 1)
         name ~= " (" ~ str.toString(i) ~ ")";
     //open the savegame file for writing
@@ -200,11 +200,11 @@ class LoadSaveHandler {
             //list all savegames
             write.writefln("Savegames:");
             foreach (s; listSavegames()) {
-                write.writefln("  %s", s);
+                write.writefln("  {}", s);
             }
             write.writefln("done.");
         } else {
-            write.writefln("Loading: %s", name);
+            write.writefln("Loading: {}", name);
             bool success = doLoad(name);
             if (!success)
                 write.writefln("loading failed!");
@@ -217,9 +217,9 @@ class LoadSaveHandler {
         write.writefln("Saving...");
         try {
             auto data = saveCurrentTask(name);
-            write.writefln("saved game as '%s'.",data.info["name"]);
+            write.writefln("saved game as '{}'.",data.info["name"]);
         } catch (SaveException e) {
-            write.writefln("Error saving: %s", e.msg);
+            write.writefln("Error saving: {}", e.msg);
         }
     }
 

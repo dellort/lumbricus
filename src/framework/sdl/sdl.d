@@ -2,6 +2,7 @@ module framework.sdl.sdl;
 
 import derelict.sdl.sdl;
 import stdx.string;
+import utils.misc;
 
 //this is not really needed; it's just here to make framework.sdl.framework
 //more independent from soundmixer.d, so sdl_mixer can be kept out more easily
@@ -16,7 +17,7 @@ void sdlInit() {
 
         //probably really needed, don't know
         if (SDL_Init(0) < 0) {
-            throw new Exception(format("Could not init SDL: %s",
+            throw new Exception(myformat("Could not init SDL: {}",
                 .toString(SDL_GetError())));
         }
     }

@@ -114,7 +114,7 @@ class POSP {
             windInfluence);
         explosionInfluence = node.getFloatValue("explosion_influence",
             explosionInfluence);
-        fixate = readVector(node.getStringValue("fixate", myformat("%s %s",
+        fixate = readVector(node.getStringValue("fixate", myformat("{} {}",
             fixate.x, fixate.y)));
         damageUnfixate = node.getBoolValue("damage_unfixate", damageUnfixate);
         glueForce = node.getFloatValue("glue_force", glueForce);
@@ -136,7 +136,7 @@ class POSP {
         fallDamageIgnoreX = node.getBoolValue("fall_damage_ignore_x",
             fallDamageIgnoreX);
         velocityConstraint = readVector(node.getStringValue(
-            "velocity_constraint", myformat("%s %s", velocityConstraint.x,
+            "velocity_constraint", myformat("{} {}", velocityConstraint.x,
             velocityConstraint.y)));
         speedLimit = node.getFloatValue("speed_limit", speedLimit);
         jetpackLooking = node.getBoolValue("jetpack_looking", jetpackLooking);

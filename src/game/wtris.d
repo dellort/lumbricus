@@ -14,7 +14,7 @@ import gui.wm;
 import utils.random;
 import utils.time;
 import utils.vector2;
-import stdx.string : format;
+import utils.misc;
 
 //registers itself as Task "wtris"
 public class WTris : Task {
@@ -492,9 +492,9 @@ public class WTris : Task {
     }
 
     private void update_gui() {
-         set_lines(format("%s", lines));
-         set_points(format("%s", points));
-         set_speed(format("%s", speed));
+         set_lines(myformat("{}", lines));
+         set_points(myformat("{}", points));
+         set_speed(myformat("{}", speed));
 
          bool msg_active;
 

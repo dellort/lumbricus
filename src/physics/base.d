@@ -99,7 +99,7 @@ class PhysicBase {
         if (onUpdate) {
             onUpdate();
         }
-        //world.mLog("update: %s", this);
+        //world.mLog("update: {}", this);
     }
 
     /+package+/ void simulate(float deltaT) {

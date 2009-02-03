@@ -244,7 +244,7 @@ class GLSurface : SDLDriverSurface {
     }
 
     void getInfos(out char[] desc, out uint extra_data) {
-        desc = format("GLSurface, texid=%s", mTexId);
+        desc = myformat("GLSurface, texid={}", mTexId);
     }
 
     void prepareDraw() {

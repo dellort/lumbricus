@@ -1481,17 +1481,17 @@ class GameController : GameLogicPublic {
             auto mode = sub.getStringValue("mode", "unknown");
             if (mode == "random") {
                 auto cnt = sub.getIntValue("count");
-                log("count %s type %s", cnt, sub["type"]);
+                log("count {} type {}", cnt, sub["type"]);
                 for (int n = 0; n < cnt; n++) {
                     try {
                         placeOnLandscape(mEngine.createSprite(sub["type"]));
                     } catch {
-                        log("Warning: Placing %s objects failed", sub["type"]);
+                        log("Warning: Placing {} objects failed", sub["type"]);
                         continue;
                     }
                 }
             } else {
-                log("warning: unknown placing mode: '%s'", sub["mode"]);
+                log("warning: unknown placing mode: '{}'", sub["mode"]);
             }
         }
         log("done placing level objects");
@@ -1525,9 +1525,9 @@ class GameController : GameLogicPublic {
         auto m1 = memberFromGameObject(cause, true);
         auto m2 = memberFromGameObject(victim, false);
         if (!m1 || !m2) {
-            log("unknown damage %s/%s %s/%s %s", cause, victim, m1, m2, damage);
+            log("unknown damage {}/{} {}/{} {}", cause, victim, m1, m2, damage);
         } else {
-            log("worm %s injured %s by %s", m1, m2, damage);
+            log("worm {} injured {} by {}", m1, m2, damage);
         }
     }
 
@@ -1570,7 +1570,7 @@ class GameController : GameLogicPublic {
             crate.setPos(from);
             crate.active = true;
             mLastCrate = crate;
-            log("drop %s -> %s", from, to);
+            log("drop {} -> {}", from, to);
             return true;
         } else {
             log("failed to create crate contents");

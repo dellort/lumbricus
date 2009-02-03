@@ -101,7 +101,7 @@ private:
 
     void cmdShowTimers(MyBox[] args, Output write) {
         write.writefln("Timers:");
-        listTimers((char[] a, char[] b) {write.writefln("   %s: %s", a, b);});
+        listTimers((char[] a, char[] b) {write.writefln("   {}: {}", a, b);});
     }
 
     void listTimers(void delegate(char[] name, char[] value) cb) {
@@ -109,7 +109,7 @@ private:
             Time* pt = cnt in mLastTimerValues;
             char[] s = "<unknown>";
             if (pt)
-                s = format("%s", *pt);
+                s = myformat("{}", *pt);
             cb(name, s);
         }
     }
@@ -262,7 +262,7 @@ private:
         if (args[0].empty) {
             write.writefln("Strings:");
             foreach (char[] name, InfoString id; names) {
-                write.writefln("  - %s", name);
+                write.writefln("  - {}", name);
             }
             return;
         }
@@ -274,14 +274,14 @@ private:
         char[] s = args[0].unbox!(char[]);
         if (s == "all") {
             foreach (char[] name, InfoString id; names) {
-                write.writefln("%s:", name);
+                write.writefln("{}:", name);
                 show(id);
             }
         } else {
             if (s in names) {
                 show(names[s]);
             } else {
-                write.writefln("string '%s' not found", s);
+                write.writefln("string '{}' not found", s);
             }
         }
     }
@@ -299,7 +299,7 @@ private:
             count++;
             char[] pad; pad.length = depth*2; pad[] = ' ';
             Container cw = cast(Container)w;
-            write.writefln("%s%s%s", pad, w, cw ? " [container]" : "");
+            write.writefln("{}{}{}", pad, w, cw ? " [container]" : "");
             if (cw) {
                 cw.enumChildren((Widget child) {
                     showWidget(child, depth + 1);
@@ -309,12 +309,12 @@ private:
 
         write.writefln("Widget tree:");
         showWidget(mGui.mainFrame, 0);
-        write.writefln("maxdepth = %d, count = %d", maxdepth, count);
+        write.writefln("maxdepth = {}, count = {}", maxdepth, count);
     }
 
     private void cmdReleaseCaches(MyBox[] args, Output write) {
         int released = gFramework.releaseCaches(args[0].unbox!(bool));
-        write.writefln("released %s memory consuming house shoes", released);
+        write.writefln("released {} memory consuming house shoes", released);
     }
 
     private void cmdResList(MyBox[] args, Output write) {
@@ -324,12 +324,12 @@ private:
         int count;
         gFramework.resources.enumResources(
             (char[] full, ResourceItem res) {
-                write.writefln("Full=%s, Id=%s", full, res.id);
-                write.writefln(" loaded=%s,", res.isLoaded);
+                write.writefln("Full={}, Id={}", full, res.id);
+                write.writefln(" loaded={},", res.isLoaded);
                 count++;
             }
         );
-        write.writefln("%d resources.", count);
+        write.writefln("{} resources.", count);
         file.close();
     }
 
@@ -344,7 +344,7 @@ private:
         try {
             gFramework.resources.loadResources(s);
         } catch (Exception e) {
-            write.writefln("failed: %s", e);
+            write.writefln("failed: {}", e);
         }
     }
 
@@ -358,7 +358,7 @@ private:
     private void cmdPS(MyBox[] args, Output write) {
         write.writefln("ID / toString()");
         foreach (Task t; taskManager.taskList) {
-            write.writefln("  %2d / %s", t.taskID, t);
+            write.writefln("  %2d / {}", t.taskID, t);
         }
     }
 
@@ -370,10 +370,10 @@ private:
         } catch (ClassNotFoundException e) {
             //xxx: and what if the Task was found, but the Task constructor
             //     throws this exception??
-            write.writefln("not found (%s)", e);
+            write.writefln("not found ({})", e);
             return;
         }
-        write.writefln("spawn: instantiated %s -> %s", name, n);
+        write.writefln("spawn: instantiated {} -> {}", name, n);
     }
 
     private char[][] complete_spawn() {
@@ -387,14 +387,14 @@ private:
                 return t;
             }
         }
-        write.writefln("Task %d not found.", id);
+        write.writefln("Task {} not found.", id);
         return null;
     }
 
     private void cmdKill(MyBox[] args, Output write) {
         Task t = findTask(args, write);
         if (t) {
-            write.writefln("killing %s", t);
+            write.writefln("killing {}", t);
             t.kill();
             write.writefln("kill: done");
         }
@@ -403,13 +403,13 @@ private:
     private void cmdTerminate(MyBox[] args, Output write) {
         Task t = findTask(args, write);
         if (t) {
-            write.writefln("terminating %s", t);
+            write.writefln("terminating {}", t);
             t.terminate();
         }
     }
 
     private void cmdSpawnHelp(MyBox[] args, Output write) {
-        write.writefln("registered task classes: %s", TaskFactory.classes);
+        write.writefln("registered task classes: {}", TaskFactory.classes);
     }
 
     private void cmdFramerate(MyBox[] args, Output write) {
@@ -417,7 +417,7 @@ private:
     }
 
     private void onVideoInit(bool depth_only) {
-        globals.log("Changed video: %s", gFramework.screenSize);
+        globals.log("Changed video: {}", gFramework.screenSize);
         mGui.size = gFramework.screenSize;
     }
 
@@ -439,7 +439,7 @@ private:
                 !gFramework.fullScreen);
         } catch (Exception e) {
             //fullscreen switch failed
-            write.writefln("error: %s", e);
+            write.writefln("error: {}", e);
         }
     }
 
@@ -465,7 +465,7 @@ private:
         write.writefln("Bindings:");
         keybindings.enumBindings(
             (char[] bind, Keycode code, ModifierSet mods) {
-                write.writefln("    %s='%s' ('%s')", bind,
+                write.writefln("    {}='{}' ('{}')", bind,
                     keybindings.unparseBindString(code, mods),
                     globals.translateKeyshortcut(code, mods));
             }
@@ -509,7 +509,7 @@ private:
 
         cmd.console.writefln("Log targets:");
         foreach (Log log; gAllLogs) {
-            cmd.console.writefln("  %s -> %s", log.category, log.backend_name);
+            cmd.console.writefln("  {} -> {}", log.category, log.backend_name);
         }
     }*/
 
@@ -529,7 +529,7 @@ private:
         gc.gcFullCollect();
         counter.stop();
         gc.getStats(s2);
-        write.writefln("GC fullcollect: %s, free'd %s KB", counter.time,
+        write.writefln("GC fullcollect: {}, free'd {} KB", counter.time,
             ((s1.usedsize - s2.usedsize) + 512) / 1024);
     }
     private void testGCstats(MyBox[] args, Output write) {
@@ -537,11 +537,11 @@ private:
         gc.GCStats s;
         gc.getStats(s);
         w.writefln("GC stats:");
-        w.writefln("poolsize = %s KB", s.poolsize/1024);
-        w.writefln("usedsize = %s KB", s.usedsize/1024);
-        w.writefln("freeblocks = %s", s.freeblocks);
-        w.writefln("freelistsize = %s KB", s.freelistsize/1024);
-        w.writefln("pageblocks = %s", s.pageblocks);
+        w.writefln("poolsize = {} KB", s.poolsize/1024);
+        w.writefln("usedsize = {} KB", s.usedsize/1024);
+        w.writefln("freeblocks = {}", s.freeblocks);
+        w.writefln("freelistsize = {} KB", s.freelistsize/1024);
+        w.writefln("pageblocks = {}", s.pageblocks);
     }
 
     private void onUpdate() {
@@ -575,7 +575,7 @@ private:
             auto mods = event.keyEvent.mods;
             auto code = event.keyEvent.code;
 
-            mGuiConsole.output.writefln("Key: '%s' '%s', code=%s mods=%s",
+            mGuiConsole.output.writefln("Key: '{}' '{}', code={} mods={}",
                 keybindings.unparseBindString(code, mods),
                 globals.translateKeyshortcut(code, mods),
                 cast(int)code, cast(int)mods);

@@ -130,7 +130,7 @@ class SDLSoundDriver : SoundDriver {
         DerelictSDLMixer.load();
         if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0) {
             throw new Exception(myformat("Could not init SDL audio subsystem:"
-                " %s", str.toString(SDL_GetError())));
+                " {}", str.toString(SDL_GetError())));
         }
 
         //44.1kHz stereo

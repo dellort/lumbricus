@@ -202,7 +202,7 @@ class LandscapeBitmap {
 
         debug {
             counter.stop();
-            mLog("render.d: polygon rendered in %s", counter.time);
+            mLog("render.d: polygon rendered in {}", counter.time);
         }
 
         if (textured) {
@@ -390,7 +390,7 @@ class LandscapeBitmap {
 
         debug {
             counter.stop();
-            mLog("render.d: border drawn in %s", counter.time());
+            mLog("render.d: border drawn in {}", counter.time());
         }
     }
 

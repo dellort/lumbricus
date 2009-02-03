@@ -291,7 +291,7 @@ class WormSprite : GObjectSprite {
     void beamTo(Vector2f npos) {
         //if (!isSitting())
         //    return; //only can beam when standing
-        log("beam to: %s", npos);
+        log("beam to: {}", npos);
         //xxx: check and lock destination
         mBeamDest = npos;
         setState(wsc.st_beaming);
@@ -529,7 +529,7 @@ class WormSprite : GObjectSprite {
         if (!sh || sh.weapon != mWeapon)
             sh = mWeapon.createShooter(this);
 
-        log("fire: %s", mWeapon.name);
+        log("fire: {}", mWeapon.name);
 
         FireInfo info;
         if (fixedDir)
@@ -981,8 +981,8 @@ class GravestoneSpriteClass : GOSpriteClass {
 
         //try to find as much gravestones as there are
         for (int n = 0; ; n++) {
-            auto s_n = findSequenceState(myformat("n%s", n), true);
-            auto s_d = findSequenceState(myformat("drown%s", n), true);
+            auto s_n = findSequenceState(myformat("n{}", n), true);
+            auto s_d = findSequenceState(myformat("drown{}", n), true);
             if (!(s_n && s_d))
                 break;
             normal ~= s_n;

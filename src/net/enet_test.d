@@ -11,6 +11,7 @@ import net.netlayer;
 import utils.array;
 import utils.output;
 import utils.vector2;
+import utils.misc;
 
 import tango.io.Stdout;
 import stdx.string;
@@ -31,7 +32,7 @@ class TestEnet : Task {
         mOut = c.console;
         init_cmds(c.cmdline);
         mInstance++;
-        auto w = gWindowManager.createWindow(this, c, format("enet test %s",
+        auto w = gWindowManager.createWindow(this, c, myformat("enet test {}",
             mInstance), Vector2i(500,300));
 
         mBase = new NetBase();
@@ -66,7 +67,7 @@ private:
 
     void cmdNew(MyBox[], Output) {
         auto pid = (new typeof(this)(manager)).taskID();
-        mOut.writefln("created %s", pid);
+        mOut.writefln("created {}", pid);
     }
     void cmdExit(MyBox[], Output) {
         terminate();
@@ -81,7 +82,7 @@ private:
                     args[1].unbox!(int)());
                 mHost.onConnect = &onConnect;
             } catch (NetException e) {
-                mOut.writefln("exception '%s'", e);
+                mOut.writefln("exception '{}'", e);
             }
         }
     }
@@ -93,7 +94,7 @@ private:
                 mHost = mBase.createClient(args[0].unbox!(int)());
                 mHost.onConnect = &onConnect;
             } catch (NetException e) {
-                mOut.writefln("exception '%s'", e);
+                mOut.writefln("exception '{}'", e);
             }
         }
     }
@@ -107,13 +108,13 @@ private:
             mHost.connect(NetAddress(args[0].unbox!(char[])),
                 args[1].unbox!(int));
         } catch (NetException e) {
-            mOut.writefln("exception '%s'", e);
+            mOut.writefln("exception '{}'", e);
         }
     }
 
     NetPeer getPeer(int index) {
         if (index < 0 || index >= mPeers.length || mPeers[index] is null) {
-            mOut.writefln("peer %s not found.", index);
+            mOut.writefln("peer {} not found.", index);
             return null;
         }
         return mPeers[index];
@@ -132,14 +133,14 @@ private:
         }
 
         void dopeer(NetPeer p) {
-            mOut.writefln("peer %s: address=%s, connected=%s, channelcount=%s",
+            mOut.writefln("peer {}: address={}, connected={}, channelcount={}",
                 arraySearch(mPeers, p), p.address, p.connected, p.channelCount);
         }
 
         if (peer) {
             dopeer(peer);
         } else {
-            mOut.writefln("host: bound to %s", mHost.boundPort);
+            mOut.writefln("host: bound to {}", mHost.boundPort);
             foreach (p; mPeers) {
                 if (p)
                     dopeer(p);
@@ -188,19 +189,19 @@ private:
         int n = mPeers.length - 1;
         peer.onDisconnect = &onDisconnect;
         peer.onReceive = &onReceive;
-        mOut.writefln("Connected peer %s from %s, connected=%s, "
-            "channelcount=%s", n, peer.address, peer.connected,
+        mOut.writefln("Connected peer {} from {}, connected={}, "
+            "channelcount={}", n, peer.address, peer.connected,
             peer.channelCount);
     }
 
     void onReceive(NetPeer sender, ubyte channelId, ubyte* data, size_t dataLen)
     {
-        mOut.writefln("* Receive from peer %s/%s: %s",
+        mOut.writefln("* Receive from peer {}/{}: {}",
             arraySearch(mPeers, sender), channelId, data[0..dataLen]);
     }
 
     void onDisconnect(NetPeer sender) {
-        mOut.writefln("* Peer %s disconnected.", arraySearch(mPeers, sender));
+        mOut.writefln("* Peer {} disconnected.", arraySearch(mPeers, sender));
     }
 
     override protected void onFrame() {

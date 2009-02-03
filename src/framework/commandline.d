@@ -267,7 +267,7 @@ private:
             //complain and throw up if not valid
             if (box.empty()) {
                 if (curarg < minArgCount) {
-                    write.writefln("could not parse argument nr. %s", curarg);
+                    write.writefln("could not parse argument nr. {}", curarg);
                     return false;
                 }
                 box = param_defaults[curarg];
@@ -277,7 +277,7 @@ private:
         }
 
         if (last_item < cast(int)items.length - 1) {
-            write.writefln("Warning: trailing unparsed argument string: '%s'",
+            write.writefln("Warning: trailing unparsed argument string: '{}'",
                 cmdline[items[last_item+1].start .. items[$-1].end]);
         }
 
@@ -386,7 +386,7 @@ class CommandBucket {
                     if (e.alias_name == last_entry) {
                         change = true;
                         n_entry++;
-                        e.alias_name = myformat("%s_%d", last_entry, n_entry);
+                        e.alias_name = myformat("{}_{}", last_entry, n_entry);
                     } else {
                         last_entry = e.alias_name;
                         n_entry = 1;
@@ -481,10 +481,10 @@ class CommandLineInstance {
             mConsole.writefln("List of commands: ");
             uint count = 0;
             foreach (c; mCommands.sorted) {
-                mConsole.writefln("   %s: %s", c.alias_name, c.cmd.helpText);
+                mConsole.writefln("   {}: {}", c.alias_name, c.cmd.helpText);
                 count++;
             }
-            mConsole.writefln("%d commands.", count);
+            mConsole.writefln("{} commands.", count);
         } else {
             //"detailed" help about one command
             //xxx: maybe replace the exact comparision by calling the auto
@@ -500,34 +500,34 @@ class CommandLineInstance {
             } else if (reslist.length) {
                 mConsole.writefln("matches:");
                 foreach (e; reslist) {
-                    mConsole.writefln("   %s", e.alias_name);
+                    mConsole.writefln("   {}", e.alias_name);
                 }
                 return;
             }
-            mConsole.writefln("Command '%s' not found.", foo);
+            mConsole.writefln("Command '{}' not found.", foo);
         }
     }
 
     private void show_cmd_help(CommandEntry cmd) {
         auto c = cmd.cmd;
-        mConsole.writefln("Command '%s' ('%s'): %s", cmd.alias_name,
+        mConsole.writefln("Command '{}' ('{}'): {}", cmd.alias_name,
             c.name, c.helpText);
         for (int n = 0; n < c.param_types.length; n++) {
             //reverse lookup type
             foreach (key, value; gCommandLineParsers) {
                 if (value is c.param_types[n]) {
-                    mConsole.writef("    %s ", key);
+                    mConsole.writef("    {} ", key);
                 }
             }
             if (n >= c.minArgCount) {
                 mConsole.writef("[opt] ");
             }
-            mConsole.writefln("%s", c.param_help[n]);
+            mConsole.writefln("{}", c.param_help[n]);
         }
         if (c.textArgument) {
             mConsole.writefln("    [text-agument]");
         }
-        mConsole.writefln("%s arguments.", c.param_types.length);
+        mConsole.writefln("{} arguments.", c.param_types.length);
     }
 
     private void cmdHistory(MyBox[] args, Output write) {
@@ -737,8 +737,8 @@ class CommandLineInstance {
             foreach (char[] item; completions[1..$]) {
                 common = common_prefix(common, item);
             }
-            //mConsole.writefln(" ..: '%s' '%s' %s", common, cmd, res);
-            //mConsole.writefln("s=%s e=%s", start, end);
+            //mConsole.writefln(" ..: '{}' '{}' {}", common, cmd, res);
+            //mConsole.writefln("s={} e={}", start, end);
 
             if (common.length > argstr.length) {
                 //if there's a common substring longer than the commandline,
@@ -755,7 +755,7 @@ class CommandLineInstance {
                     if (toomuch) completions = completions[0..$-1];
                     foreach (char[] item; completions) {
                         //draw a "|" between the completed and the missing part
-                        mConsole.writefln("  %s|%s", item[0..common.length],
+                        mConsole.writefln("  {}|{}", item[0..common.length],
                             item[common.length..$]);
                     }
                     if (toomuch)

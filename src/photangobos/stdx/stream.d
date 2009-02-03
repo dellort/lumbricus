@@ -73,7 +73,6 @@ enum SeekPos {
 }
 
 private {
-  import stdx.format;
   import std.intrinsic; // for bswap
   import stdx.utf;
   import stdx.base;

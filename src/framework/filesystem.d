@@ -127,7 +127,7 @@ private class HandlerDirectory : HandlerInstance {
         if (!dirExists(absPath))
             throw new FilesystemException("Directory doesn't exist");
         mDirPath = addTrailingPathDelimiter(absPath);
-        version(FSDebug) log("New dir handler for '%s'",mDirPath);
+        version(FSDebug) log("New dir handler for '{}'",mDirPath);
     }
 
     bool isWritable() {
@@ -136,7 +136,7 @@ private class HandlerDirectory : HandlerInstance {
 
     bool exists(VFSPath handlerPath) {
         char[] p = handlerPath.makeAbsolute(mDirPath);
-        version(FSDebug) log("Checking for existance: '%s'",p);
+        version(FSDebug) log("Checking for existance: '{}'",p);
         return tpath.exists(p) && !tpath.isFolder(p);
     }
 
@@ -158,7 +158,7 @@ private class HandlerDirectory : HandlerInstance {
     }
 
     Stream open(VFSPath handlerPath, FileMode mode) {
-        version(FSDebug) log("Handler for '%s': Opening '%s'",mDirPath,
+        version(FSDebug) log("Handler for '{}': Opening '{}'",mDirPath,
             handlerPath);
         if (mode == FileMode.OutNew) {
             //make sure path exists
@@ -196,7 +196,7 @@ private class HandlerLink : HandlerInstance {
     private FileSystem mParent;
 
     this(FileSystem parent, VFSPath relPath) {
-        version(FSDebug) log("New link: %s",relPath);
+        version(FSDebug) log("New link: {}",relPath);
         mLinkedPath = relPath;
         mParent = parent;
     }
@@ -207,17 +207,17 @@ private class HandlerLink : HandlerInstance {
     }
 
     bool exists(VFSPath handlerPath) {
-        version(FSDebug) log("Link: exists(%s)",handlerPath);
+        version(FSDebug) log("Link: exists({})",handlerPath);
         return mParent.exists(mLinkedPath.join(handlerPath), this);
     }
 
     bool pathExists(VFSPath handlerPath) {
-        version(FSDebug) log("Link: pathexists(%s)",handlerPath);
+        version(FSDebug) log("Link: pathexists({})",handlerPath);
         return mParent.pathExists(mLinkedPath.join(handlerPath), this);
     }
 
     Stream open(VFSPath handlerPath, FileMode mode) {
-        version(FSDebug) log("Link: open(%s)",handlerPath);
+        version(FSDebug) log("Link: open({})",handlerPath);
         return mParent.open(mLinkedPath.join(handlerPath), mode, this);
     }
 
@@ -264,7 +264,7 @@ class FileSystem {
             ///is relPath a subdirectory of mountPoint?
             ///compares case-sensitive
             public bool matchesPath(VFSPath other) {
-                version(FSDebug) log("Checking for match: '%s' and '%s'",
+                version(FSDebug) log("Checking for match: '{}' and '{}'",
                     other,mountPoint);
                 return mountPoint.isChild(other);
             }
@@ -360,7 +360,7 @@ class FileSystem {
 
         //user path: home directory + .appId
         mUserPath = getUserPath();
-        version(FSDebug) log("PUser = '%s'",mUserPath);
+        version(FSDebug) log("PUser = '{}'",mUserPath);
 
         //data paths: app directory + special dirs on linux
         mDataPaths = null;
@@ -372,7 +372,7 @@ class FileSystem {
         //XXX really? this could cause problems if app is in C:\Program Files
         mDataPaths ~= mAppPath ~ "../data/";
         debug foreach(p; mDataPaths) {
-            version(FSDebug) log("PData = '%s'",p);
+            version(FSDebug) log("PData = '{}'",p);
         }
     }
 
@@ -516,7 +516,7 @@ class FileSystem {
     public Stream open(VFSPath filename, FileMode mode = FileMode.In,
         HandlerInstance caller = null)
     {
-        version(FSDebug) log("Trying to open '%s'",filename);
+        version(FSDebug) log("Trying to open '{}'",filename);
         foreach (inout MountedPath p; mMountedPaths) {
             if (p.handler == caller)
                 continue;
@@ -652,7 +652,7 @@ class FileSystem {
     }
 
     ///get a unique (non-existing) filename in path with extension ext
-    ///if the file already exists, either replace %s with or append 2,3 etc.
+    ///if the file already exists, either replace {} with or append 2,3 etc.
     char[] getUniqueFilename(char[] path, char[] nameTemplate, char[] ext,
         out int tries)
     {

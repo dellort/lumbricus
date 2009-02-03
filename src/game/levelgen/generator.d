@@ -192,7 +192,7 @@ class GenerateFromTemplate : LevelGenerator {
         saveto.setStringValue("type", "level_renderer");
 
         saveto.setStringValue("theme", mCurTheme.name);
-        saveto.setStringValue("world_size", myformat("%s %s",
+        saveto.setStringValue("world_size", myformat("{} {}",
             nlevel.worldSize.x, nlevel.worldSize.y));
         saveto.setBoolValue("airstrike_allow", nlevel.airstrikeAllow);
         saveto.setIntValue("airstrike_y", nlevel.airstrikeY);
@@ -278,9 +278,9 @@ class GenerateFromTemplate : LevelGenerator {
                 land.landscape_theme = rendered_theme;
                 rland.land = land;
                 onode.setStringValue("type", type);
-                onode.setStringValue("position", myformat("%s %s",
+                onode.setStringValue("position", myformat("{} {}",
                     land.position.x, land.position.y));
-                //onode.setStringValue("size", myformat("%s %s",
+                //onode.setStringValue("size", myformat("{} {}",
                   //  land.size.x, land.size.y));
                 nlevel.landBounds.extend(Rect2i.Span(land.position, land.size));
             } else {
@@ -1021,7 +1021,7 @@ class LevelThemes {
                 if (theme) {
                     mItems ~= theme;
                 } else {
-                    mLog("could not load '%s' as LevelTheme: %s", filename, err);
+                    mLog("could not load '{}' as LevelTheme: {}", filename, err);
                 }
                 return true;
             }
@@ -1050,7 +1050,7 @@ class LevelTemplates {
                 if (templ) {
                     mItems ~= templ;
                 } else {
-                    mLog("could not load '%s' as LevelTemplate: %s", path, err);
+                    mLog("could not load '{}' as LevelTemplate: {}", path, err);
                 }
                 return true;
             }
@@ -1085,7 +1085,7 @@ LandscapeBitmap landscapeRenderGeometry(LandscapeGeometry geometry,
 
     debug {
         counter.stop();
-        mLog("geometry: %s", counter.time());
+        mLog("geometry: {}", counter.time());
         counter.reset();
         counter.start();
     }
@@ -1098,7 +1098,7 @@ LandscapeBitmap landscapeRenderGeometry(LandscapeGeometry geometry,
 
     debug {
         counter.stop();
-        mLog("borders: %s", counter.time());
+        mLog("borders: {}", counter.time());
     }
     return renderer;
 }
@@ -1268,7 +1268,7 @@ LandscapeObjects landscapePlaceObjects(LandscapeBitmap renderer,
 
     debug {
         counter.stop();
-        mLog("placed objects in %s", counter.time());
+        mLog("placed objects in {}", counter.time());
     }
 
     return placer.objects;
@@ -1290,7 +1290,7 @@ void landscapeRenderObjects(LandscapeBitmap renderer, LandscapeObjects objs,
 
     debug {
         counter.stop();
-        mLog("rendered objects in %s", counter.time());
+        mLog("rendered objects in {}", counter.time());
     }
 }
 

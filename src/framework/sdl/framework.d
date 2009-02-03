@@ -154,7 +154,7 @@ void doMirrorY(SurfaceData* data) {
             /+cc ? 0 :+/ 0xFF000000);
         if (!mSurface) {
             throw new Exception(myformat("couldn't create SDL surface, "
-                "size=%s", mData.size));
+                "size={}", mData.size));
         }
 
         //lol SDL - need to clear any transparency modes first
@@ -260,7 +260,7 @@ void doMirrorY(SurfaceData* data) {
     }
 
     void getInfos(out char[] desc, out uint extra_data) {
-        desc = myformat("c=%s", mCacheEnabled);
+        desc = myformat("c={}", mCacheEnabled);
         if (mCacheEnabled) {
             extra_data = mSurface.pitch * mSurface.h;
         }
@@ -366,7 +366,7 @@ class SDLDriver : FrameworkDriver {
         }
 
         if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0) {
-            throw new Exception(myformat("Could not init SDL video: %s",
+            throw new Exception(myformat("Could not init SDL video: {}",
                 str.toString(SDL_GetError())));
         }
 
@@ -585,7 +585,7 @@ class SDLDriver : FrameworkDriver {
         //since the user might toggle numlock or capslock while we don't have
         //the keyboard-focus, ask the SDL (which inturn asks the OS)
         SDLMod modstate = SDL_GetModState();
-        //writefln("state=%s", modstate);
+        //writefln("state={}", modstate);
         if (mod == Modifier.Shift) {
             //xxx behaviour when caps and shift are both on is maybe OS
             //dependend; on X11, both states are usually XORed
@@ -887,7 +887,7 @@ class SDLDriver : FrameworkDriver {
     }
 
     private char[] pixelFormatToString(SDL_PixelFormat* fmt) {
-        return myformat("bits=%s R/G/B/A=%#08x/%#08x/%#08x/%#08x",
+        return myformat("bits={} R/G/B/A={:x8}/{:x8}/{:x8}/{:x8}",
             fmt.BitsPerPixel, fmt.Rmask, fmt.Gmask, fmt.Bmask, fmt.Amask);
     }
 
@@ -895,18 +895,18 @@ class SDLDriver : FrameworkDriver {
         char[] desc;
 
         char[] version_to_a(SDL_version v) {
-            return myformat("%s.%s.%s", v.major, v.minor, v.patch);
+            return myformat("{}.{}.{}", v.major, v.minor, v.patch);
         }
 
         SDL_version compiled, linked;
         SDL_VERSION(&compiled);
         linked = *SDL_Linked_Version();
-        desc ~= myformat("SDLDriver, SDL compiled=%s linked=%s\n",
+        desc ~= myformat("SDLDriver, SDL compiled={} linked={}\n",
             version_to_a(compiled), version_to_a(linked));
 
         char[20] buf;
         char* res = SDL_VideoDriverName(buf.ptr, buf.length);
-        desc ~= myformat("Driver: %s\n", res ? str.toString(res)
+        desc ~= myformat("Driver: {}\n", res ? str.toString(res)
             : "<unintialized>");
 
         SDL_VideoInfo info = *SDL_GetVideoInfo();
@@ -920,21 +920,21 @@ class SDLDriver : FrameworkDriver {
         char[] flags;
         foreach (int index, name; flag_names) {
             bool set = !!(info.flags & (1<<index));
-            flags ~= myformat("  %s: %s\n", name, (set ? "1" : "0"));
+            flags ~= myformat("  {}: {}\n", name, (set ? "1" : "0"));
         }
         desc ~= "Flags:\n" ~ flags;
 
         desc ~= "Screen:\n";
-        desc ~= myformat("   size = %sx%s\n", info.current_w, info.current_h);
-        desc ~= myformat("   video memory = %s\n",
+        desc ~= myformat("   size = {}x{}\n", info.current_w, info.current_h);
+        desc ~= myformat("   video memory = {}\n",
             sizeToHuman(info.video_mem));
         SDL_PixelFormat* fmt = info.vfmt;
-        desc ~= myformat("   pixel format = %s\n", pixelFormatToString(fmt));
+        desc ~= myformat("   pixel format = {}\n", pixelFormatToString(fmt));
 
-        desc ~= myformat("Uses OpenGL: %s\n", mOpenGL);
+        desc ~= myformat("Uses OpenGL: {}\n", mOpenGL);
         if (mOpenGL) {
             void dumpglstr(GLenum t, char[] name) {
-                desc ~= myformat("  %s = %s\n", name,
+                desc ~= myformat("  {} = {}\n", name,
                     str.toString(glGetString(t)));
             }
             dumpglstr(GL_VENDOR, "GL_VENDOR");
@@ -942,7 +942,7 @@ class SDLDriver : FrameworkDriver {
             dumpglstr(GL_VERSION, "GL_VERSION");
         }
 
-        desc ~= myformat("%d driver surfaces\n", mDriverSurfaceCount);
+        desc ~= myformat("{} driver surfaces\n", mDriverSurfaceCount);
 
         return desc;
     }

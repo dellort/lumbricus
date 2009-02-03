@@ -22,7 +22,7 @@ private {
         //(used to use std.math.rndtol() instead of the cast)
         int h2 = cast(int)(heightExtraMult * h);
         while (cast(float)h / h2 < acceptableHeightRatio) --h2;
-        //writefln("making %s out of %s", h2, h);
+        //writefln("making {} out of {}", h2, h);
         assert (h2 >= h);
         return h2;
     }
@@ -68,7 +68,7 @@ class BoxPacker {
 
 
     PackerPage extendCache(Vector2i minSize) {
-        //writefln(`BoxPacker: Creating a new cache page: %s`, pages.length);
+        //writefln(`BoxPacker: Creating a new cache page: {}`, pages.length);
         pages ~= new PackerPage(pageSizeContaining(minSize), pages.length);
         return pages[$-1];
     }

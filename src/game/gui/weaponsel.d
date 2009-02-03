@@ -20,7 +20,7 @@ import utils.random;
 import utils.misc;
 import utils.vector2;
 
-import stdx.string : format, cmp;
+import stdx.string : cmp;
 
 class WeaponSelWindow : Container {
     private {
@@ -183,7 +183,7 @@ class WeaponSelWindow : Container {
 
         if (w && w.visible()) {
             mWeaponName.text = translateWeapon(w.weapon.name);
-            mWeaponQuantity.text = w.infinite ? "" : format("x%s", w.quantity);
+            mWeaponQuantity.text = w.infinite ? "" : myformat("x{}", w.quantity);
         } else {
             mWeaponName.text = "";
             mWeaponQuantity.text = "";
@@ -207,7 +207,7 @@ class WeaponSelWindow : Container {
                         break;
                     }
                 }
-                assert(found, format("weapon '%s' was not known at init time!",
+                assert(found, myformat("weapon '{}' was not known at init time!",
                     w.type.name));
             }
         }

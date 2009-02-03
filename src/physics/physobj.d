@@ -106,7 +106,7 @@ class PhysicObject : PhysicBase {
     /+private+/ void doUnglue() {
         if (!isGlued)
             return;
-        version(PhysDebug) log("unglue object %s", this);
+        version(PhysDebug) log("unglue object {}", this);
         //he flies away! arrrgh!
         mIsGlued = false;
         //mWalkingMode = false; (no! object _wants_ to walk, and continue
@@ -154,7 +154,7 @@ class PhysicObject : PhysicBase {
                 //  => worm gets glued, hahaha.
                 //xxx maybe do the gluing somewhere else?
                 glueObject;
-                version(PhysDebug) mLog("glue object %s", me);
+                version(PhysDebug) mLog("glue object {}", me);
             }
         }
         if (source == ContactSource.object) {
@@ -261,7 +261,7 @@ class PhysicObject : PhysicBase {
     }
 
     char[] toString() {
-        return myformat("[%s: %s %s]", toHash(), pos, velocity);
+        return myformat("[{}: {} {}]", toHash(), pos, velocity);
     }
 
     override void doDie() {
@@ -384,7 +384,7 @@ class PhysicObject : PhysicBase {
 
     void applyDamage(float severity, int cause) {
         auto delta = -severity*posp.damageable;
-        //log("damage: %s/%s", severity, delta);
+        //log("damage: {}/{}", severity, delta);
         if (abs(delta) > posp.damageThreshold) {
             lifepower += delta;
             //make sure object is dead if lifepowerInt() reports <= 0
@@ -480,7 +480,7 @@ class PhysicObject : PhysicBase {
                     contact);
 
                 if (!res) {
-                    log("walk at %s -> %s", npos, npos-mPos);
+                    log("walk at {} -> {}", npos, npos-mPos);
                     //no collision, consider this to be bottom
 
                     auto oldpos = pos;
@@ -491,7 +491,7 @@ class PhysicObject : PhysicBase {
                         mPos += walkDist;
                         doUnglue();
                     } else {
-                        log("walk: bottom at %s", y);
+                        log("walk: bottom at {}", y);
                         //walk to there...
                         if (mPosp.walkLimitSlopeSpeed) {
                             //one pixel at a time, even on steep slopes

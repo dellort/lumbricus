@@ -18,8 +18,8 @@ struct PlaceCommand {
     Lexel after;
 
     void saveTo(ConfigNode node) {
-        node["at"] = myformat("%s %s", at.x, at.y);
-        node["size"] = myformat("%s %s", size.x, size.y);
+        node["at"] = myformat("{} {}", at.x, at.y);
+        node["size"] = myformat("{} {}", size.x, size.y);
         node["before"] = writeMarker(before);
         node["after"] = writeMarker(after);
     }
@@ -182,7 +182,7 @@ public class PlaceObjects {
             Vector2i pos, st, en;
             pos = randPoint();
 
-            mLog("bridge at %s? %s", pos, bridge[1].size/3);
+            mLog("bridge at {}? {}", pos, bridge[1].size/3);
 
             //bridge segment size now can be less than the size of the bitmap,
             // but disabled it because it looks worse (?)
@@ -249,11 +249,11 @@ public class PlaceObjects {
             auto pos = Vector2i(cpos.x + line.x/2 - obj.size.x/2,
                 cpos.y-(obj.size.y-line.y));
 
-            mLog("try object at %s", pos);
+            mLog("try object at {}", pos);
 
             if (checkCollide(pos, obj.size - Vector2i(0, dist))) {
                 //yeeha
-                mLog("place object at %s", pos);
+                mLog("place object at {}", pos);
                 placeObject(obj, pos);
                 count++;
             }

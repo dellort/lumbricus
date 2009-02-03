@@ -627,7 +627,7 @@ class Widget {
             //is hold, we should receive all other mouse events until no
             //mouse button is down anymore (see MainFrame)
             if (!m.captureMouse && anyMouseButtonPressed()) {
-                log()("capture: %s -> %s", m.captureMouse, this);
+                log()("capture: {} -> {}", m.captureMouse, this);
                 m.captureMouse = this;
             }
         }
@@ -818,7 +818,7 @@ class Widget {
     /// called when focused() changes
     /// default implementation: set Widget zorder to front
     protected void onFocusChange() {
-        log()("global focus change for %s: %s", this, mHasFocus);
+        log()("global focus change for {}: {}", this, mHasFocus);
         //also adjust zorder, else it looks strange
         if (focused)
             toFront();

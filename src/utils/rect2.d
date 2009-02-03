@@ -1,7 +1,6 @@
 module utils.rect2;
 import utils.vector2;
-import utils.misc : min, max;
-import stdx.string : format;
+import utils.misc : min, max, myformat;
 
 //T is the most underlying type, i.e. float or int
 //NOTE: most member functions expect the rect to be in "normal" form
@@ -234,7 +233,7 @@ public struct Rect2(T) {
     }
 
     char[] toString() {
-        return format("[%s - %s]", p1, p2);
+        return myformat("[{} - {}]", p1, p2);
     }
 }
 

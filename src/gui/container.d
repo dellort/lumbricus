@@ -26,7 +26,7 @@ class Container : Widget {
                 return w.mZOrder - o.w.mZOrder;
             }
             char[] toString() {
-                return myformat("%s(%s,%s)", w, w.mZOrder, w.mZOrder2);
+                return myformat("{}({},{})", w, w.mZOrder, w.mZOrder2);
             }
         }
 
@@ -72,7 +72,7 @@ class Container : Widget {
         //just to be sure
         o.needRelayout();
 
-        //gDefaultLog("added %s to %s", o, this);
+        //gDefaultLog("added {} to {}", o, this);
     }
 
     /// Undo addChild()
@@ -99,7 +99,7 @@ class Container : Widget {
 
         onRemoveChild(o);
 
-        //gDefaultLog("removed %s from %s", o, this);
+        //gDefaultLog("removed {} from {}", o, this);
 
         if (o is mFocus) {
             mFocus = null;
@@ -242,7 +242,7 @@ class Container : Widget {
         } else {
             child.pollFocusState();
             Widget nfocus = findLastFocused();
-            log()("focus for kill: %s", nfocus);
+            log()("focus for kill: {}", nfocus);
             if (nfocus)
                 nfocus.claimFocus();
         }
@@ -288,7 +288,7 @@ class Container : Widget {
 
     //doesn't set the global focus; do "go.focused = true;" for that
     package void localFocus(Widget go) {
-        log()("%s: attempt to focus %s", this, go);
+        log()("{}: attempt to focus {}", this, go);
         assert(!go || go.parent is this);
         if (go is mFocus)
             return;
@@ -296,10 +296,10 @@ class Container : Widget {
         if (mFocus) {
             //xxx from now on don't clear focus if go is not focusable
             if (go && !childCanHaveFocus(go)) {
-                log()("don't unfocus %s on %s for %s", mFocus, this, go);
+                log()("don't unfocus {} on {} for {}", mFocus, this, go);
                 return;
             }
-            log()("remove local focus: %s from %s for %s", mFocus, this, go);
+            log()("remove local focus: {} from {} for {}", mFocus, this, go);
             auto tmp = mFocus;
             mFocus = null;
             tmp.pollFocusState();
@@ -307,7 +307,7 @@ class Container : Widget {
         mFocus = go;
         if (go && childCanHaveFocus(go)) {
             go.mFocusAge = ++mCurrentFocusAge;
-            log()("set local focus: %s for %s", mFocus, this);
+            log()("set local focus: {} for {}", mFocus, this);
             go.pollFocusState();
         }
     }

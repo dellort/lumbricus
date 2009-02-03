@@ -339,7 +339,7 @@ class GameView : Container {
 
                     if (health_cur != member.currentHealth) {
                         health_cur = member.currentHealth;
-                        wormPoints.text = myformat("%s", health_cur);
+                        wormPoints.text = myformat("{}", health_cur);
                     }
 
                     //activate camera if it should and wasn't yet
@@ -495,7 +495,7 @@ class GameView : Container {
                             //start (only for damages, not upgrades => "< 0")
                             moveHealth.init(cHealthHintTime, 0,
                                 cHealthHintDistance);
-                            healthHint.text = myformat("%s", -diff);
+                            healthHint.text = myformat("{}", -diff);
                             this.outer.addChild(healthHint);
                             //this is to avoid restarting the label animation
                             //several times when counting down takes longer than
@@ -607,7 +607,7 @@ class GameView : Container {
     private void cmdNames(MyBox[] args, Output write) {
         auto c = args[0].unboxMaybe!(int)(nameLabelLevel + 1);
         nameLabelLevel = c;
-        write.writefln("set nameLabelLevel to %s", nameLabelLevel);
+        write.writefln("set nameLabelLevel to {}", nameLabelLevel);
     }
 
     private void cmdDetail(MyBox[] args, Output write) {
@@ -615,12 +615,12 @@ class GameView : Container {
             return;
         int c = args[0].unboxMaybe!(int)(-1);
         mEngine.detailLevel = c >= 0 ? c : mEngine.detailLevel + 1;
-        write.writefln("set detailLevel to %s", mEngine.detailLevel);
+        write.writefln("set detailLevel to {}", mEngine.detailLevel);
     }
 
     private void cmdCameraDisable(MyBox[] args, Output write) {
         enableCamera = !args[0].unboxMaybe!(bool)(enableCamera);
-        write.writefln("set camera enable: %s", enableCamera);
+        write.writefln("set camera enable: {}", enableCamera);
     }
 
     Camera camera() {

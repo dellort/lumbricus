@@ -343,13 +343,13 @@ class NetObjectServer : NetObjectEndpoint {
         debug(noise) {
             writef("list server: ");
             foreach(o; mOwner.mObjects) {
-                writef("%s ",o.id);
+                writef("{} ",o.id);
             }
             Stdout.formatln();
             writef("client: ");
             auto p = mSingleFrame.list;
             while (p) {
-                writef("%s ",p.id);
+                writef("{} ",p.id);
                 p = p.next;
             }
             Stdout.formatln();
@@ -525,7 +525,7 @@ struct NetObjectsOptions {
     char[] protocol_hash = "none";
 
     char[] toString() {
-        return myformat("[reliable=%s, protocol_hash='%s']",
+        return myformat("[reliable={}, protocol_hash='{}']",
             reliable_transport, protocol_hash);
     }
 }
@@ -558,7 +558,7 @@ class NetObjects {
     ///Return a string which represents the protocol version.
     ///Used to make a hash out of it and to test if the same protocol is used.
     final char[] protocolHash() {
-        return myformat("NetObjects_v%s_{%s}_{%s}", cProtocolVersion,
+        return myformat("NetObjects_v{}_{{}}_{{}}", cProtocolVersion,
             mNoo.protocol_hash, mMeta.typeHash);
     }
 

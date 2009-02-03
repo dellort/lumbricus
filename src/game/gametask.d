@@ -93,7 +93,7 @@ Level fuzzleLevel(Level level) {
             for (int y = 0; y < sy; y++) {
                 for (int x = 0; x < sx; x++) {
                     auto nls = castStrict!(LevelLandscape)(ls.copy);
-                    nls.name = myformat("%s_%s_%s", nls.name, x, y);
+                    nls.name = myformat("{}_{}_{}", nls.name, x, y);
                     auto offs = Vector2i(x, y) * cTileSize;
                     auto soffs = Vector2i(x, y) * cTile;
                     nls.position += offs;
@@ -251,7 +251,7 @@ class GameTask : StatefulTask {
         LandscapeBitmap[] bitmaps;
         int bmp_count;
         for (;;) {
-            ZReader reader = tehfile.openReadStream(myformat("bitmap_%s",
+            ZReader reader = tehfile.openReadStream(myformat("bitmap_{}",
                 bitmaps.length), true);
             if (!reader)
                 break;
@@ -303,7 +303,7 @@ class GameTask : StatefulTask {
         mSavedRandomSeed = sg.randomstate;
         //urgh
         foreach (int n, LandscapeBitmap lb; bitmaps) {
-            mSaveGame.addExternal(lb, myformat("landscape_%s", n));
+            mSaveGame.addExternal(lb, myformat("landscape_{}", n));
         }
         mSavedViewPosition = sg.viewpos;
         mSavedSetViewPosition = true;
@@ -382,7 +382,7 @@ class GameTask : StatefulTask {
             //analogous to saveGame()
             addResources(mSaveGame);
             foreach (int index, LevelItem o; mGameConfig.level.objects) {
-                mSaveGame.addExternal(o, myformat("levelobject_%s", index));
+                mSaveGame.addExternal(o, myformat("levelobject_{}", index));
             }
             auto ntime = new TimeSource();
             ntime.initTime(mSavedTime);
@@ -587,7 +587,7 @@ class GameTask : StatefulTask {
         //---- bitmaps
         auto bitmaps = engine.landscapeBitmaps();
         foreach (int index, LandscapeBitmap lb; bitmaps) {
-            ZWriter zwriter = tehfile.openWriteStream(myformat("bitmap_%s",
+            ZWriter zwriter = tehfile.openWriteStream(myformat("bitmap_{}",
                 index));
             BmpHeader bheader;
             bheader.sx = lb.size.x;
@@ -628,7 +628,7 @@ class GameTask : StatefulTask {
         //animations etc.), these are modified by the game
         for (int n = 0; n < bitmaps.length; n++) {
             LandscapeBitmap lb = bitmaps[n];
-            writer.addExternal(lb, myformat("landscape_%s", n));
+            writer.addExternal(lb, myformat("landscape_{}", n));
         }
         sg.viewpos = mGameFrame.getPosition();
         sg.randomstate = engine.rnd.state;
@@ -638,7 +638,7 @@ class GameTask : StatefulTask {
         addResources(writer);
         //this sucks, currently only needed to get the LandscapeTheme (glevel.d)
         foreach (int index, LevelItem o; level.objects) {
-            writer.addExternal(o, myformat("levelobject_%s", index));
+            writer.addExternal(o, myformat("levelobject_{}", index));
         }
         //new TimeSource is created manually on loading
         writer.addExternal(engine.gameTime, "gametime");
@@ -714,10 +714,10 @@ class GameTask : StatefulTask {
             //column/row headers
             for (int n = 0; n < types.length; n++) {
                 auto l = new Label();
-                l.text = myformat("%s: %s", n, types[n].name);
+                l.text = myformat("{}: {}", n, types[n].name);
                 addc(0, n+1, l);
                 l = new Label();
-                l.text = myformat("%s", n);//types[n].name;
+                l.text = myformat("{}", n);//types[n].name;
                 addc(n+1, 0, l);
             }
             int y = 1;
@@ -767,7 +767,7 @@ class GameTask : StatefulTask {
         float val = args[0].unbox!(float);
         float g = setgame ? val : mGame.slowDown;
         float a = setani ? val : globals.gameTimeAnimations.slowDown;
-        write.writefln("set slowdown: game=%s animations=%s", g, a);
+        write.writefln("set slowdown: game={} animations={}", g, a);
         mControl.executeCommand("slow_down" ~ str.toString(g));
         mClientEngine.engineTime.slowDown = g;
         globals.gameTimeAnimations.slowDown = a;

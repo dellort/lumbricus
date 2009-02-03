@@ -16,7 +16,6 @@ import utils.vector2;
 import utils.color;
 import utils.misc;
 
-import stdx.string : format;
 import tango.math.Math : abs;
 import tango.math.IEEE : signbit;
 
@@ -49,7 +48,7 @@ class ToolClass : WeaponClass {
         //(because of special control methods, i.e. for jetpacks, ropes...)
         auto worm = cast(WormSprite)(go);
         if (!worm)
-            throw new Exception(format("not a worm: %s", go));
+            throw new Exception(myformat("not a worm: {}", go));
         return ToolsFactory.instantiate(mSubType, this, worm);
     }
 
@@ -156,7 +155,7 @@ class RopeClass : WeaponClass {
         //(because of special control methods, i.e. for jetpacks, ropes...)
         auto worm = cast(WormSprite)(go);
         if (!worm)
-            throw new Exception(format("not a worm: %s", go));
+            throw new Exception(myformat("not a worm: {}", go));
         return new Rope(this, worm);
     }
 

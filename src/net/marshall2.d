@@ -221,7 +221,7 @@ class StaticArrayMarshaller(T) : Marshaller {
     }
 
     char[] typeHash() {
-        return format("A[%s/%s]", cLength, mRecursive.typeHash);
+        return format("A[{}/{}]", cLength, mRecursive.typeHash);
     }
 }
 

@@ -38,14 +38,14 @@ class TestFrame : SimpleContainer {
     private Button[] mButtons;
 
     private void foo(Button sender) {
-        globals.defaultOut.writefln("button: %s", arraySearch(mButtons, sender));
+        globals.defaultOut.writefln("button: {}", arraySearch(mButtons, sender));
     }
 
     this() {
         void put(int nr, int x, int y) {
             auto label = new Button();
             label.onClick = &foo;
-            label.text = myformat("Label %s", nr);
+            label.text = myformat("Label {}", nr);
             add(label, WidgetLayout.Aligned(x, y, Vector2i(10, 40)));
             mButtons ~= label;
         }
@@ -170,7 +170,7 @@ class TestFrame6 : Container {
     }
 
     void cmdSay(MyBox[] args, Output write) {
-        write.writefln("you said: '%s'", args[0].unbox!(char[]));
+        write.writefln("you said: '{}'", args[0].unbox!(char[]));
     }
 }
 
@@ -274,7 +274,7 @@ class TestFrame8 : Container {
     int mSelCount;
 
     void select(DropDownList list) {
-        mInfo.text = myformat("sel %d: '%s'", mSelCount, list.selection);
+        mInfo.text = myformat("sel {}: '{}'", mSelCount, list.selection);
         mSelCount++;
     }
 
@@ -294,7 +294,7 @@ class TestFrame9 : Container {
     class T : Container {
         this(int r) {
             auto x = new Label();
-            x.text = myformat("%s", r);
+            x.text = myformat("{}", r);
             auto props = gFramework.getFont("normal").properties();
             props.size += r*10; //just to have different request sizes
             x.font = new Font(props);
@@ -551,7 +551,7 @@ class TestTask3 : Task {
             return cl;
         });
         t.stop();
-        mValues.text = myformat("size=%s, took=%s, b=%s, c=%s, g=%s, a=%s",
+        mValues.text = myformat("size={}, took={}, b={}, c={}, g={}, a={}",
             s.size, t.time, b, c, g, a);
     }
 
@@ -693,30 +693,30 @@ class TestTask4 : Task {
         }
 
         override void onMouseMove(MouseInfo m) {
-            log.writefln("%s: %s", this, m);
+            log.writefln("{}: {}", this, m);
         }
 
         override void onKeyEvent(KeyInfo info) {
-            log.writefln("%s: %s %s", this, info, gFramework.keyinfoToString(info));
+            log.writefln("{}: {} {}", this, info, gFramework.keyinfoToString(info));
             if (info.isDown() && info.code == Keycode.MOUSE_RIGHT)
                 gFramework.mouseLocked = !gFramework.mouseLocked;
         }
 
         override void onMouseEnterLeave(bool mouseIsInside) {
-            log.writefln("%s: onMouseEnterLeave(%s)", this, mouseIsInside);
+            log.writefln("{}: onMouseEnterLeave({})", this, mouseIsInside);
         }
 
         override Vector2i layoutSizeRequest() {
-            log.writefln("%s: layoutSizeRequest()", this);
+            log.writefln("{}: layoutSizeRequest()", this);
             return Vector2i(0);
         }
 
         override void layoutSizeAllocation() {
-            log.writefln("%s: layoutSizeAllocation(), size=%s", this, size());
+            log.writefln("{}: layoutSizeAllocation(), size={}", this, size());
         }
 
         override void onFocusChange() {
-            log.writefln("%s: focus change, local=%s global=%s", this,
+            log.writefln("{}: focus change, local={} global={}", this,
                 localFocused(), focused());
             super.onFocusChange();
         }

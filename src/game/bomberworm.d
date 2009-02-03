@@ -437,7 +437,7 @@ private:
         for (int n = 0; n < nPlayers; n++) {
             auto p = new Player();
             p.bindings.loadFrom(config.getSubNode("bindings")
-                .getSubNode(format("player%s", n)));
+                .getSubNode(myformat("player{}", n)));
             p.mPos = fromTile(1, 1) + TILE_SIZE/2;
             mObjects ~= p;
         }

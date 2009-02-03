@@ -3,7 +3,6 @@ module utils.configfile;
 import stdx.stream;
 import utf = stdx.utf;
 import str = stdx.string;
-import stdx.format;
 import conv = tango.util.Convert;
 import tango.text.convert.Float : toFloat;
 import tango.core.Exception;
@@ -963,7 +962,7 @@ public class ConfigFile {
                         break;
                     }
 
-                    reportError(true, "file encoding is >%s<, unsupported",
+                    reportError(true, "file encoding is >{}<, unsupported",
                         bom.name);
                     return;
                 }
@@ -994,7 +993,7 @@ public class ConfigFile {
                 " error messages for you.");
 
         //xxx: add possibility to translate error messages
-        mErrorOut(myformat("ConfigFile, error in %s(%s,%s): ", mFilename,
+        mErrorOut(myformat("ConfigFile, error in {}({},{}): ", mFilename,
             mPos.line, mPos.column));
         //scary D varargs!
         mErrorOut(formatfx(fmt, _arguments, _argptr));
@@ -1002,11 +1001,11 @@ public class ConfigFile {
 
         //abuse exception handling to abort parsing
         if (fatal) {
-            mErrorOut(myformat("ConfigFile, %s: fatal error, aborting",
+            mErrorOut(myformat("ConfigFile, {}: fatal error, aborting",
                 mFilename));
             throw new ConfigFatalError(2);
         } else if (mErrorCount > cMaxErrors) {
-            mErrorOut(myformat("ConfigFile, %s: too many errors, aborting",
+            mErrorOut(myformat("ConfigFile, {}: too many errors, aborting",
                 mFilename));
             throw new ConfigFatalError(1);
         }
@@ -1310,7 +1309,7 @@ public class ConfigFile {
                     val = curChar - 'a' + 10;
                 } else {
                     if (i == 0)
-                        reportError(false, "expected %s hex digits max", digits);
+                        reportError(false, "expected {} hex digits max", digits);
                     break;
                 }
                 next();
@@ -1357,15 +1356,14 @@ public class ConfigFile {
                 output ~= '\\';
 
                 //encode it as hex; ugly but... ugly
-                uint digits = 1;
-                char marker = 'x';
+                char[] fmt = "x{:x2}";
                 if (c > 0xff) {
-                    digits = 2; marker = 'u';
+                    fmt = "u{:x4}";
                 } else if (c > 0xffff) {
-                    digits = 4; marker = 'U';
+                    fmt = "U{:x8}"; //???
                 }
 
-                output ~= myformat("%s%*x", marker, cast(int)digits, c);
+                output ~= myformat(fmt, c);
             } else {
                 utf.encode(output, c);
             }

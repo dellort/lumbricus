@@ -1065,7 +1065,7 @@ public class LevelEditor : Task {
             rootnode.writeFile(s);
             outp.close();
         } catch (FilesystemException e) {
-            write.writefln("oh noes! something has gone wrong: '%s'", e);
+            write.writefln("oh noes! something has gone wrong: '{}'", e);
         }
     }
 

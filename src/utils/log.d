@@ -1,7 +1,6 @@
 module utils.log;
 
 import utils.output;
-import stdformat = stdx.format;
 import utils.time;
 import utils.misc : va_list;
 
@@ -63,9 +62,9 @@ public class Log : Output {
     {
         void writeTo(Output o) {
             if (show_time) {
-                o.writef("[%s] ", timeCurrentTime());
+                o.writef("[{}] ", timeCurrentTime());
             }
-            o.writef("%s: ", mCategory);
+            o.writef("{}: ", mCategory);
             o.writef_ind(newline, fmt, arguments, argptr);
         }
 

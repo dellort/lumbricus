@@ -104,10 +104,10 @@ class SerializeBase {
         if (cast(ReferenceType)source.type) {
             Object o = source.toObject();
             if (o)
-                throw new SerializeError(myformat("problem with: %s / %s %s",
+                throw new SerializeError(myformat("problem with: {} / {} {}",
                     source.type, o.classinfo.name, add));
         }
-        throw new SerializeError(myformat("problem with: %s, ti=%s %s",
+        throw new SerializeError(myformat("problem with: {}, ti={} {}",
             source.type, source.type.typeInfo(), add));
     }
 
@@ -174,7 +174,7 @@ class SerializeBase {
                     visited[n] = other;
                     to_visit ~= n;
                 }
-                r ~= myformat("%d -- %d\n", cur, other);
+                r ~= myformat("{} -- {}\n", cur, other);
             } else if (auto art = cast(ArrayType)ptr.type) {
                 ArrayType.Array arr = art.getArray(ptr);
                 for (int i = 0; i < arr.length; i++) {
@@ -196,7 +196,7 @@ class SerializeBase {
             to_visit = to_visit[1..$];
             int id = visited[cur];
             if (auto pname = cur in mExternals) {
-                r ~= myformat(`%d [label="ext: %s"];` \n, id, *pname);
+                r ~= myformat(`{} [label="ext: {}"];` \n, id, *pname);
                 continue;
             }
             SafePtr indirect = mCtx.mTypes.ptrOf(cur);
@@ -204,7 +204,7 @@ class SerializeBase {
             SafePtr ptr = indirect.mostSpecificClass(&tmp, true);
             if (!ptr.type) {
                 //the actual class was never seen at runtime
-                r ~= myformat(`%d [label="unknown: %s"];` \n, id,
+                r ~= myformat(`{} [label="unknown: {}"];` \n, id,
                     cur.classinfo.name);
                 unknown[cur.classinfo.name] = true;
                 continue;
@@ -214,12 +214,12 @@ class SerializeBase {
             Class c = rt.klass();
             if (!c) {
                 //class wasn't registered for reflection
-                r ~= myformat(`%d [label="unregistered: %s"];` \n, id,
+                r ~= myformat(`{} [label="unregistered: {}"];` \n, id,
                     cur.classinfo.name);
                 unregistered[cur.classinfo.name] = true;
                 continue;
             }
-            r ~= myformat(`%d [label="class: %s"];` \n, id, cur.classinfo.name);
+            r ~= myformat(`{} [label="class: {}"];` \n, id, cur.classinfo.name);
             while (c) {
                 ptr.type = c.owner(); //dangerous, but should be ok
                 doStructMembers(id, ptr, c);
@@ -290,7 +290,7 @@ class SerializeOutConfig : SerializeConfig {
             }
         }
         auto nid = mObject2Id[o];
-        auto node = file.getSubNode(myformat("%d", nid));
+        auto node = file.getSubNode(myformat("{}", nid));
         node["type"] = klass.name();
         doWriteMembers(file, node, klass, ptr, defptr);
         return true;
@@ -303,7 +303,7 @@ class SerializeOutConfig : SerializeConfig {
             return "null";
         }
         if (auto pid = o in mObject2Id) {
-            return myformat("#%d", *pid);
+            return myformat("#{}", *pid);
         }
         if (auto pname = o in mExternals) {
             return "ext#" ~ *pname;
@@ -318,7 +318,7 @@ class SerializeOutConfig : SerializeConfig {
             mObjectStack.length = mObjectStack.length*2;
         mObjectStack[mOSIdx] = o;
         mOSIdx++;
-        return myformat("#%d", nid);
+        return myformat("#{}", nid);
     }
 
     private void doWriteMembers(ConfigNode file, ConfigNode cur, Class klass,
@@ -394,11 +394,11 @@ class SerializeOutConfig : SerializeConfig {
         if (auto art = cast(ArrayType)ptr.type) {
             auto sub = cur.getSubNode(member);
             ArrayType.Array arr = art.getArray(ptr);
-            sub["length"] = myformat("%s", arr.length);
+            sub["length"] = myformat("{}", arr.length);
             for (int i = 0; i < arr.length; i++) {
                 SafePtr eptr = arr.get(i);
                 //about default value: not sure, depends if static array?
-                doWriteMember(file, sub, myformat("%d", i), eptr,
+                doWriteMember(file, sub, myformat("{}", i), eptr,
                     SafePtr.Null); //eptr.type.initPtr());
             }
             return;
@@ -422,7 +422,7 @@ class SerializeOutConfig : SerializeConfig {
                 char[] what = "enable version debug to see why";
                 debug {
                     Stdout.formatln("hello, serialize.d might crash here.");
-                    what = myformat("dest-class: %s function: %#x",
+                    what = myformat("dest-class: {} function: 0x{:x}",
                         (cast(Object)dgp.ptr).classinfo.name, dgp.funcptr);
                 }
                 throw new SerializeError("couldn't write delegate, "~what);
@@ -432,7 +432,7 @@ class SerializeOutConfig : SerializeConfig {
             assert(id.length > 0, "Delegate to ignored object not allowed");
             sub["dg_object"] = id;
             //sub["dg_method"] = dg_m ?
-              //  myformat("%s::%s", dg_m.klass.name, dg_m.name) : "null";
+              //  myformat("{}::{}", dg_m.klass.name, dg_m.name) : "null";
             sub["dg_method"] = dg_m ? dg_m.name : "null";
             return;
         }
@@ -449,10 +449,12 @@ class SerializeOutConfig : SerializeConfig {
     private char[] blergh(T...)(SafePtr ptr) {
         foreach (x; T) {
             if (ptr.type.typeInfo() is typeid(x)) {
-                char[] fmt = "%s";
-                static if (is(x == double) || is(x == float))
-                    fmt = "%a";
-                return myformat(fmt, ptr.read!(x)());
+                x val = ptr.read!(x)();
+                static if (is(x == double) || is(x == float)) {
+                    return floatToHex(val);
+                } else {
+                    return myformat("{}", val);
+                }
             }
         }
         typeError(ptr, "basetype");
@@ -685,7 +687,7 @@ class SerializeInConfig : SerializeConfig {
             }
             for (int i = 0; i < arr.length; i++) {
                 SafePtr eptr = arr.get(i);
-                doReadMember(sub, myformat("%d", i), eptr);
+                doReadMember(sub, myformat("{}", i), eptr);
             }
             return;
         }
@@ -793,6 +795,7 @@ class SerializeInConfig : SerializeConfig {
 //xxx imports
 import tango.stdc.stringz : toStringz;
 import tango.stdc.stdlib : strtof;
+import tango.stdc.stdio : snprintf;
 import tango.stdc.errno;
 import tango.text.Util : isSpace;
 
@@ -810,7 +813,7 @@ float toFloat(in char[] s)
     char* endptr;
     char* sz;
 
-    //writefln("toFloat('%s')", s);
+    //writefln("toFloat('{}')", s);
     sz = toStringz(s);
     if (isSpace(*sz))
     goto Lerr;
@@ -829,5 +832,28 @@ float toFloat(in char[] s)
   Lerr:
     throw new conv.ConversionException(s ~ " not representable as a float");
     assert(0);
+}
+
+//return something like std.format("%a", f)
+//also similar to Phobos, but code not really copied
+char[] floatToHex(real f) {
+    char[20] tmp = void;
+    char[] buf = tmp;
+    for (;;) {
+        //NOTE: the C function expects "long double"
+        //  according to std.format's impl., this is equal to D's real
+        int res = snprintf(buf.ptr, buf.length, "%La\0", f);
+        if (res < 0) {
+            //error? can this happen?
+            assert (false);
+            return "error";
+        }
+        if (res <= buf.length) {
+            buf = buf[0..res];
+            break;
+        }
+        buf.length = buf.length * 2;
+    }
+    return buf.dup;
 }
 

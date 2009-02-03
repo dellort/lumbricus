@@ -99,8 +99,10 @@ public struct Time {
         //xxx negative time?
         for (int i = 0; ; i++) {
             if (time < cTimeDiv[i]*cTimeDiv[i+1] || i == cTimeName.length-1) {
-                auto s = myformat("%.*f %s", cPrec[i],
-                    cast(double)time / cTimeDiv[i], cTimeName[i]);
+                //auto s = myformat("%.*f {}", cPrec[i],
+                //    cast(double)time / cTimeDiv[i], cTimeName[i]);
+                //xxx: how to do the precission?
+                auto s = myformat("{} {}", cast(double)time / cTimeDiv[i], cTimeName[i]);
                 return s;
             }
             time = time / cTimeDiv[i];

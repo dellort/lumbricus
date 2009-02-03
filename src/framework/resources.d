@@ -332,7 +332,7 @@ public class Resources {
 
         private void doload(ResourceItem[] list) {
             mTime = new PerfTimer(true);
-            log("Preloading %s resources", list.length);
+            log("Preloading {} resources", list.length);
 
             mToLoad = list.dup;
         }

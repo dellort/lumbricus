@@ -123,7 +123,7 @@ class Common {
             gFramework.fs.link(cLocalePath ~ '/' ~ langId,"/",false,1);
         } catch (FilesystemException e) {
             //don't crash if current locale has no locale-specific files
-            gDefaultLog("catched %s", e);
+            gDefaultLog("catched {}", e);
         }
     }
 

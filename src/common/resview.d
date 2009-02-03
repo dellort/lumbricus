@@ -178,7 +178,7 @@ class SampleHandler : ResViewHandler!(Sample) {
             auto al = WidgetLayout.Aligned(-1, 0);
             auto box = new BoxContainer(false);
             auto info = new Label();
-            info.text = myformat("Length: %s", resource.length());
+            info.text = myformat("Length: {}", resource.length());
             info.drawBorder = false;
             box.add(info, al);
             Button button(char[] c, void delegate(Button) cb) {
@@ -231,7 +231,7 @@ class SampleHandler : ResViewHandler!(Sample) {
             box.p2 = center+Vector2i(len);
             auto p = mousePos() - center;
             pos.position = (toVector2f(p)/len);
-            msg = myformat("%s -> %s", mousePos(), pos.position);
+            msg = myformat("{} -> {}", mousePos(), pos.position);
         }
         override void onDraw(Canvas c) {
             if (!f)
@@ -389,8 +389,8 @@ class AnimationHandler : ResViewHandler!(Animation) {
         infos.text = "Flags: "
             ~ (resource.keepLastFrame ? "keepLastFrame, " : "")
             ~ (resource.repeat ? "repeat, " : " ")
-            ~ myformat("frametime: %s ", resource.frameTime)
-            ~ myformat("duration: %s", resource.duration);
+            ~ myformat("frametime: {} ", resource.frameTime)
+            ~ myformat("duration: {}", resource.duration);
         table.addRow();
         table.add(infos, 0, table.height-1, 2, 1);
 
@@ -457,12 +457,12 @@ class AnimationHandler : ResViewHandler!(Animation) {
         p.p2 = mParams[1].curValue;
         mAnim.params = p;
         for (int n = 0; n < 2; n++)
-            mParLbl[n].text = myformat("Param %d: %d", n, mParams[n].curValue);
-        mFrameLabel.text = myformat("Frame: %d/%d", mFrame.curValue,
+            mParLbl[n].text = myformat("Param {}: {}", n, mParams[n].curValue);
+        mFrameLabel.text = myformat("Frame: {}/{}", mFrame.curValue,
             mFrame.maxValue);
         float speed = 2.0f*mSpeed.curValue/mSpeed.maxValue;
         mTime.slowDown = speed;
-        mSpeedLabel.text = myformat("Speed: %s", mTime.slowDown);
+        mSpeedLabel.text = myformat("Speed: {}", mTime.slowDown);
     }
 
     private void onPause(Button sender) {

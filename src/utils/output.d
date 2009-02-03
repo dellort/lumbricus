@@ -1,6 +1,5 @@
 module utils.output;
 
-import stdx.format;
 import stdx.utf;
 import tango.io.Stdout;
 import stdx.stream;

@@ -104,14 +104,14 @@ class TaskManager {
         mTaskList[id] = task;
         task.mManager = this;
         task.mTaskID = id;
-        mLog("task created: %s", task.mTaskID);
+        mLog("task created: {}", task.mTaskID);
     }
 
     //called by Task.kill() only
     private void killTask(Task task) {
         mTaskList = aaDup(mTaskList);
         mTaskList.remove(task.mTaskID);
-        mLog("task killed: %s", task.mTaskID);
+        mLog("task killed: {}", task.mTaskID);
     }
 
     //called from TopLevel on each frame

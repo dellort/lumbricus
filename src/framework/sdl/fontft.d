@@ -306,7 +306,7 @@ class FTFont : DriverFont {
     }
 
     char[] getInfos() {
-        return format("glyphs=%d, pages=%d", mCache.cachedGlyphs,
+        return myformat("glyphs={}, pages={}", mCache.cachedGlyphs,
             mCache.mPacker ? mCache.mPacker.pages : -1);
     }
 }

@@ -128,7 +128,7 @@ class Window {
                 break;
             }
             default:
-                globals.defaultOut.writefln("window action '%s'??", action);
+                globals.defaultOut.writefln("window action '{}'??", action);
         }
     }
 
@@ -505,9 +505,9 @@ class WindowManager {
 
     private void cmdWindows(MyBox[] args, Output write) {
         foreach (pt; mTaskList.values) {
-            write.writefln("%d (%s):", pt.mTask.taskID, pt.mTask);
+            write.writefln("{} ({}):", pt.mTask.taskID, pt.mTask);
             foreach (Window w; pt.mWindows) {
-                write.writefln("    window, client = '%s'", w.client);
+                write.writefln("    window, client = '{}'", w.client);
                 write.writefln("        title: ", w.properties.windowTitle);
                 write.writefln("        pos: ", w.mWindow.windowBounds);
                 write.writefln("        fullscreen: ", w.mWindow.fullScreen);
@@ -552,7 +552,7 @@ private:
             sp1.color = Color(0);
             table.add(sp1, 0, y, 2, 1);
             auto tasktitle = new Label();
-            tasktitle.text = myformat("%s (%s)", w.task, w.task.taskID);
+            tasktitle.text = myformat("{} ({})", w.task, w.task.taskID);
             tasktitle.drawBorder = false;
             tasktitle.font = gFramework.getFont("big_transparent");
             table.add(tasktitle, 0, y+1, 1, w.windows.length);

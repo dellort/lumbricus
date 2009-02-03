@@ -459,7 +459,7 @@ class GameEngine : GameEnginePublic {
     void addEarthQuake(float strength, float degrade) {
         physicworld.add(new EarthQuakeDegrader(strength, degrade,
             mEarthQuakeForce));
-        log("created earth quake, strength=%s, degrade=%s", strength, degrade);
+        log("created earth quake, strength={}, degrade={}", strength, degrade);
     }
 
     void ensureAdded(GameObject obj) {
@@ -690,14 +690,14 @@ class GameEngine : GameEnginePublic {
                 if (placeObjectRandom(waterOffset-10,
                     sprite.physics.posp.radius, 50, tmp, npos, true))
                 {
-                    log("placing '%s' in air!", sprite);
+                    log("placing '{}' in air!", sprite);
                 } else {
-                    log("couldn't place '%s'!", sprite);
+                    log("couldn't place '{}'!", sprite);
                     //xxx
                     npos = toVector2f(worldSize)/2;
                 }
             }
-            log("placed '%s' at %s", sprite, npos);
+            log("placed '{}' at {}", sprite, npos);
             sprite.setPos(npos);
             sprite.active = true;
         }
@@ -711,7 +711,7 @@ class GameEngine : GameEnginePublic {
         auto a = cast(GameObject)cause;
         auto b = cast(GameObject)victim;
         if (!a || !b) {
-            log("WARNING: unknown damage: %s %s %s", cause, victim, damage);
+            log("WARNING: unknown damage: {} {} {}", cause, victim, damage);
         } else {
             mController.reportViolence(a, b, damage);
         }
@@ -820,13 +820,13 @@ class GameEngine : GameEnginePublic {
                 if (!all) continue;
             }
             if (cast(GObjectSprite)o) {
-                log("%s%s at %s in state %s", sa, o.toString(),
+                log("{}{} at {} in state {}", sa, o.toString(),
                     (cast(GObjectSprite)o).physics.pos,
                     (cast(GObjectSprite)o).currentState.name);
             } else {
-                log("%s%s", sa, o.toString());
+                log("{}{}", sa, o.toString());
             }
         }
-        log("-- %s objects reporting activity",i);
+        log("-- {} objects reporting activity",i);
     }
 }

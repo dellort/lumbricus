@@ -200,7 +200,7 @@ class ModeRoundbased : Gamemode {
 
     private void transition(RoundState st) {
         assert(st != mCurrentRoundState);
-        log("state transition %s -> %s", cast(int)mCurrentRoundState,
+        log("state transition {} -> {}", cast(int)mCurrentRoundState,
             cast(int)st);
         mCurrentRoundState = st;
         switch (st) {
@@ -223,7 +223,7 @@ class ModeRoundbased : Gamemode {
                 currentTeam = next;
                 if (mAllowSelect)
                     mCurrentTeam.allowSelect = true;
-                log("active: %s", next);
+                log("active: {}", next);
 
                 break;
             case RoundState.playing:

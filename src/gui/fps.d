@@ -5,6 +5,7 @@ import framework.framework;
 import gui.widget;
 import stdx.string;
 import utils.time;
+import utils.misc;
 
 class GuiFps : Widget {
     private Font mFont;
@@ -15,7 +16,7 @@ class GuiFps : Widget {
     protected override void onDraw(Canvas c) {
         if (gFramework.FPS != mFps) {
             mFps = gFramework.FPS;
-            mText = format("FPS: %1.2f", mFps);
+            mText = myformat("FPS: {:f2}", mFps);
             mPos = (size - mFont.textSize(mText)).X;
         }
         mFont.drawText(c, mPos, mText);

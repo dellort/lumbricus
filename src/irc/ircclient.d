@@ -349,15 +349,15 @@ class IRCFrame : Container {
     //sorry d0c I like inner classes sooo much!
     class IrcCallback : IRCOutput {
         void writeChat(char[] nick, char[] s) {
-            mConsole.console.writefln("<%s> %s",nick,s);
+            mConsole.console.writefln("<{}> {}",nick,s);
         }
 
         void writeAction(char[] nick, char[] s) {
-            mConsole.console.writefln("%s %s",nick,s);
+            mConsole.console.writefln("{} {}",nick,s);
         }
 
         void writeNotice(char[] nick, char[] s) {
-            mConsole.console.writefln("-%s- %s",nick,s);
+            mConsole.console.writefln("-{}- {}",nick,s);
         }
 
         void writeInfo(char[] s) {
@@ -416,7 +416,7 @@ class IRCFrame : Container {
     void cmdMsg(MyBox[] args, Output write) {
         char[] tn = args[0].unbox!(char[]);
         char[] msg = args[1].unbox!(char[]);
-        mConsole.console.writefln("-> *%s* %s",tn,msg);
+        mConsole.console.writefln("-> *{}* {}",tn,msg);
         mIrc.privmsg(tn,msg);
     }
 

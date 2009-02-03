@@ -5,6 +5,7 @@ import std.random;
 import tango.io.Stdout;
 import std.string;
 import utils.weaklist;
+import utils.misc;
 import gc = std.gc;
 
 int N() {
@@ -39,7 +40,7 @@ class Test {
     }
 
     char[] toString() {
-        return format("t_%s", n);
+        return myformat("t_{}", n);
     }
 }
 

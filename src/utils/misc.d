@@ -2,7 +2,6 @@ module utils.misc;
 
 import str = stdx.string;
 import utf = stdx.utf;
-import fmt = stdx.format; //wtf, can cause conflicts in other modules
 import layout = tango.text.convert.Layout;
 
 //if you're trying to compile this under Linux with Tango, Tangobos and dmd,
@@ -142,11 +141,11 @@ R delegate(T) toDelegate(R, T...)(R function(T) fn) {
 
 char[] formatfx(char[] a_fmt, TypeInfo[] arguments, va_list argptr) {
     //(yeah, very funny names, Tango guys!)
-    //return layout.Layout!(char).instance().vprint("", fmt, arguments, argptr);
+    return layout.Layout!(char).instance().convert(arguments, argptr, a_fmt);
     //Phobos for now
-    char[] res;
-    fmt.doFormat((dchar c) { utf.encode(res, c); }, a_fmt, arguments, argptr);
-    return res;
+    //char[] res;
+    //fmt.doFormat((dchar c) { utf.encode(res, c); }, a_fmt, arguments, argptr);
+    //return res;
 }
 
 //replacement for stdx.string.format()
@@ -166,7 +165,7 @@ char[] sizeToHuman(long bytes) {
         n++;
     }
     //xxx: ugly trailing zeros
-    return myformat("%.3f %s", 1.0*bytes/x, cSizes[n]);
+    return myformat("{:f3} {}", 1.0*bytes/x, cSizes[n]);
 }
 
 unittest {

@@ -853,7 +853,7 @@ class ArrayType : Type {
         if (staticLength() < 0) {
             return "ArrayType[" ~ mMember.toString() ~ "]";
         } else {
-            return myformat("ArrayType[%s[%d]]", mMember, staticLength());
+            return myformat("ArrayType[{}[{}]]", mMember, staticLength());
         }
     }
 }
@@ -940,7 +940,7 @@ class MapTypeImpl(T) : MapType {
     }
 
     override char[] toString() {
-        return myformat("MapType[%s, %s]", mKey, mValue);
+        return myformat("MapType[{}, {}]", mKey, mValue);
     }
 }
 
@@ -1084,7 +1084,7 @@ class Class {
             //xxx won't work if the superclass is abstract, maybe just add all
             //    possible classes to the address? ClassMethod[][void*] map
             assert (name == other.name);
-            //writefln("huh: %s: %s %s", name, this.name, other.klass.name);
+            //writefln("huh: {}: {} {}", name, this.name, other.klass.name);
             //ok, add the method anyway, who cares
             //return;
         }
@@ -1504,7 +1504,7 @@ void debugDumpClassGraph(Types t, Object x) {
             if (b.type() in gBoxUnParsers) {
                 s = boxToString(b);
             } else if (auto r = cast(ReferenceType)sp.type) {
-                s = "? " ~ myformat("%#8x", sp.realptr());
+                s = "? " ~ myformat("0x{:x}", sp.realptr());
             } else {
                 s = "? " ~ sp.type.toString();
             }

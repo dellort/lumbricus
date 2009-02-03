@@ -139,7 +139,7 @@ class TarArchive {
                 for (int n = 0; n < copy.sizeof; n++) {
                     s += cast(ubyte)ptr[n];
                 }
-                auto res = myformat("0%05o", s);
+                auto res = myformat("0{:o5}", s);
                 res ~= "\0 ";
                 assert (res.length == 8);
                 return res;
@@ -283,7 +283,7 @@ class TarArchive {
                 TarHeader h;
                 (cast(char*)&h)[0..h.sizeof] = '\0';
                 h.filename[0..e.name.length] = e.name;
-                char[] sz = myformat("%011o", e.size) ~ '\0';
+                char[] sz = myformat("{:o11}", e.size) ~ '\0';
                 assert (sz.length == 12);
                 h.filesize[] = sz;
                 h.link[0] = '0';
