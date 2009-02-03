@@ -67,14 +67,16 @@ public class LogWindow : Widget, Output {
         mScrollPos = 0;
     }
 
-    void writef(...) {
-        writef_ind(false, _arguments, _argptr);
+    override void writef(char[] fmt, ...) {
+        writef_ind(false, fmt, _arguments, _argptr);
     }
-    void writefln(...) {
-        writef_ind(true, _arguments, _argptr);
+    override void writefln(char[] fmt, ...) {
+        writef_ind(true, fmt, _arguments, _argptr);
     }
-    void writef_ind(bool newline, TypeInfo[] arguments, va_list argptr) {
-        writeString(sformat_ind(newline, arguments, argptr));
+    override void writef_ind(bool newline, char[] fmt, TypeInfo[] arguments,
+        va_list argptr)
+    {
+        writeString(sformat_ind(newline, fmt, arguments, argptr));
     }
 
     private char[] mLineBuffer;

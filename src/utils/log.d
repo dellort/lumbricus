@@ -42,11 +42,11 @@ public class Log : Output {
         return mCategory;
     }
 
-    void writef(...) {
-        writef_ind(false, _arguments, _argptr);
+    override void writef(char[] fmt, ...) {
+        writef_ind(false, fmt, _arguments, _argptr);
     }
-    void writefln(...) {
-        writef_ind(true, _arguments, _argptr);
+    override void writefln(char[] fmt, ...) {
+        writef_ind(true, fmt, _arguments, _argptr);
     }
 
     void writeString(char[] str) {
@@ -54,17 +54,19 @@ public class Log : Output {
         backend.writeString(str);
     }
 
-    void opCall(...) {
-        writef_ind(true, _arguments, _argptr);
+    void opCall(char[] fmt, ...) {
+        writef_ind(true, fmt, _arguments, _argptr);
     }
 
-    void writef_ind(bool newline, TypeInfo[] arguments, va_list argptr) {
+    override void writef_ind(bool newline, char[] fmt, TypeInfo[] arguments,
+        va_list argptr)
+    {
         void writeTo(Output o) {
             if (show_time) {
                 o.writef("[%s] ", timeCurrentTime());
             }
             o.writef("%s: ", mCategory);
-            o.writef_ind(newline, arguments, argptr);
+            o.writef_ind(newline, fmt, arguments, argptr);
         }
 
         assert(backend !is null);
@@ -111,8 +113,8 @@ struct LogStruct(char[] cId) {
         return mLog;
     }
 
-    void opCall(...) {
-        writef_ind(true, _arguments, _argptr);
+    void opCall(char[] fmt, ...) {
+        writef_ind(true, fmt, _arguments, _argptr);
     }
 
     void setBackend(Output backend, char[] backend_name) {
@@ -124,11 +126,11 @@ struct LogStruct(char[] cId) {
         return cId;
     }
 
-    void writef(...) {
-        writef_ind(false, _arguments, _argptr);
+    void writef(char[] fmt, ...) {
+        writef_ind(false, fmt, _arguments, _argptr);
     }
-    void writefln(...) {
-        writef_ind(true, _arguments, _argptr);
+    void writefln(char[] fmt, ...) {
+        writef_ind(true, fmt, _arguments, _argptr);
     }
 
     void writeString(char[] str) {
@@ -136,8 +138,10 @@ struct LogStruct(char[] cId) {
         mLog.writeString(str);
     }
 
-    void writef_ind(bool newline, TypeInfo[] arguments, va_list argptr) {
+    void writef_ind(bool newline, char[] fmt, TypeInfo[] arguments,
+        va_list argptr)
+    {
         check();
-        mLog.writef_ind(newline, arguments, argptr);
+        mLog.writef_ind(newline, fmt, arguments, argptr);
     }
 }

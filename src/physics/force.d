@@ -10,6 +10,7 @@ import physics.physobj;
 import physics.zone;
 
 import math = tango.math.Math;
+import ieee = tango.math.IEEE;
 
 //wind, gravitation, ...
 //what about explosions?
@@ -103,7 +104,7 @@ class ExplosiveForce : PhysicForce {
 
     private float cDistDelta = 0.01f;
     void applyTo(PhysicObject o, float deltaT) {
-        assert(damage != 0f && !math.isNaN(damage));
+        assert(damage != 0f && !ieee.isNaN(damage));
         float impulse = damage*cDamageToImpulse;
         Vector2f v = (pos-o.pos);
         float dist = v.length;

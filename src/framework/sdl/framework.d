@@ -18,6 +18,7 @@ import derelict.sdl.image;
 import derelict.sdl.ttf;
 import framework.sdl.keys;
 import math = tango.math.Math;
+import ieee = tango.math.IEEE;
 import utils.time;
 import utils.perf;
 import utils.drawing;
@@ -1231,7 +1232,7 @@ class SDLCanvas : Canvas {
         uint c = toSDLColor(color);
         Vector2f d = Vector2f((to-from).x,(to-from).y);
         Vector2f old = toVector2f(from + mTrans);
-        int n = cast(int)(max(math.fabs(d.x), math.fabs(d.y)));
+        int n = cast(int)(max(ieee.fabs(d.x), ieee.fabs(d.y)));
         d = d / cast(float)n;
         for (int i = 0; i < n; i++) {
             int px = cast(int)(old.x+0.5f);

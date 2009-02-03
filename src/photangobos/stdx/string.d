@@ -32,16 +32,18 @@ module stdx.string;
 import stdx.base;
 
 version (Tango) {
-    import tango.stdc.stdlib;
-    import tango.stdc.string;
-    import tango.stdc.stdio;
-    version(Win32) {
-        private extern (C) int memicmp (char *, char *, uint);
-    }
 } else {
-    import std.c.stdlib;
-    import std.c.string;
-    import std.c.stdio;
+    static assert (false);
+}
+
+import tango.stdc.stdlib;
+import tango.stdc.string;
+import tango.stdc.stdio;
+
+import uni = tango.text.Unicode;
+
+version(Win32) {
+    private extern (C) int memicmp (char *, char *, uint);
 }
 
 version(linux) {
@@ -50,10 +52,8 @@ version(linux) {
 }
 
 private import stdx.utf;
-private import stdx.uni;
 //private import stdx.array;
 private import stdx.format;
-private import stdx.ctype;
 
 private import stdx.varghelper;
 
@@ -324,66 +324,6 @@ unittest
  * ditto
  */
 
-int ifind(char[] s, dchar c)
-{
-    char* p;
-
-    if (c <= 0x7F)
-    {	// Plain old ASCII
-	char c1 = cast(char) stdx.ctype.tolower(c);
-
-	foreach (int i, char c2; s)
-	{
-	    c2 = cast(char)stdx.ctype.tolower(c2);
-	    if (c1 == c2)
-		return i;
-	}
-    }
-    else
-    {	// c is a universal character
-	dchar c1 = stdx.uni.toUniLower(c);
-
-	foreach (int i, dchar c2; s)
-	{
-	    c2 = stdx.uni.toUniLower(c2);
-	    if (c1 == c2)
-		return i;
-	}
-    }
-    return -1;
-}
-
-unittest
-{
-    debug(string) printf("string.ifind.unittest\n");
-
-    int i;
-
-    i = ifind(null, cast(dchar)'a');
-    assert(i == -1);
-    i = ifind("def", cast(dchar)'a');
-    assert(i == -1);
-    i = ifind("Abba", cast(dchar)'a');
-    assert(i == 0);
-    i = ifind("def", cast(dchar)'F');
-    assert(i == 2);
-
-    char[] sPlts = "Mars: the fourth Rock (Planet) from the Sun.";
-
-    i = ifind("def", cast(char)'f');
-    assert(i == 2);
-
-    i = ifind(sPlts, cast(char)'P');
-    assert(i == 23);
-    i = ifind(sPlts, cast(char)'R');
-    assert(i == 2);
-}
-
-
-/******************************************
- * ditto
- */
-
 int rfind(char[] s, dchar c)
 {
     size_t i;
@@ -420,75 +360,6 @@ unittest
     i = rfind("def", cast(dchar)'f');
     assert(i == 2);
 }
-
-/******************************************
- * ditto
- */
-
-int irfind(char[] s, dchar c)
-{
-    size_t i;
-
-    if (c <= 0x7F)
-    {	// Plain old ASCII
-	char c1 = cast(char) stdx.ctype.tolower(c);
-
-	for (i = s.length; i-- != 0;)
-	{   char c2 = s[i];
-
-	    c2 = cast(char) stdx.ctype.tolower(c2);
-	    if (c1 == c2)
-		break;
-	}
-    }
-    else
-    {	// c is a universal character
-	dchar c1 = stdx.uni.toUniLower(c);
-
-	for (i = s.length; i-- != 0;)
-	{   char cx = s[i];
-
-	    if (cx <= 0x7F)
-		continue;		// skip, since c is not ASCII
-	    if ((cx & 0xC0) == 0x80)
-		continue;		// skip non-starting UTF-8 chars
-
-	    size_t j = i;
-	    dchar c2 = stdx.utf.decode(s, j);
-	    c2 = stdx.uni.toUniLower(c2);
-	    if (c1 == c2)
-		break;
-	}
-    }
-    return i;
-}
-
-unittest
-{
-    debug(string) printf("string.irfind.unittest\n");
-
-    int i;
-
-    i = irfind(null, cast(dchar)'a');
-    assert(i == -1);
-    i = irfind("def", cast(dchar)'a');
-    assert(i == -1);
-    i = irfind("AbbA", cast(dchar)'a');
-    assert(i == 3);
-    i = irfind("def", cast(dchar)'F');
-    assert(i == 2);
-
-    char[] sPlts = "Mars: the fourth Rock (Planet) from the Sun.";
-
-    i = irfind("def", cast(char)'f');
-    assert(i == 2);
-
-    i = irfind(sPlts, cast(char)'M');
-    assert(i == 34);
-    i = irfind(sPlts, cast(char)'S');
-    assert(i == 40);
-}
-
 
 /******************************************
  * find, ifind _find first occurrence of sub[] in string s[].
@@ -574,115 +445,6 @@ unittest
  * ditto
  */
 
-int ifind(char[] s, char[] sub)
-    out (result)
-    {
-	if (result == -1)
-	{
-	}
-	else
-	{
-	    assert(0 <= result && result < s.length - sub.length + 1);
-	    assert(icmp(s[result .. result + sub.length], sub) == 0);
-	}
-    }
-    body
-    {
-	auto sublength = sub.length;
-	int i;
-
-	if (sublength == 0)
-	    return 0;
-
-	if (s.length < sublength)
-	    return -1;
-
-	auto c = sub[0];
-	if (sublength == 1)
-	{
-	    i = ifind(s, c);
-	}
-	else if (c <= 0x7F)
-	{
-	    size_t imax = s.length - sublength + 1;
-
-	    // Remainder of sub[]
-	    char[] subn = sub[1 .. sublength];
-
-	    for (i = 0; i < imax; i++)
-	    {
-		auto j = ifind(s[i .. imax], c);
-		if (j == -1)
-		    return -1;
-		i += j;
-		if (icmp(s[i + 1 .. i + sublength], subn) == 0)
-		    return i;
-	    }
-	    i = -1;
-	}
-	else
-	{
-	    size_t imax = s.length - sublength;
-
-	    for (i = 0; i <= imax; i++)
-	    {
-		if (icmp(s[i .. i + sublength], sub) == 0)
-		    return i;
-	    }
-	    i = -1;
-	}
-	return i;
-    }
-
-
-unittest
-{
-    debug(string) printf("string.ifind.unittest\n");
-
-    int i;
-
-    i = ifind(null, "a");
-    assert(i == -1);
-    i = ifind("def", "a");
-    assert(i == -1);
-    i = ifind("abba", "a");
-    assert(i == 0);
-    i = ifind("def", "f");
-    assert(i == 2);
-    i = ifind("dfefffg", "fff");
-    assert(i == 3);
-    i = ifind("dfeffgfff", "fff");
-    assert(i == 6);
-
-    char[] sPlts = "Mars: the fourth Rock (Planet) from the Sun.";
-    char[] sMars = "Who\'s \'My Favorite Maritian?\'";
-
-    i = ifind(sMars, "MY fAVe");
-    assert(i == -1);
-    i = ifind(sMars, "mY fAVOriTe");
-    assert(i == 7);
-    i = ifind(sPlts, "mArS:");
-    assert(i == 0);
-    i = ifind(sPlts, "rOcK");
-    assert(i == 17);
-    i = ifind(sPlts, "Un.");
-    assert(i == 41);
-    i = ifind(sPlts, sPlts);
-    assert(i == 0);
-
-    i = ifind("\u0100", "\u0100");
-    assert(i == 0);
-
-    // Thanks to Carlos Santander B. and zwang
-    i = ifind("sus mejores cortesanos. Se embarcaron en el puerto de Dubai y",
-	"page-break-before");
-    assert(i == -1);
-}
-
-/******************************************
- * ditto
- */
-
 int rfind(char[] s, char[] sub)
     out (result)
     {
@@ -733,90 +495,6 @@ unittest
 }
 
 
-/******************************************
- * ditto
- */
-
-int irfind(char[] s, char[] sub)
-    out (result)
-    {
-	if (result == -1)
-	{
-	}
-	else
-	{
-	    assert(0 <= result && result < s.length - sub.length + 1);
-	    assert(icmp(s[result .. result + sub.length], sub) == 0);
-	}
-    }
-    body
-    {
-	dchar c;
-
-	if (sub.length == 0)
-	    return s.length;
-	c = sub[0];
-	if (sub.length == 1)
-	    return irfind(s, c);
-	if (c <= 0x7F)
-	{
-	    c = stdx.ctype.tolower(c);
-	    for (int i = s.length - sub.length; i >= 0; i--)
-	    {
-		if (stdx.ctype.tolower(s[i]) == c)
-		{
-		    if (icmp(s[i + 1 .. i + sub.length], sub[1 .. sub.length]) == 0)
-			return i;
-		}
-	    }
-	}
-	else
-	{
-	    for (int i = s.length - sub.length; i >= 0; i--)
-	    {
-		if (icmp(s[i .. i + sub.length], sub) == 0)
-		    return i;
-	    }
-	}
-	return -1;
-    }
-
-unittest
-{
-    int i;
-
-    debug(string) printf("string.irfind.unittest\n");
-    i = irfind("abcdefCdef", "c");
-    assert(i == 6);
-    i = irfind("abcdefCdef", "cD");
-    assert(i == 6);
-    i = irfind("abcdefcdef", "x");
-    assert(i == -1);
-    i = irfind("abcdefcdef", "xy");
-    assert(i == -1);
-    i = irfind("abcdefcdef", "");
-    assert(i == 10);
-
-    char[] sPlts = "Mars: the fourth Rock (Planet) from the Sun.";
-    char[] sMars = "Who\'s \'My Favorite Maritian?\'";
-
-    i = irfind("abcdefcdef", "c");
-    assert(i == 6);
-    i = irfind("abcdefcdef", "cd");
-    assert(i == 6);
-    i = irfind( "abcdefcdef", "def" );
-    assert(i == 7);
-
-    i = irfind(sMars, "RiTE maR");
-    assert(i == 14);
-    i = irfind(sPlts, "FOuRTh");
-    assert(i == 10);
-    i = irfind(sMars, "whO\'s \'MY");
-    assert(i == 0);
-    i = irfind(sMars, sMars);
-    assert(i == 0);
-}
-
 
 /************************************
  * Convert string s[] to lower case.
@@ -824,47 +502,7 @@ unittest
 
 string tolower(string s)
 {
-    int changed;
-    char[] r;
-
-    for (size_t i = 0; i < s.length; i++)
-    {
-	auto c = s[i];
-	if ('A' <= c && c <= 'Z')
-	{
-	    if (!changed)
-	    {
-		r = s.dup;
-		changed = 1;
-	    }
-	    r[i] = cast(char) (c + (cast(char)'a' - 'A'));
-	}
-	else if (c > 0x7F)
-	{
-	    foreach (size_t j, dchar dc; s[i .. length])
-	    {
-		if (stdx.uni.isUniUpper(dc))
-		{
-		    dc = stdx.uni.toUniLower(dc);
-		    if (!changed)
-		    {
-			r = s[0 .. i + j].dup;
-			changed = 2;
-		    }
-		}
-		if (changed)
-		{
-		    if (changed == 1)
-		    {	r = r[0 .. i + j];
-			changed = 2;
-		    }
-		    stdx.utf.encode(r, dc);
-		}
-	    }
-	    break;
-	}
-    }
-    return changed ? r : s;
+    return uni.toLower(s);
 }
 
 unittest
@@ -888,10 +526,12 @@ unittest
     assert(cmp(s2, "a\u0461b\u0461d") == 0);
     assert(s2 !is s1);
 
+/+ what???
     s1 = "\u0130";
     s2 = tolower(s1);
     assert(s2 == "i");
     assert(s2 !is s1);
++/
 }
 
 /************************************
@@ -900,47 +540,7 @@ unittest
 
 string toupper(string s)
 {
-    int changed;
-    char[] r;
-
-    for (size_t i = 0; i < s.length; i++)
-    {
-	auto c = s[i];
-	if ('a' <= c && c <= 'z')
-	{
-	    if (!changed)
-	    {
-		r = s.dup;
-		changed = 1;
-	    }
-	    r[i] = cast(char) (c - (cast(char)'a' - 'A'));
-	}
-	else if (c > 0x7F)
-	{
-	    foreach (size_t j, dchar dc; s[i .. length])
-	    {
-		if (stdx.uni.isUniLower(dc))
-		{
-		    dc = stdx.uni.toUniUpper(dc);
-		    if (!changed)
-		    {
-			r = s[0 .. i + j].dup;
-			changed = 2;
-		    }
-		}
-		if (changed)
-		{
-		    if (changed == 1)
-		    {	r = r[0 .. i + j];
-			changed = 2;
-		    }
-		    stdx.utf.encode(r, dc);
-		}
-	    }
-	    break;
-	}
-    }
-    return changed ? r : s;
+    return uni.toUpper(s);
 }
 
 unittest
@@ -965,133 +565,6 @@ unittest
     assert(s2 !is s1);
 }
 
-
-/********************************************
- * Capitalize first character of string s[], convert rest of string s[]
- * to lower case.
- */
-
-char[] capitalize(char[] s)
-{
-    int changed;
-    int i;
-    char[] r = s;
-
-    changed = 0;
-
-    foreach (size_t i, dchar c; s)
-    {	dchar c2;
-
-	if (i == 0)
-	{
-	    c2 = stdx.uni.toUniUpper(c);
-	    if (c != c2)
-	    {
-		changed = 1;
-		r = null;
-	    }
-	}
-	else
-	{
-	    c2 = stdx.uni.toUniLower(c);
-	    if (c != c2)
-	    {
-		if (!changed)
-		{   changed = 1;
-		    r = s[0 .. i].dup;
-		}
-	    }
-	}
-	if (changed)
-	    stdx.utf.encode(r, c2);
-    }
-    return r;
-}
-
-
-unittest
-{
-    debug(string) printf("string.toupper.capitalize\n");
-
-    char[] s1 = "FoL";
-    char[] s2;
-
-    s2 = capitalize(s1);
-    assert(cmp(s2, "Fol") == 0);
-    assert(s2 !is s1);
-
-    s2 = capitalize(s1[0 .. 2]);
-    assert(cmp(s2, "Fo") == 0);
-    assert(s2.ptr == s1.ptr);
-
-    s1 = "fOl";
-    s2 = capitalize(s1);
-    assert(cmp(s2, "Fol") == 0);
-    assert(s2 !is s1);
-}
-
-
-/********************************************
- * Capitalize all words in string s[].
- * Remove leading and trailing whitespace.
- * Replace all sequences of whitespace with a single space.
- */
-
-char[] capwords(char[] s)
-{
-    char[] r;
-    bool inword = false;
-    size_t istart = 0;
-    size_t i;
-
-    for (i = 0; i < s.length; i++)
-    {
-	switch (s[i])
-	{
-	    case ' ':
-	    case '\t':
-	    case '\f':
-	    case '\r':
-	    case '\n':
-	    case '\v':
-		if (inword)
-		{
-		    r ~= capitalize(s[istart .. i]);
-		    inword = false;
-		}
-		break;
-
-	    default:
-		if (!inword)
-		{
-		    if (r.length)
-			r ~= ' ';
-		    istart = i;
-		    inword = true;
-		}
-		break;
-	}
-    }
-    if (inword)
-    {
-	r ~= capitalize(s[istart .. i]);
-    }
-
-    return r;
-}
-
-
-unittest
-{
-    debug(string) printf("string.capwords.unittest\n");
-
-    char[] s1 = "\tfoo abc(aD)*  \t  (q PTT  ";
-    char[] s2;
-
-    s2 = capwords(s1);
-    //writefln("s2 = '%s'", s2);
-    assert(cmp(s2, "Foo Abc(ad)* (q Ptt") == 0);
-}
 
 /********************************************
  * Return a string that consists of s[] repeated n times.
@@ -1527,7 +1000,7 @@ char[] stripl(char[] s)
 
     for (i = 0; i < s.length; i++)
     {
-	if (!stdx.ctype.isspace(s[i]))
+	if (!uni.isWhitespace(s[i]))
 	    break;
     }
     return s[i .. s.length];
@@ -1539,7 +1012,7 @@ char[] stripr(char[] s) /// ditto
 
     for (i = s.length; i > 0; i--)
     {
-	if (!stdx.ctype.isspace(s[i - 1]))
+	if (!uni.isWhitespace(s[i - 1]))
 	    break;
     }
     return s[0 .. i];
@@ -2652,7 +2125,7 @@ unittest
  * Format arguments into a string.
  */
 
-char[] format(...)
+char[] format(char[] fmt, ...)
 {
     char[] s;
 
@@ -2661,7 +2134,7 @@ char[] format(...)
 	stdx.utf.encode(s, c);
     }
 
-    stdx.format.doFormat(&putc, _arguments, _argptr);
+    stdx.format.doFormat(&putc, fmt, _arguments, _argptr);
     return s;
 }
 
@@ -3015,7 +2488,7 @@ unittest
 
 char[] succ(char[] s)
 {
-    if (s.length && isalnum(s[length - 1]))
+    if (s.length && uni.isLetterOrDigit(s[length - 1]))
     {
 	char[] r = s.dup;
 	size_t i = r.length - 1;
@@ -3047,7 +2520,7 @@ char[] succ(char[] s)
 		    break;
 
 		default:
-		    if (stdx.ctype.isalnum(c))
+		    if (uni.isLetterOrDigit(c))
 			r[i]++;
 		    return r;
 	    }
@@ -3980,121 +3453,3 @@ unittest
     assert(wrap("x") == "x\n");
     assert(wrap("u u") == "u u\n");
 }
-
-
-/***************************
- * Does string s[] start with an email address?
- * Returns:
- *	null	it does not
- *	char[]	it does, and this is the slice of s[] that is that email address
- * References:
- *	RFC2822
- */
-char[] isEmail(char[] s)
-{   size_t i;
-
-    if (!isalpha(s[0]))
-	goto Lno;
-
-    for (i = 1; 1; i++)
-    {
-	if (i == s.length)
-	    goto Lno;
-	auto c = s[i];
-	if (isalnum(c))
-	    continue;
-	if (c == '-' || c == '_' || c == '.')
-	    continue;
-	if (c != '@')
-	    goto Lno;
-	i++;
-	break;
-    }
-    //writefln("test1 '%s'", s[0 .. i]);
-
-    /* Now do the part past the '@'
-     */
-    size_t lastdot;
-    for (; i < s.length; i++)
-    {
-	auto c = s[i];
-	if (isalnum(c))
-	    continue;
-	if (c == '-' || c == '_')
-	    continue;
-	if (c == '.')
-	{
-	    lastdot = i;
-	    continue;
-	}
-	break;
-    }
-    if (!lastdot || (i - lastdot != 3 && i - lastdot != 4))
-	goto Lno;
-
-    return s[0 .. i];
-
-Lno:
-    return null;
-}
-
-
-/***************************
- * Does string s[] start with a URL?
- * Returns:
- *	null	it does not
- *	char[]	it does, and this is the slice of s[] that is that URL
- */
-
-char[] isURL(char[] s)
-{
-    /* Must start with one of:
-     *	http://
-     *	https://
-     *	www.
-     */
-
-    size_t i;
-
-    if (s.length <= 4)
-	goto Lno;
-
-    //writefln("isURL(%s)", s);
-    if (s.length > 7 && stdx.string.icmp(s[0 .. 7], "http://") == 0)
-	i = 7;
-    else if (s.length > 8 && stdx.string.icmp(s[0 .. 8], "https://") == 0)
-	i = 8;
-//    if (icmp(s[0 .. 4], "www.") == 0)
-//	i = 4;
-    else
-	goto Lno;
-
-    size_t lastdot;
-    for (; i < s.length; i++)
-    {
-	auto c = s[i];
-	if (isalnum(c))
-	    continue;
-	if (c == '-' || c == '_' || c == '?' ||
-	    c == '=' || c == '%' || c == '&' ||
-	    c == '/' || c == '+' || c == '#' ||
-	    c == '~')
-	    continue;
-	if (c == '.')
-	{
-	    lastdot = i;
-	    continue;
-	}
-	break;
-    }
-    //if (!lastdot || (i - lastdot != 3 && i - lastdot != 4))
-    if (!lastdot)
-	goto Lno;
-
-    return s[0 .. i];
-
-Lno:
-    return null;
-}
-
-

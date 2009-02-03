@@ -10,6 +10,7 @@ import physics.geometry;
 import physics.posp;
 
 import math = tango.math.Math;
+import ieee = tango.math.IEEE;
 
 alias void delegate(ref Contact c) CollideDelegate;
 
@@ -35,7 +36,7 @@ struct Contact {
     void fromGeom(GeomContact c, PhysicObject o) {
         normal = c.normal;
         depth = c.depth;
-        assert(!normal.isNaN && !math.isNaN(depth));
+        assert(!normal.isNaN && !ieee.isNaN(depth));
         obj[0] = o;
         obj[1] = null;
         source = ContactSource.geometry;
@@ -47,7 +48,7 @@ struct Contact {
         obj[1] = obj2;
         normal = n;
         depth = d;
-        assert(!normal.isNaN && !math.isNaN(depth));
+        assert(!normal.isNaN && !ieee.isNaN(depth));
         source = ContactSource.object;
 
         //calculate cor (coeff. of restitution) of this collision

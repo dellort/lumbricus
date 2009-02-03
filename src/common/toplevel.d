@@ -439,7 +439,7 @@ private:
                 !gFramework.fullScreen);
         } catch (Exception e) {
             //fullscreen switch failed
-            write.writefln(e);
+            write.writefln("error: %s", e);
         }
     }
 

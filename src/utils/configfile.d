@@ -12,7 +12,6 @@ import utils.misc : formatfx;
 
 //only for byte[]
 //import zlib = std.zlib;
-import base64 = stdx.base64;
 
 //xxx: desperately moved to here (where else to put it?)
 import utils.vector2;
@@ -987,7 +986,7 @@ public class ConfigFile {
 
     //fatal==false: continue parsing allthough config file is invalid
     //fatal==true: parsing won't be continued (abort by throwing an exception)
-    private void reportError(bool fatal, ...) {
+    private void reportError(bool fatal, char[] fmt, ...) {
         mErrorCount++;
 
         if (!mErrorOut)
@@ -998,7 +997,7 @@ public class ConfigFile {
         mErrorOut(str.format("ConfigFile, error in %s(%s,%s): ", mFilename,
             mPos.line, mPos.column));
         //scary D varargs!
-        mErrorOut(formatfx(_arguments, _argptr));
+        mErrorOut(formatfx(fmt, _arguments, _argptr));
         mErrorOut("\n");
 
         //abuse exception handling to abort parsing

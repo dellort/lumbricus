@@ -294,7 +294,7 @@ class TestFrame9 : Container {
     class T : Container {
         this(int r) {
             auto x = new Label();
-            x.text = str.format(r);
+            x.text = str.format("%s", r);
             auto props = gFramework.getFont("normal").properties();
             props.size += r*10; //just to have different request sizes
             x.font = new Font(props);

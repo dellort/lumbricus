@@ -562,6 +562,7 @@ class Type {
     //the types of both pa and pb must be this type
     //xxx: currently do a byte-for-byte comparision, which "should" be ok in
     //     most cases
+    //xxx: comparision is different for floats and nans
     bool op_is(SafePtr pa, SafePtr pb) {
         if (pa.type !is this || pb.type !is this)
             throw new Exception("type error");

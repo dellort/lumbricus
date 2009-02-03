@@ -11,33 +11,34 @@ import utils.misc : formatfx, va_list;
 //xxx maybe replace this interface by a handy class, so the number of interface
 //functions could be kept to a minimum (i.e. only writeString())
 public interface Output {
-    void writef(...);
-    void writefln(...);
-    void writef_ind(bool newline, TypeInfo[] arguments, va_list argptr);
+    void writef(char[] fmt, ...);
+    void writefln(char[] fmt, ...);
+    void writef_ind(bool newline, char[] fmt, TypeInfo[] arguments,
+        va_list argptr);
     void writeString(char[] str);
 }
 
-//small nasty helper
-char[] sformat_ind(bool newline, TypeInfo[] arguments, va_list argptr) {
-    auto r = formatfx(arguments, argptr);
+char[] sformat_ind(bool newline, char[] fmt, TypeInfo[] arguments,
+    va_list argptr)
+{
+    auto s = formatfx(fmt, arguments, argptr);
     if (newline)
-        r ~= '\n';
-    return r;
+        s ~= '\n';
+    return s;
 }
 
 /// A helper for implementers only, users shall use interface Output instead.
 public class OutputHelper : Output {
-    void writef(...) {
-        writef_ind(false, _arguments, _argptr);
+    void writef(char[] fmt, ...) {
+        writef_ind(false, fmt, _arguments, _argptr);
     }
-    void writefln(...) {
-        writef_ind(true, _arguments, _argptr);
+    void writefln(char[] fmt, ...) {
+        writef_ind(true, fmt, _arguments, _argptr);
     }
-    void writef_ind(bool newline, TypeInfo[] arguments, va_list argptr) {
-        auto s = formatfx(arguments, argptr);
-        if (newline)
-            s ~= '\n';
-        writeString(s);
+    void writef_ind(bool newline, char[] fmt, TypeInfo[] arguments,
+        va_list argptr)
+    {
+        writeString(sformat_ind(newline, fmt, arguments, argptr));
     }
     abstract void writeString(char[] str);
 }
@@ -83,7 +84,9 @@ public class DevNullOutput : OutputHelper {
     public static Output output;
     void writeString(char[] str) {
     }
-    void writef_ind(bool newline, TypeInfo[] arguments, void* argptr) {
+    void writef_ind(bool newline, char[] fmt, TypeInfo[] arguments,
+        void* argptr)
+    {
     }
 
     static this() {

@@ -460,19 +460,29 @@ private T arg_next(T)(ref void** ptr) {
     return *cast(T*)rp;
 }
 
-void doFormat(void delegate(dchar) putc, TypeInfo[] arguments, va_list r_argptr)
+void doFormat(void delegate(dchar) putc, char[] x_fmt, TypeInfo[] arguments_org, va_list r_argptr_org)
 {   int j;
     TypeInfo ti;
     Mangle m;
     uint flags;
     int field_width;
     int precision;
-    
+
+    TypeInfo[64] storage0;
+    TypeInfo[] arguments = storage0;
+    arguments[0] = typeid(typeof(x_fmt));
+    arguments[1..arguments_org.length+1] = arguments_org;
+    arguments.length = arguments_org.length+1;
+
     if (arguments.length == 0)
         return;
 
-    void*[10] args_storage; //could alloca()
-    void*[] args = getArgs(arguments, r_argptr, args_storage);
+    void*[64] args_storage; //could alloca()
+    void*[] args = getArgs(arguments_org, r_argptr_org, args_storage[1..$]);
+    //lol
+    assert (args.ptr == args_storage.ptr + 1);
+    args_storage[0] = &x_fmt;
+    args = args_storage[0..args.length+1];
     void** curarg = &args[0];
 
     enum : uint
@@ -1277,299 +1287,5 @@ void doFormat(void delegate(dchar) putc, TypeInfo[] arguments, va_list r_argptr)
 
 Lerror:
     throw new FormatError();
-}
-
-/* ======================== Unit Tests ====================================== */
-
-unittest
-{
-    int i;
-    string s;
-
-    debug(format) printf("stdx.format.format.unittest\n");
-
-    s = stdx.string.format("hello world! %s %s ", true, 57, 1_000_000_000, 'x', " foo");
-    assert(s == "hello world! true 57 1000000000x foo");
-
-    s = stdx.string.format(1.67, " %A ", -1.28, float.nan);
-    /* The host C library is used to format floats.
-     * C99 doesn't specify what the hex digit before the decimal point
-     * is for %A.
-     */
-    version (linux)
-	assert(s == "1.67 -0XA.3D70A3D70A3D8P-3 nan");
-    else
-	assert(s == "1.67 -0X1.47AE147AE147BP+0 nan");
-
-    s = stdx.string.format("%x %X", 0x1234AF, 0xAFAFAFAF);
-    assert(s == "1234af AFAFAFAF");
-
-    s = stdx.string.format("%b %o", 0x1234AF, 0xAFAFAFAF);
-    assert(s == "100100011010010101111 25753727657");
-
-    s = stdx.string.format("%d %s", 0x1234AF, 0xAFAFAFAF);
-    assert(s == "1193135 2947526575");
-
-    s = stdx.string.format("%s", 1.2 + 3.4i);
-    assert(s == "1.2+3.4i");
-
-    s = stdx.string.format("%x %X", 1.32, 6.78f);
-    assert(s == "3ff51eb851eb851f 40D8F5C3");
-
-    s = stdx.string.format("%#06.*f",2,12.345);
-    assert(s == "012.35");
-
-    s = stdx.string.format("%#0*.*f",6,2,12.345);
-    assert(s == "012.35");
-
-    s = stdx.string.format("%7.4g:", 12.678);
-    assert(s == "  12.68:");
-
-    s = stdx.string.format("%7.4g:", 12.678L);
-    assert(s == "  12.68:");
-
-    s = stdx.string.format("%04f|%05d|%#05x|%#5x",-4.,-10,1,1);
-    assert(s == "-4.000000|-0010|0x001|  0x1");
-
-    i = -10;
-    s = stdx.string.format("%d|%3d|%03d|%1d|%01.4f",i,i,i,i,cast(double) i);
-    assert(s == "-10|-10|-10|-10|-10.0000");
-
-    i = -5;
-    s = stdx.string.format("%d|%3d|%03d|%1d|%01.4f",i,i,i,i,cast(double) i);
-    assert(s == "-5| -5|-05|-5|-5.0000");
-
-    i = 0;
-    s = stdx.string.format("%d|%3d|%03d|%1d|%01.4f",i,i,i,i,cast(double) i);
-    assert(s == "0|  0|000|0|0.0000");
-
-    i = 5;
-    s = stdx.string.format("%d|%3d|%03d|%1d|%01.4f",i,i,i,i,cast(double) i);
-    assert(s == "5|  5|005|5|5.0000");
-
-    i = 10;
-    s = stdx.string.format("%d|%3d|%03d|%1d|%01.4f",i,i,i,i,cast(double) i);
-    assert(s == "10| 10|010|10|10.0000");
-
-    s = stdx.string.format("%.0d", 0);
-    assert(s == "");
-
-    s = stdx.string.format("%.g", .34);
-    assert(s == "0.3");
-
-    s = stdx.string.format("%.0g", .34);
-    assert(s == "0.3");
-
-    s = stdx.string.format("%.2g", .34);
-    assert(s == "0.34");
-
-    s = stdx.string.format("%0.0008f", 1e-08);
-    assert(s == "0.00000001");
-
-    s = stdx.string.format("%0.0008f", 1e-05);
-    assert(s == "0.00001000");
-
-    s = "helloworld";
-    string r;
-    r = stdx.string.format("%.2s", s[0..5]);
-    assert(r == "he");
-    r = stdx.string.format("%.20s", s[0..5]);
-    assert(r == "hello");
-    r = stdx.string.format("%8s", s[0..5]);
-    assert(r == "   hello");
-
-    byte[] arrbyte = new byte[4];
-    arrbyte[0] = 100;
-    arrbyte[1] = -99;
-    arrbyte[3] = 0;
-    r = stdx.string.format(arrbyte);
-    assert(r == "[100,-99,0,0]");
-
-    ubyte[] arrubyte = new ubyte[4];
-    arrubyte[0] = 100;
-    arrubyte[1] = 200;
-    arrubyte[3] = 0;
-    r = stdx.string.format(arrubyte);
-    assert(r == "[100,200,0,0]");
-
-    short[] arrshort = new short[4];
-    arrshort[0] = 100;
-    arrshort[1] = -999;
-    arrshort[3] = 0;
-    r = stdx.string.format(arrshort);
-    assert(r == "[100,-999,0,0]");
-    r = stdx.string.format("%s",arrshort);
-    assert(r == "[100,-999,0,0]");
-
-    ushort[] arrushort = new ushort[4];
-    arrushort[0] = 100;
-    arrushort[1] = 20_000;
-    arrushort[3] = 0;
-    r = stdx.string.format(arrushort);
-    assert(r == "[100,20000,0,0]");
-
-    int[] arrint = new int[4];
-    arrint[0] = 100;
-    arrint[1] = -999;
-    arrint[3] = 0;
-    r = stdx.string.format(arrint);
-    assert(r == "[100,-999,0,0]");
-    r = stdx.string.format("%s",arrint);
-    assert(r == "[100,-999,0,0]");
-
-    long[] arrlong = new long[4];
-    arrlong[0] = 100;
-    arrlong[1] = -999;
-    arrlong[3] = 0;
-    r = stdx.string.format(arrlong);
-    assert(r == "[100,-999,0,0]");
-    r = stdx.string.format("%s",arrlong);
-    assert(r == "[100,-999,0,0]");
-
-    ulong[] arrulong = new ulong[4];
-    arrulong[0] = 100;
-    arrulong[1] = 999;
-    arrulong[3] = 0;
-    r = stdx.string.format(arrulong);
-    assert(r == "[100,999,0,0]");
-
-    string[] arr2 = new string[4];
-    arr2[0] = "hello";
-    arr2[1] = "world";
-    arr2[3] = "foo";
-    r = stdx.string.format(arr2);
-    assert(r == "[hello,world,,foo]");
-
-    r = stdx.string.format("%.8d", 7);
-    assert(r == "00000007");
-    r = stdx.string.format("%.8x", 10);
-    assert(r == "0000000a");
-
-    r = stdx.string.format("%-3d", 7);
-    assert(r == "7  ");
-
-    r = stdx.string.format("%*d", -3, 7);
-    assert(r == "7  ");
-
-    r = stdx.string.format("%.*d", -3, 7);
-    assert(r == "7");
-
-    typedef int myint;
-    myint m = -7;
-    r = stdx.string.format(m);
-    assert(r == "-7");
-
-    r = stdx.string.format("abc"c);
-    assert(r == "abc");
-    r = stdx.string.format("def"w);
-    assert(r == "def");
-    r = stdx.string.format("ghi"d);
-    assert(r == "ghi");
-
-    void* p = cast(void*)0xDEADBEEF;
-    r = stdx.string.format(p);
-    assert(r == "DEADBEEF");
-
-    r = stdx.string.format("%#x", 0xabcd);
-    assert(r == "0xabcd");
-    r = stdx.string.format("%#X", 0xABCD);
-    assert(r == "0XABCD");
-
-    r = stdx.string.format("%#o", 012345);
-    assert(r == "012345");
-    r = stdx.string.format("%o", 9);
-    assert(r == "11");
-
-    r = stdx.string.format("%+d", 123);
-    assert(r == "+123");
-    r = stdx.string.format("%+d", -123);
-    assert(r == "-123");
-    r = stdx.string.format("% d", 123);
-    assert(r == " 123");
-    r = stdx.string.format("% d", -123);
-    assert(r == "-123");
-
-    r = stdx.string.format("%%");
-    assert(r == "%");
-
-    r = stdx.string.format("%d", true);
-    assert(r == "1");
-    r = stdx.string.format("%d", false);
-    assert(r == "0");
-
-    r = stdx.string.format("%d", 'a');
-    assert(r == "97");
-    wchar wc = 'a';
-    r = stdx.string.format("%d", wc);
-    assert(r == "97");
-    dchar dc = 'a';
-    r = stdx.string.format("%d", dc);
-    assert(r == "97");
-
-    byte b = byte.max;
-    r = stdx.string.format("%x", b);
-    assert(r == "7f");
-    r = stdx.string.format("%x", ++b);
-    assert(r == "80");
-    r = stdx.string.format("%x", ++b);
-    assert(r == "81");
-
-    short sh = short.max;
-    r = stdx.string.format("%x", sh);
-    assert(r == "7fff");
-    r = stdx.string.format("%x", ++sh);
-    assert(r == "8000");
-    r = stdx.string.format("%x", ++sh);
-    assert(r == "8001");
-
-    i = int.max;
-    r = stdx.string.format("%x", i);
-    assert(r == "7fffffff");
-    r = stdx.string.format("%x", ++i);
-    assert(r == "80000000");
-    r = stdx.string.format("%x", ++i);
-    assert(r == "80000001");
-
-    r = stdx.string.format("%x", 10);
-    assert(r == "a");
-    r = stdx.string.format("%X", 10);
-    assert(r == "A");
-    r = stdx.string.format("%x", 15);
-    assert(r == "f");
-    r = stdx.string.format("%X", 15);
-    assert(r == "F");
-
-    Object c = null;
-    r = stdx.string.format(c);
-    assert(r == "null");
-
-    enum TestEnum
-    {
-	    Value1, Value2
-    }
-    r = stdx.string.format("%s", TestEnum.Value2);
-    assert(r == "1");
-
-    char[5][int] aa = ([3:"hello", 4:"betty"]);
-    r = stdx.string.format("%s", aa.values);
-    assert(r == "[[h,e,l,l,o],[b,e,t,t,y]]");
-    r = stdx.string.format("%s", aa);
-    assert(r == "[3:[h,e,l,l,o],4:[b,e,t,t,y]]");
-
-    static const dchar[] ds = ['a','b'];
-    for (int j = 0; j < ds.length; ++j)
-    {
-	r = stdx.string.format(" %d", ds[j]);
-	if (j == 0)
-	    assert(r == " 97");
-	else
-	    assert(r == " 98");
-    }
-
-    r = stdx.string.format(">%14d<, ", 15, [1,2,3]);
-    assert(r == ">            15<, [1,2,3]");
-
-    assert(stdx.string.format("%8s", "bar") == "     bar");
-    assert(stdx.string.format("%8s", "b\u00e9ll\u00f4") == "   b\u00e9ll\u00f4");
 }
 

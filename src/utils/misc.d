@@ -3,6 +3,7 @@ module utils.misc;
 import str = stdx.string;
 import utf = stdx.utf;
 import fmt = stdx.format; //wtf, can cause conflicts in other modules
+import layout = tango.text.convert.Layout;
 
 //if you're trying to compile this under Linux with Tango, Tangobos and dmd,
 //then delete tango/import/std/stdarg.di; this file seems to be completely
@@ -139,12 +140,19 @@ R delegate(T) toDelegate(R, T...)(R function(T) fn) {
     return &res.call;
 }
 
-//maybe move away from this module
-//stupid phobos doesn't have this yet
-char[] formatfx(TypeInfo[] arguments, va_list argptr) {
+char[] formatfx(char[] a_fmt, TypeInfo[] arguments, va_list argptr) {
+    //(yeah, very funny names, Tango guys!)
+    //return layout.Layout!(char).instance().vprint("", fmt, arguments, argptr);
+    //Phobos for now
     char[] res;
-    fmt.doFormat((dchar c) { utf.encode(res, c); }, arguments, argptr);
+    fmt.doFormat((dchar c) { utf.encode(res, c); }, a_fmt, arguments, argptr);
     return res;
+}
+
+//replacement for stdx.string.format()
+//trivial, but Tango really is annoyingly noisy
+char[] myformat(char[] fmt, ...) {
+    return formatfx(fmt, _arguments, _argptr);
 }
 
 /// number of bytes to a string like "number XX", where XX is "B", "KB" etc.
