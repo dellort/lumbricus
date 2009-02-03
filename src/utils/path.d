@@ -2,6 +2,7 @@ module utils.path;
 
 import str = stdx.string;
 import tango.io.model.IFile : FileConst;
+import path = tango.io.Path;
 
 char[] getFilePath(char[] fullname)
     out (result)
@@ -74,8 +75,7 @@ struct VFSPath {
         //cut off all trailing separators
         while (absParent[$-1] == '/' || absParent[$-1] == '\\')
             absParent = absParent[0..$-1];
-        char[] p = str.replace(mPath,"/",FileConst.PathSeparatorString);
-        return absParent ~ p;
+        return path.standard(absParent ~ mPath);
     }
 
     ///get the parent directory of the current path
@@ -291,10 +291,10 @@ unittest {
 
     v.set("/foo/bar");
     version(Windows) {
-        assert(v.makeAbsolute(r"C:\Test\") == r"C:\Test/foo/bar");
-        assert(v.makeAbsolute(r"C:\Test") == r"C:\Test/foo/bar");
+        assert(v.makeAbsolute(r"C:\Test\") == r"C:/Test/foo/bar");
+        assert(v.makeAbsolute(r"C:\Test") == r"C:/Test/foo/bar");
         v.set("");
-        assert(v.makeAbsolute(r"C:\Test") == r"C:\Test");
+        assert(v.makeAbsolute(r"C:\Test") == r"C:/Test");
     }
     version(Linux) {
         assert(v.makeAbsolute("/usr/share/") == "/usr/share/foo/bar");

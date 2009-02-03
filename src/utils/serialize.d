@@ -748,7 +748,8 @@ class SerializeInConfig : SerializeConfig {
                     } else static if (isSigned!(x)) {
                         val = conv.to!(long)(s);
                     } else static if (is(x == float)) {
-                        val = conv.to!(float)(s);
+                        //xxx (see end of file)
+                        val = toFloat(s);
                     } else static if (is(x == double)) {
                         val = conv.to!(double)(s);
                     } else static if (is(x == bool)) {
@@ -783,3 +784,50 @@ class SerializeInConfig : SerializeConfig {
         return getObject(cur["_object"]);
     }
 }
+
+
+
+//As tango.text.convert.Float.toFloat can't read hexadecimal floats,
+//toFloat code from phobos follows
+
+//xxx imports
+import tango.stdc.stringz : toStringz;
+import tango.stdc.stdlib : strtof;
+import tango.stdc.errno;
+import tango.text.Util : isSpace;
+
+private int getErrno() {
+    return errno();
+}
+private void setErrno(int val) {
+    errno = val;
+}
+
+//from phobos: std.conv
+float toFloat(in char[] s)
+{
+    float f;
+    char* endptr;
+    char* sz;
+
+    //writefln("toFloat('%s')", s);
+    sz = toStringz(s);
+    if (isSpace(*sz))
+    goto Lerr;
+
+    // BUG: should set __locale_decpoint to "." for DMC
+
+    setErrno(0);
+    f = strtof(sz, &endptr);
+    if (getErrno() == ERANGE)
+    goto Lerr;
+    if (endptr && (endptr == sz || *endptr != 0))
+    goto Lerr;
+
+    return f;
+
+  Lerr:
+    throw new conv.ConversionException(s ~ " not representable as a float");
+    assert(0);
+}
+

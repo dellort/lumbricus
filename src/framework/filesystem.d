@@ -316,7 +316,7 @@ class FileSystem {
             //sometimes, the path is absolute
             appPath = exePath.path;
         } else {
-            appPath = normalize(FilePath.join(exePath.path, curDir));
+            appPath = normalize(FilePath.join(curDir, exePath.path));
         }
 
         appPath = addTrailingPathDelimiter(appPath);
