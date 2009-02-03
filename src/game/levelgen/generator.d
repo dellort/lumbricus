@@ -864,22 +864,19 @@ class LandscapeLexels {
     }
 
     void loadFrom(ConfigNode node) {
-        //levelData = cast(Lexel[])node.getByteArrayValue("data");
         size = node.getValue("size", size);
-        if (size.x == 0 || size.y == 0 || levelData.length % 2 != 0) {
+        levelData = cast(Lexel[])node.getValue!(ubyte[])("data");
+        if (size.x == 0 || size.y == 0 || levelData.length != size.x*size.y) {
             throw new Exception("Pregenerated level failed to load");
         }
-        levelData.length = size.x*size.y;
-        rleDecode(node["data"], levelData);
     }
 
     void saveTo(ConfigNode node) {
         node.setValue("size", size);
-        node.setStringValue("data", rleEncode(levelData));
-        //node.setByteArrayValue("data", cast(ubyte[])levelData, true);
+        node.setByteArrayValue("data", cast(ubyte[])levelData, true);
     }
 
-    const ubyte cFirst = cast(ubyte)'#';
+    /*const ubyte cFirst = cast(ubyte)'#';
     const byte cDist = cast(ubyte)'~' - cFirst;
 
     private char[] rleEncode(Lexel[] data) {
@@ -916,7 +913,7 @@ class LandscapeLexels {
             buf[p..p+rep] = l;
             p += rep;
         }
-    }
+    }*/
 
     GenerateFromTemplate generator(LevelGeneratorShared shared, bool isCave,
         bool placeObjects)

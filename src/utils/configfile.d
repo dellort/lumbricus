@@ -6,11 +6,13 @@ import str = stdx.string;
 import conv = tango.util.Convert;
 import tango.text.convert.Float : toFloat;
 import tango.core.Exception;
+import base64 = tango.io.encode.Base64;
 import utils.output : Output, StringOutput;
 import utils.misc : formatfx, myformat;
 
 //only for byte[]
-//import zlib = std.zlib;
+import tango.io.device.Array;
+import tango.io.compress.ZlibStream;
 
 //xxx: desperately moved to here (where else to put it?)
 import utils.vector2;
@@ -549,9 +551,7 @@ public class ConfigNode {
         static if (is(T : char[])) {
             return value;
         } else static if (is(T : byte[]) || is(T : ubyte[])) {
-            static assert(false, "Dunno why");
-            //no compression
-            //return cast(T)base64.decode(value);
+            return cast(T)decodeByteArray(value, cast(ubyte[])def);
         } else static if (is(T T2 : Vector2!(T2))) {
             //Vector2i or Vector2f, written as "x y"
             T res = def;
@@ -626,9 +626,8 @@ public class ConfigNode {
         static if (is(T : char[])) {
             this.value = value;
         } else static if (is(T : byte[]) || is(T : ubyte[])) {
-            static assert(false, "Dunno why");
             //no compression here, if you want it, use setByteArrayValue()
-            //this.value = base64.encode(cast(ubyte[])data);
+            this.value = encodeByteArray(cast(ubyte[])data, false);
         } else static if (is(T T2 : Vector2!(T2))) {
             //Vector2i or Vector2f, written as "x y"
             this.value = str.toString(value.x) ~ " " ~ str.toString(value.y);
@@ -715,32 +714,33 @@ public class ConfigNode {
         setValue(name, v);
     }
     //<-- end legacy accessor functions
-/+
+
+    ///encode ubyte data into the value of a named subnode
+    ///   allow_compress: set to zlib-compress the data
+    ///read it with getValue!(ubyte[])
     public void setByteArrayValue(char[] name, ubyte[] data,
         bool allow_compress = false)
     {
         setStringValue(name, encodeByteArray(data, allow_compress));
     }
 
-    public ubyte[] getByteArrayValue(char[] name, ubyte[] def = null) {
-        return decodeByteArray(getStringValue(name), def);
-    }
-
     static char[] encodeByteArray(ubyte[] data, bool compress) {
         //
         if (!data.length)
             return "[]";
-        /+
+
         void[] garbage1;
         if (compress) {
-            auto ndata = zlib.compress(data, 9);
-            assert (ndata.ptr !is data.ptr);
-            garbage1 = ndata;
-            data = cast(byte[])ndata;
+            scope buffer = new Array(2048, 2048);
+            scope z = new ZlibOutput(buffer, ZlibOutput.Level.Best);
+            z.write(data);
+            z.close();
+            garbage1 = buffer.slice();
+            data = cast(ubyte[])garbage1;
         }
-        +/
+
         char[] res = base64.encode(data);
-        //delete garbage1;
+        delete garbage1;
         return res;
     }
 
@@ -750,19 +750,22 @@ public class ConfigNode {
         ubyte[] buf;
         try {
             buf = base64.decode(input);
-        } catch (base64.Base64Exception e) {
+        } catch (Exception e) {
             return def;
         }
-        /+
+
         try {
-            return cast(byte[])zlib.uncompress(buf);
-        } catch (zlib.ZlibException e) {
-            return def;
+            scope buffer = new Array(buf);
+            scope z = new ZlibInput(buffer);
+            return cast(ubyte[])z.load();
+        } catch (ZlibException e) {
+            //decompression failed, so assume the data wasn't compressed
+            //xxx maybe write a header to catch this case
         }
-        +/
+
         return buf;
     }
-+/
+
     //compare values in a non-strict way (i.e. not byte-exact)
     //xxx: maybe at least case insensitive, also maybe strip whitespace
     private bool doCompareValueFuzzy(char[] s1, char[] s2) {

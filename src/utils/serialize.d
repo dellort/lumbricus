@@ -384,13 +384,11 @@ class SerializeOutConfig : SerializeConfig {
             cur[member] = ptr.read!(char[])();
             return;
         }
-        /+
         //byte[] too, because for game saving, the bitmap is a byte[]
         if (ptr.type is mCtx.mTypes.getType!(ubyte[])()) {
             cur.setByteArrayValue(member, ptr.read!(ubyte[]), true);
             return;
         }
-        +/
         if (auto art = cast(ArrayType)ptr.type) {
             auto sub = cur.getSubNode(member);
             ArrayType.Array arr = art.getArray(ptr);
@@ -660,14 +658,12 @@ class SerializeInConfig : SerializeConfig {
             ptr.write!(char[])(cur[member]);
             return;
         }
-        /+
         //byte[] too, because for game saving, the bitmap is a byte[]
         if (ptr.type is mCtx.mTypes.getType!(ubyte[])()) {
             //xxx error handling
-            ptr.write!(ubyte[])(cur.getByteArrayValue(member));
+            ptr.write!(ubyte[])(cur.getValue!(ubyte[])(member));
             return;
         }
-        +/
         if (auto art = cast(ArrayType)ptr.type) {
             ArrayType.Array arr = art.getArray(ptr);
             auto sub = cur.findNode(member);

@@ -43,6 +43,7 @@ public Translator localeRoot() {
 public class Translator {
     private ConfigNode mNode;
     private bool mErrorString = true;
+    private bool mFullIdOnError = false;
 
     //create translator from i18n subnode
     //note that the node may be null, in which case only error strings
@@ -118,6 +119,13 @@ public class Translator {
         mErrorString = e;
     }
 
+    bool fullIdOnError() {
+        return mFullIdOnError;
+    }
+    void fullIdOnError(bool f) {
+        mFullIdOnError = f;
+    }
+
     ///Translate a text, similar to the _() function.
     ///Warning: doesn't do namespace resolution.
     char[] opCall(T...)(char[] id, T t) {
@@ -137,11 +145,15 @@ public class Translator {
         return id[pos+1 .. $];
     }
 
+    private char[] errorId(char[] id) {
+        return mFullIdOnError?id:lastId(id);
+    }
+
     char[] translateWithArray(char[] id, char[][] args) {
         ConfigNode subnode;
         if (mNode)
             subnode = mNode.getPath(id, false);
-        return DoTranslate(subnode, lastId(id), args);
+        return DoTranslate(subnode, errorId(id), args);
     }
 
     /** like translateWithArray, but with multiple-choice based on rnd, e.g.
@@ -166,7 +178,7 @@ public class Translator {
                 curIdx++;
             }
         }
-        return DoTranslate(subnode, lastId(id), args);
+        return DoTranslate(subnode, errorId(id), args);
     }
 
     private char[] DoTranslate(ConfigNode data, char[] id, char[][] t) {
