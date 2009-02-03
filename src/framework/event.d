@@ -3,6 +3,7 @@ module framework.event;
 
 import utils.vector2;
 import str = stdx.string;
+import utils.misc : myformat;
 public import framework.keysyms;
 
 public enum Modifier {
@@ -83,7 +84,7 @@ public struct KeyInfo {
     }
 
     char[] toString() {
-        return str.format("[KeyInfo: ev=%s code=%d mods=%d ch='%s']",
+        return myformat("[KeyInfo: ev=%s code=%d mods=%d ch='%s']",
             ["down", "up", "press"][type],
             cast(int)code, cast(int)mods,
             isPrintable ? [unicode] : "None");
@@ -95,7 +96,7 @@ public struct MouseInfo {
     Vector2i rel;
 
     char[] toString() {
-        return str.format("[MouseInfo: pos=%s rel=%s]", pos, rel);
+        return myformat("[MouseInfo: pos=%s rel=%s]", pos, rel);
     }
 }
 

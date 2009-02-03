@@ -658,14 +658,14 @@ class FileSystem {
     {
         const cValidChars = "-+!.,;a-zA-Z0-9()[]";
 
-        char[] fn = str.format(nameTemplate, "");
+        char[] fn = myformat(nameTemplate, "");
         char[] ret;
         int i = 2;
         //detect invalid characters in name by str.tr
         while (exists(ret = path
             ~ str.tr(fn, cValidChars, "_", "c") ~ ext))
         {
-            fn = str.format(nameTemplate, i);
+            fn = myformat(nameTemplate, i);
             i++;
         }
         tries = i-1;

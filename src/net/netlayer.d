@@ -49,7 +49,7 @@ struct NetAddress {
     }
 
     char[] toString() {
-        return str.format("['%s', %s%s]", hostName, port,
+        return myformat("['%s', %s%s]", hostName, port,
             broadcast ? " (broadcast)" : "");
     }
 }

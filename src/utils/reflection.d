@@ -853,7 +853,7 @@ class ArrayType : Type {
         if (staticLength() < 0) {
             return "ArrayType[" ~ mMember.toString() ~ "]";
         } else {
-            return str.format("ArrayType[%s[%d]]", mMember, staticLength());
+            return myformat("ArrayType[%s[%d]]", mMember, staticLength());
         }
     }
 }
@@ -940,7 +940,7 @@ class MapTypeImpl(T) : MapType {
     }
 
     override char[] toString() {
-        return str.format("MapType[%s, %s]", mKey, mValue);
+        return myformat("MapType[%s, %s]", mKey, mValue);
     }
 }
 
@@ -1504,7 +1504,7 @@ void debugDumpClassGraph(Types t, Object x) {
             if (b.type() in gBoxUnParsers) {
                 s = boxToString(b);
             } else if (auto r = cast(ReferenceType)sp.type) {
-                s = "? " ~ str.format("%#8x", sp.realptr());
+                s = "? " ~ myformat("%#8x", sp.realptr());
             } else {
                 s = "? " ~ sp.type.toString();
             }

@@ -10,6 +10,7 @@ import framework = framework.framework : Color;
 import tango.math.Math : PI;
 import utils.random;
 import utils.configfile : ConfigNode;
+import utils.misc : myformat;
 import str = stdx.string;
 
 //about textures: currently marker implies texture
@@ -69,7 +70,7 @@ public class LandscapeGeometry {
     }
 
     void saveTo(ConfigNode node) {
-        node["size"] = str.format("%s %s", size.x, size.y);
+        node["size"] = myformat("%s %s", size.x, size.y);
         bool is_cave = fill != Lexel.Null;
         node.setBoolValue("is_cave", is_cave);
         if (is_cave) {
@@ -84,7 +85,7 @@ public class LandscapeGeometry {
             writeUIntList(sub.getSubNode("nochange"), p.nochange);
             sub.setBoolValue("visible", p.visible);
             sub.setBoolValue("changeable", p.changeable);
-            sub.setStringValue("texoffset", str.format("%a %a",
+            sub.setStringValue("texoffset", myformat("%a %a",
                 p.texoffset.x, p.texoffset.y));
             sub.setStringValue("marker", writeMarker(p.marker));
         }

@@ -386,7 +386,7 @@ class CommandBucket {
                     if (e.alias_name == last_entry) {
                         change = true;
                         n_entry++;
-                        e.alias_name = str.format("%s_%d", last_entry, n_entry);
+                        e.alias_name = myformat("%s_%d", last_entry, n_entry);
                     } else {
                         last_entry = e.alias_name;
                         n_entry = 1;

@@ -8,7 +8,7 @@ import conv = tango.util.Convert;
 import tango.text.convert.Float : toFloat;
 import tango.core.Exception;
 import utils.output : Output, StringOutput;
-import utils.misc : formatfx;
+import utils.misc : formatfx, myformat;
 
 //only for byte[]
 //import zlib = std.zlib;
@@ -994,7 +994,7 @@ public class ConfigFile {
                 " error messages for you.");
 
         //xxx: add possibility to translate error messages
-        mErrorOut(str.format("ConfigFile, error in %s(%s,%s): ", mFilename,
+        mErrorOut(myformat("ConfigFile, error in %s(%s,%s): ", mFilename,
             mPos.line, mPos.column));
         //scary D varargs!
         mErrorOut(formatfx(fmt, _arguments, _argptr));
@@ -1002,11 +1002,11 @@ public class ConfigFile {
 
         //abuse exception handling to abort parsing
         if (fatal) {
-            mErrorOut(str.format("ConfigFile, %s: fatal error, aborting",
+            mErrorOut(myformat("ConfigFile, %s: fatal error, aborting",
                 mFilename));
             throw new ConfigFatalError(2);
         } else if (mErrorCount > cMaxErrors) {
-            mErrorOut(str.format("ConfigFile, %s: too many errors, aborting",
+            mErrorOut(myformat("ConfigFile, %s: too many errors, aborting",
                 mFilename));
             throw new ConfigFatalError(1);
         }
@@ -1365,7 +1365,7 @@ public class ConfigFile {
                     digits = 4; marker = 'U';
                 }
 
-                output ~= str.format("%s%*x", marker, cast(int)digits, c);
+                output ~= myformat("%s%*x", marker, cast(int)digits, c);
             } else {
                 utf.encode(output, c);
             }

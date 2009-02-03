@@ -45,7 +45,7 @@ class TestFrame : SimpleContainer {
         void put(int nr, int x, int y) {
             auto label = new Button();
             label.onClick = &foo;
-            label.text = str.format("Label %s", nr);
+            label.text = myformat("Label %s", nr);
             add(label, WidgetLayout.Aligned(x, y, Vector2i(10, 40)));
             mButtons ~= label;
         }
@@ -274,7 +274,7 @@ class TestFrame8 : Container {
     int mSelCount;
 
     void select(DropDownList list) {
-        mInfo.text = str.format("sel %d: '%s'", mSelCount, list.selection);
+        mInfo.text = myformat("sel %d: '%s'", mSelCount, list.selection);
         mSelCount++;
     }
 
@@ -294,7 +294,7 @@ class TestFrame9 : Container {
     class T : Container {
         this(int r) {
             auto x = new Label();
-            x.text = str.format("%s", r);
+            x.text = myformat("%s", r);
             auto props = gFramework.getFont("normal").properties();
             props.size += r*10; //just to have different request sizes
             x.font = new Font(props);
@@ -551,7 +551,7 @@ class TestTask3 : Task {
             return cl;
         });
         t.stop();
-        mValues.text = str.format("size=%s, took=%s, b=%s, c=%s, g=%s, a=%s",
+        mValues.text = myformat("size=%s, took=%s, b=%s, c=%s, g=%s, a=%s",
             s.size, t.time, b, c, g, a);
     }
 

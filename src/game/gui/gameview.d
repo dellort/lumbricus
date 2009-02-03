@@ -339,7 +339,7 @@ class GameView : Container {
 
                     if (health_cur != member.currentHealth) {
                         health_cur = member.currentHealth;
-                        wormPoints.text = str.format("%s", health_cur);
+                        wormPoints.text = myformat("%s", health_cur);
                     }
 
                     //activate camera if it should and wasn't yet
@@ -495,7 +495,7 @@ class GameView : Container {
                             //start (only for damages, not upgrades => "< 0")
                             moveHealth.init(cHealthHintTime, 0,
                                 cHealthHintDistance);
-                            healthHint.text = str.format("%s", -diff);
+                            healthHint.text = myformat("%s", -diff);
                             this.outer.addChild(healthHint);
                             //this is to avoid restarting the label animation
                             //several times when counting down takes longer than

@@ -18,8 +18,8 @@ struct PlaceCommand {
     Lexel after;
 
     void saveTo(ConfigNode node) {
-        node["at"] = str.format("%s %s", at.x, at.y);
-        node["size"] = str.format("%s %s", size.x, size.y);
+        node["at"] = myformat("%s %s", at.x, at.y);
+        node["size"] = myformat("%s %s", size.x, size.y);
         node["before"] = writeMarker(before);
         node["after"] = writeMarker(after);
     }

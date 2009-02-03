@@ -104,10 +104,10 @@ class SerializeBase {
         if (cast(ReferenceType)source.type) {
             Object o = source.toObject();
             if (o)
-                throw new SerializeError(str.format("problem with: %s / %s %s",
+                throw new SerializeError(myformat("problem with: %s / %s %s",
                     source.type, o.classinfo.name, add));
         }
-        throw new SerializeError(str.format("problem with: %s, ti=%s %s",
+        throw new SerializeError(myformat("problem with: %s, ti=%s %s",
             source.type, source.type.typeInfo(), add));
     }
 
@@ -174,7 +174,7 @@ class SerializeBase {
                     visited[n] = other;
                     to_visit ~= n;
                 }
-                r ~= str.format("%d -- %d\n", cur, other);
+                r ~= myformat("%d -- %d\n", cur, other);
             } else if (auto art = cast(ArrayType)ptr.type) {
                 ArrayType.Array arr = art.getArray(ptr);
                 for (int i = 0; i < arr.length; i++) {
@@ -196,7 +196,7 @@ class SerializeBase {
             to_visit = to_visit[1..$];
             int id = visited[cur];
             if (auto pname = cur in mExternals) {
-                r ~= str.format(`%d [label="ext: %s"];` \n, id, *pname);
+                r ~= myformat(`%d [label="ext: %s"];` \n, id, *pname);
                 continue;
             }
             SafePtr indirect = mCtx.mTypes.ptrOf(cur);
@@ -204,7 +204,7 @@ class SerializeBase {
             SafePtr ptr = indirect.mostSpecificClass(&tmp, true);
             if (!ptr.type) {
                 //the actual class was never seen at runtime
-                r ~= str.format(`%d [label="unknown: %s"];` \n, id,
+                r ~= myformat(`%d [label="unknown: %s"];` \n, id,
                     cur.classinfo.name);
                 unknown[cur.classinfo.name] = true;
                 continue;
@@ -214,12 +214,12 @@ class SerializeBase {
             Class c = rt.klass();
             if (!c) {
                 //class wasn't registered for reflection
-                r ~= str.format(`%d [label="unregistered: %s"];` \n, id,
+                r ~= myformat(`%d [label="unregistered: %s"];` \n, id,
                     cur.classinfo.name);
                 unregistered[cur.classinfo.name] = true;
                 continue;
             }
-            r ~= str.format(`%d [label="class: %s"];` \n, id, cur.classinfo.name);
+            r ~= myformat(`%d [label="class: %s"];` \n, id, cur.classinfo.name);
             while (c) {
                 ptr.type = c.owner(); //dangerous, but should be ok
                 doStructMembers(id, ptr, c);
@@ -290,7 +290,7 @@ class SerializeOutConfig : SerializeConfig {
             }
         }
         auto nid = mObject2Id[o];
-        auto node = file.getSubNode(str.format("%d", nid));
+        auto node = file.getSubNode(myformat("%d", nid));
         node["type"] = klass.name();
         doWriteMembers(file, node, klass, ptr, defptr);
         return true;
@@ -303,7 +303,7 @@ class SerializeOutConfig : SerializeConfig {
             return "null";
         }
         if (auto pid = o in mObject2Id) {
-            return str.format("#%d", *pid);
+            return myformat("#%d", *pid);
         }
         if (auto pname = o in mExternals) {
             return "ext#" ~ *pname;
@@ -318,7 +318,7 @@ class SerializeOutConfig : SerializeConfig {
             mObjectStack.length = mObjectStack.length*2;
         mObjectStack[mOSIdx] = o;
         mOSIdx++;
-        return str.format("#%d", nid);
+        return myformat("#%d", nid);
     }
 
     private void doWriteMembers(ConfigNode file, ConfigNode cur, Class klass,
@@ -394,11 +394,11 @@ class SerializeOutConfig : SerializeConfig {
         if (auto art = cast(ArrayType)ptr.type) {
             auto sub = cur.getSubNode(member);
             ArrayType.Array arr = art.getArray(ptr);
-            sub["length"] = str.format("%s", arr.length);
+            sub["length"] = myformat("%s", arr.length);
             for (int i = 0; i < arr.length; i++) {
                 SafePtr eptr = arr.get(i);
                 //about default value: not sure, depends if static array?
-                doWriteMember(file, sub, str.format("%d", i), eptr,
+                doWriteMember(file, sub, myformat("%d", i), eptr,
                     SafePtr.Null); //eptr.type.initPtr());
             }
             return;
@@ -422,7 +422,7 @@ class SerializeOutConfig : SerializeConfig {
                 char[] what = "enable version debug to see why";
                 debug {
                     Stdout.formatln("hello, serialize.d might crash here.");
-                    what = str.format("dest-class: %s function: %#x",
+                    what = myformat("dest-class: %s function: %#x",
                         (cast(Object)dgp.ptr).classinfo.name, dgp.funcptr);
                 }
                 throw new SerializeError("couldn't write delegate, "~what);
@@ -432,7 +432,7 @@ class SerializeOutConfig : SerializeConfig {
             assert(id.length > 0, "Delegate to ignored object not allowed");
             sub["dg_object"] = id;
             //sub["dg_method"] = dg_m ?
-              //  str.format("%s::%s", dg_m.klass.name, dg_m.name) : "null";
+              //  myformat("%s::%s", dg_m.klass.name, dg_m.name) : "null";
             sub["dg_method"] = dg_m ? dg_m.name : "null";
             return;
         }
@@ -452,7 +452,7 @@ class SerializeOutConfig : SerializeConfig {
                 char[] fmt = "%s";
                 static if (is(x == double) || is(x == float))
                     fmt = "%a";
-                return str.format(fmt, ptr.read!(x)());
+                return myformat(fmt, ptr.read!(x)());
             }
         }
         typeError(ptr, "basetype");
@@ -685,7 +685,7 @@ class SerializeInConfig : SerializeConfig {
             }
             for (int i = 0; i < arr.length; i++) {
                 SafePtr eptr = arr.get(i);
-                doReadMember(sub, str.format("%d", i), eptr);
+                doReadMember(sub, myformat("%d", i), eptr);
             }
             return;
         }

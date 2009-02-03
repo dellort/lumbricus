@@ -296,7 +296,7 @@ void snap(Types serTypes, Object snapObj) {
                 char[] what = "enable version debug to see why";
                 debug {
                     Stdout.formatln("hello, serialize.d might crash here.");
-                    what = str.format("dest-class: %s function: %#x",
+                    what = myformat("dest-class: %s function: %#x",
                         (cast(Object)dgp.ptr).classinfo.name, dgp.funcptr);
                 }
                 throw new Exception("can't snapshot: "~what);

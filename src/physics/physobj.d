@@ -3,7 +3,7 @@ module physics.physobj;
 import tango.math.Math : PI, abs, isNaN;
 import utils.list2;
 import utils.vector2;
-import utils.misc: min, max;
+import utils.misc: min, max, myformat;
 import utils.reflection;
 import utils.log;
 
@@ -261,7 +261,7 @@ class PhysicObject : PhysicBase {
     }
 
     char[] toString() {
-        return str.format("[%s: %s %s]", toHash(), pos, velocity);
+        return myformat("[%s: %s %s]", toHash(), pos, velocity);
     }
 
     override void doDie() {

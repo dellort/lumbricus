@@ -166,7 +166,7 @@ char[] sizeToHuman(long bytes) {
         n++;
     }
     //xxx: ugly trailing zeros
-    return str.format("%.3f %s", 1.0*bytes/x, cSizes[n]);
+    return myformat("%.3f %s", 1.0*bytes/x, cSizes[n]);
 }
 
 unittest {

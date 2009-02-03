@@ -7,6 +7,7 @@ import tango.text.convert.Float : toFloat;
 import tango.core.Exception;
 import str = stdx.string;
 import stdx.format : doFormat;
+import utils.misc : myformat;
 
 import utils.vector2 : Vector2, Vector2i, Vector2f;
 
@@ -119,12 +120,12 @@ public MyBox boxParseVector2f(char[] s) {
 
 public char[] boxUnParseVector2f(MyBox b) {
     auto v = b.unbox!(Vector2f)();
-    return str.format("%s %s", v.x, v.y);
+    return myformat("%s %s", v.x, v.y);
 }
 
 public char[] boxUnParseVector2i(MyBox b) {
     auto v = b.unbox!(Vector2i)();
-    return str.format("%s %s", v.x, v.y);
+    return myformat("%s %s", v.x, v.y);
 }
 
 debug import tango.io.Stdout;

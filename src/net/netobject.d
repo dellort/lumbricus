@@ -525,7 +525,7 @@ struct NetObjectsOptions {
     char[] protocol_hash = "none";
 
     char[] toString() {
-        return str.format("[reliable=%s, protocol_hash='%s']",
+        return myformat("[reliable=%s, protocol_hash='%s']",
             reliable_transport, protocol_hash);
     }
 }
@@ -558,7 +558,7 @@ class NetObjects {
     ///Return a string which represents the protocol version.
     ///Used to make a hash out of it and to test if the same protocol is used.
     final char[] protocolHash() {
-        return str.format("NetObjects_v%s_{%s}_{%s}", cProtocolVersion,
+        return myformat("NetObjects_v%s_{%s}_{%s}", cProtocolVersion,
             mNoo.protocol_hash, mMeta.typeHash);
     }
 

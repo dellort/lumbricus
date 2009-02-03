@@ -90,7 +90,7 @@ class CollisionMap {
         }
 
         if (errors.length > 0) {
-            throw new Exception(str.format("the following collision names were"
+            throw new Exception(myformat("the following collision names were"
                 " referenced, but not defined: %s", errors));
         }
 

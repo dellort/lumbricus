@@ -552,7 +552,7 @@ private:
             sp1.color = Color(0);
             table.add(sp1, 0, y, 2, 1);
             auto tasktitle = new Label();
-            tasktitle.text = str.format("%s (%s)", w.task, w.task.taskID);
+            tasktitle.text = myformat("%s (%s)", w.task, w.task.taskID);
             tasktitle.drawBorder = false;
             tasktitle.font = gFramework.getFont("big_transparent");
             table.add(tasktitle, 0, y+1, 1, w.windows.length);

@@ -981,8 +981,8 @@ class GravestoneSpriteClass : GOSpriteClass {
 
         //try to find as much gravestones as there are
         for (int n = 0; ; n++) {
-            auto s_n = findSequenceState(str.format("n%s", n), true);
-            auto s_d = findSequenceState(str.format("drown%s", n), true);
+            auto s_n = findSequenceState(myformat("n%s", n), true);
+            auto s_d = findSequenceState(myformat("drown%s", n), true);
             if (!(s_n && s_d))
                 break;
             normal ~= s_n;

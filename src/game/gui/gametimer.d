@@ -32,7 +32,7 @@ class GameTimer : Container {
         mTimeView.font = gFramework.fontManager.loadFont("time");
         mTimeView.border = Vector2i(7, 5);
 
-        mTimeView.text = str.format("%.2s", 99);
+        mTimeView.text = myformat("%.2s", 99);
         //ew!
         mInitSize = mTimeView.font.textSize(mTimeView.text);
 
@@ -68,7 +68,7 @@ class GameTimer : Container {
                 //little hack to show correct time
                 Time rt = st.unbox!(RoundbasedStatus).roundRemaining
                     - timeMsecs(1);;
-                mTimeView.text = str.format("%.2s", rt.secs >= -1 ? rt.secs+1 : 0);
+                mTimeView.text = myformat("%.2s", rt.secs >= -1 ? rt.secs+1 : 0);
                 //needRelayout();
             } else {
                 active = false;

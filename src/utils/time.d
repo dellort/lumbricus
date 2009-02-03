@@ -1,7 +1,7 @@
 module utils.time;
 
 import str = stdx.string;
-import utils.misc : toDelegate;
+import utils.misc : toDelegate, myformat;
 
 //if true, use nanosecond resolution instead of milliseconds
 const bool cNS = true;
@@ -99,7 +99,7 @@ public struct Time {
         //xxx negative time?
         for (int i = 0; ; i++) {
             if (time < cTimeDiv[i]*cTimeDiv[i+1] || i == cTimeName.length-1) {
-                auto s = str.format("%.*f %s", cPrec[i],
+                auto s = myformat("%.*f %s", cPrec[i],
                     cast(double)time / cTimeDiv[i], cTimeName[i]);
                 return s;
             }

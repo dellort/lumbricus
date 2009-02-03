@@ -26,7 +26,7 @@ class Container : Widget {
                 return w.mZOrder - o.w.mZOrder;
             }
             char[] toString() {
-                return str.format("%s(%s,%s)", w, w.mZOrder, w.mZOrder2);
+                return myformat("%s(%s,%s)", w, w.mZOrder, w.mZOrder2);
             }
         }
 

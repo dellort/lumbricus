@@ -1,6 +1,7 @@
 module utils.mybox;
 
 import str = stdx.string;
+import utils.misc : myformat;
 
 class MyBoxException : Exception {
     this(char[] msg) { super(msg); }
@@ -206,7 +207,7 @@ struct MyBox {
             throw new MyBoxException("incompatible types.");
         //xxx wrong, but it was 3:10 am
         if (!isSubClass(cur.info, toc.info) && !isSubClass(toc.info, cur.info))
-            throw new MyBoxException(str.format("inconvertible types: %s %s.",
+            throw new MyBoxException(myformat("inconvertible types: %s %s.",
                 cur, toc));
         mType = toc;
     }

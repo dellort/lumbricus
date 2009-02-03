@@ -230,7 +230,7 @@ void writeList(T)(ConfigNode to, T[] stuff, char[] delegate(T item) translate) {
 
 void writePointList(ConfigNode node, Vector2i[] stuff) {
     writeList!(Vector2i)(node, stuff, (Vector2i item) {
-        return str.format("%s %s", item.x, item.y);
+        return myformat("%s %s", item.x, item.y);
     });
 }
 void writeUIntList(ConfigNode node, uint[] stuff) {

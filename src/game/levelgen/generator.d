@@ -192,7 +192,7 @@ class GenerateFromTemplate : LevelGenerator {
         saveto.setStringValue("type", "level_renderer");
 
         saveto.setStringValue("theme", mCurTheme.name);
-        saveto.setStringValue("world_size", str.format("%s %s",
+        saveto.setStringValue("world_size", myformat("%s %s",
             nlevel.worldSize.x, nlevel.worldSize.y));
         saveto.setBoolValue("airstrike_allow", nlevel.airstrikeAllow);
         saveto.setIntValue("airstrike_y", nlevel.airstrikeY);
@@ -278,9 +278,9 @@ class GenerateFromTemplate : LevelGenerator {
                 land.landscape_theme = rendered_theme;
                 rland.land = land;
                 onode.setStringValue("type", type);
-                onode.setStringValue("position", str.format("%s %s",
+                onode.setStringValue("position", myformat("%s %s",
                     land.position.x, land.position.y));
-                //onode.setStringValue("size", str.format("%s %s",
+                //onode.setStringValue("size", myformat("%s %s",
                   //  land.size.x, land.size.y));
                 nlevel.landBounds.extend(Rect2i.Span(land.position, land.size));
             } else {

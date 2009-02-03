@@ -782,13 +782,13 @@ class Framework {
     }
 
     char[] keyinfoToString(KeyInfo infos) {
-        char[] res = str.format("key=%s ('%s') unicode='%s'", cast(int)infos.code,
+        char[] res = myformat("key=%s ('%s') unicode='%s'", cast(int)infos.code,
             translateKeycodeToKeyID(infos.code), infos.unicode);
 
         //append all modifiers
         for (Modifier mod = Modifier.min; mod <= Modifier.max; mod++) {
             if ((1<<mod) & infos.mods) {
-                res ~= str.format(" [%s]", modifierToString(mod));
+                res ~= myformat(" [%s]", modifierToString(mod));
             }
         }
 
@@ -1302,20 +1302,20 @@ class Framework {
                         bytes_extra += extra;
                     }
                     bytes += s.mData.data.length;
-                    res ~= str.format("  %s [%s]\n", s.size, dr_desc);
+                    res ~= myformat("  %s [%s]\n", s.size, dr_desc);
                     cnt++;
                 }
-                res ~= str.format("%d surfaces, size=%s, driver_extra=%s\n",
+                res ~= myformat("%d surfaces, size=%s, driver_extra=%s\n",
                     cnt, sizeToHuman(bytes), sizeToHuman(bytes_extra));
                 cnt = 0;
                 res ~= "Fonts:\n";
                 foreach (f; gFonts.list) {
                     auto d = f.mFont;
-                    res ~= str.format("  %s/%s [%s]\n", f.properties.face,
+                    res ~= myformat("  %s/%s [%s]\n", f.properties.face,
                         f.properties.size, d ? d.getInfos() : "");
                     cnt++;
                 }
-                res ~= str.format("%d fonts\n", cnt);
+                res ~= myformat("%d fonts\n", cnt);
                 break;
             }
             default:
