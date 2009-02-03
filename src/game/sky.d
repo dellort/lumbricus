@@ -73,6 +73,7 @@ class GameSky {
     private const cNumClouds = 50;
     private const cCloudHeightRange = 50;
     private const cCloudSpeedRange = 100;
+    private const cWindMultiplier = 150;
 
     private const cNumDebris = 100;
     //this is not gravity, as debris is not accelerated
@@ -228,7 +229,7 @@ class GameSky {
         if (mCloudsVisible && mEnableClouds) {
             foreach (inout ci; mCloudAnimators) {
                 //XXX this is acceleration, how to get a constant speed from this??
-                ci.x += (ci.xspeed+mEngine.windSpeed)*deltaT;
+                ci.x += (ci.xspeed+mEngine.windSpeed*cWindMultiplier)*deltaT;
                 clip(ci.x, ci.animSizex, 0, size.x);
                 ci.anim.pos = Vector2i(cast(int)ci.x, skyOffset + ci.y);
             }
@@ -237,7 +238,7 @@ class GameSky {
             //XXX (and, XXX) handmade physics
             foreach (inout di; mDebrisAnimators) {
                 //XXX same here
-                di.x += 2*mEngine.windSpeed*deltaT*di.speedPerc;
+                di.x += 2*mEngine.windSpeed*cWindMultiplier*deltaT*di.speedPerc;
                 di.y += cDebrisFallSpeed*deltaT;
                 clip(di.x, mDebrisAnim.bounds.size.x, 0, size.x);
                 clip(di.y, mDebrisAnim.bounds.size.y, skyOffset, skyBottom);

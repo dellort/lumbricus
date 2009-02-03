@@ -46,7 +46,13 @@ import common.resview;
 
 //import test;
 
-const char[] APP_ID = "lumbricus";
+//Currently, this is just used in FileSystem to determine data/user paths
+version(Windows) {
+    //Uppercase (MS users like it that way)
+    const char[] APP_ID = "Lumbricus";
+} else {
+    const char[] APP_ID = "lumbricus";
+}
 
 //of course it would be nicer to automatically generate the following thing, but
 //OTOH, it isn't really worth the fuzz

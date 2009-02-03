@@ -176,9 +176,9 @@ class GameFrame : SimpleContainer {
         mGui.mouseEvents = false;
 
         mGui.add(new WindMeter(clientengine),
-            WidgetLayout.Aligned(1, 1, Vector2i(10, 10)));
+            WidgetLayout.Aligned(1, 1, Vector2i(5, 5)));
         mGui.add(new GameTimer(game),
-            WidgetLayout.Aligned(-1, 1, Vector2i(5,5)));
+            WidgetLayout.Aligned(-1, 1, Vector2i(5, 5)));
 
         mGui.add(new PrepareDisplay(game));
 
@@ -203,7 +203,7 @@ class GameFrame : SimpleContainer {
 
         mWeaponSel.selectionBindings = wormbinds;
 
-        add(mWeaponSel, WidgetLayout.Aligned(1, 1, Vector2i(10, 40)));
+        add(mWeaponSel, WidgetLayout.Aligned(1, 1, Vector2i(5, 40)));
 
         mTeamWindow = new TeamWindow(game);
         add(mTeamWindow);

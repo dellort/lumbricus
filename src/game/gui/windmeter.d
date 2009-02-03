@@ -25,7 +25,6 @@ class WindMeter : Widget {
     private float mAnimSpeed;
     private int mTexStep;
     private int mMaxWidth;
-    private float mWindScale;
 
     this(ClientGameEngine engine) {
         mEngine = engine;
@@ -40,7 +39,6 @@ class WindMeter : Widget {
         int borderdist = wmNode.getIntValue("borderdist", 2);
         mTexStep = wmNode.getIntValue("textureStep", 8);
         mAnimSpeed = wmNode.getFloatValue("animSpeed", 40.0f);
-        mWindScale = wmNode.getFloatValue("windScale", 0.5f);
 
         mBoxStyle.loadFrom(wmNode.getSubNode("box"));
 
@@ -66,14 +64,18 @@ class WindMeter : Widget {
             //canvas.draw(mBackgroundTex, pos);
             drawBox(canvas, pos, mSize, mBoxStyle);
             float wspeed = mEngine.windSpeed;
-            int anisize = clampRangeC(cast(int)(wspeed*mWindScale),
+            int anisize = clampRangeC(cast(int)(wspeed*mMaxWidth),
                 -mMaxWidth,mMaxWidth);
             if (wspeed < 0)
-                canvas.draw(mWindLeft, pos + Vector2i(mPosCenter.x - 1 + anisize, mPosCenter.y),
-                    Vector2i((cast(int)mTexOffsetf)%mTexStep, 0), Vector2i(-anisize, mWindLeft.size.y));
+                canvas.draw(mWindLeft,
+                    pos + Vector2i(mPosCenter.x - 1 + anisize, mPosCenter.y),
+                    Vector2i((cast(int)mTexOffsetf)%mTexStep, 0),
+                    Vector2i(-anisize, mWindLeft.size.y));
             else
-                canvas.draw(mWindRight, pos + Vector2i(mPosCenter.x + 2, mPosCenter.y),
-                    Vector2i(mTexStep-(cast(int)mTexOffsetf)%mTexStep, 0), Vector2i(anisize, mWindRight.size.y));
+                canvas.draw(mWindRight,
+                    pos + Vector2i(mPosCenter.x + 2, mPosCenter.y),
+                    Vector2i(mTexStep-(cast(int)mTexOffsetf)%mTexStep, 0),
+                    Vector2i(anisize, mWindRight.size.y));
         }
     }
 

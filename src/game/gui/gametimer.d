@@ -13,6 +13,7 @@ import gui.label;
 import gui.widget;
 import utils.time;
 import utils.misc;
+import utils.vector2;
 
 import str = stdx.string;
 
@@ -22,20 +23,24 @@ class GameTimer : Container {
         Label mTimeView;
         bool mActive, mEnabled;
         Time mLastTime;
-        Vector2i mInitSize;
+        Vector2i mMinSize;
         BoxProperties mBoxProps;
+        Font[2] mFont;
     }
 
     this(GameInfo game) {
         mGame = game;
 
         mTimeView = new Label();
-        mTimeView.font = gFramework.fontManager.loadFont("time");
+        mFont[0] = gFramework.fontManager.loadFont("time");
+        mFont[1] = gFramework.fontManager.loadFont("time_red");
+        mTimeView.font = mFont[0];
         mTimeView.border = Vector2i(7, 5);
+        mTimeView.centerX = true;
 
-        //??? mTimeView.text = myformat("%.2s", 99);
-        //ew!
-        mInitSize = mTimeView.font.textSize(mTimeView.text);
+        mBoxProps.back = Color(0, 0, 0, 0.7);
+
+        mMinSize = toVector2i(toVector2f(mTimeView.font.textSize("99"))*1.7);
 
         mLastTime = timeCurrentTime();
 
@@ -68,8 +73,15 @@ class GameTimer : Container {
                 auto st = mGame.logic.gamemodeStatus;
                 //little hack to show correct time
                 Time rt = st.unbox!(RoundbasedStatus).roundRemaining
-                    - timeMsecs(1);;
-                mTimeView.text = myformat("{}", rt.secs >= -1 ? rt.secs+1 : 0);
+                    - timeMsecs(1);
+                float rt_sec = rt.secs >= -1 ? rt.secsf+1 : 0f;
+                if (rt_sec < 6f) {
+                    //flash red/black (red when time is lower)
+                    mTimeView.font = mFont[cast(int)(rt_sec*2+1)%2];
+                } else {
+                    mTimeView.font = mFont[0];
+                }
+                mTimeView.text = myformat("{}", cast(int)rt_sec);
                 //needRelayout();
             } else {
                 active = false;
@@ -82,7 +94,7 @@ class GameTimer : Container {
             mActive = active;
             if (mActive) {
                 addChild(mTimeView);
-                setChildLayout(mTimeView, WidgetLayout.Noexpand);
+                setChildLayout(mTimeView, WidgetLayout.Expand(true));
             } else {
                 removeChild(mTimeView);
             }
@@ -91,6 +103,6 @@ class GameTimer : Container {
 
     Vector2i layoutSizeRequest() {
         //idea: avoid resizing, give a larger area to have moar border
-        return mInitSize*2;
+        return mMinSize;
     }
 }

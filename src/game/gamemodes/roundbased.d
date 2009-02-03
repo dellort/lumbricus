@@ -255,6 +255,7 @@ class ModeRoundbased : Gamemode {
                 break;
             case RoundState.nextOnHold:
                 currentTeam = null;
+                engine.randomizeWind();
                 logic.messageAdd("msgnextround");
                 mStatus.roundRemaining = timeMusecs(0);
                 break;

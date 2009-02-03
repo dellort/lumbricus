@@ -12,10 +12,10 @@ import utils.log;
 import utils.output;
 import utils.path;
 
-version (Tango) {
-    import cstdlib = tango.stdc.stdlib;
-} else {
-    import cstdlib = std.c.stdlib;
+import tango.sys.Environment;
+version(Windows) {
+    //for My Documents folder
+    import tango.sys.win32.SpecialPath;
 }
 
 private Log log;
@@ -330,17 +330,19 @@ class FileSystem {
         char[] userPath;
 
         //set user directory from os home path
-        char* home = null;
+        char[] home = null;
         version(Windows) {
             //windows: Docs & Settings\AppData\.lumbricus
-            home = cstdlib.getenv("APPDATA");
+            //home = Environment.get("APPDATA");
+            //no, rather use My Documents\lumbricus
+            home = getSpecialPath(CSIDL_PERSONAL);
         } else {
             //linux: ~/.lumbricus
-            home = cstdlib.getenv("HOME");
+            home = Environment.get("HOME");
         }
         if (home != null)
             //append ".lumbricus"
-            userPath = addTrailingPathDelimiter(str.toString(home)) ~ mAppId;
+            userPath = addTrailingPathDelimiter(home) ~ mAppId;
         else
             //failed to get env var? then use AppPath/.lumbricus instead
             userPath = mAppPath ~ mAppId;

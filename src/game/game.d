@@ -108,6 +108,7 @@ class GameEngine : GameEnginePublic {
     private WindyForce mWindForce;
     private PhysicTimedChangerFloat mWindChanger;
     private const cWindChange = 80.0f;
+    private const cMaxWind = 150f;
 
     //for raising waterline
     private PhysicTimedChangerFloat mWaterChanger;
@@ -320,8 +321,7 @@ class GameEngine : GameEnginePublic {
         mWindChanger.changePerSec = cWindChange;
         physicworld.add(new ForceZone(mWindForce, waterborder, true));
         physicworld.add(mWindChanger);
-        //xxx make this configurable or initialize randomly
-        setWindSpeed(-150);   //what unit is that???
+        randomizeWind();
 
         //physics timed changer for water offset
         mWaterChanger = new PhysicTimedChangerFloat(mLevel.waterBottomY,
@@ -430,11 +430,15 @@ class GameEngine : GameEnginePublic {
         if (x) x.exterminate();
     }
 
+    //wind speeds are in [-1.0, 1.0]
     public float windSpeed() {
-        return mWindForce.windSpeed.x;
+        return mWindForce.windSpeed.x/cMaxWind;
     }
     public void setWindSpeed(float speed) {
-        mWindChanger.target = speed;
+        mWindChanger.target = clampRangeC(speed, -1.0f, 1.0f)*cMaxWind;
+    }
+    public void randomizeWind() {
+        mWindChanger.target = cMaxWind*rnd.nextDouble3();
     }
 
     public float gravity() {
