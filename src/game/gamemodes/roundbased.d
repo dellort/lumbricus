@@ -19,7 +19,6 @@ import utils.log;
 class ModeRoundbased : Gamemode {
     private {
         RoundState mCurrentRoundState = RoundState.waitForSilence;
-        Time mWaitStart;
         static LogStruct!("gamemodes.roundbased") log;
 
         //time a round takes
@@ -71,6 +70,7 @@ class ModeRoundbased : Gamemode {
     }
 
     void simulate() {
+        super.simulate();
         Time dt = engine.gameTime.difference;
         RoundState next = doState(dt);
         if (next != mCurrentRoundState)
@@ -124,7 +124,7 @@ class ModeRoundbased : Gamemode {
             //only used if mMultishot == false
             case RoundState.retreat:
                 //give him some time to run, hehe
-                if (engine.gameTime.current-mWaitStart > mRetreatTime
+                if (wait(mRetreatTime)
                     || !mCurrentTeam.current.isAlive
                     || mCurrentTeam.current.lifeLost)
                     return RoundState.waitForSilence;
@@ -132,12 +132,12 @@ class ModeRoundbased : Gamemode {
             case RoundState.waitForSilence:
                 //check over a period, to avoid one-frame errors
                 if (!engine.checkForActivity) {
-                    if (engine.gameTime.current-mWaitStart > cSilenceWait) {
+                    if (wait(cSilenceWait)) {
                         //hope the game stays inactive
                         return RoundState.cleaningUp;
                     }
                 } else {
-                    mWaitStart = engine.gameTime.current;
+                    waitReset();
                 }
                 break;
             case RoundState.cleaningUp:
@@ -147,7 +147,7 @@ class ModeRoundbased : Gamemode {
                     return RoundState.waitForSilence;
 
                 //wait some msecs to show the health labels
-                if (engine.gameTime.current-mWaitStart > cNextRoundWait) {
+                if (wait(cNextRoundWait)) {
                     //check if at least two teams are alive
                     int aliveTeams;
                     ServerTeam firstAlive;
@@ -189,7 +189,7 @@ class ModeRoundbased : Gamemode {
                     return RoundState.prepare;
                 break;
             case RoundState.winning:
-                if (engine.gameTime.current-mWaitStart > cWinTime)
+                if (wait(cWinTime))
                     return RoundState.end;
                 break;
             case RoundState.end:
@@ -234,11 +234,9 @@ class ModeRoundbased : Gamemode {
                 mStatus.prepareRemaining = timeMusecs(0);
                 break;
             case RoundState.retreat:
-                mWaitStart = engine.gameTime.current;
                 mCurrentTeam.current.setLimitedMode();
                 break;
             case RoundState.waitForSilence:
-                mWaitStart = engine.gameTime.current;
                 //no control while blowing up worms
                 if (mCurrentTeam) {
                     mCurrentTeam.current.forceAbort();
@@ -249,7 +247,6 @@ class ModeRoundbased : Gamemode {
                 break;
             case RoundState.cleaningUp:
                 //next call causes health countdown, so wait a little
-                mWaitStart = engine.gameTime.current;
                 logic.updateHealth(); //hmmm
                 //see doState()
                 break;
@@ -260,7 +257,6 @@ class ModeRoundbased : Gamemode {
                 mStatus.roundRemaining = timeMusecs(0);
                 break;
             case RoundState.winning:
-                mWaitStart = engine.gameTime.current;
                 break;
             case RoundState.end:
                 logic.messageAdd("msggameend");

@@ -1,6 +1,8 @@
 module framework.timesource;
 import utils.misc;
 import utils.time;
+import utils.log;
+import utils.reflection;
 
 debug import tango.io.Stdout;
 
@@ -9,6 +11,11 @@ class TimeSourcePublic {
     protected {
         //current time
         Time mSimTime;
+    }
+
+    this() {
+    }
+    this(ReflectCtor c) {
     }
 
     //simulated time (don't forget to call update())
@@ -27,56 +34,47 @@ class TimeSourcePublic {
 
 final class TimeSource : TimeSourcePublic {
     private {
-        //current time source (set using nextFrame())
+        static LogStruct!("timesource") log;
+
+        //current time source (set using update())
         Time mExternalTime;
+        Time mFixedTime;  //absolute time of last fixpoint
 
         Time mLastSimTime;
+        Time mLastExternalTime;
+        Time mFixDelta;   //SimTime of last fixpoint
 
-        Time mStartTime;  //absolute time of start (pretty useless)
-        //not-slowed-down time, also quite useless/dangerous to use
-        Time mPseudoTime;
-        Time mPauseStarted; //absolute time of pause start
-        Time mPausedTime; //summed amount of time paused
         bool mPauseMode;
 
-        //last simulated time when slowdown was set...
-        Time mLastTime;
-        //last real time when slowdown was set; relative to mPseudoTime...
-        Time mLastRealTime;
         //slowdown scale value
         //should at least internally be double to avoid precission issues
-        double mSlowDown;
-        int mFixedTimeStep = 0; //0 if invalid
+        double mSlowDown = 1.0;
 
-        Time delegate() mCurTimeDg;
+        //maximum time one frame can last before an error is detected
+        //(i.e. longer frames do not count)
+        const cMaxFrameTime = timeSecs(1);
 
-        //huh
-        Time mLastExternalTime;
-        Time mCompensate;
+        TimeSourcePublic mParent;
     }
 
-    this(Time delegate() curTimeDg = null) {
-        mCurTimeDg = curTimeDg;
-        if (!mCurTimeDg) {
-            mCurTimeDg = timeCurrentTimeDg;
-        }
+    //if parent is null, timeCurrentTime() is used as source
+    this(TimeSourcePublic parent = null) {
+        mParent = parent;
         initTime();
+    }
+    this(ReflectCtor c) {
     }
 
     //initialize time to 0 (or the given time)
     void initTime(Time timeoffset = Time.Null) {
-        mExternalTime = mCurTimeDg();
+        mExternalTime = sampleExternal();
         mLastExternalTime = mExternalTime;
-        mCompensate = timeSecs(0);
 
         mPauseMode = false;
-        mStartTime = mExternalTime;
-        mPseudoTime = timeSecs(0);
-        mPausedTime = timeSecs(0);
 
-        mLastRealTime = timeSecs(0);
-        mSimTime = mLastSimTime = mLastTime = timeoffset;
-        slowDown = 1;
+        mSimTime = mLastSimTime = timeoffset;
+        internalFixTime();
+        slowDown = 1.0;
     }
 
     //reset to time 0 with current external time
@@ -89,10 +87,8 @@ final class TimeSource : TimeSourcePublic {
             return;
 
         mPauseMode = p;
-        if (mPauseMode) {
-            mPauseStarted = mExternalTime;
-        } else {
-            mPausedTime += mExternalTime - mPauseStarted;
+        if (!mPauseMode) {
+            internalFixTime();
         }
     }
     bool paused() {
@@ -104,11 +100,8 @@ final class TimeSource : TimeSourcePublic {
         assert(factor == factor);
         assert(factor >= 0.0f);
 
-        auto realtime = mPseudoTime;
-
         //make old value absolute
-        mLastTime = mSimTime;
-        mLastRealTime = realtime;
+        internalFixTime();
 
         mSlowDown = factor;
     }
@@ -120,35 +113,52 @@ final class TimeSource : TimeSourcePublic {
         return mSimTime - mLastSimTime;
     }
 
+    //update mFixedTime to current external time
+    //(i.e. create a new fixpoint from which calculation starts from now)
+    private void internalFixTime() {
+        mFixedTime = mExternalTime;
+        mFixDelta = mSimTime;
+    }
+
+    private Time sampleExternal() {
+        if (mParent)
+            return mParent.current();
+        return timeCurrentTime();
+    }
+
     //update time!
     public void update() {
-        mExternalTime = mCurTimeDg() + mCompensate;
+        mExternalTime = sampleExternal();
 
         //happens when I suspend+resume my Linux system xD
         if (mExternalTime < mLastExternalTime) {
             Time error = mLastExternalTime - mExternalTime;
-            debug Stdout.formatln("WARNING: time goes backward by {}!", error);
+            log("WARNING: time goes backward by {}!", error);
             //compensate and do as if no time passed
-            mCompensate += error;
-            mExternalTime += error;
+            internalFixTime();
+        }
+        if (mExternalTime - mLastExternalTime > cMaxFrameTime) {
+            Time error = mExternalTime - mLastExternalTime;
+            log("Time just jumped by {}, discarding frame", error);
+            //frame was too long, assume there was a hang/serialize
+            //and don't count it
+            internalFixTime();
         }
 
         mLastExternalTime = mExternalTime;
         mLastSimTime = mSimTime;
 
         if (!mPauseMode) {
-            mPseudoTime = mExternalTime - mStartTime - mPausedTime;
-
-            Time diff = mPseudoTime - mLastRealTime;
+            Time diff = mExternalTime - mFixedTime;
 
             //because of floating point precission issues; I guess this would
             //solve it... or so
-            if (diff > timeSecs(3)) {
+            /*if (diff > timeSecs(3)) {
                 slowDown(slowDown());
                 diff = timeNull();
-            }
+            }*/
 
-            mSimTime = mLastTime + diff * mSlowDown;
+            mSimTime = mFixDelta + diff * mSlowDown;
 
             assert(mSimTime >= mLastSimTime);
         }

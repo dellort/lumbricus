@@ -1336,7 +1336,9 @@ class GameController : GameLogicPublic {
         messageAdd("msggamestart", null);
 
         deactivateAll();
+        //lol, see gamemode comments for how this should really be used
         mGamemode.initialize();
+        mGamemode.startGame();
     }
 
     void simulate() {

@@ -4,6 +4,7 @@ module game.serialize_register;
 
 import utils.reflection;
 
+import framework.timesource;
 import game.action, game.actionsprite, game.controller, game.crate, game.game,
     game.gamepublic, game.glevel, game.spriteactions, game.sprite, game.worm,
     game.weapon.actions, game.weapon.actionweapon, game.weapon.projectile,
@@ -30,7 +31,7 @@ void initGameSerialization() {
         GravestoneSprite, WormSequenceUpdate, WrapFireInfo,
         GameEngineGraphics, AnimationGraphic, LineGraphic,
         TargetCross, ExplosionGfx, LandscapeGraphic, NapalmSequenceUpdate,
-        NapalmSprite, WeaponHandle, ModeRoundbased);
+        NapalmSprite, WeaponHandle, ModeRoundbased, TimeSource);
     //stuff that (maybe) should not be serialized
     //all ctors are marked with "xxx class"
     serialize_types.registerClasses!(ActionContainer, ActionListClass,

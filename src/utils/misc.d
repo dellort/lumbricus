@@ -12,52 +12,10 @@ import layout = tango.text.convert.Layout;
 //import std.stdarg : va_list;
 import stdx.base : va_list;
 
-version (Tango) {
-    //these functions are different from below, but do the same
-    //needed because out fucntions conflict, if tango.math is implemented
-    //Tango team = stupid
-    public import tango.math.Math : min, max;
-
-} else {
-
-//min/max from tango - code is copyrighted, not sure if it can be here
-//tango start ------------------------>
-
-private {
-    // Return the type which would be returned by a max or min operation
-template minmaxtype(T...){
-    static if(T.length == 1) alias typeof(T[0]) minmaxtype;
-    else static if(T.length > 2)
-        alias minmaxtype!(minmaxtype!(T[0..2]), T[2..$]) minmaxtype;
-    else alias typeof (T[1] > T[0] ? T[1] : T[0]) minmaxtype;
-}
-}
-
-/** Return the minimum of the supplied arguments.
- *
- * Note: If the arguments are floating-point numbers, and at least one is a NaN,
- * the result is undefined.
- */
-minmaxtype!(T) min(T...)(T arg){
-    static if(arg.length == 1) return arg[0];
-    else static if(arg.length == 2) return arg[1] < arg[0] ? arg[1] : arg[0];
-    static if(arg.length > 2) return min(arg[1] < arg[0] ? arg[1] : arg[0], arg[2..$]);
-}
-
-/** Return the maximum of the supplied arguments.
- *
- * Note: If the arguments are floating-point numbers, and at least one is a NaN,
- * the result is undefined.
- */
-minmaxtype!(T) max(T...)(T arg){
-    static if(arg.length == 1) return arg[0];
-    else static if(arg.length == 2) return arg[1] > arg[0] ? arg[1] : arg[0];
-    static if(arg.length > 2) return max(arg[1] > arg[0] ? arg[1] : arg[0], arg[2..$]);
-}
-
-//<------------------- tango end
-
-}
+//these functions are different from below, but do the same
+//needed because out fucntions conflict, if tango.math is implemented
+//Tango team = stupid
+public import tango.math.Math : min, max;
 
 void swap(T)(inout T a, inout T b) {
     T t = a;
