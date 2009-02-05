@@ -41,7 +41,7 @@ class ModeRoundbased : Gamemode {
         ServerTeam mLastTeam;
 
         RoundbasedStatus mStatus;
-        int mCrateCtr = 1;
+        int mCleanupCtr = 1;
 
         const cSilenceWait = timeMsecs(400);
         const cNextRoundWait = timeMsecs(750);
@@ -181,16 +181,23 @@ class ModeRoundbased : Gamemode {
                         }
                     }
 
-                    if (mCrateCtr > 1) {
-                        mCrateCtr--;
-                        if (mStatus.gameRemaining <= Time.Null) {
+                    if (mStatus.gameRemaining <= Time.Null
+                        && !mStatus.suddenDeath)
+                    {
+                        mStatus.suddenDeath = true;
+                        logic.messageAdd("msgsuddendeath");
+                    }
+
+                    if (mCleanupCtr > 1) {
+                        mCleanupCtr--;
+                        if (mStatus.suddenDeath) {
                             engine.raiseWater(mSuddenDeathWaterRaise);
                             return RoundState.waitForSilence;
                         }
                     }
                     //probably drop a crate, if not too many out already
-                    if (mCrateCtr > 0) {
-                        mCrateCtr--;
+                    if (mCleanupCtr > 0) {
+                        mCleanupCtr--;
                         if (engine.rnd.nextDouble2 < mCrateProb
                             && engine.countSprites("crate") < mMaxCrates)
                         {
@@ -229,7 +236,7 @@ class ModeRoundbased : Gamemode {
                 mStatus.roundRemaining = mTimePerRound;
                 waitReset(1);
                 waitReset!(true)(1);
-                mCrateCtr = 2;
+                mCleanupCtr = 2;
 
                 //select next team/worm
                 ServerTeam next = arrayFindNextPred(logic.teams, mLastTeam,

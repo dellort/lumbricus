@@ -259,7 +259,11 @@ class Rope : Shooter {
             //  (not sure what's better)
             //Vector2f v = mWorm.physics.velocity;
             //mShootDir = (v + cSecondShotVector).normal;
-            shootRope();
+            if (mShooting) {
+                abortShoot();
+                abortRope();
+            } else
+                shootRope();
         } else {
             //hit button while rope is still flying
             //xxx maybe not
@@ -279,6 +283,8 @@ class Rope : Shooter {
     }
 
     private void shootRope() {
+        if (mShooting)
+            return;
         mShooting = true;
         mShootStart = engine.gameTime.current;
         mLine = createRopeLine();

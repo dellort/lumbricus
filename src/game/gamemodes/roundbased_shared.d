@@ -18,6 +18,7 @@ struct RoundbasedStatus {
     Time prepareRemaining;
     Time gameRemaining;
     bool timePaused;
+    bool suddenDeath;
 }
 
 const cRoundbased = "roundbased";

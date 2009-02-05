@@ -593,7 +593,7 @@ class GameEngine : GameEnginePublic {
                 return false;
             //had a collision, check normal
             if (contact.normal.y < 0
-                && abs(contact.normal.x) < -contact.normal.y)
+                && abs(contact.normal.x) < -contact.normal.y*1.19f)
             {
                 //check distance to other sprites
                 foreach (GameObject o; mObjects) {

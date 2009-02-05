@@ -1144,7 +1144,7 @@ class GameController : GameLogicPublic {
         int mMessageChangeCounter;
         //time between messages, how they are actually displayed
         //is up to the gui
-        const cMessageTime = 1.5f;
+        const cMessageTime = timeSecs(1.5f);
         Time mLastMsgTime;
 
         int mWeaponListChangeCounter;
@@ -1176,7 +1176,7 @@ class GameController : GameLogicPublic {
             config.gamemode);
 
         mMessages = new Queue!(Message);
-        mLastMsgTime = timeSecs(-cMessageTime);
+        mLastMsgTime = -cMessageTime;
         //only valid while loading
         mWeaponSets = null;
 
@@ -1359,7 +1359,7 @@ class GameController : GameLogicPublic {
                 //note that messages will get lost if callback is not set,
                 //this is intended
                 changeMessageStatus(msg);
-                mLastMsgTime = mEngine.gameTime.current;
+                mLastMsgTime = mEngine.gameTime.current + cMessageTime;
             }
 
             if (mLastCrate) {
