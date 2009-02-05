@@ -137,7 +137,7 @@ class PhysicFixate : PhysicContactGen {
         c.normal = n;
         c.depth = distLen;
 
-        c.restitution = 1.0;
+        c.restitution = 0;
 
         contactHandler(c);
     }

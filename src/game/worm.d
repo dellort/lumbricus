@@ -977,7 +977,7 @@ class GravestoneSpriteClass : GOSpriteClass {
         super.loadFromConfig(config);
 
         st_normal = findState("normal");
-        st_drown = findState("drown");
+        st_drown = findState("drowning");
 
         //try to find as much gravestones as there are
         for (int n = 0; ; n++) {

@@ -15,8 +15,6 @@ import utils.vector2;
 import stdx.stream;
 import stdx.string;
 
-import tango.io.Stdout;
-
 private struct GlyphData {
     TextureRef tex;     //glyph texture
     Vector2i offset;    //texture drawing offset, relative to text top
@@ -31,8 +29,6 @@ private int FT_Floor(FT_Long x) {
 private int FT_Ceil(FT_Long x) {
     return ((x + 63) & -64) / 64;
 }
-
-import utils.random;
 
 //renderer and cache for font glyphs
 class FTGlyphCache {
@@ -80,8 +76,7 @@ class FTGlyphCache {
         if (!FT_IS_SCALABLE(mFace))
             throw new Exception("Invalid font: Not scalable.");
         //using props.size as pointsize with default dpi (72)
-        FT_Set_Char_Size(mFace, cast(int)(props.size*64),
-            cast(int)(props.size*64), 0, 0);
+        FT_Set_Char_Size(mFace, 0, props.size * 64, 0, 0);
         //calculate font metrics
         FT_Fixed scale = mFace.size.metrics.y_scale;
         mBaseline = FT_Ceil(FT_MulFix(mFace.ascender, scale));
@@ -166,18 +161,14 @@ class FTGlyphCache {
         }
 
         //Move the face's glyph into a Glyph object.
-        FT_Glyph glyph;
-        if(FT_Get_Glyph(mFace.glyph, &glyph))
-            throw new Exception("FT_Get_Glyph failed");
+        FT_GlyphSlot glyph = mFace.glyph;
 
-        //Convert the glyph to a bitmap.
-        FT_Glyph_To_Bitmap(&glyph, FT_Render_Mode.FT_RENDER_MODE_NORMAL,
-            cast(FT_Vector*)0, 1);
-        FT_BitmapGlyph bitmapGlyph = cast(FT_BitmapGlyph)glyph;
+        //Render the glyph
+        FT_Render_Glyph(glyph, FT_Render_Mode.FT_RENDER_MODE_NORMAL);
 
         //create a surface for the glyph
         Surface tmp = gFramework.createSurface(
-            Vector2i(bitmapGlyph.bitmap.width, bitmapGlyph.bitmap.rows),
+            Vector2i(glyph.bitmap.width, glyph.bitmap.rows),
             Transparency.Alpha);
 
         struct RGBA32 {
@@ -191,7 +182,7 @@ class FTGlyphCache {
         //copy the (monochrome) glyph data to the 32bit surface
         //color values come from foreground color, alpha from glyph data
         void* sdata; uint spitch;
-        ubyte* srcptr = bitmapGlyph.bitmap.buffer;
+        ubyte* srcptr = glyph.bitmap.buffer;
         tmp.lockPixelsRGBA32(sdata, spitch);
         for (int y = 0; y < tmp.size.y; y++) {
             RGBA32* data = cast(RGBA32*)(sdata + spitch*y);
@@ -219,7 +210,7 @@ class FTGlyphCache {
             surf = gFramework.createSurface(ret.size, Transparency.None);
             auto d = gSDLDriver.startOffscreenRendering(surf);
             d.drawFilledRect(Vector2i(0), surf.size, props.back);
-            d.draw(tmp, Vector2i(bitmapGlyph.left, mBaseline-bitmapGlyph.top));
+            d.draw(tmp, Vector2i(glyph.bitmap_left, mBaseline-glyph.bitmap_top));
             d.endDraw();
             tmp.free();
             ret.offset.x = 0;
@@ -227,8 +218,8 @@ class FTGlyphCache {
         } else {
             //surface only contains the actual glyph
             surf = tmp;
-            ret.offset.x = bitmapGlyph.left;
-            ret.offset.y = mBaseline-bitmapGlyph.top;
+            ret.offset.x = glyph.bitmap_left;
+            ret.offset.y = mBaseline-glyph.bitmap_top;
         }
 
         if (mPacker) {
@@ -238,9 +229,6 @@ class FTGlyphCache {
         }
 
         mFrags[ch] = ret;
-
-        //discard bitmap glyph
-        FT_Done_Glyph(glyph);
     }
 }
 
