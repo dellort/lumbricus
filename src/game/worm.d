@@ -334,14 +334,14 @@ class WormSprite : GObjectSprite {
         }
 
         if (isStanding() && mWeapon) {
-            if (mStandTime == timeNever())
+            if (mStandTime == Time.Never)
                 mStandTime = engine.gameTime.current;
             //worms are not standing, they are FIGHTING!
             if (engine.gameTime.current - mStandTime > timeMsecs(350)) {
                 setState(wsc.st_weapon);
             }
         } else {
-            mStandTime = timeNever();
+            mStandTime = Time.Never;
         }
 
         auto strength = currentFireStrength();

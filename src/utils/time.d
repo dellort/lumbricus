@@ -14,6 +14,8 @@ public struct Time {
     private TType_Int timeVal;
 
     public const Time Null = {0};
+    //seems to be a convenient hack, remove it if you don't like it
+    public const Time Never = {typeof(timeVal).max};
 
     //create a new Time structure from an internal value
     //not to be called from another class
@@ -144,6 +146,7 @@ public struct Time {
         return musecs / (1000 * 1000);
     }
 
+    //return as float in seconds (should only be used for small relative times)
     public float secsf() {
         return cast(float)musecs / (1000.0f * 1000.0f);
     }
@@ -171,11 +174,6 @@ public struct Time {
     ///Set: Time value as hours
     public void hours(long val) {
         musecs = val * (60 * 60 * 1000 * 1000);
-    }
-
-    //return as float in seconds (should only be used for small relative times)
-    public float toFloat() {
-        return msecs/1000.0f;
     }
 }
 
@@ -238,57 +236,20 @@ public Time timeHms(int h, int m, int s) {
     return timeHours(h) + timeMins(m) + timeSecs(s);
 }
 
-//seems to be a convenient hack, remove it if you don't like it
-public Time timeNever() {
-    Time r;
-    r.timeVal = typeof(r.timeVal).max;
-    return r;
-}
-
-public Time timeNull() {
-    Time t;
-    t.timeVal = 0;
-    return t;
-}
-
 //use the perf counter as time source, lol
 //the perf counter is fast, doesn't wrap in near time, and measures the absolute
 //time (i.e. not the process time) - so why not?
 //ok, might not be available under Win95
 
-version (Tango) {
+import tango.time.StopWatch;
+private StopWatch gTimer;
 
-    import tango.time.StopWatch;
-    private StopWatch gTimer;
+static this()  {
+    gTimer.start();
+}
 
-    static this()  {
-        gTimer.start();
-    }
-
-    public Time timeCurrentTime() {
-        return timeMusecs(cast(long)gTimer.microsec());
-    }
-
-} else {
-
-    import std.perf;
-    private PerformanceCounter gCounter;
-
-    static this() {
-        gCounter = new PerformanceCounter();
-        gCounter.start();
-    }
-
-    ///get current (framework) time
-    public Time timeCurrentTime() {
-        //this relies on the inner working of std.perf:
-        //  PerformanceCounter.stop() doesn't reset the start time or so, but
-        //  always sets the measured time to the time between the last .start()
-        //  and the current .stop() call
-        gCounter.stop();
-        return timeMusecs(gCounter.microseconds());
-    }
-
+public Time timeCurrentTime() {
+    return timeMusecs(cast(long)gTimer.microsec());
 }
 
 //xxx: using toDelegate(&timeCurrentTime) multiple times produces linker

@@ -35,6 +35,10 @@ template PhysicTimedChanger(T) {
         return mValue;
     }
 
+    bool done() {
+        return mValue == target;
+    }
+
     private void doValueChange() {
         if (onValueChange)
             onValueChange(mValue);

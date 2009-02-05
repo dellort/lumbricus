@@ -155,7 +155,7 @@ final class TimeSource : TimeSourcePublic {
             //solve it... or so
             /*if (diff > timeSecs(3)) {
                 slowDown(slowDown());
-                diff = timeNull();
+                diff = Time.Null;
             }*/
 
             mSimTime = mFixDelta + diff * mSlowDown;

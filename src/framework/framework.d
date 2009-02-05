@@ -1047,7 +1047,7 @@ class Framework {
     /// fps = framerate, or 0 to disable fixed framerate
     void fixedFramerate(int fps) {
         if (fps == 0) {
-            mTimePerFrame = timeMsecs(0);
+            mTimePerFrame = Time.Null;
         } else {
             mTimePerFrame = timeMusecs(1000000/fps);
         }
@@ -1097,7 +1097,7 @@ class Framework {
             //target waiting time
             waitTime += mTimePerFrame - (time - curtime);
             //even if you don't wait, yield the rest of the timeslice
-            waitTime = waitTime > timeSecs(0) ? waitTime : timeSecs(0);
+            waitTime = waitTime > Time.Null ? waitTime : Time.Null;
             mDriver.sleepTime(waitTime);
 
             //real frame time

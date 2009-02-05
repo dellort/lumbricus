@@ -78,7 +78,7 @@ class RayShooter: ActionShooter {
         //away from shooting object, so don't use radius
         fireInfo.info.shootbyRadius = 0;
         fireInfo.info.surfNormal = normal;
-        if (base.lineTime > timeSecs(0)) {
+        if (base.lineTime > Time.Null) {
             new RenderLaser(engine, [npos, hitPoint], base.lineTime,
                 [base.lineColors[0], base.lineColors[1], base.lineColors[0]]);
         }

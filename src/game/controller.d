@@ -754,7 +754,7 @@ class ServerTeamMember : TeamMember, WormController {
         } else {
             //being deactivated
             move(Vector2f(0));
-            mLastAction = timeMusecs(0);
+            mLastAction = Time.Null;
             mWormAction = false;
             if (isAlive) {
                 mWorm.activateJetpack(false);

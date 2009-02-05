@@ -78,7 +78,7 @@ struct FireMode {
                 timerFrom = timeSecs(vals[0]);
                 timerTo = timeSecs(vals[1]);
             } else if (vals.length == 1) {
-                timerFrom = timeSecs(0);
+                timerFrom = Time.Null;
                 timerTo = timeSecs(vals[0]);
             } else {
                 //xxx what about some kind of error reporting?

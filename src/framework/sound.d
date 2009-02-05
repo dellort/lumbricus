@@ -297,8 +297,8 @@ public class Music : SoundBase {
     ///play music from position start, fading in over fadeinTime
     ///returns immediately
     ///only one Music at a time can be playing
-    public void play(Time start = timeMusecs(0),
-        Time fadeinTime = timeMusecs(0))
+    public void play(Time start = Time.Null,
+        Time fadeinTime = Time.Null)
     {
         DriverSound snd = getDriverSound();
         mParent.mCurrentMusic = this;

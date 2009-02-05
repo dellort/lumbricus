@@ -27,12 +27,15 @@ class ModeRoundbased : Gamemode {
         Time mHotseatSwitchTime;
         //time the worm can still move after firing a weapon
         Time mRetreatTime;
+        //total time for one game until sudden death begins
+        Time mGameTime;
         //can the active worm be chosen in prepare state?
         bool mAllowSelect;
         //multi-shot mode (true -> firing a weapon doesn't end the round)
         bool mMultishot;
         float mCrateProb = 0.9f;
         int mMaxCrates = 8;
+        int mSuddenDeathWaterRaise = 50;
 
         ServerTeam mCurrentTeam;
         ServerTeam mLastTeam;
@@ -51,10 +54,13 @@ class ModeRoundbased : Gamemode {
         mTimePerRound = timeSecs(config.getIntValue("roundtime",15));
         mHotseatSwitchTime = timeSecs(config.getIntValue("hotseattime",5));
         mRetreatTime = timeSecs(config.getIntValue("retreattime",5));
+        mGameTime = timeSecs(config.getIntValue("gametime",300));
         mAllowSelect = config.getBoolValue("allowselect", mAllowSelect);
         mMultishot = config.getBoolValue("multishot", mMultishot);
         mCrateProb = config.getFloatValue("crateprob", mCrateProb);
         mMaxCrates = config.getIntValue("maxcrates", mMaxCrates);
+        mSuddenDeathWaterRaise = config.getIntValue("water_raise",
+            mSuddenDeathWaterRaise);
     }
 
     this(ReflectCtor c) {
@@ -67,14 +73,18 @@ class ModeRoundbased : Gamemode {
 
     override void startGame() {
         super.startGame();
+        modeTime.paused = true;
     }
 
     void simulate() {
         super.simulate();
-        Time dt = engine.gameTime.difference;
-        RoundState next = doState(dt);
-        if (next != mCurrentRoundState)
+        mStatus.gameRemaining = max(mGameTime - modeTime.current(), Time.Null);
+        //this ensures that after each transition(), doState() is also run
+        //in the same frame
+        RoundState next;
+        while ((next = doState()) != mCurrentRoundState) {
             transition(next);
+        }
     }
 
     //utility functions to get/set active team (and ensure only one is active)
@@ -90,22 +100,23 @@ class ModeRoundbased : Gamemode {
     }
 
     //lol, just like before
-    private RoundState doState(Time deltaT) {
+    private RoundState doState() {
         switch (mCurrentRoundState) {
             case RoundState.prepare:
-                mStatus.prepareRemaining = mStatus.prepareRemaining - deltaT;
+                mStatus.prepareRemaining = waitRemain(mHotseatSwitchTime, 1,
+                    false);
                 if (mCurrentTeam.teamAction())
                     //worm moved -> exit prepare phase
                     return RoundState.playing;
-                if (mStatus.prepareRemaining < timeMusecs(0))
+                if (mStatus.prepareRemaining <= Time.Null)
                     return RoundState.playing;
                 break;
             case RoundState.playing:
-                mStatus.roundRemaining = max(mStatus.roundRemaining - deltaT,
-                    timeNull);
+                mStatus.roundRemaining = waitRemain!(true)(mTimePerRound, 1,
+                    false);
                 if (!mCurrentTeam.current)
                     return RoundState.waitForSilence;
-                if (mStatus.roundRemaining <= timeMusecs(0))   //timeout
+                if (mStatus.roundRemaining <= Time.Null)   //timeout
                 {
                     //check if we need to wait because worm is performing
                     //a non-abortable action
@@ -141,7 +152,7 @@ class ModeRoundbased : Gamemode {
                 }
                 break;
             case RoundState.cleaningUp:
-                mStatus.roundRemaining = timeSecs(0);
+                mStatus.roundRemaining = Time.Null;
                 //if there are more to blow up, go back to waiting
                 if (logic.checkDyingWorms())
                     return RoundState.waitForSilence;
@@ -170,14 +181,23 @@ class ModeRoundbased : Gamemode {
                         }
                     }
 
-                    //probably drop a crate, if not too many on the field already
-                    if (mCrateCtr > 0 && engine.rnd.nextDouble2 < mCrateProb
-                        && engine.countSprites("crate") < mMaxCrates)
-                    {
+                    if (mCrateCtr > 1) {
                         mCrateCtr--;
-                        if (logic.dropCrate()) {
-                            logic.messageAdd("msgcrate");
+                        if (mStatus.gameRemaining <= Time.Null) {
+                            engine.raiseWater(mSuddenDeathWaterRaise);
                             return RoundState.waitForSilence;
+                        }
+                    }
+                    //probably drop a crate, if not too many out already
+                    if (mCrateCtr > 0) {
+                        mCrateCtr--;
+                        if (engine.rnd.nextDouble2 < mCrateProb
+                            && engine.countSprites("crate") < mMaxCrates)
+                        {
+                            if (logic.dropCrate()) {
+                                logic.messageAdd("msgcrate");
+                                return RoundState.waitForSilence;
+                            }
                         }
                     }
 
@@ -205,9 +225,11 @@ class ModeRoundbased : Gamemode {
         mCurrentRoundState = st;
         switch (st) {
             case RoundState.prepare:
+                modeTime.paused = true;
                 mStatus.roundRemaining = mTimePerRound;
-                mStatus.prepareRemaining = mHotseatSwitchTime;
-                mCrateCtr = 1;
+                waitReset(1);
+                waitReset!(true)(1);
+                mCrateCtr = 2;
 
                 //select next team/worm
                 ServerTeam next = arrayFindNextPred(logic.teams, mLastTeam,
@@ -228,15 +250,18 @@ class ModeRoundbased : Gamemode {
                 break;
             case RoundState.playing:
                 assert(mCurrentTeam);
+                modeTime.paused = false;
                 mCurrentTeam.setOnHold(false);
                 if (mAllowSelect)
                     mCurrentTeam.allowSelect = false;
-                mStatus.prepareRemaining = timeMusecs(0);
+                mStatus.prepareRemaining = Time.Null;
                 break;
             case RoundState.retreat:
+                modeTime.paused = false;
                 mCurrentTeam.current.setLimitedMode();
                 break;
             case RoundState.waitForSilence:
+                modeTime.paused = true;
                 //no control while blowing up worms
                 if (mCurrentTeam) {
                     mCurrentTeam.current.forceAbort();
@@ -246,19 +271,23 @@ class ModeRoundbased : Gamemode {
                 currentTeam =  null;
                 break;
             case RoundState.cleaningUp:
+                modeTime.paused = true;
                 //next call causes health countdown, so wait a little
                 logic.updateHealth(); //hmmm
                 //see doState()
                 break;
             case RoundState.nextOnHold:
+                modeTime.paused = true;
                 currentTeam = null;
                 engine.randomizeWind();
                 logic.messageAdd("msgnextround");
-                mStatus.roundRemaining = timeMusecs(0);
+                mStatus.roundRemaining = Time.Null;
                 break;
             case RoundState.winning:
+                modeTime.paused = true;
                 break;
             case RoundState.end:
+                modeTime.paused = true;
                 logic.messageAdd("msggameend");
                 currentTeam = null;
                 break;
@@ -274,6 +303,7 @@ class ModeRoundbased : Gamemode {
     }
 
     MyBox getStatus() {
+        mStatus.timePaused = modeTime.paused;
         return MyBox.Box(mStatus);
     }
 

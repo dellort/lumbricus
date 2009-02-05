@@ -21,14 +21,14 @@ static class GamemodeFactory
 class Gamemode {
     GameEngine engine;
     GameController logic;
-    private bool[10] mWaiting, mWaitingLocal;
-    private Time[10] mWaitStart, mWaitStartLocal;
-    //protected TimeSource modeTime;
+    private bool[5] mWaiting, mWaitingLocal;
+    private Time[5] mWaitStart, mWaitStartLocal;
+    protected TimeSource modeTime;
 
     this(GameController parent, ConfigNode config) {
         engine = parent.engine;
         logic = parent;
-        //modeTime = new TimeSource(&engine.gameTime.current);
+        modeTime = new TimeSource(engine.gameTime);
     }
 
     this(ReflectCtor c) {
@@ -42,12 +42,12 @@ class Gamemode {
 
     ///Start a new game, called before first simulate call
     void startGame() {
-        //modeTime.resetTime();
+        modeTime.resetTime();
     }
 
     ///Called every frame, run gamemode-specific code here
     void simulate() {
-        //modeTime.update();
+        modeTime.update();
     }
 
     ///Called by controller every frame, after simulate
@@ -66,48 +66,48 @@ class Gamemode {
     //Wait utility functions
     //First call starts the timer, true is returned (and the state is reset)
     //  when the time has elapsed
-    //Supports 10 independent numbered timers, default is 0
+    //Supports 5 independent numbered timers, default is 0
 
-    //Standard waiting functions are based on engine.gameTime
-    protected bool wait(Time t) {
-        return wait(0, t);
-    }
-
-    protected bool wait(int timerId, Time t) {
-        if (!mWaiting[timerId]) {
-            mWaitStart[timerId] = engine.gameTime.current;
-            mWaiting[timerId] = true;
-        }
-        if (engine.gameTime.current - mWaitStart[timerId] > t) {
-            mWaiting[timerId] = false;
-            return true;
-        }
-        return false;
-    }
-
-    protected void waitReset(int timerId = 0) {
-        mWaitStart[timerId] = engine.gameTime.current;
-    }
-
-    //Local waiting functions are based on gamemode time (which can be paused
+    //Standard waiting functions are based on engine.gameTime,
+    //local waiting functions are based on gamemode time (which can be paused
     //  independently of gameTime)
-    /*protected bool waitLocal(Time t) {
-        return waitLocal(0, t);
+    protected bool wait(bool Local = false)(Time t, int timerId = 0,
+        bool autoReset = true)
+    {
+        return waitRemain!(Local)(t, timerId, autoReset) <= Time.Null;
     }
 
-    protected bool waitLocal(int timerId, Time t) {
-        if (!mWaitingLocal[timerId]) {
-            mWaitStartLocal[timerId] = modeTime.current;
-            mWaitingLocal[timerId] = true;
+    protected Time waitRemain(bool Local = false)(Time t, int timerId = 0,
+        bool autoReset = true)
+    {
+        static if (Local) {
+            if (!mWaitingLocal[timerId]) {
+                mWaitStart[timerId] = modeTime.current;
+                mWaitingLocal[timerId] = true;
+            }
+            Time r = max(t - (modeTime.current - mWaitStart[timerId]),
+                Time.Null);
+            if (r <= Time.Null && autoReset) {
+                mWaitingLocal[timerId] = false;
+            }
+        } else {
+            if (!mWaiting[timerId]) {
+                mWaitStart[timerId] = engine.gameTime.current;
+                mWaiting[timerId] = true;
+            }
+            Time r = max(t - (engine.gameTime.current - mWaitStart[timerId]),
+                Time.Null);
+            if (r <= Time.Null && autoReset) {
+                mWaiting[timerId] = false;
+            }
         }
-        if (modeTime.current - mWaitStartLocal[timerId] > t) {
+        return r;
+    }
+
+    protected void waitReset(bool Local = false)(int timerId = 0) {
+        static if (Local)
             mWaitingLocal[timerId] = false;
-            return true;
-        }
-        return false;
+        else
+            mWaiting[timerId] = false;
     }
-
-    protected void waitResetLocal(int timerId = 0) {
-        mWaitStartLocal[timerId] = modeTime.current;
-    }*/
 }

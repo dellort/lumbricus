@@ -16,6 +16,8 @@ enum RoundState : int {
 struct RoundbasedStatus {
     Time roundRemaining;
     Time prepareRemaining;
+    Time gameRemaining;
+    bool timePaused;
 }
 
 const cRoundbased = "roundbased";

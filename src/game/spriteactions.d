@@ -198,7 +198,7 @@ class ProximitySensorAction : SpriteAction {
         mTrigger.collision = engine.physicworld.collide.findCollisionID(
             myclass.collision);
         mTrigger.onTrigger = &trigTrigger;
-        mFireTime = timeNever();
+        mFireTime = Time.Never;
         engine.physicworld.add(mTrigger);
         return ActionRes.moreWork;
     }
@@ -208,13 +208,13 @@ class ProximitySensorAction : SpriteAction {
     }
 
     private void trigTrigger(PhysicTrigger sender, PhysicObject other) {
-        if (mFireTime == timeNever()) {
+        if (mFireTime == Time.Never) {
             mFireTime = engine.gameTime.current + myclass.triggerDelay;
         }
     }
 
     override protected bool customActivity() {
-        return mFireTime != timeNever();
+        return mFireTime != Time.Never;
     }
 
     override void simulate(float deltaT) {

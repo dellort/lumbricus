@@ -770,6 +770,8 @@ class GameEngine : GameEnginePublic {
         bool quake = earthQuakeStrength() > 0;
         if (quake)
             return true;
+        if (!mWaterChanger.done)
+            return true;
         foreach (GameObject o; mObjects) {
             if (o.activity)
                 return true;
