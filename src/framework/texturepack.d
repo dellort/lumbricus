@@ -82,7 +82,15 @@ class TexturePack {
         }
 
         TextureRef add(Surface s) {
-            Block* b = mPacker.getBlock(s.size);
+            auto size = s.size;
+            if (size.x > mPacker.pageSize.x || size.y > mPacker.pageSize.y) {
+                //too big, make an exception
+                //don't add the Surface to mSurfaces, because when we add the
+                //original Surface s, it will get free'd with free()
+                //xxx: or should we copy them...? I think we should (who cares)
+                return TextureRef(s, Vector2i(0), size);
+            }
+            Block* b = mPacker.getBlock(size);
             assert(!!b);  //never happens?
             //check if the BoxPacker added a page and possibly create it
             while (mPacker.pages.length > mSurfaces.length) {
@@ -93,8 +101,8 @@ class TexturePack {
                 mSurfaces ~= surface;
             }
             auto dest = mSurfaces[b.page];
-            dest.copyFrom(s, b.origin, Vector2i(0), s.size);
-            return TextureRef(dest, b.origin, s.size);
+            dest.copyFrom(s, b.origin, Vector2i(0), size);
+            return TextureRef(dest, b.origin, size);
         }
 
         void free() {
