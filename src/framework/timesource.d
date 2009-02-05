@@ -58,9 +58,12 @@ final class TimeSource : TimeSourcePublic {
     }
 
     //if parent is null, timeCurrentTime() is used as source
-    this(TimeSourcePublic parent = null) {
+    this(TimeSourcePublic parent, Time timeoffset = Time.Null) {
         mParent = parent;
-        initTime();
+        initTime(timeoffset);
+    }
+    this(Time timeoffset = Time.Null) {
+        this(null, timeoffset);
     }
     this(ReflectCtor c) {
     }
@@ -153,10 +156,10 @@ final class TimeSource : TimeSourcePublic {
 
             //because of floating point precission issues; I guess this would
             //solve it... or so
-            /*if (diff > timeSecs(3)) {
-                slowDown(slowDown());
+            if (diff > timeSecs(3)) {
+                internalFixTime();
                 diff = Time.Null;
-            }*/
+            }
 
             mSimTime = mFixDelta + diff * mSlowDown;
 

@@ -12,8 +12,6 @@ import layout = tango.text.convert.Layout;
 //import std.stdarg : va_list;
 import stdx.base : va_list;
 
-//these functions are different from below, but do the same
-//needed because out fucntions conflict, if tango.math is implemented
 //Tango team = stupid
 public import tango.math.Math : min, max;
 

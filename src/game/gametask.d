@@ -142,6 +142,7 @@ class GameTask : StatefulTask {
         //temporary when loading a game
         SerializeInConfig mSaveGame;
         RNGState mSavedRandomSeed;
+        Time mSavedTime;
         Vector2i mSavedViewPosition;
         bool mSavedSetViewPosition;
     }
@@ -298,6 +299,7 @@ class GameTask : StatefulTask {
         mGameConfig.level = level;
         mSaveGame.addExternal(level, "level");
         mSaveGame.addExternal(mGameConfig, "gameconfig");
+        mSavedTime = sg.gametime;
         mSavedRandomSeed = sg.randomstate;
         //urgh
         foreach (int n, LandscapeBitmap lb; bitmaps) {
@@ -382,6 +384,10 @@ class GameTask : StatefulTask {
             foreach (int index, LevelItem o; mGameConfig.level.objects) {
                 mSaveGame.addExternal(o, myformat("levelobject_{}", index));
             }
+            auto ntime = new TimeSource(mSavedTime);
+            ntime.initTime(mSavedTime);
+            ntime.paused = true;
+            mSaveGame.addExternal(ntime, "gametime");
             //
             auto rnd = new Random();
             rnd.state = mSavedRandomSeed;
@@ -616,6 +622,8 @@ class GameTask : StatefulTask {
         writer.addExternal(level, "level");
         writer.addExternal(gameconfig, "gameconfig");
 
+        sg.gametime = engine.gameTime.current;
+
         //manually save each landscape bitmap
         //this is a special case, because unlike all other bitmaps (and
         //animations etc.), these are modified by the game
@@ -633,6 +641,8 @@ class GameTask : StatefulTask {
         foreach (int index, LevelItem o; level.objects) {
             writer.addExternal(o, myformat("levelobject_{}", index));
         }
+        //new TimeSource is created manually on loading
+        writer.addExternal(engine.gameTime, "gametime");
         //random seed saved in sg2.randomstate
         writer.addExternal(engine.rnd, "random");
         //actually serialize
@@ -649,6 +659,7 @@ class GameTask : StatefulTask {
 
     static class SaveGameHeader {
         char[] config; //saved GameConfig
+        Time gametime;
         Vector2i viewpos;
         RNGState randomstate;
 
