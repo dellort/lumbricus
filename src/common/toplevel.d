@@ -199,7 +199,8 @@ private:
             "int:width",
             "int:height",
             "int?=0:depth (bits)"]);
-        globals.cmdLine.registerCommand("fullscreen", &cmdFS, "toggle fs");
+        globals.cmdLine.registerCommand("fullscreen", &cmdFS, "toggle fs",
+            ["text?:pass 'desktop' to change to desktop resolution first"]);
         globals.cmdLine.registerCommand("framerate", &cmdFramerate,
             "set fixed framerate", ["int:framerate"]);
 
@@ -434,9 +435,16 @@ private:
     }
 
     private void cmdFS(MyBox[] args, Output write) {
+        bool desktop = args[0].unboxMaybe!(char[]) == "desktop";
         try {
-            gFramework.setVideoMode(gFramework.screenSize, -1,
-                !gFramework.fullScreen);
+            if (desktop) {
+                //go fullscreen in desktop mode
+                gFramework.setVideoMode(gFramework.desktopResolution, -1, true);
+            } else {
+                //toggle fullscreen in current resolution
+                gFramework.setVideoMode(gFramework.screenSize, -1,
+                    !gFramework.fullScreen);
+            }
         } catch (Exception e) {
             //fullscreen switch failed
             write.writefln("error: {}", e);

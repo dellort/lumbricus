@@ -164,8 +164,6 @@ class SDLFont : DriverFont {
     Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text) {
         if (mUseGL) {
             glPushAttrib(GL_CURRENT_BIT);
-            glColor4f(mProps.fore.r, mProps.fore.g, mProps.fore.b,
-                mProps.fore.a);
         }
         scope(exit) if (mUseGL) {
             glPopAttrib();
@@ -180,6 +178,10 @@ class SDLFont : DriverFont {
     private void drawGlyph(Canvas c, TextureRef glyph, Vector2i pos) {
         if (mNeedBackPlain) {
             c.drawFilledRect(pos, pos+glyph.size, mProps.back);
+        }
+        if (mUseGL) {
+            glColor4f(mProps.fore.r, mProps.fore.g, mProps.fore.b,
+                mProps.fore.a);
         }
         glyph.draw(c, pos);
     }

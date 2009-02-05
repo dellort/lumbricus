@@ -22,6 +22,13 @@ package {
 }
 
 
+enum FaceStyle {
+    normal,
+    bold,
+    italic,
+    boldItalic,
+}
+
 ///uniquely describes a font, same properties => is the same
 struct FontProperties {
     char[] face = "default";
@@ -39,6 +46,13 @@ struct FontProperties {
     bool needsBackPlain() {
         //Backplain not needed if it's fully transparent or fully opaque
         return (back.a >= Color.epsilon) && !isOpaque();
+    }
+
+    FaceStyle getFaceStyle() {
+        if (bold && italic)  return FaceStyle.boldItalic;
+        if (bold && !italic) return FaceStyle.bold;
+        if (!bold && italic) return FaceStyle.italic;
+        return FaceStyle.normal;
     }
 }
 
@@ -153,19 +167,33 @@ class Font {
 /// Manages fonts (surprise!)
 class FontManager {
     private {
+        struct FaceStyles {
+            MemoryStream[FaceStyle.max+1] styles;
+        }
+
         Font[char[]] mIDtoFont;
         ConfigNode mNodes;
         //why store the font file(s) into memory? I don't know lol
-        MemoryStream[char[]] mFaces;
+        FaceStyles[char[]] mFaces;
     }
 
     /// Read a font definition file. See data/fonts.conf
     public void readFontDefinitions(ConfigNode node) {
-        foreach (char[] name, char[] value; node.getSubNode("faces")) {
-            auto ms = new MemoryStream();
-            scope st = gFramework.fs.open(value);
-            ms.copyFrom(st);
-            mFaces[name] = ms;
+        foreach (ConfigNode n; node.getSubNode("faces")) {
+            char[][] faces = n.getCurValue!(char[][])();
+            foreach (int idx, char[] faceFile; faces) {
+                if (idx > FaceStyle.max)
+                    break;
+                auto ms = new MemoryStream();
+                scope st = gFramework.fs.open(faceFile);
+                ms.copyFrom(st);
+                if (!(n.name in mFaces)) {
+                    FaceStyles fstyles;
+                    fstyles.styles[cast(FaceStyle)idx] = ms;
+                    mFaces[n.name] = fstyles;
+                } else
+                    mFaces[n.name].styles[cast(FaceStyle)idx] = ms;
+            }
         }
         mNodes = node.getSubNode("styles").clone();
         mNodes.templatetifyNodes("template");
@@ -239,8 +267,23 @@ class FontManager {
     }
 
     //driver uses this
-    MemoryStream findFace(char[] face) {
-        return mFaces[face];
+    MemoryStream findFace(char[] face, FaceStyle style = FaceStyle.normal) {
+        FaceStyles* fstyles = face in mFaces;
+        if (!fstyles)
+            return null;
+        if (fstyles.styles[style] !is null)
+            return fstyles.styles[style];
+        return fstyles.styles[FaceStyle.normal];
+    }
+
+    //for driver: determine if a face with passed style is available
+    //note that while a face does not need to have all styles,
+    //  it always has FaceStyle.normal
+    bool faceExists(char[] face, FaceStyle style = FaceStyle.normal) {
+        FaceStyles* fstyles = face in mFaces;
+        if (!fstyles)
+            return false;
+        return cast(bool)(fstyles.styles[style]);
     }
 }
 

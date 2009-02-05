@@ -97,6 +97,8 @@ abstract class FrameworkDriver {
     abstract VideoWindowState getVideoWindowState();
     ///returns success (for switching the video mode, only)
     abstract bool setVideoWindowState(in VideoWindowState state);
+    ///returns desktop video resolution at program start
+    abstract Vector2i getDesktopResolution();
 
     ///sleep for a specific time (grr, Phobos doesn't provide this)
     abstract void sleepTime(Time relative);
@@ -1030,6 +1032,11 @@ class Framework {
     Vector2i screenSize() {
         VideoWindowState state = mDriver.getVideoWindowState();
         return state.fullscreen ? state.fs_size : state.window_size;
+    }
+
+    ///desktop screen resolution at program start
+    Vector2i desktopResolution() {
+        return mDriver.getDesktopResolution();
     }
 
     //--- time stuff

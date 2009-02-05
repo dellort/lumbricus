@@ -15,6 +15,8 @@ import utils.vector2;
 import stdx.stream;
 import stdx.string;
 
+import tango.io.Stdout;
+
 private struct GlyphData {
     TextureRef tex;     //glyph texture
     Vector2i offset;    //texture drawing offset, relative to text top
@@ -29,6 +31,8 @@ private int FT_Floor(FT_Long x) {
 private int FT_Ceil(FT_Long x) {
     return ((x + 63) & -64) / 64;
 }
+
+import utils.random;
 
 //renderer and cache for font glyphs
 class FTGlyphCache {
@@ -45,19 +49,31 @@ class FTGlyphCache {
         // Stream is used by TTF_Font, this keeps the reference to it
         // possibly shared accross font instances
         MemoryStream mFontStream;
+        bool mDoBold, mDoItalic;
     }
 
     package int refcount = 1;
 
-    this(FTFontDriver driver, MemoryStream str, FontProperties props) {
-        assert(!!str);
-        mFontStream = str;
+    this(FTFontDriver driver, FontProperties props) {
+        if (!gFramework.fontManager.faceExists(props.face, props.getFaceStyle))
+        {
+            mDoBold = props.bold;
+            mDoItalic = props.italic;
+        }
+        //will fall back to default style if specified was not found
+        mFontStream = gFramework.fontManager.findFace(props.face,
+            props.getFaceStyle);
+        if (!mFontStream) {
+            throw new Exception("Failed to load font '" ~ props.face
+                ~ "': Face file not found.");
+        }
         mFontStream.seek(0,SeekPos.Set);
         this.props = props;
         if (FT_New_Memory_Face(driver.library, mFontStream.data.ptr,
             mFontStream.size, 0, &mFace))
         {
-            throw new Exception("Could not load font.");
+            throw new Exception("Freetype failed to load font '"
+                ~ props.face ~ "'.");
         }
 
         //only supports scalable fonts
@@ -142,6 +158,12 @@ class FTGlyphCache {
         //Load the Glyph for our character.
         if (FT_Load_Glyph(mFace, FT_Get_Char_Index(mFace, ch), FT_LOAD_DEFAULT))
             throw new Exception("FT_Load_Glyph failed");
+
+        //this is quite ugly, better use a specific face file
+        //xxx missing italic, don't know how to do that
+        if (mDoBold) {
+            FT_GlyphSlot_Embolden(mFace.glyph);
+        }
 
         //Move the face's glyph into a Glyph object.
         FT_Glyph glyph;
@@ -241,8 +263,6 @@ class FTFont : DriverFont {
     Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text) {
         if (mUseGL) {
             glPushAttrib(GL_CURRENT_BIT);
-            glColor4f(mProps.fore.r, mProps.fore.g, mProps.fore.b,
-                mProps.fore.a);
         }
         scope(exit) if (mUseGL) {
             glPopAttrib();
@@ -257,6 +277,10 @@ class FTFont : DriverFont {
     private void drawGlyph(Canvas c, GlyphData* glyph, Vector2i pos) {
         if (mNeedBackPlain) {
             c.drawFilledRect(pos, pos+glyph.size, mProps.back);
+        }
+        if (mUseGL) {
+            glColor4f(mProps.fore.r, mProps.fore.g, mProps.fore.b,
+                mProps.fore.a);
         }
         glyph.tex.draw(c, pos+glyph.offset);
     }
@@ -354,8 +378,7 @@ class FTFontDriver : FontDriver {
         FTGlyphCache gc = aaIfIn(mGlyphCaches, gc_props);
 
         if (!gc) {
-            MemoryStream data = gFramework.fontManager.findFace(gc_props.face);
-            gc = new FTGlyphCache(this, data, gc_props);
+            gc = new FTGlyphCache(this, gc_props);
             mGlyphCaches[gc_props] = gc;
         } else {
             gc.refcount++;

@@ -8,7 +8,7 @@ import tango.io.Stdout;
 import str = stdx.string;
 import utils.vector2;
 import framework.sdl.rwops;
-import framework.sdl.font;
+import framework.sdl.fontft;
 import framework.sdl.fwgl;
 import framework.sdl.sdl;
 import derelict.opengl.gl;
@@ -288,7 +288,7 @@ class SDLDriver : FrameworkDriver {
         VideoWindowState mCurVideoState;
         DriverInputState mInputState;
 
-        SDLFontDriver mFontDriver;
+        FTFontDriver mFontDriver;
 
         //convert stuff to display format if it isn't already
         //+ mark all alpha surfaces drawn on the screen
@@ -318,6 +318,8 @@ class SDLDriver : FrameworkDriver {
         Vector2i mStoredMousePos, mLockedMousePos, mMouseCorr;
         bool mLockMouse;
         int mFooLockCounter;
+
+        Vector2i mDesktopRes;
     }
     package {
         SDL_Surface* mSDLScreen;
@@ -369,6 +371,16 @@ class SDLDriver : FrameworkDriver {
             throw new Exception(myformat("Could not init SDL video: {}",
                 str.toString(SDL_GetError())));
         }
+
+        //when called before first SetVideoMode, this returns the desktop res
+        auto vi = SDL_GetVideoInfo();
+        mDesktopRes = Vector2i(vi.current_w, vi.current_h);
+
+        /*SDL_Rect** modes;
+        modes = SDL_ListModes(null, SDL_FULLSCREEN | SDL_OPENGL);
+        for (int i = 0; modes[i]; ++i) {
+            Stdout.formatln("{}x{}", modes[i].w, modes[i].h);
+        }*/
 
         mCursorStd = SDL_GetCursor();
         ubyte[(32*32)/8] cursor; //init with 0, which means all-transparent
@@ -550,6 +562,10 @@ class SDLDriver : FrameworkDriver {
         if (mCurVideoState.video_active)
             mFramework.driver_doVideoInit();
         return mCurVideoState.video_active;
+    }
+
+    Vector2i getDesktopResolution() {
+        return mDesktopRes;
     }
 
     DriverInputState getInputState() {
