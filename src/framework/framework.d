@@ -1354,8 +1354,6 @@ class Framework {
     public void delegate() onFrameEnd;
 }
 
-class FrameworkDriverFactory : StaticFactory!(FrameworkDriver, Framework,
-    config.ConfigNode)
-{
-}
+alias StaticFactory!("Drivers", FrameworkDriver, Framework,
+    config.ConfigNode) FrameworkDriverFactory;
 

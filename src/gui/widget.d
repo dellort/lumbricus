@@ -938,8 +938,7 @@ class Spacer : Widget {
 
 /// Widget factory; anyone can register here.
 /// Used by module gui.layout to create Widgets from names.
-static class WidgetFactory : StaticFactory!(Widget) {
-}
+alias StaticFactory!("Widgets", Widget) WidgetFactory;
 
 static this() {
     WidgetFactory.register!(SimpleContainer)("simplecontainer");

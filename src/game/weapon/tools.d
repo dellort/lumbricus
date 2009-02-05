@@ -22,8 +22,7 @@ import tango.math.IEEE : signbit;
 debug import tango.io.Stdout;
 
 //sub-factory used by ToolClass (stupid double-factory)
-class ToolsFactory : StaticFactory!(Tool, ToolClass, WormSprite) {
-}
+alias StaticFactory!("Tools", Tool, ToolClass, WormSprite) ToolsFactory;
 
 //covers tools like jetpack, beamer, superrope
 //these are not actually weapons, but the weapon-code is generic enough to

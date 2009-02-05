@@ -262,7 +262,5 @@ class LoadSaveHandler {
 }
 
 //All tasks that should be saved have to register here
-static class StatefulFactory : StaticFactory!(StatefulTask, TaskManager,
-    TarArchive)
-{
-}
+alias StaticFactory!("STasks", StatefulTask, TaskManager,
+    TarArchive) StatefulFactory;

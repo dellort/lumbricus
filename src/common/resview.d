@@ -32,8 +32,8 @@ import str = stdx.string;
 
 import game.animation;
 
-class ResViewHandlers : StaticFactory!(ResViewHandlerGeneric, Object) {
-}
+alias StaticFactory!("ResViewers", ResViewHandlerGeneric, Object)
+    ResViewHandlers;
 
 class ResViewHandlerGeneric {
     private {

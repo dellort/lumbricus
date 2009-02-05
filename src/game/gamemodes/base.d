@@ -13,10 +13,8 @@ import utils.configfile;
 import utils.time;
 
 //factory to instantiate gamemodes
-static class GamemodeFactory
-    : StaticFactory!(Gamemode, GameController, ConfigNode)
-{
-}
+alias StaticFactory!("Gamemodes", Gamemode, GameController, ConfigNode)
+    GamemodeFactory;
 
 class Gamemode {
     GameEngine engine;

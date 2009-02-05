@@ -147,10 +147,8 @@ public class Resources {
     static Log log;
     private ResourceFile[char[]] mLoadedResourceFiles;
 
-    private static class ResFactory : StaticFactory!(ResourceItem, ResourceFile,
-        char[], ConfigNode)
-    {
-    }
+    private alias StaticFactory!("Ressoures", ResourceItem, ResourceFile,
+        char[], ConfigNode) ResFactory;
 
     this() {
         log = registerLog("Res");

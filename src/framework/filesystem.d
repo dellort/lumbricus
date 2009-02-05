@@ -331,21 +331,26 @@ class FileSystem {
 
         //set user directory from os home path
         char[] home = null;
+        char[] os_appid = mAppId;
         version(Windows) {
-            //windows: Docs & Settings\AppData\.lumbricus
+            //windows: Docs & Settings\AppData\Lumbricus
             //home = Environment.get("APPDATA");
-            //no, rather use My Documents\lumbricus
+            //no, rather use My Documents\Lumbricus
             home = getSpecialPath(CSIDL_PERSONAL);
+            //Uppercase (MS users like it that way)
+            if (os_appid.length)
+                os_appid = str.toupper(os_appid[0..1]) ~ os_appid[1..$];
         } else {
             //linux: ~/.lumbricus
             home = Environment.get("HOME");
+            os_appid = "." ~ os_appid;
         }
         if (home != null)
             //append ".lumbricus"
-            userPath = addTrailingPathDelimiter(home) ~ mAppId;
+            userPath = addTrailingPathDelimiter(home) ~ os_appid;
         else
             //failed to get env var? then use AppPath/.lumbricus instead
-            userPath = mAppPath ~ mAppId;
+            userPath = mAppPath ~ os_appid;
 
         //try to create user directory
         try {

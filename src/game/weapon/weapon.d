@@ -17,10 +17,8 @@ import utils.configfile;
 
 import game.gamepublic;
 
-static class WeaponClassFactory
-    : StaticFactory!(WeaponClass, GameEngine, ConfigNode)
-{
-}
+alias StaticFactory!("WeaponClasses", WeaponClass, GameEngine, ConfigNode)
+    WeaponClassFactory;
 
 alias void delegate(Shooter sh) ShooterCallback;
 

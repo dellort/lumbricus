@@ -13,9 +13,7 @@ import utils.reflection;
 public import utils.mybox;
 import utils.log;
 
-class ActionClassFactory : StaticFactory!(ActionClass)
-{
-}
+alias StaticFactory!("ActionClasses", ActionClass) ActionClassFactory;
 
 ///stupid ActionClass hashmap class
 class ActionContainer {

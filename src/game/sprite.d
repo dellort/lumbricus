@@ -21,10 +21,8 @@ import utils.mybox;
 import utils.reflection;
 
 //factory to instantiate sprite classes, this is a small wtf
-static class SpriteClassFactory
-    : StaticFactory!(GOSpriteClass, GameEngine, char[])
-{
-}
+alias StaticFactory!("Sprites", GOSpriteClass, GameEngine, char[])
+    SpriteClassFactory;
 
 //object which represents a PhysicObject and an animation on the screen
 //also provides loading from ConfigFiles and state managment

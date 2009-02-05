@@ -523,5 +523,5 @@ class NullSound : SoundDriver {
     }
 }
 
-class SoundDriverFactory : StaticFactory!(SoundDriver, Sound, ConfigNode) {
-}
+alias StaticFactory!("SoundDrivers", SoundDriver, Sound, ConfigNode)
+    SoundDriverFactory;

@@ -93,14 +93,16 @@ class Factory(T, ConstructorArgs...) {
     }
 }
 
-class StaticFactory(T, ConstructorArgs...) {
+///Unique = string literal that makes the instantiated type unique
+///see unittest how to use this
+final class StaticFactory(char[] Unique, T, ConstructorArgs...) {
     alias T delegate(ConstructorArgs) constructorCallback;
     private alias Factory!(T, ConstructorArgs) DFactory;
 
     //return the dynamic factory (which is created on demand)
     static DFactory factory() {
-        //xxx: this static variable is shared across all factory classes of the
-        //same type (same T and ConstructorArgs), which is terribly wrong.
+        //Note: Unique is needed to make the following static symbol unique
+        //      accross the program
         static DFactory f;
         if (!f)
             f = new DFactory();
@@ -144,16 +146,12 @@ class X {
 class Y {
 }
 
-class Factory1 : StaticFactory!(X) {
-}
-class Factory2 : StaticFactory!(X) {
-}
-class Factory3 : StaticFactory!(Y) {
-}
+alias StaticFactory!("f1", X) Factory1;
+alias StaticFactory!("f2", X) Factory2;
+alias StaticFactory!("f3", Y) Factory3;
 
 unittest {
     Factory1.register!(X)("x");
     Factory3.register!(Y)("x");
-    //xxx fails :(
-    //Factory2.register!(X)("x");
+    Factory2.register!(X)("x");
 }

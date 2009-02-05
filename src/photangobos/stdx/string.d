@@ -29,7 +29,12 @@ module stdx.string;
 
 //debug=string;		// uncomment to turn on debugging printf's
 
-import stdx.base;
+//Tango doesn't define string (yet?)
+//Phobos defines it, although it's TOTALLY CRAPTISTICALLY USELESS
+
+alias char[] string;
+alias wchar[] wstring;
+alias dchar[] dstring;
 
 version (Tango) {
 } else {
