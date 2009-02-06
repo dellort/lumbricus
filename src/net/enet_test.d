@@ -13,9 +13,6 @@ import utils.output;
 import utils.vector2;
 import utils.misc;
 
-import tango.io.Stdout;
-import stdx.string;
-
 class TestEnet : Task {
     private {
         NetBase mBase;

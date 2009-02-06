@@ -15,7 +15,6 @@ import utils.time;
 import utils.vector2;
 import utils.misc;
 
-import stdx.string;
 import tango.math.Math : abs;
 
 //Pyro clone, which again was a bomberman clone

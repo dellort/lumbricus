@@ -7,7 +7,7 @@ import utils.output;
 import utils.configfile;
 import utils.misc;
 
-import str = stdx.string;
+import tango.stdc.stringz;
 
 //write an "archive", the only point is to support streaming + compression
 //could be changed to output the zip or tar format
@@ -188,7 +188,7 @@ class TarArchive {
                     //xxx: utf safety?
                     if (h.filename[$-1] != '\0')
                         throw new Exception("tar error");
-                    return str.toString(&f[0]);
+                    return fromStringz(&f[0]);
                 }
                 e.name = getField(h.filename).dup;
                 char[] sz = getField(h.filesize);

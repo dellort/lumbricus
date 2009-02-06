@@ -3,6 +3,8 @@ module net.netlayer;
 import derelict.enet.enet;
 import str = stdx.string;
 import tango.util.Convert;
+import tango.stdc.stringz;
+import utils.misc;
 
 pragma(lib,"DerelictUtil");
 
@@ -153,7 +155,7 @@ class NetHost {
         if (addr.broadcast)
             enaddr.host = ENET_HOST_BROADCAST;
         else
-            enet_address_set_host(&enaddr, str.toStringz(addr.hostName));
+            enet_address_set_host(&enaddr, toStringz(addr.hostName));
 
         //initiate connection (will not connect until next service() call
         ENetPeer* peer = enet_host_connect(mHost, &enaddr, channelCount);
@@ -265,7 +267,7 @@ class NetPeer {
         mAddress.port = mPeer.address.port;
         char[] addrBuf = new char[16];
         enet_address_get_host_ip(&mPeer.address, addrBuf.ptr, 16);
-        mAddress.hostName = str.toString(addrBuf.ptr);
+        mAddress.hostName = fromStringz(addrBuf.ptr);
     }
 
     ///associated host

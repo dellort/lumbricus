@@ -11,7 +11,7 @@ import framework.sdl.rwops;
 import framework.texturepack;
 
 import stdx.stream;
-import stdx.string;
+import tango.stdc.stringz;
 
 import utils.misc;
 
@@ -247,7 +247,7 @@ class SDLFontDriver : FontDriver {
 
         if (TTF_Init()==-1) {
             throw new Exception(myformat("TTF_Init: {}\n",
-                .toString(TTF_GetError())));
+                fromStringz(TTF_GetError())));
         }
     }
 

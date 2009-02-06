@@ -18,7 +18,7 @@ import utils.time;
 
 import tango.io.Stdout;
 import stdx.stream : File, FileMode;
-import stdx.string;
+import str = stdx.string;
 
 //these imports register classes in a factory on module initialization
 //so be carefull not to remove them accidentally
@@ -41,7 +41,9 @@ import game.bomberworm; //?
 import common.resview;
 //net tests
 //--compiling this module with LDC results in a segfault
-//--import net.enet_test;
+version(DigitalMars) {
+    import net.enet_test;
+}
 //import net.test;
 
 //import test;
@@ -141,7 +143,7 @@ ConfigNode parseCmdLine(char[][] args) {
         }
         cur = cur[2..$];
 
-        auto has_arg = find(cur, '=');
+        auto has_arg = str.find(cur, '=');
         auto name = has_arg >= 0 ? cur[0..has_arg] : cur;
 
         //get value

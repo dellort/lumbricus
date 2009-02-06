@@ -4,7 +4,6 @@ import framework.framework;
 public import framework.event;
 import gui.widget;
 import gui.container;
-import stdx.string;
 import utils.time;
 import utils.configfile;
 import utils.log;

@@ -5,7 +5,7 @@ import derelict.openal.alut;
 import framework.framework;
 import framework.sound;
 import stdx.stream;
-import str = stdx.string;
+import tango.stdc.stringz;
 import utils.array;
 import utils.misc;
 import utils.time;
@@ -13,19 +13,15 @@ import utils.configfile;
 
 debug import tango.io.Stdout;
 
-private void throwError() {
-    throw new Exception("Sound error: " ~ str.toString(null));
-}
-
 private void throwALUTError(char[] msg) {
-    throw new Exception(msg ~ " failed: "~str.toString(
+    throw new Exception(msg ~ " failed: "~fromStringz(
         alutGetErrorString(alutGetError())));
 }
 
 private void checkALError(char[] msg) {
     int code = alGetError();
     if (code != AL_NO_ERROR) {
-        throw new Exception("call of "~msg~" failed: "~str.toString(
+        throw new Exception("call of "~msg~" failed: "~fromStringz(
             alGetString(code)));
     }
 }

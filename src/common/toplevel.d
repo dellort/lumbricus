@@ -1,7 +1,7 @@
 //connects GUI, Task-stuff and the framework; also contains general stuff
 module common.toplevel;
 
-import stdx.string;
+import str = stdx.string;
 import framework.font;
 import framework.keysyms;
 import framework.framework;
@@ -676,7 +676,7 @@ class StatsWindow : Task {
 
             setLine(0, "GC Used", sizeToHuman(gcs.usedsize));
             setLine(1, "GC Poolsize", sizeToHuman(gcs.poolsize));
-            setLine(2, "Weak objects", .toString(gFramework.weakObjectsCount));
+            setLine(2, "Weak objects", str.toString(gFramework.weakObjectsCount));
 
             n += 3;
 

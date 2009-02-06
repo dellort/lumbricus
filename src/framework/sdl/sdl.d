@@ -1,7 +1,7 @@
 module framework.sdl.sdl;
 
 import derelict.sdl.sdl;
-import stdx.string;
+import tango.stdc.stringz;
 import utils.misc;
 
 //this is not really needed; it's just here to make framework.sdl.framework
@@ -18,7 +18,7 @@ void sdlInit() {
         //probably really needed, don't know
         if (SDL_Init(0) < 0) {
             throw new Exception(myformat("Could not init SDL: {}",
-                .toString(SDL_GetError())));
+                fromStringz(SDL_GetError())));
         }
     }
 }

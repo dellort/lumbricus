@@ -3,7 +3,7 @@ module framework.i18n;
 import framework.filesystem;
 import utils.configfile;
 import utils.log;
-import stdx.string;
+import str = stdx.string;
 import utils.misc;
 import tango.util.Convert;
 
@@ -139,7 +139,7 @@ public class Translator {
     }
 
     private char[] lastId(char[] id) {
-        int pos = rfind(id, '.');
+        int pos = str.rfind(id, '.');
         if (pos < 0)
             assert(pos == -1);
         return id[pos+1 .. $];
@@ -149,20 +149,13 @@ public class Translator {
         return mFullIdOnError?id:lastId(id);
     }
 
-    char[] translateWithArray(char[] id, char[][] args) {
-        ConfigNode subnode;
-        if (mNode)
-            subnode = mNode.getPath(id, false);
-        return DoTranslate(subnode, errorId(id), args);
-    }
-
-    /** like translateWithArray, but with multiple-choice based on rnd, e.g.
+    /** rnd = random value for multiple choice values, like:
       id {
           "Option 1"
           "Option 2"
       }
     */
-    char[] translateWithArrayMC(char[] id, char[][] args, uint rnd) {
+    char[] translateWithArray(char[] id, char[][] args, uint rnd = 0) {
         ConfigNode subnode;
         if (mNode)
             subnode = mNode.getPath(id, false);
@@ -227,11 +220,11 @@ public char[] _(T...)(char[] id, T t) {
 private char[] trivialFormat(char[] text, char[][] t) {
     char[] res;
     while (text.length > 0) {
-        int start = find(text, '{');
+        int start = str.find(text, '{');
         if (start >= 0) {
             res ~= text[0 .. start];
             text = text[start+1 .. $];
-            int end = find(text, '}');
+            int end = str.find(text, '}');
             if (end < 0) {
                 return "ERROR: missing '}' in string '" ~ text ~ "'!";
             }

@@ -60,7 +60,7 @@ class GameFrame : SimpleContainer {
     }
 
     void showMessage(char[] msgid, char[][] args, uint rnd) {
-        char[] translated = mLocaleMsg.translateWithArrayMC(msgid, args, rnd);
+        char[] translated = mLocaleMsg.translateWithArray(msgid, args, rnd);
         mMessageViewer.addMessage(translated);
     }
 

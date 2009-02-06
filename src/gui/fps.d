@@ -3,7 +3,6 @@ module gui.fps;
 import framework.font;
 import framework.framework;
 import gui.widget;
-import stdx.string;
 import utils.time;
 import utils.misc;
 

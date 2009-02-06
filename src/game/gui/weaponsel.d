@@ -20,7 +20,7 @@ import utils.random;
 import utils.misc;
 import utils.vector2;
 
-import stdx.string : cmp;
+import str = stdx.string : cmp;
 
 class WeaponSelWindow : Container {
     private {
@@ -86,7 +86,7 @@ class WeaponSelWindow : Container {
                 auto res = -(w.weapon.value - this.weapon.value);
                 //if of same value compare untranslated names instead
                 if (res == 0)
-                    res = cmp(this.weapon.name, w.weapon.name);
+                    res = str.cmp(this.weapon.name, w.weapon.name);
                 return res;
             }
 

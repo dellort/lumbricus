@@ -9,14 +9,14 @@ import framework.framework;
 import framework.sdl.framework;
 import framework.drawing;
 import tango.math.Math;
-import stdx.string;
+import tango.stdc.stringz;
 import utf = stdx.utf;
 import utils.misc;
 
 debug import tango.io.Stdout;
 
 char[] glErrorToString(GLenum errCode) {
-    char[] res = toString(cast(char*)gluErrorString(errCode));
+    char[] res = fromStringz(cast(char*)gluErrorString(errCode));
     //hur, the man page said, "The string is in ISO Latin 1 format." (!=ASCII?)
     //so check it, not that invalid utf-8 strings leak into the GUI or so
     utf.validate(res);

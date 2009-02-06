@@ -13,7 +13,6 @@ import utils.array;
 import utils.vector2;
 
 import stdx.stream;
-import stdx.string;
 
 private struct GlyphData {
     TextureRef tex;     //glyph texture

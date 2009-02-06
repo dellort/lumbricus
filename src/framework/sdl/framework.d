@@ -5,7 +5,7 @@ import framework.font;
 import framework.event;
 import stdx.stream;
 import tango.io.Stdout;
-import str = stdx.string;
+import tango.stdc.stringz;
 import utils.vector2;
 import framework.sdl.rwops;
 import framework.sdl.fontft;
@@ -369,7 +369,7 @@ class SDLDriver : FrameworkDriver {
 
         if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0) {
             throw new Exception(myformat("Could not init SDL video: {}",
-                str.toString(SDL_GetError())));
+                fromStringz(SDL_GetError())));
         }
 
         //when called before first SetVideoMode, this returns the desktop res
@@ -556,7 +556,7 @@ class SDLDriver : FrameworkDriver {
         if (tmp1 != tmp2 && tmp1.video_active) {
             res = switchVideoTo(state);
         }
-        SDL_WM_SetCaption(str.toStringz(state.window_caption), null);
+        SDL_WM_SetCaption(toStringz(state.window_caption), null);
         mCurVideoState = state;
         mCurVideoState.video_active = !!mSDLScreen;
         if (mCurVideoState.video_active)
@@ -802,7 +802,7 @@ class SDLDriver : FrameworkDriver {
         SDL_RWops* ops = rwopsFromStream(source);
         SDL_Surface* surf = IMG_Load_RW(ops, 0);
         if (!surf) {
-            auto err = str.toString(IMG_GetError());
+            auto err = fromStringz(IMG_GetError());
             throw new Exception("image couldn't be loaded: " ~ err);
         }
 
@@ -922,7 +922,7 @@ class SDLDriver : FrameworkDriver {
 
         char[20] buf;
         char* res = SDL_VideoDriverName(buf.ptr, buf.length);
-        desc ~= myformat("Driver: {}\n", res ? str.toString(res)
+        desc ~= myformat("Driver: {}\n", res ? fromStringz(res)
             : "<unintialized>");
 
         SDL_VideoInfo info = *SDL_GetVideoInfo();
@@ -951,7 +951,7 @@ class SDLDriver : FrameworkDriver {
         if (mOpenGL) {
             void dumpglstr(GLenum t, char[] name) {
                 desc ~= myformat("  {} = {}\n", name,
-                    str.toString(glGetString(t)));
+                    fromStringz(glGetString(t)));
             }
             dumpglstr(GL_VENDOR, "GL_VENDOR");
             dumpglstr(GL_RENDERER, "GL_RENDERER");

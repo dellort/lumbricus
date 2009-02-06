@@ -2,7 +2,7 @@ module derelict.enet.enettypes;
 
 
 version(Windows) {
-    import std.c.windows.winsock;
+    alias uint SOCKET;
     alias SOCKET ENetSocket;
 } else {
     alias int ENetSocket;

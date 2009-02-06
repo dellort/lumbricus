@@ -7,7 +7,7 @@ import framework.sound;
 import framework.sdl.rwops;
 import framework.sdl.sdl;
 import stdx.stream;
-import str = stdx.string;
+import tango.stdc.stringz;
 import utils.array;
 import utils.misc;
 import utils.time;
@@ -16,7 +16,7 @@ import utils.configfile;
 debug import tango.io.Stdout;
 
 private void throwError() {
-    throw new Exception("Sound error: " ~ str.toString(Mix_GetError()));
+    throw new Exception("Sound error: " ~ fromStringz(Mix_GetError()));
 }
 
 class SDLChannel : DriverChannel {
@@ -130,7 +130,7 @@ class SDLSoundDriver : SoundDriver {
         DerelictSDLMixer.load();
         if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0) {
             throw new Exception(myformat("Could not init SDL audio subsystem:"
-                " {}", str.toString(SDL_GetError())));
+                " {}", fromStringz(SDL_GetError())));
         }
 
         //44.1kHz stereo
