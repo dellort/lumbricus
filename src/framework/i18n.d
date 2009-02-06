@@ -128,14 +128,8 @@ public class Translator {
 
     ///Translate a text, similar to the _() function.
     ///Warning: doesn't do namespace resolution.
-    char[] opCall(T...)(char[] id, T t) {
-        //convert tuple to string array
-        //yes, it's a bit sad; it was soo nice before (r341)
-        char[][] bla;
-        foreach (y; t) {
-            bla ~= myformat("{}", y);
-        }
-        return translateWithArray(id, bla);
+    char[] opCall(char[] id, ...) {
+        return translatefx(id, _arguments, _argptr);
     }
 
     private char[] lastId(char[] id) {
@@ -149,13 +143,28 @@ public class Translator {
         return mFullIdOnError?id:lastId(id);
     }
 
-    /** rnd = random value for multiple choice values, like:
-      id {
-          "Option 1"
-          "Option 2"
-      }
-    */
+    /** Pass arguments as char[][] instead of vararg
+     * rnd = random value for multiple choice values, like:
+     *  id {
+     *     "Option 1"
+     *     "Option 2"
+     * }
+     */
     char[] translateWithArray(char[] id, char[][] args, uint rnd = 0) {
+        //lol, manually build the TypeInfo[] for translatefx
+        TypeInfo[] tiar = new TypeInfo[args.length];
+        tiar[] = typeid(char[]);
+        return translatefx(id, tiar, args.ptr, rnd);
+        delete tiar;
+    }
+
+    //like formatfx, only the format string is loaded by id
+    private char[] translatefx(char[] id, TypeInfo[] arguments,
+        va_list argptr, uint rnd = 0)
+    {
+        //empty id, empty result
+        if (id.length == 0)
+            return "";
         ConfigNode subnode;
         if (mNode)
             subnode = mNode.getPath(id, false);
@@ -171,10 +180,12 @@ public class Translator {
                 curIdx++;
             }
         }
-        return DoTranslate(subnode, errorId(id), args);
+        return DoTranslate(subnode, errorId(id), arguments, argptr);
     }
 
-    private char[] DoTranslate(ConfigNode data, char[] id, char[][] t) {
+    private char[] DoTranslate(ConfigNode data, char[] id,
+        TypeInfo[] arguments, va_list argptr)
+    {
         char[] text;
         if (data)
             text = data.value;
@@ -184,7 +195,10 @@ public class Translator {
             else
                 text = id;
         }
-        return trivialFormat(text, t);
+        //seems that tango formatting can't handle that case
+        if (text.length == 0)
+            return "";
+        return formatfx(text, arguments, argptr);
     }
 }
 
@@ -211,45 +225,6 @@ public void initI18N(char[] localePath, char[] lang, char[] fallbackLang,
 
 ///Translate an ID into text in the selected language.
 ///Unlike GNU Gettext, this only takes an ID, not an english text.
-public char[] _(T...)(char[] id, T t) {
-    return gLocaleRoot(id, t);
-}
-
-//possibly replace by tango.text.convert.Layout()
-//this once was generic (using tuples); see above
-private char[] trivialFormat(char[] text, char[][] t) {
-    char[] res;
-    while (text.length > 0) {
-        int start = str.find(text, '{');
-        if (start >= 0) {
-            res ~= text[0 .. start];
-            text = text[start+1 .. $];
-            int end = str.find(text, '}');
-            if (end < 0) {
-                return "ERROR: missing '}' in string '" ~ text ~ "'!";
-            }
-            char[] formatstr = text[0 .. end];
-            text = text[end+1 .. $];
-            //interpret format string: currently it contains a number only
-            int s;
-            try {
-                s = to!(int)(formatstr);
-            } catch (ConversionException e) {
-                return "ERROR: invalid number: '" ~ formatstr ~ "'!";
-            }
-            if (s < 0 || s >= t.length) {
-                return "ERROR: invalid argument number: '" ~ formatstr ~ "'.";
-            }
-
-            res ~= t[s];
-        } else {
-            if (res.length == 0) {
-               res = text;
-            } else {
-                res ~= text;
-            }
-            text = null;
-        }
-    }
-    return res;
+public char[] _(char[] id, ...) {
+    return gLocaleRoot.translatefx(id, _arguments, _argptr);
 }

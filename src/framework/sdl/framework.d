@@ -15,7 +15,6 @@ import derelict.opengl.gl;
 import derelict.opengl.glu;
 import derelict.sdl.sdl;
 import derelict.sdl.image;
-import derelict.sdl.ttf;
 import framework.sdl.keys;
 import math = tango.math.Math;
 import ieee = tango.math.IEEE;
