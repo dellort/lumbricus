@@ -1,4 +1,4 @@
-module game.gui.gametimer;
+module game.hud.gametimer;
 
 import framework.framework;
 import framework.font;
@@ -6,7 +6,7 @@ import common.scene;
 import common.visual;
 import game.clientengine;
 import game.gamepublic;
-import game.gui.teaminfo;
+import game.hud.teaminfo;
 import game.gamemodes.roundbased_shared;
 import gui.container;
 import gui.boxcontainer;

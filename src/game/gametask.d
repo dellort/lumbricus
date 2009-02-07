@@ -11,13 +11,13 @@ import framework.filesystem;
 import framework.i18n;
 import framework.timesource;
 import game.gui.loadingscreen;
-import game.gui.gameframe;
-import game.gui.teaminfo;
+import game.hud.gameframe;
+import game.hud.teaminfo;
+import game.hud.gameview;
 import game.clientengine;
 import game.loader;
 import game.gamepublic;
 import game.sequence;
-import game.gui.gameview;
 import game.game;
 import game.controller;
 import game.gfxset;
@@ -159,11 +159,15 @@ class GameTask : StatefulTask {
     //this _really_ should be considered to be a debugging features
     //(to use it from the factory)
     //use the other constructor and pass it a useful GameConfig
-    this(TaskManager tm) {
+    this(TaskManager tm, char[] args = "") {
         super(tm);
 
         createWindow();
-        initGame(loadGameConfig(globals.anyConfig.getSubNode("newgame")));
+
+        //sorry for this hack... definitely needs to be cleaned up
+        ConfigNode node = globals.anyConfig.getSubNode("newgame");
+        node.setBoolValue("as_pseudo_server", args == "pseudonet");
+        initGame(loadGameConfig(node));
     }
 
     //start a game
@@ -172,17 +176,6 @@ class GameTask : StatefulTask {
 
         createWindow();
         initGame(cfg);
-    }
-
-    //sorry for this hack... definitely needs to be cleaned up
-    this(TaskManager tm, bool pseudonet) {
-        super(tm);
-
-        createWindow();
-
-        ConfigNode node = globals.anyConfig.getSubNode("newgame");
-        node.setBoolValue("as_pseudo_server", pseudonet);
-        initGame(loadGameConfig(node));
     }
 
     this(TaskManager tm, PseudoNetwork pseudo_client) {

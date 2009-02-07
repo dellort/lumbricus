@@ -1,7 +1,7 @@
 //shared GUI specific game data
 //manage some client-side GUI infos about the game, mostly the teams
 //at least the file-/module-name is completely wrong
-module game.gui.teaminfo;
+module game.hud.teaminfo;
 
 import common.visual;
 import framework.font;

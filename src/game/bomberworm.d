@@ -424,7 +424,7 @@ private:
         }
     }
 
-    public this(TaskManager mgr) {
+    public this(TaskManager mgr, char[] args = "") {
         super(mgr);
 
         mTime = new TimeSource();

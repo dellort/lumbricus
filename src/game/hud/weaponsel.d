@@ -1,4 +1,4 @@
-module game.gui.weaponsel;
+module game.hud.weaponsel;
 
 import common.common;
 import common.scene;

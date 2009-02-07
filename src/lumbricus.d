@@ -76,6 +76,19 @@ const cCommandLineHelp =
         Output all log output on stdio.`;
 //Also see parseCmdLine() for how parsing works.
 
+import utils.factory;
+
+StaticFactory!("bla", C, char[]) CFactory;
+
+class C {
+    this(char[] args = "") {
+    }
+
+    static this() {
+        CFactory.register!(typeof(this))("cclass");
+    }
+}
+
 void main(char[][] args) {
     //xxx
     rand_seed(1);

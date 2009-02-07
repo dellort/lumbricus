@@ -1,10 +1,11 @@
-module game.gui.windmeter;
+module game.hud.windmeter;
 
 import framework.framework;
 import common.scene;
 import common.visual;
 import framework.restypes.bitmap;
 import game.clientengine;
+import game.hud.teaminfo;
 import gui.widget;
 import utils.configfile;
 import utils.misc;
@@ -12,29 +13,31 @@ import utils.time;
 import utils.vector2;
 
 class WindMeter : Widget {
-    private ClientGameEngine mEngine;
-    private Vector2i mSize;
-    //private Texture mBackgroundTex;
-    private Texture mWindLeft, mWindRight;
-    private float mTexOffsetf = 0;
-    private Time mLastTime;
-    private Vector2i mPosCenter;
-    private BoxProperties mBoxStyle;
+    private {
+        GameInfo mGame;
+        Vector2i mSize;
+        //Texture mBackgroundTex;
+        Texture mWindLeft, mWindRight;
+        float mTexOffsetf = 0;
+        Time mLastTime;
+        Vector2i mPosCenter;
+        BoxProperties mBoxStyle;
 
-    //pixels/sec
-    private float mAnimSpeed;
-    private int mTexStep;
-    private int mMaxWidth;
+        //pixels/sec
+        float mAnimSpeed;
+        int mTexStep;
+        int mMaxWidth;
+    }
 
-    this(ClientGameEngine engine) {
-        mEngine = engine;
+    this(GameInfo game) {
+        mGame = game;
 
         ConfigNode wmNode = gFramework.loadConfig("windmeter");
 
         //mBackgroundTex = gFramework.resources.resource!(BitmapResource)
         //    ("/windmeter_back").get().createTexture();
-        mWindLeft = engine.resources.get!(Surface)("windmeter_left");
-        mWindRight = engine.resources.get!(Surface)("windmeter_right");
+        mWindLeft = mGame.cengine.resources.get!(Surface)("windmeter_left");
+        mWindRight = mGame.cengine.resources.get!(Surface)("windmeter_right");
 
         int borderdist = wmNode.getIntValue("borderdist", 2);
         mTexStep = wmNode.getIntValue("textureStep", 8);
@@ -60,10 +63,10 @@ class WindMeter : Widget {
         auto deltaT = time - mLastTime;
         mLastTime = time;
         mTexOffsetf = mTexOffsetf + mAnimSpeed*(deltaT.secsf);
-        if (mEngine) {
+        if (mGame.cengine) {
             //canvas.draw(mBackgroundTex, pos);
             drawBox(canvas, pos, mSize, mBoxStyle);
-            float wspeed = mEngine.windSpeed;
+            float wspeed = mGame.cengine.windSpeed;
             int anisize = clampRangeC(cast(int)(wspeed*mMaxWidth),
                 -mMaxWidth,mMaxWidth);
             if (wspeed < 0)

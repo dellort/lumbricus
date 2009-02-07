@@ -1,5 +1,5 @@
 ///in-game display of team infos
-module game.gui.gameteams;
+module game.hud.gameteams;
 
 import common.common;
 import common.scene;
@@ -13,7 +13,7 @@ import gui.tablecontainer;
 import gui.widget;
 import game.clientengine;
 import game.gamepublic;
-import game.gui.teaminfo;
+import game.hud.teaminfo;
 import utils.array;
 import utils.misc;
 import utils.time;

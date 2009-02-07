@@ -1,4 +1,4 @@
-module game.gui.gameframe;
+module game.hud.gameframe;
 
 import common.common;
 import common.scene;
@@ -10,17 +10,16 @@ import gui.container;
 import gui.label;
 import gui.tablecontainer;
 import gui.widget;
-import gui.messageviewer;
 import gui.mousescroller;
-import game.gui.camera;
-import game.gui.loadingscreen;
-import game.gui.gameteams;
-import game.gui.gametimer;
-import game.gui.gameview;
-import game.gui.windmeter;
-import game.gui.teaminfo;
-import game.gui.preparedisplay;
-import game.gui.weaponsel;
+import game.hud.camera;
+import game.hud.gameteams;
+import game.hud.gametimer;
+import game.hud.gameview;
+import game.hud.windmeter;
+import game.hud.teaminfo;
+import game.hud.preparedisplay;
+import game.hud.weaponsel;
+import game.hud.messageviewer;
 import game.clientengine;
 import game.gamepublic;
 import game.game;
@@ -49,19 +48,11 @@ class GameFrame : SimpleContainer {
 
         TeamWindow mTeamWindow;
 
-        MessageViewer mMessageViewer;
-
         Time mLastFrameTime, mRestTime;
         bool mFirstFrame = true;
         Vector2i mScrollToAtStart;
 
-        int mMsgChangeCounter, mWeaponChangeCounter;
-        Translator mLocaleMsg;
-    }
-
-    void showMessage(char[] msgid, char[][] args, uint rnd) {
-        char[] translated = mLocaleMsg.translateWithArray(msgid, args, rnd);
-        mMessageViewer.addMessage(translated);
+        int mWeaponChangeCounter;
     }
 
     private void updateWeapons() {
@@ -135,17 +126,7 @@ class GameFrame : SimpleContainer {
         //only do the rest (like animated sorting) when all was counted down
         mTeamWindow.update(finished);
 
-        int c = game.logic.getMessageChangeCounter();
-        if (c != mMsgChangeCounter) {
-            mMsgChangeCounter = c;
-            char[] id;
-            char[][] args;
-            uint rnd;
-            game.logic.getLastMessage(id, args, rnd);
-            showMessage(id, args, rnd);
-        }
-
-        c = game.logic.getWeaponListChangeCounter();
+        int c = game.logic.getWeaponListChangeCounter();
         if (c != mWeaponChangeCounter) {
             mWeaponChangeCounter = c;
             updateWeapons();
@@ -175,15 +156,17 @@ class GameFrame : SimpleContainer {
         //no children of mGui can receive mouse events
         mGui.mouseEvents = false;
 
-        mGui.add(new WindMeter(clientengine),
+        mGui.add(new WindMeter(game),
             WidgetLayout.Aligned(1, 1, Vector2i(5, 5)));
         mGui.add(new GameTimer(game),
             WidgetLayout.Aligned(-1, 1, Vector2i(5, 5)));
 
         mGui.add(new PrepareDisplay(game));
 
-        mMessageViewer = new MessageViewer();
-        mGui.add(mMessageViewer);
+        mGui.add(new MessageViewer(game));
+
+        mTeamWindow = new TeamWindow(game);
+        mGui.add(mTeamWindow);
 
         gameView = new GameView(game);
         gameView.onTeamChange = &teamChanged;
@@ -205,13 +188,8 @@ class GameFrame : SimpleContainer {
 
         add(mWeaponSel, WidgetLayout.Aligned(1, 1, Vector2i(5, 40)));
 
-        mTeamWindow = new TeamWindow(game);
-        add(mTeamWindow);
-
         WeaponHandle[] wlist = game.logic.weaponList();
         mWeaponSel.init(wlist);
-
-        mLocaleMsg = Translator.ByNamespace("game_msg");
 
         setPosition(clientengine.worldCenter);
     }

@@ -32,7 +32,7 @@ class TeamEditorTask : Task {
         int mLastTeamId = -1;
     }
 
-    this(TaskManager tm) {
+    this(TaskManager tm, char[] args = "") {
         super(tm);
 
         mTeamConf = gFramework.loadConfig("teams");

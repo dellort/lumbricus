@@ -349,7 +349,7 @@ class TestGradient : Container {
 class TestTask : Task {
     //private Widget mWindow;
 
-    this(TaskManager tm) {
+    this(TaskManager tm, char[] args = "") {
         super(tm);
 
         //xxx move to WindowFrame
@@ -481,7 +481,7 @@ class TestTask2 : Task {
         gFramework.releaseCaches(false);
     }
 
-    this(TaskManager tm) {
+    this(TaskManager tm, char[] args = "") {
         super(tm);
 
         mFont = new FontTest();
@@ -610,7 +610,7 @@ class TestTask3 : Task {
         }
     }
 
-    this(TaskManager tm) {
+    this(TaskManager tm, char[] args = "") {
         super(tm);
 
         //yes, most code copypasted from alphatest
@@ -738,7 +738,7 @@ class TestTask4 : Task {
         gFramework.mouseLocked = sender.checked();
     }
 
-    this(TaskManager tm) {
+    this(TaskManager tm, char[] args = "") {
         super(tm);
 
         auto log = new LogWindow(gFramework.getFont("normal"));
@@ -817,7 +817,7 @@ class OffByOneTest : Task {
         }
     }
 
-    this(TaskManager tm) {
+    this(TaskManager tm, char[] args = "") {
         super(tm);
 
         gWindowManager.createWindow(this, new W(), "off-by-one", Vector2i(400, 200));

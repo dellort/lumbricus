@@ -428,7 +428,7 @@ class IRCFrame : Container {
 class IRCTask: Task {
     IRCFrame mIrc;
 
-    this(TaskManager tm) {
+    this(TaskManager tm, char[] args = "") {
         super(tm);
 
         mIrc = new IRCFrame(this);

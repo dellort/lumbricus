@@ -1,4 +1,4 @@
-module game.gui.gameview;
+module game.hud.gameview;
 
 import common.common;
 import framework.font;
@@ -9,9 +9,9 @@ import game.animation;
 import game.gamepublic;
 import game.clientengine;
 import game.sequence;
-import game.gui.camera;
+import game.hud.camera;
 import game.weapon.weapon;
-import game.gui.teaminfo;
+import game.hud.teaminfo;
 import gui.widget;
 import gui.container;
 import gui.label;

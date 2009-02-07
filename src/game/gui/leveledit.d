@@ -737,7 +737,7 @@ public class LevelEditor : Task {
         root.add(tmp);
     }
 
-    this(TaskManager tm) {
+    this(TaskManager tm, char[] args = "") {
         super(tm);
 
         root = new EditRoot();

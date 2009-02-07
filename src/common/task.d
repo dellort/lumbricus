@@ -136,4 +136,4 @@ class TaskManager {
 //and the almighty factory...
 //noone is forced to register Tasks here, but you can use it to start Tasks
 //from the TopLevel commandline
-alias StaticFactory!("Tasks", Task, TaskManager) TaskFactory;
+alias StaticFactory!("Tasks", Task, TaskManager, char[]) TaskFactory;

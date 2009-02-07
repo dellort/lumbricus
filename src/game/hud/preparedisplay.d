@@ -1,4 +1,4 @@
-module game.gui.preparedisplay;
+module game.hud.preparedisplay;
 
 import framework.framework;
 import framework.font;
@@ -6,7 +6,7 @@ import framework.i18n;
 import common.scene;
 import common.visual;
 import game.clientengine;
-import game.gui.teaminfo;
+import game.hud.teaminfo;
 import game.gamepublic;
 import game.gamemodes.roundbased_shared;
 import gui.container;

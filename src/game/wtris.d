@@ -515,7 +515,7 @@ public class WTris : Task {
          }
     }
 
-    this(TaskManager tm) {
+    this(TaskManager tm, char[] args = "") {
         super(tm);
 
         thetime = new TimeSource();

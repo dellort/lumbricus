@@ -525,7 +525,7 @@ class AnimationHandler : ResViewHandler!(Animation) {
 }
 
 class ResViewerTask : Task {
-    this(TaskManager mgr) {
+    this(TaskManager mgr, char[] args = "") {
         super(mgr);
         gWindowManager.createWindow(this, new Viewer(), "Res Viewer",
             Vector2i(750, 500));

@@ -1,4 +1,4 @@
-module game.gui.camera;
+module game.hud.camera;
 
 import framework.timesource;
 import gui.mousescroller;

@@ -15,7 +15,6 @@ import gui.tablecontainer;
 import gui.wm;
 import gui.loader;
 import gui.list;
-import game.gametask;  //xxx
 
 //xxx this maybe shouldn't be here
 class CommandButton : Button {
@@ -43,11 +42,10 @@ class WelcomeTask : Task {
     private {
         Widget mWelcome;
         Window mWindow;
-        static bool cmdregistered;
         char[] mDefaultCommand;
     }
 
-    this(TaskManager tm) {
+    this(TaskManager tm, char[] args = "") {
         super(tm);
         auto config = gFramework.loadConfig("welcome_gui");
         auto loader = new LoadGui(config);
@@ -60,16 +58,6 @@ class WelcomeTask : Task {
         mWindow = gWindowManager.createWindow(this, foo,
             _("welcomescreen.caption"));
         foo.claimFocus();
-
-        if (!cmdregistered) {
-            cmdregistered = true;
-            globals.cmdLine.registerCommand(Command("game_pseudonet",
-                &cmdPseudoNetGame, "start a pseudo networked game"));
-        }
-    }
-
-    private void cmdPseudoNetGame(MyBox[] args, Output write) {
-        new GameTask(manager(), true);
     }
 
     void executeDefault() {
@@ -104,7 +92,7 @@ class LoadGameTask : Task {
         SavegameData[] mSaves;
     }
 
-    this(TaskManager tm) {
+    this(TaskManager tm, char[] args = "") {
         super(tm);
         mSaves = listAvailableSavegames();
         if (mSaves.length > 0) {

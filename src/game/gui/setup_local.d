@@ -66,7 +66,7 @@ class LocalGameSetupTask : Task {
         const cLastlevelConf = "lastlevel";
     }
 
-    this(TaskManager tm) {
+    this(TaskManager tm, char[] args = "") {
         super(tm);
 
         mGenerator = new LevelGeneratorShared();

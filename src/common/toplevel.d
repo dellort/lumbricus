@@ -206,7 +206,8 @@ private:
 
         globals.cmdLine.registerCommand("ps", &cmdPS, "list tasks");
         globals.cmdLine.registerCommand("spawn", &cmdSpawn, "create task",
-            ["text:task name (get available ones with 'help_spawn')"],
+            ["text:task name (get available ones with 'help_spawn')",
+             "text?...:arguments for new task"],
             [&complete_spawn]);
         globals.cmdLine.registerCommand("kill", &cmdKill, "kill a task by ID",
             ["int:task id"]);
@@ -365,9 +366,10 @@ private:
 
     private void cmdSpawn(MyBox[] args, Output write) {
         char[] name = args[0].unbox!(char[])();
+        char[] spawnArgs = args[1].unboxMaybe!(char[])();
         Task n;
         try {
-            n = TaskFactory.instantiate(name, taskManager);
+            n = TaskFactory.instantiate(name, taskManager, spawnArgs);
         } catch (ClassNotFoundException e) {
             //xxx: and what if the Task was found, but the Task constructor
             //     throws this exception??
@@ -612,7 +614,7 @@ private:
 }
 
 class ConsoleWindow : Task {
-    this(TaskManager mgr) {
+    this(TaskManager mgr, char[] args = "") {
         super(mgr);
         gWindowManager.createWindowFullscreen(this,
             new GuiConsole(true, globals.cmdLine), "Console");
@@ -632,7 +634,7 @@ class StatsWindow : Task {
     Window wnd;
     TableContainer table;
 
-    this(TaskManager mgr) {
+    this(TaskManager mgr, char[] args = "") {
         super(mgr);
         bla = gTopLevel;
         table = new TableContainer(2, 0, Vector2i(10, 0));
@@ -711,7 +713,7 @@ class SwitchDriver : Task {
 
     Button[] mChks;
 
-    this(TaskManager mgr) {
+    this(TaskManager mgr, char[] args = "") {
         super(mgr);
 
         mChks.length = configs.length;

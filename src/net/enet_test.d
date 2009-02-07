@@ -23,7 +23,7 @@ class TestEnet : Task {
         static uint mInstance;
     }
 
-    this(TaskManager tm) {
+    this(TaskManager tm, char[] args = "") {
         super(tm);
         auto c = new GuiConsole();
         mOut = c.console;

@@ -1,32 +1,43 @@
-module gui.messageviewer;
+module game.hud.messageviewer;
 
 import framework.framework;
 import framework.font;
+import framework.i18n;
 import common.scene;
 import common.visual;
+import game.hud.teaminfo;
 import gui.widget;
 import utils.misc;
 import utils.time;
 import utils.queue;
 
 class MessageViewer : Widget {
-    private Queue!(char[]) mMessages;
-    private char[] mCurrentMessage;
-    private Font mFont;
-    private Time mLastFrame;
-    private int mPhase; //0 = nothing, 1 = blend in, 2 = show, 3 = blend out, 4 = wait
-    private Time mPhaseStart; //start of current phase
-    private Vector2i mMessageSize;
-    private float mMessagePos;
-    private float mMessageWay; //way over which message is scrolled
+    private {
+        GameInfo mGame;
+        Queue!(char[]) mMessages;
+        char[] mCurrentMessage;
+        Font mFont;
+        Time mLastFrame;
+        int mPhase; //0 = nothing, 1 = blend in, 2 = show, 3 = blend out, 4 = wait
+        Time mPhaseStart; //start of current phase
+        Vector2i mMessageSize;
+        float mMessagePos;
+        float mMessageWay; //way over which message is scrolled
 
-    static const int cPhaseTimingsMs[] = [0, 150, 1000, 150, 200];
+        Translator mLocaleMsg;
+        int mMsgChangeCounter;
 
-    //offset of message from upper border
-    const cMessageOffset = 5;
-    const Vector2i cMessageBorders = {7, 3};
+        const int cPhaseTimingsMs[] = [0, 150, 1000, 150, 200];
 
-    this() {
+        //offset of message from upper border
+        const cMessageOffset = 5;
+        const Vector2i cMessageBorders = {7, 3};
+    }
+
+    this(GameInfo game) {
+        mGame = game;
+        mLocaleMsg = Translator.ByNamespace("game_msg");
+
         mFont = gFramework.fontManager.loadFont("messages");
         mMessages = new Queue!(char[]);
         mLastFrame = timeCurrentTime();
@@ -45,7 +56,22 @@ class MessageViewer : Widget {
         return !working();
     }
 
+    void showMessage(char[] msgid, char[][] args, uint rnd) {
+        char[] translated = mLocaleMsg.translateWithArray(msgid, args, rnd);
+        addMessage(translated);
+    }
+
     override void simulate() {
+        int c = mGame.logic.getMessageChangeCounter();
+        if (c != mMsgChangeCounter) {
+            mMsgChangeCounter = c;
+            char[] id;
+            char[][] args;
+            uint rnd;
+            mGame.logic.getLastMessage(id, args, rnd);
+            showMessage(id, args, rnd);
+        }
+
         Time phaseT = timeMsecs(cPhaseTimingsMs[mPhase]);
         Time cur = timeCurrentTime;
         Time deltaT = cur - mLastFrame;
