@@ -19,6 +19,7 @@ import gui.button;
 import gui.wm;
 import gui.loader;
 import gui.list;
+import gui.boxcontainer;
 import utils.configfile;
 
 //import std.thread;
@@ -30,7 +31,8 @@ class LocalGameSetupTask : Task {
         Window mWindow;
         DropDownList mSavedLevels;
         DropDownList mTemplates;
-        Button mLevelBtn, mGoBtn;
+        Button mLevelBtn, mGoBtn, mLevelSaveBtn;
+        BoxContainer mLevelDDBox;
 
         LevelGeneratorShared mGenerator;
         LevelGenerator mCurrentLevel;
@@ -84,15 +86,18 @@ class LocalGameSetupTask : Task {
         mLevelBtn.onRightClick = &levelRightClick;
 
         mSavedLevels = loader.lookup!(DropDownList)("dd_level");
-        char[][] storedlevels;
-        storedlevels ~= _("gamesetup.lastplayed");
-        gFramework.fs.listdir(cSavedLevelsPath, "*.conf", false, (char[] fn) {
-            storedlevels ~= fn[0..$-5];
-            return true;
-        });
-        mSavedLevels.list.setContents(storedlevels);
+        readSavedLevels();
         mSavedLevels.selection = _("gamesetup.lastplayed");
         mSavedLevels.onSelect = &levelSelect;
+        mSavedLevels.onEditStart = &levelEditStart;
+        mSavedLevels.onEditEnd = &levelEditEnd;
+        mSavedLevels.edit.onChange = &levelEditChange;
+
+        mLevelSaveBtn = loader.lookup!(Button)("btn_savelevel");
+        mLevelSaveBtn.onClick = &saveLevelClick;
+        mLevelSaveBtn.remove();
+
+        mLevelDDBox = loader.lookup!(BoxContainer)("box_leveldd");
 
         mTemplates = loader.lookup!(DropDownList)("dd_templates");
         mTemplates.selection = "TODO";
@@ -113,6 +118,16 @@ class LocalGameSetupTask : Task {
         loadTeams();
     }
 
+    private void readSavedLevels() {
+        char[][] storedlevels;
+        storedlevels ~= _("gamesetup.lastplayed");
+        gFramework.fs.listdir(cSavedLevelsPath, "*.conf", false, (char[] fn) {
+            storedlevels ~= fn[0..$-5];
+            return true;
+        });
+        mSavedLevels.list.setContents(storedlevels);
+    }
+
     private void setCurrentLevel(LevelGenerator gen) {
         float as = gen.previewAspect();
         if (as != as)
@@ -120,6 +135,7 @@ class LocalGameSetupTask : Task {
         auto sz = Vector2i(cast(int)(mLevelBtn.size.y*as), mLevelBtn.size.y);
         mLevelBtn.image = gen.preview(sz);
         mCurrentLevel = gen;
+        mSavedLevels.allowEdit = true;
     }
 
     private void loadLastPlayedLevel() {
@@ -138,6 +154,25 @@ class LocalGameSetupTask : Task {
         scope level = gFramework.loadConfig(cSavedLevelsPath~sender.selection);
         auto gen = new GenerateFromSaved(mGenerator, level);
         setCurrentLevel(gen);
+        //level is already saved
+        mSavedLevels.allowEdit = false;
+    }
+
+    private void levelEditStart(DropDownList sender) {
+        sender.edit.text = "";
+    }
+
+    private void levelEditChange(EditLine sender) {
+        if (sender.text.length > 0) {
+            mLevelSaveBtn.remove();
+            mLevelDDBox.add(mLevelSaveBtn);
+        } else {
+            mLevelSaveBtn.remove();
+        }
+    }
+
+    private void levelEditEnd(DropDownList sender) {
+        mLevelSaveBtn.remove();
     }
 
     private void levelClick(Button sender) {
@@ -146,6 +181,18 @@ class LocalGameSetupTask : Task {
         gen.generate();
         setCurrentLevel(gen);
         mSavedLevels.selection = "";
+    }
+
+    private void saveLevelClick(Button sender) {
+        if (!mSavedLevels.allowEdit)
+            return;
+        char[] lname = mSavedLevels.edit.text;
+        auto tmpLevel = mCurrentLevel.render(false);
+        saveConfig(tmpLevel.saved, cSavedLevelsPath ~ lname ~ ".conf");
+        delete tmpLevel;
+        readSavedLevels();
+        mSavedLevels.allowEdit = false;
+        mSavedLevels.selection = lname;
     }
 
     private void levelRightClick(Button sender) {
