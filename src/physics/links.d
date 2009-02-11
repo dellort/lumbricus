@@ -84,7 +84,9 @@ class PhysicConstraint : PhysicContactGen {
         float deltaLen = currentLen - length;
 
         //if not, assume we hit something, and set new length to actual length
-        if (abs(deltaLen) > cTolerance)
+        //this check prevents shortening when no lengthChange is applied
+        if ((deltaLen < -cTolerance && lengthChange > float.epsilon)
+            || (deltaLen > cTolerance && lengthChange < -float.epsilon))
             length = currentLen;
     }
 }

@@ -45,6 +45,8 @@ interface WormController {
 
     void reduceAmmo(Shooter sh);
 
+    void firedWeapon(Shooter sh, bool refire);
+
     void doneFiring(Shooter sh);
 }
 
@@ -418,7 +420,7 @@ class WormSprite : GObjectSprite {
                 return false;
             if (mShooterSec && mShooterSec.activity) {
                 //think of firing a supersheep on a rope
-                mShooterSec.refire();
+                refireWeapon(mShooterSec);
                 return true;
             }
             if (!mWeapon)
@@ -432,7 +434,7 @@ class WormSprite : GObjectSprite {
         //not firing a secondary weapon, allow main fire key for alternate, too
         if (mShooterMain && mShooterMain.activity()) {
             if (!keyUp) {
-                return mShooterMain.refire();
+                return refireWeapon(mShooterMain);
             }
             return false;
         }
@@ -479,7 +481,7 @@ class WormSprite : GObjectSprite {
 
         //pressed fire button again while shooter is active,
         //so don't fire another round but let the shooter handle it
-        return mShooterMain.refire();
+        return refireWeapon(mShooterMain);
     }
 
     //would the alternate-fire-button have an effect
@@ -546,6 +548,19 @@ class WormSprite : GObjectSprite {
         sh.ammoCb = &reduceAmmo;
         sh.finishCb = &shooterFinish;
         sh.fire(info);
+
+        if (wcontrol)
+            wcontrol.firedWeapon(sh, false);
+    }
+
+    private bool refireWeapon(Shooter sh) {
+        assert(!!sh);
+        if (sh.refire()) {
+            if (wcontrol)
+                wcontrol.firedWeapon(sh, true);
+            return true;
+        }
+        return false;
     }
 
     //callback from shooter when a round was fired

@@ -151,6 +151,9 @@ public class Translator {
      * }
      */
     char[] translateWithArray(char[] id, char[][] args, uint rnd = 0) {
+        version(GNU) {
+            static assert(false, "Think of something");
+        }
         //lol, manually build the TypeInfo[] for translatefx
         TypeInfo[] tiar = new TypeInfo[args.length];
         tiar[] = typeid(char[]);

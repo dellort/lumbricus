@@ -126,7 +126,7 @@ class ModeRoundbased : Gamemode {
                 //if not in multishot mode, firing ends the round
                 if (!mMultishot && mCurrentTeam.current.weaponUsed)
                     return RoundState.retreat;
-                if (!mCurrentTeam.current.isAlive       //active worm dead
+                if (!mCurrentTeam.current.alive       //active worm dead
                     || mCurrentTeam.current.lifeLost)   //active worm damaged
                 {
                     return RoundState.waitForSilence;
@@ -136,7 +136,7 @@ class ModeRoundbased : Gamemode {
             case RoundState.retreat:
                 //give him some time to run, hehe
                 if (wait(mRetreatTime)
-                    || !mCurrentTeam.current.isAlive
+                    || !mCurrentTeam.current.alive
                     || mCurrentTeam.current.lifeLost)
                     return RoundState.waitForSilence;
                 break;
@@ -158,12 +158,12 @@ class ModeRoundbased : Gamemode {
                     return RoundState.waitForSilence;
 
                 //wait some msecs to show the health labels
-                if (wait(cNextRoundWait)) {
+                if (wait(cNextRoundWait) && logic.messageIsIdle()) {
                     //check if at least two teams are alive
                     int aliveTeams;
                     ServerTeam firstAlive;
                     foreach (t; logic.teams) {
-                        if (t.isAlive()) {
+                        if (t.alive()) {
                             aliveTeams++;
                             firstAlive = t;
                         }
@@ -241,7 +241,7 @@ class ModeRoundbased : Gamemode {
                 //select next team/worm
                 ServerTeam next = arrayFindNextPred(logic.teams, mLastTeam,
                     (ServerTeam t) {
-                        return t.isAlive();
+                        return t.alive();
                     }
                 );
                 currentTeam = null;

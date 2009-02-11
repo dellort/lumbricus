@@ -22,9 +22,6 @@ import utils.array;
 import utils.queue;
 import utils.reflection;
 
-import framework.i18n;
-
-import str = stdx.string;
 import math = tango.math.Math;
 
 //nasty proxy to the currently active TeamMember
@@ -278,8 +275,9 @@ class ServerTeam : Team {
         return teamColor;
     }
 
+    //if there's any alive worm
     bool alive() {
-        return isAlive(); //oops
+        return findNext(null, true) !is null;
     }
 
     bool active() {
@@ -345,7 +343,7 @@ class ServerTeam : Team {
     ServerTeamMember findNext(ServerTeamMember w, bool must_be_alive = false) {
         return arrayFindNextPred(mMembers, w,
             (ServerTeamMember t) {
-                return !must_be_alive || t.isAlive;
+                return !must_be_alive || t.alive;
             }
         );
     }
@@ -367,11 +365,6 @@ class ServerTeam : Team {
     ///get active member (can be null)
     ServerTeamMember current() {
         return mCurrent;
-    }
-
-    //if there's any alive worm
-    bool isAlive() {
-        return findNext(null, true) !is null;
     }
 
     bool isActive() {
@@ -534,7 +527,7 @@ class ServerTeam : Team {
     bool isIdle() {
         foreach (m; mMembers) {
             //check if any alive member is still moving around
-            if (m.isAlive() && !m.isIdle())
+            if (m.alive() && !m.isIdle())
                 return false;
         }
         return true;
@@ -544,6 +537,28 @@ class ServerTeam : Team {
         if (mCurrentTargetInd) {
             if (mCurrentTargetInd.hasFinished()) {
                 setIndicator(null);
+            }
+        }
+        //xxx checking all members every frame, too expensive?
+        foreach (m; mMembers) {
+            if (!m.mWorm)
+                continue;
+            //check if a worm is really dead (i.e. "gone"), like after drowning,
+            //or when finished blowing himself up
+            if (m.mWorm.physics.dead) {
+                if (m.mWorm.hasDrowned()) {
+                    //death by drowning
+                    //drowned worms go physics.dead when reaching the bottom
+                    parent.messageAdd("msgdrown", [m.name]);
+                    parent.events.onWorm(WormEvent.wormDrown, m);
+                } else {
+                    //death by exploding
+                    //suiciding worms go physics.dead when done blowing up
+                    parent.messageAdd("msgdie", [m.name]);
+                    parent.events.onWorm(WormEvent.wormDie, m);
+                }
+                m.removeWorm();
+                continue;
             }
         }
         if (!mActive)
@@ -556,20 +571,13 @@ class ServerTeam : Team {
         foreach (m; mMembers) {
             auto worm = m.mWorm;
             //already dead -> boring
-            //also bail out here if worm drowned/is drowning
-            if (!worm || worm.isReallyDead()) {
-                if (worm && worm.hasDrowned())
-                    //xxx maybe show these earlier, but how?
-                    parent.messageAdd("msgdrown", [m.name]);
-                m.removeWorm();
+            if (!worm)
                 continue;
-            }
 
             //3 possible states: healthy, unhealthy but not suiciding, suiciding
             if (worm.shouldDie() && !worm.isDelayedDying()) {
                 //unhealthy, not suiciding
                 worm.finallyDie();
-                parent.messageAdd("msgdie", [m.name]);
                 assert(worm.isDelayedDying() || worm.isDead());
                 return true;
             } else if (worm.isDelayedDying()) {
@@ -653,6 +661,11 @@ class ServerTeamMember : TeamMember, WormController {
         return mActive;
     }
 
+    bool alive() {
+        //currently by havingwormspriteness... since dead worms haven't
+        return (mWorm !is null) && !mWorm.isDead();
+    }
+
     int currentHealth() {
         return mCurrentHealth;
     }
@@ -666,18 +679,13 @@ class ServerTeamMember : TeamMember, WormController {
 
     // --- end TeamMember
 
-    bool alive() {
-        //xxx this is fishy
-        return isAlive;
-    }
-
-    int health() {
+    int health(bool realHp = false) {
         //hack to display negative values
         //the thing is that a worm can be dead even if the physics report a
         //positive value - OTOH, we do want these negative values... HACK GO!
         //mLastKnownPhysicHealth is there because mWorm could disappear
         auto h = mWorm ? mWorm.physics.lifepowerInt : mLastKnownPhysicHealth;
-        if (isAlive()) {
+        if (alive() || realHp) {
             return h;
         } else {
             return h < 0 ? h : 0;
@@ -718,13 +726,8 @@ class ServerTeamMember : TeamMember, WormController {
         return mWorm;
     }
 
-    bool isAlive() {
-        //currently by havingwormspriteness... since dead worms haven't
-        return (mWorm !is null) && !mWorm.isDead();
-    }
-
     bool isControllable() {
-        return mActive && isAlive() && mTeam.isControllable();
+        return mActive && alive() && mTeam.isControllable();
     }
 
     char[] toString() {
@@ -751,12 +754,13 @@ class ServerTeamMember : TeamMember, WormController {
             if (!mCurrentWeapon)
                 mCurrentWeapon = mTeam.defaultWeapon;
             selectWeapon(mCurrentWeapon);
+            mTeam.parent.events.onWorm(WormEvent.wormActivate, this);
         } else {
             //being deactivated
             move(Vector2f(0));
             mLastAction = Time.Null;
             mWormAction = false;
-            if (isAlive) {
+            if (alive) {
                 mWorm.activateJetpack(false);
             }
             mWorm.weapon = null;
@@ -764,6 +768,7 @@ class ServerTeamMember : TeamMember, WormController {
             mWorm.forceAbort();
             mFireDown = false;
             mActive = act;
+            mTeam.parent.events.onWorm(WormEvent.wormDeactivate, this);
         }
     }
 
@@ -831,7 +836,7 @@ class ServerTeamMember : TeamMember, WormController {
 
     //update weapon state of current worm (when new weapon selected)
     private void updateWeapon() {
-        if (!mActive || !isAlive)
+        if (!mActive || !alive)
             return;
 
         WeaponClass selected;
@@ -918,6 +923,8 @@ class ServerTeamMember : TeamMember, WormController {
         return false;
     }
 
+    // Start WormController implementation (see game.worm) -->
+
     Vector2f getTarget() {
         return mTeam.currentTarget;
     }
@@ -936,10 +943,16 @@ class ServerTeamMember : TeamMember, WormController {
         //    undrawn! (???)
     }
 
+    void firedWeapon(Shooter sh, bool refire) {
+        mTeam.parent.events.onFireWeapon(sh.weapon, refire);
+    }
+
     void doneFiring(Shooter sh) {
         if (!sh.weapon.dontEndRound)
             mWeaponUsed = true;
     }
+
+    // <-- End WormController
 
     //has the worm fired something since he became active?
     bool weaponUsed() {
@@ -964,7 +977,7 @@ class ServerTeamMember : TeamMember, WormController {
     }
 
     private void move(Vector2f vec) {
-        if (!isAlive)
+        if (!alive)
             return;
         if (!isControllable || vec == mLastMoveVector) {
             mWorm.move(Vector2f(0));
@@ -1156,6 +1169,9 @@ class GameController : GameLogicPublic {
         char[] mGamemodeId;
 
         CrateSprite mLastCrate;  //just to drop it on spacebar
+        bool mGameEnded;
+
+        EventAggregator mEvents;
     }
 
     this(GameEngine engine, GameConfig config) {
@@ -1174,6 +1190,8 @@ class GameController : GameLogicPublic {
         mGamemodeId = config.gamemode["mode"];
         mGamemode = GamemodeFactory.instantiate(mGamemodeId, this,
             config.gamemode);
+
+        mEvents = new EventAggregator(this);
 
         mMessages = new Queue!(Message);
         mLastMsgTime = -cMessageTime;
@@ -1365,6 +1383,11 @@ class GameController : GameLogicPublic {
             if (mLastCrate) {
                 if (!mLastCrate.active) mLastCrate = null;
             }
+
+            if (mGamemode.ended() && !mGameEnded) {
+                mGameEnded = true;
+                mEvents.output();
+            }
         }
     }
 
@@ -1535,35 +1558,15 @@ class GameController : GameLogicPublic {
         return null;
     }
 
-    void reportViolence(GameObject cause, GameObject victim, float damage) {
+    void reportViolence(GameObject cause, GObjectSprite victim, float damage) {
         assert(!!cause && !!victim);
-        auto m1 = memberFromGameObject(cause, true);
-        auto m2 = memberFromGameObject(victim, false);
-        char[] wname = "unknown_weapon";
         auto wclass = weaponFromGameObject(cause);
-        if (wclass)
-            wname = wclass.name;
-        if (m1 && m2) {
-            if (m1 is m2)
-                log("worm {} injured himself by {} with {}", m1, damage, wname);
-            else
-                log("worm {} injured {} by {} with {}", m1, m2, damage, wname);
-        } else if (m1 && !m2) {
-            log("worm {} caused {} collateral damage with {}", m1, damage,
-                wname);
-        } else if (!m1 && m2) {
-            //neutral damage is not caused by weapons
-            assert(wclass is null, "some createdBy relation wrong");
-            log("victim {} received {} damage from neutral objects", m2,
-                damage);
-        } else {
-            log("unknown damage {}/{} {}/{} {}", cause, victim, m1, m2, damage);
-        }
+        events.onDamage(cause, victim, damage, wclass);
     }
 
     void reportDemolition(int pixelCount, GameObject cause) {
         assert(!!cause);
-        log("blasted {} pixels of land", pixelCount);
+        events.onDemolition(pixelCount, cause);
     }
 
     //queue for placing anywhere on landscape
@@ -1611,5 +1614,160 @@ class GameController : GameLogicPublic {
             log("failed to create crate contents");
         }
         return false;
+    }
+
+    EventAggregator events() {
+        return mEvents;
+    }
+}
+
+
+//stupid simple statistics module
+//this whole thing is more or less debugging code
+//
+//currently missing:
+//  - Team/Worm-based statistics
+//  - Proper output/sending to clients
+//  - timecoded events, with graph drawing?
+//  - gamemode dependency?
+
+
+
+enum WormEvent {
+    wormDie,
+    wormDrown,
+    wormActivate,
+    wormDeactivate,
+}
+
+class EventAggregator {
+    private {
+        static LogStruct!("gameevents") log;
+        GameController mController;
+    }
+
+    this(GameController c) {
+        mController = c;
+    }
+    this(ReflectCtor c) {
+    }
+
+    void onDamage(GameObject cause, GObjectSprite victim, float damage,
+        WeaponClass wclass)
+    {
+        char[] wname = "unknown_weapon";
+        if (wclass)
+            wname = wclass.name;
+        auto m1 = mController.memberFromGameObject(cause, true);
+        auto m2 = mController.memberFromGameObject(victim, false);
+        char[] dmgs = myformat("{}", damage);
+        if (victim.physics.lifepower < 0) {
+            float ov = min(-victim.physics.lifepower, damage);
+            mOverDmg += ov;
+            dmgs = myformat("{} ({} overdmg)", damage, ov);
+        }
+        mTotalDmg += damage;
+        if (m1 && m2) {
+            if (m1 is m2)
+                log("worm {} injured himself by {} with {}", m1, dmgs, wname);
+            else
+                log("worm {} injured {} by {} with {}", m1, m2, dmgs, wname);
+        } else if (m1 && !m2) {
+            mCollateralDmg += damage;
+            log("worm {} caused {} collateral damage with {}", m1, dmgs,
+                wname);
+        } else if (!m1 && m2) {
+            //neutral damage is not caused by weapons
+            assert(wclass is null, "some createdBy relation wrong");
+            mNeutralDamage += damage;
+            log("victim {} received {} damage from neutral objects", m2,
+                dmgs);
+        } else {
+            //most likely level objects blowing up other objects
+            //  -> count as collateral
+            mCollateralDmg += damage;
+            log("unknown damage {}", dmgs);
+        }
+    }
+
+    void onDemolition(int pixelCount, GameObject cause) {
+        mPixelsDestroyed += pixelCount;
+        //log("blasted {} pixels of land", pixelCount);
+    }
+
+    void onFireWeapon(WeaponClass wclass, bool refire = false) {
+        char[] wname = "unknown_weapon";
+        if (wclass)
+            wname = wclass.name;
+        log("Fired weapon (refire={}): {}",refire,wname);
+        if (!refire) {
+            if (!(wclass in mWeaponStats))
+                mWeaponStats[wclass] = 1;
+            else
+                mWeaponStats[wclass] += 1;
+            mShotsFired++;
+        }
+    }
+
+    void onWorm(WormEvent id, ServerTeamMember m) {
+        switch (id) {
+            case WormEvent.wormActivate:
+                log("Worm activate: {}", m);
+                break;
+            case WormEvent.wormDeactivate:
+                log("Worm deactivate: {}", m);
+                break;
+            case WormEvent.wormDie:
+                log("Worm die: {}", m);
+                mWormsDied++;
+                break;
+            case WormEvent.wormDrown:
+                int dh = m.currentHealth() - m.health();
+                log("Worm drown (floating label would say: {}): {} ", dh, m);
+                if (m.health(true) > 0)
+                    mWaterDmg += m.health(true);
+                mWormsDrowned++;
+                break;
+            default:
+        }
+    }
+
+    void onCrate(ServerTeamMember m, Collectable[] stuffies) {
+        log("{} collects crate: {}", m, stuffies);
+        mCrateCount++;
+    }
+
+    //xxx for debugging only
+
+    private {
+        float mTotalDmg = 0f, mCollateralDmg = 0f, mOverDmg = 0f,
+            mWaterDmg = 0f, mNeutralDamage = 0f;
+        int mWormsDied, mWormsDrowned, mShotsFired, mPixelsDestroyed,
+            mCrateCount;
+        int[WeaponClass] mWeaponStats;
+    }
+
+    //dump everything to console
+    void output() {
+        log("Worms killed: {} ({} died, {} drowned)", mWormsDied+mWormsDrowned,
+            mWormsDied, mWormsDrowned);
+        log("Total damage caused: {}", mTotalDmg);
+        log("Damage by water: {}", mWaterDmg);
+        log("Collateral damage caused: {}", mCollateralDmg);
+        log("Damage by neutral objects: {}", mNeutralDamage);
+        log("Total overdamage: {}", mOverDmg);
+        log("Shots fired: {}", mShotsFired);
+        int c = -1;
+        WeaponClass maxw;
+        foreach (WeaponClass wc, int count; mWeaponStats) {
+            if (count > c) {
+                maxw = wc;
+                c = count;
+            }
+        }
+        if (maxw)
+            log("Favorite weapon: {} ({} shots)", maxw.name, c);
+        log("Landscape destroyed: {} pixels", mPixelsDestroyed);
+        log("Crates collected: {}", mCrateCount);
     }
 }

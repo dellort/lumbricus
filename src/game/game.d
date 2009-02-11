@@ -713,7 +713,7 @@ class GameEngine : GameEnginePublic {
     //sry!
     private void onDamage(Object cause, Object victim, float damage) {
         auto a = cast(GameObject)cause;
-        auto b = cast(GameObject)victim;
+        auto b = cast(GObjectSprite)victim;
         if (!a || !b) {
             log("WARNING: unknown damage: {} {} {}", cause, victim, damage);
         } else {

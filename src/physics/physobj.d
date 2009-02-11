@@ -17,6 +17,8 @@ import str = stdx.string;
 const cDamageCauseFall = 0;
 const cDamageCauseDeath = -1;
 
+//version = WalkDebug;
+
 //simple physical object (has velocity, position, mass, radius, ...)
 class PhysicObject : PhysicBase {
     package ListNode objects_node;
@@ -461,7 +463,7 @@ class PhysicObject : PhysicBase {
 
             //must stand on surface when walking
             if (!isGlued) {
-                log("no walk because not glued");
+                version(WalkDebug) log("no walk because not glued");
                 return;
             }
 
@@ -480,18 +482,18 @@ class PhysicObject : PhysicBase {
                     contact);
 
                 if (!res) {
-                    log("walk at {} -> {}", npos, npos-mPos);
+                    version(WalkDebug) log("walk at {} -> {}", npos, npos-mPos);
                     //no collision, consider this to be bottom
 
                     auto oldpos = pos;
 
                     if (first) {
                         //even first tested location => most bottom, fall
-                        log("walk: fall-bottom");
+                        version(WalkDebug) log("walk: fall-bottom");
                         mPos += walkDist;
                         doUnglue();
                     } else {
-                        log("walk: bottom at {}", y);
+                        version(WalkDebug) log("walk: bottom at {}", y);
                         //walk to there...
                         if (mPosp.walkLimitSlopeSpeed) {
                             //one pixel at a time, even on steep slopes

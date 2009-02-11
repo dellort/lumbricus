@@ -36,6 +36,10 @@ class Collectable {
         //default is do nothing
     }
 
+    char[] toString() {
+        return id();
+    }
+
     this () {
     }
     this (ReflectCtor c) {
@@ -181,7 +185,7 @@ class CrateSprite : ActionSprite {
         //only collect crates when it's your turn
         if (!member.active)
             return;
-        log("{} collects crate {}", member, this);
+        engine.controller.events.onCrate(member, stuffies);
         //transfer stuffies
         foreach (Collectable c; stuffies) {
             engine.controller.messageAdd("collect_item", [member.name(),
