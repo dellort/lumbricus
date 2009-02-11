@@ -80,12 +80,12 @@ class LandscapeGeometry : PhysicGeometry {
 }
 
 //these 2 functions are used by the server and client code (network case)
-public void landscapeDamage(LandscapeBitmap ls, Vector2i pos, int radius,
+public int landscapeDamage(LandscapeBitmap ls, Vector2i pos, int radius,
     LandscapeTheme theme)
 {
     //NOTE: clipping should have been done by the caller already, and the
     // blastHole function also does clip; so don't care
-    ls.blastHole(pos, radius, cBlastBorder, theme);
+    return ls.blastHole(pos, radius, cBlastBorder, theme);
 }
 public void landscapeInsert(LandscapeBitmap ls, Vector2i pos,
     Resource!(Surface) bitmap)
@@ -153,19 +153,21 @@ class GameLandscape : GameObject {
         engine.physicworld.add(mPhysics);
     }
 
-    public void damage(Vector2i pos, int radius) {
+    public int damage(Vector2i pos, int radius) {
         if (radius <= 0)
-            return;
+            return 0;
+        int count;
         pos -= mOffset;
         auto vr = Vector2i(radius + cBlastBorder);
         if (Rect2i(mSize).intersects(Rect2i(-vr, vr) + pos)) {
-            landscapeDamage(mLandscape, pos, radius,
+            count = landscapeDamage(mLandscape, pos, radius,
                 mOriginal ? mOriginal.landscape_theme : null);
             mPhysics.generationNo++;
 
             //this was for replication of the bitmap over network
             //mGraphic.damage(mOffset, radius);
         }
+        return count;
     }
 
     public void insert(Vector2i pos, Resource!(Surface) bitmap) {

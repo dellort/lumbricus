@@ -101,8 +101,10 @@ class ActionShooter : Shooter, ProjectileFeedback {
         switch (id) {
             case "fireinfo":
                 return MyBox.Box(fireInfo);
-            case "owner_game":
-                return MyBox.Box!(GameObject)(owner);
+            case "owner_sprite":
+                return MyBox.Box!(GObjectSprite)(owner);
+            case "created_by":
+                return MyBox.Box!(GameObject)(this);
             case "feedback":
                 return MyBox.Box!(ProjectileFeedback)(this);
             default:

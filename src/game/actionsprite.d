@@ -125,7 +125,9 @@ class ActionSprite : GObjectSprite {
         switch (id) {
             case "sprite":
                 return MyBox.Box(this);
-            case "owner_game":
+            case "owner_sprite":
+                return MyBox.Box(cast(GObjectSprite)this);
+            case "created_by":
                 return MyBox.Box(cast(GameObject)this);
             case "fireinfo":
                 //get current FireInfo data (physics)

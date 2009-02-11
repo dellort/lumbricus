@@ -186,8 +186,8 @@ class SpawnAction : WeaponAction {
         if (!mFireInfo.info.pos.isNaN) {
             //delay is not used, use ActionList looping for this
             for (int n = 0; n < myclass.sparams.count; n++) {
-                spawnsprite(engine, n, myclass.sparams, mFireInfo.info, mShootbyObj,
-                    rft);
+                spawnsprite(engine, n, myclass.sparams, mFireInfo.info,
+                    mCreatedBy, rft);
             }
         }
         return ActionRes.done;

@@ -1522,15 +1522,48 @@ class GameController : GameLogicPublic {
         return aaIfIn(mGameObjectToMember, go);
     }
 
+    WeaponClass weaponFromGameObject(GameObject go) {
+        //commonly, everything causing damage is transitively created by
+        //  a Shooter, but not always (consider landscape objects/crates/
+        //  exploding worms)
+        Shooter sh;
+        while ((sh = cast(Shooter)go) is null && go.createdBy) {
+            go = go.createdBy;
+        }
+        if (sh !is null)
+            return sh.weapon;
+        return null;
+    }
+
     void reportViolence(GameObject cause, GameObject victim, float damage) {
         assert(!!cause && !!victim);
         auto m1 = memberFromGameObject(cause, true);
         auto m2 = memberFromGameObject(victim, false);
-        if (!m1 || !m2) {
-            log("unknown damage {}/{} {}/{} {}", cause, victim, m1, m2, damage);
+        char[] wname = "unknown_weapon";
+        auto wclass = weaponFromGameObject(cause);
+        if (wclass)
+            wname = wclass.name;
+        if (m1 && m2) {
+            if (m1 is m2)
+                log("worm {} injured himself by {} with {}", m1, damage, wname);
+            else
+                log("worm {} injured {} by {} with {}", m1, m2, damage, wname);
+        } else if (m1 && !m2) {
+            log("worm {} caused {} collateral damage with {}", m1, damage,
+                wname);
+        } else if (!m1 && m2) {
+            //neutral damage is not caused by weapons
+            assert(wclass is null, "some createdBy relation wrong");
+            log("victim {} received {} damage from neutral objects", m2,
+                damage);
         } else {
-            log("worm {} injured {} by {}", m1, m2, damage);
+            log("unknown damage {}/{} {}/{} {}", cause, victim, m1, m2, damage);
         }
+    }
+
+    void reportDemolition(int pixelCount, GameObject cause) {
+        assert(!!cause);
+        log("blasted {} pixels of land", pixelCount);
     }
 
     //queue for placing anywhere on landscape

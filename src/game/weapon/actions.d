@@ -19,7 +19,9 @@ class WeaponAction : Action {
     protected {
         //NO. JUST NO. FireInfo* mFireInfo;
         WrapFireInfo mFireInfo;
-        GameObject mShootbyObj;
+        GObjectSprite mShootbyObj; //parent sprite, for relative positioning
+        GameObject mCreatedBy;  //parent object, for cause-victim relation
+                                //can, but does not have to be, == mShootbyObj
     }
 
     this(ActionClass base, GameEngine eng) {
@@ -33,9 +35,10 @@ class WeaponAction : Action {
     override protected ActionRes initialStep() {
         super.initialStep();
         mFireInfo = context.getPar!(WrapFireInfo)("fireinfo");
-        mShootbyObj = context.getPar!(GameObject)("owner_game");
+        mCreatedBy = context.getPar!(GameObject)("created_by");
+        mShootbyObj = context.getPar!(GObjectSprite)("owner_sprite");
         //obligatory parameters for WeaponAction
-        assert(mFireInfo && !!mShootbyObj);
+        assert(mFireInfo && !!mShootbyObj && !!mCreatedBy);
         return ActionRes.done;
     }
 }
@@ -84,7 +87,7 @@ class ExplosionAction : WeaponAction {
         super.initialStep();
         if (!mFireInfo.info.pos.isNaN)
             engine.explosionAt(mFireInfo.info.pos, myclass.damage.sample(),
-                mShootbyObj);
+                mCreatedBy);
         return ActionRes.done;
     }
 }

@@ -22,6 +22,7 @@ alias StaticFactory!("WeaponClasses", WeaponClass, GameEngine, ConfigNode)
 
 alias void delegate(Shooter sh) ShooterCallback;
 
+//wtf? why not make FireInfo a class?
 class WrapFireInfo { //wee so Java like
     FireInfo info;
     this (ReflectCtor c) {
@@ -146,6 +147,7 @@ abstract class Shooter : GameObject {
         assert(base !is null);
         mClass = base;
         owner = a_owner;
+        createdBy = a_owner;
     }
 
     this (ReflectCtor c) {

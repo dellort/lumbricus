@@ -727,7 +727,7 @@ class GameEngine : GameEnginePublic {
         expl.pos = pos;
         expl.onReportApply = &onDamage;
         expl.cause = cause;
-        damageLandscape(toVector2i(pos), cast(int)(expl.radius/2.0f));
+        damageLandscape(toVector2i(pos), cast(int)(expl.radius/2.0f), cause);
         physicworld.add(expl);
         graphics.createExplosionGfx(toVector2i(pos), cast(int)expl.radius);
         //some more chaos, if strong enough
@@ -737,10 +737,13 @@ class GameEngine : GameEnginePublic {
     }
 
     //destroy a circular area of the damageable landscape
-    void damageLandscape(Vector2i pos, int radius) {
+    void damageLandscape(Vector2i pos, int radius, GameObject cause = null) {
+        int count;
         foreach (ls; gameLandscapes) {
-            ls.damage(pos, radius);
+            count += ls.damage(pos, radius);
         }
+        if (cause && count > 0)
+            mController.reportDemolition(count, cause);
     }
 
     //insert bitmap into the landscape

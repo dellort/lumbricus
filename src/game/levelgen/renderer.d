@@ -400,13 +400,14 @@ class LandscapeBitmap {
     // meta_domask: after checking and copying the pixel, mask meta with this
     //I put it all into this to avoid code duplication
     //called in-game!
-    private void circle_masked(Vector2i pos, int radius, void* dst,
+    private int circle_masked(Vector2i pos, int radius, void* dst,
         uint dst_pitch, void* src, uint src_pitch, uint w, uint h,
         ubyte meta_mask, ubyte meta_cmp, ubyte meta_domask = 255)
     {
         assert(radius >= 0);
         auto st = pos;
         int[] circle = getCircle(radius);
+        int count;
 
         for (int y = -radius; y <= radius; y++) {
             int ly = st.y + y;
@@ -435,6 +436,7 @@ class LandscapeBitmap {
                 +/
                 if (set) {
                     *dstptr = *(srcptr+(x % w));
+                    count++;
                 }
                 //yes, unconditionally
                 *meta &= meta_domask;
@@ -442,6 +444,7 @@ class LandscapeBitmap {
                 meta++;
             }
         }
+        return count;
     }
 
     //destroy a part of the landscape
@@ -452,7 +455,7 @@ class LandscapeBitmap {
     //     area (on the border, the image is changed, but not the metadata) is
     //     pixels outside the circle (radius+blast_border) aren't touched)
     //  theme = bitmaps to use as background etc. (can be null)
-    public void blastHole(Vector2i pos, int radius, int blast_border,
+    public int blastHole(Vector2i pos, int radius, int blast_border,
         LandscapeTheme theme = null)
     {
         assert(!!mImage, "Not for data-only renderer");
@@ -462,6 +465,7 @@ class LandscapeBitmap {
         assert(blast_border >= 0);
 
         uint col;
+        int count;
 
         void* pixels; uint pitch;
         mImage.lockPixelsRGBA32(pixels, pitch);
@@ -470,11 +474,12 @@ class LandscapeBitmap {
 
         //call circle_masked(), with either the Surface s or the Color c
         //if s !is null, only the surface is used, else use the color
-        void doCircle(int radius, Surface s, Color c, ubyte meta_mask,
+        int doCircle(int radius, Surface s, Color c, ubyte meta_mask,
             ubyte meta_cmp, ubyte meta_domask = 255)
         {
             void* srcpixels; uint srcpitch;
             int sx, sy;
+            int count;
             if (s) {
                 s.lockPixelsRGBA32(srcpixels, srcpitch);
                 sx = s.size.x; sy = s.size.y;
@@ -485,11 +490,12 @@ class LandscapeBitmap {
                 srcpitch = 4;
                 sx = 1; sy = 1;
             }
-            circle_masked(pos, radius, pixels, pitch, srcpixels, srcpitch, sx,
-                sy, meta_mask, meta_cmp, meta_domask);
+            count = circle_masked(pos, radius, pixels, pitch, srcpixels,
+                srcpitch, sx, sy, meta_mask, meta_cmp, meta_domask);
             if (s) {
                 s.unlockPixels(Rect2i.init);
             }
+            return count;
         }
 
         //draw the background image into the area to be destroyed
@@ -498,7 +504,7 @@ class LandscapeBitmap {
         //the center is cleared later to achieve this
         //in the same call, mask all pixels with SolidHard to remove any
         //SolidSoft pixels...
-        doCircle(radius, theme ? theme.backImage : null,
+        count = doCircle(radius, theme ? theme.backImage : null,
             theme ? theme.backColor : mImage.colorkey(),
             cAllMeta, Lexel.SolidSoft, Lexel.SolidHard);
 
@@ -523,6 +529,8 @@ class LandscapeBitmap {
         bb.p1 = pos - Vector2i(blast_radius);
         bb.p2 = pos + Vector2i(blast_radius);
         mImage.unlockPixels(bb);
+
+        return count;
     }
 
     //calculate normal at that position
