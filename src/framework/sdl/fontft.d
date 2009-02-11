@@ -419,5 +419,7 @@ private bool missingProcCb(char[] libName, char[] procName)
 {
     if (procName == "FT_Library_SetLcdFilter")
         return true;
+    if (procName.length > 3 && procName[0..4] == "FTC_")
+        return true;
     return false;
 }

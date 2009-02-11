@@ -317,9 +317,7 @@ class PainterWidget : Widget {
             if (x1 < 0) x1 = 0;
             if (x2 >= mLevelSize.x) x2 = mLevelSize.x-1;
             int ly = y*mLevelSize.x;
-            for (int x = x1; x <= x2; x++) {
-                mLevelData[ly+x] = mPaintLexel;
-            }
+            mLevelData[ly+x1 .. ly+x2+1] = mPaintLexel;
         }
         drawThickLine(p1, p2, mPenRadius, mLevelSize, &scanline);
 
@@ -338,13 +336,10 @@ class PainterWidget : Widget {
             if (x1 < 0) x1 = 0;
             if (x2 >= mImage.size.x) x2 = mImage.size.x-1;
             int ly = y*mImage.size.x;
-            uint* dstptr = cast(uint*)(pixels+pitch*y)+x1;
-            for (int x = x1; x <= x2; x++) {
-                //actually, the following line is not necessary
-                mScaledLevel[ly+x] = mPaintLexel;
-                *dstptr = mLexelToRGBA32[mPaintLexel];
-                dstptr++;
-            }
+            //actually, the following line is not necessary
+            mScaledLevel[ly+x1 .. ly+x2+1] = mPaintLexel;
+            uint* dstptr = cast(uint*)(pixels+pitch*y);
+            dstptr[x1 .. x2+1] = mLexelToRGBA32[mPaintLexel];
         }
         drawThickLine(p1_sc, p2_sc, r_sc, mImage.size, &scanline2);
 
@@ -398,8 +393,11 @@ class PainterWidget : Widget {
         for (int y = 0; y < mImage.size.y; y++) {
             uint* dstptr = cast(uint*)(pixels+pitch*y);
             int lsrc = y*mImage.size.x;
-            for (int x = 0; x < mImage.size.x; x++) {
+            auto w = mImage.size.x;
+            for (int x = 0; x < w; x++) {
                 uint col = mLexelToRGBA32[mScaledLevel[lsrc+x]];
+                //makes it a bit (x3.5) faster, but isn't worth the fuzz
+                //uint col = *(mLexelToRGBA32.ptr + *(mScaledLevel.ptr+lsrc+x));
                 *dstptr = col;
                 dstptr++;
             }

@@ -101,16 +101,16 @@ private:
 
     void cmdShowTimers(MyBox[] args, Output write) {
         write.writefln("Timers:");
-        listTimers((char[] a, char[] b) {write.writefln("   {}: {}", a, b);});
+        listTimers((char[] a, Time t) {write.writefln("   {}: {}", a, t);});
     }
 
-    void listTimers(void delegate(char[] name, char[] value) cb) {
+    void listTimers(void delegate(char[] name, Time value) cb) {
         foreach (char[] name, PerfTimer cnt; globals.timers) {
             Time* pt = cnt in mLastTimerValues;
-            char[] s = "<unknown>";
+            Time t = Time.Never;
             if (pt)
-                s = myformat("{}", *pt);
-            cb(name, s);
+                t = *pt;
+            cb(name, t);
         }
     }
 
@@ -633,6 +633,9 @@ class StatsWindow : Task {
     int lastupdate = -1;
     Window wnd;
     TableContainer table;
+    //stores strings for each line (each line 40 bytes)
+    //this is to avoid memory allocation each frame
+    char[40][] buffers;
 
     this(TaskManager mgr, char[] args = "") {
         super(mgr);
@@ -648,6 +651,12 @@ class StatsWindow : Task {
     override void onFrame() {
         if (bla.mTimerStatsGeneration != lastupdate) {
             lastupdate = bla.mTimerStatsGeneration;
+
+            char[] getLineBuffer(int line) {
+                if (buffers.length <= line)
+                    buffers.length = line+1;
+                return buffers[line];
+            }
 
             void setLine(int line, char[] a, char[] b) {
                 Label la, lb;
@@ -668,7 +677,9 @@ class StatsWindow : Task {
                 lb.text = b;
             }
 
-            wnd.client = null; //dirty trick to avoid relayouting all the time
+            //--commented out, because it allocates memory
+            //--maybe that makes it VERY slow with many lines... or so
+            //--wnd.client = null; //dirty trick to avoid relayouting all the time
             table.setSize(2, bla.timerCount+3);
 
             int n = 0;
@@ -676,18 +687,21 @@ class StatsWindow : Task {
             gc.GCStats gcs;
             gc.getStats(gcs);
 
-            setLine(0, "GC Used", sizeToHuman(gcs.usedsize));
-            setLine(1, "GC Poolsize", sizeToHuman(gcs.poolsize));
-            setLine(2, "Weak objects", str.toString(gFramework.weakObjectsCount));
+            setLine(0, "GC Used", sizeToHuman(gcs.usedsize, getLineBuffer(0)));
+            setLine(1, "GC Poolsize", sizeToHuman(gcs.poolsize, getLineBuffer(1)));
+            setLine(2, "Weak objects", myformat_s(getLineBuffer(2), "{}",
+                gFramework.weakObjectsCount));
 
             n += 3;
 
-            bla.listTimers((char[] a, char[] b) {
-                setLine(n, a, b);
+            bla.listTimers((char[] a, Time b) {
+                auto buf = getLineBuffer(n);
+                auto s = b.toString_s(buf);
+                setLine(n, a, s);
                 n++;
             });
 
-            wnd.client = table;
+            //--wnd.client = table;
             //avoid that the window resizes on each update
             wnd.acceptSize();
         }

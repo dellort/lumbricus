@@ -10,12 +10,13 @@ class GuiFps : Widget {
     private Font mFont;
     private Vector2i mPos;
     private float mFps;
-    private char[] mText;
+    private char[] mText; //will point to mBuffer
+    private char[40] mBuffer;
 
     protected override void onDraw(Canvas c) {
         if (gFramework.FPS != mFps) {
             mFps = gFramework.FPS;
-            mText = myformat("FPS: {:f2}", mFps);
+            mText = myformat_s(mBuffer, "FPS: {:f2}", mFps);
             mPos = (size - mFont.textSize(mText)).X;
         }
         mFont.drawText(c, mPos, mText);

@@ -6,7 +6,7 @@ import gui.widget;
 import utils.time;
 import utf = stdx.utf;
 import utils.output;
-import utils.misc : min, max, va_list;
+import utils.misc : min, max, va_list, formatfx;
 
 public class LogWindow : Widget, Output {
     //maximum entries the backlog stores
@@ -76,7 +76,9 @@ public class LogWindow : Widget, Output {
     override void writef_ind(bool newline, char[] fmt, TypeInfo[] arguments,
         va_list argptr)
     {
-        writeString(sformat_ind(newline, fmt, arguments, argptr));
+        writeString(formatfx(fmt, arguments, argptr));
+        if (newline)
+            writeString("\n");
     }
 
     private char[] mLineBuffer;

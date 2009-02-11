@@ -3,7 +3,7 @@ module utils.output;
 import stdx.utf;
 import tango.io.Stdout;
 import stdx.stream;
-import utils.misc : formatfx, va_list;
+import utils.misc : formatfx_s, va_list;
 
 /// interface for a generic text output stream (D currently lacks support for
 /// text streams, so we have to do it)
@@ -17,17 +17,11 @@ public interface Output {
     void writeString(char[] str);
 }
 
-char[] sformat_ind(bool newline, char[] fmt, TypeInfo[] arguments,
-    va_list argptr)
-{
-    auto s = formatfx(fmt, arguments, argptr);
-    if (newline)
-        s ~= '\n';
-    return s;
-}
-
 /// A helper for implementers only, users shall use interface Output instead.
+/// implements everything except writeString
 public class OutputHelper : Output {
+    char[200] buffer;
+
     void writef(char[] fmt, ...) {
         writef_ind(false, fmt, _arguments, _argptr);
     }
@@ -37,7 +31,9 @@ public class OutputHelper : Output {
     void writef_ind(bool newline, char[] fmt, TypeInfo[] arguments,
         va_list argptr)
     {
-        writeString(sformat_ind(newline, fmt, arguments, argptr));
+        writeString(formatfx_s(buffer, fmt, arguments, argptr));
+        if (newline)
+            writeString("\n");
     }
     abstract void writeString(char[] str);
 }
@@ -79,14 +75,14 @@ public class StreamOutput : OutputHelper {
 }
 
 /// Implements the Output interface and throws away all text written to it.
-public class DevNullOutput : OutputHelper {
+public class DevNullOutput : Output {
     public static Output output;
-    void writeString(char[] str) {
-    }
+
+    void writef(char[] fmt, ...) {}
+    void writefln(char[] fmt, ...) {}
     void writef_ind(bool newline, char[] fmt, TypeInfo[] arguments,
-        void* argptr)
-    {
-    }
+        va_list argptr) {}
+    void writeString(char[] str) {}
 
     static this() {
         output = new DevNullOutput();

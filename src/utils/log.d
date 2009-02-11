@@ -23,6 +23,7 @@ public class Log : Output {
 
     Output backend;
     char[] backend_name;
+    bool write_logall;
     bool show_time = true;
 
     public this(char[] category) {
@@ -35,6 +36,13 @@ public class Log : Output {
     void setBackend(Output backend, char[] backend_name) {
         this.backend = backend;
         this.backend_name = backend_name;
+        write_logall = true;
+    }
+
+    //makes it completely silent, will not even write into logall.txt
+    void shutup() {
+        setBackend(DevNullOutput.output, "stfu");
+        write_logall = false;
     }
 
     char[] category() {
@@ -51,6 +59,8 @@ public class Log : Output {
     void writeString(char[] str) {
         assert(backend !is null);
         backend.writeString(str);
+        if (write_logall)
+            gLogEverything.writeString(str);
     }
 
     void opCall(char[] fmt, ...) {
@@ -70,7 +80,8 @@ public class Log : Output {
 
         assert(backend !is null);
         writeTo(backend);
-        writeTo(gLogEverything);
+        if (write_logall)
+            writeTo(gLogEverything);
     }
 
     char[] toString() {
@@ -90,10 +101,8 @@ public Log registerLog(char[] category) {
 }
 
 public Log findLog(char[] category) {
-    if (category in gAllLogs) {
-        return gAllLogs[category];
-    }
-    return null;
+    auto plog = category in gAllLogs;
+    return plog ? *plog : null;
 }
 
 ///Stupid proxy that allows to specify the log identifier with the declaration,

@@ -133,6 +133,9 @@ class TableContainer : PublicContainer {
     ///set size in cell count; if it gets smaller, widgets which don't fit into
     ///the table anymore are removed
     void setSize(int a_w, int a_h) {
+        if (mSize[0] == a_w && mSize[1] == a_h)
+            return;
+
         mSize[0] = a_w;
         mSize[1] = a_h;
 

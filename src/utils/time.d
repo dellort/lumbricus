@@ -1,7 +1,7 @@
 module utils.time;
 
 import str = stdx.string;
-import utils.misc : toDelegate, myformat;
+import utils.misc : toDelegate, myformat, myformat_s;
 
 //if true, use nanosecond resolution instead of milliseconds
 const bool cNS = true;
@@ -92,6 +92,15 @@ public struct Time {
 
     ///return string representation of value
     public char[] toString() {
+        char[80] buffer = void;
+        return toString_s(buffer).dup;
+    }
+
+    //I needed this hack I'm sorry I'm sorry I'm sorry
+    public char[] toString_s(char[] buffer) {
+        if (*this == Never)
+            return "<unknown>";
+
         const char[][] cTimeName = ["ns", "us", "ms", "s", "min", "h"];
         //divisior to get from one time unit to the next
         const int[] cTimeDiv =       [1, 1000, 1000, 1000, 60,    60, 0];
@@ -104,7 +113,8 @@ public struct Time {
                 //auto s = myformat("%.*f {}", cPrec[i],
                 //    cast(double)time / cTimeDiv[i], cTimeName[i]);
                 //xxx: how to do the precission?
-                auto s = myformat("{} {}", cast(double)time / cTimeDiv[i], cTimeName[i]);
+                auto s = myformat_s(buffer, "{} {}",
+                    cast(double)time / cTimeDiv[i], cTimeName[i]);
                 return s;
             }
             time = time / cTimeDiv[i];

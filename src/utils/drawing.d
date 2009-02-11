@@ -52,6 +52,7 @@ private struct Edge {
     double xmin;
     double m1;
     Edge* next; //next in scanline or AEL
+    Edge* all;
 }
 
 private int myround(float f) {
@@ -68,10 +69,14 @@ void rasterizePolygon(uint width, uint height, Vector2f[] points,
     //I sort them inefficiently when inserting them into the AEL
     Edge*[] per_scanline;
     per_scanline.length = height;
+    //manual mm
+    Edge* all_edges;
 
     //convert points array and create Edge structs and insert them
     void add_edge(in Vector2f a, in Vector2f b) {
         Edge* edge = new Edge();
+        edge.all = all_edges;
+        all_edges = edge;
 
         bool invert = false;
         if (a.y > b.y) {
@@ -201,4 +206,12 @@ void rasterizePolygon(uint width, uint height, Vector2f[] points,
             ael = null;
         }
     }
+
+    while (all_edges) {
+        Edge* t = all_edges;
+        all_edges = t.all;
+        delete t;
+    }
+
+    delete per_scanline;
 }

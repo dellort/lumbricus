@@ -9,6 +9,9 @@ public import tango.stdc.stdarg : va_list;
 //Tango team = stupid
 public import tango.math.Math : min, max;
 
+//because printf debugging is common and usefull
+public import tango.io.Stdout : Stdout;
+
 void swap(T)(inout T a, inout T b) {
     T t = a;
     a = b;
@@ -104,8 +107,41 @@ char[] myformat(char[] fmt, ...) {
     return formatfx(fmt, _arguments, _argptr);
 }
 
+//if the buffer is too small, allocate a new one
+char[] formatfx_s(char[] buffer, char[] fmt, TypeInfo[] arguments,
+    va_list argptr)
+{
+    //NOTE: there's Layout.vprint(), but it simply cuts the output if the buffer
+    //      is too small (and you don't know if this happened)
+    char[] output = buffer;
+    size_t outpos = 0;
+    uint sink(char[] append) {
+        auto end = outpos + append.length;
+        if (end > buffer.length) {
+            //(force reallocation, never resize buffer's memory block)
+            if (output.ptr == buffer.ptr)
+                output = buffer.dup;
+            output = output[0..outpos];
+            output ~= append;
+        } else {
+            output[outpos..end] = append;
+        }
+        outpos = end;
+        return append.length; //whatever... what the fuck is this for?
+    }
+    layout.Layout!(char).instance().convert(&sink, arguments, argptr, fmt);
+    return output[0..outpos];
+}
+
+//like myformat(), but use the buffer
+//if the buffer is too small, allocate a new one
+char[] myformat_s(char[] buffer, char[] fmt, ...) {
+    return formatfx_s(buffer, fmt, _arguments, _argptr);
+}
+
 /// number of bytes to a string like "number XX", where XX is "B", "KB" etc.
-char[] sizeToHuman(long bytes) {
+/// buffer = if long enough, use this instead of allocating memory
+char[] sizeToHuman(long bytes, char[] buffer = null) {
     const char[][] cSizes = ["B", "KB", "MB", "GB"];
     int n;
     long x;
@@ -115,7 +151,7 @@ char[] sizeToHuman(long bytes) {
         n++;
     }
     //xxx: ugly trailing zeros
-    return myformat("{:f3} {}", 1.0*bytes/x, cSizes[n]);
+    return myformat_s(buffer, "{:f3} {}", 1.0*bytes/x, cSizes[n]);
 }
 
 unittest {

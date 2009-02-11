@@ -11,6 +11,7 @@ import utils.factory;
 import utils.time;
 import utils.vector2;
 import utils.rect2;
+import utils.output;
 import utils.log;
 
 //debugging (draw a red frame for the widget's bounds)
@@ -160,7 +161,9 @@ class Widget {
     float highlightAlpha = 0f;
 
     package static Log log() {
-        return registerLog("GUI");
+        Log l = registerLog("GUI");
+        l.shutup();
+        return l;
     }
 
     final Container parent() {

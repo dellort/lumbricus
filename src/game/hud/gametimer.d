@@ -17,7 +17,6 @@ import utils.misc;
 import utils.vector2;
 
 import str = stdx.string;
-import tango.io.Stdout;
 
 class GameTimer : Container {
     private {
@@ -31,6 +30,7 @@ class GameTimer : Container {
         Font[5] mFont;
         //xxx load this from somewhere
         bool mShowGameTime = true;
+        char[20] mRndTBuffer, mGameTBuffer;
     }
 
     this(GameInfo game) {
@@ -116,11 +116,11 @@ class GameTimer : Container {
                     mRoundTime.font = mFont[0];
                     mGameTime.font = mFont[3];
                 }
-                mRoundTime.text = myformat("{}", cast(int)rt_sec);
+                mRoundTime.text = myformat_s(mRndTBuffer, "{}", cast(int)rt_sec);
                 Time gt = st.gameRemaining - timeMsecs(1);
                 int gt_sec = gt > Time.Null ? gt.secs+1 : 0;
-                mGameTime.text = myformat("{:d2}:{:d2}", gt_sec / 60,
-                    gt_sec % 60);
+                mGameTime.text = myformat_s(mGameTBuffer, "{:d2}:{:d2}",
+                    gt_sec / 60, gt_sec % 60);
             } else {
                 active = false;
             }
