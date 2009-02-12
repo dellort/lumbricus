@@ -178,18 +178,14 @@ class LandscapeBitmap {
                 dst = cast(uint*)(dstptr +  y*dstpitch + x1*uint.sizeof);
                 texptr = cast(uint*)(tex.data + ty*tex.pitch);
             }
-            Lexel* markerptr = &mLevelData[y*mWidth+x1];
-            for (uint x = x1; x < x2; x++) {
-                if (visible && textured) {
+            int ly = y*mWidth;
+            mLevelData[ly+x1..ly+x2] = marker;
+            if (visible && textured) {
+                for (uint x = x1; x < x2; x++) {
                     uint* texel = texptr + (x + tex.offs.x) % tex.w;
                     *dst = *texel;
-                }
-
-                *markerptr = marker;
-
-                if (textured)
                     dst++;
-                markerptr++;
+                }
             }
         }
 

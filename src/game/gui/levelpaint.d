@@ -316,6 +316,7 @@ class PainterWidget : Widget {
             if (y < 0 || y >= mLevelSize.y) return;
             if (x1 < 0) x1 = 0;
             if (x2 >= mLevelSize.x) x2 = mLevelSize.x-1;
+            if (x2 < x1) return;
             int ly = y*mLevelSize.x;
             mLevelData[ly+x1 .. ly+x2+1] = mPaintLexel;
         }
@@ -335,6 +336,7 @@ class PainterWidget : Widget {
             if (y < 0 || y >= mImage.size.y) return;
             if (x1 < 0) x1 = 0;
             if (x2 >= mImage.size.x) x2 = mImage.size.x-1;
+            if (x2 < x1) return;
             int ly = y*mImage.size.x;
             //actually, the following line is not necessary
             mScaledLevel[ly+x1 .. ly+x2+1] = mPaintLexel;
@@ -395,9 +397,9 @@ class PainterWidget : Widget {
             int lsrc = y*mImage.size.x;
             auto w = mImage.size.x;
             for (int x = 0; x < w; x++) {
-                uint col = mLexelToRGBA32[mScaledLevel[lsrc+x]];
+                //uint col = mLexelToRGBA32[mScaledLevel[lsrc+x]];
                 //makes it a bit (x3.5) faster, but isn't worth the fuzz
-                //uint col = *(mLexelToRGBA32.ptr + *(mScaledLevel.ptr+lsrc+x));
+                uint col = *(mLexelToRGBA32.ptr + *(mScaledLevel.ptr+lsrc+x));
                 *dstptr = col;
                 dstptr++;
             }

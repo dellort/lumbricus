@@ -1197,13 +1197,22 @@ void scaleLexels(Lexel[] dataIn, Lexel[] dataOut,
     //scale down from full size to image size
     Vector2f scale = Vector2f((cast(float)newSize.x)/orgSize.x,
         (cast(float)newSize.y)/orgSize.y);
+    //precalc scaled x values (speed ~*2)
+    int[] pxt = new int[orgSize.x];
+    for (int x = 0; x < orgSize.x; x++) {
+        pxt[x] = cast(int)(x*scale.x);
+    }
+    Lexel* inPtr = dataIn.ptr, outPtr, outPtrL;
     for (int y = 0; y < orgSize.y; y++) {
-        int ly = y*orgSize.x;
         int py = cast(int)(y*scale.y)*newSize.x;
+        outPtrL = dataOut.ptr+py;
         for (int x = 0; x < orgSize.x; x++) {
-            Lexel cur = dataIn[ly+x];
-            int px = cast(int)(x*scale.x);
-            dataOut[py+px] = max(dataOut[py+px],cur);
+            //this is the most stupid scaling algorithm:
+            //if a pixel is set anywhere in the source area, the dest
+            //pixel is set, using the highest lexel found
+            outPtr = outPtrL+*(pxt.ptr+x);
+            *outPtr = max(*outPtr, *inPtr);
+            inPtr++;
         }
     }
 }
