@@ -71,6 +71,11 @@ Waffen-ideen:
   beliebigen Bitmap-Veränderungen zurechtkommt, solange die Änderung nicht zu
   stark ist. Schmelzen hab ich mal in irgendeinem Bildschirmschoner gesehen
 - Monty Python Fuss
+- Superprof:
+  eine Art Superheld, spezielle Fähigkeit/Superkraft: Gelehrter.
+  - kann komplette Kapitel für Doktorarbeiten innerhalb von Stunden schreiben
+  - gewinnt Nobelpreise mit purer Willenskraft
+  - tötet Gegner mit Wänden aus Text voller Schwachsinn
 
 Kisten/Spielmodi/Level-ideen:
 - Selbstmord Modus
