@@ -33,8 +33,8 @@ enum FaceStyle {
 struct FontProperties {
     char[] face = "default";
     int size = 14;
-    Color back = {0.0f,0.0f,0.0f,1.0f};
-    Color fore = {1.0f,1.0f,1.0f,1.0f};
+    Color back = {0.0f,0.0f,0.0f,0.0f};
+    Color fore = {0.0f,0.0f,0.0f,1.0f};
     bool bold;
     bool italic;
     bool underline;

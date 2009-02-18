@@ -253,7 +253,9 @@ class Surface {
         mData.colorkey = mData.transparency == Transparency.Colorkey
             ? mData.colorkey : Color(0,0,0,0);
         //to speed up isTransparent()
-        mCachedColorkey = mData.colorkey.toRGBA32().uint_val;
+        auto ckey = mData.colorkey.toRGBA32();
+        ckey.a = 0;
+        mCachedColorkey = ckey.uint_val;
     }
 
     final Vector2i size() {
@@ -356,7 +358,10 @@ class Surface {
             case Transparency.Colorkey:
                 //xxx here was some weird code which masked out the alpha
                 //    channel for the comparision
-                return *(cast(uint*)raw) == mCachedColorkey;
+                auto pix = *cast(Color.RGBA32*)raw;
+                pix.a = 0;
+                //return *(cast(uint*)raw) == mCachedColorkey;
+                return pix.uint_val == mCachedColorkey;
             case Transparency.Alpha:
                 return (cast(ubyte*)raw)[Color.cIdxAlpha] < 128;
         }
