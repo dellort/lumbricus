@@ -197,6 +197,7 @@
 		<Unit filename="..\src\game\water.d" />
 		<Unit filename="..\src\game\weapon\actions.d" />
 		<Unit filename="..\src\game\weapon\actionweapon.d" />
+		<Unit filename="..\src\game\weapon\luaweapon.d" />
 		<Unit filename="..\src\game\weapon\napalm.d" />
 		<Unit filename="..\src\game\weapon\projectile.d" />
 		<Unit filename="..\src\game\weapon\ray.d" />
@@ -248,9 +249,9 @@
 		<Unit filename="..\src\physics\force.d" />
 		<Unit filename="..\src\physics\geometry.d" />
 		<Unit filename="..\src\physics\links.d" />
+		<Unit filename="..\src\physics\misc.d" />
 		<Unit filename="..\src\physics\physobj.d" />
 		<Unit filename="..\src\physics\plane.d" />
-		<Unit filename="..\src\physics\posp.d" />
 		<Unit filename="..\src\physics\sortandsweep.d" />
 		<Unit filename="..\src\physics\timedchanger.d" />
 		<Unit filename="..\src\physics\trigger.d" />

@@ -7,7 +7,7 @@ import utils.vector2;
 import physics.base;
 import physics.physobj;
 import physics.geometry;
-import physics.posp;
+import physics.misc;
 
 import math = tango.math.Math;
 import ieee = tango.math.IEEE;

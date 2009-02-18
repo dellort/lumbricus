@@ -7,11 +7,25 @@ import utils.reflection;
 import utils.vector2;
 import utils.misc : myformat;
 
+//Important: No physics. references in this file!
+
 //moved here because "is forward referenced"...
 enum ContactSource {
     object,
     geometry,
     generator,
+}
+
+//and another one... renaming file from posp.d to misc.d
+//entry in matrix that defines how a collision should be handled
+//for other uses than contact generation (like triggers), any value >0
+//  means it collides
+enum ContactHandling {
+    none,       //no collision
+    normal,     //default (physically correct) handling
+    noImpulse,  //no impulses are exchanged (like both objects hit a wall)
+                //this may be useful if you want an object to block,
+                // but not be moved
 }
 
 //PhysicalObjectStaticProperties

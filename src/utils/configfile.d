@@ -1194,16 +1194,21 @@ public class ConfigFile {
             return true;
         }
 
-        bool is_value = false;
+        int is_value = 0;
         const final char cValueOpen = '"';
         const final char cValueClose = '"';
+        const final char cValueOpen2 = '`';
+        const final char cValueClose2 = '`';
 
         if (curChar == cValueOpen) {
             //parse a VALUE; VALUEs must end with another '"'
             //if there's no closing '"', then the user is out of luck
             //(this needs a better error handling rule)
             next();
-            is_value = true;
+            is_value = 1;
+        } else if (curChar == cValueOpen2) {
+            next();
+            is_value = 2;
         }
 
         //if not a value: any chars that come now must form ID tokens
@@ -1211,16 +1216,20 @@ public class ConfigFile {
 
         char[] curstr = "";
         Position strstart = curpos;
+        void skip() {
+            //skip current char in input (don't use it)
+            char[] stuff = copyOut(strstart, curpos);
+            next();
+            curstr ~= stuff;
+            strstart = curpos;
+        }
         for (;;) {
-            if (is_value) {
+            if (is_value == 1) {
                 //special handling for VALUEs
                 if (curChar == '\\') {
-                    char[] stuff = copyOut(strstart, curpos);
-                    next();
+                    skip();
                     char escape = parseEscape();
-                    //looks inefficient
-                    curstr = curstr ~ stuff ~ escape;
-                    strstart = curpos;
+                    curstr ~= escape;
                     continue;
                 } else if (curChar == cValueClose) {
                     break;
@@ -1230,6 +1239,17 @@ public class ConfigFile {
                     if (!my_isprint(curChar) && !my_isspace(curChar)) {
                         reportError(false,
                             "unescaped control character in value");
+                    }
+                }
+            } else if (is_value == 2) {
+                //`backtick` string, read as is, no escaping
+                if (curChar == cValueClose2) {
+                    break;
+                } else {
+                    if (curChar == '\r') {
+                        //remove windows CR
+                        skip();
+                        continue;
                     }
                 }
             } else {
@@ -1247,15 +1267,17 @@ public class ConfigFile {
 
         curstr = curstr ~ copyOut(strstart, curpos);
 
-        if (is_value) {
-            if (curChar != cValueClose) {
+        if (is_value > 0) {
+            if (is_value == 1 && curChar != cValueClose) {
                 reportError(true, "no closing >\"< for a value"); //" yay
+            } else if (is_value == 2 && curChar != cValueClose2) {
+                reportError(true, "no closing >`< for a backticked value");
             } else {
                 next();
             }
         }
 
-        if (!is_value && curstr.length == 0) {
+        if (is_value == 0 && curstr.length == 0) {
             reportError(false, "identifier expected");
             curstr = "<error>";
             //make "progress", better than showing the error again all the time
@@ -1263,7 +1285,7 @@ public class ConfigFile {
         }
 
         str = curstr;
-        token = is_value ? Token.VALUE : Token.ID;
+        token = (is_value>0) ? Token.VALUE : Token.ID;
 
         return true;
     }

@@ -19,7 +19,7 @@ public import physics.force;
 public import physics.geometry;
 public import physics.physobj;
 import physics.plane;
-public import physics.posp;
+public import physics.misc;
 public import physics.trigger;
 public import physics.timedchanger;
 public import physics.contact;
@@ -226,13 +226,29 @@ class PhysicWorld {
         }
 
         //no collision if unwanted
-        if (!collide.canCollide(obj1, obj2))
+        ContactHandling ch = collide.canCollide(obj1, obj2);
+        if (ch == ContactHandling.none)
             return;
 
         //generate contact and resolve immediately (well, as before)
-        Contact c;
-        c.fromObj(obj1, obj2, d/dist, mindist - dist);
-        contactHandler(c);
+        if (ch == ContactHandling.normal) {
+            Contact c;
+            c.fromObj(obj1, obj2, d/dist, mindist - dist);
+            contactHandler(c);
+        } else if (ch == ContactHandling.noImpulse) {
+            //lol, generate 2 contacts that behave like the objects hit a wall
+            // (avoids special code in contact.d)
+            if (obj1.velocity.length > float.epsilon) {
+                Contact c1;
+                c1.fromObj(obj1, null, d/dist, 0.5f*(mindist - dist));
+                contactHandler(c1);
+            }
+            if (obj2.velocity.length > float.epsilon) {
+                Contact c2;
+                c2.fromObj(obj2, null, -d/dist, 0.5f*(mindist - dist));
+                contactHandler(c2);
+            }
+        }
 
         //xxx: also, should it be possible to glue objects here?
     }

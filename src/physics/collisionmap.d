@@ -2,6 +2,7 @@ module physics.collisionmap;
 
 import physics.base;
 import physics.contact;
+import physics.misc;
 
 import utils.array : arrayMap;
 import utils.configfile;
@@ -9,16 +10,21 @@ import utils.reflection;
 import utils.misc;
 
 import str = stdx.string;
+import tango.util.Convert;
+
+//for loading from ConfigNode
+private const char[][ContactHandling.max+1] cChNames =
+    ["", "hit", "hit_noimpulse"];
 
 //handling of the collision map
 class CollisionMap {
     CollisionType[char[]] mCollisionNames;
     CollisionType[] mCollisions; //indexed by CollisionType.index
     //pairs of things which collide with each other
-    CollisionType[2][] mHits;
+    CollisionType[2][][ContactHandling.max+1] mHits;
 
     //CollisionType.index indexes into this, see canCollide()
-    bool[][] mTehMatrix;
+    ContactHandling[][] mTehMatrix;
 
     //if there are still unresolved CollisionType forward references
     //used for faster error checking (in canCollide() which is a hot-spot)
@@ -56,7 +62,7 @@ class CollisionMap {
         mCollideHandler = oncollide;
     }
 
-    public bool canCollide(CollisionType a, CollisionType b) {
+    public ContactHandling canCollide(CollisionType a, CollisionType b) {
         if (mHadCTFwRef) {
             checkCollisionHandlers();
         }
@@ -65,7 +71,7 @@ class CollisionMap {
         return mTehMatrix[a.index][b.index];
     }
 
-    public bool canCollide(PhysicBase a, PhysicBase b) {
+    public ContactHandling canCollide(PhysicBase a, PhysicBase b) {
         assert(a && b);
         if (!a.collision)
             assert(false, "no collision for "~a.toString());
@@ -128,7 +134,9 @@ class CollisionMap {
         }
 
         //set if a and b should collide to what
-        void setCollide(CollisionType a, CollisionType b, bool what = true) {
+        void setCollide(CollisionType a, CollisionType b,
+            ContactHandling what = ContactHandling.normal)
+        {
             mTehMatrix[a.index][b.index] = what;
             mTehMatrix[b.index][a.index] = what;
         }
@@ -142,7 +150,7 @@ class CollisionMap {
         mTehMatrix.length = mCollisions.length;
         foreach (ref line; mTehMatrix) {
             line.length = mTehMatrix.length;
-            line[] = false;
+            line[] = ContactHandling.none;
         }
 
         foreach (ct; mCollisions) {
@@ -158,22 +166,26 @@ class CollisionMap {
                 mCTAll.subclasses ~= ct;
         }
 
-        foreach (CollisionType[2] entry; mHits) {
-            auto a = getAll(entry[0]);
-            auto b = getAll(entry[1]);
-            foreach (xa; a) {
-                foreach (xb; b) {
-                    setCollide(xa, xb);
+        for (ContactHandling ch = ContactHandling.normal;
+            ch <= ContactHandling.max; ch++)
+        {
+            foreach (CollisionType[2] entry; mHits[ch]) {
+                auto a = getAll(entry[0]);
+                auto b = getAll(entry[1]);
+                foreach (xa; a) {
+                    foreach (xb; b) {
+                        setCollide(xa, xb, ch);
+                    }
                 }
             }
         }
 
         foreach (ct; mCollisions) {
-            setCollide(mCTAlways, ct, true);
-            setCollide(mCTNever, ct, false);
+            setCollide(mCTAlways, ct, ContactHandling.normal);
+            setCollide(mCTNever, ct, ContactHandling.none);
         }
         //lol paradox
-        setCollide(mCTAlways, mCTNever, false);
+        setCollide(mCTAlways, mCTNever, ContactHandling.none);
     }
 
     //"collisions" node from i.e. worm.conf
@@ -212,15 +224,25 @@ class CollisionMap {
                 }
             }
         }
-        foreach (char[] name, char[] value; node.getSubNode("hit")) {
-            //each value is an array of collision ids which collide with "name"
-            auto hits = arrayMap(str.split(value), (char[] id) {
-                return findCollisionID(id);
-            });
-            auto ct = findCollisionID(name);
-            foreach (h; hits) {
-                mHits ~= [ct, h];
+
+        void readCH(char[] nname, ContactHandling ch) {
+            foreach (char[] name, char[] value; node.getSubNode(nname)) {
+                //each value is an array of collision ids which
+                // collide with "name"
+                auto hits = arrayMap(str.split(value), (char[] id) {
+                    return findCollisionID(id);
+                });
+                auto ct = findCollisionID(name);
+                foreach (h; hits) {
+                    mHits[ch] ~= [ct, h];
+                }
             }
+        }
+
+        for (ContactHandling ch = ContactHandling.normal;
+            ch <= ContactHandling.max; ch++)
+        {
+            readCH(cChNames[ch], ch);
         }
         rebuildCollisionStuff();
     }
