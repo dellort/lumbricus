@@ -2,7 +2,6 @@ module wwpdata.reader_spr;
 
 import devil.image;
 import stdx.stream;
-import path = stdx.path;
 import wwpdata.common;
 import wwpdata.reader;
 import wwpdata.animation;

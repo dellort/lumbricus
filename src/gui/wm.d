@@ -554,12 +554,12 @@ private:
             auto tasktitle = new Label();
             tasktitle.text = myformat("{} ({})", w.task, w.task.taskID);
             tasktitle.drawBorder = false;
-            tasktitle.font = gFramework.getFont("big_transparent");
+            tasktitle.font = gFramework.getFont("big");
             table.add(tasktitle, 0, y+1, 1, w.windows.length);
             foreach (int index, window; w.windows) {
                 auto wndtitle = new Label();
                 wndtitle.text = window.properties.windowTitle;
-                wndtitle.font = gFramework.getFont("normal_transparent");
+                wndtitle.font = gFramework.getFont("normal");
                 wndtitle.drawBorder = false;
                 table.add(wndtitle, 1, y+1+index);
                 mEntries ~= Entry(wndtitle, tasktitle, window);

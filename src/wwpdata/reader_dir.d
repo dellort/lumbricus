@@ -1,13 +1,17 @@
 module wwpdata.reader_dir;
 
 import str = stdx.string;
-import path = stdx.path;
-import stdx.file;
 import stdx.stream;
-import stdx.stdio;
 import wwpdata.common;
 import wwpdata.reader;
 import wwptools.unworms;
+import utils.filetools;
+
+import tango.io.Stdout;
+import tango.io.FilePath;
+
+import tango.io.model.IFile : FileConst;
+const pathsep = FileConst.PathSeparatorChar;
 
 struct WWPDirEntry {
     uint offset, size;
@@ -31,7 +35,7 @@ struct WWPDirEntry {
 
     void writeFile(Stream st, char[] outPath) {
         st.seek(offset, SeekPos.Set);
-        scope fileOut = new File(outPath ~ path.sep ~ filename, FileMode.OutNew);
+        scope fileOut = new File(outPath ~ pathsep ~ filename, FileMode.OutNew);
         fileOut.copyFrom(st, size);
     }
 
@@ -70,15 +74,16 @@ class Dir {
                 return e.open(mStream);
             }
         }
-        throw new FileException("file within .dir not found: " ~ filename);
+        throw new Exception("file within .dir not found: " ~ filename);
     }
 
     //works exactly like do_unworms, just filename is opened from the .dir-file
     void unworms(char[] filename, char[] outputPath) {
-        do_unworms(this.open(filename), path.getBaseName(path.getName(filename)),
+        do_unworms(this.open(filename), FilePath(filename).name,
             outputPath);
     }
 
+/+
     //works like std.file.listdir(pathname, pattern), on the .dir-filelist
     char[][] listdir(char[] pattern) {
         char[][] res;
@@ -88,16 +93,17 @@ class Dir {
         }
         return res;
     }
++/
 }
 
 void readDir(Stream st, char[] outputDir, char[] fnBase) {
-    char[] outPath = outputDir ~ path.sep ~ fnBase;
-    try { mkdir(outPath); } catch {};
+    char[] outPath = outputDir ~ pathsep ~ fnBase;
+    trymkdir(outPath);
 
     auto content = doReadDir(st);
 
     foreach (c; content) {
-        writefln(c.filename);
+        Stdout(c.filename).newline;
         c.writeFile(st, outPath);
     }
 }

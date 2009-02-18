@@ -447,7 +447,7 @@ class PainterWidget : Widget {
         for (int i = 0; i <= Lexel.Max; i++) {
             if (i < cols.length) {
                 mLexelToColor[i] = cols[i];
-                mLexelToRGBA32[i] = cols[i].toRGBA32();
+                mLexelToRGBA32[i] = cols[i].toRGBA32().uint_val;
             }
         }
     }

@@ -467,14 +467,16 @@ class TestTask2 : Task {
         float getcolor(int n) {
             return mBars[n].curValue/255.0f;
         }
-        mFont.font.fore.a = getcolor(0);
-        mFont.font.back.a = getcolor(1);
+        mFont.font.fore = Color(1,1,1,getcolor(0));
+        mFont.font.back.a = 0; //getcolor(1);
+        mFont.font.border_color = Color(0.5,1.0,0.5,getcolor(1));
+        mFont.font.border_width = mBars[4].curValue;
         mFont.updateFont();
-        mBox.box.border.a = getcolor(0);
-        mBox.box.back.a = getcolor(1);
+        mBox.box.border = mFont.font.border_color;
+        mBox.box.back = mFont.font.fore;
         mBox.box.cornerRadius = mBars[3].curValue;
-        mBox.box.borderWidth = mBars[4].curValue;
-        Color clear = Color(1.0f-getcolor(2),0,0);
+        mBox.box.borderWidth = mFont.font.border_width;
+        Color clear = Color(1.0f,1.0-getcolor(2),1.0-getcolor(2));
         mFont.clear = clear;
         mBox.clear = clear;
 
@@ -494,9 +496,9 @@ class TestTask2 : Task {
         gui.add(cnt);
 
         auto scr = new TableContainer(2, 5, Vector2i(15, 1));
-        char[][] labels = ["foreground/border alpha", "background alpha",
+        char[][] labels = ["foreground alpha", "background alpha",
             "container red", "corner size", "border size"];
-        int[] values = [128, 128, 0, 5, 1];
+        int[] values = [128, 128, 128, 5, 5];
         int[] maxvals = [255, 255, 255, 50, 50];
 
         for (int n = 0; n < mBars.length; n++) {

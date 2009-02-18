@@ -244,10 +244,13 @@ class GameTask : StatefulTask {
         LandscapeBitmap[] bitmaps;
         int bmp_count;
         for (;;) {
-            ZReader reader = tehfile.openReadStream(myformat("bitmap_{}",
-                bitmaps.length), true);
+            auto idx = bitmaps.length;
+            ZReader reader = tehfile.openReadStream(myformat("lexels_{}", idx),
+                true);
             if (!reader)
                 break;
+            Surface image = gFramework.loadImage(tehfile
+                .openReadStreamUncompressed(myformat("bitmap_{}.png", idx)));
             //xxx: idea: write the bitmap as a png; this either can be an
             //     uncompressed png stored as a .gz stream, or a png that
             //     just deflates scanlines or so (it's probably possible,
@@ -257,21 +260,11 @@ class GameTask : StatefulTask {
             BmpHeader bheader;
             reader.read_ptr(&bheader, bheader.sizeof);
             auto size = Vector2i(bheader.sx, bheader.sy);
-            //xxx: transparency, colorkey?
-            Surface s = gFramework.createSurface(size, Transparency.Colorkey);
-            LandscapeBitmap lb = new LandscapeBitmap(s, false);
+            assert (size == image.size);
+            LandscapeBitmap lb = new LandscapeBitmap(image, false);
             bitmaps ~= lb;
             auto lexels = lb.levelData();
             reader.read_ptr(lexels.ptr, Lexel.sizeof*lexels.length);
-            void* pixels;
-            uint pitch;
-            s.lockPixelsRGBA32(pixels, pitch);
-            uint linesize = size.x*uint.sizeof;
-            for (int i = 0; i < size.y; i++) {
-                reader.read_ptr(pixels, linesize);
-                pixels += pitch;
-            }
-            s.unlockPixels(Rect2i(size));
             reader.close();
         }
 
@@ -580,7 +573,7 @@ class GameTask : StatefulTask {
         //---- bitmaps
         auto bitmaps = engine.landscapeBitmaps();
         foreach (int index, LandscapeBitmap lb; bitmaps) {
-            ZWriter zwriter = tehfile.openWriteStream(myformat("bitmap_{}",
+            ZWriter zwriter = tehfile.openWriteStream(myformat("lexels_{}",
                 index));
             BmpHeader bheader;
             bheader.sx = lb.size.x;
@@ -589,18 +582,12 @@ class GameTask : StatefulTask {
             auto size = lb.size();
             Lexel[] lexels = lb.levelData();
             zwriter.write_ptr(lexels.ptr, Lexel.sizeof*lexels.length);
-            auto bmp = lb.image();
-            assert (bmp.size == size);
-            void* pixels;
-            uint pitch;
-            bmp.lockPixelsRGBA32(pixels, pitch);
-            uint linesize = size.x*uint.sizeof;
-            for (int i = 0; i < size.y; i++) {
-                zwriter.write_ptr(pixels, linesize);
-                pixels += pitch;
-            }
-            bmp.unlockPixels(Rect2i.Empty);
             zwriter.close();
+            Stream bmp = tehfile.openUncompressed(myformat("bitmap_{}.png",
+                index));
+            //force png to guarantee lossless compression
+            lb.image.saveImage(bmp, "png");
+            bmp.close();
         }
 
         serialize_types.registerClass!(SaveGameHeader);

@@ -2,35 +2,39 @@ module wwpdata.animation;
 
 import aconv.atlaspacker;
 import devil.image;
-import path = stdx.path;
 import str = stdx.string;
-import stdx.file;
 import stdx.stream;
-import stdx.stdio;
 import wwpdata.common;
 import utils.boxpacker;
 import utils.vector2;
+import utils.filetools;
+import tango.io.Stdout;
+
+//dear tango team, please make things more convenient
+import tango.io.model.IFile : FileConst;
+const pathsep = FileConst.PathSeparatorChar;
 
 class AnimList {
     Animation[] animations;
 
     void save(char[] outPath, char[] fnBase, bool tosubdir = true) {
-        scope stMeta = new File(outPath ~ path.sep ~ fnBase ~ ".meta",
+        scope stMeta = new File(outPath ~ pathsep ~ fnBase ~ ".meta",
             FileMode.OutNew);
         foreach (int i, Animation a; animations) {
             char[] afn, apath;
             if (tosubdir) {
                 afn = "anim_" ~ str.toString(i);
-                apath = outPath ~ path.sep ~ fnBase;
-                try { mkdir(apath); } catch {};
+                apath = outPath ~ pathsep ~ fnBase;
+                trymkdir(apath);
             } else {
                 afn = fnBase;
                 apath = outPath;
             }
             a.save(apath, afn);
-            writef("Saving %d/%d   \r",i+1, animations.length);
-            //fflush(stdout);
+            Stdout.format("Saving {}/{}   \r",i+1 , animations.length);
+            Stdout.flush();
         }
+        Stdout.newline; //??
     }
 
     //free the data violently (with delete)
@@ -113,7 +117,7 @@ class Animation {
         foreach (int i, FrameInfo fi; frames) {
             fi.blitOn(img, i*boxWidth+fi.x, fi.y);
         }
-        img.save(outPath ~ path.sep ~ fnBase ~ ".png");
+        img.save(outPath ~ pathsep ~ fnBase ~ ".png");
     }
 
     //store all animation bitmaps into the given texture atlas

@@ -1132,7 +1132,7 @@ Surface landscapeRenderPreview(T)(T land, Vector2i size,
         s.data.length = 4;
         s.pitch = 4;
         s.size = Vector2i(1);
-        *cast(uint*)(s.data.ptr) = c.toRGBA32();
+        *cast(uint*)(s.data.ptr) = c.toRGBA32().uint_val;
         return new Surface(s);
     }
 

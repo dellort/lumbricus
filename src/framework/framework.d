@@ -143,8 +143,7 @@ struct SurfaceData {
     Vector2i size;
     Transparency transparency = Transparency.None;
     Color colorkey = cStdColorkey;
-    //at least currently, the data always is in the format RGBA32
-    //(mask: 0xAABBGGRR)
+    //at least currently, the data always is in the format Color.RGBA32
     ubyte[] data;
     //pitch for data
     uint pitch;
@@ -187,9 +186,16 @@ package {
     WeakList!(Surface, SurfaceKillData) gSurfaces;
 }
 
-enum ImageFormat {
-    tga,    //lol, no more supported
-}
+//enum ImageFormat {
+//    tga,    //lol, no more supported
+//    png,
+//}
+
+//NOTE: stream must be seekable (used to back-patch the length), but the
+//      functions still start writing at the preset seek position, and ends
+//      writing at the end of the written image
+alias void delegate(Surface img, Stream dst) ImageLoadDelegate;
+ImageLoadDelegate[char[]] gImageFormats;
 
 /// a Surface
 /// This is used by the user and this also can survive framework driver
@@ -201,6 +207,8 @@ class Surface {
         DriverSurface mDriverSurface;
         SurfaceData* mData;
         SurfaceMode mMode;
+        //cached color key as Color.RGBA32.uint_val
+        uint mCachedColorkey;
     }
 
     ///"best" size for a large texture
@@ -212,9 +220,8 @@ class Surface {
         if (copy_data) {
             mData.data = mData.data.dup;
         }
-        mData.colorkey = mData.transparency == Transparency.Colorkey
-            ? mData.colorkey : Color(0,0,0,0);
         gSurfaces.add(this);
+        readSurfaceProperties();
     }
 
     ///kill driver's surface, probably copy data back
@@ -238,6 +245,15 @@ class Surface {
             mDriverSurface = gFramework.createDriverSurface(mData, mMode);
         }
         return mDriverSurface;
+    }
+
+    //call everytime the format in mData is changed
+    private void readSurfaceProperties() {
+        //xxx what
+        mData.colorkey = mData.transparency == Transparency.Colorkey
+            ? mData.colorkey : Color(0,0,0,0);
+        //to speed up isTransparent()
+        mCachedColorkey = mData.colorkey.toRGBA32().uint_val;
     }
 
     final Vector2i size() {
@@ -290,7 +306,7 @@ class Surface {
         mData.enable_cache = s;
     }
 
-    /// direct access to pixels (in RGBA32 format)
+    /// direct access to pixels (in Color.RGBA32 format)
     /// must not call any other surface functions (except size(), colorkey() and
     /// transparency()) between this and unlockPixels()
     void lockPixelsRGBA32(out void* pixels, out uint pitch) {
@@ -316,9 +332,11 @@ class Surface {
     }
 
     /// set the colorkey
+    //xxx: kill this?
     void colorkey(Color c) {
         passivate();
         mData.colorkey = c; //I hope this works?
+        readSurfaceProperties();
     }
 
     final Transparency transparency() {
@@ -329,18 +347,18 @@ class Surface {
     //note how this code is explicitly endian-unsafe by using bit operations
     //  here, and byte-pointer access in mapColorChannels()
     //if the pixel is considered to be transparent
-    //raw is the value obtained by *cast(uint*)(ptr_to_pixel)
+    //raw is the pointer to the pixel
     //if this has alpha transparency, >= 0.5 is not transparent
-    final bool isTransparent(uint raw) {
+    final bool isTransparent(void* raw) {
         switch (transparency()) {
             case Transparency.None:
                 return false;
             case Transparency.Colorkey:
-                return (raw << 8) == (colorkey().toRGBA32() << 8);
+                //xxx here was some weird code which masked out the alpha
+                //    channel for the comparision
+                return *(cast(uint*)raw) == mCachedColorkey;
             case Transparency.Alpha:
-                return (raw >> 24) < 128;
-            default:
-                assert(false);
+                return (cast(ubyte*)raw)[Color.cIdxAlpha] < 128;
         }
     }
 
@@ -466,7 +484,7 @@ class Surface {
         rc.fitInsideB(Rect2i(size));
         if (!rc.isNormal())
             return;
-        uint c = color.toRGBA32();
+        uint c = color.toRGBA32().uint_val;
         void* px; uint pitch;
         lockPixelsRGBA32(px, pitch);
         for (int y = rc.p1.y; y < rc.p2.y; y++) {
@@ -476,67 +494,14 @@ class Surface {
         unlockPixels(rc);
     }
 
-    void saveImage(Stream stream, ImageFormat fmt = ImageFormat.tga) {
-        switch (fmt) {
-            case ImageFormat.tga:
-                saveToTGA(stream);
-                break;
-            default:
-                assert(false, "Not implemented");
+    //fmt is one of the formats registered in gImageFormats
+    //import imgwrite.d to register "png", "tga" and "raw"
+    void saveImage(Stream stream, char[] fmt = "png") {
+        if (auto pfmt = fmt in gImageFormats) {
+            (*pfmt)(this, stream);
+        } else {
+            assert(false, "Not implemented: "~fmt);
         }
-    }
-
-    //dirty hacky lib to dump a surface to a file
-    //as far as I've seen we're not linked to any library which can write images
-    private void saveToTGA(Stream stream) {
-        scope to = new MemoryStream();
-        try {
-            void* pvdata;
-            uint pitch;
-            lockPixelsRGBA32(pvdata, pitch);
-            ubyte b;
-            b = 0;
-            to.write(b); //image id, whatever
-            to.write(b); //no palette
-            b = 2;
-            to.write(b); //uncompressed 24 bit RGB
-            short sh;
-            sh = 0;
-            to.write(sh); //skip plalette
-            to.write(sh);
-            b = 0;
-            to.write(b);
-            to.write(sh); //x/y coordinates
-            to.write(sh);
-            sh = size.x; to.write(sh); //w/h
-            sh = size.y; to.write(sh);
-            if (transparency == Transparency.Alpha)
-                b = 32;
-            else
-                b = 24;
-            to.write(b);
-            b = 8;
-            to.write(b); //??
-            //dump picture data as 24 bbp
-            //TGA seems to be upside down
-            for (int y = size.y-1; y >= 0; y--) {
-                uint* data = cast(uint*)(pvdata+pitch*y);
-                for (int x = 0; x < size.x; x++) {
-                    //trivial alpha check... and if so, write a colorkey
-                    //this, of course, is a dirty hack
-                    b = (*data >> 16) & 0xff; to.write(b);
-                    b = (*data >> 8) & 0xff; to.write(b);
-                    b = *data & 0xff; to.write(b);
-                    if (transparency == Transparency.Alpha) {
-                        b = (*data >> 24) & 0xff; to.write(b);
-                    }
-                    data++;
-                }
-            }
-        } finally {
-            unlockPixels(Rect2i.init);
-        }
-        stream.copyFrom(to);
     }
 }
 
@@ -731,8 +696,8 @@ class Framework {
         return new Surface(data);
     }
 
-    Surface loadImage(Stream st, Transparency transp) {
-        return mDriver.loadImage(st, transp);
+    Surface loadImage(Stream st, Transparency t = Transparency.AutoDetect) {
+        return mDriver.loadImage(st, t);
     }
 
     Surface loadImage(char[] path, Transparency t = Transparency.AutoDetect) {

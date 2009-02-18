@@ -40,6 +40,9 @@ public struct Rect2(T) {
     public static Rect2 Span(Point p, Point size) {
         return Rect2(p, p + size);
     }
+    public static Rect2 Span(T x, T y, T sx, T sy) {
+        return Rect2(x, y, x+sx, y+sy);
+    }
 
     //return a rectangle that could be considered to be "empty"
     // .isNormal() will return false, and the first .extend() will make the

@@ -211,37 +211,57 @@ class TarArchive {
         }
     }
 
-    ZReader openReadStream(char[] name, bool can_fail = false) {
-        name = name ~ ".gz";
+    Stream openReadStreamUncompressed(char[] name, bool can_fail = false) {
         foreach (Entry e; mEntries) {
             if (e.name == name) {
                 auto s = new SliceStream(mFile, e.offset + 512,
                     e.offset + 512 + e.size);
                 s.nestClose = false;
-                return new ZReader(s);
+                return s;
             }
         }
         if (can_fail)
             return null;
-        throw new Exception("tar entry not found");
+        throw new Exception("tar entry not found: >"~name~"<");
+    }
+
+    ZReader openReadStream(char[] name, bool can_fail = false) {
+        name = name ~ ".gz";
+        auto s = openReadStreamUncompressed(name, can_fail);
+        if (!s)
+            return null;
+        return new ZReader(s);
     }
 
     static ubyte[512] waste;
 
-    //NOTE: sequential writing is assumed, e.g. only one stream at a time
-    ZWriter openWriteStream(char[] name) {
+    private void startEntry(char[] name) {
         finishLastFile();
         Entry e;
-        e.name = name ~ ".gz";
+        e.name = name;
         e.offset = mFile.position();
         e.writing = true;
         mEntries ~= e;
         mFile.writeExact(waste.ptr, waste.sizeof);
+        assert (mFile.seekable);
+    }
+
+    //NOTE: sequential writing is assumed, e.g. only one stream at a time
+    ZWriter openWriteStream(char[] name) {
+        startEntry(name ~ ".gz");
         auto s = new SliceStream(mFile, mFile.position());
         s.nestClose = false; //stupid phobos, this took me some time
         auto res = new ZWriter(s);
-        assert (mFile.seekable);
         return res;
+    }
+
+    //NOTE: sequential writing is assumed, e.g. only one stream at a time
+    //this does the same as openWriteStream(), but it's incompressed
+    Stream openUncompressed(char[] name) {
+        startEntry(name);
+        auto s = new SliceStream(mFile, mFile.position());
+        s.nestClose = false; //stupid phobos, this took me some time
+        return s;
     }
 
     private void finishLastFile() {

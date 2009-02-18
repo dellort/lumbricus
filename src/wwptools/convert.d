@@ -1,8 +1,9 @@
 module wwptools.convert;
 
 import devil.image;
-import stdx.stdio;
-import path = stdx.path;
+
+import tango.io.model.IFile : FileConst;
+const pathsep = FileConst.PathSeparatorChar;
 
 struct RGBTriple {
     float r, g, b;
@@ -18,11 +19,11 @@ struct GradientDef {
 RGBTriple convertGround(Image imgIn, char[] destPath = ".") {
     scope imgDown = new Image(64,imgIn.h,false);
     imgDown.blit(imgIn,0,0,64,imgIn.h,0,0);
-    imgDown.save(destPath~path.sep~"grounddown.png");
+    imgDown.save(destPath~pathsep~"grounddown.png");
     scope imgUp = new Image(64,imgIn.h,false);
     imgUp.blit(imgIn,64,0,64,imgIn.h,0,0);
     imgUp.flip();
-    imgUp.save(destPath~path.sep~"groundup.png");
+    imgUp.save(destPath~pathsep~"groundup.png");
 
     RGBAColor col = imgIn.getPixel(128,0);
     return RGBTriple(cast(float)col.r/255, cast(float)col.g/255,

@@ -1,13 +1,16 @@
 module wwptools.untile;
 
 import devil.image;
-import path = stdx.path;
-import stdf = stdx.file;
 import str = stdx.string;
-import stdx.stdio;
 import stdx.stream;
 import utils.configfile;
 import utils.output : StreamOutput; //silly wrapper
+import utils.filetools;
+
+import tango.io.FilePath;
+
+import tango.io.model.IFile : FileConst;
+const pathsep = FileConst.PathSeparatorChar;
 
 ///Params:
 ///  filename = full path to input image
@@ -32,7 +35,9 @@ void do_untile(char[] filename, char[] destPath, char[] imgPath,
 void do_untile(Image img, char[] filename, char[] destPath, char[] imgPath,
     char[] nameHead, char[] nameTail, char[] confName, Stream namefile)
 {
-    char[] fnbase = path.getBaseName(path.getName(filename));
+    char[] fnbase = "";
+    //path.getBaseName(path.getName(filename));
+    assert(false);
 
     ConfigNode conffile, bmps;
     if (confName.length) {
@@ -42,8 +47,8 @@ void do_untile(Image img, char[] filename, char[] destPath, char[] imgPath,
         bmps = s.getSubNode("bitmaps");
     }
 
-    if (imgPath.length > 0 && !stdf.exists(destPath ~ imgPath))
-        stdf.mkdir(destPath ~ imgPath);
+    if (imgPath.length > 0 && !FilePath(destPath ~ imgPath).exists())
+        trymkdir(destPath ~ imgPath);
 
     int sNameIdx = 0;
     char[] getNextName() {
@@ -56,7 +61,7 @@ void do_untile(Image img, char[] filename, char[] destPath, char[] imgPath,
 
     void saveImg(Image imgToSave) {
         char[] baseName = getNextName();
-        imgToSave.save(destPath ~ imgPath ~ path.sep ~ baseName ~ ".png");
+        imgToSave.save(destPath ~ imgPath ~ pathsep ~ baseName ~ ".png");
         if (conffile) {
             bmps.setStringValue(baseName, imgPath ~ "/" ~ baseName ~ ".png");
         }

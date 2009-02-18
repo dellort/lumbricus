@@ -1,12 +1,15 @@
 module extractdata;
 
 import devil.image;
-import stdf = stdx.file;
-import path = stdx.path;
-import stdx.stdio;
+import tangofile = tango.io.device.File;
+import tango.io.FilePath;
+import tango.io.model.IFile : FileConst;
+import tango.util.Convert;
+import tango.io.Stdout;
+import stream = stdx.stream;
 import stdx.stream;
-import stdx.string : tolower, split, format, replace;
-import stdx.conv: toUbyte;
+import stdx.string : tolower, split, replace;
+
 import utils.filetools;
 import utils.configfile;
 import wwpdata.animation;
@@ -19,14 +22,16 @@ import wwptools.untile;
 import wwptools.unworms;
 import wwptools.animconv;
 
+const pathsep = FileConst.PathSeparatorChar;
+
 void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
     bool nolevelthemes)
 {
-    wormsDir = wormsDir ~ path.sep;
-    auto wormsDataDir = wormsDir ~ "data" ~ path.sep;
-    importDir = importDir ~ path.sep;
+    wormsDir = wormsDir ~ pathsep;
+    auto wormsDataDir = wormsDir ~ "data" ~ pathsep;
+    importDir = importDir ~ pathsep;
 
-    void conferr(char[] msg) { writefln(msg); }
+    void conferr(char[] msg) { Stdout(msg).newline; }
 
     ConfigNode loadWImportConfig(char[] file) {
         return (new ConfigFile(new File(importDir ~ file),
@@ -38,8 +43,8 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
         node.writeFile(textstream);
     }
 
-    char[] gfxdirp = wormsDataDir~"Gfx"~path.sep~"Gfx.dir";
-    if (!stdf.exists(gfxdirp)) {
+    char[] gfxdirp = wormsDataDir~"Gfx"~pathsep~"Gfx.dir";
+    if (!FilePath(gfxdirp).exists()) {
         throw new Exception("Invalid directory! Gfx.dir not found.");
     }
     scope iconnames = new File(importDir ~ "iconnames.txt",FileMode.In);
@@ -56,34 +61,34 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
     Image icMask = new Image(importDir ~ "iconmask.png");
     iconlo.applyAlphaMask(icMask);
     //prepare directory "weapons"
-    char[] wepDir = outputDir~path.sep~"weapons";
+    char[] wepDir = outputDir~pathsep~"weapons";
     trymkdir(wepDir);
     //prepare directory for weapon set "default"
-    wepDir ~= path.sep~"default";
+    wepDir ~= pathsep~"default";
     trymkdir(wepDir);
     //extract weapon icons
     //(NOTE: using namefile, so no filename for basename)
-    do_untile(iconlo, "", wepDir~path.sep, "icons", "icon_", "",
+    do_untile(iconlo, "", wepDir~pathsep, "icons", "icon_", "",
         "_icons.conf",iconnames);
 
     //****** Sounds ******
     ConfigNode sndConf = loadWImportConfig("sounds.txt");
     foreach (ConfigNode sub; sndConf.getSubNode("sounds")) {
-        writefln("Copying sounds '%s'", sub.name());
+        Stdout.format("Copying sounds '{}'", sub.name()).newline;
         auto newres = new ConfigNode();
         auto reslist = newres.getPath("resources.samples", true);
-        char[] destp = sub["dest_path"]~path.sep;
-        char[] destp_out = outputDir~path.sep~destp;
+        char[] destp = sub["dest_path"]~pathsep;
+        char[] destp_out = outputDir~pathsep~destp;
         trymkdir(destp_out);
-        char[] sourcep = wormsDataDir~path.sep~sub["source_path"]~path.sep;
+        char[] sourcep = wormsDataDir~pathsep~sub["source_path"]~pathsep;
         foreach (char[] name, char[] value; sub.getSubNode("files")) {
             //doesn't really work if value contains a path
-            auto ext = tolower(path.getExt(value));
+            auto ext = tolower(FilePath(value).ext());
             auto outfname = name~"."~ext;
-            stdf.copy(sourcep~value, destp_out~path.sep~outfname);
+            FilePath(destp_out~pathsep~outfname).copy(sourcep~value);
             reslist.setStringValue(name, destp~outfname);
         }
-        writeConfig(newres, outputDir~path.sep~sub["conffile"]);
+        writeConfig(newres, outputDir~pathsep~sub["conffile"]);
     }
 
     //****** Convert mainspr.bnk / water.bnk using animconv ******
@@ -93,23 +98,24 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
 
     //run animconv
     do_extractbnk("mainspr", mainspr, animConf.getSubNode("mainspr"),
-        outputDir~path.sep);
+        outputDir~pathsep);
 
     //extract water sets (uses animconv too)
     //xxx: like level set, enum subdirectories (code duplication?)
     char[] waterpath = wormsDataDir~"Water";
-    char[] all_waterout = outputDir~path.sep~"water";
+    char[] all_waterout = outputDir~pathsep~"water";
     trymkdir(all_waterout);
-    char[][] waters = stdf.listdir(waterpath);
-    foreach (wdir; waters) {
-        char[] wpath = waterpath~path.sep~wdir;
+    foreach (fi; FilePath(waterpath)) {
+        char[] wdir = fi.name;
+        char[] wpath = waterpath~pathsep~wdir;
         char[] id = tolower(wdir);
-        char[] waterout = outputDir~path.sep~"water"~path.sep~id~path.sep;
+        char[] waterout = outputDir~pathsep~"water"~pathsep~id~pathsep;
         trymkdir(waterout);
         //lame check if it's a water dir
-        if (stdf.isdir(wpath) && stdf.exists(wpath~path.sep~"Water.dir")) {
-            writefln("Converting water set '%s'", id);
-            Dir waterdir = new Dir(wpath~path.sep~"Water.dir");
+        FilePath wpath2 = FilePath(wpath);
+        if (wpath2.isFolder() && FilePath(wpath~pathsep~"Water.dir").exists()) {
+            Stdout("Converting water set '%{}'", id).newline;
+            Dir waterdir = new Dir(wpath~pathsep~"Water.dir");
             do_extractbnk("water_anims", waterdir.open("water.bnk"),
                 animConf.getSubNode("water_anims"), waterout);
 
@@ -119,14 +125,15 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
                 waterout);
             water.free();
 
-            scope colourtxt = new File(wpath~path.sep~"colour.txt", FileMode.In);
+            scope colourtxt = new File(wpath~pathsep~"colour.txt", FileMode.In);
             char[][] colRGB = split(colourtxt.readLine());
             assert(colRGB.length == 3);
-            auto r = cast(float)toUbyte(colRGB[0])/255.0f;
-            auto g = cast(float)toUbyte(colRGB[1])/255.0f;
-            auto b = cast(float)toUbyte(colRGB[2])/255.0f;
-            auto conf = WATER_P1 ~ format("%.2f %.2f %.2f", r, g, b) ~ WATER_P2;
-            stdf.write(waterout~"water.conf", conf);
+            auto r = cast(float)to!(ubyte)(colRGB[0])/255.0f;
+            auto g = cast(float)to!(ubyte)(colRGB[1])/255.0f;
+            auto b = cast(float)to!(ubyte)(colRGB[2])/255.0f;
+            auto conf = WATER_P1 ~ myformat("r={}, g={}, b= {}", r, g, b)
+                ~ WATER_P2;
+            tangofile.File.set(waterout~"water.conf", conf);
         }
     }
 
@@ -135,24 +142,24 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
         return;
     char[] levelspath = wormsDataDir~"Level";
     //prepare output dir
-    char[] levelDir = outputDir~path.sep~"level";
+    char[] levelDir = outputDir~pathsep~"level";
     trymkdir(levelDir);
     //iterate over all directories in path "WWP/data/Levels"
-    char[][] sets = stdf.listdir(levelspath);
-    foreach (setdir; sets) {
+    foreach (fi; FilePath(levelspath)) {
+        auto setdir = fi.name;
         //full source path
-        char[] setpath = levelspath~path.sep~setdir;
+        char[] setpath = levelspath~pathsep~setdir;
         //level set identifier
         char[] id = tolower(setdir);
         //xxx hack for -blabla levels
         if (id[0] == '-')
             id = "old" ~ id[1..$];
         //destination path (named by identifier)
-        char[] destpath = levelDir~path.sep~id;
+        char[] destpath = levelDir~pathsep~id;
         trymkdir(destpath);
-        if (stdf.isdir(setpath)) {
-            writefln("Converting level set '%s'",id);
-            convert_level(setpath~path.sep,destpath~path.sep,importDir);
+        if (FilePath(setpath).isFolder()) {
+            Stdout("Converting level set '{}'",id).newline;
+            convert_level(setpath~pathsep,destpath~pathsep,importDir);
         }
     }
 }
@@ -172,20 +179,19 @@ int main(char[][] args)
             //stop argument parsing, standard on Linux
             break;
         } else {
-            writefln("unknown option: %s", opt);
+            Stdout("unknown option: {}", opt).newline;
             usageerror = true;
         }
     }
     if (args.length < 3 || usageerror) {
-        writefln("Syntax: extractdata [options] <importDir> <wormsMainDir>"
-            " [<outputDir>]");
-        writefln("  <importDir>: your-svn-root/trunk/lumbricus/data/wimport");
-        writefln("  <wormsMainDir>: worms main dir, e.g. where your wwp.exe is");
-        writefln("  <outputDir>: where to write stuff to (default is current"
-            " dir, but it really");
-        writefln("               should be your-svn-root/trunk/lumbricus/data/data2");
-        writefln("Options:");
-        writefln("  -T  don't extract/convert/write level themes");
+        Stdout(
+`Syntax: extractdata [options] <importDir> <wormsMainDir> [<outputDir>]
+    <importDir>: your-svn-root/trunk/lumbricus/data/wimport
+    <wormsMainDir>: worms main dir, e.g. where your wwp.exe is
+    <outputDir>: where to write stuff to (default is current dir, but it really
+                 should be your-svn-root/trunk/lumbricus/data/data2
+Options:
+    -T  don't extract/convert/write level themes`).newline;
         return 1;
     }
     char[] outputDir;

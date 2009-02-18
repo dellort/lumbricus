@@ -2,22 +2,21 @@ module wwptools.unworms;
 
 import devil.image;
 import stdx.stream;
-import stdx.stdio;
-import path = stdx.path;
-import stdx.file;
+import tango.io.Stdout;
 import str = stdx.string;
 import wwpdata.reader;
 import wwpdata.reader_bnk;
 import wwpdata.reader_dir;
 import wwpdata.reader_img;
 import wwpdata.reader_spr;
+import utils.filetools;
 
 void do_unworms(char[] filename, char[] outputDir) {
-    char[] fnBase = path.getBaseName(path.getName(filename));
+    char[] fnBase = basename(filename);
     scope st = new File(filename, FileMode.In);
 
     if (auto readFunc = findReader(st)) {
-        writefln("Extracting from '%s'...",path.getBaseName(filename));
+        Stdout("Extracting from '{}'...", filename).newline;
         readFunc(st, outputDir, fnBase);
     }
 }
@@ -30,7 +29,7 @@ WWPReader findReader(Stream st) {
     if (hdr in registeredReaders) {
         return registeredReaders[hdr];
     } else {
-        writefln("Error: Unknown filetype");
+        Stdout("Error: Unknown filetype").newline;
         return null;
     }
 }

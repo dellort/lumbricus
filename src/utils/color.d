@@ -18,10 +18,29 @@ public struct Color {
     float r = 0.0f, g = 0.0f, b = 0.0f;
     float a = 1.0f;
 
+    //memory format for the OpenGL texture format we use in our framework
+    //exactly:
+    //  glTexImage2D(GL_TEXTURE_2D, _, GL_RGBA, _, _, _, GL_RGBA,
+    //      GL_UNSIGNED_BYTE, _)
+    struct RGBA32 {
+        union {
+            struct {
+                ubyte r, g, b, a;
+            }
+            //indexed
+            ubyte[4] colors;
+            //endian-dependent 32 bit value, but useful to access pixels at once
+            uint uint_val;
+        }
+    }
+
+    //for RGBA32
+    const cIdxR = 0, cIdxG = 1, cIdxB = 2, cIdxAlpha = 3;
+
     /// a value that can be used as epsilon when comparing colors
     //0.3f is a fuzzify value, with 255 I expect colors to be encoded with at
     //most 8 bits
-    public static const float epsilon = 0.3f * 1.0f/255;
+    public static const float epsilon = 0.3f * 1.0f / 255;
 
     /// to help the OpenGL code; use with glColor4fv
     /// (unclean but better than to cast Color* to float* like it was before)
@@ -72,6 +91,24 @@ public struct Color {
         return Color(fromByte(r), fromByte(g), fromByte(b), fromByte(a));
     }
 
+    static Color fromRGBA32(ref RGBA32 rgba) {
+        Color c = void;
+        c.r = fromByte(rgba.r);
+        c.g = fromByte(rgba.g);
+        c.b = fromByte(rgba.b);
+        c.a = fromByte(rgba.a);
+        return c;
+    }
+
+    RGBA32 toRGBA32() {
+        RGBA32 c = void;
+        c.r = toByte(r);
+        c.g = toByte(g);
+        c.b = toByte(b);
+        c.a = toByte(a);
+        return c;
+    }
+
     Color opMul(float m) {
         Color res = *this;
         res *= m;
@@ -120,40 +157,73 @@ public struct Color {
         return a <= 1.0f - epsilon;
     }
 
-    //xxx: ?
-    uint toRGBA32() {
-        uint rb = cast(ubyte)(255*r);
-        uint gb = cast(ubyte)(255*g);
-        uint bb = cast(ubyte)(255*b);
-        uint ab = cast(ubyte)(255*a);
-        return ab << 24 | bb << 16 | gb << 8 | rb;
-    }
-
-    ///parse color from string s and replace r/g/b/a values
+    /++
+     + parse color from string s and replace r/g/b/a values
+     + formats:
+     +  <float> <float> <float> [<float>]: rgb or rgba directly (deprecated)
+     +  [<ext> (',' <ext>)*]
+     +    <ext> ::= <colorname> | ('r'|'g'|'b'|'a'|'k' = <float>)
+     +    single components, or a colorname to set all components (if components
+     +    are assigned more than once, the latest values are used)
+     +    'k' means to set rgb to the given float value
+     +/
     bool parse(char[] s) {
-        auto colors = gColors;
-        if (s in colors) {
-            *this = colors[s];
-            return true;
-        }
+        //old parsing
 
         char[][] values = str.split(s);
-        if (values.length < 3 || values.length > 4)
-            return false;
-        try {
-            Color newc;
-            newc.r = conv.to!(float)(values[0]);
-            newc.g = conv.to!(float)(values[1]);
-            newc.b = conv.to!(float)(values[2]);
-            newc.a = 1.0f;
-            if (values.length > 3) {
-                newc.a = conv.to!(float)(values[3]);
+        if (values.length == 3 || values.length == 4) {
+            try {
+                Color newc;
+                newc.r = conv.to!(float)(values[0]);
+                newc.g = conv.to!(float)(values[1]);
+                newc.b = conv.to!(float)(values[2]);
+                newc.a = 1.0f;
+                if (values.length > 3) {
+                    newc.a = conv.to!(float)(values[3]);
+                }
+                *this = newc;
+                return true;
+            } catch (conv.ConversionException e) {
             }
-            *this = newc;
-            return true;
-        } catch (conv.ConversionException e) {
         }
-        return false;
+
+        //new parsing
+
+        *this = Color.init;
+        char[][] stuff = str.split(s, ",");
+
+        if (stuff.length == 0)
+            return false;
+
+        foreach (x; stuff) {
+            char[][] sub = str.split(x, "=");
+            if (sub.length == 1) {
+                auto pcolor = str.tolower(str.strip(sub[0])) in gColors;
+                if (!pcolor)
+                    return false;
+                *this = *pcolor;
+            } else if (sub.length == 2) {
+                float val;
+                try {
+                    val = conv.to!(float)(str.strip(sub[1]));
+                } catch (conv.ConversionException e) {
+                    return false;
+                }
+                switch (str.strip(sub[0])) {
+                    case "r": r = val; break;
+                    case "g": g = val; break;
+                    case "b": b = val; break;
+                    case "a": a = val; break;
+                    case "k": r = g = b = val; break;
+                    default:
+                        return false;
+                }
+            } else {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
 

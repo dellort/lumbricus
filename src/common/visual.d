@@ -268,10 +268,11 @@ BoxTex getBox(BoxProps props) {
                         props.p.border.g*colBuf+props.p.back.g*(1.0f-colBuf),
                         props.p.border.b*colBuf+props.p.back.b*(1.0f-colBuf),
                         aBuf*(border.a*colBuf+props.p.back.a*(1.0f-colBuf)))
-                            .toRGBA32();
+                            .toRGBA32().uint_val;
                     line++;
                 }
             }
+
             s.unlockPixels(Rect2i(Vector2i(0), s.size));
         }
 

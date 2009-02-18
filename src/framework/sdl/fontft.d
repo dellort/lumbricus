@@ -10,13 +10,16 @@ import framework.font;
 import framework.texturepack;
 
 import utils.array;
+import utils.misc;
 import utils.vector2;
 
 import stdx.stream;
 
 private struct GlyphData {
     TextureRef tex;     //glyph texture
+    TextureRef border;  //second texture for border, can be null
     Vector2i offset;    //texture drawing offset, relative to text top
+    Vector2i border_offset; //same for border
     Vector2i size;      //space this glyph takes (!= tex.size)
 }
 
@@ -34,7 +37,6 @@ class FTGlyphCache {
     private {
         GlyphData mFrags[dchar];
         TexturePack mPacker; //if null => one surface per glyph
-        bool mOpaque;
         int mHeight;
         int mBaseline;
         int mLineSkip;
@@ -82,12 +84,10 @@ class FTGlyphCache {
         int descent = FT_Ceil(FT_MulFix(mFace.descender, scale));
         mHeight = mBaseline - descent + 1;
         mLineSkip = FT_Ceil(FT_MulFix(mFace.height, scale));
-	    mUnderlineOffset = FT_Floor(FT_MulFix(mFace.underline_position,scale));
-	    mUnderlineHeight = FT_Floor(FT_MulFix(mFace.underline_thickness,scale));
-	    if (mUnderlineHeight < 1)
+        mUnderlineOffset = FT_Floor(FT_MulFix(mFace.underline_position,scale));
+        mUnderlineHeight = FT_Floor(FT_MulFix(mFace.underline_thickness,scale));
+        if (mUnderlineHeight < 1)
             mUnderlineHeight = 1;
-
-        mOpaque = props.isOpaque;
 
         if (gSDLDriver.mUseFontPacker) {
             //all fonts into one packer, saves texture memory
@@ -133,9 +133,6 @@ class FTGlyphCache {
     }
 
     //return a (part) of a surface with that glyph
-    //it will be non-transparent for fully opaque fonts, but if the background
-    //contains alpha, the surface is alpha blended and actually doesn't contain
-    //anything of the background color
     GlyphData* getGlyph(dchar c) {
         GlyphData* sptr = c in mFrags;
         if (!sptr) {
@@ -149,85 +146,147 @@ class FTGlyphCache {
         if (ch in mFrags)
             return;   //glyph already loaded
 
+        int ftres;
+
+        //xxx: error handling doesn't free stuff allocated from FT
+        //(also, I check allocating functions only)
+        void ftcheck(char[] name) {
+            if (ftres)
+                throw new Exception(myformat("fontft.d failed: err={} in {}",
+                    ftres, name));
+        }
+
         //Load the Glyph for our character.
-        if (FT_Load_Glyph(mFace, FT_Get_Char_Index(mFace, ch), FT_LOAD_DEFAULT))
-            throw new Exception("FT_Load_Glyph failed");
+        ftres = FT_Load_Glyph(mFace, FT_Get_Char_Index(mFace, ch),
+            FT_LOAD_DEFAULT);
+        ftcheck("FT_Load_Glyph");
 
         //this is quite ugly, better use a specific face file
-        //xxx missing italic, don't know how to do that
         if (mDoBold) {
             FT_GlyphSlot_Embolden(mFace.glyph);
         }
+        if (mDoItalic) {
+            //this function is undocumented, but mplayer uses it for italics
+            FT_GlyphSlot_Oblique(mFace.glyph);
+        }
 
-        //Move the face's glyph into a Glyph object.
-        FT_GlyphSlot glyph = mFace.glyph;
+        FT_Glyph glyph;
+        ftres = FT_Get_Glyph(mFace.glyph, &glyph);
+        ftcheck("FT_GetGlyph");
 
         //Render the glyph
-        FT_Render_Glyph(glyph, FT_Render_Mode.FT_RENDER_MODE_NORMAL);
+        ftres = FT_Glyph_To_Bitmap(&glyph, FT_Render_Mode.FT_RENDER_MODE_NORMAL,
+            null, 1);
+        ftcheck("FT_Glyph_To_Bitmap");
 
-        //create a surface for the glyph
+        FT_BitmapGlyph glyph_bitmap = cast(FT_BitmapGlyph)glyph;
+        FT_Bitmap* glyph_bmp = &glyph_bitmap.bitmap;
+        assert (glyph_bmp.pixel_mode == FT_Pixel_Mode.FT_PIXEL_MODE_GRAY);
+
+        GlyphData ret;
+
+        ret.tex = ftbitmapToTex(glyph_bmp, props.fore);
+
+        //surface only contains the actual glyph
+        ret.offset.x = glyph_bitmap.left;
+        ret.offset.y = mBaseline - glyph_bitmap.top;
+
+        //border is an additional texture
+        if (props.border_width > 0) {
+            FT_Glyph border_glyph;
+            FT_Get_Glyph(mFace.glyph, &border_glyph);
+
+            FT_Stroker stroker;
+            //xxx: first parameter (are the bindings wrong? I dumb? wtf?)
+            ftres = FT_Stroker_New(cast(FT_MemoryRec*)mFace.glyph.library,
+                &stroker);
+            ftcheck("FT_Stroker_New");
+            FT_Stroker_Set(stroker, props.border_width << 6,
+                FT_Stroker_LineCap.FT_STROKER_LINECAP_ROUND,
+                FT_Stroker_LineJoin.FT_STROKER_LINEJOIN_ROUND, 0);
+            FT_Glyph_StrokeBorder(&border_glyph, stroker, 0, 1);
+            FT_Stroker_Done(stroker);
+
+            //render another glpyh for the border
+            ftres = FT_Glyph_To_Bitmap(&border_glyph,
+                FT_Render_Mode.FT_RENDER_MODE_NORMAL, null, 1);
+            ftcheck("FT_Glyph_To_Bitmap (2)");
+
+            FT_BitmapGlyph border_bitmap = cast(FT_BitmapGlyph)border_glyph;
+            FT_Bitmap* border_bmp = &border_bitmap.bitmap;
+            assert (border_bmp.pixel_mode == FT_Pixel_Mode.FT_PIXEL_MODE_GRAY);
+
+            ret.border_offset.x = border_bitmap.left;
+            ret.border_offset.y = mBaseline - border_bitmap.top;
+
+            //do the same weird stuff mplayer does
+            //first find out the common subrect
+            auto rc1 = Rect2i.Span(ret.offset, ret.tex.size);
+            auto rc2 = Rect2i.Span(ret.border_offset,
+                Vector2i(border_bmp.width, border_bmp.rows));
+            auto rci = rc1.intersection(rc2);
+            assert (rci.isNormal());
+            auto p1 = rci.p1 - ret.offset;
+            auto p2 = rci.p1 - ret.border_offset;
+            for (int y = rci.p1.y; y < rci.p2.y; y++) {
+                ubyte* pn = glyph_bmp.buffer + p1.y*glyph_bmp.pitch + p1.x;
+                ubyte* pb = border_bmp.buffer + p2.y*border_bmp.pitch + p2.x;
+                for (int x = rci.p1.x; x < rci.p2.x; x++) {
+                    *pb = *pb > *pn ? *pb : 0;
+                    pn++; pb++;
+                }
+                p1.y++; p2.y++;
+            }
+
+            ret.border = ftbitmapToTex(border_bmp, props.border_color);
+
+            FT_Done_Glyph(border_glyph);
+        }
+
+        FT_Done_Glyph(glyph);
+
+        ret.size.x = mFace.glyph.advance.x >> 6;
+        //small hack
+        //ret.size.x += props.border_width;
+        ret.size.y = mHeight;
+
+        mFrags[ch] = ret;
+    }
+
+    private TextureRef ftbitmapToTex(FT_Bitmap* bmp, Color color) {
+        //create a surface for a glyph
         Surface tmp = gFramework.createSurface(
-            Vector2i(glyph.bitmap.width, glyph.bitmap.rows),
+            Vector2i(bmp.width, bmp.rows),
             Transparency.Alpha);
 
-        struct RGBA32 {
-            ubyte r, g, b, a;
-        }
-        RGBA32 forecol;
-        forecol.r = cast(ubyte)(props.fore.r*255);
-        forecol.g = cast(ubyte)(props.fore.g*255);
-        forecol.b = cast(ubyte)(props.fore.b*255);
+        Color.RGBA32 forecol = color.toRGBA32();
 
         //copy the (monochrome) glyph data to the 32bit surface
         //color values come from foreground color, alpha from glyph data
         void* sdata; uint spitch;
-        ubyte* srcptr = glyph.bitmap.buffer;
+        ubyte* srcptr = bmp.buffer;
         tmp.lockPixelsRGBA32(sdata, spitch);
         for (int y = 0; y < tmp.size.y; y++) {
-            RGBA32* data = cast(RGBA32*)(sdata + spitch*y);
-            ubyte* src = srcptr + tmp.size.x*y;
+            Color.RGBA32* data = cast(Color.RGBA32*)(sdata + spitch*y);
+            ubyte* src = srcptr + bmp.pitch*y;
             for (int x = 0; x < tmp.size.x; x++) {
                 //copy foreground color, and use glyph data for alpha channel
                 *data = forecol;
-                data.a = cast(ubyte)(*src * props.fore.a);
+                data.a = cast(ubyte)(*src * forecol.a / 256);
                 data++;
                 src++;
             }
         }
         tmp.unlockPixels(tmp.rect);
 
-        //fill glyph data structure
-        GlyphData ret;
-        ret.size.x = mFace.glyph.advance.x >> 6;
-        ret.size.y = mHeight;
-
-        //if necessary, draw the background
-        Surface surf;
-        if (mOpaque) {
-            //create a surface for the full glyph area with background
-            //(ret.tex.size == ret.size)
-            surf = gFramework.createSurface(ret.size, Transparency.None);
-            auto d = gSDLDriver.startOffscreenRendering(surf);
-            d.drawFilledRect(Vector2i(0), surf.size, props.back);
-            d.draw(tmp, Vector2i(glyph.bitmap_left, mBaseline-glyph.bitmap_top));
-            d.endDraw();
-            tmp.free();
-            ret.offset.x = 0;
-            ret.offset.y = 0;
-        } else {
-            //surface only contains the actual glyph
-            surf = tmp;
-            ret.offset.x = glyph.bitmap_left;
-            ret.offset.y = mBaseline-glyph.bitmap_top;
-        }
-
+        TextureRef ret;
         if (mPacker) {
-            ret.tex = mPacker.add(surf);
+            ret = mPacker.add(tmp);
+            tmp.free();
         } else {
-            ret.tex = TextureRef(surf, Vector2i(0), surf.size);
+            ret = TextureRef(tmp, Vector2i(0), tmp.size);
         }
-
-        mFrags[ch] = ret;
+        return ret;
     }
 }
 
@@ -235,7 +294,7 @@ class FTFont : DriverFont {
     private {
         FTGlyphCache mCache;
         FontProperties mProps;
-        bool mNeedBackPlain, mUseGL;
+        bool mUseGL;
     }
 
     package int refcount = 1;
@@ -243,8 +302,7 @@ class FTFont : DriverFont {
     this(FTGlyphCache glyphs, FontProperties props) {
         mCache = glyphs;
         mProps = props;
-        mNeedBackPlain = props.needsBackPlain;
-        mUseGL = gSDLDriver.mOpenGL  && !props.isOpaque;
+        mUseGL = gSDLDriver.mOpenGL;
     }
 
     Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text) {
@@ -262,14 +320,19 @@ class FTFont : DriverFont {
     }
 
     private void drawGlyph(Canvas c, GlyphData* glyph, Vector2i pos) {
-        if (mNeedBackPlain) {
-            c.drawFilledRect(pos, pos+glyph.size, mProps.back);
+        void setColor(Color c) {
+            glColor3f(c.r, c.g, c.b);
         }
+
+        c.drawFilledRect(Rect2i.Span(pos, glyph.size), mProps.back);
         if (mUseGL) {
-            glColor4f(mProps.fore.r, mProps.fore.g, mProps.fore.b,
-                mProps.fore.a);
+            setColor(mProps.fore);
         }
         glyph.tex.draw(c, pos+glyph.offset);
+        if (glyph.border.surface) {
+            setColor(mProps.border_color);
+            glyph.border.draw(c, pos+glyph.border_offset);
+        }
     }
 
     private Vector2i drawText(Canvas canvas, Vector2i pos, char[] text) {
@@ -355,12 +418,14 @@ class FTFontDriver : FontDriver {
 
         FontProperties gc_props = props;
         //on OpenGL, you can color up surfaces at no costs, so...
-        //not for opaque surfaces, these are rendered as a single surface
-        if (gSDLDriver.mOpenGL && !gc_props.isOpaque) {
+        if (gSDLDriver.mOpenGL) {
             //normalize to a standard color
-            gc_props.back = Color(0,0,0,0); //fully transparent
-            gc_props.fore = Color(1,1,1);   //white
+            //because of issues with the border, keep alpha component
+            gc_props.fore = Color(1, 1, 1, gc_props.fore.a);   //white
+            gc_props.border_color = Color(1, 1, 1, gc_props.border_color.a);
         }
+        //background is rendered separately, exclude from AA key
+        gc_props.back = Color.init;
 
         FTGlyphCache gc = aaIfIn(mGlyphCaches, gc_props);
 

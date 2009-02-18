@@ -5,6 +5,7 @@ import framework.framework;
 import framework.sdl.framework;
 import framework.sdl.soundmixer;
 import framework.openal;
+import framework.imgwrite;
 
 import framework.filesystem : MountPath;
 import common = common.common;
@@ -15,6 +16,9 @@ import utils.log;
 import utils.output;
 import utils.random;
 import utils.time;
+
+//hacky hack
+import tracer = utils.mytrace;
 
 import tango.io.Stdout;
 import stdx.stream : File, FileMode;
@@ -36,7 +40,6 @@ import game.gui.setup_local;
 import game.gui.levelpaint;
 import game.wtris; //lol
 import game.bomberworm; //?
-//--tango import irc.ircclient; //roflmao
 //debugging
 import common.resview;
 //net tests
@@ -75,19 +78,6 @@ const cCommandLineHelp =
     --logconsole
         Output all log output on stdio.`;
 //Also see parseCmdLine() for how parsing works.
-
-import utils.factory;
-
-StaticFactory!("bla", C, char[]) CFactory;
-
-class C {
-    this(char[] args = "") {
-    }
-
-    static this() {
-        CFactory.register!(typeof(this))("cclass");
-    }
-}
 
 void main(char[][] args) {
     //xxx

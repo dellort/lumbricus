@@ -308,7 +308,7 @@ class SDLDriver : FrameworkDriver {
         GLCanvas mScreenCanvasGL;
 
         //cache for being able to draw alpha blended filled rects without OpenGL
-        Surface[int] mInsanityCache;
+        Surface[uint] mInsanityCache;
 
         SDL_Cursor* mCursorStd, mCursorNull;
 
@@ -342,11 +342,20 @@ class SDLDriver : FrameworkDriver {
         mConfig = config;
 
         mRGBA32.BitsPerPixel = 32;
-        //xxx: endian, etc...
-        mRGBA32.Rmask = 0x00_00_00_FF;
-        mRGBA32.Gmask = 0x00_00_FF_00;
-        mRGBA32.Bmask = 0x00_FF_00_00;
-        mRGBA32.Amask = 0xFF_00_00_00;
+
+        version (LittleEndian) {
+            mRGBA32.Rmask = 0x00_00_00_FF;
+            mRGBA32.Gmask = 0x00_00_FF_00;
+            mRGBA32.Bmask = 0x00_FF_00_00;
+            mRGBA32.Amask = 0xFF_00_00_00;
+        } else version (BigEndian) {
+            mRGBA32.Rmask = 0xFF_00_00_00;
+            mRGBA32.Gmask = 0x00_FF_00_00;
+            mRGBA32.Bmask = 0x00_00_FF_00;
+            mRGBA32.Amask = 0x00_00_00_FF;
+        } else {
+            static assert("no endian");
+        }
 
         mEnableCaching = config.getBoolValue("enable_caching", true);
         mMarkAlpha = config.getBoolValue("mark_alpha", false);
@@ -760,7 +769,7 @@ class SDLDriver : FrameworkDriver {
     //return a surface with unspecified size containing this color
     //(used for drawing alpha blended rectangles)
     private Surface insanityCache(Color c) {
-        int key = c.toRGBA32();
+        uint key = c.toRGBA32().uint_val;
 
         Surface* s = key in mInsanityCache;
         if (s)

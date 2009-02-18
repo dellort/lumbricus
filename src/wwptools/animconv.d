@@ -1,13 +1,10 @@
 module wwptools.animconv;
 
 import aconv.atlaspacker;
-import stdx.stdio;
 import stdx.stream;
-import stdf = stdx.file;
 import stdx.string;
-import stdx.conv;
-import path = stdx.path;
 import utils.configfile;
+import conv = tango.util.Convert;
 import utils.misc;
 import utils.vector2;
 import utils.output;
@@ -15,6 +12,9 @@ import wwpdata.animation;
 import wwpdata.reader_bnk;
 
 public import framework.resfileformats;
+
+import tango.io.model.IFile : FileConst;
+const pathsep = FileConst.PathSeparatorChar;
 
 alias FileAnimationParamType Param;
 
@@ -248,7 +248,7 @@ class AniFile {
             node.setStringValue("type", "complicated");
             foreach (int i, s; e.param_conv) {
                 if (s.length)
-                    node.setStringValue(format("param_%s", i+1), s);
+                    node.setStringValue(myformat("param_{}", i+1), s);
             }
         }
 
@@ -285,10 +285,10 @@ void do_extractbnk(char[] bnkname, Stream bnkfile, ConfigNode bnkNode,
     char[] workPath)
 {
     if (workPath.length == 0) {
-        workPath = "."~path.sep;
+        workPath = "."~pathsep;
     }
 
-    writefln("Working on %s",bnkname);
+    Stdout("Working on {}", bnkname).newline;
     auto anis = readBnkFile(bnkfile);
     do_write_anims(anis, bnkNode, bnkname, workPath);
     anis.free();
@@ -306,7 +306,7 @@ void do_write_anims(AnimList anims, ConfigNode config, char[] name,
     gAnims = new AniFile(name, gPacker, config.getIntValue("frametime_def",
         cDefFrameTimeMS));
 
-    writefln("...writing %s...", name);
+    Stdout("...writing {}...", name).newline;
 
     //if this is true, _all_ bitmaps are loaded from the .bnk-file, even if
     //they're not needed
@@ -349,12 +349,12 @@ Animation[] getSimple(char[] val, int n, int x) {
         n = strs.length;
     Animation[] res;
     foreach (s; strs) {
-        auto z = conv.toInt(s);
+        auto z = conv.to!(int)(s);
         for (int i = 0; i < x; i++)
             res ~= gAnimList.animations[z+i];
     }
     if (res.length != n*x) {
-        throw new Exception(format("unexpected blahblah %d/%d: %s",
+        throw new Exception(myformat("unexpected blahblah {}/{}: {}",
             n, x, val));
     }
     return res;
@@ -534,7 +534,7 @@ private void loadGeneralW(ConfigNode node) {
         }
         auto unused = boolFlags.keys ~ intFlags.keys;
         if (unused.length) {
-            assert(false, str.format("unknown flags: %s in %s", unused, name));
+            assert(false, myformat("unknown flags: {} in {}", unused, name));
         }
     }
 

@@ -61,7 +61,7 @@ class LandscapeBitmap {
                 ret.h = s.size.y;
             } else {
                 //simulate an image consisting of a single transparent pixel
-                ret.plain_evil = fallback.toRGBA32();
+                ret.plain_evil = fallback.toRGBA32().uint_val;
                 ret.data = &ret.plain_evil;
                 ret.w = ret.h = 1;
                 ret.pitch = 4;
@@ -265,16 +265,6 @@ class LandscapeBitmap {
         }
     }
 
-    //for RGBA32 format, check if pixel is considered to be transparent
-    //hopefully inlined
-    private bool is_not_transparent(uint c) {
-        //ultra slow!
-        return !mImage.isTransparent(c);
-        //return !!(c & 0xff000000);
-        //xxx this sucks!
-        //return (c & 0xff00ff) != 0xff00ff;
-    }
-
     //it's a strange design decision to do it _that_ way. sorry for that.
     //draw a border in "a", using that texture, where "a" forms a border to "b"
     //draws top and bottom borders with different textures (if do_xx is set,
@@ -304,7 +294,7 @@ class LandscapeBitmap {
             uint tex_h = texture.size.y;
             uint* texptr = cast(uint*)tex_data;
 
-            uint dsttransparent = mImage.colorkey.toRGBA32();
+            uint dsttransparent = mImage.colorkey.toRGBA32().uint_val;
 
             void* dstptr; uint dstpitch;
             mImage.lockPixelsRGBA32(dstptr, dstpitch);
@@ -341,7 +331,7 @@ class LandscapeBitmap {
                         uint* texel = texptr + x%tex_w;
                         uint texy = (tex_h-pline)%tex_h;
                         texel = cast(uint*)(cast(void*)texel + texy*tex_pitch);
-                        if (!texture.isTransparent(*texel))
+                        if (!texture.isTransparent(texel))
                             *scanline = *texel;
                         else {
                             //XXX assumption: parts of the texture that should
@@ -481,7 +471,7 @@ class LandscapeBitmap {
                 sx = s.size.x; sy = s.size.y;
             } else {
                 //plain evil etc.: simulate a 1x1 bitmap with the color in it
-                int col = c.toRGBA32();
+                uint col = c.toRGBA32().uint_val;
                 srcpixels = &col;
                 srcpitch = 4;
                 sx = 1; sy = 1;
@@ -624,7 +614,7 @@ class LandscapeBitmap {
             uint* dst = cast(uint*)(dstptr + dstpitch*y + cx1*uint.sizeof);
             Lexel* dst_meta = &mLevelData[mWidth*y+cx1];
             for (int x = cx1; x < cx2; x++) {
-                if (!source.isTransparent(*src)
+                if (!source.isTransparent(src)
                     && ((*dst_meta & meta_mask) == meta_cmp))
                 {
                     *dst_meta = after;
@@ -751,7 +741,7 @@ class LandscapeBitmap {
             uint* pixel = cast(uint*)(ptr + y*pitch);
             Lexel* meta = &mLevelData[y*mWidth];
             for (int x = 0; x < mWidth; x++) {
-                *meta = is_not_transparent(*pixel) ? Lexel.SolidSoft
+                *meta = mImage.isTransparent(pixel) ? Lexel.SolidSoft
                     : Lexel.Null;
                 meta++;
                 pixel++;

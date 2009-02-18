@@ -1,13 +1,11 @@
 module wwptools.levelconverter;
 
 import aconv.atlaspacker;
-import stdf = stdx.file;
 import str = stdx.string;
 import stdx.stream;
-import stdx.conv;
-import stdx.stdio;
 import utils.filetools;
 import utils.vector2;
+import utils.misc;
 import wwpdata.animation;
 import wwpdata.reader_img;
 import wwpdata.reader_dir;
@@ -15,6 +13,8 @@ import wwpdata.reader_spr;
 import wwptools.animconv;
 import wwptools.convert;
 import wwptools.unworms;
+import tango.io.FilePath;
+import tangofile = tango.io.device.File;
 
 struct BmpDef {
     char[] id, fn;
@@ -66,7 +66,7 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
     definedBitmaps ~= BmpDef("land","text.png");
 
     //solid ground texture (WWP does not have this, use default)
-    stdf.copy(importPath ~ "hard.png",destPath~"hard.png");
+    FilePath(destPath~"hard.png").copy(importPath ~ "hard.png");
     definedBitmaps ~= BmpDef("solid_land","hard.png");
 
     //Sky gradient
@@ -110,7 +110,8 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
     definedBitmaps ~= BmpDef("ground_down","grounddown.png");
 
     //objects
-    trymkdir(destPath~"objects");
+    assert(false);
+    /+trymkdir(destPath~"objects");
     char[][] inffiles = ldir.listdir("*.inf");
     foreach (inff; inffiles) {
         char[] objname = path.getBaseName(path.getName(inff));
@@ -121,14 +122,14 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
         int side = toInt(infLines[5]);
         definedBitmaps ~= BmpDef("obj_"~objname,"objects/"~objname~".png");
         definedObjects ~= ObjDef("obj_"~objname, side);
-    }
+    }+/
 
     char[][char[]] stuff;
 
     char[] makeBmps(BmpDef[] bitmaps) {
         char[] res;
         foreach (bmpd; bitmaps) {
-            res ~= str.format("%s = \"%s\"\n",bmpd.id,bmpd.fn);
+            res ~= myformat("{} = \"{}\"\n",bmpd.id,bmpd.fn);
         }
         return res;
     }
@@ -138,12 +139,12 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
     stuff["env_bitmaps"] = makeBmps(envBitmaps);
 
     char[] fmtColor(RGBTriple c) {
-        return str.format("%.6f %.6f %.6f", c.r, c.g, c.b);
+        return myformat("r={}, g={}, b={}", c.r, c.g, c.b);
     }
 
     char[] objs;
     foreach (obj; definedObjects) {
-        objs ~= str.format("{ image = \"%s\" side = \"%s\" }\n",obj.objid,
+        objs ~= myformat("{ image = \"{}\" side = \"{}\" }\n",obj.objid,
             obj.sideStr);
     }
     stuff["landgen_objects"] = objs;
@@ -156,7 +157,7 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
 
     char[] levelconf = fillTemplate(LEVEL_CONF, stuff);
 
-    stdf.write(destPath~"level.conf", levelconf);
+    tangofile.File.set(destPath~"level.conf", levelconf);
 }
 
 //replace each %key% in template_str by the value stuff[key]

@@ -2,11 +2,10 @@ module wwpdata.reader_bnk;
 
 import devil.image;
 import stdx.stream;
-import path = stdx.path;
-import stdx.stdio;
 import wwpdata.common;
 import wwpdata.reader;
 import wwpdata.animation;
+import tango.io.Stdout;
 
 struct WWPBnkAnimHdr {
     ushort flags, x, y;
@@ -57,8 +56,8 @@ AnimList readBnkFile(Stream st) {
     ubyte[] chunkDecomp;
     auto alist = new AnimList;
     foreach (int ianim, WWPBnkAnimHdr hanim; animHdr) {
-        writef("Animation %d/%d   \r",ianim+1, animCount);
-        //fflush(stdout);
+        Stdout.format("Animation {}/{}   \r", ianim+1, animCount);
+        Stdout.flush();
         auto anim = new Animation(hanim.x, hanim.y,
             (hanim.flags & WWP_ANIMFLAG_REPEAT) > 0,
             (hanim.flags & WWP_ANIMFLAG_BACKWARDS) > 0, hanim.frameTimeMS);
@@ -88,16 +87,16 @@ AnimList readBnkFile(Stream st) {
     delete animHdr;
     delete frameHdr;
     delete chunkHdr;
-    writefln();
+    Stdout.newline;
     return alist;
 }
 
 void readBnk(Stream st, char[] outputDir, char[] fnBase) {
     scope alist = readBnkFile(st);
-    writefln();
-    writef("Saving\r");
+    Stdout.newline();
+    Stdout("Saving\r");
     alist.save(outputDir, fnBase);
-    writefln();
+    Stdout.newline();
 }
 
 static this() {

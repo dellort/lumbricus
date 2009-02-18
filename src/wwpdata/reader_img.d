@@ -2,11 +2,14 @@ module wwpdata.reader_img;
 
 import devil.image;
 import stdx.stream;
-import path = stdx.path;
 import wwpdata.common;
 import wwpdata.reader;
 
 const IMG_FLAG_COMPRESSED = 0x40;
+
+//tango sucks
+import tango.io.model.IFile : FileConst;
+const pathsep = FileConst.PathSeparatorChar;
 
 Image readImgFile(Stream st) {
     char[4] hdr;
@@ -53,7 +56,7 @@ Image readImgFile(Stream st) {
 
 void readImg(Stream st, char[] outputDir, char[] fnBase) {
     scope img = readImgFile(st);
-    img.save(outputDir ~ path.sep ~ fnBase ~ ".png");
+    img.save(outputDir ~ pathsep ~ fnBase ~ ".png");
     img.free();
 }
 

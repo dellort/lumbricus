@@ -82,8 +82,8 @@ class GZWriter {
         czlib.z_stream zs;
     }
 
-    this(void delegate(ubyte[] data) a_onWrite, int level = 9,
-        size_t buffer_size = 64*1024)
+    this(void delegate(ubyte[] data) a_onWrite, bool use_gzip = true,
+        int level = 9, size_t buffer_size = 64*1024)
     {
         assert (!!a_onWrite);
         assert (level >= 0 && level <= 9);
@@ -93,8 +93,8 @@ class GZWriter {
         buffer_pos = 0;
         //16: gzip header, 15: window bits
         //9: "memLevel=9 uses maximum memory for optimal speed."
-        int res = czlib.deflateInit2(&zs, level, czlib.Z_DEFLATED, 16 + 15, 9,
-            czlib.Z_DEFAULT_STRATEGY);
+        int res = czlib.deflateInit2(&zs, level, czlib.Z_DEFLATED,
+            (use_gzip ? 16 : 0) + 15, 9, czlib.Z_DEFAULT_STRATEGY);
         zerror(res);
     }
 

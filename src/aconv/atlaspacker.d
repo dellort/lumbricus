@@ -1,17 +1,20 @@
 module aconv.atlaspacker;
 
 import devil.image;
-import path = stdx.path;
 import str = stdx.string;
-import stdx.file;
 import stdx.stream;
-import stdx.stdio;
 import wwpdata.common;
 import framework.resfileformats : FileAtlas, FileAtlasTexture;
 import utils.boxpacker;
 import utils.configfile;
 import utils.output;
 import utils.vector2;
+import utils.filetools;
+
+import tango.io.Stdout;
+
+import tango.io.model.IFile : FileConst;
+const pathsep = FileConst.PathSeparatorChar;
 
 public import utils.boxpacker : Block;
 
@@ -87,16 +90,16 @@ class AtlasPacker {
         foreach (int i, img; mPageImages) {
             char[] pagefn, pagepath;
             pagefn = "page_" ~ str.toString(i);
-            pagepath = outPath ~ path.sep ~ fnBase;
-            try { mkdir(pagepath); } catch {};
-            img.save(pagepath ~ path.sep ~ pagefn ~ ".png");
-            writef("Saving %d/%d   \r",i+1, mPageImages.length);
-            //fflush(stdout);
+            pagepath = outPath ~ pathsep ~ fnBase;
+            trymkdir(pagepath);
+            img.save(pagepath ~ pathsep ~ pagefn ~ ".png");
+            Stdout.format("Saving {}/{}   \r", i+1, mPageImages.length);
+            Stdout.flush();
         }
-        writefln();
+        Stdout.newline;
 
         void confError(char[] msg) {
-            writefln(msg);
+            Stdout(msg).newline;
         }
 
         ConfigNode confOut = (new ConfigFile("","",&confError)).rootnode;

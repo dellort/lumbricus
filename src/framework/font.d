@@ -38,15 +38,10 @@ struct FontProperties {
     bool bold;
     bool italic;
     bool underline;
-
-    bool isOpaque() {
-        return (back.a > 1.0f - Color.epsilon);
-    }
-
-    bool needsBackPlain() {
-        //Backplain not needed if it's fully transparent or fully opaque
-        return (back.a >= Color.epsilon) && !isOpaque();
-    }
+    //border in pixels (0 means disabled)
+    int border_width;
+    //color of the border
+    Color border_color;
 
     FaceStyle getFaceStyle() {
         if (bold && italic)  return FaceStyle.boldItalic;
@@ -248,14 +243,19 @@ class FontManager {
         if (tmp.parse(font.getStringValue("backcolor"))) {
             p.back = tmp;
         }
+        if (tmp.parse(font.getStringValue("bordercolor"))) {
+            p.border_color = tmp;
+        }
         if (tmp.parse(font.getStringValue("forecolor"))) {
             p.fore = tmp;
         }
 
-        p.back.a = font.getFloatValue("backalpha", p.back.a);
-        p.fore.a = font.getFloatValue("forealpha", p.fore.a);
+        //xxx not needed anymore?
+        //p.back.a = font.getFloatValue("backalpha", p.back.a);
+        //p.fore.a = font.getFloatValue("forealpha", p.fore.a);
 
         p.size = font.getIntValue("size", 12);
+        p.border_width = font.getIntValue("borderwidth", 0);
 
         p.face = font.getStringValue("face", "default");
 
