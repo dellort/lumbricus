@@ -3,11 +3,12 @@ module utils.mytrace;
 //this code in here is evil, twisted, SLOW, sick, hacky and dangerous
 //enable at own risk
 //the module will link itself into the Tango runtime using a module ctor
-version = EnableChainsaw;
+debug version = EnableChainsaw;
 
 //gets cut after this number of entries in the backtrace
-const cMaxBacktrace = 100;
-const cBacktraceLineBuffer = 100;
+const cMaxBacktrace = 30;
+//buffer used when formatting output
+const cBacktraceLineBuffer = 120;
 
 //the code is Linux specific, but Windows user can use this:
 //  http://monsterbrowser.googlecode.com/svn/monsterbrowser/trunk/TangoTrace2.d

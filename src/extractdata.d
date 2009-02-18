@@ -114,7 +114,7 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
         //lame check if it's a water dir
         FilePath wpath2 = FilePath(wpath);
         if (wpath2.isFolder() && FilePath(wpath~pathsep~"Water.dir").exists()) {
-            Stdout("Converting water set '%{}'", id).newline;
+            Stdout.formatln("Converting water set '{}'", id);
             Dir waterdir = new Dir(wpath~pathsep~"Water.dir");
             do_extractbnk("water_anims", waterdir.open("water.bnk"),
                 animConf.getSubNode("water_anims"), waterout);
@@ -158,7 +158,7 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
         char[] destpath = levelDir~pathsep~id;
         trymkdir(destpath);
         if (FilePath(setpath).isFolder()) {
-            Stdout("Converting level set '{}'",id).newline;
+            Stdout.formatln("Converting level set '{}'",id);
             convert_level(setpath~pathsep,destpath~pathsep,importDir);
         }
     }
@@ -179,7 +179,7 @@ int main(char[][] args)
             //stop argument parsing, standard on Linux
             break;
         } else {
-            Stdout("unknown option: {}", opt).newline;
+            Stdout.formatln("unknown option: {}", opt);
             usageerror = true;
         }
     }

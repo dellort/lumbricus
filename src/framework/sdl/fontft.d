@@ -321,14 +321,15 @@ class FTFont : DriverFont {
 
     private void drawGlyph(Canvas c, GlyphData* glyph, Vector2i pos) {
         void setColor(Color c) {
-            glColor3f(c.r, c.g, c.b);
+            if (mUseGL)
+                glColor3f(c.r, c.g, c.b);
         }
 
         c.drawFilledRect(Rect2i.Span(pos, glyph.size), mProps.back);
-        if (mUseGL) {
-            setColor(mProps.fore);
-        }
+
+        setColor(mProps.fore);
         glyph.tex.draw(c, pos+glyph.offset);
+
         if (glyph.border.surface) {
             setColor(mProps.border_color);
             glyph.border.draw(c, pos+glyph.border_offset);

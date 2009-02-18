@@ -288,7 +288,7 @@ void do_extractbnk(char[] bnkname, Stream bnkfile, ConfigNode bnkNode,
         workPath = "."~pathsep;
     }
 
-    Stdout("Working on {}", bnkname).newline;
+    Stdout.formatln("Working on {}", bnkname);
     auto anis = readBnkFile(bnkfile);
     do_write_anims(anis, bnkNode, bnkname, workPath);
     anis.free();
@@ -306,7 +306,7 @@ void do_write_anims(AnimList anims, ConfigNode config, char[] name,
     gAnims = new AniFile(name, gPacker, config.getIntValue("frametime_def",
         cDefFrameTimeMS));
 
-    Stdout("...writing {}...", name).newline;
+    Stdout.formatln("...writing {}...", name);
 
     //if this is true, _all_ bitmaps are loaded from the .bnk-file, even if
     //they're not needed

@@ -35,9 +35,8 @@ void do_untile(char[] filename, char[] destPath, char[] imgPath,
 void do_untile(Image img, char[] filename, char[] destPath, char[] imgPath,
     char[] nameHead, char[] nameTail, char[] confName, Stream namefile)
 {
-    char[] fnbase = "";
+    char[] fnbase = FilePath(filename).name;
     //path.getBaseName(path.getName(filename));
-    assert(false);
 
     ConfigNode conffile, bmps;
     if (confName.length) {
