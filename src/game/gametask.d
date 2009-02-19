@@ -749,7 +749,7 @@ class GameTask : StatefulTask {
         float g = setgame ? val : mGame.slowDown;
         float a = setani ? val : globals.gameTimeAnimations.slowDown;
         write.writefln("set slowdown: game={} animations={}", g, a);
-        mControl.executeCommand("slow_down" ~ str.toString(g));
+        mControl.executeCommand("slow_down " ~ str.toString(g));
         mClientEngine.engineTime.slowDown = g;
         globals.gameTimeAnimations.slowDown = a;
     }

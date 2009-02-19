@@ -9,6 +9,7 @@ import utils.filetools;
 
 import tango.io.Stdout;
 import tango.io.FilePath;
+import tango.util.PathUtil;
 
 import tango.io.model.IFile : FileConst;
 const pathsep = FileConst.PathSeparatorChar;
@@ -83,17 +84,15 @@ class Dir {
             outputPath);
     }
 
-/+
     //works like std.file.listdir(pathname, pattern), on the .dir-filelist
     char[][] listdir(char[] pattern) {
         char[][] res;
         foreach (e; mEntries) {
-            if (path.fnmatch(e.filename, pattern))
+            if (patternMatch(e.filename, pattern))
                 res ~= e.filename;
         }
         return res;
     }
-+/
 }
 
 void readDir(Stream st, char[] outputDir, char[] fnBase) {

@@ -15,6 +15,7 @@ import wwptools.convert;
 import wwptools.unworms;
 import tango.io.FilePath;
 import tangofile = tango.io.device.File;
+import tango.util.Convert;
 
 struct BmpDef {
     char[] id, fn;
@@ -49,7 +50,6 @@ struct ObjDef {
 }
 
 //convert WWP level directory to lumbricus level directory
-//xxx missing debris animation
 void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
 {
     BmpDef[] envBitmaps;
@@ -110,19 +110,19 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
     definedBitmaps ~= BmpDef("ground_down","grounddown.png");
 
     //objects
-    assert(false);
-    /+trymkdir(destPath~"objects");
+    trymkdir(destPath~"objects");
     char[][] inffiles = ldir.listdir("*.inf");
     foreach (inff; inffiles) {
-        char[] objname = path.getBaseName(path.getName(inff));
+        scope infPath = new FilePath(inff);
+        char[] objname = infPath.name;
         ldir.unworms(objname~".img",destPath~"objects");
         scope infFile = ldir.open(inff);
         char[][] infLines = str.split(infFile.toString());
         assert(infLines.length >= 6);
-        int side = toInt(infLines[5]);
+        int side = to!(int)(infLines[5]);
         definedBitmaps ~= BmpDef("obj_"~objname,"objects/"~objname~".png");
         definedObjects ~= ObjDef("obj_"~objname, side);
-    }+/
+    }
 
     char[][char[]] stuff;
 
@@ -144,7 +144,7 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
 
     char[] objs;
     foreach (obj; definedObjects) {
-        objs ~= myformat("{ image = \"{}\" side = \"{}\" }\n",obj.objid,
+        objs ~= myformat("{{ image = \"{}\" side = \"{}\" }\n",obj.objid,
             obj.sideStr);
     }
     stuff["landgen_objects"] = objs;
