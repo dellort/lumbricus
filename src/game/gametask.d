@@ -275,7 +275,11 @@ class GameTask : StatefulTask {
         auto ctx = new SerializeContext(serialize_types);
         mSaveGame = new SerializeInConfig(ctx, savegame);
         auto sg = mSaveGame.readObjectT!(SaveGameHeader)();
-        auto configfile = new ConfigFile(sg.config, "gamedata.conf", null);
+        auto configfile = new ConfigFile(sg.config, "SaveGameHeader.config",
+            (char[] logerror) {
+                gDefaultLog("{}", logerror);
+            }
+        );
         mGameConfig = new GameConfig();
         mGameConfig.load(configfile.rootnode());
         auto gen = new GenerateFromSaved(new LevelGeneratorShared(),

@@ -1216,19 +1216,21 @@ public class ConfigFile {
 
         char[] curstr = "";
         Position strstart = curpos;
-        void skip() {
-            //skip current char in input (don't use it)
-            char[] stuff = copyOut(strstart, curpos);
-            next();
+
+        void val_copy(Position until) {
+            char[] stuff = copyOut(strstart, until);
             curstr ~= stuff;
             strstart = curpos;
         }
+
         for (;;) {
             if (is_value == 1) {
                 //special handling for VALUEs
                 if (curChar == '\\') {
-                    skip();
+                    auto skip_from = curpos;
+                    next();
                     char escape = parseEscape();
+                    val_copy(skip_from);
                     curstr ~= escape;
                     continue;
                 } else if (curChar == cValueClose) {
@@ -1248,7 +1250,8 @@ public class ConfigFile {
                 } else {
                     if (curChar == '\r') {
                         //remove windows CR
-                        skip();
+                        next();
+                        val_copy(curpos);
                         continue;
                     }
                 }
@@ -1265,9 +1268,9 @@ public class ConfigFile {
             next();
         }
 
-        curstr = curstr ~ copyOut(strstart, curpos);
+        val_copy(curpos);
 
-        if (is_value > 0) {
+        if (is_value) {
             if (is_value == 1 && curChar != cValueClose) {
                 reportError(true, "no closing >\"< for a value"); //" yay
             } else if (is_value == 2 && curChar != cValueClose2) {
@@ -1277,7 +1280,7 @@ public class ConfigFile {
             }
         }
 
-        if (is_value == 0 && curstr.length == 0) {
+        if (!is_value && curstr.length == 0) {
             reportError(false, "identifier expected");
             curstr = "<error>";
             //make "progress", better than showing the error again all the time
@@ -1285,7 +1288,7 @@ public class ConfigFile {
         }
 
         str = curstr;
-        token = (is_value>0) ? Token.VALUE : Token.ID;
+        token = is_value ? Token.VALUE : Token.ID;
 
         return true;
     }
@@ -1507,7 +1510,7 @@ public class ConfigFile {
             //invalid tokens, report hopefully helpful error messages
             if (id.length != 0) {
                 reportError(false, "identifier is expected to be followed by"
-                    " '=' or '{'");
+                    " '=' or '{{'");
             } else if (token == Token.ASSIGN) {
                 reportError(false, "unexpected '=', no identifier before it");
             } else {

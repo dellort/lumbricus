@@ -20,6 +20,8 @@ version (Tango) version (DigitalMars) version (X86) version (linux) {
     version = EnableDMDLinuxX86;
     //extra hacky and dangerous to enable this
     version = SetSigHandler;
+    //Tango doesn't have a demangler, so you may want to disable this
+    version = Demangler;
 }
 
 version (EnableDMDLinuxX86) {
@@ -29,6 +31,7 @@ version (EnableDMDLinuxX86) {
     import tango.stdc.stdio;
     import tango.stdc.string : strcmp, strlen;
     import tango.stdc.signal;
+    version (Demangler) import demangler = stdx.demangle;
 
     Layout!(char) convert;
     Elf32_Sym* stop_traceback_at;
@@ -58,19 +61,14 @@ version (EnableDMDLinuxX86) {
     }
 
     Exception.TraceInfo myTraceHandler(void* ptr = null) {
-        return new MyTraceInfo(true);
+        return new MyTraceInfo();
     }
 
     class MyTraceInfo : Exception.TraceInfo {
         TraceRecord[cMaxBacktrace] storage;
         TraceRecord[] info;
 
-        this(bool backtrace) {
-            if (backtrace)
-                retrace();
-        }
-
-        void retrace() {
+        this() {
             info = do_backtrace(storage);
         }
 
@@ -92,9 +90,14 @@ version (EnableDMDLinuxX86) {
 
     struct SPrint {
         Layout!(char) convert;
+        bool dynalloc;
         char[] storage;
         char[] output;
         uint write(char[] str) {
+            if (dynalloc) {
+                output ~= str;
+                return str.length;
+            }
             if (output.length < storage.length) {
                 size_t pos = output.length;
                 size_t max = storage.length;
@@ -110,11 +113,17 @@ version (EnableDMDLinuxX86) {
         }
     }
 
-    //    n address+offset<tab> unmangled
-    char[] printTraceRecord(char[] storage, ref TraceRecord info) {
+    //    n caller_address-offset_to_start<tab> unmangled
+    //storage: buffer used for formatting; but demangle will alloc memory anyway
+    char[] printTraceRecord(char[] storage, ref TraceRecord info,
+        bool demangle = true)
+    {
         SPrint print;
         print.convert = convert;
         print.storage = storage;
+        version (Demangler) {
+            print.dynalloc = true;
+        }
         print("  ");
         if (info.depth == TraceRecord.cInvalidDepth) {
             //termination record
@@ -126,9 +135,12 @@ version (EnableDMDLinuxX86) {
                 print("0x{:x}\t [unknown]", info.address);
             } else {
                 size_t offset = info.address - psym.st_value;
-                print("0x{:x}+{}", psym.st_value, offset);
+                print("0x{:x}-{}", info.address, offset);
                 char* name = &gStrTab[psym.st_name];
                 char[] aname = name[0..strlen(name)];
+                version (Demangler) if (demangle) {
+                    aname = demangler.demangle(aname);
+                }
                 print("\t {}", aname);
             }
         }
@@ -268,7 +280,7 @@ version (EnableDMDLinuxX86) {
     //borrowed from Phobos' internal/deh2.d
     //slightly modified (uint -> size_t, comments, abort())
     //license is a BSD something
-    size_t __eh_find_caller(size_t regbp, size_t *pretaddr) {
+    size_t my__eh_find_caller(size_t regbp, size_t *pretaddr) {
         size_t bp = *cast(size_t*)regbp;
 
         if (bp) {
@@ -296,7 +308,7 @@ version (EnableDMDLinuxX86) {
 
         for (;;) {
             uint retaddr;
-            regebp = __eh_find_caller(regebp, &retaddr);
+            regebp = my__eh_find_caller(regebp, &retaddr);
 
             if (!regebp)
                 break;
@@ -321,17 +333,9 @@ version (EnableDMDLinuxX86) {
         return prealloc[0..depth];
     }
 
-    //signal -> exception conversion
+    //trace on signal
 
-    class SignalException : Exception {
-        MyTraceInfo myinfo;
-        this() {
-            super("SignalException");
-            myinfo = cast(MyTraceInfo)info;
-        }
-    }
-
-    SignalException gSigException;
+    TraceRecord[cMaxBacktrace] gSignalTrace;
 
     extern(C) void signal_handler(int sig) {
         char[] signame;
@@ -339,18 +343,19 @@ version (EnableDMDLinuxX86) {
             case SIGSEGV: signame = "SIGSEGV"; break;
             case SIGFPE: signame = "SIGFPE"; break;
             default:
-                signame = "unknown, add to dmain2.d/signal_handler()";
+                signame = "unknown, add to mytrace.d/signal_handler()";
         }
-        printf("mytrace.d: Signal caught: %.*s!\n", signame);
-        if (auto info = gSigException.myinfo) {
-            info.retrace();
+        fprintf(stderr, "mytrace.d: Signal caught: %.*s\n", signame);
+        auto info = do_backtrace(gSignalTrace);
+        foreach (i; info) {
+            char[cBacktraceLineBuffer] buffer = void;
+            char[] l = printTraceRecord(buffer, i, false);
+            fprintf(stderr, "%.*s", l);
         }
-        throw gSigException;
+        abort();
     }
 
     void install_sighandlers() {
-        gSigException = new SignalException();
-
         version (SetSigHandler) {
             //add whatever signal barked on you
             signal(SIGSEGV, &signal_handler);
