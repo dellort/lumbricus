@@ -78,8 +78,8 @@ AnimList readBnkFile(Stream st) {
             }
             int fwidth = hframe.x2-hframe.x1;
             int fheight = hframe.y2-hframe.y1;
-            RGBColor[] rgbData = pal.toRGBKey(chunkDecomp[hframe.startPixel..hframe.startPixel+fwidth*fheight], COLORKEY);
-            anim.addFrame(hframe.x1, hframe.y1, fwidth, fheight, rgbData);
+            RGBAColor[] rgbaData = pal.toRGBA(chunkDecomp[hframe.startPixel..hframe.startPixel+fwidth*fheight]);
+            anim.addFrame(hframe.x1, hframe.y1, fwidth, fheight, rgbaData);
         }
         alist.animations ~= anim;
     }

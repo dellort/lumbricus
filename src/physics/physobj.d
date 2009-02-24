@@ -18,6 +18,7 @@ const cDamageCauseFall = 0;
 const cDamageCauseDeath = -1;
 
 //version = WalkDebug;
+version = PhysDebug;
 
 //simple physical object (has velocity, position, mass, radius, ...)
 class PhysicObject : PhysicBase {
@@ -156,7 +157,7 @@ class PhysicObject : PhysicBase {
                 //  => worm gets glued, hahaha.
                 //xxx maybe do the gluing somewhere else?
                 glueObject;
-                version(PhysDebug) mLog("glue object {}", me);
+                version(PhysDebug) log("glue object {}", this);
             }
         }
         if (source == ContactSource.object) {
@@ -221,9 +222,9 @@ class PhysicObject : PhysicBase {
         mOnSurface = false;
 
         //Update velocity
-        Vector2f t;
-        if (!mIntendedLook.isNaN)
-            t = mIntendedLook * mPosp.thrust;
+        //Vector2f t;
+        //if (!mIntendedLook.isNaN)
+        //    t = mIntendedLook * mPosp.thrust;
         Vector2f a = gravity + acceleration
             + (mForceAccum + selfForce) * mPosp.inverseMass;
         velocity_int += a * deltaT;
@@ -471,6 +472,7 @@ class PhysicObject : PhysicBase {
 
             //look where's bottom
             //NOTE: y1 > y2 means y1 is _blow_ y2
+            //      take pixel steps
             bool first = true;
             for (float y = +posp.walkingClimb; y >= -posp.walkingClimb; y--)
             {

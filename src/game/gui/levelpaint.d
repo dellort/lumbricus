@@ -47,7 +47,7 @@ class PainterWidget : Widget {
         const cPenColor = Color(1, 0, 0, 0.5);
 
         Color[Lexel.Max+1] mLexelToColor;
-        uint[Lexel.Max+1] mLexelToRGBA32;
+        Color.RGBA32[Lexel.Max+1] mLexelToRGBA32;
 
         float mPaintScale;
         Vector2i mFitInto = Vector2i(650, 250);
@@ -329,7 +329,7 @@ class PainterWidget : Widget {
         int r_sc = cast(int)(mPenRadius*mPaintScale);
 
         //draw into displayed image
-        void* pixels; uint pitch;
+        Color.RGBA32* pixels; uint pitch;
         mImage.lockPixelsRGBA32(pixels, pitch);
 
         void scanline2(int x1, int x2, int y) {
@@ -340,7 +340,7 @@ class PainterWidget : Widget {
             int ly = y*mImage.size.x;
             //actually, the following line is not necessary
             mScaledLevel[ly+x1 .. ly+x2+1] = mPaintLexel;
-            uint* dstptr = cast(uint*)(pixels+pitch*y);
+            Color.RGBA32* dstptr = pixels+pitch*y;
             dstptr[x1 .. x2+1] = mLexelToRGBA32[mPaintLexel];
         }
         drawThickLine(p1_sc, p2_sc, r_sc, mImage.size, &scanline2);
@@ -390,16 +390,16 @@ class PainterWidget : Widget {
         scaleLexels(mLevelData, mScaledLevel, mLevelSize, mImage.size);
 
         //transfer lexel data to image
-        void* pixels; uint pitch;
+        Color.RGBA32* pixels; uint pitch;
         mImage.lockPixelsRGBA32(pixels, pitch);
         for (int y = 0; y < mImage.size.y; y++) {
-            uint* dstptr = cast(uint*)(pixels+pitch*y);
+            auto dstptr = pixels+pitch*y;
             int lsrc = y*mImage.size.x;
             auto w = mImage.size.x;
             for (int x = 0; x < w; x++) {
-                //uint col = mLexelToRGBA32[mScaledLevel[lsrc+x]];
+                //auto col = mLexelToRGBA32[mScaledLevel[lsrc+x]];
                 //makes it a bit (x3.5) faster, but isn't worth the fuzz
-                uint col = *(mLexelToRGBA32.ptr + *(mScaledLevel.ptr+lsrc+x));
+                auto col = *(mLexelToRGBA32.ptr + *(mScaledLevel.ptr+lsrc+x));
                 *dstptr = col;
                 dstptr++;
             }
@@ -447,7 +447,7 @@ class PainterWidget : Widget {
         for (int i = 0; i <= Lexel.Max; i++) {
             if (i < cols.length) {
                 mLexelToColor[i] = cols[i];
-                mLexelToRGBA32[i] = cols[i].toRGBA32().uint_val;
+                mLexelToRGBA32[i] = cols[i].toRGBA32();
             }
         }
     }

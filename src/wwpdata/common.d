@@ -2,15 +2,10 @@ module wwpdata.common;
 
 import stdx.stream;
 import wwpdata.decompression;
-
-struct RGBColor {
-    ubyte r, g, b;
-}
-
-const RGBColor COLORKEY = {255, 0, 255};
+import devil.image : RGBAColor;
 
 struct WWPPalette {
-    RGBColor[] palEntries;
+    RGBAColor[] palEntries;
 
     static WWPPalette read(Stream st) {
         WWPPalette ret;
@@ -18,18 +13,26 @@ struct WWPPalette {
         st.readExact(&palSize, 2);
         ret.palEntries.length = palSize;
         foreach (inout pe; ret.palEntries) {
-            st.readExact(&pe, 3);
+            struct RGBColor {
+                ubyte r, g, b;
+            }
+            RGBColor c;
+            st.readExact(&c, 3);
+            pe.r = c.r;
+            pe.g = c.g;
+            pe.b = c.b;
+            pe.a = 0xff;
         }
         return ret;
     }
 
-    RGBColor[] toRGBKey(ubyte[] palData, RGBColor key) {
-        RGBColor[] ret = new RGBColor[palData.length];
+    RGBAColor[] toRGBA(ubyte[] palData) {
+        RGBAColor[] ret = new RGBAColor[palData.length];
         foreach (int i, ubyte b; palData) {
             if (b > 0 && b <= palEntries.length) {
                 ret[i] = palEntries[b-1];
             } else {
-                ret[i] = key;
+                ret[i].a = 0;
             }
         }
         return ret;

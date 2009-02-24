@@ -235,12 +235,12 @@ BoxTex getBox(BoxProps props) {
         //draw a circle inside a w x w rect with center c and radius w
         //offset the result by offs
         void drawCircle(Vector2i offs, Vector2f c, int w) {
-            void* pixels;
+            Color.RGBA32* pixels;
             uint pitch;
             s.lockPixelsRGBA32(pixels, pitch);
 
             for (int y = 0; y < w*2; y++) {
-                uint* line = cast(uint*)(pixels+pitch*(y+offs.y));
+                auto line = pixels+pitch*(y+offs.y);
                 line += offs.x;
                 for (int x = 0; x < w*2; x++) {
                     assert(x < s.size.x);
@@ -268,7 +268,7 @@ BoxTex getBox(BoxProps props) {
                         props.p.border.g*colBuf+props.p.back.g*(1.0f-colBuf),
                         props.p.border.b*colBuf+props.p.back.b*(1.0f-colBuf),
                         aBuf*(border.a*colBuf+props.p.back.a*(1.0f-colBuf)))
-                            .toRGBA32().uint_val;
+                            .toRGBA32();
                     line++;
                 }
             }

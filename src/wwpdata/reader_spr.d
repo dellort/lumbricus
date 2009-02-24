@@ -43,8 +43,8 @@ AnimList readSprFile(Stream st) {
         ubyte[] data = new ubyte[w*h];
         st.readExact(data.ptr, w*h);
 
-        RGBColor[] rgbData = pal.toRGBKey(data, COLORKEY);
-        anim.addFrame(fr.x1, fr.y1, w, h, rgbData);
+        RGBAColor[] rgbaData = pal.toRGBA(data);
+        anim.addFrame(fr.x1, fr.y1, w, h, rgbaData);
     }
     auto alist = new AnimList;
     alist.animations ~= anim;

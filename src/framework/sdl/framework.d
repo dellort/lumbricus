@@ -27,17 +27,17 @@ import utils.configfile;
 version = MarkAlpha;
 
 package uint simpleColorToSDLColor(SDL_Surface* s, Color color) {
-    return SDL_MapRGBA(s.format,cast(ubyte)(255*color.r),
-        cast(ubyte)(255*color.g),cast(ubyte)(255*color.b),
-        cast(ubyte)(255*color.a));
+    auto c = color.toRGBA32();
+    return SDL_MapRGBA(s.format, c.r, c.g, c.b, c.a);
 }
 
 package SDL_Color ColorToSDLColor(Color color) {
+    auto c = color.toRGBA32();
     SDL_Color col;
-    col.r = cast(ubyte)(255*color.r);
-    col.g = cast(ubyte)(255*color.g);
-    col.b = cast(ubyte)(255*color.b);
-    col.unused = cast(ubyte)(255*color.a);
+    col.r = c.r;
+    col.g = c.g;
+    col.b = c.b;
+    col.unused = c.a;
     return col;
 }
 
@@ -64,8 +64,8 @@ class SDLDriverSurface : DriverSurface {
 
 void doMirrorY(SurfaceData* data) {
     for (uint y = 0; y < data.size.y; y++) {
-        uint* src = cast(uint*)(data.data.ptr+y*data.pitch+data.size.x*4);
-        uint* dst = cast(uint*)(data.data.ptr+y*data.pitch);
+        Color.RGBA32* src = data.data.ptr+y*data.pitch+data.size.x;
+        Color.RGBA32* dst = data.data.ptr+y*data.pitch;
         for (uint x = 0; x < data.size.x/2; x++) {
             src--;
             swap(*dst, *src);
@@ -147,10 +147,10 @@ void doMirrorY(SurfaceData* data) {
 
         //NOTE: SDL_CreateRGBSurfaceFrom doesn't copy the data... so, be sure
         //      to keep the pointer, so D won't GC it
-        //fixed RGA32 format :/
+        auto rgba32 = gSDLDriver.mRGBA32;
         mSurface = SDL_CreateRGBSurfaceFrom(mData.data.ptr, mData.size.x,
-            mData.size.y, 32, mData.pitch, 0x000000FF, 0x0000FF00, 0x00FF0000,
-            /+cc ? 0 :+/ 0xFF000000);
+            mData.size.y, 32, mData.pitch*4, rgba32.Rmask, rgba32.Gmask,
+            rgba32.Bmask, rgba32.Amask);
         if (!mSurface) {
             throw new Exception(myformat("couldn't create SDL surface, "
                 "size={}", mData.size));
@@ -186,7 +186,24 @@ void doMirrorY(SurfaceData* data) {
     }
 
     void updatePixels(in Rect2i rc) {
-        //almost nop for SDL...
+        rc.fitInsideB(Rect2i(0,0,mData.size.x,mData.size.y));
+
+        if (mData.transparency == Transparency.Colorkey) {
+            //if colorkey is enabled, one must "fix up" the updated pixels, so
+            //one can be sure non-transparent pixels are actually equal to the
+            //color key
+            auto ckey = mData.colorkey.toRGBA32();
+            for (int y = rc.p1.y; y < rc.p2.y; y++) {
+                int w = rc.size.x;
+                Color.RGBA32* pix = mData.data.ptr + mData.pitch*y + rc.p1.x;
+                for (int x = 0; x < w; x++) {
+                    if (pixelIsTransparent(pix)) {
+                        *pix = ckey;
+                    }
+                    pix++;
+                }
+            }
+        }
         if (mCacheEnabled) {
             reinit();
         }
@@ -261,7 +278,7 @@ void doMirrorY(SurfaceData* data) {
     void getInfos(out char[] desc, out uint extra_data) {
         desc = myformat("c={}", mCacheEnabled);
         if (mCacheEnabled) {
-            extra_data = mSurface.pitch * mSurface.h;
+            extra_data = mSurface.pitch * 4 * mSurface.h;
         }
     }
 
@@ -342,20 +359,10 @@ class SDLDriver : FrameworkDriver {
         mConfig = config;
 
         mRGBA32.BitsPerPixel = 32;
-
-        version (LittleEndian) {
-            mRGBA32.Rmask = 0x00_00_00_FF;
-            mRGBA32.Gmask = 0x00_00_FF_00;
-            mRGBA32.Bmask = 0x00_FF_00_00;
-            mRGBA32.Amask = 0xFF_00_00_00;
-        } else version (BigEndian) {
-            mRGBA32.Rmask = 0xFF_00_00_00;
-            mRGBA32.Gmask = 0x00_FF_00_00;
-            mRGBA32.Bmask = 0x00_00_FF_00;
-            mRGBA32.Amask = 0x00_00_00_FF;
-        } else {
-            static assert("no endian");
-        }
+        mRGBA32.Rmask = Color.cMaskR;
+        mRGBA32.Gmask = Color.cMaskG;
+        mRGBA32.Bmask = Color.cMaskB;
+        mRGBA32.Amask = Color.cMaskAlpha;
 
         mEnableCaching = config.getBoolValue("enable_caching", true);
         mMarkAlpha = config.getBoolValue("mark_alpha", false);
@@ -759,13 +766,6 @@ class SDLDriver : FrameworkDriver {
         SDL_Delay(t.msecs);
     }
 
-    Canvas startOffscreenRendering(Surface s) {
-        assert(!!s);
-        auto c = new SDLCanvas(s);
-        c.startDraw();
-        return c;
-    }
-
     //return a surface with unspecified size containing this color
     //(used for drawing alpha blended rectangles)
     private Surface insanityCache(Color c) {
@@ -847,8 +847,7 @@ class SDLDriver : FrameworkDriver {
     Surface convertFromSDLSurface(SDL_Surface* surf, Transparency transparency,
         bool free_surf, bool dump = false)
     {
-        bool detect_transparency = (transparency == Transparency.AutoDetect);
-        if (detect_transparency) {
+        if (transparency == Transparency.AutoDetect) {
             //guess by looking at the alpha channel
             if (sdlIsAlpha(surf)) {
                 transparency = Transparency.Alpha;
@@ -857,34 +856,28 @@ class SDLDriver : FrameworkDriver {
             } else {
                 transparency = Transparency.None;
             }
-            //xxx: could check if colorkey color appears and set it to non-
-            //     transparent if not
         }
 
         SurfaceData data;
         data.size = Vector2i(surf.w, surf.h);
         data.transparency = transparency;
 
-        if (transparency == Transparency.Colorkey) {
+        bool hascc = transparency == Transparency.Colorkey;
+
+        if (hascc) {
             //NOTE: the png loader from SDL_Image sometimes uses the colorkey
             data.colorkey = fromSDLColor(surf.format, surf.format.colorkey);
-            //xxx if the image uses the palette, we really should make sure that
-            //  there isn't another palette entry with the same color?
-        }
-
-        if (detect_transparency && transparency == Transparency.None) {
-            //NOTE: this is mostly a hack... use the default colorkey
-            data.transparency = Transparency.Colorkey;
         }
 
         //possibly convert it to RGBA32 (except if it is already)
-        if (!cmpPixelFormat(surf.format, &mRGBA32)) {
-            data.pitch = data.size.x*4;
+        //if there's a colorkey, always convert, hoping the alpha channel gets
+        //fixed (setting the alpha according to colorkey)
+        if (hascc || !cmpPixelFormat(surf.format, &mRGBA32)) {
+            data.pitch = data.size.x;
             data.data.length = data.pitch*data.size.y;
 
-            //xxx code duplication
             SDL_Surface* ns = SDL_CreateRGBSurfaceFrom(data.data.ptr,
-                surf.w, surf.h, mRGBA32.BitsPerPixel, data.pitch,
+                surf.w, surf.h, mRGBA32.BitsPerPixel, data.pitch*4,
                 mRGBA32.Rmask, mRGBA32.Gmask, mRGBA32.Bmask, mRGBA32.Amask);
             if (!ns) {
                 SDL_FreeSurface(surf);
@@ -897,9 +890,11 @@ class SDLDriver : FrameworkDriver {
         } else {
             //just copy the data
             SDL_LockSurface(surf);
-            data.pitch = surf.pitch;
-            data.data.length = surf.pitch*data.size.y;
-            data.data[] = cast(ubyte[])(surf.pixels[0 .. data.data.length]);
+            data.pitch = surf.pitch/4;
+            assert (data.pitch*4 == surf.pitch);
+            data.data.length = data.pitch*data.size.y;
+            data.data[] = cast(Color.RGBA32[])
+                (surf.pixels[0 .. data.data.length*4]);
             SDL_UnlockSurface(surf);
         }
 
@@ -1019,17 +1014,6 @@ class SDLCanvas : Canvas {
         gSDLDriver.mFlipTime.stop();
 
         mSurface = null;
-    }
-
-    //offscreen rendering (on Surface)
-    this(Surface s) {
-        s.enableCaching = false;
-        SDLSurface sdls = cast(SDLSurface)
-            (s.getDriverSurface(SurfaceMode.OFFSCREEN));
-        assert(!!sdls);
-        //sdls.lock++;
-        mSDLSurface = sdls;
-        mSurface = sdls.mSurface;
     }
 
     this() {

@@ -69,14 +69,14 @@ void do_untile(Image img, char[] filename, char[] destPath, char[] imgPath,
     if (img.h > img.w) {
         int tilesize = img.w;
         for (int i = 0; i < img.h/tilesize; i ++) {
-            auto imgout = new Image(tilesize, tilesize, img.alpha);
+            auto imgout = new Image(tilesize, tilesize);
             imgout.blit(img, 0, tilesize*i, tilesize, tilesize, 0, 0);
             saveImg(imgout);
         }
     } else {
         int tilesize = img.h;
         for (int i = 0; i < img.w/tilesize; i ++) {
-            auto imgout = new Image(tilesize, tilesize, img.alpha);
+            auto imgout = new Image(tilesize, tilesize);
             imgout.blit(img, tilesize*i, 0, tilesize, tilesize, 0, 0);
             saveImg(imgout);
         }

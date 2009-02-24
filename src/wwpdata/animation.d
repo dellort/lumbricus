@@ -71,10 +71,10 @@ class Animation {
         }
 
         static FrameInfo opCall(int x, int y, int w, int h,
-            RGBColor[] frameData)
+            RGBAColor[] frameData)
         {
-            auto img = new Image(w, h, false);
-            img.blitRGBData(frameData.ptr, w, h, 0, 0, false);
+            auto img = new Image(w, h);
+            img.blitRGBData(frameData, w, h);
             return opCall(x, y, img);
         }
 
@@ -84,8 +84,8 @@ class Animation {
 
         ///saves only this frames' bitmap colorkeyed without filling box
         void save(char[] filename) {
-            auto img = new Image(w, h, false);
-            img.clear(COLORKEY.r, COLORKEY.g, COLORKEY.b, 1);
+            auto img = new Image(w, h);
+            img.clear(0, 0, 0, 0);
             blitOn(img, 0, 0);
             img.save(filename);
         }
@@ -103,7 +103,7 @@ class Animation {
         this.frameTimeMS = frameTimeMS;
     }
 
-    void addFrame(int x, int y, int w, int h, RGBColor[] frameData) {
+    void addFrame(int x, int y, int w, int h, RGBAColor[] frameData) {
         frames ~= FrameInfo(x, y, w, h, frameData);
     }
 
@@ -112,8 +112,8 @@ class Animation {
     }
 
     void save(char[] outPath, char[] fnBase) {
-        auto img = new Image(boxWidth*frames.length, boxHeight, false);
-        img.clear(COLORKEY.r, COLORKEY.g, COLORKEY.b, 1);
+        auto img = new Image(boxWidth*frames.length, boxHeight);
+        img.clear(0, 0, 0, 0);
         foreach (int i, FrameInfo fi; frames) {
             fi.blitOn(img, i*boxWidth+fi.x, fi.y);
         }

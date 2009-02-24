@@ -172,7 +172,7 @@ class FTGlyphCache {
 
         FT_Glyph glyph;
         ftres = FT_Get_Glyph(mFace.glyph, &glyph);
-        ftcheck("FT_GetGlyph");
+        ftcheck("FT_Get_Glyph");
 
         //Render the glyph
         ftres = FT_Glyph_To_Bitmap(&glyph, FT_Render_Mode.FT_RENDER_MODE_NORMAL,
@@ -195,6 +195,7 @@ class FTGlyphCache {
         if (props.border_width > 0) {
             FT_Glyph border_glyph;
             FT_Get_Glyph(mFace.glyph, &border_glyph);
+            ftcheck("FT_Get_Glyph (2)");
 
             FT_Stroker stroker;
             //xxx: first parameter (are the bindings wrong? I dumb? wtf?)
@@ -263,11 +264,11 @@ class FTGlyphCache {
 
         //copy the (monochrome) glyph data to the 32bit surface
         //color values come from foreground color, alpha from glyph data
-        void* sdata; uint spitch;
+        Color.RGBA32* sdata; uint spitch;
         ubyte* srcptr = bmp.buffer;
         tmp.lockPixelsRGBA32(sdata, spitch);
         for (int y = 0; y < tmp.size.y; y++) {
-            Color.RGBA32* data = cast(Color.RGBA32*)(sdata + spitch*y);
+            Color.RGBA32* data = sdata + spitch*y;
             ubyte* src = srcptr + bmp.pitch*y;
             for (int x = 0; x < tmp.size.x; x++) {
                 //copy foreground color, and use glyph data for alpha channel

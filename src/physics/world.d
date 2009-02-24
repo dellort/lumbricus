@@ -30,7 +30,7 @@ import physics.broadphase;
 import physics.sortandsweep;
 
 //Uncomment to get detailed physics debugging log (slooooow)
-//version = PhysDebug;
+version = PhysDebug;
 
 class PhysicWorld {
     private List2!(PhysicBase) mAllObjects;
@@ -214,21 +214,24 @@ class PhysicWorld {
         //the following stuff handles physically correct collision
 
         Vector2f d = obj1.pos - obj2.pos;
-        float dist = d.length;
+        float qdist = d.quad_length;
         float mindist = obj1.posp.radius + obj2.posp.radius;
         //check if they collide at all
-        if (dist >= mindist)
+        //as a minor optimization, use quad_length to avoid slow sqrt() call xD
+        if (qdist >= mindist*mindist)
             return;
-        if (dist <= 0) {
-            //objects are exactly at the same pos, move aside anyway
-            dist = mindist/2;
-            d = Vector2f(0, dist);
-        }
 
         //no collision if unwanted
         ContactHandling ch = collide.canCollide(obj1, obj2);
         if (ch == ContactHandling.none)
             return;
+
+        float dist = sqrt(qdist);
+        if (dist <= 0) {
+            //objects are exactly at the same pos, move aside anyway
+            dist = mindist/2;
+            d = Vector2f(0, dist);
+        }
 
         //generate contact and resolve immediately (well, as before)
         if (ch == ContactHandling.normal) {

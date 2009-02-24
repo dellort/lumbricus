@@ -1,7 +1,9 @@
+module sdlimginfo;
+
 import derelict.sdl.sdl;
 import derelict.sdl.image;
 
-import stdx.stdio;
+import tango.io.Stdout;
 import str = stdx.string;
 
 //take a filename as argument, load it with sdl_image, output pixelformat
@@ -11,14 +13,14 @@ void main(char[][] args) {
     DerelictSDLImage.load();
     SDL_Init(SDL_INIT_VIDEO);
     SDL_Surface* s = IMG_Load(str.toStringz(args[1]));
-    writefln("size: %sx%s", s.w, s.h);
+    Stdout.formatln("size: {}x{}", s.w, s.h);
     SDL_PixelFormat* f = s.format;
-    writefln("format: bits/bytes %s/%s, r/g/b/a mask %s/%s/%s/%s",
+    Stdout.formatln("format: bits/bytes {}/{}, r/g/b/a mask {}/{}/{}/{}",
         f.BitsPerPixel, f.BytesPerPixel, f.Rmask, f.Gmask, f.Bmask, f.Amask);
-    writefln("colorkey: %#x", f.colorkey);
-    writefln("surface alpha: %s", f.alpha);
-    writefln("SRCCOLORKEY: %s", !!(s.flags & SDL_SRCCOLORKEY));
-    writefln("SRCALPHA: %s", !!(s.flags & SDL_SRCALPHA));
-    writefln("RLEACCEL: %s", !!(s.flags & SDL_RLEACCEL));
-    writefln("palette: %s", !!(f.palette));
+    Stdout.formatln("colorkey: 0x{:x}", f.colorkey);
+    Stdout.formatln("surface alpha: {}", f.alpha);
+    Stdout.formatln("SRCCOLORKEY: {}", !!(s.flags & SDL_SRCCOLORKEY));
+    Stdout.formatln("SRCALPHA: {}", !!(s.flags & SDL_SRCALPHA));
+    Stdout.formatln("RLEACCEL: {}", !!(s.flags & SDL_RLEACCEL));
+    Stdout.formatln("palette: {}", !!(f.palette));
 }

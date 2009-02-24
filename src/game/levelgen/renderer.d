@@ -46,13 +46,14 @@ class LandscapeBitmap {
     private struct TexData {
         //also not good and nice
         uint pitch, w, h;
-        void* data;
+        Color.RGBA32* data;
         Vector2i offs;
 
-        private uint plain_evil;
         private Surface mSurface;
 
-        static TexData opCall(Surface s, Vector2i offs, Color fallback) {
+        static TexData opCall(Surface s, Vector2i offs,
+            Color fallback = Color(0,0,0,0))
+        {
             TexData ret;
             ret.mSurface = s;
             if (s !is null) {
@@ -61,10 +62,11 @@ class LandscapeBitmap {
                 ret.h = s.size.y;
             } else {
                 //simulate an image consisting of a single transparent pixel
-                ret.plain_evil = fallback.toRGBA32().uint_val;
-                ret.data = &ret.plain_evil;
+                Color.RGBA32* data = new Color.RGBA32;
+                *data = fallback.toRGBA32();
+                ret.data = data;
                 ret.w = ret.h = 1;
-                ret.pitch = 4;
+                ret.pitch = 1;
             }
             ret.offs = offs;
             return ret;
@@ -139,7 +141,17 @@ class LandscapeBitmap {
         }
 
         if (subdiv) {
+            debug {
+                auto counter = new PerfTimer(true);
+                counter.start();
+            }
+
             cornercut(vertices, subdivSteps, subdivStart);
+
+            debug {
+                counter.stop();
+                mLog("render.d: cornercut in {}", counter.time);
+            }
         }
 
         Point[] urgs;
@@ -151,11 +163,11 @@ class LandscapeBitmap {
 
         delete vertices;
 
-        void* dstptr; uint dstpitch;
+        Color.RGBA32* dstptr; uint dstpitch;
         TexData tex;
 
         if (textured) {
-            tex = TexData(texture, texture_offset, mImage.colorkey);
+            tex = TexData(texture, texture_offset);
 
             mImage.lockPixelsRGBA32(dstptr, dstpitch);
         }
@@ -170,23 +182,18 @@ class LandscapeBitmap {
                 x1 = 0;
             if (x2 > mWidth)
                 x2 = mWidth;
-            uint ty;
-            uint* dst;
-            uint* texptr;
-            if (textured) {
-                ty = (y + tex.offs.y) % tex.h;
-                dst = cast(uint*)(dstptr +  y*dstpitch + x1*uint.sizeof);
-                texptr = cast(uint*)(tex.data + ty*tex.pitch);
-            }
-            int ly = y*mWidth;
-            mLevelData[ly+x1..ly+x2] = marker;
             if (visible && textured) {
+                uint ty = (y + tex.offs.y) % tex.h;
+                Color.RGBA32* dst = dstptr +  y*dstpitch + x1;
+                Color.RGBA32* texptr = tex.data + ty*tex.pitch;
                 for (uint x = x1; x < x2; x++) {
-                    uint* texel = texptr + (x + tex.offs.x) % tex.w;
+                    auto texel = texptr + (x + tex.offs.x) % tex.w;
                     *dst = *texel;
                     dst++;
                 }
             }
+            int ly = y*mWidth;
+            mLevelData[ly+x1..ly+x2] = marker;
         }
 
         debug {
@@ -213,8 +220,8 @@ class LandscapeBitmap {
     void texturizeData(Surface[] textures, Vector2i[] texOffsets) {
         //prepare image
         if (!mImage) {
+            //xxx colorkey
             mImage = gFramework.createSurface(size, Transparency.Colorkey);
-            mImage.fill(Rect2i(mImage.size), mImage.colorkey());
         }
         assert(mLevelData.length == mImage.size.x*mImage.size.y);
 
@@ -225,33 +232,32 @@ class LandscapeBitmap {
             if (idx < textures.length)
                 t = textures[idx];
             if (idx < texOffsets.length)
-                texData[idx] = TexData(t, texOffsets[idx], mImage.colorkey);
+                texData[idx] = TexData(t, texOffsets[idx]);
             else
                 //no texOffset was given for this index
-                texData[idx] = TexData(t, Vector2i(0), mImage.colorkey);
+                texData[idx] = TexData(t, Vector2i(0));
         }
 
-        void* dstptr; uint dstpitch;
+        Color.RGBA32* dstptr; uint dstpitch;
         mImage.lockPixelsRGBA32(dstptr, dstpitch);
 
-        uint*[Lexel.Max+1] texptr;
+        Color.RGBA32*[Lexel.Max+1] texptr;
 
         for (int y = 0; y < size.y; y++) {
             //for each texture, get pointer to current texture line
             for (int i = 0; i < texptr.length; i++) {
                 int ty = (y + texData[i].offs.y) % texData[i].h;
-                texptr[i] = cast(uint*)(texData[i].data
-                    + ty*texData[i].pitch);
+                texptr[i] = texData[i].data + ty*texData[i].pitch;
             }
             //current line in data array
             Lexel* src = mLevelData.ptr + y*size.x;
             //destination pixel
-            uint* dst = cast(uint*)(dstptr +  y*dstpitch);
+            Color.RGBA32* dst = dstptr +  y*dstpitch;
             for (int x = 0; x < size.x; x++) {
                 Lexel l = *src;
                 if (l >= texData.length)
                     l = Lexel.init;
-                uint* texel = texptr[l]
+                Color.RGBA32* texel = texptr[l]
                     + (x + texData[l].offs.x) % texData[l].w;
                 *dst = *texel;
                 dst++;
@@ -288,21 +294,20 @@ class LandscapeBitmap {
             int dir = up ? -1 : +1;
 
             uint tex_pitch;
-            void* tex_data;
-            texture.lockPixelsRGBA32(tex_data, tex_pitch);
+            Color.RGBA32* texptr;
+            texture.lockPixelsRGBA32(texptr, tex_pitch);
             uint tex_w = texture.size.x;
             uint tex_h = texture.size.y;
-            uint* texptr = cast(uint*)tex_data;
 
-            uint dsttransparent = mImage.colorkey.toRGBA32().uint_val;
+            auto dsttransparent = Color.cTransparent.toRGBA32();
 
-            void* dstptr; uint dstpitch;
+            Color.RGBA32* dstptr; uint dstpitch;
             mImage.lockPixelsRGBA32(dstptr, dstpitch);
 
             ubyte[] apline = new ubyte[mWidth]; //initialized to 0
             int start = up ? mHeight-1 : 0;
             for (int y = start; y >= 0 && y <= mHeight-1; y += dir) {
-                uint* scanline = cast(uint*)(dstptr + y*dstpitch);
+                Color.RGBA32* scanline = dstptr + y*dstpitch;
                 Lexel* meta_scanline = &mLevelData[y*mWidth];
                 ubyte* poldline = &tmpData[y*mWidth];
                 ubyte* ppline = &apline[0];
@@ -328,9 +333,9 @@ class LandscapeBitmap {
                     //comparison with *oldpline ensures that up and down texture
                     //use the same part of the available space
                     if (pline > 0 && pline < 0xFF && pline > *poldline) {
-                        uint* texel = texptr + x%tex_w;
+                        Color.RGBA32* texel = texptr + x%tex_w;
                         uint texy = (tex_h-pline)%tex_h;
-                        texel = cast(uint*)(cast(void*)texel + texy*tex_pitch);
+                        texel = texel + texy*tex_pitch;
                         if (!texture.isTransparent(texel))
                             *scanline = *texel;
                         else {
@@ -386,8 +391,8 @@ class LandscapeBitmap {
     // meta_domask: after checking and copying the pixel, mask meta with this
     //I put it all into this to avoid code duplication
     //called in-game!
-    private int circle_masked(Vector2i pos, int radius, void* dst,
-        uint dst_pitch, void* src, uint src_pitch, uint w, uint h,
+    private int circle_masked(Vector2i pos, int radius, Color.RGBA32* dst,
+        uint dst_pitch, Color.RGBA32* src, uint src_pitch, uint w, uint h,
         ubyte meta_mask, ubyte meta_cmp, ubyte meta_domask = 255)
     {
         assert(radius >= 0);
@@ -407,8 +412,8 @@ class LandscapeBitmap {
             x1 = x1 > mWidth ? mWidth : x1;
             x2 = x2 < 0 ? 0 : x2;
             x2 = x2 > mWidth ? mWidth : x2;
-            uint* dstptr = cast(uint*)(dst+dst_pitch*ly);
-            uint* srcptr = cast(uint*)(src+src_pitch*(ly % h));
+            Color.RGBA32* dstptr = dst+dst_pitch*ly;
+            Color.RGBA32* srcptr = src+src_pitch*(ly % h);
             dstptr += x1;
             Lexel* meta = mLevelData.ptr + mWidth*ly + x1;
             for (int x = x1; x < x2; x++) {
@@ -453,7 +458,7 @@ class LandscapeBitmap {
         uint col;
         int count;
 
-        void* pixels; uint pitch;
+        Color.RGBA32* pixels; uint pitch;
         mImage.lockPixelsRGBA32(pixels, pitch);
 
         auto nradius = max(radius - cBlastCenterDist,0);
@@ -463,7 +468,7 @@ class LandscapeBitmap {
         int doCircle(int radius, Surface s, Color c, ubyte meta_mask,
             ubyte meta_cmp, ubyte meta_domask = 255)
         {
-            void* srcpixels; uint srcpitch;
+            Color.RGBA32* srcpixels; uint srcpitch;
             int sx, sy;
             int count;
             if (s) {
@@ -471,9 +476,9 @@ class LandscapeBitmap {
                 sx = s.size.x; sy = s.size.y;
             } else {
                 //plain evil etc.: simulate a 1x1 bitmap with the color in it
-                uint col = c.toRGBA32().uint_val;
+                Color.RGBA32 col = c.toRGBA32();
                 srcpixels = &col;
-                srcpitch = 4;
+                srcpitch = 1;
                 sx = 1; sy = 1;
             }
             count = circle_masked(pos, radius, pixels, pitch, srcpixels,
@@ -491,7 +496,7 @@ class LandscapeBitmap {
         //in the same call, mask all pixels with SolidHard to remove any
         //SolidSoft pixels...
         count = doCircle(radius, theme ? theme.backImage : null,
-            theme ? theme.backColor : mImage.colorkey(),
+            theme ? theme.backColor : Color.cTransparent,
             cAllMeta, Lexel.SolidSoft, Lexel.SolidHard);
 
         int blast_radius = radius + blast_border;
@@ -508,7 +513,7 @@ class LandscapeBitmap {
         if (nradius > 0) {
             //clear the center of the destruction (to get rid of that background
             //texture)
-            doCircle(nradius, null, mImage.colorkey(), cAllMeta, 0);
+            doCircle(nradius, null, Color.cTransparent, cAllMeta, 0);
         }
 
         Rect2i bb;
@@ -603,15 +608,15 @@ class LandscapeBitmap {
         if (cx1 >= cx2 || cy1 >= cy2)
             return;
 
-        void* data; uint pitch;
+        Color.RGBA32* data; uint pitch;
         source.lockPixelsRGBA32(data, pitch);
-        void* dstptr; uint dstpitch;
+        Color.RGBA32* dstptr; uint dstpitch;
         mImage.lockPixelsRGBA32(dstptr, dstpitch);
 
         for (int y = cy1; y < cy2; y++) {
             //offset to relevant start of source scanline
-            uint* src = cast(uint*)(data + pitch*(y-py) + (cx1-px)*uint.sizeof);
-            uint* dst = cast(uint*)(dstptr + dstpitch*y + cx1*uint.sizeof);
+            Color.RGBA32* src = data + pitch*(y-py) + (cx1-px);
+            Color.RGBA32* dst = dstptr + dstpitch*y + cx1;
             Lexel* dst_meta = &mLevelData[mWidth*y+cx1];
             for (int x = cx1; x < cx2; x++) {
                 if (!source.isTransparent(src)
@@ -708,7 +713,7 @@ class LandscapeBitmap {
 
         if (!dataOnly) {
             mImage = gFramework.createSurface(size, Transparency.Colorkey);
-            mImage.fill(Rect2i(mImage.size), mImage.colorkey());
+            mImage.fill(Rect2i(mImage.size), Color.cTransparent);
         }
     }
 
@@ -734,11 +739,11 @@ class LandscapeBitmap {
         if (!import_bmp)
             return;
 
-        void* ptr; uint pitch;
+        Color.RGBA32* ptr; uint pitch;
         mImage.lockPixelsRGBA32(ptr, pitch);
 
         for (int y = 0; y < mHeight; y++) {
-            uint* pixel = cast(uint*)(ptr + y*pitch);
+            Color.RGBA32* pixel = ptr + y*pitch;
             Lexel* meta = &mLevelData[y*mWidth];
             for (int x = 0; x < mWidth; x++) {
                 *meta = mImage.isTransparent(pixel) ? Lexel.SolidSoft

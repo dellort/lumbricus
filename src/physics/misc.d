@@ -20,7 +20,7 @@ enum ContactSource {
 //entry in matrix that defines how a collision should be handled
 //for other uses than contact generation (like triggers), any value >0
 //  means it collides
-enum ContactHandling {
+enum ContactHandling : ubyte {
     none,       //no collision
     normal,     //default (physically correct) handling
     noImpulse,  //no impulses are exchanged (like both objects hit a wall)

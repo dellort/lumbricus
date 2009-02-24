@@ -59,7 +59,7 @@ class ResourceItem : ResourceObject {
             mValid = true;
         } catch (Exception e) {
             char[] errMsg = "Resource " ~ id ~ " (" ~ toString()
-                ~ ") failed to load: "~e.msg;
+                ~ ") failed to load: "~e.toString;
             Resources.log(errMsg);
             throw new ResourceException(id, errMsg);
         }

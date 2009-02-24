@@ -10,6 +10,8 @@ const cMaxBacktrace = 30;
 //buffer used when formatting output
 const cBacktraceLineBuffer = 120;
 
+const char[] MODULE_PREFIX = "utils/mytrace.d: ";
+
 //the code is Linux specific, but Windows user can use this:
 //  http://monsterbrowser.googlecode.com/svn/monsterbrowser/trunk/TangoTrace2.d
 
@@ -46,7 +48,7 @@ version (EnableDMDLinuxX86) {
     }
 
     static this() {
-        pragma(msg, "hi, I'm not multithreading safe!");
+        pragma(msg, MODULE_PREFIX ~ "hi, I'm not multithreading safe!");
 
         convert = new typeof(convert)();
 
@@ -55,8 +57,13 @@ version (EnableDMDLinuxX86) {
             //actually, the runtime calls this function when an Exception is
             //thrown the default handler does nothing (just returns null)
             runtime.Runtime.traceHandler = &myTraceHandler;
-            install_sighandlers();
-            printf("mytrace.d: loaded and exception/trace handler installed\n");
+            char[] what = "trace handler";
+            version (SetSigHandler) {
+                install_sighandlers();
+                what ~= "/signal handlers";
+            }
+            fprintf(stderr, "%.*sloaded and %.*s installed\n", MODULE_PREFIX,
+                what);
         }
     }
 
@@ -113,7 +120,7 @@ version (EnableDMDLinuxX86) {
         }
     }
 
-    //    n caller_address-offset_to_start<tab> unmangled
+    //    n caller_address -offset_to_start<tab> unmangled
     //storage: buffer used for formatting; but demangle will alloc memory anyway
     char[] printTraceRecord(char[] storage, ref TraceRecord info,
         bool demangle = true)
@@ -135,7 +142,7 @@ version (EnableDMDLinuxX86) {
                 print("0x{:x}\t [unknown]", info.address);
             } else {
                 size_t offset = info.address - psym.st_value;
-                print("0x{:x}-{}", info.address, offset);
+                print("0x{:x} -{}", info.address, offset);
                 char* name = &gStrTab[psym.st_name];
                 char[] aname = name[0..strlen(name)];
                 version (Demangler) if (demangle) {
@@ -209,7 +216,7 @@ version (EnableDMDLinuxX86) {
 
         fseek(file, offset, SEEK_SET);
         if (fread(ptr, size, 1, file) != 1) {
-            printf("Unable to read ELF file\n");
+            fprintf(stderr, "%.*sUnable to read ELF file\n", MODULE_PREFIX);
             abort();
         }
     }
@@ -284,8 +291,11 @@ version (EnableDMDLinuxX86) {
         size_t bp = *cast(size_t*)regbp;
 
         if (bp) {
-            if (bp <= regbp)
-                abort();
+            if (bp <= regbp) {
+                fprintf(stderr, "%.*sbacktrace error, stop.\n", MODULE_PREFIX);
+                //abort();
+                return 0;
+            }
             *pretaddr = *cast(size_t*)(regbp + size_t.sizeof);
         }
 
@@ -345,21 +355,20 @@ version (EnableDMDLinuxX86) {
             default:
                 signame = "unknown, add to mytrace.d/signal_handler()";
         }
-        fprintf(stderr, "mytrace.d: Signal caught: %.*s\n", signame);
+        fprintf(stderr, "%.*sSignal caught: %.*s\n", MODULE_PREFIX, signame);
         auto info = do_backtrace(gSignalTrace);
         foreach (i; info) {
             char[cBacktraceLineBuffer] buffer = void;
             char[] l = printTraceRecord(buffer, i, false);
-            fprintf(stderr, "%.*s", l);
+            fprintf(stderr, "%.*s\n", l);
         }
+        fprintf(stderr, "%.*sabort().\n", MODULE_PREFIX);
         abort();
     }
 
     void install_sighandlers() {
-        version (SetSigHandler) {
-            //add whatever signal barked on you
-            signal(SIGSEGV, &signal_handler);
-            signal(SIGFPE, &signal_handler);
-        }
+        //add whatever signal barked at you
+        signal(SIGSEGV, &signal_handler);
+        signal(SIGFPE, &signal_handler);
     }
 }

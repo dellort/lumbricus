@@ -99,10 +99,10 @@ private void writePNG(Surface img, Stream stream) {
     ihdr.height = img.size.y;
 
     switch (img.transparency) {
-        case Transparency.None, Transparency.Colorkey:
+        case Transparency.None:
             ihdr.colour_type = 2; //"Truecolour"
             break;
-        case Transparency.Alpha:
+        case Transparency.Alpha, Transparency.Colorkey:
             ihdr.colour_type = 6; //"Truecolour with alpha"
             write_alpha = true;
             break;
@@ -112,6 +112,7 @@ private void writePNG(Surface img, Stream stream) {
 
     writeNetStruct(&chunkData, ihdr);
 
+/+  xxx removed for simplicity
     if (img.transparency == Transparency.Colorkey) {
         //tRNS chunk defines (in this case) the "transparent colour"
 
@@ -123,6 +124,7 @@ private void writePNG(Surface img, Stream stream) {
         auto cc = img.colorkey().toRGBA32();
         writeNetStruct(&chunkData, PNG_tRNS(cc.r, cc.g, cc.b));
     }
++/
 
     //put in the image data
     startChunk("IDAT");
@@ -136,7 +138,7 @@ private void writePNG(Surface img, Stream stream) {
         zwriter.write((&filter_type)[0..1]);
     }
 
-    void* data;
+    Color.RGBA32* data;
     uint pitch;
     img.lockPixelsRGBA32(data, pitch);
 
@@ -145,7 +147,7 @@ private void writePNG(Surface img, Stream stream) {
             //our format is compatible with PNG's, just dump the scanlines
             for (int y = 0; y < img.size.y; y++) {
                 filterType();
-                zwriter.write(cast(ubyte[])(data[0..img.size.x*4]));
+                zwriter.write(cast(ubyte[])(data[0..img.size.x]));
                 data += pitch;
             }
         } else {
@@ -154,7 +156,7 @@ private void writePNG(Surface img, Stream stream) {
             ubyte[] converted = new ubyte[sx*3];
             for (uint y = 0; y < img.size.y; y++) {
                 filterType();
-                Color.RGBA32* data2 = cast(Color.RGBA32*)data;
+                Color.RGBA32* data2 = data;
                 ubyte* pconv = &converted[0];
                 for (uint x = 0; x < sx; x++) {
                     pconv[0] = data2.r;
@@ -183,7 +185,7 @@ private void writePNG(Surface img, Stream stream) {
 private void writeTGA(Surface img, Stream stream) {
     scope to = new MemoryStream();
     try {
-        void* pvdata;
+        Color.RGBA32* pvdata;
         uint pitch;
         img.lockPixelsRGBA32(pvdata, pitch);
         ubyte b;
@@ -213,7 +215,7 @@ private void writeTGA(Surface img, Stream stream) {
         //dump picture data as 24 bbp, 32 bpp with alpha
         //TGA seems to be upside down
         for (int y = img.size.y-1; y >= 0; y--) {
-            Color.RGBA32* data = cast(Color.RGBA32*)(pvdata+pitch*y);
+            Color.RGBA32* data = pvdata+pitch*y;
             for (int x = 0; x < img.size.x; x++) {
                 //wee, colorkeyed surfaces are written as not-transparent
                 to.write(data.b);
@@ -235,14 +237,14 @@ private void writeTGA(Surface img, Stream stream) {
 //writes a x byte large header, then 4 bytes per pixel
 private void writeRAW(Surface img, Stream stream) {
     try {
-        void* pvdata;
+        Color.RGBA32* pvdata;
         uint pitch;
         img.lockPixelsRGBA32(pvdata, pitch);
         //header: x, y as uints
         stream.write(img.size.x);
         stream.write(img.size.y);
         //header: colorkey as r-g-b-a byte array
-        auto ck = img.colorkey().toRGBA32();
+        auto ck = img.getColorkey().toRGBA32();
         stream.writeExact(&ck, ck.sizeof);
         //header: transparency mode as uint
         auto tr = cast(uint)img.transparency();

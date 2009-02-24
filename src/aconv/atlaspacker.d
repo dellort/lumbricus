@@ -24,17 +24,13 @@ class AtlasPacker {
         Image[] mPageImages;
         FileAtlasTexture[] mBlocks;
         char[] mName;
-        bool mImgAlpha;
     }
 
     //fnBase = the name of the atlas resource
-    this(char[] fnBase, Vector2i pageSize = Vector2i(512,512),
-        bool alpha = false)
-    {
+    this(char[] fnBase, Vector2i pageSize = Vector2i(512,512)) {
         mPacker = new BoxPacker;
         mPacker.pageSize = pageSize;
         mName = fnBase;
-        mImgAlpha = alpha;
     }
 
     char[] name() {
@@ -62,12 +58,8 @@ class AtlasPacker {
 
         while (newBlock.page >= mPageImages.length) {
             //a new page has been started, create a new image
-            auto img = new Image(mPacker.pageSize.x, mPacker.pageSize.y,
-                mImgAlpha);
-            if (mImgAlpha)
-                img.clear(0, 0, 0, 0);
-            else
-                img.clear(COLORKEY.r, COLORKEY.g, COLORKEY.b, 1);
+            auto img = new Image(mPacker.pageSize.x, mPacker.pageSize.y);
+            img.clear(0, 0, 0, 0);
             mPageImages ~= img;
         }
 

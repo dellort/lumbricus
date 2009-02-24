@@ -12,6 +12,7 @@ import tango.math.Math;
 import tango.stdc.stringz;
 import utf = stdx.utf;
 import utils.misc;
+import cstdlib = tango.stdc.stdlib;
 
 debug import tango.io.Stdout;
 
@@ -97,6 +98,7 @@ class GLSurface : SDLDriverSurface {
         if (mTexId != GLID_INVALID) {
             glDeleteTextures(1, &mTexId);
             mTexId = GLID_INVALID;
+            mError = false;
         }
     }
 
@@ -112,7 +114,7 @@ class GLSurface : SDLDriverSurface {
         mTexSize = Vector2i(powerOfTwo(mData.size.x),
             powerOfTwo(mData.size.y));
         if (mTexSize == mData.size) {
-            //image width and heigth are already a power of two
+            //image width and height are already a power of two
             mTexMax.x = 1.0f;
             mTexMax.y = 1.0f;
         } else {
@@ -139,17 +141,18 @@ class GLSurface : SDLDriverSurface {
         if (checkGLError("loading texture")) {
             //set error flag to prevent changing the texture data
             mError = true;
-            debug Stdout.formatln("Failed to create texture of size {}.",mTexSize);
+            debug Stdout.formatln("Failed to create texture of size {}.",
+                mTexSize);
             //throw new Exception(
             //    "glTexImage2D failed, probably texture was too big. "
             //    ~ "Requested size: "~mTexSize.toString);
 
             //create a red replacement texture so the error is well-visible
-            uint red = 0xff0000ff;
+            uint red = 0xff0000ff; //wee, endian doesn't matter here
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0,
                 GL_RGBA, GL_UNSIGNED_BYTE, &red);
         } else {
-            updateTexture(Rect2i(Vector2i(0),mData.size), true);
+            updateTexture(Rect2i(Vector2i(0),mData.size));
         }
     }
 
@@ -159,58 +162,20 @@ class GLSurface : SDLDriverSurface {
 
     //like updatePixels, but assumes texture is already bound (and does
     //less error checking)
-    private void updateTexture(in Rect2i rc, bool full = false) {
-        void* texData;
-        SDL_Surface *texSurface;
+    private void updateTexture(in Rect2i rc) {
         if (rc.size.x <= 0 || rc.size.y <= 0)
             return;
-        if (mData.transparency == Transparency.Colorkey) {
-            //transparency uses colorkeying -> convert to alpha
-            SDL_Surface *srcSurface = SDL_CreateRGBSurfaceFrom(mData.data.ptr,
-                mData.size.x, mData.size.y, 32, mData.pitch, 0x000000FF,
-                0x0000FF00, 0x00FF0000, 0xFF000000);
-            assert(srcSurface);
 
-            texSurface = SDL_CreateRGBSurface(SDL_SWSURFACE, rc.size.x,
-                rc.size.y, 32, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
-            assert(texSurface);
-            //xxx OpenGL does not have a pitch value and data should be
-            //4-byte-aligned anyway
-            assert(texSurface.pitch == texSurface.w*4);
+        if (mError)
+            return;  //texture failed to load and contains only 1 pixel
 
-            //clear transparency - I don't know why, the surface has just been
-            //created and should not have any
-            SDL_SetAlpha(srcSurface, 0, 0);
-            //activate colorkeying for source surface
-            uint key = simpleColorToSDLColor(srcSurface,
-                mData.colorkey);
-            SDL_SetColorKey(srcSurface, SDL_SRCCOLORKEY, key);
-
-            //Copy the surface into the GL texture image
-            //Blitting converts colorkey images to alpha images, because only
-            //non-transparent pixels are overwritten
-            SDL_Rect areasrc, areadest;
-            areasrc.x = rc.p1.x;
-            areasrc.y = rc.p1.y;
-            areasrc.w = areadest.w = rc.size.x;
-            areasrc.h = areadest.h = rc.size.y;
-            SDL_BlitSurface(srcSurface, &areasrc, texSurface, &areadest);
-            SDL_FreeSurface(srcSurface);
-
-            texData = texSurface.pixels;
-            full = true;
-        } else {
-            //transparency format matches -> use directly
-            texData = mData.data.ptr;
-            assert(mData.pitch == mData.size.x*4);
-        }
+        Color.RGBA32* texData = mData.data.ptr;
 
         //make GL read the right data from the full-image array
-        if (!full) {
-            glPixelStorei(GL_UNPACK_ROW_LENGTH, mData.size.x);
-            glPixelStorei(GL_UNPACK_SKIP_ROWS, rc.p1.y);
-            glPixelStorei(GL_UNPACK_SKIP_PIXELS, rc.p1.x);
-        }
+        //glPixelStorei(GL_UNPACK_ROW_LENGTH, mData.size.x);
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, mData.pitch);
+        glPixelStorei(GL_UNPACK_SKIP_ROWS, rc.p1.y);
+        glPixelStorei(GL_UNPACK_SKIP_PIXELS, rc.p1.x);
 
         glTexSubImage2D(GL_TEXTURE_2D, 0, rc.p1.x, rc.p1.y, rc.size.x,
             rc.size.y, GL_RGBA, GL_UNSIGNED_BYTE, texData);
@@ -219,24 +184,13 @@ class GLSurface : SDLDriverSurface {
         glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
         glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
         glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
-
-        if (texSurface)
-            SDL_FreeSurface(texSurface);
     }
 
     void updatePixels(in Rect2i rc) {
-        if (mError)
-            return;  //texture failed to load and contains only 1 pixel
         if (mTexId == GLID_INVALID) {
             reinit();
         } else {
-            assert(mData.pitch == mData.size.x*4);
-            //caller has to assure that rc intersects with the
-            //texture area at all
-            //not anymore, I don't see any reason for this
-            //assert(rc.p1.x < mData.size.x && rc.p1.y < mData.size.y);
-            //assert(rc.p2.x > 0 && rc.p2.y > 0);
-            //now clip rc to the texture area
+            //clip rc to the texture area
             rc.fitInsideB(Rect2i(0,0,mData.size.x,mData.size.y));
             glBindTexture(GL_TEXTURE_2D, mTexId);
             updateTexture(rc);

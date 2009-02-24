@@ -76,9 +76,6 @@ abstract class FrameworkDriver {
     abstract Canvas startScreenRendering();
     abstract void stopScreenRendering();
 
-    ///start rendering on a Surface
-    abstract Canvas startOffscreenRendering(Surface surface);
-
     abstract Surface loadImage(Stream source, Transparency transparency);
 
     ///release internal caches - does not include DriverSurfaces
@@ -141,12 +138,29 @@ struct SurfaceData {
     //can also be set by the DriverSurface (but only to true)
     //bool keep_pixeldata; unused
     Vector2i size;
-    Transparency transparency = Transparency.None;
-    Color colorkey = cStdColorkey;
+    //NOTE: the transparency is merely a hint to the backend (if the hint is
+    //      wrong, the backend might output a corrupted image); also see below
+    Transparency transparency = Transparency.Alpha;
+    //NOTE: the colorkey might not be used at all anymore
+    //      for now, it is only a hint for backends (rendering and image
+    //      saving), that this color is unused by the actual image and can be
+    //      used as actual colorkey to implement transparency
+    //Warning: the actual transparency of a pixel in the pixel data is
+    //      determined by the function pixelIsTransparent()
+    //the colorkey is only valid
+    Color colorkey = Color(1,0,1,0);
     //at least currently, the data always is in the format Color.RGBA32
-    ubyte[] data;
+    //if the transparency is colorkey, not-transparent pixels may be changed by
+    //the backend (xxx: this is horrible)
+    Color.RGBA32[] data;
     //pitch for data
     uint pitch;
+}
+
+//this function by definition returns if a pixel is considered transparent
+//dear compiler, you should always inline this
+bool pixelIsTransparent(Color.RGBA32* p) {
+    return p.a == 0;
 }
 
 abstract class DriverFont {
@@ -168,8 +182,6 @@ abstract class FontDriver {
 //**** the Framework
 
 Framework gFramework;
-
-const Color cStdColorkey = {r:1.0f, g:0.0f, b:1.0f, a:0.0f};
 
 package {
     struct SurfaceKillData {
@@ -207,8 +219,6 @@ class Surface {
         DriverSurface mDriverSurface;
         SurfaceData* mData;
         SurfaceMode mMode;
-        //cached color key as Color.RGBA32.uint_val
-        uint mCachedColorkey;
     }
 
     ///"best" size for a large texture
@@ -249,13 +259,6 @@ class Surface {
 
     //call everytime the format in mData is changed
     private void readSurfaceProperties() {
-        //xxx what
-        mData.colorkey = mData.transparency == Transparency.Colorkey
-            ? mData.colorkey : Color(0,0,0,0);
-        //to speed up isTransparent()
-        auto ckey = mData.colorkey.toRGBA32();
-        ckey.a = 0;
-        mCachedColorkey = ckey.uint_val;
     }
 
     final Vector2i size() {
@@ -309,9 +312,10 @@ class Surface {
     }
 
     /// direct access to pixels (in Color.RGBA32 format)
-    /// must not call any other surface functions (except size(), colorkey() and
+    /// must not call any other surface functions (except size() and
     /// transparency()) between this and unlockPixels()
-    void lockPixelsRGBA32(out void* pixels, out uint pitch) {
+    /// pitch is now number of Color.RGBA32 units to advance by 1 line vetically
+    void lockPixelsRGBA32(out Color.RGBA32* pixels, out uint pitch) {
         if (mDriverSurface) {
             mDriverSurface.getPixelData();
         }
@@ -329,42 +333,16 @@ class Surface {
     }
 
     /// return colorkey or a 0-alpha black, depending from transparency mode
-    final Color colorkey() {
+    final Color getColorkey() {
         return mData.colorkey;
-    }
-
-    /// set the colorkey
-    //xxx: kill this?
-    void colorkey(Color c) {
-        passivate();
-        mData.colorkey = c; //I hope this works?
-        readSurfaceProperties();
     }
 
     final Transparency transparency() {
         return mData.transparency;
     }
 
-    //omg dirty and slow hack!
-    //note how this code is explicitly endian-unsafe by using bit operations
-    //  here, and byte-pointer access in mapColorChannels()
-    //if the pixel is considered to be transparent
-    //raw is the pointer to the pixel
-    //if this has alpha transparency, >= 0.5 is not transparent
-    final bool isTransparent(void* raw) {
-        switch (transparency()) {
-            case Transparency.None:
-                return false;
-            case Transparency.Colorkey:
-                //xxx here was some weird code which masked out the alpha
-                //    channel for the comparision
-                auto pix = *cast(Color.RGBA32*)raw;
-                pix.a = 0;
-                //return *(cast(uint*)raw) == mCachedColorkey;
-                return pix.uint_val == mCachedColorkey;
-            case Transparency.Alpha:
-                return (cast(ubyte*)raw)[Color.cIdxAlpha] < 128;
-        }
+    static bool isTransparent(void* raw) {
+        return pixelIsTransparent(cast(Color.RGBA32*)raw);
     }
 
     final Surface clone() {
@@ -384,7 +362,7 @@ class Surface {
             rc = Rect2i.init;
         }
         auto sz = rc.size();
-        auto s = gFramework.createSurface(sz, transparency, colorkey);
+        auto s = gFramework.createSurface(sz, transparency, getColorkey());
         s.copyFrom(this, Vector2i(0), rc.p1, sz);
         return s;
     }
@@ -414,10 +392,11 @@ class Surface {
             c.r = c.g = c.b = c.a = Color.fromByte(n);
             c = fn(c);
             c.clamp();
-            map[0][n] = Color.toByte(c.r);
-            map[1][n] = Color.toByte(c.g);
-            map[2][n] = Color.toByte(c.b);
-            map[3][n] = Color.toByte(c.a);
+            Color.RGBA32 c32 = c.toRGBA32();
+            map[0][n] = c32.r;
+            map[1][n] = c32.g;
+            map[2][n] = c32.b;
+            map[3][n] = c32.a;
         }
         mapColorChannels(map);
     }
@@ -426,21 +405,20 @@ class Surface {
     //channels are r=0, g=1, b=2, a=3
     //xxx is awfully slow and handling of transparency is fundamentally broken
     void mapColorChannels(ubyte[256][4] colormap) {
-        void* data; uint pitch;
+        Color.RGBA32* data; uint pitch;
         lockPixelsRGBA32(data, pitch);
         for (int y = 0; y < mData.size.y; y++) {
-            ubyte* ptr = cast(ubyte*)data;
-            ptr += y*pitch;
+            Color.RGBA32* ptr = data + y*pitch;
             auto w = mData.size.x;
             for (int x = 0; x < w; x++) {
                 //if (!isTransparent(*cast(int*)ptr)) {
                     //avoiding bounds checking: array[index] => *(array.ptr + index)
-                    ptr[0] = *(colormap[0].ptr + ptr[0]); //colormap[0][ptr[0]];
-                    ptr[1] = *(colormap[1].ptr + ptr[1]); //colormap[1][ptr[1]];
-                    ptr[2] = *(colormap[2].ptr + ptr[2]); //colormap[2][ptr[2]];
-                    ptr[3] = *(colormap[3].ptr + ptr[3]); //colormap[3][ptr[3]];
+                    ptr.r = *(colormap[0].ptr + ptr.r); //colormap[0][ptr.r];
+                    ptr.g = *(colormap[1].ptr + ptr.g); //colormap[1][ptr.g];
+                    ptr.b = *(colormap[2].ptr + ptr.b); //colormap[2][ptr.b];
+                    ptr.a = *(colormap[3].ptr + ptr.a); //colormap[3][ptr.a];
                 //}
-                ptr += 4;
+                ptr++;
             }
         }
         unlockPixels(rect());
@@ -467,13 +445,13 @@ class Surface {
             assert(false, "copyFrom(): overlapping memory");
         auto sz = dest.size.min(src.size);
         assert(sz.x >= 0 && sz.y >= 0);
-        void* pdest; uint destpitch;
-        void* psrc; uint srcpitch;
+        Color.RGBA32* pdest; uint destpitch;
+        Color.RGBA32* psrc; uint srcpitch;
         lockPixelsRGBA32(pdest, destpitch);
         source.lockPixelsRGBA32(psrc, srcpitch);
-        pdest += destpitch*dest.p1.y + dest.p1.x*uint.sizeof;
-        psrc += srcpitch*src.p1.y + src.p1.x*uint.sizeof;
-        int adv = sz.x*uint.sizeof;
+        pdest += destpitch*dest.p1.y + dest.p1.x;
+        psrc += srcpitch*src.p1.y + src.p1.x;
+        int adv = sz.x;
         for (int y = 0; y < sz.y; y++) {
             pdest[0 .. adv] = psrc[0 .. adv];
             pdest += destpitch;
@@ -489,11 +467,11 @@ class Surface {
         rc.fitInsideB(Rect2i(size));
         if (!rc.isNormal())
             return;
-        uint c = color.toRGBA32().uint_val;
-        void* px; uint pitch;
+        auto c = color.toRGBA32();
+        Color.RGBA32* px; uint pitch;
         lockPixelsRGBA32(px, pitch);
         for (int y = rc.p1.y; y < rc.p2.y; y++) {
-            auto dest = cast(uint*)(px + pitch*y);
+            auto dest = px + pitch*y;
             dest[rc.p1.x .. rc.p2.x] = c;
         }
         unlockPixels(rc);
@@ -690,11 +668,11 @@ class Framework {
     //--- Surface handling
 
     Surface createSurface(Vector2i size, Transparency transparency,
-        Color colorkey = cStdColorkey)
+        Color colorkey = Color(0))
     {
         SurfaceData data;
         data.size = size;
-        data.pitch = size.x*4;
+        data.pitch = size.x;
         data.data.length = data.size.y*data.pitch;
         data.transparency = transparency;
         data.colorkey = colorkey;
@@ -1251,10 +1229,6 @@ class Framework {
         if (term) {
             terminate();
         }
-    }
-
-    Canvas startOffscreenRendering(Surface surface) {
-        return mDriver.startOffscreenRendering(surface);
     }
 
     /// Get a string for a specific entry (see InfoString).

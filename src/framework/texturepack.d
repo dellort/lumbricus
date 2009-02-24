@@ -47,7 +47,7 @@ class TexturePack {
     ///Surface s on it. the function returns the surface it was on and its
     ///position.
     TextureRef add(Surface s) {
-        auto k = TexTypeKey(s.transparency, s.colorkey);
+        auto k = TexTypeKey(s.transparency, s.getColorkey());
         Packer packer = aaIfIn(mPackers, k);
         if (!packer) {
             packer = new Packer();
@@ -96,7 +96,7 @@ class TexturePack {
             while (mPacker.pages.length > mSurfaces.length) {
                 auto cur = mSurfaces.length;
                 auto surface = gFramework.createSurface(mDefaultSize,
-                    s.transparency, s.colorkey);
+                    s.transparency, s.getColorkey());
                 surface.enableCaching = false;
                 mSurfaces ~= surface;
             }

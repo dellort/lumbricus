@@ -36,8 +36,26 @@ public struct Color {
         }
     }
 
-    //for RGBA32
+    //for RGBA32.colors
     const cIdxR = 0, cIdxG = 1, cIdxB = 2, cIdxAlpha = 3;
+
+    //for RGBA32.uint_val
+    version (LittleEndian) {
+        const cMaskR = 0x00_00_00_FF;
+        const cMaskG = 0x00_00_FF_00;
+        const cMaskB = 0x00_FF_00_00;
+        const cMaskAlpha = 0xFF_00_00_00;
+    } else version (BigEndian) {
+        const cMaskR = 0xFF_00_00_00;
+        const cMaskG = 0x00_FF_00_00;
+        const cMaskB = 0x00_00_FF_00;
+        const cMaskAlpha = 0x00_00_00_FF;
+    } else {
+        static assert(false, "no endian");
+    }
+
+    //black transparent pixel
+    const Color cTransparent = Color(0, 0, 0, 0);
 
     /// a value that can be used as epsilon when comparing colors
     //0.3f is a fuzzify value, with 255 I expect colors to be encoded with at

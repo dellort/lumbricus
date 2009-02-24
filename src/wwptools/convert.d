@@ -17,10 +17,10 @@ struct GradientDef {
 //and groundup.png (last one flipped)
 //output a line specifying bordercolor which is in the right box of grass.png
 RGBTriple convertGround(Image imgIn, char[] destPath = ".") {
-    scope imgDown = new Image(64,imgIn.h,false);
+    scope imgDown = new Image(64,imgIn.h);
     imgDown.blit(imgIn,0,0,64,imgIn.h,0,0);
     imgDown.save(destPath~pathsep~"grounddown.png");
-    scope imgUp = new Image(64,imgIn.h,false);
+    scope imgUp = new Image(64,imgIn.h);
     imgUp.blit(imgIn,64,0,64,imgIn.h,0,0);
     imgUp.flip();
     imgUp.save(destPath~pathsep~"groundup.png");

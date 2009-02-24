@@ -42,12 +42,13 @@ Image readImgFile(Stream st) {
     } else {
         imgData = data[0..w*h];
     }
-    RGBColor[] rgbData = pal.toRGBKey(imgData, COLORKEY);
+    RGBAColor[] rgbaData = pal.toRGBA(imgData);
 
-    auto img = new Image(w, h, false);
-    img.blitRGBData(rgbData.ptr, w, h, 0, 0, false);
+    auto img = new Image(w, h);
+    //img.blitRGBData(rgbData.ptr, w, h, 0, 0, false);
+    img.blitRGBData(rgbaData, w, h, 0, 0);
 
-    delete rgbData;
+    delete rgbaData;
     delete decomp;
     delete data;
 

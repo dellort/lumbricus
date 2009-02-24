@@ -21,7 +21,7 @@ private bool devilInitialized = false;
 class Image {
     int w, h;
     private ILuint mImg;
-    bool alpha;
+    bool alpha; //always true lol
 
     private static ILuint loadImage(char[] filename) {
         ILuint imgName;
@@ -58,13 +58,16 @@ class Image {
         delete buf;
     }
 
-    void blitRGBData(void* data, int aw, int ah, int xdst, int ydst, bool srcalpha) {
+    void blitRGBData(RGBAColor[] data, int aw, int ah, int xdst = 0,
+        int ydst = 0)
+    {
+        bool srcalpha = true;
         int fmt = IL_RGB;
         if (srcalpha)
             fmt = IL_RGBA;
 
         this.bind();
-        ilSetPixels(xdst, ydst, 0, aw, ah, 1, fmt, IL_UNSIGNED_BYTE, data);
+        ilSetPixels(xdst, ydst, 0, aw, ah, 1, fmt, IL_UNSIGNED_BYTE, data.ptr);
     }
 
     Image rotated(float angle, RGBAColor clearColor = RGBAColor.Transparent) {
@@ -190,7 +193,8 @@ class Image {
         this(loadImage(file));
     }
 
-    this(int aw, int ah, bool alpha) {
+    this(int aw, int ah) {
+        bool alpha = true;
         checkInit();
         w = aw; h = ah;
         this.alpha = alpha;

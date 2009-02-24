@@ -484,7 +484,8 @@ public class LevelEditor : Task {
     Vector2i levelSize = {2000, 700};
 
     Level mCurrentPreview;
-    Texture mPreviewImage, mPreview2;
+    Texture mPreviewImage;
+    GenerateFromTemplate mPreview2;
 
     Window mWindow;
 
@@ -512,7 +513,7 @@ public class LevelEditor : Task {
             if (mPreviewCheckbox.checked && editor.mPreviewImage)
                 c.draw(editor.mPreviewImage, Vector2i(0));
             if (mPreview2Checkbox.checked && editor.mPreview2)
-                c.draw(editor.mPreview2, Vector2i(0));
+                editor.renderGeoWireframe(editor.mPreview2, c);
             editor.root.draw(c);
             //selection rectangle
             if (editor.isSelecting) {
@@ -1097,31 +1098,27 @@ public class LevelEditor : Task {
         mCurrentPreview = generator.render();
         assert(!!mCurrentPreview);
         //xxx: there might be several landscapes with different positions etc.
-        mPreviewImage = mPreview2 = null;
+        mPreviewImage = null;
         foreach (obj; mCurrentPreview.objects) {
             if (auto ls = cast(LevelLandscape)obj) {
                 mPreviewImage = ls.landscape.image;
                 break;
             }
         }
-        foreach (d; generator.listGenerated()) {
-            if (d.ls && (d.ls.landscape.image is mPreviewImage) && d.geo) {
-                mPreview2 = renderGeoWireframe(d.geo, generator.theme, d.objs);
-            }
-        }
+        mPreview2 = generator;
         return mCurrentPreview;
     }
 
     //render a wireframe image of the geometry and the objects
-    Surface renderGeoWireframe(LandscapeGeometry geo, LevelTheme theme,
-        LandscapeObjects objs)
+    void renderGeoWireframe(GenerateFromTemplate g, Canvas c)
     {
-        auto s = gFramework.createSurface(geo.size, Transparency.Colorkey);
-        s.fill(Rect2i(s.size), s.colorkey());
-        auto c = gFramework.startOffscreenRendering(s);
-        doRenderGeoWireframe(c, geo, theme ? theme.genTheme : null, objs);
-        c.endDraw();
-        return s;
+        foreach (d; g.listGenerated()) {
+            if (d.ls && (d.ls.landscape.image is mPreviewImage) && d.geo) {
+                auto theme = g.theme;
+                doRenderGeoWireframe(c, d.geo, theme ? theme.genTheme : null,
+                    d.objs);
+            }
+        }
     }
     void doRenderGeoWireframe(Canvas c, LandscapeGeometry geo,
         LandscapeGenTheme theme, LandscapeObjects objs)
