@@ -898,24 +898,28 @@ class SDLDriver : FrameworkDriver {
             data.colorkey = fromSDLColor(surf.format, surf.format.colorkey);
         }
 
+        bool not_crap = !!(surf.flags & SDL_SRCALPHA);
+
         //possibly convert it to RGBA32 (except if it is already)
         //if there's a colorkey, always convert, hoping the alpha channel gets
         //fixed (setting the alpha according to colorkey)
-        if (hascc || !cmpPixelFormat(surf.format, &mRGBA32)) {
+        if (not_crap || !cmpPixelFormat(surf.format, &mRGBA32)) {
             data.pitch = data.size.x;
             data.data.length = data.pitch*data.size.y;
 
             SDL_Surface* ns = SDL_CreateRGBSurfaceFrom(data.data.ptr,
                 surf.w, surf.h, mRGBA32.BitsPerPixel, data.pitch*4,
                 mRGBA32.Rmask, mRGBA32.Gmask, mRGBA32.Bmask, mRGBA32.Amask);
-            if (!ns) {
-                SDL_FreeSurface(surf);
+            if (!ns)
                 throw new Exception("out of memory?");
-            }
             SDL_SetAlpha(surf, 0, 0);  //lol SDL, disable all transparencies
-            SDL_SetColorKey(surf, 0, 0);
+            //not sure about this, but commenting this seems to work better with
+            //paletted+transparent png files (but only in OpenGL mode lol)
+            //by the way, using SDL_ConvertSurface worked even worse
+            //SDL_SetColorKey(surf, 0, 0);
             SDL_BlitSurface(surf, null, ns, null);
             SDL_FreeSurface(ns);
+            //xxx: need to restore for surf what was destroyed by SDL_SetAlpha
         } else {
             //just copy the data
             SDL_LockSurface(surf);
