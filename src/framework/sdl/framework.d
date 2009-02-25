@@ -817,6 +817,35 @@ class SDLDriver : FrameworkDriver {
         return convertFromSDLSurface(surf, transparency, true, true);
     }
 
+    Surface screenshot() {
+        if (mOpenGL) {
+            SurfaceData data;
+            data.size = Vector2i(mSDLScreen.w, mSDLScreen.h);
+            data.transparency = Transparency.None;
+            data.pitch = mSDLScreen.w;
+            data.data.length = data.pitch*data.size.y;
+            //get screen contents, (0, 0) is bottom left in OpenGL, so
+            //  image will be upside-down
+            glReadPixels(0, 0, mSDLScreen.w, mSDLScreen.h, GL_RGBA,
+                GL_UNSIGNED_BYTE, data.data.ptr);
+            //checkGLError("glReadPixels");
+            //mirror image along y
+            Color.RGBA32[] tmp = new Color.RGBA32[data.pitch];
+            for (int y = 0; y < data.size.y/2; y++) {
+                int ym = data.size.y - y - 1;
+                tmp[] = data.data[y*data.pitch..(y+1)*data.pitch];
+                data.data[y*data.pitch..(y+1)*data.pitch] =
+                    data.data[ym*data.pitch..(ym+1)*data.pitch];
+                data.data[ym*data.pitch..(ym+1)*data.pitch] = tmp;
+            }
+            return new Surface(data);
+        } else {
+            //this is possibly dangerous, but I'm too lazy to write proper code
+            //  (pure SDL mode is dying anyway)
+            return convertFromSDLSurface(mSDLScreen, Transparency.None, false);
+        }
+    }
+
     //convert SDL color to our Color struct; do _not_ try to check the colorkey
     //to convert it to a transparent color, and also throw away the alpha value
     //there doesn't seem to be a SDL version for this, I hate SDL!!!

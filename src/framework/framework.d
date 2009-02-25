@@ -78,6 +78,8 @@ abstract class FrameworkDriver {
 
     abstract Surface loadImage(Stream source, Transparency transparency);
 
+    abstract Surface screenshot();
+
     ///release internal caches - does not include DriverSurfaces
     abstract int releaseCaches();
 
@@ -688,6 +690,11 @@ class Framework {
         scope stream = fs.open(path, FileMode.In);
         auto image = loadImage(stream, t);
         return image;
+    }
+
+    ///create a copy of the screen contents
+    Surface screenshot() {
+        return mDriver.screenshot();
     }
 
     //--- key stuff

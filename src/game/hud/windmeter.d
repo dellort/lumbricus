@@ -18,8 +18,6 @@ class WindMeter : Widget {
         Vector2i mSize;
         //Texture mBackgroundTex;
         Texture mWindLeft, mWindRight;
-        float mTexOffsetf = 0;
-        Time mLastTime;
         Vector2i mPosCenter;
         BoxProperties mBoxStyle;
 
@@ -50,34 +48,28 @@ class WindMeter : Widget {
             + 2/*round corners*/, mWindLeft.size.y + 2*borderdist);
         mPosCenter.x = mSize.x/2;
         mPosCenter.y = borderdist;
-
-        mLastTime =  timeCurrentTime();
     }
 
     protected void onDraw(Canvas canvas) {
         auto pos = Vector2i(0);
         auto time = timeCurrentTime;
-        //mLastTime first isn't initialized, but the resulting random value
-        //  doesn't really matter (note you also must be able to deal with
-        //  unexpected pauses)
-        auto deltaT = time - mLastTime;
-        mLastTime = time;
-        mTexOffsetf = mTexOffsetf + mAnimSpeed*(deltaT.secsf);
         if (mGame.cengine) {
             //canvas.draw(mBackgroundTex, pos);
             drawBox(canvas, pos, mSize, mBoxStyle);
             float wspeed = mGame.cengine.windSpeed;
             int anisize = clampRangeC(cast(int)(wspeed*mMaxWidth),
                 -mMaxWidth,mMaxWidth);
+            int texOffset = (cast(int)(time.secsf*mAnimSpeed)
+                + (anisize<0?anisize:0)) % mTexStep;
             if (wspeed < 0)
                 canvas.draw(mWindLeft,
                     pos + Vector2i(mPosCenter.x - 1 + anisize, mPosCenter.y),
-                    Vector2i((cast(int)mTexOffsetf)%mTexStep, 0),
+                    Vector2i(texOffset, 0),
                     Vector2i(-anisize, mWindLeft.size.y));
             else
                 canvas.draw(mWindRight,
                     pos + Vector2i(mPosCenter.x + 2, mPosCenter.y),
-                    Vector2i(mTexStep-(cast(int)mTexOffsetf)%mTexStep, 0),
+                    Vector2i(mTexStep - texOffset, 0),
                     Vector2i(anisize, mWindRight.size.y));
         }
     }

@@ -203,6 +203,11 @@ private:
             ["text?:pass 'desktop' to change to desktop resolution first"]);
         globals.cmdLine.registerCommand("framerate", &cmdFramerate,
             "set fixed framerate", ["int:framerate"]);
+        globals.cmdLine.registerCommand("screenshot", &cmdScreenshot,
+            "take a screenshot", ["text?:filename for saved image"]);
+        globals.cmdLine.registerCommand("screenshotwnd", &cmdScreenshotWnd,
+            "take a screenshot of the active window",
+            ["text?:filename for saved image"]);
 
         globals.cmdLine.registerCommand("ps", &cmdPS, "list tasks");
         globals.cmdLine.registerCommand("spawn", &cmdSpawn, "create task",
@@ -451,6 +456,56 @@ private:
             //fullscreen switch failed
             write.writefln("error: {}", e);
         }
+    }
+
+    const cScreenshotDir = "/screenshots/";
+
+    private void cmdScreenshot(MyBox[] args, Output write) {
+        char[] filename = args[0].unboxMaybe!(char[]);
+        saveScreenshot(filename, false);
+        write.writefln("Screenshot saved as '{}'", filename);
+    }
+
+    private void cmdScreenshotWnd(MyBox[] args, Output write) {
+        char[] filename = args[0].unboxMaybe!(char[]);
+        saveScreenshot(filename, true);
+        write.writefln("Screenshot saved as '{}'", filename);
+    }
+
+    //save a screenshot to a png image
+    //  activeWindow: only save area of active window, with decorations
+    //    (screen contents of window area, also saves overlapping stuff)
+    private void saveScreenshot(ref char[] filename,
+        bool activeWindow = false)
+    {
+        //get active window, and its title
+        auto topWnd = gWindowManager.activeWindow();
+        char[] wndTitle;
+        if (topWnd)
+            wndTitle = topWnd.properties.windowTitle;
+        else
+            activeWindow = false;
+
+        if (filename.length > 0) {
+            //filename given, prepend screenshot directory
+            filename = cScreenshotDir ~ filename;
+        } else {
+            //no filename, generate one
+            int i;
+            filename = gFramework.fs.getUniqueFilename(cScreenshotDir,
+                activeWindow?"window-"~wndTitle~"{}":"screen{}", ".png", i);
+        }
+
+        scope surf = gFramework.screenshot();
+        scope ssFile = gFramework.fs.open(filename, FileMode.OutNew);
+        scope(exit) ssFile.close();  //no close on delete? strange...
+        if (activeWindow) {
+            //copy out area of active window
+            Rect2i r = topWnd.window.containedBounds;
+            scope subsurf = surf.subrect(r);
+            subsurf.saveImage(ssFile, "png");
+        } else
+            surf.saveImage(ssFile, "png");
     }
 
     //bind [name action [keys]]
