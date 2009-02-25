@@ -903,7 +903,7 @@ class SDLDriver : FrameworkDriver {
         //possibly convert it to RGBA32 (except if it is already)
         //if there's a colorkey, always convert, hoping the alpha channel gets
         //fixed (setting the alpha according to colorkey)
-        if (not_crap || !cmpPixelFormat(surf.format, &mRGBA32)) {
+        if (!(not_crap && cmpPixelFormat(surf.format, &mRGBA32))) {
             data.pitch = data.size.x;
             data.data.length = data.pitch*data.size.y;
 
