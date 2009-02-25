@@ -321,7 +321,7 @@ class LocalGameSetupTask : Task {
 
         assert(!mGame); //hm, no idea
         //create default GameConfig with custom level
-        auto gc = loadGameConfig(globals.anyConfig.getSubNode("newgame"), level);
+        auto gc = loadGameConfig(gFramework.loadConfig("newgame"), level);
         gc.teams = buildGameTeams();
         //xxx: do some task-death-notification or so... (currently: polling)
         //currently, the game can't really return anyway...

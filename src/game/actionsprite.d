@@ -31,6 +31,8 @@ class ActionSprite : GObjectSprite {
         Action[] mActiveActionsState;
 
         bool mEnableEvents = true;
+
+        bool mOldGlueStatus;
     }
 
     override ActionSpriteClass type() {
@@ -45,6 +47,12 @@ class ActionSprite : GObjectSprite {
         super.physUpdate();
         if (physics.lifepower <= 0)
             doEvent("onzerolife");
+        bool glue = physics.isGlued;
+        if (glue != mOldGlueStatus) {
+            mOldGlueStatus = glue;
+            if (glue)
+                doEvent("onglue");
+        }
     }
 
     override protected void physImpact(PhysicBase other, Vector2f normal) {

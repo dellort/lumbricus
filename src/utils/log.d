@@ -18,12 +18,12 @@ static this() {
 
 /// Generic logging class. Implements interface Output, and all lines of text
 /// written to it are prefixed with a descriptive header.
-public class Log : Output {
+public final class Log : Output {
     private char[] mCategory;
 
     Output backend;
     char[] backend_name;
-    bool write_logall;
+    bool stfu;
     bool show_time = true;
 
     public this(char[] category) {
@@ -36,13 +36,13 @@ public class Log : Output {
     void setBackend(Output backend, char[] backend_name) {
         this.backend = backend;
         this.backend_name = backend_name;
-        write_logall = true;
+        stfu = false;
     }
 
     //makes it completely silent, will not even write into logall.txt
+    //this also should make all logging calls zero-cost
     void shutup() {
-        setBackend(DevNullOutput.output, "stfu");
-        write_logall = false;
+        stfu = true;
     }
 
     char[] category() {
@@ -57,10 +57,13 @@ public class Log : Output {
     }
 
     void writeString(char[] str) {
+        if (stfu)
+            return;
+
         assert(backend !is null);
+        //same xxx as in writef_ind.writeTo
         backend.writeString(str);
-        if (write_logall)
-            gLogEverything.writeString(str);
+        gLogEverything.writeString(str);
     }
 
     void opCall(char[] fmt, ...) {
@@ -70,7 +73,12 @@ public class Log : Output {
     override void writef_ind(bool newline, char[] fmt, TypeInfo[] arguments,
         va_list argptr)
     {
+        if (stfu)
+            return;
+
         void writeTo(Output o) {
+            //xxx: to do it correctly, we had to scan the formatted string for
+            //     newlines, and then prepend the time/category before each line
             if (show_time) {
                 o.writef("[{}] ", timeCurrentTime());
             }
@@ -80,8 +88,7 @@ public class Log : Output {
 
         assert(backend !is null);
         writeTo(backend);
-        if (write_logall)
-            writeTo(gLogEverything);
+        writeTo(gLogEverything);
     }
 
     char[] toString() {
@@ -111,9 +118,10 @@ public Log findLog(char[] category) {
 struct LogStruct(char[] cId) {
     private Log mLog;
 
-    private void check() {
+    private Log check() {
         if (!mLog)
             mLog = registerLog(cId);
+        return mLog;
     }
 
     Log logClass() {

@@ -28,7 +28,6 @@ class Common {
     Log log;
     Output defaultOut;
     CommandLine cmdLine;
-    ConfigNode anyConfig;
     ConfigNode programArgs; //command line for the lumbricus executable
 
     //oh sorry, didn't know where to put that!
@@ -60,10 +59,11 @@ class Common {
         if (globals)
             throw new Exception("Common is a singelton!");
         globals = this;
+        programArgs = args;
 
         log = registerLog("common");
 
-        programArgs = args;
+        readLogconf();
 
         if (args.getBoolValue("logconsole")) {
             defaultOut = StdioOutput.output;
@@ -79,9 +79,7 @@ class Common {
             timers[name] = cnt;
         }
 
-        anyConfig = gFramework.loadConfig("anything");
-
-        auto scr = anyConfig.getSubNode("screenmode");
+        ConfigNode scr = gFramework.loadConfig("video");
         int w = scr.getIntValue("width", 800);
         int h = scr.getIntValue("height", 600);
         int d = scr.getIntValue("depth", 0);
@@ -89,12 +87,16 @@ class Common {
         gFramework.setVideoMode(Vector2i(w, h), d, fs);
 
         if (!gFramework.videoActive) {
-            //this means we're F****D!!1
+            //this means we're F****D!!1  ("FOOLED")
             log("ERROR: couldn't initialize video");
             throw new Exception("can't continue");
         }
 
-        initLocale();
+        ConfigNode langconf = gFramework.loadConfig("language");
+        char[] langId = programArgs["language_id"];
+        if (!langId.length)
+            langId = langconf.getStringValue("language_id", "de");
+        initLocale(langId);
 
         gFramework.fontManager.readFontDefinitions(
             gFramework.loadConfig("fonts"));
@@ -113,10 +115,20 @@ class Common {
         }
     }
 
-    private void initLocale() {
-        char[] langId = programArgs["language_id"];
-        if (!langId.length)
-            langId = anyConfig.getStringValue("language_id", "de");
+    void readLogconf() {
+        ConfigNode conf = gFramework.loadConfig("logging", false, true);
+        if (!conf)
+            return;
+        foreach (ConfigNode sub; conf.getSubNode("logs")) {
+            Log log = registerLog(sub.name);
+            if (!sub.getCurValue!(bool)(false))
+                log.shutup();
+        }
+        if (conf.getValue!(bool)("logconsole", false))
+            defaultOut = StdioOutput.output;
+    }
+
+    private void initLocale(char[] langId) {
         initI18N(cLocalePath, langId, cDefLang, &gFramework.loadConfig);
         try {
             //link locale-specific files into root

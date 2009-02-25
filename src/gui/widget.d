@@ -162,7 +162,6 @@ class Widget {
 
     package static Log log() {
         Log l = registerLog("GUI");
-        l.shutup();
         return l;
     }
 

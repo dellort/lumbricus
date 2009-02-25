@@ -165,7 +165,7 @@ class GameTask : StatefulTask {
         createWindow();
 
         //sorry for this hack... definitely needs to be cleaned up
-        ConfigNode node = globals.anyConfig.getSubNode("newgame");
+        ConfigNode node = gFramework.loadConfig("newgame");
         node.setBoolValue("as_pseudo_server", args == "pseudonet");
         initGame(loadGameConfig(node));
     }

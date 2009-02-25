@@ -21,6 +21,8 @@ version(Windows) {
 private Log log;
 
 //Uncomment this to see detailed filesystem log messages
+//xxx: not needed anymore, logs are enabled or disabled by a runtime mechanism
+//or so I thought
 //version = FSDebug;
 
 ///add OS-dependant path delimiter to pathStr, if not there
@@ -296,11 +298,6 @@ class FileSystem {
 
     this(char[] arg0, char[] appId) {
         log = registerLog("FS");
-        bool stfu = true; //xxx TODO: make configureable (environment var?)
-        if (stfu) {
-            version(FSDebug) log("Entering STFU mode.");
-            log.setBackend(DevNullOutput.output, "null");
-        }
         mAppId = appId;
         initPaths(arg0);
     }

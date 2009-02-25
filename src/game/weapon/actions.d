@@ -231,6 +231,44 @@ class InsertBitmapAction : WeaponAction {
 
 //------------------------------------------------------------------------
 
+class DieActionClass : ActionClass {
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
+
+    void loadFromConfig(GameEngine eng, ConfigNode node) {
+    }
+
+    DieAction createInstance(GameEngine eng) {
+        return new DieAction(this, eng);
+    }
+
+    static this() {
+        ActionClassFactory.register!(typeof(this))("die");
+    }
+}
+
+class DieAction : WeaponAction {
+    this(DieActionClass base, GameEngine eng) {
+        super(base, eng);
+    }
+
+    this (ReflectCtor c) {
+        super(c);
+    }
+
+    override protected ActionRes initialStep() {
+        super.initialStep();
+        mShootbyObj.pleasedie();
+        return ActionRes.done;
+    }
+}
+
+//------------------------------------------------------------------------
+
 ///Causes an earthquake and returns only after its finished
 class EarthquakeActionClass : TimedActionClass {
     float strength, degrade;

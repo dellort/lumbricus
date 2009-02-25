@@ -32,7 +32,7 @@ void initGameSerialization() {
         GameEngineGraphics, AnimationGraphic, LineGraphic,
         TargetCross, ExplosionGfx, LandscapeGraphic, NapalmSequenceUpdate,
         NapalmSprite, WeaponHandle, ModeRoundbased, TimeSource,
-        EventAggregator);
+        EventAggregator, DieAction);
     //stuff that (maybe) should not be serialized
     //all ctors are marked with "xxx class"
     serialize_types.registerClasses!(ActionContainer, ActionListClass,
@@ -45,5 +45,5 @@ void initGameSerialization() {
         HomingActionClass, RayWeapon, SpawnActionClass, ToolClass, RopeClass,
         WormStateInfo, WormSpriteClass, GravestoneSpriteClass,
         SequenceStateList, NapalmStateDisplay, NapalmState, WormStateDisplay,
-        SubSequence, WormState, NapalmSpriteClass);
+        SubSequence, WormState, NapalmSpriteClass, DieActionClass);
 }

@@ -722,6 +722,8 @@ class GameEngine : GameEnginePublic {
     }
 
     void explosionAt(Vector2f pos, float damage, GameObject cause) {
+        if (damage < float.epsilon)
+            return;
         auto expl = new ExplosiveForce();
         expl.damage = damage;
         expl.pos = pos;

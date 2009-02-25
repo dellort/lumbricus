@@ -122,10 +122,10 @@ class GuiConsole : Container {
 
         consoleVisible = standalone; //system console hidden by default
         Color console_color;
-        if (!standalone && console_color.parse(globals.anyConfig.getSubNode("console")
-            .getStringValue("backcolor")))
-        {
-            mBackColor = console_color;
+        if (!standalone) {
+            //(backcolor was once in anything.conf, if you want to make it
+            // configurable again, find a clean solution!)
+            mBackColor = Color(0.7, 0.7, 0.7, 0.7);
             mDrawBackground = true;
         }
 

@@ -162,7 +162,7 @@ private:
         keybindings = new KeyBindings();
         keybindings.loadFrom(gFramework.loadConfig("binds").getSubNode("binds"));
 
-        auto autoexec = globals.anyConfig.getSubNode("autoexec");
+        ConfigNode autoexec = gFramework.loadConfig("autoexec");
         if (globals.programArgs.findNode("exec")) {
             autoexec = globals.programArgs.getSubNode("exec");
         }
@@ -818,5 +818,71 @@ class SwitchDriver : Task {
 
     static this() {
         TaskFactory.register!(typeof(this))("switchdriver");
+    }
+}
+
+//GUI to disable or enable log targets
+class LogConfig : Task {
+    Button[char[]] mLogButtons;
+    BoxContainer mLogList;
+
+    this(TaskManager mgr, char[] args = "") {
+        super(mgr);
+
+        mLogList = new BoxContainer(false);
+        auto main = new BoxContainer(false);
+        main.add(mLogList);
+        auto save = new Button();
+        save.text = "Save to disk";
+        save.onClick = &onSave;
+        main.add(save);
+
+        addLogs();
+
+        gWindowManager.createWindow(this, main, "Logging Configuration");
+    }
+
+    void onToggle(Button sender) {
+        foreach (char[] name, Button b; mLogButtons) {
+            if (sender is b) {
+                registerLog(name).stfu = !sender.checked;
+                return;
+            }
+        }
+    }
+
+    void onSave(Button sender) {
+        ConfigNode config = gFramework.loadConfig("logging");
+        auto logs = config.getSubNode("logs");
+        foreach (char[] name, Log log; gAllLogs) {
+            logs.setValue!(bool)(name, !log.stfu);
+        }
+        saveConfig(config, "logging.conf");
+    }
+
+    void addLogs() {
+        foreach (char[] name, Log log; gAllLogs) {
+            auto pbutton = name in mLogButtons;
+            Button button = pbutton ? *pbutton : null;
+            if (!button) {
+                //actually add
+                button = new Button();
+                button.isCheckbox = true;
+                button.text = name;
+                button.onClick = &onToggle;
+                mLogButtons[name] = button;
+                mLogList.add(button);
+            }
+            button.checked = !log.stfu;
+        }
+    }
+
+    override void onFrame() {
+        //every frame check for new log entries; stupid but robust
+        addLogs();
+    }
+
+    static this() {
+        TaskFactory.register!(typeof(this))("logconfig");
     }
 }

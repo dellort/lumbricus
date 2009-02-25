@@ -170,6 +170,12 @@ class GObjectSprite : GameObject {
         log("really die: {}", type.name);
     }
 
+    //hmm... I'm sure there's a reason die() is protected
+    //remove this function to see who needs public access
+    void pleasedie() {
+        die();
+    }
+
     protected void waterStateChange(bool under) {
         //do something that involves an object and a lot of water
         if (under) {

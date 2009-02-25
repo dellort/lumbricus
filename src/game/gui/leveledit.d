@@ -946,7 +946,7 @@ public class LevelEditor : Task {
         if (!mCurrentPreview)
             return;
         //cut'n'paste from game.gui.preview
-        auto gc = loadGameConfig(globals.anyConfig.getSubNode("newgame"),
+        auto gc = loadGameConfig(gFramework.loadConfig("newgame"),
             mCurrentPreview);
         //don't care about the game anymore as soon as spawned
         new GameTask(manager, gc);
