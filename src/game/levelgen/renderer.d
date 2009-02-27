@@ -555,6 +555,8 @@ class LandscapeBitmap {
             }
             int lx1 = max(st.x - xoffs, 0);
             int lx2 = min(st.x + xoffs + 1, mWidth);
+            if (!(lx1 < lx2))
+                continue;
             int pl = y*mWidth + lx1;
             Lexel* data = &mLevelData[pl];
             int o_y = y - pos.y;
