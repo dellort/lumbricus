@@ -13,6 +13,7 @@
 				<Option object_output="..\bin\obj\" />
 				<Option type="1" />
 				<Option compiler="dmd" />
+				<Option parameters="--driver.enable_sound --driver.sound_driver=fmod" />
 				<Option projectResourceIncludeDirsRelation="0" />
 				<MakeCommands>
 					<Build command="make build T=lumbricus" />
@@ -36,7 +37,6 @@
 				</MakeCommands>
 			</Target>
 		</Build>
-		<Unit filename="..\data\data\anything.conf" />
 		<Unit filename="..\data\data\barrel.conf" />
 		<Unit filename="..\data\data\binds.conf" />
 		<Unit filename="..\data\data\bomberworm.conf" />
@@ -47,7 +47,6 @@
 		<Unit filename="..\data\data\gamemode.conf" />
 		<Unit filename="..\data\data\grave.conf" />
 		<Unit filename="..\data\data\guires.conf" />
-		<Unit filename="..\data\data\irc.conf" />
 		<Unit filename="..\data\data\ledit_gui.conf" />
 		<Unit filename="..\data\data\levelgenerator.conf" />
 		<Unit filename="..\data\data\teams.conf" />
@@ -114,12 +113,24 @@
 		<Unit filename="..\src\derelict\enet\enet.d" />
 		<Unit filename="..\src\derelict\enet\enetfuncs.d" />
 		<Unit filename="..\src\derelict\enet\enettypes.d" />
+		<Unit filename="..\src\derelict\ffmpeg\av.d" />
+		<Unit filename="..\src\derelict\ffmpeg\avtypes.d" />
+		<Unit filename="..\src\derelict\fmod\fmod.d" />
+		<Unit filename="..\src\derelict\fmod\fmodcodec.d" />
+		<Unit filename="..\src\derelict\fmod\fmoddsp.d" />
+		<Unit filename="..\src\derelict\fmod\fmoderrors.d" />
+		<Unit filename="..\src\derelict\fmod\fmodfuncs.d" />
+		<Unit filename="..\src\derelict\fmod\fmodtypes.d" />
+		<Unit filename="..\src\derelict\openal\alut.d" />
 		<Unit filename="..\src\framework\allres.d" />
 		<Unit filename="..\src\framework\commandline.d" />
 		<Unit filename="..\src\framework\drawing.d" />
 		<Unit filename="..\src\framework\enums.d" />
 		<Unit filename="..\src\framework\event.d" />
+		<Unit filename="..\src\framework\ffaudiodecode.d" />
 		<Unit filename="..\src\framework\filesystem.d" />
+		<Unit filename="..\src\framework\fmod.d" />
+		<Unit filename="..\src\framework\fmodstreamfs.d" />
 		<Unit filename="..\src\framework\font.d" />
 		<Unit filename="..\src\framework\framework.d" />
 		<Unit filename="..\src\framework\i18n.d" />

@@ -140,7 +140,10 @@ class MusicHandler : ResViewHandler!(Music) {
             addChild(box);
         }
         void onPlay(Button s) {
-            resource.state = MusicState.Playing;
+            if (resource.state == MusicState.Paused)
+                resource.state = MusicState.Playing;
+            else
+                resource.play(timeSecs(10), timeSecs(1.5f));
         }
         void onStop(Button s) {
             resource.state = MusicState.Stopped;
@@ -153,7 +156,8 @@ class MusicHandler : ResViewHandler!(Music) {
         }
         override void simulate() {
             lblstate.text = (resource.isCurrent() ? "c " : "- ") ~ state()
-                ~ (gFramework.sound.available() ? " a" : " n");
+                ~ (gFramework.sound.available() ? " a " : " n ")
+                ~ resource.position().toString ~ "/" ~ resource.length.toString;
         }
     }
 

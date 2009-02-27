@@ -15,7 +15,7 @@ public import utils.vector2;
 import framework.filesystem;
 import framework.font;
 import framework.resources;
-import config = utils.configfile;
+import utils.configfile;
 import utils.factory;
 import utils.log;
 import utils.misc;
@@ -349,10 +349,10 @@ class Surface {
 
     final Surface clone() {
         return subrect(rect());
-        /+
+        /*
         passivate();
         return new Surface(*mData, true);
-        +/
+        */
     }
 
     //return a Surface with a copy of a subrectangle of this
@@ -519,7 +519,7 @@ class Framework {
     private {
         FrameworkDriver mDriver;
         DriverReload* mDriverReload;
-        config.ConfigNode mLastWorkingDriver;
+        ConfigNode mLastWorkingDriver;
 
         bool mShouldTerminate;
 
@@ -556,7 +556,7 @@ class Framework {
     //what the shit
     Resources resources;
 
-    this(char[] arg0, char[] appId, config.ConfigNode fwconfig) {
+    this(char[] arg0, char[] appId, ConfigNode fwconfig) {
         mLog = registerLog("Fw");
 
         if (gFramework !is null) {
@@ -576,7 +576,7 @@ class Framework {
         mFontManager = new FontManager();
         mSound = new Sound();
 
-        auto driver_config = new config.ConfigNode();
+        auto driver_config = new ConfigNode();
         driver_config["driver"] = "sdl";
         driver_config["open_gl"] = "true";
         driver_config["gl_debug_wireframe"] = "false";
@@ -584,7 +584,7 @@ class Framework {
         replaceDriver(driver_config);
     }
 
-    private void replaceDriver(config.ConfigNode driver) {
+    private void replaceDriver(ConfigNode driver) {
         char[] name = driver.getStringValue("driver");
         if (!FrameworkDriverFactory.exists(name)) {
             throw new Exception("doesn't exist: " ~ name);
@@ -606,7 +606,7 @@ class Framework {
     }
 
     struct DriverReload {
-        config.ConfigNode ndriver;
+        ConfigNode ndriver;
     }
 
     void scheduleDriverReload(DriverReload r) {
@@ -633,9 +633,9 @@ class Framework {
         // .free() all Surfaces and then do defered_free()?
     }
 
-    /+package FrameworkDriver driver() {
+    /*package FrameworkDriver driver() {
         return mDriver;
-    }+/
+    }*/
 
     package FontDriver fontDriver() {
         return mDriver.fontDriver();
@@ -976,13 +976,13 @@ class Framework {
         return mDriver.getVideoWindowState().fullscreen;
     }
 
-/+
+/*
     void fullScreen(bool s) {
         VideoWindowState state = mDriver.getVideoWindowState();
         state.fullscreen = s;
         mDriver.setVideoWindowState(state);
     }
-+/
+*/
 
     Vector2i screenSize() {
         VideoWindowState state = mDriver.getVideoWindowState();
@@ -1110,11 +1110,11 @@ class Framework {
         return mFilesystem;
     }
 
-    /+final Resources resources() {
+    /*final Resources resources() {
         return mResources;
-    }+/
+    }*/
 
-    config.ConfigNode loadConfig(char[] section, bool asfilename = false,
+    ConfigNode loadConfig(char[] section, bool asfilename = false,
         bool allowFail = false)
     {
         char[] fnConf = section ~ (asfilename ? "" : ".conf");
@@ -1148,7 +1148,7 @@ class Framework {
             }
         }
         //xxx: if parsing fails? etc.
-        auto f = new config.ConfigFile(data, file.get(), &logconf);
+        auto f = new ConfigFile(data, file.get(), &logconf);
         if (!f.rootnode)
             throw new Exception("?");
         return f.rootnode;
@@ -1313,5 +1313,5 @@ class Framework {
 }
 
 alias StaticFactory!("Drivers", FrameworkDriver, Framework,
-    config.ConfigNode) FrameworkDriverFactory;
+    ConfigNode) FrameworkDriverFactory;
 

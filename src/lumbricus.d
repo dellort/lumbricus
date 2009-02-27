@@ -5,6 +5,12 @@ import framework.framework;
 import framework.sdl.framework;
 import framework.sdl.soundmixer;
 import framework.openal;
+
+//--> FMOD is not perfectly GPL compatible, so you may need to comment
+//    this line in some scenarios (this is all it needs to disable FMOD)
+import framework.fmod;
+//<--
+
 import framework.imgwrite;
 
 import framework.filesystem : MountPath;

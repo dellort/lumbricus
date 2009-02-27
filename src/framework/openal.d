@@ -135,7 +135,7 @@ class ALSoundDriver : SoundDriver {
         ALChannel mMusic;
     }
 
-    const cDefaultChannelCount = 32;
+    const cDefaultChannelCount = 28;
 
     this(Sound base, ConfigNode config) {
         assert(base is gFramework.sound()); //lol
