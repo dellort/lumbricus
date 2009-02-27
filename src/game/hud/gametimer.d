@@ -66,7 +66,14 @@ class GameTimer : Container {
 
         mLastTime = timeCurrentTime();
 
-        mEnabled = game.logic.gamemode == cRoundbased;
+        //???
+        mEnabled = !!status();
+    }
+
+    //returns info-object, or null if no round based stuff is going on
+    //slight code duplication with preparedisplay.d
+    private RoundbasedStatus status() {
+        return cast(RoundbasedStatus)mGame.logic.gamemodeStatus();
     }
 
     void showGameTime(bool show) {
@@ -82,9 +89,12 @@ class GameTimer : Container {
         if (!mEnabled)
             return;
 
+        auto st = status();
+        assert (!!st);
+
         bool active;
         if (mGame) {
-            int state = mGame.logic.currentGameState;
+            int state = st.state;
             Team[] t = mGame.logic.getActiveTeams;
             TeamMember m;
             if (t.length > 0)
@@ -101,7 +111,6 @@ class GameTimer : Container {
                     mBoxProps.borderWidth = 1;
                 }
                 mLabelBox.borderStyle = mBoxProps;
-                auto st = mGame.logic.gamemodeStatus().unbox!(RoundbasedStatus);
                 //little hack to show correct time
                 Time rt = st.roundRemaining - timeMsecs(1);
                 float rt_sec = rt.secs >= -1 ? rt.secsf+1 : 0f;

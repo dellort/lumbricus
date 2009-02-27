@@ -307,16 +307,26 @@ class FTFont : DriverFont {
     }
 
     Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text) {
-        if (mUseGL) {
+        /+if (mUseGL) {
             glPushAttrib(GL_CURRENT_BIT);
         }
         scope(exit) if (mUseGL) {
             glPopAttrib();
-        }
+        }+/
         if (w == int.max) {
-            return drawText(canvas, pos, text);
+            return drawText(canvas, pos, w, text);
         } else {
-            return drawTextLimited(canvas, pos, w, text);
+            Vector2i s = textSize(text, true);
+            if (s.x <= w) {
+                return drawText(canvas, pos, w, text);
+            } else {
+                char[] dotty = "...";
+                int ds = textSize(dotty, true).x;
+                w -= ds;
+                pos = drawText(canvas, pos, w, text);
+                pos = drawText(canvas, pos, ds, dotty);
+                return pos;
+            }
         }
     }
 
@@ -326,7 +336,8 @@ class FTFont : DriverFont {
                 glColor3f(c.r, c.g, c.b);
         }
 
-        c.drawFilledRect(Rect2i.Span(pos, glyph.size), mProps.back);
+        if (mProps.back.a > 0)
+            c.drawFilledRect(Rect2i.Span(pos, glyph.size), mProps.back);
 
         setColor(mProps.fore);
         glyph.tex.draw(c, pos+glyph.offset);
@@ -335,39 +346,22 @@ class FTFont : DriverFont {
             setColor(mProps.border_color);
             glyph.border.draw(c, pos+glyph.border_offset);
         }
+
+        //GL cleanup
+        setColor(Color(1, 1, 1));
     }
 
-    private Vector2i drawText(Canvas canvas, Vector2i pos, char[] text) {
+    private Vector2i drawText(Canvas canvas, Vector2i pos, int w, char[] text) {
+        int orgx = pos.x;
         foreach (dchar c; text) {
             auto glyph = mCache.getGlyph(c);
+            auto npos = pos.x + glyph.size.x;
+            if (npos - orgx > w)
+                break;
             drawGlyph(canvas, glyph, pos);
-            pos.x += glyph.size.x;
+            pos.x = npos;
         }
         return pos;
-    }
-
-    private Vector2i drawTextLimited(Canvas canvas, Vector2i pos, int width,
-        char[] text)
-    {
-        Vector2i s = textSize(text, true);
-        if (s.x <= width) {
-            return drawText(canvas, pos, text);
-        } else {
-            char[] dotty = "...";
-            int ds = textSize(dotty, true).x;
-            width -= ds;
-            //draw manually (oh, this is an xxx)
-            foreach (dchar c; text) {
-                auto glyph = mCache.getGlyph(c);
-                auto npos = pos.x + glyph.size.x;
-                if (npos > width)
-                    break;
-                drawGlyph(canvas, glyph, pos);
-                pos.x = npos;
-            }
-            pos = drawText(canvas, pos, dotty);
-            return pos;
-        }
     }
 
     Vector2i textSize(char[] text, bool forceHeight) {

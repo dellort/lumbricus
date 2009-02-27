@@ -154,15 +154,11 @@ class GSFunctions : GameEnginePublic, GameLogicPublic, ClientControl
         return state.gamemode;
     }
 
-    int currentGameState() {
-        return state.gamestate;
-    }
-
     bool gameEnded() {
-        return currentGameState < 0;
+        return state.game_ended;
     }
 
-    MyBox gamemodeStatus() {
+    Object gamemodeStatus() {
         return state.gamemodestatus;
     }
 

@@ -7,6 +7,8 @@ import game.sprite;
 import game.weapon.weapon;
 import game.action;
 import game.worm;
+import game.glevel;
+import game.levelgen.landscape;
 import physics.world;
 import utils.configfile;
 import utils.time;
@@ -179,6 +181,7 @@ class BeamAction : WeaponAction {
 ///Inserts a bitmap into the landscape at FireInfo.pos
 class InsertBitmapActionClass : ActionClass {
     Resource!(Surface) bitmap;
+    Lexel bits;
 
     //xxx class
     this (ReflectCtor c) {
@@ -191,6 +194,11 @@ class InsertBitmapActionClass : ActionClass {
         //prepare bitmap resource
         bitmap = eng.gfx.resources.resource!(Surface)(
             node.getStringValue("source"));
+        bits = Lexel.SolidSoft;
+        //sorry, special cased
+        if (node.getBoolValue("snow")) {
+            bits |= cLandscapeSnowBit;
+        }
     }
 
     InsertBitmapAction createInstance(GameEngine eng) {
@@ -223,7 +231,7 @@ class InsertBitmapAction : WeaponAction {
             auto p = toVector2i(mFireInfo.info.pos);
             auto res = myclass.bitmap;
             p -= res.get.size / 2;
-            engine.insertIntoLandscape(p, res);
+            engine.insertIntoLandscape(p, res, myclass.bits);
         }
         return ActionRes.done;
     }

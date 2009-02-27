@@ -19,7 +19,6 @@ import utils.vector2;
 import utils.time;
 import utils.list2;
 import utils.reflection;
-import utils.mybox;
 
 //lol compiler breaks horribly with this selective import uncommented
 import game.sequence;// : SequenceUpdate;
@@ -422,15 +421,11 @@ interface GameLogicPublic {
 
     char[] gamemode();
 
-    ///Returns a gamemode-specific state value
-    /// a value < 0 always means the game has ended
-    int currentGameState();
-
-    ///True if game has ended (equiv. currentGameState < 0)
+    ///True if game has ended
     bool gameEnded();
 
     ///Status of selected gamemode (may contain timing, scores or whatever)
-    MyBox gamemodeStatus();
+    Object gamemodeStatus();
 
     ///list of _all_ possible weapons, which are useable during the game
     ///Team.getWeapons() must never return a Weapon not covered by this list

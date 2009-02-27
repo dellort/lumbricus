@@ -69,6 +69,7 @@ import game.weapon.ray;
 import game.weapon.spawn;
 import game.weapon.napalm;
 import game.gamemodes.roundbased;
+import game.gamemodes.mdebug;
 
 //initialized by serialize_register.d
 Types serialize_types;

@@ -93,6 +93,8 @@ class ClientLineGraphic : SceneObject {
     }
 }
 
+//version = DebugShowLandscape;
+
 class LandscapeGraphicImpl : SceneObject {
     LandscapeGraphic mInfo;
     Surface bitmap;
@@ -110,6 +112,8 @@ class LandscapeGraphicImpl : SceneObject {
             return;
         }
         c.draw(bitmap, mInfo.pos);
+        version (DebugShowLandscape)
+            c.drawRect(Rect2i.Span(mInfo.pos, bitmap.size), Color(1, 0, 0));
     }
 }
 

@@ -53,13 +53,15 @@ class Gamemode {
     ///It is the Gamemode's task to make a team win before
     abstract bool ended();
 
-    ///Return a mode-specific state identifier
-    ///-1 means the game has ended
-    abstract int state();
-
     ///get mode-specific status information
     ///clients have to know about the mode implementation to use it
-    abstract MyBox getStatus();
+    ///xxx: it'd probably be better if the Gamemode implementation could create
+    ///     a specific GUI (aka HUD) element explicitly
+    ///     then this function wouldn't be needed and it'd be more flexible
+    ///     overall
+    ///xxx2: actually, we almost have this, it's just that everything is put
+    ///     into a single object (the object returned by this function)
+    abstract Object getStatus();
 
     //Wait utility functions
     //First call starts the timer, true is returned (and the state is reset)

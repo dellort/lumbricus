@@ -264,13 +264,13 @@ class PhysicWorld {
             //more expensive check that also yields a normal if the object
             //is "close by" to the surface
             if (collideObjectWithGeometry(obj, contact, true))
-                obj.checkGroundAngle(contact.normal*contact.depth);
+                obj.checkGroundAngle(contact);
         }
         if (!collideObjectWithGeometry(obj, contact))
             return;
 
         if (!obj.posp.extendNormalcheck)
-            obj.checkGroundAngle(contact.normal*contact.depth);
+            obj.checkGroundAngle(contact);
 
         //generate contact and resolve
         Contact c;
@@ -312,6 +312,7 @@ class PhysicWorld {
                 if (ncont.depth == float.infinity) {
                     //so pull it out along the velocity vector
                     ncont.normal = -o.velocity.normal;
+                    //assert(!ncont.normal.isNaN);
                     ncont.depth = o.posp.radius*2;
                 }
 

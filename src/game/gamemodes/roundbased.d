@@ -13,7 +13,6 @@ import utils.configfile;
 import utils.reflection;
 import utils.time;
 import utils.misc;
-import utils.mybox;
 import utils.log;
 
 class ModeRoundbased : Gamemode {
@@ -51,6 +50,7 @@ class ModeRoundbased : Gamemode {
 
     this(GameController parent, ConfigNode config) {
         super(parent, config);
+        mStatus = new RoundbasedStatus();
         mTimePerRound = timeSecs(config.getIntValue("roundtime",15));
         mHotseatSwitchTime = timeSecs(config.getIntValue("hotseattime",5));
         mRetreatTime = timeSecs(config.getIntValue("retreattime",5));
@@ -212,7 +212,7 @@ class ModeRoundbased : Gamemode {
                 }
                 break;
             case RoundState.nextOnHold:
-                if (logic.messageIsIdle() && logic.objectsIdle())
+                if (logic.messageIsIdle() && logic.membersIdle())
                     return RoundState.prepare;
                 break;
             case RoundState.winning:
@@ -305,16 +305,15 @@ class ModeRoundbased : Gamemode {
         return mCurrentRoundState == RoundState.end;
     }
 
-    int state() {
-        return mCurrentRoundState;
-    }
-
-    MyBox getStatus() {
+    Object getStatus() {
+        //xxx: this is bogus, someone else could read the fields at any time
+        //     because an object reference is returned (not a struct anymore)
+        mStatus.state = mCurrentRoundState;
         mStatus.timePaused = modeTime.paused;
-        return MyBox.Box(mStatus);
+        return mStatus;
     }
 
     static this() {
-        GamemodeFactory.register!(typeof(this))(cRoundbased);
+        GamemodeFactory.register!(typeof(this))("roundbased");
     }
 }

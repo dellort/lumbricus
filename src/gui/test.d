@@ -16,6 +16,7 @@ import gui.scrollbar;
 import gui.scrollwindow;
 import gui.splitter;
 import gui.loader;
+import gui.tabs;
 import common.common;
 import common.task;
 import common.visual;
@@ -345,6 +346,30 @@ class TestGradient : Container {
     }
 }
 
+class TestFrame10 : Container {
+    this() {
+        auto tabs = new Tabs();
+        addChild(tabs);
+        auto c1 = new Label();
+        c1.text = "tab 1 client area";
+        c1.setLayout(WidgetLayout.Noexpand());
+        tabs.addTab(c1, "Tab 1 lol");
+        auto c2 = new Label();
+        c2.text = "client area of tab 2";
+        //try to be a bit different
+        auto fp = c2.font.properties;
+        fp.size = 70;
+        fp.border_width = 3;
+        fp.border_color = Color(1, 0, 0);
+        c2.font = new Font(fp);
+        tabs.addTab(c2, "Tab 2");
+        auto c3 = new Label();
+        c3.text = "tab 3";
+        c3.setLayout(WidgetLayout.Noexpand());
+        tabs.addTab(c3, "Tab 3 ...");
+    }
+}
+
 //just to show the testframe
 class TestTask : Task {
     //private Widget mWindow;
@@ -375,6 +400,7 @@ class TestTask : Task {
         createWindow("DropDownList", new TestFrame8());
         createWindow("Splitter", new TestFrame9());
         createWindow("Test gradient", new TestGradient());
+        createWindow("Tabs", new TestFrame10());
 
         auto k = new Button();
         k.text = "Kill!!!1";

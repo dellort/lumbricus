@@ -210,8 +210,10 @@ class PhysicObject : PhysicBase {
                     if (len < mPosp.slideAbsorb)
                         //remove vrel component from velocity
                         velocity_int -= vrel;
-                } else
-                    mForceAccum += -mPosp.friction*fN.length*(vrel/len);
+                } else {
+                    float friction = mPosp.friction * surface_friction;
+                    mForceAccum += -friction*fN.length*(vrel/len);
+                }
             }
         }
 
@@ -296,6 +298,8 @@ class PhysicObject : PhysicBase {
     float ground_angle = 0;
     //last known surface normal
     Vector2f surface_normal;
+    //last known surface friction multiplier
+    float surface_friction = 1.0f;
 
     //angle where the worm wants to look to
     //the worm is mostly forced to look somewhere else, but when there's still
@@ -329,10 +333,12 @@ class PhysicObject : PhysicBase {
 
     //whenever this object touches the ground, call this with the depth*normal
     //  vector
-    package void checkGroundAngle(Vector2f dir) {
+    package void checkGroundAngle(GeomContact contact) {
+        Vector2f dir = contact.normal*contact.depth;
         auto len = dir.length;
         if (len > 0.001) {
-            surface_normal = (dir/len);
+            surface_normal = contact.normal;
+            surface_friction = contact.friction;
             ground_angle = surface_normal.toAngle();
             mOnSurface = true;
         }
@@ -525,8 +531,7 @@ class PhysicObject : PhysicBase {
                     if (world.collideGeometry(pos, posp.radius+cNormalCheck,
                         contact))
                     {
-                        checkGroundAngle(contact.depth
-                            * contact.normal);
+                        checkGroundAngle(contact);
                     }
 
                     //jup, did walk

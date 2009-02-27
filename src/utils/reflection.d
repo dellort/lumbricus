@@ -8,26 +8,8 @@ import utils.mybox;
 
 debug import tango.io.Stdout;
 
-version (Tango) {
-
 import tango.core.Traits : isAssocArrayType, isStaticArrayType;
 
-alias isStaticArrayType isStaticArray;
-
-} else {
-
-//--> stolen from tango
-//use this because "static if (is(T T2 : T2[T3]))" doesn't work
-//http://www.dsource.org/projects/tango/browser/trunk/tango/core/Traits.d?rev=4134#L253
-private template isAssocArrayType( T ) {
-    const bool isAssocArrayType = is( typeof(T.init.values[0])
-        [typeof(T.init.keys[0])] == T );
-}
-//<--
-
-import std.traits : isStaticArray;
-
-}
 
 ///Pointer which carries type infos
 ///Compared to D, the type is the type pointed to
@@ -826,12 +808,12 @@ class ArrayType : Type {
             static assert (false, "not an array type");
         }
         t.mStaticLength = -1;
-        if (isStaticArray!(T)) {
+        if (isStaticArrayType!(T)) {
             T x;
             t.mStaticLength = x.length; //T.init doesn't work???
         }
         t.mSetLength = function void(ArrayType t, SafePtr array, size_t len) {
-            static if (!isStaticArray!(T)) {
+            static if (!isStaticArrayType!(T)) {
                 T* ta = array.castTo!(T)();
                 (*ta).length = len;
             } else {

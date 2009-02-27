@@ -530,14 +530,19 @@ class LandscapeBitmap {
     // circle = if true check a circle, else a quad, with sides (radius*2+1)^2
     // dir = not-notmalized diection which points to the outside of the level
     // count = number of colliding pixels
-    public void checkAt(Vector2i pos, int radius, bool circle, out Vector2i dir,
-        out int count)
+    // bits = lexel bits of all collided landscape pixels or'ed together
+    public void checkAt(Vector2i pos, int radius, bool circle,
+        out Vector2i out_dir, out int out_count, out uint out_bits)
     {
         assert(radius >= 0);
         //xxx: I "optimized" this, the old version is still in r451
+        //     further "optimized" (== obfuscated for no gain) after r635
 
         auto st = pos;
         int[] acircle = circle ? getCircle(radius) : null;
+        int count;
+        uint bits;
+        int d_x, d_y;
 
         //dir and count are initialized with 0
 
@@ -546,21 +551,28 @@ class LandscapeBitmap {
         for (int y = ly1; y < ly2; y++) {
             int xoffs = radius;
             if (circle) {
-                 xoffs -= acircle[y-st.y+radius];
+                xoffs -= acircle[y-st.y+radius];
             }
             int lx1 = max(st.x - xoffs, 0);
             int lx2 = min(st.x + xoffs + 1, mWidth);
             int pl = y*mWidth + lx1;
+            Lexel* data = &mLevelData[pl];
+            int o_y = y - pos.y;
             for (int x = lx1; x < lx2; x++) {
-                if (mLevelData[pl] != 0) {
-                    dir += Vector2i(x, y) - pos;
+                auto d = *data;
+                if (d != 0) {
+                    bits |= d;
+                    d_x += x - pos.x;
+                    d_y += o_y;
                     count++;
                 }
-                pl++;
+                data++;
             }
         }
 
-        dir = -dir;
+        out_dir = -Vector2i(d_x, d_y);
+        out_count = count;
+        out_bits = bits;
     }
 
     /*

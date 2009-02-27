@@ -6,11 +6,14 @@ import utils.vector2;
 
 import physics.base;
 import physics.plane;
+import physics.misc;
+import utils.misc;
 
 struct GeomContact {
     //Vector2f contactPoint;
     Vector2f normal;    //contact normal, directed out of geometry
     float depth;  //object depth depth (along normal)
+    float friction = 1.0f; //multiplier for object fritction
 
     //void calcPoint(Vector2f pos, float radius) {
     //    contactPoint = pos - normal * (radius - depth);
@@ -26,9 +29,17 @@ struct GeomContact {
             return;
         }
         Vector2f tmp = (normal*depth) + (other.normal*other.depth);
-        normal = tmp.normal;
         depth = tmp.length;
+        if (depth < float.epsilon) {
+            //depth can become 0, default to a save value
+            normal = Vector2f(0, -1);
+        } else {
+            normal = tmp.normal;
+        }
+        assert (depth == depth);
+        assert (!normal.isNaN);
         //contactPoint = (contactPoint + other.contactPoint)/2;
+        friction = friction * other.friction;
     }
 }
 

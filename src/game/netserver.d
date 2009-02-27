@@ -102,7 +102,7 @@ class NetServer {
         state.paused = engine.paused();
         state.slow_down = engine.slowDown();
 
-        state.gamestate = logic.currentGameState();
+        state.game_ended = logic.gameEnded();
         state.gamemodestatus = logic.gamemodeStatus();
         state.msgcounter = logic.getMessageChangeCounter();
         logic.getLastMessage(state.msgid, state.msg, state.msg_rnd);

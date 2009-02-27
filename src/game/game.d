@@ -1,5 +1,6 @@
 module game.game;
 import game.levelgen.level;
+import game.levelgen.landscape;
 import game.animation;
 import game.gobject;
 import physics.world;
@@ -577,7 +578,7 @@ class GameEngine : GameEnginePublic {
             auto res = gfx.resources.resource!(Surface)("place_platform");
             Surface bmp = res.get();
             insertIntoLandscape(Vector2i(cast(int)pos.x-bmp.size.x/2,
-                cast(int)pos.y+bmp.size.y/2), res);
+                cast(int)pos.y+bmp.size.y/2), res, Lexel.SolidSoft);
             dest = pos;
             return true;
         } else {
@@ -750,22 +751,29 @@ class GameEngine : GameEnginePublic {
 
     //insert bitmap into the landscape
     //(bitmap is a Resource for the network mode, if we'll ever have one)
-    void insertIntoLandscape(Vector2i pos, Resource!(Surface) bitmap) {
+    void insertIntoLandscape(Vector2i pos, Resource!(Surface) bitmap,
+        Lexel bits)
+    {
+        Rect2i newrc = Rect2i.Span(pos, bitmap.get.size);
+        //only add large, aligned tiles; this prevents degenerate cases when
+        //lots of small bitmaps are added (like snow)
+        //actually, you can remove all this code if it bothers you; it's not
+        //like being able to extend the level bitmap is a good feature
+        newrc.fitTileGrid(Vector2i(512, 512));
         Rect2i[] covered;
         foreach (ls; gameLandscapes) {
             covered ~= Rect2i.Span(ls.offset(), ls.size());
         }
         //this is if the objects is inserted so that the landscape doesn't cover
         //it fully - possibly create new landscapes to overcome this yay
-        Rect2i[] uncovered
-            = Rect2i.Span(pos, bitmap.get.size).substractRects(covered);
+        Rect2i[] uncovered = newrc.substractRects(covered);
         foreach (rc; uncovered) {
             assert(rc.size().x > 0 && rc.size().y > 0);
             gameLandscapes ~= new GameLandscape(this, rc);
         }
         //really insert
         foreach (ls; gameLandscapes) {
-            ls.insert(pos, bitmap);
+            ls.insert(pos, bitmap, bits);
         }
     }
 

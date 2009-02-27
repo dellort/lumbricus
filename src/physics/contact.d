@@ -36,7 +36,8 @@ struct Contact {
     void fromGeom(GeomContact c, PhysicObject o) {
         normal = c.normal;
         depth = c.depth;
-        assert(!normal.isNaN && !ieee.isNaN(depth));
+        assert(!normal.isNaN);
+        assert(!ieee.isNaN(depth));
         obj[0] = o;
         obj[1] = null;
         source = ContactSource.geometry;

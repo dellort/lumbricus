@@ -20,6 +20,8 @@ import physics.world;
 //rectangular should be faster and falling down from cliffs looks better
 version = CircularCollision;
 
+const cLandscapeSnowBit = Lexel.Type_Bit_Min << 0;
+
 //collision handling
 class LandscapeGeometry : PhysicGeometry {
     GameLandscape ls;
@@ -32,21 +34,30 @@ class LandscapeGeometry : PhysicGeometry {
     bool collide(Vector2f pos, float radius, out GeomContact contact) {
         Vector2i dir;
         int pixelcount;
+        uint collide_bits;
 
         version (CircularCollision) {
             int iradius = cast(int)radius;
             ls.mLandscape.checkAt(toVector2i(pos) - ls.mOffset,
-                iradius, true, dir, pixelcount);
+                iradius, true, dir, pixelcount, collide_bits);
         } else {
             //make it a bit smaller?
             int iradius = cast(int)(radius/5*4);
             ls.mLandscape.checkAt(toVector2i(pos) - ls.mOffset,
-                iradius, false, dir, pixelcount);
+                iradius, false, dir, pixelcount, collide_bits);
         }
 
         //no collided pixels
         if (pixelcount == 0)
             return false;
+
+        assert (!!collide_bits);
+
+        //xxx: hardcoded physics properties
+        if (collide_bits & cLandscapeSnowBit) {
+            //this means snow removes all friction (?)
+            contact.friction = 0.0f;
+        }
 
         //collided pixels, but no normal -> stuck
         //there's a hack in physic.d which handles this (the current collide()
@@ -68,6 +79,8 @@ class LandscapeGeometry : PhysicGeometry {
             auto totalpixels = realradius*realradius*4;
         }
 
+        assert (totalpixels == totalpixels);
+
         //this is most likely mathematical incorrect bullsh*t, but works mostly
         //guess how deep the sphere is inside the landscape by dividing the
         //amount of collided pixel by the amount of total pixels in the circle
@@ -88,13 +101,13 @@ public int landscapeDamage(LandscapeBitmap ls, Vector2i pos, int radius,
     return ls.blastHole(pos, radius, cBlastBorder, theme);
 }
 public void landscapeInsert(LandscapeBitmap ls, Vector2i pos,
-    Resource!(Surface) bitmap)
+    Resource!(Surface) bitmap, Lexel bits)
 {
     Surface bmp = bitmap.get();
     //whatever the size param is for
     //the metadata-handling is hardcoded, which is a shame
     //currently overwrite everything except SolidHard pixels
-    ls.drawBitmap(pos, bmp, bmp.size, Lexel.SolidHard, 0, Lexel.SolidSoft);
+    ls.drawBitmap(pos, bmp, bmp.size, Lexel.SolidHard, 0, bits);
 }
 
 //handle landscape objects, large damagable static physic objects, represented
@@ -170,10 +183,10 @@ class GameLandscape : GameObject {
         return count;
     }
 
-    public void insert(Vector2i pos, Resource!(Surface) bitmap) {
+    public void insert(Vector2i pos, Resource!(Surface) bitmap, Lexel bits) {
         //not so often called (like damage()), leave clipping to whoever
         pos -= mOffset;
-        landscapeInsert(mLandscape, pos, bitmap);
+        landscapeInsert(mLandscape, pos, bitmap, bits);
         mPhysics.generationNo++; //?
         //mGraphic.insert(pos, bitmap);
     }

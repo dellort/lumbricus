@@ -1,6 +1,6 @@
 module utils.rect2;
 import utils.vector2;
-import utils.misc : min, max, myformat;
+import utils.misc : min, max, myformat, realmod;
 
 //T is the most underlying type, i.e. float or int
 //NOTE: most member functions expect the rect to be in "normal" form
@@ -233,6 +233,24 @@ public struct Rect2(T) {
         if (r.x1 < p1.x1)
             r.x1 = p1.x1;
         return r;
+    }
+
+    //extend rect so, that the rect starts and ends on tile boundaries
+    void fitTileGrid(Vector2i tilesize) {
+        void doalign(ref T p, T sz, bool roundup) {
+            T offs = realmod(p, sz);
+            if (offs == 0)
+                return;
+            if (!roundup) {
+                p -= offs;
+            } else {
+                p += sz - offs;
+            }
+        }
+        doalign(p1.x, tilesize.x, false);
+        doalign(p1.y, tilesize.y, false);
+        doalign(p2.x, tilesize.x, true);
+        doalign(p2.y, tilesize.y, true);
     }
 
     char[] toString() {

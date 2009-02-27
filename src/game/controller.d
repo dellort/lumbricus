@@ -81,6 +81,7 @@ class ClientControlImpl : ClientControl {
     //-- Start ClientControl implementation
 
     void executeCommand(char[] cmd) {
+        registerLog("game.ClientControl")("client command: '{}'", cmd);
         if (cmd.startsWith("help") || !mCmd.execute(cmd, true))
             ctl.clientExecute(this, cmd);
     }
@@ -1283,15 +1284,11 @@ class GameController : GameLogicPublic {
         return mGamemodeId;
     }
 
-    int currentGameState() {
-        return mGamemode.state;
-    }
-
     bool gameEnded() {
         return mGamemode.ended;
     }
 
-    MyBox gamemodeStatus() {
+    Object gamemodeStatus() {
         return mGamemode.getStatus;
     }
 
@@ -1419,6 +1416,7 @@ class GameController : GameLogicPublic {
             return;
         t.setActive(active);
         if (active) {
+            //???
             assert(mActiveTeams.length == 0);
             mActiveTeams ~= t;
         } else {
@@ -1437,7 +1435,7 @@ class GameController : GameLogicPublic {
         mActiveTeams = null;
     }
 
-    bool objectsIdle() {
+    bool membersIdle() {
         foreach (t; mTeams) {
             if (!t.isIdle())
                 return false;

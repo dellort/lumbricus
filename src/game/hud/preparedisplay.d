@@ -35,7 +35,13 @@ class PrepareDisplay : Container {
 
         mLastTime = timeCurrentTime();
 
-        mEnabled = game.logic.gamemode == cRoundbased;
+        //???
+        mEnabled = !!status();
+    }
+
+    //returns info-object, or null if no round based stuff is going on
+    private RoundbasedStatus status() {
+        return cast(RoundbasedStatus)mGame.logic.gamemodeStatus();
     }
 
     private void active(bool active) {
@@ -54,10 +60,13 @@ class PrepareDisplay : Container {
         if (!mEnabled)
             return;
 
+        auto st = status();
+        assert (!!st);
+
         Time cur = timeCurrentTime();
         auto logic = mGame.logic;
         //auto controller = mEngine ? mEngine.engine.controller : null;
-        if (logic.currentGameState() == RoundState.prepare
+        if (st.state == RoundState.prepare
             && mGame.control.getControlledMember)
         {
             Team curTeam = mGame.control.getControlledMember.team;
@@ -66,10 +75,8 @@ class PrepareDisplay : Container {
             mPrepareView.borderStyle = mBoxProps;
             active = true;
             char[] teamName = curTeam.name;
-            auto st = mGame.logic.gamemodeStatus;
             //little hack to show correct time
-            Time pt = st.unbox!(RoundbasedStatus).prepareRemaining
-                - timeMsecs(1);;
+            Time pt = st.prepareRemaining - timeMsecs(1);
             mPrepareView.text = tr("teamgetready", teamName,
                 pt.secs >= 0 ? pt.secs+1 : 0);
         } else {

@@ -12,6 +12,13 @@ public import tango.math.Math : min, max;
 //because printf debugging is common and usefull
 public import tango.io.Stdout : Stdout;
 
+T realmod(T)(T a, T m) {
+    T res = a % m;
+    if (res < 0)
+        res += m;
+    return res;
+}
+
 void swap(T)(inout T a, inout T b) {
     T t = a;
     a = b;

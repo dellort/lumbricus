@@ -26,8 +26,8 @@ class GameState {
     bool paused;
     float slow_down;
     char[] gamemode;
-    int gamestate;
-    MyBox gamemodestatus;
+    bool game_ended;
+    Object gamemodestatus;
     int msgcounter;
     char[] msgid;
     char[][] msg;
