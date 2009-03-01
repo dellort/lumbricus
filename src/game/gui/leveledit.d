@@ -762,7 +762,7 @@ public class LevelEditor : Task {
 
     void createGui() {
         //"static", non-configfile version was in r351
-        auto loader = new LoadGui(gFramework.loadConfig("ledit_gui"));
+        auto loader = new LoadGui(gConf.loadConfig("ledit_gui"));
         loader.addNamedWidget(render, "render");
         loader.load();
 
@@ -946,7 +946,7 @@ public class LevelEditor : Task {
         if (!mCurrentPreview)
             return;
         //cut'n'paste from game.gui.preview
-        auto gc = loadGameConfig(gFramework.loadConfig("newgame"),
+        auto gc = loadGameConfig(gConf.loadConfig("newgame"),
             mCurrentPreview);
         //don't care about the game anymore as soon as spawned
         new GameTask(manager, gc);
@@ -1061,7 +1061,7 @@ public class LevelEditor : Task {
         auto sub = rootnode.getSubNode("templates").getSubNode("");
         saveLevel(sub);
         try {
-            Stream outp = gFramework.fs.open(filename, FileMode.OutNew);
+            Stream outp = gFS.open(filename, FileMode.OutNew);
             auto s = new StreamOutput(outp);
             rootnode.writeFile(s);
             outp.close();

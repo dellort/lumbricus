@@ -1,7 +1,7 @@
 ///access to resources after they were loaded
 ///note that this completely hides all the suckage about how resources are
 ///located, created and loaded
-module framework.resset;
+module common.resset;
 
 import utils.misc;
 

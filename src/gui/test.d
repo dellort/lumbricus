@@ -408,7 +408,7 @@ class TestTask : Task {
         createWindow("hihi", k);
 
         //test loading GUIs from file
-        auto loader = new LoadGui(gFramework.loadConfig("test_gui"));
+        auto loader = new LoadGui(gConf.loadConfig("test_gui"));
         loader.load();
         createWindow("Test5", loader.lookup("root"));
 
@@ -690,7 +690,7 @@ class TestTask3 : Task {
         gui.add(mValues, WidgetLayout.Aligned(-1, 0));
 
         char[][] files;
-        gFramework.fs.listdir("/", "*", false,
+        gFS.listdir("/", "*", false,
             (char[] path) {
                 files ~= path;
                 return true;

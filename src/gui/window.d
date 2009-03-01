@@ -2,8 +2,8 @@ module gui.window;
 
 import common.common;
 import common.visual;
-import framework.resources;
-import framework.restypes.bitmap;
+import common.resources;
+import common.restypes.bitmap;
 import framework.event;
 import framework.framework;
 import gui.boxcontainer;
@@ -584,7 +584,7 @@ class WindowFrame : Container {
 
         checkCover = true;
 
-        mConfig = gFramework.loadConfig("window");
+        mConfig = gConf.loadConfig("window");
 
         mKeysWindow = new KeyBindings();
         mKeysWindow.loadFrom(mConfig.getSubNode("window_bindings"));

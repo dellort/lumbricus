@@ -3,7 +3,7 @@ module game.weapon.weapon;
 import game.gobject;
 import game.animation;
 import framework.framework;
-import framework.resset;
+import common.resset;
 import physics.world;
 import game.game;
 import game.sprite;

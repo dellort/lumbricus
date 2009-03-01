@@ -1,28 +1,27 @@
 module framework.sdl.framework;
 
-import framework.framework;
-import framework.font;
-import framework.event;
-import stdx.stream;
-import tango.io.Stdout;
-import tango.stdc.stringz;
-import utils.vector2;
-import framework.sdl.rwops;
-import framework.sdl.fontft;
-import framework.sdl.fwgl;
-import framework.sdl.sdl;
 import derelict.opengl.gl;
 import derelict.opengl.glu;
 import derelict.sdl.sdl;
 import derelict.sdl.image;
+import framework.framework;
+import framework.event;
+import framework.sdl.rwops;
+import framework.sdl.fwgl;
+import framework.sdl.sdl;
 import framework.sdl.keys;
-import math = tango.math.Math;
-import ieee = tango.math.IEEE;
+import utils.vector2;
 import utils.time;
 import utils.perf;
 import utils.drawing;
 import utils.misc;
 import utils.configfile;
+
+import math = tango.math.Math;
+import ieee = tango.math.IEEE;
+import stdx.stream;
+import tango.io.Stdout;
+import tango.stdc.stringz;
 
 version = MarkAlpha;
 
@@ -72,6 +71,18 @@ void doMirrorY(SurfaceData* data) {
             dst++;
         }
     }
+}
+
+void doMirrorX(SurfaceData* data) {
+    Color.RGBA32[] tmp = new Color.RGBA32[data.pitch];
+    for (int y = 0; y < data.size.y/2; y++) {
+        int ym = data.size.y - y - 1;
+        tmp[] = data.data[y*data.pitch..(y+1)*data.pitch];
+        data.data[y*data.pitch..(y+1)*data.pitch] =
+            data.data[ym*data.pitch..(ym+1)*data.pitch];
+        data.data[ym*data.pitch..(ym+1)*data.pitch] = tmp;
+    }
+    delete tmp;
 }
 
 //cache for effects like mirroring; this is only used when you're using i.e.
@@ -304,8 +315,6 @@ class SDLDriver : FrameworkDriver {
         VideoWindowState mCurVideoState;
         DriverInputState mInputState;
 
-        FTFontDriver mFontDriver;
-
         //convert stuff to display format if it isn't already
         //+ mark all alpha surfaces drawn on the screen
         package bool mEnableCaching, mMarkAlpha, mRLE;
@@ -413,21 +422,11 @@ class SDLDriver : FrameworkDriver {
             gSdlToKeycode[item.sdlcode] = item.code;
         }
 
-        mFontDriver = new typeof(mFontDriver)();
-
         if (!mOpenGL) {
             mScreenCanvas2D = new SDLCanvas();
         } else {
             mScreenCanvasGL = new GLCanvas();
         }
-
-        //init sound
-        char[] sounddriver = config.getBoolValue("enable_sound")
-            ? "sdl_mixer" : "null";
-        sounddriver = config.getStringValue("sound_driver", sounddriver);
-
-        mFramework.sound.reinit(SoundDriverFactory.instantiate(sounddriver,
-            gFramework.sound(), config.getSubNode("sound")));
 
         //for some worthless statistics...
         void timer(out PerfTimer tmr, char[] name) {
@@ -447,9 +446,6 @@ class SDLDriver : FrameworkDriver {
         assert(mDriverSurfaceCount == 0);
 
         //deinit and unload all SDL dlls (in reverse order)
-        mFramework.sound.close();
-        mFontDriver.destroy();
-        mFontDriver = null;
         SDL_QuitSubSystem(SDL_INIT_VIDEO);
         if (mOpenGL) {
             DerelictGL.unload();
@@ -468,10 +464,6 @@ class SDLDriver : FrameworkDriver {
                 | DriverFeatures.transformedQuads;
         }
         return features;
-    }
-
-    FontDriver fontDriver() {
-        return mFontDriver;
     }
 
     DriverSurface createSurface(SurfaceData* data, SurfaceMode mode) {
@@ -801,7 +793,6 @@ class SDLDriver : FrameworkDriver {
     int releaseCaches() {
         int count;
         count += releaseInsanityCache();
-        count += fontDriver.releaseCaches();
         return count;
     }
 
@@ -829,15 +820,8 @@ class SDLDriver : FrameworkDriver {
             glReadPixels(0, 0, mSDLScreen.w, mSDLScreen.h, GL_RGBA,
                 GL_UNSIGNED_BYTE, data.data.ptr);
             //checkGLError("glReadPixels");
-            //mirror image along y
-            Color.RGBA32[] tmp = new Color.RGBA32[data.pitch];
-            for (int y = 0; y < data.size.y/2; y++) {
-                int ym = data.size.y - y - 1;
-                tmp[] = data.data[y*data.pitch..(y+1)*data.pitch];
-                data.data[y*data.pitch..(y+1)*data.pitch] =
-                    data.data[ym*data.pitch..(ym+1)*data.pitch];
-                data.data[ym*data.pitch..(ym+1)*data.pitch] = tmp;
-            }
+            //mirror image on x axis
+            doMirrorX(&data);
             return new Surface(data);
         } else {
             //this is possibly dangerous, but I'm too lazy to write proper code

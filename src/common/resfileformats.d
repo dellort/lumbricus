@@ -1,5 +1,5 @@
 ///description of the binary file formats produced used for some resources
-module framework.resfileformats;
+module common.resfileformats;
 
 import str = stdx.string: toString, split;
 import tango.util.Convert;

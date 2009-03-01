@@ -35,11 +35,11 @@ class TeamEditorTask : Task {
     this(TaskManager tm, char[] args = "") {
         super(tm);
 
-        mTeamConf = gFramework.loadConfig("teams");
+        mTeamConf = gConf.loadConfig("teams");
         mTeams = mTeamConf.getSubNode("teams");
         mLastTeamId = mTeamConf.getIntValue("lastid", mLastTeamId);
 
-        auto loader = new LoadGui(gFramework.loadConfig("teamedit_gui"));
+        auto loader = new LoadGui(gConf.loadConfig("teamedit_gui"));
         loader.load();
 
         loader.lookup!(Button)("ok").onClick = &okClick;
@@ -247,7 +247,7 @@ class TeamEditorTask : Task {
     //save button clicked
     private void okClick(Button sender) {
         mTeamConf.setIntValue("lastid", mLastTeamId);
-        saveConfig(mTeamConf, "teams.conf");
+        gConf.saveConfig(mTeamConf, "teams.conf");
         kill();
     }
 

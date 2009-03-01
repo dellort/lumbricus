@@ -2,7 +2,8 @@ module game.levelgen.level;
 
 import common.animation;
 import framework.framework;
-import framework.resset;
+import common.resources;
+import common.resset;
 import game.levelgen.landscape;
 import utils.configfile;
 import utils.color;
@@ -31,7 +32,7 @@ class EnvironmentTheme {
 
     //corresponds to a level.conf "environment" node
     this(ConfigNode node) {
-        ResourceSet res = gFramework.resources.loadResSet(node);
+        ResourceSet res = gResources.loadResSet(node);
 
         skyGradient = res.get!(Surface)(node["gradient"], true);
         skyBackdrop = res.get!(Surface)(node["backdrop"], true);

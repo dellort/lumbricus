@@ -822,7 +822,9 @@ public class ConfigNode {
             auto n2 = item2;
             if (recursive && item2 && n1 && n2)
             {
-                n1.mixinNode(n2, overwrite, true);
+                n2.mixinNode(n1, overwrite, true);
+                if (overwrite)
+                    n2.value = n1.value;
                 continue;
             }
             if (overwrite && item2) {

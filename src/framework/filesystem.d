@@ -18,6 +18,8 @@ version(Windows) {
     import tango.sys.win32.SpecialPath;
 }
 
+FileSystem gFS;
+
 private Log log;
 
 //Uncomment this to see detailed filesystem log messages
@@ -66,7 +68,7 @@ enum MountPath {
 ///A handler class that registers itself with the framework
 ///One instance will exist, responsible for creating a HandlerInstance object
 ///when a path/file is mounted
-protected abstract class MountPointHandler {
+private abstract class MountPointHandler {
     ///Can this handler class mount the path/file
     ///Params:
     ///  absPath = Absolute system path to object that should be mounted
@@ -80,7 +82,7 @@ protected abstract class MountPointHandler {
 }
 
 ///A mounted path/file
-protected abstract class HandlerInstance {
+private abstract class HandlerInstance {
     ///can the currently mounted path/whatever open files for writing?
     abstract bool isWritable();
 
@@ -297,6 +299,8 @@ class FileSystem {
     }
 
     this(char[] arg0, char[] appId) {
+        assert(!gFS, "FileSystem is singleton");
+        gFS = this;
         log = registerLog("FS");
         mAppId = appId;
         initPaths(arg0);

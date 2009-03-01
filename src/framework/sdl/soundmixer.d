@@ -65,7 +65,7 @@ class SDLSound : DriverSound {
     this(SDLSoundDriver drv, DriverSoundData data) {
         mDriver = drv;
         mDriver.mSounds ~= this;
-        mSource = gFramework.fs.open(data.filename);
+        mSource = gFS.open(data.filename);
         SDL_RWops* ops = rwopsFromStream(mSource);
         switch (data.type) {
             case SoundType.music:

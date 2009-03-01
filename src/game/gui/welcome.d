@@ -47,7 +47,7 @@ class WelcomeTask : Task {
 
     this(TaskManager tm, char[] args = "") {
         super(tm);
-        auto config = gFramework.loadConfig("welcome_gui");
+        auto config = gConf.loadConfig("welcome_gui");
         auto loader = new LoadGui(config);
         mDefaultCommand = config["default_command"];
         loader.load();
@@ -96,7 +96,7 @@ class LoadGameTask : Task {
         super(tm);
         mSaves = listAvailableSavegames();
         if (mSaves.length > 0) {
-            auto loader = new LoadGui(gFramework.loadConfig("loadgame_gui"));
+            auto loader = new LoadGui(gConf.loadConfig("loadgame_gui"));
             loader.load();
 
             //load savegame dialog

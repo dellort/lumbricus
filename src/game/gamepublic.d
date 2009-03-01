@@ -4,7 +4,7 @@
 module game.gamepublic;
 
 import framework.framework;
-import framework.resset : Resource;
+import common.resset : Resource;
 import framework.timesource;
 import game.animation;
 import game.gfxset : TeamTheme;

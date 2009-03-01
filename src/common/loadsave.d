@@ -33,7 +33,7 @@ struct SavegameData {
     static SavegameData opCall(char[] fn) {
         SavegameData ret;
         ret.path = fn;
-        scope st = gFramework.fs.open(fn, FileMode.In);
+        scope st = gFS.open(fn, FileMode.In);
         scope reader = new TarArchive(st, true);
         auto z = reader.openReadStream("info.conf", false);
         ret.info = z.readConfigFile();
@@ -58,7 +58,7 @@ struct SavegameData {
 //Note: Slooow, each file is opened, and the info file is extracted
 SavegameData[] listAvailableSavegames() {
     SavegameData[] list;
-    gFramework.fs.listdir(cSavegamePath, "*", false,
+    gFS.listdir(cSavegamePath, "*", false,
         (char[] filename) {
             if (endsWith(filename, cSavegameExt)) {
                 try {
@@ -88,12 +88,12 @@ SavegameData createSavegame(char[] taskId, char[] name, char[] description,
         name = cSavegameDefName;
     //construct a unique filename
     int i;
-    ret.path = gFramework.fs.getUniqueFilename(cSavegamePath,
+    ret.path = gFS.getUniqueFilename(cSavegamePath,
         taskId ~ "_" ~ name ~ "{}", cSavegameExt, i);
     if (i > 1)
         name ~= " (" ~ str.toString(i) ~ ")";
     //open the savegame file for writing
-    scope st = gFramework.fs.open(ret.path, FileMode.OutNew);
+    scope st = gFS.open(ret.path, FileMode.OutNew);
     scope writer = new TarArchive(st, false);
     //set information
     ret.info = new ConfigNode();
@@ -228,7 +228,7 @@ class LoadSaveHandler {
     bool loadFromData(ref SavegameData data) {
         Stream st;
         try {
-            st = gFramework.fs.open(data.path, FileMode.In);
+            st = gFS.open(data.path, FileMode.In);
         } catch (Exception e) {
             return false;
         }

@@ -10,7 +10,7 @@ enum SeqType {
 import common.animation;
 import common.common;
 import common.scene;
-import framework.resset;
+import common.resset;
 import utils.configfile;
 import utils.math;
 import utils.misc;

@@ -6,8 +6,8 @@ import common.task;
 
 import framework.font;
 import framework.framework;
-import framework.resources;
-import framework.allres;
+import common.resources;
+import common.allres;
 import framework.timesource;
 import gui.boxcontainer;
 import gui.button;
@@ -296,7 +296,7 @@ class AtlasHandler : ResViewHandler!(Atlas) {
     }
 }
 
-import framework.resfileformats;
+import common.resfileformats;
 
 class AniHandler : ResViewHandler!(AniFrames) {
     private {
@@ -629,7 +629,7 @@ class ResViewerTask : Task {
                 }
             }
             Sorter[] sorted;
-            gFramework.resources.enumResources(
+            gResources.enumResources(
                 (char[] fullname, ResourceItem res) {
                     if (isSub(res.get.classinfo, mCurRes)) {
                         sorted ~= Sorter(res);

@@ -47,12 +47,14 @@ class FTGlyphCache {
         // possibly shared accross font instances
         MemoryStream mFontStream;
         bool mDoBold, mDoItalic;
+        FTFontDriver mDriver;
     }
 
     package int refcount = 1;
 
     this(FTFontDriver driver, FontProperties props) {
-        if (!gFramework.fontManager.faceExists(props.face, props.getFaceStyle))
+        mDriver = driver;
+        if (!mDriver.fontManager.faceExists(props.face, props.getFaceStyle))
         {
             mDoBold = props.bold;
             mDoItalic = props.italic;
@@ -387,9 +389,11 @@ class FTFontDriver : FontDriver {
         FTFont[FontProperties] mFonts;
         FTGlyphCache[FontProperties] mGlyphCaches;
         TexturePack mPacker;
+        FontManager fontManager;
     }
 
-    this() {
+    this(FontManager mgr, ConfigNode config) {
+        fontManager = mgr;
         Derelict_SetMissingProcCallback(&missingProcCb);
         DerelictFT.load();
         Derelict_SetMissingProcCallback(null);
@@ -473,6 +477,10 @@ class FTFontDriver : FontDriver {
         if (!mPacker)
             mPacker = new TexturePack();
         return mPacker;
+    }
+
+    static this() {
+        FontDriverFactory.register!(typeof(this))("freetype");
     }
 }
 

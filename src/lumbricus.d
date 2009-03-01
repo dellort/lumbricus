@@ -5,6 +5,7 @@ import framework.framework;
 import framework.sdl.framework;
 import framework.sdl.soundmixer;
 import framework.openal;
+import framework.sdl.fontft;
 
 //--> FMOD is not perfectly GPL compatible, so you may need to comment
 //    this line in some scenarios (this is all it needs to disable FMOD)
@@ -13,8 +14,9 @@ import framework.fmod;
 
 import framework.imgwrite;
 
-import framework.filesystem : MountPath;
+import framework.filesystem;
 import common = common.common;
+import common.config;
 import toplevel = common.toplevel;
 
 import utils.configfile;
@@ -68,7 +70,7 @@ const cCommandLineHelp =
         Output this and exit.
     --language_id=ID
         Set language ID (de, en)
-    --driver.xxx=yyy
+    --fw.xxx=yyy
         Set property xxx of the fwconfig stuff passed to the Framework to yyy,
         e.g. to disable use of OpenGL:
         --driver.open_gl=false
@@ -102,20 +104,23 @@ void main(char[][] args) {
     gLogEverything.destination = new StreamOutput(new File("logall.txt",
         FileMode.In | FileMode.OutNew));
 
-    auto fw = new Framework(args[0], APP_ID, cmdargs);
-    fw.setCaption("Lumbricus");
-
     //init filesystem
-    fw.fs.mount(MountPath.data, "locale/", "/locale/", false, 2);
-    fw.fs.tryMount(MountPath.data, "data2/", "/", false, 2);
-    fw.fs.mount(MountPath.data, "data/", "/", false, 3);
-    fw.fs.mount(MountPath.user, "/", "/", true, 0);
+    auto fs = new FileSystem(args[0], APP_ID);
+    fs.mount(MountPath.data, "locale/", "/locale/", false, 2);
+    fs.tryMount(MountPath.data, "data2/", "/", false, 2);
+    fs.mount(MountPath.data, "data/", "/", false, 3);
+    fs.mount(MountPath.user, "/", "/", true, 0);
 
     //commandline switch: --data=some/dir/to/data
     char[] extradata = cmdargs["data"];
     if (extradata.length) {
-        fw.fs.mount(MountPath.absolute, extradata, "/", false, -1);
+        fs.mount(MountPath.absolute, extradata, "/", false, -1);
     }
+
+    auto fwconf = gConf.loadConfig("framework");
+    fwconf.mixinNode(cmdargs.getSubNode("fw"), true);
+    auto fw = new Framework(fwconf);
+    fw.setCaption("Lumbricus");
 
     new common.Common(cmdargs);
     //installs callbacks to framework, which get called in the mainloop

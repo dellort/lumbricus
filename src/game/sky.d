@@ -1,7 +1,7 @@
 module game.sky;
 
 import framework.framework;
-import framework.restypes.bitmap;
+import common.restypes.bitmap;
 import game.clientengine;
 import game.glevel;
 import game.animation;

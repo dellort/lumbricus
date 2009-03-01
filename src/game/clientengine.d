@@ -2,7 +2,7 @@ module game.clientengine;
 
 import framework.framework;
 import framework.font;
-import framework.resset;
+import common.resset;
 import framework.timesource;
 import common.scene;
 import common.common;

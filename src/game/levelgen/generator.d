@@ -1,15 +1,17 @@
 module game.levelgen.generator;
 
+import common.common;
 import game.levelgen.landscape;
 import game.levelgen.level;
 import game.levelgen.renderer;
 import game.levelgen.genrandom;
 import game.levelgen.placeobjects;
 import game.animation;
-import framework.restypes.bitmap;
+import common.restypes.bitmap;
 import framework.framework;
 import framework.filesystem;
-import framework.resset;
+import common.resources;
+import common.resset;
 import utils.configfile;
 import utils.vector2;
 import utils.output;
@@ -56,7 +58,7 @@ class LevelGeneratorShared {
         themes.update();
         templates.update();
 
-        generatorConfig = gFramework.loadConfig("levelgenerator");
+        generatorConfig = gConf.loadConfig("levelgenerator");
         foreach (ConfigNode v; generatorConfig.getSubNode("preview_colors")) {
             Color c;
             c.parse(v.value);
@@ -641,7 +643,7 @@ class LevelTemplate {
     ConfigNode data;
 
     this(char[] path, char[] a_name) {
-        auto f = gFramework.loadConfig(path, true);
+        auto f = gConf.loadConfig(path, true);
         name = a_name;
         data = f;
         description = data["description"];
@@ -748,7 +750,7 @@ class LandscapeGenTheme {
             return res;
         }
 
-        resources = gFramework.resources.loadResSet(node);
+        resources = gResources.loadResSet(node);
 
         //the least important part is the longest
         ConfigNode cborders = node.getSubNode("borders");
@@ -842,7 +844,7 @@ public class LevelTheme {
 
     this(char[] path, char[] a_name) {
         //use this function because we want to load resources from it later
-        auto conf = gFramework.resources.loadConfigForRes(path);
+        auto conf = gResources.loadConfigForRes(path);
 
         land = conf.findNode("landscape");
         gen = conf.findNode("landscapegen");
@@ -989,7 +991,7 @@ class LevelThemes {
 
     void update() {
         mItems = null;
-        gFramework.fs.listdir(cLevelsPath, "*", true,
+        gFS.listdir(cLevelsPath, "*", true,
             (char[] path) {          //path is relative to "level" dir
                 LevelTheme theme;
                 auto filename = cLevelsPath ~ "/" ~ path ~ "level.conf";
@@ -1031,7 +1033,7 @@ class LevelTemplates {
 
     void update() {
         mItems = null;
-        gFramework.fs.listdir(cTemplatesPath, "*.conf", false,
+        gFS.listdir(cTemplatesPath, "*.conf", false,
             (char[] path) {
                 auto npath = cTemplatesPath ~ "/" ~ path; //uh, relative path
                 LevelTemplate templ;

@@ -5,6 +5,7 @@ module game.wtris;
 import framework.framework;
 import framework.event;
 import framework.timesource;
+import common.common;
 import common.task;
 import gui.widget;
 import gui.container;
@@ -471,7 +472,7 @@ public class WTris : Task {
     }
 
     private void createGui() {
-        auto loader = new LoadGui(gFramework.loadConfig("wtris_gui"));
+        auto loader = new LoadGui(gConf.loadConfig("wtris_gui"));
 
         loader.addNamedWidget(new GameView(), "gameview");
         loader.addNamedWidget(new Preview(), "preview");

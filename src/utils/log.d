@@ -49,10 +49,10 @@ public final class Log : Output {
         return mCategory;
     }
 
-    override void writef(char[] fmt, ...) {
+    void writef(char[] fmt, ...) {
         writef_ind(false, fmt, _arguments, _argptr);
     }
-    override void writefln(char[] fmt, ...) {
+    void writefln(char[] fmt, ...) {
         writef_ind(true, fmt, _arguments, _argptr);
     }
 
@@ -70,7 +70,7 @@ public final class Log : Output {
         writef_ind(true, fmt, _arguments, _argptr);
     }
 
-    override void writef_ind(bool newline, char[] fmt, TypeInfo[] arguments,
+    void writef_ind(bool newline, char[] fmt, TypeInfo[] arguments,
         va_list argptr)
     {
         if (stfu)

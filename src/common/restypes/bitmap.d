@@ -1,7 +1,7 @@
-module framework.restypes.bitmap;
+module common.restypes.bitmap;
 
 import framework.framework;
-import framework.resources;
+import common.resources;
 import utils.configfile;
 
 ///Resource class for bitmaps

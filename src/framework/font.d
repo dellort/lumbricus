@@ -2,11 +2,13 @@ module framework.font;
 import framework.framework;
 import utils.configfile;
 import utils.log;
+import utils.factory;
+import utils.color;
+import utils.vector2;
+import utils.weaklist;
 
 import stdx.stream;
 import utf = stdx.utf;
-
-import utils.weaklist;
 
 package {
     struct FontKillData {
@@ -180,7 +182,7 @@ class FontManager {
                 if (idx > FaceStyle.max)
                     break;
                 auto ms = new MemoryStream();
-                scope st = gFramework.fs.open(faceFile);
+                scope st = gFS.open(faceFile);
                 ms.copyFrom(st);
                 if (!(n.name in mFaces)) {
                     FaceStyles fstyles;
@@ -287,3 +289,22 @@ class FontManager {
     }
 }
 
+abstract class DriverFont {
+    //w == int.max for unlimited text
+    abstract Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text);
+    abstract Vector2i textSize(char[] text, bool forceHeight);
+
+    //useful debugging infos lol
+    abstract char[] getInfos();
+}
+
+abstract class FontDriver {
+    abstract DriverFont createFont(FontProperties props);
+    abstract void destroyFont(inout DriverFont handle);
+    //invalidates all fonts
+    abstract int releaseCaches();
+    abstract void destroy();
+}
+
+alias StaticFactory!("FontDrivers", FontDriver, FontManager,
+    ConfigNode) FontDriverFactory;

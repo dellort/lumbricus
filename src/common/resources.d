@@ -1,6 +1,6 @@
-module framework.resources;
+module common.resources;
 
-import framework.framework;
+import common.config;
 import framework.filesystem;
 import str = stdx.string;
 import utils.configfile;
@@ -12,7 +12,7 @@ import utils.time;
 import utils.path;
 import utils.perf;
 
-import framework.resset;
+import common.resset;
 
 ///base template for any resource that is held ready for being loaded
 ///resources are loaded on the first call to get(), not when loading them from
@@ -140,9 +140,12 @@ class ResourceFile {
     }
 }
 
+//lol, another global singleton
+Resources gResources;
+
 ///the resource manager
 ///this centrally manages all loaded resources; for accessing resources, use
-///ResourceSet from module framework.resset
+///ResourceSet from module common.resset
 public class Resources {
     static Log log;
     private ResourceFile[char[]] mLoadedResourceFiles;
@@ -151,6 +154,8 @@ public class Resources {
         char[], ConfigNode) ResFactory;
 
     this() {
+        assert(!gResources, "Resource manager is singleton");
+        gResources = this;
         log = registerLog("Res");
         //log.setBackend(DevNullOutput.output, "null");
     }
@@ -217,7 +222,7 @@ public class Resources {
         if (path == "")
             path = "/";
 
-        if (!gFramework.fs.pathExists(path)) {
+        if (!gFS.pathExists(path)) {
             throw new LoadException(filepath, "loadResources(): bad parameters");
         }
 
@@ -280,7 +285,7 @@ public class Resources {
 
     ///also just for simplicity
     public static ConfigNode loadConfigForRes(char[] path) {
-        ConfigNode config = gFramework.loadConfig(path, true);
+        ConfigNode config = gConf.loadConfig(path, true);
         config[cResourcePathName] = path;
         return config;
     }

@@ -1,9 +1,10 @@
 module game.hud.windmeter;
 
 import framework.framework;
+import common.common;
 import common.scene;
 import common.visual;
-import framework.restypes.bitmap;
+import common.restypes.bitmap;
 import game.clientengine;
 import game.hud.teaminfo;
 import gui.widget;
@@ -30,9 +31,9 @@ class WindMeter : Widget {
     this(GameInfo game) {
         mGame = game;
 
-        ConfigNode wmNode = gFramework.loadConfig("windmeter");
+        ConfigNode wmNode = gConf.loadConfig("windmeter");
 
-        //mBackgroundTex = gFramework.resources.resource!(BitmapResource)
+        //mBackgroundTex = gResources.resource!(BitmapResource)
         //    ("/windmeter_back").get().createTexture();
         mWindLeft = mGame.cengine.resources.get!(Surface)("windmeter_left");
         mWindRight = mGame.cengine.resources.get!(Surface)("windmeter_right");

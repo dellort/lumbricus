@@ -99,7 +99,7 @@ class ALSound : DriverSound {
     this(ALSoundDriver drv, DriverSoundData data) {
         mDriver = drv;
         mDriver.mSounds ~= this;
-        auto source = gFramework.fs.open(data.filename);
+        auto source = gFS.open(data.filename);
         //no Stream-like abstraction (?) => temporarily copy into memory
         auto stuff = new char[source.size()];
         source.position = 0;

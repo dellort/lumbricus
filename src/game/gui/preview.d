@@ -57,7 +57,7 @@ class LevelSelector : SimpleContainer {
         mLblWait.text = _("levelselect.waiting");
 
 
-        auto conf = gFramework.loadConfig("levelpreview_gui");
+        auto conf = gConf.loadConfig("levelpreview_gui");
         auto loader = new LoadGui(conf);
         loader.registerWidget!(PainterWidget)("painter");
         loader.load();

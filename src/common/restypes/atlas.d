@@ -1,8 +1,8 @@
-module framework.restypes.atlas;
+module common.restypes.atlas;
 
+import common.resfileformats;
+import common.resources;
 import framework.framework;
-import framework.resfileformats;
-import framework.resources;
 import utils.configfile;
 import utils.vector2;
 
@@ -52,7 +52,7 @@ class AtlasResource : ResourceItem {
             }
         } else {
             //meta data is read from a binary file
-            scope f = gFramework.fs.open(mContext.fixPath(meta.value));
+            scope f = gFS.open(mContext.fixPath(meta.value));
             //xxx I shouldn't load stuff directly (endian issues), but who cares?
             FileAtlas header;
             f.readExact(&header, header.sizeof);

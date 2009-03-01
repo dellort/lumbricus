@@ -1,10 +1,11 @@
 module common.common;
 
+public import common.config;
+import common.resources;
+import common.resset;
 import framework.filesystem;
 import framework.framework;
 import framework.commandline;
-import framework.resset;
-import framework.resources;
 import framework.timesource;
 import framework.i18n;
 import utils.array;
@@ -30,6 +31,7 @@ class Common {
     CommandLine cmdLine;
     ConfigNode programArgs; //command line for the lumbricus executable
 
+    Resources resources;
     //oh sorry, didn't know where to put that!
     //is for guires.conf
     ResourceSet guiResources;
@@ -56,8 +58,7 @@ class Common {
     private const cDefLang = "en";
 
     this(ConfigNode args) {
-        if (globals)
-            throw new Exception("Common is a singelton!");
+        assert(!globals, "Common is a singelton!");
         globals = this;
         programArgs = args;
 
@@ -69,17 +70,19 @@ class Common {
             defaultOut = StdioOutput.output;
         }
 
-        loadColors(gFramework.loadConfig("colors"));
+        loadColors(gConf.loadConfig("colors"));
 
+        //will set global gResources
+        resources = new Resources();
         //GUI resources, this is a bit off here
-        guiResources = gFramework.resources.loadResSet("guires.conf");
+        guiResources = resources.loadResSet("guires.conf");
 
         //copy the stupid timers
         foreach (char[] name, PerfTimer cnt; gFramework.timers) {
             timers[name] = cnt;
         }
 
-        ConfigNode scr = gFramework.loadConfig("video");
+        ConfigNode scr = gConf.loadConfig("video");
         int w = scr.getIntValue("width", 800);
         int h = scr.getIntValue("height", 600);
         int d = scr.getIntValue("depth", 0);
@@ -92,14 +95,14 @@ class Common {
             throw new Exception("can't continue");
         }
 
-        ConfigNode langconf = gFramework.loadConfig("language");
+        ConfigNode langconf = gConf.loadConfig("language");
         char[] langId = programArgs["language_id"];
         if (!langId.length)
             langId = langconf.getStringValue("language_id", "de");
         initLocale(langId);
 
         gFramework.fontManager.readFontDefinitions(
-            gFramework.loadConfig("fonts"));
+            gConf.loadConfig("fonts"));
 
         localizedKeynames = localeRoot.bindNamespace("keynames");
 
@@ -116,7 +119,7 @@ class Common {
     }
 
     void readLogconf() {
-        ConfigNode conf = gFramework.loadConfig("logging", false, true);
+        ConfigNode conf = gConf.loadConfig("logging", false, true);
         if (!conf)
             return;
         foreach (ConfigNode sub; conf.getSubNode("logs")) {
@@ -129,10 +132,10 @@ class Common {
     }
 
     private void initLocale(char[] langId) {
-        initI18N(cLocalePath, langId, cDefLang, &gFramework.loadConfig);
+        initI18N(cLocalePath, langId, cDefLang, &gConf.loadConfig);
         try {
             //link locale-specific files into root
-            gFramework.fs.link(cLocalePath ~ '/' ~ langId,"/",false,1);
+            gFS.link(cLocalePath ~ '/' ~ langId,"/",false,1);
         } catch (FilesystemException e) {
             //don't crash if current locale has no locale-specific files
             gDefaultLog("catched {}", e);
@@ -190,37 +193,5 @@ class Common {
         foreach_reverse (x; mRemoveList) {
             mFrameCallbacks = mFrameCallbacks[0..x] ~ mFrameCallbacks[x+1..$];
         }
-    }
-}
-
-//arrgh
-//compress = true: do gzip compression, adds .gz to filename
-void saveConfig(ConfigNode node, char[] filename, bool compress = false) {
-    if (compress) {
-        saveConfigGz(node, filename~".gz");
-        return;
-    }
-    auto stream = gFramework.fs.open(filename, FileMode.OutNew);
-    try {
-        auto textstream = new StreamOutput(stream);
-        node.writeFile(textstream);
-    } finally {
-        stream.close();
-    }
-}
-
-//same as above, always gzipped
-//will not modify file extension
-void saveConfigGz(ConfigNode node, char[] filename) {
-    auto stream = gFramework.fs.open(filename, FileMode.OutNew);
-    try {
-        /*ubyte[] txt = cast(ubyte[])node.writeAsString();
-        ubyte[] gz = gzipData(txt);
-        stream.write(gz);*/
-        auto w = new GZStreamOutput(stream);
-        node.writeFile(w);
-        w.finish();
-    } finally {
-        stream.close();
     }
 }

@@ -73,7 +73,7 @@ class LocalGameSetupTask : Task {
 
         mGenerator = new LevelGeneratorShared();
 
-        auto config = gFramework.loadConfig("localgamesetup_gui");
+        auto config = gConf.loadConfig("localgamesetup_gui");
         auto loader = new LoadGui(config);
         loader.load();
         loader.lookup!(Button)("cancel").onClick = &cancelClick;
@@ -121,7 +121,7 @@ class LocalGameSetupTask : Task {
     private void readSavedLevels() {
         char[][] storedlevels;
         storedlevels ~= _("gamesetup.lastplayed");
-        gFramework.fs.listdir(cSavedLevelsPath, "*.conf", false, (char[] fn) {
+        gFS.listdir(cSavedLevelsPath, "*.conf", false, (char[] fn) {
             storedlevels ~= fn[0..$-5];
             return true;
         });
@@ -139,7 +139,7 @@ class LocalGameSetupTask : Task {
     }
 
     private void loadLastPlayedLevel() {
-        scope level = gFramework.loadConfig(cLastlevelConf, false, true);
+        scope level = gConf.loadConfig(cLastlevelConf, false, true);
         if (level) {
             auto gen = new GenerateFromSaved(mGenerator, level);
             setCurrentLevel(gen);
@@ -151,7 +151,7 @@ class LocalGameSetupTask : Task {
             loadLastPlayedLevel();
             return;
         }
-        scope level = gFramework.loadConfig(cSavedLevelsPath~sender.selection);
+        scope level = gConf.loadConfig(cSavedLevelsPath~sender.selection);
         auto gen = new GenerateFromSaved(mGenerator, level);
         setCurrentLevel(gen);
         //level is already saved
@@ -188,7 +188,7 @@ class LocalGameSetupTask : Task {
             return;
         char[] lname = mSavedLevels.edit.text;
         auto tmpLevel = mCurrentLevel.render(false);
-        saveConfig(tmpLevel.saved, cSavedLevelsPath ~ lname ~ ".conf");
+        gConf.saveConfig(tmpLevel.saved, cSavedLevelsPath ~ lname ~ ".conf");
         delete tmpLevel;
         readSavedLevels();
         mSavedLevels.allowEdit = false;
@@ -227,7 +227,7 @@ class LocalGameSetupTask : Task {
 
     //reload teams from config file and show in dialog
     private void loadTeams() {
-        auto conf = gFramework.loadConfig("teams");
+        auto conf = gConf.loadConfig("teams");
         if (!conf)
             return;
         mTeams = conf.getSubNode("teams");
@@ -321,7 +321,7 @@ class LocalGameSetupTask : Task {
 
         assert(!mGame); //hm, no idea
         //create default GameConfig with custom level
-        auto gc = loadGameConfig(gFramework.loadConfig("newgame"), level);
+        auto gc = loadGameConfig(gConf.loadConfig("newgame"), level);
         gc.teams = buildGameTeams();
         //xxx: do some task-death-notification or so... (currently: polling)
         //currently, the game can't really return anyway...

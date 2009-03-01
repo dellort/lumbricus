@@ -27,7 +27,7 @@ import utils.reflection;
 import framework.framework;
 import framework.keysyms;
 import framework.timesource;
-import framework.resset;
+import common.resset;
 import tango.math.Math;
 
 import game.levelgen.renderer;// : LandscapeBitmap;
@@ -188,18 +188,18 @@ class GameEngine : GameEnginePublic {
     //load all weapons from one weapon set (directory containing set.conf)
     //loads only collisions and weapon behavior, no resources/sequences
     private void loadWeapons(char[] dir) {
-        auto set_conf = gFramework.loadConfig(dir~"/set");
-        auto coll_conf = gFramework.loadConfig(dir ~ "/"
+        auto set_conf = gConf.loadConfig(dir~"/set");
+        auto coll_conf = gConf.loadConfig(dir ~ "/"
             ~ set_conf.getStringValue("collisions","collisions.conf"),true,true);
         if (coll_conf)
             physicworld.collide.loadCollisions(coll_conf.getSubNode("collisions"));
         //load all .conf files found
         char[] weaponsdir = dir ~ "/weapons";
-        gFramework.fs.listdir(weaponsdir, "*.conf", false,
+        gFS.listdir(weaponsdir, "*.conf", false,
             (char[] path) {
                 //a weapons file can contain resources, collision map
                 //additions and a list of weapons
-                auto wp_conf = gFramework.loadConfig(weaponsdir ~ "/"
+                auto wp_conf = gConf.loadConfig(weaponsdir ~ "/"
                     ~ path[0..$-5]);
                 physicworld.collide.loadCollisions(wp_conf.getSubNode("collisions"));
                 auto list = wp_conf.getSubNode("weapons");
@@ -392,10 +392,10 @@ class GameEngine : GameEnginePublic {
 
     //one time initialization, where levle objects etc. should be loaded (?)
     private void loadLevelStuff() {
-        auto conf = gFramework.loadConfig("game");
+        auto conf = gConf.loadConfig("game");
         //load sprites
         foreach (char[] name, char[] value; conf.getSubNode("sprites")) {
-            auto sprite = gFramework.loadConfig(value);
+            auto sprite = gConf.loadConfig(value);
             loadSpriteClass(sprite);
         }
 

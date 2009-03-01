@@ -294,7 +294,7 @@ class WeaponSelWindow : Container {
 
     this() {
         //meh how stupid
-        auto conf = gFramework.loadConfig("wsel").getSubNode("categories");
+        auto conf = gConf.loadConfig("wsel").getSubNode("categories");
         foreach (char[] name, char[] value; conf) {
             mCategories ~= value;
         }

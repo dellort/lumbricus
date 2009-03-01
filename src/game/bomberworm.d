@@ -4,6 +4,7 @@ import framework.framework;
 import framework.event;
 import framework.timesource;
 import framework.keybindings;
+import common.common;
 import common.task;
 import gui.widget;
 import gui.container;
@@ -432,7 +433,7 @@ private:
 
         auto window = gWindowManager.createWindow(this, new IO(), "BomberWorm");
 
-        ConfigNode config = gFramework.loadConfig("bomberworm");
+        ConfigNode config = gConf.loadConfig("bomberworm");
         const nPlayers = 1;
         for (int n = 0; n < nPlayers; n++) {
             auto p = new Player();

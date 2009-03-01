@@ -30,7 +30,7 @@ class FMODSound : DriverSound {
 
     this(DriverSoundData data) {
         debug Stdout.formatln("Load sound {}",data.filename);
-        mSourceSt = gFramework.fs.open(data.filename);
+        mSourceSt = gFS.open(data.filename);
         mType = data.type;
         //I'm assuming SoundType.sfx means load into memory, SoundType.music
         //  means streaming (xxx maybe rename those flags)

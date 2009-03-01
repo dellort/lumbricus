@@ -1,7 +1,6 @@
-module framework.restypes.sound;
+module common.restypes.sound;
 
-import framework.resources;
-import framework.filesystem;
+import common.resources;
 import framework.framework;
 import framework.sound;
 import stdx.stream;

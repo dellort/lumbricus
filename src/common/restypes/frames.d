@@ -1,12 +1,12 @@
-module framework.restypes.frames;
+module common.restypes.frames;
 
 //import common.animation;
 
+import common.resfileformats;
+import common.resources;
+import common.restypes.atlas;
 import framework.drawing;
-import framework.resfileformats;
 import framework.framework;
-import framework.resources;
-import framework.restypes.atlas;
 import utils.configfile;
 import utils.misc;
 import utils.rect2;
@@ -23,7 +23,7 @@ struct AnimationParams {
     int p1, p2;
 }
 
-//for some derived classes see framework.restypes.frames
+//for some derived classes see common.restypes.frames
 abstract class Animation {
     public /+private+/ {
         const int cDefFrameTimeMS = 50;
@@ -242,7 +242,7 @@ class AniFramesResource : ResourceItem {
         auto node = mConfig;
         auto atlas = castStrict!(Atlas)(mContext.find(node["atlas"]).get());
         mContents = new AniFrames(atlas,
-            gFramework.fs.open(mContext.fixPath(node["datafile"])));
+            gFS.open(mContext.fixPath(node["datafile"])));
     }
 
     static this() {

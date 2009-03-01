@@ -16,7 +16,7 @@ import gui.console;
 import gui.wm;
 import common.common;
 import common.loadsave;
-import framework.resources;
+import common.resources;
 import common.task;
 import utils.time;
 import utils.configfile;
@@ -31,9 +31,9 @@ import gc = utils.gcabstr;
 import stdx.stream : File, FileMode;
 
 //import all restypes because of the factories (more for debugging...)
-import framework.restypes.bitmap;
-import framework.restypes.atlas;
-import framework.restypes.frames;
+import common.restypes.bitmap;
+import common.restypes.atlas;
+import common.restypes.frames;
 
 //ZOrders!
 //only for the stuff managed by TopLevel
@@ -160,9 +160,9 @@ private:
         onVideoInit(false);
 
         keybindings = new KeyBindings();
-        keybindings.loadFrom(gFramework.loadConfig("binds").getSubNode("binds"));
+        keybindings.loadFrom(gConf.loadConfig("binds").getSubNode("binds"));
 
-        ConfigNode autoexec = gFramework.loadConfig("autoexec");
+        ConfigNode autoexec = gConf.loadConfig("autoexec");
         if (globals.programArgs.findNode("exec")) {
             autoexec = globals.programArgs.getSubNode("exec");
         }
@@ -329,7 +329,7 @@ private:
         auto file = new File("res.txt", FileMode.OutNew);
         write = new StreamOutput(file);
         int count;
-        gFramework.resources.enumResources(
+        gResources.enumResources(
             (char[] full, ResourceItem res) {
                 write.writefln("Full={}, Id={}", full, res.id);
                 write.writefln(" loaded={},", res.isLoaded);
@@ -342,14 +342,14 @@ private:
 
     private void cmdResUnload(MyBox[] args, Output write) {
         //can crash; see unloadUnneeded() for details
-        gFramework.resources.unloadUnneeded();
+        gResources.unloadUnneeded();
     }
 
     private void cmdResLoad(MyBox[] args, Output write) {
         char[] s = args[0].unbox!(char[])();
         //xxx: catching any exception can be dangerous
         try {
-            gFramework.resources.loadResources(s);
+            gResources.loadResources(s);
         } catch (Exception e) {
             write.writefln("failed: {}", e);
         }
@@ -492,12 +492,12 @@ private:
         } else {
             //no filename, generate one
             int i;
-            filename = gFramework.fs.getUniqueFilename(cScreenshotDir,
+            filename = gFS.getUniqueFilename(cScreenshotDir,
                 activeWindow?"window-"~wndTitle~"{}":"screen{}", ".png", i);
         }
 
         scope surf = gFramework.screenshot();
-        scope ssFile = gFramework.fs.open(filename, FileMode.OutNew);
+        scope ssFile = gFS.open(filename, FileMode.OutNew);
         scope(exit) ssFile.close();  //no close on delete? strange...
         if (activeWindow) {
             //copy out area of active window
@@ -776,9 +776,9 @@ import gui.scrollbar;
 //maybe until better configfile and GUI stuff is available
 //(maybe configfile schema, generic handling of datatypes)
 class SwitchDriver : Task {
-    char[][] configs = ["enable_caching", "mark_alpha", "open_gl",
-        "gl_debug_wireframe", "font_packer", "lowquality", "rle",
-        "enable_sound"];
+    char[][] configs = ["sdl.enable_caching", "sdl.mark_alpha", "sdl.open_gl",
+        "sdl.gl_debug_wireframe", "sdl.font_packer", "sdl.lowquality",
+        "sdl.rle"];
 
     Button[] mChks;
 
@@ -806,7 +806,11 @@ class SwitchDriver : Task {
 
     void onApply(Button sender) {
         ConfigNode node = new ConfigNode();
-        node["driver"] = "sdl";
+        auto drvNode = node.getSubNode("drivers");
+        //xxx: implement better driver configuration
+        drvNode["base"] = "sdl";
+        drvNode["font"] = "freetype";
+        drvNode["sound"] = "null";
         foreach (int index, b; mChks) {
             node.setStringValueByPath(configs[index], b.checked ? "true" : "false");
         }
@@ -852,12 +856,12 @@ class LogConfig : Task {
     }
 
     void onSave(Button sender) {
-        ConfigNode config = gFramework.loadConfig("logging");
+        ConfigNode config = gConf.loadConfig("logging");
         auto logs = config.getSubNode("logs");
         foreach (char[] name, Log log; gAllLogs) {
             logs.setValue!(bool)(name, !log.stfu);
         }
-        saveConfig(config, "logging.conf");
+        gConf.saveConfig(config, "logging.conf");
     }
 
     void addLogs() {

@@ -1,7 +1,8 @@
 module game.levelgen.landscape;
 
 import framework.framework;
-import framework.resset;
+import common.resources;
+import common.resset;
 import game.animation;
 import utils.configfile;
 public import game.levelgen.renderer;
@@ -45,7 +46,7 @@ class LandscapeTheme {
 
     //corresponds to "landscape" node in a level theme
     this(ConfigNode node) {
-        ResourceSet res = gFramework.resources.loadResSet(node);
+        ResourceSet res = gResources.loadResSet(node);
 
         void load(char[] name, out Surface s, out Color c) {
             s = res.get!(Surface)(node[name ~ "_tex"], true);

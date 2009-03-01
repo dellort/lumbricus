@@ -2,8 +2,8 @@ module game.gfxset;
 
 import common.animation;
 import framework.framework;
-import framework.resset;
-import framework.resources : ResourceObject, addToResourceSet;
+import common.resset;
+import common.resources : gResources, ResourceObject, addToResourceSet;
 //import game.sequence : loadSequences; //only for loading grr
 import utils.color;
 import utils.configfile;
@@ -54,12 +54,12 @@ class GfxSet {
 
         resources = new ResourceSet();
 
-        config = gFramework.resources.loadConfigForRes(gfxId ~ ".conf");
+        config = gResources.loadConfigForRes(gfxId ~ ".conf");
         addGfxSet(config);
 
-        auto waterfile = gFramework.resources.loadConfigForRes("water/"
+        auto waterfile = gResources.loadConfigForRes("water/"
             ~ watername ~ "/water.conf");
-        auto watergfx = gFramework.resources.loadResources(waterfile);
+        auto watergfx = gResources.loadResources(waterfile);
         addToResourceSet(resources, watergfx.getAll());
 
         waterColor.parse(waterfile["color"]);
@@ -69,7 +69,7 @@ class GfxSet {
 
     void addGfxSet(ConfigNode conf) {
         //resources
-        auto resfile = gFramework.resources.loadResources(conf);
+        auto resfile = gResources.loadResources(conf);
         addToResourceSet(resources, resfile.getAll());
         //sequences
         addSequenceNode(conf.getSubNode("sequences"));

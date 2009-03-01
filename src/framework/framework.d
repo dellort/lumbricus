@@ -6,15 +6,13 @@ public import framework.enums;
 public import framework.drawing;
 public import framework.event;
 public import framework.keybindings;
-public import framework.resset; //rly?
 public import framework.sound;
+public import framework.font;
+public import framework.filesystem;
 public import utils.color;
 public import utils.rect2;
 public import utils.vector2;
 
-import framework.filesystem;
-import framework.font;
-import framework.resources;
 import utils.configfile;
 import utils.factory;
 import utils.log;
@@ -102,8 +100,6 @@ abstract class FrameworkDriver {
     ///sleep for a specific time (grr, Phobos doesn't provide this)
     abstract void sleepTime(Time relative);
 
-    abstract FontDriver fontDriver();
-
     ///for debugging
     abstract char[] getDriverInfo();
 
@@ -163,22 +159,6 @@ struct SurfaceData {
 //dear compiler, you should always inline this
 bool pixelIsTransparent(Color.RGBA32* p) {
     return p.a == 0;
-}
-
-abstract class DriverFont {
-    //w == int.max for unlimited text
-    abstract Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text);
-    abstract Vector2i textSize(char[] text, bool forceHeight);
-
-    //useful debugging infos lol
-    abstract char[] getInfos();
-}
-
-abstract class FontDriver {
-    abstract DriverFont createFont(FontProperties props);
-    abstract void destroyFont(inout DriverFont handle);
-    //invalidates all fonts
-    abstract int releaseCaches();
 }
 
 //**** the Framework
@@ -530,9 +510,7 @@ class Framework {
         //misc singletons, lol
         FontManager mFontManager;
         Sound mSound;
-        FileSystem mFilesystem;
         Log mLog;
-        Log mLogConf;
 
         Time mFPSLastTime;
         uint mFPSFrameCount;
@@ -551,12 +529,11 @@ class Framework {
         PerfTimer[char[]] mTimers;
 
         CacheReleaseDelegate[] mCacheReleasers;
+
+        FontDriver mFontDriver;
     }
 
-    //what the shit
-    Resources resources;
-
-    this(char[] arg0, char[] appId, ConfigNode fwconfig) {
+    this(ConfigNode fwconfig) {
         mLog = registerLog("Fw");
 
         if (gFramework !is null) {
@@ -568,26 +545,27 @@ class Framework {
         gFonts = new typeof(gFonts);
         gSounds = new typeof(gSounds);
 
-        mFilesystem = new FileSystem(arg0, appId);
-        resources = new Resources();
-
         mKeyStateMap.length = Keycode.max - Keycode.min + 1;
 
         mFontManager = new FontManager();
         mSound = new Sound();
 
-        auto driver_config = new ConfigNode();
-        driver_config["driver"] = "sdl";
-        driver_config["open_gl"] = "true";
-        driver_config["gl_debug_wireframe"] = "false";
-        driver_config.mixinNode(fwconfig.getSubNode("driver"), true);
-        replaceDriver(driver_config);
+        replaceDriver(fwconfig);
     }
 
-    private void replaceDriver(ConfigNode driver) {
-        char[] name = driver.getStringValue("driver");
-        if (!FrameworkDriverFactory.exists(name)) {
-            throw new Exception("doesn't exist: " ~ name);
+    private void replaceDriver(ConfigNode config) {
+        ConfigNode drivers = config.getSubNode("drivers");
+        if (!FrameworkDriverFactory.exists(drivers["base"])) {
+            throw new Exception("Base driver doesn't exist: "
+                ~ drivers["base"]);
+        }
+        if (!FontDriverFactory.exists(drivers["font"])) {
+            throw new Exception("Font driver doesn't exist: "
+                ~ drivers["font"]);
+        }
+        if (!SoundDriverFactory.exists(drivers["sound"])) {
+            throw new Exception("Sound driver doesn't exist: "
+                ~ drivers["sound"]);
         }
         //deinit old driver
         VideoWindowState vstate;
@@ -595,13 +573,21 @@ class Framework {
         if (mDriver) {
             vstate = mDriver.getVideoWindowState();
             istate = mDriver.getInputState();
-            mSound.beforeKill();
             killDriver();
         }
         //new driver
-        mDriver = FrameworkDriverFactory.instantiate(name, this, driver);
+        mDriver = FrameworkDriverFactory.instantiate(drivers["base"], this,
+            config.getSubNode(drivers["base"]));
+        //init font driver
+        mFontDriver = FontDriverFactory.instantiate(drivers["font"], mFontManager,
+            config.getSubNode(drivers["font"]));
+        //init sound
+        mSound.reinit(SoundDriverFactory.instantiate(drivers["sound"], mSound,
+            config.getSubNode(drivers["sound"])));
+
         mDriver.setVideoWindowState(vstate);
         mDriver.setInputState(istate);
+
         mLog("reloaded driver");
     }
 
@@ -622,8 +608,17 @@ class Framework {
     }
 
     private void killDriver() {
+        //xxx: does this do anything that could not be done
+        //     during cache release?
+        mSound.beforeKill();
         releaseCaches(true);
         assert(mDriverSurfaces.length == 0);
+
+        mSound.close();
+
+        mFontDriver.destroy();
+        mFontDriver = null;
+
         mDriver.destroy();
         mDriver = null;
     }
@@ -638,7 +633,7 @@ class Framework {
     }*/
 
     package FontDriver fontDriver() {
-        return mDriver.fontDriver();
+        return mFontDriver;
     }
 
     int driverFeatures() {
@@ -687,7 +682,7 @@ class Framework {
 
     Surface loadImage(char[] path, Transparency t = Transparency.AutoDetect) {
         mLog("load image: {}", path);
-        scope stream = fs.open(path, FileMode.In);
+        scope stream = gFS.open(path, FileMode.In);
         auto image = loadImage(stream, t);
         return image;
     }
@@ -1106,66 +1101,6 @@ class Framework {
         mDriver.setVideoWindowState(state);
     }
 
-    final FileSystem fs() {
-        return mFilesystem;
-    }
-
-    /*final Resources resources() {
-        return mResources;
-    }*/
-
-    ConfigNode loadConfig(char[] section, bool asfilename = false,
-        bool allowFail = false)
-    {
-        char[] fnConf = section ~ (asfilename ? "" : ".conf");
-        VFSPath file = VFSPath(fnConf);
-        VFSPath fileGz = VFSPath(fnConf~".gz");
-        bool gzipped;
-        if (!fs.exists(file) && fs.exists(fileGz)) {
-            //found gzipped file instead of original
-            file = fileGz;
-            gzipped = true;
-        }
-        mLog("load config: {}", file);
-        char[] data;
-        try {
-            Stream stream = fs.open(file);
-            scope (exit) { if (stream) stream.close(); }
-            assert (!!stream);
-            data = stream.readString(stream.size());
-        } catch (FilesystemException e) {
-            if (!allowFail)
-                throw e;
-            goto error;
-        }
-        if (gzipped) {
-            try {
-                data = cast(char[])gunzipData(cast(ubyte[])data);
-            } catch (ZlibException e) {
-                if (!allowFail)
-                    throw new Exception("Decompression failed: "~e.msg);
-                goto error;
-            }
-        }
-        //xxx: if parsing fails? etc.
-        auto f = new ConfigFile(data, file.get(), &logconf);
-        if (!f.rootnode)
-            throw new Exception("?");
-        return f.rootnode;
-
-    error:
-        mLog("config file {} failed to load (allowFail = true)", file);
-        return null;
-    }
-
-    private void logconf(char[] log) {
-        if (!mLogConf) {
-            mLogConf = registerLog("configfile");
-            assert(mLogConf !is null);
-        }
-        mLogConf("{}", log);
-    }
-
     PerfTimer[char[]] timers() {
         return mTimers;
     }
@@ -1206,6 +1141,7 @@ class Framework {
             count += r();
         }
         count += mDriver.releaseCaches();
+        count += mFontDriver.releaseCaches();
         count += releaseDriverFonts();
         count += releaseDriverSurfaces();
         count += releaseDriverSounds(force);
@@ -1314,4 +1250,3 @@ class Framework {
 
 alias StaticFactory!("Drivers", FrameworkDriver, Framework,
     ConfigNode) FrameworkDriverFactory;
-

@@ -149,7 +149,7 @@ class GameFrame : SimpleContainer {
         gDefaultLog("initializeGameGui");
 
         auto wormbinds = new KeyBindings();
-        wormbinds.loadFrom(gFramework.loadConfig("wormbinds").getSubNode("binds"));
+        wormbinds.loadFrom(gConf.loadConfig("wormbinds").getSubNode("binds"));
 
         mGui = new SimpleContainer();
         //needed because I messed up input handling

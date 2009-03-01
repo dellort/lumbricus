@@ -1,5 +1,6 @@
 module game.weapon.actions;
 
+import common.resset;
 import framework.framework;
 import game.game;
 import game.gobject;

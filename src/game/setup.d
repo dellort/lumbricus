@@ -3,6 +3,7 @@ module game.setup;
 ///should contain stuff for configuring a game before GameTask is spawned
 ///currently, only GameConfig setup and savegame utility functions
 
+import common.common;
 import framework.framework;
 import game.gametask;
 import game.gamepublic;
@@ -31,7 +32,7 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
             cfg.level = gen.render();
         } else if (what == 1) {
             cfg.level = loadSavedLevel(x,
-                gFramework.loadConfig(mConfig["level_load"], true));
+                gConf.loadConfig(mConfig["level_load"], true));
         } else if (what == 2) {
             auto gen = new GenerateFromBitmap(x);
             auto fn = mConfig["level_load_bitmap"];
@@ -48,12 +49,12 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
 
     cfg.saved_level = cfg.level.saved;
 
-    auto teamconf = gFramework.loadConfig("teams");
+    auto teamconf = gConf.loadConfig("teams");
     cfg.teams = teamconf.getSubNode("teams");
 
     cfg.levelobjects = mConfig.getSubNode("levelobjects");
 
-    auto gamemodecfg = gFramework.loadConfig("gamemode");
+    auto gamemodecfg = gConf.loadConfig("gamemode");
     auto modes = gamemodecfg.getSubNode("modes");
     cfg.gamemode = modes.getSubNode(
         mConfig.getStringValue("gamemode",""));

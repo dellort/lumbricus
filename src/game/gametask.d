@@ -3,8 +3,8 @@ module game.gametask;
 import common.common;
 import common.task;
 import common.loadsave;
-import framework.resources;
-import framework.resset;
+import common.resources;
+import common.resset;
 import framework.commandline;
 import framework.framework;
 import framework.filesystem;
@@ -166,7 +166,7 @@ class GameTask : StatefulTask {
         createWindow();
 
         //sorry for this hack... definitely needs to be cleaned up
-        ConfigNode node = gFramework.loadConfig("newgame");
+        ConfigNode node = gConf.loadConfig("newgame");
         node.setBoolValue("as_pseudo_server", args == "pseudonet");
         initGame(loadGameConfig(node));
     }
@@ -232,7 +232,7 @@ class GameTask : StatefulTask {
 
         //save last played level functionality
         if (mGameConfig.level.saved) {
-            saveConfig(mGameConfig.level.saved, "lastlevel.conf");
+            gConf.saveConfig(mGameConfig.level.saved, "lastlevel.conf");
         }
 
         mGameConfig.level = fuzzleLevel(mGameConfig.level);
@@ -412,7 +412,7 @@ class GameTask : StatefulTask {
             loadWeaponSets();
 
             //load all items in reslist
-            mResPreloader = gFramework.resources.createPreloader(mGfx.resources);
+            mResPreloader = gResources.createPreloader(mGfx.resources);
             mLoadScreen.secondaryActive = true;
         }
         mLoadScreen.secondaryCount = mResPreloader.totalCount();
@@ -435,13 +435,13 @@ class GameTask : StatefulTask {
         foreach (char[] ws; mGameConfig.weaponsets) {
             char[] dir = "weapons/"~ws;
             //load set.conf as gfx set (resources and sequences)
-            auto conf = gFramework.resources.loadConfigForRes(dir
+            auto conf = gResources.loadConfigForRes(dir
                 ~ "/set.conf");
             mGfx.addGfxSet(conf);
             //load mapping file matching gfx set, if it exists
             auto mappingsNode = conf.getSubNode("mappings");
             char[] mappingFile = mappingsNode.getStringValue(mGfx.gfxId);
-            auto mapConf = gFramework.loadConfig(dir~"/"~mappingFile,true,true);
+            auto mapConf = gConf.loadConfig(dir~"/"~mappingFile,true,true);
             if (mapConf) {
                 mGfx.addSequenceNode(mapConf.getSubNode("sequences"));
             }
@@ -735,7 +735,7 @@ class GameTask : StatefulTask {
         if (!mServerEngine)
             return;
         char[] filename = args[0].unbox!(char[])();
-        Stream s = gFramework.fs.open(filename, FileMode.OutNew);
+        Stream s = gFS.open(filename, FileMode.OutNew);
         mServerEngine.gameLandscapes[0].image.saveImage(s);
         s.close();
     }
@@ -802,7 +802,7 @@ class GameTask : StatefulTask {
         //char[] res = dumpGraph(serialize_types, mServerEngine, mExternalObjects);
         //std.file.write("dump_graph.dot", res);
         //ConfigNode cfg = saveGame();
-        //saveConfig(cfg, "savegame.conf");
+        //gConf.saveConfig(cfg, "savegame.conf");
     }
 
     const cSaveId = "lumbricus";
