@@ -20,6 +20,7 @@ ConfigManager gConf() {
 //  to put it), access via gConf
 private class ConfigManager {
     private LogStruct!("configfile") logConf;
+    private LogStruct!("configerror") logError;
 
     this() {
         assert(!gConfigMgr, "singleton");
@@ -60,18 +61,18 @@ private class ConfigManager {
             }
         }
         //xxx: if parsing fails? etc.
-        auto f = new ConfigFile(data, file.get(), &doLogconf);
+        auto f = new ConfigFile(data, file.get(), &doLogError);
         if (!f.rootnode)
             throw new Exception("?");
         return f.rootnode;
 
     error:
-        logConf("config file {} failed to load (allowFail = true)", file);
+        logError("config file {} failed to load (allowFail = true)", file);
         return null;
     }
 
-    private void doLogconf(char[] log) {
-        logConf("{}", log);
+    private void doLogError(char[] log) {
+        logError("{}", log);
     }
 
     //arrgh

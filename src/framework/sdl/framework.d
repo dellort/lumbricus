@@ -351,9 +351,6 @@ class SDLDriver : FrameworkDriver {
 
         bool glWireframeDebug;
 
-        //for font.d
-        bool mUseFontPacker;
-
         //hurhurhur
         PerfTimer mDrawTime, mClearTime, mFlipTime, mInputTime, mWasteTime;
     }
@@ -380,8 +377,6 @@ class SDLDriver : FrameworkDriver {
         mOpenGL = config.getBoolValue("open_gl", true);
         mOpenGL_LowQuality = config.getBoolValue("lowquality", false);
         glWireframeDebug = config.getBoolValue("gl_debug_wireframe", false);
-
-        mUseFontPacker = config.getBoolValue("font_packer", true);
 
         sdlInit();
 

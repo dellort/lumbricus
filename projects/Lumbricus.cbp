@@ -13,7 +13,7 @@
 				<Option object_output="..\bin\obj\" />
 				<Option type="1" />
 				<Option compiler="dmd" />
-				<Option parameters="--fw.drivers.base=blabla" />
+				<Option parameters="--fw.drivers.sound=fmod" />
 				<Option projectResourceIncludeDirsRelation="0" />
 				<MakeCommands>
 					<Build command="make build T=lumbricus" />
@@ -238,6 +238,7 @@
 		<Unit filename="..\src\gui\scrollwindow.d" />
 		<Unit filename="..\src\gui\splitter.d" />
 		<Unit filename="..\src\gui\tablecontainer.d" />
+		<Unit filename="..\src\gui\tabs.d" />
 		<Unit filename="..\src\gui\test.d" />
 		<Unit filename="..\src\gui\widget.d" />
 		<Unit filename="..\src\gui\window.d" />

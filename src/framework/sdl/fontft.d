@@ -91,7 +91,7 @@ class FTGlyphCache {
         if (mUnderlineHeight < 1)
             mUnderlineHeight = 1;
 
-        if (gSDLDriver.mUseFontPacker) {
+        if (mDriver.useFontPacker) {
             //all fonts into one packer, saves texture memory
             mPacker = driver.getPacker();
         }
@@ -391,9 +391,11 @@ class FTFontDriver : FontDriver {
         TexturePack mPacker;
         FontManager fontManager;
     }
+    bool useFontPacker;
 
     this(FontManager mgr, ConfigNode config) {
         fontManager = mgr;
+        useFontPacker = config.getBoolValue("font_packer", true);
         Derelict_SetMissingProcCallback(&missingProcCb);
         DerelictFT.load();
         Derelict_SetMissingProcCallback(null);

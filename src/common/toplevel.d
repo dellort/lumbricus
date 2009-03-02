@@ -777,8 +777,8 @@ import gui.scrollbar;
 //(maybe configfile schema, generic handling of datatypes)
 class SwitchDriver : Task {
     char[][] configs = ["sdl.enable_caching", "sdl.mark_alpha", "sdl.open_gl",
-        "sdl.gl_debug_wireframe", "sdl.font_packer", "sdl.lowquality",
-        "sdl.rle"];
+        "sdl.gl_debug_wireframe", "sdl.lowquality",
+        "sdl.rle", "freetype.font_packer"];
 
     Button[] mChks;
 
