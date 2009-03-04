@@ -412,7 +412,7 @@ class WormSprite : GObjectSprite {
     }
 
     //fire (or refire) the selected weapon (mWeapon)
-    bool fire(bool keyUp = false) {
+    bool fire(bool keyUp = false, bool selectedOnly = false) {
         if (allowFireSecondary()) {
             //secondary fire is possible, so do that instead
             //  (main weapon could only be refired here)
@@ -433,6 +433,8 @@ class WormSprite : GObjectSprite {
 
         //not firing a secondary weapon, allow main fire key for alternate, too
         if (mShooterMain && mShooterMain.activity()) {
+            if (selectedOnly && mShooterMain.weapon !is mWeapon)
+                return true;
             if (!keyUp) {
                 return refireWeapon(mShooterMain);
             }
@@ -547,10 +549,13 @@ class WormSprite : GObjectSprite {
             info.pointto = physics.pos;
         sh.ammoCb = &reduceAmmo;
         sh.finishCb = &shooterFinish;
+        //for wcontrol.firedWeapon: sh.fire might complete in one call and
+        //  reset sh
+        auto shTmp = sh;
         sh.fire(info);
 
         if (wcontrol)
-            wcontrol.firedWeapon(sh, false);
+            wcontrol.firedWeapon(shTmp, false);
     }
 
     private bool refireWeapon(Shooter sh) {
@@ -579,11 +584,19 @@ class WormSprite : GObjectSprite {
                     setState(wsc.st_stand);
             }
         }
+        if (wcontrol)
+            wcontrol.doneFiring(sh);
+        if (sh is mShooterMain)
+            mShooterMain = null;
+        if (sh is mShooterSec)
+            mShooterSec = null;
+        //main shooter (e.g. jetpack) finishes while secondary (e.g. sheep)
+        //still active -> swap them
+        if (!mShooterMain && mShooterSec)
+            swap(mShooterMain, mShooterSec);
         //shooter is done, so check if we need to switch animation
         setCurrentAnimation();
         updateTargetCross();
-        if (wcontrol)
-            wcontrol.doneFiring(sh);
     }
 
     private void updateTargetCross() {

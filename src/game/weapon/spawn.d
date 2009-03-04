@@ -11,6 +11,7 @@ import game.weapon.projectile;
 import utils.configfile;
 import utils.reflection;
 import utils.vector2;
+import utils.randval;
 
 import math = tango.math.Math;
 
@@ -34,7 +35,7 @@ struct SpawnParams {
     bool backFire = false;  //spawn projectiles away from surface
                             //overrides  */
     Vector2f direction ={0f, -1f};//intial moving direction, affects spawn point
-    float strength = 0;  //initial moving speed into above direction
+    RandomFloat strength;  //initial moving speed into above direction
     char[] initState = "";  //override sprite initstate (careful with that)
 
     bool loadFromConfig(ConfigNode config) {
@@ -56,7 +57,7 @@ struct SpawnParams {
                 initVelocity = InitVelocity.parent;
         }
         direction = config.getValue("direction", direction);
-        strength = config.getFloatValue("strength_value", strength);
+        strength = RandomFloat(config.getStringValue("strength_value", "0"));
         initState = config.getStringValue("initstate", initState);
         return true;
     }
@@ -74,6 +75,7 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
 {
     //assert(shootby !is null);
     assert(n >= 0 && n < params.count);
+    params.strength.rnd = engine.rnd;
 
     GObjectSprite sprite = engine.createSprite(params.projectile);
     sprite.createdBy = shootbyObject;
@@ -82,13 +84,13 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
         case InitVelocity.fixed:
             //use values from config file, not from FireInfo
             about.dir = params.direction;
-            about.strength = params.strength;
+            about.strength = params.strength.sample();
             break;
         case InitVelocity.backfire:
             //use configured strength, but throw projectiles back along
             //surface normal
             about.dir = about.surfNormal;
-            about.strength = params.strength;
+            about.strength = params.strength.sample();
             break;
         default:
             //use strength/direction from FireInfo

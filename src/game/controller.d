@@ -169,7 +169,7 @@ class ClientControlImpl : ClientControl {
             if (m) {
                 m.selectWeaponByClass(wc);
                 //doFireDown will save the keypress and wait if not ready
-                m.doFireDown();
+                m.doFireDown(true);
             }
         } else {
             //key was released (like fire behavior)
@@ -879,7 +879,7 @@ class ServerTeamMember : TeamMember, WormController {
             success = mWorm.fireAlternate();
             wormAction();
         } else {
-            success = worm.fire();
+            success = worm.fire(false, forceSelected);
         }
         //don't forget a keypress that had no effect
         mFireDown = !success;
@@ -945,6 +945,7 @@ class ServerTeamMember : TeamMember, WormController {
     }
 
     void firedWeapon(Shooter sh, bool refire) {
+        assert(!!sh);
         mTeam.parent.events.onFireWeapon(sh.weapon, refire);
     }
 
