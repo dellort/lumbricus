@@ -74,7 +74,7 @@ class TexturePack {
 
     private class Packer {
         BoxPacker mPacker;
-        Surface[] mSurfaces;
+        Surface[] mPages, mSurfaces;
 
         this() {
             mPacker = new BoxPacker();
@@ -85,22 +85,24 @@ class TexturePack {
             auto size = s.size;
             if (size.x > mPacker.pageSize.x || size.y > mPacker.pageSize.y) {
                 //too big, make an exception
-                //don't add the Surface to mSurfaces, because when we add the
-                //original Surface s, it will get free'd with free()
-                //xxx: or should we copy them...? I think we should (who cares)
-                return TextureRef(s, Vector2i(0), size);
+                //adhere to copy semantics even here, although it seems extra
+                //work (but the caller might free s after adding it)
+                auto surface = s.clone();
+                mSurfaces ~= s;
+                return TextureRef(surface, Vector2i(0), size);
             }
             Block* b = mPacker.getBlock(size);
             assert(!!b);  //never happens?
             //check if the BoxPacker added a page and possibly create it
-            while (mPacker.pages.length > mSurfaces.length) {
-                auto cur = mSurfaces.length;
+            while (mPacker.pages.length > mPages.length) {
+                auto cur = mPages.length;
                 auto surface = gFramework.createSurface(mDefaultSize,
                     s.transparency, s.getColorkey());
                 surface.enableCaching = false;
                 mSurfaces ~= surface;
+                mPages ~= surface;
             }
-            auto dest = mSurfaces[b.page];
+            auto dest = mPages[b.page];
             dest.copyFrom(s, b.origin, Vector2i(0), size);
             return TextureRef(dest, b.origin, size);
         }

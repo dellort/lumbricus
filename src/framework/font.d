@@ -89,7 +89,7 @@ class Font {
     /// returns position beyond last drawn glyph
     Vector2i drawText(Canvas canvas, Vector2i pos, char[] text) {
         prepare();
-        return mFont.draw(canvas, pos, int.max, text);
+        return drawTextLimited(canvas, pos, int.max, text);
     }
 
     /// like drawText(), but try not to draw beyond "width"
@@ -98,7 +98,21 @@ class Font {
         char[] text)
     {
         prepare();
-        return mFont.draw(canvas, pos, width, text);
+        if (width == int.max) {
+            return mFont.draw(canvas, pos, width, text);
+        } else {
+            Vector2i s = textSize(text, true);
+            if (s.x <= width) {
+                return mFont.draw(canvas, pos, width, text);
+            } else {
+                char[] dotty = "...";
+                int ds = textSize(dotty, true).x;
+                width -= ds;
+                pos = mFont.draw(canvas, pos, width, text);
+                pos = mFont.draw(canvas, pos, ds, dotty);
+                return pos;
+            }
+        }
     }
 
     /// same for UTF-32

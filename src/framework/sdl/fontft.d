@@ -308,30 +308,6 @@ class FTFont : DriverFont {
         mUseGL = gSDLDriver.mOpenGL;
     }
 
-    Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text) {
-        /+if (mUseGL) {
-            glPushAttrib(GL_CURRENT_BIT);
-        }
-        scope(exit) if (mUseGL) {
-            glPopAttrib();
-        }+/
-        if (w == int.max) {
-            return drawText(canvas, pos, w, text);
-        } else {
-            Vector2i s = textSize(text, true);
-            if (s.x <= w) {
-                return drawText(canvas, pos, w, text);
-            } else {
-                char[] dotty = "...";
-                int ds = textSize(dotty, true).x;
-                w -= ds;
-                pos = drawText(canvas, pos, w, text);
-                pos = drawText(canvas, pos, ds, dotty);
-                return pos;
-            }
-        }
-    }
-
     private void drawGlyph(Canvas c, GlyphData* glyph, Vector2i pos) {
         void setColor(Color c) {
             if (mUseGL)
@@ -353,7 +329,13 @@ class FTFont : DriverFont {
         setColor(Color(1, 1, 1));
     }
 
-    private Vector2i drawText(Canvas canvas, Vector2i pos, int w, char[] text) {
+    Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text) {
+        /+if (mUseGL) {
+            glPushAttrib(GL_CURRENT_BIT);
+        }
+        scope(exit) if (mUseGL) {
+            glPopAttrib();
+        }+/
         int orgx = pos.x;
         foreach (dchar c; text) {
             auto glyph = mCache.getGlyph(c);
