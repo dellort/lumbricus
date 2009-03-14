@@ -292,7 +292,7 @@ class FileSystem {
         char[] mAppId;
         char[] mAppPath;
         char[] mUserPath;
-        char[][] mDataPaths;
+        char[] mDataPath;
         MountedPath[] mMountedPaths;
 
         static MountPointHandler[] mHandlers;
@@ -370,18 +370,9 @@ class FileSystem {
         mUserPath = getUserPath();
         version(FSDebug) log("PUser = '{}'",mUserPath);
 
-        //data paths: app directory + special dirs on linux
-        mDataPaths = null;
-        version(linux) {
-            mDataPaths ~= "/usr/local/share/" ~ mAppId ~ "/";
-            mDataPaths ~= "/usr/share/" ~ mAppId ~ "/";
-        }
-        mDataPaths ~= mAppPath;
-        //XXX really? this could cause problems if app is in C:\Program Files
-        mDataPaths ~= mAppPath ~ "../data/";
-        debug foreach(p; mDataPaths) {
-            version(FSDebug) log("PData = '{}'",p);
-        }
+        //data path: prefix/share/appId
+        mDataPath ~= mAppPath ~ "../share/" ~ mAppId ~ "/";
+        version(FSDebug) log("PData = '{}'", mDataPath);
     }
 
     //find array index after which to insert new MountedPath with precedence
@@ -425,11 +416,7 @@ class FileSystem {
         char[] absPath;
         switch (mp) {
             case MountPath.data:
-                foreach (char[] p; mDataPaths) {
-                    absPath = p ~ sysPath;
-                    if (tpath.exists(absPath))
-                        break;
-                }
+                absPath = mDataPath ~ sysPath;
                 break;
             case MountPath.user:
                 absPath = mUserPath ~ sysPath;
@@ -481,6 +468,11 @@ class FileSystem {
         bool writable, uint precedence = 0)
     {
         return tryMount(mp, path, VFSPath(mountPoint), writable, precedence);
+    }
+
+    ///Reset all mounts and links and start from scratch
+    public void reset() {
+        mMountedPaths = null;
     }
 
     ///Create a symbolic link from mountPoint to relPath

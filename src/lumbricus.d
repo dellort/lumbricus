@@ -106,10 +106,7 @@ void main(char[][] args) {
 
     //init filesystem
     auto fs = new FileSystem(args[0], APP_ID);
-    fs.mount(MountPath.data, "locale/", "/locale/", false, 2);
-    fs.tryMount(MountPath.data, "data2/", "/", false, 2);
-    fs.mount(MountPath.data, "data/", "/", false, 3);
-    fs.mount(MountPath.user, "/", "/", true, 0);
+    initFSMounts();
 
     //commandline switch: --data=some/dir/to/data
     char[] extradata = cmdargs["data"];
@@ -131,6 +128,44 @@ void main(char[][] args) {
     fw.deinitialize();
 
     Stdout.formatln("Bye!");
+}
+
+//temp-mount user and data dir, read mount.conf and setup mounts from there
+//xxx probably move somewhere else (needs common/config.d, so no filesystem.d ?)
+void initFSMounts() {
+    //temporary mounts to read mount.conf
+    gFS.reset();
+    gFS.mount(MountPath.data, "/", "/", false, 0);
+    auto mountConf = gConf.loadConfig("mount");
+
+    gFS.reset();
+    //user's mount.conf will not override, but add to internal paths
+    gFS.mount(MountPath.user, "/", "/", false, 0);
+    ConfigNode mountConfUser;
+    if (gFS.exists("mount.conf"))
+        mountConfUser = gConf.loadConfig("mount");
+    //clear temp mounts
+    gFS.reset();
+
+    void readMountConf(ConfigNode mconfig) {
+        foreach (ConfigNode node; mountConf) {
+            char[] physPath = node["path"];
+            char[] mp = node["mountpoint"];
+            MountPath type = cast(MountPath)node.selectValueFrom("type",
+                ["data", "user", "absolute"], 2);
+            int prio = node.getValue!(int)("priority", 0);
+            bool writable = node.getValue!(bool)("writable", false);
+            bool optional = node.getValue!(bool)("optional", false);
+            if (optional) {
+                gFS.tryMount(type, physPath, mp, writable, prio);
+            } else {
+                gFS.mount(type, physPath, mp, writable, prio);
+            }
+        }
+    }
+    readMountConf(mountConf);
+    if (mountConfUser)
+        readMountConf(mountConfUser);
 }
 
 //godawful primitive commandline parser
