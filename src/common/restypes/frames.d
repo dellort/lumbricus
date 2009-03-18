@@ -1,7 +1,5 @@
 module common.restypes.frames;
 
-//import common.animation;
-
 import common.resfileformats;
 import common.resources;
 import common.restypes.atlas;

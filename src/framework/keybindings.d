@@ -1,6 +1,7 @@
 module framework.keybindings;
 
-import framework.framework;
+import framework.keysyms;
+import framework.event;
 import config = utils.configfile;
 import utils.vector2;
 import str = stdx.string;
@@ -93,12 +94,12 @@ public class KeyBindings {
     {
         foreach (char[] s; str.split(bindstr)) {
             Modifier mod;
-            if (gFramework.stringToModifier(s, mod)) {
+            if (stringToModifier(s, mod)) {
                 out_mods |= (1<<mod);
             } else {
                 if (out_code != Keycode.INVALID)
                     return false;
-                out_code = gFramework.translateKeyIDToKeycode(s);
+                out_code = translateKeyIDToKeycode(s);
                 if (out_code == Keycode.INVALID)
                     return false;
             }
@@ -108,10 +109,10 @@ public class KeyBindings {
     //undo parseBindString, return bindstr
     public char[] unparseBindString(Keycode code, ModifierSet mods) {
         char[][] stuff;
-        stuff = [gFramework.translateKeycodeToKeyID(code)];
+        stuff = [translateKeycodeToKeyID(code)];
         for (Modifier mod = Modifier.min; mod <= Modifier.max; mod++) {
             if (modifierIsSet(mods, mod))
-                stuff ~= gFramework.modifierToString(mod);
+                stuff ~= modifierToString(mod);
         }
         return str.join(stuff, " ");
     }

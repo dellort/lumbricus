@@ -694,59 +694,6 @@ class Framework {
 
     //--- key stuff
 
-    /// translate a Keycode to a OS independent key ID string
-    /// return null for Keycode.KEY_INVALID
-    char[] translateKeycodeToKeyID(Keycode code) {
-        foreach (KeycodeToName item; g_keycode_to_name) {
-            if (item.code == code) {
-                return item.name;
-            }
-        }
-        return null;
-    }
-
-    /// reverse operation of translateKeycodeToKeyID()
-    Keycode translateKeyIDToKeycode(char[] keyid) {
-        foreach (KeycodeToName item; g_keycode_to_name) {
-            if (item.name == keyid) {
-                return item.code;
-            }
-        }
-        return Keycode.INVALID;
-    }
-
-    char[] modifierToString(Modifier mod) {
-        switch (mod) {
-            case Modifier.Alt: return "mod_alt";
-            case Modifier.Control: return "mod_ctrl";
-            case Modifier.Shift: return "mod_shift";
-        }
-    }
-
-    bool stringToModifier(char[] str, out Modifier mod) {
-        switch (str) {
-            case "mod_alt": mod = Modifier.Alt; return true;
-            case "mod_ctrl": mod = Modifier.Control; return true;
-            case "mod_shift": mod = Modifier.Shift; return true;
-            default:
-        }
-        return false;
-    }
-
-    char[] keyinfoToString(KeyInfo infos) {
-        char[] res = myformat("key={} ('{}') unicode='{}'", cast(int)infos.code,
-            translateKeycodeToKeyID(infos.code), infos.unicode);
-
-        //append all modifiers
-        for (Modifier mod = Modifier.min; mod <= Modifier.max; mod++) {
-            if ((1<<mod) & infos.mods) {
-                res ~= myformat(" [{}]", modifierToString(mod));
-            }
-        }
-
-        return res;
-    }
-
     private void updateKeyState(in KeyInfo infos, bool state) {
         assert(infos.code >= Keycode.min && infos.code <= Keycode.max);
         mKeyStateMap[infos.code - Keycode.min] = state;

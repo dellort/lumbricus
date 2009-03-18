@@ -726,7 +726,7 @@ class TestTask4 : Task {
         }
 
         override void onKeyEvent(KeyInfo info) {
-            log.writefln("{}: {} {}", this, info, gFramework.keyinfoToString(info));
+            log.writefln("{}: {}", this, info.toString());
             if (info.isDown() && info.code == Keycode.MOUSE_RIGHT)
                 gFramework.mouseLocked = !gFramework.mouseLocked;
         }

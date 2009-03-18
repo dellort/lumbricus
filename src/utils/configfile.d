@@ -37,12 +37,13 @@ bool parseVector(T)(char[] s, inout Vector2!(T) value) {
 }
 
 //returns false: conversion failed, value is unmodified
-public bool parseInt(char[] s, inout int value) {
+public bool parseInt(T)(char[] s, inout T value) {
+    static assert(is(T : int));
     try {
         //tango.text.convert.Integer.toInt() parses an empty string as 0
         if (s.length == 0)
             return false;
-        value = conv.to!(int)(s);
+        value = conv.to!(T)(s);
         return true;
     } catch (conv.ConversionException e) {
     }
@@ -600,8 +601,8 @@ public class ConfigNode {
             } else {
                 //read all (unnamed) subnodes
                 auto res = new T2[mItems.length];
-                foreach (ConfigNode n; mItems) {
-                    res ~= n.getCurValue!(T2)(T2.def);
+                foreach (int idx, ConfigNode n; mItems) {
+                    res[idx] = n.getCurValue!(T2)(T2.init);
                 }
                 return res;
             }

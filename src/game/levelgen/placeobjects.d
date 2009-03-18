@@ -1,7 +1,7 @@
 module game.levelgen.placeobjects;
 
 import game.levelgen.landscape;
-import game.levelgen.level : writeMarker, parseMarker, readVector;
+import game.levelgen.level : writeMarker, parseMarker;
 import game.levelgen.renderer;
 import framework.framework;
 import utils.random;
@@ -19,15 +19,15 @@ struct PlaceCommand {
     Lexel after;
 
     void saveTo(ConfigNode node) {
-        node["at"] = myformat("{} {}", at.x, at.y);
-        node["size"] = myformat("{} {}", size.x, size.y);
+        node.setValue("at", at);
+        node.setValue("size", size);
         node["before"] = writeMarker(before);
         node["after"] = writeMarker(after);
     }
 
     void loadFrom(ConfigNode node) {
-        at = readVector(node["at"]);
-        size = readVector(node["size"]);
+        at = node.getValue!(Vector2i)("at");
+        size = node.getValue!(Vector2i)("size");
         before = parseMarker(node["before"]);
         after = parseMarker(node["after"]);
     }

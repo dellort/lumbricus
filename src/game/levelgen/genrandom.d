@@ -1,7 +1,6 @@
 module game.levelgen.genrandom;
 
-import game.levelgen.level : Lexel, readVector, parseMarker, readPointList,
-    readUIntList, writeMarker, writePointList, writeUIntList;
+import game.levelgen.level : Lexel, parseMarker, writeMarker;
 import utils.array : arrayMap;
 import utils.vector2;
 import utils.mylist;
@@ -49,7 +48,7 @@ public class LandscapeGeometry {
     }
 
     void loadFrom(ConfigNode node) {
-        size = readVector(node.getStringValue("size", "1200 700"));
+        size = node.getValue("size", Vector2i(1200,700));
 
         char[] markerId = node.getStringValue("fill_marker", "free");
         fill = parseMarker(markerId);
@@ -58,9 +57,9 @@ public class LandscapeGeometry {
         polygons = null;
         foreach(char[] name, ConfigNode polygon; polys) {
             LandscapeGeometry.Polygon p;
-            p.points = readPointList(polygon.getSubNode("points"));
+            p.points = polygon.getValue!(Vector2i[])("points");
 
-            p.nochange = readUIntList(polygon.getSubNode("nochange"));
+            p.nochange = polygon.getValue!(uint[])("nochange");
             p.marker = parseMarker(polygon.getStringValue("marker"));
             p.visible = polygon.getBoolValue("visible", true);
             p.changeable = polygon.getBoolValue("changeable", true);
@@ -82,8 +81,8 @@ public class LandscapeGeometry {
         polys.clear();
         foreach (Polygon p; polygons) {
             ConfigNode sub = polys.addUnnamedNode();
-            writePointList(sub.getSubNode("points"), p.points);
-            writeUIntList(sub.getSubNode("nochange"), p.nochange);
+            sub.setValue("points", p.points);
+            sub.setValue("nochange", p.nochange);
             sub.setBoolValue("visible", p.visible);
             sub.setBoolValue("changeable", p.changeable);
             //sub.setStringValue("texoffset", myformat("%a %s",

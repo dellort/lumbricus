@@ -118,7 +118,6 @@ class POSP {
     //(currently only collisionID)
     protected bool needUpdate = true;
 
-    //xxx sorry, but this avoids another circular reference
     void loadFromConfig(ConfigNode node)
     {
         elasticity = node.getFloatValue("elasticity", elasticity);
@@ -128,8 +127,7 @@ class POSP {
             windInfluence);
         explosionInfluence = node.getFloatValue("explosion_influence",
             explosionInfluence);
-        fixate = readVector(node.getStringValue("fixate", myformat("{} {}",
-            fixate.x, fixate.y)));
+        fixate = node.getValue("fixate", fixate);
         damageUnfixate = node.getBoolValue("damage_unfixate", damageUnfixate);
         glueForce = node.getFloatValue("glue_force", glueForce);
         walkingSpeed = node.getFloatValue("walking_speed", walkingSpeed);
@@ -149,9 +147,8 @@ class POSP {
             fallDamageFactor);
         fallDamageIgnoreX = node.getBoolValue("fall_damage_ignore_x",
             fallDamageIgnoreX);
-        velocityConstraint = readVector(node.getStringValue(
-            "velocity_constraint", myformat("{} {}", velocityConstraint.x,
-            velocityConstraint.y)));
+        velocityConstraint = node.getValue("velocity_constraint",
+            velocityConstraint);
         speedLimit = node.getFloatValue("speed_limit", speedLimit);
         jetpackLooking = node.getBoolValue("jetpack_looking", jetpackLooking);
         thrust = node.getFloatValue("thrust", thrust);
@@ -166,8 +163,8 @@ class POSP {
         collisionID = node.getStringValue("collide");
     }
 
-    POSP copy() {
-        auto other = new POSP();
+    typeof(this) copy() {
+        auto other = new typeof(this)();
         foreach (int n, m; this.tupleof) {
             other.tupleof[n] = m;
         }
@@ -178,16 +175,4 @@ class POSP {
     }
     this (ReflectCtor c) {
     }
-}
-
-//xxx duplicated from generator.d
-private Vector2f readVector(char[] s) {
-    char[][] items = str.split(s);
-    if (items.length != 2) {
-        throw new Exception("invalid point value");
-    }
-    Vector2f pt;
-    pt.x = to!(float)(items[0]);
-    pt.y = to!(float)(items[1]);
-    return pt;
 }

@@ -6,7 +6,6 @@ import game.levelgen.level;
 import game.levelgen.renderer;
 import game.levelgen.genrandom;
 import game.levelgen.placeobjects;
-import game.animation;
 import common.restypes.bitmap;
 import framework.framework;
 import framework.filesystem;
@@ -383,7 +382,7 @@ class GenerateFromTemplate : LevelGenerator {
 
         mUnrendered = new Level();
 
-        mUnrendered.worldSize = readVector(node["world_size"]);
+        mUnrendered.worldSize = node.getValue!(Vector2i)("world_size");
         mUnrendered.airstrikeAllow = node.getBoolValue("airstrike_allow");
         mUnrendered.airstrikeY = node.getIntValue("airstrike_y");
         mUnrendered.waterBottomY = node.getIntValue("water_bottom_y");
@@ -411,7 +410,7 @@ class GenerateFromTemplate : LevelGenerator {
                 mUnrendered.objects ~= land;
                 land.owner = mUnrendered;
                 land.name = onode.name;
-                land.position = readVector(onode["position"]);
+                land.position = onode.getValue!(Vector2i)("position");
                 Land l2 = new Land();
                 mLand[land.name] = l2;
                 l2.placeObjects = onode.getBoolValue("allow_place_objects",

@@ -3,9 +3,7 @@ module game.levelgen.landscape;
 import framework.framework;
 import common.resources;
 import common.resset;
-import game.animation;
 import utils.configfile;
-public import game.levelgen.renderer;
 
 //LEvel ELement
 //collection of flags (yup, it's a bitfield now)

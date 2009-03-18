@@ -5,6 +5,7 @@ import framework.framework;
 import common.resources;
 import common.resset;
 import game.levelgen.landscape;
+import game.levelgen.renderer;
 import utils.configfile;
 import utils.color;
 import utils.misc;
@@ -167,7 +168,6 @@ class LevelLandscape : LevelItem {
 //xxx these should be moved away, they really don't belong here
 package:
 
-import tango.util.Convert;
 import str = stdx.string;
 
 private static char[][] marker_strings = ["FREE", "LAND", "SOLID_LAND"];
@@ -186,56 +186,4 @@ Lexel parseMarker(char[] value) {
 
 char[] writeMarker(Lexel v) {
     return marker_strings[v];
-}
-
-Vector2i readVector(char[] s) {
-    //whatever
-    Vector2i pt;
-    if (!parseVector(s, pt))
-        throw new Exception("invalid vector string '"~s~"'");
-    return pt;
-}
-
-//some of this stuff maybe should be moved into configfile.d
-//practically a map over ConfigNode *g*
-T[] readList(T)(ConfigNode node, T delegate(char[] item) translate) {
-    T[] res;
-    //(the name isn't needed (and should be empty))
-    foreach(char[] name, char[] value; node) {
-        T item = translate(value);
-        res ~= item;
-    }
-    return res;
-}
-
-Vector2i[] readPointList(ConfigNode node) {
-    return readList!(Vector2i)(node, (char[] item) {
-        //a bit inefficient, but that doesn't matter
-        //(as long as nobody puts complete vector graphics there...)
-        // ^ update: yes we do! generated levels...
-        return readVector(item);
-    });
-}
-uint[] readUIntList(ConfigNode node) {
-    return readList!(uint)(node, (char[] item) {
-        return to!(uint)(item);
-    });
-}
-
-void writeList(T)(ConfigNode to, T[] stuff, char[] delegate(T item) translate) {
-    to.clear();
-    foreach(T s; stuff) {
-        to.setStringValue("", translate(s));
-    }
-}
-
-void writePointList(ConfigNode node, Vector2i[] stuff) {
-    writeList!(Vector2i)(node, stuff, (Vector2i item) {
-        return myformat("{} {}", item.x, item.y);
-    });
-}
-void writeUIntList(ConfigNode node, uint[] stuff) {
-    writeList!(uint)(node, stuff, (uint item) {
-        return str.toString(item);
-    });
 }

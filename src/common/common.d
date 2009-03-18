@@ -146,12 +146,10 @@ class Common {
     char[] translateKeyshortcut(Keycode code, ModifierSet mods) {
         if (!localizedKeynames)
             return "?";
-        char[] res = localizedKeynames(
-            gFramework.translateKeycodeToKeyID(code), "?");
+        char[] res = localizedKeynames(translateKeycodeToKeyID(code), "?");
         foreachSetModifier(mods,
             (Modifier mod) {
-                res = localizedKeynames(
-                    gFramework.modifierToString(mod), "?") ~ "+" ~ res;
+                res = localizedKeynames(modifierToString(mod), "?") ~ "+" ~ res;
             }
         );
         return res;
