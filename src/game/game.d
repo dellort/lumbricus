@@ -1,15 +1,11 @@
 module game.game;
 import game.levelgen.level;
 import game.levelgen.landscape;
-import game.animation;
 import game.gobject;
 import physics.world;
 import game.gfxset;
 import game.glevel;
 import game.sprite;
-import game.water;
-import game.sky;
-//import game.scene;
 import common.common;
 import game.controller;
 import game.weapon.weapon;
@@ -25,15 +21,11 @@ import utils.perf;
 import utils.random;
 import utils.reflection;
 import framework.framework;
-import framework.keysyms;
 import framework.timesource;
 import common.resset;
 import tango.math.Math;
 
 import game.levelgen.renderer;// : LandscapeBitmap;
-
-import game.worm;
-import game.crate;
 
 //code to manage a game session (hm, whatever this means)
 //reinstantiated on each "round"
@@ -46,6 +38,7 @@ class GameEngine : GameEnginePublic {
     GameLandscape[] gameLandscapes;
     PhysicZonePlane waterborder;
     PhysicZonePlane deathzone;
+    private WaterSurfaceGeometry mWaterBouncer;
 
     GfxSet gfx;
 
@@ -260,6 +253,8 @@ class GameEngine : GameEnginePublic {
     private void waterChangerUpdate(float val) {
         mCurrentWaterLevel = val;
         waterborder.plane.define(Vector2f(0, val), Vector2f(1, val));
+        //why -5? a) it looks better, b) objects won't drown accidentally
+        mWaterBouncer.plane.define(Vector2f(0, val-5), Vector2f(1, val-5));
     }
 
     this(GameConfig config, GfxSet a_gfx) {
@@ -297,6 +292,8 @@ class GameEngine : GameEnginePublic {
         wb.onTrigger = &underWaterTrigger;
         wb.collision = physicworld.collide.findCollisionID("water");
         physicworld.add(wb);
+        mWaterBouncer = new WaterSurfaceGeometry();
+        physicworld.add(mWaterBouncer);
         //Stokes's drag force
         physicworld.add(new ForceZone(new StokesDragFixed(5.0f), waterborder));
         //xxx additional object-attribute controlled Stokes's drag

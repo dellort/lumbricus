@@ -5,18 +5,16 @@ module game.setup;
 
 import common.common;
 import framework.framework;
-import game.gametask;
 import game.gamepublic;
 import game.levelgen.level;
 import game.levelgen.generator;
 import utils.configfile;
 import utils.misc;
-import utils.archive;
 
 //xxx doesn't really belong here
 //not to be called by GameTask; instead, anyone who wants to start a game can
 //call this to the params out from a configfile
-//GameTask shoiuld not be responsible to choose any game configuration for you
+//GameTask should not be responsible to choose any game configuration for you
 GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
     //log("loadConfig");
     GameConfig cfg = new GameConfig();

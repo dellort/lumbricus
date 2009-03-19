@@ -17,6 +17,7 @@ import gui.scrollwindow;
 import gui.splitter;
 import gui.loader;
 import gui.tabs;
+import gui.progress;
 import common.common;
 import common.task;
 import common.visual;
@@ -852,5 +853,57 @@ class OffByOneTest : Task {
     }
     static this() {
         TaskFactory.register!(typeof(this))("offbyone");
+    }
+}
+
+class FoobarTest : Task {
+    private Label mLabel;
+    private Foobar mFoo;
+    private ScrollBar mBar1, mBar2;
+
+    private void onScroll(ScrollBar sender) {
+        float p = cast(float)mBar1.curValue/mBar1.maxValue;
+        mLabel.text = myformat("{}/{}", p, mBar2.curValue);
+        mFoo.percent = p;
+        mFoo.minSize = Vector2i(mBar2.curValue, 0);
+    }
+
+    this(TaskManager tm, char[] args = "") {
+        super(tm);
+
+        auto box = new BoxContainer(false, false, 10);
+
+        mLabel = new Label();
+        mLabel.drawBorder = false;
+        box.add(mLabel);
+
+        mBar1 = new ScrollBar(true);
+        mBar1.maxValue = 100;
+        mBar1.largeChange = 10;
+        mBar1.onValueChange = &onScroll;
+        box.add(mBar1);
+
+        mBar2 = new ScrollBar(true);
+        mBar2.maxValue = 200;
+        mBar2.largeChange = 10;
+        mBar2.onValueChange = &onScroll;
+        box.add(mBar2);
+
+        mFoo = new Foobar();
+        mFoo.fill = Color(1, 0.5, 0);
+        mFoo.border.border = Color(0.7);
+        mFoo.border.back = Color(0);
+        mFoo.border.cornerRadius = 3;
+        WidgetLayout lay; //expand in y, but left-align in x
+        lay.alignment[0] = 0;
+        lay.expand[0] = false;
+        box.add(mFoo, lay);
+
+        onScroll(mBar1);
+
+        gWindowManager.createWindow(this, box, "Foobar", Vector2i(200, 150));
+    }
+    static this() {
+        TaskFactory.register!(typeof(this))("foobartest");
     }
 }

@@ -8,7 +8,7 @@ import common.resset : Resource;
 import framework.timesource;
 import game.animation;
 import game.gfxset : TeamTheme;
-import game.glevel;
+//import game.glevel;
 import game.weapon.types;
 //import game.weapon.weapon;
 import game.levelgen.level;

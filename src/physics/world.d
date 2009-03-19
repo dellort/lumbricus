@@ -188,8 +188,10 @@ class PhysicWorld {
                     o.needUpdate();
                 }
             }
-            //call collide event handler
-            collide.callCollide(mContacts[i]); //call collision handler
+            if (!mContacts[i].noCallHandler) {
+                //call collide event handler
+                collide.callCollide(mContacts[i]); //call collision handler
+            }
         }
         //clear list of contacts
         mContactCount = 0;
@@ -296,13 +298,12 @@ class PhysicWorld {
     }
 
     bool collideObjectWithGeometry(PhysicObject o, out GeomContact contact,
-        bool entendRadius = false)
+        bool extendRadius = false)
     {
         bool collided = false;
         foreach (PhysicGeometry gm; mGeometryObjects) {
             GeomContact ncont;
-            if (collide.canCollide(o, gm) && gm.collide(o.pos,
-                o.posp.radius+(entendRadius?4:0), ncont))
+            if (collide.canCollide(o, gm) && gm.collide(o, extendRadius, ncont))
             {
                 //kind of hack for LevelGeometry
                 //if the pos didn't change at all, but a collision was

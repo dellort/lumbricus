@@ -26,7 +26,7 @@ class Foobar : Widget {
     }
 
     Vector2i layoutSizeRequest() {
-        return Vector2i(0, xpadding*2);
+        return Vector2i(xpadding*2);
     }
 
     //border on the left and right
