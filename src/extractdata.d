@@ -12,6 +12,7 @@ import stdx.string : tolower, split, replace;
 
 import utils.filetools;
 import utils.configfile;
+import utils.path;
 import wwpdata.animation;
 import wwpdata.common;
 import wwpdata.reader_img;
@@ -183,25 +184,26 @@ int main(char[][] args)
             usageerror = true;
         }
     }
-    if (args.length < 3 || usageerror) {
+    if (args.length < 2 || usageerror) {
         Stdout(
-`Syntax: extractdata [options] <importDir> <wormsMainDir> [<outputDir>]
-    <importDir>: your-svn-root/trunk/lumbricus/data/wimport
-    <wormsMainDir>: worms main dir, e.g. where your wwp.exe is
-    <outputDir>: where to write stuff to (default is current dir, but it really
-                 should be your-svn-root/trunk/lumbricus/data/data2
+`Syntax: extractdata [options] <wormsMainDir> [<outputDir>]
+    <wormsMainDir>: worms main dir, i.e. where your wwp.exe is
+    <outputDir>: where to write stuff to (defaults to
+                 prefix/share/lumbricus/data2 )
 Options:
     -T  don't extract/convert/write level themes`).newline;
         return 1;
     }
+    char[] appPath = getAppPath(args[0]);
     char[] outputDir;
-    if (args.length >= 4)
-        outputDir = args[3];
+    if (args.length >= 3)
+        outputDir = args[2];
     else
-        outputDir = ".";
+        outputDir = appPath ~ "../share/lumbricus/data2";
     trymkdir(outputDir);
     //try {
-        do_extractdata(args[1], args[2], outputDir, nolevelthemes);
+        do_extractdata(appPath ~ "../share/lumbricus/wimport", args[1],
+            outputDir, nolevelthemes);
     //} catch (Exception e) {
     //    writefln("Error: %s",e.msg);
     //}

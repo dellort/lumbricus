@@ -8,7 +8,7 @@
 		<Option compiler="dmd" />
 		<Build>
 			<Target title="Debug">
-				<Option output="..\bin\tools\animutil" prefix_auto="1" extension_auto="1" />
+				<Option output="..\bin\animutil" prefix_auto="1" extension_auto="1" />
 				<Option working_dir="..\bin" />
 				<Option object_output="..\bin\obj\" />
 				<Option type="1" />
@@ -22,7 +22,7 @@
 				</MakeCommands>
 			</Target>
 			<Target title="Release">
-				<Option output="..\bin\tools\animutil" prefix_auto="1" extension_auto="1" />
+				<Option output="..\bin\animutil" prefix_auto="1" extension_auto="1" />
 				<Option working_dir="..\bin" />
 				<Option object_output="..\bin\obj\" />
 				<Option type="1" />

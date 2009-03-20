@@ -1,7 +1,6 @@
 module game.weapon.projectile;
 
 import framework.framework;
-import game.animation;
 import physics.world;
 import game.action;
 import game.actionsprite;

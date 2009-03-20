@@ -9,8 +9,8 @@
 		<Option compiler="dmd" />
 		<Build>
 			<Target title="Debug">
-				<Option output="..\bin\tools\extractdata" prefix_auto="1" extension_auto="1" />
-				<Option working_dir="..\bin\tools" />
+				<Option output="..\bin\extractdata" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="..\bin" />
 				<Option object_output="obj\" />
 				<Option type="1" />
 				<Option compiler="dmd" />
@@ -19,11 +19,13 @@
 					<CompileFile command="" />
 					<Clean command="make clean" />
 					<DistClean command="" />
+					<AskRebuildNeeded command="$make -q -f $makefile $target" />
+					<SilentBuild command="$make -s -f $makefile $target" />
 				</MakeCommands>
 			</Target>
 			<Target title="Release">
-				<Option output="..\bin\tools\extractdata" prefix_auto="1" extension_auto="1" />
-				<Option working_dir="..\bin\tools" />
+				<Option output="..\bin\extractdata" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="..\bin" />
 				<Option object_output="obj\" />
 				<Option type="1" />
 				<Option compiler="dmd" />
@@ -32,15 +34,18 @@
 					<CompileFile command="" />
 					<Clean command="make clean" />
 					<DistClean command="" />
+					<AskRebuildNeeded command="$make -q -f $makefile $target" />
+					<SilentBuild command="$make -s -f $makefile $target" />
 				</MakeCommands>
 			</Target>
 		</Build>
 		<Unit filename="..\src\aconv\atlaspacker.d" />
+		<Unit filename="..\src\common\resfileformats.d" />
 		<Unit filename="..\src\devil\image.d" />
 		<Unit filename="..\src\extractdata.d" />
-		<Unit filename="..\src\framework\resfileformats.d" />
 		<Unit filename="..\src\utils\configfile.d" />
 		<Unit filename="..\src\utils\filetools.d" />
+		<Unit filename="..\src\utils\path.d" />
 		<Unit filename="..\src\wwpdata\animation.d" />
 		<Unit filename="..\src\wwpdata\common.d" />
 		<Unit filename="..\src\wwpdata\decompression.d" />

@@ -3,8 +3,6 @@ module framework.filesystem;
 import str = stdx.string;
 import stdx.stream;
 import tango.util.PathUtil;
-import tfs = tango.io.FileSystem;
-import tango.io.FilePath;
 import tpath = tango.io.Path;
 import tango.core.Exception : IOException;
 import utils.misc;
@@ -26,20 +24,6 @@ private Log log;
 //xxx: not needed anymore, logs are enabled or disabled by a runtime mechanism
 //or so I thought
 //version = FSDebug;
-
-///add OS-dependant path delimiter to pathStr, if not there
-public char[] addTrailingPathDelimiter(char[] pathStr) {
-version(Windows) {
-    if (pathStr[$-1] != '/' && pathStr[$-1] != '\\') {
-        pathStr ~= '/';
-    }
-} else {
-    if (pathStr[$-1] != '/') {
-        pathStr ~= '/';
-    }
-}
-    return pathStr;
-}
 
 class FilesystemException : Exception {
     this(char[] m) {
@@ -306,24 +290,6 @@ class FileSystem {
         initPaths(arg0);
     }
 
-    ///Return path to application's executable file, with trailing '/'
-    protected char[] getAppPath(char[] arg0) {
-        char[] appPath;
-        //on win and lin, args[0] is the (sometimes relative to cwd, sometimes
-        //  absolute) path to the executable
-        char[] curDir = addTrailingPathDelimiter(tfs.FileSystem.getDirectory());
-        auto exePath = new FilePath(arg0);
-        if (exePath.isAbsolute()) {
-            //sometimes, the path is absolute
-            appPath = exePath.path;
-        } else {
-            appPath = normalize(FilePath.join(curDir, exePath.path));
-        }
-
-        appPath = addTrailingPathDelimiter(appPath);
-        return appPath;
-    }
-
     ///Returns path to '.<appId>' in user's home directory
     ///Created if not existant
     ///Assuming mAppPath is already initalized
@@ -523,7 +489,8 @@ class FileSystem {
             if (p.matchesPath(filename) && p.matchesMode(mode)) {
                 version(FSDebug) log("Found matching handler");
                 VFSPath handlerPath = p.getHandlerPath(filename);
-                if (p.handler.exists(handlerPath) || mode == FileMode.OutNew) {
+                if (p.handler.exists(handlerPath)
+                    || (mode & FileMode.OutNew) == FileMode.OutNew) {
                     //the file exists, or a new file should be created
                     return p.handler.open(handlerPath, mode);
                 }

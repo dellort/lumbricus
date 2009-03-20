@@ -4,7 +4,7 @@ import devil.image;
 import str = stdx.string;
 import stdx.stream;
 import wwpdata.common;
-import framework.resfileformats : FileAtlas, FileAtlasTexture;
+import common.resfileformats : FileAtlas, FileAtlasTexture;
 import utils.boxpacker;
 import utils.configfile;
 import utils.output;

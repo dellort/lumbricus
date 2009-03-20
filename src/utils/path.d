@@ -3,6 +3,9 @@ module utils.path;
 import str = stdx.string;
 import tango.io.model.IFile : FileConst;
 import path = tango.io.Path;
+import tfs = tango.io.FileSystem;
+import tango.util.PathUtil;
+import tango.io.FilePath;
 
 char[] getFilePath(char[] fullname)
     out (result)
@@ -22,6 +25,38 @@ char[] getFilePath(char[] fullname)
         }
         return fullname[0 .. i];
     }
+
+///add OS-dependant path delimiter to pathStr, if not there
+char[] addTrailingPathDelimiter(char[] pathStr) {
+version(Windows) {
+    if (pathStr[$-1] != '/' && pathStr[$-1] != '\\') {
+        pathStr ~= '/';
+    }
+} else {
+    if (pathStr[$-1] != '/') {
+        pathStr ~= '/';
+    }
+}
+    return pathStr;
+}
+
+///Return path to application's executable file, with trailing '/'
+char[] getAppPath(char[] arg0) {
+    char[] appPath;
+    //on win and lin, args[0] is the (sometimes relative to cwd, sometimes
+    //  absolute) path to the executable
+    char[] curDir = addTrailingPathDelimiter(tfs.FileSystem.getDirectory());
+    auto exePath = new FilePath(arg0);
+    if (exePath.isAbsolute()) {
+        //sometimes, the path is absolute
+        appPath = exePath.path;
+    } else {
+        appPath = normalize(FilePath.join(curDir, exePath.path));
+    }
+
+    appPath = addTrailingPathDelimiter(appPath);
+    return appPath;
+}
 
 ///encapsulates a platform-independant VFS path
 ///inspired by tango.io.FilePath, but will remove all platform-dependency

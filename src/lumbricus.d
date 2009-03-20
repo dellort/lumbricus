@@ -88,6 +88,10 @@ const cCommandLineHelp =
 //Also see parseCmdLine() for how parsing works.
 
 void main(char[][] args) {
+    //buffer log, until FileSystem is initialized
+    auto logtmp = new StringOutput();
+    gLogEverything.destination = logtmp;
+
     //xxx
     rand_seed(1);
 
@@ -101,12 +105,16 @@ void main(char[][] args) {
         return;
     }
 
-    gLogEverything.destination = new StreamOutput(new File("logall.txt",
-        FileMode.In | FileMode.OutNew));
-
     //init filesystem
     auto fs = new FileSystem(args[0], APP_ID);
     initFSMounts();
+
+    //open logfile in user dir
+    auto logf = gFS.open("/logall.txt", FileMode.In | FileMode.OutNew);
+    auto logstr = new StreamOutput(logf);
+    //write buffered log
+    logstr.writeString(logtmp.text);
+    gLogEverything.destination = logstr;
 
     //commandline switch: --data=some/dir/to/data
     char[] extradata = cmdargs["data"];

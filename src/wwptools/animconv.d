@@ -11,7 +11,7 @@ import utils.output;
 import wwpdata.animation;
 import wwpdata.reader_bnk;
 
-public import framework.resfileformats;
+public import common.resfileformats;
 
 import tango.io.model.IFile : FileConst;
 const pathsep = FileConst.PathSeparatorChar;

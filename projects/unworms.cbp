@@ -9,8 +9,8 @@
 		<Option compiler="dmd" />
 		<Build>
 			<Target title="Debug">
-				<Option output="..\bin\tools\unworms" prefix_auto="1" extension_auto="1" />
-				<Option working_dir="..\bin\tools" />
+				<Option output="..\bin\unworms" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="..\bin" />
 				<Option object_output="obj\" />
 				<Option type="1" />
 				<Option compiler="dmd" />
@@ -22,8 +22,8 @@
 				</MakeCommands>
 			</Target>
 			<Target title="Release">
-				<Option output="..\bin\tools\unworms" prefix_auto="1" extension_auto="1" />
-				<Option working_dir="..\bin\tools" />
+				<Option output="..\bin\unworms" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="..\bin" />
 				<Option object_output="obj\" />
 				<Option type="1" />
 				<Option compiler="dmd" />
