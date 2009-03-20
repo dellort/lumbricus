@@ -8,6 +8,7 @@ import physics.base;
 import physics.contact;
 import physics.physobj;
 import physics.misc;
+import physics.plane;
 
 class PhysicConstraint : PhysicContactGen {
     PhysicObject obj;
@@ -142,5 +143,53 @@ class PhysicFixate : PhysicContactGen {
         c.restitution = 0;
 
         contactHandler(c);
+    }
+}
+
+
+//special geometry to make objects bounce like stones on a water surface
+//current implementation only works for horizontal surfaces
+class WaterSurfaceGeometry : PhysicCollider {
+    Plane plane;
+
+    this(float yPos) {
+        updatePos(yPos);
+    }
+    this() {
+    }
+
+    this (ReflectCtor c) {
+    }
+
+    void updatePos(float yPos) {
+        plane.define(Vector2f(0, yPos), Vector2f(1, yPos));
+    }
+
+    override protected void addedToWorld() {
+        //register fixed collision id "water_surface" on first call
+        collision = world.collide.findCollisionID("water_surface");
+    }
+
+    override bool collide(PhysicObject obj, CollideDelegate contactHandler) {
+        //xxx: only works for horizontal surface
+        float a = abs(obj.velocity.x) / obj.velocity.y;
+        //~20°
+        if (a > 2.7f) {
+            Vector2f n; float d;
+            bool ret = plane.collide(obj.pos, obj.posp.radius, n, d);
+            if (ret) {
+                Contact contact;
+                contact.fromObj(obj, null, n, d);
+                //no y speed reduction, or we get strange "sliding" effects
+                contact.restitution = 1.0f;
+                //don't blow up projectiles
+                contact.source = ContactSource.generator;
+                //xxx lol hack etc.: slow object down a little
+                obj.velocity_int.x *= 0.85f;
+                contactHandler(contact);
+            }
+            return ret;
+        }
+        return false;
     }
 }

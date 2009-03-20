@@ -254,7 +254,7 @@ class GameEngine : GameEnginePublic {
         mCurrentWaterLevel = val;
         waterborder.plane.define(Vector2f(0, val), Vector2f(1, val));
         //why -5? a) it looks better, b) objects won't drown accidentally
-        mWaterBouncer.plane.define(Vector2f(0, val-5), Vector2f(1, val-5));
+        mWaterBouncer.updatePos(val - 5);
     }
 
     this(GameConfig config, GfxSet a_gfx) {

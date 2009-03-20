@@ -39,6 +39,7 @@ class PhysicWorld {
     private List2!(PhysicObject) mObjects;
     private List2!(PhysicTrigger) mTriggers;
     private List2!(PhysicContactGen) mContactGenerators;
+    private List2!(PhysicCollider) mObjectColliders;
     private uint mLastTime;
 
     private PhysicObject[] mObjArr;
@@ -55,11 +56,12 @@ class PhysicWorld {
         c.transient(this, &mContacts);
         t.registerClasses!(typeof(mAllObjects), typeof(mForceObjects),
             typeof(mGeometryObjects), typeof(mObjects), typeof(mTriggers),
-            typeof(mContactGenerators));
+            typeof(mContactGenerators), typeof(mObjectColliders));
         t.registerClasses!(CollisionMap, PhysicConstraint, POSP,
             BPSortAndSweep, PhysicTimedChangerVector2f, PhysicBase,
             CollisionType, EarthQuakeForce, EarthQuakeDegrader,
-            PhysicObject, PhysicTimedChangerFloat, ZoneTrigger, PhysicFixate);
+            PhysicObject, PhysicTimedChangerFloat, ZoneTrigger, PhysicFixate,
+            WaterSurfaceGeometry);
         BroadPhase.registerstuff(c);
         PhysicZone.registerstuff(c);
         PhysicForce.registerstuff(c);
@@ -83,6 +85,8 @@ class PhysicWorld {
             o.triggers_node = mTriggers.insert_tail(o);
         if (auto o = cast(PhysicContactGen)obj)
             o.cgen_node = mContactGenerators.insert_tail(o);
+        if (auto o = cast(PhysicCollider)obj)
+            o.coll_node = mObjectColliders.insert_tail(o);
     }
 
     private void remove(PhysicBase obj) {
@@ -99,6 +103,8 @@ class PhysicWorld {
             mTriggers.remove(o.triggers_node);
         if (auto o = cast(PhysicContactGen)obj)
             mContactGenerators.remove(o.cgen_node);
+        if (auto o = cast(PhysicCollider)obj)
+            mObjectColliders.remove(o.coll_node);
     }
 
     private const cPhysTimeStepMs = 10;
@@ -147,6 +153,13 @@ class PhysicWorld {
             if (!me.isGlued) {
                 //check against geometry
                 checkGeometryCollisions(me, &handleContact);
+                foreach (PhysicCollider co; mObjectColliders) {
+                    //no collision if unwanted
+                    ContactHandling ch = collide.canCollide(me, co);
+                    if (ch == ContactHandling.none)
+                        continue;
+                    co.collide(me, &handleContact);
+                }
             }
 
             //check triggers
@@ -188,10 +201,8 @@ class PhysicWorld {
                     o.needUpdate();
                 }
             }
-            if (!mContacts[i].noCallHandler) {
-                //call collide event handler
-                collide.callCollide(mContacts[i]); //call collision handler
-            }
+            //call collide event handler
+            collide.callCollide(mContacts[i]); //call collision handler
         }
         //clear list of contacts
         mContactCount = 0;
@@ -458,6 +469,7 @@ class PhysicWorld {
         mGeometryObjects = new List2!(PhysicGeometry)();
         mTriggers = new List2!(PhysicTrigger)();
         mContactGenerators = new List2!(PhysicContactGen)();
+        mObjectColliders = new List2!(PhysicCollider)();
         mContacts.length = 1024;  //xxx arbitrary number
     }
 }

@@ -31,8 +31,6 @@ struct Contact {
     ///how this contact was generated
     ContactSource source = ContactSource.object;
 
-    bool noCallHandler = false;
-
     ///Fill data from a geometry collision
     //xxx unify this
     void fromGeom(GeomContact c, PhysicObject o) {
@@ -43,11 +41,7 @@ struct Contact {
         obj[0] = o;
         obj[1] = null;
         source = ContactSource.geometry;
-        if (!ieee.isNaN(c.restitutionOverride))
-            restitution = c.restitutionOverride;
-        else
-            restitution = obj[0].posp.elasticity;
-        noCallHandler = c.noCall;
+        restitution = obj[0].posp.elasticity;
     }
 
     void fromObj(PhysicObject obj1, PhysicObject obj2, Vector2f n, float d) {
@@ -199,4 +193,15 @@ class PhysicContactGen : PhysicBase {
     }
     this (ReflectCtor c) {
     }
+}
+
+class PhysicCollider : PhysicBase {
+    package ListNode coll_node;
+
+    this() {
+    }
+    this (ReflectCtor c) {
+    }
+
+    abstract bool collide(PhysicObject obj, CollideDelegate contactHandler);
 }
