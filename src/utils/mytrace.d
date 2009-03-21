@@ -3,6 +3,7 @@ module utils.mytrace;
 //this code in here is evil, twisted, SLOW, sick, hacky and dangerous
 //enable at own risk
 //the module will link itself into the Tango runtime using a module ctor
+//comment to disable this module
 debug version = EnableChainsaw;
 
 //gets cut after this number of entries in the backtrace
@@ -48,6 +49,7 @@ version (EnableDMDLinuxX86) {
     }
 
     static this() {
+        //to clearify: only when tracing from signals is involved (gSignalTrace)
         pragma(msg, MODULE_PREFIX ~ "hi, I'm not multithreading safe!");
 
         convert = new typeof(convert)();
@@ -79,13 +81,9 @@ version (EnableDMDLinuxX86) {
             info = do_backtrace(storage);
         }
 
-        override int opApply(int delegate(inout char[]) dg) {
+        override int opApply(int delegate(ref Exception.FrameInfo) dg) {
             foreach (ref record; info) {
-                char[cBacktraceLineBuffer] buffer;
-                auto txt = printTraceRecord(buffer, record);
-                auto res = dg(txt);
-                if (res)
-                    return res;
+                dg(traceRecordToFrameInfo(record, true));
             }
             return 0;
         }
@@ -95,63 +93,36 @@ version (EnableDMDLinuxX86) {
         }
     }
 
-    struct SPrint {
-        Layout!(char) convert;
-        bool dynalloc;
-        char[] storage;
-        char[] output;
-        uint write(char[] str) {
-            if (dynalloc) {
-                output ~= str;
-                return str.length;
-            }
-            if (output.length < storage.length) {
-                size_t pos = output.length;
-                size_t max = storage.length;
-                size_t npos = pos + str.length;
-                npos = npos > max ? max : npos;
-                storage[pos..npos] = str[0..npos-pos];
-                output = storage[0..npos];
-            }
-            return str.length;
-        }
-        void opCall(T...)(T args) {
-            convert.convert(&write, args);
-        }
-    }
-
-    //    n caller_address -offset_to_start<tab> unmangled
-    //storage: buffer used for formatting; but demangle will alloc memory anyway
-    char[] printTraceRecord(char[] storage, ref TraceRecord info,
-        bool demangle = true)
+    //traceback stores TraceRecords instead of FrameInfos, because TraceRecords
+    // are larger and require a slow symbol lookup
+    Exception.FrameInfo traceRecordToFrameInfo(TraceRecord info, bool demangle)
     {
-        SPrint print;
-        print.convert = convert;
-        print.storage = storage;
-        version (Demangler) {
-            print.dynalloc = true;
-        }
-        print("  ");
+        Exception.FrameInfo res;
         if (info.depth == TraceRecord.cInvalidDepth) {
             //termination record
-            print(" (more)");
+            //I don't know what else to return
+            res.func = "(more)";
         } else {
-            print("{,-3}  ", info.depth);
+            res.address = info.address;
             Elf32_Sym* psym = sym_find_by_address(info.address);
             if (!psym) {
-                print("0x{:x}\t [unknown]", info.address);
+                //?
+                res.func = "(unknown)";
             } else {
-                size_t offset = info.address - psym.st_value;
-                print("0x{:x} -{}", info.address, offset);
-                char* name = &gStrTab[psym.st_name];
-                char[] aname = name[0..strlen(name)];
+                ptrdiff_t offset = info.address - psym.st_value;
+                res.offset = offset; //I have no idea if this is correct
+                char* pname = &gStrTab[psym.st_name];
+                char[] name = pname[0..strlen(pname)];
                 version (Demangler) if (demangle) {
-                    aname = demangler.demangle(aname);
+                    //NOTE: depending on the Tango devs, Tango might demangle
+                    //      the function names by itself in future versions,
+                    //      and this could become unneeded
+                    name = demangler.demangle(name);
                 }
-                print("\t {}", aname);
+                res.func = name;
             }
         }
-        return print.output;
+        return res;
     }
 
     alias ushort Elf32_Half;
@@ -234,7 +205,7 @@ version (EnableDMDLinuxX86) {
 
         //find .symtab
         //on DMD/Linux, .symtab is mostly near the end of the section table
-        //so... search backwards :-)
+        //so... search backwards
         //if no .symtab is found, symtab_section will contain the NULL section
         Elf32_Shdr symtab_section;
         for (int n = header.e_shnum - 1; n >= 0; n--) {
@@ -358,9 +329,11 @@ version (EnableDMDLinuxX86) {
         fprintf(stderr, "%.*sSignal caught: %.*s\n", MODULE_PREFIX, signame);
         auto info = do_backtrace(gSignalTrace);
         foreach (i; info) {
-            char[cBacktraceLineBuffer] buffer = void;
-            char[] l = printTraceRecord(buffer, i, false);
-            fprintf(stderr, "%.*s\n", l);
+            auto fi = traceRecordToFrameInfo(i, false);
+            fi.writeOut((char[] s) {
+                fprintf(stderr, "%.*s", s);
+            });
+            fprintf(stderr, "\n");
         }
         fprintf(stderr, "%.*sabort().\n", MODULE_PREFIX);
         abort();

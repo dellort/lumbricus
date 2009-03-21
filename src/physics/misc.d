@@ -1,4 +1,4 @@
-module physics.posp;
+module physics.misc;
 
 import tango.util.Convert;
 import str = stdx.string;
