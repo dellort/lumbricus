@@ -13,7 +13,7 @@
 				<Option object_output="..\bin\obj\" />
 				<Option type="1" />
 				<Option compiler="dmd" />
-				<Option parameters="--fw.drivers.sound=fmod" />
+				<Option parameters="--fw.drivers.sound=null" />
 				<Option projectResourceIncludeDirsRelation="0" />
 				<MakeCommands>
 					<Build command="make build T=lumbricus" />
@@ -188,6 +188,7 @@
 		<Unit filename="..\src\net\marshall2.d" />
 		<Unit filename="..\src\net\netlayer.d" />
 		<Unit filename="..\src\net\netobject.d" />
+		<Unit filename="..\src\net\testgame.d" />
 		<Unit filename="..\src\physics\base.d" />
 		<Unit filename="..\src\physics\broadphase.d" />
 		<Unit filename="..\src\physics\collisionmap.d" />

@@ -56,6 +56,7 @@ version(DigitalMars) {
     import net.enet_test;
 }
 //import net.test;
+import net.testgame;
 
 //import test;
 
