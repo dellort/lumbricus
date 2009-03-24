@@ -183,6 +183,7 @@
 		<Unit filename="..\src\gui\window.d" />
 		<Unit filename="..\src\gui\wm.d" />
 		<Unit filename="..\src\lumbricus.d" />
+		<Unit filename="..\src\net\broadcast.d" />
 		<Unit filename="..\src\net\encode.d" />
 		<Unit filename="..\src\net\enet_test.d" />
 		<Unit filename="..\src\net\marshall2.d" />

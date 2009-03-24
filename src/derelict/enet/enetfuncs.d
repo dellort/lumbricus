@@ -12,8 +12,15 @@ void function() enet_deinitialize;
 enet_uint32 function() enet_time_get;
 void function(enet_uint32) enet_time_set;
 
+//--> 1.2 stable
 ENetSocket function(ENetSocketType, ENetAddress*) enet_socket_create;
 ENetSocket function(ENetSocket, ENetAddress*) enet_socket_accept;
+//<--
+/*--> 1.2+ CVS
+ENetSocket function(ENetSocketType) enet_socket_create;
+int function(ENetSocket, const ENetAddress *) enet_socket_bind;
+int function(ENetSocket, int) enet_socket_listen;
+//<--*/
 int function(ENetSocket, ENetAddress*) enet_socket_connect;
 int function(ENetSocket, ENetAddress*, ENetBuffer*, size_t) enet_socket_send;
 int function(ENetSocket, ENetAddress*, ENetBuffer*, size_t) enet_socket_receive;

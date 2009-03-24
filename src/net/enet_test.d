@@ -7,11 +7,17 @@ import framework.framework;
 import gui.console;
 import gui.widget;
 import gui.wm;
+import gui.loader;
+import gui.list;
+import gui.button;
 import net.netlayer;
+import net.broadcast;
 import utils.array;
 import utils.output;
 import utils.vector2;
 import utils.misc;
+import utils.configfile;
+import utils.time;
 
 class TestEnet : Task {
     private {
@@ -217,5 +223,130 @@ private:
 
     static this() {
         TaskFactory.register!(typeof(this))("enet_test");
+    }
+}
+
+//lol...
+const cBCTestWnd = `
+elements {
+    {
+        class = "boxcontainer"
+        name = "root"
+        cell_spacing = "15"
+        direction = "x"
+        homogeneous = "false"
+        layout {
+            pad = "6"
+        }
+        cells {
+            {
+                class = "string_list"
+                name = "list"
+                draw_border = "true"
+                min_size = "200 200"
+            }
+            {
+                class = "button"
+                name = "is_server"
+                check_box = "true"
+                text = "Act as server"
+            }
+        }
+    }
+}
+`;
+
+class BroadcastTest : Task {
+    private {
+        NetBase mBase;
+        NetBroadcast mServer, mClient;
+        Widget mRoot;
+        static uint mInstance;
+        char[] mName;
+        Time mLastTime;
+        StringListWidget mList;
+        Button mIsServer;
+
+        //ASCII codes of "Lumbricus Terrestris" added up :D
+        const cPort = 2061;
+    }
+
+    this(TaskManager tm, char[] args = "") {
+        super(tm);
+        mInstance++;
+        mName = myformat("Broadcast {}", mInstance);
+        mBase = new NetBase();
+
+        auto conf = (new ConfigFile(cBCTestWnd, "cBCTestWnd", null)).rootnode;
+        auto loader = new LoadGui(conf);
+        loader.load();
+        mRoot = loader.lookup("root");
+        mList = loader.lookup!(StringListWidget)("list");
+        mIsServer = loader.lookup!(Button)("is_server");
+        mIsServer.onClick = &toggleServer;
+
+        auto w = gWindowManager.createWindow(this, mRoot, mName);
+
+        mClient = mBase.createBroadcast(cPort, false);
+        mClient.onReceive = &clientReceive;
+
+        mLastTime = timeCurrentTime();
+    }
+
+    private void toggleServer(Button sender) {
+        if (sender.checked && !mServer) {
+            mServer = mBase.createBroadcast(cPort, true);
+            mServer.onReceive = &serverReceive;
+        } else if (!sender.checked && mServer) {
+            mServer.close();
+            mServer = null;
+        }
+    }
+
+    private void clientReceive(NetBroadcast sender, ubyte[] data,
+        BCAddress from)
+    {
+        //got a server, add to list
+        char[] id = mClient.getIP(from) ~ ": " ~ cast(char[])data;
+        char[][] cur = mList.contents();
+        foreach (char[] item; cur) {
+            if (item == id)
+                return;
+        }
+        cur ~= id;
+        mList.setContents(cur);
+        //xxx remove servers when they didn't answer for some time
+    }
+
+    private void serverReceive(NetBroadcast sender, ubyte[] data,
+        BCAddress from)
+    {
+        //reply to lookup request
+        sender.send(cast(ubyte[])mName, from);
+    }
+
+    override protected void onKill() {
+        mClient.close();
+        if (mServer)
+            mServer.close();
+        delete mBase;
+        mBase = null;
+    }
+
+    override protected void onFrame() {
+        Time t = timeCurrentTime();
+        if (t - mLastTime > timeMsecs(500)) {
+            mLastTime = t;
+            mClient.sendBC(cast(ubyte[])"Lookup");
+        }
+
+        if (mServer)
+            mServer.service();
+        if (mClient)
+            mClient.service();
+    }
+
+    static this() {
+        TaskFactory.register!(typeof(this))("broadcast_test");
     }
 }

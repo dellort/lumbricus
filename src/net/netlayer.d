@@ -1,6 +1,7 @@
 module net.netlayer;
 
 import derelict.enet.enet;
+import net.broadcast;
 import str = stdx.string;
 import tango.util.Convert;
 import tango.stdc.stringz;
@@ -101,6 +102,13 @@ class NetBase {
             throw new NetException("Failed to create client host");
 
         return new NetHost(this, 0, maxConnections, client);
+    }
+
+    ///create a broadcast server or client
+    ///maximum message size is 1kb
+    //this is here because it needs enet initialization
+    NetBroadcast createBroadcast(ushort port, bool server = false) {
+        return new NetBroadcast(port, server);
     }
 }
 
