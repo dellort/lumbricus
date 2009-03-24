@@ -6,8 +6,6 @@ import tango.util.Convert;
 import tango.stdc.stringz;
 import utils.misc;
 
-pragma(lib,"DerelictUtil");
-
 struct NetAddress {
     char[] hostName;
     ushort port;
@@ -104,6 +102,18 @@ class NetBase {
 
         return new NetHost(this, 0, maxConnections, client);
     }
+}
+
+private ENetPacket* prepareENetPacket(void* data, size_t dataLen, bool reliable = true,
+    bool sequenced = true)
+{
+    uint packetFlags;
+    assert(!reliable || sequenced, "prepareENetPacket: Invalid flags");
+    if (reliable)
+        packetFlags |= ENET_PACKET_FLAG_RELIABLE;
+    if (!sequenced)
+        packetFlags |= ENET_PACKET_FLAG_UNSEQUENCED;
+    return enet_packet_create(data, dataLen, packetFlags);
 }
 
 ///an unconnected network host, representing either server or client
@@ -227,18 +237,11 @@ class NetHost {
     }
 
     ///send a packet to all connected clients
-    //xxx code duplication from NetPeer.send()
     void sendBroadcast(void* data, size_t dataLen, ubyte channelId,
         bool immediate = false, bool reliable = true, bool sequenced = true)
     {
-        uint packetFlags;
-        assert(!reliable || sequenced, "NetHost.sendBroadcast: Invalid flags");
-        if (reliable)
-            packetFlags |= ENET_PACKET_FLAG_RELIABLE;
-        if (!sequenced)
-            packetFlags |= ENET_PACKET_FLAG_UNSEQUENCED;
-        ENetPacket* packet = enet_packet_create(data, dataLen, packetFlags);
-
+        ENetPacket* packet = prepareENetPacket(data, dataLen, reliable,
+            sequenced);
         //queue packet for send
         enet_host_broadcast(mHost, channelId, packet);
         if (immediate)
@@ -311,14 +314,8 @@ class NetPeer {
     void send(void* data, size_t dataLen, ubyte channelId,
         bool immediate = false, bool reliable = true, bool sequenced = true)
     {
-        uint packetFlags;
-        assert(!reliable || sequenced, "NetPeer.send: Invalid flags");
-        if (reliable)
-            packetFlags |= ENET_PACKET_FLAG_RELIABLE;
-        if (!sequenced)
-            packetFlags |= ENET_PACKET_FLAG_UNSEQUENCED;
-        ENetPacket* packet = enet_packet_create(data, dataLen, packetFlags);
-
+        ENetPacket* packet = prepareENetPacket(data, dataLen, reliable,
+            sequenced);
         //queue packet for send
         enet_peer_send(mPeer, channelId, packet);
         if (immediate)

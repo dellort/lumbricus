@@ -1,138 +1,90 @@
 module derelict.enet.enettypes;
 
+extern(C):
 
-version(Windows) {
-    alias uint SOCKET;
-    alias SOCKET ENetSocket;
-} else {
-    alias int ENetSocket;
-}
+// ---------------------------- types.h ------------------------------
 
 alias ubyte enet_uint8;
 alias ushort enet_uint16;
 alias uint enet_uint32;
 
-enum
-{
-    ENET_SOCKET_NULL = -1,
+
+// ----------------------- win32.h / unix.h --------------------------
+
+version(Windows) {
+    alias uint SOCKET;
+    alias SOCKET ENetSocket;
+
+    enum
+    {
+        ENET_SOCKET_NULL = cast(SOCKET)(~0),
+    }
+} else {
+    alias int ENetSocket;
+
+    enum
+    {
+        ENET_SOCKET_NULL = -1,
+    }
 }
 
-enum
-{
-    ENET_PROTOCOL_MINIMUM_MTU = 576,
-    ENET_PROTOCOL_MAXIMUM_MTU = 4096,
-    ENET_PROTOCOL_MAXIMUM_PACKET_COMMANDS = 32,
-    ENET_PROTOCOL_MINIMUM_WINDOW_SIZE = 4096,
-    ENET_PROTOCOL_MAXIMUM_WINDOW_SIZE = 32768,
-    ENET_PROTOCOL_MINIMUM_CHANNEL_COUNT = 1,
-    ENET_PROTOCOL_MAXIMUM_CHANNEL_COUNT = 255,
-    ENET_PROTOCOL_MAXIMUM_PEER_ID = 32767,
-}
-
-
-enum
-{
-    ENET_PROTOCOL_COMMAND_NONE,
-    ENET_PROTOCOL_COMMAND_ACKNOWLEDGE,
-    ENET_PROTOCOL_COMMAND_CONNECT,
-    ENET_PROTOCOL_COMMAND_VERIFY_CONNECT,
-    ENET_PROTOCOL_COMMAND_DISCONNECT,
-    ENET_PROTOCOL_COMMAND_PING,
-    ENET_PROTOCOL_COMMAND_SEND_RELIABLE,
-    ENET_PROTOCOL_COMMAND_SEND_UNRELIABLE,
-    ENET_PROTOCOL_COMMAND_SEND_FRAGMENT,
-    ENET_PROTOCOL_COMMAND_SEND_UNSEQUENCED,
-    ENET_PROTOCOL_COMMAND_BANDWIDTH_LIMIT,
-    ENET_PROTOCOL_COMMAND_THROTTLE_CONFIGURE,
-    ENET_PROTOCOL_COMMAND_COUNT,
-    ENET_PROTOCOL_COMMAND_MASK = 15,
-}
-alias int ENetProtocolCommand;
-
-enum
-{
-    ENET_PROTOCOL_COMMAND_FLAG_ACKNOWLEDGE = 128,
-    ENET_PROTOCOL_COMMAND_FLAG_UNSEQUENCED = 64,
-    ENET_PROTOCOL_HEADER_FLAG_SENT_TIME = 32768,
-    ENET_PROTOCOL_HEADER_FLAG_MASK = 32768,
-}
-alias int ENetProtocolFlag;
-
-enum
-{
-    ENET_VERSION = 1,
-}
-alias int ENetVersion;
-
-enum
-{
-    ENET_SOCKET_TYPE_STREAM = 1,
-    ENET_SOCKET_TYPE_DATAGRAM,
-}
-alias int ENetSocketType;
-
-enum
-{
-    ENET_SOCKET_WAIT_NONE,
-    ENET_SOCKET_WAIT_SEND,
-    ENET_SOCKET_WAIT_RECEIVE,
-}
-alias int ENetSocketWait;
-
-
-enum
-{
-    ENET_HOST_ANY,
-    ENET_HOST_BROADCAST = -1,
-    ENET_PORT_ANY,
-}
-
-enum
-{
-    ENET_EVENT_TYPE_NONE,
-    ENET_EVENT_TYPE_CONNECT,
-    ENET_EVENT_TYPE_DISCONNECT,
-    ENET_EVENT_TYPE_RECEIVE,
-}
-alias int ENetEventType;
-
-enum
-{
-    ENET_PACKET_FLAG_RELIABLE = 1,
-    ENET_PACKET_FLAG_UNSEQUENCED,
-    ENET_PACKET_FLAG_NO_ALLOCATE = 4,
-}
-alias int ENetPacketFlag;
-
-enum
-{
-    ENET_HOST_RECEIVE_BUFFER_SIZE = 262144,
-    ENET_HOST_SEND_BUFFER_SIZE = 262144,
-    ENET_HOST_BANDWIDTH_THROTTLE_INTERVAL = 1000,
-    ENET_HOST_DEFAULT_MTU = 1400,
-    ENET_PEER_DEFAULT_ROUND_TRIP_TIME = 500,
-    ENET_PEER_DEFAULT_PACKET_THROTTLE = 32,
-    ENET_PEER_PACKET_THROTTLE_SCALE = 32,
-    ENET_PEER_PACKET_THROTTLE_COUNTER = 7,
-    ENET_PEER_PACKET_THROTTLE_ACCELERATION = 2,
-    ENET_PEER_PACKET_THROTTLE_DECELERATION = 2,
-    ENET_PEER_PACKET_THROTTLE_INTERVAL = 5000,
-    ENET_PEER_PACKET_LOSS_SCALE = 65536,
-    ENET_PEER_PACKET_LOSS_INTERVAL = 10000,
-    ENET_PEER_WINDOW_SIZE_SCALE = 65536,
-    ENET_PEER_TIMEOUT_LIMIT = 32,
-    ENET_PEER_TIMEOUT_MINIMUM = 5000,
-    ENET_PEER_TIMEOUT_MAXIMUM = 30000,
-    ENET_PEER_PING_INTERVAL = 500,
-    ENET_PEER_UNSEQUENCED_WINDOW_SIZE = 128,
+version(Windows) {
+    struct ENetBuffer
+    {
+        size_t dataLength;
+        void *data;
+    }
+} else {
+    struct ENetBuffer
+    {
+        void *data;
+        size_t dataLength;
+    }
 }
 
 
+// -------------------------- protocol.h --------------------------------
 
-struct ENetBuffer
+enum
 {
-    size_t dataLength;
-    void *data;
+   ENET_PROTOCOL_MINIMUM_MTU             = 576,
+   ENET_PROTOCOL_MAXIMUM_MTU             = 4096,
+   ENET_PROTOCOL_MAXIMUM_PACKET_COMMANDS = 32,
+   ENET_PROTOCOL_MINIMUM_WINDOW_SIZE     = 4096,
+   ENET_PROTOCOL_MAXIMUM_WINDOW_SIZE     = 32768,
+   ENET_PROTOCOL_MINIMUM_CHANNEL_COUNT   = 1,
+   ENET_PROTOCOL_MAXIMUM_CHANNEL_COUNT   = 255,
+   ENET_PROTOCOL_MAXIMUM_PEER_ID         = 0x7FFF
+}
+
+typedef int ENetProtocolCommand;
+enum : ENetProtocolCommand
+{
+   ENET_PROTOCOL_COMMAND_NONE               = 0,
+   ENET_PROTOCOL_COMMAND_ACKNOWLEDGE        = 1,
+   ENET_PROTOCOL_COMMAND_CONNECT            = 2,
+   ENET_PROTOCOL_COMMAND_VERIFY_CONNECT     = 3,
+   ENET_PROTOCOL_COMMAND_DISCONNECT         = 4,
+   ENET_PROTOCOL_COMMAND_PING               = 5,
+   ENET_PROTOCOL_COMMAND_SEND_RELIABLE      = 6,
+   ENET_PROTOCOL_COMMAND_SEND_UNRELIABLE    = 7,
+   ENET_PROTOCOL_COMMAND_SEND_FRAGMENT      = 8,
+   ENET_PROTOCOL_COMMAND_SEND_UNSEQUENCED   = 9,
+   ENET_PROTOCOL_COMMAND_BANDWIDTH_LIMIT    = 10,
+   ENET_PROTOCOL_COMMAND_THROTTLE_CONFIGURE = 11,
+   ENET_PROTOCOL_COMMAND_COUNT              = 12,
+
+   ENET_PROTOCOL_COMMAND_MASK               = 0x0F
+}
+
+typedef int ENetProtocolFlag;
+enum : ENetProtocolFlag
+{
+   ENET_PROTOCOL_COMMAND_FLAG_ACKNOWLEDGE = (1 << 7),
+   ENET_PROTOCOL_COMMAND_FLAG_UNSEQUENCED = (1 << 6),
+
+   ENET_PROTOCOL_HEADER_FLAG_SENT_TIME = (1 << 15),
+   ENET_PROTOCOL_HEADER_FLAG_MASK      = 0x8000
 }
 
 struct ENetProtocolHeader
@@ -259,6 +211,8 @@ union ENetProtocol
 }
 
 
+// ---------------------------- list.h ------------------------------
+
 struct _ENetListNode
 {
     _ENetListNode *next;
@@ -275,12 +229,102 @@ struct _ENetList
 alias _ENetList ENetList;
 
 
+// ---------------------------- callbacks.h ---------------------------
+
 struct ENetCallbacks
 {
     void * function(size_t size)malloc;
     void  function(void *memory)free;
     int  function()rand;
 }
+
+
+// ----------------------------enet.h -----------------------------------
+
+typedef int ENetVersion;
+enum : ENetVersion
+{
+    ENET_VERSION = 1,
+}
+
+typedef int ENetSocketType;
+enum : ENetSocketType
+{
+    ENET_SOCKET_TYPE_STREAM = 1,
+    ENET_SOCKET_TYPE_DATAGRAM,
+}
+
+typedef int ENetSocketWait;
+enum : ENetSocketWait
+{
+    ENET_SOCKET_WAIT_NONE,
+    ENET_SOCKET_WAIT_SEND,
+    ENET_SOCKET_WAIT_RECEIVE,
+}
+
+typedef int ENetSocketOption;
+enum : ENetSocketOption
+{
+   ENET_SOCKOPT_NONBLOCK  = 1,
+   ENET_SOCKOPT_BROADCAST = 2,
+   ENET_SOCKOPT_RCVBUF    = 3,
+   ENET_SOCKOPT_SNDBUF    = 4
+}
+
+enum
+{
+    ENET_HOST_ANY = 0,
+    ENET_HOST_BROADCAST = 0xFFFFFFFF,
+
+    ENET_PORT_ANY = 0,
+}
+
+typedef int ENetEventType;
+enum : ENetEventType
+{
+    ENET_EVENT_TYPE_NONE,
+    ENET_EVENT_TYPE_CONNECT,
+    ENET_EVENT_TYPE_DISCONNECT,
+    ENET_EVENT_TYPE_RECEIVE,
+}
+
+typedef int ENetPacketFlag;
+enum : ENetPacketFlag
+{
+    ENET_PACKET_FLAG_RELIABLE = 1,
+    ENET_PACKET_FLAG_UNSEQUENCED,
+    ENET_PACKET_FLAG_NO_ALLOCATE = 4,
+}
+
+enum
+{
+   ENET_HOST_RECEIVE_BUFFER_SIZE          = 256 * 1024,
+   ENET_HOST_SEND_BUFFER_SIZE             = 256 * 1024,
+   ENET_HOST_BANDWIDTH_THROTTLE_INTERVAL  = 1000,
+   ENET_HOST_DEFAULT_MTU                  = 1400,
+
+   ENET_PEER_DEFAULT_ROUND_TRIP_TIME      = 500,
+   ENET_PEER_DEFAULT_PACKET_THROTTLE      = 32,
+   ENET_PEER_PACKET_THROTTLE_SCALE        = 32,
+   ENET_PEER_PACKET_THROTTLE_COUNTER      = 7,
+   ENET_PEER_PACKET_THROTTLE_ACCELERATION = 2,
+   ENET_PEER_PACKET_THROTTLE_DECELERATION = 2,
+   ENET_PEER_PACKET_THROTTLE_INTERVAL     = 5000,
+   ENET_PEER_PACKET_LOSS_SCALE            = (1 << 16),
+   ENET_PEER_PACKET_LOSS_INTERVAL         = 10000,
+   ENET_PEER_WINDOW_SIZE_SCALE            = 64 * 1024,
+   ENET_PEER_TIMEOUT_LIMIT                = 32,
+   ENET_PEER_TIMEOUT_MINIMUM              = 5000,
+   ENET_PEER_TIMEOUT_MAXIMUM              = 30000,
+   ENET_PEER_PING_INTERVAL                = 500,
+   ENET_PEER_UNSEQUENCED_WINDOWS          = 64,
+   ENET_PEER_UNSEQUENCED_WINDOW_SIZE      = 1024,
+   ENET_PEER_FREE_UNSEQUENCED_WINDOWS     = 32,
+   ENET_PEER_RELIABLE_WINDOWS             = 16,
+   ENET_PEER_RELIABLE_WINDOW_SIZE         = 0x1000,
+   ENET_PEER_FREE_RELIABLE_WINDOWS        = 8
+}
+
 
 struct _ENetAddress
 {
@@ -320,6 +364,7 @@ struct _ENetOutgoingCommand
     enet_uint32 roundTripTimeoutLimit;
     enet_uint32 fragmentOffset;
     enet_uint16 fragmentLength;
+    enet_uint16 sendAttempts;
     ENetProtocol command;
     ENetPacket *packet;
 }
@@ -353,13 +398,18 @@ enum
 }
 alias int ENetPeerState;
 
+enum
+{
+    ENET_BUFFER_MAXIMUM = (1 + 2 * ENET_PROTOCOL_MAXIMUM_PACKET_COMMANDS)
+}
 
 struct _ENetChannel
 {
     enet_uint16 outgoingReliableSequenceNumber;
     enet_uint16 outgoingUnreliableSequenceNumber;
+    enet_uint16 usedReliableWindows;
+    enet_uint16[ENET_PEER_RELIABLE_WINDOWS] reliableWindows ;
     enet_uint16 incomingReliableSequenceNumber;
-    enet_uint16 incomingUnreliableSequenceNumber;
     ENetList incomingReliableCommands;
     ENetList incomingUnreliableCommands;
 }
@@ -415,7 +465,7 @@ struct _ENetPeer
     ENetList outgoingUnreliableCommands;
     enet_uint16 incomingUnsequencedGroup;
     enet_uint16 outgoingUnsequencedGroup;
-    enet_uint32 [4]unsequencedWindow;
+    enet_uint32[ENET_PEER_UNSEQUENCED_WINDOW_SIZE / 32] unsequencedWindow;
     enet_uint32 disconnectData;
 }
 alias _ENetPeer ENetPeer;
@@ -431,16 +481,17 @@ struct _ENetHost
     int recalculateBandwidthLimits;
     ENetPeer *peers;
     size_t peerCount;
+    enet_uint32 serviceTime;
     ENetPeer *lastServicedPeer;
     int continueSending;
     size_t packetSize;
     enet_uint16 headerFlags;
-    ENetProtocol [32]commands;
+    ENetProtocol[ENET_PROTOCOL_MAXIMUM_PACKET_COMMANDS] commands;
     size_t commandCount;
-    ENetBuffer [65]buffers;
+    ENetBuffer[ENET_BUFFER_MAXIMUM] buffers;
     size_t bufferCount;
     ENetAddress receivedAddress;
-    enet_uint8 [4096]receivedData;
+    enet_uint8[ENET_PROTOCOL_MAXIMUM_MTU] receivedData;
     size_t receivedDataLength;
 }
 alias _ENetHost ENetHost;
