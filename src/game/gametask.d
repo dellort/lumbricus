@@ -57,6 +57,7 @@ import utils.serialize;
 import utils.path;
 import utils.archive;
 import utils.snapshot;
+import utils.perf;
 
 import stdx.stream;
 import str = stdx.string;
@@ -117,6 +118,7 @@ class GameTask : StatefulTask {
         GameEnginePublic mGame;
         ClientGameEngine mClientEngine;
         ClientControl mControl;
+        TimeSource mGameTime; //external timer for game engine
         GameInfo mGameInfo;
         NetClient mNetClient;
         NetServer mNetServer;
@@ -358,6 +360,7 @@ class GameTask : StatefulTask {
     }
 
     private bool initGameEngine() {
+        mGameTime = null; //this is all messed up
         //log("initGameEngine");
         if (mNetClient) {
             //must wait until server ready (I think it's always ready on the
@@ -367,7 +370,8 @@ class GameTask : StatefulTask {
             mGame = mNetClient.game();
             mControl = mNetClient.control();
         } else if (!mSaveGame) {
-            mServerEngine = new GameEngine(mGameConfig, mGfx);
+            mGameTime = new TimeSource();
+            mServerEngine = new GameEngine(mGameConfig, mGfx, mGameTime);
             mGame = mServerEngine;
         } else {
             //analogous to saveGame()
@@ -375,10 +379,8 @@ class GameTask : StatefulTask {
             foreach (int index, LevelItem o; mGameConfig.level.objects) {
                 mSaveGame.addExternal(o, myformat("levelobject_{}", index));
             }
-            auto ntime = new TimeSource(mSavedTime);
-            ntime.initTime(mSavedTime);
-            ntime.paused = true;
-            mSaveGame.addExternal(ntime, "gametime");
+            mGameTime = new TimeSource(mSavedTime);
+            mSaveGame.addExternal(mGameTime, "gametime");
             //
             auto rnd = new Random();
             rnd.state = mSavedRandomSeed;
@@ -532,12 +534,16 @@ class GameTask : StatefulTask {
     }
 
     override protected void onFrame() {
+        if (mGameTime) {
+            mGameTime.update();
+        }
+
         if (mGameLoader.fullyLoaded) {
             if (mNetServer) {
                 mNetServer.frame_receive();
             }
             if (mServerEngine) {
-                mServerEngine.doFrame();
+                mServerEngine.frame();
             }
             if (mNetServer) {
                 mNetServer.frame_send();
@@ -607,7 +613,7 @@ class GameTask : StatefulTask {
         writer.addExternal(level, "level");
         writer.addExternal(gameconfig, "gameconfig");
 
-        sg.gametime = engine.gameTime.current;
+        sg.gametime = mGameTime.current;
 
         //manually save each landscape bitmap
         //this is a special case, because unlike all other bitmaps (and
@@ -627,7 +633,7 @@ class GameTask : StatefulTask {
             writer.addExternal(o, myformat("levelobject_{}", index));
         }
         //new TimeSource is created manually on loading
-        writer.addExternal(engine.gameTime, "gametime");
+        writer.addExternal(mGameTime, "gametime");
         //random seed saved in sg2.randomstate
         writer.addExternal(engine.rnd, "random");
         //actually serialize
@@ -755,8 +761,9 @@ class GameTask : StatefulTask {
         float a = setani ? val : globals.gameTimeAnimations.slowDown;
         write.writefln("set slowdown: game={} animations={}", g, a);
         mControl.executeCommand("slow_down " ~ str.toString(g));
-        mClientEngine.engineTime.slowDown = g;
-        globals.gameTimeAnimations.slowDown = a;
+        //xxx: fix this
+        //mClientEngine.engineTime.slowDown = g;
+        //globals.gameTimeAnimations.slowDown = a;
     }
 
     private void cmdPause(MyBox[], Output) {
@@ -782,18 +789,51 @@ class GameTask : StatefulTask {
         }
     }
 
+    //xxx this is all tentative and hackish, don't attempt to clean up (for now)
+
+    Snapshot snapshot;
     Time snap_game_time;
+    LandscapeBitmap[] snap_bitmaps;
 
     private void doEngineSnap() {
-        snap_game_time = mServerEngine.gameTime.current();
-        snap(serialize_types, mServerEngine);
+        if (!snapshot)
+            snapshot = new Snapshot(new SnapDescriptors(serialize_types));
+        snap_game_time = mGameTime.current();
+        snapshot.snap(mServerEngine);
+        //bitmaps are specially handled, I don't know how to do better
+        //probably unify with savegame stuff?
+        PerfTimer timer = new PerfTimer(true);
+        timer.start();
+        auto bitmaps = mServerEngine.landscapeBitmaps();
+        foreach (int index, LandscapeBitmap lb; bitmaps) {
+            if (index >= snap_bitmaps.length) {
+                snap_bitmaps ~= lb.copy();
+            } else {
+                //assume LandscapeBitmap.size() never changes, and that the
+                //result of server's landscapeBitmaps() returns the same objects
+                //in the same order (newly created ones attached to the end)
+                //random note: for faster snapshotting, one could copy only the
+                // regions that have been modified since the last snapshot
+                snap_bitmaps[index].copyFrom(lb);
+            }
+        }
+        timer.stop();
+        Stdout.formatln("backup bitmaps t={}", timer.time);
     }
 
     private void doEngineUnsnap() {
-        unsnap(serialize_types);
+        snapshot.unsnap();
         //important: readd graphics, because they could have changed
         mClientEngine.readd_graphics();
-        mServerEngine.gameTime.initTime(snap_game_time);
+        mGameTime.initTime(snap_game_time);
+        PerfTimer timer = new PerfTimer(true);
+        timer.start();
+        auto bitmaps = mServerEngine.landscapeBitmaps();
+        foreach (int index, LandscapeBitmap lb; bitmaps) {
+            lb.copyFrom(snap_bitmaps[index]);
+        }
+        timer.stop();
+        Stdout.formatln("restore bitmaps t={}", timer.time);
     }
 
     private void cmdSerDump(MyBox[] args, Output write) {

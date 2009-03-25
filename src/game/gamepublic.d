@@ -108,14 +108,14 @@ class GameEngineGraphics {
     List2!(Graphic) objects;
     //in the network case, delivers the server engine's time of the last update
     //for now, it's always the game time
-    TimeSource timebase;
+    TimeSourcePublic timebase;
     //incremented on each update
     ulong current_frame = 1;
     //last frame when something was added to objects
     //(object changes/removal requires the client to poll the object's state)
     ulong last_objects_frame;
 
-    this (TimeSource ts) {
+    this (TimeSourcePublic ts) {
         objects = new typeof(objects);
         timebase = ts;
     }

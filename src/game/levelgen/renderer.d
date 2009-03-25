@@ -734,8 +734,7 @@ class LandscapeBitmap {
     //copy the level bitmap and per-pixel-metadata
     //make sure Surface size and data size match
     public this(Surface bmp, Lexel[] a_data, bool copy = true) {
-        //xxx: don't copy
-        this(bmp.size, true, a_data);
+        this(bmp.size, true, a_data.dup);
         mImage = copy ? bmp.clone() : bmp;
     }
 
@@ -788,6 +787,15 @@ class LandscapeBitmap {
 
     public Lexel[] levelData() {
         return mLevelData;
+    }
+
+    //copy everything from "from" to this
+    //sizes of the landscape must match
+    public void copyFrom(LandscapeBitmap from) {
+        assert(size == from.size);
+        mLevelData[] = from.levelData();
+        //xxx transparency mode and colorkey??? (that damn crap!)
+        mImage.copyFrom(from.image, Vector2i(0), Vector2i(0), size);
     }
 }
 

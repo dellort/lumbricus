@@ -125,7 +125,7 @@ class TargetCrossImpl : SceneObject {
         float mTargetOffset;
         float mRotationOffset;
         GfxSet mGfx;
-        TimeSource timebase;
+        TimeSourcePublic timebase;
     }
 
     this(TargetCross info, GfxSet gfx) {
@@ -448,7 +448,7 @@ class ClientGameEngine {
     void doFrame() {
         //lol pause state
         auto ispaused = mEngine.paused();
-        engineTime.paused = ispaused;
+        mEngineTime.paused = ispaused;
         mEngineTime.update();
 
         if (mMusic) {

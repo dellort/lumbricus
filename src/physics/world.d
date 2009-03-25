@@ -112,7 +112,7 @@ class PhysicWorld {
 
     public void simulate(Time currentTime) {
         uint ms = currentTime.msecs();
-        while (mLastTime + cPhysTimeStepMs < ms) {
+        while (mLastTime + cPhysTimeStepMs <= ms) {
             mLastTime += cPhysTimeStepMs;
             doSimulate(cast(float)cPhysTimeStepMs/1000.0f);
         }

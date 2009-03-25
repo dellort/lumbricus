@@ -30,7 +30,13 @@ import game.levelgen.renderer;// : LandscapeBitmap;
 //code to manage a game session (hm, whatever this means)
 //reinstantiated on each "round"
 class GameEngine : GameEnginePublic {
-    private TimeSource mGameTime;
+    //difference between these two timesources: mGameTime acts according to the
+    // fixed framerate, while mExternalTime is the "actual" time; the actual
+    // time might increase in too large increments (larger than a fixed frame),
+    // and also it isn't quantized to the length of a fixed frame, which is why
+    // an extra mGameTime object is needed.
+    private TimeSourceFixFramerate mGameTime;
+    private TimeSourcePublic mExternalTime;
 
     protected PhysicWorld mPhysicWorld;
     private List2!(GameObject) mObjects;
@@ -81,12 +87,15 @@ class GameEngine : GameEnginePublic {
     bool paused() {
         return mGameTime.paused;
     }
-    void setPaused(bool p) {
-        mGameTime.paused = p;
-    }
 
     float slowDown() {
         return mGameTime.slowDown;
+    }
+
+    //warning: only to be called by controller.d (which happens to take care of
+    // all input)
+    void setPaused(bool p) {
+        mGameTime.paused = p;
     }
     void setSlowDown(float s) {
         mGameTime.slowDown = s;
@@ -257,7 +266,7 @@ class GameEngine : GameEnginePublic {
         mWaterBouncer.updatePos(val - 5);
     }
 
-    this(GameConfig config, GfxSet a_gfx) {
+    this(GameConfig config, GfxSet a_gfx, TimeSourcePublic externalTime) {
         rnd = new Random();
         //xxx
         rnd.seed(1);
@@ -269,7 +278,11 @@ class GameEngine : GameEnginePublic {
 
         //mPhysicTime = globals.newTimer("game_physic");
 
-        mGameTime = new TimeSource();
+        //also check physic framerate in world.d
+        const Time cFrameLength = timeMsecs(40);
+
+        mExternalTime = externalTime;
+        mGameTime = new TimeSourceFixFramerate(mExternalTime, cFrameLength);
         mGameTime.paused = true;
 
         graphics = new GameEngineGraphics(mGameTime);
@@ -358,6 +371,7 @@ class GameEngine : GameEnginePublic {
 
     //actually start the game (called after resources were preloaded)
     void start() {
+        mGameTime.update((){}); //make it skip any "left over" time
         mGameTime.paused = false;
     }
 
@@ -365,7 +379,7 @@ class GameEngine : GameEnginePublic {
         return graphics;
     }
 
-    TimeSource gameTime() {
+    TimeSourcePublic gameTime() {
         return mGameTime;
     }
 
@@ -476,19 +490,17 @@ class GameEngine : GameEnginePublic {
         return mPhysicWorld;
     }
 
-    protected void simulate() {
-        mController.simulate();
+    void frame() {
+        mGameTime.update(&doFrame);
     }
 
-    void doFrame() {
-        mGameTime.update();
-
+    private void doFrame() {
         if (!mGameTime.paused) {
             graphics.current_frame++;
             //mPhysicTime.start();
             mPhysicWorld.simulate(mGameTime.current);
             //mPhysicTime.stop();
-            simulate();
+            mController.simulate();
             //update game objects
             //NOTE: objects might be inserted/removed while iterating
             //      List.opApply can deal with that

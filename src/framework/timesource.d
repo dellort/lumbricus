@@ -11,6 +11,7 @@ class TimeSourcePublic {
     protected {
         //current time
         Time mSimTime;
+        Time mLastSimTime;
     }
 
     this() {
@@ -23,11 +24,16 @@ class TimeSourcePublic {
         return mSimTime;
     }
 
-    abstract Time difference();
+    //xxx: this function looks dangerous, should remove?
+    final Time difference() {
+        return mSimTime - mLastSimTime;
+    }
 
+    ///warning: if you have chained time sources, these values only refer to
+    ///         the local settings, e.g. the time could be paused even when this
+    ///         paused() property returns false
     abstract void paused(bool p);
     abstract bool paused();
-
     abstract void slowDown(float factor);
     abstract float slowDown();
 }
@@ -40,7 +46,6 @@ final class TimeSource : TimeSourcePublic {
         Time mExternalTime;
         Time mFixedTime;  //absolute time of last fixpoint
 
-        Time mLastSimTime;
         Time mLastExternalTime;
         Time mFixDelta;   //SimTime of last fixpoint
 
@@ -85,6 +90,7 @@ final class TimeSource : TimeSourcePublic {
         initTime();
     }
 
+    //(setting paused=true doesn't call update())
     void paused(bool p) {
         if (p == mPauseMode)
             return;
@@ -110,10 +116,6 @@ final class TimeSource : TimeSourcePublic {
     }
     float slowDown() {
         return mSlowDown;
-    }
-
-    Time difference() {
-        return mSimTime - mLastSimTime;
     }
 
     //update mFixedTime to current external time
@@ -164,6 +166,64 @@ final class TimeSource : TimeSourcePublic {
             mSimTime = mFixDelta + diff * mSlowDown;
 
             assert(mSimTime >= mLastSimTime);
+        }
+    }
+}
+
+///trivial proxy object to implement fixed framerate
+///(so trivial it's annoying, duh; maybe move this into TimeSource)
+///the paused/slowDown states even work correctly if modified during the frame
+///code (that is, while is_update() is called by update())
+class TimeSourceFixFramerate : TimeSourcePublic {
+    private {
+        TimeSourcePublic mParent;
+        TimeSource mChain;
+        //to correctly manage paused()/slowDown()
+        //deriving TimeSourceFixFramerate from TimeSource was not an option
+        Time mFrameLength;
+    }
+
+    /// parent = anything
+    /// frameLength = fixed length of each frame, see update()
+    this(TimeSourcePublic parent, Time frameLength) {
+        assert (!!parent);
+        mParent = parent;
+        mFrameLength = frameLength;
+        mChain = new TimeSource(mParent);
+        resetTime();
+    }
+    this(ReflectCtor c) {
+        super(c);
+    }
+
+    ///reset the time to the caller's
+    void resetTime() {
+        mSimTime = mLastSimTime = mChain.current;
+    }
+
+    override void paused(bool p) {
+        mChain.paused = p;
+    }
+    override bool paused() {
+        return mChain.paused;
+    }
+    override void slowDown(float factor) {
+        mChain.slowDown = factor;
+    }
+    override float slowDown() {
+        return mChain.slowDown;
+    }
+
+    ///runs n frames in increments of the fixed frame length, and calls
+    ///do_update() for each frame; the time is stepped before each do_update()
+    void update(void delegate() do_update) {
+        mChain.update();
+        //xxx: is it ok that mSimTime still can be < mParent.current after this?
+        while (mSimTime + mFrameLength <= mChain.current) {
+            mLastSimTime = mSimTime;
+            mSimTime += mFrameLength;
+            do_update();
+            mChain.update(); //?
         }
     }
 }
