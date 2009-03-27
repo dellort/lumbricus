@@ -49,7 +49,8 @@ class NetServer {
         con.net.shared_state = state;
         con.net.client_to_server = new NetEventQueue();
         //xxx: establish a per-client controller connection here
-        con.client = new ClientControlImpl(engine.controller);
+        assert(false, "fix me"); //yyy
+        //--- con.client = new ClientControlImpl(engine.controller);
         mConnections ~= con;
         writeState();
         return con.net;
@@ -87,6 +88,8 @@ class NetServer {
         if (init) {
             state.graphics = engine.getGraphics();
             state.level = engine.level();
+            state.config = engine.config;
+            state.gfx = engine.gfx;
             state.world_size = engine.worldSize();
             state.world_center = engine.worldCenter();
 

@@ -17,6 +17,7 @@ import game.hud.gameview;
 import game.clientengine;
 import game.loader;
 import game.gamepublic;
+import game.gameshell;
 import game.sequence;
 import game.game;
 import game.controller;
@@ -72,8 +73,7 @@ import game.weapon.napalm;
 import game.gamemodes.roundbased;
 import game.gamemodes.mdebug;
 
-//initialized by serialize_register.d
-Types serialize_types;
+/+
 
 //this is a test: it explodes the landscape graphic into several smaller ones
 Level fuzzleLevel(Level level) {
@@ -111,25 +111,25 @@ Level fuzzleLevel(Level level) {
     return rlevel;
 }
 
++/
+
 class GameTask : StatefulTask {
     private {
         GameConfig mGameConfig;
-        GameEngine mServerEngine; //can be null, if a client in a network game!
+        GameShell mGameShell; //can be null, if a client in a network game!
+        GameLoader mGameLoader; //creates a GameShell
         GameEnginePublic mGame;
         ClientGameEngine mClientEngine;
         ClientControl mControl;
-        TimeSource mGameTime; //external timer for game engine
         GameInfo mGameInfo;
         NetClient mNetClient;
         NetServer mNetServer;
-        GfxSet mGfx;
 
         GameFrame mGameFrame;
-        //argh, another step of indirection :/
         SimpleContainer mWindow;
 
         LoadingScreen mLoadScreen;
-        Loader mGameLoader;
+        Loader mGUIGameLoader;
         Resources.Preloader mResPreloader;
 
         CommandBucket mCmds;
@@ -144,8 +144,6 @@ class GameTask : StatefulTask {
 
         //temporary when loading a game
         SerializeInConfig mSaveGame;
-        RNGState mSavedRandomSeed;
-        Time mSavedTime;
         Vector2i mSavedViewPosition;
         bool mSavedSetViewPosition;
     }
@@ -223,93 +221,30 @@ class GameTask : StatefulTask {
         mCmds.bind(globals.cmdLine);
     }
 
-    struct BmpHeader {
-        int sx, sy;
-    }
-
     //start game intialization
     //it's not clear when initialization is finished (but it shows a loader gui)
     private void initGame(GameConfig cfg) {
-        mGameConfig = cfg;
-
-        //save last played level functionality
-        if (mGameConfig.level.saved) {
-            gConf.saveConfig(mGameConfig.level.saved, "lastlevel.conf");
-        }
-
-        mGameConfig.level = fuzzleLevel(mGameConfig.level);
-
+        mGameLoader = GameLoader.CreateNewGame(cfg);
+        mGameConfig = mGameLoader.gameConfig;
         doInit();
     }
 
     private void initFromSave(TarArchive tehfile) {
-        //------ bitmaps
-        LandscapeBitmap[] bitmaps;
-        int bmp_count;
-        for (;;) {
-            auto idx = bitmaps.length;
-            ZReader reader = tehfile.openReadStream(myformat("lexels_{}", idx),
-                true);
-            if (!reader)
-                break;
-            Surface image = gFramework.loadImage(tehfile
-                .openReadStreamUncompressed(myformat("bitmap_{}.png", idx)));
-            //xxx: idea: write the bitmap as a png; this either can be an
-            //     uncompressed png stored as a .gz stream, or a png that
-            //     just deflates scanlines or so (it's probably possible,
-            //     but I don't know png good enough)
-            //     the loader code can use gFramework.loadImage() (but that
-            //     requires a seekable stream)
-            BmpHeader bheader;
-            reader.read_ptr(&bheader, bheader.sizeof);
-            auto size = Vector2i(bheader.sx, bheader.sy);
-            assert (size == image.size);
-            LandscapeBitmap lb = new LandscapeBitmap(image, false);
-            bitmaps ~= lb;
-            auto lexels = lb.levelData();
-            reader.read_ptr(lexels.ptr, Lexel.sizeof*lexels.length);
-            reader.close();
-        }
-
-        //------- game data
-        ZReader reader = tehfile.openReadStream("gamedata.conf");
-        ConfigNode savegame = reader.readConfigFile();
-        serialize_types.registerClass!(SaveGameHeader);
-        auto ctx = new SerializeContext(serialize_types);
-        mSaveGame = new SerializeInConfig(ctx, savegame);
-        auto sg = mSaveGame.readObjectT!(SaveGameHeader)();
-        auto configfile = new ConfigFile(sg.config, "SaveGameHeader.config",
-            (char[] logerror) {
-                gDefaultLog("{}", logerror);
-            }
-        );
-        mGameConfig = new GameConfig();
-        mGameConfig.load(configfile.rootnode());
-        auto gen = new GenerateFromSaved(new LevelGeneratorShared(),
-            mGameConfig.saved_level);
-        //false parameter prevents re-rendering
-        Level level = gen.render(false);
-        mGameConfig.level = level;
-        mSaveGame.addExternal(level, "level");
-        mSaveGame.addExternal(mGameConfig, "gameconfig");
-        mSavedTime = sg.gametime;
-        mSavedRandomSeed = sg.randomstate;
-        //urgh
-        foreach (int n, LandscapeBitmap lb; bitmaps) {
-            mSaveGame.addExternal(lb, myformat("landscape_{}", n));
-        }
-        mSavedViewPosition = sg.viewpos;
-        mSavedSetViewPosition = true;
-
+        ZReader reader = tehfile.openReadStream("gui.conf");
+        ConfigNode guiconf = reader.readConfigFile();
         reader.close();
 
+        mSavedViewPosition = guiconf.getValue!(Vector2i)("viewpos");
+        mSavedSetViewPosition = true;
+
+        mGameLoader = GameLoader.CreateFromSavegame(tehfile);
+        mGameConfig = mGameLoader.gameConfig;
         doInit();
     }
 
     void doInit() {
         assert (!!mGameConfig);
         assert (!!mGameConfig.level);
-
         mLoadScreen = new LoadingScreen();
         mLoadScreen.zorder = 10;
         assert (!!mWindow);
@@ -320,25 +255,26 @@ class GameTask : StatefulTask {
 
         void addChunk(LoadChunkDg cb, char[] txt_id) {
             chunks ~= load_txt(txt_id);
-            mGameLoader.registerChunk(cb);
+            mGUIGameLoader.registerChunk(cb);
         }
 
-        mGameLoader = new Loader();
+        mGUIGameLoader = new Loader();
         addChunk(&initLoadResources, "resources");
         addChunk(&initGameEngine, "gameengine");
         addChunk(&initClientEngine, "clientengine");
         addChunk(&initGameGui, "gui");
-        mGameLoader.onFinish = &gameLoaded;
+        mGUIGameLoader.onFinish = &gameLoaded;
 
         mLoadScreen.setPrimaryChunks(chunks);
     }
 
     private void unloadGame() {
         //log("unloadGame");
-        if (mServerEngine) {
+        /+if (mServerEngine) {
             mServerEngine.kill();
             mServerEngine = null;
-        }
+        }+/
+        mGameShell = null;
         if (mClientEngine) {
             mClientEngine.kill();
             mClientEngine = null;
@@ -360,7 +296,6 @@ class GameTask : StatefulTask {
     }
 
     private bool initGameEngine() {
-        mGameTime = null; //this is all messed up
         //log("initGameEngine");
         if (mNetClient) {
             //must wait until server ready (I think it's always ready on the
@@ -369,109 +304,59 @@ class GameTask : StatefulTask {
                 return false; //wait for next frame (busy waiting)
             mGame = mNetClient.game();
             mControl = mNetClient.control();
-        } else if (!mSaveGame) {
-            mGameTime = new TimeSource();
-            mServerEngine = new GameEngine(mGameConfig, mGfx, mGameTime);
-            mGame = mServerEngine;
         } else {
-            //analogous to saveGame()
-            addResources(mSaveGame);
-            foreach (int index, LevelItem o; mGameConfig.level.objects) {
-                mSaveGame.addExternal(o, myformat("levelobject_{}", index));
-            }
-            mGameTime = new TimeSource(mSavedTime);
-            mSaveGame.addExternal(mGameTime, "gametime");
-            //
-            auto rnd = new Random();
-            rnd.state = mSavedRandomSeed;
-            mSaveGame.addExternal(rnd, "random");
-            //
-            mServerEngine = mSaveGame.readObjectT!(GameEngine)();
-            mGame = mServerEngine;
+            mGameShell = mGameLoader.finish();
+            mGameShell.OnRestoreGuiAfterSnapshot = &guiRestoreSnapshot;
+            mGame = mGameShell.serverEngine;
         }
 
         if (mGameConfig.as_pseudo_server && !mNetServer) {
-            mNetServer = new NetServer(mServerEngine);
+            assert(!!mGameShell);
+            mNetServer = new NetServer(mGameShell.serverEngine);
             new GameTask(manager(), mNetServer.connect());
         }
-        //xxx (well, you know)
-        if (!mControl)
-            mControl = new ClientControlImpl(mServerEngine.controller);
+
+        if (mGameShell) {
+            //xxx (well, you know)
+            if (!mControl)
+                mControl = new GameControl(mGameShell);
+        }
 
         return true;
     }
 
     private bool initClientEngine() {
         //log("initClientEngine");
-        mClientEngine = new ClientGameEngine(mGame, mGfx);
+        mClientEngine = new ClientGameEngine(mGame);
         return true;
     }
 
     //periodically called by loader (stopped when we return true)
     private bool initLoadResources() {
-        if (!mResPreloader) {
-            mGfx = new GfxSet(mGameConfig.gfx);
-            loadWeaponSets();
-
-            //load all items in reslist
-            mResPreloader = gResources.createPreloader(mGfx.resources);
-            mLoadScreen.secondaryActive = true;
-        }
-        mLoadScreen.secondaryCount = mResPreloader.totalCount();
-        mLoadScreen.secondaryPos = mResPreloader.loadedCount();
+        if (!mGameLoader)
+            return true;
+        Resources.Preloader preload = mGameLoader.resPreloader;
+        if (!preload)
+            return true;
+        //(actually would only be needed for initialization)
+        mLoadScreen.secondaryActive = true;
+        mLoadScreen.secondaryCount = preload.totalCount();
+        mLoadScreen.secondaryPos = preload.loadedCount();
         //the use in returning after some time is to redraw the screen
-        mResPreloader.progressTimed(timeMsecs(300));
-        if (!mResPreloader.done) {
+        preload.progressTimed(timeMsecs(300));
+        if (!preload.done) {
             return false;
         } else {
             mLoadScreen.secondaryActive = false;
-            mResPreloader = null;
-            mGfx.finishLoading();
             return true;
-        }
-    }
-
-    private void loadWeaponSets() {
-        //xxx for weapon set stuff:
-        //    weapon ids are assumed to be unique between sets
-        foreach (char[] ws; mGameConfig.weaponsets) {
-            char[] dir = "weapons/"~ws;
-            //load set.conf as gfx set (resources and sequences)
-            auto conf = gResources.loadConfigForRes(dir
-                ~ "/set.conf");
-            mGfx.addGfxSet(conf);
-            //load mapping file matching gfx set, if it exists
-            auto mappingsNode = conf.getSubNode("mappings");
-            char[] mappingFile = mappingsNode.getStringValue(mGfx.gfxId);
-            auto mapConf = gConf.loadConfig(dir~"/"~mappingFile,true,true);
-            if (mapConf) {
-                mGfx.addSequenceNode(mapConf.getSubNode("sequences"));
-            }
-            //load weaponset locale
-            localeRoot.addLocaleDir("weapons", dir ~ "/locale");
-        }
-    }
-
-    private void addResources(SerializeBase sb) {
-        //support game save/restore: add all resources and some stuff from gfx
-        // as external objects
-        sb.addExternal(mGfx, "gfx");
-        foreach (char[] key, TeamTheme tt; mGfx.teamThemes) {
-            sb.addExternal(tt, "gfx_theme::" ~ key);
-        }
-        foreach (ResourceSet.Entry res; mGfx.resources.resourceList()) {
-            //this depends from resset.d's struct Resource
-            //currently, the user has the direct resource object, so this must
-            //be added as external object reference
-            sb.addExternal(res.wrapper.get(), "res::" ~ res.name());
         }
     }
 
     private void gameLoaded(Loader sender) {
         //idea: start in paused mode, release poause at end to not need to
         //      reset the gametime
-        if (mServerEngine)
-            mServerEngine.start();
+        //if (mServerEngine)
+          //  mServerEngine.start();
         //a small wtf: why does client engine have its own time??
         mClientEngine.start();
 
@@ -484,9 +369,9 @@ class GameTask : StatefulTask {
         if (mWindow) mWindow.remove();
         mWindow = null;
         mGameConfig = mGameConfig.init;
-        mGfx = null;
         if (mLoadScreen) mLoadScreen.remove();
         mLoadScreen = null;
+        mGUIGameLoader = null;
         mGameLoader = null;
         mResPreloader = null;
         mSaveGame = null;
@@ -534,16 +419,12 @@ class GameTask : StatefulTask {
     }
 
     override protected void onFrame() {
-        if (mGameTime) {
-            mGameTime.update();
-        }
-
-        if (mGameLoader.fullyLoaded) {
+        if (mGUIGameLoader.fullyLoaded) {
             if (mNetServer) {
                 mNetServer.frame_receive();
             }
-            if (mServerEngine) {
-                mServerEngine.frame();
+            if (mGameShell) {
+                mGameShell.frame();
             }
             if (mNetServer) {
                 mNetServer.frame_send();
@@ -564,11 +445,11 @@ class GameTask : StatefulTask {
             }
         } else {
             if (mDelayedFirstFrame) {
-                mGameLoader.loadStep();
+                mGUIGameLoader.loadStep();
             }
             mDelayedFirstFrame = true;
             //update GUI (Loader/LoadingScreen aren't connected anymore)
-            mLoadScreen.primaryPos = mGameLoader.currentChunk;
+            mLoadScreen.primaryPos = mGUIGameLoader.currentChunk;
         }
 
         //he-he
@@ -577,87 +458,16 @@ class GameTask : StatefulTask {
 
     //implements StatefulTask
     override void saveState(TarArchive tehfile) {
-        if (!mServerEngine)
+        if (!mGameShell)
             throw new Exception("can't save network game as client");
-        GameEngine engine = mServerEngine;
 
-        //---- bitmaps
-        auto bitmaps = engine.landscapeBitmaps();
-        foreach (int index, LandscapeBitmap lb; bitmaps) {
-            ZWriter zwriter = tehfile.openWriteStream(myformat("lexels_{}",
-                index));
-            BmpHeader bheader;
-            bheader.sx = lb.size.x;
-            bheader.sy = lb.size.y;
-            zwriter.write_ptr(&bheader, bheader.sizeof);
-            auto size = lb.size();
-            Lexel[] lexels = lb.levelData();
-            zwriter.write_ptr(lexels.ptr, Lexel.sizeof*lexels.length);
-            zwriter.close();
-            Stream bmp = tehfile.openUncompressed(myformat("bitmap_{}.png",
-                index));
-            //force png to guarantee lossless compression
-            lb.image.saveImage(bmp, "png");
-            bmp.close();
-        }
+        mGameShell.saveGame(tehfile);
 
-        serialize_types.registerClass!(SaveGameHeader);
-        auto ctx = new SerializeContext(serialize_types);
-        auto writer = new SerializeOutConfig(ctx);
-
-        auto sg = new SaveGameHeader();
-        auto gameconfig = engine.gameConfig;
-        ConfigNode conf = gameconfig.save();
-        sg.config = conf.writeAsString();
-        Level level = gameconfig.level;
-        writer.addExternal(level, "level");
-        writer.addExternal(gameconfig, "gameconfig");
-
-        sg.gametime = mGameTime.current;
-
-        //manually save each landscape bitmap
-        //this is a special case, because unlike all other bitmaps (and
-        //animations etc.), these are modified by the game
-        for (int n = 0; n < bitmaps.length; n++) {
-            LandscapeBitmap lb = bitmaps[n];
-            writer.addExternal(lb, myformat("landscape_{}", n));
-        }
-        sg.viewpos = mGameFrame.getPosition();
-        sg.randomstate = engine.rnd.state;
-        writer.writeObject(sg);
-
-        //resources
-        addResources(writer);
-        //this sucks, currently only needed to get the LandscapeTheme (glevel.d)
-        foreach (int index, LevelItem o; level.objects) {
-            writer.addExternal(o, myformat("levelobject_{}", index));
-        }
-        //new TimeSource is created manually on loading
-        writer.addExternal(mGameTime, "gametime");
-        //random seed saved in sg2.randomstate
-        writer.addExternal(engine.rnd, "random");
-        //actually serialize
-        writer.writeObject(engine);
-        //loading: based on sg2.config, load all required resources; recreate
-        //gameTime (by using the time stored in sg2), create something for
-        //"random", add them as externals; load the GameEngine and done.
-
-        ConfigNode g = writer.finish();
-        ZWriter zwriter = tehfile.openWriteStream("gamedata.conf");
-        zwriter.writeConfigFile(g);
+        auto guiconf = new ConfigNode();
+        guiconf.setValue!(Vector2i)("viewpos", mGameFrame.getPosition());
+        ZWriter zwriter = tehfile.openWriteStream("gui.conf");
+        zwriter.writeConfigFile(guiconf);
         zwriter.close();
-    }
-
-    static class SaveGameHeader {
-        char[] config; //saved GameConfig
-        Time gametime;
-        Vector2i viewpos;
-        RNGState randomstate;
-
-        this() {
-        }
-        this(ReflectCtor c) {
-        }
     }
 
     //game specific commands
@@ -673,6 +483,8 @@ class GameTask : StatefulTask {
         mCmds.register(Command("ser_dump", &cmdSerDump, "serialiation dump"));
         mCmds.register(Command("snap", &cmdSnapTest, "snapshot test",
             ["int:1=store, 2=load, 3=store+load"]));
+        mCmds.register(Command("replay", &cmdReplay,
+            "replay from last snapshot"));
         mCmds.register(Command("server", &cmdExecServer,
             "Run a command on the server", ["text...:command"]));
     }
@@ -690,7 +502,7 @@ class GameTask : StatefulTask {
             }
         }
         this() {
-            auto ph = mServerEngine.physicworld;
+            auto ph = mGameShell.serverEngine.physicworld;
             auto types = ph.collide.collisionTypes;
             auto table = new TableContainer(types.length+1, types.length+1,
                 Vector2i(2));
@@ -731,18 +543,18 @@ class GameTask : StatefulTask {
     }
 
     private void cmdShowCollide(MyBox[] args, Output write) {
-        if (!mServerEngine)
+        if (!mGameShell)
             return;
         gWindowManager.createWindow(this, new ShowCollide(),
             "Collision matrix");
     }
 
     private void cmdSafeLevelTGA(MyBox[] args, Output write) {
-        if (!mServerEngine)
+        if (!mGameShell)
             return;
         char[] filename = args[0].unbox!(char[])();
         Stream s = gFS.open(filename, FileMode.OutNew);
-        mServerEngine.gameLandscapes[0].image.saveImage(s);
+        mGameShell.serverEngine.gameLandscapes[0].image.saveImage(s);
         s.close();
     }
 
@@ -760,10 +572,12 @@ class GameTask : StatefulTask {
         float g = setgame ? val : mGame.slowDown;
         float a = setani ? val : globals.gameTimeAnimations.slowDown;
         write.writefln("set slowdown: game={} animations={}", g, a);
-        mControl.executeCommand("slow_down " ~ str.toString(g));
-        //xxx: fix this
-        //mClientEngine.engineTime.slowDown = g;
-        //globals.gameTimeAnimations.slowDown = a;
+        if (setgame)
+            mControl.executeCommand("slow_down " ~ str.toString(g));
+        if (setani) {
+            mClientEngine.engineTime.slowDown = g;
+            globals.gameTimeAnimations.slowDown = a;
+        }
     }
 
     private void cmdPause(MyBox[], Output) {
@@ -778,7 +592,7 @@ class GameTask : StatefulTask {
     }
 
     private void cmdSnapTest(MyBox[] args, Output write) {
-        if (!mServerEngine)
+        if (!mGameShell)
             return;
         int arg = args[0].unbox!(int);
         if (arg & 1) {
@@ -789,51 +603,24 @@ class GameTask : StatefulTask {
         }
     }
 
-    //xxx this is all tentative and hackish, don't attempt to clean up (for now)
+    private void cmdReplay(MyBox[] args, Output write) {
+        mGameShell.replay();
+    }
 
-    Snapshot snapshot;
-    Time snap_game_time;
-    LandscapeBitmap[] snap_bitmaps;
+    GameShell.GameSnap snapshot;
 
     private void doEngineSnap() {
-        if (!snapshot)
-            snapshot = new Snapshot(new SnapDescriptors(serialize_types));
-        snap_game_time = mGameTime.current();
-        snapshot.snap(mServerEngine);
-        //bitmaps are specially handled, I don't know how to do better
-        //probably unify with savegame stuff?
-        PerfTimer timer = new PerfTimer(true);
-        timer.start();
-        auto bitmaps = mServerEngine.landscapeBitmaps();
-        foreach (int index, LandscapeBitmap lb; bitmaps) {
-            if (index >= snap_bitmaps.length) {
-                snap_bitmaps ~= lb.copy();
-            } else {
-                //assume LandscapeBitmap.size() never changes, and that the
-                //result of server's landscapeBitmaps() returns the same objects
-                //in the same order (newly created ones attached to the end)
-                //random note: for faster snapshotting, one could copy only the
-                // regions that have been modified since the last snapshot
-                snap_bitmaps[index].copyFrom(lb);
-            }
-        }
-        timer.stop();
-        Stdout.formatln("backup bitmaps t={}", timer.time);
+        mGameShell.doSnapshot(snapshot);
+        mGameShell.snapForReplay();
     }
 
     private void doEngineUnsnap() {
-        snapshot.unsnap();
+        mGameShell.doUnsnapshot(snapshot);
+    }
+
+    private void guiRestoreSnapshot() {
         //important: readd graphics, because they could have changed
         mClientEngine.readd_graphics();
-        mGameTime.initTime(snap_game_time);
-        PerfTimer timer = new PerfTimer(true);
-        timer.start();
-        auto bitmaps = mServerEngine.landscapeBitmaps();
-        foreach (int index, LandscapeBitmap lb; bitmaps) {
-            lb.copyFrom(snap_bitmaps[index]);
-        }
-        timer.stop();
-        Stdout.formatln("restore bitmaps t={}", timer.time);
     }
 
     private void cmdSerDump(MyBox[] args, Output write) {

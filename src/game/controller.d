@@ -24,192 +24,6 @@ import utils.reflection;
 
 import math = tango.math.Math;
 
-//nasty proxy to the currently active TeamMember
-//this is per client (and not per-team)
-//xxx independent from controller, maybe shouldn't be here
-class ClientControlImpl : ClientControl {
-    private {
-        //xxx the controller needs to be replaced by sth. "better" hahaha
-        GameController ctl;
-        CommandBucket mCmds;
-        CommandLine mCmd;
-
-        //key state for LEFT/RIGHT and UP/DOWN
-        Vector2i dirKeyState_lu = {0, 0};  //left/up
-        Vector2i dirKeyState_rd = {0, 0};  //right/down
-
-        ServerTeam[] mOwnedTeams;
-
-        void createCmd() {
-            //output should be sent back to the client...?
-            mCmd = new CommandLine(globals.defaultOut);
-            mCmds = new CommandBucket();
-            mCmds.register(Command("next_member", &cmdNextMember, "-"));
-            mCmds.register(Command("jump", &cmdJump, "-", ["bool:alternate"]));
-            mCmds.register(Command("move", &cmdMove, "-", ["text:key",
-                "bool:is_down"]));
-            mCmds.register(Command("weapon", &cmdDrawWeapon, "-",
-                ["text:name"]));
-            mCmds.register(Command("set_timer", &cmdSetTimer, "-", ["int:ms"]));
-            mCmds.register(Command("set_target", &cmdSetTarget, "-",
-                ["int:x", "int:y"]));
-            mCmds.register(Command("weapon_fire", &cmdFire, "-",
-                ["bool:is_down"]));
-            mCmds.register(Command("selectandfire", &cmdDrawAndFire, "-",
-                ["text:name", "bool:is_down"]));
-            mCmds.bind(mCmd);
-        }
-    }
-
-    this(GameController c) {
-        ctl = c;
-        createCmd();
-        //multiple clients for one team? rather not, but cannot be checked here
-        //xxx implement client-team assignment
-        foreach (t; ctl.teams)
-            mOwnedTeams ~= t;
-    }
-
-    private ServerTeamMember activemember() {
-        foreach (t; mOwnedTeams) {
-            if (t.active)
-                return t.current;
-        }
-        return null;
-    }
-
-    //-- Start ClientControl implementation
-
-    void executeCommand(char[] cmd) {
-        registerLog("game.ClientControl")("client command: '{}'", cmd);
-        if (cmd.startsWith("help") || !mCmd.execute(cmd, true))
-            ctl.clientExecute(this, cmd);
-    }
-
-    TeamMember getControlledMember() {
-        return activemember;
-    }
-
-    //-- End ClientControl implementation
-
-    private void cmdNextMember(MyBox[] args, Output write) {
-        auto c = activemember;
-        if (c) {
-            c.mTeam.doChooseWorm();
-        }
-    }
-
-    private void cmdJump(MyBox[] args, Output write) {
-        //arg = true -> alternate jump, else normal jump
-        //xxx maybe redefine JumpMode
-        JumpMode mode =
-            args[0].unbox!(bool)?JumpMode.straightUp:JumpMode.normal;
-        auto m = activemember;
-        if (m) {
-            m.jump(mode);
-        }
-    }
-
-    private bool handleDirKey(char[] key, bool up) {
-        int v = up ? 0 : 1;
-        switch (key) {
-            case "left":
-                dirKeyState_lu.x = v;
-                break;
-            case "right":
-                dirKeyState_rd.x = v;
-                break;
-            case "up":
-                dirKeyState_lu.y = v;
-                break;
-            case "down":
-                dirKeyState_rd.y = v;
-                break;
-            default:
-                return false;
-        }
-
-        auto movementVec = dirKeyState_rd-dirKeyState_lu;
-        auto m = activemember;
-        if (m) {
-            m.doMove(movementVec);
-        }
-
-        return true;
-    }
-
-    private void cmdMove(MyBox[] args, Output write) {
-        char[] key = args[0].unbox!(char[]);
-        bool isDown = args[1].unbox!(bool);
-        handleDirKey(key, !isDown);
-    }
-
-    private void cmdDrawWeapon(MyBox[] args, Output write) {
-        char[] t = args[0].unbox!(char[]);
-        WeaponClass wc;
-        if (t != "-")
-            wc = ctl.engine.findWeaponClass(t, true);
-        auto m = activemember;
-        if (m) {
-            m.selectWeaponByClass(wc);
-        }
-    }
-
-    //select a weapon and fire when ready
-    //reacts like a spacebar press, meaning the key has to be held
-    //down if the weapon is not ready or it will not fire
-    private void cmdDrawAndFire(MyBox[] args, Output write) {
-        char[] t = args[0].unbox!(char[]);
-        bool isDown = args[1].unbox!(bool);
-        auto m = activemember;
-        if (isDown) {
-            WeaponClass wc;
-            if (t != "-")
-                wc = ctl.engine.findWeaponClass(t, true);
-            if (m) {
-                m.selectWeaponByClass(wc);
-                //doFireDown will save the keypress and wait if not ready
-                m.doFireDown(true);
-            }
-        } else {
-            //key was released (like fire behavior)
-            if (m)
-                m.doFireUp();
-        }
-    }
-
-    private void cmdSetTimer(MyBox[] args, Output write) {
-        Time t = timeMsecs(args[0].unbox!(int));
-        auto m = activemember;
-        if (m) {
-            //range checked later
-            m.doSetTimer(t);
-        }
-    }
-
-    private void cmdSetTarget(MyBox[] args, Output write) {
-        Vector2i targetPos = Vector2i(args[0].unbox!(int),
-            args[1].unbox!(int));
-        auto m = activemember;
-        if (m && m.mTeam) {
-            m.mTeam.doSetPoint(toVector2f(targetPos));
-        }
-    }
-
-    private void cmdFire(MyBox[] args, Output write) {
-        bool isDown = args[0].unbox!(bool);
-        auto m = activemember;
-        if (m) {
-            if (isDown)
-                m.doFireDown();
-            else
-                m.doFireUp();
-        } else {
-            //spacebar for crate
-            ctl.clientExecute(this, "unparachute");
-        }
-    }
-}
 
 class ServerTeam : Team {
     char[] mName = "unnamed team";
@@ -1026,6 +840,14 @@ class ServerTeamMember : TeamMember, WormController {
         //forced stop of all action (like when being damaged)
         mWorm.forceAbort();
     }
+
+    ServerTeam serverTeam() {
+        return mTeam;
+    }
+
+    GameEngine engine() {
+        return mEngine;
+    }
 }
 
 class WeaponSet {
@@ -1164,9 +986,6 @@ class GameController : GameLogicPublic {
 
         int mWeaponListChangeCounter;
 
-        CommandLine mCmd;
-        CommandBucket mCmds;
-
         Gamemode mGamemode;
         char[] mGamemodeId;
 
@@ -1200,79 +1019,11 @@ class GameController : GameLogicPublic {
         //only valid while loading
         mWeaponSets = null;
 
-        createCmd();
-
         mEngine.finishPlace();
-    }
-
-    private void createCmd() {
-        mCmd = new CommandLine(globals.defaultOut);
-        mCmds = new CommandBucket();
-        mCmds.register(Command("raise_water", &cmdRaiseWater,
-            "Increase water height", ["int:by"]));
-        mCmds.register(Command("set_wind", &cmdSetWind,
-            "Change wind speed (+/- for right/left)", ["float:speed"]));
-        mCmds.register(Command("set_pause", &cmdSetPause, "Pause game",
-            ["bool:state"]));
-        mCmds.register(Command("unparachute", &cmdInstantDropCrate,
-            "Un-parachute a crate", []));
-        mCmds.register(Command("slow_down", &cmdSlowDown,
-            "Change the speed gametime passes at", ["float:slow"]));
-        mCmds.register(Command("crate_test", &cmdCrateTest, "drop a crate"));
-        mCmds.register(Command("shake_test", &cmdShakeTest, "earth quake test",
-            ["float:strength", "float:degrade (multiplier < 1.0)"]));
-        mCmds.register(Command("activity", &cmdActivityDebug,
-            "list active game objects", ["text?:all/fix"]));
-        mCmds.bind(mCmd);
     }
 
     this (ReflectCtor c) {
         c.types().registerClass!(typeof(mMessages));
-        c.transient(this, &mCmds);
-        c.transient(this, &mCmd);
-        if (c.recreateTransient())
-            createCmd();
-    }
-
-    //this is where the old GameEngineAdmin went into
-    bool clientExecute(ClientControlImpl c, char[] cmd) {
-        //xxx security check or something
-        return mCmd.execute(cmd);
-    }
-
-    private void cmdRaiseWater(MyBox[] args, Output write) {
-        engine.raiseWater(args[0].unbox!(int));
-    }
-
-    private void cmdSetWind(MyBox[] args, Output write) {
-        engine.setWindSpeed(args[0].unbox!(float));
-    }
-
-    private void cmdSetPause(MyBox[] args, Output write) {
-        engine.setPaused(args[0].unbox!(bool));
-    }
-
-    private void cmdSlowDown(MyBox[] args, Output write) {
-        engine.setSlowDown(args[0].unbox!(float));
-    }
-
-    private void cmdCrateTest(MyBox[] args, Output write) {
-        dropCrate();
-    }
-
-    private void cmdShakeTest(MyBox[] args, Output write) {
-        float strength = args[0].unbox!(float);
-        float degrade = args[1].unbox!(float);
-        engine.addEarthQuake(strength, degrade);
-    }
-
-    private void cmdActivityDebug(MyBox[] args, Output write) {
-        engine.activityDebug(args[0].unboxMaybe!(char[]));
-    }
-
-    private void cmdInstantDropCrate(MyBox[] args, Output write) {
-        if (mLastCrate)
-            mLastCrate.unParachute();
     }
 
     //--- start GameLogicPublic
@@ -1613,6 +1364,11 @@ class GameController : GameLogicPublic {
             log("failed to create crate contents");
         }
         return false;
+    }
+
+    void instantDropCrate() {
+        if (mLastCrate)
+            mLastCrate.unParachute();
     }
 
     EventAggregator events() {

@@ -337,9 +337,9 @@ class ClientGameEngine {
 
     private PerfTimer mGameDrawTime;
 
-    this(GameEnginePublic engine, GfxSet a_gfx) {
+    this(GameEnginePublic engine) {
         mEngine = engine;
-        gfx = a_gfx;
+        gfx = engine.gfx;
         resources = gfx.resources;
 
         mEngineTime = new TimeSource();

@@ -12,13 +12,13 @@ import game.action, game.actionsprite, game.controller, game.crate, game.game,
     game.weapon.napalm, game.sequence, game.gamemodes.roundbased,
     game.gamemodes.roundbased_shared, game.gamemodes.mdebug;
 import physics.world;
-import utils.configfile;
+import utils.random;
 
-import game.gametask : serialize_types;
+import game.gameshell : serialize_types;
 
 void initGameSerialization() {
     serialize_types = new Types();
-    serialize_types.registerClasses!(GameEngine, PhysicWorld,
+    serialize_types.registerClasses!(Random, GameEngine, PhysicWorld,
         GameController, WormSprite, GameLandscape, ActionContext, ActionList,
         TimedAction, ActionSprite, GameController,
         ServerTeam, ServerTeamMember, WeaponSet, WeaponItem, CollectableBomb,

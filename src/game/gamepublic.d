@@ -7,7 +7,7 @@ import framework.framework;
 import common.resset : Resource;
 import framework.timesource;
 import game.animation;
-import game.gfxset : TeamTheme;
+import game.gfxset;
 //import game.glevel;
 import game.weapon.types;
 //import game.weapon.weapon;
@@ -362,8 +362,14 @@ interface GameEnginePublic {
     ///get controller interface
     //ControllerPublic controller();
 
-    ///level being played
+    ///level being played, must not modify returned object
     Level level();
+
+    ///game configuration, must not modify returned object
+    GameConfig config();
+
+    ///game resources, must not modify returned object
+    GfxSet gfx();
 
     ///xxx really should return a level (both server and client should have it)
     ///total size of game world and camera start

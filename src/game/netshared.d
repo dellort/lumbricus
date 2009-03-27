@@ -21,7 +21,11 @@ class GameState {
     int water_offset;
     float wind_speed;
     float earth_quake_strength;
+    //xxx following three won't work with replication (but are available
+    //    elsewhere)
     Level level;
+    GameConfig config;
+    GfxSet gfx;
     Vector2i world_size, world_center;
     bool paused;
     float slow_down;

@@ -503,7 +503,11 @@ class WormStateDisplay : AniStateDisplay {
 
     override bool readyFlag() {
         //if no state, consider it ready
-        return !mCurSubSeq || mCurSubSeq.ready;
+        if (!mCurSubSeq || mCurSubSeq.ready)
+            return true;
+        if (mCurSubSeq.ready_at_end)
+            return mAnimator.hasFinished();
+        return false;
     }
 
     void initSequence(WormState state, SeqType seq) {
@@ -745,6 +749,8 @@ class WormStateDisplay : AniStateDisplay {
 class SubSequence {
     //readyness flag signaled back (Sequence.readyflag)
     bool ready = true;
+    //if ready==false, signal ready at end of subsequence (dumb hack)
+    bool ready_at_end = false;
 
     //wait for an animation
     Animation animation; //if null, none set
@@ -967,6 +973,7 @@ void loadFirstNormalThenEmpty(GameEngine engine, ConfigNode fromitem) {
     auto s2 = new SubSequence;
     s1.animation = getAni(engine, value);
     s1.ready = false;
+    s1.ready_at_end = true;
     s2.reset_animation = true;
     s2.wait_forever = true;
     state.seqs[SeqType.Normal] = [s1, s2];

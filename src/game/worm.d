@@ -216,7 +216,6 @@ class WormSprite : GObjectSprite {
         super(c);
         c.types().registerMethod(this, &physDamage, "physDamage");
         c.types().registerMethod(this, &physImpact, "physImpact");
-        c.types().registerMethod(this, &physUpdate, "physUpdate");
         c.types().registerMethod(this, &shooterFinish, "shooterFinish");
         c.types().registerMethod(this, &reduceAmmo, "reduceAmmo");
     }
@@ -255,6 +254,7 @@ class WormSprite : GObjectSprite {
                 default:
                     assert(false, "Implement");
             }
+            return; //?
         }
         super.setCurrentAnimation();
     }
@@ -307,6 +307,8 @@ class WormSprite : GObjectSprite {
 
     //overwritten from GObject.simulate()
     override void simulate(float deltaT) {
+        physUpdate();
+
         super.simulate(deltaT);
 
         float weaponMove;
@@ -640,6 +642,7 @@ class WormSprite : GObjectSprite {
         StaticStateInfo to)
     {
         super.stateTransition(from, to);
+        //Stdout.formatln("state {} -> {}", from.name, to.name);
 
         if (!mIsDead && (currentState is wsc.st_drowning)) {
             //die by drowning - are there more actions needed?
@@ -797,45 +800,48 @@ class WormSprite : GObjectSprite {
         mLastDmg = engine.gameTime.current;
     }
 
-    override protected void physUpdate() {
-        if (!isDelayedDying) {
-            if (!jetpackActivated) {
-                //update walk animation
-                if (physics.isGlued) {
-                    bool walkst = currentState is wsc.st_walk;
-                    if (walkst != physics.isWalking)
-                        setState(physics.isWalking ? wsc.st_walk : wsc.st_stand);
-                    mRopeCanRefire = false;
-                }
+    private void physUpdate() {
+        if (isDelayedDying)
+            return;
 
-                //update if worm is flying around...
-                bool onGround = currentState.isGrounded;
-                if (physics.isGlued != onGround) {
-                    setState(physics.isGlued ? wsc.st_stand : wsc.st_fly);
-                    //recent damage -> ungluing possibly caused by explosion
-                    //xxx better physics feedback
-                    if (engine.gameTime.current - mLastDmg < timeMsecs(100))
-                        setFlyAnim(FlyMode.heavy);
-                }
-                if (currentState is wsc.st_fly && graphic) {
-                    //worm is falling to fast -> use roll animation
-                    if (physics.velocity.length >= wsc.rollVelocity)
-                        if (graphic.getCurrentState is wsc.flyState[FlyMode.fall]
-                         || graphic.getCurrentState is wsc.flyState[FlyMode.slide])
-                            setFlyAnim(FlyMode.roll);
-                }
-                if (currentState is wsc.st_jump && physics.velocity.y > 0) {
-                    setState(wsc.st_jump_to_fly);
-                }
+        if (!jetpackActivated) {
+            //update walk animation
+            if (physics.isGlued) {
+                bool walkst = currentState is wsc.st_walk;
+                if (walkst != physics.isWalking)
+                    setState(physics.isWalking ? wsc.st_walk : wsc.st_stand);
+                mRopeCanRefire = false;
+            }
 
+            //update if worm is flying around...
+            bool onGround = currentState.isGrounded;
+            if (physics.isGlued != onGround) {
+                setState(physics.isGlued ? wsc.st_stand : wsc.st_fly);
+                //recent damage -> ungluing possibly caused by explosion
+                //xxx better physics feedback
+                if (engine.gameTime.current - mLastDmg < timeMsecs(100))
+                    setFlyAnim(FlyMode.heavy);
             }
-            checkReadjust();
-            //check death
-            if (active && shouldDie() && !delayedDeath()) {
-                finallyDie();
+            if (currentState is wsc.st_fly && graphic) {
+                //worm is falling to fast -> use roll animation
+                if (physics.velocity.length >= wsc.rollVelocity)
+                    if (graphic.getCurrentState is wsc.flyState[FlyMode.fall]
+                        || graphic.getCurrentState is
+                            wsc.flyState[FlyMode.slide])
+                    {
+                        setFlyAnim(FlyMode.roll);
+                    }
             }
+            if (currentState is wsc.st_jump && physics.velocity.y > 0) {
+                setState(wsc.st_jump_to_fly);
+            }
+
         }
-        super.physUpdate();
+        checkReadjust();
+        //check death
+        if (active && shouldDie() && !delayedDeath()) {
+            finallyDie();
+        }
     }
 }
 

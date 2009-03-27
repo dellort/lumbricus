@@ -167,6 +167,9 @@ class Common {
     }
 
     public PerfTimer newTimer(char[] name) {
+        auto pold = name in timers;
+        if (pold)
+            return *pold;
         auto t = new PerfTimer(true);
         timers[name] = t;
         return t;

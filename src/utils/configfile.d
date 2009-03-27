@@ -166,20 +166,35 @@ public class ConfigNode {
 
     public void rename(char[] new_name) {
         ConfigNode parent = mParent;
-        if (!parent)
-            throw new Exception("cannot rename: no parent");
-        parent.doRemove(this);
-        ConfigNode conflict = parent.find(new_name);
-        if (conflict) {
-            conflict.resolveConflict(new_name);
+        if (!parent) {
+            mName = new_name;
+            return;
         }
-        mName = new_name;
-        parent.doAdd(this);
+        parent.doRemove(this);
+        parent.add(new_name, this);
     }
 
     private void resolveConflict(char[] conflict_name) {
         rename(conflict_name ~ "_deleted");
         assert(mName != conflict_name);
+    }
+
+    void add(ConfigNode item) {
+        if (item.mParent)
+            item.mParent.remove(item);
+        char[] new_name = item.name;
+        ConfigNode conflict = find(new_name);
+        if (conflict) {
+            conflict.resolveConflict(new_name);
+        }
+        mName = new_name;
+        doAdd(item);
+    }
+    void add(char[] name, ConfigNode item) {
+        if (item.mParent)
+            item.mParent.remove(item);
+        item.mName = name;
+        add(item);
     }
 
     private void doAdd(ConfigNode item) {
@@ -191,9 +206,7 @@ public class ConfigNode {
             mNamedItems[item.mName] = item;
         }
 
-        //very inefficient
-        mItems.length = mItems.length + 1;
-        mItems[$-1] = item;
+        mItems ~= item;
 
         item.mParent = this;
     }
@@ -214,8 +227,7 @@ public class ConfigNode {
 
         for (uint n = 0; n < mItems.length; n++) {
             if (mItems[n] == item) {
-                //this length is a doubtable D feature
-                mItems = mItems[0..n] ~ mItems[n+1..length];
+                mItems = mItems[0..n] ~ mItems[n+1..$];
                 break;
             }
         }

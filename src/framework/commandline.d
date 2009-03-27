@@ -22,14 +22,19 @@ alias void delegate(MyBox[] args, Output write) CommandHandler;
 alias char[][] delegate() CompletionHandler;
 
 TypeHandler[char[]] gCommandLineParsers;
+char[][TypeInfo] gCommandLineParserTypes; //kind of reverse lookup
 CompletionHandler[char[]] gCommandLineCompletionHandlers;
 
 static this() {
-    gCommandLineParsers["text"] = gBoxParsers[typeid(char[])];
-    gCommandLineParsers["int"] = gBoxParsers[typeid(int)];
-    gCommandLineParsers["float"] = gBoxParsers[typeid(float)];
-    gCommandLineParsers["color"] = gBoxParsers[typeid(Color)];
-    gCommandLineParsers["bool"] = gBoxParsers[typeid(bool)];
+    void add(char[] name, TypeInfo t) {
+        gCommandLineParsers[name] = gBoxParsers[t];
+        gCommandLineParserTypes[t] = name;
+    }
+    add("text", typeid(char[]));
+    add("int", typeid(int));
+    add("float", typeid(float));
+    add("color", typeid(Color));
+    add("bool", typeid(bool));
 
     char[][] complete_bool() {
         return ["true", "false"];

@@ -53,6 +53,12 @@ class NapalmSprite : ProjectileSprite {
 
     override void simulate(float deltaT) {
         super.simulate(deltaT);
+
+        //reset decay if particle got fast enough (this has to do,
+        // no way to determine if it was hit by an explosion)
+        if (physics.velocity.length > myclass.lightupVelocity)
+            lightUp();
+
         float dp = decayPercent();
         //adjust particle radius to decay
         if (dp <= 0.25 && mDecayPerc > 0.25)
@@ -88,14 +94,6 @@ class NapalmSprite : ProjectileSprite {
         super.fillAnimUpdate;
         //0: full size, 100: tiny
         mNUpdate.decay = clampRangeC(100-cast(int)(mDecayPerc*80), 0, 100);
-    }
-
-    override protected void physUpdate() {
-        super.physUpdate();
-        //reset decay if particle got fast enough (this has to do,
-        // no way to determine if it was hit by an explosion)
-        if (physics.velocity.length > myclass.lightupVelocity)
-            lightUp();
     }
 
     this(GameEngine engine, NapalmSpriteClass type) {

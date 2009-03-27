@@ -1,6 +1,8 @@
 //Code adapted from tango.math.Random (www.dsource.org/projects/tango, BSD)
+//xxx new code should use tango.math.random.Random (I think)
 module utils.rndkiss;
 
+import utils.reflection;
 import utils.time;
 import utils.misc;
 
@@ -47,11 +49,16 @@ class Random
         this.seed;
     }
 
+    this (ReflectCtor c) {
+    }
+
     /**********************************************************************
         Seed the generator with current time
     **********************************************************************/
     final void seed()
     {
+        //xxx: this isn't really going to work, time resolution is too low and
+        //     probably starts with 0 at program start?
         seed(cast(uint) timeCurrentTime().musecs);
     }
 

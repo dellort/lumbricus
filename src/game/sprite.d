@@ -97,45 +97,6 @@ class GObjectSprite : GameObject {
             seqUpdate.lifePercent = max(physics.lifepower / type.initialHp, 0f);
     }
 
-    protected void physUpdate() {
-        updateAnimation();
-
-        if (!mWaterUpdated && mIsUnderWater) {
-            mIsUnderWater = false;
-            waterStateChange(false);
-        }
-        mWaterUpdated = false;
-
-        /+
-        yyy move this code into the client's GUI
-        this can't be here because this depends from what part of the level
-        you look into
-        //check if sprite is out of level
-        //if so, draw nice out-of-level-graphic
-        auto scenerect = Rect2i(0,0,graphic.scene.size.x,graphic.scene.size.y);
-        if (!scenerect.intersects(Rect2i(graphic.pos,graphic.pos+graphic.size))
-            && !underWater)
-        {
-            auto hsize = outOfLevel.size/2;
-            //draw arrow 5 pixels before level border
-            scenerect.extendBorder(-hsize-Vector2i(5));
-            auto dest = graphic.pos+graphic.size/2;
-            auto c = scenerect.clip(dest);
-            outOfLevel.pos = c - hsize;
-            //get the angle to the outside graphic
-            //auto angle = -toVector2f(dest-c).normal.toAngle();
-            auto angle = -physics.velocity.toAngle();
-            //frame according to angle; starts at 270 degrees => add PI/2
-            auto frames = outOfLevel.currentAnimation.frameCount;
-            auto frame = cast(int)(realmod(angle+PI/2,PI*2)/(PI*2)*frames);
-            outOfLevel.setFrame(frame);
-            outOfLevel.active = active; //only make active if self active
-        } else {
-            outOfLevel.active = false;
-        }
-        +/
-    }
-
     protected void physImpact(PhysicBase other, Vector2f normal) {
     }
 
@@ -199,8 +160,7 @@ class GObjectSprite : GameObject {
     //force position
     void setPos(Vector2f pos) {
         physics.setPos(pos, false);
-        //physUpdate();
-        physics.needUpdate();
+        fillAnimUpdate();
     }
 
     //do as less as necessary to force a new state
@@ -253,14 +213,14 @@ class GObjectSprite : GameObject {
         if (!nstate.keepSelfForce)
             physics.selfForce = Vector2f(0);
 
+        stateTransition(oldstate, currentState);
+        //if this fails, maybe stateTransition called setState()?
+        assert(currentState is nstate);
+
         if (graphic) {
             setCurrentAnimation();
             updateAnimation();
         }
-
-        stateTransition(oldstate, currentState);
-        //if this fails, maybe stateTransition called setState()?
-        assert(currentState is nstate);
 
         //update water state (to catch an underwater state transition)
         waterStateChange(mIsUnderWater);
@@ -307,6 +267,15 @@ class GObjectSprite : GameObject {
                 setState(currentState.onAnimationEnd, true);
             }
         }
+
+        if (!mWaterUpdated && mIsUnderWater) {
+            mIsUnderWater = false;
+            waterStateChange(false);
+        }
+        mWaterUpdated = false;
+
+        fillAnimUpdate();
+
         //xxx: added with sequence-messup
         if (graphic)
             graphic.simulate();
@@ -326,7 +295,6 @@ class GObjectSprite : GameObject {
 
         engine.physicworld.add(physics);
 
-        physics.onUpdate = &physUpdate;
         physics.onDie = &physDie;
         physics.onDamage = &physDamage;
 
@@ -335,7 +303,6 @@ class GObjectSprite : GameObject {
 
     this (ReflectCtor c) {
         super(c);
-        c.types().registerMethod(this, &physUpdate, "physUpdate");
         c.types().registerMethod(this, &physDie, "physDie");
         c.types().registerMethod(this, &physDamage, "physDamage");
     }

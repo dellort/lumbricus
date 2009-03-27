@@ -198,7 +198,6 @@ class PhysicWorld {
             foreach (o; mContacts[i].obj) {
                 if (o) {
                     o.checkRotation();
-                    o.needUpdate();
                 }
             }
             //call collide event handler
@@ -211,9 +210,6 @@ class PhysicWorld {
     private void checkUpdates() {
         //do updates
         foreach (PhysicBase obj; mAllObjects) {
-            if (!obj.dead && obj.needsUpdate) {
-                obj.doUpdate();
-            }
             if (obj.dead) {
                 obj.doDie();
                 remove(obj);

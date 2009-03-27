@@ -43,8 +43,7 @@ class ActionSprite : GObjectSprite {
         return cast(ActionStateInfo)super.currentState();
     }
 
-    override protected void physUpdate() {
-        super.physUpdate();
+    override void simulate(float deltaT) {
         if (physics.lifepower <= 0)
             doEvent("onzerolife");
         bool glue = physics.isGlued;
@@ -53,6 +52,7 @@ class ActionSprite : GObjectSprite {
             if (glue)
                 doEvent("onglue");
         }
+        super.simulate(deltaT);
     }
 
     override protected void physImpact(PhysicBase other, Vector2f normal) {
@@ -213,7 +213,6 @@ class ActionSprite : GObjectSprite {
         c.types().registerMethod(this, &readParam, "readParam");
         c.types().registerMethod(this, &physDamage, "physDamage");
         c.types().registerMethod(this, &physImpact, "physImpact");
-        c.types().registerMethod(this, &physUpdate, "physUpdate");
     }
 }
 

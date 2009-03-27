@@ -35,8 +35,6 @@ const CollisionType CollisionType_Invalid = null;
 //base type for physic objects (which are contained in a PhysicWorld)
 class PhysicBase {
     package ListNode base_node;
-    //private bool mNeedSimulation;
-    private bool mNeedUpdate;
     PhysicWorld mWorld;
     //set to remove object after simulation
     bool dead = false;
@@ -70,20 +68,11 @@ class PhysicBase {
         //override to do something when the object is added to the PhysicWorld
     }
 
-    //call when object should be notified with doUpdate() after all physics done
-    void needUpdate() {
-        mNeedUpdate = true;
-    }
-    package bool needsUpdate() {
-        return mNeedUpdate;
-    }
-
     void lifeTime(float secs) {
         mLifeTime = secs;
         mRemainLifeTime = secs;
     }
 
-    public void delegate() onUpdate;
     public void delegate() onDie;
 
     //called when simulation is done and this.dead was true
@@ -91,15 +80,6 @@ class PhysicBase {
     void doDie() {
         if (onDie)
             onDie();
-    }
-
-    //feedback to other parts of the game
-    package void doUpdate() {
-        mNeedUpdate = false;
-        if (onUpdate) {
-            onUpdate();
-        }
-        //world.mLog("update: {}", this);
     }
 
     /+package+/ void simulate(float deltaT) {

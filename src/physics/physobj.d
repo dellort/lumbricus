@@ -116,7 +116,6 @@ class PhysicObject : PhysicBase {
         //                       when glued again)
         mIsWalking = false;
         mOnSurface = false;
-        needUpdate();
     }
 
     //apply a force
@@ -261,7 +260,6 @@ class PhysicObject : PhysicBase {
         //Update position
         move(velocity * deltaT);
 
-        needUpdate();
         checkRotation();
     }
 
@@ -405,7 +403,6 @@ class PhysicObject : PhysicBase {
             }
             if (onDamage)
                 onDamage(delta, cause);
-            needUpdate();
             //die muaha
             //xxx rather not (WormSprite is died by GameController)
             //if (lifepower <= 0)
@@ -436,8 +433,6 @@ class PhysicObject : PhysicBase {
             mWalkingMode = false;
             if (mIsWalking) {
                 mIsWalking = false;
-
-                needUpdate();
             }
         } else {
             //will definitely try to walk, so look into walking direction
@@ -541,9 +536,6 @@ class PhysicObject : PhysicBase {
                     if (!ndir.isNaN())
                         mIntendedLook = ndir;
 
-                    //notice update before you forget it...
-                    needUpdate();
-
                     return;
                 }
 
@@ -553,8 +545,6 @@ class PhysicObject : PhysicBase {
             //if nothing was done, the worm (or the cow :) just can't walk
             if (mIsWalking) {
                 mIsWalking = false;
-                //only if state actually changed
-                needUpdate();
             }
         }
     }

@@ -209,7 +209,7 @@ class CrateSprite : ActionSprite {
         }
     }
 
-    override protected void physUpdate() {
+    override void simulate(float deltaT) {
         crateZone.pos = physics.pos;
         if (physics.isGlued) {
             setState(myclass.st_normal);
@@ -224,7 +224,7 @@ class CrateSprite : ActionSprite {
                 setState(myclass.st_parachute);
             }
         }
-        super.physUpdate();
+        super.simulate(deltaT);
     }
 }
 

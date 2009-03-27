@@ -36,6 +36,9 @@ class TimeSourcePublic {
     abstract bool paused();
     abstract void slowDown(float factor);
     abstract float slowDown();
+
+    //?
+    abstract Time lastExternalTime();
 }
 
 final class TimeSource : TimeSourcePublic {
@@ -131,6 +134,10 @@ final class TimeSource : TimeSourcePublic {
         return timeCurrentTime();
     }
 
+    Time lastExternalTime() {
+        return mLastExternalTime;
+    }
+
     //update time!
     public void update() {
         mExternalTime = sampleExternal();
@@ -212,6 +219,10 @@ class TimeSourceFixFramerate : TimeSourcePublic {
     }
     override float slowDown() {
         return mChain.slowDown;
+    }
+
+    override Time lastExternalTime() {
+        return mChain.lastExternalTime;
     }
 
     ///runs n frames in increments of the fixed frame length, and calls

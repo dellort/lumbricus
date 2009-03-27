@@ -30,13 +30,7 @@ import game.levelgen.renderer;// : LandscapeBitmap;
 //code to manage a game session (hm, whatever this means)
 //reinstantiated on each "round"
 class GameEngine : GameEnginePublic {
-    //difference between these two timesources: mGameTime acts according to the
-    // fixed framerate, while mExternalTime is the "actual" time; the actual
-    // time might increase in too large increments (larger than a fixed frame),
-    // and also it isn't quantized to the length of a fixed frame, which is why
-    // an extra mGameTime object is needed.
-    private TimeSourceFixFramerate mGameTime;
-    private TimeSourcePublic mExternalTime;
+    private TimeSourcePublic mGameTime;
 
     protected PhysicWorld mPhysicWorld;
     private List2!(GameObject) mObjects;
@@ -46,7 +40,7 @@ class GameEngine : GameEnginePublic {
     PhysicZonePlane deathzone;
     private WaterSurfaceGeometry mWaterBouncer;
 
-    GfxSet gfx;
+    GfxSet mGfx;
 
     GameEngineGraphics graphics;
 
@@ -92,17 +86,15 @@ class GameEngine : GameEnginePublic {
         return mGameTime.slowDown;
     }
 
-    //warning: only to be called by controller.d (which happens to take care of
-    // all input)
     void setPaused(bool p) {
         mGameTime.paused = p;
     }
+
     void setSlowDown(float s) {
         mGameTime.slowDown = s;
     }
 
     private static LogStruct!("game.game") log;
-    //private PerfTimer mPhysicTime;
 
     private const cSpaceBelowLevel = 150;
     private const cSpaceAboveOpenLevel = 1000;
@@ -141,7 +133,6 @@ class GameEngine : GameEnginePublic {
         t.registerMethod(this, &onPhysicHit, "onPhysicHit");
         t.registerMethod(this, &onDamage, "onDamage");
     }
-
 
     //factory for GOSpriteClasses
     //the constructor of GOSpriteClasses will call:
@@ -266,24 +257,19 @@ class GameEngine : GameEnginePublic {
         mWaterBouncer.updatePos(val - 5);
     }
 
-    this(GameConfig config, GfxSet a_gfx, TimeSourcePublic externalTime) {
+    this(GameConfig config, GfxSet a_gfx, TimeSourcePublic a_gameTime) {
         rnd = new Random();
         //xxx
         rnd.seed(1);
-        gfx = a_gfx;
+        mGfx = a_gfx;
         gameConfig = config;
+        mGameTime = a_gameTime;
 
         assert(config.level !is null);
         mLevel = config.level;
 
-        //mPhysicTime = globals.newTimer("game_physic");
-
         //also check physic framerate in world.d
-        const Time cFrameLength = timeMsecs(40);
-
-        mExternalTime = externalTime;
-        mGameTime = new TimeSourceFixFramerate(mExternalTime, cFrameLength);
-        mGameTime.paused = true;
+        const Time cFrameLength = timeMsecs(20);
 
         graphics = new GameEngineGraphics(mGameTime);
 
@@ -367,12 +353,6 @@ class GameEngine : GameEnginePublic {
             res ~= x.landscape_bitmap();
         }
         return res;
-    }
-
-    //actually start the game (called after resources were preloaded)
-    void start() {
-        mGameTime.update((){}); //make it skip any "left over" time
-        mGameTime.paused = false;
     }
 
     GameEngineGraphics getGraphics() {
@@ -491,16 +471,16 @@ class GameEngine : GameEnginePublic {
     }
 
     void frame() {
-        mGameTime.update(&doFrame);
-    }
-
-    private void doFrame() {
         if (!mGameTime.paused) {
             graphics.current_frame++;
-            //mPhysicTime.start();
+
+            auto physicTime = globals.newTimer("game_physic");
+            physicTime.start();
             mPhysicWorld.simulate(mGameTime.current);
-            //mPhysicTime.stop();
+            physicTime.stop();
+
             mController.simulate();
+
             //update game objects
             //NOTE: objects might be inserted/removed while iterating
             //      List.opApply can deal with that
@@ -827,6 +807,14 @@ class GameEngine : GameEnginePublic {
         return ret;
     }
 
+    void crateTest() {
+        mController.dropCrate();
+    }
+
+    void instantDropCrate() {
+        mController.instantDropCrate();
+    }
+
     void activityDebug(char[] mode = "") {
         bool all = (mode == "all");
         bool fix = (mode == "fix");
@@ -856,5 +844,13 @@ class GameEngine : GameEnginePublic {
             }
         }
         log("-- {} objects reporting activity",i);
+    }
+
+    GameConfig config() {
+        return gameConfig;
+    }
+
+    GfxSet gfx() {
+        return mGfx;
     }
 }

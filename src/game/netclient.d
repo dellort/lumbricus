@@ -116,6 +116,14 @@ class GSFunctions : GameEnginePublic, GameLogicPublic, ClientControl
         return state.level;
     }
 
+    GameConfig config() {
+        return state.config;
+    }
+
+    GfxSet gfx() {
+        return state.gfx;
+    }
+
     Vector2i worldSize() {
         return state.world_size;
     }

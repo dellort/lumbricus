@@ -242,3 +242,21 @@ template forceSigned(T) {
     static assert(is(forceUnsigned!(short) == ushort));
     static assert(is(forceUnsigned!(ushort) == ushort));
 //}
+
+//return parameters of a function type (or error)
+template GetFNParams(T) {
+    static if (is(T T2 == function)) {
+        alias T2 GetFNParams;
+    } else {
+        static assert(false, "GetDGParams: T is not a function type");
+    }
+}
+
+//return parameters of a delegate type (or error)
+template GetDGParams(T) {
+    static if (is(T T2 == delegate)) {
+        alias GetFNParams!(T2) GetDGParams;
+    } else {
+        static assert(false, "GetDGParams: T is not a delegate type");
+    }
+}
