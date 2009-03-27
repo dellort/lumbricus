@@ -2,6 +2,7 @@ module game.netserver;
 
 import framework.commandline;
 import game.game;
+import game.gameshell;
 import game.controller;
 import game.netshared;
 import game.weapon.weapon;
@@ -24,6 +25,7 @@ class NetServer {
         }
 
         GameEngine engine;
+        GameShell shell;
         InitPacket init;
         GameState state;
         MemberState[TeamMember] member_server2state;
@@ -32,8 +34,9 @@ class NetServer {
 
     //create a server for pseudo-networking
     //(otherwise, it'd also take a NetPeer parameter or whatever)
-    this(GameEngine a_engine) {
-        engine = a_engine;
+    this(GameShell a_shell) {
+        shell = a_shell;
+        engine = shell.serverEngine;
         writeState();
         init = new InitPacket();
         init.config = engine.gameConfig.save.writeAsString();
@@ -49,8 +52,7 @@ class NetServer {
         con.net.shared_state = state;
         con.net.client_to_server = new NetEventQueue();
         //xxx: establish a per-client controller connection here
-        assert(false, "fix me"); //yyy
-        //--- con.client = new ClientControlImpl(engine.controller);
+        con.client = new GameControl(shell);
         mConnections ~= con;
         writeState();
         return con.net;

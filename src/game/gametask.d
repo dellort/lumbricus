@@ -312,7 +312,7 @@ class GameTask : StatefulTask {
 
         if (mGameConfig.as_pseudo_server && !mNetServer) {
             assert(!!mGameShell);
-            mNetServer = new NetServer(mGameShell.serverEngine);
+            mNetServer = new NetServer(mGameShell);
             new GameTask(manager(), mNetServer.connect());
         }
 
