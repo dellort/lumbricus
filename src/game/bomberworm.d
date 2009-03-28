@@ -428,7 +428,7 @@ private:
     public this(TaskManager mgr, char[] args = "") {
         super(mgr);
 
-        mTime = new TimeSource();
+        mTime = new TimeSource("bomberworm");
         mTime.update();
 
         auto window = gWindowManager.createWindow(this, new IO(), "BomberWorm");

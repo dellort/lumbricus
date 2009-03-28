@@ -27,10 +27,18 @@ import tango.math.Math;
 
 import game.levelgen.renderer;// : LandscapeBitmap;
 
+//implemented by GameShell
+//this is stupid, remove if you find better way
+interface GameCallbackDistributor : GameEngineCallback {
+    //redirect GameEnginePublic.addCallback to GameShell
+    void addCallback(GameEngineCallback cb);
+}
+
 //code to manage a game session (hm, whatever this means)
 //reinstantiated on each "round"
 class GameEngine : GameEnginePublic {
     private TimeSourcePublic mGameTime;
+    private GameCallbackDistributor mCallbacks;
 
     protected PhysicWorld mPhysicWorld;
     private List2!(GameObject) mObjects;
@@ -257,13 +265,16 @@ class GameEngine : GameEnginePublic {
         mWaterBouncer.updatePos(val - 5);
     }
 
-    this(GameConfig config, GfxSet a_gfx, TimeSourcePublic a_gameTime) {
+    this(GameConfig config, GfxSet a_gfx, TimeSourcePublic a_gameTime,
+        GameCallbackDistributor a_Callbacks)
+    {
         rnd = new Random();
         //xxx
         rnd.seed(1);
         mGfx = a_gfx;
         gameConfig = config;
         mGameTime = a_gameTime;
+        mCallbacks = a_Callbacks;
 
         assert(config.level !is null);
         mLevel = config.level;
@@ -343,6 +354,10 @@ class GameEngine : GameEnginePublic {
         //NOTE: GameController relies on many stuff at initialization
         //i.e. physics for worm placement
         mController = new GameController(this, config);
+    }
+
+    void addCallback(GameEngineCallback cb) {
+        mCallbacks.addCallback(cb);
     }
 
     //landscape bitmaps need special handling in many cases
@@ -719,9 +734,10 @@ class GameEngine : GameEnginePublic {
         expl.pos = pos;
         expl.onReportApply = &onDamage;
         expl.cause = cause;
-        damageLandscape(toVector2i(pos), cast(int)(expl.radius/2.0f), cause);
+        auto iradius = cast(int)((expl.radius+0.5f)/2.0f);
+        damageLandscape(toVector2i(pos), iradius, cause);
         physicworld.add(expl);
-        graphics.createExplosionGfx(toVector2i(pos), cast(int)expl.radius);
+        mCallbacks.damage(toVector2i(pos), iradius, true);
         //some more chaos, if strong enough
         //xxx needs moar tweaking
         //if (damage > 50)

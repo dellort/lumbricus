@@ -519,7 +519,7 @@ public class WTris : Task {
     this(TaskManager tm, char[] args = "") {
         super(tm);
 
-        thetime = new TimeSource();
+        thetime = new TimeSource("wtris");
 
         //sry for not using "resources"!
         boxes = gFramework.loadImage("wtrisboxes.png");

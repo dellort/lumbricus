@@ -223,28 +223,26 @@ class TargetCrossImpl : SceneObject {
 //currently creates no particles, but could in the future
 class ExplosionGfxImpl : SceneObjectCentered {
     private {
-        ExplosionGfx mInfo;
         Animator mShockwave1, mShockwave2, mComicText;
         int mDiameter;
         GfxSet mGfx;
     }
 
-    this(ExplosionGfx info, GfxSet gfx) {
+    this(GfxSet gfx, Vector2i a_pos, int diameter) {
         zorder = GameZOrder.TargetCross;
         mGfx = gfx;
-        mInfo = info;
         mShockwave1 = new Animator();
         mShockwave2 = new Animator();
         mComicText = new Animator();
-        auto p = mInfo.pos;
+        auto p = a_pos;
         mShockwave1.pos = p;
         mShockwave2.pos = p;
         mComicText.pos = p;
-        mShockwave1.timeSource = mInfo.owner.timebase;
-        mShockwave2.timeSource = mInfo.owner.timebase;
-        mComicText.timeSource = mInfo.owner.timebase;
+        //mShockwave1.timeSource = mInfo.owner.timebase;
+        //mShockwave2.timeSource = mInfo.owner.timebase;
+        //mComicText.timeSource = mInfo.owner.timebase;
 
-        setDiameter(mInfo.diameter);
+        setDiameter(diameter);
     }
 
     //selects animations matching diameter
@@ -270,24 +268,21 @@ class ExplosionGfxImpl : SceneObjectCentered {
             s = 3;
             t = random(0,4);
         }
-        Time st = mInfo.start;
         if (s >= 0) {
-            mShockwave1.setAnimation2(mGfx.expl.shockwave1[s].get, st);
-            mShockwave2.setAnimation2(mGfx.expl.shockwave2[s].get, st);
+            mShockwave1.setAnimation(mGfx.expl.shockwave1[s].get);
+            mShockwave2.setAnimation(mGfx.expl.shockwave2[s].get);
         }
         if (t >= 0) {
-            mComicText.setAnimation2(mGfx.expl.comicText[t].get, st);
+            mComicText.setAnimation(mGfx.expl.comicText[t].get);
         }
     }
 
     override void draw(Canvas c) {
         //self-remove after all animations are finished
         if ((mShockwave1.hasFinished && mShockwave2.hasFinished &&
-            mComicText.hasFinished) || mInfo.removed)
+            mComicText.hasFinished))
         {
             removeThis();
-            //uh, how strange (but it wasn't my idea ;D)
-            mInfo.remove();
         }
         mShockwave1.draw(c);
         mShockwave2.draw(c);
@@ -297,7 +292,7 @@ class ExplosionGfxImpl : SceneObjectCentered {
 
 //client-side game engine, manages all stuff that does not affect gameplay,
 //but needs access to the game and is drawn into the game scene
-class ClientGameEngine {
+class ClientGameEngine : GameEngineCallback {
     private GameEnginePublic mEngine;
 
     ResourceSet resources;
@@ -342,7 +337,9 @@ class ClientGameEngine {
         gfx = engine.gfx;
         resources = gfx.resources;
 
-        mEngineTime = new TimeSource();
+        mEngine.addCallback(this);
+
+        mEngineTime = new TimeSource("ClientEngine");
         mEngineTime.paused = true;
 
         mGameDrawTime = globals.newTimer("game_draw_time");
@@ -432,8 +429,6 @@ class ClientGameEngine {
                 add(new LandscapeGraphicImpl(land));
             } else if (auto tc = cast(TargetCross)g) {
                 add(new TargetCrossImpl(tc, gfx));
-            } else if (auto eg = cast(ExplosionGfx)g) {
-                add(new ExplosionGfxImpl(eg, gfx));
             } else {
                 assert (false, "unknown type: "~g.toString());
             }
@@ -441,6 +436,13 @@ class ClientGameEngine {
 
         server_graphics_last_checked_frame
             = server_graphics.last_objects_frame;
+    }
+
+    //interface GameEngineCallback
+    void damage(Vector2i pos, int radius, bool explode) {
+        if (explode) {
+            scene.add(new ExplosionGfxImpl(gfx, pos, radius*2));
+        }
     }
 
     bool oldpause; //hack, so you can pause the music independent from the game

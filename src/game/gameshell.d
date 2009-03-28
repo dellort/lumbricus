@@ -28,6 +28,7 @@ import utils.random;
 import utils.reflection;
 import utils.serialize;
 import utils.snapshot;
+import utils.strparser : boxToString;
 import utils.time;
 import utils.vector2;
 
@@ -39,6 +40,8 @@ Types serialize_types;
 //fixed framerate for the game logic (all of GameEngine)
 //also check physic frame length cPhysTimeStepMs in world.d
 const Time cFrameLength = timeMsecs(20);
+
+private LogStruct!("game.gameshell") log;
 
 //to implement a pre-load mechanism
 //for normal games:
@@ -178,17 +181,18 @@ class GameLoader {
         mShell = new GameShell();
         mShell.mGameConfig = mGameConfig;
         mShell.mGfx = mGfx;
-        mShell.mMasterTime = new TimeSource();
+        mShell.mMasterTime = new TimeSource("GameShell/MasterTime");
         if (!mSaveGame) {
             //for creation of a new game
-            mShell.mGameTime = new TimeSourceFixFramerate(mShell.mMasterTime,
-                cFrameLength);
+            mShell.mGameTime = new TimeSourceFixFramerate("GameTime",
+                mShell.mMasterTime, cFrameLength);
             mShell.mEngine = new GameEngine(mGameConfig, mGfx,
-                mShell.mGameTime);
+                mShell.mGameTime, mShell.mGCD);
         } else {
             //for loading a savegame
             addResources(mGfx, mSaveGame);
             mSaveGame.addExternal(mShell.mMasterTime, "mastertime");
+            mSaveGame.addExternal(mShell.mGCD, "callbacks");
             //(actually deserialize the complete engine)
             mShell.mEngine = mSaveGame.readObjectT!(GameEngine)();
             //(could also get mEngine.gameTime and cast it)
@@ -238,25 +242,34 @@ class GameShell {
         //different from mMasterTime
         //this object is serialized into savegames / is managed by snapshotting!
         TimeSourceFixFramerate mGameTime;
+        //timestamps are simpler
+        long mTimeStamp;
         GameConfig mGameConfig;
         GfxSet mGfx;
         InputLog mCurrentInput;
         GameSnap mReplaySnapshot;
         bool mLogReplayInput;
         InputLog mReplayInput;
+        bool mReplayMode; //currently replaying
+        debug bool mPrintFrameTime;
+        //
+        GameEngineCallback[] mCallbacks; //xxx should hold weak references
+        GCD mGCD;
     }
 
     void delegate() OnRestoreGuiAfterSnapshot;
 
     struct GameSnap {
         Snapshot snapshot;
+        long game_time_ts; //what was mTimeStamp
         Time game_time;
         LandscapeBitmap[] bitmaps;
     }
 
     struct LogEntry {
+        char[] dbg_desc;
         void function(LogEntry e) caller; //function to call the boxed delegate
-        Time timestamp;
+        long timestamp;
         MyBox callee; //boxed delegate
         MyBox[] params; //boxed parameters for the callee
     }
@@ -272,16 +285,25 @@ class GameShell {
 
     //use GameLoader.Create*() instead
     private this() {
+        mGCD = new GCD();
     }
 
     private void execEntry(LogEntry e) {
         assert(!!e.caller);
+        log("exec input at ts={}: {}", e.timestamp, e.dbg_desc);
+        assert(mTimeStamp == e.timestamp);
+        //(this is here and not in addLoggedInput, because then input could be
+        // logged for replay, that was never executed)
+        if (mLogReplayInput) {
+            mReplayInput.entries ~= e;
+        }
         e.caller(e);
     }
 
     //add a logged function call - the timestamp of the function call is set to
     //now, and is executed at the next possible time
-    private void addLoggedInput(T)(T a_callee, MyBox[] params) {
+    private void addLoggedInput(T)(T a_callee, MyBox[] params, char[] dbg_desc)
+    {
         alias GetDGParams!(T) Params;
 
         //function to unbox the types and call the destination delegate
@@ -297,16 +319,21 @@ class GameShell {
 
         LogEntry e;
 
+        e.dbg_desc = dbg_desc;
         e.caller = &do_call;
         e.callee = MyBox.Box(a_callee);
         e.params = params;
         //assume time increases monotonically => list stays always sorted
-        e.timestamp = mEngine.gameTime.current;
+        e.timestamp = mTimeStamp;
+
+        if (mReplayMode) {
+            log("input denied, because in replay mode: {}", e.dbg_desc);
+            return;
+        }
+
+        log("queue input at ts={}: {}", e.timestamp, e.dbg_desc);
 
         mCurrentInput.entries ~= e;
-        if (mLogReplayInput) {
-            mReplayInput.entries ~= e;
-        }
     }
 
     void frame() {
@@ -315,12 +342,18 @@ class GameShell {
     }
 
     private void doFrame() {
+        debug if (mPrintFrameTime) {
+            log("frame time: ts={} time={} ({} ns)", mTimeStamp,
+                mGameTime.current, mGameTime.current.nsecs);
+            mPrintFrameTime = false;
+        }
         //execute input at correct time, which is particularly important for
         //replays (input is reused on a snapshot of the deterministic engine)
         while (mCurrentInput.entries.length > 0) {
             LogEntry e = mCurrentInput.entries[0];
-            if (e.timestamp > mGameTime.current)
+            if (e.timestamp > mTimeStamp)
                 break;
+            assert(e.timestamp == mTimeStamp);
             execEntry(e);
             //remove
             for (int n = 0; n < mCurrentInput.entries.length - 1; n++) {
@@ -329,24 +362,40 @@ class GameShell {
             mCurrentInput.entries.length = mCurrentInput.entries.length - 1;
         }
         mEngine.frame();
+        mTimeStamp++;
+        //xxx not quite kosher, ignores time without input before replay
+        if (mReplayMode) {
+            if (mCurrentInput.entries.length == 0) {
+                mReplayMode = false;
+                log("no more logged input, stop replaying");
+            }
+        }
     }
 
     void snapForReplay() {
         doSnapshot(mReplaySnapshot);
         mLogReplayInput = true;
         mReplayInput = mReplayInput.init;
+        log("snapshot for replay at time={} ({} ns)", mGameTime.current,
+            mGameTime.current.nsecs);
+        debug mPrintFrameTime = true;
     }
 
     void replay() {
         doUnsnapshot(mReplaySnapshot);
         mLogReplayInput = false;
         mCurrentInput = mReplayInput.clone;
+        mReplayMode = true;
+        log("replay start, time={} ({} ns)", mGameTime.current,
+            mGameTime.current.nsecs);
+        debug mPrintFrameTime = true;
     }
 
     void doSnapshot(ref GameSnap snap) {
         if (!snap.snapshot)
             snap.snapshot = new Snapshot(new SnapDescriptors(serialize_types));
         snap.game_time = mGameTime.current();
+        snap.game_time_ts = mTimeStamp;
         snap.snapshot.snap(mEngine);
         //bitmaps are specially handled, I don't know how to do better
         //probably unify with savegame stuff?
@@ -366,9 +415,12 @@ class GameShell {
             }
         }
         timer.stop();
-        Stdout.formatln("backup bitmaps t={}", timer.time);
+        log("snapshot backup bitmaps t={}", timer.time);
     }
 
+    //NOTE: because of the time managment, you must not call this during a
+    //      GameEngine frame (or during doFrame in general)
+    //      if you do, replay-determinism might be destroyed
     void doUnsnapshot(ref GameSnap snap) {
         snap.snapshot.unsnap();
         PerfTimer timer = new PerfTimer(true);
@@ -378,11 +430,24 @@ class GameShell {
             lb.copyFrom(snap.bitmaps[index]);
         }
         timer.stop();
-        Stdout.formatln("restore bitmaps t={}", timer.time);
+        log("snapshot restore bitmaps t={}", timer.time);
         //(yes, mMasterTime is set to what mGameTime was - that's like when
         // loading a savegame)
-        mMasterTime.initTime(snap.game_time);
+        //one must be very careful that this bug doesn't happen: you restore
+        // a snapshot, and then you repeat the frame that was executed right
+        // before the snapshot was made. this can happen because the time before
+        // and after a frame can be the same (the time doesn't change during the
+        // frame; instead the time is increased by the frame length before a new
+        // frame is executed)
+        //so I did this lol, I hope this works; feel free to make it better
+        //mTimeStamp is incremented right after a GameEngine frame, so it must
+        //refer to the exact time for the next frame
+        mMasterTime.initTime(snap.game_time_ts*cFrameLength);
+        //mMasterTime.initTime(snap.game_time);
         mGameTime.resetTime();
+        mTimeStamp = snap.game_time_ts;
+        //xxx it seems using snap.game_time was fine, but whatever
+        assert(mGameTime.current == snap.game_time);
         assert(!!OnRestoreGuiAfterSnapshot);
         OnRestoreGuiAfterSnapshot();
     }
@@ -427,6 +492,7 @@ class GameShell {
         addResources(mGfx, writer);
 
         writer.addExternal(mMasterTime, "mastertime");
+        writer.addExternal(mGCD, "callbacks");
 
         writer.writeObject(mEngine);
         writer.writeObject(mGameTime); //see loading code for the why
@@ -442,6 +508,18 @@ class GameShell {
     GameEngine serverEngine() {
         return mEngine;
     }
+
+    class GCD : GameCallbackDistributor {
+        void addCallback(GameEngineCallback cb) {
+            mCallbacks ~= cb;
+        }
+
+        void damage(Vector2i pos, int radius, bool explode) {
+            foreach (cb; mCallbacks) {
+                cb.damage(pos, radius, explode);
+            }
+        }
+    }
 }
 
 //one endpoint (e.g. network peer, or whatever), that can send input.
@@ -454,12 +532,9 @@ class GameControl : ClientControl {
         CommandBucket mCmds;
         CommandLine mCmd;
         ServerTeam[] mOwnedTeams;
-        Log mInputLog;
     }
 
     this(GameShell sh) {
-        mInputLog = new Log("game.input_log");
-
         mOwner = sh;
         createCmd();
 
@@ -473,7 +548,7 @@ class GameControl : ClientControl {
     //gives no indication if the actual action was accepted or rejected
     //this function could directly accept network input
     bool doExecuteCommand(char[] cmd) {
-        mInputLog("client command: '{}'", cmd);
+        log("client command: '{}'", cmd);
         return mCmd.execute(cmd);
     }
 
@@ -491,14 +566,23 @@ class GameControl : ClientControl {
         struct Wrapper {
             GameShell owner;
             T callee;
+            char[] name;
             void cmd(MyBox[] params, Output o) {
-                owner.addLoggedInput!(T)(callee, params);
+                //- agh this is so stupid, and only for debugging
+                char[] desc = "cmd: " ~ name ~ " [";
+                foreach (int i, MyBox b; params) {
+                    desc ~= (i?", " : "") ~ boxToString(b);
+                }
+                desc ~= "]";
+                //- end stupid
+                owner.addLoggedInput!(T)(callee, params, desc);
             }
         }
 
         Wrapper* pwrap = new Wrapper;
         pwrap.owner = mOwner;
         pwrap.callee = del;
+        pwrap.name = name;
 
         //build command line argument list according to delegate arguments
         char[][] cmdargs;

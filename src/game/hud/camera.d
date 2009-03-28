@@ -47,7 +47,7 @@ class Camera {
     }
 
     this() {
-        mTime = new TimeSource();
+        mTime = new TimeSource("camera");
     }
 
     void reset() {

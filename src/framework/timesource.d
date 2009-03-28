@@ -4,17 +4,17 @@ import utils.time;
 import utils.log;
 import utils.reflection;
 
-debug import tango.io.Stdout;
-
 //(changed in r533, I hate interfaces, but love useless microoptimizations)
 class TimeSourcePublic {
     protected {
         //current time
         Time mSimTime;
         Time mLastSimTime;
+        char[] mName;
     }
 
-    this() {
+    this(char[] a_name) {
+        mName = a_name;
     }
     this(ReflectCtor c) {
     }
@@ -66,14 +66,16 @@ final class TimeSource : TimeSourcePublic {
     }
 
     //if parent is null, timeCurrentTime() is used as source
-    this(TimeSourcePublic parent, Time timeoffset = Time.Null) {
+    this(char[] a_name, TimeSourcePublic parent, Time timeoffset = Time.Null) {
+        super(a_name);
         mParent = parent;
         initTime(timeoffset);
     }
-    this(Time timeoffset = Time.Null) {
-        this(null, timeoffset);
+    this(char[] a_name, Time timeoffset = Time.Null) {
+        this(a_name, null, timeoffset);
     }
     this(ReflectCtor c) {
+        super(c);
     }
 
     //initialize time to 0 (or the given time)
@@ -145,13 +147,13 @@ final class TimeSource : TimeSourcePublic {
         //happens when I suspend+resume my Linux system xD
         if (mExternalTime < mLastExternalTime) {
             Time error = mLastExternalTime - mExternalTime;
-            log("WARNING: time goes backward by {}!", error);
+            log("[{}] WARNING: time goes backward by {}!", mName, error);
             //compensate and do as if no time passed
             internalFixTime();
         }
         if (mExternalTime - mLastExternalTime > cMaxFrameTime) {
             Time error = mExternalTime - mLastExternalTime;
-            log("Time just jumped by {}, discarding frame", error);
+            log("[{}] Time just jumped by {}, discarding frame", mName, error);
             //frame was too long, assume there was a hang/serialize
             //and don't count it
             internalFixTime();
@@ -192,11 +194,12 @@ class TimeSourceFixFramerate : TimeSourcePublic {
 
     /// parent = anything
     /// frameLength = fixed length of each frame, see update()
-    this(TimeSourcePublic parent, Time frameLength) {
+    this(char[] a_name, TimeSourcePublic parent, Time frameLength) {
+        super(a_name);
         assert (!!parent);
         mParent = parent;
         mFrameLength = frameLength;
-        mChain = new TimeSource(mParent);
+        mChain = new TimeSource("chain-" ~ mName, mParent);
         resetTime();
     }
     this(ReflectCtor c) {
@@ -204,8 +207,11 @@ class TimeSourceFixFramerate : TimeSourcePublic {
     }
 
     ///reset the time to the caller's
+    ///(after this call, this.current should return parent.current)
     void resetTime() {
+        mChain.initTime(mParent.current);
         mSimTime = mLastSimTime = mChain.current;
+        assert(this.current == mParent.current);
     }
 
     override void paused(bool p) {

@@ -160,15 +160,6 @@ class GameEngineGraphics {
         return n;
     }
 
-    ExplosionGfx createExplosionGfx(Vector2i pos, int diameter) {
-        auto n = new ExplosionGfx(this);
-        n.pos = pos;
-        n.diameter = diameter;
-        n.start = timebase.current();
-        doadd(n);
-        return n;
-    }
-
     //xxx stuff about sharing etc. removed (it is still in r533)
     //    the idea was that with networking (= unshared LandscapeBitmap), on
     //    creation, only a game.levelgen.landscape.Landscape is passed, and
@@ -309,19 +300,6 @@ class TargetCross : Graphic {
     }
 }
 
-class ExplosionGfx : Graphic {
-    Vector2i pos;
-    int diameter;
-    Time start;
-
-    this (GameEngineGraphics a_owner) {
-        super(a_owner);
-    }
-    this (ReflectCtor c) {
-        super(c);
-    }
-}
-
 class LandscapeGraphic : Graphic {
     LandscapeBitmap shared; //special handling when the game is saved
     Vector2i pos;
@@ -342,9 +320,6 @@ class LandscapeGraphic : Graphic {
 ///GameEngine public interface
 interface GameEnginePublic {
     /*
-    ///callbacks (only at most one callback interface possible)
-    void setGameEngineCalback(GameEngineCallback gec);
-
     ///called if the client did setup everything
     ///i.e. if the client-engine was initialized, all callbacks set...
     void signalReadiness();
@@ -386,21 +361,17 @@ interface GameEnginePublic {
     GameLogicPublic logic();
 
     GameEngineGraphics getGraphics();
+
+    void addCallback(GameEngineCallback cb);
 }
 
-/*
 ///calls from engine into clients
+///for stuff that can't simply be polled
 interface GameEngineCallback {
     ///cause damage; if explode is true, play corresponding particle effects
-    //void damage(Vector2i pos, int radius, bool explode);
-
-    ///called on the following events:
-    ///- Water or wind changed,
-    ///- paused-state toggled,
-    ///- or slowdown set.
-    void onEngineStateChanged();
+    ///(intended to handle both graphics and damage)
+    void damage(Vector2i pos, int radius, bool explode);
 }
-*/
 
 class WeaponHandle {
     Resource!(Surface) icon;

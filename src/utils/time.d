@@ -49,6 +49,11 @@ public struct Time {
         timeVal *= i;
     }
 
+    //I hate D operator overloading
+    Time opMul(long i) {
+        return Time(cast(TType_Int)(timeVal * i));
+    }
+
     ///divide Time value by constant (float)
     public Time opMul(float f) {
         return Time(cast(TType_Int)(timeVal * f));

@@ -26,7 +26,7 @@ class Gamemode {
     this(GameController parent, ConfigNode config) {
         engine = parent.engine;
         logic = parent;
-        modeTime = new TimeSource(engine.gameTime);
+        modeTime = new TimeSource("modeTime", engine.gameTime);
     }
 
     this(ReflectCtor c) {

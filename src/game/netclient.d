@@ -148,6 +148,14 @@ class GSFunctions : GameEnginePublic, GameLogicPublic, ClientControl
         return state.graphics;
     }
 
+    void addCallback(GameEngineCallback cb) {
+        //I don't know, maybe:
+        //- add the callback locally
+        //- on server side, also add a callback
+        //- the server callbacks writes additional entries to network packages
+        //- client reads these entries and calls the callbacks locally
+    }
+
     //--- GameLogicPublic
 
     Team[] getTeams() {

@@ -1,13 +1,14 @@
 module utils.snapshot;
 
-import tango.io.Stdout;
 import utils.perf;
 import utils.reflection;
+import utils.log;
 import utils.misc;
 import utils.time;
 
 import str = stdx.string;
 
+private LogStruct!("utils.snapshot") log;
 
 class SnapDescriptors {
     private {
@@ -316,11 +317,12 @@ class Snapshot {
                 SafePtr dp = SafePtr(m.t, ptr + m.offset);
                 Object dg_o;
                 ClassMethod dg_m;
+                //xxx why is this code duplicated from serialize.d
                 if (!mTypes.types.readDelegate(dp, dg_o, dg_m)) {
                     D_Delegate* dgp = cast(D_Delegate*)dp.ptr;
                     char[] what = "enable version debug to see why";
                     debug {
-                        Stdout.formatln("hello, serialize.d might crash here.");
+                        log("hello, snapshot.d might crash here.");
                         what = myformat("dest-class: {} function: 0x{:x}",
                             (cast(Object)dgp.ptr).classinfo.name, dgp.funcptr);
                     }
@@ -354,7 +356,7 @@ class Snapshot {
         }
 
         timer.stop();
-        Stdout.formatln("t={}, oc={}, ls={}, size={} ({})",
+        log("t={}, oc={}, ls={}, size={} ({})",
             timer.time, snap_last_object, lookups, sizeToHuman(snap_cur),
             sizeToHuman(snap_data.length));
     }
@@ -473,6 +475,6 @@ class Snapshot {
         }
 
         timer.stop();
-        Stdout.formatln("t={}", timer.time);
+        log("t={}", timer.time);
     }
 }
