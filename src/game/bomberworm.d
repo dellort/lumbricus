@@ -11,7 +11,7 @@ import gui.container;
 import gui.label;
 import gui.wm;
 import utils.configfile;
-import utils.random;
+import utils.random : rngShared;
 import utils.time;
 import utils.vector2;
 import utils.misc;
@@ -464,8 +464,8 @@ private:
 
         //random blastable walls
         for (int n = 0; n < 100; n++) {
-            uint x = rand() % cW;
-            uint y = rand() % cH;
+            uint x = rngShared.next() % cW;
+            uint y = rngShared.next() % cH;
             if (!mCells[x][y].impwall) {
                 mCells[x][y].wall = true;
             }

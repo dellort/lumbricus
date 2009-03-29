@@ -121,14 +121,16 @@ class GameSky {
         int nAnim = 0;
         foreach (inout CloudInfo ci; mCloudAnimators) {
             ci.anim = new Animator();
-            ci.anim.setAnimation(mCloudAnims[nAnim], timeMsecs(randRange(0,
+            ci.anim.setAnimation(mCloudAnims[nAnim],
+                timeMsecs(rngShared.nextRange(0,
                     cast(int)(mCloudAnims[nAnim].duration.msecs))));
             scene.add(ci.anim, GameZOrder.Clouds);
             ci.animSizex = 10;//mCloudAnims[nAnim].bounds.size.x;
-            ci.y = randRange(-cCloudHeightRange/2,cCloudHeightRange/2)
+            ci.y = rngShared.nextRange(-cCloudHeightRange/2,cCloudHeightRange/2)
                 - 5;//mCloudAnims[nAnim].bounds.size.y/2;
             //speed delta to wind speed
-            ci.xspeed = randRange(-cCloudSpeedRange/2, cCloudSpeedRange/2);
+            ci.xspeed = rngShared.nextRange(-cCloudSpeedRange/2,
+                cCloudSpeedRange/2);
             nAnim = (nAnim+1)%mCloudAnims.length;
         }
 
@@ -136,10 +138,10 @@ class GameSky {
             scope (failure) mDebrisAnim = null;
             foreach (inout DebrisInfo di; mDebrisAnimators) {
                 di.anim = new Animator();
-                di.anim.setAnimation(mDebrisAnim, timeMsecs(randRange(0,
-                    cast(int)(mDebrisAnim.duration.msecs))));
+                di.anim.setAnimation(mDebrisAnim, timeMsecs(rngShared.nextRange
+                    (0, cast(int)(mDebrisAnim.duration.msecs))));
                 scene.add(di.anim, GameZOrder.BackLayer);
-                di.speedPerc = genrand_real1()/2.0+0.5;
+                di.speedPerc = rngShared.nextDouble()/2.0+0.5;
             }
         }
 
@@ -155,13 +157,13 @@ class GameSky {
     void initialize() {
         updateOffsets();
         foreach (inout CloudInfo ci; mCloudAnimators) {
-            ci.x = randRange(-ci.animSizex, size.x);
+            ci.x = rngShared.nextRange(-ci.animSizex, size.x);
         }
 
         if (mDebrisAnim) {
             foreach (inout DebrisInfo di; mDebrisAnimators) {
-                di.x = randRange(-mDebrisAnim.bounds.size.x, size.x);
-                di.y = randRange(skyOffset, skyBottom);
+                di.x = rngShared.nextRange(-mDebrisAnim.bounds.size.x, size.x);
+                di.y = rngShared.nextRange(skyOffset, skyBottom);
             }
         }
 

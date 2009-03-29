@@ -27,7 +27,7 @@ import utils.vector2;
 import utils.rect2;
 import utils.perf;
 import utils.configfile;
-import utils.random : random;
+import utils.random : rngShared;
 import tango.math.Math : PI, pow;
 
 enum GameZOrder {
@@ -258,15 +258,15 @@ class ExplosionGfxImpl : SceneObjectCentered {
         } else if (d < mGfx.expl.sizeTreshold[2]) {
             //medium-sized, may have small text
             s = 1;
-            t = random(-1,3);
+            t = rngShared.next(-1,3);
         } else if (d < mGfx.expl.sizeTreshold[3]) {
             //big, always with text
             s = 2;
-            t = random(0,4);
+            t = rngShared.next(0,4);
         } else {
             //huge, always text
             s = 3;
-            t = random(0,4);
+            t = rngShared.next(0,4);
         }
         if (s >= 0) {
             mShockwave1.setAnimation(mGfx.expl.shockwave1[s].get);
@@ -469,7 +469,7 @@ class ClientGameEngine : GameEngineCallback {
             //  server communication a bit
 
             //100f? I don't know what it means, but it works (kind of)
-            auto shake = Vector2f.fromPolar(1.0f, random()*PI*2)
+            auto shake = Vector2f.fromPolar(1.0f, rngShared.nextDouble()*PI*2)
                 * (mEngine.earthQuakeStrength()/100f);
             mShakeOffset = toVector2i(shake);
 

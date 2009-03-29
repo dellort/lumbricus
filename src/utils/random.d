@@ -2,7 +2,9 @@ module utils.random;
 
 public import utils.rndkiss;
 
-private Random rngShared;
+public Random rngShared;
+
+/+
 
 uint rand() {
     return rngShared.next();
@@ -41,6 +43,8 @@ int random(int from, int to) {
 T randRange(T)(T min, T max) {
     return rngShared.nextRange(min, max);
 }
+
++/
 
 static this() {
     rngShared = new Random();

@@ -7,7 +7,7 @@ import utils.mylist;
 import utils.math : lineIntersect;
 import framework = framework.framework : Color;
 import tango.math.Math : PI;
-import utils.random;
+import utils.random : rngShared;
 import utils.configfile : ConfigNode;
 import utils.misc : myformat;
 import str = stdx.string;
@@ -408,8 +408,8 @@ private:
                 auto r = SegmentRange(group, s, s);
                 assert(!r.isEmpty);
                 if (r.changeable()) {
-                    doWormsify(r, 0.1f, 0.9f, random2()*2*PI/2+0.4,
-                        random2()*0.5f+PI, d*0.2f, d*2.5f, 2.0f,
+                    doWormsify(r, 0.1f, 0.9f, rngShared.nextDouble3()*2*PI/2+0.4,
+                        rngShared.nextDouble3()*0.5f+PI, d*0.2f, d*2.5f, 2.0f,
                         config.pix_epsilon);
                 }
                 s = group.segments.next(s);
@@ -434,7 +434,7 @@ private:
 
         //random offset into the list (not so important, but try not to treat
         //the segments at the start and end of the list different)
-        uint something = random(0, count);
+        uint something = rngShared.next(0, count);
         Segment cur = group.segments.head;
         while (something > 0) {
             cur = group.segments.ring_next(cur);
@@ -462,9 +462,9 @@ private:
             auto range = SegmentRange(group, start, cur);
             bool dosubdiv = range.changeable();
             //the longer, the higher the probability to subdivide
-            dosubdiv &= prob >= random()*0.5f;
+            dosubdiv &= prob >= rngShared.nextDouble()*0.5f;
             //condition above could always be true, so fuzzify it a bit
-            dosubdiv &= random() > 0.2f;
+            dosubdiv &= rngShared.nextDouble() > 0.2f;
             //don't be too aggressive with replacing ranges
             dosubdiv &= cur_len-1 <= config.removal_aggresiveness * depth;
             //also, respect pixel size
@@ -474,7 +474,7 @@ private:
                 //muh
 
                 float ratio_front_len, ratio_len, rotsign;
-                if (config.remove_or_add > random()) {
+                if (config.remove_or_add > rngShared.nextDouble()) {
                     //add
                     rotsign = 1;
                     ratio_front_len = config.front_len_ratio_add;
@@ -486,8 +486,9 @@ private:
                     ratio_len = config.len_ratio_remove;
                 }
 
-                doWormsify(range, 0.1f, 0.9f, rotsign*random()*PI/2,
-                    PI + random2()*0.4f, cur_d*ratio_front_len,
+                doWormsify(range, 0.1f, 0.9f,
+                    rotsign*rngShared.nextDouble()*PI/2,
+                    PI + rngShared.nextDouble3()*0.4f, cur_d*ratio_front_len,
                     cur_d*ratio_len, 2.0f, config.pix_epsilon);
 
                 reset = true;
@@ -495,7 +496,7 @@ private:
 
             if (!cur.changeable)
                 reset = true;
-            reset |= (random() > 0.3f);
+            reset |= (rngShared.nextDouble() > 0.3f);
             reset |= cur_len-1 > depth;
 
             if (reset) {
@@ -629,7 +630,8 @@ private:
         }
 
         //randomize the texture offset, looks better sometimes
-        auto texoffset = Vector2f(random(), random());
+        auto texoffset = Vector2f(rngShared.nextDouble(),
+            rngShared.nextDouble());
 
         LandscapeGeometry.Polygon res;
         res.points = pts;

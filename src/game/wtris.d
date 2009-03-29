@@ -12,7 +12,7 @@ import gui.container;
 import gui.label;
 import gui.loader;
 import gui.wm;
-import utils.random;
+import utils.random : rngShared;
 import utils.time;
 import utils.vector2;
 import utils.misc;
@@ -369,8 +369,8 @@ public class WTris : Task {
     }
 
     private void preview_select_piece() {
-        previewPiece.piece = (rand()+1) % pieces.length;
-        previewPiece.rot = rand() % pieces[previewPiece.piece].length;
+        previewPiece.piece = (rngShared.next()+1) % pieces.length;
+        previewPiece.rot = rngShared.next() % pieces[previewPiece.piece].length;
     }
 
     private void new_piece() {

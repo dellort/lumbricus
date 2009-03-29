@@ -428,8 +428,9 @@ class NapalmStateDisplay : AniStateDisplay {
                 * (speed-cTresholdVelocity) / cVelDelta);
         }
         if (new_animation) {
-            mAnimator.setAnimation(new_animation, timeMsecs(randRange(0,
-                cast(int)(new_animation.duration.msecs))));
+            mAnimator.setAnimation(new_animation,
+                timeMsecs(owner.engine.rnd.nextRange(0,
+                    cast(int)(new_animation.duration.msecs))));
             last_animation = new_animation;
         }
         mAnimator.update(v.position, params);

@@ -11,6 +11,7 @@ import game.weapon.projectile;
 import utils.configfile;
 import utils.reflection;
 import utils.vector2;
+import utils.random;
 import utils.randval;
 
 import math = tango.math.Math;
@@ -38,7 +39,8 @@ struct SpawnParams {
     RandomFloat strength;  //initial moving speed into above direction
     char[] initState = "";  //override sprite initstate (careful with that)
 
-    bool loadFromConfig(ConfigNode config) {
+    //xxx rnd parameter doesn't really fit here, was forced to add later
+    bool loadFromConfig(ConfigNode config, Random rnd) {
         projectile = config.getStringValue("projectile", projectile);
         count = config.getIntValue("count", count);
         spawndist = config.getFloatValue("spawndist", spawndist);
@@ -57,7 +59,8 @@ struct SpawnParams {
                 initVelocity = InitVelocity.parent;
         }
         direction = config.getValue("direction", direction);
-        strength = RandomFloat(config.getStringValue("strength_value", "0"));
+        strength = RandomFloat(config.getStringValue("strength_value", "0"),
+            rnd);
         initState = config.getStringValue("initstate", initState);
         return true;
     }
@@ -156,7 +159,7 @@ class SpawnActionClass : ActionClass {
     }
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
-        sparams.loadFromConfig(node);
+        sparams.loadFromConfig(node, eng.rnd);
     }
 
     SpawnAction createInstance(GameEngine eng) {

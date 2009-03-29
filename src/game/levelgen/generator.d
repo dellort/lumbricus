@@ -19,7 +19,7 @@ import utils.array;
 import utils.factory;
 import stdx.stream;
 import str = stdx.string;
-import rand = utils.random;
+import utils.random : rngShared;
 import utils.misc;
 
 debug {
@@ -957,7 +957,7 @@ template BlaList(T : Object) {
 
         //pick randomly
         if (mItems.length > 0) {
-            uint pick = rand.rand() % mItems.length;
+            uint pick = rngShared.next() % mItems.length;
             foreach(bres; mItems) {
                 assert(bres !is null);
                 if (pick == 0) {

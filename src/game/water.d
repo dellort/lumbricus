@@ -95,7 +95,7 @@ class GameWater {
                 a.animator = new Animator();
                 a.animator.setAnimation(mWaveAnim);
                 scene.add(a, GameZOrder.BackWater);
-                a.xoffs = randRange(0,mWaveAnim.bounds.size.x);
+                a.xoffs = rngShared.nextRange(0,mWaveAnim.bounds.size.x);
                 a.size = size;
                 a.scrollMult = -0.16666f+i*0.08333f;
             }
@@ -104,7 +104,7 @@ class GameWater {
                 a.animator = new Animator();
                 a.animator.setAnimation(mWaveAnim);
                 scene.add(a, GameZOrder.FrontWater);
-                a.xoffs = randRange(0,mWaveAnim.bounds.size.x);
+                a.xoffs = rngShared.nextRange(0,mWaveAnim.bounds.size.x);
                 a.size = size;
                 a.scrollMult = 0.0f+i*0.15f;
             }

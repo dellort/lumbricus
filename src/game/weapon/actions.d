@@ -60,7 +60,7 @@ class ExplosionActionClass : ActionClass {
     }
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
-        damage = RandomFloat(node.getStringValue("damage", "5.0"));
+        damage = RandomFloat(node.getStringValue("damage", "5.0"), eng.rnd);
     }
 
     ExplosionAction createInstance(GameEngine eng) {

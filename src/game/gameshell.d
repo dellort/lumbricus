@@ -43,6 +43,9 @@ const Time cFrameLength = timeMsecs(20);
 
 private LogStruct!("game.gameshell") log;
 
+//save the game engine to disk on snapshot/replay, stuff goes into path /debug/
+debug = debug_save;
+
 //to implement a pre-load mechanism
 //for normal games:
 //1. read game configuration
@@ -251,6 +254,7 @@ class GameShell {
         bool mLogReplayInput;
         InputLog mReplayInput;
         bool mReplayMode; //currently replaying
+        long mReplayEnd; //mTimeStamp at end of replay
         debug bool mPrintFrameTime;
         //
         GameEngineCallback[] mCallbacks; //xxx should hold weak references
@@ -363,11 +367,15 @@ class GameShell {
         }
         mEngine.frame();
         mTimeStamp++;
-        //xxx not quite kosher, ignores time without input before replay
+        //xxx not sure if the input for this frame should be fed to the engine
+        //    before debug-dumping, I'm too tired to think about that
         if (mReplayMode) {
-            if (mCurrentInput.entries.length == 0) {
+            if (mTimeStamp >= mReplayEnd) {
+                assert(mTimeStamp == mReplayEnd);
                 mReplayMode = false;
-                log("no more logged input, stop replaying");
+                log("stop replaying");
+                debug(debug_save)
+                    debug_save();
             }
         }
     }
@@ -382,6 +390,9 @@ class GameShell {
     }
 
     void replay() {
+        debug(debug_save)
+            debug_save();
+        mReplayEnd = mTimeStamp;
         doUnsnapshot(mReplaySnapshot);
         mLogReplayInput = false;
         mCurrentInput = mReplayInput.clone;
@@ -443,6 +454,7 @@ class GameShell {
         //mTimeStamp is incremented right after a GameEngine frame, so it must
         //refer to the exact time for the next frame
         mMasterTime.initTime(snap.game_time_ts*cFrameLength);
+        assert(mMasterTime.current == snap.game_time);
         //mMasterTime.initTime(snap.game_time);
         mGameTime.resetTime();
         mTimeStamp = snap.game_time_ts;
@@ -503,6 +515,16 @@ class GameShell {
         ZWriter zwriter = file.openWriteStream("gamedata.conf");
         zwriter.writeConfigFile(savegame);
         zwriter.close();
+    }
+
+    debug(debug_save) void debug_save() {
+        int t;
+        char[] p = gFS.getUniqueFilename("/debug/", "dump{0:d3}", ".tar", t);
+        log("saving debugging dump to {}", p);
+        scope st = gFS.open(p, FileMode.OutNew);
+        scope writer = new TarArchive(st, false);
+        saveGame(writer);
+        writer.close();
     }
 
     GameEngine serverEngine() {

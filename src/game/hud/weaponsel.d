@@ -304,7 +304,7 @@ class WeaponSelWindow : Container {
         mWeaponFooTranslate = Translator.ByNamespace("weaponsfoo");
         mWeaponPostfixes = mWeaponFooTranslate.names();
 
-        mFooCode = randRange(0, 255);
+        mFooCode = rngShared.nextRange(0, 255);
 
         auto all = new BoxContainer(false, false, 4);
         mGridContainer = new SimpleContainer();

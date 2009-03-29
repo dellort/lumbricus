@@ -52,7 +52,7 @@ class SpriteActionClass : TimedActionClass {
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         super.loadFromConfig(eng, node);
         if (!node.findValue("duration"))
-            durationMs = RandomInt(1237899900);
+            durationMs = RandomInt(1237899900, eng.rnd);
     }
 
     //xxx class

@@ -625,16 +625,15 @@ class FileSystem {
     {
         const cValidChars = "-+!.,;a-zA-Z0-9()[]";
 
-        char[] fn = myformat(nameTemplate, "");
-        char[] ret;
-        int i = 2;
-        //detect invalid characters in name by str.tr
-        while (exists(ret = path
-            ~ str.tr(fn, cValidChars, "_", "c") ~ ext))
-        {
-            fn = myformat(nameTemplate, i);
+        //changed in r657: always append a number to filename (I hope it's ok)
+
+        int i = 0;
+        char[] fn, ret;
+        do {
             i++;
-        }
+            fn = myformat(nameTemplate, i);
+        } while (exists(ret = path //detect invalid characters in name by str.tr
+            ~ str.tr(fn, cValidChars, "_", "c") ~ ext))
         tries = i-1;
         return ret;
     }

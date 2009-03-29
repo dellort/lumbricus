@@ -76,6 +76,7 @@ ActionClass actionFromConfig(GameEngine eng, ConfigNode node) {
     char[] type = node.getStringValue("type", "list");
     if (ActionClassFactory.exists(type)) {
         auto ac = ActionClassFactory.instantiate(type);
+        assert(!!ac);
         ac.loadFromConfig(eng, node);
         return ac;
     } else {

@@ -94,7 +94,7 @@ void main(char[][] args) {
     gLogEverything.destination = logtmp;
 
     //xxx
-    rand_seed(1);
+    //rand_seed(1);
 
     initGameSerialization();
 

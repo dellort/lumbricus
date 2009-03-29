@@ -4,7 +4,7 @@ import game.levelgen.landscape;
 import game.levelgen.level : writeMarker, parseMarker;
 import game.levelgen.renderer;
 import framework.framework;
-import utils.random;
+import utils.random : rngShared;
 import utils.log;
 import utils.configfile;
 import utils.misc;
@@ -120,8 +120,8 @@ public class PlaceObjects {
 
     //point inside level
     Vector2i randPoint(int border = 0) {
-        return Vector2i(random(border, mLevel.size.x - border*2),
-            random(border, mLevel.size.y - border*2));
+        return Vector2i(rngShared.next(border, mLevel.size.x - border*2),
+            rngShared.next(border, mLevel.size.y - border*2));
     }
 
     public this(LandscapeBitmap renderer) {

@@ -89,7 +89,7 @@ SavegameData createSavegame(char[] taskId, char[] name, char[] description,
     //construct a unique filename
     int i;
     ret.path = gFS.getUniqueFilename(cSavegamePath,
-        taskId ~ "_" ~ name ~ "{}", cSavegameExt, i);
+        taskId ~ "_" ~ name ~ "{0:d3}", cSavegameExt, i);
     if (i > 1)
         name ~= " (" ~ str.toString(i) ~ ")";
     //open the savegame file for writing

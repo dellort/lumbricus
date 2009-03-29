@@ -19,7 +19,7 @@ public struct RandomValue(T) {
         bool sampled = false;
     }
 
-    public static RandomValue opCall(T min, T max, Random rnd = null) {
+    public static RandomValue opCall(T min, T max, Random rnd) {
         RandomValue ret;
         if (min > max)
             swap(min, max);
@@ -29,12 +29,12 @@ public struct RandomValue(T) {
         return ret;
     }
 
-    public static RandomValue opCall(T value, Random rnd = null) {
+    public static RandomValue opCall(T value, Random rnd) {
         return opCall(value, value, rnd);
     }
 
     ///initialize from string like "<min><randValSeparator><max>"
-    public static RandomValue opCall(char[] s, Random rnd = null) {
+    public static RandomValue opCall(char[] s, Random rnd) {
         int i = str.find(s,randValSeparator);
         T min, max;
         if (i >= 0) {
@@ -47,17 +47,13 @@ public struct RandomValue(T) {
     }
 
     private double rndrealClose() {
-        if (rnd)
-            return rnd.nextDouble();
-        else
-            return genrand_real1();
+        assert(!!rnd);
+        return rnd.nextDouble();
     }
 
     private double rndrealOpen() {
-        if (rnd)
-            return rnd.nextDouble2();
-        else
-            return genrand_real2();
+        assert(!!rnd);
+        return rnd.nextDouble2();
     }
 
     ///sample a random value between min and max
