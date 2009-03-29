@@ -199,9 +199,6 @@ class GameView : Container {
     }
 
     private {
-        ClientGameEngine mEngine;
-        GameLogicPublic mLogic;
-        ClientControl mController;
         GameInfo mGame;
         Container mGuiFrame;
 
@@ -363,8 +360,8 @@ class GameView : Container {
                     bool doMoveDown;
 
                     if (isActiveWorm) {
-                        auto currentTime = mEngine.engineTime.current();
-                        bool didmove = (currentTime - mController.
+                        auto currentTime = mGame.engine.currentGameTime();
+                        bool didmove = (currentTime - mGame.control.
                             getControlledMember.lastAction()) < cArrowDelta;
                         doMoveDown = !didmove;
                     } else {
@@ -395,7 +392,7 @@ class GameView : Container {
                     pos.y -= moveLabels.value();
 
                     //that weapon label
-                    auto amember = mController.getControlledMember();
+                    auto amember = mGame.control.getControlledMember();
                     bool weapon_visible = (amember is member.member)
                         && amember.displayWeaponIcon();
 
@@ -543,10 +540,10 @@ class GameView : Container {
 
     private void doSim() {
         mCamera.doFrame();
-        mCamera.paused = mEngine.engineTime.paused();
+        mCamera.paused = mGame.cengine.engineTime.paused();
 
         activeWorm = null;
-        if (auto am = mController.getControlledMember()) {
+        if (auto am = mGame.control.getControlledMember()) {
             auto pam = am in mEngineMemberToOurs;
             activeWorm = pam ? *pam : null;
         }
@@ -564,14 +561,9 @@ class GameView : Container {
     }
 
     this(GameInfo game) {
-        mEngine = game.cengine;
         mGame = game;
 
         mCamera = new Camera();
-
-        //hacky?
-        mLogic = game.logic;
-        mController = game.control;
 
         //load the teams and also the members
         foreach (TeamInfo t; game.teams) {
@@ -617,11 +609,11 @@ class GameView : Container {
     }
 
     private void cmdDetail(MyBox[] args, Output write) {
-        if (!mEngine)
+        if (!mGame.cengine)
             return;
         int c = args[0].unboxMaybe!(int)(-1);
-        mEngine.detailLevel = c >= 0 ? c : mEngine.detailLevel + 1;
-        write.writefln("set detailLevel to {}", mEngine.detailLevel);
+        mGame.cengine.detailLevel = c >= 0 ? c : mGame.cengine.detailLevel + 1;
+        write.writefln("set detailLevel to {}", mGame.cengine.detailLevel);
     }
 
     private void cmdCameraDisable(MyBox[] args, Output write) {
@@ -678,13 +670,13 @@ class GameView : Container {
     }
 
     override Vector2i layoutSizeRequest() {
-        return mEngine.worldSize;
+        return mGame.cengine.worldSize;
     }
 
     //find a WeaponClass of the weapon named "name" in the current team's
     //weapon-set (or return null)
     private WeaponHandle findWeapon(char[] name) {
-        auto cm = mController.getControlledMember();
+        auto cm = mGame.control.getControlledMember();
         if (!cm)
             return null;
         WeaponList weapons = cm.team.getWeapons();
@@ -721,11 +713,11 @@ class GameView : Container {
     /*protected void onMouseMove(MouseInfo mouse) {
         auto bind = processBinding("set_target %mx %my", false);
         if (gFramework.getKeyState(Keycode.MOUSE_LEFT))
-            mController.executeCommand(bind);
+            mGame.control.executeCommand(bind);
     }*/
 
     private void executeServerCommand(char[] cmd) {
-        mController.executeCommand(cmd);
+        mGame.control.executeCommand(cmd);
     }
 
     //grrr
@@ -746,11 +738,11 @@ class GameView : Container {
     }
 
     override void onDraw(Canvas c) {
-        mEngine.draw(c);
+        mGame.cengine.draw(c);
         super.onDraw(c);
     }
 
     override bool doesCover() {
-        return !mEngine.needBackclear();
+        return !mGame.cengine.needBackclear();
     }
 }

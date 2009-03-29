@@ -378,6 +378,10 @@ class GameEngine : GameEnginePublic {
         return mGameTime;
     }
 
+    Time currentGameTime() {
+        return mGameTime.current;
+    }
+
     //return y coordinate of waterline
     int waterOffset() {
         return cast(int)mCurrentWaterLevel;

@@ -99,7 +99,7 @@ class NetServer {
             state.gamemode = logic.gamemode();
         }
 
-        state.servertime = state.graphics.timebase.current();
+        state.servertime = engine.currentGameTime();
 
         state.water_offset = engine.waterOffset();
         state.wind_speed = engine.windSpeed();

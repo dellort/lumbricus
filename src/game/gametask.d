@@ -425,6 +425,7 @@ class GameTask : StatefulTask {
             }
             if (mGameShell) {
                 mGameShell.frame();
+                mGameInfo.replayRemain = mGameShell.replayRemain;
             }
             if (mNetServer) {
                 mNetServer.frame_send();

@@ -156,6 +156,10 @@ class GSFunctions : GameEnginePublic, GameLogicPublic, ClientControl
         //- client reads these entries and calls the callbacks locally
     }
 
+    Time currentGameTime() {
+        return state.servertime;
+    }
+
     //--- GameLogicPublic
 
     Team[] getTeams() {

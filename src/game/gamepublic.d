@@ -363,6 +363,8 @@ interface GameEnginePublic {
     GameEngineGraphics getGraphics();
 
     void addCallback(GameEngineCallback cb);
+
+    Time currentGameTime();
 }
 
 ///calls from engine into clients

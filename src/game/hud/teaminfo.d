@@ -16,6 +16,7 @@ import utils.rect2;
 import utils.time;
 import utils.misc;
 import utils.vector2;
+import utils.time;
 
 class GameInfo {
     ClientGameEngine cengine;
@@ -24,6 +25,7 @@ class GameInfo {
     ClientControl control;
     TeamInfo[Team] teams;
     TeamMemberInfo[TeamMember] allMembers;
+    Time replayRemain;
 
     this(ClientGameEngine a_engine, ClientControl ct) {
         cengine = a_engine;

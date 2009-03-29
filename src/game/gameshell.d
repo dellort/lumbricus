@@ -402,6 +402,14 @@ class GameShell {
         debug mPrintFrameTime = true;
     }
 
+    Time replayRemain() {
+        if (mReplayMode) {
+            return (mReplayEnd - mTimeStamp)*cFrameLength;
+        } else {
+            return Time.Null;
+        }
+    }
+
     void doSnapshot(ref GameSnap snap) {
         if (!snap.snapshot)
             snap.snapshot = new Snapshot(new SnapDescriptors(serialize_types));

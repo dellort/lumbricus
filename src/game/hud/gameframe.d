@@ -11,6 +11,7 @@ import gui.label;
 import gui.tablecontainer;
 import gui.widget;
 import gui.mousescroller;
+import gui.boxcontainer;
 import game.hud.camera;
 import game.hud.gameteams;
 import game.hud.gametimer;
@@ -36,7 +37,6 @@ import tango.math.Math;
 const Time cTimePerHealthTick = timeMsecs(4);
 
 class GameFrame : SimpleContainer {
-    ClientGameEngine clientengine;
     GameInfo game;
     GameView gameView;
 
@@ -47,6 +47,7 @@ class GameFrame : SimpleContainer {
         WeaponSelWindow mWeaponSel;
 
         TeamWindow mTeamWindow;
+        Label mReplayImg, mReplayTimer;
 
         Time mLastFrameTime, mRestTime;
         bool mFirstFrame = true;
@@ -133,6 +134,15 @@ class GameFrame : SimpleContainer {
         }
 
         mScroller.scale = Vector2f(gameView.zoomLevel, gameView.zoomLevel);
+
+        if (game.replayRemain != Time.Null) {
+            mReplayImg.visible = (timeCurrentTime().msecs/500)%2 == 0;
+            mReplayTimer.visible = true;
+            mReplayTimer.text = myformat("{:f1}s", game.replayRemain.secsf);
+        } else {
+            mReplayImg.visible = false;
+            mReplayTimer.visible = false;
+        }
     }
 
     override bool doesCover() {
@@ -145,7 +155,6 @@ class GameFrame : SimpleContainer {
     this(GameInfo g) {
         game = g;
 
-        clientengine = game.cengine;
         gDefaultLog("initializeGameGui");
 
         auto wormbinds = new KeyBindings();
@@ -167,6 +176,21 @@ class GameFrame : SimpleContainer {
 
         mTeamWindow = new TeamWindow(game);
         mGui.add(mTeamWindow);
+
+        mReplayImg = new Label();
+        //mReplayImg.image = globals.guiResources.get!(Surface)("replay_r");
+        mReplayImg.text = "R";
+        mReplayImg.font = gFramework.fontManager.loadFont("replay_r");
+        mReplayImg.drawBorder = false;
+        mReplayImg.visible = false;
+        mReplayTimer = new Label();
+        mReplayTimer.drawBorder = false;
+        mReplayTimer.visible = false;
+        mReplayTimer.font = gFramework.fontManager.loadFont("replaytime");
+        auto rbox = new BoxContainer(false);
+        rbox.add(mReplayImg);
+        rbox.add(mReplayTimer, WidgetLayout.Aligned(0, 0));
+        mGui.add(rbox, WidgetLayout.Aligned(-1, -1, Vector2i(10, 0)));
 
         gameView = new GameView(game);
         gameView.onTeamChange = &teamChanged;
@@ -191,6 +215,6 @@ class GameFrame : SimpleContainer {
         WeaponHandle[] wlist = game.logic.weaponList();
         mWeaponSel.init(wlist);
 
-        setPosition(clientengine.worldCenter);
+        setPosition(game.cengine.worldCenter);
     }
 }
