@@ -357,8 +357,6 @@ class ClientGameEngine : GameEngineCallback {
 
         readd_graphics();
 
-        detailLevel = 0;
-
         initSound();
     }
 
@@ -373,6 +371,8 @@ class ClientGameEngine : GameEngineCallback {
         //xxx
         mGameWater = new GameWater(this);
         mGameSky = new GameSky(this);
+
+        detailLevel = 0;
 
         server_graphics = engine.getGraphics();
         server_graphics_last_checked_frame = 0;

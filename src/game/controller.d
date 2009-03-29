@@ -975,6 +975,7 @@ class GameController : GameLogicPublic {
         struct Message {
             char[] id;
             char[][] args;
+            uint rnd;
         }
         Queue!(Message) mMessages; //GUI messages which are sent to the clients
         Message mLastMessage;
@@ -1059,7 +1060,7 @@ class GameController : GameLogicPublic {
     void getLastMessage(out char[] msgid, out char[][] msg, out uint rnd) {
         msgid = mLastMessage.id;
         msg = mLastMessage.args;
-        rnd = engine.rnd.next;
+        rnd = mLastMessage.rnd;
     }
 
     int getWeaponListChangeCounter() {
@@ -1085,7 +1086,7 @@ class GameController : GameLogicPublic {
     }
 
     void messageAdd(char[] msg, char[][] args = null) {
-        mMessages.push(Message(msg, args));
+        mMessages.push(Message(msg, args, engine.rnd.next));
     }
 
     private void changeMessageStatus(Message msg) {

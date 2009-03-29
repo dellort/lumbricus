@@ -107,6 +107,7 @@
 		<Unit filename="..\src\game\gamemodes\roundbased.d" />
 		<Unit filename="..\src\game\gamemodes\roundbased_shared.d" />
 		<Unit filename="..\src\game\gamepublic.d" />
+		<Unit filename="..\src\game\gameshell.d" />
 		<Unit filename="..\src\game\gametask.d" />
 		<Unit filename="..\src\game\gfxset.d" />
 		<Unit filename="..\src\game\glevel.d" />
