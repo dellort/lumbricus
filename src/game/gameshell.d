@@ -372,6 +372,8 @@ class GameShell {
         if (mReplayMode) {
             if (mTimeStamp >= mReplayEnd) {
                 assert(mTimeStamp == mReplayEnd);
+                if (mMasterTime.slowDown > 1.0f)
+                    mMasterTime.slowDown = 1.0f;
                 mReplayMode = false;
                 log("stop replaying");
                 debug(debug_save)
@@ -390,6 +392,10 @@ class GameShell {
     }
 
     void replay() {
+        if (!mReplaySnapshot.snapshot) {
+            log("replay failed: no snapshot saved");
+            return;
+        }
         debug(debug_save)
             debug_save();
         mReplayEnd = mTimeStamp;
@@ -400,6 +406,16 @@ class GameShell {
         log("replay start, time={} ({} ns)", mGameTime.current,
             mGameTime.current.nsecs);
         debug mPrintFrameTime = true;
+    }
+
+    void replaySkip() {
+        if (mReplayMode) {
+            mMasterTime.slowDown = 20.0f;
+        }
+    }
+
+    bool replayMode() {
+        return mReplayMode;
     }
 
     Time replayRemain() {
@@ -713,7 +729,9 @@ class GameControl : ClientControl {
         });
 
         //also a worm cmd, but specially handled
-        addCmd("weapon_fire", &executeWeaponFire);
+        //addCmd("weapon_fire", &executeWeaponFire);
+        mCmds.register(Command("weapon_fire", &cmdWeaponFire, "-",
+            ["bool:is_down"]));
 
         mCmds.bind(mCmd);
     }
@@ -734,6 +752,15 @@ class GameControl : ClientControl {
             }
         }
         return false;
+    }
+
+    //Special handling for fire command: while replaying, fire will skip the
+    //replay (fast-forward to end)
+    private void cmdWeaponFire(MyBox[] params, Output o) {
+        if (mOwner.replayMode)
+            mOwner.replaySkip();
+        else
+            mOwner.addLoggedInput(&executeWeaponFire, params, "cmd: weapon_fire");
     }
 
     private void executeWeaponFire(bool is_down) {

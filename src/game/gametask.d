@@ -485,7 +485,8 @@ class GameTask : StatefulTask {
         mCmds.register(Command("snap", &cmdSnapTest, "snapshot test",
             ["int:1=store, 2=load, 3=store+load"]));
         mCmds.register(Command("replay", &cmdReplay,
-            "replay from last snapshot"));
+            "start recording or replay from last snapshot",
+            ["text?:any text to start recording"]));
         mCmds.register(Command("server", &cmdExecServer,
             "Run a command on the server", ["text...:command"]));
     }
@@ -605,14 +606,21 @@ class GameTask : StatefulTask {
     }
 
     private void cmdReplay(MyBox[] args, Output write) {
-        mGameShell.replay();
+        char[] arg = args[0].unboxMaybe!(char[]);
+        if (mGameShell.replayMode) {
+            mGameShell.replaySkip();
+        } else {
+            if (arg.length > 0)
+                mGameShell.snapForReplay();
+            else
+                mGameShell.replay();
+        }
     }
 
     GameShell.GameSnap snapshot;
 
     private void doEngineSnap() {
         mGameShell.doSnapshot(snapshot);
-        mGameShell.snapForReplay();
     }
 
     private void doEngineUnsnap() {
