@@ -838,3 +838,187 @@ class GameControl : ClientControl {
 
     //-- /ClientControl
 }
+
+
+
+
+
+
+//additional data when connecting to a server
+struct NetConnectInfo {
+    char[] playerName;
+    char[] password;
+}
+
+//game info while in lobby
+struct NetGameInfo {
+    //players and teams, always same length
+    char[][] players;
+    char[][] teams;
+}
+
+//status information while clients are loading
+struct NetLoadState {
+    //players and flags if done loading, always same length
+    char[][] players;
+    bool[] done;
+}
+
+abstract class SimpleNetClient {
+    //connect to lobby
+    SimpleNetConnection connect(char[] address, NetConnectInfo info);
+
+    void doFrame();
+}
+
+abstract class SimpleNetConnection {
+    //new game information was received from the server
+    void delegate(SimpleNetConnection sender, NetGameInfo info) onUpdateGameInfo;
+    //the client should begin loading resources etc., loader will already
+    //  contain all game information
+    //by calling loader.finish(), clients signal loading is complete
+    //loader.finish() will return the (initially paused) game engine
+    void delegate(SimpleNetConnection sender, GameLoader loader) onStartLoading;
+    //loading state of connected players changed
+    void delegate(SimpleNetConnection sender, NetLoadState state) onLoadStatus;
+    //all clients finished loading, game is starting
+    void delegate(SimpleNetConnection sender, ClientControl control) onGameStart;
+    //receiving a chat message
+    void delegate(SimpleNetConnection sender, char[] playerName,
+        char[] msg) onChat;
+
+    SimpleNetClient owner();
+
+    //send a game-independent command (like "say Hi fellas!" or
+    //  "pm Player2 Secret message")
+    //"game-independent" means the command is not logged/timestamped/passed
+    //  through the engine
+    void lobbyCmd(char[] cmd);
+
+    //join the game with a team
+    //a client can only add one team, multiple calls will replace the client's
+    //  team
+    //when not called at all, the client will be spectator
+    void deployTeam(ConfigNode teamInfo);
+
+    //disconnect
+    void close();
+}
+
+
+enum SimNetState {
+    lobby,
+    loading,
+    playing,
+}
+
+//Local simulated networking
+//class SimNet is both server and connection point for clients
+class SimNet : SimpleNetClient {
+    private {
+        GameConfig mConfig;
+        SimNetConnection[] mClients;
+        SimNetState mState;
+    }
+
+    //this will "host" a game, teams part of GameConfig is ignored
+    this(GameConfig cfg) {
+        mConfig = cfg;
+        mConfig.teams = null;
+    }
+
+    SimNetConnection connect(char[] address, NetConnectInfo info) {
+        foreach (cl; mClients) {
+            if (cl.mPlayerName == info.playerName) {
+                throw new Exception("Error: This nick already exists");
+            }
+        }
+        auto con = new SimNetConnection(this, info.playerName);
+        mClients ~= con;
+        return con;
+    }
+
+    private void removeClient(SimNetConnection client) {
+        foreach (ref cl; mClients) {
+            if (cl is client) {
+                cl = mClients[$-1];
+                mClients.length = mClients.length - 1;
+                return;
+            }
+        }
+    }
+
+    void doFrame() {
+    }
+
+    SimNetState state() {
+        return mState;
+    }
+
+    private void startGame() {
+        if (mState != SimNetState.lobby)
+            return;
+        mState = SimNetState.loading;
+        //assemble teams
+        mConfig.teams = new ConfigNode();
+        foreach (cl; mClients) {
+            ConfigNode ct = cl.mMyTeamInfo;
+            if (ct) {
+                ct["team_owner"] = cl.mPlayerName;
+                mConfig.teams.add(ct);
+            }
+        }
+        //distribute game config
+        foreach (cl; mClients) {
+            cl.doStartLoading(mConfig);
+        }
+    }
+}
+
+//contains server and client part of a connection
+class SimNetConnection : SimpleNetConnection {
+    private {
+        SimNet mOwner;
+        CommandBucket mCmds;
+        CommandLine mCmd;
+        ConfigNode mMyTeamInfo;
+        char[] mPlayerName;
+    }
+
+    private this(SimNet owner, char[] name) {
+        mOwner = owner;
+
+        mCmd = new CommandLine(globals.defaultOut);
+        mCmds = new CommandBucket();
+        mCmds.register(Command("start", &cmdStart, "-"));
+    }
+
+    SimNet owner() {
+        return mOwner;
+    }
+
+    void lobbyCmd(char[] cmd) {
+        mCmd.execute(cmd);
+    }
+
+    void deployTeam(ConfigNode teamInfo) {
+        mMyTeamInfo = teamInfo;
+    }
+
+    void close() {
+        mOwner.removeClient(this);
+    }
+
+    //for now, anyone can type start to run the game
+    private void cmdStart(MyBox[] params, Output o) {
+        mOwner.startGame();
+    }
+
+    //called by server (i.e. in real networking, got packet with GameConfig)
+    private void doStartLoading(GameConfig cfg) {
+        //xxx need to change this, GameLoader needs to know about networking
+        auto loader = GameLoader.CreateNewGame(cfg);
+        assert(!!onStartLoading, "Need to set callbacks");
+        onStartLoading(this, loader);
+    }
+}
