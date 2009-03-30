@@ -45,11 +45,6 @@ class Common {
         bool delegate()[] mFrameCallbacks;
     }
 
-    //both time variables are updated for each frame
-    //for graphics stuff (i.e. animations continue to play while game paused)
-    //xxx: move!
-    TimeSource gameTimeAnimations;
-
     //moved to here from TopLevel
     //xxx move this to where-ever
     Translator localizedKeynames;
@@ -105,10 +100,6 @@ class Common {
             gConf.loadConfig("fonts"));
 
         localizedKeynames = localeRoot.bindNamespace("keynames");
-
-        gameTimeAnimations = new TimeSource("gameTimeAnimations");
-        //moved from toplevel.d
-        gameTimeAnimations.resetTime();
     }
 
     void setDefaultOutput(Output o) {

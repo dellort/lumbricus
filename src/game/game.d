@@ -32,6 +32,7 @@ import game.levelgen.renderer;// : LandscapeBitmap;
 interface GameCallbackDistributor : GameEngineCallback {
     //redirect GameEnginePublic.addCallback to GameShell
     void addCallback(GameEngineCallback cb);
+    bool paused();
 }
 
 //code to manage a game session (hm, whatever this means)
@@ -86,20 +87,11 @@ class GameEngine : GameEnginePublic {
         return mLevel.worldCenter;
     }
 
+    //hack, for GameEnginePublic, must not be used from inside the game engine
+    //(actually, it should always return false, except when code is called from
+    // getters through the interfaces)
     bool paused() {
-        return mGameTime.paused;
-    }
-
-    float slowDown() {
-        return mGameTime.slowDown;
-    }
-
-    void setPaused(bool p) {
-        mGameTime.paused = p;
-    }
-
-    void setSlowDown(float s) {
-        mGameTime.slowDown = s;
+        return mCallbacks.paused();
     }
 
     private static LogStruct!("game.game") log;
@@ -360,6 +352,10 @@ class GameEngine : GameEnginePublic {
         mCallbacks.addCallback(cb);
     }
 
+    GameCallbackDistributor callbacks() {
+        return mCallbacks;
+    }
+
     //landscape bitmaps need special handling in many cases
     //xxx: need somehow to be identified
     LandscapeBitmap[] landscapeBitmaps() {
@@ -490,27 +486,25 @@ class GameEngine : GameEnginePublic {
     }
 
     void frame() {
-        if (!mGameTime.paused) {
-            graphics.current_frame++;
+        graphics.current_frame++;
 
-            auto physicTime = globals.newTimer("game_physic");
-            physicTime.start();
-            mPhysicWorld.simulate(mGameTime.current);
-            physicTime.stop();
+        auto physicTime = globals.newTimer("game_physic");
+        physicTime.start();
+        mPhysicWorld.simulate(mGameTime.current);
+        physicTime.stop();
 
-            mController.simulate();
+        mController.simulate();
 
-            //update game objects
-            //NOTE: objects might be inserted/removed while iterating
-            //      List.opApply can deal with that
-            float deltat = mGameTime.difference.secsf;
-            foreach (GameObject o; mObjects) {
-                if (o.active) {
-                    o.simulate(deltat);
-                } else {
-                    //remove (it's done lazily, and here it's actually removed)
-                    mObjects.remove(o.node);
-                }
+        //update game objects
+        //NOTE: objects might be inserted/removed while iterating
+        //      List.opApply can deal with that
+        float deltat = mGameTime.difference.secsf;
+        foreach (GameObject o; mObjects) {
+            if (o.active) {
+                o.simulate(deltat);
+            } else {
+                //remove (it's done lazily, and here it's actually removed)
+                mObjects.remove(o.node);
             }
         }
     }

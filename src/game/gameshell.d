@@ -62,6 +62,7 @@ class GameLoader {
         GfxSet mGfx;
         Resources.Preloader mResPreloader;
         SerializeInConfig mSaveGame;
+        ConfigNode mTimeConfig; //savegame only
         GameShell mShell;
     }
 
@@ -121,6 +122,7 @@ class GameLoader {
         ConfigNode savegame = reader.readConfigFile();
         reader.close();
 
+        mTimeConfig = savegame.getSubNode("game_time");
         int bitmap_count = savegame.getValue!(int)("bitmap_count");
         ConfigNode game_cfg = savegame.getSubNode("game_config");
         ConfigNode game_data = savegame.getSubNode("game_data");
@@ -185,23 +187,28 @@ class GameLoader {
         mShell.mGameConfig = mGameConfig;
         mShell.mGfx = mGfx;
         mShell.mMasterTime = new TimeSource("GameShell/MasterTime");
+        mShell.mGameTime = new TimeSourceFixFramerate("GameTime",
+            mShell.mMasterTime, cFrameLength);
         if (!mSaveGame) {
             //for creation of a new game
-            mShell.mGameTime = new TimeSourceFixFramerate("GameTime",
-                mShell.mMasterTime, cFrameLength);
             mShell.mEngine = new GameEngine(mGameConfig, mGfx,
                 mShell.mGameTime, mShell.mGCD);
         } else {
             //for loading a savegame
+            //meh time, not serialized anymore because it only causes problems
+            auto start_time = timeNsecs(mTimeConfig.getValue!(long)("time_ns"));
+            mShell.mMasterTime.initTime(start_time);
+            auto gt = mShell.mGameTime;
+            gt.resetTime();
+            gt.paused = mTimeConfig.getValue!(bool)("paused");
+            gt.slowDown = mTimeConfig.getValue!(float)("slowdown");
+            assert(gt.current == start_time);
+            mSaveGame.addExternal(mShell.mGameTime, "game_time");
+            //
             addResources(mGfx, mSaveGame);
-            mSaveGame.addExternal(mShell.mMasterTime, "mastertime");
             mSaveGame.addExternal(mShell.mGCD, "callbacks");
             //(actually deserialize the complete engine)
             mShell.mEngine = mSaveGame.readObjectT!(GameEngine)();
-            //(could also get mEngine.gameTime and cast it)
-            mShell.mGameTime = mSaveGame.readObjectT!(TimeSourceFixFramerate)();
-            //time continues at when game was saved
-            mShell.mMasterTime.initTime(mShell.mGameTime.lastExternalTime());
         }
         return mShell;
     }
@@ -243,7 +250,6 @@ class GameShell {
         //fixed-framerate time, note that there's also the paused/slowdown
         //stuff, which is why the .current() time value can be completely
         //different from mMasterTime
-        //this object is serialized into savegames / is managed by snapshotting!
         TimeSourceFixFramerate mGameTime;
         //timestamps are simpler
         long mTimeStamp;
@@ -495,6 +501,11 @@ class GameShell {
         LandscapeBitmap[] bitmaps = mEngine.landscapeBitmaps();
         savegame.setValue!(int)("bitmap_count", bitmaps.length);
 
+        auto ct = savegame.getSubNode("game_time");
+        ct.setValue!(long)("time_ns", mGameTime.current.nsecs);
+        ct.setValue!(bool)("paused", mGameTime.paused);
+        ct.setValue!(float)("slowdown", mGameTime.slowDown);
+
         //------ GameConfig & level
         savegame.add("game_config", mGameConfig.save());
 
@@ -527,11 +538,10 @@ class GameShell {
 
         addResources(mGfx, writer);
 
-        writer.addExternal(mMasterTime, "mastertime");
+        writer.addExternal(mGameTime, "game_time");
         writer.addExternal(mGCD, "callbacks");
 
         writer.writeObject(mEngine);
-        writer.writeObject(mGameTime); //see loading code for the why
 
         ConfigNode g = writer.finish();
         savegame.add("game_data", g);
@@ -556,13 +566,34 @@ class GameShell {
     }
 
     class GCD : GameCallbackDistributor {
+        //-- GameCallbackDistributor (all these actually are hacks)
+
         void addCallback(GameEngineCallback cb) {
             mCallbacks ~= cb;
         }
 
+        bool paused() {
+            return mGameTime.paused();
+        }
+
+        //-- GameEngineCallback
+        //xxx how to make generic?
+
         void damage(Vector2i pos, int radius, bool explode) {
             foreach (cb; mCallbacks) {
                 cb.damage(pos, radius, explode);
+            }
+        }
+
+        void showMessage(LocalizedMessage msg) {
+            foreach (cb; mCallbacks) {
+                cb.showMessage(msg);
+            }
+        }
+
+        void weaponsChanged(Team t) {
+            foreach (cb; mCallbacks) {
+                cb.weaponsChanged(t);
             }
         }
     }
@@ -681,8 +712,6 @@ class GameControl : ClientControl {
         //GameControl instances, that represent unprivileged users)
         addCmd("raise_water", &engine.raiseWater);
         addCmd("set_wind", &engine.setWindSpeed);
-        addCmd("set_pause", &engine.setPaused);
-        addCmd("slow_down", &engine.setSlowDown);
         addCmd("crate_test", &engine.crateTest);
         addCmd("shake_test", &engine.addEarthQuake);
         addCmd("activity", &engine.activityDebug);
@@ -732,6 +761,10 @@ class GameControl : ClientControl {
         //addCmd("weapon_fire", &executeWeaponFire);
         mCmds.register(Command("weapon_fire", &cmdWeaponFire, "-",
             ["bool:is_down"]));
+        mCmds.register(Command("set_pause", &cmdSetPaused, "-",
+            ["bool:-"]));
+        mCmds.register(Command("slow_down", &cmdSetSlowdown, "-",
+            ["float:-"]));
 
         mCmds.bind(mCmd);
     }
@@ -761,6 +794,17 @@ class GameControl : ClientControl {
             mOwner.replaySkip();
         else
             mOwner.addLoggedInput(&executeWeaponFire, params, "cmd: weapon_fire");
+    }
+
+    private void cmdSetPaused(MyBox[] params, Output o) {
+        bool state = params[0].unbox!(bool)();
+        mOwner.mGameTime.paused = state;
+    }
+
+    private void cmdSetSlowdown(MyBox[] params, Output o) {
+        float state = params[0].unbox!(float)();
+        log("slowndown: {}", state);
+        mOwner.mGameTime.slowDown = state;
     }
 
     private void executeWeaponFire(bool is_down) {

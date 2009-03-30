@@ -14,10 +14,10 @@ class Animator : SceneObjectCentered {
         Animation mData;
         Time mStarted;
         debug Time mLastNow;
+        TimeSourcePublic mTimeSource;
 
         Time now() {
-            auto n = timeSource ? timeSource.current
-                : globals.gameTimeAnimations.current;
+            auto n = mTimeSource.current;
             debug {
                 assert(n >= mLastNow, "time running backwards lol");
                 mLastNow = n;
@@ -26,12 +26,16 @@ class Animator : SceneObjectCentered {
         }
     }
 
-    //if null, a default time source is used
-    //must be set before any of the functions is called, else it might happen
-    //that now() thinks the time is running backwards
-    TimeSourcePublic timeSource;
-
     AnimationParams params;
+
+    final TimeSourcePublic timeSource() {
+        return mTimeSource;
+    }
+
+    this(TimeSourcePublic ts) {
+        assert(!!ts); //for now, be nazi about it
+        mTimeSource = ts;
+    }
 
     private int frameTime() {
         assert(mData && mData.mLengthMS != 0);

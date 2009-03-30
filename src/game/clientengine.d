@@ -50,9 +50,9 @@ class ClientAnimationGraphic : Animator {
     int last_set_ts = -1;
 
     this(AnimationGraphic info) {
+        super(info.owner.timebase);
         zorder = GameZOrder.Objects;
         mInfo = info;
-        timeSource = mInfo.owner.timebase;
     }
 
     override void draw(Canvas c) {
@@ -133,8 +133,7 @@ class TargetCrossImpl : SceneObject {
         mGfx = gfx;
         mInfo = info;
         timebase = mInfo.owner.timebase;
-        mTarget = new Animator();
-        mTarget.timeSource = timebase;
+        mTarget = new Animator(timebase);
         mTarget.setAnimation(mInfo.theme.aim.get);
         reset();
     }
@@ -228,12 +227,12 @@ class ExplosionGfxImpl : SceneObjectCentered {
         GfxSet mGfx;
     }
 
-    this(GfxSet gfx, Vector2i a_pos, int diameter) {
+    this(TimeSourcePublic ts, GfxSet gfx, Vector2i a_pos, int diameter) {
         zorder = GameZOrder.TargetCross;
         mGfx = gfx;
-        mShockwave1 = new Animator();
-        mShockwave2 = new Animator();
-        mComicText = new Animator();
+        mShockwave1 = new Animator(ts);
+        mShockwave2 = new Animator(ts);
+        mComicText = new Animator(ts);
         auto p = a_pos;
         mShockwave1.pos = p;
         mShockwave2.pos = p;
@@ -438,12 +437,21 @@ class ClientGameEngine : GameEngineCallback {
             = server_graphics.last_objects_frame;
     }
 
-    //interface GameEngineCallback
+    //-- interface GameEngineCallback
+
     void damage(Vector2i pos, int radius, bool explode) {
         if (explode) {
-            scene.add(new ExplosionGfxImpl(gfx, pos, radius*2));
+            scene.add(new ExplosionGfxImpl(engineTime, gfx, pos, radius*2));
         }
     }
+
+    //not interested, see gameframe.d
+    void showMessage(LocalizedMessage msg) {
+    }
+    void weaponsChanged(Team t) {
+    }
+
+    //-- end interface
 
     bool oldpause; //hack, so you can pause the music independent from the game
 
@@ -525,5 +533,9 @@ class ClientGameEngine : GameEngineCallback {
     //background => return true if we overpaint everything anyway
     public bool needBackclear() {
         return !mGameSky.enableSkyTex;
+    }
+
+    void setSlowDown(float sd) {
+        mEngineTime.slowDown = sd;
     }
 }

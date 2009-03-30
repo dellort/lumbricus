@@ -381,9 +381,7 @@ class AnimationHandler : ResViewHandler!(Animation) {
     this(Object r) {
         super(r);
 
-        //lol!
-        //Animator uses this as time source
-        mTime = globals.gameTimeAnimations;
+        mTime = new TimeSource("resview");
 
         auto table = new TableContainer(2, 0, Vector2i(10,1), [true, false]);
 
@@ -427,7 +425,7 @@ class AnimationHandler : ResViewHandler!(Animation) {
         box.add(table);
         box.add(new Viewer());
 
-        mAnim = new Animator();
+        mAnim = new Animator(mTime);
 
         addscr(mFrame, mFrameLabel);
         mFrame.minValue = 0;

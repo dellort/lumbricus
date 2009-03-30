@@ -42,12 +42,8 @@ class Camera {
     //active and scrolls towards the followed object again
     private const cCameraBorder = 150;
 
-    public void paused(bool set) {
-        mTime.paused = set;
-    }
-
-    this() {
-        mTime = new TimeSource("camera");
+    this(TimeSourcePublic ts) {
+        mTime = new TimeSource("camera", ts);
     }
 
     void reset() {

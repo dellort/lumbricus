@@ -4,6 +4,7 @@ import common.common;
 import framework.font;
 import framework.framework;
 import framework.commandline;
+import framework.timesource;
 import common.scene;
 import game.animation;
 import game.gamepublic;
@@ -31,8 +32,8 @@ class GuiAnimator : Widget {
         Animator mAnimator;
     }
 
-    this() {
-        mAnimator = new Animator();
+    this(TimeSourcePublic ts) {
+        mAnimator = new Animator(ts);
         setLayout(WidgetLayout.Aligned(-1, -1));
     }
 
@@ -65,9 +66,11 @@ struct InterpolateLinearTime(T) {
     Time startTime, duration;
     T start;
     T target;
+    TimeSourcePublic timeSource; //must be set before calling anything
 
-    static Time currentTime() {
-        return globals.gameTimeAnimations.current();
+    Time currentTime() {
+        assert(!!timeSource);
+        return timeSource.current;
     }
 
     void init(Time a_duration, T a_start, T a_target) {
@@ -115,9 +118,11 @@ struct InterpolateFnTime(T) {
     //the mapping function; inp is the time scaled to 0..1; the result is 0..1
     //and will be scaled to start..target
     float delegate(float inp) fn;
+    TimeSourcePublic timeSource; //must be set before calling anything
 
-    static Time currentTime() {
-        return timeCurrentTime();//globals.gameTimeAnimations.current();
+    Time currentTime() {
+        assert(!!timeSource);
+        return timeSource.current;
     }
 
     void init(Time a_duration, T a_start, T a_target) {
@@ -257,6 +262,10 @@ class GameView : Container {
             Vector2i lastKnownPosition;
 
             this(TeamMemberInfo m) {
+                auto ts = mGame.clientTime;
+                moveLabels.timeSource = ts;
+                moveHealth.timeSource = ts;
+                moveWeaponIcon.timeSource = ts;
                 member = m;
                 wormTeam = m.owner.createLabel();
                 wormName = m.owner.createLabel();
@@ -265,7 +274,7 @@ class GameView : Container {
                 healthHint = m.owner.createLabel();
                 weaponIcon = m.owner.createLabel();
                 weaponIcon.text = "";
-                arrow = new GuiAnimator();
+                arrow = new GuiAnimator(ts);
                 arrow.animation = member.owner.theme.arrow.get;
                 moveWeaponIcon.fn = &interpolate2Exp;
                 //get rid of nan
@@ -360,7 +369,7 @@ class GameView : Container {
                     bool doMoveDown;
 
                     if (isActiveWorm) {
-                        auto currentTime = mGame.engine.currentGameTime();
+                        auto currentTime = mGame.serverTime.current;
                         bool didmove = (currentTime - mGame.control.
                             getControlledMember.lastAction()) < cArrowDelta;
                         doMoveDown = !didmove;
@@ -540,7 +549,6 @@ class GameView : Container {
 
     private void doSim() {
         mCamera.doFrame();
-        mCamera.paused = mGame.cengine.engineTime.paused();
 
         activeWorm = null;
         if (auto am = mGame.control.getControlledMember()) {
@@ -563,7 +571,7 @@ class GameView : Container {
     this(GameInfo game) {
         mGame = game;
 
-        mCamera = new Camera();
+        mCamera = new Camera(mGame.clientTime);
 
         //load the teams and also the members
         foreach (TeamInfo t; game.teams) {
@@ -731,7 +739,7 @@ class GameView : Container {
 
     override void simulate() {
         float zc = mZoomChange*(cZoomMax-cZoomMin)/cZoomTime.secsf
-            * globals.gameTimeAnimations.difference.secsf;
+            * mGame.clientTime.difference.secsf;
         mCurZoom = clampRangeC(mCurZoom+zc, cZoomMin, cZoomMax);
         super.simulate();
         doSim();

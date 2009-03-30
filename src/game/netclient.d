@@ -4,6 +4,7 @@ public import game.netshared;
 
 import str = stdx.string;
 
+import framework.timesource;
 import game.levelgen.level;
 import game.setup;
 import game.gfxset;
@@ -136,10 +137,6 @@ class GSFunctions : GameEnginePublic, GameLogicPublic, ClientControl
         return state.paused;
     }
 
-    float slowDown() {
-        return state.slow_down;
-    }
-
     GameLogicPublic logic() {
         return this; //lol
     }
@@ -156,7 +153,7 @@ class GSFunctions : GameEnginePublic, GameLogicPublic, ClientControl
         //- client reads these entries and calls the callbacks locally
     }
 
-    Time currentGameTime() {
+    TimeSourcePublic gameTime() {
         return state.servertime;
     }
 

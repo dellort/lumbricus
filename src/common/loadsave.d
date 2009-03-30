@@ -186,6 +186,7 @@ class LoadSaveHandler {
         try {
             registerLog("common.loadsave")("Saving...");
             auto data = saveCurrentTask("test_temp");
+            getCurrentTask().kill(); //lack of this really confused me
             registerLog("common.loadsave")("Loading...");
             data.load();
             registerLog("common.loadsave")("Done.");
@@ -248,7 +249,7 @@ class LoadSaveHandler {
         return createSavegame(task.saveId, name, description, &task.saveState);
     }
 
-    SavegameData saveCurrentTask(char[] name, char[] description = "") {
+    private StatefulTask getCurrentTask() {
         auto topWnd = gWindowManager.activeWindow();
         if (!topWnd) {
             throw new SaveException("Unknown active window");
@@ -257,7 +258,11 @@ class LoadSaveHandler {
         if (!curTask) {
             throw new SaveException("Active task is not saveable");
         }
-        return saveTask(curTask, name);
+        return curTask;
+    }
+
+    SavegameData saveCurrentTask(char[] name, char[] description = "") {
+        return saveTask(getCurrentTask, name);
     }
 }
 

@@ -5,6 +5,7 @@ module game.netshared;
 
 public import game.gamepublic;
 
+import framework.timesource;
 import game.levelgen.level;
 import game.gfxset;
 import utils.reflection;
@@ -15,7 +16,7 @@ import utils.mybox;
 //values set by the server, replicated by the client
 class GameState {
     //this is practically the timestamp for a network frame
-    Time servertime;
+    TimeSourcePublic servertime;
 
     GameEngineGraphics graphics;
     int water_offset;
@@ -28,7 +29,6 @@ class GameState {
     GfxSet gfx;
     Vector2i world_size, world_center;
     bool paused;
-    float slow_down;
     char[] gamemode;
     bool game_ended;
     Object gamemodestatus;

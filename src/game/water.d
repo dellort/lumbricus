@@ -92,7 +92,7 @@ class GameWater {
             mWaveAnim = mEngine.resources.get!(Animation)("water_waves");
             foreach (int i, inout a; mWaveAnimBack) {
                 a = new HorizontalFullsceneAnimator();
-                a.animator = new Animator();
+                a.animator = new Animator(mEngine.engineTime);
                 a.animator.setAnimation(mWaveAnim);
                 scene.add(a, GameZOrder.BackWater);
                 a.xoffs = rngShared.nextRange(0,mWaveAnim.bounds.size.x);
@@ -101,7 +101,7 @@ class GameWater {
             }
             foreach (int i, inout a; mWaveAnimFront) {
                 a = new HorizontalFullsceneAnimator();
-                a.animator = new Animator();
+                a.animator = new Animator(mEngine.engineTime);
                 a.animator.setAnimation(mWaveAnim);
                 scene.add(a, GameZOrder.FrontWater);
                 a.xoffs = rngShared.nextRange(0,mWaveAnim.bounds.size.x);

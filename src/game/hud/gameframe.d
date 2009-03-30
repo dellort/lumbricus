@@ -36,7 +36,7 @@ import tango.math.Math;
 //time for which it takes to add/remove 1 health point in the animation
 const Time cTimePerHealthTick = timeMsecs(4);
 
-class GameFrame : SimpleContainer {
+class GameFrame : SimpleContainer, GameEngineCallback {
     GameInfo game;
     GameView gameView;
 
@@ -49,12 +49,29 @@ class GameFrame : SimpleContainer {
         TeamWindow mTeamWindow;
         Label mReplayImg, mReplayTimer;
 
+        MessageViewer mMessageViewer;
+
         Time mLastFrameTime, mRestTime;
         bool mFirstFrame = true;
         Vector2i mScrollToAtStart;
-
-        int mWeaponChangeCounter;
     }
+
+    //-- GameEngineCallback
+    //this sucks etc., there should be a way to register delegates to listen for
+    //single events, instead of having to implement this interface in each case
+
+    //handled in ClientGameEngine
+    void damage(Vector2i pos, int radius, bool explode) {
+    }
+
+    void showMessage(LocalizedMessage msg) {
+        mMessageViewer.showMessage(msg);
+    }
+    void weaponsChanged(Team t) {
+        updateWeapons();
+    }
+
+    //-- end interface
 
     private void updateWeapons() {
         TeamMember t = game.control.getControlledMember();
@@ -98,7 +115,7 @@ class GameFrame : SimpleContainer {
     }
 
     override protected void simulate() {
-        auto curtime = globals.gameTimeAnimations.current;
+        auto curtime = game.clientTime.current;
         if (mLastFrameTime == Time.init)
             mLastFrameTime = curtime;
         auto delta = curtime - mLastFrameTime;
@@ -127,12 +144,6 @@ class GameFrame : SimpleContainer {
         //only do the rest (like animated sorting) when all was counted down
         mTeamWindow.update(finished);
 
-        int c = game.logic.getWeaponListChangeCounter();
-        if (c != mWeaponChangeCounter) {
-            mWeaponChangeCounter = c;
-            updateWeapons();
-        }
-
         mScroller.scale = Vector2f(gameView.zoomLevel, gameView.zoomLevel);
 
         if (game.replayRemain != Time.Null) {
@@ -157,6 +168,8 @@ class GameFrame : SimpleContainer {
 
         gDefaultLog("initializeGameGui");
 
+        game.engine.addCallback(this);
+
         auto wormbinds = new KeyBindings();
         wormbinds.loadFrom(gConf.loadConfig("wormbinds").getSubNode("binds"));
 
@@ -172,7 +185,8 @@ class GameFrame : SimpleContainer {
 
         mGui.add(new PrepareDisplay(game));
 
-        mGui.add(new MessageViewer(game));
+        mMessageViewer = new MessageViewer(game);
+        mGui.add(mMessageViewer);
 
         mTeamWindow = new TeamWindow(game);
         mGui.add(mTeamWindow);

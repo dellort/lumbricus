@@ -120,7 +120,7 @@ class GameSky {
 
         int nAnim = 0;
         foreach (inout CloudInfo ci; mCloudAnimators) {
-            ci.anim = new Animator();
+            ci.anim = new Animator(engine.engineTime);
             ci.anim.setAnimation(mCloudAnims[nAnim],
                 timeMsecs(rngShared.nextRange(0,
                     cast(int)(mCloudAnims[nAnim].duration.msecs))));
@@ -137,7 +137,7 @@ class GameSky {
         if (mDebrisAnim) {
             scope (failure) mDebrisAnim = null;
             foreach (inout DebrisInfo di; mDebrisAnimators) {
-                di.anim = new Animator();
+                di.anim = new Animator(engine.engineTime);
                 di.anim.setAnimation(mDebrisAnim, timeMsecs(rngShared.nextRange
                     (0, cast(int)(mDebrisAnim.duration.msecs))));
                 scene.add(di.anim, GameZOrder.BackLayer);

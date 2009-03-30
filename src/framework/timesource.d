@@ -29,6 +29,9 @@ class TimeSourcePublic {
         return mSimTime - mLastSimTime;
     }
 
+    /+ removed; was dangereous and silly
+        - you should chain time sources instead
+        - if you want to set them, use the functions in the subclasses
     ///warning: if you have chained time sources, these values only refer to
     ///         the local settings, e.g. the time could be paused even when this
     ///         paused() property returns false
@@ -36,9 +39,7 @@ class TimeSourcePublic {
     abstract bool paused();
     abstract void slowDown(float factor);
     abstract float slowDown();
-
-    //?
-    abstract Time lastExternalTime();
+    +/
 }
 
 final class TimeSource : TimeSourcePublic {
@@ -84,10 +85,10 @@ final class TimeSource : TimeSourcePublic {
         mLastExternalTime = mExternalTime;
 
         mPauseMode = false;
+        mSlowDown = 1.0;
 
         mSimTime = mLastSimTime = timeoffset;
         internalFixTime();
-        slowDown = 1.0;
     }
 
     //reset to time 0 with current external time
@@ -134,10 +135,6 @@ final class TimeSource : TimeSourcePublic {
         if (mParent)
             return mParent.current();
         return timeCurrentTime();
-    }
-
-    Time lastExternalTime() {
-        return mLastExternalTime;
     }
 
     //update time!
@@ -214,21 +211,17 @@ class TimeSourceFixFramerate : TimeSourcePublic {
         assert(this.current == mParent.current);
     }
 
-    override void paused(bool p) {
+    void paused(bool p) {
         mChain.paused = p;
     }
-    override bool paused() {
+    bool paused() {
         return mChain.paused;
     }
-    override void slowDown(float factor) {
+    void slowDown(float factor) {
         mChain.slowDown = factor;
     }
-    override float slowDown() {
+    float slowDown() {
         return mChain.slowDown;
-    }
-
-    override Time lastExternalTime() {
-        return mChain.lastExternalTime;
     }
 
     ///runs n frames in increments of the fixed frame length, and calls

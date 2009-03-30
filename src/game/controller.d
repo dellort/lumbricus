@@ -972,18 +972,9 @@ class GameController : GameLogicPublic {
 
         bool mIsAnythingGoingOn; // (= hack)
 
-        struct Message {
-            char[] id;
-            char[][] args;
-            uint rnd;
-        }
-        Queue!(Message) mMessages; //GUI messages which are sent to the clients
-        Message mLastMessage;
-        int mMessageChangeCounter;
-        //time between messages, how they are actually displayed
-        //is up to the gui
         const cMessageTime = timeSecs(1.5f);
         Time mLastMsgTime;
+        int mMessageCounter;
 
         int mWeaponListChangeCounter;
 
@@ -1015,8 +1006,6 @@ class GameController : GameLogicPublic {
 
         mEvents = new EventAggregator(this);
 
-        mMessages = new Queue!(Message);
-        mLastMsgTime = -cMessageTime;
         //only valid while loading
         mWeaponSets = null;
 
@@ -1024,7 +1013,6 @@ class GameController : GameLogicPublic {
     }
 
     this (ReflectCtor c) {
-        c.types().registerClass!(typeof(mMessages));
     }
 
     //--- start GameLogicPublic
@@ -1053,16 +1041,6 @@ class GameController : GameLogicPublic {
         return res;
     }
 
-    int getMessageChangeCounter() {
-        return mMessageChangeCounter;
-    }
-
-    void getLastMessage(out char[] msgid, out char[][] msg, out uint rnd) {
-        msgid = mLastMessage.id;
-        msg = mLastMessage.args;
-        rnd = mLastMessage.rnd;
-    }
-
     int getWeaponListChangeCounter() {
         return mWeaponListChangeCounter;
     }
@@ -1078,7 +1056,7 @@ class GameController : GameLogicPublic {
     }
 
     private void changeWeaponList(Team t) {
-        mWeaponListChangeCounter++;
+        engine.callbacks.weaponsChanged(t);
     }
 
     GameEngine engine() {
@@ -1086,16 +1064,27 @@ class GameController : GameLogicPublic {
     }
 
     void messageAdd(char[] msg, char[][] args = null) {
-        mMessages.push(Message(msg, args, engine.rnd.next));
-    }
+        messageIsIdle(); //maybe reset wait time
+        if (mMessageCounter == 0)
+            mLastMsgTime = mEngine.gameTime.current;
+        mMessageCounter++;
 
-    private void changeMessageStatus(Message msg) {
-        mMessageChangeCounter++;
-        mLastMessage = msg;
+        LocalizedMessage lm;
+        lm.id = msg;
+        lm.args = args;
+        lm.rnd = engine.rnd.next;
+        engine.callbacks.showMessage(lm);
     }
 
     bool messageIsIdle() {
-        return mMessages.empty;
+        if (mLastMsgTime + cMessageTime*mMessageCounter
+            >= mEngine.gameTime.current)
+        {
+            //did wait long enough
+            mMessageCounter = 0;
+            return false;
+        }
+        return true;
     }
 
     void startGame() {
@@ -1119,16 +1108,6 @@ class GameController : GameLogicPublic {
 
             foreach (t; mTeams)
                 t.simulate();
-
-            //process messages
-            if (mLastMsgTime < mEngine.gameTime.current && !mMessages.empty()) {
-                //show one
-                Message msg = mMessages.pop();
-                //note that messages will get lost if callback is not set,
-                //this is intended
-                changeMessageStatus(msg);
-                mLastMsgTime = mEngine.gameTime.current + cMessageTime;
-            }
 
             if (mLastCrate) {
                 if (!mLastCrate.active) mLastCrate = null;

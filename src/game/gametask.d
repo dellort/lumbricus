@@ -318,8 +318,7 @@ class GameTask : StatefulTask {
 
         if (mGameShell) {
             //xxx (well, you know)
-            if (!mControl)
-                mControl = new GameControl(mGameShell);
+            mControl = new GameControl(mGameShell);
         }
 
         return true;
@@ -571,20 +570,18 @@ class GameTask : StatefulTask {
                 setgame = setani = true;
         }
         float val = args[0].unbox!(float);
-        float g = setgame ? val : mGame.slowDown;
-        float a = setani ? val : globals.gameTimeAnimations.slowDown;
-        write.writefln("set slowdown: game={} animations={}", g, a);
-        if (setgame)
-            mControl.executeCommand("slow_down " ~ str.toString(g));
+        if (setgame) {
+            write.writefln("set slowdown: game={}", val);
+            mControl.executeCommand("slow_down " ~ str.toString(val));
+        }
         if (setani) {
-            mClientEngine.engineTime.slowDown = g;
-            globals.gameTimeAnimations.slowDown = a;
+            write.writefln("set slowdown: client={}", val);
+            mClientEngine.setSlowDown(val);
         }
     }
 
     private void cmdPause(MyBox[], Output) {
         gamePaused = !gamePaused;
-        globals.gameTimeAnimations.paused = !globals.gameTimeAnimations.paused;
     }
 
     private void cmdExecServer(MyBox[] args, Output write) {

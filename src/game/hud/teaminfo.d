@@ -6,6 +6,7 @@ module game.hud.teaminfo;
 import common.visual;
 import framework.font;
 import framework.framework;
+import framework.timesource;
 import game.gamepublic;
 import game.gfxset;
 import game.clientengine;
@@ -27,11 +28,16 @@ class GameInfo {
     TeamMemberInfo[TeamMember] allMembers;
     Time replayRemain;
 
+    TimeSourcePublic clientTime, serverTime;
+
     this(ClientGameEngine a_engine, ClientControl ct) {
         cengine = a_engine;
         engine = cengine.engine();
         logic = engine.logic;
         control = ct;
+
+        clientTime = cengine.engineTime;
+        serverTime = engine.gameTime;
 
         foreach (t; engine.logic().getTeams()) {
             auto team = new TeamInfo(this, t);

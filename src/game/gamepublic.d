@@ -3,6 +3,7 @@
 ///NOTE: you must _not_ cast interface to not-statically-known other types
 module game.gamepublic;
 
+import framework.i18n : LocalizedMessage;
 import framework.framework;
 import common.resset : Resource;
 import framework.timesource;
@@ -352,10 +353,9 @@ interface GameEnginePublic {
     Vector2i worldCenter();
 
     ///is the game time paused?
+    //xxx doesn't really belong here, then again where else to put it?
+    //    maybe handle the same as replay state (GameShell.replayMode)
     bool paused();
-
-    ///time flow multiplier
-    float slowDown();
 
     ///return the GameLogic singleton
     GameLogicPublic logic();
@@ -364,7 +364,8 @@ interface GameEnginePublic {
 
     void addCallback(GameEngineCallback cb);
 
-    Time currentGameTime();
+    //carries time of last network update in networking case, I guess?
+    TimeSourcePublic gameTime();
 }
 
 ///calls from engine into clients
@@ -373,6 +374,20 @@ interface GameEngineCallback {
     ///cause damage; if explode is true, play corresponding particle effects
     ///(intended to handle both graphics and damage)
     void damage(Vector2i pos, int radius, bool explode);
+
+    ///let the client display a message (like it's done on round's end etc.)
+    ///this is a bit complicated because message shall be translated on the
+    ///client (i.e. one client might prefer Klingon, while the other is used
+    ///to Latin); so msgid and args are passed to the translation functions
+    ///this returns a value, that is incremented everytime a new message is
+    ///available
+    ///a random int is passed along, so all clients with the same locale
+    ///will select the same message
+    void showMessage(LocalizedMessage msg);
+
+    ///called if the weapon list of any team changes
+    ///value increments, if the weapon list of any team changes
+    void weaponsChanged(Team t);
 }
 
 class WeaponHandle {
@@ -409,21 +424,6 @@ interface GameLogicPublic {
     ///list of _all_ possible weapons, which are useable during the game
     ///Team.getWeapons() must never return a Weapon not covered by this list
     WeaponHandle[] weaponList();
-
-    ///let the client display a message (like it's done on round's end etc.)
-    ///this is a bit complicated because message shall be translated on the
-    ///client (i.e. one client might prefer Klingon, while the other is used
-    ///to Latin); so msgid and args are passed to the translation functions
-    ///this returns a value, that is incremented everytime a new message is
-    ///available
-    ///a random int is passed along, so all clients with the same locale
-    ///will select the same message
-    int getMessageChangeCounter();
-    ///message can be read out with this
-    void getLastMessage(out char[] msgid, out char[][] msg, out uint rnd);
-
-    ///value increments, if the weapon list of any team changes
-    int getWeaponListChangeCounter();
 }
 
 interface TeamMember {

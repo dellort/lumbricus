@@ -433,6 +433,12 @@ class Snapshot {
             for (int n = 0; n < desc.maps.length; n++) {
                 SnapDescriptor.MapMember m = desc.maps[n];
                 SafePtr mp = SafePtr(m.t, ptr + m.offset);
+                //NOTE: keys, that are in the snapshot and weren't removed until
+                //      unsnap() is called, don't need to be removed; in these
+                //      cases, clearing the map will cause unnecessary memory
+                //      allocations; but we still need to get rid of keys that
+                //      were added between snap() and unsnap()
+                m.t.assign(mp, m.t.initPtr()); //clear map
                 size_t len;
                 read(&len);
                 while (len > 0) {

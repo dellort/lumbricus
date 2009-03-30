@@ -22,10 +22,10 @@ bool parseVector(T)(char[] s, inout Vector2!(T) value) {
         return false;
     }
     T a, b;
-    static if (is(T : int)) {
+    static if (is(T == int)) {
         if (!parseInt(items[0], a) || !parseInt(items[1], b))
             return false;
-    } else static if (is(T : float)) {
+    } else static if (is(T == float)) {
         if (!parseFloat(items[0], a) || !parseFloat(items[1], b))
             return false;
     } else {
@@ -38,7 +38,8 @@ bool parseVector(T)(char[] s, inout Vector2!(T) value) {
 
 //returns false: conversion failed, value is unmodified
 public bool parseInt(T)(char[] s, inout T value) {
-    static assert(is(T : int));
+    static assert(is(T == int) || is(T == long)
+        || is(T == uint) || is(T == ulong));
     try {
         //tango.text.convert.Integer.toInt() parses an empty string as 0
         if (s.length == 0)
@@ -574,18 +575,20 @@ public class ConfigNode {
             bool res = def;
             parseBool(value, res);
             return res;
-        } else static if (is(T : int)) {
-            int res = def;
-            parseInt(value, res);
+        } else static if (is(T == int) || is(T == long) || is(T == uint)
+            || is(T == ulong))
+        {
+            T res = def;
+            parseInt!(T)(value, res);
             return res;
-        } else static if (is(T : float)) {
+        } else static if (is(T == float)) {
             float res = def;
             parseFloat(value, res);
             return res;
         } else static if (is(T T2 : T2[])) {
             // Parse the value as array of values.
             // Separator is always whitespace.
-            static if (is(T2 == bool) || is(T2 : int) || is(T2 : float)) {
+            static if (is(T2 == bool) || is(T2 == int) || is(T2 == float)) {
                 //xxx: Phobos API decides how string is parsed
                 auto array = str.split(value);
                 auto res = new T2[array.length];
@@ -595,10 +598,10 @@ public class ConfigNode {
                         //(one invalid value makes everything fail)
                         if (!parseBool(s, n))
                             return def;
-                    } else static if (is(T2 : int)) {
+                    } else static if (is(T2 == int)) {
                         if (!parseInt(s, n))
                             return def;
-                    } else static if (is(T2: float)) {
+                    } else static if (is(T2 == float)) {
                         if (!parseFloat(s, n))
                             return def;
                     } else {
@@ -607,7 +610,7 @@ public class ConfigNode {
                     res[i] = n;
                 }
                 return res;
-            } else static if (is(T2 : char[])) {
+            } else static if (is(T2 == char[])) {
                 //xxx: this is a hack, code in next case would be better
                 return str.split(value, " ");
             } else {
@@ -627,7 +630,7 @@ public class ConfigNode {
             }
             return res;
         } else {
-            static assert(false, "Implement me");
+            static assert(false, "Implement me, for: " ~ T.stringof);
         }
     }
 

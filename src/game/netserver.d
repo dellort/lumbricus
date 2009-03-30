@@ -97,25 +97,17 @@ class NetServer {
 
             state.weaponlist = logic.weaponList();
             state.gamemode = logic.gamemode();
-        }
 
-        state.servertime = engine.currentGameTime();
+            state.servertime = engine.gameTime();
+        }
 
         state.water_offset = engine.waterOffset();
         state.wind_speed = engine.windSpeed();
         state.earth_quake_strength = engine.earthQuakeStrength();
         state.paused = engine.paused();
-        state.slow_down = engine.slowDown();
 
         state.game_ended = logic.gameEnded();
         state.gamemodestatus = logic.gamemodeStatus();
-        state.msgcounter = logic.getMessageChangeCounter();
-        logic.getLastMessage(state.msgid, state.msg, state.msg_rnd);
-
-        bool weapons_changed;
-        int oldwcounter = logic.getWeaponListChangeCounter();
-        weapons_changed = init || (oldwcounter != state.weaponlistcc);
-        state.weaponlistcc = oldwcounter;
 
         state.activeteams.length = logic.getActiveTeams().length;
         int activeCtr = 0;  //xxx
@@ -159,7 +151,7 @@ class NetServer {
             //normal fields (but still won't change very often)
             ts.active = t.active();
             ts.allowselect = t.allowSelect();
-            if (weapons_changed)
+            //if (weapons_changed)
                 ts.weapons = t.getWeapons();
             if (ts.active) {
                 //avoid reserving memory

@@ -34,6 +34,15 @@ public Translator localeRoot() {
     return gLocaleRoot;
 }
 
+///description goes here (actually, I don't know what this is supposed to be)
+///this could become more complex, e.g. think about "collect_item" in crate.d,
+///where I currently translate the weapon name on server side
+struct LocalizedMessage {
+    char[] id;      ///translation ID
+    char[][] args;  ///arguments for translation string
+    uint rnd;       ///value for randomized selection of translations
+}
+
 ///Translator
 ///This is used for every translation and contains an open locale file
 ///with a specific namespace
@@ -150,14 +159,14 @@ public class Translator {
      *     "Option 2"
      * }
      */
-    char[] translateWithArray(char[] id, char[][] args, uint rnd = 0) {
+    char[] translateLocalizedMessage(LocalizedMessage msg) {
         version(GNU) {
             static assert(false, "Think of something");
         }
         //lol, manually build the TypeInfo[] for translatefx
-        TypeInfo[] tiar = new TypeInfo[args.length];
+        TypeInfo[] tiar = new TypeInfo[msg.args.length];
         tiar[] = typeid(char[]);
-        return translatefx(id, tiar, args.ptr, rnd);
+        return translatefx(msg.id, tiar, msg.args.ptr, msg.rnd);
         delete tiar;
     }
 

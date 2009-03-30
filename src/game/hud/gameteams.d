@@ -6,6 +6,7 @@ import common.scene;
 import common.visual;
 import framework.font;
 import framework.framework;
+import framework.timesource;
 import gui.container;
 import gui.label;
 import gui.progress;
@@ -37,6 +38,7 @@ class TeamWindow : Container {
         int currentRemoveLines = -1; //number of lines which currently move out
         Time currentRemoveStart;
         bool mUpdating;
+        TimeSourcePublic mTimeSource;
     }
 
     //return if a is superior or equal to b
@@ -55,6 +57,8 @@ class TeamWindow : Container {
         mLines = null;
         currentSwapLine = -1;
         +/
+
+        mTimeSource = game.clientTime;
 
         //cells both expanded and homogeneous in x-dir => centered correctly
         //will give you headaches if you want more than two columns
@@ -157,7 +161,7 @@ class TeamWindow : Container {
         assert(mTable.height() >= 2, "need at least 2 teams");
         assert(line >= 0 && line - 1 < mTable.height());
         currentSwapLine = line;
-        currentSwapStart = globals.gameTimeAnimations.current();
+        currentSwapStart = mTimeSource.current();
     }
 
     bool removingLines() {
@@ -169,7 +173,7 @@ class TeamWindow : Container {
         assert(!removingLines(), "already in progress");
         assert(count > 0 && count <= mLines.length);
         currentRemoveLines = count;
-        currentRemoveStart = globals.gameTimeAnimations.current();
+        currentRemoveStart = mTimeSource.current();
     }
 
     //probably needed to wait until it's done?
@@ -181,7 +185,7 @@ class TeamWindow : Container {
         if (!animating())
             return;
 
-        Time curt = globals.gameTimeAnimations.current();
+        Time curt = mTimeSource.current();
 
         //return all Widgets in this table row
         //mem = trying to avoid memory allocation in a per-frame function

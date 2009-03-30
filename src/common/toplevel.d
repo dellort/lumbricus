@@ -610,9 +610,6 @@ private:
     }
 
     private void onUpdate() {
-        //xxx move?
-        globals.gameTimeAnimations.update();
-
         mTaskTime.start();
         taskManager.doFrame();
         mTaskTime.stop();

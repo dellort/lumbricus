@@ -56,22 +56,11 @@ class MessageViewer : Widget {
         return !working();
     }
 
-    void showMessage(char[] msgid, char[][] args, uint rnd) {
-        char[] translated = mLocaleMsg.translateWithArray(msgid, args, rnd);
-        addMessage(translated);
+    void showMessage(LocalizedMessage msg) {
+        addMessage(mLocaleMsg.translateLocalizedMessage(msg));
     }
 
     override void simulate() {
-        int c = mGame.logic.getMessageChangeCounter();
-        if (c != mMsgChangeCounter) {
-            mMsgChangeCounter = c;
-            char[] id;
-            char[][] args;
-            uint rnd;
-            mGame.logic.getLastMessage(id, args, rnd);
-            showMessage(id, args, rnd);
-        }
-
         Time phaseT = timeMsecs(cPhaseTimingsMs[mPhase]);
         Time cur = timeCurrentTime;
         Time deltaT = cur - mLastFrame;
