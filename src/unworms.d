@@ -1,12 +1,12 @@
 module unworms;
 
-import stdx.stdio;
+import tango.io.Stdout;
 import wwptools.unworms;
 
 int main(char[][] args)
 {
     if (args.length < 2) {
-        writefln("Syntax: unworms <wormsFile> [<outputDir>]");
+        Stdout("Syntax: unworms <wormsFile> [<outputDir>]").newline;
         return 1;
     }
     char[] outputDir;

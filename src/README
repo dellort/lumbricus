@@ -39,7 +39,12 @@ Building it...
 
 - Derelict, which is a bunch of wrappers for C libraries, especially SDL
   -> http://dsource.org/projects/derelict
-  xxx: describe how to use dsss net to auto-install all dependencies?
+  
+  With all your build tools (DMD/DSSS) and Tango set up correctly, you can
+  install all required Derelict libraries automatically by running
+    dsss net deps
+  in the trunk/src directory. Don't worry about the bunch of error messages about
+  missing files, this is how this tool works.
 
 - When it's all correctly set up, go into the trunk/src/ dir and compile
   Lumbricus by executing this command on the commandline:
@@ -52,6 +57,15 @@ Required libraries:
 - Dynamic linked (.dll/.so):
   - SDL
   - SDL_image
+  - Freetype
+  - DevIL (openil.sf.net)
+  - ENet (enet.bespin.org)
+  - Zlib
+
+  - FMod (optional)
+  - SDL_mixer (optional)
+  - OpenAL (optional)
+  For Win32, all required .dll files can be found in <svn_root>/downloads/win32_dlls
 - Static linked D libraries:
   - Derelict for the 3 SDL libraries
   - Tango (comes not with DMD)
@@ -66,8 +80,8 @@ Using the WWP data converter:
 
   Note that this needs some additional data files from
     trunk/share/lumbricus/wimport
-  I have absolutely no clue how extractdata finds these files, but as long as
-  you execute extractdata from trunk/src/, it should somehow work. Or not.
+  The files are searched in <path_to_extractdata_binary>/../share/lumbricus/wimport,
+  so if you leave your executable in the default output path you should be fine.
 
   The WWP datafiles just contain lists of compressed images/animations, which
   are obviously (?) only addressed by their index-number. So we had to create

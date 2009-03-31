@@ -15,10 +15,12 @@
 				<Option compiler="dmd" />
 				<Option projectResourceIncludeDirsRelation="0" />
 				<MakeCommands>
-					<Build command="make build T=animutil" />
+					<Build command="$make -f $makefile build T=animutil" />
 					<CompileFile command="" />
-					<Clean command="make clean" />
+					<Clean command="$make -f $makefile clean" />
 					<DistClean command="" />
+					<AskRebuildNeeded command="" />
+					<SilentBuild command="$make -s -f $makefile build T=animutil" />
 				</MakeCommands>
 			</Target>
 			<Target title="Release">
@@ -29,10 +31,12 @@
 				<Option compiler="dmd" />
 				<Option projectResourceIncludeDirsRelation="0" />
 				<MakeCommands>
-					<Build command="make release T=animutil" />
+					<Build command="$make -f $makefile release T=animutil" />
 					<CompileFile command="" />
-					<Clean command="make clean" />
+					<Clean command="$make -f $makefile clean" />
 					<DistClean command="" />
+					<AskRebuildNeeded command="" />
+					<SilentBuild command="$make -s -f $makefile release T=animutil" />
 				</MakeCommands>
 			</Target>
 		</Build>

@@ -16,12 +16,12 @@
 				<Option parameters="--fw.drivers.sound=null" />
 				<Option projectResourceIncludeDirsRelation="0" />
 				<MakeCommands>
-					<Build command="make build T=lumbricus" />
+					<Build command="$make -f $makefile build T=lumbricus" />
 					<CompileFile command="" />
-					<Clean command="make clean" />
+					<Clean command="$make -f $makefile clean" />
 					<DistClean command="" />
-					<AskRebuildNeeded command="$make -q -f $makefile $target" />
-					<SilentBuild command="$make -s -f $makefile $target" />
+					<AskRebuildNeeded command="" />
+					<SilentBuild command="$make -s -f $makefile build T=lumbricus" />
 				</MakeCommands>
 			</Target>
 			<Target title="Release">
@@ -32,12 +32,12 @@
 				<Option compiler="dmd" />
 				<Option projectResourceIncludeDirsRelation="0" />
 				<MakeCommands>
-					<Build command="make release T=lumbricus" />
+					<Build command="$make -f $makefile release T=lumbricus" />
 					<CompileFile command="" />
-					<Clean command="make clean" />
+					<Clean command="$make -f $makefile clean" />
 					<DistClean command="" />
-					<AskRebuildNeeded command="$make -q -f $makefile $target" />
-					<SilentBuild command="$make -s -f $makefile $target" />
+					<AskRebuildNeeded command="" />
+					<SilentBuild command="$make -s -f $makefile release T=lumbricus" />
 				</MakeCommands>
 			</Target>
 		</Build>

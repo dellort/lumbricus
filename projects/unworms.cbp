@@ -5,7 +5,6 @@
 		<Option title="unworms" />
 		<Option makefile="makefile" />
 		<Option makefile_is_custom="1" />
-		<Option pch_mode="2" />
 		<Option compiler="dmd" />
 		<Build>
 			<Target title="Debug">
@@ -15,10 +14,12 @@
 				<Option type="1" />
 				<Option compiler="dmd" />
 				<MakeCommands>
-					<Build command="make build T=unworms" />
+					<Build command="$make -f $makefile build T=unworms" />
 					<CompileFile command="" />
-					<Clean command="make clean" />
+					<Clean command="$make -f $makefile clean" />
 					<DistClean command="" />
+					<AskRebuildNeeded command="" />
+					<SilentBuild command="$make -s -f $makefile build T=unworms" />
 				</MakeCommands>
 			</Target>
 			<Target title="Release">
@@ -28,18 +29,15 @@
 				<Option type="1" />
 				<Option compiler="dmd" />
 				<MakeCommands>
-					<Build command="make release T=unworms" />
+					<Build command="$make -f $makefile release T=unworms" />
 					<CompileFile command="" />
-					<Clean command="make clean" />
+					<Clean command="$make -f $makefile clean" />
 					<DistClean command="" />
+					<AskRebuildNeeded command="" />
+					<SilentBuild command="$make -s -f $makefile release T=unworms" />
 				</MakeCommands>
 			</Target>
 		</Build>
-		<Linker>
-			<Add library="DerelictIL" />
-			<Add library="DerelictILU" />
-			<Add library="DerelictUtil" />
-		</Linker>
 		<Unit filename="..\src\aconv\metadata.d" />
 		<Unit filename="..\src\devil\image.d" />
 		<Unit filename="..\src\unworms.d" />
