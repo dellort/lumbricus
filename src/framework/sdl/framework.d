@@ -22,6 +22,7 @@ import ieee = tango.math.IEEE;
 import stdx.stream;
 import tango.io.Stdout;
 import tango.stdc.stringz;
+import tango.sys.Environment;
 
 version = MarkAlpha;
 
@@ -377,6 +378,9 @@ class SDLDriver : FrameworkDriver {
         mOpenGL = config.getBoolValue("open_gl", true);
         mOpenGL_LowQuality = config.getBoolValue("lowquality", false);
         glWireframeDebug = config.getBoolValue("gl_debug_wireframe", false);
+
+        Environment.set("SDL_VIDEO_CENTERED", "center");
+        //Environment.set("SDL_VIDEO_WINDOW_POS", "0,0");
 
         sdlInit();
 

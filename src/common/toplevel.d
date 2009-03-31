@@ -198,7 +198,8 @@ private:
         globals.cmdLine.registerCommand("video", &cmdVideo, "set video", [
             "int:width",
             "int:height",
-            "int?=0:depth (bits)"]);
+            "int?=0:depth (bits)",
+            "bool?:fullscreen"]);
         globals.cmdLine.registerCommand("fullscreen", &cmdFS, "toggle fs",
             ["text?:pass 'desktop' to change to desktop resolution first"]);
         globals.cmdLine.registerCommand("framerate", &cmdFramerate,
@@ -427,14 +428,18 @@ private:
     private void onVideoInit(bool depth_only) {
         globals.log("Changed video: {}", gFramework.screenSize);
         mGui.size = gFramework.screenSize;
+        globals.saveVideoConfig();
     }
 
     private void cmdVideo(MyBox[] args, Output write) {
         int a = args[0].unbox!(int);
         int b = args[1].unbox!(int);
         int c = args[2].unbox!(int);
+        bool fs = gFramework.fullScreen();
+        if (!args[3].empty)
+            fs = args[3].unbox!(bool);
         try {
-            gFramework.setVideoMode(Vector2i(a, b), c);
+            gFramework.setVideoMode(Vector2i(a, b), c, fs);
         } catch (Exception e) {
             //failed to set video mode, try again in windowed mode
             gFramework.setVideoMode(Vector2i(a, b), c, false);
@@ -448,9 +453,8 @@ private:
                 //go fullscreen in desktop mode
                 gFramework.setVideoMode(gFramework.desktopResolution, -1, true);
             } else {
-                //toggle fullscreen in current resolution
-                gFramework.setVideoMode(gFramework.screenSize, -1,
-                    !gFramework.fullScreen);
+                //toggle fullscreen
+                globals.setVideoFromConf(true);
             }
         } catch (Exception e) {
             //fullscreen switch failed

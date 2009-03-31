@@ -77,13 +77,7 @@ class Common {
             timers[name] = cnt;
         }
 
-        ConfigNode scr = gConf.loadConfig("video");
-        int w = scr.getIntValue("width", 800);
-        int h = scr.getIntValue("height", 600);
-        int d = scr.getIntValue("depth", 0);
-        bool fs = scr.getBoolValue("fullscreen", false);
-        gFramework.setVideoMode(Vector2i(w, h), d, fs);
-
+        setVideoFromConf();
         if (!gFramework.videoActive) {
             //this means we're F****D!!1  ("FOOLED")
             log("ERROR: couldn't initialize video");
@@ -100,6 +94,42 @@ class Common {
             gConf.loadConfig("fonts"));
 
         localizedKeynames = localeRoot.bindNamespace("keynames");
+    }
+
+    //read configuration from video.conf and set video mode
+    void setVideoFromConf(bool toggleFullscreen = false) {
+        auto vconf = gConf.loadConfigDef("video");
+        bool fs = vconf.getValue("fullscreen", false);
+        if (toggleFullscreen)
+            fs = !gFramework.fullScreen;
+        ConfigNode vnode = vconf.getSubNode(fs ? "fs" : "window");
+        Vector2i res = Vector2i(vnode.getValue("width", 0),
+            vnode.getValue("height", 0));
+        //if nothing set, default to desktop resolution
+        if (res.x == 0 || res.y == 0) {
+            if (fs)
+                res = gFramework.desktopResolution;
+            else
+                res = Vector2i(800, 600);
+        }
+        int d = vnode.getIntValue("depth", 0);
+        gFramework.setVideoMode(res, d, fs);
+    }
+
+    void saveVideoConfig() {
+        //store the current resolution into the config file
+        auto vconf = gConf.loadConfigDef("video");
+        bool isFS = gFramework.fullScreen;
+        //xxx save fullscreen state? I would prefer configuring this explicitly
+        //vconf.setValue("fullscreen", isFS);
+        if (!vconf.hasValue("fullscreen"))
+            vconf.setValue("fullscreen", false);
+        ConfigNode vnode = vconf.getSubNode(isFS ? "fs" : "window");
+        Vector2i res = gFramework.screenSize;
+        vnode.setValue("width", res.x);
+        vnode.setValue("height", res.y);
+        //xxx get bit depth somehow?
+        gConf.saveConfig(vconf, "video.conf");
     }
 
     void setDefaultOutput(Output o) {

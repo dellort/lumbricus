@@ -27,6 +27,13 @@ private class ConfigManager {
         gConfigMgr = this;
     }
 
+    ///load a config file from disk; file will be automatically unpacked
+    ///if applicable
+    ///Params:
+    ///  asfilename = true: append ".conf" to section name
+    ///  allowFail = if the passed file could not be loaded, a value of
+    ///       false -> will throw an exception (default)
+    ///       true  -> will return null
     ConfigNode loadConfig(char[] section, bool asfilename = false,
         bool allowFail = false)
     {
@@ -69,6 +76,15 @@ private class ConfigManager {
     error:
         logError("config file {} failed to load (allowFail = true)", file);
         return null;
+    }
+
+    ///Same as above, but will return an empty ConfigNode on error
+    ///Never returns null or throws
+    ConfigNode loadConfigDef(char[] section, bool asfilename = false) {
+        ConfigNode res = loadConfig(section, asfilename, true);
+        if (!res)
+            res = new ConfigNode();
+        return res;
     }
 
     private void doLogError(char[] log) {
