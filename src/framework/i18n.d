@@ -152,22 +152,48 @@ public class Translator {
         return mFullIdOnError?id:lastId(id);
     }
 
+    template Tuple(T...) {
+        alias T Tuple;
+    }
+
+    //generate a tuple than contains T Repeat-times
+    //e.g. GenTuple!(int, 3) => Tuple!(int, int, int)
+    template GenTuple(T, uint Repeat) {
+        static if (Repeat > 0) {
+            alias Tuple!(T, GenTuple!(T, Repeat-1)) GenTuple;
+        } else {
+            alias T GenTuple;
+        }
+    }
+
     /** Pass arguments as char[][] instead of vararg
-     * rnd = random value for multiple choice values, like:
+     * msg.rnd = random value for multiple choice values, like:
      *  id {
      *     "Option 1"
      *     "Option 2"
      * }
      */
     char[] translateLocalizedMessage(LocalizedMessage msg) {
-        version(GNU) {
-            static assert(false, "Think of something");
+        //basically, this generates 10 function calls to tovararg()
+        //it copies all elements from the array into p, and then expands p as
+        // arguments for tovararg()
+        //at runtime, the function with the correct number of params is called
+        const cMaxParam = 10;
+        alias GenTuple!(char[], cMaxParam) Params;
+        Params p;
+        if (msg.args.length > p.length) {
+            assert(false, "increase cMaxParam in i18n.d");
         }
-        //lol, manually build the TypeInfo[] for translatefx
-        TypeInfo[] tiar = new TypeInfo[msg.args.length];
-        tiar[] = typeid(char[]);
-        return translatefx(msg.id, tiar, msg.args.ptr, msg.rnd);
-        delete tiar;
+        char[] tovararg(...) {
+            return translatefx(msg.id, _arguments, _argptr, msg.rnd);
+        }
+        foreach (int i, x; p) {
+            if (i == msg.args.length) {
+                return tovararg(p[0..i]);
+            }
+            p[i] = msg.args[i];
+        }
+        assert(false);
     }
 
     //like formatfx, only the format string is loaded by id

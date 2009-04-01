@@ -89,11 +89,6 @@ class GameConfig {
         gfx = n.getSubNode("gfx");
         weaponsets = n.getValueArray!(char[])("weaponsets");
     }
-
-    //the following stuff should probably be moved to something in game.setup
-    //it doesn't really affect the game itself, but rather how it's started
-
-    bool as_pseudo_server;
 }
 
 //for now, these are concrete classes...

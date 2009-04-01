@@ -43,8 +43,6 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
         }
     }
 
-    cfg.as_pseudo_server = mConfig.getBoolValue("as_pseudo_server", false);
-
     cfg.saved_level = cfg.level.saved;
 
     auto teamconf = gConf.loadConfig("teams");

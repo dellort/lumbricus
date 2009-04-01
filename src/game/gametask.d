@@ -26,9 +26,6 @@ import game.sprite;
 import game.crate;
 import game.gobject;
 import game.setup;
-import game.netclient;
-import game.netshared;
-import game.netserver;
 import game.levelgen.landscape;
 import game.levelgen.level;
 import game.levelgen.generator;
@@ -125,8 +122,6 @@ class GameTask : StatefulTask {
         ClientGameEngine mClientEngine;
         ClientControl mControl;
         GameInfo mGameInfo;
-        NetClient mNetClient;
-        NetServer mNetServer;
         SimpleNetConnection mConnection;
 
         GameFrame mGameFrame;
@@ -171,7 +166,6 @@ class GameTask : StatefulTask {
 
         //sorry for this hack... definitely needs to be cleaned up
         ConfigNode node = gConf.loadConfig("newgame");
-        node.setBoolValue("as_pseudo_server", args == "pseudonet");
         initGame(loadGameConfig(node));
     }
 
@@ -181,27 +175,6 @@ class GameTask : StatefulTask {
 
         createWindow();
         initGame(cfg);
-    }
-
-    this(TaskManager tm, PseudoNetwork pseudo_client) {
-        super(tm);
-
-        createWindow();
-
-        assert(false);
-        //real network: probably has to wait some time until config is
-        //available? (wait for server)
-        /*mNetClient = new NetClient(pseudo_client);
-        mGameConfig = mNetClient.gameConfig();
-        assert (!!mGameConfig);
-        //xxx: rendering should be done elsewhere
-        if (!mGameConfig.level) {
-            auto gen = new GenerateFromSaved(new LevelGeneratorShared(),
-                mGameConfig.saved_level);
-            mGameConfig.level = gen.render();
-            assert (!!mGameConfig.level);
-        }
-        doInit();*/
     }
 
     this(TaskManager tm, TarArchive savedState) {
@@ -314,30 +287,15 @@ class GameTask : StatefulTask {
 
     private bool initGameEngine() {
         //log("initGameEngine");
-        if (mNetClient) {
-            //must wait until server ready (I think it's always ready on the
-            //first try with pseudo networking)
-            if (!mNetClient.game())
-                return false; //wait for next frame (busy waiting)
-            mGame = mNetClient.game();
-            mControl = mNetClient.control();
-        } else {
-            if (!mGameShell) {
-                mGameShell = mGameLoader.finish();
-                mGameShell.OnRestoreGuiAfterSnapshot = &guiRestoreSnapshot;
-                mGame = mGameShell.serverEngine;
-            }
-            if (mConnection) {
-                if (!mControl)
-                    return false;
-            }
+        if (!mGameShell) {
+            mGameShell = mGameLoader.finish();
+            mGameShell.OnRestoreGuiAfterSnapshot = &guiRestoreSnapshot;
+            mGame = mGameShell.serverEngine;
         }
-
-        /*if (mGameConfig.as_pseudo_server && !mNetServer) {
-            assert(!!mGameShell);
-            mNetServer = new NetServer(mGameShell);
-            new GameTask(manager(), mNetServer.connect());
-        }*/
+        if (mConnection) {
+            if (!mControl)
+                return false;
+        }
 
         if (mGameShell && !mControl) {
             //xxx (well, you know)
@@ -441,19 +399,9 @@ class GameTask : StatefulTask {
 
     override protected void onFrame() {
         if (mGUIGameLoader.fullyLoaded) {
-            if (mNetServer) {
-                mNetServer.frame_receive();
-            }
             if (mGameShell) {
                 mGameShell.frame();
                 mGameInfo.replayRemain = mGameShell.replayRemain;
-            }
-            if (mNetServer) {
-                mNetServer.frame_send();
-            }
-
-            if (mNetClient) {
-                mNetClient.frame_receive();
             }
             if (mClientEngine) {
                 mClientEngine.doFrame();
@@ -461,9 +409,6 @@ class GameTask : StatefulTask {
                 //maybe
                 if (mGame.logic.gameEnded)
                     terminateWithFadeOut();
-            }
-            if (mNetClient) {
-                mNetClient.frame_send();
             }
         } else {
             if (mDelayedFirstFrame) {
