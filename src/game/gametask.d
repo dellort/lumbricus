@@ -43,6 +43,10 @@ import gui.label;
 import gui.tablecontainer;
 import gui.widget;
 import gui.wm;
+import gui.button;
+import gui.dropdownlist;
+import gui.boxcontainer;
+import gui.list;
 import utils.array;
 import utils.misc;
 import utils.mybox;
@@ -115,7 +119,6 @@ Level fuzzleLevel(Level level) {
 
 class GameTask : StatefulTask {
     private {
-        GameConfig mGameConfig;
         GameShell mGameShell; //can be null, if a client in a network game!
         GameLoader mGameLoader; //creates a GameShell
         GameEnginePublic mGame;
@@ -124,6 +127,7 @@ class GameTask : StatefulTask {
         GameInfo mGameInfo;
         NetClient mNetClient;
         NetServer mNetServer;
+        SimpleNetConnection mConnection;
 
         GameFrame mGameFrame;
         SimpleContainer mWindow;
@@ -184,9 +188,10 @@ class GameTask : StatefulTask {
 
         createWindow();
 
+        assert(false);
         //real network: probably has to wait some time until config is
         //available? (wait for server)
-        mNetClient = new NetClient(pseudo_client);
+        /*mNetClient = new NetClient(pseudo_client);
         mGameConfig = mNetClient.gameConfig();
         assert (!!mGameConfig);
         //xxx: rendering should be done elsewhere
@@ -196,7 +201,7 @@ class GameTask : StatefulTask {
             mGameConfig.level = gen.render();
             assert (!!mGameConfig.level);
         }
-        doInit();
+        doInit();*/
     }
 
     this(TaskManager tm, TarArchive savedState) {
@@ -204,6 +209,17 @@ class GameTask : StatefulTask {
 
         createWindow();
         initFromSave(savedState);
+    }
+
+    this(TaskManager tm, GameLoader loader, SimpleNetConnection con) {
+        super(tm);
+
+        createWindow();
+
+        mGameLoader = loader;
+        mConnection = con;
+        mConnection.onGameStart = &netGameStart;
+        doInit();
     }
 
     private void createWindow() {
@@ -221,11 +237,15 @@ class GameTask : StatefulTask {
         mCmds.bind(globals.cmdLine);
     }
 
+    private void netGameStart(SimpleNetConnection sender, ClientControl control)
+    {
+        mControl = control;
+    }
+
     //start game intialization
     //it's not clear when initialization is finished (but it shows a loader gui)
     private void initGame(GameConfig cfg) {
         mGameLoader = GameLoader.CreateNewGame(cfg);
-        mGameConfig = mGameLoader.gameConfig;
         doInit();
     }
 
@@ -238,13 +258,10 @@ class GameTask : StatefulTask {
         mSavedSetViewPosition = true;
 
         mGameLoader = GameLoader.CreateFromSavegame(tehfile);
-        mGameConfig = mGameLoader.gameConfig;
         doInit();
     }
 
     void doInit() {
-        assert (!!mGameConfig);
-        assert (!!mGameConfig.level);
         mLoadScreen = new LoadingScreen();
         mLoadScreen.zorder = 10;
         assert (!!mWindow);
@@ -305,18 +322,24 @@ class GameTask : StatefulTask {
             mGame = mNetClient.game();
             mControl = mNetClient.control();
         } else {
-            mGameShell = mGameLoader.finish();
-            mGameShell.OnRestoreGuiAfterSnapshot = &guiRestoreSnapshot;
-            mGame = mGameShell.serverEngine;
+            if (!mGameShell) {
+                mGameShell = mGameLoader.finish();
+                mGameShell.OnRestoreGuiAfterSnapshot = &guiRestoreSnapshot;
+                mGame = mGameShell.serverEngine;
+            }
+            if (mConnection) {
+                if (!mControl)
+                    return false;
+            }
         }
 
-        if (mGameConfig.as_pseudo_server && !mNetServer) {
+        /*if (mGameConfig.as_pseudo_server && !mNetServer) {
             assert(!!mGameShell);
             mNetServer = new NetServer(mGameShell);
             new GameTask(manager(), mNetServer.connect());
-        }
+        }*/
 
-        if (mGameShell) {
+        if (mGameShell && !mControl) {
             //xxx (well, you know)
             mControl = new GameControl(mGameShell);
         }
@@ -367,7 +390,6 @@ class GameTask : StatefulTask {
         unloadGame();
         if (mWindow) mWindow.remove();
         mWindow = null;
-        mGameConfig = mGameConfig.init;
         if (mLoadScreen) mLoadScreen.remove();
         mLoadScreen = null;
         mGUIGameLoader = null;
@@ -647,5 +669,107 @@ class GameTask : StatefulTask {
     static this() {
         TaskFactory.register!(typeof(this))("game");
         StatefulFactory.register!(typeof(this))(cSaveId);
+    }
+}
+
+SimNet gServer;
+
+class SimNetHost : Task {
+    private {
+        SimNet mServer;
+    }
+
+    this(TaskManager tm, char[] args = "") {
+        super(tm);
+
+        ConfigNode node = gConf.loadConfig("newgame");
+        mServer = new SimNet(loadGameConfig(node));
+        gServer = mServer;
+
+        auto l = new Label();
+        l.text = "Server";
+        gWindowManager.createWindow(this, l, "Server");
+    }
+
+    override protected void onFrame() {
+        mServer.doFrame();
+    }
+
+    static this() {
+        TaskFactory.register!(typeof(this))("simserver");
+    }
+}
+
+class SimNetClient : Task {
+    private {
+        SimNetConnection mClient;
+        static int mInstance;
+        DropDownList mTeams;
+        ConfigNode mTeamNode;
+        GameTask mGame;
+        StringListWidget mPlayers;
+    }
+
+    this(TaskManager tm, char[] args = "") {
+        super(tm);
+
+        NetConnectInfo info;
+        info.playerName = myformat("Player{}", mInstance);
+        mClient = gServer.connect("bla", info);
+        mClient.onStartLoading = &onStartLoading;
+        mClient.onUpdateGameInfo = &onUpdateGameInfo;
+
+        auto box = new BoxContainer(false, false, 5);
+        mTeams = new DropDownList();
+        mTeamNode = gConf.loadConfig("teams").getSubNode("teams");
+        char[][] contents;
+        foreach (ConfigNode subn; mTeamNode) {
+            contents ~= subn.name;
+        }
+        mTeams.list.setContents(contents);
+        mTeams.onSelect = &teamSelect;
+        box.add(mTeams);
+
+        mPlayers = new StringListWidget();
+        box.add(mPlayers);
+
+        auto startb = new Button();
+        startb.text = "Los";
+        startb.onClick = &startGame;
+        box.add(startb);
+
+        auto l = new Label();
+        l.text = info.playerName;
+        box.add(l);
+        gWindowManager.createWindow(this, box, "Client");
+        mInstance++;
+    }
+
+    private void teamSelect(DropDownList sender) {
+        mClient.deployTeam(mTeamNode.getSubNode(sender.selection));
+    }
+
+    private void startGame(Button sender) {
+        mClient.lobbyCmd("start");
+    }
+
+    private void onStartLoading(SimpleNetConnection sender, GameLoader loader) {
+        mGame = new GameTask(manager, loader, mClient);
+    }
+
+    private void onUpdateGameInfo(SimpleNetConnection sender, NetGameInfo info)
+    {
+        char[][] contents;
+        foreach (int idx, char[] pl; info.players) {
+            contents ~= pl ~ " (" ~ info.teams[idx] ~ ")";
+        }
+        mPlayers.setContents(contents);
+    }
+
+    override protected void onFrame() {
+    }
+
+    static this() {
+        TaskFactory.register!(typeof(this))("simclient");
     }
 }

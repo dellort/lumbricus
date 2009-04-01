@@ -62,6 +62,7 @@ class GameLoader {
         GfxSet mGfx;
         Resources.Preloader mResPreloader;
         SerializeInConfig mSaveGame;
+        SimpleNetConnection mNetConnection;
         ConfigNode mTimeConfig; //savegame only
         GameShell mShell;
     }
@@ -78,6 +79,15 @@ class GameLoader {
     static GameLoader CreateNewGame(GameConfig cfg) {
         auto r = new GameLoader();
         r.mGameConfig = cfg;
+        r.doInit();
+        return r;
+    }
+
+    static GameLoader CreateNetworkGame(GameConfig cfg, SimpleNetConnection con)
+    {
+        auto r = new GameLoader();
+        r.mGameConfig = cfg;
+        r.mNetConnection = con;
         r.doInit();
         return r;
     }
@@ -187,12 +197,16 @@ class GameLoader {
         mShell.mGameConfig = mGameConfig;
         mShell.mGfx = mGfx;
         mShell.mMasterTime = new TimeSource("GameShell/MasterTime");
+        if (mNetConnection)
+            mShell.mMasterTime.paused = true;
         mShell.mGameTime = new TimeSourceFixFramerate("GameTime",
             mShell.mMasterTime, cFrameLength);
         if (!mSaveGame) {
             //for creation of a new game
             mShell.mEngine = new GameEngine(mGameConfig, mGfx,
                 mShell.mGameTime, mShell.mGCD);
+            if (mNetConnection)
+                mNetConnection.signalLoadingDone(mShell);
         } else {
             //for loading a savegame
             //meh time, not serialized anymore because it only causes problems
@@ -903,6 +917,8 @@ abstract class SimpleNetConnection {
 
     //disconnect
     void close();
+
+    void signalLoadingDone(GameShell shell);
 }
 
 
@@ -935,6 +951,7 @@ class SimNet : SimpleNetClient {
         }
         auto con = new SimNetConnection(this, info.playerName);
         mClients ~= con;
+        updateLobbyInfo();
         return con;
     }
 
@@ -943,6 +960,7 @@ class SimNet : SimpleNetClient {
             if (cl is client) {
                 cl = mClients[$-1];
                 mClients.length = mClients.length - 1;
+                updateLobbyInfo();
                 return;
             }
         }
@@ -973,6 +991,49 @@ class SimNet : SimpleNetClient {
             cl.doStartLoading(mConfig);
         }
     }
+
+    private void updateLobbyInfo() {
+        NetGameInfo info;
+        foreach (cl; mClients) {
+            info.players ~= cl.mPlayerName;
+            if (cl.mMyTeamInfo)
+                info.teams ~= cl.mMyTeamInfo.name;
+            else
+                info.teams ~= "";
+        }
+        foreach (cl; mClients) {
+            cl.doUpdateGameInfo(info);
+        }
+    }
+
+    private void doneLoading(SimpleNetConnection client) {
+        auto simcl = cast(SimNetConnection)client;
+        simcl.mLoadDone = true;
+        NetLoadState st;
+        bool allDone = true;
+        foreach (cl; mClients) {
+            st.players ~= cl.mPlayerName;
+            st.done ~= cl.mLoadDone;
+            allDone &= cl.mLoadDone;
+        }
+        char[][] players;
+        foreach (cl; mClients) {
+            cl.doLoadStatus(st);
+            players ~= cl.mPlayerName;
+        }
+        if (allDone) {
+            foreach (cl; mClients) {
+                cl.doGameStart(players);
+            }
+        }
+    }
+
+    private void putCommand(SimpleNetConnection client, char[] cmd) {
+        auto sourceCl = cast(SimNetConnection)client;
+        foreach (cl; mClients) {
+            cl.doExecCommand(sourceCl.mPlayerName, cmd);
+        }
+    }
 }
 
 //contains server and client part of a connection
@@ -983,14 +1044,20 @@ class SimNetConnection : SimpleNetConnection {
         CommandLine mCmd;
         ConfigNode mMyTeamInfo;
         char[] mPlayerName;
+        bool mLoadDone;
+        GameShell mShell;
+        GameControl[char[]] mSrvControl;
+        SimNetControl mClControl;
     }
 
     private this(SimNet owner, char[] name) {
         mOwner = owner;
+        mPlayerName = name;
 
         mCmd = new CommandLine(globals.defaultOut);
         mCmds = new CommandBucket();
         mCmds.register(Command("start", &cmdStart, "-"));
+        mCmds.bind(mCmd);
     }
 
     SimNet owner() {
@@ -1003,10 +1070,16 @@ class SimNetConnection : SimpleNetConnection {
 
     void deployTeam(ConfigNode teamInfo) {
         mMyTeamInfo = teamInfo;
+        mOwner.updateLobbyInfo();
     }
 
     void close() {
         mOwner.removeClient(this);
+    }
+
+    void signalLoadingDone(GameShell shell) {
+        mShell = shell;
+        mOwner.doneLoading(this);
     }
 
     //for now, anyone can type start to run the game
@@ -1017,8 +1090,69 @@ class SimNetConnection : SimpleNetConnection {
     //called by server (i.e. in real networking, got packet with GameConfig)
     private void doStartLoading(GameConfig cfg) {
         //xxx need to change this, GameLoader needs to know about networking
-        auto loader = GameLoader.CreateNewGame(cfg);
+        auto loader = GameLoader.CreateNetworkGame(cfg, this);
         assert(!!onStartLoading, "Need to set callbacks");
         onStartLoading(this, loader);
+    }
+
+    //incoming info packet (while in lobby)
+    private void doUpdateGameInfo(NetGameInfo info) {
+        if (onUpdateGameInfo)
+            onUpdateGameInfo(this, info);
+    }
+
+    private void doLoadStatus(NetLoadState st) {
+        if (onLoadStatus)
+            onLoadStatus(this, st);
+    }
+
+    private void doGameStart(char[][] players) {
+        assert(!!onGameStart, "Need to set callbacks");
+        foreach (p; players) {
+            mSrvControl[p] = new GameControl(mShell);
+        }
+        mClControl = new SimNetControl(this);
+        mShell.mMasterTime.paused = false;
+        onGameStart(this, mClControl);
+    }
+
+    private void doExecCommand(char[] player, char[] cmd) {
+        mSrvControl[player].executeCommand(cmd);
+    }
+
+    private void sendCommand(char[] cmd) {
+        mOwner.putCommand(this, cmd);
+    }
+}
+
+class SimNetControl : ClientControl {
+    private {
+        SimNetConnection mConnection;
+        GameShell mShell;
+        ServerTeam[] mOwnedTeams;
+    }
+
+    this(SimNetConnection con) {
+        mConnection = con;
+        mShell = con.mShell;
+
+        //multiple clients for one team? rather not, but cannot be checked here
+        //xxx implement client-team assignment
+        foreach (t; mShell.mEngine.logic.getTeams)
+            mOwnedTeams ~= castStrict!(ServerTeam)(cast(Object)t);
+    }
+
+    TeamMember getControlledMember() {
+        foreach (ServerTeam t; mOwnedTeams) {
+            ServerTeamMember w = t.current;
+            if (t.active) {
+                return w;
+            }
+        }
+        return null;
+    }
+
+    void executeCommand(char[] cmd) {
+        mConnection.sendCommand(cmd);
     }
 }
