@@ -176,6 +176,11 @@ private:
         }
     }
 
+    public void deinitialize() {
+        //this gets important when tasks start running threads...
+        taskManager.killAll();
+    }
+
     private void initConsole() {
         globals.cmdLine = mGuiConsole.cmdline;
 

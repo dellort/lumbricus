@@ -57,6 +57,7 @@ version(DigitalMars) {
 }
 //import net.test;
 import net.testgame;
+import net.cmdserver;
 
 //import test;
 
@@ -134,6 +135,7 @@ void main(char[][] args) {
 
     fw.run();
 
+    toplevel.gTopLevel.deinitialize();
     fw.deinitialize();
 
     Stdout.formatln("Bye!");

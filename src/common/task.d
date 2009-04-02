@@ -131,6 +131,12 @@ class TaskManager {
         //.dup to protect the data isn't necessary I guess?
         return mTaskList.values;
     }
+
+    void killAll() {
+        foreach (t; taskList) {
+            t.kill();
+        }
+    }
 }
 
 //and the almighty factory...

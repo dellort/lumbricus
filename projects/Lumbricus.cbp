@@ -136,9 +136,6 @@
 		<Unit filename="..\src\game\levelgen\placeobjects.d" />
 		<Unit filename="..\src\game\levelgen\renderer.d" />
 		<Unit filename="..\src\game\loader.d" />
-		<Unit filename="..\src\game\netclient.d" />
-		<Unit filename="..\src\game\netserver.d" />
-		<Unit filename="..\src\game\netshared.d" />
 		<Unit filename="..\src\game\sequence.d" />
 		<Unit filename="..\src\game\serialize_register.d" />
 		<Unit filename="..\src\game\setup.d" />
@@ -185,11 +182,11 @@
 		<Unit filename="..\src\gui\wm.d" />
 		<Unit filename="..\src\lumbricus.d" />
 		<Unit filename="..\src\net\broadcast.d" />
+		<Unit filename="..\src\net\cmdprotocol.d" />
+		<Unit filename="..\src\net\cmdserver.d" />
 		<Unit filename="..\src\net\encode.d" />
 		<Unit filename="..\src\net\enet_test.d" />
-		<Unit filename="..\src\net\marshall2.d" />
 		<Unit filename="..\src\net\netlayer.d" />
-		<Unit filename="..\src\net\netobject.d" />
 		<Unit filename="..\src\net\testgame.d" />
 		<Unit filename="..\src\physics\base.d" />
 		<Unit filename="..\src\physics\broadphase.d" />
