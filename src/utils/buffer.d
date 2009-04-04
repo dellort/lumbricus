@@ -48,11 +48,15 @@ final class BufferRead {
         return res;
     }
 
+    void read(void* dest, size_t len) {
+        auto npos = mPosition + len;
+        dest[0..len] = mData[mPosition .. npos];
+        mPosition = npos;
+    }
+
     ///read by copying into buffer
     void read(ubyte[] buffer) {
-        auto npos = mPosition + buffer.length;
-        buffer[] = mData[mPosition .. npos];
-        mPosition = npos;
+        read(buffer.ptr, buffer.length);
     }
 
     ubyte readByte() {
@@ -80,9 +84,13 @@ final class BufferWrite {
     }
 
     void write(ubyte[] bytes) {
-        auto npos = mPosition + bytes.length;
+        write(bytes.ptr, bytes.length);
+    }
+
+    void write(void* ptr, size_t len) {
+        auto npos = mPosition + len;
         need_size(npos);
-        mData[mPosition .. npos] = bytes[];
+        mData[mPosition .. npos] = cast(ubyte[])ptr[0..len];
         mPosition = npos;
     }
 
