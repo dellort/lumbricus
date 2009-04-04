@@ -1,4 +1,4 @@
-module net.cmdnet;
+module net.cmdserver;
 
 import common.common;
 import common.task;

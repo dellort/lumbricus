@@ -58,6 +58,10 @@ class WelcomeTask : Task {
         mWindow = gWindowManager.createWindow(this, foo,
             _("welcomescreen.caption"));
         foo.claimFocus();
+
+        //this property is false by default
+        //I just didn't want to add a tooltip label to _all_ windows yet...
+        mWindow.window.showTooltipLabel = true;
     }
 
     void executeDefault() {

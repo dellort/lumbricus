@@ -42,12 +42,19 @@ class WindowWidget : Container {
         Widget mClient; //what's shown inside the window
         Label mTitleBar;
 
-        Widget mClientWidget;//what's really in (!is mClient if mClient is null)
+        BoxContainer mClientWidget;
         BoxContainer mForClient; //where client is, non-fullscreen mode
         Widget mWindowDecoration; //window frame etc. in non-fullscreen mode
 
         BoxContainer mTitleContainer; //titlebar + the buttons
         TitlePart[] mTitleParts; //kept sorted by .sort
+
+        //for the "tooltip" bottom label
+        //might need refinement, maybe use a second TitlePart as a way to allow
+        //the user to add "OK" and "Cancel" buttons left and right to the label,
+        //or something like this
+        Label mTooltipLabel;
+        bool mShowTooltipLabel;
 
         BoxProperties mBackground;
 
@@ -230,14 +237,27 @@ class WindowWidget : Container {
 
         all.add(vbox, 1, 1);
 
-        recreateGui();
+        mClientWidget = new BoxContainer(false);
 
         mTitleBar = new Label();
         mTitleBar.drawBorder = false;
         mTitleBar.font = gFramework.getFont("window_title");
 
+        mTooltipLabel = new Label();
+        mTooltipLabel.drawBorder = false;
+        WidgetLayout lay;
+        lay.expand[] = [true, false];
+        lay.pad = 2;
+        lay.padA.y = 2; //additional space on top
+        mTooltipLabel.setLayout(lay);
+        mTooltipLabel.shrink = true;
+        mTooltipLabel.centerX = true;
+        mTooltipLabel.font = gFramework.getFont("tooltip_label");
+
         WindowProperties p;
         properties = p; //to be consistent
+
+        recreateGui();
     }
 
     //when that button in the titlebar is pressed
@@ -251,23 +271,24 @@ class WindowWidget : Container {
             mClient.remove(); //just to be safe
         }
 
+        mClientWidget.remove();
         //whatever there was... kill it
-        if (mClientWidget) {
-            mClientWidget.remove();
-            mClientWidget = null;
+        mClientWidget.clear();
+
+        if (mClient) {
+            mClient.remove();
+            mClientWidget.add(mClient);
+        }
+
+        if (mShowTooltipLabel) {
+            mTooltipLabel.remove();
+            mClientWidget.add(mTooltipLabel);
         }
 
         if (mFullScreen || !mHasDecorations) {
             clear();
-            if (mClient) {
-                addChild(mClient);
-            }
+            addChild(mClientWidget);
         } else {
-            mClientWidget = mClient;
-            if (!mClientWidget) {
-                mClientWidget = new Spacer(); //placeholder
-            }
-
             mForClient.add(mClientWidget);
 
             if (mWindowDecoration.parent !is this) {
@@ -318,6 +339,19 @@ class WindowWidget : Container {
             return;
 
         mHasDecorations = set;
+        recreateGui();
+    }
+
+    //xxx: code duplication with hasDecorations(), but what to do?
+    ///set if the tooltip label on the bottom is visible
+    bool showTooltipLabel() {
+        return mShowTooltipLabel;
+    }
+    void showTooltipLabel(bool set) {
+        if (mShowTooltipLabel == set)
+            return;
+
+        mShowTooltipLabel = set;
         recreateGui();
     }
 
@@ -475,6 +509,15 @@ class WindowWidget : Container {
             }
         } else {
             super.onMouseMove(mouse);
+        }
+    }
+
+    override void onChildMouseEnterLeave(Widget child, bool mouseIsInside) {
+        assert(!!child);
+        if (mouseIsInside && child.tooltip.length) {
+            mTooltipLabel.text = child.tooltip;
+        } else {
+            mTooltipLabel.text = ""; //show some default message?
         }
     }
 

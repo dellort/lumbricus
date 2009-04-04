@@ -160,6 +160,13 @@ class Widget {
     bool doClipping = true;
     float highlightAlpha = 0f;
 
+    ///text to display as tooltip
+    ///note that there are no popup tooltips (and there'll never be one)
+    ///instead, you need something else to display them
+    char[] tooltip;
+
+    //-------
+
     package static Log log() {
         Log l = registerLog("GUI");
         return l;
@@ -566,12 +573,27 @@ class Widget {
     protected void onMouseEnterLeave(bool mouseIsInside) {
     }
 
+    //called on parents after child.onMouseEnterLeave(mouseIsInside)
+    //this will "bubble up" all the way to the root window's widget
+    protected void onChildMouseEnterLeave(Widget child, bool mouseIsInside) {
+    }
+
     //calls onMouseEnterLeave(), but avoid unnecessary recursion (cf. Container)
     //(and also is "package" to deal with the stupid D protection attributes)
     void doMouseEnterLeave(bool mii) {
         if (mMouseOverState != mii) {
             mMouseOverState = mii;
             onMouseEnterLeave(mii);
+            doChildMouseEnterLeave(this, mii);
+        }
+    }
+
+    private void doChildMouseEnterLeave(Widget child, bool mouseIsInside) {
+        if (child !is this) {
+            onChildMouseEnterLeave(child, mouseIsInside);
+        }
+        if (parent) {
+            parent.doChildMouseEnterLeave(child, mouseIsInside);
         }
     }
 
@@ -896,6 +918,9 @@ class Widget {
         auto bnode = loader.node.findNode("border_style");
         if (bnode)
             mBorderStyle.loadFrom(bnode);
+
+        tooltip = loader.locale()(loader.node.getStringValue("tooltip",
+            tooltip));
 
         //xxx: load KeyBindings somehow?
         //...
