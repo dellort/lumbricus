@@ -58,6 +58,7 @@ version(DigitalMars) {
 //import net.test;
 import net.testgame;
 import net.cmdserver;
+import net.cmdclient;
 
 //import test;
 

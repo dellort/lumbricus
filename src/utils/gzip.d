@@ -157,8 +157,10 @@ class GZWriter {
 ubyte[] gunzipData(ubyte[] cmpData) {
     bool did_read;
     ubyte[] onread() {
-        if (!did_read)
+        if (!did_read) {
+            did_read = true;
             return cmpData;
+        }
         return null;
     }
     auto reader = new GZReader(&onread);

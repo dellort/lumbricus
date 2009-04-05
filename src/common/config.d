@@ -122,4 +122,20 @@ private class ConfigManager {
             stream.close();
         }
     }
+
+    ubyte[] saveConfigGzBuf(ConfigNode node) {
+        scope buf = new MemoryStream();
+        scope gz = new GZStreamOutput(buf);
+        node.writeFile(gz);
+        gz.finish();
+        return buf.data();
+    }
+
+    ConfigNode loadConfigGzBuf(ubyte[] buf) {
+        auto data = cast(char[])gunzipData(buf);
+        auto f = new ConfigFile(data, "MemoryBuffer", &doLogError);
+        if (!f.rootnode)
+            throw new Exception("?");
+        return f.rootnode;
+    }
 }

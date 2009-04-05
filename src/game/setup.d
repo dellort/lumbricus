@@ -15,7 +15,9 @@ import utils.misc;
 //not to be called by GameTask; instead, anyone who wants to start a game can
 //call this to the params out from a configfile
 //GameTask should not be responsible to choose any game configuration for you
-GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
+GameConfig loadGameConfig(ConfigNode mConfig, Level level = null,
+    bool renderBitmaps = true)
+{
     //log("loadConfig");
     GameConfig cfg = new GameConfig();
 
@@ -27,16 +29,16 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null) {
         auto x = new LevelGeneratorShared();
         if (what == 0) {
             auto gen = new GenerateFromTemplate(x, cast(LevelTemplate)null);
-            cfg.level = gen.render();
+            cfg.level = gen.render(renderBitmaps);
         } else if (what == 1) {
             cfg.level = loadSavedLevel(x,
-                gConf.loadConfig(mConfig["level_load"], true));
+                gConf.loadConfig(mConfig["level_load"], true), renderBitmaps);
         } else if (what == 2) {
             auto gen = new GenerateFromBitmap(x);
             auto fn = mConfig["level_load_bitmap"];
             gen.bitmap(gFramework.loadImage(fn), fn);
             gen.selectTheme(x.themes.findRandom(mConfig["level_gfx"]));
-            cfg.level = gen.render();
+            cfg.level = gen.render(renderBitmaps);
         } else {
             //wrong string in configfile or internal error
             throw new Exception("noes noes noes!");

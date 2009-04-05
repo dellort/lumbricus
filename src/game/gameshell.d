@@ -88,6 +88,9 @@ class GameLoader {
         auto r = new GameLoader();
         r.mGameConfig = cfg;
         r.mNetConnection = con;
+        auto gen = new GenerateFromSaved(new LevelGeneratorShared(),
+            cfg.saved_level);
+        cfg.level = gen.render();
         r.doInit();
         return r;
     }
@@ -579,6 +582,10 @@ class GameShell {
         return mEngine;
     }
 
+    TimeSource masterTime() {
+        return mMasterTime;
+    }
+
     class GCD : GameCallbackDistributor {
         //-- GameCallbackDistributor (all these actually are hacks)
 
@@ -858,12 +865,6 @@ class GameControl : ClientControl {
 
 
 
-//additional data when connecting to a server
-struct NetConnectInfo {
-    char[] playerName;
-    char[] password;
-}
-
 //game info while in lobby
 struct NetGameInfo {
     //players and teams, always same length
@@ -876,18 +877,6 @@ struct NetLoadState {
     //players and flags if done loading, always same length
     char[][] players;
     bool[] done;
-}
-
-struct NetGameStartInfo {
-    char[][] players;
-    char[][] teamIds;
-}
-
-abstract class SimpleNetClient {
-    //connect to lobby
-    SimpleNetConnection connect(char[] address, NetConnectInfo info);
-
-    void doFrame();
 }
 
 abstract class SimpleNetConnection {
@@ -906,8 +895,6 @@ abstract class SimpleNetConnection {
     void delegate(SimpleNetConnection sender, char[] playerName,
         char[] msg) onChat;
 
-    SimpleNetClient owner();
-
     //send a game-independent command (like "say Hi fellas!" or
     //  "pm Player2 Secret message")
     //"game-independent" means the command is not logged/timestamped/passed
@@ -924,281 +911,4 @@ abstract class SimpleNetConnection {
     void close();
 
     void signalLoadingDone(GameShell shell);
-}
-
-
-enum SimNetState {
-    lobby,
-    loading,
-    playing,
-}
-
-//Local simulated networking
-//class SimNet is both server and connection point for clients
-class SimNet : SimpleNetClient {
-    private {
-        GameConfig mConfig;
-        SimNetConnection[] mClients;
-        SimNetState mState;
-    }
-
-    //this will "host" a game, teams part of GameConfig is ignored
-    this(GameConfig cfg) {
-        mConfig = cfg;
-        mConfig.teams = null;
-    }
-
-    SimNetConnection connect(char[] address, NetConnectInfo info) {
-        if (mState != SimNetState.lobby) {
-            throw new Exception("Error: Game already started");
-        }
-        if (info.playerName == "") {
-            throw new Exception("Error: Invalid nickname");
-        }
-        foreach (cl; mClients) {
-            if (cl.mPlayerName == info.playerName) {
-                throw new Exception("Error: This nick already exists");
-            }
-        }
-        auto con = new SimNetConnection(this, info.playerName);
-        mClients ~= con;
-        updateLobbyInfo();
-        return con;
-    }
-
-    private void removeClient(SimNetConnection client) {
-        foreach (ref cl; mClients) {
-            if (cl is client) {
-                cl = mClients[$-1];
-                mClients.length = mClients.length - 1;
-                updateLobbyInfo();
-                return;
-            }
-        }
-    }
-
-    void doFrame() {
-    }
-
-    SimNetState state() {
-        return mState;
-    }
-
-    private void startGame() {
-        if (mState != SimNetState.lobby)
-            return;
-        mState = SimNetState.loading;
-        //assemble teams
-        mConfig.teams = new ConfigNode();
-        foreach (cl; mClients) {
-            ConfigNode ct = cl.mMyTeamInfo;
-            if (ct) {
-                ct["id"] = cl.mPlayerName ~ ":" ~ ct["id"];
-                mConfig.teams.add(ct);
-            }
-        }
-        //distribute game config
-        foreach (cl; mClients) {
-            cl.doStartLoading(mConfig);
-        }
-    }
-
-    private void updateLobbyInfo() {
-        NetGameInfo info;
-        foreach (cl; mClients) {
-            info.players ~= cl.mPlayerName;
-            if (cl.mMyTeamInfo)
-                info.teams ~= cl.mMyTeamInfo.name;
-            else
-                info.teams ~= "";
-        }
-        foreach (cl; mClients) {
-            cl.doUpdateGameInfo(info);
-        }
-    }
-
-    private void doneLoading(SimNetConnection client) {
-        client.mLoadDone = true;
-        NetLoadState st;
-        bool allDone = true;
-        foreach (cl; mClients) {
-            st.players ~= cl.mPlayerName;
-            st.done ~= cl.mLoadDone;
-            allDone &= cl.mLoadDone;
-        }
-        NetGameStartInfo info;
-        foreach (cl; mClients) {
-            cl.doLoadStatus(st);
-            info.players ~= cl.mPlayerName;
-            if (cl.mMyTeamInfo)
-                info.teamIds ~= cl.mMyTeamInfo["id"];
-            else
-                info.teamIds ~= "";
-        }
-        if (allDone) {
-            mState = SimNetState.playing;
-            foreach (cl; mClients) {
-                cl.doGameStart(info);
-            }
-        }
-    }
-
-    private void putCommand(SimNetConnection client, char[] cmd) {
-        foreach (cl; mClients) {
-            cl.doExecCommand(client.mPlayerName, cmd);
-        }
-    }
-}
-
-//contains server and client part of a connection
-class SimNetConnection : SimpleNetConnection {
-    private {
-        SimNet mOwner;
-        CommandBucket mCmds;
-        CommandLine mCmd;
-        ConfigNode mMyTeamInfo;
-        char[] mPlayerName;
-        bool mLoadDone;
-        GameShell mShell;
-        NetGameControl[char[]] mSrvControl;
-        SimNetControl mClControl;
-    }
-
-    private this(SimNet owner, char[] name) {
-        mOwner = owner;
-        mPlayerName = name;
-
-        mCmd = new CommandLine(globals.defaultOut);
-        mCmds = new CommandBucket();
-        mCmds.register(Command("start", &cmdStart, "-"));
-        mCmds.bind(mCmd);
-    }
-
-    SimNet owner() {
-        return mOwner;
-    }
-
-    void lobbyCmd(char[] cmd) {
-        mCmd.execute(cmd);
-    }
-
-    void deployTeam(ConfigNode teamInfo) {
-        mMyTeamInfo = teamInfo;
-        mOwner.updateLobbyInfo();
-    }
-
-    void close() {
-        mOwner.removeClient(this);
-    }
-
-    void signalLoadingDone(GameShell shell) {
-        mShell = shell;
-        mOwner.doneLoading(this);
-    }
-
-    //for now, anyone can type start to run the game
-    private void cmdStart(MyBox[] params, Output o) {
-        mOwner.startGame();
-    }
-
-    //called by server (i.e. in real networking, got packet with GameConfig)
-    private void doStartLoading(GameConfig cfg) {
-        //xxx need to change this, GameLoader needs to know about networking
-        auto loader = GameLoader.CreateNetworkGame(cfg, this);
-        assert(!!onStartLoading, "Need to set callbacks");
-        onStartLoading(this, loader);
-    }
-
-    //incoming info packet (while in lobby)
-    private void doUpdateGameInfo(NetGameInfo info) {
-        if (onUpdateGameInfo)
-            onUpdateGameInfo(this, info);
-    }
-
-    private void doLoadStatus(NetLoadState st) {
-        if (onLoadStatus)
-            onLoadStatus(this, st);
-    }
-
-    private void doGameStart(NetGameStartInfo info) {
-        assert(!!onGameStart, "Need to set callbacks");
-        //lol
-        //for each player...
-        foreach (int idx, char[] p; info.players) {
-            //check if he's playing (i.e. has sent a team)
-            if (info.teamIds[idx].length > 0) {
-                //find that team by its id
-                foreach (t; mShell.mEngine.logic.getTeams) {
-                    auto st = castStrict!(ServerTeam)(cast(Object)t);
-                    if (st.id == info.teamIds[idx]) {
-                        //if team id matches, create a remote->engine proxy
-                        assert(!(p in mSrvControl));
-                        mSrvControl[p] = new NetGameControl(mShell, st);
-                        //if it is our team, create a local->server input proxy
-                        if (p == mPlayerName) {
-                            assert(!mClControl);
-                            mClControl = new SimNetControl(this, st);
-                        }
-                        break;
-                    }
-                }
-                //every active player needs to have a matching team
-                assert(p in mSrvControl);
-            } else {
-                //player is spectator
-                mSrvControl[p] = new NetGameControl(mShell, null);
-            }
-        }
-        //if we have no local->server proxy by now, we are spectator
-        if (!mClControl)
-            mClControl = new SimNetControl(this, null);
-        mShell.mMasterTime.paused = false;
-        onGameStart(this, mClControl);
-    }
-
-    private void doExecCommand(char[] player, char[] cmd) {
-        if (player in mSrvControl)
-        mSrvControl[player].executeCommand(cmd);
-    }
-
-    private void sendCommand(char[] cmd) {
-        mOwner.putCommand(this, cmd);
-    }
-}
-
-class SimNetControl : ClientControl {
-    private {
-        SimNetConnection mConnection;
-        GameShell mShell;
-        ServerTeam mOwnedTeam;
-    }
-
-    this(SimNetConnection con, ServerTeam myTeam) {
-        mConnection = con;
-        mShell = con.mShell;
-        mOwnedTeam = myTeam;
-    }
-
-    TeamMember getControlledMember() {
-        if (!mOwnedTeam)
-            return null;
-        if (mOwnedTeam.active) {
-            return mOwnedTeam.current;
-        }
-        return null;
-    }
-
-    void executeCommand(char[] cmd) {
-        mConnection.sendCommand(cmd);
-    }
-}
-
-class NetGameControl : GameControl {
-    this(GameShell sh, ServerTeam myTeam) {
-        super(sh);
-        if (myTeam)
-            mOwnedTeams = [myTeam];
-        else
-            mOwnedTeams = null;
-    }
 }

@@ -182,6 +182,7 @@
 		<Unit filename="..\src\gui\wm.d" />
 		<Unit filename="..\src\lumbricus.d" />
 		<Unit filename="..\src\net\broadcast.d" />
+		<Unit filename="..\src\net\cmdclient.d" />
 		<Unit filename="..\src\net\cmdprotocol.d" />
 		<Unit filename="..\src\net\cmdserver.d" />
 		<Unit filename="..\src\net\encode.d" />

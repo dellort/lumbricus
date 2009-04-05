@@ -628,9 +628,11 @@ class GenerateFromSaved : LevelGenerator {
 }
 
 ///load saved level, use GenerateFromSaved directly to have more control
-Level loadSavedLevel(LevelGeneratorShared shared, ConfigNode from) {
+Level loadSavedLevel(LevelGeneratorShared shared, ConfigNode from,
+    bool renderBitmaps = true)
+{
     auto gen = new GenerateFromSaved(shared, from);
-    return gen.render();
+    return gen.render(renderBitmaps);
 }
 
 //-------------
