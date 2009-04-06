@@ -166,7 +166,7 @@ class NetHost {
     ///is established
     ///if this is a 1-connection client host, use serviceOne with a timeout
     ///to wait for the connection
-    void connect(NetAddress addr, ubyte channelCount) {
+    NetPeer connect(NetAddress addr, ubyte channelCount) {
         //convert address to ENetAddress
         ENetAddress enaddr;
         enaddr.port = addr.port;
@@ -180,7 +180,8 @@ class NetHost {
         if (!peer)
             throw new NetException(
                 "Connection attempt failed: No available peers");
-        //no need to store peer, as it is passed with the connect event
+        //create the peer class now, to allow to abort connection request
+        return getNetPeer(peer);
     }
 
     ///process all waiting events and return immediately
@@ -202,14 +203,27 @@ class NetHost {
         return false;
     }
 
+    private NetPeer getNetPeer(ENetPeer* peer) {
+        auto ret = cast(NetPeer)peer.data;
+        if (!ret) {
+            ret = new NetPeer(this, peer);
+            peer.data = cast(void*)ret;
+            mPeers[peer] = ret;
+        }
+        return ret;
+    }
+
     private bool handleEvent(inout ENetEvent event) {
         switch (event.type) {
             case ENET_EVENT_TYPE_CONNECT:
-                auto peer = new NetPeer(this, event.peer);
-                event.peer.data = cast(void*)peer;
-                mPeers[event.peer] = peer;
-                if (onConnect)
-                    onConnect(this, peer);
+                auto peer = getNetPeer(event.peer);
+                assert(peer.state != ConnectionState.connected);
+                //not sure if possible: don't connect if a disconnect is pending
+                if (peer.state == ConnectionState.establish) {
+                    peer.handleConnect();
+                    if (onConnect)
+                        onConnect(this, peer);
+                }
                 break;
             case ENET_EVENT_TYPE_RECEIVE:
                 auto peer = cast(NetPeer)event.peer.data;
@@ -226,7 +240,8 @@ class NetHost {
                 if (peer) {
                     peer.handleDisconnect();
                     event.peer.data = null;
-                    mPeers.remove(event.peer);
+                    if (event.peer in mPeers)
+                        mPeers.remove(event.peer);
                 } else {
                     //outgoing connection failed
                 }
@@ -258,14 +273,22 @@ class NetHost {
     }
 }
 
+enum ConnectionState {
+    establish, //connection has been requested, but is not ready to transmit
+    connected, //connection is active
+    closed,  //connection is closed or has been requested to close
+}
+
 ///a connection to a peer, created by NetHost when a connection is established
 ///will be connected after creation, until you get the onDisconnect event
 class NetPeer {
     private ENetPeer* mPeer;
-    private bool mConnected;
+    private ConnectionState mState;
     private NetAddress mAddress;
     private NetHost mHost;
 
+    ///called when this peer finishes connecting
+    void delegate(NetPeer sender) onConnect;
     ///called when connection has been terminated
     void delegate(NetPeer sender) onDisconnect;
     void delegate(NetPeer sender, ubyte channelId, ubyte* data,
@@ -274,7 +297,6 @@ class NetPeer {
     private this(NetHost parent, ENetPeer* peer) {
         mHost = parent;
         mPeer = peer;
-        mConnected = true;
         mAddress.port = mPeer.address.port;
         char[] addrBuf = new char[16];
         enet_address_get_host_ip(&mPeer.address, addrBuf.ptr, 16);
@@ -286,7 +308,14 @@ class NetPeer {
         return mHost;
     }
 
+    private void handleConnect() {
+        mState = ConnectionState.connected;
+        if (onConnect)
+            onConnect(this);
+    }
+
     private void handleDisconnect() {
+        mState = ConnectionState.closed;
         if (onDisconnect)
             onDisconnect(this);
     }
@@ -299,13 +328,27 @@ class NetPeer {
     ///close the connection
     ///you are guaranteed not to receive packets after this call
     void disconnect() {
-        enet_peer_disconnect(mPeer, 0);
-        mConnected = false;
+        if (mState == ConnectionState.establish)
+            reset();
+        else
+            enet_peer_disconnect(mPeer, 0);
+        mState = ConnectionState.closed;
+    }
+
+    void reset() {
+        enet_peer_reset(mPeer);
+        if (mPeer in mHost.mPeers) {
+            mHost.mPeers.remove(mPeer);
+        }
     }
 
     ///is this connection active?
     bool connected() {
-        return mConnected;
+        return mState == ConnectionState.connected;
+    }
+
+    ConnectionState state() {
+        return mState;
     }
 
     ///number of assigned channels

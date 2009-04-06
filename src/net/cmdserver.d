@@ -122,6 +122,7 @@ class CmdNetServer : Thread {
         foreach (cl; mClients) {
             cl.closeWithReason("server_shutdown");
         }
+        mHost.serviceAll();
         delete mHost;
         delete mBase;
     }
@@ -446,6 +447,8 @@ private class CmdNetClientConnection {
                 close();
                 break;
             case ClientPacket.hello:
+                    closeWithReason("error_wtf");
+                    return;
                 //this is the first packet a client should send after connecting
                 if (mState != ClientConState.establish) {
                     closeWithReason("error_protocol");

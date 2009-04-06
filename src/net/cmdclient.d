@@ -42,15 +42,16 @@ class CmdNetClient : SimpleNetConnection {
         GameShell mShell;
         NetGameControl[char[]] mSrvControl;
         CmdNetControl mClControl;
+        bool mHadDisconnect;
     }
 
     void delegate(CmdNetClient sender) onConnect;
+    void delegate(CmdNetClient sender) onDisconnect;
     void delegate(CmdNetClient sender, char[] msg, char[][] args) onError;
 
     this() {
         mBase = new NetBase();
         mHost = mBase.createClient();
-        mHost.onConnect = &hostConnect;
         state(ClientState.idle);
     }
 
@@ -77,23 +78,42 @@ class CmdNetClient : SimpleNetConnection {
 
     //returns immediately
     void connect(NetAddress addr, char[] playerName) {
+        if (mState != ClientState.idle)
+            return;
+        if (mServerCon) {
+            mServerCon.reset();
+            //xxx lol etc.: hack against mysteriously failing connections
+            delete mHost;
+            mHost = mBase.createClient();
+            mServerCon = null;
+        }
         mTmpAddr = addr;
         mPlayerName = playerName;
-        mHost.connect(addr, 10);
+        mServerCon = mHost.connect(addr, 10);
+        mServerCon.onConnect = &conConnect;
+        mServerCon.onDisconnect = &conDisconnect;
         state(ClientState.connecting);
+        mHadDisconnect = false;
     }
 
+    //true if fully connected (with handshake)
     bool connected() {
         return mServerCon && mServerCon.connected()
             && mState == ClientState.connected;
     }
 
+    //close connection, or abort connecting
     void close() {
         state(ClientState.idle);
         if (!mServerCon)
             return;
         mServerCon.disconnect();
         mHost.serviceAll();
+        if (!mHadDisconnect) {
+            if (onDisconnect)
+                onDisconnect(this);
+            mHadDisconnect = true;
+        }
     }
 
     void closeWithReason(char[] errorCode) {
@@ -227,14 +247,11 @@ class CmdNetClient : SimpleNetConnection {
     }
 
     //connection attempt succeeded, start handshake
-    private void hostConnect(NetHost sender, NetPeer peer) {
-        assert(sender is mHost);
-        assert(!mServerCon);
+    private void conConnect(NetPeer sender) {
+        assert(sender is mServerCon);
         //close might have been called before the connection completed
         if (mState == ClientState.idle)
             return;
-        mServerCon = peer;
-        mServerCon.onDisconnect = &conDisconnect;
         mServerCon.onReceive = &conReceive;
         //send handshake packet
         CPHello p;
@@ -243,8 +260,12 @@ class CmdNetClient : SimpleNetConnection {
     }
 
     private void conDisconnect(NetPeer sender) {
+        mHadDisconnect = true;
         assert(sender is mServerCon);
         mServerCon = null;
+        state(ClientState.idle);
+        if (onDisconnect)
+            onDisconnect(this);
     }
 
     private void conReceive(NetPeer sender, ubyte channelId, ubyte* data,
@@ -267,7 +288,7 @@ class CmdNetClient : SimpleNetConnection {
                 auto p = unmarshal.read!(SPError)();
                 if (onError)
                     onError(this, p.errMsg, p.args);
-                close();
+                //close();
                 break;
             case ServerPacket.conAccept:
                 //handshake accepted, connection is complete
@@ -413,6 +434,7 @@ class CmdNetClientTask : Task {
         char[] mPlayerName;
         //only needed when this client is starting the game
         GameConfig mGameConfig;
+        bool mHadError;
     }
 import utils.random;
     this(TaskManager tm, char[] args = "") {
@@ -422,6 +444,7 @@ import utils.random;
         mPlayerName = myformat("Player{}", mInstance);
         mClient = new CmdNetClient();
         mClient.onConnect = &onConnect;
+        mClient.onDisconnect = &onDisconnect;
         mClient.onStartLoading = &onStartLoading;
         mClient.onUpdateGameInfo = &onUpdateGameInfo;
         mClient.onError = &onError;
@@ -466,11 +489,21 @@ import utils.random;
         mTeams.enabled = true;
     }
 
+    private void onDisconnect(CmdNetClient sender) {
+        if (!mHadError)
+            mLabel.text = "Idle";
+        mStartButton.text = "Connect";
+        mStartButton.enabled = true;
+        mTeams.enabled = false;
+        mPlayers.setContents([""]);
+    }
+
     private void teamSelect(DropDownList sender) {
         mClient.deployTeam(mTeamNode.getSubNode(sender.selection));
     }
 
     private void startGame(Button sender) {
+        mHadError = false;
         if (mClient.connected) {
             ConfigNode node = gConf.loadConfig("newgame");
             GameConfig conf = loadGameConfig(node, null, false);
@@ -497,10 +530,9 @@ import utils.random;
 
     private void onError(CmdNetClient sender, char[] msg, char[][] args) {
         mLabel.text = "Error: " ~ msg;
-        mStartButton.text = "Connect";
-        mStartButton.enabled = true;
-        mTeams.enabled = false;
         gDefaultOutput.writefln("{}", msg);
+        mHadError = true;
+        mPlayers.setContents([""]);
     }
 
     override protected void onKill() {

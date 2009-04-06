@@ -26,6 +26,8 @@ class EditLine : Widget {
         Font mFont, mSelFont;
         bool mCursorVisible = true;
         Timer mCursorTimer;
+        //colors for text selection, other font props remain unchanged
+        Color mSelFore = Color(1.0, 1.0, 1.0),mSelBack = Color(0.05, 0.15, 0.4);
     }
 
     ///text line has changed (not called when assigned to text)
@@ -247,7 +249,8 @@ class EditLine : Widget {
 
         //selected-text font; only the colors can be changed
         auto props = mFont.properties;
-        swap(props.fore, props.back);
+        props.fore = mSelFore;
+        props.back = mSelBack;
         mSelFont = new Font(props);
 
         needResize(true);
