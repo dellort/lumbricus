@@ -884,7 +884,8 @@ class GameControl : ClientControl {
         if (mOwner.replayMode)
             mOwner.replaySkip();
         else
-            mOwner.addLoggedInput(&executeWeaponFire, params, "cmd: weapon_fire");
+            mOwner.addLoggedInput(&executeWeaponFire, params,
+                "cmd: weapon_fire", mCurrentTS);
     }
 
     private void cmdSetPaused(MyBox[] params, Output o) {
