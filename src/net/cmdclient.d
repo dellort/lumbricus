@@ -210,9 +210,8 @@ class CmdNetClient : SimpleNetConnection {
     }
 
     private void doExecCommand(uint timestamp, char[] player, char[] cmd) {
-        //HUGE xxx: timestamp parameter is not used
         if (player in mSrvControl)
-            mSrvControl[player].executeCommand(cmd);
+            mSrvControl[player].executeTSCommand(cmd, timestamp);
     }
 
     //transmit local game control command (called from CmdNetControl)
@@ -322,6 +321,7 @@ class CmdNetClient : SimpleNetConnection {
                 foreach (gce; p.commands) {
                     doExecCommand(p.timestamp, gce.player, gce.cmd);
                 }
+                mShell.setFrameReady(p.timestamp);
                 break;
             default:
                 if (onError)
@@ -389,6 +389,11 @@ class CmdNetControl : ClientControl {
 class NetGameControl : GameControl {
     this(GameShell sh) {
         super(sh, false);
+    }
+
+    void executeTSCommand(char[] cmd, long timestamp) {
+        setCurrentTS(timestamp);
+        executeCommand(cmd);
     }
 }
 

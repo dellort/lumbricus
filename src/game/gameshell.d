@@ -33,6 +33,7 @@ import utils.time;
 import utils.vector2;
 
 import stdx.stream;
+import tango.math.Math : pow;
 
 //initialized by serialize_register.d
 Types serialize_types;
@@ -40,6 +41,14 @@ Types serialize_types;
 //fixed framerate for the game logic (all of GameEngine)
 //also check physic frame length cPhysTimeStepMs in world.d
 const Time cFrameLength = timeMsecs(20);
+
+//the optimum length of the input queue in network mode (i.e. what the engine
+//  will try to reach)
+//if the queue gets longer, game speed will be increased to catch up
+//xxx: for optimum performance, this should be calculated dynamically based
+//     on connection jitter (higher values give more jitter protection, but
+//     higher introduced lag)
+const int cOptimumInputLag = 1;
 
 private LogStruct!("game.gameshell") log;
 
@@ -202,8 +211,11 @@ class GameLoader {
         mShell.mGameConfig = mGameConfig;
         mShell.mGfx = mGfx;
         mShell.mMasterTime = new TimeSource("GameShell/MasterTime");
-        if (mNetConnection)
+        if (mNetConnection) {
             mShell.mMasterTime.paused = true;
+            //use server timestamps
+            mShell.mUseExternalTS = true;
+        }
         mShell.mGameTime = new TimeSourceFixFramerate("GameTime",
             mShell.mMasterTime, cFrameLength);
         if (!mSaveGame) {
@@ -272,6 +284,7 @@ class GameShell {
         TimeSourceFixFramerate mGameTime;
         //timestamps are simpler
         long mTimeStamp;
+        long mTimeStampAvail = -1;
         GameConfig mGameConfig;
         GfxSet mGfx;
         InputLog mCurrentInput;
@@ -280,6 +293,7 @@ class GameShell {
         InputLog mReplayInput;
         bool mReplayMode; //currently replaying
         long mReplayEnd; //mTimeStamp at end of replay
+        bool mUseExternalTS; //timestamp advancing is controlled externally
         debug bool mPrintFrameTime;
         //
         GameEngineCallback[] mCallbacks; //xxx should hold weak references
@@ -331,7 +345,8 @@ class GameShell {
 
     //add a logged function call - the timestamp of the function call is set to
     //now, and is executed at the next possible time
-    private void addLoggedInput(T)(T a_callee, MyBox[] params, char[] dbg_desc)
+    private void addLoggedInput(T)(T a_callee, MyBox[] params, char[] dbg_desc,
+        long cmdTimeStamp = -1)
     {
         alias GetDGParams!(T) Params;
 
@@ -353,7 +368,10 @@ class GameShell {
         e.callee = MyBox.Box(a_callee);
         e.params = params;
         //assume time increases monotonically => list stays always sorted
-        e.timestamp = mTimeStamp;
+        if (cmdTimeStamp >= 0)
+            e.timestamp = cmdTimeStamp;
+        else
+            e.timestamp = mTimeStamp;
 
         if (mReplayMode) {
             log("input denied, because in replay mode: {}", e.dbg_desc);
@@ -366,8 +384,48 @@ class GameShell {
     }
 
     void frame() {
-        mMasterTime.update();
-        mGameTime.update(() { doFrame(); });
+        if (mUseExternalTS) {
+            //external timestamps (network mode, from setFrameReady())
+            //this code tries to keep the input queue length (local lag)
+            //  at cOptimumInputLag by varying game speed
+            //how far the server is ahead
+            int lag = mTimeStampAvail - mTimeStamp;
+            //log("lag = {}",lag);
+            if (lag < 0) {
+                //no server frame coming -> wait
+                mMasterTime.paused = true;
+            } else {
+                //server frames are available
+                mMasterTime.paused = false;
+                if (lag < cOptimumInputLag) {
+                    //run at 1x speed
+                    if (mMasterTime.slowDown != 1.0f)
+                        mMasterTime.slowDown = 1.0f;
+                } else {
+                    //run faster
+                    uint diff = min(cast(uint)(lag - cOptimumInputLag + 1), 50);
+                    float slow = pow(1.2L, diff);
+                    if (slow > 20.0f)
+                        slow = 20.0f;
+                    mMasterTime.slowDown = slow;
+                }
+            }
+            mMasterTime.update();
+            //don't accidentally run past server time
+            int maxFrames = lag + 1;
+            mGameTime.update(&doFrame, maxFrames);
+        } else {
+            mMasterTime.update();
+            mGameTime.update(() { doFrame(); });
+        }
+    }
+
+    //called by network client, whenever all input events at the passed
+    //timeStamp have been fed to the engine
+    void setFrameReady(long timeStamp) {
+        assert(timeStamp >= mTimeStamp, "local ts can't be ahead of server");
+        assert(timeStamp >= mTimeStampAvail, "monotone time");
+        mTimeStampAvail = timeStamp;
     }
 
     private void doFrame() {
@@ -632,6 +690,7 @@ class GameControl : ClientControl {
         CommandBucket mCmds;
         CommandLine mCmd;
         ServerTeam[] mOwnedTeams;
+        long mCurrentTS = -1;
     }
 
     this(GameShell sh, bool add_all = true) {
@@ -672,6 +731,7 @@ class GameControl : ClientControl {
         //in D2.0, this Wrapper stuff will be unnecessary
         struct Wrapper {
             GameShell owner;
+            GameControl outer;
             T callee;
             char[] name;
             void cmd(MyBox[] params, Output o) {
@@ -682,12 +742,13 @@ class GameControl : ClientControl {
                 }
                 desc ~= "]";
                 //- end stupid
-                owner.addLoggedInput!(T)(callee, params, desc);
+                owner.addLoggedInput!(T)(callee, params, desc, outer.mCurrentTS);
             }
         }
 
         Wrapper* pwrap = new Wrapper;
         pwrap.owner = mOwner;
+        pwrap.outer = this;
         pwrap.callee = del;
         pwrap.name = name;
 
@@ -851,6 +912,10 @@ class GameControl : ClientControl {
             //spacebar for crate
             mOwner.mEngine.instantDropCrate();
         }
+    }
+
+    protected void setCurrentTS(long timeStamp) {
+        mCurrentTS = timeStamp;
     }
 
     //-- ClientControl

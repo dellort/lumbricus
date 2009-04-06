@@ -226,14 +226,17 @@ class TimeSourceFixFramerate : TimeSourcePublic {
 
     ///runs n frames in increments of the fixed frame length, and calls
     ///do_update() for each frame; the time is stepped before each do_update()
-    void update(void delegate() do_update) {
+    void update(void delegate() do_update, int maxFrames = int.max) {
         mChain.update();
         //xxx: is it ok that mSimTime still can be < mParent.current after this?
         while (mSimTime + mFrameLength <= mChain.current) {
+            if (maxFrames <= 0)
+                return;
             mLastSimTime = mSimTime;
             mSimTime += mFrameLength;
             do_update();
             mChain.update(); //?
+            maxFrames--;
         }
     }
 }

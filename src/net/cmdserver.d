@@ -16,6 +16,7 @@ import utils.time;
 import utils.list2;
 import utils.output;
 import utils.log;
+debug import utils.random;
 
 import tango.core.Thread;
 import tango.io.Stdout : Stdout;
@@ -46,6 +47,7 @@ class CmdNetServer : Thread {
         TimeSource mMasterTime;
         TimeSourceFixFramerate mGameTime;
         uint mTimeStamp;
+        debug int mSimLagMs, mSimJitterMs;
     }
 
     //create the server thread object
@@ -60,6 +62,11 @@ class CmdNetServer : Thread {
         if (mServerName.length == 0)
             mServerName = "Unnamed server";
         mMaxPlayers = serverConfig.getValue("max_players", 4);
+        debug {
+            mSimLagMs = serverConfig.getValue("sim_lag", 0);
+            mSimJitterMs = serverConfig.getValue("sim_jitter", 0);
+        }
+
         mMasterTime = new TimeSource("ServerMasterTime");
         mMasterTime.paused = true;
         mGameTime = new TimeSourceFixFramerate("ServerGameTime", mMasterTime,
@@ -389,7 +396,26 @@ private class CmdNetClientConnection {
                 break;
             default:
         }
+        debug if (mOutputQueue.length > 0) {
+            //lag simulation
+            int jitter = rngShared.next(-mOwner.mSimJitterMs,
+                mOwner.mSimJitterMs);
+            if (t - mOutputQueue[0].created > timeMsecs(mOwner.mSimLagMs
+                + jitter))
+            {
+                mPeer.send(mOutputQueue[0].buf.ptr, mOutputQueue[0].buf.length,
+                    mOutputQueue[0].channelId);
+                mOutputQueue = mOutputQueue[1..$];
+            }
+        }
     }
+
+    struct Packet {
+        ubyte[] buf;
+        Time created;
+        ubyte channelId;
+    }
+    Packet[] mOutputQueue;
 
     private void send(T)(ServerPacket pid, T data, ubyte channelId = 0,
         bool now = false)
@@ -398,7 +424,15 @@ private class CmdNetClientConnection {
         marshal.write(pid);
         marshal.write(data);
         ubyte[] buf = marshal.data();
-        mPeer.send(buf.ptr, buf.length, channelId, now);
+        debug {
+            if (mOwner.mSimLagMs > 0)
+                //lag simulation, queue packet
+                mOutputQueue ~= Packet(buf, timeCurrentTime(), channelId);
+            else
+                mPeer.send(buf.ptr, buf.length, channelId, now);
+        } else {
+            mPeer.send(buf.ptr, buf.length, channelId, now);
+        }
     }
 
     //incoming client packet, all data (including id) is in unmarshal buffer
