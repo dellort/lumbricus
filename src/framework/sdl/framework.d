@@ -379,7 +379,10 @@ class SDLDriver : FrameworkDriver {
         mOpenGL_LowQuality = config.getBoolValue("lowquality", false);
         glWireframeDebug = config.getBoolValue("gl_debug_wireframe", false);
 
-        Environment.set("SDL_VIDEO_CENTERED", "center");
+        //CENTERED doesn't work - somehow resizing the window enters an endless
+        //loop on IceWM... anyway, it makes me want to beat up the SDL devs
+        //it also could be our or IceWM's fault
+        //Environment.set("SDL_VIDEO_CENTERED", "center");
         //Environment.set("SDL_VIDEO_WINDOW_POS", "0,0");
 
         sdlInit();

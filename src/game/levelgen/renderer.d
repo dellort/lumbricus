@@ -14,6 +14,8 @@ import utils.log;
 import utils.misc;
 import drawing = utils.drawing;
 import math = tango.math.Math;
+import digest = tango.io.digest.Digest;
+import md5 = tango.io.digest.Md5;
 
 debug import utils.perf;
 
@@ -796,6 +798,25 @@ class LandscapeBitmap {
         mLevelData[] = from.levelData();
         //xxx transparency mode and colorkey??? (that damn crap!)
         mImage.copyFrom(from.image, Vector2i(0), Vector2i(0), size);
+    }
+
+    //the checksum includes the image and the data
+    //xxx evil bug: the SDL renderer sets transparent pixels to colorkey, which
+    //              changes the checksum... (damn colorkey crap artrgghgfgd!!1)
+    char[] checksum() {
+        digest.Digest hash = new md5.Md5();
+
+        hash.update(cast(void[])mLevelData);
+
+        Color.RGBA32* ptr; uint pitch;
+        mImage.lockPixelsRGBA32(ptr, pitch);
+        for (int y = 0; y < mImage.size.y; y++) {
+            Color.RGBA32* pixel = ptr + y*pitch;
+            hash.update(cast(void[])(pixel[0..mImage.size.x]));
+        }
+        mImage.unlockPixels(Rect2i.init);
+
+        return hash.hexDigest();
     }
 }
 

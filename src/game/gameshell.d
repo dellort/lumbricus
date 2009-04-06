@@ -78,6 +78,13 @@ class GameLoader {
 
     static GameLoader CreateNewGame(GameConfig cfg) {
         auto r = new GameLoader();
+        //xxx: should level==null really be allowed?
+        if (!cfg.level) {
+            auto gen = new GenerateFromSaved(new LevelGeneratorShared(),
+                cfg.saved_level);
+            cfg.level = gen.render();
+        }
+        assert(!!cfg.level);
         r.mGameConfig = cfg;
         r.doInit();
         return r;
@@ -85,13 +92,8 @@ class GameLoader {
 
     static GameLoader CreateNetworkGame(GameConfig cfg, SimpleNetConnection con)
     {
-        auto r = new GameLoader();
-        r.mGameConfig = cfg;
+        auto r = CreateNewGame(cfg);
         r.mNetConnection = con;
-        auto gen = new GenerateFromSaved(new LevelGeneratorShared(),
-            cfg.saved_level);
-        cfg.level = gen.render();
-        r.doInit();
         return r;
     }
 
@@ -629,17 +631,24 @@ class GameControl : ClientControl {
         GameShell mOwner;
         CommandBucket mCmds;
         CommandLine mCmd;
+        ServerTeam[] mOwnedTeams;
     }
-    protected ServerTeam[] mOwnedTeams;
 
-    this(GameShell sh) {
+    this(GameShell sh, bool add_all = true) {
         mOwner = sh;
         createCmd();
 
         //multiple clients for one team? rather not, but cannot be checked here
         //xxx implement client-team assignment
-        foreach (t; mOwner.mEngine.logic.getTeams)
-            mOwnedTeams ~= castStrict!(ServerTeam)(cast(Object)t);
+        if (add_all) {
+            foreach (t; mOwner.mEngine.logic.getTeams)
+                addTeam(t);
+        }
+    }
+
+    //add tram to list of controlled teams
+    void addTeam(Team team) {
+        mOwnedTeams ~= castStrict!(ServerTeam)(cast(Object)team);
     }
 
     //return true if command was found and could be parsed

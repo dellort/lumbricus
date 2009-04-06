@@ -201,12 +201,12 @@ class GenerateFromTemplate : LevelGenerator {
         saveto.setIntValue("water_top_y", nlevel.waterTopY);
         saveto.setIntValue("sky_top_y", nlevel.skyTopY);
 
-        auto objsnode = saveto.getSubNode("objects");
+        auto saveto_objsnode = saveto.getSubNode("objects");
 
         foreach (ref LevelItem o; nlevel.objects) {
             LevelItem new_item;
 
-            auto onode = objsnode.getSubNode(o.name);
+            auto saveto_obj = saveto_objsnode.getSubNode(o.name);
 
             //this is so stupid because you must check and copy for each
             //possible class type, need better way
@@ -223,9 +223,9 @@ class GenerateFromTemplate : LevelGenerator {
                         land.size = rland.geo_generated.size;
                     else
                         land.size = rland.geo_pregenerated.size;
+                    auto gt = mCurTheme.genTheme();
+                    LandscapeBitmap renderer;
                     if (render_bitmaps) {
-                        auto gt = mCurTheme.genTheme();
-                        LandscapeBitmap renderer;
                         if (rland.geo_generated) {
                             renderer = landscapeRenderGeometry(
                                 rland.geo_generated, gt);
@@ -233,29 +233,34 @@ class GenerateFromTemplate : LevelGenerator {
                             renderer = landscapeRenderPregenerated(
                                 rland.geo_pregenerated, gt);
                         }
-                        LandscapeObjects objs = rland.objects;
-                        //never place objects in generated levels
-                        onode.setBoolValue("allow_place_objects", false);
-                        if (rland.placeObjects && !objs) {
-                            objs = landscapePlaceObjects(renderer, gt);
-                            //don't set rland.objects, because rland.objects is
-                            //only for objects which were loaded, not generated
-                        }
-                        rland.gen_objects = objs;
-                        if (objs) {
-                            landscapeRenderObjects(renderer, objs, gt);
-                            rland.gen_objects.saveTo(onode.getSubNode("objects"));
-                        }
-                        rendered = renderer;
                     }
+                    LandscapeObjects objs = rland.objects;
+                    //never place objects in generated levels
+                    saveto_obj.setBoolValue("allow_place_objects", false);
+                    if (rland.placeObjects && !objs) {
+                        //NOTE: of course this needs a rendered level, no matter
+                        //      what, and without we can't place the objects
+                        assert(render_bitmaps);
+                        objs = landscapePlaceObjects(renderer, gt);
+                        //don't set rland.objects, because rland.objects is
+                        //only for objects which were loaded, not generated
+                    }
+                    rland.gen_objects = objs;
+                    if (objs) {
+                        if (render_bitmaps)
+                            landscapeRenderObjects(renderer, objs, gt);
+                        rland.gen_objects.saveTo(
+                            saveto_obj.getSubNode("objects"));
+                    }
+                    rendered = renderer; //what
                     rendered_theme = mCurTheme.landscapeTheme;
                     if (rland.geo_generated) {
                         rland.geo_generated.saveTo(
-                            onode.getSubNode("geometry"));
+                            saveto_obj.getSubNode("geometry"));
                         type = "landscape_generated";
                     } else {
                         rland.geo_pregenerated.saveTo(
-                            onode.getSubNode("lexeldata"));
+                            saveto_obj.getSubNode("lexeldata"));
                         type = "landscape_pregenerated";
                     }
                 } else if (rland.prerender_id != "") {
@@ -267,7 +272,8 @@ class GenerateFromTemplate : LevelGenerator {
                     rendered = *p;
                     land.size = rendered.size;
                     rendered_theme = prerendered_theme[rland.prerender_id];
-                    onode.setStringValue("prerender_id", rland.prerender_id);
+                    saveto_obj.setStringValue("prerender_id",
+                        rland.prerender_id);
                     type = "landscape_prerendered";
                 } else {
                     assert(false, "nothing to render?");
@@ -278,8 +284,8 @@ class GenerateFromTemplate : LevelGenerator {
                 land.landscape = rendered;
                 land.landscape_theme = rendered_theme;
                 rland.land = land;
-                onode.setStringValue("type", type);
-                onode.setStringValue("position", myformat("{} {}",
+                saveto_obj.setStringValue("type", type);
+                saveto_obj.setStringValue("position", myformat("{} {}",
                     land.position.x, land.position.y));
                 //onode.setStringValue("size", myformat("{} {}",
                   //  land.size.x, land.size.y));

@@ -32,6 +32,7 @@ enum ClientPacket : ushort {
     hello,
     lobbyCmd,
     deployTeam,
+    startLoading,
     loadDone,
     gameCommand,
 }
@@ -71,8 +72,13 @@ struct SPLoadStatus {
 }
 
 struct SPGameStart {
-    char[][] players;
-    char[][] teamIds;
+    //each entry lets a player control teams
+    Player_Team[] mapping;
+
+    struct Player_Team {
+        char[] player;
+        char[][] team;
+    }
 }
 
 struct GameCommandEntry {
@@ -99,6 +105,14 @@ struct CPHello {
 
 struct CPLobbyCmd {
     char[] cmd;
+}
+
+//client sends this to server, server adds teams, server sends SPStartLoading to
+//all clients (here, it would be simpler to replicate the "lobby logic"
+//[like assigning teams] on all clients, and then just let the server broadcast
+//this message, without changing the contents... maybe... or maybe not)
+struct CPStartLoading {
+    ubyte[] gameConfig;
 }
 
 struct CPDeployTeam {

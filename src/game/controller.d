@@ -52,7 +52,6 @@ class ServerTeam : Team {
         Vector2f movementVec = {0, 0};
         bool mAlternateControl;
         bool mAllowSelect;   //can next worm be selected by user (tab)
-        char[] mTeamId;
     }
 
     //node = the node describing a single team
@@ -76,7 +75,6 @@ class ServerTeam : Team {
         //defaultWeapon = weapons.byId(node["default_weapon"]);
         gravestone = node.getIntValue("grave", 0);
         mAlternateControl = node.getStringValue("control") != "worms";
-        mTeamId = node["id"];
     }
 
     this (ReflectCtor c) {
@@ -86,10 +84,6 @@ class ServerTeam : Team {
 
     char[] name() {
         return mName;
-    }
-
-    char[] id() {
-        return mTeamId;
     }
 
     TeamTheme color() {

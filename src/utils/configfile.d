@@ -188,7 +188,7 @@ public class ConfigNode {
         if (conflict) {
             conflict.resolveConflict(new_name);
         }
-        mName = new_name;
+        //mName = new_name;
         doAdd(item);
     }
     void add(char[] name, ConfigNode item) {

@@ -4,8 +4,9 @@ import common.common;
 import common.task;
 import game.gameshell;
 import game.gametask;
+import game.setup;
 import game.gamepublic;
-import game.controller;
+import game.levelgen.level;
 import gui.wm;
 import gui.list;
 import gui.dropdownlist;
@@ -129,6 +130,12 @@ class CmdNetClient : SimpleNetConnection {
         send(ClientPacket.lobbyCmd, p);
     }
 
+    void startLoading(GameConfig cfg) {
+        CPStartLoading p;
+        p.gameConfig = gConf.saveConfigGzBuf(cfg.save());
+        send(ClientPacket.startLoading, p);
+    }
+
     void deployTeam(ConfigNode teamInfo) {
         CPDeployTeam p;
         p.teamName = teamInfo.name;
@@ -148,6 +155,14 @@ class CmdNetClient : SimpleNetConnection {
         //will call signalLoadingDone() when finished
         auto loader = GameLoader.CreateNetworkGame(cfg, this);
         assert(!!onStartLoading, "Need to set callbacks");
+        //--- just dump hash for debugging
+        foreach (o; loader.gameConfig.level.objects) {
+            if (auto bmp = cast(LevelLandscape)o) {
+                Stdout.formatln("- checksum bitmap '{}': {}", bmp.name,
+                    bmp.landscape.checksum);
+            }
+        }
+        //--- end
         onStartLoading(this, loader);
     }
 
@@ -163,38 +178,33 @@ class CmdNetClient : SimpleNetConnection {
             onLoadStatus(this, st);
     }
 
+    private Team findTeam(char[] t) {
+        foreach (team; mShell.serverEngine.logic.getTeams) {
+            if (team.name == t)
+                return team;
+        }
+        return null;
+    }
+
     private void doGameStart(SPGameStart info) {
         assert(!!onGameStart, "Need to set callbacks");
+        //if setMe() is never called, we are spectator
+        mClControl = new CmdNetControl(this);
         //lol
-        //for each player...
-        foreach (int idx, char[] p; info.players) {
-            //check if he's playing (i.e. has sent a team)
-            if (info.teamIds[idx].length > 0) {
-                //find that team by its id
-                foreach (t; mShell.serverEngine.logic.getTeams) {
-                    auto st = castStrict!(ServerTeam)(cast(Object)t);
-                    if (st.id == info.teamIds[idx]) {
-                        //if team id matches, create a remote->engine proxy
-                        assert(!(p in mSrvControl));
-                        mSrvControl[p] = new NetGameControl(mShell, st);
-                        //if it is our team, create a local->server input proxy
-                        if (p == mPlayerName) {
-                            assert(!mClControl);
-                            mClControl = new CmdNetControl(this, st);
-                        }
-                        break;
-                    }
-                }
-                //every active player needs to have a matching team
-                assert(p in mSrvControl);
-            } else {
-                //player is spectator
-                mSrvControl[p] = new NetGameControl(mShell, null);
+        foreach (map; info.mapping) {
+            auto ctl = new NetGameControl(mShell);
+            mSrvControl[map.player] = ctl;
+            foreach (team; map.team) {
+                Team t = findTeam(team);
+                //proper error handling: ignore or disconnect
+                assert(!!t, "team not found: "~team);
+                ctl.addTeam(t);
+                //if it is our team, enable a local->server input proxy
+                //oops that thing accepts only one team
+                if (map.player == mPlayerName)
+                    mClControl.setMe(t);
             }
         }
-        //if we have no local->server proxy by now, we are spectator
-        if (!mClControl)
-            mClControl = new CmdNetControl(this, null);
         mShell.masterTime.paused = false;
         onGameStart(this, mClControl);
     }
@@ -348,20 +358,23 @@ class CmdNetControl : ClientControl {
     private {
         CmdNetClient mConnection;
         GameShell mShell;
-        ServerTeam mOwnedTeam;
+        Team mOwnedTeam;
     }
 
-    this(CmdNetClient con, ServerTeam myTeam) {
+    void setMe(Team myTeam) {
+        mOwnedTeam = myTeam;
+    }
+
+    this(CmdNetClient con) {
         mConnection = con;
         mShell = con.mShell;
-        mOwnedTeam = myTeam;
     }
 
     TeamMember getControlledMember() {
         if (!mOwnedTeam)
             return null;
         if (mOwnedTeam.active) {
-            return mOwnedTeam.current;
+            return mOwnedTeam.getActiveMember();
         }
         return null;
     }
@@ -374,19 +387,17 @@ class CmdNetControl : ClientControl {
 //Incoming command from server -> Local engine command proxy
 //  (one for each player in the game)
 class NetGameControl : GameControl {
-    this(GameShell sh, ServerTeam myTeam) {
-        super(sh);
-        if (myTeam)
-            mOwnedTeams = [myTeam];
-        else
-            mOwnedTeams = null;
+    this(GameShell sh) {
+        super(sh, false);
     }
 }
 
 class CmdNetClientTask : Task {
     private {
         CmdNetClient mClient;
-        static int mInstance;
+        //so this is why trying to connect a second client from another program
+        //instance mysteriously failed...
+        //static int mInstance;
         DropDownList mTeams;
         Label mLabel;
         ConfigNode mTeamNode;
@@ -395,11 +406,14 @@ class CmdNetClientTask : Task {
         StringListWidget mPlayers;
         EditLine mConnectTo;
         char[] mPlayerName;
+        //only needed when this client is starting the game
+        GameConfig mGameConfig;
     }
-
+import utils.random;
     this(TaskManager tm, char[] args = "") {
         super(tm);
 
+        auto mInstance = rngShared.next(10000);
         mPlayerName = myformat("Player{}", mInstance);
         mClient = new CmdNetClient();
         mClient.onConnect = &onConnect;
@@ -452,9 +466,11 @@ class CmdNetClientTask : Task {
     }
 
     private void startGame(Button sender) {
-        if (mClient.connected)
-            mClient.lobbyCmd("start");
-        else {
+        if (mClient.connected) {
+            ConfigNode node = gConf.loadConfig("newgame");
+            GameConfig conf = loadGameConfig(node, null, false);
+            mClient.startLoading(conf);
+        } else {
             mClient.connect(NetAddress(mConnectTo.text), mPlayerName);
             mLabel.text = "Connecting";
             mStartButton.enabled = false;

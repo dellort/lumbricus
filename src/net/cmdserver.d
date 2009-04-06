@@ -7,8 +7,6 @@ import framework.timesource;
 import gui.label;
 import gui.widget;
 import gui.wm;
-import game.gamepublic;
-import game.setup;
 import game.gameshell : cFrameLength;  //lol
 import net.cmdprotocol;
 import net.netlayer;
@@ -17,6 +15,7 @@ import utils.configfile;
 import utils.time;
 import utils.list2;
 import utils.output;
+import utils.log;
 
 import tango.core.Thread;
 import tango.io.Stdout : Stdout;
@@ -29,7 +28,6 @@ enum CmdServerState {
 
 class CmdNetServer : Thread {
     private {
-        GameConfig mConfig;
         ushort mPort;
         int mMaxPlayers, mPlayerCount;
         char[] mServerName;
@@ -52,10 +50,8 @@ class CmdNetServer : Thread {
 
     //create the server thread object
     //to actually run the server, call CmdNetServer.start()
-    this(GameConfig cfg, ConfigNode serverConfig) {
+    this(ConfigNode serverConfig) {
         super(&run);
-        mConfig = cfg;
-        mConfig.teams = null;
 
         mClients = new typeof(mClients);
 
@@ -90,7 +86,7 @@ class CmdNetServer : Thread {
         mHost = mBase.createServer(mPort, mMaxPlayers);
         mHost.onConnect = &onConnect;
 
-        try {
+        //try {
 
         while (!mClose) {
             //check for messages
@@ -109,11 +105,11 @@ class CmdNetServer : Thread {
             yield();
         }
 
-        } catch (Exception e) {
-            //seems this is the only way to be notified about thread errors
-            Stdout.formatln("Exception {} at {}({})", e.toString(),
-                e.file, e.line);
-        }
+        //} catch (Exception e) { <- catching the type Exception is always a bug
+        //    //seems this is the only way to be notified about thread errors
+        //    Stdout.formatln("Exception {} at {}({})", e.toString(),
+        //        e.file, e.line);
+        //}
 
         //shutdown
         foreach (cl; mClients) {
@@ -144,14 +140,16 @@ class CmdNetServer : Thread {
         auto cl = new CmdNetClientConnection(this, peer);
         cl.client_node = mClients.add(cl);
         mPlayerCount++;
+        printClients();
     }
 
     //called from CmdNetClientConnection: peer has been disconnected
     private void clientRemove(CmdNetClientConnection client) {
         Stdout.formatln("Client from {} ({}) disconnected",
-            client.address.hostName, client.playerName);
+            client.address, client.playerName);
         mClients.remove(client.client_node);
         mPlayerCount--;
+        printClients();
         //player disconnecting in lobby
         if (mState == CmdServerState.lobby)
             updateLobbyInfo();
@@ -160,12 +158,18 @@ class CmdNetServer : Thread {
             checkLoading();
     }
 
-    private void ccStartGame(CmdNetClientConnection client) {
+    private void ccStartGame(CmdNetClientConnection client, CPStartLoading msg)
+    {
         if (mState != CmdServerState.lobby)
             return;
         mState = CmdServerState.loading;
-        //assemble teams
-        mConfig.teams = new ConfigNode();
+        //xxx: teams should be assembled on client?
+        //then decompressing-parsing-writing-compressing cfg is unneeded
+        //(the garbage below could be removed)
+        auto cfg = gConf.loadConfigGzBuf(msg.gameConfig);
+        auto teams = cfg.getSubNode("teams");
+        teams.clear();
+        SPStartLoading reply;
         foreach (cl; mClients) {
             if (cl.state != ClientConState.connected) {
                 cl.close();
@@ -173,17 +177,18 @@ class CmdNetServer : Thread {
             }
             ConfigNode ct = cl.mMyTeamInfo;
             if (ct) {
-                ct["id"] = cl.playerName ~ ":" ~ ct["id"];
-                mConfig.teams.add(ct);
+                teams.add(ct);
             }
         }
-        ubyte[] confBuf = gConf.saveConfigGzBuf(mConfig.save());
+        reply.gameConfig = gConf.saveConfigGzBuf(cfg);
         //distribute game config
+        registerLog("netserver")("debug dump!");
+        gConf.saveConfig(cfg, "dump.conf");
         foreach (cl; mClients) {
             cl.loadDone = false;
             if (cl.state != ClientConState.connected)
                 continue;
-            cl.doStartLoading(confBuf);
+            cl.doStartLoading(reply);
         }
         checkLoading();
     }
@@ -224,11 +229,11 @@ class CmdNetServer : Thread {
             //distribute status info
             cl.doLoadStatus(st);
             //prepare game start packet with player->team assignment info
-            info.players ~= cl.mPlayerName;
+            SPGameStart.Player_Team map;
+            map.player = cl.mPlayerName;
             if (cl.mMyTeamInfo)
-                info.teamIds ~= cl.mMyTeamInfo["id"];
-            else
-                info.teamIds ~= "";
+                map.team ~= cl.mMyTeamInfo.name;
+            info.mapping ~= map;
         }
         if (allDone) {
             //when all are done loading, start the game
@@ -276,6 +281,16 @@ class CmdNetServer : Thread {
         mPendingCommands = null;
         mTimeStamp++;
     }
+
+    void printClients() {
+        auto log = registerLog("netserver");
+        log("Connected:");
+        foreach (CmdNetClientConnection c; mClients) {
+            log("  address {} state {} name '{}'", c.address, c.state,
+                c.playerName);
+        }
+        log("playerCount={}", mPlayerCount);
+    }
 }
 
 private class CCError : Exception {
@@ -314,7 +329,7 @@ private class CmdNetClientConnection {
         mPeer.onReceive = &onReceive;
         mCmdOutBuffer = new StringOutput();
         state(ClientConState.establish);
-        Stdout.formatln("New connection from {}", address.hostName);
+        Stdout.formatln("New connection from {}", address);
         if (mOwner.state != CmdServerState.lobby) {
             closeWithReason("error_gamestarted");
         }
@@ -323,15 +338,7 @@ private class CmdNetClientConnection {
     private void initCmds() {
         mCmd = new CommandLine(globals.defaultOut);
         mCmds = new CommandBucket();
-        mCmds.register(Command("start", &cmdStart, "-"));
         mCmds.bind(mCmd);
-    }
-
-    //for now, anyone can type start to run the game
-    private void cmdStart(MyBox[] params, Output o) {
-        if (mOwner.state != CmdServerState.lobby)
-            throw new CCError("ccerror_wrongstate");
-        mOwner.ccStartGame(this);
     }
 
     NetAddress address() {
@@ -452,6 +459,14 @@ private class CmdNetClientConnection {
                 //transmit command result
                 send(ServerPacket.cmdResult, p_res);
                 break;
+            case ClientPacket.startLoading:
+                if (mOwner.state != CmdServerState.lobby) {
+                    closeWithReason("ccerror_wrongstate");
+                    return;
+                }
+                auto p = unmarshal.read!(CPStartLoading)();
+                mOwner.ccStartGame(this, p);
+                break;
             case ClientPacket.deployTeam:
                 if (mState != ClientConState.connected) {
                     closeWithReason("error_protocol");
@@ -501,7 +516,7 @@ private class CmdNetClientConnection {
         size_t dataLen)
     {
         assert(sender is mPeer);
-        try {
+        //try {
             //packet structure: 2 bytes message id + data
             if (dataLen < 2) {
                 closeWithReason("error_protocol");
@@ -509,11 +524,11 @@ private class CmdNetClientConnection {
             }
             scope unmarshal = new UnmarshalBuffer(data[0..dataLen]);
             receive(channelId, unmarshal);
-        } catch (Exception e) {
-            Stdout.formatln("Unhandled exception: {} at {}({})", e.toString(),
-                e.file, e.line);
-            closeWithReason("error_internal", [e.msg]);
-        }
+        //} catch (Exception e) {
+        //    Stdout.formatln("Unhandled exception: {} at {}({})", e.toString(),
+        //        e.file, e.line);
+        //    closeWithReason("error_internal", [e.msg]);
+        //}
     }
 
     //NetPeer.onDisconnect
@@ -526,10 +541,8 @@ private class CmdNetClientConnection {
         send(ServerPacket.gameInfo, info);
     }
 
-    private void doStartLoading(ubyte[] confBuf) {
-        SPStartLoading p;
-        p.gameConfig = confBuf;
-        send(ServerPacket.startLoading, p);
+    private void doStartLoading(SPStartLoading msg) {
+        send(ServerPacket.startLoading, msg);
     }
 
     private void doLoadStatus(SPLoadStatus st) {
@@ -555,9 +568,8 @@ class CmdNetServerTask : Task {
     this(TaskManager tm, char[] args = "") {
         super(tm);
 
-        ConfigNode node = gConf.loadConfig("newgame");
         auto srvConf = gConf.loadConfigDef("server");
-        mServer = new CmdNetServer(loadGameConfig(node, null, false), srvConf);
+        mServer = new CmdNetServer(srvConf);
 
         mLabel = new Label();
         gWindowManager.createWindow(this, mLabel, "Server");
