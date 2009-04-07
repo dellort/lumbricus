@@ -2,18 +2,23 @@ module net.cmdclient;
 
 import common.common;
 import common.task;
+import framework.framework;
+import framework.i18n;
 import game.gameshell;
 import game.gametask;
 import game.setup;
 import game.gamepublic;
 import game.levelgen.level;
 import gui.wm;
+import gui.widget;
 import gui.list;
 import gui.dropdownlist;
 import gui.boxcontainer;
 import gui.button;
 import gui.label;
 import gui.edit;
+import gui.loader;
+import gui.logwindow;
 import net.cmdprotocol;
 import net.netlayer;
 import net.marshal;
@@ -23,6 +28,8 @@ import utils.gzip;
 import utils.misc;
 import utils.log;
 import utils.vector2;
+
+import str = stdx.string;
 
 enum ClientState {
     idle,
@@ -46,8 +53,9 @@ class CmdNetClient : SimpleNetConnection {
     }
 
     void delegate(CmdNetClient sender) onConnect;
-    void delegate(CmdNetClient sender) onDisconnect;
+    void delegate(CmdNetClient sender, DiscReason code) onDisconnect;
     void delegate(CmdNetClient sender, char[] msg, char[][] args) onError;
+    void delegate(CmdNetClient sender, char[][] text) onMessage;
 
     this() {
         mBase = new NetBase();
@@ -67,9 +75,7 @@ class CmdNetClient : SimpleNetConnection {
             case ClientState.connecting:
                 //timeout connection attempt after 5s
                 if (t - mStateEnter > timeSecs(5)) {
-                    if (onError)
-                        onError(this, "error_contimeout", [mTmpAddr.hostName]);
-                    close();
+                    close(DiscReason.timeout);
                 }
                 break;
             default:
@@ -102,27 +108,23 @@ class CmdNetClient : SimpleNetConnection {
             && mState == ClientState.connected;
     }
 
-    //close connection, or abort connecting
+    //implements SimpleNetConnection.close()
     void close() {
+        close(DiscReason.none);
+    }
+
+    //close connection, or abort connecting
+    void close(DiscReason why) {
         state(ClientState.idle);
         if (!mServerCon)
             return;
-        mServerCon.disconnect();
+        mServerCon.disconnect(why);
         mHost.serviceAll();
         if (!mHadDisconnect) {
             if (onDisconnect)
-                onDisconnect(this);
+                onDisconnect(this, why);
             mHadDisconnect = true;
         }
-    }
-
-    void closeWithReason(char[] errorCode) {
-        if (!connected)
-            return;
-        CPError p;
-        p.errMsg = errorCode;
-        send(ClientPacket.error, p, 0, true);
-        close();
     }
 
     NetAddress serverAddress() {
@@ -220,9 +222,8 @@ class CmdNetClient : SimpleNetConnection {
                 assert(!!t, "team not found: "~team);
                 ctl.addTeam(t);
                 //if it is our team, enable a local->server input proxy
-                //oops that thing accepts only one team
                 if (map.player == mPlayerName)
-                    mClControl.setMe(t);
+                    mClControl.addTeam(t);
             }
         }
         mShell.masterTime.paused = false;
@@ -259,13 +260,13 @@ class CmdNetClient : SimpleNetConnection {
         send(ClientPacket.hello, p);
     }
 
-    private void conDisconnect(NetPeer sender) {
+    private void conDisconnect(NetPeer sender, uint code) {
         mHadDisconnect = true;
         assert(sender is mServerCon);
         mServerCon = null;
         state(ClientState.idle);
         if (onDisconnect)
-            onDisconnect(this);
+            onDisconnect(this, cast(DiscReason)code);
     }
 
     private void conReceive(NetPeer sender, ubyte channelId, ubyte* data,
@@ -273,7 +274,7 @@ class CmdNetClient : SimpleNetConnection {
     {
         //packet structure: 2 bytes message id + data
         if (dataLen < 2) {
-            closeWithReason("error_protocol");
+            close(DiscReason.protocolError);
             return;
         }
         scope unmarshal = new UnmarshalBuffer(data[0..dataLen]);
@@ -288,7 +289,7 @@ class CmdNetClient : SimpleNetConnection {
                 auto p = unmarshal.read!(SPError)();
                 if (onError)
                     onError(this, p.errMsg, p.args);
-                //close();
+                //no close(), errors are non-fatal
                 break;
             case ServerPacket.conAccept:
                 //handshake accepted, connection is complete
@@ -302,8 +303,14 @@ class CmdNetClient : SimpleNetConnection {
             case ServerPacket.cmdResult:
                 //result from a command ran by lobbyCmd()
                 auto p = unmarshal.read!(SPCmdResult)();
-                if (onError && p.msg.length > 0)
-                    onError(this, p.msg, null);
+                if (p.success) {
+                    char[][] lines = str.splitlines(p.msg);
+                    if (onMessage)
+                        onMessage(this, lines);
+                } else {
+                    if (onError && p.msg.length > 0)
+                        onError(this, p.msg, null);
+                }
                 break;
             case ServerPacket.gameInfo:
                 //info about other players while in lobby
@@ -345,9 +352,7 @@ class CmdNetClient : SimpleNetConnection {
                 mShell.setFrameReady(p.timestamp);
                 break;
             default:
-                if (onError)
-                    onError(this, "error_protocol", []);
-                closeWithReason("error_protocol");
+                close(DiscReason.protocolError);
         }
     }
 
@@ -379,11 +384,11 @@ class CmdNetControl : ClientControl {
     private {
         CmdNetClient mConnection;
         GameShell mShell;
-        Team mOwnedTeam;
+        Team[] mOwnedTeams;
     }
 
-    void setMe(Team myTeam) {
-        mOwnedTeam = myTeam;
+    void addTeam(Team myTeam) {
+        mOwnedTeams ~= myTeam;
     }
 
     this(CmdNetClient con) {
@@ -392,10 +397,10 @@ class CmdNetControl : ClientControl {
     }
 
     TeamMember getControlledMember() {
-        if (!mOwnedTeam)
-            return null;
-        if (mOwnedTeam.active) {
-            return mOwnedTeam.getActiveMember();
+        foreach (Team t; mOwnedTeams) {
+            if (t.active) {
+                return t.getActiveMember();
+            }
         }
         return null;
     }
@@ -418,39 +423,82 @@ class NetGameControl : GameControl {
     }
 }
 
+//we need to be able to catch entered commands and transmit them
+//no tab completion/history for now
+private class CnsEditLine : EditLine {
+    private CmdNetClientTask mCl;
+    override protected bool handleKeyPress(KeyInfo infos) {
+        if (infos.code == Keycode.PAGEUP) {
+            mCl.mConsole.scrollBack(+1);
+        } else if (infos.code == Keycode.PAGEDOWN) {
+            mCl.mConsole.scrollBack(-1);
+        } else if (infos.code == Keycode.RETURN) {
+            mCl.executeCommand(text);
+            text = null;
+        } else {
+            return super.handleKeyPress(infos);
+        }
+        return true;
+    }
+}
+
 class CmdNetClientTask : Task {
     private {
         CmdNetClient mClient;
-        //so this is why trying to connect a second client from another program
-        //instance mysteriously failed...
-        //static int mInstance;
         DropDownList mTeams;
-        Label mLabel;
+        Label mLblError;
         ConfigNode mTeamNode;
         GameTask mGame;
-        Button mStartButton;
+        Button mConnectButton, mReadyButton, mHostButton;
         StringListWidget mPlayers;
-        EditLine mConnectTo;
+        EditLine mConnectTo, mNickname;
+        CnsEditLine mEdConsole;
+        LogWindow mConsole;
         char[] mPlayerName;
         //only needed when this client is starting the game
         GameConfig mGameConfig;
-        bool mHadError;
+        Widget mConnectDlg, mLobbyDlg;
+        Window mConnectWnd, mLobbyWnd;
     }
-import utils.random;
+
     this(TaskManager tm, char[] args = "") {
         super(tm);
 
-        auto mInstance = rngShared.next(10000);
-        mPlayerName = myformat("Player{}", mInstance);
         mClient = new CmdNetClient();
         mClient.onConnect = &onConnect;
         mClient.onDisconnect = &onDisconnect;
         mClient.onStartLoading = &onStartLoading;
         mClient.onUpdateGameInfo = &onUpdateGameInfo;
         mClient.onError = &onError;
+        mClient.onMessage = &onMessage;
 
-        auto box = new BoxContainer(false, false, 5);
-        mTeams = new DropDownList();
+        auto config = gConf.loadConfig("lobby_gui");
+        auto loader = new LoadGui(config);
+        loader.registerWidget!(CnsEditLine)("cnseditline");
+        loader.load();
+
+        //--------------------------------------------------------------
+
+        mConnectDlg = loader.lookup("connect_root");
+
+        loader.lookup!(Button)("btn_cancel").onClick = &cancelClick;
+        mConnectButton = loader.lookup!(Button)("btn_connect");
+        mConnectButton.onClick = &connectClick;
+
+        mLblError = loader.lookup!(Label)("lbl_error");
+        mLblError.text = "";
+
+        mConnectTo = loader.lookup!(EditLine)("ed_address");
+        mNickname = loader.lookup!(EditLine)("ed_nick");
+
+        mConnectWnd = gWindowManager.createWindow(this, mConnectDlg,
+            _("lobby.caption_connect"));
+
+        //--------------------------------------------------------------
+
+        mLobbyDlg = loader.lookup("lobby_root");
+
+        mTeams = loader.lookup!(DropDownList)("dd_teams");
         mTeamNode = gConf.loadConfig("teams").getSubNode("teams");
         char[][] contents;
         foreach (ConfigNode subn; mTeamNode) {
@@ -458,61 +506,79 @@ import utils.random;
         }
         mTeams.list.setContents(contents);
         mTeams.onSelect = &teamSelect;
-        mTeams.enabled = false;
-        box.add(mTeams);
 
-        mPlayers = new StringListWidget();
-        box.add(mPlayers);
+        mPlayers = loader.lookup!(StringListWidget)("list_players");
 
-        mStartButton = new Button();
-        mStartButton.text = "Connect";
-        mStartButton.onClick = &startGame;
-        box.add(mStartButton);
+        mHostButton = loader.lookup!(Button)("btn_host");
+        mHostButton.onClick = &hostGame;
+        mReadyButton = loader.lookup!(Button)("btn_ready");
+        mReadyButton.enabled = false;  //xxx later
+        mConsole = loader.lookup!(LogWindow)("console");
+        mEdConsole = loader.lookup!(CnsEditLine)("ed_console");
+        mEdConsole.mCl = this;
 
-        mLabel = new Label();
-        mLabel.text = "Idle";
-        mLabel.drawBorder = false;
-        box.add(mLabel);
+        loader.lookup!(Button)("btn_leave").onClick = &cancelClick;
 
-        mConnectTo = new EditLine();
-        mConnectTo.text = "localhost:12499";
-        box.add(mConnectTo);
-
-        gWindowManager.createWindow(this, box, "Client", Vector2i(200, 0));
-        mInstance++;
+        mLobbyWnd = gWindowManager.createWindow(this, mLobbyDlg, "");
+        mLobbyWnd.visible = false;
     }
 
     private void onConnect(CmdNetClient sender) {
-        mLabel.text = "Connected: " ~ sender.playerName;
-        mStartButton.text = "Start game!";
-        mStartButton.enabled = true;
-        mTeams.enabled = true;
+        mPlayerName = sender.playerName;
+        mConnectWnd.visible = false;
+        mLobbyWnd.visible = true;
+        auto props = mLobbyWnd.properties;
+        props.windowTitle = _("lobby.caption_lobby", mPlayerName);
+        mLobbyWnd.properties = props;
     }
 
-    private void onDisconnect(CmdNetClient sender) {
-        if (!mHadError)
-            mLabel.text = "Idle";
-        mStartButton.text = "Connect";
-        mStartButton.enabled = true;
-        mTeams.enabled = false;
-        mPlayers.setContents([""]);
+    private void onDisconnect(CmdNetClient sender, DiscReason code) {
+        assert(code <= DiscReason.max);
+        if (code == 0)
+            mLblError.text = "";
+        else
+            mLblError.text = _("lobby.error", reasonToString[code]);
+        mConnectButton.text = _("lobby.connect");
+        mConnectButton.enabled = true;
+        if (mLobbyWnd.visible) {
+            //disconnected in lobby, disable everything
+            mTeams.enabled = false;
+            mPlayers.setContents([""]);
+            mPlayers.enabled = false;
+            mHostButton.enabled = false;
+            mReadyButton.enabled = false;
+            //show error message in console
+            mConsole.writefln(_("lobby.c_disconnect",
+                reasonToString[code]));
+            mConsole.enabled = false;
+            mEdConsole.enabled = false;
+        }
     }
 
     private void teamSelect(DropDownList sender) {
         mClient.deployTeam(mTeamNode.getSubNode(sender.selection));
     }
 
-    private void startGame(Button sender) {
-        mHadError = false;
+    private void connectClick(Button sender) {
+        mClient.connect(NetAddress(mConnectTo.text), mNickname.text);
+        sender.text = _("lobby.connecting");
+        sender.enabled = false;
+    }
+
+    private void cancelClick(Button sender) {
+        kill();
+    }
+
+    private void hostGame(Button sender) {
         if (mClient.connected) {
             ConfigNode node = gConf.loadConfig("newgame");
             GameConfig conf = loadGameConfig(node, null, false);
             mClient.startLoading(conf);
-        } else {
-            mClient.connect(NetAddress(mConnectTo.text), mPlayerName);
-            mLabel.text = "Connecting";
-            mStartButton.enabled = false;
         }
+    }
+
+    private void executeCommand(char[] cmd) {
+        mClient.lobbyCmd(cmd);
     }
 
     private void onStartLoading(SimpleNetConnection sender, GameLoader loader) {
@@ -529,10 +595,21 @@ import utils.random;
     }
 
     private void onError(CmdNetClient sender, char[] msg, char[][] args) {
-        mLabel.text = "Error: " ~ msg;
-        gDefaultOutput.writefln("{}", msg);
-        mHadError = true;
-        mPlayers.setContents([""]);
+        if (mLobbyWnd.visible) {
+            //lobby error
+            mConsole.writefln(_("lobby.c_serror", msg));
+        } else {
+            //connection error
+            mLblError.text = _("lobby.error", msg);
+        }
+    }
+
+    private void onMessage(CmdNetClient sender, char[][] text) {
+        if (mLobbyWnd.visible) {
+            foreach (l; text) {
+                mConsole.writefln(l);
+            }
+        }
     }
 
     override protected void onKill() {

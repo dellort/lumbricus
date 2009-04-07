@@ -203,7 +203,7 @@ private:
             arraySearch(mPeers, sender), channelId, data[0..dataLen]);
     }
 
-    void onDisconnect(NetPeer sender) {
+    void onDisconnect(NetPeer sender, uint code) {
         mOut.writefln("* Peer {} disconnected.", arraySearch(mPeers, sender));
     }
 

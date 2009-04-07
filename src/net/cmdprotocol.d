@@ -37,6 +37,31 @@ enum ClientPacket : ushort {
     gameCommand,
 }
 
+//reason for disconnection by the server
+//if you need more codes, add to the end
+enum DiscReason : uint {
+    none,
+    internalError,     //something unexpected went wrong
+    protocolError,     //an invalid packet was received
+    timeout,           //no response in a specified time
+    wrongVersion,      //version mismatch between server and client
+    serverShutdown,    //the server is going down
+    invalidNick,       //the given nick is invalid or already in use
+    gameStarted,       //the game has already started, server is not accepting
+                       //  connections any more
+}
+
+const char[][DiscReason.max+1] reasonToString = [
+    "",
+    "error_internal",
+    "error_protocol",
+    "error_timeout",
+    "error_wrongversion",
+    "error_servershutdown",
+    "error_invalidnick",
+    "error_gamestarted",
+    ];
+
 
 //-------------------- Server-to-client protocol --------------------
 

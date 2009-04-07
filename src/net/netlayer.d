@@ -238,7 +238,7 @@ class NetHost {
             case ENET_EVENT_TYPE_DISCONNECT:
                 auto peer = cast(NetPeer)event.peer.data;
                 if (peer) {
-                    peer.handleDisconnect();
+                    peer.handleDisconnect(event.data);
                     event.peer.data = null;
                     if (event.peer in mPeers)
                         mPeers.remove(event.peer);
@@ -290,7 +290,7 @@ class NetPeer {
     ///called when this peer finishes connecting
     void delegate(NetPeer sender) onConnect;
     ///called when connection has been terminated
-    void delegate(NetPeer sender) onDisconnect;
+    void delegate(NetPeer sender, uint code) onDisconnect;
     void delegate(NetPeer sender, ubyte channelId, ubyte* data,
         size_t dataLen) onReceive;
 
@@ -314,10 +314,10 @@ class NetPeer {
             onConnect(this);
     }
 
-    private void handleDisconnect() {
+    private void handleDisconnect(uint code) {
         mState = ConnectionState.closed;
         if (onDisconnect)
-            onDisconnect(this);
+            onDisconnect(this, code);
     }
 
     private void handleReceive(ubyte channelId, ubyte* data, size_t dataLen) {
@@ -327,11 +327,11 @@ class NetPeer {
 
     ///close the connection
     ///you are guaranteed not to receive packets after this call
-    void disconnect() {
+    void disconnect(uint code = 0) {
         if (mState == ConnectionState.establish)
             reset();
         else
-            enet_peer_disconnect(mPeer, 0);
+            enet_peer_disconnect(mPeer, code);
         mState = ConnectionState.closed;
     }
 

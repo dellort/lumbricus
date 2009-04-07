@@ -105,7 +105,8 @@ class GuiConsole : Container {
 
         mHeightDiv = standalone ? 1 : 2;
 
-        mLogWindow = new LogWindow(font);
+        mLogWindow = new LogWindow();
+        mLogWindow.font = font;
         mEdit = new ConsoleEditLine();
         mEdit.font = font;
         mEdit.prompt = "> ";
@@ -232,5 +233,9 @@ class GuiConsole : Container {
     }
     public void backcolor(Color col) {
         mBackColor = col;
+    }
+
+    static this() {
+        WidgetFactory.register!(typeof(this))("console");
     }
 }

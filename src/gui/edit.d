@@ -256,6 +256,20 @@ class EditLine : Widget {
         needResize(true);
     }
 
+    override void loadFrom(GuiLoader loader) {
+        auto node = loader.node;
+
+        auto fnt = gFramework.fontManager.loadFont(
+            node.getStringValue("font"), false);
+        if (fnt)
+            font = fnt;
+
+        mCurline = loader.locale()(node.getStringValue("text", mCurline));
+        mPrompt = node.getStringValue("prompt", mPrompt);
+
+        super.loadFrom(loader);
+    }
+
     static this() {
         WidgetFactory.register!(typeof(this))("editline");
     }

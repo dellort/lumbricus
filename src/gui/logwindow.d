@@ -28,12 +28,16 @@ public class LogWindow : Widget, Output {
     private int mScrollPos;
 
     ///initialize console, consoleFont will be used for rendering text
-    public this(Font consoleFont) {
-        mConsoleFont = consoleFont;
-        mLineHeight = consoleFont.properties.size + 3;
+    public this(Font consoleFont = null) {
+        font = consoleFont ? consoleFont : gFramework.getFont("console");
         mBackLogIdx = 0;
         mBackLogLen = 0;
         mScrollPos = 0;
+    }
+
+    void font(Font fnt) {
+        mConsoleFont = fnt;
+        mLineHeight = fnt.properties.size + 3;
     }
 
     void onDraw(Canvas scrCanvas) {
@@ -139,5 +143,20 @@ public class LogWindow : Widget, Output {
                 scrollBack(wu ? +1 : -1);
             }
         }
+    }
+
+    override void loadFrom(GuiLoader loader) {
+        auto node = loader.node;
+
+        auto fnt = gFramework.fontManager.loadFont(
+            node.getStringValue("font"), false);
+        if (fnt)
+            font = fnt;
+
+        super.loadFrom(loader);
+    }
+
+    static this() {
+        WidgetFactory.register!(typeof(this))("logwindow");
     }
 }

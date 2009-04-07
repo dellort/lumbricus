@@ -19,6 +19,7 @@ import utils.log;
 debug import utils.random;
 
 import tango.core.Thread;
+import tango.util.Convert;
 
 enum CmdServerState {
     lobby,
@@ -104,7 +105,7 @@ class CmdNetServer {
     //disconnect, free memory
     void shutdown() {
         foreach (cl; mClients) {
-            cl.closeWithReason("server_shutdown");
+            cl.close(DiscReason.serverShutdown);
         }
         mHost.serviceAll();
         delete mHost;
@@ -118,11 +119,22 @@ class CmdNetServer {
             return false;
         //xxx check for invalid chars (e.g. space)
         //check for names already in use
-        foreach (cl; mClients) {
-            if (cl.state != ClientConState.establish && cl.playerName == nick) {
-                return false;
+        char[] curNick = nick;
+        int idx = 2;
+        while (true) {
+            foreach (cl; mClients) {
+                if (cl.state != ClientConState.establish
+                    && cl.playerName == curNick)
+                {
+                    //name is in use, append "_x" with incr. number to it
+                    curNick = nick ~ "_" ~ to!(char[])(idx);
+                    idx++;
+                    continue;
+                }
             }
+            break;
         }
+        nick = curNick;
         return true;
     }
 
@@ -322,12 +334,12 @@ private class CmdNetClientConnection {
         state(ClientConState.establish);
         Trace.formatln("New connection from {}", address);
         if (mOwner.state != CmdServerState.lobby) {
-            closeWithReason("error_gamestarted");
+            close(DiscReason.gameStarted);
         }
     }
 
     private void initCmds() {
-        mCmd = new CommandLine(globals.defaultOut);
+        mCmd = new CommandLine(mCmdOutBuffer);
         mCmds = new CommandBucket();
         mCmds.bind(mCmd);
     }
@@ -336,16 +348,16 @@ private class CmdNetClientConnection {
         return mPeer.address();
     }
 
-    void close() {
-        mPeer.disconnect();
+    void close(DiscReason why = DiscReason.none) {
+        mPeer.disconnect(why);
     }
 
-    void closeWithReason(char[] errorCode, char[][] args = null) {
+    //transmit a non-fatal error message
+    void sendError(char[] errorCode, char[][] args = null) {
         SPError p;
         p.errMsg = errorCode;
         p.args = args;
         send(ServerPacket.error, p, 0, true);
-        close();
     }
 
     //enter a new state, and reset timer
@@ -375,7 +387,7 @@ private class CmdNetClientConnection {
             case ClientConState.establish:
                 //only allow clients to stay 5secs in wait/auth states
                 if (t - mStateEnter > timeSecs(5)) {
-                    closeWithReason("error_timeout");
+                    close(DiscReason.timeout);
                 }
                 break;
             default:
@@ -427,25 +439,22 @@ private class CmdNetClientConnection {
             case ClientPacket.error:
                 auto p = unmarshal.read!(CPError)();
                 Trace.formatln("Client reported error: {}", p.errMsg);
-                close();
                 break;
             case ClientPacket.hello:
-                    closeWithReason("error_wtf");
-                    return;
                 //this is the first packet a client should send after connecting
                 if (mState != ClientConState.establish) {
-                    closeWithReason("error_protocol");
+                    close(DiscReason.protocolError);
                     return;
                 }
                 auto p = unmarshal.read!(CPHello)();
                 //check version
                 if (p.protocolVersion != cProtocolVersion) {
-                    closeWithReason("error_wrongversion");
+                    close(DiscReason.wrongVersion);
                     return;
                 }
                 //verify nickname and connect player (nick might be changed)
                 if (!mOwner.checkNewNick(p.playerName)) {
-                    closeWithReason("error_invalidnick");
+                    close(DiscReason.invalidNick);
                     return;
                 }
                 mPlayerName = p.playerName;
@@ -459,7 +468,7 @@ private class CmdNetClientConnection {
             case ClientPacket.lobbyCmd:
                 //client issued a command into the server console
                 if (mState != ClientConState.connected) {
-                    closeWithReason("error_protocol");
+                    close(DiscReason.protocolError);
                     return;
                 }
                 auto p = unmarshal.read!(CPLobbyCmd)();
@@ -481,7 +490,8 @@ private class CmdNetClientConnection {
                 break;
             case ClientPacket.startLoading:
                 if (mOwner.state != CmdServerState.lobby) {
-                    closeWithReason("ccerror_wrongstate");
+                    //tried to host while game already started, not fatal
+                    sendError("ccerror_wrongstate");
                     return;
                 }
                 auto p = unmarshal.read!(CPStartLoading)();
@@ -489,11 +499,11 @@ private class CmdNetClientConnection {
                 break;
             case ClientPacket.deployTeam:
                 if (mState != ClientConState.connected) {
-                    closeWithReason("error_protocol");
+                    close(DiscReason.protocolError);
                     return;
                 }
                 if (mOwner.state != CmdServerState.lobby) {
-                    //closeWithReason("error_gamestarted");
+                    //close(DiscReason.gameStarted);
                     return;
                 }
                 auto p = unmarshal.read!(CPDeployTeam)();
@@ -503,7 +513,7 @@ private class CmdNetClientConnection {
                 break;
             case ClientPacket.loadDone:
                 if (mState != ClientConState.connected) {
-                    closeWithReason("error_protocol");
+                    close(DiscReason.protocolError);
                     return;
                 }
                 if (mOwner.state != CmdServerState.loading) {
@@ -516,7 +526,7 @@ private class CmdNetClientConnection {
                 break;
             case ClientPacket.gameCommand:
                 if (mState != ClientConState.connected) {
-                    closeWithReason("error_protocol");
+                    close(DiscReason.protocolError);
                     return;
                 }
                 if (mOwner.state != CmdServerState.playing) {
@@ -527,7 +537,7 @@ private class CmdNetClientConnection {
                 break;
             default:
                 //we have reliable networking, so the client did something wrong
-                closeWithReason("error_protocol");
+                close(DiscReason.protocolError);
         }
     }
 
@@ -536,24 +546,21 @@ private class CmdNetClientConnection {
         size_t dataLen)
     {
         assert(sender is mPeer);
-        //try {
-            //packet structure: 2 bytes message id + data
-            if (dataLen < 2) {
-                closeWithReason("error_protocol");
-                return;
-            }
-            scope unmarshal = new UnmarshalBuffer(data[0..dataLen]);
-            receive(channelId, unmarshal);
-        //} catch (Exception e) {
-        //    Trace.formatln("Unhandled exception: {} at {}({})", e.toString(),
-        //        e.file, e.line);
-        //    closeWithReason("error_internal", [e.msg]);
-        //}
+        //packet structure: 2 bytes message id + data
+        if (dataLen < 2) {
+            close(DiscReason.protocolError);
+            return;
+        }
+        scope unmarshal = new UnmarshalBuffer(data[0..dataLen]);
+        receive(channelId, unmarshal);
     }
 
     //NetPeer.onDisconnect
-    private void onDisconnect(NetPeer sender) {
+    private void onDisconnect(NetPeer sender, uint code) {
         assert(sender is mPeer);
+        if (code > 0)
+            Trace.formatln("Client disconnected with error: {}",
+                reasonToString[code]);
         state(ClientConState.closed);
     }
 
