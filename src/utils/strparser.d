@@ -6,7 +6,7 @@ import conv = tango.util.Convert;
 import tango.text.convert.Float : toFloat;
 import tango.core.Exception;
 import str = stdx.string;
-import utils.misc : myformat;
+import utils.misc;
 
 import utils.vector2 : Vector2, Vector2i, Vector2f;
 
@@ -127,8 +127,6 @@ public char[] boxUnParseVector2i(MyBox b) {
     return myformat("{} {}", v.x, v.y);
 }
 
-debug import tango.io.Stdout;
-
 unittest {
     assert(boxParseInt("123").unbox!(int) == 123);
     assert(boxParseInt("abc").type is null);
@@ -153,5 +151,5 @@ unittest {
     debug testParse("1 2.0");
     +/
 
-    debug Stdout.formatln("strparser.d unittest: passed.");
+    debug Trace.formatln("strparser.d unittest: passed.");
 }

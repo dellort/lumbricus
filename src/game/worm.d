@@ -642,7 +642,7 @@ class WormSprite : GObjectSprite {
         StaticStateInfo to)
     {
         super.stateTransition(from, to);
-        //Stdout.formatln("state {} -> {}", from.name, to.name);
+        //Trace.formatln("state {} -> {}", from.name, to.name);
 
         if (!mIsDead && (currentState is wsc.st_drowning)) {
             //die by drowning - are there more actions needed?
@@ -701,7 +701,7 @@ class WormSprite : GObjectSprite {
             nstate = wsc.st_getup;
         }
         //if (nstate !is wsc.st_stand)
-          //  Stdout.formatln(nstate.name);
+          //  Trace.formatln(nstate.name);
         super.setState(nstate, for_end);
     }
 

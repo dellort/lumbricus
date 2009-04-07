@@ -16,8 +16,6 @@ import utils.misc;
 import utils.time;
 import utils.configfile;
 
-debug import tango.io.Stdout;
-
 private FMODSoundDriver gBase;
 
 class FMODSound : DriverSound {
@@ -29,7 +27,7 @@ class FMODSound : DriverSound {
     }
 
     this(DriverSoundData data) {
-        debug Stdout.formatln("Load sound {}",data.filename);
+        debug Trace.formatln("Load sound {}",data.filename);
         mSourceSt = gFS.open(data.filename);
         mType = data.type;
         //I'm assuming SoundType.sfx means load into memory, SoundType.music

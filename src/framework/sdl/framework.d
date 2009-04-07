@@ -20,7 +20,6 @@ import utils.configfile;
 import math = tango.math.Math;
 import ieee = tango.math.IEEE;
 import stdx.stream;
-import tango.io.Stdout;
 import tango.stdc.stringz;
 import tango.sys.Environment;
 
@@ -239,9 +238,9 @@ void doMirrorX(SurfaceData* data) {
             case Transparency.None: {
                 if (rle || !gSDLDriver.isDisplayFormat(mSurface, false)) {
                     nsurf = SDL_DisplayFormat(mSurface);
-                    /+Stdout.formatln("before: {}",
+                    /+Trace.formatln("before: {}",
                         gSDLDriver.pixelFormatToString(mSurface.format));
-                    Stdout.formatln("after: {}",
+                    Trace.formatln("after: {}",
                         gSDLDriver.pixelFormatToString(nsurf.format));+/
                     if (rle) {
                         uint key = simpleColorToSDLColor(nsurf, mData.colorkey);
@@ -405,7 +404,7 @@ class SDLDriver : FrameworkDriver {
         /*SDL_Rect** modes;
         modes = SDL_ListModes(null, SDL_FULLSCREEN | SDL_OPENGL);
         for (int i = 0; modes[i]; ++i) {
-            Stdout.formatln("{}x{}", modes[i].w, modes[i].h);
+            Trace.formatln("{}x{}", modes[i].w, modes[i].h);
         }*/
 
         mCursorStd = SDL_GetCursor();

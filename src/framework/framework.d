@@ -27,8 +27,6 @@ import utils.gzip;
 import stdx.stream;
 import str = stdx.string;
 
-debug import tango.io.Stdout;
-
 //**** driver stuff
 
 

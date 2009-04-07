@@ -144,8 +144,6 @@ struct GeneratorConfig {
 }
 
 
-debug import tango.io.Stdout;
-
 //debugging: dump polygon outlines into the levle image
 //version = dump_polygons;
 
@@ -318,7 +316,7 @@ private final class Group {
             Segment cur = segments.ring_next(start);
             if (start is last || cur is last)
                 break;
-            //debug Stdout.formatln("remove {} {}", cur.a.toString, cur.b.toString);
+            //debug Trace.formatln("remove {} {}", cur.a.toString, cur.b.toString);
             segments.remove(cur);
         }
 

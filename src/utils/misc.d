@@ -10,7 +10,7 @@ public import tango.stdc.stdarg : va_list;
 public import tango.math.Math : min, max;
 
 //because printf debugging is common and usefull
-public import tango.io.Stdout : Stdout;
+public import tango.util.log.Trace : Trace;
 
 T realmod(T)(T a, T m) {
     T res = a % m;

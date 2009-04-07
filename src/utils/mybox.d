@@ -1,7 +1,7 @@
 module utils.mybox;
 
 import str = stdx.string;
-import utils.misc : myformat;
+import utils.misc;
 
 class MyBoxException : Exception {
     this(char[] msg) { super(msg); }
@@ -227,7 +227,6 @@ struct MyBox {
     }
 }
 
-debug import tango.io.Stdout;
 
 unittest {
     MyBox box;
@@ -266,7 +265,7 @@ unittest {
     //NOTE: assume compiler sets init to null, because int is intialized with
     //      zero; doesn't need to be true.
     if (typeid(int).init.length > 0) {
-        debug Stdout.formatln("mybox.d unittest: zero-init not tested!");
+        debug Trace.formatln("mybox.d unittest: zero-init not tested!");
     }
     box.initDynamic(typeid(int));
     assert(box.unbox!(int) == 0);
@@ -309,5 +308,5 @@ unittest {
     box3.box!(long)(123);
     assert(box3.asObject() is null);
 
-    debug Stdout.formatln("mybox.d unittest: passed.");
+    debug Trace.formatln("mybox.d unittest: passed.");
 }

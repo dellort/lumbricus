@@ -249,14 +249,14 @@ class Sequence {
                 mQueuedState = curstate;
             return;
         }
-        //Stdout.formatln("set state: ", sstate.name);
+        //Trace.formatln("set state: ", sstate.name);
         //possibly start state change
         //look if the leaving sequence should play
         bool play_leave = false;
         if (curstate) {
             play_leave |= curstate.hasLeaveTransition(state);
         }
-        //Stdout.formatln("play leave: ", play_leave);
+        //Trace.formatln("play leave: ", play_leave);
         if (!curstate || !play_leave) {
             //start new state, skip whatever did go on before
             mQueuedState = null;
@@ -545,9 +545,9 @@ class WormStateDisplay : AniStateDisplay {
 
         /+
         if (s) {
-            Stdout.formatln("substate {}/{}/{}", s.owner.name, cast(int)(s.type), s.index);
+            Trace.formatln("substate {}/{}/{}", s.owner.name, cast(int)(s.type), s.index);
         } else {
-            Stdout.formatln("reset");
+            Trace.formatln("reset");
         }
         +/
 
@@ -612,7 +612,7 @@ class WormStateDisplay : AniStateDisplay {
         ended &= !mCurSubSeq.wait_forever;
 
         //if (mCurSubSeq.type == SeqType.TurnAroundY)
-            //Stdout.formatln("side = {}", angleLeftRight(mAngles[0], -1, +1));
+            //Trace.formatln("side = {}", angleLeftRight(mAngles[0], -1, +1));
 
         if (!ended) {
             //check turnaround, as it is needed for the jetpack
@@ -631,7 +631,7 @@ class WormStateDisplay : AniStateDisplay {
             }
             return;
         } else {
-            //Stdout.formatln("ended");
+            //Trace.formatln("ended");
             //next step, either the following SubSequence or a new seq/state
             auto next = mCurSubSeq.getNext();
             if (next) {

@@ -14,7 +14,6 @@ import utf = stdx.utf;
 import utils.misc;
 import cstdlib = tango.stdc.stdlib;
 
-debug import tango.io.Stdout;
 
 char[] glErrorToString(GLenum errCode) {
     char[] res = fromStringz(cast(char*)gluErrorString(errCode));
@@ -28,7 +27,7 @@ private bool checkGLError(char[] msg, bool crash = false) {
     GLenum err = glGetError();
     if (err == GL_NO_ERROR)
         return false;
-    debug Stdout.formatln("Warning: GL error at '{}': {}", msg,
+    debug Trace.formatln("Warning: GL error at '{}': {}", msg,
         glErrorToString(err));
     if (crash)
         assert(false, "not continuing");
@@ -142,7 +141,7 @@ class GLSurface : SDLDriverSurface {
         if (checkGLError("loading texture")) {
             //set error flag to prevent changing the texture data
             mError = true;
-            debug Stdout.formatln("Failed to create texture of size {}.",
+            debug Trace.formatln("Failed to create texture of size {}.",
                 mTexSize);
             //throw new Exception(
             //    "glTexImage2D failed, probably texture was too big. "

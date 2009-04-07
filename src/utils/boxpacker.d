@@ -6,7 +6,6 @@
 //License: New BSD License
 module utils.boxpacker;
 
-//import tango.io.Stdout;
 import utils.vector2;
 
 private {
@@ -129,7 +128,7 @@ struct PackerLine {
         res.origin = origin;
         res.size = size;
         res.page = page;
-        //debug Stdout.formatln(`* creating a new cache line. origin: {}   size: {}   page: {}`, origin, size, page);
+        //debug Trace.formatln(`* creating a new cache line. origin: {}   size: {}   page: {}`, origin, size, page);
         return res;
     }
 

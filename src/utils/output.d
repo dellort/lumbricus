@@ -1,9 +1,8 @@
 module utils.output;
 
 import stdx.utf;
-import tango.io.Stdout;
 import stdx.stream;
-import utils.misc : formatfx_s, va_list;
+import utils.misc : formatfx_s, va_list, Trace;
 
 /// interface for a generic text output stream (D currently lacks support for
 /// text streams, so we have to do it)
@@ -43,7 +42,9 @@ public class StdioOutput : OutputHelper {
     public static Output output;
 
     void writeString(char[] str) {
-        Stdout(str).flush;
+        Trace.format("{}", str);
+        //oh hell, format() doesn't seem to flush, WHAT IS THE POINT OF THIS?
+        Trace.flush();
     }
 
     static this() {

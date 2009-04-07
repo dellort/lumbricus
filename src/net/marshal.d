@@ -165,7 +165,6 @@ class UnmarshalBuffer {
     }
 }
 
-debug import tango.io.Stdout;
 
 unittest {
     enum E {
@@ -211,7 +210,7 @@ unittest {
     S s2 = um.read!(S);
 
     foreach (int idx, x; s2.tupleof) {
-        //Stdout.formatln("  {} = {}", s2.tupleof[idx].stringof, x);
+        //Trace.formatln("  {} = {}", s2.tupleof[idx].stringof, x);
         assert(s.tupleof[idx] == s2.tupleof[idx]);
     }
 }

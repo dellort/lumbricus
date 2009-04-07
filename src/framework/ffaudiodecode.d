@@ -4,13 +4,13 @@ module framework.ffaudiodecode;
 
 import derelict.ffmpeg.av;
 import utils.time;
+import utils.misc;
 
 import stdx.stream;
 import tango.stdc.stringz;
 import tango.util.Convert;
 import tango.stdc.string : memmove;
 
-debug import tango.io.Stdout;
 
 extern(C):
 
@@ -29,7 +29,7 @@ int avwritestr(void *opaque, ubyte *buf, int buf_size) {
 }
 
 long avseekstr(void *opaque, long offset, int whence) {
-    //debug Stdout.formatln("Seek {} ({})", offset, whence);
+    //debug Trace.formatln("Seek {} ({})", offset, whence);
     auto st = cast(Stream)opaque;
     assert(!!st);
     if (whence == AVSEEK_SIZE)
@@ -105,7 +105,7 @@ class AudioDecoderStream : Stream {
         if (!fmt)
             throw new Exception("Failed to determine input format");
 
-        debug Stdout.formatln("Container format: {}",
+        debug Trace.formatln("Container format: {}",
             fromStringz(fmt.long_name));
 
         //allocate stream structure and open the file with the format
@@ -139,7 +139,7 @@ class AudioDecoderStream : Stream {
                 //we have the audio stream requested by the user
                 mCodecCtx = mFmtCtx.streams[i].codec;
                 mStreamIdx = i;
-                debug Stdout.formatln("{}: Audio stream, CodecID={:x#}",
+                debug Trace.formatln("{}: Audio stream, CodecID={:x#}",
                     i, mCodecCtx.codec_id);
 
                 //initialize decoder
@@ -147,7 +147,7 @@ class AudioDecoderStream : Stream {
                 if (!codec || avcodec_open(mCodecCtx, codec) < 0) {
                     throw new Exception("Failed to load a matching decoder");
                 }
-                debug Stdout.formatln("Codec: {}",fromStringz(codec.long_name));
+                debug Trace.formatln("Codec: {}",fromStringz(codec.long_name));
 
                 //calculate stream duration
                 mDuration = timeMusecs((1_000_000L*mFmtCtx.streams[i].duration
@@ -342,7 +342,7 @@ void testAudioDecode() {
     //char[] fn = r"..\data\data\music.wav";
     scope f = new File(fn, FileMode.In);
     auto s = new AudioDecoderStream(f, fn);
-    Stdout.formatln("{}Hz, {}Ch, {}Bit, {}", s.rate, s.channels, s.bits,
+    Trace.formatln("{}Hz, {}Ch, {}Bit, {}", s.rate, s.channels, s.bits,
         s.duration);
 
     scope fout = new File("out.raw", FileMode.OutNew);
@@ -352,7 +352,7 @@ void testAudioDecode() {
         int len = s.readBlock(buf.ptr, buf.length);
         fout.writeBlock(buf.ptr, len);
         total += len;
-        Stdout.format("{} bytes written            \r",total).flush;
+        Trace.format("{} bytes written            \r",total).flush;
         if (len < buf.length)
             break;
     }

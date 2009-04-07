@@ -8,7 +8,7 @@ import tango.text.convert.Float : toFloat;
 import tango.core.Exception;
 import base64 = tango.io.encode.Base64;
 import utils.output : Output, StringOutput;
-import utils.misc : formatfx, myformat;
+import utils.misc : formatfx, myformat, Trace;
 
 //only for byte[]
 import tango.io.device.Array;
@@ -99,7 +99,7 @@ private bool my_isid(dchar c) {
         || (c >= 'a' && c <= 'z')
         || (c >= '0' && c <= '9')
         || (c == '_');
-    //Stdout.formatln("{} -> {}", c, r);
+    //Trace.formatln("{} -> {}", c, r);
     return r;
 }
 
@@ -1573,13 +1573,11 @@ public class ConfigFile {
 
 debug:
 
-import tango.io.Stdout;
-
 private bool test_error;
 
 ConfigNode debugParseFile(char[] f) {
     void err(char[] msg) {
-        Stdout.formatln("configfile unittest: {}", msg);
+        Trace.formatln("configfile unittest: {}", msg);
         test_error = true;
     }
     auto p = new ConfigFile(f, "test", &err);
@@ -1635,7 +1633,7 @@ unittest {
     assert (s4 == t4);
 
     assert (!test_error);
-    Stdout.formatln("configfile.d: unittest success");
+    Trace.formatln("configfile.d: unittest success");
 }
 
 /+

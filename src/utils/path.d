@@ -275,7 +275,7 @@ struct VFSPath {
     }
 }
 
-debug import tango.io.Stdout;
+import utils.misc : Trace;
 
 unittest {
     VFSPath v, v2;
@@ -373,5 +373,5 @@ unittest {
     assert(v.parent.parent.parent.mPath == "");
     assert(v.parent.parent.parent.parent.mPath == "");
 
-    debug Stdout.formatln("path.d unittest: passed");
+    debug Trace.formatln("path.d unittest: passed");
 }

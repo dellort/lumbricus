@@ -26,7 +26,7 @@ public Common globals;
 //the big singleton...
 //also contains some important initialization code
 class Common {
-    Log log;
+    LogStruct!("common") log;
     Output defaultOut;
     CommandLine cmdLine;
     ConfigNode programArgs; //command line for the lumbricus executable
@@ -57,8 +57,6 @@ class Common {
         globals = this;
         programArgs = args;
 
-        log = registerLog("common");
-
         readLogconf();
 
         if (args.getBoolValue("logconsole")) {
@@ -69,20 +67,6 @@ class Common {
 
         //will set global gResources
         resources = new Resources();
-        //GUI resources, this is a bit off here
-        guiResources = resources.loadResSet("guires.conf");
-
-        //copy the stupid timers
-        foreach (char[] name, PerfTimer cnt; gFramework.timers) {
-            timers[name] = cnt;
-        }
-
-        setVideoFromConf();
-        if (!gFramework.videoActive) {
-            //this means we're F****D!!1  ("FOOLED")
-            log("ERROR: couldn't initialize video");
-            throw new Exception("can't continue");
-        }
 
         ConfigNode langconf = gConf.loadConfig("language");
         char[] langId = programArgs["language_id"];
@@ -90,10 +74,28 @@ class Common {
             langId = langconf.getStringValue("language_id", "de");
         initLocale(langId);
 
+        localizedKeynames = localeRoot.bindNamespace("keynames");
+    }
+
+    void initGUIStuff() {
+        //????????????
+        //copy the stupid timers
+        foreach (char[] name, PerfTimer cnt; gFramework.timers) {
+            timers[name] = cnt;
+        }
+
+        //GUI resources, this is a bit off here
+        guiResources = resources.loadResSet("guires.conf");
+
         gFramework.fontManager.readFontDefinitions(
             gConf.loadConfig("fonts"));
 
-        localizedKeynames = localeRoot.bindNamespace("keynames");
+        setVideoFromConf();
+        if (!gFramework.videoActive) {
+            //this means we're F****D!!1  ("FOOLED")
+            log("ERROR: couldn't initialize video");
+            throw new Exception("can't continue");
+        }
     }
 
     //read configuration from video.conf and set video mode

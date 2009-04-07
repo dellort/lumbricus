@@ -446,7 +446,7 @@ class Widget {
             mLayoutNeedReallocate = false;
             /+auto diff = size - layoutCachedContainerSizeRequest();
             if (diff.x < 0 || diff.y < 0) {
-                Stdout.formatln("warning: diff={} for {}",diff,this);
+                Trace.formatln("warning: diff={} for {}",diff,this);
             }+/
             layoutSizeAllocation();
         }
@@ -655,7 +655,7 @@ class Widget {
                 m.captureMouse = this;
             }
         }
-        // Stdout.formatln("disp: {} {}", this, event);
+        // Trace.formatln("disp: {} {}", this, event);
         if (event.isKeyEvent) {
             //check for <tab> key
             if (event.keyEvent.isDown && event.keyEvent.code == Keycode.TAB

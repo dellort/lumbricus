@@ -6,7 +6,6 @@ import str = stdx.string;
 import utils.misc;
 import utils.mybox;
 
-debug import tango.io.Stdout;
 
 import tango.core.Traits : isAssocArrayType, isStaticArrayType;
 
@@ -452,7 +451,7 @@ class Types {
         //assert (k.isSubTypeOf(method.klass()));
         /+ xxx
         if (!k.isSubTypeOf(m.klass())) {
-            Stdout.formatln("{} {} {}", k.name, m.klass.name, m.name);
+            Trace.formatln("{} {} {}", k.name, m.klass.name, m.name);
         }
         assert (k.isSubTypeOf(m.klass()));
         +/
@@ -1105,7 +1104,7 @@ class Class {
 
     final Object newInstance() {
         if (!mCreateDg) {
-            debug Stdout.formatln("no: {}", name());
+            debug Trace.formatln("no: {}", name());
             return null;
         }
         auto c = types().mFoo;
@@ -1452,16 +1451,16 @@ void not_main() {
 
 void debugDumpTypeInfos(Types t) {
     foreach (Type type; t.allTypes()) {
-        Stdout.formatln("{}", type);
+        Trace.formatln("{}", type);
         if (auto rt = cast(StructuredType)type) {
             if (auto cl = rt.klass()) {
-                Stdout.formatln("  structured type '{}', known members:", cl.name());
+                Trace.formatln("  structured type '{}', known members:", cl.name());
                 foreach (ClassElement e; cl.elements()) {
                     if (auto m = cast(ClassMember)e) {
-                        Stdout.formatln("  - {} @ {} : {}", m.name(), m.offset(),
+                        Trace.formatln("  - {} @ {} : {}", m.name(), m.offset(),
                             m.type());
                     } else if (auto m = cast(ClassMethod)e) {
-                        Stdout.formatln("  - {}() @ {:x#}", m.name(), m.address());
+                        Trace.formatln("  - {}() @ {:x#}", m.name(), m.address());
                     }
                 }
             }
@@ -1519,15 +1518,15 @@ void debugDumpClassGraph(Types t, Object x) {
                     }
                 }
                 unknown[orgtype] = info;
-                Stdout.formatln("unknown class");
+                Trace.formatln("unknown class");
                 continue;
             }
-            Stdout.formatln("{} {} {:x8#}:", cast(StructType)st ? "struct" : "class",
+            Trace.formatln("{} {} {:x8#}:", cast(StructType)st ? "struct" : "class",
                 cur.type, cur.ptr);
             Class xc = castStrict!(StructuredType)(cur.type).klass();
             if (!xc) {
                 unknown[cur.type.typeInfo] = "no info";
-                Stdout.formatln("  no info");
+                Trace.formatln("  no info");
                 continue;
             }
             while (xc) {
@@ -1535,35 +1534,35 @@ void debugDumpClassGraph(Types t, Object x) {
                 foreach (ClassElement e; xc.elements()) {
                     if (auto m = cast(ClassMember)e) {
                         SafePtr pm = m.get(cur);
-                        Stdout.formatln("  {} = ({:x8#}) '{}'", m.name(), pm.ptr, sp2str(pm));
+                        Trace.formatln("  {} = ({:x8#}) '{}'", m.name(), pm.ptr, sp2str(pm));
                         check(pm);
                     }
                 }
                 xc = xc.superClass();
             }
         } else if (auto art = cast(ArrayType)cur.type) {
-            Stdout.formatln("array {} len={:d} {:x8#}:", cur.type, art.getArray(cur).length,
+            Trace.formatln("array {} len={:d} {:x8#}:", cur.type, art.getArray(cur).length,
                 cur.ptr);
-            Stdout("    [");
+            Trace.format("    [");
             ArrayType.Array arr = art.getArray(cur);
             for (int i = 0; i < arr.length; i++) {
                 if (i != 0)
-                    Stdout(", ");
-                Stdout(sp2str(arr.get(i)));
+                    Trace.format(", ");
+                Trace.format("{}", (sp2str(arr.get(i))));
                 check(arr.get(i));
             }
-            Stdout.formatln("]");
+            Trace.formatln("]");
         }
     }
-    Stdout.formatln("unknown types:");
+    Trace.formatln("unknown types:");
     foreach (TypeInfo k, char[] v; unknown) {
         char[] more = v;
         if (auto tic = cast(TypeInfo_Class)k) {
             more ~= " (" ~ tic.info.name ~ ")";
         }
-        Stdout.formatln("'{}': {}", k, more);
+        Trace.formatln("'{}': {}", k, more);
     }
-    Stdout.formatln("done.");
+    Trace.formatln("done.");
 }
 
 /+

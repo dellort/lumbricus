@@ -13,7 +13,6 @@ import utils.misc;
 import utils.time;
 import utils.configfile;
 
-debug import tango.io.Stdout;
 
 private void throwError() {
     throw new Exception("Sound error: " ~ fromStringz(Mix_GetError()));
@@ -123,7 +122,7 @@ class SDLSoundDriver : SoundDriver {
 
     this(Sound base, ConfigNode config) {
         assert(base is gFramework.sound()); //lol
-        debug Stdout.formatln("loading sdl_mixer");
+        debug Trace.formatln("loading sdl_mixer");
 
         sdlInit();
 
@@ -175,7 +174,7 @@ class SDLSoundDriver : SoundDriver {
         volume[SoundType.music] = 1.0f;
         volume[SoundType.sfx] = 1.0f;
 
-        debug Stdout.formatln("loaded sdl_mixer");
+        debug Trace.formatln("loaded sdl_mixer");
     }
 
     DriverChannel getChannel(Object reserve_for) {
@@ -197,7 +196,7 @@ class SDLSoundDriver : SoundDriver {
     }
 
     void closeSound(DriverSound s) {
-        debug Stdout.formatln("close sound {}", s);
+        debug Trace.formatln("close sound {}", s);
         auto ss = castStrict!(SDLSound)(s);
         if (ss.mChunk) {
             //stop from playing on any channels
@@ -222,14 +221,14 @@ class SDLSoundDriver : SoundDriver {
     }
 
     void destroy() {
-        debug Stdout.formatln("unloading sdl_mixer");
+        debug Trace.formatln("unloading sdl_mixer");
         //caller must make sure all stuff has been unloaded
         assert(mSounds.length == 0);
         Mix_CloseAudio();
         SDL_QuitSubSystem(SDL_INIT_AUDIO);
         DerelictSDLMixer.unload();
         sdlQuit();
-        debug Stdout.formatln("unloaded sdl_mixer");
+        debug Trace.formatln("unloaded sdl_mixer");
     }
 
     void musicPlay(DriverSound m, Time startAt, Time fade) {
@@ -239,7 +238,7 @@ class SDLSoundDriver : SoundDriver {
             mLastPlayed = null;
             return;
         }
-        debug Stdout.formatln("play!");
+        debug Trace.formatln("play!");
         assert(ss.type() == SoundType.music && ss.mMusic);
         Mix_FadeInMusicPos(ss.mMusic, -1, fade.msecs, startAt.secsf);
         mLastPlayed = ss.mMusic;

@@ -12,7 +12,6 @@ import utils.time;
 import utils.vector2;
 
 import stdx.stream;
-debug import tango.io.Stdout;
 
 //xxx the following two types should be in common.animation
 
@@ -309,7 +308,7 @@ class ComplicatedAnimation : Animation {
         static int doParam(int function(int a, int b) dg, int v, int count) {
             v = dg(v, count);
             if (v < 0 || v >= count) {
-                debug Stdout.formatln("WARNING: parameter out of bounds");
+                debug Trace.formatln("WARNING: parameter out of bounds");
                 v = 0;
             }
             return v;

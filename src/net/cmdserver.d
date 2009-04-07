@@ -19,7 +19,6 @@ import utils.log;
 debug import utils.random;
 
 import tango.core.Thread;
-import tango.io.Stdout : Stdout;
 
 enum CmdServerState {
     lobby,
@@ -27,13 +26,14 @@ enum CmdServerState {
     playing,
 }
 
-class CmdNetServer : Thread {
+class CmdNetServer {
     private {
+        LogStruct!("netserver") log;
+
         ushort mPort;
         int mMaxPlayers, mPlayerCount;
         char[] mServerName;
         List2!(CmdNetClientConnection) mClients;
-        bool mClose;
         CmdServerState mState;
 
         NetBase mBase;
@@ -53,8 +53,6 @@ class CmdNetServer : Thread {
     //create the server thread object
     //to actually run the server, call CmdNetServer.start()
     this(ConfigNode serverConfig) {
-        super(&run);
-
         mClients = new typeof(mClients);
 
         mPort = serverConfig.getValue("port", 12499);
@@ -71,11 +69,12 @@ class CmdNetServer : Thread {
         mMasterTime.paused = true;
         mGameTime = new TimeSourceFixFramerate("ServerGameTime", mMasterTime,
             cFrameLength);
-    }
 
-    //shutdown the server (delayed)
-    void close() {
-        mClose = true;
+        //create and open server
+        log("Server listening on port {}", mPort);
+        mBase = new NetBase();
+        mHost = mBase.createServer(mPort, mMaxPlayers);
+        mHost.onConnect = &onConnect;
     }
 
     int playerCount() {
@@ -86,39 +85,24 @@ class CmdNetServer : Thread {
         return mState;
     }
 
-    //main thread function
-    private void run() {
-        //create and open server
-        mBase = new NetBase();
-        mHost = mBase.createServer(mPort, mMaxPlayers);
-        mHost.onConnect = &onConnect;
-
-        //try {
-
-        while (!mClose) {
-            //check for messages
-            mHost.serviceAll();
-            foreach (cl; mClients) {
-                if (cl.state == ClientConState.closed) {
-                    clientRemove(cl);
-                } else {
-                    cl.tick();
-                }
+    void frame() {
+        //check for messages
+        mHost.serviceAll();
+        foreach (cl; mClients) {
+            if (cl.state == ClientConState.closed) {
+                clientRemove(cl);
+            } else {
+                cl.tick();
             }
-            if (mState == CmdServerState.playing) {
-                mMasterTime.update();
-                mGameTime.update(&gameTick);
-            }
-            yield();
         }
+        if (mState == CmdServerState.playing) {
+            mMasterTime.update();
+            mGameTime.update(&gameTick);
+        }
+    }
 
-        //} catch (Exception e) { <- catching the type Exception is always a bug
-        //    //seems this is the only way to be notified about thread errors
-        //    Stdout.formatln("Exception {} at {}({})", e.toString(),
-        //        e.file, e.line);
-        //}
-
-        //shutdown
+    //disconnect, free memory
+    void shutdown() {
         foreach (cl; mClients) {
             cl.closeWithReason("server_shutdown");
         }
@@ -153,7 +137,7 @@ class CmdNetServer : Thread {
 
     //called from CmdNetClientConnection: peer has been disconnected
     private void clientRemove(CmdNetClientConnection client) {
-        Stdout.formatln("Client from {} ({}) disconnected",
+        Trace.formatln("Client from {} ({}) disconnected",
             client.address, client.playerName);
         mClients.remove(client.client_node);
         mPlayerCount--;
@@ -190,7 +174,7 @@ class CmdNetServer : Thread {
         }
         reply.gameConfig = gConf.saveConfigGzBuf(cfg);
         //distribute game config
-        registerLog("netserver")("debug dump!");
+        log("debug dump!");
         gConf.saveConfig(cfg, "dump.conf");
         foreach (cl; mClients) {
             cl.loadDone = false;
@@ -259,7 +243,7 @@ class CmdNetServer : Thread {
 
     //incoming game command from a client
     private void gameCommand(CmdNetClientConnection client, char[] cmd) {
-        //Stdout.formatln("Gamecommand({}): {}",client.playerName, cmd);
+        //Trace.formatln("Gamecommand({}): {}",client.playerName, cmd);
         assert(mState == CmdServerState.playing);
         //add to queue, for sending with next server frame
         PendingCommand pc;
@@ -270,7 +254,7 @@ class CmdNetServer : Thread {
 
     //execute a server frame
     private void gameTick() {
-        //Stdout.formatln("Tick, {} commands", mPendingCommands.length);
+        //Trace.formatln("Tick, {} commands", mPendingCommands.length);
         SPGameCommands p;
         //one packet (with one timestamp) for all commands
         //Note: this also means an empty packet will be sent when nothing
@@ -291,7 +275,6 @@ class CmdNetServer : Thread {
     }
 
     void printClients() {
-        auto log = registerLog("netserver");
         log("Connected:");
         foreach (CmdNetClientConnection c; mClients) {
             log("  address {} state {} name '{}'", c.address, c.state,
@@ -337,7 +320,7 @@ private class CmdNetClientConnection {
         mPeer.onReceive = &onReceive;
         mCmdOutBuffer = new StringOutput();
         state(ClientConState.establish);
-        Stdout.formatln("New connection from {}", address);
+        Trace.formatln("New connection from {}", address);
         if (mOwner.state != CmdServerState.lobby) {
             closeWithReason("error_gamestarted");
         }
@@ -443,7 +426,7 @@ private class CmdNetClientConnection {
         switch (pid) {
             case ClientPacket.error:
                 auto p = unmarshal.read!(CPError)();
-                Stdout.formatln("Client reported error: {}", p.errMsg);
+                Trace.formatln("Client reported error: {}", p.errMsg);
                 close();
                 break;
             case ClientPacket.hello:
@@ -562,7 +545,7 @@ private class CmdNetClientConnection {
             scope unmarshal = new UnmarshalBuffer(data[0..dataLen]);
             receive(channelId, unmarshal);
         //} catch (Exception e) {
-        //    Stdout.formatln("Unhandled exception: {} at {}({})", e.toString(),
+        //    Trace.formatln("Unhandled exception: {} at {}({})", e.toString(),
         //        e.file, e.line);
         //    closeWithReason("error_internal", [e.msg]);
         //}
@@ -595,34 +578,88 @@ private class CmdNetClientConnection {
     }
 }
 
+import tango.stdc.stdlib : abort;
 
+//as GUI
 class CmdNetServerTask : Task {
     private {
         CmdNetServer mServer;
         Label mLabel;
+        ConfigNode mSrvConf;
+        Thread mServerThread;
+        bool mClose;
+        int mPlayerCount;
     }
 
     this(TaskManager tm, char[] args = "") {
         super(tm);
 
-        auto srvConf = gConf.loadConfigDef("server");
-        mServer = new CmdNetServer(srvConf);
+        mSrvConf = gConf.loadConfigDef("server");
 
         mLabel = new Label();
         gWindowManager.createWindow(this, mLabel, "Server");
 
-        mServer.start();
+        mServerThread = new Thread(&thread_run);
+        mServerThread.start();
+    }
+
+    private void thread_run() {
+        try {
+            mServer = new CmdNetServer(mSrvConf);
+            while (true) {
+                synchronized (this) {
+                    if (mClose)
+                        break;
+                    mPlayerCount = mServer.playerCount;
+                }
+                mServer.frame();
+                mServerThread.yield();
+            }
+            mServer.shutdown();
+            mServer = null;
+        } catch (Exception e) {
+            //seems this is the only way to be notified about thread errors
+            //NOTE: Tango people are saying the exception gets catched by the
+            //      runtime and rethrown on Thread.join
+            Trace.formatln("Exception {} at {}({})", e.toString(),
+                e.file, e.line);
+            abort(); //I hope this is ok to terminate the process
+        }
     }
 
     override protected void onKill() {
-        mServer.close();
+        synchronized (this) {
+            mClose = true;
+        }
+        //xxx blocks
+        //mServerThread.join();
     }
 
     override protected void onFrame() {
-        mLabel.text = myformat("Clients: {}", mServer.playerCount);
+        mLabel.text = myformat("Clients: {}", mPlayerCount);
     }
 
     static this() {
         TaskFactory.register!(typeof(this))("cmdserver");
     }
+}
+
+//as command line program
+version (CmdServerMain):
+
+import tango.io.Stdout;
+
+import common.init;
+import framework.filesystem;
+
+void main(char[][] args) {
+    auto cmdargs = init(args, "no help lol");
+    if (!cmdargs)
+        return;
+    auto server = new CmdNetServer(gConf.loadConfigDef("server"));
+    while (true) {
+        server.frame();
+    }
+    server.shutdown();
+    Stdout.formatln("bye.");
 }

@@ -8,8 +8,6 @@ import utils.queue;
 import str = stdx.string;
 import conv = tango.util.Convert;
 
-debug import tango.io.Stdout;
-
 debug debug = CountClasses;
 
 /+
@@ -231,12 +229,12 @@ class SerializeBase {
         char[][] s_unknown = unknown.keys, s_unreged = unregistered.keys;
         s_unknown.sort;
         s_unreged.sort;
-        Stdout.formatln("Completely unknown:");
+        Trace.formatln("Completely unknown:");
         foreach (x; s_unknown)
-            Stdout.formatln("  {}", x);
-        Stdout.formatln("Unregistered:");
+            Trace.formatln("  {}", x);
+        Trace.formatln("Unregistered:");
         foreach (x; s_unreged)
-            Stdout.formatln("  {}", x);
+            Trace.formatln("  {}", x);
 
         return r;
     }
@@ -419,7 +417,7 @@ class SerializeOutConfig : SerializeConfig {
                 //         stack or a struct; we simply can't tell
                 char[] what = "enable version debug to see why";
                 debug {
-                    Stdout.formatln("hello, serialize.d might crash here.");
+                    Trace.formatln("hello, serialize.d might crash here.");
                     what = myformat("dest-class: {} function: 0x{:x}",
                         (cast(Object)dgp.ptr).classinfo.name, dgp.funcptr);
                 }
@@ -493,13 +491,13 @@ class SerializeOutConfig : SerializeConfig {
             list ~= P(count, cl);
         }
         list.sort;
-        Stdout.formatln("Class count:");
+        Trace.formatln("Class count:");
         int sum = 0;
         foreach (x; list) {
-            Stdout.formatln("  {:d4}  {}", x.count, x.c.name);
+            Trace.formatln("  {:d4}  {}", x.count, x.c.name);
             sum += x.count;
         }
-        Stdout.formatln("done, sum={:d}.", sum);
+        Trace.formatln("done, sum={:d}.", sum);
     }
 }
 
@@ -621,7 +619,7 @@ class SerializeInConfig : SerializeConfig {
     private void doReadMember(ConfigNode cur, char[] member, SafePtr ptr)
     {
         if (!cur.hasValue(member) && !cur.hasNode(member)) {
-            //Stdout.formatln("{} not found, using default",member);
+            //Trace.formatln("{} not found, using default",member);
             return;
         }
         if (auto et = cast(EnumType)ptr.type) {

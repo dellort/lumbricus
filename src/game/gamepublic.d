@@ -124,7 +124,7 @@ class GameEngineGraphics {
             objects.remove(n.node);
         } else {
             //if (!n.removed)
-            //    Stdout.formatln(n);
+            //    Trace.formatln(n);
             assert (n.removed);
         }
         n.removed = true;

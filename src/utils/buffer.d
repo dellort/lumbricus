@@ -100,7 +100,9 @@ final class BufferWrite {
     }
 }
 
-debug import tango.io.Stdout;
+debug:
+
+import tango.util.log.Trace;
 
 unittest {
     auto wr = new BufferWrite();
@@ -114,5 +116,5 @@ unittest {
     ubyte[3] rest;
     rd.read(rest);
     assert(rest == [cast(ubyte)3,4,5]);
-    debug Stdout.formatln("utils.buffer unittest passed.");
+    debug Trace.formatln("utils.buffer unittest passed.");
 }

@@ -1,5 +1,6 @@
 module utils.array;
 import utf = stdx.utf;
+import utils.misc;
 
 //aaIfIn(a,b) works like a[b], but if !(a in b), return null
 public V aaIfIn(K, V)(V[K] aa, K key) {
@@ -212,7 +213,6 @@ void arrayInsertSortedTail(T)(inout T[] arr, T value,
     }
 }
 
-debug import tango.io.Stdout;
 
 unittest {
     int[] testAIST(int[] arr, int v) {
@@ -232,7 +232,7 @@ unittest {
     assert(testAIST([2], 1) == [1,2]);
     assert(testAIST([], 1) == [1]);
 
-    debug Stdout.formatln("array.d unittest: passed.");
+    debug Trace.formatln("array.d unittest: passed.");
 }
 
 //including this because I'm far too lazy to do it right

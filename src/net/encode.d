@@ -232,7 +232,7 @@ float read_float_delta(NetReader source, float oldv) {
     return read_float(source) + oldv;
 }
 
-debug import tango.io.Stdout, std.string;
+debug import std.string;
 
 debug void smurftest(T)() {
     void dotest(T num) {
@@ -293,5 +293,5 @@ unittest {
 
     //assert(rd.position == rd.data.length);
 
-    debug Stdout.formatln("net.encode unittest passed.");
+    debug Trace.formatln("net.encode unittest passed.");
 }
