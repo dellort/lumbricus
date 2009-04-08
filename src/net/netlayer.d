@@ -32,7 +32,7 @@ struct NetAddress {
         if (index >= 0) {
             try {
                 p = to!(ushort)(name[index+1..$]);
-            } catch { //sucks, don't care
+            } catch (ConversionException e) { //sucks, don't care
             }
         }
         auto addr = opCall(host, p);

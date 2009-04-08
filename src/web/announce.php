@@ -11,10 +11,14 @@ try {
     $output = "";
 
     switch ($_GET["action"]) {
+        case "getip":
+            # ip is the "detected" remote address
+            # remoteip is the actual remote address as seen by the web server
+            $output = "state=ip\nip=" . get_ip() . "\nremoteip=" . $_SERVER["REMOTE_ADDR"];
+            break;
         case "list":
             # return a list of all announcements
             do_timeouts($dblink);
-            # xxx sanity check address & info
             $output = "state=list\n";
             $data = myquery($dblink, "select address, time, info from server_list");
             foreach ($data as $row) {
@@ -27,8 +31,23 @@ try {
             # not sure how to deal with "address", the internet is full of
             # firewalls and HTTP proxies; how to get the actual address?
             do_timeouts($dblink);
-            $address = $_GET["address"];
+            $address = get_address();
             $info = $_GET["info"];
+            $info_ok = false;
+            if (filter_var($info, FILTER_SANITIZE_STRING)) {
+                # sorry I have no clue
+                # it doesn't even work lololoo
+                $info_ok = true;
+                for ($n = 0; $n < strlen($info); $n = $n + 1) {
+                    if (($info[$n] < 32) || ($info[$n] > 127)) {
+                        $info_ok = false;
+                        break;
+                    }
+                }
+            }
+            if (!info_ok) {
+                throw new Exception("info argument invalid");
+            }
             $dblink->beginTransaction();
             mystatement($dblink, "delete from server_list where address=:addr",
                 array(":addr" => $address));
@@ -38,7 +57,7 @@ try {
             $output = "state=added";
             break;
         case "remove":
-            $address = $_GET["address"];
+            $address = get_address();
             mystatement($dblink, "delete from server_list where address=:addr",
                 array(":addr" => $address));
             $output = "state=deleted";
@@ -61,6 +80,7 @@ try {
 
     # when everything went right
     header("Content-Type: text/plain");
+    header("Connection: Close"); #how to do this correctly?
     echo $output;
 
 } catch (Exception $e) {
@@ -92,6 +112,27 @@ function myquery($link, $blargh, array $params = array()) {
         throw new Exception("Database error: " . array_reduce($sth->errorInfo(), "crap"));
     }
     return $sth;
+}
+
+function get_ip() {
+    # this header should take care of any proxy mess, but actually I don't
+    # really know if we need this
+    $fwd = $_SERVER["HTTP_X_FORWARDED_FOR"];
+    if (isset($fwd)) {
+        return $fwd;
+    } else {
+        return $_SERVER["REMOTE_ADDR"];
+    }
+}
+
+function get_address() {
+    $port = $_GET["port"];
+    if (!filter_var($port, FILTER_VALIDATE_INT)) {
+        throw new Exception("port argument invalid");
+    }
+    $port = (int)$port;
+    $address = get_ip() . ":" . $port;
+    return $address;
 }
 
 ?>
