@@ -71,10 +71,12 @@ class GameLoader {
         GfxSet mGfx;
         Resources.Preloader mResPreloader;
         SerializeInConfig mSaveGame;
-        SimpleNetConnection mNetConnection;
+        bool mNetwork;
         ConfigNode mTimeConfig; //savegame only
         GameShell mShell;
     }
+
+    void delegate(GameShell shell) onLoadDone;
 
     private this() {
     }
@@ -99,10 +101,12 @@ class GameLoader {
         return r;
     }
 
-    static GameLoader CreateNetworkGame(GameConfig cfg, SimpleNetConnection con)
+    static GameLoader CreateNetworkGame(GameConfig cfg,
+        void delegate(GameShell shell) loadDone)
     {
         auto r = CreateNewGame(cfg);
-        r.mNetConnection = con;
+        r.mNetwork = true;
+        r.onLoadDone = loadDone;
         return r;
     }
 
@@ -211,7 +215,7 @@ class GameLoader {
         mShell.mGameConfig = mGameConfig;
         mShell.mGfx = mGfx;
         mShell.mMasterTime = new TimeSource("GameShell/MasterTime");
-        if (mNetConnection) {
+        if (mNetwork) {
             mShell.mMasterTime.paused = true;
             //use server timestamps
             mShell.mUseExternalTS = true;
@@ -222,8 +226,6 @@ class GameLoader {
             //for creation of a new game
             mShell.mEngine = new GameEngine(mGameConfig, mGfx,
                 mShell.mGameTime, mShell.mGCD);
-            if (mNetConnection)
-                mNetConnection.signalLoadingDone(mShell);
         } else {
             //for loading a savegame
             //meh time, not serialized anymore because it only causes problems
@@ -241,6 +243,8 @@ class GameLoader {
             //(actually deserialize the complete engine)
             mShell.mEngine = mSaveGame.readObjectT!(GameEngine)();
         }
+        if (onLoadDone)
+            onLoadDone(mShell);
         return mShell;
     }
 
@@ -984,6 +988,4 @@ abstract class SimpleNetConnection {
 
     //disconnect
     void close();
-
-    void signalLoadingDone(GameShell shell);
 }

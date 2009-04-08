@@ -1,11 +1,13 @@
 module gui.tabs;
 
+import framework.framework;
 import gui.container;
 import gui.button;
 import gui.widget;
 import utils.color;
 import utils.rect2;
 import utils.vector2;
+import utils.configfile;
 
 //NOTE: reparents the client widgets depending on which tab is active; this
 //      means you must not use Widget.remove() to remove clients from it, and
@@ -19,12 +21,15 @@ class Tabs : Container {
             Rect2i buttonrc;
         }
 
+        Font mFont;
         Item[] mItems;
         Widget mActive;
         Vector2i mButtons;
 
         const cBorder = 1;
     }
+
+    void delegate(Tabs sender) onActiveChange;
 
     void addTab(Widget client, char[] caption) {
         assert (!!client);
@@ -74,10 +79,24 @@ class Tabs : Container {
             if (item.client is w) {
                 mActive = w;
                 addChild(mActive);
+                if (onActiveChange)
+                    onActiveChange(this);
                 return;
             }
         }
         assert (false);
+    }
+
+    void font(Font font) {
+        assert(font !is null);
+        mFont = font;
+        foreach (ref it; mItems) {
+            it.button.font = mFont;
+        }
+        needResize(true);
+    }
+    Font font() {
+        return mFont;
     }
 
     private void onSetActive(Button sender) {
@@ -103,7 +122,7 @@ class Tabs : Container {
             buttons.y = max(buttons.y, b.y);
         }
         biggest.y += buttons.y + (cBorder+1)/2;
-        biggest.x = max(biggest.x, buttons.x);
+        biggest.x = max(biggest.x, buttons.x + 1);
         mButtons = buttons;
         return biggest;
     }
@@ -116,7 +135,7 @@ class Tabs : Container {
         }
         Vector2i cur;
         foreach (ref Item w; mItems) {
-            w.buttonrc += cur;
+            w.buttonrc += cur - w.buttonrc.p1;
             cur.x += w.buttonrc.size.x;
             w.button.layoutContainerAllocate(w.buttonrc);
         }
@@ -164,6 +183,22 @@ class Tabs : Container {
         } else {
             //draw a baseline without break?
         }
+    }
+
+    void loadFrom(GuiLoader loader) {
+        auto node = loader.node;
+
+        auto fnt = gFramework.fontManager.loadFont(
+            node.getStringValue("font"), false);
+        if (fnt)
+            font = fnt;
+
+        //load children; order in list decides layout
+        foreach (ConfigNode child; node.getSubNode("cells")) {
+            addTab(loader.loadWidget(child),
+                loader.locale()(child["tab_caption"]));
+        }
+        super.loadFrom(loader);
     }
 
     static this() {

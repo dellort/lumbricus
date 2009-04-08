@@ -1,25 +1,10 @@
 module net.cmdclient;
 
 import common.common;
-import common.task;
-import framework.framework;
-import framework.i18n;
 import game.gameshell;
-import game.gametask;
-import game.setup;
 import game.gamepublic;
 import game.levelgen.level;
-import gui.wm;
-import gui.widget;
-import gui.list;
-import gui.dropdownlist;
-import gui.boxcontainer;
-import gui.button;
-import gui.label;
-import gui.edit;
-import gui.loader;
-import gui.logwindow;
-import net.cmdprotocol;
+public import net.cmdprotocol;
 import net.netlayer;
 import net.marshal;
 import utils.configfile;
@@ -128,7 +113,7 @@ class CmdNetClient : SimpleNetConnection {
     }
 
     NetAddress serverAddress() {
-        if (connected)
+        if (mServerCon)
             return mServerCon.address();
         else
             return NetAddress.init;
@@ -175,7 +160,7 @@ class CmdNetClient : SimpleNetConnection {
     private void doStartLoading(GameConfig cfg) {
         //start loading graphics and engine
         //will call signalLoadingDone() when finished
-        auto loader = GameLoader.CreateNetworkGame(cfg, this);
+        auto loader = GameLoader.CreateNetworkGame(cfg, &signalLoadingDone);
         assert(!!onStartLoading, "Need to set callbacks");
         //--- just dump hash for debugging
         foreach (o; loader.gameConfig.level.objects) {
@@ -263,10 +248,10 @@ class CmdNetClient : SimpleNetConnection {
     private void conDisconnect(NetPeer sender, uint code) {
         mHadDisconnect = true;
         assert(sender is mServerCon);
-        mServerCon = null;
         state(ClientState.idle);
         if (onDisconnect)
             onDisconnect(this, cast(DiscReason)code);
+        mServerCon = null;
     }
 
     private void conReceive(NetPeer sender, ubyte channelId, ubyte* data,
@@ -296,9 +281,9 @@ class CmdNetClient : SimpleNetConnection {
                 auto p = unmarshal.read!(SPConAccept)();
                 //get updated nickname
                 mPlayerName = p.playerName;
+                state(ClientState.connected);
                 if (onConnect)
                     onConnect(this);
-                state(ClientState.connected);
                 break;
             case ServerPacket.cmdResult:
                 //result from a command ran by lobbyCmd()
@@ -420,208 +405,5 @@ class NetGameControl : GameControl {
     void executeTSCommand(char[] cmd, long timestamp) {
         setCurrentTS(timestamp);
         executeCommand(cmd);
-    }
-}
-
-//we need to be able to catch entered commands and transmit them
-//no tab completion/history for now
-private class CnsEditLine : EditLine {
-    private CmdNetClientTask mCl;
-    override protected bool handleKeyPress(KeyInfo infos) {
-        if (infos.code == Keycode.PAGEUP) {
-            mCl.mConsole.scrollBack(+1);
-        } else if (infos.code == Keycode.PAGEDOWN) {
-            mCl.mConsole.scrollBack(-1);
-        } else if (infos.code == Keycode.RETURN) {
-            mCl.executeCommand(text);
-            text = null;
-        } else {
-            return super.handleKeyPress(infos);
-        }
-        return true;
-    }
-}
-
-class CmdNetClientTask : Task {
-    private {
-        CmdNetClient mClient;
-        DropDownList mTeams;
-        Label mLblError;
-        ConfigNode mTeamNode;
-        GameTask mGame;
-        Button mConnectButton, mReadyButton, mHostButton;
-        StringListWidget mPlayers;
-        EditLine mConnectTo, mNickname;
-        CnsEditLine mEdConsole;
-        LogWindow mConsole;
-        char[] mPlayerName;
-        //only needed when this client is starting the game
-        GameConfig mGameConfig;
-        Widget mConnectDlg, mLobbyDlg;
-        Window mConnectWnd, mLobbyWnd;
-    }
-
-    this(TaskManager tm, char[] args = "") {
-        super(tm);
-
-        mClient = new CmdNetClient();
-        mClient.onConnect = &onConnect;
-        mClient.onDisconnect = &onDisconnect;
-        mClient.onStartLoading = &onStartLoading;
-        mClient.onUpdateGameInfo = &onUpdateGameInfo;
-        mClient.onError = &onError;
-        mClient.onMessage = &onMessage;
-
-        auto config = gConf.loadConfig("lobby_gui");
-        auto loader = new LoadGui(config);
-        loader.registerWidget!(CnsEditLine)("cnseditline");
-        loader.load();
-
-        //--------------------------------------------------------------
-
-        mConnectDlg = loader.lookup("connect_root");
-
-        loader.lookup!(Button)("btn_cancel").onClick = &cancelClick;
-        mConnectButton = loader.lookup!(Button)("btn_connect");
-        mConnectButton.onClick = &connectClick;
-
-        mLblError = loader.lookup!(Label)("lbl_error");
-        mLblError.text = "";
-
-        mConnectTo = loader.lookup!(EditLine)("ed_address");
-        mNickname = loader.lookup!(EditLine)("ed_nick");
-
-        mConnectWnd = gWindowManager.createWindow(this, mConnectDlg,
-            _("lobby.caption_connect"));
-
-        //--------------------------------------------------------------
-
-        mLobbyDlg = loader.lookup("lobby_root");
-
-        mTeams = loader.lookup!(DropDownList)("dd_teams");
-        mTeamNode = gConf.loadConfig("teams").getSubNode("teams");
-        char[][] contents;
-        foreach (ConfigNode subn; mTeamNode) {
-            contents ~= subn.name;
-        }
-        mTeams.list.setContents(contents);
-        mTeams.onSelect = &teamSelect;
-
-        mPlayers = loader.lookup!(StringListWidget)("list_players");
-
-        mHostButton = loader.lookup!(Button)("btn_host");
-        mHostButton.onClick = &hostGame;
-        mReadyButton = loader.lookup!(Button)("btn_ready");
-        mReadyButton.enabled = false;  //xxx later
-        mConsole = loader.lookup!(LogWindow)("console");
-        mEdConsole = loader.lookup!(CnsEditLine)("ed_console");
-        mEdConsole.mCl = this;
-
-        loader.lookup!(Button)("btn_leave").onClick = &cancelClick;
-
-        mLobbyWnd = gWindowManager.createWindow(this, mLobbyDlg, "");
-        mLobbyWnd.visible = false;
-    }
-
-    private void onConnect(CmdNetClient sender) {
-        mPlayerName = sender.playerName;
-        mConnectWnd.visible = false;
-        mLobbyWnd.visible = true;
-        auto props = mLobbyWnd.properties;
-        props.windowTitle = _("lobby.caption_lobby", mPlayerName);
-        mLobbyWnd.properties = props;
-    }
-
-    private void onDisconnect(CmdNetClient sender, DiscReason code) {
-        assert(code <= DiscReason.max);
-        if (code == 0)
-            mLblError.text = "";
-        else
-            mLblError.text = _("lobby.error", reasonToString[code]);
-        mConnectButton.text = _("lobby.connect");
-        mConnectButton.enabled = true;
-        if (mLobbyWnd.visible) {
-            //disconnected in lobby, disable everything
-            mTeams.enabled = false;
-            mPlayers.setContents([""]);
-            mPlayers.enabled = false;
-            mHostButton.enabled = false;
-            mReadyButton.enabled = false;
-            //show error message in console
-            mConsole.writefln(_("lobby.c_disconnect",
-                reasonToString[code]));
-            mConsole.enabled = false;
-            mEdConsole.enabled = false;
-        }
-    }
-
-    private void teamSelect(DropDownList sender) {
-        mClient.deployTeam(mTeamNode.getSubNode(sender.selection));
-    }
-
-    private void connectClick(Button sender) {
-        mClient.connect(NetAddress(mConnectTo.text), mNickname.text);
-        sender.text = _("lobby.connecting");
-        sender.enabled = false;
-    }
-
-    private void cancelClick(Button sender) {
-        kill();
-    }
-
-    private void hostGame(Button sender) {
-        if (mClient.connected) {
-            ConfigNode node = gConf.loadConfig("newgame");
-            GameConfig conf = loadGameConfig(node, null, false);
-            mClient.startLoading(conf);
-        }
-    }
-
-    private void executeCommand(char[] cmd) {
-        mClient.lobbyCmd(cmd);
-    }
-
-    private void onStartLoading(SimpleNetConnection sender, GameLoader loader) {
-        mGame = new GameTask(manager, loader, mClient);
-    }
-
-    private void onUpdateGameInfo(SimpleNetConnection sender, NetGameInfo info)
-    {
-        char[][] contents;
-        foreach (int idx, char[] pl; info.players) {
-            contents ~= pl ~ " (" ~ info.teams[idx] ~ ")";
-        }
-        mPlayers.setContents(contents);
-    }
-
-    private void onError(CmdNetClient sender, char[] msg, char[][] args) {
-        if (mLobbyWnd.visible) {
-            //lobby error
-            mConsole.writefln(_("lobby.c_serror", msg));
-        } else {
-            //connection error
-            mLblError.text = _("lobby.error", msg);
-        }
-    }
-
-    private void onMessage(CmdNetClient sender, char[][] text) {
-        if (mLobbyWnd.visible) {
-            foreach (l; text) {
-                mConsole.writefln(l);
-            }
-        }
-    }
-
-    override protected void onKill() {
-        mClient.close();
-        delete mClient;
-    }
-
-    override protected void onFrame() {
-        mClient.tick();
-    }
-
-    static this() {
-        TaskFactory.register!(typeof(this))("cmdclient");
     }
 }

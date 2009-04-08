@@ -56,8 +56,8 @@ version(DigitalMars) {
 }
 //import net.test;
 import net.testgame;
-import net.cmdserver;
-import net.cmdclient;
+import net.cmdserver_gui;
+import net.lobby;
 
 //import test;
 
