@@ -247,17 +247,11 @@ private class IrcAnnouncer : NetAnnouncer {
 
 //Client part of IRC announcer, monitors a channel for announce messages
 //and assembles a server list from that
-class IrcAnnounceClient : NetAnnounceClient {
+class IrcAnnounceClient : NACPeriodically {
     private {
         char[] mServer;
         AnnIrc mIrc;
-        MyServerInfo[char[]] mServers;
         bool mActive;
-
-        struct MyServerInfo {
-            Time lastSeen;
-            ServerInfo info;
-        }
     }
 
     this(ConfigNode cfg) {
@@ -301,27 +295,6 @@ class IrcAnnounceClient : NetAnnounceClient {
         mIrc.checkEvents();
     }
 
-    //Returns the current internal server list, and also checks if server
-    //entries have timed out
-    int opApply(int delegate(ref ServerInfo) del) {
-        Time t = timeCurrentTime();
-        char[][] invalid;
-        foreach (char[] key, ref MyServerInfo srv; mServers) {
-            //check for timeout
-            //xxx monitor disconnect messages for more accurate info
-            if (t - srv.lastSeen > timeSecs(15)) {
-                invalid ~= key;
-            } else {
-                del(srv.info);
-            }
-        }
-        //remove timed-out servers
-        foreach (char[] i; invalid) {
-            mServers.remove(i);
-        }
-        return 0;
-    }
-
     private void ircDisconnect() {
         active = false;
     }
@@ -330,19 +303,13 @@ class IrcAnnounceClient : NetAnnounceClient {
         //parse the announce message from one server
         char[][] parts = str.split(msg, ":");
         if (parts.length == 5) {
-            char[] id = parts[0] ~ parts[1];
-            MyServerInfo* srv;
-            //Servers are identified by hostname and port
-            if ((srv = (id in mServers)) is null) {
-                mServers[id] = MyServerInfo();
-                srv = id in mServers;
-            }
-            srv.lastSeen = timeCurrentTime();
-            srv.info.address = parts[0];
-            srv.info.info.port = to!(ushort)(parts[1]);
-            srv.info.info.curPlayers = to!(int)(parts[2]);
-            srv.info.info.maxPlayers = to!(int)(parts[3]);
-            srv.info.info.serverName = parts[4];
+            AnnounceInfo ai;
+            ai.port = to!(ushort)(parts[1]);
+            ai.curPlayers = to!(int)(parts[2]);
+            ai.maxPlayers = to!(int)(parts[3]);
+            ai.serverName = parts[4];
+
+            refreshServer(parts[0], ai);
         }
     }
 

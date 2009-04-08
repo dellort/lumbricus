@@ -8,6 +8,7 @@ import net.netlayer;
 import net.marshal;
 import net.announce;
 import net.announce_irc;
+import net.announce_lan;
 import utils.configfile;
 import utils.time;
 import utils.list2;

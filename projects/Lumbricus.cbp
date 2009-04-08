@@ -188,6 +188,7 @@
 		<Unit filename="..\src\lumbricus.d" />
 		<Unit filename="..\src\net\announce.d" />
 		<Unit filename="..\src\net\announce_irc.d" />
+		<Unit filename="..\src\net\announce_lan.d" />
 		<Unit filename="..\src\net\broadcast.d" />
 		<Unit filename="..\src\net\cmdclient.d" />
 		<Unit filename="..\src\net\cmdprotocol.d" />
