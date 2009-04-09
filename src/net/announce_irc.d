@@ -10,6 +10,9 @@ import str = stdx.string;
 import tango.util.Convert;
 import tango.core.Exception;
 
+const cDefIrcServer = "chat.freenode.net";
+const cDefIrcChannel = "#lumbricus.announce";
+
 //IRC client implementation, used both by server announcer and client searcher
 private class AnnIrc : IrcClient {
     char[] channelName;
@@ -183,10 +186,10 @@ private class IrcAnnouncer : NetAnnouncer {
     }
 
     this(ConfigNode cfg) {
-        mServer = cfg.getStringValue("server", "chat.freenode.net");
+        mServer = cfg.getStringValue("server", cDefIrcServer);
         mIrc = new AnnIrc(mServer);
         mIrc.onDisconnect = &ircDisconnect;
-        mIrc.channelName = cfg.getStringValue("channel", "#lumbricus.announce");
+        mIrc.channelName = cfg.getStringValue("channel", cDefIrcChannel);
     }
 
     void active(bool act) {
@@ -255,9 +258,9 @@ class IrcAnnounceClient : NACPeriodically {
     }
 
     this(ConfigNode cfg) {
-        mServer = cfg.getStringValue("server", "chat.freenode.net");
+        mServer = cfg.getStringValue("server", cDefIrcServer);
         mIrc = new AnnIrc(mServer);
-        mIrc.channelName = cfg.getStringValue("channel", "#lumbricus.announce");
+        mIrc.channelName = cfg.getStringValue("channel", cDefIrcChannel);
         mIrc.onDisconnect = &ircDisconnect;
         mIrc.onChatMessage = &onChatMessage;
     }

@@ -60,6 +60,7 @@ class PhpAnnouncer : NetAnnouncer {
         Time mLastUpdate;
         AnnounceInfo mInfo;
         LogStruct!("php_server_announce") log;
+        bool mActive;
     }
 
     const Time cUpdateTime = timeSecs(30);
@@ -69,7 +70,7 @@ class PhpAnnouncer : NetAnnouncer {
     }
 
     override void tick() {
-        if (timeCurrentTime() > mLastUpdate + cUpdateTime)
+        if (mActive && timeCurrentTime() > mLastUpdate + cUpdateTime)
             do_update();
     }
 
@@ -85,17 +86,32 @@ class PhpAnnouncer : NetAnnouncer {
         mLastUpdate = timeCurrentTime();
     }
 
+    void do_remove() {
+        log("removing");
+        char[] res;
+        char[][char[]] hdrs;
+        hdrs["action"] = "remove";
+        hdrs["port"] = myformat("{}", mInfo.port);
+        http_get(mUrl, res, hdrs);
+    }
+
     override void update(AnnounceInfo info) {
         mInfo = info;
         do_update();
     }
 
     override void active(bool act) {
-        //???
+        if (act == mActive)
+            return;
+        mActive = act;
+        if (act)
+            do_update();
+        else
+            do_remove();
     }
 
     override void close() {
-        //could do remove request, for now let it timeout
+        active = false;
     }
 
     static this() {
@@ -108,6 +124,7 @@ class PhpAnnounceClient : NetAnnounceClient {
         char[] mUrl;
         Time mLastUpdateTime;
         ServerInfo[] mServers;
+        bool mActive;
     }
 
     const Time cUpdateTime = timeSecs(10);
@@ -117,7 +134,7 @@ class PhpAnnounceClient : NetAnnounceClient {
     }
 
     override void tick() {
-        if (timeCurrentTime() > mLastUpdateTime + cUpdateTime)
+        if (mActive && timeCurrentTime() > mLastUpdateTime + cUpdateTime)
             do_update();
     }
 
@@ -162,10 +179,11 @@ class PhpAnnounceClient : NetAnnounceClient {
 
     ///Client starts inactive
     override void active(bool act) {
+        mActive = act;
     }
 
     override bool active() {
-        return false;
+        return mActive;
     }
 
     override void close() {
