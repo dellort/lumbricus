@@ -45,6 +45,7 @@ class LanAnnouncer : NetAnnouncer {
             m.write(mInfo);
             //broadcast an info packet
             mBroadcast.sendBC(m.data());
+            mLastTime = t;
         }
         mBroadcast.service();
     }

@@ -37,7 +37,7 @@ class CmdNetClientTask : Task {
         Tabs mTabs;
         Widget mConnectDlg;
         Window mConnectWnd;
-        Widget mLocalMarker;
+        Widget mDirectMarker;
 
         const cRefreshInterval = timeSecs(3);
         int mMode = -1;
@@ -78,6 +78,7 @@ class CmdNetClientTask : Task {
             as.list = loader.lookup!(StringListWidget)(sub["ctl_list"]);
             mAnnounce ~= as;
         }
+        mDirectMarker = loader.lookup(config["direct_marker"]);
 
         //--------------------------------------------------------------
 
@@ -98,16 +99,15 @@ class CmdNetClientTask : Task {
 
         mConnectWnd = gWindowManager.createWindow(this, mConnectDlg,
             _("connect.caption"));
-
     }
 
     private void onConnect(CmdNetClient sender) {
         log("Connection to {} succeeded", sender.serverAddress);
-        new CmdNetLobbyTask(manager, mClient);
-        //ownership is handed over
         mClient.onConnect = null;
         mClient.onDisconnect = null;
         mClient.onError = null;
+        new CmdNetLobbyTask(manager, mClient);
+        //ownership is handed over
         mClient = null;
         kill();
     }
@@ -149,7 +149,7 @@ class CmdNetClientTask : Task {
     }
 
     private void tabActivate(Tabs sender) {
-        if (sender.active == mLocalMarker) {
+        if (sender.active == mDirectMarker) {
             setMode(-1);
         } else {
             foreach (int idx, ref as; mAnnounce) {
@@ -192,6 +192,7 @@ class CmdNetClientTask : Task {
             //      request a new list, it just gets the announcer's current one
             if (t - mLastTime > cRefreshInterval) {
                 char[][] contents;
+                mCurServers = null;
                 foreach (s; mAnnounce[mMode].announce) {
                     //full info for gui display
                     contents ~= myformat("{}:{} ({}/{}) {}", s.address,
