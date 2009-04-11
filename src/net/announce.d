@@ -134,8 +134,11 @@ abstract class NACPeriodically : NetAnnounceClient {
         return 0;
     }
 
-    protected void refreshServer(char[] addr, ref AnnounceInfo info) {
-        char[] id = addr ~ to!(char[])(info.port);
+    protected void refreshServer(char[] addr, ref AnnounceInfo info,
+        char[] id = null)
+    {
+        if (id.length == 0)
+            id = addr ~ to!(char[])(info.port);
         MyServerInfo* srv;
         //Servers are identified by hostname and port
         if ((srv = (id in mServers)) is null) {

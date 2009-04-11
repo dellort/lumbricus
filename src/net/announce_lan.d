@@ -28,6 +28,7 @@ class LanAnnouncer : NetAnnouncer {
         Time mLastTime;
         AnnounceInfo mInfo;
         ushort mPort;
+        uint mId;
     }
 
     this(ConfigNode cfg) {
@@ -36,12 +37,16 @@ class LanAnnouncer : NetAnnouncer {
         //strangely, the server creates a broadcast client (for sending updates)
         mBroadcast = mBase.createBroadcast(mPort, false);
         mLastTime = timeCurrentTime() - cBroadcastInterval;
+        mId = rngShared.next();
     }
 
     void tick() {
         Time t = timeCurrentTime();
         if (mActive && t - mLastTime > cBroadcastInterval && mInfo.port > 0) {
             scope m = new MarshalBuffer();
+            //bc packets may be reaching the client over multiple routes,
+            //  so add an id to identify the server
+            m.write(mId);
             m.write(mInfo);
             //broadcast an info packet
             mBroadcast.sendBC(m.data());
@@ -108,10 +113,11 @@ class LanAnnounceClient : NACPeriodically {
     private void bcReceive(NetBroadcast sender, ubyte[] data, BCAddress from) {
         //server announce packet incoming
         scope um = new UnmarshalBuffer(data);
+        uint id = um.read!(uint)();
         auto ai = um.read!(AnnounceInfo)();  //xxx error checking
         char[] addr = mBroadcast.getIP(from);
 
-        refreshServer(addr, ai);
+        refreshServer(addr, ai, to!(char[])(id));
     }
 
     static this() {

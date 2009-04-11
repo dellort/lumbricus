@@ -1,9 +1,104 @@
 module net.broadcast;
 
+version = BCTango;
+//version = BCEnet;
+
+version(BCTango) {
+
+import tango.net.Socket;
+import net.iflist;
+
+//sorry for that (->no converting the address to string and back just for reply)
+alias IPv4Address BCAddress;
+
+class NetBroadcast {
+    private {
+        const cBufSize = 1024;
+        ubyte[cBufSize] mBuffer;
+
+        ushort mPort;
+        bool mServer;
+        Socket mSocket;
+        IPv4Address[] mAddresses;
+    }
+
+    void delegate(NetBroadcast sender, ubyte[] data, BCAddress from) onReceive;
+
+    package this(ushort port, bool server = false) {
+        mServer = server;
+        mPort = port;
+        //setup broadcast addresses for all network interfaces
+        //see comment in sendBC() for explanation
+        char[][] interfaces = getBroadcastInterfaces();
+        foreach (addr; interfaces) {
+            mAddresses ~= new IPv4Address(addr, mPort);
+        }
+        mSocket = new Socket(AddressFamily.INET, SocketType.DGRAM,
+            ProtocolType.UDP);
+        if (server) {
+            //multiple servers on same port
+            mSocket.setAddressReuse(true);
+            mSocket.bind(new IPv4Address(port));
+        } else {
+            int[1] i = 1;
+            mSocket.setOption(SocketOptionLevel.SOCKET,
+                SocketOption.SO_BROADCAST, i);
+        }
+    }
+
+    void service() {
+        scope ssread = new SocketSet();
+        ssread.add(mSocket);
+        //no blocking
+        timeval tv = timeval(0, 0);
+        int sl = Socket.select(ssread, null, null, &tv);
+        if (sl > 0 && ssread.isSet(mSocket)) {
+            serviceOne();
+        }
+    }
+
+    //get one message (blocking)
+    void serviceOne() {
+        auto from = new IPv4Address();
+        int len = mSocket.receiveFrom(mBuffer, from);
+        if (len > 0 && len < cBufSize && onReceive)
+            onReceive(this, mBuffer[0..len], from);
+    }
+
+    //send message (in reply to onReceive)
+    void send(ubyte[] data, BCAddress dest) {
+        mSocket.sendTo(data, dest);
+    }
+
+    //broadcast message
+    void sendBC(ubyte[] data) {
+        assert(data.length <= cBufSize);
+        assert(!mServer, "Client only");
+        //Broadcast the message on all available interface
+        //This mess is only needed because broadcasting on 255.255.255.255 will
+        //  set the sender address to the first interface, and packets on other
+        //  interfaces will contain the wrong sender address
+        foreach (addr; mAddresses) {
+            mSocket.sendTo(data, addr);
+        }
+    }
+
+    char[] getIP(BCAddress addr) {
+        return addr.toAddrString();
+    }
+
+    void close() {
+        mSocket.detach();
+    }
+}
+
+}
+
+version(BCEnet) {
+
 import derelict.enet.enet;
 import tango.stdc.stringz;
 
-//sorry for that (->no converting the address to string and back just for reply)
 alias ENetAddress BCAddress;
 
 class NetBroadcast {
@@ -99,4 +194,6 @@ class NetBroadcast {
     void close() {
         enet_socket_destroy(mSock);
     }
+}
+
 }

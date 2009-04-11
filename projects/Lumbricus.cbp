@@ -198,6 +198,7 @@
 		<Unit filename="..\src\net\cmdserver_gui.d" />
 		<Unit filename="..\src\net\encode.d" />
 		<Unit filename="..\src\net\enet_test.d" />
+		<Unit filename="..\src\net\iflist.d" />
 		<Unit filename="..\src\net\lobby.d" />
 		<Unit filename="..\src\net\marshal.d" />
 		<Unit filename="..\src\net\netlayer.d" />

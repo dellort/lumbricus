@@ -14,6 +14,8 @@ import utils.misc;
 import tango.net.http.HttpClient;
 import tango.net.http.HttpHeaders;
 //import conv = tango.util.Convert;
+import tango.core.Thread;
+import tango.core.Exception;
 import str = stdx.string;
 
 LogStruct!("http_get") http_log;
@@ -40,17 +42,61 @@ private bool http_get(char[] url, out char[] result, char[][char[]] args) {
         res ~= cast(char[])d;
     }
 
-    client.open();
+    try {
+        client.open();
 
-    if (client.isResponseOK) {
-        auto length = client.getResponseHeaders.getInt(HttpHeader.ContentLength);
-        client.read(&getstuff, length);
-        result = res;
-        return true;
-    } else {
-        //hm, I don't know
-        result = "HTTP error: I have no idea";
+        if (client.isResponseOK) {
+            auto length = client.getResponseHeaders.getInt(HttpHeader.ContentLength);
+            client.read(&getstuff, length);
+            result = res;
+            return true;
+        } else {
+            //hm, I don't know
+            result = "HTTP error: I have no idea";
+            return false;
+        }
+    } catch (SocketException e) {
+        result = "Socket error: "~e.msg;
         return false;
+    }
+}
+
+private class HttpGetter : Thread {
+    private {
+        alias void delegate(bool success, char[] result) ResultDg;
+
+        bool mTerminated;
+        char[] mUrl;
+        char[][char[]] mArgs;
+        char[] mResult;
+        bool mSuccess;
+        ResultDg onFinish;
+    }
+
+    this(char[] url, char[][char[]] args, ResultDg finish) {
+        super(&run);
+        mUrl = url.dup;
+        mArgs = args;
+        onFinish = finish;
+        isDaemon = true;
+    }
+
+    //call this periodically to check if the request completed
+    //will call onFinish once and return true if the request is done
+    bool check() {
+        if (!isRunning() && mTerminated) {
+            mTerminated = false;
+            if (onFinish)
+                onFinish(mSuccess, mResult);
+            return true;
+        }
+        return false;
+    }
+
+    private void run() {
+        mResult = null;
+        mSuccess = http_get(mUrl, mResult, mArgs);
+        mTerminated = true;
     }
 }
 
@@ -61,6 +107,7 @@ class PhpAnnouncer : NetAnnouncer {
         AnnounceInfo mInfo;
         LogStruct!("php_server_announce") log;
         bool mActive;
+        HttpGetter mLastGetter;
     }
 
     const Time cUpdateTime = timeSecs(30);
@@ -77,22 +124,23 @@ class PhpAnnouncer : NetAnnouncer {
     //actually trigger a PHP request to add/update/keep-alive the announcement
     void do_update() {
         log("announcing");
-        char[] res;
         char[][char[]] hdrs;
         hdrs["action"] = "add";
         hdrs["port"] = myformat("{}", mInfo.port);
         hdrs["info"] = "huh";
-        http_get(mUrl, res, hdrs);
+        //run and forget, we don't need the result
+        mLastGetter = new HttpGetter(mUrl, hdrs, null);
+        mLastGetter.start();
         mLastUpdate = timeCurrentTime();
     }
 
     void do_remove() {
         log("removing");
-        char[] res;
         char[][char[]] hdrs;
         hdrs["action"] = "remove";
         hdrs["port"] = myformat("{}", mInfo.port);
-        http_get(mUrl, res, hdrs);
+        mLastGetter = new HttpGetter(mUrl, hdrs, null);
+        mLastGetter.start();
     }
 
     override void update(AnnounceInfo info) {
@@ -112,6 +160,8 @@ class PhpAnnouncer : NetAnnouncer {
 
     override void close() {
         active = false;
+        //on shutdown, wait for remove request to finish
+        mLastGetter.join();
     }
 
     static this() {
@@ -125,26 +175,36 @@ class PhpAnnounceClient : NetAnnounceClient {
         Time mLastUpdateTime;
         ServerInfo[] mServers;
         bool mActive;
+        HttpGetter mGetter;
     }
 
     const Time cUpdateTime = timeSecs(10);
 
     this(ConfigNode cfg) {
         mUrl = cfg.getStringValue("script_url");
+        char[][char[]] hdrs;
+        hdrs["action"] = "list";
+        mGetter = new HttpGetter(mUrl, hdrs, &requestFinish);
     }
 
     override void tick() {
+        mGetter.check();
         if (mActive && timeCurrentTime() > mLastUpdateTime + cUpdateTime)
             do_update();
     }
 
     void do_update() {
+        //only one update a time
+        if (mGetter.isRunning())
+            return;
+        mGetter.start();
+        mLastUpdateTime = timeCurrentTime();
+    }
+
+    void requestFinish(bool success, char[] result) {
         mServers.length = 0;
-        char[][char[]] hdrs;
-        hdrs["action"] = "list";
-        char[] res;
-        if (http_get(mUrl, res, hdrs)) {
-            auto lines = str.splitlines(res);
+        if (success) {
+            auto lines = str.splitlines(result);
             forline: foreach (line; lines) {
                 //expected format: address|time|info
                 //we don't actually need time?
@@ -161,7 +221,6 @@ class PhpAnnounceClient : NetAnnounceClient {
                 }
             }
         }
-        mLastUpdateTime = timeCurrentTime();
     }
 
     ///loop over internal server list
