@@ -1,0 +1,26 @@
+- richtige GUI listen
+- key bindings editor
+[- userdaten (mergen von konfigfiles)]
+- partikel, sounds
+- "stub" gpl daten (strichmännchen)
+- physik: box stacking
+  (zusätzliche ideen: bewegende platformen, jump pads, wurmlöcher)
+- flash-artiges System für GUI-Animationen (widget einem pfad folgen lassen)
+- waffen klassen etc. nicht mehr von GameEngine abhängig (serialize_register.d)
+[- 1-frame bug bei würmern]
+- CSS-artige formatierungen für GUI
+- GUI enthässlichen
+
+Langfristig:
+- scripting
+- netzwerkmodus erweitern (siehe Deadlock)
+- gpl daten
+
+Minor:
+[- kein Force objekt für explosionen erzeugen]
+- statt aktive Teams aktive TeamMembers
+- button für windows pinnen/entpinnen
+- locales: übersetzungen vergleichen / zur laufzeit wechseln
+- task spezifische commandos/hotkeys (ähnlich wie in loadsafe.d)
+- debugging: würmer auswählen und GameObject-Felder anzeigen lassen
+

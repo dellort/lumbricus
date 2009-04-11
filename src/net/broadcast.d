@@ -47,6 +47,8 @@ class NetBroadcast {
     }
 
     void service() {
+        if (!mSocket)
+            return;
         scope ssread = new SocketSet();
         ssread.add(mSocket);
         //no blocking
@@ -59,6 +61,8 @@ class NetBroadcast {
 
     //get one message (blocking)
     void serviceOne() {
+        if (!mSocket)
+            return;
         auto from = new IPv4Address();
         int len = mSocket.receiveFrom(mBuffer, from);
         if (len > 0 && len < cBufSize && onReceive)
@@ -67,11 +71,15 @@ class NetBroadcast {
 
     //send message (in reply to onReceive)
     void send(ubyte[] data, BCAddress dest) {
+        if (!mSocket)
+            return;
         mSocket.sendTo(data, dest);
     }
 
     //broadcast message
     void sendBC(ubyte[] data) {
+        if (!mSocket)
+            return;
         assert(data.length <= cBufSize);
         assert(!mServer, "Client only");
         //Broadcast the message on all available interface
@@ -89,6 +97,7 @@ class NetBroadcast {
 
     void close() {
         mSocket.detach();
+        mSocket = null;
     }
 }
 

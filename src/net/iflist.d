@@ -109,6 +109,8 @@ version (Win32) {
 version (linux) {
     private:
 
+    import tango.stdc.posix.sys.socket : AF_INET;
+
     extern(C) {
         int getifaddrs(ifaddrs** ifap);
         void freeifaddrs(ifaddrs* ifa);
@@ -153,7 +155,9 @@ version (linux) {
             uint flags = cur.ifa_flags;
             //xxx code duplication, but minor differences make it hard to unify
             if ((flags & IFF_UP) && (flags & IFF_BROADCAST)
-                && !(flags & IFF_LOOPBACK))
+                && !(flags & IFF_LOOPBACK)
+                && cur.ifa_addr.sa_family == AF_INET
+                && cur.ifa_netmask.sa_family == AF_INET)
             {
                 sockaddr_in ia = cast(sockaddr_in)(*(cur.ifa_addr));
                 sockaddr_in mask = cast(sockaddr_in)(*(cur.ifa_netmask));
