@@ -34,6 +34,8 @@ import utils.vector2;
 
 import stdx.stream;
 import tango.math.Math : pow;
+import tango.core.Traits : ParameterTupleOf;
+
 
 //initialized by serialize_register.d
 Types serialize_types;
@@ -352,7 +354,8 @@ class GameShell {
     private void addLoggedInput(T)(T a_callee, MyBox[] params, char[] dbg_desc,
         long cmdTimeStamp = -1)
     {
-        alias GetDGParams!(T) Params;
+        static assert(is(T == delegate));
+        alias ParameterTupleOf!(T) Params;
 
         //function to unbox the types and call the destination delegate
         static void do_call(LogEntry e) {
@@ -588,7 +591,7 @@ class GameShell {
         ct.setValue!(float)("slowdown", mGameTime.slowDown);
 
         //------ GameConfig & level
-        savegame.add("game_config", mGameConfig.save());
+        savegame.addNode("game_config", mGameConfig.save());
 
         //------ bitmaps
         foreach (int idx, LandscapeBitmap lb; bitmaps) {
@@ -625,7 +628,7 @@ class GameShell {
         writer.writeObject(mEngine);
 
         ConfigNode g = writer.finish();
-        savegame.add("game_data", g);
+        savegame.addNode("game_data", g);
 
         ZWriter zwriter = file.openWriteStream("gamedata.conf");
         zwriter.writeConfigFile(savegame);
@@ -727,7 +730,7 @@ class GameControl : ClientControl {
     //compile time magic is used to infer the parameters, and the delegate
     //is called when the command is invoked (maybe this is overcomplicated)
     void addCmd(T)(char[] name, T del) {
-        alias GetDGParams!(T) Params;
+        alias ParameterTupleOf!(T) Params;
 
         //proxify the function in a commandline call
         //the wrapper is just to get a delegate, that is valid even after this
@@ -774,7 +777,7 @@ class GameControl : ClientControl {
     //X can be further parameters (can be empty)
     void addWormCmd(T)(char[] name, T del) {
         //remove first parameter, because that's the worm
-        alias GetDGParams!(T)[1..$] Params;
+        alias ParameterTupleOf!(T)[1..$] Params;
 
         struct Wrapper {
             GameControl owner;

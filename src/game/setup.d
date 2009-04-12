@@ -24,23 +24,25 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null,
     if (level) {
         cfg.level = level;
     } else {
-        int what = mConfig.selectValueFrom("level",
-            ["generate", "load", "loadbmp"], 0);
         auto x = new LevelGeneratorShared();
-        if (what == 0) {
+        switch (mConfig["level"]) {
+        case "generate":
             auto gen = new GenerateFromTemplate(x, cast(LevelTemplate)null);
             cfg.level = gen.render(renderBitmaps);
-        } else if (what == 1) {
+            break;
+        case "load":
             cfg.level = loadSavedLevel(x,
                 gConf.loadConfig(mConfig["level_load"], true), renderBitmaps);
-        } else if (what == 2) {
+            break;
+        case "loadbmp":
             auto gen = new GenerateFromBitmap(x);
             auto fn = mConfig["level_load_bitmap"];
             gen.bitmap(gFramework.loadImage(fn), fn);
             gen.selectTheme(x.themes.findRandom(mConfig["level_gfx"]));
             cfg.level = gen.render(renderBitmaps);
-        } else {
-            //wrong string in configfile or internal error
+            break;
+        default:
+            //wrong string in configfile
             throw new Exception("noes noes noes!");
         }
     }

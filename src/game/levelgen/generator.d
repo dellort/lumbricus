@@ -365,7 +365,7 @@ class GenerateFromTemplate : LevelGenerator {
         //modified below
         mTemplate = templ;
 
-        auto node = mTemplate.data.copy();
+        ConfigNode node = mTemplate.data.copy();
 
         //mixin a template, easy way to make level templates simpler
         char[] tval = node.getStringValue(cLoadTemplateName);
@@ -480,7 +480,7 @@ class GenerateFromBitmap : LevelGenerator {
         if (!mLandscape)
             return;
         auto gc = mShared.generatorConfig;
-        auto node = gc.getSubNode("import_from_bitmap").clone();
+        auto node = gc.getSubNode("import_from_bitmap").copy();
         auto cave_node = "import_" ~ (mIsCave ? "cave" : "nocave");
         node.mixinNode(gc.getSubNode(cave_node), false, true);
         if (mPlaceObjects) {
@@ -765,13 +765,15 @@ class LandscapeGenTheme {
             Border b;
             b.markers[0] = parseMarker(border.getStringValue("marker_a"));
             b.markers[1] = parseMarker(border.getStringValue("marker_b"));
-            int dir = border.selectValueFrom("direction", ["up", "down"]);
-            if (dir == 0) {
-                b.action[0] = true;
-            } else if (dir == 1) {
-                b.action[1] = true;
-            } else {
-                b.action[0] = b.action[1] = true;
+            switch (border["direction"]) {
+                case "up":
+                    b.action[0] = true;
+                    break;
+                case "down":
+                    b.action[1] = true;
+                    break;
+                default:
+                    b.action[0] = b.action[1] = true;
             }
             if (border.findNode("texture_both")) {
                 b.textures[0] = loadBorderTex(border.getSubNode("texture_both"));
@@ -928,7 +930,7 @@ class LandscapeLexels {
         bool placeObjects)
     {
         auto gc = shared.generatorConfig;
-        auto node = gc.getSubNode("import_pregenerated").clone();
+        auto node = gc.getSubNode("import_pregenerated").copy();
         auto cave_node = "import_" ~ (isCave ? "cave" : "nocave");
         node.mixinNode(gc.getSubNode(cave_node), false, true);
         if (placeObjects) {

@@ -109,7 +109,7 @@ class BoxContainer : SimpleContainer {
         clear();
         mHomogeneous = node.getBoolValue("homogeneous", mHomogeneous);
         mCellSpacing = node.getIntValue("cell_spacing", mCellSpacing);
-        mDir = node.selectValueFrom("direction", ["x", "y"], 0);
+        mDir = node["direction"] == "x" ? 0 : 1; //other possible choice is "y"
         //reload children; order in list decides layout
         foreach (ConfigNode child; node.getSubNode("cells")) {
             add(loader.loadWidget(child));

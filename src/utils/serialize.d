@@ -7,6 +7,7 @@ import utils.queue;
 
 import str = stdx.string;
 import conv = tango.util.Convert;
+import tango.core.Traits : isIntegerType;
 
 debug debug = CountClasses;
 
@@ -330,7 +331,7 @@ class SerializeOutConfig : SerializeConfig {
         Class ck = klass;
         while (ck) {
             //(not for structs)
-            auto dest = is_struct ? cur : cur.addUnnamedNode();
+            auto dest = is_struct ? cur : cur.add();
             ptr.type = ck.type(); //should be safe...
             defptr.type = ptr.type;
             foreach (ClassMember m; ck.nontransientMembers()) {
@@ -402,7 +403,7 @@ class SerializeOutConfig : SerializeConfig {
         if (auto map = cast(MapType)ptr.type) {
             auto sub = cur.getSubNode(member);
             map.iterate(ptr, (SafePtr key, SafePtr value) {
-                auto subsub = sub.addUnnamedNode();
+                auto subsub = sub.add();
                 doWriteMember(file, subsub, "key", key, key.type.initPtr());
                 doWriteMember(file, subsub, "value", value, value.type.initPtr());
             });
@@ -459,7 +460,7 @@ class SerializeOutConfig : SerializeConfig {
 
     override void writeObject(Object o) {
         mObjectStack.length = 1024;
-        ConfigNode cur = mFile.getSubNode("serialized").addUnnamedNode();
+        ConfigNode cur = mFile.getSubNode("serialized").add();
         cur["_object"] = queueObject(o);
         while (doWriteNextObject(cur)) {}
     }
@@ -739,14 +740,13 @@ class SerializeInConfig : SerializeConfig {
                     x val;
                     static if (is(x == char)) {
                         val = conv.to!(ubyte)(s);
-                    } else static if (isUnsigned!(x)) {
-                        val = conv.to!(ulong)(s);
-                    } else static if (isSigned!(x)) {
-                        val = conv.to!(long)(s);
+                    } else static if (isIntegerType!(x)) {
+                        val = conv.to!(x)(s);
                     } else static if (is(x == float)) {
                         //xxx (see end of file)
                         val = toFloat(s);
                     } else static if (is(x == double)) {
+                        //xxx this is fishy
                         val = conv.to!(double)(s);
                     } else static if (is(x == bool)) {
                         if (s == "true") {

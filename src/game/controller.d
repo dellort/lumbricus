@@ -940,7 +940,7 @@ class WeaponItem {
         //xxx error handling
         auto w = config["type"];
         mWeapon = mEngine.findWeaponClass(w);
-        if (config.valueIs("quantity", "inf")) {
+        if (config["quantity"] == "inf") {
             mInfiniteQuantity = true;
         } else {
             mQuantity = config.getIntValue("quantity", 0);

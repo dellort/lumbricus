@@ -110,7 +110,7 @@ class BeamActionClass : ActionClass {
     }
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
-        usePos = node.valueIs("target", "pos");
+        usePos = node["target"] == "pos";
     }
 
     BeamAction createInstance(GameEngine eng) {

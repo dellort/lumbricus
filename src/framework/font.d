@@ -206,7 +206,7 @@ class FontManager {
                     mFaces[n.name].styles[cast(FaceStyle)idx] = ms;
             }
         }
-        mNodes = node.getSubNode("styles").clone();
+        mNodes = node.getSubNode("styles").copy();
         mNodes.templatetifyNodes("template");
     }
 

@@ -106,7 +106,7 @@ class Level {
             nlevel.tupleof[n] = t;
         }
         if (nlevel.saved) {
-            nlevel.saved = nlevel.saved.clone();
+            nlevel.saved = nlevel.saved.copy();
         }
         nlevel.objects = objects.dup;
         foreach (ref o; nlevel.objects) {

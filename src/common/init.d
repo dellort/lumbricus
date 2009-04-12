@@ -77,8 +77,14 @@ void initFSMounts() {
         foreach (ConfigNode node; mountConf) {
             char[] physPath = node["path"];
             char[] mp = node["mountpoint"];
-            MountPath type = cast(MountPath)node.selectValueFrom("type",
-                ["data", "user", "absolute"], 2);
+            MountPath type;
+            switch (node["type"]) {
+                case "data": type = MountPath.data; break;
+                case "user": type = MountPath.user; break;
+                case "absolute":
+                default:
+                    type = MountPath.absolute;
+            }
             int prio = node.getValue!(int)("priority", 0);
             bool writable = node.getValue!(bool)("writable", false);
             bool optional = node.getValue!(bool)("optional", false);

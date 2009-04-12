@@ -80,7 +80,7 @@ public class LandscapeGeometry {
         ConfigNode polys = node.getSubNode("polygons");
         polys.clear();
         foreach (Polygon p; polygons) {
-            ConfigNode sub = polys.addUnnamedNode();
+            ConfigNode sub = polys.add();
             sub.setValue("points", p.points);
             sub.setValue("nochange", p.nochange);
             sub.setBoolValue("visible", p.visible);

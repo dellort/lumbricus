@@ -28,7 +28,7 @@ class MarshalBuffer {
             writeArray!(T)(data);
         } else static if (is(T T2 == enum)) {
             write!(T2)(cast(T2)data);
-        } else static if (isInteger!(T)) {
+        } else static if (isIntegerType!(T)) {
             writeInt!(T)(data);
         } else static if (isCharType!(T)) {
             writeChar!(T)(data);
@@ -56,7 +56,7 @@ class MarshalBuffer {
     }
 
     private void writeInt(T)(T data) {
-        static assert(isInteger!(T));
+        static assert(isIntegerType!(T));
         //xxx endianness? maybe later
         mBuffer.write(&data, T.sizeof);
     }
@@ -97,7 +97,7 @@ class UnmarshalBuffer {
             return readArray!(T)();
         } else static if (is(T T2 == enum)) {
             return cast(T)read!(T2)();
-        } else static if (isInteger!(T)) {
+        } else static if (isIntegerType!(T)) {
             return readInt!(T)();
         } else static if (isCharType!(T)) {
             return readChar!(T)();
@@ -144,7 +144,7 @@ class UnmarshalBuffer {
 
     //see above on why the following functions suck
     private T readInt(T)() {
-        static assert(isInteger!(T));
+        static assert(isIntegerType!(T));
         T ret;
         mBuffer.read(&ret, T.sizeof);
         return ret;

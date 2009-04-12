@@ -69,18 +69,19 @@ const cCommandLineHelp =
         Output this and exit.
     --language_id=ID
         Set language ID (de, en)
-    --fw.xxx=yyy
-        Set property xxx of the fwconfig stuff passed to the Framework to yyy,
-        e.g. to disable use of OpenGL:
+    --fw.prop=val
+        Set property 'prop' of the fwconfig stuff passed to the Framework to
+        'val', e.g. to disable use of OpenGL:
         --driver.open_gl=false
-    --exec.=xxx
-        Execute "xxx" on the commandline, e.g. this starts task1 and task2:
+    --exec.=cmd
+        Execute 'cmd' on the commandline, e.g. this starts task1 and task2:
         --exec.="spawn task1" --exec.="spawn task2"
         (the dot "." turns exec into a list, and a list is expected for exec)
         The "autoexec" list in anything.conf isn't executed if an --exec. is
         given on the commandline.
-    --data=xxx
-        Mount xxx as extra data directory (with highest priority, i.e. it
+        xxx: executing more than one cmd is broken because of ConfigNode lol
+    --data=path
+        Mount 'path' as extra data directory (with highest priority, i.e. it
         overrides the standard paths).
     --logconsole
         Output all log output on stdio.`;

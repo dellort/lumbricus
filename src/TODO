@@ -14,7 +14,8 @@
 Langfristig:
 - scripting
 - netzwerkmodus erweitern (siehe Deadlock)
-- gpl daten
+- gpl daten (vollständig)
+- spiele mit mehreren runden
 
 Minor:
 [- kein Force objekt für explosionen erzeugen]

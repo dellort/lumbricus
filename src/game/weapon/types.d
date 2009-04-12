@@ -59,7 +59,7 @@ struct FireMode {
             default:
                 direction = ThrowDirection.fixed;
         }
-        variableThrowStrength = node.valueIs("strength_mode", "variable");
+        variableThrowStrength = node["strength_mode"] == "variable";
         if (node.hasValue("strength_value")) {
             //for "compatibility" only
             throwStrengthFrom = throwStrengthTo =

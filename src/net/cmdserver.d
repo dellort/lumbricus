@@ -198,7 +198,7 @@ class CmdNetServer {
             }
             ConfigNode ct = cl.mMyTeamInfo;
             if (ct) {
-                teams.add(ct);
+                teams.addNode(ct);
             }
         }
         reply.gameConfig = gConf.saveConfigGzBuf(cfg);

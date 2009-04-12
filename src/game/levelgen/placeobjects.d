@@ -57,7 +57,7 @@ class LandscapeObjects {
     void saveTo(ConfigNode node) {
         node.clear();
         foreach (item; items) {
-            auto obj = node.addUnnamedNode();
+            auto obj = node.add();
             obj.setStringValue("id", item.id);
             item.params.saveTo(obj);
         }

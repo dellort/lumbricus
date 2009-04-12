@@ -1058,7 +1058,7 @@ public class LevelEditor : Task {
     void cmdSave(MyBox[] args, Output write) {
         char[] filename = args[0].unbox!(char[])();
         ConfigNode rootnode = new ConfigNode();
-        auto sub = rootnode.getSubNode("templates").getSubNode("");
+        auto sub = rootnode.getSubNode("templates").add();
         saveLevel(sub);
         try {
             Stream outp = gFS.open(filename, FileMode.OutNew);

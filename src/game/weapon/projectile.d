@@ -177,7 +177,7 @@ class ProjectileStateInfo : ActionStateInfo {
         auto detonateNode = sc.getSubNode("detonate");
         minimumGluedTime = timeSecs(detonateNode.getFloatValue("gluetime", 0));
         inactiveWhenGlued = sc.getBoolValue("inactive_when_glued");
-        if (detonateNode.valueIs("lifetime", "$LIFETIME$")) {
+        if (detonateNode["lifetime"] == "$LIFETIME$") {
             useFixedDetonateTime = false;
         } else {
             useFixedDetonateTime = true;

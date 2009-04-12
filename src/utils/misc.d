@@ -157,106 +157,21 @@ char[] sizeToHuman(long bytes, char[] buffer = null) {
         x = x*1024;
         n++;
     }
-    //xxx: ugly trailing zeros
-    return myformat_s(buffer, "{:f3} {}", 1.0*bytes/x, cSizes[n]);
+    char[80] buffer2 = void;
+    char[] s = myformat_s(buffer2, "{:f3}", 1.0*bytes/x);
+    //strip ugly trailing zeros (replace with a better way if you know one)
+    if (str.find(s, '.') >= 0) {
+        while (s[$-1] == '0')
+            s = s[0..$-1];
+        if (endsWith(s, "."))
+            s = s[0..$-1];
+    }
+    return myformat_s(buffer, "{} {}", s, cSizes[n]);
 }
 
 unittest {
-    /+assert(sizeToHuman(0) == "0 B");
+    assert(sizeToHuman(0) == "0 B");
     assert(sizeToHuman(1023) == "1023 B");
-    assert(sizeToHuman(1024) == "1 KB");+/
-}
-
-//some metaprogramming stuff
-
-///unsigned!(T): return the unsigned type of a signed one
-///invalid for non-integers (including char)
-template unsigned(T : long) {
-    alias ulong unsigned;
-}
-template unsigned(T : int) {
-    alias uint unsigned;
-}
-template unsigned(T : short) {
-    alias ushort unsigned;
-}
-template unsigned(T : byte) {
-    alias ubyte unsigned;
-}
-
-///signed!(T): return the signed type of an unsigned one
-///invalid for non-integers (including char)
-template signed(T : ulong) {
-    alias long signed;
-}
-template signed(T : uint) {
-    alias int signed;
-}
-template signed(T : ushort) {
-    alias short signed;
-}
-template signed(T : ubyte) {
-    alias byte signed;
-}
-
-///test if a type is signed/unsigned
-template isUnsigned(T) {
-    const isUnsigned = is(signed!(T));
-}
-template isSigned(T) {
-    const isSigned = is(unsigned!(T));
-}
-
-///true if it's an integer
-///(isInteger!(char) is false)
-template isInteger(T) {
-    const isInteger = isSigned!(T) || isUnsigned!(T);
-}
-
-template forceUnsigned(T) {
-    static assert(isInteger!(T));
-    static if (isSigned!(T))
-        alias unsigned!(T) forceUnsigned;
-    else
-        alias T forceUnsigned;
-}
-template forceSigned(T) {
-    static assert(isInteger!(T));
-    static if (isUnsigned!(T))
-        alias signed!(T) forceSigned;
-    else
-        alias T forceSigned;
-}
-
-//unittest {
-    static assert(is(signed!(ulong) == long));
-    static assert(is(signed!(ubyte) == byte));
-    static assert(is(unsigned!(long) == ulong));
-    static assert(is(unsigned!(byte) == ubyte));
-    static assert(isSigned!(long) && !isUnsigned!(long));
-    static assert(isUnsigned!(uint) && !isSigned!(uint));
-    static assert(isInteger!(int) && !isInteger!(char));
-    static assert(!isInteger!(float));
-    static assert(is(forceSigned!(ushort) == short));
-    static assert(is(forceSigned!(short) == short));
-    static assert(is(forceUnsigned!(short) == ushort));
-    static assert(is(forceUnsigned!(ushort) == ushort));
-//}
-
-//return parameters of a function type (or error)
-template GetFNParams(T) {
-    static if (is(T T2 == function)) {
-        alias T2 GetFNParams;
-    } else {
-        static assert(false, "GetDGParams: T is not a function type");
-    }
-}
-
-//return parameters of a delegate type (or error)
-template GetDGParams(T) {
-    static if (is(T T2 == delegate)) {
-        alias GetFNParams!(T2) GetDGParams;
-    } else {
-        static assert(false, "GetDGParams: T is not a delegate type");
-    }
+    assert(sizeToHuman(1024) == "1 KB");
+    assert(sizeToHuman((1024+512)*1024) == "1.5 MB");
 }

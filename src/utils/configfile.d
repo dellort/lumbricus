@@ -112,23 +112,12 @@ private bool is_config_id(char[] name) {
     return true;
 }
 
-/// This exception is thrown when an invalid name is used.
-public class ConfigInvalidName : Exception {
-    public char[] invalidName;
-
-    public this(char[] offender) {
-        super("Invalid config entry name: >" ~ offender ~ "<");
-    }
-}
-
 /// a subtree in a ConfigFile, can contain named and unnamed values and nodes
 public class ConfigNode {
     private {
         char[] mName;
         ConfigNode mParent;
-        ConfigNode[] mItems;
-        //contains only "named" items
-        ConfigNode[char[]] mNamedItems;
+        ConfigNode[] mItems; //xxx replace by linked list
     }
 
     //value can contain anything (as long as it is valid UTF-8)
@@ -139,7 +128,7 @@ public class ConfigNode {
     //comment after last item in the node (only useful if there are subnodes)
     public char[] endComment;
 
-    public ConfigNode clone() {
+    ConfigNode copy() {
         auto r = new ConfigNode();
         r.endComment = endComment;
         r.comment = comment;
@@ -147,8 +136,8 @@ public class ConfigNode {
         r.mName = mName;
         r.mParent = null;
         foreach (ConfigNode item; this) {
-            ConfigNode n = item.clone();
-            r.doAdd(n);
+            ConfigNode n = item.copy();
+            r.addNode(n);
         }
         return r;
     }
@@ -166,103 +155,78 @@ public class ConfigNode {
     }
 
     public void rename(char[] new_name) {
-        ConfigNode parent = mParent;
-        if (!parent) {
-            mName = new_name;
-            return;
-        }
-        parent.doRemove(this);
-        parent.add(new_name, this);
+        mName = new_name;
     }
 
-    private void resolveConflict(char[] conflict_name) {
-        rename(conflict_name ~ "_deleted");
-        assert(mName != conflict_name);
-    }
-
-    void add(ConfigNode item) {
+    ///if item already has a parent, it's removed first
+    void addNode(ConfigNode item) {
         if (item.mParent)
             item.mParent.remove(item);
-        char[] new_name = item.name;
-        ConfigNode conflict = find(new_name);
-        if (conflict) {
-            conflict.resolveConflict(new_name);
-        }
-        //mName = new_name;
-        doAdd(item);
-    }
-    void add(char[] name, ConfigNode item) {
-        if (item.mParent)
-            item.mParent.remove(item);
-        item.mName = name;
-        add(item);
-    }
-
-    private void doAdd(ConfigNode item) {
-        assert(item.mParent is null);
-
-        //add only to hashtable if "named" item
-        if (item.mName.length > 0) {
-            assert(!(item.mName in mNamedItems));
-            mNamedItems[item.mName] = item;
-        }
-
-        mItems ~= item;
-
         item.mParent = this;
+        mItems ~= item;
     }
 
-    private void doRemove(ConfigNode item) {
+    void addNode(char[] name, ConfigNode item) {
+        addNode(item);
+        item.rename(name);
+    }
+
+    void remove(ConfigNode item) {
+        //(NOTE: clear() also can remove nodes)
+
         if (!item)
             return;
 
-        char[] name = item.mName;
-
         assert(item.mParent is this);
-        item.mParent = null;
-
-        if (name.length > 0) {
-            assert(name in mNamedItems);
-            mNamedItems.remove(name);
-        }
 
         for (uint n = 0; n < mItems.length; n++) {
-            if (mItems[n] == item) {
+            if (mItems[n] is item) {
                 mItems = mItems[0..n] ~ mItems[n+1..$];
                 break;
             }
         }
     }
 
+    bool remove(char[] name) {
+        auto node = find(name);
+        if (!node)
+            return false;
+        remove(node);
+        return true;
+    }
+
     /// unlink all contained config items
     public void clear() {
-        while (mItems.length) {
-            doRemove(mItems[0]);
+        foreach (i; mItems) {
+            i.mParent = null;
         }
+        mItems = null;
     }
 
-    /// find an entry
-    /// for uncomplicated access, use functions like i.e. getStringValue()
-    public ConfigNode find(char[] name) {
-        if (name in mNamedItems) {
-            return mNamedItems[name];
-        } else {
-            return null;
+    /// find an entry, return null if not found
+    /// if there are several items with the same name, return the first one
+    ConfigNode find(char[] name) {
+        //linear search - shouldn't be a problem in the general case, most
+        //nodes have not many items, and linear search is faster/simpler.
+        //if something needs fast lookups, it should create its own index.
+        foreach (ConfigNode sub; mItems) {
+            if (sub.name == name)
+                return sub;
         }
+        return null;
     }
 
-    public bool exists(char[] name) {
-        return find(name) !is null;
+    bool exists(char[] name) {
+        return !!find(name);
     }
 
-    public bool remove(char[] name) {
-        return remove(find(name));
-    }
-    public bool remove(ConfigNode item) {
-        if (item is null)
-            return false;
-        doRemove(item);
-        return true;
+    alias exists hasNode;
+    alias exists hasValue;
+
+    ConfigNode add(char[] name = "") {
+        auto node = new ConfigNode();
+        addNode(name, node);
+        return node;
     }
 
     /// Find a subnode by following a path.
@@ -309,44 +273,25 @@ public class ConfigNode {
         return node.getStringValue(valname);
     }
 
-    //add something... also handles "unnamed" items
-    //(always return new item on empty name)
-    private ConfigNode doFind(char[] name, bool create) {
+    /// like find(), but return null if item has the wrong type
+    /// for create==true, create a new / overwrite existing values/nodes
+    /// instead of returning null
+    public ConfigNode findNode(char[] name, bool create = false) {
         ConfigNode sub = find(name);
         if (sub !is null || !create)
             return sub;
 
         //create & add
         sub = new ConfigNode();
-        sub.mName = name;
-        doAdd(sub);
+        addNode(name, sub);
         return sub;
     }
 
-    /// like find(), but return null if item has the wrong type
-    /// for create==true, create a new / overwrite existing values/nodes
-    /// instead of returning null
-    public ConfigNode findValue(char[] name, bool create = false) {
-        return doFind(name, create);
-    }
-    public ConfigNode findNode(char[] name, bool create = false) {
-        return doFind(name, create);
-    }
-
-    public bool hasValue(char[] name) {
-        return findValue(name) !is null;
-    }
-    public bool hasNode(char[] name) {
-        return findNode(name) !is null;
-    }
+    alias findNode findValue;
 
     //difference to findNode: different default value for 2nd parameter :-)
     public ConfigNode getSubNode(char[] name, bool createIfNotExist = true) {
         return findNode(name, createIfNotExist);
-    }
-
-    public ConfigNode addUnnamedNode() {
-        return findNode("", true);
     }
 
     //number of nodes and values
@@ -383,19 +328,6 @@ public class ConfigNode {
     }
     public void opIndexAssign(char[] value, char[] name) {
         setStringValue(name, value);
-    }
-
-    //internally used by ConfigFile
-    package ConfigNode addValue(char[] name, char[] value, char[] comment) {
-        auto val = findValue(name, true);
-        val.value = value;
-        val.comment = comment;
-        return val;
-    }
-    package ConfigNode addNode(char[] name, char[] comment) {
-        auto node = findNode(name, true);
-        node.comment = comment;
-        return node;
     }
 
     private void doWrite(Output stream, uint level) {
@@ -671,7 +603,8 @@ public class ConfigNode {
                 this.value = "";
                 clear();
                 foreach (T2 v; value) {
-                    setValue("", v);
+                    auto node = add();
+                    node.setCurValue(v);
                 }
             }
         } else static if (is(T == struct)) {
@@ -782,34 +715,6 @@ public class ConfigNode {
         return buf;
     }
 
-    //compare values in a non-strict way (i.e. not byte-exact)
-    //xxx: maybe at least case insensitive, also maybe strip whitespace
-    private bool doCompareValueFuzzy(char[] s1, char[] s2) {
-        return s1 == s2;
-    }
-
-    /// return true if the field name contains the value isValue
-    /// does fuzzy value comparision
-    bool valueIs(char[] name, char[] isValue) {
-        return doCompareValueFuzzy(getStringValue(name), isValue);
-    }
-
-    /// Return what to index into values to which that value equals to.
-    /// does fuzzy value comparision
-    //TODO: distinguish between not-set values and "wrong" values?
-    public int selectValueFrom(char[] name, char[][] values, int def = -1) {
-        auto vo = findValue(name);
-        if (!vo)
-            return def;
-        char[] v = vo.value;
-        foreach (int i, char[] cur; values) {
-            if (doCompareValueFuzzy(cur, v))
-                return i;
-        }
-        //not found
-        return def;
-    }
-
     //return all values from this node in an string array
     //xxx: maybe give up and implement ConfigNodes that are lists
     public char[][] getValueList() {
@@ -848,8 +753,7 @@ public class ConfigNode {
                 item2 = null;
             }
             if (!item2) {
-                auto n = item.clone();
-                doAdd(n);
+                addNode(item.copy());
             }
         }
     }
@@ -890,14 +794,6 @@ public class ConfigNode {
         auto sout = new StringOutput;
         writeFile(sout);
         return sout.text;
-    }
-
-    //does a deep copy if the node and its subnodes
-    //result is unparented
-    public ConfigNode copy() {
-        auto n = new ConfigNode();
-        n.mixinNode(this, true);
-        return n;
     }
 }
 
@@ -1054,10 +950,6 @@ public class ConfigFile {
 
         try {
 
-            //xxx: officially, it's an "error" to rely on array bounds checking
-            //this code will only work correctly in "debug" mode
-            //(ie. if mData ends with a partial UTF8 sequence, decode will read
-            // beyond the array and fsck up everything)
             result = utf.decode(mData, mNextPos.bytePos);
 
         } catch (utf.UtfException utfe) {
@@ -1434,7 +1326,9 @@ public class ConfigFile {
 
             if (token == Token.VALUE) {
                 //a VALUE without an ID
-                node.addValue("", str, comm);
+                auto newnode = node.add();
+                newnode.comment = comm;
+                newnode.value = str;
                 continue;
             }
 
@@ -1454,9 +1348,6 @@ public class ConfigFile {
 
             if (token == Token.ID) {
                 id = str;
-                if (node.exists(id)) {
-                    reportError(false, "item with this name exists already");
-                }
 
                 nextToken(token, str, waste);
 
@@ -1473,14 +1364,18 @@ public class ConfigFile {
                         reportError(false, "after '=': value expected");
                         reset(p);
                     }
-                    node.addValue(id, str, comm);
+
+                    auto newnode = node.add(id);
+                    newnode.value = str;
+                    newnode.comment = comm;
 
                     continue;
                 }
             }
 
             if (token == Token.OPEN) {
-                ConfigNode newnode = node.addNode(id, comm);
+                ConfigNode newnode = node.add(id);
+                newnode.comment = comm;
                 parseNode(newnode, false);
                 continue;
             }
@@ -1494,7 +1389,8 @@ public class ConfigFile {
                 }
                 id = str;
 
-                ConfigNode newnode = node.addNode(id, comm);
+                ConfigNode newnode = node.add(id);
+                newnode.comment = comm;
                 //now, either an id/value, a '=', or a '{'
                 nextToken(token, str, waste);
 
