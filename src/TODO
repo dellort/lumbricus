@@ -1,26 +1,81 @@
-- richtige GUI listen
-- key bindings editor
-[- userdaten (mergen von konfigfiles)]
-- partikel, sounds
-- "stub" gpl daten (strichmännchen)
-- physik: box stacking
+- Fix/Change, + kleines Feature, * großes, langfristiges Feature, *** völlig unmöglich
+
+== GUI (allgemeine Features) ==
++ richtige GUI listen
++ key bindings editor
++ flash-artiges System für GUI-Animationen (widget einem pfad folgen lassen)
+* CSS-artige formatierungen für GUI
+- button für windows pinnen/entpinnen
+*** GUI enthässlichen
+
+== GUI spielspezifisch (Dialoge) ==
+* Netzwerk-GUI (Spielerliste, Scores, Chat, Ping/Lag/Warte-auf-Server)
++ Waffenset-Editor (mit Kisten-Waffen)
++ Singleplayer-Spiel-Dialog erweitern (Optionen, mehr Team-Einstellungen, Templates laden/speichern)
++ Netzwerk-Server-erstell GUI (ähnlich Singleplayer, evtl. verbinden mit s.o.)
++ Optionsmenü (Sprache, Video, Sound etc.)
++ Locale-Editor (xxx wirklich? Ich finds ok die Textdateien zu bearbeiten; vll. reicht ein Reload-Knopf)
+
+
+== Spiellogik/Gameengine ==
+* physik: box stacking
   (zusätzliche ideen: bewegende platformen, jump pads, wurmlöcher)
-- flash-artiges System für GUI-Animationen (widget einem pfad folgen lassen)
-- waffen klassen etc. nicht mehr von GameEngine abhängig (serialize_register.d)
-[- 1-frame bug bei würmern]
-- CSS-artige formatierungen für GUI
-- GUI enthässlichen
-
-Langfristig:
-- scripting
-- netzwerkmodus erweitern (siehe Deadlock)
-- gpl daten (vollständig)
-- spiele mit mehreren runden
-
-Minor:
 [- kein Force objekt für explosionen erzeugen]
 - statt aktive Teams aktive TeamMembers
-- button für windows pinnen/entpinnen
+[- 1-frame bug bei würmern]
+- waffen klassen etc. nicht mehr von GameEngine abhängig (serialize_register.d)
+* Spiel über mehrere Runden (Scores, Waffen sammeln, Statistiken, Gesamtsieg)
++ Spiel-Statistiken, insb. Team- und Wurm-bezogene
++ Powerup-Kisten (2x Schaden, Niedrige Schwerkraft etc.) und Medizinkisten
++ "Action"-Spielmodus (Netzwerk; mehrere Spieler gleichzeitig aktiv)
+- Level-Generator: Objekt-/Brückenplatzierung überarbeiten (Decke, Wand links/rechts etc.)
++ Harter Rand ums Level
+*** KI
+*** Scripting
+
+== Spiel-Anzeige (Grafiken, Präsentation) ==
++ "Richtiger" Wurmwechsel mit Symbol + entspr. Waffe
++ Waffen-Timer anzeigen
+* partikel, sounds
++ Aufsteigende Ertrink-Labels
+* "stub" gpl daten (strichmännchen)
+*** gpl daten (vollständig)
+
+
+== Waffen ==
++ Superschaf
++ Nahkampf (Schläger, Stoß, Firepunch, Axt etc.)
++ Buddelwaffen
++ Superwaffen (Armageddon, Atomtest, Schafsangriff, Teppichangriff, MB-Bombe etc.)
++ Lokale-Suche-Waffen (Taube, Zauberkugel)
++ Fallschirm, Bungee
++ Zug überspringen, Aufgeben, Wurmwechsel
+
+- Napalm verbessern
+- Molotov-Cocktail brennt über mehrere Züge
++ Luftangriff-Steuerung (Mauszeiger, links/rechts)
++ Begrenzte Jetpack-Flugdauer mit Anzeige
+
+
+== Netzwerk ==
++ "Rückmeldung" der Clients, um Lags/abgestürzte Clients zu erkennen
+  Idee: Rückmeldung (Empfangsbestätigung) alle x(~10) Timestamps, fehlen dem 
+        Server x*5 Timestamps an Rückmeldungen, wird das Spiel pausiert
++ Behandlung von im Spiel getrennten Spielern (Team entfernen, weiße Fahne o.ä.)
+- Teams: Waffenset-Zuordnung, Lebenspunkte vom Server behandeln bzw. überprüfen,
+         nicht allein den Client entscheiden lassen (Fairness)
++ Server im Verbindungs-Dialog pingen bzw. mehr Informationen anzeigen
+- Replays überprüfen/abstellen
++ Savegames
+- Fix für spielbeeinflussende Befehle (z.B. slowdown), die mom. keine Timestamps haben
++ Nach dem Spiel zurück zur Lobby (mom. undefinierter Zustand), Problem: Spielendeerkennung
++ Ready-Check zum Spielstart
+*** Interpolation/Dead reckoning/Lag compensation/sowas in die Richtung, muhahar
+* netzwerkmodus erweitern (siehe Deadlock)  <-- ?? meinst du Interpolation?
+
+
+== Sonstiges/Minor ==
+[- userdaten (mergen von konfigfiles)]
 - locales: übersetzungen vergleichen / zur laufzeit wechseln
 - task spezifische commandos/hotkeys (ähnlich wie in loadsafe.d)
 - debugging: würmer auswählen und GameObject-Felder anzeigen lassen

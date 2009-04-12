@@ -196,7 +196,6 @@
 		<Unit filename="..\src\net\cmdprotocol.d" />
 		<Unit filename="..\src\net\cmdserver.d" />
 		<Unit filename="..\src\net\cmdserver_gui.d" />
-		<Unit filename="..\src\net\encode.d" />
 		<Unit filename="..\src\net\enet_test.d" />
 		<Unit filename="..\src\net\iflist.d" />
 		<Unit filename="..\src\net\lobby.d" />
@@ -221,7 +220,6 @@
 		<Unit filename="..\src\physics\zone.d" />
 		<Unit filename="..\src\utils\archive.d" />
 		<Unit filename="..\src\utils\array.d" />
-		<Unit filename="..\src\utils\bitstream.d" />
 		<Unit filename="..\src\utils\boxpacker.d" />
 		<Unit filename="..\src\utils\buffer.d" />
 		<Unit filename="..\src\utils\color.d" />

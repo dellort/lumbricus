@@ -73,6 +73,12 @@ class MarshalBuffer {
     }
 }
 
+class UnmarshalException : Exception {
+    this(char[] msg) {
+        super(msg);
+    }
+}
+
 class UnmarshalBuffer {
     private {
         BufferRead mBuffer;
@@ -121,6 +127,12 @@ class UnmarshalBuffer {
         }
     }
 
+    private void require(uint nbytes) {
+        if (mBuffer.data.length - mBuffer.position < nbytes) {
+            throw new UnmarshalException("Not enough data");
+        }
+    }
+
     private RetType!(T) readArray(T)() {
         //even for static arrays, the return type needs to be dynamic
         RetType!(T) ret;
@@ -145,6 +157,7 @@ class UnmarshalBuffer {
     //see above on why the following functions suck
     private T readInt(T)() {
         static assert(isIntegerType!(T));
+        require(T.sizeof);
         T ret;
         mBuffer.read(&ret, T.sizeof);
         return ret;
@@ -152,6 +165,7 @@ class UnmarshalBuffer {
 
     private T readChar(T)() {
         static assert(isCharType!(T));
+        require(T.sizeof);
         T ret;
         mBuffer.read(&ret, T.sizeof);
         return ret;
@@ -159,6 +173,7 @@ class UnmarshalBuffer {
 
     private T readReal(T)() {
         static assert(isRealType!(T));
+        require(T.sizeof);
         T ret;
         mBuffer.read(&ret, T.sizeof);
         return ret;
@@ -213,4 +228,12 @@ unittest {
         //Trace.formatln("  {} = {}", s2.tupleof[idx].stringof, x);
         assert(s.tupleof[idx] == s2.tupleof[idx]);
     }
+
+    ubyte[1] bb;
+    um = new UnmarshalBuffer(bb);
+    try {
+        //needs to throw UnmarshalException
+        int err = um.read!(int);
+        assert(false);
+    } catch (UnmarshalException e) {}
 }

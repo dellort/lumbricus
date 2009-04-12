@@ -577,7 +577,12 @@ private class CmdNetClientConnection {
             return;
         }
         scope unmarshal = new UnmarshalBuffer(data[0..dataLen]);
-        receive(channelId, unmarshal);
+        try {
+            receive(channelId, unmarshal);
+        } catch (UnmarshalException e) {
+            //malformed packet, unmarshalling failed
+            close(DiscReason.protocolError);
+        }
     }
 
     //NetPeer.onDisconnect
