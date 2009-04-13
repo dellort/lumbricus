@@ -1,7 +1,5 @@
 module game.crate;
 
-import framework.i18n;
-
 import game.gobject;
 import game.animation;
 import physics.world;
@@ -20,6 +18,7 @@ import utils.misc;
 import utils.configfile;
 import utils.reflection;
 import tango.math.Math;
+import tango.util.Convert;
 import str = stdx.string;
 
 ///Base class for stuff in crates that can be collected by worms
@@ -30,6 +29,9 @@ class Collectable {
     //translation ID for contents; used to display collect messages
     //could also be used for crate-spy
     abstract char[] id();
+
+    //create a controller message when this item was collected
+    abstract void collectMessage(GameController logic, ServerTeamMember member);
 
     ///The crate explodes
     void blow(CrateSprite parent) {
@@ -67,6 +69,11 @@ class CollectableWeapon : Collectable {
         return "weapons." ~ weapon.name;
     }
 
+    void collectMessage(GameController logic, ServerTeamMember member) {
+        logic.messageAdd("collect_item", [member.name(), "_." ~ id(),
+            to!(char[])(quantity)]);
+    }
+
     override void blow(CrateSprite parent) {
         //think about the crate-sheep
         //xxx maybe make this more generic
@@ -92,7 +99,13 @@ class CollectableMedkit : Collectable {
     }
 
     char[] id() {
-        return "crate_medkit";
+        //never used?
+        return "crate.medkit";
+    }
+
+    void collectMessage(GameController logic, ServerTeamMember member) {
+        logic.messageAdd("collect_medkit", [member.name(),
+            to!(char[])(amount)]);
     }
 
     void collect(CrateSprite parent, ServerTeamMember member) {
@@ -110,7 +123,11 @@ class CollectableBomb : Collectable {
     }
 
     char[] id() {
-        return "crate_bomb";
+        return "crate.bomb";
+    }
+
+    void collectMessage(GameController logic, ServerTeamMember member) {
+        logic.messageAdd("collect_bomb", [member.name()]);
     }
 
     void collect(CrateSprite parent, ServerTeamMember member) {
@@ -188,8 +205,7 @@ class CrateSprite : ActionSprite {
         engine.controller.events.onCrate(member, stuffies);
         //transfer stuffies
         foreach (Collectable c; stuffies) {
-            engine.controller.messageAdd("collect_item", [member.name(),
-                _(c.id())]);
+            c.collectMessage(engine.controller, member);
             c.collect(this, member);
         }
         //and destroy crate

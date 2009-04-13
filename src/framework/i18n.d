@@ -191,7 +191,12 @@ public class Translator {
             if (i == msg.args.length) {
                 return tovararg(p[0..i]);
             }
-            p[i] = msg.args[i];
+            char[] s = msg.args[i];
+            //prefix arguments with _ to translate them too (e.g. _messageid)
+            if (s.length > 1 && s[0] == '_') {
+                s = opCall(s[1..$]);
+            }
+            p[i] = s;
         }
         assert(false);
     }
@@ -200,6 +205,10 @@ public class Translator {
     private char[] translatefx(char[] id, TypeInfo[] arguments,
         va_list argptr, uint rnd = 0)
     {
+        if (id.length > 0 && id[0] == '.') {
+            //prefix the id with a . to translate in gLocaleRoot
+            return gLocaleRoot.translatefx(id[1..$], arguments, argptr, rnd);
+        }
         //empty id, empty result
         if (id.length == 0)
             return "";

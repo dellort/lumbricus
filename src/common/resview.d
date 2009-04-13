@@ -499,6 +499,7 @@ class AnimationHandler : ResViewHandler!(Animation) {
         }
 
         override void simulate() {
+            mTime.update();
             mFrame.curValue = mAnim.curFrame;
         }
 

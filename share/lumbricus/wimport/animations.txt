@@ -308,6 +308,11 @@ mainspr {
                 worm_wiggle3 = "302"
                 worm_wiggle_headband = "395"
 
+                worm_surrender_get = "458"
+                worm_surrender_hold = "+repeat; 251"
+                worm_skipturn_get = "401"
+                worm_skipturn_hold = "+repeat; 272"
+
                 //special weapon fire/release animations
                 worm_prod_fire = "375"
                 worm_prod_release = "378"

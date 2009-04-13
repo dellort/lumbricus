@@ -419,6 +419,20 @@ class ServerTeam : Team {
         weapons.addWeapon(w, quantity);
         parent.updateWeaponStats(null);
     }
+
+    void skipTurn() {
+        if (!mCurrent || !mActive)
+            return;
+        current = null;
+    }
+
+    void surrenderTeam() {
+        current = null;
+        //xxx: set worms to "white flag" animation first
+        foreach (m; mMembers) {
+            m.removeWorm();
+        }
+    }
 }
 
 //member of a team, currently (and maybe always) capsulates a WormSprite object
@@ -578,9 +592,9 @@ class ServerTeamMember : TeamMember, WormController {
             if (alive) {
                 mWorm.activateJetpack(false);
             }
-            mWorm.weapon = null;
             //stop all action when round ends
             mWorm.forceAbort();
+            mWorm.weapon = null;
             mFireDown = false;
             mActive = act;
             mTeam.parent.events.onWorm(WormEvent.wormDeactivate, this);
@@ -635,7 +649,7 @@ class ServerTeamMember : TeamMember, WormController {
     void selectWeapon(WeaponItem weapon) {
         if (!isControllable || mLimitedMode)
             return;
-        if (weapon !is mCurrentWeapon) {
+        if (weapon && weapon !is mCurrentWeapon) {
             wormAction();
         }
         mCurrentWeapon = weapon;
@@ -663,9 +677,9 @@ class ServerTeamMember : TeamMember, WormController {
             }
         }
         /*if (selected) {
-            messageAdd(_("msgselweapon", _("weapons." ~ selected.name)));
+            messageAdd("msgselweapon", ["_.weapons." ~ selected.name]);
         } else {
-            messageAdd(_("msgnoweapon"));
+            messageAdd("msgnoweapon");
         }*/
         if (selected) {
             mTeam.setPointMode(selected.fireMode.point);
@@ -766,6 +780,8 @@ class ServerTeamMember : TeamMember, WormController {
     void doneFiring(Shooter sh) {
         if (!sh.weapon.dontEndRound)
             mWeaponUsed = true;
+        if (sh.weapon.deselectAfterFire)
+            selectWeapon(null);
     }
 
     // <-- End WormController
@@ -790,6 +806,10 @@ class ServerTeamMember : TeamMember, WormController {
     //has the worm done anything since activation?
     bool actionPerformed() {
         return mWormAction;
+    }
+
+    void resetActivity() {
+        mWormAction = false;
     }
 
     private void move(Vector2f vec) {

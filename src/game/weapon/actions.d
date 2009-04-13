@@ -10,6 +10,7 @@ import game.action;
 import game.worm;
 import game.glevel;
 import game.levelgen.landscape;
+import game.controller;
 import physics.world;
 import utils.configfile;
 import utils.time;
@@ -353,6 +354,86 @@ class EarthquakeAction : TimedAction {
         } else {
             super.simulate(deltaT);
         }
+    }
+}
+
+//------------------------------------------------------------------------
+
+class TeamActionClass : ActionClass {
+    char[] action;
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
+
+    void loadFromConfig(GameEngine eng, ConfigNode node) {
+        action = node["action"];
+        if (action.length == 0)
+            throw new Exception("Please set action");
+    }
+
+    TeamAction createInstance(GameEngine eng) {
+        return new TeamAction(this, eng);
+    }
+
+    static this() {
+        ActionClassFactory.register!(typeof(this))("team");
+    }
+}
+
+class TeamAction : WeaponAction {
+    private {
+        TeamActionClass myclass;
+        ServerTeamMember mMember;
+    }
+
+    this(TeamActionClass base, GameEngine eng) {
+        super(base, eng);
+        myclass = base;
+    }
+
+    this (ReflectCtor c) {
+        super(c);
+    }
+
+    override protected ActionRes initialStep() {
+        super.initialStep();
+        auto w = cast(WormSprite)mShootbyObj;
+        if (w) {
+            mMember = engine.controller.memberFromGameObject(w, false);
+            if (mMember) {
+                switch (myclass.action) {
+                    case "skipturn":
+                        mMember.serverTeam.skipTurn();
+                        engine.controller.messageAdd("msgskipturn",
+                            [mMember.name(), mMember.serverTeam.name()]);
+                        break;
+                    case "surrender":
+                        mMember.serverTeam.surrenderTeam();
+                        engine.controller.messageAdd("msgsurrender",
+                            [mMember.name(), mMember.serverTeam.name()]);
+                        break;
+                    case "wormselect":
+                        return ActionRes.moreWork;
+                        break;
+                    default:
+                }
+            }
+        }
+        return ActionRes.done;
+    }
+
+    override void simulate(float deltaT) {
+        assert(!!mMember);
+        //xxx: we just need the 1-frame delay for this because initialStep() is
+        //     called from doFire, which will set mMember.mWormAction = true
+        //     afterwards and would conflict with the code below
+        mMember.serverTeam.allowSelect = true;
+        mMember.resetActivity();
+        done();
     }
 }
 

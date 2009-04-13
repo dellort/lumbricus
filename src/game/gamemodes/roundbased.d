@@ -116,6 +116,9 @@ class ModeRoundbased : Gamemode {
                     false);
                 if (!mCurrentTeam.current)
                     return RoundState.waitForSilence;
+                if (mCurrentTeam.allowSelect && mCurrentTeam.teamAction())
+                    //no changing worm after action
+                    mCurrentTeam.allowSelect = false;
                 if (mStatus.roundRemaining <= Time.Null)   //timeout
                 {
                     //check if we need to wait because worm is performing
@@ -259,8 +262,6 @@ class ModeRoundbased : Gamemode {
                 assert(mCurrentTeam);
                 modeTime.paused = false;
                 mCurrentTeam.setOnHold(false);
-                if (mAllowSelect)
-                    mCurrentTeam.allowSelect = false;
                 mStatus.prepareRemaining = Time.Null;
                 break;
             case RoundState.retreat:
@@ -271,7 +272,8 @@ class ModeRoundbased : Gamemode {
                 modeTime.paused = true;
                 //no control while blowing up worms
                 if (mCurrentTeam) {
-                    mCurrentTeam.current.forceAbort();
+                    if (mCurrentTeam.current)
+                        mCurrentTeam.current.forceAbort();
                     mCurrentTeam.setOnHold(true);
                 }
                 //if it's the round's end, also take control early enough
