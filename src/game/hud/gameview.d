@@ -260,6 +260,7 @@ class GameView : Container {
 
             bool cameraActivated;
             Vector2i lastKnownPosition;
+            private bool mArrowState;
 
             this(TeamMemberInfo m) {
                 auto ts = mGame.clientTime;
@@ -279,6 +280,16 @@ class GameView : Container {
                 moveWeaponIcon.fn = &interpolate2Exp;
                 //get rid of nan
                 moveWeaponIcon.start = moveWeaponIcon.target = 0;
+            }
+
+            void setArrowAnim(bool canChangeWorm) {
+                if (mArrowState == canChangeWorm)
+                    return;
+                if (canChangeWorm)
+                    arrow.animation = member.owner.theme.change.get;
+                else
+                    arrow.animation = member.owner.theme.arrow.get;
+                mArrowState = canChangeWorm;
             }
 
             //looks like this:   | 0.0 slow ... fast 0.5 fast ... slow 1.0 |
@@ -406,6 +417,7 @@ class GameView : Container {
                         && amember.displayWeaponIcon();
 
                     setWVisible(weaponIcon, weapon_visible);
+                    setArrowAnim(member.member.team.allowSelect());
 
                     if (weapon_visible) {
                         //NOTE: wwp animates the appearance/disappearance of

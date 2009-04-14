@@ -317,10 +317,8 @@ class WormSprite : GObjectSprite {
             //invert y to go from screen coords to math coords
             weaponMove = -mMoveVector.y;
         }
-        if (currentState.canWalk && !mThrowing) {
-            //no walk while shooting (or charging)
-            if (!mShooterMain || !mShooterMain.isFixed)
-                physics.setWalking(mMoveVector);
+        if (wormCanWalkJump()) {
+            physics.setWalking(mMoveVector);
         }
         if (currentState is wsc.st_rope) {
             mRopeMove(mMoveVector);
@@ -364,7 +362,7 @@ class WormSprite : GObjectSprite {
     }
 
     void jump(JumpMode m) {
-        if (currentState.canWalk) {
+        if (wormCanWalkJump()) {
             mJumpMode = m;
             setState(wsc.st_jump_start);
         } else if (currentState is wsc.st_jump_start) {
@@ -372,6 +370,12 @@ class WormSprite : GObjectSprite {
             if (mJumpMode == JumpMode.normal) mJumpMode = JumpMode.smallBack;
             if (mJumpMode == JumpMode.straightUp) mJumpMode = JumpMode.backFlip;
         }
+    }
+
+    private bool wormCanWalkJump() {
+        return currentState.canWalk && !mThrowing
+            //no walk while shooting (or charging)
+            && (!mShooterMain || !mShooterMain.isFixed);
     }
 
     //if weapon needs to be displayed outside the worm

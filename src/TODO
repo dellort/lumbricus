@@ -10,7 +10,6 @@
 - debugging: würmer auswählen und GameObject-Felder anzeigen lassen
 
 == bekannte, lösbare Bugs ==
-- wurm kann springen während minigun gefeuert wird
 - wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
 - napalm ist sehr langsam, minenagriff nicht => ?
 
@@ -28,7 +27,7 @@
 + Singleplayer-Spiel-Dialog erweitern (Optionen, mehr Team-Einstellungen, Templates laden/speichern)
 + Netzwerk-Server-erstell GUI (ähnlich Singleplayer, evtl. verbinden mit s.o.)
 + Optionsmenü (Sprache, Video, Sound etc.)
-+ Locale-Editor (xxx wirklich? Ich finds ok die Textdateien zu bearbeiten; vll. reicht ein Reload-Knopf <- find ich auch, siehe TODO eintrag über locales)
++ Locale-Tool ("missing id" finden, Locales vergleichen, aktuelle Locale neu laden)
 
 
 == Spiellogik/Gameengine ==
@@ -48,7 +47,6 @@
 *** Scripting
 
 == Spiel-Anzeige (Grafiken, Präsentation) ==
-+ "Richtiger" Wurmwechsel mit Symbol + entspr. Waffe
 + Waffen-Timer anzeigen
 * partikel, sounds
 + Aufsteigende Ertrink-Labels
@@ -64,9 +62,8 @@
 + Superwaffen (Armageddon, Atomtest, Schafsangriff, Teppichangriff, MB-Bombe etc.)
 + Lokale-Suche-Waffen (Taube, Zauberkugel)
 + Fallschirm, Bungee
-+ Zug überspringen, Aufgeben, Wurmwechsel
 
-- Napalm verbessern (<- was, wie?)
+- Napalm verbessern (Ruckeln verhindern, Würmer mehr wegstoßen, vll. etwas "klebriger" machen)
 - Molotov-Cocktail brennt über mehrere Züge
 + Luftangriff-Steuerung (Mauszeiger, links/rechts)
 + Begrenzte Jetpack-Flugdauer mit Anzeige

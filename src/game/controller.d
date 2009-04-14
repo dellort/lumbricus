@@ -574,8 +574,7 @@ class ServerTeamMember : TeamMember, WormController {
         if (act) {
             //member is being activated
             mActive = act;
-            mWormAction = false;
-            mLastAction = timeSecs(-40); //xxx not kosher
+            resetActivity();
             mWeaponUsed = false;
             mLimitedMode = false;
             lastKnownLifepower = health;
@@ -587,8 +586,8 @@ class ServerTeamMember : TeamMember, WormController {
         } else {
             //being deactivated
             move(Vector2f(0));
+            resetActivity();
             mLastAction = Time.Null;
-            mWormAction = false;
             if (alive) {
                 mWorm.activateJetpack(false);
             }
@@ -643,7 +642,7 @@ class ServerTeamMember : TeamMember, WormController {
         //ropes etc. that could be added later?
         //suggestion: define when exactly a worm can throw a weapon and attempt
         //to display the weapon icon in these situations
-        return mWorm.displayWeaponIcon;
+        return mCurrentWeapon && mWorm.displayWeaponIcon;
     }
 
     void selectWeapon(WeaponItem weapon) {
@@ -810,6 +809,7 @@ class ServerTeamMember : TeamMember, WormController {
 
     void resetActivity() {
         mWormAction = false;
+        mLastAction = timeSecs(-40); //xxx not kosher
     }
 
     private void move(Vector2f vec) {
