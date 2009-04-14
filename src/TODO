@@ -1,4 +1,18 @@
-- Fix/Change, + kleines Feature, * großes, langfristiges Feature, *** völlig unmöglich
+- Fix/Change, + kleines Feature, * großes, langfristiges Feature, *** völlig unmöglich, [] wurde versucht, aber nur kompromiss wurde implementiert oder es hat nicht geklappt
+
+
+== Sonstiges/Minor ==
+[- userdaten (mergen von konfigfiles)]
+- locales: übersetzungen vergleichen (z.b. de mit en -> fehlende einträge finden)
+- locales: zur laufzeit wechseln / neuladen
+- task spezifische commandos/hotkeys (ähnlich wie in loadsafe.d)
+   (und den gräuslichen hack in commandline.d entfernen)
+- debugging: würmer auswählen und GameObject-Felder anzeigen lassen
+
+== bekannte, lösbare Bugs ==
+- wurm kann springen während minigun gefeuert wird
+- wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
+- napalm ist sehr langsam, minenagriff nicht => ?
 
 == GUI (allgemeine Features) ==
 + richtige GUI listen
@@ -14,7 +28,7 @@
 + Singleplayer-Spiel-Dialog erweitern (Optionen, mehr Team-Einstellungen, Templates laden/speichern)
 + Netzwerk-Server-erstell GUI (ähnlich Singleplayer, evtl. verbinden mit s.o.)
 + Optionsmenü (Sprache, Video, Sound etc.)
-+ Locale-Editor (xxx wirklich? Ich finds ok die Textdateien zu bearbeiten; vll. reicht ein Reload-Knopf)
++ Locale-Editor (xxx wirklich? Ich finds ok die Textdateien zu bearbeiten; vll. reicht ein Reload-Knopf <- find ich auch, siehe TODO eintrag über locales)
 
 
 == Spiellogik/Gameengine ==
@@ -38,6 +52,7 @@
 + Waffen-Timer anzeigen
 * partikel, sounds
 + Aufsteigende Ertrink-Labels
++ camera.d: bessere auswahl, welchem objekt gefolgt werden soll
 * "stub" gpl daten (strichmännchen)
 *** gpl daten (vollständig)
 
@@ -51,15 +66,17 @@
 + Fallschirm, Bungee
 + Zug überspringen, Aufgeben, Wurmwechsel
 
-- Napalm verbessern
+- Napalm verbessern (<- was, wie?)
 - Molotov-Cocktail brennt über mehrere Züge
 + Luftangriff-Steuerung (Mauszeiger, links/rechts)
 + Begrenzte Jetpack-Flugdauer mit Anzeige
 
+* Steuerung entrümpeln, unabhängig von Würmern machen (worm.d)
+
 
 == Netzwerk ==
 + "Rückmeldung" der Clients, um Lags/abgestürzte Clients zu erkennen
-  Idee: Rückmeldung (Empfangsbestätigung) alle x(~10) Timestamps, fehlen dem 
+  Idee: Rückmeldung (Empfangsbestätigung) alle x(~10) Timestamps, fehlen dem
         Server x*5 Timestamps an Rückmeldungen, wird das Spiel pausiert
 + Behandlung von im Spiel getrennten Spielern (Team entfernen, weiße Fahne o.ä.)
 - Teams: Waffenset-Zuordnung, Lebenspunkte vom Server behandeln bzw. überprüfen,
@@ -70,13 +87,6 @@
 - Fix für spielbeeinflussende Befehle (z.B. slowdown), die mom. keine Timestamps haben
 + Nach dem Spiel zurück zur Lobby (mom. undefinierter Zustand), Problem: Spielendeerkennung
 + Ready-Check zum Spielstart
-*** Interpolation/Dead reckoning/Lag compensation/sowas in die Richtung, muhahar
-* netzwerkmodus erweitern (siehe Deadlock)  <-- ?? meinst du Interpolation?
-
-
-== Sonstiges/Minor ==
-[- userdaten (mergen von konfigfiles)]
-- locales: übersetzungen vergleichen / zur laufzeit wechseln
-- task spezifische commandos/hotkeys (ähnlich wie in loadsafe.d)
-- debugging: würmer auswählen und GameObject-Felder anzeigen lassen
-
+*** Interpolation/Dead reckoning/Lag compensation/sowas in die Richtung, muhahar (siehe Deadlock)
+*** determinismus garantieren (benutzung der FPU ist ein problem, da nicht alle plattformen die gleiche präzission für floating point haben), z.b. fixed point zahlen benutzen, oder regelmäßig zustand der clienten wieder synchronisieren
+- einfache erkennung von clients mit abweichender simulation (periodisch einen einfachen engine-hash berechnen und an den server schicken)

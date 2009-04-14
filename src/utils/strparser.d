@@ -20,6 +20,10 @@ alias char[] function(MyBox box) BoxUnParse;
 BoxParseString[TypeInfo] gBoxParsers;
 BoxUnParse[TypeInfo] gBoxUnParsers;
 
+bool hasBoxParser(TypeInfo info) {
+    return !!(info in gBoxParsers);
+}
+
 MyBox stringToBoxTypeID(TypeInfo info, char[] s) {
     return gBoxParsers[info](s);
 }

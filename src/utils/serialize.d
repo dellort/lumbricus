@@ -466,12 +466,6 @@ class SerializeOutConfig : SerializeConfig {
     }
 
     ConfigNode finish() {
-        /+
-        auto exts = mFile.getSubNode("externals");
-        foreach (char[] name; mExternals) {
-            exts.setStringValue("", name);
-        }
-        +/
         debug (CountClasses) {
             printAnnoyingStats();
         }

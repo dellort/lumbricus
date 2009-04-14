@@ -13,6 +13,7 @@ import wwpdata.reader_bnk;
 
 public import common.resfileformats;
 
+import tango.io.Stdout;
 import tango.io.model.IFile : FileConst;
 const pathsep = FileConst.PathSeparatorChar;
 
@@ -194,7 +195,7 @@ class AniFile {
 
         output_conf = new ConfigNode();
         auto first = output_conf.getSubNode("require_resources");
-        first.setStringValue("", atlas.name ~ ".conf");
+        first.add("", atlas.name ~ ".conf");
         auto top = output_conf.getSubNode("resources");
         auto anifile = top.getSubNode("aniframes").getSubNode(aniframes_name);
         anifile.setStringValue("atlas", atlas.name);

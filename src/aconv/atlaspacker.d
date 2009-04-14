@@ -100,14 +100,13 @@ class AtlasPacker {
             .getSubNode(fnBase);
         auto pageNode = resNode.getSubNode("pages");
         for (int i = 0; i < mPageImages.length; i++) {
-            pageNode.setStringValue("",fnBase ~ "/page_" ~ str.toString(i)
-                ~ ".png");
+            pageNode.add("", fnBase ~ "/page_" ~ str.toString(i) ~ ".png");
         }
 
         if (textualMeta) {
             auto metaNode = resNode.getSubNode("meta");
             foreach (ref FileAtlasTexture t; mBlocks) {
-                metaNode.setStringValue("",t.toString());
+                metaNode.add("", t.toString());
             }
         } else {
             auto metaname = fnBase ~ ".meta";

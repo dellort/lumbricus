@@ -204,7 +204,7 @@ class TeamEditorTask : Task {
             node.clear();
             foreach (EditLine l; mWormEdit) {
                 if (l.text.length > 0)
-                    node.setStringValue("", l.text);
+                    node.add("", l.text);
             }
         }
     }
