@@ -3,6 +3,7 @@ module utils.color;
 import utils.configfile : ConfigNode;
 import utils.strparser;
 import utils.mybox;
+import utils.misc;
 
 import math = tango.math.Math;
 import str = stdx.string;
@@ -245,6 +246,25 @@ public struct Color {
 
         return true;
     }
+
+    //produce string parseable by parse()
+    char[] toString() {
+        return myformat("r={}, g={}, b={}, a={}", r, g, b, a);
+    }
+}
+
+//a unittest never hurts
+unittest {
+    Color p(char[] s) {
+        Color res;
+        bool b = res.parse(s);
+        assert(b);
+        return res;
+    }
+    assert(p("a=0.2, b=0.4,r=0.8") == Color(0.8, 0, 0.4, 0.2));
+    assert(p("a=0.2, b=0.4 ,k=0.8") == Color(0.8, 0.8, 0.8, 0.2));
+    auto x = "r=0.2, g=0.2, b=0.2, a=0.2";
+    assert(p(p(x).toString()) == p(x));
 }
 
 //(try to) load each item from node as color
@@ -265,6 +285,11 @@ private MyBox parseColorBox(char[] s) {
     return MyBox();
 }
 
+private char[] unParseColorBox(MyBox b) {
+    return b.unbox!(Color)().toString();
+}
+
 static this() {
     gBoxParsers[typeid(Color)] = &parseColorBox;
+    gBoxUnParsers[typeid(Color)] = &unParseColorBox;
 }
