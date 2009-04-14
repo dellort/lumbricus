@@ -359,6 +359,7 @@ class EarthquakeAction : TimedAction {
 
 //------------------------------------------------------------------------
 
+//team-affecting special commands: skip turn, surrender, enable worm switch
 class TeamActionClass : ActionClass {
     char[] action;
 
@@ -427,6 +428,7 @@ class TeamAction : WeaponAction {
     }
 
     override void simulate(float deltaT) {
+        super.simulate(deltaT);
         assert(!!mMember);
         //xxx: we just need the 1-frame delay for this because initialStep() is
         //     called from doFire, which will set mMember.mWormAction = true
@@ -434,6 +436,115 @@ class TeamAction : WeaponAction {
         mMember.serverTeam.allowSelect = true;
         mMember.resetActivity();
         done();
+    }
+}
+
+//------------------------------------------------------------------------
+
+//add an impulse to objects inside a circle
+class ImpulseActionClass : ActionClass {
+    float radius = 10.0f;
+    float strength = 1000.0f;
+    int directionMode = DirMode.fireInfo;
+    Vector2f direction = Vector2f.nan;
+    bool[char[]] hit;
+
+    enum DirMode {
+        fireInfo,
+        outside,
+        vector,
+    }
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
+
+    void loadFromConfig(GameEngine eng, ConfigNode node) {
+        radius = node.getValue!(float)("radius", radius);
+        strength = node.getValue!(float)("strength", strength);
+        if (node["direction"] == "outside")
+            directionMode = DirMode.outside;
+        else if (node["direction"] != "") {
+            directionMode = DirMode.vector;
+            direction = node.getValue("direction", direction);
+            if (direction.isNaN())
+                throw new Exception("Direction vector is illegal");
+        }
+        char[][] hitIds = node.getValue!(char[][])("hit", ["other"]);
+        foreach (h; hitIds) {
+            hit[h] = true;
+        }
+    }
+
+    ImpulseAction createInstance(GameEngine eng) {
+        return new ImpulseAction(this, eng);
+    }
+
+    static this() {
+        ActionClassFactory.register!(typeof(this))("impulse");
+    }
+}
+
+class ImpulseAction : WeaponAction {
+    private {
+        ImpulseActionClass myclass;
+    }
+
+    this(ImpulseActionClass base, GameEngine eng) {
+        super(base, eng);
+        myclass = base;
+    }
+
+    this (ReflectCtor c) {
+        super(c);
+    }
+
+    private bool useObj(PhysicObject obj) {
+        bool ret;
+        bool isWorm = cast(WormSprite)obj.backlink !is null;
+        bool isSelf = obj.backlink is mShootbyObj;
+        bool isObject = cast(GObjectSprite)obj.backlink !is null;
+        if ("other" in myclass.hit)
+            ret |= isWorm && !isSelf;
+        if ("self" in myclass.hit)
+            ret |= isWorm && isSelf;
+        if ("objects" in myclass.hit)
+            ret |= !isWorm && isObject;
+        return ret;
+    }
+
+    override protected ActionRes initialStep() {
+        super.initialStep();
+        if (mFireInfo.info.pos.isNaN())
+            return ActionRes.done;
+        auto objs = engine.physicworld.getObjectsAtPred(mFireInfo.info.pos,
+            myclass.radius, &useObj);
+        foreach (PhysicObject o; objs) {
+            Vector2f imp;
+            switch (myclass.directionMode) {
+                case ImpulseActionClass.DirMode.fireInfo:
+                    //FireInfo.dir (away from firing worm)
+                    imp = myclass.strength * mFireInfo.info.dir;
+                    break;
+                case ImpulseActionClass.DirMode.outside:
+                    //away from center of hitpoint
+                    auto d = (o.pos - mFireInfo.info.pos).normal;
+                    if (!d.isNaN())
+                        imp = myclass.strength * d;
+                    break;
+                default:
+                    //use direction vector from config file
+                    imp = myclass.strength * myclass.direction;
+            }
+            o.addImpulse(imp);
+        }
+        return ActionRes.done;
+    }
+
+    override void simulate(float deltaT) {
     }
 }
 

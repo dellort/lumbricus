@@ -71,6 +71,7 @@ import game.weapon.tools;
 import game.weapon.ray;
 import game.weapon.spawn;
 import game.weapon.napalm;
+import game.weapon.melee;
 import game.gamemodes.roundbased;
 import game.gamemodes.mdebug;
 

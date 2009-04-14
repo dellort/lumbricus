@@ -250,12 +250,12 @@ class PhysicWorld {
         } else if (ch == ContactHandling.noImpulse) {
             //lol, generate 2 contacts that behave like the objects hit a wall
             // (avoids special code in contact.d)
-            if (obj1.velocity.length > float.epsilon) {
+            if (obj1.velocity.length > float.epsilon || obj1.isWalking()) {
                 Contact c1;
                 c1.fromObj(obj1, null, d/dist, 0.5f*(mindist - dist));
                 contactHandler(c1);
             }
-            if (obj2.velocity.length > float.epsilon) {
+            if (obj2.velocity.length > float.epsilon || obj2.isWalking()) {
                 Contact c2;
                 c2.fromObj(obj2, null, -d/dist, 0.5f*(mindist - dist));
                 contactHandler(c2);
@@ -448,6 +448,23 @@ class PhysicWorld {
             //still inside? maybe it was a tiny cave oslt
             return false;
         return true;
+    }
+
+    PhysicObject[] getObjectsAtPred(Vector2f pos, float r,
+        bool delegate(PhysicObject obj) match = null)
+    {
+        PhysicObject[] ret;
+        foreach (PhysicObject me; mObjects) {
+            if (!match || match(me)) {
+                Vector2f d = me.pos - pos;
+                float qdist = d.quad_length;
+                float mindist = me.posp.radius + r;
+                if (qdist >= mindist*mindist)
+                    continue;
+                ret ~= me;
+            }
+        }
+        return ret;
     }
 
     ///r = random number generator to use, null will create a new instance
