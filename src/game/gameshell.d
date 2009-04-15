@@ -947,23 +947,16 @@ class GameControl : ClientControl {
 
 
 
-//game info while in lobby
-struct NetGameInfo {
-    //players and teams, always same length
-    char[][] players;
-    char[][] teams;
-}
-
 //status information while clients are loading
 struct NetLoadState {
     //players and flags if done loading, always same length
-    char[][] players;
+    uint[] playerIds;
     bool[] done;
 }
 
 abstract class SimpleNetConnection {
-    //new game information was received from the server
-    void delegate(SimpleNetConnection sender, NetGameInfo info) onUpdateGameInfo;
+    //new player information was received from the server
+    void delegate(SimpleNetConnection sender) onUpdatePlayers;
     //the client should begin loading resources etc., loader will already
     //  contain all game information
     //by calling loader.finish(), clients signal loading is complete

@@ -149,6 +149,7 @@
 		<Unit filename="..\src\game\weapon\actions.d" />
 		<Unit filename="..\src\game\weapon\actionweapon.d" />
 		<Unit filename="..\src\game\weapon\luaweapon.d" />
+		<Unit filename="..\src\game\weapon\melee.d" />
 		<Unit filename="..\src\game\weapon\napalm.d" />
 		<Unit filename="..\src\game\weapon\projectile.d" />
 		<Unit filename="..\src\game\weapon\ray.d" />
@@ -176,6 +177,7 @@
 		<Unit filename="..\src\gui\scrollbar.d" />
 		<Unit filename="..\src\gui\scrollwindow.d" />
 		<Unit filename="..\src\gui\splitter.d" />
+		<Unit filename="..\src\gui\styles.d" />
 		<Unit filename="..\src\gui\tablecontainer.d" />
 		<Unit filename="..\src\gui\tabs.d" />
 		<Unit filename="..\src\gui\test.d" />

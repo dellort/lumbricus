@@ -52,6 +52,9 @@ class CmdNetServer {
         uint mTimeStamp;
         debug int mSimLagMs, mSimJitterMs;
         AnnounceInfo mAnnounceInfo;
+        Time mLastInfo;
+
+        const cInfoInterval = timeSecs(1);
     }
 
     //create the server thread object
@@ -77,7 +80,7 @@ class CmdNetServer {
         //create and open server
         log("Server listening on port {}", mPort);
         mBase = new NetBase();
-        mHost = mBase.createServer(mPort, mMaxPlayers);
+        mHost = mBase.createServer(mPort, mMaxPlayers+1);
         mHost.onConnect = &onConnect;
 
         mAnnounce = new NetAnnounce(serverConfig.getSubNode("announce"));
@@ -109,6 +112,11 @@ class CmdNetServer {
                 cl.tick();
             }
         }
+        Time t = timeCurrentTime();
+        if (t - mLastInfo > cInfoInterval) {
+            updatePlayerInfo();
+            mLastInfo = t;
+        }
         if (mState == CmdServerState.playing) {
             mMasterTime.update();
             mGameTime.update(&gameTick);
@@ -128,7 +136,7 @@ class CmdNetServer {
     }
 
     //validate (and possibly change) the nickname of a connecting player
-    private bool checkNewNick(ref char[] nick) {
+    private bool checkNewNick(ref char[] nick, bool allowChange = true) {
         //no empty nicks, minimum length 3
         if (nick.length < 3)
             return false;
@@ -141,10 +149,15 @@ class CmdNetServer {
                 if (cl.state != ClientConState.establish
                     && cl.playerName == curNick)
                 {
-                    //name is in use, append "_x" with incr. number to it
-                    curNick = nick ~ "_" ~ to!(char[])(idx);
-                    idx++;
-                    continue;
+                    if (allowChange) {
+                        //name is in use, append "_x" with incr. number to it
+                        curNick = nick ~ "_" ~ to!(char[])(idx);
+                        idx++;
+                        continue;
+                    } else {
+                        //no modification of nick allowed, error
+                        return false;
+                    }
                 }
             }
             break;
@@ -156,8 +169,25 @@ class CmdNetServer {
     //new client is trying to connect
     private void onConnect(NetHost sender, NetPeer peer) {
         assert(sender is mHost);
-        auto cl = new CmdNetClientConnection(this, peer);
-        cl.client_node = mClients.add(cl);
+        int newId = 0;
+        ListNode insertBefore;
+        //keep clients list sorted by id, and ids unique
+        foreach (cl; mClients) {
+            if (cl.id == newId) {
+                newId++;
+            } else {
+                insertBefore = cl.client_node;
+                break;
+            }
+        }
+        auto cl = new CmdNetClientConnection(this, peer, newId);
+        if (mPlayerCount >= mMaxPlayers)
+            cl.close(DiscReason.serverFull);
+        if (cl.state != ClientConState.establish)
+            //connection was rejected
+            return;
+        Trace.formatln("New connection from {}, id = {}", cl.address, cl.id);
+        cl.client_node = mClients.insert_before(cl, insertBefore);
         mPlayerCount++;
         updateAnnounce();
         printClients();
@@ -171,9 +201,8 @@ class CmdNetServer {
         mPlayerCount--;
         updateAnnounce();
         printClients();
-        //player disconnecting in lobby
-        if (mState == CmdServerState.lobby)
-            updateLobbyInfo();
+        //update client's player list
+        updatePlayerList();
         //player disconnecting while loading
         if (mState == CmdServerState.loading)
             checkLoading();
@@ -214,24 +243,53 @@ class CmdNetServer {
         checkLoading();
     }
 
-    private void updateLobbyInfo() {
-        SPGameInfo info;
-        //get info about players and their teams
+    int opApply(int delegate(ref CmdNetClientConnection cl) del) {
+        foreach (cl; mClients) {
+            int res = del(cl);
+            if (res)
+                return res;
+        }
+        return 0;
+    }
+
+    //send a packet to every connected player
+    private void sendAll(T)(ServerPacket pid, T data, ubyte channelId = 0) {
         foreach (cl; mClients) {
             if (cl.state != ClientConState.connected)
                 continue;
-            info.players ~= cl.playerName;
+            cl.send(pid, data, channelId);
+        }
+    }
+
+    //send the current player list to all clients
+    private void updatePlayerList() {
+        SPPlayerList plist;
+        //get info about players
+        foreach (cl; mClients) {
+            if (cl.state != ClientConState.connected)
+                continue;
+            auto p = SPPlayerList.Player(cl.id, cl.playerName);
+            plist.players ~= p;
+        }
+        sendAll(ServerPacket.playerList, plist);
+    }
+
+    //send some player information to clients
+    private void updatePlayerInfo() {
+        //we can assume that id->playerName mapping on client is correct,
+        //because updatePlayerList() is called on connection/disconnection
+        SPPlayerInfo info;
+        foreach (cl; mClients) {
+            if (cl.state != ClientConState.connected)
+                continue;
+            PlayerDetails det;
+            det.id = cl.id;
             if (cl.mMyTeamInfo)
-                info.teams ~= cl.mMyTeamInfo.name;
-            else
-                info.teams ~= "";
+                det.teamName = cl.mMyTeamInfo.name;
+            det.ping = cl.ping;
+            info.players ~= det;
         }
-        //send to every connected player
-        foreach (cl; mClients) {
-            if (cl.state != ClientConState.connected)
-                continue;
-            cl.doUpdateGameInfo(info);
-        }
+        sendAll(ServerPacket.playerInfo, info);
     }
 
     //check how far loading the game progressed on all clients
@@ -241,7 +299,7 @@ class CmdNetServer {
         bool allDone = true;
         foreach (cl; mClients) {
             //assemble load status info for update packet
-            st.players ~= cl.playerName;
+            st.playerIds ~= cl.id;
             st.done ~= cl.loadDone;
             allDone &= cl.loadDone;
         }
@@ -251,7 +309,7 @@ class CmdNetServer {
             cl.doLoadStatus(st);
             //prepare game start packet with player->team assignment info
             SPGameStart.Player_Team map;
-            map.player = cl.mPlayerName;
+            map.playerId = cl.id;
             if (cl.mMyTeamInfo)
                 map.team ~= cl.mMyTeamInfo.name;
             info.mapping ~= map;
@@ -292,7 +350,7 @@ class CmdNetServer {
         foreach (pc; mPendingCommands) {
             GameCommandEntry e;
             e.cmd = pc.cmd;
-            e.player = pc.client.playerName;
+            e.playerId = pc.client.id;
             p.commands ~= e;
         }
         //transmit
@@ -326,7 +384,7 @@ private class CCError : Exception {
 }
 
 //peer connection state for CmdNetClientConnection
-private enum ClientConState {
+enum ClientConState {
     establish,
     authenticate,
     connected,
@@ -334,30 +392,41 @@ private enum ClientConState {
 }
 
 //Represents a connected client, also accepts/rejects connection attempts
-private class CmdNetClientConnection {
+class CmdNetClientConnection {
     private {
         ListNode client_node;
         CmdNetServer mOwner;
         NetPeer mPeer;
         ClientConState mState;
-        Time mStateEnter;
+        Time mStateEnter, mLastPing;
         char[] mPlayerName;
         CommandBucket mCmds;
         CommandLine mCmd;
         StringOutput mCmdOutBuffer;
         ConfigNode mMyTeamInfo;
         bool loadDone;
+        uint mId;  //immutable during lifetime
+
+        const cPingInterval = timeSecs(1); //ping every x seconds...
+        const cPingAvgOver = timeSecs(10); //and average the result over y
+
+        struct PongEntry {
+            Time cur = Time.Never, rtt = Time.Never;
+        }
+        PongEntry[12] mPongs; //enough room for all pings in cPingAvgOver
+        int mPongIdx;
+        Time mAvgPing = timeMsecs(100);
     }
 
-    this(CmdNetServer owner, NetPeer peer) {
+    private this(CmdNetServer owner, NetPeer peer, uint id) {
         assert(!!peer);
         mOwner = owner;
+        mId = id;
         mPeer = peer;
         mPeer.onDisconnect = &onDisconnect;
         mPeer.onReceive = &onReceive;
         mCmdOutBuffer = new StringOutput();
         state(ClientConState.establish);
-        Trace.formatln("New connection from {}", address);
         if (mOwner.state != CmdServerState.lobby) {
             close(DiscReason.gameStarted);
         }
@@ -366,19 +435,39 @@ private class CmdNetClientConnection {
     private void initCmds() {
         mCmd = new CommandLine(mCmdOutBuffer);
         mCmds = new CommandBucket();
+        mCmds.registerCommand("name", &cmdName, "Change your nickname",
+            ["text:new nickname"]);
         mCmds.bind(mCmd);
+    }
+
+    private void cmdName(MyBox[] args, Output write) {
+        char[] newName = args[0].unbox!(char[]);
+        if (newName == mPlayerName) {
+            throw new CCError("Your nickname already is " ~ mPlayerName ~ ".");
+        }
+        if (!mOwner.checkNewNick(newName, false)) {
+            throw new CCError("Invalid nickname or name already in use.");
+        }
+        mPlayerName = newName;
+        write.writefln("Your new nickname is {}", mPlayerName);
+        mOwner.updatePlayerList();
     }
 
     NetAddress address() {
         return mPeer.address();
     }
 
+    uint id() {
+        return mId;
+    }
+
     void close(DiscReason why = DiscReason.none) {
         mPeer.disconnect(why);
+        state(ClientConState.closed);
     }
 
     //transmit a non-fatal error message
-    void sendError(char[] errorCode, char[][] args = null) {
+    private void sendError(char[] errorCode, char[][] args = null) {
         SPError p;
         p.errMsg = errorCode;
         p.args = args;
@@ -405,8 +494,14 @@ private class CmdNetClientConnection {
         return mPlayerName;
     }
 
-    void tick() {
+    private void tick() {
         Time t = timeCurrentTime();
+        if (t - mLastPing > cPingInterval) {
+            //ping clients every cPingInterval (internal enet ping is crap)
+            SPPing p = SPPing(t);
+            send(ServerPacket.ping, p, 1, true, false);
+            mLastPing = t;
+        }
         switch (mState) {
             case ClientConState.authenticate:
             case ClientConState.establish:
@@ -425,21 +520,25 @@ private class CmdNetClientConnection {
                 + jitter))
             {
                 mPeer.send(mOutputQueue[0].buf.ptr, mOutputQueue[0].buf.length,
-                    mOutputQueue[0].channelId);
+                    mOutputQueue[0].channelId, false, mOutputQueue[0].reliable,
+                    mOutputQueue[0].reliable);
                 mOutputQueue = mOutputQueue[1..$];
             }
         }
     }
 
-    struct Packet {
-        ubyte[] buf;
-        Time created;
-        ubyte channelId;
+    debug {
+        struct Packet {
+            ubyte[] buf;
+            Time created;
+            ubyte channelId;
+            bool reliable;
+        }
+        Packet[] mOutputQueue;
     }
-    Packet[] mOutputQueue;
 
     private void send(T)(ServerPacket pid, T data, ubyte channelId = 0,
-        bool now = false)
+        bool now = false, bool reliable = true)
     {
         scope marshal = new MarshalBuffer();
         marshal.write(pid);
@@ -448,11 +547,13 @@ private class CmdNetClientConnection {
         debug {
             if (mOwner.mSimLagMs > 0)
                 //lag simulation, queue packet
-                mOutputQueue ~= Packet(buf, timeCurrentTime(), channelId);
+                mOutputQueue ~= Packet(buf, timeCurrentTime(), channelId,
+                    reliable);
             else
-                mPeer.send(buf.ptr, buf.length, channelId, now);
+                mPeer.send(buf.ptr, buf.length, channelId, now, reliable,
+                    reliable);
         } else {
-            mPeer.send(buf.ptr, buf.length, channelId, now);
+            mPeer.send(buf.ptr, buf.length, channelId, now, reliable, reliable);
         }
     }
 
@@ -486,9 +587,10 @@ private class CmdNetClientConnection {
                 //xxx no authentication for now
                 state(ClientConState.connected);
                 SPConAccept p_res;
+                p_res.id = mId;
                 p_res.playerName = mPlayerName;
                 send(ServerPacket.conAccept, p_res);
-                mOwner.updateLobbyInfo();
+                mOwner.updatePlayerList();
                 break;
             case ClientPacket.lobbyCmd:
                 //client issued a command into the server console
@@ -508,7 +610,7 @@ private class CmdNetClientConnection {
                     //on fatal errors (e.g. wrong state), commands will
                     //  throw CCError; all command output is discarded
                     p_res.success = false;
-                    p_res.msg = "Error: " ~ e.msg;
+                    p_res.msg = e.msg;
                 }
                 //transmit command result
                 send(ServerPacket.cmdResult, p_res);
@@ -534,7 +636,6 @@ private class CmdNetClientConnection {
                 auto p = unmarshal.read!(CPDeployTeam)();
                 mMyTeamInfo = gConf.loadConfigGzBuf(p.teamConf);
                 mMyTeamInfo.rename(p.teamName);
-                mOwner.updateLobbyInfo();
                 break;
             case ClientPacket.loadDone:
                 if (mState != ClientConState.connected) {
@@ -560,10 +661,41 @@ private class CmdNetClientConnection {
                 auto p = unmarshal.read!(CPGameCommand)();
                 mOwner.gameCommand(this, p.cmd);
                 break;
+            case ClientPacket.pong:
+                auto p = unmarshal.read!(CPPong)();
+                Time rtt = timeCurrentTime() - p.ts;
+                gotPong(rtt);
+                break;
             default:
                 //we have reliable networking, so the client did something wrong
                 close(DiscReason.protocolError);
         }
+    }
+
+    private void gotPong(Time rtt) {
+        Time t = timeCurrentTime();
+
+        mPongs[mPongIdx].cur = t;
+        mPongs[mPongIdx].rtt = rtt;
+        mPongIdx = (mPongIdx+1) % mPongs.length;
+
+        //calculate average of cached pongs
+        Time pa;
+        int count;
+        foreach (ref pv; mPongs) {
+            if (pv.cur != Time.Never && t - pv.cur < cPingAvgOver) {
+                pa += pv.rtt;
+                count++;
+            }
+        }
+        //we just got a pong, so there's at least that
+        assert(count > 0);
+        mAvgPing = pa / count;
+        //Trace.formatln("Ping: {} (avg = {})", rtt, ping());
+    }
+
+    Time ping() {
+        return mAvgPing;
     }
 
     //NetPeer.onReceive
@@ -592,10 +724,6 @@ private class CmdNetClientConnection {
             Trace.formatln("Client disconnected with error: {}",
                 reasonToString[code]);
         state(ClientConState.closed);
-    }
-
-    private void doUpdateGameInfo(SPGameInfo info) {
-        send(ServerPacket.gameInfo, info);
     }
 
     private void doStartLoading(SPStartLoading msg) {

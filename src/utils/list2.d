@@ -50,14 +50,7 @@ class List2(T) {
 
     //O(1), no checks against double inserts
     Node add(T value) {
-        Node n = new Node();
-        n.value = value;
-        n.owner = this;
-        n.next = head_tail;
-        n.prev = head_tail.prev;
-        n.next.prev = n;
-        n.prev.next = n;
-        return n;
+        return insert_before(value, head_tail);
     }
 
     //uh
@@ -75,11 +68,36 @@ class List2(T) {
     alias add insert_tail;
 
     Node insert_head(T value) {
+        return insert_after(value, head_tail);
+    }
+
+    //O(1), if succ == null (no successor), append
+    Node insert_before(T value, ListNode succ) {
+        Node succn = cast(Node)succ;
+        if (!succn)
+            succn = head_tail;
+        assert(succn.owner is this);
         Node n = new Node();
         n.value = value;
         n.owner = this;
-        n.prev = head_tail;
-        n.next = head_tail.next;
+        n.next = succn;
+        n.prev = succn.prev;
+        n.next.prev = n;
+        n.prev.next = n;
+        return n;
+    }
+
+    //O(1), if pred == null (no predecessor), like insert_head
+    Node insert_after(T value, ListNode pred) {
+        Node predn = cast(Node)pred;
+        if (!predn)
+            predn = head_tail;
+        assert(predn.owner is this);
+        Node n = new Node();
+        n.value = value;
+        n.owner = this;
+        n.prev = predn;
+        n.next = predn.next;
         n.next.prev = n;
         n.prev.next = n;
         return n;

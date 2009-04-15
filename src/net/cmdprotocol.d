@@ -6,10 +6,12 @@ module net.cmdprotocol;
 ///all reading/writing is done by classes in net.marshal, so for byte-exact
 ///  encoding take a look there
 
+import utils.time;
+
 //anytime you change some detail about the protocol, increment this
 //  (including encoding/marshalling changes)
 //only clients with the same version will be accepted
-const ushort cProtocolVersion = 1;
+const ushort cProtocolVersion = 2;
 
 
 //---------------------- Packet IDs ------------------------
@@ -19,11 +21,13 @@ enum ServerPacket : ushort {
     error,
     conAccept,
     cmdResult,
-    gameInfo,
+    playerList,
+    playerInfo,
     loadStatus,
     startLoading,
     gameStart,
     gameCommands,
+    ping,
 }
 
 //Client-to-server packet IDs
@@ -35,6 +39,7 @@ enum ClientPacket : ushort {
     startLoading,
     loadDone,
     gameCommand,
+    pong,
 }
 
 //reason for disconnection by the server
@@ -49,6 +54,7 @@ enum DiscReason : uint {
     invalidNick,       //the given nick is invalid or already in use
     gameStarted,       //the game has already started, server is not accepting
                        //  connections any more
+    serverFull,
 }
 
 const char[][DiscReason.max+1] reasonToString = [
@@ -60,6 +66,7 @@ const char[][DiscReason.max+1] reasonToString = [
     "error_servershutdown",
     "error_invalidnick",
     "error_gamestarted",
+    "error_serverfull",
     ];
 
 
@@ -71,6 +78,7 @@ struct SPError {
 }
 
 struct SPConAccept {
+    uint id;
     char[] playerName;
 }
 
@@ -79,10 +87,25 @@ struct SPCmdResult {
     char[] msg;
 }
 
-struct SPGameInfo {
-    //players and teams, always same length
-    char[][] players;
-    char[][] teams;
+//list of players and their ids, updated on connect/disconnect/nickchange
+struct SPPlayerList {
+    Player[] players;
+
+    struct Player {
+        uint id;
+        char[] name;
+    }
+}
+
+struct PlayerDetails {
+    uint id;
+    char[] teamName;
+    Time ping;
+}
+
+//information about connected players, updated periodically
+struct SPPlayerInfo {
+    PlayerDetails[] players;
 }
 
 struct SPStartLoading {
@@ -92,7 +115,7 @@ struct SPStartLoading {
 //status information while clients are loading
 struct SPLoadStatus {
     //players and flags if done loading, always same length
-    char[][] players;
+    uint[] playerIds;
     bool[] done;
 }
 
@@ -101,19 +124,23 @@ struct SPGameStart {
     Player_Team[] mapping;
 
     struct Player_Team {
-        char[] player;
+        uint playerId;
         char[][] team;
     }
 }
 
 struct GameCommandEntry {
-    char[] player;
+    uint playerId;
     char[] cmd;
 }
 
 struct SPGameCommands {
     uint timestamp;
     GameCommandEntry[] commands;
+}
+
+struct SPPing {
+    Time ts;
 }
 
 
@@ -147,4 +174,8 @@ struct CPDeployTeam {
 
 struct CPGameCommand {
     char[] cmd;
+}
+
+struct CPPong {
+    Time ts;
 }

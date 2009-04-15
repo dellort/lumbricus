@@ -28,13 +28,18 @@ class CmdNetClient : SimpleNetConnection {
         NetHost mHost;
         NetPeer mServerCon;
         char[] mPlayerName;
+        uint mId;
         ClientState mState;
         Time mStateEnter;
         NetAddress mTmpAddr;
         GameShell mShell;
-        NetGameControl[char[]] mSrvControl;
+        NetGameControl[uint] mSrvControl;
         CmdNetControl mClControl;
         bool mHadDisconnect;
+        //name<->id conversion
+        char[][uint] mIdToName;
+        uint[char[]] mNameToId;
+        PlayerDetails[] mPlayerInfo;
     }
 
     void delegate(CmdNetClient sender) onConnect;
@@ -156,6 +161,26 @@ class CmdNetClient : SimpleNetConnection {
         sendEmpty(ClientPacket.loadDone);
     }
 
+    bool playerNameToId(char[] name, ref uint id) {
+        if (name in mNameToId) {
+            id = mNameToId[name];
+            return true;
+        }
+        return false;
+    }
+
+    bool idToPlayerName(uint id, ref char[] name) {
+        if (id in mIdToName) {
+            name = mIdToName[id];
+            return true;
+        }
+        return false;
+    }
+
+    PlayerDetails[] players() {
+        return mPlayerInfo;
+    }
+
     //got packet with GameConfig
     private void doStartLoading(GameConfig cfg) {
         //start loading graphics and engine
@@ -171,12 +196,6 @@ class CmdNetClient : SimpleNetConnection {
         }
         //--- end
         onStartLoading(this, loader);
-    }
-
-    //incoming info packet (while in lobby)
-    private void doUpdateGameInfo(NetGameInfo info) {
-        if (onUpdateGameInfo)
-            onUpdateGameInfo(this, info);
     }
 
     //status update on other players (for gui display of progress)
@@ -200,14 +219,14 @@ class CmdNetClient : SimpleNetConnection {
         //lol
         foreach (map; info.mapping) {
             auto ctl = new NetGameControl(mShell);
-            mSrvControl[map.player] = ctl;
+            mSrvControl[map.playerId] = ctl;
             foreach (team; map.team) {
                 Team t = findTeam(team);
                 //proper error handling: ignore or disconnect
                 assert(!!t, "team not found: "~team);
                 ctl.addTeam(t);
                 //if it is our team, enable a local->server input proxy
-                if (map.player == mPlayerName)
+                if (map.playerId == mId)
                     mClControl.addTeam(t);
             }
         }
@@ -215,9 +234,9 @@ class CmdNetClient : SimpleNetConnection {
         onGameStart(this, mClControl);
     }
 
-    private void doExecCommand(uint timestamp, char[] player, char[] cmd) {
-        if (player in mSrvControl)
-            mSrvControl[player].executeTSCommand(cmd, timestamp);
+    private void doExecCommand(uint timestamp, uint playerId, char[] cmd) {
+        if (playerId in mSrvControl)
+            mSrvControl[playerId].executeTSCommand(cmd, timestamp);
     }
 
     //transmit local game control command (called from CmdNetControl)
@@ -286,6 +305,7 @@ class CmdNetClient : SimpleNetConnection {
                 auto p = unmarshal.read!(SPConAccept)();
                 //get updated nickname
                 mPlayerName = p.playerName;
+                mId = p.id;
                 state(ClientState.connected);
                 if (onConnect)
                     onConnect(this);
@@ -302,19 +322,29 @@ class CmdNetClient : SimpleNetConnection {
                         onError(this, p.msg, null);
                 }
                 break;
-            case ServerPacket.gameInfo:
+            case ServerPacket.playerList:
                 //info about other players while in lobby
-                auto p = unmarshal.read!(SPGameInfo)();
-                NetGameInfo info;
-                info.players = p.players;
-                info.teams = p.teams;
-                doUpdateGameInfo(info);
+                auto p = unmarshal.read!(SPPlayerList)();
+                mIdToName = null;
+                mNameToId = null;
+                foreach (player; p.players) {
+                    mIdToName[player.id] = player.name;
+                    mNameToId[player.name] = player.id;
+                }
+                if (onUpdatePlayers)
+                    onUpdatePlayers(this);
+                break;
+            case ServerPacket.playerInfo:
+                auto p = unmarshal.read!(SPPlayerInfo)();
+                mPlayerInfo = p.players;
+                if (onUpdatePlayers)
+                    onUpdatePlayers(this);
                 break;
             case ServerPacket.loadStatus:
                 //status of other players while loading
                 auto p = unmarshal.read!(SPLoadStatus)();
                 NetLoadState st;
-                st.players = p.players;
+                st.playerIds = p.playerIds;
                 st.done = p.done;
                 doLoadStatus(st);
                 break;
@@ -337,9 +367,15 @@ class CmdNetClient : SimpleNetConnection {
                 auto p = unmarshal.read!(SPGameCommands)();
                 //forward all commands to the engine
                 foreach (gce; p.commands) {
-                    doExecCommand(p.timestamp, gce.player, gce.cmd);
+                    doExecCommand(p.timestamp, gce.playerId, gce.cmd);
                 }
                 mShell.setFrameReady(p.timestamp);
+                break;
+            case ServerPacket.ping:
+                auto p = unmarshal.read!(SPPing)();
+                CPPong reply;
+                reply.ts = p.ts;
+                send(ClientPacket.pong, reply, 1, true, false);
                 break;
             default:
                 close(DiscReason.protocolError);
@@ -357,7 +393,7 @@ class CmdNetClient : SimpleNetConnection {
 
     //send packet with some data (data will be marshalled)
     private void send(T)(ClientPacket pid, T data, ubyte channelId = 0,
-        bool now = false)
+        bool now = false, bool reliable = true)
     {
         if (!mServerCon)
             return;
@@ -365,7 +401,8 @@ class CmdNetClient : SimpleNetConnection {
         marshal.write(pid);
         marshal.write(data);
         ubyte[] buf = marshal.data();
-        mServerCon.send(buf.ptr, buf.length, channelId, now);
+        mServerCon.send(buf.ptr, buf.length, channelId, now, reliable,
+            reliable);
     }
 }
 

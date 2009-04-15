@@ -264,7 +264,7 @@ class CmdNetLobbyTask : Task {
         mClient = client;
         mClient.onDisconnect = &onDisconnect;
         mClient.onStartLoading = &onStartLoading;
-        mClient.onUpdateGameInfo = &onUpdateGameInfo;
+        mClient.onUpdatePlayers = &onUpdatePlayers;
         mClient.onError = &onError;
         mClient.onMessage = &onMessage;
 
@@ -341,11 +341,15 @@ class CmdNetLobbyTask : Task {
         mGame = new GameTask(manager, loader, mClient);
     }
 
-    private void onUpdateGameInfo(SimpleNetConnection sender, NetGameInfo info)
+    private void onUpdatePlayers(SimpleNetConnection sender)
     {
         char[][] contents;
-        foreach (int idx, char[] pl; info.players) {
-            contents ~= pl ~ " (" ~ info.teams[idx] ~ ")";
+        foreach (pl; mClient.players) {
+            char[] name;
+            if (mClient.idToPlayerName(pl.id, name)) {
+                contents ~= name ~ " (" ~ pl.teamName ~ "), "
+                    ~ pl.ping.toString();
+            }
         }
         mPlayers.setContents(contents);
     }
