@@ -61,9 +61,9 @@ class TeamInfo {
     //it's initialized with the team's name
     Label createLabel() {
         auto res = new Label();
+        res.styles.addClasses(["worm-label"]);
         res.font = font;
         res.text = team.name();
-        res.borderStyle = box;
         res.setLayout(WidgetLayout.Aligned(-1, -1));
         return res;
     }
@@ -85,10 +85,6 @@ class TeamInfo {
         auto st = gFramework.fontManager.getStyle("wormfont");
         st.fore = color;
         font = new Font(st);
-        //xxx load this from a configfile hurrrr
-        box.border = Color(0.7);
-        box.back = Color(0);
-        box.cornerRadius = 3;
 
         foreach (m; t.getMembers()) {
             auto member = new TeamMemberInfo(this, m);

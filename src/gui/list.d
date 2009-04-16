@@ -31,6 +31,10 @@ class AbstractListWidget : Widget {
     /// xxx: unselect event?
     void delegate(int index) onSelect;
 
+    this() {
+        styles.addClass("w-list");
+    }
+
     int count() {
         return mCount;
     }

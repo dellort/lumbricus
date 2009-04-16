@@ -106,6 +106,7 @@ class LoadGui {
         if ((name in mWidgets) && (mWidgets[name] !is w)) {
             throw new Exception("double name: '"~name~"'");
         }
+        w.styles.id = name;
         mWidgets[name] = w;
     }
 

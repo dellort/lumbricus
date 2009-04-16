@@ -323,10 +323,13 @@ class Styles {
     ///becauses an element can be part of mutiple classes).
     void addClasses(char[][] cls) {
         foreach (char[] n; cls) {
-            //no duplicates
-            if (find(mSortedClasses, n) >= mSortedClasses.length) {
-                mSortedClasses ~= n;
-            }
+            addClass(n);
+        }
+    }
+    void addClass(char[] cls) {
+        //no duplicates
+        if (find(mSortedClasses, cls) >= mSortedClasses.length) {
+            mSortedClasses ~= cls;
         }
         sort(mSortedClasses);
         did_change();
@@ -623,6 +626,10 @@ void styleRegisterString(char[] name) {
 }
 void styleRegisterColor(char[] name) {
     StyleValueFactory.register!(StyleValueColor)(name);
+}
+void styleRegisterBool(char[] name) {
+    //also abuse
+    StyleValueFactory.register!(StyleValueScalar!(bool, false, false))(name);
 }
 
 unittest {

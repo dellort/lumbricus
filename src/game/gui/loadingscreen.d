@@ -44,7 +44,6 @@ class LoadingScreen : Container {
             mChunkLabels ~= label;
             label.font = mFontGray;
             label.text = _("loading.load", chunk);
-            label.drawBorder = false;
             mLabelList.add(label);
         }
 

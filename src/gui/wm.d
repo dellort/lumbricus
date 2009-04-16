@@ -533,14 +533,13 @@ private:
     WindowManager mWm;
 
     public this(WindowManager wm) {
+        styles.addClass("window-switcher");
         this.mWm = wm;
-        drawBorder = true;
         WindowManager.TaskListEntry[] wnds = wm.getWindowList();
         int window_lines, task_lines;
         auto table = new TableContainer(2, 2, Vector2i(3, 3));
         auto caption = new Label();
         caption.text = "Window list";
-        caption.drawBorder = false;
         table.add(caption, 0, 0, 2, 1);
         foreach (w; wnds) {
             if (!w.windows.length)
@@ -553,14 +552,12 @@ private:
             table.add(sp1, 0, y, 2, 1);
             auto tasktitle = new Label();
             tasktitle.text = myformat("{} ({})", w.task, w.task.taskID);
-            tasktitle.drawBorder = false;
             tasktitle.font = gFramework.getFont("big");
             table.add(tasktitle, 0, y+1, 1, w.windows.length);
             foreach (int index, window; w.windows) {
                 auto wndtitle = new Label();
                 wndtitle.text = window.properties.windowTitle;
                 wndtitle.font = gFramework.getFont("normal");
-                wndtitle.drawBorder = false;
                 table.add(wndtitle, 1, y+1+index);
                 mEntries ~= Entry(wndtitle, tasktitle, window);
             }

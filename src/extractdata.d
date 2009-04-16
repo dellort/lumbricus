@@ -13,6 +13,7 @@ import stdx.string : tolower, split, replace;
 import utils.filetools;
 import utils.configfile;
 import utils.path;
+import utils.misc;
 import wwpdata.animation;
 import wwpdata.common;
 import wwpdata.reader_img;

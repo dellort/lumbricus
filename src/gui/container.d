@@ -64,6 +64,7 @@ class Container : Widget {
         mWidgets ~= o;
         mZWidgets ~= ZWidget(o);
         updateZOrder(o);
+        o.styles.parent = styles;
 
         onAddChild(o);
 
@@ -96,6 +97,7 @@ class Container : Widget {
         arrayRemove(mWidgets, o);
         arrayRemove(mZWidgets, ZWidget(o));
         o.mParent = null;
+        o.styles.parent = null;
 
         onRemoveChild(o);
 

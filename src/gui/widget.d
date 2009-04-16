@@ -6,6 +6,7 @@ import framework.event;
 import framework.i18n;
 import gui.container;
 import gui.gui;
+import gui.styles;
 import utils.configfile;
 import utils.factory;
 import utils.time;
@@ -13,6 +14,7 @@ import utils.vector2;
 import utils.rect2;
 import utils.output;
 import utils.log;
+import str = stdx.string;
 
 //debugging (draw a red frame for the widget's bounds)
 //version = WidgetDebug;
@@ -134,6 +136,8 @@ class Widget {
         //placement of Widget within allocation from Container
         WidgetLayout mLayout;
 
+        Styles mStyles;
+
         //this is added to the graphical position of the widget (onDraw)
         //it is intended to support animations (without messing up the layouting)
         Vector2i mAddToPos;
@@ -158,7 +162,6 @@ class Widget {
 
     ///clip graphics to the inside
     bool doClipping = true;
-    float highlightAlpha = 0f;
 
     ///text to display as tooltip
     ///note that there are no popup tooltips (and there'll never be one)
@@ -166,6 +169,36 @@ class Widget {
     char[] tooltip;
 
     //-------
+
+    this() {
+        mStyles = new Styles();
+
+        //these should probably go elsewhere
+        styleRegisterFloat("highlight-alpha");
+        styleRegisterColor("border-color");
+        styleRegisterColor("border-back-color");
+        styleRegisterInt("border-corner-radius");
+        styleRegisterInt("border-width");
+        styleRegisterBool("border-enable");
+
+        //register with _actual_ classes of the object
+        //(that's how D ctors work... this wouldn't work in C++)
+        auto curclass = this.classinfo;
+        char[][] myclasses;
+        while (curclass) {
+            char[] clsname = WidgetFactory.lookupDynamic(curclass);
+            if (clsname.length) {
+                myclasses ~= "w-" ~ clsname;
+            }
+            curclass = curclass.base;
+        }
+        myclasses ~= "w-any"; //class for all widgets
+        mStyles.addClasses(myclasses);
+    }
+
+    final Styles styles() {
+        return mStyles;
+    }
 
     package static Log log() {
         Log l = registerLog("GUI");
@@ -246,18 +279,10 @@ class Widget {
         return mMinSize;
     }
 
-    void borderStyle(BoxProperties style) {
-        mBorderStyle = style;
-        needResize(true);
-    }
     BoxProperties borderStyle() {
         return mBorderStyle;
     }
 
-    void drawBorder(bool set) {
-        mDrawBorder = set;
-        needResize(true);
-    }
     bool drawBorder() {
         return mDrawBorder;
     }
@@ -583,6 +608,7 @@ class Widget {
     void doMouseEnterLeave(bool mii) {
         if (mMouseOverState != mii) {
             mMouseOverState = mii;
+            styles.setState("hover", mii);
             onMouseEnterLeave(mii);
             doChildMouseEnterLeave(this, mii);
         }
@@ -704,8 +730,38 @@ class Widget {
         return MouseCursor.Standard;
     }
 
+    //-> xxx yes, this needs a better way to do things
+
+    bool mFirstCheck = true;
+    BoxProperties mOldBorderStyle;
+    bool mOldDrawBorder;
+
+    protected void check_style_changes() {
+        mBorderStyle.border = styles.getValue!(Color)("border-color");
+        mBorderStyle.back = styles.getValue!(Color)("border-back-color");
+        mBorderStyle.borderWidth = styles.getValue!(int)("border-width");
+        mBorderStyle.cornerRadius =
+            styles.getValue!(int)("border-corner-radius");
+
+        //draw-border is a misnomer, because it has influence on layout (size)?
+        mDrawBorder = styles.getValue!(bool)("border-enable");
+
+        bool border_changed = mBorderStyle != mOldBorderStyle;
+        bool db_changed = mDrawBorder != mOldDrawBorder;
+
+        if (border_changed || db_changed || mFirstCheck)
+            needResize(true);
+
+        mOldBorderStyle = mBorderStyle;
+        mOldDrawBorder = mDrawBorder;
+        mFirstCheck = false;
+    }
+
+    //xxx <-
+
     //overridden by Container
     void internalSimulate() {
+        check_style_changes();
         simulate();
     }
 
@@ -748,6 +804,7 @@ class Widget {
             //small optical hack: highlighting
             //feel free to replace this by better looking rendering
             //here because of drawing to nonclient area
+            auto highlightAlpha = styles.getValue!(float)("highlight-alpha");
             if (highlightAlpha > 0) {
                 c.drawFilledRect(mBorderArea + mAddToPos,
                     Color(1,1,1,highlightAlpha));
@@ -917,10 +974,16 @@ class Widget {
 
         auto bnode = loader.node.findNode("border_style");
         if (bnode)
-            mBorderStyle.loadFrom(bnode);
+            assert(false == false);
 
         tooltip = loader.locale()(loader.node.getStringValue("tooltip",
             tooltip));
+
+        if (auto stnode = loader.node.findNode("styles")) {
+            styles.addRules(stnode);
+        }
+
+        styles.addClasses(str.split(loader.node.getStringValue("style_class")));
 
         //xxx: load KeyBindings somehow?
         //...

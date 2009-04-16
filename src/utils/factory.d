@@ -23,7 +23,11 @@ class Factory(T, ConstructorArgs...) {
 
     //can't be named register(), because... hm? DMD is just borken.
     void registerByDelegate(char[] name, constructorCallback create) {
-        if (name in mConstructors) {
+        if (auto pc = name in mConstructors) {
+            //if the same, ignore it
+            //(not sure if this is a good idea, but it can't really harm)
+            if (*pc is create)
+                return;
             throw new Exception("oh noes! class already exists: " ~ name);
         }
         mConstructors[name] = create;
@@ -135,6 +139,14 @@ final class StaticFactory(char[] Unique, T, ConstructorArgs...) {
 
     static char[] lookup(X : T)() {
         return factory().lookup!(X)();
+    }
+
+    static char[] lookupDynamic(TypeInfo t) {
+        return factory().lookupDynamic(t);
+    }
+
+    static char[] lookupDynamic(ClassInfo ci) {
+        return factory().lookupDynamic(ci);
     }
 }
 

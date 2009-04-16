@@ -265,6 +265,9 @@ unittest {
     assert(p("a=0.2, b=0.4 ,k=0.8") == Color(0.8, 0.8, 0.8, 0.2));
     auto x = "r=0.2, g=0.2, b=0.2, a=0.2";
     assert(p(p(x).toString()) == p(x));
+    gColors["red"] = Color(1,0,0);
+    assert(p("red, a=0.8") == Color(1,0,0,0.8));
+    assert(p(" red  ,a    = 0.8 ") == Color(1,0,0,0.8));
 }
 
 //(try to) load each item from node as color

@@ -35,9 +35,9 @@ class Tabs : Container {
         assert (!!client);
         assert (!client.parent);
         auto b = new Button();
+        b.styles.addClass("tab-button");
         b.text = caption;
         b.onClick = &onSetActive;
-        b.drawBorder = false;
         auto l = WidgetLayout.Noexpand();
         l.padA.x = l.padB.x = cBorder*3;
         l.padA.y = cBorder*2;

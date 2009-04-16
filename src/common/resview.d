@@ -135,7 +135,6 @@ class MusicHandler : ResViewHandler!(Music) {
             button("pause", &onPause);
             button("fade", &onFade);
             lblstate = new Label();
-            lblstate.drawBorder = false;
             box.add(lblstate);
             addChild(box);
         }
@@ -183,7 +182,6 @@ class SampleHandler : ResViewHandler!(Sample) {
             auto box = new BoxContainer(false);
             auto info = new Label();
             info.text = myformat("Length: {}", resource.length());
-            info.drawBorder = false;
             box.add(info, al);
             Button button(char[] c, void delegate(Button) cb) {
                 auto b = new Button();
@@ -387,7 +385,6 @@ class AnimationHandler : ResViewHandler!(Animation) {
 
         auto infos = new Label();
         infos.font = gFramework.getFont("normal");
-        infos.drawBorder = false;
         infos.text = "Flags: "
             ~ (resource.keepLastFrame ? "keepLastFrame, " : "")
             ~ (resource.repeat ? "repeat, " : " ")
@@ -398,7 +395,6 @@ class AnimationHandler : ResViewHandler!(Animation) {
 
         void addscr(out ScrollBar scr, out Label lbl) {
             lbl = new Label();
-            lbl.drawBorder = false;
             lbl.font = gFramework.getFont("normal");
             scr = new ScrollBar(true);
             scr.onValueChange = &onScrollbar;
@@ -586,12 +582,10 @@ class ResViewerTask : Task {
                 Font f = gFramework.getFont("normal");
                 props.addRow();
                 auto lbl = new Label();
-                lbl.drawBorder = false;
                 lbl.text = name ~ ":";
                 lbl.font = f;
                 lbl.setLayout(WidgetLayout.Aligned(-1, 0));
                 val = new Label();
-                val.drawBorder = false;
                 val.font = f;
                 props.add(lbl, 0, props.height-1);
                 props.add(val, 1, props.height-1);

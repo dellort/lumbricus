@@ -726,8 +726,6 @@ class StatsWindow : Task {
                     lb = new Label();
                     la.font = gFramework.getFont("normal");
                     lb.font = la.font;
-                    la.drawBorder = false;
-                    lb.drawBorder = false;
                     table.add(la, 0, line);
                     table.add(lb, 1, line, WidgetLayout.Aligned(+1, 0));
                 } else {

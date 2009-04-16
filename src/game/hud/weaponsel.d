@@ -51,13 +51,13 @@ class WeaponSelWindow : Container {
                 active.image = weapon.icon.get;
                 active.onClick = &clickWeapon;
                 active.onMouseOver = &mouseoverWeapon;
-                active.drawBorder = false;
                 inactive = new Label();
-                inactive.drawBorder = false;
                 auto dimg = active.image.clone;
                 //make the image look disabled
                 dimg.applyBCG(-0.3, 0.5f, 2.5f);
                 inactive.image = dimg;
+                active.styles.addClasses(["in-weapon-cell"]);
+                inactive.styles.addClasses(["in-weapon-cell"]);
             }
 
             //enable/disable etc. weapon based on the list
@@ -273,7 +273,6 @@ class WeaponSelWindow : Container {
                 globals.translateBind(selectionBindings, cCShortcut ~ category)
                 : category;
             shortcut.font = mDFG;
-            shortcut.drawBorder = false;
             mGrid.add(shortcut, 0, y, WidgetLayout.Noexpand);
 
             //add the weapon icons
@@ -293,6 +292,9 @@ class WeaponSelWindow : Container {
     }
 
     this() {
+        //hm
+        styles.id = "weaponwindow";
+
         //meh how stupid
         auto conf = gConf.loadConfig("wsel").getSubNode("categories");
         foreach (char[] name, char[] value; conf) {
@@ -310,11 +312,9 @@ class WeaponSelWindow : Container {
         mGridContainer = new SimpleContainer();
         all.add(mGridContainer);
         mWeaponName = new Label();
-        mWeaponName.drawBorder = false;
         mWeaponName.font = gFramework.getFont("weaponsel_down");
         mWeaponName.shrink = true;
         mWeaponQuantity = new Label();
-        mWeaponQuantity.drawBorder = false;
         mWeaponQuantity.font = gFramework.getFont("weaponsel_down_bold");
         auto hbox = new BoxContainer(true, false, 10);
         hbox.add(mWeaponName, WidgetLayout.Expand(true));
@@ -323,10 +323,5 @@ class WeaponSelWindow : Container {
 
         addChild(all);
         setChildLayout(all, WidgetLayout.Border(Vector2i(4)));
-
-        BoxProperties boxy;
-        boxy.back = Color(0.7,0.7,0.7,0.7);
-        borderStyle = boxy;
-        drawBorder = true;
     }
 }

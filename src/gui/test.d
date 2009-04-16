@@ -532,7 +532,6 @@ class TestTask2 : Task {
             auto la = new Label();
             la.font = gFramework.getFont("normal");
             la.text = labels[n];
-            la.drawBorder = false;
             scr.add(la, 0, n, WidgetLayout.Aligned(-1,0));
 
             auto bar = new ScrollBar(true);
@@ -667,7 +666,6 @@ class TestTask3 : Task {
             auto la = new Label();
             la.font = gFramework.getFont("normal");
             la.text = labels[n];
-            la.drawBorder = false;
             scr.add(la, 0, n, WidgetLayout.Aligned(-1,0));
 
             auto bar = new ScrollBar(true);
@@ -687,7 +685,6 @@ class TestTask3 : Task {
 
         mValues = new Label();
         mValues.font = gFramework.getFont("normal");
-        mValues.drawBorder = false;
         gui.add(mValues, WidgetLayout.Aligned(-1, 0));
 
         char[][] files;
@@ -874,7 +871,6 @@ class FoobarTest : Task {
         auto box = new BoxContainer(false, false, 10);
 
         mLabel = new Label();
-        mLabel.drawBorder = false;
         box.add(mLabel);
 
         mBar1 = new ScrollBar(true);

@@ -21,17 +21,15 @@ class PrepareDisplay : Container {
         Translator tr;
         GameInfo mGame;
         bool mEnabled;
-        BoxProperties mBoxProps;
     }
 
     this(GameInfo game) {
         mGame = game;
         tr = localeRoot.bindNamespace("gui_prepare");
         mPrepareView = new Label();
+        mPrepareView.styles.id = "preparebox";
         mPrepareView.font = gFramework.fontManager.loadFont("messages");
         mPrepareView.border = Vector2i(7, 5);
-
-        mBoxProps.borderWidth = 2;
 
         mLastTime = timeCurrentTime();
 
@@ -71,8 +69,8 @@ class PrepareDisplay : Container {
         {
             Team curTeam = mGame.control.getControlledMember.team;
             //set box border color
-            mBoxProps.border = mGame.teams[curTeam].color;
-            mPrepareView.borderStyle = mBoxProps;
+            //yyy bring this back
+            //mBoxProps.border = mGame.teams[curTeam].color;
             active = true;
             char[] teamName = curTeam.name;
             //little hack to show correct time

@@ -229,7 +229,7 @@ class WindowWidget : Container {
 
         mTitleContainer = new BoxContainer(true);
         auto tmp = new SimpleContainer();
-        tmp.drawBorder = true;
+        tmp.styles.addClass("window-tmp");
         tmp.add(mTitleContainer, WidgetLayout.Border(Vector2i(1, 0)));
         vbox.add(tmp, WidgetLayout.Expand(true));
 
@@ -240,11 +240,11 @@ class WindowWidget : Container {
         mClientWidget = new BoxContainer(false);
 
         mTitleBar = new Label();
-        mTitleBar.drawBorder = false;
+        mTitleBar.styles.addClass("window-title");
         mTitleBar.font = gFramework.getFont("window_title");
 
         mTooltipLabel = new Label();
-        mTooltipLabel.drawBorder = false;
+        mTitleBar.styles.addClass("tooltip-label");
         WidgetLayout lay;
         lay.expand[] = [true, false];
         lay.pad = 2;
@@ -608,7 +608,7 @@ class WindowFrame : Container {
             void addTo(WindowWidget w) {
                 auto b = new Button();
                 b.image = img;
-                b.drawBorder = false;
+                b.styles.addClass("window-button");
                 b.setLayout(WidgetLayout.Noexpand());
                 auto h = new Holder; //could use std.bind too, I guess
                 h.w = w;

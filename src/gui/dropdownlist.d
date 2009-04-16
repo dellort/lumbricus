@@ -40,7 +40,7 @@ class DropDownControl : Container {
     void delegate(DropDownControl sender, bool success) onPopupClose;
 
     this() {
-        drawBorder = true;
+        styles.addClass("drop-down-control");
         mDropDown = new Button();
         //use that down-arrow...
         mDropDown.image = globals.guiResources.get!(Surface)("scroll_down");
@@ -130,7 +130,7 @@ class DropDownSelect : Button {
     }
 
     this() {
-        drawBorder = false;
+        styles.addClass("drop-down-select");
         //shrink = true;
         //enableHighlight = false;
         font = font; //update mFonts
@@ -197,7 +197,6 @@ class DropDownList : Container {
         listpopup.add(mList);
         auto listwind = new ScrollWindow(listpopup, [false, true]);
         listwind.enableMouseWheel = true;
-        listwind.drawBorder = true;
         mDropDown = new DropDownControl();
         mDropDown.setPopupWidget(listwind);
         mDropDown.setClientWidget(mClient);

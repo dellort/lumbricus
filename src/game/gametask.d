@@ -479,7 +479,6 @@ class GameTask : StatefulTask {
                 Cell c = new Cell();
                 c.bla = (y>0) && (x > y);
                 c.blu = (y>0) && (x==y);
-                l.drawBorder = false;
                 l.font = gFramework.getFont("normal");
                 c.add(l, WidgetLayout.Aligned(0, 0, Vector2i(1)));
                 table.add(c, x, y);

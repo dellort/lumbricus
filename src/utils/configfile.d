@@ -1743,6 +1743,16 @@ char[] t4 =
 }
 `;
 
+char[] t5 =
+`styles {
+    + "*" {
+        + "highlight-alpha" = "0"
+    }
+    + "/w-button" {
+        + "highlight-alpha" = "0.5"
+    }
+}`;
+
 unittest {
     auto n1 = debugParseFile(t1);
     auto s1 = n1.writeAsString();
@@ -1762,6 +1772,8 @@ unittest {
     auto n4 = debugParseFile(t4);
     auto s4 = n4.writeAsString();
     assert (s4 == t4);
+
+    debugParseFile(t5);
 
     assert (!test_error);
     Trace.formatln("configfile.d: unittest success");

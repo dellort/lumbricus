@@ -26,7 +26,6 @@ class GameTimer : Container {
         bool mActive, mEnabled;
         Time mLastTime;
         Vector2i mMinSize;
-        BoxProperties mBoxProps;
         Font[5] mFont;
         //xxx load this from somewhere
         bool mShowGameTime = true;
@@ -37,7 +36,7 @@ class GameTimer : Container {
         mGame = game;
 
         mLabelBox = new BoxContainer(false, false, 0);
-        mLabelBox.drawBorder = true;
+        mLabelBox.styles.id = "labelbox";
 
         mFont[0] = gFramework.fontManager.loadFont("time");
         mFont[1] = gFramework.fontManager.loadFont("time_red");
@@ -46,23 +45,21 @@ class GameTimer : Container {
         mFont[4] = gFramework.fontManager.loadFont("time_small_grey");
 
         mRoundTime = new Label();
+        mRoundTime.styles.id = "roundtime";
         mRoundTime.font = mFont[0];
         mRoundTime.border = Vector2i(7, 0);
         mRoundTime.centerX = true;
-        mRoundTime.drawBorder = false;
 
         mGameTime = new Label();
+        mRoundTime.styles.id = "gametime";
         mGameTime.font = mFont[3];
         mGameTime.border = Vector2i(7, 0);
         mGameTime.centerX = true;
-        mGameTime.drawBorder = false;
 
         mMinSize = toVector2i(toVector2f(mRoundTime.font.textSize("99"))*1.7f);
         //mMinSize.y = 100; //cast(int)(mMinSize.x*0.9f);
 
         showGameTime(mShowGameTime);
-
-        mBoxProps.back = Color(0, 0, 0, 0.7);
 
         mLastTime = timeCurrentTime();
 
@@ -103,6 +100,7 @@ class GameTimer : Container {
                 && m)
             {
                 active = true;
+                /+ yyy bring this back
                 mBoxProps.border = mGame.allMembers[m].owner.color;
                 if (m == mGame.control.getControlledMember) {
                     //broad border if it's the own worm
@@ -110,7 +108,7 @@ class GameTimer : Container {
                 } else {
                     mBoxProps.borderWidth = 1;
                 }
-                mLabelBox.borderStyle = mBoxProps;
+                +/
                 //little hack to show correct time
                 Time rt = st.roundRemaining - timeMsecs(1);
                 float rt_sec = rt.secs >= -1 ? rt.secsf+1 : 0f;

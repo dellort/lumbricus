@@ -41,7 +41,6 @@ class CmdNetServerTask : Task {
         mSrvConf = gConf.loadConfigDef("server");
 
         mLabel = new Label();
-        mLabel.drawBorder = false;
         mPlayerList = new StringListWidget();
         auto box = new BoxContainer(false);
         box.add(mLabel);

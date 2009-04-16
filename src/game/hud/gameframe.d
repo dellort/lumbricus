@@ -195,10 +195,8 @@ class GameFrame : SimpleContainer, GameEngineCallback {
         //mReplayImg.image = globals.guiResources.get!(Surface)("replay_r");
         mReplayImg.text = "R";
         mReplayImg.font = gFramework.fontManager.loadFont("replay_r");
-        mReplayImg.drawBorder = false;
         mReplayImg.visible = false;
         mReplayTimer = new Label();
-        mReplayTimer.drawBorder = false;
         mReplayTimer.visible = false;
         mReplayTimer.font = gFramework.fontManager.loadFont("replaytime");
         auto rbox = new BoxContainer(false);

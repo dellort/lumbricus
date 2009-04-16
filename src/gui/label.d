@@ -97,7 +97,6 @@ class Label : Widget {
 
     this(Font font = null) {
         mFont = font ? font : gFramework.getFont("label_default");
-        drawBorder = true;
         mBorder = Vector2i(0,0);
     }
 

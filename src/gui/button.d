@@ -66,7 +66,7 @@ class Button : Label {
     Time autoRepeatDelay = timeMsecs(500);
 
     ///True to light up the button on mouseover/click
-    bool enableHighlight = true;
+    //-- was never disabled, if needed add as style bool enableHighlight = true;
 
     void delegate(Button sender) onClick;
     void delegate() onClick2;
@@ -91,10 +91,12 @@ class Button : Label {
         return mIsCheckbox;
     }
     void isCheckbox(bool set) {
+        if (mIsCheckbox == set)
+            return;
+        if (!set)
+            assert(false, "add a Styles.removeClass()");
+        styles.addClasses(["checkbox"]);
         mIsCheckbox = set;
-        if (mIsCheckbox) {
-            drawBorder = false;
-        }
         updateCheckboxState();
     }
 
@@ -115,20 +117,6 @@ class Button : Label {
         }
     }
 
-    override void onDraw(Canvas c) {
-        super.onDraw(c);
-        if (enableHighlight) {
-            //setting this here is not nice, but works
-            highlightAlpha = 0;
-            if (mMouseOver) {
-                highlightAlpha = 0.3;
-            }
-            if (mButtonState) {
-                highlightAlpha = 0.7;
-            }
-        }
-    }
-
     override protected void onMouseEnterLeave(bool mouseIsInside) {
         super.onMouseEnterLeave(mouseIsInside);
         mMouseOver = mouseIsInside;
@@ -146,6 +134,7 @@ class Button : Label {
             return;
 
         mButtonState = state;
+        styles.setState("button-down", mButtonState);
 
         if (state) {
             if (autoRepeat) {
@@ -224,7 +213,6 @@ class Button : Label {
 
         isCheckbox = node.getBoolValue("check_box", isCheckbox);
         checked = node.getBoolValue("checked", checked);
-        enableHighlight = node.getBoolValue("enable_highlight",enableHighlight);
     }
 
     static this() {
