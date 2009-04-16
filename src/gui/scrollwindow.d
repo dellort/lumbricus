@@ -159,6 +159,9 @@ class ScrollArea : SimpleContainer {
             if (mLastUpdateSize != msize) {
                 //keep contents centered if ScrollArea size changes
                 mOffset += (msize - mLastUpdateSize)/2;
+                //also center smooth scrolling dest/position
+                mScrollOffset += toVector2f((msize - mLastUpdateSize)/2);
+                mScrollDest += toVector2f((msize - mLastUpdateSize)/2);
             }
             auto diff = mClientSize - msize;
             //if it's too small, the child will be layouted using the

@@ -7,6 +7,7 @@ import common.resources : gResources, ResourceObject, addToResourceSet;
 //import game.sequence : loadSequences; //only for loading grr
 import utils.color;
 import utils.configfile;
+import utils.time;
 
 
 //references all graphic/sound (no sounds yet) resources etc.
@@ -24,7 +25,7 @@ class GfxSet {
     Color waterColor;
 
     //how the target cross looks like
-    TargetCrossSettings targetCross;
+    CrosshairSettings crosshair;
 
     ExplosionSettings expl;
 
@@ -64,7 +65,7 @@ class GfxSet {
 
         waterColor.parse(waterfile["color"]);
 
-        //xxx if you want, add code to load targetCross here
+        //xxx if you want, add code to load crosshair here
     }
 
     void addGfxSet(ConfigNode conf) {
@@ -159,7 +160,7 @@ class TeamTheme {
 }
 
 //I feel a little bit guilty to place this here, but who cares
-struct TargetCrossSettings {
+struct CrosshairSettings {
     int targetDist = 90; //distance target-cross-center to worm-center
     int targetStartDist = 10;   //initial distance (for animate-away)
     int loadStart = 8; //start of the load-thing
@@ -170,7 +171,7 @@ struct TargetCrossSettings {
     int radEnd = 10;
     int add = 1; //distance of circle centers
     int stipple = 7; //change color after that number of circles (>0, in pixels)
-    float targetDegrade = 0.98f; //animate-away speed, multiplicator per millisecond
+    Time animDur = timeMsecs(250); //animate-away duration
 }
 
 struct ExplosionSettings {

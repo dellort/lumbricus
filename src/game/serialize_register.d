@@ -31,7 +31,7 @@ void initGameSerialization() {
         SequenceUpdate, SpawnAction, Jetpack, Rope, WormSprite,
         GravestoneSprite, WormSequenceUpdate, WrapFireInfo,
         GameEngineGraphics, AnimationGraphic, LineGraphic,
-        TargetCross, LandscapeGraphic, NapalmSequenceUpdate,
+        Crosshair, LandscapeGraphic, NapalmSequenceUpdate,
         NapalmSprite, WeaponHandle, ModeRoundbased, ModeDebug, TimeSource,
         TimeSourceFixFramerate, EventAggregator, DieAction, RoundbasedStatus);
     //stuff that (maybe) should not be serialized

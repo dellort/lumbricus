@@ -28,6 +28,7 @@ import utils.rect2;
 import utils.perf;
 import utils.configfile;
 import utils.random : rngShared;
+import utils.interpolate;
 import tango.math.Math : PI, pow;
 
 enum GameZOrder {
@@ -38,7 +39,7 @@ enum GameZOrder {
     Landscape,
     LevelWater,  //water before the level, but behind drowning objects
     Objects,
-    TargetCross,
+    Crosshair,
     Names, //what
     Clouds,
     FrontWater,
@@ -74,7 +75,7 @@ class ClientLineGraphic : SceneObject {
     LineGraphic mInfo;
 
     this(LineGraphic info) {
-        zorder = GameZOrder.TargetCross;
+        zorder = GameZOrder.Crosshair;
         mInfo = info;
     }
 
@@ -117,29 +118,33 @@ class LandscapeGraphicImpl : SceneObject {
     }
 }
 
-class TargetCrossImpl : SceneObject {
+class CrosshairImpl : SceneObject {
     private {
-        TargetCross mInfo;
+        Crosshair mInfo;
         Vector2f mDir; //normalized weapon direction
         Animator mTarget;
         float mTargetOffset;
-        float mRotationOffset;
         GfxSet mGfx;
         TimeSourcePublic timebase;
+        InterpolateExp!(float) mInterp;
     }
 
-    this(TargetCross info, GfxSet gfx) {
-        zorder = GameZOrder.TargetCross;
+    this(Crosshair info, GfxSet gfx) {
+        zorder = GameZOrder.Crosshair;
         mGfx = gfx;
         mInfo = info;
         timebase = mInfo.owner.timebase;
         mTarget = new Animator(timebase);
         mTarget.setAnimation(mInfo.theme.aim.get);
+        mInterp.currentTimeDg = &timebase.current;
+        mInterp.init(mGfx.crosshair.animDur, 1, 0);
+        mTargetOffset = mGfx.crosshair.targetDist -
+            mGfx.crosshair.targetStartDist;
         reset();
     }
 
     void doDraw(Canvas canvas, Vector2i pos) {
-        auto tcs = mGfx.targetCross;
+        auto tcs = mGfx.crosshair;
         auto start = tcs.loadStart + tcs.radStart;
         auto abs_end = tcs.loadEnd - tcs.radEnd;
         auto scale = abs_end - start;
@@ -166,9 +171,7 @@ class TargetCrossImpl : SceneObject {
 
     //reset animation, called after this becomes .active again
     void reset() {
-        mTargetOffset = mGfx.targetCross.targetDist -
-            mGfx.targetCross.targetStartDist;
-        mRotationOffset = PI*2;
+        mInterp.restart();
     }
 
     override void draw(Canvas c) {
@@ -199,19 +202,11 @@ class TargetCrossImpl : SceneObject {
         auto angle = fullAngleFromSideAngle(infos.rotation_angle,
             infos.pointto_angle);
         mDir = Vector2f.fromPolar(1.0f, angle);
-        mTarget.pos = pos + toVector2i(mDir
-            * (mGfx.targetCross.targetDist - mTargetOffset));
-        mTarget.params.p1 = cast(int)((angle + mRotationOffset)*180/PI);
-
         //target cross animation
         //xxx reset on weapon change
-        if (mTargetOffset > 0.25f) {
-            auto deltaT = timebase.difference.secsf;
-            auto decrease = (pow(mGfx.targetCross.targetDegrade,
-                deltaT*1000.0f));
-            mTargetOffset *= decrease;
-            mRotationOffset *= decrease;
-        }
+        mTarget.pos = pos + toVector2i(mDir * (mGfx.crosshair.targetDist
+            - mTargetOffset*mInterp.value));
+        mTarget.params.p1 = cast(int)((angle + 2*PI*mInterp.value)*180/PI);
 
         mTarget.draw(c);
         doDraw(c, pos);
@@ -228,7 +223,7 @@ class ExplosionGfxImpl : SceneObjectCentered {
     }
 
     this(TimeSourcePublic ts, GfxSet gfx, Vector2i a_pos, int diameter) {
-        zorder = GameZOrder.TargetCross;
+        zorder = GameZOrder.Crosshair;
         mGfx = gfx;
         mShockwave1 = new Animator(ts);
         mShockwave2 = new Animator(ts);
@@ -426,8 +421,8 @@ class ClientGameEngine : GameEngineCallback {
                 add(new ClientLineGraphic(line));
             } else if (auto land = cast(LandscapeGraphic)g) {
                 add(new LandscapeGraphicImpl(land));
-            } else if (auto tc = cast(TargetCross)g) {
-                add(new TargetCrossImpl(tc, gfx));
+            } else if (auto tc = cast(Crosshair)g) {
+                add(new CrosshairImpl(tc, gfx));
             } else {
                 assert (false, "unknown type: "~g.toString());
             }

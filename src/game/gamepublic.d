@@ -148,8 +148,8 @@ class GameEngineGraphics {
         return n;
     }
 
-    TargetCross createTargetCross(TeamTheme theme, SequenceUpdate attach) {
-        auto n = new TargetCross(this);
+    Crosshair createCrosshair(TeamTheme theme, SequenceUpdate attach) {
+        auto n = new Crosshair(this);
         n.theme = theme;
         n.attach = attach;
         doadd(n);
@@ -273,7 +273,7 @@ class LineGraphic : Graphic {
     }
 }
 
-class TargetCross : Graphic {
+class Crosshair : Graphic {
     TeamTheme theme;
     SequenceUpdate attach; //where position and angle are read from
     float load = 0.0f;

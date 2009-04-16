@@ -90,7 +90,7 @@ class WormSprite : GObjectSprite {
         JumpMode mJumpMode;
 
         //null if not there, instantiated all the time it's needed
-        TargetCross mTargetCross;
+        Crosshair mCrosshair;
 
         //that thing when you e.g. shoot a bazooka to set the fire strength
         bool mThrowing;
@@ -347,8 +347,8 @@ class WormSprite : GObjectSprite {
         }
 
         auto strength = currentFireStrength();
-        if (mTargetCross) {
-            mTargetCross.setLoad(strength);
+        if (mCrosshair) {
+            mCrosshair.setLoad(strength);
         }
         //xxx replace comparision by checking against the time, with a small
         //  delay before actually shooting (like wwp does)
@@ -400,10 +400,10 @@ class WormSprite : GObjectSprite {
                 mWeaponTimer = (w.fireMode.timerFrom+w.fireMode.timerTo)/2;
             //xxx: if weapon is changed, play the correct animations
             setCurrentAnimation();
-            updateTargetCross();
+            updateCrosshair();
             //replay the cross-moves-out animation
-            if (mTargetCross && mWeapon !is oldweapon) {
-                mTargetCross.reset();
+            if (mCrosshair && mWeapon !is oldweapon) {
+                mCrosshair.reset();
             }
         } else {
             mWeaponTimer = Time.Null;
@@ -602,12 +602,12 @@ class WormSprite : GObjectSprite {
             swap(mShooterMain, mShooterSec);
         //shooter is done, so check if we need to switch animation
         setCurrentAnimation();
-        updateTargetCross();
+        updateCrosshair();
     }
 
-    private void updateTargetCross() {
+    private void updateCrosshair() {
         //create/destroy the target cross
-        bool exists = !!mTargetCross;
+        bool exists = !!mCrosshair;
         bool shouldexist = false;
         if (currentState is wsc.st_weapon && mWeapon) {
             //xxx special cases not handled, just turns on/off crosshair
@@ -616,10 +616,10 @@ class WormSprite : GObjectSprite {
         }
         if (exists != shouldexist) {
             if (exists) {
-                mTargetCross.remove();
-                mTargetCross = null;
+                mCrosshair.remove();
+                mCrosshair = null;
             } else {
-                mTargetCross = engine.graphics.createTargetCross(teamColor,
+                mCrosshair = engine.graphics.createCrosshair(teamColor,
                     seqUpdate);
             }
         }
@@ -672,7 +672,7 @@ class WormSprite : GObjectSprite {
         }
 
         if (from is wsc.st_weapon || to is wsc.st_weapon) {
-            updateTargetCross();
+            updateCrosshair();
         }
 
         if (to is wsc.st_die) {

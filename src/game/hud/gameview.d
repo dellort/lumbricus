@@ -22,6 +22,7 @@ import utils.time;
 import utils.math;
 import utils.misc;
 import utils.vector2;
+import utils.interpolate;
 
 import str = stdx.string;
 import math = tango.math.Math;
@@ -54,120 +55,6 @@ class GuiAnimator : Widget {
     void setPositionCentered(Vector2i newPos) {
         setAddToPos(newPos - mAnimator.bounds.size/2);
     }
-}
-
-//this is a try to get rid of the code duplication (although it's too late)
-//it's rather trivial, but annoying
-//when started, it interpolates from one value to another in a given time span
-//T must be a scalar, like float or int
-//timesource is currently fixed to that animation stuff
-//all fields are read-only (in gameframe I have some code for changing "targets")
-struct InterpolateLinearTime(T) {
-    Time startTime, duration;
-    T start;
-    T target;
-    TimeSourcePublic timeSource; //must be set before calling anything
-
-    Time currentTime() {
-        assert(!!timeSource);
-        return timeSource.current;
-    }
-
-    void init(Time a_duration, T a_start, T a_target) {
-        startTime = currentTime();
-        duration = a_duration;
-        start = a_start;
-        target = a_target;
-    }
-
-    //start so that it behaves like with init(), but value() is already at
-    //a_value (which means the startTime is adjusted so that it fits)
-    //xxx would be simpler if there was a speed value rather than the
-    //  start/target/time values
-    void initBetween(Time a_duration, T a_start, T a_value, T a_target) {
-        init(a_duration, a_start, a_target);
-        float progress = cast(float)(a_value - a_start) / (a_target - a_start);
-        startTime -= a_duration * progress;
-    }
-
-    T value() {
-        auto d = currentTime() - startTime;
-        if (d >= duration) {
-            return target;
-        }
-        //have to scale it without knowing what datatype it is
-        return start + cast(T)((target - start)
-            * (cast(float)d.msecs / duration.msecs));
-    }
-
-    Time endTime() {
-        return startTime + duration;
-    }
-
-    //return if the value is still changing (false when this is uninitialized)
-    bool inProgress() {
-        return currentTime() < endTime;
-    }
-}
-
-//interpolate according to a mapping function
-struct InterpolateFnTime(T) {
-    Time startTime, duration;
-    T start;
-    T target;
-    //the mapping function; inp is the time scaled to 0..1; the result is 0..1
-    //and will be scaled to start..target
-    float delegate(float inp) fn;
-    TimeSourcePublic timeSource; //must be set before calling anything
-
-    Time currentTime() {
-        assert(!!timeSource);
-        return timeSource.current;
-    }
-
-    void init(Time a_duration, T a_start, T a_target) {
-        startTime = currentTime();
-        duration = a_duration;
-        start = a_start;
-        target = a_target;
-        assert(!!fn, "function not set");
-    }
-
-    T value() {
-        if (!fn)
-            return start;
-        auto d = currentTime() - startTime;
-        if (d >= duration) {
-            return target;
-        }
-        //have to scale it without knowing what datatype it is
-        return start + cast(T)((target - start)
-            * fn(cast(float)d.msecs / duration.msecs));
-    }
-
-    Time endTime() {
-        return startTime + duration;
-    }
-
-
-    //return if the value is still changing (false when this is uninitialized)
-    bool inProgress() {
-        return currentTime() < startTime + duration;
-    }
-
-    //set everything to init except fn
-    void reset() {
-        startTime = duration = Time.init;
-        start = target = T.init;
-    }
-}
-
-//sc, result = [0,1] -> [0,1], exponential-like curve
-//a, r = where to cut off the curve
-float interpolateExponential(float sc, float a = 4.0f, float r = 2.0f) {
-    //to stay within [0,1], substract the not reached difference to 0
-    float s(float sc) { return 1.0f - (math.exp(sc * -a) - sc * math.exp(-a)); }
-    return s(sc*r)/s(r);
 }
 
 const Time cArrowDelta = timeSecs(5);
@@ -240,20 +127,20 @@ class GameView : Container {
             //for the alternative weapon display
             Label weaponIcon;
 
-            InterpolateFnTime!(float) moveWeaponIcon;
+            InterpolateExp2!(float, 4.0f) moveWeaponIcon;
 
             //arrow which points on currently active worm (goes away when he moves)
             //(there's only one per GUI, but keeping it here is simpler)
             GuiAnimator arrow;
 
-            InterpolateLinearTime!(int) moveLabels;
+            InterpolateLinear!(int) moveLabels;
             //bool beingActive; //last active state to detect state change
 
             //label which displays how much health was lost
             //starts from real health label, moves up, and disappears
             Label healthHint;
 
-            InterpolateLinearTime!(int) moveHealth;
+            InterpolateLinear!(int) moveHealth;
 
             int health_cur = int.max;
             int lastHealthHintTarget = int.max;
@@ -264,9 +151,9 @@ class GameView : Container {
 
             this(TeamMemberInfo m) {
                 auto ts = mGame.clientTime;
-                moveLabels.timeSource = ts;
-                moveHealth.timeSource = ts;
-                moveWeaponIcon.timeSource = ts;
+                moveLabels.currentTimeDg = &ts.current;
+                moveHealth.currentTimeDg = &ts.current;
+                moveWeaponIcon.currentTimeDg = &ts.current;
                 member = m;
                 wormTeam = m.owner.createLabel();
                 wormName = m.owner.createLabel();
@@ -277,9 +164,6 @@ class GameView : Container {
                 weaponIcon.text = "";
                 arrow = new GuiAnimator(ts);
                 arrow.animation = member.owner.theme.arrow.get;
-                moveWeaponIcon.fn = &interpolate2Exp;
-                //get rid of nan
-                moveWeaponIcon.start = moveWeaponIcon.target = 0;
             }
 
             void setArrowAnim(bool canChangeWorm) {
@@ -290,14 +174,6 @@ class GameView : Container {
                 else
                     arrow.animation = member.owner.theme.arrow.get;
                 mArrowState = canChangeWorm;
-            }
-
-            //looks like this:   | 0.0 slow ... fast 0.5 fast ... slow 1.0 |
-            float interpolate2Exp(float inp) {
-                auto dir = inp < 0.5f;
-                inp = dir ? 0.5f - inp : inp - 0.5f;
-                auto res = interpolateExponential(inp) / 2;
-                return dir ? 0.5f - res : res + 0.5f;
             }
 
             Vector2i getCameraPosition() {
@@ -393,12 +269,12 @@ class GameView : Container {
                     if (doMoveDown != (moveLabels.target <= moveLabels.start)) {
                         if (doMoveDown) {
                             //make labels visible & move down
-                            moveLabels.initBetween(cLabelsMoveTimeDown,
-                                cLabelsMoveDistance, moveLabels.value, 0);
+                            moveLabels.setParams(cLabelsMoveTimeDown,
+                                cLabelsMoveDistance, 0);
                         } else {
                             //move up
-                            moveLabels.initBetween(cLabelsMoveTimeUp,
-                                0, moveLabels.value, cLabelsMoveDistance);
+                            moveLabels.setParams(cLabelsMoveTimeUp,
+                                0, cLabelsMoveDistance);
                         }
                     }
 
@@ -436,30 +312,28 @@ class GameView : Container {
                             faceLeft = angleLeftRight(sd.rotation_angle, true,
                                 false);
                         }
-                        if (moveWeaponIcon.start == moveWeaponIcon.target) {
+                        if (!moveWeaponIcon.initialized) {
                             //rather a cheap trick to distinguish initialization
                             //from not-animating state
-                            moveWeaponIcon.start = faceLeft ? 1 : 0;
-                            moveWeaponIcon.target = faceLeft ? 0 : 1;
-                            moveWeaponIcon.duration = Time.Null;
-                        } else {
-                            bool rtol = moveWeaponIcon.start
-                                > moveWeaponIcon.target;
-                            if (rtol != faceLeft) {
-                                if (moveWeaponIcon.inProgress()) {
-                                    //change direction (works because
-                                    //interpolation function is symmetric)
-                                    swap(moveWeaponIcon.start,
-                                        moveWeaponIcon.target);
-                                    auto cur = moveWeaponIcon.currentTime;
-                                    auto diff = cur
-                                        - moveWeaponIcon.startTime;
-                                    diff = moveWeaponIcon.duration - diff;
-                                    moveWeaponIcon.startTime = cur - diff;
-                                } else {
-                                    moveWeaponIcon.init(cWeaponIconMoveTime,
-                                        faceLeft ? 1 : 0, faceLeft ? 0 : 1);
-                                }
+                            moveWeaponIcon.init(Time.Null, faceLeft ? 1 : 0,
+                                faceLeft ? 0 : 1);
+                        }
+                        bool rtol = moveWeaponIcon.start
+                            > moveWeaponIcon.target;
+                        if (rtol != faceLeft) {
+                            if (moveWeaponIcon.inProgress()) {
+                                //change direction (works because
+                                //interpolation function is symmetric)
+                                swap(moveWeaponIcon.start,
+                                    moveWeaponIcon.target);
+                                auto cur = moveWeaponIcon.currentTime;
+                                auto diff = cur
+                                    - moveWeaponIcon.startTime;
+                                diff = moveWeaponIcon.duration - diff;
+                                moveWeaponIcon.startTime = cur - diff;
+                            } else {
+                                moveWeaponIcon.init(cWeaponIconMoveTime,
+                                    faceLeft ? 1 : 0, faceLeft ? 0 : 1);
                             }
                         }
 
@@ -471,7 +345,6 @@ class GameView : Container {
                         setWPos(weaponIcon, npos);
                     } else {
                         moveWeaponIcon.reset();
-                        moveWeaponIcon.start = moveWeaponIcon.target = 0;
                     }
 
                     void mooh(bool vis, Widget w) {

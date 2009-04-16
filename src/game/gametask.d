@@ -72,6 +72,7 @@ import game.weapon.ray;
 import game.weapon.spawn;
 import game.weapon.napalm;
 import game.weapon.melee;
+import game.weapon.luaweapon;
 import game.gamemodes.roundbased;
 import game.gamemodes.mdebug;
 
@@ -324,7 +325,7 @@ class GameTask : StatefulTask {
         mLoadScreen.secondaryCount = preload.totalCount();
         mLoadScreen.secondaryPos = preload.loadedCount();
         //the use in returning after some time is to redraw the screen
-        preload.progressTimed(timeMsecs(300));
+        preload.progressTimed(timeMsecs(100));
         if (!preload.done) {
             return false;
         } else {

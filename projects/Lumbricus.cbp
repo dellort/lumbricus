@@ -231,6 +231,7 @@
 		<Unit filename="..\src\utils\filetools.d" />
 		<Unit filename="..\src\utils\gcabstr.d" />
 		<Unit filename="..\src\utils\gzip.d" />
+		<Unit filename="..\src\utils\interpolate.d" />
 		<Unit filename="..\src\utils\list2.d" />
 		<Unit filename="..\src\utils\log.d" />
 		<Unit filename="..\src\utils\math.d" />
