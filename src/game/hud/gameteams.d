@@ -74,8 +74,13 @@ class TeamWindow : Container {
             table.add(t.createLabel(), 0, table.height() - 1,
                 WidgetLayout.Aligned(1, 0));
             auto bar = new Foobar();
+            //xxx: no idea how to get the actual properties
+            BoxProperties box;
+            box.border = Color(0.7);
+            box.back = Color(0);
+            box.cornerRadius = 3;
+            bar.border = box;
             bar.fill = t.color;
-            bar.border = t.box;
             mBars[t] = bar;
             WidgetLayout lay; //expand in y, but left-align in x
             lay.alignment[0] = 0;

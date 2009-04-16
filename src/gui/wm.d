@@ -551,11 +551,13 @@ private:
             sp1.color = Color(0);
             table.add(sp1, 0, y, 2, 1);
             auto tasktitle = new Label();
+            tasktitle.styles.addClass("wm-label");
             tasktitle.text = myformat("{} ({})", w.task, w.task.taskID);
             tasktitle.font = gFramework.getFont("big");
             table.add(tasktitle, 0, y+1, 1, w.windows.length);
             foreach (int index, window; w.windows) {
                 auto wndtitle = new Label();
+                wndtitle.styles.addClass("wm-label");
                 wndtitle.text = window.properties.windowTitle;
                 wndtitle.font = gFramework.getFont("normal");
                 table.add(wndtitle, 1, y+1+index);
@@ -569,7 +571,7 @@ private:
 
     void switch_to(int index) {
         void dosel(Label l, bool state) {
-            l.background = state ? Color(0.7,0.7,0.7) : Color(0,0,0,0);
+            l.styles.setState("selected", state);
         }
 
         if (index < 0 || index >= mEntries.length)

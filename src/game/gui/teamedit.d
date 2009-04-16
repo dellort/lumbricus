@@ -108,10 +108,10 @@ class TeamEditorTask : Task {
 
     //set color button to passed team color
     private void showColor(char[] teamCol) {
-        BoxProperties box;
-        box.back.parse("team_"~teamCol);
-        //yyy bring this back
-        //mColorButton.borderStyle = box;
+        Color c;
+        c.parse("team_"~teamCol);
+        mColorButton.borderCustomColor = c;
+        mColorButton.borderColorIsBackground = true;
     }
 
     //Team selection dropdown clicked

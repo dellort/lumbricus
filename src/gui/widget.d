@@ -180,6 +180,7 @@ class Widget {
         styleRegisterInt("border-corner-radius");
         styleRegisterInt("border-width");
         styleRegisterBool("border-enable");
+        styleRegisterColor("widget-background");
 
         //register with _actual_ classes of the object
         //(that's how D ctors work... this wouldn't work in C++)
@@ -743,6 +744,8 @@ class Widget {
         mBorderStyle.cornerRadius =
             styles.getValue!(int)("border-corner-radius");
 
+        get_border_style(mBorderStyle);
+
         //draw-border is a misnomer, because it has influence on layout (size)?
         mDrawBorder = styles.getValue!(bool)("border-enable");
 
@@ -755,6 +758,10 @@ class Widget {
         mOldBorderStyle = mBorderStyle;
         mOldDrawBorder = mDrawBorder;
         mFirstCheck = false;
+    }
+
+    //disgusting hack - until I can think of something decent
+    protected void get_border_style(ref BoxProperties b) {
     }
 
     //xxx <-
@@ -787,6 +794,11 @@ class Widget {
         }
         if (canScale)
             c.setScale(mScale);
+
+        auto background = styles.getValue!(Color)("widget-background");
+        if (background.a >= Color.epsilon) {
+            c.drawFilledRect(Vector2i(0), size, background);
+        }
 
         //user's draw routine
         onDraw(c);

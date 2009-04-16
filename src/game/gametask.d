@@ -72,7 +72,7 @@ import game.weapon.ray;
 import game.weapon.spawn;
 import game.weapon.napalm;
 import game.weapon.melee;
-import game.weapon.luaweapon;
+//import game.weapon.luaweapon;
 import game.gamemodes.roundbased;
 import game.gamemodes.mdebug;
 

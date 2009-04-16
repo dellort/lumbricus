@@ -30,13 +30,26 @@ class GameTimer : Container {
         //xxx load this from somewhere
         bool mShowGameTime = true;
         char[20] mRndTBuffer, mGameTBuffer;
+        Color bordercolor;
+    }
+
+    class Hack : BoxContainer {
+        this() {
+            super(false, false, 0);
+            styles.addClass("gametimer");
+        }
+        override void get_border_style(ref BoxProperties b) {
+            if (mActive)
+                b.border = bordercolor;
+        }
     }
 
     this(GameInfo game) {
         mGame = game;
 
-        mLabelBox = new BoxContainer(false, false, 0);
-        mLabelBox.styles.id = "labelbox";
+        //styles.addClass("gametimer");
+
+        mLabelBox = new Hack();
 
         mFont[0] = gFramework.fontManager.loadFont("time");
         mFont[1] = gFramework.fontManager.loadFont("time_red");
@@ -100,15 +113,9 @@ class GameTimer : Container {
                 && m)
             {
                 active = true;
-                /+ yyy bring this back
-                mBoxProps.border = mGame.allMembers[m].owner.color;
-                if (m == mGame.control.getControlledMember) {
-                    //broad border if it's the own worm
-                    mBoxProps.borderWidth = 2;
-                } else {
-                    mBoxProps.borderWidth = 1;
-                }
-                +/
+                bordercolor = mGame.allMembers[m].owner.color;
+                mLabelBox.styles.setState("active",
+                    m == mGame.control.getControlledMember);
                 //little hack to show correct time
                 Time rt = st.roundRemaining - timeMsecs(1);
                 float rt_sec = rt.secs >= -1 ? rt.secsf+1 : 0f;

@@ -23,7 +23,18 @@ class Label : Widget {
         const cSpacing = 3; //between images and text
     }
 
-    Color background = {0,0,0,0};
+    //disgusting hack etc...
+    Color borderCustomColor = Color(0,0,0,0);
+    bool borderColorIsBackground;
+    override void get_border_style(ref BoxProperties b) {
+        if (!(borderCustomColor.a > 0))
+            return;
+        if (borderColorIsBackground) {
+            b.back = borderCustomColor;
+        } else {
+            b.border = borderCustomColor;
+        }
+    }
 
     //no mouse events
     override bool onTestMouse(Vector2i) {
@@ -101,9 +112,6 @@ class Label : Widget {
     }
 
     override void onDraw(Canvas canvas) {
-        if (background.a >= Color.epsilon) {
-            canvas.drawFilledRect(Vector2i(0), size, background);
-        }
         auto b = border;
         //xxx replace manual centering code etc. by sth. automatic
         auto diff = size - b*2;

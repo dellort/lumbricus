@@ -69,8 +69,7 @@ class PrepareDisplay : Container {
         {
             Team curTeam = mGame.control.getControlledMember.team;
             //set box border color
-            //yyy bring this back
-            //mBoxProps.border = mGame.teams[curTeam].color;
+            mPrepareView.borderCustomColor = mGame.teams[curTeam].color;
             active = true;
             char[] teamName = curTeam.name;
             //little hack to show correct time

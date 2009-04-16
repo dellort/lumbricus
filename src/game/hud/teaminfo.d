@@ -51,7 +51,6 @@ class TeamInfo {
     Team team;
     Color color;
     Font font;
-    BoxProperties box; //for labels
     TeamTheme theme; //game theme, partially used by the GUI
     //NOTE: in the game, foreign objects could appear, with are member of a team
     // (like the supersheep), these are not in this list
