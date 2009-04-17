@@ -322,16 +322,16 @@ class AniHandler : ResViewHandler!(AniFrames) {
     private void sel(ScrollBar sender) {
         auto frames = resource.frames(sender.curValue);
         mCont.clear();
-        auto table = new TableContainer(frames.counts[0], frames.counts[1],
-            Vector2i(2,2), [true, true]);
-        Rect2i bb = resource.framesBoundingBox(sender.curValue);
+        auto table = new TableContainer(frames.params[0].count,
+            frames.params[1].count, Vector2i(2,2), [true, true]);
+        Rect2i bb = frames.boundingBox();
         for (int x = 0 ; x < table.width; x++) {
             for (int y = 0; y < table.height; y++) {
                 auto bmp = new ViewBitmap();
-                auto f = frames.getFrame(x, y);
-                bmp.part = resource.images.texture(f.bitmapIndex);
-                bmp.draw = f.drawEffects;
-                bmp.offs = -bb.p1 + Vector2i(f.centerX, f.centerY);
+                bmp.frames = frames;
+                bmp.p1 = x;
+                bmp.p2 = y;
+                bmp.offs = -bb.p1;
                 bmp.size = bb.size;
                 bmp.setLayout(WidgetLayout.Noexpand());
                 table.add(bmp, x, y);
@@ -342,14 +342,12 @@ class AniHandler : ResViewHandler!(AniFrames) {
     }
 
     class ViewBitmap : Widget {
-        TextureRef part;
-        Vector2i offs;
-        Vector2i size;
-        int draw;
+        Frames frames;
+        int p1, p2;
+        Vector2i offs, size;
 
         override void onDraw(Canvas c) {
-            c.draw(part.surface, offs, part.origin, part.size,
-                !!(draw & FileDrawEffects.MirrorY));
+            frames.drawFrame(c, offs, p1, p2, 0);
             c.drawRect(Vector2i(), size-Vector2i(1), Color(1,1,0));
         }
 
@@ -546,6 +544,7 @@ class ResViewerTask : Task {
             mList = new StringListWidget();
             mList.onSelect = &onSelect;
             auto listwind = new ScrollWindow(mList, [false, true]);
+            listwind.minSize = Vector2i(275, 0);
             listwind.enableMouseWheel = true;
             side.add(listwind);
 

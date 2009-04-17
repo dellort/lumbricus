@@ -5,7 +5,7 @@ import common.common;
 import framework.framework;
 import common.resset;
 import common.restypes.bitmap;
-import common.restypes.frames;
+import common.restypes.animation;
 import utils.configfile;
 import utils.misc;
 import utils.array;

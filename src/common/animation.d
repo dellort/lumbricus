@@ -4,7 +4,7 @@ import common.common;
 import common.scene;
 import framework.framework;
 import framework.timesource;
-public import common.restypes.frames;
+public import common.restypes.animation;
 import utils.rect2;
 import utils.time;
 import utils.vector2;

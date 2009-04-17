@@ -126,7 +126,7 @@ class CrosshairImpl : SceneObject {
         float mTargetOffset;
         GfxSet mGfx;
         TimeSourcePublic timebase;
-        InterpolateExp!(float) mInterp;
+        InterpolateExp!(float, 4.25f) mInterp;
     }
 
     this(Crosshair info, GfxSet gfx) {

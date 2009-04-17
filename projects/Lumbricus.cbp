@@ -50,6 +50,7 @@
 		<Unit filename="..\src\common\resfileformats.d" />
 		<Unit filename="..\src\common\resources.d" />
 		<Unit filename="..\src\common\resset.d" />
+		<Unit filename="..\src\common\restypes\animation.d" />
 		<Unit filename="..\src\common\restypes\atlas.d" />
 		<Unit filename="..\src\common\restypes\bitmap.d" />
 		<Unit filename="..\src\common\restypes\frames.d" />

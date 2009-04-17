@@ -16,7 +16,8 @@ import gui.console;
 import gui.wm;
 import common.common;
 import common.loadsave;
-import common.resources;
+//import all restypes because of the factories (more for debugging...)
+import common.allres;
 import common.task;
 import utils.time;
 import utils.configfile;
@@ -29,11 +30,6 @@ import utils.perf;
 //xxx
 import gc = utils.gcabstr;
 import stdx.stream : File, FileMode;
-
-//import all restypes because of the factories (more for debugging...)
-import common.restypes.bitmap;
-import common.restypes.atlas;
-import common.restypes.frames;
 
 //ZOrders!
 //only for the stuff managed by TopLevel

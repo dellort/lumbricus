@@ -40,7 +40,7 @@ static this() {
 
 class AniEntry {
     //map a param to the two axis, params = [axis-A, axis-B]
-    Param[2] params = [Param.Time, Param.P1];
+    Param[3] params = [Param.Time, Param.P1, Param.Null];
     char[][] param_conv;
     FileAnimationFlags flags = cast(FileAnimationFlags)0;
     int frameTimeMS;
@@ -49,7 +49,7 @@ class AniEntry {
 
     private {
         char[] mName;
-        FileAnimationFrame[][] mFrames; //indexed [b][a] (lol)
+        FileAnimationFrame[][][] mFrames; //indexed [c][b][a] (lol even more)
         AniFile mOwner;
     }
 
@@ -68,7 +68,7 @@ class AniEntry {
     //if there's more than one Animation in src, they are appended along B
     //possibly modifies the bounding box (box) and frameTimeMS
     //the frame transformation functions work only on the current framelist
-    void addFrames(Animation[] src) {
+    void addFrames(Animation[] src, int c_idx = 0) {
         void addAnimation(Animation a) {
             int len_a = a.frames.length;
             if (length_b() > 0 && len_a != length_a()) {
@@ -91,52 +91,62 @@ class AniEntry {
                 cur.centerY = frame.y - a.boxHeight/2;
                 cframes ~= cur;
             }
-            mFrames ~= cframes;
+            mFrames[c_idx] ~= cframes;
         }
 
+        if (mFrames.length <= c_idx)
+            mFrames.length = c_idx + 1;
         foreach (s; src) {
             addAnimation(s);
         }
     }
 
     void appendMirrorY_A() {
-        foreach (inout fl; mFrames) {
-            int count = fl.length;
-            for (int i = 0; i < count; i++) {
-                //append in reverse order (the only case where we use Y_A
-                //needs it in this way)
-                auto cur = fl[count-i-1];
-                cur.drawEffects ^= FileDrawEffects.MirrorY;
-                fl ~= cur;
+        foreach (inout cframes; mFrames) {
+            foreach (inout fl; cframes) {
+                int count = fl.length;
+                for (int i = 0; i < count; i++) {
+                    //append in reverse order (the only case where we use Y_A
+                    //needs it in this way)
+                    auto cur = fl[count-i-1];
+                    cur.drawEffects ^= FileDrawEffects.MirrorY;
+                    fl ~= cur;
+                }
             }
         }
     }
 
     //append animations mirrored to Y axis along axis B
     void appendMirrorY_B() {
-        int count = mFrames.length;
-        for (int i = 0; i < count; i++) {
-            auto cur = mFrames[i].dup;
-            foreach (inout f; cur) {
-                f.drawEffects ^= FileDrawEffects.MirrorY;
+        foreach (inout cframes; mFrames) {
+            int count = cframes.length;
+            for (int i = 0; i < count; i++) {
+                auto cur = cframes[i].dup;
+                foreach (inout f; cur) {
+                    f.drawEffects ^= FileDrawEffects.MirrorY;
+                }
+                cframes ~= cur;
             }
-            mFrames ~= cur;
         }
     }
 
     void reverseA() {
-        foreach (inout fl; mFrames) {
-            for (int i = 0; i < fl.length/2; i++) {
-                swap(fl[i], fl[$-i-1]);
+        foreach (inout cframes; mFrames) {
+            foreach (inout fl; cframes) {
+                for (int i = 0; i < fl.length/2; i++) {
+                    swap(fl[i], fl[$-i-1]);
+                }
             }
         }
     }
 
     void appendBackwardsA() {
-        foreach (inout fl; mFrames) {
-            int count = fl.length;
-            for (int i = count-1; i >= 0; i--) {
-                fl ~= fl[i];
+        foreach (inout cframes; mFrames) {
+            foreach (inout fl; cframes) {
+                int count = fl.length;
+                for (int i = count-1; i >= 0; i--) {
+                    fl ~= fl[i];
+                }
             }
         }
     }
@@ -144,13 +154,15 @@ class AniEntry {
     //special case for jetpack; could avoid this by making framelist
     //manipulation available to the "user"
     void appendMirroredY_Backwards_B() {
-        foreach_reverse (fl; mFrames.dup) {
-            //mirror them
-            auto list = fl.dup;
-            foreach (inout a; list) {
-                a.drawEffects ^= FileDrawEffects.MirrorY;
+        foreach (inout cframes; mFrames) {
+            foreach_reverse (fl; cframes.dup) {
+                //mirror them
+                auto list = fl.dup;
+                foreach (inout a; list) {
+                    a.drawEffects ^= FileDrawEffects.MirrorY;
+                }
+                cframes ~= list;
             }
-            mFrames ~= list;
         }
     }
 
@@ -158,19 +170,25 @@ class AniEntry {
     //drank when writing their code, but forward movements seems to be
     //integrated into the animation, which is removed by this code
     void fixWwpWalkAni() {
-        foreach (inout fl; mFrames) {
-            for (int i = 0; i < fl.length; i++) {
-                fl[i].centerX += (i*10)/15;
+        foreach (inout cframes; mFrames) {
+            foreach (inout fl; cframes) {
+                for (int i = 0; i < fl.length; i++) {
+                    fl[i].centerX += (i*10)/15;
+                }
             }
         }
     }
 
-    //length of axis A, return 0 if empty framearray
     int length_a() {
-        return mFrames.length ? mFrames[0].length : 0;
+        return length_b ? mFrames[0][0].length : 0;
     }
 
+    //length of axis A, return 0 if empty framearray
     int length_b() {
+        return length_c ? mFrames[0].length : 0;
+    }
+
+    int length_c() {
         return mFrames.length;
     }
 }
@@ -216,23 +234,27 @@ class AniFile {
             ani.size[1] = e.box.y;
             ani.frameCount[0] = e.length_a();
             ani.frameCount[1] = e.length_b();
+            ani.frameCount[2] = e.length_c();
             ani.flags = e.flags;
             //dump as rectangular array
             FileAnimationFrame[] out_frames;
-            out_frames.length = ani.frameCount[0] * ani.frameCount[1];
+            out_frames.length = ani.frameCount[0] * ani.frameCount[1]
+                * ani.frameCount[2];
             int index = 0;
             foreach (fl; e.mFrames) {
-                foreach (f; fl) {
-                    //offset correction
-                    f.centerX += e.offset.x;
-                    f.centerY += e.offset.y;
-                    //just btw.: fixup mirrored animation offsets
-                    //(must be mirrored as well)
-                    if (f.drawEffects & FileDrawEffects.MirrorY) {
-                        int w = atlas.block(f.bitmapIndex).w;
-                        f.centerX = -f.centerX - w;
+                foreach (f2; fl) {
+                    foreach (f; f2) {
+                        //offset correction
+                        f.centerX += e.offset.x;
+                        f.centerY += e.offset.y;
+                        //just btw.: fixup mirrored animation offsets
+                        //(must be mirrored as well)
+                        if (f.drawEffects & FileDrawEffects.MirrorY) {
+                            int w = atlas.block(f.bitmapIndex).w;
+                            f.centerX = -f.centerX - w;
+                        }
+                        out_frames[index++] = f;
                     }
-                    out_frames[index++] = f;
                 }
             }
 
@@ -367,13 +389,13 @@ private void loadWormWeaponAnimation(ConfigNode basenode) {
 
         auto get = new AniEntry(gAnims, node.name ~ "_get");
         get.addFrames(anis[0..3]);
-        get.params[] = [Param.Time, Param.P1];
+        get.params[] = [Param.Time, Param.P1, Param.Null];
         get.param_conv = ["step3"];
         get.appendMirrorY_B();
 
         auto hold = new AniEntry(gAnims, node.name ~ "_hold");
         hold.addFrames(anis[3..6]);
-        hold.params[] = [Param.P2, Param.P1];
+        hold.params[] = [Param.P2, Param.P1, Param.Null];
         hold.param_conv = ["step3", "rot180"];
         hold.appendMirrorY_B();
         hold.flags = FileAnimationFlags.KeepLastFrame;
@@ -401,7 +423,7 @@ const cFlagItem = "_flags";
 const cParamItem = "_params";
 
 struct AniParams {
-    Param[2] p = [Param.Time, Param.Null];
+    Param[3] p = [Param.Time, Param.Null, Param.Null];
     char[][] conv;
 }
 
@@ -414,7 +436,7 @@ void parseParams(char[] s, out AniParams p) {
     map["p2"] = Param.P2;
     map["time"] = Param.Time;
     auto stuff = str.split(s, ",");
-    assert(stuff.length <= 2, "only 2 params or less");
+    assert(stuff.length <= 3, "only 3 params or less");
     char[][2] conv = ["",""];
     for (int n = 0; n < stuff.length; n++) {
         auto sub = str.split(stuff[n], "/");
@@ -481,8 +503,20 @@ private void loadGeneralW(ConfigNode node) {
             return (name in intFlags) ? intFlags[name] : def;
         }
 
-        Animation[] anims = getSimple(value, intFlag("n", -1), intFlag("x", 1));
-        ani.addFrames(anims);
+        bool bnk_backwards;
+
+        char[][] vals = str.split(value, "|");
+        foreach (int c_idx, v; vals) {
+            Animation[] anims = getSimple(str.strip(v), intFlag("n", -1),
+                intFlag("x", 1));
+            ani.addFrames(anims, c_idx);
+
+            //add the original flags from the .bnk file (or-wise)
+            if (boolFlag("use_bnk_flags") && anims.length > 0) {
+                ani.flags |= (anims[0].repeat ? FileAnimationFlags.Repeat : 0);
+                bnk_backwards = anims[0].backwards;
+            }
+        }
 
         ani.frameTimeMS = intFlag("f");
 
@@ -495,14 +529,6 @@ private void loadGeneralW(ConfigNode node) {
 
         if (boolFlag("keeplast"))
             ani.flags |= FileAnimationFlags.KeepLastFrame;
-
-        bool bnk_backwards;
-
-        //add the original flags from the .bnk file (or-wise)
-        if (boolFlag("use_bnk_flags") && anims.length > 0) {
-            ani.flags |= (anims[0].repeat ? FileAnimationFlags.Repeat : 0);
-            bnk_backwards = anims[0].backwards;
-        }
 
         if (boolFlag("backwards_a") | bnk_backwards)
             ani.reverseA();

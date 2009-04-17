@@ -123,7 +123,6 @@ float interpExponential(float A)(float x) {
         return (1.0f - (math.exp(-A * x))) / (1.0f - (math.exp(-A)));
     }
 }
-
 float interpExponential_1(float A)(float x) {
     static if(A == 0) {
         return x;
@@ -133,8 +132,8 @@ float interpExponential_1(float A)(float x) {
     }
 }
 
-//another one to save the typing
-template InterpolateExp(T, float A = 6.0f) {
+//another one to save you the typing
+template InterpolateExp(T, float A = 4.5f) {
     alias InterpolateFnTime!(T, interpExponential!(A),
         interpExponential_1!(A)) InterpolateExp;
 }
@@ -143,13 +142,19 @@ template InterpolateExp(T, float A = 6.0f) {
 //----------------------------------------------------------------------
 
 //looks like this:   | 0.0 slow ... fast 0.5 fast ... slow 1.0 |
-//xxx: Invert this!
 float interpExponential2(float A)(float x) {
     auto dir = x < 0.5f;
     auto res = (interpExponential!(A)(math.abs(2*x-1)) + 1) / 2;
     return dir ? 1 - res : res;
 }
+float interpExponential2_1(float A)(float x) {
+    auto dir = x < 0.5f;
+    //xxx: is it really that easy? looks right in the plotter
+    auto res = (interpExponential_1!(A)(math.abs(2*x-1)) + 1) / 2;
+    return dir ? 1 - res : res;
+}
 
-template InterpolateExp2(T, float A = 6.0f) {
-    alias InterpolateFnTime!(T, interpExponential2!(A)) InterpolateExp2;
+template InterpolateExp2(T, float A = 4.5f) {
+    alias InterpolateFnTime!(T, interpExponential2!(A),
+        interpExponential2_1!(A)) InterpolateExp2;
 }

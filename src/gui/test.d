@@ -903,3 +903,91 @@ class FoobarTest : Task {
         TaskFactory.register!(typeof(this))("foobartest");
     }
 }
+
+
+/+ Instantiates a lot of templates, uncomment if you need it -->
+
+//Ehrm, lol...
+//Tiny function plotter to visualize interpolation functions
+
+import utils.interpolate;
+
+//Interpolation function parameter is compile-time
+const cFuncCount = 200;
+float function(float)[cFuncCount] gFuncsExp;
+float function(float)[cFuncCount] gFuncsExp2;
+static float getP(int i) {
+    return (i - cast(float)cFuncCount/2)/12.0;
+}
+void setF(alias A, alias F, int idx = cFuncCount - 1)() {
+    static if (idx >= 0) {
+        A[idx] = &F!(getP(idx));
+        setF!(A, F, idx-1)();
+    }
+}
+
+static this() {
+    setF!(gFuncsExp, interpExponential)();
+    setF!(gFuncsExp2, interpExponential2)();
+}
+
+class InterpTest : Task {
+    ScrollBar bar;
+    Label mLabel;
+    int mIdx;
+
+    class W : Widget {
+        this() {
+        }
+        override void onDraw(Canvas c) {
+            plot(c, gColors["red"], gFuncsExp2[mIdx]);
+            plot(c, gColors["green"], gFuncsExp[mIdx]);
+            plot(c, gColors["yellow"], &interpLinear);
+        }
+
+        private void plot(Canvas c, Color col, float function(float) func) {
+            Vector2i last = Vector2i(int.max);
+            for (int x = 0; x < size.x; x++) {
+                float xv = cast(float)x / (size.x-1);
+                float yv = func(xv);
+                int y = (size.y-1) - cast(int)(yv*(size.y-1));
+                auto p = Vector2i(x, y);
+                if (last.x != int.max)
+                    c.drawLine(last, p, col, 1);
+                last = p;
+            }
+        }
+    }
+
+    this(TaskManager tm, char[] args = "") {
+        super(tm);
+
+        auto box = new BoxContainer(false, false, 1);
+
+        mLabel = new Label();
+        box.add(mLabel, WidgetLayout.Expand(true));
+
+        bar = new ScrollBar(true);
+        bar.maxValue = cFuncCount - 1;
+        bar.largeChange = 10;
+        bar.onValueChange = &onScroll;
+        box.add(bar, WidgetLayout.Expand(true));
+        box.add(new W());
+        onScroll(bar);
+
+        gWindowManager.createWindow(this, box,
+            "Interpolate [0, 1]; r = Exp2, g = Exp, y = Linear",
+            Vector2i(500, 550));
+    }
+
+    private void onScroll(ScrollBar sender) {
+        mIdx = sender.curValue();
+        mLabel.text = myformat("A = {}", getP(sender.curValue()));
+    }
+
+    static this() {
+        TaskFactory.register!(typeof(this))("interpolate");
+    }
+}
+
+<-- +/
