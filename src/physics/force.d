@@ -8,6 +8,7 @@ import utils.misc;
 import physics.base;
 import physics.physobj;
 import physics.zone;
+import physics.misc;
 
 import math = tango.math.Math;
 import ieee = tango.math.IEEE;
@@ -75,9 +76,6 @@ class WindyForce : PhysicForce {
     }
 }
 
-//xxx need to manually sync these
-const cDamageCauseExplosion = 1;
-
 //feature request to d0c: make it last more than one frame :)
 //(over several frames should it should be more stable )
 class ExplosiveForce : PhysicForce {
@@ -113,7 +111,7 @@ class ExplosiveForce : PhysicForce {
             if (r < float.epsilon)
                 return;
             float before = o.lifepower;
-            o.applyDamage(r*damage, cDamageCauseExplosion);
+            o.applyDamage(r*damage, DamageCause.explosion);
             float diff = before - o.lifepower;
             //corner cases; i.e. invincible worm
             if (diff != diff || diff == typeof(diff).infinity)

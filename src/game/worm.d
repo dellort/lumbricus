@@ -794,7 +794,7 @@ class WormSprite : GObjectSprite {
     override protected void physDamage(float amout, int cause) {
         super.physDamage(amout, cause);
         mRopeCanRefire = false;
-        if (cause != cDamageCauseExplosion)
+        if (cause != DamageCause.explosion)
             return;
         if (currentState is wsc.st_fly) {
             //when damaged in-flight, switch to heavy animation

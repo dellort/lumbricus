@@ -450,10 +450,11 @@ class PhysicWorld {
         return true;
     }
 
-    PhysicObject[] getObjectsAtPred(Vector2f pos, float r,
+    void objectsAtPred(Vector2f pos, float r,
+        void delegate(PhysicObject obj) del,
         bool delegate(PhysicObject obj) match = null)
     {
-        PhysicObject[] ret;
+        assert(!!del);
         foreach (PhysicObject me; mObjects) {
             if (!match || match(me)) {
                 Vector2f d = me.pos - pos;
@@ -461,10 +462,9 @@ class PhysicWorld {
                 float mindist = me.posp.radius + r;
                 if (qdist >= mindist*mindist)
                     continue;
-                ret ~= me;
+                del(me);
             }
         }
-        return ret;
     }
 
     ///r = random number generator to use, null will create a new instance

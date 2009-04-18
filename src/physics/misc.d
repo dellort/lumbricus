@@ -28,6 +28,13 @@ enum ContactHandling : ubyte {
                 // but not be moved
 }
 
+enum DamageCause {
+    death = -1,
+    fall,
+    explosion,
+    special,
+}
+
 //PhysicalObjectStaticProperties
 //challenge: find a better name
 //contains all values which are considered not-changing physical properties of

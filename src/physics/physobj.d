@@ -14,9 +14,6 @@ import physics.links;
 
 import str = stdx.string;
 
-const cDamageCauseFall = 0;
-const cDamageCauseDeath = -1;
-
 //version = WalkDebug;
 version = PhysDebug;
 
@@ -149,7 +146,7 @@ class PhysicObject : PhysicBase {
                     * mPosp.fallDamageFactor;
                 //use this for damage
                 if (damage > 0)
-                    applyDamage(damage, cDamageCauseFall);
+                    applyDamage(damage, DamageCause.fall);
             }
             if (velocity_int.length < mPosp.glueForce && surface_normal.y < 0) {
                 //we collided with geometry, but were not fast enough!

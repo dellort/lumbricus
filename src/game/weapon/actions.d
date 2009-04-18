@@ -441,19 +441,10 @@ class TeamAction : WeaponAction {
 
 //------------------------------------------------------------------------
 
-//add an impulse to objects inside a circle
-class ImpulseActionClass : ActionClass {
+//Base class for instant area-of-effect actions
+abstract class AOEActionClass : ActionClass {
     float radius = 10.0f;
-    float strength = 1000.0f;
-    int directionMode = DirMode.fireInfo;
-    Vector2f direction = Vector2f.nan;
     bool[char[]] hit;
-
-    enum DirMode {
-        fireInfo,
-        outside,
-        vector,
-    }
 
     //xxx class
     this (ReflectCtor c) {
@@ -464,36 +455,19 @@ class ImpulseActionClass : ActionClass {
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         radius = node.getValue!(float)("radius", radius);
-        strength = node.getValue!(float)("strength", strength);
-        if (node["direction"] == "outside")
-            directionMode = DirMode.outside;
-        else if (node["direction"] != "") {
-            directionMode = DirMode.vector;
-            direction = node.getValue("direction", direction);
-            if (direction.isNaN())
-                throw new Exception("Direction vector is illegal");
-        }
         char[][] hitIds = node.getValue!(char[][])("hit", ["other"]);
         foreach (h; hitIds) {
             hit[h] = true;
         }
     }
-
-    ImpulseAction createInstance(GameEngine eng) {
-        return new ImpulseAction(this, eng);
-    }
-
-    static this() {
-        ActionClassFactory.register!(typeof(this))("impulse");
-    }
 }
 
-class ImpulseAction : WeaponAction {
+abstract class AOEAction : WeaponAction {
     private {
-        ImpulseActionClass myclass;
+        AOEActionClass myclass;
     }
 
-    this(ImpulseActionClass base, GameEngine eng) {
+    this(AOEActionClass base, GameEngine eng) {
         super(base, eng);
         myclass = base;
     }
@@ -516,36 +490,154 @@ class ImpulseAction : WeaponAction {
         return ret;
     }
 
+    abstract protected void applyOn(GObjectSprite sprite);
+
+    private void doApply(PhysicObject obj) {
+        assert(!!obj.backlink);
+        applyOn(cast(GObjectSprite)obj.backlink);
+    }
+
     override protected ActionRes initialStep() {
         super.initialStep();
         if (mFireInfo.info.pos.isNaN())
             return ActionRes.done;
-        auto objs = engine.physicworld.getObjectsAtPred(mFireInfo.info.pos,
-            myclass.radius, &useObj);
-        foreach (PhysicObject o; objs) {
-            Vector2f imp;
-            switch (myclass.directionMode) {
-                case ImpulseActionClass.DirMode.fireInfo:
-                    //FireInfo.dir (away from firing worm)
-                    imp = myclass.strength * mFireInfo.info.dir;
-                    break;
-                case ImpulseActionClass.DirMode.outside:
-                    //away from center of hitpoint
-                    auto d = (o.pos - mFireInfo.info.pos).normal;
-                    if (!d.isNaN())
-                        imp = myclass.strength * d;
-                    break;
-                default:
-                    //use direction vector from config file
-                    imp = myclass.strength * myclass.direction;
-            }
-            o.addImpulse(imp);
-        }
+        engine.physicworld.objectsAtPred(mFireInfo.info.pos, myclass.radius,
+            &doApply, &useObj);
         return ActionRes.done;
-    }
-
-    override void simulate(float deltaT) {
     }
 }
 
 //------------------------------------------------------------------------
+
+//add an impulse to objects inside a circle
+class ImpulseActionClass : AOEActionClass {
+    float strength = 1000.0f;
+    int directionMode = DirMode.fireInfo;
+    Vector2f direction = Vector2f.nan;
+
+    enum DirMode {
+        fireInfo,
+        outside,
+        vector,
+    }
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
+
+    void loadFromConfig(GameEngine eng, ConfigNode node) {
+        super.loadFromConfig(eng, node);
+        strength = node.getValue!(float)("strength", strength);
+        if (node["direction"] == "outside")
+            directionMode = DirMode.outside;
+        else if (node["direction"] != "") {
+            directionMode = DirMode.vector;
+            direction = node.getValue("direction", direction);
+            if (direction.isNaN())
+                throw new Exception("Direction vector is illegal");
+        }
+    }
+
+    ImpulseAction createInstance(GameEngine eng) {
+        return new ImpulseAction(this, eng);
+    }
+
+    static this() {
+        ActionClassFactory.register!(typeof(this))("impulse");
+    }
+}
+
+class ImpulseAction : AOEAction {
+    private {
+        ImpulseActionClass myclass;
+    }
+
+    this(ImpulseActionClass base, GameEngine eng) {
+        super(base, eng);
+        myclass = base;
+    }
+
+    this (ReflectCtor c) {
+        super(c);
+    }
+
+    override protected void applyOn(GObjectSprite sprite) {
+        Vector2f imp;
+        switch (myclass.directionMode) {
+            case ImpulseActionClass.DirMode.fireInfo:
+                //FireInfo.dir (away from firing worm)
+                imp = myclass.strength * mFireInfo.info.dir;
+                break;
+            case ImpulseActionClass.DirMode.outside:
+                //away from center of hitpoint
+                auto d = (sprite.physics.pos - mFireInfo.info.pos).normal;
+                if (!d.isNaN())
+                    imp = myclass.strength * d;
+                break;
+            default:
+                //use direction vector from config file
+                imp = myclass.strength * myclass.direction;
+        }
+        sprite.physics.addImpulse(imp);
+    }
+}
+
+//------------------------------------------------------------------------
+
+//add an impulse to objects inside a circle
+class RelativeDamageActionClass : AOEActionClass {
+    //how much damage relative to current HP the objects will receive
+    float damage = 0.5f;
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
+
+    void loadFromConfig(GameEngine eng, ConfigNode node) {
+        super.loadFromConfig(eng, node);
+        damage = node.getValue!(float)("damage", damage);
+    }
+
+    RelativeDamageAction createInstance(GameEngine eng) {
+        return new RelativeDamageAction(this, eng);
+    }
+
+    static this() {
+        ActionClassFactory.register!(typeof(this))("relativedmg");
+    }
+}
+
+class RelativeDamageAction : AOEAction {
+    private {
+        RelativeDamageActionClass myclass;
+    }
+
+    this(RelativeDamageActionClass base, GameEngine eng) {
+        super(base, eng);
+        myclass = base;
+    }
+
+    this (ReflectCtor c) {
+        super(c);
+    }
+
+    override protected void applyOn(GObjectSprite sprite) {
+        float dmg = sprite.physics.lifepower*myclass.damage;
+        if (myclass.damage < 1.0f-float.epsilon) {
+            //don't kill
+            dmg = min(dmg, sprite.physics.lifepower - 1.0f);
+        }
+        if (dmg <= 0)
+            return;
+        sprite.physics.applyDamage(dmg, DamageCause.special);
+        //xxx stuck in the ground animation here
+        sprite.physics.addImpulse(Vector2f(0, -1));
+    }
+}
+

@@ -321,7 +321,7 @@ class ServerTeam : Team {
         //parent.mRoundRemaining *= 2;
     }
     void dieNow() {
-        mCurrent.worm.physics.applyDamage(100000, cDamageCauseDeath);
+        mCurrent.worm.physics.applyDamage(100000, DamageCause.death);
     }
 
     //select (and draw) a weapon by its id
