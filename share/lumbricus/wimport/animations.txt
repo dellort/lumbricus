@@ -255,6 +255,7 @@ mainspr {
                 worm_slide = "523"
             }
             worm_walk = "+repeat,+walkfix,f:25; 146"
+            worm_walk_blowtorch = "+repeat,+walkfix,f:25; 149"
             {
                 //explanation for weapon animations:
                 //   get: played when weapon is selected
@@ -284,6 +285,19 @@ mainspr {
                 worm_getaxe = "407"
                 worm_getheadband = "419"
                 worm_getfreezer = "479"
+            }
+            {
+                //special: limited angle range
+                _params = "p2/rot90,p1/step3"
+                _flags = "+keeplast"
+                worm_bow_hold = "526"
+                //xxx I don't understand that one
+                //worm_blowtorch_hold = "152"
+            }
+            {
+                _params = "p2/rot90,p1/step3,time"
+                worm_bow_prepare = "f:400; 562"
+                worm_bow_fire = "f:250; 565"
             }
             {
                 worm_beaming = "f:25; 434"
@@ -327,6 +341,9 @@ mainspr {
                 worm_dragonball_prepare = "388"
                 worm_dragonball_release = "391"
                 worm_rope_fire = "+repeat; 550"
+                worm_bow_get = "f:25; 504"
+                worm_blowtorch_get = "f:25; 314"
+                worm_bow_release = "f:25; 507"
             }
             {
                 _flags = "+append_backwards_a"
@@ -386,7 +403,6 @@ mainspr {
         worm_rope = "492 547"
         worm_uzi = "498 574"
         worm_shotgun = "501 553"
-        //worm_bow = "504 526"       //special: limited angle range
         worm_pistol = "510 568"
         worm_minigun = "513 580"
         worm_baseball = "440 529"

@@ -27,7 +27,7 @@ enum ThrowDirection {
     fixed,      //no user direction setting (you still have worm orientation)
     any,       //full 360 freedom
     threeway,  //sloping-up, straight, sloping-down (think of blowtorch)
-    vlimit,    //90deg freedom only (up/down limited)
+    limit90,    //90deg freedom only (up/down limited)
 }
 
 struct FireMode {
@@ -53,8 +53,8 @@ struct FireMode {
             case "threeway":
                 direction = ThrowDirection.threeway;
                 break;
-            case "vlimit":
-                direction = ThrowDirection.vlimit;
+            case "limit90":
+                direction = ThrowDirection.limit90;
                 break;
             default:
                 direction = ThrowDirection.fixed;

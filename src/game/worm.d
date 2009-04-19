@@ -64,6 +64,7 @@ class WormSprite : GObjectSprite {
         WormSpriteClass wsc;
 
         float mWeaponAngle = 0;
+        int mThreewayMoving;
 
         //beam destination, only valid while state is st_beaming
         Vector2f mBeamDest;
@@ -122,6 +123,67 @@ class WormSprite : GObjectSprite {
     //-PI/2..+PI/2, actual angle depends from whether worm looks left or right
     float weaponAngle() {
         return mWeaponAngle;
+    }
+
+    private void updateWeaponAngle(float move) {
+        if (!mWeapon)
+            return;
+        float old = mWeaponAngle;
+        //xxx why is worm movement a float anyway?
+        int moveInt = (move>float.epsilon) ? 1 : (move<-float.epsilon ? -1 : 0);
+        switch (mWeapon.fireMode.direction) {
+            case ThrowDirection.fixed:
+                //no movement
+                mWeaponAngle = 0;
+                break;
+            case ThrowDirection.any:
+            case ThrowDirection.limit90:
+                //free moving, directly connected to keys
+                if (moveInt != 0) {
+                    mWeaponAngle += moveInt * engine.gameTime.difference.secsf
+                        * PI/2;
+                }
+                if (mWeapon.fireMode.direction == ThrowDirection.limit90) {
+                    //limited to 90°
+                    mWeaponAngle = clampRangeC(mWeaponAngle,
+                        cast(float)-PI/4, cast(float)PI/4);
+                } else {
+                    //full 180°
+                    mWeaponAngle = clampRangeC(mWeaponAngle,
+                        cast(float)-PI/2, cast(float)PI/2);
+                }
+                break;
+            case ThrowDirection.threeway:
+                //three fixed directions, selected by keys
+                if (moveInt != mThreewayMoving) {
+                    if (moveInt > 0) {
+                        if (mWeaponAngle < -float.epsilon)
+                            mWeaponAngle = 0;
+                        else
+                            mWeaponAngle = 1.0f;
+                    } else if (moveInt < 0) {
+                        if (mWeaponAngle > float.epsilon)
+                            mWeaponAngle = 0;
+                        else
+                            mWeaponAngle = -1.0f;
+                    }
+                }
+                //always verify the limits, e.g. on weapon change
+                if (mWeaponAngle > float.epsilon)
+                    mWeaponAngle = PI/4;
+                else if (mWeaponAngle < -float.epsilon)
+                    mWeaponAngle = -PI/4;
+                else
+                    mWeaponAngle = 0;
+                break;
+            default:
+                assert(false);
+        }
+        mThreewayMoving = moveInt;
+        if (old != mWeaponAngle) {
+            updateAnimation();
+            checkReadjust();
+        }
     }
 
     //real weapon angle (normalized direction)
@@ -327,13 +389,7 @@ class WormSprite : GObjectSprite {
         //when user presses key to change weapon angle
         //can rotate through all 180 degrees in 5 seconds
         //(given abs(weaponMove) == 1)
-        if (abs(weaponMove) > 0.0001) {
-            mWeaponAngle += weaponMove*deltaT*PI/2;
-            mWeaponAngle = max(mWeaponAngle, cast(float)-PI/2);
-            mWeaponAngle = min(mWeaponAngle, cast(float)PI/2);
-            updateAnimation();
-            checkReadjust();
-        }
+        updateWeaponAngle(weaponMove);
 
         if (isStanding() && mWeapon) {
             if (mStandTime == Time.Never)

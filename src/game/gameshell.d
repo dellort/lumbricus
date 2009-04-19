@@ -922,8 +922,20 @@ class GameControl : ClientControl {
         }
     }
 
+    private void executeSurrender() {
+        foreach (ServerTeam t; mOwnedTeams) {
+            t.surrenderTeam();
+        }
+    }
+
     protected void setCurrentTS(long timeStamp) {
         mCurrentTS = timeStamp;
+    }
+
+    void removeControl() {
+        MyBox[] params;
+        mOwner.addLoggedInput(&executeSurrender, params, "removeControl",
+            mCurrentTS);
     }
 
     //-- ClientControl
@@ -952,6 +964,13 @@ struct NetLoadState {
     //players and flags if done loading, always same length
     uint[] playerIds;
     bool[] done;
+}
+
+struct NetPlayerInfo {
+    uint id;
+    char[] name;
+    char[] teamName;
+    Time ping;
 }
 
 abstract class SimpleNetConnection {

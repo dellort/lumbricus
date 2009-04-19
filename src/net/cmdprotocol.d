@@ -11,7 +11,7 @@ import utils.time;
 //anytime you change some detail about the protocol, increment this
 //  (including encoding/marshalling changes)
 //only clients with the same version will be accepted
-const ushort cProtocolVersion = 2;
+const ushort cProtocolVersion = 3;
 
 
 //---------------------- Packet IDs ------------------------
@@ -40,6 +40,7 @@ enum ClientPacket : ushort {
     loadDone,
     gameCommand,
     pong,
+    ack,
 }
 
 //reason for disconnection by the server
@@ -88,24 +89,31 @@ struct SPCmdResult {
 }
 
 //list of players and their ids, updated on connect/disconnect/nickchange
+//contains info that does not change to often
 struct SPPlayerList {
     Player[] players;
 
     struct Player {
         uint id;
         char[] name;
+        char[] teamName;
     }
-}
-
-struct PlayerDetails {
-    uint id;
-    char[] teamName;
-    Time ping;
 }
 
 //information about connected players, updated periodically
 struct SPPlayerInfo {
-    PlayerDetails[] players;
+    //a flag is set for all fields that have changed
+    ushort updateFlags;
+    Details[] players;
+
+    enum Flags : ushort {
+        ping = 1,
+    }
+
+    struct Details {
+        uint id;
+        Time ping;
+    }
 }
 
 struct SPStartLoading {
@@ -136,6 +144,9 @@ struct GameCommandEntry {
 
 struct SPGameCommands {
     uint timestamp;
+    //players that disconnected since last frame
+    uint[] disconnectIds;
+    //all game commands since last frame
     GameCommandEntry[] commands;
 }
 
@@ -178,4 +189,8 @@ struct CPGameCommand {
 
 struct CPPong {
     Time ts;
+}
+
+struct CPAck {
+    uint timestamp;
 }

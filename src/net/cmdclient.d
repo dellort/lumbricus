@@ -37,9 +37,16 @@ class CmdNetClient : SimpleNetConnection {
         CmdNetControl mClControl;
         bool mHadDisconnect;
         //name<->id conversion
-        char[][uint] mIdToName;
         uint[char[]] mNameToId;
-        PlayerDetails[] mPlayerInfo;
+
+        struct MyPlayerInfo {
+            bool valid;
+            NetPlayerInfo info;
+        }
+        MyPlayerInfo[] mPlayerInfo;
+        int mPlayerCount;
+        uint mLastAck;
+        const cAckInterval = 10;
     }
 
     void delegate(CmdNetClient sender) onConnect;
@@ -170,15 +177,32 @@ class CmdNetClient : SimpleNetConnection {
     }
 
     bool idToPlayerName(uint id, ref char[] name) {
-        if (id in mIdToName) {
-            name = mIdToName[id];
+        if (isIdValid(id)) {
+            name = mPlayerInfo[id].info.name;
             return true;
         }
         return false;
     }
 
-    PlayerDetails[] players() {
-        return mPlayerInfo;
+    bool isIdValid(uint id) {
+        if (id < mPlayerInfo.length && mPlayerInfo[id].valid)
+            return true;
+        return false;
+    }
+
+    int opApply(int delegate(ref NetPlayerInfo info) del) {
+        foreach (ref pl; mPlayerInfo) {
+            if (pl.valid) {
+                int res = del(pl.info);
+                if (res)
+                    return res;
+            }
+        }
+        return 0;
+    }
+
+    int playerCount() {
+        return mPlayerCount;
     }
 
     //got packet with GameConfig
@@ -231,12 +255,18 @@ class CmdNetClient : SimpleNetConnection {
             }
         }
         mShell.masterTime.paused = false;
+        mLastAck = 0;
         onGameStart(this, mClControl);
     }
 
-    private void doExecCommand(uint timestamp, uint playerId, char[] cmd) {
-        if (playerId in mSrvControl)
-            mSrvControl[playerId].executeTSCommand(cmd, timestamp);
+    private void checkAck(uint timestamp) {
+        assert(mLastAck <= timestamp);
+        if (timestamp - mLastAck > cAckInterval) {
+            CPAck p;
+            p.timestamp = timestamp;
+            send(ClientPacket.ack, p);
+            mLastAck = timestamp;
+        }
     }
 
     //transmit local game control command (called from CmdNetControl)
@@ -324,19 +354,38 @@ class CmdNetClient : SimpleNetConnection {
                 break;
             case ServerPacket.playerList:
                 //info about other players while in lobby
+                //the list is sorted by id
                 auto p = unmarshal.read!(SPPlayerList)();
-                mIdToName = null;
                 mNameToId = null;
+                mPlayerInfo.length = p.players[$-1].id + 1;
+                mPlayerCount = p.players.length;
+                uint curId = 0;
                 foreach (player; p.players) {
-                    mIdToName[player.id] = player.name;
-                    mNameToId[player.name] = player.id;
+                    while (curId < player.id) {
+                        mPlayerInfo[curId].valid = false;
+                        curId++;
+                    }
+                    mNameToId[player.name] = curId;
+                    if (!mPlayerInfo[curId].valid) {
+                        mPlayerInfo[curId] = MyPlayerInfo.init;
+                        mPlayerInfo[curId].valid = true;
+                    }
+                    mPlayerInfo[curId].info.name = player.name;
+                    mPlayerInfo[curId].info.teamName = player.teamName;
+                    curId++;
                 }
                 if (onUpdatePlayers)
                     onUpdatePlayers(this);
                 break;
             case ServerPacket.playerInfo:
                 auto p = unmarshal.read!(SPPlayerInfo)();
-                mPlayerInfo = p.players;
+                //PlayerList packet always comes first
+                if (mPlayerInfo.length != p.players[$-1].id + 1)
+                    close(DiscReason.protocolError);
+                foreach (pinfo; p.players) {
+                    if (p.updateFlags & SPPlayerInfo.Flags.ping)
+                        mPlayerInfo[pinfo.id].info.ping = pinfo.ping;
+                }
                 if (onUpdatePlayers)
                     onUpdatePlayers(this);
                 break;
@@ -367,9 +416,20 @@ class CmdNetClient : SimpleNetConnection {
                 auto p = unmarshal.read!(SPGameCommands)();
                 //forward all commands to the engine
                 foreach (gce; p.commands) {
-                    doExecCommand(p.timestamp, gce.playerId, gce.cmd);
+                    if (gce.playerId in mSrvControl) {
+                        mSrvControl[gce.playerId].executeTSCommand(gce.cmd,
+                            p.timestamp);
+                    }
+                }
+                //execute all player disconnects
+                foreach (uint id; p.disconnectIds) {
+                    if (id in mSrvControl) {
+                        mSrvControl[id].removeControlTS(p.timestamp);
+                        mSrvControl.remove(id);
+                    }
                 }
                 mShell.setFrameReady(p.timestamp);
+                checkAck(p.timestamp);
                 break;
             case ServerPacket.ping:
                 auto p = unmarshal.read!(SPPing)();
@@ -447,5 +507,10 @@ class NetGameControl : GameControl {
     void executeTSCommand(char[] cmd, long timestamp) {
         setCurrentTS(timestamp);
         executeCommand(cmd);
+    }
+
+    void removeControlTS(long timestamp) {
+        setCurrentTS(timestamp);
+        removeControl();
     }
 }

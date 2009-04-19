@@ -35,6 +35,7 @@ class CmdNetServer {
         ushort mPort;
         int mMaxPlayers, mPlayerCount;
         char[] mServerName;
+        uint mMaxLag;
         List2!(CmdNetClientConnection) mClients;
         CmdServerState mState;
 
@@ -53,8 +54,9 @@ class CmdNetServer {
         debug int mSimLagMs, mSimJitterMs;
         AnnounceInfo mAnnounceInfo;
         Time mLastInfo;
+        uint[] mRecentDisconnects;
 
-        const cInfoInterval = timeSecs(1);
+        const cInfoInterval = timeSecs(2);
     }
 
     //create the server thread object
@@ -67,6 +69,7 @@ class CmdNetServer {
         if (mServerName.length == 0)
             mServerName = "Unnamed server";
         mMaxPlayers = serverConfig.getValue("max_players", 4);
+        mMaxLag = serverConfig.getValue("max_lag", 50);
         debug {
             mSimLagMs = serverConfig.getValue("sim_lag", 0);
             mSimJitterMs = serverConfig.getValue("sim_jitter", 0);
@@ -197,6 +200,9 @@ class CmdNetServer {
     private void clientRemove(CmdNetClientConnection client) {
         Trace.formatln("Client from {} ({}) disconnected",
             client.address, client.playerName);
+        //store id, to notify other players
+        if (mState == CmdServerState.playing)
+            mRecentDisconnects ~= client.id;
         mClients.remove(client.client_node);
         mPlayerCount--;
         updateAnnounce();
@@ -269,6 +275,8 @@ class CmdNetServer {
             if (cl.state != ClientConState.connected)
                 continue;
             auto p = SPPlayerList.Player(cl.id, cl.playerName);
+            if (cl.mMyTeamInfo)
+                p.teamName = cl.mMyTeamInfo.name;
             plist.players ~= p;
         }
         sendAll(ServerPacket.playerList, plist);
@@ -279,13 +287,12 @@ class CmdNetServer {
         //we can assume that id->playerName mapping on client is correct,
         //because updatePlayerList() is called on connection/disconnection
         SPPlayerInfo info;
+        info.updateFlags = SPPlayerInfo.Flags.ping;
         foreach (cl; mClients) {
             if (cl.state != ClientConState.connected)
                 continue;
-            PlayerDetails det;
+            SPPlayerInfo.Details det;
             det.id = cl.id;
-            if (cl.mMyTeamInfo)
-                det.teamName = cl.mMyTeamInfo.name;
             det.ping = cl.ping;
             info.players ~= det;
         }
@@ -342,11 +349,28 @@ class CmdNetServer {
     //execute a server frame
     private void gameTick() {
         //Trace.formatln("Tick, {} commands", mPendingCommands.length);
+        CmdNetClientConnection[] lagClients;
+        foreach (cl; mClients) {
+            if (mTimeStamp - cl.lastAckTS > mMaxLag)
+                lagClients ~= cl;
+        }
+        if (lagClients.length > 0) {
+            //don't execute frame
+            //xxx inform players
+            //    also, is it ok to let mGameTime continue?
+            return;
+        }
         SPGameCommands p;
         //one packet (with one timestamp) for all commands
         //Note: this also means an empty packet will be sent when nothing
         //      has happended
         p.timestamp = mTimeStamp;
+        if (mRecentDisconnects.length > 0) {
+            //notify players about disconnected clients
+            //affects gameplay, so with timestamp
+            p.disconnectIds = mRecentDisconnects;
+            mRecentDisconnects.length = 0;
+        }
         foreach (pc; mPendingCommands) {
             GameCommandEntry e;
             e.cmd = pc.cmd;
@@ -354,9 +378,7 @@ class CmdNetServer {
             p.commands ~= e;
         }
         //transmit
-        foreach (cl; mClients) {
-            cl.doGameCommands(p);
-        }
+        sendAll(ServerPacket.gameCommands, p);
         mPendingCommands = null;
         mTimeStamp++;
     }
@@ -407,15 +429,16 @@ class CmdNetClientConnection {
         bool loadDone;
         uint mId;  //immutable during lifetime
 
-        const cPingInterval = timeSecs(1); //ping every x seconds...
-        const cPingAvgOver = timeSecs(10); //and average the result over y
+        const cPingInterval = timeSecs(1.5); //ping every x seconds...
+        const cPingAvgOver = timeSecs(9); //and average the result over y
 
         struct PongEntry {
             Time cur = Time.Never, rtt = Time.Never;
         }
-        PongEntry[12] mPongs; //enough room for all pings in cPingAvgOver
+        PongEntry[10] mPongs; //enough room for all pings in cPingAvgOver
         int mPongIdx;
         Time mAvgPing = timeMsecs(100);
+        uint mLastAckTS;
     }
 
     private this(CmdNetServer owner, NetPeer peer, uint id) {
@@ -636,6 +659,7 @@ class CmdNetClientConnection {
                 auto p = unmarshal.read!(CPDeployTeam)();
                 mMyTeamInfo = gConf.loadConfigGzBuf(p.teamConf);
                 mMyTeamInfo.rename(p.teamName);
+                mOwner.updatePlayerList();
                 break;
             case ClientPacket.loadDone:
                 if (mState != ClientConState.connected) {
@@ -661,6 +685,13 @@ class CmdNetClientConnection {
                 auto p = unmarshal.read!(CPGameCommand)();
                 mOwner.gameCommand(this, p.cmd);
                 break;
+            case ClientPacket.ack:
+                auto p = unmarshal.read!(CPAck)();
+                if (p.timestamp > mOwner.mTimeStamp)
+                    close(DiscReason.protocolError);
+                else
+                    mLastAckTS = p.timestamp;
+                break;
             case ClientPacket.pong:
                 auto p = unmarshal.read!(CPPong)();
                 Time rtt = timeCurrentTime() - p.ts;
@@ -670,6 +701,10 @@ class CmdNetClientConnection {
                 //we have reliable networking, so the client did something wrong
                 close(DiscReason.protocolError);
         }
+    }
+
+    uint lastAckTS() {
+        return mLastAckTS;
     }
 
     private void gotPong(Time rtt) {
@@ -736,10 +771,6 @@ class CmdNetClientConnection {
 
     private void doGameStart(SPGameStart info) {
         send(ServerPacket.gameStart, info);
-    }
-
-    private void doGameCommands(SPGameCommands cmds) {
-        send(ServerPacket.gameCommands, cmds);
     }
 }
 

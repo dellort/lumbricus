@@ -344,12 +344,12 @@ class CmdNetLobbyTask : Task {
     private void onUpdatePlayers(SimpleNetConnection sender)
     {
         char[][] contents;
-        foreach (pl; mClient.players) {
-            char[] name;
-            if (mClient.idToPlayerName(pl.id, name)) {
-                contents ~= name ~ " (" ~ pl.teamName ~ "), "
-                    ~ pl.ping.toString();
-            }
+        contents.length = mClient.playerCount;
+        int idx = 0;
+        foreach (ref NetPlayerInfo pinfo; mClient) {
+            contents[idx] = myformat("{} ({}), {}", pinfo.name, pinfo.teamName,
+                pinfo.ping);
+            idx++;
         }
         mPlayers.setContents(contents);
     }

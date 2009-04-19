@@ -28,8 +28,9 @@ static this() {
     gAnimationParamConverters["twosided_inv"] = &paramConvertTwosidedInv;
     gAnimationParamConverters["rot360"] = &paramConvertFreeRot;
     gAnimationParamConverters["rot360inv"] = &paramConvertFreeRotInv;
-    gAnimationParamConverters["rot180"] = &paramConvertFreeRot2;
-    gAnimationParamConverters["rot180_2"] = &paramConvertFreeRot2_2;
+    gAnimationParamConverters["rot180"] = &paramConvertFreeRot180;
+    gAnimationParamConverters["rot180_2"] = &paramConvertFreeRot180_2;
+    gAnimationParamConverters["rot90"] = &paramConvertFreeRot90;
     gAnimationParamConverters["linear100"] = &paramConvertLinear100;
 }
 
@@ -93,15 +94,21 @@ private int paramConvertFreeRotInv(int angle, int count) {
 }
 //180 degrees, -90 (down) to +90 (up)
 //(overflows, used for weapons, it's hardcoded that it can use 180 degrees only)
-private int paramConvertFreeRot2(int angle, int count) {
+private int paramConvertFreeRot180(int angle, int count) {
     //assert(angle <= 90);
     //assert(angle >= -90);
     return map2(angle+90.0f,180.0f,count);
 }
 
 //for the aim not-animation
-private int paramConvertFreeRot2_2(int angle, int count) {
+private int paramConvertFreeRot180_2(int angle, int count) {
     return map3(angle+180,180.0f,count);
+}
+
+//90 degrees, -45 (down) to +45 (up)
+private int paramConvertFreeRot90(int angle, int count) {
+    angle = clampRangeC(angle, -45, 45);
+    return map2(angle+45.0f,90.0f,count);
 }
 
 //0-100 mapped directly to animation frames with clipping
