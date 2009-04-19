@@ -11,6 +11,7 @@ import game.sprite;
 import game.weapon.types;
 import game.weapon.weapon;
 import game.gamepublic;
+import game.temp;
 import game.gamemodes.base;
 import physics.world;
 import utils.vector2;
@@ -24,6 +25,12 @@ import utils.reflection;
 
 import math = tango.math.Math;
 
+
+interface Controllable {
+    bool fire(bool keyDown);
+    bool jump(JumpMode j);
+    bool move(Vector2f m);
+}
 
 class ServerTeam : Team {
     char[] mName = "unnamed team";
@@ -454,6 +461,7 @@ class ServerTeamMember : TeamMember, WormController {
         bool mFireDown;
         bool mWeaponUsed;
         bool mLimitedMode;
+        Controllable[] mControlStack;
     }
 
     this(char[] a_name, ServerTeam a_team) {
@@ -585,6 +593,8 @@ class ServerTeamMember : TeamMember, WormController {
             mTeam.parent.events.onWorm(WormEvent.wormActivate, this);
         } else {
             //being deactivated
+            controllableMove(Vector2f(0));
+            mControlStack = null;
             move(Vector2f(0));
             resetActivity();
             mLastAction = Time.Null;
@@ -610,9 +620,17 @@ class ServerTeamMember : TeamMember, WormController {
     void jump(JumpMode j) {
         if (!isControllable)
             return;
-        //try alternate fire, if not possible jump instead
-        if (!doAlternateFire())
-            mWorm.jump(j);
+        bool eaten;
+        foreach_reverse (ctl; mControlStack) {
+            eaten = ctl.jump(j);
+            if (eaten)
+                break;
+        }
+        if (!eaten) {
+            //try alternate fire, if not possible jump instead
+            if (!doAlternateFire())
+                mWorm.jump(j);
+        }
         wormAction();
     }
 
@@ -695,21 +713,44 @@ class ServerTeamMember : TeamMember, WormController {
         mWorm.setWeaponTimer(t);
     }
 
+    private bool controllableFire(bool keyDown) {
+        bool ret;
+        foreach_reverse(ctl; mControlStack) {
+            ret = ctl.fire(keyDown);
+            if (ret)
+                break;
+        }
+        return ret;
+    }
+
+    private bool controllableMove(Vector2f m) {
+        bool ret;
+        foreach_reverse(ctl; mControlStack) {
+            ret = ctl.move(m);
+            if (ret)
+                break;
+        }
+        return ret;
+    }
+
     void doFireDown(bool forceSelected = false) {
         if (!isControllable)
             return;
 
-        bool success = false;
-        if (mWorm.allowAlternate && !forceSelected && !mTeam.alternateControl) {
-            //non-alternate (worms-like) control -> spacebar disables
-            //background weapon if possible (like jetpack)
-            success = mWorm.fireAlternate();
-            wormAction();
-        } else {
-            success = worm.fire(false, forceSelected);
+        bool success = true;
+        if (!controllableFire(true)) {
+            success = false;
+            if (mWorm.allowAlternate && !forceSelected && !mTeam.alternateControl) {
+                //non-alternate (worms-like) control -> spacebar disables
+                //background weapon if possible (like jetpack)
+                success = mWorm.fireAlternate();
+                wormAction();
+            } else {
+                success = worm.fire(false, forceSelected);
+            }
+            //don't forget a keypress that had no effect
+            mFireDown = !success;
         }
-        //don't forget a keypress that had no effect
-        mFireDown = !success;
         if (success)
             wormAction();
     }
@@ -719,7 +760,7 @@ class ServerTeamMember : TeamMember, WormController {
         if (!isControllable)
             return;
 
-        if (worm.fire(true)) {
+        if (controllableFire(false) || worm.fire(true)) {
             wormAction();
         }
     }
@@ -821,7 +862,8 @@ class ServerTeamMember : TeamMember, WormController {
         }
 
         mLastMoveVector = vec;
-        mWorm.move(vec);
+        if (!controllableMove(vec))
+            mWorm.move(vec);
         wormAction();
     }
 
@@ -859,6 +901,22 @@ class ServerTeamMember : TeamMember, WormController {
     void forceAbort() {
         //forced stop of all action (like when being damaged)
         mWorm.forceAbort();
+    }
+
+    void pushControllable(Controllable c) {
+        mControlStack ~= c;
+    }
+
+    void releaseControllable(Controllable c) {
+        foreach (int idx, Controllable ctrl; mControlStack) {
+            if (ctrl is c) {
+                if (idx > 0)
+                    mControlStack = mControlStack[0..idx];
+                else
+                    mControlStack = null;
+                break;
+            }
+        }
     }
 
     ServerTeam serverTeam() {

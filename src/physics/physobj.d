@@ -220,11 +220,13 @@ class PhysicObject : PhysicBase {
         mOnSurface = false;
 
         //Update velocity
-        //Vector2f t;
-        //if (!mIntendedLook.isNaN)
-        //    t = mIntendedLook * mPosp.thrust;
-        Vector2f a = gravity + acceleration
-            + (mForceAccum + selfForce) * mPosp.inverseMass;
+        Vector2f thrustForce;
+        if (!mIntendedLook.isNaN)
+            thrustForce = mIntendedLook * mPosp.thrust;
+        Vector2f a = acceleration
+            + (mForceAccum + selfForce + thrustForce) * mPosp.inverseMass;
+        if (!mPosp.zeroGrav)
+            a += gravity;
         velocity_int += a * deltaT;
 
         //clip components at maximum velocity

@@ -107,6 +107,7 @@ class POSP {
     //extended normalcheck will test the surface normal in a bigger radius,
     //  without generating a contact in the extended area
     bool extendNormalcheck = false;
+    bool zeroGrav = false;
 
     //maximum absolute value, velocity is cut if over this
     Vector2f velocityConstraint = {float.infinity, float.infinity};
@@ -164,6 +165,7 @@ class POSP {
         bounceAbsorb = node.getFloatValue("bounce_absorb", bounceAbsorb);
         extendNormalcheck = node.getBoolValue("extend_normalcheck",
             extendNormalcheck);
+        zeroGrav = node.getBoolValue("zero_gravity", zeroGrav);
         //xxx: passes true for the second parameter, which means the ID
         //     is created if it doesn't exist; this is for forward
         //     referencing... it should be replaced by collision classes

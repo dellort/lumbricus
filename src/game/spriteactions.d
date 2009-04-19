@@ -15,6 +15,9 @@ import game.game;
 import game.gobject;
 import game.sprite;
 import game.sequence;
+import game.controller;
+import game.gamepublic;
+import game.temp;
 import utils.misc;
 import utils.vector2;
 import utils.time;
@@ -24,6 +27,9 @@ import utils.random;
 import utils.randval;
 import utils.factory;
 import utils.reflection;
+
+import tango.math.Math : PI;
+import tango.math.IEEE : isNaN;
 
 ///Base class for constant sprite actions
 class SpriteAction : TimedAction {
@@ -492,3 +498,89 @@ class StuckTriggerActionClass : SpriteActionClass {
         ActionClassFactory.register!(typeof(this))("stucktrigger");
     }
 }
+
+//------------------------------------------------------------------------
+
+class ControlRotateAction : SpriteAction, Controllable {
+    private {
+        ControlRotateActionClass myclass;
+        ServerTeamMember mMember;
+        Vector2f mMoveVector;
+        float mDirection;
+    }
+
+    this(ControlRotateActionClass base, GameEngine eng) {
+        super(base, eng);
+        myclass = base;
+    }
+
+    this (ReflectCtor c) {
+        super(c);
+    }
+
+    protected ActionRes initDeferred() {
+        mMember = engine.controller.memberFromGameObject(mParent, true);
+        mMember.pushControllable(this);
+        //if given, use direction from config, physics velocity otherwise
+        if (!isNaN(myclass.initDirection))
+            mDirection = myclass.initDirection;
+        else
+            mDirection = mParent.physics.velocity.toAngle();
+        return ActionRes.moreWork;
+    }
+
+    protected void cleanupDeferred() {
+        mParent.physics.resetLook();
+        mMember.releaseControllable(this);
+    }
+
+    override void simulate(float deltaT) {
+        mDirection += mMoveVector.x * myclass.rotateSpeed * deltaT;
+        mParent.physics.forceLook(Vector2f.fromPolar(1.0f, mDirection));
+        super.simulate(deltaT);
+    }
+
+    //-- Controllable implementation
+
+    bool fire(bool keyDown) {
+        return false;
+    }
+
+    bool jump(JumpMode j) {
+        return false;
+    }
+
+    bool move(Vector2f m) {
+        mMoveVector = m;
+        return true;
+    }
+
+    //-- end Controllable
+}
+
+class ControlRotateActionClass : SpriteActionClass {
+    float initDirection = float.nan;
+    float rotateSpeed = PI;
+
+    void loadFromConfig(GameEngine eng, ConfigNode node) {
+        super.loadFromConfig(eng, node);
+        initDirection = node.getValue("init_direction", initDirection);
+        rotateSpeed = node.getValue("rotate_speed", rotateSpeed);
+    }
+
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
+
+    ControlRotateAction createInstance(GameEngine eng) {
+        return new ControlRotateAction(this, eng);
+    }
+
+    static this() {
+        ActionClassFactory.register!(typeof(this))("control_rotate");
+    }
+}
+
