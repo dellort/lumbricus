@@ -5,6 +5,7 @@ import game.animation;
 import physics.world;
 import game.game;
 import game.controller;
+import game.sequence;
 import game.weapon.weapon;
 import game.sprite;
 import game.actionsprite;
@@ -114,6 +115,25 @@ class CollectableMedkit : Collectable {
     }
 }
 
+//xxx implement this
+class CollectableTool : Collectable {
+    this() {
+    }
+
+    this (ReflectCtor c) {
+    }
+
+    char[] id() {
+        return "";
+    }
+
+    void collectMessage(GameController logic, ServerTeamMember member) {
+    }
+
+    void collect(CrateSprite parent, ServerTeamMember member) {
+    }
+}
+
 ///Blows up the crate without giving the worm anything
 ///Note that you can add other collectables in the same crate
 class CollectableBomb : Collectable {
@@ -136,12 +156,20 @@ class CollectableBomb : Collectable {
     }
 }
 
+private enum CrateType {
+    weapon,
+    med,
+    tool,
+}
+
 class CrateSprite : ActionSprite {
     private {
         CrateSpriteClass myclass;
         PhysicZoneCircle crateZone;
         ZoneTrigger collectTrigger;
         bool mNoParachute;
+
+        CrateType mCrateType;
     }
 
     //contents of the crate
@@ -194,7 +222,7 @@ class CrateSprite : ActionSprite {
     void collectCrate(GameObject finder) {
         //for some weapons like animal-weapons, transitive should be true
         //and normally a non-collecting weapon should just explode here??
-        auto member = engine.controller.memberFromGameObject(finder, false);
+        auto member = engine.controller.memberFromGameObject(finder, true);
         if (!member) {
             log("crate {} can't be collected by {}", this, finder);
             return;
@@ -216,6 +244,33 @@ class CrateSprite : ActionSprite {
         if (currentState == myclass.st_parachute)
             setState(myclass.st_normal);
         mNoParachute = true;
+    }
+
+    protected void setCurrentAnimation() {
+        if (!graphic)
+            return;
+
+        graphic.setState(currentState.myAnimation[mCrateType]);
+    }
+
+    override protected void updateActive() {
+        super.updateActive();
+        if (active) {
+            foreach (coll; stuffies) {
+                if (cast(CollectableMedkit)coll) {
+                    mCrateType = CrateType.med;
+                    break;
+                }
+                if (cast(CollectableTool)coll) {
+                    mCrateType = CrateType.tool;
+                    break;
+                }
+            }
+        }
+    }
+
+    override CrateStateInfo currentState() {
+        return cast(CrateStateInfo)super.currentState();
     }
 
     override void doEvent(char[] id, bool stateonly = false) {
@@ -244,12 +299,30 @@ class CrateSprite : ActionSprite {
     }
 }
 
+class CrateStateInfo : ActionStateInfo {
+    SequenceState[CrateType.max+1] myAnimation;
+
+    override void loadFromConfig(ConfigNode sc, ConfigNode physNode,
+        GOSpriteClass owner)
+    {
+        super.loadFromConfig(sc, physNode, owner);
+        if (sc["animation"].length > 0) {
+            auto csc = cast(CrateSpriteClass)owner;
+            for (CrateType ct = CrateType.min; ct <= CrateType.max; ct++) {
+                myAnimation[ct] = csc.findSequenceState2(ct,
+                    sc["animation"]);
+            }
+        }
+    }
+}
+
 //the factories work over the sprite classes, so we need one
 class CrateSpriteClass : ActionSpriteClass {
     float enterParachuteSpeed;
     float collectRadius;
 
     StaticStateInfo st_creation, st_normal, st_parachute, st_drowning;
+    char[][CrateType.max+1] mySequencePrefix;
 
     //xxx class
     this (ReflectCtor c) {
@@ -260,6 +333,10 @@ class CrateSpriteClass : ActionSpriteClass {
         super(e, r);
     }
     override void loadFromConfig(ConfigNode config) {
+        mySequencePrefix[CrateType.weapon] = config["sequence_object"];
+        mySequencePrefix[CrateType.med] = config["sequence_object_med"];
+        mySequencePrefix[CrateType.tool] = config["sequence_object_tool"];
+
         super.loadFromConfig(config);
 
         enterParachuteSpeed = config.getFloatValue("enter_parachute_speed");
@@ -273,6 +350,16 @@ class CrateSpriteClass : ActionSpriteClass {
     }
     override CrateSprite createSprite() {
         return new CrateSprite(engine, this);
+    }
+
+    override protected CrateStateInfo createStateInfo() {
+        return new CrateStateInfo();
+    }
+
+    private SequenceState findSequenceState2(CrateType type, char[] pseudo_name)
+    {
+        return engine.sequenceStates.findState(mySequencePrefix[type] ~ '_' ~
+            pseudo_name, false);
     }
 
     static this() {

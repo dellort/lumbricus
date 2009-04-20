@@ -904,6 +904,9 @@ class ServerTeamMember : TeamMember, WormController {
     }
 
     void pushControllable(Controllable c) {
+        //if the new top object takes movement input, stop the current top
+        if (c.move(mLastMoveVector))
+            move(Vector2f(0));
         mControlStack ~= c;
     }
 
@@ -1063,6 +1066,9 @@ class GameController : GameLogicPublic {
         bool mGameEnded;
 
         EventAggregator mEvents;
+        //Medkit, medkit+tool, medkit+tool+unrigged weapon
+        //  (rest is rigged weapon)
+        const cCrateProbs = [0.15f, 0.30f, 0.93f];
     }
 
     this(GameEngine engine, GameConfig config) {
@@ -1394,6 +1400,31 @@ class GameController : GameLogicPublic {
         }
     }
 
+    Collectable[] fillCrate() {
+        Collectable[] ret;
+        float r = engine.rnd.nextDouble2();
+        if (r < cCrateProbs[0]) {
+            //medkit
+            ret ~= new CollectableMedkit(50);
+        }/* else if (r < cCrateProbs[1]) {
+            //tool
+            //xxx implement
+        }*/ else {
+            //weapon
+            auto content = chooseRandomForCrate();
+            if (content) {
+                ret ~= new CollectableWeapon(content, 1);
+                if (r > cCrateProbs[2]) {
+                    //add a bomb to that :D
+                    ret ~= new CollectableBomb();
+                }
+            } else {
+                log("failed to create crate contents");
+            }
+        }
+        return ret;
+    }
+
     bool dropCrate() {
         Vector2f from, to;
         float water = engine.waterOffset - 10;
@@ -1401,27 +1432,18 @@ class GameController : GameLogicPublic {
             log("couldn't find a safe drop-position");
             return false;
         }
-        auto content = chooseRandomForCrate();
-        if (content) {
-            GObjectSprite s = engine.createSprite("crate");
-            CrateSprite crate = cast(CrateSprite)s;
-            assert(!!crate);
-            //put stuffies into it
-            crate.stuffies = [new CollectableWeapon(content, 1)];
-            if (engine.rnd.next(0, 10) == 0) {
-                //add a bomb to that :D
-                crate.stuffies ~= new CollectableBomb();
-            }
-            //actually start it
-            crate.setPos(from);
-            crate.active = true;
-            mLastCrate = crate;
-            log("drop {} -> {}", from, to);
-            return true;
-        } else {
-            log("failed to create crate contents");
-        }
-        return false;
+
+        GObjectSprite s = engine.createSprite("crate");
+        CrateSprite crate = cast(CrateSprite)s;
+        assert(!!crate);
+        //put stuffies into it
+        crate.stuffies = fillCrate();
+        //actually start it
+        crate.setPos(from);
+        crate.active = true;
+        mLastCrate = crate;
+        log("drop {} -> {}", from, to);
+        return true;
     }
 
     void instantDropCrate() {
