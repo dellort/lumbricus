@@ -110,8 +110,7 @@ class CollectableMedkit : Collectable {
     }
 
     void collect(CrateSprite parent, ServerTeamMember member) {
-        //xxx not sure if the controller can handle it
-        member.worm.physics.lifepower += amount;
+        member.addHealth(amount);
     }
 }
 
@@ -254,7 +253,6 @@ class CrateSprite : ActionSprite {
     }
 
     override protected void updateActive() {
-        super.updateActive();
         if (active) {
             foreach (coll; stuffies) {
                 if (cast(CollectableMedkit)coll) {
@@ -267,6 +265,7 @@ class CrateSprite : ActionSprite {
                 }
             }
         }
+        super.updateActive();
     }
 
     override CrateStateInfo currentState() {

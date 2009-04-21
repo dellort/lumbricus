@@ -8,7 +8,7 @@ build:
 
 release:
 	cd $(DIR_SRC)
-	dsss build $(T).d --release
+	dsss build $(T).d
 
 clean:
 	cd $(DIR_SRC)

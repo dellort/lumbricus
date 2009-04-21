@@ -123,8 +123,8 @@ class GameTimer : Container {
                     mRoundTime.font = mFont[2];
                     mGameTime.font = mFont[4];
                 } else if (rt_sec < 6f) {
-                    //flash red/black (red when time is lower)
-                    mRoundTime.font = mFont[cast(int)(rt_sec*2+1)%2];
+                    //flash red/black (red when time is higher)
+                    mRoundTime.font = mFont[cast(int)(rt_sec*4)%2];
                     mGameTime.font = mFont[3];
                 } else {
                     mRoundTime.font = mFont[0];

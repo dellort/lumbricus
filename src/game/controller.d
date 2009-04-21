@@ -576,6 +576,14 @@ class ServerTeamMember : TeamMember, WormController {
         return health() < lastKnownLifepower;
     }
 
+    void addHealth(int amount) {
+        if (mWorm) {
+            mWorm.physics.lifepower += amount;
+            lastKnownLifepower += amount;
+            updateHealth();
+        }
+    }
+
     void setActive(bool act) {
         if (mActive == act)
             return;

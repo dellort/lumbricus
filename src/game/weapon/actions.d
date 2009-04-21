@@ -442,7 +442,7 @@ class TeamAction : WeaponAction {
 //------------------------------------------------------------------------
 
 //Base class for instant area-of-effect actions
-abstract class AOEActionClass : ActionClass {
+abstract class AoEActionClass : ActionClass {
     float radius = 10.0f;
     bool[char[]] hit;
 
@@ -462,12 +462,12 @@ abstract class AOEActionClass : ActionClass {
     }
 }
 
-abstract class AOEAction : WeaponAction {
+abstract class AoEAction : WeaponAction {
     private {
-        AOEActionClass myclass;
+        AoEActionClass myclass;
     }
 
-    this(AOEActionClass base, GameEngine eng) {
+    this(AoEActionClass base, GameEngine eng) {
         super(base, eng);
         myclass = base;
     }
@@ -510,7 +510,7 @@ abstract class AOEAction : WeaponAction {
 //------------------------------------------------------------------------
 
 //add an impulse to objects inside a circle
-class ImpulseActionClass : AOEActionClass {
+class ImpulseActionClass : AoEActionClass {
     float strength = 1000.0f;
     int directionMode = DirMode.fireInfo;
     Vector2f direction = Vector2f.nan;
@@ -550,7 +550,7 @@ class ImpulseActionClass : AOEActionClass {
     }
 }
 
-class ImpulseAction : AOEAction {
+class ImpulseAction : AoEAction {
     private {
         ImpulseActionClass myclass;
     }
@@ -587,9 +587,10 @@ class ImpulseAction : AOEAction {
 
 //------------------------------------------------------------------------
 
-//add an impulse to objects inside a circle
-class RelativeDamageActionClass : AOEActionClass {
-    //how much damage relative to current HP the objects will receive
+//damages objects inside a circle, either absolute or relative
+class AoEDamageActionClass : AoEActionClass {
+    //how much damage the objects will receive
+    //if <= 1.0f, damage is relative to current HP, otherwise absolute
     float damage = 0.5f;
 
     //xxx class
@@ -604,21 +605,21 @@ class RelativeDamageActionClass : AOEActionClass {
         damage = node.getValue!(float)("damage", damage);
     }
 
-    RelativeDamageAction createInstance(GameEngine eng) {
-        return new RelativeDamageAction(this, eng);
+    AoEDamageAction createInstance(GameEngine eng) {
+        return new AoEDamageAction(this, eng);
     }
 
     static this() {
-        ActionClassFactory.register!(typeof(this))("relativedmg");
+        ActionClassFactory.register!(typeof(this))("aoedamage");
     }
 }
 
-class RelativeDamageAction : AOEAction {
+class AoEDamageAction : AoEAction {
     private {
-        RelativeDamageActionClass myclass;
+        AoEDamageActionClass myclass;
     }
 
-    this(RelativeDamageActionClass base, GameEngine eng) {
+    this(AoEDamageActionClass base, GameEngine eng) {
         super(base, eng);
         myclass = base;
     }
@@ -628,13 +629,20 @@ class RelativeDamageAction : AOEAction {
     }
 
     override protected void applyOn(GObjectSprite sprite) {
-        float dmg = sprite.physics.lifepower*myclass.damage;
-        if (myclass.damage < 1.0f-float.epsilon) {
-            //don't kill
-            dmg = min(dmg, sprite.physics.lifepower - 1.0f);
+        float dmg;
+        if (myclass.damage < 1.0f+float.epsilon) {
+            //relative damage
+            dmg = sprite.physics.lifepower*myclass.damage;
+            if (myclass.damage < 1.0f-float.epsilon) {
+                //don't kill
+                dmg = min(dmg, sprite.physics.lifepower - 1.0f);
+            }
+            if (dmg <= 0)
+                return;
+        } else {
+            //absolute damage
+            dmg = myclass.damage;
         }
-        if (dmg <= 0)
-            return;
         sprite.physics.applyDamage(dmg, DamageCause.special);
         //xxx stuck in the ground animation here
         sprite.physics.addImpulse(Vector2f(0, -1));
