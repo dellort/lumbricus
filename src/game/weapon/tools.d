@@ -287,7 +287,7 @@ class Rope : Shooter {
         mShooting = true;
         mShootStart = engine.gameTime.current;
         mLine = createRopeLine();
-        mAnchorGraphic = new Sequence(engine);
+        mAnchorGraphic = new Sequence(engine, null);
         mAnchorGraphic.setUpdater(mSeqUpdate);
         mAnchorGraphic.setState(myclass.anchorAnim);
     }

@@ -238,7 +238,10 @@ class GObjectSprite : GameObject {
             graphic = null;
         }
         if (active) {
-            graphic = new Sequence(engine);
+            auto member = engine.controller ?
+                engine.controller.memberFromGameObject(this, true) : null;
+            auto owner = member ? member.team : null;
+            graphic = new Sequence(engine, owner);
             graphic.setUpdater(seqUpdate);
             physics.checkRotation();
             setCurrentAnimation();

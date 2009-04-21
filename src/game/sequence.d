@@ -176,11 +176,12 @@ class Sequence {
         StateDisplay mDisplay;
         StateDisplay mOthers;
         SequenceUpdate mUpdate;
+        Team mOwner; //xxx make this go away
 
         static SequenceUpdate nullUpdate;
     }
 
-    this(GameEngine a_engine) {
+    this(GameEngine a_engine, Team owner) {
         engine = a_engine;
         //to simplify things (no null check required)
         if (!nullUpdate)
@@ -364,6 +365,7 @@ class AniStateDisplay : StateDisplay {
     //xxx this is incredibly stupid
     override void enable() {
         mAnimator = owner.engine.graphics.createAnimation();
+        mAnimator.owner_team = owner.mOwner;
     }
     override void disable() {
         mAnimator.remove();
