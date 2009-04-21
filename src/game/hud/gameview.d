@@ -115,7 +115,7 @@ class GameView : Container {
         ViewMember activeWorm;
 
         //per-member class
-        class ViewMember : CameraObject {
+        class ViewMember {
             TeamMemberInfo member; //from the "engine"
 
             //you might wonder why these labels aren't just drawn directly
@@ -145,8 +145,6 @@ class GameView : Container {
             int health_cur = int.max;
             int lastHealthHintTarget = int.max;
 
-            bool cameraActivated;
-            Vector2i lastKnownPosition;
             private bool mArrowState;
 
             this(TeamMemberInfo m) {
@@ -174,14 +172,6 @@ class GameView : Container {
                 else
                     arrow.animation = member.owner.theme.arrow.get;
                 mArrowState = canChangeWorm;
-            }
-
-            Vector2i getCameraPosition() {
-                return lastKnownPosition;
-            }
-            bool isCameraAlive() {
-                cameraActivated &= member.member.active();
-                return cameraActivated;
             }
 
             void removeGUI() {
@@ -220,7 +210,6 @@ class GameView : Container {
                     auto ag = cast(AnimationGraphic)graphic;
                     assert (!!ag, "not attached to a worm?");
                     Animation ani = ag.animation;
-                    lastKnownPosition = ag.pos;
                     Rect2i bounds;
                     /+
                     //assert (!!ani, "should be there because it is active");
@@ -237,12 +226,6 @@ class GameView : Container {
                     if (health_cur != member.currentHealth) {
                         health_cur = member.currentHealth;
                         wormPoints.text = myformat("{}", health_cur);
-                    }
-
-                    //activate camera if it should and wasn't yet
-                    if (!cameraActivated && member.member.active()) {
-                        cameraActivated = true;
-                        mCamera.setCameraFocus(this);
                     }
 
                     //labels are positioned above pos
@@ -627,6 +610,7 @@ class GameView : Container {
             * mGame.clientTime.difference.secsf;
         mCurZoom = clampRangeC(mCurZoom+zc, cZoomMin, cZoomMax);
         super.simulate();
+        sim_camera();
         doSim();
     }
 
@@ -637,5 +621,77 @@ class GameView : Container {
 
     override bool doesCover() {
         return !mGame.cengine.needBackclear();
+    }
+
+    //camera priority of objects, from high to low:
+    //  5 moving active worm (or super sheep, but not bazooka etc.)
+    //  4 something fired by the active worm's weapon (including offspring)
+    //  3 weapon offspring fired by other worms
+    //  2 other worms
+    //  1 other objects (like crates)
+    //  0 (not moving) active worm
+    //(active means we control the worm)
+    //for objects with same priority, the camera tries to focus on the object
+    //that moved last
+    void sim_camera() {
+        GameEngineGraphics graphics = mGame.engine.getGraphics();
+        TeamMember active_member = mGame.control.getControlledMember();
+        Team active_team;
+        AnimationGraphic active_member_gr;
+        if (active_member) {
+            active_team = active_member.team;
+            active_member_gr = cast(AnimationGraphic)active_member.getGraphic();
+        }
+        Time now = graphics.timebase.current();
+
+        int priority(AnimationGraphic gr) {
+            //hmm
+            bool moving = (now - gr.last_position_change).msecs < 200;
+            //priorization as mentioned above
+            if (!moving)
+                return 0;
+            if (gr is active_member_gr)
+                return 5;
+            if (active_team && gr.owner_team is active_team)
+                return 4;
+            if (gr.owner_team) {
+                if (auto member = gr.owner_team.getActiveMember()) {
+                    if (member.getGraphic() is gr)
+                        return 2;
+                }
+                return 3;
+            }
+            return 1;
+        }
+
+        int best_priority;
+        AnimationGraphic best_object;
+
+        foreach (Graphic gr; graphics.objects) {
+            if (auto ani_gr = cast(AnimationGraphic)gr) {
+                int pri = priority(ani_gr);
+                if (pri > best_priority) {
+                    best_object = ani_gr;
+                    best_priority = pri;
+                } else if (pri == best_priority && best_object) {
+                    if (ani_gr.last_position_change >
+                        best_object.last_position_change)
+                    {
+                        best_object = ani_gr;
+                    }
+                }
+            }
+        }
+
+        //if there's nothing else, focus on unmoving active worm
+        if (!best_object) {
+            best_object = active_member_gr;
+        }
+
+        if (best_object) {
+            mCamera.updateCameraTarget(best_object.pos);
+        } else {
+            mCamera.noFollow();
+        }
     }
 }

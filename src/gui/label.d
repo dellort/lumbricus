@@ -127,7 +127,7 @@ class Label : Widget {
         if (!mText.length)
             return;
         Vector2i p = Vector2i(x, b.y);
-        if (mCenterX)
+        if (mCenterX && mTextSize.x <= diff.x)
             p = p + diff/2 - mTextSize/2;
         else
             p.y = p.y + diff.y/2 - mTextSize.y/2;

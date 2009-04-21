@@ -13,14 +13,6 @@ enum CameraStyle {
     Center,   //follows always centered, cf. super sheep
 }
 
-///The CameraFrame can manage several CameraObjects, which want to control the
-///camera in any way; the CameraFrame picks one.
-interface CameraObject {
-    Vector2i getCameraPosition();
-    ///returns true if this CameraObject should be removed (polled each frame)
-    bool isCameraAlive();
-}
-
 ///Does camera-movement
 ///xxx maybe should be extended so that several active camera targets are
 ///supported at a time
@@ -30,7 +22,8 @@ class Camera {
     bool enable = true;
 
     private CameraStyle mCameraStyle;
-    private CameraObject mCameraFollowObject;
+    private Vector2i mCameraFollowPos;
+    private bool mCameraFollowAlive;
     private bool mCameraFollowLock;
     private TimeSource mTime;
     private Time mLastScrollOur, mLastScrollExtern;
@@ -73,11 +66,11 @@ class Camera {
         //there's the following issue/non-issue: if an object moves, the camera
         //should follow it - but that only works if you didn't move the camera
         //for during the last idle time
-        if (mCameraFollowObject && mCameraFollowObject.isCameraAlive &&
+        if (mCameraFollowAlive &&
             (curTimeMs - lastAction >= cScrollIdleTimeMs || mCameraFollowLock)
             && enable)
         {
-            auto pos = mCameraFollowObject.getCameraPosition;
+            auto pos = mCameraFollowPos;
             auto visible = control.visibleArea(control.scrollDestination);
             switch (mCameraStyle) {
                 case CameraStyle.Normal:
@@ -97,6 +90,7 @@ class Camera {
         }
     }
 
+/+
     ///Set the active object the camera should follow
     ///Params:
     ///  lock = set to true to prevent user scrolling
@@ -115,5 +109,21 @@ class Camera {
             //with this, the time datatype must support negative times
             mLastScrollOur = mTime.current() - timeMsecs(cScrollIdleTimeMs);
         }
+    }
++/
+
+    void updateCameraTarget(Vector2i pos) {
+        if (!mCameraFollowAlive) {
+            //like in setCameraFocus
+            mCameraStyle = CameraStyle.Normal;
+            mLastScrollOur = mTime.current() - timeMsecs(cScrollIdleTimeMs);
+            mCameraFollowAlive = true;
+        }
+        mCameraFollowPos = pos;
+    }
+
+    void noFollow() {
+        mCameraFollowAlive = false;
+        mCameraStyle = CameraStyle.Dead;
     }
 }

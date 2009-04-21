@@ -26,27 +26,6 @@ import game.sequence;// : SequenceUpdate;
 
 public import game.temp;
 
-/*
-Possible game setups
---------------------------
-We have to think about which setups shall be possible in the feature.
-I thought of these (first level hardware setup, second one game setups).
-- Fully local, one screen, one keyboard for all:
-    - Normal round-based multiplayer
-        . 1 TeamMemberControl for all
-    - Arcade/Realtime, where several players are at once active.
-- Local, splitscreen:
-    - Arcade: Need somehow to share the keyboard...
-        . 2 TeamMemberControl (one for each player)
-    (- Round based: Uh, isn't useful here.)
-- Multiplayer, one screen on each PC:
-    - Round based_
-        . 2 TeamMemberControl (one for each player)
-    - Arcade:
-        . as in round based case
-xxx complete this :)
-currently, only local-roundbased-one-screen is the only possible setup
-*/
 
 ///Initial game configuration
 class GameConfig {
@@ -156,12 +135,6 @@ class GameEngineGraphics {
         return n;
     }
 
-    //xxx stuff about sharing etc. removed (it is still in r533)
-    //    the idea was that with networking (= unshared LandscapeBitmap), on
-    //    creation, only a game.levelgen.landscape.Landscape is passed, and
-    //    further modifications to the landscape are replicated by transfering
-    //    only damage(pos, radius) calls etc.
-    //    when networking is introduced, one has to care about this again
     LandscapeGraphic createLandscape(Vector2i pos, LandscapeBitmap shared) {
         auto n = new LandscapeGraphic(this);
         n.pos = pos;
@@ -174,6 +147,8 @@ class GameEngineGraphics {
 class Graphic {
     GameEngineGraphics owner;
     ListNode node;
+    //xxx this crap is a relict of the now dead pseudo network stuff
+    //    remove/redo this if you feel like it
     bool removed;
     ulong frame_added;
 
@@ -200,6 +175,10 @@ class AnimationGraphic : Graphic {
     //    maybe make Sequence a "client" object again?
     SequenceUpdate more;
 
+    //xxx for now just for the camera, might be subject to change
+    Team owner_team;
+    Time last_position_change; //actually, need time of last "action"?
+
     this (GameEngineGraphics a_owner) {
         super(a_owner);
     }
@@ -208,7 +187,10 @@ class AnimationGraphic : Graphic {
     }
 
     final void update(ref Vector2i a_pos, ref AnimationParams a_params) {
-        pos = a_pos;
+        if (pos != a_pos) {
+            pos = a_pos;
+            last_position_change = owner.timebase.current();
+        }
         params = a_params;
     }
     final void update(ref Vector2i a_pos) {
@@ -445,6 +427,8 @@ interface TeamMember {
     ///displayed directly (like when worm is on a jetpack)
     bool displayWeaponIcon();
 
+    //messy, I decided this is always the controlled thing
+    //(not always worm itself, e.g. this can point to a super sheep)
     Graphic getGraphic();
 }
 

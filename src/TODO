@@ -17,7 +17,7 @@
 + richtige GUI listen
 + key bindings editor
 + flash-artiges System für GUI-Animationen (widget einem pfad folgen lassen)
-* CSS-artige formatierungen für GUI
+[* CSS-artige formatierungen für GUI]
 - button für windows pinnen/entpinnen
 *** GUI enthässlichen
 
@@ -50,7 +50,7 @@
 + Waffen-Timer anzeigen
 * partikel, sounds
 + Aufsteigende Ertrink-Labels
-+ camera.d: bessere auswahl, welchem objekt gefolgt werden soll
+[+ camera.d: bessere auswahl, welchem objekt gefolgt werden soll]
 * "stub" gpl daten (strichmännchen)
 *** gpl daten (vollständig)
 

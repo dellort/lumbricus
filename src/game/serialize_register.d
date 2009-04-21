@@ -9,8 +9,9 @@ import game.action, game.actionsprite, game.controller, game.crate, game.game,
     game.gamepublic, game.glevel, game.spriteactions, game.sprite, game.worm,
     game.weapon.actions, game.weapon.actionweapon, game.weapon.projectile,
     game.weapon.ray, game.weapon.spawn, game.weapon.tools, game.weapon.weapon,
-    game.weapon.napalm, game.sequence, game.gamemodes.roundbased,
-    game.gamemodes.roundbased_shared, game.gamemodes.mdebug;
+    game.weapon.napalm, game.weapon.melee, game.sequence,
+    game.gamemodes.roundbased, game.gamemodes.roundbased_shared,
+    game.gamemodes.mdebug;
 import physics.world;
 import utils.random;
 
@@ -33,7 +34,8 @@ void initGameSerialization() {
         GameEngineGraphics, AnimationGraphic, LineGraphic,
         Crosshair, LandscapeGraphic, NapalmSequenceUpdate,
         NapalmSprite, WeaponHandle, ModeRoundbased, ModeDebug, TimeSource,
-        TimeSourceFixFramerate, EventAggregator, DieAction, RoundbasedStatus);
+        TimeSourceFixFramerate, EventAggregator, DieAction, RoundbasedStatus,
+        TeamAction, AoEDamageAction, ImpulseAction, MeleeWeapon, MeleeShooter);
     //stuff that (maybe) should not be serialized
     //all ctors are marked with "xxx class"
     serialize_types.registerClasses!(ActionContainer, ActionListClass,
@@ -46,5 +48,8 @@ void initGameSerialization() {
         HomingActionClass, RayWeapon, SpawnActionClass, ToolClass, RopeClass,
         WormStateInfo, WormSpriteClass, GravestoneSpriteClass,
         SequenceStateList, NapalmStateDisplay, NapalmState, WormStateDisplay,
-        SubSequence, WormState, NapalmSpriteClass, DieActionClass);
+        SubSequence, WormState, NapalmSpriteClass, DieActionClass,
+        TeamActionClass, AoEDamageActionClass, ImpulseActionClass,
+        ActionStateInfo, ProjectileStateInfo, CrateStateInfo,
+        ControlRotateActionClass);
 }

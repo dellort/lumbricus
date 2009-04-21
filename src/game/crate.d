@@ -301,6 +301,13 @@ class CrateSprite : ActionSprite {
 class CrateStateInfo : ActionStateInfo {
     SequenceState[CrateType.max+1] myAnimation;
 
+    //xxx class
+    this (ReflectCtor c) {
+        super(c);
+    }
+    this () {
+    }
+
     override void loadFromConfig(ConfigNode sc, ConfigNode physNode,
         GOSpriteClass owner)
     {
