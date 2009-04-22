@@ -95,6 +95,10 @@ class GameView : Container {
         Container mGuiFrame;
 
         Camera mCamera;
+        int mCurCamPriority;
+        AnimationGraphic mCurCamObject;
+        Time mLastCamChange;
+        const cCamChangeDelay = timeSecs(2);
 
         float mZoomChange = 1.0f, mCurZoom = 1.0f;
 
@@ -640,7 +644,8 @@ class GameView : Container {
         AnimationGraphic active_member_gr;
         if (active_member) {
             active_team = active_member.team;
-            active_member_gr = cast(AnimationGraphic)active_member.getGraphic();
+            active_member_gr =
+                cast(AnimationGraphic)active_member.getControlledGraphic();
         }
         Time now = graphics.timebase.current();
 
@@ -688,8 +693,25 @@ class GameView : Container {
             best_object = active_member_gr;
         }
 
-        if (best_object) {
-            mCamera.updateCameraTarget(best_object.pos);
+        void updateCurObj() {
+            mCurCamObject = best_object;
+            mCurCamPriority = best_priority;
+            mLastCamChange = timeCurrentTime();
+        }
+
+        if (best_object !is mCurCamObject) {
+            if (best_priority > mCurCamPriority) {
+                updateCurObj();
+            } else {
+                Time t = timeCurrentTime();
+                if (t - mLastCamChange > cCamChangeDelay) {
+                    updateCurObj();
+                }
+            }
+        }
+
+        if (mCurCamObject) {
+            mCamera.updateCameraTarget(mCurCamObject.pos);
         } else {
             mCamera.noFollow();
         }

@@ -57,6 +57,9 @@ class CmdNetServer {
         uint[] mRecentDisconnects;
 
         const cInfoInterval = timeSecs(2);
+        int mWormHP = 150;
+        int mWormCount = 4;
+        char[] mWeaponSet = "set1";
     }
 
     //create the server thread object
@@ -70,6 +73,9 @@ class CmdNetServer {
             mServerName = "Unnamed server";
         mMaxPlayers = serverConfig.getValue("max_players", 4);
         mMaxLag = serverConfig.getValue("max_lag", 50);
+        mWormHP = serverConfig.getValue("worm_hp", mWormHP);
+        mWormCount = serverConfig.getValue("worm_count", mWormCount);
+        mWeaponSet = serverConfig.getValue("weapon_set", mWeaponSet);
         debug {
             mSimLagMs = serverConfig.getValue("sim_lag", 0);
             mSimJitterMs = serverConfig.getValue("sim_jitter", 0);
@@ -233,6 +239,26 @@ class CmdNetServer {
             }
             ConfigNode ct = cl.mMyTeamInfo;
             if (ct) {
+                //xxx this whole function is one giant hack, this just adds a little
+                //  more hackiness -->
+                char[][] wormNames;
+                foreach (ConfigNode sub; ct.getSubNode("member_names")) {
+                    wormNames ~= sub.value;
+                }
+                if (wormNames.length > mWormCount)
+                    wormNames.length = mWormCount;
+                else if (wormNames.length < mWormCount) {
+                    for (int i = wormNames.length; i < mWormCount; i++) {
+                        wormNames ~= myformat("Worm {}", i);
+                    }
+                }
+                ct.remove("member_names");
+                foreach (wn; wormNames) {
+                    ct.getSubNode("member_names").add("", wn);
+                }
+                ct.setValue("power", mWormHP);
+                ct["weapon_set"] = mWeaponSet;
+                //<-- big hack end
                 teams.addNode(ct);
             }
         }

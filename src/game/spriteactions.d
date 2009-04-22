@@ -555,6 +555,10 @@ class ControlRotateAction : SpriteAction, Controllable {
         return true;
     }
 
+    GObjectSprite getSprite() {
+        return mParent;
+    }
+
     //-- end Controllable
 }
 

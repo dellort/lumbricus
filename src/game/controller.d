@@ -30,6 +30,7 @@ interface Controllable {
     bool fire(bool keyDown);
     bool jump(JumpMode j);
     bool move(Vector2f m);
+    GObjectSprite getSprite();
 }
 
 class ServerTeam : Team {
@@ -510,6 +511,16 @@ class ServerTeamMember : TeamMember, WormController {
     Graphic getGraphic() {
         if (sprite && sprite.graphic) {
             return sprite.graphic.graphic;
+        }
+        return null;
+    }
+
+    Graphic getControlledGraphic() {
+        auto spr = sprite;
+        if (mControlStack.length > 0)
+            spr = mControlStack[$-1].getSprite();
+        if (spr && spr.graphic) {
+            return spr.graphic.graphic;
         }
         return null;
     }
@@ -1027,12 +1038,12 @@ class WeaponItem {
     this (WeaponSet parent, ConfigNode config) {
         this(parent);
         //xxx error handling
-        auto w = config["type"];
+        auto w = config.name;
         mWeapon = mEngine.findWeaponClass(w);
-        if (config["quantity"] == "inf") {
+        if (config.value == "inf") {
             mInfiniteQuantity = true;
         } else {
-            mQuantity = config.getIntValue("quantity", 0);
+            mQuantity = config.getCurValue!(int)(0);
         }
     }
 
@@ -1241,7 +1252,7 @@ class GameController : GameLogicPublic {
         t.setActive(active);
         if (active) {
             //???
-            assert(mActiveTeams.length == 0);
+            //assert(mActiveTeams.length == 0);
             mActiveTeams ~= t;
         } else {
             //should not fail

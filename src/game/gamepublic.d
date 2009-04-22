@@ -191,7 +191,10 @@ class AnimationGraphic : Graphic {
             pos = a_pos;
             last_position_change = owner.timebase.current();
         }
-        params = a_params;
+        if (params != a_params) {
+            params = a_params;
+            last_position_change = owner.timebase.current();
+        }
     }
     final void update(ref Vector2i a_pos) {
         pos = a_pos;
@@ -430,6 +433,7 @@ interface TeamMember {
     //messy, I decided this is always the controlled thing
     //(not always worm itself, e.g. this can point to a super sheep)
     Graphic getGraphic();
+    Graphic getControlledGraphic();
 }
 
 //a trivial list of weapons and quantity

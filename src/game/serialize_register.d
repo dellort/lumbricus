@@ -11,7 +11,7 @@ import game.action, game.actionsprite, game.controller, game.crate, game.game,
     game.weapon.ray, game.weapon.spawn, game.weapon.tools, game.weapon.weapon,
     game.weapon.napalm, game.weapon.melee, game.sequence,
     game.gamemodes.roundbased, game.gamemodes.roundbased_shared,
-    game.gamemodes.mdebug;
+    game.gamemodes.mdebug, game.gamemodes.realtime;
 import physics.world;
 import utils.random;
 
@@ -35,7 +35,8 @@ void initGameSerialization() {
         Crosshair, LandscapeGraphic, NapalmSequenceUpdate,
         NapalmSprite, WeaponHandle, ModeRoundbased, ModeDebug, TimeSource,
         TimeSourceFixFramerate, EventAggregator, DieAction, RoundbasedStatus,
-        TeamAction, AoEDamageAction, ImpulseAction, MeleeWeapon, MeleeShooter);
+        TeamAction, AoEDamageAction, ImpulseAction, MeleeWeapon, MeleeShooter,
+        ModeRealtime);
     //stuff that (maybe) should not be serialized
     //all ctors are marked with "xxx class"
     serialize_types.registerClasses!(ActionContainer, ActionListClass,

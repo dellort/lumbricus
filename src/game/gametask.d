@@ -75,6 +75,7 @@ import game.weapon.melee;
 //import game.weapon.luaweapon;
 import game.gamemodes.roundbased;
 import game.gamemodes.mdebug;
+import game.gamemodes.realtime;
 
 /+
 
@@ -189,11 +190,11 @@ class GameTask : StatefulTask {
     this(TaskManager tm, GameLoader loader, SimpleNetConnection con) {
         super(tm);
 
-        createWindow();
-
         mGameLoader = loader;
         mConnection = con;
         mConnection.onGameStart = &netGameStart;
+
+        createWindow();
         doInit();
     }
 
@@ -441,20 +442,23 @@ class GameTask : StatefulTask {
 
     //game specific commands
     private void registerCommands() {
-        mCmds.register(Command("slow", &cmdSlow, "set slowdown",
-            ["float:slow down",
-             "text?:ani or game"]));
-        mCmds.register(Command("pause", &cmdPause, "pause"));
+        if (!mConnection) {
+            mCmds.register(Command("slow", &cmdSlow, "set slowdown",
+                ["float:slow down",
+                 "text?:ani or game"]));
+            mCmds.register(Command("pause", &cmdPause, "pause"));
+            mCmds.register(Command("ser_dump", &cmdSerDump,
+                "serialiation dump"));
+            mCmds.register(Command("snap", &cmdSnapTest, "snapshot test",
+                ["int:1=store, 2=load, 3=store+load"]));
+            mCmds.register(Command("replay", &cmdReplay,
+                "start recording or replay from last snapshot",
+                ["text?:any text to start recording"]));
+        }
         mCmds.register(Command("saveleveltga", &cmdSafeLevelTGA, "dump TGA",
             ["text:filename"]));
         mCmds.register(Command("show_collide", &cmdShowCollide, "show collision"
             " bitmaps"));
-        mCmds.register(Command("ser_dump", &cmdSerDump, "serialiation dump"));
-        mCmds.register(Command("snap", &cmdSnapTest, "snapshot test",
-            ["int:1=store, 2=load, 3=store+load"]));
-        mCmds.register(Command("replay", &cmdReplay,
-            "start recording or replay from last snapshot",
-            ["text?:any text to start recording"]));
         mCmds.register(Command("server", &cmdExecServer,
             "Run a command on the server", ["text...:command"]));
     }
