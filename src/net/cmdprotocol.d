@@ -45,6 +45,7 @@ enum ClientPacket : ushort {
     pong,
     ack,
     clientBroadcast,
+    gameTerminated,
 }
 
 //Client-to-client packet IDs
@@ -138,13 +139,7 @@ struct SPLoadStatus {
 }
 
 struct SPGameStart {
-    //each entry lets a player control teams
-    Player_Team[] mapping;
-
-    struct Player_Team {
-        uint playerId;
-        char[][] team;
-    }
+    //lol, nothing left
 }
 
 struct GameCommandEntry {

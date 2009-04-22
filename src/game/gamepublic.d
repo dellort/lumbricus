@@ -457,6 +457,7 @@ struct WeaponListItem {
 
 interface Team {
     char[] name();
+    char[] id();
     TeamTheme color();
 
     ///at least one member with active() == true

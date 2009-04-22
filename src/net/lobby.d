@@ -326,8 +326,14 @@ class CmdNetLobbyTask : Task {
         mClient.lobbyCmd(cmd);
     }
 
+    private void onGameKill(Task t) {
+        if (mClient)
+            mClient.gameKilled();
+    }
+
     private void onStartLoading(SimpleNetConnection sender, GameLoader loader) {
         mGame = new GameTask(manager, loader, mClient);
+        mGame.registerOnDeath(&onGameKill);
     }
 
     private void onUpdatePlayers(SimpleNetConnection sender)

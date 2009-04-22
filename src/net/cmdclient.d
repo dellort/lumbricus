@@ -16,6 +16,7 @@ import utils.log;
 import utils.vector2;
 
 import str = stdx.string;
+import tango.util.Convert;
 
 enum ClientState {
     idle,
@@ -233,35 +234,30 @@ class CmdNetClient : SimpleNetConnection {
             onLoadStatus(this, st);
     }
 
-    private Team findTeam(char[] t) {
-        foreach (team; mShell.serverEngine.logic.getTeams) {
-            if (team.name == t)
-                return team;
-        }
-        return null;
-    }
-
     private void doGameStart(SPGameStart info) {
         assert(!!onGameStart, "Need to set callbacks");
         //if setMe() is never called, we are spectator
         mClControl = new CmdNetControl(this);
-        //lol
-        foreach (map; info.mapping) {
-            auto ctl = new NetGameControl(mShell);
-            mSrvControl[map.playerId] = ctl;
-            foreach (team; map.team) {
-                Team t = findTeam(team);
-                //proper error handling: ignore or disconnect
-                assert(!!t, "team not found: "~team);
-                ctl.addTeam(t);
-                //if it is our team, enable a local->server input proxy
-                if (map.playerId == mId)
-                    mClControl.addTeam(t);
-            }
+        mSrvControl = null;
+        foreach (team; mShell.serverEngine.logic.getTeams) {
+            uint ownerId = to!(uint)(team.id);
+            if (!(ownerId in mSrvControl))
+                mSrvControl[ownerId] = new NetGameControl(mShell);
+            mSrvControl[ownerId].addTeam(team);
+            if (ownerId == mId)
+                mClControl.addTeam(team);
         }
+
         mShell.masterTime.paused = false;
         mLastAck = 0;
         onGameStart(this, mClControl);
+    }
+
+    void gameKilled() {
+        if (connected && mShell) {
+            mShell = null;
+            sendEmpty(ClientPacket.gameTerminated);
+        }
     }
 
     private void checkAck(uint timestamp) {
@@ -416,6 +412,8 @@ class CmdNetClient : SimpleNetConnection {
                 doGameStart(p);
                 break;
             case ServerPacket.gameCommands:
+                if (!mShell)
+                    break;
                 //incoming aggregated game commands of all players for
                 //one server frame
                 auto p = unmarshal.read!(SPGameCommands)();

@@ -81,7 +81,6 @@ class CmdNetServer {
         }
 
         mMasterTime = new TimeSource("ServerMasterTime");
-        mMasterTime.paused = true;
         mGameTime = new TimeSourceFixFramerate("ServerGameTime", mMasterTime,
             cFrameLength);
 
@@ -108,6 +107,20 @@ class CmdNetServer {
         mState = newState;
         //only announce in lobby
         mAnnounce.active = (mState == CmdServerState.lobby);
+        if (mState == CmdServerState.playing) {
+            //initialize and start server time
+            mGameTime.resetTime();
+            mMasterTime.paused = false;
+            mMasterTime.initTime();
+            mTimeStamp = 0;
+            foreach (cl; mClients) {
+                cl.gameTerminated = false;
+                cl.lastAckTS = 0;
+            }
+            mRecentDisconnects = null;
+        } else {
+            mMasterTime.paused = true;
+        }
     }
 
     void frame() {
@@ -126,8 +139,16 @@ class CmdNetServer {
             mLastInfo = t;
         }
         if (mState == CmdServerState.playing) {
-            mMasterTime.update();
-            mGameTime.update(&gameTick);
+            bool allFinished = true;
+            foreach (cl; mClients) {
+                allFinished &= cl.gameTerminated;
+            }
+            if (allFinished)
+                state = CmdServerState.lobby;
+            else {
+                mMasterTime.update();
+                mGameTime.update(&gameTick);
+            }
         }
         mAnnounce.tick();
     }
@@ -206,7 +227,7 @@ class CmdNetServer {
         Trace.formatln("Client from {} ({}) disconnected",
             client.address, client.playerName);
         //store id, to notify other players
-        if (mState == CmdServerState.playing)
+        if (mState == CmdServerState.playing && !client.gameTerminated)
             mRecentDisconnects ~= client.id;
         mClients.remove(client.client_node);
         mPlayerCount--;
@@ -219,6 +240,13 @@ class CmdNetServer {
             checkLoading();
     }
 
+    //xxx: This whole method should happen on the "admin" client
+    //     (Admin client is chosen by server, e.g. first or password)
+    //     Server <-> Admin communication:
+    //     <-- request team info
+    //     --> (PlayerId, TeamConfig)[]
+    //        Admin client assembles GameConfig
+    //     <-- request start game (GameConfig)
     private void ccStartGame(CmdNetClientConnection client, CPStartLoading msg)
     {
         if (mState != CmdServerState.lobby)
@@ -257,6 +285,8 @@ class CmdNetServer {
                 ct.setValue("power", mWormHP);
                 ct["weapon_set"] = mWeaponSet;
                 //<-- big hack end
+                //the clients need this to identify which team belongs to whom
+                ct.setValue("id", cl.id);
                 teams.addNode(ct);
             }
         }
@@ -266,10 +296,8 @@ class CmdNetServer {
         gConf.saveConfig(cfg, "dump.conf");
         foreach (cl; mClients) {
             cl.loadDone = false;
-            if (cl.state != ClientConState.connected)
-                continue;
-            cl.doStartLoading(reply);
         }
+        sendAll(ServerPacket.startLoading, reply);
         checkLoading();
     }
 
@@ -340,28 +368,13 @@ class CmdNetServer {
             st.done ~= cl.loadDone;
             allDone &= cl.loadDone;
         }
+        sendAll(ServerPacket.loadStatus, st);
+
         SPGameStart info;
-        foreach (cl; mClients) {
-            //distribute status info
-            cl.doLoadStatus(st);
-            //prepare game start packet with player->team assignment info
-            SPGameStart.Player_Team map;
-            map.playerId = cl.id;
-            if (cl.mMyTeamInfo)
-                map.team ~= cl.mMyTeamInfo.name;
-            info.mapping ~= map;
-        }
         if (allDone) {
             //when all are done loading, start the game
+            sendAll(ServerPacket.gameStart, info);
             state = CmdServerState.playing;
-            foreach (cl; mClients) {
-                cl.doGameStart(info);
-            }
-            //initialize and start server time
-            mGameTime.resetTime();
-            mMasterTime.paused = false;
-            mMasterTime.initTime();
-            mTimeStamp = 0;
         }
     }
 
@@ -376,11 +389,19 @@ class CmdNetServer {
         mPendingCommands ~= pc;
     }
 
+    private void gameTerminated(CmdNetClientConnection client) {
+        if (mState == CmdServerState.playing) {
+            mRecentDisconnects ~= client.id;
+        }
+    }
+
     //execute a server frame
     private void gameTick() {
         //Trace.formatln("Tick, {} commands", mPendingCommands.length);
         CmdNetClientConnection[] lagClients;
         foreach (cl; mClients) {
+            if (cl.gameTerminated)
+                continue;
             if (mTimeStamp - cl.lastAckTS > mMaxLag)
                 lagClients ~= cl;
         }
@@ -468,7 +489,8 @@ class CmdNetClientConnection {
         PongEntry[10] mPongs; //enough room for all pings in cPingAvgOver
         int mPongIdx;
         Time mAvgPing = timeMsecs(100);
-        uint mLastAckTS;
+        uint lastAckTS;
+        bool gameTerminated;
     }
 
     private this(CmdNetServer owner, NetPeer peer, uint id) {
@@ -735,7 +757,7 @@ class CmdNetClientConnection {
                 if (p.timestamp > mOwner.mTimeStamp)
                     close(DiscReason.protocolError);
                 else
-                    mLastAckTS = p.timestamp;
+                    lastAckTS = p.timestamp;
                 break;
             case ClientPacket.pong:
                 auto p = unmarshal.read!(CPPong)();
@@ -745,15 +767,16 @@ class CmdNetClientConnection {
             case ClientPacket.clientBroadcast:
                 sendClientBroadcast(unmarshal.getRest());
                 break;
+            case ClientPacket.gameTerminated:
+                mOwner.gameTerminated(this);
+                gameTerminated = true;
+                break;
             default:
                 //we have reliable networking, so the client did something wrong
                 close(DiscReason.protocolError);
         }
     }
 
-    uint lastAckTS() {
-        return mLastAckTS;
-    }
 
     private void gotPong(Time rtt) {
         Time t = timeCurrentTime();
@@ -807,18 +830,6 @@ class CmdNetClientConnection {
             Trace.formatln("Client disconnected with error: {}",
                 reasonToString[code]);
         state(ClientConState.closed);
-    }
-
-    private void doStartLoading(SPStartLoading msg) {
-        send(ServerPacket.startLoading, msg);
-    }
-
-    private void doLoadStatus(SPLoadStatus st) {
-        send(ServerPacket.loadStatus, st);
-    }
-
-    private void doGameStart(SPGameStart info) {
-        send(ServerPacket.gameStart, info);
     }
 }
 

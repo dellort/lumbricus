@@ -19,8 +19,7 @@ alias StaticFactory!("Gamemodes", Gamemode, GameController, ConfigNode)
 class Gamemode {
     GameEngine engine;
     GameController logic;
-    private bool[5] mWaiting, mWaitingLocal;
-    private Time[5] mWaitStart, mWaitStartLocal;
+    private Time[5] mWaitStart = Time.Never, mWaitStartLocal = Time.Never;
     protected TimeSource modeTime;
 
     this(GameController parent, ConfigNode config) {
@@ -80,34 +79,29 @@ class Gamemode {
     protected Time waitRemain(bool Local = false)(Time t, int timerId = 0,
         bool autoReset = true)
     {
+        TimeSourcePublic engTime = engine.gameTime;
         static if (Local) {
-            if (!mWaitingLocal[timerId]) {
-                mWaitStartLocal[timerId] = modeTime.current;
-                mWaitingLocal[timerId] = true;
-            }
-            Time r = max(t - (modeTime.current - mWaitStartLocal[timerId]),
-                Time.Null);
-            if (r <= Time.Null && autoReset) {
-                mWaitingLocal[timerId] = false;
-            }
+            alias mWaitStartLocal waitCache;
+            alias modeTime waitTimeSource;
         } else {
-            if (!mWaiting[timerId]) {
-                mWaitStart[timerId] = engine.gameTime.current;
-                mWaiting[timerId] = true;
-            }
-            Time r = max(t - (engine.gameTime.current - mWaitStart[timerId]),
-                Time.Null);
-            if (r <= Time.Null && autoReset) {
-                mWaiting[timerId] = false;
-            }
+            alias mWaitStart waitCache;
+            alias engTime waitTimeSource;
+        }
+        if (waitCache[timerId] == Time.Never) {
+            waitCache[timerId] = waitTimeSource.current;
+        }
+        Time r = max(t - (waitTimeSource.current - waitCache[timerId]),
+            Time.Null);
+        if (r <= Time.Null && autoReset) {
+            waitCache[timerId] = Time.Never;
         }
         return r;
     }
 
     protected void waitReset(bool Local = false)(int timerId = 0) {
         static if (Local)
-            mWaitingLocal[timerId] = false;
+            mWaitStartLocal[timerId] = Time.Never;
         else
-            mWaiting[timerId] = false;
+            mWaitStart[timerId] = Time.Never;
     }
 }
