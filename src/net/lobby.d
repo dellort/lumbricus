@@ -276,6 +276,8 @@ class CmdNetLobbyTask : Task {
         mReadyButton.enabled = false;  //xxx later
         mConsoleWidget = loader.lookup!(GuiConsole)("chatbox");
         mConsoleWidget.cmdline.setPrefix("/", "say");
+        //warning: CommandBucket (client.commands()) can have only 1 parent
+        mConsoleWidget.cmdline.commands.addSub(client.commands());
         mConsoleWidget.cmdline.onFallbackExecute = &cmdlineFalbackExecute;
         mConsole = mConsoleWidget.output;
 

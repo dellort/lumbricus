@@ -71,6 +71,10 @@ class MarshalBuffer {
         //xxx just write out the data in memory, could go wrong across platforms
         mBuffer.write(&data, T.sizeof);
     }
+
+    void writeRaw(ubyte[] bytes) {
+        mBuffer.write(bytes);
+    }
 }
 
 class UnmarshalException : Exception {
@@ -177,6 +181,12 @@ class UnmarshalBuffer {
         T ret;
         mBuffer.read(&ret, T.sizeof);
         return ret;
+    }
+
+    //reference to raw bytes from current position until end
+    ubyte[] getRest() {
+        //xxx bounds checking required because position could have any value?
+        return mBuffer.data()[mBuffer.position .. $];
     }
 }
 

@@ -1,6 +1,7 @@
 module net.cmdclient;
 
 import common.common;
+import framework.commandline;
 import game.gameshell;
 import game.gamepublic;
 import game.levelgen.level;
@@ -39,6 +40,8 @@ class CmdNetClient : SimpleNetConnection {
         //name<->id conversion
         uint[char[]] mNameToId;
 
+        CommandBucket mCmds;
+
         struct MyPlayerInfo {
             bool valid;
             NetPlayerInfo info;
@@ -55,6 +58,8 @@ class CmdNetClient : SimpleNetConnection {
     void delegate(CmdNetClient sender, char[][] text) onMessage;
 
     this() {
+        registerCmds();
+
         mBase = new NetBase();
         mHost = mBase.createClient();
         state(ClientState.idle);
@@ -437,6 +442,32 @@ class CmdNetClient : SimpleNetConnection {
                 reply.ts = p.ts;
                 send(ClientPacket.pong, reply, 1, true, false);
                 break;
+            case ServerPacket.clientBroadcast:
+                receiveClientBroadcast(unmarshal);
+                break;
+            default:
+                close(DiscReason.protocolError);
+        }
+    }
+
+    private void receiveClientBroadcast(UnmarshalBuffer unmarshal) {
+        auto pkt = unmarshal.read!(SPClientBroadcast)();
+        char[] name;
+        if (!idToPlayerName(pkt.senderPlayerId, name)) {
+            //can this happen? at least the server could be evil and send crap
+            name = "(unknown)";
+        }
+
+        auto pid = unmarshal.read!(Client2ClientPacket)();
+
+        switch (pid) {
+            case Client2ClientPacket.chatMessage:
+                auto p = unmarshal.read!(CCChatMessage)();
+                if (onMessage) {
+                    onMessage(this,
+                        [myformat("<{}> {}", name, p.witty_comment)]);
+                }
+                break;
             default:
                 close(DiscReason.protocolError);
         }
@@ -463,6 +494,31 @@ class CmdNetClient : SimpleNetConnection {
         ubyte[] buf = marshal.data();
         mServerCon.send(buf.ptr, buf.length, channelId, now, reliable,
             reliable);
+    }
+
+    private void broadcast(T)(Client2ClientPacket pid, T data) {
+        scope marshal = new MarshalBuffer();
+        marshal.write(ClientPacket.clientBroadcast);
+        marshal.write(pid);
+        marshal.write(data);
+        ubyte[] buf = marshal.data();
+        mServerCon.send(buf.ptr, buf.length, 0, false, true, true);
+    }
+
+    private void cmdSay(MyBox[] args, Output write) {
+        CCChatMessage m;
+        m.witty_comment = args[0].unbox!(char[])();
+        broadcast(Client2ClientPacket.chatMessage, m);
+    }
+
+    private void registerCmds() {
+        mCmds = new CommandBucket();
+        mCmds.register(Command("say", &cmdSay, "say something",
+            ["text:what to say"]));
+    }
+
+    CommandBucket commands() {
+        return mCmds;
     }
 }
 

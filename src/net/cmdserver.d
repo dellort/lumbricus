@@ -282,13 +282,19 @@ class CmdNetServer {
         return 0;
     }
 
-    //send a packet to every connected player
-    private void sendAll(T)(ServerPacket pid, T data, ubyte channelId = 0) {
+    private void listConnectedClients(void delegate(CmdNetClientConnection) d) {
         foreach (cl; mClients) {
             if (cl.state != ClientConState.connected)
                 continue;
-            cl.send(pid, data, channelId);
+            d(cl);
         }
+    }
+
+    //send a packet to every connected player
+    private void sendAll(T)(ServerPacket pid, T data, ubyte channelId = 0) {
+        listConnectedClients((CmdNetClientConnection cl) {
+            cl.send(pid, data, channelId);
+        });
     }
 
     //send the current player list to all clients
@@ -605,6 +611,20 @@ class CmdNetClientConnection {
         }
     }
 
+    //broadcast this data to all clients using the SPClientBroadcast message
+    private void sendClientBroadcast(ubyte[] data) {
+        scope marshal = new MarshalBuffer();
+        marshal.write(ServerPacket.clientBroadcast);
+        SPClientBroadcast p;
+        p.senderPlayerId = mId;
+        marshal.write(p);
+        marshal.writeRaw(data);
+        ubyte[] buf = marshal.data();
+        mOwner.listConnectedClients((CmdNetClientConnection cl) {
+            cl.mPeer.send(buf.ptr, buf.length, 0, false, true, true);
+        });
+    }
+
     //incoming client packet, all data (including id) is in unmarshal buffer
     private void receive(ubyte channelId, UnmarshalBuffer unmarshal) {
         auto pid = unmarshal.read!(ClientPacket)();
@@ -721,6 +741,9 @@ class CmdNetClientConnection {
                 auto p = unmarshal.read!(CPPong)();
                 Time rtt = timeCurrentTime() - p.ts;
                 gotPong(rtt);
+                break;
+            case ClientPacket.clientBroadcast:
+                sendClientBroadcast(unmarshal.getRest());
                 break;
             default:
                 //we have reliable networking, so the client did something wrong

@@ -17,6 +17,7 @@ const ushort cProtocolVersion = 3;
 //---------------------- Packet IDs ------------------------
 
 //Server-to-client packet IDs
+//packet structs prefixed with SP
 enum ServerPacket : ushort {
     error,
     conAccept,
@@ -28,9 +29,11 @@ enum ServerPacket : ushort {
     gameStart,
     gameCommands,
     ping,
+    clientBroadcast,
 }
 
 //Client-to-server packet IDs
+//packet structs prefixed with CP
 enum ClientPacket : ushort {
     error,
     hello,
@@ -41,6 +44,13 @@ enum ClientPacket : ushort {
     gameCommand,
     pong,
     ack,
+    clientBroadcast,
+}
+
+//Client-to-client packet IDs
+//packet structs prefixed with CC
+enum Client2ClientPacket : ushort {
+    chatMessage,
 }
 
 //reason for disconnection by the server
@@ -154,6 +164,13 @@ struct SPPing {
     Time ts;
 }
 
+//a client sends all other clients (and itself) a message
+//the actual message data follows after this struct
+struct SPClientBroadcast {
+    //player that sent the message
+    int senderPlayerId;
+}
+
 
 //--------------------- Client-to-server protocol ------------------
 
@@ -193,4 +210,10 @@ struct CPPong {
 
 struct CPAck {
     uint timestamp;
+}
+
+//-------- Client-to-client
+
+struct CCChatMessage {
+    char[] witty_comment;
 }
