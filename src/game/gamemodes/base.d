@@ -82,10 +82,10 @@ class Gamemode {
     {
         static if (Local) {
             if (!mWaitingLocal[timerId]) {
-                mWaitStart[timerId] = modeTime.current;
+                mWaitStartLocal[timerId] = modeTime.current;
                 mWaitingLocal[timerId] = true;
             }
-            Time r = max(t - (modeTime.current - mWaitStart[timerId]),
+            Time r = max(t - (modeTime.current - mWaitStartLocal[timerId]),
                 Time.Null);
             if (r <= Time.Null && autoReset) {
                 mWaitingLocal[timerId] = false;

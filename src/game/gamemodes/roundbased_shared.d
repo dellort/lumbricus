@@ -32,3 +32,14 @@ class RoundbasedStatus {
     bool timePaused;
     bool suddenDeath;
 }
+
+//xxx this shouldn't be here
+class RealtimeStatus {
+    this() {
+    }
+    this(ReflectCtor c) {
+    }
+
+    Time gameRemaining;
+    bool suddenDeath;
+}

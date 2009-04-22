@@ -107,6 +107,7 @@
 		<Unit filename="..\src\game\game.d" />
 		<Unit filename="..\src\game\gamemodes\base.d" />
 		<Unit filename="..\src\game\gamemodes\mdebug.d" />
+		<Unit filename="..\src\game\gamemodes\realtime.d" />
 		<Unit filename="..\src\game\gamemodes\roundbased.d" />
 		<Unit filename="..\src\game\gamemodes\roundbased_shared.d" />
 		<Unit filename="..\src\game\gamepublic.d" />
@@ -185,13 +186,8 @@
 		<Unit filename="..\src\gui\widget.d" />
 		<Unit filename="..\src\gui\window.d" />
 		<Unit filename="..\src\gui\wm.d" />
-		<Unit filename="..\src\irclib\all.d" />
-		<Unit filename="..\src\irclib\client.d" />
-		<Unit filename="..\src\irclib\protocol.d" />
-		<Unit filename="..\src\irclib\tools.d" />
 		<Unit filename="..\src\lumbricus.d" />
 		<Unit filename="..\src\net\announce.d" />
-		<Unit filename="..\src\net\announce_irc.d" />
 		<Unit filename="..\src\net\announce_lan.d" />
 		<Unit filename="..\src\net\announce_php.d" />
 		<Unit filename="..\src\net\broadcast.d" />

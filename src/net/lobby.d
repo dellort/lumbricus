@@ -314,7 +314,7 @@ class CmdNetLobbyTask : Task {
 
     private void hostGame(Button sender) {
         if (mClient.connected) {
-            ConfigNode node = gConf.loadConfig("newgame");
+            ConfigNode node = gConf.loadConfig("newgame_net");
             GameConfig conf = loadGameConfig(node, null, false);
             mClient.startLoading(conf);
         }

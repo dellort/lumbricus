@@ -19,6 +19,7 @@ class Tabs : Container {
             Widget client;
             //rectangle for the button, only valid after relayouting
             Rect2i buttonrc;
+            Vector2i size_tmp;
         }
 
         Font mFont;
@@ -116,10 +117,9 @@ class Tabs : Container {
             //report the biggest, but among all existing tabs (?)
             biggest = biggest.max(w.client.layoutCachedContainerSizeRequest());
             //and some manual layouting (see drawing code) for the button bar
-            auto b = w.button.layoutCachedContainerSizeRequest();
-            w.buttonrc = Rect2i(b);
-            buttons.x += b.x;
-            buttons.y = max(buttons.y, b.y);
+            w.size_tmp = w.button.layoutCachedContainerSizeRequest();
+            buttons.x += w.size_tmp.x;
+            buttons.y = max(buttons.y, w.size_tmp.y);
         }
         biggest.y += buttons.y + (cBorder+1)/2;
         biggest.x = max(biggest.x, buttons.x + 1);
@@ -135,8 +135,8 @@ class Tabs : Container {
         }
         Vector2i cur;
         foreach (ref Item w; mItems) {
-            w.buttonrc += cur - w.buttonrc.p1;
-            cur.x += w.buttonrc.size.x;
+            w.buttonrc = Rect2i(cur, cur + w.size_tmp);
+            cur.x += w.size_tmp.x;
             w.button.layoutContainerAllocate(w.buttonrc);
         }
     }

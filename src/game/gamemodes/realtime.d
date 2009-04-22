@@ -6,6 +6,7 @@ import game.game;
 import game.controller;
 import game.gamepublic;
 import game.gamemodes.base;
+import game.gamemodes.roundbased_shared;
 
 import utils.array;
 import utils.configfile;
@@ -19,12 +20,28 @@ import utils.log;
 class ModeRealtime : Gamemode {
     private {
         //static LogStruct!("gamemodes.mdebug") log;
-        bool mGameEnded;
-        const cCrateDelay = timeSecs(10);
+        bool mGameEndedInt, mGameEnded;
+        Time mCrateInterval, mWaterInterval;
+        Time mGameTime;
+        int mMaxCrates = 10;
+        int mSuddenDeathWaterRaise = 32;
+
+        const cWinTime = timeSecs(5);
+        //time from being hit until you can move again
+        const cHitDelay = timeMsecs(1000);
+        Time[ServerTeam] mTeamDeactivateTime;
+        RealtimeStatus mStatus;
     }
 
     this(GameController parent, ConfigNode config) {
         super(parent, config);
+        mStatus = new RealtimeStatus();
+        mCrateInterval = timeSecs(config.getIntValue("crate_interval", 10));
+        mWaterInterval = timeSecs(config.getIntValue("water_interval", 15));
+        mGameTime = timeSecs(config.getIntValue("gametime", 120));
+        mMaxCrates = config.getIntValue("maxcrates", mMaxCrates);
+        mSuddenDeathWaterRaise = config.getIntValue("water_raise",
+            mSuddenDeathWaterRaise);
     }
 
     this(ReflectCtor c) {
@@ -44,36 +61,78 @@ class ModeRealtime : Gamemode {
 
     void simulate() {
         super.simulate();
-        int a;
+        mStatus.gameRemaining = max(mGameTime - modeTime.current(), Time.Null);
+
+        //--------- Winning and game end ----------------
+
+        if (mGameEndedInt) {
+            if (wait(cWinTime, 2, false))
+                mGameEnded = true;
+            return;
+        }
+        int aliveCount;
         ServerTeam lastteam;
         foreach (t; logic.teams()) {
             if (t.alive()) {
-                a++;
+                aliveCount++;
                 lastteam = t;
             }
         }
-        if (a == 0) {
-            logic.messageAdd("msgnowin");
-            mGameEnded = true;
-        } else if (a == 1) {
-            lastteam.youWinNow();
-            logic.messageAdd("msgwin", [lastteam.name]);
-            mGameEnded = true;
+        if (aliveCount < 2) {
+            //"Controlled shutdown": deactivate teams, wait for silence,
+            //  blow up worms, end game
+            logic.deactivateAll();
+            if (engine.checkForActivity)
+                return;
+            logic.updateHealth();
+            if (logic.checkDyingWorms())
+                return;
+            mGameEndedInt = true;
+            if (aliveCount == 0) {
+                logic.messageAdd("msgnowin");
+            } else {
+                lastteam.youWinNow();
+                logic.messageAdd("msgwin", [lastteam.name]);
+            }
         }
-        if (mGameEnded)
-            return;
 
-        if (wait(cCrateDelay)) {
+        //----------------- Sudden death ----------------
+
+        if (mStatus.gameRemaining <= Time.Null && !mStatus.suddenDeath) {
+            mStatus.suddenDeath = true;
+            logic.messageAdd("msgsuddendeath");
+        }
+        if (mStatus.suddenDeath && wait(mWaterInterval, 1)) {
+            engine.raiseWater(mSuddenDeathWaterRaise);
+        }
+
+        //------------ one crate every mCrateInterval -------------
+
+        if (wait(mCrateInterval) && engine.countSprites("crate") < mMaxCrates) {
+            logic.messageAdd("msgcrate");
             logic.dropCrate();
         }
 
+        //----------- Team activating ---------------
+
+        //xxx worm blowup every frame, better ideas?
         logic.checkDyingWorms();
-        //if active team is dead or so, pick new one
+        //check if we need to activate or deactivate a team
         foreach (t; logic.teams()) {
-            if (!t.current || t.current.lifeLost()) {
+            if (!t.active) {
+                //if a worm was hit, force a cHitDelay pause on the team
+                if ((!(t in mTeamDeactivateTime))
+                    || (modeTime.current - mTeamDeactivateTime[t] > cHitDelay))
+                {
+                    logic.activateTeam(t);
+                }
+            } else if (!t.current || t.current.lifeLost()) {
+                //worm change if the current worm was hit
                 logic.activateTeam(t, false);
+                //xxx what about other team members being hit? health
+                //    may not update for a long time
                 t.updateHealth();
-                logic.activateTeam(t);
+                mTeamDeactivateTime[t] = modeTime.current();
             }
         }
     }
@@ -83,7 +142,7 @@ class ModeRealtime : Gamemode {
     }
 
     Object getStatus() {
-        return null;
+        return mStatus;
     }
 
     static this() {

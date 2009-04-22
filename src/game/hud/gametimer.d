@@ -72,12 +72,12 @@ class GameTimer : Container {
         mMinSize = toVector2i(toVector2f(mRoundTime.font.textSize("99"))*1.7f);
         //mMinSize.y = 100; //cast(int)(mMinSize.x*0.9f);
 
-        showGameTime(mShowGameTime);
+        setGameTimeMode(mShowGameTime || !!statusRT(), !statusRT());
 
         mLastTime = timeCurrentTime();
 
         //???
-        mEnabled = !!status();
+        mEnabled = !!status() || !!statusRT();
     }
 
     //returns info-object, or null if no round based stuff is going on
@@ -86,13 +86,25 @@ class GameTimer : Container {
         return cast(RoundbasedStatus)mGame.logic.gamemodeStatus();
     }
 
-    void showGameTime(bool show) {
-        mShowGameTime = show;
+    private RealtimeStatus statusRT() {
+        return cast(RealtimeStatus)mGame.logic.gamemodeStatus();
+    }
+
+    void setGameTimeMode(bool showGT, bool showRT = true) {
+        mShowGameTime = showGT;
         mLabelBox.clear();
-        mLabelBox.add(mRoundTime);
-        if (show)
+        if (showRT)
+            mLabelBox.add(mRoundTime);
+        if (showGT)
             mLabelBox.add(mGameTime);
         needRelayout();
+    }
+
+    private void setGameTime(Time tRemain) {
+        Time gt = tRemain - timeMsecs(1);
+        int gt_sec = gt > Time.Null ? gt.secs+1 : 0;
+        mGameTime.text = myformat_s(mGameTBuffer, "{:d2}:{:d2}",
+            gt_sec / 60, gt_sec % 60);
     }
 
     override void simulate() {
@@ -100,10 +112,10 @@ class GameTimer : Container {
             return;
 
         auto st = status();
-        assert (!!st);
+        auto stRT = statusRT();
 
         bool active;
-        if (mGame) {
+        if (st) {
             int state = st.state;
             Team[] t = mGame.logic.getActiveTeams;
             TeamMember m;
@@ -130,16 +142,20 @@ class GameTimer : Container {
                     mRoundTime.font = mFont[0];
                     mGameTime.font = mFont[3];
                 }
-                mRoundTime.text = myformat_s(mRndTBuffer, "{}", cast(int)rt_sec);
-                Time gt = st.gameRemaining - timeMsecs(1);
-                int gt_sec = gt > Time.Null ? gt.secs+1 : 0;
-                mGameTime.text = myformat_s(mGameTBuffer, "{:d2}:{:d2}",
-                    gt_sec / 60, gt_sec % 60);
+                mRoundTime.text = myformat_s(mRndTBuffer, "{}",cast(int)rt_sec);
+                setGameTime(st.gameRemaining);
             } else {
                 active = false;
             }
-        } else {
-            active = false;
+        } else if (stRT) {
+            auto m = mGame.control.getControlledMember;
+            if (m)
+                bordercolor = mGame.allMembers[m].owner.color;
+            else
+                bordercolor = Color(0.7f);
+            mLabelBox.styles.setState("active", !!m);
+            active = !mGame.logic.gameEnded();
+            setGameTime(stRT.gameRemaining);
         }
 
         if (active != mActive) {

@@ -18,14 +18,14 @@ import tango.core.Thread;
 import tango.core.Exception;
 import str = stdx.string;
 
-LogStruct!("http_get") http_log;
+//LogStruct!("http_get") http_log;
 
 //get stuff from URL
 //use GET method and encode args as arguments for the method
 //return true or false on success or failure
 //result contains the response data or an error message
 private bool http_get(char[] url, out char[] result, char[][char[]] args) {
-    http_log("HTTP GET: url={} args={}", url, args);
+    //http_log("HTTP GET: url={} args={}", url, args);
 
     auto client = new HttpClient(HttpClient.Get, url);
     scope(exit) client.close();

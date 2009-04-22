@@ -7,7 +7,6 @@ public import net.cmdprotocol;
 import net.netlayer;
 import net.marshal;
 import net.announce;
-import net.announce_irc;
 import net.announce_php;
 import net.announce_lan;
 import utils.configfile;
@@ -239,23 +238,22 @@ class CmdNetServer {
             }
             ConfigNode ct = cl.mMyTeamInfo;
             if (ct) {
-                //xxx this whole function is one giant hack, this just adds a little
-                //  more hackiness -->
+                //xxx this whole function is one giant hack, this just adds a
+                //  little more hackiness -->
+                //fixed number of team members
                 char[][] wormNames;
-                foreach (ConfigNode sub; ct.getSubNode("member_names")) {
+                auto memberNode = ct.getSubNode("member_names");
+                foreach (ConfigNode sub; memberNode) {
                     wormNames ~= sub.value;
                 }
-                if (wormNames.length > mWormCount)
-                    wormNames.length = mWormCount;
-                else if (wormNames.length < mWormCount) {
-                    for (int i = wormNames.length; i < mWormCount; i++) {
-                        wormNames ~= myformat("Worm {}", i);
-                    }
+                memberNode.clear();
+                for (int i = 0; i < mWormCount; i++) {
+                    if (i < wormNames.length)
+                        memberNode.add("", wormNames[i]);
+                    else
+                        memberNode.add("", myformat("Worm {}", i));
                 }
-                ct.remove("member_names");
-                foreach (wn; wormNames) {
-                    ct.getSubNode("member_names").add("", wn);
-                }
+                //fixed health and weapons
                 ct.setValue("power", mWormHP);
                 ct["weapon_set"] = mWeaponSet;
                 //<-- big hack end

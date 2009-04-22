@@ -36,7 +36,7 @@ void initGameSerialization() {
         NapalmSprite, WeaponHandle, ModeRoundbased, ModeDebug, TimeSource,
         TimeSourceFixFramerate, EventAggregator, DieAction, RoundbasedStatus,
         TeamAction, AoEDamageAction, ImpulseAction, MeleeWeapon, MeleeShooter,
-        ModeRealtime);
+        ModeRealtime, RealtimeStatus);
     //stuff that (maybe) should not be serialized
     //all ctors are marked with "xxx class"
     serialize_types.registerClasses!(ActionContainer, ActionListClass,

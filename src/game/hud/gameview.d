@@ -98,7 +98,7 @@ class GameView : Container {
         int mCurCamPriority;
         AnimationGraphic mCurCamObject;
         Time mLastCamChange;
-        const cCamChangeDelay = timeSecs(2);
+        const cCamChangeDelay = timeSecs(1.2);
 
         float mZoomChange = 1.0f, mCurZoom = 1.0f;
 
@@ -696,18 +696,24 @@ class GameView : Container {
         void updateCurObj() {
             mCurCamObject = best_object;
             mCurCamPriority = best_priority;
-            mLastCamChange = timeCurrentTime();
+            mLastCamChange = now;
         }
 
         if (best_object !is mCurCamObject) {
-            if (best_priority > mCurCamPriority) {
+            //want to change focus
+            //  to higher priority -> immediate
+            //  to lower priority -> with delay cCamChangeDelay
+            if (best_priority > mCurCamPriority
+                || now - mLastCamChange > cCamChangeDelay)
+            {
                 updateCurObj();
-            } else {
-                Time t = timeCurrentTime();
-                if (t - mLastCamChange > cCamChangeDelay) {
-                    updateCurObj();
-                }
             }
+        } else if (mCurCamObject) {
+            //focus unchanged
+            //make sure the focused object does not immediately lose focus
+            //  when it stops moving
+            mLastCamChange = max(mLastCamChange,
+                mCurCamObject.last_position_change);
         }
 
         if (mCurCamObject) {
