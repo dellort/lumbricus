@@ -12,8 +12,11 @@ import utils.vector2;
 ///can control how much space each child gets
 class Splitter : Container {
     private {
-        int mDir;
+        int mDir; //0 = horiz, 1 = vert
         Widget[2] mChildren;
+        //false: mSplitPos is relative to left or top border
+        //true: mSplitPos is relativ to right or bottom border
+        bool mGravityRight;
         Widget mSplit; //this is between the two other children
         //absolute split position; if the mSplit widget can move so far, this
         //is equal to the middle of it
@@ -39,7 +42,11 @@ class Splitter : Container {
             override void onMouseMove(MouseInfo info) {
                 if (mDraging) {
                     auto p = (containedBounds().p1+info.pos-mStartDrag)[mDir];
-                    splitPos = p + mSplitFix;
+                    p += mSplitFix; //?
+                    if (mGravityRight) {
+                        p = this.outer.size()[mDir] - p;
+                    }
+                    splitPos = p;
                 }
             }
         }
@@ -51,6 +58,10 @@ class Splitter : Container {
         mDir = horiz ? 0 : 1;
         mSplit = new Split();
         addChild(mSplit);
+    }
+
+    this() {
+        this(true);
     }
 
     ///set one of the children, if there's an old one it's removed first
@@ -74,6 +85,13 @@ class Splitter : Container {
     ///what was passed to the constructor
     int dir() {
         return mDir;
+    }
+    void dir(int set) {
+        assert(set == 0 || set == 1);
+        if (mDir == set)
+            return;
+        mDir = set;
+        needRelayout();
     }
 
     ///set/get the splitter position in absolute units (range [0..size[dir]])
@@ -110,7 +128,11 @@ class Splitter : Container {
         //pos is in the middle of the splitter; clamp to possible range
         //NOTE: when we got less size than requested, this probably goes wrong
         //  but that shouldn't normally happen anyway
-        auto pos = clampRangeC(mSplitPos, c1[mDir] + mSplitFix,
+        auto pos2 = mSplitPos;
+        if (mGravityRight) {
+            pos2 = size()[mDir] - pos2;
+        }
+        auto pos = clampRangeC(pos2, c1[mDir] + mSplitFix,
             size()[mDir] - c2[mDir] - (border-mSplitFix));
         int[4] p;
         p[0] = 0;
@@ -126,5 +148,30 @@ class Splitter : Container {
             if (c)
                 c.layoutContainerAllocate(rc);
         }
+    }
+
+    void loadFrom(GuiLoader loader) {
+        auto node = loader.node;
+
+        //x or y
+        dir = node["direction"] == "x" ? 0 : 1;
+        //left or right
+        mGravityRight = node["gravity"] == "right";
+        mSplitPos = node.getValue("split_pos", mSplitPos);
+
+        int nchild = 0;
+
+        foreach (ConfigNode child; node.getSubNode("children")) {
+            if (auto w = loader.loadWidget(child)) {
+                setChild(nchild, w);
+                nchild++;
+            }
+        }
+
+        super.loadFrom(loader);
+    }
+
+    static this() {
+        WidgetFactory.register!(typeof(this))("splitter");
     }
 }

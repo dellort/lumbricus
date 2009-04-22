@@ -407,10 +407,14 @@ class CommandBucket {
 
 ///stateless part of the commandline, where commands are registered
 public class CommandLine {
-    private CommandBucket mCommands;
-    private char[] mCommandPrefix;
-    private char[] mDefaultCommand;
-    private CommandLineInstance mDefInstance; //to support execute()
+    private {
+        CommandBucket mCommands;
+        char[] mCommandPrefix;
+        char[] mDefaultCommand;
+        CommandLineInstance mDefInstance; //to support execute()
+    }
+
+    void delegate(CommandLine sender, char[] line) onFallbackExecute;
 
     CommandBucket commands() {
         return mCommands;
@@ -641,6 +645,10 @@ class CommandLineInstance {
 
             auto ccmd = findCommand(cmd);
             if (!ccmd.cmd) {
+                if (mCmdline.onFallbackExecute) {
+                    mCmdline.onFallbackExecute(mCmdline, cmdline);
+                    return true;
+                }
                 if (!silentOnError)
                     mConsole.writefln("Unknown command: "~cmd);
                 return false;

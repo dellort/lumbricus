@@ -457,6 +457,7 @@ class CmdNetClientConnection {
 
     private void initCmds() {
         mCmd = new CommandLine(mCmdOutBuffer);
+        mCmd.setPrefix("/", "say"); //code duplication in client
         mCmds = new CommandBucket();
         mCmds.registerCommand("name", &cmdName, "Change your nickname",
             ["text:new nickname"]);

@@ -2,6 +2,7 @@ module net.lobby;
 
 import common.common;
 import common.task;
+import framework.commandline;
 import framework.framework;
 import framework.i18n;
 import game.gameshell;
@@ -14,6 +15,7 @@ import gui.list;
 import gui.dropdownlist;
 import gui.boxcontainer;
 import gui.button;
+import gui.console;
 import gui.label;
 import gui.edit;
 import gui.loader;
@@ -221,25 +223,6 @@ class CmdNetClientTask : Task {
     }
 }
 
-//we need to be able to catch entered commands and transmit them
-//no tab completion/history for now
-private class CnsEditLine : EditLine {
-    private CmdNetLobbyTask mCl;
-    override protected bool handleKeyPress(KeyInfo infos) {
-        if (infos.code == Keycode.PAGEUP) {
-            mCl.mConsole.scrollBack(+1);
-        } else if (infos.code == Keycode.PAGEDOWN) {
-            mCl.mConsole.scrollBack(-1);
-        } else if (infos.code == Keycode.RETURN) {
-            mCl.executeCommand(text);
-            text = null;
-        } else {
-            return super.handleKeyPress(infos);
-        }
-        return true;
-    }
-}
-
 class CmdNetLobbyTask : Task {
     private {
         CmdNetClient mClient;
@@ -248,8 +231,8 @@ class CmdNetLobbyTask : Task {
         GameTask mGame;
         Button mReadyButton, mHostButton;
         StringListWidget mPlayers;
-        CnsEditLine mEdConsole;
-        LogWindow mConsole;
+        Output mConsole;
+        GuiConsole mConsoleWidget;
         //only needed when this client is starting the game
         GameConfig mGameConfig;
         Widget mLobbyDlg;
@@ -270,7 +253,6 @@ class CmdNetLobbyTask : Task {
 
         auto config = gConf.loadConfig("lobby_gui");
         auto loader = new LoadGui(config);
-        loader.registerWidget!(CnsEditLine)("cnseditline");
         loader.load();
 
         //--------------------------------------------------------------
@@ -292,14 +274,20 @@ class CmdNetLobbyTask : Task {
         mHostButton.onClick = &hostGame;
         mReadyButton = loader.lookup!(Button)("btn_ready");
         mReadyButton.enabled = false;  //xxx later
-        mConsole = loader.lookup!(LogWindow)("console");
-        mEdConsole = loader.lookup!(CnsEditLine)("ed_console");
-        mEdConsole.mCl = this;
+        mConsoleWidget = loader.lookup!(GuiConsole)("chatbox");
+        mConsoleWidget.cmdline.setPrefix("/", "say");
+        mConsoleWidget.cmdline.onFallbackExecute = &cmdlineFalbackExecute;
+        mConsole = mConsoleWidget.output;
 
         loader.lookup!(Button)("btn_leave").onClick = &cancelClick;
 
+        //xxx values should be read from configfile
         mLobbyWnd = gWindowManager.createWindow(this, mLobbyDlg,
-            _("lobby.caption", mClient.playerName));
+            _("lobby.caption", mClient.playerName), Vector2i(550, 500));
+    }
+
+    private void cmdlineFalbackExecute(CommandLine sender, char[] line) {
+        mClient.lobbyCmd(line);
     }
 
     private void onDisconnect(CmdNetClient sender, DiscReason code) {
@@ -313,8 +301,7 @@ class CmdNetLobbyTask : Task {
         //show error message in console
         mConsole.writefln(_("lobby.c_disconnect",
             reasonToString[code]));
-        mConsole.enabled = false;
-        mEdConsole.enabled = false;
+        mConsoleWidget.enabled = false;
     }
 
     private void teamSelect(DropDownList sender) {
