@@ -100,6 +100,7 @@ class Level {
     ConfigNode saved;
 
     //for the level generator; does a deep copy
+    //warning: does not copy the actual level bitmaps
     Level copy() {
         Level nlevel = new Level();
         foreach (int n, t; this.tupleof) {
@@ -138,28 +139,42 @@ class LevelItem {
     }
 }
 
-/*class LevelItemObject : LevelItem {
-    Vector2i position;
-    char[] type;
-}*/
-
-class LevelLandscape : LevelItem {
+class LevelItemObject : LevelItem {
+    //size might be completely redundant, but it's still needed because:
+    // - boundingbox as a hint to the level generator / whoever uses the level
+    // - further unknown and weird reasons
+    //regardless, size might still be 0x0 in random cases (...have fun)
     Vector2i position, size;
+    char[] type;
+
+    protected override void copyFrom(LevelItem other) {
+        super.copyFrom(other);
+        auto o = castStrict!(LevelItemObject)(other);
+        position = o.position;
+        size = o.size;
+        type = o.type;
+    }
+}
+
+class LevelLandscape : LevelItemObject {
     LandscapeTheme landscape_theme;
     //may be null, if the Level was render()ed with render_bitmaps=false
     LandscapeBitmap landscape;
     //for each landscape side if there should be an impenetrable wall
-    //bool[4] impenetrable;
+    // 0=north, 1=east, 2=south, 3=west
+    bool[4] impenetrable;
+    const cWallNames = ["wall_n", "wall_e", "wall_s", "wall_w"];
 
     protected override void copyFrom(LevelItem other) {
         super.copyFrom(other);
         auto o = castStrict!(LevelLandscape)(other);
         position = o.position;
-        size = o.size;
+        //size = o.size;
         //if (o.landscape)
           //  landscape = o.landscape.copy();
         landscape = o.landscape;
         landscape_theme = o.landscape_theme;
+        impenetrable[] = o.impenetrable;
     }
 }
 

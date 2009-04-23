@@ -94,6 +94,8 @@ abstract class LevelGenerator {
 }
 
 ///generate/render a level from a template
+//actually, this handles a lot more
+//to say the truth, this is a rewrite-candidate
 class GenerateFromTemplate : LevelGenerator {
     protected {
         LevelGeneratorShared mShared;
@@ -156,9 +158,9 @@ class GenerateFromTemplate : LevelGenerator {
             lex = mLand.values[0].geo_pregenerated;
         }
         if (lex)
-            return cast(float)lex.size.x/lex.size.y;
+            return (cast(float)lex.size.x)/lex.size.y;
         if (geo)
-            return cast(float)geo.size.x/geo.size.y;
+            return (cast(float)geo.size.x)/geo.size.y;
         return float.nan;
     }
 
@@ -188,6 +190,10 @@ class GenerateFromTemplate : LevelGenerator {
         nlevel.landBounds = Rect2i.Empty();
 
         auto saveto = new ConfigNode();
+        //the following code generates a level and. at the same time, saves the
+        //result to a confignode - the result can be loaded later again, which
+        //means the following code has to be exact
+        //(the code has lots of potential to break network games / savegames)
         nlevel.saved = saveto;
 
         saveto.setStringValue("type", "level_renderer");
@@ -289,6 +295,9 @@ class GenerateFromTemplate : LevelGenerator {
                     land.position.x, land.position.y));
                 //onode.setStringValue("size", myformat("{} {}",
                   //  land.size.x, land.size.y));
+                foreach (int i, val; land.impenetrable) {
+                    saveto_obj.setValue(LevelLandscape.cWallNames[i], val);
+                }
                 nlevel.landBounds.extend(Rect2i.Span(land.position, land.size));
             } else {
                 assert(false);
@@ -417,6 +426,9 @@ class GenerateFromTemplate : LevelGenerator {
                 land.owner = mUnrendered;
                 land.name = onode.name;
                 land.position = onode.getValue!(Vector2i)("position");
+                foreach (int i, ref val; land.impenetrable) {
+                    val = onode.getValue(LevelLandscape.cWallNames[i], false);
+                }
                 Land l2 = new Land();
                 mLand[land.name] = l2;
                 l2.placeObjects = onode.getBoolValue("allow_place_objects",
@@ -887,47 +899,8 @@ class LandscapeLexels {
         node.setByteArrayValue("data", cast(ubyte[])levelData, true);
     }
 
-    /*const ubyte cFirst = cast(ubyte)'#';
-    const byte cDist = cast(ubyte)'~' - cFirst;
-
-    private char[] rleEncode(Lexel[] data) {
-        char[] ret;
-        Lexel last;
-        ubyte rep;
-        foreach (Lexel l; data) {
-            if (rep == 0) {
-                last = l;
-                rep = 1;
-            } else if (l == last && rep < cDist) {
-                rep++;
-            } else {
-                ret ~= cast(char)(rep + cFirst);
-                ret ~= cast(char)(last + cFirst);
-                last = l;
-                rep = 1;
-            }
-        }
-        if (rep != 0) {
-            ret ~= cast(char)(rep + cFirst);
-            ret ~= cast(char)(last + cFirst);
-        }
-        return ret;
-    }
-
-    private void rleDecode(char[] data, ref Lexel[] buf) {
-        int p;
-        for (int i = 0; i < data.length; i += 2) {
-            ubyte rep = cast(ubyte)data[i] - cFirst;
-            Lexel l = cast(Lexel)(cast(ubyte)data[i+1] - cFirst);
-            if (p+rep > buf.length)
-                throw new Exception("RLE decoding failed");
-            buf[p..p+rep] = l;
-            p += rep;
-        }
-    }*/
-
     GenerateFromTemplate generator(LevelGeneratorShared shared, bool isCave,
-        bool placeObjects)
+        bool placeObjects, bool[4] walls)
     {
         auto gc = shared.generatorConfig;
         auto node = gc.getSubNode("import_pregenerated").copy();
@@ -936,6 +909,13 @@ class LandscapeLexels {
         if (placeObjects) {
             node.mixinNode(gc.getSubNode("import_placeobjects"), true, true);
         }
+        //duplicated from somewhere else and thus sucks donkey balls
+        //but I'm not going to de-PITA levelgen/*.d right now, see TODO
+        auto landscape = node.getSubNode("objects").getSubNode("land0");
+        foreach (int i, ref val; walls) {
+            landscape.setValue(LevelLandscape.cWallNames[i], val);
+        }
+        //
         auto templ = new LevelTemplate(node, "imported");
         return new GenerateFromTemplate(shared, templ, this);
     }

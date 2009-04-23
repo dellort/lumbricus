@@ -1,4 +1,4 @@
-- Fix/Change, + kleines Feature, * großes, langfristiges Feature, *** völlig unmöglich, [] wurde versucht, aber nur kompromiss wurde implementiert oder es hat nicht geklappt
+! PITA (hacks entfernen/neuschreiben, kompliziert, wenig gewinn), - Fix/Change, + kleines Feature, * großes, langfristiges Feature, *** völlig unmöglich, [] wurde versucht, aber nur kompromiss wurde implementiert oder es hat nicht geklappt
 
 
 == Sonstiges/Minor ==
@@ -8,10 +8,12 @@
 - task spezifische commandos/hotkeys (ähnlich wie in loadsafe.d)
    (und den gräuslichen hack in commandline.d entfernen)
 - debugging: würmer auswählen und GameObject-Felder anzeigen lassen
+! generator.d: reduziere komplexität indem "generierte" level nur noch als lexel-array gespeichert werden (statt als gefüllte polygone); verschiebe das laden/speichern von savegames(bzw. netzwerk level) nach level.d; mache strukturen in level.d vllt. serialisierbar (statt manueller lade/speicher code); in generator.d würde nur noch code zum rendern bleiben + müllcode zum laden und speichern von templates (lol leveledit.d); vllt. savegames/netzwerklevels immer als komplette bitmap speichern?; danach kann glevel.d das zeug aus level.d direkt verwenden und ist weniger hackig
+- hashcheck für savegames und insbesondere netzwerklevels
 
 == bekannte, lösbare Bugs ==
 - wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
-- napalm ist sehr langsam, minenagriff nicht => ?
+! napalm ist sehr langsam, minenagriff nicht => ?
 
 == GUI (allgemeine Features) ==
 + richtige GUI listen
@@ -40,9 +42,7 @@
 * Spiel über mehrere Runden (Scores, Waffen sammeln, Statistiken, Gesamtsieg)
 + Spiel-Statistiken, insb. Team- und Wurm-bezogene
 + Powerup-Kisten (2x Schaden, Niedrige Schwerkraft etc.) und Medizinkisten
-+ "Action"-Spielmodus (Netzwerk; mehrere Spieler gleichzeitig aktiv)
 - Level-Generator: Objekt-/Brückenplatzierung überarbeiten (Decke, Wand links/rechts etc.)
-+ Harter Rand ums Level
 *** KI
 *** Scripting
 
@@ -66,7 +66,7 @@
 + Luftangriff-Steuerung (Mauszeiger, links/rechts)
 + Begrenzte Jetpack-Flugdauer mit Anzeige
 
-* Steuerung entrümpeln, unabhängig von Würmern machen (worm.d)
+! Steuerung entrümpeln, unabhängig von Würmern machen (worm.d)
 
 
 == Netzwerk ==

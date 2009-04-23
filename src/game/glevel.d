@@ -164,6 +164,28 @@ class GameLandscape : GameObject {
 
         //to enable level-bitmap collision
         engine.physicworld.add(mPhysics);
+
+        if (!mOriginal)
+            return;
+
+        //add borders, sadly they are invisible right now
+        void add_wall(Vector2i from, Vector2i to) {
+            auto wall = new PlaneGeometry(toVector2f(to), toVector2f(from));
+            engine.physicworld.add(wall);
+
+            auto border = engine.graphics.createLine();
+            border.setColor(Color(0.5));
+            border.setWidth(5);
+            //border.setTexture(...);
+            border.setPos(from, to);
+        }
+
+        auto rc = Rect2i.Span(offset, size);
+        auto walls = mOriginal.impenetrable;
+        if (walls[0]) add_wall(rc.p1, rc.pA);
+        if (walls[1]) add_wall(rc.pA, rc.p2);
+        if (walls[2]) add_wall(rc.p2, rc.pB);
+        if (walls[3]) add_wall(rc.pB, rc.p1);
     }
 
     public int damage(Vector2i pos, int radius) {

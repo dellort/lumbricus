@@ -91,6 +91,7 @@ class PlaneGeometry : PhysicGeometry {
     }
 
     this (ReflectCtor c) {
+        super(c);
     }
 
     bool collide(Vector2f pos, float radius, out GeomContact contact) {

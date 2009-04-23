@@ -41,6 +41,7 @@ class LevelSelector : SimpleContainer {
         //last selected level, null if the level has been modified
         LevelGenerator mLastLevel;
         Button mIsCave, mPlaceObjects;
+        Button[4] mWalls;
     }
 
     struct LevelInfo {
@@ -102,10 +103,11 @@ class LevelSelector : SimpleContainer {
         loader.lookup!(Button)("btn_cancel").onClick = &cancelClick;
         loader.lookup!(Button)("btn_ok").onClick = &okClick;
         mIsCave = loader.lookup!(Button)("chk_iscave");
-        mIsCave.onClick = &chkIsCaveClick;
+        mIsCave.onClick = &button_painterchange;
         mPlaceObjects = loader.lookup!(Button)("chk_objects");
-        mPlaceObjects.onClick = &chkObjectsClick;
+        mPlaceObjects.onClick = &button_painterchange;
 
+        //xxx: get rid of the code duplication (the handler callbacks as well)
         mChkDrawMode ~= loader.lookup!(Button)("chk_circle");
         mChkDrawMode[$-1].onClick = &chkCircleClick;
         mChkDrawMode ~= loader.lookup!(Button)("chk_square");
@@ -114,6 +116,12 @@ class LevelSelector : SimpleContainer {
         mChkDrawMode[$-1].onClick = &chkLineClick;
         mChkDrawMode ~= loader.lookup!(Button)("chk_rect");
         mChkDrawMode[$-1].onClick = &chkRectClick;
+
+        foreach (int i, ref b; mWalls) {
+            mWalls[i] = loader.lookup!(Button)(
+                "chk_" ~ LevelLandscape.cWallNames[i]);
+            mWalls[i].onClick = &button_painterchange;
+        }
 
         mLayout = loader.lookup!(Widget)("levelpreview_root");
         add(mLayout);
@@ -171,11 +179,8 @@ class LevelSelector : SimpleContainer {
         mPainter.setDrawMode(DrawMode.rect);
     }
 
-    private void chkIsCaveClick(Button sender) {
-        painterChange(mPainter);
-    }
-
-    private void chkObjectsClick(Button sender) {
+    //onClick for several unrelated buttons
+    private void button_painterchange(Button sender) {
         painterChange(mPainter);
     }
 
@@ -239,8 +244,12 @@ class LevelSelector : SimpleContainer {
             LandscapeLexels lex = new LandscapeLexels();
             lex.levelData = mPainter.levelData;
             lex.size = mPainter.levelSize;
+            bool[4] walls;
+            for (int i = 0; i < 4; i++) {
+                walls[i] = mWalls[i].checked;
+            }
             lvl = lex.generator(mGenerator, mIsCave.checked,
-                mPlaceObjects.checked);
+                mPlaceObjects.checked, walls);
         }
         auto gen = cast(GenerateFromTemplate)lvl;
         if (gen)
