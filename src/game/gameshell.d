@@ -673,6 +673,12 @@ class GameShell {
             }
         }
 
+        void createSplat(SplatType type) {
+            foreach (cb; mCallbacks) {
+                cb.createSplat(type);
+            }
+        }
+
         void showMessage(LocalizedMessage msg) {
             foreach (cb; mCallbacks) {
                 cb.showMessage(msg);

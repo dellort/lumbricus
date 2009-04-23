@@ -20,6 +20,7 @@ struct InterpolateFnTime(T, alias FN, alias FN_1 = Missing) {
     Time startTime, duration = Time.Never;
     T start;
     T target;
+    private T doneValue;
     Time delegate() currentTimeDg;
 
     Time currentTime() {
@@ -34,13 +35,15 @@ struct InterpolateFnTime(T, alias FN, alias FN_1 = Missing) {
         duration = a_duration;
         start = a_start;
         target = a_target;
+        //not all functions have to end at f(x) = 1.0f
+        doneValue = start + cast(T)((target - start) * FN(1.0f));
     }
 
     ///Return the current value (will sample time)
     T value() {
         auto d = currentTime() - startTime;
         if (d >= duration) {
-            return target;
+            return doneValue;
         }
         //have to scale it without knowing what datatype it is
         return start + cast(T)((target - start)
@@ -69,9 +72,7 @@ static if (!is(FN_1 == Missing)) {
     ///Change parameters without losing current value
     void setParams(Time a_duration, T a_start, T a_target) {
         T cur = value();
-        duration = a_duration;
-        start = a_start;
-        target = a_target;
+        init(a_duration, a_start, a_target);
         set(cur);
     }
 }

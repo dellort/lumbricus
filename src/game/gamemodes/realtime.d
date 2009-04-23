@@ -100,6 +100,7 @@ class ModeRealtime : Gamemode {
 
         if (mStatus.gameRemaining <= Time.Null && !mStatus.suddenDeath) {
             mStatus.suddenDeath = true;
+            engine.createSplat(SplatType.nuke);
             logic.messageAdd("msgsuddendeath");
         }
         if (mStatus.suddenDeath && wait(mWaterInterval, 1)) {

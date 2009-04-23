@@ -125,6 +125,7 @@ class GameLandscape : GameObject {
 
         //used to display it in the client
         LandscapeGraphic mGraphic;
+        Resource!(Surface) mBorderSegment;
     }
 
     this(GameEngine aengine, LevelLandscape land) {
@@ -137,6 +138,8 @@ class GameLandscape : GameObject {
 
         //landscape landscape landscape
         mLandscape = land.landscape.copy();
+        mBorderSegment =
+            engine.gfx.resources.resource!(Surface)("border_segment");
 
         init();
     }
@@ -176,7 +179,7 @@ class GameLandscape : GameObject {
             auto border = engine.graphics.createLine();
             border.setColor(Color(0.5));
             border.setWidth(5);
-            //border.setTexture(...);
+            border.setTexture(mBorderSegment);
             border.setPos(from, to);
         }
 

@@ -1016,7 +1016,7 @@ class WeaponItem {
     bool canUse() {
         if (!haveAtLeastOne())
             return false;
-        return !mWeapon.isAirstrike || mEngine.level.airstrikeAllow;
+        return mWeapon.canUse();
     }
 
     void decrease() {
@@ -1098,6 +1098,7 @@ class GameController : GameLogicPublic {
 
     this(GameEngine engine, GameConfig config) {
         mEngine = engine;
+        mEngine.setController(this);
 
         if (config.weapons) {
             loadWeaponSets(config.weapons);
@@ -1418,7 +1419,13 @@ class GameController : GameLogicPublic {
     //returns null if none was found
     WeaponClass chooseRandomForCrate() {
         if (mCrateList.length > 0) {
-            int r = engine.rnd.next(0, mCrateList.length);
+            int r, count = 10;
+            do {
+                r = engine.rnd.next(0, mCrateList.length);
+                count--;
+                if (count < 0)
+                    return null;
+            } while (!mCrateList[r].canUse());
             return mCrateList[r];
         } else {
             return null;

@@ -5,6 +5,7 @@
 		<Option title="unworms" />
 		<Option makefile="makefile" />
 		<Option makefile_is_custom="1" />
+		<Option execution_dir="..\src" />
 		<Option compiler="dmd" />
 		<Build>
 			<Target title="Debug">
@@ -14,12 +15,12 @@
 				<Option type="1" />
 				<Option compiler="dmd" />
 				<MakeCommands>
-					<Build command="$make -f $makefile build T=unworms" />
+					<Build command="dsss build unworms.d --debug" />
 					<CompileFile command="" />
-					<Clean command="$make -f $makefile clean" />
+					<Clean command="dsss clean" />
 					<DistClean command="" />
 					<AskRebuildNeeded command="" />
-					<SilentBuild command="$make -s -f $makefile build T=unworms" />
+					<SilentBuild command="dsss build unworms.d --debug" />
 				</MakeCommands>
 			</Target>
 			<Target title="Release">
@@ -29,19 +30,20 @@
 				<Option type="1" />
 				<Option compiler="dmd" />
 				<MakeCommands>
-					<Build command="$make -f $makefile release T=unworms" />
+					<Build command="dsss build unworms.d" />
 					<CompileFile command="" />
-					<Clean command="$make -f $makefile clean" />
+					<Clean command="dsss clean" />
 					<DistClean command="" />
 					<AskRebuildNeeded command="" />
-					<SilentBuild command="$make -s -f $makefile release T=unworms" />
+					<SilentBuild command="dsss build unworms.d" />
 				</MakeCommands>
 			</Target>
 		</Build>
-		<Unit filename="..\src\aconv\metadata.d" />
+		<Unit filename="..\src\aconv\atlaspacker.d" />
 		<Unit filename="..\src\devil\image.d" />
 		<Unit filename="..\src\unworms.d" />
 		<Unit filename="..\src\utils\boxpacker.d" />
+		<Unit filename="..\src\utils\filetools.d" />
 		<Unit filename="..\src\utils\vector2.d" />
 		<Unit filename="..\src\wwpdata\animation.d" />
 		<Unit filename="..\src\wwpdata\common.d" />

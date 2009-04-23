@@ -5,6 +5,7 @@
 		<Option title="animutil" />
 		<Option makefile="makefile" />
 		<Option makefile_is_custom="1" />
+		<Option execution_dir="..\src" />
 		<Option compiler="dmd" />
 		<Build>
 			<Target title="Debug">
@@ -15,12 +16,12 @@
 				<Option compiler="dmd" />
 				<Option projectResourceIncludeDirsRelation="0" />
 				<MakeCommands>
-					<Build command="$make -f $makefile build T=animutil" />
+					<Build command="dsss build animutil.d --debug" />
 					<CompileFile command="" />
-					<Clean command="$make -f $makefile clean" />
+					<Clean command="dsss clean" />
 					<DistClean command="" />
 					<AskRebuildNeeded command="" />
-					<SilentBuild command="$make -s -f $makefile build T=animutil" />
+					<SilentBuild command="dsss build animutil.d --debug" />
 				</MakeCommands>
 			</Target>
 			<Target title="Release">
@@ -31,12 +32,12 @@
 				<Option compiler="dmd" />
 				<Option projectResourceIncludeDirsRelation="0" />
 				<MakeCommands>
-					<Build command="$make -f $makefile release T=animutil" />
+					<Build command="dsss build animutil.d" />
 					<CompileFile command="" />
-					<Clean command="$make -f $makefile clean" />
+					<Clean command="dsss clean" />
 					<DistClean command="" />
 					<AskRebuildNeeded command="" />
-					<SilentBuild command="$make -s -f $makefile release T=animutil" />
+					<SilentBuild command="dsss build animutil.d" />
 				</MakeCommands>
 			</Target>
 		</Build>

@@ -187,6 +187,7 @@ class Sequence {
         if (!nullUpdate)
             nullUpdate = new SequenceUpdate();
         mUpdate = nullUpdate;
+        mOwner = owner;
     }
 
     this (ReflectCtor c) {

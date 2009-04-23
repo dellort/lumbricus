@@ -345,7 +345,12 @@ class GameEngine : GameEnginePublic {
 
         //NOTE: GameController relies on many stuff at initialization
         //i.e. physics for worm placement
-        mController = new GameController(this, config);
+        new GameController(this, config);
+    }
+
+    package void setController(GameController ctl) {
+        assert(!mController);
+        mController = ctl;
     }
 
     void addCallback(GameEngineCallback cb) {
@@ -740,6 +745,10 @@ class GameEngine : GameEnginePublic {
         //xxx needs moar tweaking
         //if (damage > 50)
         //    addEarthQuake(damage, 0.5);
+    }
+
+    void createSplat(SplatType type) {
+        mCallbacks.createSplat(type);
     }
 
     //destroy a circular area of the damageable landscape

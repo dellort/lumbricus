@@ -5,6 +5,7 @@
 		<Option title="Lumbricus" />
 		<Option makefile="makefile" />
 		<Option makefile_is_custom="1" />
+		<Option execution_dir="..\src" />
 		<Option compiler="dmd" />
 		<Build>
 			<Target title="Debug">
@@ -16,12 +17,12 @@
 				<Option parameters="--fw.drivers.sound=null" />
 				<Option projectResourceIncludeDirsRelation="0" />
 				<MakeCommands>
-					<Build command="$make -f $makefile build T=lumbricus" />
+					<Build command="dsss build lumbricus.d --debug" />
 					<CompileFile command="" />
-					<Clean command="$make -f $makefile clean" />
+					<Clean command="dsss clean" />
 					<DistClean command="" />
 					<AskRebuildNeeded command="" />
-					<SilentBuild command="$make -s -f $makefile build T=lumbricus" />
+					<SilentBuild command="dsss build lumbricus.d --debug" />
 				</MakeCommands>
 			</Target>
 			<Target title="Release">
@@ -32,12 +33,12 @@
 				<Option compiler="dmd" />
 				<Option projectResourceIncludeDirsRelation="0" />
 				<MakeCommands>
-					<Build command="$make -f $makefile release T=lumbricus" />
+					<Build command="dsss build lumbricus.d" />
 					<CompileFile command="" />
-					<Clean command="$make -f $makefile clean" />
+					<Clean command="dsss clean" />
 					<DistClean command="" />
 					<AskRebuildNeeded command="" />
-					<SilentBuild command="$make -s -f $makefile release T=lumbricus" />
+					<SilentBuild command="dsss build lumbricus.d" />
 				</MakeCommands>
 			</Target>
 		</Build>

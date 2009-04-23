@@ -429,6 +429,9 @@ class GenerateFromTemplate : LevelGenerator {
                 foreach (int i, ref val; land.impenetrable) {
                     val = onode.getValue(LevelLandscape.cWallNames[i], false);
                 }
+                //no airstrikes if we have a top wall
+                if (land.impenetrable[0])
+                    mUnrendered.airstrikeAllow = false;
                 Land l2 = new Land();
                 mLand[land.name] = l2;
                 l2.placeObjects = onode.getBoolValue("allow_place_objects",

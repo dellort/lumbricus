@@ -1,5 +1,7 @@
 module game.temp;
 
+//enum dumping ground...
+
 ///this tells the client the state (i.e. possible interactions) of the currently
 ///active worm (no animation states etc)
 ///(client information only, to update the gui/map keys or something)
@@ -30,4 +32,8 @@ enum WeaponMode {
                  ///(falling, retreating after fire, ...)
     full,        ///full weapon set available
     secondary,   ///limited weapon set (jetpack-flying, ...)
+}
+
+enum SplatType {
+    nuke,
 }

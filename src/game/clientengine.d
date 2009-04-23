@@ -43,17 +43,31 @@ enum GameZOrder {
     Names, //what
     Clouds,
     FrontWater,
+    RangeArrow,  //object-off-level-area arrow
+    Splat,   //Fullscreen effect
 }
 
 
 class ClientAnimationGraphic : Animator {
     AnimationGraphic mInfo;
+    Animator mOffArrow;
     int last_set_ts = -1;
+    private Rect2i mWorldBounds, mArrowPosRect;
 
-    this(AnimationGraphic info) {
+    //xxx need worldBounds for out-arrow, better (generic) way to get it?
+    this(AnimationGraphic info, Rect2i worldBounds) {
         super(info.owner.timebase);
         zorder = GameZOrder.Objects;
         mInfo = info;
+        mWorldBounds = worldBounds;
+        mArrowPosRect = worldBounds;
+        mArrowPosRect.extendBorder(Vector2i(-20));
+        if (mInfo.owner_team) {
+            //out-of-world arrow, in team colors
+            mOffArrow = new Animator(info.owner.timebase);
+            mOffArrow.setAnimation(mInfo.owner_team.color.cursor.get());
+            mOffArrow.zorder = GameZOrder.RangeArrow;
+        }
     }
 
     override void draw(Canvas c) {
@@ -67,7 +81,29 @@ class ClientAnimationGraphic : Animator {
             setAnimation2(mInfo.animation, mInfo.animation_start);
             last_set_ts = mInfo.set_timestamp;
         }
+        if (mOffArrow) {
+            //if object is out of world boundaries, show arrow
+            if (!mWorldBounds.isInside(pos) && pos.y < mWorldBounds.p2.y) {
+                if (!mOffArrow.parent)
+                    parent.add(mOffArrow);
+                mOffArrow.pos = mArrowPosRect.clip(pos);
+                //use object velocity for arrow rotation
+                int a = 90;
+                if (mInfo.more.velocity.quad_length > float.epsilon)
+                    a = cast(int)(mInfo.more.velocity.toAngle()*180.0f/PI);
+                //xxx: arrow animation seems rotated by 180°
+                mOffArrow.params.p1 = (a+180)%360;
+            } else {
+                if (mOffArrow.parent)
+                    mOffArrow.removeThis();
+            }
+        }
         super.draw(c);
+    }
+
+    override void removeThis() {
+        if (mOffArrow)
+            mOffArrow.removeThis();
     }
 }
 
@@ -284,6 +320,33 @@ class ExplosionGfxImpl : SceneObjectCentered {
     }
 }
 
+float nukeFlash(float A)(float x) {
+    if (x < A)
+        return interpExponential!(6.0f)(x/A);
+    else
+        return interpExponential!(-4.5f)((1.0f-x)/(1.0f-A));
+}
+
+class NukeSplatGraphic : SceneObject {
+    private {
+        InterpolateFnTime!(float, nukeFlash!(0.1f)) mInterp;
+    }
+
+    this() {
+        zorder = GameZOrder.Splat;
+        mInterp.init(timeMsecs(3500), 0, 1.0f);
+    }
+
+    override void draw(Canvas c) {
+        if (!mInterp.inProgress()) {
+            removeThis();
+            return;
+        }
+        c.drawFilledRect(c.getVisible(),
+            Color(1.0f, 1.0f, 1.0f, mInterp.value()));
+    }
+}
+
 //client-side game engine, manages all stuff that does not affect gameplay,
 //but needs access to the game and is drawn into the game scene
 class ClientGameEngine : GameEngineCallback {
@@ -416,7 +479,7 @@ class ClientGameEngine : GameEngineCallback {
             //urghs, but interface methods (like .createAnimation()) can't be
             //used when loading from a saved game
             if (auto ani = cast(AnimationGraphic)g) {
-                add(new ClientAnimationGraphic(ani));
+                add(new ClientAnimationGraphic(ani, mSceneRect));
             } else if (auto line = cast(LineGraphic)g) {
                 add(new ClientLineGraphic(line));
             } else if (auto land = cast(LandscapeGraphic)g) {
@@ -437,6 +500,15 @@ class ClientGameEngine : GameEngineCallback {
     void damage(Vector2i pos, int radius, bool explode) {
         if (explode) {
             scene.add(new ExplosionGfxImpl(engineTime, gfx, pos, radius*2));
+        }
+    }
+
+    void createSplat(SplatType type) {
+        switch (type) {
+            case SplatType.nuke:
+                scene.add(new NukeSplatGraphic());
+                break;
+            default:
         }
     }
 

@@ -118,6 +118,10 @@ abstract class WeaponClass {
     //users call fire() on them to actually activate them
     //  go == entity which fires it (its physical properties will be used)
     abstract Shooter createShooter(GObjectSprite go);
+
+    bool canUse() {
+        return !isAirstrike || engine.level.airstrikeAllow;
+    }
 }
 
 //for Shooter.fire(FireInfo)

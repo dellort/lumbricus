@@ -355,6 +355,8 @@ interface GameEngineCallback {
     ///(intended to handle both graphics and damage)
     void damage(Vector2i pos, int radius, bool explode);
 
+    void createSplat(SplatType type);
+
     ///let the client display a message (like it's done on round's end etc.)
     ///this is a bit complicated because message shall be translated on the
     ///client (i.e. one client might prefer Klingon, while the other is used

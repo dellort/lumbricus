@@ -63,6 +63,8 @@ class GameFrame : SimpleContainer, GameEngineCallback {
     //handled in ClientGameEngine
     void damage(Vector2i pos, int radius, bool explode) {
     }
+    void createSplat(SplatType type) {
+    }
 
     void showMessage(LocalizedMessage msg) {
         mMessageViewer.showMessage(msg);
