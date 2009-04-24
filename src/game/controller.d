@@ -1004,6 +1004,25 @@ class WeaponSet {
             item.mQuantity += quantity;
         }
     }
+
+    //choose a random weapon based on this weapon set
+    //returns null if none was found
+    //xxx: Implement different drop probabilities (by value/current count)
+    WeaponClass chooseRandomForCrate() {
+        scope WeaponClass[] crateList;
+        //only drop weapons that are not infinite already,
+        //  and that can be used in the current world
+        foreach (wi; weapons) {
+            if (!wi.infinite && wi.weapon.canUse())
+                crateList ~= wi.weapon;
+        }
+        if (crateList.length > 0) {
+            int r = engine.rnd.next(0, crateList.length);
+            return crateList[r];
+        } else {
+            return null;
+        }
+    }
 }
 
 class WeaponItem {
@@ -1080,7 +1099,7 @@ class GameController : GameLogicPublic {
 
         //xxx for loading only
         ConfigNode[char[]] mWeaponSets;
-        private WeaponClass[] mCrateList;
+        WeaponSet mCrateSet;
 
         bool mIsAnythingGoingOn; // (= hack)
 
@@ -1300,7 +1319,13 @@ class GameController : GameLogicPublic {
     }
 
     WeaponSet initWeaponSet(char[] id) {
-        ConfigNode ws = mWeaponSets[id];
+        ConfigNode ws;
+        if (id in mWeaponSets)
+            ws = mWeaponSets[id];
+        else
+            ws = mWeaponSets["default"];
+        if (!ws)
+            throw new Exception("Weapon set " ~ id ~ " not found.");
         return new WeaponSet(mEngine, ws);
     }
 
@@ -1320,19 +1345,33 @@ class GameController : GameLogicPublic {
         mTeams ~= team;
     }
 
-    //"weapon_sets" in teams.conf
+    //like "weapon_sets" in gamemode.conf, but renamed according to game config
     private void loadWeaponSets(ConfigNode config) {
+        //1. complete sets
+        char[] firstId;
         foreach (ConfigNode item; config) {
-            mWeaponSets[item.name] = item;
+            if (firstId.length == 0)
+                firstId = item.name;
+            if (item.value.length == 0)
+                mWeaponSets[item.name] = item;
         }
-        char[][] crateList = config.getValueArray("crate_list", [""]);
-        foreach (crateItem; crateList) {
-            try {
-                mCrateList ~= engine.findWeaponClass(crateItem);
-            } catch (Exception e) {
-                log("Error in crate list: "~e.msg);
+        //2. referenced sets
+        foreach (ConfigNode item; config) {
+            if (item.value.length > 0) {
+                if (!(item.value in mWeaponSets))
+                    throw new Exception("Weapon set " ~ item.value
+                        ~ " not found.");
+                mWeaponSets[item.name] = mWeaponSets[item.value];
             }
         }
+        if (mWeaponSets.length == 0)
+            throw new Exception("No weapon sets defined.");
+        //we always need a default set
+        assert(firstId in mWeaponSets);
+        if (!("default" in mWeaponSets))
+            mWeaponSets["default"] = mWeaponSets[firstId];
+        //crate weapon set is named "crate_set" (will fall back to "default")
+        mCrateSet = initWeaponSet("crate_set");
     }
 
     //create and place worms when necessary
@@ -1421,23 +1460,6 @@ class GameController : GameLogicPublic {
         mEngine.queuePlaceOnLandscape(sprite);
     }
 
-    //choose a random weapon based on crate_list
-    //returns null if none was found
-    WeaponClass chooseRandomForCrate() {
-        if (mCrateList.length > 0) {
-            int r, count = 10;
-            do {
-                r = engine.rnd.next(0, mCrateList.length);
-                count--;
-                if (count < 0)
-                    return null;
-            } while (!mCrateList[r].canUse());
-            return mCrateList[r];
-        } else {
-            return null;
-        }
-    }
-
     Collectable[] fillCrate() {
         Collectable[] ret;
         float r = engine.rnd.nextDouble2();
@@ -1449,7 +1471,7 @@ class GameController : GameLogicPublic {
             //xxx implement
         }*/ else {
             //weapon
-            auto content = chooseRandomForCrate();
+            auto content = mCrateSet.chooseRandomForCrate();
             if (content) {
                 ret ~= new CollectableWeapon(content, 1);
                 if (r > cCrateProbs[2]) {

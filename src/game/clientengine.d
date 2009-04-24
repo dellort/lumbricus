@@ -324,12 +324,12 @@ float nukeFlash(float A)(float x) {
     if (x < A)
         return interpExponential!(6.0f)(x/A);
     else
-        return interpExponential!(-4.5f)((1.0f-x)/(1.0f-A));
+        return interpExponential2!(4.5f)((1.0f-x)/(1.0f-A));
 }
 
 class NukeSplatGraphic : SceneObject {
     private {
-        InterpolateFnTime!(float, nukeFlash!(0.1f)) mInterp;
+        InterpolateFnTime!(float, nukeFlash!(0.01f)) mInterp;
     }
 
     this() {

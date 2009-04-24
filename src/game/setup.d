@@ -58,7 +58,22 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null,
     auto modes = gamemodecfg.getSubNode("modes");
     cfg.gamemode = modes.getSubNode(
         mConfig.getStringValue("gamemode",""));
-    cfg.weapons = gamemodecfg.getSubNode("weapon_sets");
+
+    //gamemode.conf contains all defined weapon sets, but we only
+    //  want the ones used in the current game
+    auto avWeaponSets = gamemodecfg.getSubNode("weapon_sets");
+    char[][char[]] wCache;
+    cfg.weapons = new ConfigNode();
+    foreach (ConfigNode item; mConfig.getSubNode("weapons")) {
+        if (item.value in wCache)
+            //we already have this set, add a reference to it
+            cfg.weapons.add(item.name, wCache[item.value]);
+        else {
+            //new set has to be included
+            cfg.weapons.addNode(item.name, avWeaponSets.getSubNode(item.value));
+            wCache[item.value] = item.name;
+        }
+    }
 
     cfg.gfx = mConfig.getSubNode("gfx");
     cfg.weaponsets = mConfig.getValueArray!(char[])("weaponsets");

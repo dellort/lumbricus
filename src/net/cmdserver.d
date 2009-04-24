@@ -283,7 +283,6 @@ class CmdNetServer {
                 }
                 //fixed health and weapons
                 ct.setValue("power", mWormHP);
-                ct["weapon_set"] = mWeaponSet;
                 //<-- big hack end
                 //the clients need this to identify which team belongs to whom
                 ct.setValue("id", cl.id);

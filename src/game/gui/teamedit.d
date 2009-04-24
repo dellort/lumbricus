@@ -146,8 +146,8 @@ class TeamEditorTask : Task {
             newTeam["color"] = TeamTheme.cTeamColors[mNewTeamColIdx];
             //different color for each new team
             mNewTeamColIdx = (mNewTeamColIdx+1) % TeamTheme.cTeamColors.length;
-            //Big xxx: here because of general controller crappiness
-            newTeam["weapon_set"] = "set1";
+            //Smaller xxx: this should be configurable
+            newTeam["weapon_set"] = "default";
             //unsupported for now
             newTeam["grave"] = "0";
             newTeam["control"] = "default";
