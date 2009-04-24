@@ -67,6 +67,7 @@ const Time cHealthHintWait = timeMsecs(500);
 const Time cLabelsMoveTimeUp = timeMsecs(300); //moving up
 const Time cLabelsMoveTimeDown = timeMsecs(1000); //and down
 const int cLabelsMoveDistance = 200;
+const float cDrownLabelSpeed = 100; //pixels/sec
 //time swap left/right position of weapon icon
 const Time cWeaponIconMoveTime = timeMsecs(300);
 //time to zoom out
@@ -411,15 +412,20 @@ class GameView : Container {
 
         ViewMember activeWorm;
 
+        enum MoveLabelEffect {
+            move,   //straight
+            bubble, //like in water
+        }
+
         struct MoveLabel {
+            MoveLabelEffect effect;
             Widget label;
-            Time start, end;
+            Time start;
+            float speed; //pixels/second
             Vector2i from, to;
         }
 
         MoveLabel[] mMoveLabels;
-
-
     } //private
 
     /+void updateGUI() {
@@ -456,7 +462,8 @@ class GameView : Container {
         ml.from = pos;
         ml.to = Vector2i(pos.x, mGame.cengine.waterOffset);
         ml.start = mGame.clientTime.current;
-        ml.end = ml.start + timeMsecs(900);
+        ml.effect = MoveLabelEffect.bubble;
+        ml.speed = cDrownLabelSpeed;
         mMoveLabels ~= ml;
     }
 
@@ -477,16 +484,26 @@ class GameView : Container {
         while (i < mMoveLabels.length) {
             MoveLabel cur = mMoveLabels[i];
             auto now = mGame.clientTime.current;
-            if (cur.end <= now) {
+
+            auto dir = toVector2f(cur.to) - toVector2f(cur.from);
+            auto px = (now-cur.start).secsf * cur.speed;
+            auto move = px * dir.normal;
+
+            if (move.length >= dir.length) {
                 cur.label.remove();
                 mMoveLabels = mMoveLabels[0..i] ~ mMoveLabels[i+1..$];
                 continue;
             }
             i++;
 
-            float p = (now-cur.start).msecs*1.0f / (cur.end-cur.start).msecs;
-            cur.label.setAddToPos(cur.from +
-                toVector2i(toVector2f(cur.to - cur.from)*p));
+            if (cur.effect == MoveLabelEffect.bubble) {
+                const cPxArc = 200; //so many sinus curves over a pixel distance
+                const cArcAmp = 40; //amplitude of sinus curve
+                auto idx = px / cPxArc * math.PI * 2;
+                move.x += math.sin(idx) * cArcAmp;
+            }
+
+            cur.label.setAddToPos(cur.from + toVector2i(move));
         }
     }
 
@@ -499,6 +516,10 @@ class GameView : Container {
 
     this(GameInfo game) {
         mGame = game;
+
+        SceneObject labels = new DrawLabels();
+        labels.zorder = GameZOrder.Names;
+        mGame.cengine.scene.add(labels);
 
         mCamera = new Camera(mGame.clientTime);
 
@@ -675,9 +696,24 @@ class GameView : Container {
         doSim();
     }
 
-    override void onDraw(Canvas c) {
-        mGame.cengine.draw(c);
+    //NOTE: there's the following problem: labels (stupidly) are GUI elements
+    //      and thus are drawn separately from the game engine, so here's this
+    //      (stupid) hack to fix the zorder of the labels
+    private class DrawLabels : SceneObject {
+        override void draw(Canvas canvas) {
+            this.outer.doDraw(canvas);
+        }
+    }
+
+    private void doDraw(Canvas c) {
+        //call onDraw of the super class, not ours (wow this works)
+        //this means all labels are drawn, but not the ClientEngine
         super.onDraw(c);
+    }
+
+    override void onDraw(Canvas c) {
+        //no super.onDraw(c);, it's called through DrawLabels
+        mGame.cengine.draw(c);
     }
 
     override bool doesCover() {
