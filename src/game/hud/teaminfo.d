@@ -100,6 +100,7 @@ class TeamMemberInfo {
     //the "animated" health value, which is counted up/down to the real value
     //get the (not really) real value through realHealth()
     //(both this and realHealth are clipped to 0)
+    //value changed in gameframe.d
     int currentHealth;
 
     //similar to member.currentHealth(), but clipped to 0

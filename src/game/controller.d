@@ -659,15 +659,21 @@ class ServerTeamMember : TeamMember, WormController {
         wormAction();
     }
 
-    WalkState walkState() {
+    WormAniState wormState() {
+        if (getGraphic() is null)
+            return WormAniState.invisible;
+
+        if (worm.hasDrowned())
+            return WormAniState.drowning;
+
         if (!isControllable)
-            return WalkState.noMovement;
+            return WormAniState.noMovement;
 
         if (mWorm.jetpackActivated())
-            return WalkState.jetpackFly;
+            return WormAniState.jetpackFly;
 
         //no other possibilities currently
-        return WalkState.walk;
+        return WormAniState.walk;
     }
 
     WeaponHandle getCurrentWeapon() {

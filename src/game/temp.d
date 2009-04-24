@@ -1,21 +1,20 @@
 module game.temp;
 
 //enum dumping ground...
+//http://d.puremagic.com/issues/show_bug.cgi?id=1160
 
-///this tells the client the state (i.e. possible interactions) of the currently
-///active worm (no animation states etc)
-///(client information only, to update the gui/map keys or something)
-///note that targetting weapons are not affected by this, as target selection is
-///a client thing
-enum WalkState {
+///random infos for animation
+enum WormAniState {
 //xxx: no "stand" state? i.e. when it's _not_ walking
     walk,           ///worm is on the ground and could walk normally
     jetpackFly,     ///flying a jetpack
-    swing,          ///hanging on a rope
-    floating,       ///floating down on a parachute
-    remoteControl,  ///remote-controlling something (e.g. super sheep)
+    //swing,          ///hanging on a rope
+    //floating,       ///floating down on a parachute
+    //remoteControl,  ///remote-controlling something (e.g. super sheep)
     noMovement,     ///worm is being thrown around/firing a weapon/waiting for
                     ///a state transition and cannot be controlled
+    drowning,       ///worm is between water surface and water ground
+    invisible,      ///no animation for the worm anywhere in the level
 }
 
 ///which style a worm should jump

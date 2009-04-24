@@ -118,6 +118,14 @@ class GameView : Container {
 
         ViewMember activeWorm;
 
+        struct MoveLabel {
+            Widget label;
+            Time start, end;
+            Vector2i from, to;
+        }
+
+        MoveLabel[] mMoveLabels;
+
         //per-member class
         class ViewMember {
             TeamMemberInfo member; //from the "engine"
@@ -149,7 +157,11 @@ class GameView : Container {
             int health_cur = int.max;
             int lastHealthHintTarget = int.max;
 
-            private bool mArrowState;
+            private {
+                bool mArrowState;
+                bool mDrowning;
+                Vector2i mLastDrownPos;
+            }
 
             this(TeamMemberInfo m) {
                 auto ts = mGame.clientTime;
@@ -208,6 +220,11 @@ class GameView : Container {
                 bool guiIsActive = !!graphic;
                 if (!guiIsActive) {
                     removeGUI();
+                    //whatever
+                    if (mDrowning) {
+                        mDrowning = false;
+                        showDrown(member, mLastDrownPos);
+                    }
                 } else if (guiIsActive) {
                     assert(graphic !is null);
                     //xxx hurf hurf
@@ -269,6 +286,12 @@ class GameView : Container {
 
                     if (!moveLabels.inProgress() && !doMoveDown) {
                         showLabels = !isActiveWorm;
+                    }
+
+                    if (member.member.wormState == WormAniState.drowning) {
+                        showLabels = false;
+                        mDrowning = true;
+                        mLastDrownPos = pos;
                     }
 
                     //(.value() isn't necessarily changing all the time)
@@ -419,6 +442,20 @@ class GameView : Container {
         setGUITeamMemberSettings(s);
     }
 
+    //member inf drowned at pos (pos is on the ground)
+    private void showDrown(TeamMemberInfo inf, Vector2i pos) {
+        MoveLabel ml;
+        auto lbl = inf.owner.createLabel();
+        lbl.text = myformat("{}", inf.currentHealth);
+        addChild(lbl);
+        ml.label = lbl;
+        ml.from = pos;
+        ml.to = Vector2i(pos.x, mGame.cengine.waterOffset);
+        ml.start = mGame.clientTime.current;
+        ml.end = ml.start + timeMsecs(900);
+        mMoveLabels ~= ml;
+    }
+
     private void doSim() {
         mCamera.doFrame();
 
@@ -430,6 +467,22 @@ class GameView : Container {
 
         foreach (m; mAllMembers) {
             m.simulate();
+        }
+
+        int i = 0;
+        while (i < mMoveLabels.length) {
+            MoveLabel cur = mMoveLabels[i];
+            auto now = mGame.clientTime.current;
+            if (cur.end <= now) {
+                cur.label.remove();
+                mMoveLabels = mMoveLabels[0..i] ~ mMoveLabels[i+1..$];
+                continue;
+            }
+            i++;
+
+            float p = (now-cur.start).msecs*1.0f / (cur.end-cur.start).msecs;
+            cur.label.setAddToPos(cur.from +
+                toVector2i(toVector2f(cur.to - cur.from)*p));
         }
     }
 

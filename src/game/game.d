@@ -29,10 +29,12 @@ import game.levelgen.renderer;// : LandscapeBitmap;
 
 //implemented by GameShell
 //this is stupid, remove if you find better way
-interface GameCallbackDistributor : GameEngineCallback {
-    //redirect GameEnginePublic.addCallback to GameShell
-    void addCallback(GameEngineCallback cb);
-    bool paused();
+//it's fine now, but this particular thing decayed into an even more stupid hack
+//just because of paused()
+//if this is removed, GameEngine.mCallbacks could simply be made transient
+class GameCallbackDistributor : GameEngineCallback {
+    //redirect GameEnginePublic.paused to GameShell
+    abstract bool paused();
 }
 
 //code to manage a game session (hm, whatever this means)
@@ -262,6 +264,8 @@ class GameEngine : GameEnginePublic {
     {
         rnd = new Random();
         //xxx
+        //game initialization must be deterministic; but you could pre-generate
+        //a good seed, put it into GameConfig, and use it here
         rnd.seed(1);
         mGfx = a_gfx;
         gameConfig = config;
@@ -353,11 +357,7 @@ class GameEngine : GameEnginePublic {
         mController = ctl;
     }
 
-    void addCallback(GameEngineCallback cb) {
-        mCallbacks.addCallback(cb);
-    }
-
-    GameCallbackDistributor callbacks() {
+    GameEngineCallback callbacks() {
         return mCallbacks;
     }
 

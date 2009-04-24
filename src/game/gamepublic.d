@@ -19,6 +19,7 @@ import utils.configfile;
 import utils.vector2;
 import utils.time;
 import utils.list2;
+import utils.md;
 import utils.reflection;
 
 //lol compiler breaks horribly with this selective import uncommented
@@ -342,7 +343,7 @@ interface GameEnginePublic {
 
     GameEngineGraphics getGraphics();
 
-    void addCallback(GameEngineCallback cb);
+    GameEngineCallback callbacks();
 
     //carries time of last network update in networking case, I guess?
     TimeSourcePublic gameTime();
@@ -350,12 +351,14 @@ interface GameEnginePublic {
 
 ///calls from engine into clients
 ///for stuff that can't simply be polled
-interface GameEngineCallback {
+///anyone in the client engine can register callbacks here
+class GameEngineCallback {
     ///cause damage; if explode is true, play corresponding particle effects
     ///(intended to handle both graphics and damage)
-    void damage(Vector2i pos, int radius, bool explode);
+    ///params: pos radius explode
+    MDelegate!(Vector2i, int, bool) damage;
 
-    void createSplat(SplatType type);
+    MDelegate!(SplatType) createSplat;
 
     ///let the client display a message (like it's done on round's end etc.)
     ///this is a bit complicated because message shall be translated on the
@@ -365,11 +368,11 @@ interface GameEngineCallback {
     ///available
     ///a random int is passed along, so all clients with the same locale
     ///will select the same message
-    void showMessage(LocalizedMessage msg);
+    MDelegate!(LocalizedMessage) showMessage;
 
     ///called if the weapon list of any team changes
     ///value increments, if the weapon list of any team changes
-    void weaponsChanged(Team t);
+    MDelegate!(Team) weaponsChanged;
 }
 
 class WeaponHandle {
@@ -426,6 +429,9 @@ interface TeamMember {
 
     ///last time this worm did an action (or so)
     Time lastAction();
+
+    ///animation state, or something
+    WormAniState wormState();
 
     WeaponHandle getCurrentWeapon();
     ///show the weapon as an icon near the worm; used when the weapon can not be

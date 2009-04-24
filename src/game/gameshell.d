@@ -654,41 +654,9 @@ class GameShell {
     }
 
     class GCD : GameCallbackDistributor {
-        //-- GameCallbackDistributor (all these actually are hacks)
-
-        void addCallback(GameEngineCallback cb) {
-            mCallbacks ~= cb;
-        }
-
+        //disgusting, stupid, unethical, etc. hack
         bool paused() {
             return mGameTime.paused();
-        }
-
-        //-- GameEngineCallback
-        //xxx how to make generic?
-
-        void damage(Vector2i pos, int radius, bool explode) {
-            foreach (cb; mCallbacks) {
-                cb.damage(pos, radius, explode);
-            }
-        }
-
-        void createSplat(SplatType type) {
-            foreach (cb; mCallbacks) {
-                cb.createSplat(type);
-            }
-        }
-
-        void showMessage(LocalizedMessage msg) {
-            foreach (cb; mCallbacks) {
-                cb.showMessage(msg);
-            }
-        }
-
-        void weaponsChanged(Team t) {
-            foreach (cb; mCallbacks) {
-                cb.weaponsChanged(t);
-            }
         }
     }
 }

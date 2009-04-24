@@ -15,7 +15,7 @@ class Task {
         int mTaskID;
         bool mAlive;
         bool mKilled;
-        MulticastDelegate!(Task) mOnDeath;
+        MDelegate!(Task) mOnDeath;
     }
 
     /// registered delegates are invoked when the reallydead() property
@@ -44,7 +44,6 @@ class Task {
     }
 
     this(TaskManager tc) {
-        mOnDeath = new typeof(mOnDeath);
         //fortunately D enforce use of this constructor
         assert(tc !is null);
         tc.registerTask(this);

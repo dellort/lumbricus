@@ -394,8 +394,6 @@ class ClientGameEngine : GameEngineCallback {
         gfx = engine.gfx;
         resources = gfx.resources;
 
-        mEngine.addCallback(this);
-
         mEngineTime = new TimeSource("ClientEngine");
         mEngineTime.paused = true;
 
@@ -415,6 +413,10 @@ class ClientGameEngine : GameEngineCallback {
         readd_graphics();
 
         initSound();
+
+        auto cb = mEngine.callbacks();
+        cb.damage ~= &doDamage;
+        cb.createSplat ~= &doCreateSplat;
     }
 
     //actually start the game (called after resources were preloaded)
@@ -495,15 +497,13 @@ class ClientGameEngine : GameEngineCallback {
             = server_graphics.last_objects_frame;
     }
 
-    //-- interface GameEngineCallback
-
-    void damage(Vector2i pos, int radius, bool explode) {
+    private void doDamage(Vector2i pos, int radius, bool explode) {
         if (explode) {
             scene.add(new ExplosionGfxImpl(engineTime, gfx, pos, radius*2));
         }
     }
 
-    void createSplat(SplatType type) {
+    private void doCreateSplat(SplatType type) {
         switch (type) {
             case SplatType.nuke:
                 scene.add(new NukeSplatGraphic());
@@ -511,14 +511,6 @@ class ClientGameEngine : GameEngineCallback {
             default:
         }
     }
-
-    //not interested, see gameframe.d
-    void showMessage(LocalizedMessage msg) {
-    }
-    void weaponsChanged(Team t) {
-    }
-
-    //-- end interface
 
     bool oldpause; //hack, so you can pause the music independent from the game
 

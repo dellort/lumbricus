@@ -36,7 +36,7 @@ import tango.math.Math;
 //time for which it takes to add/remove 1 health point in the animation
 const Time cTimePerHealthTick = timeMsecs(4);
 
-class GameFrame : SimpleContainer, GameEngineCallback {
+class GameFrame : SimpleContainer {
     GameInfo game;
     GameView gameView;
 
@@ -56,32 +56,14 @@ class GameFrame : SimpleContainer, GameEngineCallback {
         Vector2i mScrollToAtStart;
     }
 
-    //-- GameEngineCallback
-    //this sucks etc., there should be a way to register delegates to listen for
-    //single events, instead of having to implement this interface in each case
-
-    //handled in ClientGameEngine
-    void damage(Vector2i pos, int radius, bool explode) {
-    }
-    void createSplat(SplatType type) {
-    }
-
-    void showMessage(LocalizedMessage msg) {
-        mMessageViewer.showMessage(msg);
-    }
-    void weaponsChanged(Team t) {
-        updateWeapons();
-    }
-
-    //-- end interface
-
-    private void updateWeapons() {
+    //xxx: parameter bla seems to be a relict...
+    private void updateWeapons(Team bla) {
         TeamMember t = game.control.getControlledMember();
         mWeaponSel.update(t ? t.team.getWeapons() : null);
     }
 
     private void teamChanged() {
-        updateWeapons();
+        updateWeapons(null);
     }
 
     private void selectWeapon(WeaponHandle c) {
@@ -170,8 +152,6 @@ class GameFrame : SimpleContainer, GameEngineCallback {
 
         gDefaultLog("initializeGameGui");
 
-        game.engine.addCallback(this);
-
         auto wormbinds = new KeyBindings();
         wormbinds.loadFrom(gConf.loadConfig("wormbinds").getSubNode("binds"));
 
@@ -230,5 +210,9 @@ class GameFrame : SimpleContainer, GameEngineCallback {
         mWeaponSel.init(wlist);
 
         setPosition(game.cengine.worldCenter);
+
+        auto cb = game.engine.callbacks();
+        cb.showMessage ~= &mMessageViewer.showMessage;
+        cb.weaponsChanged ~= &updateWeapons;
     }
 }
