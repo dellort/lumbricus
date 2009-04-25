@@ -67,7 +67,7 @@ const Time cHealthHintWait = timeMsecs(500);
 const Time cLabelsMoveTimeUp = timeMsecs(300); //moving up
 const Time cLabelsMoveTimeDown = timeMsecs(1000); //and down
 const int cLabelsMoveDistance = 200;
-const float cDrownLabelSpeed = 100; //pixels/sec
+const float cDrownLabelSpeed = 50; //pixels/sec
 //time swap left/right position of weapon icon
 const Time cWeaponIconMoveTime = timeMsecs(300);
 //time to zoom out
@@ -286,13 +286,8 @@ private class ViewMember {
                     if (moveWeaponIcon.inProgress()) {
                         //change direction (works because
                         //interpolation function is symmetric)
-                        swap(moveWeaponIcon.start,
-                            moveWeaponIcon.target);
-                        auto cur = moveWeaponIcon.currentTime;
-                        auto diff = cur
-                            - moveWeaponIcon.startTime;
-                        diff = moveWeaponIcon.duration - diff;
-                        moveWeaponIcon.startTime = cur - diff;
+                        moveWeaponIcon.setParams(moveWeaponIcon.target,
+                            moveWeaponIcon.start);
                     } else {
                         moveWeaponIcon.init(cWeaponIconMoveTime,
                             faceLeft ? 1 : 0, faceLeft ? 0 : 1);
@@ -497,8 +492,8 @@ class GameView : Container {
             i++;
 
             if (cur.effect == MoveLabelEffect.bubble) {
-                const cPxArc = 200; //so many sinus curves over a pixel distance
-                const cArcAmp = 40; //amplitude of sinus curve
+                const cPxArc = 50; //so many sinus curves over a pixel distance
+                const cArcAmp = 10; //amplitude of sinus curve
                 auto idx = px / cPxArc * math.PI * 2;
                 move.x += math.sin(idx) * cArcAmp;
             }

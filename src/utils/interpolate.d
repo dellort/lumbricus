@@ -75,6 +75,11 @@ static if (!is(FN_1 == Missing)) {
         init(a_duration, a_start, a_target);
         set(cur);
     }
+
+    ///Same as above, but doesn't change duration
+    void setParams(T a_start, T a_target) {
+        setParams(duration, a_start, a_target);
+    }
 }
 
     ///start interpolating again (if init() has been called before)
