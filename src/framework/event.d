@@ -109,6 +109,10 @@ public struct KeyInfo {
         return keycodeIsMouseButton(code);
     }
 
+    bool isModifierKey() {
+        return keycodeIsModifierKey(code);
+    }
+
     bool isPress() {
         return type == KeyEventType.Press;
     }

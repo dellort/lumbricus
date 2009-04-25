@@ -648,7 +648,7 @@ private:
                 cast(int)code, cast(int)mods);
 
             //modifiers are also keys, ignore them
-            if (!gFramework.isModifierKey(code)) {
+            if (!event.keyEvent.isModifierKey()) {
                 mKeyNameIt = false;
             }
 

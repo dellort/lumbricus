@@ -255,6 +255,16 @@ bool keycodeIsMouseButton(Keycode c) {
     return c >= cKeycodeMouseStart && c <= cKeycodeMouseEnd;
 }
 
+bool keycodeIsModifierKey(Keycode c) {
+    switch (c) {
+        case Keycode.RALT, Keycode.RCTRL, Keycode.RSHIFT:
+        case Keycode.LALT, Keycode.LCTRL, Keycode.LSHIFT:
+            return true;
+        default:
+            return false;
+    }
+}
+
 struct KeycodeToName {
     Keycode code;
     char[] name;

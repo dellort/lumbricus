@@ -139,7 +139,8 @@ class GravityCenter : PhysicForce {
         float dist = v.length;
         if (dist > cDistDelta) {
             float r = (max(radius-dist,0f)/radius);
-            o.addForce((v.normal()*accel*r)*o.posp.mass);
+            if (r > float.epsilon)
+                o.addForce((v.normal()*accel*r)*o.posp.mass);
         }
     }
 }

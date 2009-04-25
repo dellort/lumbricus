@@ -603,6 +603,18 @@ class WormSprite : GObjectSprite {
         else
             info.dir = weaponDir();
         info.strength = strength;
+        //possibly add worm speed (but we don't want to lose dir if str == 0)
+        if (strength > float.epsilon
+            && physics.velocity.quad_length > float.epsilon)
+        {
+            Vector2f fDir = info.dir*strength + physics.velocity;
+            float s = fDir.length;
+            //worm speed and strength might add up to exactly 0 (nan check)
+            if (s > float.epsilon) {
+                info.strength = s;
+                info.dir = fDir/s;
+            }
+        }
         info.timer = clampRangeC(mWeaponTimer, mWeapon.fireMode.timerFrom,
             mWeapon.fireMode.timerTo);
         if (wcontrol)
@@ -749,6 +761,9 @@ class WormSprite : GObjectSprite {
         //stop movement if not possible
         if (!currentState.canWalk) {
             physics.setWalking(Vector2f(0));
+        }
+        if (!currentState.canFire) {
+            mThrowing = false;
         }
     }
 

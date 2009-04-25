@@ -741,16 +741,6 @@ class Framework {
         return (getModifierSet() & mods) == mods;
     }
 
-    bool isModifierKey(Keycode c) {
-        switch (c) {
-            case Keycode.RALT, Keycode.RCTRL, Keycode.RSHIFT:
-            case Keycode.LALT, Keycode.LCTRL, Keycode.LSHIFT:
-                return true;
-            default:
-                return false;
-        }
-    }
-
     ModifierSet getModifierSet() {
         ModifierSet mods;
         for (uint n = Modifier.min; n <= Modifier.max; n++) {
