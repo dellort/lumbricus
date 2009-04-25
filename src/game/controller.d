@@ -965,6 +965,7 @@ class ServerTeamMember : TeamMember, WormController {
 class WeaponSet {
     GameEngine engine;
     WeaponItem[WeaponClass] weapons;
+    WeaponClass[] crateList;
     char[] name;
 
     //config = item from "weapon_sets"
@@ -975,6 +976,10 @@ class WeaponSet {
             try {
                 auto weapon = new WeaponItem(this, node);
                 weapons[weapon.weapon] = weapon;
+                //only drop weapons that are not infinite already,
+                //  and that can be used in the current world
+                if (!weapon.infinite && weapon.weapon.canUse())
+                    crateList ~= weapon.weapon;
             } catch (Exception e) {
                 registerLog("game.controller")
                     ("Error in weapon set '"~name~"': "~e.msg);
@@ -1009,13 +1014,6 @@ class WeaponSet {
     //returns null if none was found
     //xxx: Implement different drop probabilities (by value/current count)
     WeaponClass chooseRandomForCrate() {
-        scope WeaponClass[] crateList;
-        //only drop weapons that are not infinite already,
-        //  and that can be used in the current world
-        foreach (wi; weapons) {
-            if (!wi.infinite && wi.weapon.canUse())
-                crateList ~= wi.weapon;
-        }
         if (crateList.length > 0) {
             int r = engine.rnd.next(0, crateList.length);
             return crateList[r];
