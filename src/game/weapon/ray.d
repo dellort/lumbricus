@@ -103,8 +103,9 @@ class RenderLaser : GameObject {
 
     this(GameEngine aengine, Vector2f[2] p, Time duration, Color[] colors) {
         super(aengine, true);
-        mLine = aengine.graphics.createLine();
+        mLine = new LineGraphic();
         mLine.setPos(toVector2i(p[0]), toVector2i(p[1]));
+        aengine.graphics.add(mLine);
         mStart = engine.gameTime.current;
         mEnd = mStart + duration;
         mColors = colors.dup;

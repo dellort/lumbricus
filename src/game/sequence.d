@@ -365,8 +365,8 @@ class AniStateDisplay : StateDisplay {
 
     //xxx this is incredibly stupid
     override void enable() {
-        mAnimator = owner.engine.graphics.createAnimation();
-        mAnimator.owner_team = owner.mOwner;
+        mAnimator = new AnimationGraphic(owner.mOwner);
+        owner.engine.graphics.add(mAnimator);
     }
     override void disable() {
         mAnimator.remove();
@@ -716,8 +716,10 @@ class WormStateDisplay : AniStateDisplay {
             }
         } else if (wsu) {
             if (!mJetFlames[0]) {
-                mJetFlames[0] = owner.engine.graphics.createAnimation();
-                mJetFlames[1] = owner.engine.graphics.createAnimation();
+                foreach (ref jf; mJetFlames) {
+                    jf = new AnimationGraphic();
+                    owner.engine.graphics.add(jf);
+                }
             }
             mJetFlames[0].update(v.position, p);
             mJetFlames[1].update(v.position, p);

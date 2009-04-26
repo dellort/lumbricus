@@ -324,10 +324,11 @@ class Rope : Shooter {
     }
 
     private LineGraphic createRopeLine() {
-        auto line = engine.graphics.createLine();
+        auto line = new LineGraphic();
         line.setColor(myclass.ropeColor);
         line.setWidth(2);
         line.setTexture(myclass.ropeSegment);
+        engine.graphics.add(line);
         return line;
     }
 

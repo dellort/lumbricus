@@ -37,6 +37,12 @@ class GameCallbackDistributor : GameEngineCallback {
     abstract bool paused();
 }
 
+class ClassNotRegisteredException : Exception {
+    this(char[] msg) {
+        super(msg);
+    }
+}
+
 //code to manage a game session (hm, whatever this means)
 //reinstantiated on each "round"
 class GameEngine : GameEnginePublic {
@@ -161,15 +167,12 @@ class GameEngine : GameEnginePublic {
             return null;
 
         //not found? xxx better error handling (as usual...)
-        throw new Exception("sprite class " ~ name ~ " not found");
+        throw new ClassNotRegisteredException("sprite class " ~ name
+            ~ " not found");
     }
 
     GObjectSprite createSprite(char[] name) {
         return findSpriteClass(name).createSprite();
-    }
-
-    Shooter createShooter(char[] weapon_name, GObjectSprite owner) {
-        return findWeaponClass(weapon_name).createShooter(owner);
     }
 
     //currently just worm.conf
@@ -226,7 +229,8 @@ class GameEngine : GameEnginePublic {
             return null;
 
         //not found? xxx better error handling (as usual...)
-        throw new Exception("weapon class " ~ name ~ " not found");
+        throw new ClassNotRegisteredException("weapon class "
+            ~ name ~ " not found");
     }
 
     WeaponClass[] weaponList() {
@@ -723,15 +727,13 @@ class GameEngine : GameEnginePublic {
         auto iradius = cast(int)((expl.radius+0.5f)/2.0f);
         damageLandscape(toVector2i(pos), iradius, cause);
         physicworld.add(expl);
-        mCallbacks.damage(toVector2i(pos), iradius, true);
+        //don't create effects that wouldn't show anyway
+        if (iradius >= 10)
+            graphics.add(new ExplosionEffect(toVector2i(pos), iradius));
         //some more chaos, if strong enough
         //xxx needs moar tweaking
         //if (damage > 50)
         //    addEarthQuake(damage, 0.5);
-    }
-
-    void createSplat(SplatType type) {
-        mCallbacks.createSplat(type);
     }
 
     //destroy a circular area of the damageable landscape

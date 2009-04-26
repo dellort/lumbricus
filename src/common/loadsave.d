@@ -90,8 +90,8 @@ SavegameData createSavegame(char[] taskId, char[] name, char[] description,
     int i;
     ret.path = gFS.getUniqueFilename(cSavegamePath,
         taskId ~ "_" ~ name ~ "{0:d3}", cSavegameExt, i);
-    if (i > 1)
-        name ~= " (" ~ str.toString(i) ~ ")";
+    if (i > 0)
+        name ~= " (" ~ str.toString(i+1) ~ ")";
     //open the savegame file for writing
     scope st = gFS.open(ret.path, FileMode.OutNew);
     scope writer = new TarArchive(st, false);

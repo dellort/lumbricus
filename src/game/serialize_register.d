@@ -32,7 +32,7 @@ void initGameSerialization() {
         SequenceUpdate, SpawnAction, Jetpack, Rope, WormSprite,
         GravestoneSprite, WormSequenceUpdate, WrapFireInfo,
         GameEngineGraphics, AnimationGraphic, LineGraphic, TextGraphic,
-        Crosshair, LandscapeGraphic, NapalmSequenceUpdate,
+        CrosshairGraphic, LandscapeGraphic, NapalmSequenceUpdate,
         NapalmSprite, ModeRoundbased, ModeDebug, TimeSource,
         TimeSourceFixFramerate, EventAggregator, DieAction, RoundbasedStatus,
         TeamAction, AoEDamageAction, ImpulseAction, MeleeWeapon, MeleeShooter,

@@ -296,30 +296,27 @@ class ServerTeam : Team {
         targetIsSet = true;
         currentTarget = where;
 
-        AnimationGraphic t = parent.engine.graphics.createAnimation();
-
         switch(mPointMode) {
             case PointMode.target:
+                //X animation
+                auto t = new AnimationGraphic();
+                parent.engine.graphics.add(t);
                 t.setAnimation(color.pointed.get);
+                t.update(toVector2i(where));
+                setIndicator(t);
                 break;
             case PointMode.instant, PointMode.instantFree:
-                t.setAnimation(color.click.get);
+                //click effect
+                parent.engine.graphics.add(
+                    new AnimationEffect(color.click.get, toVector2i(where)));
+
+                //instant mode -> fire and forget
+                current.doFireDown(true);
+                current.doFireUp();
+                targetIsSet = false;
                 break;
             default:
                 assert(false);
-        }
-
-        t.update(toVector2i(where));
-
-        setIndicator(t);
-
-        if (mPointMode == PointMode.instant
-            || mPointMode == PointMode.instantFree)
-        {
-            //instant mode -> fire and forget
-            current.doFireDown(true);
-            current.doFireUp();
-            targetIsSet = false;
         }
     }
     private void setIndicator(AnimationGraphic ind) {
@@ -973,17 +970,17 @@ class WeaponSet {
         engine = aengine;
         name = config.name;
         foreach (ConfigNode node; config.getSubNode("weapon_list")) {
-            //try {
+            try {
                 auto weapon = new WeaponItem(this, node);
                 weapons[weapon.weapon] = weapon;
                 //only drop weapons that are not infinite already,
                 //  and that can be used in the current world
                 if (!weapon.infinite && weapon.weapon.canUse())
                     crateList ~= weapon.weapon;
-            //} catch (Exception e) { <- exact exception please --kthx
-            //    registerLog("game.controller")
-            //        ("Error in weapon set '"~name~"': "~e.msg);
-            //}
+            } catch (ClassNotRegisteredException e) {
+                registerLog("game.controller")
+                    ("Error in weapon set '"~name~"': "~e.msg);
+            }
         }
     }
 
@@ -1066,8 +1063,8 @@ class WeaponItem {
     //config = an item in "weapon_list"
     this (WeaponSet parent, ConfigNode config) {
         this(parent);
-        //xxx error handling
         auto w = config.name;
+        //may throw ClassNotRegisteredException
         mWeapon = mEngine.findWeaponClass(w);
         if (config.value == "inf") {
             mInfiniteQuantity = true;

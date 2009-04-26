@@ -91,7 +91,7 @@ class WormSprite : GObjectSprite {
         JumpMode mJumpMode;
 
         //null if not there, instantiated all the time it's needed
-        Crosshair mCrosshair;
+        CrosshairGraphic mCrosshair;
 
         //that thing when you e.g. shoot a bazooka to set the fire strength
         bool mThrowing;
@@ -687,8 +687,8 @@ class WormSprite : GObjectSprite {
                 mCrosshair.remove();
                 mCrosshair = null;
             } else {
-                mCrosshair = engine.graphics.createCrosshair(teamColor,
-                    seqUpdate);
+                mCrosshair = new CrosshairGraphic(teamColor, seqUpdate);
+                engine.graphics.add(mCrosshair);
             }
         }
     }

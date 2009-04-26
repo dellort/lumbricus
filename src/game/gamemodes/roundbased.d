@@ -188,7 +188,7 @@ class ModeRoundbased : Gamemode {
                         && !mStatus.suddenDeath)
                     {
                         mStatus.suddenDeath = true;
-                        engine.createSplat(SplatType.nuke);
+                        engine.graphics.add(new NukeSplatEffect());
                         logic.messageAdd("msgsuddendeath");
                     }
 

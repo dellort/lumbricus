@@ -100,55 +100,36 @@ class GameEngineGraphics {
         }
     }
 
-    private void doadd(Graphic g) {
-        g.node = objects.add(g);
-        engine.callbacks.newGraphic(g);
+    void add(Effect e) {
+        if (auto g = cast(Graphic)e) {
+            assert(!g.owner);
+            g.owner = this;
+            g.node = objects.add(g);
+        }
+        engine.callbacks.newGraphic(e);
     }
+}
 
-    AnimationGraphic createAnimation() {
-        auto n = new AnimationGraphic(this);
-        doadd(n);
-        return n;
+//Effects are different from Graphics in the following:
+//  - They lose connection to the "server" engine the moment they are
+//    added with GameEngineGraphics.add()
+//  - They are not owned by GameEngineGraphics
+//  - They cannot be removed by the server once created
+abstract class Effect {
+    this() {
     }
-
-    LineGraphic createLine() {
-        auto n = new LineGraphic(this);
-        doadd(n);
-        return n;
-    }
-
-    Crosshair createCrosshair(TeamTheme theme, SequenceUpdate attach) {
-        auto n = new Crosshair(this);
-        n.theme = theme;
-        n.attach = attach;
-        doadd(n);
-        return n;
-    }
-
-    LandscapeGraphic createLandscape(Vector2i pos, LandscapeBitmap shared) {
-        auto n = new LandscapeGraphic(this);
-        n.pos = pos;
-        n.shared = shared;
-        doadd(n);
-        return n;
-    }
-
-    TextGraphic createText() {
-        auto n = new TextGraphic(this);
-        doadd(n);
-        return n;
+    this (ReflectCtor c) {
     }
 }
 
 //xxx this crap is a relict of the now dead pseudo network stuff
 //    remove/redo this if you feel like it
-class Graphic {
+abstract class Graphic : Effect {
     GameEngineGraphics owner;
     ListNode node;
     bool removed;
 
-    this (GameEngineGraphics a_owner) {
-        owner = a_owner;
+    this() {
     }
     this (ReflectCtor c) {
     }
@@ -156,6 +137,45 @@ class Graphic {
     void remove() {
         owner.remove(this);
     }
+}
+
+class ExplosionEffect : Effect {
+    Vector2i pos;
+    int radius;
+
+    this(Vector2i pos, int radius) {
+        this.pos = pos;
+        this.radius = radius;
+    }
+    this (ReflectCtor c) {
+        super(c);
+    }
+}
+
+class NukeSplatEffect : Effect {
+    this() {
+    }
+    this (ReflectCtor c) {
+        super(c);
+    }
+}
+
+class AnimationEffect : Effect {
+    Animation animation;
+    Vector2i pos;
+    AnimationParams params;
+
+    this(Animation anim, Vector2i pos,
+        AnimationParams params = AnimationParams.init)
+    {
+        animation = anim;
+        this.pos = pos;
+        this.params = params;
+    }
+    this (ReflectCtor c) {
+        super(c);
+    }
+
 }
 
 class AnimationGraphic : Graphic {
@@ -174,14 +194,15 @@ class AnimationGraphic : Graphic {
     Team owner_team;
     Time last_position_change; //actually, need time of last "action"?
 
-    this (GameEngineGraphics a_owner) {
-        super(a_owner);
+    this (Team ownerTeam = null) {
+        owner_team = ownerTeam;
     }
     this (ReflectCtor c) {
         super(c);
     }
 
     final void update(ref Vector2i a_pos, ref AnimationParams a_params) {
+        assert(!!owner);
         if (pos != a_pos) {
             pos = a_pos;
             last_position_change = owner.timebase.current();
@@ -196,6 +217,7 @@ class AnimationGraphic : Graphic {
     }
 
     final void setAnimation(Animation a_animation, Time startAt = Time.Null) {
+        assert(!!owner);
         animation = a_animation;
         animation_start = owner.timebase.current() + startAt;
         set_timestamp++;
@@ -205,6 +227,7 @@ class AnimationGraphic : Graphic {
     //but here, it returns true if currently a frame is displayed
     //stupid code duplication with common.animation
     final bool hasFinished() {
+        assert(!!owner);
         if (!animation)
             return true;
         if (animation.repeat || animation.keepLastFrame)
@@ -221,8 +244,7 @@ class LineGraphic : Graphic {
     Resource!(Surface) texture;
     int texoffset = 0;
 
-    this (GameEngineGraphics a_owner) {
-        super(a_owner);
+    this () {
     }
     this (ReflectCtor c) {
         super(c);
@@ -253,14 +275,15 @@ class LineGraphic : Graphic {
     }
 }
 
-class Crosshair : Graphic {
+class CrosshairGraphic : Graphic {
     TeamTheme theme;
     SequenceUpdate attach; //where position and angle are read from
     float load = 0.0f;
     bool doreset;
 
-    this (GameEngineGraphics a_owner) {
-        super(a_owner);
+    this (TeamTheme theme, SequenceUpdate attach) {
+        this.theme = theme;
+        this.attach = attach;
     }
     this (ReflectCtor c) {
         super(c);
@@ -280,8 +303,9 @@ class LandscapeGraphic : Graphic {
     LandscapeBitmap shared; //special handling when the game is saved
     Vector2i pos;
 
-    this (GameEngineGraphics a_owner) {
-        super(a_owner);
+    this (Vector2i pos, LandscapeBitmap shared) {
+        this.pos = pos;
+        this.shared = shared;
     }
     this (ReflectCtor c) {
         super(c);
@@ -299,8 +323,7 @@ class TextGraphic : Graphic {
     //(0,0) is the upper left corner, (1,1) the bottom right corner
     Vector2f attach = {0, 0};
 
-    this (GameEngineGraphics a_owner) {
-        super(a_owner);
+    this () {
     }
     this (ReflectCtor c) {
         super(c);
@@ -362,13 +385,6 @@ interface GameEnginePublic {
 ///for stuff that can't simply be polled
 ///anyone in the client engine can register callbacks here
 class GameEngineCallback {
-    ///cause damage; if explode is true, play corresponding particle effects
-    ///(intended to handle both graphics and damage)
-    ///params: pos radius explode
-    MDelegate!(Vector2i, int, bool) damage;
-
-    MDelegate!(SplatType) createSplat;
-
     ///let the client display a message (like it's done on round's end etc.)
     ///this is a bit complicated because message shall be translated on the
     ///client (i.e. one client might prefer Klingon, while the other is used
@@ -383,7 +399,7 @@ class GameEngineCallback {
     ///value increments, if the weapon list of any team changes
     MDelegate!(Team) weaponsChanged;
 
-    MDelegate!(Graphic) newGraphic;
+    MDelegate!(Effect) newGraphic;
     MDelegate!(Graphic) removeGraphic;
 }
 

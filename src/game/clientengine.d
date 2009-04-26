@@ -40,6 +40,7 @@ enum GameZOrder {
     LevelWater,  //water before the level, but behind drowning objects
     Objects,
     Crosshair,
+    Effects,
     Names,       //stuff drawn by gameview.d
     Clouds,
     FrontWater,
@@ -47,6 +48,8 @@ enum GameZOrder {
     Splat,   //Fullscreen effect
 }
 
+
+//------------------------------ Graphics ---------------------------------
 
 class ClientAnimationGraphic : Animator {
     AnimationGraphic mInfo;
@@ -112,7 +115,7 @@ class ClientLineGraphic : SceneObject {
     LineGraphic mInfo;
 
     this(LineGraphic info) {
-        zorder = GameZOrder.Crosshair;
+        zorder = GameZOrder.Effects;
         mInfo = info;
     }
 
@@ -155,9 +158,9 @@ class LandscapeGraphicImpl : SceneObject {
     }
 }
 
-class CrosshairImpl : SceneObject {
+class CrosshairGraphicImpl : SceneObject {
     private {
-        Crosshair mInfo;
+        CrosshairGraphic mInfo;
         Vector2f mDir; //normalized weapon direction
         Animator mTarget;
         float mTargetOffset;
@@ -166,7 +169,7 @@ class CrosshairImpl : SceneObject {
         InterpolateExp!(float, 4.25f) mInterp;
     }
 
-    this(Crosshair info, GfxSet gfx) {
+    this(CrosshairGraphic info, GfxSet gfx) {
         zorder = GameZOrder.Crosshair;
         mGfx = gfx;
         mInfo = info;
@@ -250,22 +253,40 @@ class CrosshairImpl : SceneObject {
     }
 }
 
+//------------------------------ Effects ---------------------------------
+
+class AnimationEffectImpl : Animator {
+    this(TimeSourcePublic ts, AnimationEffect info) {
+        super(ts);
+        zorder = GameZOrder.Effects;
+        pos = info.pos;
+        params = info.params;
+        setAnimation(info.animation);
+    }
+
+    override void draw(Canvas c) {
+        super.draw(c);
+        if (hasFinished())
+            removeThis();
+    }
+}
+
 //creates shockwave-animation for an explosion (like in wwp)
 //currently creates no particles, but could in the future
-class ExplosionGfxImpl : SceneObjectCentered {
+class ExplosionEffectImpl : SceneObjectCentered {
     private {
         Animator mShockwave1, mShockwave2, mComicText;
         int mDiameter;
         GfxSet mGfx;
     }
 
-    this(TimeSourcePublic ts, GfxSet gfx, Vector2i a_pos, int diameter) {
-        zorder = GameZOrder.Crosshair;
+    this(TimeSourcePublic ts, GfxSet gfx, ExplosionEffect info) {
+        zorder = GameZOrder.Effects;
         mGfx = gfx;
         mShockwave1 = new Animator(ts);
         mShockwave2 = new Animator(ts);
         mComicText = new Animator(ts);
-        auto p = a_pos;
+        auto p = info.pos;
         mShockwave1.pos = p;
         mShockwave2.pos = p;
         mComicText.pos = p;
@@ -273,7 +294,7 @@ class ExplosionGfxImpl : SceneObjectCentered {
         //mShockwave2.timeSource = mInfo.owner.timebase;
         //mComicText.timeSource = mInfo.owner.timebase;
 
-        setDiameter(diameter);
+        setDiameter(info.radius*2);
     }
 
     //selects animations matching diameter
@@ -321,19 +342,19 @@ class ExplosionGfxImpl : SceneObjectCentered {
     }
 }
 
-float nukeFlash(float A)(float x) {
-    if (x < A)
-        return interpExponential!(6.0f)(x/A);
-    else
-        return interpExponential2!(4.5f)((1.0f-x)/(1.0f-A));
-}
+class NukeSplatEffectImpl : SceneObject {
+    static float nukeFlash(float A)(float x) {
+        if (x < A)
+            return interpExponential!(6.0f)(x/A);
+        else
+            return interpExponential2!(4.5f)((1.0f-x)/(1.0f-A));
+    }
 
-class NukeSplatGraphic : SceneObject {
     private {
         InterpolateFnTime!(float, nukeFlash!(0.01f)) mInterp;
     }
 
-    this() {
+    this(NukeSplatEffect info) {
         zorder = GameZOrder.Splat;
         mInterp.init(timeMsecs(3500), 0, 1.0f);
     }
@@ -413,8 +434,6 @@ class ClientGameEngine : GameEngineCallback {
         initSound();
 
         auto cb = mEngine.callbacks();
-        cb.damage ~= &doDamage;
-        cb.createSplat ~= &doCreateSplat;
         cb.newGraphic ~= &doNewGraphic;
 
         readd_graphics();
@@ -470,7 +489,7 @@ class ClientGameEngine : GameEngineCallback {
         }
     }
 
-    private void doNewGraphic(Graphic g) {
+    private void doNewGraphic(Effect g) {
         void add(SceneObject s) {
             scene.add(s);
         }
@@ -481,27 +500,18 @@ class ClientGameEngine : GameEngineCallback {
             add(new ClientLineGraphic(line));
         } else if (auto land = cast(LandscapeGraphic)g) {
             add(new LandscapeGraphicImpl(land));
-        } else if (auto tc = cast(Crosshair)g) {
-            add(new CrosshairImpl(tc, gfx));
+        } else if (auto tc = cast(CrosshairGraphic)g) {
+            add(new CrosshairGraphicImpl(tc, gfx));
         } else if (auto txt = cast(TextGraphic)g) {
             //leave it to gameview.d (which adds its own newGraphic callback)
+        } else if (auto ns = cast(NukeSplatEffect)g) {
+            add(new NukeSplatEffectImpl(ns));
+        } else if (auto ex = cast(ExplosionEffect)g) {
+            add(new ExplosionEffectImpl(engineTime, gfx, ex));
+        } else if (auto aniEff = cast(AnimationEffect)g) {
+            add(new AnimationEffectImpl(engineTime, aniEff));
         } else {
             assert (false, "unknown type: "~g.toString());
-        }
-    }
-
-    private void doDamage(Vector2i pos, int radius, bool explode) {
-        if (explode) {
-            scene.add(new ExplosionGfxImpl(engineTime, gfx, pos, radius*2));
-        }
-    }
-
-    private void doCreateSplat(SplatType type) {
-        switch (type) {
-            case SplatType.nuke:
-                scene.add(new NukeSplatGraphic());
-                break;
-            default:
         }
     }
 

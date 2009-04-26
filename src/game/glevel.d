@@ -160,7 +160,8 @@ class GameLandscape : GameObject {
     }
 
     void init() {
-        mGraphic = engine.graphics.createLandscape(mOffset, mLandscape);
+        mGraphic = new LandscapeGraphic(mOffset, mLandscape);
+        engine.graphics.add(mGraphic);
 
         mPhysics = new LandscapeGeometry();
         mPhysics.ls = this;
@@ -176,11 +177,12 @@ class GameLandscape : GameObject {
             auto wall = new PlaneGeometry(toVector2f(to), toVector2f(from));
             engine.physicworld.add(wall);
 
-            auto border = engine.graphics.createLine();
+            auto border = new LineGraphic();
             border.setColor(Color(0.5));
             border.setWidth(5);
             border.setTexture(mBorderSegment);
             border.setPos(from, to);
+            engine.graphics.add(border);
         }
 
         auto rc = Rect2i.Span(offset, size);

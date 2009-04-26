@@ -32,7 +32,3 @@ enum WeaponMode {
     full,        ///full weapon set available
     secondary,   ///limited weapon set (jetpack-flying, ...)
 }
-
-enum SplatType {
-    nuke,
-}
