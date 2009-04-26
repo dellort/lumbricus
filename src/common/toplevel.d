@@ -801,7 +801,8 @@ class SwitchDriver : Task {
         apply.onClick = &onApply;
         list.add(apply);
 
-        gWindowManager.createWindow(this, list, "Switch driver");
+        auto wnd = gWindowManager.createWindow(this, list, "Switch driver");
+        wnd.window.zorder = 1;
     }
 
     void onApply(Button sender) {

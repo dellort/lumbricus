@@ -130,7 +130,7 @@ class ServerTeam : Team {
         WeaponList list;
         foreach (item; items) {
             WeaponListItem nitem;
-            nitem.type = parent.engine.wc2wh(item.weapon);
+            nitem.type = item.weapon;
             nitem.quantity = item.infinite ?
                 WeaponListItem.QUANTITY_INFINITE : item.count;
             nitem.enabled = item.canUse();
@@ -676,8 +676,8 @@ class ServerTeamMember : TeamMember, WormController {
         return WormAniState.walk;
     }
 
-    WeaponHandle getCurrentWeapon() {
-        return currentWeapon ? mEngine.wc2wh(currentWeapon.weapon) : null;
+    WeaponClass getCurrentWeapon() {
+        return currentWeapon ? currentWeapon.weapon : null;
     }
 
     WeaponItem currentWeapon() {
@@ -973,17 +973,17 @@ class WeaponSet {
         engine = aengine;
         name = config.name;
         foreach (ConfigNode node; config.getSubNode("weapon_list")) {
-            try {
+            //try {
                 auto weapon = new WeaponItem(this, node);
                 weapons[weapon.weapon] = weapon;
                 //only drop weapons that are not infinite already,
                 //  and that can be used in the current world
                 if (!weapon.infinite && weapon.weapon.canUse())
                     crateList ~= weapon.weapon;
-            } catch (Exception e) {
-                registerLog("game.controller")
-                    ("Error in weapon set '"~name~"': "~e.msg);
-            }
+            //} catch (Exception e) { <- exact exception please --kthx
+            //    registerLog("game.controller")
+            //        ("Error in weapon set '"~name~"': "~e.msg);
+            //}
         }
     }
 
@@ -1166,12 +1166,8 @@ class GameController : GameLogicPublic {
         return mGamemode.getStatus;
     }
 
-    WeaponHandle[] weaponList() {
-        WeaponHandle[] res;
-        foreach (c; mEngine.weaponList()) {
-            res ~= engine.wc2wh(c);
-        }
-        return res;
+    WeaponClass[] weaponList() {
+        return mEngine.weaponList();
     }
 
     int getWeaponListChangeCounter() {

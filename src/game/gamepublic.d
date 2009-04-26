@@ -11,7 +11,7 @@ import game.animation;
 import game.gfxset;
 //import game.glevel;
 import game.weapon.types;
-//import game.weapon.weapon;
+import game.weapon.weapon;
 import game.levelgen.level;
 //import game.levelgen.landscape;
 import game.levelgen.renderer;
@@ -71,29 +71,18 @@ class GameConfig {
     }
 }
 
-//for now, these are concrete classes...
-//generally, you have the problem, that these objects contain both server and
-// client state, e.g. the position, the currently played animation, the position
-// in the animation playback... so now, these classes contain all state (uh,
-// most state) that is used by the client engine to display stuff, especially
-// this is needed when saving & restoring is involved
-//hurrr.... feel free to unhack it
-//game engine shall only use the methods to access stuff
+//blergh
 class GameEngineGraphics {
+    GameEnginePublic engine;
     //add_objects is for the client engine, to get to know about new objects
     List2!(Graphic) objects;
-    //in the network case, delivers the server engine's time of the last update
-    //for now, it's always the game time
+    //== engine.gameTime()
     TimeSourcePublic timebase;
-    //incremented on each update
-    ulong current_frame = 1;
-    //last frame when something was added to objects
-    //(object changes/removal requires the client to poll the object's state)
-    ulong last_objects_frame;
 
-    this (TimeSourcePublic ts) {
+    this (GameEnginePublic a_engine) {
         objects = new typeof(objects);
-        timebase = ts;
+        engine = a_engine;
+        timebase = engine.gameTime;
     }
     this (ReflectCtor c) {
         c.types().registerClass!(typeof(objects))();
@@ -102,18 +91,18 @@ class GameEngineGraphics {
     void remove(Graphic n) {
         if (objects.contains(n.node)) {
             objects.remove(n.node);
+            n.removed = true;
+            engine.callbacks.removeGraphic(n);
         } else {
             //if (!n.removed)
             //    Trace.formatln(n);
             assert (n.removed);
         }
-        n.removed = true;
     }
 
     private void doadd(Graphic g) {
         g.node = objects.add(g);
-        g.frame_added = current_frame;
-        last_objects_frame = current_frame;
+        engine.callbacks.newGraphic(g);
     }
 
     AnimationGraphic createAnimation() {
@@ -143,15 +132,20 @@ class GameEngineGraphics {
         doadd(n);
         return n;
     }
+
+    TextGraphic createText() {
+        auto n = new TextGraphic(this);
+        doadd(n);
+        return n;
+    }
 }
 
+//xxx this crap is a relict of the now dead pseudo network stuff
+//    remove/redo this if you feel like it
 class Graphic {
     GameEngineGraphics owner;
     ListNode node;
-    //xxx this crap is a relict of the now dead pseudo network stuff
-    //    remove/redo this if you feel like it
     bool removed;
-    ulong frame_added;
 
     this (GameEngineGraphics a_owner) {
         owner = a_owner;
@@ -298,6 +292,21 @@ class LandscapeGraphic : Graphic {
     //void insert(Vector2i pos, Resource!(Surface) bitmap);
 }
 
+class TextGraphic : Graphic {
+    char[] text;
+    Vector2i pos;
+    //how the label-rect is attached to pos, for each axis 0.0-1.0
+    //(0,0) is the upper left corner, (1,1) the bottom right corner
+    Vector2f attach = {0, 0};
+
+    this (GameEngineGraphics a_owner) {
+        super(a_owner);
+    }
+    this (ReflectCtor c) {
+        super(c);
+    }
+}
+
 
 ///GameEngine public interface
 interface GameEnginePublic {
@@ -373,17 +382,9 @@ class GameEngineCallback {
     ///called if the weapon list of any team changes
     ///value increments, if the weapon list of any team changes
     MDelegate!(Team) weaponsChanged;
-}
 
-class WeaponHandle {
-    Resource!(Surface) icon;
-    char[] name;
-    int value;
-    char[] category;
-
-    //serializable for simplicity
-    this () {}
-    this (ReflectCtor c) {}
+    MDelegate!(Graphic) newGraphic;
+    MDelegate!(Graphic) removeGraphic;
 }
 
 ///interface to the server's GameLogic
@@ -408,7 +409,7 @@ interface GameLogicPublic {
 
     ///list of _all_ possible weapons, which are useable during the game
     ///Team.getWeapons() must never return a Weapon not covered by this list
-    WeaponHandle[] weaponList();
+    WeaponClass[] weaponList();
 }
 
 interface TeamMember {
@@ -433,7 +434,7 @@ interface TeamMember {
     ///animation state, or something
     WormAniState wormState();
 
-    WeaponHandle getCurrentWeapon();
+    WeaponClass getCurrentWeapon();
     ///show the weapon as an icon near the worm; used when the weapon can not be
     ///displayed directly (like when worm is on a jetpack)
     bool displayWeaponIcon();
@@ -447,7 +448,7 @@ interface TeamMember {
 //a trivial list of weapons and quantity
 alias WeaponListItem[] WeaponList;
 struct WeaponListItem {
-    WeaponHandle type;
+    WeaponClass type;
     //quantity or the magic value QUANTITY_INFINITE if unrestricted amount
     int quantity;
     //if weapon is allowed by the game controller (e.g. no airstrikes in caves)

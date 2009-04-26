@@ -10,6 +10,7 @@
 - debugging: würmer auswählen und GameObject-Felder anzeigen lassen
 ! generator.d: reduziere komplexität indem "generierte" level nur noch als lexel-array gespeichert werden (statt als gefüllte polygone); verschiebe das laden/speichern von savegames(bzw. netzwerk level) nach level.d; mache strukturen in level.d vllt. serialisierbar (statt manueller lade/speicher code); in generator.d würde nur noch code zum rendern bleiben + müllcode zum laden und speichern von templates (lol leveledit.d); vllt. savegames/netzwerklevels immer als komplette bitmap speichern?; danach kann glevel.d das zeug aus level.d direkt verwenden und ist weniger hackig
 - hashcheck für savegames und insbesondere netzwerklevels
++ beliebige game objekte in vorgenerierten leveln (ähnlich minen, aber vom leveldesigner platziert, beispiel: feste levelränder als objekte)
 
 == bekannte, lösbare Bugs ==
 - wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
@@ -38,7 +39,6 @@
 [- kein Force objekt für explosionen erzeugen]
 - statt aktive Teams aktive TeamMembers
 [- 1-frame bug bei würmern]
-- waffen klassen etc. nicht mehr von GameEngine abhängig (serialize_register.d)
 * Spiel über mehrere Runden (Scores, Waffen sammeln, Statistiken, Gesamtsieg)
 + Spiel-Statistiken, insb. Team- und Wurm-bezogene
 + Powerup-Kisten (2x Schaden, Niedrige Schwerkraft etc.) und Medizinkisten
@@ -49,8 +49,6 @@
 == Spiel-Anzeige (Grafiken, Präsentation) ==
 + Waffen-Timer anzeigen
 * partikel, sounds
-+ Aufsteigende Ertrink-Labels
-[+ camera.d: bessere auswahl, welchem objekt gefolgt werden soll]
 * "stub" gpl daten (strichmännchen)
 *** gpl daten (vollständig)
 

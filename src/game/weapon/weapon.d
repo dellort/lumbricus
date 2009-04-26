@@ -56,9 +56,6 @@ abstract class WeaponClass {
     //weapon-holding animations
     char[][WeaponWormAnimations.max+1] animations;
 
-    //cached hack
-    WeaponHandle handle;
-
     GameEngine engine() {
         return mEngine;
     }
@@ -102,12 +99,6 @@ abstract class WeaponClass {
 
             spriteclass.loadFromConfig(pr);
         }
-
-        handle = new WeaponHandle();
-        handle.name = name;
-        handle.icon = icon;
-        handle.value = value;
-        handle.category = category;
     }
 
     //xxx class

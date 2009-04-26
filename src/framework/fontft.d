@@ -1,11 +1,11 @@
-module framework.sdl.fontft;
+//libfreetype font driver
+module framework.fontft;
 
 import derelict.opengl.gl;
 import derelict.freetype.ft;
 import derelict.util.exception;
 
 import framework.framework;
-import framework.sdl.framework;
 import framework.font;
 import framework.texturepack;
 
@@ -297,7 +297,6 @@ class FTFont : DriverFont {
     private {
         FTGlyphCache mCache;
         FontProperties mProps;
-        bool mUseGL;
     }
 
     package int refcount = 1;
@@ -305,13 +304,12 @@ class FTFont : DriverFont {
     this(FTGlyphCache glyphs, FontProperties props) {
         mCache = glyphs;
         mProps = props;
-        mUseGL = gSDLDriver.mOpenGL;
     }
 
     private void drawGlyph(Canvas c, GlyphData* glyph, Vector2i pos) {
-        void setColor(Color c) {
-            if (mUseGL)
-                glColor3f(c.r, c.g, c.b);
+        void setColor(Color col) {
+            if (c.features() & DriverFeatures.usingOpenGL)
+                glColor3f(col.r, col.g, col.b);
         }
 
         if (mProps.back.a > 0)
@@ -330,12 +328,6 @@ class FTFont : DriverFont {
     }
 
     Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text) {
-        /+if (mUseGL) {
-            glPushAttrib(GL_CURRENT_BIT);
-        }
-        scope(exit) if (mUseGL) {
-            glPopAttrib();
-        }+/
         int orgx = pos.x;
         foreach (dchar c; text) {
             auto glyph = mCache.getGlyph(c);
@@ -402,7 +394,7 @@ class FTFontDriver : FontDriver {
 
         FontProperties gc_props = props;
         //on OpenGL, you can color up surfaces at no costs, so...
-        if (gSDLDriver.mOpenGL) {
+        if (gFramework.driver.getFeatures() & DriverFeatures.usingOpenGL) {
             //normalize to a standard color
             //because of issues with the border, keep alpha component
             gc_props.fore = Color(1, 1, 1, gc_props.fore.a);   //white

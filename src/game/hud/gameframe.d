@@ -66,7 +66,7 @@ class GameFrame : SimpleContainer {
         updateWeapons(null);
     }
 
-    private void selectWeapon(WeaponHandle c) {
+    private void selectWeapon(WeaponClass c) {
         game.control.executeCommand("weapon "~c.name);
     }
 
@@ -206,7 +206,7 @@ class GameFrame : SimpleContainer {
 
         add(mWeaponSel, WidgetLayout.Aligned(1, 1, Vector2i(5, 40)));
 
-        WeaponHandle[] wlist = game.logic.weaponList();
+        WeaponClass[] wlist = game.logic.weaponList();
         mWeaponSel.init(wlist);
 
         setPosition(game.cengine.worldCenter);

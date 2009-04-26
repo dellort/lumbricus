@@ -229,21 +229,6 @@ class GameEngine : GameEnginePublic {
         throw new Exception("weapon class " ~ name ~ " not found");
     }
 
-    //sry
-    WeaponHandle findWeaponHandle(char[] name) {
-        auto wc = findWeaponClass(name, true);
-        //logic error, don't call this function if the name doesn't exist
-        assert (!!wc, "no weapon handle: "~name);
-        assert (!!wc.handle);
-        return wc.handle;
-    }
-    WeaponHandle wc2wh(WeaponClass c) {
-        return c ? findWeaponHandle(c.name) : null;
-    }
-    WeaponClass wh2wc(WeaponHandle h) {
-        return h ? findWeaponClass(h.name) : null;
-    }
-
     WeaponClass[] weaponList() {
         return mWeaponClasses.values;
     }
@@ -278,7 +263,7 @@ class GameEngine : GameEnginePublic {
         //also check physic framerate in world.d
         const Time cFrameLength = timeMsecs(20);
 
-        graphics = new GameEngineGraphics(mGameTime);
+        graphics = new GameEngineGraphics(this);
 
         mObjects = new List2!(GameObject)();
         mPhysicWorld = new PhysicWorld(rnd);
@@ -491,8 +476,6 @@ class GameEngine : GameEnginePublic {
     }
 
     void frame() {
-        graphics.current_frame++;
-
         auto physicTime = globals.newTimer("game_physic");
         physicTime.start();
         mPhysicWorld.simulate(mGameTime.current);

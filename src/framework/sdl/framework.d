@@ -204,6 +204,7 @@ void doMirrorX(SurfaceData* data) {
             //one can be sure non-transparent pixels are actually equal to the
             //color key
             auto ckey = mData.colorkey.toRGBA32();
+            ckey.a = 0;
             for (int y = rc.p1.y; y < rc.p2.y; y++) {
                 int w = rc.size.x;
                 Color.RGBA32* pix = mData.data.ptr + mData.pitch*y + rc.p1.x;
@@ -462,7 +463,7 @@ class SDLDriver : FrameworkDriver {
         int features = 0;
         if (mOpenGL) {
             features = features | DriverFeatures.canvasScaling
-                | DriverFeatures.transformedQuads;
+                | DriverFeatures.transformedQuads | DriverFeatures.usingOpenGL;
         }
         return features;
     }

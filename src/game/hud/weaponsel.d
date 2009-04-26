@@ -29,7 +29,7 @@ class WeaponSelWindow : Container {
 
         //weapon or placeholder for a weapon
         class Cell : Container {
-            WeaponHandle weapon;
+            WeaponClass weapon;
             int quantity;
             bool enabled;
 
@@ -44,7 +44,7 @@ class WeaponSelWindow : Container {
                 return active.parent || inactive.parent;
             }
 
-            this(WeaponHandle c) {
+            this(WeaponClass c) {
                 weapon = c;
                 active = new Button();
                 mButtonToCell[active] = this;
@@ -108,7 +108,7 @@ class WeaponSelWindow : Container {
         Label mWeaponQuantity;
 
         //currently shown weapon in the info-line below the weapon grid
-        WeaponHandle mWeaponInfoline;
+        WeaponClass mWeaponInfoline;
 
         Translator mWeaponTranslate, mWeaponFooTranslate;
         char[][] mWeaponPostfixes;
@@ -119,12 +119,12 @@ class WeaponSelWindow : Container {
 
     KeyBindings selectionBindings;
 
-    void delegate(WeaponHandle c) onSelectWeapon;
+    void delegate(WeaponClass c) onSelectWeapon;
 
     //also hack-liek
     //checks if "key" is a shortcut, and if so, cycle the weapon
     //c is the currently selected weapon
-    bool checkNextWeaponInCategoryShortcut(char[] category, WeaponHandle c) {
+    bool checkNextWeaponInCategoryShortcut(char[] category, WeaponClass c) {
         auto parr = category in mRows;
         if (!parr)
             return false;
@@ -132,7 +132,7 @@ class WeaponSelWindow : Container {
         if (!arr.length)
             return true; //key shortcut catched
         //sry was lazy!
-        WeaponHandle[] foo;
+        WeaponClass[] foo;
         foreach (Cell w; arr) {
             if (w.enabled && w.quantity > 0)
                 foo ~= w.weapon;
@@ -215,7 +215,7 @@ class WeaponSelWindow : Container {
 
     //recreate the whole GUI
     //should be only needed once, at initialization
-    public void init(WeaponHandle[] weapons) {
+    public void init(WeaponClass[] weapons) {
         //set this to true to also show rows with no weapons in them!
         bool showEmpty = false;
 
@@ -228,7 +228,7 @@ class WeaponSelWindow : Container {
         mButtonToCell = null;
         mRows = null;
 
-        //for each WeaponHandle a Cell
+        //for each WeaponClass a Cell
         mAll.length = weapons.length;
         for (int n = 0; n < mAll.length; n++) {
             mAll[n] = new Cell(weapons[n]);

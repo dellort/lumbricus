@@ -31,14 +31,17 @@ void initGameSerialization() {
         ProjectileSprite, HomingAction, RayShooter, RenderLaser, Sequence,
         SequenceUpdate, SpawnAction, Jetpack, Rope, WormSprite,
         GravestoneSprite, WormSequenceUpdate, WrapFireInfo,
-        GameEngineGraphics, AnimationGraphic, LineGraphic,
+        GameEngineGraphics, AnimationGraphic, LineGraphic, TextGraphic,
         Crosshair, LandscapeGraphic, NapalmSequenceUpdate,
-        NapalmSprite, WeaponHandle, ModeRoundbased, ModeDebug, TimeSource,
+        NapalmSprite, ModeRoundbased, ModeDebug, TimeSource,
         TimeSourceFixFramerate, EventAggregator, DieAction, RoundbasedStatus,
         TeamAction, AoEDamageAction, ImpulseAction, MeleeWeapon, MeleeShooter,
         ModeRealtime, RealtimeStatus);
-    //stuff that (maybe) should not be serialized
-    //all ctors are marked with "xxx class"
+    //stuff that is actually redundant and wouldn't need to be in savegames
+    //but excluding this from savegames would be too much work for nothing
+    //keeping them separate still makes sense if we ever need faster snapshots
+    //(all data stored by these classes doesn't or shouldn't change, and thus
+    // doesn't need to be snapshotted)
     serialize_types.registerClasses!(ActionContainer, ActionListClass,
         TimedActionClass, ActionStateInfo, ActionSpriteClass, CrateSpriteClass,
         StaticStateInfo, GOSpriteClass, SpriteActionClass, SetStateActionClass,

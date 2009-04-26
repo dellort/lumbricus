@@ -61,6 +61,8 @@ import utils.archive;
 import utils.snapshot;
 import utils.perf;
 
+import game.serialize_register : initGameSerialization;
+
 import stdx.stream;
 import str = stdx.string;
 
@@ -619,5 +621,6 @@ class GameTask : StatefulTask {
     static this() {
         TaskFactory.register!(typeof(this))("game");
         StatefulFactory.register!(typeof(this))(cSaveId);
+        initGameSerialization();
     }
 }

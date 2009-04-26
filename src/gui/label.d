@@ -65,6 +65,8 @@ class Label : Widget {
     }
 
     void text(char[] txt) {
+        if (txt == mText)
+            return;
         mText = txt;
         needResize(true);
     }

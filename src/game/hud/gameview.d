@@ -48,8 +48,10 @@ class GuiAnimator : Widget {
     }
 
     void animation(Animation ani) {
-        mAnimator.setAnimation(ani);
-        needResize(true);
+        if (ani !is mAnimator.animation) {
+            mAnimator.setAnimation(ani);
+            needResize(true);
+        }
     }
 
     void setPositionCentered(Vector2i newPos) {
@@ -129,16 +131,11 @@ private class ViewMember {
         weaponIcon = m.owner.createLabel();
         weaponIcon.text = "";
         arrow = new GuiAnimator(ts);
-        arrow.animation = member.owner.theme.arrow.get;
     }
 
     void setArrowAnim(bool canChangeWorm) {
-        if (mArrowState == canChangeWorm)
-            return;
-        if (canChangeWorm)
-            arrow.animation = member.owner.theme.change.get;
-        else
-            arrow.animation = member.owner.theme.arrow.get;
+        auto theme = member.owner.theme;
+        arrow.animation = canChangeWorm ? theme.change.get : theme.arrow.get;
         mArrowState = canChangeWorm;
     }
 
@@ -304,16 +301,19 @@ private class ViewMember {
                 moveWeaponIcon.reset();
             }
 
-            void mooh(bool vis, Widget w) {
-                setWVisible(w, vis);
-                if (!vis)
-                    return;
-                Vector2i sz = w.requestSize;
-                pos.y -= sz.y;
+            //add rectangle under pos variable, return the rect's position
+            Vector2i addThing(Vector2i size) {
+                pos.y -= size.y;
                 //pos.y -= 1; //some spacing, but it looks ugly
                 auto p = pos;
-                p.x -= sz.x/2; //center
-                setWPos(w, p);
+                p.x -= size.x/2; //center
+                return p;
+            }
+
+            void mooh(bool vis, Widget w) {
+                setWVisible(w, vis);
+                if (vis)
+                    setWPos(w, addThing(w.requestSize));
             }
             auto tlv = showLabels && !weapon_visible;
             mooh(tlv && owner.mTeamGUISettings.showPoints, wormPoints);
@@ -363,6 +363,24 @@ private class ViewMember {
         }
     } // simulate
 } //ViewMember
+
+private class GameLabel : Label {
+    TextGraphic txt;
+
+    this(TextGraphic a_txt) {
+        setLayout(WidgetLayout.Aligned(-1, -1));
+        styles.addClass("game-label");
+        font = gFramework.fontManager.loadFont("gamelabel");
+        txt = a_txt;
+    }
+
+    override void simulate() {
+        text = txt.text;
+        //there's also utils.math.placeRelative(), which was supposed to do this
+        auto p = - toVector2f(size) ^ txt.attach;
+        setAddToPos(txt.pos + toVector2i(p));
+    }
+}
 
 //GameView is everything which is scrolled
 //it displays the game directly and also handles input directly
@@ -512,6 +530,11 @@ class GameView : Container {
     this(GameInfo game) {
         mGame = game;
 
+        mGame.engine.callbacks.newGraphic ~= &doNewGraphic;
+        foreach (g; mGame.engine.getGraphics().objects) {
+            doNewGraphic(g);
+        }
+
         SceneObject labels = new DrawLabels();
         labels.zorder = GameZOrder.Names;
         mGame.cengine.scene.add(labels);
@@ -609,6 +632,12 @@ class GameView : Container {
         executeServerCommand(myformat("move {} {}", movement.x, movement.y));
     }
 
+    private void doNewGraphic(Graphic g) {
+        if (auto txt = cast(TextGraphic)g) {
+            addChild(new GameLabel(txt));
+        }
+    }
+
     Camera camera() {
         return mCamera;
     }
@@ -628,7 +657,7 @@ class GameView : Container {
 
     //find a WeaponClass of the weapon named "name" in the current team's
     //weapon-set (or return null)
-    private WeaponHandle findWeapon(char[] name) {
+    private WeaponClass findWeapon(char[] name) {
         auto cm = mGame.control.getControlledMember();
         if (!cm)
             return null;

@@ -58,6 +58,8 @@ enum DriverFeatures {
     canvasScaling = 1,
     //basically, if a 3D engine is available
     transformedQuads = 2,
+    //if the OpenGL API is used / OpenGL calls can be done by the user
+    usingOpenGL = 4,
 }
 
 abstract class FrameworkDriver {
@@ -626,9 +628,9 @@ class Framework {
         // .free() all Surfaces and then do defered_free()?
     }
 
-    /*package FrameworkDriver driver() {
+    public FrameworkDriver driver() {
         return mDriver;
-    }*/
+    }
 
     package FontDriver fontDriver() {
         return mFontDriver;

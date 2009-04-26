@@ -102,6 +102,7 @@ class ClientAnimationGraphic : Animator {
     }
 
     override void removeThis() {
+        super.removeThis();
         if (mOffArrow)
             mOffArrow.removeThis();
     }
@@ -355,7 +356,6 @@ class ClientGameEngine : GameEngineCallback {
     ResourceSet resources;
     GfxSet gfx;
     GameEngineGraphics server_graphics;
-    ulong server_graphics_last_checked_frame;
 
     private Music mMusic;
 
@@ -410,13 +410,14 @@ class ClientGameEngine : GameEngineCallback {
 
         mSceneRect = Rect2i(Vector2i(0), worldSize);
 
-        readd_graphics();
-
         initSound();
 
         auto cb = mEngine.callbacks();
         cb.damage ~= &doDamage;
         cb.createSplat ~= &doCreateSplat;
+        cb.newGraphic ~= &doNewGraphic;
+
+        readd_graphics();
     }
 
     //actually start the game (called after resources were preloaded)
@@ -434,9 +435,7 @@ class ClientGameEngine : GameEngineCallback {
         detailLevel = 0;
 
         server_graphics = engine.getGraphics();
-        server_graphics_last_checked_frame = 0;
-        //in case the game is reloaded
-        updateGraphics();
+        createGraphics();
     }
 
     TimeSourcePublic engineTime() {
@@ -458,43 +457,37 @@ class ClientGameEngine : GameEngineCallback {
 
     //synchronize graphics list
     //graphics currently are removed lazily using the "removed" flag
-    private void updateGraphics() {
+    private void createGraphics() {
+        //this case is when:
+        // 1. creating a new game; the game engine is created first, and during
+        //    initialization, the engine might want to create new graphics, but
+        //    the client engine isn't here yet and can't listen to the callbacks
+        // 2. loading from savegames
+        // 3. resuming snapshots
+        //but maybe this should be moved to gemashell.d
+        foreach (Graphic g; server_graphics.objects) {
+            engine.callbacks.newGraphic(g);
+        }
+    }
+
+    private void doNewGraphic(Graphic g) {
         void add(SceneObject s) {
             scene.add(s);
         }
 
-        assert (server_graphics.last_objects_frame
-            >= server_graphics_last_checked_frame);
-
-        if (server_graphics.last_objects_frame
-            == server_graphics_last_checked_frame)
-        {
-            return;
+        if (auto ani = cast(AnimationGraphic)g) {
+            add(new ClientAnimationGraphic(ani, mSceneRect));
+        } else if (auto line = cast(LineGraphic)g) {
+            add(new ClientLineGraphic(line));
+        } else if (auto land = cast(LandscapeGraphic)g) {
+            add(new LandscapeGraphicImpl(land));
+        } else if (auto tc = cast(Crosshair)g) {
+            add(new CrosshairImpl(tc, gfx));
+        } else if (auto txt = cast(TextGraphic)g) {
+            //leave it to gameview.d (which adds its own newGraphic callback)
+        } else {
+            assert (false, "unknown type: "~g.toString());
         }
-
-        foreach (Graphic g; server_graphics.objects) {
-            if (g.removed)
-                continue;
-            //already has been added
-            if (g.frame_added <= server_graphics_last_checked_frame)
-                continue;
-            //urghs, but interface methods (like .createAnimation()) can't be
-            //used when loading from a saved game
-            if (auto ani = cast(AnimationGraphic)g) {
-                add(new ClientAnimationGraphic(ani, mSceneRect));
-            } else if (auto line = cast(LineGraphic)g) {
-                add(new ClientLineGraphic(line));
-            } else if (auto land = cast(LandscapeGraphic)g) {
-                add(new LandscapeGraphicImpl(land));
-            } else if (auto tc = cast(Crosshair)g) {
-                add(new CrosshairImpl(tc, gfx));
-            } else {
-                assert (false, "unknown type: "~g.toString());
-            }
-        }
-
-        server_graphics_last_checked_frame
-            = server_graphics.last_objects_frame;
     }
 
     private void doDamage(Vector2i pos, int radius, bool explode) {
@@ -525,8 +518,6 @@ class ClientGameEngine : GameEngineCallback {
                 mMusic.paused = ispaused;
             oldpause = ispaused;
         }
-
-        updateGraphics();
 
         //bail out here if game is paused??
 

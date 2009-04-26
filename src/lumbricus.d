@@ -7,7 +7,7 @@ import common.init;
 import framework.sdl.framework;
 import framework.sdl.soundmixer;
 import framework.openal;
-import framework.sdl.fontft;
+import framework.fontft;
 
 //--> FMOD is not perfectly GPL compatible, so you may need to comment
 //    this line in some scenarios (this is all it needs to disable FMOD)
@@ -36,7 +36,6 @@ import str = stdx.string;
 
 import gui.test; //GUI test code
 import game.gametask; //the game itself
-import game.serialize_register : initGameSerialization;
 version(DigitalMars) {
     //I can only assume that this caused problems with ldc
     import game.gui.leveledit; //aw
@@ -72,7 +71,7 @@ const cCommandLineHelp =
     --fw.prop=val
         Set property 'prop' of the fwconfig stuff passed to the Framework to
         'val', e.g. to disable use of OpenGL:
-        --driver.open_gl=false
+        --fw.sdl.open_gl=false
     --exec.=cmd
         Execute 'cmd' on the commandline, e.g. this starts task1 and task2:
         --exec.="spawn task1" --exec.="spawn task2"
@@ -92,8 +91,6 @@ void main(char[][] args) {
 
     if (!cmdargs)
         return;
-
-    initGameSerialization();
 
     auto fwconf = gConf.loadConfig("framework");
     fwconf.mixinNode(cmdargs.getSubNode("fw"), true);
