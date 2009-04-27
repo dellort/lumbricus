@@ -62,7 +62,7 @@ class ServerTeam : Team {
         Vector2f movementVec = {0, 0};
         bool mAlternateControl;
         bool mAllowSelect;   //can next worm be selected by user (tab)
-        char[] mTeamId;
+        char[] mTeamId, mTeamNetId;
     }
 
     //node = the node describing a single team
@@ -70,8 +70,8 @@ class ServerTeam : Team {
         this.parent = parent;
         mName = node.name;
         //xxx: error handling (when team-theme not found)
-        teamColor = parent.engine.gfx.teamThemes[node.getStringValue("color",
-            "blue")];
+        char[] colorId = parent.checkTeamColor(node["color"]);
+        teamColor = parent.engine.gfx.teamThemes[colorId];
         initialPoints = node.getIntValue("power", 100);
         //graveStone = node.getIntValue("grave", 0);
         //the worms currently aren't loaded by theirselves...
@@ -87,6 +87,7 @@ class ServerTeam : Team {
         gravestone = node.getIntValue("grave", 0);
         mAlternateControl = node.getStringValue("control") != "worms";
         mTeamId = node["id"];
+        mTeamNetId = node["net_id"];
     }
 
     this (ReflectCtor c) {
@@ -155,6 +156,10 @@ class ServerTeam : Team {
     }
 
     // --- end Team
+
+    char[] netId() {
+        return mTeamNetId;
+    }
 
     bool alternateControl() {
         return mAlternateControl;
@@ -1116,6 +1121,7 @@ class GameController : GameLogicPublic {
         //Medkit, medkit+tool, medkit+tool+unrigged weapon
         //  (rest is rigged weapon)
         const cCrateProbs = [0.15f, 0.30f, 0.93f];
+        int[TeamTheme.cTeamColors.length] mTeamColorCache;
     }
 
     //when a worm collects a tool from a crate
@@ -1341,6 +1347,24 @@ class GameController : GameLogicPublic {
     private void addTeam(ConfigNode config) {
         auto team = new ServerTeam(config, this);
         mTeams ~= team;
+    }
+
+    private char[] checkTeamColor(char[] col) {
+        int colId = 0;  //default to first color
+        foreach (int idx, char[] tc; TeamTheme.cTeamColors) {
+            if (col == tc) {
+                colId = idx;
+                break;
+            }
+        }
+
+        //assign the color least used, preferring the one requested
+        foreach (int idx, int count; mTeamColorCache) {
+            if (count < mTeamColorCache[colId])
+                colId = idx;
+        }
+        mTeamColorCache[colId]++;
+        return TeamTheme.cTeamColors[colId];
     }
 
     //like "weapon_sets" in gamemode.conf, but renamed according to game config

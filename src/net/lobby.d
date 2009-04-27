@@ -225,6 +225,7 @@ class CmdNetClientTask : Task {
 
 class CmdNetLobbyTask : Task {
     private {
+        static LogStruct!("lobby") log;
         CmdNetClient mClient;
         DropDownList mTeams;
         ConfigNode mTeamNode;
@@ -250,6 +251,7 @@ class CmdNetLobbyTask : Task {
         mClient.onUpdatePlayers = &onUpdatePlayers;
         mClient.onError = &onError;
         mClient.onMessage = &onMessage;
+        mClient.onHostAccept = &onHostAccept;
 
         auto config = gConf.loadConfig("lobby_gui");
         auto loader = new LoadGui(config);
@@ -316,9 +318,52 @@ class CmdNetLobbyTask : Task {
 
     private void hostGame(Button sender) {
         if (mClient.connected) {
+            //ask for team info
+            mClient.prepareCreateGame();
+        }
+    }
+
+    //got team info, assemble and send GameConfig
+    //Big xxx: all data is loaded from newgame_net.conf, need setup dialog
+    private void onHostAccept(SimpleNetConnection sender, NetTeamInfo info) {
+        if (mClient.connected) {
             ConfigNode node = gConf.loadConfig("newgame_net");
+            int wormHP = node.getValue("worm_hp", 150);
+            int wormCount = node.getValue("worm_count", 4);
+
             GameConfig conf = loadGameConfig(node, null, false);
-            mClient.startLoading(conf);
+            auto teams = conf.teams;
+            teams.clear();
+            foreach (ref ti; info.teams) {
+                ConfigNode ct = ti.teamConf;
+                if (ct) {
+                    //fixed number of team members
+                    char[][] wormNames;
+                    auto memberNode = ct.getSubNode("member_names");
+                    foreach (ConfigNode sub; memberNode) {
+                        wormNames ~= sub.value;
+                    }
+                    memberNode.clear();
+                    for (int i = 0; i < wormCount; i++) {
+                        if (i < wormNames.length)
+                            memberNode.add("", wormNames[i]);
+                        else
+                            //xxx localize? not so sure about that (we don't
+                            //    have access to the team owner's locale)
+                            memberNode.add("", myformat("Worm {}", i));
+                    }
+                    //fixed health
+                    ct.setValue("power", wormHP);
+                    //the clients need this to identify which team belongs to whom
+                    ct.setValue("net_id", ti.playerId);
+                    teams.addNode(ct);
+                }
+            }
+
+            log("debug dump!");
+            gConf.saveConfig(conf.save(), "dump.conf");
+
+            mClient.createGame(conf);
         }
     }
 

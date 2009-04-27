@@ -30,6 +30,7 @@ enum ServerPacket : ushort {
     gameCommands,
     ping,
     clientBroadcast,
+    acceptCreateGame,
 }
 
 //Client-to-server packet IDs
@@ -39,7 +40,8 @@ enum ClientPacket : ushort {
     hello,
     lobbyCmd,
     deployTeam,
-    startLoading,
+    prepareCreateGame,
+    createGame,
     loadDone,
     gameCommand,
     pong,
@@ -166,6 +168,16 @@ struct SPClientBroadcast {
     int senderPlayerId;
 }
 
+struct SPAcceptCreateGame {
+    Team[] teams;
+
+    struct Team {
+        uint playerId;
+        char[] teamName;
+        ubyte[] teamConf;
+    }
+}
+
 
 //--------------------- Client-to-server protocol ------------------
 
@@ -186,7 +198,7 @@ struct CPLobbyCmd {
 //all clients (here, it would be simpler to replicate the "lobby logic"
 //[like assigning teams] on all clients, and then just let the server broadcast
 //this message, without changing the contents... maybe... or maybe not)
-struct CPStartLoading {
+struct CPCreateGame {
     ubyte[] gameConfig;
 }
 

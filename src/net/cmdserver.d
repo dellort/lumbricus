@@ -56,9 +56,6 @@ class CmdNetServer {
         uint[] mRecentDisconnects;
 
         const cInfoInterval = timeSecs(2);
-        int mWormHP = 150;
-        int mWormCount = 4;
-        char[] mWeaponSet = "set1";
     }
 
     //create the server thread object
@@ -72,9 +69,6 @@ class CmdNetServer {
             mServerName = "Unnamed server";
         mMaxPlayers = serverConfig.getValue("max_players", 4);
         mMaxLag = serverConfig.getValue("max_lag", 50);
-        mWormHP = serverConfig.getValue("worm_hp", mWormHP);
-        mWormCount = serverConfig.getValue("worm_count", mWormCount);
-        mWeaponSet = serverConfig.getValue("weapon_set", mWeaponSet);
         debug {
             mSimLagMs = serverConfig.getValue("sim_lag", 0);
             mSimJitterMs = serverConfig.getValue("sim_jitter", 0);
@@ -240,62 +234,42 @@ class CmdNetServer {
             checkLoading();
     }
 
-    //xxx: This whole method should happen on the "admin" client
-    //     (Admin client is chosen by server, e.g. first or password)
-    //     Server <-> Admin communication:
-    //     <-- request team info
-    //     --> (PlayerId, TeamConfig)[]
-    //        Admin client assembles GameConfig
-    //     <-- request start game (GameConfig)
-    private void ccStartGame(CmdNetClientConnection client, CPStartLoading msg)
+    //A client wants to start a game and asks for permission and the
+    //  required data (i.e. team info)
+    private void doPrepareCreateGame(CmdNetClientConnection client) {
+        if (mState != CmdServerState.lobby)
+            return;
+        //xxx need more checks, e.g. if client is the "admin user",
+        //    or at least if another client is already hosting a game
+        SPAcceptCreateGame p;
+        foreach (cl; mClients) {
+            if (cl.mTeamName.length > 0) {
+                SPAcceptCreateGame.Team pt;
+                pt.playerId = cl.id;
+                pt.teamName = cl.mTeamName;
+                pt.teamConf = cl.mTeamData;
+                p.teams ~= pt;
+            }
+        }
+        client.send(ServerPacket.acceptCreateGame, p);
+    }
+
+    //A client sends a (complete) GameConfig, broadcast it to all players
+    private void doStartGame(CmdNetClientConnection client, CPCreateGame msg)
     {
         if (mState != CmdServerState.lobby)
             return;
         state = CmdServerState.loading;
-        //xxx: teams should be assembled on client?
-        //then decompressing-parsing-writing-compressing cfg is unneeded
-        //(the garbage below could be removed)
-        auto cfg = gConf.loadConfigGzBuf(msg.gameConfig);
-        auto teams = cfg.getSubNode("teams");
-        teams.clear();
-        SPStartLoading reply;
+        //no more new connections
         foreach (cl; mClients) {
             if (cl.state != ClientConState.connected) {
                 cl.close();
                 continue;
             }
-            ConfigNode ct = cl.mMyTeamInfo;
-            if (ct) {
-                //xxx this whole function is one giant hack, this just adds a
-                //  little more hackiness -->
-                //fixed number of team members
-                char[][] wormNames;
-                auto memberNode = ct.getSubNode("member_names");
-                foreach (ConfigNode sub; memberNode) {
-                    wormNames ~= sub.value;
-                }
-                memberNode.clear();
-                for (int i = 0; i < mWormCount; i++) {
-                    if (i < wormNames.length)
-                        memberNode.add("", wormNames[i]);
-                    else
-                        memberNode.add("", myformat("Worm {}", i));
-                }
-                //fixed health and weapons
-                ct.setValue("power", mWormHP);
-                //<-- big hack end
-                //the clients need this to identify which team belongs to whom
-                ct.setValue("id", cl.id);
-                teams.addNode(ct);
-            }
         }
-        reply.gameConfig = gConf.saveConfigGzBuf(cfg);
+        SPStartLoading reply;
+        reply.gameConfig = msg.gameConfig;
         //distribute game config
-        log("debug dump!");
-        gConf.saveConfig(cfg, "dump.conf");
-        foreach (cl; mClients) {
-            cl.loadDone = false;
-        }
         sendAll(ServerPacket.startLoading, reply);
         checkLoading();
     }
@@ -332,8 +306,8 @@ class CmdNetServer {
             if (cl.state != ClientConState.connected)
                 continue;
             auto p = SPPlayerList.Player(cl.id, cl.playerName);
-            if (cl.mMyTeamInfo)
-                p.teamName = cl.mMyTeamInfo.name;
+            if (cl.mTeamName.length > 0)
+                p.teamName = cl.mTeamName;
             plist.players ~= p;
         }
         sendAll(ServerPacket.playerList, plist);
@@ -475,7 +449,8 @@ class CmdNetClientConnection {
         CommandBucket mCmds;
         CommandLine mCmd;
         StringOutput mCmdOutBuffer;
-        ConfigNode mMyTeamInfo;
+        ubyte[] mTeamData;
+        char[] mTeamName;
         bool loadDone;
         uint mId;  //immutable during lifetime
 
@@ -704,14 +679,22 @@ class CmdNetClientConnection {
                 //transmit command result
                 send(ServerPacket.cmdResult, p_res);
                 break;
-            case ClientPacket.startLoading:
+            case ClientPacket.prepareCreateGame:
                 if (mOwner.state != CmdServerState.lobby) {
                     //tried to host while game already started, not fatal
-                    sendError("ccerror_wrongstate");
+                    sendError("error_wrongstate");
                     return;
                 }
-                auto p = unmarshal.read!(CPStartLoading)();
-                mOwner.ccStartGame(this, p);
+                mOwner.doPrepareCreateGame(this);
+                break;
+            case ClientPacket.createGame:
+                if (mOwner.state != CmdServerState.lobby) {
+                    //tried to host while game already started, not fatal
+                    sendError("error_wrongstate");
+                    return;
+                }
+                auto p = unmarshal.read!(CPCreateGame)();
+                mOwner.doStartGame(this, p);
                 break;
             case ClientPacket.deployTeam:
                 if (mState != ClientConState.connected) {
@@ -723,8 +706,8 @@ class CmdNetClientConnection {
                     return;
                 }
                 auto p = unmarshal.read!(CPDeployTeam)();
-                mMyTeamInfo = gConf.loadConfigGzBuf(p.teamConf);
-                mMyTeamInfo.rename(p.teamName);
+                mTeamData = p.teamConf;
+                mTeamName = p.teamName;
                 mOwner.updatePlayerList();
                 break;
             case ClientPacket.loadDone:

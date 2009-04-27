@@ -947,6 +947,16 @@ struct NetPlayerInfo {
     Time ping;
 }
 
+struct NetTeamInfo {
+    Team[] teams;
+
+    struct Team {
+        uint playerId;
+        ConfigNode teamConf;
+    }
+}
+
+//xxx: What was that for again? perhaps remove/merge with CmdNetClient
 abstract class SimpleNetConnection {
     //new player information was received from the server
     void delegate(SimpleNetConnection sender) onUpdatePlayers;
@@ -962,6 +972,7 @@ abstract class SimpleNetConnection {
     //receiving a chat message
     void delegate(SimpleNetConnection sender, char[] playerName,
         char[] msg) onChat;
+    void delegate(SimpleNetConnection sender, NetTeamInfo info) onHostAccept;
 
     //send a game-independent command (like "say Hi fellas!" or
     //  "pm Player2 Secret message")

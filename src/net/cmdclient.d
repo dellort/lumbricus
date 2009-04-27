@@ -155,10 +155,14 @@ class CmdNetClient : SimpleNetConnection {
         send(ClientPacket.lobbyCmd, p);
     }
 
-    void startLoading(GameConfig cfg) {
-        CPStartLoading p;
+    void prepareCreateGame() {
+        sendEmpty(ClientPacket.prepareCreateGame);
+    }
+
+    void createGame(GameConfig cfg) {
+        CPCreateGame p;
         p.gameConfig = gConf.saveConfigGzBuf(cfg.save());
-        send(ClientPacket.startLoading, p);
+        send(ClientPacket.createGame, p);
     }
 
     void deployTeam(ConfigNode teamInfo) {
@@ -239,8 +243,8 @@ class CmdNetClient : SimpleNetConnection {
         //if setMe() is never called, we are spectator
         mClControl = new CmdNetControl(this);
         mSrvControl = null;
-        foreach (team; mShell.serverEngine.logic.getTeams) {
-            uint ownerId = to!(uint)(team.id);
+        foreach (team; mShell.serverEngine.controller.teams) {
+            uint ownerId = to!(uint)(team.netId);
             if (!(ownerId in mSrvControl))
                 mSrvControl[ownerId] = new NetGameControl(mShell);
             mSrvControl[ownerId].addTeam(team);
@@ -442,6 +446,19 @@ class CmdNetClient : SimpleNetConnection {
                 break;
             case ServerPacket.clientBroadcast:
                 receiveClientBroadcast(unmarshal);
+                break;
+            case ServerPacket.acceptCreateGame:
+                auto p = unmarshal.read!(SPAcceptCreateGame)();
+                NetTeamInfo info;
+                foreach (pt; p.teams) {
+                    NetTeamInfo.Team nt;
+                    nt.playerId = pt.playerId;
+                    nt.teamConf = gConf.loadConfigGzBuf(pt.teamConf);
+                    nt.teamConf.rename(pt.teamName);
+                    info.teams ~= nt;
+                }
+                if (onHostAccept)
+                    onHostAccept(this, info);
                 break;
             default:
                 close(DiscReason.protocolError);

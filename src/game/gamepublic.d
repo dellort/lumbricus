@@ -49,12 +49,12 @@ class GameConfig {
     ConfigNode save() {
         //xxx: not nice. but for now...
         ConfigNode to = new ConfigNode();
-        to.getSubNode("level").mixinNode(saved_level);
-        to.getSubNode("teams").mixinNode(teams);
-        to.getSubNode("weapons").mixinNode(weapons);
-        to.getSubNode("gamemode").mixinNode(gamemode);
-        to.getSubNode("levelobjects").mixinNode(levelobjects);
-        to.getSubNode("gfx").mixinNode(gfx);
+        to.addNode("level", saved_level.copy);
+        to.addNode("teams", teams.copy);
+        to.addNode("weapons", weapons.copy);
+        to.addNode("gamemode", gamemode.copy);
+        to.addNode("levelobjects", levelobjects.copy);
+        to.addNode("gfx", gfx.copy);
         to.setValueArray!(char[])("weaponsets", weaponsets);
         return to;
     }
