@@ -622,12 +622,12 @@ class ServerTeamMember : TeamMember, WormController {
             move(Vector2f(0));
             resetActivity();
             mLastAction = Time.Null;
-            if (alive) {
+            if (mWorm) {
+                //stop all action when round ends
                 mWorm.activateJetpack(false);
+                mWorm.forceAbort();
+                mWorm.weapon = null;
             }
-            //stop all action when round ends
-            mWorm.forceAbort();
-            mWorm.weapon = null;
             mFireDown = false;
             mActive = act;
             mTeam.parent.events.onWorm(WormEvent.wormDeactivate, this);

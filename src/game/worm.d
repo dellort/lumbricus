@@ -63,7 +63,7 @@ class WormSprite : GObjectSprite {
     private {
         WormSpriteClass wsc;
 
-        float mWeaponAngle = 0;
+        float mWeaponAngle = 0, mFixedWeaponAngle = float.nan;
         int mThreewayMoving;
 
         //beam destination, only valid while state is st_beaming
@@ -122,19 +122,22 @@ class WormSprite : GObjectSprite {
 
     //-PI/2..+PI/2, actual angle depends from whether worm looks left or right
     float weaponAngle() {
+        if (mFixedWeaponAngle == mFixedWeaponAngle)
+            return mFixedWeaponAngle;
         return mWeaponAngle;
     }
 
     private void updateWeaponAngle(float move) {
         if (!mWeapon)
             return;
-        float old = mWeaponAngle;
+        float old = weaponAngle;
         //xxx why is worm movement a float anyway?
         int moveInt = (move>float.epsilon) ? 1 : (move<-float.epsilon ? -1 : 0);
+        mFixedWeaponAngle = float.nan;
         switch (mWeapon.fireMode.direction) {
             case ThrowDirection.fixed:
                 //no movement
-                mWeaponAngle = 0;
+                mFixedWeaponAngle = 0;
                 break;
             case ThrowDirection.any:
             case ThrowDirection.limit90:
@@ -180,7 +183,7 @@ class WormSprite : GObjectSprite {
                 assert(false);
         }
         mThreewayMoving = moveInt;
-        if (old != mWeaponAngle) {
+        if (old != weaponAngle) {
             updateAnimation();
             checkReadjust();
         }
@@ -329,7 +332,7 @@ class WormSprite : GObjectSprite {
         super.fillAnimUpdate();
         auto wsu = cast(WormSequenceUpdate)seqUpdate;
         assert(!!wsu);
-        wsu.pointto_angle = mWeaponAngle;
+        wsu.pointto_angle = weaponAngle;
     }
 
     //movement for walking/jetpack
