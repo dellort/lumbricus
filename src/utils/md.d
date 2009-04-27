@@ -30,39 +30,8 @@ struct MDelegate(T...) {
 //(xxx: optionally provide reverse behaviour?)
 struct ChainDelegate(T...) {
     alias bool delegate(T) DelegateType;
-/+
-yeah, very funny
-FUCK YOU DMD, YOU BUGGY CRAPPY PIECE OF SHAAARGFGYDGDRsdtf
-   utils/md.d(34): mixin DelegateCommon!(bool delegate((ServerTeamMember, CollectableTool)),ServerTeamMember,CollectableTool) does not match any template declaration
-utils/md.d(1122): template instance utils.md.ChainDelegate!(ServerTeamMember,CollectableTool) error instantiating
-+/
 
-    //mixin DelegateCommon!(DelegateType, T);
-    alias DelegateType DT;
-
-    private {
-        DT[] mDelegates;
-    }
-
-    void add(DT callback) {
-        assert(!!callback);
-        remove(callback); //avoid duplicates
-        mDelegates ~= callback;
-    }
-
-    //callback doesn't need to be added before
-    void remove(DT callback) {
-        arr.remove(mDelegates, callback);
-    }
-
-    void clear() {
-        mDelegates = null;
-    }
-
-    //tooth-decaying syntactic sugar for C++ minions
-    void opCatAssign(DT callback) {
-        add(callback);
-    }
+    mixin DelegateCommon!(DelegateType, T);
 
     bool call(T args) {
         foreach (cb; mDelegates) {
@@ -79,7 +48,7 @@ utils/md.d(1122): template instance utils.md.ChainDelegate!(ServerTeamMember,Col
 
 //to avoid code duplication in MDelegate and ChainDelegate
 //even though I hate mixins, I hate code duplication even more!
-template DelegateCommon(DT, Args) {
+template DelegateCommon(DT, Args...) {
     alias Args DelegateArgs;
 
     private {
