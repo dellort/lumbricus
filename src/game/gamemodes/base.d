@@ -80,6 +80,7 @@ class Gamemode {
         bool autoReset = true)
     {
         TimeSourcePublic engTime = engine.gameTime;
+        //lol template spaghetti code
         static if (Local) {
             alias mWaitStartLocal waitCache;
             alias modeTime waitTimeSource;
@@ -96,6 +97,10 @@ class Gamemode {
             waitCache[timerId] = Time.Never;
         }
         return r;
+    }
+
+    protected void waitAddTimeLocal(int timerId, Time add) {
+        mWaitStartLocal[timerId] += add;
     }
 
     protected void waitReset(bool Local = false)(int timerId = 0) {

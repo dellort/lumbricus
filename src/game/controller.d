@@ -18,6 +18,7 @@ import utils.vector2;
 import utils.configfile;
 import utils.log;
 import utils.time;
+import utils.md;
 import utils.misc;
 import utils.array;
 import utils.queue;
@@ -44,6 +45,7 @@ class ServerTeam : Team {
     bool targetIsSet;
     GameController parent;
     bool forcedFinish;
+    bool hasCrateSpy;
 
     private {
         ServerTeamMember[] mMembers;  //all members (will not change in-game)
@@ -1116,6 +1118,9 @@ class GameController : GameLogicPublic {
         const cCrateProbs = [0.15f, 0.30f, 0.93f];
     }
 
+    //when a worm collects a tool from a crate
+    ChainDelegate!(ServerTeamMember, CollectableTool) collectTool;
+
     this(GameEngine engine, GameConfig config) {
         mEngine = engine;
         mEngine.setController(this);
@@ -1140,6 +1145,8 @@ class GameController : GameLogicPublic {
         mWeaponSets = null;
 
         mEngine.finishPlace();
+
+        collectTool ~= &doCollectTool;
     }
 
     this (ReflectCtor c) {
@@ -1457,10 +1464,14 @@ class GameController : GameLogicPublic {
         if (r < cCrateProbs[0]) {
             //medkit
             ret ~= new CollectableMedkit(50);
-        }/* else if (r < cCrateProbs[1]) {
+        } else if (r < cCrateProbs[1]) {
             //tool
-            //xxx implement
-        }*/ else {
+            //sorry about this
+            switch (engine.rnd.next(2)) {
+                case 0: ret ~= new CollectableToolCrateSpy(); break;
+                case 1: ret ~= new CollectableToolDoubleTime(); break;
+            }
+        } else {
             //weapon
             auto content = mCrateSet.chooseRandomForCrate();
             if (content) {
@@ -1500,6 +1511,23 @@ class GameController : GameLogicPublic {
     void instantDropCrate() {
         if (mLastCrate)
             mLastCrate.unParachute();
+    }
+
+    private bool doCollectTool(ServerTeamMember collector, CollectableTool tool)
+    {
+        if (auto t = cast(CollectableToolCrateSpy)tool) {
+            collector.serverTeam.hasCrateSpy = true;
+            return true;
+        }
+        return false;
+    }
+
+    bool crateSpyActive() {
+        foreach (Team t; mActiveTeams) {
+            if ((cast(ServerTeam)t).hasCrateSpy)
+                return true;
+        }
+        return false;
     }
 
     EventAggregator events() {

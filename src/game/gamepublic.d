@@ -317,7 +317,7 @@ class LandscapeGraphic : Graphic {
 }
 
 class TextGraphic : Graphic {
-    char[] text;
+    LocalizedMessage msg;
     Vector2i pos;
     //how the label-rect is attached to pos, for each axis 0.0-1.0
     //(0,0) is the upper left corner, (1,1) the bottom right corner

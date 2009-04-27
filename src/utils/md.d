@@ -4,22 +4,54 @@ module utils.md;
 //import utils.misc;
 import arr = tango.core.Array;
 
+//broadcast an event to all registered delegates
+//earlier registered delegates are called first
 struct MDelegate(T...) {
-    alias T DelegateArgs;
-    alias void delegate(DelegateArgs) DelegateType;
+    alias void delegate(T) DelegateType;
 
-    private {
-        DelegateType[] mDelegates;
+    mixin DelegateCommon!(DelegateType, T);
+
+    void call(T args) {
+        foreach (cb; mDelegates) {
+            cb(args);
+        }
     }
 
-    void add(DelegateType callback) {
+    void opCall(T args) {
+        call(args);
+    }
+}
+
+//registered delegates return a bool, that indicates if the event was handled,
+//and if the next event handlers should be called. return values:
+// - false: event wasn't handled, call the next event handler (delegate)
+// - true: event was handled, call() returns, other event handlers are ignored
+//earlier registered delegates have higher priority and are called first
+//(xxx: optionally provide reverse behaviour?)
+struct ChainDelegate(T...) {
+    alias bool delegate(T) DelegateType;
+/+
+yeah, very funny
+FUCK YOU DMD, YOU BUGGY CRAPPY PIECE OF SHAAARGFGYDGDRsdtf
+   utils/md.d(34): mixin DelegateCommon!(bool delegate((ServerTeamMember, CollectableTool)),ServerTeamMember,CollectableTool) does not match any template declaration
+utils/md.d(1122): template instance utils.md.ChainDelegate!(ServerTeamMember,CollectableTool) error instantiating
++/
+
+    //mixin DelegateCommon!(DelegateType, T);
+    alias DelegateType DT;
+
+    private {
+        DT[] mDelegates;
+    }
+
+    void add(DT callback) {
         assert(!!callback);
         remove(callback); //avoid duplicates
         mDelegates ~= callback;
     }
 
     //callback doesn't need to be added before
-    void remove(DelegateType callback) {
+    void remove(DT callback) {
         arr.remove(mDelegates, callback);
     }
 
@@ -27,18 +59,51 @@ struct MDelegate(T...) {
         mDelegates = null;
     }
 
-    void call(DelegateArgs args) {
+    //tooth-decaying syntactic sugar for C++ minions
+    void opCatAssign(DT callback) {
+        add(callback);
+    }
+
+    bool call(T args) {
         foreach (cb; mDelegates) {
-            cb(args);
+            if (cb(args))
+                return true;
         }
+        return false;
+    }
+
+    bool opCall(T args) {
+        return call(args);
+    }
+}
+
+//to avoid code duplication in MDelegate and ChainDelegate
+//even though I hate mixins, I hate code duplication even more!
+template DelegateCommon(DT, Args) {
+    alias Args DelegateArgs;
+
+    private {
+        DT[] mDelegates;
+    }
+
+    void add(DT callback) {
+        assert(!!callback);
+        remove(callback); //avoid duplicates
+        mDelegates ~= callback;
+    }
+
+    //callback doesn't need to be added before
+    void remove(DT callback) {
+        arr.remove(mDelegates, callback);
+    }
+
+    void clear() {
+        mDelegates = null;
     }
 
     //tooth-decaying syntactic sugar for C++ minions
-    void opCatAssign(DelegateType callback) {
+    void opCatAssign(DT callback) {
         add(callback);
-    }
-    void opCall(DelegateArgs args) {
-        call(args);
     }
 }
 

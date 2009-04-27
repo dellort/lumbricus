@@ -4,6 +4,7 @@ import game.gobject;
 import game.animation;
 import physics.world;
 import game.game;
+import game.gamepublic;
 import game.controller;
 import game.sequence;
 import game.weapon.weapon;
@@ -100,8 +101,7 @@ class CollectableMedkit : Collectable {
     }
 
     char[] id() {
-        //never used?
-        return "crate.medkit";
+        return "game_msg.crate.medkit";
     }
 
     void collectMessage(GameController logic, ServerTeamMember member) {
@@ -114,22 +114,44 @@ class CollectableMedkit : Collectable {
     }
 }
 
-//xxx implement this
-class CollectableTool : Collectable {
+abstract class CollectableTool : Collectable {
     this() {
     }
 
     this (ReflectCtor c) {
     }
 
-    char[] id() {
-        return "";
-    }
-
     void collectMessage(GameController logic, ServerTeamMember member) {
+        logic.messageAdd("collect_tool", [member.name(), "_." ~ id()]);
     }
 
     void collect(CrateSprite parent, ServerTeamMember member) {
+        //roundabout way, but I hope it makes a bit sense with double time tool?
+        if (!parent.engine.controller.collectTool(member, this)) {
+            //this is executed if nobody knew what to do with the tool
+        }
+    }
+}
+
+class CollectableToolCrateSpy : CollectableTool {
+    this() {
+    }
+    this (ReflectCtor c) {
+    }
+
+    char[] id() {
+        return "game_msg.crate.cratespy";
+    }
+}
+
+class CollectableToolDoubleTime : CollectableTool {
+    this() {
+    }
+    this (ReflectCtor c) {
+    }
+
+    char[] id() {
+        return "game_msg.crate.doubletime";
     }
 }
 
@@ -142,7 +164,7 @@ class CollectableBomb : Collectable {
     }
 
     char[] id() {
-        return "crate.bomb";
+        return "game_msg.crate.bomb";
     }
 
     void collectMessage(GameController logic, ServerTeamMember member) {
@@ -169,6 +191,8 @@ class CrateSprite : ActionSprite {
         bool mNoParachute;
 
         CrateType mCrateType;
+
+        TextGraphic mSpy;
     }
 
     //contents of the crate
@@ -207,6 +231,10 @@ class CrateSprite : ActionSprite {
 
     override protected void die() {
         collectTrigger.dead = true;
+        if (mSpy) {
+            mSpy.remove();
+            mSpy = null;
+        }
         super.die();
     }
 
@@ -294,6 +322,33 @@ class CrateSprite : ActionSprite {
                 setState(myclass.st_parachute);
             }
         }
+
+        bool show_spy = engine.controller.crateSpyActive()
+            && currentState is myclass.st_normal;
+        if (show_spy != !!mSpy) {
+            if (mSpy) {
+                mSpy.remove();
+                mSpy = null;
+            } else {
+                mSpy = new TextGraphic();
+                mSpy.attach = Vector2f(0.5f, 1.0f);
+                //xxx needs a better way to get the contents of the crate
+                if (stuffies.length > 0) {
+                    mSpy.msg.id = stuffies[0].id();
+                }
+                engine.graphics.add(mSpy);
+            }
+        }
+
+        //comedy
+        if (mSpy && graphic && graphic.graphic) {
+            auto g = cast(AnimationGraphic)graphic.graphic;
+            if (g && g.animation) {
+                mSpy.pos = toVector2i(physics.pos)
+                    - g.animation.bounds.size.Y / 2;
+            }
+        }
+
         super.simulate(deltaT);
     }
 }

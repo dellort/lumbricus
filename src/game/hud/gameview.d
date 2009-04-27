@@ -3,6 +3,7 @@ module game.hud.gameview;
 import common.common;
 import framework.font;
 import framework.framework;
+import framework.i18n;
 import framework.commandline;
 import framework.timesource;
 import common.scene;
@@ -366,6 +367,7 @@ private class ViewMember {
 
 private class GameLabel : Label {
     TextGraphic txt;
+    LocalizedMessage msg;
 
     this(TextGraphic a_txt) {
         setLayout(WidgetLayout.Aligned(-1, -1));
@@ -375,10 +377,18 @@ private class GameLabel : Label {
     }
 
     override void simulate() {
-        text = txt.text;
+        if (msg != txt.msg) {
+            msg = txt.msg;
+            text = localeRoot.translateLocalizedMessage(msg);
+        }
+
         //there's also utils.math.placeRelative(), which was supposed to do this
         auto p = - toVector2f(size) ^ txt.attach;
         setAddToPos(txt.pos + toVector2i(p));
+
+        if (txt.removed) {
+            remove();
+        }
     }
 }
 

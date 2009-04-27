@@ -7,6 +7,7 @@ import game.controller;
 import game.gamepublic;
 import game.gamemodes.base;
 import game.gamemodes.roundbased_shared;
+import game.crate;
 
 import utils.array;
 import utils.configfile;
@@ -61,6 +62,8 @@ class ModeRoundbased : Gamemode {
         mMaxCrates = config.getIntValue("maxcrates", mMaxCrates);
         mSuddenDeathWaterRaise = config.getIntValue("water_raise",
             mSuddenDeathWaterRaise);
+
+        parent.collectTool ~= &doCollectTool;
     }
 
     this(ReflectCtor c) {
@@ -314,6 +317,16 @@ class ModeRoundbased : Gamemode {
         mStatus.state = mCurrentRoundState;
         mStatus.timePaused = modeTime.paused;
         return mStatus;
+    }
+
+    private bool doCollectTool(ServerTeamMember member,
+        CollectableTool tool)
+    {
+        if (auto t = cast(CollectableToolDoubleTime)tool) {
+            waitAddTimeLocal(1, mStatus.roundRemaining);
+            return true;
+        }
+        return false;
     }
 
     static this() {
