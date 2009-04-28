@@ -238,6 +238,7 @@ class ServerTeam : Team {
             //deactivating
             current = null;
             setPointMode(PointMode.none);
+            targetIsSet = false;
             setOnHold(false);
             mActive = act;
         }
@@ -288,8 +289,13 @@ class ServerTeam : Team {
         if (mPointMode == mode)
             return;
         mPointMode = mode;
-        targetIsSet = false;
         setIndicator(null);
+        //show X again, if set before
+        if (mode == PointMode.target && targetIsSet)
+            doSetPoint(currentTarget);
+    }
+    private bool checkPointMode() {
+        return (mPointMode == PointMode.none || targetIsSet);
     }
     void doSetPoint(Vector2f where) {
         if (mPointMode == PointMode.none || !isControllable)
@@ -461,6 +467,7 @@ class ServerTeamMember : TeamMember, WormController {
 
     private {
         WeaponItem mCurrentWeapon;
+        WeaponClass mWormLastWeapon;
         bool mActive;
         Time mLastAction;
         WormSprite mWorm;
@@ -626,6 +633,8 @@ class ServerTeamMember : TeamMember, WormController {
             controllableMove(Vector2f(0));
             mControlStack = null;
             move(Vector2f(0));
+            mTeam.setPointMode(PointMode.none);
+            mWormLastWeapon = null;
             resetActivity();
             mLastAction = Time.Null;
             if (mWorm) {
@@ -734,11 +743,6 @@ class ServerTeamMember : TeamMember, WormController {
         } else {
             messageAdd("msgnoweapon");
         }*/
-        if (selected) {
-            mTeam.setPointMode(selected.fireMode.point);
-        } else {
-            mTeam.setPointMode(PointMode.none);
-        }
         mWorm.weapon = selected;
     }
 
@@ -781,7 +785,7 @@ class ServerTeamMember : TeamMember, WormController {
                 //background weapon if possible (like jetpack)
                 success = mWorm.fireAlternate();
                 wormAction();
-            } else {
+            } else if (mTeam.checkPointMode()) {
                 success = worm.fire(false, forceSelected);
             }
             //don't forget a keypress that had no effect
@@ -818,7 +822,7 @@ class ServerTeamMember : TeamMember, WormController {
         } else {
             //worms-like: alternate-fire button (return) fires selected
             //weapon if in secondary mode
-            if (mWorm.allowFireSecondary()) {
+            if (mWorm.allowFireSecondary() && mTeam.checkPointMode()) {
                 if (worm.fire()) {
                     wormAction();
                 }
@@ -917,6 +921,17 @@ class ServerTeamMember : TeamMember, WormController {
     void simulate() {
         if (!mActive)
             return;
+
+        if (mWorm) {
+            if (mWorm.firedWeapon !is mWormLastWeapon) {
+                mWormLastWeapon = mWorm.firedWeapon;
+                if (mWormLastWeapon) {
+                    mTeam.setPointMode(mWormLastWeapon.fireMode.point);
+                } else {
+                    mTeam.setPointMode(PointMode.none);
+                }
+            }
+        }
 
         //check if fire button is being held down, waiting for right state
         if (mFireDown)

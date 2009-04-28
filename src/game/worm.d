@@ -475,20 +475,34 @@ class WormSprite : GObjectSprite {
     WeaponClass weapon() {
         return mWeapon;
     }
+    //returns the weapon that would activate/refire when pressing space
+    WeaponClass firedWeapon(bool refire = false) {
+        if (mShooterSec && mShooterSec.activity && refire)
+            return mShooterSec.weapon;
+        if (allowFireSecondary())
+            return mWeapon;
+        if (mShooterMain && mShooterMain.activity && refire)
+            return mShooterMain.weapon;
+        if (currentState.canFire)
+            return mWeapon;
+        return null;
+    }
 
     //fire (or refire) the selected weapon (mWeapon)
     bool fire(bool keyUp = false, bool selectedOnly = false) {
+        //1. Try to refire currently active secondary weapon
+        if (mShooterSec && mShooterSec.activity) {
+            //think of firing a supersheep on a rope
+            if (!keyUp)
+                return refireWeapon(mShooterSec);
+            return false;
+        }
+
+        //2. Try to fire selected weapon as new secondary
         if (allowFireSecondary()) {
             //secondary fire is possible, so do that instead
             //  (main weapon could only be refired here)
-            if (keyUp)
-                return false;
-            if (mShooterSec && mShooterSec.activity) {
-                //think of firing a supersheep on a rope
-                refireWeapon(mShooterSec);
-                return true;
-            }
-            if (!mWeapon)
+            if (keyUp || !mWeapon)
                 return false;
 
             //no variable strength here, fixed angle
@@ -496,9 +510,12 @@ class WormSprite : GObjectSprite {
             return true;
         }
 
-        //not firing a secondary weapon, allow main fire key for alternate, too
+        //3. Try to refire active main weapon
         if (mShooterMain && mShooterMain.activity()) {
-            if (selectedOnly && mShooterMain.weapon !is mWeapon)
+            //this is ONLY for the "selectandfire" command, e.g. it would
+            //  be quite annoying to accidentally blow a sally army when
+            //  pressing J
+            if (selectedOnly && mWeapon && mShooterMain.weapon !is mWeapon)
                 return true;
             if (!keyUp) {
                 return refireWeapon(mShooterMain);
@@ -506,7 +523,7 @@ class WormSprite : GObjectSprite {
             return false;
         }
 
-        //no-no
+        //4. Try to fire selected weapon as main weapon
         if (!mWeapon)
             return false;
         //check if in wrong state, like flying around

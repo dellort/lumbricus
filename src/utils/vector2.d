@@ -211,6 +211,12 @@ public struct Vector2(T) {
         return (*this * other)/(len * len) * other;
     }
 
+    //faster for project_vector(other).length
+    T project_vector_len(Vector2 other) {
+        T len = other.length;
+        return (*this * other)/len;
+    }
+
     //if point is inside the rect formed by pos and size
     //the border of that rect is exclusive
     public bool isInside(Vector2 pos, Vector2 size) {

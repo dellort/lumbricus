@@ -310,7 +310,8 @@ class PhysicWorld {
         bool collided = false;
         foreach (PhysicGeometry gm; mGeometryObjects) {
             GeomContact ncont;
-            if (collide.canCollide(o, gm) && gm.collide(o, extendRadius, ncont))
+            ContactHandling ch = collide.canCollide(o, gm);
+            if (ch && gm.collide(o, extendRadius, ncont))
             {
                 //kind of hack for LevelGeometry
                 //if the pos didn't change at all, but a collision was
@@ -322,12 +323,15 @@ class PhysicWorld {
                     ncont.normal = -o.velocity.normal;
                     //assert(!ncont.normal.isNaN);
                     ncont.depth = o.posp.radius*2;
+                } else if (ch == ContactHandling.pushBack) {
+                    ncont.normal = -o.velocity.normal;
                 }
 
                 if (!collided)
                     contact = ncont;
                 else
                     contact.merge(ncont);
+
                 collided = true;
             }
         }

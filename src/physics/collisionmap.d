@@ -14,7 +14,7 @@ import tango.util.Convert;
 
 //for loading from ConfigNode
 private const char[][ContactHandling.max+1] cChNames =
-    ["", "hit", "hit_noimpulse"];
+    ["", "hit", "hit_noimpulse", "hit_pushback"];
 
 //handling of the collision map
 class CollisionMap {

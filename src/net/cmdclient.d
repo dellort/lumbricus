@@ -142,6 +142,10 @@ class CmdNetClient : SimpleNetConnection {
         return mPlayerName;
     }
 
+    uint myId() {
+        return mId;
+    }
+
     ClientState state() {
         return mState;
     }
@@ -153,6 +157,12 @@ class CmdNetClient : SimpleNetConnection {
         CPLobbyCmd p;
         p.cmd = cmd;
         send(ClientPacket.lobbyCmd, p);
+    }
+
+    void requestCreateGame(bool request = true) {
+        CPRequestCreateGame p;
+        p.request = request;
+        send(ClientPacket.requestCreateGame, p);
     }
 
     void prepareCreateGame() {
@@ -450,6 +460,11 @@ class CmdNetClient : SimpleNetConnection {
                 break;
             case ServerPacket.clientBroadcast:
                 receiveClientBroadcast(unmarshal);
+                break;
+            case ServerPacket.grantCreateGame:
+                auto p = unmarshal.read!(SPGrantCreateGame)();
+                if (onHostGrant)
+                    onHostGrant(this, p.playerId, p.granted);
                 break;
             case ServerPacket.acceptCreateGame:
                 auto p = unmarshal.read!(SPAcceptCreateGame)();

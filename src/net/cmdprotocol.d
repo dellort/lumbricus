@@ -30,6 +30,7 @@ enum ServerPacket : ushort {
     gameCommands,
     ping,
     clientBroadcast,
+    grantCreateGame,
     acceptCreateGame,
 }
 
@@ -40,6 +41,7 @@ enum ClientPacket : ushort {
     hello,
     lobbyCmd,
     deployTeam,
+    requestCreateGame,
     prepareCreateGame,
     createGame,
     loadDone,
@@ -168,6 +170,11 @@ struct SPClientBroadcast {
     int senderPlayerId;
 }
 
+struct SPGrantCreateGame {
+    uint playerId;
+    bool granted;
+}
+
 struct SPAcceptCreateGame {
     Team[] teams;
 
@@ -192,6 +199,10 @@ struct CPHello {
 
 struct CPLobbyCmd {
     char[] cmd;
+}
+
+struct CPRequestCreateGame {
+    bool request;  //false to revoke
 }
 
 //client sends this to server, server adds teams, server sends SPStartLoading to

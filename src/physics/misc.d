@@ -26,6 +26,7 @@ enum ContactHandling : ubyte {
     noImpulse,  //no impulses are exchanged (like both objects hit a wall)
                 //this may be useful if you want an object to block,
                 // but not be moved
+    pushBack,   //push object back where it came from (special case for ropes)
 }
 
 enum DamageCause {

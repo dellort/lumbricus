@@ -94,6 +94,7 @@ class ModeRealtime : Gamemode {
                 lastteam.youWinNow();
                 logic.messageAdd("msgwin", [lastteam.name]);
             }
+            return;
         }
 
         //----------------- Sudden death ----------------

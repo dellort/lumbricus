@@ -972,6 +972,10 @@ abstract class SimpleNetConnection {
     //receiving a chat message
     void delegate(SimpleNetConnection sender, char[] playerName,
         char[] msg) onChat;
+    //you are allowed to host a game
+    void delegate(SimpleNetConnection sender, uint playerId,
+        bool granted) onHostGrant;
+    //incoming team info
     void delegate(SimpleNetConnection sender, NetTeamInfo info) onHostAccept;
 
     //send a game-independent command (like "say Hi fellas!" or

@@ -234,7 +234,29 @@ class CmdNetServer {
             checkLoading();
     }
 
-    //A client wants to start a game and asks for permission and the
+    //A client wants to start a game and asks for permission
+    //here, we check if no other client is currently setting up a game
+    private void doRequestCreateGame(CmdNetClientConnection client) {
+        if (mState != CmdServerState.lobby)
+            return;
+        foreach (cl; mClients) {
+            if (cl.state != ClientConState.connected || cl is client)
+                continue;
+            if (cl.hasHostPermission()) {
+                client.sendError("error_permissiondenied");
+                return;
+            }
+        }
+        //ok, player is allowed to host
+        client.hostRequestTime = timeCurrentTime();
+        SPGrantCreateGame p;
+        p.playerId = client.id;
+        p.granted = true;
+        //notify everybody
+        sendAll(ServerPacket.grantCreateGame, p);
+    }
+
+    //A client is about to start a game and asks for the
     //  required data (i.e. team info)
     private void doPrepareCreateGame(CmdNetClientConnection client) {
         if (mState != CmdServerState.lobby)
@@ -466,6 +488,11 @@ class CmdNetClientConnection {
         Time mAvgPing = timeMsecs(100);
         uint lastAckTS;
         bool gameTerminated;
+
+        //time when this client requested to host a game
+        Time hostRequestTime = Time.Never;
+        //time a player has from opening the "create game" dialog to clicking ok
+        const cHostTimeout = timeSecs(30);
     }
 
     private this(CmdNetServer owner, NetPeer peer, uint id) {
@@ -578,6 +605,11 @@ class CmdNetClientConnection {
         }
     }
 
+    bool hasHostPermission() {
+        return hostRequestTime != Time.Never
+            && timeCurrentTime() - hostRequestTime < cHostTimeout;
+    }
+
     debug {
         struct Packet {
             ubyte[] buf;
@@ -679,6 +711,21 @@ class CmdNetClientConnection {
                 }
                 //transmit command result
                 send(ServerPacket.cmdResult, p_res);
+                break;
+            case ClientPacket.requestCreateGame:
+                auto p = unmarshal.read!(CPRequestCreateGame)();
+                if (p.request)
+                    mOwner.doRequestCreateGame(this);
+                else {
+                    if (hasHostPermission()) {
+                        SPGrantCreateGame reply;
+                        reply.playerId = id;
+                        reply.granted = false;
+                        //notify everybody
+                        mOwner.sendAll(ServerPacket.grantCreateGame, reply);
+                    }
+                    hostRequestTime = Time.Never;
+                }
                 break;
             case ClientPacket.prepareCreateGame:
                 if (mOwner.state != CmdServerState.lobby) {

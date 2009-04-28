@@ -9,6 +9,7 @@ import game.gameshell;
 import game.gametask;
 import game.gamepublic;
 import game.setup;
+import game.gui.setup_local;
 import gui.wm;
 import gui.widget;
 import gui.list;
@@ -21,6 +22,7 @@ import gui.edit;
 import gui.loader;
 import gui.logwindow;
 import gui.tabs;
+import gui.container;
 import net.netlayer;
 import net.announce;
 import net.cmdclient;
@@ -223,6 +225,96 @@ class CmdNetClientTask : Task {
     }
 }
 
+class CreateNetworkGame : SimpleContainer {
+    private {
+        LevelWidget mLevelSelector;
+        Task mOwner;
+        Widget mWaiting;
+    }
+
+    void delegate() onCancel;
+    void delegate() onWantStart;
+    void delegate(GameConfig conf) onStart;
+
+    this(Task owner) {
+        mOwner = owner;
+        auto config = gConf.loadConfig("netgamesetup_gui");
+        auto loader = new LoadGui(config);
+
+        mLevelSelector = new LevelWidget(mOwner);
+        loader.addNamedWidget(mLevelSelector, "levelwidget");
+        mLevelSelector.onSetBusy = &levelBusy;
+
+        loader.load();
+
+        loader.lookup!(Button)("btn_cancel").onClick = &cancelClick;
+        loader.lookup!(Button)("btn_go").onClick = &goClick;
+
+        add(loader.lookup("creategame_root"));
+        mWaiting = loader.lookup("waiting_root");
+    }
+
+    private void levelBusy(bool busy) {
+        //
+    }
+
+    private void goClick(Button sender) {
+        assert(!!onWantStart);
+        //xxx lol, no way back
+        clear();
+        add(mWaiting);
+        onWantStart();
+    }
+
+    void doStart(NetTeamInfo info) {
+        assert(!!onStart);
+        //generate level
+        auto finalLevel = mLevelSelector.currentLevel.render();
+
+        //everything else uses defaults...
+        ConfigNode node = gConf.loadConfig("newgame_net");
+        int wormHP = node.getValue("worm_hp", 150);
+        int wormCount = node.getValue("worm_count", 4);
+
+        GameConfig conf = loadGameConfig(node, finalLevel);
+        auto teams = conf.teams;
+        //other players' teams are added below
+        teams.clear();
+        foreach (ref ti; info.teams) {
+            ConfigNode ct = ti.teamConf;
+            if (ct) {
+                //fixed number of team members
+                char[][] wormNames;
+                auto memberNode = ct.getSubNode("member_names");
+                foreach (ConfigNode sub; memberNode) {
+                    wormNames ~= sub.value;
+                }
+                memberNode.clear();
+                for (int i = 0; i < wormCount; i++) {
+                    if (i < wormNames.length)
+                        memberNode.add("", wormNames[i]);
+                    else
+                        //xxx localize? not so sure about that (we don't
+                        //    have access to the team owner's locale)
+                        memberNode.add("", myformat("Worm {}", i));
+                }
+                //fixed health
+                ct.setValue("power", wormHP);
+                //the clients need this to identify which team belongs to whom
+                ct.setValue("net_id", ti.playerId);
+                teams.addNode(ct);
+            }
+        }
+
+        onStart(conf);
+    }
+
+    private void cancelClick(Button sender) {
+        if (onCancel)
+            onCancel();
+    }
+}
+
 class CmdNetLobbyTask : Task {
     private {
         static LogStruct!("lobby") log;
@@ -237,7 +329,8 @@ class CmdNetLobbyTask : Task {
         //only needed when this client is starting the game
         GameConfig mGameConfig;
         Widget mLobbyDlg;
-        Window mLobbyWnd;
+        CreateNetworkGame mCreateDlg;
+        Window mLobbyWnd, mCreateWnd;
     }
 
     this(TaskManager tm, CmdNetClient client) {
@@ -251,6 +344,7 @@ class CmdNetLobbyTask : Task {
         mClient.onUpdatePlayers = &onUpdatePlayers;
         mClient.onError = &onError;
         mClient.onMessage = &onMessage;
+        mClient.onHostGrant = &onHostGrant;
         mClient.onHostAccept = &onHostAccept;
 
         auto config = gConf.loadConfig("lobby_gui");
@@ -288,6 +382,13 @@ class CmdNetLobbyTask : Task {
         //xxx values should be read from configfile
         mLobbyWnd = gWindowManager.createWindow(this, mLobbyDlg,
             _("lobby.caption", mClient.playerName), Vector2i(550, 500));
+
+        //--------------------------------------------------------------
+
+        mCreateDlg = new CreateNetworkGame(this);
+        mCreateDlg.onCancel = &createCancel;
+        mCreateDlg.onWantStart = &createWantStart;
+        mCreateDlg.onStart = &createStart;
     }
 
     private void cmdlineFalbackExecute(CommandLine sender, char[] line) {
@@ -318,54 +419,63 @@ class CmdNetLobbyTask : Task {
 
     private void hostGame(Button sender) {
         if (mClient.connected) {
-            //ask for team info
-            mClient.prepareCreateGame();
+            //ask if we are allowed to create a game
+            mClient.requestCreateGame();
+        }
+    }
+
+    //the server allowed someone to create a game
+    private void onHostGrant(SimpleNetConnection sender, uint playerId,
+        bool granted)
+    {
+        if (playerId == mClient.myId) {
+            //we want to create a game, show the setup window
+            if (granted) {
+                mCreateWnd = gWindowManager.createWindow(this, mCreateDlg,
+                    _("gamesetup.caption_net"));
+            }
+        } else {
+            if (mCreateWnd)
+                mCreateWnd.destroy();
+            //show a message that someone else is creating a game
+            char[] name;
+            mClient.idToPlayerName(playerId, name);
+            if (granted)
+                mConsole.writefln(_("lobby.hostinprogress", name));
+            else
+                mConsole.writefln(_("lobby.hostaborted", name));
         }
     }
 
     //got team info, assemble and send GameConfig
     //Big xxx: all data is loaded from newgame_net.conf, need setup dialog
     private void onHostAccept(SimpleNetConnection sender, NetTeamInfo info) {
-        if (mClient.connected) {
-            ConfigNode node = gConf.loadConfig("newgame_net");
-            int wormHP = node.getValue("worm_hp", 150);
-            int wormCount = node.getValue("worm_count", 4);
-
-            GameConfig conf = loadGameConfig(node, null, true);
-            auto teams = conf.teams;
-            teams.clear();
-            foreach (ref ti; info.teams) {
-                ConfigNode ct = ti.teamConf;
-                if (ct) {
-                    //fixed number of team members
-                    char[][] wormNames;
-                    auto memberNode = ct.getSubNode("member_names");
-                    foreach (ConfigNode sub; memberNode) {
-                        wormNames ~= sub.value;
-                    }
-                    memberNode.clear();
-                    for (int i = 0; i < wormCount; i++) {
-                        if (i < wormNames.length)
-                            memberNode.add("", wormNames[i]);
-                        else
-                            //xxx localize? not so sure about that (we don't
-                            //    have access to the team owner's locale)
-                            memberNode.add("", myformat("Worm {}", i));
-                    }
-                    //fixed health
-                    ct.setValue("power", wormHP);
-                    //the clients need this to identify which team belongs to whom
-                    ct.setValue("net_id", ti.playerId);
-                    teams.addNode(ct);
-                }
-            }
-
-            log("debug dump!");
-            gConf.saveConfig(conf.save(), "dump.conf");
-
-            mClient.createGame(conf);
-        }
+        mCreateDlg.doStart(info);
     }
+
+    //CreateNetworkGame callbacks -->
+
+    private void createCancel() {
+        //tell the server that someone else can create a game
+        mClient.requestCreateGame(false);
+        mCreateWnd.destroy();
+    }
+
+    private void createWantStart() {
+        //user clicked the "Go" button, request team info
+        mClient.prepareCreateGame();
+    }
+
+    private void createStart(GameConfig conf) {
+        //really start
+        log("debug dump!");
+        gConf.saveConfig(conf.save(), "dump.conf");
+
+        mClient.createGame(conf);
+        mCreateWnd.destroy();
+    }
+
+    //<-- CreateNetworkGame end
 
     private void executeCommand(char[] cmd) {
         mClient.lobbyCmd(cmd);
@@ -377,6 +487,8 @@ class CmdNetLobbyTask : Task {
     }
 
     private void onStartLoading(SimpleNetConnection sender, GameLoader loader) {
+        if (mCreateWnd)
+            mCreateWnd.destroy();
         mGame = new GameTask(manager, loader, mClient);
         mGame.registerOnDeath(&onGameKill);
     }

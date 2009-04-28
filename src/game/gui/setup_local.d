@@ -20,66 +20,37 @@ import gui.wm;
 import gui.loader;
 import gui.list;
 import gui.boxcontainer;
+import gui.container;
 import utils.configfile;
 
 //import std.thread;
 import str = stdx.string;
 
-class LocalGameSetupTask : Task {
+class LevelWidget : SimpleContainer {
     private {
-        Widget mSetup, mWaiting;
-        Window mWindow;
         DropDownList mSavedLevels;
-        DropDownList mTemplates;
-        Button mLevelBtn, mGoBtn, mLevelSaveBtn;
-        BoxContainer mLevelDDBox;
-
-        LevelGeneratorShared mGenerator;
         LevelGenerator mCurrentLevel;
-        TeamEditorTask mTeameditTask;
-        StringListWidget mAllTeamsList, mActiveTeamsList;
-
-        const cMaxPower = 200;
-
-        //holds team info specific to current game (not saved in teams.conf)
-        struct TeamDef {
-            //percentage of global power value this team gets
-            float handicap = 1.0f;
-
-            void saveTo(ConfigNode node) {
-                node.setIntValue("power", cast(int)(cMaxPower*handicap));
-            }
-        }
-
-        ConfigNode mTeams;       //as loaded from teams.conf
-        //list of team ids for the game
-        //note that it might contain invalid (deleted) teams
-        TeamDef[char[]] mActiveTeams;
+        Button mLevelBtn, mLevelSaveBtn;
+        BoxContainer mLevelDDBox;
+        LevelGeneratorShared mGenerator;
 
         Window mLevelWindow;
         LevelSelector mSelector;  //8-level window, created once and reused then
-
-        //background level rendering thread *g*
-        //LvlGenThread mThread;
-        //bool mThWaiting = false;
-        Task mGame;
+        Task mOwner;
 
         const cSavedLevelsPath = "storedlevels/";
         const cLastlevelConf = "lastlevel";
     }
 
-    this(TaskManager tm, char[] args = "") {
-        super(tm);
+    void delegate(bool busy) onSetBusy;
 
+    this(Task owner) {
+        mOwner = owner;
         mGenerator = new LevelGeneratorShared();
 
-        auto config = gConf.loadConfig("localgamesetup_gui");
+        auto config = gConf.loadConfig("gamesetupshared_gui");
         auto loader = new LoadGui(config);
         loader.load();
-        loader.lookup!(Button)("cancel").onClick = &cancelClick;
-        mGoBtn = loader.lookup!(Button)("go");
-        mGoBtn.onClick = &goClick;
-        loader.lookup!(Button)("editteams").onClick = &editteamsClick;
 
         mLevelBtn = loader.lookup!(Button)("btn_level");
         mLevelBtn.onClick = &levelClick;
@@ -99,23 +70,11 @@ class LocalGameSetupTask : Task {
 
         mLevelDDBox = loader.lookup!(BoxContainer)("box_leveldd");
 
-        mTemplates = loader.lookup!(DropDownList)("dd_templates");
-        mTemplates.selection = "TODO";
+        add(loader.lookup("levelwidget_root"));
+    }
 
-        mAllTeamsList = loader.lookup!(StringListWidget)("list_allteams");
-        mAllTeamsList.onSelect = &allteamsSelect;
-        mActiveTeamsList = loader.lookup!(StringListWidget)("list_activeteams");
-        mActiveTeamsList.onSelect = &activeteamsSelect;
-
-        mSetup = loader.lookup("gamesetup_root");
-        mWaiting = loader.lookup("waiting_root");
-        mWindow = gWindowManager.createWindow(this, mSetup,
-            _("gamesetup.caption_local"));
-
-        loadLastPlayedLevel();
-        if (!mCurrentLevel)
-            levelClick(mLevelBtn);
-        loadTeams();
+    LevelGenerator currentLevel() {
+        return mCurrentLevel;
     }
 
     private void readSavedLevels() {
@@ -201,10 +160,11 @@ class LocalGameSetupTask : Task {
             mSelector.onAccept = &lvlAccept;
         }
         mSelector.loadLevel(mCurrentLevel);
-        mLevelWindow = gWindowManager.createWindow(this, mSelector,
+        mLevelWindow = gWindowManager.createWindow(mOwner, mSelector,
             _("levelselect.caption"));
         mLevelWindow.onClose = &levelWindowClose;
-        mSetup.enabled = false;
+        if (onSetBusy)
+            onSetBusy(true);
     }
 
     private void lvlAccept(LevelGenerator gen) {
@@ -218,6 +178,94 @@ class LocalGameSetupTask : Task {
     private bool levelWindowClose(Window sender) {
         //lol, just to prevent killing the task
         return true;
+    }
+
+    override void simulate() {
+        if (!mCurrentLevel) {
+            loadLastPlayedLevel();
+            if (!mCurrentLevel)
+                levelClick(mLevelBtn);
+        }
+        if (mLevelWindow) {
+            //level selector is open
+            if (!mLevelWindow.visible) {
+                mLevelWindow = null;
+                if (onSetBusy)
+                    onSetBusy(false);
+            }
+        }
+    }
+}
+
+class LocalGameSetupTask : Task {
+    private {
+        Widget mSetup, mWaiting;
+        Window mWindow;
+        DropDownList mTemplates;
+        Button mGoBtn;
+
+        TeamEditorTask mTeameditTask;
+        StringListWidget mAllTeamsList, mActiveTeamsList;
+        LevelWidget mLevelSelector;
+
+        const cMaxPower = 200;
+
+        //holds team info specific to current game (not saved in teams.conf)
+        struct TeamDef {
+            //percentage of global power value this team gets
+            float handicap = 1.0f;
+
+            void saveTo(ConfigNode node) {
+                node.setIntValue("power", cast(int)(cMaxPower*handicap));
+            }
+        }
+
+        ConfigNode mTeams;       //as loaded from teams.conf
+        //list of team ids for the game
+        //note that it might contain invalid (deleted) teams
+        TeamDef[char[]] mActiveTeams;
+
+        //background level rendering thread *g*
+        //LvlGenThread mThread;
+        //bool mThWaiting = false;
+        Task mGame;
+    }
+
+    this(TaskManager tm, char[] args = "") {
+        super(tm);
+
+        auto config = gConf.loadConfig("localgamesetup_gui");
+        auto loader = new LoadGui(config);
+
+        mLevelSelector = new LevelWidget(this);
+        loader.addNamedWidget(mLevelSelector, "levelwidget");
+        mLevelSelector.onSetBusy = &levelBusy;
+
+        loader.load();
+
+        loader.lookup!(Button)("cancel").onClick = &cancelClick;
+        mGoBtn = loader.lookup!(Button)("go");
+        mGoBtn.onClick = &goClick;
+        loader.lookup!(Button)("editteams").onClick = &editteamsClick;
+
+        mTemplates = loader.lookup!(DropDownList)("dd_templates");
+        mTemplates.selection = "TODO";
+
+        mAllTeamsList = loader.lookup!(StringListWidget)("list_allteams");
+        mAllTeamsList.onSelect = &allteamsSelect;
+        mActiveTeamsList = loader.lookup!(StringListWidget)("list_activeteams");
+        mActiveTeamsList.onSelect = &activeteamsSelect;
+
+        mSetup = loader.lookup("gamesetup_root");
+        mWaiting = loader.lookup("waiting_root");
+        mWindow = gWindowManager.createWindow(this, mSetup,
+            _("gamesetup.caption_local"));
+
+        loadTeams();
+    }
+
+    private void levelBusy(bool busy) {
+        mSetup.enabled = !busy;
     }
 
     private void editteamsClick(Button sender) {
@@ -298,14 +346,14 @@ class LocalGameSetupTask : Task {
     }
 
     private void goClick(Button sender) {
-        assert(mCurrentLevel);
+        assert(mLevelSelector.currentLevel);
         mWindow.acceptSize();
         mWindow.client = mWaiting;
 
         //mThread = new LvlGenThread(mCurrentLevel);
         //mThread.start();
         //mThWaiting = true;
-        auto finalLevel = mCurrentLevel.render();
+        auto finalLevel = mLevelSelector.currentLevel.render();
         play(finalLevel);
     }
 
@@ -337,13 +385,6 @@ class LocalGameSetupTask : Task {
             if (mTeameditTask.reallydead) {
                 loadTeams();
                 mTeameditTask = null;
-            }
-        }
-        if (mLevelWindow) {
-            //level selector is open
-            if (!mLevelWindow.visible) {
-                mLevelWindow = null;
-                mSetup.enabled = true;
             }
         }
         /+
