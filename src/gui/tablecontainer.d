@@ -51,6 +51,9 @@ class TableContainer : PublicContainer {
         struct Header {
             //force this column/row to expand
             bool forceExpand;
+            //all columns/rows in this group are forced to the same size
+            //(0 means disabled)
+            int homogeneousGroup;
 
             //temporaries between sizing and allocation
             bool expand;
@@ -95,6 +98,15 @@ class TableContainer : PublicContainer {
     ///getter for setForceExpand()
     bool getForceExpand(int dir, int num) {
         return mHeaders[dir][num].forceExpand;
+    }
+
+    ///dir and num params are like in setForceExpand()
+    /// group = all cells in this group are assigned the same width or height
+    ///         group=0 means this behaviour is disabled (no group)
+    ///group should be a low value (code loops from 0..max-group)
+    void setHomogeneousGroup(int dir, int num, int group) {
+        mHeaders[dir][num].homogeneousGroup = group;
+        needRelayout();
     }
 
     ///query if a column/row was expanded (after layouting)
@@ -307,6 +319,29 @@ class TableContainer : PublicContainer {
             foreach (inout h; heads) {
                 h.minSize = minWidth;
             }
+        } else {
+            //per-group homogenization
+            int curgroup, nextgroup;
+            curgroup = nextgroup = 1; //group 0 means disabled
+            do {
+                int curSize;
+                foreach (ref h; heads) {
+                    if (h.homogeneousGroup == curgroup) {
+                        curSize = max(curSize, h.minSize);
+                    }
+                }
+                foreach (ref h; heads) {
+                    if (h.homogeneousGroup == curgroup) {
+                        h.minSize = curSize;
+                    }
+                }
+                //find next group (could be merged with one of the loops above)
+                foreach (ref h; heads) {
+                    if (h.homogeneousGroup > curgroup) {
+                        nextgroup = min(nextgroup, h.homogeneousGroup);
+                    }
+                }
+            } while (nextgroup > curgroup);
         }
 
         //sum up (could speed up this when homogeneous)

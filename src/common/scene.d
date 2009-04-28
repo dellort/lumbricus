@@ -5,6 +5,8 @@ import utils.list2;
 import utils.vector2;
 import utils.rect2;
 
+import arr = tango.core.Array;
+
 public import framework.framework : Canvas;
 
 ///a scene contains all graphics drawn onto the screen.
@@ -96,6 +98,88 @@ class Scene : SceneObjectCentered {
                     obj.draw(canvas);
                 }
             }
+        }
+
+        canvas.popState();
+    }
+}
+
+///you can add multiple sub-scenes, and the zorder of all objects in those sub-
+///scenes will be as if they were added into a single scene
+///NOTE: within the same zorder, the objects of the first scene still have a
+///      lower zorder than objects from the last added scene
+class SceneZMix : Scene {
+    //xxx: I only derive from Scene, because all parents have to be Scene
+    //     (SceneObject.parent); if you don't like this hack, make parent a
+    //     SceneObject (instead of Scene) or an abstract container object
+    //     -- there's also some code duplication, have fun
+    private {
+        Scene mNormalFallback;
+        Scene[] mSubScenes;
+    }
+
+    this() {
+        mNormalFallback = new Scene();
+        mNormalFallback.mParent = this;
+        //see clear()
+        mSubScenes = [mNormalFallback];
+    }
+
+    override void add(SceneObject obj) {
+        assert(!obj.mParent, "already inserted in another Scene?");
+        if (obj.classinfo is Scene.classinfo) {
+            mSubScenes ~= cast(Scene)obj;
+            obj.mParent = this;
+        } else {
+            mNormalFallback.add(obj);
+        }
+    }
+
+    override void remove(SceneObject obj) {
+        assert(obj.mParent is this);
+        if (obj.classinfo is Scene.classinfo) {
+            Scene s = cast(Scene)obj;
+            auto nlen = arr.remove(mSubScenes, s);
+            assert (nlen == mSubScenes.length - 1);
+            //tango makes everything nice and practical
+            mSubScenes.length = nlen;
+            obj.mParent = null;
+        } else {
+            mNormalFallback.remove(obj);
+        }
+    }
+
+    override void clear() {
+        while (mSubScenes.length > 1) {
+            remove(mSubScenes[1]);
+        }
+        mNormalFallback.clear();
+    }
+
+    override void draw(Canvas canvas) {
+        canvas.pushState();
+        canvas.translate(pos);
+
+        for (int curz = 0;; curz++) {
+            bool had_one;
+
+            foreach (Scene s; mSubScenes) {
+                //directly mess with the internals
+                if (curz < s.mActiveObjects.length) {
+                    canvas.pushState();
+                    canvas.translate(s.pos);
+                    foreach (obj; mActiveObjects[curz]) {
+                        if (obj.active) {
+                            obj.draw(canvas);
+                        }
+                    }
+                    canvas.popState();
+                    had_one = true;
+                }
+            }
+
+            if (!had_one)
+                break;
         }
 
         canvas.popState();

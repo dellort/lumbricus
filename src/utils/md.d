@@ -63,7 +63,7 @@ template DelegateCommon(DT, Args...) {
 
     //callback doesn't need to be added before
     void remove(DT callback) {
-        arr.remove(mDelegates, callback);
+        mDelegates.length = arr.remove(mDelegates, callback);
     }
 
     void clear() {

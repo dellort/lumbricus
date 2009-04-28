@@ -28,7 +28,7 @@ class TeamWindow : Container {
     const Time cRemoveLinesDuration = timeMsecs(500);
     private {
         //for memory managment reasons, make larger if too small
-        const cWidgetsPerRow = 2;
+        const cWidgetsPerRow = 3;
         TableContainer mTable;
         Foobar[TeamInfo] mBars;
         TeamInfo[] mLines; //keep track to which team a table line maps
@@ -62,8 +62,12 @@ class TeamWindow : Container {
 
         //cells both expanded and homogeneous in x-dir => centered correctly
         //will give you headaches if you want more than two columns
-        auto table = new TableContainer(2, 0, Vector2i(3, 2),
-            [true, true], [true, false]);
+        auto table = new TableContainer(3, 0, Vector2i(3, 2),
+            [false, true], [true, false]);
+
+        //MAGIC to make column 0 and 2 the same size
+        table.setHomogeneousGroup(0, 0, 1);
+        table.setHomogeneousGroup(0, 2, 1);
 
         TeamInfo[] teams = game.teams.values;
 
@@ -71,8 +75,15 @@ class TeamWindow : Container {
 
         foreach (t; teams) {
             table.addRow();
+
             table.add(t.createLabel(), 0, table.height() - 1,
                 WidgetLayout.Aligned(1, 0));
+
+            auto wins = t.createLabel();
+            wins.text = myformat("{}", t.global_wins);
+            table.add(wins, 1, table.height() -1,
+                WidgetLayout.Noexpand());
+
             auto bar = new Foobar();
             //xxx: no idea how to get the actual properties
             BoxProperties box;
@@ -86,7 +97,7 @@ class TeamWindow : Container {
             lay.alignment[0] = 0;
             lay.expand[0] = false;
             mLines ~= t;
-            table.add(bar, 1, table.height() - 1, lay);
+            table.add(bar, 2, table.height() - 1, lay);
 
             //mMaxHealth = max(mMaxHealth, teams[n].totalHealth);
         }

@@ -55,6 +55,9 @@ class TeamInfo {
     //NOTE: in the game, foreign objects could appear, with are member of a team
     // (like the supersheep), these are not in this list
     TeamMemberInfo[] members;
+    //number of wins in previous rounds
+    //obviously must be initialized before gameteams.d reads it
+    int global_wins;
 
     //create a Label in this worm's style
     //it's initialized with the team's name

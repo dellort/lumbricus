@@ -488,6 +488,10 @@ class Widget {
     ///if only the size was changed, maybe rather use needResize
     ///but if layoutSizeAllocation must be called, use needRelayout()
     ///relayouting won't happen if there's no parent!
+    ///clearification:
+    ///  needRelayout(): when size calculation and allocation changed
+    ///  needResize(false): absolutely useless (perhaps) (I don't know)
+    ///  needResize(true): when size (possibly) changed
     final void needRelayout() {
         mLayoutNeedReallocate = true;
         mCachedContainedRequestSizeValid = false;
