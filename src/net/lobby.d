@@ -331,7 +331,7 @@ class CmdNetLobbyTask : Task {
             int wormHP = node.getValue("worm_hp", 150);
             int wormCount = node.getValue("worm_count", 4);
 
-            GameConfig conf = loadGameConfig(node, null, false);
+            GameConfig conf = loadGameConfig(node, null, true);
             auto teams = conf.teams;
             teams.clear();
             foreach (ref ti; info.teams) {

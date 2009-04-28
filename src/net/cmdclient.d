@@ -243,6 +243,10 @@ class CmdNetClient : SimpleNetConnection {
         //if setMe() is never called, we are spectator
         mClControl = new CmdNetControl(this);
         mSrvControl = null;
+        if (!mShell) {
+            close(DiscReason.internalError);
+            return;
+        }
         foreach (team; mShell.serverEngine.controller.teams) {
             uint ownerId = to!(uint)(team.netId);
             if (!(ownerId in mSrvControl))

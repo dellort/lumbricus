@@ -100,31 +100,17 @@ class GameEngineGraphics {
         }
     }
 
-    void add(Effect e) {
-        if (auto g = cast(Graphic)e) {
-            assert(!g.owner);
-            g.owner = this;
-            g.node = objects.add(g);
-        }
-        engine.callbacks.newGraphic(e);
-    }
-}
-
-//Effects are different from Graphics in the following:
-//  - They lose connection to the "server" engine the moment they are
-//    added with GameEngineGraphics.add()
-//  - They are not owned by GameEngineGraphics
-//  - They cannot be removed by the server once created
-abstract class Effect {
-    this() {
-    }
-    this (ReflectCtor c) {
+    void add(Graphic g) {
+        assert(!g.owner);
+        g.owner = this;
+        g.node = objects.add(g);
+        engine.callbacks.newGraphic(g);
     }
 }
 
 //xxx this crap is a relict of the now dead pseudo network stuff
 //    remove/redo this if you feel like it
-abstract class Graphic : Effect {
+abstract class Graphic {
     GameEngineGraphics owner;
     ListNode node;
     bool removed;
@@ -137,45 +123,6 @@ abstract class Graphic : Effect {
     void remove() {
         owner.remove(this);
     }
-}
-
-class ExplosionEffect : Effect {
-    Vector2i pos;
-    int radius;
-
-    this(Vector2i pos, int radius) {
-        this.pos = pos;
-        this.radius = radius;
-    }
-    this (ReflectCtor c) {
-        super(c);
-    }
-}
-
-class NukeSplatEffect : Effect {
-    this() {
-    }
-    this (ReflectCtor c) {
-        super(c);
-    }
-}
-
-class AnimationEffect : Effect {
-    Animation animation;
-    Vector2i pos;
-    AnimationParams params;
-
-    this(Animation anim, Vector2i pos,
-        AnimationParams params = AnimationParams.init)
-    {
-        animation = anim;
-        this.pos = pos;
-        this.params = params;
-    }
-    this (ReflectCtor c) {
-        super(c);
-    }
-
 }
 
 class AnimationGraphic : Graphic {
@@ -399,8 +346,12 @@ class GameEngineCallback {
     ///value increments, if the weapon list of any team changes
     MDelegate!(Team) weaponsChanged;
 
-    MDelegate!(Effect) newGraphic;
+    MDelegate!(Graphic) newGraphic;
     MDelegate!(Graphic) removeGraphic;
+
+    MDelegate!(Vector2i, int) explosionEffect;
+    MDelegate!() nukeSplatEffect;
+    MDelegate!(Animation, Vector2i, AnimationParams) animationEffect;
 }
 
 ///interface to the server's GameLogic

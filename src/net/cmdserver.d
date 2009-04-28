@@ -266,6 +266,7 @@ class CmdNetServer {
                 cl.close();
                 continue;
             }
+            cl.loadDone = false;
         }
         SPStartLoading reply;
         reply.gameConfig = msg.gameConfig;

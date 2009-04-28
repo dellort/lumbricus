@@ -1,5 +1,6 @@
 module game.controller;
 
+import common.animation;
 import common.common;
 import framework.commandline;
 import game.game;
@@ -314,8 +315,8 @@ class ServerTeam : Team {
                 break;
             case PointMode.instant, PointMode.instantFree:
                 //click effect
-                parent.engine.graphics.add(
-                    new AnimationEffect(color.click.get, toVector2i(where)));
+                parent.engine.callbacks.animationEffect(color.click.get,
+                    toVector2i(where), AnimationParams.init);
 
                 //instant mode -> fire and forget
                 current.doFireDown(true);
@@ -1156,6 +1157,8 @@ class GameController : GameLogicPublic {
     }
 
     this (ReflectCtor c) {
+        Types t = c.types();
+        t.registerMethod(this, &doCollectTool, "doCollectTool");
     }
 
     //--- start GameLogicPublic

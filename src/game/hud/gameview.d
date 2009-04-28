@@ -642,7 +642,7 @@ class GameView : Container {
         executeServerCommand(myformat("move {} {}", movement.x, movement.y));
     }
 
-    private void doNewGraphic(Effect g) {
+    private void doNewGraphic(Graphic g) {
         if (auto txt = cast(TextGraphic)g) {
             addChild(new GameLabel(txt));
         }

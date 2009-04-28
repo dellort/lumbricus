@@ -256,12 +256,13 @@ class CrosshairGraphicImpl : SceneObject {
 //------------------------------ Effects ---------------------------------
 
 class AnimationEffectImpl : Animator {
-    this(TimeSourcePublic ts, AnimationEffect info) {
+    this(TimeSourcePublic ts, Animation anim, Vector2i pos,
+        AnimationParams params) {
         super(ts);
         zorder = GameZOrder.Effects;
-        pos = info.pos;
-        params = info.params;
-        setAnimation(info.animation);
+        this.pos = pos;
+        this.params = params;
+        setAnimation(anim);
     }
 
     override void draw(Canvas c) {
@@ -280,13 +281,13 @@ class ExplosionEffectImpl : SceneObjectCentered {
         GfxSet mGfx;
     }
 
-    this(TimeSourcePublic ts, GfxSet gfx, ExplosionEffect info) {
+    this(TimeSourcePublic ts, GfxSet gfx, Vector2i pos, int radius) {
         zorder = GameZOrder.Effects;
         mGfx = gfx;
         mShockwave1 = new Animator(ts);
         mShockwave2 = new Animator(ts);
         mComicText = new Animator(ts);
-        auto p = info.pos;
+        auto p = pos;
         mShockwave1.pos = p;
         mShockwave2.pos = p;
         mComicText.pos = p;
@@ -294,7 +295,7 @@ class ExplosionEffectImpl : SceneObjectCentered {
         //mShockwave2.timeSource = mInfo.owner.timebase;
         //mComicText.timeSource = mInfo.owner.timebase;
 
-        setDiameter(info.radius*2);
+        setDiameter(radius*2);
     }
 
     //selects animations matching diameter
@@ -354,7 +355,7 @@ class NukeSplatEffectImpl : SceneObject {
         InterpolateFnTime!(float, nukeFlash!(0.01f)) mInterp;
     }
 
-    this(NukeSplatEffect info) {
+    this() {
         zorder = GameZOrder.Splat;
         mInterp.init(timeMsecs(3500), 0, 1.0f);
     }
@@ -435,6 +436,9 @@ class ClientGameEngine : GameEngineCallback {
 
         auto cb = mEngine.callbacks();
         cb.newGraphic ~= &doNewGraphic;
+        cb.explosionEffect ~= &explosionEffect;
+        cb.nukeSplatEffect ~= &nukeSplatEffect;
+        cb.animationEffect ~= &animationEffect;
 
         readd_graphics();
     }
@@ -489,30 +493,34 @@ class ClientGameEngine : GameEngineCallback {
         }
     }
 
-    private void doNewGraphic(Effect g) {
-        void add(SceneObject s) {
-            scene.add(s);
-        }
-
+    private void doNewGraphic(Graphic g) {
         if (auto ani = cast(AnimationGraphic)g) {
-            add(new ClientAnimationGraphic(ani, mSceneRect));
+            scene.add(new ClientAnimationGraphic(ani, mSceneRect));
         } else if (auto line = cast(LineGraphic)g) {
-            add(new ClientLineGraphic(line));
+            scene.add(new ClientLineGraphic(line));
         } else if (auto land = cast(LandscapeGraphic)g) {
-            add(new LandscapeGraphicImpl(land));
+            scene.add(new LandscapeGraphicImpl(land));
         } else if (auto tc = cast(CrosshairGraphic)g) {
-            add(new CrosshairGraphicImpl(tc, gfx));
+            scene.add(new CrosshairGraphicImpl(tc, gfx));
         } else if (auto txt = cast(TextGraphic)g) {
             //leave it to gameview.d (which adds its own newGraphic callback)
-        } else if (auto ns = cast(NukeSplatEffect)g) {
-            add(new NukeSplatEffectImpl(ns));
-        } else if (auto ex = cast(ExplosionEffect)g) {
-            add(new ExplosionEffectImpl(engineTime, gfx, ex));
-        } else if (auto aniEff = cast(AnimationEffect)g) {
-            add(new AnimationEffectImpl(engineTime, aniEff));
         } else {
             assert (false, "unknown type: "~g.toString());
         }
+    }
+
+    private void explosionEffect(Vector2i pos, int radius) {
+        scene.add(new ExplosionEffectImpl(engineTime, gfx, pos, radius));
+    }
+
+    private void nukeSplatEffect() {
+        scene.add(new NukeSplatEffectImpl());
+    }
+
+    private void animationEffect(Animation anim, Vector2i pos,
+        AnimationParams params)
+    {
+        scene.add(new AnimationEffectImpl(engineTime, anim, pos, params));
     }
 
     bool oldpause; //hack, so you can pause the music independent from the game

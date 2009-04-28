@@ -68,6 +68,8 @@ class ModeRoundbased : Gamemode {
 
     this(ReflectCtor c) {
         super(c);
+        Types t = c.types();
+        t.registerMethod(this, &doCollectTool, "doCollectTool");
     }
 
     override void initialize() {
@@ -191,7 +193,7 @@ class ModeRoundbased : Gamemode {
                         && !mStatus.suddenDeath)
                     {
                         mStatus.suddenDeath = true;
-                        engine.graphics.add(new NukeSplatEffect());
+                        engine.callbacks.nukeSplatEffect();
                         logic.messageAdd("msgsuddendeath");
                     }
 

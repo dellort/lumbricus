@@ -121,7 +121,6 @@ class GameEngine : GameEnginePublic {
 
     //generates earthquakes
     private EarthQuakeForce mEarthQuakeForce;
-    private ExplosionEffect mExplEffect;
 
     //managment of sprite classes, for findSpriteClass()
     private GOSpriteClass[char[]] mSpriteClasses;
@@ -268,7 +267,6 @@ class GameEngine : GameEnginePublic {
         const Time cFrameLength = timeMsecs(20);
 
         graphics = new GameEngineGraphics(this);
-        mExplEffect = new ExplosionEffect(Vector2i(0), 0);
 
         mObjects = new List2!(GameObject)();
         mPhysicWorld = new PhysicWorld(rnd);
@@ -730,9 +728,7 @@ class GameEngine : GameEnginePublic {
         physicworld.add(expl);
         //don't create effects that wouldn't show anyway
         if (iradius >= 10) {
-            mExplEffect.pos = toVector2i(pos);
-            mExplEffect.radius = iradius;
-            graphics.add(mExplEffect);
+            callbacks.explosionEffect(toVector2i(pos), iradius);
         }
         //some more chaos, if strong enough
         //xxx needs moar tweaking
