@@ -48,7 +48,7 @@ class LevelWidget : SimpleContainer {
         mOwner = owner;
         mGenerator = new LevelGeneratorShared();
 
-        auto config = gConf.loadConfig("gamesetupshared_gui");
+        auto config = gConf.loadConfig("dialogs/gamesetupshared_gui");
         auto loader = new LoadGui(config);
         loader.load();
 
@@ -234,7 +234,7 @@ class LocalGameSetupTask : Task {
     this(TaskManager tm, char[] args = "") {
         super(tm);
 
-        auto config = gConf.loadConfig("localgamesetup_gui");
+        auto config = gConf.loadConfig("dialogs/localgamesetup_gui");
         auto loader = new LoadGui(config);
 
         mLevelSelector = new LevelWidget(this);

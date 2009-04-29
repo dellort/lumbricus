@@ -42,6 +42,7 @@ version(DigitalMars) {
 }
 import game.gui.welcome;
 import game.gui.teamedit;
+import game.gui.weaponedit;
 import game.gui.setup_local;
 import game.gui.levelpaint;
 import game.wtris; //lol

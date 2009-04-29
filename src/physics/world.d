@@ -61,7 +61,7 @@ class PhysicWorld {
             BPSortAndSweep, PhysicTimedChangerVector2f, PhysicBase,
             CollisionType, EarthQuakeForce, EarthQuakeDegrader,
             PhysicObject, PhysicTimedChangerFloat, ZoneTrigger, PhysicFixate,
-            WaterSurfaceGeometry);
+            WaterSurfaceGeometry, PlaneGeometry);
         BroadPhase.registerstuff(c);
         PhysicZone.registerstuff(c);
         PhysicForce.registerstuff(c);

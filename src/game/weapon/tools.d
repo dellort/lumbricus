@@ -164,7 +164,7 @@ class RopeClass : WeaponClass {
 
 class Rope : Shooter {
     private {
-        LogStruct!("rope") log;
+        static LogStruct!("rope") log;
         bool mUsed;
         PhysicConstraint mRope;
         LineGraphic mLine;

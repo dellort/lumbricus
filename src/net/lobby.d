@@ -69,7 +69,7 @@ class CmdNetClientTask : Task {
         mClient.onDisconnect = &onDisconnect;
         mClient.onError = &onError;
 
-        auto config = gConf.loadConfig("connect_gui");
+        auto config = gConf.loadConfig("dialogs/connect_gui");
         auto loader = new LoadGui(config);
         loader.load();
 
@@ -229,7 +229,7 @@ class CreateNetworkGame : SimpleContainer {
     private {
         LevelWidget mLevelSelector;
         Task mOwner;
-        Widget mWaiting;
+        Widget mDialog, mWaiting;
     }
 
     void delegate() onCancel;
@@ -238,7 +238,7 @@ class CreateNetworkGame : SimpleContainer {
 
     this(Task owner) {
         mOwner = owner;
-        auto config = gConf.loadConfig("netgamesetup_gui");
+        auto config = gConf.loadConfig("dialogs/netgamesetup_gui");
         auto loader = new LoadGui(config);
 
         mLevelSelector = new LevelWidget(mOwner);
@@ -250,8 +250,15 @@ class CreateNetworkGame : SimpleContainer {
         loader.lookup!(Button)("btn_cancel").onClick = &cancelClick;
         loader.lookup!(Button)("btn_go").onClick = &goClick;
 
-        add(loader.lookup("creategame_root"));
+        mDialog = loader.lookup("creategame_root");
         mWaiting = loader.lookup("waiting_root");
+
+        reset();
+    }
+
+    void reset() {
+        clear();
+        add(mDialog);
     }
 
     private void levelBusy(bool busy) {
@@ -347,7 +354,7 @@ class CmdNetLobbyTask : Task {
         mClient.onHostGrant = &onHostGrant;
         mClient.onHostAccept = &onHostAccept;
 
-        auto config = gConf.loadConfig("lobby_gui");
+        auto config = gConf.loadConfig("dialogs/lobby_gui");
         auto loader = new LoadGui(config);
         loader.load();
 
@@ -431,6 +438,9 @@ class CmdNetLobbyTask : Task {
         if (playerId == mClient.myId) {
             //we want to create a game, show the setup window
             if (granted) {
+                mCreateDlg.reset();
+                if (mCreateWnd)
+                    mCreateWnd.destroy();
                 mCreateWnd = gWindowManager.createWindow(this, mCreateDlg,
                     _("gamesetup.caption_net"));
             }

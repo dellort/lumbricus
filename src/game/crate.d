@@ -80,7 +80,7 @@ class CollectableWeapon : Collectable {
         //think about the crate-sheep
         //xxx maybe make this more generic
         auto aw = cast(ActionWeapon)weapon;
-        if (aw.onBlowup) {
+        if (aw && aw.onBlowup) {
             auto ac = aw.onBlowup.createInstance(parent.engine);
             //run in context of parent crate
             auto ctx = new ActionContext(&parent.readParam);

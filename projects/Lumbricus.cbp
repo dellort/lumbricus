@@ -123,6 +123,7 @@
 		<Unit filename="..\src\game\gui\preview.d" />
 		<Unit filename="..\src\game\gui\setup_local.d" />
 		<Unit filename="..\src\game\gui\teamedit.d" />
+		<Unit filename="..\src\game\gui\weaponedit.d" />
 		<Unit filename="..\src\game\gui\welcome.d" />
 		<Unit filename="..\src\game\hud\camera.d" />
 		<Unit filename="..\src\game\hud\gameframe.d" />

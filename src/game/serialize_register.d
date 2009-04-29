@@ -36,7 +36,8 @@ void initGameSerialization() {
         NapalmSprite, ModeRoundbased, ModeDebug, TimeSource,
         TimeSourceFixFramerate, EventAggregator, DieAction, RoundbasedStatus,
         TeamAction, AoEDamageAction, ImpulseAction, MeleeWeapon, MeleeShooter,
-        ModeRealtime, RealtimeStatus);
+        ModeRealtime, RealtimeStatus, CollectableToolCrateSpy,
+        CollectableToolDoubleTime);
     //stuff that is actually redundant and wouldn't need to be in savegames
     //but excluding this from savegames would be too much work for nothing
     //keeping them separate still makes sense if we ever need faster snapshots

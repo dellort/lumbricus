@@ -541,14 +541,15 @@ class CmdNetClient : SimpleNetConnection {
 
     private void cmdSay(MyBox[] args, Output write) {
         CCChatMessage m;
-        m.witty_comment = args[0].unbox!(char[])();
-        broadcast(Client2ClientPacket.chatMessage, m);
+        m.witty_comment = args[0].unboxMaybe!(char[])();
+        if (m.witty_comment.length > 0)
+            broadcast(Client2ClientPacket.chatMessage, m);
     }
 
     private void registerCmds() {
         mCmds = new CommandBucket();
         mCmds.register(Command("say", &cmdSay, "say something",
-            ["text:what to say"]));
+            ["text?...:what to say"]));
     }
 
     CommandBucket commands() {
