@@ -393,6 +393,10 @@ class Rope : Shooter {
             }
             return;
         }
+        if (!mWorm.ropeActivated()) {
+            interruptFiring();
+            return;
+        }
 
         Vector2f wormPos = mWorm.physics.pos;
 
@@ -430,23 +434,25 @@ class Rope : Shooter {
             //of all of the possible collisions, but it isn't worth it
             Vector2f hit1, hit2;
             if (engine.physicworld.thickRay(ropeSegments[$-1].start, wormPos,
-                cSegmentRadius, hit1, hit2) && (wormPos-hit1).quad_length > 3)
+                cSegmentRadius, hit1, hit2) && (wormPos-hit1).quad_length > 150)
             {
                 if (hit1 != hit2)
                     log("seg: h1 {}, h2 {}, worm {}", hit1, hit2, wormPos);
                 else
                     log("seg: h1 {}, worm {}",hit1, wormPos);
-                //don't create segments too close to the worm
-                if ((hit1 - wormPos).length < 10)
-                    break;
                 //collided => new segment to attach the rope to the
                 //  connection point
                 //xxx: small hack to make it more robust
                 if (ropeSegments.length > 500)
                     break;
+                auto st = ropeSegments[$-1].start;
+                //no odd angles (lastHit - hit - wormPos should be close
+                //  to a straight line)
+                float a = (st-hit1)*(wormPos-hit1);
+                if (a > -0.8)
+                    break;
                 ropeSegments.length = ropeSegments.length + 1;
                 segmentInit(ropeSegments[$-1]);
-                auto st = ropeSegments[$-2].start;
                 ropeSegments[$-2].hit =
                     !!signbit((st-hit1)*(hit1-wormPos).orthogonal);
                 ropeSegments[$-2].end = hit1;

@@ -24,6 +24,7 @@ class PhysicConstraint : PhysicContactGen {
     bool isCable;
 
     private const cTolerance = 0.01f;
+    private float lcInt;
 
     this(PhysicObject obj, Vector2f anchor, float length, float restitution = 0,
         bool isCable = false)
@@ -40,11 +41,21 @@ class PhysicConstraint : PhysicContactGen {
 
     override void process(float deltaT, CollideDelegate contactHandler) {
         if (lengthChange > float.epsilon || lengthChange < -float.epsilon) {
-            length += lengthChange*deltaT;
+            lcInt = lengthChange;
+            if (lcInt > 0 && obj.mSurfaceCtr > 0) {
+                //don't extend into the surface
+                //float a = (anchor - obj.pos).normal*obj.surface_normal;
+                //Trace.formatln("{}", a);
+                //if (a > 0.5)
+                    lcInt = 0;
+            }
+            length += lcInt*deltaT;
             if (length < float.epsilon)
                 length = 0f;
             if (length > maxLength)
                 length = maxLength;
+        } else {
+            lcInt = 0;
         }
         float currentLen = (obj.pos - anchor).length;
         float deltaLen = currentLen - length;
@@ -86,8 +97,8 @@ class PhysicConstraint : PhysicContactGen {
 
         //if not, assume we hit something, and set new length to actual length
         //this check prevents shortening when no lengthChange is applied
-        if ((deltaLen < -cTolerance && lengthChange > float.epsilon)
-            || (deltaLen > cTolerance && lengthChange < -float.epsilon))
+        if ((deltaLen < -cTolerance && lcInt > float.epsilon)
+            || (deltaLen > cTolerance && lcInt < -float.epsilon))
             length = currentLen;
     }
 }

@@ -85,6 +85,7 @@ class PhysicObject : PhysicBase {
 
     //set internally by PhysicWorld (and reset every simulation loop!)
     package Vector2f gravity;
+    package Vector2f lastPos;
 
     //per-frame force accumulator
     private Vector2f mForceAccum;
@@ -92,7 +93,6 @@ class PhysicObject : PhysicBase {
     final Vector2f pos() {
         return mPos;
     }
-
     final Vector2f velocity() {
         return velocity_int;
     }

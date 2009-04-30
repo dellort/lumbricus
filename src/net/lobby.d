@@ -439,10 +439,12 @@ class CmdNetLobbyTask : Task {
             //we want to create a game, show the setup window
             if (granted) {
                 mCreateDlg.reset();
-                if (mCreateWnd)
-                    mCreateWnd.destroy();
-                mCreateWnd = gWindowManager.createWindow(this, mCreateDlg,
-                    _("gamesetup.caption_net"));
+                if (!mCreateWnd) {
+                    mCreateWnd = gWindowManager.createWindow(this, mCreateDlg,
+                        _("gamesetup.caption_net"));
+                    mCreateWnd.onClose = &createClose;
+                }
+                mCreateWnd.visible = true;
             }
         } else {
             if (mCreateWnd)
@@ -485,6 +487,12 @@ class CmdNetLobbyTask : Task {
         mCreateWnd.destroy();
     }
 
+    private bool createClose(Window sender) {
+        //don't kill the task
+        createCancel();
+        return true;
+    }
+
     //<-- CreateNetworkGame end
 
     private void executeCommand(char[] cmd) {
@@ -499,6 +507,7 @@ class CmdNetLobbyTask : Task {
     private void onStartLoading(SimpleNetConnection sender, GameLoader loader) {
         if (mCreateWnd)
             mCreateWnd.destroy();
+        //mConsole.writefln(_("lobby.gamestarting"));
         mGame = new GameTask(manager, loader, mClient);
         mGame.registerOnDeath(&onGameKill);
     }

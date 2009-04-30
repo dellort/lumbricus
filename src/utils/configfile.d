@@ -17,6 +17,7 @@ import tango.io.compress.ZlibStream;
 import utils.strparser : stringToBox, hasBoxParser;
 import utils.mybox : MyBox;
 import tango.core.Tuple : Tuple;
+import tango.core.Traits : isIntegerType, isRealType;
 import tango.text.Util : delimiters;
 
 //xxx: desperately moved to here (where else to put it?)
@@ -523,9 +524,7 @@ public class ConfigNode {
             bool res = def;
             parseBool(value, res);
             return res;
-        } else static if (is(T == int) || is(T == long) || is(T == uint)
-            || is(T == ulong))
-        {
+        } else static if (isIntegerType!(T)) {
             T res = def;
             parseInt!(T)(value, res);
             return res;
@@ -536,7 +535,8 @@ public class ConfigNode {
         } else static if (is(T T2 : T2[])) {
             // Parse the value as array of values.
             // Separator is always whitespace.
-            static if (is(T2 == bool) || is(T2 == int) || is(T2 == float)) {
+            static if (is(T2 == bool) || isIntegerType!(T2) || isRealType!(T2))
+            {
                 //xxx: Phobos API decides how string is parsed
                 auto array = str.split(value);
                 auto res = new T2[array.length];
@@ -546,10 +546,10 @@ public class ConfigNode {
                         //(one invalid value makes everything fail)
                         if (!parseBool(s, n))
                             return def;
-                    } else static if (is(T2 == int)) {
+                    } else static if (isIntegerType!(T2)) {
                         if (!parseInt(s, n))
                             return def;
-                    } else static if (is(T2 == float)) {
+                    } else static if (isRealType!(T2)) {
                         if (!parseFloat(s, n))
                             return def;
                     } else {
@@ -597,13 +597,14 @@ public class ConfigNode {
             this.value = str.toString(value.x) ~ " " ~ str.toString(value.y);
         } else static if (is(T == bool)) {
             this.value = value ? "true" : "false";
-        } else static if (is(T : int)) {
+        } else static if (isIntegerType!(T)) {
             this.value = str.toString(value);
-        } else static if (is(T : float)) {
+        } else static if (isRealType!(T)) {
             this.value = str.toString(value);
         } else static if (is(T T2 : T2[])) {
             //saving of array types
-            static if (is(T2 == bool) || is(T2 : int) || is(T2 : float)) {
+            static if (is(T2 == bool) || isIntegerType!(T2) || isRealType!(T2))
+            {
                 //basic types are packed into one string
                 char[][] s;
                 foreach (T2 t; value) {

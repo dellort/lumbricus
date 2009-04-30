@@ -141,9 +141,6 @@ class PhysicWorld {
         }
 
         broadphase.collide(mObjArr, &handleContact);
-        foreach (PhysicContactGen cg; mContactGenerators) {
-            cg.process(deltaT, &handleContact);
-        }
 
         foreach (PhysicObject me; mObjects) {
             //no need to check then? (maybe)
@@ -169,6 +166,10 @@ class PhysicWorld {
                 if (collide.canCollide(tr, me))
                     tr.collide(me);
             }
+        }
+
+        foreach (PhysicContactGen cg; mContactGenerators) {
+            cg.process(deltaT, &handleContact);
         }
 
         resolveContacts(deltaT);
@@ -319,12 +320,18 @@ class PhysicWorld {
                 //landscape...
                 //(xxx: uh, actually a dangerous hack)
                 if (ncont.depth == float.infinity) {
-                    //so pull it out along the velocity vector
-                    ncont.normal = -o.velocity.normal;
+                    //so pull it back to last known safe position
+                    Vector2f d = o.lastPos - o.pos;
+                    ncont.normal = d.normal;
                     //assert(!ncont.normal.isNaN);
-                    ncont.depth = o.posp.radius*2;
+                    ncont.depth = d.length;
                 } else if (ch == ContactHandling.pushBack) {
-                    ncont.normal = -o.velocity.normal;
+                    //back along velocity vector
+                    //only allowed if less than 90° off from surface normal
+                    Vector2f vn = -o.velocity.normal;
+                    float a = vn * ncont.normal;
+                    if (a > 0)
+                        ncont.normal = vn;
                 }
 
                 if (!collided)
@@ -335,6 +342,8 @@ class PhysicWorld {
                 collided = true;
             }
         }
+        if (!collided)
+            o.lastPos = o.pos;
         return collided;
     }
 
