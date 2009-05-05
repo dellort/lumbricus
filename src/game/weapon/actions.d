@@ -11,12 +11,15 @@ import game.worm;
 import game.glevel;
 import game.levelgen.landscape;
 import game.controller;
+import game.actionsprite;
 import physics.world;
 import utils.configfile;
 import utils.time;
 import utils.vector2;
 import utils.randval;
 import utils.reflection;
+
+import tango.math.Math : sqrt;
 
 ///Base class for weapon-activated actions (just for parameter handling)
 class WeaponAction : Action {
@@ -34,6 +37,16 @@ class WeaponAction : Action {
 
     this (ReflectCtor c) {
         super(c);
+    }
+
+    protected bool doubleDamage() {
+        if (auto as = cast(ActionSprite)mCreatedBy) {
+            return as.doubleDamage;
+        }
+        if (auto m = engine.controller.memberFromGameObject(mCreatedBy, true)) {
+            return m.serverTeam.hasDoubleDamage();
+        }
+        return false;
     }
 
     override protected ActionRes initialStep() {
@@ -89,9 +102,12 @@ class ExplosionAction : WeaponAction {
 
     override protected ActionRes initialStep() {
         super.initialStep();
-        if (!mFireInfo.info.pos.isNaN)
-            engine.explosionAt(mFireInfo.info.pos, myclass.damage.sample(),
-                mCreatedBy);
+        if (!mFireInfo.info.pos.isNaN) {
+            float dmg = myclass.damage.sample();
+            if (doubleDamage())
+                dmg *= 2.0f;
+            engine.explosionAt(mFireInfo.info.pos, dmg, mCreatedBy);
+        }
         return ActionRes.done;
     }
 }
@@ -631,9 +647,11 @@ class AoEDamageAction : AoEAction {
     override protected void applyOn(GObjectSprite sprite) {
         float dmg;
         if (myclass.damage < 1.0f+float.epsilon) {
+            //xxx not so sure about that; e.g. 0.5 -> 0.70
+            float dmgPerc = doubleDamage?sqrt(myclass.damage):myclass.damage;
             //relative damage
-            dmg = sprite.physics.lifepower*myclass.damage;
-            if (myclass.damage < 1.0f-float.epsilon) {
+            dmg = sprite.physics.lifepower*dmgPerc;
+            if (dmgPerc < 1.0f-float.epsilon) {
                 //don't kill
                 dmg = min(dmg, sprite.physics.lifepower - 1.0f);
             }
@@ -641,7 +659,7 @@ class AoEDamageAction : AoEAction {
                 return;
         } else {
             //absolute damage
-            dmg = myclass.damage;
+            dmg = doubleDamage?myclass.damage*2.0f:myclass.damage;
         }
         sprite.physics.applyDamage(dmg, DamageCause.special);
         //xxx stuck in the ground animation here

@@ -46,7 +46,6 @@ class ServerTeam : Team {
     bool targetIsSet;
     GameController parent;
     bool forcedFinish;
-    bool hasCrateSpy;
 
     private {
         ServerTeamMember[] mMembers;  //all members (will not change in-game)
@@ -66,6 +65,8 @@ class ServerTeam : Team {
         char[] mTeamId, mTeamNetId;
 
         int mGlobalWins;
+        //incremented for each crate; xxx take over to next round
+        int mDoubleDmg, mCrateSpy;
     }
 
     //node = the node describing a single team
@@ -163,6 +164,14 @@ class ServerTeam : Team {
         return mGlobalWins;
     }
 
+    bool hasCrateSpy() {
+        return mCrateSpy > 0;
+    }
+
+    bool hasDoubleDamage() {
+        return mActive && (mDoubleDmg > 0);
+    }
+
     // --- end Team
 
     char[] netId() {
@@ -247,6 +256,10 @@ class ServerTeam : Team {
             setPointMode(PointMode.none);
             targetIsSet = false;
             setOnHold(false);
+            if (hasDoubleDamage()) {
+                mDoubleDmg--;
+            }
+            mAllowSelect = false;
             mActive = act;
         }
     }
@@ -348,10 +361,6 @@ class ServerTeam : Team {
         mCurrentTargetInd = ind;
     }
 
-    //xxx integrate (unused yet)
-    void applyDoubleTime() {
-        //parent.mRoundRemaining *= 2;
-    }
     void dieNow() {
         mCurrent.worm.physics.applyDamage(100000, DamageCause.death);
     }
@@ -465,6 +474,14 @@ class ServerTeam : Team {
         foreach (m; mMembers) {
             m.removeWorm();
         }
+    }
+
+    void addDoubleDamage() {
+        mDoubleDmg++;
+    }
+
+    void addCrateSpy() {
+        mCrateSpy++;
     }
 }
 
@@ -889,6 +906,8 @@ class ServerTeamMember : TeamMember, WormController {
         if (fromkeys) {
             mWormAction = true;
             mLastAction = mTeam.parent.engine.gameTime.current;
+            if (mTeam.allowSelect)
+                mTeam.allowSelect = false;
         }
     }
     //has the worm done anything since activation?
@@ -1144,7 +1163,7 @@ class GameController : GameLogicPublic {
         EventAggregator mEvents;
         //Medkit, medkit+tool, medkit+tool+unrigged weapon
         //  (rest is rigged weapon)
-        const cCrateProbs = [0.15f, 0.30f, 0.93f];
+        const cCrateProbs = [0.20f, 0.40f, 0.95f];
         int[TeamTheme.cTeamColors.length] mTeamColorCache;
     }
 
@@ -1517,9 +1536,10 @@ class GameController : GameLogicPublic {
         } else if (r < cCrateProbs[1]) {
             //tool
             //sorry about this
-            switch (engine.rnd.next(2)) {
+            switch (engine.rnd.next(3)) {
                 case 0: ret ~= new CollectableToolCrateSpy(); break;
                 case 1: ret ~= new CollectableToolDoubleTime(); break;
+                case 2: ret ~= new CollectableToolDoubleDamage(); break;
             }
         } else {
             //weapon
@@ -1566,7 +1586,11 @@ class GameController : GameLogicPublic {
     private bool doCollectTool(ServerTeamMember collector, CollectableTool tool)
     {
         if (auto t = cast(CollectableToolCrateSpy)tool) {
-            collector.serverTeam.hasCrateSpy = true;
+            collector.serverTeam.addCrateSpy();
+            return true;
+        }
+        if (auto t = cast(CollectableToolDoubleDamage)tool) {
+            collector.serverTeam.addDoubleDamage();
             return true;
         }
         return false;

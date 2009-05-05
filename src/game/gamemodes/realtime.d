@@ -81,6 +81,7 @@ class ModeRealtime : Gamemode {
         if (aliveCount < 2) {
             //"Controlled shutdown": deactivate teams, wait for silence,
             //  blow up worms, end game
+            modeTime.paused = true;
             logic.deactivateAll();
             if (engine.checkForActivity)
                 return;
@@ -88,6 +89,7 @@ class ModeRealtime : Gamemode {
             if (logic.checkDyingWorms())
                 return;
             mGameEndedInt = true;
+            waitReset(2);
             if (aliveCount == 0) {
                 logic.messageAdd("msgnowin");
             } else {

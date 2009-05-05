@@ -74,7 +74,8 @@ struct SpawnParams {
 // shootby = maybe need shooter position, size and velocity
 // shootby_object = for tracking who-shot-which
 void spawnsprite(GameEngine engine, int n, SpawnParams params,
-    FireInfo about, GameObject shootbyObject, ProjectileFeedback fb)
+    FireInfo about, GameObject shootbyObject, ProjectileFeedback fb,
+    bool doubleDamage)
 {
     //assert(shootby !is null);
     assert(n >= 0 && n < params.count);
@@ -132,11 +133,13 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
     sprite.physics.setInitialVelocity(about.dir*about.strength);
 
     //pass required parameters
-    auto ps = cast(ProjectileSprite)sprite;
-    if (ps) {
+    if (auto ps = cast(ProjectileSprite)sprite) {
         ps.detonateTimer = about.timer;
         ps.target = about.pointto;
         ps.setFeedback(fb);
+    }
+    if (auto as = cast(ActionSprite)sprite) {
+        as.doubleDamage = doubleDamage;
     }
     auto ssi = sprite.type.findState(params.initState, true);
     if (ssi)
@@ -192,7 +195,7 @@ class SpawnAction : WeaponAction {
             //delay is not used, use ActionList looping for this
             for (int n = 0; n < myclass.sparams.count; n++) {
                 spawnsprite(engine, n, myclass.sparams, mFireInfo.info,
-                    mCreatedBy, rft);
+                    mCreatedBy, rft, doubleDamage());
             }
         }
         return ActionRes.done;

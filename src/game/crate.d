@@ -155,6 +155,17 @@ class CollectableToolDoubleTime : CollectableTool {
     }
 }
 
+class CollectableToolDoubleDamage : CollectableTool {
+    this() {
+    }
+    this (ReflectCtor c) {
+    }
+
+    char[] id() {
+        return "game_msg.crate.doubledamage";
+    }
+}
+
 ///Blows up the crate without giving the worm anything
 ///Note that you can add other collectables in the same crate
 class CollectableBomb : Collectable {

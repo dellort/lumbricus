@@ -121,9 +121,6 @@ class ModeRoundbased : Gamemode {
                     false);
                 if (!mCurrentTeam.current)
                     return RoundState.waitForSilence;
-                if (mCurrentTeam.allowSelect && mCurrentTeam.teamAction())
-                    //no changing worm after action
-                    mCurrentTeam.allowSelect = false;
                 if (mStatus.roundRemaining <= Time.Null)   //timeout
                 {
                     //check if we need to wait because worm is performing

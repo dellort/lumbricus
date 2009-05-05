@@ -21,6 +21,7 @@ import game.hud.teaminfo;
 import game.hud.preparedisplay;
 import game.hud.weaponsel;
 import game.hud.messageviewer;
+import game.hud.powerups;
 import game.clientengine;
 import game.gamepublic;
 import game.game;
@@ -166,6 +167,8 @@ class GameFrame : SimpleContainer {
             WidgetLayout.Aligned(-1, 1, Vector2i(5, 5)));
 
         mGui.add(new PrepareDisplay(game));
+        mGui.add(new PowerupDisplay(game),
+            WidgetLayout.Aligned(1, -1, Vector2i(5, 20)));
 
         mMessageViewer = new MessageViewer(game);
         mGui.add(mMessageViewer);

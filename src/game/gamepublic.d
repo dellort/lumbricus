@@ -453,6 +453,10 @@ interface Team {
 
     ///wins so far; normally incremented for the winner team on game end
     int globalWins();
+
+    bool hasCrateSpy();
+
+    bool hasDoubleDamage();
 }
 
 //calls from client to server which control a worm

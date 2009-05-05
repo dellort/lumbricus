@@ -23,6 +23,7 @@ import utils.reflection;
 class ActionSprite : GObjectSprite {
     protected Vector2f mLastImpactNormal = {0, -1};
     protected WrapFireInfo mFireInfo;
+    bool doubleDamage;
 
     private {
         Action mCreateAction, mStateAction;
