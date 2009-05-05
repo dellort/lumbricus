@@ -29,6 +29,10 @@ class ModeRealtime : Gamemode {
         const cWinTime = timeSecs(5);
         //time from being hit until you can move again
         const cHitDelay = timeMsecs(1000);
+        //time of inactivity until health update / worm blowup
+        const cUpdateDelay = timeSecs(2.5f);
+        //time of inactivity until a worm can become active
+        const cActivateDelay = timeMsecs(500);
         Time[ServerTeam] mTeamDeactivateTime;
         RealtimeStatus mStatus;
     }
@@ -119,23 +123,34 @@ class ModeRealtime : Gamemode {
 
         //----------- Team activating ---------------
 
-        //xxx worm blowup every frame, better ideas?
-        logic.checkDyingWorms();
         //check if we need to activate or deactivate a team
         foreach (t; logic.teams()) {
+            //check for dying worms
+            foreach (ServerTeamMember m; t) {
+                //only blow up inactive worms
+                //Note: might blow up several worms concurrently,
+                //      I don't see any problems
+                if (engine.gameTime.current - m.lastActivity > cUpdateDelay) {
+                    m.checkDying();
+                    m.updateHealth();
+                }
+            }
             if (!t.active) {
                 //if a worm was hit, force a cHitDelay pause on the team
                 if ((!(t in mTeamDeactivateTime))
                     || (modeTime.current - mTeamDeactivateTime[t] > cHitDelay))
                 {
-                    logic.activateTeam(t);
+                    //only activate worms that are not currently moving
+                    auto next = t.nextActive();
+                    if (next && engine.gameTime.current
+                        - next.lastActivity > cActivateDelay)
+                    {
+                        logic.activateTeam(t);
+                    }
                 }
             } else if (!t.current || t.current.lifeLost()) {
                 //worm change if the current worm was hit
                 logic.activateTeam(t, false);
-                //xxx what about other team members being hit? health
-                //    may not update for a long time
-                t.updateHealth();
                 mTeamDeactivateTime[t] = modeTime.current();
             }
         }

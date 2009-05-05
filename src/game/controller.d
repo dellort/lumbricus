@@ -269,13 +269,19 @@ class ServerTeam : Team {
         assert(mCurrent is null);
         assert(mActive);
         //this will activate the worm
-        auto next = findNext(mLastActive, true);
+        auto next = nextActive();
         current = next;
         //current may change by user input, mLastActive will not
         mLastActive = next;
         if (!next)
             return false;
         return true;
+    }
+
+    ///get the worm that would be next-in-row to move
+    ///returns null if none left
+    ServerTeamMember nextActive() {
+        return findNext(mLastActive, true);
     }
 
     void allowSelect(bool allow) {
@@ -416,30 +422,14 @@ class ServerTeam : Team {
                 m.removeWorm();
                 continue;
             }
+            m.simulate();
         }
-        if (!mActive)
-            return;
-        if (mCurrent)
-            mCurrent.simulate();
     }
 
     bool checkDyingMembers() {
         foreach (m; mMembers) {
-            auto worm = m.mWorm;
-            //already dead -> boring
-            if (!worm)
-                continue;
-
-            //3 possible states: healthy, unhealthy but not suiciding, suiciding
-            if (worm.shouldDie() && !worm.isDelayedDying()) {
-                //unhealthy, not suiciding
-                worm.finallyDie();
-                assert(worm.isDelayedDying() || worm.isDead());
+            if (m.checkDying())
                 return true;
-            } else if (worm.isDelayedDying()) {
-                //suiciding
-                return true;
-            }
         }
         return false;
     }
@@ -495,6 +485,7 @@ class ServerTeamMember : TeamMember, WormController {
         WeaponClass mWormLastWeapon;
         bool mActive;
         Time mLastAction;
+        Time mLastActivity = timeSecs(-40);
         WormSprite mWorm;
         bool mWormAction;
         Vector2f mLastMoveVector;
@@ -900,6 +891,12 @@ class ServerTeamMember : TeamMember, WormController {
         return mLastAction;
     }
 
+    // != lastAction; last activity of the owned WormSprite (updated even if
+    // member is not active)
+    Time lastActivity() {
+        return mLastActivity;
+    }
+
     //called if any action is issued, i.e. key pressed to control worm
     //or if it was moved by sth. else
     void wormAction(bool fromkeys = true) {
@@ -946,6 +943,9 @@ class ServerTeamMember : TeamMember, WormController {
     }
 
     void simulate() {
+        if (mWorm && mWorm.activity())
+            mLastActivity = mEngine.gameTime.current;
+
         if (!mActive)
             return;
 
@@ -998,6 +998,26 @@ class ServerTeamMember : TeamMember, WormController {
                 break;
             }
         }
+    }
+
+    //checks if this worm wants to blow up, returns true if it wants to or is
+    //  in progress of blowing up
+    bool checkDying() {
+        //already dead -> boring
+        if (!mWorm)
+            return false;
+
+        //3 possible states: healthy, unhealthy but not suiciding, suiciding
+        if (mWorm.shouldDie() && !mWorm.isDelayedDying()) {
+            //unhealthy, not suiciding
+            mWorm.finallyDie();
+            assert(mWorm.isDelayedDying() || mWorm.isDead());
+            return true;
+        } else if (mWorm.isDelayedDying()) {
+            //suiciding
+            return true;
+        }
+        return false;
     }
 
     ServerTeam serverTeam() {
@@ -1288,10 +1308,10 @@ class GameController : GameLogicPublic {
         if (!mIsAnythingGoingOn) {
             startGame();
         } else {
-            mGamemode.simulate();
-
             foreach (t; mTeams)
                 t.simulate();
+
+            mGamemode.simulate();
 
             if (mLastCrate) {
                 if (!mLastCrate.active) mLastCrate = null;
