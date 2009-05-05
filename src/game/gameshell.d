@@ -953,6 +953,7 @@ struct NetTeamInfo {
     struct Team {
         uint playerId;
         ConfigNode teamConf;
+        int globalWins;
     }
 }
 

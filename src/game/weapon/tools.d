@@ -196,6 +196,14 @@ class Rope : Shooter {
             Vector2f direction() {
                 return (end-start).normal;
             }
+
+            bool canRemove(Vector2f wormPos) {
+                //check on which side of the plane (start, end) the new
+                //position is
+                bool d = !!signbit((start - end)
+                    * (end - wormPos).orthogonal);
+                return d != hit;
+            }
         }
         RopeClass myclass;
     }
@@ -411,11 +419,7 @@ class Rope : Shooter {
             //   the rope moves away from the connection point
             if (ropeSegments.length >= 2) {
                 auto old = ropeSegments[$-2];
-                //check on which side of the plane (old.start, old.end) the new
-                //position is
-                bool d = !!signbit((old.start-old.end)
-                    * (old.end-wormPos).orthogonal);
-                if (d != old.hit) {
+                if (old.canRemove(wormPos)) {
                     log("remove segment");
                     //remove it
                     segmentDead(ropeSegments[$-1]);
@@ -451,8 +455,12 @@ class Rope : Shooter {
                 float a = (st-hit1)*(wormPos-hit1);
                 if (a > -0.8)
                     break;
-                ropeSegments.length = ropeSegments.length + 1;
-                segmentInit(ropeSegments[$-1]);
+                if (ropeSegments.length < 2 ||
+                    !ropeSegments[$-2].canRemove(hit1))
+                {
+                    ropeSegments.length = ropeSegments.length + 1;
+                    segmentInit(ropeSegments[$-1]);
+                }
                 ropeSegments[$-2].hit =
                     !!signbit((st-hit1)*(hit1-wormPos).orthogonal);
                 ropeSegments[$-2].end = hit1;

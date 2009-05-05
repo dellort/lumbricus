@@ -57,7 +57,7 @@ class TeamInfo {
     TeamMemberInfo[] members;
     //number of wins in previous rounds
     //obviously must be initialized before gameteams.d reads it
-    int global_wins;
+    int last_global_wins = -1;
 
     //create a Label in this worm's style
     //it's initialized with the team's name

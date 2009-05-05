@@ -309,6 +309,8 @@ class CreateNetworkGame : SimpleContainer {
                 ct.setValue("power", wormHP);
                 //the clients need this to identify which team belongs to whom
                 ct.setValue("net_id", ti.playerId);
+                //pass on the current score
+                ct.setValue("global_wins", ti.globalWins);
                 teams.addNode(ct);
             }
         }

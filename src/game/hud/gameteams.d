@@ -31,6 +31,7 @@ class TeamWindow : Container {
         const cWidgetsPerRow = 3;
         TableContainer mTable;
         Foobar[TeamInfo] mBars;
+        Label[TeamInfo] mLastGlobalWins;
         TeamInfo[] mLines; //keep track to which team a table line maps
         //if >= 0, the first line when swapping them
         int currentSwapLine = -1; //this and this+1 are the lines being swapped
@@ -80,7 +81,7 @@ class TeamWindow : Container {
                 WidgetLayout.Aligned(1, 0));
 
             auto wins = t.createLabel();
-            wins.text = myformat("{}", t.global_wins);
+            mLastGlobalWins[t] = wins;
             table.add(wins, 1, table.height() -1,
                 WidgetLayout.Noexpand());
 
@@ -133,6 +134,13 @@ class TeamWindow : Container {
             //bar.percent = mMaxHealth ? 1.0f*team.totalHealth/mMaxHealth : 0;
             //this makes 10 life points exactly a pixel on the screen
             bar.minSize = Vector2i(team.currentHealth / 10, 0);
+
+            //also does the first time initialization
+            auto curwin = team.team.globalWins();
+            if (team.last_global_wins != curwin) {
+                mLastGlobalWins[team].text = myformat("{}", curwin);
+                team.last_global_wins = curwin;
+            }
         }
 
         if (doanimation) {

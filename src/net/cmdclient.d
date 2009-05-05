@@ -45,6 +45,7 @@ class CmdNetClient : SimpleNetConnection {
 
         struct MyPlayerInfo {
             bool valid;
+            int globalWins;
             NetPlayerInfo info;
         }
         MyPlayerInfo[] mPlayerInfo;
@@ -273,6 +274,9 @@ class CmdNetClient : SimpleNetConnection {
 
     void gameKilled() {
         if (connected && mShell) {
+            foreach (t; mShell.serverEngine.controller.teams) {
+                mPlayerInfo[to!(uint)(t.netId)].globalWins = t.globalWins();
+            }
             mShell = null;
             sendEmpty(ClientPacket.gameTerminated);
         }
@@ -474,6 +478,7 @@ class CmdNetClient : SimpleNetConnection {
                     nt.playerId = pt.playerId;
                     nt.teamConf = gConf.loadConfigGzBuf(pt.teamConf);
                     nt.teamConf.rename(pt.teamName);
+                    nt.globalWins = mPlayerInfo[pt.playerId].globalWins;
                     info.teams ~= nt;
                 }
                 if (onHostAccept)

@@ -64,6 +64,8 @@ class ServerTeam : Team {
         bool mAlternateControl;
         bool mAllowSelect;   //can next worm be selected by user (tab)
         char[] mTeamId, mTeamNetId;
+
+        int mGlobalWins;
     }
 
     //node = the node describing a single team
@@ -89,6 +91,7 @@ class ServerTeam : Team {
         mAlternateControl = node.getStringValue("control") != "worms";
         mTeamId = node["id"];
         mTeamNetId = node["net_id"];
+        mGlobalWins = node.getValue!(int)("global_wins", 0);
     }
 
     this (ReflectCtor c) {
@@ -154,6 +157,10 @@ class ServerTeam : Team {
 
     bool allowSelect() {
         return mAllowSelect;
+    }
+
+    int globalWins() {
+        return mGlobalWins;
     }
 
     // --- end Team
@@ -429,6 +436,7 @@ class ServerTeam : Team {
     }
 
     void youWinNow() {
+        mGlobalWins++;
         foreach (m; mMembers) {
             m.youWinNow();
         }

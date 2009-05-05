@@ -450,6 +450,9 @@ interface Team {
 
     ///is it possible to choose another worm (tab key)
     bool allowSelect();
+
+    ///wins so far; normally incremented for the winner team on game end
+    int globalWins();
 }
 
 //calls from client to server which control a worm
