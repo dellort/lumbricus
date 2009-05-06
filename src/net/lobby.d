@@ -31,6 +31,9 @@ import utils.misc;
 import utils.time;
 import utils.log;
 
+import tango.math.random.Random : rand;
+import tango.util.Convert : to;
+
 class CmdNetClientTask : Task {
     private {
         static LogStruct!("connect") log;
@@ -314,6 +317,7 @@ class CreateNetworkGame : SimpleContainer {
                 teams.addNode(ct);
             }
         }
+        conf.randomSeed = to!(char[])(rand.uniform!(uint));
 
         onStart(conf);
     }

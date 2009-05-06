@@ -358,8 +358,10 @@ class EarthquakeAction : TimedAction {
 
     override protected void cleanupDeferred() {
         //xxx not sure about that, what if worm drowns?
-        mEarthquake.dead = true;
-        mEarthquake = null;
+        if (mEarthquake) {
+            mEarthquake.dead = true;
+            mEarthquake = null;
+        }
     }
 
     override void simulate(float deltaT) {

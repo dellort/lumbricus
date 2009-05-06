@@ -24,6 +24,7 @@ import framework.framework;
 import framework.timesource;
 import common.resset;
 import tango.math.Math;
+import tango.util.Convert : to;
 
 import game.levelgen.renderer;// : LandscapeBitmap;
 
@@ -254,7 +255,11 @@ class GameEngine : GameEnginePublic {
         //xxx
         //game initialization must be deterministic; but you could pre-generate
         //a good seed, put it into GameConfig, and use it here
-        rnd.seed(1);
+        if (config.randomSeed.length > 0) {
+            rnd.seed(to!(uint)(config.randomSeed));
+        } else {
+            rnd.seed(1);
+        }
         mGfx = a_gfx;
         gameConfig = config;
         mGameTime = a_gameTime;

@@ -45,6 +45,7 @@ class GameConfig {
     // - waterset: string with the name of the waterset (like "blue")
     //probably should be changed etc., so don't blame me
     ConfigNode gfx;
+    char[] randomSeed;
 
     ConfigNode save() {
         //xxx: not nice. but for now...
@@ -56,6 +57,7 @@ class GameConfig {
         to.addNode("levelobjects", levelobjects.copy);
         to.addNode("gfx", gfx.copy);
         to.setValueArray!(char[])("weaponsets", weaponsets);
+        to.setStringValue("random_seed", randomSeed);
         return to;
     }
 
@@ -68,6 +70,7 @@ class GameConfig {
         levelobjects = n.getSubNode("levelobjects");
         gfx = n.getSubNode("gfx");
         weaponsets = n.getValueArray!(char[])("weaponsets");
+        randomSeed = n["random_seed"];
     }
 }
 
