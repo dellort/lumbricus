@@ -114,7 +114,11 @@ class ServerTeam : Team {
 
     //if there's any alive worm
     bool alive() {
-        return findNext(null, true) !is null;
+        foreach (m; mMembers) {
+            if (m.alive())
+                return true;
+        }
+        return false;
     }
 
     bool active() {
@@ -242,16 +246,24 @@ class ServerTeam : Team {
         if (act) {
             //activating team
             mActive = act;
+            parent.mActiveTeams ~= this;
             setOnHold(false);
             if (!activateNextInRow()) {
                 //no worm could be activated (i.e. all dead)
                 mActive = false;
                 return;
             }
-            parent.messageAdd("msgwormstartmove", [mCurrent.name]);
             forcedFinish = false;
+            assert(!!current);
+            /+ already in TeamMember?
+            foreach (e; parent.mEvents) {
+                e.onWormEvent(WormEvent.wormActivate, current);
+            }
+            +/
         } else {
             //deactivating
+            arrayRemoveUnordered(parent.mActiveTeams, this); //should not fail
+            mActive = act;
             current = null;
             setPointMode(PointMode.none);
             targetIsSet = false;
@@ -260,7 +272,6 @@ class ServerTeam : Team {
                 mDoubleDmg--;
             }
             mAllowSelect = false;
-            mActive = act;
         }
     }
 
@@ -401,29 +412,16 @@ class ServerTeam : Team {
                 setIndicator(null);
             }
         }
-        //xxx checking all members every frame, too expensive?
+
+        bool has_active_worm;
+
         foreach (m; mMembers) {
-            if (!m.mWorm)
-                continue;
-            //check if a worm is really dead (i.e. "gone"), like after drowning,
-            //or when finished blowing himself up
-            if (m.mWorm.physics.dead) {
-                if (m.mWorm.hasDrowned()) {
-                    //death by drowning
-                    //drowned worms go physics.dead when reaching the bottom
-                    parent.messageAdd("msgdrown", [m.name]);
-                    parent.events.onWorm(WormEvent.wormDrown, m);
-                } else {
-                    //death by exploding
-                    //suiciding worms go physics.dead when done blowing up
-                    parent.messageAdd("msgdie", [m.name]);
-                    parent.events.onWorm(WormEvent.wormDie, m);
-                }
-                m.removeWorm();
-                continue;
-            }
             m.simulate();
+            has_active_worm |= m.active;
         }
+
+        if (!has_active_worm)
+            setActive(false);
     }
 
     bool checkDyingMembers() {
@@ -595,11 +593,6 @@ class ServerTeamMember : TeamMember, WormController {
         mTeam.parent.placeOnLandscape(mWorm);
     }
 
-    //returns if 0 points, i.e. returns true even if worm didn't commit yet
-    bool dead() {
-        return !mWorm || mWorm.isDead();
-    }
-
     GObjectSprite sprite() {
         return mWorm;
     }
@@ -643,7 +636,6 @@ class ServerTeamMember : TeamMember, WormController {
             if (!mCurrentWeapon)
                 mCurrentWeapon = mTeam.defaultWeapon;
             selectWeapon(mCurrentWeapon);
-            mTeam.parent.events.onWorm(WormEvent.wormActivate, this);
         } else {
             //being deactivated
             controllableMove(Vector2f(0));
@@ -661,7 +653,11 @@ class ServerTeamMember : TeamMember, WormController {
             }
             mFireDown = false;
             mActive = act;
-            mTeam.parent.events.onWorm(WormEvent.wormDeactivate, this);
+        }
+        WormEvent event = mActive ? WormEvent.wormActivate
+            : WormEvent.wormDeactivate;
+        foreach (e; mTeam.parent.mEvents) {
+            e.onWormEvent(event, this);
         }
     }
 
@@ -870,7 +866,9 @@ class ServerTeamMember : TeamMember, WormController {
 
     void firedWeapon(Shooter sh, bool refire) {
         assert(!!sh);
-        mTeam.parent.events.onFireWeapon(sh.weapon, refire);
+        foreach (e; mTeam.parent.mEvents) {
+            e.onFireWeapon(sh.weapon, refire);
+        }
     }
 
     void doneFiring(Shooter sh) {
@@ -899,13 +897,11 @@ class ServerTeamMember : TeamMember, WormController {
 
     //called if any action is issued, i.e. key pressed to control worm
     //or if it was moved by sth. else
-    void wormAction(bool fromkeys = true) {
-        if (fromkeys) {
-            mWormAction = true;
-            mLastAction = mTeam.parent.engine.gameTime.current;
-            if (mTeam.allowSelect)
-                mTeam.allowSelect = false;
-        }
+    void wormAction() {
+        mWormAction = true;
+        mLastAction = mTeam.parent.engine.gameTime.current;
+        if (mTeam.allowSelect)
+            mTeam.allowSelect = false;
     }
     //has the worm done anything since activation?
     bool actionPerformed() {
@@ -943,6 +939,27 @@ class ServerTeamMember : TeamMember, WormController {
     }
 
     void simulate() {
+        //xxx checking all members every frame, too expensive?
+        if (!mWorm)
+            return;
+
+        //check if a worm is really dead (i.e. "gone"), like after drowning,
+        //or when finished blowing himself up
+        if (mWorm.physics.dead) {
+            //xxx maybe rather have a onWormDie with a deathcause parameter?
+            WormEvent deathcause = mWorm.hasDrowned()
+                ? WormEvent.wormDrown : WormEvent.wormDie;
+            foreach (e; mTeam.parent.mEvents) {
+                e.onWormEvent(deathcause, this);
+            }
+            //NOTES:
+            //drowning: drowned worms go physics.dead when reaching the bottom
+            //else: death by exploding; suiciding worms go physics.dead when
+            //      done blowing up
+            removeWorm();
+            return;
+        }
+
         if (mWorm && mWorm.activity())
             mLastActivity = mEngine.gameTime.current;
 
@@ -963,6 +980,10 @@ class ServerTeamMember : TeamMember, WormController {
         //check if fire button is being held down, waiting for right state
         if (mFireDown)
             doFireDown();
+
+        //isn't done normally?
+        if (!alive())
+            setActive(false);
     }
 
     void youWinNow() {
@@ -1157,8 +1178,10 @@ class GameController : GameLogicPublic {
         static LogStruct!("game.controller") log;
 
         ServerTeam[] mTeams;
+        ServerTeam[] mActiveTeams;
+
+        //same as mTeams, but array of another type (for gamepublic.d)
         Team[] mTeams2;
-        Team[] mActiveTeams;
 
         ServerTeamMember[GameObject] mGameObjectToMember;
 
@@ -1180,12 +1203,15 @@ class GameController : GameLogicPublic {
         CrateSprite mLastCrate;  //just to drop it on spacebar
         bool mGameEnded;
 
-        EventAggregator mEvents;
+        ControllerStats mStatsCollector;
+
         //Medkit, medkit+tool, medkit+tool+unrigged weapon
         //  (rest is rigged weapon)
         const cCrateProbs = [0.20f, 0.40f, 0.95f];
         int[TeamTheme.cTeamColors.length] mTeamColorCache;
     }
+
+    package ControllerEvents[] mEvents;
 
     //when a worm collects a tool from a crate
     ChainDelegate!(ServerTeamMember, CollectableTool) collectTool;
@@ -1208,10 +1234,11 @@ class GameController : GameLogicPublic {
         mGamemode = GamemodeFactory.instantiate(mGamemodeId, this,
             config.gamemode);
 
-        mEvents = new EventAggregator(this);
-
         //only valid while loading
         mWeaponSets = null;
+
+        new ControllerMsgs(this);
+        mStatsCollector = new ControllerStats(this);
 
         mEngine.finishPlace();
 
@@ -1247,10 +1274,6 @@ class GameController : GameLogicPublic {
 
     int getWeaponListChangeCounter() {
         return mWeaponListChangeCounter;
-    }
-
-    Team[] getActiveTeams() {
-        return mActiveTeams;
     }
 
     //--- end GameLogicPublic
@@ -1292,9 +1315,12 @@ class GameController : GameLogicPublic {
     }
 
     void startGame() {
+        assert(!mIsAnythingGoingOn);
         mIsAnythingGoingOn = true;
         //nothing happening? start a round
-        messageAdd("msggamestart", null);
+        foreach (e; mEvents) {
+            e.onGameStart();
+        }
 
         deactivateAll();
         //lol, see gamemode comments for how this should really be used
@@ -1319,7 +1345,7 @@ class GameController : GameLogicPublic {
 
             if (mGamemode.ended() && !mGameEnded) {
                 mGameEnded = true;
-                mEvents.output();
+                mStatsCollector.output();
             }
         }
     }
@@ -1345,23 +1371,9 @@ class GameController : GameLogicPublic {
         return mTeams;
     }
 
+    //this function now is no longer special, can use t.setActive directly
     void activateTeam(ServerTeam t, bool active = true) {
-        if (!t)
-            return;
-        if (t.active == active)
-            return;
         t.setActive(active);
-        if (active) {
-            //???
-            //assert(mActiveTeams.length == 0);
-            mActiveTeams ~= t;
-        } else {
-            //should not fail
-            arrayRemoveUnordered(mActiveTeams, t);
-        }
-
-        //xxx: not sure
-        changeWeaponList(t);
     }
 
     void deactivateAll() {
@@ -1533,12 +1545,16 @@ class GameController : GameLogicPublic {
     void reportViolence(GameObject cause, GObjectSprite victim, float damage) {
         assert(!!cause && !!victim);
         auto wclass = weaponFromGameObject(cause);
-        events.onDamage(cause, victim, damage, wclass);
+        foreach (e; mEvents) {
+            e.onDamage(cause, victim, damage, wclass);
+        }
     }
 
     void reportDemolition(int pixelCount, GameObject cause) {
         assert(!!cause);
-        events.onDemolition(pixelCount, cause);
+        foreach (e; mEvents) {
+            e.onDemolition(pixelCount, cause);
+        }
     }
 
     //queue for placing anywhere on landscape
@@ -1617,15 +1633,11 @@ class GameController : GameLogicPublic {
     }
 
     bool crateSpyActive() {
-        foreach (Team t; mActiveTeams) {
-            if ((cast(ServerTeam)t).hasCrateSpy)
+        foreach (ServerTeam t; mActiveTeams) {
+            if (t.hasCrateSpy)
                 return true;
         }
         return false;
-    }
-
-    EventAggregator events() {
-        return mEvents;
     }
 }
 
@@ -1648,26 +1660,105 @@ enum WormEvent {
     wormDeactivate,
 }
 
-class EventAggregator {
+class ControllerEvents {
     private {
-        static LogStruct!("gameevents") log;
         GameController mController;
     }
 
     this(GameController c) {
         mController = c;
+        mController.mEvents ~= this;
     }
     this(ReflectCtor c) {
+    }
+
+    final GameController controller() {
+        return mController;
+    }
+
+    //all the following functions are called on events, and do nothing by
+    //default; they are meant to be overridden when you're itnerested in an
+    //event
+
+    //maybe or maybe not replace this by a bunch of MDelegates?
+
+    void onGameStart() {
     }
 
     void onDamage(GameObject cause, GObjectSprite victim, float damage,
         WeaponClass wclass)
     {
+    }
+
+    void onDemolition(int pixelCount, GameObject cause) {
+    }
+
+    void onFireWeapon(WeaponClass wclass, bool refire = false) {
+    }
+
+    void onWormEvent(WormEvent id, ServerTeamMember m) {
+    }
+
+    void onCrateCollect(ServerTeamMember m, Collectable[] stuffies) {
+    }
+}
+
+//the idea was that the whole game state should be observable (including
+//events), so you can move displaying all messages into a separate piece of
+//code, instead of creating messages directly
+//doesn't work with: create.d, gamemodes/*.d, weapon/actions.d
+class ControllerMsgs : ControllerEvents {
+    this(GameController c) {
+        super(c);
+    }
+    this(ReflectCtor c) {
+        super(c);
+    }
+
+    override void onGameStart() {
+        controller.messageAdd("msggamestart", null);
+    }
+
+    override void onWormEvent(WormEvent id, ServerTeamMember m) {
+        switch (id) {
+            case WormEvent.wormActivate:
+                controller.messageAdd("msgwormstartmove", [m.name]);
+                break;
+            case WormEvent.wormDrown:
+                controller.messageAdd("msgdrown", [m.name]);
+                break;
+            case WormEvent.wormDie:
+                controller.messageAdd("msgdie", [m.name]);
+                break;
+            default:
+        }
+    }
+
+    override void onCrateCollect(ServerTeamMember m, Collectable[] stuffies) {
+        //oh well, this doesn't really work, look for messageAdd in crate.d
+    }
+}
+
+class ControllerStats : ControllerEvents {
+    private {
+        static LogStruct!("gameevents") log;
+    }
+
+    this(GameController c) {
+        super(c);
+    }
+    this(ReflectCtor c) {
+        super(c);
+    }
+
+    override void onDamage(GameObject cause, GObjectSprite victim, float damage,
+        WeaponClass wclass)
+    {
         char[] wname = "unknown_weapon";
         if (wclass)
             wname = wclass.name;
-        auto m1 = mController.memberFromGameObject(cause, true);
-        auto m2 = mController.memberFromGameObject(victim, false);
+        auto m1 = controller.memberFromGameObject(cause, true);
+        auto m2 = controller.memberFromGameObject(victim, false);
         char[] dmgs = myformat("{}", damage);
         if (victim.physics.lifepower < 0) {
             float ov = min(-victim.physics.lifepower, damage);
@@ -1698,12 +1789,12 @@ class EventAggregator {
         }
     }
 
-    void onDemolition(int pixelCount, GameObject cause) {
+    override void onDemolition(int pixelCount, GameObject cause) {
         mPixelsDestroyed += pixelCount;
         //log("blasted {} pixels of land", pixelCount);
     }
 
-    void onFireWeapon(WeaponClass wclass, bool refire = false) {
+    override void onFireWeapon(WeaponClass wclass, bool refire = false) {
         char[] wname = "unknown_weapon";
         if (wclass)
             wname = wclass.name;
@@ -1717,7 +1808,7 @@ class EventAggregator {
         }
     }
 
-    void onWorm(WormEvent id, ServerTeamMember m) {
+    override void onWormEvent(WormEvent id, ServerTeamMember m) {
         switch (id) {
             case WormEvent.wormActivate:
                 log("Worm activate: {}", m);
@@ -1740,7 +1831,7 @@ class EventAggregator {
         }
     }
 
-    void onCrate(ServerTeamMember m, Collectable[] stuffies) {
+    override void onCrateCollect(ServerTeamMember m, Collectable[] stuffies) {
         log("{} collects crate: {}", m, stuffies);
         mCrateCount++;
     }

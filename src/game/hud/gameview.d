@@ -434,6 +434,7 @@ class GameView : Container {
         CommandBucket mCmds;
 
         ViewMember activeWorm;
+        ViewMember lastActiveWorm;
 
         enum MoveLabelEffect {
             move,   //straight
@@ -497,6 +498,12 @@ class GameView : Container {
         if (auto am = mGame.control.getControlledMember()) {
             auto pam = am in mEngineMemberToOurs;
             activeWorm = pam ? *pam : null;
+        }
+
+        if (lastActiveWorm !is activeWorm) {
+            lastActiveWorm = activeWorm;
+            if (onTeamChange)
+                onTeamChange();
         }
 
         foreach (m; mAllMembers) {

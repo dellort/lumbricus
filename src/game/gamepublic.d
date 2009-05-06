@@ -363,9 +363,6 @@ interface GameLogicPublic {
     ///all participating teams (even dead ones)
     Team[] getTeams();
 
-    ///all currently playing teams (not just the controlled one)
-    Team[] getActiveTeams();
-
     char[] gamemode();
 
     ///True if game has ended

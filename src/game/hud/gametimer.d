@@ -117,10 +117,12 @@ class GameTimer : Container {
         bool active;
         if (st) {
             int state = st.state;
-            Team[] t = mGame.logic.getActiveTeams;
             TeamMember m;
-            if (t.length > 0)
-                m = t[0].getActiveMember;
+            foreach (t; mGame.logic.getTeams) {
+                m = t.getActiveMember;
+                if (m)
+                    break;
+            }
             if ((state == RoundState.prepare || state == RoundState.playing)
                 && m)
             {

@@ -20,6 +20,7 @@ import utils.log;
 class ModeDebug : Gamemode {
     private {
         //static LogStruct!("gamemodes.mdebug") log;
+        ServerTeam mPreviousTeam;
     }
 
     this(GameController parent, ConfigNode config) {
@@ -42,22 +43,17 @@ class ModeDebug : Gamemode {
     void simulate() {
         super.simulate();
         //if active team is dead or so, pick new one
-        if (!logic.getActiveTeams().length) {
-            //ServerTeamMember chosen;
-            foreach (ServerTeam t; logic.teams) {
-                /+ServerTeamMember m = t.findNext(null, true);
-                if (m) {
-                    chosen = m;
-                    break;
-                }+/
-                if (t.alive) {
+        foreach (ServerTeam t; logic.teams) {
+            if (t.alive) {
+                if (!t.active) {
+                    if (mPreviousTeam) {
+                        logic.activateTeam(mPreviousTeam, false);
+                    }
                     logic.activateTeam(t);
-                    break;
                 }
+                mPreviousTeam = t;
+                break;
             }
-            /+if (chosen) {
-                logic.activateT
-            }+/
         }
     }
 

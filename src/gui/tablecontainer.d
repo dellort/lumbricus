@@ -325,6 +325,7 @@ class TableContainer : PublicContainer {
             curgroup = nextgroup = 1; //group 0 means disabled
             do {
                 int curSize;
+                curgroup = nextgroup;
                 foreach (ref h; heads) {
                     if (h.homogeneousGroup == curgroup) {
                         curSize = max(curSize, h.minSize);
@@ -338,7 +339,11 @@ class TableContainer : PublicContainer {
                 //find next group (could be merged with one of the loops above)
                 foreach (ref h; heads) {
                     if (h.homogeneousGroup > curgroup) {
-                        nextgroup = min(nextgroup, h.homogeneousGroup);
+                        if (nextgroup == curgroup) {
+                            nextgroup = h.homogeneousGroup;
+                        } else {
+                            nextgroup = min(nextgroup, h.homogeneousGroup);
+                        }
                     }
                 }
             } while (nextgroup > curgroup);

@@ -302,7 +302,6 @@ class GameShell {
         bool mUseExternalTS; //timestamp advancing is controlled externally
         debug bool mPrintFrameTime;
         //
-        GameEngineCallback[] mCallbacks; //xxx should hold weak references
         GCD mGCD;
     }
 
