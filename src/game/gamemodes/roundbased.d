@@ -181,7 +181,8 @@ class ModeRoundbased : Gamemode {
                         } else {
                             assert(firstAlive);
                             firstAlive.youWinNow();
-                            logic.messageAdd("msgwin", [firstAlive.name]);
+                            logic.messageAdd("msgwin", [firstAlive.name],
+                                firstAlive);
                             return RoundState.winning;
                         }
                     }

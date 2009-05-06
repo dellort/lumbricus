@@ -6,6 +6,7 @@ import framework.i18n;
 import common.scene;
 import common.visual;
 import game.hud.teaminfo;
+import game.gamepublic;
 import gui.widget;
 import utils.misc;
 import utils.time;
@@ -13,9 +14,14 @@ import utils.queue;
 
 class MessageViewer : Widget {
     private {
+        struct QueuedMessage {
+            char[] text;
+            Team teamForColor;
+        }
+
         GameInfo mGame;
-        Queue!(char[]) mMessages;
-        char[] mCurrentMessage;
+        Queue!(QueuedMessage) mMessages;
+        QueuedMessage mCurrentMessage;
         Font mFont;
         Time mLastFrame;
         int mPhase; //0 = nothing, 1 = blend in, 2 = show, 3 = blend out, 4 = wait
@@ -23,6 +29,7 @@ class MessageViewer : Widget {
         Vector2i mMessageSize;
         float mMessagePos;
         float mMessageWay; //way over which message is scrolled
+        BoxProperties mBoxProps;
 
         Translator mLocaleMsg;
         int mMsgChangeCounter;
@@ -39,12 +46,15 @@ class MessageViewer : Widget {
         mLocaleMsg = Translator.ByNamespace("game_msg");
 
         mFont = gFramework.fontManager.loadFont("messages");
-        mMessages = new Queue!(char[]);
+        mMessages = new typeof(mMessages);
         mLastFrame = timeCurrentTime();
+
+        auto cb = mGame.engine.callbacks();
+        cb.showMessage ~= &showMessage;
     }
 
-    void addMessage(char[] msg) {
-        mMessages.push(msg);
+    void addMessage(char[] msg, Team t) {
+        mMessages.push(QueuedMessage(msg, t));
     }
 
     //return true as long messages are displayed
@@ -56,8 +66,19 @@ class MessageViewer : Widget {
         return !working();
     }
 
-    void showMessage(LocalizedMessage msg) {
-        addMessage(mLocaleMsg.translateLocalizedMessage(msg));
+    void showMessage(GameMessage msg) {
+        if (msg.viewer) {
+            bool show = false;
+            foreach (Team t; mGame.control.getOwnedTeams()) {
+                if (t is msg.viewer) {
+                    show = true;
+                    break;
+                }
+            }
+            if (!show)
+                return;
+        }
+        addMessage(mLocaleMsg.translateLocalizedMessage(msg.lm), msg.actor);
     }
 
     override void simulate() {
@@ -74,7 +95,7 @@ class MessageViewer : Widget {
             }
             if (mPhase > 4) {
                 //done, no current message anymore
-                mCurrentMessage = null;
+                mCurrentMessage.text = null;
                 mPhase = 0;
             }
         }
@@ -90,7 +111,7 @@ class MessageViewer : Widget {
                     mPhase = 1;
                     mPhaseStart = cur;
                     mCurrentMessage = mMessages.pop();
-                    mMessageSize = mFont.textSize(mCurrentMessage);
+                    mMessageSize = mFont.textSize(mCurrentMessage.text);
                     mMessagePos = -mMessageSize.y - cMessageBorders.y*2;
                     mMessageWay = -mMessagePos + cMessageOffset;
                 }
@@ -118,8 +139,15 @@ class MessageViewer : Widget {
         if (mPhase == 1 || mPhase == 2 || mPhase == 3) {
             auto org = size.X / 2 - (mMessageSize+cMessageBorders*2).X / 2;
             org.y += cast(int)mMessagePos;
-            drawBox(canvas, org, mMessageSize+cMessageBorders*2);
-            mFont.drawText(canvas, org+cMessageBorders, mCurrentMessage);
+            if (mCurrentMessage.teamForColor) {
+                mBoxProps.borderWidth = 2;
+                mBoxProps.border = mCurrentMessage.teamForColor.color.color;
+            } else {
+                mBoxProps.borderWidth = 1;
+                mBoxProps.border = Color(0);
+            }
+            drawBox(canvas, org, mMessageSize+cMessageBorders*2, mBoxProps);
+            mFont.drawText(canvas, org+cMessageBorders, mCurrentMessage.text);
         }
     }
 }

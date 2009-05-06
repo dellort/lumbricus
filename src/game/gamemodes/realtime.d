@@ -98,7 +98,7 @@ class ModeRealtime : Gamemode {
                 logic.messageAdd("msgnowin");
             } else {
                 lastteam.youWinNow();
-                logic.messageAdd("msgwin", [lastteam.name]);
+                logic.messageAdd("msgwin", [lastteam.name], lastteam);
             }
             return;
         }

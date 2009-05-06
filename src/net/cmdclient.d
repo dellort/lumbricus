@@ -588,6 +588,10 @@ class CmdNetControl : ClientControl {
         return null;
     }
 
+    Team[] getOwnedTeams() {
+        return mOwnedTeams;
+    }
+
     void executeCommand(char[] cmd) {
         mConnection.sendCommand(cmd);
     }

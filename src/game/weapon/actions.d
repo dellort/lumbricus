@@ -428,12 +428,14 @@ class TeamAction : WeaponAction {
                     case "skipturn":
                         mMember.serverTeam.skipTurn();
                         engine.controller.messageAdd("msgskipturn",
-                            [mMember.name(), mMember.serverTeam.name()]);
+                            [mMember.name(), mMember.serverTeam.name()],
+                            mMember.team);
                         break;
                     case "surrender":
                         mMember.serverTeam.surrenderTeam();
                         engine.controller.messageAdd("msgsurrender",
-                            [mMember.name(), mMember.serverTeam.name()]);
+                            [mMember.name(), mMember.serverTeam.name()],
+                            mMember.team);
                         break;
                     case "wormselect":
                         return ActionRes.moreWork;

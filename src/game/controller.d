@@ -1290,17 +1290,21 @@ class GameController : GameLogicPublic {
         return mEngine;
     }
 
-    void messageAdd(char[] msg, char[][] args = null) {
+    void messageAdd(char[] msg, char[][] args = null, Team actor = null,
+        Team viewer = null)
+    {
         messageIsIdle(); //maybe reset wait time
         if (mMessageCounter == 0)
             mLastMsgTime = mEngine.gameTime.current;
         mMessageCounter++;
 
-        LocalizedMessage lm;
-        lm.id = msg;
-        lm.args = args;
-        lm.rnd = engine.rnd.next;
-        engine.callbacks.showMessage(lm);
+        GameMessage gameMsg;
+        gameMsg.lm.id = msg;
+        gameMsg.lm.args = args;
+        gameMsg.lm.rnd = engine.rnd.next;
+        gameMsg.actor = actor;
+        gameMsg.viewer = viewer;
+        engine.callbacks.showMessage(gameMsg);
     }
 
     bool messageIsIdle() {
@@ -1722,13 +1726,14 @@ class ControllerMsgs : ControllerEvents {
     override void onWormEvent(WormEvent id, ServerTeamMember m) {
         switch (id) {
             case WormEvent.wormActivate:
-                controller.messageAdd("msgwormstartmove", [m.name]);
+                controller.messageAdd("msgwormstartmove", [m.name], m.team,
+                    m.team);
                 break;
             case WormEvent.wormDrown:
-                controller.messageAdd("msgdrown", [m.name]);
+                controller.messageAdd("msgdrown", [m.name], m.team);
                 break;
             case WormEvent.wormDie:
-                controller.messageAdd("msgdie", [m.name]);
+                controller.messageAdd("msgdie", [m.name], m.team);
                 break;
             default:
         }

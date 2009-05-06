@@ -343,7 +343,7 @@ class GameEngineCallback {
     ///available
     ///a random int is passed along, so all clients with the same locale
     ///will select the same message
-    MDelegate!(LocalizedMessage) showMessage;
+    MDelegate!(GameMessage) showMessage;
 
     ///called if the weapon list of any team changes
     ///value increments, if the weapon list of any team changes
@@ -468,5 +468,17 @@ interface ClientControl {
     ///_not_ always the same member or null
     TeamMember getControlledMember();
 
+    ///The teams associated with this controller
+    ///Does not mean any or all the teams can currently be controlled (they
+    ///  can still be deactivated by controller)
+    Team[] getOwnedTeams();
+
     void executeCommand(char[] cmd);
+}
+
+struct GameMessage {
+    LocalizedMessage lm;
+    Team actor;    //who did the action (for message color), null for neutral
+    Team viewer;   //who should see it (only players with Team
+                   //  in getOwnedTeams() see the message), null for all
 }

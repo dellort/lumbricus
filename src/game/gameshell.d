@@ -670,6 +670,7 @@ class GameControl : ClientControl {
         CommandBucket mCmds;
         CommandLine mCmd;
         ServerTeam[] mOwnedTeams;
+        Team[] mOwnedCTeams;
         long mCurrentTS = -1;
     }
 
@@ -688,6 +689,7 @@ class GameControl : ClientControl {
     //add tram to list of controlled teams
     void addTeam(Team team) {
         mOwnedTeams ~= castStrict!(ServerTeam)(cast(Object)team);
+        mOwnedCTeams ~= team;
     }
 
     //return true if command was found and could be parsed
@@ -918,6 +920,10 @@ class GameControl : ClientControl {
         ServerTeamMember cur;
         checkWormCommand((ServerTeamMember w) { cur = w; });
         return cur;
+    }
+
+    Team[] getOwnedTeams() {
+        return mOwnedCTeams;
     }
 
     override void executeCommand(char[] cmd) {

@@ -73,7 +73,7 @@ class CollectableWeapon : Collectable {
 
     void collectMessage(GameController logic, ServerTeamMember member) {
         logic.messageAdd("collect_item", [member.name(), "_." ~ id(),
-            to!(char[])(quantity)]);
+            to!(char[])(quantity)], member.team, member.team);
     }
 
     override void blow(CrateSprite parent) {
@@ -106,7 +106,7 @@ class CollectableMedkit : Collectable {
 
     void collectMessage(GameController logic, ServerTeamMember member) {
         logic.messageAdd("collect_medkit", [member.name(),
-            to!(char[])(amount)]);
+            to!(char[])(amount)], member.team, member.team);
     }
 
     void collect(CrateSprite parent, ServerTeamMember member) {
@@ -122,7 +122,8 @@ abstract class CollectableTool : Collectable {
     }
 
     void collectMessage(GameController logic, ServerTeamMember member) {
-        logic.messageAdd("collect_tool", [member.name(), "_." ~ id()]);
+        logic.messageAdd("collect_tool", [member.name(), "_." ~ id()],
+            member.team, member.team);
     }
 
     void collect(CrateSprite parent, ServerTeamMember member) {

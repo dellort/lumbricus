@@ -215,7 +215,6 @@ class GameFrame : SimpleContainer {
         setPosition(game.cengine.worldCenter);
 
         auto cb = game.engine.callbacks();
-        cb.showMessage ~= &mMessageViewer.showMessage;
         cb.weaponsChanged ~= &updateWeapons;
     }
 }
