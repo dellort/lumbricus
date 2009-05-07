@@ -225,6 +225,13 @@ class Rope : Shooter {
         c.types().registerMethod(this, &ropeMove, "ropeMove");
     }
 
+    //check if rope anchor is still connected / can be connected
+    private bool checkRopeAnchor(Vector2f anchorpos) {
+        GeomContact dummy;
+        return engine.physicworld.collideGeometry(anchorpos, cSegmentRadius,
+            dummy);
+    }
+
     override bool delayedAction() {
         return false;
     }
@@ -374,7 +381,7 @@ class Rope : Shooter {
                 cSegmentRadius, hit1, hit2))
             {
                 abortShoot();
-                if (len > 15) {
+                if (len > 15 && checkRopeAnchor(hit1)) {
                     //first hit removes ammo, further ones don't
                     if (!mSecondShot)
                         reduceAmmo();
@@ -519,5 +526,8 @@ class Rope : Shooter {
         mWorm.physics.forceLook(swingdir);
         updateAnchorAnim(ropeSegments[0].start, ropeSegments[0].start
             - ropeSegments[0].end);
+
+        if (!checkRopeAnchor(ropeSegments[0].start))
+            interruptFiring();
     }
 }

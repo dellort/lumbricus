@@ -30,8 +30,7 @@ class TeamWindow : Container {
         //for memory managment reasons, make larger if too small
         const cWidgetsPerRow = 3;
         TableContainer mTable;
-        Foobar[TeamInfo] mBars;
-        Label[TeamInfo] mLastGlobalWins;
+        PerTeam[TeamInfo] mTeamInfo;
         TeamInfo[] mLines; //keep track to which team a table line maps
         //if >= 0, the first line when swapping them
         int currentSwapLine = -1; //this and this+1 are the lines being swapped
@@ -40,6 +39,12 @@ class TeamWindow : Container {
         Time currentRemoveStart;
         bool mUpdating;
         TimeSourcePublic mTimeSource;
+
+        class PerTeam {
+            Foobar bar;
+            Label global_wins;
+            int last_global_wins = -1; //-1: force lazy initialization
+        }
     }
 
     //return if a is superior or equal to b
@@ -80,25 +85,27 @@ class TeamWindow : Container {
             table.add(t.createLabel(), 0, table.height() - 1,
                 WidgetLayout.Aligned(1, 0));
 
-            auto wins = t.createLabel();
-            mLastGlobalWins[t] = wins;
-            table.add(wins, 1, table.height() -1,
+            PerTeam ti = new PerTeam();
+
+            ti.global_wins = t.createLabel();
+            table.add(ti.global_wins, 1, table.height() -1,
                 WidgetLayout.Noexpand());
 
-            auto bar = new Foobar();
+            ti.bar = new Foobar();
             //xxx: no idea how to get the actual properties
             BoxProperties box;
             box.border = Color(0.7);
             box.back = Color(0);
             box.cornerRadius = 3;
-            bar.border = box;
-            bar.fill = t.color;
-            mBars[t] = bar;
+            ti.bar.border = box;
+            ti.bar.fill = t.color;
             WidgetLayout lay; //expand in y, but left-align in x
             lay.alignment[0] = 0;
             lay.expand[0] = false;
+            table.add(ti.bar, 2, table.height() - 1, lay);
+
+            mTeamInfo[t] = ti;
             mLines ~= t;
-            table.add(bar, 2, table.height() - 1, lay);
 
             //mMaxHealth = max(mMaxHealth, teams[n].totalHealth);
         }
@@ -130,16 +137,16 @@ class TeamWindow : Container {
     gameframe.d; during that update(false) is called to update the bar widths
     +/
     void update(bool doanimation) {
-        foreach (TeamInfo team, Foobar bar; mBars) {
+        foreach (TeamInfo team, PerTeam ti; mTeamInfo) {
             //bar.percent = mMaxHealth ? 1.0f*team.totalHealth/mMaxHealth : 0;
             //this makes 10 life points exactly a pixel on the screen
-            bar.minSize = Vector2i(team.currentHealth / 10, 0);
+            ti.bar.minSize = Vector2i(team.currentHealth / 10, 0);
 
             //also does the first time initialization
             auto curwin = team.team.globalWins();
-            if (team.last_global_wins != curwin) {
-                mLastGlobalWins[team].text = myformat("{}", curwin);
-                team.last_global_wins = curwin;
+            if (ti.last_global_wins != curwin) {
+                ti.global_wins.text = myformat("{}", curwin);
+                ti.last_global_wins = curwin;
             }
         }
 
