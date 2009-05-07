@@ -56,12 +56,20 @@ public struct Color {
     }
 
     //black transparent pixel
-    const Color cTransparent = Color(0, 0, 0, 0);
+    const Color Transparent = Color(0, 0, 0, 0);
+    //"null" value (for default parameters)
+    const Color Invalid = Color(float.infinity, float.infinity,
+        float.infinity, float.infinity);
 
     /// a value that can be used as epsilon when comparing colors
     //0.3f is a fuzzify value, with 255 I expect colors to be encoded with at
     //most 8 bits
     public static const float epsilon = 0.3f * 1.0f / 255;
+
+    //for use with Color.Invalid
+    bool valid() {
+        return *this != Invalid;
+    }
 
     /// to help the OpenGL code; use with glColor4fv
     /// (unclean but better than to cast Color* to float* like it was before)

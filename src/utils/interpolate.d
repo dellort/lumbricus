@@ -56,7 +56,7 @@ struct InterpolateFnTime(T, alias FN, alias FN_1 = Missing) {
 
     ///return if the value is still changing (false when this is uninitialized)
     bool inProgress() {
-        return currentTime() < startTime + duration;
+        return initialized && currentTime() < startTime + duration;
     }
 
 //we need the inverse function of FN for this

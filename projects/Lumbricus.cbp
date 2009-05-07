@@ -133,6 +133,7 @@
 		<Unit filename="..\src\game\hud\messageviewer.d" />
 		<Unit filename="..\src\game\hud\powerups.d" />
 		<Unit filename="..\src\game\hud\preparedisplay.d" />
+		<Unit filename="..\src\game\hud\replaytimer.d" />
 		<Unit filename="..\src\game\hud\teaminfo.d" />
 		<Unit filename="..\src\game\hud\weaponsel.d" />
 		<Unit filename="..\src\game\hud\windmeter.d" />

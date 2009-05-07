@@ -1,11 +1,7 @@
 module game.hud.preparedisplay;
 
 import framework.framework;
-import framework.font;
 import framework.i18n;
-import common.scene;
-import common.visual;
-import game.clientengine;
 import game.hud.teaminfo;
 import game.gamepublic;
 import game.gamemodes.roundbased_shared;
@@ -14,10 +10,8 @@ import gui.label;
 import gui.widget;
 import utils.time;
 
-class PrepareDisplay : Container {
+class PrepareDisplay : Label {
     private {
-        Label mPrepareView;
-        Time mLastTime;
         Translator tr;
         GameInfo mGame;
         bool mEnabled;
@@ -26,32 +20,19 @@ class PrepareDisplay : Container {
     this(GameInfo game) {
         mGame = game;
         tr = localeRoot.bindNamespace("gui_prepare");
-        mPrepareView = new Label();
-        mPrepareView.styles.id = "preparebox";
-        mPrepareView.font = gFramework.fontManager.loadFont("messages");
-        mPrepareView.border = Vector2i(7, 5);
+        styles.id = "preparebox";
+        font = gFramework.fontManager.loadFont("messages");
+        border = Vector2i(7, 5);
 
-        mLastTime = timeCurrentTime();
-
-        //???
+        //prepare display is only needed for roundbased gamemode
         mEnabled = !!status();
+        //hide initially
+        visible = false;
     }
 
     //returns info-object, or null if no round based stuff is going on
     private RoundbasedStatus status() {
         return cast(RoundbasedStatus)mGame.logic.gamemodeStatus();
-    }
-
-    private void active(bool active) {
-        if (active) {
-            if (mPrepareView.parent !is this) {
-                addChild(mPrepareView);
-                setChildLayout(mPrepareView, WidgetLayout.Aligned(0, -1,
-                    Vector2i(0, 40)));
-            }
-        } else {
-            mPrepareView.remove();
-        }
     }
 
     override void simulate() {
@@ -61,25 +42,24 @@ class PrepareDisplay : Container {
         auto st = status();
         assert (!!st);
 
-        Time cur = timeCurrentTime();
         auto logic = mGame.logic;
         //auto controller = mEngine ? mEngine.engine.controller : null;
         if (st.state == RoundState.prepare
             && mGame.control.getControlledMember)
         {
             Team curTeam = mGame.control.getControlledMember.team;
-            //set box border color
-            mPrepareView.borderCustomColor = mGame.teams[curTeam].color;
-            active = true;
-            char[] teamName = curTeam.name;
+
             //little hack to show correct time
             Time pt = st.prepareRemaining - timeMsecs(1);
-            mPrepareView.text = tr("teamgetready", teamName,
-                pt.secs >= 0 ? pt.secs+1 : 0);
-        } else {
-            active = false;
-        }
+            float pt_secs = pt.secs >= 0 ? pt.secsf+1 : 0;
+            fontCustomColor = (cast(int)(pt_secs*2)%2 == 0)
+                ? mGame.teams[curTeam].color : Color.Invalid;
 
-        mLastTime = cur;
+            visible = true;
+            char[] teamName = curTeam.name;
+            text = tr("teamgetready", teamName, cast(int)pt_secs);
+        } else {
+            visible = false;
+        }
     }
 }

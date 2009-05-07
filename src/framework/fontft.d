@@ -12,6 +12,7 @@ import framework.texturepack;
 import utils.array;
 import utils.misc;
 import utils.vector2;
+import utils.color;
 
 import stdx.stream;
 
@@ -295,7 +296,9 @@ class FTGlyphCache {
 
 class FTFont : DriverFont {
     private {
-        FTGlyphCache mCache;
+        FTGlyphCache mCache;     //"main" cache, for font in mProps
+        FTGlyphCache[] mRefList; //additional caches that may be allocated
+                                 //for color overrides in draw()
         FontProperties mProps;
     }
 
@@ -306,20 +309,22 @@ class FTFont : DriverFont {
         mProps = props;
     }
 
-    private void drawGlyph(Canvas c, GlyphData* glyph, Vector2i pos) {
+    private void drawGlyph(Canvas c, GlyphData* glyph, Vector2i pos,
+        ref FontColors colors)
+    {
         void setColor(Color col) {
             if (c.features() & DriverFeatures.usingOpenGL)
-                glColor3f(col.r, col.g, col.b);
+                glColor4fv(col.ptr);
         }
 
-        if (mProps.back.a > 0)
-            c.drawFilledRect(Rect2i.Span(pos, glyph.size), mProps.back);
+        if (colors.back.a > 0)
+            c.drawFilledRect(Rect2i.Span(pos, glyph.size), colors.back);
 
-        setColor(mProps.fore);
+        setColor(colors.fore);
         glyph.tex.draw(c, pos+glyph.offset);
 
         if (glyph.border.surface) {
-            setColor(mProps.border_color);
+            setColor(colors.border_color);
             glyph.border.draw(c, pos+glyph.border_offset);
         }
 
@@ -327,14 +332,55 @@ class FTFont : DriverFont {
         setColor(Color(1, 1, 1));
     }
 
-    Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text) {
+    Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text,
+        ref FontColors colors)
+    {
+        auto cache = mCache;
+        if ((colors.fore.valid || colors.border_color.valid)
+            && !(canvas.features() & DriverFeatures.usingOpenGL))
+        {
+            //in SDL mode, we can't colorize surfaces, so if fore or border
+            //  shall be changed, we need to create a new glyph cache
+            FontProperties tmp = mProps;
+            if (colors.fore.valid)
+                tmp.fore = colors.fore;
+            if (colors.border_color.valid)
+                tmp.border_color = colors.border_color;
+            //maybe the user specified the current colors
+            if (tmp != mProps) {
+                //find matching cache (increases refCount)
+                cache = mCache.mDriver.getCache(tmp);
+                //look if we requested this cache before
+                bool alreadyReffed = false;
+                foreach (ftgc; mRefList) {
+                    if (ftgc is cache) {
+                        alreadyReffed = true;
+                        break;
+                    }
+                }
+                if (alreadyReffed) {
+                    //Hack: we already had this one before, fix ref counter
+                    cache.refcount--;
+                } else {
+                    //store for font release
+                    mRefList ~= cache;
+                }
+            }
+        }
+        //back color can be changed at no cost even in SDL mode
+        if (!colors.back.valid)
+            colors.back = mProps.back;
+        if (!colors.fore.valid)
+            colors.fore = mProps.fore;
+        if (!colors.border_color.valid)
+            colors.border_color = mProps.border_color;
         int orgx = pos.x;
         foreach (dchar c; text) {
-            auto glyph = mCache.getGlyph(c);
+            auto glyph = cache.getGlyph(c);
             auto npos = pos.x + glyph.size.x;
             if (npos - orgx > w)
                 break;
-            drawGlyph(canvas, glyph, pos);
+            drawGlyph(canvas, glyph, pos, colors);
             pos.x = npos;
         }
         return pos;
@@ -392,6 +438,14 @@ class FTFontDriver : FontDriver {
             return r;
         }
 
+        auto gc = getCache(props);
+        auto f = new FTFont(gc, props);
+        mFonts[props] = f;
+
+        return f;
+    }
+
+    private FTGlyphCache getCache(FontProperties props) {
         FontProperties gc_props = props;
         //on OpenGL, you can color up surfaces at no costs, so...
         if (gFramework.driver.getFeatures() & DriverFeatures.usingOpenGL) {
@@ -411,11 +465,7 @@ class FTFontDriver : FontDriver {
         } else {
             gc.refcount++;
         }
-
-        auto f = new FTFont(gc, props);
-        mFonts[props] = f;
-
-        return f;
+        return gc;
     }
 
     void destroyFont(inout DriverFont a_handle) {
@@ -427,15 +477,22 @@ class FTFontDriver : FontDriver {
         if (handle.refcount < 1) {
             assert(handle.refcount == 0);
             mFonts.remove(p);
-            FTGlyphCache cache = handle.mCache;
-            cache.refcount--;
-            if (cache.refcount < 1) {
-                cache.releaseCache();
-                cache.free();
-                mGlyphCaches.remove(cache.props);
+            derefCache(handle.mCache);
+            foreach (c; handle.mRefList) {
+                derefCache(c);
             }
         }
         a_handle = null;
+    }
+
+    private void derefCache(FTGlyphCache cache) {
+        assert(cache.refcount > 0);
+        cache.refcount--;
+        if (cache.refcount < 1) {
+            cache.releaseCache();
+            cache.free();
+            mGlyphCaches.remove(cache.props);
+        }
     }
 
     int releaseCaches() {

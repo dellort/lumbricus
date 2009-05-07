@@ -293,7 +293,7 @@ class ModeRoundbased : Gamemode {
                 modeTime.paused = true;
                 currentTeam = null;
                 engine.randomizeWind();
-                logic.messageAdd("msgnextround");
+                //logic.messageAdd("msgnextround");
                 mStatus.roundRemaining = Time.Null;
                 break;
             case RoundState.winning:

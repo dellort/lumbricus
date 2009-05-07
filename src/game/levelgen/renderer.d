@@ -301,7 +301,7 @@ class LandscapeBitmap {
             uint tex_w = texture.size.x;
             uint tex_h = texture.size.y;
 
-            auto dsttransparent = Color.cTransparent.toRGBA32();
+            auto dsttransparent = Color.Transparent.toRGBA32();
 
             Color.RGBA32* dstptr; uint dstpitch;
             mImage.lockPixelsRGBA32(dstptr, dstpitch);
@@ -498,7 +498,7 @@ class LandscapeBitmap {
         //in the same call, mask all pixels with SolidHard to remove any
         //SolidSoft pixels...
         count = doCircle(radius, theme ? theme.backImage : null,
-            theme ? theme.backColor : Color.cTransparent,
+            theme ? theme.backColor : Color.Transparent,
             cAllMeta, Lexel.SolidSoft, Lexel.SolidHard);
 
         int blast_radius = radius + blast_border;
@@ -515,7 +515,7 @@ class LandscapeBitmap {
         if (nradius > 0) {
             //clear the center of the destruction (to get rid of that background
             //texture)
-            doCircle(nradius, null, Color.cTransparent, cAllMeta, 0);
+            doCircle(nradius, null, Color.Transparent, cAllMeta, 0);
         }
 
         Rect2i bb;
@@ -729,7 +729,7 @@ class LandscapeBitmap {
 
         if (!dataOnly) {
             mImage = gFramework.createSurface(size, Transparency.Colorkey);
-            mImage.fill(Rect2i(mImage.size), Color.cTransparent);
+            mImage.fill(Rect2i(mImage.size), Color.Transparent);
         }
     }
 

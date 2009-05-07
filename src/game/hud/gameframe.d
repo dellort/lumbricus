@@ -22,6 +22,7 @@ import game.hud.preparedisplay;
 import game.hud.weaponsel;
 import game.hud.messageviewer;
 import game.hud.powerups;
+import game.hud.replaytimer;
 import game.clientengine;
 import game.gamepublic;
 import game.game;
@@ -48,9 +49,6 @@ class GameFrame : SimpleContainer {
         WeaponSelWindow mWeaponSel;
 
         TeamWindow mTeamWindow;
-        Label mReplayImg, mReplayTimer;
-
-        MessageViewer mMessageViewer;
 
         Time mLastFrameTime, mRestTime;
         bool mFirstFrame = true;
@@ -130,15 +128,6 @@ class GameFrame : SimpleContainer {
         mTeamWindow.update(finished);
 
         mScroller.scale = Vector2f(gameView.zoomLevel, gameView.zoomLevel);
-
-        if (game.replayRemain != Time.Null) {
-            mReplayImg.visible = (timeCurrentTime().msecs/500)%2 == 0;
-            mReplayTimer.visible = true;
-            mReplayTimer.text = myformat("{:f1}s", game.replayRemain.secsf);
-        } else {
-            mReplayImg.visible = false;
-            mReplayTimer.visible = false;
-        }
     }
 
     override bool doesCover() {
@@ -161,33 +150,22 @@ class GameFrame : SimpleContainer {
         //no children of mGui can receive mouse events
         mGui.mouseEvents = false;
 
+        //xxx ehrm, lol... config file?
         mGui.add(new WindMeter(game),
             WidgetLayout.Aligned(1, 1, Vector2i(5, 5)));
         mGui.add(new GameTimer(game),
             WidgetLayout.Aligned(-1, 1, Vector2i(5, 5)));
-
-        mGui.add(new PrepareDisplay(game));
+        mGui.add(new PrepareDisplay(game),
+            WidgetLayout.Aligned(0, -1, Vector2i(0, 40)));
         mGui.add(new PowerupDisplay(game),
             WidgetLayout.Aligned(1, -1, Vector2i(5, 20)));
-
-        mMessageViewer = new MessageViewer(game);
-        mGui.add(mMessageViewer);
+        mGui.add(new MessageViewer(game),
+            WidgetLayout.Aligned(0, -1, Vector2i(0, 5)));
+        mGui.add(new ReplayTimer(game),
+            WidgetLayout.Aligned(-1, -1, Vector2i(10, 0)));
 
         mTeamWindow = new TeamWindow(game);
         mGui.add(mTeamWindow);
-
-        mReplayImg = new Label();
-        //mReplayImg.image = globals.guiResources.get!(Surface)("replay_r");
-        mReplayImg.text = "R";
-        mReplayImg.font = gFramework.fontManager.loadFont("replay_r");
-        mReplayImg.visible = false;
-        mReplayTimer = new Label();
-        mReplayTimer.visible = false;
-        mReplayTimer.font = gFramework.fontManager.loadFont("replaytime");
-        auto rbox = new BoxContainer(false);
-        rbox.add(mReplayImg);
-        rbox.add(mReplayTimer, WidgetLayout.Aligned(0, 0));
-        mGui.add(rbox, WidgetLayout.Aligned(-1, -1, Vector2i(10, 0)));
 
         gameView = new GameView(game);
         gameView.onTeamChange = &teamChanged;

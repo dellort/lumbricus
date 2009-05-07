@@ -8,11 +8,25 @@ import common.visual;
 import game.hud.teaminfo;
 import game.gamepublic;
 import gui.widget;
+import gui.label;
 import utils.misc;
 import utils.time;
 import utils.queue;
+import utils.interpolate;
 
-class MessageViewer : Widget {
+//Linear up -> wait -> down -> wait
+float msgAnimate(float x) {
+    if (x < 0.1f)
+        return x/0.1f;
+    else if (x < 0.75f)
+        return 1.0f;
+    else if (x < 0.85f)
+        return (0.85f - x)/0.1f;
+    else
+        return 0;
+}
+
+class MessageViewer : Label {
     private {
         struct QueuedMessage {
             char[] text;
@@ -21,53 +35,42 @@ class MessageViewer : Widget {
 
         GameInfo mGame;
         Queue!(QueuedMessage) mMessages;
-        QueuedMessage mCurrentMessage;
-        Font mFont;
-        Time mLastFrame;
-        int mPhase; //0 = nothing, 1 = blend in, 2 = show, 3 = blend out, 4 = wait
-        Time mPhaseStart; //start of current phase
-        Vector2i mMessageSize;
-        float mMessagePos;
-        float mMessageWay; //way over which message is scrolled
-        BoxProperties mBoxProps;
 
         Translator mLocaleMsg;
-        int mMsgChangeCounter;
 
-        const int cPhaseTimingsMs[] = [0, 150, 1000, 150, 200];
-
-        //offset of message from upper border
-        const cMessageOffset = 5;
-        const Vector2i cMessageBorders = {7, 3};
+        InterpolateFnTime!(int, msgAnimate) mInterp;
     }
 
     this(GameInfo game) {
         mGame = game;
         mLocaleMsg = Translator.ByNamespace("game_msg");
 
-        mFont = gFramework.fontManager.loadFont("messages");
+        styles.id = "preparebox";
+        font = gFramework.fontManager.loadFont("messages");
+        border = Vector2i(5, 1);
+
         mMessages = new typeof(mMessages);
-        mLastFrame = timeCurrentTime();
 
         auto cb = mGame.engine.callbacks();
         cb.showMessage ~= &showMessage;
     }
 
-    void addMessage(char[] msg, Team t) {
+    void addMessage(char[] msg, Team t = null) {
         mMessages.push(QueuedMessage(msg, t));
     }
 
     //return true as long messages are displayed
     bool working() {
-        return !mMessages.empty || mPhase != 0;
+        return !mMessages.empty || mInterp.inProgress;
     }
 
     bool idle() {
         return !working();
     }
 
-    void showMessage(GameMessage msg) {
+    private void showMessage(GameMessage msg) {
         if (msg.viewer) {
+            //if the message is only for one team, check if it is ours
             bool show = false;
             foreach (Team t; mGame.control.getOwnedTeams()) {
                 if (t is msg.viewer) {
@@ -78,76 +81,24 @@ class MessageViewer : Widget {
             if (!show)
                 return;
         }
+        //translate and queue
         addMessage(mLocaleMsg.translateLocalizedMessage(msg.lm), msg.actor);
     }
 
     override void simulate() {
-        Time phaseT = timeMsecs(cPhaseTimingsMs[mPhase]);
-        Time cur = timeCurrentTime;
-        Time deltaT = cur - mLastFrame;
-        mLastFrame = cur;
-        Time diff = cur - mPhaseStart;
-        if (diff >= phaseT) {
-            //end of current phase
-            if (mPhase != 0) {
-                mPhase++;
-                mPhaseStart = cur;
-            }
-            if (mPhase > 4) {
-                //done, no current message anymore
-                mCurrentMessage.text = null;
-                mPhase = 0;
-            }
-        }
-
-        //(division by zero and NaNs in some cases where the value isn't needed)
-        auto messagedelta = mMessageWay / (cPhaseTimingsMs[mPhase]/1000.0f);
-
-        //make some progress
-        switch (mPhase) {
-            case 0:
-                if (!mMessages.empty) {
-                    //put new message
-                    mPhase = 1;
-                    mPhaseStart = cur;
-                    mCurrentMessage = mMessages.pop();
-                    mMessageSize = mFont.textSize(mCurrentMessage.text);
-                    mMessagePos = -mMessageSize.y - cMessageBorders.y*2;
-                    mMessageWay = -mMessagePos + cMessageOffset;
-                }
-                break;
-            case 3:
-                mMessagePos -= messagedelta * deltaT.secsf;
-                break;
-            case 1:
-                mMessagePos += messagedelta * deltaT.secsf;
-                break;
-            case 4:
-                //nothing
-                break;
-            case 2:
-                mMessagePos = cMessageOffset;
-                break;
-        }
-    }
-
-    Vector2i layoutSizeRequest() {
-        return Vector2i(0);
-    }
-
-    override protected void onDraw(Canvas canvas) {
-        if (mPhase == 1 || mPhase == 2 || mPhase == 3) {
-            auto org = size.X / 2 - (mMessageSize+cMessageBorders*2).X / 2;
-            org.y += cast(int)mMessagePos;
-            if (mCurrentMessage.teamForColor) {
-                mBoxProps.borderWidth = 2;
-                mBoxProps.border = mCurrentMessage.teamForColor.color.color;
+        if (!mInterp.inProgress && !mMessages.empty) {
+            //put new message
+            auto curMsg = mMessages.pop();
+            text = curMsg.text;
+            if (curMsg.teamForColor) {
+                fontCustomColor = curMsg.teamForColor.color.color;
             } else {
-                mBoxProps.borderWidth = 1;
-                mBoxProps.border = Color(0);
+                fontCustomColor = Color.Invalid;
             }
-            drawBox(canvas, org, mMessageSize+cMessageBorders*2, mBoxProps);
-            mFont.drawText(canvas, org+cMessageBorders, mCurrentMessage.text);
+            //xxx additional -2 for border size
+            mInterp.init(timeSecs(1.5f),
+                -containedBounds.p1.y - size.y - 2, 0);
         }
+        setAddToPos(Vector2i(0, mInterp.value()));
     }
 }

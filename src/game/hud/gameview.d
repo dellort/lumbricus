@@ -326,6 +326,20 @@ private class ViewMember {
             }
             mooh(showLabels && isActiveWorm, arrow);
 
+            //flash label color to white for active worm
+            void flashCol(Color c) {
+                wormName.fontCustomColor = c;
+                wormTeam.fontCustomColor = c;
+                wormPoints.fontCustomColor = c;
+            }
+            if (tlv && isActiveWorm
+                && cast(int)(owner.mGame.clientTime.current.secsf*2)%2 == 0)
+            {
+                flashCol(Color(1));
+            } else {
+                flashCol(Color.Invalid);
+            }
+
             //for healthHint
             //I simply trigger it when the health value changes, and
             //when currently no label is displayed
