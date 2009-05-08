@@ -453,10 +453,16 @@ class ServerTeam : Team {
     void skipTurn() {
         if (!mCurrent || !mActive)
             return;
+        foreach (e; parent.mEvents) {
+            e.onTeamEvent(TeamEvent.skipTurn, this);
+        }
         current = null;
     }
 
     void surrenderTeam() {
+        foreach (e; parent.mEvents) {
+            e.onTeamEvent(TeamEvent.surrender, this);
+        }
         current = null;
         //xxx: set worms to "white flag" animation first
         foreach (m; mMembers) {
@@ -750,11 +756,9 @@ class ServerTeamMember : TeamMember, WormController {
                 selected = mCurrentWeapon.weapon;
             }
         }
-        /*if (selected) {
-            messageAdd("msgselweapon", ["_.weapons." ~ selected.name]);
-        } else {
-            messageAdd("msgnoweapon");
-        }*/
+        foreach (e; mTeam.parent.mEvents) {
+            e.onSelectWeapon(this, selected);
+        }
         mWorm.weapon = selected;
     }
 
@@ -1203,8 +1207,6 @@ class GameController : GameLogicPublic {
         CrateSprite mLastCrate;  //just to drop it on spacebar
         bool mGameEnded;
 
-        ControllerStats mStatsCollector;
-
         //Medkit, medkit+tool, medkit+tool+unrigged weapon
         //  (rest is rigged weapon)
         const cCrateProbs = [0.20f, 0.40f, 0.95f];
@@ -1238,7 +1240,7 @@ class GameController : GameLogicPublic {
         mWeaponSets = null;
 
         new ControllerMsgs(this);
-        mStatsCollector = new ControllerStats(this);
+        new ControllerStats(this);
 
         mEngine.finishPlace();
 
@@ -1349,7 +1351,9 @@ class GameController : GameLogicPublic {
 
             if (mGamemode.ended() && !mGameEnded) {
                 mGameEnded = true;
-                mStatsCollector.output();
+                foreach (e; mEvents) {
+                    e.onGameEnded();
+                }
             }
         }
     }
@@ -1597,7 +1601,9 @@ class GameController : GameLogicPublic {
         return ret;
     }
 
-    bool dropCrate() {
+    //  silent = true to prevent generating an event (for debug drop, to
+    //           prevent message spam)
+    bool dropCrate(bool silent = false) {
         Vector2f from, to;
         float water = engine.waterOffset - 10;
         if (!engine.placeObjectRandom(water, 10, 25, from, to)) {
@@ -1614,6 +1620,11 @@ class GameController : GameLogicPublic {
         crate.setPos(from);
         crate.active = true;
         mLastCrate = crate;
+        if (!silent) {
+            foreach (e; mEvents) {
+                e.onCrateDrop(crate.crateType);
+            }
+        }
         log("drop {} -> {}", from, to);
         return true;
     }
@@ -1643,17 +1654,24 @@ class GameController : GameLogicPublic {
         }
         return false;
     }
+
+    //show effects of sudden death start
+    //doesn't raise water / affect gameplay
+    void startSuddenDeath() {
+        engine.addEarthQuake(500, timeSecs(4.5f), true);
+        engine.callbacks.nukeSplatEffect();
+        foreach (e; mEvents) {
+            e.onSuddenDeath();
+        }
+    }
+
+    //xxx can't access mEvents from gamemode (package protection)
+    void doVictory(Team winner) {
+        foreach (e; mEvents) {
+            e.onVictory(winner);
+        }
+    }
 }
-
-
-//stupid simple statistics module
-//this whole thing is more or less debugging code
-//
-//currently missing:
-//  - Team/Worm-based statistics
-//  - Proper output/sending to clients
-//  - timecoded events, with graph drawing?
-//  - gamemode dependency?
 
 
 
@@ -1662,6 +1680,11 @@ enum WormEvent {
     wormDrown,
     wormActivate,
     wormDeactivate,
+}
+
+enum TeamEvent {
+    skipTurn,
+    surrender,
 }
 
 class ControllerEvents {
@@ -1697,20 +1720,40 @@ class ControllerEvents {
     void onDemolition(int pixelCount, GameObject cause) {
     }
 
+    //worm draws a weapon (wclass may be null if weapon was put away)
+    void onSelectWeapon(ServerTeamMember m, WeaponClass wclass) {
+    }
+
     void onFireWeapon(WeaponClass wclass, bool refire = false) {
     }
 
     void onWormEvent(WormEvent id, ServerTeamMember m) {
     }
 
+    void onTeamEvent(TeamEvent id, ServerTeam t) {
+    }
+
+    void onCrateDrop(CrateType type) {
+    }
+
     void onCrateCollect(ServerTeamMember m, Collectable[] stuffies) {
+    }
+
+    //imo, sudden death is common enough to be here
+    void onSuddenDeath() {
+    }
+
+    //also called on a tie, with winner = null
+    void onVictory(Team winner) {
+    }
+
+    void onGameEnded() {
     }
 }
 
 //the idea was that the whole game state should be observable (including
 //events), so you can move displaying all messages into a separate piece of
 //code, instead of creating messages directly
-//doesn't work with: create.d, gamemodes/*.d, weapon/actions.d
 class ControllerMsgs : ControllerEvents {
     this(GameController c) {
         super(c);
@@ -1721,6 +1764,17 @@ class ControllerMsgs : ControllerEvents {
 
     override void onGameStart() {
         controller.messageAdd("msggamestart", null);
+    }
+
+    void onSelectWeapon(ServerTeamMember m, WeaponClass wclass) {
+        //xxx just copying old code... maybe this can be extended to show
+        //    grenade timer messages (like in wwp)
+        /*if (wclass) {
+            controller.messageAdd("msgselweapon", ["_.weapons." ~ wclass.name],
+                m.team, m.team);
+        } else {
+            controller.messageAdd("msgnoweapon", null, m.team, m.team);
+        }*/
     }
 
     override void onWormEvent(WormEvent id, ServerTeamMember m) {
@@ -1739,11 +1793,83 @@ class ControllerMsgs : ControllerEvents {
         }
     }
 
-    override void onCrateCollect(ServerTeamMember m, Collectable[] stuffies) {
-        //oh well, this doesn't really work, look for messageAdd in crate.d
+    void onTeamEvent(TeamEvent id, ServerTeam t) {
+        switch (id) {
+            case TeamEvent.skipTurn:
+                controller.messageAdd("msgskipturn", [t.name()], t);
+                break;
+            case TeamEvent.surrender:
+                controller.messageAdd("msgsurrender", [t.name()], t);
+                break;
+            default:
+        }
+    }
+
+    override void onCrateDrop(CrateType type) {
+        switch (type) {
+            case CrateType.med:
+                controller.messageAdd("msgcrate_medkit");
+                break;
+            case CrateType.tool:
+                controller.messageAdd("msgcrate_tool");
+                break;
+            default:
+                controller.messageAdd("msgcrate");
+        }
+    }
+
+    override void onCrateCollect(ServerTeamMember member,
+        Collectable[] stuffies)
+    {
+        foreach (item; stuffies) {
+            if (auto weapon = cast(CollectableWeapon)item) {
+                //weapon
+                controller.messageAdd("collect_item", [member.name(),
+                    "_." ~ item.id(), to!(char[])(weapon.quantity)],
+                    member.team, member.team);
+            } else if (auto medkit = cast(CollectableMedkit)item) {
+                //medkit
+                controller.messageAdd("collect_medkit", [member.name(),
+                    to!(char[])(medkit.amount)], member.team, member.team);
+            } else if (auto tool = cast(CollectableTool)item) {
+                //tool
+                controller.messageAdd("collect_tool", [member.name(),
+                    "_." ~ item.id()], member.team, member.team);
+            } else if (auto bomb = cast(CollectableBomb)item) {
+                //crate with bomb
+                controller.messageAdd("collect_bomb", [member.name()],
+                    member.team, member.team);
+            }
+        }
+    }
+
+    override void onSuddenDeath() {
+        controller.messageAdd("msgsuddendeath");
+    }
+
+    override void onVictory(Team winner) {
+        if (winner) {
+            controller.messageAdd("msgwin", [winner.name], winner);
+        } else {
+            controller.messageAdd("msgnowin");
+        }
+    }
+
+    override void onGameEnded() {
+        //xxx is this really useful? I would prefer showing the
+        //  "team xxx won" message longer
+        controller.messageAdd("msggameend");
     }
 }
 
+//stupid simple statistics module
+//this whole thing is more or less debugging code
+//
+//currently missing:
+//  - Team/Worm-based statistics
+//  - Proper output/sending to clients
+//  - timecoded events, with graph drawing?
+//  - gamemode dependency?
 class ControllerStats : ControllerEvents {
     private {
         static LogStruct!("gameevents") log;
@@ -1839,6 +1965,10 @@ class ControllerStats : ControllerEvents {
     override void onCrateCollect(ServerTeamMember m, Collectable[] stuffies) {
         log("{} collects crate: {}", m, stuffies);
         mCrateCount++;
+    }
+
+    override void onGameEnded() {
+        output();
     }
 
     //xxx for debugging only

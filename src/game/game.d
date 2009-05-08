@@ -461,14 +461,15 @@ class GameEngine : GameEnginePublic {
         return mEarthQuakeForce;
     }
 
-    //strength = force, degrade = multiplier applied all the time after a
-    //  physics.cEarthQuakeDegradeInterval
+    //strength = force, duration = absolute time,
+    //  degrade = true for exponential degrade
     //this function never overwrites the settings, but adds both values to the
     //existing ones
-    void addEarthQuake(float strength, float degrade) {
-        physicworld.add(new EarthQuakeDegrader(strength, degrade,
+    void addEarthQuake(float strength, Time duration, bool degrade) {
+        physicworld.add(new EarthQuakeDegrader(strength, duration, degrade,
             mEarthQuakeForce));
-        log("created earth quake, strength={}, degrade={}", strength, degrade);
+        log("created earth quake, strength={}, duration={}, degrade={}",
+            strength, duration, degrade);
     }
 
     void ensureAdded(GameObject obj) {
@@ -821,7 +822,7 @@ class GameEngine : GameEnginePublic {
     }
 
     void crateTest() {
-        mController.dropCrate();
+        mController.dropCrate(true);
     }
 
     void instantDropCrate() {

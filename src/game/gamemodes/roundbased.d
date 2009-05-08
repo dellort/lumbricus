@@ -175,14 +175,14 @@ class ModeRoundbased : Gamemode {
                     }
 
                     if (aliveTeams < 2) {
+                        if (aliveTeams > 0) {
+                            assert(!!firstAlive);
+                            firstAlive.youWinNow();
+                        }
+                        logic.doVictory(firstAlive);
                         if (aliveTeams == 0) {
-                            logic.messageAdd("msgnowin");
                             return RoundState.end;
                         } else {
-                            assert(firstAlive);
-                            firstAlive.youWinNow();
-                            logic.messageAdd("msgwin", [firstAlive.name],
-                                firstAlive);
                             return RoundState.winning;
                         }
                     }
@@ -191,8 +191,7 @@ class ModeRoundbased : Gamemode {
                         && !mStatus.suddenDeath)
                     {
                         mStatus.suddenDeath = true;
-                        engine.callbacks.nukeSplatEffect();
-                        logic.messageAdd("msgsuddendeath");
+                        logic.startSuddenDeath();
                     }
 
                     if (mCleanupCtr > 1) {
@@ -209,7 +208,6 @@ class ModeRoundbased : Gamemode {
                             && engine.countSprites("crate") < mMaxCrates)
                         {
                             if (logic.dropCrate()) {
-                                logic.messageAdd("msgcrate");
                                 return RoundState.waitForSilence;
                             }
                         }
@@ -301,7 +299,6 @@ class ModeRoundbased : Gamemode {
                 break;
             case RoundState.end:
                 modeTime.paused = true;
-                logic.messageAdd("msggameend");
                 currentTeam = null;
                 break;
         }

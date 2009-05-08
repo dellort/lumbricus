@@ -4,6 +4,7 @@ import utils.reflection;
 import utils.time;
 import utils.vector2;
 import random = utils.random;
+import utils.interpolate;
 
 import physics.base;
 import physics.force;
@@ -108,42 +109,45 @@ const cEarthQuakeDegradeInterval = 1.0;
 //causes an EarthQuake and also is able to degrade it down by time
 class EarthQuakeDegrader : PhysicBase {
     private {
-        float mDegrade;
         float mStrength;
-        //silly, cf. same member in class EarthQuake
-        //maybe should be changed, but with a constant frame rate, it's ok
-        float mLastChange = 0;
+        bool mDegrade;
         EarthQuakeForce mForce;
+        InterpolateExp!(float, 1.0f) mInterp;
+        Time mTime;
     }
 
-    //1.0f means forever
-    this(float strength, float degrade, EarthQuakeForce eqForce) {
+    //degrade = true for exponential degrade (else ends abruptly)
+    this(float strength, Time duration, bool degrade, EarthQuakeForce eqForce) {
+        mInterp.currentTimeDg = &getTime;
         mStrength = strength;
         mDegrade = degrade;
+        mInterp.init(duration, mStrength, 0);
         mForce = eqForce;
         assert(!!mForce);
     }
 
     this (ReflectCtor c) {
+        auto t = c.types();
+        t.registerMethod(this, &getTime, "getTime");
+    }
+
+    private Time getTime() {
+        return mTime;
     }
 
     override /+package+/ void simulate(float deltaT) {
         super.simulate(deltaT);
 
+        //xxx there's no physics timesource (yet?), so do it manually
+        mTime += timeSecs(deltaT);
+
+        float s = mInterp.value();
+        if (mDegrade)
+            mStrength = s;
+
         mForce.addEarthQuakePerFrameStrength(mStrength);
 
-        mLastChange += deltaT;
-
-        if (mLastChange < cEarthQuakeDegradeInterval)
-            return;
-
-        mStrength *= mDegrade;
-
-        //if strength is too small, die
-        //what would be a good value to trigger destruction?
-        if (mStrength < 0.01)
+        if (!mInterp.inProgress())
             dead = true;
-
-        mLastChange = 0;
     }
 }

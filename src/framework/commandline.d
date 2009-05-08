@@ -11,6 +11,7 @@ import utils.mybox;
 import utils.array;
 import utils.output;
 import utils.strparser;
+import utils.time;
 
 public import utils.mybox : MyBox;
 public import utils.output : Output;
@@ -35,6 +36,7 @@ static this() {
     add("float", typeid(float));
     add("color", typeid(Color));
     add("bool", typeid(bool));
+    add("Time", typeid(Time));
 
     char[][] complete_bool() {
         return ["true", "false"];

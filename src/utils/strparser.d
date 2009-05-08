@@ -7,6 +7,7 @@ import tango.text.convert.Float : toFloat;
 import tango.core.Exception;
 import str = stdx.string;
 import utils.misc;
+import utils.time;
 
 import utils.vector2 : Vector2, Vector2i, Vector2f;
 
@@ -52,11 +53,13 @@ static this() {
     gBoxParsers[typeid(bool)] = &boxParseBool;
     gBoxParsers[typeid(Vector2i)] = &boxParseVector2i;
     gBoxParsers[typeid(Vector2f)] = &boxParseVector2f;
+    gBoxParsers[typeid(Time)] = &boxParseTime;
     addTrivialUnParsers!(byte, int, long, short, ubyte, uint, ulong, ushort,
         char, float, double, bool)();
     gBoxUnParsers[typeid(Vector2i)] = &boxUnParseVector2i;
     gBoxUnParsers[typeid(Vector2f)] = &boxUnParseVector2f;
     gBoxUnParsers[typeid(char[])] = &boxUnParseStr;
+    gBoxUnParsers[typeid(Time)] = &boxUnParseTime;
 }
 
 private void addTrivialUnParsers(T...)() {
@@ -138,6 +141,20 @@ public char[] boxUnParseVector2f(MyBox b) {
 public char[] boxUnParseVector2i(MyBox b) {
     auto v = b.unbox!(Vector2i)();
     return myformat("{} {}", v.x, v.y);
+}
+
+public MyBox boxParseTime(char[] s) {
+    try {
+        //xxx just a float value for seconds, improve
+        if (s.length > 0)
+            return MyBox.Box!(Time)(timeSecs(toFloat(s)));
+    } catch (IllegalArgumentException e) {
+    }
+    return MyBox();
+}
+public char[] boxUnParseTime(MyBox b) {
+    auto t = b.unbox!(Time)();
+    return t.toString();
 }
 
 /+

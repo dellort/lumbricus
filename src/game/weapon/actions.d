@@ -296,9 +296,11 @@ class DieAction : WeaponAction {
 //------------------------------------------------------------------------
 
 ///Causes an earthquake and returns only after its finished
-class EarthquakeActionClass : TimedActionClass {
-    float strength, degrade;
-    int waterRaise;
+class EarthquakeActionClass : ActionClass {
+    float strength = 100.0f;
+    bool degrade = true;
+    int waterRaise = 0;
+    RandomInt durationMs;
 
     //xxx class
     this (ReflectCtor c) {
@@ -308,10 +310,10 @@ class EarthquakeActionClass : TimedActionClass {
     }
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
-        super.loadFromConfig(eng, node);
-        strength = node.getFloatValue("strength", 100.0f);
-        degrade = node.getFloatValue("degrade", 1.0f);
-        waterRaise = node.getIntValue("water_raise", 0);
+        strength = node.getValue("strength", strength);
+        degrade = node.getValue("degrade", degrade);
+        waterRaise = node.getValue("water_raise", waterRaise);
+        durationMs = RandomInt(node.getStringValue("duration","1000"), eng.rnd);
     }
 
     EarthquakeAction createInstance(GameEngine eng) {
@@ -323,10 +325,9 @@ class EarthquakeActionClass : TimedActionClass {
     }
 }
 
-class EarthquakeAction : TimedAction {
+class EarthquakeAction : Action {
     private {
         EarthquakeActionClass myclass;
-        PhysicBase mEarthquake;
     }
 
     this(EarthquakeActionClass base, GameEngine eng) {
@@ -338,40 +339,14 @@ class EarthquakeAction : TimedAction {
         super(c);
     }
 
-    override protected ActionRes doImmediate() {
+    override protected ActionRes initialStep() {
+        super.initialStep();
         if (myclass.waterRaise > 0) {
             engine.raiseWater(myclass.waterRaise);
         }
-        return ActionRes.moreWork;
-    }
-
-    override protected ActionRes initDeferred() {
-        if (myclass.strength > 0) {
-            mEarthquake = new EarthQuakeDegrader(myclass.strength,
-                myclass.degrade, engine.earthQuakeForce);
-            engine.physicworld.add(mEarthquake);
-            return ActionRes.moreWork;
-        } else {
-            return ActionRes.done;
-        }
-    }
-
-    override protected void cleanupDeferred() {
-        //xxx not sure about that, what if worm drowns?
-        if (mEarthquake) {
-            mEarthquake.dead = true;
-            mEarthquake = null;
-        }
-    }
-
-    override void simulate(float deltaT) {
-        if (mEarthquake.dead) {
-            //earthquake has fully degraded
-            cleanupDeferred();
-            done();
-        } else {
-            super.simulate(deltaT);
-        }
+        engine.addEarthQuake(myclass.strength,
+            timeMsecs(myclass.durationMs.sample()), myclass.degrade);
+        return ActionRes.done;
     }
 }
 
@@ -427,15 +402,9 @@ class TeamAction : WeaponAction {
                 switch (myclass.action) {
                     case "skipturn":
                         mMember.serverTeam.skipTurn();
-                        engine.controller.messageAdd("msgskipturn",
-                            [mMember.name(), mMember.serverTeam.name()],
-                            mMember.team);
                         break;
                     case "surrender":
                         mMember.serverTeam.surrenderTeam();
-                        engine.controller.messageAdd("msgsurrender",
-                            [mMember.name(), mMember.serverTeam.name()],
-                            mMember.team);
                         break;
                     case "wormselect":
                         return ActionRes.moreWork;

@@ -94,12 +94,11 @@ class ModeRealtime : Gamemode {
                 return;
             mGameEndedInt = true;
             waitReset(2);
-            if (aliveCount == 0) {
-                logic.messageAdd("msgnowin");
-            } else {
+            if (aliveCount > 0) {
+                assert(!!lastteam);
                 lastteam.youWinNow();
-                logic.messageAdd("msgwin", [lastteam.name], lastteam);
             }
+            logic.doVictory(lastteam);
             return;
         }
 
@@ -107,8 +106,7 @@ class ModeRealtime : Gamemode {
 
         if (mStatus.gameRemaining <= Time.Null && !mStatus.suddenDeath) {
             mStatus.suddenDeath = true;
-            engine.callbacks.nukeSplatEffect();
-            logic.messageAdd("msgsuddendeath");
+            logic.startSuddenDeath();
         }
         if (mStatus.suddenDeath && wait(mWaterInterval, 1)) {
             engine.raiseWater(mSuddenDeathWaterRaise);
@@ -117,7 +115,6 @@ class ModeRealtime : Gamemode {
         //------------ one crate every mCrateInterval -------------
 
         if (wait(mCrateInterval) && engine.countSprites("crate") < mMaxCrates) {
-            logic.messageAdd("msgcrate");
             logic.dropCrate();
         }
 

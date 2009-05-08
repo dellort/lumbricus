@@ -32,9 +32,6 @@ class Collectable {
     //could also be used for crate-spy
     abstract char[] id();
 
-    //create a controller message when this item was collected
-    abstract void collectMessage(GameController logic, ServerTeamMember member);
-
     ///The crate explodes
     void blow(CrateSprite parent) {
         //default is do nothing
@@ -71,11 +68,6 @@ class CollectableWeapon : Collectable {
         return "weapons." ~ weapon.name;
     }
 
-    void collectMessage(GameController logic, ServerTeamMember member) {
-        logic.messageAdd("collect_item", [member.name(), "_." ~ id(),
-            to!(char[])(quantity)], member.team, member.team);
-    }
-
     override void blow(CrateSprite parent) {
         //think about the crate-sheep
         //xxx maybe make this more generic
@@ -104,11 +96,6 @@ class CollectableMedkit : Collectable {
         return "game_msg.crate.medkit";
     }
 
-    void collectMessage(GameController logic, ServerTeamMember member) {
-        logic.messageAdd("collect_medkit", [member.name(),
-            to!(char[])(amount)], member.team, member.team);
-    }
-
     void collect(CrateSprite parent, ServerTeamMember member) {
         member.addHealth(amount);
     }
@@ -119,11 +106,6 @@ abstract class CollectableTool : Collectable {
     }
 
     this (ReflectCtor c) {
-    }
-
-    void collectMessage(GameController logic, ServerTeamMember member) {
-        logic.messageAdd("collect_tool", [member.name(), "_." ~ id()],
-            member.team, member.team);
     }
 
     void collect(CrateSprite parent, ServerTeamMember member) {
@@ -177,10 +159,6 @@ class CollectableBomb : Collectable {
 
     char[] id() {
         return "game_msg.crate.bomb";
-    }
-
-    void collectMessage(GameController logic, ServerTeamMember member) {
-        logic.messageAdd("collect_bomb", [member.name()]);
     }
 
     void collect(CrateSprite parent, ServerTeamMember member) {
@@ -274,7 +252,6 @@ class CrateSprite : ActionSprite {
         }
         //transfer stuffies
         foreach (Collectable c; stuffies) {
-            c.collectMessage(engine.controller, member);
             c.collect(this, member);
         }
         //and destroy crate
@@ -308,6 +285,11 @@ class CrateSprite : ActionSprite {
             }
         }
         super.updateActive();
+    }
+
+    //only valid after crate has been filled and activated
+    CrateType crateType() {
+        return mCrateType;
     }
 
     override CrateStateInfo currentState() {
