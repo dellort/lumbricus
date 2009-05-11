@@ -23,6 +23,7 @@ import game.hud.weaponsel;
 import game.hud.messageviewer;
 import game.hud.powerups;
 import game.hud.replaytimer;
+import game.hud.network;
 import game.clientengine;
 import game.gamepublic;
 import game.game;
@@ -177,6 +178,12 @@ class GameFrame : SimpleContainer {
         mScroller.zorder = -1; //don't hide the game GUI
         add(mScroller);
         add(mGui);
+        if (game.connection) {
+            auto n = new NetworkHud(game);
+            //network error screen covers all hud elements
+            n.zorder = 10;
+            add(n);
+        }
 
         gameView.camera.control = mScroller;
 

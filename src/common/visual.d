@@ -290,3 +290,75 @@ BoxTex getBox(BoxProps props) {
     return boxes[orgprops];
 }
 
+//Parses a string like
+//  Foo\cff0000Bar\rBlub,
+//stores the result and draws it to a Canvas
+struct ColoredText {
+    private {
+        struct Part {
+            char[] text;
+            Color c = Color.Invalid;
+        }
+        Part[] mParts;
+    }
+
+    static ColoredText opCall(char[] txt) {
+        ColoredText ret;
+        ret.parse(txt);
+        return ret;
+    }
+
+    void opAssign(char[] txt) {
+        parse(txt);
+    }
+
+    void parse(char[] txt) {
+        mParts.length = 1;
+        mParts[0] = Part.init;
+        for (int i = 0; i < txt.length; i++) {
+            if (txt[i] == '\\') {
+                //escape sequence; rule is to output as-is if it can't be parsed
+                if (i+7 < txt.length && txt[i+1] == 'c') {
+                    // \crrggbbaa, ex. \c00ff00 or \c00ff00ff
+                    Color nextColor;
+                    int n = nextColor.parseHex(txt[i+2..$]);
+                    if (n > 0) {
+                        //color parsed ok, apply for next part
+                        i += n+1;
+                        mParts.length = mParts.length + 1;
+                        mParts[$-1].c = nextColor;
+                        continue;
+                    }
+                }
+                if (i+1 < txt.length && txt[i+1] == 'r') {
+                    // \r to reset color
+                    i++;
+                    mParts.length = mParts.length + 1;
+                    //leave as Part.init
+                    continue;
+                }
+            }
+            mParts[$-1].text ~= txt[i];
+        }
+    }
+
+    //behaves like Font.drawText
+    Vector2i draw(Font f, Canvas c, Vector2i pos) {
+        FontColors fcols;
+        foreach (ref p; mParts) {
+            fcols.fore = p.c;
+            pos = f.drawText(c, pos, p.text, fcols);
+        }
+        return pos;
+    }
+
+    Vector2i textSize(Font f, bool forceHeight = true) {
+        Vector2i ret;
+        foreach (ref p; mParts) {
+            Vector2i partSize = f.textSize(p.text, forceHeight);
+            ret.x += partSize.x;
+            ret.y = max(partSize.y, ret.y);
+        }
+        return ret;
+    }
+}

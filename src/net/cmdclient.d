@@ -120,6 +120,9 @@ class CmdNetClient : SimpleNetConnection {
     //close connection, or abort connecting
     void close(DiscReason why) {
         state(ClientState.idle);
+        if (mShell) {
+            mShell.terminated = true;
+        }
         if (!mServerCon)
             return;
         mServerCon.disconnect(why);
@@ -275,7 +278,9 @@ class CmdNetClient : SimpleNetConnection {
     void gameKilled() {
         if (connected && mShell) {
             foreach (t; mShell.serverEngine.controller.teams) {
-                mPlayerInfo[to!(uint)(t.netId)].globalWins = t.globalWins();
+                uint id = to!(uint)(t.netId);
+                if (isIdValid(id))
+                    mPlayerInfo[id].globalWins = t.globalWins();
             }
             mShell = null;
             sendEmpty(ClientPacket.gameTerminated);
@@ -290,6 +295,12 @@ class CmdNetClient : SimpleNetConnection {
             send(ClientPacket.ack, p);
             mLastAck = timestamp;
         }
+    }
+
+    bool waitingForServer() {
+        if (mShell)
+            return mShell.waitingForFrame();
+        return false;
     }
 
     //transmit local game control command (called from CmdNetControl)

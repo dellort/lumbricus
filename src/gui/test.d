@@ -859,6 +859,42 @@ class OffByOneTest : Task {
     }
 }
 
+class TextColorTest : Task {
+    ColoredText mText;
+
+    class W : Widget {
+        Font mFont;
+        this() {
+            mFont = gFramework.fontManager.loadFont("normal");
+        }
+        override void onDraw(Canvas c) {
+            this.outer.mText.draw(mFont, c, Vector2i(1, 1));
+        }
+    }
+
+    private void editChange(EditLine sender) {
+        mText = sender.text;
+    }
+
+    this(TaskManager tm, char[] args = "") {
+        super(tm);
+
+        auto box = new BoxContainer(false);
+        auto e = new EditLine();
+        e.onChange = &editChange;
+        e.text = r"\cff0000Red\c00ff00Green\cffff00Yellow";
+        editChange(e);
+        box.add(e);
+        box.add(new W());
+
+        gWindowManager.createWindow(this, box, "Colored text",
+            Vector2i(400, 200));
+    }
+    static this() {
+        TaskFactory.register!(typeof(this))("colortext");
+    }
+}
+
 class FoobarTest : Task {
     private Label mLabel;
     private Foobar mFoo;

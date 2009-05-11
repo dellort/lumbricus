@@ -131,6 +131,7 @@
 		<Unit filename="..\src\game\hud\gametimer.d" />
 		<Unit filename="..\src\game\hud\gameview.d" />
 		<Unit filename="..\src\game\hud\messageviewer.d" />
+		<Unit filename="..\src\game\hud\network.d" />
 		<Unit filename="..\src\game\hud\powerups.d" />
 		<Unit filename="..\src\game\hud\preparedisplay.d" />
 		<Unit filename="..\src\game\hud\replaytimer.d" />
@@ -199,12 +200,10 @@
 		<Unit filename="..\src\net\cmdprotocol.d" />
 		<Unit filename="..\src\net\cmdserver.d" />
 		<Unit filename="..\src\net\cmdserver_gui.d" />
-		<Unit filename="..\src\net\enet_test.d" />
 		<Unit filename="..\src\net\iflist.d" />
 		<Unit filename="..\src\net\lobby.d" />
 		<Unit filename="..\src\net\marshal.d" />
 		<Unit filename="..\src\net\netlayer.d" />
-		<Unit filename="..\src\net\testgame.d" />
 		<Unit filename="..\src\physics\base.d" />
 		<Unit filename="..\src\physics\broadphase.d" />
 		<Unit filename="..\src\physics\collisionmap.d" />

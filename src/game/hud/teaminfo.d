@@ -10,6 +10,7 @@ import framework.timesource;
 import game.gamepublic;
 import game.gfxset;
 import game.clientengine;
+import game.gameshell;
 import game.weapon.weapon;
 import gui.label;
 import gui.widget;
@@ -24,6 +25,7 @@ class GameInfo {
     GameEnginePublic engine;
     GameLogicPublic logic;
     ClientControl control;
+    SimpleNetConnection connection;
     TeamInfo[Team] teams;
     TeamMemberInfo[TeamMember] allMembers;
     Time replayRemain;

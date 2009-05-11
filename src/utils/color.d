@@ -9,6 +9,7 @@ import math = tango.math.Math;
 import str = stdx.string;
 import conv = tango.util.Convert;
 import tango.text.convert.Float;
+import tango.text.convert.Integer : convert;
 import tango.core.Exception : IllegalArgumentException;
 
 //predefined colors - used by the parser
@@ -253,6 +254,35 @@ public struct Color {
         }
 
         return true;
+    }
+
+    //try parsing a hexadecimal color value at the start of s (no prefix)
+    //Example: 00ff00
+    //Garbage may follow the color code; returns number of chars eaten
+    int parseHex(char[] s) {
+        if (s.length > 5) {
+            //try reading r/g/b
+            uint cnt, tmp;
+            ubyte sr = cast(ubyte)convert(s[0..2], 16U, &tmp); cnt += tmp;
+            ubyte sg = cast(ubyte)convert(s[2..4], 16U, &tmp); cnt += tmp;
+            ubyte sb = cast(ubyte)convert(s[4..6], 16U, &tmp); cnt += tmp;
+            if (cnt < 6)
+                return 0;
+            r = fromByte(sr);
+            g = fromByte(sg);
+            b = fromByte(sb);
+            if (s.length > 7) {
+                //try reading optional alpha
+                ubyte sa = cast(ubyte)convert(s[6..8], 16U, &cnt);
+                if (cnt == 2) {
+                    a = fromByte(sa);
+                    return 8;
+                }
+            }
+            //r,g,b were read successfully
+            return 6;
+        }
+        return 0;
     }
 
     //produce string parseable by parse()

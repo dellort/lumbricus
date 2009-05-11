@@ -300,10 +300,12 @@ class GameShell {
         bool mReplayMode; //currently replaying
         long mReplayEnd; //mTimeStamp at end of replay
         bool mUseExternalTS; //timestamp advancing is controlled externally
+        bool mExtIsLagging;
         debug bool mPrintFrameTime;
         //
         GCD mGCD;
     }
+    bool terminated;  //set to exit the game instantly
 
     void delegate() OnRestoreGuiAfterSnapshot;
 
@@ -400,9 +402,11 @@ class GameShell {
             if (lag < 0) {
                 //no server frame coming -> wait
                 mMasterTime.paused = true;
+                mExtIsLagging = true;
             } else {
                 //server frames are available
                 mMasterTime.paused = false;
+                mExtIsLagging = false;
                 if (lag < cOptimumInputLag) {
                     //run at 1x speed
                     if (mMasterTime.slowDown != 1.0f)
@@ -432,6 +436,13 @@ class GameShell {
         assert(timeStamp >= mTimeStamp, "local ts can't be ahead of server");
         assert(timeStamp >= mTimeStampAvail, "monotone time");
         mTimeStampAvail = timeStamp;
+    }
+
+    //true if master time is paused because setFrameReady() was not called
+    bool waitingForFrame() {
+        if (mUseExternalTS)
+            return mExtIsLagging;
+        return false;
     }
 
     private void doFrame() {
@@ -998,4 +1009,9 @@ abstract class SimpleNetConnection {
 
     //disconnect
     void close();
+
+    bool connected();
+
+    //returns true if the game is paused because server frames are not available
+    bool waitingForServer();
 }

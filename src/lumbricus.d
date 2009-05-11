@@ -29,7 +29,6 @@ import utils.output;
 import tracer = utils.mytrace;
 
 import tango.io.Stdout;
-import str = stdx.string;
 
 //these imports register classes in a factory on module initialization
 //so be carefull not to remove them accidentally
@@ -49,13 +48,6 @@ import game.wtris; //lol
 import game.bomberworm; //?
 //debugging
 import common.resview;
-//net tests
-//--compiling this module with LDC results in a segfault
-version(DigitalMars) {
-    import net.enet_test;
-}
-//import net.test;
-import net.testgame;
 import net.cmdserver_gui;
 import net.lobby;
 

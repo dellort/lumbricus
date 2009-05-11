@@ -280,6 +280,7 @@ class GameTask : StatefulTask {
 
     private bool initGameGui() {
         mGameInfo = new GameInfo(mClientEngine, mControl);
+        mGameInfo.connection = mConnection;
         mGameFrame = new GameFrame(mGameInfo);
         mWindow.add(mGameFrame);
         if (mSavedSetViewPosition) {
@@ -407,6 +408,8 @@ class GameTask : StatefulTask {
             if (mGameShell) {
                 mGameShell.frame();
                 mGameInfo.replayRemain = mGameShell.replayRemain;
+                if (mGameShell.terminated)
+                    kill();
             }
             if (mClientEngine) {
                 mClientEngine.doFrame();
