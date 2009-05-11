@@ -43,6 +43,7 @@ class Common {
     //another hack, see addFrameCallback()
     private {
         bool delegate()[] mFrameCallbacks;
+        MountId mLocaleMount = MountId.max;
     }
 
     //moved to here from TopLevel
@@ -154,11 +155,12 @@ class Common {
             defaultOut = StdioOutput.output;
     }
 
-    private void initLocale(char[] langId) {
+    void initLocale(char[] langId) {
         initI18N(cLocalePath, langId, cDefLang, &gConf.loadConfig);
         try {
             //link locale-specific files into root
-            gFS.link(cLocalePath ~ '/' ~ langId,"/",false,1);
+            gFS.unmount(mLocaleMount);
+            mLocaleMount = gFS.link(cLocalePath ~ '/' ~ langId,"/",false,1);
         } catch (FilesystemException e) {
             //don't crash if current locale has no locale-specific files
             gDefaultLog("catched {}", e);

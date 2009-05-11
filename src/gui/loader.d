@@ -148,7 +148,7 @@ class LoadGui {
             return;
         char[] loc = mConfig["locale"];
         //returns copy of localeRoot if loc == ""
-        mLocale = Translator.ByNamespace(loc);
+        mLocale = localeRoot.bindNamespace(loc);
         //if no locale is set, avoid destroying names with dots
         if (loc.length == 0)
             mLocale.fullIdOnError = true;

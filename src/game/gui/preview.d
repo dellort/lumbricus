@@ -77,7 +77,7 @@ class LevelSelector : SimpleContainer {
         int templCount = conf.getIntValue("template_count", 8);
         mPreviewHeight = conf.getIntValue("preview_height", mPreviewHeight);
 
-        auto templ_trans = Translator.ByNamespace("templates");
+        auto templ_trans = localeRoot.bindNamespace("templates");
         templ_trans.errorString = false;
 
         //generate one button for each level theme

@@ -255,6 +255,9 @@ private:
 
         //more like a test
         globals.cmdLine.registerCommand("widget_tree", &cmdWidgetTree, "-");
+        globals.cmdLine.registerCommand("locale", &cmdLocale,
+            "Change current locale (why are those help texts not translated??)",
+            ["text:Language ID"]);
     }
 
     private void cmdSetFWDriver(MyBox[] args, Output write) {
@@ -544,6 +547,11 @@ private:
 
     private void cmdNameit(MyBox[] args, Output write) {
         mKeyNameIt = true;
+    }
+
+    private void cmdLocale(MyBox[] args, Output write) {
+        char[] lid = args[0].unbox!(char[]);
+        globals.initLocale(lid);
     }
 
 /*    private void cmdShowLog(CommandLine cmd) {

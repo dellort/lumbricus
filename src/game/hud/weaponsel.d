@@ -301,9 +301,9 @@ class WeaponSelWindow : Container {
             mCategories ~= value;
         }
 
-        mWeaponTranslate = Translator.ByNamespace("weapons");
+        mWeaponTranslate = localeRoot.bindNamespace("weapons");
         mDFG = gFramework.getFont("weaponsel_side");
-        mWeaponFooTranslate = Translator.ByNamespace("weaponsfoo");
+        mWeaponFooTranslate = localeRoot.bindNamespace("weaponsfoo");
         mWeaponPostfixes = mWeaponFooTranslate.names();
 
         mFooCode = rngShared.nextRange(0, 255);

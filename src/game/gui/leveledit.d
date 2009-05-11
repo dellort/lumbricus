@@ -877,7 +877,7 @@ public class LevelEditor : Task {
         auto templs = lgen.templates.all();
         char[][] names;
         mTemplateList = null;
-        auto templ_trans = Translator.ByNamespace("templates");
+        auto templ_trans = localeRoot.bindNamespace("templates");
         templ_trans.errorString = false;
         foreach (LevelTemplate t; templs) {
             names ~= templ_trans(t.description);

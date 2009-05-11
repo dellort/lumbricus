@@ -217,6 +217,8 @@ private class HandlerLink : HandlerInstance {
     }
 }
 
+typedef uint MountId;
+
 class FileSystem {
     protected {
         ///represents a virtual path in the VFS
@@ -232,6 +234,7 @@ class FileSystem {
             ///is opening files for writing/creating files supported by handler
             ///and enabled for this path
             private bool mWritable;
+            MountId mountId;
 
             public static MountedPath opCall(VFSPath mountPoint, uint precedence,
                 HandlerInstance handler, bool writable)
@@ -242,6 +245,7 @@ class FileSystem {
                 ret.precedence = precedence;
                 ret.handler = handler;
                 ret.mWritable = writable;
+                ret.mountId = mNextMountId++;
                 return ret;
             }
 
@@ -278,6 +282,7 @@ class FileSystem {
         char[] mUserPath;
         char[] mDataPath;
         MountedPath[] mMountedPaths;
+        static MountId mNextMountId;
 
         static MountPointHandler[] mHandlers;
     }
@@ -375,7 +380,7 @@ class FileSystem {
     ///             or create files in this path
     ///             if path is not physically writable, this parameter is
     ///             ignored
-    public void mount(MountPath mp, char[] sysPath, VFSPath mountPoint,
+    public MountId mount(MountPath mp, char[] sysPath, VFSPath mountPoint,
         bool writable, uint precedence = 0)
     {
         //get absolute path to object, considering mp
@@ -408,14 +413,16 @@ class FileSystem {
             throw new FilesystemException("No handler was able to mount object "
                 ~sysPath);
 
-        addMountedPath(MountedPath(mountPoint, precedence,
-            currentHandler.mount(absPath), writable));
+        auto mounted = MountedPath(mountPoint, precedence,
+            currentHandler.mount(absPath), writable);
+        addMountedPath(mounted);
+        return mounted.mountId;
     }
 
-    public void mount(MountPath mp, char[] sysPath, char[] mountPoint,
+    public MountId mount(MountPath mp, char[] sysPath, char[] mountPoint,
         bool writable, uint precedence = 0)
     {
-        mount(mp, sysPath, VFSPath(mountPoint), writable, precedence);
+        return mount(mp, sysPath, VFSPath(mountPoint), writable, precedence);
     }
 
     ///Try mounting a file/folder and return if the mount succeeded
@@ -450,7 +457,7 @@ class FileSystem {
     ///  as you may get errors or files created in wrong paths when
     ///  relPath is a subpath of mountPoint and any directory in-between is
     ///  writable
-    public void link(VFSPath relPath, VFSPath mountPoint, bool writable,
+    public MountId link(VFSPath relPath, VFSPath mountPoint, bool writable,
         uint precedence = 0)
     {
         if (relPath.isChildOrEqual(mountPoint))
@@ -459,14 +466,28 @@ class FileSystem {
                 " parent directory");
         }
 
-        addMountedPath(MountedPath(mountPoint, precedence,
-            new HandlerLink(this, relPath), writable));
+        auto mp = MountedPath(mountPoint, precedence,
+            new HandlerLink(this, relPath), writable);
+        addMountedPath(mp);
+        return mp.mountId;
     }
 
-    public void link(char[] relPath, char[] mountPoint, bool writable,
+    public MountId link(char[] relPath, char[] mountPoint, bool writable,
         uint precedence = 0)
     {
-        link(VFSPath(relPath), VFSPath(mountPoint), writable, precedence);
+        return link(VFSPath(relPath), VFSPath(mountPoint), writable, precedence);
+    }
+
+    ///Try unmounting the specified id (result of mount() or link())
+    ///Returns true if the id was found and unmounted (does not throw)
+    public bool unmount(MountId mid) {
+        foreach (int idx, ref mp; mMountedPaths) {
+            if (mp.mountId == mid) {
+                mMountedPaths = mMountedPaths[0..idx] ~ mMountedPaths[idx+1..$];
+                return true;
+            }
+        }
+        return false;
     }
 
     ///open a stream to a file in the VFS

@@ -43,7 +43,7 @@ class MessageViewer : Label {
 
     this(GameInfo game) {
         mGame = game;
-        mLocaleMsg = Translator.ByNamespace("game_msg");
+        mLocaleMsg = localeRoot.bindNamespace("game_msg");
 
         styles.id = "preparebox";
         font = gFramework.fontManager.loadFont("messages");

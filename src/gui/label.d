@@ -6,12 +6,13 @@ import common.scene;
 import common.visual;
 import framework.framework;
 import framework.font;
+import framework.i18n;
 import utils.configfile;
 import utils.misc;
 
 class Label : Widget {
     private {
-        char[] mText;
+        TrCache mText;
         Font mFont;
         Vector2i mBorder;
         bool mShrink, mCenterX;
@@ -53,26 +54,25 @@ class Label : Widget {
     }
 
     override Vector2i layoutSizeRequest() {
-        auto csize = mFont.textSize(mText,!mImage);
+        auto csize = mFont.textSize(mText.text, !mImage);
         mTextSize = csize;
         if (mShrink) {
             csize.x = 0;
         }
         if (mImage) {
-            csize.x += mImage.size.x + (mText.length ? cSpacing : 0);
+            csize.x += mImage.size.x + (mText.text.length ? cSpacing : 0);
             csize.y = max(csize.y, mImage.size.y);
         }
         return csize + border*2;
     }
 
     void text(char[] txt) {
-        if (txt == mText)
+        if (txt == mText.text)
             return;
-        mText = txt;
-        needResize(true);
+        mText.text = txt;
     }
     char[] text() {
-        return mText;
+        return mText.text;
     }
 
     void font(Font font) {
@@ -114,8 +114,14 @@ class Label : Widget {
     }
 
     this(Font font = null) {
+        mText = new TrCache();
+        mText.onChange = &trTextChange;
         mFont = font ? font : gFramework.getFont("label_default");
         mBorder = Vector2i(0,0);
+    }
+
+    private void trTextChange(TrCache sender) {
+        needResize(true);
     }
 
     override void onDraw(Canvas canvas) {
@@ -125,13 +131,13 @@ class Label : Widget {
         int x = b.x;
         if (mImage) {
             auto s = size - b*2;
-            if (mText.length)
+            if (mText.text.length)
                 s.x = mImage.size.x;
             auto ipos = b + s/2 - mImage.size/2;
             canvas.draw(mImage, ipos);
             x = ipos.x + mImage.size.x + cSpacing;
         }
-        if (!mText.length)
+        if (!mText.text.length)
             return;
         Vector2i p = Vector2i(x, b.y);
         if (mCenterX && mTextSize.x <= diff.x)
@@ -139,9 +145,9 @@ class Label : Widget {
         else
             p.y = p.y + diff.y/2 - mTextSize.y/2;
         if (!mShrink) {
-            mFont.drawText(canvas, p, mText, mFontColors);
+            mFont.drawText(canvas, p, mText.text, mFontColors);
         } else {
-            mFont.drawTextLimited(canvas, p, (size-b*2-p).x, mText,
+            mFont.drawTextLimited(canvas, p, (size-b*2-p).x, mText.text,
                 mFontColors);
         }
     }
@@ -154,7 +160,8 @@ class Label : Widget {
         if (fnt)
             mFont = fnt;
 
-        mText = loader.locale()(node.getStringValue("text", mText));
+        mText.translator = loader.locale();
+        mText.update(node.getStringValue("text"));
         parseVector(node.getStringValue("border"), mBorder);
         mShrink = node.getBoolValue("shrink", mShrink);
         mCenterX = node.getBoolValue("center_x", mCenterX);

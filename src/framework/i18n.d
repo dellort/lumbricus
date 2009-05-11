@@ -3,8 +3,9 @@ module framework.i18n;
 import framework.filesystem;
 import utils.configfile;
 import utils.log;
-import str = stdx.string;
 import utils.misc;
+import utils.weaklist;
+import str = stdx.string;
 import tango.util.Convert;
 
 //NOTE: because normal varargs suck infinitely in D (you have to deal with
@@ -29,6 +30,8 @@ public char[] gFallbackLanguage;
 
 private Log log;
 
+private WeakList!(Translator) createdTranslators;
+
 ///root translator for config file used with initI18N
 public Translator localeRoot() {
     return gLocaleRoot;
@@ -50,52 +53,114 @@ struct LocalizedMessage {
 ///if anything goes wrong while loading or finding a translation
 ///Use bindNamespace to get a more specific Translator for a sub-namespace
 public class Translator {
-    private ConfigNode mNode;
-    private bool mErrorString = true;
-    private bool mFullIdOnError = false;
+    private {
+        ConfigNode mNode;
+        bool mErrorString = true;
+        bool mFullIdOnError = false;
+        //following 3 values are needed for reinit
+        Translator mParent;
+        char[] mSubNs;
+        char[] mLocalePath;
+        //we don't want to keep all Translators ever created from being gc'ed
+        WeakList!(Translator) mChildren;
 
-    //create translator from i18n subnode
-    //note that the node may be null, in which case only error strings
-    //will be returned
-    private this(ConfigNode node) {
-        if (!node)
-            log("WARNING: Creating translator with empty node");
-        mNode = node;
-    }
-
-    ///create a new Translator bound to the specified sub-namespace (relative
-    ///to own namespace)
-    Translator bindNamespace(char[] namespace) {
-        ConfigNode node;
-        if (mNode)
-            node = mNode.getPath(namespace, false);
-        if (!node)
-            log("WARNING: Namespace "~namespace~" doesn't exist");
-        return new Translator(node);
-    }
-
-    ///hack
-    char[][] names() {
-        char[][] res;
-        if (!mNode)
-            return null;
-        foreach (char[] name, char[] value; mNode) {
-            res ~= name;
+        struct LocaleDir {
+            char[] targetId;
+            char[] localePath;
         }
-        return res;
+        LocaleDir[] mAdditionalDirs;
+    }
+
+    private this() {
+        mChildren = new typeof(mChildren);
+    }
+
+    ///create translator from i18n subnode
+    ///note that the node may be null, in which case only error strings
+    ///will be returned
+    ///bindNamespace() is a shortcut for this
+    this(char[] namespace, Translator parent) {
+        this();
+        assert(gCurrentLanguage.length > 0, "Call initI18N() before");
+        mParent = parent;
+        if (!mParent)
+            mParent = gLocaleRoot;
+        assert(!!mParent);
+        mSubNs = namespace;
+        mParent.mChildren.add(this);
+        reinit();
     }
 
     ///load a language file from a language/locale directory
     ///initI18N() must have been called before
     this(char[] localePath) {
+        this();
         assert(gCurrentLanguage.length > 0, "Call initI18N() before");
-        auto node = localeNodeFromPath(localePath);
-        this(node);
+        reinit(localePath);
+        //save reference, so the instance can be found when updating locale
+        createdTranslators.add(this);
+    }
+
+    ~this() {
+        if (mParent)
+            mParent.mChildren.remove(this, true);
+        else
+            createdTranslators.remove(this, true);
+    }
+
+    private void reinit(char[] localePath = null) {
+        ConfigNode node;
+        if (mParent) {
+            assert(!!mParent.mNode);
+            //this translator was bound to a namespace
+            node = mParent.mNode.getPath(mSubNs, false);
+            if (!node)
+                log("WARNING: Namespace "~mSubNs~" doesn't exist");
+        } else {
+            //this is the locale root, or a Translator created with localePath
+            if (localePath.length > 0)
+                mLocalePath = localePath;
+            assert(mLocalePath.length > 0);
+            node = localeNodeFromPath(mLocalePath);
+        }
+
+        //no empty node
+        if (!node)
+            node = new ConfigNode();
+        mNode = node;
+        //remount addLocaleDir() dirs
+        foreach (ref dir; mAdditionalDirs) {
+            doAddLocaleDir(dir);
+        }
+
+        //reassign subnodes of children
+        foreach (tr; mChildren.list) {
+            tr.reinit();
+        }
+    }
+
+    ///create a new Translator bound to the specified sub-namespace (relative
+    ///to own namespace)
+    Translator bindNamespace(char[] namespace) {
+        return new Translator(namespace, this);
     }
 
     void addLocaleDir(char[] targetId, char[] localePath) {
-        ConfigNode newNode = mNode.getSubNode(targetId);
-        auto node = localeNodeFromPath(localePath);
+        auto dir = LocaleDir(targetId, localePath);
+        foreach (ref d; mAdditionalDirs) {
+            if (d.targetId == targetId) {
+                //already added
+                return;
+            }
+        }
+        //store for a later reinit() call
+        mAdditionalDirs ~= dir;
+        doAddLocaleDir(dir);
+    }
+
+    private void doAddLocaleDir(ref LocaleDir dir) {
+        ConfigNode newNode = mNode.getSubNode(dir.targetId);
+        auto node = localeNodeFromPath(dir.localePath);
         newNode.mixinNode(node);
     }
 
@@ -113,10 +178,15 @@ public class Translator {
         return node;
     }
 
-    ///argh: before r333, the constructor did exactly this
-    ///Create a translator for the current language bound to the namespace ns
-    static Translator ByNamespace(char[] ns) {
-        return gLocaleRoot.bindNamespace(ns);
+    ///hack
+    char[][] names() {
+        char[][] res;
+        if (!mNode)
+            return null;
+        foreach (char[] name, char[] value; mNode) {
+            res ~= name;
+        }
+        return res;
     }
 
     ///true (default): return an error string if no translation was found
@@ -249,6 +319,89 @@ public class Translator {
     }
 }
 
+//xxx Just a not-so-well-thought-through idea of how to update previous
+//    translations on locale change
+//The problem is that at the time of a locale change, we probably don't have
+//  the id or parameters originally used when translating, and would need
+//  to reload the GUI config files oslt; so this class caches the data
+//  of the first translation and automatically updates the text
+//  when the locale changes
+private WeakList!(TrCache) trCacheList;
+class TrCache {
+    private {
+        char[] mText;     //current (possibly translated) string
+        bool mTranslated; //if mText was directly assigned or translated by mId
+        Translator mTr;
+        char[] mId;
+        TypeInfo[] mArguments;
+        va_list mArgptr;
+    }
+
+    void delegate(TrCache sender) onChange;
+
+    this(Translator tr = null) {
+        translator = tr;
+        //store reference for retranslation
+        trCacheList.add(this);
+    }
+
+    ~this() {
+        trCacheList.remove(this, true);
+    }
+
+    char[] text() {
+        return mText;
+    }
+    //set mText to a normal, not-translated string
+    void text(char[] t) {
+        mText = t;
+        mTranslated = false;
+        if (onChange)
+            onChange(this);
+    }
+    void opAssign(char[] t) {
+        text(t);
+    }
+
+    Translator translator() {
+        return mTr;
+    }
+    void translator(Translator newTr) {
+        if (!newTr)
+            newTr = gLocaleRoot;
+        assert(!!newTr);
+        mTr = newTr;
+    }
+
+    char[] id() {
+        return mId;
+    }
+
+    //update cached data and retranslate
+    void update(char[] id, ...) {
+        updatefx(id, _arguments, _argptr);
+    }
+
+    void updatefx(char[] id, TypeInfo[] arguments, va_list argptr) {
+        if (id.length == 0)
+            return;
+        mId = id;
+        mArguments = arguments;
+        mArgptr = argptr;
+        mTranslated = true;
+        translate();
+    }
+
+    private void translate() {
+        assert(!!mTr);
+        if (!mTranslated)
+            return;
+        mText = mTr.translatefx(mId, mArguments, mArgptr);
+        if (onChange)
+            onChange(this);
+    }
+}
+
 ///Init translations.
 ///localePath: Path in VFS where locale files are stored (<langId>.conf)
 ///locale-specific files in <localePath>/<langId> will be mounted to root
@@ -267,7 +420,18 @@ public void initI18N(char[] localePath, char[] lang, char[] fallbackLang,
     gConfigLoader = configLoader;
     gCurrentLanguage = lang;
     gFallbackLanguage = fallbackLang;
-    gLocaleRoot = new Translator(localePath);
+    if (!gLocaleRoot) {
+        createdTranslators = new typeof(createdTranslators);
+        trCacheList = new typeof(trCacheList);
+        gLocaleRoot = new Translator(localePath);
+    } else {
+        foreach (tr; createdTranslators.list) {
+            tr.reinit();
+        }
+        foreach (trc; trCacheList.list) {
+            trc.translate();
+        }
+    }
 }
 
 ///Translate an ID into text in the selected language.

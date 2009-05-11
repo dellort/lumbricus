@@ -245,7 +245,7 @@ class GameTask : StatefulTask {
         assert (!!mWindow);
         mWindow.add(mLoadScreen);
 
-        auto load_txt = Translator.ByNamespace("loading.game");
+        auto load_txt = localeRoot.bindNamespace("loading.game");
         char[][] chunks;
 
         void addChunk(LoadChunkDg cb, char[] txt_id) {
