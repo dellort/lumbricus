@@ -1,4 +1,4 @@
-module game.weapon.tools;
+module game.weapon.rope;
 
 import framework.framework;
 import game.game;
@@ -19,101 +19,6 @@ import utils.misc;
 
 import tango.math.Math : abs;
 import tango.math.IEEE : signbit;
-
-//sub-factory used by ToolClass (stupid double-factory)
-alias StaticFactory!("Tools", Tool, ToolClass, WormSprite) ToolsFactory;
-
-//covers tools like jetpack, beamer, superrope
-//these are not actually weapons, but the weapon-code is generic enough to
-//cover these tools (including weapon window etc.)
-class ToolClass : WeaponClass {
-    private {
-        char[] mSubType;
-    }
-
-    this(GameEngine engine, ConfigNode node) {
-        super(engine, node);
-        mSubType = node.getStringValue("subtype", "none");
-    }
-
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
-    }
-
-    override Shooter createShooter(GObjectSprite go) {
-        //for now, only worms are enabled to use tools
-        //(because of special control methods, i.e. for jetpacks, ropes...)
-        auto worm = cast(WormSprite)(go);
-        if (!worm)
-            throw new Exception(myformat("not a worm: {}", go));
-        return ToolsFactory.instantiate(mSubType, this, worm);
-    }
-
-    static this() {
-        WeaponClassFactory.register!(typeof(this))("tool");
-    }
-}
-
-abstract class Tool : Shooter {
-    protected ToolClass mToolClass;
-    protected WormSprite mWorm;
-
-    override bool delayedAction() {
-        return false;
-    }
-
-    this(ToolClass base, WormSprite a_owner) {
-        super(base, a_owner, a_owner.engine);
-        mToolClass = base;
-        mWorm = a_owner;
-    }
-
-    this (ReflectCtor c) {
-        super(c);
-    }
-
-    bool activity() {
-        return active;
-    }
-}
-
-class Jetpack : Tool {
-    this(ToolClass b, WormSprite o) {
-        super(b, o);
-    }
-
-    this (ReflectCtor c) {
-        super(c);
-    }
-
-    override protected void doFire(FireInfo info) {
-        reduceAmmo();
-        mWorm.activateJetpack(true);
-        active = true;
-    }
-
-    override protected bool doRefire() {
-        //second fire: deactivate jetpack again
-        mWorm.activateJetpack(false);
-        active = false;
-        finished();
-        return true;
-    }
-
-    override void simulate(float deltaT) {
-        super.simulate(deltaT);
-        //if it was used but it's not active anymore => die
-        if (!mWorm.jetpackActivated()) {
-            active = false;
-            finished();
-        }
-    }
-
-    static this() {
-        ToolsFactory.register!(typeof(this))("jetpack");
-    }
-}
 
 
 class RopeClass : WeaponClass {

@@ -105,6 +105,7 @@ class WormSprite : GObjectSprite {
         PhysicConstraint mRope;
         void delegate(Vector2f mv) mRopeMove;
         bool mRopeCanRefire;
+        float mJetTimeUsed = 0f;
     }
 
     TeamTheme teamColor;
@@ -337,16 +338,7 @@ class WormSprite : GObjectSprite {
 
     //movement for walking/jetpack
     void move(Vector2f dir) {
-        if (jetpackActivated) {
-            //force!
-            Vector2f jetForce = dir.mulEntries(wsc.jetpackThrust);
-            //don't accelerate down
-            if (jetForce.y > 0)
-                jetForce.y = 0;
-            physics.selfForce = jetForce;
-        } else {
-            mMoveVector = dir;
-        }
+        mMoveVector = dir;
         wseqUpdate.keystate = dir;
     }
 
@@ -387,6 +379,18 @@ class WormSprite : GObjectSprite {
         }
         if (currentState is wsc.st_rope) {
             mRopeMove(mMoveVector);
+        }
+        if (currentState is wsc.st_jet) {
+            //force!
+            Vector2f jetForce = mMoveVector.mulEntries(wsc.jetpackThrust);
+            //don't accelerate down
+            if (jetForce.y > 0)
+                jetForce.y = 0;
+            physics.selfForce = jetForce;
+            float xm = abs(mMoveVector.x);
+            float ym = (mMoveVector.y < 0) ? -mMoveVector.y : 0f;
+            //acc. seconds for all active thrusters
+            mJetTimeUsed += (xm + ym) * deltaT;
         }
 
         //when user presses key to change weapon angle
@@ -778,6 +782,13 @@ class WormSprite : GObjectSprite {
             grave.setPos(physics.pos);
         }
 
+        if (to is wsc.st_jet) {
+            mJetTimeUsed = 0f;
+        }
+        if (from is wsc.st_jet) {
+            physics.selfForce = Vector2f(0);
+        }
+
         //stop movement if not possible
         if (!currentState.canWalk) {
             physics.setWalking(Vector2f(0));
@@ -816,10 +827,12 @@ class WormSprite : GObjectSprite {
         //lolhack: return to stand state, and if that's wrong (i.e. jetpack
         //  deactivated in sky), other code will immediately correct the state
         StaticStateInfo wanted = activate ? wsc.st_jet : wsc.st_stand;
-        if (!activate) {
-            physics.selfForce = Vector2f(0);
-        }
         setState(wanted);
+    }
+
+    //returns summed seconds the jetpack thrusters were active
+    float jetpackTimeUsed() {
+        return jetpackActivated ? mJetTimeUsed : 0f;
     }
 
     bool ropeActivated() {

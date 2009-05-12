@@ -73,7 +73,6 @@
 - Napalm verbessern (Ruckeln verhindern, Würmer mehr wegstoßen, vll. etwas "klebriger" machen)
 - Molotov-Cocktail brennt über mehrere Züge
 + Luftangriff-Steuerung (Mauszeiger, links/rechts)
-+ Begrenzte Jetpack-Flugdauer mit Anzeige
 
 ! Steuerung entrümpeln, unabhängig von Würmern machen (worm.d)
 

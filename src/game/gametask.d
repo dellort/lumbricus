@@ -69,7 +69,8 @@ import str = stdx.string;
 //these imports register classes in a factory on module initialization
 import game.weapon.projectile;
 import game.weapon.special_weapon;
-import game.weapon.tools;
+import game.weapon.rope;
+import game.weapon.jetpack;
 import game.weapon.ray;
 import game.weapon.spawn;
 import game.weapon.napalm;

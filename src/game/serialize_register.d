@@ -8,8 +8,8 @@ import framework.timesource;
 import game.action, game.actionsprite, game.controller, game.crate, game.game,
     game.gamepublic, game.glevel, game.spriteactions, game.sprite, game.worm,
     game.weapon.actions, game.weapon.actionweapon, game.weapon.projectile,
-    game.weapon.ray, game.weapon.spawn, game.weapon.tools, game.weapon.weapon,
-    game.weapon.napalm, game.weapon.melee, game.sequence,
+    game.weapon.ray, game.weapon.spawn, game.weapon.rope, game.weapon.weapon,
+    game.weapon.napalm, game.weapon.melee, game.weapon.jetpack, game.sequence,
     game.gamemodes.roundbased, game.gamemodes.roundbased_shared,
     game.gamemodes.mdebug, game.gamemodes.realtime;
 import physics.world;
@@ -51,7 +51,7 @@ void initGameSerialization() {
         RandomJumpActionClass, StuckTriggerActionClass, ExplosionActionClass,
         BeamActionClass, InsertBitmapActionClass, EarthquakeActionClass,
         ActionWeapon, ProjectileStateInfo, ProjectileSpriteClass,
-        HomingActionClass, RayWeapon, SpawnActionClass, ToolClass, RopeClass,
+        HomingActionClass, RayWeapon, SpawnActionClass, JetpackClass, RopeClass,
         WormStateInfo, WormSpriteClass, GravestoneSpriteClass,
         SequenceStateList, NapalmStateDisplay, NapalmState, WormStateDisplay,
         SubSequence, WormState, NapalmSpriteClass, DieActionClass,

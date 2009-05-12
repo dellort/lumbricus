@@ -156,14 +156,15 @@
 		<Unit filename="..\src\game\water.d" />
 		<Unit filename="..\src\game\weapon\actions.d" />
 		<Unit filename="..\src\game\weapon\actionweapon.d" />
+		<Unit filename="..\src\game\weapon\jetpack.d" />
 		<Unit filename="..\src\game\weapon\luaweapon.d" />
 		<Unit filename="..\src\game\weapon\melee.d" />
 		<Unit filename="..\src\game\weapon\napalm.d" />
 		<Unit filename="..\src\game\weapon\projectile.d" />
 		<Unit filename="..\src\game\weapon\ray.d" />
+		<Unit filename="..\src\game\weapon\rope.d" />
 		<Unit filename="..\src\game\weapon\spawn.d" />
 		<Unit filename="..\src\game\weapon\special_weapon.d" />
-		<Unit filename="..\src\game\weapon\tools.d" />
 		<Unit filename="..\src\game\weapon\types.d" />
 		<Unit filename="..\src\game\weapon\weapon.d" />
 		<Unit filename="..\src\game\worm.d" />
