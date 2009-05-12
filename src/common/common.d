@@ -69,10 +69,11 @@ class Common {
         //will set global gResources
         resources = new Resources();
 
-        ConfigNode langconf = gConf.loadConfig("language");
         char[] langId = programArgs["language_id"];
-        if (!langId.length)
-            langId = langconf.getStringValue("language_id", "de");
+        if (!langId.length) {
+            ConfigNode langconf = gConf.loadConfigDef("language");
+            langId = langconf.getStringValue("language_id", "");
+        }
         initLocale(langId);
 
         localizedKeynames = localeRoot.bindNamespace("keynames");

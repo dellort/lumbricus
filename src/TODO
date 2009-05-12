@@ -1,10 +1,12 @@
-! PITA (hacks entfernen/neuschreiben, kompliziert, wenig gewinn), - Fix/Change, + kleines Feature, * großes, langfristiges Feature, *** völlig unmöglich, [] wurde versucht, aber nur kompromiss wurde implementiert oder es hat nicht geklappt
+! PITA (hacks entfernen/neuschreiben, kompliziert, wenig gewinn), - Fix/Change, 
++ kleines Feature, * großes, langfristiges Feature, *** völlig unmöglich, 
+[] wurde versucht, aber nur kompromiss wurde implementiert oder es hat nicht geklappt
 
 
 == Sonstiges/Minor ==
 [- userdaten (mergen von konfigfiles)]
 - locales: übersetzungen vergleichen (z.b. de mit en -> fehlende einträge finden)
-- locales: zur laufzeit wechseln / neuladen
+[- locales: zur laufzeit wechseln / neuladen]
 - task spezifische commandos/hotkeys (ähnlich wie in loadsafe.d)
    (und den gräuslichen hack in commandline.d entfernen)
 - debugging: würmer auswählen und GameObject-Felder anzeigen lassen
@@ -15,6 +17,15 @@
 == bekannte, lösbare Bugs ==
 - wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
 ! napalm ist sehr langsam, minenagriff nicht => ?
+- Wurm am Jetpack wird bei Explosionen kaum weggestoßen (Physik velocity_constraint Fehler); manchmal auch ohne Jetpack??
+- Kistenspion für alle aktiven Teams sichtbar
+- Erdbeben stößt die Würmer nicht herum
+- Homing missile trifft nix
+- Superschaf fliegt auch 15sec weiter, wenn der Wurm nicht mehr dran ist
+- Kontrolle wird nicht genommen, wenn man ein Höhlenlevel nach links/rechts verlässt
+- Unterwasser-Waffen kollidieren mit der versunkenen, unsichtbaren Landschaft
+! Würmer/Objekte springen aus dem Wasser raus (mit Sink-Animation)
+
 
 == GUI (allgemeine Features) ==
 + richtige GUI listen
@@ -28,7 +39,7 @@
 * Netzwerk-GUI (Spielerliste, Scores, Chat, Ping/Lag/Warte-auf-Server)
 + Waffenset-Editor (mit Kisten-Waffen)
 + Singleplayer-Spiel-Dialog erweitern (Optionen, mehr Team-Einstellungen, Templates laden/speichern)
-+ Netzwerk-Server-erstell GUI (ähnlich Singleplayer, evtl. verbinden mit s.o.)
+[+ Netzwerk-Server-erstell GUI (ähnlich Singleplayer, evtl. verbinden mit s.o.)]
 + Optionsmenü (Sprache, Video, Sound etc.)
 + Locale-Tool ("missing id" finden, Locales vergleichen, aktuelle Locale neu laden)
 
@@ -41,7 +52,7 @@
 [- 1-frame bug bei würmern]
 * Spiel über mehrere Runden (Scores, Waffen sammeln, Statistiken, Gesamtsieg)
 + Spiel-Statistiken, insb. Team- und Wurm-bezogene
-+ Powerup-Kisten (2x Schaden, Niedrige Schwerkraft etc.) und Medizinkisten
++ Mehr Powerup-Kisten (Niedrige Schwerkraft etc.)
 - Level-Generator: Objekt-/Brückenplatzierung überarbeiten (Decke, Wand links/rechts etc.)
 *** KI
 *** Scripting
@@ -68,18 +79,14 @@
 
 
 == Netzwerk ==
-+ "Rückmeldung" der Clients, um Lags/abgestürzte Clients zu erkennen
-  Idee: Rückmeldung (Empfangsbestätigung) alle x(~10) Timestamps, fehlen dem
-        Server x*5 Timestamps an Rückmeldungen, wird das Spiel pausiert
-+ Behandlung von im Spiel getrennten Spielern (Team entfernen, weiße Fahne o.ä.)
-- Teams: Waffenset-Zuordnung, Lebenspunkte vom Server behandeln bzw. überprüfen,
-         nicht allein den Client entscheiden lassen (Fairness)
+[- Teams: Waffenset-Zuordnung, Lebenspunkte vom Server behandeln bzw. überprüfen,
+         nicht allein den Client entscheiden lassen (Fairness)]
 + Server im Verbindungs-Dialog pingen bzw. mehr Informationen anzeigen
 - Replays überprüfen/abstellen
 + Savegames
 - Fix für spielbeeinflussende Befehle (z.B. slowdown), die mom. keine Timestamps haben
-+ Nach dem Spiel zurück zur Lobby (mom. undefinierter Zustand), Problem: Spielendeerkennung
 + Ready-Check zum Spielstart
 *** Interpolation/Dead reckoning/Lag compensation/sowas in die Richtung, muhahar (siehe Deadlock)
 *** determinismus garantieren (benutzung der FPU ist ein problem, da nicht alle plattformen die gleiche präzission für floating point haben), z.b. fixed point zahlen benutzen, oder regelmäßig zustand der clienten wieder synchronisieren
 - einfache erkennung von clients mit abweichender simulation (periodisch einen einfachen engine-hash berechnen und an den server schicken)
+* Client-Netzwerkcode in Thread verlagern (Performance/genaue Ping-Werte)

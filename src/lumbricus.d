@@ -48,6 +48,7 @@ import game.wtris; //lol
 import game.bomberworm; //?
 //debugging
 import common.resview;
+import common.localeswitch;
 import net.cmdserver_gui;
 import net.lobby;
 

@@ -81,7 +81,7 @@ public class Translator {
     ///bindNamespace() is a shortcut for this
     this(char[] namespace, Translator parent) {
         this();
-        assert(gCurrentLanguage.length > 0, "Call initI18N() before");
+        assert(gFallbackLanguage.length > 0, "Call initI18N() before");
         mParent = parent;
         if (!mParent)
             mParent = gLocaleRoot;
@@ -95,7 +95,7 @@ public class Translator {
     ///initI18N() must have been called before
     this(char[] localePath) {
         this();
-        assert(gCurrentLanguage.length > 0, "Call initI18N() before");
+        assert(gFallbackLanguage.length > 0, "Call initI18N() before");
         reinit(localePath);
         //save reference, so the instance can be found when updating locale
         createdTranslators.add(this);
@@ -416,6 +416,7 @@ class TrCache {
 public void initI18N(char[] localePath, char[] lang, char[] fallbackLang,
     ConfigLoaderDg configLoader)
 {
+    assert(fallbackLang.length > 0);
     log = registerLog("i18n");
     gConfigLoader = configLoader;
     gCurrentLanguage = lang;
