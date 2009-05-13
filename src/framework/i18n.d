@@ -354,6 +354,8 @@ class TrCache {
     }
     //set mText to a normal, not-translated string
     void text(char[] t) {
+        if (mText == t)
+            return;
         mText = t;
         mTranslated = false;
         if (onChange)

@@ -320,7 +320,6 @@ class HomingAction : SpriteAction {
 
 class HomingActionClass : SpriteActionClass {
     float force;
-    float maxvelocity;
     float velocityInfluence = 0.001f;
 
     //xxx class
@@ -333,7 +332,6 @@ class HomingActionClass : SpriteActionClass {
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         super.loadFromConfig(eng, node);
         force = node.getIntValue("force",100);
-        maxvelocity = node.getIntValue("max_velocity",500);
         velocityInfluence = node.getFloatValue("velocity_influence", 0.001f);
     }
 
