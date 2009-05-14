@@ -206,6 +206,7 @@ class CrateSprite : ActionSprite {
         super(c);
         Types t = c.types();
         t.registerMethod(this, &oncollect, "oncollect");
+        t.registerMethod(this, &spyVisible, "spyVisible");
     }
 
     private void collected() {
@@ -283,6 +284,19 @@ class CrateSprite : ActionSprite {
                     break;
                 }
             }
+            mSpy = new TextGraphic();
+            mSpy.attach = Vector2f(0.5f, 1.0f);
+            //xxx needs a better way to get the contents of the crate
+            if (stuffies.length > 0) {
+                mSpy.msg.id = stuffies[0].id();
+            }
+            mSpy.visibleDg = &spyVisible;
+            engine.graphics.add(mSpy);
+        } else {
+            if (mSpy) {
+                mSpy.remove();
+                mSpy = null;
+            }
         }
         super.updateActive();
     }
@@ -319,23 +333,6 @@ class CrateSprite : ActionSprite {
             }
         }
 
-        bool show_spy = engine.controller.crateSpyActive()
-            && currentState is myclass.st_normal;
-        if (show_spy != !!mSpy) {
-            if (mSpy) {
-                mSpy.remove();
-                mSpy = null;
-            } else {
-                mSpy = new TextGraphic();
-                mSpy.attach = Vector2f(0.5f, 1.0f);
-                //xxx needs a better way to get the contents of the crate
-                if (stuffies.length > 0) {
-                    mSpy.msg.id = stuffies[0].id();
-                }
-                engine.graphics.add(mSpy);
-            }
-        }
-
         //comedy
         if (mSpy && graphic && graphic.graphic) {
             auto g = cast(AnimationGraphic)graphic.graphic;
@@ -346,6 +343,15 @@ class CrateSprite : ActionSprite {
         }
 
         super.simulate(deltaT);
+    }
+
+    //for TextGraphic.visibleDg : returns true if spy is shown (m is the
+    //  client's controlled member)
+    private bool spyVisible(TeamMember m) {
+        if (m)
+            return m.team.hasCrateSpy()
+                && (currentState !is myclass.st_drowning);
+        return false;
     }
 }
 

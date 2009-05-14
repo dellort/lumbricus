@@ -53,6 +53,7 @@ class AtlasResource : ResourceItem {
         } else {
             //meta data is read from a binary file
             scope f = gFS.open(mContext.fixPath(meta.value));
+            scope(exit) f.close();
             //xxx I shouldn't load stuff directly (endian issues), but who cares?
             FileAtlas header;
             f.readExact(&header, header.sizeof);

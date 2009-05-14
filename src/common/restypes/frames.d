@@ -133,6 +133,7 @@ class AniFramesAtlas : AniFrames {
             anim.box.p2 = size + anim.box.p1;
             mAnimations ~= anim;
         }
+        data.close();
     }
 }
 

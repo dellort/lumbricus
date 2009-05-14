@@ -205,6 +205,7 @@ class FontManager {
                     break;
                 auto ms = new MemoryStream();
                 scope st = gFS.open(faceFile);
+                scope(exit) st.close();
                 ms.copyFrom(st);
                 if (!(n.name in mFaces)) {
                     FaceStyles fstyles;

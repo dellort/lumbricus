@@ -382,15 +382,26 @@ private class ViewMember {
 private class GameLabel : Label {
     TextGraphic txt;
     LocalizedMessage msg;
+    GameInfo game;
 
-    this(TextGraphic a_txt) {
+    this(GameInfo a_game, TextGraphic a_txt) {
         setLayout(WidgetLayout.Aligned(-1, -1));
         styles.addClass("game-label");
         font = gFramework.fontManager.loadFont("gamelabel");
         txt = a_txt;
+        game = a_game;
     }
 
     override void simulate() {
+        if (txt.removed) {
+            remove();
+            return;
+        }
+
+        visible = txt.isVisible(game.control.getControlledMember());
+        if (!visible)
+            return;
+
         if (msg != txt.msg) {
             msg = txt.msg;
             text = localeRoot.translateLocalizedMessage(msg);
@@ -399,10 +410,6 @@ private class GameLabel : Label {
         //there's also utils.math.placeRelative(), which was supposed to do this
         auto p = - toVector2f(size) ^ txt.attach;
         setAddToPos(txt.pos + toVector2i(p));
-
-        if (txt.removed) {
-            remove();
-        }
     }
 }
 
@@ -665,7 +672,7 @@ class GameView : Container {
 
     private void doNewGraphic(Graphic g) {
         if (auto txt = cast(TextGraphic)g) {
-            addChild(new GameLabel(txt));
+            addChild(new GameLabel(mGame, txt));
         }
     }
 

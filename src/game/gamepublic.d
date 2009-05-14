@@ -272,6 +272,15 @@ class TextGraphic : Graphic {
     //how the label-rect is attached to pos, for each axis 0.0-1.0
     //(0,0) is the upper left corner, (1,1) the bottom right corner
     Vector2f attach = {0, 0};
+    //for isVisible(); see below
+    bool delegate(TeamMember) visibleDg;
+
+    //takes getControlledMember() result, returns if text is shown
+    bool isVisible(TeamMember activeMember) {
+        if (visibleDg)
+            return visibleDg(activeMember);
+        return true;
+    }
 
     this () {
     }

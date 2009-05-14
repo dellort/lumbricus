@@ -455,6 +455,7 @@ class WormSprite : GObjectSprite {
     void weapon(WeaponClass w) {
         auto oldweapon = mWeapon;
         mWeapon = w;
+        mThrowing = false;
         if (w) {
             if (currentState is wsc.st_stand)
                 setState(wsc.st_weapon);

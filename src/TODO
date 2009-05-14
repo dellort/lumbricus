@@ -18,7 +18,6 @@
 - wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
 ! napalm ist sehr langsam, minenagriff nicht => ?
 - Wurm am Jetpack wird bei Explosionen kaum weggestoßen (Physik velocity_constraint Fehler); manchmal auch ohne Jetpack??
-- Kistenspion für alle aktiven Teams sichtbar
 - Erdbeben stößt die Würmer nicht herum
 - Homing missile trifft nix
 - Superschaf fliegt auch 15sec weiter, wenn der Wurm nicht mehr dran ist

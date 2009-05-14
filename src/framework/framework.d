@@ -683,6 +683,7 @@ class Framework {
     Surface loadImage(char[] path, Transparency t = Transparency.AutoDetect) {
         mLog("load image: {}", path);
         scope stream = gFS.open(path, FileMode.In);
+        scope(exit) stream.close();
         auto image = loadImage(stream, t);
         return image;
     }
