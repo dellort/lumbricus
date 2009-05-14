@@ -918,9 +918,7 @@ class ServerTeamMember : TeamMember, WormController {
     }
 
     private void move(Vector2f vec) {
-        if (!alive)
-            return;
-        if (!isControllable || vec == mLastMoveVector) {
+        if (!alive || !isControllable || vec == mLastMoveVector) {
             mWorm.move(Vector2f(0));
             return;
         }

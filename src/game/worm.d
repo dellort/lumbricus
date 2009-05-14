@@ -105,7 +105,6 @@ class WormSprite : GObjectSprite {
         PhysicConstraint mRope;
         void delegate(Vector2f mv) mRopeMove;
         bool mRopeCanRefire;
-        float mJetTimeUsed = 0f;
     }
 
     TeamTheme teamColor;
@@ -265,12 +264,6 @@ class WormSprite : GObjectSprite {
         super.die();
     }
 
-    void updateControl() {
-        if (!haveAnyControl()) {
-            activateJetpack(false);
-        }
-    }
-
     protected this (GameEngine engine, WormSpriteClass spriteclass) {
         super(engine, spriteclass);
         wsc = spriteclass;
@@ -331,15 +324,15 @@ class WormSprite : GObjectSprite {
 
     protected override void fillAnimUpdate() {
         super.fillAnimUpdate();
-        auto wsu = cast(WormSequenceUpdate)seqUpdate;
-        assert(!!wsu);
-        wsu.pointto_angle = weaponAngle;
+        assert(!!wseqUpdate);
+        wseqUpdate.pointto_angle = weaponAngle;
+        //for jetpack
+        wseqUpdate.selfForce = physics.selfForce;
     }
 
     //movement for walking/jetpack
     void move(Vector2f dir) {
         mMoveVector = dir;
-        wseqUpdate.keystate = dir;
     }
 
     bool isBeaming() {
@@ -379,18 +372,6 @@ class WormSprite : GObjectSprite {
         }
         if (currentState is wsc.st_rope) {
             mRopeMove(mMoveVector);
-        }
-        if (currentState is wsc.st_jet) {
-            //force!
-            Vector2f jetForce = mMoveVector.mulEntries(wsc.jetpackThrust);
-            //don't accelerate down
-            if (jetForce.y > 0)
-                jetForce.y = 0;
-            physics.selfForce = jetForce;
-            float xm = abs(mMoveVector.x);
-            float ym = (mMoveVector.y < 0) ? -mMoveVector.y : 0f;
-            //acc. seconds for all active thrusters
-            mJetTimeUsed += (xm + ym) * deltaT;
         }
 
         //when user presses key to change weapon angle
@@ -779,15 +760,9 @@ class WormSprite : GObjectSprite {
             engine.explosionAt(physics.pos, wsc.suicideDamage, this);
             auto grave = castStrict!(GravestoneSprite)(
                 engine.createSprite("grave"));
+            grave.createdBy = this;
             grave.setGravestone(mGravestone);
             grave.setPos(physics.pos);
-        }
-
-        if (to is wsc.st_jet) {
-            mJetTimeUsed = 0f;
-        }
-        if (from is wsc.st_jet) {
-            physics.selfForce = Vector2f(0);
         }
 
         //stop movement if not possible
@@ -829,11 +804,6 @@ class WormSprite : GObjectSprite {
         //  deactivated in sky), other code will immediately correct the state
         StaticStateInfo wanted = activate ? wsc.st_jet : wsc.st_stand;
         setState(wanted);
-    }
-
-    //returns summed seconds the jetpack thrusters were active
-    float jetpackTimeUsed() {
-        return jetpackActivated ? mJetTimeUsed : 0f;
     }
 
     bool ropeActivated() {
@@ -981,7 +951,6 @@ class WormStateInfo : StaticStateInfo {
 
 //the factories work over the sprite classes, so we need one
 class WormSpriteClass : GOSpriteClass {
-    Vector2f jetpackThrust = {0f, 0f};
     float suicideDamage;
     //SequenceObject[] gravestones;
     Vector2f jumpStrength[JumpMode.max+1];
@@ -1006,7 +975,6 @@ class WormSpriteClass : GOSpriteClass {
     }
     override void loadFromConfig(ConfigNode config) {
         super.loadFromConfig(config);
-        jetpackThrust = config.getValue("jet_thrust", jetpackThrust);
         suicideDamage = config.getFloatValue("suicide_damage", 10);
         ropeImpulse = config.getFloatValue("rope_impulse", ropeImpulse);
 

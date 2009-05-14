@@ -154,7 +154,7 @@ class SequenceUpdate {
 class WormSequenceUpdate : SequenceUpdate {
     float pointto_angle; //for weapon angle, always 0 .. PI
     //just used to display jetpack exhaust flames
-    Vector2f keystate;
+    Vector2f selfForce;
 
     this () {
     }
@@ -724,8 +724,8 @@ class WormStateDisplay : AniStateDisplay {
             mJetFlames[0].update(v.position, p);
             mJetFlames[1].update(v.position, p);
             bool[2] down;
-            down[0] = wsu.keystate.x != 0;
-            down[1] = wsu.keystate.y < 0;
+            down[0] = wsu.selfForce.x != 0;
+            down[1] = wsu.selfForce.y < 0;
             Time t = now();
             //for each direction, do the following: if the expected state does
             //not equal the needed animation, reverse the current animation, so
