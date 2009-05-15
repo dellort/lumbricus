@@ -39,6 +39,10 @@ class MessageViewer : Label {
         Translator mLocaleMsg;
 
         InterpolateFnTime!(int, msgAnimate) mInterp;
+
+        //blergh
+        Font mStdFont;
+        Font[Team] mPerTeamFont;
     }
 
     this(GameInfo game) {
@@ -47,6 +51,7 @@ class MessageViewer : Label {
 
         styles.id = "preparebox";
         font = gFramework.fontManager.loadFont("messages");
+        mStdFont = font;
         border = Vector2i(5, 1);
 
         mMessages = new typeof(mMessages);
@@ -90,11 +95,22 @@ class MessageViewer : Label {
             //put new message
             auto curMsg = mMessages.pop();
             text = curMsg.text;
-            auto t = mGame.teams[curMsg.teamForColor];
-            if (curMsg.teamForColor) {
-                font = t.font_flash; //??? not really?
+            auto team = curMsg.teamForColor;
+            if (team) {
+                auto ptf = team in mPerTeamFont;
+                if (!ptf) {
+                    //ok, there should be a way to get a Font instance by
+                    // FontProperties; in such a way that FontManager manages
+                    // a cache of weak references to Font objects blablabla
+                    auto p = mStdFont.properties;
+                    p.fore = team.color.color;
+                    Font f = new Font(p);
+                    mPerTeamFont[team] = f;
+                    ptf = &f;
+                }
+                font = *ptf;
             } else {
-                font = t.font;
+                font = mStdFont;
             }
             //xxx additional -2 for border size
             mInterp.init(timeSecs(1.5f),
