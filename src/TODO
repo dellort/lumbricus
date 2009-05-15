@@ -18,10 +18,8 @@
 - wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
 ! napalm ist sehr langsam, minenagriff nicht => ?
 - Wurm am Jetpack wird bei Explosionen kaum weggestoßen (Physik velocity_constraint Fehler); manchmal auch ohne Jetpack??
-- Erdbeben stößt die Würmer nicht herum
 - Homing missile trifft nix
 - Superschaf fliegt auch 15sec weiter, wenn der Wurm nicht mehr dran ist
-- Kontrolle wird nicht genommen, wenn man ein Höhlenlevel nach links/rechts verlässt
 - Unterwasser-Waffen kollidieren mit der versunkenen, unsichtbaren Landschaft
 ! Würmer/Objekte springen aus dem Wasser raus (mit Sink-Animation)
   -- brauchen reproduzierbaren test dafür, z.b. spezielles level
@@ -65,7 +63,7 @@
 
 == Waffen ==
 + Buddelwaffen
-+ Superwaffen (Armageddon, Atomtest, Schafsangriff, Teppichangriff, MB-Bombe etc.)
++ Superwaffen (Teppichangriff, MB-Bombe etc.)
 + Lokale-Suche-Waffen (Taube, Zauberkugel)
 + Fallschirm, Bungee
 

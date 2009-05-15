@@ -166,7 +166,7 @@ class PhysicObject : PhysicBase {
     }
 
     bool onSurface() {
-        return mOnSurface;
+        return mSurfaceCtr > 0;
     }
 
     void update(float deltaT) {

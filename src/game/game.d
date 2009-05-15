@@ -121,7 +121,7 @@ class GameEngine : GameEnginePublic {
     private float mCurrentWaterLevel;
 
     //generates earthquakes
-    private EarthQuakeForce mEarthQuakeForce;
+    private EarthQuakeForce mEarthquakeForceVis, mEarthquakeForceDmg;
 
     //managment of sprite classes, for findSpriteClass()
     private GOSpriteClass[char[]] mSpriteClasses;
@@ -298,8 +298,10 @@ class GameEngine : GameEnginePublic {
         //xxx additional object-attribute controlled Stokes's drag
         physicworld.add(new StokesDragObject());
         //Earthquake generator
-        mEarthQuakeForce = new EarthQuakeForce();
-        physicworld.add(mEarthQuakeForce);
+        mEarthquakeForceVis = new EarthQuakeForce(false);
+        mEarthquakeForceDmg = new EarthQuakeForce(true);
+        physicworld.add(mEarthquakeForceVis);
+        physicworld.add(mEarthquakeForceDmg);
 
         deathzone = new PhysicZonePlane();
         auto dz = new ZoneTrigger(deathzone);
@@ -312,6 +314,16 @@ class GameEngine : GameEnginePublic {
         //because trigger is inverse, the plane must be defined inverted too
         deathzone.plane.define(Vector2f(1, death_y), Vector2f(0, death_y));
         physicworld.add(dz);
+
+        //create trigger to check for objects leaving the playable area
+        auto worldZone = new PhysicZoneXRange(0, mWorldSize.x);
+        //only if completely outside (= touching the game area inverted)
+        worldZone.whenTouched = true;
+        auto offwTrigger = new ZoneTrigger(worldZone);
+        offwTrigger.collision = physicworld.collide.collideAlways();
+        offwTrigger.inverse = true;  //trigger when outside the world area
+        offwTrigger.onTrigger = &offworldTrigger;
+        physicworld.add(offwTrigger);
 
         mWindForce = new WindyForce();
         mWindChanger = new PhysicTimedChangerFloat(0, &windChangerUpdate);
@@ -382,7 +394,8 @@ class GameEngine : GameEnginePublic {
     }
 
     float earthQuakeStrength() {
-        return mEarthQuakeForce.earthQuakeStrength();
+        return mEarthquakeForceVis.earthQuakeStrength()
+            + mEarthquakeForceDmg.earthQuakeStrength();
     }
 
     //return skyline offset (used by airstrikes)
@@ -435,6 +448,13 @@ class GameEngine : GameEnginePublic {
         if (x) x.exterminate();
     }
 
+    private void offworldTrigger(PhysicTrigger sender, PhysicObject other) {
+        auto x = cast(GObjectSprite)(other.backlink);
+        auto member = mController.memberFromGameObject(x, false);
+        if (member.active)
+            member.setActive(false);
+    }
+
     //wind speeds are in [-1.0, 1.0]
     public float windSpeed() {
         return mWindForce.windSpeed.x/cMaxWind;
@@ -457,17 +477,18 @@ class GameEngine : GameEnginePublic {
         mWaterChanger.target = t;
     }
 
-    EarthQuakeForce earthQuakeForce() {
-        return mEarthQuakeForce;
-    }
-
     //strength = force, duration = absolute time,
     //  degrade = true for exponential degrade
     //this function never overwrites the settings, but adds both values to the
     //existing ones
-    void addEarthQuake(float strength, Time duration, bool degrade) {
+    void addEarthQuake(float strength, Time duration, bool degrade,
+        bool bounceObjects = false)
+    {
+        auto ef = mEarthquakeForceVis;
+        if (bounceObjects)
+            ef = mEarthquakeForceDmg;
         physicworld.add(new EarthQuakeDegrader(strength, duration, degrade,
-            mEarthQuakeForce));
+            ef));
         log("created earth quake, strength={}, duration={}, degrade={}",
             strength, duration, degrade);
     }

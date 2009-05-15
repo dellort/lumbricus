@@ -215,14 +215,13 @@ class ProjectileSpriteClass : ActionSpriteClass {
             initState.physic_properties = new POSP();
             initState.physic_properties.loadFromConfig(config.getSubNode("physics"));
 
-            if (!config.hasValue("sequence_object")) {
-                assert(false, "bla: "~config.name);
+            if (config.hasValue("sequence_object")) {
+                //sequenceObject = engine.gfx.resources.resource!(SequenceObject)
+                //    (config["sequence_object"]).get;
+                sequencePrefix = config["sequence_object"];
+                assert(sequencePrefix.length > 0, "bla: "~config.name);
+                initState.animation = findSequenceState("normal");
             }
-
-            //sequenceObject = engine.gfx.resources.resource!(SequenceObject)
-            //    (config["sequence_object"]).get;
-            sequencePrefix = config["sequence_object"];
-            initState.animation = findSequenceState("normal");
 
             if (auto drownani = findSequenceState("drown", true)) {
                 auto drownstate = createStateInfo();

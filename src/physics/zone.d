@@ -83,3 +83,21 @@ class PhysicZoneRect : PhysicZone {
         return rect.isInside(pos);
     }
 }
+
+class PhysicZoneXRange : PhysicZone {
+    float xMin, xMax;
+    bool whenTouched;  //true  -> triggers if object touches the range
+                       //false -> triggers if object is fully inside
+
+    this(float a_min, float a_max) {
+        xMin = a_min;
+        xMax = a_max;
+    }
+
+    override bool checkCircle(Vector2f pos, float radius) {
+        if (whenTouched)
+            return pos.x + radius > xMin && pos.x - radius < xMax;
+        else
+            return pos.x - radius > xMin && pos.x + radius < xMax;
+    }
+}

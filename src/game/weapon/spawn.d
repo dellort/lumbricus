@@ -20,6 +20,7 @@ enum InitVelocity {
     parent,
     backfire,
     fixed,
+    randomAir,
 }
 
 //information about how to spawn something
@@ -54,6 +55,9 @@ struct SpawnParams {
                 break;
             case "fixed":
                 initVelocity = InitVelocity.fixed;
+                break;
+            case "random_air":
+                initVelocity = InitVelocity.randomAir;
                 break;
             default:
                 initVelocity = InitVelocity.parent;
@@ -96,6 +100,10 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
             about.dir = about.surfNormal;
             about.strength = params.strength.sample();
             break;
+        case InitVelocity.randomAir:
+            about.strength = params.strength.sample();
+            //about.dir is unused
+            break;
         default:
             //use strength/direction from FireInfo
     }
@@ -115,17 +123,30 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
 
         sprite.setPos(about.pos + about.dir*dist);
     } else {
-        Vector2f pos;
-        float width = params.spawndist * (params.count-1);
-        //center around pointed
-        float x = about.pos.x;
-        if (!about.pointto.isNaN)
-            x = about.pointto.x;
-        pos.x = x - width/2 + params.spawndist * n;
-        pos.y = sprite.engine.level.airstrikeY;
-        sprite.setPos(pos);
-        //patch for below *g*, direct into gravity direction
-        about.dir = Vector2f(0, 1);
+        if (params.initVelocity == InitVelocity.randomAir) {
+            //random positions over the whole landscape, random speed
+            //  in approx. "down" direction
+            Vector2f pos;
+            pos.x = engine.level.landBounds.p1.x
+                + engine.level.landBounds.size.x * engine.rnd.nextDouble();
+            pos.y = 0;
+            //Trace.formatln("{}", pos);
+            sprite.setPos(pos);
+            about.dir = Vector2f(engine.rnd.nextDouble3()*0.7f, 1).normal;
+        } else {
+            //classic airstrike in-a-row positioning, facing down
+            Vector2f pos;
+            float width = params.spawndist * (params.count-1);
+            //center around pointed
+            float x = about.pos.x;
+            if (!about.pointto.isNaN)
+                x = about.pointto.x;
+            pos.x = x - width/2 + params.spawndist * n;
+            pos.y = engine.level.airstrikeY;
+            sprite.setPos(pos);
+            //patch for below *g*, direct into gravity direction
+            about.dir = Vector2f(0, 1);
+        }
     }
 
     //velocity of new object

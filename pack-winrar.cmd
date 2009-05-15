@@ -13,7 +13,7 @@ SET COMPLEVEL=5
 del %DEST%
 
 :: Determine path to WinRAR installation
-for /F "usebackq tokens=1 skip=4 delims=" %%i in (`reg query HKCR\WinRAR\shell\open\command /ve`) do set WRTMP=%%i
+for /F "usebackq tokens=1 delims=" %%i in (`reg query HKCR\WinRAR\shell\open\command /ve`) do set WRTMP=!WRTMP!%%i
 set WRTMP2=!WRTMP:"=|!
 for /F "tokens=2 delims=|" %%i in ("!WRTMP2!") do set WRAR=%%i
 

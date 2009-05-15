@@ -33,8 +33,11 @@ class EarthQuakeForce : PhysicForce {
 
     //is there any force to apply?
     private bool mActive = false;
+    //should objects be made to bounce around? (otherwise, just for the effect)
+    private bool mDoImpulse;
 
-    this () {
+    this (bool doImpulse) {
+        mDoImpulse = doImpulse;
     }
     this (ReflectCtor c) {
     }
@@ -82,8 +85,10 @@ class EarthQuakeForce : PhysicForce {
         //new direction
         //xxx: undeterministic randomness
         //using an angle here is a simple way to create a normalized vector
-        mEarthQuakeImpulse = Vector2f.fromPolar(1.0f,
-            world.rnd.nextDouble() * math.PI * 2.0f) * mEarthQuakeStrength;
+        if (mDoImpulse) {
+            mEarthQuakeImpulse = Vector2f.fromPolar(1.0f,
+                world.rnd.nextDouble() * math.PI * 2.0f) * mEarthQuakeStrength;
+        }
         mEarthQuakeLastChangeTime = 0;
     }
 
@@ -94,12 +99,12 @@ class EarthQuakeForce : PhysicForce {
             updateImpulse(deltaT);
         if (!mActive)
             return;
-        //influence on objects disabled
-        return;
-        //xxx should be applied only to objects on the ground (this is an
-        //    _earth_quake, not a skyquake, but this requires major changes
-        //    in PhysicObject
-        o.addImpulse(mEarthQuakeImpulse);
+        if (mDoImpulse) {
+            //unglue, and throw around if on the ground
+            o.doUnglue();
+            if (o.onSurface)
+                o.addImpulse(mEarthQuakeImpulse);
+        }
     }
 }
 

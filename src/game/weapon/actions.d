@@ -300,6 +300,8 @@ class EarthquakeActionClass : ActionClass {
     float strength = 100.0f;
     bool degrade = true;
     int waterRaise = 0;
+    bool bounce_objects = false;  //throw worms around
+    bool nuke_effect = false;     //display the white-screen effect
     RandomInt durationMs;
 
     //xxx class
@@ -313,6 +315,8 @@ class EarthquakeActionClass : ActionClass {
         strength = node.getValue("strength", strength);
         degrade = node.getValue("degrade", degrade);
         waterRaise = node.getValue("water_raise", waterRaise);
+        bounce_objects = node.getValue("bounce_objects", bounce_objects);
+        nuke_effect = node.getValue("nuke_effect", nuke_effect);
         durationMs = RandomInt(node.getStringValue("duration","1000"), eng.rnd);
     }
 
@@ -341,11 +345,18 @@ class EarthquakeAction : Action {
 
     override protected ActionRes initialStep() {
         super.initialStep();
+        //water raise
         if (myclass.waterRaise > 0) {
             engine.raiseWater(myclass.waterRaise);
         }
+        //earthquake
         engine.addEarthQuake(myclass.strength,
-            timeMsecs(myclass.durationMs.sample()), myclass.degrade);
+            timeMsecs(myclass.durationMs.sample()), myclass.degrade,
+            myclass.bounce_objects);
+        //nuke effect
+        if (myclass.nuke_effect) {
+            engine.callbacks.nukeSplatEffect();
+        }
         return ActionRes.done;
     }
 }
@@ -639,4 +650,3 @@ class AoEDamageAction : AoEAction {
         sprite.physics.addImpulse(Vector2f(0, -1));
     }
 }
-
