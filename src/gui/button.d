@@ -73,8 +73,8 @@ class Button : Label {
     void delegate(Button sender) onRightClick;
     void delegate(Button sender, bool over) onMouseOver;
 
-    this(Font font = null) {
-        super(font);
+    this() {
+        super();
         mAutoRepeatTimer = new Timer(autoRepeatDelay, &autoRepOnTimer);
         //check time since last click; if framerate is too low, click rate also
         //drops (which is good since simulate() will not be called if the Widget

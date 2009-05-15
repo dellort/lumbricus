@@ -1006,6 +1006,9 @@ class Widget {
 
         needRelayout();
     }
+
+    /+protected+/ void onLocaleChange() {
+    }
 }
 
 //only used for Widget.loadFrom(), implemented in loader.d

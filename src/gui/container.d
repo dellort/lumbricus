@@ -623,6 +623,12 @@ class Container : Widget {
         }
     }
 
+    override void onLocaleChange() {
+        foreach (w; children.dup) {
+            w.onLocaleChange();
+        }
+    }
+
     //only intended for debugging; not to subvert any protection
     //rather use this.children() (which is protected)
     void enumChildren(void delegate(Widget w) callback) {

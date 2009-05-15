@@ -878,6 +878,8 @@ class TextColorTest : Task {
     this(TaskManager tm, char[] args = "") {
         super(tm);
 
+        mText = new FormattedText();
+
         auto box = new BoxContainer(false);
         auto e = new EditLine();
         e.onChange = &editChange;

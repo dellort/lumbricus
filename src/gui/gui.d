@@ -3,6 +3,7 @@ module gui.gui;
 import common.config;
 import framework.framework;
 public import framework.event;
+import framework.i18n;
 import gui.widget;
 import gui.container;
 import gui.styles;
@@ -43,6 +44,8 @@ package class MainFrame : SimpleContainer {
 
         doMouseEnterLeave(true); //mous always in, initial event
         pollFocusState();
+
+        gOnChangeLocale ~= &onLocaleChange;
     }
 
     override bool isTopLevel() {

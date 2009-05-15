@@ -12,8 +12,7 @@ import utils.misc;
 
 class Label : Widget {
     private {
-        TrCache mText;
-        Font mFont;
+        FormattedText mText;
         Vector2i mBorder;
         bool mShrink, mCenterX;
         Texture mImage;
@@ -21,7 +20,17 @@ class Label : Widget {
         Vector2i mFinalBorderSize;
         Vector2i mTextSize;
 
+        //only when set by the user
+        bool mUserTextValid, mUserTextMarkup;
+        char[] mUserText;
+
         const cSpacing = 3; //between images and text
+    }
+
+    this() {
+        mText = new FormattedText();
+        mText.font = gFramework.getFont("label_default");
+        mBorder = Vector2i(0,0);
     }
 
     //disgusting hack etc...
@@ -52,37 +61,53 @@ class Label : Widget {
         return mImage;
     }
 
+    private Vector2i textSize() {
+        return mText.textSize(!mImage);
+    }
+
     override Vector2i layoutSizeRequest() {
-        auto csize = mFont.textSize(text, !mImage);
+        auto csize = textSize();
         mTextSize = csize;
         if (mShrink) {
             csize.x = 0;
         }
         if (mImage) {
-            csize.x += mImage.size.x + (text.length ? cSpacing : 0);
+            //(mText.size.x was mText.length)
+            csize.x += mImage.size.x + (mText.size.x ? cSpacing : 0);
             csize.y = max(csize.y, mImage.size.y);
         }
         return csize + border*2;
     }
 
     void text(char[] txt) {
-        if (txt == text)
-            return;
-        mText.text = txt;
+        setText(txt, false);
+    }
+    void textMarkup(char[] txt) {
+        setText(txt, true);
     }
     char[] text() {
-        return mText.text;
+        //don't know, could also just add a mText.text and return that
+        return mUserTextValid ? mUserText : "";
+    }
+    void setText(char[] txt, bool as_markup) {
+        if (mUserTextValid && mUserTextMarkup == as_markup && mUserText == txt)
+            return;
+        mUserTextValid = true;
+        mUserText = txt;
+        mUserTextMarkup = as_markup;
+        mText.setText(txt, as_markup);
+        needResize(true);
     }
 
     void font(Font font) {
         assert(font !is null);
-        if (font is mFont || font.properties == mFont.properties)
+        if (font is mText.font || font.properties == mText.font.properties)
             return;
-        mFont = font;
+        mText.font = font;
         needResize(true);
     }
     Font font() {
-        return mFont;
+        return mText.font;
     }
 
     //(invisible!) border around text (additional to the box)
@@ -110,14 +135,8 @@ class Label : Widget {
         return mCenterX;
     }
 
-    this(Font font = null) {
-        mText = new TrCache();
-        mText.onChange = &trTextChange;
-        mFont = font ? font : gFramework.getFont("label_default");
-        mBorder = Vector2i(0,0);
-    }
-
-    private void trTextChange(TrCache sender) {
+    override void onLocaleChange() {
+        mText.update();
         needResize(true);
     }
 
@@ -128,36 +147,48 @@ class Label : Widget {
         int x = b.x;
         if (mImage) {
             auto s = size - b*2;
-            if (text.length)
+            //(mText.size.x was text.length)
+            if (mText.size.x)
                 s.x = mImage.size.x;
             auto ipos = b + s/2 - mImage.size/2;
             canvas.draw(mImage, ipos);
             x = ipos.x + mImage.size.x + cSpacing;
         }
-        if (!text.length)
-            return;
+        //if (!text.length)
+          //  return;
         Vector2i p = Vector2i(x, b.y);
         if (mCenterX && mTextSize.x <= diff.x)
             p = p + diff/2 - mTextSize/2;
         else
             p.y = p.y + diff.y/2 - mTextSize.y/2;
-        if (!mShrink) {
-            mFont.drawText(canvas, p, text);
-        } else {
-            mFont.drawTextLimited(canvas, p, (size-b*2-p).x, text);
-        }
+        //xxx need replacement for drawTextLimited
+        //    FormattedText should do this all by itself
+        //if (!mShrink) {
+            mText.draw(canvas, p);
+        //} else {
+        //    mFont.drawTextLimited(canvas, p, (size-b*2-p).x, text);
+        //}
     }
 
     override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
 
+        mUserTextValid = false;
+        mText.clear();
+
         auto fnt = gFramework.fontManager.loadFont(
             node.getStringValue("font"), false);
         if (fnt)
-            mFont = fnt;
+            mText.font = fnt;
 
+        //xxx: it would be simpler to read the "locale" field directly, and
+        //     then just concatenate it with the "text" value
         mText.translator = loader.locale();
-        mText.update(node.getStringValue("text"));
+
+        //haw haw... but it's ok?
+        mText.setMarkup(r"\t(" ~ node.getStringValue("text") ~ ")");
+        mText.update();
+
         parseVector(node.getStringValue("border"), mBorder);
         mShrink = node.getBoolValue("shrink", mShrink);
         mCenterX = node.getBoolValue("center_x", mCenterX);

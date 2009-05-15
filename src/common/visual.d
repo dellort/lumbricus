@@ -7,7 +7,7 @@ import utils.misc;
 import utils.rect2;
 import utils.vector2;
 import time = utils.time;
-import i18n = framework.i18n;
+import framework.i18n;
 
 ///draw a box with rounded corners around the specified rect
 ///alpha is unsupported (blame drawFilledRect) and will be ignored
@@ -349,7 +349,7 @@ BoxTex getBox(BoxProps props) {
  + all text rendering stuff into gui/label.d. Now it's here again, and if \image
  + gets implemented, label.d will be only a wrapper for this... LOL
  +/
-public struct FormattedText { //xxx make a class?
+public class FormattedText {
     private {
         struct Style {
             Font font;
@@ -361,6 +361,9 @@ public struct FormattedText { //xxx make a class?
             char[] text;
             bool newline; //this Part starts a new line
         }
+        char[] mText;
+        bool mTextIsFormatted; //mText; false: setLiteral(), true: setMarkup()
+        Translator mTranslator;
         Style mRootStyle; //style at start
         Part[] mParts;
         Vector2i mSize;
@@ -368,19 +371,42 @@ public struct FormattedText { //xxx make a class?
         Style[] mStyleStack; //[$-1] contains current style, assert(length > 0)
     }
 
+    this() {
+        mRootStyle.font = gFramework.fontManager.loadFont("default");
+        mTranslator = localeRoot();
+    }
+
     /+void opAssign(char[] txt) {
         setMarkup(txt);
     }+/
 
-    void setFont(Font f) {
-        //"root" style
-        //xxx need to reparse, else no effect
+    void font(Font f) {
+        assert(!!f);
         mRootStyle.font = f;
+        update();
+    }
+    Font font() {
+        return mRootStyle.font;
+    }
+
+    //clear text
+    void clear() {
+        setLiteral("");
+    }
+
+    //retranslate / restlye / internal reparse
+    void update() {
+        auto tmp = mText;
+        //clear => defeat change detection (although that isn't implemented yet)
+        mText = null;
+        if (mTextIsFormatted) {
+            setMarkup(tmp);
+        } else {
+            setLiteral(tmp);
+        }
     }
 
     private void doInit() {
-        if (!mRootStyle.font)
-            mRootStyle.font = gFramework.fontManager.loadFont("default");
         mStyleStack.length = 1;
         mStyleStack[0] = mRootStyle;
         mParts.length = 1;
@@ -571,7 +597,7 @@ public struct FormattedText { //xxx make a class?
         } else if (tryeat("t")) {
             char[] t;
             if (readbracket(t))
-                parseLiteral(i18n.gLocaleRoot(t));
+                parseLiteral(mTranslator(t));
         } else {
             error("unknown command");
         }
@@ -581,6 +607,8 @@ public struct FormattedText { //xxx make a class?
 
     //set text, that can contain commands as described in the class doc
     void setMarkup(char[] txt) {
+        mText = txt;
+        mTextIsFormatted = true;
         doInit();
         while (txt.length > 0) {
             auto stuff = split2(txt, '\\');
@@ -595,9 +623,28 @@ public struct FormattedText { //xxx make a class?
 
     //normal text rendering, no parsing at all (just utf8 and raw line breaks)
     void setLiteral(char[] txt) {
+        mText = txt;
+        mTextIsFormatted = false;
         doInit();
         parseLiteral(txt);
         layout();
+    }
+
+    void setText(char[] txt, bool as_markup) {
+        if (as_markup) {
+            setMarkup(txt);
+        } else {
+            setLiteral(txt);
+        }
+    }
+
+    void translator(Translator t) {
+        assert(!!t);
+        mTranslator = t;
+        update();
+    }
+    Translator translator() {
+        return mTranslator;
     }
 
     //init the Part.pos (and mSize and Part.size) fields for mParts
@@ -663,5 +710,8 @@ public struct FormattedText { //xxx make a class?
         } else {
             return mSize;
         }
+    }
+    Vector2i size() {
+        return textSize();
     }
 }

@@ -4,6 +4,7 @@ import framework.filesystem;
 import utils.configfile;
 import utils.log;
 import utils.misc;
+import utils.md;
 import utils.weaklist;
 import str = stdx.string;
 import tango.util.Convert;
@@ -27,6 +28,9 @@ private ConfigLoaderDg gConfigLoader;
 public char[] gCurrentLanguage;
 //fallback locale, in case the main locale file is not found
 public char[] gFallbackLanguage;
+
+//called when the language is changed
+public MDelegate!() gOnChangeLocale;
 
 private Log log;
 
@@ -319,91 +323,6 @@ public class Translator {
     }
 }
 
-//xxx Just a not-so-well-thought-through idea of how to update previous
-//    translations on locale change
-//The problem is that at the time of a locale change, we probably don't have
-//  the id or parameters originally used when translating, and would need
-//  to reload the GUI config files oslt; so this class caches the data
-//  of the first translation and automatically updates the text
-//  when the locale changes
-private WeakList!(TrCache) trCacheList;
-class TrCache {
-    private {
-        char[] mText;     //current (possibly translated) string
-        bool mTranslated; //if mText was directly assigned or translated by mId
-        Translator mTr;
-        char[] mId;
-        TypeInfo[] mArguments;
-        va_list mArgptr;
-    }
-
-    void delegate(TrCache sender) onChange;
-
-    this(Translator tr = null) {
-        translator = tr;
-        //store reference for retranslation
-        trCacheList.add(this);
-    }
-
-    ~this() {
-        trCacheList.remove(this, true);
-    }
-
-    char[] text() {
-        return mText;
-    }
-    //set mText to a normal, not-translated string
-    void text(char[] t) {
-        if (mText == t)
-            return;
-        mText = t;
-        mTranslated = false;
-        if (onChange)
-            onChange(this);
-    }
-    void opAssign(char[] t) {
-        text(t);
-    }
-
-    Translator translator() {
-        return mTr;
-    }
-    void translator(Translator newTr) {
-        if (!newTr)
-            newTr = gLocaleRoot;
-        assert(!!newTr);
-        mTr = newTr;
-    }
-
-    char[] id() {
-        return mId;
-    }
-
-    //update cached data and retranslate
-    void update(char[] id, ...) {
-        updatefx(id, _arguments, _argptr);
-    }
-
-    void updatefx(char[] id, TypeInfo[] arguments, va_list argptr) {
-        if (id.length == 0)
-            return;
-        mId = id;
-        mArguments = arguments;
-        mArgptr = argptr;
-        mTranslated = true;
-        translate();
-    }
-
-    private void translate() {
-        assert(!!mTr);
-        if (!mTranslated)
-            return;
-        mText = mTr.translatefx(mId, mArguments, mArgptr);
-        if (onChange)
-            onChange(this);
-    }
-}
-
 ///Init translations.
 ///localePath: Path in VFS where locale files are stored (<langId>.conf)
 ///locale-specific files in <localePath>/<langId> will be mounted to root
@@ -425,15 +344,12 @@ public void initI18N(char[] localePath, char[] lang, char[] fallbackLang,
     gFallbackLanguage = fallbackLang;
     if (!gLocaleRoot) {
         createdTranslators = new typeof(createdTranslators);
-        trCacheList = new typeof(trCacheList);
         gLocaleRoot = new Translator(localePath);
     } else {
         foreach (tr; createdTranslators.list) {
             tr.reinit();
         }
-        foreach (trc; trCacheList.list) {
-            trc.translate();
-        }
+        gOnChangeLocale();
     }
 }
 
