@@ -37,8 +37,11 @@ class NetworkHud : SimpleContainer {
 
         //centered "waiting for server"
         mLagLabel = new Label();
+        mLagLabel.styles.id = "netlaglabel";
+        auto p = mLagLabel.font.properties;
+        p.fore = Color(0.8);
+        mLagLabel.font = new Font(p);
         mLagLabel.text = _("nethud.waitingforserver");
-        mLagLabel.fontCustomColor = Color(0.8);
         mErrorFrame.add(mLagLabel, WidgetLayout.Aligned(0, 0));
 
         //centered box with disconnected message and close button

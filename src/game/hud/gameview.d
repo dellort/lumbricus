@@ -327,18 +327,14 @@ private class ViewMember {
             mooh(showLabels && isActiveWorm, arrow);
 
             //flash label color to white for active worm
-            void flashCol(Color c) {
-                wormName.fontCustomColor = c;
-                wormTeam.fontCustomColor = c;
-                wormPoints.fontCustomColor = c;
+            void flash(bool on) {
+                Font f = on ? member.owner.font_flash : member.owner.font;
+                wormName.font = f;
+                wormTeam.font = f;
+                wormPoints.font = f;
             }
-            if (tlv && isActiveWorm
-                && cast(int)(owner.mGame.clientTime.current.secsf*2)%2 == 0)
-            {
-                flashCol(Color(1));
-            } else {
-                flashCol(Color.Invalid);
-            }
+            flash(tlv && isActiveWorm
+                && cast(int)(owner.mGame.clientTime.current.secsf*2)%2 == 0);
 
             //for healthHint
             //I simply trigger it when the health value changes, and

@@ -52,8 +52,9 @@ class PrepareDisplay : Label {
             //little hack to show correct time
             Time pt = st.prepareRemaining - timeMsecs(1);
             float pt_secs = pt.secs >= 0 ? pt.secsf+1 : 0;
-            fontCustomColor = (cast(int)(pt_secs*2)%2 == 0)
-                ? mGame.teams[curTeam].color : Color.Invalid;
+            auto t = mGame.teams[curTeam];
+            font = (cast(int)(pt_secs*2)%2 == 0)
+                ? t.font_flash : t.font;
 
             visible = true;
             char[] teamName = curTeam.name;

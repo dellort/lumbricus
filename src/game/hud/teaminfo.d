@@ -53,6 +53,7 @@ class TeamInfo {
     Team team;
     Color color;
     Font font;
+    Font font_flash; //when worm label is highlighted for blinking
     TeamTheme theme; //game theme, partially used by the GUI
     //NOTE: in the game, foreign objects could appear, with are member of a team
     // (like the supersheep), these are not in this list
@@ -86,6 +87,9 @@ class TeamInfo {
         auto st = gFramework.fontManager.getStyle("wormfont");
         st.fore = color;
         font = new Font(st);
+        auto st_flash = st;
+        st_flash.fore = Color(1);
+        font_flash = new Font(st_flash);
 
         foreach (m; t.getMembers()) {
             auto member = new TeamMemberInfo(this, m);

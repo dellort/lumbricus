@@ -444,7 +444,6 @@ class TestTask2 : Task {
 
     class FontTest : Widget {
         FontProperties font;
-        FontColors colors;
         Color clear;
         Font f;
 
@@ -462,21 +461,21 @@ class TestTask2 : Task {
             //font size isn't in pixels, but in "points"
             //no idea how to convert these
             font.size = size.y-cBorder.y*4;
-            if (!f || font.size != f.properties.size
-                || font.border_width != f.properties.border_width)
-            {
-                Trace.formatln("New Font");
+            //if (!f || font.size != f.properties.size
+            //    || font.border_width != f.properties.border_width)
+            //{
+            //    Trace.formatln("New Font");
                 auto oldf = f;
                 f = new Font(font);
                 if (oldf) {
                     oldf.free();
                 }
-            }
+            //}
         }
 
         override void onDraw(Canvas c) {
             c.drawFilledRect(Vector2i(0), size, clear);
-            f.drawText(c, cBorder, "Ab", colors);
+            f.drawText(c, cBorder, "Ab");
         }
     }
 
@@ -500,13 +499,13 @@ class TestTask2 : Task {
         float getcolor(int n) {
             return mBars[n].curValue/255.0f;
         }
-        mFont.colors.fore = Color(1,1,1,getcolor(0));
-        mFont.colors.back.a = 0; //getcolor(1);
-        mFont.colors.border_color = Color(0.5,1.0,0.5,getcolor(1));
+        mFont.font.fore = Color(1,1,1,getcolor(0));
+        mFont.font.back.a = 0; //getcolor(1);
+        mFont.font.border_color = Color(0.5,1.0,0.5,getcolor(1));
         mFont.font.border_width = mBars[4].curValue;
         mFont.updateFont();
-        mBox.box.border = mFont.colors.border_color;
-        mBox.box.back = mFont.colors.fore;
+        mBox.box.border = mFont.font.border_color;
+        mBox.box.back = mFont.font.fore;
         mBox.box.cornerRadius = mBars[3].curValue;
         mBox.box.borderWidth = mFont.font.border_width;
         Color clear = Color(1.0f,1.0-getcolor(2),1.0-getcolor(2));

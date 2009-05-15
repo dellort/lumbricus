@@ -53,12 +53,6 @@ struct FontProperties {
     }
 }
 
-struct FontColors {
-    Color fore = Color.Invalid;
-    Color back = Color.Invalid;
-    Color border_color = Color.Invalid;
-}
-
 class Font {
     private {
         FontProperties mProps;
@@ -93,31 +87,29 @@ class Font {
 
     /// draw UTF8 encoded text (use framework singleton to instantiate it)
     /// returns position beyond last drawn glyph
-    Vector2i drawText(Canvas canvas, Vector2i pos, char[] text,
-        FontColors colors = FontColors.init)
-    {
+    Vector2i drawText(Canvas canvas, Vector2i pos, char[] text) {
         prepare();
-        return drawTextLimited(canvas, pos, int.max, text, colors);
+        return drawTextLimited(canvas, pos, int.max, text);
     }
 
     /// like drawText(), but try not to draw beyond "width"
     /// instead the text is cut and, unlike clipping, will be ended with "..."
     Vector2i drawTextLimited(Canvas canvas, Vector2i pos, int width,
-        char[] text, FontColors colors = FontColors.init)
+        char[] text)
     {
         prepare();
         if (width == int.max) {
-            return mFont.draw(canvas, pos, width, text, colors);
+            return mFont.draw(canvas, pos, width, text);
         } else {
             Vector2i s = textSize(text, true);
             if (s.x <= width) {
-                return mFont.draw(canvas, pos, width, text, colors);
+                return mFont.draw(canvas, pos, width, text);
             } else {
                 char[] dotty = "...";
                 int ds = textSize(dotty, true).x;
                 width -= ds;
-                pos = mFont.draw(canvas, pos, width, text, colors);
-                pos = mFont.draw(canvas, pos, ds, dotty, colors);
+                pos = mFont.draw(canvas, pos, width, text);
+                pos = mFont.draw(canvas, pos, ds, dotty);
                 return pos;
             }
         }
@@ -316,8 +308,7 @@ class FontManager {
 abstract class DriverFont {
     //w == int.max for unlimited text
     //fore, back, border_color: Color.Invalid to use predefined color
-    abstract Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text,
-        ref FontColors colors);
+    abstract Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text);
 
     abstract Vector2i textSize(char[] text, bool forceHeight);
 

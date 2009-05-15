@@ -90,10 +90,11 @@ class MessageViewer : Label {
             //put new message
             auto curMsg = mMessages.pop();
             text = curMsg.text;
+            auto t = mGame.teams[curMsg.teamForColor];
             if (curMsg.teamForColor) {
-                fontCustomColor = curMsg.teamForColor.color.color;
+                font = t.font_flash; //??? not really?
             } else {
-                fontCustomColor = Color.Invalid;
+                font = t.font;
             }
             //xxx additional -2 for border size
             mInterp.init(timeSecs(1.5f),

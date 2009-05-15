@@ -20,7 +20,6 @@ class Label : Widget {
         //calculated by layoutSizeRequest
         Vector2i mFinalBorderSize;
         Vector2i mTextSize;
-        FontColors mFontColors;
 
         const cSpacing = 3; //between images and text
     }
@@ -77,15 +76,13 @@ class Label : Widget {
 
     void font(Font font) {
         assert(font !is null);
+        if (font is mFont || font.properties == mFont.properties)
+            return;
         mFont = font;
         needResize(true);
     }
     Font font() {
         return mFont;
-    }
-
-    void fontCustomColor(Color col) {
-        mFontColors.fore = col;
     }
 
     //(invisible!) border around text (additional to the box)
@@ -145,10 +142,9 @@ class Label : Widget {
         else
             p.y = p.y + diff.y/2 - mTextSize.y/2;
         if (!mShrink) {
-            mFont.drawText(canvas, p, text, mFontColors);
+            mFont.drawText(canvas, p, text);
         } else {
-            mFont.drawTextLimited(canvas, p, (size-b*2-p).x, text,
-                mFontColors);
+            mFont.drawTextLimited(canvas, p, (size-b*2-p).x, text);
         }
     }
 

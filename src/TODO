@@ -31,7 +31,7 @@
 + richtige GUI listen
 + key bindings editor
 + flash-artiges System für GUI-Animationen (widget einem pfad folgen lassen)
-[* CSS-artige formatierungen für GUI]
+! styles system neuschreiben, fonts einschliessen, :blink state
 - button für windows pinnen/entpinnen
 *** GUI enthässlichen
 

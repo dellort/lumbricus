@@ -297,8 +297,6 @@ class FTGlyphCache {
 class FTFont : DriverFont {
     private {
         FTGlyphCache mCache;     //"main" cache, for font in mProps
-        FTGlyphCache[] mRefList; //additional caches that may be allocated
-                                 //for color overrides in draw()
         FontProperties mProps;
     }
 
@@ -309,22 +307,20 @@ class FTFont : DriverFont {
         mProps = props;
     }
 
-    private void drawGlyph(Canvas c, GlyphData* glyph, Vector2i pos,
-        ref FontColors colors)
-    {
+    private void drawGlyph(Canvas c, GlyphData* glyph, Vector2i pos) {
         void setColor(Color col) {
             if (c.features() & DriverFeatures.usingOpenGL)
                 glColor4fv(col.ptr);
         }
 
-        if (colors.back.a > 0)
-            c.drawFilledRect(Rect2i.Span(pos, glyph.size), colors.back);
+        if (mProps.back.a > 0)
+            c.drawFilledRect(Rect2i.Span(pos, glyph.size), mProps.back);
 
-        setColor(colors.fore);
+        setColor(mProps.fore);
         glyph.tex.draw(c, pos+glyph.offset);
 
         if (glyph.border.surface) {
-            setColor(colors.border_color);
+            setColor(mProps.border_color);
             glyph.border.draw(c, pos+glyph.border_offset);
         }
 
@@ -332,57 +328,33 @@ class FTFont : DriverFont {
         setColor(Color(1, 1, 1));
     }
 
-    Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text,
-        ref FontColors colors)
-    {
-        auto cache = mCache;
-        if ((colors.fore.valid || colors.border_color.valid)
-            && !(canvas.features() & DriverFeatures.usingOpenGL))
-        {
-            //in SDL mode, we can't colorize surfaces, so if fore or border
-            //  shall be changed, we need to create a new glyph cache
-            FontProperties tmp = mProps;
-            if (colors.fore.valid)
-                tmp.fore = colors.fore;
-            if (colors.border_color.valid)
-                tmp.border_color = colors.border_color;
-            //maybe the user specified the current colors
-            if (tmp != mProps) {
-                //find matching cache (increases refCount)
-                cache = mCache.mDriver.getCache(tmp);
-                //look if we requested this cache before
-                bool alreadyReffed = false;
-                foreach (ftgc; mRefList) {
-                    if (ftgc is cache) {
-                        alreadyReffed = true;
-                        break;
-                    }
-                }
-                if (alreadyReffed) {
-                    //Hack: we already had this one before, fix ref counter
-                    cache.refcount--;
-                } else {
-                    //store for font release
-                    mRefList ~= cache;
-                }
-            }
-        }
-        //back color can be changed at no cost even in SDL mode
-        if (!colors.back.valid)
-            colors.back = mProps.back;
-        if (!colors.fore.valid)
-            colors.fore = mProps.fore;
-        if (!colors.border_color.valid)
-            colors.border_color = mProps.border_color;
+    Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text) {
         int orgx = pos.x;
         foreach (dchar c; text) {
-            auto glyph = cache.getGlyph(c);
+            auto glyph = mCache.getGlyph(c);
             auto npos = pos.x + glyph.size.x;
             if (npos - orgx > w)
                 break;
-            drawGlyph(canvas, glyph, pos, colors);
+            drawGlyph(canvas, glyph, pos);
             pos.x = npos;
         }
+
+        //it seems we really must draw this ourselves
+        if (mProps.underline) {
+            int lh = mCache.mUnderlineHeight;
+            int u_y = pos.y + mCache.mBaseline - mCache.mUnderlineOffset;
+            //border for underline
+            //xxx: not correctly composited with foreground line (but who cares)
+            int b = mProps.border_width;
+            if (b > 0) {
+                canvas.drawLine(Vector2i(orgx - b/2, u_y),
+                    Vector2i(pos.x + b/2, u_y), mProps.border_color, lh + b);
+            }
+            //normal underline
+            canvas.drawLine(Vector2i(orgx, u_y), Vector2i(pos.x, u_y),
+                mProps.fore, lh);
+        }
+
         return pos;
     }
 
@@ -454,6 +426,7 @@ class FTFontDriver : FontDriver {
             gc_props.fore = Color(1, 1, 1, gc_props.fore.a);   //white
             gc_props.border_color = Color(1, 1, 1, gc_props.border_color.a);
         }
+        gc_props.underline = false; //rendered by us, is not in glyph bitmaps
         //background is rendered separately, exclude from AA key
         gc_props.back = Color.init;
 
@@ -478,9 +451,6 @@ class FTFontDriver : FontDriver {
             assert(handle.refcount == 0);
             mFonts.remove(p);
             derefCache(handle.mCache);
-            foreach (c; handle.mRefList) {
-                derefCache(c);
-            }
         }
         a_handle = null;
     }
