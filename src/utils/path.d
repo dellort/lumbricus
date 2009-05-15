@@ -4,6 +4,7 @@ import str = stdx.string;
 import tango.io.model.IFile : FileConst;
 import path = tango.io.Path;
 import tfs = tango.io.FileSystem;
+import tango.sys.Environment : Environment;
 import tango.util.PathUtil;
 import tango.io.FilePath;
 
@@ -45,7 +46,7 @@ char[] getAppPath(char[] arg0) {
     char[] appPath;
     //on win and lin, args[0] is the (sometimes relative to cwd, sometimes
     //  absolute) path to the executable
-    char[] curDir = addTrailingPathDelimiter(tfs.FileSystem.getDirectory());
+    char[] curDir = addTrailingPathDelimiter(Environment.cwd());
     auto exePath = new FilePath(arg0);
     if (exePath.isAbsolute()) {
         //sometimes, the path is absolute

@@ -5,7 +5,8 @@ version = BCTango;
 
 version(BCTango) {
 
-import tango.net.Socket;
+import tango.net.device.Socket;
+import tango.net.device.Berkeley; //????!!! lol tango
 import net.iflist;
 
 //sorry for that (->no converting the address to string and back just for reply)
@@ -37,12 +38,12 @@ class NetBroadcast {
             ProtocolType.UDP);
         if (server) {
             //multiple servers on same port
-            mSocket.setAddressReuse(true);
+            mSocket.native.setAddressReuse(true);
             mSocket.bind(new IPv4Address(port));
         } else {
             int[1] i = 1;
-            mSocket.setOption(SocketOptionLevel.SOCKET,
-                SocketOption.SO_BROADCAST, i);
+            mSocket.native.setOption(SocketOptionLevel.SOCKET,
+                SocketOption.BROADCAST, i);
         }
     }
 
@@ -50,11 +51,11 @@ class NetBroadcast {
         if (!mSocket)
             return;
         scope ssread = new SocketSet();
-        ssread.add(mSocket);
+        ssread.add(mSocket.native);
         //no blocking
         timeval tv = timeval(0, 0);
-        int sl = Socket.select(ssread, null, null, &tv);
-        if (sl > 0 && ssread.isSet(mSocket)) {
+        int sl = SocketSet.select(ssread, null, null, &tv);
+        if (sl > 0 && ssread.isSet(mSocket.native)) {
             serviceOne();
         }
     }
@@ -63,8 +64,8 @@ class NetBroadcast {
     void serviceOne() {
         if (!mSocket)
             return;
-        auto from = new IPv4Address();
-        int len = mSocket.receiveFrom(mBuffer, from);
+        auto from = new IPv4Address(666); //?!?!?!?214ghosevgtyi3hi8
+        int len = mSocket.native.receiveFrom(mBuffer, from);
         if (len > 0 && len < cBufSize && onReceive)
             onReceive(this, mBuffer[0..len], from);
     }
@@ -73,7 +74,7 @@ class NetBroadcast {
     void send(ubyte[] data, BCAddress dest) {
         if (!mSocket)
             return;
-        mSocket.sendTo(data, dest);
+        mSocket.native.sendTo(data, dest);
     }
 
     //broadcast message
@@ -87,7 +88,7 @@ class NetBroadcast {
         //  set the sender address to the first interface, and packets on other
         //  interfaces will contain the wrong sender address
         foreach (addr; mAddresses) {
-            mSocket.sendTo(data, addr);
+            mSocket.native.sendTo(data, addr);
         }
     }
 

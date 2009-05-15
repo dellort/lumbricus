@@ -16,4 +16,3 @@ We used this to simplify porting our code from Phobos -> Tango.
 - stdx.stream: wraps Tango I/O, actual porting doesn't seem it worth
 - stdx.string: too trivial and too heavily used to port (also Tango API sucks)
 - stdx.utf: sorry, Tango makes it too complicated
-- stdx.demangle: no Tango equivalent (yet?)

@@ -3,7 +3,8 @@ module net.iflist;
 //This file contains highly platform dependant, hacky code to get the
 //broadcast addresses of all network interfaces in the system
 
-import tango.net.Socket;
+import tango.net.device.Socket;
+import tango.net.device.Berkeley;
 import tango.sys.Common;
 
 private struct sockaddr_in {
