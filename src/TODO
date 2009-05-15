@@ -24,6 +24,7 @@
 - Kontrolle wird nicht genommen, wenn man ein Höhlenlevel nach links/rechts verlässt
 - Unterwasser-Waffen kollidieren mit der versunkenen, unsichtbaren Landschaft
 ! Würmer/Objekte springen aus dem Wasser raus (mit Sink-Animation)
+  -- brauchen reproduzierbaren test dafür, z.b. spezielles level
 
 
 == GUI (allgemeine Features) ==

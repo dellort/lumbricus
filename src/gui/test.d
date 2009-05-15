@@ -860,20 +860,20 @@ class OffByOneTest : Task {
 }
 
 class TextColorTest : Task {
-    ColoredText mText;
+    FormattedText mText;
 
     class W : Widget {
-        Font mFont;
         this() {
-            mFont = gFramework.fontManager.loadFont("normal");
         }
         override void onDraw(Canvas c) {
-            this.outer.mText.draw(mFont, c, Vector2i(1, 1));
+            c.drawRect(Vector2i(0), this.outer.mText.textSize() + Vector2i(2),
+                Color(1,0,0));
+            this.outer.mText.draw(c, Vector2i(1));
         }
     }
 
     private void editChange(EditLine sender) {
-        mText = sender.text;
+        mText.setMarkup(sender.text);
     }
 
     this(TaskManager tm, char[] args = "") {
@@ -882,7 +882,7 @@ class TextColorTest : Task {
         auto box = new BoxContainer(false);
         auto e = new EditLine();
         e.onChange = &editChange;
-        e.text = r"\cff0000Red\c00ff00Green\cffff00Yellow";
+        e.text = r"hi\c(a=0.5)half alpha \r\{\bbold\} \t(gui.cancel)\n\s(200 %)\blink\c(red)\border-color(blue)\border-width(4)LOL\r\s(-10 %)oh god wtf";
         editChange(e);
         box.add(e);
         box.add(new W());

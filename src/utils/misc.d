@@ -37,6 +37,24 @@ bool endsWith(char[] str, char[] suffix) {
     return str[$-suffix.length..$] == suffix;
 }
 
+//return an array of length 2 (actual return type should be char[][2])
+//result[1] contains everything in txt after (and including) find
+//result[0] contains the rest (especially if nothing found)
+//  split2("abcd", 'c') == ["ab", "cd"]
+//  split2("abcd", 'x') == ["abcd", ""]
+//(sadly allocates memory for return array)
+char[][] split2(char[] txt, char find) {
+    int idx = str.find(txt, find);
+    char[] before = txt[0 .. idx >= 0 ? idx : $];
+    char[] after = txt[before.length .. $];
+    return [before, after];
+}
+
+unittest {
+    assert(split2("abcd", 'c') == ["ab", "cd"]);
+    assert(split2("abcd", 'x') == ["abcd", ""]);
+}
+
 //clamp to closed range, i.e. val is adjusted so that it fits into [low, high]
 T clampRangeC(T)(T val, T low, T high) {
     if (val > high)

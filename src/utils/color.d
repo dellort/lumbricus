@@ -190,20 +190,25 @@ public struct Color {
     /++
      + parse color from string s and replace r/g/b/a values
      + formats:
-     +  <float> <float> <float> [<float>]: rgb or rgba directly (deprecated)
-     +  [<ext> (',' <ext>)*]
-     +    <ext> ::= <colorname> | ('r'|'g'|'b'|'a'|'k' = <float>)
+     +  1) <float> <float> <float> [<float>]: rgb or rgba directly (deprecated)
+     +  2) [<ext> (',' <ext>)*]
+     +    <ext> ::= <colorname> | ('r'|'g'|'b'|'a'|'k' '=' <float>)
      +    single components, or a colorname to set all components (if components
      +    are assigned more than once, the latest values are used)
      +    'k' means to set rgb to the given float value
+     +  3) hex format, RRGGBB[AA], e.g. 00ff00
+     + On failure, this isn't touched!
+     + Previous member values of Color are used, if the color spec is
+     + incomplete, e.g. "a=0.5" will simply do this.a = 0.5f;
      +/
     bool parse(char[] s) {
+        Color newc = *this;
+
         //old parsing
 
         char[][] values = str.split(s);
         if (values.length == 3 || values.length == 4) {
             try {
-                Color newc;
                 newc.r = toFloat(values[0]);
                 newc.g = toFloat(values[1]);
                 newc.b = toFloat(values[2]);
@@ -217,9 +222,14 @@ public struct Color {
             }
         }
 
+        //hex format
+        if (newc.parseHex(s) > 0) {
+            *this = newc;
+            return true;
+        }
+
         //new parsing
 
-        *this = Color.init;
         char[][] stuff = str.split(s, ",");
 
         if (stuff.length == 0)
@@ -231,7 +241,7 @@ public struct Color {
                 auto pcolor = str.tolower(str.strip(sub[0])) in gColors;
                 if (!pcolor)
                     return false;
-                *this = *pcolor;
+                newc = *pcolor;
             } else if (sub.length == 2) {
                 float val;
                 try {
@@ -240,11 +250,11 @@ public struct Color {
                     return false;
                 }
                 switch (str.strip(sub[0])) {
-                    case "r": r = val; break;
-                    case "g": g = val; break;
-                    case "b": b = val; break;
-                    case "a": a = val; break;
-                    case "k": r = g = b = val; break;
+                    case "r": newc.r = val; break;
+                    case "g": newc.g = val; break;
+                    case "b": newc.b = val; break;
+                    case "a": newc.a = val; break;
+                    case "k": newc.r = newc.g = newc.b = val; break;
                     default:
                         return false;
                 }
@@ -253,6 +263,7 @@ public struct Color {
             }
         }
 
+        *this = newc;
         return true;
     }
 

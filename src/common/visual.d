@@ -6,6 +6,8 @@ import utils.configfile : ConfigNode;
 import utils.misc;
 import utils.rect2;
 import utils.vector2;
+import time = utils.time;
+import i18n = framework.i18n;
 
 ///draw a box with rounded corners around the specified rect
 ///alpha is unsupported (blame drawFilledRect) and will be ignored
@@ -290,75 +292,376 @@ BoxTex getBox(BoxProps props) {
     return boxes[orgprops];
 }
 
-//Parses a string like
-//  Foo\cff0000Bar\rBlub,
-//stores the result and draws it to a Canvas
-struct ColoredText {
+/++
+ + Parses a string like
+ +  Foo\c(ff0000)Bar\rBlub,
+ + stores the result and draws it to a Canvas
+ + the string can contain line breaks (then the text has... multiple line)
+ + parse errors insert error messages into the rendered text
+ + xxx it would be good, if the parser wouldn't need to know about the commands,
+ +     right now, to parse "bla\bbla", you obviously need to know that \b is a
+ +     command, and that it stops right before the second "bla".
+ + xxx slightly duplicated functionality with GUI styles
+ + commands:
+ +  \c(color-spec)
+ +    Text is painted in this color, until something else changes the color
+ +    again. For color-spec see Color.parse().
+ +  \back(color-spec)
+ +    Like \c, but set back color.
+ +  \b \i \u
+ +    Set bold, italic, underline to true.
+ +  \s(size-spec)
+ +    Set font size. size-spec is <signed integer> ['%']. % means relative size.
+ +    e.g. "\s(16)Text in 16pt. \s(-10%)Now 10% smaller."
+ +  \border-width(size-spec)  \border-color(color-spec)
+ +    border_width and border_color.
+ +  \r
+ +    Reset the font to the previous style.
+ +    If there was a \{, set style as if you'd do \} (but without poping stack)
+ +    If the stack is empty, set to default font.
+ +  \{  \}
+ +    Push/pop the font style to the stack.
+ +    e.g. "\{\c(red)This is red.\}This not."
+ +    (oh god, maybe we should just use Tango's XML parser.)
+ +    (or use { } directly?)
+ +  \\
+ +    Output a \
+ +  \n
+ +    Output a line break. (But the string can contain raw line breaks, too.)
+ +  \t(text)
+ +    Translate the text using i18n stuff. No parameters yet...
+ +    Resulting translation is included literally.
+ +  \lit<char>text<char>
+ +    Include the text included between the given char as literal.
+ +    e.g. "\lit+I'm \bliteral!+" the \b tag isn't parsed.
+ +  \blink
+ +    Annoy the user.
+ + Extension ideas: (not implemented!)
+ +  \image(ref)
+ +    Include the referenced image (either a resource, or added by the user)
+ +  \include(ref)  \literal-include(ref)
+ +    User can set external text by ColoredText.setRef(123, "text"), and this
+ +    gets parsed (or included literally without parsing.)
+ +  Refs for \t, including params, a la \t(ref, ref2, ref3)
+ +  Optionally parse translated text with formatting tags.
+ +
+ + Historical note: we had something like this once here; then I decided to move
+ + all text rendering stuff into gui/label.d. Now it's here again, and if \image
+ + gets implemented, label.d will be only a wrapper for this... LOL
+ +/
+public struct FormattedText { //xxx make a class?
     private {
+        struct Style {
+            Font font;
+            bool blink;
+        }
         struct Part {
+            Style style;
+            Vector2i pos, size;
             char[] text;
-            Color c = Color.Invalid;
+            bool newline; //this Part starts a new line
         }
+        Style mRootStyle; //style at start
         Part[] mParts;
+        Vector2i mSize;
+        //only during parsing
+        Style[] mStyleStack; //[$-1] contains current style, assert(length > 0)
     }
 
-    static ColoredText opCall(char[] txt) {
-        ColoredText ret;
-        ret.parse(txt);
-        return ret;
+    /+void opAssign(char[] txt) {
+        setMarkup(txt);
+    }+/
+
+    void setFont(Font f) {
+        //"root" style
+        //xxx need to reparse, else no effect
+        mRootStyle.font = f;
     }
 
-    void opAssign(char[] txt) {
-        parse(txt);
-    }
-
-    void parse(char[] txt) {
+    private void doInit() {
+        if (!mRootStyle.font)
+            mRootStyle.font = gFramework.fontManager.loadFont("default");
+        mStyleStack.length = 1;
+        mStyleStack[0] = mRootStyle;
         mParts.length = 1;
-        mParts[0] = Part.init;
-        for (int i = 0; i < txt.length; i++) {
-            if (txt[i] == '\\') {
-                //escape sequence; rule is to output as-is if it can't be parsed
-                if (i+7 < txt.length && txt[i+1] == 'c') {
-                    // \crrggbbaa, ex. \c00ff00 or \c00ff00ff
-                    Color nextColor;
-                    int n = nextColor.parseHex(txt[i+2..$]);
-                    if (n > 0) {
-                        //color parsed ok, apply for next part
-                        i += n+1;
-                        mParts.length = mParts.length + 1;
-                        mParts[$-1].c = nextColor;
-                        continue;
-                    }
-                }
-                if (i+1 < txt.length && txt[i+1] == 'r') {
-                    // \r to reset color
-                    i++;
-                    mParts.length = mParts.length + 1;
-                    //leave as Part.init
-                    continue;
-                }
+        mParts[0].style = mStyleStack[0];
+        mParts[0].text = null;
+    }
+
+    //call this after you change the current style
+    //(the current style is in mStylesStack[$-1])
+    //also can be used to simply start a new Part
+    private void stylechange() {
+        mParts.length = mParts.length + 1;
+        mParts[$-1].style = mStyleStack[$-1];
+    }
+
+    //utf-8 and line breaks
+    private void parseLiteral(char[] txt) {
+        while (txt.length) {
+            char[][] breaks = split2(txt, '\n');
+            mParts[$-1].text ~= breaks[0];
+            txt = null;
+            if (breaks[1].length) {
+                stylechange();
+                mParts[$-1].newline = true;
+                txt = breaks[1][1..$];
             }
-            mParts[$-1].text ~= txt[i];
         }
     }
 
-    //behaves like Font.drawText
-    Vector2i draw(Font f, Canvas c, Vector2i pos) {
-        FontColors fcols;
-        foreach (ref p; mParts) {
-            fcols.fore = p.c;
-            pos = f.drawText(c, pos, p.text, fcols);
+    //parse a command (without the \), and return all text following it
+    private char[] parseCmd(char[] txt) {
+        //--- parser helpers
+
+        void error(char[] msg) {
+            //hmmm
+            Part pmsg;
+            pmsg.style.font = gFramework.fontManager.loadFont("txt_error");
+            pmsg.text = "[" ~ msg ~ "]";
+            mParts ~= pmsg;
+            stylechange(); //following text has not error style
         }
-        return pos;
+
+        bool tryeat(char[] t) {
+            if (!startsWith(txt, t))
+                return false;
+            txt = txt[t.length .. $];
+            return true;
+        }
+
+        bool readdelim(ref char[] res, char delim) {
+            auto stuff = split2(txt, delim);
+            if (!stuff[1].length) {
+                error("'" ~ delim ~ "' not found");
+                return false;
+            }
+            res = stuff[0];
+            txt = stuff[1][1..$];
+            return true;
+        }
+
+        bool readbracket(ref char[] res) {
+            if (!tryeat("(")) {
+                error("'(' expected");
+                return false;
+            }
+            return readdelim(res, ')');
+        }
+
+        //color argument, "(color-spec)"
+        bool readcolor(ref Color c) {
+            char[] t;
+            if (!readbracket(t))
+                return false;
+            if (c.parse(t))
+                return true;
+            error("color");
+            return false;
+        }
+
+        //size argument, '(' <int> ['%'] ')'
+        //if the value is relative (with %), value is used to get the new value
+        bool readrelint(ref int value) {
+            char[] t;
+            if (!readbracket(t))
+                return false;
+            char[][] stuff = str.split(t);
+            if (!stuff.length || stuff.length > 2) {
+                error("size expected");
+                return false;
+            }
+            int val;
+            try {
+                val = conv.to!(int)(stuff[0]);
+            } catch (conv.ConversionException e) {
+                error("size 1");
+                return false;
+            }
+            if (stuff.length == 2) {
+                if (stuff[1] != "%") {
+                    error("size 2");
+                    return false;
+                }
+                val = cast(int)((100+val)/100.0f * value);
+            }
+            value = val;
+            return true;
+        }
+
+        //--- helpers for setting styles
+
+        FontProperties getfont() {
+            return mStyleStack[$-1].font.properties;
+        }
+        void setfont(FontProperties p) {
+            mStyleStack[$-1].font = new Font(p);
+            stylechange();
+        }
+
+        //--- actual parser & "interpreter"
+
+        //(be sure to put longer commands before shorter ones if ambiguous,
+        // like "back" - "b")
+        if (tryeat("\\")) {
+            parseLiteral("\\");
+        } else if (tryeat("n")) {
+            parseLiteral("\n");
+        } else if (tryeat("lit")) {
+            if (!txt.length) {
+                error("what");
+            } else {
+                char delim = txt[0];
+                txt = txt[1..$];
+                char[] x;
+                if (readdelim(x, delim))
+                    parseLiteral(x);
+            }
+        } else if (tryeat("r")) {
+            Style s = mRootStyle;
+            if (mStyleStack.length >= 2)
+                s = mStyleStack[$-2];
+            mStyleStack[$-1] = s;
+            stylechange();
+        } else if (tryeat("{")) {
+            mStyleStack ~= mStyleStack[$-1];
+        } else if (tryeat("}")) {
+            //NOTE: removing the last element is not allowed
+            if (mStyleStack.length > 1) {
+                mStyleStack.length = mStyleStack.length - 1;
+                stylechange();
+            } else {
+                error("stack empty");
+            }
+        } else if (tryeat("c")) {
+            auto f = getfont();
+            if (readcolor(f.fore))
+                setfont(f);
+        } else if (tryeat("back")) {
+            auto f = getfont();
+            if (readcolor(f.back))
+                setfont(f);
+        } else if (tryeat("border-color")) {
+            auto f = getfont();
+            if (readcolor(f.border_color))
+                setfont(f);
+        } else if (tryeat("border-width")) {
+            auto f = getfont();
+            if (readrelint(f.border_width))
+                setfont(f);
+        } else if (tryeat("blink")) {
+            mStyleStack[$-1].blink = true;
+            stylechange();
+        } else if (tryeat("b")) {
+            auto f = getfont();
+            f.bold = true;
+            setfont(f);
+        } else if (tryeat("i")) {
+            auto f = getfont();
+            f.italic = true;
+            setfont(f);
+        } else if (tryeat("u")) {
+            auto f = getfont();
+            f.underline = true;
+            setfont(f);
+        } else if (tryeat("s")) {
+            auto f = getfont();
+            if (readrelint(f.size))
+                setfont(f);
+        } else if (tryeat("t")) {
+            char[] t;
+            if (readbracket(t))
+                parseLiteral(i18n.gLocaleRoot(t));
+        } else {
+            error("unknown command");
+        }
+
+        return txt;
     }
 
-    Vector2i textSize(Font f, bool forceHeight = true) {
-        Vector2i ret;
-        foreach (ref p; mParts) {
-            Vector2i partSize = f.textSize(p.text, forceHeight);
-            ret.x += partSize.x;
-            ret.y = max(partSize.y, ret.y);
+    //set text, that can contain commands as described in the class doc
+    void setMarkup(char[] txt) {
+        doInit();
+        while (txt.length > 0) {
+            auto stuff = split2(txt, '\\');
+            txt = null;
+            parseLiteral(stuff[0]);
+            if (stuff[1].length) {
+                txt = parseCmd(stuff[1][1..$]);
+            }
         }
-        return ret;
+        layout();
+    }
+
+    //normal text rendering, no parsing at all (just utf8 and raw line breaks)
+    void setLiteral(char[] txt) {
+        doInit();
+        parseLiteral(txt);
+        layout();
+    }
+
+    //init the Part.pos (and mSize and Part.size) fields for mParts
+    //this is done later, because pos.y can't known in advance, if you want to
+    //align text with different font sizes nicely
+    private void layout() {
+        foreach (ref p; mParts) {
+            p.size = p.style.font.textSize(p.text);
+        }
+
+        Vector2i pos;
+        int max_x;
+
+        void layoutLine(Part[] parts) {
+            if (!parts.length)
+                return;
+
+            //height
+            int height = 0;
+            foreach (p; parts) {
+                height = max(height, p.size.y);
+            }
+            //actually place
+            foreach (ref p; parts) {
+                p.pos.x = pos.x;
+                p.pos.y = pos.y + height/2 - p.size.y/2;
+                pos.x += p.size.x;
+            }
+            //prepare next line / end
+            max_x = max(max_x, pos.x);
+            pos.x = 0;
+            pos.y += height;
+        }
+
+        //for each range of Parts with Part.newline==false
+        int prev = 0;
+        foreach (int cur, p; mParts) {
+            if (p.newline) {
+                layoutLine(mParts[prev..cur]);
+                prev = cur;
+            }
+        }
+        layoutLine(mParts[prev..$]);
+
+        mSize = Vector2i(max_x, pos.y);
+    }
+
+    void draw(Canvas c, Vector2i pos) {
+        bool blinkphase = cast(int)(time.timeCurrentTime.secsf*2)%2 == 0;
+        foreach (ref p; mParts) {
+            if (p.style.blink && blinkphase)
+                continue;
+            p.style.font.drawText(c, p.pos + pos, p.text);
+        }
+    }
+
+    //forceHeight: if empty, still return standard text height
+    Vector2i textSize(bool forceHeight = true) {
+        if (mSize.y == 0 && forceHeight) {
+            auto f = mRootStyle.font;
+            assert(!!f);
+            return f.textSize("", true);
+        } else {
+            return mSize;
+        }
     }
 }

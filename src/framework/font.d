@@ -184,6 +184,7 @@ class Font {
 }
 
 /// Manages fonts (surprise!)
+/// get with gFramework.fontManager()
 class FontManager {
     private {
         struct FaceStyles {

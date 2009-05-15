@@ -77,6 +77,7 @@ class EditLine : Widget {
         } else if (infos.code == Keycode.BACKSPACE) {
             if (had_sel) {
                 deleteSelection();
+                doOnChange();
             } else if (mCursor > 0) {
                 killSelection();
                 int del = mCursor - charPrev(mCurline, mCursor);
@@ -88,6 +89,7 @@ class EditLine : Widget {
         } else if (infos.code == Keycode.DELETE) {
             if (had_sel) {
                 deleteSelection();
+                doOnChange();
             } else if (mCursor < mCurline.length) {
                 killSelection();
                 int del = utf.stride(mCurline, mCursor);
