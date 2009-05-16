@@ -23,16 +23,7 @@ private class MyAddr : IPv4Address {
 }
 
 version (Win32) {
-    private:
-    //Win32 headers in tango are very, ehrm, limited
-    extern(Windows) {
-        int WSAIoctl(socket_t s, DWORD dwIoControlCode, LPVOID lpvInBuffer,
-            DWORD cbInBuffer, LPVOID lpvOutBuffer, DWORD cbOutBuffer,
-            LPDWORD lpcbBytesReturned, void* lpOverlapped,
-            void* lpCompletionRoutine);
-    }
-
-    const SOCKET_ERROR = cast(socket_t)(-1);
+    private import tango.sys.win32.WsaSock : WSAIoctl;
 
     uint _IOR(T)(ubyte x, ubyte y) {
         return IOC_OUT | ((cast(uint)(T.sizeof)&IOCPARM_MASK)<<16) | (x<<8) | y;
@@ -68,15 +59,16 @@ version (Win32) {
     //Returns: an array of available broadcast addresses for the system's net
     //  interfaces, e.g. 192.168.0.255
     public char[][] getBroadcastInterfaces() {
-        //Note: tango.net.Socket does the WSAStartup() call
+        //Note: tango.net.device.Berkeley does the WSAStartup() call
         //WSAIoctl needs a socket handle
-        scope sd = new Socket(AddressFamily.INET, SocketType.DGRAM,
-            ProtocolType.IP);
+        auto s = cast(HANDLE)socket(AddressFamily.INET, SocketType.STREAM,
+            ProtocolType.TCP);
+        assert (s != cast(HANDLE) -1);
         INTERFACE_INFO[20] interfaceList;
 
         uint nBytes;
         //request interface list
-        if (WSAIoctl(sd.fileHandle, SIO_GET_INTERFACE_LIST, null, 0,
+        if (WSAIoctl(s, SIO_GET_INTERFACE_LIST, null, 0,
             interfaceList.ptr, 20*INTERFACE_INFO.sizeof, &nBytes, null,
             null) == SOCKET_ERROR)
         {

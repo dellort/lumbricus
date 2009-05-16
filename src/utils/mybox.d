@@ -130,6 +130,7 @@ struct MyBox {
         if (size <= mStaticData.length) {
             pData = mStaticData[0..size];
         } else {
+            mDynamicData = null;
             mDynamicData.length = size;
             pData = mDynamicData;
         }

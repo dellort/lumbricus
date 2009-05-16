@@ -505,13 +505,18 @@ class Type {
         if (mInit.length != mSize) {
             //ok, it seems for static arrays, TypeInfo.init() contains only the
             //init data for the first element to save memory
-            assert (!!cast(TypeInfo_StaticArray)mTI);
-            assert ((mSize/mInit.length)*mInit.length == mSize);
-            //fix by repeating the first element
-            size_t oldlen = mInit.length;
-            mInit.length = mSize;
-            for (int n = 1; n < mSize/oldlen; n++) {
-                mInit[n*oldlen .. (n+1)*oldlen] = mInit[0..oldlen];
+            if (!mInit.ptr) {
+                //no init.ptr means zero-initialize
+                mInit = new void[mSize];
+            } else {
+                assert (!!cast(TypeInfo_StaticArray)mTI);
+                assert ((mSize/mInit.length)*mInit.length == mSize);
+                //fix by repeating the first element
+                size_t oldlen = mInit.length;
+                mInit.length = mSize;
+                for (int n = 1; n < mSize/oldlen; n++) {
+                    mInit[n*oldlen .. (n+1)*oldlen] = mInit[0..oldlen];
+                }
             }
         }
         mOwner.addType(this);
