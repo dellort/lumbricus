@@ -5,6 +5,7 @@ module net.announce_php;
 
 import net.announce;
 import net.netlayer;
+import net.marshal;
 
 import utils.configfile;
 import utils.time;
@@ -105,6 +106,7 @@ class PhpAnnouncer : NetAnnouncer {
         char[] mUrl;
         Time mLastUpdate;
         AnnounceInfo mInfo;
+        char[] mInfoData;
         LogStruct!("php_server_announce") log;
         bool mActive;
         HttpGetter mLastGetter;
@@ -127,7 +129,7 @@ class PhpAnnouncer : NetAnnouncer {
         char[][char[]] hdrs;
         hdrs["action"] = "add";
         hdrs["port"] = myformat("{}", mInfo.port);
-        hdrs["info"] = "huh";
+        hdrs["info"] = mInfoData;
         //run and forget, we don't need the result
         mLastGetter = new HttpGetter(mUrl, hdrs, null);
         mLastGetter.start();
@@ -145,6 +147,7 @@ class PhpAnnouncer : NetAnnouncer {
 
     override void update(AnnounceInfo info) {
         mInfo = info;
+        mInfoData = marshalBase64(info);
         do_update();
     }
 
@@ -211,9 +214,14 @@ class PhpAnnounceClient : NetAnnounceClient {
                 auto comps = str.split(line, "|");
                 if (comps.length == 3) {
                     ServerInfo sinf;
-                    //xxx: why do I need to parse the address? netlayer.d can
-                    //     do this already , arg!
+                    //NetAddress ctor parses the text; throws no exceptions
                     auto addr = NetAddress(comps[0]);
+                    try {
+                        sinf.info = unmarshalBase64!(AnnounceInfo)(comps[2]);
+                    } catch (UnmarshalException e) {
+                        //ignore bad entries
+                        continue forline;
+                    }
                     sinf.address = addr.hostName;
                     sinf.info.port = addr.port;
                     //not sure about rest

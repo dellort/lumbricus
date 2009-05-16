@@ -343,7 +343,6 @@ class CmdNetClient : SimpleNetConnection {
             receive(channelId, unmarshal);
         } catch (UnmarshalException e) {
             //malformed packet, unmarshalling failed
-            Trace.formatln("err1");
             close(DiscReason.protocolError);
         }
     }
@@ -409,7 +408,6 @@ class CmdNetClient : SimpleNetConnection {
                 auto p = unmarshal.read!(SPPlayerInfo)();
                 //PlayerList packet always comes first
                 if (mPlayerInfo.length != p.players[$-1].id + 1) {
-                    Trace.formatln("err2");
                     close(DiscReason.protocolError);
                 }
                 foreach (pinfo; p.players) {
@@ -492,7 +490,6 @@ class CmdNetClient : SimpleNetConnection {
                     onHostAccept(this, info);
                 break;
             default:
-                Trace.formatln("err3");
                 close(DiscReason.protocolError);
         }
     }
@@ -516,7 +513,6 @@ class CmdNetClient : SimpleNetConnection {
                 }
                 break;
             default:
-                Trace.formatln("err4");
                 close(DiscReason.protocolError);
         }
     }

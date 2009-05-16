@@ -206,3 +206,13 @@ char[][] ctfe_split(char[] s, char sep) {
     return ps;
 }
 
+//functions cannot return static arrays, so this gets the equivalent
+//dynamic array type
+template RetType(T) {
+    static if (is(T T2 : T2[])) {
+        alias T2[] RetType;
+    } else {
+        alias T RetType;
+    }
+}
+

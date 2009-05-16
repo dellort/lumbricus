@@ -5,6 +5,8 @@ import utils.list2;
 import utils.reflection;
 import utils.time;
 
+public import net.marshal : Hasher;
+
 //not really abstract, but should not be created
 abstract class GameObject {
     private bool mActive;
@@ -57,6 +59,9 @@ abstract class GameObject {
 
     void kill() {
         active = false;
+    }
+
+    void hash(Hasher hasher) {
     }
 }
 

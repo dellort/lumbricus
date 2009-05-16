@@ -8,6 +8,7 @@ import utils.misc;
 import tango.core.Traits;
 import tango.core.ByteSwap;
 import utf = stdx.utf;
+import base64 = tango.io.encode.Base64; //lol
 
 //data is always written as big endian aka network byteorder
 version (BigEndian) {
@@ -113,16 +114,6 @@ struct Unmarshaller {
     //should read exactly the passed size and write the data into the result; if
     //not enough data, throw an exception
     void delegate(ubyte[]) reader;
-
-    //functions cannot return static arrays, so this gets the equivalent
-    //dynamic array type
-    private template RetType(T) {
-        static if (is(T T2 : T2[])) {
-            alias T2[] RetType;
-        } else {
-            alias T RetType;
-        }
-    }
 
     RetType!(T) read(T)() {
         static if (is(T T2 : T2[])) {
@@ -238,16 +229,6 @@ class MarshalBuffer {
 class UnmarshalBuffer {
     private {
         BufferRead mBuffer;
-
-        //functions cannot return static arrays, so this gets the equivalent
-        //dynamic array type
-        template RetType(T) {
-            static if (is(T T2 : T2[])) {
-                alias T2[] RetType;
-            } else {
-                alias T RetType;
-            }
-        }
     }
 
     this(ubyte[] source) {
@@ -276,6 +257,50 @@ class UnmarshalBuffer {
     }
 }
 
+//now this is a speciality...
+char[] marshalBase64(T)(T data) {
+    auto marsh = new MarshalBuffer();
+    marsh.write!(T)(data);
+    return base64.encode(marsh.data());
+}
+
+RetType!(T) unmarshalBase64(T)(char[] data) {
+    ubyte[] dec;
+    try {
+        dec = base64.decode(data);
+    } catch (Exception e) {
+        //base64 decoding errors (maybe)
+        //the tango idiots didn't use a more appropriate Exception type
+        throw new UnmarshalException("invalid base64");
+    }
+    auto marsh = new UnmarshalBuffer(dec);
+    return marsh.read!(T)();
+}
+
+//another speciality
+//Tango also has something similar, but it looked to complex etc.
+//this thing is simple, stupid, and (hopefully) fast
+final class Hasher {
+    uint hash_value;
+    bool enabled = true;
+
+    void reset() {
+        hash_value = 0;
+    }
+
+    void hash(T)(ref T v) {
+        if (enabled)
+            Marshaller(&hash_raw).write!(T)(v);
+    }
+
+    void hash_raw(ubyte[] raw) {
+        foreach (b; raw) {
+            hash_value ^= b;
+            //rotate or something, not that it would make any sense
+            hash_value = (hash_value >> 1) | (hash_value << 31);
+        }
+    }
+}
 
 unittest {
     enum E {

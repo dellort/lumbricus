@@ -284,6 +284,10 @@ class GObjectSprite : GameObject {
             graphic.simulate();
     }
 
+    void hash(Hasher hasher) {
+        hasher.hash(physics.pos);
+    }
+
     protected this(GameEngine engine, GOSpriteClass type) {
         super(engine, false);
 

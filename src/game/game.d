@@ -889,4 +889,14 @@ class GameEngine : GameEnginePublic {
     GfxSet gfx() {
         return mGfx;
     }
+
+    //calculate a hash value of the game engine state
+    //this is a just quick & dirty test to detect diverging client simulation
+    //it should always prefer speed over accuracy
+    void hash(Hasher hasher) {
+        hasher.hash(rnd.state());
+        foreach (GameObject o; mObjects) {
+            o.hash(hasher);
+        }
+    }
 }

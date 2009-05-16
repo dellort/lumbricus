@@ -8,6 +8,8 @@ module net.cmdprotocol;
 
 import utils.time;
 
+import game.gameshell : EngineHash; //sorry
+
 //anytime you change some detail about the protocol, increment this
 //  (including encoding/marshalling changes)
 //only clients with the same version will be accepted

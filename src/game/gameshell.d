@@ -12,6 +12,7 @@ import game.controller;
 import game.gamepublic;
 import game.game;
 import game.gfxset;
+import game.gobject;
 import game.levelgen.generator;
 import game.levelgen.landscape;
 import game.levelgen.level;
@@ -36,6 +37,12 @@ import stdx.stream;
 import tango.math.Math : pow;
 import tango.core.Traits : ParameterTupleOf;
 
+
+//see GameShell.engineHash()
+//type of hash might be changed in the future
+struct EngineHash {
+    uint hash;
+}
 
 //initialized by serialize_register.d
 Types serialize_types;
@@ -302,6 +309,7 @@ class GameShell {
         bool mUseExternalTS; //timestamp advancing is controlled externally
         bool mExtIsLagging;
         debug bool mPrintFrameTime;
+        Hasher mGameHasher;
         //
         GCD mGCD;
     }
@@ -446,6 +454,7 @@ class GameShell {
     }
 
     private void doFrame() {
+        //Trace.formatln("ts={}, hash={}", mTimeStamp, engineHash().hash);
         debug if (mPrintFrameTime) {
             log("frame time: ts={} time={} ({} ns)", mTimeStamp,
                 mGameTime.current, mGameTime.current.nsecs);
@@ -661,6 +670,16 @@ class GameShell {
 
     TimeSource masterTime() {
         return mMasterTime;
+    }
+
+    //see GameEngine.hash()
+    EngineHash engineHash() {
+        if (!mGameHasher)
+            mGameHasher = new Hasher();
+        mGameHasher.reset();
+        mEngine.hash(mGameHasher);
+        mGameHasher.hash(mTimeStamp);
+        return EngineHash(mGameHasher.hash_value);
     }
 
     class GCD : GameCallbackDistributor {

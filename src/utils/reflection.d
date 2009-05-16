@@ -1290,6 +1290,7 @@ class DefineClass {
         foreach (int index, x; obj.tupleof) {
             //this is a manual .offsetof
             //it sucks much less than the compiler's builtin one
+            //also see http://d.puremagic.com/issues/show_bug.cgi?id=947
             auto p_obj = cast(void*)obj_addr;
             auto p_member = cast(void*)&obj.tupleof[index];
             offsets[index] = cast(size_t)p_member - cast(size_t)p_obj;
