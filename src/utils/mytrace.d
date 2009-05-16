@@ -6,11 +6,6 @@ module utils.mytrace;
 //comment to disable this module
 debug version = EnableChainsaw;
 
-//gets cut after this number of entries in the backtrace
-const cMaxBacktrace = 30;
-//buffer used when formatting output
-const cBacktraceLineBuffer = 120;
-
 const char[] MODULE_PREFIX = "utils/mytrace.d: ";
 
 //the code is Linux specific, but Windows user can use this:
@@ -23,8 +18,6 @@ version (Tango) version (DigitalMars) version (X86) version (linux) {
     version = EnableDMDLinuxX86;
     //extra hacky and dangerous to enable this
     version = SetSigHandler;
-    //Tango doesn't have a demangler, so you may want to disable this
-    version = Demangler;
 }
 
 version (EnableDMDLinuxX86) {
@@ -33,10 +26,12 @@ version (EnableDMDLinuxX86) {
     import tango.stdc.string : strcmp, strlen;
     import tango.stdc.signal;
     import tango.core.stacktrace.StackTrace;
-    import tango.core.stacktrace.TraceExceptions;
     import tango.core.stacktrace.Demangler;
 
-    Elf32_Sym* stop_traceback_at;
+    //immutable after initialization
+    char[] g_str_tab;
+    Elf32_Sym[] g_sym_tab;
+    Elf32_Sym* g_stop_traceback_at;
 
     static this() {
         version (SetSigHandler) {
@@ -45,7 +40,6 @@ version (EnableDMDLinuxX86) {
         }
 
         if (load_symbols("/proc/self/exe\0")) {
-            stop_traceback_at = sym_find_by_name("_Dmain");
             rt_setSymbolizeFrameInfoFnc(&my_symbolizeFrameInfo);
 
             version (SetSigHandler) {
@@ -53,7 +47,9 @@ version (EnableDMDLinuxX86) {
             }
 
             //in some situations, libc backtrace (used by Tango) fails
+            //here's a DMD/Phobos based frame walker
             //rt_setAddrBacktraceFnc(&dmd_AddrBacktrace);
+            //g_stop_traceback_at = sym_find_by_name("_Dmain");
         }
     }
 
@@ -72,7 +68,7 @@ version (EnableDMDLinuxX86) {
 
         ptrdiff_t offset = info.address - psym.st_value;
         //info.offsetSymb = offset; //I have no idea if this is correct
-        char* pname = &gStrTab[psym.st_name];
+        char* pname = &g_str_tab[psym.st_name];
         char[] name = pname[0..strlen(pname)];
 
         auto lookup = name;
@@ -92,8 +88,9 @@ version (EnableDMDLinuxX86) {
     alias uint Elf32_Off;
     alias int Elf32_Sword;
     alias int Elf32_Word;
+
     struct Elf32_Ehdr {
-        align(1): //pointless align?
+        align(1):
         uint e_ident1;
         uint e_ident2;
         uint e_ident3;
@@ -140,21 +137,18 @@ version (EnableDMDLinuxX86) {
         SHT_STRTAB = 3,
     }
 
-    //immutable after initialization
-    char[] gStrTab;
-    Elf32_Sym[] gSymTab;
-
-    void readblock(FILE* file, int offset, void* ptr, size_t size) {
-        if (!size)
-            return;
-
-        fseek(file, offset, SEEK_SET);
-        if (fread(ptr, size, 1, file) != 1) {
-            fprintf(stderr, "%.*sUnable to read ELF file\n", MODULE_PREFIX);
-            abort();
-        }
-    }
     bool load_symbols(char* me) {
+        void readblock(FILE* file, int offset, void* ptr, size_t size) {
+            if (!size)
+                return;
+
+            fseek(file, offset, SEEK_SET);
+            if (fread(ptr, size, 1, file) != 1) {
+                fprintf(stderr, "%.*sUnable to read ELF file\n", MODULE_PREFIX);
+                abort();
+            }
+        }
+
         FILE* elf = fopen(me, "rb");
         if (!elf)
             return false;
@@ -183,19 +177,20 @@ version (EnableDMDLinuxX86) {
             + header.e_shentsize * symtab_section.sh_link,
             &strtab_section, strtab_section.sizeof);
 
-        gStrTab.length = strtab_section.sh_size;
-        readblock(elf, strtab_section.sh_offset, gStrTab.ptr, gStrTab.length);
+        g_str_tab.length = strtab_section.sh_size;
+        readblock(elf, strtab_section.sh_offset, g_str_tab.ptr,
+            g_str_tab.length);
 
-        gSymTab.length = symtab_section.sh_size / Elf32_Sym.sizeof;
-        readblock(elf, symtab_section.sh_offset, gSymTab.ptr,
-            Elf32_Sym.sizeof * gSymTab.length);
+        g_sym_tab.length = symtab_section.sh_size / Elf32_Sym.sizeof;
+        readblock(elf, symtab_section.sh_offset, g_sym_tab.ptr,
+            Elf32_Sym.sizeof * g_sym_tab.length);
 
         return true;
     }
 
     Elf32_Sym* sym_find_by_address(Elf32_Addr addr) {
-        for (int n = 0; n < gSymTab.length; n++) {
-            Elf32_Sym* sym = &gSymTab[n];
+        for (int n = 0; n < g_sym_tab.length; n++) {
+            Elf32_Sym* sym = &g_sym_tab[n];
             if (sym_contains_address(sym, addr))
                 return sym;
         }
@@ -210,9 +205,9 @@ version (EnableDMDLinuxX86) {
     }
 
     Elf32_Sym* sym_find_by_name(char* name) {
-        for (int n = 0; n < gSymTab.length; n++) {
-            Elf32_Sym* sym = &gSymTab[n];
-            if (!strcmp(&gStrTab[sym.st_name], name))
+        for (int n = 0; n < g_sym_tab.length; n++) {
+            Elf32_Sym* sym = &g_sym_tab[n];
+            if (!strcmp(&g_str_tab[sym.st_name], name))
                 return sym;
         }
         return null;
@@ -242,7 +237,7 @@ version (EnableDMDLinuxX86) {
 
             depth++;
 
-            if (sym_contains_address(stop_traceback_at, retaddr))
+            if (sym_contains_address(g_stop_traceback_at, retaddr))
                 break;
         }
 
@@ -275,7 +270,7 @@ version (EnableDMDLinuxX86) {
             case SIGSEGV: signame = "SIGSEGV"; break;
             case SIGFPE: signame = "SIGFPE"; break;
             default:
-                signame = "unknown, add to mytrace.d/signal_handler()";
+                signame = "unknown, add to signal_handler()";
         }
         fprintf(stderr, "%.*sSignal caught: %.*s\n", MODULE_PREFIX, signame);
 

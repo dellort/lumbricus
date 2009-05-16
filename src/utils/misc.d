@@ -206,12 +206,3 @@ char[][] ctfe_split(char[] s, char sep) {
     return ps;
 }
 
-char[] ctfe_itoa(int i) {
-    char[] res;
-    do {
-        res = "0123456789"[i % 10] ~ res;
-        i = i/10;
-    } while (i > 0);
-    return res;
-}
-

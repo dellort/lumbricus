@@ -18,6 +18,8 @@ debug import utils.random;
 
 import tango.util.Convert;
 
+//version = LagDebug;
+
 enum CmdServerState {
     lobby,
     loading,
@@ -150,7 +152,7 @@ class CmdNetServer {
     //disconnect, free memory
     void shutdown() {
         foreach (cl; mClients) {
-            cl.close(DiscReason.serverShutdown);
+            cl.close("server shutdown", DiscReason.serverShutdown);
         }
         mHost.serviceAll();
         delete mAnnounce;
@@ -205,7 +207,7 @@ class CmdNetServer {
         }
         auto cl = new CmdNetClientConnection(this, peer, newId);
         if (mPlayerCount >= mMaxPlayers)
-            cl.close(DiscReason.serverFull);
+            cl.close("server full", DiscReason.serverFull);
         if (cl.state != ClientConState.establish)
             //connection was rejected
             return;
@@ -285,7 +287,7 @@ class CmdNetServer {
         //no more new connections
         foreach (cl; mClients) {
             if (cl.state != ClientConState.connected) {
-                cl.close();
+                cl.close("disconnect leftovers");
                 continue;
             }
             cl.loadDone = false;
@@ -463,6 +465,8 @@ enum ClientConState {
 //Represents a connected client, also accepts/rejects connection attempts
 class CmdNetClientConnection {
     private {
+        LogStruct!("netserver_peer") log;
+
         ListNode client_node;
         CmdNetServer mOwner;
         NetPeer mPeer;
@@ -505,7 +509,7 @@ class CmdNetClientConnection {
         mCmdOutBuffer = new StringOutput();
         state(ClientConState.establish);
         if (mOwner.state != CmdServerState.lobby) {
-            close(DiscReason.gameStarted);
+            close("game started", DiscReason.gameStarted);
         }
     }
 
@@ -539,7 +543,8 @@ class CmdNetClientConnection {
         return mId;
     }
 
-    void close(DiscReason why = DiscReason.none) {
+    void close(char[] desc, DiscReason why = DiscReason.none) {
+        log("disconnect peer {}, code={}, reason: {}", id(), why, desc);
         mPeer.disconnect(why);
         state(ClientConState.closed);
     }
@@ -585,12 +590,12 @@ class CmdNetClientConnection {
             case ClientConState.establish:
                 //only allow clients to stay 5secs in wait/auth states
                 if (t - mStateEnter > timeSecs(5)) {
-                    close(DiscReason.timeout);
+                    close("timeout", DiscReason.timeout);
                 }
                 break;
             default:
         }
-        debug if (mOutputQueue.length > 0) {
+        version(LagDebug) if (mOutputQueue.length > 0) {
             //lag simulation
             int jitter = rngShared.next(-mOwner.mSimJitterMs,
                 mOwner.mSimJitterMs);
@@ -610,7 +615,7 @@ class CmdNetClientConnection {
             && timeCurrentTime() - hostRequestTime < cHostTimeout;
     }
 
-    debug {
+    version(LagDebug) {
         struct Packet {
             ubyte[] buf;
             Time created;
@@ -627,7 +632,7 @@ class CmdNetClientConnection {
         marshal.write(pid);
         marshal.write(data);
         ubyte[] buf = marshal.data();
-        debug {
+        version(LagDebug) {
             if (mOwner.mSimLagMs > 0)
                 //lag simulation, queue packet
                 mOutputQueue ~= Packet(buf, timeCurrentTime(), channelId,
@@ -636,7 +641,7 @@ class CmdNetClientConnection {
                 mPeer.send(buf.ptr, buf.length, channelId, now, reliable,
                     reliable);
         } else {
-            mPeer.send(buf.ptr, buf.length, channelId, now, reliable, reliable);
+            mPeer.send(buf, channelId, now, reliable, reliable);
         }
     }
 
@@ -650,7 +655,7 @@ class CmdNetClientConnection {
         marshal.writeRaw(data);
         ubyte[] buf = marshal.data();
         mOwner.listConnectedClients((CmdNetClientConnection cl) {
-            cl.mPeer.send(buf.ptr, buf.length, 0, false, true, true);
+            cl.mPeer.send(buf, 0, false, true, true);
         });
     }
 
@@ -666,18 +671,18 @@ class CmdNetClientConnection {
             case ClientPacket.hello:
                 //this is the first packet a client should send after connecting
                 if (mState != ClientConState.establish) {
-                    close(DiscReason.protocolError);
+                    close("hello packet wrong state", DiscReason.protocolError);
                     return;
                 }
                 auto p = unmarshal.read!(CPHello)();
                 //check version
                 if (p.protocolVersion != cProtocolVersion) {
-                    close(DiscReason.wrongVersion);
+                    close("wrong protocol version", DiscReason.wrongVersion);
                     return;
                 }
                 //verify nickname and connect player (nick might be changed)
                 if (!mOwner.checkNewNick(p.playerName)) {
-                    close(DiscReason.invalidNick);
+                    close("invalid nick", DiscReason.invalidNick);
                     return;
                 }
                 mPlayerName = p.playerName;
@@ -692,7 +697,8 @@ class CmdNetClientConnection {
             case ClientPacket.lobbyCmd:
                 //client issued a command into the server console
                 if (mState != ClientConState.connected) {
-                    close(DiscReason.protocolError);
+                    close("lobbycmd packet wrong state",
+                        DiscReason.protocolError);
                     return;
                 }
                 auto p = unmarshal.read!(CPLobbyCmd)();
@@ -746,7 +752,8 @@ class CmdNetClientConnection {
                 break;
             case ClientPacket.deployTeam:
                 if (mState != ClientConState.connected) {
-                    close(DiscReason.protocolError);
+                    close("deplayteam packet wrong state",
+                        DiscReason.protocolError);
                     return;
                 }
                 if (mOwner.state != CmdServerState.lobby) {
@@ -760,7 +767,8 @@ class CmdNetClientConnection {
                 break;
             case ClientPacket.loadDone:
                 if (mState != ClientConState.connected) {
-                    close(DiscReason.protocolError);
+                    close("loaddone packet wrong state",
+                        DiscReason.protocolError);
                     return;
                 }
                 if (mOwner.state != CmdServerState.loading) {
@@ -773,7 +781,7 @@ class CmdNetClientConnection {
                 break;
             case ClientPacket.gameCommand:
                 if (mState != ClientConState.connected) {
-                    close(DiscReason.protocolError);
+                    close("gamecommand wrong state", DiscReason.protocolError);
                     return;
                 }
                 if (mOwner.state != CmdServerState.playing) {
@@ -785,7 +793,7 @@ class CmdNetClientConnection {
             case ClientPacket.ack:
                 auto p = unmarshal.read!(CPAck)();
                 if (p.timestamp > mOwner.mTimeStamp)
-                    close(DiscReason.protocolError);
+                    close("timestamp from future", DiscReason.protocolError);
                 else
                     lastAckTS = p.timestamp;
                 break;
@@ -803,7 +811,7 @@ class CmdNetClientConnection {
                 break;
             default:
                 //we have reliable networking, so the client did something wrong
-                close(DiscReason.protocolError);
+                close("unknown packet id", DiscReason.protocolError);
         }
     }
 
@@ -835,21 +843,14 @@ class CmdNetClientConnection {
     }
 
     //NetPeer.onReceive
-    private void onReceive(NetPeer sender, ubyte channelId, ubyte* data,
-        size_t dataLen)
-    {
+    private void onReceive(NetPeer sender, ubyte channelId, ubyte[] data) {
         assert(sender is mPeer);
-        //packet structure: 2 bytes message id + data
-        if (dataLen < 2) {
-            close(DiscReason.protocolError);
-            return;
-        }
-        scope unmarshal = new UnmarshalBuffer(data[0..dataLen]);
+        scope unmarshal = new UnmarshalBuffer(data);
         try {
             receive(channelId, unmarshal);
         } catch (UnmarshalException e) {
             //malformed packet, unmarshalling failed
-            close(DiscReason.protocolError);
+            close("unmarshalling error", DiscReason.protocolError);
         }
     }
 

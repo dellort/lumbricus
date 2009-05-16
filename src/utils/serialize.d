@@ -9,6 +9,8 @@ import str = stdx.string;
 import conv = tango.util.Convert;
 import tango.core.Traits : isIntegerType;
 
+debug import tango.core.stacktrace.StackTrace : nameOfFunctionAt;
+
 debug debug = CountClasses;
 
 /+
@@ -419,8 +421,10 @@ class SerializeOutConfig : SerializeConfig {
                 char[] what = "enable version debug to see why";
                 debug {
                     Trace.formatln("hello, serialize.d might crash here.");
-                    what = myformat("dest-class: {} function: 0x{:x}",
-                        (cast(Object)dgp.ptr).classinfo.name, dgp.funcptr);
+                    char[] crashy = (cast(Object)dgp.ptr).classinfo.name;
+                    char[] func = nameOfFunctionAt(dgp.funcptr);
+                    what = myformat("dest-class: {} function: 0x{:x} '{}'",
+                        crashy, dgp.funcptr, func);
                 }
                 throw new SerializeError("couldn't write delegate, "~what);
             }

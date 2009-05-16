@@ -140,6 +140,7 @@ class GameEngine : GameEnginePublic {
         t.registerMethod(this, &waterChangerUpdate, "waterChangerUpdate");
         t.registerMethod(this, &onPhysicHit, "onPhysicHit");
         t.registerMethod(this, &onDamage, "onDamage");
+        t.registerMethod(this, &offworldTrigger, "offworldTrigger");
     }
 
     //factory for GOSpriteClasses

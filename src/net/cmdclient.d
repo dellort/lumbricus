@@ -337,19 +337,13 @@ class CmdNetClient : SimpleNetConnection {
         mServerCon = null;
     }
 
-    private void conReceive(NetPeer sender, ubyte channelId, ubyte* data,
-        size_t dataLen)
-    {
-        //packet structure: 2 bytes message id + data
-        if (dataLen < 2) {
-            close(DiscReason.protocolError);
-            return;
-        }
-        scope unmarshal = new UnmarshalBuffer(data[0..dataLen]);
+    private void conReceive(NetPeer sender, ubyte channelId, ubyte[] data) {
+        scope unmarshal = new UnmarshalBuffer(data);
         try {
             receive(channelId, unmarshal);
         } catch (UnmarshalException e) {
             //malformed packet, unmarshalling failed
+            Trace.formatln("err1");
             close(DiscReason.protocolError);
         }
     }
@@ -414,8 +408,10 @@ class CmdNetClient : SimpleNetConnection {
             case ServerPacket.playerInfo:
                 auto p = unmarshal.read!(SPPlayerInfo)();
                 //PlayerList packet always comes first
-                if (mPlayerInfo.length != p.players[$-1].id + 1)
+                if (mPlayerInfo.length != p.players[$-1].id + 1) {
+                    Trace.formatln("err2");
                     close(DiscReason.protocolError);
+                }
                 foreach (pinfo; p.players) {
                     if (p.updateFlags & SPPlayerInfo.Flags.ping)
                         mPlayerInfo[pinfo.id].info.ping = pinfo.ping;
@@ -496,6 +492,7 @@ class CmdNetClient : SimpleNetConnection {
                     onHostAccept(this, info);
                 break;
             default:
+                Trace.formatln("err3");
                 close(DiscReason.protocolError);
         }
     }
@@ -519,6 +516,7 @@ class CmdNetClient : SimpleNetConnection {
                 }
                 break;
             default:
+                Trace.formatln("err4");
                 close(DiscReason.protocolError);
         }
     }
@@ -529,7 +527,10 @@ class CmdNetClient : SimpleNetConnection {
     {
         if (!mServerCon)
             return;
-        mServerCon.send(&pid, pid.sizeof, channelId, now);
+        struct Empty {
+        }
+        Empty t;
+        send(pid, t, channelId, now);
     }
 
     //send packet with some data (data will be marshalled)
@@ -542,8 +543,7 @@ class CmdNetClient : SimpleNetConnection {
         marshal.write(pid);
         marshal.write(data);
         ubyte[] buf = marshal.data();
-        mServerCon.send(buf.ptr, buf.length, channelId, now, reliable,
-            reliable);
+        mServerCon.send(buf, channelId, now, reliable, reliable);
     }
 
     private void broadcast(T)(Client2ClientPacket pid, T data) {
@@ -552,7 +552,7 @@ class CmdNetClient : SimpleNetConnection {
         marshal.write(pid);
         marshal.write(data);
         ubyte[] buf = marshal.data();
-        mServerCon.send(buf.ptr, buf.length, 0, false, true, true);
+        mServerCon.send(buf, 0, false, true, true);
     }
 
     private void cmdSay(MyBox[] args, Output write) {

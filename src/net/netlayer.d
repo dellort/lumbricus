@@ -112,7 +112,7 @@ class NetBase {
     }
 }
 
-private ENetPacket* prepareENetPacket(void* data, size_t dataLen, bool reliable = true,
+private ENetPacket* prepareENetPacket(ubyte[] data, bool reliable = true,
     bool sequenced = true)
 {
     uint packetFlags;
@@ -121,7 +121,7 @@ private ENetPacket* prepareENetPacket(void* data, size_t dataLen, bool reliable 
         packetFlags |= ENET_PACKET_FLAG_RELIABLE;
     if (!sequenced)
         packetFlags |= ENET_PACKET_FLAG_UNSEQUENCED;
-    return enet_packet_create(data, dataLen, packetFlags);
+    return enet_packet_create(data.ptr, data.length, packetFlags);
 }
 
 ///an unconnected network host, representing either server or client
@@ -230,8 +230,9 @@ class NetHost {
                 assert(peer !is null);
                 //check if peer has no disconnect pending
                 if (peer.connected) {
-                    peer.handleReceive(event.channelID, event.packet.data,
-                        event.packet.dataLength);
+                    ubyte* pdata = event.packet.data;
+                    peer.handleReceive(event.channelID,
+                        pdata[0..event.packet.dataLength]);
                 }
                 enet_packet_destroy(event.packet);
                 break;
@@ -260,11 +261,10 @@ class NetHost {
     }
 
     ///send a packet to all connected clients
-    void sendBroadcast(void* data, size_t dataLen, ubyte channelId,
-        bool immediate = false, bool reliable = true, bool sequenced = true)
+    void sendBroadcast(ubyte[] data, ubyte channelId, bool immediate = false,
+        bool reliable = true, bool sequenced = true)
     {
-        ENetPacket* packet = prepareENetPacket(data, dataLen, reliable,
-            sequenced);
+        ENetPacket* packet = prepareENetPacket(data, reliable, sequenced);
         //queue packet for send
         enet_host_broadcast(mHost, channelId, packet);
         if (immediate)
@@ -291,8 +291,7 @@ class NetPeer {
     void delegate(NetPeer sender) onConnect;
     ///called when connection has been terminated
     void delegate(NetPeer sender, uint code) onDisconnect;
-    void delegate(NetPeer sender, ubyte channelId, ubyte* data,
-        size_t dataLen) onReceive;
+    void delegate(NetPeer sender, ubyte channelId, ubyte[] data) onReceive;
 
     private this(NetHost parent, ENetPeer* peer) {
         mHost = parent;
@@ -320,9 +319,9 @@ class NetPeer {
             onDisconnect(this, code);
     }
 
-    private void handleReceive(ubyte channelId, ubyte* data, size_t dataLen) {
+    private void handleReceive(ubyte channelId, ubyte[] data) {
         if (onReceive)
-            onReceive(this, channelId, data, dataLen);
+            onReceive(this, channelId, data);
     }
 
     ///close the connection
@@ -362,11 +361,10 @@ class NetPeer {
     }
 
     ///send a packet over this connection
-    void send(void* data, size_t dataLen, ubyte channelId,
-        bool immediate = false, bool reliable = true, bool sequenced = true)
+    void send(ubyte[] data, ubyte channelId, bool immediate = false,
+        bool reliable = true, bool sequenced = true)
     {
-        ENetPacket* packet = prepareENetPacket(data, dataLen, reliable,
-            sequenced);
+        ENetPacket* packet = prepareENetPacket(data, reliable, sequenced);
         //queue packet for send
         enet_peer_send(mPeer, channelId, packet);
         if (immediate)

@@ -3,9 +3,9 @@ module framework.imgwrite;
 import framework.framework;
 import utils.misc;
 import utils.gzip : GZWriter;
+import net.marshal : Marshaller;
 
 import tango.io.digest.Crc32 : Crc32;
-import tango.core.ByteSwap;
 
 import stdx.stream;
 
@@ -16,48 +16,26 @@ static this() {
     gImageFormats["raw"] = toDelegate(&writeRAW);
 }
 
-//write a struct and convert the byte order of members to network byteorder
-//this code is quite primitive and thus dangerous, and you shouldn't use it
-//dangerous things: swaps _all_ types, doesn't work with anything but base types
-private void writeNetStruct(T)(void delegate(void* p, size_t s) writer, T s) {
-    foreach (x; s.tupleof) {
-        version (LittleEndian) {
-            static if (x.sizeof <= 1) {
-            } else static if (x.sizeof == 2) {
-                ByteSwap.swap16(&x, 2);
-            } else static if (x.sizeof == 4) {
-                ByteSwap.swap32(&x, 4);
-            } else {
-                static assert(false);
-            }
-        } else version (BigEndian) {
-            //BigEndian is equivalent to network byteorder
-        } else {
-            static assert(false);
-        }
-        writer(&x, x.sizeof);
-    }
-}
-
 //libpng sucks, all is done manually
 private void writePNG(Surface img, Stream stream) {
     auto chunk_crc = new Crc32();
     bool chunk_writing;
     ulong chunk_start;
 
+    void marshw_raw(ubyte[] data) {
+        stream.writeExact(data.ptr, data.length);
+    }
     void endChunk() {
         assert (chunk_writing);
         ulong end = stream.position;
         assert (end >= chunk_start + 8);
         stream.position = chunk_start;
         uint len = end - chunk_start - 8;
-        ByteSwap.swap32(&len, len.sizeof);
-        stream.write(len);
+        Marshaller(&marshw_raw).write(len);
         stream.position = end;
         //NOTE: this call also resets the crc stored in the chunk_crc
         uint crc = chunk_crc.crc32Digest();
-        ByteSwap.swap32(&crc, crc.sizeof);
-        stream.write(crc);
+        Marshaller(&marshw_raw).write(crc);
         chunk_writing = false;
     }
     void chunkData(void* ptr, size_t s) {
@@ -76,6 +54,9 @@ private void writePNG(Surface img, Stream stream) {
         stream.write(len);
         //the chunk type... it's not really part of the chunk data, but is CRCed
         chunkData(name.ptr, name.length);
+    }
+    void marshw(ubyte[] data) {
+        chunkData(data.ptr, data.length);
     }
 
     static ubyte[] sig = [137, 80, 78, 71, 13, 10, 26, 10];
@@ -110,7 +91,7 @@ private void writePNG(Surface img, Stream stream) {
             throw new Exception("writing png: unknown transparency type");
     }
 
-    writeNetStruct(&chunkData, ihdr);
+    Marshaller(&marshw).write(ihdr);
 
 /+  xxx removed for simplicity
     if (img.transparency == Transparency.Colorkey) {
@@ -122,7 +103,7 @@ private void writePNG(Surface img, Stream stream) {
 
         startChunk("tRNS");
         auto cc = img.colorkey().toRGBA32();
-        writeNetStruct(&chunkData, PNG_tRNS(cc.r, cc.g, cc.b));
+        Marshaller(&marshw).write(PNG_tRNS(cc.r, cc.g, cc.b));
     }
 +/
 

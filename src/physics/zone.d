@@ -18,7 +18,8 @@ class PhysicZone {
     }
 
     static void registerstuff(ReflectCtor c) {
-        c.types().registerClasses!(PhysicZonePlane, PhysicZoneCircle);
+        c.types().registerClasses!(PhysicZonePlane, PhysicZoneCircle,
+            PhysicZoneRect, PhysicZoneXRange);
     }
 
     bool check(PhysicObject obj) {
@@ -78,6 +79,9 @@ class PhysicZoneRect : PhysicZone {
         rect = r;
     }
 
+    this (ReflectCtor c) {
+    }
+
     override bool checkCircle(Vector2f pos, float radius) {
         //xxx checks if center of object (i.e. half object) is inside
         return rect.isInside(pos);
@@ -92,6 +96,9 @@ class PhysicZoneXRange : PhysicZone {
     this(float a_min, float a_max) {
         xMin = a_min;
         xMax = a_max;
+    }
+
+    this (ReflectCtor c) {
     }
 
     override bool checkCircle(Vector2f pos, float radius) {

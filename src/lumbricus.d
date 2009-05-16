@@ -1,4 +1,9 @@
 module lumbricus;
+
+//enable tango backtracing (on exceptions)
+debug import tango.core.stacktrace.TraceExceptions;
+debug import tracer = utils.mytrace; //some stack tracing stuff for Linux
+
 import framework.framework;
 
 import common.init;
@@ -24,9 +29,6 @@ import toplevel = common.toplevel;
 import utils.configfile;
 import utils.log;
 import utils.output;
-
-//hacky hack
-import tracer = utils.mytrace;
 
 import tango.io.Stdout;
 

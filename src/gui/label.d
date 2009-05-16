@@ -89,9 +89,11 @@ class Label : Widget {
         //don't know, could also just add a mText.text and return that
         return mUserTextValid ? mUserText : "";
     }
+    //txt can become invalid after this function is called
     void setText(char[] txt, bool as_markup) {
         if (mUserTextValid && mUserTextMarkup == as_markup && mUserText == txt)
             return;
+        txt = txt.dup;
         mUserTextValid = true;
         mUserText = txt;
         mUserTextMarkup = as_markup;
