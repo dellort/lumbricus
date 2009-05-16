@@ -499,24 +499,28 @@ class Type {
         //too much memory due to this function
         if (mSize > 16*1024)
             assert(false, "that's very big data: "~mTI.toString());
+        if (!mInit.ptr && mInit.length) {
+            //array has a length, but ptr is null
+            //an array descriptor like this is definitely... strange
+            //bug report: http://d.puremagic.com/issues/show_bug.cgi?id=2990
+            //for now work it around: no init.ptr means zero-initialize
+            mInit = null; //allocated below instead
+        }
+        //length 0 => init all to bit pattern 0
         if (!mInit.length) {
             mInit = new ubyte[mSize];
         }
+        assert(mInit.ptr || !mInit.length);
         if (mInit.length != mSize) {
             //ok, it seems for static arrays, TypeInfo.init() contains only the
             //init data for the first element to save memory
-            if (!mInit.ptr) {
-                //no init.ptr means zero-initialize
-                mInit = new void[mSize];
-            } else {
-                assert (!!cast(TypeInfo_StaticArray)mTI);
-                assert ((mSize/mInit.length)*mInit.length == mSize);
-                //fix by repeating the first element
-                size_t oldlen = mInit.length;
-                mInit.length = mSize;
-                for (int n = 1; n < mSize/oldlen; n++) {
-                    mInit[n*oldlen .. (n+1)*oldlen] = mInit[0..oldlen];
-                }
+            assert (!!cast(TypeInfo_StaticArray)mTI);
+            assert ((mSize/mInit.length)*mInit.length == mSize);
+            //fix by repeating the first element
+            size_t oldlen = mInit.length;
+            mInit.length = mSize;
+            for (int n = 1; n < mSize/oldlen; n++) {
+                mInit[n*oldlen .. (n+1)*oldlen] = mInit[0..oldlen];
             }
         }
         mOwner.addType(this);
@@ -1602,5 +1606,7 @@ Output:
 The third line should be "t.b".
 Newer dmd versions output the type of the enum instead of "int" or "t.b".
 Status: doesn't work with v1.037
+
+bug report: http://d.puremagic.com/issues/show_bug.cgi?id=2881
 
 +/

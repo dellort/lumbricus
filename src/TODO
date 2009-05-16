@@ -6,7 +6,6 @@
 == Sonstiges/Minor ==
 [- userdaten (mergen von konfigfiles)]
 - locales: übersetzungen vergleichen (z.b. de mit en -> fehlende einträge finden)
-[- locales: zur laufzeit wechseln / neuladen]
 - task spezifische commandos/hotkeys (ähnlich wie in loadsafe.d)
    (und den gräuslichen hack in commandline.d entfernen)
 - debugging: würmer auswählen und GameObject-Felder anzeigen lassen
@@ -48,7 +47,6 @@
 * Spiel über mehrere Runden (Scores, Waffen sammeln, Statistiken, Gesamtsieg)
 + Spiel-Statistiken, insb. Team- und Wurm-bezogene
 + Mehr Powerup-Kisten (Niedrige Schwerkraft etc.)
-- Level-Generator: Objekt-/Brückenplatzierung überarbeiten (Decke, Wand links/rechts etc.)
 *** KI
 *** Scripting
 
@@ -75,6 +73,7 @@
 ! generator.d: reduziere komplexität indem "generierte" level nur noch als lexel-array gespeichert werden (statt als gefüllte polygone); verschiebe das laden/speichern von savegames(bzw. netzwerk level) nach level.d; mache strukturen in level.d vllt. serialisierbar (statt manueller lade/speicher code); in generator.d würde nur noch code zum rendern bleiben + müllcode zum laden und speichern von templates (lol leveledit.d); vllt. savegames/netzwerklevels immer als komplette bitmap speichern?; danach kann glevel.d das zeug aus level.d direkt verwenden und ist weniger hackig
 - hashcheck für savegames und insbesondere netzwerklevels
 + beliebige game objekte in vorgenerierten leveln (ähnlich minen, aber vom leveldesigner platziert, beispiel: feste levelränder als objekte)
+- Objekt-/Brückenplatzierung überarbeiten (Decke, Wand links/rechts etc.)
 
 == Netzwerk ==
 [- Teams: Waffenset-Zuordnung, Lebenspunkte vom Server behandeln bzw. überprüfen,
