@@ -49,6 +49,7 @@ class ZoneTrigger : PhysicTrigger {
     }
 
     override bool doCollide(PhysicObject obj) {
+        assert(!!zone);
         return zone.check(obj);
     }
 }

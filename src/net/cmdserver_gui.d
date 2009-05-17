@@ -5,6 +5,7 @@ import common.task;
 import framework.commandline;
 import framework.timesource;
 import gui.label;
+import gui.button;
 import gui.widget;
 import gui.wm;
 import gui.list;
@@ -27,12 +28,14 @@ class CmdNetServerTask : Task {
     private {
         CmdNetServer mServer;
         Label mLabel;
+        Button mInternetToggle;
         StringListWidget mPlayerList;
         ConfigNode mSrvConf;
         Thread mServerThread;
         bool mClose;
         int mPlayerCount;
         char[][] mPlayerDetails;
+        bool mInternet; //Internet!
     }
 
     this(TaskManager tm, char[] args = "") {
@@ -41,9 +44,13 @@ class CmdNetServerTask : Task {
         mSrvConf = gConf.loadConfigDef("server");
 
         mLabel = new Label();
+        mInternetToggle = new Button();
+        mInternetToggle.isCheckbox = true;
+        mInternetToggle.text = "announce on internet";
         mPlayerList = new StringListWidget();
         auto box = new BoxContainer(false);
         box.add(mLabel);
+        box.add(mInternetToggle);
         box.add(mPlayerList);
         gWindowManager.createWindow(this, box, "Server", Vector2i(350, 0));
 
@@ -69,6 +76,7 @@ class CmdNetServerTask : Task {
                         }
                         tlast = t;
                     }
+                    mServer.announceInternet = mInternet;
                 }
                 mServer.frame();
                 mServerThread.yield();
@@ -97,6 +105,7 @@ class CmdNetServerTask : Task {
         synchronized(this) {
             mLabel.text = myformat("Clients: {}", mPlayerCount);
             mPlayerList.setContents(mPlayerDetails);
+            mInternet = mInternetToggle.checked();
         }
     }
 

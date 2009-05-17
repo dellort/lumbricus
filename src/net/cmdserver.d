@@ -160,6 +160,10 @@ class CmdNetServer {
         delete mBase;
     }
 
+    void announceInternet(bool yes) {
+        mAnnounce.announceInternet = yes;
+    }
+
     //validate (and possibly change) the nickname of a connecting player
     private bool checkNewNick(ref char[] nick, bool allowChange = true) {
         //no empty nicks, minimum length 3

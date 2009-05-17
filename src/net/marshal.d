@@ -112,8 +112,13 @@ struct Marshaller {
 ///reverse of Marshaller
 struct Unmarshaller {
     //should read exactly the passed size and write the data into the result; if
-    //not enough data, throw an exception
-    void delegate(ubyte[]) reader;
+    //not enough data, throw an exception (an UnmarshalException would be best)
+    //return value:
+    //  return the number of bytes there's left _after_ the read data
+    //  if you don't know exactly, return the maxmimal number of bytes possible
+    //  (up to size_t.max)
+    //  see require() for what this is needed
+    size_t delegate(ubyte[]) reader;
 
     RetType!(T) read(T)() {
         static if (is(T T2 : T2[])) {
@@ -152,7 +157,12 @@ struct Unmarshaller {
 
         static if (isDynamicArrayType!(T)) {
             //dynamic arrays store their size in the stream
-            ret.length = read!(uint)();
+            size_t arr_length = read!(uint)();
+            //if a nonsensical value was read (corrupted data), avoid
+            //allocating too much memory for the array...
+            //assume each data element has at least one byte size
+            require(arr_length);
+            ret.length = arr_length;
         } else {
             //for static arrays, it's fixed
             ret.length = T.length;
@@ -162,15 +172,20 @@ struct Unmarshaller {
         //     1. must keep byteswapping (make swapBytes() work with arrays?)
         //     2. some types like bool or enums still need special handling
         alias typeof(ret[0]) ElementT;
-        for (int i = 0; i < ret.length; i++) {
-            ret[i] = read!(ElementT)();
+        static if (is(ElementT == char) || is(ElementT == ubyte)) {
+            //for char and ubyte (and maybe byte), this is simple enough
+            undump(ret.ptr, ret.length);
+        } else {
+            foreach (ref e; ret) {
+                e = read!(ElementT)();
+            }
         }
 
-        static if (is(ElementT == char)) {
+        static if (isCharType!(ElementT)) {
             try {
                 utf.validate(ret);
             } catch (utf.UtfException e) {
-                throw new UnmarshalException("string not utf-8 conform");
+                throw new UnmarshalException("string not unicode conform");
             }
         }
 
@@ -192,6 +207,21 @@ struct Unmarshaller {
     private void undump(void* p, size_t s) {
         assert(!!reader);
         reader(cast(ubyte[])(p[0..s]));
+    }
+
+    //throw exception if not enough data in stream
+    private void require(size_t size) {
+        assert(!!reader);
+        size_t data_left = reader(null);
+        if (size > data_left)
+            throw new UnmarshalException("not enough data");
+    }
+
+    //call this to ensure all data was read (no left over bytes allowed)
+    void terminate() {
+        assert(!!reader);
+        if (reader(null) > 0)
+            throw new UnmarshalException("input left after end");
     }
 }
 
@@ -245,9 +275,10 @@ class UnmarshalBuffer {
         }
     }
 
-    private void readRaw(ubyte[] data) {
+    private size_t readRaw(ubyte[] data) {
         require(data.length);
         mBuffer.read(data.ptr, data.length);
+        return mBuffer.data.length - mBuffer.position;
     }
 
     //reference to raw bytes from current position until end

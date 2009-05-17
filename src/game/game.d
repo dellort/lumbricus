@@ -452,6 +452,8 @@ class GameEngine : GameEnginePublic {
     private void offworldTrigger(PhysicTrigger sender, PhysicObject other) {
         auto x = cast(GObjectSprite)(other.backlink);
         auto member = mController.memberFromGameObject(x, false);
+        if (!member)
+            return; //I don't know, try firing lots of mine airstrikes
         if (member.active)
             member.setActive(false);
     }

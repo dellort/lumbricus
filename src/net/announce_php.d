@@ -118,6 +118,10 @@ class PhpAnnouncer : NetAnnouncer {
         mUrl = cfg.getStringValue("script_url");
     }
 
+    bool isInternet() {
+        return true;
+    }
+
     override void tick() {
         if (mActive && timeCurrentTime() > mLastUpdate + cUpdateTime)
             do_update();
@@ -146,6 +150,8 @@ class PhpAnnouncer : NetAnnouncer {
     }
 
     override void update(AnnounceInfo info) {
+        if (mInfo == info)
+            return;
         mInfo = info;
         mInfoData = marshalBase64(info);
         do_update();
@@ -246,7 +252,11 @@ class PhpAnnounceClient : NetAnnounceClient {
 
     ///Client starts inactive
     override void active(bool act) {
+        if (act == mActive)
+            return;
         mActive = act;
+        if (mActive)
+            do_update();
     }
 
     override bool active() {

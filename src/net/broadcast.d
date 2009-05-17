@@ -40,11 +40,11 @@ class NetBroadcast {
             //multiple servers on same port
             mSocket.native.setAddressReuse(true);
             mSocket.bind(new IPv4Address(port));
-        } else {
+        } //else {
             int[1] i = 1;
             mSocket.native.setOption(SocketOptionLevel.SOCKET,
                 SocketOption.BROADCAST, i);
-        }
+        //}
     }
 
     void service() {
@@ -82,7 +82,7 @@ class NetBroadcast {
         if (!mSocket)
             return;
         assert(data.length <= cBufSize);
-        assert(!mServer, "Client only");
+        //hope you don't mind -- assert(!mServer, "Client only");
         //Broadcast the message on all available interface
         //This mess is only needed because broadcasting on 255.255.255.255 will
         //  set the sender address to the first interface, and packets on other
