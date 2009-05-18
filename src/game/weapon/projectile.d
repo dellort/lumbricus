@@ -233,7 +233,7 @@ class ProjectileSpriteClass : ActionSpriteClass {
                 //must not modify physic_properties (instead copy them)
                 drownstate.physic_properties = drownstate.physic_properties.copy();
                 drownstate.physic_properties.radius = 1;
-                drownstate.physic_properties.collisionID = "projectile_drown";
+                drownstate.physic_properties.collisionID = "waterobj";
                 states[drownstate.name] = drownstate;
             }
 

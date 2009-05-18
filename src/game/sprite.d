@@ -144,16 +144,20 @@ class GObjectSprite : GameObject {
             if (st) {
                 setState(st);
             } else {
-                if (currentState.animationWater)
+                if (currentState.animationWater) {
                     //object has special underwater animation -> don't die
                     setCurrentAnimation();
-                else
+                    physics.posp = currentState.physicWater;
+                } else {
                     //no drowning state -> die now
                     die();
+                }
             }
         } else {
-            if (!currentState.onDrown && currentState.animationWater)
+            if (!currentState.onDrown && currentState.animationWater) {
                 setCurrentAnimation();
+                physics.posp = currentState.physic_properties;
+            }
         }
     }
 
@@ -320,7 +324,7 @@ class GObjectSprite : GameObject {
 //state infos (per sprite class, thus it's static)
 class StaticStateInfo {
     char[] name;
-    POSP physic_properties;
+    POSP physic_properties, physicWater;
 
     //automatic transition to this state if animation finished
     StaticStateInfo onAnimationEnd, onDrown;
@@ -355,6 +359,13 @@ class StaticStateInfo {
         assert(phys !is null); //xxx better error handling :-)
         physic_properties = new POSP();
         physic_properties.loadFromConfig(phys);
+        if (sc["physic_water"].length > 0) {
+            //underwater physics
+            auto physw = physNode.findNode(sc["physic_water"]);
+            assert(physw !is null);
+            physicWater = new POSP();
+            physicWater.loadFromConfig(physw);
+        }
 
         noleave = sc.getBoolValue("noleave", noleave);
         keepSelfForce = sc.getBoolValue("keep_selfforce", keepSelfForce);

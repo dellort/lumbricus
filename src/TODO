@@ -17,7 +17,6 @@
 - Wurm am Jetpack wird bei Explosionen kaum weggestoßen (Physik velocity_constraint Fehler); manchmal auch ohne Jetpack??
 - Homing missile trifft nix
 - Superschaf fliegt auch 15sec weiter, wenn der Wurm nicht mehr dran ist
-- Unterwasser-Waffen kollidieren mit der versunkenen, unsichtbaren Landschaft
 ! Würmer/Objekte springen aus dem Wasser raus (mit Sink-Animation)
   -- brauchen reproduzierbaren test dafür, z.b. spezielles level
 
