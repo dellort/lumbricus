@@ -7,7 +7,6 @@ import net.marshal;
 import utils.random;
 import utils.time;
 import utils.configfile;
-import utils.misc;
 
 import tango.util.Convert;
 
@@ -15,16 +14,17 @@ import tango.util.Convert;
 //  Servers will broadcast an update packet with their info every
 //  cBroadcastInterval. Clients listen for those packets and assemble a
 //  list of servers active within some time
+//Note that there's no 'remove' packet, server's automatically timeout after 3s
+
+//Broadcast traffic: One packet per second is broadcasted by the server
+//   --> (marshalled AnnounceInfo + 4) bytes/sec + udp overhead
 
 //default broadcast port, can be changed by configfile
 const cDefBroadcastPort = 20610;
 //how often servers send updates
-const cBroadcastInterval = timeSecs(15);
-
-enum BroadcastMessage : ubyte {
-    announceServer,     //a server is announcing itself
-    requestAnnounces,   //a client asks for announceServer messages
-}
+//Note that this also sets how up-to-date the client's information about the
+//   server (e.g. current player count) is
+const cBroadcastInterval = timeSecs(1);
 
 class LanAnnouncer : NetAnnouncer {
     private {
@@ -40,10 +40,8 @@ class LanAnnouncer : NetAnnouncer {
     this(ConfigNode cfg) {
         mPort = cfg.getValue("port", cDefBroadcastPort);
         mBase = new NetBase();
-        //strangely, the server creates a broadcast client (for sending updates)
-        //...and listens to requestAnnounces broadcast packets
-        mBroadcast = mBase.createBroadcast(mPort, true);
-        mBroadcast.onReceive = &bcReceive;
+        //the (game) server creates a broadcast client (for sending updates)
+        mBroadcast = mBase.createBroadcast(mPort, false);
         mLastTime = timeCurrentTime() - cBroadcastInterval;
         mId = rngShared.next();
     }
@@ -54,41 +52,27 @@ class LanAnnouncer : NetAnnouncer {
 
     void tick() {
         Time t = timeCurrentTime();
-        if (t - mLastTime > cBroadcastInterval) {
-            do_update();
+        if (mActive && t - mLastTime > cBroadcastInterval && mInfo.port > 0) {
+            scope m = new MarshalBuffer();
+            //bc packets may be reaching the client over multiple routes,
+            //  so add an id to identify the server
+            m.write(mId);
+            m.write(mInfo);
+            //broadcast an info packet
+            mBroadcast.sendBC(m.data());
+            mLastTime = t;
         }
         mBroadcast.service();
     }
 
-    void do_update() {
-        mLastTime = timeCurrentTime();
-
-        if (!(mActive && mInfo.port > 0))
-            return;
-
-        scope m = new MarshalBuffer();
-        m.write!(BroadcastMessage)(BroadcastMessage.announceServer);
-        //bc packets may be reaching the client over multiple routes,
-        //  so add an id to identify the server
-        m.write(mId);
-        m.write(mInfo);
-        //broadcast an info packet
-        mBroadcast.sendBC(m.data());
-        mBroadcast.service();
-    }
-
     void update(AnnounceInfo info) {
-        if (mInfo == info)
-            return;
         mInfo = info;
-        do_update();
     }
 
     void active(bool act) {
         if (act == mActive)
             return;
         mActive = act;
-        do_update();
     }
 
     void close() {
@@ -96,17 +80,14 @@ class LanAnnouncer : NetAnnouncer {
         delete mBase;
     }
 
-    private void bcReceive(NetBroadcast sender, ubyte[] data, BCAddress from) {
-        scope um = new UnmarshalBuffer(data);
-        if (um.read!(BroadcastMessage)() == BroadcastMessage.requestAnnounces) {
-            do_update();
-        }
-    }
-
     static this() {
         AnnouncerFactory.register!(typeof(this))("lan");
     }
 }
+
+//The LAN announce client listens for the server's broadcast packets,
+//  and will recognize all servers as active that send one packet atleast
+//  every 3 seconds
 
 class LanAnnounceClient : NACPeriodically {
     private {
@@ -122,27 +103,17 @@ class LanAnnounceClient : NACPeriodically {
         //client announcer creates a server to listen for broadcast packets
         mBroadcast = mBase.createBroadcast(mPort, true);
         mBroadcast.onReceive = &bcReceive;
-        //--- REALLY THANKS mServerTimeout = timeSecs(3);
+        mServerTimeout = timeSecs(3);
     }
 
     void tick() {
-        if (mActive) {
+        if (mActive)
             mBroadcast.service();
-        }
     }
 
     ///Client starts inactive
     void active(bool act) {
-        if (act == mActive)
-            return;
         mActive = act;
-
-        if (mActive) {
-            //broadcast request message to lower latency
-            scope m = new MarshalBuffer();
-            m.write!(BroadcastMessage)(BroadcastMessage.requestAnnounces);
-            mBroadcast.sendBC(m.data());
-        }
     }
     bool active() {
         return mActive;
@@ -156,9 +127,6 @@ class LanAnnounceClient : NACPeriodically {
     private void bcReceive(NetBroadcast sender, ubyte[] data, BCAddress from) {
         //server announce packet incoming
         scope um = new UnmarshalBuffer(data);
-        auto msg = um.read!(BroadcastMessage)();
-        if (msg != BroadcastMessage.announceServer)
-            return;
         uint id = um.read!(uint)();
         auto ai = um.read!(AnnounceInfo)();  //xxx error checking
         char[] addr = mBroadcast.getIP(from);

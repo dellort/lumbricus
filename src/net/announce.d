@@ -113,15 +113,17 @@ abstract class NetAnnounceClient {
 
 //Abstract base class for announcer clients that receive updates about
 //single servers periodically
+//(a server not sending an update for mServerTimeout is removed from the list)
 abstract class NACPeriodically : NetAnnounceClient {
     private {
-        Time mServerTimeout = timeSecs(45);
         MyServerInfo[char[]] mServers;
         struct MyServerInfo {
             Time lastSeen;
             ServerInfo info;
         }
     }
+    //derived classes may change this for custom server timeout
+    protected Time mServerTimeout = timeSecs(45);
 
     //Returns the current internal server list, and also checks if server
     //entries have timed out
