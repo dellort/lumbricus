@@ -38,7 +38,7 @@ class SkyDrawer : SceneObject {
             } else {
                 //skyBottom defines the height, which doesnt come from the theme
                 auto rcf = Rect2i(0, mParent.skyOffset, mParent.size.x,
-                    mParent.skyBottom);
+                    mParent.initialWaterOffset);
                 auto rc1 = Rect2i.Span(rcf.p1, Vector2i(rcf.size.x,
                     rcf.size.y/2));
                 auto rc2 = Rect2i(Vector2i(rcf.p1.x, rc1.p2.y), rcf.p2);
@@ -50,7 +50,7 @@ class SkyDrawer : SceneObject {
                     Vector2i(mParent.size.x, mParent.skyOffset), mSkyColor);
         }
         if (mSkyBackdrop && mParent.enableSkyBackdrop) {
-            int offs = mParent.skyBottom - mSkyBackdrop.size.y;
+            int offs = mParent.initialWaterOffset - mSkyBackdrop.size.y;
             canvas.drawTiled(mSkyBackdrop, Vector2i(canvas.clientOffset.x/6,
                 offs), Vector2i(mParent.size.x, mSkyBackdrop.size.y));
         }
@@ -61,7 +61,7 @@ class GameSky {
     private ClientGameEngine mEngine;
 
     private SkyDrawer mSkyDrawer;
-    protected int skyOffset, skyBottom;
+    protected int skyOffset, skyBottom, initialWaterOffset;
     private Animation[] mCloudAnims;
     private bool mEnableClouds = true;
     private bool mEnableDebris = true;
@@ -156,6 +156,7 @@ class GameSky {
     ///game-specific values have to be valid (e.g. waterOffset)
     void initialize() {
         updateOffsets();
+        initialWaterOffset = mEngine.engine.level.waterBottomY;
         foreach (inout CloudInfo ci; mCloudAnimators) {
             ci.x = rngShared.nextRange(-ci.animSizex, size.x);
         }
@@ -177,7 +178,7 @@ class GameSky {
             mCloudsVisible = true;
         else
             mCloudsVisible = false;
-        skyBottom = mEngine.engine.level.waterBottomY;
+        skyBottom = mEngine.engine.waterOffset;
         //update cloud visibility status
         enableClouds(mEnableClouds);
     }
@@ -220,7 +221,7 @@ class GameSky {
         void clip(inout float v, float s, float min, float max) {
             if (v > max)
                 v -= (max-min) + s;
-            if (v + s < 0)
+            if (v + s < min)
                 v += (max-min) + s;
         }
 

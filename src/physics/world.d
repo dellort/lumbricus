@@ -140,6 +140,16 @@ class PhysicWorld {
             me.update(deltaT);
         }
 
+        foreach (PhysicObject me; mObjects) {
+            //check triggers
+            //check glued objects too, or else not checking would be
+            //misinterpreted as not active
+            foreach (PhysicTrigger tr; mTriggers) {
+                if (collide.canCollide(tr, me))
+                    tr.collide(me);
+            }
+        }
+
         broadphase.collide(mObjArr, &handleContact);
 
         foreach (PhysicObject me; mObjects) {
@@ -157,14 +167,6 @@ class PhysicWorld {
                         continue;
                     co.collide(me, &handleContact);
                 }
-            }
-
-            //check triggers
-            //check glued objects too, or else not checking would be
-            //misinterpreted as not active
-            foreach (PhysicTrigger tr; mTriggers) {
-                if (collide.canCollide(tr, me))
-                    tr.collide(me);
             }
         }
 
