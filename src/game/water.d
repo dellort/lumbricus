@@ -191,7 +191,7 @@ class HorizontalFullsceneAnimator : SceneObject {
             return;
 
         int w = animator.bounds.size.x;
-        int soffs = cast(int)(scrollMult*canvas.clientOffset.x);
+        int soffs = cast(int)(scrollMult*canvas.visibleArea.p1.x);
         for (int x = xoffs-w-soffs; x < size.x; x += w) {
             //due to scrolling parallax, this can get out of the scene
             if (x+w > 0) {

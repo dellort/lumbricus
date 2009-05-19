@@ -827,6 +827,18 @@ class WormSprite : GObjectSprite {
         return mRopeCanRefire;
     }
 
+    //xxx need another solution etc.
+    bool drillActivated() {
+        return currentState is wsc.st_drill;
+    }
+    void activateDrill(bool activate) {
+        if (activate == drillActivated())
+            return;
+
+        setState(activate ? wsc.st_drill : wsc.st_stand);
+        physics.doUnglue();
+    }
+
     bool isStanding() {
         return currentState is wsc.st_stand;
     }
@@ -959,7 +971,7 @@ class WormSpriteClass : GOSpriteClass {
 
     WormStateInfo st_stand, st_fly, st_walk, st_jet, st_weapon, st_dead,
         st_die, st_drowning, st_beaming, st_reverse_beaming, st_getup,
-        st_jump_start, st_jump, st_jump_to_fly, st_rope;
+        st_jump_start, st_jump, st_jump_to_fly, st_rope, st_drill;
 
     //alias WormSprite.FlyMode FlyMode;
 
@@ -1002,6 +1014,7 @@ class WormSpriteClass : GOSpriteClass {
         st_jump = findState("jump");
         st_jump_to_fly = findState("jump_to_fly");
         st_rope = findState("rope");
+        st_drill = findState("drill");
 
         flyState[FlyMode.fall] = findSequenceState("fly_fall",true);
         flyState[FlyMode.slide] = findSequenceState("fly_slide",true);

@@ -254,11 +254,9 @@ class GLCanvas : Canvas {
             Vector2f scale = {1.0f, 1.0f};
         }
 
-        Vector2i mTrans;
         State[MAX_STACK] mStack;
         uint mStackTop; //point to next free stack item (i.e. 0 on empty stack)
-
-        Vector2i mClientSize;
+        Rect2i mParentArea, mVisibleArea;
     }
 
     void startScreenRendering() {
@@ -325,30 +323,55 @@ class GLCanvas : Canvas {
         }
     }
 
+    //screen size
     public Vector2i realSize() {
         return mStack[0].clientsize;
     }
+    //drawable size
     public Vector2i clientSize() {
         return mStack[mStackTop].clientsize;
     }
 
-    public Vector2i clientOffset() {
-        return -mStack[mStackTop].translate;
+    //area of the parent window, in current client coords
+    public Rect2i parentArea() {
+        return mParentArea;
     }
 
-    public Rect2i getVisible() {
-        return mStack[mStackTop].clip - mStack[mStackTop].translate;
+    //what is shown on the screen (in client coords)
+    public Rect2i visibleArea() {
+        return mVisibleArea;
+    }
+
+    //updates parentArea / visibleArea after translating/clipping/scaling
+    private void updateAreas() {
+        if (mStackTop > 0) {
+            mParentArea.p1 =
+                -mStack[mStackTop].translate + mStack[mStackTop - 1].translate;
+            mParentArea.p1 =
+                toVector2i(toVector2f(mParentArea.p1) /mStack[mStackTop].scale);
+            mParentArea.p2 = mParentArea.p1 + mStack[mStackTop - 1].clientsize;
+        } else {
+            mParentArea.p1 = mParentArea.p2 = Vector2i(0);
+        }
+
+        mVisibleArea = mStack[mStackTop].clip - mStack[mStackTop].translate;
+        mVisibleArea.p1 =
+            toVector2i(toVector2f(mVisibleArea.p1) / mStack[mStackTop].scale);
+        mVisibleArea.p2 =
+            toVector2i(toVector2f(mVisibleArea.p2) / mStack[mStackTop].scale);
     }
 
     public void translate(Vector2i offset) {
         glTranslatef(cast(float)offset.x, cast(float)offset.y, 0);
         mStack[mStackTop].translate += toVector2i(toVector2f(offset)
             ^ mStack[mStackTop].scale);
+        updateAreas();
     }
     public void setWindow(Vector2i p1, Vector2i p2) {
         clip(p1, p2);
         translate(p1);
         mStack[mStackTop].clientsize = p2 - p1;
+        updateAreas();
     }
     public void clip(Vector2i p1, Vector2i p2) {
         p1 = toVector2i(toVector2f(p1) ^ mStack[mStackTop].scale);
@@ -359,6 +382,7 @@ class GLCanvas : Canvas {
         p2 = mStack[mStackTop].clip.clip(p2);
         mStack[mStackTop].clip = Rect2i(p1, p2);
         doClip(p1, p2);
+        updateAreas();
     }
     private void doClip(Vector2i p1, Vector2i p2) {
         mStack[mStackTop].enableClip = true;
@@ -368,8 +392,9 @@ class GLCanvas : Canvas {
     public void setScale(Vector2f z) {
         glScalef(z.x, z.y, 1);
         mStack[mStackTop].clientsize =
-            toVector2i(toVector2f(mStack[mStackTop].clientsize) ^ z);
+            toVector2i(toVector2f(mStack[mStackTop].clientsize) / z);
         mStack[mStackTop].scale = mStack[mStackTop].scale ^ z;
+        updateAreas();
     }
 
     public void pushState() {
@@ -378,6 +403,7 @@ class GLCanvas : Canvas {
         glPushMatrix();
         mStack[mStackTop+1] = mStack[mStackTop];
         mStackTop++;
+        updateAreas();
     }
     public void popState() {
         assert(mStackTop > 0);
@@ -388,6 +414,7 @@ class GLCanvas : Canvas {
             doClip(mStack[mStackTop].clip.p1, mStack[mStackTop].clip.p2);
         else
             glDisable(GL_SCISSOR_TEST);
+        updateAreas();
     }
 
     public void clear(Color color) {
@@ -646,13 +673,7 @@ class GLCanvas : Canvas {
         bool mirrorY = false)
     {
         //clipping, discard anything that would be invisible anyway
-        //xxx most certainly wrong, but I'm too lazy to fix it now
-        Vector2i pr1 = toVector2i(toVector2f(destPos)
-            ^ mStack[mStackTop].scale) + mStack[mStackTop].translate;
-        Vector2i pr2 = pr1+toVector2i(toVector2f(destSize)
-            ^ mStack[mStackTop].scale);
-        if (pr1.x > mStack[0].clientsize.x || pr1.y > mStack[0].clientsize.y
-            || pr2.x < 0 || pr2.y < 0)
+        if (!mVisibleArea.intersects(destPos, destPos + destSize))
             return;
 
         if (gSDLDriver.glWireframeDebug) {
@@ -691,25 +712,26 @@ class GLCanvas : Canvas {
             int h = glTiley?destSize.y:sourceSize.y;
             int x;
             Vector2i tmp;
-            //xxx seems quite wrong to me, too
-            Vector2i trans = mStack[mStackTop].translate;
-            Vector2i cs_tr = toVector2i(toVector2f(mStack[0].clientsize - trans)
-                / mStack[mStackTop].scale);
 
             int y = 0;
             while (y < destSize.y) {
                 tmp.y = destPos.y + y;
                 int resty = ((y+h) < destSize.y) ? h : destSize.y - y;
                 //check visibility (y coordinate)
-                if (tmp.y+resty+trans.y > 0 && tmp.y < cs_tr.y) {
+                if (tmp.y + resty > mVisibleArea.p1.y
+                    && tmp.y < mVisibleArea.p2.y)
+                {
                     x = 0;
                     while (x < destSize.x) {
                         tmp.x = destPos.x + x;
                         int restx = ((x+w) < destSize.x) ? w : destSize.x - x;
                         //visibility check for x coordinate
-                        if (tmp.x+restx+trans.x > 0 && tmp.x < cs_tr.x)
+                        if (tmp.x + restx > mVisibleArea.p1.x
+                            && tmp.x < mVisibleArea.p2.x)
+                        {
                             simpleDraw(Vector2i(0, 0), tmp,
                                 Vector2i(restx, resty), glsurf, mirrorY);
+                        }
                         x += restx;
                     }
                 }

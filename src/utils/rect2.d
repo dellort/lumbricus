@@ -158,8 +158,11 @@ public struct Rect2(T) {
 
     //border is exclusive
     bool intersects(in Rect2 rc) {
-        return (rc.p2.x1 > p1.x1 && rc.p2.x2 > p1.x2
-            && rc.p1.x1 < p2.x1 && rc.p1.x2 < p2.x2);
+        return intersects(rc.p1, rc.p2);
+    }
+    bool intersects(in Point rc_p1, in Point rc_p2) {
+        return (rc_p2.x1 > p1.x1 && rc_p2.x2 > p1.x2
+            && rc_p1.x1 < p2.x1 && rc_p1.x2 < p2.x2);
     }
 
     //return true if this contains rc completely

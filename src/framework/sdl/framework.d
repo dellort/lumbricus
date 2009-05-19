@@ -1129,11 +1129,6 @@ class SDLCanvas : Canvas {
         //not supported
     }
 
-    //definition: return client coords for screen coord (0, 0)
-    public Vector2i clientOffset() {
-        return -mTrans;
-    }
-
     public Vector2i realSize() {
         return Vector2i(mSurface.w, mSurface.h);
     }
@@ -1141,7 +1136,15 @@ class SDLCanvas : Canvas {
         return mClientSize;
     }
 
-    public Rect2i getVisible() {
+    //parent window area, in client coords
+    public Rect2i parentArea() {
+        Rect2i ret;
+        ret.p1 = -mStack[mStackTop].translate + mStack[mStackTop - 1].translate;
+        ret.p2 = ret.p1 + mStack[mStackTop - 1].clientsize;
+        return ret;
+    }
+
+    public Rect2i visibleArea() {
         Rect2i res;
         SDL_Rect rc = mSurface.clip_rect;
         res.p1.x = rc.x;

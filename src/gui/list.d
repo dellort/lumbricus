@@ -93,7 +93,7 @@ class AbstractListWidget : Widget {
 
     override void onDraw(Canvas canvas) {
         //only draw items which are visible
-        auto visible = canvas.getVisible();
+        auto visible = canvas.visibleArea();
         int index = 0;//visible.p1.y / mRHeight; //first
         Rect2i rc;
         rc.p1.x = mSpacing.x; rc.p2.x = size.x - mSpacing.x;

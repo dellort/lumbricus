@@ -124,7 +124,7 @@ class TestFrame4 : Container {
             return Vector2i(500, 500);
         }
         override  void onDraw(Canvas canvas) {
-            auto rc = canvas.getVisible();
+            auto rc = canvas.visibleArea();
             rc.extendBorder(-Vector2i(5));
             canvas.drawFilledRect(rc.p1, rc.p2, Color(1,0,0));
             auto x1 = Vector2i(0), x2 = size-Vector2i(1);

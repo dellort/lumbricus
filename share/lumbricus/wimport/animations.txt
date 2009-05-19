@@ -66,7 +66,8 @@ mainspr {
             cloud1 = "626"
             cloud2 = "627"
             cloud3 = "628"
-
+            suddendeath_debris = "115"
+            
             {
                 _flags = "f:13"
                 expl_foom = "606"
@@ -96,16 +97,12 @@ mainspr {
             smoke_black_size2 = "624"
             smoke_black_size3 = "625"
 
-            smokepuff_yellow = "139"
-            smokepuff_white = "140"
-            smokepuff_grey = "141"
-
             {
                 _flags = "-use_bnk_flags,-repeat"
                 hit_yellow = "125"   //123 seems to be the same
                 hit_skincolor = "127"
                 hit_red = "128"
-                fire_particle = "f:35; 93"
+                fire_particle = "f:25; 93"
             }
 
             {
@@ -116,6 +113,14 @@ mainspr {
                 click_yellow = "9"
                 click_magenta = "10"
                 click_cyan = "11"
+
+                smokepuff_yellow = "139"
+                smokepuff_white = "140"
+                smokepuff_grey = "141"
+
+                mbbomb_particle = "142"
+                pigeon_particle = "f:35; 143"
+                magicbullet_particle = "144"
             }
 
             worm_die = "-use_bnk_flags; 516"
@@ -220,6 +225,8 @@ mainspr {
             worm_bump_into_ground = "-repeat; 301"
             worm_parachute_enter = "-repeat; 296"
             worm_parachute_fly = "+append_backwards_a; 297"
+            worm_getdrill = "-repeat,+keeplast,f:25; 368" //wtf, 369/370 are longer???
+            worm_usedrill = "f:15,+append_backwards_a; 371"
 
             //vertical/horizontal jetpack exhaust flames
             {
@@ -280,7 +287,6 @@ mainspr {
                 worm_getskunk = "359"
                 worm_getmole = "362"
                 worm_getsally_army = "365"
-                //worm_getdrill = "368"  //wtf, 369/370 are longer???
                 worm_getprod = "372"
                 worm_getaxe = "407"
                 worm_getheadband = "419"

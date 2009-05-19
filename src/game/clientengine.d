@@ -365,7 +365,7 @@ class NukeSplatEffectImpl : SceneObject {
             removeThis();
             return;
         }
-        c.drawFilledRect(c.getVisible(),
+        c.drawFilledRect(c.visibleArea(),
             Color(1.0f, 1.0f, 1.0f, mInterp.value()));
     }
 }

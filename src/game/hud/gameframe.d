@@ -174,7 +174,7 @@ class GameFrame : SimpleContainer {
         gameView.bindings = wormbinds;
 
         mScroller = new MouseScroller();
-        mScroller.add(gameView);
+        mScroller.add(gameView, WidgetLayout.Aligned(0, -1));
         mScroller.zorder = -1; //don't hide the game GUI
         add(mScroller);
         add(mGui);

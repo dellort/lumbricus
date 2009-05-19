@@ -51,7 +51,7 @@ class SkyDrawer : SceneObject {
         }
         if (mSkyBackdrop && mParent.enableSkyBackdrop) {
             int offs = mParent.initialWaterOffset - mSkyBackdrop.size.y;
-            canvas.drawTiled(mSkyBackdrop, Vector2i(canvas.clientOffset.x/6,
+            canvas.drawTiled(mSkyBackdrop, Vector2i(canvas.visibleArea.p1.x/6,
                 offs), Vector2i(mParent.size.x, mSkyBackdrop.size.y));
         }
     }

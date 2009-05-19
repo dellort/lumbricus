@@ -19,17 +19,19 @@ public class Canvas {
     //see FrameworkDriver.getFeatures()
     public abstract int features();
 
+    /// Normally the screen size
     public abstract Vector2i realSize();
+    /// Size of the drawable area (not the visible area)
     public abstract Vector2i clientSize();
 
-    /// offset to add to client coords to get position of the fist
-    /// visible upper left point on the screen or canvas (?)
-    //(returns translation relative to last setWindow())
-    public abstract Vector2i clientOffset();
+    /// The drawable area of the parent canvas in client coords
+    /// (no visibility clipping)
+    //xxx I don't know if this makes any sense
+    public abstract Rect2i parentArea();
 
-    /// Get the rectangle in client coords which is visible
-    /// (right/bottom borders exclusive)
-    public abstract Rect2i getVisible();
+    /// The rectangle in client coords which is visible
+    /// (right/bottom borders exclusive; with clipping)
+    public abstract Rect2i visibleArea();
 
     /// Return true if any part of this rectangle is visible
     //public abstract bool isVisible(in Vector2i p1, in Vector2i p2);

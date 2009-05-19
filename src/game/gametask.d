@@ -71,6 +71,7 @@ import game.weapon.projectile;
 import game.weapon.special_weapon;
 import game.weapon.rope;
 import game.weapon.jetpack;
+import game.weapon.drill;
 import game.weapon.ray;
 import game.weapon.spawn;
 import game.weapon.napalm;
