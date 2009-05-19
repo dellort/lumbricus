@@ -279,6 +279,8 @@ class PhysicObject : PhysicBase {
         mPos = npos;
         if (mFixateConstraint && !correction)
             mFixateConstraint.updatePos();
+        if (!correction)
+            lastPos.x = lastPos.y = float.nan; //we don't know a safe position
     }
 
     //move the object by this vector

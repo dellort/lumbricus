@@ -6,6 +6,7 @@ import game.animation;
 import game.game;
 import game.gamepublic;
 import game.sequence;
+import game.gfxset;
 import physics.world;
 
 import utils.vector2;
@@ -63,10 +64,20 @@ class GObjectSprite : GameObject {
         if (!graphic)
             return;
 
-        if (mIsUnderWater && currentState.animationWater)
+        if (mIsUnderWater && currentState.animationWater) {
             graphic.setState(currentState.animationWater);
-        else
-            graphic.setState(currentState.animation);
+        } else {
+            if (mType.teamAnimation) {
+                auto m = engine.controller.memberFromGameObject(this, true);
+                if (m)
+                    graphic.setState(currentState.teamAnim[
+                        TeamTheme.cTeamColors[m.team.color.colorIndex]]);
+                else
+                    graphic.setState(currentState.animation);
+            } else {
+                graphic.setState(currentState.animation);
+            }
+        }
     }
 
     //update animation to physics status etc.
@@ -334,6 +345,7 @@ class StaticStateInfo {
     bool deathZoneImmune = false;  //don't die in deathzone
 
     SequenceState animation, animationWater;
+    SequenceState[char[]] teamAnim;
 
     private {
         //for forward references
@@ -373,6 +385,12 @@ class StaticStateInfo {
 
         if (sc["animation"].length > 0) {
             animation = owner.findSequenceState(sc["animation"]);
+            if (owner.teamAnimation) {
+                foreach (col; TeamTheme.cTeamColors) {
+                    teamAnim[col] =
+                        owner.findSequenceState(sc["animation"] ~ "_" ~ col);
+                }
+            }
         }
         if (sc["animation_water"].length > 0) {
             animationWater = owner.findSequenceState(sc["animation_water"]);
@@ -407,6 +425,7 @@ class GOSpriteClass {
 
     //SequenceObject sequenceObject;
     char[] sequencePrefix;
+    bool teamAnimation = false;
 
     StaticStateInfo[char[]] states;
     StaticStateInfo initState;
@@ -458,6 +477,7 @@ class GOSpriteClass {
         sequencePrefix = config["sequence_object"];
 
         initialHp = config.getFloatValue("initial_hp", initialHp);
+        teamAnimation = config.getValue("team_animation", teamAnimation);
 
         //load states
         //physic stuff is loaded when it's referenced in a state description

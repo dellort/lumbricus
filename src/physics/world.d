@@ -322,11 +322,19 @@ class PhysicWorld {
                 //landscape...
                 //(xxx: uh, actually a dangerous hack)
                 if (ncont.depth == float.infinity) {
-                    //so pull it back to last known safe position
-                    Vector2f d = o.lastPos - o.pos;
-                    ncont.normal = d.normal;
-                    //assert(!ncont.normal.isNaN);
-                    ncont.depth = d.length;
+                    if (o.lastPos.isNaN) {
+                        //we don't know a safe position, so pull it out
+                        //  along the velocity vector
+                        ncont.normal = -o.velocity.normal;
+                        //assert(!ncont.normal.isNaN);
+                        ncont.depth = o.posp.radius*2;
+                    } else {
+                        //we know a safe position, so pull it back there
+                        Vector2f d = o.lastPos - o.pos;
+                        ncont.normal = d.normal;
+                        //assert(!ncont.normal.isNaN);
+                        ncont.depth = d.length;
+                    }
                 } else if (ch == ContactHandling.pushBack) {
                     //back along velocity vector
                     //only allowed if less than 90° off from surface normal

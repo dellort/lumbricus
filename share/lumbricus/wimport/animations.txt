@@ -158,7 +158,23 @@ mainspr {
             _flags = "+repeat"
 
             mine = "50"
-            mine_flashing = "f:250; 43 50"
+            mine_red = "51"
+            mine_blue = "52"
+            mine_green = "53"
+            mine_yellow = "54"
+            mine_magenta = "55"
+            mine_cyan = "56"
+
+            {
+                _flags = "f:250"
+                mine_flashing = "43 50"
+                mine_flashing_red = "44 51"
+                mine_flashing_blue = "45 52"
+                mine_flashing_green = "46 53"
+                mine_flashing_yellow = "47 54"
+                mine_flashing_magenta = "48 55"
+                mine_flashing_cyan = "49 56"
+            }
 
             arrow_fly = "57"
             bazooka_fly = "58"
@@ -441,7 +457,12 @@ water_anims {
         barrel_drown = "19"
         meteor_drown = "20"
         mine_drown = "21"
-        //22-27: drowning team-themed mine
+        mine_drown_red = "22"
+        mine_drown_blue = "23"
+        mine_drown_green = "24"
+        mine_drown_yellow = "25"
+        mine_drown_magenta = "26"
+        mine_drown_cyan = "27"
         bazooka_drown = "28"
         airstrike_drown = "29"
         grenade_drown = "30"

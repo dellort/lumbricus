@@ -22,6 +22,7 @@ import utils.vector2;
 
 import game.gamepublic;
 import game.game;
+import game.gfxset;
 
 import math = tango.math.Math;
 import ieee = tango.math.IEEE;
@@ -898,6 +899,17 @@ void loadNormal(GameEngine engine, ConfigNode fromitem) {
     addState(engine, state);
 }
 
+void loadTeam(GameEngine engine, ConfigNode fromitem) {
+    auto value = getValue(fromitem);
+    foreach (col; TeamTheme.cTeamColors) {
+        auto state = new WormState(engine, fromitem.name ~ "_" ~ col);
+        auto ss = new SubSequence;
+        ss.animation = getAni(engine, value ~ "_" ~ col);
+        state.seqs[SeqType.Normal] = [ss];
+        addState(engine, state);
+    }
+}
+
 void loadNormalDamage(GameEngine engine, ConfigNode fromitem) {
     auto value = getValue(fromitem);
     //simple animation, state = animation, using damage for p2
@@ -1039,4 +1051,5 @@ private void init_loaders() {
     loaders["animations"] = &loadAnimation;
     loaders["simple_with_drown"] = &loadAnimationWithDrown;
     loaders["napalm"] = &loadNapalm;
+    loaders["team"] = &loadTeam;
 }
