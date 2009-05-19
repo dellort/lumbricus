@@ -333,7 +333,15 @@ final class Hasher {
     }
 }
 
-unittest {
+//xxx what about a structCompare() function in misc.d?
+debug void asserteq(T)(T x1, T x2) {
+    foreach (int idx, _; x2.tupleof) {
+        //Trace.formatln("  {} = {}", s2.tupleof[idx].stringof, x);
+        assert(x1.tupleof[idx] == x2.tupleof[idx]);
+    }
+}
+
+debug unittest {
     enum E {
         item1,
         item2,
@@ -357,6 +365,7 @@ unittest {
         //wchar j;
         //dchar k;
         char[5] l;
+        int[3] l2;
         char[] m;
         char[][] n;
         E o;
@@ -369,6 +378,7 @@ unittest {
     s.b = s.d = s.f = s.h = 5;
     s.i = /+s.j = s.k =+/ 'A';
     s.l[] = "Hello";
+    s.l2[] = [1,2,3];
     s.m = "Important data";
     s.n ~= "Item 1";
     s.n ~= "Item 2";
@@ -382,12 +392,11 @@ unittest {
     auto um = new UnmarshalBuffer(data);
     S s2 = um.read!(S);
 
-    foreach (int idx, x; s2.tupleof) {
-        //Trace.formatln("  {} = {}", s2.tupleof[idx].stringof, x);
-        assert(s.tupleof[idx] == s2.tupleof[idx]);
-    }
+    asserteq(s, s2);
 
     assert(um.read!(E2) == E2.item3);
+
+    asserteq(unmarshalBase64!(S)(marshalBase64(s)), s);
 
     ubyte[1] bb;
     um = new UnmarshalBuffer(bb);

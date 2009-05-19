@@ -673,6 +673,10 @@ public class FormattedText {
                 p.pos.y = pos.y + height/2 - p.size.y/2;
                 pos.x += p.size.x;
             }
+            //in first line: if nothing was produced, skip advancing pos.y
+            //(needed for label.d when no text is there, only an image)
+            if (!pos.y && !pos.x)
+                return;
             //prepare next line / end
             max_x = max(max_x, pos.x);
             pos.x = 0;
@@ -704,6 +708,7 @@ public class FormattedText {
     //forceHeight: if empty, still return standard text height
     Vector2i textSize(bool forceHeight = true) {
         if (mSize.y == 0 && forceHeight) {
+            //probably broken; should use height of first Part?
             auto f = mRootStyle.font;
             assert(!!f);
             return f.textSize("", true);

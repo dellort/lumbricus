@@ -6,63 +6,62 @@ module utils.mytrace;
 //comment to disable this module
 debug version = EnableChainsaw;
 
-const char[] MODULE_PREFIX = "utils/mytrace.d: ";
-
 //the code is Linux specific, but Windows user can use this:
 //  http://monsterbrowser.googlecode.com/svn/monsterbrowser/trunk/TangoTrace2.d
 
 private:
 version (EnableChainsaw):
 
-version (Tango) version (DigitalMars) version (X86) version (linux) {
-    version = EnableDMDLinuxX86;
+const char[] MODULE_PREFIX = "utils/mytrace.d: ";
+
+version (DigitalMars) version (X86) version (linux) {
+    //version = DMD_Backtracer;
+}
+
+version (linux) {
+    version = ELF_Symbolizer;
+}
+
+version (linux) {
     //extra hacky and dangerous to enable this
     version = SetSigHandler;
 }
 
-version (EnableDMDLinuxX86) {
-    import tango.stdc.stdlib;
-    import tango.stdc.stdio;
-    import tango.stdc.string : strcmp, strlen;
-    import tango.stdc.signal;
-    import tango.core.stacktrace.StackTrace;
-    import tango.core.stacktrace.Demangler;
 
+import tango.stdc.stdlib;
+import tango.stdc.stdio;
+import tango.stdc.string : strcmp, strlen;
+
+import tango.core.stacktrace.StackTrace;
+import tango.core.stacktrace.Demangler;
+
+
+version (ELF_Symbolizer) {
     //immutable after initialization
     char[] g_str_tab;
-    Elf32_Sym[] g_sym_tab;
-    Elf32_Sym* g_stop_traceback_at;
+    Elf_Sym[] g_sym_tab;
+    Elf_Sym* g_stop_traceback_at;
 
     static this() {
-        version (SetSigHandler) {
-            //random things could happen, especially with multithreading
-            pragma(msg, MODULE_PREFIX ~ "hi, I'm very dangerous!");
-        }
-
         if (load_symbols("/proc/self/exe\0")) {
             rt_setSymbolizeFrameInfoFnc(&my_symbolizeFrameInfo);
 
-            version (SetSigHandler) {
-                install_sighandlers();
-            }
+            //should be in Tango IMO
+            g_stop_traceback_at = sym_find_by_name("_Dmain");
 
-            //in some situations, libc backtrace (used by Tango) fails
-            //here's a DMD/Phobos based frame walker
-            //rt_setAddrBacktraceFnc(&dmd_AddrBacktrace);
-            //g_stop_traceback_at = sym_find_by_name("_Dmain");
+            //missing in tango
+            internalFuncs["rt_addrBacktrace"] = 1;
+            internalFuncs["rt_createTraceContext"] = 1;
+        } else {
+            fprintf(stderr, "%.*sLoading symbols from /proc/self failed.\n",
+                MODULE_PREFIX);
         }
-    }
-
-    static this() {
-        //missing in tango
-        internalFuncs["rt_addrBacktrace"] = 1;
-        internalFuncs["rt_createTraceContext"] = 1;
     }
 
     bool my_symbolizeFrameInfo(ref Exception.FrameInfo info,
         TraceContext* context, char[] buf)
     {
-        Elf32_Sym* psym = sym_find_by_address(info.address);
+        Elf_Sym* psym = sym_find_by_address(info.address);
         if (!psym)
             return false;
 
@@ -83,53 +82,69 @@ version (EnableDMDLinuxX86) {
         return true;
     }
 
-    alias ushort Elf32_Half;
-    alias uint Elf32_Addr;
-    alias uint Elf32_Off;
-    alias int Elf32_Sword;
-    alias int Elf32_Word;
+    //-- mini ELF bindings
 
-    struct Elf32_Ehdr {
-        align(1):
+    alias size_t Elf_Addr;
+    alias size_t Elf_Off;
+    alias ushort Elf_Half;
+    alias int Elf_Sword;
+    alias uint Elf_Word;
+    alias size_t Elf_Xword; //Elf32 actually uses Elf32_Word instead of this
+
+    version (X86) {
+        struct Elf_Sym {
+            Elf_Word st_name;
+            Elf_Addr st_value;
+            Elf_Word st_size;
+            char st_info;
+            char st_other;
+            Elf_Half st_shndx;
+        }
+    } else version (X86_64) {
+        alias ushort Elf_Section;
+
+        struct Elf_Sym {
+            Elf_Word st_name;
+            char st_info;
+            char st_other;
+            Elf_Section st_shndx;
+            Elf_Addr st_value;
+            Elf_Xword st_size;
+        }
+    } else {
+        static assert(false);
+    }
+
+    struct Elf_Ehdr {
         uint e_ident1;
         uint e_ident2;
         uint e_ident3;
         uint e_ident4;
-        Elf32_Half e_type;
-        Elf32_Half e_machine;
-        Elf32_Word e_version;
-        Elf32_Addr e_entry;
-        Elf32_Off e_phoff;
-        Elf32_Off e_shoff;
-        Elf32_Word e_flags;
-        Elf32_Half e_ehsize;
-        Elf32_Half e_phentsize;
-        Elf32_Half e_phnum;
-        Elf32_Half e_shentsize;
-        Elf32_Half e_shnum;
-        Elf32_Half e_shstrndx;
+        Elf_Half e_type;
+        Elf_Half e_machine;
+        Elf_Word e_version;
+        Elf_Addr e_entry;
+        Elf_Off e_phoff;
+        Elf_Off e_shoff;
+        Elf_Word e_flags;
+        Elf_Half e_ehsize;
+        Elf_Half e_phentsize;
+        Elf_Half e_phnum;
+        Elf_Half e_shentsize;
+        Elf_Half e_shnum;
+        Elf_Half e_shstrndx;
     }
-    struct Elf32_Shdr {
-        align(1):
-        Elf32_Word sh_name;
-        Elf32_Word sh_type;
-        Elf32_Word sh_flags;
-        Elf32_Addr sh_addr;
-        Elf32_Off sh_offset;
-        Elf32_Word sh_size;
-        Elf32_Word sh_link;
-        Elf32_Word sh_info;
-        Elf32_Word sh_addralign;
-        Elf32_Word sh_entsize;
-    }
-    struct Elf32_Sym {
-        align(1):
-        Elf32_Word st_name;
-        Elf32_Addr st_value;
-        Elf32_Word st_size;
-        char st_info;
-        char st_other;
-        Elf32_Half st_shndx;
+    struct Elf_Shdr {
+        Elf_Word sh_name;
+        Elf_Word sh_type;
+        Elf_Xword sh_flags;
+        Elf_Addr sh_addr;
+        Elf_Off sh_offset;
+        Elf_Xword sh_size;
+        Elf_Word sh_link;
+        Elf_Word sh_info;
+        Elf_Xword sh_addralign;
+        Elf_Xword sh_entsize;
     }
 
     enum {
@@ -137,16 +152,19 @@ version (EnableDMDLinuxX86) {
         SHT_STRTAB = 3,
     }
 
+
     bool load_symbols(char* me) {
-        void readblock(FILE* file, int offset, void* ptr, size_t size) {
+        bool readblock(FILE* file, int offset, void* ptr, size_t size) {
             if (!size)
-                return;
+                return true;
 
             fseek(file, offset, SEEK_SET);
             if (fread(ptr, size, 1, file) != 1) {
                 fprintf(stderr, "%.*sUnable to read ELF file\n", MODULE_PREFIX);
-                abort();
+                return false;
             }
+
+            return true;
         }
 
         FILE* elf = fopen(me, "rb");
@@ -155,8 +173,9 @@ version (EnableDMDLinuxX86) {
 
         scope(exit) fclose(elf);
 
-        Elf32_Ehdr header;
-        readblock(elf, 0, &header, header.sizeof);
+        Elf_Ehdr header;
+        if (!readblock(elf, 0, &header, header.sizeof))
+            return false;
         if (header.e_ident1 != 0x46_4C_45_7F) //"\x7fELF"
             return false;
 
@@ -164,53 +183,72 @@ version (EnableDMDLinuxX86) {
         //on DMD/Linux, .symtab is mostly near the end of the section table
         //so... search backwards
         //if no .symtab is found, symtab_section will contain the NULL section
-        Elf32_Shdr symtab_section;
+        Elf_Shdr symtab_section;
         for (int n = header.e_shnum - 1; n >= 0; n--) {
-            readblock(elf, header.e_shoff + header.e_shentsize * n,
-                &symtab_section, symtab_section.sizeof);
+            if (!readblock(elf, header.e_shoff + header.e_shentsize * n,
+                &symtab_section, symtab_section.sizeof))
+                return false;
             if (symtab_section.sh_type == SHT_SYMTAB)
                 break;
         }
 
-        Elf32_Shdr strtab_section;
-        readblock(elf, header.e_shoff
+        Elf_Shdr strtab_section;
+        if (!readblock(elf, header.e_shoff
             + header.e_shentsize * symtab_section.sh_link,
-            &strtab_section, strtab_section.sizeof);
+            &strtab_section, strtab_section.sizeof))
+            return false;
 
         g_str_tab.length = strtab_section.sh_size;
-        readblock(elf, strtab_section.sh_offset, g_str_tab.ptr,
-            g_str_tab.length);
+        if (!readblock(elf, strtab_section.sh_offset, g_str_tab.ptr,
+            g_str_tab.length))
+        {
+            g_str_tab = null;
+            return false;
+        }
 
-        g_sym_tab.length = symtab_section.sh_size / Elf32_Sym.sizeof;
-        readblock(elf, symtab_section.sh_offset, g_sym_tab.ptr,
-            Elf32_Sym.sizeof * g_sym_tab.length);
+        g_sym_tab.length = symtab_section.sh_size / Elf_Sym.sizeof;
+        if (!readblock(elf, symtab_section.sh_offset, g_sym_tab.ptr,
+            Elf_Sym.sizeof * g_sym_tab.length))
+        {
+            g_str_tab = null;
+            g_sym_tab = null;
+            return false;
+        }
 
         return true;
     }
 
-    Elf32_Sym* sym_find_by_address(Elf32_Addr addr) {
+    Elf_Sym* sym_find_by_address(Elf_Addr addr) {
         for (int n = 0; n < g_sym_tab.length; n++) {
-            Elf32_Sym* sym = &g_sym_tab[n];
+            Elf_Sym* sym = &g_sym_tab[n];
             if (sym_contains_address(sym, addr))
                 return sym;
         }
         return null;
     }
 
-    bool sym_contains_address(Elf32_Sym* psym, Elf32_Addr addr) {
+    bool sym_contains_address(Elf_Sym* psym, Elf_Addr addr) {
         if (!psym)
             return false;
         return (addr >= psym.st_value && addr < psym.st_value + psym.st_size)
                 || (addr == psym.st_value);
     }
 
-    Elf32_Sym* sym_find_by_name(char* name) {
+    Elf_Sym* sym_find_by_name(char* name) {
         for (int n = 0; n < g_sym_tab.length; n++) {
-            Elf32_Sym* sym = &g_sym_tab[n];
+            Elf_Sym* sym = &g_sym_tab[n];
             if (!strcmp(&g_str_tab[sym.st_name], name))
                 return sym;
         }
         return null;
+    }
+}
+
+version (DMD_Backtracer) {
+    static this() {
+        //in some situations, libc backtrace (used by Tango) fails
+        //here's a DMD/Phobos based frame walker
+        rt_setAddrBacktraceFnc(&dmd_AddrBacktrace);
     }
 
     size_t dmd_AddrBacktrace(TraceContext* context, TraceContext* contextOut,
@@ -237,8 +275,8 @@ version (EnableDMDLinuxX86) {
 
             depth++;
 
-            if (sym_contains_address(g_stop_traceback_at, retaddr))
-                break;
+            //if (sym_contains_address(g_stop_traceback_at, retaddr))
+              //  break;
         }
 
         return depth;
@@ -261,8 +299,22 @@ version (EnableDMDLinuxX86) {
 
         return bp;
     }
+}
 
-    //trace on signal
+//trace on signal
+version (SetSigHandler) {
+    import tango.stdc.signal;
+
+    static this() {
+        //because it's dangerous and bound to cause problems
+        //random things could happen, especially with multithreading
+        fprintf(stderr, "%.*sWARNING: registering signal handlers for "
+            "backtrace!\n", MODULE_PREFIX);
+
+        //add whatever signal barked at you
+        signal(SIGSEGV, &signal_handler);
+        signal(SIGFPE, &signal_handler);
+    }
 
     extern(C) void signal_handler(int sig) {
         char[] signame;
@@ -276,21 +328,10 @@ version (EnableDMDLinuxX86) {
 
         Exception.TraceInfo info = basicTracer();
 
-        //somehow it seems Tango doesn't want to output the backtrace
-        //so do it manually
-        //info.writeOut((char[] s) { fprintf(stderr, "%.*", s); });
-        foreach (Exception.FrameInfo f; info) {
-            my_symbolizeFrameInfo(f, null, null);
-            fprintf(stderr, "%.*s\n", f.func);
-        }
+        fprintf(stderr, "Backtrace:\n");
+        info.writeOut((char[] s) { fprintf(stderr, "%.*s", s); });
 
         fprintf(stderr, "%.*sabort().\n", MODULE_PREFIX);
         abort();
-    }
-
-    void install_sighandlers() {
-        //add whatever signal barked at you
-        signal(SIGSEGV, &signal_handler);
-        signal(SIGFPE, &signal_handler);
     }
 }
