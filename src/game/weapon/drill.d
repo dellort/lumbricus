@@ -57,15 +57,12 @@ class Drill : Shooter {
         DrillClass myclass;
         WormSprite mWorm;
         Time mStart, mNext;
-        Vector2f mAdvVec;
     }
 
     this(DrillClass base, WormSprite a_owner) {
         super(base, a_owner, a_owner.engine);
         mWorm = a_owner;
         myclass = base;
-        if (!myclass.blowtorch)
-            mAdvVec = Vector2f(0, 7.0f);
     }
 
     this (ReflectCtor c) {
@@ -85,6 +82,8 @@ class Drill : Shooter {
             mWorm.activateBlowtorch(active);
         else
             mWorm.activateDrill(active);
+        if (active)
+            makeTunnel();
     }
 
     override protected void doFire(FireInfo info) {
@@ -107,15 +106,20 @@ class Drill : Shooter {
             doRefire();
             return;
         }
+        if (engine.gameTime.current > mNext) {
+            makeTunnel();
+        }
+    }
+
+    private void makeTunnel() {
+        Vector2f advVec = Vector2f(0, 7.0f);
         if (myclass.blowtorch) {
-            mAdvVec = mWorm.weaponDir*8.0f
+            advVec = mWorm.weaponDir*8.0f
                 + Vector2f(0, mWorm.physics.posp.radius - myclass.tunnelRadius);
         }
-        if (engine.gameTime.current > mNext) {
-            engine.damageLandscape(toVector2i(mWorm.physics.pos + mAdvVec),
-                myclass.tunnelRadius, mWorm);
-            mNext = engine.gameTime.current
-                + timeMsecs(myclass.interval.sample());
-        }
+        engine.damageLandscape(toVector2i(mWorm.physics.pos + advVec),
+            myclass.tunnelRadius, mWorm);
+        mNext = engine.gameTime.current
+            + timeMsecs(myclass.interval.sample());
     }
 }
