@@ -422,8 +422,9 @@ class PhysicObject : PhysicBase {
     Vector2f walkTo; //direction
     private bool mWalkingMode;
     private bool mIsWalking;
+    private bool mWalkStopAtCliff;
 
-    void setWalking(Vector2f dir) {
+    void setWalking(Vector2f dir, bool stopAtCliff = false) {
         dir.y = 0;
         walkTo = dir;
         //or switch off?
@@ -439,6 +440,7 @@ class PhysicObject : PhysicBase {
             //will definitely try to walk, so look into walking direction
             mWalkingMode = true;
         }
+        mWalkStopAtCliff = stopAtCliff;
     }
 
     //if object _attempts_ to walk
@@ -494,6 +496,8 @@ class PhysicObject : PhysicBase {
                     if (first) {
                         //even first tested location => most bottom, fall
                         version(WalkDebug) log("walk: fall-bottom");
+                        if (mWalkStopAtCliff)
+                            break;  //don't fall, but stop (mIsWalking false)
                         mPos += walkDist;
                         doUnglue();
                     } else {

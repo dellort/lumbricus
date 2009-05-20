@@ -105,6 +105,7 @@ class WormSprite : GObjectSprite {
         PhysicConstraint mRope;
         void delegate(Vector2f mv) mRopeMove;
         bool mRopeCanRefire;
+        bool mBlowtorchActive;
     }
 
     TeamTheme teamColor;
@@ -173,9 +174,9 @@ class WormSprite : GObjectSprite {
                 }
                 //always verify the limits, e.g. on weapon change
                 if (mWeaponAngle > float.epsilon)
-                    mWeaponAngle = PI/4;
+                    mWeaponAngle = PI/6;
                 else if (mWeaponAngle < -float.epsilon)
-                    mWeaponAngle = -PI/4;
+                    mWeaponAngle = -PI/6;
                 else
                     mWeaponAngle = 0;
                 break;
@@ -683,7 +684,7 @@ class WormSprite : GObjectSprite {
         //create/destroy the target cross
         bool exists = !!mCrosshair;
         bool shouldexist = false;
-        if (currentState is wsc.st_weapon && mWeapon) {
+        if (currentState.canAim && mWeapon) {
             //xxx special cases not handled, just turns on/off crosshair
             shouldexist = mWeapon.fireMode.direction != ThrowDirection.fixed &&
                 !allowAlternate();
@@ -720,6 +721,8 @@ class WormSprite : GObjectSprite {
         StaticStateInfo to)
     {
         super.stateTransition(from, to);
+        auto fromW = cast(WormStateInfo)from;
+        auto toW = cast(WormStateInfo)to;
         //Trace.formatln("state {} -> {}", from.name, to.name);
 
         if (!mIsDead && (currentState is wsc.st_drowning)) {
@@ -745,7 +748,7 @@ class WormSprite : GObjectSprite {
             physics.addImpulse(look.mulEntries(wsc.jumpStrength[mJumpMode]));
         }
 
-        if (from is wsc.st_weapon || to is wsc.st_weapon) {
+        if (fromW.canAim || toW.canAim) {
             updateCrosshair();
         }
 
@@ -838,6 +841,19 @@ class WormSprite : GObjectSprite {
         setState(activate ? wsc.st_drill : wsc.st_stand);
         physics.doUnglue();
     }
+    bool blowtorchActivated() {
+        return currentState is wsc.st_blowtorch;
+    }
+    void activateBlowtorch(bool activate) {
+        if (activate == blowtorchActivated())
+            return;
+
+        setState(activate ? wsc.st_blowtorch : wsc.st_stand);
+        if (activate)
+            physics.setWalking(weaponDirHor, true);
+        else
+            physics.setWalking(Vector2f(0, 0));
+    }
 
     bool isStanding() {
         return currentState is wsc.st_stand;
@@ -895,7 +911,7 @@ class WormSprite : GObjectSprite {
         if (isDelayedDying)
             return;
 
-        if (!jetpackActivated) {
+        if (!jetpackActivated && !blowtorchActivated) {
             //update walk animation
             if (physics.isGlued) {
                 bool walkst = currentState is wsc.st_walk;
@@ -927,6 +943,9 @@ class WormSprite : GObjectSprite {
                 setState(wsc.st_jump_to_fly);
             }
 
+        }
+        if (blowtorchActivated && !physics.isWalking()) {
+            setState(wsc.st_stand);
         }
         checkReadjust();
         //check death
@@ -971,7 +990,7 @@ class WormSpriteClass : GOSpriteClass {
 
     WormStateInfo st_stand, st_fly, st_walk, st_jet, st_weapon, st_dead,
         st_die, st_drowning, st_beaming, st_reverse_beaming, st_getup,
-        st_jump_start, st_jump, st_jump_to_fly, st_rope, st_drill;
+        st_jump_start, st_jump, st_jump_to_fly, st_rope, st_drill, st_blowtorch;
 
     //alias WormSprite.FlyMode FlyMode;
 
@@ -1015,6 +1034,7 @@ class WormSpriteClass : GOSpriteClass {
         st_jump_to_fly = findState("jump_to_fly");
         st_rope = findState("rope");
         st_drill = findState("drill");
+        st_blowtorch = findState("blowtorch");
 
         flyState[FlyMode.fall] = findSequenceState("fly_fall",true);
         flyState[FlyMode.slide] = findSequenceState("fly_slide",true);

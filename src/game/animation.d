@@ -31,6 +31,7 @@ static this() {
     gAnimationParamConverters["rot180"] = &paramConvertFreeRot180;
     gAnimationParamConverters["rot180_2"] = &paramConvertFreeRot180_2;
     gAnimationParamConverters["rot90"] = &paramConvertFreeRot90;
+    gAnimationParamConverters["rot60"] = &paramConvertFreeRot60;
     gAnimationParamConverters["linear100"] = &paramConvertLinear100;
 }
 
@@ -109,6 +110,12 @@ private int paramConvertFreeRot180_2(int angle, int count) {
 private int paramConvertFreeRot90(int angle, int count) {
     angle = clampRangeC(angle, -45, 45);
     return map2(angle+45.0f,90.0f,count);
+}
+
+//60 degrees, -30 (down) to +30 (up)
+private int paramConvertFreeRot60(int angle, int count) {
+    angle = clampRangeC(angle, -30, 30);
+    return map2(angle+30.0f,60.0f,count);
 }
 
 //0-100 mapped directly to animation frames with clipping

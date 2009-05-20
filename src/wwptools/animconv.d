@@ -179,6 +179,17 @@ class AniEntry {
         }
     }
 
+    void discardFrames(int num) {
+        if (num == 0)
+            return;
+        foreach (inout cframes; mFrames) {
+            foreach (inout fl; cframes) {
+                assert(fl.length > 2*num);
+                fl = fl[num..$-num];
+            }
+        }
+    }
+
     int length_a() {
         return length_b ? mFrames[0][0].length : 0;
     }
@@ -519,6 +530,7 @@ private void loadGeneralW(ConfigNode node) {
         }
 
         ani.frameTimeMS = intFlag("f");
+        ani.discardFrames(intFlag("discard", 0));
 
         //lol, xxx reproduce thoughts of wwp devs
         if (boolFlag("walkfix"))

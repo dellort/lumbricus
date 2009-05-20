@@ -313,8 +313,11 @@ mainspr {
                 _params = "p2/rot90,p1/step3"
                 _flags = "+keeplast"
                 worm_bow_hold = "526"
-                //xxx I don't understand that one
-                //worm_blowtorch_hold = "152"
+            }
+            {
+                _params = "p2/rot60,p1/step3"
+                _flags = "+keeplast"
+                worm_blowtorch_hold = "discard:4; 152"
             }
             {
                 _params = "p2/rot90,p1/step3,time"

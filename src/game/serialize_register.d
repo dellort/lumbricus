@@ -11,7 +11,7 @@ import game.action, game.actionsprite, game.controller, game.crate, game.game,
     game.weapon.ray, game.weapon.spawn, game.weapon.rope, game.weapon.weapon,
     game.weapon.napalm, game.weapon.melee, game.weapon.jetpack, game.sequence,
     game.gamemodes.roundbased, game.gamemodes.roundbased_shared,
-    game.gamemodes.mdebug, game.gamemodes.realtime;
+    game.gamemodes.mdebug, game.gamemodes.realtime, game.weapon.drill;
 import physics.world;
 import utils.random;
 
@@ -29,7 +29,7 @@ void initGameSerialization() {
         StuckTriggerAction, GObjectSprite, WeaponAction, ExplosionAction,
         BeamAction, InsertBitmapAction, EarthquakeAction, ActionShooter,
         ProjectileSprite, HomingAction, RayShooter, RenderLaser, Sequence,
-        SequenceUpdate, SpawnAction, Jetpack, Rope, WormSprite,
+        SequenceUpdate, SpawnAction, Jetpack, Rope, Drill, WormSprite,
         GravestoneSprite, WormSequenceUpdate, WrapFireInfo,
         GameEngineGraphics, AnimationGraphic, LineGraphic, TextGraphic,
         CrosshairGraphic, LandscapeGraphic, NapalmSequenceUpdate,
@@ -57,5 +57,5 @@ void initGameSerialization() {
         SubSequence, WormState, NapalmSpriteClass, DieActionClass,
         TeamActionClass, AoEDamageActionClass, ImpulseActionClass,
         ActionStateInfo, ProjectileStateInfo, CrateStateInfo,
-        ControlRotateActionClass);
+        ControlRotateActionClass, DrillClass);
 }
