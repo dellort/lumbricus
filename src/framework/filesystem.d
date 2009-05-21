@@ -197,10 +197,16 @@ private class MountPointHandlerZip : MountPointHandler {
     }
 }
 
+//--------------------------------------------------------------------
+//  Code for ZIP support, using tango Vfs functions, follows
+//  Side-note: 5 Tango tickets were created while writing this code
+
 import tango.io.vfs.ZipFolder : ZipFolder;
 import tango.io.vfs.model.Vfs : VfsFolder;
 import ic = tango.io.model.IConduit;
 
+//xxx this hack is just required because we still use the phobos
+//    Stream interface all over the program
 private class StreamTangoIn : Stream {
     private ic.InputStream mInp;
     private ulong mSize;
@@ -208,6 +214,7 @@ private class StreamTangoIn : Stream {
     this(ic.InputStream input, ulong customSize = ulong.max) {
         assert(!!input);
         mInp = input;
+        //ZlibReader reports filesize wrong
         mSize = customSize;
         readable = true;
         writeable = false;
@@ -238,6 +245,9 @@ private class StreamTangoIn : Stream {
     }
 }
 
+//wrapper from tango Vfs to our filesystem
+//currently, only supports reading because of ZipFolder limitations (i.e. bugs),
+//  and Stream interface issues (see hack above)
 private class HandlerTangoVfs : HandlerInstance {
     private {
         VfsFolder mVfsFolder;
@@ -253,7 +263,8 @@ private class HandlerTangoVfs : HandlerInstance {
     }
 
     bool exists(VFSPath handlerPath) {
-        //seems VfsFolder can't handle that case (assertion ZipFolder, 1370)
+        //seems ZipFolder can't handle that case (assertion ZipFolder, 1370)
+        //so we check every path level recursively
         if (!pathExists(handlerPath.parent))
             return false;
         return mVfsFolder.file(handlerPath.get(false)).exists;
@@ -270,8 +281,10 @@ private class HandlerTangoVfs : HandlerInstance {
     }
 
     Stream open(VFSPath handlerPath, FileMode mode) {
+        //only input
         assert(mode == FileMode.In);
         auto vfile = mVfsFolder.file(handlerPath.get(false));
+        //wrap the tango stream
         return new StreamTangoIn(vfile.input, vfile.size);
     }
 
@@ -297,6 +310,9 @@ private class HandlerTangoVfs : HandlerInstance {
         return true;
     }
 }
+
+//  ZIP support end
+//----------------------------------------------------------------
 
 private class HandlerLink : HandlerInstance {
     private VFSPath mLinkedPath;

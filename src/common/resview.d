@@ -472,6 +472,29 @@ class AnimationHandler : ResViewHandler!(Animation) {
         mParams[0].curValue = v;
         onScrollbar(null);
     }
+    private int p2() {
+        if (p1 > 90 && p1 < 270)
+            return 180+mParams[1].curValue;
+        else
+            return -mParams[1].curValue;
+    }
+    private void p2(int v) {
+        bool left = false;
+        //convert [0, 360] to [-90, 90]
+        if (v <= 90)
+            v = -v;
+        else if (v < 270) {
+            //left side, p1 will be changed accordingly
+            v = v - 180;
+            left = true;
+        } else
+            v = 360 - v;
+        //modify p1 so animation is facing the right way
+        if ((!left && p1 > 90 && p1 < 270) || (left && (p1 < 90 || p1 > 270)))
+            p1 = realmod(180 - p1, 360);
+        mParams[1].curValue = v;
+        onScrollbar(null);
+    }
 
     private void resetAnim() {
         mAnim.setAnimation(resource);
@@ -490,6 +513,8 @@ class AnimationHandler : ResViewHandler!(Animation) {
             //assume p1() in degrees (0..360)
             auto dir = Vector2f.fromPolar(radius, p1()/360.0f*PI*2);
             c.drawCircle(size/2+toVector2i(dir), 5, Color(1,0,0));
+            dir = Vector2f.fromPolar(radius, p2()/360.0f*PI*2);
+            c.drawCircle(size/2+toVector2i(dir), 5, Color(0,1,0));
         }
 
         override void simulate() {
@@ -501,7 +526,11 @@ class AnimationHandler : ResViewHandler!(Animation) {
             auto angle = toVector2f(inf.pos-size/2).normal.toAngle;
             //(not if NaN)
             if (angle == angle) {
-                p1 = realmod(cast(int)(angle/PI/2*360), 360);
+                int aint = realmod(cast(int)(angle/PI/2*360), 360);
+                if (gFramework.getKeyState(Keycode.MOUSE_RIGHT))
+                    p2 = aint;
+                else
+                    p1 = aint;
             }
         }
 
