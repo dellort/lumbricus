@@ -4,10 +4,11 @@ import devil.image;
 import str = stdx.string;
 import stdx.stream;
 import utils.configfile;
-import utils.output : StreamOutput; //silly wrapper
+import utils.output : TangoStreamOutput; //silly wrapper
 import utils.filetools;
 
 import tango.io.FilePath;
+import tango.io.vfs.model.Vfs;
 
 import tango.io.model.IFile : FileConst;
 const pathsep = FileConst.PathSeparatorChar;
@@ -25,16 +26,17 @@ const pathsep = FileConst.PathSeparatorChar;
 ///in-memory-version:
 ///  img = instead of filename
 ///  filename = to get the name of the thing (filename is never opened or so)
-void do_untile(char[] filename, char[] destPath, char[] imgPath,
+void do_untile(char[] filename, VfsFolder destFolder, char[] imgPath,
     char[] nameHead, char[] nameTail, char[] confName, Stream namefile)
 {
     scope auto img = new Image(filename);
-    do_untile(img, filename, destPath, imgPath, nameHead, nameTail, confName,
+    do_untile(img, filename, destFolder, imgPath, nameHead, nameTail, confName,
         namefile);
 }
-void do_untile(Image img, char[] filename, char[] destPath, char[] imgPath,
+void do_untile(Image img, char[] filename, VfsFolder destFolder, char[] imgPath,
     char[] nameHead, char[] nameTail, char[] confName, Stream namefile)
 {
+    scope buffer = new void[2*1024*1024];
     char[] fnbase = FilePath(filename).name;
     //path.getBaseName(path.getName(filename));
 
@@ -46,8 +48,9 @@ void do_untile(Image img, char[] filename, char[] destPath, char[] imgPath,
         bmps = s.getSubNode("bitmaps");
     }
 
-    if (imgPath.length > 0 && !FilePath(destPath ~ imgPath).exists())
-        trymkdir(destPath ~ imgPath);
+    auto imgFolder = destFolder;
+    if (imgPath.length > 0)
+        imgFolder = destFolder.folder(imgPath).create;
 
     int sNameIdx = 0;
     char[] getNextName() {
@@ -60,7 +63,9 @@ void do_untile(Image img, char[] filename, char[] destPath, char[] imgPath,
 
     void saveImg(Image imgToSave) {
         char[] baseName = getNextName();
-        imgToSave.save(destPath ~ imgPath ~ pathsep ~ baseName ~ ".png");
+        uint len = imgToSave.saveBuffer(buffer);
+        scope f = imgFolder.file(baseName ~ ".png").create.output;
+        f.write(buffer[0..len]);
         if (conffile) {
             bmps.setStringValue(baseName, imgPath ~ "/" ~ baseName ~ ".png");
         }
@@ -83,8 +88,8 @@ void do_untile(Image img, char[] filename, char[] destPath, char[] imgPath,
     }
 
     if (conffile) {
-        conffile.writeFile(new StreamOutput(new File(destPath ~ confName,
-            FileMode.OutNew)));
+        scope outp = destFolder.file(confName).create.output;
+        conffile.writeFile(new TangoStreamOutput(outp));
     }
 
     return 0;

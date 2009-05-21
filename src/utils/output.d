@@ -3,6 +3,7 @@ module utils.output;
 import stdx.utf;
 import stdx.stream;
 import utils.misc : formatfx_s, va_list, Trace;
+import ic = tango.io.model.IConduit;
 
 /// interface for a generic text output stream (D currently lacks support for
 /// text streams, so we have to do it)
@@ -71,6 +72,20 @@ public class StreamOutput : OutputHelper {
     }
 
     this(Stream to) {
+        mTo = to;
+    }
+}
+
+public class TangoStreamOutput : OutputHelper {
+    private ic.OutputStream mTo;
+
+    void writeString(char[] str) {
+        if (mTo) {
+            mTo.write(str);
+        }
+    }
+
+    this(ic.OutputStream to) {
         mTo = to;
     }
 }

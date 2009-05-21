@@ -101,7 +101,7 @@ private class MountPointHandlerDirectory : MountPointHandler {
     }
 
     static this() {
-        FileSystem.registerHandler(new MountPointHandlerDirectory());
+        FileSystem.registerHandler(new typeof(this)());
     }
 }
 
@@ -175,6 +175,125 @@ private class HandlerDirectory : HandlerInstance {
             }
         }
 
+        return true;
+    }
+}
+
+///Specific MountPointHandler for mounting directories
+private class MountPointHandlerZip : MountPointHandler {
+    bool canHandle(char[] absPath) {
+        //exisiting files, name ending with ".zip"
+        return tpath.exists(absPath) && !tpath.isFolder(absPath)
+            && absPath.length > 4 && str.tolower(absPath[$-4..$]) == ".zip";
+    }
+
+    HandlerInstance mount(char[] absPath) {
+        assert(canHandle(absPath));
+        return new HandlerTangoVfs(new ZipFolder(absPath, true));
+    }
+
+    static this() {
+        FileSystem.registerHandler(new typeof(this)());
+    }
+}
+
+import tango.io.vfs.ZipFolder : ZipFolder;
+import tango.io.vfs.model.Vfs : VfsFolder;
+import ic = tango.io.model.IConduit;
+
+private class StreamTangoIn : Stream {
+    private ic.InputStream mInp;
+    private ulong mSize;
+
+    this(ic.InputStream input, ulong customSize = ulong.max) {
+        assert(!!input);
+        mInp = input;
+        mSize = customSize;
+        readable = true;
+        writeable = false;
+        seekable = true;
+    }
+
+    uint readBlock(void* buffer, uint size) {
+        return mInp.read(buffer[0..size]);
+    }
+
+    uint writeBlock(void* buffer, uint size) {
+        assert(false);
+    }
+
+    ulong seek(long offset, SeekPos whence) {
+        return mInp.seek(offset, cast(ic.IOStream.Anchor)whence);
+    }
+
+    override void close() {
+        mInp.close();
+    }
+
+    override ulong size() {
+        //hack: seek(0, SeekPos.End) doesn't return the correct size
+        if (mSize != ulong.max)
+            return mSize;
+        return super.size();
+    }
+}
+
+private class HandlerTangoVfs : HandlerInstance {
+    private {
+        VfsFolder mVfsFolder;
+    }
+
+    this(VfsFolder fld) {
+        assert(!!fld);
+        mVfsFolder = fld;
+    }
+
+    bool isWritable() {
+        return mVfsFolder.writable();
+    }
+
+    bool exists(VFSPath handlerPath) {
+        //seems VfsFolder can't handle that case (assertion ZipFolder, 1370)
+        if (!pathExists(handlerPath.parent))
+            return false;
+        return mVfsFolder.file(handlerPath.get(false)).exists;
+    }
+
+    bool pathExists(VFSPath handlerPath) {
+        //assertion failed ZipFolder, 705
+        if (handlerPath.isEmpty)
+            return true;
+        //assertion failed ZipFolder, 1370
+        if (!pathExists(handlerPath.parent))
+            return false;
+        return mVfsFolder.folder(handlerPath.get(false)).exists;
+    }
+
+    Stream open(VFSPath handlerPath, FileMode mode) {
+        assert(mode == FileMode.In);
+        auto vfile = mVfsFolder.file(handlerPath.get(false));
+        return new StreamTangoIn(vfile.input, vfile.size);
+    }
+
+    bool listdir(VFSPath handlerPath, char[] pattern, bool findDir,
+        bool delegate(char[] filename) callback)
+    {
+        //xxx I don't know how many useless classes this function creates...
+        scope fld = mVfsFolder.folder(handlerPath.get(false)).open;
+        if (findDir) {
+            //direct subfolders
+            foreach (subf; fld) {
+                if (patternMatch(subf.name, pattern)) {
+                    if (!callback(subf.name ~ "/"))
+                        return false;
+                }
+            }
+        }
+        //matching files
+        foreach (fn; fld.self.catalog(pattern)) {
+            if (!callback(fn.name))
+                return false;
+        }
         return true;
     }
 }

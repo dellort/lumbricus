@@ -6,6 +6,10 @@ import tango.io.FilePath;
 import tango.io.model.IFile : FileConst;
 import tango.util.Convert;
 import tango.io.Stdout;
+import tango.io.vfs.ZipFolder : ZipFolder;
+import tango.io.compress.Zip : ZipBlockWriter, ZipEntryInfo, createArchive, Method;
+import tango.io.vfs.FileFolder;
+debug import tango.core.stacktrace.TraceExceptions;
 import stream = stdx.stream;
 import stdx.stream;
 import stdx.string : tolower, split, replace;
@@ -14,6 +18,7 @@ import utils.filetools;
 import utils.configfile;
 import utils.path;
 import utils.misc;
+import utils.output : TangoStreamOutput;
 import wwpdata.animation;
 import wwpdata.common;
 import wwpdata.reader_img;
@@ -24,14 +29,12 @@ import wwptools.untile;
 import wwptools.unworms;
 import wwptools.animconv;
 
-const pathsep = FileConst.PathSeparatorChar;
-
 void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
     bool nolevelthemes)
 {
-    wormsDir = wormsDir ~ pathsep;
-    auto wormsDataDir = wormsDir ~ "data" ~ pathsep;
-    importDir = importDir ~ pathsep;
+    auto wormsDataDir = wormsDir ~ "/data/";
+    importDir = importDir ~ "/";
+    auto outFolder = new FileFolder(outputDir);
 
     void conferr(char[] msg) { Stdout(msg).newline; }
 
@@ -40,12 +43,12 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
         file, &conferr)).rootnode;
     }
     void writeConfig(ConfigNode node, char[] dest) {
-        scope confst = new File(dest, FileMode.OutNew);
-        auto textstream = new StreamOutput(confst);
+        scope confst = outFolder.file(dest).create.output;
+        auto textstream = new TangoStreamOutput(confst);
         node.writeFile(textstream);
     }
 
-    char[] gfxdirp = wormsDataDir~"Gfx"~pathsep~"Gfx.dir";
+    char[] gfxdirp = wormsDataDir ~ "Gfx/Gfx.dir";
     if (!FilePath(gfxdirp).exists()) {
         throw new Exception("Invalid directory! Gfx.dir not found.");
     }
@@ -63,14 +66,11 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
     Image icMask = new Image(importDir ~ "iconmask.png");
     iconlo.applyAlphaMask(icMask);
     //prepare directory "weapons"
-    char[] wepDir = outputDir~pathsep~"weapons";
-    trymkdir(wepDir);
-    //prepare directory for weapon set "default"
-    wepDir ~= pathsep~"default";
-    trymkdir(wepDir);
+    scope wbasef = outFolder.folder("weapons").create;
+    scope wepFolder = outFolder.folder("weapons/default").create;
     //extract weapon icons
     //(NOTE: using namefile, so no filename for basename)
-    do_untile(iconlo, "", wepDir~pathsep, "icons", "icon_", "",
+    do_untile(iconlo, "", wepFolder, "icons", "icon_", "",
         "_icons.conf",iconnames);
 
     //****** Sounds ******
@@ -79,18 +79,17 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
         Stdout.format("Copying sounds '{}'", sub.name()).newline;
         auto newres = new ConfigNode();
         auto reslist = newres.getPath("resources.samples", true);
-        char[] destp = sub["dest_path"]~pathsep;
-        char[] destp_out = outputDir~pathsep~destp;
-        trymkdir(destp_out);
-        char[] sourcep = wormsDataDir~pathsep~sub["source_path"]~pathsep;
+        char[] destp = sub["dest_path"];
+        scope destFolder = outFolder.folder(destp).create;
+        scope sourceFolder = new FileFolder(wormsDataDir ~ sub["source_path"]);
         foreach (char[] name, char[] value; sub.getSubNode("files")) {
             //doesn't really work if value contains a path
             auto ext = tolower(FilePath(value).ext());
             auto outfname = name~"."~ext;
-            FilePath(destp_out~pathsep~outfname).copy(sourcep~value);
-            reslist.setStringValue(name, destp~outfname);
+            destFolder.file(outfname).copy(sourceFolder.file(value));
+            reslist.setStringValue(name, destp~"/"~outfname);
         }
-        writeConfig(newres, outputDir~pathsep~sub["conffile"]);
+        writeConfig(newres, sub["conffile"]);
     }
 
     //****** Convert mainspr.bnk / water.bnk using animconv ******
@@ -100,24 +99,24 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
 
     //run animconv
     do_extractbnk("mainspr", mainspr, animConf.getSubNode("mainspr"),
-        outputDir~pathsep);
+        outputDir~"/");
 
     //extract water sets (uses animconv too)
     //xxx: like level set, enum subdirectories (code duplication?)
-    char[] waterpath = wormsDataDir~"Water";
-    char[] all_waterout = outputDir~pathsep~"water";
+    char[] waterpath = wormsDataDir ~ "Water";
+    char[] all_waterout = outputDir~"/water";
     trymkdir(all_waterout);
     foreach (fi; FilePath(waterpath)) {
         char[] wdir = fi.name;
-        char[] wpath = waterpath~pathsep~wdir;
+        char[] wpath = waterpath~"/"~wdir;
         char[] id = tolower(wdir);
-        char[] waterout = outputDir~pathsep~"water"~pathsep~id~pathsep;
+        char[] waterout = outputDir~"/water/"~id~"/";
         trymkdir(waterout);
         //lame check if it's a water dir
         FilePath wpath2 = FilePath(wpath);
-        if (wpath2.isFolder() && FilePath(wpath~pathsep~"Water.dir").exists()) {
+        if (wpath2.isFolder() && FilePath(wpath~"/Water.dir").exists()) {
             Stdout.formatln("Converting water set '{}'", id);
-            Dir waterdir = new Dir(wpath~pathsep~"Water.dir");
+            Dir waterdir = new Dir(wpath~"/Water.dir");
             do_extractbnk("water_anims", waterdir.open("water.bnk"),
                 animConf.getSubNode("water_anims"), waterout);
 
@@ -127,7 +126,7 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
                 waterout);
             water.free();
 
-            scope colourtxt = new File(wpath~pathsep~"colour.txt", FileMode.In);
+            scope colourtxt = new File(wpath~"/colour.txt", FileMode.In);
             char[][] colRGB = split(colourtxt.readLine());
             assert(colRGB.length == 3);
             auto r = cast(float)to!(ubyte)(colRGB[0])/255.0f;
@@ -144,24 +143,24 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
         return;
     char[] levelspath = wormsDataDir~"Level";
     //prepare output dir
-    char[] levelDir = outputDir~pathsep~"level";
+    char[] levelDir = outputDir~"/level";
     trymkdir(levelDir);
     //iterate over all directories in path "WWP/data/Levels"
     foreach (fi; FilePath(levelspath)) {
         auto setdir = fi.name;
         //full source path
-        char[] setpath = levelspath~pathsep~setdir;
+        char[] setpath = levelspath~"/"~setdir;
         //level set identifier
         char[] id = tolower(setdir);
         //xxx hack for -blabla levels
         if (id[0] == '-')
             id = "old" ~ id[1..$];
         //destination path (named by identifier)
-        char[] destpath = levelDir~pathsep~id;
+        char[] destpath = levelDir~"/"~id;
         trymkdir(destpath);
         if (FilePath(setpath).isFolder()) {
             Stdout.formatln("Converting level set '{}'",id);
-            convert_level(setpath~pathsep,destpath~pathsep,importDir);
+            convert_level(setpath~"/",destpath~"/",importDir);
         }
     }
 }
@@ -170,6 +169,7 @@ int main(char[][] args)
 {
     bool usageerror;
     bool nolevelthemes;
+    bool zipdata;
     while (args.length > 1) {
         auto opt = args[1];
         if (opt.length == 0 || opt[0] != '-')
@@ -177,6 +177,8 @@ int main(char[][] args)
         args = args[0] ~ args[2..$];
         if (opt == "-T") {
             nolevelthemes = true;
+        } else if (opt == "-z") {
+            zipdata = true;
         } else if (opt == "--") {
             //stop argument parsing, standard on Linux
             break;
@@ -192,7 +194,8 @@ int main(char[][] args)
     <outputDir>: where to write stuff to (defaults to
                  prefix/share/lumbricus/data2 )
 Options:
-    -T  don't extract/convert/write level themes`).newline;
+    -T  don't extract/convert/write level themes
+    -z  pack everything into a zip archive`).newline;
         return 1;
     }
     char[] appPath = getAppPath(args[0]);
@@ -208,6 +211,12 @@ Options:
     //} catch (Exception e) {
     //    writefln("Error: %s",e.msg);
     //}
+    if (zipdata) {
+        //create archive, and remove output folder
+        auto outd = new FileFolder(outputDir);
+        zipDirectory(outd, outputDir ~ "/../data2.zip");
+        remove_dir(outputDir);
+    }
     return 0;
 }
 
@@ -220,3 +229,37 @@ require_resources {
 color = "`;
 char[] WATER_P2 = `"
 `;
+
+//why does tango not have this??? recurse through fld and return
+//  relative filenames
+void browse(VfsFolder fld, void delegate(VfsFile file, char[] fn) del,
+    char[] prefix = null)
+{
+    foreach (subf; fld) {
+        browse(subf, del, prefix ~ subf.name ~ "/");
+    }
+    foreach (cfile; fld.self.catalog) {
+        del(cfile, prefix ~ cfile.name);
+    }
+}
+
+//pack inFolder into a zip archive, using relative filenames
+void zipDirectory(FileFolder inFolder, char[] zipFile) {
+    Stdout.formatln("Creating archive '{}'...", zipFile);
+    auto zb = new ZipBlockWriter(zipFile);
+    browse(inFolder, (VfsFile file, char[] fname) {
+        //no compression for png files
+        if (fname.length > 4 && fname[$-4..$] == ".png")
+            zb.method = Method.Store;
+        else
+            zb.method = Method.Deflate;
+        scope fin = file.input;
+        ZipEntryInfo info;
+        info.name = fname;
+        Stdout.format("Deflating {}\r", fname).flush;
+        zb.putStream(info, fin);
+    });
+    zb.finish();
+    Stdout.formatln(
+        "Done.                                                               ");
+}

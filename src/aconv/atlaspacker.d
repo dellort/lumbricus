@@ -113,6 +113,7 @@ class AtlasPacker {
             resNode.setStringValue("meta", metaname);
 
             scope metaf = new File(outPath ~ metaname, FileMode.OutNew);
+            scope(exit)metaf.close();
             //xxx: endian-safety, no one cares, etc...
             FileAtlas header;
             header.textureCount = mBlocks.length;
@@ -121,6 +122,7 @@ class AtlasPacker {
         }
 
         scope confst = new File(outPath ~ fnBase ~ ".conf", FileMode.OutNew);
+        scope(exit)confst.close();
         auto textstream = new StreamOutput(confst);
         confOut.writeFile(textstream);
     }

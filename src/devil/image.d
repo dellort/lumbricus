@@ -165,6 +165,19 @@ class Image {
         }
     }
 
+    //you have to guess the maximum file size... returns actual bytes written
+    uint saveBuffer(void[] buf) {
+        ilBindImage(mImg);
+        ilRegisterOrigin(IL_ORIGIN_UPPER_LEFT);
+
+        uint len = ilSaveL(IL_PNG, buf.ptr, buf.length);
+        if (!len) {
+            throw new Exception("Failed to write image to buffer: "
+                ~ str.toString(ilGetError()));
+        }
+        return len;
+    }
+
     private void checkInit() {
         if (!devilInitialized) {
             Derelict_SetMissingProcCallback(&DerelictMissingProcCallback);
