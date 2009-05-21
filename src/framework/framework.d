@@ -478,12 +478,16 @@ private const Time cFPSTimeSpan = timeSecs(1); //how often to recalc FPS
 public alias int delegate() CacheReleaseDelegate;
 
 ///what mouse cursor to display
-///currently only about the visibility of the mouse cursor; could be easily
-///extended to display an arbitrary mono-colored bitmap (SDL supports it)
-///(in this case, turn this into a class)
-enum MouseCursor {
-    None,
-    Standard,
+struct MouseCursor {
+    bool visible = true;
+    //custom mouse cursor graphic
+    //if this is null, the standard cursor is displayed
+    Surface graphic;
+    //offset to "click point" for custom cursor
+    Vector2i graphic_spot;
+
+    const None = MouseCursor(false);
+    const Standard = MouseCursor();
 }
 
 /// For Framework.getInfoString()
@@ -524,6 +528,7 @@ class Framework {
 
         //for mouse handling
         Vector2i mMousePos;
+        MouseCursor mMouseCursor;
 
         //worthless statistics!
         PerfTimer[char[]] mTimers;
@@ -769,15 +774,24 @@ class Framework {
 
     ///appaerance of the mouse pointer when it is inside the video window
     void mouseCursor(MouseCursor cursor) {
-        if (cursor == mouseCursor)
-            return;
+        mMouseCursor = cursor;
+
+        //hide/show hardware mouse cursor (the one managed by SDL)
         auto state = mDriver.getInputState();
-        state.mouse_visible = (cursor != MouseCursor.None);
-        mDriver.setInputState(state);
+        bool vis = mMouseCursor.visible && !mMouseCursor.graphic;
+        if (state.mouse_visible != vis) {
+            state.mouse_visible = vis;
+            mDriver.setInputState(state);
+        }
     }
     MouseCursor mouseCursor() {
-        return mDriver.getInputState().mouse_visible ? MouseCursor.Standard
-            : MouseCursor.None;
+        return mMouseCursor;
+    }
+
+    private void drawSoftCursor(Canvas c) {
+        if (!mMouseCursor.visible || !mMouseCursor.graphic)
+            return;
+        c.draw(mMouseCursor.graphic, mousePos() - mMouseCursor.graphic_spot);
     }
 
     Vector2i mousePos() {
@@ -981,6 +995,7 @@ class Framework {
             if (onFrame) {
                 onFrame(c);
             }
+            drawSoftCursor(c);
             mDriver.stopScreenRendering();
             c = null;
 

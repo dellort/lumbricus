@@ -457,6 +457,14 @@ class TestTask2 : Task {
             updateFont();
         }
 
+        //non-sensical test for custom mouse cursors
+        override MouseCursor mouseCursor() {
+            MouseCursor res;
+            res.graphic = globals.guiResources.get!(Surface)("window_maximize");
+            res.graphic_spot = res.graphic.size/2;
+            return res;
+        }
+
         void updateFont() {
             //font size isn't in pixels, but in "points"
             //no idea how to convert these

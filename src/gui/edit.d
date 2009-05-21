@@ -288,6 +288,8 @@ uint findNextWord(char[] str, uint pos) {
     bool what = isWord(str, pos);
     while (pos < str.length) {
         pos = charNext(str, pos);
+        if (pos >= str.length)
+            break;
         if (isWord(str, pos) != what || isSpaceAt(str, pos))
             break;
     }
