@@ -1,5 +1,6 @@
 module gui.edit;
 
+import common.common;
 import framework.font;
 import framework.framework;
 import gui.widget;
@@ -256,6 +257,14 @@ class EditLine : Widget {
         mSelFont = new Font(props);
 
         needResize(true);
+    }
+
+    override MouseCursor mouseCursor() {
+        MouseCursor res;
+        res.graphic =
+            globals.guiResources.get!(Surface)("text_cursor");
+        res.graphic_spot = res.graphic.size/2;
+        return res;
     }
 
     override void loadFrom(GuiLoader loader) {

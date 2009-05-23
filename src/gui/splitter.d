@@ -1,5 +1,6 @@
 module gui.splitter;
 
+import common.common;
 import framework.framework;
 import gui.container;
 import gui.widget;
@@ -22,6 +23,7 @@ class Splitter : Container {
         //is equal to the middle of it
         int mSplitPos;
         int mSplitFix; //offset from beginning of splitter-widget to pos
+        const cCursorId = ["size_we", "size_ns"]; //horiz, vert cursor resource
 
         //the real splitter; this is used for mSplit
         class Split : Spacer {
@@ -48,6 +50,14 @@ class Splitter : Container {
                     }
                     splitPos = p;
                 }
+            }
+
+            override MouseCursor mouseCursor() {
+                MouseCursor res;
+                res.graphic =
+                    globals.guiResources.get!(Surface)(cCursorId[mDir]);
+                res.graphic_spot = res.graphic.size/2;
+                return res;
             }
         }
     }

@@ -171,7 +171,10 @@ class PhysicWorld {
         }
 
         foreach (PhysicContactGen cg; mContactGenerators) {
-            cg.process(deltaT, &handleContact);
+            //xxx may be dead, but not removed yet (why did we have this
+            //    delayed-remove crap again?)
+            if (!cg.dead)
+                cg.process(deltaT, &handleContact);
         }
 
         resolveContacts(deltaT);

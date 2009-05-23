@@ -903,6 +903,11 @@ class WormSprite : GObjectSprite {
             //when damaged in-flight, switch to heavy animation
             //xxx better react to impulse rather than damage
             setFlyAnim(FlyMode.heavy);
+        } else {
+            //hit by explosion, abort everything (code below will immediately
+            //  correct the state)
+            setState(wsc.st_stand);
+            //xxx how to remove rope constraint here?
         }
         mLastDmg = engine.gameTime.current;
     }

@@ -14,7 +14,6 @@
 == bekannte, lˆsbare Bugs ==
 - wurm, der im napalm kocht, zeigt animation f¸r unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
 ! napalm ist sehr langsam, minenagriff nicht => ?
-- Wurm am Jetpack wird bei Explosionen kaum weggestoﬂen (Physik velocity_constraint Fehler); manchmal auch ohne Jetpack??
 - Homing missile trifft nix
 - Superschaf fliegt auch 15sec weiter, wenn der Wurm nicht mehr dran ist
 

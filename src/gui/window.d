@@ -139,6 +139,22 @@ class WindowWidget : Container {
                 return Vector2i(cCornerSize);
             }
 
+            override MouseCursor mouseCursor() {
+                MouseCursor res;
+                char[] resid;
+                if (x == 0)
+                    resid = "size_ns";
+                else if (y == 0)
+                    resid = "size_we";
+                else if (x != y)
+                    resid = "size_nesw";
+                else
+                    resid = "size_nwse";
+                res.graphic = globals.guiResources.get!(Surface)(resid);
+                res.graphic_spot = res.graphic.size/2;
+                return res;
+            }
+
             this(int a_x, int a_y) {
                 x = a_x; y = a_y;
                 //sizers fill the whole border on the sides
