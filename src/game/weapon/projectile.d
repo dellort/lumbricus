@@ -269,7 +269,6 @@ class ProjectileSpriteClass : ActionSpriteClass {
 class HomingAction : SpriteAction {
     private {
         HomingActionClass myclass;
-        Vector2f oldAccel;
         ObjectForce objForce;
         ConstantForce homingForce;
     }
@@ -288,15 +287,11 @@ class HomingAction : SpriteAction {
             "Homing action only valid for projectiles");
         homingForce = new ConstantForce();
         objForce = new ObjectForce(homingForce, mParent.physics);
-        //backup acceleration and set gravity override
-        oldAccel = mParent.physics.acceleration;
-        mParent.physics.acceleration = -engine.physicworld.gravity;
         engine.physicworld.add(objForce);
         return ActionRes.moreWork;
     }
 
     protected void cleanupDeferred() {
-        mParent.physics.acceleration = oldAccel;
         objForce.dead = true;
     }
 
@@ -304,22 +299,47 @@ class HomingAction : SpriteAction {
         super.simulate(deltaT);
         Vector2f totarget = (cast(ProjectileSprite)mParent).target
             - mParent.physics.pos;
+        //accelerate/brake
         Vector2f cmpAccel = totarget.project_vector(
             mParent.physics.velocity);
+        float al = cmpAccel.length;
+        float ald = totarget.project_vector_len(
+            mParent.physics.velocity);
+        //steering
         Vector2f cmpTurn = totarget.project_vector(
             mParent.physics.velocity.orthogonal);
-        float velFactor = 1.0f / (1.0f +
-            mParent.physics.velocity.length * myclass.velocityInfluence);
-        cmpTurn *= velFactor;
-        totarget = cmpAccel + cmpTurn;
-        //mParent.physics.addForce(totarget.normal*myclass.force);
-        homingForce.force = totarget.normal*myclass.force;
+        float tl = cmpTurn.length;
+
+        Vector2f fAccel, fTurn;
+        //acceleration force
+        if (al > float.epsilon)
+            fAccel = cmpAccel/al*myclass.forceA;
+        //turn force
+        if (tl > float.epsilon) {
+            fTurn = cmpTurn/tl*myclass.forceT;
+            if (ald > float.epsilon && 2.0f*tl < al) {
+                //when flying towards target and angle is small enough, limit
+                //  turning force to fly a nice arc
+                Vector2f v1 = cmpTurn/tl;
+                Vector2f v2 = v1 - 2*v1.project_vector(totarget);
+                //compute radius of circle trajectory
+                float r =  (totarget.y*v2.x - totarget.x*v2.y)
+                    /(v2.x*v1.y - v1.x*v2.y);
+                //  a = v^2 / r ; F = m * a
+                float fOpt_val = mParent.physics.posp.mass
+                    * mParent.physics.velocity.quad_length / r;
+                //turn slower if we will still hit dead-on
+                if (fOpt_val < myclass.forceT)
+                    fTurn = fOpt_val*cmpTurn/tl;
+            }
+        }
+        homingForce.force = fAccel + fTurn;
     }
 }
 
 class HomingActionClass : SpriteActionClass {
-    float force;
-    float velocityInfluence = 0.001f;
+    float forceA, forceT;
+    //float velocityInfluence = 0.001f;
 
     //xxx class
     this (ReflectCtor c) {
@@ -330,8 +350,9 @@ class HomingActionClass : SpriteActionClass {
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         super.loadFromConfig(eng, node);
-        force = node.getIntValue("force",100);
-        velocityInfluence = node.getFloatValue("velocity_influence", 0.001f);
+        forceA = node.getIntValue("force_a",100);
+        forceT = node.getIntValue("force_t",100);
+        //velocityInfluence = node.getFloatValue("velocity_influence", 0.001f);
     }
 
     HomingAction createInstance(GameEngine eng) {

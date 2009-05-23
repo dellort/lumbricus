@@ -14,7 +14,6 @@
 == bekannte, lösbare Bugs ==
 - wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
 ! napalm ist sehr langsam, minenagriff nicht => ?
-- Homing missile trifft nix
 - Superschaf fliegt auch 15sec weiter, wenn der Wurm nicht mehr dran ist
 
 
