@@ -37,44 +37,6 @@ class Animator : SceneObjectCentered {
         mTimeSource = ts;
     }
 
-    private int frameTime() {
-        assert(mData && mData.mLengthMS != 0);
-        int t = (now() - mStarted).msecs;
-        if (t >= mData.mLengthMS) {
-            //if this has happened, we either need to show a new frame,
-            //disappear or just stop it
-            if (!mData.repeat) {
-                return mData.mLengthMS;
-            }
-            t = t % mData.mLengthMS;
-            mStarted = now() + timeMsecs(-t);
-        }
-        return t;
-    }
-
-    int curFrame() {
-        if (!mData)
-            return -1;
-
-        int t = frameTime();
-        assert(t <= mData.mLengthMS);
-        if (t == mData.mLengthMS) {
-            assert(!mData.repeat);
-            if (mData.keepLastFrame) {
-                return mData.frameCount-1;
-            } else {
-                return -1;
-            }
-        }
-        int frame = t / mData.mFrameTimeMS;
-        assert(frame >= 0 && frame < mData.frameCount);
-        return frame;
-    }
-
-    Time getTime() {
-        return timeMsecs(frameTime);
-    }
-
     //set new animation; or null to stop all
     void setAnimation(Animation d, Time startAt = Time.Null) {
         setAnimation2(d, now - startAt);
@@ -97,16 +59,19 @@ class Animator : SceneObjectCentered {
     bool hasFinished() {
         if (!mData)
             return true;
-        return (frameTime == mData.mLengthMS);
+        return (mData.finished(now() - mStarted));
+    }
+
+    int curFrame() {
+        if (!mData)
+            return -1;
+        return mData.getFrameIdx(now() - mStarted);
     }
 
     override void draw(Canvas canvas) {
         if (!mData)
             return;
-        int frame = curFrame();
-        if (frame < 0)
-            return;
-        mData.drawFrame(canvas, pos, params, frame);
+        mData.draw(canvas, pos, params, now() - mStarted);
     }
 
     //shall return the smallest bounding box for all frame, centered around pos.

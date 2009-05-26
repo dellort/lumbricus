@@ -146,6 +146,7 @@
 		<Unit filename="..\src\game\levelgen\placeobjects.d" />
 		<Unit filename="..\src\game\levelgen\renderer.d" />
 		<Unit filename="..\src\game\loader.d" />
+		<Unit filename="..\src\game\particles.d" />
 		<Unit filename="..\src\game\sequence.d" />
 		<Unit filename="..\src\game\serialize_register.d" />
 		<Unit filename="..\src\game\setup.d" />

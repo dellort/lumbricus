@@ -78,6 +78,46 @@ abstract class Animation {
         return timeMsecs(mFrameTimeMS);
     }
 
+    private int relFrameTimeMs(Time t) {
+        assert(mLengthMS != 0);
+        if (t.msecs >= mLengthMS) {
+            //if this has happened, we either need to show a new frame,
+            //disappear or just stop it
+            if (!repeat) {
+                return mLengthMS;
+            }
+            return t.msecs % mLengthMS;
+        }
+        return t.msecs;
+    }
+
+    int getFrameIdx(Time t) {
+        int ft = relFrameTimeMs(t);
+        assert(ft <= mLengthMS);
+        if (ft == mLengthMS) {
+            assert(!repeat);
+            if (keepLastFrame) {
+                return mFrameCount - 1;
+            } else {
+                return -1;
+            }
+        }
+        int frame = ft / mFrameTimeMS;
+        assert(frame >= 0 && frame < mFrameCount);
+        return frame;
+    }
+
+    void draw(Canvas c, Vector2i pos, ref AnimationParams p, Time t) {
+        int frame = getFrameIdx(t);
+        if (frame < 0)
+            return;
+        drawFrame(c, pos, p, frame);
+    }
+
+    bool finished(Time t) {
+        return (t.msecs >= mLengthMS && !repeat);
+    }
+
     //default: create a proxy
     //of course a derived class could override this and create a normal
     //animation with a reversed frame list
