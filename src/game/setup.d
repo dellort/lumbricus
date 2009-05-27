@@ -16,7 +16,7 @@ import utils.misc;
 //call this to the params out from a configfile
 //GameTask should not be responsible to choose any game configuration for you
 GameConfig loadGameConfig(ConfigNode mConfig, Level level = null,
-    bool renderBitmaps = true)
+    bool renderBitmaps = true, ConfigNode persistentState = null)
 {
     //log("loadConfig");
     GameConfig cfg = new GameConfig();
@@ -80,6 +80,10 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null,
     if (cfg.weaponsets.length == 0) {
         cfg.weaponsets ~= "default";
     }
+
+    if (!persistentState)
+        persistentState = new ConfigNode();
+    cfg.gamestate = persistentState;
 
     return cfg;
 }

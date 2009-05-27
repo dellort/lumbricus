@@ -152,6 +152,7 @@ class GameTask : StatefulTask {
         SerializeInConfig mSaveGame;
         Vector2i mSavedViewPosition;
         bool mSavedSetViewPosition;
+        ConfigNode mGamePersist;
     }
 
     //just for the paused-command?
@@ -417,8 +418,11 @@ class GameTask : StatefulTask {
                 mClientEngine.doFrame();
 
                 //maybe
-                if (mGame.logic.gameEnded)
+                if (mGame.logic.gameEnded) {
+                    assert(!!mGameShell && !!mGameShell.serverEngine);
+                    mGamePersist = mGameShell.serverEngine.persistentState;
                     terminateWithFadeOut();
+                }
             }
         } else {
             if (mDelayedFirstFrame) {
@@ -615,6 +619,10 @@ class GameTask : StatefulTask {
         //std.file.write("dump_graph.dot", res);
         //ConfigNode cfg = saveGame();
         //gConf.saveConfig(cfg, "savegame.conf");
+    }
+
+    ConfigNode gamePersist() {
+        return mGamePersist;
     }
 
     const cSaveId = "lumbricus";

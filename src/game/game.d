@@ -16,6 +16,7 @@ import utils.time;
 import utils.log;
 import utils.configfile;
 import utils.math;
+import utils.md;
 import utils.misc;
 import utils.perf;
 import utils.random;
@@ -65,6 +66,9 @@ class GameEngine : GameEnginePublic {
     Random rnd;
 
     GameConfig gameConfig;
+    ConfigNode persistentState;
+
+    DynamicMD events;
 
     Level level() {
         return mLevel;
@@ -265,6 +269,10 @@ class GameEngine : GameEnginePublic {
         gameConfig = config;
         mGameTime = a_gameTime;
         mCallbacks = a_Callbacks;
+
+        events.declare!()("onGameEnded");
+
+        persistentState = config.gamestate.copy();
 
         assert(config.level !is null);
         mLevel = config.level;

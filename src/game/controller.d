@@ -92,10 +92,21 @@ class ServerTeam : Team {
         mAlternateControl = node.getStringValue("control") != "worms";
         mTeamId = node["id"];
         mTeamNetId = node["net_id"];
-        mGlobalWins = node.getValue!(int)("global_wins", 0);
+        mGlobalWins = persistNode.getValue!(int)("global_wins", 0);
+
+        parent.engine.events.register("onGameEnded", &save);
     }
 
     this (ReflectCtor c) {
+    }
+
+    private void save() {
+        persistNode.setValue!(int)("global_wins", mGlobalWins);
+    }
+
+    private ConfigNode persistNode() {
+        return parent.engine.persistentState.getSubNode(
+            mTeamNetId ~ "." ~ mTeamId);
     }
 
     // --- start Team
@@ -453,16 +464,12 @@ class ServerTeam : Team {
     void skipTurn() {
         if (!mCurrent || !mActive)
             return;
-        foreach (e; parent.mEvents) {
-            e.onTeamEvent(TeamEvent.skipTurn, this);
-        }
+        parent.engine.events.call("onTeamEvent", TeamEvent.skipTurn, this);
         current = null;
     }
 
     void surrenderTeam() {
-        foreach (e; parent.mEvents) {
-            e.onTeamEvent(TeamEvent.surrender, this);
-        }
+        parent.engine.events.call("onTeamEvent", TeamEvent.surrender, this);
         current = null;
         //xxx: set worms to "white flag" animation first
         foreach (m; mMembers) {
@@ -662,9 +669,7 @@ class ServerTeamMember : TeamMember, WormController {
         }
         WormEvent event = mActive ? WormEvent.wormActivate
             : WormEvent.wormDeactivate;
-        foreach (e; mTeam.parent.mEvents) {
-            e.onWormEvent(event, this);
-        }
+        mEngine.events.call("onWormEvent", event, this);
     }
 
     void setLimitedMode() {
@@ -756,9 +761,7 @@ class ServerTeamMember : TeamMember, WormController {
                 selected = mCurrentWeapon.weapon;
             }
         }
-        foreach (e; mTeam.parent.mEvents) {
-            e.onSelectWeapon(this, selected);
-        }
+        mEngine.events.call("onSelectWeapon", this, selected);
         mWorm.weapon = selected;
     }
 
@@ -870,9 +873,7 @@ class ServerTeamMember : TeamMember, WormController {
 
     void firedWeapon(Shooter sh, bool refire) {
         assert(!!sh);
-        foreach (e; mTeam.parent.mEvents) {
-            e.onFireWeapon(sh.weapon, refire);
-        }
+        mEngine.events.call("onFireWeapon", sh.weapon, refire);
     }
 
     void doneFiring(Shooter sh) {
@@ -951,9 +952,7 @@ class ServerTeamMember : TeamMember, WormController {
             //xxx maybe rather have a onWormDie with a deathcause parameter?
             WormEvent deathcause = mWorm.hasDrowned()
                 ? WormEvent.wormDrown : WormEvent.wormDie;
-            foreach (e; mTeam.parent.mEvents) {
-                e.onWormEvent(deathcause, this);
-            }
+            mEngine.events.call("onWormEvent", deathcause, this);
             //NOTES:
             //drowning: drowned worms go physics.dead when reaching the bottom
             //else: death by exploding; suiciding worms go physics.dead when
@@ -1211,7 +1210,7 @@ class GameController : GameLogicPublic {
         int[TeamTheme.cTeamColors.length] mTeamColorCache;
     }
 
-    package ControllerEvents[] mEvents;
+    package ControllerPlugin[] mPlugins;
 
     //when a worm collects a tool from a crate
     ChainDelegate!(ServerTeamMember, CollectableTool) collectTool;
@@ -1219,6 +1218,8 @@ class GameController : GameLogicPublic {
     this(GameEngine engine, GameConfig config) {
         mEngine = engine;
         mEngine.setController(this);
+
+        setupControllerEvents();
 
         if (config.weapons) {
             loadWeaponSets(config.weapons);
@@ -1238,7 +1239,7 @@ class GameController : GameLogicPublic {
         mWeaponSets = null;
 
         new ControllerMsgs(this);
-        new ControllerStats(this);
+        //new ControllerStats(this);
 
         mEngine.finishPlace();
 
@@ -1248,6 +1249,24 @@ class GameController : GameLogicPublic {
     this (ReflectCtor c) {
         Types t = c.types();
         t.registerMethod(this, &doCollectTool, "doCollectTool");
+    }
+
+    private void setupControllerEvents() {
+        engine.events.declare!()("onGameStart");
+        engine.events.declare!(GameObject, GObjectSprite, float, WeaponClass)
+            ("onDamage");
+        engine.events.declare!(int, GameObject)("onDemolition");
+        //worm draws a weapon (wclass may be null if weapon was put away)
+        engine.events.declare!(ServerTeamMember, WeaponClass)("onSelectWeapon");
+        engine.events.declare!(WeaponClass, bool)("onFireWeapon");
+        engine.events.declare!(WormEvent, ServerTeamMember)("onWormEvent");
+        engine.events.declare!(TeamEvent, ServerTeam)("onTeamEvent");
+        engine.events.declare!(CrateType)("onCrateDrop");
+        engine.events.declare!(ServerTeamMember, Collectable[])("onCrateCollect");
+        //imo, sudden death is common enough to be here
+        engine.events.declare!()("onSuddenDeath");
+        //also called on a tie, with winner = null
+        engine.events.declare!(Team)("onVictory");
     }
 
     //--- start GameLogicPublic
@@ -1322,9 +1341,7 @@ class GameController : GameLogicPublic {
         assert(!mIsAnythingGoingOn);
         mIsAnythingGoingOn = true;
         //nothing happening? start a round
-        foreach (e; mEvents) {
-            e.onGameStart();
-        }
+        engine.events.call("onGameStart");
 
         deactivateAll();
         //lol, see gamemode comments for how this should really be used
@@ -1349,9 +1366,7 @@ class GameController : GameLogicPublic {
 
             if (mGamemode.ended() && !mGameEnded) {
                 mGameEnded = true;
-                foreach (e; mEvents) {
-                    e.onGameEnded();
-                }
+                engine.events.call!()("onGameEnded");
             }
         }
     }
@@ -1551,16 +1566,12 @@ class GameController : GameLogicPublic {
     void reportViolence(GameObject cause, GObjectSprite victim, float damage) {
         assert(!!cause && !!victim);
         auto wclass = weaponFromGameObject(cause);
-        foreach (e; mEvents) {
-            e.onDamage(cause, victim, damage, wclass);
-        }
+        engine.events.call("onDamage", cause, victim, damage, wclass);
     }
 
     void reportDemolition(int pixelCount, GameObject cause) {
         assert(!!cause);
-        foreach (e; mEvents) {
-            e.onDemolition(pixelCount, cause);
-        }
+        engine.events.call("onDemolition", pixelCount, cause);
     }
 
     //queue for placing anywhere on landscape
@@ -1619,9 +1630,7 @@ class GameController : GameLogicPublic {
         crate.active = true;
         mLastCrate = crate;
         if (!silent) {
-            foreach (e; mEvents) {
-                e.onCrateDrop(crate.crateType);
-            }
+            engine.events.call("onCrateDrop", crate.crateType);
         }
         log("drop {} -> {}", from, to);
         return true;
@@ -1658,16 +1667,13 @@ class GameController : GameLogicPublic {
     void startSuddenDeath() {
         engine.addEarthQuake(500, timeSecs(4.5f), true);
         engine.callbacks.nukeSplatEffect();
-        foreach (e; mEvents) {
-            e.onSuddenDeath();
-        }
+        engine.events.call("onSuddenDeath");
     }
 
     //xxx can't access mEvents from gamemode (package protection)
     void doVictory(Team winner) {
-        foreach (e; mEvents) {
-            e.onVictory(winner);
-        }
+        engine.events.call("onVictory", winner);
+
     }
 }
 
@@ -1685,82 +1691,71 @@ enum TeamEvent {
     surrender,
 }
 
-class ControllerEvents {
+abstract class ControllerPlugin {
     private {
         GameController mController;
+        GameEngine mEngine;
     }
 
     this(GameController c) {
         mController = c;
-        mController.mEvents ~= this;
+        mEngine = c.engine;
+        mController.mPlugins ~= this;
+        regMethods();
     }
     this(ReflectCtor c) {
+        regMethods(c.types);
     }
 
     final GameController controller() {
         return mController;
     }
 
-    //all the following functions are called on events, and do nothing by
-    //default; they are meant to be overridden when you're itnerested in an
-    //event
+    abstract void regMethods(Types t = null);
 
-    //maybe or maybe not replace this by a bunch of MDelegates?
-
-    void onGameStart() {
-    }
-
-    void onDamage(GameObject cause, GObjectSprite victim, float damage,
-        WeaponClass wclass)
-    {
-    }
-
-    void onDemolition(int pixelCount, GameObject cause) {
-    }
-
-    //worm draws a weapon (wclass may be null if weapon was put away)
-    void onSelectWeapon(ServerTeamMember m, WeaponClass wclass) {
-    }
-
-    void onFireWeapon(WeaponClass wclass, bool refire = false) {
-    }
-
-    void onWormEvent(WormEvent id, ServerTeamMember m) {
-    }
-
-    void onTeamEvent(TeamEvent id, ServerTeam t) {
-    }
-
-    void onCrateDrop(CrateType type) {
-    }
-
-    void onCrateCollect(ServerTeamMember m, Collectable[] stuffies) {
-    }
-
-    //imo, sudden death is common enough to be here
-    void onSuddenDeath() {
-    }
-
-    //also called on a tie, with winner = null
-    void onVictory(Team winner) {
-    }
-
-    void onGameEnded() {
+    static char[] genRegFunc(char[][] mnames) {
+        char[] ret = `override void regMethods(Types t = null) {`;
+        foreach (n; mnames) {
+            ret ~= `
+                if (t) {
+                    t.registerMethod(this, &`~n~`, "`~n~`");
+                }
+                if (mEngine) {
+                    mEngine.events.register("`~n~`", &`~n~`);
+                }
+                `;
+        }
+        ret ~= `}`;
+        return ret;
     }
 }
 
 //the idea was that the whole game state should be observable (including
 //events), so you can move displaying all messages into a separate piece of
 //code, instead of creating messages directly
-class ControllerMsgs : ControllerEvents {
+class ControllerMsgs : ControllerPlugin {
     this(GameController c) {
         super(c);
     }
     this(ReflectCtor c) {
         super(c);
+        /*auto t = c.types;
+        t.registerMethod(this, &onGameStart, "onGameStart");
+        t.registerMethod(this, &onSelectWeapon, "onSelectWeapon");
+        t.registerMethod(this, &onWormEvent, "onWormEvent");
+        t.registerMethod(this, &onTeamEvent, "onTeamEvent");
+        t.registerMethod(this, &onCrateDrop, "onCrateDrop");
+        t.registerMethod(this, &onCrateCollect, "onCrateCollect");
+        t.registerMethod(this, &onSuddenDeath, "onSuddenDeath");
+        t.registerMethod(this, &onVictory, "onVictory");
+        t.registerMethod(this, &onGameEnded, "onGameEnded");*/
     }
 
-    override void onGameStart() {
+    mixin(genRegFunc(["onGameStart", "onSelectWeapon", "onWormEvent",
+        "onTeamEvent", "onCrateDrop", "onCrateCollect", "onSuddenDeath",
+        "onVictory", "onGameEnded"]));
+
+    void onGameStart() {
         controller.messageAdd("msggamestart", null);
     }
 
@@ -1775,7 +1770,7 @@ class ControllerMsgs : ControllerEvents {
         }*/
     }
 
-    override void onWormEvent(WormEvent id, ServerTeamMember m) {
+    void onWormEvent(WormEvent id, ServerTeamMember m) {
         switch (id) {
             case WormEvent.wormActivate:
                 controller.messageAdd("msgwormstartmove", [m.name], m.team,
@@ -1803,7 +1798,7 @@ class ControllerMsgs : ControllerEvents {
         }
     }
 
-    override void onCrateDrop(CrateType type) {
+    void onCrateDrop(CrateType type) {
         switch (type) {
             case CrateType.med:
                 controller.messageAdd("msgcrate_medkit");
@@ -1816,7 +1811,7 @@ class ControllerMsgs : ControllerEvents {
         }
     }
 
-    override void onCrateCollect(ServerTeamMember member,
+    void onCrateCollect(ServerTeamMember member,
         Collectable[] stuffies)
     {
         foreach (item; stuffies) {
@@ -1841,11 +1836,11 @@ class ControllerMsgs : ControllerEvents {
         }
     }
 
-    override void onSuddenDeath() {
+    void onSuddenDeath() {
         controller.messageAdd("msgsuddendeath");
     }
 
-    override void onVictory(Team winner) {
+    void onVictory(Team winner) {
         if (winner) {
             controller.messageAdd("msgwin", [winner.name], winner);
         } else {
@@ -1853,7 +1848,7 @@ class ControllerMsgs : ControllerEvents {
         }
     }
 
-    override void onGameEnded() {
+    void onGameEnded() {
         //xxx is this really useful? I would prefer showing the
         //  "team xxx won" message longer
         controller.messageAdd("msggameend");
@@ -1868,7 +1863,7 @@ class ControllerMsgs : ControllerEvents {
 //  - Proper output/sending to clients
 //  - timecoded events, with graph drawing?
 //  - gamemode dependency?
-class ControllerStats : ControllerEvents {
+class ControllerStats : ControllerPlugin {
     private {
         static LogStruct!("gameevents") log;
     }
@@ -1880,7 +1875,10 @@ class ControllerStats : ControllerEvents {
         super(c);
     }
 
-    override void onDamage(GameObject cause, GObjectSprite victim, float damage,
+    mixin(genRegFunc(["onDamage", "onDemolition", "onFireWeapon",
+        "onWormEvent", "onCrateCollect", "onGameEnded"]));
+
+    void onDamage(GameObject cause, GObjectSprite victim, float damage,
         WeaponClass wclass)
     {
         char[] wname = "unknown_weapon";
@@ -1918,12 +1916,12 @@ class ControllerStats : ControllerEvents {
         }
     }
 
-    override void onDemolition(int pixelCount, GameObject cause) {
+    void onDemolition(int pixelCount, GameObject cause) {
         mPixelsDestroyed += pixelCount;
         //log("blasted {} pixels of land", pixelCount);
     }
 
-    override void onFireWeapon(WeaponClass wclass, bool refire = false) {
+    void onFireWeapon(WeaponClass wclass, bool refire = false) {
         char[] wname = "unknown_weapon";
         if (wclass)
             wname = wclass.name;
@@ -1937,7 +1935,7 @@ class ControllerStats : ControllerEvents {
         }
     }
 
-    override void onWormEvent(WormEvent id, ServerTeamMember m) {
+    void onWormEvent(WormEvent id, ServerTeamMember m) {
         switch (id) {
             case WormEvent.wormActivate:
                 log("Worm activate: {}", m);
@@ -1960,12 +1958,12 @@ class ControllerStats : ControllerEvents {
         }
     }
 
-    override void onCrateCollect(ServerTeamMember m, Collectable[] stuffies) {
+    void onCrateCollect(ServerTeamMember m, Collectable[] stuffies) {
         log("{} collects crate: {}", m, stuffies);
         mCrateCount++;
     }
 
-    override void onGameEnded() {
+    void onGameEnded() {
         output();
     }
 

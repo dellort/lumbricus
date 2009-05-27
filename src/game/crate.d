@@ -248,9 +248,7 @@ class CrateSprite : ActionSprite {
         //only collect crates when it's your turn
         if (!member.active)
             return;
-        foreach (e; engine.controller.mEvents) {
-            e.onCrateCollect(member, stuffies);
-        }
+        engine.events.call("onCrateCollect", member, stuffies);
         //transfer stuffies
         foreach (Collectable c; stuffies) {
             c.collect(this, member);

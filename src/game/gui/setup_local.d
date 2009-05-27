@@ -202,7 +202,7 @@ class LocalGameSetupTask : Task {
         Widget mSetup, mWaiting;
         Window mWindow;
         DropDownList mTemplates;
-        Button mGoBtn;
+        Button mGoBtn, mEditTeamsBtn;
 
         TeamEditorTask mTeameditTask;
         StringListWidget mAllTeamsList, mActiveTeamsList;
@@ -228,7 +228,8 @@ class LocalGameSetupTask : Task {
         //background level rendering thread *g*
         //LvlGenThread mThread;
         //bool mThWaiting = false;
-        Task mGame;
+        GameTask mGame;
+        ConfigNode mGamePersist;
     }
 
     this(TaskManager tm, char[] args = "") {
@@ -246,7 +247,8 @@ class LocalGameSetupTask : Task {
         loader.lookup!(Button)("cancel").onClick = &cancelClick;
         mGoBtn = loader.lookup!(Button)("go");
         mGoBtn.onClick = &goClick;
-        loader.lookup!(Button)("editteams").onClick = &editteamsClick;
+        mEditTeamsBtn = loader.lookup!(Button)("editteams");
+        mEditTeamsBtn.onClick = &editteamsClick;
 
         mTemplates = loader.lookup!(DropDownList)("dd_templates");
         mTemplates.selection = "TODO";
@@ -287,7 +289,13 @@ class LocalGameSetupTask : Task {
         char[][] teams, actteams;
         foreach (ConfigNode t; mTeams) {
             if (t["id"] in mActiveTeams) {
-                actteams ~= t.name;
+                char[] tname = t.name;
+                if (mGamePersist) {
+                    auto n = mGamePersist.getSubNode(
+                        t["net_id"] ~ "." ~ t["id"]);
+                    tname ~= " (" ~ n["global_wins"] ~ ")";
+                }
+                actteams ~= tname;
             } else
                 teams ~= t.name;
         }
@@ -296,6 +304,9 @@ class LocalGameSetupTask : Task {
         mGoBtn.enabled = actteams.length>1;
         mAllTeamsList.setContents(teams);
         mActiveTeamsList.setContents(actteams);
+
+        mAllTeamsList.visible = !mGamePersist;
+        mEditTeamsBtn.visible = !mGamePersist;
     }
 
     private void allteamsSelect(int index) {
@@ -369,7 +380,8 @@ class LocalGameSetupTask : Task {
 
         assert(!mGame); //hm, no idea
         //create default GameConfig with custom level
-        auto gc = loadGameConfig(gConf.loadConfig("newgame"), level);
+        auto gc = loadGameConfig(gConf.loadConfig("newgame"), level, true,
+            mGamePersist);
         gc.teams = buildGameTeams();
         //xxx: do some task-death-notification or so... (currently: polling)
         //currently, the game can't really return anyway...
@@ -401,9 +413,11 @@ class LocalGameSetupTask : Task {
         //poll for game death
         if (mGame) {
             if (mGame.reallydead) {
+                mGamePersist = mGame.gamePersist;
                 mGame = null;
                 //show GUI again
                 mWindow.visible = true;
+                updateTeams();
             }
         }
     }

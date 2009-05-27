@@ -47,6 +47,9 @@ class GameConfig {
     ConfigNode gfx;
     char[] randomSeed;
 
+    //state that survives multiple rounds, e.g. worm statistics and points
+    ConfigNode gamestate;
+
     ConfigNode save() {
         //xxx: not nice. but for now...
         ConfigNode to = new ConfigNode();
@@ -56,6 +59,7 @@ class GameConfig {
         to.addNode("gamemode", gamemode.copy);
         to.addNode("levelobjects", levelobjects.copy);
         to.addNode("gfx", gfx.copy);
+        to.addNode("gamestate", gamestate.copy);
         to.setValueArray!(char[])("weaponsets", weaponsets);
         to.setStringValue("random_seed", randomSeed);
         return to;
@@ -69,6 +73,7 @@ class GameConfig {
         gamemode = n.getSubNode("gamemode");
         levelobjects = n.getSubNode("levelobjects");
         gfx = n.getSubNode("gfx");
+        gamestate = n.getSubNode("gamestate");
         weaponsets = n.getValueArray!(char[])("weaponsets");
         randomSeed = n["random_seed"];
     }

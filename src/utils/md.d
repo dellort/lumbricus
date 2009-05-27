@@ -3,6 +3,7 @@ module utils.md;
 
 //import utils.misc;
 import arr = tango.core.Array;
+import utils.misc;
 
 //broadcast an event to all registered delegates
 //earlier registered delegates are called first
@@ -94,3 +95,37 @@ struct MassRemoval {
 
 with this, removing the callbacks wouldn't be as annoying.
 +/
+
+struct DynamicMD {
+    private {
+        class Wrap {
+        }
+        class WrapT(T...) : Wrap {
+            MDelegate!(T) del;
+        }
+
+        Wrap[char[]] mDelegates;
+    }
+
+    private WrapT!(T) get(T...)(char[] name) {
+        return castStrict!(WrapT!(T))(mDelegates[name]);
+    }
+
+    //before you can call register or call, you must declare() it with the same
+    //parameters - this is to prevent silent failures and to annoy the user
+    void declare(T...)(char[] name) {
+        assert(!(name in mDelegates));
+        mDelegates[name] = new WrapT!(T)();
+    }
+
+    void register(T...)(char[] name, void delegate(T) del) {
+        auto w = get!(T)(name);
+        w.del ~= del;
+    }
+
+    void call(T...)(char[] name, T params) {
+        auto w = get!(T)(name);
+        w.del(params);
+    }
+}
+
