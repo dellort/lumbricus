@@ -50,6 +50,7 @@ private:
 
     GuiMain mGui;
     GuiConsole mGuiConsole;
+    GuiFps mFPS;
 
     TaskManager taskManager;
 
@@ -127,9 +128,10 @@ private:
 
         mGui = new GuiMain(framework.screenSize);
 
-        auto fps = new GuiFps();
-        fps.zorder = GUIZOrder.FPS;
-        mGui.mainFrame.add(fps);
+        mFPS = new GuiFps();
+        mFPS.zorder = GUIZOrder.FPS;
+        mFPS.visible = false;
+        mGui.mainFrame.add(mFPS);
 
         mGuiConsole = new GuiConsole(false);
         mGuiConsole.zorder = GUIZOrder.Console;
@@ -240,6 +242,8 @@ private:
 
         globals.cmdLine.registerCommand("times", &cmdShowTimers,
             "List timers", []);
+        globals.cmdLine.registerCommand("show_fps", &cmdShowFps,
+            "Enable/disable FPS display", ["bool:enable"]);
 
         globals.cmdLine.registerCommand("fw_info", &cmdInfoString,
             "Query a info string from the framework, with no argument: list "
@@ -258,6 +262,10 @@ private:
         globals.cmdLine.registerCommand("locale", &cmdLocale,
             "Change current locale (why are those help texts not translated??)",
             ["text:Language ID"]);
+    }
+
+    private void cmdShowFps(MyBox[] args, Output write) {
+        mFPS.visible = args[0].unbox!(bool);
     }
 
     private void cmdSetFWDriver(MyBox[] args, Output write) {

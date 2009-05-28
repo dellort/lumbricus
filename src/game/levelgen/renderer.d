@@ -9,7 +9,7 @@ import game.levelgen.landscape;
 import framework.framework;
 import utils.vector2;
 import utils.time;
-import utils.mylist;
+import utils.list2;
 import utils.log;
 import utils.misc;
 import drawing = utils.drawing;
@@ -39,11 +39,11 @@ class LandscapeBitmap {
     //because I'm stupid, I'll store all points into a linked lists to be able
     //to do naive corner cutting by subdividing the curve recursively
     private struct Vertex {
+        ListNode!(Vertex*) listnode;
         Point pt;
         bool no_subdivide = false;
-        mixin ListNodeMixin;
     }
-    private alias List!(Vertex*) VertexList;
+    private alias List2!(Vertex*) VertexList;
 
     private struct TexData {
         //also not good and nice
@@ -87,14 +87,14 @@ class LandscapeBitmap {
         for (int i = 0; i < 5; i++) {
             if (!verts.hasAtLeast(3))
                 return;
-            Vertex* cur = verts.head;
+            Vertex* cur = verts.head.value;
             Point pt = cur.pt;
             do {
-                Vertex* next = verts.ring_next(cur);
-                Vertex* overnext = verts.ring_next(next);
+                Vertex* next = verts.ring_next(&cur.listnode).value;
+                Vertex* overnext = verts.ring_next(&next.listnode).value;
                 if (!cur.no_subdivide && !next.no_subdivide) {
                     Vertex* newv = new Vertex();
-                    verts.insert_after(newv, cur);
+                    verts.insert_after(newv, &cur.listnode, &newv.listnode);
                     Point p2 = next.pt, p3 = overnext.pt;
                     newv.pt = pt + (p2-pt)*(1.0f - start);
                     pt = p2;
@@ -104,7 +104,7 @@ class LandscapeBitmap {
                     pt = next.pt;
                 }
                 cur = next;
-            } while (cur !is verts.head);
+            } while (cur !is verts.head.value);
         }
     }
 
@@ -127,7 +127,7 @@ class LandscapeBitmap {
         //if no image available, just set the mLevelData[]
         bool textured = !!mImage;
 
-        VertexList vertices = new VertexList(Vertex.getListNodeOffset());
+        VertexList vertices = new VertexList();
 
         uint curindex = 0;
         foreach(Vector2i p; points) {
@@ -138,7 +138,7 @@ class LandscapeBitmap {
                 if (index == curindex)
                     v.no_subdivide = true;
             }
-            vertices.insert_tail(v);
+            vertices.insert_tail(v, &v.listnode);
             curindex++;
         }
 
@@ -162,8 +162,6 @@ class LandscapeBitmap {
         foreach(Vertex* v; vertices) {
             urgs ~= v.pt;
         }
-
-        delete vertices;
 
         Color.RGBA32* dstptr; uint dstpitch;
         TexData tex;

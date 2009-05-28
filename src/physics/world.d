@@ -72,39 +72,39 @@ class PhysicWorld {
 
     public void add(PhysicBase obj) {
         obj.world = this;
-        obj.base_node = mAllObjects.insert_tail(obj);
+        mAllObjects.insert_tail(obj, &obj.base_node);
         if (auto o = cast(PhysicForce)obj)
-            o.forces_node = mForceObjects.insert_tail(o);
+            mForceObjects.insert_tail(o, &o.forces_node);
         if (auto o = cast(PhysicGeometry)obj)
-            o.geometries_node = mGeometryObjects.insert_tail(o);
+            mGeometryObjects.insert_tail(o, &o.geometries_node);
         if (auto o = cast(PhysicObject)obj) {
-            o.objects_node = mObjects.insert_tail(o);
+            mObjects.insert_tail(o, &o.objects_node);
             mObjArr ~= o;
         }
         if (auto o = cast(PhysicTrigger)obj)
-            o.triggers_node = mTriggers.insert_tail(o);
+            mTriggers.insert_tail(o, &o.triggers_node);
         if (auto o = cast(PhysicContactGen)obj)
-            o.cgen_node = mContactGenerators.insert_tail(o);
+            mContactGenerators.insert_tail(o, &o.cgen_node);
         if (auto o = cast(PhysicCollider)obj)
-            o.coll_node = mObjectColliders.insert_tail(o);
+            mObjectColliders.insert_tail(o, &o.coll_node);
     }
 
     private void remove(PhysicBase obj) {
-        mAllObjects.remove(obj.base_node);
+        mAllObjects.remove(&obj.base_node);
         if (auto o = cast(PhysicForce)obj)
-            mForceObjects.remove(o.forces_node);
+            mForceObjects.remove(&o.forces_node);
         if (auto o = cast(PhysicGeometry)obj)
-            mGeometryObjects.remove(o.geometries_node);
+            mGeometryObjects.remove(&o.geometries_node);
         if (auto o = cast(PhysicObject)obj) {
-            mObjects.remove(o.objects_node);
+            mObjects.remove(&o.objects_node);
             arrayRemoveUnordered(mObjArr, o);
         }
         if (auto o = cast(PhysicTrigger)obj)
-            mTriggers.remove(o.triggers_node);
+            mTriggers.remove(&o.triggers_node);
         if (auto o = cast(PhysicContactGen)obj)
-            mContactGenerators.remove(o.cgen_node);
+            mContactGenerators.remove(&o.cgen_node);
         if (auto o = cast(PhysicCollider)obj)
-            mObjectColliders.remove(o.coll_node);
+            mObjectColliders.remove(&o.coll_node);
     }
 
     private const cPhysTimeStepMs = 10;

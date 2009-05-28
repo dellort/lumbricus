@@ -97,8 +97,8 @@ class GameEngineGraphics {
     }
 
     void remove(Graphic n) {
-        if (objects.contains(n.node)) {
-            objects.remove(n.node);
+        if (objects.contains(&n.node)) {
+            objects.remove(&n.node);
             n.removed = true;
             engine.callbacks.removeGraphic(n);
         } else {
@@ -111,7 +111,7 @@ class GameEngineGraphics {
     void add(Graphic g) {
         assert(!g.owner);
         g.owner = this;
-        g.node = objects.add(g);
+        objects.add(g, &g.node);
         engine.callbacks.newGraphic(g);
     }
 }
@@ -120,7 +120,7 @@ class GameEngineGraphics {
 //    remove/redo this if you feel like it
 abstract class Graphic {
     GameEngineGraphics owner;
-    ListNode node;
+    ListNode!(typeof(this)) node;
     bool removed;
 
     this() {

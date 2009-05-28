@@ -1,112 +1,116 @@
-//drop-in replacement for the horrible mylist.d; it's not necessarily less
-// horrible, but it causes less problems for serialization
-//it's kept as simple as possible
-//except for the support of O(1) remove()/contains()
 module utils.list2;
 
 import utils.reflection;
 
-//xxx: I do not know why, but referencing this as List2(T).Node causes linker
-//     errors... dmd is a goddamn piece of garbage, I hope LDC is useable soon
-//Note that any use of this object from "outside" is an optimization anyway.
-class ListNode {
-    private Object owner;
-    this() {
-    }
-    this (ReflectCtor c) {
-    }
+struct ListNode(T) {
+    List2!(T) owner;
+    private ListNode* prev, next;
+    T value;
 }
 
-class List2(T) {
-    Node head_tail;
+/++
+ + Doubly linked list.
+ + Features:
+ +  - unintrusive (e.g. list items don't need to be derived from a ListNode
+ +    class, and an object can be in multiple lists)
+ +  - optional: avoid additional memory allocations for list nodes; you can
+ +    allocate the ListNode struct yourself (e.g. put them into the list item
+ +    directly, if the list item is a class)
+ +  - O(1) remove() and contains(), if you keep the node pointer around
+ + The list also provides a O(1) contains() and a O(n) clear(), which is a bit
+ + unusual for linked lists. This is because each ListNode contains an "owner"-
+ + field.
+ +
+ + Serialization: this sucks.
+ +/
+final class List2(T) {
+    alias ListNode!(T) Node;
 
-    static class Node : ListNode {
-        private Node prev, next;
-        T value;
-        this() {
-        }
-        this (ReflectCtor c) {
-        }
+    private {
+        Node head_tail;
     }
 
     this() {
-        head_tail = new Node();
         head_tail.owner = this;
-        clear();
+        head_tail.next = head_tail.prev = &head_tail;
     }
 
     this (ReflectCtor c) {
-        c.types().registerClass!(Node);
+        //c.types().registerClass!(Node);
+    }
+
+    //return first and last element, or sentinel if list empty
+    //that means, if the list is empty, an invalid pointer is returned
+    Node* head() {
+        return head_tail.next;
+    }
+    Node* tail() {
+        return head_tail.prev;
+    }
+
+    bool empty() {
+        return head_tail.next is &head_tail;
     }
 
     //O(n)
     void clear() {
-        Node cur = head_tail.next;
-        while (cur && cur !is head_tail) {
-            cur.owner = null;
+        while (!empty()) {
+            remove(head()); //(how cruel)
         }
-        head_tail.next = head_tail.prev = head_tail;
     }
 
     //O(1), no checks against double inserts
-    Node add(T value) {
-        return insert_before(value, head_tail);
-    }
-
-    //uh
-    void addNode(ListNode node) {
-        auto n = cast(Node)node;
-        assert (!!n);
-        assert (!n.owner);
-        n.owner = this;
-        n.next = head_tail;
-        n.prev = head_tail.prev;
-        n.next.prev = n;
-        n.prev.next = n;
+    //storage: use list node in storage, instead of allocating a new node
+    //         (allows for micro-optimizations)
+    //         leave it null if you want it simple
+    Node* add(T value, Node* storage = null) {
+        assert(head_tail.owner is this);
+        return insert_before(value, &head_tail, storage);
     }
 
     alias add insert_tail;
 
-    Node insert_head(T value) {
-        return insert_after(value, head_tail);
+    Node* insert_head(T value, Node* storage = null) {
+        return insert_after(value, &head_tail, storage);
+    }
+
+    private Node* newnode(T value, Node* storage) {
+        Node* n = storage ? storage : (new Node);
+        n.value = value;
+        n.owner = this;
+        return n;
     }
 
     //O(1), if succ == null (no successor), append
-    Node insert_before(T value, ListNode succ) {
-        Node succn = cast(Node)succ;
-        if (!succn)
-            succn = head_tail;
-        assert(succn.owner is this);
-        Node n = new Node();
-        n.value = value;
-        n.owner = this;
-        n.next = succn;
-        n.prev = succn.prev;
+    Node* insert_before(T value, Node* succ, Node* storage = null) {
+        if (!succ)
+            succ = &head_tail;
+        assert(succ.owner is this);
+        auto n = newnode(value, storage);
+        n.next = succ;
+        n.prev = succ.prev;
         n.next.prev = n;
         n.prev.next = n;
         return n;
     }
 
     //O(1), if pred == null (no predecessor), like insert_head
-    Node insert_after(T value, ListNode pred) {
-        Node predn = cast(Node)pred;
-        if (!predn)
-            predn = head_tail;
-        assert(predn.owner is this);
-        Node n = new Node();
-        n.value = value;
-        n.owner = this;
-        n.prev = predn;
-        n.next = predn.next;
+    Node* insert_after(T value, Node* pred, Node* storage = null) {
+        if (!pred)
+            pred = &head_tail;
+        assert(pred.owner is this);
+        auto n = newnode(value, storage);
+        n.prev = pred;
+        n.next = pred.next;
         n.next.prev = n;
         n.prev.next = n;
         return n;
     }
 
     //O(n)
-    Node find(T value) {
-        Node cur = head_tail.next;
-        while (cur !is head_tail) {
+    Node* find(T value) {
+        Node* cur = head_tail.next;
+        while (cur !is &head_tail) {
             if (cur.value is value)
                 return cur;
             cur = cur.next;
@@ -121,45 +125,47 @@ class List2(T) {
 
     //O(1)
     //null as argument is supported and returns false
-    bool contains(ListNode node) {
+    bool contains(Node* node) {
         return node && node.owner is this;
     }
 
     //O(n)
     void remove(T value) {
-        Node n = find(value);
+        Node* n = find(value);
         if (!n)
             throw new Exception("not in list");
         remove(n);
     }
 
     //O(1)
-    void remove(ListNode node) {
+    void remove(Node* node) {
         if (node.owner !is this)
             throw new Exception("not in list (2)");
-        Node n = cast(Node)node;
-        assert (!!n);
-        n.next.prev = n.prev;
-        n.prev.next = n.next;
-        n.owner = null;
+        assert (!!node);
+        assert (node !is &head_tail);
+        node.next.prev = node.prev;
+        node.prev.next = node.next;
+        node.next = node.prev = null;
+        node.owner = null;
     }
 
+    //remove all items from 'this' and append them to 'other'
     //O(n)
     void move_to_list(List2 other) {
-        Node cur = head_tail.next;
-        while (cur !is head_tail) {
-            Node next = cur.next;
+        Node* cur = head_tail.next;
+        while (cur !is &head_tail) {
+            Node* next = cur.next;
             remove(cur);
-            other.addNode(cur);
+            other.add(cur.value, cur);
             cur = next;
         }
     }
 
     int opApply(int delegate(inout T) del) {
-        Node cur = head_tail.next;
-        while (cur !is head_tail) {
+        Node* cur = head_tail.next;
+        while (cur !is &head_tail) {
             //cache next element, as cur could get invalid during the call
-            Node nextTmp = cur.next;
+            Node* nextTmp = cur.next;
             int res = del(cur.value);
             if (res)
                 return res;
@@ -177,14 +183,14 @@ class List2(T) {
     struct Iterator {
         private {
             List2 owner;
-            Node current;
+            Node* current;
         }
 
         static Iterator opCall(List2 a_owner) {
             assert (!!a_owner);
             Iterator iter;
             iter.owner = a_owner;
-            iter.current = a_owner.head_tail;
+            iter.current = &a_owner.head_tail;
             iter.head();
             return iter;
         }
@@ -192,7 +198,7 @@ class List2(T) {
         //points to an actual element
         bool valid() {
             assert (!!current);
-            return current !is owner.head_tail;
+            return current !is &owner.head_tail;
         }
 
         T value() {
@@ -217,7 +223,7 @@ class List2(T) {
             assert (!!current);
             if (!valid())
                 throw new Exception("trying to remove null element");
-            Node r = current;
+            Node* r = current;
             current = r.prev;
             owner.remove(r);
         }
@@ -237,5 +243,39 @@ class List2(T) {
     //iterator will point to first element (or null if list empty)
     Iterator iterator() {
         return Iterator(this);
+    }
+
+    //-- trivial, but sometimes useful functions
+
+    bool hasAtLeast(int n) {
+        return count() >= n;
+    }
+
+    int count() {
+        int r;
+        foreach (_; this) {
+            r++;
+        }
+        return r;
+    }
+
+    //"don't ask" functions
+    Node* ring_next(Node* cur) {
+        assert(cur.owner is this);
+        cur = cur.next;
+        if (cur is &head_tail)
+            cur = cur.next;
+        return cur;
+    }
+    Node* ring_prev(Node* cur) {
+        assert(cur.owner is this);
+        cur = cur.prev;
+        if (cur is &head_tail)
+            cur = cur.prev;
+        return cur;
+    }
+    T next_value(Node* cur) {
+        //return T.init on list end (sentinel contains it)
+        return cur.next.value;
     }
 }

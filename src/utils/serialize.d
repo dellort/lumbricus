@@ -53,9 +53,10 @@ Not-so-obvious limitations of the implemented serialization mechanism:
   xxx: maybe one could at least add a check for .min and .max
 - Delegates work, but all methods have to be registered with a name. This also
   means that all classes, that contain such methods, must be reflectable.
-- Not supported at all: pointers, function pointers, typedefs, unions, void[].
-- D standard classes like TypeInfo or ClassInfo are not supported.
-  (Although they could, under certain conditions.)
+- Not supported at all:
+  - pointers, function pointers, typedefs, unions, void[]
+  - D standard classes like TypeInfo or ClassInfo
+  (Although some could be supported, trivially or under certain conditions.)
 +/
 
 //type informations: mostly the stuff from utils.reflection, and possibly hooks
@@ -120,11 +121,13 @@ class SerializeBase {
     //order when deserializing (like with a stream)
     //the object can depend from previously written objects (they share they
     //same object graph)
+    //overwritten by SerializeOutConfig!
     void writeObject(Object o) {
         assert (false);
     }
 
     //parallel to writeObject()
+    //overwritten by SerializeInConfig!
     Object readObject() {
         assert (false);
         return null;

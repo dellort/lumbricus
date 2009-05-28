@@ -508,8 +508,8 @@ class GameEngine : GameEnginePublic {
         assert(obj.active);
         //in case of lazy removal
         //note that .contains is O(1) if used with .node
-        if (!mObjects.contains(obj.node))
-            obj.node = mObjects.add(obj);
+        if (!mObjects.contains(&obj.node))
+            mObjects.add(obj, &obj.node);
     }
 
     PhysicWorld physicworld() {
@@ -533,7 +533,7 @@ class GameEngine : GameEnginePublic {
                 o.simulate(deltat);
             } else {
                 //remove (it's done lazily, and here it's actually removed)
-                mObjects.remove(o.node);
+                mObjects.remove(&o.node);
             }
         }
     }

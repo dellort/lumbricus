@@ -904,6 +904,43 @@ class TextColorTest : Task {
     }
 }
 
+class PixelTest : Task {
+
+    class W : Widget {
+        int x;
+
+        this() {
+        }
+        override void onKeyEvent(KeyInfo inf) {
+            if (!inf.isUp())
+                return;
+            if (inf.code == Keycode.MOUSE_LEFT)
+                x++;
+            else if (inf.code == Keycode.MOUSE_RIGHT)
+                x--;
+        }
+        override void onDraw(Canvas canvas) {
+            const m = 5;
+            int f = ((x % m) + m) % m;
+            auto c = Color(!!(f==0),!!(f==1),!!(f==2));
+            if (f == 3)
+                c = Color(0);
+            else if (f == 4)
+                c = Color(1);
+            canvas.drawFilledRect(Vector2i(0), size, c);
+        }
+    }
+
+    this(TaskManager tm, char[] args = "") {
+        super(tm);
+
+        gWindowManager.createWindowFullscreen(this, new W(), "meh");
+    }
+    static this() {
+        TaskFactory.register!(typeof(this))("pixeltest");
+    }
+}
+
 class FoobarTest : Task {
     private Label mLabel;
     private Foobar mFoo;

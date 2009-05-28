@@ -3,7 +3,7 @@ module game.levelgen.genrandom;
 import game.levelgen.level : Lexel, parseMarker, writeMarker;
 import utils.array : arrayMap;
 import utils.vector2;
-import utils.mylist;
+import utils.list2;
 import utils.math : lineIntersect;
 import framework = framework.framework : Color;
 import tango.math.Math : PI;
@@ -155,14 +155,14 @@ private class Segment {
     Point a, b;
     Group group;
     bool changeable = true; //if false, means _both_ points must not be changed
-    mixin ListNodeMixin node;
+    ListNode!(typeof(this)) node;
 
     this(Group group, Point a, Point b) {
         this.group = group; this.a = a; this.b = b;
     }
 }
 
-private alias List!(Segment) SegmentList;
+private alias List2!(Segment) SegmentList;
 
 //range define by [start, last]
 //a range is empty when start and last are null
@@ -195,8 +195,8 @@ private struct SegmentRange {
     SegmentRange complement(Group to_group) {
         if (group !is to_group || isEmpty())
             return to_group.fullRange;
-        auto b = to_group.segments.ring_prev(start);
-        auto a = to_group.segments.ring_next(last);
+        auto b = to_group.segments.ring_prev(&start.node).value;
+        auto a = to_group.segments.ring_next(&last.node).value;
         //does the range cover the whole list
         if (a is start)
             return SegmentRange(to_group);
@@ -206,7 +206,8 @@ private struct SegmentRange {
     bool changeable() {
         if (isEmpty() || !group.changeable)
             return false;
-        for (auto cur = start; ; cur = group.segments.ring_next(cur)) {
+        for (auto cur = start; ; cur = group.segments.ring_next(&cur.node).value)
+        {
             if (!(cur.changeable))
                 return false;
             if (cur is last)
@@ -219,15 +220,14 @@ private struct SegmentRange {
 //a Group is a single polygon
 private final class Group {
     SegmentList segments;
-    mixin ListNodeMixin node;
+    ListNode!(typeof(this)) node;
     Lexel meaning;
     bool visible;
     bool changeable;
     float mTolerance = 1.0f;
 
     this() {
-        Segment s; //indirection through s to work around to a compiler bug
-        segments = new SegmentList(s.node.getListNodeOffset());
+        segments = new SegmentList();
     }
 
     //see GenRandomLandscape.addPolygon()
@@ -255,10 +255,10 @@ private final class Group {
         for (int n = 0; n < pts.length; n++) {
             Segment s = new Segment(this, pts[n], pts[(n+1) % $]);
             s.changeable = isChangeable(n);
-            segments.insert_tail(s);
+            segments.insert_tail(s, &s.node);
         }
 
-        return segments.tail;
+        return segments.tail.value;
     }
 
     //whether a group needs to test intersection with another
@@ -268,7 +268,7 @@ private final class Group {
     }
 
     SegmentRange fullRange() {
-        return SegmentRange(this, segments.head, segments.tail);
+        return SegmentRange(this, segments.head.value, segments.tail.value);
     }
 
     //filter out points, that could make later subdivision (by renderer.d) less
@@ -276,23 +276,23 @@ private final class Group {
     void filter(float dist) {
         if (!segments.hasAtLeast(3))
                 return;
-        Segment cur = segments.head;
+        Segment cur = segments.head.value;
         do {
         cont:
-            Segment next = segments.ring_next(cur);
+            Segment next = segments.ring_next(&cur.node).value;
             Point p = cur.a, np = next.a, onp = next.b;
             //check if np is near enough line between p and onp to kill it
             float d = np.distance_from(p, onp-p);
             if (d < dist && cur.changeable && next.changeable) {
-                segments.remove(next);
+                segments.remove(&next.node);
                 cur.b = onp;
-                if (segments.isEmpty) //oops, shouldn't really happen
+                if (segments.empty()) //oops, shouldn't really happen
                     return;
                 goto cont;
             } else {
                 cur = next;
             }
-        } while (cur !is segments.head);
+        } while (cur !is segments.head.value);
     }
 
     //remove all Segments _within_ the given range, and insert new segments
@@ -313,19 +313,22 @@ private final class Group {
 
         //remove segments after start and before last
         for (;;) {
-            Segment cur = segments.ring_next(start);
+            Segment cur = segments.ring_next(&start.node).value;
             if (start is last || cur is last)
                 break;
             //debug Trace.formatln("remove {} {}", cur.a.toString, cur.b.toString);
-            segments.remove(cur);
+            segments.remove(&cur.node);
         }
+
+        assert(segments.contains(&start.node));
+        assert(segments.contains(&last.node));
 
         if (points.length < 1)
             return;
 
         if (start is last) {
             Segment s = new Segment(this, last.a, last.b);
-            segments.insert_before(s, start);
+            segments.insert_before(s, &start.node, &s.node);
             start = s;
         }
 
@@ -334,7 +337,7 @@ private final class Group {
         Segment cur = start;
         foreach(Point p; points[1..$]) {
             Segment s = new Segment(this, cur.b, p);
-            segments.insert_after(s, cur);
+            segments.insert_after(s, &cur.node, &s.node);
             cur = s;
         }
 
@@ -371,7 +374,7 @@ private final class Group {
                     return true;
                 if (segment is check.last)
                     break;
-                segment = segments.ring_next(segment);
+                segment = segments.ring_next(&segment.node).value;
             }
             last = cur;
         }
@@ -379,7 +382,7 @@ private final class Group {
     }
 }
 
-private alias List!(Group) GroupList;
+private alias List2!(Group) GroupList;
 
 //This creates a random level image; the goal was to have levels looking
 //similar to the auto generated levels from Worms(tm).
@@ -399,7 +402,7 @@ private:
         if (!group.segments.hasAtLeast(2))
             return;
         for (int i = 0; i < 3; i++) {
-            Segment s = group.segments.head;
+            Segment s = group.segments.head.value;
             assert(s !is null);
             while (s !is null) {
                 float d = (s.b-s.a).length;
@@ -410,7 +413,7 @@ private:
                         rngShared.nextDouble3()*0.5f+PI, d*0.2f, d*2.5f, 2.0f,
                         config.pix_epsilon);
                 }
-                s = group.segments.next(s);
+                s = group.segments.next_value(&s.node);
             }
         }
     }
@@ -420,22 +423,22 @@ private:
         if (!group.segments.hasAtLeast(2))
             return;
         //first, find longest edge and edge count
-        Segment s = group.segments.head;
+        Segment s = group.segments.head.value;
         float longest = 0;
         uint count = 0;
         while (s !is null) {
             float d = (s.b-s.a).length;
             longest = d > longest ? d : longest;
             count++;
-            s = group.segments.next(s);
+            s = group.segments.next_value(&s.node);
         }
 
         //random offset into the list (not so important, but try not to treat
         //the segments at the start and end of the list different)
         uint something = rngShared.next(0, count);
-        Segment cur = group.segments.head;
+        Segment cur = group.segments.head.value;
         while (something > 0) {
-            cur = group.segments.ring_next(cur);
+            cur = group.segments.ring_next(&cur.node).value;
             something--;
         }
 
@@ -445,7 +448,7 @@ private:
         uint cur_len = 0;
         uint iterations = 0;
         while (iterations < count) {
-            Segment next = group.segments.ring_next(cur);
+            Segment next = group.segments.ring_next(&cur.node).value;
             float cur_d = (cur.b-cur.a).length;
             summed_d += cur_d;
             float prob = summed_d/longest;
@@ -539,7 +542,7 @@ private:
         bool visible = true)
     {
         Group g = new Group();
-        mGroups.insert_tail(g);
+        mGroups.insert_tail(g, &g.node);
         g.init(points, unchangeable, changeable);
         g.meaning = marker;
         g.visible = visible;
@@ -562,7 +565,7 @@ private:
     //formerly a "public" constructor, or so
     private void reinit(uint width, uint height) {
         mWidth = width; mHeight = height;
-        mGroups = new GroupList(Group.node.getListNodeOffset());
+        mGroups = new GroupList();
 
         //init border
         addPolygon(getRect(10), null, Lexel.INVALID, false, false);

@@ -67,7 +67,7 @@ mainspr {
             cloud2 = "627"
             cloud3 = "628"
             suddendeath_debris = "115"
-            
+
             {
                 _flags = "f:13"
                 expl_foom = "606"
@@ -162,8 +162,8 @@ mainspr {
             mine_blue = "52"
             mine_green = "53"
             mine_yellow = "54"
-            mine_magenta = "55"
-            mine_cyan = "56"
+            mine_cyan = "55"
+            mine_magenta = "56"
 
             {
                 _flags = "f:250"
@@ -172,8 +172,8 @@ mainspr {
                 mine_flashing_blue = "45 52"
                 mine_flashing_green = "46 53"
                 mine_flashing_yellow = "47 54"
-                mine_flashing_magenta = "48 55"
-                mine_flashing_cyan = "49 56"
+                mine_flashing_cyan = "48 55"
+                mine_flashing_magenta = "49 56"
             }
 
             arrow_fly = "57"

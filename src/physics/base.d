@@ -34,7 +34,7 @@ const CollisionType CollisionType_Invalid = null;
 
 //base type for physic objects (which are contained in a PhysicWorld)
 class PhysicBase {
-    package ListNode base_node;
+    package ListNode!(typeof(this)) base_node;
     PhysicWorld mWorld;
     //set to remove object after simulation
     bool dead = false;

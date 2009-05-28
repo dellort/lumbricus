@@ -16,7 +16,7 @@ import ieee = tango.math.IEEE;
 //wind, gravitation, ...
 //what about explosions?
 class PhysicForce : PhysicBase {
-    package ListNode forces_node;
+    package ListNode!(typeof(this)) forces_node;
 
     abstract void applyTo(PhysicObject o, float deltaT);
 
