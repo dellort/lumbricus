@@ -4,7 +4,7 @@ import framework.framework;
 import framework.i18n;
 import game.hud.teaminfo;
 import game.gamepublic;
-import game.gamemodes.roundbased_shared;
+import game.gamemodes.turnbased_shared;
 import gui.container;
 import gui.label;
 import gui.widget;
@@ -24,15 +24,15 @@ class PrepareDisplay : Label {
         font = gFramework.fontManager.loadFont("messages");
         border = Vector2i(7, 5);
 
-        //prepare display is only needed for roundbased gamemode
+        //prepare display is only needed for turnbased gamemode
         mEnabled = !!status();
         //hide initially
         visible = false;
     }
 
-    //returns info-object, or null if no round based stuff is going on
-    private RoundbasedStatus status() {
-        return cast(RoundbasedStatus)mGame.logic.gamemodeStatus();
+    //returns info-object, or null if no turn based stuff is going on
+    private TurnbasedStatus status() {
+        return cast(TurnbasedStatus)mGame.logic.gamemodeStatus();
     }
 
     override void simulate() {
@@ -44,7 +44,7 @@ class PrepareDisplay : Label {
 
         auto logic = mGame.logic;
         //auto controller = mEngine ? mEngine.engine.controller : null;
-        if (st.state == RoundState.prepare
+        if (st.state == TurnState.prepare
             && mGame.control.getControlledMember)
         {
             Team curTeam = mGame.control.getControlledMember.team;

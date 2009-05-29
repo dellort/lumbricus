@@ -988,7 +988,6 @@ struct NetTeamInfo {
     struct Team {
         uint playerId;
         ConfigNode teamConf;
-        int globalWins;
     }
 }
 
@@ -1012,7 +1011,8 @@ abstract class SimpleNetConnection {
     void delegate(SimpleNetConnection sender, uint playerId,
         bool granted) onHostGrant;
     //incoming team info
-    void delegate(SimpleNetConnection sender, NetTeamInfo info) onHostAccept;
+    void delegate(SimpleNetConnection sender, NetTeamInfo info,
+        ConfigNode persistentState) onHostAccept;
 
     //send a game-independent command (like "say Hi fellas!" or
     //  "pm Player2 Secret message")

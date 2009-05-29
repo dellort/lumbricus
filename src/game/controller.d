@@ -92,21 +92,9 @@ class ServerTeam : Team {
         mAlternateControl = node.getStringValue("control") != "worms";
         mTeamId = node["id"];
         mTeamNetId = node["net_id"];
-        mGlobalWins = persistNode.getValue!(int)("global_wins", 0);
-
-        parent.engine.events.register("onGameEnded", &save);
     }
 
     this (ReflectCtor c) {
-    }
-
-    private void save() {
-        persistNode.setValue!(int)("global_wins", mGlobalWins);
-    }
-
-    private ConfigNode persistNode() {
-        return parent.engine.persistentState.getSubNode(
-            mTeamNetId ~ "." ~ mTeamId);
     }
 
     // --- start Team
@@ -279,7 +267,7 @@ class ServerTeam : Team {
             setPointMode(PointMode.none);
             targetIsSet = false;
             setOnHold(false);
-            if (hasDoubleDamage()) {
+            if (mDoubleDmg > 0) {
                 mDoubleDmg--;
             }
             mAllowSelect = false;
@@ -407,7 +395,7 @@ class ServerTeam : Team {
     }
 
     //check if some parts of the team are still moving
-    //round controller may use this to wait for the next round
+    //gamemode plugin may use this to wait for the next turn
     bool isIdle() {
         foreach (m; mMembers) {
             //check if any alive member is still moving around
@@ -596,7 +584,7 @@ class ServerTeamMember : TeamMember, WormController {
         mWorm.physics.lifepower = mTeam.initialPoints;
         lastKnownLifepower = health;
         updateHealth();
-        //take control over dying, so we can let them die on round end
+        //take control over dying, so we can let them die on end of turn
         mWorm.delayedDeath = true;
         mWorm.gravestone = mTeam.gravestone;
         mWorm.teamColor = mTeam.color;
@@ -659,7 +647,7 @@ class ServerTeamMember : TeamMember, WormController {
             resetActivity();
             mLastAction = Time.Null;
             if (mWorm) {
-                //stop all action when round ends
+                //stop all action when turn ends
                 mWorm.activateJetpack(false);
                 mWorm.forceAbort();
                 mWorm.weapon = null;
@@ -993,7 +981,7 @@ class ServerTeamMember : TeamMember, WormController {
     }
 
     bool delayedAction() {
-        //check for any activity that might justify control beyond end-of-round
+        //check for any activity that might justify control beyond end-of-turn
         //e.g. still charging a weapon, still firing a multi-shot weapon
         return worm.delayedAction;
     }
@@ -1055,12 +1043,10 @@ class WeaponSet {
     GameEngine engine;
     WeaponItem[WeaponClass] weapons;
     WeaponClass[] crateList;
-    char[] name;
 
     //config = item from "weapon_sets"
     this (GameEngine aengine, ConfigNode config) {
-        engine = aengine;
-        name = config.name;
+        this(aengine);
         foreach (ConfigNode node; config.getSubNode("weapon_list")) {
             try {
                 auto weapon = new WeaponItem(this, node);
@@ -1071,12 +1057,39 @@ class WeaponSet {
                     crateList ~= weapon.weapon;
             } catch (ClassNotRegisteredException e) {
                 registerLog("game.controller")
-                    ("Error in weapon set '"~name~"': "~e.msg);
+                    ("Error in weapon set '"~config.name~"': "~e.msg);
             }
         }
     }
 
+    //create empty set
+    this(GameEngine aengine) {
+        engine = aengine;
+    }
+
     this (ReflectCtor c) {
+    }
+
+    void saveToConfig(ConfigNode config) {
+        auto node = config.getSubNode("weapon_list");
+        node.clear();
+        //xxx doesn't give a deterministic order, but it shouldn't matter
+        foreach (WeaponItem wi; weapons) {
+            node.setStringValue(wi.weapon.name, wi.quantityToString);
+        }
+    }
+
+    void addSet(WeaponSet other) {
+        assert(!!other);
+        //add weapons
+        foreach (WeaponClass key, WeaponItem value; other.weapons) {
+            if (!(key in weapons))
+                weapons[key] = new WeaponItem(this);
+            auto wi = *(key in weapons);
+            wi.addFromItem(value);
+        }
+        //xxx: no crateList synchronization here, crate set is loaded
+        //     independently anyway
     }
 
     WeaponItem byId(WeaponClass weaponId) {
@@ -1167,6 +1180,25 @@ class WeaponItem {
 
     this (ReflectCtor c) {
     }
+
+    //add the stockpile of another WeaponItem to this one
+    //if this.mWeapon is not yet set, it is set to the other item's weapon
+    void addFromItem(WeaponItem other) {
+        assert(!!other);
+        if (!mWeapon)
+            mWeapon = other.weapon;
+        assert(!!mWeapon);
+        if (infinite || other.infinite)
+            mInfiniteQuantity = true;
+        else
+            mQuantity += other.count;
+    }
+
+    char[] quantityToString() {
+        if (infinite)
+            return "inf";
+        return to!(char[])(mQuantity);
+    }
 }
 
 //the GameController controlls the game play; especially, it converts keyboard
@@ -1239,7 +1271,8 @@ class GameController : GameLogicPublic {
         mWeaponSets = null;
 
         new ControllerMsgs(this);
-        //new ControllerStats(this);
+        new ControllerStats(this);
+        new ControllerPersistence(this);
 
         mEngine.finishPlace();
 
@@ -1654,26 +1687,12 @@ class GameController : GameLogicPublic {
         return false;
     }
 
-    bool crateSpyActive() {
-        foreach (ServerTeam t; mActiveTeams) {
-            if (t.hasCrateSpy)
-                return true;
-        }
-        return false;
-    }
-
     //show effects of sudden death start
     //doesn't raise water / affect gameplay
     void startSuddenDeath() {
         engine.addEarthQuake(500, timeSecs(4.5f), true);
         engine.callbacks.nukeSplatEffect();
         engine.events.call("onSuddenDeath");
-    }
-
-    //xxx can't access mEvents from gamemode (package protection)
-    void doVictory(Team winner) {
-        engine.events.call("onVictory", winner);
-
     }
 }
 
@@ -1711,10 +1730,14 @@ abstract class ControllerPlugin {
         return mController;
     }
 
-    abstract void regMethods(Types t = null);
+    final GameEngine engine() {
+        return mEngine;
+    }
+
+    abstract protected void regMethods(Types t = null);
 
     static char[] genRegFunc(char[][] mnames) {
-        char[] ret = `override void regMethods(Types t = null) {`;
+        char[] ret = `override protected void regMethods(Types t = null) {`;
         foreach (n; mnames) {
             ret ~= `
                 if (t) {
@@ -1739,27 +1762,17 @@ class ControllerMsgs : ControllerPlugin {
     }
     this(ReflectCtor c) {
         super(c);
-        /*auto t = c.types;
-        t.registerMethod(this, &onGameStart, "onGameStart");
-        t.registerMethod(this, &onSelectWeapon, "onSelectWeapon");
-        t.registerMethod(this, &onWormEvent, "onWormEvent");
-        t.registerMethod(this, &onTeamEvent, "onTeamEvent");
-        t.registerMethod(this, &onCrateDrop, "onCrateDrop");
-        t.registerMethod(this, &onCrateCollect, "onCrateCollect");
-        t.registerMethod(this, &onSuddenDeath, "onSuddenDeath");
-        t.registerMethod(this, &onVictory, "onVictory");
-        t.registerMethod(this, &onGameEnded, "onGameEnded");*/
     }
 
     mixin(genRegFunc(["onGameStart", "onSelectWeapon", "onWormEvent",
         "onTeamEvent", "onCrateDrop", "onCrateCollect", "onSuddenDeath",
         "onVictory", "onGameEnded"]));
 
-    void onGameStart() {
+    private void onGameStart() {
         controller.messageAdd("msggamestart", null);
     }
 
-    void onSelectWeapon(ServerTeamMember m, WeaponClass wclass) {
+    private void onSelectWeapon(ServerTeamMember m, WeaponClass wclass) {
         //xxx just copying old code... maybe this can be extended to show
         //    grenade timer messages (like in wwp)
         /*if (wclass) {
@@ -1770,7 +1783,7 @@ class ControllerMsgs : ControllerPlugin {
         }*/
     }
 
-    void onWormEvent(WormEvent id, ServerTeamMember m) {
+    private void onWormEvent(WormEvent id, ServerTeamMember m) {
         switch (id) {
             case WormEvent.wormActivate:
                 controller.messageAdd("msgwormstartmove", [m.name], m.team,
@@ -1786,7 +1799,7 @@ class ControllerMsgs : ControllerPlugin {
         }
     }
 
-    void onTeamEvent(TeamEvent id, ServerTeam t) {
+    private void onTeamEvent(TeamEvent id, ServerTeam t) {
         switch (id) {
             case TeamEvent.skipTurn:
                 controller.messageAdd("msgskipturn", [t.name()], t);
@@ -1798,7 +1811,7 @@ class ControllerMsgs : ControllerPlugin {
         }
     }
 
-    void onCrateDrop(CrateType type) {
+    private void onCrateDrop(CrateType type) {
         switch (type) {
             case CrateType.med:
                 controller.messageAdd("msgcrate_medkit");
@@ -1811,7 +1824,7 @@ class ControllerMsgs : ControllerPlugin {
         }
     }
 
-    void onCrateCollect(ServerTeamMember member,
+    private void onCrateCollect(ServerTeamMember member,
         Collectable[] stuffies)
     {
         foreach (item; stuffies) {
@@ -1836,11 +1849,11 @@ class ControllerMsgs : ControllerPlugin {
         }
     }
 
-    void onSuddenDeath() {
+    private void onSuddenDeath() {
         controller.messageAdd("msgsuddendeath");
     }
 
-    void onVictory(Team winner) {
+    private void onVictory(Team winner) {
         if (winner) {
             controller.messageAdd("msgwin", [winner.name], winner);
         } else {
@@ -1848,7 +1861,7 @@ class ControllerMsgs : ControllerPlugin {
         }
     }
 
-    void onGameEnded() {
+    private void onGameEnded() {
         //xxx is this really useful? I would prefer showing the
         //  "team xxx won" message longer
         controller.messageAdd("msggameend");
@@ -1878,7 +1891,7 @@ class ControllerStats : ControllerPlugin {
     mixin(genRegFunc(["onDamage", "onDemolition", "onFireWeapon",
         "onWormEvent", "onCrateCollect", "onGameEnded"]));
 
-    void onDamage(GameObject cause, GObjectSprite victim, float damage,
+    private void onDamage(GameObject cause, GObjectSprite victim, float damage,
         WeaponClass wclass)
     {
         char[] wname = "unknown_weapon";
@@ -1916,12 +1929,12 @@ class ControllerStats : ControllerPlugin {
         }
     }
 
-    void onDemolition(int pixelCount, GameObject cause) {
+    private void onDemolition(int pixelCount, GameObject cause) {
         mPixelsDestroyed += pixelCount;
         //log("blasted {} pixels of land", pixelCount);
     }
 
-    void onFireWeapon(WeaponClass wclass, bool refire = false) {
+    private void onFireWeapon(WeaponClass wclass, bool refire = false) {
         char[] wname = "unknown_weapon";
         if (wclass)
             wname = wclass.name;
@@ -1935,7 +1948,7 @@ class ControllerStats : ControllerPlugin {
         }
     }
 
-    void onWormEvent(WormEvent id, ServerTeamMember m) {
+    private void onWormEvent(WormEvent id, ServerTeamMember m) {
         switch (id) {
             case WormEvent.wormActivate:
                 log("Worm activate: {}", m);
@@ -1958,12 +1971,12 @@ class ControllerStats : ControllerPlugin {
         }
     }
 
-    void onCrateCollect(ServerTeamMember m, Collectable[] stuffies) {
+    private void onCrateCollect(ServerTeamMember m, Collectable[] stuffies) {
         log("{} collects crate: {}", m, stuffies);
         mCrateCount++;
     }
 
-    void onGameEnded() {
+    private void onGameEnded() {
         output();
     }
 
@@ -1999,5 +2012,165 @@ class ControllerStats : ControllerPlugin {
             log("Favorite weapon: {} ({} shots)", maxw.name, c);
         log("Landscape destroyed: {} pixels", mPixelsDestroyed);
         log("Crates collected: {}", mCrateCount);
+    }
+}
+
+//this plugin adds persistence functionality for teams (wins / weapons)
+//  (overengineering ftw)
+class ControllerPersistence : ControllerPlugin {
+    private {
+        const cKeepWeaponsDef = false;
+        const cGiveWeaponsDef = int.max;   //default: always give
+        const cVictoryDef = "absolute";
+        const cVictoryCountDef = 2;
+    }
+
+    this(GameController c) {
+        super(c);
+    }
+    this(ReflectCtor c) {
+        super(c);
+    }
+
+    mixin(genRegFunc(["onGameStart", "onGameEnded"]));
+
+    private void onGameStart() {
+        foreach (t; controller.teams) {
+            load(t);
+        }
+    }
+
+    private void onGameEnded() {
+        foreach (t; controller.teams) {
+            save(t);
+        }
+
+        //reduce round count for giving weapons
+        int curGiveWeapons = engine.persistentState.getValue("give_weapons",
+            cGiveWeaponsDef);
+        engine.persistentState.setValue("give_weapons", curGiveWeapons - 1);
+
+        //increase total round count
+        engine.persistentState.setValue("round_counter",
+            engine.persistentState.getValue("round_counter", 0) + 1);
+
+        //check if we have a winner
+        //if the victory condition triggered, the "winner" field will be set,
+        //  which can be checked by the GUI
+        ServerTeam winner;
+        if (checkVictory(engine.persistentState.getStringValue("victory_type",
+            cVictoryDef), winner))
+        {
+            //this was the final round, game is over
+            if (winner) {
+                engine.persistentState.setStringValue("winner",
+                    winner.netId ~ "." ~ winner.id);
+            } else {
+                //no winner (e.g. game lasted a fixed number of rounds)
+                //the game is over anyway, set "winner" field as marker
+                engine.persistentState.setStringValue("winner", "draw");
+            }
+        }
+
+        debug {
+            gConf.saveConfig(engine.persistentState, "persistence_debug.conf");
+        }
+    }
+
+    private void load(ServerTeam t) {
+        auto node = persistNode(t);
+        t.mGlobalWins = node.getValue!(int)("global_wins", 0);
+
+        //start with empty weapon set if give_weapons not set
+        if (engine.persistentState.getValue("give_weapons",
+            cGiveWeaponsDef) <= 0)
+        {
+            t.weapons = new WeaponSet(engine);
+        }
+        //add weapons from last round
+        if (engine.persistentState.getValue("keep_weapons", cKeepWeaponsDef)) {
+            scope lastRoundWeapons = new WeaponSet(engine,
+                node.getSubNode("weapons"));
+            t.weapons.addSet(lastRoundWeapons);
+        }
+
+        t.mCrateSpy = node.getValue("crate_spy", t.mCrateSpy);
+        t.mDoubleDmg = node.getValue("double_damage", t.mDoubleDmg);
+    }
+
+    private void save(ServerTeam t) {
+        auto node = persistNode(t);
+        node.setValue!(int)("global_wins", t.globalWins);
+
+        //save this round's weapons
+        if (engine.persistentState.getValue("keep_weapons", cKeepWeaponsDef)) {
+            t.weapons.saveToConfig(node.getSubNode("weapons"));
+        }
+
+        node.setValue("crate_spy", t.mCrateSpy);
+        node.setValue("double_damage", t.mDoubleDmg);
+    }
+
+    //return true if the game is over
+    //xxx this does not have to be here, all needed information is in
+    //    engine.persistentState
+    private bool checkVictory(char[] condition, out ServerTeam winner) {
+        //first check error cases (0 or 1 team in the game)
+        //Note: even if teams surrender or leave during game, they are not
+        //      removed from this list
+        if (controller.teams.length == 0)
+            return true;
+        if (controller.teams.length == 1) {
+            winner = controller.teams[0];
+            return true;
+        }
+
+        //determine first and second by number of wins
+        ServerTeam first, second;
+        foreach (t; controller.teams) {
+            if (!first || t.globalWins >= first.globalWins) {
+                second = first;
+                first = t;
+            }
+        }
+        assert(!!first && !!second);
+
+        //now check victory condition
+        int rounds = engine.persistentState.getValue("round_counter", 1);
+        int victoryCount = engine.persistentState.getValue("victory_count",
+            cVictoryCountDef);
+        switch (condition) {
+            case "difference":
+                //need at least victoryCount more than second place
+                if (first.globalWins >= second.globalWins + victoryCount)
+                {
+                    winner = first;
+                    return true;
+                }
+                break;
+            case "rounds":
+                //play a fixed number of rounds
+                if (rounds >= victoryCount) {
+                    //best team wins
+                    if (first.globalWins > second.globalWins)
+                        winner = first;
+                    return true;
+                }
+                break;
+            case "absolute":
+            default:  //"absolute" is the default
+                //win if a fixed number of points is reached
+                if (first.globalWins >= victoryCount) {
+                    winner = first;
+                    return true;
+                }
+                break;
+        }
+        return false;
+    }
+
+    private ConfigNode persistNode(ServerTeam t) {
+        return engine.persistentState.getSubNode(
+            t.netId ~ "." ~ t.id);
     }
 }

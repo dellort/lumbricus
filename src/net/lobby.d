@@ -276,7 +276,7 @@ class CreateNetworkGame : SimpleContainer {
         onWantStart();
     }
 
-    void doStart(NetTeamInfo info) {
+    void doStart(NetTeamInfo info, ConfigNode persistentState) {
         assert(!!onStart);
         //generate level
         auto finalLevel = mLevelSelector.currentLevel.render();
@@ -286,7 +286,8 @@ class CreateNetworkGame : SimpleContainer {
         int wormHP = node.getValue("worm_hp", 150);
         int wormCount = node.getValue("worm_count", 4);
 
-        GameConfig conf = loadGameConfig(node, finalLevel);
+        GameConfig conf = loadGameConfig(node, finalLevel, true,
+            persistentState);
         auto teams = conf.teams;
         //other players' teams are added below
         teams.clear();
@@ -312,8 +313,6 @@ class CreateNetworkGame : SimpleContainer {
                 ct.setValue("power", wormHP);
                 //the clients need this to identify which team belongs to whom
                 ct.setValue("net_id", ti.playerId);
-                //pass on the current score
-                ct.setValue("global_wins", ti.globalWins);
                 teams.addNode(ct);
             }
         }
@@ -467,8 +466,10 @@ class CmdNetLobbyTask : Task {
 
     //got team info, assemble and send GameConfig
     //Big xxx: all data is loaded from newgame_net.conf, need setup dialog
-    private void onHostAccept(SimpleNetConnection sender, NetTeamInfo info) {
-        mCreateDlg.doStart(info);
+    private void onHostAccept(SimpleNetConnection sender, NetTeamInfo info,
+        ConfigNode persistentState)
+    {
+        mCreateDlg.doStart(info, persistentState);
     }
 
     //CreateNetworkGame callbacks -->

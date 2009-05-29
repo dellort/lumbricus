@@ -82,7 +82,7 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null,
     }
 
     if (!persistentState)
-        persistentState = new ConfigNode();
+        persistentState = mConfig.getSubNode("gamestate");
     cfg.gamestate = persistentState;
 
     return cfg;

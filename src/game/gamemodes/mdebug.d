@@ -6,7 +6,6 @@ import game.game;
 import game.controller;
 import game.gamepublic;
 import game.gamemodes.base;
-import game.gamemodes.roundbased_shared;
 
 import utils.array;
 import utils.configfile;

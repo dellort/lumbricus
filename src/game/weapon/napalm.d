@@ -76,7 +76,7 @@ class NapalmSprite : ProjectileSprite {
         //cause some damage
         //NOTE: not using action stuff because of custom damage, and
         //      for optimization
-        //xxx this has to change for multi-round napalm or worms pushed up
+        //xxx this has to change for multi-turn napalm or worms pushed up
         if (engine.gameTime.current - mLastDmg >= mRepeatDelay) {
             float dmg = myclass.damage.sample*(0.25+mDecayPerc*0.75);
             engine.explosionAt(physics.pos, dmg, this);

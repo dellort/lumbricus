@@ -153,7 +153,7 @@ class ProjectileSprite : ActionSprite {
 class ProjectileStateInfo : ActionStateInfo {
     //r/o fields
     bool useFixedDetonateTime;
-    //when glued, consider it as inactive (so next round can start); i.e. mines
+    //when glued, consider it as inactive (so next turn can start); i.e. mines
     bool inactiveWhenGlued;
     Time fixedDetonateTime;
     Time minimumGluedTime;

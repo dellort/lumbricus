@@ -1,22 +1,22 @@
-module game.gamemodes.roundbased_shared;
+module game.gamemodes.turnbased_shared;
 
 import utils.time;
 import utils.reflection;
 
-enum RoundState : int {
+enum TurnState : int {
     prepare,    //player ready
-    playing,    //round running
+    playing,    //turn running
     retreat,    //still moving after firing a weapon
     waitForSilence, //before entering cleaningUp: wait for no-activity
-    cleaningUp, //worms losing hp etc, may occur during round
-    nextOnHold, //next round about to start (drop crates, ...)
+    cleaningUp, //worms losing hp etc, may occur during turn
+    nextOnHold, //next turn about to start (drop crates, ...)
     winning,    //short state to show the happy survivors
     end = -1,        //everything ended!
 }
 
 //this is for GUI elements that are dependent from the game mode
 //currently game/hud/gametimer.d and game/hud/preparedisplay.d
-class RoundbasedStatus {
+class TurnbasedStatus {
     this() {
     }
     this(ReflectCtor c) {
@@ -24,8 +24,8 @@ class RoundbasedStatus {
 
     //xxx maybe replace by collection of bool flags
     //  e.g. show prepare display? show timer? etc.
-    //  RoundState could be fully internal, then.
-    RoundState state;
+    //  TurnState could be fully internal, then.
+    TurnState state;
     Time roundRemaining;
     Time prepareRemaining;
     Time gameRemaining;

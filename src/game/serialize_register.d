@@ -10,7 +10,7 @@ import game.action, game.actionsprite, game.controller, game.crate, game.game,
     game.weapon.actions, game.weapon.actionweapon, game.weapon.projectile,
     game.weapon.ray, game.weapon.spawn, game.weapon.rope, game.weapon.weapon,
     game.weapon.napalm, game.weapon.melee, game.weapon.jetpack, game.sequence,
-    game.gamemodes.roundbased, game.gamemodes.roundbased_shared,
+    game.gamemodes.turnbased, game.gamemodes.turnbased_shared,
     game.gamemodes.mdebug, game.gamemodes.realtime, game.weapon.drill;
 import physics.world;
 import utils.random;
@@ -33,8 +33,8 @@ void initGameSerialization() {
         GravestoneSprite, WormSequenceUpdate, WrapFireInfo,
         GameEngineGraphics, AnimationGraphic, LineGraphic, TextGraphic,
         CrosshairGraphic, LandscapeGraphic, NapalmSequenceUpdate,
-        NapalmSprite, ModeRoundbased, ModeDebug, TimeSource,
-        TimeSourceFixFramerate, DieAction, RoundbasedStatus,
+        NapalmSprite, ModeTurnbased, ModeDebug, TimeSource,
+        TimeSourceFixFramerate, DieAction, TurnbasedStatus,
         TeamAction, AoEDamageAction, ImpulseAction, MeleeWeapon, MeleeShooter,
         ModeRealtime, RealtimeStatus, CollectableToolCrateSpy,
         CollectableToolDoubleTime, ControllerMsgs, ControllerStats,

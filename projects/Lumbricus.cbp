@@ -110,8 +110,8 @@
 		<Unit filename="..\src\game\gamemodes\base.d" />
 		<Unit filename="..\src\game\gamemodes\mdebug.d" />
 		<Unit filename="..\src\game\gamemodes\realtime.d" />
-		<Unit filename="..\src\game\gamemodes\roundbased.d" />
-		<Unit filename="..\src\game\gamemodes\roundbased_shared.d" />
+		<Unit filename="..\src\game\gamemodes\turnbased.d" />
+		<Unit filename="..\src\game\gamemodes\turnbased_shared.d" />
 		<Unit filename="..\src\game\gamepublic.d" />
 		<Unit filename="..\src\game\gameshell.d" />
 		<Unit filename="..\src\game\gametask.d" />
@@ -242,7 +242,6 @@
 		<Unit filename="..\src\utils\md.d" />
 		<Unit filename="..\src\utils\misc.d" />
 		<Unit filename="..\src\utils\mybox.d" />
-		<Unit filename="..\src\utils\mylist.d" />
 		<Unit filename="..\src\utils\mytrace.d" />
 		<Unit filename="..\src\utils\output.d" />
 		<Unit filename="..\src\utils\path.d" />

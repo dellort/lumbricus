@@ -6,7 +6,7 @@ import game.game;
 import game.controller;
 import game.gamepublic;
 import game.gamemodes.base;
-import game.gamemodes.roundbased_shared;
+import game.gamemodes.turnbased_shared;
 
 import utils.array;
 import utils.configfile;
@@ -98,7 +98,7 @@ class ModeRealtime : Gamemode {
                 assert(!!lastteam);
                 lastteam.youWinNow();
             }
-            logic.doVictory(lastteam);
+            engine.events.call("onVictory", lastteam);
             return;
         }
 

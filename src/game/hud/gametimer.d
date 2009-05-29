@@ -7,7 +7,7 @@ import common.visual;
 import game.clientengine;
 import game.gamepublic;
 import game.hud.teaminfo;
-import game.gamemodes.roundbased_shared;
+import game.gamemodes.turnbased_shared;
 import gui.container;
 import gui.boxcontainer;
 import gui.label;
@@ -80,10 +80,10 @@ class GameTimer : Container {
         mEnabled = !!status() || !!statusRT();
     }
 
-    //returns info-object, or null if no round based stuff is going on
+    //returns info-object, or null if no turn based stuff is going on
     //slight code duplication with preparedisplay.d
-    private RoundbasedStatus status() {
-        return cast(RoundbasedStatus)mGame.logic.gamemodeStatus();
+    private TurnbasedStatus status() {
+        return cast(TurnbasedStatus)mGame.logic.gamemodeStatus();
     }
 
     private RealtimeStatus statusRT() {
@@ -123,7 +123,7 @@ class GameTimer : Container {
                 if (m)
                     break;
             }
-            if ((state == RoundState.prepare || state == RoundState.playing)
+            if ((state == TurnState.prepare || state == TurnState.playing)
                 && m)
             {
                 active = true;
