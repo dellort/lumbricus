@@ -105,6 +105,8 @@
 		<Unit filename="..\src\game\bomberworm.d" />
 		<Unit filename="..\src\game\clientengine.d" />
 		<Unit filename="..\src\game\controller.d" />
+		<Unit filename="..\src\game\controller_events.d" />
+		<Unit filename="..\src\game\controller_plugins.d" />
 		<Unit filename="..\src\game\crate.d" />
 		<Unit filename="..\src\game\game.d" />
 		<Unit filename="..\src\game\gamemodes\base.d" />

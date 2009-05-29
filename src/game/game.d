@@ -68,8 +68,6 @@ class GameEngine : GameEnginePublic {
     GameConfig gameConfig;
     ConfigNode persistentState;
 
-    DynamicMD events;
-
     Level level() {
         return mLevel;
     }
@@ -269,8 +267,6 @@ class GameEngine : GameEnginePublic {
         gameConfig = config;
         mGameTime = a_gameTime;
         mCallbacks = a_Callbacks;
-
-        events.declare!()("onGameEnded");
 
         persistentState = config.gamestate.copy();
 

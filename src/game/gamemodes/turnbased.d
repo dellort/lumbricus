@@ -22,7 +22,7 @@ class ModeTurnbased : Gamemode {
         static LogStruct!("gamemodes.turnbased") log;
 
         //time a turn takes
-        Time mTimePerRound;
+        Time mTimePerTurn;
         //extra time before turn time to switch seats etc
         Time mHotseatSwitchTime;
         //time the worm can still move after firing a weapon
@@ -52,7 +52,7 @@ class ModeTurnbased : Gamemode {
     this(GameController parent, ConfigNode config) {
         super(parent, config);
         mStatus = new TurnbasedStatus();
-        mTimePerRound = timeSecs(config.getIntValue("roundtime",15));
+        mTimePerTurn = timeSecs(config.getIntValue("turntime",15));
         mHotseatSwitchTime = timeSecs(config.getIntValue("hotseattime",5));
         mRetreatTime = timeSecs(config.getIntValue("retreattime",5));
         mGameTime = timeSecs(config.getIntValue("gametime",300));
@@ -117,7 +117,7 @@ class ModeTurnbased : Gamemode {
                     return TurnState.playing;
                 break;
             case TurnState.playing:
-                mStatus.roundRemaining = waitRemain!(true)(mTimePerRound, 1,
+                mStatus.roundRemaining = waitRemain!(true)(mTimePerTurn, 1,
                     false);
                 if (!mCurrentTeam.current)
                     return TurnState.waitForSilence;
@@ -179,7 +179,7 @@ class ModeTurnbased : Gamemode {
                             assert(!!firstAlive);
                             firstAlive.youWinNow();
                         }
-                        engine.events.call("onVictory", firstAlive);
+                        logic.events.onVictory(firstAlive);
                         if (aliveTeams == 0) {
                             return TurnState.end;
                         } else {
@@ -238,7 +238,7 @@ class ModeTurnbased : Gamemode {
         switch (st) {
             case TurnState.prepare:
                 modeTime.paused = true;
-                mStatus.roundRemaining = mTimePerRound;
+                mStatus.roundRemaining = mTimePerTurn;
                 waitReset(1);
                 waitReset!(true)(1);
                 mCleanupCtr = 2;

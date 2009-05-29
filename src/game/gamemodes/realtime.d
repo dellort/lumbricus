@@ -98,7 +98,7 @@ class ModeRealtime : Gamemode {
                 assert(!!lastteam);
                 lastteam.youWinNow();
             }
-            engine.events.call("onVictory", lastteam);
+            logic.events.onVictory(lastteam);
             return;
         }
 

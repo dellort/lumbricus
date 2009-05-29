@@ -80,6 +80,7 @@ import game.weapon.melee;
 import game.gamemodes.turnbased;
 import game.gamemodes.mdebug;
 import game.gamemodes.realtime;
+import game.controller_plugins;
 
 /+
 

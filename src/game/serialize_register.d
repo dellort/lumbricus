@@ -11,7 +11,8 @@ import game.action, game.actionsprite, game.controller, game.crate, game.game,
     game.weapon.ray, game.weapon.spawn, game.weapon.rope, game.weapon.weapon,
     game.weapon.napalm, game.weapon.melee, game.weapon.jetpack, game.sequence,
     game.gamemodes.turnbased, game.gamemodes.turnbased_shared,
-    game.gamemodes.mdebug, game.gamemodes.realtime, game.weapon.drill;
+    game.gamemodes.mdebug, game.gamemodes.realtime, game.weapon.drill,
+    game.controller_plugins;
 import physics.world;
 import utils.random;
 
