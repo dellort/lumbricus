@@ -302,7 +302,7 @@ class ControllerPersistence : ControllerPlugin {
         super(c);
     }
 
-    mixin(genRegFunc(["onGameStart", "onGameEnded"]));
+    mixin(genRegFunc(["onGameStart", "onGameEnded", "onVictory"]));
 
     private void onGameStart() {
         foreach (t; controller.teams) {
@@ -334,16 +334,29 @@ class ControllerPersistence : ControllerPlugin {
             //this was the final round, game is over
             if (winner) {
                 engine.persistentState.setStringValue("winner",
-                    winner.netId ~ "." ~ winner.id);
+                    winner.uniqueId);
             } else {
                 //no winner (e.g. game lasted a fixed number of rounds)
                 //the game is over anyway, set "winner" field as marker
-                engine.persistentState.setStringValue("winner", "draw");
+                engine.persistentState.setStringValue("winner", "");
             }
         }
 
         debug {
             gConf.saveConfig(engine.persistentState, "persistence_debug.conf");
+        }
+    }
+
+    private void onVictory(Team winner) {
+        //xxx why Team anyway?
+        auto wst = cast(ServerTeam)winner;
+        //store winner of current round
+        if (wst) {
+            engine.persistentState.setStringValue("round_winner",
+                wst.uniqueId);
+        } else {
+            //draw
+            engine.persistentState.setStringValue("round_winner", "");
         }
     }
 
@@ -370,6 +383,14 @@ class ControllerPersistence : ControllerPlugin {
 
     private void save(ServerTeam t) {
         auto node = persistNode(t);
+
+        //store some team info (for GUI display)
+        //  (engine.persistentState should be all a game summary dialog needs)
+        node["name"] = t.name;
+        node["id"] = t.id;
+        node["net_id"] = t.netId;
+        node["color"] = t.color.name;
+
         node.setValue!(int)("global_wins", t.globalWins);
 
         //save this round's weapons
@@ -401,6 +422,8 @@ class ControllerPersistence : ControllerPlugin {
             if (!first || t.globalWins >= first.globalWins) {
                 second = first;
                 first = t;
+            } else if (!second || t.globalWins >= second.globalWins) {
+                second = t;
             }
         }
         assert(!!first && !!second);
@@ -440,8 +463,8 @@ class ControllerPersistence : ControllerPlugin {
     }
 
     private ConfigNode persistNode(ServerTeam t) {
-        return engine.persistentState.getSubNode(
-            t.netId ~ "." ~ t.id);
+        return engine.persistentState.getSubNode("teams").getSubNode(
+            t.uniqueId);
     }
 
     static this() {

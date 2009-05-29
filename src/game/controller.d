@@ -182,6 +182,12 @@ class ServerTeam : Team {
         return mTeamNetId;
     }
 
+    //returns an id that is a) unique over all teams in the game, and
+    //  b) will remain the same over all played rounds
+    char[] uniqueId() {
+        return mTeamNetId ~ "." ~ mTeamId;
+    }
+
     void globalWins(int wins) {
         mGlobalWins = wins;
     }

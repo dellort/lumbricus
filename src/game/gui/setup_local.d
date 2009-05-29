@@ -291,7 +291,8 @@ class LocalGameSetupTask : Task {
             if (t["id"] in mActiveTeams) {
                 char[] tname = t.name;
                 if (mGamePersist) {
-                    auto n = mGamePersist.getSubNode(
+                    //xxx just for debugging, until game summary dialog is done
+                    auto n = mGamePersist.getSubNode("teams").getSubNode(
                         t["net_id"] ~ "." ~ t["id"]);
                     tname ~= " (" ~ n["global_wins"] ~ ")";
                 }
