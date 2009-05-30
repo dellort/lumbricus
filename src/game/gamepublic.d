@@ -349,16 +349,6 @@ interface GameEnginePublic {
 ///for stuff that can't simply be polled
 ///anyone in the client engine can register callbacks here
 class GameEngineCallback {
-    ///let the client display a message (like it's done on round's end etc.)
-    ///this is a bit complicated because message shall be translated on the
-    ///client (i.e. one client might prefer Klingon, while the other is used
-    ///to Latin); so msgid and args are passed to the translation functions
-    ///this returns a value, that is incremented everytime a new message is
-    ///available
-    ///a random int is passed along, so all clients with the same locale
-    ///will select the same message
-    MDelegate!(GameMessage) showMessage;
-
     ///called if the weapon list of any team changes
     ///value increments, if the weapon list of any team changes
     MDelegate!(Team) weaponsChanged;
@@ -391,6 +381,9 @@ interface GameLogicPublic {
     ///list of _all_ possible weapons, which are useable during the game
     ///Team.getWeapons() must never return a Weapon not covered by this list
     WeaponClass[] weaponList();
+
+    ///Request interface to a plugin; returns null if the plugin is not loaded
+    Object getPlugin(char[] id);
 }
 
 interface TeamMember {
@@ -488,11 +481,4 @@ interface ClientControl {
     Team[] getOwnedTeams();
 
     void executeCommand(char[] cmd);
-}
-
-struct GameMessage {
-    LocalizedMessage lm;
-    Team actor;    //who did the action (for message color), null for neutral
-    Team viewer;   //who should see it (only players with Team
-                   //  in getOwnedTeams() see the message), null for all
 }

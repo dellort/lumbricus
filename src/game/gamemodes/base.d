@@ -39,6 +39,7 @@ class Gamemode {
 
     ///Start a new game, called before first simulate call
     void startGame() {
+        logic.events.onGameStart(this);
         modeTime.resetTime();
     }
 

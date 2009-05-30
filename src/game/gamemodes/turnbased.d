@@ -163,7 +163,8 @@ class ModeTurnbased : Gamemode {
                     return TurnState.waitForSilence;
 
                 //wait some msecs to show the health labels
-                if (wait(cNextRoundWait) && logic.messageIsIdle()) {
+                if (wait(cNextRoundWait, 0, false) && logic.isIdle()) {
+                    waitReset(0);
                     //check if at least two teams are alive
                     int aliveTeams;
                     ServerTeam firstAlive;
@@ -217,7 +218,7 @@ class ModeTurnbased : Gamemode {
                 }
                 break;
             case TurnState.nextOnHold:
-                if (logic.messageIsIdle() && logic.membersIdle())
+                if (logic.isIdle())
                     return TurnState.prepare;
                 break;
             case TurnState.winning:

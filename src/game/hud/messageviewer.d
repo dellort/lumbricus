@@ -7,6 +7,7 @@ import common.scene;
 import common.visual;
 import game.hud.teaminfo;
 import game.gamepublic;
+import game.controller_plugins;
 import gui.widget;
 import gui.label;
 import utils.misc;
@@ -55,9 +56,9 @@ class MessageViewer : Label {
         border = Vector2i(5, 1);
 
         mMessages = new typeof(mMessages);
-
-        auto cb = mGame.engine.callbacks();
-        cb.showMessage ~= &showMessage;
+        auto msgPlg = cast(ControllerMsgs)mGame.logic.getPlugin("messages");
+        if (msgPlg)
+            msgPlg.showMessage ~= &showMessage;
     }
 
     void addMessage(char[] msg, Team t = null) {

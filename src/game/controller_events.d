@@ -10,6 +10,7 @@ import game.game;
 import game.gobject;
 import game.sprite;
 import game.crate;
+import game.gamemodes.base;
 import game.weapon.weapon;
 import utils.md;
 import utils.reflection;
@@ -29,7 +30,8 @@ enum TeamEvent {
 
 //this is the Controller "plugin interface", accessible by Controller.events
 struct ControllerEvents {
-    MDelegate!() onGameStart;
+    //active Gamemode
+    MDelegate!(Gamemode) onGameStart;
     MDelegate!() onGameEnded;
 
     //cause, victim, damage, used weapon
@@ -64,7 +66,6 @@ abstract class ControllerPlugin {
     this(GameController c) {
         controller = c;
         engine = c.engine;
-        controller.addPlugin(this);
         regMethods();
     }
     this(ReflectCtor c) {
@@ -87,6 +88,12 @@ abstract class ControllerPlugin {
         }
         ret ~= `}`;
         return ret;
+    }
+
+    //to override; I don't really know what this is...
+    //Gamemodes can check it with Controller.isIdle()
+    bool isIdle() {
+        return true;
     }
 }
 

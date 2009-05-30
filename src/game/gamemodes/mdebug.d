@@ -36,7 +36,6 @@ class ModeDebug : Gamemode {
 
     override void startGame() {
         super.startGame();
-        logic.messageAdd("msgdebuground");
     }
 
     void simulate() {

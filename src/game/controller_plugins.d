@@ -9,53 +9,85 @@ import game.gobject;
 import game.sprite;
 import game.crate;
 import game.weapon.weapon;
+import game.gamemodes.base;
+import game.gamemodes.mdebug;
 import utils.reflection;
 import utils.log;
 import utils.configfile;
 import utils.misc;
+import utils.time;
+import utils.md;
 
+///let the client display a message (like it's done on round's end etc.)
+///this is a bit complicated because message shall be translated on the
+///client (i.e. one client might prefer Klingon, while the other is used
+///to Latin); so msgid and args are passed to the translation functions
+///this returns a value, that is incremented everytime a new message is
+///available
+///a random int is passed along, so all clients with the same locale
+///will select the same message
+struct GameMessage {
+    LocalizedMessage lm;
+    Team actor;    //who did the action (for message color), null for neutral
+    Team viewer;   //who should see it (only players with Team
+                   //  in getOwnedTeams() see the message), null for all
+}
 
 //the idea was that the whole game state should be observable (including
 //events), so you can move displaying all messages into a separate piece of
 //code, instead of creating messages directly
 class ControllerMsgs : ControllerPlugin {
+    private {
+        const cMessageTime = timeSecs(1.5f);
+        Time mLastMsgTime;
+        int mMessageCounter;
+        GameMessage[] mPendingMessages;
+    }
+
+    //clients register here to receive messages (not serialized)
+    MDelegate!(GameMessage) showMessage;
+
     this(GameController c) {
         super(c);
     }
     this(ReflectCtor c) {
         super(c);
+        c.transient(this, &showMessage);
     }
 
     mixin(genRegFunc(["onGameStart", "onSelectWeapon", "onWormEvent",
         "onTeamEvent", "onCrateDrop", "onCrateCollect", "onSuddenDeath",
         "onVictory", "onGameEnded"]));
 
-    private void onGameStart() {
-        controller.messageAdd("msggamestart", null);
+    private void onGameStart(Gamemode mode) {
+        messageAdd("msggamestart", null);
+        if (cast(ModeDebug)mode) {
+            messageAdd("msgdebuground");
+        }
     }
 
     private void onSelectWeapon(ServerTeamMember m, WeaponClass wclass) {
         //xxx just copying old code... maybe this can be extended to show
         //    grenade timer messages (like in wwp)
         /*if (wclass) {
-            controller.messageAdd("msgselweapon", ["_.weapons." ~ wclass.name],
+            messageAdd("msgselweapon", ["_.weapons." ~ wclass.name],
                 m.team, m.team);
         } else {
-            controller.messageAdd("msgnoweapon", null, m.team, m.team);
+            messageAdd("msgnoweapon", null, m.team, m.team);
         }*/
     }
 
     private void onWormEvent(WormEvent id, ServerTeamMember m) {
         switch (id) {
             case WormEvent.wormActivate:
-                controller.messageAdd("msgwormstartmove", [m.name], m.team,
+                messageAdd("msgwormstartmove", [m.name], m.team,
                     m.team);
                 break;
             case WormEvent.wormDrown:
-                controller.messageAdd("msgdrown", [m.name], m.team);
+                messageAdd("msgdrown", [m.name], m.team);
                 break;
             case WormEvent.wormDie:
-                controller.messageAdd("msgdie", [m.name], m.team);
+                messageAdd("msgdie", [m.name], m.team);
                 break;
             default:
         }
@@ -64,10 +96,10 @@ class ControllerMsgs : ControllerPlugin {
     private void onTeamEvent(TeamEvent id, ServerTeam t) {
         switch (id) {
             case TeamEvent.skipTurn:
-                controller.messageAdd("msgskipturn", [t.name()], t);
+                messageAdd("msgskipturn", [t.name()], t);
                 break;
             case TeamEvent.surrender:
-                controller.messageAdd("msgsurrender", [t.name()], t);
+                messageAdd("msgsurrender", [t.name()], t);
                 break;
             default:
         }
@@ -76,13 +108,13 @@ class ControllerMsgs : ControllerPlugin {
     private void onCrateDrop(CrateType type) {
         switch (type) {
             case CrateType.med:
-                controller.messageAdd("msgcrate_medkit");
+                messageAdd("msgcrate_medkit");
                 break;
             case CrateType.tool:
-                controller.messageAdd("msgcrate_tool");
+                messageAdd("msgcrate_tool");
                 break;
             default:
-                controller.messageAdd("msgcrate");
+                messageAdd("msgcrate");
         }
     }
 
@@ -92,41 +124,72 @@ class ControllerMsgs : ControllerPlugin {
         foreach (item; stuffies) {
             if (auto weapon = cast(CollectableWeapon)item) {
                 //weapon
-                controller.messageAdd("collect_item", [member.name(),
+                messageAdd("collect_item", [member.name(),
                     "_." ~ item.id(), to!(char[])(weapon.quantity)],
                     member.team, member.team);
             } else if (auto medkit = cast(CollectableMedkit)item) {
                 //medkit
-                controller.messageAdd("collect_medkit", [member.name(),
+                messageAdd("collect_medkit", [member.name(),
                     to!(char[])(medkit.amount)], member.team, member.team);
             } else if (auto tool = cast(CollectableTool)item) {
                 //tool
-                controller.messageAdd("collect_tool", [member.name(),
+                messageAdd("collect_tool", [member.name(),
                     "_." ~ item.id()], member.team, member.team);
             } else if (auto bomb = cast(CollectableBomb)item) {
                 //crate with bomb
-                controller.messageAdd("collect_bomb", [member.name()],
+                messageAdd("collect_bomb", [member.name()],
                     member.team, member.team);
             }
         }
     }
 
     private void onSuddenDeath() {
-        controller.messageAdd("msgsuddendeath");
+        messageAdd("msgsuddendeath");
     }
 
     private void onVictory(Team winner) {
         if (winner) {
-            controller.messageAdd("msgwin", [winner.name], winner);
+            messageAdd("msgwin", [winner.name], winner);
         } else {
-            controller.messageAdd("msgnowin");
+            messageAdd("msgnowin");
         }
     }
 
     private void onGameEnded() {
         //xxx is this really useful? I would prefer showing the
         //  "team xxx won" message longer
-        controller.messageAdd("msggameend");
+        messageAdd("msggameend");
+    }
+
+    private void messageAdd(char[] msg, char[][] args = null, Team actor = null,
+        Team viewer = null)
+    {
+        isIdle(); //maybe reset wait time
+        if (mMessageCounter == 0)
+            mLastMsgTime = engine.gameTime.current;
+        mMessageCounter++;
+
+        GameMessage gameMsg;
+        gameMsg.lm.id = msg;
+        gameMsg.lm.args = args;
+        gameMsg.lm.rnd = engine.rnd.next;
+        gameMsg.actor = actor;
+        gameMsg.viewer = viewer;
+        showMessage(gameMsg);
+    }
+
+    override bool isIdle() {
+        //xxx actually, this is a bit wrong, because even messages the client
+        //    won't see (viewer field set) count for wait time
+        //    But to stay deterministic, we can't consider that
+        if (mLastMsgTime + cMessageTime*mMessageCounter
+            <= engine.gameTime.current)
+        {
+            //did wait long enough
+            mMessageCounter = 0;
+            return true;
+        }
+        return false;
     }
 
     static this() {
@@ -304,7 +367,7 @@ class ControllerPersistence : ControllerPlugin {
 
     mixin(genRegFunc(["onGameStart", "onGameEnded", "onVictory"]));
 
-    private void onGameStart() {
+    private void onGameStart(Gamemode mode) {
         foreach (t; controller.teams) {
             load(t);
         }
@@ -340,6 +403,8 @@ class ControllerPersistence : ControllerPlugin {
                 //the game is over anyway, set "winner" field as marker
                 engine.persistentState.setStringValue("winner", "");
             }
+        } else {
+            engine.persistentState.remove("winner");
         }
 
         debug {

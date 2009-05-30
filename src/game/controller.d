@@ -270,7 +270,6 @@ class ServerTeam : Team {
         if (act) {
             //activating team
             mActive = act;
-            parent.mActiveTeams ~= this;
             setOnHold(false);
             if (!activateNextInRow()) {
                 //no worm could be activated (i.e. all dead)
@@ -286,7 +285,6 @@ class ServerTeam : Team {
             +/
         } else {
             //deactivating
-            arrayRemoveUnordered(parent.mActiveTeams, this); //should not fail
             mActive = act;
             current = null;
             setPointMode(PointMode.none);
@@ -1236,7 +1234,6 @@ class GameController : GameLogicPublic {
         static LogStruct!("game.controller") log;
 
         ServerTeam[] mTeams;
-        ServerTeam[] mActiveTeams;
 
         //same as mTeams, but array of another type (for gamepublic.d)
         Team[] mTeams2;
@@ -1249,12 +1246,6 @@ class GameController : GameLogicPublic {
 
         bool mIsAnythingGoingOn; // (= hack)
 
-        const cMessageTime = timeSecs(1.5f);
-        Time mLastMsgTime;
-        int mMessageCounter;
-
-        int mWeaponListChangeCounter;
-
         Gamemode mGamemode;
         char[] mGamemodeId;
 
@@ -1266,6 +1257,7 @@ class GameController : GameLogicPublic {
         const cCrateProbs = [0.20f, 0.40f, 0.95f];
         int[TeamTheme.cTeamColors.length] mTeamColorCache;
 
+        ControllerPlugin[char[]] mPluginLookup;
         ControllerPlugin[] mPlugins;
         //xxx this should be configurable
         const char[][] cLoadPlugins = ["messages", "statistics", "persistence"];
@@ -1298,7 +1290,11 @@ class GameController : GameLogicPublic {
         mWeaponSets = null;
 
         foreach (pid; cLoadPlugins) {
-            ControllerPluginFactory.instantiate(pid, this);
+            //only load once
+            if (!(pid in mPluginLookup)) {
+                mPlugins ~= ControllerPluginFactory.instantiate(pid, this);
+                mPluginLookup[pid] = mPlugins[$-1];
+            }
         }
 
         mEngine.finishPlace();
@@ -1333,15 +1329,11 @@ class GameController : GameLogicPublic {
         return mEngine.weaponList();
     }
 
-    int getWeaponListChangeCounter() {
-        return mWeaponListChangeCounter;
+    Object getPlugin(char[] id) {
+        return aaIfIn(mPluginLookup, id);
     }
 
     //--- end GameLogicPublic
-
-    void addPlugin(ControllerPlugin plg) {
-        mPlugins ~= plg;
-    }
 
     void updateWeaponStats(TeamMember m) {
         changeWeaponList(m ? m.team : null);
@@ -1355,30 +1347,18 @@ class GameController : GameLogicPublic {
         return mEngine;
     }
 
-    void messageAdd(char[] msg, char[][] args = null, Team actor = null,
-        Team viewer = null)
-    {
-        messageIsIdle(); //maybe reset wait time
-        if (mMessageCounter == 0)
-            mLastMsgTime = mEngine.gameTime.current;
-        mMessageCounter++;
-
-        GameMessage gameMsg;
-        gameMsg.lm.id = msg;
-        gameMsg.lm.args = args;
-        gameMsg.lm.rnd = engine.rnd.next;
-        gameMsg.actor = actor;
-        gameMsg.viewer = viewer;
-        engine.callbacks.showMessage(gameMsg);
+    bool isIdle() {
+        foreach (plg; mPlugins) {
+            if (!plg.isIdle())
+                return false;
+        }
+        return membersIdle();
     }
 
-    bool messageIsIdle() {
-        if (mLastMsgTime + cMessageTime*mMessageCounter
-            >= mEngine.gameTime.current)
-        {
-            //did wait long enough
-            mMessageCounter = 0;
-            return false;
+    bool membersIdle() {
+        foreach (t; mTeams) {
+            if (!t.isIdle())
+                return false;
         }
         return true;
     }
@@ -1387,7 +1367,6 @@ class GameController : GameLogicPublic {
         assert(!mIsAnythingGoingOn);
         mIsAnythingGoingOn = true;
         //nothing happening? start a round
-        events.onGameStart();
 
         deactivateAll();
         //lol, see gamemode comments for how this should really be used
@@ -1447,15 +1426,6 @@ class GameController : GameLogicPublic {
         foreach (t; mTeams) {
             activateTeam(t, false);
         }
-        mActiveTeams = null;
-    }
-
-    bool membersIdle() {
-        foreach (t; mTeams) {
-            if (!t.isIdle())
-                return false;
-        }
-        return true;
     }
 
     //actually still stupid debugging code
