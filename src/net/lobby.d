@@ -10,6 +10,7 @@ import game.gametask;
 import game.gamepublic;
 import game.setup;
 import game.gui.setup_local;
+import game.gui.gamesummary;
 import gui.wm;
 import gui.widget;
 import gui.list;
@@ -507,8 +508,16 @@ class CmdNetLobbyTask : Task {
     }
 
     private void onGameKill(Task t) {
+        ConfigNode persist;
+        if (mGame && mGame.gamePersist) {
+            persist = mGame.gamePersist;
+            auto gs = new GameSummary(manager);
+            gs.init(persist);
+            if (gs.gameOver)
+                persist = null;
+        }
         if (mClient)
-            mClient.gameKilled();
+            mClient.gameKilled(persist);
     }
 
     private void onStartLoading(SimpleNetConnection sender, GameLoader loader) {

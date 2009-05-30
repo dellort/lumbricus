@@ -120,6 +120,7 @@
 		<Unit filename="..\src\game\gfxset.d" />
 		<Unit filename="..\src\game\glevel.d" />
 		<Unit filename="..\src\game\gobject.d" />
+		<Unit filename="..\src\game\gui\gamesummary.d" />
 		<Unit filename="..\src\game\gui\leveledit.d" />
 		<Unit filename="..\src\game\gui\levelpaint.d" />
 		<Unit filename="..\src\game\gui\loadingscreen.d" />

@@ -275,9 +275,9 @@ class CmdNetClient : SimpleNetConnection {
         onGameStart(this, mClControl);
     }
 
-    void gameKilled() {
+    void gameKilled(ConfigNode persistentState) {
         if (connected && mShell) {
-            mPersistentState = mShell.serverEngine.persistentState;
+            mPersistentState = persistentState;
             mShell = null;
             sendEmpty(ClientPacket.gameTerminated);
         }

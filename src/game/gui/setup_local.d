@@ -12,6 +12,7 @@ import game.levelgen.generator;
 import game.levelgen.level;
 import game.gui.preview;
 import game.gui.teamedit;
+import game.gui.gamesummary;
 import gui.widget;
 import gui.edit;
 import gui.dropdownlist;
@@ -414,10 +415,18 @@ class LocalGameSetupTask : Task {
         //poll for game death
         if (mGame) {
             if (mGame.reallydead) {
-                mGamePersist = mGame.gamePersist;
-                mGame = null;
                 //show GUI again
                 mWindow.visible = true;
+
+                mGamePersist = mGame.gamePersist;
+                if (mGamePersist) {
+                    auto gs = new GameSummary(manager);
+                    gs.init(mGamePersist);
+                    if (gs.gameOver)
+                        mGamePersist = null;
+                }
+
+                mGame = null;
                 updateTeams();
             }
         }
