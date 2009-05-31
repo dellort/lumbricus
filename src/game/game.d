@@ -703,11 +703,7 @@ class GameEngine : GameEnginePublic {
     void finishPlace() {
         //randomize place queue
         for (int i = 0; i < mPlaceQueue.length; i++) {
-            GObjectSprite tmp;
-            int idx = rnd.next(0, mPlaceQueue.length);
-            tmp = mPlaceQueue[idx];
-            mPlaceQueue[idx] = mPlaceQueue[i];
-            mPlaceQueue[i] = tmp;
+            swap(mPlaceQueue[i], mPlaceQueue[rnd.next(i, mPlaceQueue.length)]);
         }
 
         foreach (GObjectSprite sprite; mPlaceQueue) {

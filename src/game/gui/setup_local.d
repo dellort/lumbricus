@@ -26,6 +26,8 @@ import utils.configfile;
 
 //import std.thread;
 import str = stdx.string;
+import tango.math.random.Random : rand;
+import tango.util.Convert : to;
 
 class LevelWidget : SimpleContainer {
     private {
@@ -385,6 +387,7 @@ class LocalGameSetupTask : Task {
         auto gc = loadGameConfig(gConf.loadConfig("newgame"), level, true,
             mGamePersist);
         gc.teams = buildGameTeams();
+        gc.randomSeed = to!(char[])(rand.uniform!(uint));
         //xxx: do some task-death-notification or so... (currently: polling)
         //currently, the game can't really return anyway...
         mGame = new GameTask(manager, gc);

@@ -42,6 +42,7 @@ class ModeTurnbased : Gamemode {
 
         TurnbasedStatus mStatus;
         int mCleanupCtr = 1;
+        int[] mTeamPerm;
 
         const cSilenceWait = timeMsecs(400);
         const cNextRoundWait = timeMsecs(750);
@@ -74,6 +75,20 @@ class ModeTurnbased : Gamemode {
 
     override void initialize() {
         super.initialize();
+        //we want teams to be activated in a random order that stays the same
+        //  over all rounds
+        mTeamPerm = engine.persistentState.getValue!(int[])("team_order", null);
+        if (mTeamPerm.length < logic.teams.length) {
+            mTeamPerm.length = logic.teams.length;
+            for (int i = 0; i < mTeamPerm.length; i++) {
+                mTeamPerm[i] = i;
+            }
+            for (int i = 0; i < mTeamPerm.length; i++) {
+                swap(mTeamPerm[i],
+                    mTeamPerm[engine.rnd.next(i, mTeamPerm.length)]);
+            }
+            engine.persistentState.setValue("team_order", mTeamPerm);
+        }
     }
 
     override void startGame() {
@@ -244,12 +259,28 @@ class ModeTurnbased : Gamemode {
                 waitReset!(true)(1);
                 mCleanupCtr = 2;
 
-                //select next team/worm
-                ServerTeam next = arrayFindNextPred(logic.teams, mLastTeam,
-                    (ServerTeam t) {
-                        return t.alive();
-                    }
-                );
+                ServerTeam next;
+                //mix teams array according to mTeamPerm
+                assert(mTeamPerm.length == logic.teams.length);
+                scope ServerTeam[] teamsP;
+                teamsP.length = logic.teams.length;
+                for (int i = 0; i < logic.teams.length; i++) {
+                    teamsP[i] = logic.teams[mTeamPerm[i]];
+                }
+                if (!mLastTeam) {
+                    //game has just started, select first team (round-robin)
+                    //  (requires persistence plugin)
+                    int round =
+                        engine.persistentState.getValue("round_counter", 0);
+                    next = teamsP[round % teamsP.length];
+                } else {
+                    //select next team/worm
+                    next = arrayFindNextPred(teamsP, mLastTeam,
+                        (ServerTeam t) {
+                            return t.alive();
+                        }
+                    );
+                }
                 currentTeam = null;
 
                 assert(next); //should've dropped out in nextOnHold otherwise
