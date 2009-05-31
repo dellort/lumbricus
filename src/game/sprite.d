@@ -7,6 +7,7 @@ import game.game;
 import game.gamepublic;
 import game.sequence;
 import game.gfxset;
+import net.marshal : Hasher;
 import physics.world;
 
 import utils.vector2;

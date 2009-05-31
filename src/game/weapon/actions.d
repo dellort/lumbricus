@@ -18,6 +18,7 @@ import utils.time;
 import utils.vector2;
 import utils.randval;
 import utils.reflection;
+import utils.misc;
 
 import tango.math.Math : sqrt;
 

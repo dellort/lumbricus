@@ -27,6 +27,7 @@ import utils.queue;
 import utils.reflection;
 
 import math = tango.math.Math;
+import tango.util.Convert : to;
 
 
 interface Controllable {

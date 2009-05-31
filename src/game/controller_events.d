@@ -12,6 +12,7 @@ import game.sprite;
 import game.crate;
 import game.gamemodes.base;
 import game.weapon.weapon;
+import game.temp;
 import utils.md;
 import utils.reflection;
 import utils.factory;

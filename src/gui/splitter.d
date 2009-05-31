@@ -7,6 +7,7 @@ import gui.widget;
 import utils.misc;
 import utils.rect2;
 import utils.vector2;
+import utils.configfile;
 
 ///the Splitter contains two children and a splitter-bar
 ///this widget is like a BoxContainer with at most two children, where the user

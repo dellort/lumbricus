@@ -12,6 +12,7 @@ import game.sprite;
 import game.actionsprite;
 import game.action;
 import game.weapon.actionweapon;
+import game.temp;
 import utils.misc;
 import utils.vector2;
 import utils.time;
@@ -165,12 +166,6 @@ class CollectableBomb : Collectable {
         //harharhar :D
         parent.detonate();
     }
-}
-
-private enum CrateType {
-    weapon,
-    med,
-    tool,
 }
 
 class CrateSprite : ActionSprite {

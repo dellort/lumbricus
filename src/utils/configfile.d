@@ -922,10 +922,16 @@ public class ConfigNode {
             assert(false, "cAttributes contains incorrect/not-existing entry: "
                 ~ item);
         }
+version(LDC) {
+    //utils/configfile.d(926): Error: Exp type TupleExp not implemented:
+    //tuple(x._items_field_0 = (*p).a,x._items_field_1 = (*p).b)
+    pragma(msg, "ConfigNode: do_read_struct unsupported on LDC.");
+} else {
         //call the backend function to do the actual work
         x.items = p.tupleof; //copy in
         do_read_values!(typeof(p.tupleof))(&x, names);
         p.tupleof = x.items; //copy out
+}
     }
 
     //<---------------------- waste of time end

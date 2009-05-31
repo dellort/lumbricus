@@ -1,6 +1,7 @@
 module game.controller_plugins;
 
 import common.config;
+import framework.i18n;
 import game.controller_events;
 import game.gamepublic;
 import game.controller;
@@ -17,6 +18,8 @@ import utils.configfile;
 import utils.misc;
 import utils.time;
 import utils.md;
+
+import tango.util.Convert : to;
 
 ///let the client display a message (like it's done on round's end etc.)
 ///this is a bit complicated because message shall be translated on the

@@ -8,6 +8,7 @@ import utils.color;
 import utils.rect2;
 import utils.vector2;
 import utils.configfile;
+import utils.misc;
 
 //NOTE: reparents the client widgets depending on which tab is active; this
 //      means you must not use Widget.remove() to remove clients from it, and

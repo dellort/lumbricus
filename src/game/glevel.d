@@ -1,5 +1,6 @@
 module game.glevel;
 
+import common.resset;
 import framework.framework;
 import game.gamepublic;
 import game.game;

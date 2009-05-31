@@ -5,7 +5,7 @@ import utils.list2;
 import utils.reflection;
 import utils.time;
 
-public import net.marshal : Hasher;
+import net.marshal : Hasher;
 
 //not really abstract, but should not be created
 abstract class GameObject {

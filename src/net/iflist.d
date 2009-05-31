@@ -152,11 +152,11 @@ version (linux) {
                 && cur.ifa_addr.sa_family == AF_INET
                 && cur.ifa_netmask.sa_family == AF_INET)
             {
-                sockaddr_in ia = cast(sockaddr_in)(*(cur.ifa_addr));
-                sockaddr_in mask = cast(sockaddr_in)(*(cur.ifa_netmask));
+                sockaddr_in ia = *cast(sockaddr_in*)(cur.ifa_addr);
+                sockaddr_in mask = *cast(sockaddr_in*)(cur.ifa_netmask);
                 ia.sin_addr = ia.sin_addr | (~mask.sin_addr);
 
-                *(addr.pAddr) = cast(sockaddr)(ia);
+                *(addr.pAddr) = *cast(sockaddr*)(&ia);
                 res ~= addr.toAddrString();
             }
             cur = cur.ifa_next;

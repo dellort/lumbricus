@@ -11,6 +11,7 @@ import game.controller;
 import game.weapon.weapon;
 import game.gamepublic;
 import game.sequence;
+import net.marshal : Hasher;
 import utils.list2;
 import utils.time;
 import utils.log;

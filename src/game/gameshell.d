@@ -18,6 +18,7 @@ import game.levelgen.landscape;
 import game.levelgen.level;
 import game.levelgen.renderer;
 import game.weapon.weapon;
+import net.marshal : Hasher;
 
 import utils.archive;
 import utils.configfile;
