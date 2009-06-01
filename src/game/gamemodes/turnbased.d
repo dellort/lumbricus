@@ -269,10 +269,7 @@ class ModeTurnbased : Gamemode {
                 }
                 if (!mLastTeam) {
                     //game has just started, select first team (round-robin)
-                    //  (requires persistence plugin)
-                    int round =
-                        engine.persistentState.getValue("round_counter", 0);
-                    next = teamsP[round % teamsP.length];
+                    next = teamsP[logic.currentRound % teamsP.length];
                 } else {
                     //select next team/worm
                     next = arrayFindNextPred(teamsP, mLastTeam,

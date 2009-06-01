@@ -30,7 +30,7 @@ class DrillClass : WeaponClass {
         tunnelRadius = node.getValue("tunnel_radius", tunnelRadius);
         blowtorch = node.getValue("blowtorch", blowtorch);
         interval = RandomInt(node.getStringValue("interval",
-            interval.toString()), engine.rnd);
+            interval.toString()));
     }
 
     //xxx class
@@ -120,6 +120,6 @@ class Drill : Shooter {
         engine.damageLandscape(toVector2i(mWorm.physics.pos + advVec),
             myclass.tunnelRadius, mWorm);
         mNext = engine.gameTime.current
-            + timeMsecs(myclass.interval.sample());
+            + timeMsecs(myclass.interval.sample(engine.rnd));
     }
 }

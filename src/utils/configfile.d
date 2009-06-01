@@ -17,7 +17,7 @@ import tango.io.compress.ZlibStream;
 import utils.strparser : stringToBox, hasBoxParser;
 import utils.mybox : MyBox;
 import tango.core.Tuple : Tuple;
-import tango.core.Traits : isIntegerType, isRealType;
+import tango.core.Traits : isIntegerType, isRealType, isAssocArrayType;
 import tango.text.Util : delimiters;
 
 //xxx: desperately moved to here (where else to put it?)
@@ -510,6 +510,7 @@ public class ConfigNode {
     //  bool, int, float (as string)
     //  Vector2, bool[], int[], float[] (as space-separated string)
     //  other arrays of above types (as list of unnamed subnode)
+    //  AAs with a basic (-> Tango's to) key type and a supported value type
     public T getCurValue(T)(T def = T.init) {
         static if (is(T : char[])) {
             return value;
@@ -569,6 +570,13 @@ public class ConfigNode {
                 }
                 return res;
             }
+        } else static if (isAssocArrayType!(T)) {
+            T res = def;
+            foreach (int idx, ConfigNode n; mItems) {
+                res[conv.to!(typeof(T.init.keys[0]))(n.name)] =
+                    n.getCurValue!(typeof(T.init.values[0]))();
+            }
+            return res;
         } else static if (is(T == struct)) {
             T res;
             foreach (int idx, x; res.tupleof) {
@@ -623,6 +631,10 @@ public class ConfigNode {
                     auto node = add();
                     node.setCurValue(v);
                 }
+            }
+        } else static if (isAssocArrayType!(T)) {
+            foreach (akey, avalue; value) {
+                setValue(conv.to!(char[])(akey), avalue);
             }
         } else static if (is(T == struct)) {
             this.value = "";

@@ -1,98 +1,71 @@
 module utils.randval;
 
-import str = stdx.string;
 import utils.misc;
 import utils.random;
 
+import str = tango.text.Util;
+import tango.util.Convert : to;
+
 ///stores a ranged random value, i.e. "int between 0 and 10"
-///on first request, a value is sampled and stored
-///following requests return the stored value, until a reset() call
-public struct RandomValue(T) {
-    //separator for strings
-    private const randValSeparator = "-";
+///a random value in the range can be sample()'d multiple times
+struct RandomValue(T) {
+    //separator for strings; 2nd is used if 1st not found
+    private const cRandValSeparator = ':', cRandValSeparator2 = '-';
 
     T min;
     T max;
-    Random rnd;
-    private {
-        T curValue;
-        bool sampled = false;
-    }
 
-    public static RandomValue opCall(T min, T max, Random rnd) {
+    static RandomValue opCall(T min, T max) {
         RandomValue ret;
         if (min > max)
             swap(min, max);
         ret.min = min;
         ret.max = max;
-        ret.rnd = rnd;
         return ret;
     }
 
-    public static RandomValue opCall(T value, Random rnd) {
-        return opCall(value, value, rnd);
+    static RandomValue opCall(T value) {
+        return opCall(value, value);
     }
 
-    ///initialize from string like "<min><randValSeparator><max>"
-    public static RandomValue opCall(char[] s, Random rnd) {
-        int i = str.find(s,randValSeparator);
+    ///initialize from string like "<min><cRandValSeparator><max>"
+    static RandomValue opCall(char[] s) {
+        uint i = str.locate(s, cRandValSeparator);
+        //not found -> fallback
+        if (i == s.length)
+            i = str.locate(s, cRandValSeparator2);
         T min, max;
-        if (i >= 0) {
-            min = cast(T)str.atof(s[0..i]);
-            max = cast(T)str.atof(s[i+1..$]);
+        //we don't want to detect a '-' at the start as separator
+        if (i > 0 && i < s.length) {
+            min = to!(T)(str.trim(s[0..i]));
+            max = to!(T)(str.trim(s[i+1..$]));
         } else {
-            min = max = cast(T)str.atof(s);
+            min = max = to!(T)(s);
         }
-        return opCall(min,max,rnd);
+        return opCall(min,max);
     }
 
-    private double rndrealClose() {
+    ///sample a random value in [min, max]
+    T sample(Random rnd) {
         assert(!!rnd);
-        return rnd.nextDouble();
-    }
-
-    private double rndrealOpen() {
-        assert(!!rnd);
-        return rnd.nextDouble2();
-    }
-
-    ///sample a random value between min and max
-    ///the stored value is not modified
-    public T sample() {
         if (min == max)
             return min;
-        //this is different for integer and floating point values
-        static if (T.stringof == "float" || T.stringof == "double" || T.stringof == "real")
-            return min+(max-min)*rndrealClose();
-        else
-            return min+cast(T)((max-min+1)*rndrealOpen());
+        return rnd.nextRange(min, max);
     }
 
-    public T value() {
-        if (!sampled)
-            curValue = sample();
-        sampled = true;
-        return curValue;
-    }
-
-    public T nextValue() {
-        reset();
-        return value();
-    }
-
-    public void reset() {
-        sampled = false;
-    }
-
-    public bool isNull() {
+    bool isNull() {
         return (min == 0) && (max == 0);
     }
 
-    public char[] toString() {
+    bool isConst() {
+        return min == max;
+    }
+
+    char[] toString() {
         if (min == max)
-            return str.toString(min);
+            return to!(char[])(min);
         else
-            return str.toString(min) ~ randValSeparator ~ str.toString(max);
+            return to!(char[])(min) ~ cRandValSeparator ~ to!(char[])(max);
     }
 }
 

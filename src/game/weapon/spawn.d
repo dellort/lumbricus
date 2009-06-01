@@ -40,8 +40,7 @@ struct SpawnParams {
     RandomFloat strength;  //initial moving speed into above direction
     char[] initState = "";  //override sprite initstate (careful with that)
 
-    //xxx rnd parameter doesn't really fit here, was forced to add later
-    bool loadFromConfig(ConfigNode config, Random rnd) {
+    bool loadFromConfig(ConfigNode config) {
         projectile = config.getStringValue("projectile", projectile);
         count = config.getIntValue("count", count);
         spawndist = config.getFloatValue("spawndist", spawndist);
@@ -63,8 +62,7 @@ struct SpawnParams {
                 initVelocity = InitVelocity.parent;
         }
         direction = config.getValue("direction", direction);
-        strength = RandomFloat(config.getStringValue("strength_value", "0"),
-            rnd);
+        strength = RandomFloat(config.getStringValue("strength_value", "0"));
         initState = config.getStringValue("initstate", initState);
         return true;
     }
@@ -83,7 +81,6 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
 {
     //assert(shootby !is null);
     assert(n >= 0 && n < params.count);
-    params.strength.rnd = engine.rnd;
 
     GObjectSprite sprite = engine.createSprite(params.projectile);
     sprite.createdBy = shootbyObject;
@@ -92,16 +89,16 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
         case InitVelocity.fixed:
             //use values from config file, not from FireInfo
             about.dir = params.direction;
-            about.strength = params.strength.sample();
+            about.strength = params.strength.sample(engine.rnd);
             break;
         case InitVelocity.backfire:
             //use configured strength, but throw projectiles back along
             //surface normal
             about.dir = about.surfNormal;
-            about.strength = params.strength.sample();
+            about.strength = params.strength.sample(engine.rnd);
             break;
         case InitVelocity.randomAir:
-            about.strength = params.strength.sample();
+            about.strength = params.strength.sample(engine.rnd);
             //about.dir is unused
             break;
         default:
@@ -183,7 +180,7 @@ class SpawnActionClass : ActionClass {
     }
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
-        sparams.loadFromConfig(node, eng.rnd);
+        sparams.loadFromConfig(node);
     }
 
     SpawnAction createInstance(GameEngine eng) {

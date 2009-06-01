@@ -89,7 +89,7 @@ class ControllerMsgs : ControllerPlugin {
             case WormEvent.wormDrown:
                 messageAdd("msgdrown", [m.name], m.team);
                 break;
-            case WormEvent.wormDie:
+            case WormEvent.wormStartDie:
                 messageAdd("msgdie", [m.name], m.team);
                 break;
             default:
@@ -211,6 +211,47 @@ class ControllerMsgs : ControllerPlugin {
 class ControllerStats : ControllerPlugin {
     private {
         static LogStruct!("gameevents") log;
+
+        struct Stats {
+            //damage: all, damage to neutral stuff, damage when object
+            //  was already dead, damage by drowning (if object was
+            //  not already dead), damage caused by neutral stuff
+            float totalDmg = 0f, collateralDmg = 0f, overDmg = 0f,
+                waterDmg = 0f, neutralDamage = 0f;
+            //casualties (total = died + drowned)
+            int wormsDied, wormsDrowned;
+            //shots by all weapons (refire not counted)
+            int shotsFired;
+            int pixelsDestroyed;
+            //collected crates
+            int crateCount;
+            int[char[]] weaponStats;
+
+            //dump everything to console
+            void output() {
+                log("Worms killed: {} ({} died, {} drowned)", wormsDied
+                    + wormsDrowned, wormsDied, wormsDrowned);
+                log("Total damage caused: {}", totalDmg);
+                log("Damage by water: {}", waterDmg);
+                log("Collateral damage caused: {}", collateralDmg);
+                log("Damage by neutral objects: {}", neutralDamage);
+                log("Total overdamage: {}", overDmg);
+                log("Shots fired: {}", shotsFired);
+                int c = -1;
+                char[] maxwName;
+                foreach (char[] wc, int count; weaponStats) {
+                    if (count > c) {
+                        maxwName = wc;
+                        c = count;
+                    }
+                }
+                if (maxwName.length > 0)
+                    log("Favorite weapon: {} ({} shots)", maxwName, c);
+                log("Landscape destroyed: {} pixels", pixelsDestroyed);
+                log("Crates collected: {}", crateCount);
+            }
+        }
+        Stats mStats;
     }
 
     this(GameController c) {
@@ -234,35 +275,35 @@ class ControllerStats : ControllerPlugin {
         char[] dmgs = myformat("{}", damage);
         if (victim.physics.lifepower < 0) {
             float ov = min(-victim.physics.lifepower, damage);
-            mOverDmg += ov;
+            mStats.overDmg += ov;
             dmgs = myformat("{} ({} overdmg)", damage, ov);
         }
-        mTotalDmg += damage;
+        mStats.totalDmg += damage;
         if (m1 && m2) {
             if (m1 is m2)
                 log("worm {} injured himself by {} with {}", m1, dmgs, wname);
             else
                 log("worm {} injured {} by {} with {}", m1, m2, dmgs, wname);
         } else if (m1 && !m2) {
-            mCollateralDmg += damage;
+            mStats.collateralDmg += damage;
             log("worm {} caused {} collateral damage with {}", m1, dmgs,
                 wname);
         } else if (!m1 && m2) {
             //neutral damage is not caused by weapons
             assert(wclass is null, "some createdBy relation wrong");
-            mNeutralDamage += damage;
+            mStats.neutralDamage += damage;
             log("victim {} received {} damage from neutral objects", m2,
                 dmgs);
         } else {
             //most likely level objects blowing up other objects
             //  -> count as collateral
-            mCollateralDmg += damage;
+            mStats.collateralDmg += damage;
             log("unknown damage {}", dmgs);
         }
     }
 
     private void onDemolition(int pixelCount, GameObject cause) {
-        mPixelsDestroyed += pixelCount;
+        mStats.pixelsDestroyed += pixelCount;
         //log("blasted {} pixels of land", pixelCount);
     }
 
@@ -272,11 +313,11 @@ class ControllerStats : ControllerPlugin {
             wname = wclass.name;
         log("Fired weapon (refire={}): {}",refire,wname);
         if (!refire) {
-            if (!(wclass in mWeaponStats))
-                mWeaponStats[wclass] = 1;
+            if (!(wname in mStats.weaponStats))
+                mStats.weaponStats[wname] = 1;
             else
-                mWeaponStats[wclass] += 1;
-            mShotsFired++;
+                mStats.weaponStats[wname] += 1;
+            mStats.shotsFired++;
         }
     }
 
@@ -290,14 +331,14 @@ class ControllerStats : ControllerPlugin {
                 break;
             case WormEvent.wormDie:
                 log("Worm die: {}", m);
-                mWormsDied++;
+                mStats.wormsDied++;
                 break;
             case WormEvent.wormDrown:
                 int dh = m.currentHealth() - m.health();
                 log("Worm drown (floating label would say: {}): {} ", dh, m);
                 if (m.health(true) > 0)
-                    mWaterDmg += m.health(true);
-                mWormsDrowned++;
+                    mStats.waterDmg += m.health(true);
+                mStats.wormsDrowned++;
                 break;
             default:
         }
@@ -305,45 +346,12 @@ class ControllerStats : ControllerPlugin {
 
     private void onCrateCollect(ServerTeamMember m, Collectable[] stuffies) {
         log("{} collects crate: {}", m, stuffies);
-        mCrateCount++;
+        mStats.crateCount++;
     }
 
     private void onGameEnded() {
-        output();
-    }
-
-    //xxx for debugging only
-
-    private {
-        float mTotalDmg = 0f, mCollateralDmg = 0f, mOverDmg = 0f,
-            mWaterDmg = 0f, mNeutralDamage = 0f;
-        int mWormsDied, mWormsDrowned, mShotsFired, mPixelsDestroyed,
-            mCrateCount;
-        int[WeaponClass] mWeaponStats;
-    }
-
-    //dump everything to console
-    void output() {
-        log("Worms killed: {} ({} died, {} drowned)", mWormsDied+mWormsDrowned,
-            mWormsDied, mWormsDrowned);
-        log("Total damage caused: {}", mTotalDmg);
-        log("Damage by water: {}", mWaterDmg);
-        log("Collateral damage caused: {}", mCollateralDmg);
-        log("Damage by neutral objects: {}", mNeutralDamage);
-        log("Total overdamage: {}", mOverDmg);
-        log("Shots fired: {}", mShotsFired);
-        int c = -1;
-        WeaponClass maxw;
-        foreach (WeaponClass wc, int count; mWeaponStats) {
-            if (count > c) {
-                maxw = wc;
-                c = count;
-            }
-        }
-        if (maxw)
-            log("Favorite weapon: {} ({} shots)", maxw.name, c);
-        log("Landscape destroyed: {} pixels", mPixelsDestroyed);
-        log("Crates collected: {}", mCrateCount);
+        debug mStats.output();
+        engine.persistentState.setValue("stats", mStats);
     }
 
     static this() {
@@ -386,10 +394,6 @@ class ControllerPersistence : ControllerPlugin {
             cGiveWeaponsDef);
         engine.persistentState.setValue("give_weapons", curGiveWeapons - 1);
 
-        //increase total round count
-        engine.persistentState.setValue("round_counter",
-            engine.persistentState.getValue("round_counter", 0) + 1);
-
         //check if we have a winner
         //if the victory condition triggered, the "winner" field will be set,
         //  which can be checked by the GUI
@@ -408,10 +412,6 @@ class ControllerPersistence : ControllerPlugin {
             }
         } else {
             engine.persistentState.remove("winner");
-        }
-
-        debug {
-            gConf.saveConfig(engine.persistentState, "persistence_debug.conf");
         }
     }
 
@@ -466,7 +466,9 @@ class ControllerPersistence : ControllerPlugin {
             t.weapons.saveToConfig(node.getSubNode("weapons"));
         }
 
-        node.setValue("crate_spy", t.crateSpy);
+        //crate spy lasts one round
+        node.setValue("crate_spy", max(t.crateSpy - 1, 0));
+        //double damage is decreased elsewhere (lasts one turn)
         node.setValue("double_damage", t.doubleDmg);
     }
 
@@ -497,7 +499,7 @@ class ControllerPersistence : ControllerPlugin {
         assert(!!first && !!second);
 
         //now check victory condition
-        int rounds = engine.persistentState.getValue("round_counter", 1);
+        int rounds = controller.currentRound + 1;
         int victoryCount = engine.persistentState.getValue("victory_count",
             cVictoryCountDef);
         switch (condition) {

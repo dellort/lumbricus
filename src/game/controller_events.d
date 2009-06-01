@@ -18,8 +18,9 @@ import utils.reflection;
 import utils.factory;
 
 enum WormEvent {
-    wormDie,
-    wormDrown,
+    wormStartDie,   //starting to blow itself up
+    wormDie,        //done blowing up
+    wormDrown,      //death by drowning (reached ocean floor)
     wormActivate,
     wormDeactivate,
 }

@@ -75,7 +75,7 @@ class ExplosionActionClass : ActionClass {
     }
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
-        damage = RandomFloat(node.getStringValue("damage", "5.0"), eng.rnd);
+        damage = RandomFloat(node.getStringValue("damage", "5.0"));
     }
 
     ExplosionAction createInstance(GameEngine eng) {
@@ -104,7 +104,7 @@ class ExplosionAction : WeaponAction {
     override protected ActionRes initialStep() {
         super.initialStep();
         if (!mFireInfo.info.pos.isNaN) {
-            float dmg = myclass.damage.sample();
+            float dmg = myclass.damage.sample(engine.rnd);
             if (doubleDamage())
                 dmg *= 2.0f;
             engine.explosionAt(mFireInfo.info.pos, dmg, mCreatedBy);
@@ -318,7 +318,7 @@ class EarthquakeActionClass : ActionClass {
         waterRaise = node.getValue("water_raise", waterRaise);
         bounce_objects = node.getValue("bounce_objects", bounce_objects);
         nuke_effect = node.getValue("nuke_effect", nuke_effect);
-        durationMs = RandomInt(node.getStringValue("duration","1000"), eng.rnd);
+        durationMs = RandomInt(node.getStringValue("duration","1000"));
     }
 
     EarthquakeAction createInstance(GameEngine eng) {
@@ -352,7 +352,7 @@ class EarthquakeAction : Action {
         }
         //earthquake
         engine.addEarthQuake(myclass.strength,
-            timeMsecs(myclass.durationMs.sample()), myclass.degrade,
+            timeMsecs(myclass.durationMs.sample(engine.rnd)), myclass.degrade,
             myclass.bounce_objects);
         //nuke effect
         if (myclass.nuke_effect) {

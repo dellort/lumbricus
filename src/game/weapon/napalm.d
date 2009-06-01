@@ -78,10 +78,11 @@ class NapalmSprite : ProjectileSprite {
         //      for optimization
         //xxx this has to change for multi-turn napalm or worms pushed up
         if (engine.gameTime.current - mLastDmg >= mRepeatDelay) {
-            float dmg = myclass.damage.sample*(0.25+mDecayPerc*0.75);
+            float dmg = myclass.damage.sample(engine.rnd)
+                * (0.25 + mDecayPerc*0.75);
             engine.explosionAt(physics.pos, dmg, this);
             mLastDmg += mRepeatDelay;
-            mRepeatDelay = timeSecs(myclass.repeatDelay.sample);
+            mRepeatDelay = timeSecs(myclass.repeatDelay.sample(engine.rnd));
         }
     }
 
@@ -101,8 +102,8 @@ class NapalmSprite : ProjectileSprite {
 
         assert(type !is null);
         myclass = type;
-        mDecaySecs = myclass.decayTime.sample;
-        mRepeatDelay = timeSecs(myclass.initialDelay.sample);
+        mDecaySecs = myclass.decayTime.sample(engine.rnd);
+        mRepeatDelay = timeSecs(myclass.initialDelay.sample(engine.rnd));
         mLastDmg = engine.gameTime.current;
         lightUp();
     }
@@ -124,13 +125,10 @@ class NapalmSpriteClass : ProjectileSpriteClass {
 
     override void loadFromConfig(ConfigNode config) {
         super.loadFromConfig(config);
-        damage = RandomFloat(config.getStringValue("damage","5"), engine.rnd);
-        initialDelay = RandomFloat(config.getStringValue("initial_delay","0"),
-            engine.rnd);
-        repeatDelay = RandomFloat(config.getStringValue("repeat_delay","0.5"),
-            engine.rnd);
-        decayTime = RandomFloat(config.getStringValue("decay_time","5"),
-            engine.rnd);
+        damage = RandomFloat(config.getStringValue("damage","5"));
+        initialDelay = RandomFloat(config.getStringValue("initial_delay","0"));
+        repeatDelay = RandomFloat(config.getStringValue("repeat_delay","0.5"));
+        decayTime = RandomFloat(config.getStringValue("decay_time","5"));
         physMedium = initState.physic_properties.copy;
         physMedium.radius = config.getFloatValue("radius_m", 2);
         physSmall = initState.physic_properties.copy;

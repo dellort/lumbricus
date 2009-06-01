@@ -1044,6 +1044,7 @@ class ServerTeamMember : TeamMember, WormController {
         //3 possible states: healthy, unhealthy but not suiciding, suiciding
         if (mWorm.shouldDie() && !mWorm.isDelayedDying()) {
             //unhealthy, not suiciding
+            mTeam.parent.events.onWormEvent(WormEvent.wormStartDie, this);
             mWorm.finallyDie();
             assert(mWorm.isDelayedDying() || mWorm.isDead());
             return true;
@@ -1392,9 +1393,25 @@ class GameController : GameLogicPublic {
 
             if (mGamemode.ended() && !mGameEnded) {
                 mGameEnded = true;
+
                 events.onGameEnded();
+
+                //increase total round count
+                engine.persistentState.setValue("round_counter",
+                    currentRound + 1);
+
+                debug {
+                    gConf.saveConfig(engine.persistentState,
+                        "persistence_debug.conf");
+                }
             }
         }
+    }
+
+    //index of currently running game round (zero-based)
+    //note: even during onGameEnded event, still returns the current index
+    int currentRound() {
+        return engine.persistentState.getValue("round_counter", 0);
     }
 
     //return true if there are dying worms

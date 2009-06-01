@@ -124,6 +124,7 @@ class Random
         return next()*(1.0/4294967295.0);
         /* divided by 2^32-1 */
     }
+    alias nextDouble nextRealClose;
 
     //[0.0f, 1.0f)
     final double nextDouble2()
@@ -131,15 +132,25 @@ class Random
         return next()*(1.0/4294967296.0);
         /* divided by 2^32 */
     }
+    alias nextDouble2 nextRealOpen;
 
     //[-1.0f..1.0f]
     final double nextDouble3() {
         return (nextDouble()-0.5)*2.0;
     }
+    alias nextDouble3 nextRealSymm;
 
-    /// min <= X <= max (integer types only)
+    /// min <= X <= max (works for integer and float types)
     T nextRange(T)(T min, T max) {
-        return cast(T)(min + (max-min+1)*nextDouble2());
+        static if (is(T == float) || is(T == double) || is(T == real))
+            return min + (max-min)*nextDouble();
+        else
+            static if (is(T == int) || is(T == short) || is(T == byte)) {
+                return cast(T)next(min, max+1);
+            } else {
+                //note: precision will suffer for ranges > 32bit
+                return cast(T)(min + (max-min+1)*nextDouble2());
+            }
     }
 
     /**
