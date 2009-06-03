@@ -75,7 +75,7 @@ class GameWater {
     Vector2i size;
 
     this(ClientGameEngine engine) {
-        size = engine.worldSize;
+        size = engine.engine.worldSize;
 
         mEngine = engine;
         Color waterColor = engine.gfx.waterColor;
@@ -145,8 +145,8 @@ class GameWater {
     }
 
     void simulate() {
-        if (mEngine.waterOffset != mStoredWaterLevel) {
-            waterOffs = mEngine.waterOffset;
+        if (mEngine.engine.waterOffset != mStoredWaterLevel) {
+            waterOffs = mEngine.engine.waterOffset;
             uint p = waterOffs;
             int waveCenterDiff = 0;
             backAnimTop = waterOffs;
@@ -168,7 +168,7 @@ class GameWater {
             }
             animTop = waterOffs + waveCenterDiff;
             animBottom = p;
-            mStoredWaterLevel = mEngine.waterOffset;
+            mStoredWaterLevel = mEngine.engine.waterOffset;
         }
     }
 }

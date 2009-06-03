@@ -78,15 +78,13 @@ class ModeTurnbased : Gamemode {
         //we want teams to be activated in a random order that stays the same
         //  over all rounds
         mTeamPerm = engine.persistentState.getValue!(int[])("team_order", null);
-        if (mTeamPerm.length < logic.teams.length) {
+        if (mTeamPerm.length != logic.teams.length) {
+            //either the game just started, or a player left -> new random order
             mTeamPerm.length = logic.teams.length;
             for (int i = 0; i < mTeamPerm.length; i++) {
                 mTeamPerm[i] = i;
             }
-            for (int i = 0; i < mTeamPerm.length; i++) {
-                swap(mTeamPerm[i],
-                    mTeamPerm[engine.rnd.next(i, mTeamPerm.length)]);
-            }
+            engine.rnd.randomizeArray(mTeamPerm);
             engine.persistentState.setValue("team_order", mTeamPerm);
         }
     }

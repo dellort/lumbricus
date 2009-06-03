@@ -615,7 +615,7 @@ class ServerTeamMember : TeamMember, WormController {
         //set feedback interface to this class
         mWorm.wcontrol = this;
         //let Controller place the worm
-        mTeam.parent.placeOnLandscape(mWorm);
+        mEngine.queuePlaceOnLandscape(mWorm);
     }
 
     GObjectSprite sprite() {
@@ -1070,16 +1070,19 @@ class WeaponSet {
     WeaponClass[] crateList;
 
     //config = item from "weapon_sets"
-    this (GameEngine aengine, ConfigNode config) {
+    this (GameEngine aengine, ConfigNode config, bool crateSet = false) {
         this(aengine);
         foreach (ConfigNode node; config.getSubNode("weapon_list")) {
             try {
                 auto weapon = new WeaponItem(this, node);
-                weapons[weapon.weapon] = weapon;
-                //only drop weapons that are not infinite already,
-                //  and that can be used in the current world
-                if (!weapon.infinite && weapon.weapon.canUse())
-                    crateList ~= weapon.weapon;
+                if (crateSet) {
+                    //only drop weapons that are not infinite already,
+                    //  and that can be used in the current world
+                    if (!weapon.infinite && weapon.weapon.canUse())
+                        crateList ~= weapon.weapon;
+                } else {
+                    weapons[weapon.weapon] = weapon;
+                }
             } catch (ClassNotRegisteredException e) {
                 registerLog("game.controller")
                     ("Error in weapon set '"~config.name~"': "~e.msg);
@@ -1106,6 +1109,7 @@ class WeaponSet {
 
     void addSet(WeaponSet other) {
         assert(!!other);
+        assert(crateList.length == 0, "WeaponSet.addSet not for crate set");
         //add weapons
         foreach (WeaponClass key, WeaponItem value; other.weapons) {
             if (!(key in weapons))
@@ -1113,8 +1117,6 @@ class WeaponSet {
             auto wi = *(key in weapons);
             wi.addFromItem(value);
         }
-        //xxx: no crateList synchronization here, crate set is loaded
-        //     independently anyway
     }
 
     WeaponItem byId(WeaponClass weaponId) {
@@ -1327,10 +1329,6 @@ class GameController : GameLogicPublic {
         return mGamemode.getStatus;
     }
 
-    WeaponClass[] weaponList() {
-        return mEngine.weaponList();
-    }
-
     Object getPlugin(char[] id) {
         return aaIfIn(mPluginLookup, id);
     }
@@ -1454,17 +1452,6 @@ class GameController : GameLogicPublic {
         w.active = true;
     }
 
-    WeaponSet initWeaponSet(char[] id) {
-        ConfigNode ws;
-        if (id in mWeaponSets)
-            ws = mWeaponSets[id];
-        else
-            ws = mWeaponSets["default"];
-        if (!ws)
-            throw new Exception("Weapon set " ~ id ~ " not found.");
-        return new WeaponSet(mEngine, ws);
-    }
-
     //config = the "teams" node, i.e. from data/data/teams.conf
     private void loadTeams(ConfigNode config) {
         mTeams = null;
@@ -1499,6 +1486,17 @@ class GameController : GameLogicPublic {
         return TeamTheme.cTeamColors[colId];
     }
 
+    WeaponSet initWeaponSet(char[] id, bool forCrate = false) {
+        ConfigNode ws;
+        if (id in mWeaponSets)
+            ws = mWeaponSets[id];
+        else
+            ws = mWeaponSets["default"];
+        if (!ws)
+            throw new Exception("Weapon set " ~ id ~ " not found.");
+        return new WeaponSet(mEngine, ws, forCrate);
+    }
+
     //like "weapon_sets" in gamemode.conf, but renamed according to game config
     private void loadWeaponSets(ConfigNode config) {
         //1. complete sets
@@ -1525,7 +1523,7 @@ class GameController : GameLogicPublic {
         if (!("default" in mWeaponSets))
             mWeaponSets["default"] = mWeaponSets[firstId];
         //crate weapon set is named "crate_set" (will fall back to "default")
-        mCrateSet = initWeaponSet("crate_set");
+        mCrateSet = initWeaponSet("crate_set", true);
     }
 
     //create and place worms when necessary
@@ -1547,12 +1545,13 @@ class GameController : GameLogicPublic {
                 auto cnt = sub.getIntValue("count");
                 log("count {} type {}", cnt, sub["type"]);
                 for (int n = 0; n < cnt; n++) {
-                    try {
-                        placeOnLandscape(mEngine.createSprite(sub["type"]));
-                    } catch {
+                    //try {
+                        mEngine.queuePlaceOnLandscape(
+                            mEngine.createSprite(sub["type"]));
+                    /*} catch {
                         log("Warning: Placing {} objects failed", sub["type"]);
                         continue;
-                    }
+                    }*/
                 }
             } else {
                 log("warning: unknown placing mode: '{}'", sub["mode"]);
@@ -1606,12 +1605,6 @@ class GameController : GameLogicPublic {
     void reportDemolition(int pixelCount, GameObject cause) {
         assert(!!cause);
         events.onDemolition(pixelCount, cause);
-    }
-
-    //queue for placing anywhere on landscape
-    //call engine.finishPlace() when done with all sprites
-    void placeOnLandscape(GObjectSprite sprite, bool must_place = true) {
-        mEngine.queuePlaceOnLandscape(sprite);
     }
 
     Collectable[] fillCrate() {

@@ -235,7 +235,7 @@ class GameLoader {
         if (!mSaveGame) {
             //for creation of a new game
             mShell.mEngine = new GameEngine(mGameConfig, mGfx,
-                mShell.mGameTime, mShell.mGCD);
+                mShell.mGameTime);
         } else {
             //for loading a savegame
             //meh time, not serialized anymore because it only causes problems
@@ -249,7 +249,6 @@ class GameLoader {
             mSaveGame.addExternal(mShell.mGameTime, "game_time");
             //
             addResources(mGfx, mSaveGame);
-            mSaveGame.addExternal(mShell.mGCD, "callbacks");
             //(actually deserialize the complete engine)
             mShell.mEngine = mSaveGame.readObjectT!(GameEngine)();
         }
@@ -311,8 +310,6 @@ class GameShell {
         bool mExtIsLagging;
         debug bool mPrintFrameTime;
         Hasher mGameHasher;
-        //
-        GCD mGCD;
     }
     bool terminated;  //set to exit the game instantly
 
@@ -344,7 +341,6 @@ class GameShell {
 
     //use GameLoader.Create*() instead
     private this() {
-        mGCD = new GCD();
     }
 
     private void execEntry(LogEntry e) {
@@ -643,7 +639,6 @@ class GameShell {
         addResources(mGfx, writer);
 
         writer.addExternal(mGameTime, "game_time");
-        writer.addExternal(mGCD, "callbacks");
 
         writer.writeObject(mEngine);
 
@@ -683,11 +678,8 @@ class GameShell {
         return EngineHash(mGameHasher.hash_value);
     }
 
-    class GCD : GameCallbackDistributor {
-        //disgusting, stupid, unethical, etc. hack
-        bool paused() {
-            return mGameTime.paused();
-        }
+    bool paused() {
+        return mGameTime.paused();
     }
 }
 
@@ -924,7 +916,7 @@ class GameControl : ClientControl {
         if (!checkWormCommand(&fire)) {
             //no worm active
             //spacebar for crate
-            mOwner.mEngine.instantDropCrate();
+            mOwner.mEngine.controller.instantDropCrate();
         }
     }
 

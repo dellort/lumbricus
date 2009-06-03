@@ -57,7 +57,7 @@ class WindMeter : Widget {
         if (mGame.cengine) {
             //canvas.draw(mBackgroundTex, pos);
             drawBox(canvas, pos, mSize, mBoxStyle);
-            float wspeed = mGame.cengine.windSpeed;
+            float wspeed = mGame.engine.windSpeed;
             int anisize = clampRangeC(cast(int)(wspeed*mMaxWidth),
                 -mMaxWidth,mMaxWidth);
             int texOffset = (cast(int)(time.secsf*mAnimSpeed)

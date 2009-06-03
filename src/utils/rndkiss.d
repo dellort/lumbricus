@@ -153,6 +153,13 @@ class Random
             }
     }
 
+    /// Randomly permutate the passed array
+    void randomizeArray(T)(ref T[] arr) {
+        for (int i = 0; i < arr.length; i++) {
+            swap(arr[i], arr[next(i, arr.length)]);
+        }
+    }
+
     /**
      save/restore internal state, for setting the generator
      back to a specific point in the sequence

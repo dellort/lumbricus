@@ -373,43 +373,39 @@ class NukeSplatEffectImpl : SceneObject {
 //client-side game engine, manages all stuff that does not affect gameplay,
 //but needs access to the game and is drawn into the game scene
 class ClientGameEngine : GameEngineCallback {
-    private GameEnginePublic mEngine;
-
     ResourceSet resources;
     GfxSet gfx;
     GameEngineGraphics server_graphics;
 
-    private Music mMusic;
-
-    //stuff cached/received/duplicated from the engine
-    //(remind that mEngine might disappear because of networking)
-    int waterOffset;
-    float windSpeed;
-    //worldCenter: don't really know what it is, used for camera start position
-    Vector2i worldSize, worldCenter;
-
-    private uint mDetailLevel;
     //not quite clean: Gui drawers can query this / detailLevel changes it
     bool enableSpiffyGui;
 
-    private Scene mScene;
+    private {
+        GameEnginePublic mEngine;
+        Music mMusic;
 
-    //normal position of the scenes nested in mScene
-    private Rect2i mSceneRect;
+        uint mDetailLevel;
 
-    private TimeSource mEngineTime;
+        Scene mScene;
 
-    private GameWater mGameWater;
-    private GameSky mGameSky;
+        //normal position of the scenes nested in mScene
+        Rect2i mSceneRect;
 
-    //when shaking, the current offset
-    private Vector2i mShakeOffset;
-    //time after which a new shake offset is computed (to make shaking framerate
-    //  independent), in ms
-    const cShakeIntervalMs = 50;
-    private Time mLastShake;
+        TimeSource mEngineTime;
 
-    private PerfTimer mGameDrawTime;
+        GameWater mGameWater;
+        GameSky mGameSky;
+
+        //when shaking, the current offset
+        Vector2i mShakeOffset;
+        //time after which a new shake offset is computed (to make shaking
+        //  framerate independent), in ms
+        const cShakeIntervalMs = 50;
+        Time mLastShake;
+
+        PerfTimer mGameDrawTime;
+        bool mPaused;
+    }
 
     this(GameEnginePublic engine) {
         mEngine = engine;
@@ -421,16 +417,9 @@ class ClientGameEngine : GameEngineCallback {
 
         mGameDrawTime = globals.newTimer("game_draw_time");
 
-        //xxx make value transfers generic
-        waterOffset = mEngine.waterOffset;
-        windSpeed = mEngine.windSpeed;
-
-        worldSize = mEngine.worldSize;
-        worldCenter = mEngine.worldCenter;
-
         mScene = new Scene();
 
-        mSceneRect = Rect2i(Vector2i(0), worldSize);
+        mSceneRect = Rect2i(Vector2i(0), mEngine.worldSize);
 
         initSound();
 
@@ -523,18 +512,24 @@ class ClientGameEngine : GameEngineCallback {
         scene.add(new AnimationEffectImpl(engineTime, anim, pos, params));
     }
 
+    bool paused() {
+        return mPaused;
+    }
+    void paused(bool p) {
+        mPaused = p;
+    }
+
     bool oldpause; //hack, so you can pause the music independent from the game
 
     void doFrame() {
         //lol pause state
-        auto ispaused = mEngine.paused();
-        mEngineTime.paused = ispaused;
+        mEngineTime.paused = mPaused;
         mEngineTime.update();
 
         if (mMusic) {
-            if (oldpause != ispaused)
-                mMusic.paused = ispaused;
-            oldpause = ispaused;
+            if (oldpause != mPaused)
+                mMusic.paused = mPaused;
+            oldpause = mPaused;
         }
 
         //bail out here if game is paused??
@@ -555,10 +550,6 @@ class ClientGameEngine : GameEngineCallback {
         //only these are shaked on an earth quake
         //...used to shake only Objects and Landscape, but now it's ok too
         mScene.pos = mSceneRect.p1 + mShakeOffset;
-
-        //hm
-        waterOffset = mEngine.waterOffset;
-        windSpeed = mEngine.windSpeed;
 
         mGameWater.simulate();
         mGameSky.simulate();

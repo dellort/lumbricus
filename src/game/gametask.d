@@ -158,7 +158,7 @@ class GameTask : StatefulTask {
 
     //just for the paused-command?
     private bool gamePaused() {
-        return mGame.paused;
+        return mGameShell.paused;
     }
     private void gamePaused(bool set) {
         mControl.executeCommand("set_pause "~str.toString(set));
@@ -417,6 +417,10 @@ class GameTask : StatefulTask {
             }
             if (mClientEngine) {
                 mClientEngine.doFrame();
+                //synchronize paused state
+                //still hacky, but better than GCD
+                if (mGameShell)
+                    mClientEngine.paused = mGameShell.paused;
 
                 //maybe
                 if (mGame.logic.gameEnded) {

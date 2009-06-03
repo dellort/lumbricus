@@ -194,10 +194,10 @@ class GameFrame : SimpleContainer {
 
         add(mWeaponSel, WidgetLayout.Aligned(1, 1, Vector2i(5, 40)));
 
-        WeaponClass[] wlist = game.logic.weaponList();
+        WeaponClass[] wlist = game.engine.weaponList();
         mWeaponSel.init(wlist);
 
-        setPosition(game.cengine.worldCenter);
+        setPosition(game.engine.worldCenter);
 
         auto cb = game.engine.callbacks();
         cb.weaponsChanged ~= &updateWeapons;

@@ -501,7 +501,7 @@ class GameView : Container {
         addChild(lbl);
         ml.label = lbl;
         ml.from = pos;
-        ml.to = Vector2i(pos.x, mGame.cengine.waterOffset);
+        ml.to = Vector2i(pos.x, mGame.engine.waterOffset);
         ml.start = mGame.clientTime.current;
         ml.effect = MoveLabelEffect.bubble;
         ml.speed = cDrownLabelSpeed;
@@ -686,7 +686,7 @@ class GameView : Container {
     }
 
     override Vector2i layoutSizeRequest() {
-        return mGame.cengine.worldSize;
+        return mGame.engine.worldSize;
     }
 
     //find a WeaponClass of the weapon named "name" in the current team's

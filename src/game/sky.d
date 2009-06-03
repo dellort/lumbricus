@@ -101,7 +101,7 @@ class GameSky {
     ///create data structures and load textures, however no
     ///game-related values are used
     this(ClientGameEngine engine) {
-        size = engine.worldSize;
+        size = engine.engine.worldSize;
 
         EnvironmentTheme theme = engine.engine.level.theme;
 
@@ -232,7 +232,8 @@ class GameSky {
         if (mCloudsVisible && mEnableClouds) {
             foreach (inout ci; mCloudAnimators) {
                 //XXX this is acceleration, how to get a constant speed from this??
-                ci.x += (ci.xspeed+mEngine.windSpeed*cWindMultiplier)*deltaT;
+                ci.x += (ci.xspeed + mEngine.engine.windSpeed*cWindMultiplier)
+                    * deltaT;
                 clip(ci.x, ci.animSizex, 0, size.x);
                 ci.anim.pos = Vector2i(cast(int)ci.x, skyOffset + ci.y);
             }
@@ -241,7 +242,8 @@ class GameSky {
             //XXX (and, XXX) handmade physics
             foreach (inout di; mDebrisAnimators) {
                 //XXX same here
-                di.x += 2*mEngine.windSpeed*cWindMultiplier*deltaT*di.speedPerc;
+                di.x += 2 * mEngine.engine.windSpeed * cWindMultiplier * deltaT
+                    * di.speedPerc;
                 di.y += cDebrisFallSpeed*deltaT;
                 clip(di.x, mDebrisAnim.bounds.size.x, 0, size.x);
                 clip(di.y, mDebrisAnim.bounds.size.y, skyOffset, skyBottom);

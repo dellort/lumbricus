@@ -297,12 +297,6 @@ class TextGraphic : Graphic {
 
 ///GameEngine public interface
 interface GameEnginePublic {
-    /*
-    ///called if the client did setup everything
-    ///i.e. if the client-engine was initialized, all callbacks set...
-    void signalReadiness();
-    */
-
     ///current water offset
     int waterOffset();
 
@@ -311,9 +305,6 @@ interface GameEnginePublic {
 
     ///return how strong the earth quake is, 0 if no earth quake active
     float earthQuakeStrength();
-
-    ///get controller interface
-    //ControllerPublic controller();
 
     ///level being played, must not modify returned object
     Level level();
@@ -329,11 +320,6 @@ interface GameEnginePublic {
     Vector2i worldSize();
     Vector2i worldCenter();
 
-    ///is the game time paused?
-    //xxx doesn't really belong here, then again where else to put it?
-    //    maybe handle the same as replay state (GameShell.replayMode)
-    bool paused();
-
     ///return the GameLogic singleton
     GameLogicPublic logic();
 
@@ -343,6 +329,10 @@ interface GameEnginePublic {
 
     //carries time of last network update in networking case, I guess?
     TimeSourcePublic gameTime();
+
+    ///list of _all_ possible weapons, which are useable during the game
+    ///Team.getWeapons() must never return a Weapon not covered by this list
+    WeaponClass[] weaponList();
 }
 
 ///calls from engine into clients
@@ -377,10 +367,6 @@ interface GameLogicPublic {
 
     ///Status of selected gamemode (may contain timing, scores or whatever)
     Object gamemodeStatus();
-
-    ///list of _all_ possible weapons, which are useable during the game
-    ///Team.getWeapons() must never return a Weapon not covered by this list
-    WeaponClass[] weaponList();
 
     ///Request interface to a plugin; returns null if the plugin is not loaded
     Object getPlugin(char[] id);

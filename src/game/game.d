@@ -30,16 +30,6 @@ import tango.util.Convert : to;
 
 import game.levelgen.renderer;// : LandscapeBitmap;
 
-//implemented by GameShell
-//this is stupid, remove if you find better way
-//it's fine now, but this particular thing decayed into an even more stupid hack
-//just because of paused()
-//if this is removed, GameEngine.mCallbacks could simply be made transient
-class GameCallbackDistributor : GameEngineCallback {
-    //redirect GameEnginePublic.paused to GameShell
-    abstract bool paused();
-}
-
 class ClassNotRegisteredException : Exception {
     this(char[] msg) {
         super(msg);
@@ -49,19 +39,7 @@ class ClassNotRegisteredException : Exception {
 //code to manage a game session (hm, whatever this means)
 //reinstantiated on each "round"
 class GameEngine : GameEnginePublic {
-    private TimeSourcePublic mGameTime;
-    private GameCallbackDistributor mCallbacks;
-
-    protected PhysicWorld mPhysicWorld;
-    private List2!(GameObject) mObjects;
-    private Level mLevel;
     GameLandscape[] gameLandscapes;
-    PhysicZonePlane waterborder;
-    PhysicZonePlane deathzone;
-    private WaterSurfaceGeometry mWaterBouncer;
-
-    GfxSet mGfx;
-
     GameEngineGraphics graphics;
 
     Random rnd;
@@ -69,72 +47,164 @@ class GameEngine : GameEnginePublic {
     GameConfig gameConfig;
     ConfigNode persistentState;
 
-    Level level() {
-        return mLevel;
-    }
-
-    GameLandscape[] getGameLandscapes() {
-        return gameLandscapes;
-    }
-
-    private Vector2i mWorldSize;
-
-    private GameController mController;
-
-    //Part of interface GameEnginePublic
-    GameLogicPublic logic() {
-        return mController;
-    }
-
-    //Direct server-side access to controller
-    //NOT part of GameEnginePublic
-    GameController controller() {
-        return mController;
-    }
-
-    Vector2i worldSize() {
-        return mWorldSize;
-    }
-    Vector2i worldCenter() {
-        return mLevel.worldCenter;
-    }
-
-    //hack, for GameEnginePublic, must not be used from inside the game engine
-    //(actually, it should always return false, except when code is called from
-    // getters through the interfaces)
-    bool paused() {
-        return mCallbacks.paused();
-    }
-
-    private static LogStruct!("game.game") log;
-
-    private const cSpaceBelowLevel = 150;
-    private const cSpaceAboveOpenLevel = 1000;
-    private const cOpenLevelWidthMultiplier = 3;
-
-    private WindyForce mWindForce;
-    private PhysicTimedChangerFloat mWindChanger;
-    private const cWindChange = 80.0f;
-    private const cMaxWind = 150f;
-
-    //for raising waterline
-    private PhysicTimedChangerFloat mWaterChanger;
-    private const cWaterRaisingSpeed = 50.0f; //pixels per second
-    //current water level, now in absolute scene coordinates, no more dupes
-    private float mCurrentWaterLevel;
-
-    //generates earthquakes
-    private EarthQuakeForce mEarthquakeForceVis, mEarthquakeForceDmg;
-
-    //managment of sprite classes, for findSpriteClass()
-    private GOSpriteClass[char[]] mSpriteClasses;
-
-    //same for weapons (also such a two-stage factory, which creastes Shooters)
-    private WeaponClass[char[]] mWeaponClasses;
-
     SequenceStateList sequenceStates;
 
+    private {
+        static LogStruct!("game.game") log;
+
+        TimeSourcePublic mGameTime;
+        GameEngineCallback mCallbacks;
+
+        PhysicWorld mPhysicWorld;
+        List2!(GameObject) mObjects;
+        Level mLevel;
+
+        PhysicZonePlane mWaterBorder;
+        PhysicZonePlane mDeathZone;
+        WaterSurfaceGeometry mWaterBouncer;
+
+        GfxSet mGfx;
+
+        GameController mController;
+
+        WindyForce mWindForce;
+        PhysicTimedChangerFloat mWindChanger;
+
+        //for raising waterline
+        PhysicTimedChangerFloat mWaterChanger;
+        //current water level, now in absolute scene coordinates, no more dupes
+        float mCurrentWaterLevel;
+
+        //generates earthquakes
+        EarthQuakeForce mEarthquakeForceVis, mEarthquakeForceDmg;
+
+        //managment of sprite classes, for findSpriteClass()
+        GOSpriteClass[char[]] mSpriteClasses;
+
+        //same for weapons (also such a two-stage factory, creates Shooters)
+        WeaponClass[char[]] mWeaponClasses;
+
+        GObjectSprite[] mPlaceQueue;
+
+        const cWindChange = 80.0f;
+        const cMaxWind = 150f;
+
+        const cWaterRaisingSpeed = 50.0f; //pixels per second
+
+        //minimum distance between placed objects
+        const cPlaceMinDistance = 50.0f;
+        //position increment for deterministic placement
+        const cPlaceIncDistance = 55.0f;
+        //distance when creating a platform in empty space
+        const cPlacePlatformDistance = 90.0f;
+    }
+
+    this(GameConfig config, GfxSet a_gfx, TimeSourcePublic a_gameTime)
+    {
+        rnd = new Random();
+        //game initialization must be deterministic; so unless GameConfig
+        //contains a good pre-generated seed, use a fixed seed
+        if (config.randomSeed.length > 0) {
+            rnd.seed(to!(uint)(config.randomSeed));
+        } else {
+            rnd.seed(1);
+        }
+        mGfx = a_gfx;
+        gameConfig = config;
+        mGameTime = a_gameTime;
+        mCallbacks = new GameEngineCallback();
+
+        persistentState = config.gamestate.copy();
+
+        assert(config.level !is null);
+        mLevel = config.level;
+
+        graphics = new GameEngineGraphics(this);
+
+        mObjects = new List2!(GameObject)();
+        mPhysicWorld = new PhysicWorld(rnd);
+
+        foreach (o; level.objects) {
+            if (auto ls = cast(LevelLandscape)o) {
+                //xxx landscapes should keep track of themselves
+                gameLandscapes ~= new GameLandscape(this, ls);
+            }
+        }
+
+        //various level borders
+        mWaterBorder = new PhysicZonePlane();
+        auto wb = new ZoneTrigger(mWaterBorder);
+        wb.onTrigger = &underWaterTrigger;
+        wb.collision = physicworld.collide.findCollisionID("water");
+        physicworld.add(wb);
+        mWaterBouncer = new WaterSurfaceGeometry();
+        physicworld.add(mWaterBouncer);
+        //Stokes's drag force
+        physicworld.add(new ForceZone(new StokesDragFixed(5.0f), mWaterBorder));
+        //xxx additional object-attribute controlled Stokes's drag
+        physicworld.add(new StokesDragObject());
+        //Earthquake generator
+        mEarthquakeForceVis = new EarthQuakeForce(false);
+        mEarthquakeForceDmg = new EarthQuakeForce(true);
+        physicworld.add(mEarthquakeForceVis);
+        physicworld.add(mEarthquakeForceDmg);
+
+        mDeathZone = new PhysicZonePlane();
+        auto dz = new ZoneTrigger(mDeathZone);
+        dz.collision = physicworld.collide.collideAlways();
+        dz.onTrigger = &deathzoneTrigger;
+        dz.inverse = true;
+        //the trigger is inverse, and triggers only when the physic object is
+        //completely in the deathzone, but graphics are often larger :(
+        auto death_y = worldSize.y + 20;
+        //because trigger is inverse, the plane must be defined inverted too
+        mDeathZone.plane.define(Vector2f(1, death_y), Vector2f(0, death_y));
+        physicworld.add(dz);
+
+        //create trigger to check for objects leaving the playable area
+        auto worldZone = new PhysicZoneXRange(0, mLevel.worldSize.x);
+        //only if completely outside (= touching the game area inverted)
+        worldZone.whenTouched = true;
+        auto offwTrigger = new ZoneTrigger(worldZone);
+        offwTrigger.collision = physicworld.collide.collideAlways();
+        offwTrigger.inverse = true;  //trigger when outside the world area
+        offwTrigger.onTrigger = &offworldTrigger;
+        physicworld.add(offwTrigger);
+
+        mWindForce = new WindyForce();
+        mWindChanger = new PhysicTimedChangerFloat(0, &windChangerUpdate);
+        mWindChanger.changePerSec = cWindChange;
+        physicworld.add(new ForceZone(mWindForce, mWaterBorder, true));
+        physicworld.add(mWindChanger);
+        randomizeWind();
+
+        //physics timed changer for water offset
+        mWaterChanger = new PhysicTimedChangerFloat(mLevel.waterBottomY,
+            &waterChangerUpdate);
+        mWaterChanger.changePerSec = cWaterRaisingSpeed;
+        physicworld.add(mWaterChanger);
+
+        sequenceStates = new SequenceStateList();
+
+        //load sequences
+        foreach (ConfigNode node; gfx.sequenceConfig) {
+            loadSequences(this, node);
+        }
+
+        //load weapons
+        foreach (char[] ws; config.weaponsets) {
+            loadWeapons("weapons/"~ws);
+        }
+
+        loadLevelStuff();
+
+        //NOTE: GameController relies on many stuff at initialization
+        //i.e. physics for worm placement
+        new GameController(this, config);
+    }
+
     this (ReflectCtor c) {
+        c.transient(this, &mCallbacks);
         auto t = c.types();
         t.registerClass!(typeof(mObjects));
         t.registerMethod(this, &deathzoneTrigger, "deathzoneTrigger");
@@ -145,6 +215,75 @@ class GameEngine : GameEnginePublic {
         t.registerMethod(this, &onDamage, "onDamage");
         t.registerMethod(this, &offworldTrigger, "offworldTrigger");
     }
+
+    package void setController(GameController ctl) {
+        assert(!mController);
+        mController = ctl;
+    }
+
+    //Direct server-side access to controller
+    //NOT part of GameEnginePublic
+    GameController controller() {
+        return mController;
+    }
+
+    //--- start GameEnginePublic
+
+    Level level() {
+        return mLevel;
+    }
+
+    //Part of interface GameEnginePublic
+    GameLogicPublic logic() {
+        return mController;
+    }
+
+    Vector2i worldSize() {
+        return mLevel.worldSize;
+    }
+    Vector2i worldCenter() {
+        return mLevel.worldCenter;
+    }
+
+    WeaponClass[] weaponList() {
+        return mWeaponClasses.values;
+    }
+
+    GameEngineCallback callbacks() {
+        return mCallbacks;
+    }
+
+    GameEngineGraphics getGraphics() {
+        return graphics;
+    }
+
+    TimeSourcePublic gameTime() {
+        return mGameTime;
+    }
+
+    //return y coordinate of waterline
+    int waterOffset() {
+        return cast(int)mCurrentWaterLevel;
+    }
+
+    public float windSpeed() {
+        return mWindForce.windSpeed.x/cMaxWind;
+    }
+
+    float earthQuakeStrength() {
+        return mEarthquakeForceVis.earthQuakeStrength()
+            + mEarthquakeForceDmg.earthQuakeStrength();
+    }
+
+    GameConfig config() {
+        return gameConfig;
+    }
+
+    GfxSet gfx() {
+        return mGfx;
+    }
+
+    //--- end GameEnginePublic
 
     //factory for GOSpriteClasses
     //the constructor of GOSpriteClasses will call:
@@ -214,7 +353,7 @@ class GameEngine : GameEnginePublic {
     }
 
     //a weapon subnode of weapons.conf
-    void loadWeaponClass(ConfigNode weapon) {
+    private void loadWeaponClass(ConfigNode weapon) {
         char[] type = weapon.getStringValue("type", "action");
         //xxx error handling
         //hope you never need to debug this code!
@@ -237,139 +376,15 @@ class GameEngine : GameEnginePublic {
             ~ name ~ " not found");
     }
 
-    WeaponClass[] weaponList() {
-        return mWeaponClasses.values;
-    }
-
-    void windChangerUpdate(float val) {
+    private void windChangerUpdate(float val) {
         mWindForce.windSpeed = Vector2f(val,0);
     }
 
     private void waterChangerUpdate(float val) {
         mCurrentWaterLevel = val;
-        waterborder.plane.define(Vector2f(0, val), Vector2f(1, val));
+        mWaterBorder.plane.define(Vector2f(0, val), Vector2f(1, val));
         //why -5? a) it looks better, b) objects won't drown accidentally
         mWaterBouncer.updatePos(val - 5);
-    }
-
-    this(GameConfig config, GfxSet a_gfx, TimeSourcePublic a_gameTime,
-        GameCallbackDistributor a_Callbacks)
-    {
-        rnd = new Random();
-        //xxx
-        //game initialization must be deterministic; but you could pre-generate
-        //a good seed, put it into GameConfig, and use it here
-        if (config.randomSeed.length > 0) {
-            rnd.seed(to!(uint)(config.randomSeed));
-        } else {
-            rnd.seed(1);
-        }
-        mGfx = a_gfx;
-        gameConfig = config;
-        mGameTime = a_gameTime;
-        mCallbacks = a_Callbacks;
-
-        persistentState = config.gamestate.copy();
-
-        assert(config.level !is null);
-        mLevel = config.level;
-
-        //also check physic framerate in world.d
-        const Time cFrameLength = timeMsecs(20);
-
-        graphics = new GameEngineGraphics(this);
-
-        mObjects = new List2!(GameObject)();
-        mPhysicWorld = new PhysicWorld(rnd);
-
-        mWorldSize = mLevel.worldSize;
-
-        foreach (o; level.objects) {
-            if (auto ls = cast(LevelLandscape)o) {
-                //xxx landscapes should keep track of themselves
-                gameLandscapes ~= new GameLandscape(this, ls);
-            }
-        }
-
-        //various level borders
-        waterborder = new PhysicZonePlane();
-        auto wb = new ZoneTrigger(waterborder);
-        wb.onTrigger = &underWaterTrigger;
-        wb.collision = physicworld.collide.findCollisionID("water");
-        physicworld.add(wb);
-        mWaterBouncer = new WaterSurfaceGeometry();
-        physicworld.add(mWaterBouncer);
-        //Stokes's drag force
-        physicworld.add(new ForceZone(new StokesDragFixed(5.0f), waterborder));
-        //xxx additional object-attribute controlled Stokes's drag
-        physicworld.add(new StokesDragObject());
-        //Earthquake generator
-        mEarthquakeForceVis = new EarthQuakeForce(false);
-        mEarthquakeForceDmg = new EarthQuakeForce(true);
-        physicworld.add(mEarthquakeForceVis);
-        physicworld.add(mEarthquakeForceDmg);
-
-        deathzone = new PhysicZonePlane();
-        auto dz = new ZoneTrigger(deathzone);
-        dz.collision = physicworld.collide.collideAlways();
-        dz.onTrigger = &deathzoneTrigger;
-        dz.inverse = true;
-        //the trigger is inverse, and triggers only when the physic object is
-        //completely in the deathzone, but graphics are often larger :(
-        auto death_y = worldSize.y + 20;
-        //because trigger is inverse, the plane must be defined inverted too
-        deathzone.plane.define(Vector2f(1, death_y), Vector2f(0, death_y));
-        physicworld.add(dz);
-
-        //create trigger to check for objects leaving the playable area
-        auto worldZone = new PhysicZoneXRange(0, mWorldSize.x);
-        //only if completely outside (= touching the game area inverted)
-        worldZone.whenTouched = true;
-        auto offwTrigger = new ZoneTrigger(worldZone);
-        offwTrigger.collision = physicworld.collide.collideAlways();
-        offwTrigger.inverse = true;  //trigger when outside the world area
-        offwTrigger.onTrigger = &offworldTrigger;
-        physicworld.add(offwTrigger);
-
-        mWindForce = new WindyForce();
-        mWindChanger = new PhysicTimedChangerFloat(0, &windChangerUpdate);
-        mWindChanger.changePerSec = cWindChange;
-        physicworld.add(new ForceZone(mWindForce, waterborder, true));
-        physicworld.add(mWindChanger);
-        randomizeWind();
-
-        //physics timed changer for water offset
-        mWaterChanger = new PhysicTimedChangerFloat(mLevel.waterBottomY,
-            &waterChangerUpdate);
-        mWaterChanger.changePerSec = cWaterRaisingSpeed;
-        physicworld.add(mWaterChanger);
-
-        sequenceStates = new SequenceStateList();
-
-        //load sequences
-        foreach (ConfigNode node; gfx.sequenceConfig) {
-            loadSequences(this, node);
-        }
-
-        //load weapons
-        foreach (char[] ws; config.weaponsets) {
-            loadWeapons("weapons/"~ws);
-        }
-
-        loadLevelStuff();
-
-        //NOTE: GameController relies on many stuff at initialization
-        //i.e. physics for worm placement
-        new GameController(this, config);
-    }
-
-    package void setController(GameController ctl) {
-        assert(!mController);
-        mController = ctl;
-    }
-
-    GameEngineCallback callbacks() {
-        return mCallbacks;
     }
 
     //landscape bitmaps need special handling in many cases
@@ -380,37 +395,6 @@ class GameEngine : GameEnginePublic {
             res ~= x.landscape_bitmap();
         }
         return res;
-    }
-
-    GameEngineGraphics getGraphics() {
-        return graphics;
-    }
-
-    TimeSourcePublic gameTime() {
-        return mGameTime;
-    }
-
-    Time currentGameTime() {
-        return mGameTime.current;
-    }
-
-    //return y coordinate of waterline
-    int waterOffset() {
-        return cast(int)mCurrentWaterLevel;
-    }
-
-    float earthQuakeStrength() {
-        return mEarthquakeForceVis.earthQuakeStrength()
-            + mEarthquakeForceDmg.earthQuakeStrength();
-    }
-
-    //return skyline offset (used by airstrikes)
-    float skyline() {
-        return level.airstrikeY;
-    }
-
-    bool allowAirstrikes() {
-        return level.airstrikeAllow;
     }
 
     //one time initialization, where levle objects etc. should be loaded (?)
@@ -464,17 +448,14 @@ class GameEngine : GameEnginePublic {
     }
 
     //wind speeds are in [-1.0, 1.0]
-    public float windSpeed() {
-        return mWindForce.windSpeed.x/cMaxWind;
-    }
-    public void setWindSpeed(float speed) {
+    void setWindSpeed(float speed) {
         mWindChanger.target = clampRangeC(speed, -1.0f, 1.0f)*cMaxWind;
     }
-    public void randomizeWind() {
+    void randomizeWind() {
         mWindChanger.target = cMaxWind*rnd.nextDouble3();
     }
 
-    public float gravity() {
+    float gravity() {
         return mPhysicWorld.gravity.y;
     }
 
@@ -559,13 +540,6 @@ class GameEngine : GameEnginePublic {
         return landArea;
     }
 
-    //minimum distance between placed objects
-    private const cMinDistance = 50.0f;
-    //position increment for deterministic placement
-    private const cIncDistance = 55.0f;
-    //distance when creating a platform in empty space
-    private const cPlatformDistance = 90.0f;
-
     //try to place an object into the landscape
     //essentially finds the first collision under "drop", then checks the
     //normal and distance to other objects
@@ -584,7 +558,7 @@ class GameEngine : GameEnginePublic {
 
         Vector2f pos = drop;
         if (inAir) {
-            int holeRadius = cast(int)cPlatformDistance/2;
+            int holeRadius = cast(int)cPlacePlatformDistance/2;
 
             //don't place half the platform outside the level area
             area.extendBorder(Vector2f(-holeRadius, -holeRadius));
@@ -595,7 +569,7 @@ class GameEngine : GameEnginePublic {
             foreach (GameObject o; mObjects) {
                 auto s = cast(GObjectSprite)o;
                 if (s) {
-                    if ((s.physics.pos - pos).length < cPlatformDistance+10f)
+                    if ((s.physics.pos-pos).length < cPlacePlatformDistance+10f)
                         return false;
                 }
             }
@@ -628,7 +602,7 @@ class GameEngine : GameEnginePublic {
                 foreach (GameObject o; mObjects) {
                     auto s = cast(GObjectSprite)o;
                     if (s) {
-                        if ((s.physics.pos - pos).length < cMinDistance)
+                        if ((s.physics.pos - pos).length < cPlaceMinDistance)
                             return false;
                     }
                 }
@@ -654,17 +628,17 @@ class GameEngine : GameEnginePublic {
         int multiplier = 16;
 
         while (multiplier > 0) {
-            float xx = cIncDistance * multiplier;
+            float xx = cPlaceIncDistance * multiplier;
             float x = area.p1.x + realmod(xx, area.size.x);
-            float y = area.p1.y + max((multiplier-1)/4, 0)*cIncDistance;
+            float y = area.p1.y + max((multiplier-1)/4, 0)*cPlaceIncDistance;
             while (y < area.p2.y) {
                 drop.x = x;
                 drop.y = y;
                 if (placeObject(drop, area.p2.y, radius, dest))
                     return true;
-                x += cIncDistance * multiplier;
+                x += cPlaceIncDistance * multiplier;
                 if (x > area.p2.x) {
-                    y += cIncDistance * max(multiplier/4, 1);
+                    y += cPlaceIncDistance * max(multiplier/4, 1);
                     x = x - area.size.x;
                 }
             }
@@ -692,20 +666,18 @@ class GameEngine : GameEnginePublic {
         return false;
     }
 
-    //Queued placing:
-    //as placeObjectDet always returns the same positions for the same call
-    //order, use queuePlaceOnLandscape() to add all sprites to the queue,
-    //then call finishPlace() to randomize the queue and place them all
-    GObjectSprite[] mPlaceQueue;
-
+    ///Queued placing:
+    ///as placeObjectDet always returns the same positions for the same call
+    ///order, use queuePlaceOnLandscape() to add all sprites to the queue,
+    ///then call finishPlace() to randomize the queue and place them all
+    //queue for placing anywhere on landscape
+    //call engine.finishPlace() when done with all sprites
     void queuePlaceOnLandscape(GObjectSprite sprite) {
         mPlaceQueue ~= sprite;
     }
     void finishPlace() {
         //randomize place queue
-        for (int i = 0; i < mPlaceQueue.length; i++) {
-            swap(mPlaceQueue[i], mPlaceQueue[rnd.next(i, mPlaceQueue.length)]);
-        }
+        rnd.randomizeArray(mPlaceQueue);
 
         foreach (GObjectSprite sprite; mPlaceQueue) {
             Vector2f npos, tmp;
@@ -850,10 +822,6 @@ class GameEngine : GameEnginePublic {
         mController.dropCrate(true);
     }
 
-    void instantDropCrate() {
-        mController.instantDropCrate();
-    }
-
     void activityDebug(char[] mode = "") {
         bool all = (mode == "all");
         bool fix = (mode == "fix");
@@ -883,14 +851,6 @@ class GameEngine : GameEnginePublic {
             }
         }
         log("-- {} objects reporting activity",i);
-    }
-
-    GameConfig config() {
-        return gameConfig;
-    }
-
-    GfxSet gfx() {
-        return mGfx;
     }
 
     //calculate a hash value of the game engine state
