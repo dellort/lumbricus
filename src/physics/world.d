@@ -33,13 +33,13 @@ import physics.sortandsweep;
 version = PhysDebug;
 
 class PhysicWorld {
-    private List2!(PhysicBase) mAllObjects;
-    private List2!(PhysicForce) mForceObjects;
-    private List2!(PhysicGeometry) mGeometryObjects;
-    private List2!(PhysicObject) mObjects;
-    private List2!(PhysicTrigger) mTriggers;
-    private List2!(PhysicContactGen) mContactGenerators;
-    private List2!(PhysicCollider) mObjectColliders;
+    private ObjectList!(PhysicBase, "base_node") mAllObjects;
+    private ObjectList!(PhysicForce, "forces_node") mForceObjects;
+    private ObjectList!(PhysicGeometry, "geometries_node") mGeometryObjects;
+    private ObjectList!(PhysicObject, "objects_node") mObjects;
+    private ObjectList!(PhysicTrigger, "triggers_node") mTriggers;
+    private ObjectList!(PhysicContactGen, "cgen_node") mContactGenerators;
+    private ObjectList!(PhysicCollider, "coll_node") mObjectColliders;
     private uint mLastTime;
 
     private PhysicObject[] mObjArr;
@@ -66,45 +66,47 @@ class PhysicWorld {
         PhysicZone.registerstuff(c);
         PhysicForce.registerstuff(c);
         t.registerMethod(this, &checkObjectCollision, "checkObjectCollision");
-        //initialization
-        mContacts.length = 1024;
+        if (c.recreateTransient) {
+            //initialization
+            mContacts.length = 1024;
+        }
     }
 
     public void add(PhysicBase obj) {
         obj.world = this;
-        mAllObjects.insert_tail(obj, &obj.base_node);
+        mAllObjects.insert_tail(obj);
         if (auto o = cast(PhysicForce)obj)
-            mForceObjects.insert_tail(o, &o.forces_node);
+            mForceObjects.insert_tail(o);
         if (auto o = cast(PhysicGeometry)obj)
-            mGeometryObjects.insert_tail(o, &o.geometries_node);
+            mGeometryObjects.insert_tail(o);
         if (auto o = cast(PhysicObject)obj) {
-            mObjects.insert_tail(o, &o.objects_node);
+            mObjects.insert_tail(o);
             mObjArr ~= o;
         }
         if (auto o = cast(PhysicTrigger)obj)
-            mTriggers.insert_tail(o, &o.triggers_node);
+            mTriggers.insert_tail(o);
         if (auto o = cast(PhysicContactGen)obj)
-            mContactGenerators.insert_tail(o, &o.cgen_node);
+            mContactGenerators.insert_tail(o);
         if (auto o = cast(PhysicCollider)obj)
-            mObjectColliders.insert_tail(o, &o.coll_node);
+            mObjectColliders.insert_tail(o);
     }
 
     private void remove(PhysicBase obj) {
-        mAllObjects.remove(&obj.base_node);
+        mAllObjects.remove(obj);
         if (auto o = cast(PhysicForce)obj)
-            mForceObjects.remove(&o.forces_node);
+            mForceObjects.remove(o);
         if (auto o = cast(PhysicGeometry)obj)
-            mGeometryObjects.remove(&o.geometries_node);
+            mGeometryObjects.remove(o);
         if (auto o = cast(PhysicObject)obj) {
-            mObjects.remove(&o.objects_node);
+            mObjects.remove(o);
             arrayRemoveUnordered(mObjArr, o);
         }
         if (auto o = cast(PhysicTrigger)obj)
-            mTriggers.remove(&o.triggers_node);
+            mTriggers.remove(o);
         if (auto o = cast(PhysicContactGen)obj)
-            mContactGenerators.remove(&o.cgen_node);
+            mContactGenerators.remove(o);
         if (auto o = cast(PhysicCollider)obj)
-            mObjectColliders.remove(&o.coll_node);
+            mObjectColliders.remove(o);
     }
 
     private const cPhysTimeStepMs = 10;
@@ -526,13 +528,13 @@ class PhysicWorld {
         rnd = r;
         collide = new CollisionMap();
         broadphase = new BPSortAndSweep(&checkObjectCollision);
-        mObjects = new List2!(PhysicObject)();
-        mAllObjects = new List2!(PhysicBase)();
-        mForceObjects = new List2!(PhysicForce)();
-        mGeometryObjects = new List2!(PhysicGeometry)();
-        mTriggers = new List2!(PhysicTrigger)();
-        mContactGenerators = new List2!(PhysicContactGen)();
-        mObjectColliders = new List2!(PhysicCollider)();
+        mObjects = new typeof(mObjects)();
+        mAllObjects = new typeof(mAllObjects)();
+        mForceObjects = new typeof(mForceObjects)();
+        mGeometryObjects = new typeof(mGeometryObjects)();
+        mTriggers = new typeof(mTriggers)();
+        mContactGenerators = new typeof(mContactGenerators)();
+        mObjectColliders = new typeof(mObjectColliders)();
         mContacts.length = 1024;  //xxx arbitrary number
     }
 }

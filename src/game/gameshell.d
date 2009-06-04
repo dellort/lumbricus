@@ -164,6 +164,7 @@ class GameLoader {
         int bitmap_count = savegame.getValue!(int)("bitmap_count");
         ConfigNode game_cfg = savegame.getSubNode("game_config");
         ConfigNode game_data = savegame.getSubNode("game_data");
+        ConfigNode persNode = savegame.getSubNode("persistence");
 
         //------ GameConfig & level
         mGameConfig = new GameConfig();
@@ -193,6 +194,7 @@ class GameLoader {
         auto ctx = new SerializeContext(serialize_types);
         mSaveGame = new SerializeInConfig(ctx, game_data);
 
+        mSaveGame.addExternal(persNode.copy(), "persistence");
         mSaveGame.addExternal(mGameConfig, "gameconfig");
         mSaveGame.addExternal(mGameConfig.level, "level");
 
@@ -608,6 +610,7 @@ class GameShell {
 
         //------ GameConfig & level
         savegame.addNode("game_config", mGameConfig.save());
+        savegame.addNode("persistence", mEngine.persistentState.copy());
 
         //------ bitmaps
         foreach (int idx, LandscapeBitmap lb; bitmaps) {
@@ -625,6 +628,7 @@ class GameShell {
         auto ctx = new SerializeContext(serialize_types);
         auto writer = new SerializeOutConfig(ctx);
 
+        writer.addExternal(mEngine.persistentState, "persistence");
         writer.addExternal(mGameConfig, "gameconfig");
         writer.addExternal(mGameConfig.level, "level");
 

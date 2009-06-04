@@ -13,7 +13,7 @@ import physics.zone;
 //objects can be inside or outside and will trigger a callback when inside
 //remember to set id for trigger handler
 class PhysicTrigger : PhysicBase {
-    package ListNode!(typeof(this)) triggers_node;
+    ObjListNode!(typeof(this)) triggers_node;
 
     //trigger when object does _not_ collide
     bool inverse;

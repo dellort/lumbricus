@@ -56,7 +56,7 @@ class GameEngine : GameEnginePublic {
         GameEngineCallback mCallbacks;
 
         PhysicWorld mPhysicWorld;
-        List2!(GameObject) mObjects;
+        ObjectList!(GameObject, "node") mObjects;
         Level mLevel;
 
         PhysicZonePlane mWaterBorder;
@@ -121,7 +121,7 @@ class GameEngine : GameEnginePublic {
 
         graphics = new GameEngineGraphics(this);
 
-        mObjects = new List2!(GameObject)();
+        mObjects = new typeof(mObjects)();
         mPhysicWorld = new PhysicWorld(rnd);
 
         foreach (o; level.objects) {
@@ -214,6 +214,9 @@ class GameEngine : GameEnginePublic {
         t.registerMethod(this, &onPhysicHit, "onPhysicHit");
         t.registerMethod(this, &onDamage, "onDamage");
         t.registerMethod(this, &offworldTrigger, "offworldTrigger");
+        if (c.recreateTransient) {
+            mCallbacks = new GameEngineCallback();
+        }
     }
 
     package void setController(GameController ctl) {
@@ -486,8 +489,8 @@ class GameEngine : GameEnginePublic {
         assert(obj.active);
         //in case of lazy removal
         //note that .contains is O(1) if used with .node
-        if (!mObjects.contains(&obj.node))
-            mObjects.add(obj, &obj.node);
+        if (!mObjects.contains(obj))
+            mObjects.add(obj);
     }
 
     PhysicWorld physicworld() {
@@ -511,7 +514,7 @@ class GameEngine : GameEnginePublic {
                 o.simulate(deltat);
             } else {
                 //remove (it's done lazily, and here it's actually removed)
-                mObjects.remove(&o.node);
+                mObjects.remove(o);
             }
         }
     }

@@ -83,7 +83,7 @@ class GameConfig {
 class GameEngineGraphics {
     GameEnginePublic engine;
     //add_objects is for the client engine, to get to know about new objects
-    List2!(Graphic) objects;
+    ObjectList!(Graphic, "node") objects;
     //== engine.gameTime()
     TimeSourcePublic timebase;
 
@@ -97,8 +97,8 @@ class GameEngineGraphics {
     }
 
     void remove(Graphic n) {
-        if (objects.contains(&n.node)) {
-            objects.remove(&n.node);
+        if (objects.contains(n)) {
+            objects.remove(n);
             n.removed = true;
             engine.callbacks.removeGraphic(n);
         } else {
@@ -111,7 +111,7 @@ class GameEngineGraphics {
     void add(Graphic g) {
         assert(!g.owner);
         g.owner = this;
-        objects.add(g, &g.node);
+        objects.add(g);
         engine.callbacks.newGraphic(g);
     }
 }
@@ -120,7 +120,7 @@ class GameEngineGraphics {
 //    remove/redo this if you feel like it
 abstract class Graphic {
     GameEngineGraphics owner;
-    ListNode!(typeof(this)) node;
+    ObjListNode!(typeof(this)) node;
     bool removed;
 
     this() {

@@ -182,7 +182,7 @@ struct Contact {
 }
 
 class PhysicContactGen : PhysicBase {
-    package ListNode!(typeof(this)) cgen_node;
+    ObjListNode!(typeof(this)) cgen_node;
 
     abstract void process(float deltaT, CollideDelegate contactHandler);
 
@@ -196,7 +196,7 @@ class PhysicContactGen : PhysicBase {
 }
 
 class PhysicCollider : PhysicBase {
-    package ListNode!(typeof(this)) coll_node;
+    ObjListNode!(typeof(this)) coll_node;
 
     this() {
     }

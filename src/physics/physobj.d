@@ -19,7 +19,7 @@ version = PhysDebug;
 
 //simple physical object (has velocity, position, mass, radius, ...)
 class PhysicObject : PhysicBase {
-    package ListNode!(typeof(this)) objects_node;
+    ObjListNode!(typeof(this)) objects_node;
 
     private POSP mPosp;
     private static LogStruct!("physics.obj") log;

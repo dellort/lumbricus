@@ -16,7 +16,7 @@ abstract class GameObject {
     GameObject createdBy;
 
     //for GameEngine
-    ListNode!(typeof(this)) node;
+    ObjListNode!(typeof(this)) node;
 
     GameEngine engine() {
         return mEngine;

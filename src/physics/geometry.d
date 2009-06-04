@@ -51,7 +51,7 @@ struct GeomContact {
 // border of the level (i.e. upper border in caves)
 //also used for the bitmap part of the level
 class PhysicGeometry : PhysicBase {
-    package ListNode!(typeof(this)) geometries_node;
+    ObjListNode!(typeof(this)) geometries_node;
 
     //generation counter, increased on every change
     int generationNo = 0;
