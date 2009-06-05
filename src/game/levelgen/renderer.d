@@ -39,11 +39,11 @@ class LandscapeBitmap {
     //because I'm stupid, I'll store all points into a linked lists to be able
     //to do naive corner cutting by subdividing the curve recursively
     private struct Vertex {
-        ListNode!(Vertex*) listnode;
+        ObjListNode!(Vertex*) listnode;
         Point pt;
         bool no_subdivide = false;
     }
-    private alias List2!(Vertex*) VertexList;
+    private alias ObjectList!(Vertex*, "listnode") VertexList;
 
     private struct TexData {
         //also not good and nice
@@ -87,14 +87,14 @@ class LandscapeBitmap {
         for (int i = 0; i < 5; i++) {
             if (!verts.hasAtLeast(3))
                 return;
-            Vertex* cur = verts.head.value;
+            Vertex* cur = verts.head;
             Point pt = cur.pt;
             do {
-                Vertex* next = verts.ring_next(&cur.listnode).value;
-                Vertex* overnext = verts.ring_next(&next.listnode).value;
+                Vertex* next = verts.ring_next(cur);
+                Vertex* overnext = verts.ring_next(next);
                 if (!cur.no_subdivide && !next.no_subdivide) {
                     Vertex* newv = new Vertex();
-                    verts.insert_after(newv, &cur.listnode, &newv.listnode);
+                    verts.insert_after(newv, cur);
                     Point p2 = next.pt, p3 = overnext.pt;
                     newv.pt = pt + (p2-pt)*(1.0f - start);
                     pt = p2;
@@ -104,7 +104,7 @@ class LandscapeBitmap {
                     pt = next.pt;
                 }
                 cur = next;
-            } while (cur !is verts.head.value);
+            } while (cur !is verts.head);
         }
     }
 
@@ -138,7 +138,7 @@ class LandscapeBitmap {
                 if (index == curindex)
                     v.no_subdivide = true;
             }
-            vertices.insert_tail(v, &v.listnode);
+            vertices.insert_tail(v);
             curindex++;
         }
 

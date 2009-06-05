@@ -54,6 +54,9 @@ import common.localeswitch;
 import net.cmdserver_gui;
 import net.lobby;
 
+//temporary for testing
+import game.particles;
+
 //import test;
 
 //of course it would be nicer to automatically generate the following thing, but

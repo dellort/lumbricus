@@ -155,14 +155,14 @@ private class Segment {
     Point a, b;
     Group group;
     bool changeable = true; //if false, means _both_ points must not be changed
-    ListNode!(typeof(this)) node;
+    ObjListNode!(typeof(this)) node;
 
     this(Group group, Point a, Point b) {
         this.group = group; this.a = a; this.b = b;
     }
 }
 
-private alias List2!(Segment) SegmentList;
+private alias ObjectList!(Segment, "node") SegmentList;
 
 //range define by [start, last]
 //a range is empty when start and last are null
@@ -195,8 +195,8 @@ private struct SegmentRange {
     SegmentRange complement(Group to_group) {
         if (group !is to_group || isEmpty())
             return to_group.fullRange;
-        auto b = to_group.segments.ring_prev(&start.node).value;
-        auto a = to_group.segments.ring_next(&last.node).value;
+        auto b = to_group.segments.ring_prev(start);
+        auto a = to_group.segments.ring_next(last);
         //does the range cover the whole list
         if (a is start)
             return SegmentRange(to_group);
@@ -206,7 +206,7 @@ private struct SegmentRange {
     bool changeable() {
         if (isEmpty() || !group.changeable)
             return false;
-        for (auto cur = start; ; cur = group.segments.ring_next(&cur.node).value)
+        for (auto cur = start; ; cur = group.segments.ring_next(cur))
         {
             if (!(cur.changeable))
                 return false;
@@ -220,7 +220,7 @@ private struct SegmentRange {
 //a Group is a single polygon
 private final class Group {
     SegmentList segments;
-    ListNode!(typeof(this)) node;
+    ObjListNode!(typeof(this)) node;
     Lexel meaning;
     bool visible;
     bool changeable;
@@ -255,10 +255,10 @@ private final class Group {
         for (int n = 0; n < pts.length; n++) {
             Segment s = new Segment(this, pts[n], pts[(n+1) % $]);
             s.changeable = isChangeable(n);
-            segments.insert_tail(s, &s.node);
+            segments.insert_tail(s);
         }
 
-        return segments.tail.value;
+        return segments.tail;
     }
 
     //whether a group needs to test intersection with another
@@ -268,7 +268,7 @@ private final class Group {
     }
 
     SegmentRange fullRange() {
-        return SegmentRange(this, segments.head.value, segments.tail.value);
+        return SegmentRange(this, segments.head, segments.tail);
     }
 
     //filter out points, that could make later subdivision (by renderer.d) less
@@ -276,15 +276,15 @@ private final class Group {
     void filter(float dist) {
         if (!segments.hasAtLeast(3))
                 return;
-        Segment cur = segments.head.value;
+        Segment cur = segments.head;
         do {
         cont:
-            Segment next = segments.ring_next(&cur.node).value;
+            Segment next = segments.ring_next(cur);
             Point p = cur.a, np = next.a, onp = next.b;
             //check if np is near enough line between p and onp to kill it
             float d = np.distance_from(p, onp-p);
             if (d < dist && cur.changeable && next.changeable) {
-                segments.remove(&next.node);
+                segments.remove(next);
                 cur.b = onp;
                 if (segments.empty()) //oops, shouldn't really happen
                     return;
@@ -292,7 +292,7 @@ private final class Group {
             } else {
                 cur = next;
             }
-        } while (cur !is segments.head.value);
+        } while (cur !is segments.head);
     }
 
     //remove all Segments _within_ the given range, and insert new segments
@@ -313,22 +313,22 @@ private final class Group {
 
         //remove segments after start and before last
         for (;;) {
-            Segment cur = segments.ring_next(&start.node).value;
+            Segment cur = segments.ring_next(start);
             if (start is last || cur is last)
                 break;
             //debug Trace.formatln("remove {} {}", cur.a.toString, cur.b.toString);
-            segments.remove(&cur.node);
+            segments.remove(cur);
         }
 
-        assert(segments.contains(&start.node));
-        assert(segments.contains(&last.node));
+        assert(segments.contains(start));
+        assert(segments.contains(last));
 
         if (points.length < 1)
             return;
 
         if (start is last) {
             Segment s = new Segment(this, last.a, last.b);
-            segments.insert_before(s, &start.node, &s.node);
+            segments.insert_before(s, start);
             start = s;
         }
 
@@ -337,7 +337,7 @@ private final class Group {
         Segment cur = start;
         foreach(Point p; points[1..$]) {
             Segment s = new Segment(this, cur.b, p);
-            segments.insert_after(s, &cur.node, &s.node);
+            segments.insert_after(s, cur);
             cur = s;
         }
 
@@ -374,7 +374,7 @@ private final class Group {
                     return true;
                 if (segment is check.last)
                     break;
-                segment = segments.ring_next(&segment.node).value;
+                segment = segments.ring_next(segment);
             }
             last = cur;
         }
@@ -382,7 +382,7 @@ private final class Group {
     }
 }
 
-private alias List2!(Group) GroupList;
+private alias ObjectList!(Group, "node") GroupList;
 
 //This creates a random level image; the goal was to have levels looking
 //similar to the auto generated levels from Worms(tm).
@@ -402,7 +402,7 @@ private:
         if (!group.segments.hasAtLeast(2))
             return;
         for (int i = 0; i < 3; i++) {
-            Segment s = group.segments.head.value;
+            Segment s = group.segments.head;
             assert(s !is null);
             while (s !is null) {
                 float d = (s.b-s.a).length;
@@ -413,7 +413,7 @@ private:
                         rngShared.nextDouble3()*0.5f+PI, d*0.2f, d*2.5f, 2.0f,
                         config.pix_epsilon);
                 }
-                s = group.segments.next_value(&s.node);
+                s = group.segments.next(s);
             }
         }
     }
@@ -423,22 +423,22 @@ private:
         if (!group.segments.hasAtLeast(2))
             return;
         //first, find longest edge and edge count
-        Segment s = group.segments.head.value;
+        Segment s = group.segments.head;
         float longest = 0;
         uint count = 0;
         while (s !is null) {
             float d = (s.b-s.a).length;
             longest = d > longest ? d : longest;
             count++;
-            s = group.segments.next_value(&s.node);
+            s = group.segments.next(s);
         }
 
         //random offset into the list (not so important, but try not to treat
         //the segments at the start and end of the list different)
         uint something = rngShared.next(0, count);
-        Segment cur = group.segments.head.value;
+        Segment cur = group.segments.head;
         while (something > 0) {
-            cur = group.segments.ring_next(&cur.node).value;
+            cur = group.segments.ring_next(cur);
             something--;
         }
 
@@ -448,7 +448,7 @@ private:
         uint cur_len = 0;
         uint iterations = 0;
         while (iterations < count) {
-            Segment next = group.segments.ring_next(&cur.node).value;
+            Segment next = group.segments.ring_next(cur);
             float cur_d = (cur.b-cur.a).length;
             summed_d += cur_d;
             float prob = summed_d/longest;
@@ -542,7 +542,7 @@ private:
         bool visible = true)
     {
         Group g = new Group();
-        mGroups.insert_tail(g, &g.node);
+        mGroups.insert_tail(g);
         g.init(points, unchangeable, changeable);
         g.meaning = marker;
         g.visible = visible;

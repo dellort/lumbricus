@@ -303,20 +303,22 @@ struct ObjListNode(T) {
 //Note: the member name is checked at compile-time
 //xxx T : Object doesn't work (does not match template declaration etc.)
 class ObjectList(T, char[] member) {
+    //static assert(is(T == class));
+
     alias ObjListNode!(T) Node;
 
     //some string-mixin magic, so we can access the ObjListNode embedded in the
     //  item class
-    static private char[] genNodeFunc(char[] name) {
-        char[] ret;
-        ret ~= `
-            private Node* node(T inst) {
-                return &inst.`~name~`;
-            }
-        `;
-        return ret;
+    private Node* node(T inst) {
+        const getnode = `&inst.`~member;
+        //if something is wrong, try to output a nice error message
+        static if (!is(typeof(mixin(getnode)) == Node*)) {
+            static assert(false, typeof(this).stringof ~ ": type '"~T.stringof
+                ~"' doesn't have member '"~member~"', or is not of type "
+                ~Node.stringof);
+        }
+        return mixin(getnode);
     }
-    mixin(genNodeFunc(member));
 
     private {
         //the first item of the list
@@ -462,15 +464,15 @@ class ObjectList(T, char[] member) {
         return n.prev;
     }
     //returns null if cur is the last item
-    T next_value(T cur) {
+    T next(T cur) {
         Node* n = node(cur);
         assert(n.owner is this);
-        if (n.next !is head_item)
-            return n.next;
-        return null;
+        if (n.next is head_item)
+            return null;
+        return n.next;
     }
     //return null if cur is the head
-    T prev_value(T cur) {
+    T prev(T cur) {
         Node* n = node(cur);
         assert(n.owner is this);
         if (cur is head_item)
