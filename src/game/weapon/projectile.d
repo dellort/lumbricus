@@ -9,6 +9,7 @@ import game.gobject;
 import game.sprite;
 import game.sequence;
 import game.spriteactions;
+import game.gamepublic;
 import game.weapon.weapon;
 import tango.math.Math;
 import str = stdx.string;
@@ -40,6 +41,7 @@ class ProjectileSprite : ActionSprite {
         bool gluedCache; //last value of physics.isGlued
         bool mTimerDone = false;
         ProjectileFeedback mFeedback;
+        TextGraphic mTimeLabel;
     }
 
     Time detonateTimeState() {
@@ -84,7 +86,8 @@ class ProjectileSprite : ActionSprite {
     override void simulate(float deltaT) {
         super.simulate(deltaT);
 
-        if (engine.gameTime.current > detonateTimeState) {
+        Time detDelta = detonateTimeState - engine.gameTime.current;
+        if (detDelta < Time.Null) {
             //start glued checking when projectile wants to blow
             if (physics.isGlued) {
                 if (!gluedCache) {
@@ -106,6 +109,35 @@ class ProjectileSprite : ActionSprite {
                     doEvent("ontimer");
                 }
             }
+        }
+        //show timer label when about to blow in <5s
+        //lol, lots of conditions
+        if (detDelta < timeSecs(5) && active && currentState.showTimer
+            && enableEvents && currentState.minimumGluedTime == Time.Null)
+        {
+            if (!mTimeLabel) {
+                mTimeLabel = new TextGraphic();
+                //xxx dummy message id
+                mTimeLabel.msg.id = "game_msg.jetpacktime";
+                mTimeLabel.attach = Vector2f(0.5f, 1.0f);
+                engine.graphics.add(mTimeLabel);
+            }
+            mTimeLabel.pos = toVector2i(physics.pos) - Vector2i(0, 15);
+            int remain = cast(int)(detDelta.secsf + 1.0f);
+            mTimeLabel.msg.args = [myformat("{}", remain)];
+        } else {
+            if (mTimeLabel) {
+                mTimeLabel.remove();
+                mTimeLabel = null;
+            }
+        }
+    }
+
+    override protected void updateActive() {
+        super.updateActive();
+        if (!active && mTimeLabel) {
+            mTimeLabel.remove();
+            mTimeLabel = null;
         }
     }
 
@@ -157,6 +189,7 @@ class ProjectileStateInfo : ActionStateInfo {
     bool inactiveWhenGlued;
     Time fixedDetonateTime;
     Time minimumGluedTime;
+    bool showTimer;
 
     //xxx class
     this (ReflectCtor c) {
@@ -185,6 +218,7 @@ class ProjectileStateInfo : ActionStateInfo {
             fixedDetonateTime =
                 timeSecs(detonateNode.getFloatValue("lifetime", 999999.0f));
         }
+        showTimer = sc.getBoolValue("show_timer");
     }
 }
 
