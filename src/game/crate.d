@@ -267,6 +267,7 @@ class CrateSprite : ActionSprite {
 
     override protected void updateActive() {
         if (active) {
+            bool bomb;
             foreach (coll; stuffies) {
                 if (cast(CollectableMedkit)coll) {
                     mCrateType = CrateType.med;
@@ -277,14 +278,21 @@ class CrateSprite : ActionSprite {
                     break;
                 }
             }
-            mSpy = new TextGraphic();
-            mSpy.attach = Vector2f(0.5f, 1.0f);
-            //xxx needs a better way to get the contents of the crate
-            if (stuffies.length > 0) {
-                mSpy.msg.id = stuffies[0].id();
+            foreach (coll; stuffies) {
+                if (cast(CollectableBomb)coll)
+                    bomb = true;
             }
-            mSpy.visibleDg = &spyVisible;
-            engine.graphics.add(mSpy);
+            //xxx needs a better way to get the contents of the crate
+            if (stuffies.length > 0 && mCrateType != CrateType.med) {
+                mSpy = new TextGraphic();
+                mSpy.attach = Vector2f(0.5f, 1.0f);
+                char[] msg = "\\t(" ~ stuffies[0].id() ~ ")";
+                if (bomb)
+                    msg = "\\c(team_red)" ~ msg;
+                mSpy.msgMarkup = msg;
+                mSpy.visibleDg = &spyVisible;
+                engine.graphics.add(mSpy);
+            }
         } else {
             if (mSpy) {
                 mSpy.remove();

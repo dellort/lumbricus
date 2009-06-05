@@ -120,6 +120,9 @@ class ExplosiveForce : PhysicForce {
                 onReportApply(cause, o.backlink, diff);
             }
             o.addImpulse(-v.normal()*impulse*r*o.posp.explosionInfluence);
+        } else {
+            //unglue objects at center of explosion
+            o.doUnglue();
         }
     }
 }

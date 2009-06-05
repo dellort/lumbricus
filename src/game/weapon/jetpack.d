@@ -105,7 +105,6 @@ class Jetpack : Shooter, Controllable {
         }
         if (active && !isInfinity(myclass.maxSeconds)) {
             mTimeLabel = new TextGraphic();
-            mTimeLabel.msg.id = "game_msg.jetpacktime";
             mTimeLabel.attach = Vector2f(0.5f, 1.0f);
             engine.graphics.add(mTimeLabel);
         } else {
@@ -133,7 +132,7 @@ class Jetpack : Shooter, Controllable {
             //    pls fix TextGraphic and remove this hack
             mTimeLabel.pos = toVector2i(mWorm.physics.pos) - Vector2i(0, 30);
             float remain = myclass.maxSeconds - mJetTimeUsed;
-            mTimeLabel.msg.args = [myformat("{:f1}", remain)];
+            mTimeLabel.msgMarkup = myformat("{:f1}", remain);
         }
 
         //force!

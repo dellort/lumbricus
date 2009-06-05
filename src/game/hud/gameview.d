@@ -377,7 +377,6 @@ private class ViewMember {
 
 private class GameLabel : Label {
     TextGraphic txt;
-    LocalizedMessage msg;
     GameInfo game;
 
     this(GameInfo a_game, TextGraphic a_txt) {
@@ -398,9 +397,8 @@ private class GameLabel : Label {
         if (!visible)
             return;
 
-        if (msg != txt.msg) {
-            msg = txt.msg;
-            text = localeRoot.translateLocalizedMessage(msg);
+        if (txt.msgMarkup != text) {
+            textMarkup = txt.msgMarkup;
         }
 
         //there's also utils.math.placeRelative(), which was supposed to do this

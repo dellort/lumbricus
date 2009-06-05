@@ -13,6 +13,7 @@ import game.gamepublic;
 import game.weapon.weapon;
 import tango.math.Math;
 import str = stdx.string;
+import tango.util.Convert : to;
 import utils.misc;
 import utils.vector2;
 import utils.time;
@@ -117,14 +118,15 @@ class ProjectileSprite : ActionSprite {
         {
             if (!mTimeLabel) {
                 mTimeLabel = new TextGraphic();
-                //xxx dummy message id
-                mTimeLabel.msg.id = "game_msg.jetpacktime";
                 mTimeLabel.attach = Vector2f(0.5f, 1.0f);
                 engine.graphics.add(mTimeLabel);
             }
             mTimeLabel.pos = toVector2i(physics.pos) - Vector2i(0, 15);
             int remain = cast(int)(detDelta.secsf + 1.0f);
-            mTimeLabel.msg.args = [myformat("{}", remain)];
+            if (remain <= 2)
+                mTimeLabel.msgMarkup = "\\c(team_red)" ~ to!(char[])(remain);
+            else
+                mTimeLabel.msgMarkup = to!(char[])(remain);
         } else {
             if (mTimeLabel) {
                 mTimeLabel.remove();
