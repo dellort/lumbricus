@@ -785,7 +785,8 @@ class GameView : Container {
     private class DrawParticles : SceneObject {
         override void draw(Canvas canvas) {
             //update state
-            mParticles.windSpeed = mGame.engine.windSpeed();
+            //engine.windSpeed is -1..1, don't ask me why
+            mParticles.windSpeed = mGame.engine.windSpeed()*150f;
             //simulate & draw
             mParticles.draw(canvas);
         }
