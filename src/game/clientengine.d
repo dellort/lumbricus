@@ -40,7 +40,8 @@ enum GameZOrder {
     LevelWater,  //water before the level, but behind drowning objects
     Objects,
     Crosshair,
-    Effects,
+    Effects, //whatw as that
+    Particles,
     Names,       //stuff drawn by gameview.d
     Clouds,
     FrontWater,

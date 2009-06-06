@@ -10,11 +10,13 @@
    (und den gräuslichen hack in commandline.d entfernen)
 - debugging: würmer auswählen und GameObject-Felder anzeigen lassen
 - common.resfileformats: marshal.d benutzen statt memory dump (erhöht portabilität)
+! besser methode zum auslesen von confignodes (insbesondere mit fehlerbehandlung, so dass ungültige werte nicht still ignoriert werden, beliebige datentypen, user warnen über unbenutzte einträge; vielleicht einfach serialiaiserungscode wiederverwenden)
 
 == bekannte, lösbare Bugs ==
 - wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
 ! napalm ist sehr langsam, minenagriff nicht => ?
 - Superschaf fliegt auch 15sec weiter, wenn der Wurm nicht mehr dran ist
+- wurm label verschwinden beim savegame-laden? (laut d0c; funktioniert bei mir)
 
 
 == GUI (allgemeine Features) ==
@@ -31,6 +33,7 @@
 [+ Netzwerk-Server-erstell GUI (ähnlich Singleplayer, evtl. verbinden mit s.o.)]
 + Optionsmenü (Sprache, Video, Sound etc.)
 + Locale-Tool ("missing id" finden, Locales vergleichen, aktuelle Locale neu laden)
+- gui muss beim laden von savegames wiederhergestellt werden
 
 
 == Spiellogik/Gameengine ==
@@ -46,10 +49,10 @@
 *** Scripting
 
 == Spiel-Anzeige (Grafiken, Präsentation) ==
-+ Waffen-Timer anzeigen
-* partikel, sounds
+* sounds
 * "stub" gpl daten (strichmännchen)
 *** gpl daten (vollständig)
+*** Sequence neuschreiben
 
 
 == Waffen ==

@@ -14,6 +14,7 @@ import game.sequence;
 import game.hud.camera;
 import game.weapon.weapon;
 import game.hud.teaminfo;
+import game.particles;
 import gui.widget;
 import gui.container;
 import gui.label;
@@ -465,6 +466,8 @@ class GameView : Container {
         }
 
         MoveLabel[] mMoveLabels;
+
+        ParticleWorld mParticles;
     } //private
 
     /+void updateGUI() {
@@ -562,6 +565,9 @@ class GameView : Container {
     this(GameInfo game) {
         mGame = game;
 
+        mParticles = new ParticleWorld();
+        mGame.engine.callbacks.particleEngine = mParticles;
+
         mGame.engine.callbacks.newGraphic ~= &doNewGraphic;
         foreach (g; mGame.engine.getGraphics().objects) {
             doNewGraphic(g);
@@ -570,6 +576,10 @@ class GameView : Container {
         SceneObject labels = new DrawLabels();
         labels.zorder = GameZOrder.Names;
         mGame.cengine.scene.add(labels);
+
+        SceneObject particles = new DrawParticles();
+        particles.zorder = GameZOrder.Particles;
+        mGame.cengine.scene.add(particles);
 
         mCamera = new Camera(mGame.clientTime);
 
@@ -770,6 +780,15 @@ class GameView : Container {
     override void onDraw(Canvas c) {
         //no super.onDraw(c);, it's called through DrawLabels
         mGame.cengine.draw(c);
+    }
+
+    private class DrawParticles : SceneObject {
+        override void draw(Canvas canvas) {
+            //update state
+            mParticles.windSpeed = mGame.engine.windSpeed();
+            //simulate & draw
+            mParticles.draw(canvas);
+        }
     }
 
     override bool doesCover() {

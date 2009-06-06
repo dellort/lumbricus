@@ -10,6 +10,7 @@ import game.sprite;
 import game.sequence;
 import game.spriteactions;
 import game.gamepublic;
+import game.particles : ParticleType;
 import game.weapon.weapon;
 import tango.math.Math;
 import str = stdx.string;
@@ -274,6 +275,15 @@ class ProjectileSpriteClass : ActionSpriteClass {
             }
 
             (cast(ProjectileStateInfo)initState).loadDetonateConfig(config);
+
+            //duplicated from sprite.d
+            //having different loading code was the worst idea ever
+            auto particlename = config["particle"];
+            if (particlename.length) {
+                //isn't this funny
+                initState.particle = engine.gfx.resources
+                    .get!(ParticleType)(particlename);
+            }
 
             foreach (s; states) {
                 s.fixup(this);

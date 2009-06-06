@@ -2,8 +2,9 @@ module game.gfxset;
 
 import common.animation;
 import framework.framework;
+import game.particles : ParticleType;
 import common.resset;
-import common.resources : gResources, ResourceObject, addToResourceSet;
+import common.resources : gResources, addToResourceSet;
 //import game.sequence : loadSequences; //only for loading grr
 import utils.color;
 import utils.configfile;
@@ -46,6 +47,14 @@ class GfxSet {
         expl.load(config.getSubNode("explosions"), resources);
     }
 
+    private void loadParticles() {
+        foreach (ConfigNode node; config.getSubNode("particles")) {
+            ParticleType p = new ParticleType();
+            p.read(resources, node);
+            resources.addResource(new ResWrap!(ParticleType)(p), node.name);
+        }
+    }
+
     //gfx = GameConfig.gfx
     //the constructor does allmost all the work, but you have to call
     //finishLoading() too; in between, you can preload the resources
@@ -84,6 +93,7 @@ class GfxSet {
     //call after resources have been preloaded
     void finishLoading() {
         reversedHack();
+        loadParticles();
         //loaded after all this because Sequences depend from Animations etc.
         //loadSequenceStuff();
         resources.seal(); //disallow addition of more resources

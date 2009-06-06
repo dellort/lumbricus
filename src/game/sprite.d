@@ -7,6 +7,7 @@ import game.game;
 import game.gamepublic;
 import game.sequence;
 import game.gfxset;
+import game.particles;
 import net.marshal : Hasher;
 import physics.world;
 
@@ -37,6 +38,11 @@ class GObjectSprite : GameObject {
     Sequence graphic;
     SequenceState currentAnimation;
     protected SequenceUpdate seqUpdate;
+    //transient for savegames, Particle created from StaticStateInfo.particle
+    //all state associated with this variable is non-deterministic and must not
+    //  have any influence on the rest of the game state
+    //xxx: move to Sequence, as soon as this is being rewritten
+    private Particle* mParticleEmitter;
 
     private StaticStateInfo mCurrentState; //must not be null
 
@@ -107,6 +113,28 @@ class GObjectSprite : GameObject {
             seqUpdate.lifePercent = 1.0f;
         else
             seqUpdate.lifePercent = max(physics.lifepower / type.initialHp, 0f);
+    }
+
+    private void updateParticles() {
+        bool haveparticles() {
+            return !!mParticleEmitter && !mParticleEmitter.dead();
+        }
+
+        bool wantparticles = active() && !!currentState.particle;
+
+        if (haveparticles() != wantparticles) {
+            if (!wantparticles) {
+                mParticleEmitter.kill();
+                mParticleEmitter = null;
+            } else if (auto particles = engine.callbacks.particleEngine) {
+                mParticleEmitter = particles.createParticle(
+                    currentState.particle);
+            }
+        }
+        if (haveparticles()) {
+            mParticleEmitter.pos = physics.pos;
+            mParticleEmitter.velocity = physics.velocity;
+        }
     }
 
     protected void physImpact(PhysicBase other, Vector2f normal) {
@@ -238,6 +266,9 @@ class GObjectSprite : GameObject {
             updateAnimation();
         }
 
+        //and particles
+        updateParticles();
+
         //update water state (to catch an underwater state transition)
         waterStateChange(mIsUnderWater);
     }
@@ -263,6 +294,7 @@ class GObjectSprite : GameObject {
             setCurrentAnimation();
             updateAnimation();
         }
+        updateParticles();
     }
 
     //called by GameEngine on each frame if it's really under water
@@ -298,6 +330,8 @@ class GObjectSprite : GameObject {
         //xxx: added with sequence-messup
         if (graphic)
             graphic.simulate();
+
+        updateParticles();
     }
 
     void hash(Hasher hasher) {
@@ -328,6 +362,7 @@ class GObjectSprite : GameObject {
         super(c);
         c.types().registerMethod(this, &physDie, "physDie");
         c.types().registerMethod(this, &physDamage, "physDamage");
+        c.transient(this, &mParticleEmitter);
     }
 }
 
@@ -347,6 +382,10 @@ class StaticStateInfo {
 
     SequenceState animation, animationWater;
     SequenceState[char[]] teamAnim;
+
+    //if non-null, always ensure a single particle like this is created
+    //this normally should be an invisible particle emitter
+    ParticleType particle;
 
     private {
         //for forward references
@@ -403,6 +442,13 @@ class StaticStateInfo {
 
         onEndTmp = sc["on_animation_end"];
         onDrownTmp = sc.getStringValue("drownstate", "drowning");
+
+        auto particlename = sc["particle"];
+        if (particlename.length) {
+            //isn't this funny
+            particle = owner.engine.gfx.resources
+                .get!(ParticleType)(particlename);
+        }
     }
 
     void fixup(GOSpriteClass owner) {

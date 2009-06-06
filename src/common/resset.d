@@ -11,6 +11,18 @@ class ResourceObject {
     abstract Object get();
 }
 
+//this is stupid; but for now... (all stuff in this file could probbaly be
+//radically simplified, because we don't need many things I thought we'd need)
+class ResWrap(T) : ResourceObject {
+    T value;
+    this(T v) {
+        value = v;
+    }
+    override Object get() {
+        return value;
+    }
+}
+
 ///contains the resource itself and a handle to the real entry in ResourceSet
 ///this struct can be obtained via ResourceSet.Entry.resource!(T)()
 struct Resource(T : Object) {

@@ -114,13 +114,16 @@ mainspr {
                 click_magenta = "10"
                 click_cyan = "11"
 
-                smokepuff_yellow = "139"
-                smokepuff_white = "140"
-                smokepuff_grey = "141"
-
                 mbbomb_particle = "142"
                 pigeon_particle = "f:35; 143"
                 magicbullet_particle = "144"
+            }
+
+            {
+                _flags = "f:15"
+                smokepuff_yellow = "139"
+                smokepuff_white = "140"
+                smokepuff_grey = "141"
             }
 
             worm_die = "-use_bnk_flags; 516"

@@ -3,6 +3,7 @@ module game.particles;
 import framework.framework;
 import framework.timesource;
 import common.animation;
+import common.resset;
 import utils.misc;
 import utils.vector2;
 import utils.time;
@@ -12,37 +13,8 @@ import utils.random;
 
 import math = tango.math.Math;
 
-/+
-Random notes about connecting particles to game objects:
-(delete this when done)
-(actually, don't read it)
-- particles are completely transient, and it shouldn't really matter when all
-  particles are suddenly destroyed
-- ...destroying all particles happens on game reloading
-- ...and because there's a static limit on the number of all particles in the
-  system + some more stupid design decisions, particles can be destroyed too
-  early even during normal runtime
-- for some more stupid reasons, lightweight particles can work as particle
-  emitters => transient particles as particle emitters
-- so a particle emitter in the game engine should just create a (transient)
-  particle, and recreate it as soon as the particle dies or the reference to it
-  becomes null
-- don't know what to do with those ParticleEffects
-- alternatives:
-    a) let game objects allocate their own particles (simply embed a Particle
-       struct and give the ParticleWorld a pointer to it), the particle could
-       be serialized without serializing the rest of the particle engine (as
-       long as the particle is not inserted into the particle list)
-    b) make it like d0c first wanted: each Particle is a class, and then
-       particle emitters could even be derived as separate classes; but you
-       still have to care about game saving
-    c) delete this file and use the physic engine instead (but physic objects
-       are not light weight enough and don't handle drawing; after all this is
-       about particles like rockets generate them, and they should be as light
-       as possible)
-+/
 
-class PSP {
+class ParticleType {
     float gravity = 0f;
     float wind_influence = 0f;
     float explosion_influence = 0f;
@@ -62,18 +34,72 @@ class PSP {
     //emit when life time is out
     ParticleEmit[] emit_on_death; //again, random pick
     int emit_on_death_count = 0;
+
+    void read(ResourceSet res, ConfigNode node) {
+        //sorry about this
+        //we need a better way to read stuff from configfiles
+
+        gravity = node.getValue("gravity", gravity);
+        wind_influence = node.getValue("wind_influence", wind_influence);
+        explosion_influence = node.getValue("explosion_influence",
+            explosion_influence);
+        air_resistance = node.getValue("air_resistance", air_resistance);
+        color.parse(node["color"]);
+        air_resistance = node.getValue("air_resistance", air_resistance);
+        emit_rate = node.getValue("emit_rate", emit_rate);
+        emit_on_death_count = node.getValue("emit_on_death_count",
+            emit_on_death_count);
+        //includes dumb special case
+        if (node["emit_count"] == "max") {
+            emit_count = emit_count.max;
+        } else {
+            emit_count = node.getValue("emit_count", emit_count);
+        }
+        //conversion to float destroys Time.Never default value
+        float t = node.getValue("lifetime", float.nan);
+        if (t == t)
+            lifetime = timeSecs(t);
+
+        auto ani = node["animation"];
+        if (ani.length) {
+            animation = res.get!(Animation)(ani);
+        }
+
+        void read_sub(char[] name, ref ParticleEmit[] t) {
+            auto sub = node.getSubNode(name);
+            foreach (ConfigNode s; sub) {
+                ParticleEmit e;
+                //read both ParticleEmit and ParticleEmit.particle from the same
+                //node, because the additional nesting would be annoying
+                e.initial_speed = s.getValue("initial_speed", e.initial_speed);
+                e.emit_probability = s.getValue("emit_probability",
+                    e.emit_probability);
+                e.spread_angle = s.getValue("spread_angle", e.spread_angle);
+                e.offset = s.getValue("offset", e.offset);
+                auto x = new ParticleType();
+                x.read(res, s);
+                e.particle = x;
+                t ~= e;
+            }
+        }
+
+        read_sub("emit", emit);
+        read_sub("emit_on_death", emit_on_death);
+    }
 }
 
 //static properties for emitting particles
 struct ParticleEmit {
-    PSP props;
+    ParticleType particle;
     //multiplied with speed of emitting particle
     float initial_speed = 1.0f;
     //relative (not absolute) probability, that this particle is selected and
-    //emitted from PSP.emit
+    //emitted from ParticleType.emit
     float emit_probability = 1.0f;
     //angle in radians how much the direction should be changed on emit
     float spread_angle = 0f;
+    //move emit position by this value along velocity direction
+    float offset = 0f;
 }
 
 //(before ParticleWorld because of
@@ -81,7 +107,7 @@ struct ParticleEmit {
 struct Particle {
     ObjListNode!(Particle*) node;
     ParticleWorld owner;
-    PSP props; //null means dead lol
+    ParticleType props; //null means dead lol
     Time start;
     Vector2f pos, velocity;
 
@@ -90,7 +116,7 @@ struct Particle {
     float emit_next; //wait time for next particle
 
 
-    void doinit(ParticleWorld a_owner, PSP a_props) {
+    void doinit(ParticleWorld a_owner, ParticleType a_props) {
         assert(!!a_owner);
         assert(!!a_props);
         owner = a_owner;
@@ -123,7 +149,7 @@ struct Particle {
         if (ani) {
             //die if finished
             if (ani.finished(diff)) {
-                props = null;
+                kill();
                 return;
             }
             AnimationParams p;
@@ -149,6 +175,11 @@ struct Particle {
         return !props;
     }
 
+    void kill() {
+        //NOTE: will be removed from particle list in the next iteration
+        props = null;
+    }
+
     //pick a random particle type from emit[] and create a new particle
     private void emitRandomParticle(ParticleEmit[] emit) {
         if (!owner)
@@ -164,10 +195,21 @@ struct Particle {
             auto nsum = sum + e.emit_probability;
             if (select >= sum && select < nsum) {
                 //actually emit
+                auto at = pos;
                 auto nvel = velocity*e.initial_speed;
                 nvel = nvel.rotated(e.spread_angle *
                     (rngShared.nextDouble() - 0.5f));
-                owner.emitParticle(pos, nvel, e.props);
+                if (e.offset != 0f) {
+                    //xxx I realize I'd need the emitter rotation, not velocity
+                    // OTOH, the code that creates the emitter should set the
+                    // emitter position correctly in the first place, and
+                    // ParticleEmit.offset is only a hack to get around this!
+                    auto dir = velocity.normal;
+                    if (!dir.isNaN()) {
+                        at += dir * e.offset;
+                    }
+                }
+                owner.emitParticle(at, nvel, e.particle);
                 return;
             }
             sum = nsum;
@@ -178,9 +220,8 @@ struct Particle {
 
 class ParticleWorld {
     private {
+        TimeSource mTS; //only !null if no external timesource
         TimeSourcePublic time;
-        //could be tuneable (changing the length needs full reinitialization)
-        Particle[1000] mParticleAlloc;
         ObjectList!(Particle*, "node") mParticles, mFreeParticles;
         ObjectList!(ParticleEffect, "node") mEffects;
         Time mLastFrame = Time.Never;
@@ -193,19 +234,41 @@ class ParticleWorld {
     //probably still better than using a fixed framerate or ignoring the problem
     const float cMinStep = 1e-9f;
 
-    this(TimeSourcePublic t) {
-        assert(!!t);
+    this(TimeSourcePublic t = null) {
+        if (!t) {
+            mTS = new TimeSource("particles");
+            t = mTS;
+        }
         time = t;
         mEffects = new typeof(mEffects);
         mFreeParticles = new typeof(mFreeParticles);
         mParticles = new typeof(mParticles);
 
-        for (int n = 0; n < mParticleAlloc.length - 1; n++) {
-            mFreeParticles.add(&mParticleAlloc[n]);
+        reinit();
+    }
+
+    void reinit(int particle_count = 1000) {
+        //right now changing the length needs full reinitialization
+        //seems one could also simply add particles
+        //destroy
+        foreach (p; mParticles) {
+            p.kill();
+        }
+        mParticles.clear();
+        mFreeParticles.clear();
+        //alloc new
+        Particle[] alloc;
+        alloc.length = particle_count;
+        for (int n = 0; n < alloc.length; n++) {
+            mFreeParticles.add(&alloc[n]);
         }
     }
 
     void draw(Canvas c) {
+        if (mTS) {
+            mTS.update();
+        }
+
         if (mLastFrame == Time.Never) {
             mLastFrame = time.current;
         }
@@ -244,7 +307,7 @@ class ParticleWorld {
     //move from freelist to active list
     //actually never does an actual memory allocation
     //may return null (if all particles are in use)
-    Particle* newparticle(PSP props) {
+    Particle* newparticle(ParticleType props) {
         assert(!!props);
         Particle* cur = mFreeParticles.head;
         if (cur) {
@@ -262,7 +325,11 @@ class ParticleWorld {
         return cur;
     }
 
-    void emitParticle(Vector2f pos, Vector2f vel, PSP props) {
+    Particle* createParticle(ParticleType props) {
+        return newparticle(props);
+    }
+
+    void emitParticle(Vector2f pos, Vector2f vel, ParticleType props) {
         Particle* p = newparticle(props);
         if (!p)
             return;
@@ -353,10 +420,10 @@ class TestTask : Task {
         mWorld.windSpeed = 2f;
 
         //init particle business
-        auto x = new PSP;
+        auto x = new ParticleType;
         x.color = Color(1,0,0);
         x.lifetime = timeSecs(1);
-        auto y = new PSP;
+        auto y = new ParticleType;
         y.wind_influence = 0.6;
         y.explosion_influence = 0.01f;
         y.gravity = 0f;
@@ -364,7 +431,7 @@ class TestTask : Task {
         y.lifetime = timeSecs(3);
         y.emit_on_death ~= ParticleEmit(x, 2, 1, math.PI*2);
         y.emit_on_death_count = 6;
-        auto z = new PSP;
+        auto z = new ParticleType;
         z.wind_influence = 0.8;
         z.explosion_influence = 0.005f;
         z.gravity = 10f;

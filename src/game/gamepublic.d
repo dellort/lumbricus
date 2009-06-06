@@ -1,6 +1,9 @@
-///This module contains everything the ClientEngine should see of the
-///GameEngine, to make the client-server-link weaker
-///NOTE: you must _not_ cast interface to not-statically-known other types
+//This module is outdated crap. It used to contain the complete interface
+//between the game engine, and the "client" part, which consisted of rendering
+//graphics, the hud, the GUI, low level input handling...
+//But now, things have changed. Just don't think this would make any sense.
+//(In the future, one should seperate the game into deterministic and non-
+// deterministic parts... or something like this.)
 module game.gamepublic;
 
 import framework.i18n : LocalizedMessage;
@@ -15,6 +18,7 @@ import game.weapon.weapon;
 import game.levelgen.level;
 //import game.levelgen.landscape;
 import game.levelgen.renderer;
+import game.particles;
 import utils.configfile;
 import utils.vector2;
 import utils.time;
@@ -349,6 +353,8 @@ class GameEngineCallback {
     MDelegate!(Vector2i, int) explosionEffect;
     MDelegate!() nukeSplatEffect;
     MDelegate!(Animation, Vector2i, AnimationParams) animationEffect;
+
+    ParticleWorld particleEngine;
 }
 
 ///interface to the server's GameLogic
