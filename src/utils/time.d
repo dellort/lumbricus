@@ -2,6 +2,7 @@ module utils.time;
 
 import str = stdx.string;
 import utils.misc : toDelegate, myformat, myformat_s;
+import tango.util.Convert : to;
 
 //if true, use nanosecond resolution instead of milliseconds
 const bool cNS = true;
@@ -124,6 +125,14 @@ public struct Time {
             }
             time = time / cTimeDiv[i];
         }
+    }
+
+    public static Time fromString(char[] s) {
+        //xxx just a float value for seconds, improve
+        return timeSecs(to!(float)(s));
+    }
+    public char[] fromStringRev() {
+        return to!(char[])(secsf);
     }
 
     ///Get: Time value as nanoseconds

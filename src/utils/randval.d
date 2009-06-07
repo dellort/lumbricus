@@ -61,11 +61,24 @@ struct RandomValue(T) {
         return min == max;
     }
 
+    void opAssign(T val) {
+        min = max = val;
+    }
+
     char[] toString() {
         if (min == max)
             return to!(char[])(min);
         else
             return to!(char[])(min) ~ cRandValSeparator ~ to!(char[])(max);
+    }
+
+    static RandomValue fromString(char[] s) {
+        //may throw ConversionException
+        return RandomValue!(T)(s);
+    }
+
+    char[] fromStringRev() {
+        return toString();
     }
 }
 

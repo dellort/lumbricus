@@ -65,7 +65,7 @@ class WeaponAction : Action {
 
 ///Causes an explosion at FireInfo.pos
 class ExplosionActionClass : ActionClass {
-    RandomFloat damage;
+    RandomFloat damage = {5.0f, 5.0f};
 
     //xxx class
     this (ReflectCtor c) {
@@ -75,7 +75,7 @@ class ExplosionActionClass : ActionClass {
     }
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
-        damage = RandomFloat(node.getStringValue("damage", "5.0"));
+        damage = node.getValue("damage", damage);
     }
 
     ExplosionAction createInstance(GameEngine eng) {

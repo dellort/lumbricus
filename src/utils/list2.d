@@ -302,7 +302,7 @@ struct ObjListNode(T) {
 //create with item type, and name of the ObjListNode member
 //Note: the member name is checked at compile-time
 //xxx T : Object doesn't work (does not match template declaration etc.)
-class ObjectList(T, char[] member) {
+final class ObjectList(T, char[] member) {
     //static assert(is(T == class));
 
     alias ObjListNode!(T) Node;

@@ -3,6 +3,7 @@ module utils.vector2;
 import str = stdx.string;
 import math = tango.math.Math;
 import ieee = tango.math.IEEE;
+import tango.util.Convert : to, ConversionException;
 
 
 public struct Vector2(T) {
@@ -260,6 +261,21 @@ public struct Vector2(T) {
             ret.y = cast(T)(destArea.x/curAR);
         }
         return ret;
+    }
+
+    public static Vector2 fromString(char[] s) {
+        char[][] items = str.split(s);
+        if (items.length != 2) {
+            throw new ConversionException("Failed to parse Vector2");
+        }
+        Vector2!(T) pt;
+        pt.x = to!(T)(items[0]);
+        pt.y = to!(T)(items[1]);
+        return pt;
+    }
+
+    public char[] fromStringRev() {
+        return to!(char[])(x1) ~ ' ' ~ to!(char[])(x2);
     }
 
     public char[] toString() {

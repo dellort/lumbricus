@@ -433,10 +433,10 @@ class TableContainer : PublicContainer {
         auto node = loader.node;
 
         auto size = Vector2i(mSize[0], mSize[1]);
-        parseVector(node.getStringValue("size"), size);
+        size = node.getValue("size", size);
         setSize(size.x, size.y);
 
-        parseVector(node.getStringValue("cellspacing"), mCellSpacing);
+        mCellSpacing = node.getValue("cellspacing", mCellSpacing);
 
         mHomogeneous[0] = node.getBoolValue("homogeneous_x", mHomogeneous[0]);
         mHomogeneous[1] = node.getBoolValue("homogeneous_y", mHomogeneous[1]);
@@ -461,11 +461,10 @@ class TableContainer : PublicContainer {
                 skip(child.getIntValue(cSkip, 1));
             } else {
                 //allow explicit relocation, but it isn't required
-                parseVector(child.getStringValue("table_at"), pos);
+                pos = child.getValue("table_at", pos);
                 Vector2i span;
                 //xxx error checking
-                if (!parseVector(child.getStringValue("table_span"), span))
-                    span = Vector2i(1, 1);
+                span = child.getValue("table_span", Vector2i(1, 1));
                 if (auto w = loader.loadWidget(child))
                     add(w, pos.x, pos.y, span.x, span.y);
                 skip(span.x*span.y);

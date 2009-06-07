@@ -29,8 +29,7 @@ class DrillClass : WeaponClass {
         duration = timeSecs(node.getValue("duration", 5));
         tunnelRadius = node.getValue("tunnel_radius", tunnelRadius);
         blowtorch = node.getValue("blowtorch", blowtorch);
-        interval = RandomInt(node.getStringValue("interval",
-            interval.toString()));
+        interval = node.getValue("interval", interval);
     }
 
     //xxx class

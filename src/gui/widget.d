@@ -984,7 +984,7 @@ class Widget {
         zorder = loader.node.getIntValue("zorder", zorder);
         mVisible = loader.node.getBoolValue("visible", mVisible);
         mEnabled = loader.node.getBoolValue("enabled", mEnabled);
-        parseVector(loader.node.getStringValue("min_size"), mMinSize);
+        mMinSize = loader.node.getValue("min_size", mMinSize);
 
         mDrawBorder = loader.node.getBoolValue("draw_border", mDrawBorder);
 

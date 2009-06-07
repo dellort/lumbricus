@@ -3,7 +3,7 @@ module utils.configfile;
 import stdx.stream;
 import utf = stdx.utf;
 import str = stdx.string;
-import conv = tango.util.Convert;
+import tango.util.Convert : to, ConversionException;
 import tango.text.convert.Float : toFloat;
 import tango.core.Exception;
 import base64 = tango.io.encode.Base64;
@@ -14,77 +14,12 @@ import utils.misc;
 import tango.io.device.Array;
 import tango.io.compress.ZlibStream;
 
-import utils.strparser : stringToBox, hasBoxParser;
+import utils.strparser : stringToBox, hasBoxParser, fromStr, toStr,
+                         fromStrSupports, toStrSupports;
 import utils.mybox : MyBox;
 import tango.core.Tuple : Tuple;
 import tango.core.Traits : isIntegerType, isRealType, isAssocArrayType;
 import tango.text.Util : delimiters;
-
-//xxx: desperately moved to here (where else to put it?)
-import utils.vector2;
-bool parseVector(T)(char[] s, inout Vector2!(T) value) {
-    char[][] items = str.split(s);
-    if (items.length != 2) {
-        return false;
-    }
-    T a, b;
-    static if (is(T == int)) {
-        if (!parseInt(items[0], a) || !parseInt(items[1], b))
-            return false;
-    } else static if (is(T == float)) {
-        if (!parseFloat(items[0], a) || !parseFloat(items[1], b))
-            return false;
-    } else {
-        static assert(false);
-    }
-    value.x = a;
-    value.y = b;
-    return true;
-}
-
-//returns false: conversion failed, value is unmodified
-public bool parseInt(T)(char[] s, inout T value) {
-    static assert(is(T == int) || is(T == long)
-        || is(T == uint) || is(T == ulong));
-    try {
-        //tango.text.convert.Integer.toInt() parses an empty string as 0
-        if (s.length == 0)
-            return false;
-        value = conv.to!(T)(s);
-        return true;
-    } catch (conv.ConversionException e) {
-    }
-    return false;
-}
-
-//cf. parseInt
-public bool parseFloat(char[] s, inout float value) {
-    try {
-        //tango.text.convert.Float.toFloat() parses an empty string as 0.0f
-        //also, tango.util.Convert.to!(float) seems to be major crap
-        if (s.length == 0)
-            return false;
-        value = toFloat(s);
-        return true;
-    } catch (IllegalArgumentException e) {
-    }
-    return false;
-}
-
-//cf. parseInt
-public bool parseBool(char[] s, inout bool value) {
-    //strings for truth values, alternating (sorry it was 4:28 AM)
-    static char[][] bool_strings = ["true", "false", "yes", "no"]; //etc.
-    bool ret_value = true;
-    foreach(char[] test; bool_strings) {
-        if (str.icmp(test, s) == 0) {
-            value = ret_value;
-            return true;
-        }
-        ret_value = !ret_value;
-    }
-    return false;
-}
 
 //replacement for the buggy functions in std.ctype
 //(as of DMD 0.163, the is* functions silenty fail for unicode characters)
@@ -507,32 +442,16 @@ public class ConfigNode {
     //currently supports:
     //  char[]
     //  byte[], ubyte[] (as base64)
-    //  bool, int, float (as string)
-    //  Vector2, bool[], int[], float[] (as space-separated string)
+    //  all types supported by toStr() / fromStr() in utils.strparser
+    //  bool[], int[], float[] (as space-separated string)
     //  other arrays of above types (as list of unnamed subnode)
     //  AAs with a basic (-> Tango's to) key type and a supported value type
+    //  other structs (as name-value pairs)
     public T getCurValue(T)(T def = T.init) {
         static if (is(T : char[])) {
             return value;
         } else static if (is(T : byte[]) || is(T : ubyte[])) {
             return cast(T)decodeByteArray(value, cast(ubyte[])def);
-        } else static if (is(T T2 : Vector2!(T2))) {
-            //Vector2i or Vector2f, written as "x y"
-            T res = def;
-            parseVector!(T2)(value, res);
-            return res;
-        } else static if (is(T == bool)) {
-            bool res = def;
-            parseBool(value, res);
-            return res;
-        } else static if (isIntegerType!(T)) {
-            T res = def;
-            parseInt!(T)(value, res);
-            return res;
-        } else static if (is(T == float)) {
-            float res = def;
-            parseFloat(value, res);
-            return res;
         } else static if (is(T T2 : T2[])) {
             // Parse the value as array of values.
             // Separator is always whitespace.
@@ -543,16 +462,15 @@ public class ConfigNode {
                 auto res = new T2[array.length];
                 foreach (int i, char[] s; array) {
                     T2 n;
-                    static if (is(T2 == bool)) {
-                        //(one invalid value makes everything fail)
-                        if (!parseBool(s, n))
+                    //(one invalid value makes everything fail)
+                    static if (is(T2 == bool) || isIntegerType!(T2)
+                        || isRealType!(T2))
+                    {
+                        try {
+                            n = fromStr!(T2)(s);
+                        } catch (ConversionException e) {
                             return def;
-                    } else static if (isIntegerType!(T2)) {
-                        if (!parseInt(s, n))
-                            return def;
-                    } else static if (isRealType!(T2)) {
-                        if (!parseFloat(s, n))
-                            return def;
+                        }
                     } else {
                         static assert(false);
                     }
@@ -573,10 +491,16 @@ public class ConfigNode {
         } else static if (isAssocArrayType!(T)) {
             T res = def;
             foreach (int idx, ConfigNode n; mItems) {
-                res[conv.to!(typeof(T.init.keys[0]))(n.name)] =
+                res[to!(typeof(T.init.keys[0]))(n.name)] =
                     n.getCurValue!(typeof(T.init.values[0]))();
             }
             return res;
+        } else static if (fromStrSupports!(T)) {
+            try {
+                return fromStr!(T)(value);
+            } catch (ConversionException e) {
+                return def;
+            }
         } else static if (is(T == struct)) {
             T res;
             foreach (int idx, x; res.tupleof) {
@@ -600,15 +524,6 @@ public class ConfigNode {
         } else static if (is(T : byte[]) || is(T : ubyte[])) {
             //no compression here, if you want it, use setByteArrayValue()
             this.value = encodeByteArray(cast(ubyte[])data, false);
-        } else static if (is(T T2 : Vector2!(T2))) {
-            //Vector2i or Vector2f, written as "x y"
-            this.value = str.toString(value.x) ~ " " ~ str.toString(value.y);
-        } else static if (is(T == bool)) {
-            this.value = value ? "true" : "false";
-        } else static if (isIntegerType!(T)) {
-            this.value = str.toString(value);
-        } else static if (isRealType!(T)) {
-            this.value = str.toString(value);
         } else static if (is(T T2 : T2[])) {
             //saving of array types
             static if (is(T2 == bool) || isIntegerType!(T2) || isRealType!(T2))
@@ -634,8 +549,10 @@ public class ConfigNode {
             }
         } else static if (isAssocArrayType!(T)) {
             foreach (akey, avalue; value) {
-                setValue(conv.to!(char[])(akey), avalue);
+                setValue(to!(char[])(akey), avalue);
             }
+        } else static if (toStrSupports!(T)) {
+            return toStr!(T)(value);
         } else static if (is(T == struct)) {
             this.value = "";
             clear();

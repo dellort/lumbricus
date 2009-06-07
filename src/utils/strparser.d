@@ -2,12 +2,13 @@
 //(including native types).
 module utils.strparser;
 import utils.mybox;
-import conv = tango.util.Convert;
+import tango.util.Convert : to, ConversionException;
 import tango.text.convert.Float : toFloat;
 import tango.core.Exception;
 import str = stdx.string;
 import utils.misc;
 import utils.time;
+//import utils.randval;  doesn't work: cyclic dependency error
 
 import utils.vector2 : Vector2, Vector2i, Vector2f;
 
@@ -46,28 +47,84 @@ char[] boxToString(MyBox box) {
     return gBoxUnParsers[box.type()](box);
 }
 
-static this() {
-    gBoxParsers[typeid(char[])] = &boxParseStr;
-    gBoxParsers[typeid(int)] = &boxParseInt;
-    gBoxParsers[typeid(float)] = &boxParseFloat;
-    gBoxParsers[typeid(bool)] = &boxParseBool;
-    gBoxParsers[typeid(Vector2i)] = &boxParseVector2i;
-    gBoxParsers[typeid(Vector2f)] = &boxParseVector2f;
-    gBoxParsers[typeid(Time)] = &boxParseTime;
-    addTrivialUnParsers!(byte, int, long, short, ubyte, uint, ulong, ushort,
-        char, float, double, bool)();
-    gBoxUnParsers[typeid(Vector2i)] = &boxUnParseVector2i;
-    gBoxUnParsers[typeid(Vector2f)] = &boxUnParseVector2f;
-    gBoxUnParsers[typeid(char[])] = &boxUnParseStr;
-    gBoxUnParsers[typeid(Time)] = &boxUnParseTime;
+//like stringToType, but compile-time lookup
+//supports all basic types (to() function) and structs that have a "fromString"
+//  static member
+//throws ConversionException if s could not be parsed, or an overflow occured
+//xxx the tango to() function should do exactly that, but because the tango
+//    runtime is not compiled with the project, template lookup fails
+static T fromStr(T)(char[] s) {
+    static if (is( typeof(T.fromString(s)) : T )) {
+        //Type.fromString()
+        return T.fromString(s);
+    } else static if (is( typeof(to!(T)(s)) == T )) {
+        //to() function
+        //we don't support empty strings
+        if (s.length == 0)
+            throw new ConversionException("Trying to parse empty string");
+        return to!(T)(s);
+    } else {
+        static assert(false, "Cannot parse: "~T.stringof);
+    }
+}
+template fromStrSupports(T) {
+    const bool fromStrSupports =
+        is( typeof(fromStr!(T)(cast(char[])(""c))) == T );
 }
 
-private void addTrivialUnParsers(T...)() {
-    foreach (x; T) {
-        gBoxUnParsers[typeid(x)] = function char[](MyBox box) {
-            return str.toString(box.unbox!(x));
-        };
+//reverse of above
+//structs require a fromStringRev() (sry for this name) member
+static char[] toStr(T)(T value) {
+    static if (is( typeof(value.fromStringRev()) == char[] )) {
+        //Type.fromStringRev()
+        //mostly, value.toString() if for a more "readable" representation
+        return value.fromStringRev();
+    } else static if (is( typeof(to!(char[])(T.init)) == char[] )) {
+        //to() function
+        return to!(char[])(value);
+    } else {
+        static assert(false, "Cannot stringify: "~T.stringof);
     }
+}
+template toStrSupports(T) {
+    const bool toStrSupports = is( typeof(toStr!(T)(T.init)) == char[] );
+}
+
+static this() {
+    gBoxParsers[typeid(char[])] = &boxParseStr;
+    gBoxUnParsers[typeid(char[])] = &boxUnParseStr;
+
+    addTrivialParsers!(byte, int, long, short, ubyte, uint, ulong, ushort,
+        float, double, Vector2i, Vector2f, Time/*, RandomInt,
+        RandomFloat*/)();
+    addTrivialUnParser!(char)();
+
+    //keeping this one special for yes/no strings
+    gBoxParsers[typeid(bool)] = &boxParseBool;
+    addTrivialUnParser!(bool)();
+}
+
+private void addTrivialParsers(T...)() {
+    foreach (x; T) {
+        addTrivialParser!(x)();
+        addTrivialUnParser!(x)();
+    }
+}
+private void addTrivialParser(T)() {
+    static assert(fromStrSupports!(T));
+    gBoxParsers[typeid(T)] = function MyBox(char[] s) {
+        try {
+            return MyBox.Box!(T)(fromStr!(T)(s));
+        } catch (ConversionException e) {
+            return MyBox();
+        }
+    };
+}
+private void addTrivialUnParser(T)() {
+    static assert(toStrSupports!(T));
+    gBoxUnParsers[typeid(T)] = function char[](MyBox box) {
+        return toStr(box.unbox!(T));
+    };
 }
 
 //the nop
@@ -78,26 +135,6 @@ public char[] boxUnParseStr(MyBox b) {
     return b.unbox!(char[]);
 }
 
-//stolen from configfile.d
-public MyBox boxParseInt(char[] s) {
-    try {
-        //tango.text.convert.Integer.toInt() parses an empty string as 0
-        if (s.length > 0)
-            return MyBox.Box!(int)(conv.to!(int)(s));
-    } catch (conv.ConversionException e) {
-    }
-    return MyBox();
-}
-public MyBox boxParseFloat(char[] s) {
-    try {
-        //tango.text.convert.Float.toFloat() parses an empty string as 0.0f
-        //also, tango.util.Convert.to!(float) seems to be major crap
-        if (s.length > 0)
-            return MyBox.Box!(float)(toFloat(s));
-    } catch (IllegalArgumentException e) {
-    }
-    return MyBox();
-}
 public MyBox boxParseBool(char[] s) {
     //strings for truth values, alternating (sorry it was 4:28 AM)
     static char[][] bool_strings = ["true", "false", "yes", "no"]; //etc.
@@ -109,52 +146,6 @@ public MyBox boxParseBool(char[] s) {
         ret_value = !ret_value;
     }
     return MyBox();
-}
-
-//3rd place of code duplication
-private MyBox boxParseVector(T)(char[] s) {
-    char[][] items = str.split(s);
-    if (items.length != 2) {
-        return MyBox();
-    }
-    try {
-        Vector2!(T) pt;
-        pt.x = conv.to!(T)(items[0]);
-        pt.y = conv.to!(T)(items[1]);
-        return MyBox.Box!(Vector2!(T))(pt);
-    } catch (conv.ConversionException e) {
-    }
-    return MyBox();
-}
-public MyBox boxParseVector2i(char[] s) {
-    return boxParseVector!(int)(s);
-}
-public MyBox boxParseVector2f(char[] s) {
-    return boxParseVector!(float)(s);
-}
-
-public char[] boxUnParseVector2f(MyBox b) {
-    auto v = b.unbox!(Vector2f)();
-    return myformat("{} {}", v.x, v.y);
-}
-
-public char[] boxUnParseVector2i(MyBox b) {
-    auto v = b.unbox!(Vector2i)();
-    return myformat("{} {}", v.x, v.y);
-}
-
-public MyBox boxParseTime(char[] s) {
-    try {
-        //xxx just a float value for seconds, improve
-        if (s.length > 0)
-            return MyBox.Box!(Time)(timeSecs(toFloat(s)));
-    } catch (IllegalArgumentException e) {
-    }
-    return MyBox();
-}
-public char[] boxUnParseTime(MyBox b) {
-    auto t = b.unbox!(Time)();
-    return t.toString();
 }
 
 /+
@@ -240,28 +231,28 @@ void enumStrings(EnumType, char[] fields)() {
 }
 
 unittest {
-    assert(boxParseInt("123").unbox!(int) == 123);
-    assert(boxParseInt("abc").type is null);
-    assert(boxParseInt("1abc").type is null);
-    assert(boxParseInt("").type is null);
+    assert(stringToBox!(int)("123").unbox!(int) == 123);
+    assert(stringToBox!(int)("abc").type is null);
+    assert(stringToBox!(int)("1abc").type is null);
+    assert(stringToBox!(int)("").type is null);
     //bug or feature?
-    assert(boxParseInt(" 123").unbox!(int) == 123);
-    assert(boxParseInt("123 ").type is null);
+    assert(stringToBox!(int)(" 123").unbox!(int) == 123);
+    assert(stringToBox!(int)("123 ").type is null);
 
-    assert(boxParseFloat("123.25").unbox!(float) == 123.25f);
-    assert(boxParseFloat("abc").type is null);
-    assert(boxParseFloat("1.0abc").type is null);
-    assert(boxParseFloat("").type is null);
+    assert(stringToBox!(float)("123.25").unbox!(float) == 123.25f);
+    assert(stringToBox!(float)("abc").type is null);
+    assert(stringToBox!(float)("1.0abc").type is null);
+    assert(stringToBox!(float)("").type is null);
     //same behaviour as with int
-    assert(boxParseFloat(" 123").unbox!(float) == 123f);
-    assert(boxParseFloat("123 ").type is null);
+    assert(stringToBox!(float)(" 123").unbox!(float) == 123f);
+    assert(stringToBox!(float)("123 ").type is null);
 
     assert(boxParseBool("false").unbox!(bool) == false);
     assert(boxParseBool("yes").unbox!(bool) == true);
     assert(boxParseBool("").type is null);
 
-    assert(boxParseVector2i("1 2").unbox!(Vector2i) == Vector2i(1, 2));
-    assert(boxParseVector2i("1 foo").type is null);
+    assert(stringToBox!(Vector2i)("1 2").unbox!(Vector2i) == Vector2i(1, 2));
+    assert(stringToBox!(Vector2i)("1 foo").type is null);
 
     /+
     debug testParse("+123.0");

@@ -166,7 +166,7 @@ class AbstractListWidget : Widget {
     override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
 
-        parseVector(node["spacing"], mSpacing);
+        mSpacing = node.getValue("spacing", mSpacing);
 
         super.loadFrom(loader);
     }
@@ -256,7 +256,7 @@ class StringListWidget : AbstractListWidget {
     override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
 
-        parseVector(node["spacing"], mSpacing);
+        mSpacing = node.getValue("spacing", mSpacing);
         auto fnt = gFramework.fontManager.loadFont(node["font"], false);
         if (fnt)
             font = fnt;

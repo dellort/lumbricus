@@ -191,7 +191,7 @@ class Label : Widget {
         mText.setMarkup(r"\t(" ~ node.getStringValue("text") ~ ")");
         mText.update();
 
-        parseVector(node.getStringValue("border"), mBorder);
+        mBorder = node.getValue("border", mBorder);
         mShrink = node.getBoolValue("shrink", mShrink);
         mCenterX = node.getBoolValue("center_x", mCenterX);
 
