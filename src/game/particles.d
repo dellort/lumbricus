@@ -19,15 +19,24 @@ class ParticleType {
     float wind_influence = 0f;
     float explosion_influence = 0f;
     float air_resistance = 0f;
+
+    //bubble movement (in x direction)
+    //the value is the highest velocity used to move into the x direction
+    //xxx: this is a big bogus, because the amplitude depends from y speed
+    float bubble_x = 0f;
+    //size of bubble arc
+    float bubble_x_h = 0f;
+
     Time lifetime = Time.Never;
     Animation animation;
-    Color color = Color(0); //temporary hack for drawing
+    Color color = Color(0,0,0,0); //temporary hack for drawing
 
     //array of particles that can be emitted (random pick)
-    //having emit rate/count for each 
     ParticleEmit[] emit;
-    //particles per second
-    float emit_rate = 0f;
+    //seconds between emitting a new particle
+    float emit_delay = 0f;
+    //add this*rnd(0,1) to emit_delay
+    float emit_delay_add_random = 0f;
     //particles max. emit count
     int emit_count = 0;
 
@@ -44,9 +53,13 @@ class ParticleType {
         explosion_influence = node.getValue("explosion_influence",
             explosion_influence);
         air_resistance = node.getValue("air_resistance", air_resistance);
+        bubble_x = node.getValue("bubble_x", bubble_x);
+        bubble_x_h = node.getValue("bubble_x_h", bubble_x_h);
         color.parse(node["color"]);
         air_resistance = node.getValue("air_resistance", air_resistance);
-        emit_rate = node.getValue("emit_rate", emit_rate);
+        emit_delay = node.getValue("emit_delay", emit_delay);
+        emit_delay_add_random = node.getValue("emit_delay_add_random",
+            emit_delay_add_random);
         emit_on_death_count = node.getValue("emit_on_death_count",
             emit_on_death_count);
         //includes dumb special case
@@ -111,6 +124,10 @@ struct Particle {
     Time start;
     Vector2f pos, velocity;
 
+    //multipurpose random value (can be used for anything you want)
+    //constant over lifetime of the particle, initialized with nextDouble()
+    float random;
+
     //state for particle emitter
     int emitted; //number of emitted particles
     float emit_next; //wait time for next particle
@@ -124,6 +141,7 @@ struct Particle {
         start = owner.time.current;
         emitted = 0;
         emit_next = 0f;
+        random = rngShared.nextDouble();
         //reasonable defaults of other state that gets set anyway?
         pos.x = pos.y = velocity.x = velocity.y = 0f;
     }
@@ -142,7 +160,17 @@ struct Particle {
         velocity.y += props.gravity * deltaT;
         velocity.x += owner.windSpeed*props.wind_influence * deltaT;
 
-        pos += velocity * deltaT;
+        Vector2f add = velocity * deltaT;
+
+        if (props.bubble_x > 0) {
+            //acceleration (?) simply depends from y coordinate
+            //sin() also does the modulo operation needed here
+            //adding random just changes the phase (for each particle)
+            add.x += math.sin((pos.y/props.bubble_x_h+random)*math.PI*2)
+                * props.bubble_x * add.y;
+        }
+
+        pos += add;
         //Trace.formatln("{} {} {}", pos, velocity, deltaT);
 
         Animation ani = props.animation;
@@ -154,7 +182,9 @@ struct Particle {
             }
             AnimationParams p;
             ani.draw(c, toVector2i(pos), p, diff);
-        } else {
+        }
+
+        if (props.color.a > 0) {
             c.drawFilledCircle(toVector2i(pos), 2, props.color);
         }
 
@@ -165,7 +195,8 @@ struct Particle {
                 //new particle
                 emitted++;
                 //xxx randomize time
-                emit_next = 1.0f/props.emit_rate;
+                emit_next = props.emit_delay
+                    + rngShared.nextDouble() * props.emit_delay_add_random;
                 emitRandomParticle(props.emit);
             }
         }
@@ -247,7 +278,7 @@ class ParticleWorld {
         reinit();
     }
 
-    void reinit(int particle_count = 1000) {
+    void reinit(int particle_count = 50000) {
         //right now changing the length needs full reinitialization
         //seems one could also simply add particles
         //destroy
@@ -435,7 +466,7 @@ class TestTask : Task {
         z.wind_influence = 0.8;
         z.explosion_influence = 0.005f;
         z.gravity = 10f;
-        z.emit_rate = 2;
+        z.emit_delay = 0.5;
         z.emit_count = int.max;
         z.emit ~= ParticleEmit(y, 0.7f, 1.0f, math.PI/180*60);
         for (int n = 0; n < 10; n++) {
