@@ -73,13 +73,11 @@ struct FireMode {
         hasTimer = node.getBoolValue("timer");
         if (hasTimer) {
             //if you need finer values than seconds, hack this
-            int[] vals = node.getValueArray!(int)("timerrange");
-            if (vals.length == 2) {
+            //abusing Vector2f as "range" type xD
+            Vector2f vals = node.getValue("timerrange", Vector2f(0, 0));
+            if (vals[0] != vals[1] && !vals.isNaN()) {
                 timerFrom = timeSecs(vals[0]);
                 timerTo = timeSecs(vals[1]);
-            } else if (vals.length == 1) {
-                timerFrom = Time.Null;
-                timerTo = timeSecs(vals[0]);
             } else {
                 //xxx what about some kind of error reporting?
                 hasTimer = false;

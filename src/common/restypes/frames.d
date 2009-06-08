@@ -154,7 +154,7 @@ class AniFramesAtlasResource : ResourceItem {
     }
 }
 
-
+/+
 class AniFramesSingle : AniFrames {
     class SingleFrames : Frames {
         struct SingleAnimationFrame {
@@ -238,3 +238,4 @@ class AniFramesSingleResource : ResourceItem {
         Resources.registerResourceType!(typeof(this))("singleframes");
     }
 }
++/

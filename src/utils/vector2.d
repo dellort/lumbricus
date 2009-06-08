@@ -267,11 +267,11 @@ public struct Vector2(T) {
     public static Vector2 fromString(char[] s) {
         char[][] items = str.split(s);
         if (items.length != 2) {
-            throw new ConversionException("Failed to parse Vector2");
+            throw strparser.newConversionException!(Vector2)(s);
         }
         Vector2!(T) pt;
-        pt.x = to!(T)(items[0]);
-        pt.y = to!(T)(items[1]);
+        pt.x = strparser.fromStr!(T)(items[0]);
+        pt.y = strparser.fromStr!(T)(items[1]);
         return pt;
     }
 
@@ -280,7 +280,7 @@ public struct Vector2(T) {
     }
 
     public char[] toString() {
-        return "("~str.toString(x1)~", "~str.toString(x2)~")";
+        return "("~strparser.toStr(x1)~", "~strparser.toStr(x2)~")";
     }
 }
 

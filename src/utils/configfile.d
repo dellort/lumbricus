@@ -60,8 +60,8 @@ struct FilePosition {
     int column = -1;
 
     //return true if there's at least a little bit of useful information
-    bool anyKnown() {
-        return *this !is FilePosition.init;
+    bool useful() {
+        return line >= 0;
     }
 
     char[] toString() {
@@ -106,8 +106,18 @@ public class ConfigNode {
         return r;
     }
 
+    //return file/ConfigNode position
+    char[] locationString() {
+        char[] getPath(ConfigNode s) {
+            return (s.parent ? getPath(s.parent) : "") ~ "/" ~ s.name;
+        }
+        char[] path = getPath(this);
+        FilePosition pos = originFilePosition();
+        return (pos.useful() ? pos.toString() ~ " " : "") ~ "[" ~ path ~ "]";
+    }
+
     FilePosition originFilePosition() {
-        if (!filePosition.anyKnown() && parent)
+        if (!filePosition.useful() && parent)
             return parent.originFilePosition();
         return filePosition;
     }
@@ -477,23 +487,45 @@ public class ConfigNode {
     //  AAs with a basic (-> Tango's to) key type and a supported value type
     //  other structs (as name-value pairs)
     public T getCurValue(T)() {
-        void invalid(Exception e = null) {
+        void invalid(Exception e = null, char[] txt = "") {
             //xxx why hidden inner class? how are users supposed to catch this??
+            //    answer: not at all, I consider this a temporary hack
+            //    a real solution must:
+            //     - catch typos (warn about nodes that aren't read)
+            //       (doesn't work at all with current design)
+            //     - distinguish optional and required values
+            //       (required values raise an error if node doesn't exist)
+            //     - continue reading out the confignode even after an error,
+            //       because reporting all errors is better than exit-on-first
+            //     - avoid function-with-dozens-of-getValue-calls orgies
             static class ConfigError : Exception {
                 this(char[] msg) {
                     super(msg);
                 }
             }
-            char[] msg = "error at (approx.) " ~ originFilePosition.toString();
+            char[] msg = "error at " ~ locationString();
+            if (txt.length) {
+                msg ~= " " ~ txt;
+            }
             if (e) {
                 msg ~= " original exception: " ~ e.toString();
             }
             throw new ConfigError(msg);
         }
+        void nosubnodes() {
+            if (mItems.length)
+                invalid(null, "value-only node has sub nodes");
+        }
+        void novalue() {
+            if (value != "")
+                invalid(null, "non-empty string value for array/etc. node");
+        }
 
         static if (is(T : char[])) {
+            nosubnodes();
             return value;
         } else static if (is(T : byte[]) || is(T : ubyte[])) {
+            nosubnodes();
             try {
                 return cast(T)decodeByteArray(value);
             } catch (Exception e) {
@@ -501,46 +533,20 @@ public class ConfigNode {
                 invalid(e);
             }
         } else static if (is(T T2 : T2[])) {
-            // Parse the value as array of values.
-            // Separator is always whitespace.
-            static if (is(T2 == bool) || isIntegerType!(T2) || isRealType!(T2))
-            {
-                auto array = str.split(value);
-                auto res = new T2[array.length];
-                foreach (int i, char[] s; array) {
-                    T2 n;
-                    //(one invalid value makes everything fail)
-                    static if (is(T2 == bool) || isIntegerType!(T2)
-                        || isRealType!(T2))
-                    {
-                        try {
-                            n = fromStr!(T2)(s);
-                        } catch (ConversionException e) {
-                            invalid(e);
-                        }
-                    } else {
-                        static assert(false);
-                    }
-                    res[i] = n;
-                }
-                return res;
-            } else static if (is(T2 == char[])) {
-                //xxx: this is a hack, code in next case would be better
-                return str.split(value, " ");
-            } else {
-                //read all (unnamed) subnodes
-                auto res = new T2[mItems.length];
-                foreach (int idx, ConfigNode n; mItems) {
-                    res[idx] = n.getCurValue!(T2)();
-                }
-                return res;
+            novalue();
+            //read all (unnamed) subnodes
+            auto res = new T2[mItems.length];
+            foreach (int idx, ConfigNode n; mItems) {
+                res[idx] = n.getCurValue!(T2)();
             }
+            return res;
         } else static if (isAssocArrayType!(T)) {
+            novalue();
             T res;
             try {
                 //again, one invalid value makes everything fail
                 foreach (int idx, ConfigNode n; mItems) {
-                    res[to!(typeof(T.init.keys[0]))(n.name)] =
+                    res[fromStr!(typeof(T.init.keys[0]))(n.name)] =
                         n.getCurValue!(typeof(T.init.values[0]))();
                 }
             } catch (ConversionException e) {
@@ -550,12 +556,14 @@ public class ConfigNode {
             //n.getCurValue() can also throw ConfigError (no need to catch)
             return res;
         } else static if (fromStrSupports!(T)) {
+            nosubnodes();
             try {
                 return fromStr!(T)(value);
             } catch (ConversionException e) {
                 invalid(e);
             }
         } else static if (is(T == struct)) {
+            novalue();
             T res;
             foreach (int idx, x; res.tupleof) {
                 res.tupleof[idx] = getValue(
@@ -574,34 +582,23 @@ public class ConfigNode {
     //for a list of types, see getCurValue
     public void setCurValue(T)(T value) {
         static if (is(T : char[])) {
+            clear();
             this.value = value;
         } else static if (is(T : byte[]) || is(T : ubyte[])) {
+            clear();
             //no compression here, if you want it, use setByteArrayValue()
             this.value = encodeByteArray(cast(ubyte[])data, false);
         } else static if (is(T T2 : T2[])) {
             //saving of array types
-            static if (is(T2 == bool) || isIntegerType!(T2) || isRealType!(T2))
-            {
-                //basic types are packed into one string
-                char[][] s;
-                foreach (T2 t; value) {
-                    s ~= str.toString(t);
-                }
-                this.value = str.join(s, " ");
-            } else static if (is(T2 : char[])) {
-                //xxx: doesn't work for strings with spaces, should be
-                //     using next case
-                this.value = str.join(value, " ");
-            } else {
-                //other array types (like char[][]) create unnamed values
-                this.value = "";
-                clear();
-                foreach (T2 v; value) {
-                    auto node = add();
-                    node.setCurValue(v);
-                }
+            this.value = "";
+            clear();
+            foreach (T2 v; value) {
+                auto node = add();
+                node.setCurValue(v);
             }
         } else static if (isAssocArrayType!(T)) {
+            this.value = "";
+            clear();
             foreach (akey, avalue; value) {
                 setValue(to!(char[])(akey), avalue);
             }
@@ -656,12 +653,6 @@ public class ConfigNode {
     public void setFloatValue(char[] name, float value) {
         setValue(name, value);
     }
-    public T[] getValueArray(T)(char[] name, T[] def = null) {
-        return getValue(name, def);
-    }
-    public void setValueArray(T)(char[] name, T[] v) {
-        setValue(name, v);
-    }
     //<-- end legacy accessor functions
 
     ///encode ubyte data into the value of a named subnode
@@ -710,16 +701,6 @@ public class ConfigNode {
         }
 
         return buf;
-    }
-
-    //return all values from this node in an string array
-    //xxx: maybe give up and implement ConfigNodes that are lists
-    public char[][] getValueList() {
-        char[][] res;
-        foreach (char[] name, char[] value; this) {
-            res ~= value;
-        }
-        return res;
     }
 
     //waste of time start ---------------------->

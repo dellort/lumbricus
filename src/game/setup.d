@@ -76,7 +76,7 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null,
     }
 
     cfg.gfx = mConfig.getSubNode("gfx");
-    cfg.weaponsets = mConfig.getValueArray!(char[])("weaponsets");
+    cfg.weaponsets = mConfig.getValue!(char[][])("weaponsets");
     if (cfg.weaponsets.length == 0) {
         cfg.weaponsets ~= "default";
     }

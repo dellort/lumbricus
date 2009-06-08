@@ -191,17 +191,17 @@ struct ExplosionSettings {
     int[] sizeTreshold = [25, 100, 150, 200];
 
     void load(ConfigNode conf, ResourceSet res) {
-        char[][] sw1 = conf.getValueArray!(char[])("shockwave1");
+        char[][] sw1 = conf.getValue!(char[][])("shockwave1");
         foreach (int i, resid; sw1) {
             shockwave1[i] = res.resource!(Animation)(resid);
         }
 
-        char[][] sw2 = conf.getValueArray!(char[])("shockwave2");
+        char[][] sw2 = conf.getValue!(char[][])("shockwave2");
         foreach (int i, resid; sw2) {
             shockwave2[i] = res.resource!(Animation)(resid);
         }
 
-        char[][] txt = conf.getValueArray!(char[])("comictext");
+        char[][] txt = conf.getValue!(char[][])("comictext");
         foreach (int i, resid; txt) {
             comicText[i] = res.resource!(Animation)(resid);
         }

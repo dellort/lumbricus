@@ -263,7 +263,7 @@ class StringListWidget : AbstractListWidget {
         checkWidth = node.getBoolValue("check_width", checkWidth);
         auto cnt = node.findNode("contents");
         if (cnt) {
-            setContents(cnt.getValueList());
+            setContents(cnt.getCurValue!(char[][])());
         }
 
         super.loadFrom(loader);
