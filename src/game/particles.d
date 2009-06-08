@@ -10,13 +10,14 @@ import utils.time;
 import utils.configfile;
 import utils.list2;
 import utils.random;
+import utils.randval;
 
 import math = tango.math.Math;
 
 
 class ParticleType {
     float gravity = 0f;
-    float wind_influence = 0f;
+    RandomFloat wind_influence = {0f, 0f};
     float explosion_influence = 0f;
     float air_resistance = 0f;
 
@@ -34,9 +35,9 @@ class ParticleType {
     //array of particles that can be emitted (random pick)
     ParticleEmit[] emit;
     //seconds between emitting a new particle
-    float emit_delay = 0f;
-    //add this*rnd(0,1) to emit_delay
-    float emit_delay_add_random = 0f;
+    RandomFloat emit_interval = {0f, 0f};
+    //seconds until emitting starts
+    RandomFloat emit_delay = {0f, 0f};
     //particles max. emit count
     int emit_count = 0;
 
@@ -57,9 +58,8 @@ class ParticleType {
         bubble_x_h = node.getValue("bubble_x_h", bubble_x_h);
         color = node.getValue("color", color);
         air_resistance = node.getValue("air_resistance", air_resistance);
+        emit_interval = node.getValue("emit_interval", emit_interval);
         emit_delay = node.getValue("emit_delay", emit_delay);
-        emit_delay_add_random = node.getValue("emit_delay_add_random",
-            emit_delay_add_random);
         emit_on_death_count = node.getValue("emit_on_death_count",
             emit_on_death_count);
         //includes dumb special case
@@ -123,6 +123,7 @@ struct Particle {
     ParticleType props; //null means dead lol
     Time start;
     Vector2f pos, velocity;
+    float windInfluence;
 
     //multipurpose random value (can be used for anything you want)
     //constant over lifetime of the particle, initialized with nextDouble()
@@ -140,7 +141,8 @@ struct Particle {
         props = a_props;
         start = owner.time.current;
         emitted = 0;
-        emit_next = 0f;
+        emit_next = props.emit_delay.sample(rngShared);
+        windInfluence = props.wind_influence.sample(rngShared);
         random = rngShared.nextDouble();
         //reasonable defaults of other state that gets set anyway?
         pos.x = pos.y = velocity.x = velocity.y = 0f;
@@ -158,7 +160,7 @@ struct Particle {
         }
 
         velocity.y += props.gravity * deltaT;
-        velocity.x += owner.windSpeed*props.wind_influence * deltaT;
+        velocity.x += owner.windSpeed*windInfluence * deltaT;
 
         Vector2f add = velocity * deltaT;
 
@@ -195,8 +197,7 @@ struct Particle {
                 //new particle
                 emitted++;
                 //xxx randomize time
-                emit_next = props.emit_delay
-                    + rngShared.nextDouble() * props.emit_delay_add_random;
+                emit_next = props.emit_interval.sample(rngShared);
                 emitRandomParticle(props.emit);
             }
         }

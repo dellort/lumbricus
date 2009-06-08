@@ -252,7 +252,7 @@ public struct Time {
         assert((-timeHms(55, 45, 5)).fromStringRev() == "- 55 h, 45 min, 5 s");
         assert(Time.Null.fromStringRev() == "0");
         assert(Time.Never.fromStringRev() == "never");
-        Trace.formatln("{}", (-Time.Never).fromStringRev());
+        //Trace.formatln("{}", (-Time.Never).fromStringRev());
         assert((-Time.Never).fromStringRev() == "- never");
     }
 

@@ -2,6 +2,7 @@ module utils.randval;
 
 import utils.misc;
 import utils.random;
+import strparser = utils.strparser;
 
 import str = tango.text.Util;
 import tango.util.Convert : to;
@@ -86,3 +87,8 @@ alias RandomValue!(float) RandomFloat;
 alias RandomValue!(uint) RandomUint;
 alias RandomValue!(int) RandomInt;
 alias RandomValue!(long) RandomLong;
+
+static this() {
+    strparser.addStrParser!(RandomInt);
+    strparser.addStrParser!(RandomFloat);
+}

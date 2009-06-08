@@ -7,10 +7,6 @@ import tango.text.convert.Float : toFloat;
 import tango.core.Exception;
 import str = stdx.string;
 import utils.misc;
-//import utils.time;
-//import utils.randval;  doesn't work: cyclic dependency error
-
-import utils.vector2 : Vector2, Vector2i, Vector2f;
 
 public import tango.util.Convert : ConversionException;
 
@@ -88,6 +84,15 @@ template fromStrSupports(T) {
     const bool fromStrSupports =
         is( typeof(fromStr!(T)(cast(char[])(""c))) == T );
 }
+//return false and leaves destVal unmodified if parsing failed
+bool tryFromStr(T)(char[] s, ref T destVal) {
+    try {
+        destVal = fromStr!(T)(s);
+        return true;
+    } catch (ConversionException e) {
+        return false;
+    }
+}
 
 //reverse of above
 //structs require a fromStringRev() (sry for this name) member
@@ -112,8 +117,7 @@ static this() {
     gBoxUnParsers[typeid(char[])] = &boxUnParseStr;
 
     addTrivialParsers!(byte, int, long, short, ubyte, uint, ulong, ushort,
-        float, double, Vector2i, Vector2f/*, Time, RandomInt,
-        RandomFloat*/)();
+        float, double, real)();
     addTrivialUnParser!(char)();
 
     //keeping this one special for yes/no strings
@@ -274,12 +278,9 @@ unittest {
     assert(stringToBox!(float)(" 123").unbox!(float) == 123f);
     assert(stringToBox!(float)("123 ").type is null);
 
-    assert(boxParseBool("false").unbox!(bool) == false);
-    assert(boxParseBool("yes").unbox!(bool) == true);
-    assert(boxParseBool("").type is null);
-
-    assert(stringToBox!(Vector2i)("1 2").unbox!(Vector2i) == Vector2i(1, 2));
-    assert(stringToBox!(Vector2i)("1 foo").type is null);
+    assert(stringToBox!(bool)("false").unbox!(bool) == false);
+    assert(stringToBox!(bool)("yes").unbox!(bool) == true);
+    assert(stringToBox!(bool)("").type is null);
 
     /+
     debug testParse("+123.0");

@@ -467,7 +467,7 @@ public class ConfigNode {
     }
 
     ///Get the value of the current node, parsed as type T
-    ///If the value cannot be converted to T (parsing failed), return def
+    ///If the value cannot be converted to T (parsing failed), throw ConfigError
     //currently supports:
     //  char[]
     //  byte[], ubyte[] (as base64)
@@ -476,8 +476,9 @@ public class ConfigNode {
     //  other arrays of above types (as list of unnamed subnode)
     //  AAs with a basic (-> Tango's to) key type and a supported value type
     //  other structs (as name-value pairs)
-    public T getCurValue(T)(T def = T.init) {
+    public T getCurValue(T)() {
         void invalid(Exception e = null) {
+            //xxx why hidden inner class? how are users supposed to catch this??
             static class ConfigError : Exception {
                 this(char[] msg) {
                     super(msg);
@@ -493,7 +494,12 @@ public class ConfigNode {
         static if (is(T : char[])) {
             return value;
         } else static if (is(T : byte[]) || is(T : ubyte[])) {
-            return cast(T)decodeByteArray(value, cast(ubyte[])def);
+            try {
+                return cast(T)decodeByteArray(value);
+            } catch (Exception e) {
+                //base64.decode really throws the type Exception
+                invalid(e);
+            }
         } else static if (is(T T2 : T2[])) {
             // Parse the value as array of values.
             // Separator is always whitespace.
@@ -511,7 +517,6 @@ public class ConfigNode {
                             n = fromStr!(T2)(s);
                         } catch (ConversionException e) {
                             invalid(e);
-                            //return def;
                         }
                     } else {
                         static assert(false);
@@ -526,34 +531,36 @@ public class ConfigNode {
                 //read all (unnamed) subnodes
                 auto res = new T2[mItems.length];
                 foreach (int idx, ConfigNode n; mItems) {
-                    res[idx] = n.getCurValue!(T2)(T2.init);
+                    res[idx] = n.getCurValue!(T2)();
                 }
                 return res;
             }
         } else static if (isAssocArrayType!(T)) {
-            //xxx: this doesn't make any sense
-            //   1. why start with def and extend it as stuff is read?
-            //   2. what about conversion errors?
-            static assert(false);
-            T res = def;
-            foreach (int idx, ConfigNode n; mItems) {
-                res[to!(typeof(T.init.keys[0]))(n.name)] =
-                    n.getCurValue!(typeof(T.init.values[0]))();
+            T res;
+            try {
+                //again, one invalid value makes everything fail
+                foreach (int idx, ConfigNode n; mItems) {
+                    res[to!(typeof(T.init.keys[0]))(n.name)] =
+                        n.getCurValue!(typeof(T.init.values[0]))();
+                }
+            } catch (ConversionException e) {
+                //from to()
+                invalid(e);
             }
+            //n.getCurValue() can also throw ConfigError (no need to catch)
             return res;
         } else static if (fromStrSupports!(T)) {
             try {
                 return fromStr!(T)(value);
             } catch (ConversionException e) {
                 invalid(e);
-                //return def;
             }
         } else static if (is(T == struct)) {
             T res;
             foreach (int idx, x; res.tupleof) {
                 res.tupleof[idx] = getValue(
                     structProcName(res.tupleof[idx].stringof),
-                    def.tupleof[idx]);
+                    T.init.tupleof[idx]);
             }
             return res;
         } else {
@@ -614,12 +621,12 @@ public class ConfigNode {
     }
 
     ///Read the value of a named subnode of the current node
-    ///return def if the value was not found, or parsing as T failed
+    ///return def if the value was not found; throw ConfigError on parse error
     public T getValue(T)(char[] name, T def = T.init) {
         auto v = findValue(name);
         if (!v)
             return def;
-        return v.getCurValue!(T)(def);
+        return v.getCurValue!(T)();
     }
 
     ///Set the value of a named subnode of the current node to value
@@ -686,15 +693,12 @@ public class ConfigNode {
         return res;
     }
 
-    static ubyte[] decodeByteArray(char[] input, ubyte[] def) {
+    static ubyte[] decodeByteArray(char[] input) {
         if (input == "[]")
             return null;
         ubyte[] buf;
-        try {
-            buf = base64.decode(input);
-        } catch (Exception e) {
-            return def;
-        }
+        //throws Exception (really; stupid tango devs)
+        buf = base64.decode(input);
 
         try {
             scope buffer = new Array(buf);

@@ -1201,7 +1201,7 @@ class WeaponItem {
         if (config.value == "inf") {
             mInfiniteQuantity = true;
         } else {
-            mQuantity = config.getCurValue!(int)(0);
+            mQuantity = config.getCurValue!(int)();
         }
     }
 

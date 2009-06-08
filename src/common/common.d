@@ -149,7 +149,7 @@ class Common {
             return;
         foreach (ConfigNode sub; conf.getSubNode("logs")) {
             Log log = registerLog(sub.name);
-            if (!sub.getCurValue!(bool)(false))
+            if (!sub.getCurValue!(bool)())
                 log.shutup();
         }
         if (conf.getValue!(bool)("logconsole", false))

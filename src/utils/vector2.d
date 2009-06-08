@@ -1,5 +1,6 @@
 module utils.vector2;
 
+import strparser = utils.strparser;
 import str = stdx.string;
 import math = tango.math.Math;
 import ieee = tango.math.IEEE;
@@ -298,4 +299,15 @@ public Vector2i toVector2i(Vector2f v) {
     res.x1 = cast(int)(v.x1<0?v.x1-0.5f:v.x1+0.5f);
     res.x2 = cast(int)(v.x2<0?v.x2-0.5f:v.x2+0.5f);
     return res;
+}
+
+static this() {
+    strparser.addStrParser!(Vector2i);
+    strparser.addStrParser!(Vector2f);
+}
+
+unittest {
+    assert(strparser.stringToBox!(Vector2i)("1 2").unbox!(Vector2i)
+        == Vector2i(1, 2));
+    assert(strparser.stringToBox!(Vector2i)("1 foo").type is null);
 }
