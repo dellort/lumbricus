@@ -462,9 +462,7 @@ class PainterWidget : Widget {
         mFitInto = node.getValue("fit_into", mFitInto);
         Color[] colors;
         foreach (char[] n, char[] value; node.getSubNode("colors")) {
-            Color c;
-            c.parse(value);
-            colors ~= c;
+            colors ~= Color.fromString(value);
         }
         setColors(colors);
         clear();

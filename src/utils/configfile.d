@@ -53,6 +53,23 @@ private bool is_config_id(char[] name) {
     return true;
 }
 
+//all default values (== .init) represent unknown values
+struct FilePosition {
+    char[] filename = "unknown";
+    int line = -1;
+    int column = -1;
+
+    //return true if there's at least a little bit of useful information
+    bool anyKnown() {
+        return *this !is FilePosition.init;
+    }
+
+    char[] toString() {
+        return myformat("'{}':{}:{}", filename, line >= 0 ? toStr(line) : "?",
+            column >= 0 ? toStr(column) : "?");
+    }
+}
+
 /// a subtree in a ConfigFile, can contain named and unnamed values and nodes
 public class ConfigNode {
     private {
@@ -69,6 +86,11 @@ public class ConfigNode {
     //comment after last item in the node (only useful if there are subnodes)
     public char[] endComment;
 
+    //file position from parser - note that the node might have been added later
+    //(like with getSubNode()), and filePosition might not contain any useful
+    //information - then use originFilePosition() instead
+    FilePosition filePosition;
+
     ConfigNode copy() {
         auto r = new ConfigNode();
         r.endComment = endComment;
@@ -76,11 +98,18 @@ public class ConfigNode {
         r.value = value;
         r.mName = mName;
         r.mParent = null;
+        r.filePosition = filePosition;
         foreach (ConfigNode item; this) {
             ConfigNode n = item.copy();
             r.addNode(n);
         }
         return r;
+    }
+
+    FilePosition originFilePosition() {
+        if (!filePosition.anyKnown() && parent)
+            return parent.originFilePosition();
+        return filePosition;
     }
 
     public ConfigNode parent() {
@@ -448,6 +477,19 @@ public class ConfigNode {
     //  AAs with a basic (-> Tango's to) key type and a supported value type
     //  other structs (as name-value pairs)
     public T getCurValue(T)(T def = T.init) {
+        void invalid(Exception e = null) {
+            static class ConfigError : Exception {
+                this(char[] msg) {
+                    super(msg);
+                }
+            }
+            char[] msg = "error at (approx.) " ~ originFilePosition.toString();
+            if (e) {
+                msg ~= " original exception: " ~ e.toString();
+            }
+            throw new ConfigError(msg);
+        }
+
         static if (is(T : char[])) {
             return value;
         } else static if (is(T : byte[]) || is(T : ubyte[])) {
@@ -457,7 +499,6 @@ public class ConfigNode {
             // Separator is always whitespace.
             static if (is(T2 == bool) || isIntegerType!(T2) || isRealType!(T2))
             {
-                //xxx: Phobos API decides how string is parsed
                 auto array = str.split(value);
                 auto res = new T2[array.length];
                 foreach (int i, char[] s; array) {
@@ -469,7 +510,8 @@ public class ConfigNode {
                         try {
                             n = fromStr!(T2)(s);
                         } catch (ConversionException e) {
-                            return def;
+                            invalid(e);
+                            //return def;
                         }
                     } else {
                         static assert(false);
@@ -489,6 +531,10 @@ public class ConfigNode {
                 return res;
             }
         } else static if (isAssocArrayType!(T)) {
+            //xxx: this doesn't make any sense
+            //   1. why start with def and extend it as stuff is read?
+            //   2. what about conversion errors?
+            static assert(false);
             T res = def;
             foreach (int idx, ConfigNode n; mItems) {
                 res[to!(typeof(T.init.keys[0]))(n.name)] =
@@ -499,7 +545,8 @@ public class ConfigNode {
             try {
                 return fromStr!(T)(value);
             } catch (ConversionException e) {
-                return def;
+                invalid(e);
+                //return def;
             }
         } else static if (is(T == struct)) {
             T res;
@@ -552,7 +599,7 @@ public class ConfigNode {
                 setValue(to!(char[])(akey), avalue);
             }
         } else static if (toStrSupports!(T)) {
-            return toStr!(T)(value);
+            this.value = toStr!(T)(value);
         } else static if (is(T == struct)) {
             this.value = "";
             clear();
@@ -1071,6 +1118,14 @@ public class ConfigFile {
     private static final const dchar EOF = 0xFFFF;
     private static final uint cMaxErrors = 100;
 
+    private FilePosition filePos(ref Position pos) {
+        FilePosition res;
+        res.filename = mFilename;
+        res.line = pos.line;
+        res.column = pos.column;
+        return res;
+    }
+
     //fatal==false: continue parsing allthough config file is invalid
     //fatal==true: parsing won't be continued (abort by throwing an exception)
     private void reportError(bool fatal, char[] fmt, ...) {
@@ -1498,6 +1553,7 @@ public class ConfigFile {
             if (token == Token.VALUE) {
                 //a VALUE without an ID
                 auto newnode = node.add();
+                newnode.filePosition = filePos(curpos());
                 newnode.comment = comm;
                 newnode.value = str;
                 continue;
@@ -1537,6 +1593,7 @@ public class ConfigFile {
                     }
 
                     auto newnode = node.add(id);
+                    newnode.filePosition = filePos(curpos());
                     newnode.value = str;
                     newnode.comment = comm;
 
@@ -1546,6 +1603,7 @@ public class ConfigFile {
 
             if (token == Token.OPEN) {
                 ConfigNode newnode = node.add(id);
+                newnode.filePosition = filePos(curpos());
                 newnode.comment = comm;
                 parseNode(newnode, false);
                 continue;
@@ -1561,6 +1619,7 @@ public class ConfigFile {
                 id = str;
 
                 ConfigNode newnode = node.add(id);
+                newnode.filePosition = filePos(curpos());
                 newnode.comment = comm;
                 //now, either an id/value, a '=', or a '{'
                 nextToken(token, str, waste);
@@ -1613,6 +1672,8 @@ public class ConfigFile {
         try {
             init_parser();
             char[] waste, morewaste;
+
+            mRootnode.filePosition = filePos(curpos());
 
             Token token;
             parseNode(mRootnode, true);
@@ -1789,3 +1850,8 @@ unittest {
     assert(y.sub.a == 456 && y.sub.b == 2.0f);
 }
 
+unittest {
+    auto t = new ConfigNode();
+    t.setCurValue!(int)(1234);
+    assert(t.value == "1234");
+}

@@ -41,7 +41,7 @@ class RopeClass : WeaponClass {
         swingForce = node.getIntValue("swing_force", swingForce);
         swingForceUp = node.getIntValue("swing_force_up", swingForceUp);
 
-        ropeColor.parse(node["rope_color"]);
+        ropeColor = node.getValue("rope_color", ropeColor);
         auto resseg = node["rope_segment"];
         if (resseg.length)
             ropeSegment = engine.gfx.resources.resource!(Surface)(resseg);

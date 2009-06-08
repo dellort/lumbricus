@@ -101,9 +101,12 @@ class GameSummary : Task {
             mRoundWinLabel.textMarkup = `\t(round_draw)`;
         }
         if (bgCol.length > 0) {
-            props.background.parse(bgCol);
-            props.background *= 0.2;
-            props.background.a = 1.0f;
+            try {
+                props.background = Color.fromString(bgCol);
+                props.background *= 0.2;
+                props.background.a = 1.0f;
+            } catch (ConversionException e) {
+            }
         }
         mWindow.properties = props;
 

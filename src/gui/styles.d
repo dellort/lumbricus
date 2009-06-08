@@ -604,8 +604,7 @@ class StyleValueColor : StyleValueT!(Color) {
     this(Styles a_owner, char[] a_name, ConfigNode a_definition) {
         super(a_owner, a_name, a_definition);
 
-        bool r = mColor.parse(mDefinition.value);
-        assert(r);
+        mColor = Color.fromString(mDefinition.value);
     }
 
     override Color calculate_value() {

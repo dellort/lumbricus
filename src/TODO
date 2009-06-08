@@ -11,6 +11,8 @@
 - debugging: würmer auswählen und GameObject-Felder anzeigen lassen
 - common.resfileformats: marshal.d benutzen statt memory dump (erhöht portabilität)
 ! besser methode zum auslesen von confignodes (insbesondere mit fehlerbehandlung, so dass ungültige werte nicht still ignoriert werden, beliebige datentypen, user warnen über unbenutzte einträge; vielleicht einfach serialiaiserungscode wiederverwenden)
+- (de)serializer soll strparser verwenden? (aber: inkonsistenz darüber, ob toStr verlustlose repräsentation erzeugen soll)
+- configfile.d so ändern, dass datentypen schon in den nodes/in der syntax deklariert werden? libconfig verwenden?
 
 == bekannte, lösbare Bugs ==
 - wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)

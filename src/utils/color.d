@@ -1,16 +1,13 @@
 module utils.color;
 
 import utils.configfile : ConfigNode;
-import utils.strparser;
+import strparser = utils.strparser;
 import utils.mybox;
 import utils.misc;
 
 import math = tango.math.Math;
 import str = stdx.string;
-import conv = tango.util.Convert;
-import tango.text.convert.Float;
 import tango.text.convert.Integer : convert;
-import tango.core.Exception : IllegalArgumentException;
 
 //predefined colors - used by the parser
 //global for fun and profit
@@ -201,31 +198,29 @@ public struct Color {
      + Previous member values of Color are used, if the color spec is
      + incomplete, e.g. "a=0.5" will simply do this.a = 0.5f;
      +/
-    bool parse(char[] s) {
-        Color newc = *this;
+    static Color fromString(char[] s, Color previous = Color.init) {
+        Color newc = previous;
 
         //old parsing
 
         char[][] values = str.split(s);
         if (values.length == 3 || values.length == 4) {
             try {
-                newc.r = toFloat(values[0]);
-                newc.g = toFloat(values[1]);
-                newc.b = toFloat(values[2]);
+                newc.r = strparser.fromStr!(float)(values[0]);
+                newc.g = strparser.fromStr!(float)(values[1]);
+                newc.b = strparser.fromStr!(float)(values[2]);
                 newc.a = 1.0f;
                 if (values.length > 3) {
-                    newc.a = toFloat(values[3]);
+                    newc.a = strparser.fromStr!(float)(values[3]);
                 }
-                *this = newc;
-                return true;
-            } catch (IllegalArgumentException e) {
+                return newc;
+            } catch (strparser.ConversionException e) {
             }
         }
 
         //hex format
-        if (newc.parseHex(s) > 0) {
-            *this = newc;
-            return true;
+        if (newc.parseHex(s) == s.length) {
+            return newc;
         }
 
         //new parsing
@@ -233,21 +228,23 @@ public struct Color {
         char[][] stuff = str.split(s, ",");
 
         if (stuff.length == 0)
-            return false;
+            throw strparser.newConversionException!(Color)(s, "empty string");
 
         foreach (x; stuff) {
             char[][] sub = str.split(x, "=");
             if (sub.length == 1) {
                 auto pcolor = str.tolower(str.strip(sub[0])) in gColors;
                 if (!pcolor)
-                    return false;
+                    throw strparser.newConversionException!(Color)(s,
+                        "possibly unknown color name");
                 newc = *pcolor;
             } else if (sub.length == 2) {
                 float val;
                 try {
-                    val = toFloat(str.strip(sub[1]));
-                } catch (IllegalArgumentException e) {
-                    return false;
+                    val = strparser.fromStr!(float)(str.strip(sub[1]));
+                } catch (strparser.ConversionException e) {
+                    throw strparser.newConversionException!(Color)(s,
+                        "color component not a float");
                 }
                 switch (str.strip(sub[0])) {
                     case "r": newc.r = val; break;
@@ -256,21 +253,21 @@ public struct Color {
                     case "a": newc.a = val; break;
                     case "k": newc.r = newc.g = newc.b = val; break;
                     default:
-                        return false;
+                        throw strparser.newConversionException!(Color)(s,
+                            "unknown color component");
                 }
             } else {
-                return false;
+                throw strparser.newConversionException!(Color)(s);
             }
         }
 
-        *this = newc;
-        return true;
+        return newc;
     }
 
     //try parsing a hexadecimal color value at the start of s (no prefix)
     //Example: 00ff00
     //Garbage may follow the color code; returns number of chars eaten
-    int parseHex(char[] s) {
+    private int parseHex(char[] s) {
         if (s.length > 5) {
             //try reading r/g/b
             uint cnt, tmp;
@@ -296,6 +293,10 @@ public struct Color {
         return 0;
     }
 
+    char[] fromStringRev() {
+        return toString();
+    }
+
     //produce string parseable by parse()
     char[] toString() {
         return myformat("r={}, g={}, b={}, a={}", r, g, b, a);
@@ -305,10 +306,11 @@ public struct Color {
 //a unittest never hurts
 unittest {
     Color p(char[] s) {
-        Color res;
-        bool b = res.parse(s);
-        assert(b);
-        return res;
+        try {
+            return Color.fromString(s);
+        } catch (strparser.ConversionException e) {
+            assert(false, e.toString());
+        }
     }
     assert(p("a=0.2, b=0.4,r=0.8") == Color(0.8, 0, 0.4, 0.2));
     assert(p("a=0.2, b=0.4 ,k=0.8") == Color(0.8, 0.8, 0.8, 0.2));
@@ -317,31 +319,23 @@ unittest {
     gColors["red"] = Color(1,0,0);
     assert(p("red, a=0.8") == Color(1,0,0,0.8));
     assert(p(" red  ,a    = 0.8 ") == Color(1,0,0,0.8));
+    assert(p("00ff00") == Color(0,1.0,0));
 }
 
 //(try to) load each item from node as color
 void loadColors(ConfigNode node) {
     foreach (char[] key, char[] value; node) {
-        Color c;
-        if (c.parse(value))
+        //try {
+            //(not a single expression, because AA key creation)
+            auto c = Color.fromString(value);
             gColors[key] = c;
+        //} catch (strparser.ConversionException e) {
+        //}
     }
 }
 
-//colorparser for boxes (used by the commandline)
-private MyBox parseColorBox(char[] s) {
-    Color res;
-    if (res.parse(s)) {
-        return MyBox.Box(res);
-    }
-    return MyBox();
-}
 
-private char[] unParseColorBox(MyBox b) {
-    return b.unbox!(Color)().toString();
-}
-
+//--------------- idiotic idiocy
 static this() {
-    gBoxParsers[typeid(Color)] = &parseColorBox;
-    gBoxUnParsers[typeid(Color)] = &unParseColorBox;
+    strparser.addStrParser!(Color)();
 }

@@ -59,9 +59,7 @@ class LevelGeneratorShared {
 
         generatorConfig = gConf.loadConfig("levelgenerator");
         foreach (ConfigNode v; generatorConfig.getSubNode("preview_colors")) {
-            Color c;
-            c.parse(v.value);
-            previewColors[parseMarker(v.name)] = c;
+            previewColors[parseMarker(v.name)] = Color.fromString(v.value);
         }
         defaults = generatorConfig.getSubNode("defaults_templates");
         //so that templates can get defaults from other templates, yay
@@ -750,8 +748,7 @@ class LandscapeGenTheme {
                 int height = texNode.getIntValue("height", 1);
                 tex = gFramework.createSurface(Vector2i(1, height),
                     Transparency.None);
-                auto col = Color(0,0,0);
-                col.parse(texNode.getStringValue("color"));
+                auto col = texNode.getValue("color", Color(0,0,0));
                 tex.fill(Rect2i(tex.size), col);
             }
             return tex;

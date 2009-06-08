@@ -8,6 +8,7 @@ import conv = tango.util.Convert;
 import utils.misc;
 import utils.vector2;
 import utils.output;
+import utils.strparser;
 import wwpdata.animation;
 import wwpdata.reader_bnk;
 
@@ -497,10 +498,7 @@ private void loadGeneralW(ConfigNode node) {
                     assert(false, "name:number expected, got: " ~ f);
                 auto n = f[0..sp];
                 auto v = f[sp+1..$];
-                int i = 0;
-                if (!parseInt(v, i)) {
-                    assert(false, "no integer: "~v);
-                }
+                int i = fromStr!(int)(v); //might throw ConversionException
                 intFlags[n] = i;
             }
         }

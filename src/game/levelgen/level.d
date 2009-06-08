@@ -38,13 +38,13 @@ class EnvironmentTheme {
         skyGradient = res.get!(Surface)(node["gradient"], true);
         skyBackdrop = res.get!(Surface)(node["backdrop"], true);
         skyDebris = res.get!(Animation)(node["debris"], true);
-        skyColor.parse(node.getStringValue("skycolor"));
+        skyColor = node.getValue("skycolor", skyColor);
 
         //(sky.d uses skyGradient if it exists anyway)
         if (auto sub = node.findNode("sky_gradient")) {
-            skyGradientTop.parse(sub["top"]);
-            skyGradientHalf.parse(sub["half"]);
-            skyGradientBottom.parse(sub["bottom"]);
+            skyGradientTop = sub.getValue("top", skyGradientTop);
+            skyGradientHalf = sub.getValue("half", skyGradientHalf);
+            skyGradientBottom = sub.getValue("bottom", skyGradientBottom);
         }
     }
 }

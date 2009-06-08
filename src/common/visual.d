@@ -7,6 +7,7 @@ import utils.misc;
 import utils.rect2;
 import utils.vector2;
 import time = utils.time;
+import strparser = utils.strparser;
 import framework.i18n;
 
 ///draw a box with rounded corners around the specified rect
@@ -100,8 +101,8 @@ struct BoxProperties {
     Color border, back = {1,1,1};
 
     void loadFrom(ConfigNode node) {
-        border.parse(node.getStringValue("border"));
-        back.parse(node.getStringValue("back"));
+        border = node.getValue("border", border);
+        back = node.getValue("back", back);
         borderWidth = node.getIntValue("border_width", borderWidth);
         cornerRadius = node.getIntValue("corner_radius", cornerRadius);
     }
@@ -480,8 +481,11 @@ public class FormattedText {
             char[] t;
             if (!readbracket(t))
                 return false;
-            if (c.parse(t))
+            try {
+                c = Color.fromString(t, c);
                 return true;
+            } catch (ConversionException e) {
+            }
             error("color");
             return false;
         }
@@ -499,8 +503,8 @@ public class FormattedText {
             }
             int val;
             try {
-                val = conv.to!(int)(stuff[0]);
-            } catch (conv.ConversionException e) {
+                val = strparser.fromStr!(int)(stuff[0]);
+            } catch (strparser.ConversionException e) {
                 error("size 1");
                 return false;
             }

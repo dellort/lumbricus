@@ -1,7 +1,8 @@
 module utils.time;
 
 import str = stdx.string;
-import utils.misc : toDelegate, myformat, myformat_s;
+import strparser = utils.strparser;
+import utils.misc;
 import tango.util.Convert : to;
 
 //if true, use nanosecond resolution instead of milliseconds
@@ -16,6 +17,7 @@ public struct Time {
 
     public const Time Null = {0};
     //seems to be a convenient hack, remove it if you don't like it
+    //NOTE: exact value is subject to change (but is bound to be a very big)
     public const Time Never = {typeof(timeVal).max};
 
     //create a new Time structure from an internal value
@@ -55,26 +57,23 @@ public struct Time {
         return Time(cast(TType_Int)(timeVal * i));
     }
 
-    ///divide Time value by constant (float)
     public Time opMul(float f) {
-        return Time(cast(TType_Int)(timeVal * f));
+        return *this * cast(double)f;
     }
 
     public Time opMul(double f) {
         return Time(cast(TType_Int)(timeVal * f));
     }
 
-    ///multiply Time value by constant (int)
     public Time opDiv(int i) {
         return Time(cast(TType_Int)(timeVal / i));
     }
 
-    ///multiply Time value by constant (float)
     public Time opDiv(float f) {
         return Time(cast(TType_Int)(timeVal / f));
     }
 
-    public int opDiv(Time t) {
+    public long opDiv(Time t) {
         return timeVal / t.timeVal;
     }
 
@@ -127,12 +126,134 @@ public struct Time {
         }
     }
 
+    //both arrays must be kept synchronized
+    //also, there's this nasty detail that for "ms" must be before "s"
+    //  (ambiguous for fromString())
+    //for fromStringRev, the list must be sorted by time value (ascending)
+    const char[][] cTimeUnitNames = ["ns", "us", "ms", "s", "min", "h"];
+    const Time[] cTimeUnits = [timeNsecs(1), timeMusecs(1), timeMsecs(1),
+        timeSecs(1), timeMins(1), timeHours(1)];
+
+    //format: comma seperated items of "<time> <unit>"
+    //the string can be prepended by a "-" to indicate negative values
+    //<unit> is one of "h", "min", "s", "ms", "us", "ns"
+    //<time> must be an integer... oh wait, float is allowed too
+    //whitespace everywhere allowed
+    //special values: "never" (=> Time.Never) and "0" (=> Time.Null)
+    //example: "1s,30 ms"
+    //if the resolution of Time is worse than ns, some are possibly ignored
     public static Time fromString(char[] s) {
-        //xxx just a float value for seconds, improve
-        return timeSecs(to!(float)(s));
+        s = str.strip(s);
+        bool neg = false;
+        if (startsWith(s, "-")) {
+            neg = true;
+            s = str.strip(s[1..$]);
+        }
+
+        //special strings
+        if (s == "never")
+            return neg ? -Time.Never : Time.Never;
+        if (s == "0")
+            return Time.Null;
+
+        //normal parsing
+        char[][] stuff = str.split(s, ",");
+        if (stuff.length == 0)
+            throw strparser.newConversionException!(Time)(s, "empty string");
+        Time value;
+        foreach (sub; stuff) {
+            sub = str.strip(sub);
+            int unit_idx = -1;
+            foreach (int i, name; cTimeUnitNames) {
+                if (endsWith(sub, name)) {
+                    unit_idx = i;
+                    break;
+                }
+            }
+            if (unit_idx < 0)
+                throw strparser.newConversionException!(Time)(s,
+                    "unknown time unit");
+            Time unit = cTimeUnits[unit_idx];
+            char[] unit_name = cTimeUnitNames[unit_idx];
+            sub = str.strip(sub[0..$-unit_name.length]);
+            Time cur;
+            //try int first, for unrounded results
+            try {
+                cur = unit*strparser.fromStr!(int)(sub);
+            } catch (strparser.ConversionException e1) {
+                try {
+                    cur = unit*strparser.fromStr!(float)(sub);
+                } catch (strparser.ConversionException e2) {
+                    throw strparser.newConversionException!(Time)(s,
+                        "parsing number");
+                }
+            }
+            value += cur;
+        }
+        if (neg)
+            value = -value;
+        return value;
     }
+
+    //NOTE: unlike toString(), the result of this function
+    //  1. is an unrounded, exact representation of the time ("lossless")
+    //  2. is actually parseable by fromString()
     public char[] fromStringRev() {
-        return to!(char[])(secsf);
+        Time cur = *this;
+        char[] res;
+        bool neg = false;
+        if (cur.timeVal < 0) {
+            cur.timeVal = -cur.timeVal;
+            res = "- ";
+        }
+
+        //dumb special case
+        if (cur == Time.Never)
+            return res ~ "never";
+
+        int count = 0; //number of non-0 components so far
+        foreach_reverse(int i, Time t; cTimeUnits) {
+            long c = cur / t;
+            Time rest = cur - c*t;
+            assert(rest.timeVal >= 0);
+            cur = rest;
+            if (c != 0) {
+                if (count)
+                    res ~= ", ";
+                res ~= strparser.toStr(c);
+                res ~= " ";
+                res ~= cTimeUnitNames[i];
+                count++;
+            }
+        }
+
+        if (count == 0)
+            res ~= "0";
+
+        //if there's something left, the lowest time resolution wasn't included
+        //in the cTimeUnits array
+        assert(cur.timeVal == 0);
+        return res;
+    }
+
+    unittest {
+        Time p(char[] s) {
+            return Time.fromString(s);
+        }
+        assert(p("1ns") == timeNsecs(1));
+        assert(p("1ns,3ms,67h") == timeNsecs(1)+timeMsecs(3)+timeHours(67));
+        assert(p("  - 1 ns,  3 ms , 67 h ") ==
+            -(timeNsecs(1)+timeMsecs(3)+timeHours(67)));
+        assert(p("  -  0  ") == Time.Null);
+        assert(p("   never  ") == Time.Never);
+        assert(p("  -  never  ") == -Time.Never);
+        assert(timeNsecs(1).fromStringRev() == "1 ns");
+        assert(timeHms(55, 45, 5).fromStringRev() == "55 h, 45 min, 5 s");
+        assert((-timeHms(55, 45, 5)).fromStringRev() == "- 55 h, 45 min, 5 s");
+        assert(Time.Null.fromStringRev() == "0");
+        assert(Time.Never.fromStringRev() == "never");
+        Trace.formatln("{}", (-Time.Never).fromStringRev());
+        assert((-Time.Never).fromStringRev() == "- never");
     }
 
     ///Get: Time value as nanoseconds
@@ -202,57 +323,36 @@ public struct Time {
 }
 
 ///new Time value from nanoseconds
-public Time timeNsecs(long val) {
+Time timeNsecs(long val) {
     return Time(cNS ? val : val/1000);
 }
 
+//xxx all the following functions might behave incorrectly for large values, lol
+
 ///new Time value from microseconds
-public Time timeMusecs(int val) {
-    return timeMusecs(cast(long)val);
-}
-
-public Time timeMusecs(float val) {
-    return timeMusecs(cast(long)val);
-}
-
-public Time timeMusecs(long val) {
-    return Time(cNS ? val*1000 : val);
+Time timeMusecs(T)(T val) {
+    //return Time(cast(long)(cNS ? val*1000 : val));
+    return timeNsecs(cast(TType_Int)(val*1000));
 }
 
 ///new Time value from milliseconds
-public Time timeMsecs(int val) {
-    return timeMusecs(val*1000);
-}
-
-public Time timeMsecs(float val) {
-    return timeMusecs(val*1000);
+Time timeMsecs(T)(T val) {
+    return timeMusecs(cast(TType_Int)(val*1000));
 }
 
 ///new Time value from seconds
-public Time timeSecs(int val) {
-    return timeMsecs(val*1000);
-}
-
-public Time timeSecs(float val) {
-    return timeMsecs(val*1000);
+Time timeSecs(T)(T val) {
+    return timeMsecs(cast(TType_Int)(val*1000));
 }
 
 ///new Time value from minutes
-public Time timeMins(int val) {
-    return timeSecs(val*60);
-}
-
-public Time timeMins(float val) {
-    return timeSecs(val*60);
+Time timeMins(T)(T val) {
+    return timeSecs(cast(TType_Int)(val*60));
 }
 
 ///new Time value from hours
-public Time timeHours(int val) {
-    return timeMins(val*60);
-}
-
-public Time timeHours(float val) {
-    return timeMins(val*60);
+Time timeHours(T)(T val) {
+    return timeMins(cast(TType_Int)(val*60));
 }
 
 ///new Time value from hours+minutes+seconds
@@ -282,4 +382,10 @@ Time delegate() timeCurrentTimeDg;
 
 static this() {
     timeCurrentTimeDg = toDelegate(&timeCurrentTime);
+}
+
+
+//--------------- idiotic idiocy
+static this() {
+    strparser.addStrParser!(Time)();
 }

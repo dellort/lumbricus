@@ -55,7 +55,7 @@ class ParticleType {
         air_resistance = node.getValue("air_resistance", air_resistance);
         bubble_x = node.getValue("bubble_x", bubble_x);
         bubble_x_h = node.getValue("bubble_x_h", bubble_x_h);
-        color.parse(node["color"]);
+        color = node.getValue("color", color);
         air_resistance = node.getValue("air_resistance", air_resistance);
         emit_delay = node.getValue("emit_delay", emit_delay);
         emit_delay_add_random = node.getValue("emit_delay_add_random",

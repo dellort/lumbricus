@@ -2,15 +2,17 @@
 //(including native types).
 module utils.strparser;
 import utils.mybox;
-import tango.util.Convert : to, ConversionException;
+import tango.util.Convert : to;
 import tango.text.convert.Float : toFloat;
 import tango.core.Exception;
 import str = stdx.string;
 import utils.misc;
-import utils.time;
+//import utils.time;
 //import utils.randval;  doesn't work: cyclic dependency error
 
 import utils.vector2 : Vector2, Vector2i, Vector2f;
+
+public import tango.util.Convert : ConversionException;
 
 //xxx function, should be delegate
 //convention: return empty box if not parseable
@@ -21,6 +23,20 @@ alias char[] function(MyBox box) BoxUnParse;
 
 BoxParseString[TypeInfo] gBoxParsers;
 BoxUnParse[TypeInfo] gBoxUnParsers;
+
+
+///sorry Tango
+///T = the type being parsed (for the fromString() function)
+///parsetext = the string being parsed (for now, the whole string)
+///details = optional human readable error description
+ConversionException newConversionException(T)(char[] parsetext,
+    char[] details = "unknown")
+{
+    return new ConversionException(myformat("Can not parse {}: '{}',"
+        ~ " reason: {}", typeid(T), parsetext, details));
+}
+
+
 
 bool hasBoxParser(TypeInfo info) {
     return !!(info in gBoxParsers);
@@ -53,7 +69,7 @@ char[] boxToString(MyBox box) {
 //throws ConversionException if s could not be parsed, or an overflow occured
 //xxx the tango to() function should do exactly that, but because the tango
 //    runtime is not compiled with the project, template lookup fails
-static T fromStr(T)(char[] s) {
+T fromStr(T)(char[] s) {
     static if (is( typeof(T.fromString(s)) : T )) {
         //Type.fromString()
         return T.fromString(s);
@@ -61,7 +77,8 @@ static T fromStr(T)(char[] s) {
         //to() function
         //we don't support empty strings
         if (s.length == 0)
-            throw new ConversionException("Trying to parse empty string");
+            throw new ConversionException("to!("~T.stringof~"): trying to parse"
+                ~ " empty string");
         return to!(T)(s);
     } else {
         static assert(false, "Cannot parse: "~T.stringof);
@@ -74,12 +91,12 @@ template fromStrSupports(T) {
 
 //reverse of above
 //structs require a fromStringRev() (sry for this name) member
-static char[] toStr(T)(T value) {
+char[] toStr(T)(T value) {
     static if (is( typeof(value.fromStringRev()) == char[] )) {
         //Type.fromStringRev()
         //mostly, value.toString() if for a more "readable" representation
         return value.fromStringRev();
-    } else static if (is( typeof(to!(char[])(T.init)) == char[] )) {
+    } else static if (is( typeof(to!(char[])(value)) == char[] )) {
         //to() function
         return to!(char[])(value);
     } else {
@@ -95,7 +112,7 @@ static this() {
     gBoxUnParsers[typeid(char[])] = &boxUnParseStr;
 
     addTrivialParsers!(byte, int, long, short, ubyte, uint, ulong, ushort,
-        float, double, Vector2i, Vector2f, Time/*, RandomInt,
+        float, double, Vector2i, Vector2f/*, Time, RandomInt,
         RandomFloat*/)();
     addTrivialUnParser!(char)();
 
@@ -110,7 +127,8 @@ private void addTrivialParsers(T...)() {
         addTrivialUnParser!(x)();
     }
 }
-private void addTrivialParser(T)() {
+
+void addTrivialParser(T)() {
     static assert(fromStrSupports!(T));
     gBoxParsers[typeid(T)] = function MyBox(char[] s) {
         try {
@@ -120,11 +138,17 @@ private void addTrivialParser(T)() {
         }
     };
 }
-private void addTrivialUnParser(T)() {
+void addTrivialUnParser(T)() {
     static assert(toStrSupports!(T));
     gBoxUnParsers[typeid(T)] = function char[](MyBox box) {
         return toStr(box.unbox!(T));
     };
+}
+
+//connect our new .fromStr business with box parser
+void addStrParser(T)() {
+    addTrivialParser!(T)();
+    addTrivialUnParser!(T)();
 }
 
 //the nop
@@ -231,6 +255,9 @@ void enumStrings(EnumType, char[] fields)() {
 }
 
 unittest {
+    assert(fromStr!(int)("123") == 123);
+    assert(toStr(123) == "123");
+
     assert(stringToBox!(int)("123").unbox!(int) == 123);
     assert(stringToBox!(int)("abc").type is null);
     assert(stringToBox!(int)("1abc").type is null);

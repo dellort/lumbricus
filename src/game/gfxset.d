@@ -72,7 +72,7 @@ class GfxSet {
         auto watergfx = gResources.loadResources(waterfile);
         addToResourceSet(resources, watergfx.getAll());
 
-        waterColor.parse(waterfile["color"]);
+        waterColor = waterfile.getValue("color", waterColor);
 
         //xxx if you want, add code to load crosshair here
     }
@@ -154,7 +154,7 @@ class TeamTheme {
     this(ResourceSet resources, int index) {
         colorIndex = index;
         char[] colorname = cTeamColors[colorIndex];
-        color.parse("team_" ~ colorname); //if it fails, it is messed up
+        color = Color.fromString("team_" ~ colorname); //if it fails, it is messed up
 
         Resource!(Animation) loadanim(char[] node) {
             return resources.resource!(Animation)(node ~ "_" ~ name());

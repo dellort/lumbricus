@@ -257,16 +257,9 @@ class FontManager {
             font = mNodes.getSubNode("normal");
         }
 
-        Color tmp;
-        if (tmp.parse(font.getStringValue("backcolor"))) {
-            p.back = tmp;
-        }
-        if (tmp.parse(font.getStringValue("bordercolor"))) {
-            p.border_color = tmp;
-        }
-        if (tmp.parse(font.getStringValue("forecolor"))) {
-            p.fore = tmp;
-        }
+        p.back = font.getValue("backcolor", p.back);
+        p.border_color = font.getValue("bordercolor", p.back);
+        p.fore = font.getValue("forecolor", p.fore);
 
         //xxx not needed anymore?
         //p.back.a = font.getFloatValue("backalpha", p.back.a);

@@ -48,7 +48,7 @@ class LandscapeTheme {
 
         void load(char[] name, out Surface s, out Color c) {
             s = res.get!(Surface)(node[name ~ "_tex"], true);
-            c.parse(node.getStringValue(name ~ "_color"));
+            c = node.getValue(name ~ "_color", c);
 
             //throw new what
         }

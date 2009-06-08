@@ -29,8 +29,8 @@ class RayWeapon: ActionWeapon {
         fireMode.variableThrowStrength = false;
         spread = node.getFloatValue("spread", spread);
         lineTime = timeSecs(node.getFloatValue("linetime", lineTime.secs));
-        lineColors[0].parse(node["color1"]);
-        lineColors[1].parse(node["color2"]);
+        lineColors[0] = node.getValue!(Color)("color1");
+        lineColors[1] = node.getValue!(Color)("color2");
     }
 
     //xxx class
