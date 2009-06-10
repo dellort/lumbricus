@@ -45,6 +45,7 @@ class ControllerMsgs : ControllerPlugin {
         Time mLastMsgTime;
         int mMessageCounter;
         GameMessage[] mPendingMessages;
+        ServerTeamMember mLastMember;
     }
 
     //clients register here to receive messages (not serialized)
@@ -85,6 +86,9 @@ class ControllerMsgs : ControllerPlugin {
             case WormEvent.wormActivate:
                 messageAdd("msgwormstartmove", [m.name], m.team,
                     m.team);
+                break;
+            case WormEvent.wormDeactivate:
+                mLastMember = m;
                 break;
             case WormEvent.wormDrown:
                 messageAdd("msgdrown", [m.name], m.team);
@@ -152,7 +156,14 @@ class ControllerMsgs : ControllerPlugin {
 
     private void onVictory(Team winner) {
         if (winner) {
-            messageAdd("msgwin", [winner.name], winner);
+            if (controller.gamemode == "turnbased" && mLastMember
+                && mLastMember.team !is winner)
+            {
+                messageAdd("msgwinstolen", [winner.name, mLastMember.team.name],
+                    winner);
+            } else {
+                messageAdd("msgwin", [winner.name], winner);
+            }
         } else {
             messageAdd("msgnowin");
         }

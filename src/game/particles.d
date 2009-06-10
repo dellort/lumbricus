@@ -85,6 +85,8 @@ class ParticleType {
                 //read both ParticleEmit and ParticleEmit.particle from the same
                 //node, because the additional nesting would be annoying
                 e.initial_speed = s.getValue("initial_speed", e.initial_speed);
+                e.absolute_speed = s.getValue("absolute_speed",
+                    e.absolute_speed);
                 e.emit_probability = s.getValue("emit_probability",
                     e.emit_probability);
                 e.spread_angle = s.getValue("spread_angle", e.spread_angle);
@@ -106,6 +108,7 @@ struct ParticleEmit {
     ParticleType particle;
     //multiplied with speed of emitting particle
     float initial_speed = 1.0f;
+    float absolute_speed = 0f;
     //relative (not absolute) probability, that this particle is selected and
     //emitted from ParticleType.emit
     float emit_probability = 1.0f;
@@ -187,7 +190,10 @@ struct Particle {
         }
 
         if (props.color.a > 0) {
-            c.drawFilledCircle(toVector2i(pos), 2, props.color);
+            Color col = props.color;
+            col.a = props.color.a
+                * max((1.0f - diff.secsf / props.lifetime.secsf), 0);
+            c.drawFilledCircle(toVector2i(pos), 2, col);
         }
 
         //particle emitter here
@@ -229,6 +235,7 @@ struct Particle {
                 //actually emit
                 auto at = pos;
                 auto nvel = velocity*e.initial_speed;
+                nvel += Vector2f(0, -1) * e.absolute_speed;
                 nvel = nvel.rotated(e.spread_angle *
                     (rngShared.nextDouble() - 0.5f));
                 if (e.offset != 0f) {
@@ -372,7 +379,7 @@ class ParticleWorld {
     void explosion(Vector2f pos, float vAdd = 100f, float radius = 50f) {
         foreach (Particle* p; mParticles) {
             float dist = (p.pos - pos).length;
-            if (dist > radius || dist < float.epsilon)
+            if (p.dead || dist > radius || dist < float.epsilon)
                 continue;
             p.velocity += p.props.explosion_influence * (p.pos-pos)/dist
                 * (radius - dist) * vAdd;
@@ -433,8 +440,15 @@ class TestTask : Task {
         }
 
         override void onKeyEvent(KeyInfo info) {
-            if (info.isMouseButton && info.isDown)
-                mWorld.explosion(toVector2f(mousePos()));
+            if (info.isMouseButton && info.isDown) {
+                if (info.code == Keycode.MOUSE_LEFT)
+                    mWorld.explosion(toVector2f(mousePos()));
+                if (info.code == Keycode.MOUSE_RIGHT) {
+                    auto grav = new ParticleGravity(mWorld);
+                    grav.accel = 10f;
+                    grav.pos = toVector2f(mousePos());
+                }
+            }
         }
 
         override void onDraw(Canvas c) {
@@ -461,7 +475,7 @@ class TestTask : Task {
         y.gravity = 0f;
         y.color = Color(0,0,1);
         y.lifetime = timeSecs(3);
-        y.emit_on_death ~= ParticleEmit(x, 2, 1, math.PI*2);
+        y.emit_on_death ~= ParticleEmit(x, 2, 0, 1, math.PI*2);
         y.emit_on_death_count = 6;
         auto z = new ParticleType;
         z.wind_influence = 0.8;
@@ -469,7 +483,7 @@ class TestTask : Task {
         z.gravity = 10f;
         z.emit_delay = 0.5;
         z.emit_count = int.max;
-        z.emit ~= ParticleEmit(y, 0.7f, 1.0f, math.PI/180*60);
+        z.emit ~= ParticleEmit(y, 0.7f, 0, 1.0f, math.PI/180*60);
         for (int n = 0; n < 10; n++) {
             mWorld.emitParticle(Vector2f(50,50), Vector2f(0.2,0.2), z);
         }

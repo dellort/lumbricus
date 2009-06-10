@@ -85,7 +85,7 @@ class ClientAnimationGraphic : Animator {
             setAnimation2(mInfo.animation, mInfo.animation_start);
             last_set_ts = mInfo.set_timestamp;
         }
-        if (mOffArrow) {
+        if (mOffArrow && mInfo.more) {
             //if object is out of world boundaries, show arrow
             if (!mWorldBounds.isInside(pos) && pos.y < mWorldBounds.p2.y) {
                 if (!mOffArrow.parent)
