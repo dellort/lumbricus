@@ -168,7 +168,7 @@ class ActionListClass : ActionClass {
             execType = ALExecType.parallel;
         }
         repeatCount = node.getIntValue("repeat", 1);
-        repeatDelayMs = RandomInt(node.getStringValue("repeat_delay", "0"));
+        repeatDelayMs = node.getValue("repeat_delay", repeatDelayMs);
         //now load contained actions
         foreach (ConfigNode n; node) {
             //xxx added this when ConfigValue was removed
@@ -456,7 +456,7 @@ abstract class Action : GameObject {
 ///TimedAction: simple action that pauses execution for some msecs
 ///can also serve as base class for actions requiring a lifetime
 class TimedActionClass : ActionClass {
-    RandomInt durationMs;
+    RandomInt durationMs = {1000, 1000};
 
     //xxx class
     this (ReflectCtor c) {
@@ -466,7 +466,7 @@ class TimedActionClass : ActionClass {
     }
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
-        durationMs = RandomInt(node.getStringValue("duration","1000"));
+        durationMs = node.getValue("duration", durationMs);
     }
 
     TimedAction createInstance(GameEngine eng) {

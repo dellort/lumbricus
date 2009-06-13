@@ -543,6 +543,7 @@ class SDLDriver : FrameworkDriver {
         mPFScreen = *(mSDLScreen.format);
 
         if (mScreenCanvasGL) {
+            DerelictGL.loadExtensions();
             //xxx move call to GL initialization here
         }
 

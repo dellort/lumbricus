@@ -4,6 +4,7 @@ module framework.sdl.fwgl;
 
 import derelict.opengl.gl;
 import derelict.opengl.glu;
+import derelict.opengl.extension.ext.texture_rectangle;
 import derelict.sdl.sdl;
 import framework.framework;
 import framework.sdl.framework;
@@ -83,6 +84,7 @@ class GLSurface : SDLDriverSurface {
     const GLuint GLID_INVALID = 0;
 
     GLuint mTexId = GLID_INVALID;
+    GLuint mTexType = GL_TEXTURE_2D;
     Vector2f mTexMax;
     Vector2i mTexSize;
     bool mError;
@@ -90,6 +92,8 @@ class GLSurface : SDLDriverSurface {
     //create from Framework's data
     this(SurfaceData* data) {
         super(data);
+        if (EXTTextureRectangle.isEnabled())
+            mTexType = GL_TEXTURE_RECTANGLE_EXT;
         reinit();
     }
 
@@ -124,16 +128,16 @@ class GLSurface : SDLDriverSurface {
 
         //generate texture and set parameters
         glGenTextures(1, &mTexId);
-        glBindTexture(GL_TEXTURE_2D, mTexId);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glBindTexture(mTexType, mTexId);
+        glTexParameteri(mTexType, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(mTexType, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(mTexType, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(mTexType, GL_TEXTURE_WRAP_T, GL_REPEAT);
         checkGLError("texpar", true);
 
         //since GL 1.1, pixels pointer can be null, which will just
         //reserve uninitialized memory
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, mTexSize.x, mTexSize.y, 0,
+        glTexImage2D(mTexType, 0, GL_RGBA, mTexSize.x, mTexSize.y, 0,
             GL_RGBA, GL_UNSIGNED_BYTE, null);
 
         //check for errors (textures larger than maximum size
@@ -149,7 +153,7 @@ class GLSurface : SDLDriverSurface {
 
             //create a red replacement texture so the error is well-visible
             uint red = 0xff0000ff; //wee, endian doesn't matter here
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0,
+            glTexImage2D(mTexType, 0, GL_RGBA, 1, 1, 0,
                 GL_RGBA, GL_UNSIGNED_BYTE, &red);
         } else {
             updateTexture(Rect2i(Vector2i(0),mData.size));
@@ -177,7 +181,7 @@ class GLSurface : SDLDriverSurface {
         glPixelStorei(GL_UNPACK_SKIP_ROWS, rc.p1.y);
         glPixelStorei(GL_UNPACK_SKIP_PIXELS, rc.p1.x);
 
-        glTexSubImage2D(GL_TEXTURE_2D, 0, rc.p1.x, rc.p1.y, rc.size.x,
+        glTexSubImage2D(mTexType, 0, rc.p1.x, rc.p1.y, rc.size.x,
             rc.size.y, GL_RGBA, GL_UNSIGNED_BYTE, texData);
 
         //reset unpack values
@@ -192,7 +196,7 @@ class GLSurface : SDLDriverSurface {
         } else {
             //clip rc to the texture area
             rc.fitInsideB(Rect2i(0,0,mData.size.x,mData.size.y));
-            glBindTexture(GL_TEXTURE_2D, mTexId);
+            glBindTexture(mTexType, mTexId);
             updateTexture(rc);
         }
     }
@@ -202,7 +206,7 @@ class GLSurface : SDLDriverSurface {
     }
 
     void prepareDraw() {
-        glEnable(GL_TEXTURE_2D);
+        glEnable(mTexType);
 
         //activate blending for proper alpha display
         switch (mData.transparency) {
@@ -217,18 +221,18 @@ class GLSurface : SDLDriverSurface {
             default:
         }
 
-        glBindTexture(GL_TEXTURE_2D, mTexId);
+        glBindTexture(mTexType, mTexId);
     }
 
     void endDraw() {
-        glDisable(GL_TEXTURE_2D);
+        glDisable(mTexType);
         glDisable(GL_ALPHA_TEST);
         glDisable(GL_BLEND);
     }
 
     /*
     private void prepareDraw2() {
-        glBindTexture(GL_TEXTURE_2D, mTexId);
+        glBindTexture(mTexType, mTexId);
     }
 
     DrawCache cachePrepare(Texture source, Vector2i destOffset,
@@ -635,34 +639,56 @@ class GLCanvas : Canvas {
         drawTextureInt(source, Vector2i(0,0), source.size, destPos, destSize);
     }
 
-    private static void simpleDraw(Vector2i sourceP, Vector2i destP, Vector2i destS,
-        GLSurface gls, bool mirrorY = false) {
+    private static void simpleDraw(Vector2i sourceP, Vector2i destP,
+        Vector2i destS, GLSurface gls, bool mirrorY = false)
+    {
         Vector2i p1 = destP;
         Vector2i p2 = destP + destS;
-        Vector2f t1, t2;
 
-        //select the right part of the texture (in 0.0-1.0 coordinates)
-        t1.x = cast(float)sourceP.x / gls.mTexSize.x;
-        t1.y = cast(float)sourceP.y / gls.mTexSize.y;
-        t2.x = cast(float)(sourceP.x+destS.x) / gls.mTexSize.x;
-        t2.y = cast(float)(sourceP.y+destS.y) / gls.mTexSize.y;
+        if (EXTTextureRectangle.isEnabled()) {
+            Vector2i t1 = sourceP;
+            Vector2i t2 = sourceP + destS;
+            //draw textured rect
+            glBegin(GL_QUADS);
 
-        //draw textured rect
-        glBegin(GL_QUADS);
+            if (!mirrorY) {
+                glTexCoord2i(t1.x, t1.y); glVertex2i(p1.x, p1.y);
+                glTexCoord2i(t1.x, t2.y); glVertex2i(p1.x, p2.y);
+                glTexCoord2i(t2.x, t2.y); glVertex2i(p2.x, p2.y);
+                glTexCoord2i(t2.x, t1.y); glVertex2i(p2.x, p1.y);
+            } else {
+                glTexCoord2i(t2.x, t1.y); glVertex2i(p1.x, p1.y);
+                glTexCoord2i(t2.x, t2.y); glVertex2i(p1.x, p2.y);
+                glTexCoord2i(t1.x, t2.y); glVertex2i(p2.x, p2.y);
+                glTexCoord2i(t1.x, t1.y); glVertex2i(p2.x, p1.y);
+            }
 
-        if (!mirrorY) {
-            glTexCoord2f(t1.x, t1.y); glVertex2i(p1.x, p1.y);
-            glTexCoord2f(t1.x, t2.y); glVertex2i(p1.x, p2.y);
-            glTexCoord2f(t2.x, t2.y); glVertex2i(p2.x, p2.y);
-            glTexCoord2f(t2.x, t1.y); glVertex2i(p2.x, p1.y);
+            glEnd();
         } else {
-            glTexCoord2f(t2.x, t1.y); glVertex2i(p1.x, p1.y);
-            glTexCoord2f(t2.x, t2.y); glVertex2i(p1.x, p2.y);
-            glTexCoord2f(t1.x, t2.y); glVertex2i(p2.x, p2.y);
-            glTexCoord2f(t1.x, t1.y); glVertex2i(p2.x, p1.y);
-        }
+            //select the right part of the texture (in 0.0-1.0 coordinates)
+            Vector2f t1, t2;
+            t1.x = cast(float)sourceP.x / gls.mTexSize.x;
+            t1.y = cast(float)sourceP.y / gls.mTexSize.y;
+            t2.x = cast(float)(sourceP.x+destS.x) / gls.mTexSize.x;
+            t2.y = cast(float)(sourceP.y+destS.y) / gls.mTexSize.y;
 
-        glEnd();
+            //draw textured rect
+            glBegin(GL_QUADS);
+
+            if (!mirrorY) {
+                glTexCoord2f(t1.x, t1.y); glVertex2i(p1.x, p1.y);
+                glTexCoord2f(t1.x, t2.y); glVertex2i(p1.x, p2.y);
+                glTexCoord2f(t2.x, t2.y); glVertex2i(p2.x, p2.y);
+                glTexCoord2f(t2.x, t1.y); glVertex2i(p2.x, p1.y);
+            } else {
+                glTexCoord2f(t2.x, t1.y); glVertex2i(p1.x, p1.y);
+                glTexCoord2f(t2.x, t2.y); glVertex2i(p1.x, p2.y);
+                glTexCoord2f(t1.x, t2.y); glVertex2i(p2.x, p2.y);
+                glTexCoord2f(t1.x, t1.y); glVertex2i(p2.x, p1.y);
+            }
+
+            glEnd();
+        }
     }
 
     //this will draw the texture source tiled in the destination area

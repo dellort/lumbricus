@@ -28,8 +28,12 @@ class ParticleType {
     //size of bubble arc
     float bubble_x_h = 0f;
 
+    //particle can only exist underwater (e.g. bubbles)
+    bool underwater;
+
     Time lifetime = Time.Never;
-    Animation animation;
+    //list of available animations, one is randomly selected
+    Animation[] animation;
     Color color = Color(0,0,0,0); //temporary hack for drawing
 
     //array of particles that can be emitted (random pick)
@@ -56,6 +60,7 @@ class ParticleType {
         air_resistance = node.getValue("air_resistance", air_resistance);
         bubble_x = node.getValue("bubble_x", bubble_x);
         bubble_x_h = node.getValue("bubble_x_h", bubble_x_h);
+        underwater = node.getValue("underwater", underwater);
         color = node.getValue("color", color);
         air_resistance = node.getValue("air_resistance", air_resistance);
         emit_interval = node.getValue("emit_interval", emit_interval);
@@ -73,9 +78,16 @@ class ParticleType {
         if (t == t)
             lifetime = timeSecs(t);
 
-        auto ani = node["animation"];
-        if (ani.length) {
-            animation = res.get!(Animation)(ani);
+        auto ani = node.getSubNode("animation");
+        if (ani.value.length) {
+            animation.length = 1;
+            animation[0] = res.get!(Animation)(ani.value);
+        } else if (ani.count) {
+            animation.length = 0;
+            char[][] anis = ani.getCurValue!(char[][]);
+            foreach (aid; anis) {
+                animation ~= res.get!(Animation)(aid);
+            }
         }
 
         void read_sub(char[] name, ref ParticleEmit[] t) {
@@ -127,6 +139,7 @@ struct Particle {
     Time start;
     Vector2f pos, velocity;
     float windInfluence;
+    Animation anim;
 
     //multipurpose random value (can be used for anything you want)
     //constant over lifetime of the particle, initialized with nextDouble()
@@ -147,6 +160,10 @@ struct Particle {
         emit_next = props.emit_delay.sample(rngShared);
         windInfluence = props.wind_influence.sample(rngShared);
         random = rngShared.nextDouble();
+        if (props.animation.length > 0) {
+             anim = props.animation[
+                rngShared.next(0, props.animation.length)];
+        }
         //reasonable defaults of other state that gets set anyway?
         pos.x = pos.y = velocity.x = velocity.y = 0f;
     }
@@ -178,15 +195,19 @@ struct Particle {
         pos += add;
         //Trace.formatln("{} {} {}", pos, velocity, deltaT);
 
-        Animation ani = props.animation;
-        if (ani) {
+        if (props.underwater && pos.y < owner.waterLine) {
+            kill();
+            return;
+        }
+
+        if (anim) {
             //die if finished
-            if (ani.finished(diff)) {
+            if (anim.finished(diff)) {
                 kill();
                 return;
             }
             AnimationParams p;
-            ani.draw(c, toVector2i(pos), p, diff);
+            anim.draw(c, toVector2i(pos), p, diff);
         }
 
         if (props.color.a > 0) {
@@ -266,6 +287,7 @@ class ParticleWorld {
         Time mLastFrame = Time.Never;
     }
     float windSpeed = 0f;
+    int waterLine = int.max;
 
     //protection against float rounding errors when using a too small deltaT
     //this is the smallest deltaT possible... or so

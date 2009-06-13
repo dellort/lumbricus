@@ -14,6 +14,7 @@ import game.gamepublic;
 import game.gfxset;
 import game.glevel;
 import game.sequence;
+import game.particles;
 import game.weapon.types;
 import game.weapon.weapon;
 import game.levelgen.level;
@@ -406,6 +407,19 @@ class ClientGameEngine : GameEngineCallback {
 
         PerfTimer mGameDrawTime;
         bool mPaused;
+
+        ParticleWorld mParticles;
+
+        class DrawParticles : SceneObject {
+            override void draw(Canvas canvas) {
+                //update state
+                //engine.windSpeed is -1..1, don't ask me why
+                mParticles.windSpeed = mEngine.windSpeed()*150f;
+                mParticles.waterLine = mEngine.waterOffset();
+                //simulate & draw
+                mParticles.draw(canvas);
+            }
+        }
     }
 
     this(GameEnginePublic engine) {
@@ -430,6 +444,9 @@ class ClientGameEngine : GameEngineCallback {
         cb.nukeSplatEffect ~= &nukeSplatEffect;
         cb.animationEffect ~= &animationEffect;
 
+        mParticles = new ParticleWorld();
+        cb.particleEngine = mParticles;
+
         readd_graphics();
     }
 
@@ -445,6 +462,10 @@ class ClientGameEngine : GameEngineCallback {
         mGameWater = new GameWater(this);
         mGameSky = new GameSky(this);
 
+        SceneObject particles = new DrawParticles();
+        particles.zorder = GameZOrder.Particles;
+        scene.add(particles);
+
         detailLevel = 0;
 
         server_graphics = engine.getGraphics();
@@ -457,6 +478,10 @@ class ClientGameEngine : GameEngineCallback {
 
     GameEnginePublic engine() {
         return mEngine;
+    }
+
+    ParticleWorld particles() {
+        return mParticles;
     }
 
     void kill() {

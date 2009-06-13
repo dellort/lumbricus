@@ -303,7 +303,7 @@ class EarthquakeActionClass : ActionClass {
     int waterRaise = 0;
     bool bounce_objects = false;  //throw worms around
     bool nuke_effect = false;     //display the white-screen effect
-    RandomInt durationMs;
+    RandomInt durationMs = {1000, 1000};
 
     //xxx class
     this (ReflectCtor c) {
@@ -318,7 +318,7 @@ class EarthquakeActionClass : ActionClass {
         waterRaise = node.getValue("water_raise", waterRaise);
         bounce_objects = node.getValue("bounce_objects", bounce_objects);
         nuke_effect = node.getValue("nuke_effect", nuke_effect);
-        durationMs = RandomInt(node.getStringValue("duration","1000"));
+        durationMs = node.getValue("duration", durationMs);
     }
 
     EarthquakeAction createInstance(GameEngine eng) {

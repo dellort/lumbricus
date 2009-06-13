@@ -271,6 +271,8 @@ class ProjectileSpriteClass : ActionSpriteClass {
                 drownstate.physic_properties = drownstate.physic_properties.copy();
                 drownstate.physic_properties.radius = 1;
                 drownstate.physic_properties.collisionID = "waterobj";
+                drownstate.particle = engine.gfx.resources
+                    .get!(ParticleType)("p_projectiledrown");
                 states[drownstate.name] = drownstate;
             }
 

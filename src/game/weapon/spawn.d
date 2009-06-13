@@ -37,7 +37,7 @@ struct SpawnParams {
     bool backFire = false;  //spawn projectiles away from surface
                             //overrides  */
     Vector2f direction ={0f, -1f};//intial moving direction, affects spawn point
-    RandomFloat strength;  //initial moving speed into above direction
+    RandomFloat strength ={0f, 0f};  //initial moving speed into above direction
     char[] initState = "";  //override sprite initstate (careful with that)
 
     bool loadFromConfig(ConfigNode config) {
@@ -62,7 +62,7 @@ struct SpawnParams {
                 initVelocity = InitVelocity.parent;
         }
         direction = config.getValue("direction", direction);
-        strength = RandomFloat(config.getStringValue("strength_value", "0"));
+        strength = config.getValue("strength_value", strength);
         initState = config.getStringValue("initstate", initState);
         return true;
     }

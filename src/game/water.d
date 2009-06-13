@@ -4,9 +4,11 @@ import framework.framework;
 import game.clientengine;
 import game.glevel;
 import game.animation;
+import game.particles;
 import common.scene;
 import utils.misc;
 import utils.time;
+import utils.timer;
 import utils.vector2;
 import utils.configfile;
 import utils.random;
@@ -71,6 +73,8 @@ class GameWater {
     private uint mStoredWaterLevel = uint.max;
     private ClientGameEngine mEngine;
     private bool mSimpleMode = true;
+    private ParticleType mBubbleParticle;
+    private Timer mBubbleTimer;
 
     Vector2i size;
 
@@ -109,11 +113,23 @@ class GameWater {
                 a.scrollMult = 0.0f+i*0.15f;
             }
         //wtf? } catch {};
+        mBubbleParticle = mEngine.resources.get!(ParticleType)("p_waterbubble");
+        mBubbleTimer = new Timer(timeMsecs(50), &spawnBubble,
+            &mEngine.engineTime.current);
+
         simpleMode(mSimpleMode);
+    }
+
+    private void spawnBubble(Timer sender) {
+        auto part = mEngine.particles.createParticle(mBubbleParticle);
+        part.pos.y = size.y;
+        part.pos.x = size.x * rngShared.nextRealOpen;
     }
 
     public void simpleMode(bool simple) {
         mSimpleMode = simple;
+        //no particle bubbles in simple mode
+        mBubbleTimer.enabled = !simple;
         if (mWaveAnim) {
             //make sure to kill all, then
             if (simple) {
@@ -170,6 +186,7 @@ class GameWater {
             animBottom = p;
             mStoredWaterLevel = mEngine.engine.waterOffset;
         }
+        mBubbleTimer.update();
     }
 }
 

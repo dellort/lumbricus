@@ -29,23 +29,6 @@ struct RandomValue(T) {
         return opCall(value, value);
     }
 
-    ///initialize from string like "<min><cRandValSeparator><max>"
-    static RandomValue opCall(char[] s) {
-        uint i = str.locate(s, cRandValSeparator);
-        //not found -> fallback
-        if (i == s.length)
-            i = str.locate(s, cRandValSeparator2);
-        T min, max;
-        //we don't want to detect a '-' at the start as separator
-        if (i > 0 && i < s.length) {
-            min = to!(T)(str.trim(s[0..i]));
-            max = to!(T)(str.trim(s[i+1..$]));
-        } else {
-            min = max = to!(T)(s);
-        }
-        return opCall(min,max);
-    }
-
     ///sample a random value in [min, max]
     T sample(Random rnd) {
         assert(!!rnd);
@@ -73,9 +56,22 @@ struct RandomValue(T) {
             return to!(char[])(min) ~ cRandValSeparator ~ to!(char[])(max);
     }
 
+    ///initialize from string like "<min><cRandValSeparator><max>"
+    //may throw ConversionException
     static RandomValue fromString(char[] s) {
-        //may throw ConversionException
-        return RandomValue!(T)(s);
+        uint i = str.locate(s, cRandValSeparator);
+        //not found -> fallback
+        if (i == s.length)
+            i = str.locate(s, cRandValSeparator2);
+        T min, max;
+        //we don't want to detect a '-' at the start as separator
+        if (i > 0 && i < s.length) {
+            min = to!(T)(str.trim(s[0..i]));
+            max = to!(T)(str.trim(s[i+1..$]));
+        } else {
+            min = max = to!(T)(s);
+        }
+        return opCall(min,max);
     }
 
     char[] fromStringRev() {

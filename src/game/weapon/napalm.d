@@ -114,7 +114,10 @@ class NapalmSprite : ProjectileSprite {
 }
 
 class NapalmSpriteClass : ProjectileSpriteClass {
-    RandomFloat damage, decayTime, initialDelay, repeatDelay;
+    RandomFloat damage = {5f, 5f};
+    RandomFloat decayTime = {5f, 5f};
+    RandomFloat initialDelay = {0, 0};
+    RandomFloat repeatDelay = {0.5f, 0.5f};
     //can't change initState.physic_properties, so reduced radius is put here
     POSP physMedium, physSmall;
     float lightupVelocity = 400;
@@ -125,10 +128,10 @@ class NapalmSpriteClass : ProjectileSpriteClass {
 
     override void loadFromConfig(ConfigNode config) {
         super.loadFromConfig(config);
-        damage = RandomFloat(config.getStringValue("damage","5"));
-        initialDelay = RandomFloat(config.getStringValue("initial_delay","0"));
-        repeatDelay = RandomFloat(config.getStringValue("repeat_delay","0.5"));
-        decayTime = RandomFloat(config.getStringValue("decay_time","5"));
+        damage = config.getValue("damage", damage);
+        initialDelay = config.getValue("initial_delay", initialDelay);
+        repeatDelay = config.getValue("repeat_delay", repeatDelay);
+        decayTime = config.getValue("decay_time", decayTime);
         physMedium = initState.physic_properties.copy;
         physMedium.radius = config.getFloatValue("radius_m", 2);
         physSmall = initState.physic_properties.copy;

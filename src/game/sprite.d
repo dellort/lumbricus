@@ -121,12 +121,17 @@ class GObjectSprite : GameObject {
         }
 
         bool wantparticles = active() && !!currentState.particle;
+        bool newParticle = haveparticles() &&
+            mParticleEmitter.props !is currentState.particle;
 
-        if (haveparticles() != wantparticles) {
+        if (haveparticles() != wantparticles || newParticle) {
             if (!wantparticles) {
                 mParticleEmitter.kill();
                 mParticleEmitter = null;
             } else if (auto particles = engine.callbacks.particleEngine) {
+                if (mParticleEmitter) {
+                    mParticleEmitter.kill();
+                }
                 mParticleEmitter = particles.createParticle(
                     currentState.particle);
             }

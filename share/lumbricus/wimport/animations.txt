@@ -117,8 +117,8 @@ mainspr {
                 mbbomb_particle = "142"
                 pigeon_particle = "f:35; 143"
                 magicbullet_particle = "144"
-                holy_particle = "89"
             }
+            holy_particle = "89"
 
             {
                 _flags = "f:15"
