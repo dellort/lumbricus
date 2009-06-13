@@ -82,7 +82,7 @@ class NapalmSprite : ProjectileSprite {
                 * (0.25 + mDecayPerc*0.75);
             engine.explosionAt(physics.pos, dmg, this);
             mLastDmg += mRepeatDelay;
-            mRepeatDelay = timeSecs(myclass.repeatDelay.sample(engine.rnd));
+            mRepeatDelay = myclass.repeatDelay.sample(engine.rnd);
         }
     }
 
@@ -102,8 +102,8 @@ class NapalmSprite : ProjectileSprite {
 
         assert(type !is null);
         myclass = type;
-        mDecaySecs = myclass.decayTime.sample(engine.rnd);
-        mRepeatDelay = timeSecs(myclass.initialDelay.sample(engine.rnd));
+        mDecaySecs = myclass.decayTime.sample(engine.rnd).secsf;
+        mRepeatDelay = myclass.initialDelay.sample(engine.rnd);
         mLastDmg = engine.gameTime.current;
         lightUp();
     }
@@ -115,9 +115,9 @@ class NapalmSprite : ProjectileSprite {
 
 class NapalmSpriteClass : ProjectileSpriteClass {
     RandomFloat damage = {5f, 5f};
-    RandomFloat decayTime = {5f, 5f};
-    RandomFloat initialDelay = {0, 0};
-    RandomFloat repeatDelay = {0.5f, 0.5f};
+    RandomValue!(Time) decayTime = {timeMsecs(5000), timeMsecs(5000)};
+    RandomValue!(Time) initialDelay = {timeMsecs(0), timeMsecs(0)};
+    RandomValue!(Time) repeatDelay = {timeMsecs(500), timeMsecs(500)};
     //can't change initState.physic_properties, so reduced radius is put here
     POSP physMedium, physSmall;
     float lightupVelocity = 400;

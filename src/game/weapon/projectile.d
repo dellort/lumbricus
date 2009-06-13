@@ -124,6 +124,7 @@ class ProjectileSprite : ActionSprite {
             }
             mTimeLabel.pos = toVector2i(physics.pos) - Vector2i(0, 15);
             int remain = cast(int)(detDelta.secsf + 1.0f);
+            //xxx: prevent allocating memory every frame
             if (remain <= 2)
                 mTimeLabel.msgMarkup = "\\c(team_red)" ~ to!(char[])(remain);
             else
@@ -190,8 +191,8 @@ class ProjectileStateInfo : ActionStateInfo {
     bool useFixedDetonateTime;
     //when glued, consider it as inactive (so next turn can start); i.e. mines
     bool inactiveWhenGlued;
-    Time fixedDetonateTime;
-    Time minimumGluedTime;
+    Time fixedDetonateTime = Time.Never;
+    Time minimumGluedTime = timeSecs(0);
     bool showTimer;
 
     //xxx class
@@ -211,16 +212,11 @@ class ProjectileStateInfo : ActionStateInfo {
 
     private void loadDetonateConfig(ConfigNode sc) {
         auto detonateNode = sc.getSubNode("detonate");
-        minimumGluedTime = timeSecs(detonateNode.getFloatValue("gluetime", 0));
+        minimumGluedTime = detonateNode.getValue("gluetime", minimumGluedTime);
         inactiveWhenGlued = sc.getBoolValue("inactive_when_glued");
-        if (detonateNode["lifetime"] == "$LIFETIME$") {
-            useFixedDetonateTime = false;
-        } else {
-            useFixedDetonateTime = true;
-            //currently in seconds, xxx what about default value?
-            fixedDetonateTime =
-                timeSecs(detonateNode.getFloatValue("lifetime", 999999.0f));
-        }
+        fixedDetonateTime = detonateNode.getValue("lifetime",
+            fixedDetonateTime);
+        useFixedDetonateTime = fixedDetonateTime != Time.Infinite;
         showTimer = sc.getBoolValue("show_timer");
     }
 }

@@ -237,7 +237,7 @@ class ProximitySensorAction : SpriteAction {
 
 class ProximitySensorActionClass : SpriteActionClass {
     float radius;
-    Time triggerDelay;   //time from triggering from firing
+    Time triggerDelay = timeSecs(1);   //time from triggering from firing
     char[] collision, eventId;
 
     //xxx class
@@ -250,7 +250,7 @@ class ProximitySensorActionClass : SpriteActionClass {
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         super.loadFromConfig(eng, node);
         radius = node.getFloatValue("radius",20);
-        triggerDelay = timeSecs(node.getFloatValue("trigger_delay",1.0f));
+        triggerDelay = node.getValue("trigger_delay", triggerDelay);
         collision = node.getStringValue("collision","proxsensor");
         eventId = node.getStringValue("event","ontrigger");
     }
@@ -470,7 +470,7 @@ class StuckTriggerAction : SpriteAction {
 
 class StuckTriggerActionClass : SpriteActionClass {
     float radius;
-    Time triggerDelay;   //time from triggering from firing
+    Time triggerDelay = timeSecs(0.25f);   //time from triggering from firing
     float treshold = 5.0f;
     bool multiple = false;
     char[] collision, eventId;
@@ -484,7 +484,7 @@ class StuckTriggerActionClass : SpriteActionClass {
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         super.loadFromConfig(eng, node);
-        triggerDelay = timeSecs(node.getFloatValue("trigger_delay",0.25f));
+        triggerDelay = node.getValue("trigger_delay", triggerDelay);
         treshold = node.getFloatValue("treshold",treshold);
         multiple = node.getBoolValue("multiple",multiple);
         eventId = node.getStringValue("event","ontrigger");

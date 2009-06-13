@@ -152,7 +152,7 @@ class ActionListClass : ActionClass {
     ALExecType execType = ALExecType.sequential;
     ///number of loops over all actions
     int repeatCount = 1;
-    RandomInt repeatDelayMs = {0, 0};
+    RandomValue!(Time) repeatDelay = {Time.Null, Time.Null};
 
     //xxx class
     this (ReflectCtor c) {
@@ -168,7 +168,8 @@ class ActionListClass : ActionClass {
             execType = ALExecType.parallel;
         }
         repeatCount = node.getIntValue("repeat", 1);
-        repeatDelayMs = node.getValue("repeat_delay", repeatDelayMs);
+        //yyy time range
+        repeatDelay = node.getValue("repeat_delay", repeatDelay);
         //now load contained actions
         foreach (ConfigNode n; node) {
             //xxx added this when ConfigValue was removed
@@ -249,7 +250,7 @@ class ActionList : Action {
             if (onEndLoop)
                 onEndLoop(this);
             mAllDoneTime = engine.gameTime.current;
-            auto delayT = timeMsecs(myclass.repeatDelayMs.sample(engine.rnd));
+            auto delayT = myclass.repeatDelay.sample(engine.rnd);
             mNextLoopTime = mAllDoneTime + delayT;
             mRepCounter--;
             //note: can be <0, which means infinite execution

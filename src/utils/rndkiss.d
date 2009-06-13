@@ -6,6 +6,8 @@ import utils.reflection;
 import utils.time;
 import utils.misc;
 
+import tango.core.Traits : isIntegerType, isRealType;
+
 /******************************************************************************
 
         KISS (via George Marsaglia & Paul Hsieh)
@@ -118,6 +120,26 @@ class Random
         return next(max-min) + min;
     }
 
+    final ulong next_ulong(ulong max) {
+        //xxx: I wonder if this implementation is kosher
+        //tries to avoid expensive 64 bit % if unnecessary
+        if (max <= uint.max) {
+            return next() % cast(uint)max;
+        } else {
+            return (next() | (next() << 32)) % max;
+        }
+    }
+
+    //like next(), but for any integer type
+    //mynext!(int) is hopefully equivalent to next()
+    final T mynext(T)(T min, T max) {
+        static assert(isIntegerType!(T));
+        assert(min != max);
+        if (max < min)
+            swap(max, min);
+        return min + cast(T)next_ulong(max-min);
+    }
+
     //[0.0f, 1.0f]
     final double nextDouble()
     {
@@ -142,15 +164,19 @@ class Random
 
     /// min <= X <= max (works for integer and float types)
     T nextRange(T)(T min, T max) {
-        static if (is(T == float) || is(T == double) || is(T == real))
+        static if (isRealType!(T))
             return min + (max-min)*nextDouble();
-        else
-            static if (is(T == int) || is(T == short) || is(T == byte)) {
-                return cast(T)next(min, max+1);
+        else {
+            static if (isIntegerType!(T)) {
+                assert(max < T.max); //failing case simply doesn't work, args.
+                return mynext!(T)(min, max+1);
             } else {
                 //note: precision will suffer for ranges > 32bit
-                return cast(T)(min + (max-min+1)*nextDouble2());
+                //generic types, that somehow allow interpolation with floats
+                //example: nextRange!(Time)
+                return min + (max-min)*nextDouble();
             }
+        }
     }
 
     /// Randomly permutate the passed array

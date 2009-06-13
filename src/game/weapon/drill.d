@@ -19,14 +19,14 @@ import utils.randval;
 
 //drill (changes worm state etc.)
 class DrillClass : WeaponClass {
-    Time duration;
+    Time duration = timeSecs(5);
     int tunnelRadius = 8;
-    RandomInt interval = {150, 250};
+    RandomValue!(Time) interval = {timeMsecs(150), timeMsecs(250)};
     bool blowtorch = false;
 
     this(GameEngine engine, ConfigNode node) {
         super(engine, node);
-        duration = timeSecs(node.getValue("duration", 5));
+        duration = node.getValue("duration", duration);
         tunnelRadius = node.getValue("tunnel_radius", tunnelRadius);
         blowtorch = node.getValue("blowtorch", blowtorch);
         interval = node.getValue("interval", interval);
@@ -118,7 +118,6 @@ class Drill : Shooter {
         }
         engine.damageLandscape(toVector2i(mWorm.physics.pos + advVec),
             myclass.tunnelRadius, mWorm);
-        mNext = engine.gameTime.current
-            + timeMsecs(myclass.interval.sample(engine.rnd));
+        mNext = engine.gameTime.current + myclass.interval.sample(engine.rnd);
     }
 }

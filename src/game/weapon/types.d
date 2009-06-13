@@ -3,6 +3,7 @@
 module game.weapon.types;
 
 import utils.configfile;
+import utils.randval;
 import utils.time;
 import utils.vector2;
 
@@ -71,19 +72,18 @@ struct FireMode {
                 throwStrengthTo);
         }
         hasTimer = node.getBoolValue("timer");
-        if (hasTimer) {
-            //if you need finer values than seconds, hack this
-            //abusing Vector2f as "range" type xD
-            Vector2f vals = node.getValue("timerrange", Vector2f(0, 0));
-            if (vals[0] != vals[1] && !vals.isNaN()) {
-                timerFrom = timeSecs(vals[0]);
-                timerTo = timeSecs(vals[1]);
-            } else {
-                //xxx what about some kind of error reporting?
-                hasTimer = false;
-            }
+
+        //abusing RandomValue as tange type
+        RandomValue!(Time) vals;
+        vals = node.getValue("timerrange", vals);
+        timerFrom = vals.min;
+        timerTo = vals.max;
+        //some kind of post-validation?
+        if (vals.min == vals.max) {
+            assert(!hasTimer, "user error in .conf file");
         }
-        relaxtime = timeSecs(node.getIntValue("relaxtime", 0));
+
+        relaxtime = node.getValue("relaxtime", relaxtime);
         char[] pm = node.getStringValue("point");
         switch (pm) {
             case "target":
@@ -95,7 +95,11 @@ struct FireMode {
             case "instant_free":
                 point = PointMode.instantFree;
                 break;
+            case "":
+                break;
             default:
+                //no more ignore errors silently
+                assert(false, "user error in .conf file");
         }
     }
 }

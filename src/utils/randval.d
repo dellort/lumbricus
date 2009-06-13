@@ -38,11 +38,12 @@ struct RandomValue(T) {
     }
 
     bool isNull() {
-        return (min == 0) && (max == 0);
+        return (min == T.init) && (max == T.init);
     }
 
     bool isConst() {
-        return min == max;
+        //(wow == doesn't always return bool?)
+        return !!(min == max);
     }
 
     void opAssign(T val) {
@@ -66,10 +67,10 @@ struct RandomValue(T) {
         T min, max;
         //we don't want to detect a '-' at the start as separator
         if (i > 0 && i < s.length) {
-            min = to!(T)(str.trim(s[0..i]));
-            max = to!(T)(str.trim(s[i+1..$]));
+            min = strparser.fromStr!(T)(str.trim(s[0..i]));
+            max = strparser.fromStr!(T)(str.trim(s[i+1..$]));
         } else {
-            min = max = to!(T)(s);
+            min = max = strparser.fromStr!(T)(s);
         }
         return opCall(min,max);
     }

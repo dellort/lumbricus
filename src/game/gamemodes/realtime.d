@@ -21,8 +21,9 @@ class ModeRealtime : Gamemode {
     private {
         //static LogStruct!("gamemodes.mdebug") log;
         bool mGameEndedInt, mGameEnded;
-        Time mCrateInterval, mWaterInterval;
-        Time mGameTime;
+        Time mCrateInterval = timeSecs(10);
+        Time mWaterInterval = timeSecs(15);
+        Time mGameTime = timeSecs(120);
         int mMaxCrates = 10;
         int mSuddenDeathWaterRaise = 32;
 
@@ -40,9 +41,9 @@ class ModeRealtime : Gamemode {
     this(GameController parent, ConfigNode config) {
         super(parent, config);
         mStatus = new RealtimeStatus();
-        mCrateInterval = timeSecs(config.getIntValue("crate_interval", 10));
-        mWaterInterval = timeSecs(config.getIntValue("water_interval", 15));
-        mGameTime = timeSecs(config.getIntValue("gametime", 120));
+        mCrateInterval = config.getValue("crate_interval", mCrateInterval);
+        mWaterInterval = config.getValue("water_interval", mWaterInterval);
+        mGameTime = config.getValue("gametime", mGameTime);
         mMaxCrates = config.getIntValue("maxcrates", mMaxCrates);
         mSuddenDeathWaterRaise = config.getIntValue("water_raise",
             mSuddenDeathWaterRaise);

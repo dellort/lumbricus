@@ -22,13 +22,13 @@ class ModeTurnbased : Gamemode {
         static LogStruct!("gamemodes.turnbased") log;
 
         //time a turn takes
-        Time mTimePerTurn;
+        Time mTimePerTurn = timeSecs(15);
         //extra time before turn time to switch seats etc
-        Time mHotseatSwitchTime;
+        Time mHotseatSwitchTime = timeSecs(5);
         //time the worm can still move after firing a weapon
-        Time mRetreatTime;
+        Time mRetreatTime = timeSecs(5);
         //total time for one game until sudden death begins
-        Time mGameTime;
+        Time mGameTime = timeSecs(300);
         //can the active worm be chosen in prepare state?
         bool mAllowSelect;
         //multi-shot mode (true -> firing a weapon doesn't end the turn)
@@ -53,10 +53,10 @@ class ModeTurnbased : Gamemode {
     this(GameController parent, ConfigNode config) {
         super(parent, config);
         mStatus = new TurnbasedStatus();
-        mTimePerTurn = timeSecs(config.getIntValue("turntime",15));
-        mHotseatSwitchTime = timeSecs(config.getIntValue("hotseattime",5));
-        mRetreatTime = timeSecs(config.getIntValue("retreattime",5));
-        mGameTime = timeSecs(config.getIntValue("gametime",300));
+        mTimePerTurn = config.getValue("turntime", mTimePerTurn);
+        mHotseatSwitchTime = config.getValue("hotseattime", mHotseatSwitchTime);
+        mRetreatTime = config.getValue("retreattime", mRetreatTime);
+        mGameTime = config.getValue("gametime", mGameTime);
         mAllowSelect = config.getBoolValue("allowselect", mAllowSelect);
         mMultishot = config.getBoolValue("multishot", mMultishot);
         mCrateProb = config.getFloatValue("crateprob", mCrateProb);

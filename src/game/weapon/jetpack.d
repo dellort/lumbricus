@@ -18,18 +18,17 @@ import utils.log;
 import utils.misc;
 
 import tango.math.Math : abs;
-import tango.math.IEEE : isInfinity;
 
 
 //jetpack for a worm (special because it changes worm state)
 class JetpackClass : WeaponClass {
     //maximum active time, i.e. fuel
-    float maxSeconds = float.infinity;
+    Time maxTime = Time.Never;
     Vector2f jetpackThrust = {0f, 0f};
 
     this(GameEngine engine, ConfigNode node) {
         super(engine, node);
-        maxSeconds = node.getValue("max_seconds", maxSeconds);
+        maxTime = node.getValue("max_time", maxTime);
         jetpackThrust = node.getValue("jet_thrust", jetpackThrust);
     }
 
@@ -103,7 +102,7 @@ class Jetpack : Shooter, Controllable {
             mMember.releaseControllable(this);
             mWorm.physics.selfForce = Vector2f(0);
         }
-        if (active && !isInfinity(myclass.maxSeconds)) {
+        if (active && myclass.maxTime != Time.Never) {
             mTimeLabel = new TextGraphic();
             mTimeLabel.attach = Vector2f(0.5f, 1.0f);
             engine.graphics.add(mTimeLabel);
@@ -119,7 +118,7 @@ class Jetpack : Shooter, Controllable {
         super.simulate(deltaT);
         //if it was used but it's not active anymore => die
         if (!mWorm.jetpackActivated()
-            || mJetTimeUsed > myclass.maxSeconds)
+            || mJetTimeUsed > myclass.maxTime.secsf)
         {
             mWorm.activateJetpack(false);
             mWorm.physics.selfForce = Vector2f(0);
@@ -131,7 +130,8 @@ class Jetpack : Shooter, Controllable {
             //xxx I'm not gonna copy+paste the crap in crate.d,
             //    pls fix TextGraphic and remove this hack
             mTimeLabel.pos = toVector2i(mWorm.physics.pos) - Vector2i(0, 30);
-            float remain = myclass.maxSeconds - mJetTimeUsed;
+            float remain = myclass.maxTime.secsf - mJetTimeUsed;
+            //xxx prevent reallocating string every frame
             mTimeLabel.msgMarkup = myformat("{:f1}", remain);
         }
 

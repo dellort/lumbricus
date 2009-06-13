@@ -19,6 +19,10 @@ public struct Time {
     //seems to be a convenient hack, remove it if you don't like it
     //NOTE: exact value is subject to change (but is bound to be a very big)
     public const Time Never = {typeof(timeVal).max};
+    //same, "Never" was a bad choice, "Always" would be another choice
+    //of course, this doesn't behave like float.Infinity; if you do calculations
+    //  with it, the special meaning of this value is ignored and destroyed
+    public const Time Infinite = Never;
 
     //create a new Time structure from an internal value
     //not to be called from another class
@@ -151,7 +155,7 @@ public struct Time {
         }
 
         //special strings
-        if (s == "never")
+        if (s == "infinite" || s == "never")
             return neg ? -Time.Never : Time.Never;
         if (s == "0")
             return Time.Null;
@@ -209,7 +213,7 @@ public struct Time {
 
         //dumb special case
         if (cur == Time.Never)
-            return res ~ "never";
+            return res ~ "infinite";
 
         int count = 0; //number of non-0 components so far
         foreach_reverse(int i, Time t; cTimeUnits) {
@@ -246,14 +250,15 @@ public struct Time {
             -(timeNsecs(1)+timeMsecs(3)+timeHours(67)));
         assert(p("  -  0  ") == Time.Null);
         assert(p("   never  ") == Time.Never);
+        assert(p("   infinite  ") == Time.Never);
         assert(p("  -  never  ") == -Time.Never);
         assert(timeNsecs(1).fromStringRev() == "1 ns");
         assert(timeHms(55, 45, 5).fromStringRev() == "55 h, 45 min, 5 s");
         assert((-timeHms(55, 45, 5)).fromStringRev() == "- 55 h, 45 min, 5 s");
         assert(Time.Null.fromStringRev() == "0");
-        assert(Time.Never.fromStringRev() == "never");
+        assert(Time.Never.fromStringRev() == "infinite");
         //Trace.formatln("{}", (-Time.Never).fromStringRev());
-        assert((-Time.Never).fromStringRev() == "- never");
+        assert((-Time.Never).fromStringRev() == "- infinite");
     }
 
     ///Get: Time value as nanoseconds
