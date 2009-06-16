@@ -180,6 +180,13 @@ package {
     WeakList!(Surface, SurfaceKillData) gSurfaces;
 }
 
+//base class for framework errors
+class FrameworkException : Exception {
+    this(char[] msg) {
+        super(msg);
+    }
+}
+
 //enum ImageFormat {
 //    tga,    //lol, no more supported
 //    png,
@@ -542,7 +549,7 @@ class Framework {
         mLog = registerLog("Fw");
 
         if (gFramework !is null) {
-            throw new Exception("Framework is a singleton");
+            throw new FrameworkException("Framework is a singleton");
         }
         gFramework = this;
 
@@ -561,15 +568,15 @@ class Framework {
     private void replaceDriver(ConfigNode config) {
         ConfigNode drivers = config.getSubNode("drivers");
         if (!FrameworkDriverFactory.exists(drivers["base"])) {
-            throw new Exception("Base driver doesn't exist: "
+            throw new FrameworkException("Base driver doesn't exist: "
                 ~ drivers["base"]);
         }
         if (!FontDriverFactory.exists(drivers["font"])) {
-            throw new Exception("Font driver doesn't exist: "
+            throw new FrameworkException("Font driver doesn't exist: "
                 ~ drivers["font"]);
         }
         if (!SoundDriverFactory.exists(drivers["sound"])) {
-            throw new Exception("Sound driver doesn't exist: "
+            throw new FrameworkException("Sound driver doesn't exist: "
                 ~ drivers["sound"]);
         }
         //deinit old driver

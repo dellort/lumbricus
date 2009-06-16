@@ -644,7 +644,9 @@ class TestTask3 : Task {
             Surface img;
             try {
                 img = gFramework.loadImage(fn);
-            } catch (Exception e) {
+            } catch (FilesystemException e) {
+                mValues.text = "couldn't open file, " ~ e.toString;
+            } catch (FrameworkException e) {
                 mValues.text = "couldn't load, " ~ e.toString;
             }
             mView.setSource(img);

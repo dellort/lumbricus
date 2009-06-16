@@ -230,7 +230,7 @@ class LoadSaveHandler {
         Stream st;
         try {
             st = gFS.open(data.path, FileMode.In);
-        } catch (Exception e) {
+        } catch (FilesystemException e) {
             return false;
         }
         scope(exit) st.close();

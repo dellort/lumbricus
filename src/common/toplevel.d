@@ -452,7 +452,7 @@ private:
             fs = args[3].unbox!(bool);
         try {
             gFramework.setVideoMode(Vector2i(a, b), c, fs);
-        } catch (Exception e) {
+        } catch (FrameworkException e) {
             //failed to set video mode, try again in windowed mode
             gFramework.setVideoMode(Vector2i(a, b), c, false);
         }
@@ -468,7 +468,7 @@ private:
                 //toggle fullscreen
                 globals.setVideoFromConf(true);
             }
-        } catch (Exception e) {
+        } catch (FrameworkException e) {
             //fullscreen switch failed
             write.writefln("error: {}", e);
         }

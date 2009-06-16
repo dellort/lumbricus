@@ -179,7 +179,15 @@ private class HandlerDirectory : HandlerInstance {
     }
 }
 
-///Specific MountPointHandler for mounting directories
+//--------------------------------------------------------------------
+//  Code for ZIP support, using tango Vfs functions, follows
+//  Side-note: 5 Tango tickets were created while writing this code
+
+import tango.io.vfs.ZipFolder : ZipFolder;
+import tango.io.vfs.model.Vfs : VfsFolder;
+import ic = tango.io.model.IConduit;
+
+///Specific MountPointHandler for mounting ZIP archives
 private class MountPointHandlerZip : MountPointHandler {
     bool canHandle(char[] absPath) {
         //exisiting files, name ending with ".zip"
@@ -196,14 +204,6 @@ private class MountPointHandlerZip : MountPointHandler {
         FileSystem.registerHandler(new typeof(this)());
     }
 }
-
-//--------------------------------------------------------------------
-//  Code for ZIP support, using tango Vfs functions, follows
-//  Side-note: 5 Tango tickets were created while writing this code
-
-import tango.io.vfs.ZipFolder : ZipFolder;
-import tango.io.vfs.model.Vfs : VfsFolder;
-import ic = tango.io.model.IConduit;
 
 //xxx this hack is just required because we still use the phobos
 //    Stream interface all over the program
@@ -292,7 +292,9 @@ private class HandlerTangoVfs : HandlerInstance {
         bool delegate(char[] filename) callback)
     {
         //xxx I don't know how many useless classes this function creates...
-        scope fld = mVfsFolder.folder(handlerPath.get(false)).open;
+        auto fld = mVfsFolder;
+        if (!handlerPath.isEmpty)
+            fld = mVfsFolder.folder(handlerPath.get(false)).open;
         if (findDir) {
             //direct subfolders
             foreach (subf; fld) {

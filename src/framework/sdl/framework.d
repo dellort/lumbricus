@@ -163,8 +163,8 @@ void doMirrorX(SurfaceData* data) {
             mData.size.y, 32, mData.pitch*4, rgba32.Rmask, rgba32.Gmask,
             rgba32.Bmask, rgba32.Amask);
         if (!mSurface) {
-            throw new Exception(myformat("couldn't create SDL surface, "
-                "size={}", mData.size));
+            throw new FrameworkException(
+                myformat("couldn't create SDL surface, size={}", mData.size));
         }
 
         //lol SDL - need to clear any transparency modes first
@@ -394,8 +394,8 @@ class SDLDriver : FrameworkDriver {
         }
 
         if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0) {
-            throw new Exception(myformat("Could not init SDL video: {}",
-                fromStringz(SDL_GetError())));
+            throw new FrameworkException(myformat(
+                "Could not init SDL video: {}", fromStringz(SDL_GetError())));
         }
 
         //when called before first SetVideoMode, this returns the desktop res
@@ -412,7 +412,7 @@ class SDLDriver : FrameworkDriver {
         ubyte[(32*32)/8] cursor; //init with 0, which means all-transparent
         mCursorNull = SDL_CreateCursor(cursor.ptr, cursor.ptr, 32, 32, 0, 0);
         if (!mCursorNull) {
-            throw new Exception("couldn't create SDL cursor");
+            throw new FrameworkException("couldn't create SDL cursor");
         }
 
         SDL_EnableUNICODE(1);
@@ -805,7 +805,7 @@ class SDLDriver : FrameworkDriver {
         SDL_Surface* surf = IMG_Load_RW(ops, 0);
         if (!surf) {
             auto err = fromStringz(IMG_GetError());
-            throw new Exception("image couldn't be loaded: " ~ err);
+            throw new FrameworkException("image couldn't be loaded: " ~ err);
         }
 
         return convertFromSDLSurface(surf, transparency, true, true);
@@ -898,7 +898,7 @@ class SDLDriver : FrameworkDriver {
                 surf.w, surf.h, mRGBA32.BitsPerPixel, data.pitch*4,
                 mRGBA32.Rmask, mRGBA32.Gmask, mRGBA32.Bmask, mRGBA32.Amask);
             if (!ns)
-                throw new Exception("out of memory?");
+                throw new FrameworkException("out of memory?");
             SDL_SetAlpha(surf, 0, 0);  //lol SDL, disable all transparencies
             //not sure about this, but commenting this seems to work better with
             //paletted+transparent png files (but only in OpenGL mode lol)
