@@ -4,7 +4,6 @@ import framework.framework;
 import framework.font;
 import gui.widget;
 import utils.time;
-import utf = stdx.utf;
 import utils.output;
 import utils.misc : min, max, va_list, formatfx;
 

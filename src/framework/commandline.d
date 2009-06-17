@@ -4,7 +4,6 @@ import framework.framework;
 import framework.event;
 
 import str = stdx.string;
-import utf = stdx.utf;
 
 import utils.misc;
 import utils.mybox;

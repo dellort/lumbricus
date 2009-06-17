@@ -1,7 +1,6 @@
 module utils.misc;
 
 import str = stdx.string;
-import utf = stdx.utf;
 import layout = tango.text.convert.Layout;
 
 public import tango.stdc.stdarg : va_list;

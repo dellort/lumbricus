@@ -13,12 +13,26 @@
 ! besser methode zum auslesen von confignodes (insbesondere mit fehlerbehandlung, so dass ungültige werte nicht still ignoriert werden, beliebige datentypen, user warnen über unbenutzte einträge; vielleicht einfach serialiaiserungscode wiederverwenden)
 - (de)serializer soll strparser verwenden? (aber: inkonsistenz darüber, ob toStr verlustlose repräsentation erzeugen soll)
 - configfile.d so ändern, dass datentypen schon in den nodes/in der syntax deklariert werden? libconfig verwenden?
+! Phobos-Stream-Zeug durch Tango-Zeug ersetzen
 
 == bekannte, lösbare Bugs ==
 - wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
 ! napalm ist sehr langsam, minenagriff nicht => ?
 - Superschaf fliegt auch 15sec weiter, wenn der Wurm nicht mehr dran ist
-- wurm label verschwinden beim savegame-laden? (laut d0c; funktioniert bei mir)
+- wurm label verschwinden beim replay-start (Einfg); hatte auch mal assertion failed gameshell.d, 589 (nicht reproduzierbar)
+- Flammenwerfer braucht 1 Munition für jedes Napalm-Partikel
+- Absauf-Labels zeigen Wurm-Schaden nicht korrekt an
+- Feuerrichtung der "Seil-Waffe" kann geändert werden, während das Anker-Dings rausfliegt
+! Action-Zeug produziert unnötig viele Klassen (Bsp: game.weapon.actions.ExplosionAction)
+- Schwarzes Loch kann ertrinkende Würmer aus dem Wasser saugen; Ideen:
+  a) Unterwasser-Objekte dürfen sich nicht aufwärts bewegen
+  b) Würmern erlauben, das Wasser wieder zu verlassen (und Zustand korrigieren)
+- Bohrer/Lötlampe stoßen Würmer nicht weg
+- Jetpack sollte (wirklich?) den Wurm beim Abstellen stoppen, aber nicht wenn der Spritt ausgeht
+- Kleinere GUI-Fokus-Bugs:
+  a) Bazooka auswählen, so feuern dass man sich selbst trifft, während sie auflädt im Waffenfester draufklicken und Maustaste gedrückt halten -> Button bleibt weiß
+  b) Jetpack aktivieren, nach-oben drücken und halten, Button im Waffenfester klicken und Maustaste halten, nach-oben loslassen -> Wurm fliegt weiter nach oben
+- Projektil fliegt durch wenige Pixel dicke Landschaft, wenn der Wurm beim Feuern direkt davorsteht
 
 
 == GUI (allgemeine Features) ==
@@ -36,6 +50,7 @@
 + Optionsmenü (Sprache, Video, Sound etc.)
 + Locale-Tool ("missing id" finden, Locales vergleichen, aktuelle Locale neu laden)
 - gui muss beim laden von savegames wiederhergestellt werden
++ Waffenfenster wegmachen wenns nicht gebraucht wird (insb. in Höhlenlevels lästig)
 
 
 == Spiellogik/Gameengine ==
@@ -44,13 +59,17 @@
 [- kein Force objekt für explosionen erzeugen]
 - statt aktive Teams aktive TeamMembers
 [- 1-frame bug bei würmern]
-* Spiel über mehrere Runden (Scores, Waffen sammeln, Statistiken, Gesamtsieg)
 + Spiel-Statistiken, insb. Team- und Wurm-bezogene
-+ Mehr Powerup-Kisten (Niedrige Schwerkraft etc.)
++ Mehr Powerup-Kisten (Niedrige Schwerkraft etc.), evtl. etwas "enthacken" (siehe z.B. controller.d, 1619)
++ Kistenregen im turnbased-Modus (Kisten, die sich während dem Zug herbeamen)
 *** KI
 *** Scripting
 
 == Spiel-Anzeige (Grafiken, Präsentation) ==
++ Partikel-Effekt für Explosionen, Wurm-nimmt-Schaden, kleine Explosionen (z.B. Minigun-Einschläge)
++ Partikel, die auf Sprite-Ereignisse reagieren (Kollision, Rutschen, Kontakt mit Wasser etc.)
++ Partikel-Modifikations-Effekte (Explosion, Schwarzes Loch) in Spiel-Engine integrieren
++ Feuer-, Nachlade-, Wegsteckanimationen (kann evtl. in worm.d gehackt werden, statt sequence)
 * sounds
 * "stub" gpl daten (strichmännchen)
 *** gpl daten (vollständig)
@@ -61,18 +80,23 @@
 + Superwaffen (Teppichangriff, MB-Bombe etc.)
 + Lokale-Suche-Waffen (Taube, Zauberkugel)
 + Fallschirm, Bungee
++ Einfrieren
 
 - Napalm verbessern (Ruckeln verhindern, Würmer mehr wegstoßen, vll. etwas "klebriger" machen)
 - Molotov-Cocktail brennt über mehrere Züge
 + Luftangriff-Steuerung (Mauszeiger, links/rechts)
++ Waffen mit mehreren Schuss pro Munitions-Einheit (z.B. Schrotflinte); siehe "Flammenwerfer" bei bekannte Bugs
++ Waffen-Cooldown (z.B. für Napalmangriff; Wartezeit von x Sek. bis zum nächsten Schuss, Waffe bleibt aber ausgewählt)
 
 ! Steuerung entrümpeln, unabhängig von Würmern machen (worm.d)
+
 
 == level generator ==
 ! generator.d: reduziere komplexität indem "generierte" level nur noch als lexel-array gespeichert werden (statt als gefüllte polygone); verschiebe das laden/speichern von savegames(bzw. netzwerk level) nach level.d; mache strukturen in level.d vllt. serialisierbar (statt manueller lade/speicher code); in generator.d würde nur noch code zum rendern bleiben + müllcode zum laden und speichern von templates (lol leveledit.d); vllt. savegames/netzwerklevels immer als komplette bitmap speichern?; danach kann glevel.d das zeug aus level.d direkt verwenden und ist weniger hackig
 - hashcheck für savegames und insbesondere netzwerklevels
 + beliebige game objekte in vorgenerierten leveln (ähnlich minen, aber vom leveldesigner platziert, beispiel: feste levelränder als objekte)
 - Objekt-/Brückenplatzierung überarbeiten (Decke, Wand links/rechts etc.)
+
 
 == Netzwerk ==
 [- Teams: Waffenset-Zuordnung, Lebenspunkte vom Server behandeln bzw. überprüfen,

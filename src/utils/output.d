@@ -1,6 +1,5 @@
 module utils.output;
 
-import stdx.utf;
 import stdx.stream;
 import utils.misc : formatfx_s, va_list, Trace;
 import ic = tango.io.model.IConduit;
