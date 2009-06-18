@@ -1,6 +1,6 @@
 module utils.path;
 
-import str = stdx.string;
+import str = utils.string;
 import tango.io.model.IFile : FileConst;
 import path = tango.io.Path;
 import tfs = tango.io.FileSystem;

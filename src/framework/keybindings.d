@@ -5,7 +5,7 @@ import framework.event;
 import config = utils.configfile;
 import utils.misc;
 import utils.vector2;
-import str = stdx.string;
+import str = utils.string;
 
 /// Map key combinations to IDs (strings).
 public class KeyBindings {

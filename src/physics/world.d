@@ -1,6 +1,5 @@
 module physics.world;
 
-import str = stdx.string;
 import tango.math.Math : sqrt, PI;
 import utils.misc;
 import utils.array;

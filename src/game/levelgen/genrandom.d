@@ -10,7 +10,6 @@ import tango.math.Math : PI;
 import utils.random : rngShared;
 import utils.configfile : ConfigNode;
 import utils.misc : myformat;
-import str = stdx.string;
 import utils.serialize : floatToHex; //right function from wrong module
 
 //about textures: currently marker implies texture

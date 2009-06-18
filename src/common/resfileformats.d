@@ -1,8 +1,9 @@
 ///description of the binary file formats produced used for some resources
 module common.resfileformats;
 
-import str = stdx.string: toString, split;
+import str = utils.string;
 import tango.util.Convert;
+import utils.misc;
 
 struct FileAtlasTexture {
 align(1):
@@ -12,9 +13,7 @@ align(1):
     short _pad0;//align to next power of 2 lol
 
     char[] toString() {
-        return str.toString(x) ~ ' ' ~ str.toString(y) ~ ' '
-            ~ str.toString(w) ~ ' ' ~ str.toString(h) ~ ' '
-            ~ str.toString(page);
+        return myformat("{} {} {} {} {}", x, y, w, h, page);
     }
 
     static FileAtlasTexture parseString(char[] s) {

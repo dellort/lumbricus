@@ -26,7 +26,7 @@ import game.gfxset;
 
 import math = tango.math.Math;
 import ieee = tango.math.IEEE;
-import str = stdx.string;
+import str = utils.string;
 
 static void function(GameEngine engine, ConfigNode from)[char[]]
     loaders;

@@ -16,8 +16,8 @@ import utils.mybox;
 import utils.misc;
 import utils.log;
 
-import str = stdx.string;
 import stdx.stream;
+import str = utils.string;
 
 const cSavegamePath = "/savegames/";
 const cSavegameExt = ".tar";
@@ -60,7 +60,7 @@ SavegameData[] listAvailableSavegames() {
     SavegameData[] list;
     gFS.listdir(cSavegamePath, "*", false,
         (char[] filename) {
-            if (endsWith(filename, cSavegameExt)) {
+            if (str.endsWith(filename, cSavegameExt)) {
                 try {
                     auto s = SavegameData(cSavegamePath ~ filename);
                     list ~= s;
@@ -91,7 +91,7 @@ SavegameData createSavegame(char[] taskId, char[] name, char[] description,
     ret.path = gFS.getUniqueFilename(cSavegamePath,
         taskId ~ "_" ~ name ~ "{0:d3}", cSavegameExt, i);
     if (i > 0)
-        name ~= " (" ~ str.toString(i+1) ~ ")";
+        name ~= myformat(" ({})", i+1);
     //open the savegame file for writing
     scope st = gFS.open(ret.path, FileMode.OutNew);
     scope writer = new TarArchive(st, false);

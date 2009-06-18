@@ -23,6 +23,8 @@ import stdx.stream;
 import tango.stdc.stringz;
 import tango.sys.Environment;
 
+import str = utils.string;
+
 version = MarkAlpha;
 
 package uint simpleColorToSDLColor(SDL_Surface* s, Color color) {
@@ -966,7 +968,7 @@ class SDLDriver : FrameworkDriver {
         desc ~= "Screen:\n";
         desc ~= myformat("   size = {}x{}\n", info.current_w, info.current_h);
         desc ~= myformat("   video memory = {}\n",
-            sizeToHuman(info.video_mem));
+            str.sizeToHuman(info.video_mem));
         SDL_PixelFormat* fmt = info.vfmt;
         desc ~= myformat("   pixel format = {}\n", pixelFormatToString(fmt));
 

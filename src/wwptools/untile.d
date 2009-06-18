@@ -1,11 +1,11 @@
 module wwptools.untile;
 
 import devil.image;
-import str = stdx.string;
 import stdx.stream;
 import utils.configfile;
 import utils.output : TangoStreamOutput; //silly wrapper
 import utils.filetools;
+import utils.misc;
 
 import tango.io.FilePath;
 import tango.io.vfs.model.Vfs;
@@ -57,7 +57,7 @@ void do_untile(Image img, char[] filename, VfsFolder destFolder, char[] imgPath,
         if (namefile) {
             return nameHead ~ namefile.readLine() ~ nameTail;
         } else {
-            return nameHead ~ fnbase ~ nameTail ~ str.toString(sNameIdx++);
+            return nameHead ~ fnbase ~ nameTail ~ myformat("{}", sNameIdx++);
         }
     }
 

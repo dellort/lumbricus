@@ -1,6 +1,5 @@
 module utils.mybox;
 
-import str = stdx.string;
 import utils.misc;
 
 class MyBoxException : Exception {

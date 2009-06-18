@@ -9,7 +9,7 @@ import utils.configfile;
 import utils.reflection;
 import utils.misc;
 
-import str = stdx.string;
+import str = utils.string;
 import tango.util.Convert;
 
 //for loading from ConfigNode

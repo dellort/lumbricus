@@ -5,7 +5,6 @@ import utils.reflection;
 import utils.misc;
 import utils.queue;
 
-import str = stdx.string;
 import conv = tango.util.Convert;
 import tango.core.Traits : isIntegerType;
 

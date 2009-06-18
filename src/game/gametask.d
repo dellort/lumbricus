@@ -64,7 +64,6 @@ import utils.perf;
 import game.serialize_register : initGameSerialization;
 
 import stdx.stream;
-import str = stdx.string;
 
 //these imports register classes in a factory on module initialization
 import game.weapon.projectile;
@@ -161,7 +160,7 @@ class GameTask : StatefulTask {
         return mGameShell.paused;
     }
     private void gamePaused(bool set) {
-        mControl.executeCommand("set_pause "~str.toString(set));
+        mControl.executeCommand(myformat("set_pause {}", set));
     }
 
     //not happy with this; but who cares
@@ -560,7 +559,7 @@ class GameTask : StatefulTask {
         float val = args[0].unbox!(float);
         if (setgame) {
             write.writefln("set slowdown: game={}", val);
-            mControl.executeCommand("slow_down " ~ str.toString(val));
+            mControl.executeCommand(myformat("slow_down {}", val));
         }
         if (setani) {
             write.writefln("set slowdown: client={}", val);

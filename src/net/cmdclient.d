@@ -15,7 +15,7 @@ import utils.misc;
 import utils.log;
 import utils.vector2;
 
-import str = stdx.string;
+import str = utils.string;
 import tango.util.Convert;
 
 enum ClientState {

@@ -1,5 +1,4 @@
 module utils.array;
-import utf = stdx.utf;
 import utils.misc;
 
 //aaIfIn(a,b) works like a[b], but if !(a in b), return null
@@ -254,28 +253,4 @@ unittest {
     should.sort;
     arraySort(foo, (int a, int b) {return a <= b;});
     assert(foo == should);
-}
-
-//utf-8 strings are arrays too
-
-/// Return the index of the character following the character at "index"
-int charNext(char[] s, int index) {
-    assert(index >= 0 && index <= s.length);
-    if (index == s.length)
-        return s.length;
-    return index + utf.stride(s, index);
-}
-/// Return the index of the character prepending the character at "index"
-int charPrev(char[] s, int index) {
-    assert(index >= 0 && index <= s.length);
-    debug if (index < s.length) {
-        //assert valid UTF-8 character (stride will throw an exception)
-        utf.stride(s, index);
-    }
-    //you just had to find the first char starting with 0b0... or 0b11...
-    //but this was most simple
-    foreach_reverse(int byteindex, dchar c; s[0..index]) {
-        return byteindex;
-    }
-    return 0;
 }

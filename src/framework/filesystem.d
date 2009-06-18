@@ -1,6 +1,6 @@
 module framework.filesystem;
 
-import str = stdx.string;
+import str = utils.string;
 import stdx.stream;
 import tango.util.PathUtil;
 import tpath = tango.io.Path;
@@ -787,11 +787,12 @@ class FileSystem {
 
         int i = 0;
         char[] fn, ret;
-        do {
+        /+do {
             i++;
             fn = myformat(nameTemplate, i);
         } while (exists(ret = path //detect invalid characters in name by str.tr
-            ~ str.tr(fn, cValidChars, "_", "c") ~ ext))
+            ~ str.tr(fn, cValidChars, "_", "c") ~ ext))+/
+        assert(false, "please fix me"); //I'm not going to rewrite that arrrgh
         tries = i-1;
         return ret;
     }

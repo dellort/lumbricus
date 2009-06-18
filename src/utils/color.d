@@ -6,7 +6,7 @@ import utils.mybox;
 import utils.misc;
 
 import math = tango.math.Math;
-import str = stdx.string;
+import str = utils.string;
 import tango.text.convert.Integer : convert;
 
 //predefined colors - used by the parser
@@ -320,6 +320,7 @@ unittest {
     assert(p("red, a=0.8") == Color(1,0,0,0.8));
     assert(p(" red  ,a    = 0.8 ") == Color(1,0,0,0.8));
     assert(p("00ff00") == Color(0,1.0,0));
+    assert(p("1   0.5 0.5") == Color(1,0.5,0.5));
 }
 
 //(try to) load each item from node as color

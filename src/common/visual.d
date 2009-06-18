@@ -8,6 +8,7 @@ import utils.rect2;
 import utils.vector2;
 import time = utils.time;
 import strparser = utils.strparser;
+import str = utils.string;
 import framework.i18n;
 
 ///draw a box with rounded corners around the specified rect
@@ -426,7 +427,7 @@ public class FormattedText {
     //utf-8 and line breaks
     private void parseLiteral(char[] txt) {
         while (txt.length) {
-            char[][] breaks = split2(txt, '\n');
+            char[][] breaks = str.split2(txt, '\n');
             mParts[$-1].text ~= breaks[0];
             txt = null;
             if (breaks[1].length) {
@@ -451,14 +452,11 @@ public class FormattedText {
         }
 
         bool tryeat(char[] t) {
-            if (!startsWith(txt, t))
-                return false;
-            txt = txt[t.length .. $];
-            return true;
+            return str.eatStart(txt, t);
         }
 
         bool readdelim(ref char[] res, char delim) {
-            auto stuff = split2(txt, delim);
+            auto stuff = str.split2(txt, delim);
             if (!stuff[1].length) {
                 error("'" ~ delim ~ "' not found");
                 return false;
@@ -615,7 +613,7 @@ public class FormattedText {
         mTextIsFormatted = true;
         doInit();
         while (txt.length > 0) {
-            auto stuff = split2(txt, '\\');
+            auto stuff = str.split2(txt, '\\');
             txt = null;
             parseLiteral(stuff[0]);
             if (stuff[1].length) {

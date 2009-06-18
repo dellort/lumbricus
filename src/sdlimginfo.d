@@ -4,7 +4,7 @@ import derelict.sdl.sdl;
 import derelict.sdl.image;
 
 import tango.io.Stdout;
-import str = stdx.string;
+import tango.stdc.stringz : toStringz;
 
 //take a filename as argument, load it with sdl_image, output pixelformat
 //useful for debugging
@@ -12,7 +12,7 @@ void main(char[][] args) {
     DerelictSDL.load();
     DerelictSDLImage.load();
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_Surface* s = IMG_Load(str.toStringz(args[1]));
+    SDL_Surface* s = IMG_Load(toStringz(args[1]));
     Stdout.formatln("size: {}x{}", s.w, s.h);
     SDL_PixelFormat* f = s.format;
     Stdout.formatln("format: bits/bytes {}/{}, r/g/b/a mask {}/{}/{}/{}",

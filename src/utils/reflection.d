@@ -2,7 +2,7 @@
 module utils.reflection;
 
 import tango.stdc.ctype : isalnum;
-import str = stdx.string;
+import str = utils.string;
 import utils.misc;
 import utils.mybox;
 
@@ -1309,8 +1309,8 @@ class DefineClass {
         char[] names = obj.tupleof.stringof;
         const cPrefix = "tuple(";
         const cSuffix = ")";
-        assert (startsWith(names, cPrefix));
-        assert (endsWith(names, cSuffix));
+        assert (str.startsWith(names, cPrefix));
+        assert (str.endsWith(names, cSuffix));
         names = names[cPrefix.length .. $ - cSuffix.length];
         char[][] parsed_names = str.split(names, ",");
         assert (parsed_names.length == member_count);
@@ -1320,7 +1320,7 @@ class DefineClass {
             if (name.length && name[0] == '(' && name[$-1] == ')')
                 name = name[1 .. $-1];
             char[] objstr = obj.stringof;
-            assert (startsWith(name, objstr));
+            assert (str.startsWith(name, objstr));
             name = name[objstr.length .. $];
             assert (name.length > 0 && name[0] == '.');
             name = name[1 .. $];

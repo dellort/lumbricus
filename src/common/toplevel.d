@@ -1,7 +1,6 @@
 //connects GUI, Task-stuff and the framework; also contains general stuff
 module common.toplevel;
 
-import str = stdx.string;
 import framework.font;
 import framework.keysyms;
 import framework.framework;
@@ -700,6 +699,7 @@ class ConsoleWindow : Task {
 
 import gui.tablecontainer;
 import gui.label;
+import str = utils.string;
 
 class StatsWindow : Task {
     TopLevel bla;
@@ -758,8 +758,8 @@ class StatsWindow : Task {
             gc.GCStats gcs;
             gc.getStats(gcs);
 
-            setLine(0, "GC Used", sizeToHuman(gcs.usedsize, getLineBuffer(0)));
-            setLine(1, "GC Poolsize", sizeToHuman(gcs.poolsize, getLineBuffer(1)));
+            setLine(0, "GC Used", str.sizeToHuman(gcs.usedsize, getLineBuffer(0)));
+            setLine(1, "GC Poolsize", str.sizeToHuman(gcs.poolsize, getLineBuffer(1)));
             setLine(2, "Weak objects", myformat_s(getLineBuffer(2), "{}",
                 gFramework.weakObjectsCount));
 

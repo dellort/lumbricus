@@ -12,7 +12,6 @@ import utils.rect2;
 import utils.time;
 import utils.log;
 
-import str = stdx.string;
 
 class Container : Widget {
     private {

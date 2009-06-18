@@ -22,7 +22,6 @@ import utils.configfile;
 import utils.reflection;
 import tango.math.Math;
 import tango.util.Convert;
-import str = stdx.string;
 
 ///Base class for stuff in crates that can be collected by worms
 class Collectable {

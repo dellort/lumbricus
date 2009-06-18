@@ -23,7 +23,6 @@ import utils.misc;
 import drawing = utils.drawing;
 import rand = utils.random;
 
-import str = stdx.string;
 import tango.math.Math : abs;
 
 enum DrawMode {

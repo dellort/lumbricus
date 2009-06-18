@@ -12,8 +12,6 @@ import physics.misc;
 import physics.geometry;
 import physics.links;
 
-import str = stdx.string;
-
 //version = WalkDebug;
 version = PhysDebug;
 

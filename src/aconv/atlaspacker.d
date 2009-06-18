@@ -1,7 +1,6 @@
 module aconv.atlaspacker;
 
 import devil.image;
-import str = stdx.string;
 import stdx.stream;
 import wwpdata.common;
 import common.resfileformats : FileAtlas, FileAtlasTexture;
@@ -81,7 +80,7 @@ class AtlasPacker {
 
         foreach (int i, img; mPageImages) {
             char[] pagefn, pagepath;
-            pagefn = "page_" ~ str.toString(i);
+            pagefn = myformat("page_{}", i);
             pagepath = outPath ~ pathsep ~ fnBase;
             trymkdir(pagepath);
             img.save(pagepath ~ pathsep ~ pagefn ~ ".png");
@@ -100,7 +99,7 @@ class AtlasPacker {
             .getSubNode(fnBase);
         auto pageNode = resNode.getSubNode("pages");
         for (int i = 0; i < mPageImages.length; i++) {
-            pageNode.add("", fnBase ~ "/page_" ~ str.toString(i) ~ ".png");
+            pageNode.add("", myformat("{}/page_{}.png", fnBase, i));
         }
 
         if (textualMeta) {

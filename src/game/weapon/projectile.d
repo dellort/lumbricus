@@ -13,7 +13,6 @@ import game.gamepublic;
 import game.particles : ParticleType;
 import game.weapon.weapon;
 import tango.math.Math;
-import str = stdx.string;
 import tango.util.Convert : to;
 import utils.misc;
 import utils.vector2;

@@ -1,6 +1,5 @@
 module utils.misc;
 
-import str = stdx.string;
 import layout = tango.text.convert.Layout;
 
 public import tango.stdc.stdarg : va_list;
@@ -22,36 +21,6 @@ void swap(T)(inout T a, inout T b) {
     T t = a;
     a = b;
     b = t;
-}
-
-bool startsWith(char[] str, char[] prefix) {
-    if (str.length < prefix.length)
-        return false;
-    return str[0..prefix.length] == prefix;
-}
-
-bool endsWith(char[] str, char[] suffix) {
-    if (str.length < suffix.length)
-        return false;
-    return str[$-suffix.length..$] == suffix;
-}
-
-//return an array of length 2 (actual return type should be char[][2])
-//result[1] contains everything in txt after (and including) find
-//result[0] contains the rest (especially if nothing found)
-//  split2("abcd", 'c') == ["ab", "cd"]
-//  split2("abcd", 'x') == ["abcd", ""]
-//(sadly allocates memory for return array)
-char[][] split2(char[] txt, char find) {
-    int idx = str.find(txt, find);
-    char[] before = txt[0 .. idx >= 0 ? idx : $];
-    char[] after = txt[before.length .. $];
-    return [before, after];
-}
-
-unittest {
-    assert(split2("abcd", 'c') == ["ab", "cd"]);
-    assert(split2("abcd", 'x') == ["abcd", ""]);
 }
 
 //clamp to closed range, i.e. val is adjusted so that it fits into [low, high]
@@ -121,6 +90,7 @@ char[] formatfx(char[] a_fmt, TypeInfo[] arguments, va_list argptr) {
 
 //replacement for stdx.string.format()
 //trivial, but Tango really is annoyingly noisy
+//should be in utils.string, but ugh the required changes
 char[] myformat(char[] fmt, ...) {
     return formatfx(fmt, _arguments, _argptr);
 }
@@ -155,54 +125,6 @@ char[] formatfx_s(char[] buffer, char[] fmt, TypeInfo[] arguments,
 //if the buffer is too small, allocate a new one
 char[] myformat_s(char[] buffer, char[] fmt, ...) {
     return formatfx_s(buffer, fmt, _arguments, _argptr);
-}
-
-/// number of bytes to a string like "number XX", where XX is "B", "KB" etc.
-/// buffer = if long enough, use this instead of allocating memory
-char[] sizeToHuman(long bytes, char[] buffer = null) {
-    const char[][] cSizes = ["B", "KB", "MB", "GB"];
-    int n;
-    long x;
-    x = 1;
-    while (bytes >= x*1024 && n < cSizes.length-1) {
-        x = x*1024;
-        n++;
-    }
-    char[80] buffer2 = void;
-    char[] s = myformat_s(buffer2, "{:f3}", 1.0*bytes/x);
-    //strip ugly trailing zeros (replace with a better way if you know one)
-    if (str.find(s, '.') >= 0) {
-        while (s[$-1] == '0')
-            s = s[0..$-1];
-        if (endsWith(s, "."))
-            s = s[0..$-1];
-    }
-    return myformat_s(buffer, "{} {}", s, cSizes[n]);
-}
-
-unittest {
-    assert(sizeToHuman(0) == "0 B");
-    assert(sizeToHuman(1023) == "1023 B");
-    assert(sizeToHuman(1024) == "1 KB");
-    assert(sizeToHuman((1024+512)*1024) == "1.5 MB");
-}
-
-char[][] ctfe_split(char[] s, char sep) {
-    char[][] ps;
-    bool cont = true;
-    while (cont) {
-        cont = false;
-        for (int n = 0; n < s.length; n++) {
-            if (s[n] == sep) {
-                ps ~= s[0..n];
-                s = s[n+1..$];
-                cont = true;
-                break;
-            }
-        }
-    }
-    ps ~= s;
-    return ps;
 }
 
 //functions cannot return static arrays, so this gets the equivalent

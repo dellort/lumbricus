@@ -18,7 +18,6 @@ import utils.log;
 import utils.array;
 import utils.factory;
 import stdx.stream;
-import str = stdx.string;
 import utils.random : rngShared;
 import utils.misc;
 

@@ -3,7 +3,7 @@ module framework.commandline;
 import framework.framework;
 import framework.event;
 
-import str = stdx.string;
+import str = utils.string;
 
 import utils.misc;
 import utils.mybox;

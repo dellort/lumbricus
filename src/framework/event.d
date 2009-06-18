@@ -2,7 +2,6 @@
 module framework.event;
 
 import utils.vector2;
-import str = stdx.string;
 import utils.misc : myformat;
 public import framework.keysyms;
 

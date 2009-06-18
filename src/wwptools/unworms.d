@@ -3,7 +3,6 @@ module wwptools.unworms;
 import devil.image;
 import stdx.stream;
 import tango.io.Stdout;
-import str = stdx.string;
 import wwpdata.reader;
 import wwpdata.reader_bnk;
 import wwpdata.reader_dir;

@@ -11,7 +11,7 @@ import utils.mybox;
 import utils.color : Color;
 
 import tango.core.Array : sort, find;
-import str = stdx.string;
+import str = utils.string;
 
 alias StaticFactory!("style_values", StyleValue, Styles, char[], ConfigNode)
     StyleValueFactory;
@@ -551,7 +551,7 @@ class StyleValueScalar(T, bool mul = true, bool add = true) : StyleValueT!(T) {
 
     private void parse(char[] src) {
         static if (mul) {
-            if (endsWith(src, "%")) {
+            if (str.endsWith(src, "%")) {
                 do_mul = true;
                 scale = strparser.stringToType!(float)(src[0..$-1]) / 100.0f;
                 return;
@@ -559,10 +559,10 @@ class StyleValueScalar(T, bool mul = true, bool add = true) : StyleValueT!(T) {
         }
         bool neg;
         static if (add) {
-            if (startsWith(src, "+")) {
+            if (str.startsWith(src, "+")) {
                 src = src[1..$];
                 do_add = true;
-            } else if (startsWith(src, "-")) {
+            } else if (str.startsWith(src, "-")) {
                 src = src[1..$];
                 do_add = true;
                 neg = true;

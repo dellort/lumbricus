@@ -1,6 +1,5 @@
 module animutil;
 
-import str = stdx.string;
 import tango.io.FilePath;
 import tango.io.Stdout;
 import tango.util.Convert;

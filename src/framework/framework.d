@@ -25,7 +25,8 @@ import utils.weaklist;
 import utils.gzip;
 
 import stdx.stream;
-import str = stdx.string;
+
+import str = utils.string;
 
 //**** driver stuff
 
@@ -1160,7 +1161,7 @@ class Framework {
                     cnt++;
                 }
                 res ~= myformat("{} surfaces, size={}, driver_extra={}\n",
-                    cnt, sizeToHuman(bytes), sizeToHuman(bytes_extra));
+                    cnt, str.sizeToHuman(bytes), str.sizeToHuman(bytes_extra));
                 cnt = 0;
                 res ~= "Fonts:\n";
                 foreach (f; gFonts.list) {

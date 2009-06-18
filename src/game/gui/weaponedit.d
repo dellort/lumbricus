@@ -15,7 +15,6 @@ import gui.loader;
 import gui.list;
 import utils.configfile;
 
-import str = stdx.string;
 
 class WeaponEditorTask : Task {
     private {

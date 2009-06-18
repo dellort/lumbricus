@@ -1,8 +1,7 @@
 module utils.configfile;
 
 import stdx.stream;
-import utf = stdx.utf;
-import str = stdx.string;
+import str = utils.string;
 import tango.util.Convert : to, ConversionException;
 import tango.text.convert.Float : toFloat;
 import tango.core.Exception;
@@ -341,7 +340,10 @@ public class ConfigNode {
 
             foreach(char[] lines; comments) {
                 //don't write whitespace since we reformat the file
-                writeLine(str.strip(lines));
+                auto line = str.strip(lines);
+                if (line == "")
+                    continue;
+                writeLine(line);
             }
         }
 
@@ -843,7 +845,7 @@ public class ConfigNode {
     //parse name-option pair
     private void parseName(char[] name, out char[] realname, out bool opt) {
         realname = name;
-        if (endsWith(realname, "?")) {
+        if (str.endsWith(realname, "?")) {
             opt = true;
             realname = realname[0..$-1];
         }
@@ -1161,9 +1163,9 @@ public class ConfigFile {
 
         try {
 
-            result = utf.decode(mData, mNextPos.bytePos);
+            result = str.decode(mData, mNextPos.bytePos);
 
-        } catch (utf.UtfException utfe) {
+        } catch (str.UnicodeException utfe) {
 
             //use a hashtable to record positions in the file, where encoding-
             //errors are. this is stupid but simple. next() now can be called
@@ -1179,7 +1181,7 @@ public class ConfigFile {
             dchar offender = mData[mNextPos.bytePos];
             mNextPos.bytePos++;
             while (mNextPos.bytePos < mData.length) {
-                uint adv = utf.stride(mData, mNextPos.bytePos);
+                uint adv = str.stride(mData, mNextPos.bytePos);
                 if (adv != 0xFF)
                     break;
                 mNextPos.bytePos++;
@@ -1226,13 +1228,13 @@ public class ConfigFile {
             for (size_t i = 0; i < args.length; i++) {
                 try {
                     //(decode modifies i)
-                    utf.decode(args, i);
+                    str.decode(args, i);
                     i--; //set back to first next char
-                } catch (utf.UtfException e) {
+                } catch (str.UnicodeException e) {
                     args[i] = '?';
                 }
             }
-            utf.validate(args);
+            str.validate(args);
             return args;
         }
     }
@@ -1514,7 +1516,7 @@ public class ConfigFile {
 
                 output ~= myformat(fmt, c);
             } else {
-                utf.encode(output, c);
+                str.encode(output, c);
             }
         }
         return output;
@@ -1758,7 +1760,6 @@ unittest {
     debugParseFile(t5);
 
     assert (!test_error);
-    Trace.formatln("configfile.d: unittest success");
 }
 
 /+

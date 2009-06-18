@@ -20,8 +20,6 @@ import game.gui.levelpaint;
 import utils.vector2;
 import utils.rect2;
 
-import str = stdx.string;
-
 class LevelSelector : SimpleContainer {
     private {
         int mPreviewHeight = 70;
@@ -86,7 +84,7 @@ class LevelSelector : SimpleContainer {
             if (i >= templCount)
                 break;
             //prepare button
-            auto sb = loader.lookup!(Button)("level"~str.toString(i));
+            auto sb = loader.lookup!(Button)(myformat("level{}", i));
             sb.onClick = &levelClick;
             sb.onRightClick = &generate;
             mShowBitmap ~= sb;
@@ -94,7 +92,7 @@ class LevelSelector : SimpleContainer {
             mLevel ~= LevelInfo(new GenerateFromTemplate(mGenerator, t));
             doGenerate(i);
             //add a description label below
-            loader.lookup!(Label)("label"~str.toString(i)).text =
+            loader.lookup!(Label)(myformat("label{}", i)).text =
                 templ_trans(t.description);
         }
 

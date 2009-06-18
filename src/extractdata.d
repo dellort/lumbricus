@@ -12,7 +12,7 @@ import tango.io.vfs.FileFolder;
 debug import tango.core.stacktrace.TraceExceptions;
 import stream = stdx.stream;
 import stdx.stream;
-import stdx.string : tolower, split, replace;
+import str = stdx.string;
 
 import utils.filetools;
 import utils.configfile;
@@ -84,7 +84,7 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
         scope sourceFolder = new FileFolder(wormsDataDir ~ sub["source_path"]);
         foreach (char[] name, char[] value; sub.getSubNode("files")) {
             //doesn't really work if value contains a path
-            auto ext = tolower(FilePath(value).ext());
+            auto ext = str.tolower(FilePath(value).ext());
             auto outfname = name~"."~ext;
             destFolder.file(outfname).copy(sourceFolder.file(value));
             reslist.setStringValue(name, destp~"/"~outfname);
@@ -109,7 +109,7 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
     foreach (fi; FilePath(waterpath)) {
         char[] wdir = fi.name;
         char[] wpath = waterpath~"/"~wdir;
-        char[] id = tolower(wdir);
+        char[] id = str.tolower(wdir);
         char[] waterout = outputDir~"/water/"~id~"/";
         trymkdir(waterout);
         //lame check if it's a water dir
@@ -127,7 +127,7 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
             water.free();
 
             scope colourtxt = new File(wpath~"/colour.txt", FileMode.In);
-            char[][] colRGB = split(colourtxt.readLine());
+            char[][] colRGB = str.split(colourtxt.readLine());
             assert(colRGB.length == 3);
             auto r = cast(float)to!(ubyte)(colRGB[0])/255.0f;
             auto g = cast(float)to!(ubyte)(colRGB[1])/255.0f;
@@ -151,7 +151,7 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
         //full source path
         char[] setpath = levelspath~"/"~setdir;
         //level set identifier
-        char[] id = tolower(setdir);
+        char[] id = str.tolower(setdir);
         //xxx hack for -blabla levels
         if (id[0] == '-')
             id = "old" ~ id[1..$];

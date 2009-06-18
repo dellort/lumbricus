@@ -1,10 +1,10 @@
 // abstract devil a bit
 module devil.image;
 
-import str = stdx.string;
 import derelict.devil.il;
 import derelict.devil.ilu;
 import derelict.util.exception;
+import tango.stdc.stringz : toStringz, fromStringz;
 
 //pragma(lib,"DerelictIL");
 //pragma(lib,"DerelictILU");
@@ -28,9 +28,9 @@ class Image {
         ilGenImages(1, &imgName);
         ilBindImage(imgName);
 
-        if (!ilLoadImage(str.toStringz(filename))) {
+        if (!ilLoadImage(toStringz(filename))) {
             throw new Exception("Failed to load image " ~ filename ~ " : " ~
-                str.toString(ilGetError()));
+                fromStringz(ilGetError()));
         }
 
         return imgName;
@@ -159,9 +159,9 @@ class Image {
         ilEnable(IL_FILE_OVERWRITE);
         ilRegisterOrigin(IL_ORIGIN_UPPER_LEFT);
 
-        if (!ilSave(IL_PNG, str.toStringz(filename))) {
+        if (!ilSave(IL_PNG, toStringz(filename))) {
             throw new Exception("Failed to write image file " ~ filename ~
-                " : " ~ str.toString(ilGetError()));
+                " : " ~ fromStringz(ilGetError()));
         }
     }
 
@@ -173,7 +173,7 @@ class Image {
         uint len = ilSaveL(IL_PNG, buf.ptr, buf.length);
         if (!len) {
             throw new Exception("Failed to write image to buffer: "
-                ~ str.toString(ilGetError()));
+                ~ fromStringz(ilGetError()));
         }
         return len;
     }

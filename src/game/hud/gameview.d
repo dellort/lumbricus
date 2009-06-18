@@ -25,7 +25,7 @@ import utils.misc;
 import utils.vector2;
 import utils.interpolate;
 
-import str = stdx.string;
+import str = utils.string;
 import math = tango.math.Math;
 
 //arrrrgh
@@ -710,9 +710,9 @@ class GameView : Container {
         //no up/down parameter, and key was released -> no event
         if (str.find(bind, "%d") < 0 && isUp)
             return null;
-        bind = str.replace(bind, "%d", str.toString(!isUp));
-        bind = str.replace(bind, "%mx", str.toString(mousePos.x));
-        bind = str.replace(bind, "%my", str.toString(mousePos.y));
+        bind = str.replace(bind, "%d", myformat("{}", !isUp));
+        bind = str.replace(bind, "%mx", myformat("{}", mousePos.x));
+        bind = str.replace(bind, "%my", myformat("{}", mousePos.y));
         return bind;
     }
     override protected void onKeyEvent(KeyInfo ki) {

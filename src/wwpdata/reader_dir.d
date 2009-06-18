@@ -1,6 +1,7 @@
 module wwpdata.reader_dir;
 
-import str = stdx.string;
+import str = utils.string;
+import tango.stdc.stringz : fromStringz;
 import stdx.stream;
 import wwpdata.common;
 import wwpdata.reader;
@@ -30,7 +31,7 @@ struct WWPDirEntry {
             i += 4;
         } while (buf[i-1] != 0);
         //cut off zeros
-        ret.filename = str.toString(buf.ptr).dup;
+        ret.filename = fromStringz(buf.ptr).dup;
         return ret;
     }
 

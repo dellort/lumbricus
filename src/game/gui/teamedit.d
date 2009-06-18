@@ -15,8 +15,6 @@ import gui.loader;
 import gui.list;
 import utils.configfile;
 
-import str = stdx.string;
-
 class TeamEditorTask : Task {
     private {
         Widget mEditor;
@@ -51,8 +49,7 @@ class TeamEditorTask : Task {
         mTeamEdit.onChange = &teamChange;
         for (int i = 0; i < 8; i++) {
             //hardcoded to 8 teammembers
-            mWormEdit[i] = loader.lookup!(EditLine)("edit_worm"
-                ~ str.toString(i+1));
+            mWormEdit[i] = loader.lookup!(EditLine)(myformat("edit_worm{}", i+1));
             mWormEdit[i].onChange = &wormChange;
         }
         mColorButton = loader.lookup!(Button)("colorbutton");
@@ -133,7 +130,7 @@ class TeamEditorTask : Task {
                 newName = name;
             while (mTeams.hasNode(newName)) {
                 i++;
-                newName = unnamed ~ " " ~ str.toString(i);
+                newName = myformat("{} {}", unnamed, i);
             }
             //create team
             auto newTeam = mTeams.getSubNode(newName);

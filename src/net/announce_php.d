@@ -17,7 +17,7 @@ import tango.net.http.HttpHeaders;
 //import conv = tango.util.Convert;
 import tango.core.Thread;
 import tango.core.Exception;
-import str = stdx.string;
+import str = utils.string;
 
 //LogStruct!("http_get") http_log;
 

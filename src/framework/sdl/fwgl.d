@@ -10,7 +10,7 @@ import framework.sdl.framework;
 import framework.drawing;
 import tango.math.Math;
 import tango.stdc.stringz;
-import utf = stdx.utf;
+import str = utils.string;
 import utils.misc;
 import cstdlib = tango.stdc.stdlib;
 
@@ -19,7 +19,7 @@ char[] glErrorToString(GLenum errCode) {
     char[] res = fromStringz(cast(char*)gluErrorString(errCode));
     //hur, the man page said, "The string is in ISO Latin 1 format." (!=ASCII?)
     //so check it, not that invalid utf-8 strings leak into the GUI or so
-    utf.validate(res);
+    str.validate(res);
     return res;
 }
 

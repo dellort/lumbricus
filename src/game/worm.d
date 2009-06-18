@@ -21,7 +21,6 @@ import utils.math;
 import utils.configfile;
 import utils.reflection;
 import tango.math.Math;
-import str = stdx.string;
 
 /**
   just an idea:

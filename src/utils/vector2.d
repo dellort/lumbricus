@@ -1,7 +1,7 @@
 module utils.vector2;
 
 import strparser = utils.strparser;
-import str = stdx.string;
+import str = utils.string;
 import math = tango.math.Math;
 import ieee = tango.math.IEEE;
 import tango.util.Convert : to, ConversionException;

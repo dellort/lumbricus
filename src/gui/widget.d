@@ -14,7 +14,7 @@ import utils.vector2;
 import utils.rect2;
 import utils.output;
 import utils.log;
-import str = stdx.string;
+import str = utils.string;
 
 //debugging (draw a red frame for the widget's bounds)
 //version = WidgetDebug;

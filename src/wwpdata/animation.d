@@ -2,12 +2,12 @@ module wwpdata.animation;
 
 import aconv.atlaspacker;
 import devil.image;
-import str = stdx.string;
 import stdx.stream;
 import wwpdata.common;
 import utils.boxpacker;
 import utils.vector2;
 import utils.filetools;
+import utils.misc;
 import tango.io.Stdout;
 
 //dear tango team, please make things more convenient
@@ -23,7 +23,7 @@ class AnimList {
         foreach (int i, Animation a; animations) {
             char[] afn, apath;
             if (tosubdir) {
-                afn = "anim_" ~ str.toString(i);
+                afn = myformat("anim_{}", i);
                 apath = outPath ~ pathsep ~ fnBase;
                 trymkdir(apath);
             } else {

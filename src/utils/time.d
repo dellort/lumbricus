@@ -1,6 +1,6 @@
 module utils.time;
 
-import str = stdx.string;
+import str = utils.string;
 import strparser = utils.strparser;
 import utils.misc;
 import tango.util.Convert : to;
@@ -149,7 +149,7 @@ public struct Time {
     public static Time fromString(char[] s) {
         s = str.strip(s);
         bool neg = false;
-        if (startsWith(s, "-")) {
+        if (str.startsWith(s, "-")) {
             neg = true;
             s = str.strip(s[1..$]);
         }
@@ -169,7 +169,7 @@ public struct Time {
             sub = str.strip(sub);
             int unit_idx = -1;
             foreach (int i, name; cTimeUnitNames) {
-                if (endsWith(sub, name)) {
+                if (str.endsWith(sub, name)) {
                     unit_idx = i;
                     break;
                 }

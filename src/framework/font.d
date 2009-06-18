@@ -8,7 +8,7 @@ import utils.vector2;
 import utils.weaklist;
 
 import stdx.stream;
-import utf = stdx.utf;
+import str = utils.string;
 
 package {
     struct FontKillData {
@@ -132,7 +132,7 @@ class Font {
         int twold = 0, ilast = 0, i = 0;
         //check width from start until it is over the requested position
         while (i < text.length) {
-            i += utf.stride(text, i);
+            i += str.stride(text, i);
             int twidth = textSize(text[0..i]).x;
             if (twidth > posX) {
                 //over-shot position -> clicked between current and last pos

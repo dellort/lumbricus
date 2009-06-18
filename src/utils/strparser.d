@@ -5,7 +5,7 @@ import utils.mybox;
 import tango.util.Convert : to;
 import tango.text.convert.Float : toFloat;
 import tango.core.Exception;
-import str = stdx.string;
+import str = utils.string;
 import utils.misc;
 
 public import tango.util.Convert : ConversionException;
@@ -168,7 +168,7 @@ public MyBox boxParseBool(char[] s) {
     static char[][] bool_strings = ["true", "false", "yes", "no"]; //etc.
     bool ret_value = true;
     foreach(char[] test; bool_strings) {
-        if (str.icmp(test, s) == 0) {
+        if (str.tolower(s) == test) {
             return MyBox.Box!(bool)(ret_value);
         }
         ret_value = !ret_value;
@@ -199,7 +199,7 @@ private struct EnumItem {
 private static EnumItem[] enum_get_vals(EnumType, char[] fields)() {
     EnumType X;
     static char[] gen_code() {
-        char[][] pfields = ctfe_split(fields, ',');
+        char[][] pfields = str.ctfe_split(fields, ',');
         char[] code = "[";
         foreach (int idx, s; pfields) {
             if (idx != 0)

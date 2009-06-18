@@ -13,7 +13,6 @@ import game.weapon.weapon;
 import game.weapon.projectile;
 import physics.world;
 import tango.math.Math;
-import str = stdx.string;
 import utils.misc;
 import utils.vector2;
 import utils.time;

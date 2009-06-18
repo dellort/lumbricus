@@ -9,8 +9,6 @@ import utils.log;
 import utils.configfile;
 import utils.misc;
 
-import str = stdx.string;
-
 //how an object is placed
 struct PlaceCommand {
     Vector2i at, size;

@@ -7,7 +7,7 @@ import utils.misc;
 
 import tango.core.Traits;
 import tango.core.ByteSwap;
-import utf = stdx.utf;
+import str = utils.string;
 import base64 = tango.io.encode.Base64; //lol
 
 //data is always written as big endian aka network byteorder
@@ -183,8 +183,8 @@ struct Unmarshaller {
 
         static if (isCharType!(ElementT)) {
             try {
-                utf.validate(ret);
-            } catch (utf.UtfException e) {
+                str.validate(ret);
+            } catch (str.UnicodeException e) {
                 throw new UnmarshalException("string not unicode conform");
             }
         }

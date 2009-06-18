@@ -183,7 +183,7 @@ class LevelLandscape : LevelItemObject {
 //xxx these should be moved away, they really don't belong here
 package:
 
-import str = stdx.string;
+import str = utils.string;
 
 private static char[][] marker_strings = ["FREE", "LAND", "SOLID_LAND"];
 

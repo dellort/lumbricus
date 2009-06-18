@@ -6,7 +6,7 @@ import utils.log;
 import utils.misc;
 import utils.md;
 import utils.weaklist;
-import str = stdx.string;
+import str = utils.string;
 import tango.util.Convert;
 
 //NOTE: because normal varargs suck infinitely in D (you have to deal with

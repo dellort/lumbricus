@@ -24,8 +24,7 @@ module stdx.stream;
 
 version (Tango) {
 
-import stdx.string;
-import stdx.utf;
+//import utils.string;
 
 /* Class structure:
  *  InputStream       interface for reading
@@ -74,7 +73,6 @@ enum SeekPos {
 
 private {
   import std.intrinsic; // for bswap
-  import stdx.utf;
 }
 
 
@@ -373,8 +371,6 @@ interface OutputStream {
 
 // not really abstract, but its instances will do nothing useful
 class Stream : InputStream, OutputStream {
-  private import stdx.string;
-  //;, std.c.stdlib, std.c.stdio;
 
   // stream abilities
   bool readable = false;	/// Indicates whether this stream can be read from.

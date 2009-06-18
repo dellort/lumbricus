@@ -25,7 +25,6 @@ import gui.container;
 import utils.configfile;
 
 //import std.thread;
-import str = stdx.string;
 import tango.math.random.Random : rand;
 import tango.util.Convert : to;
 

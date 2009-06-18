@@ -2,7 +2,7 @@ module net.netlayer;
 
 import derelict.enet.enet;
 import net.broadcast;
-import str = stdx.string;
+import str = utils.string;
 import tango.util.Convert;
 import tango.stdc.stringz;
 import utils.misc;

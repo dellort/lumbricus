@@ -12,7 +12,7 @@ import utils.vector2;
 
 import tango.text.Util : isSpace;
 import tango.text.Unicode : isLetterOrDigit;
-import utf = stdx.utf;
+import str = utils.string;
 
 ///simple editline
 class EditLine : Widget {
@@ -58,7 +58,7 @@ class EditLine : Widget {
         if (infos.code == Keycode.RIGHT) {
             if (mCursor < mCurline.length) {
                 if (!ctrl) {
-                    mCursor = charNext(mCurline, mCursor);
+                    mCursor = str.charNext(mCurline, mCursor);
                 } else {
                     mCursor = findNextWord(mCurline, mCursor);
                 }
@@ -68,7 +68,7 @@ class EditLine : Widget {
         } else if (infos.code == Keycode.LEFT) {
             if (mCursor > 0) {
                 if (!ctrl) {
-                    mCursor = charPrev(mCurline, mCursor);
+                    mCursor = str.charPrev(mCurline, mCursor);
                 } else {
                     mCursor = findPrevWord(mCurline, mCursor);
                 }
@@ -81,7 +81,7 @@ class EditLine : Widget {
                 doOnChange();
             } else if (mCursor > 0) {
                 killSelection();
-                int del = mCursor - charPrev(mCurline, mCursor);
+                int del = mCursor - str.charPrev(mCurline, mCursor);
                 mCurline = mCurline[0 .. mCursor-del] ~ mCurline[mCursor .. $];
                 mCursor -= del;
                 doOnChange();
@@ -93,7 +93,7 @@ class EditLine : Widget {
                 doOnChange();
             } else if (mCursor < mCurline.length) {
                 killSelection();
-                int del = utf.stride(mCurline, mCursor);
+                int del = str.stride(mCurline, mCursor);
                 mCurline = mCurline[0 .. mCursor] ~ mCurline[mCursor+del .. $];
                 doOnChange();
             }
@@ -108,14 +108,14 @@ class EditLine : Widget {
             return true;
         } else if (infos.isPrintable()) {
             char[] append;
-            if (!utf.isValidDchar(infos.unicode)) {
+            if (!str.isValidDchar(infos.unicode)) {
                 append = "?";
             } else {
-                append = utf.toUTF8([infos.unicode]);
+                str.encode(append, infos.unicode);
             }
             deleteSelection();
             mCurline = mCurline[0 .. mCursor] ~ append ~ mCurline[mCursor .. $];
-            mCursor += utf.stride(mCurline, mCursor);
+            mCursor += str.stride(mCurline, mCursor);
             doOnChange();
             return true;
         }
@@ -221,7 +221,7 @@ class EditLine : Widget {
         return mCurline;
     }
     public void text(char[] newtext) {
-        debug utf.validate(newtext); //only valid utf plz
+        debug str.validate(newtext); //only valid utf plz
         mCurline = newtext.dup;
         mCursor = 0;
         mSelStart = mSelEnd = 0;
@@ -293,30 +293,30 @@ private:
 //if there are spaces, the cursor is positioned at the start of the sequence
 //both are just helpers and require "pos" not to be at the end resp. beginning
 
-uint findNextWord(char[] str, uint pos) {
-    bool what = isWord(str, pos);
-    while (pos < str.length) {
-        pos = charNext(str, pos);
-        if (pos >= str.length)
+uint findNextWord(char[] astr, uint pos) {
+    bool what = isWord(astr, pos);
+    while (pos < astr.length) {
+        pos = str.charNext(astr, pos);
+        if (pos >= astr.length)
             break;
-        if (isWord(str, pos) != what || isSpaceAt(str, pos))
+        if (isWord(astr, pos) != what || isSpaceAt(astr, pos))
             break;
     }
     //but overjump spaces, if any
-    while (pos < str.length && isSpaceAt(str, pos))
-        pos = charNext(str, pos);
+    while (pos < astr.length && isSpaceAt(astr, pos))
+        pos = str.charNext(astr, pos);
     return pos;
 }
 
-uint findPrevWord(char[] str, uint pos) {
-    pos = charPrev(str, pos);
+uint findPrevWord(char[] astr, uint pos) {
+    pos = str.charPrev(astr, pos);
     //overjump spaces, if any
-    while (pos > 0 && isSpaceAt(str, pos))
-        pos = charPrev(str, pos);
-    bool what = isWord(str, pos);
+    while (pos > 0 && isSpaceAt(astr, pos))
+        pos = str.charPrev(astr, pos);
+    bool what = isWord(astr, pos);
     while (pos > 0) {
-        auto npos = charPrev(str, pos);
-        if (isWord(str, npos) != what || isSpaceAt(str, npos))
+        auto npos = str.charPrev(astr, pos);
+        if (isWord(astr, npos) != what || isSpaceAt(astr, npos))
             break;
         pos = npos;
     }
@@ -325,8 +325,8 @@ uint findPrevWord(char[] str, uint pos) {
 
 //little helpers
 bool isSpaceAt(char[] s, size_t pos) {
-    return isSpace(utf.decode(s, pos));
+    return isSpace(str.decode(s, pos));
 }
 bool isWord(char[] s, size_t pos) {
-    return isLetterOrDigit(utf.decode(s, pos));
+    return isLetterOrDigit(str.decode(s, pos));
 }

@@ -2,7 +2,6 @@ module common.resources;
 
 import common.config;
 import framework.filesystem;
-import str = stdx.string;
 import utils.configfile;
 import utils.log;
 import utils.output;

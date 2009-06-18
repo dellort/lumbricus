@@ -6,7 +6,7 @@ import utils.log;
 import utils.misc;
 import utils.time;
 
-import str = stdx.string;
+import str = utils.string;
 
 private LogStruct!("utils.snapshot") log;
 
@@ -357,8 +357,8 @@ class Snapshot {
 
         timer.stop();
         log("t={}, oc={}, ls={}, size={} ({})",
-            timer.time, snap_last_object, lookups, sizeToHuman(snap_cur),
-            sizeToHuman(snap_data.length));
+            timer.time, snap_last_object, lookups, str.sizeToHuman(snap_cur),
+            str.sizeToHuman(snap_data.length));
     }
 
     //write back what was stored with snap()

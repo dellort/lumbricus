@@ -16,8 +16,6 @@ import utils.time;
 import utils.misc;
 import utils.vector2;
 
-import str = stdx.string;
-
 class GameTimer : Container {
     private {
         GameInfo mGame;

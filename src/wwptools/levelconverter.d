@@ -1,7 +1,7 @@
 module wwptools.levelconverter;
 
 import aconv.atlaspacker;
-import str = stdx.string;
+import str = utils.string;
 import stdx.stream;
 import utils.filetools;
 import utils.vector2;

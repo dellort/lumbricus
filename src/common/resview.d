@@ -28,7 +28,7 @@ import utils.time;
 import utils.vector2;
 
 import tango.math.Math : PI;
-import str = stdx.string;
+import str = utils.string;
 
 import game.animation;
 

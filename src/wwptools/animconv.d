@@ -2,7 +2,7 @@ module wwptools.animconv;
 
 import aconv.atlaspacker;
 import stdx.stream;
-import stdx.string;
+import str = utils.string;
 import utils.configfile;
 import conv = tango.util.Convert;
 import utils.misc;
