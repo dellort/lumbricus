@@ -12,7 +12,7 @@ import tango.io.vfs.FileFolder;
 debug import tango.core.stacktrace.TraceExceptions;
 import stream = stdx.stream;
 import stdx.stream;
-import str = stdx.string;
+import str = utils.string;
 
 import utils.filetools;
 import utils.configfile;

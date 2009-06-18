@@ -5,6 +5,7 @@ import derelict.devil.il;
 import derelict.devil.ilu;
 import derelict.util.exception;
 import tango.stdc.stringz : toStringz, fromStringz;
+import utils.misc;
 
 //pragma(lib,"DerelictIL");
 //pragma(lib,"DerelictILU");
@@ -23,6 +24,10 @@ class Image {
     private ILuint mImg;
     bool alpha; //always true lol
 
+    private static char[] getilerror() {
+        return myformat("il error no: {}", ilGetError());
+    }
+
     private static ILuint loadImage(char[] filename) {
         ILuint imgName;
         ilGenImages(1, &imgName);
@@ -30,7 +35,7 @@ class Image {
 
         if (!ilLoadImage(toStringz(filename))) {
             throw new Exception("Failed to load image " ~ filename ~ " : " ~
-                fromStringz(ilGetError()));
+                getilerror());
         }
 
         return imgName;
@@ -161,7 +166,7 @@ class Image {
 
         if (!ilSave(IL_PNG, toStringz(filename))) {
             throw new Exception("Failed to write image file " ~ filename ~
-                " : " ~ fromStringz(ilGetError()));
+                " : " ~ getilerror());
         }
     }
 
@@ -173,7 +178,7 @@ class Image {
         uint len = ilSaveL(IL_PNG, buf.ptr, buf.length);
         if (!len) {
             throw new Exception("Failed to write image to buffer: "
-                ~ fromStringz(ilGetError()));
+                ~ getilerror());
         }
         return len;
     }
