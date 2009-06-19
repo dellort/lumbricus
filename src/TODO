@@ -42,7 +42,6 @@
 + key bindings editor
 + flash-artiges System für GUI-Animationen (widget einem pfad folgen lassen)
 ! styles system neuschreiben, fonts einschliessen, :blink state
-+ Style für Fenster (WindowWidget / WindowProperties) in Style-System integrieren (naja, eigentlich nur die Hintergrundfarbe, grmbl)
 *** GUI enthässlichen
 
 == GUI spielspezifisch (Dialoge) ==

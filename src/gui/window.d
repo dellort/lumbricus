@@ -32,7 +32,7 @@ struct WindowProperties {
     char[] windowTitle = "<huhu, you forgot to set a title!>";
     bool canResize = true;   //disallow user to resize the window
     bool canMove = true;    //disallow the user to move the window (by kb/mouse)
-    Color background = Color(1,1,1); //of the client part of the window
+    Color background = Color.Invalid; //of the client part of the window
     WindowZOrder zorder; //static zorder
 }
 
@@ -56,7 +56,7 @@ class WindowWidget : Container {
         Label mTooltipLabel;
         bool mShowTooltipLabel;
 
-        BoxProperties mBackground;
+        Color mBgOverride;
 
         //"window manager"; supported to be null
         WindowFrame mManager;
@@ -227,6 +227,8 @@ class WindowWidget : Container {
         auto all = new TableContainer(3, 3);
         mWindowDecoration = all;
 
+        styles.addClass("w-window");
+
         void sizer(int x, int y) {
             all.add(new Sizer(x, y), x+1, y+1);
         }
@@ -385,14 +387,14 @@ class WindowWidget : Container {
     WindowProperties properties() {
         WindowProperties res;
         res.windowTitle = mTitleBar.text;
-        res.background = mBackground.back;
+        res.background = mBgOverride;
         res.canResize = mCanResize;
         res.zorder = cast(WindowZOrder)zorder;
         return res;
     }
     void properties(WindowProperties props) {
         mTitleBar.text = props.windowTitle;
-        mBackground.back = props.background;
+        mBgOverride = props.background;
         mCanResize = props.canResize;
         mCanMove = props.canMove;
         zorder = props.zorder;
@@ -458,7 +460,7 @@ class WindowWidget : Container {
     override protected void onFocusChange() {
         super.onFocusChange();
         //a matter of taste
-        mBackground.border = focused ? Color(0,0,1) : mBackground.border.init;
+        styles.setState("focused", focused);
 
         if (!focused && onFocusLost)
             onFocusLost(this);
@@ -538,12 +540,22 @@ class WindowWidget : Container {
     override protected void onDraw(Canvas c) {
         //if fullscreen, the parent clears with this.background
         if (!mFullScreen && mHasDecorations) {
-            common.visual.drawBox(c, widgetBounds, mBackground);
+            if (mBgOverride.valid) {
+                //sorry
+                auto bCopy = borderStyle;
+                bCopy.back = mBgOverride;
+                common.visual.drawBox(c, widgetBounds, bCopy);
+            } else {
+                common.visual.drawBox(c, widgetBounds, borderStyle);
+            }
         } else {
             //xxx: possibly unnecessary clearing when it really covers the whole
             //  screen; it should use getFramework.clearColor then, maybe
+            Color bg = borderStyle.back;
+            if (mBgOverride.valid)
+                bg = mBgOverride;
             if (mHasDecorations && (!mClient || !mClient.doesCover))
-                c.drawFilledRect(Vector2i(0), size, properties.background);
+                c.drawFilledRect(Vector2i(0), size, bg);
         }
         super.onDraw(c);
 

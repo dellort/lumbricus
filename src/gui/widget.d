@@ -304,6 +304,7 @@ class Widget {
     ///and all children
     void enabled(bool set) {
         mEnabled = set;
+        styles.setState("disabled", !mEnabled);
     }
     bool enabled() {
         return mEnabled;
@@ -817,18 +818,18 @@ class Widget {
 
         c.popState();
 
-        if (!mEnabled) {
+        //small optical hack: highlighting
+        //feel free to replace this by better looking rendering
+        //here because of drawing to nonclient area
+        auto highlightAlpha = styles.getValue!(float)("highlight-alpha");
+        if (highlightAlpha > 0) {
+            //brighten
+            c.drawFilledRect(mBorderArea + mAddToPos,
+                Color(1,1,1,highlightAlpha));
+        } else if (highlightAlpha < 0) {
             //disabled, so overdraw with gray
-            c.drawFilledRect(mBorderArea + mAddToPos, Color(0.5,0.5,0.5,0.5));
-        } else {
-            //small optical hack: highlighting
-            //feel free to replace this by better looking rendering
-            //here because of drawing to nonclient area
-            auto highlightAlpha = styles.getValue!(float)("highlight-alpha");
-            if (highlightAlpha > 0) {
-                c.drawFilledRect(mBorderArea + mAddToPos,
-                    Color(1,1,1,highlightAlpha));
-            }
+            c.drawFilledRect(mBorderArea + mAddToPos,
+                Color(0.5,0.5,0.5,-highlightAlpha));
         }
     }
 
@@ -987,7 +988,7 @@ class Widget {
 
         zorder = loader.node.getIntValue("zorder", zorder);
         mVisible = loader.node.getBoolValue("visible", mVisible);
-        mEnabled = loader.node.getBoolValue("enabled", mEnabled);
+        enabled = loader.node.getBoolValue("enabled", mEnabled);
         mMinSize = loader.node.getValue("min_size", mMinSize);
 
         mDrawBorder = loader.node.getBoolValue("draw_border", mDrawBorder);
