@@ -14,6 +14,7 @@
 - (de)serializer soll strparser verwenden? (aber: inkonsistenz darüber, ob toStr verlustlose repräsentation erzeugen soll)
 - configfile.d so ändern, dass datentypen schon in den nodes/in der syntax deklariert werden? libconfig verwenden?
 ! Phobos-Stream-Zeug durch Tango-Zeug ersetzen
+- demo support
 
 == bekannte, lösbare Bugs ==
 - wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
