@@ -23,7 +23,6 @@ class Tabs : Container {
             Vector2i size_tmp;
         }
 
-        Font mFont;
         Item[] mItems;
         Widget mActive;
         Vector2i mButtons;
@@ -87,18 +86,6 @@ class Tabs : Container {
             }
         }
         assert (false);
-    }
-
-    void font(Font font) {
-        assert(font !is null);
-        mFont = font;
-        foreach (ref it; mItems) {
-            it.button.font = mFont;
-        }
-        needResize(true);
-    }
-    Font font() {
-        return mFont;
     }
 
     private void onSetActive(Button sender) {
@@ -188,11 +175,6 @@ class Tabs : Container {
 
     void loadFrom(GuiLoader loader) {
         auto node = loader.node;
-
-        auto fnt = gFramework.fontManager.loadFont(
-            node.getStringValue("font"), false);
-        if (fnt)
-            font = fnt;
 
         //load children; order in list decides layout
         foreach (ConfigNode child; node.getSubNode("cells")) {

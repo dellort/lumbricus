@@ -171,6 +171,10 @@ int releaseBoxCache() {
         killtex(t.corners);
         killtex(t.sides[0]);
         killtex(t.sides[1]);
+        if (t.bevelSides[0]) {
+            killtex(t.bevelSides[0]);
+            killtex(t.bevelSides[1]);
+        }
     }
 
     boxes = null;

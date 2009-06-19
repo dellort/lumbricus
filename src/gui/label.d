@@ -1,6 +1,7 @@
 module gui.label;
 
 import gui.widget;
+import gui.styles;
 import common.common;
 import common.scene;
 import common.visual;
@@ -23,11 +24,13 @@ class Label : Widget {
         //only when set by the user
         bool mUserTextValid, mUserTextMarkup;
         char[] mUserText;
+        bool mFontOverride;
 
         const cSpacing = 3; //between images and text
     }
 
     this() {
+        styleRegisterString("text-font");
         mText = new FormattedText();
         mText.font = gFramework.getFont("label_default");
         mBorder = Vector2i(0,0);
@@ -105,6 +108,8 @@ class Label : Widget {
         assert(font !is null);
         if (font is mText.font || font.properties == mText.font.properties)
             return;
+        //xxx I don't know... styles stuff kinda sucks
+        mFontOverride = true;
         mText.font = font;
         needResize(true);
     }
@@ -172,16 +177,20 @@ class Label : Widget {
         //}
     }
 
+    override protected void check_style_changes() {
+        super.check_style_changes();
+        if (!mFontOverride) {
+            char[] fontId = styles.getValue!(char[])("text-font");
+            font = gFramework.getFont(fontId);
+            mFontOverride = false;
+        }
+    }
+
     override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
 
         mUserTextValid = false;
         mText.clear();
-
-        auto fnt = gFramework.fontManager.loadFont(
-            node.getStringValue("font"), false);
-        if (fnt)
-            mText.font = fnt;
 
         //xxx: it would be simpler to read the "locale" field directly, and
         //     then just concatenate it with the "text" value

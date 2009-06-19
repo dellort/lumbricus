@@ -1,7 +1,6 @@
 module game.gui.loadingscreen;
 
 import framework.framework;
-import framework.font;
 import framework.i18n;
 import gui.boxcontainer;
 import gui.container;
@@ -13,8 +12,6 @@ import utils.vector2;
 
 class LoadingScreen : Container {
     private {
-        Font mFont;
-        Font mFontGray;
         int mCurChunk = -1;
         SimpleContainer mSecondaryFrame;
         Foobar mSecondary;
@@ -24,8 +21,6 @@ class LoadingScreen : Container {
     }
 
     this() {
-        mFont = gFramework.fontManager.loadFont("loading_highlight");
-        mFontGray = gFramework.fontManager.loadFont("loading_gray");
     }
 
     //fixed amount of chunks; each chunk has an associated message
@@ -42,7 +37,7 @@ class LoadingScreen : Container {
         foreach (char[] chunk; stuff) {
             auto label = new Label();
             mChunkLabels ~= label;
-            label.font = mFontGray;
+            label.styles.addClass("loadingscreen-label");
             label.text = _("loading.load", chunk);
             mLabelList.add(label);
         }
@@ -56,12 +51,12 @@ class LoadingScreen : Container {
             return;
         //set a next pos => gray out old chunk again
         if (mCurChunk >= 0) {
-            mChunkLabels[mCurChunk].font = mFontGray;
+            mChunkLabels[mCurChunk].styles.setState("highlight", false);
         }
         //and highlight current one
         mCurChunk = cur;
         if (mCurChunk < mChunkLabels.length) {
-            mChunkLabels[mCurChunk].font = mFont;
+            mChunkLabels[mCurChunk].styles.setState("highlight", true);
         }
     }
 

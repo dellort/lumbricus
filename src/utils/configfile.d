@@ -30,15 +30,15 @@ private bool my_isprint(dchar c) {
 private bool my_isspace(dchar c) {
     //return (c == 9 || c == 10 || c == 13 || c == 32);
     //consistency with str.* functions used in doWrite
-    //wtf int???1111!
-    return str.iswhite(c) != 0;
+    return str.iswhite(c);
 }
 //maybe or maybe not equivalent to isalnum()
 private bool my_isid(dchar c) {
     bool r = (c >= 'A' && c <= 'Z')
         || (c >= 'a' && c <= 'z')
         || (c >= '0' && c <= '9')
-        || (c == '_');
+        || c == '_' || c == '-' || c == '*' || c == '$' || c == ':'
+        || c == '%' || c == '&' || c == '(' || c == ')' || c == '[' || c == ']';
     //Trace.formatln("{} -> {}", c, r);
     return r;
 }

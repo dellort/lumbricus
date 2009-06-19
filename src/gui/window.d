@@ -257,10 +257,9 @@ class WindowWidget : Container {
 
         mTitleBar = new Label();
         mTitleBar.styles.addClass("window-title");
-        mTitleBar.font = gFramework.getFont("window_title");
 
         mTooltipLabel = new Label();
-        mTitleBar.styles.addClass("tooltip-label");
+        mTooltipLabel.styles.addClass("tooltip-label");
         WidgetLayout lay;
         lay.expand[] = [true, false];
         lay.pad = 2;
@@ -268,7 +267,6 @@ class WindowWidget : Container {
         mTooltipLabel.setLayout(lay);
         mTooltipLabel.shrink = true;
         mTooltipLabel.centerX = true;
-        mTooltipLabel.font = gFramework.getFont("tooltip_label");
 
         WindowProperties p;
         properties = p; //to be consistent

@@ -538,6 +538,7 @@ private:
         int window_lines, task_lines;
         auto table = new TableContainer(2, 2, Vector2i(3, 3));
         auto caption = new Label();
+        caption.styles.addClass("wm-caption");
         caption.text = "Window list";
         table.add(caption, 0, 0, 2, 1);
         foreach (w; wnds) {
@@ -552,13 +553,13 @@ private:
             auto tasktitle = new Label();
             tasktitle.styles.addClass("wm-label");
             tasktitle.text = myformat("{} ({})", w.task, w.task.taskID);
-            tasktitle.font = gFramework.getFont("big");
             table.add(tasktitle, 0, y+1, 1, w.windows.length);
             foreach (int index, window; w.windows) {
                 auto wndtitle = new Label();
                 wndtitle.styles.addClass("wm-label");
+                //xxx I don't really understand those styles, but this is a hack
+                wndtitle.styles.setState("windowtitle", true);
                 wndtitle.text = window.properties.windowTitle;
-                wndtitle.font = gFramework.getFont("normal");
                 table.add(wndtitle, 1, y+1+index);
                 mEntries ~= Entry(wndtitle, tasktitle, window);
             }
