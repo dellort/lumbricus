@@ -177,9 +177,11 @@ class Widget {
         styleRegisterFloat("highlight-alpha");
         styleRegisterColor("border-color");
         styleRegisterColor("border-back-color");
+        styleRegisterColor("border-bevel-color");
         styleRegisterInt("border-corner-radius");
         styleRegisterInt("border-width");
         styleRegisterBool("border-enable");
+        styleRegisterBool("border-bevel-enable");
         styleRegisterColor("widget-background");
 
         //register with _actual_ classes of the object
@@ -744,6 +746,8 @@ class Widget {
     protected void check_style_changes() {
         mBorderStyle.border = styles.getValue!(Color)("border-color");
         mBorderStyle.back = styles.getValue!(Color)("border-back-color");
+        mBorderStyle.bevel = styles.getValue!(Color)("border-bevel-color");
+        mBorderStyle.drawBevel = styles.getValue!(bool)("border-bevel-enable");
         mBorderStyle.borderWidth = styles.getValue!(int)("border-width");
         mBorderStyle.cornerRadius =
             styles.getValue!(int)("border-corner-radius");

@@ -257,6 +257,7 @@
 		<Unit filename="..\src\utils\rndkiss.d" />
 		<Unit filename="..\src\utils\serialize.d" />
 		<Unit filename="..\src\utils\snapshot.d" />
+		<Unit filename="..\src\utils\string.d" />
 		<Unit filename="..\src\utils\strparser.d" />
 		<Unit filename="..\src\utils\test.d" />
 		<Unit filename="..\src\utils\time.d" />

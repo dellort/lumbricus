@@ -65,8 +65,11 @@ void drawBox(Canvas c, ref Vector2i p, ref Vector2i s, ref BoxProperties props)
     auto sx = tex.sides[0].size.x;
     while (px < ex) {
         auto w = Vector2i(min(sx, ex - px), q.y);
-        c.draw(tex.sides[0], Vector2i(px, p.y), Vector2i(0), w);
-        c.draw(tex.sides[0], Vector2i(px, p.y + s.y - q.y), Vector2i(0, q.y), w);
+        auto curTex = tex.sides[0];
+        c.draw(curTex, Vector2i(px, p.y + s.y - q.y), Vector2i(0, q.y), w);
+        if (bp.p.drawBevel)
+            curTex = tex.bevelSides[0];
+        c.draw(curTex, Vector2i(px, p.y), Vector2i(0), w);
         px += w.x;
     }
 
@@ -76,8 +79,11 @@ void drawBox(Canvas c, ref Vector2i p, ref Vector2i s, ref BoxProperties props)
     auto sy = tex.sides[1].size.y;
     while (py < ey) {
         auto h = Vector2i(q.x, min(sy, ey - py));
-        c.draw(tex.sides[1], Vector2i(p.x, py), Vector2i(0), h);
-        c.draw(tex.sides[1], Vector2i(p.x + s.x - q.x, py), Vector2i(q.x, 0), h);
+        auto curTex = tex.sides[1];
+        c.draw(curTex, Vector2i(p.x + s.x - q.x, py), Vector2i(q.x, 0), h);
+        if (bp.p.drawBevel)
+            curTex = tex.bevelSides[1];
+        c.draw(curTex, Vector2i(p.x, py), Vector2i(0), h);
         py += h.y;
     }
 
@@ -99,13 +105,16 @@ void drawCircle(Canvas c, Vector2i pos, BoxProperties props) {
 
 struct BoxProperties {
     int borderWidth = 1, cornerRadius = 5;
-    Color border, back = {1,1,1};
+    Color border, back = {1,1,1}, bevel = {0.5,0.5,0.5};
+    bool drawBevel = false; //bevel = other color for left/top sides
 
     void loadFrom(ConfigNode node) {
         border = node.getValue("border", border);
         back = node.getValue("back", back);
+        bevel = node.getValue("bevel", bevel);
         borderWidth = node.getIntValue("border_width", borderWidth);
         cornerRadius = node.getIntValue("corner_radius", cornerRadius);
+        drawBevel = node.getValue("drawBevel", drawBevel);
     }
 }
 
@@ -126,10 +135,13 @@ struct BoxTex {
     //          | bottom x-axis |
     //sides[1]: | left y-axis | right y-axis |
     Texture[2] sides;
-    static BoxTex opCall(Texture c, Texture[2] s) {
+    //same as above, just a different color
+    Texture[2] bevelSides;
+    static BoxTex opCall(Texture c, Texture[2] s, Texture[2] b = [null, null]) {
         BoxTex ret;
         ret.corners = c;
         ret.sides[] = s;
+        ret.bevelSides[] = b;
         return ret;
     }
 }
@@ -190,7 +202,7 @@ BoxTex getBox(BoxProps props) {
     //border textures on the box sides
 
     //dir = 0 x-axis, 1 y-axis
-    Texture createSide(int dir) {
+    Texture createSide(int dir, Color sideFore) {
         int inv = !dir;
 
         Vector2i size;
@@ -198,7 +210,7 @@ BoxTex getBox(BoxProps props) {
         size[inv] = q*2;
 
         bool needAlpha = (props.p.back.a < (1.0f - Color.epsilon))
-            || (props.p.border.a < (1.0f - Color.epsilon));
+            || (sideFore.a < (1.0f - Color.epsilon));
 
         auto surface = gFramework.createSurface(size,
             needAlpha ? Transparency.Alpha : Transparency.None);
@@ -208,7 +220,7 @@ BoxTex getBox(BoxProps props) {
         p1[inv] = bw;
         p2[inv] = p2[inv] - bw;
 
-        surface.fill(Rect2i(size), border);
+        surface.fill(Rect2i(size), sideFore);
         surface.fill(Rect2i(p1, p2), props.p.back);
 
         surface.enableCaching = true;
@@ -216,8 +228,13 @@ BoxTex getBox(BoxProps props) {
     }
 
     Texture[2] sides; //will be BoxText.sides
-    sides[0] = createSide(0);
-    sides[1] = createSide(1);
+    sides[0] = createSide(0, props.p.border);
+    sides[1] = createSide(1, props.p.border);
+    Texture[2] bevelSides;
+    if (props.p.drawBevel) {
+        bevelSides[0] = createSide(0, props.p.bevel);
+        bevelSides[1] = createSide(1, props.p.bevel);
+    }
 
     void drawCorner(Surface s) {
         s.fill(Rect2i(s.size), props.p.back);
@@ -267,11 +284,19 @@ BoxTex getBox(BoxProps props) {
                                 aBuf += 1.0f/(cGrid * cGrid);
                         }
                     }
+                    Color fore = props.p.border;
+                    if (props.p.drawBevel) {
+                        //on beveled drawing, the left/top corners show a
+                        //different color than right/bottom, with fadeover
+                        float perc = clampRangeC(((x+y)
+                            / (4.0f*w) - 0.25f) * 2.0f, 0f, 1f);
+                        fore = fore * perc + props.p.bevel * (1.0f - perc);
+                    }
                     *line = Color(
-                        props.p.border.r*colBuf+props.p.back.r*(1.0f-colBuf),
-                        props.p.border.g*colBuf+props.p.back.g*(1.0f-colBuf),
-                        props.p.border.b*colBuf+props.p.back.b*(1.0f-colBuf),
-                        aBuf*(border.a*colBuf+props.p.back.a*(1.0f-colBuf)))
+                        fore.r*colBuf+props.p.back.r*(1.0f-colBuf),
+                        fore.g*colBuf+props.p.back.g*(1.0f-colBuf),
+                        fore.b*colBuf+props.p.back.b*(1.0f-colBuf),
+                        aBuf*(fore.a*colBuf+props.p.back.a*(1.0f-colBuf)))
                             .toRGBA32();
                     line++;
                 }
@@ -290,7 +315,7 @@ BoxTex getBox(BoxProps props) {
     drawCorner(corners);
 
     //store struct with texture refs in hashmap
-    boxes[orgprops] = BoxTex(corners, sides);
+    boxes[orgprops] = BoxTex(corners, sides, bevelSides);
     return boxes[orgprops];
 }
 

@@ -33,6 +33,7 @@
 - Kleinere GUI-Fokus-Bugs:
   a) Bazooka auswählen, so feuern dass man sich selbst trifft, während sie auflädt im Waffenfester draufklicken und Maustaste gedrückt halten -> Button bleibt weiß
   b) Jetpack aktivieren, nach-oben drücken und halten, Button im Waffenfester klicken und Maustaste halten, nach-oben loslassen -> Wurm fliegt weiter nach oben
+  c) Fenster wird nicht aktiviert, wenn man auf ein Widget darin klickt
 - Projektil fliegt durch wenige Pixel dicke Landschaft, wenn der Wurm beim Feuern direkt davorsteht
 
 
@@ -41,6 +42,7 @@
 + key bindings editor
 + flash-artiges System für GUI-Animationen (widget einem pfad folgen lassen)
 ! styles system neuschreiben, fonts einschliessen, :blink state
++ Style für Fenster (WindowWidget / WindowProperties) in Style-System integrieren (naja, eigentlich nur die Hintergrundfarbe, grmbl)
 *** GUI enthässlichen
 
 == GUI spielspezifisch (Dialoge) ==
