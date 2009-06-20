@@ -25,11 +25,13 @@ class JetpackClass : WeaponClass {
     //maximum active time, i.e. fuel
     Time maxTime = Time.Never;
     Vector2f jetpackThrust = {0f, 0f};
+    bool stopOnDisable = true;
 
     this(GameEngine engine, ConfigNode node) {
         super(engine, node);
         maxTime = node.getValue("max_time", maxTime);
         jetpackThrust = node.getValue("jet_thrust", jetpackThrust);
+        stopOnDisable = node.getValue("stop_on_disable", stopOnDisable);
     }
 
     //xxx class
@@ -89,6 +91,11 @@ class Jetpack : Shooter, Controllable {
     override protected bool doRefire() {
         //second fire: deactivate jetpack again
         mWorm.activateJetpack(false);
+        if (myclass.stopOnDisable) {
+            //stop x movement
+            mWorm.physics.addImpulse(-mWorm.physics.velocity.X
+                * mWorm.physics.posp.mass);
+        }
         active = false;
         finished();
         return true;

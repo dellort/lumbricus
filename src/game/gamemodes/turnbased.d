@@ -35,6 +35,10 @@ class ModeTurnbased : Gamemode {
         bool mMultishot;
         float mCrateProb = 0.9f;
         int mMaxCrates = 8;
+        //max number of beam-ins while worm is moving (crate rain)
+        //  (no more than mMaxCrates total)
+        int mMaxCratesPerTurn = 0;
+        int mTurnCrateCount = 0;
         int mSuddenDeathWaterRaise = 50;
 
         ServerTeam mCurrentTeam;
@@ -48,6 +52,8 @@ class ModeTurnbased : Gamemode {
         const cNextRoundWait = timeMsecs(750);
         //how long winning animation is shown
         const cWinTime = timeSecs(5);
+        //delay for crate rain
+        const cTurnCrateDelay = timeSecs(5);
     }
 
     this(GameController parent, ConfigNode config) {
@@ -61,6 +67,8 @@ class ModeTurnbased : Gamemode {
         mMultishot = config.getBoolValue("multishot", mMultishot);
         mCrateProb = config.getFloatValue("crateprob", mCrateProb);
         mMaxCrates = config.getIntValue("maxcrates", mMaxCrates);
+        mMaxCratesPerTurn = config.getIntValue("maxcratesperturn",
+            mMaxCratesPerTurn);
         mSuddenDeathWaterRaise = config.getIntValue("water_raise",
             mSuddenDeathWaterRaise);
 
@@ -148,6 +156,12 @@ class ModeTurnbased : Gamemode {
                     || mCurrentTeam.current.lifeLost)   //active worm damaged
                 {
                     return TurnState.waitForSilence;
+                }
+                if (wait(cTurnCrateDelay, 3) && mTurnCrateCount > 0
+                    && engine.countSprites("crate") < mMaxCrates)
+                {
+                    logic.dropCrate();
+                    mTurnCrateCount--;
                 }
                 break;
             //only used if mMultishot == false
@@ -289,6 +303,7 @@ class ModeTurnbased : Gamemode {
                 break;
             case TurnState.playing:
                 assert(mCurrentTeam);
+                mTurnCrateCount = mMaxCratesPerTurn;
                 modeTime.paused = false;
                 mCurrentTeam.setOnHold(false);
                 mStatus.prepareRemaining = Time.Null;

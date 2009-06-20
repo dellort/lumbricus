@@ -28,7 +28,6 @@
   a) Unterwasser-Objekte dürfen sich nicht aufwärts bewegen
   b) Würmern erlauben, das Wasser wieder zu verlassen (und Zustand korrigieren)
 - Bohrer/Lötlampe stoßen Würmer nicht weg
-- Jetpack sollte (wirklich?) den Wurm beim Abstellen stoppen, aber nicht wenn der Spritt ausgeht
 - Kleinere GUI-Fokus-Bugs:
   a) Bazooka auswählen, so feuern dass man sich selbst trifft, während sie auflädt im Waffenfester draufklicken und Maustaste gedrückt halten -> Button bleibt weiß
   b) Jetpack aktivieren, nach-oben drücken und halten, Button im Waffenfester klicken und Maustaste halten, nach-oben loslassen -> Wurm fliegt weiter nach oben
@@ -62,7 +61,6 @@
 [- 1-frame bug bei würmern]
 + Spiel-Statistiken, insb. Team- und Wurm-bezogene
 + Mehr Powerup-Kisten (Niedrige Schwerkraft etc.), evtl. etwas "enthacken" (siehe z.B. controller.d, 1619)
-+ Kistenregen im turnbased-Modus (Kisten, die sich während dem Zug herbeamen)
 *** KI
 *** Scripting
 
