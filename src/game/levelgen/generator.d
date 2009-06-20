@@ -894,7 +894,7 @@ class LandscapeLexels {
 
     void saveTo(ConfigNode node) {
         node.setValue("size", size);
-        node.setByteArrayValue("data", cast(ubyte[])levelData, true);
+        node.setValue!(ubyte[])("data", cast(ubyte[])levelData);
     }
 
     GenerateFromTemplate generator(LevelGeneratorShared shared, bool isCave,

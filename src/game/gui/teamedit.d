@@ -14,6 +14,7 @@ import gui.wm;
 import gui.loader;
 import gui.list;
 import utils.configfile;
+import utils.misc;
 
 class TeamEditorTask : Task {
     private {

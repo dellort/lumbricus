@@ -511,7 +511,7 @@ public class FormattedText {
             try {
                 c = Color.fromString(t, c);
                 return true;
-            } catch (ConversionException e) {
+            } catch (strparser.ConversionException e) {
             }
             error("color");
             return false;

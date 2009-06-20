@@ -222,7 +222,8 @@ class SerializeBase {
                 unregistered[cur.classinfo.name] = true;
                 continue;
             }
-            r ~= myformat(`{} [label="class: {}"];` \n, id, cur.classinfo.name);
+            r ~= myformat(`{} [label="class: {}"];` \n, id,
+                ConfigFile.doEscape(cur.classinfo.name));
             while (c) {
                 ptr.type = c.owner(); //dangerous, but should be ok
                 doStructMembers(id, ptr, c);
@@ -389,7 +390,7 @@ class SerializeOutConfig : SerializeConfig {
         }
         //byte[] too, because for game saving, the bitmap is a byte[]
         if (ptr.type is mCtx.mTypes.getType!(ubyte[])()) {
-            cur.setByteArrayValue(member, ptr.read!(ubyte[]), true);
+            cur.setValue!(ubyte[])(member, ptr.read!(ubyte[]));
             return;
         }
         if (auto art = cast(ArrayType)ptr.type) {

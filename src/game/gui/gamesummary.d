@@ -12,6 +12,7 @@ import gui.button;
 import gui.label;
 import gui.tablecontainer;
 import utils.configfile;
+import utils.strparser : ConversionException;
 
 class GameSummary : Task {
     private {

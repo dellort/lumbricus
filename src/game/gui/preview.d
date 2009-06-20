@@ -19,6 +19,7 @@ import game.levelgen.landscape;
 import game.gui.levelpaint;
 import utils.vector2;
 import utils.rect2;
+import utils.misc;
 
 class LevelSelector : SimpleContainer {
     private {

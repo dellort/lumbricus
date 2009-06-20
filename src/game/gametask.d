@@ -64,6 +64,7 @@ import utils.perf;
 import game.serialize_register : initGameSerialization;
 
 import stdx.stream;
+import tango.io.device.File : File;
 
 //these imports register classes in a factory on module initialization
 import game.weapon.projectile;
@@ -620,7 +621,10 @@ class GameTask : StatefulTask {
     private void cmdSerDump(MyBox[] args, Output write) {
         debug debugDumpTypeInfos(serialize_types);
         //debugDumpClassGraph(serialize_types, mServerEngine);
-        //char[] res = dumpGraph(serialize_types, mServerEngine, mExternalObjects);
+        //wth
+        auto d = new SerializeBase(new SerializeContext(serialize_types));
+        char[] res = d.dumpGraph(mGameShell.serverEngine());
+        File.set("dump_graph.dot", res);
         //std.file.write("dump_graph.dot", res);
         //ConfigNode cfg = saveGame();
         //gConf.saveConfig(cfg, "savegame.conf");

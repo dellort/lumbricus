@@ -588,8 +588,7 @@ public class ConfigNode {
             this.value = value;
         } else static if (is(T : byte[]) || is(T : ubyte[])) {
             clear();
-            //no compression here, if you want it, use setByteArrayValue()
-            this.value = encodeByteArray(cast(ubyte[])data, false);
+            this.value = encodeByteArray(cast(ubyte[])value, true);
         } else static if (is(T T2 : T2[])) {
             //saving of array types
             this.value = "";
@@ -656,15 +655,6 @@ public class ConfigNode {
         setValue(name, value);
     }
     //<-- end legacy accessor functions
-
-    ///encode ubyte data into the value of a named subnode
-    ///   allow_compress: set to zlib-compress the data
-    ///read it with getValue!(ubyte[])
-    public void setByteArrayValue(char[] name, ubyte[] data,
-        bool allow_compress = false)
-    {
-        setStringValue(name, encodeByteArray(data, allow_compress));
-    }
 
     static char[] encodeByteArray(ubyte[] data, bool compress) {
         //
