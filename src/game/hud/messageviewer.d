@@ -55,6 +55,9 @@ class MessageViewer : Label {
         mStdFont = font;
         border = Vector2i(5, 1);
 
+        //make sure it's hidden initially
+        mInterp.init(timeSecs(0), -200, 0);
+
         mMessages = new typeof(mMessages);
         auto msgPlg = cast(ControllerMsgs)mGame.logic.getPlugin("messages");
         if (msgPlg)

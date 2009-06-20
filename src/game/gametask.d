@@ -614,6 +614,7 @@ class GameTask : StatefulTask {
     private void guiRestoreSnapshot() {
         //important: readd graphics, because they could have changed
         mClientEngine.readd_graphics();
+        mGameFrame.gameView.readd_graphics();
     }
 
     private void cmdSerDump(MyBox[] args, Output write) {

@@ -247,7 +247,9 @@ class GameLoader {
             gt.resetTime();
             gt.paused = mTimeConfig.getValue!(bool)("paused");
             gt.slowDown = mTimeConfig.getValue!(float)("slowdown");
+            mShell.mTimeStamp = mTimeConfig.getValue!(int)("game_ts");
             assert(gt.current == start_time);
+            assert(mShell.mTimeStamp*cFrameLength ==mShell.mMasterTime.current);
             mSaveGame.addExternal(mShell.mGameTime, "game_time");
             //
             addResources(mGfx, mSaveGame);
@@ -607,6 +609,7 @@ class GameShell {
         ct.setValue!(long)("time_ns", mGameTime.current.nsecs);
         ct.setValue!(bool)("paused", mGameTime.paused);
         ct.setValue!(float)("slowdown", mGameTime.slowDown);
+        ct.setValue!(int)("game_ts", mTimeStamp);
 
         //------ GameConfig & level
         savegame.addNode("game_config", mGameConfig.save());

@@ -5,6 +5,7 @@ import stdx.stream;
 import tango.util.PathUtil;
 import tpath = tango.io.Path;
 import tango.core.Exception : IOException;
+import tango.text.Regex;  //for filename cleanup
 import utils.misc;
 import utils.log;
 import utils.output;
@@ -422,6 +423,7 @@ class FileSystem {
         static MountId mNextMountId;
 
         static MountPointHandler[] mHandlers;
+        Regex mRegFilename;
     }
 
     this(char[] arg0, char[] appId) {
@@ -429,6 +431,7 @@ class FileSystem {
         gFS = this;
         log = registerLog("FS");
         mAppId = appId;
+        mRegFilename = new Regex(`[^-+!.,;a-zA-Z0-9()\[\]]`);
         initPaths(arg0);
     }
 
@@ -781,18 +784,15 @@ class FileSystem {
     char[] getUniqueFilename(char[] path, char[] nameTemplate, char[] ext,
         out int tries)
     {
-        const cValidChars = "-+!.,;a-zA-Z0-9()[]";
-
         //changed in r657: always append a number to filename (I hope it's ok)
 
         int i = 0;
         char[] fn, ret;
-        /+do {
+        do {
             i++;
             fn = myformat(nameTemplate, i);
-        } while (exists(ret = path //detect invalid characters in name by str.tr
-            ~ str.tr(fn, cValidChars, "_", "c") ~ ext))+/
-        assert(false, "please fix me"); //I'm not going to rewrite that arrrgh
+        } while (exists(ret = path //detect invalid characters in name
+            ~ mRegFilename.replaceAll(fn, "_") ~ ext))
         tries = i-1;
         return ret;
     }

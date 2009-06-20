@@ -20,7 +20,6 @@
 - wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
 ! napalm ist sehr langsam, minenagriff nicht => ?
 - Superschaf fliegt auch 15sec weiter, wenn der Wurm nicht mehr dran ist
-- wurm label verschwinden beim replay-start (Einfg); hatte auch mal assertion failed gameshell.d, 589 (nicht reproduzierbar)
 - Flammenwerfer braucht 1 Munition für jedes Napalm-Partikel
 - Absauf-Labels zeigen Wurm-Schaden nicht korrekt an
 - Feuerrichtung der "Seil-Waffe" kann geändert werden, während das Anker-Dings rausfliegt

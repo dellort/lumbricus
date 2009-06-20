@@ -382,7 +382,6 @@ private class GameLabel : Label {
     this(GameInfo a_game, TextGraphic a_txt) {
         setLayout(WidgetLayout.Aligned(-1, -1));
         styles.addClass("game-label");
-        font = gFramework.fontManager.loadFont("gamelabel");
         txt = a_txt;
         game = a_game;
     }
@@ -567,9 +566,7 @@ class GameView : Container {
             doNewGraphic(g);
         }
 
-        SceneObject labels = new DrawLabels();
-        labels.zorder = GameZOrder.Names;
-        mGame.cengine.scene.add(labels);
+        readd_graphics();
 
         mCamera = new Camera(mGame.clientTime);
 
@@ -597,6 +594,12 @@ class GameView : Container {
         mCmds.register(Command("move", &cmdMove, "-", ["text:key",
             "bool:down"]));
         mCmds.bind(mCmd);
+    }
+
+    void readd_graphics() {
+        SceneObject labels = new DrawLabels();
+        labels.zorder = GameZOrder.Names;
+        mGame.cengine.scene.add(labels);
     }
 
     private void cmdCategory(MyBox[] args, Output write) {
