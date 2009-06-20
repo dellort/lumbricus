@@ -82,7 +82,7 @@ T fromStr(T)(char[] s) {
 }
 template fromStrSupports(T) {
     const bool fromStrSupports =
-        is( typeof(fromStr!(T)(cast(char[])(""c))) == T );
+        is(typeof( { fromStr!(T)(cast(char[])null); } ));
 }
 //return false and leaves destVal unmodified if parsing failed
 bool tryFromStr(T)(char[] s, ref T destVal) {
@@ -109,7 +109,7 @@ char[] toStr(T)(T value) {
     }
 }
 template toStrSupports(T) {
-    const bool toStrSupports = is( typeof(toStr!(T)(T.init)) == char[] );
+    const bool toStrSupports = is(typeof( { toStr!(T)(T.init); } ));
 }
 
 static this() {
@@ -309,6 +309,9 @@ unittest {
     assert(stringToType!(BlaTest)("x1") == BlaTest.x1);
     assert(stringToType!(BlaTest)("x2") == BlaTest.x2);
     assert(boxToString(MyBox.Box(BlaTest.fgf)) == "fgf");
+
+    static assert(!toStrSupports!(X));
+    static assert(!fromStrSupports!(X));
 
     //----
 

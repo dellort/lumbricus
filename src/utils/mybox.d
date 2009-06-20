@@ -87,7 +87,7 @@ struct MyBox {
         if (size <= mStaticData.length) {
             ptr[0..size] = mStaticData[0..size];
         } else {
-            ptr[0..size] = mDynamicData;
+            ptr[0..size] = mDynamicData[];
         }
         return data;
     }
@@ -135,7 +135,7 @@ struct MyBox {
         }
         //copy initializer; docs say: if init is null, init with zero
         if (mType.init.length > 0) {
-            pData[] = mType.init;
+            pData[] = mType.init[];
         } else {
             (cast(ubyte[])pData)[] = 0;
         }
