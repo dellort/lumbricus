@@ -3,6 +3,7 @@ module utils.misc;
 import layout = tango.text.convert.Layout;
 
 public import tango.stdc.stdarg : va_list;
+public import tango.core.Tuple : Tuple;
 
 //Tango team = stupid
 public import tango.math.Math : min, max;
@@ -137,3 +138,10 @@ template RetType(T) {
     }
 }
 
+template Repeat(int count) { //thx h3
+    static if (!count) {
+        alias Tuple!() Repeat;
+    } else {
+        alias Tuple!(count-1, Repeat!(count-1)) Repeat;
+    }
+}

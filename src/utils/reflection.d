@@ -1,4 +1,5 @@
 //doing all those things which D/Phobos should provide us
+//Reflection? More like BLOATflection!
 module utils.reflection;
 
 import tango.stdc.ctype : isalnum;
@@ -9,6 +10,108 @@ import utils.mybox;
 
 import tango.core.Traits : isAssocArrayType, isStaticArrayType;
 
+/++++
+Documentation lol for creating reflectionable classes:
+
+The class must have this ctor:
+    class Foo {
+        this(ReflectCtor c) {
+        }
+    }
+This will be called to create a dummy object and for reflection-based creation
+of "empty" classes (used by serialization mechanism when deserializing). The
+dummy object is used by the serialization mechanism to read the init values of
+members and to call special methods (see Methods!()).
+
+All non-static non-const member variables (including private ones) will be
+exposed to reflection, using tupleof.
+
+Methods must be declared manually:
+    class Foo {
+        ...
+        mixin Methods!("method1", "method2");
+        void method1() {}
+        int method2(char[] a, int b) {}
+    }
+You need this only if you want to actually expose the methods to reflection.
+Serialization needs this to serialize delegates pointing to a method.
+There can be only one Methods-mixin. It creates a hidden method; the existance
+of this method is checked with is(), and if it exists, it's called when the
+dummy object is created.
+
+- transient members
+- on deserialization
+
+
+
+++++/
+
+//use this like this:
+//  class SomeClass { mixin Methods!("method1", "method2", "method3"); }
+//this will generate a static method named _register_methods(), which will be
+//automagically called when the method is registered with serialization
+//
+//NOTE about overloaded methods: it seems dmd picks a random method (the first?)
+//  when doing &functionname. I don't think we can automatically get all
+//  functions (D2 has __traits, which probably allows this), but you can do
+//  this: mixin("cast(" ~ sig ~ ")&this." ~ X[i]);
+//  where sig is e.g. "void function(int)" (simply the signature of a delegate
+//  to the method, just as function type)
+//  one could add the sig to the parameter string of the mixin, and then CTFE-
+//  parse it, so if you need it add it... (have fun.)
+//  oh, and be warned that if the signature is wrong, dmd will pick the first
+//  function again and reinterpret-cast it to that function type! bad.
+//
+//NOTE about the interface: we could also pass a single string as template param
+//  and execute ctfe_split() on it, if the current way should get annoying
+template Methods(X...) {
+    static assert(is(typeof(this) == class));
+
+    static void _register_methods(typeof(this) me, Types t) {
+        //NOTE: the loop is executed at compile time, and each element in the
+        //  X tuple is expected to be a char[] and is interpreted as a method
+        //  name
+        foreach (int i, _; X) {
+            auto fn = mixin("&me." ~ X[i]);
+            static assert(is(typeof(fn) == delegate));
+            t.registerMethod!(typeof(this), typeof(fn))(me, fn, X[i]);
+        }
+    }
+}
+
+//ok, here's the same, but with a single string as parameter, that is expected
+//  to contain a | separated list of method names
+//mixin Methods2!("method1|method2|method3");
+template Methods2(char[] X) {
+
+    static void _register_methods(typeof(this) me, Types t) {
+        static class Foo { //namespace hack xD
+            public import utils.string : ctfe_split;
+            public import utils.misc : Repeat;
+        }
+        const arr = Foo.ctfe_split(X, '|');
+        foreach (int i, _; Foo.Repeat!(arr.length)) {
+            auto fn = mixin("&me." ~ arr[i]);
+            static assert(is(typeof(fn) == delegate));
+            t.registerMethod!(typeof(this), typeof(fn))(me, fn, arr[i]);
+        }
+    }
+
+}
+
+//might as well give up hating on mixins and add this...
+//PS: doesn't work with sub classes, somehow
+template Serializable() {
+    this(ReflectCtor c) {
+        static if (is(T S == super)) {
+            static if (!is(S[0] == Object)) {
+                //if this fails, "someone" forgot a Serializable in the super
+                //class
+                super(c);
+            }
+        }
+    }
+}
 
 ///Pointer which carries type infos
 ///Compared to D, the type is the type pointed to
@@ -24,6 +127,7 @@ import tango.core.Traits : isAssocArrayType, isStaticArrayType;
 ///Warning: this is always a pointer to the real data, even if the real data is
 ///         an object reference or a pointer
 struct SafePtr {
+    //use Types.ptrOf(), Type.ptrOf(), or Types.toSafePtr() for construction
     Type type;
     void* ptr;
 
@@ -184,17 +288,46 @@ static this() {
 ///oh, and also includes a way to get the Types class
 ///The constructor of a reflected class looks like this:
 ///  this(ReflectCtor c) {} //durrrr
-interface ReflectCtor {
-    Types types();
+final class ReflectCtor {
+    private {
+        Types mTypes;
+        Class mCurrent;
+        bool mRecreateTransient;
+    }
+
+    private this(Types t) {
+        mTypes = t;
+    }
+
+    final Types types() {
+        return mTypes;
+    }
 
     ///mark a class member as transient (not serialized)
     ///member is still accessible for reflection
     ///set instance to this
-    void transient(Object instance, void* member);
+    final void transient(T1, T2)(T1 owner, T2* member) {
+        //xxx: what's this special case? whatever...
+        if (!mCurrent)
+            return;
+        assert(!!member);
+        assert(!!owner);
+        //get relative offset
+        auto p_obj = cast(void*)owner;
+        size_t rel_offset = cast(size_t)member - cast(size_t)p_obj;
+        mCurrent.addTransientMember(rel_offset);
+    }
 
     ///with this function, the ctor can ask if the transient members shall be
     ///recreated (false for dummy members, true when deserializing objects)
-    bool recreateTransient();
+    final bool recreateTransient() {
+        return mRecreateTransient;
+    }
+
+    //method(this, &method, "method")
+    final void method(T1, T2)(T1 owner, T2 del, char[] name) {
+        mTypes.registerMethod(owner, del, name);
+    }
 }
 
 bool isReflectableClass(T)() {
@@ -210,31 +343,16 @@ class Types {
         Type[TypeInfo] mTItoT;
         ClassMethod[void*] mMethodMap;
         Class[char[]] mClassMap;
-        FooHandler mFoo;
+        ReflectCtor mFoo;
     }
 
-    private class FooHandler : ReflectCtor {
-        void delegate(size_t) mTransientHandler;
-        bool mRecreate;
-
-        override Types types() {
-            return this.outer;
-        }
-
-        //need instance pointer because called while in constructor
-        override void transient(Object instance, void* member) {
-            if (mTransientHandler) {
-                assert(!!instance && member);
-                //get relative offset
-                auto p_obj = cast(void*)instance;
-                size_t rel_offset = cast(size_t)member - cast(size_t)p_obj;
-                mTransientHandler(rel_offset);
-            }
-        }
-
-        override bool recreateTransient() {
-            return mRecreate;
-        }
+    this() {
+        mFoo = new ReflectCtor(this);
+        //there are a lot of more base types in D, it's ridiculous!
+        //add if needed
+        addBaseTypes!(void, char, byte, ubyte, short, ushort, int, uint, long,
+            ulong, float, double, real, bool)();
+        getType!(Object)();
     }
 
     final Type[] allTypes() {
@@ -308,20 +426,18 @@ class Types {
         mClassMap[klass.mName] = klass;
         klass.mCreateDg = inst;
 
-        void membTransient(size_t relOffset) {
-            klass.addTransientMember(relOffset);
-        }
-
         if (!dummy) {
             //ctors can be called recursively
             //(when using registerClass() in a ctor)
-            auto old = mFoo.mTransientHandler;
-            mFoo.mTransientHandler = &membTransient;
-            mFoo.mRecreate = false;
-            ReflectCtor c = mFoo;
-            dummy = cast(T)inst(c);
-            //only during registration
-            mFoo.mTransientHandler = old;
+            //xxx: umm, we could just create a new ReflectCtor instance...
+            auto old_current = mFoo.mCurrent;
+            assert(!mFoo.mRecreateTransient);
+            scope(exit) {
+                //only during registration
+                mFoo.mCurrent = old_current;
+            }
+            mFoo.mCurrent = klass;
+            dummy = cast(T)inst(mFoo);
         }
         assert (!!dummy);
         klass.mDummy = dummy;
@@ -339,8 +455,9 @@ class Types {
     //NOTE: the owner field is required to check if the delegate points really
     //      to an object method (and not into the stack or so) (debugging)
     //name must be provided explicitely, there seems to be no other way
-    final void registerMethod(T)(Object owner, T del, char[] name) {
-        static assert (is(T == delegate));
+    final void registerMethod(T1, T2)(T1 owner, T2 del, char[] name) {
+        static assert (is(T1 == class));
+        static assert (is(T2 == delegate));
         if (del.ptr !is cast(void*)owner)
             throw new Exception("not an object method?");
         Class klass = findClass(owner);
@@ -348,7 +465,7 @@ class Types {
         //this shouldn't happen
         if (!klass)
             throw new Exception("class not registered");
-        DelegateType dgt = cast(DelegateType)getType!(T)();
+        DelegateType dgt = cast(DelegateType)getType!(T2)();
         assert (!!dgt);
         void* ptr = del.funcptr;
         assert (ptr.sizeof == del.funcptr.sizeof);
@@ -406,15 +523,6 @@ class Types {
             //nothing found
             assert(false, "can't handle type " ~ T.stringof);
         }
-    }
-
-    this() {
-        mFoo = new FooHandler();
-        //there are a lot of more base types in D, it's ridiculous!
-        //add if needed
-        addBaseTypes!(char, byte, ubyte, short, ushort, int, uint, long, ulong,
-            float, double, real, bool)();
-        getType!(Object)();
     }
 
     //returns true on success
@@ -524,6 +632,12 @@ class Type {
             }
         }
         mOwner.addType(this);
+    }
+
+    final SafePtr ptrOf(T)(T* ptr) {
+        if (typeid(T) !is mTI)
+            throw new Exception("type error");
+        return SafePtr(this, ptr);
     }
 
     final TypeInfo typeInfo() {
@@ -816,9 +930,8 @@ class ArrayType : Type {
             static assert (false, "not an array type");
         }
         t.mStaticLength = -1;
-        if (isStaticArrayType!(T)) {
-            T x;
-            t.mStaticLength = x.length; //T.init doesn't work???
+        static if (isStaticArrayType!(T)) {
+            t.mStaticLength = T.length; //T.init doesn't work???
         }
         t.mSetLength = function void(ArrayType t, SafePtr array, size_t len) {
             static if (!isStaticArrayType!(T)) {
@@ -935,22 +1048,84 @@ class MapTypeImpl(T) : MapType {
 }
 
 class DelegateType : Type {
+    private {
+        Type mReturnType;
+        Type[] mParameterTypes;
+        void function(SafePtr, SafePtr, SafePtr[]) mInvoker;
+    }
+
     //use create()
     private this(Types a_owner, TypeInfo a_ti) {
         super(a_owner, a_ti);
     }
 
     private static DelegateType create(T)(Types a_owner) {
+        static assert(is(T == delegate));
         DelegateType t = new DelegateType(a_owner, typeid(T));
-        //xxx: etc.
+        //squeeze out ret types and params
+        static if(is(T TF == delegate)) {
+            static if(is(TF Params == function)) {
+                //better way to get rettype?
+                T foo;
+                Params p;
+                alias typeof(foo(p)) RetType;
+                t.mReturnType = a_owner.getType!(RetType);
+                foreach (int idx, _; Params) {
+                    t.mParameterTypes ~= a_owner.getType!(Params[idx]);
+                }
+                //generate actual call code for dynamic invocation
+                t.mInvoker = function void(SafePtr del, SafePtr ret,
+                    SafePtr[] args)
+                {
+                    Params p;
+                    foreach (int idx, _; p) {
+                        p[idx] = args[idx].read!(typeof(p[idx]));
+                    }
+                    T rdel = del.read!(T)();
+                    //arrgh shitty special case
+                    static if (is(RetType == void)) {
+                        rdel(p);
+                    } else {
+                        auto r = rdel(p);
+                        ret.write!(RetType)(r);
+                    }
+                };
+            } else {
+                static assert(false);
+            }
+        } else {
+            static assert(false);
+        }
         return t;
+    }
+
+    final Type[] parameterTypes() {
+        return mParameterTypes.dup;
+    }
+
+    final Type returnType() {
+        return mReturnType;
+    }
+
+    //call a delegate dynamically
+    //  del = ptr to the delegate (== this.typeInfo())
+    //  ret = pointer to where the return value will be written
+    //        (must be of the exact type obviously)
+    //  args = parameters
+    final void invoke_dynamic(SafePtr del, SafePtr ret, SafePtr[] args) {
+        mInvoker(del, ret, args);
     }
 
     override char[] toString() {
         //note that the return value from TypeInfo_Delegate.toString() looks
         //like D syntax, but the arguments are not included
         //e.g. "long delegate(int z)" => "long delegate()"
-        return "DelegateType[" ~ typeInfo().toString() ~ "...]";
+        char[] res = "DelegateType[";
+        res ~= mReturnType.toString();
+        foreach (m; mParameterTypes) {
+            res ~= ", " ~ m.toString();
+        }
+        return res ~ "]";
     }
 }
 
@@ -1117,7 +1292,8 @@ class Class {
             return null;
         }
         auto c = types().mFoo;
-        c.mRecreate = true;
+        c.mRecreateTransient = true;
+        scope(exit) c.mRecreateTransient = false;
         Object o = mCreateDg(c);
         assert (!!o);
         assert (types.findClass(o) is this);
@@ -1230,6 +1406,22 @@ class ClassMethod : ClassElement {
         return mAddress;
     }
 
+    final DelegateType type() {
+        return mDgType;
+    }
+
+    //initialize a delegate, that points to this method and the object obj
+    //  ptr = must be preinitialized with type()
+    //  obj = object with exact type
+    final void setDelegate(SafePtr ptr, SafePtr obj) {
+        if (ptr.type !is mDgType || obj.type !is mOwner.owner)
+            throw new Exception("setDelegate: incompatible types");
+        D_Delegate* dp = cast(D_Delegate*)ptr.ptr;
+        dp.ptr = *cast(void**)obj.ptr;
+        dp.funcptr = mAddress;
+    }
+
+
     ///invoke the method with a signature known at compile-time
     ///the argument types must fit exactly (no implicit conversions)
     /// T_ret = return type
@@ -1332,6 +1524,11 @@ class DefineClass {
         //actually add the fields
         for (int n = 0; n < member_count; n++) {
             addField(parsed_names[n], member_types[n], offsets[n]);
+        }
+        //time for some MAGIC
+        //created by Methods!()
+        static if (is(typeof( {obj._register_methods(obj, mBase);} ))) {
+            obj._register_methods(obj, mBase);
         }
         //handle super classes
         static if (is(T S == super)) {
@@ -1470,7 +1667,8 @@ void debugDumpTypeInfos(Types t) {
                         Trace.formatln("  - {} @ {} : {}", m.name(), m.offset(),
                             m.type());
                     } else if (auto m = cast(ClassMethod)e) {
-                        Trace.formatln("  - {}() @ {:x#}", m.name(), m.address());
+                        Trace.formatln("  - {}() @ {:x#} : {}", m.name(),
+                            m.address(), m.type());
                     }
                 }
             }

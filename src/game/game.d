@@ -99,6 +99,9 @@ class GameEngine : GameEnginePublic {
         const cPlacePlatformDistance = 90.0f;
     }
 
+    mixin Methods!("deathzoneTrigger", "underWaterTrigger", "windChangerUpdate",
+        "waterChangerUpdate", "onPhysicHit", "onDamage", "offworldTrigger");
+
     this(GameConfig config, GfxSet a_gfx, TimeSourcePublic a_gameTime)
     {
         rnd = new Random();
@@ -207,13 +210,6 @@ class GameEngine : GameEnginePublic {
         c.transient(this, &mCallbacks);
         auto t = c.types();
         t.registerClass!(typeof(mObjects));
-        t.registerMethod(this, &deathzoneTrigger, "deathzoneTrigger");
-        t.registerMethod(this, &underWaterTrigger, "underWaterTrigger");
-        t.registerMethod(this, &windChangerUpdate, "windChangerUpdate");
-        t.registerMethod(this, &waterChangerUpdate, "waterChangerUpdate");
-        t.registerMethod(this, &onPhysicHit, "onPhysicHit");
-        t.registerMethod(this, &onDamage, "onDamage");
-        t.registerMethod(this, &offworldTrigger, "offworldTrigger");
         if (c.recreateTransient) {
             mCallbacks = new GameEngineCallback();
         }
