@@ -6,7 +6,7 @@ import tango.stdc.ctype : isalnum;
 import str = utils.string;
 import utils.misc;
 import utils.mybox;
-
+import utils.hashtable : RefHashTable;
 
 import tango.core.Traits : isAssocArrayType, isStaticArrayType;
 
@@ -54,16 +54,14 @@ dummy object is created.
 //NOTE about overloaded methods: it seems dmd picks a random method (the first?)
 //  when doing &functionname. I don't think we can automatically get all
 //  functions (D2 has __traits, which probably allows this), but you can do
-//  this: mixin("cast(" ~ sig ~ ")&this." ~ X[i]);
+//  this: mixin("cast(" ~ sig ~ ")&me." ~ X[i]);
+//            (yes that cast really changes the address/function)
 //  where sig is e.g. "void function(int)" (simply the signature of a delegate
 //  to the method, just as function type)
 //  one could add the sig to the parameter string of the mixin, and then CTFE-
 //  parse it, so if you need it add it... (have fun.)
 //  oh, and be warned that if the signature is wrong, dmd will pick the first
 //  function again and reinterpret-cast it to that function type! bad.
-//
-//NOTE about the interface: we could also pass a single string as template param
-//  and execute ctfe_split() on it, if the current way should get annoying
 template Methods(X...) {
     static assert(is(typeof(this) == class));
 
@@ -133,10 +131,16 @@ struct SafePtr {
 
     static const SafePtr Null = {null, null};
 
+    static SafePtr get(T)(Type t, T* ptr) {
+        assert (t.typeInfo() == typeid(T));
+        return SafePtr(t, ptr);
+    }
+
     //throw an appropriate exception if types are incompatible
     void check(TypeInfo ti) {
         if (ti !is type.mTI)
-            throw new Exception("incompatible types");
+            throw new Exception(myformat("incompatible types: got {}, expected"
+                " {}", ti, type.mTI));
     }
 
     //check if exactly the same type (no conversions) and not a null ptr
@@ -222,11 +226,6 @@ struct SafePtr {
 
     void write(T)(T data) {
         *castTo!(T) = data;
-    }
-
-    static SafePtr get(T)(Type t, T* ptr) {
-        assert (t.typeInfo() == typeid(T));
-        return SafePtr(t, ptr);
     }
 
     //return if "from" can be assigned to a variable pointed to by "this"
@@ -340,13 +339,17 @@ class Types {
         //argh, D doesn't provide ClassInfo -> TypeInfo
         ReferenceType[ClassInfo] mCItoT;
         //D types to internal ones
-        Type[TypeInfo] mTItoT;
+        //Type[TypeInfo] mTItoT;
+        //can't use AA, comparing TypeInfo with == is broken:
+        //  http://d.puremagic.com/issues/show_bug.cgi?id=3086
+        RefHashTable!(TypeInfo, Type) mTItoT;
         ClassMethod[void*] mMethodMap;
         Class[char[]] mClassMap;
         ReflectCtor mFoo;
     }
 
     this() {
+        mTItoT = new typeof(mTItoT)();
         mFoo = new ReflectCtor(this);
         //there are a lot of more base types in D, it's ridiculous!
         //add if needed
@@ -359,13 +362,18 @@ class Types {
         return mTItoT.values;
     }
 
+    //map classes to reflection type (always return null on failure)
     final Class findClass(Object o) {
         if (!o)
             return null;
-        ReferenceType* pt = o.classinfo in mCItoT;
+        return findClass(o.classinfo);
+
+    }
+    final Class findClass(ClassInfo ci) {
+        assert(!!ci);
+        ReferenceType* pt = ci in mCItoT;
         return pt ? (*pt).klass() : null;
     }
-
     final Class findClassByName(char[] name) {
         Class* pc = name in mClassMap;
         return pc ? *pc : null;
@@ -384,8 +392,10 @@ class Types {
     ///            else return null
     final Type tiToT(TypeInfo ti, bool can_fail = false) {
         Type* t = ti in mTItoT;
-        if (t)
+        if (t) {
+            assert((*t).typeInfo() is ti);
             return *t;
+        }
         if (can_fail)
             return null;
         throw new Exception("Type for TypeInfo >"~ti.toString()~"< not found");
@@ -492,7 +502,7 @@ class Types {
 
     private void addBaseTypes(T...)() {
         foreach (Type; T) {
-            new BaseType(this, typeid(Type), Type.stringof);
+            BaseType.create!(Type)(this);
         }
     }
 
@@ -504,6 +514,7 @@ class Types {
         Type res = tiToT(typeid(T), true);
         if (res)
             return res;
+
         //create instance for a type
         static if (is(T == class) || is(T == interface)) {
             return ReferenceType.create!(T)(this);
@@ -596,6 +607,7 @@ class Type {
         TypeInfo mTI;
         size_t mSize;
         void[] mInit;
+        char[] function(SafePtr) mToString;
     }
 
     private this(Types a_owner, TypeInfo a_ti) {
@@ -632,6 +644,26 @@ class Type {
             }
         }
         mOwner.addType(this);
+    }
+
+    //do initializations which require the static type
+    //must be called by subclasses
+    //why the fuck are constructors not templateable?
+    private void do_init(T)() {
+        assert(mTI is typeid(T));
+        assert(!mToString);
+        mToString = function char[](SafePtr p) {
+            //fucking special cases!
+            static if(is(T == void)) {
+                return "[void]";
+            } else {
+                //equivalent to T d = p.read!(T)();
+                //just that we can't do this with static arrays
+                T* d = cast(T*)p.ptr;
+                return myformat("{}", *d);
+                return "";
+            }
+        };
     }
 
     final SafePtr ptrOf(T)(T* ptr) {
@@ -679,6 +711,13 @@ class Type {
             throw new Exception("type error");
         dest.ptr[0..mSize] = src.ptr[0..mSize];
     }
+
+    //convert the value in p (which must be of type this) to a string
+    //meant for debugging only
+    final char[] dataToString(SafePtr p) {
+        assert(!!mToString);
+        return mToString(p);
+    }
 }
 
 class BaseType : Type {
@@ -689,12 +728,18 @@ class BaseType : Type {
         mName = a_name;
     }
 
+    private static BaseType create(T)(Types a_owner) {
+        auto t = new BaseType(a_owner, typeid(T), T.stringof);
+        t.do_init!(T)();
+        return t;
+    }
+
     override char[] toString() {
         return "BaseType[" ~ mName ~ "]";
     }
 }
 
-class StructuredType : Type {
+abstract class StructuredType : Type {
     private {
         Class mClass;
     }
@@ -777,6 +822,7 @@ class ReferenceType : StructuredType {
 
     private static ReferenceType create(T)(Types a_owner) {
         ReferenceType t = new ReferenceType(a_owner, typeid(T));
+        t.do_init!(T)();
         t.mIsInterface = is(T == interface);
         t.mCastTo = function void*(Object obj) {
             return cast(void*)cast(T)obj;
@@ -803,6 +849,7 @@ class StructType : StructuredType {
 
     private static StructType create(T)(Types a_owner) {
         StructType t = new StructType(a_owner, typeid(T));
+        t.do_init!(T)();
         DefineClass dc = new DefineClass(a_owner, t);
         dc.autostruct!(T)();
         return t;
@@ -829,6 +876,7 @@ class PointerType : Type {
 
     private static PointerType create(T)(Types a_owner) {
         PointerType t = new PointerType(a_owner, typeid(T));
+        t.do_init!(T)();
         static if (is(T T2 : T2*)) {
             t.mNext = t.mOwner.getType!(T2)();
         } else {
@@ -858,6 +906,7 @@ class EnumType : Type {
 
     private static EnumType create(T)(Types a_owner) {
         EnumType t = new EnumType(a_owner, typeid(T));
+        t.do_init!(T)();
         static if (is(T T2 == enum)) {
             t.mUnderlying = t.mOwner.getType!(T2)();
         } else {
@@ -924,6 +973,7 @@ class ArrayType : Type {
 
     private static ArrayType create(T)(Types a_owner) {
         ArrayType t = new ArrayType(a_owner, typeid(T));
+        t.do_init!(T)();
         static if (is(T T2 : T2[])) {
             t.mMember = t.mOwner.getType!(T2)();
         } else {
@@ -995,7 +1045,6 @@ class MapType : Type {
 
     private static MapType create(T)(Types a_owner) {
         //MapType t = new MapType(a_owner, typeid(T));
-        //return t;
         return new MapTypeImpl!(T)(a_owner);
     }
 }
@@ -1004,9 +1053,11 @@ class MapTypeImpl(T) : MapType {
     static assert(isAssocArrayType!(T));
     alias typeof(T.init.values[0]) V;
     alias typeof(T.init.keys[0]) K;
+    static assert(is(T == V[K]));
 
     private this(Types a_owner) {
         super(a_owner, typeid(T));
+        do_init!(T)();
         mKey = mOwner.getType!(K);
         mValue = mOwner.getType!(V);
     }
@@ -1052,6 +1103,8 @@ class DelegateType : Type {
         Type mReturnType;
         Type[] mParameterTypes;
         void function(SafePtr, SafePtr, SafePtr[]) mInvoker;
+        void function(DelegateType, SafePtr, void delegate(SafePtr, SafePtr[],
+            void delegate())) mTrampoline;
     }
 
     //use create()
@@ -1062,6 +1115,7 @@ class DelegateType : Type {
     private static DelegateType create(T)(Types a_owner) {
         static assert(is(T == delegate));
         DelegateType t = new DelegateType(a_owner, typeid(T));
+        t.do_init!(T)();
         //squeeze out ret types and params
         static if(is(T TF == delegate)) {
             static if(is(TF Params == function)) {
@@ -1070,9 +1124,13 @@ class DelegateType : Type {
                 Params p;
                 alias typeof(foo(p)) RetType;
                 t.mReturnType = a_owner.getType!(RetType);
+                const cRetVoid = is(RetType == void);
+
                 foreach (int idx, _; Params) {
                     t.mParameterTypes ~= a_owner.getType!(Params[idx]);
                 }
+                t.mReturnType = a_owner.getType!(RetType)();
+
                 //generate actual call code for dynamic invocation
                 t.mInvoker = function void(SafePtr del, SafePtr ret,
                     SafePtr[] args)
@@ -1081,14 +1139,44 @@ class DelegateType : Type {
                     foreach (int idx, _; p) {
                         p[idx] = args[idx].read!(typeof(p[idx]));
                     }
+                    ret.check(typeid(RetType)); //type-check before actual call
                     T rdel = del.read!(T)();
+                    //actual call
                     //arrgh shitty special case
-                    static if (is(RetType == void)) {
+                    static if (cRetVoid) {
                         rdel(p);
                     } else {
                         auto r = rdel(p);
                         ret.write!(RetType)(r);
                     }
+                };
+
+                //meh...
+                t.mTrampoline = function void(DelegateType me, SafePtr del,
+                    void delegate(SafePtr, SafePtr[], void delegate()) jump)
+                {
+                    Params p;
+                    SafePtr[Params.length] pp;
+                    foreach (int idx, _; p) {
+                        pp[idx].type = me.mParameterTypes[idx];
+                        pp[idx].ptr = &p[idx];
+                    }
+                    SafePtr pr;
+                    pr.type = me.mReturnType;
+                    static if (!cRetVoid) {
+                        RetType r;
+                        pr.ptr = &r;
+                    }
+                    T rdel = del.read!(T)();
+                    //the user calls the passed delegate, as soon as he has
+                    //filled the params
+                    jump(pr, pp, {
+                        static if (cRetVoid) {
+                            rdel(p);
+                        } else {
+                            r = rdel(p); //note that pr points to r
+                        }
+                    });
                 };
             } else {
                 static assert(false);
@@ -1100,7 +1188,7 @@ class DelegateType : Type {
     }
 
     final Type[] parameterTypes() {
-        return mParameterTypes.dup;
+        return mParameterTypes;
     }
 
     final Type returnType() {
@@ -1114,6 +1202,23 @@ class DelegateType : Type {
     //  args = parameters
     final void invoke_dynamic(SafePtr del, SafePtr ret, SafePtr[] args) {
         mInvoker(del, ret, args);
+    }
+
+    //same functionality as invoke_dynamic, but fills ret and args automatically
+    //works like this:
+    //  - init ret and args
+    //  - call jump() with ret, args, and the call delegate (which will later
+    //    execute the actual call)
+    //  - user fills args with his values
+    //  - user calls call()
+    //  - actual method (referred to by del) is executed
+    //  - call() returns and fills ret
+    //  - user reads return value from ret
+    //it's allowed to not call call() at all or to call it more than once
+    final void invoke_dynamic_trampoline(SafePtr del,
+        void delegate(SafePtr ret, SafePtr[] args, void delegate() call) jump)
+    {
+        mTrampoline(this, del, jump);
     }
 
     override char[] toString() {
@@ -1324,6 +1429,10 @@ class ClassElement {
         return mName;
     }
 
+    final char[] fullname() {
+        return myformat("{}.{}", mOwner.name(), name());
+    }
+
     final Class klass() {
         return mOwner;
     }
@@ -1378,6 +1487,10 @@ class ClassMember : ClassElement {
         }
         return bptr_m[0..type.size] == bptr_def[0..type.size];
     }
+
+    char[] toString() {
+        return myformat("{} @ {} : {}", fullname(), offset(), type());
+    }
 }
 
 ///Method of a class
@@ -1388,10 +1501,13 @@ class ClassMethod : ClassElement {
         DelegateType mDgType;
         //address of the code
         void* mAddress;
+        //lol; also means structs have no methods for now
+        ReferenceType mOwnerType;
     }
 
     private this(Class a_owner, DelegateType dgt, void* addr, char[] a_name) {
         super(a_owner, a_name);
+        mOwnerType = castStrict!(ReferenceType)(mOwner.type());
         mDgType = dgt;
         mAddress = addr;
         Types t = mOwner.mOwner.mOwner; //oh absurdity
@@ -1410,6 +1526,7 @@ class ClassMethod : ClassElement {
         return mDgType;
     }
 
+/+ don't use
     //initialize a delegate, that points to this method and the object obj
     //  ptr = must be preinitialized with type()
     //  obj = object with exact type
@@ -1420,23 +1537,40 @@ class ClassMethod : ClassElement {
         dp.ptr = *cast(void**)obj.ptr;
         dp.funcptr = mAddress;
     }
++/
 
+    private const LOLCODEDUPLICATION = `
+        assert(!!o);
+        //could generate the call code at compile-time, instead of generating
+        //a call-delegate; but both ways seem to be messy
+        assert(!mOwnerType.isInterface()); //needs some testing
+        void* rawptr = mOwnerType.castTo(o);
+        if (!rawptr)
+            throw new Exception("no.");
+        //dirty constructed pointer to delegate to this method
+        D_Delegate rawdg;
+        assert(rawdg.sizeof == type().size());
+        rawdg.funcptr = mAddress;
+        rawdg.ptr = rawptr;
+        SafePtr pdg = SafePtr(type(), &rawdg);
+    `;
 
-    ///invoke the method with a signature known at compile-time
-    ///the argument types must fit exactly (no implicit conversions)
-    /// T_ret = return type
-    /// T... = signature of the method
-    /// ptr = object on which the method should be called
-    T_ret invoke(T_ret, T...)(SafePtr ptr, T args) {
-        alias T_ret delegate(T) dg_t;
-        if (typeid(dg_t) !is mDgType.typeInfo())
-            throw new Exception("wrong signature for method call");
-        ptr.check(mOwner.mTI);
-        DgConvert!(dg_t) dgc;
-        dgc.ptr = ptr.ptr;
-        dgc.funcptr = mAddress;
-        //actually call it
-        return dgc.d2(args);
+    //like DelegateType.invoke_dynamic(), but you don't need a call-delegate
+    //xxx: in r811 was a function to invoke with compiletime args
+    final void invoke_dynamic(Object o, SafePtr ret, SafePtr[] args) {
+        mixin(LOLCODEDUPLICATION);
+        type.invoke_dynamic(pdg, ret, args);
+    }
+
+    final void invoke_dynamic_trampoline(Object o,
+        void delegate(SafePtr ret, SafePtr[] args, void delegate() call) jump)
+    {
+        mixin(LOLCODEDUPLICATION);
+        type.invoke_dynamic_trampoline(pdg, jump);
+    }
+
+    char[] toString() {
+        return myformat("{}() @ {:x#} : {}", fullname(), address(), type());
     }
 }
 
