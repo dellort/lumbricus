@@ -312,8 +312,4 @@ unittest {
 
     static assert(!toStrSupports!(X));
     static assert(!fromStrSupports!(X));
-
-    //----
-
-    debug Trace.formatln("strparser.d unittest: passed.");
 }

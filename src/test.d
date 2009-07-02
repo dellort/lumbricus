@@ -64,7 +64,8 @@ static:
 
         //annoying, but can't do this at compiletime, unless the bindings are
         //generated at compiletime too
-        addSimpleMarshallers!(int, char[]);
+        addSimpleMarshallers!(char, ubyte, byte, ushort, short, uint, int,
+            ulong, long, char[]);
     }
 
     void addSimpleMarshallers(T...)() {
@@ -94,31 +95,12 @@ static:
             //xxx superGet fails at compiletime, so I didn't use it
             //    yeah, compile time duck typing is a great idea!
             mMarshallers[t] = function void(md.MDThread* th, SafePtr p) {
-                //md_bind.superPush(th, p.read!(T)());
-                T val = p.read!(T)();
-                static if (is(T == int)) {
-                    md.pushInt(th, val);
-                } else static if (is(T == char[])) {
-                    md.pushString(th, val);
-                } else {
-                    static assert(false, "lol");
-                }
+                md_bind.superPush(th, p.read!(T)());
             };
             mDemarshallers[t] = function void(md.MDThread* th, int slot,
                 SafePtr p)
             {
-                //p.write!(T)(md_bind.superGet!(T)(th, slot));
-                T val;
-                static if (is(T == int)) {
-                    val = md.getInt(th, slot);
-                } else static if (is(T == char[])) {
-                    //about that .dup... superGet does it too, and there's
-                    //probably no safe way to avoid it
-                    val = md.getString(th, slot).dup;
-                } else {
-                    static assert(false, "lol");
-                }
-                p.write!(T)(val);
+                p.write!(T)(md_bind.superGet!(T)(th, slot));
             };
         }
     }

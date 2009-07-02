@@ -230,8 +230,6 @@ unittest {
     assert(testAIST([1], 2) == [1,2]);
     assert(testAIST([2], 1) == [1,2]);
     assert(testAIST([], 1) == [1]);
-
-    debug Trace.formatln("array.d unittest: passed.");
 }
 
 //including this because I'm far too lazy to do it right

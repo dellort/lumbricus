@@ -22,13 +22,19 @@ package class MainFrame : SimpleContainer {
     Widget captureMouse;
     //same for key-events; this makes sure the Widget receiving the key-down
     //event also receive the according key-up event
-    //Widget captureKey; xxx not important?
+    Widget captureKey;
     //user-requested mouse/keyboard capture, which works the same as above
+    //(NOTE from later: no idea what this is)
     Widget captureUser;
 
     private {
         MouseCursor mMouseCursor = MouseCursor.Standard;
         Styles style_root;
+
+        //only for captureKey stuff (idiotically, framework also contains a
+        //keystate array, can be queried with Framework.getKeyState())
+        //this keeps track which key-down events were sent to captureKey widget
+        bool[Keycode.max+1] mCaptureKeyState;
     }
 
     this() {
@@ -75,6 +81,43 @@ package class MainFrame : SimpleContainer {
             ie.mouseEvent.rel = Vector2i(0); //what would be the right thing?
             doDispatchInputEvent(ie);
         }
+    }
+
+    //always called when a Widget definitely receives a keyboard event
+    //this code takes care of sending artificial key-release events for all
+    //keys that were pressed, if captureKey changes
+    package void keyboardCaptureStuff(Widget w, KeyInfo event) {
+        if (!event.isDown() && !event.isUp())
+            return;
+
+        assert(!!w);
+
+        if (captureKey !is w) {
+            //input widghet changed; send release events to old widget
+            auto old = captureKey;
+            foreach (int i, ref bool state; mCaptureKeyState) {
+                if (!state)
+                    continue;
+                //if this happens, it means captureKey and mCaptureKeyState can
+                //somehow change when calling the event handlers; so should the
+                //assertion fail, you should at least ensure no bogus events are
+                //sent
+                assert(old is captureKey);
+                state = false;
+                //slightly evil: call user event handler directly?
+                KeyInfo e;
+                e.type = KeyEventType.Up;
+                e.code = cast(Keycode)i;
+                //e.unicode = oops
+                //e.mods = huh
+                if (old)
+                    old.doOnKeyEvent(e);
+            }
+            captureKey = null;
+        }
+
+        captureKey = w;
+        mCaptureKeyState[event.code] = event.isDown();
     }
 
     override void nextFocus(bool invertDir = false) {

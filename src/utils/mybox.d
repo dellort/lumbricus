@@ -307,6 +307,4 @@ unittest {
     //assert(box3.toObject() is f);
     box3.box!(long)(123);
     assert(box3.asObject() is null);
-
-    debug Trace.formatln("mybox.d unittest: passed.");
 }

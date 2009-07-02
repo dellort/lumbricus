@@ -599,6 +599,11 @@ class Widget {
     protected void onKeyEvent(KeyInfo info) {
     }
 
+    //just because of protection shit, I hate D etc.
+    package void doOnKeyEvent(KeyInfo info) {
+        onKeyEvent(info);
+    }
+
     //handler for mouse move events
     protected void onMouseMove(MouseInfo mouse) {
     }
@@ -706,6 +711,11 @@ class Widget {
             //set focus on key event, especially on mouse clicks
             //xxx: mouse wheel will set focus too, is that ok?
             claimFocus();
+            //keyboard capture, so that artificial key-release events are always
+            //generated (e.g. on focus change while key is pressed)
+            if (m) {
+                m.keyboardCaptureStuff(this, event.keyEvent);
+            }
             onKeyEvent(event.keyEvent);
         } else if (event.isMouseEvent) {
             onMouseMove(event.mouseEvent);
@@ -809,8 +819,12 @@ class Widget {
             c.drawFilledRect(Vector2i(0), size, background);
         }
 
+        //Trace.formatln("start {}", this.classinfo.name);
+
         //user's draw routine
         onDraw(c);
+
+        //Trace.formatln("end {}", this.classinfo.name);
 
         version (WidgetDebug) {
             c.drawRect(widgetBounds, Color(1,focused ? 1 : 0,0));

@@ -276,8 +276,6 @@ struct VFSPath {
     }
 }
 
-import utils.misc : Trace;
-
 unittest {
     VFSPath v, v2;
 
@@ -373,6 +371,4 @@ unittest {
     assert(v.parent.parent.mPath == "/foo");
     assert(v.parent.parent.parent.mPath == "");
     assert(v.parent.parent.parent.parent.mPath == "");
-
-    debug Trace.formatln("path.d unittest: passed");
 }

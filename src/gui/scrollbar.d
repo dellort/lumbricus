@@ -47,9 +47,9 @@ class ScrollBar : Container {
             bool drag_active;
             Vector2i drag_start;
 
-            protected void onDraw(Canvas c) {
-                if (size.x >= cMinSliderSize && size.y >= cMinSliderSize)
-                common.visual.drawBox(c, widgetBounds, mBorder);
+            this() {
+                super();
+                styles.addClass("w-scrollbar-floater");
             }
 
             override protected Vector2i layoutSizeRequest() {
@@ -81,17 +81,16 @@ class ScrollBar : Container {
 
     ///horizontal if horiz = true, else vertical
     this(bool horiz) {
+        styles.addClass("scrollbar-button");
         mDir = horiz ? 0 : 1;
-        //xxx: replace text by images
+        //xxx: let the button be load completely by the styles system (huh)
         mAdd = new Button();
         mAdd.image = globals.guiResources.get!(Surface)(cAddImg[mDir]);
-        //mAdd.text = "A";
         mAdd.onClick = &onAddSub;
         mAdd.autoRepeat = true;
         addChild(mAdd);
         mSub = new Button();
         mSub.image = globals.guiResources.get!(Surface)(cSubImg[mDir]);
-        //mSub.text = "B";
         mSub.onClick = &onAddSub;
         mSub.autoRepeat = true;
         addChild(mSub);

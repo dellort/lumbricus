@@ -136,6 +136,8 @@ class GLSurface : SDLDriverSurface {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, mTexSize.x, mTexSize.y, 0,
             GL_RGBA, GL_UNSIGNED_BYTE, null);
 
+        checkGLError("load texture", true);
+
         //check for errors (textures larger than maximum size
         //supported by GL/hardware will fail to load)
         if (checkGLError("loading texture")) {
@@ -184,6 +186,8 @@ class GLSurface : SDLDriverSurface {
         glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
         glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
         glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+
+        checkGLError("update texture", true);
     }
 
     void updatePixels(in Rect2i rc) {
@@ -218,12 +222,16 @@ class GLSurface : SDLDriverSurface {
         }
 
         glBindTexture(GL_TEXTURE_2D, mTexId);
+
+        checkGLError("prepareDraw", true);
     }
 
     void endDraw() {
         glDisable(GL_TEXTURE_2D);
         glDisable(GL_ALPHA_TEST);
         glDisable(GL_BLEND);
+
+        checkGLError("endDraw", true);
     }
 
     /*
@@ -272,15 +280,21 @@ class GLCanvas : Canvas {
         clear(clearColor);
         gSDLDriver.mClearTime.stop();
 
+        checkGLError("start rendering", true);
+
         startDraw();
     }
 
     void stopScreenRendering() {
         endDraw();
 
+        checkGLError("end rendering", true);
+
         gSDLDriver.mFlipTime.start();
         SDL_GL_SwapBuffers();
         gSDLDriver.mFlipTime.stop();
+
+        checkGLError("SDK_GL_swapBuffers", true);
     }
 
     package void startDraw() {
@@ -321,6 +335,8 @@ class GLCanvas : Canvas {
             //glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
             glShadeModel(GL_FLAT);
         }
+
+        checkGLError("initGLViewport", true);
     }
 
     //screen size
@@ -363,6 +379,7 @@ class GLCanvas : Canvas {
 
     public void translate(Vector2i offset) {
         glTranslatef(cast(float)offset.x, cast(float)offset.y, 0);
+        checkGLError("glTranslatef", true);
         mStack[mStackTop].translate += toVector2i(toVector2f(offset)
             ^ mStack[mStackTop].scale);
         updateAreas();
@@ -387,10 +404,14 @@ class GLCanvas : Canvas {
     private void doClip(Vector2i p1, Vector2i p2) {
         mStack[mStackTop].enableClip = true;
         glEnable(GL_SCISSOR_TEST);
-        glScissor(p1.x, realSize.y-p2.y, p2.x-p1.x, p2.y-p1.y);
+        //negative w/h values generate GL errors
+        auto sz = (p2 - p1).max(Vector2i(0));
+        glScissor(p1.x, realSize.y-p2.y, sz.x, sz.y);
+        checkGLError("doClip", true);
     }
     public void setScale(Vector2f z) {
         glScalef(z.x, z.y, 1);
+        checkGLError("glScalef", true);
         mStack[mStackTop].clientsize =
             toVector2i(toVector2f(mStack[mStackTop].clientsize) / z);
         mStack[mStackTop].scale = mStack[mStackTop].scale ^ z;
@@ -400,21 +421,31 @@ class GLCanvas : Canvas {
     public void pushState() {
         assert(mStackTop < MAX_STACK);
 
+        checkGLError("before pushState", true);
+
         glPushMatrix();
         mStack[mStackTop+1] = mStack[mStackTop];
         mStackTop++;
         updateAreas();
+
+        checkGLError("pushState", true);
     }
     public void popState() {
         assert(mStackTop > 0);
 
+        checkGLError("before popState", true);
+
         glPopMatrix();
         mStackTop--;
-        if (mStack[mStackTop].enableClip)
+        if (mStack[mStackTop].enableClip) {
             doClip(mStack[mStackTop].clip.p1, mStack[mStackTop].clip.p2);
-        else
+        } else {
             glDisable(GL_SCISSOR_TEST);
+            checkGLError("glDisable(GL_SCISSOR_TEST)", true);
+        }
         updateAreas();
+
+        checkGLError("popState", true);
     }
 
     public void clear(Color color) {
@@ -424,6 +455,8 @@ class GLCanvas : Canvas {
         } else {
             drawFilledRect(Vector2i(0,0), clientSize, color);
         }
+
+        checkGLError("clear", true);
     }
 
     public void drawCircle(Vector2i center, int radius, Color color) {
@@ -435,6 +468,8 @@ class GLCanvas : Canvas {
         glColor3f(1.0f, 1.0f, 1.0f);
 
         glDisable(GL_BLEND);
+
+        checkGLError("drawCircle", true);
     }
 
     public void drawFilledCircle(Vector2i center, int radius,
@@ -448,6 +483,8 @@ class GLCanvas : Canvas {
         glColor3f(1.0f, 1.0f, 1.0f);
 
         glDisable(GL_BLEND);
+
+        checkGLError("drawFilledCircle", true);
     }
 
     //Code from Luigi, www.dsource.org/projects/luigi, BSD license
@@ -468,6 +505,8 @@ class GLCanvas : Canvas {
         }
         glEnd();
         glTranslatef(-x,-y,0);
+
+        checkGLError("full_circle", true);
     }
 
     void stroke_circle(float x, float y, float radius=1, int slices=16)
@@ -484,6 +523,8 @@ class GLCanvas : Canvas {
         }
         glEnd();
         glTranslatef(-x,-y,0);
+
+        checkGLError("stroke_circle", true);
     }
 
     void fill_arc(float x, float y, float radius, float start, float radians,
@@ -502,6 +543,8 @@ class GLCanvas : Canvas {
         }
         glEnd();
         glTranslatef(-x,-y,0);
+
+        checkGLError("fill_arc", true);
     }
 
     void stroke_arc(float x, float y, float radius, float start, float radians,
@@ -520,6 +563,8 @@ class GLCanvas : Canvas {
         }
         glEnd();
         glTranslatef(-x,-y,0);
+
+        checkGLError("stroke_arc", true);
     }
     //<-- Luigi end
 
@@ -543,6 +588,8 @@ class GLCanvas : Canvas {
         glColor3f(1.0f, 1.0f, 1.0f);
         glDisable(GL_BLEND);
         glLineWidth(1);
+
+        checkGLError("drawLine", true);
     }
 
     public void drawRect(Vector2i p1, Vector2i p2, Color color) {
@@ -568,6 +615,8 @@ class GLCanvas : Canvas {
 
         glColor3f(1.0f, 1.0f, 1.0f);
         glDisable(GL_BLEND);
+
+        checkGLError("drawRect", true);
     }
 
     private void markAlpha(Vector2i p, Vector2i size) {
@@ -577,6 +626,8 @@ class GLCanvas : Canvas {
         drawRect(p, p + size, c);
         drawLine(p, p + size, c);
         drawLine(p + size.Y, p + size.X, c);
+
+        checkGLError("markAlpha", true);
     }
 
     public void drawFilledRect(Vector2i p1, Vector2i p2, Color color) {
@@ -611,6 +662,8 @@ class GLCanvas : Canvas {
 
         glDisable(GL_BLEND);
         glColor3f(1.0f, 1.0f, 1.0f);
+
+        checkGLError("doDrawRect", true);
 
         if (alpha)
             markAlpha(p1, p2-p1);
@@ -689,7 +742,7 @@ class GLCanvas : Canvas {
         assert(glsurf !is null);
 
         //glPushAttrib(GL_ENABLE_BIT);
-        checkGLError("draw texture", true);
+        checkGLError("draw texture - begin", true);
         glDisable(GL_DEPTH_TEST);
         glsurf.prepareDraw();
 
@@ -744,6 +797,8 @@ class GLCanvas : Canvas {
             glGetBooleanv(GL_BLEND, &isalpha);
 
         glsurf.endDraw();
+
+        checkGLError("draw texture - end", true);
 
         if (isalpha)
             markAlpha(destPos, sourceSize);
