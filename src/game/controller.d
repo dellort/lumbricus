@@ -965,6 +965,17 @@ class ServerTeamMember : TeamMember, WormController {
             WormEvent deathcause = mWorm.hasDrowned()
                 ? WormEvent.wormDrown : WormEvent.wormDie;
             mTeam.parent.events.onWormEvent(deathcause, this);
+            if (deathcause == WormEvent.wormDrown) {
+                //now it'd be nice if the clientengine could simply catch those
+                //  events, but instead I do this hack (also: need pos and lost)
+                Vector2i pos = toVector2i(mWorm.physics.pos);
+                //xxx: not sure if this correct, I don't understand this:
+                // - collect medikit crate
+                // - jump into water
+                // - drown-label should how negative health points, but shows 0
+                int lost = mCurrentHealth - health(true);
+                mEngine.callbacks.memberDrown(this, lost, pos);
+            }
             //NOTES:
             //drowning: drowned worms go physics.dead when reaching the bottom
             //else: death by exploding; suiciding worms go physics.dead when

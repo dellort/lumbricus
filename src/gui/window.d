@@ -44,7 +44,7 @@ class WindowWidget : Container {
 
         BoxContainer mClientWidget;
         BoxContainer mForClient; //where client is, non-fullscreen mode
-        Widget mWindowDecoration; //window frame etc. in non-fullscreen mode
+        Decorations mWindowDecoration; //window frame etc. in non-fullscreen mode
 
         BoxContainer mTitleContainer; //titlebar + the buttons
         TitlePart[] mTitleParts; //kept sorted by .sort
@@ -168,6 +168,13 @@ class WindowWidget : Container {
                 c.drawFilledRect(Vector2i(0),size,Color(1,0,0));
             }+/
         }
+
+        class Decorations : SimpleContainer {
+            override void get_border_style(ref BoxProperties b) {
+                if (mBgOverride.valid)
+                    b.back = mBgOverride; //hack piled over hack...
+            }
+        }
     }
 
     ///catches a window-keybinding
@@ -225,7 +232,10 @@ class WindowWidget : Container {
 
         //add decorations etc.
         auto all = new TableContainer(3, 3);
-        mWindowDecoration = all;
+        //xxx ideally would subclass/messify TableContainer or so, but meh.
+        mWindowDecoration = new Decorations();
+        mWindowDecoration.styles.addClass("window-decoration");
+        mWindowDecoration.add(all);
 
         styles.addClass("w-window");
 
@@ -459,8 +469,8 @@ class WindowWidget : Container {
 
     override protected void onFocusChange() {
         super.onFocusChange();
-        //a matter of taste
-        styles.setState("focused", focused);
+        //bleh, styles system is too retarded, see comments in styles conffile
+        mWindowDecoration.styles.setState("hack-focused", focused);
 
         if (!focused && onFocusLost)
             onFocusLost(this);
@@ -483,6 +493,10 @@ class WindowWidget : Container {
     }
 
     override bool allowInputForChild(Widget child, InputEvent event) {
+        //dirty hack to focus windows if you click into them
+        if (event.isKeyEvent && event.keyEvent.isMouseButton())
+            activate();
+        //dragging/catching key shortcuts
         return !mDraging
             && !(event.isKeyEvent && findBind(event.keyEvent) != "");
     }
@@ -490,11 +504,6 @@ class WindowWidget : Container {
     //treat all events as handled (?)
     override void onKeyEvent(KeyInfo key) {
         char[] bind = findBind(key);
-
-        //and if the mouse was clicked _anywhere_, make sure window is on top
-        //but don't steal the click-event from the children
-        if (key.isMouseButton())
-            activate();
 
         if (bind.length) {
             if (key.isDown())
@@ -539,26 +548,18 @@ class WindowWidget : Container {
 
     override protected void onDraw(Canvas c) {
         //if fullscreen, the parent clears with this.background
-        if (!mFullScreen && mHasDecorations) {
-            if (mBgOverride.valid) {
-                //sorry
-                auto bCopy = borderStyle;
-                bCopy.back = mBgOverride;
-                common.visual.drawBox(c, widgetBounds, bCopy);
-            } else {
-                common.visual.drawBox(c, widgetBounds, borderStyle);
-            }
-        } else {
+        if (mFullScreen) {
             //xxx: possibly unnecessary clearing when it really covers the whole
             //  screen; it should use getFramework.clearColor then, maybe
             Color bg = borderStyle.back;
             if (mBgOverride.valid)
                 bg = mBgOverride;
-            if (mHasDecorations && (!mClient || !mClient.doesCover))
+            if (!mClient || !mClient.doesCover)
                 c.drawFilledRect(Vector2i(0), size, bg);
         }
         super.onDraw(c);
 
+        //only for the shitty window-manager thing
         if (highlight) {
             c.drawFilledRect(Vector2i(0), size, Color(0.7,0.7,0.7,0.7));
         }

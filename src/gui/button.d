@@ -93,9 +93,11 @@ class Button : Label {
     void isCheckbox(bool set) {
         if (mIsCheckbox == set)
             return;
-        if (!set)
-            assert(false, "add a Styles.removeClass()");
-        styles.addClasses(["checkbox"]);
+        if (set) {
+            styles.addClass("checkbox");
+        } else {
+            styles.removeClass("checkbox");
+        }
         mIsCheckbox = set;
         updateCheckboxState();
     }

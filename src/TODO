@@ -11,9 +11,10 @@
 - debugging: würmer auswählen und GameObject-Felder anzeigen lassen
 - common.resfileformats: marshal.d benutzen statt memory dump (erhöht portabilität)
 ! besser methode zum auslesen von confignodes (insbesondere mit fehlerbehandlung, so dass ungültige werte nicht still ignoriert werden, beliebige datentypen, user warnen über unbenutzte einträge; vielleicht einfach serialiaiserungscode wiederverwenden)
-- (de)serializer soll strparser verwenden? (aber: inkonsistenz darüber, ob toStr verlustlose repräsentation erzeugen soll)
 - configfile.d so ändern, dass datentypen schon in den nodes/in der syntax deklariert werden? libconfig verwenden?
+- datentyp spezifische benutzerdefinierte serialisierung
 ! Phobos-Stream-Zeug durch Tango-Zeug ersetzen
+  ^ oder einfachen wrapper schreiben (struct, die tango stream enthält und phobos kompatible methoden anbietet)
 - demo support
 
 == bekannte, lösbare Bugs ==
@@ -21,15 +22,12 @@
 ! napalm ist sehr langsam, minenagriff nicht => ?
 - Superschaf fliegt auch 15sec weiter, wenn der Wurm nicht mehr dran ist
 - Flammenwerfer braucht 1 Munition für jedes Napalm-Partikel
-- Absauf-Labels zeigen Wurm-Schaden nicht korrekt an
 - Feuerrichtung der "Seil-Waffe" kann geändert werden, während das Anker-Dings rausfliegt
 ! Action-Zeug produziert unnötig viele Klassen (Bsp: game.weapon.actions.ExplosionAction)
 - Schwarzes Loch kann ertrinkende Würmer aus dem Wasser saugen; Ideen:
   a) Unterwasser-Objekte dürfen sich nicht aufwärts bewegen
   b) Würmern erlauben, das Wasser wieder zu verlassen (und Zustand korrigieren)
 - Bohrer/Lötlampe stoßen Würmer nicht weg
-- Kleinere GUI-Fokus-Bugs:
-  c) Fenster wird nicht aktiviert, wenn man auf ein Widget darin klickt
 - Projektil fliegt durch wenige Pixel dicke Landschaft, wenn der Wurm beim Feuern direkt davorsteht
 
 

@@ -5,10 +5,16 @@ debug import tango.core.stacktrace.TraceExceptions;
 debug import tracer = utils.mytrace; //some stack tracing stuff for Linux
 
 import framework.framework;
-
 import common.init;
+import common.common : globals;
+import common.config;
+import toplevel = common.toplevel;
+import utils.configfile;
+import tango.io.Stdout;
 
-//also a factory-import
+version = Game;
+
+//factory-imports (static ctors register stuff globally)
 import framework.sdl.framework;
 import framework.sdl.soundmixer;
 import framework.openal;
@@ -19,45 +25,29 @@ import framework.fontft;
 import framework.fmod;
 //<--
 
-import framework.imgwrite;
-
-import framework.filesystem;
-import common.common : globals;
-import common.config;
-import toplevel = common.toplevel;
-
-import utils.configfile;
-import utils.log;
-import utils.output;
-
-import tango.io.Stdout;
 
 //these imports register classes in a factory on module initialization
 //so be carefull not to remove them accidentally
 
 import gui.test; //GUI test code
-import game.gametask; //the game itself
-version(DigitalMars) {
-    //I can only assume that this caused problems with ldc
+
+version (Game) {
+    import game.gametask; //the game itself
     import game.gui.leveledit; //aw
+    import game.gui.welcome;
+    import game.gui.teamedit;
+    import game.gui.weaponedit;
+    import game.gui.setup_local;
+    import game.gui.levelpaint;
+    import net.cmdserver_gui;
+    import net.lobby;
 }
-import game.gui.welcome;
-import game.gui.teamedit;
-import game.gui.weaponedit;
-import game.gui.setup_local;
-import game.gui.levelpaint;
+
 import game.wtris; //lol
 import game.bomberworm; //?
-//debugging
-import common.resview;
+import common.resview; //debugging
 import common.localeswitch;
-import net.cmdserver_gui;
-import net.lobby;
 
-//temporary for testing
-import game.particles;
-
-//import test;
 
 //of course it would be nicer to automatically generate the following thing, but
 //OTOH, it isn't really worth the fuzz

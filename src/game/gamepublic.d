@@ -347,6 +347,11 @@ class GameEngineCallback {
     ///value increments, if the weapon list of any team changes
     MDelegate!(Team) weaponsChanged;
 
+    //very hacky *sigh* - maybe controller should always generate events for
+    //  showing damage labels, instead of making gameview.d poll it?
+    //args: (drowning member, lost healthpoints, out-of-screen position)
+    MDelegate!(TeamMember, int, Vector2i) memberDrown;
+
     MDelegate!(Graphic) newGraphic;
     MDelegate!(Graphic) removeGraphic;
 

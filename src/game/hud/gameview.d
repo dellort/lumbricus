@@ -113,8 +113,6 @@ private class ViewMember {
 
     private {
         bool mArrowState;
-        bool mDrowning;
-        Vector2i mLastDrownPos;
     }
 
     this(GameView a_owner, TeamMemberInfo m) {
@@ -170,11 +168,6 @@ private class ViewMember {
         bool guiIsActive = !!graphic;
         if (!guiIsActive) {
             removeGUI();
-            //whatever
-            if (mDrowning) {
-                mDrowning = false;
-                owner.showDrown(member, mLastDrownPos);
-            }
         } else if (guiIsActive) {
             assert(graphic !is null);
             //xxx hurf hurf
@@ -240,8 +233,6 @@ private class ViewMember {
 
             if (member.member.wormState == WormAniState.drowning) {
                 showLabels = false;
-                mDrowning = true;
-                mLastDrownPos = pos;
             }
 
             //(.value() isn't necessarily changing all the time)
@@ -491,10 +482,10 @@ class GameView : Container {
     }
 
     //member inf drowned at pos (pos is on the ground)
-    private void showDrown(TeamMemberInfo inf, Vector2i pos) {
+    private void showDrown(TeamMemberInfo inf, int lost, Vector2i pos) {
         MoveLabel ml;
         auto lbl = inf.owner.createLabel();
-        lbl.text = myformat("{}", inf.currentHealth);
+        lbl.text = myformat("{}", lost);
         addChild(lbl);
         ml.label = lbl;
         ml.from = pos;
@@ -551,6 +542,10 @@ class GameView : Container {
         }
     }
 
+    private void doMemberDrown(TeamMember member, int lost, Vector2i at) {
+        showDrown(mGame.allMembers[member], lost, at);
+    }
+
     override bool canHaveFocus() {
         return true;
     }
@@ -567,6 +562,8 @@ class GameView : Container {
         }
 
         readd_graphics();
+
+        mGame.engine.callbacks.memberDrown ~= &doMemberDrown;
 
         mCamera = new Camera(mGame.clientTime);
 

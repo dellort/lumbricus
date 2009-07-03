@@ -10,6 +10,7 @@ import time = utils.time;
 import strparser = utils.strparser;
 import str = utils.string;
 import framework.i18n;
+import math = tango.math.Math;
 
 ///draw a box with rounded corners around the specified rect
 ///alpha is unsupported (blame drawFilledRect) and will be ignored
@@ -163,18 +164,18 @@ int releaseBoxCache() {
     int rel;
 
     void killtex(Texture t) {
-        t.free(true);
-        rel++;
+        if (t) {
+            t.free(true);
+            rel++;
+        }
     }
 
     foreach (BoxTex t; boxes) {
         killtex(t.corners);
         killtex(t.sides[0]);
         killtex(t.sides[1]);
-        if (t.bevelSides[0]) {
-            killtex(t.bevelSides[0]);
-            killtex(t.bevelSides[1]);
-        }
+        killtex(t.bevelSides[0]);
+        killtex(t.bevelSides[1]);
     }
 
     boxes = null;
@@ -292,8 +293,16 @@ BoxTex getBox(BoxProps props) {
                     if (props.p.drawBevel) {
                         //on beveled drawing, the left/top corners show a
                         //different color than right/bottom, with fadeover
-                        float perc = clampRangeC(((x+y)
-                            / (4.0f*w) - 0.25f) * 2.0f, 0f, 1f);
+                        //float perc = clampRangeC(((x+y)
+                        //    / (4.0f*w) - 0.25f) * 2.0f, 0f, 1f);
+                        //changed drawing code for thick borders
+                        //not sure if this is "correct" or completely idiotic
+                        float pf = 1.0f*(x-w)/w;
+                        float pb = 1.0f*(y-w)/w;
+                        float perc = math.atan2(pf, pb)/(math.PI/2) + 1.0;
+                        if (perc > 1.0f)
+                            perc = 3.0f - perc;
+                        perc = clampRangeC(perc, 0f, 1f);
                         fore = fore * perc + props.p.bevel * (1.0f - perc);
                     }
                     *line = Color(

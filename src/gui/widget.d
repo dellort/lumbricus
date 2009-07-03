@@ -18,6 +18,8 @@ import str = utils.string;
 
 //debugging (draw a red frame for the widget's bounds)
 //version = WidgetDebug;
+//for what this is, see where it's used
+//version = ResizeDebug;
 
 //layout parameters for dealing with e.g. size overallocation
 //you can define borders and what happens, if a widget gets more space than it
@@ -335,8 +337,15 @@ class Widget {
     }
 
     ///rectangle the Widget takes up in parent container
+    ///basically containerBounds() without borders, padding, unoccupied space
+    ///(as returned by last call of layoutCalculateSubAllocation())
     final Rect2i containedBounds() {
         return mContainedWidgetBounds;
+    }
+
+    ///value passed to last call of layoutContainerAllocate()
+    final Rect2i containerBounds() {
+        return mContainerBounds;
     }
 
     ///widget size
@@ -549,6 +558,10 @@ class Widget {
         Vector2i psize = area.size();
         Vector2i offset;
         auto rsize = layoutCachedContainerSizeRequest();
+        version (ResizeDebug) {
+            //assertion must work - checking this subverts optimization
+            assert(rsize == layoutContainerSizeRequest());
+        }
         //fit the widget with its size into the area
         for (int n = 0; n < 2; n++) {
             if (mLayout.expand[n]) {
@@ -557,11 +570,7 @@ class Widget {
                     + cast(int)((psize[n] - rsize[n]) * mLayout.fill[n]);
             }
             //and align; this again selects the rest of the size
-            //and add the border padding (padB is the second border, implicit)
-            offset[n] = cast(int)((psize[n] - rsize[n]) * mLayout.alignment[n])
-                ;//+ mLayout.pad + mLayout.padA[n];
-            //remove the border from the size (the size is for the widget)
-            //rsize[n] = rsize[n] - mLayout.pad - mLayout.padA[n] - mLayout.padB[n];
+            offset[n] = cast(int)((psize[n] - rsize[n]) * mLayout.alignment[n]);
         }
         auto pad = Vector2i(mLayout.pad, mLayout.pad);
         auto ba = mLayout.padA + pad;
@@ -571,6 +580,18 @@ class Widget {
         mBorderArea = area;
         area.p1 += bordersize;
         area.p2 -= bordersize;
+        version (ResizeDebug) {
+            auto cs = layoutSizeRequest();
+            if (area.size.x < cs.x || area.size.y < cs.y) {
+                registerLog("gui-warnings")("underallocation in {}, {} {}",
+                    this.classinfo.name, area.size, cs);
+                area.p2 = area.p1 + cs.max(area.size);
+            }
+            assert(area.size.x >= cs.x);
+            assert(area.size.y >= cs.y);
+        }
+        //force no negative sizes
+        area.p2 = area.p1 + area.size.max(Vector2i(0));
     }
 
     // --- input handling
@@ -768,6 +789,8 @@ class Widget {
         //draw-border is a misnomer, because it has influence on layout (size)?
         mDrawBorder = styles.getValue!(bool)("border-enable");
 
+        //get_border_draw(mDrawBorder);
+
         bool border_changed = mBorderStyle != mOldBorderStyle;
         bool db_changed = mDrawBorder != mOldDrawBorder;
 
@@ -782,6 +805,8 @@ class Widget {
     //disgusting hack - until I can think of something decent
     protected void get_border_style(ref BoxProperties b) {
     }
+    //protected void get_border_draw(ref bool en) {
+    //}
 
     //xxx <-
 
@@ -938,6 +963,7 @@ class Widget {
         //also adjust zorder, else it looks strange
         if (focused)
             toFront();
+        styles.setState("focused", focused);
     }
 
     //cf. Container

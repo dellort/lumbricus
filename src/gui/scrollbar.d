@@ -33,6 +33,8 @@ class ScrollBar : Container {
         //amount of pixels the bar can be moved
         int mBarFreeSpace;
 
+        bool mSizesValid;
+
         //constraints for drag thing
         const int cMinSliderSize = 8;
         const int cDefSliderSize = 16;
@@ -129,41 +131,48 @@ class ScrollBar : Container {
     }
 
     override protected Vector2i layoutSizeRequest() {
-        auto r1 = mSub.requestSize;
-        auto r2 = mAdd.requestSize;
+        Vector2i[3] stuff;
+        stuff[0] = mSub.requestSize;
+        stuff[1] = mAdd.requestSize;
+        stuff[2] = mBar.requestSize;
         Vector2i res;
-        auto mindir = max(r1[mDir], r2[mDir])*2;
-        //leave at least mindir/4 space for the bar, as a hopefully-ok guess
-        //(removed, will hide slider if no space)
-        res[mDir] = mindir/* + mindir/4*/;
-        res[!mDir] = max(r1[!mDir], r2[!mDir]);
+        foreach (s; stuff) {
+            res[mDir] = res[mDir] + s[mDir];
+            res[!mDir] = max(res[!mDir], s[!mDir]);
+        }
         return res;
     }
 
     override protected void layoutSizeAllocation() {
-        auto sz = size;
+        auto sa = mAdd.requestSize;
+        auto sb = mSub.requestSize;
 
-        Vector2i buttons = mSub.requestSize.max(mAdd.requestSize);
-        buttons[!mDir] = sz[!mDir];
-        auto bsize = Rect2i(Vector2i(0), buttons);
+        assert(sa[!mDir] <= size[!mDir]);
+        assert(sb[!mDir] <= size[!mDir]);
 
-        mSub.layoutContainerAllocate(bsize);
-        Vector2i r;
-        r[mDir] = sz[mDir] - mAdd.requestSize[mDir];
-        mAdd.layoutContainerAllocate(bsize + r);
+        sa[!mDir] = size[!mDir];
+        sb[!mDir] = size[!mDir];
+
+        mSub.layoutContainerAllocate(Rect2i(Vector2i(0), sb));
+        mAdd.layoutContainerAllocate(Rect2i(size - sa, size));
+
+        //rectangle between the two buttons mAdd and mSub
         mBarArea = widgetBounds;
-        //xxx hack against error in x direction
-        //(requestSize seems to be off by 1, but I don't dare changing the
-        //layout code)
-        //xxx again: seems to work with images
-        mBarArea.p1[mDir] = mSub.requestSize[mDir]/* + (mDir==0?1:0)*/;
-        mBarArea.p2[mDir] = r[mDir];
+        mBarArea.p1[mDir] = mSub.containerBounds.p2[mDir];
+        mBarArea.p2[mDir] = mAdd.containerBounds.p1[mDir];
+
+        mSizesValid = true;
 
         adjustBar();
     }
 
     //reset position of mBar according to mCurValue/mMaxValue
     private void adjustBar() {
+        if (!mSizesValid)
+            return;
+
+        assert(mBarArea.size[mDir] >= mBar.requestSize[mDir]);
+
         //the range of values set during scrolling
         //when mPageSize!=0, subtract size of one (last) page
         int diff = max(mMaxValue - mMinValue - mPageSize + (mPageSize?1:0),0);
@@ -174,10 +183,10 @@ class ScrollBar : Container {
         else if (mPageSize != 0)
             //using full client size here instead of diff
             barh = (mPageSize*areah)/(mMaxValue - mMinValue + 1);
-        if (barh < cMinSliderSize)
-            barh = cMinSliderSize;
+        barh = max(barh, cMinSliderSize);
         if (barh > areah)
             barh = areah;
+        barh = max(barh, mBar.requestSize[mDir]); //possibly borders etc.
         mBarFreeSpace = areah - barh;
         Vector2i sz = size;
         sz[mDir] = barh;

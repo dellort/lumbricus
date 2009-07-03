@@ -338,6 +338,13 @@ class Styles {
         mSortedClasses = null;
         addClasses(cls);
     }
+    void removeClass(char[] cls) {
+        int idx = find(mSortedClasses, cls);
+        if (idx == mSortedClasses.length)
+            return;
+        mSortedClasses = mSortedClasses[0..idx] ~ mSortedClasses[idx+1..$];
+        did_change();
+    }
 
     ///States are like classes, but more dynamic and can be enabled/disabled
     ///frequently.

@@ -501,6 +501,7 @@ class TestTask2 : Task {
     FontTest mFont;
     BoxTest mBox;
     ScrollBar[5] mBars;
+    Button mBevel;
 
     void onScrollbar(ScrollBar sender) {
         float getcolor(int n) {
@@ -519,7 +520,13 @@ class TestTask2 : Task {
         mFont.clear = clear;
         mBox.clear = clear;
 
+        mBox.box.bevel = Color(0,0,1);
+
         //gFramework.releaseCaches(false);
+    }
+
+    void onBevelClick(Button sender) {
+        mBox.box.drawBevel = sender.checked();
     }
 
     this(TaskManager tm, char[] args = "") {
@@ -560,6 +567,12 @@ class TestTask2 : Task {
         gui.add(sp, WidgetLayout.Expand(true));
 
         gui.add(scr, WidgetLayout.Expand(true));
+
+        mBevel = new Button();
+        mBevel.isCheckbox = true;
+        mBevel.onClick = &onBevelClick;
+        mBevel.text = "Bevel";
+        gui.add(mBevel, WidgetLayout.Expand(true));
 
         onScrollbar(null); //update
 
