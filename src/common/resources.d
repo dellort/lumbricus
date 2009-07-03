@@ -58,7 +58,8 @@ class ResourceItem : ResourceObject {
             mValid = true;
         } catch (Exception e) {
             char[] errMsg = "Resource " ~ id ~ " (" ~ toString()
-                ~ ") failed to load: "~e.toString;
+                ~ ") failed to load: "~e.toString~"  - location: "
+                ~ mConfig.locationString();
             Resources.log(errMsg);
             throw new ResourceException(id, errMsg);
         }

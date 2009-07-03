@@ -49,7 +49,7 @@ abstract class WeaponClass {
     bool deselectAfterFire = false;
 
     //for the weapon selection; only needed on client-side
-    Resource!(Surface) icon;
+    Surface icon;
 
     FireMode fireMode;
 
@@ -72,7 +72,7 @@ abstract class WeaponClass {
         dontEndRound = node.getBoolValue("dont_end_round", dontEndRound);
         deselectAfterFire = node.getBoolValue("deselect", deselectAfterFire);
 
-        icon = engine.gfx.resources.resource!(Surface)(node["icon"]);
+        icon = engine.gfx.resources.get!(Surface)(node["icon"]);
 
         auto fire = node.findNode("firemode");
         if (fire) {

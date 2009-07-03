@@ -8,7 +8,6 @@ module game.gamepublic;
 
 import framework.i18n : LocalizedMessage;
 import framework.framework;
-import common.resset : Resource;
 import framework.timesource;
 import game.animation;
 import game.gfxset;
@@ -200,7 +199,7 @@ class LineGraphic : Graphic {
     Vector2i p1, p2;
     Color color;
     int width = 1;
-    Resource!(Surface) texture;
+    Surface texture;
     int texoffset = 0;
 
     this () {
@@ -226,7 +225,7 @@ class LineGraphic : Graphic {
     //the line; the line is as thick as the height of tex
     //both the color and the line width are ignored
     //SDL still will use the color to actually draw the line
-    void setTexture(Resource!(Surface) tex) {
+    void setTexture(Surface tex) {
         texture = tex;
     }
     void setTextureOffset(int offs) {
@@ -272,7 +271,7 @@ class LandscapeGraphic : Graphic {
 
     //pos is in world coordinates for both methods
     //void damage(Vector2i pos, int radius);
-    //void insert(Vector2i pos, Resource!(Surface) bitmap);
+    //void insert(Vector2i pos, Surface bitmap);
 }
 
 class TextGraphic : Graphic {
@@ -355,7 +354,6 @@ class GameEngineCallback {
     MDelegate!(Graphic) newGraphic;
     MDelegate!(Graphic) removeGraphic;
 
-    MDelegate!(Vector2i, int) explosionEffect;
     MDelegate!() nukeSplatEffect;
     MDelegate!(Animation, Vector2i, AnimationParams) animationEffect;
 

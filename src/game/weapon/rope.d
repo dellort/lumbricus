@@ -29,7 +29,7 @@ class RopeClass : WeaponClass {
     int swingForce = 3000;     //force applied when rope points down
     int swingForceUp = 1000;   //force when rope points up
     Color ropeColor = Color(1);
-    Resource!(Surface) ropeSegment;
+    Surface ropeSegment;
 
     SequenceState anchorAnim;
 
@@ -44,7 +44,7 @@ class RopeClass : WeaponClass {
         ropeColor = node.getValue("rope_color", ropeColor);
         auto resseg = node["rope_segment"];
         if (resseg.length)
-            ropeSegment = engine.gfx.resources.resource!(Surface)(resseg);
+            ropeSegment = engine.gfx.resources.get!(Surface)(resseg);
 
         anchorAnim = engine.sequenceStates.findState(node["anchor_anim"]);
     }
@@ -120,7 +120,7 @@ class Rope : Shooter {
         myclass = base;
         mWorm = a_owner;
         mSeqUpdate = new SequenceUpdate();
-        if (auto tex = myclass.ropeSegment.get()) {
+        if (auto tex = myclass.ropeSegment) {
             if (tex.size.x > 0)
                 segment_length = tex.size.x;
         }

@@ -101,14 +101,13 @@ public int landscapeDamage(LandscapeBitmap ls, Vector2i pos, int radius,
     // blastHole function also does clip; so don't care
     return ls.blastHole(pos, radius, cBlastBorder, theme);
 }
-public void landscapeInsert(LandscapeBitmap ls, Vector2i pos,
-    Resource!(Surface) bitmap, Lexel bits)
+public void landscapeInsert(LandscapeBitmap ls, Vector2i pos, Surface bitmap,
+    Lexel bits)
 {
-    Surface bmp = bitmap.get();
     //whatever the size param is for
     //the metadata-handling is hardcoded, which is a shame
     //currently overwrite everything except SolidHard pixels
-    ls.drawBitmap(pos, bmp, bmp.size, Lexel.SolidHard, 0, bits);
+    ls.drawBitmap(pos, bitmap, bitmap.size, Lexel.SolidHard, 0, bits);
 }
 
 //handle landscape objects, large damagable static physic objects, represented
@@ -126,7 +125,7 @@ class GameLandscape : GameObject {
 
         //used to display it in the client
         LandscapeGraphic mGraphic;
-        Resource!(Surface) mBorderSegment;
+        Surface mBorderSegment;
     }
 
     this(GameEngine aengine, LevelLandscape land) {
@@ -139,8 +138,7 @@ class GameLandscape : GameObject {
 
         //landscape landscape landscape
         mLandscape = land.landscape.copy();
-        mBorderSegment =
-            engine.gfx.resources.resource!(Surface)("border_segment");
+        mBorderSegment = engine.gfx.resources.get!(Surface)("border_segment");
 
         init();
     }
@@ -211,7 +209,7 @@ class GameLandscape : GameObject {
         return count;
     }
 
-    public void insert(Vector2i pos, Resource!(Surface) bitmap, Lexel bits) {
+    public void insert(Vector2i pos, Surface bitmap, Lexel bits) {
         //not so often called (like damage()), leave clipping to whoever
         pos -= mOffset;
         landscapeInsert(mLandscape, pos, bitmap, bits);

@@ -48,7 +48,7 @@ class WeaponSelWindow : Container {
                 weapon = c;
                 active = new Button();
                 mButtonToCell[active] = this;
-                active.image = weapon.icon.get;
+                active.image = weapon.icon;
                 active.onClick = &clickWeapon;
                 active.onMouseOver = &mouseoverWeapon;
                 inactive = new Label();

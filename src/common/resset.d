@@ -23,37 +23,6 @@ class ResWrap(T) : ResourceObject {
     }
 }
 
-///contains the resource itself and a handle to the real entry in ResourceSet
-///this struct can be obtained via ResourceSet.Entry.resource!(T)()
-struct Resource(T : Object) {
-    private T resource;
-    //entry must not be referenced from the game engine (serialization issues)
-    //ResourceSet.Entry entry;
-    private char[] mName;
-
-    final T get() {
-        return resource;
-        //return entry ? castStrict!(T)(entry.mObject.get()) : T.init;
-    }
-
-    char[] name() {
-        //return entry.name;
-        return mName;
-    }
-
-/+
-    int id() {
-        return entry.id;
-    }
-
-    ///return whether this is empty or not
-    ///doesn't have anything to do with whether resource is null
-    bool defined() {
-        return entry !is null;
-    }
-+/
-}
-
 ///a ResourceSet holds a set of resources and can be i.e. used to do level
 ///themes, graphic themes (GPL versus WWP graphics) or to change graphic aspects
 ///of the game (different water colors + associated graphics for objects)
@@ -90,14 +59,9 @@ class ResourceSet {
             return mID;
         }
 
-        ///return a Resource struct for this entry
         ///a cast exception is thrown if resource can't be cast to T
-        Resource!(T) resource(T)() {
-            Resource!(T) res;
-            //res.entry = this;
-            res.resource = castStrict!(T)(mObject.get());
-            res.mName = mName;
-            return res;
+        T get(T)() {
+            return castStrict!(T)(mObject.get());
         }
 
         ResourceObject wrapper() {
@@ -142,18 +106,12 @@ class ResourceSet {
     }
 
     ///get a resource by name...
-    Resource!(T) resource(T)(char[] name, bool canfail = false) {
+    T get(T)(char[] name, bool canfail = false) {
         auto res = resourceByName(name, canfail);
         if (canfail && !res) {
-            Resource!(T) nothing;
-            return nothing;
+            return null;
         }
-        return res.resource!(T)();
-    }
-
-    ///only the resource itself, by name (when ref. to id or name isn't needed)
-    T get(T)(char[] name, bool canfail = false) {
-        return resource!(T)(name, canfail).get();
+        return res.get!(T)();
     }
 }
 

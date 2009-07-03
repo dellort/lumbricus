@@ -138,12 +138,7 @@ class TeamTheme {
         "cyan",
     ];
 
-    Resource!(Animation) arrow;
-    Resource!(Animation) pointed;
-    Resource!(Animation) change;
-    Resource!(Animation) cursor;
-    Resource!(Animation) click;
-    Resource!(Animation) aim;
+    Animation arrow, pointed, change, cursor, click, aim;
 
     //the name used to identify the theme
     //does not anymore equal to color string, see colors.conf
@@ -156,8 +151,8 @@ class TeamTheme {
         char[] colorname = cTeamColors[colorIndex];
         color = Color.fromString("team_" ~ colorname); //if it fails, it is messed up
 
-        Resource!(Animation) loadanim(char[] node) {
-            return resources.resource!(Animation)(node ~ "_" ~ name());
+        Animation loadanim(char[] node) {
+            return resources.get!(Animation)(node ~ "_" ~ name());
         }
 
         arrow = loadanim("darrow");
@@ -186,24 +181,31 @@ struct CrosshairSettings {
 
 struct ExplosionSettings {
     //animations for different explosion sizes
-    Resource!(Animation)[4] shockwave1, shockwave2, comicText;
+    ParticleType[4] shockwave1, shockwave2, comicText;
     //tresholds to choose animations matching size
     int[] sizeTreshold = [25, 100, 150, 200];
 
     void load(ConfigNode conf, ResourceSet res) {
+        ParticleType getp(char[] name) {
+            Animation ani = res.get!(Animation)(name);
+            auto p = new ParticleType;
+            p.animation ~= ani;
+            return p;
+        }
+
         char[][] sw1 = conf.getValue!(char[][])("shockwave1");
         foreach (int i, resid; sw1) {
-            shockwave1[i] = res.resource!(Animation)(resid);
+            shockwave1[i] = getp(resid);
         }
 
         char[][] sw2 = conf.getValue!(char[][])("shockwave2");
         foreach (int i, resid; sw2) {
-            shockwave2[i] = res.resource!(Animation)(resid);
+            shockwave2[i] = getp(resid);
         }
 
         char[][] txt = conf.getValue!(char[][])("comictext");
         foreach (int i, resid; txt) {
-            comicText[i] = res.resource!(Animation)(resid);
+            comicText[i] = getp(resid);
         }
 
         int[] st = conf.getValue("sizetreshold",sizeTreshold);

@@ -575,11 +575,10 @@ class GameEngine : GameEnginePublic {
 
             //checks ok, remove land and create platform
             damageLandscape(toVector2i(pos), holeRadius);
-            //xxx: can't access level theme resources here
-            auto res = gfx.resources.resource!(Surface)("place_platform");
-            Surface bmp = res.get();
+            //xxx: can't access level theme resources here <- what??
+            Surface bmp = gfx.resources.get!(Surface)("place_platform");
             insertIntoLandscape(Vector2i(cast(int)pos.x-bmp.size.x/2,
-                cast(int)pos.y+bmp.size.y/2), res, Lexel.SolidSoft);
+                cast(int)pos.y+bmp.size.y/2), bmp, Lexel.SolidSoft);
             dest = pos;
             return true;
         } else {
@@ -705,6 +704,43 @@ class GameEngine : GameEnginePublic {
     }
 
 
+    //non-deterministic
+    private void showExplosion(Vector2f at, int radius) {
+        int d = radius*2;
+        int s = -1, t = -1;
+        if (d < mGfx.expl.sizeTreshold[0]) {
+            //below treshold, no animation
+        } else if (d < mGfx.expl.sizeTreshold[1]) {
+            //tiny explosion without text
+            s = 0;
+        } else if (d < mGfx.expl.sizeTreshold[2]) {
+            //medium-sized, may have small text
+            s = 1;
+            t = rngShared.next(-1,3);
+        } else if (d < mGfx.expl.sizeTreshold[3]) {
+            //big, always with text
+            s = 2;
+            t = rngShared.next(0,4);
+        } else {
+            //huge, always text
+            s = 3;
+            t = rngShared.next(0,4);
+        }
+
+        void emit(ParticleType t) {
+            callbacks.particleEngine.emitParticle(at, Vector2f(0), t);
+        }
+
+        if (s >= 0) {
+            emit(mGfx.expl.shockwave1[s]);
+            emit(mGfx.expl.shockwave2[s]);
+        }
+        if (t >= 0) {
+            emit(mGfx.expl.comicText[t]);
+        }
+    }
+
+
     //hack
     //sry!
     private void onDamage(Object cause, Object victim, float damage) {
@@ -730,7 +766,7 @@ class GameEngine : GameEnginePublic {
         physicworld.add(expl);
         //don't create effects that wouldn't show anyway
         if (iradius >= 10) {
-            callbacks.explosionEffect(toVector2i(pos), iradius);
+            showExplosion(pos, iradius);
         }
         //some more chaos, if strong enough
         //xxx needs moar tweaking
@@ -750,10 +786,8 @@ class GameEngine : GameEnginePublic {
 
     //insert bitmap into the landscape
     //(bitmap is a Resource for the network mode, if we'll ever have one)
-    void insertIntoLandscape(Vector2i pos, Resource!(Surface) bitmap,
-        Lexel bits)
-    {
-        Rect2i newrc = Rect2i.Span(pos, bitmap.get.size);
+    void insertIntoLandscape(Vector2i pos, Surface bitmap, Lexel bits) {
+        Rect2i newrc = Rect2i.Span(pos, bitmap.size);
         //only add large, aligned tiles; this prevents degenerate cases when
         //lots of small bitmaps are added (like snow)
         //actually, you can remove all this code if it bothers you; it's not

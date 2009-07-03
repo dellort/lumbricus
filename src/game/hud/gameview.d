@@ -134,7 +134,7 @@ private class ViewMember {
 
     void setArrowAnim(bool canChangeWorm) {
         auto theme = member.owner.theme;
-        arrow.animation = canChangeWorm ? theme.change.get : theme.arrow.get;
+        arrow.animation = canChangeWorm ? theme.change : theme.arrow;
         mArrowState = canChangeWorm;
     }
 
@@ -253,7 +253,7 @@ private class ViewMember {
                 //for now, only animate the left/right change of the
                 //worm
 
-                weaponIcon.image = amember.getCurrentWeapon.icon.get;
+                weaponIcon.image = amember.getCurrentWeapon.icon;
 
                 //possibly fix the animation
                 //get where worm looks too

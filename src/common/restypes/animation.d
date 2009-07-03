@@ -291,7 +291,9 @@ class AnimationResource : ResourceItem {
             case "strip":
                 char[] fn = mContext.fixPath(node["file"]);
                 int frameWidth = node.getIntValue("frame_width", -1);
-                mContents = new AnimationStrip(fn, frameWidth);
+                auto ani = new AnimationStrip(fn, frameWidth);
+                ani.repeat = node.getBoolValue("repeat", ani.repeat);
+                mContents = ani;
                 break;
             case "complicated":
                 auto frames = castStrict!(AniFrames)(
@@ -299,14 +301,7 @@ class AnimationResource : ResourceItem {
                 mContents = new ComplicatedAnimation(node, frames);
                 break;
             default:
-                //assuming the "prehistoric" thingy used in level themes
-                char[] fn = mContext.fixPath(node["image"]);
-                int frameWidth = node.getIntValue("width", -1);
-                auto ani = new AnimationStrip(fn, frameWidth);
-                ani.repeat = node.getBoolValue("repeat", true);
-                mContents = ani;
-                break;
-                //assert(false, "Invalid frame resource type");
+                throw new Exception("invalid AnimationResource type");
         }
     }
 

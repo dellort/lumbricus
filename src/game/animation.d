@@ -17,8 +17,6 @@ import math = tango.math.Math;
 
 public import common.animation;
 
-alias Resource!(Animation) AnimationResource;
-
 static this() {
     //documentation on this stuff see implementations
 

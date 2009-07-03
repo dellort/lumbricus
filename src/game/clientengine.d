@@ -70,7 +70,7 @@ class ClientAnimationGraphic : Animator {
         if (mInfo.owner_team) {
             //out-of-world arrow, in team colors
             mOffArrow = new Animator(info.owner.timebase);
-            mOffArrow.setAnimation(mInfo.owner_team.color.cursor.get());
+            mOffArrow.setAnimation(mInfo.owner_team.color.cursor);
             mOffArrow.zorder = GameZOrder.RangeArrow;
         }
     }
@@ -126,7 +126,7 @@ class ClientLineGraphic : SceneObject {
             removeThis();
             return;
         }
-        Surface tex = mInfo.texture.get();
+        Surface tex = mInfo.texture;
         if (tex) {
             c.drawTexLine(mInfo.p1, mInfo.p2, tex, mInfo.texoffset,
                 mInfo.color);
@@ -177,7 +177,7 @@ class CrosshairGraphicImpl : SceneObject {
         mInfo = info;
         timebase = mInfo.owner.timebase;
         mTarget = new Animator(timebase);
-        mTarget.setAnimation(mInfo.theme.aim.get);
+        mTarget.setAnimation(mInfo.theme.aim);
         mInterp.currentTimeDg = &timebase.current;
         mInterp.init(mGfx.crosshair.animDur, 1, 0);
         mTargetOffset = mGfx.crosshair.targetDist -
@@ -271,77 +271,6 @@ class AnimationEffectImpl : Animator {
         super.draw(c);
         if (hasFinished())
             removeThis();
-    }
-}
-
-//creates shockwave-animation for an explosion (like in wwp)
-//currently creates no particles, but could in the future
-class ExplosionEffectImpl : SceneObjectCentered {
-    private {
-        Animator mShockwave1, mShockwave2, mComicText;
-        int mDiameter;
-        GfxSet mGfx;
-    }
-
-    this(TimeSourcePublic ts, GfxSet gfx, Vector2i pos, int radius) {
-        zorder = GameZOrder.Effects;
-        mGfx = gfx;
-        mShockwave1 = new Animator(ts);
-        mShockwave2 = new Animator(ts);
-        mComicText = new Animator(ts);
-        auto p = pos;
-        mShockwave1.pos = p;
-        mShockwave2.pos = p;
-        mComicText.pos = p;
-        //mShockwave1.timeSource = mInfo.owner.timebase;
-        //mShockwave2.timeSource = mInfo.owner.timebase;
-        //mComicText.timeSource = mInfo.owner.timebase;
-
-        setDiameter(radius*2);
-    }
-
-    //selects animations matching diameter
-    //diameter tresholds are read from gfxset config file
-    void setDiameter(int d) {
-        int s = -1, t = -1;
-        if (d < mGfx.expl.sizeTreshold[0]) {
-            //below treshold, no animation
-            //xxx catch this case in engine to avoid network traffic
-        } else if (d < mGfx.expl.sizeTreshold[1]) {
-            //tiny explosion without text
-            s = 0;
-        } else if (d < mGfx.expl.sizeTreshold[2]) {
-            //medium-sized, may have small text
-            s = 1;
-            t = rngShared.next(-1,3);
-        } else if (d < mGfx.expl.sizeTreshold[3]) {
-            //big, always with text
-            s = 2;
-            t = rngShared.next(0,4);
-        } else {
-            //huge, always text
-            s = 3;
-            t = rngShared.next(0,4);
-        }
-        if (s >= 0) {
-            mShockwave1.setAnimation(mGfx.expl.shockwave1[s].get);
-            mShockwave2.setAnimation(mGfx.expl.shockwave2[s].get);
-        }
-        if (t >= 0) {
-            mComicText.setAnimation(mGfx.expl.comicText[t].get);
-        }
-    }
-
-    override void draw(Canvas c) {
-        //self-remove after all animations are finished
-        if ((mShockwave1.hasFinished && mShockwave2.hasFinished &&
-            mComicText.hasFinished))
-        {
-            removeThis();
-        }
-        mShockwave1.draw(c);
-        mShockwave2.draw(c);
-        mComicText.draw(c);
     }
 }
 
@@ -440,7 +369,6 @@ class ClientGameEngine : GameEngineCallback {
 
         auto cb = mEngine.callbacks();
         cb.newGraphic ~= &doNewGraphic;
-        cb.explosionEffect ~= &explosionEffect;
         cb.nukeSplatEffect ~= &nukeSplatEffect;
         cb.animationEffect ~= &animationEffect;
 
@@ -522,10 +450,6 @@ class ClientGameEngine : GameEngineCallback {
         } else {
             assert (false, "unknown type: "~g.toString());
         }
-    }
-
-    private void explosionEffect(Vector2i pos, int radius) {
-        scene.add(new ExplosionEffectImpl(engineTime, gfx, pos, radius));
     }
 
     private void nukeSplatEffect() {

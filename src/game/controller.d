@@ -375,13 +375,13 @@ class ServerTeam : Team {
                 //X animation
                 auto t = new AnimationGraphic();
                 parent.engine.graphics.add(t);
-                t.setAnimation(color.pointed.get);
+                t.setAnimation(color.pointed);
                 t.update(toVector2i(where));
                 setIndicator(t);
                 break;
             case PointMode.instant, PointMode.instantFree:
                 //click effect
-                parent.engine.callbacks.animationEffect(color.click.get,
+                parent.engine.callbacks.animationEffect(color.click,
                     toVector2i(where), AnimationParams.init);
 
                 //instant mode -> fire and forget

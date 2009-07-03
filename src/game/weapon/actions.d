@@ -199,7 +199,7 @@ class BeamAction : WeaponAction {
 
 ///Inserts a bitmap into the landscape at FireInfo.pos
 class InsertBitmapActionClass : ActionClass {
-    Resource!(Surface) bitmap;
+    Surface bitmap;
     Lexel bits;
 
     //xxx class
@@ -211,8 +211,7 @@ class InsertBitmapActionClass : ActionClass {
 
     void loadFromConfig(GameEngine eng, ConfigNode node) {
         //prepare bitmap resource
-        bitmap = eng.gfx.resources.resource!(Surface)(
-            node.getStringValue("source"));
+        bitmap = eng.gfx.resources.get!(Surface)(node.getStringValue("source"));
         bits = Lexel.SolidSoft;
         //sorry, special cased
         if (node.getBoolValue("snow")) {
@@ -245,11 +244,11 @@ class InsertBitmapAction : WeaponAction {
 
     override protected ActionRes initialStep() {
         super.initialStep();
-        if (!mFireInfo.info.pos.isNaN && myclass.bitmap.get() !is null) {
+        if (!mFireInfo.info.pos.isNaN && myclass.bitmap !is null) {
             //centered at FireInfo.pos
             auto p = toVector2i(mFireInfo.info.pos);
             auto res = myclass.bitmap;
-            p -= res.get.size / 2;
+            p -= res.size / 2;
             engine.insertIntoLandscape(p, res, myclass.bits);
         }
         return ActionRes.done;
