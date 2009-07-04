@@ -3,7 +3,7 @@ module common.restypes.sound;
 import common.resources;
 import framework.framework;
 import framework.sound;
-import stdx.stream;
+import utils.stream;
 import utils.configfile;
 
 class SampleResource : ResourceItem {

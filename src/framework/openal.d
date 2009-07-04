@@ -4,7 +4,7 @@ import derelict.openal.al;
 import derelict.openal.alut;
 import framework.framework;
 import framework.sound;
-import stdx.stream;
+import utils.stream;
 import tango.stdc.stringz;
 import utils.array;
 import utils.misc;
@@ -102,7 +102,7 @@ class ALSound : DriverSound {
         //no Stream-like abstraction (?) => temporarily copy into memory
         auto stuff = new char[source.size()];
         source.position = 0;
-        source.readExact(stuff.ptr, stuff.length);
+        source.readExact(cast(ubyte[])stuff);
         mALBuffer = alutCreateBufferFromFileImage(stuff.ptr, stuff.length);
         delete stuff;
         if (mALBuffer == AL_NONE) {

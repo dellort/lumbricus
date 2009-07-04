@@ -10,7 +10,7 @@ import utils.output;
 import utils.random;
 import utils.time;
 
-import stdx.stream : File, FileMode; //???
+import utils.stream : File; //???
 
 import tango.io.Stdout;
 
@@ -38,7 +38,7 @@ ConfigNode init(char[][] args, char[] help) {
     initFSMounts();
 
     //open logfile in user dir
-    auto logf = gFS.open("/logall.txt", FileMode.In | FileMode.OutNew);
+    auto logf = gFS.open("/logall.txt", File.ReadWriteCreate);
     auto logstr = new StreamOutput(logf);
     //write buffered log
     logstr.writeString(logtmp.text);

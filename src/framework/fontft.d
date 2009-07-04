@@ -15,7 +15,7 @@ import utils.vector2;
 import utils.color;
 import utils.configfile;
 
-import stdx.stream;
+import utils.stream;
 
 private struct GlyphData {
     TextureRef tex;     //glyph texture
@@ -45,9 +45,8 @@ class FTGlyphCache {
         int mUnderlineOffset, mUnderlineHeight;
         FontProperties props;
         FT_Face mFace;
-        // Stream is used by TTF_Font, this keeps the reference to it
-        // possibly shared accross font instances
-        MemoryStream mFontStream;
+        //referenced across shared font instances
+        ubyte[] mFontStream;
         bool mDoBold, mDoItalic;
         FTFontDriver mDriver;
     }
@@ -64,14 +63,14 @@ class FTGlyphCache {
         //will fall back to default style if specified was not found
         mFontStream = gFramework.fontManager.findFace(props.face,
             props.getFaceStyle);
-        if (!mFontStream) {
+        if (!mFontStream.length) {
             throw new Exception("Failed to load font '" ~ props.face
                 ~ "': Face file not found.");
         }
-        mFontStream.seek(0,SeekPos.Set);
         this.props = props;
-        if (FT_New_Memory_Face(driver.library, mFontStream.data.ptr,
-            mFontStream.size, 0, &mFace))
+        //NOTE: FT wants that you don't deallocate the passed font file data
+        if (FT_New_Memory_Face(driver.library, mFontStream.ptr,
+            mFontStream.length, 0, &mFace))
         {
             throw new Exception("Freetype failed to load font '"
                 ~ props.face ~ "'.");

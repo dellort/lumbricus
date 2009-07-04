@@ -19,7 +19,7 @@ import utils.configfile;
 
 import math = tango.math.Math;
 import ieee = tango.math.IEEE;
-import stdx.stream;
+import utils.stream;
 import tango.stdc.stringz;
 import tango.sys.Environment;
 

@@ -1,7 +1,7 @@
 module wwptools.animconv;
 
 import aconv.atlaspacker;
-import stdx.stream;
+import utils.stream;
 import str = utils.string;
 import utils.configfile;
 import conv = tango.util.Convert;
@@ -289,7 +289,8 @@ class AniFile {
 
         auto fnBase = mName;
 
-        scope dataout = new File(outPath ~ fnBase ~ ".meta", FileMode.OutNew);
+        scope dataout = Stream.OpenFile(outPath ~ fnBase ~ ".meta",
+            File.WriteCreate);
         //again, endian issues etc....
         FileAnimations header;
         header.animationCount = animations.length;
@@ -303,7 +304,8 @@ class AniFile {
         }
 
         if (writeConf) {
-            scope confst = new File(outPath ~ fnBase ~ ".conf", FileMode.OutNew);
+            scope confst = Stream.OpenFile(outPath ~ fnBase ~ ".conf",
+                File.WriteCreate);
             auto textstream = new StreamOutput(confst);
             output_conf.writeFile(textstream);
         }

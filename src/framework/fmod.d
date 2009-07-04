@@ -9,7 +9,7 @@ import derelict.fmod.fmod;
 import framework.framework;
 import framework.sound;
 import framework.fmodstreamfs;
-import stdx.stream;
+import utils.stream;
 import tango.stdc.stringz;
 import utils.array;
 import utils.misc;

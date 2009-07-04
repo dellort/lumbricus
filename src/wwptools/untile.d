@@ -1,7 +1,7 @@
 module wwptools.untile;
 
 import devil.image;
-import stdx.stream;
+import utils.stream;
 import utils.configfile;
 import utils.output : TangoStreamOutput; //silly wrapper
 import utils.filetools;
@@ -40,6 +40,8 @@ void do_untile(Image img, char[] filename, VfsFolder destFolder, char[] imgPath,
     char[] fnbase = FilePath(filename).name;
     //path.getBaseName(path.getName(filename));
 
+    char[][] names = str.splitlines(cast(char[])namefile.readAll());
+
     ConfigNode conffile, bmps;
     if (confName.length) {
         conffile = new ConfigNode();
@@ -54,8 +56,8 @@ void do_untile(Image img, char[] filename, VfsFolder destFolder, char[] imgPath,
 
     int sNameIdx = 0;
     char[] getNextName() {
-        if (namefile) {
-            return nameHead ~ namefile.readLine() ~ nameTail;
+        if (names.length) {
+            return nameHead ~ names[sNameIdx++] ~ nameTail;
         } else {
             return nameHead ~ fnbase ~ nameTail ~ myformat("{}", sNameIdx++);
         }
@@ -65,6 +67,7 @@ void do_untile(Image img, char[] filename, VfsFolder destFolder, char[] imgPath,
         char[] baseName = getNextName();
         uint len = imgToSave.saveBuffer(buffer);
         scope f = imgFolder.file(baseName ~ ".png").create.output;
+        //eh, so we don't like checking return values?
         f.write(buffer[0..len]);
         if (conffile) {
             bmps.setStringValue(baseName, imgPath ~ "/" ~ baseName ~ ".png");

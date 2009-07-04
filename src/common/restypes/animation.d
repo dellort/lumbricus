@@ -170,7 +170,9 @@ class AnimationStrip : Animation {
     //and needs to be a factor of the total image width
     //if frameWidth == -1, frames will be square (height x height)
     this(char[] filename, int frameWidth) {
+        debug gResources.ls_start("AnimationStrip:loadImage");
         mSurface = gFramework.loadImage(filename);
+        debug gResources.ls_stop("AnimationStrip:loadImage");
         if (frameWidth < 0)
             frameWidth = mSurface.size.y;
         mFrameSize = Vector2i(frameWidth, mSurface.size.y);

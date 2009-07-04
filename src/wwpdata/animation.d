@@ -2,7 +2,7 @@ module wwpdata.animation;
 
 import aconv.atlaspacker;
 import devil.image;
-import stdx.stream;
+import utils.stream;
 import wwpdata.common;
 import utils.boxpacker;
 import utils.vector2;
@@ -18,8 +18,8 @@ class AnimList {
     Animation[] animations;
 
     void save(char[] outPath, char[] fnBase, bool tosubdir = true) {
-        scope stMeta = new File(outPath ~ pathsep ~ fnBase ~ ".meta",
-            FileMode.OutNew);
+        //scope stMeta = new File(outPath ~ pathsep ~ fnBase ~ ".meta",
+          //  FileMode.OutNew);
         foreach (int i, Animation a; animations) {
             char[] afn, apath;
             if (tosubdir) {

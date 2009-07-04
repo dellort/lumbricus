@@ -34,7 +34,7 @@ import utils.strparser : boxToString;
 import utils.time;
 import utils.vector2;
 
-import stdx.stream;
+import utils.stream;
 import tango.math.Math : pow;
 import tango.core.Traits : ParameterTupleOf;
 
@@ -661,7 +661,7 @@ class GameShell {
         int t;
         char[] p = gFS.getUniqueFilename("/debug/", "dump{0:d3}", ".tar", t);
         log("saving debugging dump to {}", p);
-        scope st = gFS.open(p, FileMode.OutNew);
+        scope st = gFS.open(p, File.WriteCreate);
         scope writer = new TarArchive(st, false);
         saveGame(writer);
         writer.close();

@@ -1,6 +1,6 @@
 module utils.configfile;
 
-import stdx.stream;
+import utils.stream;
 import str = utils.string;
 import tango.util.Convert : to, ConversionException;
 import tango.text.convert.Float : toFloat;
@@ -1048,8 +1048,8 @@ public class ConfigFile {
 
     /// do the same like the constructor
     public void loadFrom(Stream source, char[] filename, void delegate(char[]) reportError) {
-        source.seekSet(0);
-        mData = source.readString(source.size());
+        source.position = 0;
+        mData = cast(char[])source.readAll();
         mErrorOut = reportError;
         mFilename = filename;
         doParse();

@@ -6,7 +6,7 @@ import framework.framework;
 import framework.sound;
 import framework.sdl.rwops;
 import framework.sdl.sdl;
-import stdx.stream;
+import utils.stream;
 import tango.stdc.stringz;
 import utils.array;
 import utils.misc;

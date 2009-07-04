@@ -7,7 +7,7 @@ import utils.color;
 import utils.vector2;
 import utils.weaklist;
 
-import stdx.stream;
+import utils.stream;
 import str = utils.string;
 
 package {
@@ -180,12 +180,16 @@ class Font {
 class FontManager {
     private {
         struct FaceStyles {
-            MemoryStream[FaceStyle.max+1] styles;
+            //xxx: it'd be better to just keep a file handle to the font file,
+            //     or to share all FT_Face-s across all FTGlyphCache-s (srsly),
+            //     but for now I'm doing this due to various circumstances
+            //     FT doesn't seem to have stream abstractions either
+            //for each style, the font file loaded into memory
+            ubyte[][FaceStyle.max+1] styles;
         }
 
         Font[char[]] mIDtoFont;
         ConfigNode mNodes;
-        //why store the font file(s) into memory? I don't know lol
         FaceStyles[char[]] mFaces;
     }
 
@@ -196,10 +200,9 @@ class FontManager {
             foreach (int idx, char[] faceFile; faces) {
                 if (idx > FaceStyle.max)
                     break;
-                auto ms = new MemoryStream();
                 scope st = gFS.open(faceFile);
                 scope(exit) st.close();
-                ms.copyFrom(st);
+                ubyte[] ms = st.readAll();
                 if (!(n.name in mFaces)) {
                     FaceStyles fstyles;
                     fstyles.styles[cast(FaceStyle)idx] = ms;
@@ -278,7 +281,7 @@ class FontManager {
     }
 
     //driver uses this
-    MemoryStream findFace(char[] face, FaceStyle style = FaceStyle.normal) {
+    ubyte[] findFace(char[] face, FaceStyle style = FaceStyle.normal) {
         FaceStyles* fstyles = face in mFaces;
         if (!fstyles)
             return null;

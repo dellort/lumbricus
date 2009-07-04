@@ -34,7 +34,7 @@ import game.levelgen.placeobjects;
 import utils.output;
 
 //import stdx.bind;
-import stdx.stream;
+import utils.stream;
 
 //for playing the preview
 import game.gametask;
@@ -1061,7 +1061,7 @@ public class LevelEditor : Task {
         auto sub = rootnode.getSubNode("templates").add();
         saveLevel(sub);
         try {
-            Stream outp = gFS.open(filename, FileMode.OutNew);
+            Stream outp = gFS.open(filename, File.WriteCreate);
             auto s = new StreamOutput(outp);
             rootnode.writeFile(s);
             outp.close();

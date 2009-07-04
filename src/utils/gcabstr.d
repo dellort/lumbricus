@@ -1,7 +1,8 @@
 module utils.gcabstr;
 
-//xxx big hack: for some reason tango developers don't want to expose this
-version(Tango) {
+import tango.core.Memory;
+
+static if (!is(tango.core.Memory.GCStats)) {
     struct GCStats
     {
         size_t poolsize;        // total size of pool
@@ -13,36 +14,13 @@ version(Tango) {
 
     extern (C) GCStats gc_stats();
 
-    void getStats(out GCStats stats) {
-        stats = gc_stats();
-    }
-
-    import tango.core.Memory;
-
-    void gcEnable() {
-        GC.enable();
-    }
-    void gcDisable() {
-        GC.disable();
-    }
-    void gcFullCollect() {
-        GC.collect();
+    GCStats getStats() {
+        return gc_stats();
     }
 } else {
-    import gc = std.gc;
-    public import gcstats;
+    public alias GC.GCStats GCStats;
 
-    void getStats(out GCStats stats) {
-        gc.getStats(stats);
-    }
-
-    void gcEnable() {
-        gc.enable();
-    }
-    void gcDisable() {
-        gc.disable();
-    }
-    void gcFullCollect() {
-        gc.fullCollect();
+    GCStats getStats() {
+        return GC.stats();
     }
 }

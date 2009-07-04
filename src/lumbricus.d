@@ -2,7 +2,6 @@ module lumbricus;
 
 //enable tango backtracing (on exceptions)
 debug import tango.core.stacktrace.TraceExceptions;
-debug import tracer = utils.mytrace; //some stack tracing stuff for Linux
 
 import framework.framework;
 import common.init;
@@ -19,6 +18,7 @@ import framework.sdl.framework;
 import framework.sdl.soundmixer;
 import framework.openal;
 import framework.fontft;
+import framework.imgwrite;
 
 //--> FMOD is not perfectly GPL compatible, so you may need to comment
 //    this line in some scenarios (this is all it needs to disable FMOD)

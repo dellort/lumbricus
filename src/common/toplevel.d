@@ -28,7 +28,8 @@ import utils.mybox;
 import utils.perf;
 //xxx
 import gc = utils.gcabstr;
-import stdx.stream : File, FileMode;
+import memory = tango.core.Memory;
+import utils.stream;
 
 //ZOrders!
 //only for the stuff managed by TopLevel
@@ -338,7 +339,8 @@ private:
 
     private void cmdResList(MyBox[] args, Output write) {
         write.writefln("dumping to res.txt");
-        auto file = new File("res.txt", FileMode.OutNew);
+        auto file = new ConduitStream(castStrict!(Conduit)(
+            new File("res.txt", File.WriteCreate)));
         write = new StreamOutput(file);
         int count;
         gResources.enumResources(
@@ -512,7 +514,7 @@ private:
         }
 
         scope surf = gFramework.screenshot();
-        scope ssFile = gFS.open(filename, FileMode.OutNew);
+        scope ssFile = gFS.open(filename, File.WriteCreate);
         scope(exit) ssFile.close();  //no close on delete? strange...
         if (activeWindow) {
             //copy out area of active window
@@ -609,24 +611,28 @@ private:
     private void testGC(MyBox[] args, Output write) {
         auto counter = new PerfTimer();
         gc.GCStats s1, s2;
-        gc.getStats(s1);
+        s1 = gc.getStats();
         counter.start();
-        gc.gcFullCollect();
+        memory.GC.collect();
         counter.stop();
-        gc.getStats(s2);
+        s2 = gc.getStats();
         write.writefln("GC fullcollect: {}, free'd {} KB", counter.time,
             ((s1.usedsize - s2.usedsize) + 512) / 1024);
     }
     private void testGCstats(MyBox[] args, Output write) {
         auto w = write;
-        gc.GCStats s;
-        gc.getStats(s);
+        auto s = gc.getStats();
         w.writefln("GC stats:");
         w.writefln("poolsize = {} KB", s.poolsize/1024);
         w.writefln("usedsize = {} KB", s.usedsize/1024);
         w.writefln("freeblocks = {}", s.freeblocks);
         w.writefln("freelistsize = {} KB", s.freelistsize/1024);
         w.writefln("pageblocks = {}", s.pageblocks);
+        static if (is(tango.core.Memory.GCStats)) {
+            w.writefln("gc_count = {}", s.gc_count);
+            w.writefln("mark_time = {}", timeMusecs(s.mark_time));
+            w.writefln("sweep_time = {}", timeMusecs(s.sweep_time));
+        }
     }
 
     private void onUpdate() {
@@ -725,14 +731,19 @@ class StatsWindow : Task {
         if (bla.mTimerStatsGeneration != lastupdate) {
             lastupdate = bla.mTimerStatsGeneration;
 
-            char[] getLineBuffer(int line) {
+            int line = 0;
+
+            char[] lineBuffer() {
                 if (buffers.length <= line)
                     buffers.length = line+1;
                 return buffers[line];
             }
 
-            void setLine(int line, char[] a, char[] b) {
+            void addLine(char[] a, char[] b) {
                 Label la, lb;
+                if (line >= table.height) {
+                    table.setSize(table.width, line+1);
+                }
                 if (!table.get(0, line)) {
                     la = new Label();
                     lb = new Label();
@@ -746,30 +757,36 @@ class StatsWindow : Task {
                 }
                 la.text = a;
                 lb.text = b;
+
+                line++;
             }
 
             //--commented out, because it allocates memory
             //--maybe that makes it VERY slow with many lines... or so
             //--wnd.client = null; //dirty trick to avoid relayouting all the time
-            table.setSize(2, bla.timerCount+3);
 
             int n = 0;
 
-            gc.GCStats gcs;
-            gc.getStats(gcs);
+            auto gcs = gc.getStats();
 
-            setLine(0, "GC Used", str.sizeToHuman(gcs.usedsize, getLineBuffer(0)));
-            setLine(1, "GC Poolsize", str.sizeToHuman(gcs.poolsize, getLineBuffer(1)));
-            setLine(2, "Weak objects", myformat_s(getLineBuffer(2), "{}",
+            addLine("GC Used", str.sizeToHuman(gcs.usedsize, lineBuffer()));
+            addLine("GC Poolsize", str.sizeToHuman(gcs.poolsize, lineBuffer()));
+            static if (is(tango.core.Memory.GCStats)) {
+                addLine("GC count", myformat_s(lineBuffer(), "{}",
+                    gcs.gc_count));
+                addLine("GC m-time",
+                    timeMusecs(gcs.mark_time).toString_s(lineBuffer()));
+                addLine("GC s-time",
+                    timeMusecs(gcs.sweep_time).toString_s(lineBuffer()));
+                n += 3;
+            }
+            addLine("Weak objects", myformat_s(lineBuffer(), "{}",
                 gFramework.weakObjectsCount));
 
-            n += 3;
-
             bla.listTimers((char[] a, Time b) {
-                auto buf = getLineBuffer(n);
+                auto buf = lineBuffer();
                 auto s = b.toString_s(buf);
-                setLine(n, a, s);
-                n++;
+                addLine(a, s);
             });
 
             //--wnd.client = table;

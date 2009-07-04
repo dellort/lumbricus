@@ -2,7 +2,7 @@ module wwpdata.reader_dir;
 
 import str = utils.string;
 import tango.stdc.stringz : fromStringz;
-import stdx.stream;
+import utils.stream;
 import wwpdata.common;
 import wwpdata.reader;
 import wwptools.unworms;
@@ -21,7 +21,7 @@ struct WWPDirEntry {
 
     static WWPDirEntry read(Stream st) {
         WWPDirEntry ret;
-        st.seek(4, SeekPos.Current);
+        st.seekRelative(4);
         st.readExact(&ret.offset, 4);
         st.readExact(&ret.size, 4);
         char[255] buf;
@@ -36,16 +36,15 @@ struct WWPDirEntry {
     }
 
     void writeFile(Stream st, char[] outPath) {
-        st.seek(offset, SeekPos.Set);
-        scope fileOut = new File(outPath ~ pathsep ~ filename, FileMode.OutNew);
+        st.position = offset;
+        scope fileOut = Stream.OpenFile(outPath ~ pathsep ~ filename,
+            File.WriteCreate);
         fileOut.copyFrom(st, size);
     }
 
     //st: the .dir file, same as for read() and writeFile()
     Stream open(Stream st) {
-        auto res = new SliceStream(st, offset, offset+size);
-        res.seek(0, SeekPos.Set);
-        return res;
+        return new SliceStream(st, offset, offset+size);
     }
 }
 
@@ -66,7 +65,7 @@ class Dir {
     this(char[] filename) {
         //NOTE: file isn't closed; you had to add that to ~this(), but D doesn't
         //   allow this because of the garbage collector destructor rules!
-        this(new File(filename, FileMode.In));
+        this(Stream.OpenFile(filename, File.ReadExisting));
     }
 
     //filesystem-like interface, was too lazy to use filesystem.d
@@ -118,7 +117,7 @@ WWPDirEntry[] doReadDir(Stream st) {
 
     uint dirPos;
     st.readExact(&dirPos, 4);
-    st.seek(dirPos+4096+4, SeekPos.Set);
+    st.position = dirPos+4096+4;
 
     WWPDirEntry[] content;
     while (!st.eof) {

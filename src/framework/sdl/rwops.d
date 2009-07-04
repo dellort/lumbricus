@@ -1,22 +1,38 @@
 module framework.sdl.rwops;
 
 import derelict.sdl.sdl;
-import stdx.stream;
+import utils.stream;
+import utils.misc;
 
 extern (C) {
   int rw_seek (SDL_RWops *context, int offset, int whence) {
     Stream str = cast(Stream)context.hidden.unknown.data1;
-    return cast(int)str.seek(offset,cast(SeekPos)whence);
+    switch (whence) {
+        case RW_SEEK_SET:
+            str.position = offset; break;
+        case RW_SEEK_CUR:
+            str.seekRelative(offset); break;
+        case RW_SEEK_END:
+            str.position = str.size + offset; break;
+        default:
+            return -1; //eh what
+    }
+    return str.position;
   }
 
   int rw_read (SDL_RWops *context, void *ptr, int size, int maxnum) {
     Stream str = cast(Stream)context.hidden.unknown.data1;
-    return str.readBlock(ptr,size*maxnum) / size;
+    auto s = str.readUntilEof(cast(ubyte[])ptr[0..size*maxnum]);
+    //consider rw_read(_,_,128,1), and s.length is 123 - what should the file
+    //position be?
+    //from experiments with C it seems having the file pointer at EOF is ok
+    return s.length/size;
   }
 
   int rw_write (SDL_RWops *context, void *ptr, int size, int num) {
     Stream str = cast(Stream)context.hidden.unknown.data1;
-    return str.writeBlock(ptr,size*num) / size;
+    str.writeExact(cast(ubyte[])ptr[0..size*num]);
+    return num;
   }
 
   int rw_close (SDL_RWops *context) {

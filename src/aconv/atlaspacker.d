@@ -1,7 +1,7 @@
 module aconv.atlaspacker;
 
 import devil.image;
-import stdx.stream;
+import utils.stream;
 import wwpdata.common;
 import common.resfileformats : FileAtlas, FileAtlasTexture;
 import utils.boxpacker;
@@ -112,16 +112,17 @@ class AtlasPacker {
             auto metaname = fnBase ~ ".meta";
             resNode.setStringValue("meta", metaname);
 
-            scope metaf = new File(outPath ~ metaname, FileMode.OutNew);
+            scope metaf = Stream.OpenFile(outPath ~ metaname, File.WriteCreate);
             scope(exit)metaf.close();
             //xxx: endian-safety, no one cares, etc...
             FileAtlas header;
             header.textureCount = mBlocks.length;
-            metaf.writeExact(&header, header.sizeof);
-            metaf.writeExact(mBlocks.ptr, typeof(mBlocks[0]).sizeof * mBlocks.length);
+            metaf.writeExact(cast(ubyte[])(&header)[0..1]);
+            metaf.writeExact(cast(ubyte[])mBlocks);
         }
 
-        scope confst = new File(outPath ~ fnBase ~ ".conf", FileMode.OutNew);
+        scope confst = Stream.OpenFile(outPath ~ fnBase ~ ".conf",
+            File.WriteCreate);
         scope(exit)confst.close();
         auto textstream = new StreamOutput(confst);
         confOut.writeFile(textstream);

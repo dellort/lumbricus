@@ -1,6 +1,6 @@
 module wwpdata.common;
 
-import stdx.stream;
+import utils.stream;
 import wwpdata.decompression;
 import devil.image : RGBAColor;
 
@@ -10,14 +10,14 @@ struct WWPPalette {
     static WWPPalette read(Stream st) {
         WWPPalette ret;
         ushort palSize;
-        st.readExact(&palSize, 2);
+        st.readExact(cast(ubyte[])(&palSize)[0..1]);
         ret.palEntries.length = palSize;
         foreach (inout pe; ret.palEntries) {
             struct RGBColor {
                 ubyte r, g, b;
             }
             RGBColor c;
-            st.readExact(&c, 3);
+            st.readExact(cast(ubyte[])(&c)[0..1]);
             pe.r = c.r;
             pe.g = c.g;
             pe.b = c.b;

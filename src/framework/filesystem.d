@@ -1,7 +1,7 @@
 module framework.filesystem;
 
 import str = utils.string;
-import stdx.stream;
+import utils.stream;
 import tango.util.PathUtil;
 import tpath = tango.io.Path;
 import tango.core.Exception : IOException;
@@ -77,7 +77,7 @@ private abstract class HandlerInstance {
     ///check if this path is valid (it does not have to contain files)
     abstract bool pathExists(VFSPath handlerPath);
 
-    abstract Stream open(VFSPath handlerPath, FileMode mode);
+    abstract Stream open(VFSPath handlerPath, File.Style mode);
 
     ///list the files (no dirs) in the path handlerPath (relative to handler
     ///object)
@@ -146,14 +146,15 @@ private class HandlerDirectory : HandlerInstance {
         }
     }
 
-    Stream open(VFSPath handlerPath, FileMode mode) {
+    Stream open(VFSPath handlerPath, File.Style mode) {
         version(FSDebug) log("Handler for '{}': Opening '{}'",mDirPath,
             handlerPath);
-        if (mode == FileMode.OutNew) {
+        if (mode.open != File.Open.Exists) {
             //make sure path exists
             createPath(handlerPath.parent);
         }
-        return new File(handlerPath.makeAbsolute(mDirPath), mode);
+        return new ConduitStream(castStrict!(Conduit)(
+            new File(handlerPath.makeAbsolute(mDirPath), mode)));
     }
 
     bool listdir(VFSPath handlerPath, char[] pattern, bool findDirs,
@@ -206,46 +207,6 @@ private class MountPointHandlerZip : MountPointHandler {
     }
 }
 
-//xxx this hack is just required because we still use the phobos
-//    Stream interface all over the program
-private class StreamTangoIn : Stream {
-    private ic.InputStream mInp;
-    private ulong mSize;
-
-    this(ic.InputStream input, ulong customSize = ulong.max) {
-        assert(!!input);
-        mInp = input;
-        //ZlibReader reports filesize wrong
-        mSize = customSize;
-        readable = true;
-        writeable = false;
-        seekable = true;
-    }
-
-    uint readBlock(void* buffer, uint size) {
-        return mInp.read(buffer[0..size]);
-    }
-
-    uint writeBlock(void* buffer, uint size) {
-        assert(false);
-    }
-
-    ulong seek(long offset, SeekPos whence) {
-        return mInp.seek(offset, cast(ic.IOStream.Anchor)whence);
-    }
-
-    override void close() {
-        mInp.close();
-    }
-
-    override ulong size() {
-        //hack: seek(0, SeekPos.End) doesn't return the correct size
-        if (mSize != ulong.max)
-            return mSize;
-        return super.size();
-    }
-}
-
 //wrapper from tango Vfs to our filesystem
 //currently, only supports reading because of ZipFolder limitations (i.e. bugs),
 //  and Stream interface issues (see hack above)
@@ -281,12 +242,13 @@ private class HandlerTangoVfs : HandlerInstance {
         return mVfsFolder.folder(handlerPath.get(false)).exists;
     }
 
-    Stream open(VFSPath handlerPath, FileMode mode) {
+    Stream open(VFSPath handlerPath, File.Style mode) {
         //only input
-        assert(mode == FileMode.In);
+        assert(mode.access == File.Access.Read);
         auto vfile = mVfsFolder.file(handlerPath.get(false));
         //wrap the tango stream
-        return new StreamTangoIn(vfile.input, vfile.size);
+        //xxx: is it really necessary to restrict the size? (SliceStream)
+        return new SliceStream(new ConduitStream(vfile.input), 0, vfile.size);
     }
 
     bool listdir(VFSPath handlerPath, char[] pattern, bool findDir,
@@ -342,7 +304,7 @@ private class HandlerLink : HandlerInstance {
         return mParent.pathExists(mLinkedPath.join(handlerPath), this);
     }
 
-    Stream open(VFSPath handlerPath, FileMode mode) {
+    Stream open(VFSPath handlerPath, File.Style mode) {
         version(FSDebug) log("Link: open({})",handlerPath);
         return mParent.open(mLinkedPath.join(handlerPath), mode, this);
     }
@@ -410,8 +372,8 @@ class FileSystem {
             }
 
             ///Check if this mountPoint supports opening files with mode
-            public bool matchesMode(FileMode mode) {
-                return (mode == FileMode.In || isWritable);
+            public bool matchesMode(File.Style mode) {
+                return (mode.access == File.Access.Read || isWritable);
             }
         }
 
@@ -640,7 +602,7 @@ class FileSystem {
     ///  relFilename = path to the file, relative to VFS root
     ///  mode = how the file should be opened
     //need to make caller parameter public
-    public Stream open(VFSPath filename, FileMode mode = FileMode.In,
+    public Stream open(VFSPath filename, File.Style mode = File.ReadExisting,
         HandlerInstance caller = null)
     {
         version(FSDebug) log("Trying to open '{}'",filename);
@@ -651,7 +613,7 @@ class FileSystem {
                 version(FSDebug) log("Found matching handler");
                 VFSPath handlerPath = p.getHandlerPath(filename);
                 if (p.handler.exists(handlerPath)
-                    || (mode & FileMode.OutNew) == FileMode.OutNew) {
+                    || (mode.open != File.Open.Exists)) {
                     //the file exists, or a new file should be created
                     return p.handler.open(handlerPath, mode);
                 }
@@ -660,7 +622,7 @@ class FileSystem {
         throw new FilesystemException("File not found: " ~ filename.toString);
     }
 
-    public Stream open(char[] filename, FileMode mode = FileMode.In)
+    public Stream open(char[] filename, File.Style mode = File.ReadExisting)
     {
         return open(VFSPath(filename), mode, null);
     }

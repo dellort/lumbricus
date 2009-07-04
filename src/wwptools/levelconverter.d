@@ -2,7 +2,7 @@ module wwptools.levelconverter;
 
 import aconv.atlaspacker;
 import str = utils.string;
-import stdx.stream;
+import utils.stream;
 import utils.filetools;
 import utils.vector2;
 import utils.misc;
@@ -117,7 +117,9 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
         char[] objname = infPath.name;
         ldir.unworms(objname~".img",destPath~"objects");
         scope infFile = ldir.open(inff);
-        char[][] infLines = str.split(infFile.toString());
+        //AHAHAHAHA leaving the old line for comedy
+        //char[][] infLines = str.split(infFile.toString());
+        char[][] infLines = str.split(cast(char[])infFile.readAll());
         assert(infLines.length >= 6);
         int side = to!(int)(infLines[5]);
         definedBitmaps ~= BmpDef("obj_"~objname,"objects/"~objname~".png");

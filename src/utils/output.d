@@ -1,6 +1,6 @@
 module utils.output;
 
-import stdx.stream;
+import utils.stream;
 import utils.misc : formatfx_s, va_list, Trace;
 import ic = tango.io.model.IConduit;
 
@@ -66,7 +66,7 @@ public class StreamOutput : OutputHelper {
 
     void writeString(char[] str) {
         if (mTo) {
-            mTo.writeExact(str.ptr, str.length);
+            mTo.writeExact(cast(ubyte[])str);
         }
     }
 

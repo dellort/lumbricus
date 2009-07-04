@@ -1,7 +1,7 @@
 module wwpdata.reader_img;
 
 import devil.image;
-import stdx.stream;
+import utils.stream;
 import wwpdata.common;
 import wwpdata.reader;
 
@@ -30,7 +30,7 @@ Image readImgFile(Stream st) {
 
     //alignment
     //xxx this could appear in other files, too
-    st.seek((st.position+3) & 0xfffffffc,SeekPos.Set);
+    st.position = (st.position+3) & 0xfffffffc;
 
     dataLen -= st.position;
     ubyte[] data = new ubyte[dataLen];

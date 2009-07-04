@@ -1,7 +1,7 @@
 module wwpdata.reader_spr;
 
 import devil.image;
-import stdx.stream;
+import utils.stream;
 import wwpdata.common;
 import wwpdata.reader;
 import wwpdata.animation;
@@ -23,7 +23,7 @@ AnimList readSprFile(Stream st) {
     st.readExact(&flags, 1);
 
     WWPPalette pal = WWPPalette.read(st);
-    st.seek(4, SeekPos.Current);
+    st.seekRelative(4);
 
     ushort animFlags, boxW, boxH, frameCount;
     st.readExact(&animFlags, 2);

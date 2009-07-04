@@ -1,7 +1,7 @@
 module utils.gzip;
 
 import utils.output;
-import stdx.stream;
+import utils.stream;
 
 version (Tango) {
     import czlib = tango.io.compress.c.zlib;
@@ -66,7 +66,7 @@ class GZStreamOutput : OutputHelper {
     }
 
     private void doWrite(ubyte[] s) {
-        output_stream.writeExact(s.ptr, s.length);
+        output_stream.writeExact(s);
     }
 
     override void writeString(char[] str) {

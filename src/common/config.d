@@ -7,7 +7,7 @@ import utils.log;
 import utils.output;
 import utils.path;
 
-import stdx.stream;
+import utils.stream;
 
 private ConfigManager gConfigMgr;
 ConfigManager gConf() {
@@ -52,7 +52,7 @@ private class ConfigManager {
             Stream stream = gFS.open(file);
             scope (exit) { if (stream) stream.close(); }
             assert (!!stream);
-            data = stream.readString(stream.size());
+            data = cast(char[])stream.readAll();
         } catch (FilesystemException e) {
             if (!allowFail)
                 throw e;
@@ -98,7 +98,7 @@ private class ConfigManager {
             saveConfigGz(node, filename~".gz");
             return;
         }
-        auto stream = gFS.open(filename, FileMode.OutNew);
+        auto stream = gFS.open(filename, File.WriteCreate);
         try {
             auto textstream = new StreamOutput(stream);
             node.writeFile(textstream);
@@ -110,7 +110,7 @@ private class ConfigManager {
     //same as above, always gzipped
     //will not modify file extension
     void saveConfigGz(ConfigNode node, char[] filename) {
-        auto stream = gFS.open(filename, FileMode.OutNew);
+        auto stream = gFS.open(filename, File.WriteCreate);
         try {
             /*ubyte[] txt = cast(ubyte[])node.writeAsString();
             ubyte[] gz = gzipData(txt);
@@ -124,11 +124,12 @@ private class ConfigManager {
     }
 
     ubyte[] saveConfigGzBuf(ConfigNode node) {
-        scope buf = new MemoryStream();
+        /+scope buf = new MemoryStream();
         scope gz = new GZStreamOutput(buf);
         node.writeFile(gz);
         gz.finish();
-        return buf.data();
+        return buf.data();+/
+        assert(false, "yyy fix me");
     }
 
     ConfigNode loadConfigGzBuf(ubyte[] buf) {

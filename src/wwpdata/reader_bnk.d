@@ -1,7 +1,7 @@
 module wwpdata.reader_bnk;
 
 import devil.image;
-import stdx.stream;
+import utils.stream;
 import wwpdata.common;
 import wwpdata.reader;
 import wwpdata.animation;
@@ -34,7 +34,7 @@ AnimList readBnkFile(Stream st) {
     st.readExact(&dataLen, 4);
 
     WWPPalette pal = WWPPalette.read(st);
-    st.seek(2, SeekPos.Current);
+    st.seekRelative(2);
 
     uint animCount, frameCount, chunkCount;
     WWPBnkAnimHdr[] animHdr;

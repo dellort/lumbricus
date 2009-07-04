@@ -1,7 +1,7 @@
 module wwptools.unworms;
 
 import devil.image;
-import stdx.stream;
+import utils.stream;
 import tango.io.Stdout;
 import wwpdata.reader;
 import wwpdata.reader_bnk;
@@ -12,7 +12,7 @@ import utils.filetools;
 
 void do_unworms(char[] filename, char[] outputDir) {
     char[] fnBase = basename(filename);
-    scope st = new File(filename, FileMode.In);
+    scope st = Stream.OpenFile(filename, File.ReadExisting);
 
     if (auto readFunc = findReader(st)) {
         Stdout("Extracting from '{}'...", filename).newline;
@@ -22,9 +22,9 @@ void do_unworms(char[] filename, char[] outputDir) {
 
 WWPReader findReader(Stream st) {
     char[4] hdr;
-    st.seek(0, SeekPos.Set);
+    st.position = 0;
     st.readExact(hdr.ptr, 4);
-    st.seek(0, SeekPos.Set);
+    st.position = 0;
     if (hdr in registeredReaders) {
         return registeredReaders[hdr];
     } else {

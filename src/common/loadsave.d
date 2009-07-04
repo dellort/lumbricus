@@ -16,7 +16,7 @@ import utils.mybox;
 import utils.misc;
 import utils.log;
 
-import stdx.stream;
+import utils.stream;
 import str = utils.string;
 
 const cSavegamePath = "/savegames/";
@@ -33,7 +33,7 @@ struct SavegameData {
     static SavegameData opCall(char[] fn) {
         SavegameData ret;
         ret.path = fn;
-        scope st = gFS.open(fn, FileMode.In);
+        scope st = gFS.open(fn, File.ReadExisting);
         scope reader = new TarArchive(st, true);
         auto z = reader.openReadStream("info.conf", false);
         ret.info = z.readConfigFile();
@@ -93,7 +93,7 @@ SavegameData createSavegame(char[] taskId, char[] name, char[] description,
     if (i > 0)
         name ~= myformat(" ({})", i+1);
     //open the savegame file for writing
-    scope st = gFS.open(ret.path, FileMode.OutNew);
+    scope st = gFS.open(ret.path, File.WriteCreate);
     scope writer = new TarArchive(st, false);
     //set information
     ret.info = new ConfigNode();
@@ -229,7 +229,7 @@ class LoadSaveHandler {
     bool loadFromData(ref SavegameData data) {
         Stream st;
         try {
-            st = gFS.open(data.path, FileMode.In);
+            st = gFS.open(data.path, File.ReadExisting);
         } catch (FilesystemException e) {
             return false;
         }

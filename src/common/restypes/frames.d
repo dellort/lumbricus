@@ -12,7 +12,7 @@ import utils.rect2;
 import utils.time;
 import utils.vector2;
 
-import stdx.stream;
+import utils.stream;
 
 ///one animation, contained in an AniFrames instance
 //xxx better name?
@@ -104,16 +104,18 @@ class AniFramesAtlas : AniFrames {
     //the AniFramesAtlasResource references an atlas and a binary data file
     //the data file contains indices which must directly match the atlas data
     this(Atlas images, Stream data) {
+        debug gResources.ls_start("aniframes: parse");
+        debug scope(exit) debug gResources.ls_stop("aniframes: parse");
         mImages = images;
         //xxx: I know I shouldn't use the structs directly from the stream,
         //  because the endianess etc. might be different on various platforms
         //  the sizes and alignments are ok though, so who cares?
         FileAnimations header;
-        data.readExact(&header, header.sizeof);
+        data.readExact(cast(ubyte[])(&header)[0..1]);
         for (int idx = 0; idx < header.animationCount; idx++) {
             AtlasFrames anim = new AtlasFrames();
             FileAnimation fani;
-            data.readExact(&fani, fani.sizeof);
+            data.readExact(cast(ubyte[])(&fani)[0..1]);
             foreach (int i, ref par; anim.params) {
                 if (i < fani.mapParam.length) {
                     par.map = fani.mapParam[i];
@@ -125,15 +127,13 @@ class AniFramesAtlas : AniFrames {
             }
             anim.flags = fani.flags;
             anim.frames.length = anim.frameCount();
-            data.readExact(anim.frames.ptr, anim.frames.length *
-                typeof(anim.frames[0]).sizeof);
+            data.readExact(cast(ubyte[])anim.frames);
 
             auto size = Vector2i(fani.size[0], fani.size[1]);
             anim.box.p1 = -size/2; //(center around (0,0))
             anim.box.p2 = size + anim.box.p1;
             mAnimations ~= anim;
         }
-        data.close();
     }
 }
 
@@ -145,8 +145,11 @@ class AniFramesAtlasResource : ResourceItem {
     protected void load() {
         auto node = mConfig;
         auto atlas = castStrict!(Atlas)(mContext.find(node["atlas"]).get());
-        mContents = new AniFramesAtlas(atlas,
-            gFS.open(mContext.fixPath(node["datafile"])));
+        debug gResources.ls_start("aniframes: open");
+        auto file = gFS.open(mContext.fixPath(node["datafile"]));
+        scope(exit) file.close();
+        debug gResources.ls_stop("aniframes: open");
+        mContents = new AniFramesAtlas(atlas, file);
     }
 
     static this() {

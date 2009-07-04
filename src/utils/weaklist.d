@@ -6,7 +6,7 @@ version (Tango) {
     import std.c.stdlib : malloc, free;
 }
 
-import utils.gcabstr;
+import memory = tango.core.Memory;
 
 ///Simple support for weakpointers.
 ///T should be a pointer-like type (pointers, objects, interfaces)
@@ -35,11 +35,11 @@ class WeakList(T, Data = Dummy) {
     //protected from calls from other threads and especially be safe for
     //.remove() calls called from GC finalizers (=> disable GC)
     private void sync(void delegate() m) {
-        gcDisable();
+        memory.GC.disable();
         synchronized(this) {
             m();
         }
-        gcEnable();
+        memory.GC.enable();
     }
 
     /// Add a pointer to the list. The pointer isn't GC-tracked. The caller is

@@ -6,7 +6,7 @@ import derelict.ffmpeg.av;
 import utils.time;
 import utils.misc;
 
-import stdx.stream;
+import utils.stream;
 import tango.stdc.stringz;
 import tango.util.Convert;
 import tango.stdc.string : memmove;

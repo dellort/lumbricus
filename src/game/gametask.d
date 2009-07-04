@@ -63,7 +63,7 @@ import utils.perf;
 
 import game.serialize_register : initGameSerialization;
 
-import stdx.stream;
+import utils.stream;
 import tango.io.device.File : File;
 
 //these imports register classes in a factory on module initialization
@@ -337,6 +337,7 @@ class GameTask : StatefulTask {
         if (!preload.done) {
             return false;
         } else {
+            debug gResources.showStats();
             mLoadScreen.secondaryActive = false;
             return true;
         }
@@ -542,7 +543,7 @@ class GameTask : StatefulTask {
         if (!mGameShell)
             return;
         char[] filename = args[0].unbox!(char[])();
-        Stream s = gFS.open(filename, FileMode.OutNew);
+        Stream s = gFS.open(filename, File.WriteCreate);
         mGameShell.serverEngine.gameLandscapes[0].image.saveImage(s);
         s.close();
     }

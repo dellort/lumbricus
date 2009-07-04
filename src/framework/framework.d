@@ -24,7 +24,7 @@ import utils.time;
 import utils.weaklist;
 import utils.gzip;
 
-import stdx.stream;
+import utils.stream;
 
 import str = utils.string;
 
@@ -695,7 +695,7 @@ class Framework {
 
     Surface loadImage(char[] path, Transparency t = Transparency.AutoDetect) {
         mLog("load image: {}", path);
-        scope stream = gFS.open(path, FileMode.In);
+        scope stream = gFS.open(path, File.ReadExisting);
         scope(exit) stream.close();
         auto image = loadImage(stream, t);
         return image;

@@ -1,6 +1,6 @@
 module utils.archive;
 
-import stdx.stream;
+import utils.stream;
 
 import gzip = utils.gzip;
 import utils.output;
@@ -25,7 +25,7 @@ class ZWriter {
     }
 
     private void doWrite(ubyte[] data) {
-        mOut.writeExact(data.ptr, data.length);
+        mOut.writeExact(data);
     }
 
     void write(ubyte[] data) {
@@ -68,11 +68,7 @@ class ZReader {
     }
 
     private ubyte[] doRead() {
-        uint res = mIn.read(mBuffer);
-        if (res < mBuffer.length) {
-            assert (mIn.eof());
-        }
-        return mBuffer[0..res];
+        return mIn.readUntilEof(mBuffer);
     }
 
     ubyte[] read(ubyte[] data) {
@@ -163,19 +159,14 @@ class TarArchive {
     //read and write mode are completely separate, don't mix
     this(Stream f, bool read) {
         assert (!!f);
-        if (read)
-            assert(f.readable);
-        else
-            assert(f.writeable);
         mFile = f;
-        assert (mFile.seekable);
         mReading = read;
         if (mReading) {
             while (!mFile.eof()) {
                 Entry e;
                 TarHeader h;
                 e.offset = mFile.position();
-                mFile.readExact(&h, h.sizeof);
+                mFile.readExact(cast(ubyte[])(&h)[0..1]);
                 if (h.iszero()) //eof
                     break;
                 //"so relying on the first white space trimmed six digits for
@@ -216,7 +207,6 @@ class TarArchive {
             if (e.name == name) {
                 auto s = new SliceStream(mFile, e.offset + 512,
                     e.offset + 512 + e.size);
-                s.nestClose = false;
                 return s;
             }
         }
@@ -242,15 +232,13 @@ class TarArchive {
         e.offset = mFile.position();
         e.writing = true;
         mEntries ~= e;
-        mFile.writeExact(waste.ptr, waste.sizeof);
-        assert (mFile.seekable);
+        mFile.writeExact(waste);
     }
 
     //NOTE: sequential writing is assumed, e.g. only one stream at a time
     ZWriter openWriteStream(char[] name) {
         startEntry(name ~ ".gz");
         auto s = new SliceStream(mFile, mFile.position());
-        s.nestClose = false; //stupid phobos, this took me some time
         auto res = new ZWriter(s);
         return res;
     }
@@ -260,12 +248,10 @@ class TarArchive {
     Stream openUncompressed(char[] name) {
         startEntry(name);
         auto s = new SliceStream(mFile, mFile.position());
-        s.nestClose = false; //stupid phobos, this took me some time
         return s;
     }
 
     private void finishLastFile() {
-        assert (mFile.seekable);
         if (!mEntries.length)
             return;
         Entry* e = &mEntries[$-1];
@@ -289,7 +275,7 @@ class TarArchive {
                 throw new Exception("tar error (file unaligned)");
             ulong todo = npos - mFile.position();
             assert (todo < 512);
-            mFile.writeExact(&waste[0], todo);
+            mFile.writeExact(waste[0..todo]);
         }
         assert ((mFile.position & 511) == 0);
     }
@@ -311,12 +297,12 @@ class TarArchive {
                 h.mode[] = "0000660\0"; //rw-rw----
                 h.checksum[] = h.getchecksum();
                 mFile.position = e.offset;
-                mFile.writeExact(&h, h.sizeof);
+                mFile.writeExact(cast(ubyte[])(&h)[0..1]);
             }
             //close header, twice
             mFile.position = mFile.size;
             for (int n = 0; n < 2; n++)
-                mFile.writeExact(waste.ptr, waste.sizeof);
+                mFile.writeExact(waste);
         }
         mFile.close();
         mFile = null;

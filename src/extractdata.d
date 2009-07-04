@@ -10,8 +10,8 @@ import tango.io.vfs.ZipFolder : ZipFolder;
 import tango.io.compress.Zip : ZipBlockWriter, ZipEntryInfo, createArchive, Method;
 import tango.io.vfs.FileFolder;
 debug import tango.core.stacktrace.TraceExceptions;
-import stream = stdx.stream;
-import stdx.stream;
+import stream = utils.stream;
+import utils.stream;
 import str = utils.string;
 
 import utils.filetools;
@@ -39,8 +39,8 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
     void conferr(char[] msg) { Stdout(msg).newline; }
 
     ConfigNode loadWImportConfig(char[] file) {
-        return (new ConfigFile(new File(importDir ~ file),
-        file, &conferr)).rootnode;
+        return (new ConfigFile(Stream.OpenFile(importDir ~ file),
+            file, &conferr)).rootnode;
     }
     void writeConfig(ConfigNode node, char[] dest) {
         scope confst = outFolder.file(dest).create.output;
@@ -52,7 +52,7 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
     if (!FilePath(gfxdirp).exists()) {
         throw new Exception("Invalid directory! Gfx.dir not found.");
     }
-    scope iconnames = new File(importDir ~ "iconnames.txt",FileMode.In);
+    scope iconnames = Stream.OpenFile(importDir ~ "iconnames.txt");
 
     //****** Extract WWP .dir files ******
     //extract Gfx.dir to current directory (creating a new dir "Gfx")
@@ -126,12 +126,16 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
                 waterout);
             water.free();
 
+            /+
             scope colourtxt = new File(wpath~"/colour.txt", FileMode.In);
             char[][] colRGB = str.split(colourtxt.readLine());
             assert(colRGB.length == 3);
             auto r = cast(float)to!(ubyte)(colRGB[0])/255.0f;
             auto g = cast(float)to!(ubyte)(colRGB[1])/255.0f;
             auto b = cast(float)to!(ubyte)(colRGB[2])/255.0f;
+            +/
+            Stdout.formatln("fixme, I don't know what colour.txt is");
+            float r=0.18, g=0.22, b=0.48;
             auto conf = WATER_P1 ~ myformat("r={}, g={}, b= {}", r, g, b)
                 ~ WATER_P2;
             tangofile.File.set(waterout~"water.conf", conf);

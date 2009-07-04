@@ -1,7 +1,7 @@
 module framework.sound;
 
 private import
-    stdx.stream,
+    utils.stream,
     utils.time;
 import framework.framework, utils.configfile, utils.factory, utils.time,
     utils.vector2, utils.weaklist;
