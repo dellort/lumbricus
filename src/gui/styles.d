@@ -109,7 +109,8 @@ Inheritance of values:
 class Styles {
     private {
         Styles mParent;
-        List2!(Styles) mChildren;
+        public ObjListNode!(typeof(this)) listnode;
+        ObjectList!(Styles, "listnode") mChildren;
 
         //element ID for the represented object
         char[] mElementID; //=="" if none (matches all)

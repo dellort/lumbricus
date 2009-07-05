@@ -38,7 +38,7 @@ class CmdNetServer {
         int mMaxPlayers, mPlayerCount;
         char[] mServerName;
         uint mMaxLag;
-        List2!(CmdNetClientConnection) mClients;
+        public ObjectList!(CmdNetClientConnection, "client_node") mClients;
         CmdServerState mState;
 
         NetBase mBase;
@@ -200,13 +200,13 @@ class CmdNetServer {
     private void onConnect(NetHost sender, NetPeer peer) {
         assert(sender is mHost);
         int newId = 0;
-        ListNode!(CmdNetClientConnection)* insertBefore;
+        CmdNetClientConnection insertBefore;
         //keep clients list sorted by id, and ids unique
         foreach (cl; mClients) {
             if (cl.id == newId) {
                 newId++;
             } else {
-                insertBefore = &cl.client_node;
+                insertBefore = cl;
                 break;
             }
         }
@@ -217,7 +217,7 @@ class CmdNetServer {
             //connection was rejected
             return;
         Trace.formatln("New connection from {}, id = {}", cl.address, cl.id);
-        mClients.insert_before(cl, insertBefore, &cl.client_node);
+        mClients.insert_before(cl, insertBefore);
         mPlayerCount++;
         updateAnnounce();
         printClients();
@@ -230,7 +230,7 @@ class CmdNetServer {
         //store id, to notify other players
         if (mState == CmdServerState.playing && !client.gameTerminated)
             mRecentDisconnects ~= client.id;
-        mClients.remove(&client.client_node);
+        mClients.remove(client);
         mPlayerCount--;
         updateAnnounce();
         printClients();
@@ -472,7 +472,7 @@ class CmdNetClientConnection {
     private {
         LogStruct!("netserver_peer") log;
 
-        ListNode!(typeof(this)) client_node;
+        public ObjListNode!(typeof(this)) client_node;
         CmdNetServer mOwner;
         NetPeer mPeer;
         ClientConState mState;

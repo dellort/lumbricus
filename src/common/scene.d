@@ -9,7 +9,7 @@ import arr = tango.core.Array;
 
 public import framework.framework : Canvas;
 
-private alias List2!(SceneObject) SList;
+private alias ObjectList!(SceneObject, "node") SList;
 
 ///a scene contains all graphics drawn onto the screen.
 ///each graphic is represented by a SceneObject
@@ -55,8 +55,8 @@ class Scene : SceneObjectCentered {
         assert(!obj.mParent, "already inserted in another Scene?");
         int z = obj.zorder();
         extend_zorder(z);
-        assert(!mActiveObjects[z].contains(&obj.node));
-        mActiveObjects[z].add(obj, &obj.node);
+        assert(!mActiveObjects[z].contains(obj));
+        mActiveObjects[z].add(obj);
         obj.mParent = this;
     }
 
@@ -71,9 +71,9 @@ class Scene : SceneObjectCentered {
     void remove(SceneObject obj) {
         int z = obj.zorder();
         assert(z >= 0 && z < mActiveObjects.length);
-        assert(mActiveObjects[z].contains(&obj.node));
+        assert(mActiveObjects[z].contains(obj));
         assert(obj.mParent is this);
-        mActiveObjects[z].remove(&obj.node);
+        mActiveObjects[z].remove(obj);
         obj.mParent = null;
     }
 
@@ -81,7 +81,7 @@ class Scene : SceneObjectCentered {
     void clear() {
         foreach (x; mActiveObjects) {
             foreach (y; x) {
-                x.remove(&y.node);
+                x.remove(y);
             }
         }
     }
@@ -188,7 +188,7 @@ class SceneZMix : Scene {
 }
 
 class SceneObject {
-    private SList.Node node;
+    public SList.Node node;
     private Scene mParent;
     private ushort mZorder;
     bool active = true; //if draw should be called

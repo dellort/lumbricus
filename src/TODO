@@ -9,12 +9,9 @@
 - task spezifische commandos/hotkeys (ähnlich wie in loadsafe.d)
    (und den gräuslichen hack in commandline.d entfernen)
 - debugging: würmer auswählen und GameObject-Felder anzeigen lassen
-- common.resfileformats: marshal.d benutzen statt memory dump (erhöht portabilität)
 ! besser methode zum auslesen von confignodes (insbesondere mit fehlerbehandlung, so dass ungültige werte nicht still ignoriert werden, beliebige datentypen, user warnen über unbenutzte einträge; vielleicht einfach serialiaiserungscode wiederverwenden)
 - configfile.d so ändern, dass datentypen schon in den nodes/in der syntax deklariert werden? libconfig verwenden?
 - datentyp spezifische benutzerdefinierte serialisierung
-! Phobos-Stream-Zeug durch Tango-Zeug ersetzen
-  ^ oder einfachen wrapper schreiben (struct, die tango stream enthält und phobos kompatible methoden anbietet)
 - demo support
 
 == bekannte, lösbare Bugs ==

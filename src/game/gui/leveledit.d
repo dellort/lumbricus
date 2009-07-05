@@ -46,7 +46,8 @@ private:
 const int cBoundingBorder = 2;
 
 class EditObject {
-    List2!(EditObject) subObjects;
+    ObjectList!(EditObject, "node") subObjects;
+    ObjListNode!(typeof(this)) node;
     Rect2i bounds;
     EditObject parent;
     //sum of sub-objects, that are selected (including this)
@@ -59,7 +60,7 @@ class EditObject {
     bool isMoving;
 
     this() {
-        subObjects = new List2!(EditObject)();
+        subObjects = new typeof(subObjects);
     }
 
     bool isHighlighted() {

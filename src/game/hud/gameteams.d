@@ -21,6 +21,7 @@ import utils.time;
 import utils.vector2;
 
 import tango.math.Math : PI;
+import array = tango.core.Array;
 
 //the team-bars on the bottom of the screen
 class TeamWindow : Container {
@@ -77,7 +78,7 @@ class TeamWindow : Container {
 
         TeamInfo[] teams = game.teams.values;
 
-        arraySort(teams, &compareTeam);
+        array.sort(teams, &compareTeam);
 
         foreach (t; teams) {
             table.addRow();
