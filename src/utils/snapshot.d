@@ -1,7 +1,7 @@
 module utils.snapshot;
 
 import utils.perf;
-import utils.reflection;
+import utils.reflect.all;
 import utils.log;
 import utils.misc;
 import utils.time;
@@ -318,7 +318,7 @@ class Snapshot {
                 Object dg_o;
                 ClassMethod dg_m;
                 //xxx why is this code duplicated from serialize.d
-                if (!mTypes.types.readDelegate(dp, dg_o, dg_m)) {
+                if (!dp.readDelegate(dg_o, dg_m)) {
                     D_Delegate* dgp = cast(D_Delegate*)dp.ptr;
                     char[] what = "enable version debug to see why";
                     debug {
@@ -462,7 +462,7 @@ class Snapshot {
                 read(&dg_m);
                 //NOTE: because we know that the data is right, we could use an
                 //      unchecked way to write the actual delegate...
-                if (!mTypes.types.writeDelegate(dp, dg_o, dg_m))
+                if (!dp.writeDelegate(dg_o, dg_m))
                     assert (false);
             }
         }

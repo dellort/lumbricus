@@ -248,6 +248,10 @@ private class HandlerTangoVfs : HandlerInstance {
         auto vfile = mVfsFolder.file(handlerPath.get(false));
         //wrap the tango stream
         //xxx: is it really necessary to restrict the size? (SliceStream)
+        //--> NO, the purpose was to correct the wrong (too small) size
+        //    reported by tango.io.compress.ZlibStream.ZlibInput (tango bug)
+        //    see http://dsource.org/projects/tango/ticket/1673
+        //    (don't know how to fix, leaving it broken)
         return new SliceStream(new ConduitStream(vfile.input), 0, vfile.size);
     }
 

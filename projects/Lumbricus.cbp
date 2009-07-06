@@ -252,6 +252,15 @@
 		<Unit filename="../src/utils/random.d" />
 		<Unit filename="../src/utils/randval.d" />
 		<Unit filename="../src/utils/rect2.d" />
+		<Unit filename="../src/utils/reflect/all.d" />
+		<Unit filename="../src/utils/reflect/arraytype.d" />
+		<Unit filename="../src/utils/reflect/classdef.d" />
+		<Unit filename="../src/utils/reflect/dgtype.d" />
+		<Unit filename="../src/utils/reflect/refctor.d" />
+		<Unit filename="../src/utils/reflect/safeptr.d" />
+		<Unit filename="../src/utils/reflect/structtype.d" />
+		<Unit filename="../src/utils/reflect/type.d" />
+		<Unit filename="../src/utils/reflect/types.d" />
 		<Unit filename="../src/utils/reflection.d" />
 		<Unit filename="../src/utils/rndkiss.d" />
 		<Unit filename="../src/utils/serialize.d" />

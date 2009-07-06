@@ -1,7 +1,7 @@
 module utils.serialize;
 
 import utils.configfile;
-import utils.reflection;
+import utils.reflect.all;
 import utils.misc;
 import utils.queue;
 
@@ -417,7 +417,7 @@ class SerializeOutConfig : SerializeConfig {
         if (auto dg = cast(DelegateType)ptr.type) {
             Object dg_o;
             ClassMethod dg_m;
-            if (!mCtx.mTypes.readDelegate(ptr, dg_o, dg_m)) {
+            if (!ptr.readDelegate(dg_o, dg_m)) {
                 D_Delegate* dgp = cast(D_Delegate*)ptr.ptr;
                 //warning: this might crash, if the delegate points to the
                 //         stack or a struct; we simply can't tell
@@ -718,7 +718,7 @@ class SerializeInConfig : SerializeConfig {
                     throw new SerializeError("method for delegate was not "
                         "found, name: "~method~" object: "~c.type.toString);
             }
-            if (!mCtx.mTypes.writeDelegate(ptr, dest, m))
+            if (!ptr.writeDelegate(dest, m))
                 throw new SerializeError("couldn't set delegate");
             return;
         }
