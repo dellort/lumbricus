@@ -19,6 +19,7 @@ import utils.random;
 import game.gameshell : serialize_types;
 
 void initGameSerialization() {
+version(Posix) {
     serialize_types = new Types();
     serialize_types.registerClasses!(Random, GameEngine, PhysicWorld,
         GameController, WormSprite, GameLandscape, ActionContext, ActionList,
@@ -59,4 +60,5 @@ void initGameSerialization() {
         TeamActionClass, AoEDamageActionClass, ImpulseActionClass,
         ActionStateInfo, ProjectileStateInfo, CrateStateInfo,
         ControlRotateActionClass, DrillClass);
+}
 }
