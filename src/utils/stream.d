@@ -122,47 +122,55 @@ abstract class Stream {
 }
 
 class ConduitStream : Stream {
-    Conduit conduit;
-
-    private { bool mRead = true, mWrite = true; }
+    private {
+        InputStream mInput;
+        OutputStream mOutput;
+    }
 
     //use File (which is a Conduit) from tango.io.device.File to open files
     this(Conduit c) {
         assert(!!c);
-        conduit = c;
+        //both calls return the Conduit itself
+        mInput = c.input();
+        mOutput = c.output();
+        assert(cast(Object)mInput is cast(Object)mOutput);
     }
 
     //comedy
     this(InputStream i) {
+        //using i.conduit() here would be wrong, because it destroys the
+        //  InputFilter chain
         assert(!!i);
-        //returns IConduit, hm.
-        conduit = cast(Conduit)i.conduit();
-        assert(!!conduit);
-        mWrite = false;
+        mInput = i;
+    }
+
+    //returns Conduit from constructor, or null if created with an InputStream
+    Conduit conduit() {
+        return cast(Conduit)mInput;
     }
 
     ulong position() {
         //???????
-        return conduit.seek(0, Conduit.Anchor.Current);
+        return mInput.seek(0, Conduit.Anchor.Current);
     }
     //I define that the actual position is only checked on read/write accesses
     // => IOException never thrown
     void position(ulong pos) {
-        conduit.seek(pos, Conduit.Anchor.Begin);
+        mInput.seek(pos, Conduit.Anchor.Begin);
     }
 
     ulong size() {
         //??????????????????????
         auto cur = position;
-        auto sz = conduit.seek(0, Conduit.Anchor.End);
+        auto sz = mInput.seek(0, Conduit.Anchor.End);
         position = cur;
         return sz;
     }
 
     size_t writePartial(ubyte[] data) {
-        if (!mWrite)
+        if (!mOutput)
             ioerror("no write access");
-        auto res = conduit.write(data);
+        auto res = mOutput.write(data);
         //probably could happen if the Conduit is a UNIX pipe or a socket
         //how the shell should I know? fuck Tango.
         if (res == Conduit.Eof)
@@ -173,7 +181,7 @@ class ConduitStream : Stream {
     }
 
     size_t readPartial(ubyte[] data) {
-        auto res = conduit.read(data);
+        auto res = mInput.read(data);
         //????????
         if (data.length && res == 0)
             assert(false);
@@ -184,7 +192,8 @@ class ConduitStream : Stream {
     }
 
     void close() {
-        conduit.close();
+        mInput.close();
+        //if mOutput is set, it is the same as mInput (no close needed)
     }
 }
 

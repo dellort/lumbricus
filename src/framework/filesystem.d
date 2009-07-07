@@ -186,6 +186,7 @@ private class HandlerDirectory : HandlerInstance {
 //  Side-note: 5 Tango tickets were created while writing this code
 
 import tango.io.vfs.ZipFolder : ZipFolder;
+import tango.io.compress.ZlibStream : ZlibInput;
 import tango.io.vfs.model.Vfs : VfsFolder;
 import ic = tango.io.model.IConduit;
 
@@ -213,6 +214,31 @@ private class MountPointHandlerZip : MountPointHandler {
 private class HandlerTangoVfs : HandlerInstance {
     private {
         VfsFolder mVfsFolder;
+
+        //the purpose of this is to correct the wrong (too small) size
+        //reported by tango.io.compress.ZlibStream.ZlibInput (tango bug)
+        //see http://dsource.org/projects/tango/ticket/1673
+        class SizeFixStream : ConduitStream {
+            private ulong mForcedSize;
+
+            this(Conduit c, ulong forcedSize) {
+                super(c);
+                //this class only fixes a tango bug, for slicing you have
+                //  to use SliceStream
+                assert(forcedSize >= super.size());
+                mForcedSize = forcedSize;
+            }
+
+            this(ic.InputStream i, ulong forcedSize) {
+                super(i);
+                assert(forcedSize >= super.size());
+                mForcedSize = forcedSize;
+            }
+
+            override ulong size() {
+                return mForcedSize;
+            }
+        }
     }
 
     this(VfsFolder fld) {
@@ -247,12 +273,12 @@ private class HandlerTangoVfs : HandlerInstance {
         assert(mode.access == File.Access.Read);
         auto vfile = mVfsFolder.file(handlerPath.get(false));
         //wrap the tango stream
-        //xxx: is it really necessary to restrict the size? (SliceStream)
-        //--> NO, the purpose was to correct the wrong (too small) size
-        //    reported by tango.io.compress.ZlibStream.ZlibInput (tango bug)
-        //    see http://dsource.org/projects/tango/ticket/1673
-        //    (don't know how to fix, leaving it broken)
-        return new SliceStream(new ConduitStream(vfile.input), 0, vfile.size);
+        if (cast(ZlibInput)vfile.input) {
+            //see SizeFixStream comment for explanation
+            return new SizeFixStream(vfile.input, vfile.size);
+        } else {
+            return new ConduitStream(vfile.input);
+        }
     }
 
     bool listdir(VFSPath handlerPath, char[] pattern, bool findDir,
