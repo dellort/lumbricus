@@ -161,17 +161,21 @@ class ScrollBar : Container {
         mBarArea.p1[mDir] = mSub.containerBounds.p2[mDir];
         mBarArea.p2[mDir] = mAdd.containerBounds.p1[mDir];
 
-        mSizesValid = true;
+        assert(mBarArea.size[mDir] >= mBar.requestSize[mDir]);
 
         adjustBar();
     }
 
     //reset position of mBar according to mCurValue/mMaxValue
     private void adjustBar() {
-        if (!mSizesValid)
-            return;
-
-        assert(mBarArea.size[mDir] >= mBar.requestSize[mDir]);
+        //NOTE: there's a problem with ScrollWindow and switching themes:
+        //  ScrollWindow calls adjustBar() (by setting curValue) when resizing,
+        //  but at that time, this ScrollBar isn't resized yet; but when the
+        //  theme changed, mBar.requestSize will return a value different from
+        //  the last this.layoutSizeAllocation() call. Thus, all the sizes are
+        //  inconsistent
+        //=> don't rely on the sizes, lol. adjustBar() will be called with the
+        //  correct values later
 
         //the range of values set during scrolling
         //when mPageSize!=0, subtract size of one (last) page

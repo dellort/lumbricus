@@ -1,5 +1,6 @@
 module gui.styles;
 
+import arr = utils.array;
 import utils.configfile;
 import utils.factory;
 import strparser = utils.strparser;
@@ -159,6 +160,9 @@ class Styles {
             char[][] sorted_classes;
             char[][] sorted_states;
             int declaration; //sequential declaration number
+            //to overshadow normal rules
+            //one could just remove the normal rules, but meh.
+            bool custom;
 
             this(char[] src, int decl) {
                 declaration = decl;
@@ -171,7 +175,8 @@ class Styles {
                 src = str.strip(src);
                 if (src == "*")
                     return;
-                char[][] segments = splitPrefixDelimiters(src, ["$", "/", ":"]);
+                char[][] segments = str.splitPrefixDelimiters(src,
+                    ["$", "/", ":"]);
                 foreach (s; segments) {
                     s = str.strip(s);
                     auto rest = str.strip(s[1..$]);
@@ -194,14 +199,24 @@ class Styles {
                 sort(sorted_states);
             }
 
+            //compare, but without declarator field
+            bool equals(Selector o) {
+                return id == o.id
+                    && sorted_classes == o.sorted_classes
+                    && sorted_states == o.sorted_states
+                    && custom == o.custom;
+            }
+
             //sort value (higher => more specific, cf. CSS)
             long specificity() {
                 long a = id.length > 0;
                 long b = sorted_classes.length;
                 long c = sorted_states.length;
-                long d = declaration;
-                assert((b | c) < (1<<8) && d < (1<<16), "static limit lol");
-                return (a << 8*4) | (b << 8*3) | (c << 8*2) | d;
+                //custom must always take priority
+                long d = custom ? (1 << 15) : 0;
+                long e = declaration;
+                assert((b | c) < (1<<8) && e < (1<<15), "static limit lol");
+                return (a << 8*4) | (b << 8*3) | (c << 8*2) | d | e;
             }
 
             //check if selector matches with current Styles state
@@ -212,9 +227,9 @@ class Styles {
                     return false;
                 //classes and states match in the same way
                 //all items in the selector must be present in the element
-                return sorted_array_is_contained(element.mSortedClasses,
+                return arr.arraySortedIsContained(element.mSortedClasses,
                         sorted_classes)
-                    && sorted_array_is_contained(element.mSortedEnabledStates,
+                    && arr.arraySortedIsContained(element.mSortedEnabledStates,
                         sorted_states);
             }
 
@@ -275,26 +290,109 @@ class Styles {
     //the rules node contains "selector { rulelist }" entries
     void addRules(ConfigNode rules) {
         foreach (ConfigNode item; rules) {
-            char[] selector = item.name;
-            Selector[] selectors;
-            foreach (s; str.split(selector, ",")) {
-                selectors ~= new Selector(s, mRuleDeclarationCounter++);
-            }
+            auto selectors = parse_selector(item.name);
+            //xxx: check if rule names are unique in item node
             foreach (ConfigNode def; item) {
-                //xxx: check if rule names are unique in item node
-                foreach (sel; selectors) {
-                    Rule r = new Rule();
-                    r.name = def.name;
-                    r.contents = def;
-                    r.selector = sel;
-                    mSortedRules ~= r;
-                }
+                do_addrule(selectors, def.name, def, false);
             }
         }
+        finish_rules();
+    }
+
+    //direct way to set a specific property to a hard value
+    //a rule with that selector is created
+    //if a rule on that selector already exists, it's overwritten
+    //it's like this is added to the styles configfile:
+    //  $selector {
+    //      $name = $contents
+    //  }
+    //(only effective for this styles object)
+    //Side note: don't use this every frame; it's slow, allocates memory...
+    //  (even if contents is the same; the rules list still doesn't grow
+    //   indefinitely, though)
+    void replaceRule(char[] selector, char[] name, ConfigNode contents) {
+        assert(!!contents);
+        do_addrule(parse_selector(selector), name, contents, true);
+        finish_rules();
+    }
+
+    //like replaceRule, slightly more "convenient" most time
+    void replaceRule(char[] selector, char[] name, char[] contents) {
+        auto node = new ConfigNode();
+        node.value = contents;
+        replaceRule(selector, name, node);
+    }
+
+    //undo a replaceRule()
+    //doesn't work for normal rules
+    void removeCustomRule(char[] selector, char[] name) {
+        do_addrule(parse_selector(selector), name, null, true);
+        finish_rules();
+    }
+
+    private Selector[] parse_selector(char[] selector) {
+        Selector[] selectors;
+        foreach (s; str.split(selector, ",")) {
+            selectors ~= new Selector(s, mRuleDeclarationCounter++);
+        }
+        return selectors;
+    }
+
+    //must call finish_rules() after this
+    //if contents is null, this actually removes a value, but only if
+    //  custom_rule is true, lol.
+    private void do_addrule(Selector[] selectors, char[] name,
+        ConfigNode contents, bool custom_rule)
+    {
+        outer: foreach (sel; selectors) {
+            if (custom_rule) {
+                sel.custom = true;
+                //check if old rule must be overwritten
+                foreach (oldr; mSortedRules) {
+                    if (oldr.name == name && oldr.selector.equals(sel)) {
+                        if (!!contents) {
+                            //yes, replace.
+                            oldr.contents = contents;
+                            //must be cleared, else the old value will be read
+                            //not sure about value inheritance, relative values
+                            oldr.cached_value = null;
+                        } else {
+                            arr.arrayRemove(mSortedRules, oldr);
+                        }
+                        continue outer;
+                    }
+                }
+            } else {
+                assert(!sel.custom);
+                assert(!!contents);
+            }
+            if (!!contents) {
+                Rule r = new Rule();
+                r.name = name;
+                r.contents = contents;
+                r.selector = sel;
+                mSortedRules ~= r;
+            }
+        }
+    }
+
+    private void finish_rules() {
         sort(mSortedRules, (Rule e1, Rule e2) {
             return e2.selector.specificity < e1.selector.specificity;
         });
         did_change();
+    }
+
+    //clear normal and/or custom rules
+    //normal rules are from addRules()
+    //custom rules are the ones introduced by replaceRule()
+    void clearRules(bool normal_rules = true, bool custom_rules = false) {
+        mSortedRules = arr.arrayFilter(mSortedRules,
+            (Rule r) {
+                return r.selector.custom ? custom_rules : normal_rules;
+            }
+        );
+        finish_rules();
     }
 
     //for debugging
@@ -490,8 +588,20 @@ class StyleValue {
 }
 
 //base class for actual (derived) handler classes
-//for some types, this class might be all what is needed
 class StyleValueT(T) : StyleValue {
+    this(Styles a_owner, char[] a_name, ConfigNode a_definition) {
+        super(a_owner, a_name, a_definition);
+    }
+
+    abstract T value();
+
+    final MyBox boxedValue() {
+        return MyBox.Box!(T)(value);
+    }
+}
+
+//for some types, this class might be all what is needed
+class StyleValueT2(T) : StyleValueT!(T) {
     private {
         T mTheValue;
     }
@@ -503,7 +613,7 @@ class StyleValueT(T) : StyleValue {
         super(a_owner, a_name, a_definition);
     }
 
-    T value() {
+    override T value() {
         //could call check_update() here, but this actually doesn't make sense;
         //the StyleValue instance could change depending from state anyway, and
         //the user is forced to use Styles.getValue()
@@ -530,10 +640,6 @@ class StyleValueT(T) : StyleValue {
     protected T calculate_value() {
         return strparser.stringToType!(T)(mDefinition.value);
     }
-
-    MyBox boxedValue() {
-        return MyBox.Box!(T)(value);
-    }
 }
 
 //can be used for any type that has opMul / opAdd
@@ -541,7 +647,7 @@ class StyleValueT(T) : StyleValue {
 //value; if it ends with "%", the number is interpreted as percent value and
 //is used with opMul to scale the parent value
 //second operand for mul is float, for add it's T
-class StyleValueScalar(T, bool mul = true, bool add = true) : StyleValueT!(T) {
+class StyleValueScalar(T, bool mul = true, bool add = true) : StyleValueT2!(T) {
     private {
         T mConstant;
         float scale;
@@ -604,7 +710,7 @@ class StyleValueScalar(T, bool mul = true, bool add = true) : StyleValueT!(T) {
 }
 
 //xxx: add relative stuff later, e.g. color or alpha changes
-class StyleValueColor : StyleValueT!(Color) {
+class StyleValueColor : StyleValueT2!(Color) {
     private {
         Color mColor;
     }
@@ -685,70 +791,25 @@ unittest {
     //Trace.formatln("{} {}", s_root1.rulesString(), s_root1.statesString());
     //Trace.formatln("{} {}", s_root2.rulesString(), s_root2.statesString());
     //Trace.formatln("{}", s_root2.getValue!(int)("prop1"));
+    styleRegisterInt("foo");
+    s_root1.removeCustomRule("*", "foo");
+    auto root3 = new ConfigNode();
+    auto s5 = root3.add("*");
+    s5.add("foo", "123");
+    s_root1.addRules(root3);
+    assert(s_root1.getValue!(int)("foo") == 123);
+    auto root4 = new ConfigNode();
+    auto s6 = root4.add("*");
+    s6.add("foo", "456");
+    s_root1.addRules(root4);
+    assert(s_root1.getValue!(int)("foo") == 456);
+    s_root1.replaceRule("*", "foo", "789");
+    assert(s_root1.getValue!(int)("foo") == 789);
+    s_root1.replaceRule("*", "foo", "632");
+    assert(s_root1.getValue!(int)("foo") == 632);
+    s_root1.removeCustomRule("*", "foo");
+    assert(s_root1.getValue!(int)("foo") == 456);
 }
 
-//utility functions
-
-//return true when b is contained completely in a
-//both arrays must be sorted!
-bool sorted_array_is_contained(T)(T[] a, T[] b) {
-    int ia;
-    outer: for (int ib = 0; ib < b.length; ib++) {
-        while (ia < a.length) {
-            if (b[ib] == a[ia])
-                continue outer;
-            ia++;
-        }
-        //not found
-        return false;
-    }
-    return true;
-}
-
-unittest {
-    assert(sorted_array_is_contained([0,1,2,3,5,7], [1,2,5]));
-    assert(!sorted_array_is_contained([1,2,5], [0,1,2,3,5,7]));
-    assert(sorted_array_is_contained([1,2,5], [1,2,5]));
-    assert(sorted_array_is_contained([1,2,5], cast(int[])[]));
-    assert(!sorted_array_is_contained(cast(int[])[], [1,2,5]));
-}
-
-//split after delimiters and keep the delimiters as prefixes
-//never adds empty strings to the result
-//rest of documentation see unittest lol
-char[][] splitPrefixDelimiters(char[] s, char[][] delimiters) {
-    char[][] res;
-    int last_delim = 0;
-    for (;;) {
-        int next = -1;
-        int delim_len;
-        foreach (del; delimiters) {
-            auto v = str.find(s[last_delim..$], del);
-            if (v >= 0 && (next < 0 || v <= next)) {
-                next = v;
-                delim_len = del.length;
-            }
-        }
-        if (next < 0)
-            break;
-        next += last_delim;
-        last_delim = delim_len;
-        auto pre = s[0..next];
-        if (pre.length)
-            res ~= pre;
-        s = s[next..$];
-    }
-    if (s.length)
-        res ~= s;
-    return res;
-}
-
-unittest {
-    assert(splitPrefixDelimiters("abc#de#fghi", ["#"])
-        == ["abc", "#de", "#fghi"]);
-    assert(splitPrefixDelimiters("##abc##", ["#"]) == ["#", "#abc", "#", "#"]);
-    assert(splitPrefixDelimiters("abc#de,fg,#", ["#", ","])
-        == ["abc", "#de", ",fg", ",", "#"]);
-}
 
 

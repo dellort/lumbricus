@@ -28,18 +28,7 @@ class GameTimer : Container {
         //xxx load this from somewhere
         bool mShowGameTime = true;
         char[20] mRndTBuffer, mGameTBuffer;
-        Color bordercolor;
-    }
-
-    class Hack : BoxContainer {
-        this() {
-            super(false, false, 0);
-            styles.addClass("gametimer");
-        }
-        override void get_border_style(ref BoxProperties b) {
-            if (mActive)
-                b.border = bordercolor;
-        }
+        Color mOldBordercolor;
     }
 
     this(GameInfo game) {
@@ -47,7 +36,8 @@ class GameTimer : Container {
 
         //styles.addClass("gametimer");
 
-        mLabelBox = new Hack();
+        mLabelBox = new BoxContainer();
+        mLabelBox.styles.addClass("gametimer");
 
         mFont[0] = gFramework.fontManager.loadFont("time");
         mFont[1] = gFramework.fontManager.loadFont("time_red");
@@ -112,6 +102,8 @@ class GameTimer : Container {
         auto st = status();
         auto stRT = statusRT();
 
+        Color bordercolor = Color.Invalid;
+
         bool active;
         if (st) {
             int state = st.state;
@@ -165,6 +157,21 @@ class GameTimer : Container {
                 setChildLayout(mLabelBox, WidgetLayout());
             } else {
                 removeChild(mLabelBox);
+            }
+        }
+
+        assert(Color.Invalid == Color.Invalid);
+
+        if (bordercolor != mOldBordercolor) {
+            mOldBordercolor = bordercolor;
+            if (bordercolor.valid()) {
+                //LOL
+                Trace.formatln("cvhange color: {}", bordercolor);
+                mLabelBox.styles.replaceRule("/gametimer", "border-color",
+                    bordercolor.fromStringRev());
+            } else {
+                //even more LOL
+                mLabelBox.styles.clearRules(false, true);
             }
         }
     }

@@ -44,7 +44,8 @@ class WindowWidget : Container {
 
         BoxContainer mClientWidget;
         BoxContainer mForClient; //where client is, non-fullscreen mode
-        Decorations mWindowDecoration; //window frame etc. in non-fullscreen mode
+        //window frame etc. in non-fullscreen mode
+        SimpleContainer mWindowDecoration;
 
         BoxContainer mTitleContainer; //titlebar + the buttons
         TitlePart[] mTitleParts; //kept sorted by .sort
@@ -168,13 +169,6 @@ class WindowWidget : Container {
                 c.drawFilledRect(Vector2i(0),size,Color(1,0,0));
             }+/
         }
-
-        class Decorations : SimpleContainer {
-            override void get_border_style(ref BoxProperties b) {
-                if (mBgOverride.valid)
-                    b.back = mBgOverride; //hack piled over hack...
-            }
-        }
     }
 
     ///catches a window-keybinding
@@ -233,7 +227,7 @@ class WindowWidget : Container {
         //add decorations etc.
         auto all = new TableContainer(3, 3);
         //xxx ideally would subclass/messify TableContainer or so, but meh.
-        mWindowDecoration = new Decorations();
+        mWindowDecoration = new SimpleContainer();
         mWindowDecoration.styles.addClass("window-decoration");
         mWindowDecoration.add(all);
 
@@ -408,6 +402,16 @@ class WindowWidget : Container {
         mCanResize = props.canResize;
         mCanMove = props.canMove;
         zorder = props.zorder;
+
+        auto bgs = mWindowDecoration.styles;
+        const sel = "/window-decoration";
+        const rule = "border-back-color";
+        Trace.formatln("bg-col {}", mBgOverride);
+        if (mBgOverride.valid()) {
+            bgs.replaceRule(sel, rule, mBgOverride.fromStringRev());
+        } else {
+            bgs.removeCustomRule(sel, rule);
+        }
     }
 
     /// add a button or anything to the titlebar

@@ -1268,8 +1268,8 @@ class GameController : GameLogicPublic {
         const cCrateProbs = [0.20f, 0.40f, 0.95f];
         int[TeamTheme.cTeamColors.length] mTeamColorCache;
 
-        ControllerPlugin[char[]] mPluginLookup;
-        ControllerPlugin[] mPlugins;
+        GamePlugin[char[]] mPluginLookup;
+        GamePlugin[] mPlugins;
         //xxx this should be configurable
         const char[][] cLoadPlugins = ["messages", "statistics", "persistence"];
     }
@@ -1303,7 +1303,7 @@ class GameController : GameLogicPublic {
         foreach (pid; cLoadPlugins) {
             //only load once
             if (!(pid in mPluginLookup)) {
-                mPlugins ~= ControllerPluginFactory.instantiate(pid, this);
+                mPlugins ~= GamePluginFactory.instantiate(pid, engine);
                 mPluginLookup[pid] = mPlugins[$-1];
             }
         }
@@ -1355,14 +1355,6 @@ class GameController : GameLogicPublic {
     }
 
     bool isIdle() {
-        foreach (plg; mPlugins) {
-            if (!plg.isIdle())
-                return false;
-        }
-        return membersIdle();
-    }
-
-    bool membersIdle() {
         foreach (t; mTeams) {
             if (!t.isIdle())
                 return false;

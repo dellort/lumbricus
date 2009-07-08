@@ -106,8 +106,8 @@ class TeamEditorTask : Task {
 
     //set color button to passed team color
     private void showColor(char[] teamCol) {
-        mColorButton.borderCustomColor = Color.fromString("team_"~teamCol);
-        mColorButton.borderColorIsBackground = true;
+        mColorButton.styles.replaceRule("*", "border-back-color",
+            "team_"~teamCol);
     }
 
     //Team selection dropdown clicked

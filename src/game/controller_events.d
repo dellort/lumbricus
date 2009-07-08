@@ -58,19 +58,34 @@ struct ControllerEvents {
 }
 
 
-//base class for custom controller plugins
-abstract class ControllerPlugin {
+//base class for custom plugins
+//now I don't really know what the point of this class was anymore
+abstract class GamePlugin : GameObject {
     protected {
         GameController controller;
-        GameEngine engine;
     }
 
-    this(GameController c) {
-        controller = c;
-        engine = c.engine;
+    this(GameEngine c) {
+        super(c);
+        controller = engine.controller;
+    }
+    this(ReflectCtor c) {
+        super(c);
+    }
+
+    override bool activity() {
+        return false;
+    }
+}
+
+//the "AutoReg" bit is about that horrible regMethods() stuff
+abstract class GamePluginAutoReg : GamePlugin {
+    this(GameEngine c) {
+        super(c);
         regMethods();
     }
     this(ReflectCtor c) {
+        super(c);
         regMethods(c.types);
     }
 
@@ -101,5 +116,5 @@ abstract class ControllerPlugin {
 
 //and another factory...
 //plugins register here, so the Controller can load them
-alias StaticFactory!("ControllerPlugins", ControllerPlugin, GameController)
-    ControllerPluginFactory;
+alias StaticFactory!("GamePlugins", GamePlugin, GameEngine)
+    GamePluginFactory;

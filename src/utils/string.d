@@ -286,3 +286,42 @@ int charPrev(char[] s, int index) {
     }
     return 0;
 }
+
+//split after delimiters and keep the delimiters as prefixes
+//never adds empty strings to the result
+//rest of documentation see unittest lol
+char[][] splitPrefixDelimiters(char[] s, char[][] delimiters) {
+    char[][] res;
+    int last_delim = 0;
+    for (;;) {
+        int next = -1;
+        int delim_len;
+        foreach (del; delimiters) {
+            auto v = find(s[last_delim..$], del);
+            if (v >= 0 && (next < 0 || v <= next)) {
+                next = v;
+                delim_len = del.length;
+            }
+        }
+        if (next < 0)
+            break;
+        next += last_delim;
+        last_delim = delim_len;
+        auto pre = s[0..next];
+        if (pre.length)
+            res ~= pre;
+        s = s[next..$];
+    }
+    if (s.length)
+        res ~= s;
+    return res;
+}
+
+unittest {
+    assert(splitPrefixDelimiters("abc#de#fghi", ["#"])
+        == ["abc", "#de", "#fghi"]);
+    assert(splitPrefixDelimiters("##abc##", ["#"]) == ["#", "#abc", "#", "#"]);
+    assert(splitPrefixDelimiters("abc#de,fg,#", ["#", ","])
+        == ["abc", "#de", ",fg", ",", "#"]);
+}
+

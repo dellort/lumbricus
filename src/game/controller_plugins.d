@@ -39,7 +39,7 @@ struct GameMessage {
 //the idea was that the whole game state should be observable (including
 //events), so you can move displaying all messages into a separate piece of
 //code, instead of creating messages directly
-class ControllerMsgs : ControllerPlugin {
+class ControllerMsgs : GamePluginAutoReg {
     private {
         const cMessageTime = timeSecs(1.5f);
         Time mLastMsgTime;
@@ -51,7 +51,7 @@ class ControllerMsgs : ControllerPlugin {
     //clients register here to receive messages (not serialized)
     MDelegate!(GameMessage) showMessage;
 
-    this(GameController c) {
+    this(GameEngine c) {
         super(c);
     }
     this(ReflectCtor c) {
@@ -178,7 +178,7 @@ class ControllerMsgs : ControllerPlugin {
     private void messageAdd(char[] msg, char[][] args = null, Team actor = null,
         Team viewer = null)
     {
-        isIdle(); //maybe reset wait time
+        activity(); //maybe reset wait time
         if (mMessageCounter == 0)
             mLastMsgTime = engine.gameTime.current;
         mMessageCounter++;
@@ -192,22 +192,23 @@ class ControllerMsgs : ControllerPlugin {
         showMessage(gameMsg);
     }
 
-    override bool isIdle() {
+    override bool activity() {
         //xxx actually, this is a bit wrong, because even messages the client
         //    won't see (viewer field set) count for wait time
         //    But to stay deterministic, we can't consider that
+        //in other words, all clients wait for the same time
         if (mLastMsgTime + cMessageTime*mMessageCounter
             <= engine.gameTime.current)
         {
             //did wait long enough
             mMessageCounter = 0;
-            return true;
+            return false;
         }
-        return false;
+        return true;
     }
 
     static this() {
-        ControllerPluginFactory.register!(typeof(this))("messages");
+        GamePluginFactory.register!(typeof(this))("messages");
     }
 }
 
@@ -219,7 +220,7 @@ class ControllerMsgs : ControllerPlugin {
 //  - Proper output/sending to clients
 //  - timecoded events, with graph drawing?
 //  - gamemode dependency?
-class ControllerStats : ControllerPlugin {
+class ControllerStats : GamePluginAutoReg {
     private {
         static LogStruct!("gameevents") log;
 
@@ -265,7 +266,7 @@ class ControllerStats : ControllerPlugin {
         Stats mStats;
     }
 
-    this(GameController c) {
+    this(GameEngine c) {
         super(c);
     }
     this(ReflectCtor c) {
@@ -366,13 +367,13 @@ class ControllerStats : ControllerPlugin {
     }
 
     static this() {
-        ControllerPluginFactory.register!(typeof(this))("statistics");
+        GamePluginFactory.register!(typeof(this))("statistics");
     }
 }
 
 //this plugin adds persistence functionality for teams (wins / weapons)
 //  (overengineering ftw)
-class ControllerPersistence : ControllerPlugin {
+class ControllerPersistence : GamePluginAutoReg {
     private {
         const cKeepWeaponsDef = false;
         const cGiveWeaponsDef = int.max;   //default: always give
@@ -380,7 +381,7 @@ class ControllerPersistence : ControllerPlugin {
         const cVictoryCountDef = 2;
     }
 
-    this(GameController c) {
+    this(GameEngine c) {
         super(c);
     }
     this(ReflectCtor c) {
@@ -549,6 +550,6 @@ class ControllerPersistence : ControllerPlugin {
     }
 
     static this() {
-        ControllerPluginFactory.register!(typeof(this))("persistence");
+        GamePluginFactory.register!(typeof(this))("persistence");
     }
 }

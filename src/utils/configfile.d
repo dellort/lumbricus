@@ -609,18 +609,8 @@ public class ConfigNode {
             this.value = "";
             clear();
             foreach (int idx, x; value.tupleof) {
-                version (LDC) {
-                    pragma(msg,"configfile.d: please fix me or LDC");
-                    //dirty work around; LDC ICEs when comparing AAs
-                    //(at least with int[char[]])
-                    auto b = T.init.tupleof[idx];
-                    if (typeid(typeof(x)).equals(&x, &b)) {
-                        setValue(structProcName(value.tupleof[idx].stringof), x);
-                    }
-                } else {
-                    if (x != T.init.tupleof[idx]) {
-                        setValue(structProcName(value.tupleof[idx].stringof), x);
-                    }
+                if (x != T.init.tupleof[idx]) {
+                    setValue(structProcName(value.tupleof[idx].stringof), x);
                 }
             }
         } else {

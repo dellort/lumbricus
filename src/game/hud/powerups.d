@@ -16,6 +16,7 @@ class PowerupDisplay : BoxContainer {
     private {
         GameInfo mGame;
         Label mLblCrate, mLblDouble;
+        Color mOldColor = Color.Invalid;
     }
 
     this(GameInfo game) {
@@ -47,8 +48,16 @@ class PowerupDisplay : BoxContainer {
         }
 
         if (myTeam) {
-            mLblDouble.borderCustomColor = myTeam.color.color;
-            mLblCrate.borderCustomColor = myTeam.color.color;
+            //I assume the color is only used if the label is visible
+            auto col = myTeam.color.color;
+            if (col != mOldColor) {
+                mOldColor = col;
+                foreach (s; [mLblDouble.styles, mLblCrate.styles]) {
+                    //all sub labels get changed
+                    s.replaceRule("/w-label", "border-color",
+                        col.fromStringRev());
+                }
+            }
         }
         check(mLblDouble, myTeam ? myTeam.hasDoubleDamage() : false);
         check(mLblCrate, myTeam ? myTeam.hasCrateSpy() : false);

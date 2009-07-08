@@ -561,6 +561,7 @@ class Widget {
         version (ResizeDebug) {
             //assertion must work - checking this subverts optimization
             assert(rsize == layoutContainerSizeRequest());
+            Trace.formatln("parent-alloc {}: {} {}", this, rsize, area);
         }
         //fit the widget with its size into the area
         for (int n = 0; n < 2; n++) {
@@ -583,12 +584,13 @@ class Widget {
         version (ResizeDebug) {
             auto cs = layoutSizeRequest();
             if (area.size.x < cs.x || area.size.y < cs.y) {
-                registerLog("gui-warnings")("underallocation in {}, {} {}",
+                Trace.formatln("underallocation in {}, {} {}",
                     this.classinfo.name, area.size, cs);
                 area.p2 = area.p1 + cs.max(area.size);
             }
             assert(area.size.x >= cs.x);
             assert(area.size.y >= cs.y);
+            Trace.formatln("sub-alloc {}: {}", this, area);
         }
         //force no negative sizes
         area.p2 = area.p1 + area.size.max(Vector2i(0));
@@ -784,29 +786,23 @@ class Widget {
         mBorderStyle.cornerRadius =
             styles.getValue!(int)("border-corner-radius");
 
-        get_border_style(mBorderStyle);
-
         //draw-border is a misnomer, because it has influence on layout (size)?
         mDrawBorder = styles.getValue!(bool)("border-enable");
-
-        //get_border_draw(mDrawBorder);
 
         bool border_changed = mBorderStyle != mOldBorderStyle;
         bool db_changed = mDrawBorder != mOldDrawBorder;
 
-        if (border_changed || db_changed || mFirstCheck)
+        if (border_changed || db_changed || mFirstCheck) {
+            version (ResizeDebug) {
+                Trace.formatln("theme change: {}", this);
+            }
             needResize(true);
+        }
 
         mOldBorderStyle = mBorderStyle;
         mOldDrawBorder = mDrawBorder;
         mFirstCheck = false;
     }
-
-    //disgusting hack - until I can think of something decent
-    protected void get_border_style(ref BoxProperties b) {
-    }
-    //protected void get_border_draw(ref bool en) {
-    //}
 
     //xxx <-
 

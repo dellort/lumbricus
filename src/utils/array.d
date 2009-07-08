@@ -181,3 +181,27 @@ void arrayRemoveN(T)(inout T[] arr, uint index, uint count) {
     //    (which, btw., would be the whole point of this function)
     arr = arr[0..index] ~ arr[index+count..$];
 }
+
+//return true when b is contained completely in a
+//both arrays must be sorted!
+bool arraySortedIsContained(T)(T[] a, T[] b) {
+    int ia;
+    outer: for (int ib = 0; ib < b.length; ib++) {
+        while (ia < a.length) {
+            if (b[ib] == a[ia])
+                continue outer;
+            ia++;
+        }
+        //not found
+        return false;
+    }
+    return true;
+}
+
+unittest {
+    assert(arraySortedIsContained([0,1,2,3,5,7], [1,2,5]));
+    assert(!arraySortedIsContained([1,2,5], [0,1,2,3,5,7]));
+    assert(arraySortedIsContained([1,2,5], [1,2,5]));
+    assert(arraySortedIsContained([1,2,5], cast(int[])[]));
+    assert(!arraySortedIsContained(cast(int[])[], [1,2,5]));
+}

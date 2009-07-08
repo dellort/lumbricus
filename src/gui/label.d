@@ -36,19 +36,6 @@ class Label : Widget {
         mBorder = Vector2i(0,0);
     }
 
-    //disgusting hack etc...
-    Color borderCustomColor = Color(0,0,0,0);
-    bool borderColorIsBackground;
-    override void get_border_style(ref BoxProperties b) {
-        if (!(borderCustomColor.a > 0))
-            return;
-        if (borderColorIsBackground) {
-            b.back = borderCustomColor;
-        } else {
-            b.border = borderCustomColor;
-        }
-    }
-
     //no mouse events
     override bool onTestMouse(Vector2i) {
         return false;
