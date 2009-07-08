@@ -39,9 +39,9 @@ class ParticleType {
     //array of particles that can be emitted (random pick)
     ParticleEmit[] emit;
     //seconds between emitting a new particle
-    RandomFloat emit_interval = {0f, 0f};
+    RandomValue!(Time) emit_interval = {Time.Null, Time.Null};
     //seconds until emitting starts
-    RandomFloat emit_delay = {0f, 0f};
+    RandomValue!(Time) emit_delay = {Time.Null, Time.Null};
     //particles max. emit count
     int emit_count = 0;
 
@@ -124,7 +124,7 @@ struct ParticleEmit {
     //relative (not absolute) probability, that this particle is selected and
     //emitted from ParticleType.emit
     float emit_probability = 1.0f;
-    //angle in radians how much the direction should be changed on emit
+    //angle in degrees how much the direction should be changed on emit
     float spread_angle = 0f;
     //move emit position by this value along velocity direction
     float offset = 0f;
@@ -157,7 +157,7 @@ struct Particle {
         props = a_props;
         start = owner.time.current;
         emitted = 0;
-        emit_next = props.emit_delay.sample(rngShared);
+        emit_next = props.emit_delay.sample(rngShared).secsf;
         windInfluence = props.wind_influence.sample(rngShared);
         random = rngShared.nextDouble();
         if (props.animation.length > 0) {
@@ -224,7 +224,7 @@ struct Particle {
                 //new particle
                 emitted++;
                 //xxx randomize time
-                emit_next = props.emit_interval.sample(rngShared);
+                emit_next = props.emit_interval.sample(rngShared).secsf;
                 emitRandomParticle(props.emit);
             }
         }
@@ -257,7 +257,7 @@ struct Particle {
                 auto at = pos;
                 auto nvel = velocity*e.initial_speed;
                 nvel += Vector2f(0, -1) * e.absolute_speed;
-                nvel = nvel.rotated(e.spread_angle *
+                nvel = nvel.rotated(e.spread_angle*(180.0f/math.PI) *
                     (rngShared.nextDouble() - 0.5f));
                 if (e.offset != 0f) {
                     //xxx I realize I'd need the emitter rotation, not velocity
@@ -503,7 +503,7 @@ class TestTask : Task {
         z.wind_influence = 0.8;
         z.explosion_influence = 0.005f;
         z.gravity = 10f;
-        z.emit_delay = 0.5;
+        z.emit_delay = timeMsecs(500);
         z.emit_count = int.max;
         z.emit ~= ParticleEmit(y, 0.7f, 0, 1.0f, math.PI/180*60);
         for (int n = 0; n < 10; n++) {

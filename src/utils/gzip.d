@@ -46,27 +46,26 @@ ubyte[] gzipData(ubyte[] data) {
     return res;
 }
 
-class GZStreamOutput : OutputHelper {
-    private {
-        Stream output_stream;
-        GZWriter writer;
-    }
+///Forwards all data gzip-packed to destination, call finish() when done
+class GZOutputFilter : OutputHelper {
+    Output destination;
+    private GZWriter writer;
 
-    this(Stream s) {
-        assert (!!s);
-        output_stream = s;
+    this(Output o) {
+        assert (!!o);
+        destination = o;
         writer = new GZWriter(&doWrite);
     }
 
     void finish() {
-        assert (!!output_stream);
+        assert (!!destination);
         writer.finish();
-        output_stream = null;
+        destination = null;
         writer = null;
     }
 
     private void doWrite(ubyte[] s) {
-        output_stream.writeExact(s);
+        destination.writeString(cast(char[])s);
     }
 
     override void writeString(char[] str) {

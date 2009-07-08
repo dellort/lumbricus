@@ -112,10 +112,7 @@ private class ConfigManager {
     void saveConfigGz(ConfigNode node, char[] filename) {
         auto stream = gFS.open(filename, File.WriteCreate);
         try {
-            /*ubyte[] txt = cast(ubyte[])node.writeAsString();
-            ubyte[] gz = gzipData(txt);
-            stream.write(gz);*/
-            auto w = new GZStreamOutput(stream);
+            auto w = new GZOutputFilter(new StreamOutput(stream));
             node.writeFile(w);
             w.finish();
         } finally {
@@ -124,12 +121,11 @@ private class ConfigManager {
     }
 
     ubyte[] saveConfigGzBuf(ConfigNode node) {
-        /+scope buf = new MemoryStream();
-        scope gz = new GZStreamOutput(buf);
+        auto strOut = new StringOutput();
+        scope gz = new GZOutputFilter(strOut);
         node.writeFile(gz);
         gz.finish();
-        return buf.data();+/
-        assert(false, "yyy fix me");
+        return cast(ubyte[])strOut.text;
     }
 
     ConfigNode loadConfigGzBuf(ubyte[] buf) {
