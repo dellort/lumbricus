@@ -37,6 +37,18 @@ public class OutputHelper : Output {
     abstract void writeString(char[] str);
 }
 
+public class PipeOutput : OutputHelper {
+    PipeOut writer;
+
+    this(PipeOut w) {
+        writer = w;
+    }
+
+    void writeString(char[] str) {
+        writer.write(cast(ubyte[])str);
+    }
+}
+
 /// Implements the Output interface and writes all text to stdio.
 public class StdioOutput : OutputHelper {
     public static Output output;

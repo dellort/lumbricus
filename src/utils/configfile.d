@@ -6,7 +6,7 @@ import tango.util.Convert : to, ConversionException;
 import tango.text.convert.Float : toFloat;
 import tango.core.Exception;
 import base64 = tango.io.encode.Base64;
-import utils.output : Output, StringOutput;
+import utils.output : Output, StringOutput, PipeOutput;
 import utils.misc;
 
 //only for byte[]
@@ -955,6 +955,11 @@ version(LDC) {
         doWrite(stream, 0);
     }
 
+    public void writeFile(PipeOut writer) {
+        //blurghdgfg
+        writeFile(new PipeOutput(writer));
+    }
+
     public char[] writeAsString() {
         auto sout = new StringOutput;
         writeFile(sout);
@@ -1025,6 +1030,13 @@ public class ConfigFile {
 
     public this(Stream source, char[] filename, void delegate(char[]) reportError) {
         loadFrom(source, filename, reportError);
+    }
+
+    static ConfigNode Parse(char[] source, char[] filename,
+        void delegate(char[]) reportError = null)
+    {
+        auto cf = new ConfigFile(source, filename, reportError);
+        return cf.rootnode;
     }
 
     /// do the same like the constructor

@@ -36,41 +36,11 @@ class ZlibException : Exception {
 
 ///pack passed array with zlib and add gzip header and footer
 ubyte[] gzipData(ubyte[] data) {
-    ubyte[] res;
-    void onwrite(ubyte[] wdata) {
-        res ~= wdata;
-    }
-    auto writer = new GZWriter(&onwrite);
+    ArrayWriter a;
+    auto writer = new GZWriter(&a.write);
     writer.write(data);
     writer.finish();
-    return res;
-}
-
-///Forwards all data gzip-packed to destination, call finish() when done
-class GZOutputFilter : OutputHelper {
-    Output destination;
-    private GZWriter writer;
-
-    this(Output o) {
-        assert (!!o);
-        destination = o;
-        writer = new GZWriter(&doWrite);
-    }
-
-    void finish() {
-        assert (!!destination);
-        writer.finish();
-        destination = null;
-        writer = null;
-    }
-
-    private void doWrite(ubyte[] s) {
-        destination.writeString(cast(char[])s);
-    }
-
-    override void writeString(char[] str) {
-        writer.write(cast(ubyte[])str);
-    }
+    return a.data();
 }
 
 class GZWriter {
@@ -80,6 +50,8 @@ class GZWriter {
         size_t buffer_pos;
         czlib.z_stream zs;
     }
+
+    void delegate() close_fn;
 
     this(void delegate(ubyte[] data) a_onWrite, bool use_gzip = true,
         int level = 9, size_t buffer_size = 64*1024)
@@ -95,6 +67,12 @@ class GZWriter {
         int res = czlib.deflateInit2(&zs, level, czlib.Z_DEFLATED,
             (use_gzip ? 16 : 0) + 15, 9, czlib.Z_DEFAULT_STRATEGY);
         zerror(res);
+    }
+
+    static PipeOut Pipe(PipeOut writer) {
+        auto w = new GZWriter(writer.do_write);
+        w.close_fn = writer.do_close;
+        return PipeOut(&w.write, &w.finish);
     }
 
     private void zerror(int err) {
@@ -149,41 +127,53 @@ class GZWriter {
         buffer_flush(true);
         czlib.deflateEnd(&zs);
         buffer = null;
+        if (close_fn) {
+            close_fn();
+            close_fn = null;
+        }
+    }
+
+    PipeOut pipe() {
+        return PipeOut(&write, &finish);
     }
 }
 
 //gzipData^-1
 ubyte[] gunzipData(ubyte[] cmpData) {
-    bool did_read;
-    ubyte[] onread() {
-        if (!did_read) {
-            did_read = true;
-            return cmpData;
-        }
-        return null;
-    }
-    auto reader = new GZReader(&onread);
+    ArrayReader x;
+    x.data = cmpData;
+    auto reader = new GZReader(&x.read);
     return reader.read_all(cmpData.length);
 }
 
 class GZReader {
     private {
-        ubyte[] delegate() onRead;
+        ubyte[] delegate(ubyte[]) onRead;
+        ubyte[] real_buffer;
         ubyte[] buffer;
         czlib.z_stream zs;
     }
+
+    void delegate() close_fn;
 
     //onRead() can return as much data as it wants
     //if onRead() doesn't know where the zlib stream ends, it might return more
     //data than needed, which ends up unused. the return value of finish() can
     //be used to see how much data was unused.
-    this(ubyte[] delegate() a_onRead) {
+    this(ubyte[] delegate(ubyte[]) a_onRead, size_t buffer_sz = 64*1024) {
         assert (!!a_onRead);
         onRead = a_onRead;
         buffer = null;
+        real_buffer.length = buffer_sz;
         //32: gzip/zlib header, 15: window bits
         int res = czlib.inflateInit2(&zs, 32 + 15);
         zerror(res);
+    }
+
+    static PipeIn Pipe(PipeIn writer) {
+        auto r = new GZReader(writer.do_read);
+        r.close_fn = writer.do_close;
+        return PipeIn(&r.read, &r.finish2);
     }
 
     private void zerror(int err) {
@@ -199,7 +189,7 @@ class GZReader {
         size_t data_read = 0;
         while (data_read < data.length) {
             if (buffer.length == 0) {
-                buffer = onRead();
+                buffer = onRead(real_buffer);
             }
             zs.next_in = buffer.ptr;
             zs.avail_in = buffer.length;
@@ -226,20 +216,7 @@ class GZReader {
     //returns not 0), this is silently ignored
     //compressed_size is used to calculate the dest-buffer size, can be 0
     ubyte[] read_all(size_t compressed_size = 0) {
-        ubyte[] dest;
-        size_t pos = 0;
-        dest.length = compressed_size * 2;
-        for (;;) {
-            auto res = read(dest[pos..$]);
-            pos += res.length;
-            if (res.length == 0) {
-                finish();
-                dest.length = pos;
-                return dest;
-            }
-            //enlarge buffer
-            dest.length = dest.length*2;
-        }
+        return pipe.readAll(compressed_size*2);
     }
 
     //also frees any zlib stream state etc.
@@ -248,6 +225,20 @@ class GZReader {
         assert (!!onRead);
         czlib.inflateEnd(&zs);
         onRead = null;
+        delete real_buffer;
+        real_buffer = null;
+        if (close_fn) {
+            close_fn();
+            close_fn = null;
+        }
         return buffer.length;
+    }
+    //blergh just for those 2 delegates
+    void finish2() {
+        finish();
+    }
+
+    PipeIn pipe() {
+        return PipeIn(&read, &finish2);
     }
 }

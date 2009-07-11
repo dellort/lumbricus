@@ -406,7 +406,6 @@ class WindowWidget : Container {
         auto bgs = mWindowDecoration.styles;
         const sel = "/window-decoration";
         const rule = "border-back-color";
-        Trace.formatln("bg-col {}", mBgOverride);
         if (mBgOverride.valid()) {
             bgs.replaceRule(sel, rule, mBgOverride.fromStringRev());
         } else {

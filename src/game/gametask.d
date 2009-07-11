@@ -232,9 +232,7 @@ class GameTask : StatefulTask {
     }
 
     private void initFromSave(TarArchive tehfile) {
-        ZReader reader = tehfile.openReadStream("gui.conf");
-        ConfigNode guiconf = reader.readConfigFile();
-        reader.close();
+        auto guiconf = tehfile.readConfigStream("gui.conf");
 
         mSavedViewPosition = guiconf.getValue!(Vector2i)("viewpos");
         mSavedSetViewPosition = true;
@@ -452,8 +450,8 @@ class GameTask : StatefulTask {
 
         auto guiconf = new ConfigNode();
         guiconf.setValue!(Vector2i)("viewpos", mGameFrame.getPosition());
-        ZWriter zwriter = tehfile.openWriteStream("gui.conf");
-        zwriter.writeConfigFile(guiconf);
+        auto zwriter = tehfile.openWriteStream("gui.conf");
+        guiconf.writeFile(zwriter);
         zwriter.close();
     }
 
@@ -621,10 +619,8 @@ class GameTask : StatefulTask {
 
     private void cmdSerDump(MyBox[] args, Output write) {
         debug debugDumpTypeInfos(serialize_types);
-        //debugDumpClassGraph(serialize_types, mServerEngine);
-        //wth
-        auto d = new SerializeBase(new SerializeContext(serialize_types));
-        char[] res = d.dumpGraph(mGameShell.serverEngine());
+        auto ctx = mGameShell.getSerializeContext();
+        char[] res = ctx.dumpGraph(mGameShell.serverEngine());
         File.set("dump_graph.dot", res);
         //std.file.write("dump_graph.dot", res);
         //ConfigNode cfg = saveGame();

@@ -9,100 +9,6 @@ import utils.misc;
 
 import tango.stdc.stringz;
 
-//write an "archive", the only point is to support streaming + compression
-//could be changed to output the zip or tar format
-//tar would contain compressed file (instead of being a tar.gz)
-class ZWriter {
-    private {
-        gzip.GZWriter mWriter;
-        Stream mOut;
-    }
-
-    this(Stream s) {
-        assert (!!s);
-        mOut = s;
-        mWriter = new gzip.GZWriter(&doWrite);
-    }
-
-    private void doWrite(ubyte[] data) {
-        mOut.writeExact(data);
-    }
-
-    void write(ubyte[] data) {
-        mWriter.write(data);
-    }
-    void write_ptr(void* ptr, size_t size) {
-        write(cast(ubyte[])(ptr[0..size]));
-    }
-
-    private class MyOutput : OutputHelper {
-        override void writeString(char[] str) {
-            this.outer.write(cast(ubyte[])str);
-        }
-    }
-
-    void writeConfigFile(ConfigNode n) {
-        n.writeFile(new MyOutput());
-    }
-
-    void close() {
-        mWriter.finish();
-        mWriter = null;
-        mOut.close();
-        mOut = null;
-    }
-}
-
-class ZReader {
-    private {
-        gzip.GZReader mReader;
-        Stream mIn;
-        ubyte[] mBuffer;
-    }
-
-    this(Stream s) {
-        assert (!!s);
-        mIn = s;
-        mBuffer.length = 64*1024;
-        mReader = new gzip.GZReader(&doRead);
-    }
-
-    private ubyte[] doRead() {
-        return mIn.readUntilEof(mBuffer);
-    }
-
-    ubyte[] read(ubyte[] data) {
-        return mReader.read(data);
-    }
-    void read_ptr(void* ptr, size_t size) {
-        ubyte[] res = read(cast(ubyte[])(ptr[0..size]));
-        if (res.length != size)
-            throw new Exception("read error: not enough data available");
-    }
-
-    ConfigNode readConfigFile() {
-        //xxx: this is a major wtf: I don't know how much data to read (because
-        //     I don't store the size), so I read everything lol
-        //it's also inefficient
-        //how to fix: write the size somewhere (like .zip does)
-        ubyte[] bla, res;
-        bla.length = 64*1024;
-        while (bla.length) {
-            bla = read(bla);
-            res ~= bla;
-        }
-        auto f = new ConfigFile(cast(char[])res, "zreader", null);
-        return f.rootnode();
-    }
-
-    void close() {
-        mReader.finish();
-        mReader = null;
-        mIn.close();
-        mIn = null;
-    }
-}
-
 class TarArchive {
     private {
         Stream mFile;
@@ -215,12 +121,20 @@ class TarArchive {
         throw new Exception("tar entry not found: >"~name~"<");
     }
 
-    ZReader openReadStream(char[] name, bool can_fail = false) {
+    PipeIn openReadStream(char[] name, bool can_fail = false) {
         name = name ~ ".gz";
         auto s = openReadStreamUncompressed(name, can_fail);
         if (!s)
-            return null;
-        return new ZReader(s);
+            return PipeIn.Null;
+        auto r = new gzip.GZReader(&s.readUntilEof);
+        return r.pipe();
+    }
+
+    //open a file by openReadStream() and parse as config file
+    ConfigNode readConfigStream(char[] name) {
+        auto r = openReadStream(name);
+        scope(exit) r.close();
+        return ConfigFile.Parse(cast(char[])r.readAll(), "?.tar/"~name);
     }
 
     static ubyte[512] waste;
@@ -236,11 +150,11 @@ class TarArchive {
     }
 
     //NOTE: sequential writing is assumed, e.g. only one stream at a time
-    ZWriter openWriteStream(char[] name) {
+    PipeOut openWriteStream(char[] name) {
         startEntry(name ~ ".gz");
-        auto s = new SliceStream(mFile, mFile.position());
-        auto res = new ZWriter(s);
-        return res;
+        Stream o = new SliceStream(mFile, mFile.position());
+        auto w = new gzip.GZWriter(&o.writeExact);
+        return w.pipe();
     }
 
     //NOTE: sequential writing is assumed, e.g. only one stream at a time

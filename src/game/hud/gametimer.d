@@ -166,12 +166,11 @@ class GameTimer : Container {
             mOldBordercolor = bordercolor;
             if (bordercolor.valid()) {
                 //LOL
-                Trace.formatln("cvhange color: {}", bordercolor);
                 mLabelBox.styles.replaceRule("/gametimer", "border-color",
                     bordercolor.fromStringRev());
             } else {
                 //even more LOL
-                mLabelBox.styles.clearRules(false, true);
+                mLabelBox.styles.removeCustomRule("/gametimer", "border-color");
             }
         }
     }

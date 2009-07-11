@@ -80,10 +80,20 @@ class GameLoader {
         GameConfig mGameConfig;
         GfxSet mGfx;
         Resources.Preloader mResPreloader;
-        SerializeInConfig mSaveGame;
         bool mNetwork;
-        ConfigNode mTimeConfig; //savegame only
         GameShell mShell;
+        //savegame only
+        ConfigNode mGameData;
+        ConfigNode mTimeConfig;
+        ConfigNode mPersistence;
+        LandscapeBitmap[] mBitmaps;
+    }
+
+    private struct TimeSettings {
+        long time_ns;
+        long game_ts;
+        bool paused = false;
+        float slowdown = 1.0f;
     }
 
     void delegate(GameShell shell) onLoadDone;
@@ -156,9 +166,7 @@ class GameLoader {
 
     private void initFromSavegame(TarArchive file) {
         //------ gamedata.conf
-        ZReader reader = file.openReadStream("gamedata.conf");
-        ConfigNode savegame = reader.readConfigFile();
-        reader.close();
+        ConfigNode savegame = file.readConfigStream("gamedata.conf");
 
         mTimeConfig = savegame.getSubNode("game_time");
         int bitmap_count = savegame.getValue!(int)("bitmap_count");
@@ -178,39 +186,22 @@ class GameLoader {
         mGameConfig.level = gen.render(false);
 
         //------ bitmaps
-        LandscapeBitmap[] bitmaps;
         for (int idx = 0; idx < bitmap_count; idx++) {
             Surface image = gFramework.loadImage(file
                 .openReadStreamUncompressed(myformat("bitmap_{}.png", idx)));
             LandscapeBitmap lb = new LandscapeBitmap(image, false);
             auto lexels = lb.levelData();
-            ZReader rd = file.openReadStream(myformat("lexels_{}", idx));
-            rd.read_ptr(lexels.ptr, Lexel.sizeof*lexels.length);
-            rd.close();
-            bitmaps ~= lb;
+            auto rd = file.openReadStream(myformat("lexels_{}", idx));
+            scope(exit) rd.close();
+            rd.readExact(cast(ubyte[])lexels);
+            mBitmaps ~= lb;
         }
 
-        //------- game data
-        auto ctx = new SerializeContext(serialize_types);
-        mSaveGame = new SerializeInConfig(ctx, game_data);
-
-        mSaveGame.addExternal(persNode.copy(), "persistence");
-        mSaveGame.addExternal(mGameConfig, "gameconfig");
-        mSaveGame.addExternal(mGameConfig.level, "level");
-
-        foreach (int n, LandscapeBitmap lb; bitmaps) {
-            mSaveGame.addExternal(lb, myformat("landscape_{}", n));
-        }
-
-        //needed because level objects are not serialized with the engine,
-        //but the engine still stores references to them
-        foreach (int index, LevelItem o; mGameConfig.level.objects) {
-            mSaveGame.addExternal(o, myformat("levelobject_{}", index));
-        }
-
-        //NOTE: can read actual GameEngine from mSaveGame only after all
+        //NOTE: can read actual GameEngine from mGameData only after all
         //      resources have been loaded; addResources() is the reason
         //      so it will be done in finish()
+        mPersistence = persNode.copy();
+        mGameData = game_data;
 
         doInit();
     }
@@ -223,6 +214,7 @@ class GameLoader {
         assert(mResPreloader.done()); //xxx error handling (failed resources)
         mResPreloader = null;
         mGfx.finishLoading();
+
         mShell = new GameShell();
         mShell.mGameConfig = mGameConfig;
         mShell.mGfx = mGfx;
@@ -234,28 +226,47 @@ class GameLoader {
         }
         mShell.mGameTime = new TimeSourceFixFramerate("GameTime",
             mShell.mMasterTime, cFrameLength);
-        if (!mSaveGame) {
+
+        //registers many objects referenced from mShell for serialization
+        mShell.initSerialization();
+
+        if (!mGameData) {
             //for creation of a new game
             mShell.mEngine = new GameEngine(mGameConfig, mGfx,
                 mShell.mGameTime);
         } else {
-            //for loading a savegame
+            //code for loading a savegame
+
+            SerializeContext ctx = mShell.mSerializeCtx;
+            auto saveGame = new SerializeInConfig(ctx, mGameData);
+
+            auto ts = saveGame.read!(TimeSettings)();
+
             //meh time, not serialized anymore because it only causes problems
-            auto start_time = timeNsecs(mTimeConfig.getValue!(long)("time_ns"));
-            mShell.mMasterTime.initTime(start_time);
+            mShell.mMasterTime.initTime(timeNsecs(ts.time_ns));
             auto gt = mShell.mGameTime;
             gt.resetTime();
-            gt.paused = mTimeConfig.getValue!(bool)("paused");
-            gt.slowDown = mTimeConfig.getValue!(float)("slowdown");
-            mShell.mTimeStamp = mTimeConfig.getValue!(int)("game_ts");
-            assert(gt.current == start_time);
+            gt.paused = ts.paused;
+            gt.slowDown = ts.slowdown;
+            mShell.mTimeStamp = ts.game_ts;
+            //assert(gt.current == start_time);
             assert(mShell.mTimeStamp*cFrameLength ==mShell.mMasterTime.current);
-            mSaveGame.addExternal(mShell.mGameTime, "game_time");
-            //
-            addResources(mGfx, mSaveGame);
+
+            foreach (int n, LandscapeBitmap lb; mBitmaps) {
+                ctx.addExternal(lb, myformat("landscape_{}", n));
+            }
+            ctx.addExternal(mPersistence, "persistence");
+
             //(actually deserialize the complete engine)
-            mShell.mEngine = mSaveGame.readObjectT!(GameEngine)();
+            mShell.mEngine = saveGame.readObjectT!(GameEngine)();
+
+            foreach (LandscapeBitmap lb; mBitmaps) {
+                ctx.removeExternal(lb);
+            }
+            mBitmaps = null; //make GC-able, just in case
+            ctx.removeExternal(mPersistence);
         }
+
         if (onLoadDone)
             onLoadDone(mShell);
         return mShell;
@@ -271,20 +282,6 @@ class GameLoader {
     }
 }
 
-private void addResources(GfxSet gfx, SerializeBase sb) {
-    //support game save/restore: add all resources and some stuff from gfx
-    // as external objects
-    sb.addExternal(gfx, "gfx");
-    foreach (char[] key, TeamTheme tt; gfx.teamThemes) {
-        sb.addExternal(tt, "gfx_theme::" ~ key);
-    }
-    foreach (ResourceSet.Entry res; gfx.resources.resourceList()) {
-        //this depends from resset.d's struct Resource
-        //currently, the user has the direct resource object, so this must
-        //be added as external object reference
-        sb.addExternal(res.wrapper.get(), "res::" ~ res.name());
-    }
-}
 
 //this provides a "shell" around a GameEngine, to log all mutating function
 //calls to it (a function that changes something must be logged to implement
@@ -314,6 +311,7 @@ class GameShell {
         bool mExtIsLagging;
         debug bool mPrintFrameTime;
         Hasher mGameHasher;
+        SerializeContext mSerializeCtx;
     }
     bool terminated;  //set to exit the game instantly
 
@@ -605,12 +603,6 @@ class GameShell {
         LandscapeBitmap[] bitmaps = mEngine.landscapeBitmaps();
         savegame.setValue!(int)("bitmap_count", bitmaps.length);
 
-        auto ct = savegame.getSubNode("game_time");
-        ct.setValue!(long)("time_ns", mGameTime.current.nsecs);
-        ct.setValue!(bool)("paused", mGameTime.paused);
-        ct.setValue!(float)("slowdown", mGameTime.slowDown);
-        ct.setValue!(int)("game_ts", mTimeStamp);
-
         //------ GameConfig & level
         savegame.addNode("game_config", mGameConfig.save());
         savegame.addNode("persistence", mEngine.persistentState.copy());
@@ -618,8 +610,8 @@ class GameShell {
         //------ bitmaps
         foreach (int idx, LandscapeBitmap lb; bitmaps) {
             Lexel[] lexels = lb.levelData();
-            ZWriter zwriter = file.openWriteStream(myformat("lexels_{}", idx));
-            zwriter.write_ptr(lexels.ptr, Lexel.sizeof*lexels.length);
+            auto zwriter = file.openWriteStream(myformat("lexels_{}", idx));
+            zwriter.write(cast(ubyte[])lexels);
             zwriter.close();
             Stream bmp = file.openUncompressed(myformat("bitmap_{}.png", idx));
             //force png to guarantee lossless compression
@@ -628,33 +620,69 @@ class GameShell {
         }
 
         //------- game data
-        auto ctx = new SerializeContext(serialize_types);
-        auto writer = new SerializeOutConfig(ctx);
+        auto writer = new SerializeOutConfig(mSerializeCtx);
 
-        writer.addExternal(mEngine.persistentState, "persistence");
-        writer.addExternal(mGameConfig, "gameconfig");
-        writer.addExternal(mGameConfig.level, "level");
+        GameLoader.TimeSettings ts;
+        ts.time_ns = mGameTime.current.nsecs;
+        ts.paused = mGameTime.paused;
+        ts.slowdown = mGameTime.slowDown;
+        ts.game_ts = mTimeStamp;
+        writer.write(ts);
 
         foreach (int n, LandscapeBitmap lb; bitmaps) {
-            writer.addExternal(lb, myformat("landscape_{}", n));
+            mSerializeCtx.addExternal(lb, myformat("landscape_{}", n));
         }
-
-        foreach (int index, LevelItem o; mGameConfig.level.objects) {
-            writer.addExternal(o, myformat("levelobject_{}", index));
-        }
-
-        addResources(mGfx, writer);
-
-        writer.addExternal(mGameTime, "game_time");
+        mSerializeCtx.addExternal(mEngine.persistentState, "persistence");
 
         writer.writeObject(mEngine);
+
+        //sorry for the braindead
+        foreach (LandscapeBitmap lb; bitmaps) {
+            mSerializeCtx.removeExternal(lb);
+        }
+        mSerializeCtx.removeExternal(mEngine.persistentState);
 
         ConfigNode g = writer.finish();
         savegame.addNode("game_data", g);
 
-        ZWriter zwriter = file.openWriteStream("gamedata.conf");
-        zwriter.writeConfigFile(savegame);
+        auto zwriter = file.openWriteStream("gamedata.conf");
+        savegame.writeFile(zwriter);
         zwriter.close();
+    }
+
+    private void initSerialization() {
+        if (!!mSerializeCtx)
+            return;
+
+        mSerializeCtx = new SerializeContext(serialize_types);
+
+        //all of the following should go away *sigh*
+
+        //mSerializeCtx.addExternal(mEngine.persistentState, "persistence");
+        mSerializeCtx.addExternal(mGameConfig, "gameconfig");
+        mSerializeCtx.addExternal(mGameConfig.level, "level");
+
+        foreach (int index, LevelItem o; mGameConfig.level.objects) {
+            mSerializeCtx.addExternal(o, myformat("levelobject_{}", index));
+        }
+
+        mSerializeCtx.addExternal(mGameTime, "game_time");
+
+        //was addResources()
+        //can't really be avoided, because we're not going to write game data
+        //  graphics and sounds into the savegame
+        mSerializeCtx.addExternal(mGfx, "gfx");
+        foreach (char[] key, TeamTheme tt; mGfx.teamThemes) {
+            mSerializeCtx.addExternal(tt, "gfx_theme::" ~ key);
+        }
+        foreach (ResourceSet.Entry res; mGfx.resources.resourceList()) {
+            mSerializeCtx.addExternal(res.wrapper.get(), "res::" ~ res.name());
+        }
+    }
+
+    //public, but only for debugging stuff
+    SerializeContext getSerializeContext() {
+        return mSerializeCtx;
     }
 
     debug(debug_save) void debug_save() {

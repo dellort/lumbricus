@@ -65,6 +65,7 @@ class Types {
     }
 
     final SafePtr ptrOf(T)(ref T x) {
+        getType!(T)(); //make sure type is registered
         return toSafePtr(typeid(T), &x);
     }
 

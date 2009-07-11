@@ -111,21 +111,18 @@ private class ConfigManager {
     //will not modify file extension
     void saveConfigGz(ConfigNode node, char[] filename) {
         auto stream = gFS.open(filename, File.WriteCreate);
-        try {
-            auto w = new GZOutputFilter(new StreamOutput(stream));
-            node.writeFile(w);
-            w.finish();
-        } finally {
-            stream.close();
-        }
+        scope(exit) stream.close();
+        auto w = GZWriter.Pipe(stream.pipeOut());
+        scope(exit) w.close();
+        node.writeFile(w);
     }
 
     ubyte[] saveConfigGzBuf(ConfigNode node) {
-        auto strOut = new StringOutput();
-        scope gz = new GZOutputFilter(strOut);
-        node.writeFile(gz);
-        gz.finish();
-        return cast(ubyte[])strOut.text;
+        ArrayWriter a;
+        auto w = GZWriter.Pipe(a.pipe());
+        scope(exit) w.close();
+        node.writeFile(w);
+        return a.data();
     }
 
     ConfigNode loadConfigGzBuf(ubyte[] buf) {

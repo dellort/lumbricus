@@ -34,11 +34,9 @@ struct SavegameData {
         SavegameData ret;
         ret.path = fn;
         scope st = gFS.open(fn, File.ReadExisting);
-        scope reader = new TarArchive(st, true);
-        auto z = reader.openReadStream("info.conf", false);
-        ret.info = z.readConfigFile();
-        z.close();
-        reader.close();
+        auto reader = new TarArchive(st, true);
+        scope(exit) reader.close();
+        ret.info = reader.readConfigStream("info.conf");
         return ret;
     }
 
@@ -104,7 +102,7 @@ SavegameData createSavegame(char[] taskId, char[] name, char[] description,
     ret.info.setValue("timestamp", 0);
     //write info file
     auto z = writer.openWriteStream("info.conf");
-    z.writeConfigFile(ret.info);
+    ret.info.writeFile(z);
     z.close();
     //actually save the task
     saveFunc(writer);

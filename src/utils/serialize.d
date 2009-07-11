@@ -3,10 +3,10 @@ module utils.serialize;
 import utils.configfile;
 import utils.reflect.all;
 import utils.misc;
-import utils.queue;
+import utils.hashtable;
 
 import conv = tango.util.Convert;
-import tango.core.Traits : isIntegerType;
+import tango.core.Traits : isIntegerType, isFloatingPointType;
 
 debug import tango.core.stacktrace.StackTrace : nameOfFunctionAt;
 
@@ -61,31 +61,30 @@ Not-so-obvious limitations of the implemented serialization mechanism:
 //type informations: mostly the stuff from utils.reflection, and possibly hooks
 // for custom serializtion of special object types
 class SerializeContext {
+    struct CustomSerialize {
+        CustomCreator creator;
+        CustomReader reader;
+        CustomWriter writer;
+    }
+
     private {
         Types mTypes;
+        RefHashTable!(Object, char[]) mExternals;
+        Object[char[]] mExternalsReverse;
+        //ClassInfo[] mIgnored;
+
+        RefHashTable!(TypeInfo, CustomSerialize) mCustomSerializers;
     }
+
+    alias void delegate(SafePtr data, void delegate(SafePtr) exchange) ExchDg;
+    alias ExchDg CustomWriter;
+    alias ExchDg CustomReader;
+    alias void delegate(SafePtr data) CustomCreator;
 
     this(Types a_types) {
         mTypes = a_types;
-    }
-}
-
-typedef Exception SerializeError;
-
-//base class for serializers/deserializers
-//"external" objects: objects which aren't serialized, but which are still
-// referenced by serialized objects. these objects must be added manually before
-// serialization or deserialization, and they are referenced by name
-class SerializeBase {
-    private {
-        SerializeContext mCtx;
-        char[][Object] mExternals;
-        Object[char[]] mExternalsReverse;
-        ClassInfo[] mIgnored;
-    }
-
-    this(SerializeContext a_ctx) {
-        mCtx = a_ctx;
+        mExternals = new typeof(mExternals);
+        mCustomSerializers = new typeof(mCustomSerializers);
     }
 
     //register external object
@@ -96,54 +95,58 @@ class SerializeBase {
         mExternalsReverse[id] = o;
     }
 
+    //undo addExternal()
+    //NOTE: if there were several strings mapping ot the same object, all
+    //      entries will be removed
+    void removeExternal(Object o) {
+        mExternals.remove(o);
+        //xxx: this can't be
+        outer: while (true) {
+            foreach (k, v; mExternalsReverse) {
+                if (v is o) {
+                    mExternalsReverse.remove(k);
+                    continue outer;
+                }
+            }
+            break;
+        }
+    }
+
+    private CustomSerialize* find_cs(TypeInfo t, bool create) {
+        auto p = t in mCustomSerializers;
+        if (!p && create) {
+            mCustomSerializers.insert(t, CustomSerialize.init);
+            p = t in mCustomSerializers;
+            assert(!!p);
+        }
+        return p;
+    }
+
+    CustomSerialize* lookupCustomSerializer(TypeInfo t) {
+        return find_cs(t, false);
+    }
+
+    void addCustomSerializer(TypeInfo t, CustomCreator creator,
+        CustomReader reader, CustomWriter writer)
+    {
+        assert(creator && reader && writer);
+        auto s = find_cs(t, true);
+        if (s.creator) {
+            assert(s.creator is creator);
+            assert(s.reader is reader);
+            assert(s.writer is writer);
+        }
+        s.creator = creator;
+        s.reader = reader;
+        s.writer = writer;
+    }
+
+    /+
     //this is a hack
     void addIgnoreClass(ClassInfo ignore) {
         mIgnored ~= ignore;
     }
-
-    protected void typeError(SafePtr source, char[] add = "") {
-        if (cast(ReferenceType)source.type) {
-            Object o = source.toObject();
-            if (o)
-                throw new SerializeError(myformat("problem with: {} / {} {}",
-                    source.type, o.classinfo.name, add));
-        }
-        throw new SerializeError(myformat("problem with: {}, ti={} {}",
-            source.type, source.type.typeInfo(), add));
-    }
-
-    //these functions are here because the inheritance hierarchy is hard to get
-    //right (especially with all my ridiculous base classes); maybe interfaces
-    //could be used, but these suck, also: templates?
-
-    //several objects can be written sequentially; these can be read in the same
-    //order when deserializing (like with a stream)
-    //the object can depend from previously written objects (they share they
-    //same object graph)
-    //overwritten by SerializeOutConfig!
-    void writeObject(Object o) {
-        assert (false);
-    }
-
-    //parallel to writeObject()
-    //overwritten by SerializeInConfig!
-    Object readObject() {
-        assert (false);
-        return null;
-    }
-
-    //like readObject(), but cast to T and make failure a deserialization error
-    //by default, the result also must be non-null
-    T readObjectT(T)(bool can_be_null = false) {
-        auto o = readObject();
-        T t = cast(T)o;
-        if (o && !t)
-            throw new SerializeError("unexpected object type");
-        if (!o && !can_be_null)
-            throw new SerializeError("object is null");
-        return t;
-    }
-
+    +/
 
     //debug: write out the object graph in graphviz format
     //here because it needs Types and mExternals
@@ -202,7 +205,7 @@ class SerializeBase {
                 r ~= myformat(`{} [label="ext: {}"];` \n, id, *pname);
                 continue;
             }
-            SafePtr indirect = mCtx.mTypes.ptrOf(cur);
+            SafePtr indirect = mTypes.ptrOf(cur);
             void* tmp;
             SafePtr ptr = indirect.mostSpecificClass(&tmp, true);
             if (!ptr.type) {
@@ -246,6 +249,83 @@ class SerializeBase {
     }
 }
 
+typedef Exception SerializeError;
+
+//base class for serializers/deserializers
+//"external" objects: objects which aren't serialized, but which are still
+// referenced by serialized objects. these objects must be added manually before
+// serialization or deserialization, and they are referenced by name
+class SerializeBase {
+    private {
+        SerializeContext mCtx;
+    }
+
+    this(SerializeContext a_ctx) {
+        mCtx = a_ctx;
+    }
+
+    protected void typeError(SafePtr source, char[] add = "") {
+        if (cast(ReferenceType)source.type) {
+            Object o = source.toObject();
+            if (o)
+                throw new SerializeError(myformat("problem with: {} / {} {}",
+                    source.type, o.classinfo.name, add));
+        }
+        throw new SerializeError(myformat("problem with: {}, ti={} {}",
+            source.type, source.type.typeInfo(), add));
+    }
+
+    //these functions are here because the inheritance hierarchy is hard to get
+    //right (especially with all my ridiculous base classes); maybe interfaces
+    //could be used, but these suck, also: templates?
+
+    //several objects can be written sequentially; these can be read in the same
+    //order when deserializing (like with a stream)
+    //the object can depend from previously written objects (they share they
+    //same object graph)
+    final void writeObject(Object o) {
+        write(o);
+    }
+
+    //parallel to writeObject()
+    final Object readObject() {
+        return read!(Object)();
+    }
+
+    //like readObject(), but cast to T and make failure a deserialization error
+    //by default, the result also must be non-null
+    final T readObjectT(T)(bool can_be_null = false) {
+        assert(is(T == class));
+        auto o = read!(Object)();
+        T t = cast(T)o;
+        if (o && !t)
+            throw new SerializeError("unexpected object type");
+        if (!o && !can_be_null)
+            throw new SerializeError("object is null");
+        return t;
+    }
+
+    final void write(T)(T d) {
+        writeDynamic(mCtx.mTypes.ptrOf(d));
+    }
+
+    final T read(T)() {
+        T res;
+        readDynamic(mCtx.mTypes.ptrOf(res));
+        return res;
+    }
+
+    //overwritten by SerializeInConfig
+    void readDynamic(SafePtr d) {
+        assert(false);
+    }
+
+    //overwritten by SerializeOutConfig
+    void writeDynamic(SafePtr d) {
+        assert(false);
+    }
+}
+
 abstract class SerializeConfig : SerializeBase {
     private {
         ConfigNode mFile;
@@ -260,8 +340,8 @@ abstract class SerializeConfig : SerializeBase {
 
 class SerializeOutConfig : SerializeConfig {
     private {
-        int mIDAlloc;
-        int[Object] mObject2Id;
+        int mIDAlloc = 0;
+        RefHashTable!(Object, char[]) mObject2Id;
         Object[] mObjectStack;
         int mOSIdx = 0;
         debug (CountClasses) {
@@ -271,6 +351,9 @@ class SerializeOutConfig : SerializeConfig {
 
     this(SerializeContext a_ctx) {
         super(a_ctx, new ConfigNode());
+        mObject2Id = new typeof(mObject2Id);
+        //just some preallocation, I guess
+        mObjectStack.length = 1024;
     }
 
     private bool doWriteNextObject(ConfigNode file) {
@@ -293,10 +376,9 @@ class SerializeOutConfig : SerializeConfig {
                 mCounter[klass] = 1;
             }
         }
-        auto nid = mObject2Id[o];
-        auto node = file.getSubNode(myformat("{}", nid));
+        auto node = file.getSubNode(mObject2Id[o]);
         node["type"] = klass.name();
-        doWriteMembers(file, node, klass, ptr, defptr);
+        doWriteMembers(node, klass, ptr, defptr);
         return true;
     }
 
@@ -307,32 +389,47 @@ class SerializeOutConfig : SerializeConfig {
             return "null";
         }
         if (auto pid = o in mObject2Id) {
-            return myformat("#{}", *pid);
+            return *pid;
         }
-        if (auto pname = o in mExternals) {
+        if (auto pname = o in mCtx.mExternals) {
             return "ext#" ~ *pname;
         }
+        /+
         foreach (i; mIgnored) {
             if (o.classinfo is i)
                 return "";
         }
+        +/
         auto nid = ++mIDAlloc;
-        mObject2Id[o] = nid;
+        auto id = myformat("#{}", nid);
+        mObject2Id[o] = id;
         if (mOSIdx >= mObjectStack.length)
             mObjectStack.length = mObjectStack.length*2;
         mObjectStack[mOSIdx] = o;
         mOSIdx++;
-        return myformat("#{}", nid);
+        return id;
     }
 
-    private void doWriteMembers(ConfigNode file, ConfigNode cur, Class klass,
-        SafePtr ptr, SafePtr defptr)
+    private void doWriteMembers(ConfigNode cur, Class klass, SafePtr ptr,
+        SafePtr defptr)
     {
         assert (!!klass);
         //each class in the inheritance hierarchy gets a node (structs not)
         bool is_struct = !!cast(StructType)klass.type();
-        if (is_struct)
+        if (is_struct) {
             assert (!klass.superClass());
+        } else {
+            //must do an extra check for classes here, because they take a
+            //  different path through doWriteNextObject
+            //(normal path writes object references only)
+            //also, make sure we have the "deepest" TypeInfo (from ClassInfo)
+            //NOTE: ClassInfo.typeinfo was added somewhere >= dmd1.045
+            TypeInfo ti = ptr.toObject().classinfo.typeinfo;
+            if (auto cs = mCtx.lookupCustomSerializer(ti)) {
+                doWriteCustom(cur, ptr, *cs);
+                return;
+            }
+        }
         Class ck = klass;
         while (ck) {
             //(not for structs)
@@ -342,20 +439,39 @@ class SerializeOutConfig : SerializeConfig {
             foreach (ClassMember m; ck.nontransientMembers()) {
                 SafePtr mptr = m.get(ptr);
                 SafePtr mdptr = defptr.ptr ? m.get(defptr) : SafePtr.Null;
-                doWriteMember(file, dest, m.name(), mptr, mdptr);
+                doWriteMemberDef(dest, m.name(), mptr, mdptr);
             }
             ck = ck.superClass();
         }
     }
 
-    private void doWriteMember(ConfigNode file, ConfigNode cur, char[] member,
-        SafePtr ptr, SafePtr defptr)
+    private bool is_def(SafePtr data, SafePtr def) {
+        assert(!def.type || data.type is def.type);
+        if (!def.ptr)
+            return false;
+        return data.type.op_is(data, def);
+    }
+
+    //similar to doWriteMember, but check for default values
+    private void doWriteMemberDef(ConfigNode parent, char[] name, SafePtr ptr,
+        SafePtr defptr)
     {
-        if (defptr.type is ptr.type && !!defptr.ptr) {
-            //if a defptr is available, compare against its contents, to see if
-            //the ptr contains just a default value
-            if (ptr.type.op_is(ptr, defptr))
-                return;
+        //xxx: code duplication, double unneeded lookups, ...
+        if (auto cs = mCtx.lookupCustomSerializer(ptr.type.typeInfo())) {
+            doWriteCustom(parent.add(name), ptr, *cs);
+            return;
+        }
+        //to save space, don't write stuff if it's equal to the
+        //  enclosing (!) type's default value
+        if (!is_def(ptr, defptr))
+            doWriteMember(parent.add(name), ptr, defptr);
+    }
+
+    //write_obj = if ptr is an object, actually write members
+    private void doWriteMember(ConfigNode member, SafePtr ptr, SafePtr defptr) {
+        if (auto cs = mCtx.lookupCustomSerializer(ptr.type.typeInfo())) {
+            doWriteCustom(member, ptr, *cs);
+            return;
         }
         if (auto et = cast(EnumType)ptr.type) {
             //dirty trick: do as if it was an integer; should be bitcompatible
@@ -365,14 +481,14 @@ class SerializeOutConfig : SerializeConfig {
             //fall through to BaseType
         }
         if (cast(BaseType)ptr.type) {
-            cur[member] = convBaseType(ptr);
+            member.value = convBaseType(ptr);
             return;
         }
         if (cast(ReferenceType)ptr.type) {
             //object references
             char[] id = queueObject(ptr.toObject());
             if (id != "")
-                cur[member] = id;
+                member.value = id;
             return;
         }
         if (auto st = cast(StructType)ptr.type) {
@@ -380,37 +496,36 @@ class SerializeOutConfig : SerializeConfig {
             Class k = st.klass();
             if (!k)
                 typeError(ptr);
-            doWriteMembers(file, cur.getSubNode(member), k, ptr, defptr);
+            doWriteMembers(member, k, ptr, defptr);
             return;
         }
         //handle string arrays differently, having them as real arrays is... urgh
         if (ptr.type is mCtx.mTypes.getType!(char[])()) {
-            cur[member] = ptr.read!(char[])();
+            member.value = ptr.read!(char[])();
             return;
         }
         //byte[] too, because for game saving, the bitmap is a byte[]
         if (ptr.type is mCtx.mTypes.getType!(ubyte[])()) {
-            cur.setValue!(ubyte[])(member, ptr.read!(ubyte[]));
+            member.setCurValue!(ubyte[])(ptr.read!(ubyte[]));
             return;
         }
         if (auto art = cast(ArrayType)ptr.type) {
-            auto sub = cur.getSubNode(member);
+            auto sub = member;
             ArrayType.Array arr = art.getArray(ptr);
-            sub["length"] = myformat("{}", arr.length);
             for (int i = 0; i < arr.length; i++) {
                 SafePtr eptr = arr.get(i);
-                //about default value: not sure, depends if static array?
-                doWriteMember(file, sub, myformat("{}", i), eptr,
-                    SafePtr.Null); //eptr.type.initPtr());
+                //about default value: if it's a static array, and if we have
+                //  defptr, we could call getArray/get on it and pass it here
+                doWriteMember(sub.add(), eptr, SafePtr.Null);
             }
             return;
         }
         if (auto map = cast(MapType)ptr.type) {
-            auto sub = cur.getSubNode(member);
+            auto sub = member;
             map.iterate(ptr, (SafePtr key, SafePtr value) {
                 auto subsub = sub.add();
-                doWriteMember(file, subsub, "key", key, key.type.initPtr());
-                doWriteMember(file, subsub, "value", value, value.type.initPtr());
+                doWriteMember(subsub.add("k"), key, SafePtr.Null);
+                doWriteMember(subsub.add("v"), value, SafePtr.Null);
             });
             return;
         }
@@ -423,6 +538,9 @@ class SerializeOutConfig : SerializeConfig {
                 //         stack or a struct; we simply can't tell
                 char[] what = "enable version debug to see why";
                 debug {
+                    //we can't tell to what dgp.ptr will point to
+                    //if it's not an object, we'll just crash
+                    //otherwise, output information useful for debugging
                     Trace.formatln("hello, serialize.d might crash here.");
                     char[] crashy = (cast(Object)dgp.ptr).classinfo.name;
                     char[] func = nameOfFunctionAt(dgp.funcptr);
@@ -431,12 +549,9 @@ class SerializeOutConfig : SerializeConfig {
                 }
                 throw new SerializeError("couldn't write delegate, "~what);
             }
-            auto sub = cur.getSubNode(member);
+            auto sub = member;
             char[] id = queueObject(dg_o);
-            assert(id.length > 0, "Delegate to ignored object not allowed");
             sub["dg_object"] = id;
-            //sub["dg_method"] = dg_m ?
-              //  myformat("{}::{}", dg_m.klass.name, dg_m.name) : "null";
             sub["dg_method"] = dg_m ? dg_m.name : "null";
             return;
         }
@@ -454,7 +569,7 @@ class SerializeOutConfig : SerializeConfig {
         foreach (x; T) {
             if (ptr.type.typeInfo() is typeid(x)) {
                 x val = ptr.read!(x)();
-                static if (is(x == double) || is(x == float)) {
+                static if (isFloatingPointType!(x)) {
                     return floatToHex(val);
                 } else {
                     return myformat("{}", val);
@@ -465,18 +580,28 @@ class SerializeOutConfig : SerializeConfig {
         return "";
     }
 
-    override void writeObject(Object o) {
-        mObjectStack.length = 1024;
-        ConfigNode cur = mFile.getSubNode("serialized").add();
-        cur["_object"] = queueObject(o);
-        while (doWriteNextObject(cur)) {}
+    private void doWriteCustom(ConfigNode cur, SafePtr ptr,
+        SerializeContext.CustomSerialize cs)
+    {
+        assert(false);
+    }
+
+    override void writeDynamic(SafePtr o) {
+        ConfigNode cur = mFile.add();
+        //when writing an object, this is like serializing a
+        //  struct { Object o; }
+        //in other words, this will only write an object reference into cur
+        doWriteMember(cur.getSubNode("data"), o, o.type.initPtr());
+        while (doWriteNextObject(cur.getSubNode("objects"))) {}
     }
 
     ConfigNode finish() {
         debug (CountClasses) {
             printAnnoyingStats();
         }
-        return mFile;
+        auto f = mFile;
+        mFile = null;
+        return f;
     }
 
     debug (CountClasses)
@@ -505,15 +630,15 @@ class SerializeOutConfig : SerializeConfig {
 
 class SerializeInConfig : SerializeConfig {
     private {
-        //for each readObject() call
-        ConfigNode[] mObjectNodes;
+        //for each readDynamic() call
+        ConfigNode[] mEntryNodes;
         Object[int] mId2Object;
     }
 
     this(SerializeContext a_ctx, ConfigNode a_file) {
         super(a_ctx, a_file);
-        foreach (ConfigNode node; mFile.getSubNode("serialized")) {
-            mObjectNodes ~= node;
+        foreach (ConfigNode node; mFile) {
+            mEntryNodes ~= node;
         }
     }
 
@@ -539,7 +664,7 @@ class SerializeInConfig : SerializeConfig {
         }
         if (id.length > 4 && id[0..4] == "ext#") {
             id = id[4..$];
-            auto pobj = id in mExternalsReverse;
+            auto pobj = id in mCtx.mExternalsReverse;
             if (!pobj)
                 throw new SerializeError("external not found: "~id);
             return *pobj;
@@ -547,8 +672,8 @@ class SerializeInConfig : SerializeConfig {
         throw new SerializeError("malformed ID (3): "~id);
     }
 
-    //deserialize all objects in file
-    private void doReadObjects(ConfigNode file) {
+    //deserialize all objects in this node
+    private void doReadObjects(ConfigNode onode) {
         struct QO {
             ConfigNode node;
             Class klass;
@@ -556,14 +681,16 @@ class SerializeInConfig : SerializeConfig {
         }
         QO[] objects;
         //read all objects without members
-        foreach (ConfigNode node; file) {
+        foreach (ConfigNode node; onode) {
             if (node.value.length)
                 continue;
             //actually deserialize
             int oid = -1;
-            try {
-                oid = conv.to!(int)(node.name);
-            } catch (conv.ConversionException e) {
+            if (node.name.length > 0 && node.name[0] == '#') {
+                try {
+                    oid = conv.to!(int)(node.name[1..$]);
+                } catch (conv.ConversionException e) {
+                }
             }
             //error here, because this contains object nodes only
             if (oid < 0)
@@ -598,7 +725,12 @@ class SerializeInConfig : SerializeConfig {
             ptr.type = ck.type(); //should be safe...
             foreach (ClassMember m; ck.nontransientMembers()) {
                 SafePtr mptr = m.get(ptr);
-                doReadMember(dest, m.name(), mptr);
+                auto sub = dest.findNode(m.name());
+                //if null, then either
+                //  - writer saw a default value and didn't write the member
+                //  - the type was different and didn't have this member
+                if (sub)
+                    doReadMember(sub, mptr);
             }
         }
         if (is_struct) {
@@ -618,10 +750,9 @@ class SerializeInConfig : SerializeConfig {
             new SerializeError("what 2.");
     }
 
-    private void doReadMember(ConfigNode cur, char[] member, SafePtr ptr)
-    {
-        if (!cur.hasValue(member) && !cur.hasNode(member)) {
-            //Trace.formatln("{} not found, using default",member);
+    private void doReadMember(ConfigNode member, SafePtr ptr) {
+        if (auto cs = mCtx.lookupCustomSerializer(ptr.type.typeInfo())) {
+            doReadCustom(member, ptr, *cs);
             return;
         }
         if (auto et = cast(EnumType)ptr.type) {
@@ -630,14 +761,12 @@ class SerializeInConfig : SerializeConfig {
             //fall through to BaseType
         }
         if (cast(BaseType)ptr.type) {
-            unconvBaseType(ptr, cur[member]);
+            unconvBaseType(ptr, member.value);
             return;
         }
         if (auto rt = cast(ReferenceType)ptr.type) {
             //object references
-            //if (!rt.klass())
-              //  typeError(ptr);
-            Object o = getObject(cur[member]);
+            Object o = getObject(member.value);
             if (!ptr.castAndAssignObject(o))
                 throw new SerializeError("can't assign, t="~ptr.type.toString
                     ~", o="~(o?o.classinfo.name:"null"));
@@ -647,33 +776,24 @@ class SerializeInConfig : SerializeConfig {
             Class k = st.klass();
             if (!k)
                 typeError(ptr);
-            auto sub = cur.findNode(member);
-            if (!sub)
-                throw new SerializeError("struct ? -- "~st.toString~"::"~member);
-            doReadMembers(sub, k, ptr);
+            doReadMembers(member, k, ptr);
             return;
         }
         if (ptr.type is mCtx.mTypes.getType!(char[])()) {
             //xxx error handling
-            ptr.write!(char[])(cur[member]);
+            ptr.write!(char[])(member.value);
             return;
         }
         //byte[] too, because for game saving, the bitmap is a byte[]
         if (ptr.type is mCtx.mTypes.getType!(ubyte[])()) {
             //xxx error handling
-            ptr.write!(ubyte[])(cur.getValue!(ubyte[])(member));
+            ptr.write!(ubyte[])(member.getCurValue!(ubyte[])());
             return;
         }
         if (auto art = cast(ArrayType)ptr.type) {
             ArrayType.Array arr = art.getArray(ptr);
-            auto sub = cur.findNode(member);
-            if (!sub)
-                throw new SerializeError("? (2)");
-            int length = -1;
-            try {
-                length = conv.to!(int)(sub["length"]);
-            } catch (conv.ConversionException e) {
-            }
+            auto sub = member;
+            int length = sub.count();
             if (art.isStatic()) {
                 if (arr.length != length)
                     throw new SerializeError("static array size mismatch");
@@ -681,32 +801,30 @@ class SerializeInConfig : SerializeConfig {
                 art.setLength(ptr, length);
                 arr = art.getArray(ptr);
             }
-            for (int i = 0; i < arr.length; i++) {
-                SafePtr eptr = arr.get(i);
-                doReadMember(sub, myformat("{}", i), eptr);
+            int index = 0;
+            foreach (ConfigNode s; sub) {
+                SafePtr eptr = arr.get(index);
+                doReadMember(s, eptr);
+                index++;
             }
             return;
         }
         if (auto map = cast(MapType)ptr.type) {
-            auto sub = cur.findNode(member);
-            if (!sub)
-                throw new SerializeError("? (3)");
+            auto sub = member;
             foreach (ConfigNode subsub; sub) {
                 map.setKey2(ptr,
                     (SafePtr key) {
-                        doReadMember(subsub, "key", key);
+                        doReadMember(subsub.getSubNode("k"), key);
                     },
                     (SafePtr value) {
-                        doReadMember(subsub, "value", value);
+                        doReadMember(subsub.getSubNode("v"), value);
                     }
                 );
             }
             return;
         }
         if (auto dg = cast(DelegateType)ptr.type) {
-            auto sub = cur.findNode(member);
-            if (!sub)
-                throw new SerializeError("? (4)");
+            auto sub = member;
             Object dest = getObject(sub["dg_object"]);
             char[] method = sub["dg_method"];
             ClassMethod m;
@@ -743,12 +861,9 @@ class SerializeInConfig : SerializeConfig {
                         val = conv.to!(ubyte)(s);
                     } else static if (isIntegerType!(x)) {
                         val = conv.to!(x)(s);
-                    } else static if (is(x == float)) {
+                    } else static if (isFloatingPointType!(x)) {
                         //xxx (see end of file)
-                        val = toFloat(s);
-                    } else static if (is(x == double)) {
-                        //xxx this is fishy
-                        val = conv.to!(double)(s);
+                        val = toReal(s);
                     } else static if (is(x == bool)) {
                         if (s == "true") {
                             val = true;
@@ -772,13 +887,19 @@ class SerializeInConfig : SerializeConfig {
         return "";
     }
 
-    override Object readObject() {
-        if (!mObjectNodes.length)
+    private void doReadCustom(ConfigNode cur, SafePtr ptr,
+        SerializeContext.CustomSerialize cs)
+    {
+        assert(false);
+    }
+
+    override void readDynamic(SafePtr p) {
+        if (!mEntryNodes.length)
             throw new SerializeError("no more objects for readObject()");
-        ConfigNode cur = mObjectNodes[0];
-        mObjectNodes = mObjectNodes[1..$];
-        doReadObjects(cur);
-        return getObject(cur["_object"]);
+        ConfigNode cur = mEntryNodes[0];
+        mEntryNodes = mEntryNodes[1..$];
+        doReadObjects(cur.getSubNode("objects"));
+        doReadMember(cur.getSubNode("data"), p);
     }
 }
 
@@ -789,7 +910,7 @@ class SerializeInConfig : SerializeConfig {
 
 //xxx imports
 import tango.stdc.stringz : toStringz;
-import tango.stdc.stdlib : strtof;
+import tango.stdc.stdlib : strtold;
 import tango.stdc.stdio : snprintf;
 import tango.stdc.errno;
 import tango.text.Util : isSpace;
@@ -802,9 +923,10 @@ private void setErrno(int val) {
 }
 
 //from phobos: std.conv
-float toFloat(in char[] s)
+//ok, slightly changed and renamed from toFloat to toReal
+real toReal(in char[] s)
 {
-    float f;
+    real f;
     char* endptr;
     char* sz;
 
@@ -816,7 +938,8 @@ float toFloat(in char[] s)
     // BUG: should set __locale_decpoint to "." for DMC
 
     setErrno(0);
-    f = strtof(sz, &endptr);
+    static assert(is(typeof(strtold(null, null) == typeof(f))));
+    f = strtold(sz, &endptr);
     if (getErrno() == ERANGE)
     goto Lerr;
     if (endptr && (endptr == sz || *endptr != 0))

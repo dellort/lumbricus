@@ -15,6 +15,171 @@ public import tango.io.device.File : File;
 import tango.io.model.IConduit;
 import utils.misc;
 
+
+
+
+//HAHAHAHAHAHAHAHAHAHAHAHAHA
+//actually, I don't feel like inventing my own I/O API
+//so, if anyone happens to know which are the exact Tango equivalents...
+//
+//Rationale: I wanted simple pipe-like I/O (no seeking), but somehow read/write
+//  callbacks weren't enough; I needed additional calls like close().
+//  => pack several callbacks into structs.
+//
+//Notes:
+// - users shall use opCall, and avoid accessing the delegate vars directly
+// - feel free to add more functions
+// - feel free to add more delegates, as long as they are optional and/or can
+//   be emulated with just the normal read/write delegate
+// - the structs never must contain mutable state (makes them unsafe for
+//   copying); allocate an object for that
+
+//for writing
+struct PipeOut {
+    void delegate(ubyte[]) do_write;
+    void delegate() do_close;
+
+    static const PipeOut Null;
+
+    static PipeOut opCall(typeof(do_write) w, typeof(do_close) c = null) {
+        PipeOut r;
+        assert(!!w);
+        r.do_write = w;
+        r.do_close = c;
+        return r;
+    }
+
+    bool isNull() {
+        return !!do_write;
+    }
+
+    //semantics: see Stream.writeExact()
+    void write(ubyte[] data) {
+        if (do_write) {
+            do_write(data);
+        } else {
+            throw new IOException("pipe not connected for writing");
+        }
+    }
+
+    void close() {
+        if (do_close) do_close();
+    }
+}
+
+//for reading
+struct PipeIn {
+    ubyte[] delegate(ubyte[]) do_read;
+    void delegate() do_close;
+
+    static const PipeIn Null;
+
+    static PipeIn opCall(typeof(do_read) rd, typeof(do_close) c = null) {
+        PipeIn r;
+        assert(!!rd);
+        r.do_read = rd;
+        r.do_close = c;
+        return r;
+    }
+
+    bool isNull() {
+        return !!do_read;
+    }
+
+    //semantics: see Stream.readUntilEof()
+    //(everything is read, except on EOF)
+    //xxx: simply "auto close" when EOF is reached?
+    ubyte[] read(ubyte[] buffer) {
+        if (do_read) {
+            return do_read(buffer);
+        } else {
+            throw new IOException("pipe not connected for reading");
+        }
+    }
+    void close() {
+        if (do_close) do_close();
+    }
+
+    void readExact(ubyte[] d) {
+        if (read(d).length != d.length)
+            throw new IOException("could not read all data");
+    }
+
+    //read until EOF is reached
+    //should this automatically call close()???
+    ubyte[] readAll(size_t size_hint = 0) {
+        if (size_hint < 64)
+            size_hint = 64;
+        ubyte[] dest;
+        dest.length = size_hint * 2;
+        size_t pos = 0;
+        for (;;) {
+            assert(pos < dest.length);
+            auto res = read(dest[pos..$]);
+            pos += res.length;
+            if (res.length == 0) {
+                dest = dest[0..pos];
+                //close();
+                return dest;
+            }
+            //enlarge buffer
+            dest.length = dest.length*2;
+        }
+    }
+}
+
+
+//meh
+struct ArrayReader {
+    ubyte[] data;
+
+    ubyte[] read(ubyte[] d) {
+        size_t s = min(d.length, data.length);
+        d[0..s] = data[0..s];
+        data = data[s..$];
+        return d;
+    }
+
+    PipeIn pipe() {
+        return PipeIn(&read);
+    }
+}
+
+struct ArrayWriter {
+    //buffer that will be used (if large enough, no additional memory alloc.)
+    //use data() to get actual data
+    ubyte[] out_buffer;
+    size_t size;
+
+    ubyte[] data() {
+        return out_buffer[0..size];
+    }
+
+    void write(ubyte[] d) {
+        if (!d.length)
+            return;
+        size_t left = out_buffer.length - size;
+        if (d.length > left) {
+            //grow array to correct size
+            //somehow reduce number of future allocations by preallocating
+            auto ns = out_buffer.length;
+            while (ns < size+d.length) {
+                ns *= 2;
+                if (ns < 64)
+                    ns = 64;
+            }
+            out_buffer.length = ns;
+        }
+        out_buffer[size..size+d.length] = d;
+        size += d.length;
+    }
+
+    PipeOut pipe() {
+        return PipeOut(&write);
+    }
+}
+
+
 abstract class Stream {
     abstract {
         ulong position();
@@ -111,6 +276,13 @@ abstract class Stream {
 
     void ioerror(char[] msg) {
         throw new IOException(msg);
+    }
+
+    PipeOut pipeOut(bool allow_close = false) {
+        return PipeOut(&writeExact, allow_close ? &close : null);
+    }
+    PipeIn pipeIn(bool allow_close = false) {
+        return PipeIn(&readUntilEof, allow_close ? &close : null);
     }
 
     //meh
@@ -259,4 +431,3 @@ class SliceStream : Stream {
         //actually, the source stream should be ref-counted or so
     }
 }
-
