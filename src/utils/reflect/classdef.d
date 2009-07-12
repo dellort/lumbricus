@@ -323,7 +323,7 @@ class ClassMethod : ClassElement {
     }
 +/
 
-    /*private const LOLCODEDUPLICATION = `
+    private const LOLCODEDUPLICATION = `
         assert(!!o);
         //could generate the call code at compile-time, instead of generating
         //a call-delegate; but both ways seem to be messy
@@ -337,20 +337,20 @@ class ClassMethod : ClassElement {
         rawdg.funcptr = mAddress;
         rawdg.ptr = rawptr;
         SafePtr pdg = SafePtr(type(), &rawdg);
-    `;*/
+    `;
 
     //like DelegateType.invoke_dynamic(), but you don't need a call-delegate
     //xxx: in r811 was a function to invoke with compiletime args
     final void invoke_dynamic(Object o, SafePtr ret, SafePtr[] args) {
-        //mixin(LOLCODEDUPLICATION);
-        //type.invoke_dynamic(pdg, ret, args);
+        mixin(LOLCODEDUPLICATION);
+        type.invoke_dynamic(pdg, ret, args);
     }
 
     final void invoke_dynamic_trampoline(Object o,
         void delegate(SafePtr ret, SafePtr[] args, void delegate() call) jump)
     {
-        //mixin(LOLCODEDUPLICATION);
-        //type.invoke_dynamic_trampoline(pdg, jump);
+        mixin(LOLCODEDUPLICATION);
+        type.invoke_dynamic_trampoline(pdg, jump);
     }
 
     char[] toString() {

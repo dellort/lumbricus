@@ -6,7 +6,6 @@ import str = utils.string;
 import utils.misc;
 import tango.core.Tuple : Tuple;
 import tango.text.Util : delimiters;
-import utils.mytrace;
 import strparser = utils.strparser;
 import utils.configfile;
 import tango.core.Traits : isIntegerType, isRealType, isAssocArrayType;
@@ -15,7 +14,6 @@ import md = minid.api;
 import md_bind = minid.bind;
 
 debug import tango.core.stacktrace.TraceExceptions;
-debug import tracer = utils.mytrace; //some stack tracing stuff for Linux
 
 //Wrapper which uses our reflection to enable method calls from MiniD -> D
 //derived from Jarett's example code

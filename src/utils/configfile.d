@@ -209,6 +209,11 @@ public class ConfigNode {
         return node;
     }
 
+    //hurf
+    ConfigNode[] subNodesToArray() {
+        return mItems.dup;
+    }
+
     /// Find a subnode by following a path.
     /// Path component separator is "."
     public ConfigNode getPath(char[] path, bool create = false) {
@@ -1107,7 +1112,7 @@ public class ConfigFile {
     private static final const dchar EOF = 0xFFFF;
     private static final uint cMaxErrors = 100;
 
-    private FilePosition filePos(ref Position pos) {
+    private FilePosition filePos(Position pos) {
         FilePosition res;
         res.filename = mFilename;
         res.line = pos.line;

@@ -72,7 +72,7 @@ class GZWriter {
     static PipeOut Pipe(PipeOut writer) {
         auto w = new GZWriter(writer.do_write);
         w.close_fn = writer.do_close;
-        return PipeOut(&w.write, &w.finish);
+        return w.pipe();
     }
 
     private void zerror(int err) {
@@ -126,6 +126,7 @@ class GZWriter {
         }
         buffer_flush(true);
         czlib.deflateEnd(&zs);
+        delete buffer; //why do I need a buffer anyway?
         buffer = null;
         if (close_fn) {
             close_fn();
@@ -173,7 +174,7 @@ class GZReader {
     static PipeIn Pipe(PipeIn writer) {
         auto r = new GZReader(writer.do_read);
         r.close_fn = writer.do_close;
-        return PipeIn(&r.read, &r.finish2);
+        return r.pipe();
     }
 
     private void zerror(int err) {

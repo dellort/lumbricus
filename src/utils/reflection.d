@@ -2,12 +2,12 @@
 //Reflection? More like BLOATflection!
 module utils.reflection;
 
-import utils.reflect.arraytype;
-import utils.reflect.classdef;
-import utils.reflect.dgtype;
-import utils.reflect.safeptr;
-import utils.reflect.structtype;
-import utils.reflect.type;
+public import utils.reflect.arraytype;
+public import utils.reflect.classdef;
+public import utils.reflect.dgtype;
+public import utils.reflect.safeptr;
+public import utils.reflect.structtype;
+public import utils.reflect.type;
 public import utils.reflect.types;
 public import utils.reflect.refctor;
 

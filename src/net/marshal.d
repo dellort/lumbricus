@@ -319,7 +319,7 @@ final class Hasher {
         hash_value = 0;
     }
 
-    void hash(T)(ref T v) {
+    void hash(T)(T v) {
         if (enabled)
             Marshaller(&hash_raw).write!(T)(v);
     }

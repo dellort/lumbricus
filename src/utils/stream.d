@@ -429,5 +429,12 @@ class SliceStream : Stream {
     void close() {
         //you don't want to close the source stream
         //actually, the source stream should be ref-counted or so
+        //disable access to source stream, though
+        mSource = null;
+    }
+
+    //return null if closed
+    Stream source() {
+        return mSource;
     }
 }

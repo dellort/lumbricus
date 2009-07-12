@@ -16,6 +16,7 @@ import drawing = utils.drawing;
 import math = tango.math.Math;
 import digest = tango.io.digest.Digest;
 import md5 = tango.io.digest.Md5;
+import utils.reflection;
 
 debug import utils.perf;
 
@@ -29,7 +30,9 @@ class LandscapeBitmap {
     private int mWidth, mHeight;
     private Surface mImage;
     private Lexel[] mLevelData;
-    private Log mLog;
+    private static LogStruct!("levelrenderer") mLog;
+
+    static assert(Lexel.sizeof == 1);
 
     //blastHole: Distance from explosion outer circle to inner (free) circle
     private const int cBlastCenterDist = 25;
@@ -710,6 +713,9 @@ class LandscapeBitmap {
         return new LandscapeBitmap(mImage.subrect(rc), ndata, false);
     }
 
+    this(ReflectCtor c) {
+    }
+
     //create an empty Landscape of passed size
     //  dataOnly: false will also generate a textured Landscape bitmap,
     //            true only creates a Lexel[] (this.image will return null)
@@ -722,8 +728,6 @@ class LandscapeBitmap {
         else
             mLevelData.length = mWidth*mHeight;
         assert(mLevelData.length == mWidth*mHeight);
-
-        mLog = registerLog("levelrenderer");
 
         if (!dataOnly) {
             mImage = gFramework.createSurface(size, Transparency.Colorkey);

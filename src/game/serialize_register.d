@@ -12,7 +12,7 @@ import game.action, game.actionsprite, game.controller, game.crate, game.game,
     game.weapon.napalm, game.weapon.melee, game.weapon.jetpack, game.sequence,
     game.gamemodes.turnbased, game.gamemodes.turnbased_shared,
     game.gamemodes.mdebug, game.gamemodes.realtime, game.weapon.drill,
-    game.controller_plugins;
+    game.controller_plugins, game.levelgen.renderer;
 import physics.world;
 import utils.random;
 
@@ -39,7 +39,7 @@ void initGameSerialization() {
         TeamAction, AoEDamageAction, ImpulseAction, MeleeWeapon, MeleeShooter,
         ModeRealtime, RealtimeStatus, CollectableToolCrateSpy,
         CollectableToolDoubleTime, ControllerMsgs, ControllerStats,
-        ControllerPersistence, CollectableToolDoubleDamage);
+        ControllerPersistence, CollectableToolDoubleDamage, LandscapeBitmap);
     //stuff that is actually redundant and wouldn't need to be in savegames
     //but excluding this from savegames would be too much work for nothing
     //keeping them separate still makes sense if we ever need faster snapshots

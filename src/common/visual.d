@@ -33,7 +33,7 @@ void drawBox(Canvas c, in Rect2i rect, in BoxProperties props) {
     drawBox(c, rect.p1, rect.size, props);
 }
 
-void drawBox(Canvas c, ref Vector2i p, ref Vector2i s, ref BoxProperties props)
+void drawBox(Canvas c, Vector2i p, Vector2i s, BoxProperties props)
 {
     BoxProps bp;
     bp.p = props;

@@ -159,7 +159,7 @@ class AnimationGraphic : Graphic {
         super(c);
     }
 
-    final void update(ref Vector2i a_pos, ref AnimationParams a_params) {
+    final void update(Vector2i a_pos, AnimationParams a_params) {
         assert(!!owner);
         if (pos != a_pos) {
             pos = a_pos;
@@ -170,7 +170,7 @@ class AnimationGraphic : Graphic {
             last_position_change = owner.timebase.current();
         }
     }
-    final void update(ref Vector2i a_pos) {
+    final void update(Vector2i a_pos) {
         pos = a_pos;
     }
 

@@ -14,6 +14,7 @@ class TarArchive {
         Stream mFile;
         Entry[] mEntries;
         bool mReading;
+        SliceStream mCurrentWriter;
 
         struct Entry {
             char[] name;
@@ -126,8 +127,7 @@ class TarArchive {
         auto s = openReadStreamUncompressed(name, can_fail);
         if (!s)
             return PipeIn.Null;
-        auto r = new gzip.GZReader(&s.readUntilEof);
-        return r.pipe();
+        return gzip.GZReader.Pipe(s.pipeIn(true));
     }
 
     //open a file by openReadStream() and parse as config file
@@ -151,17 +151,17 @@ class TarArchive {
 
     //NOTE: sequential writing is assumed, e.g. only one stream at a time
     PipeOut openWriteStream(char[] name) {
-        startEntry(name ~ ".gz");
-        Stream o = new SliceStream(mFile, mFile.position());
-        auto w = new gzip.GZWriter(&o.writeExact);
-        return w.pipe();
+        Stream o = openUncompressed(name ~ ".gz");
+        return gzip.GZWriter.Pipe(o.pipeOut(true));
     }
 
     //NOTE: sequential writing is assumed, e.g. only one stream at a time
-    //this does the same as openWriteStream(), but it's incompressed
+    //this does the same as openWriteStream(), but it's uncompressed
     Stream openUncompressed(char[] name) {
         startEntry(name);
+        assert(!mCurrentWriter);
         auto s = new SliceStream(mFile, mFile.position());
+        mCurrentWriter = s;
         return s;
     }
 
@@ -171,7 +171,12 @@ class TarArchive {
         Entry* e = &mEntries[$-1];
         if (!e.writing)
             return;
+        if (mCurrentWriter && mCurrentWriter.source()) {
+            //because we can support only one writer at a moment
+            throw new Exception("previous tar sub-file not closed: "~e.name);
+        }
         e.writing = false;
+        mCurrentWriter = null;
         //SliceStream doesn't set parent seek position
         //so use the size to find out how much was written
         mFile.position = mFile.size;
