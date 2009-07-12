@@ -78,15 +78,21 @@ struct SafePtr {
     //           this is because SafePtr is always a pointer to the object
     //           reference, and casting interfaces might change the reference
     //           e.g. void* tmp; SafePtr p_tmp = x.mostSpecificClass(&tmp, ...)
-    SafePtr mostSpecificClass(void** memory, bool may_fail = false) {
+    //           if not provided, allocate on heap
+    SafePtr mostSpecificClass(void** memory = null, bool may_fail = false) {
         Object o = toObject();
+        ReferenceType* rt2;
         if (!o)
-            return SafePtr(null, null); //was a null reference
-        ReferenceType* rt2 = type.owner.findClassRef(o.classinfo);
-        if (!rt2 && !may_fail)
-            throw new Exception("class not found, maybe it is not reflected?");
-        if (!rt2)
+            return SafePtr.Null;
+        rt2 = type.owner.findClassRef(o.classinfo);
+        if (!rt2) {
+            if (!may_fail)
+                throw new Exception("class not found, maybe it is not "
+                    "reflected?");
             return SafePtr(null, null);
+        }
+        if (!memory)
+            memory = new void*;
         *memory = (*rt2).castTo(o);
         return SafePtr(*rt2, memory);
     }

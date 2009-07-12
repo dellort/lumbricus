@@ -69,6 +69,23 @@ class Types {
         return toSafePtr(typeid(T), &x);
     }
 
+    //pointer to an object, where the .type property refers to the exact type
+    //  of the object...:
+    //  Object o = ...; SafePtr ptr = types.objPtr(o);
+    //  assert(ptr.type.typeInfo is o.classinfo.typeinfo);
+    //if obj is null, type is Object
+    final SafePtr objPtr(Object x, void** memory = null) {
+        if (!memory)
+            memory = new void*;
+        //yes this could fail
+        Type t = tiToT(x.classinfo.typeinfo);
+        *memory = castStrict!(ReferenceType)(t).castTo(x);
+        SafePtr res;
+        res.ptr = memory;
+        res.type = t;
+        return res;
+    }
+
     final SafePtr toSafePtr(TypeInfo ti, void* ptr) {
         return SafePtr(tiToT(ti), ptr);
     }

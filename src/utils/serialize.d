@@ -4,6 +4,7 @@ import utils.configfile;
 import utils.reflect.all;
 import utils.misc;
 import utils.hashtable;
+import str = utils.string;
 
 import conv = tango.util.Convert;
 import tango.core.Traits : isIntegerType, isFloatingPointType;
@@ -65,6 +66,8 @@ class SerializeContext {
         CustomCreator creator;
         CustomReader reader;
         CustomWriter writer;
+        Type type;
+        char[] id;
     }
 
     private {
@@ -74,12 +77,13 @@ class SerializeContext {
         //ClassInfo[] mIgnored;
 
         RefHashTable!(TypeInfo, CustomSerialize) mCustomSerializers;
+        TypeInfo[char[]] mCustomSerializerNames;
     }
 
     alias void delegate(SafePtr data, void delegate(SafePtr) exchange) ExchDg;
     alias ExchDg CustomWriter;
     alias ExchDg CustomReader;
-    alias void delegate(SafePtr data) CustomCreator;
+    alias Object delegate() CustomCreator;
 
     this(Types a_types) {
         mTypes = a_types;
@@ -125,20 +129,38 @@ class SerializeContext {
     CustomSerialize* lookupCustomSerializer(TypeInfo t) {
         return find_cs(t, false);
     }
+    CustomSerialize* lookupCustomSerializer(char[] name) {
+        auto p = name in mCustomSerializerNames;
+        if (!p)
+            return null;
+        return *p in mCustomSerializers;
+    }
 
-    void addCustomSerializer(TypeInfo t, CustomCreator creator,
-        CustomReader reader, CustomWriter writer)
+    //add custom serialization for T
+    //the reader/writer callbacks are called on serialization/deserialization
+    //the creator callbacks is only needed for reference types, and is called
+    //  on deserialization
+    void addCustomSerializer(T)(CustomReader reader, CustomWriter writer,
+        CustomCreator creator)
     {
-        assert(creator && reader && writer);
+        auto mt = mTypes.getType!(T)();
+        auto t = typeid(T);
+        assert(reader && writer);
+        //only allowed / required for reference types
+        assert((!!cast(ReferenceType)mt) == (!!creator));
         auto s = find_cs(t, true);
         if (s.creator) {
             assert(s.creator is creator);
             assert(s.reader is reader);
             assert(s.writer is writer);
+            assert(s.type is mt);
         }
         s.creator = creator;
         s.reader = reader;
         s.writer = writer;
+        s.type = mt;
+        s.id = T.stringof; //just need some unique name
+        mCustomSerializerNames[s.id] = t;
     }
 
     /+
@@ -368,6 +390,7 @@ class SerializeOutConfig : SerializeConfig {
             typeError(ptr, "can't serialize ["~o.toString()~"]");
         Object defobj = klass.defaultValues();
         SafePtr defptr = mCtx.mTypes.ptrOf(defobj);
+
         debug (CountClasses) {
             auto pc = klass in mCounter;
             if (pc) {
@@ -376,9 +399,22 @@ class SerializeOutConfig : SerializeConfig {
                 mCounter[klass] = 1;
             }
         }
+
         auto node = file.getSubNode(mObject2Id[o]);
-        node["type"] = klass.name();
-        doWriteMembers(node, klass, ptr, defptr);
+        auto tnode = node.getSubNode("type");
+
+        //NOTE: ClassInfo.typeinfo was added somewhere >= dmd1.045
+        TypeInfo ti = o.classinfo.typeinfo;
+        if (auto cs = mCtx.lookupCustomSerializer(ti)) {
+            //custom serialization
+            tnode.value = "custom|" ~ cs.id;
+            SafePtr ptr2 = mCtx.mTypes.objPtr(o);
+            doWriteCustom(node, ptr2, *cs);
+        } else {
+            //normal serialization
+            tnode.value = klass.name();
+            doWriteMembers(node, klass, ptr, defptr);
+        }
         return true;
     }
 
@@ -416,20 +452,10 @@ class SerializeOutConfig : SerializeConfig {
         assert (!!klass);
         //each class in the inheritance hierarchy gets a node (structs not)
         bool is_struct = !!cast(StructType)klass.type();
-        if (is_struct) {
+
+        if (is_struct)
             assert (!klass.superClass());
-        } else {
-            //must do an extra check for classes here, because they take a
-            //  different path through doWriteNextObject
-            //(normal path writes object references only)
-            //also, make sure we have the "deepest" TypeInfo (from ClassInfo)
-            //NOTE: ClassInfo.typeinfo was added somewhere >= dmd1.045
-            TypeInfo ti = ptr.toObject().classinfo.typeinfo;
-            if (auto cs = mCtx.lookupCustomSerializer(ti)) {
-                doWriteCustom(cur, ptr, *cs);
-                return;
-            }
-        }
+
         Class ck = klass;
         while (ck) {
             //(not for structs)
@@ -439,7 +465,7 @@ class SerializeOutConfig : SerializeConfig {
             foreach (ClassMember m; ck.nontransientMembers()) {
                 SafePtr mptr = m.get(ptr);
                 SafePtr mdptr = defptr.ptr ? m.get(defptr) : SafePtr.Null;
-                doWriteMemberDef(dest, m.name(), mptr, mdptr);
+                doWriteMember(dest, m.name(), mptr, mdptr);
             }
             ck = ck.superClass();
         }
@@ -452,27 +478,34 @@ class SerializeOutConfig : SerializeConfig {
         return data.type.op_is(data, def);
     }
 
-    //similar to doWriteMember, but check for default values
-    private void doWriteMemberDef(ConfigNode parent, char[] name, SafePtr ptr,
-        SafePtr defptr)
+    private void doWriteMember(ConfigNode parent, char[] member_name,
+        SafePtr ptr, SafePtr defptr)
     {
-        //xxx: code duplication, double unneeded lookups, ...
-        if (auto cs = mCtx.lookupCustomSerializer(ptr.type.typeInfo())) {
-            doWriteCustom(parent.add(name), ptr, *cs);
+        //object references; always by ref, even for custom serialized types
+        if (cast(ReferenceType)ptr.type) {
+            if (is_def(ptr, defptr))
+                return;
+            auto member = parent.add(member_name);
+            member.value = queueObject(ptr.toObject());
             return;
         }
-        //to save space, don't write stuff if it's equal to the
-        //  enclosing (!) type's default value
-        if (!is_def(ptr, defptr))
-            doWriteMember(parent.add(name), ptr, defptr);
-    }
 
-    //write_obj = if ptr is an object, actually write members
-    private void doWriteMember(ConfigNode member, SafePtr ptr, SafePtr defptr) {
         if (auto cs = mCtx.lookupCustomSerializer(ptr.type.typeInfo())) {
+            auto member = parent.add(member_name);
             doWriteCustom(member, ptr, *cs);
             return;
         }
+
+        //to save space, don't write stuff if it's equal to the
+        //  enclosing (!) type's default value
+        //only for normal serialization
+        if (is_def(ptr, defptr))
+            return;
+
+        auto member = parent.add(member_name);
+
+        //normal serialization
+
         if (auto et = cast(EnumType)ptr.type) {
             //dirty trick: do as if it was an integer; should be bitcompatible
             //don't try this at home!
@@ -482,13 +515,6 @@ class SerializeOutConfig : SerializeConfig {
         }
         if (cast(BaseType)ptr.type) {
             member.value = convBaseType(ptr);
-            return;
-        }
-        if (cast(ReferenceType)ptr.type) {
-            //object references
-            char[] id = queueObject(ptr.toObject());
-            if (id != "")
-                member.value = id;
             return;
         }
         if (auto st = cast(StructType)ptr.type) {
@@ -516,7 +542,11 @@ class SerializeOutConfig : SerializeConfig {
                 SafePtr eptr = arr.get(i);
                 //about default value: if it's a static array, and if we have
                 //  defptr, we could call getArray/get on it and pass it here
-                doWriteMember(sub.add(), eptr, SafePtr.Null);
+                //for dynamic array, you could use the array item type's default
+                //  initializer
+                //warning: if we go back to checking default values, you must
+                //  make sure array items are skipped on reading as well
+                doWriteMember(sub, "", eptr, SafePtr.Null);
             }
             return;
         }
@@ -524,8 +554,8 @@ class SerializeOutConfig : SerializeConfig {
             auto sub = member;
             map.iterate(ptr, (SafePtr key, SafePtr value) {
                 auto subsub = sub.add();
-                doWriteMember(subsub.add("k"), key, SafePtr.Null);
-                doWriteMember(subsub.add("v"), value, SafePtr.Null);
+                doWriteMember(subsub, "k", key, SafePtr.Null);
+                doWriteMember(subsub, "v", value, SafePtr.Null);
             });
             return;
         }
@@ -583,7 +613,9 @@ class SerializeOutConfig : SerializeConfig {
     private void doWriteCustom(ConfigNode cur, SafePtr ptr,
         SerializeContext.CustomSerialize cs)
     {
-        assert(false);
+        cs.writer(ptr, (SafePtr write) {
+            doWriteMember(cur, "", ptr, SafePtr.Null);
+        });
     }
 
     override void writeDynamic(SafePtr o) {
@@ -591,7 +623,8 @@ class SerializeOutConfig : SerializeConfig {
         //when writing an object, this is like serializing a
         //  struct { Object o; }
         //in other words, this will only write an object reference into cur
-        doWriteMember(cur.getSubNode("data"), o, o.type.initPtr());
+        //that's required to keep referential integrity
+        doWriteMember(cur, "data", o, o.type.initPtr());
         while (doWriteNextObject(cur.getSubNode("objects"))) {}
     }
 
@@ -680,10 +713,13 @@ class SerializeInConfig : SerializeConfig {
             Object o;
         }
         QO[] objects;
+        //preallocation trick...
+        objects.length = onode.count();
+        objects.length = 0;
         //read all objects without members
         foreach (ConfigNode node; onode) {
-            if (node.value.length)
-                continue;
+            //if (node.value.length)
+            //    continue;
             //actually deserialize
             int oid = -1;
             if (node.name.length > 0 && node.name[0] == '#') {
@@ -695,21 +731,42 @@ class SerializeInConfig : SerializeConfig {
             //error here, because this contains object nodes only
             if (oid < 0)
                 throw new SerializeError("malformed ID: "~node.name);
+            Object obj;
+            Class klass;
             char[] type = node["type"];
-            Class klass = mCtx.mTypes.findClassByName(type);
-            if (!klass)
-                throw new SerializeError("class not found: "~type);
-            Object res = klass.newInstance();
-            if (!res)
-                throw new SerializeError("class could not be instantiated: "
-                    ~type);
-            mId2Object[oid] = res;
-            objects ~= QO(node, klass, res);
+            if (str.eatStart(type, "custom|")) {
+                auto cs = mCtx.lookupCustomSerializer(type);
+                if (!cs)
+                    throw new SerializeError("custom serializer not found for: "
+                        ~type);
+                assert(!!cs.creator);
+                obj = cs.creator();
+                assert(!!obj);
+            } else {
+                klass = mCtx.mTypes.findClassByName(type);
+                if (!klass)
+                    throw new SerializeError("class not found: "~type);
+                obj = klass.newInstance();
+                if (!obj)
+                    throw new SerializeError("class could not be instantiated: "
+                        ~type);
+            }
+            mId2Object[oid] = obj;
+            objects ~= QO(node, klass, obj);
         }
         //set all members
         foreach (qo; objects) {
             SafePtr ptr = mCtx.mTypes.ptrOf(qo.o);
-            doReadMembers(qo.node, qo.klass, ptr);
+
+            if (qo.klass) {
+                doReadMembers(qo.node, qo.klass, ptr);
+            } else {
+                TypeInfo ti = qo.o.classinfo.typeinfo;
+                auto cs = mCtx.lookupCustomSerializer(ti);
+                assert(!!cs);
+                SafePtr ptr2 = mCtx.mTypes.objPtr(qo.o);
+                doReadCustom(qo.node, ptr2, *cs);
+            }
         }
     }
 
@@ -719,6 +776,7 @@ class SerializeInConfig : SerializeConfig {
         assert (!!klass);
         //each class in the inheritance hierarchy gets a node (structs not)
         bool is_struct = !!cast(StructType)klass.type();
+
         Class ck = klass;
         //urgh, should have a ConfigNode iterator or so
         void doit(ConfigNode dest) {
@@ -751,10 +809,20 @@ class SerializeInConfig : SerializeConfig {
     }
 
     private void doReadMember(ConfigNode member, SafePtr ptr) {
+        //object references
+        if (auto rt = cast(ReferenceType)ptr.type) {
+            Object o = getObject(member.value);
+            if (!ptr.castAndAssignObject(o))
+                throw new SerializeError("can't assign, t="~ptr.type.toString
+                    ~", o="~(o?o.classinfo.name:"null"));
+            return;
+        }
+
         if (auto cs = mCtx.lookupCustomSerializer(ptr.type.typeInfo())) {
             doReadCustom(member, ptr, *cs);
             return;
         }
+
         if (auto et = cast(EnumType)ptr.type) {
             //dirty trick...
             ptr.type = et.underlying();
@@ -762,14 +830,6 @@ class SerializeInConfig : SerializeConfig {
         }
         if (cast(BaseType)ptr.type) {
             unconvBaseType(ptr, member.value);
-            return;
-        }
-        if (auto rt = cast(ReferenceType)ptr.type) {
-            //object references
-            Object o = getObject(member.value);
-            if (!ptr.castAndAssignObject(o))
-                throw new SerializeError("can't assign, t="~ptr.type.toString
-                    ~", o="~(o?o.classinfo.name:"null"));
             return;
         }
         if (auto st = cast(StructType)ptr.type) {
@@ -890,14 +950,27 @@ class SerializeInConfig : SerializeConfig {
     private void doReadCustom(ConfigNode cur, SafePtr ptr,
         SerializeContext.CustomSerialize cs)
     {
-        assert(false);
+        ConfigNode[] sub;
+        foreach (ConfigNode s; cur) {
+            sub ~= s;
+        }
+        cs.reader(ptr, (SafePtr read) {
+            if (!sub.length)
+                throw new SerializeError("no more data for custom deserializer");
+            doReadMember(sub[0], ptr);
+            sub = sub[1..$];
+        });
     }
 
     override void readDynamic(SafePtr p) {
+        //clear data before deserializing (just ensure correct default values)
+        p.type.assign(p, p.type.initPtr());
+
         if (!mEntryNodes.length)
             throw new SerializeError("no more objects for readObject()");
         ConfigNode cur = mEntryNodes[0];
         mEntryNodes = mEntryNodes[1..$];
+
         doReadObjects(cur.getSubNode("objects"));
         doReadMember(cur.getSubNode("data"), p);
     }
