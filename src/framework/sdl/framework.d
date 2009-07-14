@@ -590,7 +590,9 @@ class SDLDriver : FrameworkDriver {
             return;
         setLockMouse(state.mouse_locked);
         SDL_WM_GrabInput(state.grab_input ? SDL_GRAB_ON : SDL_GRAB_OFF);
-        SDL_ShowCursor(state.mouse_visible ? SDL_ENABLE : SDL_DISABLE);
+        //NOTE: ShowCursor is buggy, don't use (Windows, fullscreen)
+        //SetCursor is used instead
+        //SDL_ShowCursor(state.mouse_visible ? SDL_ENABLE : SDL_DISABLE);
         //Derelict's SDL_QUERY is wrong, which caused me some hours of debugging
         //derelict/sdl/events.d ->
         //   enum : Uint8 {
@@ -599,8 +601,7 @@ class SDLDriver : FrameworkDriver {
         //but it really should be -1, not 255
         //so this call did crap: SDL_ShowCursor(SDL_QUERY);
         // WHO THE FUCK DID COME UP WITH "enum : Uint8"??? RAGE RAGE RAGE RAGE
-        //I even thought hiding the cursor didn't work at all, so I had this:
-        //SDL_SetCursor(state.mouse_visible ? mCursorStd : mCursorNull);
+        SDL_SetCursor(state.mouse_visible ? mCursorStd : mCursorNull);
         mInputState = state;
     }
 

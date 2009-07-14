@@ -137,7 +137,7 @@ struct ArrayReader {
         size_t s = min(d.length, data.length);
         d[0..s] = data[0..s];
         data = data[s..$];
-        return d;
+        return d[0..s];
     }
 
     PipeIn pipe() {

@@ -120,8 +120,8 @@ private class ConfigManager {
     ubyte[] saveConfigGzBuf(ConfigNode node) {
         ArrayWriter a;
         auto w = GZWriter.Pipe(a.pipe());
-        scope(exit) w.close();
         node.writeFile(w);
+        w.close();
         return a.data();
     }
 
