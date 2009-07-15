@@ -6,7 +6,8 @@ import game.animation;
 import game.game;
 import game.gamepublic;
 import game.sequence;
-import game.action;
+import game.action.base;
+import game.action.wcontext;
 import game.sprite;
 import game.weapon.weapon;
 import physics.world;
@@ -26,10 +27,8 @@ class ActionSprite : GObjectSprite {
     bool doubleDamage;
 
     private {
-        Action mCreateAction, mStateAction;
-
-        Action[] mActiveActionsGlobal;
-        Action[] mActiveActionsState;
+        ActionContext[] mActiveActionsGlobal;
+        ActionContext[] mActiveActionsState;
 
         bool mEnableEvents = true;
 
@@ -92,7 +91,7 @@ class ActionSprite : GObjectSprite {
         doEvent("oncreate", true);
     }
 
-    private void cleanActiveActions(ref Action[] actionsList) {
+    private void cleanActiveActions(ref ActionContext[] actionsList) {
         //check an array of actions for actions still running and stop
         foreach (a; actionsList) {
             if (a.active)
@@ -130,21 +129,13 @@ class ActionSprite : GObjectSprite {
         mFireInfo.info.surfNormal = mLastImpactNormal;
     }
 
-    protected MyBox readParam(char[] id) {
-        switch (id) {
-            case "sprite":
-                return MyBox.Box(this);
-            case "owner_sprite":
-                return MyBox.Box(cast(GObjectSprite)this);
-            case "created_by":
-                return MyBox.Box(cast(GameObject)this);
-            case "fireinfo":
-                //get current FireInfo data (physics)
-                updateFireInfo();
-                return MyBox.Box(mFireInfo);
-            default:
-                return MyBox();
-        }
+    WeaponContext createContext() {
+        auto ctx = new WeaponContext(engine);
+        ctx.ownerSprite = this;
+        ctx.createdBy = this;
+        updateFireInfo();
+        ctx.fireInfo = mFireInfo;
+        return ctx;
     }
 
     ///runs a sprite-specific event defined in the config file
@@ -162,15 +153,13 @@ class ActionSprite : GObjectSprite {
             else ac = type.actions.action(id);
             if (ac) {
                 //run action if found
-                auto a = ac.createInstance(engine);
-                auto ctx = new ActionContext(&readParam);
-                //ctx.activityCheck = &activity;
-                a.execute(ctx);
-                if (a.active) {
+                auto ctx = createContext();
+                ac.execute(ctx);
+                if (!ctx.done) {
                     //action still reports active after execute call, so add
                     //it to the active actions list to allow later cleanup
-                    if (state) mActiveActionsState ~= a;
-                    else mActiveActionsGlobal ~= a;
+                    if (state) mActiveActionsState ~= ctx;
+                    else mActiveActionsGlobal ~= ctx;
                 }
             }
         }
@@ -211,7 +200,6 @@ class ActionSprite : GObjectSprite {
 
     this (ReflectCtor c) {
         super(c);
-        c.types().registerMethod(this, &readParam, "readParam");
         c.types().registerMethod(this, &physDamage, "physDamage");
         c.types().registerMethod(this, &physImpact, "physImpact");
     }
@@ -318,9 +306,5 @@ class ActionSpriteClass : GOSpriteClass {
 
     override protected ActionStateInfo createStateInfo() {
         return new ActionStateInfo();
-    }
-
-    static this() {
-        SpriteClassFactory.register!(typeof(this))("actionsprite_mc");
     }
 }

@@ -47,7 +47,7 @@ class CmdNetClientTask : Task {
         Window mConnectWnd;
         Widget mDirectMarker;
 
-        const cRefreshInterval = timeSecs(3);
+        const cRefreshInterval = timeSecs(2);
         int mMode = -1;
         AnnounceSt[] mAnnounce;
         char[][] mCurServers;

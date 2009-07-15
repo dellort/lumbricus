@@ -3,10 +3,9 @@ module game.weapon.ray;
 import game.game;
 import game.gobject;
 import physics.world;
-import game.action;
+import game.action.base;
 import game.sprite;
 import game.weapon.weapon;
-import game.weapon.projectile;
 import game.gamepublic;
 import game.weapon.actionweapon;
 import tango.math.Math: PI;
@@ -60,7 +59,7 @@ class RayShooter: ActionShooter {
         super(c);
     }
 
-    override void fireRound(Action sender) {
+    override void fireRound() {
         //shoot the ray with random spread and adjust fireinfo
         float a = base.spread*engine.rnd.nextDouble() - base.spread/2.0f;
         float dist = owner.physics.posp.radius + 2;
@@ -84,7 +83,7 @@ class RayShooter: ActionShooter {
         }
     }
 
-    override void roundFired(Action sender) {
+    override void roundFired() {
         //no reduceAmmo here
     }
 

@@ -2,13 +2,13 @@ module game.weapon.projectile;
 
 import framework.framework;
 import physics.world;
-import game.action;
+import game.action.base;
+import game.action.wcontext;
 import game.actionsprite;
 import game.game;
 import game.gobject;
 import game.sprite;
 import game.sequence;
-import game.spriteactions;
 import game.gamepublic;
 import game.particles : ParticleType;
 import game.weapon.weapon;
@@ -162,13 +162,10 @@ class ProjectileSprite : ActionSprite {
         super.die();
     }
 
-    protected MyBox readParam(char[] id) {
-        switch (id) {
-            case "feedback":
-                return MyBox.Box(mFeedback);
-            default:
-                return super.readParam(id);
-        }
+    override WeaponContext createContext() {
+        auto ctx = super.createContext();
+        ctx.feedback = mFeedback;
+        return ctx;
     }
 
     this(GameEngine engine, ProjectileSpriteClass type) {
@@ -304,105 +301,7 @@ class ProjectileSpriteClass : ActionSpriteClass {
 
     static this() {
         SpriteClassFactory.register!(typeof(this))("projectile_mc");
-    }
-}
-
-//------------------------------------------------------------------------
-
-class HomingAction : SpriteAction {
-    private {
-        HomingActionClass myclass;
-        ObjectForce objForce;
-        ConstantForce homingForce;
-    }
-
-    this(HomingActionClass base, GameEngine eng) {
-        super(base, eng);
-        myclass = base;
-    }
-
-    this (ReflectCtor c) {
-        super(c);
-    }
-
-    protected ActionRes initDeferred() {
-        assert(!!(cast(ProjectileSprite)mParent),
-            "Homing action only valid for projectiles");
-        homingForce = new ConstantForce();
-        objForce = new ObjectForce(homingForce, mParent.physics);
-        engine.physicworld.add(objForce);
-        return ActionRes.moreWork;
-    }
-
-    protected void cleanupDeferred() {
-        objForce.dead = true;
-    }
-
-    override void simulate(float deltaT) {
-        super.simulate(deltaT);
-        Vector2f totarget = (cast(ProjectileSprite)mParent).target
-            - mParent.physics.pos;
-        //accelerate/brake
-        Vector2f cmpAccel = totarget.project_vector(
-            mParent.physics.velocity);
-        float al = cmpAccel.length;
-        float ald = totarget.project_vector_len(
-            mParent.physics.velocity);
-        //steering
-        Vector2f cmpTurn = totarget.project_vector(
-            mParent.physics.velocity.orthogonal);
-        float tl = cmpTurn.length;
-
-        Vector2f fAccel, fTurn;
-        //acceleration force
-        if (al > float.epsilon)
-            fAccel = cmpAccel/al*myclass.forceA;
-        //turn force
-        if (tl > float.epsilon) {
-            fTurn = cmpTurn/tl*myclass.forceT;
-            if (ald > float.epsilon && 2.0f*tl < al) {
-                //when flying towards target and angle is small enough, limit
-                //  turning force to fly a nice arc
-                Vector2f v1 = cmpTurn/tl;
-                Vector2f v2 = v1 - 2*v1.project_vector(totarget);
-                //compute radius of circle trajectory
-                float r =  (totarget.y*v2.x - totarget.x*v2.y)
-                    /(v2.x*v1.y - v1.x*v2.y);
-                //  a = v^2 / r ; F = m * a
-                float fOpt_val = mParent.physics.posp.mass
-                    * mParent.physics.velocity.quad_length / r;
-                //turn slower if we will still hit dead-on
-                if (fOpt_val < myclass.forceT)
-                    fTurn = fOpt_val*cmpTurn/tl;
-            }
-        }
-        homingForce.force = fAccel + fTurn;
-    }
-}
-
-class HomingActionClass : SpriteActionClass {
-    float forceA, forceT;
-    //float velocityInfluence = 0.001f;
-
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
-    }
-    this () {
-    }
-
-    void loadFromConfig(GameEngine eng, ConfigNode node) {
-        super.loadFromConfig(eng, node);
-        forceA = node.getIntValue("force_a",100);
-        forceT = node.getIntValue("force_t",100);
-        //velocityInfluence = node.getFloatValue("velocity_influence", 0.001f);
-    }
-
-    HomingAction createInstance(GameEngine eng) {
-        return new HomingAction(this, eng);
-    }
-
-    static this() {
-        ActionClassFactory.register!(typeof(this))("homing");
+        //cyclic dependency error...
+        SpriteClassFactory.register!(ActionSpriteClass)("actionsprite_mc");
     }
 }

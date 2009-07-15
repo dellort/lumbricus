@@ -67,13 +67,16 @@ import utils.stream;
 import tango.io.device.File : File;
 
 //these imports register classes in a factory on module initialization
+import game.action.common;
+import game.action.list;
+import game.action.spawn;
+import game.action.weaponactions;
+import game.action.spriteactions;
 import game.weapon.projectile;
-import game.weapon.special_weapon;
 import game.weapon.rope;
 import game.weapon.jetpack;
 import game.weapon.drill;
 import game.weapon.ray;
-import game.weapon.spawn;
 import game.weapon.napalm;
 import game.weapon.melee;
 //import game.weapon.luaweapon;

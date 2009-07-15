@@ -10,7 +10,7 @@ import game.sequence;
 import game.weapon.weapon;
 import game.sprite;
 import game.actionsprite;
-import game.action;
+import game.action.base;
 import game.weapon.actionweapon;
 import game.temp;
 import utils.misc;
@@ -73,10 +73,9 @@ class CollectableWeapon : Collectable {
         //xxx maybe make this more generic
         auto aw = cast(ActionWeapon)weapon;
         if (aw && aw.onBlowup) {
-            auto ac = aw.onBlowup.createInstance(parent.engine);
             //run in context of parent crate
-            auto ctx = new ActionContext(&parent.readParam);
-            ac.execute(ctx);
+            auto ctx = parent.createContext;
+            aw.onBlowup.execute(ctx);
         }
     }
 }

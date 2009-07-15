@@ -3,7 +3,8 @@ module game.weapon.actionweapon;
 import framework.framework;
 import game.animation;
 import physics.world;
-import game.action;
+import game.action.base;
+import game.action.wcontext;
 import game.actionsprite;
 import game.game;
 import game.gobject;
@@ -54,7 +55,7 @@ class ActionWeapon : WeaponClass {
 class ActionShooter : Shooter, ProjectileFeedback {
     private {
         ActionWeapon myclass;
-        Action mFireAction;
+        ActionContext mFireAction;
         //holds a list of sprites that can execute the onrefire event
         ProjectileSprite[] mRefireSprites;
     }
@@ -68,10 +69,9 @@ class ActionShooter : Shooter, ProjectileFeedback {
 
     this (ReflectCtor c) {
         super(c);
-        c.types().registerMethod(this, &fireFinish, "fireFinish");
+        /*c.types().registerMethod(this, &fireFinish, "fireFinish");
         c.types().registerMethod(this, &fireRound, "fireRound");
-        c.types().registerMethod(this, &roundFired, "roundFired");
-        c.types().registerMethod(this, &fireReadParam, "fireReadParam");
+        c.types().registerMethod(this, &roundFired, "roundFired");*/
     }
 
     bool activity() {
@@ -83,10 +83,7 @@ class ActionShooter : Shooter, ProjectileFeedback {
         return !!mFireAction;
     }
 
-    void fireFinish(Action sender) {
-        //xxx no list? so run after-loop event manually
-        if (!cast(ActionList)sender)
-            roundFired(sender);
+    void fireFinish() {
         mFireAction = null;
         if (!activity)
             finished();
@@ -97,19 +94,13 @@ class ActionShooter : Shooter, ProjectileFeedback {
         return mRefireSprites.length > 0;
     }
 
-    protected MyBox fireReadParam(char[] id) {
-        switch (id) {
-            case "fireinfo":
-                return MyBox.Box(fireInfo);
-            case "owner_sprite":
-                return MyBox.Box!(GObjectSprite)(owner);
-            case "created_by":
-                return MyBox.Box!(GameObject)(this);
-            case "feedback":
-                return MyBox.Box!(ProjectileFeedback)(this);
-            default:
-                return MyBox();
-        }
+    WeaponContext createContext() {
+        auto ctx = new WeaponContext(engine);
+        ctx.fireInfo = fireInfo;
+        ctx.ownerSprite = owner;
+        ctx.createdBy = this;
+        ctx.feedback = this;
+        return ctx;
     }
 
     //interface ProjectileFeedback.addSprite
@@ -124,13 +115,13 @@ class ActionShooter : Shooter, ProjectileFeedback {
             finished();
     }
 
-    void fireRound(Action sender) {
+    void fireRound() {
         //if the outer fire action is a list, called every loop, else once
         //before firing
         fireInfo.info.pos = owner.physics.pos;
     }
 
-    void roundFired(Action sender) {
+    void roundFired() {
         //called after every loop
         reduceAmmo();
     }
@@ -151,12 +142,9 @@ class ActionShooter : Shooter, ProjectileFeedback {
         fireInfo.info = info;
         fireInfo.info.shootbyRadius = owner.physics.posp.radius;
         //create firing action
-        mFireAction = myclass.onFire.createInstance(engine);
-        mFireAction.onFinish = &fireFinish;
-        //set parameters and let action do the rest
-        //parameter stuff is a big xxx
+        mFireAction = createContext();
 
-        //xxx this is hacky
+        /*//xxx this is hacky
         auto al = cast(ActionList)mFireAction;
         if (al) {
             al.onStartLoop = &fireRound;
@@ -164,10 +152,16 @@ class ActionShooter : Shooter, ProjectileFeedback {
         } else {
             //no list? so just one-time call when mFireAction is run
             mFireAction.onExecute = &fireRound;
-        }
+        }*/
 
-        auto ctx = new ActionContext(&fireReadParam);
-        mFireAction.execute(ctx);
+        fireRound();
+        myclass.onFire.execute(mFireAction);
+        if (mFireAction.done()) {
+            roundFired();
+            fireFinish();
+        } else {
+            active = true;
+        }
 
         //wut?
         /+
@@ -206,6 +200,14 @@ class ActionShooter : Shooter, ProjectileFeedback {
         else if (canRefire()) {
             mRefireSprites = null;
             finished();
+        }
+    }
+
+    override void simulate(float deltaT) {
+        super.simulate(deltaT);
+        if (mFireAction && mFireAction.done()) {
+            roundFired();
+            fireFinish();
         }
     }
 }

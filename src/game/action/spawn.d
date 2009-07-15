@@ -1,11 +1,11 @@
-module game.weapon.spawn;
+module game.action.spawn;
 
-import game.action;
+import game.action.base;
+import game.action.wcontext;
 import game.game;
 import game.gobject;
 import game.sprite;
 import game.actionsprite;
-import game.weapon.actions;
 import game.weapon.weapon;
 import game.weapon.projectile;
 import utils.configfile;
@@ -176,46 +176,22 @@ class SpawnActionClass : ActionClass {
     this (ReflectCtor c) {
         super(c);
     }
-    this () {
-    }
-
-    void loadFromConfig(GameEngine eng, ConfigNode node) {
+    this (GameEngine eng, ConfigNode node) {
         sparams.loadFromConfig(node);
     }
 
-    SpawnAction createInstance(GameEngine eng) {
-        return new SpawnAction(this, eng);
+    void execute(ActionContext ctx) {
+        auto wx = cast(WeaponContext)ctx;
+        if (!wx || wx.fireInfo.info.pos.isNaN)
+            return;
+        //use ActionList looping for delayed spawns
+        for (int n = 0; n < sparams.count; n++) {
+            spawnsprite(ctx.engine, n, sparams, wx.fireInfo.info,
+                wx.createdBy, wx.feedback, wx.doubleDamage());
+        }
     }
 
     static this() {
         ActionClassFactory.register!(typeof(this))("spawn");
-    }
-}
-
-class SpawnAction : WeaponAction {
-    private {
-        SpawnActionClass myclass;
-    }
-
-    this(SpawnActionClass base, GameEngine eng) {
-        super(base, eng);
-        myclass = base;
-    }
-
-    this (ReflectCtor c) {
-        super(c);
-    }
-
-    override protected ActionRes initialStep() {
-        super.initialStep();
-        auto rft = context.getParDef!(ProjectileFeedback)("feedback", null);
-        if (!mFireInfo.info.pos.isNaN) {
-            //delay is not used, use ActionList looping for this
-            for (int n = 0; n < myclass.sparams.count; n++) {
-                spawnsprite(engine, n, myclass.sparams, mFireInfo.info,
-                    mCreatedBy, rft, doubleDamage());
-            }
-        }
-        return ActionRes.done;
     }
 }

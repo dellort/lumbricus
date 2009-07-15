@@ -2,13 +2,11 @@ module game.weapon.napalm;
 
 import framework.framework;
 import game.animation;
-import game.action;
 import game.actionsprite;
 import game.game;
 import game.gobject;
 import game.sprite;
 import game.sequence;
-import game.spriteactions;
 import game.weapon.weapon;
 import game.weapon.projectile;
 import physics.world;

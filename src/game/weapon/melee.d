@@ -3,7 +3,7 @@ module game.weapon.melee;
 import game.game;
 import game.gobject;
 import physics.world;
-import game.action;
+import game.action.base;
 import game.sprite;
 import game.weapon.weapon;
 import game.gamepublic;
@@ -54,14 +54,14 @@ class MeleeShooter: ActionShooter {
         super(c);
     }
 
-    override void fireRound(Action sender) {
+    override void fireRound() {
         fireInfo.info.pos = owner.physics.pos + fireInfo.info.dir*base.dist;
 
         //away from shooting object, so don't use radius
         fireInfo.info.shootbyRadius = 0;
     }
 
-    override void roundFired(Action sender) {
+    override void roundFired() {
         //no reduceAmmo here
     }
 

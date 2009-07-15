@@ -20,12 +20,12 @@
 - Superschaf fliegt auch 15sec weiter, wenn der Wurm nicht mehr dran ist
 - Flammenwerfer braucht 1 Munition für jedes Napalm-Partikel
 - Feuerrichtung der "Seil-Waffe" kann geändert werden, während das Anker-Dings rausfliegt
-! Action-Zeug produziert unnötig viele Klassen (Bsp: game.weapon.actions.ExplosionAction)
 - Schwarzes Loch kann ertrinkende Würmer aus dem Wasser saugen; Ideen:
   a) Unterwasser-Objekte dürfen sich nicht aufwärts bewegen
   b) Würmern erlauben, das Wasser wieder zu verlassen (und Zustand korrigieren)
 - Bohrer/Lötlampe stoßen Würmer nicht weg
 - Projektil fliegt durch wenige Pixel dicke Landschaft, wenn der Wurm beim Feuern direkt davorsteht
+- Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
 
 
 == GUI (allgemeine Features) ==
@@ -88,6 +88,7 @@
 - hashcheck für savegames und insbesondere netzwerklevels
 + beliebige game objekte in vorgenerierten leveln (ähnlich minen, aber vom leveldesigner platziert, beispiel: feste levelränder als objekte)
 - Objekt-/Brückenplatzierung überarbeiten (Decke, Wand links/rechts etc.)
+- Objekte und Brücken sind jede Runde anders platziert
 
 
 == Netzwerk ==

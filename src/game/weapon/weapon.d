@@ -160,6 +160,7 @@ abstract class Shooter : GameObject {
         if (!mWorking)
             return;
         mWorking = false;
+        active = false;
         if (finishCb)
             finishCb(this);
     }

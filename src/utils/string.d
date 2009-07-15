@@ -261,6 +261,9 @@ char[][] ctfe_split(char[] s, char sep) {
         }
     }
     ps ~= s;
+    //same as standard split
+    if (ps.length == 1 && ps[0] == "")
+        return [];
     return ps;
 }
 
