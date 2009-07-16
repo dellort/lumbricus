@@ -18,7 +18,6 @@
 - wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
 ! napalm ist sehr langsam, minenagriff nicht => ?
 - Superschaf fliegt auch 15sec weiter, wenn der Wurm nicht mehr dran ist
-- Flammenwerfer braucht 1 Munition für jedes Napalm-Partikel
 - Feuerrichtung der "Seil-Waffe" kann geändert werden, während das Anker-Dings rausfliegt
 - Schwarzes Loch kann ertrinkende Würmer aus dem Wasser saugen; Ideen:
   a) Unterwasser-Objekte dürfen sich nicht aufwärts bewegen
@@ -77,8 +76,8 @@
 - Napalm verbessern (Ruckeln verhindern, Würmer mehr wegstoßen, vll. etwas "klebriger" machen)
 - Molotov-Cocktail brennt über mehrere Züge
 + Luftangriff-Steuerung (Mauszeiger, links/rechts)
-+ Waffen mit mehreren Schuss pro Munitions-Einheit (z.B. Schrotflinte); siehe "Flammenwerfer" bei bekannte Bugs
 + Waffen-Cooldown (z.B. für Napalmangriff; Wartezeit von x Sek. bis zum nächsten Schuss, Waffe bleibt aber ausgewählt)
++ Anzahl Projektile über Tasten 1-5 einstellen (Rindviecher)
 
 ! Steuerung entrümpeln, unabhängig von Würmern machen (worm.d)
 

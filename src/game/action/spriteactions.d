@@ -39,7 +39,7 @@ static this() {
         ("gravitycenter");
     regAction!(proximitySensor, "duration, radius = 20, trigger_delay = 1s,"
         ~ "collision = proxsensor, event = ontrigger")("proximitysensor");
-    regAction!(walker, "duration, inverse_direction")("walker");
+    regAction!(walker, "inverse_direction")("walker");
     regAction!(randomJump, "duration, jump_strength = 100 -100,"
         ~ "jumps_per_sec = 1")("random_jump");
     regAction!(stuckTrigger, "duration, trigger_delay = 250ms, treshold = 5,"
@@ -75,11 +75,17 @@ void proximitySensor(WeaponContext wx, Time duration, float radius,
         collision, eventId));
 }
 
-void walker(WeaponContext wx, Time duration, bool inverseDirection) {
-    auto as = cast(ActionSprite)wx.ownerSprite;
-    if (!as)
+//makes the parent projectile walk in looking direction
+//it will keep walking forever
+void walker(WeaponContext wx, bool inverseDirection) {
+    if (!wx.ownerSprite)
         return;
-    wx.putObj(new WalkerAction(as, duration, inverseDirection));
+    Vector2f walk = Vector2f.fromPolar(1.0f, wx.ownerSprite.physics.lookey);
+    walk.y = 0;
+    walk = walk.normal;
+    if (inverseDirection)
+        walk.x = -walk.x;
+    wx.ownerSprite.physics.setWalking(walk);
 }
 
 void randomJump(WeaponContext wx, Time duration, Vector2f jumpStrength,
@@ -210,28 +216,6 @@ class ProximitySensorAction : SpriteAction {
             //xxx implement multi-activation sensors
             kill();
         }
-    }
-}
-
-//makes the parent projectile walk in looking direction
-class WalkerAction : SpriteAction {
-    this(ActionSprite parent, Time duration, bool inverseDirection) {
-        super(parent, duration);
-        Vector2f walk = Vector2f.fromPolar(1.0f, mParent.physics.lookey);
-        walk.y = 0;
-        walk = walk.normal;
-        if (inverseDirection)
-            walk.x = -walk.x;
-        mParent.physics.setWalking(walk);
-    }
-
-    this (ReflectCtor c) {
-        super(c);
-    }
-
-    override protected void updateActive() {
-        if (!active)
-            mParent.physics.setWalking(Vector2f(0));
     }
 }
 

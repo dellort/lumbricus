@@ -20,10 +20,14 @@ import utils.configfile;
 import utils.log;
 import utils.factory;
 import utils.reflection;
+import utils.time;
+import utils.randval;
 
 class ActionWeapon : WeaponClass {
     ActionClass onFire, onBlowup;
-    //bool waitRefire = false;
+    int repeatCount = 1;      //how many shots will be fired on one activation
+    int reduceAmmo = int.max; //take 1 ammo every x bullets (and always at end)
+    RandomValue!(Time) repeatDelay = {Time.Null, Time.Null};
 
     //xxx class
     this (ReflectCtor c) {
@@ -34,11 +38,25 @@ class ActionWeapon : WeaponClass {
         super(aengine, node);
         onFire = actionFromConfig(aengine, node.getSubNode("onfire"));
         onBlowup = actionFromConfig(aengine, node.getSubNode("onblowup", false));
-        //waitRefire = node.getBoolValue("wait_refire", waitRefire);
+        repeatCount = node.getValue("repeat", repeatCount);
+        if (node["repeat_delay"] == "user") {
+            //repeat on spacebar
+            repeatDelay = Time.Never;
+        } else {
+            //auto-repeat
+            repeatDelay = node.getValue("repeat_delay", repeatDelay);
+        }
+        if (node["reduce_ammo"] != "end" && node["reduce_ammo"] != "max") {
+            reduceAmmo = node.getValue("reduce_ammo", reduceAmmo);
+        }
         if (!onFire) {
             //xxx error handling...
             throw new Exception("Action-based weapon needs onfire action");
         }
+    }
+
+    bool manualFire() {
+        return !!(repeatDelay.min == Time.Never);
     }
 
     ActionShooter createShooter(GObjectSprite go) {
@@ -58,6 +76,9 @@ class ActionShooter : Shooter, ProjectileFeedback {
         ActionContext mFireAction;
         //holds a list of sprites that can execute the onrefire event
         ProjectileSprite[] mRefireSprites;
+        int mShotsRemain;
+        Time mWaitDone = Time.Never;
+        bool mCanManualFire;
     }
     protected WrapFireInfo fireInfo;
 
@@ -69,9 +90,6 @@ class ActionShooter : Shooter, ProjectileFeedback {
 
     this (ReflectCtor c) {
         super(c);
-        /*c.types().registerMethod(this, &fireFinish, "fireFinish");
-        c.types().registerMethod(this, &fireRound, "fireRound");
-        c.types().registerMethod(this, &roundFired, "roundFired");*/
     }
 
     bool activity() {
@@ -91,7 +109,7 @@ class ActionShooter : Shooter, ProjectileFeedback {
 
     private bool canRefire() {
         //only sprites with refire possible are in this list
-        return mRefireSprites.length > 0;
+        return mCanManualFire || mRefireSprites.length > 0;
     }
 
     WeaponContext createContext() {
@@ -121,13 +139,42 @@ class ActionShooter : Shooter, ProjectileFeedback {
         fireInfo.info.pos = owner.physics.pos;
     }
 
-    void roundFired() {
-        //called after every loop
-        reduceAmmo();
-    }
-
     void readjust(Vector2f dir) {
         fireInfo.info.dir = dir;
+    }
+
+    private void fireOne() {
+        mCanManualFire = false;
+        fireRound();
+        mFireAction.reset();
+        myclass.onFire.execute(mFireAction);
+        if (mFireAction.done()) {
+            fireDone();
+        } else {
+            //need to wait for action to finish
+            active = true;
+        }
+    }
+
+    private void fireDone() {
+        mShotsRemain--;
+        //take 1 ammo every myclass.reduceAmmo (always at end of firing)
+        if ((myclass.repeatCount - mShotsRemain) % myclass.reduceAmmo == 0
+            || mShotsRemain == 0)
+        {
+            reduceAmmo();
+        }
+        if (mShotsRemain == 0) {
+            active = false;
+            fireFinish();
+        } else if (!myclass.manualFire()) {
+            //need to wait for next shot
+            mWaitDone = engine.gameTime.current
+                + myclass.repeatDelay.sample(engine.rnd);
+            active = true;
+        } else {
+            mCanManualFire = true;
+        }
     }
 
     protected void doFire(FireInfo info) {
@@ -139,29 +186,13 @@ class ActionShooter : Shooter, ProjectileFeedback {
                 return;
         }
 
+        mShotsRemain = myclass.repeatCount;
         fireInfo.info = info;
         fireInfo.info.shootbyRadius = owner.physics.posp.radius;
         //create firing action
         mFireAction = createContext();
 
-        /*//xxx this is hacky
-        auto al = cast(ActionList)mFireAction;
-        if (al) {
-            al.onStartLoop = &fireRound;
-            al.onEndLoop = &roundFired;
-        } else {
-            //no list? so just one-time call when mFireAction is run
-            mFireAction.onExecute = &fireRound;
-        }*/
-
-        fireRound();
-        myclass.onFire.execute(mFireAction);
-        if (mFireAction.done()) {
-            roundFired();
-            fireFinish();
-        } else {
-            active = true;
-        }
+        fireOne();
 
         //wut?
         /+
@@ -176,6 +207,10 @@ class ActionShooter : Shooter, ProjectileFeedback {
     protected bool doRefire() {
         if (!canRefire())
             return false;
+        if (mCanManualFire) {
+            fireOne();
+            return true;
+        }
         auto curs = mRefireSprites.dup;
         mRefireSprites = null;
         foreach (as; curs) {
@@ -195,6 +230,7 @@ class ActionShooter : Shooter, ProjectileFeedback {
     }
 
     override void interruptFiring() {
+        mShotsRemain = 0;
         if (mFireAction)
             mFireAction.abort();
         else if (canRefire()) {
@@ -205,9 +241,18 @@ class ActionShooter : Shooter, ProjectileFeedback {
 
     override void simulate(float deltaT) {
         super.simulate(deltaT);
-        if (mFireAction && mFireAction.done()) {
-            roundFired();
-            fireFinish();
+        assert(!!mFireAction);
+        if (mWaitDone != Time.Never) {
+            if (engine.gameTime.current >= mWaitDone) {
+                //waited long enough, auto-fire next shot
+                assert(!myclass.manualFire());
+                mWaitDone = Time.Never;
+                active = false;
+                fireOne();
+            }
+        } else if (mFireAction.done()) {
+            //background activity terminated
+            fireDone();
         }
     }
 }

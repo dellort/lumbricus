@@ -39,7 +39,7 @@ void initGameSerialization() {
         ModeRealtime, RealtimeStatus, CollectableToolCrateSpy,
         CollectableToolDoubleTime, ControllerMsgs, ControllerStats,
         ControllerPersistence, CollectableToolDoubleDamage, LandscapeBitmap,
-        GravityCenterAction, ProximitySensorAction, WalkerAction);
+        GravityCenterAction, ProximitySensorAction);
     //stuff that is actually redundant and wouldn't need to be in savegames
     //but excluding this from savegames would be too much work for nothing
     //keeping them separate still makes sense if we ever need faster snapshots

@@ -61,10 +61,6 @@ class MeleeShooter: ActionShooter {
         fireInfo.info.shootbyRadius = 0;
     }
 
-    override void roundFired() {
-        //no reduceAmmo here
-    }
-
     override protected void doFire(FireInfo info) {
         super.doFire(info);
         reduceAmmo();

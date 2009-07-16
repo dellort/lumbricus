@@ -83,10 +83,6 @@ class RayShooter: ActionShooter {
         }
     }
 
-    override void roundFired() {
-        //no reduceAmmo here
-    }
-
     override protected void doFire(FireInfo info) {
         super.doFire(info);
         reduceAmmo();

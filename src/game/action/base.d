@@ -122,7 +122,7 @@ class ActionContext {
     this(ReflectCtor c) {
     }
 
-    final private void reset() {
+    final void reset() {
         mObjStack = null;
         mScopeStack = null;
         //root scope
