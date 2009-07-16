@@ -25,6 +25,8 @@
 - Bohrer/Lötlampe stoßen Würmer nicht weg
 - Projektil fliegt durch wenige Pixel dicke Landschaft, wenn der Wurm beim Feuern direkt davorsteht
 - Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
+- GUI-Fokus: Feuern / Zoomen wird beim Rechtsklick-Scrollen abgebrochen (arrrgghh)
+  (Kaputt seit captureKey-Zeug in r813)
 
 
 == GUI (allgemeine Features) ==
