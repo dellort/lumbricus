@@ -502,7 +502,7 @@ class PhysicWorld {
     }
 
     void objectsAtPred(Vector2f pos, float r,
-        void delegate(PhysicObject obj) del,
+        bool delegate(PhysicObject obj) del,
         bool delegate(PhysicObject obj) match = null)
     {
         assert(!!del);
@@ -513,7 +513,8 @@ class PhysicWorld {
                 float mindist = me.posp.radius + r;
                 if (qdist >= mindist*mindist)
                     continue;
-                del(me);
+                if (!del(me))
+                    break;
             }
         }
     }

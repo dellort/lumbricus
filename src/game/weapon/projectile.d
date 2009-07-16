@@ -34,7 +34,7 @@ class ProjectileSprite : ActionSprite {
     ProjectileSpriteClass myclass;
     //only used if myclass.dieByTime && !myclass.useFixedDeathTime
     Time detonateTimer;
-    Vector2f target;
+    WeaponTarget target;
 
     private {
         Time stateTime;

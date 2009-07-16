@@ -16,7 +16,7 @@ import math = tango.math.Math;
 
 
 class ParticleType {
-    float gravity = 0f;
+    RandomFloat gravity = {0f, 0f};
     RandomFloat wind_influence = {0f, 0f};
     float explosion_influence = 0f;
     float air_resistance = 0f;
@@ -138,7 +138,7 @@ struct Particle {
     ParticleType props; //null means dead lol
     Time start;
     Vector2f pos, velocity;
-    float windInfluence;
+    float gravity, windInfluence;
     Animation anim;
 
     //multipurpose random value (can be used for anything you want)
@@ -158,6 +158,7 @@ struct Particle {
         start = owner.time.current;
         emitted = 0;
         emit_next = props.emit_delay.sample(rngShared).secsf;
+        gravity = props.gravity.sample(rngShared);
         windInfluence = props.wind_influence.sample(rngShared);
         random = rngShared.nextDouble();
         if (props.animation.length > 0) {
@@ -179,7 +180,7 @@ struct Particle {
             return;
         }
 
-        velocity.y += props.gravity * deltaT;
+        velocity.y += gravity * deltaT;
         velocity.x += owner.windSpeed*windInfluence * deltaT;
 
         Vector2f add = velocity * deltaT;

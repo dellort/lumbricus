@@ -74,7 +74,7 @@ void beam(WeaponContext wx, bool usePos) {
     if (usePos)
         dest = wx.fireInfo.info.pos;
     else
-        dest = wx.fireInfo.info.pointto;
+        dest = wx.fireInfo.info.pointto.currentPos;
     //WormSprite.beamTo does all the work, just wait for it to finish
     log("start beaming");
     worm.beamTo(dest);
@@ -199,7 +199,7 @@ class HomingAction : GameObject {
 
     override void simulate(float deltaT) {
         super.simulate(deltaT);
-        Vector2f totarget = mParent.target
+        Vector2f totarget = mParent.target.currentPos
             - mParent.physics.pos;
         //accelerate/brake
         Vector2f cmpAccel = totarget.project_vector(
@@ -279,9 +279,10 @@ abstract class AoEActionClass : ActionClass {
             return ret;
         }
 
-        void doApply(PhysicObject obj) {
+        bool doApply(PhysicObject obj) {
             assert(!!obj.backlink);
             applyOn(wx, cast(GObjectSprite)obj.backlink);
+            return true;
         }
 
         wx.engine.physicworld.objectsAtPred(wx.fireInfo.info.pos, radius,

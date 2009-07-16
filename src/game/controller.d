@@ -44,7 +44,7 @@ class ServerTeam : Team {
     WeaponSet weapons;
     WeaponItem defaultWeapon;
     int initialPoints; //on loading
-    Vector2f currentTarget;
+    WeaponTarget currentTarget;
     bool targetIsSet;
     GameController parent;
     bool forcedFinish;
@@ -352,7 +352,7 @@ class ServerTeam : Team {
         setIndicator(null);
         //show X again, if set before
         if (mode == PointMode.target && targetIsSet)
-            doSetPoint(currentTarget);
+            doSetPoint(currentTarget.currentPos);
     }
     private bool checkPointMode() {
         return (mPointMode == PointMode.none || targetIsSet);
@@ -371,12 +371,22 @@ class ServerTeam : Team {
         currentTarget = where;
 
         switch(mPointMode) {
+            case PointMode.targetTracking:
+                //find sprite closest to where
+                parent.engine.physicworld.objectsAtPred(where, 10,
+                    (PhysicObject obj) {
+                        currentTarget.sprite = cast(GObjectSprite)obj.backlink;
+                        return false;
+                    }, (PhysicObject obj) {
+                        return !!cast(GObjectSprite)obj.backlink;
+                    });
+                //fall-through
             case PointMode.target:
                 //X animation
                 auto t = new AnimationGraphic();
                 parent.engine.graphics.add(t);
                 t.setAnimation(color.pointed);
-                t.update(toVector2i(where));
+                t.update(toVector2i(currentTarget.currentPos));
                 setIndicator(t);
                 break;
             case PointMode.instant, PointMode.instantFree:
@@ -431,6 +441,10 @@ class ServerTeam : Team {
 
     void simulate() {
         if (mCurrentTargetInd) {
+            if (targetIsSet && currentTarget.sprite) {
+                //worm tracking
+                mCurrentTargetInd.update(toVector2i(currentTarget.currentPos));
+            }
             if (mCurrentTargetInd.hasFinished()) {
                 setIndicator(null);
             }
@@ -865,7 +879,7 @@ class ServerTeamMember : TeamMember, WormController {
 
     // Start WormController implementation (see game.worm) -->
 
-    Vector2f getTarget() {
+    WeaponTarget getTarget() {
         return mTeam.currentTarget;
     }
 

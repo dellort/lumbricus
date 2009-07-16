@@ -123,7 +123,26 @@ struct FireInfo {
     Time timer;     //selected time, in the range dictated by the weapon
     Vector2f pos;     //position of shooter
     float shootbyRadius = 0.0f;
-    Vector2f pointto = Vector2f.nan; //if weapon can point to somewhere
+    WeaponTarget pointto; //if weapon can point to somewhere
+}
+
+struct WeaponTarget {
+    Vector2f pos = Vector2f.nan;
+    GObjectSprite sprite;
+
+    Vector2f currentPos() {
+        return (sprite && !sprite.physics.pos.isNaN())
+            ? sprite.physics.pos : pos;
+    }
+
+    void opAssign(Vector2f p) {
+        pos = p;
+        sprite = null;
+    }
+
+    bool valid() {
+        return !currentPos.isNaN();
+    }
 }
 
 //simulate the firing of a weapon; i.e. create projectiles and so on

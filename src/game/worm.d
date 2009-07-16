@@ -40,7 +40,7 @@ interface IControllable {
 **/
 
 interface WormController {
-    Vector2f getTarget();
+    WeaponTarget getTarget();
 
     void reduceAmmo(Shooter sh);
 

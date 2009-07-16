@@ -136,8 +136,8 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
             float width = params.spawndist * (params.count-1);
             //center around pointed
             float x = about.pos.x;
-            if (!about.pointto.isNaN)
-                x = about.pointto.x;
+            if (about.pointto.valid)
+                x = about.pointto.currentPos.x;
             pos.x = x - width/2 + params.spawndist * n;
             pos.y = engine.level.airstrikeY;
             sprite.setPos(pos);

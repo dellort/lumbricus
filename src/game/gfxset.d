@@ -181,7 +181,7 @@ struct CrosshairSettings {
 
 struct ExplosionSettings {
     //animations for different explosion sizes
-    ParticleType[4] shockwave1, shockwave2, comicText;
+    ParticleType[4] shockwave1, shockwave2, comicText, smoke;
     //tresholds to choose animations matching size
     int[] sizeTreshold = [25, 100, 150, 200];
 
@@ -206,6 +206,17 @@ struct ExplosionSettings {
         char[][] txt = conf.getValue!(char[][])("comictext");
         foreach (int i, resid; txt) {
             comicText[i] = getp(resid);
+        }
+
+        char[][] smo = conf.getValue!(char[][])("smoke");
+        foreach (int i, resid; smo) {
+            smoke[i] = getp(resid);
+            smoke[i].gravity.min = -50f;
+            smoke[i].gravity.max = -200f;
+            smoke[i].bubble_x = 0.7f;
+            smoke[i].bubble_x_h = 100f;
+            smoke[i].wind_influence.min = 0.7f;
+            smoke[i].wind_influence.max = 1.0f;
         }
 
         int[] st = conf.getValue("sizetreshold",sizeTreshold);

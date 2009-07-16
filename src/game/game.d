@@ -707,23 +707,27 @@ class GameEngine : GameEnginePublic {
     //non-deterministic
     private void showExplosion(Vector2f at, int radius) {
         int d = radius*2;
-        int s = -1, t = -1;
+        int r = 1, s = -1, t = -1;
         if (d < mGfx.expl.sizeTreshold[0]) {
-            //below treshold, no animation
+            //only some smoke
         } else if (d < mGfx.expl.sizeTreshold[1]) {
             //tiny explosion without text
             s = 0;
+            r = 2;
         } else if (d < mGfx.expl.sizeTreshold[2]) {
             //medium-sized, may have small text
             s = 1;
             t = rngShared.next(-1,3);
+            r = 3;
         } else if (d < mGfx.expl.sizeTreshold[3]) {
             //big, always with text
             s = 2;
+            r = 4;
             t = rngShared.next(0,4);
         } else {
             //huge, always text
             s = 3;
+            r = 4;
             t = rngShared.next(0,4);
         }
 
@@ -737,6 +741,13 @@ class GameEngine : GameEnginePublic {
         }
         if (t >= 0) {
             emit(mGfx.expl.comicText[t]);
+        }
+        if (r > 0) {
+            for (int i = 0; i < r*3; i++) {
+                callbacks.particleEngine.emitParticle(at,
+                    Vector2f(0, -1).rotated(rngShared.nextRange(-PI/2, PI/2)),
+                    mGfx.expl.smoke[rngShared.next(0, r)]);
+            }
         }
     }
 
@@ -764,10 +775,7 @@ class GameEngine : GameEnginePublic {
         auto iradius = cast(int)((expl.radius+0.5f)/2.0f);
         damageLandscape(toVector2i(pos), iradius, cause);
         physicworld.add(expl);
-        //don't create effects that wouldn't show anyway
-        if (iradius >= 10) {
-            showExplosion(pos, iradius);
-        }
+        showExplosion(pos, iradius);
         //some more chaos, if strong enough
         //xxx needs moar tweaking
         //if (damage > 50)

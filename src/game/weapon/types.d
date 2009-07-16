@@ -18,6 +18,7 @@ const char[][] cWWA2Str = ["arm", "hold", "fire"];
 enum PointMode {
     none,
     target,
+    targetTracking,
     instant,
     instantFree,    //like instant, but not inside objects/geometry
                     //(will be moved out by controller)
@@ -88,6 +89,9 @@ struct FireMode {
         switch (pm) {
             case "target":
                 point = PointMode.target;
+                break;
+            case "target_tracking":
+                point = PointMode.targetTracking;
                 break;
             case "instant":
                 point = PointMode.instant;
