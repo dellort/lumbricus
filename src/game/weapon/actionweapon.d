@@ -145,9 +145,21 @@ class ActionShooter : Shooter, ProjectileFeedback {
 
     private void fireOne() {
         mCanManualFire = false;
+        if (mShotsRemain <= 0)
+            return;
         fireRound();
         mFireAction.reset();
         myclass.onFire.execute(mFireAction);
+
+        //reduce ammo after the projectile was launched (as logic dictates)
+        mShotsRemain--;
+        //take 1 ammo every myclass.reduceAmmo (always at end of firing)
+        if ((myclass.repeatCount - mShotsRemain) % myclass.reduceAmmo == 0
+            || mShotsRemain <= 0)
+        {
+            reduceAmmo();
+        }
+
         if (mFireAction.done()) {
             fireDone();
         } else {
@@ -157,14 +169,8 @@ class ActionShooter : Shooter, ProjectileFeedback {
     }
 
     private void fireDone() {
-        mShotsRemain--;
-        //take 1 ammo every myclass.reduceAmmo (always at end of firing)
-        if ((myclass.repeatCount - mShotsRemain) % myclass.reduceAmmo == 0
-            || mShotsRemain == 0)
-        {
-            reduceAmmo();
-        }
-        if (mShotsRemain == 0) {
+        if (mShotsRemain <= 0) {
+            //all shots fired, done
             active = false;
             fireFinish();
         } else if (!myclass.manualFire()) {
@@ -207,21 +213,30 @@ class ActionShooter : Shooter, ProjectileFeedback {
     protected bool doRefire() {
         if (!canRefire())
             return false;
-        if (mCanManualFire) {
+        //I decided that, in the special case where both is possible
+        //  (e.g. a multi-shot sally army), blowing up already out
+        //  projectiles has priority
+        //Note: It gets very weird if you combine refireable projectiles with
+        //      auto-repeating; this case should be considered the
+        //      script-writer's fault
+        if (mRefireSprites.length > 0) {
+            auto curs = mRefireSprites.dup;
+            mRefireSprites = null;
+            foreach (as; curs) {
+                //note that the event could spawn new projectiles which add
+                //themselves to the mRefireSprites list
+                as.doEvent("onrefire");
+            }
+            //check if all refire sprites got blown up
+            if (!activity)
+                finished();
+            return true;
+        } else if (mCanManualFire) {
             fireOne();
             return true;
         }
-        auto curs = mRefireSprites.dup;
-        mRefireSprites = null;
-        foreach (as; curs) {
-            //note that the event could spawn new projectiles which add
-            //themselves to the mRefireSprites list
-            as.doEvent("onrefire");
-        }
-        //check if all refire sprites got blown up
-        if (!activity)
-            finished();
-        return true;
+        //see canRefire()
+        assert(false);
     }
 
     override bool isFixed() {
@@ -229,11 +244,21 @@ class ActionShooter : Shooter, ProjectileFeedback {
         return !!mFireAction;
     }
 
-    override void interruptFiring() {
+    override void interruptFiring(bool outOfAmmo = false) {
         mShotsRemain = 0;
-        if (mFireAction)
+        //don't abort the current projectile if the gun ran out of ammo after
+        //  firing it
+        if (outOfAmmo)
+            return;
+        //... but abort everything if the worm was hit etc.
+        if (active) {
+            //waiting for fire action to run, or for next shot
+            assert(!!mFireAction);
+            mWaitDone = Time.Never;
             mFireAction.abort();
-        else if (canRefire()) {
+            //we set mShotsRemain = 0 above, this will not fire again
+            fireDone();
+        } else if (canRefire()) {
             mRefireSprites = null;
             finished();
         }

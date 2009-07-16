@@ -37,8 +37,8 @@ struct FireMode {
     bool variableThrowStrength; //chooseable throw strength
     //if variableThrowStrength is true, FireInfo.strength is interpolated
     //between From and To by a player chosen value (that fire strength thing)
-    float throwStrengthFrom = 1;
-    float throwStrengthTo = 1;
+    float throwStrengthFrom = 0;   //1?? wtf?!
+    float throwStrengthTo = 0;
     PointMode point = PointMode.none; //by mouse, i.e. target-searching weapon
     bool hasTimer; //user can select a timer
     Time timerFrom; //minimal time chooseable, only used if hasTimer==true

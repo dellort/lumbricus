@@ -82,11 +82,6 @@ class RayShooter: ActionShooter {
                 [base.lineColors[0], base.lineColors[1], base.lineColors[0]]);
         }
     }
-
-    override protected void doFire(FireInfo info) {
-        super.doFire(info);
-        reduceAmmo();
-    }
 }
 
 class RenderLaser : GameObject {

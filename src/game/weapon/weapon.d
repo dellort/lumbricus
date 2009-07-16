@@ -205,7 +205,7 @@ abstract class Shooter : GameObject {
     //used by a worm to notify that the worm was interrupted while firing
     //for some weapons, this won't do anything, i.e. air strikes, earth quakes...
     //after this, isFiring() will return false (mostly...)
-    void interruptFiring() {
+    void interruptFiring(bool outOfAmmo = false) {
         //default implementation: make inactive
         active = false;
     }

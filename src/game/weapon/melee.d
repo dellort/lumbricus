@@ -60,9 +60,4 @@ class MeleeShooter: ActionShooter {
         //away from shooting object, so don't use radius
         fireInfo.info.shootbyRadius = 0;
     }
-
-    override protected void doFire(FireInfo info) {
-        super.doFire(info);
-        reduceAmmo();
-    }
 }

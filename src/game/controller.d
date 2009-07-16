@@ -876,7 +876,7 @@ class ServerTeamMember : TeamMember, WormController {
         mTeam.parent.updateWeaponStats(this);
         if (!wi.canUse)
             //weapon ran out of ammo
-            sh.interruptFiring();
+            sh.interruptFiring(true);
         updateWeapon();
         //xxx select next weapon when current is empty... oh sigh
         //xxx also, select current weapon if we still have one, but weapon is
@@ -1030,15 +1030,16 @@ class ServerTeamMember : TeamMember, WormController {
     }
 
     void releaseControllable(Controllable c) {
-        foreach (int idx, Controllable ctrl; mControlStack) {
-            if (ctrl is c) {
-                if (idx > 0)
-                    mControlStack = mControlStack[0..idx];
-                else
-                    mControlStack = null;
-                break;
-            }
+        //stack gets cleared if the worm becomes inactive
+        if (mControlStack.length == 0)
+            return;
+        if (mControlStack.length > 1 && c is mControlStack[$-1]) {
+            //if removing the top object, transfer current movement to next
+            c.move(Vector2f(0));
+            mControlStack[$-2].move(mLastMoveVector);
         }
+        //c does not have to be at the top of mControlStack
+        arrayRemove(mControlStack, c);
     }
 
     //checks if this worm wants to blow up, returns true if it wants to or is
