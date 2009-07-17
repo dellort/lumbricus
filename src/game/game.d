@@ -764,7 +764,9 @@ class GameEngine : GameEnginePublic {
         }
     }
 
-    void explosionAt(Vector2f pos, float damage, GameObject cause) {
+    void explosionAt(Vector2f pos, float damage, GameObject cause,
+        bool effect = true)
+    {
         if (damage < float.epsilon)
             return;
         auto expl = new ExplosiveForce();
@@ -775,11 +777,12 @@ class GameEngine : GameEnginePublic {
         auto iradius = cast(int)((expl.radius+0.5f)/2.0f);
         damageLandscape(toVector2i(pos), iradius, cause);
         physicworld.add(expl);
-        showExplosion(pos, iradius);
+        if (effect)
+            showExplosion(pos, iradius);
         //some more chaos, if strong enough
         //xxx needs moar tweaking
-        //if (damage > 50)
-        //    addEarthQuake(damage, 0.5);
+        if (damage > 90)
+            addEarthQuake(damage*2.0f, timeSecs(1.5f), true);
     }
 
     //destroy a circular area of the damageable landscape

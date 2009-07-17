@@ -50,7 +50,9 @@ class TeamWindow : Container {
 
     //return if a is superior or equal to b
     bool compareTeam(TeamInfo a, TeamInfo b) {
-        return a.currentHealth() >= b.currentHealth();
+        int c = a.currentHealth() - b.currentHealth();
+        //sort by name if health is equal (Tango crashes without that)
+        return c == 0 ? a.team.name() <= b.team.name() : c > 0;
     }
 
     this(GameInfo game) {

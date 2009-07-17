@@ -77,7 +77,7 @@ class NapalmSprite : ProjectileSprite {
         if (engine.gameTime.current - mLastDmg >= mRepeatDelay) {
             float dmg = myclass.damage.sample(engine.rnd)
                 * (0.25 + mDecayPerc*0.75);
-            engine.explosionAt(physics.pos, dmg, this);
+            engine.explosionAt(physics.pos, dmg, this, false);
             mLastDmg += mRepeatDelay;
             mRepeatDelay = myclass.repeatDelay.sample(engine.rnd);
         }

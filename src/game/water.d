@@ -63,6 +63,8 @@ class GameWater {
     package const cFrontLayers = 3;
     package const cWaterLayerDist = 20;
     package const cWaveAnimMult = 0.7f;
+    //delay between spawning bubbles in a cave level (scaled if world is larger)
+    package const cBubbleInterval = timeMsecs(150);
 
     private WaterDrawer mWaterDrawerFront1,mWaterDrawerFront2,mWaterDrawerBack;
     private Animation mWaveAnim;
@@ -114,7 +116,7 @@ class GameWater {
             }
         //wtf? } catch {};
         mBubbleParticle = mEngine.resources.get!(ParticleType)("p_waterbubble");
-        mBubbleTimer = new Timer(timeMsecs(50), &spawnBubble,
+        mBubbleTimer = new Timer(cBubbleInterval*(2000f/size.x), &spawnBubble,
             &mEngine.engineTime.current);
 
         simpleMode(mSimpleMode);
