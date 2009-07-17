@@ -47,6 +47,18 @@ class MouseScroller : ScrollArea {
         if (enable == mMouseScrolling)
             return;
         if (enable) {
+            //shitty hack:
+            //- first mouse move event will recheck the mouse cursor shape
+            //- the actual mouse cursor is set to the middle of the screen (by
+            //  the framework's mouseLocked stuff)
+            //- but at that time, the cursor is still visible; only the
+            //  following event will set the mouseWidget (which sets the cursor)
+            //- so, just set it manually, right here
+            //NOTE: somtimes, I still can see the cursor at the wrong position
+            //  for a very short time
+            if (auto m = getTopLevel()) {
+                m.mouseWidget = this;
+            }
             if (gFramework.mouseLocked() /+ || gFramework.grabInput()+/)
                 return;
             //[setting the capture seems to get rid of some strange corner case
@@ -73,6 +85,7 @@ class MouseScroller : ScrollArea {
         mouseScrolling(!mMouseScrolling);
     }
 
+    /+
     override protected void onKeyEvent(KeyInfo key) {
         if (key.code == Keycode.MOUSE_RIGHT) {
             if (key.isDown) {
@@ -80,6 +93,7 @@ class MouseScroller : ScrollArea {
             }
         }
     }
+    +/
 
     override void onMouseMove(MouseInfo mi) {
         if (mMouseScrolling) {
@@ -89,9 +103,19 @@ class MouseScroller : ScrollArea {
     }
 
     protected override bool allowInputForChild(Widget child, InputEvent event) {
-        if (event.isKeyEvent && event.keyEvent.code == Keycode.MOUSE_RIGHT)
-            return false;
-        //catch only mouse events
+        if (event.isKeyEvent && event.keyEvent.code == Keycode.MOUSE_RIGHT) {
+            //ok, this is a dirty hack
+            //- we don't want to take the focus, which would happen if we'd
+            //  steal the event from the sub widget
+            //- so just do it here
+            //- we _have_ to relay the input, else the captureKey widget will
+            //  change and doc will complain (see TODO r831)
+            if (event.keyEvent.isDown) {
+                mouseScrollToggle();
+            }
+            return true;
+        }
+        //catch only mouse events (mouse moving, mouse cursor shape)
         if (mMouseScrolling)
             return !event.isMouseRelated();
         return true;

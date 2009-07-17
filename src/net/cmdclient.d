@@ -24,6 +24,11 @@ enum ClientState {
     connected,
 }
 
+//playerId corresponds to CmdNetClient.myId() and NetTeamInfo.Team.playerId
+char[] makeAccessTag(uint playerId) {
+    return myformat("net_id::{}", playerId);
+}
+
 class CmdNetClient : SimpleNetConnection {
     private {
         NetBase mBase;
@@ -35,7 +40,12 @@ class CmdNetClient : SimpleNetConnection {
         Time mStateEnter;
         NetAddress mTmpAddr;
         GameShell mShell;
-        NetGameControl[uint] mSrvControl;
+        //lol. this simply maps playerId -> makeAccessTag(playerId)
+        //maybe this could go into mPlayerInfo, but I'm not sure
+        //most likely it would be fine to call makeAccessTag directly, but apart
+        //  from the additional memory allocation, maybe there's additional
+        //  logic I don't understand, or so
+        char[][uint] mSrvControl;
         CmdNetControl mClControl;
         bool mHadDisconnect;
         //name<->id conversion
@@ -264,10 +274,7 @@ class CmdNetClient : SimpleNetConnection {
         foreach (team; mShell.serverEngine.controller.teams) {
             uint ownerId = to!(uint)(team.netId);
             if (!(ownerId in mSrvControl))
-                mSrvControl[ownerId] = new NetGameControl(mShell);
-            mSrvControl[ownerId].addTeam(team);
-            if (ownerId == mId)
-                mClControl.addTeam(team);
+                mSrvControl[ownerId] = makeAccessTag(ownerId);
         }
 
         mShell.masterTime.paused = false;
@@ -442,15 +449,15 @@ class CmdNetClient : SimpleNetConnection {
                 auto p = unmarshal.read!(SPGameCommands)();
                 //forward all commands to the engine
                 foreach (gce; p.commands) {
-                    if (gce.playerId in mSrvControl) {
-                        mSrvControl[gce.playerId].executeTSCommand(gce.cmd,
-                            p.timestamp);
+                    if (auto ptr = gce.playerId in mSrvControl) {
+                        mShell.addLoggedInput(*ptr, gce.cmd, p.timestamp);
                     }
                 }
                 //execute all player disconnects
                 foreach (uint id; p.disconnectIds) {
-                    if (id in mSrvControl) {
-                        mSrvControl[id].removeControlTS(p.timestamp);
+                    if (auto ptr = id in mSrvControl) {
+                        mShell.addLoggedInput(*ptr, "remove_control",
+                            p.timestamp);
                         mSrvControl.remove(id);
                     }
                 }
@@ -568,51 +575,15 @@ class CmdNetClient : SimpleNetConnection {
 class CmdNetControl : ClientControl {
     private {
         CmdNetClient mConnection;
-        GameShell mShell;
-        Team[] mOwnedTeams;
-    }
-
-    void addTeam(Team myTeam) {
-        mOwnedTeams ~= myTeam;
     }
 
     this(CmdNetClient con) {
+        super(con.mShell, makeAccessTag(con.myId()));
         mConnection = con;
-        mShell = con.mShell;
     }
 
-    TeamMember getControlledMember() {
-        foreach (Team t; mOwnedTeams) {
-            if (t.active) {
-                return t.getActiveMember();
-            }
-        }
-        return null;
-    }
-
-    Team[] getOwnedTeams() {
-        return mOwnedTeams;
-    }
-
-    void executeCommand(char[] cmd) {
+    override void executeCommand(char[] cmd) {
         mConnection.sendCommand(cmd);
     }
-}
 
-//Incoming command from server -> Local engine command proxy
-//  (one for each player in the game)
-class NetGameControl : GameControl {
-    this(GameShell sh) {
-        super(sh, false);
-    }
-
-    void executeTSCommand(char[] cmd, long timestamp) {
-        setCurrentTS(timestamp);
-        executeCommand(cmd);
-    }
-
-    void removeControlTS(long timestamp) {
-        setCurrentTS(timestamp);
-        removeControl();
-    }
 }

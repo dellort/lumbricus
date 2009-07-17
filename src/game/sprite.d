@@ -30,6 +30,8 @@ alias StaticFactory!("Sprites", GOSpriteClass, GameEngine, char[])
 //object which represents a PhysicObject and an animation on the screen
 //also provides loading from ConfigFiles and state managment
 class GObjectSprite : GameObject {
+    protected static LogStruct!("game.sprite") log;
+
     protected GOSpriteClass mType;
 
     PhysicObject physics;
@@ -38,16 +40,28 @@ class GObjectSprite : GameObject {
     Sequence graphic;
     SequenceState currentAnimation;
     protected SequenceUpdate seqUpdate;
-    //transient for savegames, Particle created from StaticStateInfo.particle
-    //all state associated with this variable is non-deterministic and must not
-    //  have any influence on the rest of the game state
-    //xxx: move to Sequence, as soon as this is being rewritten
-    private Particle* mParticleEmitter;
 
-    private StaticStateInfo mCurrentState; //must not be null
+    private {
+        //transient for savegames, Particle created from StaticStateInfo.particle
+        //all state associated with this variable is non-deterministic and must not
+        //  have any influence on the rest of the game state
+        //xxx: move to Sequence, as soon as this is being rewritten
+        Particle* mParticleEmitter;
 
-    private bool mIsUnderWater, mWaterUpdated;
-    protected static LogStruct!("game.sprite") log;
+        StaticStateInfo mCurrentState; //must not be null
+
+        bool mIsUnderWater, mWaterUpdated;
+        bool mWasActivated;
+    }
+
+    //xxx: replace by activate(position)?
+    void activate(Vector2f pos) {
+        if (physics.dead || mWasActivated)
+            return;
+        mWasActivated = true;
+        setPos(pos);
+        active = true;
+    }
 
     bool activity() {
         return active && !physics.isGlued;

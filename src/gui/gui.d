@@ -10,6 +10,7 @@ import gui.styles;
 import utils.time;
 import utils.configfile;
 import utils.log;
+import utils.misc;
 import utils.rect2;
 
 //top-level-widget, only one instance of this is allowed per GUI
@@ -93,6 +94,7 @@ package class MainFrame : SimpleContainer {
         assert(!!w);
 
         if (captureKey !is w) {
+            Widget.log()("capture key {} -> {}", captureKey, w);
             //input widghet changed; send release events to old widget
             auto old = captureKey;
             foreach (int i, ref bool state; mCaptureKeyState) {

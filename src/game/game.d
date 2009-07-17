@@ -24,9 +24,12 @@ import utils.random;
 import utils.reflection;
 import framework.framework;
 import framework.timesource;
+import framework.commandline;
 import common.resset;
+
 import tango.math.Math;
 import tango.util.Convert : to;
+import tango.core.Traits : ParameterTupleOf;
 
 import game.levelgen.renderer;// : LandscapeBitmap;
 
@@ -86,6 +89,12 @@ class GameEngine : GameEnginePublic {
 
         GObjectSprite[] mPlaceQueue;
 
+        AccessEntry[] mAccessMapping;
+        struct AccessEntry {
+            char[] tag;
+            ServerTeam team;
+        }
+
         const cWindChange = 80.0f;
         const cMaxWind = 150f;
 
@@ -102,8 +111,7 @@ class GameEngine : GameEnginePublic {
     mixin Methods!("deathzoneTrigger", "underWaterTrigger", "windChangerUpdate",
         "waterChangerUpdate", "onPhysicHit", "onDamage", "offworldTrigger");
 
-    this(GameConfig config, GfxSet a_gfx, TimeSourcePublic a_gameTime)
-    {
+    this(GameConfig config, GfxSet a_gfx, TimeSourcePublic a_gameTime) {
         rnd = new Random();
         //game initialization must be deterministic; so unless GameConfig
         //contains a good pre-generated seed, use a fixed seed
@@ -115,6 +123,7 @@ class GameEngine : GameEnginePublic {
         mGfx = a_gfx;
         gameConfig = config;
         mGameTime = a_gameTime;
+        createCmd();
         mCallbacks = new GameEngineCallback();
 
         persistentState = config.gamestate.copy();
@@ -204,14 +213,35 @@ class GameEngine : GameEnginePublic {
         //NOTE: GameController relies on many stuff at initialization
         //i.e. physics for worm placement
         new GameController(this, config);
+
+        //read the shitty access map, need to have access to the controller
+        auto map = config.managment.getSubNode("access_map");
+        foreach (ConfigNode sub; map) {
+            //sub is "tag_name { "teamid1" "teamid2" ... }"
+            foreach (char[] key, char[] value; sub) {
+                ServerTeam found;
+                foreach (ServerTeam t; controller.teams) {
+                    if (t.id() == value) {
+                        found = t;
+                        break;
+                    }
+                }
+                //xxx error handling
+                assert(!!found, "invalid team id: "~value);
+                mAccessMapping ~= AccessEntry(sub.name, found);
+            }
+        }
     }
 
     this (ReflectCtor c) {
         c.transient(this, &mCallbacks);
+        c.transient(this, &mCmd);
+        c.transient(this, &mCmds);
         auto t = c.types();
         t.registerClass!(typeof(mObjects));
         if (c.recreateTransient) {
             mCallbacks = new GameEngineCallback();
+            createCmd();
         }
     }
 
@@ -482,7 +512,7 @@ class GameEngine : GameEnginePublic {
     }
 
     void ensureAdded(GameObject obj) {
-        assert(obj.active);
+        assert(obj._is_active());
         //in case of lazy removal
         //note that .contains is O(1) if used with .node
         if (!mObjects.contains(obj))
@@ -506,7 +536,7 @@ class GameEngine : GameEnginePublic {
         //      List.opApply can deal with that
         float deltat = mGameTime.difference.secsf;
         foreach (GameObject o; mObjects) {
-            if (o.active) {
+            if (o._is_active()) {
                 o.simulate(deltat);
             } else {
                 //remove (it's done lazily, and here it's actually removed)
@@ -697,8 +727,7 @@ class GameEngine : GameEnginePublic {
                 }
             }
             log("placed '{}' at {}", sprite, npos);
-            sprite.setPos(npos);
-            sprite.active = true;
+            sprite.activate(npos);
         }
         mPlaceQueue = null;
     }
@@ -744,7 +773,9 @@ class GameEngine : GameEnginePublic {
         }
         if (r > 0) {
             for (int i = 0; i < r*3; i++) {
-                callbacks.particleEngine.emitParticle(at,
+                callbacks.particleEngine.emitParticle(at
+                    + Vector2f(0, -1)
+                    .rotated(rngShared.nextRange!(float)(0, PI*2)) * radius,
                     Vector2f(0, -1).rotated(rngShared.nextRange(-PI/2, PI/2)),
                     mGfx.expl.smoke[rngShared.next(0, r)]);
             }
@@ -906,4 +937,231 @@ class GameEngine : GameEnginePublic {
             o.hash(hasher);
         }
     }
+
+    //--------------- client commands
+    //if this wasn't D, I'd put this into a separate source file
+    //but this is D, and the only way to move it to a separate file would be
+    //  either to create bloat by creating a new class, or doing "unclean"
+    //  stuff by putting this into free functions (and what about the vars?)
+
+    CommandBucket mCmds;
+    CommandLine mCmd;
+    //temporary during command execution (sorry)
+    char[] mTmp_CurrentAccessTag;
+
+    //execute a user command
+    //because cmd comes straight from the network, there's an access_tag
+    //  parameter, which kind of identifies the sender of the command. the
+    //  access_tag corresponds to the key in mAccessMapping.
+    //the tag "local" is specially interpreted, and means the command comes
+    //  from a privileged source. this disables access control checking.
+    //be warned: in network game, the engine is replicated, and all nodes
+    //  think they are "local", so using this in network games might cause chaos
+    //  and desynchronization... it's a hack for local games, anyway
+    void executeCommand(char[] access_tag, char[] cmd) {
+        //log("exec: '{}': '{}'", access_tag, cmd);
+        assert(mTmp_CurrentAccessTag == "");
+        mTmp_CurrentAccessTag = access_tag;
+        scope(exit) mTmp_CurrentAccessTag = "";
+        mCmd.execute(cmd);
+    }
+
+    //test if the given team can be accessed with the given access tag
+    //right now used for ClientControl.getOwnedTeams()
+    bool checkTeamAccess(char[] access_tag, Team t) {
+        if (access_tag == "local")
+            return true;
+        foreach (ref entry; mAccessMapping) {
+            if (entry.tag == access_tag && entry.team is t)
+                return true;
+        }
+        return false;
+    }
+
+    //internal clusterfuck follows
+
+    //automatically add an item to the command line parser
+    //compile time magic is used to infer the parameters, and the delegate
+    //is called when the command is invoked (maybe this is overcomplicated)
+    private void addCmd(T)(char[] name, T del) {
+        alias ParameterTupleOf!(T) Params;
+
+        //proxify the function in a commandline call
+        //the wrapper is just to get a delegate, that is valid even after this
+        //function has returned
+        //in D2.0, this Wrapper stuff will be unnecessary
+        struct Wrapper {
+            T callee;
+            char[] name;
+            void cmd(MyBox[] params, Output o) {
+                Params p;
+                //(yes, p[i] will have a different static type in each iteration)
+                foreach (int i, x; Params) {
+                    p[i] = params[i].unbox!(x)();
+                }
+                callee(p);
+            }
+        }
+
+        Wrapper* pwrap = new Wrapper;
+        pwrap.callee = del;
+        pwrap.name = name;
+
+        //build command line argument list according to delegate arguments
+        char[][] cmdargs;
+        foreach (int i, x; Params) {
+            char[]* pt = typeid(x) in gCommandLineParserTypes;
+            if (!pt) {
+                assert(false, "no command line parser for " ~ x.stringof);
+            }
+            cmdargs ~= myformat("{}:param_{}", *pt, i);
+        }
+
+        mCmds.register(Command(name, &pwrap.cmd, "-", cmdargs));
+    }
+
+    //similar to addCmd()
+    //expected is a delegate like void foo(ServerTeamMember w, X); where
+    //X can be further parameters (can be empty)
+    private void addWormCmd(T)(char[] name, T del) {
+        //remove first parameter, because that's the worm
+        alias ParameterTupleOf!(T)[1..$] Params;
+
+        struct Wrapper {
+            GameEngine owner;
+            T callee;
+            void moo(Params p) {
+                bool ok;
+                owner.checkWormCommand(
+                    (ServerTeamMember w) {
+                        ok = true;
+                        //may error here, if del has a wrong type
+                        callee(w, p);
+                    }
+                );
+                if (!ok)
+                    log("denied: {}", owner.mTmp_CurrentAccessTag);
+            }
+        }
+
+        Wrapper* pwrap = new Wrapper;
+        pwrap.owner = this;
+        pwrap.callee = del;
+
+        addCmd(name, &pwrap.moo);
+    }
+
+    private void createCmd() {
+        mCmd = new CommandLine(globals.defaultOut);
+        mCmds = new CommandBucket();
+
+        //usual server "admin" command
+        //xxx: not access checked, although it could
+        addCmd("raise_water", &raiseWater);
+        addCmd("set_wind", &setWindSpeed);
+        addCmd("crate_test", &crateTest);
+        addCmd("shake_test", &addEarthQuake);
+        addCmd("activity", &activityDebug);
+
+        //worm control commands; work like above, but the worm-selection code
+        //is factored out
+
+        //remember that delegate literals must only access their params
+        //if they access members of this class, runtime errors will result
+
+        addWormCmd("next_member", (ServerTeamMember w) {
+            w.serverTeam.doChooseWorm();
+        });
+        addWormCmd("jump", (ServerTeamMember w, bool alt) {
+            w.jump(alt ? JumpMode.straightUp : JumpMode.normal);
+        });
+        addWormCmd("move", (ServerTeamMember w, int x, int y) {
+            w.doMove(Vector2i(x, y));
+        });
+        addWormCmd("weapon", (ServerTeamMember w, char[] weapon) {
+            WeaponClass wc;
+            if (weapon != "-")
+                wc = w.engine.findWeaponClass(weapon, true);
+            w.selectWeaponByClass(wc);
+        });
+        addWormCmd("set_timer", (ServerTeamMember w, int ms) {
+            w.doSetTimer(timeMsecs(ms));
+        });
+        addWormCmd("set_target", (ServerTeamMember w, int x, int y) {
+            w.serverTeam.doSetPoint(Vector2f(x, y));
+        });
+        addWormCmd("selectandfire", (ServerTeamMember w, char[] m, bool down) {
+            if (down) {
+                WeaponClass wc;
+                if (m != "-")
+                    wc = w.engine.findWeaponClass(m, true);
+                w.selectWeaponByClass(wc);
+                //doFireDown will save the keypress and wait if not ready
+                w.doFireDown(true);
+            } else {
+                //key was released (like fire behavior)
+                w.doFireUp();
+            }
+        });
+
+        //also a worm cmd, but specially handled
+        //addCmd("weapon_fire", &executeWeaponFire);
+        mCmds.register(Command("weapon_fire", &cmdWeaponFire, "-",
+            ["bool:is_down"]));
+
+        mCmds.bind(mCmd);
+    }
+
+    //if a worm control command is incoming (like move, shoot, etc.), two things
+    //must be done here:
+    //  1. find out which worm is controlled by GameControl
+    //  2. check if the move is allowed
+    private bool checkWormCommand(void delegate(ServerTeamMember w) pass) {
+        //we must intersect both sets of team members (= worms):
+        // set of active worms (by game controller) and set of worms owned by us
+        //xxx: if several worms are active that belong to us, pick the first one
+        foreach (ServerTeam t; controller.teams()) {
+            if (t.active && checkTeamAccess(mTmp_CurrentAccessTag, t)) {
+                pass(t.current);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    //Special handling for fire command: while replaying, fire will skip the
+    //replay (fast-forward to end)
+    private void cmdWeaponFire(MyBox[] params, Output o) {
+        //xxx: used to cancel replay mode... can't do this anymore
+        //  instead, it's hacked back into gameshell.d somewhere
+        executeWeaponFire(params[0].unbox!(bool));
+    }
+
+    private void executeWeaponFire(bool is_down) {
+        void fire(ServerTeamMember w) {
+            if (is_down) {
+                w.doFireDown();
+            } else {
+                w.doFireUp();
+            }
+        }
+
+        if (!checkWormCommand(&fire)) {
+            //no worm active
+            //spacebar for crate
+            controller.instantDropCrate();
+        }
+    }
+
+    pragma(msg, "fixme2");
+    //there's remove_control somewhere in cmdclient.d, and apparently this is
+    //  called when a client disconnects; the teams owned by that client
+    //  surrender
+/+
+    private void executeSurrender() {
+        foreach (ServerTeam t; mOwnedTeams) {
+            t.surrenderTeam();
+        }
+    }
++/
 }

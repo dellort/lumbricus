@@ -105,6 +105,8 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
             //use strength/direction from FireInfo
     }
 
+    Vector2f pos;
+
     if (!params.airstrike) {
         //place it
         //1.5 is a fuzzy value to prevent that the objects are "too near"
@@ -118,12 +120,11 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
             about.dir = about.dir.rotated(theta);
         }
 
-        sprite.setPos(about.pos + about.dir*dist);
+        pos = about.pos + about.dir*dist;
     } else {
         if (params.initVelocity == InitVelocity.randomAir) {
             //random positions over the whole landscape, random speed
             //  in approx. "down" direction
-            Vector2f pos;
             pos.x = engine.level.landBounds.p1.x
                 + engine.level.landBounds.size.x * engine.rnd.nextDouble();
             pos.y = 0;
@@ -132,7 +133,6 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
             about.dir = Vector2f(engine.rnd.nextDouble3()*0.7f, 1).normal;
         } else {
             //classic airstrike in-a-row positioning, facing down
-            Vector2f pos;
             float width = params.spawndist * (params.count-1);
             //center around pointed
             float x = about.pos.x;
@@ -164,7 +164,7 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
         sprite.setStateForced(ssi);
 
     //set fire to it
-    sprite.active = true;
+    sprite.activate(pos);
 }
 
 //action classes for spawning stuff

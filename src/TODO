@@ -11,8 +11,8 @@
 - debugging: würmer auswählen und GameObject-Felder anzeigen lassen
 ! besser methode zum auslesen von confignodes (insbesondere mit fehlerbehandlung, so dass ungültige werte nicht still ignoriert werden, beliebige datentypen, user warnen über unbenutzte einträge; vielleicht einfach serialiaiserungscode wiederverwenden)
 - configfile.d so ändern, dass datentypen schon in den nodes/in der syntax deklariert werden? libconfig verwenden?
-- datentyp spezifische benutzerdefinierte serialisierung
 - demo support
++ editor/debug modus: spielzeit läuft nicht ab, untersuchung/platzierung von game objekten
 
 == bekannte, lösbare Bugs ==
 - wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
@@ -25,8 +25,14 @@
 - Bohrer/Lötlampe stoßen Würmer nicht weg
 - Projektil fliegt durch wenige Pixel dicke Landschaft, wenn der Wurm beim Feuern direkt davorsteht
 - Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
-- GUI-Fokus: Feuern / Zoomen wird beim Rechtsklick-Scrollen abgebrochen (arrrgghh)
-  (Kaputt seit captureKey-Zeug in r813)
+- Kisten kleben sich manchmal nicht, und das Spiel geht nicht weiter
+  (abhilfe: kisten entfernen oder in die luft jagen)
+
+== bekannte, unlösbare Bugs ==
+- physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)
+- MiniD integrieren
+- gui muss beim laden von savegames wiederhergestellt werden (spiele-einstellungsdialog)
+- GameConfig code säubern (absurde ansammlung von ConfigNodes)
 
 
 == GUI (allgemeine Features) ==
@@ -43,8 +49,8 @@
 [+ Netzwerk-Server-erstell GUI (ähnlich Singleplayer, evtl. verbinden mit s.o.)]
 + Optionsmenü (Sprache, Video, Sound etc.)
 + Locale-Tool ("missing id" finden, Locales vergleichen, aktuelle Locale neu laden)
-- gui muss beim laden von savegames wiederhergestellt werden
 + Waffenfenster wegmachen wenns nicht gebraucht wird (insb. in Höhlenlevels lästig)
+  wie denn?
 
 
 == Spiellogik/Gameengine ==
@@ -57,6 +63,8 @@
 + Mehr Powerup-Kisten (Niedrige Schwerkraft etc.), evtl. etwas "enthacken" (siehe z.B. controller.d, 1619)
 *** KI
 *** Scripting
+- Realtime Gamemodus: kontrolle über wurm erst nach 10 lebenspunkten abzug nehmen
+- wurm die kontrolle nehmen, sobald er gewonnen hat (statt auf ende der runde zu warten)
 
 == Spiel-Anzeige (Grafiken, Präsentation) ==
 + Partikel-Effekt für Explosionen, Wurm-nimmt-Schaden, kleine Explosionen (z.B. Minigun-Einschläge)

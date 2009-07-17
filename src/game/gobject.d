@@ -22,7 +22,7 @@ abstract class GameObject {
         return mEngine;
     }
 
-    final void active(bool set) {
+    protected final void active(bool set) {
         if (set == mActive)
             return;
         mActive = set;
@@ -32,13 +32,21 @@ abstract class GameObject {
         updateActive();
     }
 
-    final bool active() {
+    protected final bool active() {
+        return mActive;
+    }
+
+    //only for game.d, stay away
+    package bool _is_active() {
         return mActive;
     }
 
     //called after active-value updated
     protected void updateActive() {
     }
+
+//    //after creating a game object, start it
+//    abstract void activate();
 
     //return true if its active in the sense of a game-round
     abstract bool activity();

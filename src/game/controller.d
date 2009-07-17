@@ -411,10 +411,6 @@ class ServerTeam : Team {
         mCurrentTargetInd = ind;
     }
 
-    void dieNow() {
-        mCurrent.worm.physics.applyDamage(100000, DamageCause.death);
-    }
-
     //select (and draw) a weapon by its id
     void selectWeapon(WeaponClass weaponId) {
         if (mCurrent)
@@ -1400,7 +1396,7 @@ class GameController : GameLogicPublic {
             mGamemode.simulate();
 
             if (mLastCrate) {
-                if (!mLastCrate.active) mLastCrate = null;
+                if (!mLastCrate.activity) mLastCrate = null;
             }
 
             if (mGamemode.ended() && !mGameEnded) {
@@ -1462,8 +1458,7 @@ class GameController : GameLogicPublic {
     private void spawnWorm(Vector2i pos) {
         //now stupid debug code in another way
         auto w = mEngine.createSprite("worm");
-        w.setPos(toVector2f(pos));
-        w.active = true;
+        w.activate(toVector2f(pos));
     }
 
     //config = the "teams" node, i.e. from data/data/teams.conf
@@ -1667,8 +1662,7 @@ class GameController : GameLogicPublic {
         //put stuffies into it
         crate.stuffies = fillCrate();
         //actually start it
-        crate.setPos(from);
-        crate.active = true;
+        crate.activate(from);
         mLastCrate = crate;
         if (!silent) {
             events.onCrateDrop(crate.crateType);

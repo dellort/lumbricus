@@ -3,10 +3,10 @@ module game.gameshell;
 import common.common;
 import common.resources;
 import common.resset;
-import framework.commandline;
 import framework.framework;
 import framework.i18n; //just because of weapon loading...
 import framework.timesource;
+import framework.commandline;
 
 import game.controller;
 import game.gamepublic;
@@ -36,7 +36,6 @@ import utils.vector2;
 
 import utils.stream;
 import tango.math.Math : pow;
-import tango.core.Traits : ParameterTupleOf;
 
 
 //see GameShell.engineHash()
@@ -312,6 +311,9 @@ class GameShell {
         debug bool mPrintFrameTime;
         Hasher mGameHasher;
         SerializeContext mSerializeCtx;
+
+        CommandBucket mCmds;
+        CommandLine mCmd;
     }
     bool terminated;  //set to exit the game instantly
 
@@ -325,11 +327,14 @@ class GameShell {
     }
 
     struct LogEntry {
-        char[] dbg_desc;
-        void function(LogEntry e) caller; //function to call the boxed delegate
         long timestamp;
-        MyBox callee; //boxed delegate
-        MyBox[] params; //boxed parameters for the callee
+        char[] access_tag;
+        char[] cmd;
+
+        char[] toString() {
+            return myformat("ts={}, access='{}': '{}'", timestamp, access_tag,
+                cmd);
+        }
     }
 
     struct InputLog {
@@ -343,59 +348,66 @@ class GameShell {
 
     //use GameLoader.Create*() instead
     private this() {
+        mCmd = new CommandLine(globals.defaultOut);
+        mCmds = new CommandBucket();
+
+        mCmds.register(Command("set_pause", &cmdSetPaused, "-",
+            ["bool:-"]));
+        mCmds.register(Command("slow_down", &cmdSetSlowdown, "-",
+            ["float:-"]));
+
+        mCmds.bind(mCmd);
     }
 
     private void execEntry(LogEntry e) {
-        assert(!!e.caller);
-        log("exec input at ts={}: {}", e.timestamp, e.dbg_desc);
+        log("exec input: {}", e);
         assert(mTimeStamp == e.timestamp);
         //(this is here and not in addLoggedInput, because then input could be
         // logged for replay, that was never executed)
         if (mLogReplayInput) {
             mReplayInput.entries ~= e;
         }
-        e.caller(e);
+        mEngine.executeCommand(e.access_tag, e.cmd);
     }
 
-    //add a logged function call - the timestamp of the function call is set to
-    //now, and is executed at the next possible time
-    private void addLoggedInput(T)(T a_callee, MyBox[] params, char[] dbg_desc,
-        long cmdTimeStamp = -1)
-    {
-        static assert(is(T == delegate));
-        alias ParameterTupleOf!(T) Params;
-
-        //function to unbox the types and call the destination delegate
-        static void do_call(LogEntry e) {
-            T callee = e.callee.unbox!(T)();
-            Params p;
-            //(yes, p[i] will have a different static type in each iteration)
-            foreach (int i, x; Params) {
-                p[i] = e.params[i].unbox!(x)();
-            }
-            callee(p);
+    //command to be executed by GameEngine.executeCommand()
+    //this is logged/timestamped for networking, snapshot/replays, and demo mode
+    void addLoggedInput(char[] access_tag, char[] cmd, long cmdTimeStamp = -1) {
+        //yeh, this might be a really bad idea
+        if (replayMode() && str.startsWith(cmd, "weapon_fire")) {
+            replaySkip();
+            return;
         }
+
+        //and this may be a bad idea too
+        if (mCmd.execute(cmd))
+            return;
+
 
         LogEntry e;
 
-        e.dbg_desc = dbg_desc;
-        e.caller = &do_call;
-        e.callee = MyBox.Box(a_callee);
-        e.params = params;
+        e.access_tag = access_tag;
+        e.cmd = cmd;
+
         //assume time increases monotonically => list stays always sorted
         if (cmdTimeStamp >= 0)
             e.timestamp = cmdTimeStamp;
         else
             e.timestamp = mTimeStamp;
 
+        log("received input: {}", e);
+
         if (mReplayMode) {
-            log("input denied, because in replay mode: {}", e.dbg_desc);
+            log("previous input denied, because in replay mode");
             return;
         }
 
-        log("queue input at ts={}: {}", e.timestamp, e.dbg_desc);
-
         mCurrentInput.entries ~= e;
+    }
+
+    //public access
+    void executeCommand(char[] access_tag, char[] cmd) {
+        addLoggedInput(access_tag, cmd);
     }
 
     void frame() {
@@ -716,281 +728,75 @@ class GameShell {
     bool paused() {
         return mGameTime.paused();
     }
+
+    //xxx: not networking save, I guess
+    private void cmdSetPaused(MyBox[] params, Output o) {
+        bool state = params[0].unbox!(bool)();
+        log("pause: {}", state);
+        mGameTime.paused = state;
+    }
+    private void cmdSetSlowdown(MyBox[] params, Output o) {
+        float state = params[0].unbox!(float)();
+        log("slowndown: {}", state);
+        mGameTime.slowDown = state;
+    }
 }
 
 //one endpoint (e.g. network peer, or whatever), that can send input.
 //for now, it has control over a given set of teams, and all time one of these
 //teams is active, GameControl will actually accept the input and pass it to
 //the GameEngine
-class GameControl : ClientControl {
+class ClientControl {
     private {
-        GameShell mOwner;
-        CommandBucket mCmds;
-        CommandLine mCmd;
-        ServerTeam[] mOwnedTeams;
-        Team[] mOwnedCTeams;
-        long mCurrentTS = -1;
+        GameShell mShell;
+        char[] mAccessTag;
+        Team[] mCachedOwnedTeams;
     }
 
-    this(GameShell sh, bool add_all = true) {
-        mOwner = sh;
-        createCmd();
-
-        //multiple clients for one team? rather not, but cannot be checked here
-        //xxx implement client-team assignment
-        if (add_all) {
-            foreach (t; mOwner.mEngine.logic.getTeams)
-                addTeam(t);
-        }
+    //for explanation for access_control_tag, see GameEngine.executeCmd()
+    //instantiating this directly is "dangerous", because this might
+    //  accidentally bypass networking (see CmdNetControl)
+    this(GameShell sh, char[] access_control_tag) {
+        assert(!!sh);
+        mShell = sh;
+        mAccessTag = access_control_tag;
     }
 
-    //add tram to list of controlled teams
-    void addTeam(Team team) {
-        mOwnedTeams ~= castStrict!(ServerTeam)(cast(Object)team);
-        mOwnedCTeams ~= team;
+    //NOTE: CmdNetControl overrides this method and redirects it so, that cmd
+    //  gets sent over network, instead of being interpreted here
+    void executeCommand(char[] cmd) {
+        mShell.addLoggedInput(mAccessTag, cmd);
     }
 
-    //return true if command was found and could be parsed
-    //gives no indication if the actual action was accepted or rejected
-    //this function could directly accept network input
-    bool doExecuteCommand(char[] cmd) {
-        log("client command: '{}'", cmd);
-        return mCmd.execute(cmd);
-    }
-
-
-    //automatically add an item to the command line parser
-    //compile time magic is used to infer the parameters, and the delegate
-    //is called when the command is invoked (maybe this is overcomplicated)
-    void addCmd(T)(char[] name, T del) {
-        alias ParameterTupleOf!(T) Params;
-
-        //proxify the function in a commandline call
-        //the wrapper is just to get a delegate, that is valid even after this
-        //function has returned
-        //in D2.0, this Wrapper stuff will be unnecessary
-        struct Wrapper {
-            GameShell owner;
-            GameControl outer;
-            T callee;
-            char[] name;
-            void cmd(MyBox[] params, Output o) {
-                //- agh this is so stupid, and only for debugging
-                char[] desc = "cmd: " ~ name ~ " [";
-                foreach (int i, MyBox b; params) {
-                    desc ~= (i?", " : "") ~ boxToString(b);
-                }
-                desc ~= "]";
-                //- end stupid
-                owner.addLoggedInput!(T)(callee, params, desc, outer.mCurrentTS);
-            }
-        }
-
-        Wrapper* pwrap = new Wrapper;
-        pwrap.owner = mOwner;
-        pwrap.outer = this;
-        pwrap.callee = del;
-        pwrap.name = name;
-
-        //build command line argument list according to delegate arguments
-        char[][] cmdargs;
-        foreach (int i, x; Params) {
-            char[]* pt = typeid(x) in gCommandLineParserTypes;
-            if (!pt) {
-                assert(false, "no command line parser for " ~ x.stringof);
-            }
-            cmdargs ~= myformat("{}:param_{}", *pt, i);
-        }
-
-        mCmds.register(Command(name, &pwrap.cmd, "-", cmdargs));
-    }
-
-    //similar to addCmd()
-    //expected is a delegate like void foo(ServerTeamMember w, X); where
-    //X can be further parameters (can be empty)
-    void addWormCmd(T)(char[] name, T del) {
-        //remove first parameter, because that's the worm
-        alias ParameterTupleOf!(T)[1..$] Params;
-
-        struct Wrapper {
-            GameControl owner;
-            T callee;
-            void moo(Params p) {
-                owner.checkWormCommand(
-                    (ServerTeamMember w) {
-                        //may error here, if del has a wrong type
-                        callee(w, p);
-                    }
-                );
-            }
-        }
-
-        Wrapper* pwrap = new Wrapper;
-        pwrap.owner = this;
-        pwrap.callee = del;
-
-        addCmd(name, &pwrap.moo);
-    }
-
-
-    private void createCmd() {
-        mCmd = new CommandLine(globals.defaultOut);
-        mCmds = new CommandBucket();
-
-        GameEngine engine = mOwner.mEngine;
-
-        //usual server "admin" command (commands could simply be not add for
-        //GameControl instances, that represent unprivileged users)
-        addCmd("raise_water", &engine.raiseWater);
-        addCmd("set_wind", &engine.setWindSpeed);
-        addCmd("crate_test", &engine.crateTest);
-        addCmd("shake_test", &engine.addEarthQuake);
-        addCmd("activity", &engine.activityDebug);
-
-        //worm control commands; work like above, but the worm-selection code
-        //is factored out
-
-        //remember that delegate literals must only access their params
-        //if they access members of this class, runtime errors will result
-
-        addWormCmd("next_member", (ServerTeamMember w) {
-            w.serverTeam.doChooseWorm();
-        });
-        addWormCmd("jump", (ServerTeamMember w, bool alt) {
-            w.jump(alt ? JumpMode.straightUp : JumpMode.normal);
-        });
-        addWormCmd("move", (ServerTeamMember w, int x, int y) {
-            w.doMove(Vector2i(x, y));
-        });
-        addWormCmd("weapon", (ServerTeamMember w, char[] weapon) {
-            WeaponClass wc;
-            if (weapon != "-")
-                wc = w.engine.findWeaponClass(weapon, true);
-            w.selectWeaponByClass(wc);
-        });
-        addWormCmd("set_timer", (ServerTeamMember w, int ms) {
-            w.doSetTimer(timeMsecs(ms));
-        });
-        addWormCmd("set_target", (ServerTeamMember w, int x, int y) {
-            w.serverTeam.doSetPoint(Vector2f(x, y));
-        });
-        addWormCmd("selectandfire", (ServerTeamMember w, char[] m, bool down) {
-            if (down) {
-                WeaponClass wc;
-                if (m != "-")
-                    wc = w.engine.findWeaponClass(m, true);
-                w.selectWeaponByClass(wc);
-                //doFireDown will save the keypress and wait if not ready
-                w.doFireDown(true);
-            } else {
-                //key was released (like fire behavior)
-                w.doFireUp();
-            }
-        });
-
-        //also a worm cmd, but specially handled
-        //addCmd("weapon_fire", &executeWeaponFire);
-        mCmds.register(Command("weapon_fire", &cmdWeaponFire, "-",
-            ["bool:is_down"]));
-        mCmds.register(Command("set_pause", &cmdSetPaused, "-",
-            ["bool:-"]));
-        mCmds.register(Command("slow_down", &cmdSetSlowdown, "-",
-            ["float:-"]));
-
-        mCmds.bind(mCmd);
-    }
-
-    //if a worm control command is incoming (like move, shoot, etc.), two things
-    //must be done here:
-    //  1. find out which worm is controlled by GameControl
-    //  2. check if the move is allowed
-    private bool checkWormCommand(void delegate(ServerTeamMember w) pass) {
-        //we must intersect both sets of team members (= worms):
-        // set of active worms (by game controller) and set of worms owned by us
-        //xxx: if several worms are active that belong to us, pick the first one
-        foreach (ServerTeam t; mOwnedTeams) {
-            ServerTeamMember w = t.current;
+    ///TeamMember that would receive keypresses
+    ///a member of one team from GameLogicPublic.getActiveTeams()
+    ///_not_ always the same member or null
+    TeamMember getControlledMember() {
+        foreach (Team t; getOwnedTeams()) {
             if (t.active) {
-                pass(w);
-                return true;
+                return t.getActiveMember();
             }
         }
-        return false;
+        return null;
     }
 
-    //Special handling for fire command: while replaying, fire will skip the
-    //replay (fast-forward to end)
-    private void cmdWeaponFire(MyBox[] params, Output o) {
-        if (mOwner.replayMode)
-            mOwner.replaySkip();
-        else
-            mOwner.addLoggedInput(&executeWeaponFire, params,
-                "cmd: weapon_fire", mCurrentTS);
-    }
-
-    private void cmdSetPaused(MyBox[] params, Output o) {
-        bool state = params[0].unbox!(bool)();
-        mOwner.mGameTime.paused = state;
-    }
-
-    private void cmdSetSlowdown(MyBox[] params, Output o) {
-        float state = params[0].unbox!(float)();
-        log("slowndown: {}", state);
-        mOwner.mGameTime.slowDown = state;
-    }
-
-    private void executeWeaponFire(bool is_down) {
-        void fire(ServerTeamMember w) {
-            if (is_down) {
-                w.doFireDown();
-            } else {
-                w.doFireUp();
-            }
-        }
-
-        if (!checkWormCommand(&fire)) {
-            //no worm active
-            //spacebar for crate
-            mOwner.mEngine.controller.instantDropCrate();
-        }
-    }
-
-    private void executeSurrender() {
-        foreach (ServerTeam t; mOwnedTeams) {
-            t.surrenderTeam();
-        }
-    }
-
-    protected void setCurrentTS(long timeStamp) {
-        mCurrentTS = timeStamp;
-    }
-
-    void removeControl() {
-        MyBox[] params;
-        mOwner.addLoggedInput(&executeSurrender, params, "removeControl",
-            mCurrentTS);
-    }
-
-    //-- ClientControl
-
-    override TeamMember getControlledMember() {
-        //hurf, just what did I think???
-        ServerTeamMember cur;
-        checkWormCommand((ServerTeamMember w) { cur = w; });
-        return cur;
-    }
-
+    ///The teams associated with this controller
+    ///Does not mean any or all the teams can currently be controlled (they
+    ///  can still be deactivated by controller)
+    //xxx: ok, should be moved directly into GameEngine
     Team[] getOwnedTeams() {
-        return mOwnedCTeams;
+        //xxx: if access map is dynamically changed for any reason, this cache
+        //  must be invalidated
+        if (!mCachedOwnedTeams.length) {
+            GameEngine engine = mShell.serverEngine;
+            foreach (Team t; engine.controller.getTeams()) {
+                if (engine.checkTeamAccess(mAccessTag, t))
+                    mCachedOwnedTeams ~= t;
+            }
+        }
+        return mCachedOwnedTeams;
     }
-
-    override void executeCommand(char[] cmd) {
-        doExecuteCommand(cmd);
-    }
-
-    //-- /ClientControl
 }
-
 
 
 

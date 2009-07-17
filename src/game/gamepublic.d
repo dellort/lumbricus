@@ -49,6 +49,9 @@ class GameConfig {
     //probably should be changed etc., so don't blame me
     ConfigNode gfx;
     char[] randomSeed;
+    //contains subnode "access_map", which maps tag-names to team-ids
+    //the tag-name is passed as first arg to GameEngine.executeCmd(), see there
+    ConfigNode managment;
 
     //state that survives multiple rounds, e.g. worm statistics and points
     ConfigNode gamestate;
@@ -65,6 +68,7 @@ class GameConfig {
         to.addNode("gamestate", gamestate.copy);
         to.setValue!(char[][])("weaponsets", weaponsets);
         to.setStringValue("random_seed", randomSeed);
+        to.addNode("managment", managment.copy);
         return to;
     }
 
@@ -79,6 +83,7 @@ class GameConfig {
         gamestate = n.getSubNode("gamestate");
         weaponsets = n.getValue!(char[][])("weaponsets");
         randomSeed = n["random_seed"];
+        managment = n.getSubNode("managment");
     }
 }
 
@@ -461,19 +466,4 @@ interface Team {
     bool hasDoubleDamage();
 }
 
-//calls from client to server which control a worm
-//this should be also per-client, but it isn't per Team (!)
-//i.e. in non-networked multiplayer mode, there's only one of this
-interface ClientControl {
-    ///TeamMember that would receive keypresses
-    ///a member of one team from GameLogicPublic.getActiveTeams()
-    ///_not_ always the same member or null
-    TeamMember getControlledMember();
 
-    ///The teams associated with this controller
-    ///Does not mean any or all the teams can currently be controlled (they
-    ///  can still be deactivated by controller)
-    Team[] getOwnedTeams();
-
-    void executeCommand(char[] cmd);
-}

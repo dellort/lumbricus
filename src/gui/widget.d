@@ -706,9 +706,16 @@ class Widget {
     protected void dispatchInputEvent(InputEvent event) {
         //when this is called it means this Widget definitely gets the event
         auto m = getTopLevel();
+        log()("dispatch event to {}: {}", this, event);
         if (event.isMouseRelated() && m) {
             //usually used for the mouse cursor
-            m.mouseWidget = this;
+            //NOTE: not for mouse click events... this is a hack to prevent the
+            //  mouse cursor from appearing for a brief moment, if you right
+            //  click into a MouseScroller (which is what the game uses)
+            if (event.isMouseEvent) {
+                log()("set mouse cursor widget: {} -> {}", m.mouseWidget, this);
+                m.mouseWidget = this;
+            }
             //care about capturing - if we get the event and a mouse button
             //is hold, we should receive all other mouse events until no
             //mouse button is down anymore (see MainFrame)

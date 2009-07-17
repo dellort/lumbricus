@@ -240,5 +240,8 @@ class GameLandscape : GameObject {
     bool activity() {
         return false;
     }
+
+    void activate() {
+    }
 }
 

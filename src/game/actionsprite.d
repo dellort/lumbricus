@@ -94,8 +94,8 @@ class ActionSprite : GObjectSprite {
     private void cleanActiveActions(ref ActionContext[] actionsList) {
         //check an array of actions for actions still running and stop
         foreach (a; actionsList) {
-            if (a.active)
-                a.abort();
+            //xxx: changed from "if (a.active) a.abort();", might cause trouble
+            a.abort();
         }
         actionsList = null;
     }

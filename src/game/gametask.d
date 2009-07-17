@@ -310,7 +310,7 @@ class GameTask : StatefulTask {
 
         if (mGameShell && !mControl) {
             //xxx (well, you know)
-            mControl = new GameControl(mGameShell);
+            mControl = new ClientControl(mGameShell, "local");
         }
 
         return true;

@@ -85,5 +85,10 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null,
         persistentState = mConfig.getSubNode("gamestate");
     cfg.gamestate = persistentState;
 
+    //needs to be set up by user
+    //for local games, the access tag "local" can be used to control all teams;
+    //  so there's no access map needed
+    cfg.managment = new ConfigNode();
+
     return cfg;
 }

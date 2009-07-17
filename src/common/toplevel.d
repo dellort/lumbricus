@@ -26,10 +26,9 @@ import utils.output;
 import utils.misc;
 import utils.mybox;
 import utils.perf;
-//xxx
-import gc = utils.gcabstr;
 import memory = tango.core.Memory;
 import utils.stream;
+import tango.core.Variant;
 
 //ZOrders!
 //only for the stuff managed by TopLevel
@@ -42,6 +41,18 @@ enum GUIZOrder : int {
 }
 
 TopLevel gTopLevel;
+
+T gc_stat_get(T)(char[] name, T def = T.init) {
+    static if (is(memory.GCInfo)) {
+        try {
+            return memory.GCInfo[name].get!(T)();
+        } catch (VariantTypeMismatchException e) {
+            return def;
+        }
+    } else {
+        return def;
+    }
+}
 
 //this contains the mainframe
 class TopLevel {
@@ -610,28 +621,21 @@ private:
 
     private void testGC(MyBox[] args, Output write) {
         auto counter = new PerfTimer();
-        gc.GCStats s1, s2;
-        s1 = gc.getStats();
+        auto a = gc_stat_get!(size_t)("usedsize");
         counter.start();
         memory.GC.collect();
         counter.stop();
-        s2 = gc.getStats();
+        auto b = gc_stat_get!(size_t)("usedsize");
         write.writefln("GC fullcollect: {}, free'd {} KB", counter.time,
-            ((s1.usedsize - s2.usedsize) + 512) / 1024);
+            ((a - b) + 512) / 1024);
     }
     private void testGCstats(MyBox[] args, Output write) {
-        auto w = write;
-        auto s = gc.getStats();
-        w.writefln("GC stats:");
-        w.writefln("poolsize = {} KB", s.poolsize/1024);
-        w.writefln("usedsize = {} KB", s.usedsize/1024);
-        w.writefln("freeblocks = {}", s.freeblocks);
-        w.writefln("freelistsize = {} KB", s.freelistsize/1024);
-        w.writefln("pageblocks = {}", s.pageblocks);
-        static if (is(tango.core.Memory.GCStats)) {
-            w.writefln("gc_count = {}", s.gc_count);
-            w.writefln("mark_time = {}", timeMusecs(s.mark_time));
-            w.writefln("sweep_time = {}", timeMusecs(s.sweep_time));
+        static if (is(memory.GCInfo)) {
+            foreach (k; memory.GCInfo.keys()) {
+                //xxx change as soon as Variants can be converted to string
+                //for now, size_t is the most common type
+                write.writefln("{} = {}", k, gc_stat_get!(size_t)(k, 0));
+            }
         }
     }
 
@@ -765,21 +769,21 @@ class StatsWindow : Task {
             //--maybe that makes it VERY slow with many lines... or so
             //--wnd.client = null; //dirty trick to avoid relayouting all the time
 
-            int n = 0;
+            addLine("GC Used",
+                str.sizeToHuman(gc_stat_get!(size_t)("usedsize"),
+                lineBuffer()));
+            addLine("GC Poolsize",
+                str.sizeToHuman(gc_stat_get!(size_t)("poolsize"),
+                lineBuffer()));
+            addLine("GC count", myformat_s(lineBuffer(), "{}",
+                gc_stat_get!(ulong)("gc_count")));
+            addLine("GC m-time",
+                timeMusecs(gc_stat_get!(ulong)("mark_time_us"))
+                .toString_s(lineBuffer()));
+            addLine("GC s-time",
+                timeMusecs(gc_stat_get!(ulong)("sweep_time_us"))
+                .toString_s(lineBuffer()));
 
-            auto gcs = gc.getStats();
-
-            addLine("GC Used", str.sizeToHuman(gcs.usedsize, lineBuffer()));
-            addLine("GC Poolsize", str.sizeToHuman(gcs.poolsize, lineBuffer()));
-            static if (is(tango.core.Memory.GCStats)) {
-                addLine("GC count", myformat_s(lineBuffer(), "{}",
-                    gcs.gc_count));
-                addLine("GC m-time",
-                    timeMusecs(gcs.mark_time).toString_s(lineBuffer()));
-                addLine("GC s-time",
-                    timeMusecs(gcs.sweep_time).toString_s(lineBuffer()));
-                n += 3;
-            }
             addLine("Weak objects", myformat_s(lineBuffer(), "{}",
                 gFramework.weakObjectsCount));
 
