@@ -200,17 +200,37 @@ bool eatEnd(ref char[] str, char[] suffix) {
 //result[0] contains the rest (especially if nothing found)
 //  split2("abcd", 'c') == ["ab", "cd"]
 //  split2("abcd", 'x') == ["abcd", ""]
-//(sadly allocates memory for return array)
-char[][] split2(char[] txt, char tofind) {
+struct Split2Result {
+    char[][2] res;
+    char[] opIndex(uint i) {
+        return res[i];
+    }
+}
+Split2Result split2(char[] txt, char tofind) {
     int idx = find(txt, tofind);
     char[] before = txt[0 .. idx >= 0 ? idx : $];
     char[] after = txt[before.length .. $];
-    return [before, after];
+    Split2Result r;
+    r.res[0] = before;
+    r.res[1] = after;
+    return r;
+}
+//hm I guess I'm a little bit tired
+//like split2(), but excludes tofind
+Split2Result split2_b(char[] txt, char tofind) {
+    auto res = split2(txt, tofind);
+    if (res[1].length) {
+        assert(res[1][0] == tofind);
+        res.res[1] = res.res[1][1..$];
+    }
+    return res;
 }
 
 unittest {
-    assert(split2("abcd", 'c') == ["ab", "cd"]);
-    assert(split2("abcd", 'x') == ["abcd", ""]);
+    assert(split2("abcd", 'c').res == ["ab", "cd"]);
+    assert(split2_b("abcd", 'c').res == ["ab", "d"]);
+    assert(split2("abcd", 'x').res == ["abcd", ""]);
+    assert(split2_b("abcd", 'x').res == ["abcd", ""]);
 }
 
 import utils.misc;

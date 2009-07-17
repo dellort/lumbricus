@@ -60,6 +60,7 @@ import utils.path;
 import utils.archive;
 import utils.snapshot;
 import utils.perf;
+import str = utils.string;
 
 import game.serialize_register : initGameSerialization;
 
@@ -176,9 +177,18 @@ class GameTask : StatefulTask {
 
         createWindow();
 
-        //sorry for this hack... definitely needs to be cleaned up
-        ConfigNode node = gConf.loadConfig("newgame");
-        initGame(loadGameConfig(node));
+        if (str.eatStart(args, "demo:")) {
+            mGameLoader = GameLoader.CreateFromDemo(args);
+            doInit();
+            return;
+        } else if (args == "") {
+            //sorry for this hack... definitely needs to be cleaned up
+            ConfigNode node = gConf.loadConfig("newgame");
+            initGame(loadGameConfig(node));
+            return;
+        }
+
+        throw new Exception("unknown commandline params"); //???
     }
 
     //start a game

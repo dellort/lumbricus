@@ -465,7 +465,7 @@ public class FormattedText {
     //utf-8 and line breaks
     private void parseLiteral(char[] txt) {
         while (txt.length) {
-            char[][] breaks = str.split2(txt, '\n');
+            auto breaks = str.split2(txt, '\n');
             mParts[$-1].text ~= breaks[0];
             txt = null;
             if (breaks[1].length) {

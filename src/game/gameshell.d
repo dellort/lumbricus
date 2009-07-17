@@ -33,9 +33,11 @@ import utils.snapshot;
 import utils.strparser : boxToString;
 import utils.time;
 import utils.vector2;
+import str = utils.string;
 
 import utils.stream;
 import tango.math.Math : pow;
+import convert = tango.util.Convert;
 
 
 //see GameShell.engineHash()
@@ -86,6 +88,13 @@ class GameLoader {
         ConfigNode mTimeConfig;
         ConfigNode mPersistence;
         LandscapeBitmap[] mBitmaps;
+        bool enable_demo_recording = true;
+        //ConfigNode mDemoFile;
+        Output mDemoOutput;
+        //null = no demo reading
+        //OH GOD FUCK IT
+        //GameShell.InputLog* mDemoInput;
+        void* mDemoInput;
     }
 
     private struct TimeSettings {
@@ -129,6 +138,57 @@ class GameLoader {
         return r;
     }
 
+    //filename_prefix is e.g. "last_demo", and the code will try to read the
+    //  files last_demo.conf and last_demo.dat
+    static GameLoader CreateFromDemo(char[] filename_prefix) {
+        auto r = new GameLoader();
+        auto lg = new GameShell.InputLog;
+        r.mDemoInput = lg;
+        auto demoFile = gConf.loadConfig(filename_prefix ~ ".conf", true);
+        auto cfg = new GameConfig();
+        r.mGameConfig = cfg;
+        cfg.load(demoFile.getSubNode("game_config"));
+        //xxx move elsewhere or whatever
+        if (!cfg.level) {
+            auto gen = new GenerateFromSaved(new LevelGeneratorShared(),
+                cfg.saved_level);
+            cfg.level = gen.render();
+        }
+        //parse the .dat
+        ulong max_ts;
+        auto f = gFS.open(filename_prefix ~ ".dat");
+        char[] dat = cast(char[])f.readAll();
+        f.close();
+        //xxx throws exception on utf-8 error
+        //(as intended, but needs better error reporting)
+        str.validate(dat);
+        foreach (char[] line; str.splitlines(dat)) {
+            line = str.strip(line);
+            if (line == "")
+                continue;
+            if (str.eatStart(line, "END ")) {
+                //end marker, TS follows
+                //xxx: throws exception...
+                lg.end_ts = to!(ulong)(line);
+                break;
+            }
+            //<ts>|<tag>|<cmd>
+            //xxx: clumsy parser, throws exceptions...
+            auto res = str.split2_b(line, '|');
+            GameShell.LogEntry e;
+            e.timestamp = to!(ulong)(res[0]);
+            res = str.split2_b(res[1], '|');
+            e.access_tag = res[0];
+            e.cmd = res[1];
+            lg.entries ~= e;
+            max_ts = max(max_ts, e.timestamp);
+        }
+        if (!lg.end_ts)
+            lg.end_ts = max_ts;
+        r.doInit();
+        return r;
+    }
+
     private void loadWeaponSets() {
         //xxx for weapon set stuff:
         //    weapon ids are assumed to be unique between sets
@@ -155,6 +215,22 @@ class GameLoader {
         //xxx should this really be here
         if (mGameConfig.level.saved) {
             gConf.saveConfig(mGameConfig.level.saved, "lastlevel.conf");
+        }
+
+        //never record a demo when playing back a demo
+        if (!!mDemoInput)
+            enable_demo_recording = false;
+
+        if (enable_demo_recording) {
+            registerLog("foowarning")("demo recording enabled!");
+            auto demoFile = new ConfigNode();
+            demoFile.addNode("game_config", mGameConfig.save());
+            char[] filename = "last_demo.";
+            gConf.saveConfig(demoFile, filename ~ "conf");
+            //why two files? because I want to output stuff in realtime, and
+            //  the output should survive even a crash
+            auto outstr = gFS.open(filename ~ "dat", File.WriteCreate);
+            mDemoOutput = new PipeOutput(outstr.pipeOut());
         }
 
         mGfx = new GfxSet(mGameConfig.gfx);
@@ -229,6 +305,10 @@ class GameLoader {
         //registers many objects referenced from mShell for serialization
         mShell.initSerialization();
 
+        if (mDemoOutput) {
+            mShell.mDemoOutput = mDemoOutput;
+        }
+
         if (!mGameData) {
             //for creation of a new game
             mShell.mEngine = new GameEngine(mGameConfig, mGfx,
@@ -264,6 +344,17 @@ class GameLoader {
             }
             mBitmaps = null; //make GC-able, just in case
             ctx.removeExternal(mPersistence);
+        }
+
+        if (mDemoInput) {
+            //whee whee we simply set it to replay mode and seriously mess with
+            //  the internals
+            //let's hope it doesn't break
+            mShell.snapForReplay();
+            auto lg = cast(GameShell.InputLog*)mDemoInput;
+            mShell.mReplayInput = *lg;
+            mShell.mTimeStamp = lg.end_ts;
+            mShell.replay();
         }
 
         if (onLoadDone)
@@ -305,7 +396,6 @@ class GameShell {
         bool mLogReplayInput;
         InputLog mReplayInput;
         bool mReplayMode; //currently replaying
-        long mReplayEnd; //mTimeStamp at end of replay
         bool mUseExternalTS; //timestamp advancing is controlled externally
         bool mExtIsLagging;
         debug bool mPrintFrameTime;
@@ -314,6 +404,10 @@ class GameShell {
 
         CommandBucket mCmds;
         CommandLine mCmd;
+
+        //bool mEnableDemoPlayback;
+        //if !is null, enable demo recording
+        Output mDemoOutput;
     }
     bool terminated;  //set to exit the game instantly
 
@@ -339,6 +433,8 @@ class GameShell {
 
     struct InputLog {
         LogEntry[] entries;
+        long end_ts;
+
         InputLog clone() {
             auto res = *this;
             res.entries = res.entries.dup;
@@ -403,6 +499,12 @@ class GameShell {
         }
 
         mCurrentInput.entries ~= e;
+
+        if (mDemoOutput) {
+            //warning: some idiots could send us commands with newlines
+            //  this would break demo recordings
+            mDemoOutput.writefln("{}|{}|{}", e.timestamp, e.access_tag, e.cmd);
+        }
     }
 
     //public access
@@ -490,8 +592,8 @@ class GameShell {
         //xxx not sure if the input for this frame should be fed to the engine
         //    before debug-dumping, I'm too tired to think about that
         if (mReplayMode) {
-            if (mTimeStamp >= mReplayEnd) {
-                assert(mTimeStamp == mReplayEnd);
+            if (mTimeStamp >= mReplayInput.end_ts) {
+                assert(mTimeStamp == mReplayInput.end_ts);
                 if (mMasterTime.slowDown > 1.0f)
                     mMasterTime.slowDown = 1.0f;
                 mReplayMode = false;
@@ -518,7 +620,7 @@ class GameShell {
         }
         debug(debug_save)
             debug_save();
-        mReplayEnd = mTimeStamp;
+        mReplayInput.end_ts = mTimeStamp;
         doUnsnapshot(mReplaySnapshot);
         mLogReplayInput = false;
         mCurrentInput = mReplayInput.clone;
@@ -540,7 +642,7 @@ class GameShell {
 
     Time replayRemain() {
         if (mReplayMode) {
-            return (mReplayEnd - mTimeStamp)*cFrameLength;
+            return (mReplayInput.end_ts - mTimeStamp)*cFrameLength;
         } else {
             return Time.Null;
         }
@@ -604,8 +706,10 @@ class GameShell {
         mTimeStamp = snap.game_time_ts;
         //xxx it seems using snap.game_time was fine, but whatever
         assert(mGameTime.current == snap.game_time);
-        assert(!!OnRestoreGuiAfterSnapshot);
-        OnRestoreGuiAfterSnapshot();
+        //assert(!!OnRestoreGuiAfterSnapshot);
+        if (OnRestoreGuiAfterSnapshot) {
+            OnRestoreGuiAfterSnapshot();
+        }
     }
 
     void saveGame(TarArchive file) {

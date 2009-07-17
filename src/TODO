@@ -11,7 +11,6 @@
 - debugging: würmer auswählen und GameObject-Felder anzeigen lassen
 ! besser methode zum auslesen von confignodes (insbesondere mit fehlerbehandlung, so dass ungültige werte nicht still ignoriert werden, beliebige datentypen, user warnen über unbenutzte einträge; vielleicht einfach serialiaiserungscode wiederverwenden)
 - configfile.d so ändern, dass datentypen schon in den nodes/in der syntax deklariert werden? libconfig verwenden?
-- demo support
 + editor/debug modus: spielzeit läuft nicht ab, untersuchung/platzierung von game objekten
 
 == bekannte, lösbare Bugs ==
@@ -27,6 +26,7 @@
 - Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
 - Kisten kleben sich manchmal nicht, und das Spiel geht nicht weiter
   (abhilfe: kisten entfernen oder in die luft jagen)
+- sound in ordnung bringen, idiotische Sample/Music trennung aufheben, SDL_sound ausprobieren, sound effekte ins spiel integrieren
 
 == bekannte, unlösbare Bugs ==
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)

@@ -10,6 +10,7 @@ class WrapNotFoundException : Exception {
     this(Exception e, char[] msg) {
         super("wrapped exception, this was thrown when trying to instantiate " ~
             msg ~ ": " ~ e.toString());
+        next = e;
     }
 }
 
