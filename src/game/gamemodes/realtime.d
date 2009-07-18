@@ -26,6 +26,7 @@ class ModeRealtime : Gamemode {
         Time mGameTime = timeSecs(120);
         int mMaxCrates = 10;
         int mSuddenDeathWaterRaise = 32;
+        int mStaminaPower = 10;
 
         const cWinTime = timeSecs(5);
         //time from being hit until you can move again
@@ -47,6 +48,7 @@ class ModeRealtime : Gamemode {
         mMaxCrates = config.getIntValue("maxcrates", mMaxCrates);
         mSuddenDeathWaterRaise = config.getIntValue("water_raise",
             mSuddenDeathWaterRaise);
+        mStaminaPower = config.getIntValue("stamina_power", mStaminaPower);
     }
 
     this(ReflectCtor c) {
@@ -146,7 +148,7 @@ class ModeRealtime : Gamemode {
                         logic.activateTeam(t);
                     }
                 }
-            } else if (!t.current || t.current.lifeLost()) {
+            } else if (!t.current || t.current.lifeLost(mStaminaPower)) {
                 //worm change if the current worm was hit
                 logic.activateTeam(t, false);
                 mTeamDeactivateTime[t] = modeTime.current();

@@ -645,8 +645,10 @@ class ServerTeamMember : TeamMember, WormController {
     }
 
     //xxx should be named: round lost?
-    bool lifeLost() {
-        return health() < lastKnownLifepower;
+    //apparently amount of lost healthpoints since last activation
+    //tolerance: positive number of health points, whose loss can be tolerated
+    bool lifeLost(int tolerance = 0) {
+        return health() + tolerance < lastKnownLifepower;
     }
 
     void addHealth(int amount) {
