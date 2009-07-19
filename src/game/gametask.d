@@ -160,14 +160,6 @@ class GameTask : StatefulTask {
         ConfigNode mGamePersist;
     }
 
-    //just for the paused-command?
-    private bool gamePaused() {
-        return mGameShell.paused;
-    }
-    private void gamePaused(bool set) {
-        mControl.executeCommand(myformat("set_pause {}", set));
-    }
-
     //not happy with this; but who cares
     //this _really_ should be considered to be a debugging features
     //(to use it from the factory)
@@ -284,6 +276,10 @@ class GameTask : StatefulTask {
             mServerEngine.kill();
             mServerEngine = null;
         }+/
+        if (mGameShell) {
+            mCmds.removeSub(mGameShell.commands());
+            mGameShell.terminate();
+        }
         mGameShell = null;
         if (mClientEngine) {
             mClientEngine.kill();
@@ -310,8 +306,12 @@ class GameTask : StatefulTask {
         //log("initGameEngine");
         if (!mGameShell) {
             mGameShell = mGameLoader.finish();
+            mCmds.addSub(mGameShell.commands());
             mGameShell.OnRestoreGuiAfterSnapshot = &guiRestoreSnapshot;
             mGame = mGameShell.serverEngine;
+
+            //ShowObject.CreateWindow(this, mGameShell.getSerializeContext.types,
+            //    mGameShell.serverEngine);
         }
         if (mConnection) {
             if (!mControl)
@@ -474,7 +474,6 @@ class GameTask : StatefulTask {
             mCmds.register(Command("slow", &cmdSlow, "set slowdown",
                 ["float:slow down",
                  "text?:ani or game"]));
-            mCmds.register(Command("pause", &cmdPause, "pause"));
             mCmds.register(Command("ser_dump", &cmdSerDump,
                 "serialiation dump"));
             mCmds.register(Command("snap", &cmdSnapTest, "snapshot test",
@@ -482,6 +481,8 @@ class GameTask : StatefulTask {
             mCmds.register(Command("replay", &cmdReplay,
                 "start recording or replay from last snapshot",
                 ["text?:any text to start recording"]));
+            mCmds.register(Command("demo_stop", &cmdDemoStop,
+                "stop demo recorder"));
         }
         mCmds.register(Command("saveleveltga", &cmdSafeLevelTGA, "dump TGA",
             ["text:filename"]));
@@ -580,8 +581,9 @@ class GameTask : StatefulTask {
         }
     }
 
-    private void cmdPause(MyBox[], Output) {
-        gamePaused = !gamePaused;
+    private void cmdDemoStop(MyBox[], Output) {
+        if (mGameShell)
+            mGameShell.stopDemoRecorder();
     }
 
     private void cmdExecServer(MyBox[] args, Output write) {
@@ -654,5 +656,113 @@ class GameTask : StatefulTask {
         TaskFactory.register!(typeof(this))("game");
         StatefulFactory.register!(typeof(this))(cSaveId);
         initGameSerialization();
+    }
+}
+
+class ShowObject : Container {
+    private {
+        Types mTypes;
+        UpdateText[] mTexts;
+        Time mLastUpdate;
+
+        struct UpdateText {
+            Label lbl;
+            SafePtr ptr;
+            char[] delegate(SafePtr p) updater;
+        }
+    }
+
+    static void CreateWindow(Task task, Types types, Object o) {
+        auto wnd = gWindowManager.createWindow(task, new ShowObject(types, o),
+            "Muh", Vector2i(0,0));
+        auto props = wnd.properties;
+        props.zorder = WindowZOrder.High;
+        wnd.properties = props;
+        wnd.onClose = (Window sender) {return true;};
+    }
+
+    this(Types t, Object o) {
+        mTypes = t;
+        assert(!!o);
+        SafePtr p = mTypes.objPtr(o);
+        addChild(createStructured(p));
+    }
+
+    void update() {
+        foreach (t; mTexts) {
+            t.lbl.textMarkup = t.updater(t.ptr);
+        }
+    }
+
+    override void simulate() {
+        auto cur = timeCurrentTime();
+        if (cur - mLastUpdate > timeSecs(1.0)) {
+            mLastUpdate = cur;
+            update();
+        }
+    }
+
+    private Widget createSub(SafePtr ptr) {
+        if (cast(StructType)ptr.type) {
+            return createStructured(ptr);
+        }
+        //default conversion, which uses the stdlib's format()
+        UpdateText t;
+        t.lbl = new Label();
+        //t.lbl.shrink = true;
+        t.ptr = ptr;
+        t.updater = &conv_def;
+        mTexts ~= t;
+        return t.lbl;
+    }
+
+    private Widget createStructured(SafePtr ptr) {
+        auto stuff = new TableContainer(2, 0, Vector2i(3, 0));
+        auto cur = castStrict!(StructuredType)(ptr.type).klass();
+        if (!cur)
+            return null; //xxx: ?
+
+        while (cur) {
+            foreach (ClassMember m; cur.members) {
+                SafePtr sub = m.get(ptr);
+                Widget w = createSub(sub);
+                if (!w) {
+                    auto lbl = new Label();
+                    lbl.textMarkup = "\\c(red)?";
+                    w = lbl;
+                }
+                WidgetLayout lay;
+                lay.expand[] = [true, false];
+                w.setLayout(lay);
+                auto namelbl = new Label();
+                namelbl.setLayout(WidgetLayout.Aligned(-1, 0));
+                namelbl.text = m.name();
+                int r = stuff.addRow();
+                stuff.add(namelbl, 0, r);
+                stuff.add(w, 1, r);
+            }
+
+            if (!cur.superClass())
+                break;
+
+            cur = cur.superClass();
+            ptr.type = cur.type();
+            int r = stuff.addRow();
+            auto spacer = new Spacer();
+            stuff.add(spacer, 0, r, 2, 1);
+        }
+
+        return stuff;
+    }
+
+    private char[] conv_def(SafePtr p) {
+        //the lit is for not making it interpreted as markup
+        char[] txt = p.type.dataToString(p);
+        const cMax = 50;
+        if (txt.length > cMax) {
+            return "\"\\lit\0" ~ txt[0..cMax] ~ "\0\\{\\c(red)...\\}\"";
+        } else {
+            return "\"\\lit\0" ~ txt ~ "\0\"";
+        }
     }
 }

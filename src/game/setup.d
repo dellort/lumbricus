@@ -88,7 +88,7 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null,
     //needs to be set up by user
     //for local games, the access tag "local" can be used to control all teams;
     //  so there's no access map needed
-    cfg.managment = new ConfigNode();
+    cfg.managment = mConfig.getSubNode("managment");
 
     return cfg;
 }

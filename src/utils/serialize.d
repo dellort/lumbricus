@@ -91,6 +91,10 @@ class SerializeContext {
         mCustomSerializers = new typeof(mCustomSerializers);
     }
 
+    Types types() {
+        return mTypes;
+    }
+
     //register external object
     void addExternal(Object o, char[] id) {
         if (o in mExternals || id in mExternalsReverse)

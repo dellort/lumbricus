@@ -18,7 +18,7 @@ import game.levelgen.landscape;
 import game.levelgen.level;
 import game.levelgen.renderer;
 import game.weapon.weapon;
-import net.marshal : Hasher;
+import net.marshal;
 
 import utils.archive;
 import utils.configfile;
@@ -83,14 +83,18 @@ class GameLoader {
         Resources.Preloader mResPreloader;
         bool mNetwork;
         GameShell mShell;
+        bool mStartPaused;
+
         //savegame only
         ConfigNode mGameData;
         ConfigNode mTimeConfig;
         ConfigNode mPersistence;
         LandscapeBitmap[] mBitmaps;
-        bool enable_demo_recording = true;
+
+        //demo stuff
+        bool mEnableDemoRecording = true;
         //ConfigNode mDemoFile;
-        Output mDemoOutput;
+        PipeOut mDemoOutput;
         //null = no demo reading
         //OH GOD FUCK IT
         //GameShell.InputLog* mDemoInput;
@@ -157,34 +161,27 @@ class GameLoader {
         //parse the .dat
         ulong max_ts;
         auto f = gFS.open(filename_prefix ~ ".dat");
-        char[] dat = cast(char[])f.readAll();
-        f.close();
-        //xxx throws exception on utf-8 error
+        ulong fsize = f.size();
+        ulong readsize = 0;
+        //xxx throws exception on unmarshalling error
         //(as intended, but needs better error reporting)
-        str.validate(dat);
-        foreach (char[] line; str.splitlines(dat)) {
-            line = str.strip(line);
-            if (line == "")
-                continue;
-            if (str.eatStart(line, "END ")) {
-                //end marker, TS follows
-                //xxx: throws exception...
-                lg.end_ts = to!(ulong)(line);
-                break;
+        while (!f.eof()) {
+            size_t readfunc(ubyte[] data) {
+                f.readExact(data);
+                //return how much data is left (Unmarshaller uses this to
+                //  avoid allocating arrays of unplausible sizes)
+                readsize += data.length;
+                return fsize - readsize;
             }
-            //<ts>|<tag>|<cmd>
-            //xxx: clumsy parser, throws exceptions...
-            auto res = str.split2_b(line, '|');
-            GameShell.LogEntry e;
-            e.timestamp = to!(ulong)(res[0]);
-            res = str.split2_b(res[1], '|');
-            e.access_tag = res[0];
-            e.cmd = res[1];
-            lg.entries ~= e;
+            auto e = Unmarshaller(&readfunc).read!(GameShell.LogEntry)();
             max_ts = max(max_ts, e.timestamp);
+            lg.entries ~= e;
         }
-        if (!lg.end_ts)
-            lg.end_ts = max_ts;
+        f.close();
+        //NOTE: the last written command should be the DEMO_END pseudo-command,
+        //  but no need to specially catch this; the following code does the
+        //  same anyway
+        lg.end_ts = max_ts;
         r.doInit();
         return r;
     }
@@ -217,11 +214,16 @@ class GameLoader {
             gConf.saveConfig(mGameConfig.level.saved, "lastlevel.conf");
         }
 
+        //this doesn't really make sense, but is a helpful hack for now
+        mStartPaused = mGameConfig.managment.getValue!(bool)("start_paused");
+        mEnableDemoRecording = mGameConfig.managment
+            .getValue!(bool)("enable_demo_recording", true);
+
         //never record a demo when playing back a demo
         if (!!mDemoInput)
-            enable_demo_recording = false;
+            mEnableDemoRecording = false;
 
-        if (enable_demo_recording) {
+        if (mEnableDemoRecording) {
             registerLog("foowarning")("demo recording enabled!");
             auto demoFile = new ConfigNode();
             demoFile.addNode("game_config", mGameConfig.save());
@@ -230,7 +232,7 @@ class GameLoader {
             //why two files? because I want to output stuff in realtime, and
             //  the output should survive even a crash
             auto outstr = gFS.open(filename ~ "dat", File.WriteCreate);
-            mDemoOutput = new PipeOutput(outstr.pipeOut());
+            mDemoOutput = outstr.pipeOut(true);
         }
 
         mGfx = new GfxSet(mGameConfig.gfx);
@@ -301,11 +303,12 @@ class GameLoader {
         }
         mShell.mGameTime = new TimeSourceFixFramerate("GameTime",
             mShell.mMasterTime, cFrameLength);
+        mShell.mGameTime.paused = mStartPaused;
 
         //registers many objects referenced from mShell for serialization
         mShell.initSerialization();
 
-        if (mDemoOutput) {
+        if (!mDemoOutput.isNull()) {
             mShell.mDemoOutput = mDemoOutput;
         }
 
@@ -389,6 +392,7 @@ class GameShell {
         //timestamps are simpler
         long mTimeStamp;
         long mTimeStampAvail = -1;
+        ulong mSingleStep; //if != 0, singlestep is enabled
         GameConfig mGameConfig;
         GfxSet mGfx;
         InputLog mCurrentInput;
@@ -406,8 +410,8 @@ class GameShell {
         CommandLine mCmd;
 
         //bool mEnableDemoPlayback;
-        //if !is null, enable demo recording
-        Output mDemoOutput;
+        //if !.isNull(), enable demo recording
+        PipeOut mDemoOutput;
     }
     bool terminated;  //set to exit the game instantly
 
@@ -447,10 +451,13 @@ class GameShell {
         mCmd = new CommandLine(globals.defaultOut);
         mCmds = new CommandBucket();
 
-        mCmds.register(Command("set_pause", &cmdSetPaused, "-",
-            ["bool:-"]));
+        mCmds.register(Command("pause", &cmdSetPaused, "set game pause state",
+            ["bool?:pause state; toggle if omitted"]));
         mCmds.register(Command("slow_down", &cmdSetSlowdown, "-",
             ["float:-"]));
+        mCmds.register(Command("single_step", &cmdSinglestep, "step one frame, "
+            "and then pause the game (unpause before stepping if needed)",
+            ["int?=1:amount of frames to step"]));
 
         mCmds.bind(mCmd);
     }
@@ -500,16 +507,17 @@ class GameShell {
 
         mCurrentInput.entries ~= e;
 
-        if (mDemoOutput) {
-            //warning: some idiots could send us commands with newlines
-            //  this would break demo recordings
-            mDemoOutput.writefln("{}|{}|{}", e.timestamp, e.access_tag, e.cmd);
-        }
+        writeDemoEntry(e);
     }
 
     //public access
     void executeCommand(char[] access_tag, char[] cmd) {
         addLoggedInput(access_tag, cmd);
+    }
+
+    //GameShell specific commands (but without "server" commands, lol.)
+    CommandBucket commands() {
+        return mCmds;
     }
 
     void frame() {
@@ -546,8 +554,23 @@ class GameShell {
             int maxFrames = lag + 1;
             mGameTime.update(&doFrame, maxFrames);
         } else {
-            mMasterTime.update();
-            mGameTime.update(() { doFrame(); });
+            if (mSingleStep) {
+                //xxx: I don't know if there are any desynchronization issues by
+                //  creating small time drifts due to pause/update order or such
+                mMasterTime.update();
+                if (mGameTime.paused)
+                    mGameTime.paused = false;
+                mGameTime.update(
+                    () {
+                        assert(mSingleStep > 0);
+                        mSingleStep--; doFrame();
+                    }, mSingleStep);
+                if (mSingleStep == 0)
+                    mGameTime.paused = true;
+            } else {
+                mMasterTime.update();
+                mGameTime.update(&doFrame);
+            }
         }
     }
 
@@ -833,16 +856,52 @@ class GameShell {
         return mGameTime.paused();
     }
 
+    private void writeDemoEntry(LogEntry e) {
+        if (!mDemoOutput.isNull()) {
+            Marshaller(&mDemoOutput.write).write(e);
+        }
+    }
+
+    //stop and finalize (e.g. close file, actually write demo file...) the demo
+    //  recorder; this will also set the end timestamp of the demo
+    //NOP if no demo is being recorded
+    void stopDemoRecorder() {
+        if (!mDemoOutput.isNull()) {
+            //pseudo entry with a magic pseudo command to end the demo
+            LogEntry e;
+            e.timestamp = mTimeStamp;
+            e.cmd = "DEMO_END";
+            writeDemoEntry(e);
+            mDemoOutput.close();
+            mDemoOutput = typeof(mDemoOutput).init;
+        }
+    }
+
+    //can be called for cleanup
+    //only closes the demo file for now
+    void terminate() {
+        stopDemoRecorder();
+    }
+
     //xxx: not networking save, I guess
     private void cmdSetPaused(MyBox[] params, Output o) {
-        bool state = params[0].unbox!(bool)();
-        log("pause: {}", state);
-        mGameTime.paused = state;
+        bool nstate;
+        if (params[0].empty()) {
+            nstate = !mGameTime.paused;
+        } else {
+            nstate = params[0].unbox!(bool)();
+        }
+        log("pause: {}", nstate);
+        mGameTime.paused = nstate;
     }
     private void cmdSetSlowdown(MyBox[] params, Output o) {
         float state = params[0].unbox!(float)();
         log("slowndown: {}", state);
         mGameTime.slowDown = state;
+    }
+    private void cmdSinglestep(MyBox[] params, Output o) {
+        int step = params[0].unbox!(int)();
+        mSingleStep += max(step, 0);
     }
 }
 

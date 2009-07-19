@@ -13,6 +13,7 @@
 - configfile.d so ändern, dass datentypen schon in den nodes/in der syntax deklariert werden? libconfig verwenden?
 + editor/debug modus: spielzeit läuft nicht ab, untersuchung/platzierung von game objekten
 - funktionalität von sky.d durch particles.d ersetzen
+- GameConfig code säubern (absurde ansammlung von ConfigNodes)
 
 == bekannte, lösbare Bugs ==
 - wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
@@ -35,7 +36,6 @@
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)
 - MiniD integrieren
 - gui muss beim laden von savegames wiederhergestellt werden (spiele-einstellungsdialog)
-- GameConfig code säubern (absurde ansammlung von ConfigNodes)
 
 
 == GUI (allgemeine Features) ==

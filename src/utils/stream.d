@@ -50,7 +50,7 @@ struct PipeOut {
     }
 
     bool isNull() {
-        return !!do_write;
+        return !do_write;
     }
 
     //semantics: see Stream.writeExact()
@@ -83,7 +83,7 @@ struct PipeIn {
     }
 
     bool isNull() {
-        return !!do_read;
+        return !do_read;
     }
 
     //semantics: see Stream.readUntilEof()
