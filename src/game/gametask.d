@@ -126,6 +126,41 @@ Level fuzzleLevel(Level level) {
 
 +/
 
+class Fader : Spacer {
+    private {
+        Time mFadeStartTime;
+        int mFadeDur;
+        Color mStartCol = {0,0,0,0};
+        Color mEndCol = {0,0,0,1};
+    }
+
+    bool done;
+
+    this(Time fadeTime, bool fadeIn) {
+        if (fadeIn)
+            swap(mStartCol, mEndCol);
+        color = mStartCol;
+        mFadeStartTime = timeCurrentTime;
+        mFadeDur = fadeTime.msecs;
+    }
+
+    override bool onTestMouse(Vector2i pos) {
+        return false;
+    }
+
+    override void simulate() {
+        super.simulate();
+        int mstime = (timeCurrentTime - mFadeStartTime).msecs;
+        if (mstime > mFadeDur) {
+            //end of fade
+            done = true;
+        } else {
+            float scale = 1.0f*mstime/mFadeDur;
+            color = mStartCol + (mEndCol - mStartCol) * scale;
+        }
+    }
+}
+
 class GameTask : StatefulTask {
     private {
         GameShell mGameShell; //can be null, if a client in a network game!
@@ -145,11 +180,9 @@ class GameTask : StatefulTask {
 
         CommandBucket mCmds;
 
-        Spacer mFadeOut;
-        const Color cFadeStart = {0,0,0,0};
-        const Color cFadeEnd = {0,0,0,1};
-        const cFadeDurationMs = 3000;
-        Time mFadeStartTime;
+        Fader mFader;
+        const cFadeOutDuration = timeSecs(2);
+        const cFadeInDuration = timeMsecs(500);
 
         bool mDelayedFirstFrame; //draw screen before loading first chunk
 
@@ -364,6 +397,9 @@ class GameTask : StatefulTask {
 
         //remove this, so the game becomes visible
         mLoadScreen.remove();
+
+        mFader = new Fader(cFadeInDuration, true);
+        mWindow.add(mFader);
     }
 
     private void unloadAndReset() {
@@ -396,26 +432,18 @@ class GameTask : StatefulTask {
     }
 
     void terminateWithFadeOut() {
-        if (!mFadeOut) {
-            mFadeOut = new Spacer();
-            mFadeOut.color = cFadeStart;
-            mWindow.add(mFadeOut);
-            mFadeStartTime = timeCurrentTime;
+        if (!mFader) {
+            mFader = new Fader(cFadeOutDuration, false);
+            mWindow.add(mFader);
         }
     }
 
     private void doFade() {
-        if (!mFadeOut)
-            return;
-        int mstime = (timeCurrentTime - mFadeStartTime).msecs;
-        if (mstime > cFadeDurationMs) {
-            //end of fade
-            mFadeOut.remove();
-            mFadeOut = null;
-            kill();
-        } else {
-            float scale = 1.0f*mstime/cFadeDurationMs;
-            mFadeOut.color = cFadeStart + (cFadeEnd - cFadeStart) * scale;
+        if (mFader && mFader.done) {
+            mFader.remove();
+            mFader = null;
+            if (mGame.logic.gameEnded)
+                kill();
         }
     }
 

@@ -356,6 +356,7 @@ class CmdNetLobbyTask : Task {
         Widget mLobbyDlg;
         CreateNetworkGame mCreateDlg;
         Window mLobbyWnd, mCreateWnd;
+        GameSummary mGameSummary;
     }
 
     this(TaskManager tm, CmdNetClient client) {
@@ -523,9 +524,9 @@ class CmdNetLobbyTask : Task {
         ConfigNode persist;
         if (mGame && mGame.gamePersist) {
             persist = mGame.gamePersist;
-            auto gs = new GameSummary(manager);
-            gs.init(persist);
-            if (gs.gameOver)
+            mGameSummary = new GameSummary(manager);
+            mGameSummary.init(persist);
+            if (mGameSummary.gameOver)
                 persist = null;
         }
         if (mClient)
@@ -535,6 +536,10 @@ class CmdNetLobbyTask : Task {
     private void onStartLoading(SimpleNetConnection sender, GameLoader loader) {
         if (mCreateWnd)
             mCreateWnd.destroy();
+        if (mGameSummary) {
+            mGameSummary.kill();
+            mGameSummary = null;
+        }
         //mConsole.writefln(_("lobby.gamestarting"));
         mGame = new GameTask(manager, loader, mClient);
         mGame.registerOnDeath(&onGameKill);

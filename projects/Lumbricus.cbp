@@ -237,7 +237,6 @@
 		<Unit filename="../src/utils/drawing.d" />
 		<Unit filename="../src/utils/factory.d" />
 		<Unit filename="../src/utils/filetools.d" />
-		<Unit filename="../src/utils/gcabstr.d" />
 		<Unit filename="../src/utils/gzip.d" />
 		<Unit filename="../src/utils/interpolate.d" />
 		<Unit filename="../src/utils/list2.d" />

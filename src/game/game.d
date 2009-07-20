@@ -765,17 +765,29 @@ class GameEngine : GameEnginePublic {
         }
 
         if (s >= 0) {
+            //shockwave
             emit(mGfx.expl.shockwave1[s]);
             emit(mGfx.expl.shockwave2[s]);
+            //flaming sparks
+            //in WWP, those use a random animation speed
+            for (int i = 0; i < rngShared.nextRange(2, 3); i++) {
+                callbacks.particleEngine.emitParticle(at, Vector2f(0, -1)
+                    .rotated(rngShared.nextRange(-PI/2, PI/2))
+                    * rngShared.nextRange(0.5f, 1.0f) * radius * 7,
+                    mGfx.expl.spark);
+            }
         }
         if (t >= 0) {
+            //centered text
             emit(mGfx.expl.comicText[t]);
         }
         if (r > 0) {
+            //white smoke bubbles
             for (int i = 0; i < r*3; i++) {
                 callbacks.particleEngine.emitParticle(at
                     + Vector2f(0, -1)
-                    .rotated(rngShared.nextRange!(float)(0, PI*2)) * radius,
+                    .rotated(rngShared.nextRange!(float)(0, PI*2)) * radius
+                    * rngShared.nextRange(0.25f, 1.0f),
                     Vector2f(0, -1).rotated(rngShared.nextRange(-PI/2, PI/2)),
                     mGfx.expl.smoke[rngShared.next(0, r)]);
             }
@@ -1105,9 +1117,8 @@ class GameEngine : GameEnginePublic {
         });
 
         //also a worm cmd, but specially handled
-        //addCmd("weapon_fire", &executeWeaponFire);
-        mCmds.register(Command("weapon_fire", &cmdWeaponFire, "-",
-            ["bool:is_down"]));
+        addCmd("weapon_fire", &executeWeaponFire);
+        addCmd("remove_control", &removeControl);
 
         mCmds.bind(mCmd);
     }
@@ -1131,12 +1142,8 @@ class GameEngine : GameEnginePublic {
 
     //Special handling for fire command: while replaying, fire will skip the
     //replay (fast-forward to end)
-    private void cmdWeaponFire(MyBox[] params, Output o) {
-        //xxx: used to cancel replay mode... can't do this anymore
-        //  instead, it's hacked back into gameshell.d somewhere
-        executeWeaponFire(params[0].unbox!(bool));
-    }
-
+    //xxx: used to cancel replay mode... can't do this anymore
+    //  instead, it's hacked back into gameshell.d somewhere
     private void executeWeaponFire(bool is_down) {
         void fire(ServerTeamMember w) {
             if (is_down) {
@@ -1153,15 +1160,15 @@ class GameEngine : GameEnginePublic {
         }
     }
 
-    pragma(msg, "fixme2");
     //there's remove_control somewhere in cmdclient.d, and apparently this is
     //  called when a client disconnects; the teams owned by that client
     //  surrender
-/+
-    private void executeSurrender() {
-        foreach (ServerTeam t; mOwnedTeams) {
-            t.surrenderTeam();
+    private void removeControl() {
+        //special handling because teams don't need to be active
+        foreach (ServerTeam t; controller.teams()) {
+            if (checkTeamAccess(mTmp_CurrentAccessTag, t)) {
+                t.surrenderTeam();
+            }
         }
     }
-+/
 }

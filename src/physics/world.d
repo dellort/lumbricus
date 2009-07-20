@@ -323,8 +323,8 @@ class PhysicWorld {
                 return false;
             }
 
-            //no self-collision
-            if (o is me)
+            //no self-collision, no collision with other walking objects
+            if (o is me || o.isWalking())
                 continue;
             //no collision if already inside (allow walking out)
             if (me && coll(me.pos, me.posp.radius))

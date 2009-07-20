@@ -390,7 +390,7 @@ private:
     private void cmdPS(MyBox[] args, Output write) {
         write.writefln("ID / toString()");
         foreach (Task t; taskManager.taskList) {
-            write.writefln("  %2d / {}", t.taskID, t);
+            write.writefln("  {:d2} / {}", t.taskID, t);
         }
     }
 
