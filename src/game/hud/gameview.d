@@ -885,29 +885,33 @@ class GameView : Container {
         if (mCurCamObject) {
             //the following calculates the optimum camera border based
             //  on the speed of the tracked object
+            if (mCurCamObject.more) {
+                //calculate velocity multiplier, so an object at cMaxBorderSpeed
+                //  would be exactly centered
+                Vector2f optMult = toVector2f(mCamera.control.size/2
+                    - Camera.cCameraBorder) / cMaxBorderSpeed;
 
-            //calculate velocity multiplier, so an object at cMaxBorderSpeed
-            //  would be exactly centered
-            Vector2f optMult = toVector2f(mCamera.control.size/2
-                - Camera.cCameraBorder) / cMaxBorderSpeed;
+                //border increases by velocity, component-wise
+                auto camBorder = Camera.cCameraBorder
+                    + toVector2i(mCurCamObject.more.velocity.abs ^ optMult);
+                //always leave a small area at screen center
+                camBorder.clipAbsEntries(mCamera.control.size/2 - Vector2i(50));
 
-            //border increases by velocity, component-wise
-            auto camBorder = Camera.cCameraBorder
-                + toVector2i(mCurCamObject.more.velocity.abs ^ optMult);
-            //always leave a small area at screen center
-            camBorder.clipAbsEntries(mCamera.control.size/2 - Vector2i(50));
-
-            //Now the funny part: we don't want to update the border to often
-            //  if an object is flying towards it, or the camera would look
-            //  jerky; so I chose to increase the border immediately, and
-            //  allow decreasing it only after a 1s delay (component-wise again)
-            for (int i = 0; i < 2; i++) {
-                if (camBorder[i] >= mLastCamBorder[i]) {
-                    mLastCamBorder[i] = camBorder[i];
-                    mCBLastInc[i] = now;
-                } else if ((now - mCBLastInc[i]).msecs > 1000) {
-                    mLastCamBorder[i] = camBorder[i];
+                //Now the funny part: we don't want to update the border too
+                //  often if an object is flying towards it, or the camera
+                //  would look jerky; so I chose to increase the border
+                //  immediately, and allow decreasing it only after a 1s
+                //  delay (component-wise again)
+                for (int i = 0; i < 2; i++) {
+                    if (camBorder[i] >= mLastCamBorder[i]) {
+                        mLastCamBorder[i] = camBorder[i];
+                        mCBLastInc[i] = now;
+                    } else if ((now - mCBLastInc[i]).msecs > 1000) {
+                        mLastCamBorder[i] = camBorder[i];
+                    }
                 }
+            } else {
+                mLastCamBorder = Camera.cCameraBorder;
             }
 
             mCamera.updateCameraTarget(mCurCamObject.pos, mLastCamBorder);
