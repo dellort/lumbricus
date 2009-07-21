@@ -20,10 +20,13 @@ alias StaticFactory!("Gamemodes", Gamemode, GameController, ConfigNode)
 class Gamemode {
     GameEngine engine;
     GameController logic;
-    private Time[5] mWaitStart = Time.Never, mWaitStartLocal = Time.Never;
+    private Time[5] mWaitStart, mWaitStartLocal;
     protected TimeSource modeTime;
 
     this(GameController parent, ConfigNode config) {
+        //static initialization doesn't work
+        mWaitStart[] = Time.Never;
+        mWaitStartLocal[] = Time.Never;
         engine = parent.engine;
         logic = parent;
         modeTime = new TimeSource("modeTime", engine.gameTime);

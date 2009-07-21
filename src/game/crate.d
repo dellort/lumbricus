@@ -20,6 +20,7 @@ import utils.log;
 import utils.misc;
 import utils.configfile;
 import utils.reflection;
+import utils.factory;
 import tango.math.Math;
 import tango.util.Convert;
 
@@ -124,8 +125,13 @@ class CollectableToolCrateSpy : CollectableTool {
     char[] id() {
         return "game_msg.crate.cratespy";
     }
+
+    static this() {
+        CrateToolFactory.register!(typeof(this))("cratespy");
+    }
 }
 
+//for now only for turnbased gamemode, but maybe others will follow
 class CollectableToolDoubleTime : CollectableTool {
     this() {
     }
@@ -134,6 +140,10 @@ class CollectableToolDoubleTime : CollectableTool {
 
     char[] id() {
         return "game_msg.crate.doubletime";
+    }
+
+    static this() {
+        CrateToolFactory.register!(typeof(this))("doubletime");
     }
 }
 
@@ -145,6 +155,10 @@ class CollectableToolDoubleDamage : CollectableTool {
 
     char[] id() {
         return "game_msg.crate.doubledamage";
+    }
+
+    static this() {
+        CrateToolFactory.register!(typeof(this))("doubledamage");
     }
 }
 
@@ -429,3 +443,4 @@ class CrateSpriteClass : ActionSpriteClass {
     }
 }
 
+StaticFactory!("CrateTools", CollectableTool) CrateToolFactory;

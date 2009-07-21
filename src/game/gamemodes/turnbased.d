@@ -95,6 +95,7 @@ class ModeTurnbased : Gamemode {
             engine.rnd.randomizeArray(mTeamPerm);
             engine.persistentState.setValue("team_order", mTeamPerm);
         }
+        logic.addCrateTool("doubletime");
     }
 
     override void startGame() {
@@ -138,11 +139,11 @@ class ModeTurnbased : Gamemode {
                     return TurnState.playing;
                 break;
             case TurnState.playing:
-                mStatus.roundRemaining = waitRemain!(true)(mTimePerTurn, 1,
+                mStatus.turnRemaining = waitRemain!(true)(mTimePerTurn, 1,
                     false);
                 if (!mCurrentTeam.current)
                     return TurnState.waitForSilence;
-                if (mStatus.roundRemaining <= Time.Null)   //timeout
+                if (mStatus.turnRemaining <= Time.Null)   //timeout
                 {
                     //check if we need to wait because worm is performing
                     //a non-abortable action
@@ -184,7 +185,7 @@ class ModeTurnbased : Gamemode {
                 }
                 break;
             case TurnState.cleaningUp:
-                mStatus.roundRemaining = Time.Null;
+                mStatus.turnRemaining = Time.Null;
                 //if there are more to blow up, go back to waiting
                 if (logic.checkDyingWorms())
                     return TurnState.waitForSilence;
@@ -266,7 +267,7 @@ class ModeTurnbased : Gamemode {
         switch (st) {
             case TurnState.prepare:
                 modeTime.paused = true;
-                mStatus.roundRemaining = mTimePerTurn;
+                mStatus.turnRemaining = mTimePerTurn;
                 waitReset(1);
                 waitReset!(true)(1);
                 mCleanupCtr = 2;
@@ -334,7 +335,7 @@ class ModeTurnbased : Gamemode {
                 currentTeam = null;
                 engine.randomizeWind();
                 //logic.messageAdd("msgnextround");
-                mStatus.roundRemaining = Time.Null;
+                mStatus.turnRemaining = Time.Null;
                 break;
             case TurnState.winning:
                 modeTime.paused = true;
@@ -362,7 +363,7 @@ class ModeTurnbased : Gamemode {
         CollectableTool tool)
     {
         if (auto t = cast(CollectableToolDoubleTime)tool) {
-            waitAddTimeLocal(1, mStatus.roundRemaining);
+            waitAddTimeLocal(1, mStatus.turnRemaining);
             return true;
         }
         return false;

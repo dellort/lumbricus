@@ -474,6 +474,13 @@ class WormSprite : GObjectSprite {
         return null;
     }
 
+    WeaponClass altWeapon() {
+        if (allowAlternate()) {
+            return mShooterMain.weapon;
+        }
+        return null;
+    }
+
     //fire (or refire) the selected weapon (mWeapon)
     bool fire(bool keyUp = false, bool selectedOnly = false) {
         //1. Try to refire currently active secondary weapon
@@ -502,6 +509,10 @@ class WormSprite : GObjectSprite {
             //  be quite annoying to accidentally blow a sally army when
             //  pressing J
             if (selectedOnly && mWeapon && mShooterMain.weapon !is mWeapon)
+                return true;
+            //don't refire jetpack/rope on space (you would accidentally
+            //  disable it when running out of ammo)
+            if (mShooterMain.weapon.allowSecondary && !selectedOnly)
                 return true;
             if (!keyUp) {
                 return refireWeapon(mShooterMain);

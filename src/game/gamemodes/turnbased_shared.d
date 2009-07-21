@@ -26,7 +26,7 @@ class TurnbasedStatus {
     //  e.g. show prepare display? show timer? etc.
     //  TurnState could be fully internal, then.
     TurnState state;
-    Time roundRemaining;
+    Time turnRemaining;
     Time prepareRemaining;
     Time gameRemaining;
     bool timePaused;
@@ -40,6 +40,6 @@ class RealtimeStatus {
     this(ReflectCtor c) {
     }
 
-    Time gameRemaining;
-    bool suddenDeath;
+    Time gameRemaining, retreatRemaining;
+    bool suddenDeath, gameEnding;
 }

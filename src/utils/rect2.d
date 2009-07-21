@@ -122,6 +122,10 @@ public struct Rect2(T) {
     void extendBorder(Point value) {
         p1 -= value;
         p2 += value;
+        if (p1.x > p2.x)
+            p1.x = p2.x = (p1.x+p2.x)/2;
+        if (p1.y > p2.y)
+            p1.y = p2.y = (p1.y+p2.y)/2;
     }
 
     //fit this Rect2 into another Rect2 r

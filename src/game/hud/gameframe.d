@@ -77,13 +77,16 @@ class GameFrame : SimpleContainer {
     }
 
     //scroll to level center
-    void setPosition(Vector2i pos) {
+    void setPosition(Vector2i pos, bool reset = true) {
         if (mFirstFrame) {
             //cannot scroll yet because gui layouting is not done
             mScrollToAtStart = pos;
         } else {
             mScroller.offset = mScroller.centeredOffset(pos);
-            gameView.resetCamera;
+            //this call makes sure the camera stays at the new position
+            //  for some time instead of just jumping back to the locked object
+            if (reset)
+                gameView.resetCamera;
         }
     }
     Vector2i getPosition() {
@@ -98,19 +101,22 @@ class GameFrame : SimpleContainer {
         return r;
     }
 
+    override void internalSimulate() {
+        //some hack (needs to be executed before GameView's simulate() call)
+        if (mFirstFrame) {
+            mFirstFrame = false;
+            //scroll to level center
+            setPosition(mScrollToAtStart, false);
+        }
+        super.internalSimulate();
+    }
+
     override protected void simulate() {
         auto curtime = game.clientTime.current;
         if (mLastFrameTime == Time.init)
             mLastFrameTime = curtime;
         auto delta = curtime - mLastFrameTime;
         mLastFrameTime = curtime;
-
-        //some hack
-        if (mFirstFrame) {
-            mFirstFrame = false;
-            //scroll to level center
-            setPosition(mScrollToAtStart);
-        }
 
         //take care of counting down the health value
         mRestTime += delta;

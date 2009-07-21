@@ -28,13 +28,15 @@ class ModeRealtime : Gamemode {
         int mSuddenDeathWaterRaise = 32;
         int mStaminaPower = 10;
 
-        const cWinTime = timeSecs(5);
+        const cWinTime = timeSecs(4);
         //time from being hit until you can move again
         const cHitDelay = timeMsecs(1000);
         //time of inactivity until health update / worm blowup
         const cUpdateDelay = timeSecs(2.5f);
         //time of inactivity until a worm can become active
         const cActivateDelay = timeMsecs(500);
+        //how long you can still move before control is taken on victory
+        const cWinRetreatTime = timeSecs(10);
         Time[ServerTeam] mTeamDeactivateTime;
         RealtimeStatus mStatus;
     }
@@ -88,9 +90,18 @@ class ModeRealtime : Gamemode {
         if (aliveCount < 2) {
             //"Controlled shutdown": deactivate teams, wait for silence,
             //  blow up worms, end game
+            mStatus.gameEnding = true;
             modeTime.paused = true;
-            logic.deactivateAll();
-            if (engine.checkForActivity)
+            bool engAct = engine.checkForActivity;
+            if (lastteam && lastteam.active) {
+                //the winner is still trying to get to safety
+                mStatus.retreatRemaining = waitRemain(cWinRetreatTime,2,false);
+                if (engAct && mStatus.retreatRemaining > Time.Null)
+                    return;
+                logic.deactivateAll();
+            }
+            mStatus.retreatRemaining = Time.Null;
+            if (engAct)
                 return;
             logic.updateHealth();
             if (logic.checkDyingWorms())

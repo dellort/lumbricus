@@ -1102,6 +1102,10 @@ class GameEngine : GameEnginePublic {
         addWormCmd("set_target", (ServerTeamMember w, int x, int y) {
             w.serverTeam.doSetPoint(Vector2f(x, y));
         });
+        addWormCmd("select_fire_refire", (ServerTeamMember w, char[] m, bool down) {
+            WeaponClass wc = w.engine.findWeaponClass(m);
+            w.selectFireRefire(wc, down);
+        });
         addWormCmd("selectandfire", (ServerTeamMember w, char[] m, bool down) {
             if (down) {
                 WeaponClass wc;

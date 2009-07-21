@@ -421,6 +421,11 @@ class GameView : Container {
         AnimationGraphic mCurCamObject;
         Time mLastCamChange;
         const cCamChangeDelay = timeSecs(1.2);
+        TeamMember mLastActiveMember; //hack to detect worm activation
+        Time mActivateTime;
+        Vector2i mLastCamBorder;
+        Time[2] mCBLastInc;
+        const cMaxBorderSpeed = 350.0f;
 
         float mZoomChange = 1.0f, mCurZoom = 1.0f;
 
@@ -798,14 +803,26 @@ class GameView : Container {
         }
         Time now = graphics.timebase.current();
 
+        if (active_member !is mLastActiveMember) {
+            //member got activated
+            mActivateTime = now;
+            mLastActiveMember = active_member;
+        }
+
         int priority(AnimationGraphic gr) {
             //hmm
             bool moving = (now - gr.last_position_change).msecs < 200;
             //priorization as mentioned above
+            if (gr is active_member_gr) {
+                //active (controlled) teammember
+                //6 when just activated
+                if ((now - mActivateTime).secs < 5)
+                    return 6;
+                //5 when moving, 4 otherwise
+                return moving ? 5 : 4;
+            }
             if (!moving)
                 return 0;
-            if (gr is active_member_gr)
-                return 5;
             if (active_team && gr.owner_team is active_team)
                 return 4;
             if (gr.owner_team) {
@@ -866,7 +883,34 @@ class GameView : Container {
         }
 
         if (mCurCamObject) {
-            mCamera.updateCameraTarget(mCurCamObject.pos);
+            //the following calculates the optimum camera border based
+            //  on the speed of the tracked object
+
+            //calculate velocity multiplier, so an object at cMaxBorderSpeed
+            //  would be exactly centered
+            Vector2f optMult = toVector2f(mCamera.control.size/2
+                - Camera.cCameraBorder) / cMaxBorderSpeed;
+
+            //border increases by velocity, component-wise
+            auto camBorder = Camera.cCameraBorder
+                + toVector2i(mCurCamObject.more.velocity.abs ^ optMult);
+            //always leave a small area at screen center
+            camBorder.clipAbsEntries(mCamera.control.size/2 - Vector2i(50));
+
+            //Now the funny part: we don't want to update the border to often
+            //  if an object is flying towards it, or the camera would look
+            //  jerky; so I chose to increase the border immediately, and
+            //  allow decreasing it only after a 1s delay (component-wise again)
+            for (int i = 0; i < 2; i++) {
+                if (camBorder[i] >= mLastCamBorder[i]) {
+                    mLastCamBorder[i] = camBorder[i];
+                    mCBLastInc[i] = now;
+                } else if ((now - mCBLastInc[i]).msecs > 1000) {
+                    mLastCamBorder[i] = camBorder[i];
+                }
+            }
+
+            mCamera.updateCameraTarget(mCurCamObject.pos, mLastCamBorder);
         } else {
             mCamera.noFollow();
         }

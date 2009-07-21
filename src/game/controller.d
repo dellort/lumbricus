@@ -816,6 +816,26 @@ class ServerTeamMember : TeamMember, WormController {
         return ret;
     }
 
+    void selectFireRefire(WeaponClass wc, bool keyDown) {
+        if (!isControllable)
+            return;
+
+        if (mWorm.altWeapon is wc) {
+            if (keyDown) {
+                mWorm.fireAlternate();
+                wormAction();
+            }
+            return;
+        } else if (mWorm.firedWeapon(false) is wc) {
+            if (keyDown)
+                doFireDown(true);
+            else
+                doFireUp();
+        } else {
+            selectWeaponByClass(wc);
+        }
+    }
+
     void doFireDown(bool forceSelected = false) {
         if (!isControllable)
             return;
@@ -1279,6 +1299,8 @@ class GameController : GameLogicPublic {
         //Medkit, medkit+tool, medkit+tool+unrigged weapon
         //  (rest is rigged weapon)
         const cCrateProbs = [0.20f, 0.40f, 0.95f];
+        //list of tool crates that can drop
+        char[][] mActiveCrateTools;
         int[TeamTheme.cTeamColors.length] mTeamColorCache;
 
         GamePlugin[char[]] mPluginLookup;
@@ -1295,6 +1317,10 @@ class GameController : GameLogicPublic {
     this(GameEngine engine, GameConfig config) {
         mEngine = engine;
         mEngine.setController(this);
+
+        //those work for all gamemodes
+        addCrateTool("cratespy");
+        addCrateTool("doubledamage");
 
         if (config.weapons) {
             loadWeaponSets(config.weapons);
@@ -1354,6 +1380,11 @@ class GameController : GameLogicPublic {
     }
 
     //--- end GameLogicPublic
+
+    void addCrateTool(char[] id) {
+        assert(arraySearch(mActiveCrateTools, id) < 0);
+        mActiveCrateTools ~= id;
+    }
 
     void updateWeaponStats(TeamMember m) {
         changeWeaponList(m ? m.team : null);
@@ -1626,12 +1657,8 @@ class GameController : GameLogicPublic {
             ret ~= new CollectableMedkit(50);
         } else if (r < cCrateProbs[1]) {
             //tool
-            //sorry about this
-            switch (engine.rnd.next(3)) {
-                case 0: ret ~= new CollectableToolCrateSpy(); break;
-                case 1: ret ~= new CollectableToolDoubleTime(); break;
-                case 2: ret ~= new CollectableToolDoubleDamage(); break;
-            }
+            ret ~= CrateToolFactory.instantiate(
+                mActiveCrateTools[engine.rnd.next($)]);
         } else {
             //weapon
             auto content = mCrateSet.chooseRandomForCrate();

@@ -33,7 +33,8 @@ class Camera {
     private const cScrollIdleTimeMs = 3000;
     //in pixels the width of the border in which a follower camera becomes
     //active and scrolls towards the followed object again
-    private const cCameraBorder = 150;
+    const Vector2i cCameraBorder = {150, 150};
+    private Vector2i mCameraBorder = cCameraBorder;
 
     this(TimeSourcePublic ts) {
         mTime = new TimeSource("camera", ts);
@@ -74,8 +75,7 @@ class Camera {
             auto visible = control.visibleArea(control.scrollDestination);
             switch (mCameraStyle) {
                 case CameraStyle.Normal:
-                    auto border = Vector2i(cCameraBorder);
-                    visible.extendBorder(-border);
+                    visible.extendBorder(-mCameraBorder);
                     if (!visible.isInsideB(pos)) {
                         auto npos = visible.clip(pos);
                         control.scrollDeltaSmooth(pos-npos);
@@ -112,7 +112,7 @@ class Camera {
     }
 +/
 
-    void updateCameraTarget(Vector2i pos) {
+    void updateCameraTarget(Vector2i pos, Vector2i camBorder = Vector2i(0)) {
         if (!mCameraFollowAlive) {
             //like in setCameraFocus
             mCameraStyle = CameraStyle.Normal;
@@ -120,6 +120,10 @@ class Camera {
             mCameraFollowAlive = true;
         }
         mCameraFollowPos = pos;
+        if (camBorder.x > 0 && camBorder.y > 0)
+            mCameraBorder = camBorder;
+        else
+            mCameraBorder = cCameraBorder;
     }
 
     void noFollow() {

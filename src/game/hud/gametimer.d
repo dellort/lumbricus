@@ -20,15 +20,15 @@ class GameTimer : Container {
     private {
         GameInfo mGame;
         BoxContainer mLabelBox;
-        Label mRoundTime, mGameTime;
+        Label mTurnTime, mGameTime;
         bool mActive, mEnabled;
         Time mLastTime;
         Vector2i mMinSize;
         Font[5] mFont;
         //xxx load this from somewhere
         bool mShowGameTime = true;
-        char[20] mRndTBuffer, mGameTBuffer;
         Color mOldBordercolor;
+        bool mGameEndingCache;
     }
 
     this(GameInfo game) {
@@ -45,19 +45,19 @@ class GameTimer : Container {
         mFont[3] = gFramework.fontManager.loadFont("time_small");
         mFont[4] = gFramework.fontManager.loadFont("time_small_grey");
 
-        mRoundTime = new Label();
-        mRoundTime.styles.id = "roundtime";
-        mRoundTime.font = mFont[0];
-        mRoundTime.border = Vector2i(7, 0);
-        mRoundTime.centerX = true;
+        mTurnTime = new Label();
+        mTurnTime.styles.id = "roundtime";
+        mTurnTime.font = mFont[0];
+        mTurnTime.border = Vector2i(7, 0);
+        mTurnTime.centerX = true;
 
         mGameTime = new Label();
-        mRoundTime.styles.id = "gametime";
+        mTurnTime.styles.id = "gametime";
         mGameTime.font = mFont[3];
         mGameTime.border = Vector2i(7, 0);
         mGameTime.centerX = true;
 
-        mMinSize = toVector2i(toVector2f(mRoundTime.font.textSize("99"))*1.7f);
+        mMinSize = toVector2i(toVector2f(mTurnTime.font.textSize("99"))*1.7f);
         //mMinSize.y = 100; //cast(int)(mMinSize.x*0.9f);
 
         setGameTimeMode(mShowGameTime || !!statusRT(), !statusRT());
@@ -82,16 +82,36 @@ class GameTimer : Container {
         mShowGameTime = showGT;
         mLabelBox.clear();
         if (showRT)
-            mLabelBox.add(mRoundTime);
+            mLabelBox.add(mTurnTime);
         if (showGT)
             mLabelBox.add(mGameTime);
         needRelayout();
     }
 
+    private void setTurnTime(Time tRemain, bool paused = false) {
+        static char[20] turnTBuffer;
+        //little hack to show correct time
+        Time rt = tRemain - timeMsecs(1);
+        float rt_sec = rt.secs >= -1 ? rt.secsf+1 : 0f;
+        if (paused) {
+            mTurnTime.font = mFont[2];
+            mGameTime.font = mFont[4];
+        } else if (rt_sec < 6f) {
+            //flash red/black (red when time is higher)
+            mTurnTime.font = mFont[cast(int)(rt_sec*4)%2];
+            mGameTime.font = mFont[3];
+        } else {
+            mTurnTime.font = mFont[0];
+            mGameTime.font = mFont[3];
+        }
+        mTurnTime.text = myformat_s(turnTBuffer, "{}",cast(int)rt_sec);
+    }
+
     private void setGameTime(Time tRemain) {
+        static char[20] gameTBuffer;
         Time gt = tRemain - timeMsecs(1);
         int gt_sec = gt > Time.Null ? gt.secs+1 : 0;
-        mGameTime.text = myformat_s(mGameTBuffer, "{:d2}:{:d2}",
+        mGameTime.text = myformat_s(gameTBuffer, "{:d2}:{:d2}",
             gt_sec / 60, gt_sec % 60);
     }
 
@@ -120,21 +140,7 @@ class GameTimer : Container {
                 bordercolor = mGame.allMembers[m].owner.color;
                 mLabelBox.styles.setState("active",
                     m == mGame.control.getControlledMember);
-                //little hack to show correct time
-                Time rt = st.roundRemaining - timeMsecs(1);
-                float rt_sec = rt.secs >= -1 ? rt.secsf+1 : 0f;
-                if (st.timePaused) {
-                    mRoundTime.font = mFont[2];
-                    mGameTime.font = mFont[4];
-                } else if (rt_sec < 6f) {
-                    //flash red/black (red when time is higher)
-                    mRoundTime.font = mFont[cast(int)(rt_sec*4)%2];
-                    mGameTime.font = mFont[3];
-                } else {
-                    mRoundTime.font = mFont[0];
-                    mGameTime.font = mFont[3];
-                }
-                mRoundTime.text = myformat_s(mRndTBuffer, "{}",cast(int)rt_sec);
+                setTurnTime(st.turnRemaining, st.timePaused);
                 setGameTime(st.gameRemaining);
             } else {
                 active = false;
@@ -146,8 +152,19 @@ class GameTimer : Container {
             else
                 bordercolor = Color(0.7f);
             mLabelBox.styles.setState("active", !!m);
-            active = !mGame.logic.gameEnded();
-            setGameTime(stRT.gameRemaining);
+            //game running, and not in "happy jumping worms" phase
+            active = !mGame.logic.gameEnded() && (!stRT.gameEnding || m);
+            if (stRT.gameEnding) {
+                //game is over, just the winner is still retreating
+                setTurnTime(stRT.retreatRemaining);
+                if (stRT.gameEnding != mGameEndingCache) {
+                    mGameEndingCache = stRT.gameEnding;
+                    //hide total time, show turn time
+                    setGameTimeMode(false, true);
+                }
+            } else {
+                setGameTime(stRT.gameRemaining);
+            }
         }
 
         if (active != mActive) {
