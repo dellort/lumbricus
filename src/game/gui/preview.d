@@ -64,6 +64,9 @@ class LevelSelector : SimpleContainer {
 
         mPainter = loader.lookup!(PainterWidget)("painter");
         mPainter.onChange = &painterChange;
+        auto lgnode = gConf.loadConfig("levelgenerator")
+            .getSubNode("preview_colors");
+        mPainter.colorsFromNode(lgnode);
 
         mDdGfx = loader.lookup!(DropDownList)("dd_gfx");
         mDdGfx.onSelect = &gfxSelect;

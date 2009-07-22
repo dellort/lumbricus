@@ -455,15 +455,20 @@ class PainterWidget : Widget {
         return MouseCursor.None;
     }
 
+    void colorsFromNode(ConfigNode node) {
+        Color[] colors;
+        foreach (char[] n, char[] value; node) {
+            colors ~= Color.fromString(value);
+        }
+        if (colors.length > 0)
+            setColors(colors);
+    }
+
     override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
 
         mFitInto = node.getValue("fit_into", mFitInto);
-        Color[] colors;
-        foreach (char[] n, char[] value; node.getSubNode("colors")) {
-            colors ~= Color.fromString(value);
-        }
-        setColors(colors);
+        colorsFromNode(node.getSubNode("colors"));
         clear();
 
         super.loadFrom(loader);
