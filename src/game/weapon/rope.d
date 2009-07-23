@@ -146,6 +146,10 @@ class Rope : Shooter {
         return active;
     }
 
+    override bool canReadjust() {
+        return false;
+    }
+
     override protected void doFire(FireInfo info) {
         active = true;
         mShootDir = info.dir;

@@ -221,6 +221,11 @@ abstract class Shooter : GameObject {
     void readjust(Vector2f dir) {
     }
 
+    //if this returns false, the direction cannot be changed
+    bool canReadjust() {
+        return true;
+    }
+
     //used by a worm to notify that the worm was interrupted while firing
     //for some weapons, this won't do anything, i.e. air strikes, earth quakes...
     //after this, isFiring() will return false (mostly...)

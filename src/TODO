@@ -19,7 +19,6 @@
 - wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
 ! napalm ist sehr langsam, minenagriff nicht => ?
 - Superschaf fliegt auch 15sec weiter, wenn der Wurm nicht mehr dran ist
-- Feuerrichtung der "Seil-Waffe" kann geändert werden, während das Anker-Dings rausfliegt
 - Schwarzes Loch kann ertrinkende Würmer aus dem Wasser saugen; Ideen:
   a) Unterwasser-Objekte dürfen sich nicht aufwärts bewegen
   b) Würmern erlauben, das Wasser wieder zu verlassen (und Zustand korrigieren)

@@ -128,7 +128,7 @@ class WormSprite : GObjectSprite {
     }
 
     private void updateWeaponAngle(float move) {
-        if (!mWeapon)
+        if (!mWeapon || !canReadjust())
             return;
         float old = weaponAngle;
         //xxx why is worm movement a float anyway?
@@ -600,6 +600,15 @@ class WormSprite : GObjectSprite {
             mShooterMain.readjust(weaponDir());
         if (mShooterSec && mShooterSec.activity)
             mShooterSec.readjust(weaponDir());
+    }
+
+    private bool canReadjust() {
+        if (mShooterSec && mShooterSec.activity)
+            return mShooterSec.canReadjust();
+        if (mShooterMain && mShooterMain.activity)
+            return mShooterMain.canReadjust();
+        //no weapon active, allow normal aiming
+        return true;
     }
 
     //fire currently selected weapon (mWeapon) as main weapon

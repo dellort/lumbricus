@@ -33,6 +33,7 @@ class LevelWidget : SimpleContainer {
         DropDownList mSavedLevels;
         LevelGenerator mCurrentLevel;
         Button mLevelBtn, mLevelSaveBtn;
+        Button[8] mLvlQuickGen;
         BoxContainer mLevelDDBox;
         LevelGeneratorShared mGenerator;
 
@@ -71,6 +72,14 @@ class LevelWidget : SimpleContainer {
         mLevelSaveBtn.remove();
 
         mLevelDDBox = loader.lookup!(BoxContainer)("box_leveldd");
+
+        int templateCount = mGenerator.templates.all.length;
+        foreach (int idx, ref btn; mLvlQuickGen) {
+            //template names are 1-based
+            btn = loader.lookup!(Button)(myformat("btn_quickgen{}", idx+1));
+            btn.onClick = &quickGenClick;
+            assert(idx <= templateCount);
+        }
 
         add(loader.lookup("levelwidget_root"));
     }
@@ -167,6 +176,22 @@ class LevelWidget : SimpleContainer {
         mLevelWindow.onClose = &levelWindowClose;
         if (onSetBusy)
             onSetBusy(true);
+    }
+
+    private void quickGenClick(Button sender) {
+        int i = -1;
+        foreach (int idx, ref btn; mLvlQuickGen) {
+            if (sender is btn) {
+                i = idx;
+                break;
+            }
+        }
+        assert(i >= 0);
+        auto gen = new GenerateFromTemplate(mGenerator,
+            mGenerator.templates.all[i]);
+        gen.generate();
+        setCurrentLevel(gen);
+        mSavedLevels.selection = "";
     }
 
     private void lvlAccept(LevelGenerator gen) {
