@@ -580,7 +580,8 @@ class SerializeOutConfig : SerializeConfig {
             Object dg_o;
             ClassMethod dg_m;
             if (!ptr.readDelegate(dg_o, dg_m)) {
-                D_Delegate* dgp = cast(D_Delegate*)ptr.ptr;
+                alias void delegate() Dg;
+                Dg* dgp = cast(Dg*)ptr.ptr;
                 //warning: this might crash, if the delegate points to the
                 //         stack or a struct; we simply can't tell
                 char[] what = "enable version debug to see why";

@@ -155,6 +155,9 @@ struct SafePtr {
         return res;
     }
 
+    //to access delegate properties directly
+    private alias void delegate() Dg;
+
     //returns true on success
     //if failed, return false and leave obj/method untouched
     bool readDelegate(ref Object obj, ref ClassMethod method) {
@@ -164,7 +167,7 @@ struct SafePtr {
             return false;
         }
         assert (!!ptr);
-        D_Delegate* dp = cast(D_Delegate*)ptr;
+        Dg* dp = cast(Dg*)ptr;
         if (dp.ptr is null) {
             obj = null;
             method = null;
@@ -204,7 +207,7 @@ struct SafePtr {
         if (!dgt)
             throw new Exception("not a delegate pointer");
         assert (!!ptr);
-        D_Delegate* dp = cast(D_Delegate*)ptr;
+        Dg* dp = cast(Dg*)ptr;
         if (obj) {
             Class k = type.owner.findClass(obj);
             assert (!!k);
@@ -214,7 +217,7 @@ struct SafePtr {
                 return false;
         }
         dp.ptr = cast(void*)obj;
-        dp.funcptr = method ? method.address() : null;
+        dp.funcptr = cast(void function())(method ? method.address() : null);
         return true;
     }
 }

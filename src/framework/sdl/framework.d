@@ -327,6 +327,7 @@ class SDLDriver : FrameworkDriver {
 
         //used only for non-OpenGL rendering
         //valid fields: BitsPerPixel, Rmask, Gmask, Bmask, Amask
+        //mRGBA32 corresponds bit-by-bit to Color.RGBA32
         SDL_PixelFormat mRGBA32, mPFScreen, mPFAlphaScreen;
 
         //if OpenGL enabled (if not, use 2D SDL drawing)
@@ -816,19 +817,21 @@ class SDLDriver : FrameworkDriver {
 
     Surface screenshot() {
         if (mOpenGL) {
-            SurfaceData data;
-            data.size = Vector2i(mSDLScreen.w, mSDLScreen.h);
-            data.transparency = Transparency.None;
-            data.pitch = mSDLScreen.w;
-            data.data.length = data.pitch*data.size.y;
+            Surface res = new Surface(Vector2i(mSDLScreen.w, mSDLScreen.h),
+                Transparency.None);
             //get screen contents, (0, 0) is bottom left in OpenGL, so
             //  image will be upside-down
+            Color.RGBA32* ptr;
+            uint pitch;
+            res.lockPixelsRGBA32(ptr, pitch);
+            assert(pitch == res.size.x);
             glReadPixels(0, 0, mSDLScreen.w, mSDLScreen.h, GL_RGBA,
-                GL_UNSIGNED_BYTE, data.data.ptr);
+                GL_UNSIGNED_BYTE, ptr);
             //checkGLError("glReadPixels");
             //mirror image on x axis
-            doMirrorX(&data);
-            return new Surface(data);
+            doMirrorX(res.getData());
+            res.unlockPixels(res.rect());
+            return res;
         } else {
             //this is possibly dangerous, but I'm too lazy to write proper code
             //  (pure SDL mode is dying anyway)
@@ -877,16 +880,22 @@ class SDLDriver : FrameworkDriver {
             }
         }
 
-        SurfaceData data;
-        data.size = Vector2i(surf.w, surf.h);
-        data.transparency = transparency;
-
         bool hascc = transparency == Transparency.Colorkey;
+        Color colorkey = Color(0);
 
         if (hascc) {
             //NOTE: the png loader from SDL_Image sometimes uses the colorkey
-            data.colorkey = fromSDLColor(surf.format, surf.format.colorkey);
+            colorkey = fromSDLColor(surf.format, surf.format.colorkey);
         }
+
+        Surface res = new Surface(Vector2i(surf.w, surf.h), transparency,
+            colorkey);
+
+        Color.RGBA32* ptr;
+        uint pitch;
+
+        res.lockPixelsRGBA32(ptr, pitch);
+        assert(pitch == res.size.x); //lol, for block copy
 
         bool not_crap = !!(surf.flags & SDL_SRCALPHA);
 
@@ -894,11 +903,8 @@ class SDLDriver : FrameworkDriver {
         //if there's a colorkey, always convert, hoping the alpha channel gets
         //fixed (setting the alpha according to colorkey)
         if (!(not_crap && cmpPixelFormat(surf.format, &mRGBA32))) {
-            data.pitch = data.size.x;
-            data.data.length = data.pitch*data.size.y;
-
-            SDL_Surface* ns = SDL_CreateRGBSurfaceFrom(data.data.ptr,
-                surf.w, surf.h, mRGBA32.BitsPerPixel, data.pitch*4,
+            SDL_Surface* ns = SDL_CreateRGBSurfaceFrom(ptr,
+                surf.w, surf.h, mRGBA32.BitsPerPixel, pitch*Color.RGBA32.sizeof,
                 mRGBA32.Rmask, mRGBA32.Gmask, mRGBA32.Bmask, mRGBA32.Amask);
             if (!ns)
                 throw new FrameworkException("out of memory?");
@@ -913,19 +919,18 @@ class SDLDriver : FrameworkDriver {
         } else {
             //just copy the data
             SDL_LockSurface(surf);
-            data.pitch = surf.pitch/4;
-            assert (data.pitch*4 == surf.pitch);
-            data.data.length = data.pitch*data.size.y;
-            data.data[] = cast(Color.RGBA32[])
-                (surf.pixels[0 .. data.data.length*4]);
+            ptr[0..res.size.x*res.size.y] = cast(Color.RGBA32[])
+                (surf.pixels[0 .. surf.w*surf.h*surf.format.BytesPerPixel]);
             SDL_UnlockSurface(surf);
         }
+
+        res.unlockPixels(res.rect());
 
         if (free_surf) {
             SDL_FreeSurface(surf);
         }
 
-        return new Surface(data);
+        return res;
     }
 
     private char[] pixelFormatToString(SDL_PixelFormat* fmt) {

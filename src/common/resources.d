@@ -479,13 +479,10 @@ public class Resources {
         }
     }
 
-    ///Unload all "unnused" resources (whatever that means)
-    ///xxx: currently can crash, because surfaces are always freed by force
-    ///   actually, Resource or Surface should be refcounted or so to prevent
-    //    this; i.e. unload Resource only if underlying object isn't in use
-    void unloadUnneeded() {
-        //foreach (r; mResources) {
-        //    r.invalidate();
-        //}
+    ///release all resources (which means the resource is left to the GC)
+    ///this means if a resource isn't GCed, reloading it next time will
+    ///actually duplicate it
+    void unloadAll() {
+        mLoadedResourceFiles = null; //blergh
     }
 }

@@ -5,34 +5,6 @@ import utils.reflect.types;
 import utils.reflect.safeptr;
 import utils.misc;
 
-//how the D compiler layouts a delegate
-//args this is ABI dependent, but D doesn't allow to write to the delegate's
-//.ptr and .funcptr properties, so we have to do this evil thing
-//(ABI = can be different from platform to platform)
-struct D_Delegate {
-    void* ptr;
-    void* funcptr;
-}
-
-//wow, an union template!
-union DgConvert(T) {
-    static assert(is(T == delegate));
-    static assert(d1.sizeof == d2.sizeof);
-    D_Delegate d1;
-    T d2;
-}
-
-static this() {
-    //test if the delegate ABI is as expected
-    class TestDg { void foo() {} }
-    TestDg t = new TestDg();
-    auto dg = &t.foo;
-    DgConvert!(typeof(dg)) dgc;
-    dgc.d2 = dg;
-    if (!(dgc.d1.ptr is dgc.d2.ptr && dgc.d1.funcptr is dgc.d2.funcptr))
-        throw new Exception("ABI test in reflection.d failed.");
-}
-
 class DelegateType : Type {
     private {
         Type mReturnType;

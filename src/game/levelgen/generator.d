@@ -1117,12 +1117,9 @@ Surface landscapeRenderPreview(T)(T land, Vector2i size,
     Color[Lexel] colors)
 {
     Surface createPixelSurface(Color c) {
-        SurfaceData s;
-        s.data.length = 4;
-        s.pitch = 4;
-        s.size = Vector2i(1);
-        *cast(uint*)(s.data.ptr) = c.toRGBA32().uint_val;
-        return new Surface(s);
+        auto s = new Surface(Vector2i(1), Transparency.Alpha);
+        s.fill(Rect2i(0,0,1,1), c);
+        return s;
     }
 
     //just the fallback for markers[]

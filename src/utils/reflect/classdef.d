@@ -332,9 +332,9 @@ class ClassMethod : ClassElement {
         if (!rawptr)
             throw new Exception("no.");
         //dirty constructed pointer to delegate to this method
-        D_Delegate rawdg;
+        void delegate() rawdg;
         assert(rawdg.sizeof == type().size());
-        rawdg.funcptr = mAddress;
+        rawdg.funcptr = cast(void function())mAddress;
         rawdg.ptr = rawptr;
         SafePtr pdg = SafePtr(type(), &rawdg);
     `;
@@ -483,12 +483,10 @@ class DefineClass {
     /// (a real delegate is passed, not a pointer)
     void method(T)(char[] name, T del) {
         static assert(is(T == delegate));
-        DgConvert!(T) dgc;
-        dgc.d2 = del;
         //must be a delegate to a method of mDummy
-        assert(dgc.d1.ptr is cast(void*)mClass.mDummy);
+        assert(del.ptr is cast(void*)mClass.mDummy);
         mClass.addMember(new ClassMethod(mClass.mOwner, name,
-            typeid(typeof(del.funcptr)), dgc.d1.funcptr));
+            typeid(typeof(del.funcptr)), del.funcptr));
     }
 }
 

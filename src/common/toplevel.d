@@ -196,6 +196,7 @@ private:
         globals.setDefaultOutput(mGuiConsole.output);
 
         globals.cmdLine.registerCommand("gc", &testGC, "timed GC run");
+        globals.cmdLine.registerCommand("gcmin", &cmdGCmin, "call GC.minimize");
         globals.cmdLine.registerCommand("gcstats", &testGCstats, "GC stats");
         globals.cmdLine.registerCommand("quit", &killShortcut, "kill it");
         globals.cmdLine.registerCommand("toggle", &showConsole,
@@ -240,7 +241,7 @@ private:
         globals.cmdLine.registerCommand("res_load", &cmdResLoad,
             "load resources", ["text:filename"]);
         globals.cmdLine.registerCommand("res_unload", &cmdResUnload,
-            "Unload unused resources; currently can crash!", []);
+            "Unload unused resources", []);
         globals.cmdLine.registerCommand("res_list", &cmdResList,
             "List all resources", []);
 
@@ -366,8 +367,7 @@ private:
     }
 
     private void cmdResUnload(MyBox[] args, Output write) {
-        //can crash; see unloadUnneeded() for details
-        gResources.unloadUnneeded();
+        gResources.unloadAll();
     }
 
     private void cmdResLoad(MyBox[] args, Output write) {
@@ -637,6 +637,9 @@ private:
                 write.writefln("{} = {}", k, gc_stat_get!(size_t)(k, 0));
             }
         }
+    }
+    private void cmdGCmin(MyBox[] args, Output write) {
+        memory.GC.minimize();
     }
 
     private void onUpdate() {

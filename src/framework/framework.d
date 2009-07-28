@@ -28,6 +28,8 @@ import utils.stream;
 
 import str = utils.string;
 
+import cstdlib = tango.stdc.stdlib;
+
 //**** driver stuff
 
 
@@ -128,6 +130,7 @@ struct VideoWindowState {
 }
 
 //all surface data - shared between Surface and DriverSurface
+//I guess this is package (+ sub packages) (so it has to be public)
 struct SurfaceData {
     //convert Surface to display format
     bool enable_cache = true;
@@ -153,6 +156,8 @@ struct SurfaceData {
     //the backend (xxx: this is horrible)
     Color.RGBA32[] data;
     //pitch for data
+    //why not just use size.x? I thought this would provide a simple way to
+    //  represent sub-surfaces, but maybe that idea is already dead...
     uint pitch;
 }
 
@@ -166,15 +171,27 @@ bool pixelIsTransparent(Color.RGBA32* p) {
 
 Framework gFramework;
 
+version = UseCMalloc;
+
 package {
     struct SurfaceKillData {
         //ok, this is a GC'ed pointer, but I assume it's OK, because this
         //pointer is guaranteed to be live by other references
         DriverSurface surface;
+        void* memalloc;
 
         void doFree() {
             if (surface) {
+                //Trace.formatln("kill surface: {}", surface);
                 gFramework.killDriverSurface(surface);
+            }
+            if (memalloc) {
+                version (UseCMalloc) {
+                    cstdlib.free(memalloc);
+                } else {
+                    //xxx: safe or not?
+                    //delete memalloc;
+                }
             }
         }
     }
@@ -207,21 +224,36 @@ ImageLoadDelegate[char[]] gImageFormats;
 class Surface {
     private {
         DriverSurface mDriverSurface;
-        SurfaceData* mData;
+        SurfaceData mData;
         SurfaceMode mMode;
     }
 
     ///"best" size for a large texture
+    //just needed because OpenGL has an unknown max texture size
+    //actually, it doesn't make sense at all
     const cStdSize = Vector2i(512, 512);
 
-    this(SurfaceData data, bool copy_data = false) {
-        mData = new SurfaceData;
-        *mData = data;
-        if (copy_data) {
-            mData.data = mData.data.dup;
+    this(Vector2i size, Transparency transparency, Color colorkey = Color(0)) {
+        mData.size = size;
+        mData.pitch = size.x;
+        mData.transparency = transparency;
+        mData.colorkey = colorkey;
+
+        version (UseCMalloc) {
+            size_t csz = mData.size.y*mData.pitch*Color.RGBA32.sizeof;
+            void* cptr = cstdlib.malloc(csz);
+            mData.data = cast(Color.RGBA32[])cptr[0..csz];
+        } else {
+            mData.data.length = mData.size.y*mData.pitch;
         }
+
         gSurfaces.add(this);
         readSurfaceProperties();
+    }
+
+    //hackity hack
+    final SurfaceData* getData() {
+        return &mData;
     }
 
     ///kill driver's surface, probably copy data back
@@ -242,7 +274,7 @@ class Surface {
         }
         if (!mDriverSurface && create) {
             mMode = mode;
-            mDriverSurface = gFramework.createDriverSurface(mData, mMode);
+            mDriverSurface = gFramework.createDriverSurface(&mData, mMode);
         }
         return mDriverSurface;
     }
@@ -263,6 +295,7 @@ class Surface {
     private void doFree(bool finalizer) {
         SurfaceKillData k;
         k.surface = mDriverSurface;
+        k.memalloc = mData.data.ptr;
         mDriverSurface = null;
         if (!finalizer) {
             //if not from finalizer, actually can call C functions
@@ -282,11 +315,13 @@ class Surface {
     ///     (use with care)
     final void free(bool free_data = false) {
         doFree(false);
+        /+
         if (free_data) {
             delete mData.data;
             delete mData;
         }
         mData = null;
+        +/
     }
 
     /// this has no effect in OpenGL mode; in SDL mode, enabled caching might
@@ -680,13 +715,7 @@ class Framework {
     Surface createSurface(Vector2i size, Transparency transparency,
         Color colorkey = Color(0))
     {
-        SurfaceData data;
-        data.size = size;
-        data.pitch = size.x;
-        data.data.length = data.size.y*data.pitch;
-        data.transparency = transparency;
-        data.colorkey = colorkey;
-        return new Surface(data);
+        return new Surface(size, transparency, colorkey);
     }
 
     Surface loadImage(Stream st, Transparency t = Transparency.AutoDetect) {

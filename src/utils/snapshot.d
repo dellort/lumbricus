@@ -319,7 +319,8 @@ class Snapshot {
                 ClassMethod dg_m;
                 //xxx why is this code duplicated from serialize.d
                 if (!dp.readDelegate(dg_o, dg_m)) {
-                    D_Delegate* dgp = cast(D_Delegate*)dp.ptr;
+                    alias void delegate() Dg;
+                    Dg* dgp = cast(Dg*)dp.ptr;
                     char[] what = "enable version debug to see why";
                     debug {
                         log("hello, snapshot.d might crash here.");
