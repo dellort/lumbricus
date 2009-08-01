@@ -11,7 +11,9 @@ protected class BitmapResource : ResourceItem {
     }
 
     protected void load() {
-        mContents = gFramework.loadImage(mContext.fixPath(mConfig.value));
+        auto bmp = gFramework.loadImage(mContext.fixPath(mConfig.value));
+        bmp.preload();
+        mContents = bmp;
     }
 
     static this() {

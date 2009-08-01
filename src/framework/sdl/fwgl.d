@@ -14,6 +14,13 @@ import str = utils.string;
 import utils.misc;
 import cstdlib = tango.stdc.stdlib;
 
+//when an OpenGL surface is created, and the framework surface has caching
+//  enabled, the framework surface's pixel memory is free'd and stored in the
+//  OpenGL texture instead
+//if the framework surface wants to access the pixel memory, it has to call
+//  DriverSurface.getPixelData(), which in turn will read back texture memory
+const bool cStealSurfaceData = true;
+
 
 char[] glErrorToString(GLenum errCode) {
     char[] res = fromStringz(cast(char*)gluErrorString(errCode));
@@ -88,16 +95,21 @@ class GLSurface : SDLDriverSurface {
     bool mError;
 
     //create from Framework's data
-    this(SurfaceData* data) {
+    this(SurfaceData data) {
         super(data);
+        assert(data.data !is null);
         reinit();
     }
 
     void releaseSurface() {
         if (mTexId != GLID_INVALID) {
+            getPixelData(); //possibly read back memory
             glDeleteTextures(1, &mTexId);
             mTexId = GLID_INVALID;
             mError = false;
+        }
+        if (mData) {
+            assert(mData.data !is null);
         }
     }
 
@@ -107,7 +119,8 @@ class GLSurface : SDLDriverSurface {
     }
 
     void reinit() {
-        releaseSurface();
+        //releaseSurface();
+        assert(mTexId == GLID_INVALID);
 
         //OpenGL textures need width and heigth to be a power of two
         mTexSize = Vector2i(powerOfTwo(mData.size.x),
@@ -124,7 +137,9 @@ class GLSurface : SDLDriverSurface {
 
         //generate texture and set parameters
         glGenTextures(1, &mTexId);
+        assert(mTexId != GLID_INVALID);
         glBindTexture(GL_TEXTURE_2D, mTexId);
+        checkGLError("glBindTexture", true);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -154,12 +169,10 @@ class GLSurface : SDLDriverSurface {
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0,
                 GL_RGBA, GL_UNSIGNED_BYTE, &red);
         } else {
-            updateTexture(Rect2i(Vector2i(0),mData.size));
+            updateTexture(Rect2i(mData.size));
         }
-    }
 
-    void getPixelData() {
-        //nop, nothing free'd for now
+        steal();
     }
 
     //like updatePixels, but assumes texture is already bound (and does
@@ -172,10 +185,10 @@ class GLSurface : SDLDriverSurface {
             return;  //texture failed to load and contains only 1 pixel
 
         Color.RGBA32* texData = mData.data.ptr;
+        assert(!!texData);
 
         //make GL read the right data from the full-image array
-        //glPixelStorei(GL_UNPACK_ROW_LENGTH, mData.size.x);
-        glPixelStorei(GL_UNPACK_ROW_LENGTH, mData.pitch);
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, mData.size.x); //pitch
         glPixelStorei(GL_UNPACK_SKIP_ROWS, rc.p1.y);
         glPixelStorei(GL_UNPACK_SKIP_PIXELS, rc.p1.x);
 
@@ -191,14 +204,69 @@ class GLSurface : SDLDriverSurface {
     }
 
     void updatePixels(in Rect2i rc) {
-        if (mTexId == GLID_INVALID) {
-            reinit();
-        } else {
-            //clip rc to the texture area
-            rc.fitInsideB(Rect2i(0,0,mData.size.x,mData.size.y));
-            glBindTexture(GL_TEXTURE_2D, mTexId);
-            updateTexture(rc);
+        if (mError)
+            return;
+
+        assert(mTexId != GLID_INVALID);
+
+        //clip rc to the texture area
+        rc.fitInsideB(Rect2i(mData.size));
+        glBindTexture(GL_TEXTURE_2D, mTexId);
+        updateTexture(rc);
+    }
+
+    void steal() {
+        if (mError)
+            return;
+
+        assert(mTexId != GLID_INVALID);
+
+        if (!(cStealSurfaceData && gSDLDriver.mEnableCaching))
+            return;
+
+        if (mData.data !is null && mData.canSteal()) {
+            assert(!mData.data_locked);
+            //there's no glGetTexSubImage, only glGetTexImage
+            // => only works for textures with exact size
+            if (mTexSize == mData.size) {
+                mData.pixels_free();
+            }
         }
+    }
+
+    void getPixelData() {
+        if (mError)
+            return;
+
+        assert(mTexId != GLID_INVALID);
+
+        if (mData.data is null) {
+            assert(cStealSurfaceData); //can only happen in this mode
+            assert (mTexSize == mData.size);
+
+            //copy pixels OpenGL surface => mData.data
+            mData.pixels_alloc();
+
+            glBindTexture(GL_TEXTURE_2D, mTexId);
+            checkGLError("glBindTexture", true);
+
+            auto d = mData.data;
+
+            debug {
+                GLint w, h;
+                glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH,
+                    &w);
+                glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT,
+                    &h);
+                assert(Vector2i(w,h) == mTexSize);
+                assert((cast(ubyte[])d).length >= w*h*4);
+            }
+
+            glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, d.ptr);
+            checkGLError("glGetTexImage", true);
+        }
+
+        assert(mData.data !is null);
     }
 
     void getInfos(out char[] desc, out uint extra_data) {
@@ -248,6 +316,12 @@ class GLSurface : SDLDriverSurface {
         return ret;
     }
     */
+
+    char[] toString() {
+        return myformat("GLSurface, {}, id={}, data={}",
+            mData ? mData.size : Vector2i(-1), mTexId,
+            mData ? mData.data.length : -1);
+    }
 }
 
 class GLCanvas : Canvas {
@@ -737,8 +811,7 @@ class GLCanvas : Canvas {
         }
 
         assert(source !is null);
-        GLSurface glsurf = cast(GLSurface)(source.getDriverSurface(
-            SurfaceMode.NORMAL));
+        GLSurface glsurf = cast(GLSurface)source.getDriverSurface();
         assert(glsurf !is null);
 
         //glPushAttrib(GL_ENABLE_BIT);
@@ -808,8 +881,7 @@ class GLCanvas : Canvas {
         //xxx code duplication with above, sorry I was too lazy
 
         assert(source !is null);
-        GLSurface glsurf = cast(GLSurface)(source.getDriverSurface(
-            SurfaceMode.NORMAL));
+        GLSurface glsurf = cast(GLSurface)source.getDriverSurface();
         assert(glsurf !is null);
 
         //glPushAttrib(GL_ENABLE_BIT);

@@ -39,6 +39,7 @@ import cstdlib = tango.stdc.stdlib;
 abstract class DriverSurface {
     ///make sure the pixeldata is in SurfaceData.data
     ///(a driver might steal it before)
+    ///the OpenGL driver actually does this with version = StealSurfaceData;
     abstract void getPixelData();
     ///update pixels again; it is unspecified if changes to the pixel data will
     ///be reflected immediately or only after this function is called
@@ -48,14 +49,6 @@ abstract class DriverSurface {
     abstract void getInfos(out char[] desc, out uint extra_data);
 }
 
-//needed for texture versus bitmap under SDL's OpenGL
-enum SurfaceMode {
-    ERROR,
-    //normal SDL or OpenGL textures
-    NORMAL,
-    //only normal SDL_Surfaces (including the screen, ironically)
-    OFFSCREEN,
-}
 
 enum DriverFeatures {
     canvasScaling = 1,
@@ -68,7 +61,7 @@ enum DriverFeatures {
 abstract class FrameworkDriver {
     ///create a driver surface from this data... the driver might modify the
     ///struct pointed to by data at any time
-    abstract DriverSurface createSurface(SurfaceData* data, SurfaceMode mode);
+    abstract DriverSurface createSurface(SurfaceData data);
     ///destroy the surface (leaves this instance back unuseable) and possibly
     ///write back surface data (also set surface to null)
     abstract void killSurface(inout DriverSurface surface);
@@ -129,11 +122,27 @@ struct VideoWindowState {
     char[] window_caption;
 }
 
+//use C's malloc() for pixel data (D GC can't handle big sizes very well)
+version = UseCMalloc;
+
 //all surface data - shared between Surface and DriverSurface
+//the point of this being an extra object is:
+//1. driver surface don't always exist (because we want to support the useless
+//   feature of being able to switch graphics drivers while the program is
+//   running; e.g. switch from OpenGL mode to pure SDL mode)
+//2. class Surface is garbage collected, and surfaces are automatically free'd
+//   when a Surface is collected; but we still need the pointer to the surface
+//   memory => we must move parts to an extra class, SurfaceData
+//3. copying around a struct won't do it, because both Surface and driver
+//   surfaces change the data
+//this object is instantiated with a Surface, and free'd with a Surface
+// -- looks like some stuff in SDL framework fucks with with too, oh damn!
 //I guess this is package (+ sub packages) (so it has to be public)
-struct SurfaceData {
-    //convert Surface to display format
+final class SurfaceData {
+    //convert Surface to display format and/or possibly allow stealing
     bool enable_cache = true;
+    //meh
+    bool data_locked;
     //if this is true, the driver won't steal the pixeldata
     //if it's false, DriverSurface could "steal" the pixel data (and free it)
     //    and pixel data can be also given back (i.e. when killing the surface)
@@ -154,11 +163,94 @@ struct SurfaceData {
     //at least currently, the data always is in the format Color.RGBA32
     //if the transparency is colorkey, not-transparent pixels may be changed by
     //the backend (xxx: this is horrible)
+    //if allocated, this is always !is null, even if size is (0,0)
+    //it is null if uninitialized or if surface data has been stolen
     Color.RGBA32[] data;
-    //pitch for data
-    //why not just use size.x? I thought this would provide a simple way to
-    //  represent sub-surfaces, but maybe that idea is already dead...
-    uint pitch;
+    size_t pitch; //stale, don't use
+
+    //I don't really know why this is here, but having it in Surface is annoying
+    DriverSurface driver_surface;
+
+    //alloc/set data
+    //size must be set before calling this
+    void pixels_alloc() {
+        assert(!data_locked);
+        assert(data is null);
+        assert(size.x >= 0 && size.y >= 0);
+
+        size_t len = size.y*size.x;
+
+        //make sure this special case doesn't piss off anybody
+        //e.g. malloc(0) can return NULL or some unique pointer (it's undefined)
+        if (len == 0) {
+            len = 1;
+        }
+
+        version (UseCMalloc) {
+            size_t csz = len*Color.RGBA32.sizeof;
+            void* cptr = cstdlib.malloc(csz);
+            //void* cptr = cstdlib.calloc(len, Color.RGBA32.sizeof);
+            //xxx: what error to throw?
+            if (!cptr)
+                throw new Exception("can't allocate pixel memory");
+            data = cast(Color.RGBA32[])cptr[0..csz];
+        } else {
+            data.length = len;
+        }
+        pitch = size.x;
+
+        assert(data !is null);
+    }
+
+    //free data, but leave everything else intact
+    void pixels_free() {
+        assert(!data_locked);
+
+        if (data is null)
+            return;
+
+        version (UseCMalloc) {
+            cstdlib.free(data.ptr);
+        } else {
+            //would be safe, but "the GC will collect it anyway"
+            //delete data;
+        }
+
+        data = null;
+    }
+
+    void lock() {
+        assert(!data_locked);
+        data_locked = true;
+    }
+    void unlock() {
+        assert(data_locked);
+        data_locked = false;
+    }
+
+    //for the graphics driver
+    //return if pixel data can be "stolen", which means the surface data will
+    //  be free'd and be stored in the backend instead (like an OpenGL texture)
+    bool canSteal() {
+        //data_locked=true is actually a user error?
+        return !data_locked && enable_cache;
+    }
+
+    void kill_driver_surface() {
+        if (driver_surface)
+            gFramework.killDriverSurface(driver_surface);
+        assert(data !is null);
+    }
+
+    ///return and possibly create the driver's surface
+    DriverSurface get_driver_surface(bool create = true) {
+        if (!driver_surface && create) {
+            assert(data !is null);
+            driver_surface = gFramework.createDriverSurface(this);
+            assert(!!driver_surface);
+        }
+        return driver_surface;
+    }
 }
 
 //this function by definition returns if a pixel is considered transparent
@@ -171,28 +263,23 @@ bool pixelIsTransparent(Color.RGBA32* p) {
 
 Framework gFramework;
 
-version = UseCMalloc;
-
 package {
     struct SurfaceKillData {
-        //ok, this is a GC'ed pointer, but I assume it's OK, because this
-        //pointer is guaranteed to be live by other references
-        DriverSurface surface;
-        void* memalloc;
+        //this data is held for a while in a region not scanned by the GC
+        //(why??? I forgot)
+        //but other references (at least gFramework.mSurfaceData) keep it alive
+        SurfaceData data;
 
+        //this is called from the framework's main loop, so there's not any
+        //  GC/weakpointer weirdness
         void doFree() {
-            if (surface) {
-                //Trace.formatln("kill surface: {}", surface);
-                gFramework.killDriverSurface(surface);
+            if (data) {
+                data.kill_driver_surface();
+                data.pixels_free();
+                assert(data in gFramework.mSurfaceData);
+                gFramework.mSurfaceData.remove(data);
             }
-            if (memalloc) {
-                version (UseCMalloc) {
-                    cstdlib.free(memalloc);
-                } else {
-                    //xxx: safe or not?
-                    //delete memalloc;
-                }
-            }
+            data = null;
         }
     }
     WeakList!(Surface, SurfaceKillData) gSurfaces;
@@ -205,13 +292,8 @@ class FrameworkException : Exception {
     }
 }
 
-//enum ImageFormat {
-//    tga,    //lol, no more supported
-//    png,
-//}
-
 //NOTE: stream must be seekable (used to back-patch the length), but the
-//      functions still start writing at the preset seek position, and ends
+//      functions still start writing at the preset seek position, and end
 //      writing at the end of the written image
 alias void delegate(Surface img, Stream dst) ImageLoadDelegate;
 ImageLoadDelegate[char[]] gImageFormats;
@@ -223,9 +305,7 @@ ImageLoadDelegate[char[]] gImageFormats;
 ///       we need it), so be careful with pointers to it
 class Surface {
     private {
-        DriverSurface mDriverSurface;
         SurfaceData mData;
-        SurfaceMode mMode;
     }
 
     ///"best" size for a large texture
@@ -234,49 +314,38 @@ class Surface {
     const cStdSize = Vector2i(512, 512);
 
     this(Vector2i size, Transparency transparency, Color colorkey = Color(0)) {
+        mData = new SurfaceData();
+
         mData.size = size;
-        mData.pitch = size.x;
         mData.transparency = transparency;
         mData.colorkey = colorkey;
 
-        version (UseCMalloc) {
-            size_t csz = mData.size.y*mData.pitch*Color.RGBA32.sizeof;
-            void* cptr = cstdlib.malloc(csz);
-            mData.data = cast(Color.RGBA32[])cptr[0..csz];
-        } else {
-            mData.data.length = mData.size.y*mData.pitch;
-        }
+        mData.pixels_alloc();
 
-        gSurfaces.add(this);
         readSurfaceProperties();
+
+        gFramework.mSurfaceData[mData] = true; //don't GC-collect data
+        gSurfaces.add(this);
     }
 
     //hackity hack
-    final SurfaceData* getData() {
-        return &mData;
+    final SurfaceData getData() {
+        return mData;
     }
 
     ///kill driver's surface, probably copy data back
-    final bool passivate() {
-        if (mDriverSurface) {
-            gFramework.killDriverSurface(mDriverSurface);
-            mMode = SurfaceMode.ERROR;
-            return true;
-        }
-        return false;
+    final void passivate() {
+        mData.kill_driver_surface();
     }
 
     ///return and possibly create the driver's surface
-    final DriverSurface getDriverSurface(SurfaceMode mode, bool create = true) {
-        if (mode != mMode) {
-            // :(
-            passivate();
-        }
-        if (!mDriverSurface && create) {
-            mMode = mode;
-            mDriverSurface = gFramework.createDriverSurface(&mData, mMode);
-        }
-        return mDriverSurface;
+    final DriverSurface getDriverSurface(bool create = true) {
+        return mData.get_driver_surface(create);
+    }
+
+    ///load surface into backend
+    final void preload() {
+        getDriverSurface(true);
     }
 
     //call everytime the format in mData is changed
@@ -294,15 +363,14 @@ class Surface {
 
     private void doFree(bool finalizer) {
         SurfaceKillData k;
-        k.surface = mDriverSurface;
-        k.memalloc = mData.data.ptr;
-        mDriverSurface = null;
+        k.data = mData;
         if (!finalizer) {
             //if not from finalizer, actually can call C functions
             //so free it now (and not later, by lazy freeing)
             k.doFree();
             k = k.init; //reset
         }
+        mData = null;
         gSurfaces.remove(this, finalizer, k);
     }
 
@@ -315,17 +383,16 @@ class Surface {
     ///     (use with care)
     final void free(bool free_data = false) {
         doFree(false);
-        /+
-        if (free_data) {
-            delete mData.data;
-            delete mData;
-        }
-        mData = null;
-        +/
     }
 
-    /// this has no effect in OpenGL mode; in SDL mode, enabled caching might
-    /// speed up blitting, but uses more memory, and updating pixels is S.L.O.W.
+    /// accessing pixels with lockPixelsRGBA32() will be S.L.O.W. (depending
+    /// from the driver)
+    /// if this is true (default value), then:
+    /// - OpenGL: will steal data => even reading pixels is extremely slow
+    /// - SDL: will convert surface to display format and will RLE compress
+    ///   the image data, but reading is still fast (no stealing)
+    /// after enabling caching, you can use preload() to do the driver specific
+    /// surface conversion as mentioned above (or it will be done on next draw)
     bool enableCaching() {
         return mData.enable_cache;
     }
@@ -340,20 +407,27 @@ class Surface {
     /// must not call any other surface functions (except size() and
     /// transparency()) between this and unlockPixels()
     /// pitch is now number of Color.RGBA32 units to advance by 1 line vetically
+    /// why not just use size.x? I thought this would provide a simple way to
+    ///     represent sub-surfaces (so that a Surface can reference a part of a
+    ///     larger Surface), but maybe that idea is already dead...
+    //xxx: add a "Rect2i area" parameter to return the pixels for a subrect?
     void lockPixelsRGBA32(out Color.RGBA32* pixels, out uint pitch) {
-        if (mDriverSurface) {
-            mDriverSurface.getPixelData();
+        if (mData.driver_surface) {
+            mData.driver_surface.getPixelData();
         }
+        mData.lock();
+        assert(mData.data !is null);
         pixels = mData.data.ptr;
-        pitch = mData.pitch;
+        pitch = mData.size.x;
     }
     /// must be called after done with lockPixelsRGBA32()
     /// "rc" is for the offset and size of the region to update
     void unlockPixels(in Rect2i rc) {
+        mData.unlock();
         if (!rc.isNormal()) //now means it is empty
             return;
-        if (mDriverSurface  && rc.size.quad_length > 0) {
-            mDriverSurface.updatePixels(rc);
+        if (mData.driver_surface && rc.size.quad_length > 0) {
+            mData.driver_surface.updatePixels(rc);
         }
     }
 
@@ -372,10 +446,6 @@ class Surface {
 
     final Surface clone() {
         return subrect(rect());
-        /*
-        passivate();
-        return new Surface(*mData, true);
-        */
     }
 
     //return a Surface with a copy of a subrectangle of this
@@ -553,6 +623,8 @@ class Framework {
         //holds the DriverSurfaces to prevent them being GC'ed
         //cf. i.e. createDriverSurface()
         bool[DriverSurface] mDriverSurfaces;
+        //and this is something similar
+        bool[SurfaceData] mSurfaceData;
 
         //misc singletons, lol
         FontManager mFontManager;
@@ -690,10 +762,8 @@ class Framework {
 
     //--- DriverSurface handling
 
-    package DriverSurface createDriverSurface(SurfaceData* data, SurfaceMode
-        mode)
-    {
-        DriverSurface res = mDriver.createSurface(data, mode);
+    package DriverSurface createDriverSurface(SurfaceData data) {
+        DriverSurface res = mDriver.createSurface(data);
         //expect a new instance
         assert(!(res in mDriverSurfaces));
         mDriverSurfaces[res] = true;
@@ -1099,8 +1169,9 @@ class Framework {
     private int releaseDriverSurfaces() {
         int count;
         foreach (Surface s; gSurfaces.list) {
-            if (s.passivate())
+            if (s.mData.driver_surface)
                 count++;
+            s.passivate();
         }
         return count;
     }
@@ -1178,7 +1249,7 @@ class Framework {
                 int cnt, bytes, bytes_extra;
                 res ~= "Surfaces:\n";
                 foreach (s; gSurfaces.list) {
-                    auto d = s.mDriverSurface;
+                    auto d = s.mData.driver_surface;
                     char[] dr_desc;
                     if (d) {
                         uint extra;

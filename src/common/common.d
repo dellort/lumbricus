@@ -85,18 +85,26 @@ class Common {
             timers[name] = cnt;
         }
 
-        //GUI resources, this is a bit off here
-        guiResources = resources.loadResSet("guires.conf");
-
-        gFramework.fontManager.readFontDefinitions(
-            gConf.loadConfig("fonts"));
-
         setVideoFromConf();
         if (!gFramework.videoActive) {
             //this means we're F****D!!1  ("FOOLED")
             log("ERROR: couldn't initialize video");
             throw new Exception("can't continue");
         }
+
+        //woo woo load this stuff here, because framework blows up if
+        //- you preload images
+        //- but video mode is not set yet (or so)
+        //- OpenGL (at least nvidia under linux/sdl) refuses to work
+        //- but loading images as resources preloads them by default
+        //in pure SDL mode, there's a similar error (SDL_DisplayFormat() fails)
+
+        //GUI resources, this is a bit off here
+        guiResources = resources.loadResSet("guires.conf");
+
+        gFramework.fontManager.readFontDefinitions(
+            gConf.loadConfig("fonts"));
+
     }
 
     //read configuration from video.conf and set video mode

@@ -42,15 +42,53 @@ enum GUIZOrder : int {
 
 TopLevel gTopLevel;
 
-T gc_stat_get(T)(char[] name, T def = T.init) {
+Variant gc_stat_get_v(char[] name) {
     static if (is(memory.GCInfo)) {
-        try {
-            return memory.GCInfo[name].get!(T)();
-        } catch (VariantTypeMismatchException e) {
-            return def;
-        }
+        return memory.GCInfo[name];
     } else {
+        return Variant.init;
+    }
+}
+
+T gc_stat_get(T)(char[] name, T def = T.init) {
+    try {
+        return gc_stat_get_v(name).get!(T)();
+    } catch (VariantTypeMismatchException e) {
         return def;
+    }
+}
+
+//sorry for the kludge; just for statistics
+version (linux) {
+    //gnu libc specific
+    //http://www.gnu.org/s/libc/manual/html_node/Statistics-of-Malloc.html
+    struct mallinfo_s {
+        //note: these are C ints
+        int arena;
+        int ordblks;
+        int smblks;
+        int hblks;
+        int hblkhd;
+        int usmblks;
+        int fsmblks;
+        int uordblks;
+        int fordblks;
+        int keepcost;
+    }
+    extern (C) mallinfo_s mallinfo();
+
+    //stats[0] = allocated size
+    //stats[1] = free size
+    //stats[2] = mmap'ed size
+    void get_cmalloc_stats(size_t[3] stats) {
+        auto mi = mallinfo();
+        stats[0] = mi.arena;
+        stats[1] = 0; //???
+        stats[2] = mi.hblkhd;
+    }
+} else {
+    void get_cmalloc_stats(size_t[3] stats) {
+        stats[] = 0;
     }
 }
 
@@ -632,11 +670,15 @@ private:
     private void testGCstats(MyBox[] args, Output write) {
         static if (is(memory.GCInfo)) {
             foreach (k; memory.GCInfo.keys()) {
-                //xxx change as soon as Variants can be converted to string
-                //for now, size_t is the most common type
-                write.writefln("{} = {}", k, gc_stat_get!(size_t)(k, 0));
+                write.writefln("{} = {}", k, gc_stat_get_v(k));
             }
         }
+        write.writefln("C malloc stats:");
+        size_t[3] bla;
+        get_cmalloc_stats(bla);
+        write.writefln("allocated: {}", str.sizeToHuman(bla[0]));
+        write.writefln("free: {}", str.sizeToHuman(bla[1]));
+        write.writefln("mmap'ed: {}", str.sizeToHuman(bla[2]));
     }
     private void cmdGCmin(MyBox[] args, Output write) {
         memory.GC.minimize();
@@ -786,6 +828,11 @@ class StatsWindow : Task {
             addLine("GC s-time",
                 timeMusecs(gc_stat_get!(ulong)("sweep_time_us"))
                 .toString_s(lineBuffer()));
+
+            size_t[3] mstats;
+            get_cmalloc_stats(mstats);
+            addLine("C malloc", str.sizeToHuman(mstats[0], lineBuffer()));
+            addLine("C malloc-mmap", str.sizeToHuman(mstats[2], lineBuffer()));
 
             addLine("Weak objects", myformat_s(lineBuffer(), "{}",
                 gFramework.weakObjectsCount));

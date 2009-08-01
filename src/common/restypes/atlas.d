@@ -41,7 +41,9 @@ class AtlasResource : ResourceItem {
 
         debug gResources.ls_start("AtlasResource:load pages");
         foreach (char[] key, char[] value; node.getSubNode("pages")) {
-            atlas.mPages ~= gFramework.loadImage(mContext.fixPath(value));
+            auto img = gFramework.loadImage(mContext.fixPath(value));
+            img.preload();
+            atlas.mPages ~= img;
         }
         debug gResources.ls_stop("AtlasResource:load pages");
 

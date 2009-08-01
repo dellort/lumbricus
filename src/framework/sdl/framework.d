@@ -48,22 +48,29 @@ package bool sdlIsAlpha(SDL_Surface* s) {
 
 //common base class for SDLSurface and GLSurface
 class SDLDriverSurface : DriverSurface {
-    SurfaceData* mData;
+    SurfaceData mData;
+    bool mCustom;
 
-    this(SurfaceData* data) {
+    //custom means kill() should free the pixel memory in mData
+    this(SurfaceData data, bool custom = false) {
         gSDLDriver.mDriverSurfaceCount++;
         mData = data;
+        mCustom = custom;
     }
 
     //must be overriden; super method must be called on end
     void kill() {
         assert(!!mData, "double kill()?");
         gSDLDriver.mDriverSurfaceCount--;
+        if (mCustom) {
+            //only in SDL mode, for mirrored surfaces
+            mData.pixels_free();
+        }
         mData = null;
     }
 }
 
-void doMirrorY(SurfaceData* data) {
+void doMirrorY(SurfaceData data) {
     for (uint y = 0; y < data.size.y; y++) {
         Color.RGBA32* src = data.data.ptr+y*data.pitch+data.size.x;
         Color.RGBA32* dst = data.data.ptr+y*data.pitch;
@@ -75,7 +82,7 @@ void doMirrorY(SurfaceData* data) {
     }
 }
 
-void doMirrorX(SurfaceData* data) {
+void doMirrorX(SurfaceData data) {
     Color.RGBA32[] tmp = new Color.RGBA32[data.pitch];
     for (int y = 0; y < data.size.y/2; y++) {
         int ym = data.size.y - y - 1;
@@ -112,11 +119,15 @@ void doMirrorX(SurfaceData* data) {
     SDLSurface mirroredY() {
         if (!mMirroredY) {
             //NOTE: this is a bit unclean. sry!
-            SurfaceData* ndata = new SurfaceData;
-            *ndata = *mSource.mData;
-            ndata.data = ndata.data.dup;
-            doMirrorY(ndata);
-            mMirroredY = new SDLSurface(ndata);
+            SurfaceData s = mSource.mData;
+            SurfaceData ns = new SurfaceData();
+            ns.size = s.size;
+            ns.transparency = s.transparency;
+            ns.colorkey = s.colorkey;
+            ns.pixels_alloc();
+            ns.data[] = s.data;
+            doMirrorY(ns);
+            mMirroredY = new SDLSurface(ns, true);
         }
         return mMirroredY;
     }
@@ -131,8 +142,8 @@ void doMirrorX(SurfaceData* data) {
     EffectCache mEffects;
 
     //create from Framework's data
-    this(SurfaceData* data) {
-        super(data);
+    this(SurfaceData data, bool custom = false) {
+        super(data, custom);
         reinit();
     }
 
@@ -161,9 +172,17 @@ void doMirrorX(SurfaceData* data) {
         //NOTE: SDL_CreateRGBSurfaceFrom doesn't copy the data... so, be sure
         //      to keep the pointer, so D won't GC it
         auto rgba32 = gSDLDriver.mRGBA32;
-        mSurface = SDL_CreateRGBSurfaceFrom(mData.data.ptr, mData.size.x,
-            mData.size.y, 32, mData.pitch*4, rgba32.Rmask, rgba32.Gmask,
-            rgba32.Bmask, rgba32.Amask);
+        if (!cc) {
+            mSurface = SDL_CreateRGBSurfaceFrom(mData.data.ptr, mData.size.x,
+                mData.size.y, 32, mData.pitch*4, rgba32.Rmask, rgba32.Gmask,
+                rgba32.Bmask, rgba32.Amask);
+        } else {
+            //colorkey surfaces require that the pixel data is changed to
+            //  correctly handle transparency (see updatePixels()), so allocate
+            //  new memory for it
+            mSurface = SDL_CreateRGBSurface(SDL_SWSURFACE, mData.size.x,
+                mData.size.y, 32, rgba32.Rmask, rgba32.Gmask, rgba32.Bmask, 0);
+        }
         if (!mSurface) {
             throw new FrameworkException(
                 myformat("couldn't create SDL surface, size={}", mData.size));
@@ -187,6 +206,8 @@ void doMirrorX(SurfaceData* data) {
             default: //rien
         }
 
+        mCacheEnabled = false;
+        updatePixels(Rect2i(mData.size));
         mCacheEnabled = convertToDisplay();
     }
 
@@ -199,27 +220,42 @@ void doMirrorX(SurfaceData* data) {
     }
 
     void updatePixels(in Rect2i rc) {
-        rc.fitInsideB(Rect2i(0,0,mData.size.x,mData.size.y));
+        rc.fitInsideB(Rect2i(mData.size));
+
+        if (mCacheEnabled) {
+            reinit();
+            return;
+        }
 
         if (mData.transparency == Transparency.Colorkey) {
             //if colorkey is enabled, one must "fix up" the updated pixels, so
             //one can be sure non-transparent pixels are actually equal to the
             //color key
+            //reason: user code is allowed to use the alpha channel to set
+            //  transparency (makes code simpler because they don't have to
+            //  remember about colorkey... maybe that was a bad idea)
             auto ckey = mData.colorkey.toRGBA32();
             ckey.a = 0;
+            uint ckey_val = ckey.uint_val;
+
+            assert(!(mSurface.flags & SDL_RLEACCEL));
+            assert(mSurface.format.BytesPerPixel == 4);
+
             for (int y = rc.p1.y; y < rc.p2.y; y++) {
                 int w = rc.size.x;
                 Color.RGBA32* pix = mData.data.ptr + mData.pitch*y + rc.p1.x;
+                uint* pix_dest = cast(uint*)(mSurface.pixels + mSurface.pitch*y)
+                    + rc.p1.x;
                 for (int x = 0; x < w; x++) {
                     if (pixelIsTransparent(pix)) {
-                        *pix = ckey;
+                        *pix_dest = ckey_val;
+                    } else {
+                        *pix_dest = pix.uint_val;
                     }
                     pix++;
+                    pix_dest++;
                 }
             }
-        }
-        if (mCacheEnabled) {
-            reinit();
         }
     }
 
@@ -241,6 +277,7 @@ void doMirrorX(SurfaceData* data) {
             case Transparency.None: {
                 if (rle || !gSDLDriver.isDisplayFormat(mSurface, false)) {
                     nsurf = SDL_DisplayFormat(mSurface);
+                    assert(!!nsurf);
                     /+Trace.formatln("before: {}",
                         gSDLDriver.pixelFormatToString(mSurface.format));
                     Trace.formatln("after: {}",
@@ -256,6 +293,7 @@ void doMirrorX(SurfaceData* data) {
             case Transparency.Alpha: {
                 if (rle || !gSDLDriver.isDisplayFormat(mSurface, true)) {
                     nsurf = SDL_DisplayFormatAlpha(mSurface);
+                    assert(!!nsurf);
                     //does RLE with alpha make any sense?
                     if (rle) {
                         SDL_SetAlpha(nsurf, SDL_SRCALPHA | SDL_RLEACCEL,
@@ -471,17 +509,11 @@ class SDLDriver : FrameworkDriver {
         return features;
     }
 
-    DriverSurface createSurface(SurfaceData* data, SurfaceMode mode) {
-        switch (mode) {
-            case SurfaceMode.NORMAL:
-                if (mOpenGL) {
-                    return new GLSurface(data);
-                }
-                //fall through
-            case SurfaceMode.OFFSCREEN:
-                return new SDLSurface(data);
-            default:
-                assert(false, "unknown SurfaceMode?");
+    DriverSurface createSurface(SurfaceData data) {
+        if (mOpenGL) {
+            return new GLSurface(data);
+        } else {
+            return new SDLSurface(data);
         }
     }
 
@@ -812,7 +844,7 @@ class SDLDriver : FrameworkDriver {
             throw new FrameworkException("image couldn't be loaded: " ~ err);
         }
 
-        return convertFromSDLSurface(surf, transparency, true, true);
+        return convertFromSDLSurface(surf, transparency, true);
     }
 
     Surface screenshot() {
@@ -865,9 +897,9 @@ class SDLDriver : FrameworkDriver {
         return r;
     }
 
-    //warning: modifies the source surface!
+    //warning: modifies the source surface! (changes transparency modes)
     Surface convertFromSDLSurface(SDL_Surface* surf, Transparency transparency,
-        bool free_surf, bool dump = false)
+        bool free_surf)
     {
         if (transparency == Transparency.AutoDetect) {
             //guess by looking at the alpha channel
@@ -913,6 +945,7 @@ class SDLDriver : FrameworkDriver {
             //paletted+transparent png files (but only in OpenGL mode lol)
             //by the way, using SDL_ConvertSurface worked even worse
             //SDL_SetColorKey(surf, 0, 0);
+            SDL_FillRect(ns, null, 0); //transparent background
             SDL_BlitSurface(surf, null, ns, null);
             SDL_FreeSurface(ns);
             //xxx: need to restore for surf what was destroyed by SDL_SetAlpha
@@ -1171,8 +1204,7 @@ class SDLCanvas : Canvas {
         destPos += mTrans;
 
         assert(source !is null);
-        SDLSurface sdls = cast(SDLSurface)
-            (source.getDriverSurface(SurfaceMode.OFFSCREEN));
+        SDLSurface sdls = cast(SDLSurface)source.getDriverSurface();
         //when this is null, maybe the user passed a GLTexture?
         assert(sdls !is null);
 
