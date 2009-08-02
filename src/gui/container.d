@@ -72,6 +72,9 @@ class Container : Widget {
         //just to be sure
         o.needRelayout();
 
+        //styles depend from parent
+        o.do_style_check();
+
         //gDefaultLog("added {} to {}", o, this);
     }
 
@@ -625,6 +628,15 @@ class Container : Widget {
     override void onLocaleChange() {
         foreach (w; children.dup) {
             w.onLocaleChange();
+        }
+    }
+
+    override void do_style_check() {
+        super.do_style_check();
+        if (!getTopLevel())
+            return;
+        foreach (w; children.dup) {
+            w.do_style_check();
         }
     }
 

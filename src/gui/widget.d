@@ -784,6 +784,15 @@ class Widget {
     BoxProperties mOldBorderStyle;
     bool mOldDrawBorder;
 
+    //this is actually, package, but retarded D does not allow to override
+    //  package functions (which is plain utterly disgusting)
+    void do_style_check() {
+        //styles are obviously not available if widget not in main hierarchy
+        if (!getTopLevel())
+            return;
+        check_style_changes();
+    }
+
     protected void check_style_changes() {
         mBorderStyle.border = styles.getValue!(Color)("border-color");
         mBorderStyle.back = styles.getValue!(Color)("border-back-color");
