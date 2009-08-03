@@ -172,7 +172,7 @@ class GameTask : StatefulTask {
         SimpleNetConnection mConnection;
 
         GameFrame mGameFrame;
-        SimpleContainer mWindow;
+        WindowContainer mWindow;
 
         LoadingScreen mLoadScreen;
         Loader mGUIGameLoader;
@@ -243,7 +243,7 @@ class GameTask : StatefulTask {
     }
 
     private void createWindow() {
-        mWindow = new SimpleContainer();
+        mWindow = new WindowContainer();
         auto wnd = gWindowManager.createWindowFullscreen(this, mWindow,
             "lumbricus");
         //background is mostly invisible, except when loading and at low
@@ -342,9 +342,6 @@ class GameTask : StatefulTask {
             mCmds.addSub(mGameShell.commands());
             mGameShell.OnRestoreGuiAfterSnapshot = &guiRestoreSnapshot;
             mGame = mGameShell.serverEngine;
-
-            //ShowObject.CreateWindow(this, mGameShell.getSerializeContext.types,
-            //    mGameShell.serverEngine);
         }
         if (mConnection) {
             if (!mControl)
@@ -512,12 +509,13 @@ class GameTask : StatefulTask {
             mCmds.register(Command("demo_stop", &cmdDemoStop,
                 "stop demo recorder"));
         }
-        mCmds.register(Command("saveleveltga", &cmdSafeLevelTGA, "dump TGA",
+        mCmds.register(Command("savelevelpng", &cmdSafeLevelPNG, "dump PNG",
             ["text:filename"]));
         mCmds.register(Command("show_collide", &cmdShowCollide, "show collision"
             " bitmaps"));
         mCmds.register(Command("server", &cmdExecServer,
             "Run a command on the server", ["text...:command"]));
+        mCmds.register(Command("show_obj", &cmdShowObj, "", null));
     }
 
     class ShowCollide : Container {
@@ -579,12 +577,53 @@ class GameTask : StatefulTask {
             "Collision matrix");
     }
 
-    private void cmdSafeLevelTGA(MyBox[] args, Output write) {
+    //just for that debug-grabbing stuff...
+    class WindowContainer : SimpleContainer {
+        bool do_capture;
+
+        override bool allowInputForChild(Widget child, InputEvent event) {
+            if (!do_capture)
+                return true;
+            if (event.isKeyEvent && event.keyEvent.code == Keycode.MOUSE_LEFT) {
+                captureSet(false);
+                do_capture = false;
+                auto p = mousePos;
+                mGameFrame.gameView.translateCoords(this, p);
+                show_obj(p);
+            }
+            return false;
+        }
+
+        //only used when capturing
+        override MouseCursor mouseCursor() {
+            MouseCursor c;
+            //cross like, good enough
+            c.graphic = globals.guiResources.get!(Surface)("red_x");
+            c.graphic_spot = c.graphic.size/2;
+            return c;
+        }
+    }
+
+    private void cmdShowObj(MyBox[] args, Output write) {
+        mWindow.do_capture = true;
+        mWindow.captureSet(true);
+    }
+
+    private void show_obj(Vector2i pos) {
+        if (!mGameShell)
+            return;
+        Object o = mGameShell.serverEngine.debug_pickObject(pos);
+        if (!o)
+            return;
+        ShowObject.CreateWindow(this, mGameShell.getSerializeContext.types, o);
+    }
+
+    private void cmdSafeLevelPNG(MyBox[] args, Output write) {
         if (!mGameShell)
             return;
         char[] filename = args[0].unbox!(char[])();
         Stream s = gFS.open(filename, File.WriteCreate);
-        mGameShell.serverEngine.gameLandscapes[0].image.saveImage(s);
+        mGameShell.serverEngine.gameLandscapes[0].image.saveImage(s, "png");
         s.close();
     }
 
@@ -689,8 +728,10 @@ class GameTask : StatefulTask {
 
 class ShowObject : Container {
     private {
+        Task mTask;
         Types mTypes;
         UpdateText[] mTexts;
+        Expand[] mExpanders;
         Time mLastUpdate;
 
         struct UpdateText {
@@ -698,22 +739,45 @@ class ShowObject : Container {
             SafePtr ptr;
             char[] delegate(SafePtr p) updater;
         }
+
+        struct Expand {
+            Button btn;
+            SafePtr ptr;
+            void delegate(SafePtr p) expand;
+        }
     }
 
     static void CreateWindow(Task task, Types types, Object o) {
-        auto wnd = gWindowManager.createWindow(task, new ShowObject(types, o),
-            "Muh", Vector2i(0,0));
+        //hack to deal with null-ptrs
+        if (!o)
+            return;
+
+        auto objstr = myformat("{}", o);
+        auto cname = o.classinfo.name;
+        char[] titel;
+        if (objstr != cname) {
+            titel = myformat("{}: '{}'", cname, objstr);
+        } else {
+            titel = cname;
+        }
+
+        auto wnd = gWindowManager.createWindow(task,
+            new ShowObject(task, types, o), titel, Vector2i(0,0));
         auto props = wnd.properties;
         props.zorder = WindowZOrder.High;
         wnd.properties = props;
         wnd.onClose = (Window sender) {return true;};
     }
 
-    this(Types t, Object o) {
+    this(Task tsk, Types t, Object o) {
+        mTask = tsk;
         mTypes = t;
         assert(!!o);
         SafePtr p = mTypes.objPtr(o);
-        addChild(createStructured(p));
+        //if s is null, the type is not registered with serialization
+        auto s = createStructured(p);
+        if (s)
+            addChild(s);
     }
 
     void update() {
@@ -732,8 +796,51 @@ class ShowObject : Container {
 
     private Widget createSub(SafePtr ptr) {
         if (cast(StructType)ptr.type) {
-            return createStructured(ptr);
+            //try to be smart, use toString() if it's implemented
+            if (!ptr.type.hasToString())
+                return createStructured(ptr);
         }
+
+        Widget w = createDefault(ptr);
+
+        void delegate(SafePtr) expander;
+
+        if (cast(ReferenceType)ptr.type) {
+            expander = &do_expand_obj;
+        }
+
+        if (expander) {
+            auto b = new Button();
+            b.setLayout(WidgetLayout.Noexpand());
+            b.onClick = &expand_click;
+            b.textMarkup = "...";
+
+            mExpanders ~= Expand(b, ptr, expander);
+
+            auto box = new BoxContainer(true);
+            box.add(w);
+            box.add(b);
+
+            w = box;
+        }
+
+        return w;
+    }
+
+    private void do_expand_obj(SafePtr p) {
+        CreateWindow(mTask, mTypes, p.toObject());
+    }
+
+    private void expand_click(Button b) {
+        foreach (e; mExpanders) {
+            if (e.btn is b) {
+                e.expand(e.ptr);
+                return;
+            }
+        }
+    }
+
+    private Widget createDefault(SafePtr ptr) {
         //default conversion, which uses the stdlib's format()
         UpdateText t;
         t.lbl = new Label();
@@ -746,11 +853,22 @@ class ShowObject : Container {
 
     private Widget createStructured(SafePtr ptr) {
         auto stuff = new TableContainer(2, 0, Vector2i(3, 0));
-        auto cur = castStrict!(StructuredType)(ptr.type).klass();
-        if (!cur)
+        auto curc = castStrict!(StructuredType)(ptr.type).klass();
+        if (!curc)
             return null; //xxx: ?
 
-        while (cur) {
+        //go through the trouble to provide classes top-down
+        //(super class first, then fields from inherited ones)
+        Class[] hier;
+        while (curc) {
+            hier ~= curc;
+            curc = curc.superClass();
+        }
+        hier.reverse;
+
+        foreach (int i, cur; hier) {
+            ptr.type = cur.type();
+
             foreach (ClassMember m; cur.members) {
                 SafePtr sub = m.get(ptr);
                 Widget w = createSub(sub);
@@ -770,13 +888,13 @@ class ShowObject : Container {
                 stuff.add(w, 1, r);
             }
 
-            if (!cur.superClass())
+            //meh dumb
+            if (i == hier.length-1)
                 break;
 
-            cur = cur.superClass();
-            ptr.type = cur.type();
             int r = stuff.addRow();
             auto spacer = new Spacer();
+            spacer.minSize = Vector2i(0,1);
             stuff.add(spacer, 0, r, 2, 1);
         }
 
@@ -784,6 +902,12 @@ class ShowObject : Container {
     }
 
     private char[] conv_def(SafePtr p) {
+        if (cast(ReferenceType)p.type) {
+            if (!p.toObject())
+                return "\\{\\c(red)null\\}";
+        }
+        if (!p.type.hasToString())
+            return myformat("(no .toString for {})", p.type.typeInfo); 
         //the lit is for not making it interpreted as markup
         char[] txt = p.type.dataToString(p);
         const cMax = 50;

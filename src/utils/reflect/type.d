@@ -121,6 +121,15 @@ class Type {
         assert(!!mToString);
         return mToString(p);
     }
+
+    //true for all native types (+ enums), arrays with elements for which
+    //  hasToString() is true, AAs for which key and value hasToString(),
+    //  classes which override toString, and structs that have toString
+    //  defined
+    //basically returns if dataToString contains something remotely meaningful
+    bool hasToString() {
+        return false;
+    }
 }
 
 class BaseType : Type {
@@ -139,6 +148,10 @@ class BaseType : Type {
 
     override char[] toString() {
         return "BaseType[" ~ mName ~ "]";
+    }
+
+    override bool hasToString() {
+        return true;
     }
 }
 
@@ -200,6 +213,10 @@ class EnumType : Type {
 
     override char[] toString() {
         return "EnumType[" ~ mUnderlying.toString() ~ "]";
+    }
+
+    override bool hasToString() {
+        return mUnderlying.hasToString();
     }
 }
 

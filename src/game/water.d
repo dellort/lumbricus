@@ -14,21 +14,20 @@ import utils.configfile;
 import utils.random;
 
 
+//height in pixels of the alpha blend-out region
+const cBlendOutHeight = 75;
+
 class WaterDrawer : SceneObject {
     protected Color mWaterColor;
     protected GameWater mParent;
 
-    this(GameWater parent, Color waterColor) {
+    void init(GameWater parent, Color waterColor) {
         mParent = parent;
         mWaterColor = waterColor;
     }
 }
 
 class WaterDrawerFront1 : WaterDrawer {
-    this(GameWater parent, Color waterColor) {
-        super(parent, waterColor);
-    }
-
     void draw(Canvas canvas) {
         canvas.drawFilledRect(Vector2i(0, mParent.animTop),
             Vector2i(mParent.size.x, mParent.animBottom), mWaterColor);
@@ -36,21 +35,32 @@ class WaterDrawerFront1 : WaterDrawer {
 }
 
 class WaterDrawerFront2 : WaterDrawer {
-    this(GameWater parent, Color waterColor) {
-        super(parent, waterColor);
-    }
-
     void draw(Canvas canvas) {
         canvas.drawFilledRect(Vector2i(0, mParent.animBottom),
             mParent.size, mWaterColor);
     }
 }
 
-class WaterDrawerBack : WaterDrawer {
-    this(GameWater parent, Color waterColor) {
-        super(parent, waterColor);
+class WaterDrawerBlendOut : WaterDrawer {
+    void draw(Canvas canvas) {
+        auto a0 = mWaterColor;
+        a0.a = 0;
+        canvas.drawVGradient(
+            Rect2i(Vector2i(0, mParent.size.y - cBlendOutHeight), mParent.size),
+            a0, mWaterColor);
+        //draw water _below_ the level area (this code also assumes there's
+        //  always water, e.g. water can't turn into a bottomless chasm if the
+        //  water level drops below the level height)
+        //also not sure about z-order
+        //not drawn in simple mode (don't know if ok?)
+        auto v = canvas.visibleArea();
+        v.p1.y = max(v.p1.y, mParent.size.y);
+        if (v.size.y > 0)
+            canvas.drawFilledRect(v, mWaterColor);
     }
+}
 
+class WaterDrawerBack : WaterDrawer {
     void draw(Canvas canvas) {
         canvas.drawFilledRect(Vector2i(0, mParent.backAnimTop),
             Vector2i(mParent.size.x, mParent.animTop),
@@ -66,7 +76,7 @@ class GameWater {
     //delay between spawning bubbles in a cave level (scaled if world is larger)
     package const cBubbleInterval = timeMsecs(150);
 
-    private WaterDrawer mWaterDrawerFront1,mWaterDrawerFront2,mWaterDrawerBack;
+    private WaterDrawer mWaterDrawerBack, mWaterDrawerBlendOut;
     private Animation mWaveAnim;
     private HorizontalFullsceneAnimator[3] mWaveAnimFront;
     private HorizontalFullsceneAnimator[2] mWaveAnimBack;
@@ -80,22 +90,26 @@ class GameWater {
 
     Vector2i size;
 
+    private WaterDrawer wd(T)(GameZOrder z) {
+        auto drawer = new T();
+        drawer.init(this, mEngine.gfx.waterColor);
+        mEngine.scene.add(drawer, z);
+        return drawer;
+    }
+
     this(ClientGameEngine engine) {
         size = engine.engine.worldSize;
-
         mEngine = engine;
-        Color waterColor = engine.gfx.waterColor;
 
-        Scene scene = mEngine.scene;
+        wd!(WaterDrawerFront1)(GameZOrder.FrontWater);
+        wd!(WaterDrawerFront2)(GameZOrder.LevelWater);
+        mWaterDrawerBack = wd!(WaterDrawerBack)(GameZOrder.BackWater);
+        //that zorder is over FrontWater and under Splat, so it's ok
+        mWaterDrawerBlendOut = wd!(WaterDrawerBlendOut)(GameZOrder.RangeArrow);
 
-        mWaterDrawerFront1 = new WaterDrawerFront1(this, waterColor);
-        scene.add(mWaterDrawerFront1, GameZOrder.FrontWater);
-        mWaterDrawerFront2 = new WaterDrawerFront2(this, waterColor);
-        scene.add(mWaterDrawerFront2, GameZOrder.LevelWater);
-        mWaterDrawerBack = new WaterDrawerBack(this, waterColor);
-        scene.add(mWaterDrawerBack, GameZOrder.BackWater);
         //try {
             mWaveAnim = mEngine.resources.get!(Animation)("water_waves");
+            Scene scene = mEngine.scene;
             foreach (int i, inout a; mWaveAnimBack) {
                 a = new HorizontalFullsceneAnimator();
                 a.animator = new Animator(mEngine.engineTime);
@@ -123,9 +137,9 @@ class GameWater {
     }
 
     private void spawnBubble(Timer sender) {
-        auto part = mEngine.particles.createParticle(mBubbleParticle);
-        part.pos.y = size.y;
-        part.pos.x = size.x * rngShared.nextRealOpen;
+        mEngine.particles.emitParticle(
+            Vector2f(size.y, size.x * rngShared.nextRealOpen),
+            Vector2f(0), mBubbleParticle);
     }
 
     public void simpleMode(bool simple) {
@@ -142,7 +156,6 @@ class GameWater {
                 for (int i = 1; i < mWaveAnimFront.length; i++) {
                     mWaveAnimFront[i].active = false;
                 }
-                mWaterDrawerBack.active = false;
             } else {
                 //all on
                 foreach (inout a; mWaveAnimBack) {
@@ -151,8 +164,9 @@ class GameWater {
                 foreach (inout a; mWaveAnimFront) {
                     a.active = true;
                 }
-                mWaterDrawerBack.active = true;
             }
+            mWaterDrawerBack.active = !simple;
+            mWaterDrawerBlendOut.active = !simple;
         } else {
             //what?
             assert(false);

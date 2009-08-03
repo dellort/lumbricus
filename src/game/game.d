@@ -950,6 +950,28 @@ class GameEngine : GameEnginePublic {
         }
     }
 
+    void debug_draw(Canvas c) {
+        foreach (GameObject o; mObjects) {
+            o.debug_draw(c);
+        }
+    }
+
+    GameObject debug_pickObject(Vector2i pos) {
+        auto p = toVector2f(pos);
+        GObjectSprite best;
+        foreach (GameObject o; mObjects) {
+            if (auto sp = cast(GObjectSprite)o) {
+                //about the NaN thing, there are such objects *shrug*
+                if (!sp.physics.pos.isNaN() && (!best ||
+                    (p-sp.physics.pos).length < (p-best.physics.pos).length))
+                {
+                    best = sp;
+                }
+            }
+        }
+        return best;
+    }
+
     //--------------- client commands
     //if this wasn't D, I'd put this into a separate source file
     //but this is D, and the only way to move it to a separate file would be

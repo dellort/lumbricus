@@ -483,7 +483,7 @@ class GameShell {
         }
 
         //and this may be a bad idea too
-        if (mCmd.execute(cmd))
+        if (mCmd.execute(cmd, true))
             return;
 
 

@@ -27,6 +27,8 @@ import utils.reflection;
 alias StaticFactory!("Sprites", GOSpriteClass, GameEngine, char[])
     SpriteClassFactory;
 
+//version = RotateDebug;
+
 //object which represents a PhysicObject and an animation on the screen
 //also provides loading from ConfigFiles and state managment
 class GObjectSprite : GameObject {
@@ -120,7 +122,7 @@ class GObjectSprite : GameObject {
     protected void fillAnimUpdate() {
         seqUpdate.position = toVector2i(physics.pos);
         seqUpdate.velocity = physics.velocity;
-        seqUpdate.rotation_angle = physics.lookey;
+        seqUpdate.rotation_angle = physics.lookey_smooth;
         if (type.initialHp == float.infinity ||
             physics.lifepower == float.infinity ||
             type.initialHp == 0f)
@@ -357,6 +359,21 @@ class GObjectSprite : GameObject {
         hasher.hash(physics.pos);
     }
 
+    override void debug_draw(Canvas c) {
+        version (RotateDebug) {
+            auto p = toVector2i(physics.pos);
+
+            auto r = Vector2f.fromPolar(30, physics.rotation);
+            c.drawLine(p, p + toVector2i(r), Color(1,0,0));
+
+            auto n = Vector2f.fromPolar(30, physics.ground_angle);
+            c.drawLine(p, p + toVector2i(n), Color(0,1,0));
+
+            auto l = Vector2f.fromPolar(30, physics.lookey_smooth);
+            c.drawLine(p, p + toVector2i(l), Color(0,0,1));
+        }
+    }
+
     protected this(GameEngine engine, GOSpriteClass type) {
         super(engine, false);
 
@@ -478,6 +495,10 @@ class StaticStateInfo {
         if (onDrownTmp.length > 0) {
             onDrown = owner.findState(onDrownTmp, true);
         }
+    }
+
+    char[] toString() {
+        return "[state: "~name~"]";
     }
 }
 

@@ -9,6 +9,7 @@ import framework.timesource;
 import common.scene;
 import game.animation;
 import game.gamepublic;
+import game.game;
 import game.clientengine;
 import game.sequence;
 import game.hud.camera;
@@ -775,6 +776,8 @@ class GameView : Container {
     override void onDraw(Canvas c) {
         //no super.onDraw(c);, it's called through DrawLabels
         mGame.cengine.draw(c);
+        //hmpf
+        (cast(GameEngine)mGame.engine).debug_draw(c);
     }
 
     override bool doesCover() {

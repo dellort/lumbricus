@@ -95,6 +95,10 @@ class ArrayType : Type {
             return myformat("ArrayType[{}[{}]]", mMember, staticLength());
         }
     }
+
+    override bool hasToString() {
+        return mMember.hasToString();
+    }
 }
 
 class MapType : Type {
@@ -112,6 +116,10 @@ class MapType : Type {
     }
     final Type valueType() {
         return mValue;
+    }
+
+    override bool hasToString() {
+        return keyType.hasToString() && valueType.hasToString();
     }
 
     //length of the aa

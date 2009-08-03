@@ -6,9 +6,11 @@ import utils.reflect.safeptr;
 import utils.reflect.classdef;
 import utils.misc;
 
+//structs & classes/interfaces
 abstract class StructuredType : Type {
     private {
         Class mClass;
+        bool mHaveToString;
     }
 
     //might return null, if the class/struct itself was not described yet
@@ -19,6 +21,10 @@ abstract class StructuredType : Type {
     package final void setClass(Class c) {
         assert(!mClass);
         mClass = c;
+    }
+
+    override bool hasToString() {
+        return mHaveToString;
     }
 
     //don't use this, use create(T)(a_owner)
@@ -102,6 +108,10 @@ class ReferenceType : StructuredType {
         t.mCastFrom = function Object(void* ptr) {
             return cast(Object)cast(T)ptr;
         };
+        //hakish, but should be fine
+        static if (!is(T == interface)) {
+            t.mHaveToString = &T.toString !is &Object.toString;
+        }
         return t;
     }
 
@@ -122,6 +132,7 @@ class StructType : StructuredType {
     package static StructType create(T)(Types a_owner) {
         StructType t = new StructType(a_owner, typeid(T));
         t.do_init!(T)();
+        t.mHaveToString = !!castStrict!(TypeInfo_Struct)(typeid(T)).xtoString;
         DefineClass dc = new DefineClass(a_owner, t);
         dc.autostruct!(T)();
         return t;

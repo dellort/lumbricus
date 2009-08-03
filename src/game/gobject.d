@@ -1,5 +1,6 @@
 module game.gobject;
 
+import framework.drawing : Canvas;
 import game.game;
 import utils.list2;
 import utils.reflection;
@@ -70,6 +71,12 @@ abstract class GameObject {
     }
 
     void hash(Hasher hasher) {
+    }
+
+    //can be used to draw for debugging
+    //why not use it for normal game rendering, instead of using that crap in
+    //  gamepublic.d? I have no fucking clue...
+    void debug_draw(Canvas c) {
     }
 }
 
