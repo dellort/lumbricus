@@ -74,6 +74,7 @@
 		<Unit filename="../src/derelict/fmod/fmodfuncs.d" />
 		<Unit filename="../src/derelict/fmod/fmodtypes.d" />
 		<Unit filename="../src/derelict/openal/alut.d" />
+		<Unit filename="../src/derelict/sdl/sound.d" />
 		<Unit filename="../src/framework/commandline.d" />
 		<Unit filename="../src/framework/drawing.d" />
 		<Unit filename="../src/framework/enums.d" />

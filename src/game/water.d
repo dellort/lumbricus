@@ -107,28 +107,27 @@ class GameWater {
         //that zorder is over FrontWater and under Splat, so it's ok
         mWaterDrawerBlendOut = wd!(WaterDrawerBlendOut)(GameZOrder.RangeArrow);
 
-        //try {
-            mWaveAnim = mEngine.resources.get!(Animation)("water_waves");
-            Scene scene = mEngine.scene;
-            foreach (int i, inout a; mWaveAnimBack) {
-                a = new HorizontalFullsceneAnimator();
-                a.animator = new Animator(mEngine.engineTime);
-                a.animator.setAnimation(mWaveAnim);
-                scene.add(a, GameZOrder.BackWater);
-                a.xoffs = rngShared.nextRange(0,mWaveAnim.bounds.size.x);
-                a.size = size;
-                a.scrollMult = -0.16666f+i*0.08333f;
-            }
-            foreach (int i, inout a; mWaveAnimFront) {
-                a = new HorizontalFullsceneAnimator();
-                a.animator = new Animator(mEngine.engineTime);
-                a.animator.setAnimation(mWaveAnim);
-                scene.add(a, GameZOrder.FrontWater);
-                a.xoffs = rngShared.nextRange(0,mWaveAnim.bounds.size.x);
-                a.size = size;
-                a.scrollMult = 0.0f+i*0.15f;
-            }
-        //wtf? } catch {};
+        mWaveAnim = mEngine.resources.get!(Animation)("water_waves");
+        Scene scene = mEngine.scene;
+        foreach (int i, inout a; mWaveAnimBack) {
+            a = new HorizontalFullsceneAnimator();
+            a.animator = new Animator(mEngine.engineTime);
+            a.animator.setAnimation(mWaveAnim);
+            scene.add(a, GameZOrder.BackWater);
+            a.xoffs = rngShared.nextRange(0,mWaveAnim.bounds.size.x);
+            a.size = size;
+            a.scrollMult = -0.16666f+i*0.08333f;
+        }
+        foreach (int i, inout a; mWaveAnimFront) {
+            a = new HorizontalFullsceneAnimator();
+            a.animator = new Animator(mEngine.engineTime);
+            a.animator.setAnimation(mWaveAnim);
+            scene.add(a, GameZOrder.FrontWater);
+            a.xoffs = rngShared.nextRange(0,mWaveAnim.bounds.size.x);
+            a.size = size;
+            a.scrollMult = 0.0f+i*0.15f;
+        }
+
         mBubbleParticle = mEngine.resources.get!(ParticleType)("p_waterbubble");
         mBubbleTimer = new Timer(cBubbleInterval*(2000f/size.x), &spawnBubble,
             &mEngine.engineTime.current);
@@ -138,7 +137,7 @@ class GameWater {
 
     private void spawnBubble(Timer sender) {
         mEngine.particles.emitParticle(
-            Vector2f(size.y, size.x * rngShared.nextRealOpen),
+            Vector2f(size.x * rngShared.nextRealOpen, size.y),
             Vector2f(0), mBubbleParticle);
     }
 
@@ -146,31 +145,27 @@ class GameWater {
         mSimpleMode = simple;
         //no particle bubbles in simple mode
         mBubbleTimer.enabled = !simple;
-        if (mWaveAnim) {
-            //make sure to kill all, then
-            if (simple) {
-                //no background layers, one front layer
-                foreach (inout a; mWaveAnimBack) {
-                    a.active = false;
-                }
-                for (int i = 1; i < mWaveAnimFront.length; i++) {
-                    mWaveAnimFront[i].active = false;
-                }
-            } else {
-                //all on
-                foreach (inout a; mWaveAnimBack) {
-                    a.active = true;
-                }
-                foreach (inout a; mWaveAnimFront) {
-                    a.active = true;
-                }
+        assert(!!mWaveAnim);
+        //make sure to kill all, then
+        if (simple) {
+            //no background layers, one front layer
+            foreach (inout a; mWaveAnimBack) {
+                a.active = false;
             }
-            mWaterDrawerBack.active = !simple;
-            mWaterDrawerBlendOut.active = !simple;
+            for (int i = 1; i < mWaveAnimFront.length; i++) {
+                mWaveAnimFront[i].active = false;
+            }
         } else {
-            //what?
-            assert(false);
+            //all on
+            foreach (inout a; mWaveAnimBack) {
+                a.active = true;
+            }
+            foreach (inout a; mWaveAnimFront) {
+                a.active = true;
+            }
         }
+        mWaterDrawerBack.active = !simple;
+        mWaterDrawerBlendOut.active = !simple;
     }
     public bool simpleMode() {
         return mSimpleMode;
@@ -182,22 +177,23 @@ class GameWater {
             uint p = waterOffs;
             int waveCenterDiff = 0;
             backAnimTop = waterOffs;
-            if (mWaveAnim) {
-                waveCenterDiff = - cast(int)(mWaveAnim.bounds.size.y*cWaveAnimMult)
-                    + mWaveAnim.bounds.size.y/2;
-                foreach_reverse (inout a; mWaveAnimBack) {
-                    p -= cWaterLayerDist;
-                    a.ypos = p - cast(int)(mWaveAnim.bounds.size.y*cWaveAnimMult);
-                    a.size = size;
-                }
-                backAnimTop = p + waveCenterDiff;
-                p = waterOffs;
-                foreach (inout a; mWaveAnimFront) {
-                    a.ypos = p - cast(int)(mWaveAnim.bounds.size.y*cWaveAnimMult);
-                    p += cWaterLayerDist;
-                }
-                p = p - cWaterLayerDist + waveCenterDiff;
+
+            assert(!!mWaveAnim);
+            waveCenterDiff = - cast(int)(mWaveAnim.bounds.size.y*cWaveAnimMult)
+                + mWaveAnim.bounds.size.y/2;
+            foreach_reverse (inout a; mWaveAnimBack) {
+                p -= cWaterLayerDist;
+                a.ypos = p - cast(int)(mWaveAnim.bounds.size.y*cWaveAnimMult);
+                a.size = size;
             }
+            backAnimTop = p + waveCenterDiff;
+            p = waterOffs;
+            foreach (inout a; mWaveAnimFront) {
+                a.ypos = p - cast(int)(mWaveAnim.bounds.size.y*cWaveAnimMult);
+                p += cWaterLayerDist;
+            }
+            p = p - cWaterLayerDist + waveCenterDiff;
+
             animTop = waterOffs + waveCenterDiff;
             animBottom = p;
             mStoredWaterLevel = mEngine.engine.waterOffset;
