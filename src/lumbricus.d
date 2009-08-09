@@ -12,6 +12,7 @@ import utils.configfile;
 import tango.io.Stdout;
 
 version = Game;
+version = LogExceptions;  //set to write exceptions into logfile, too
 
 //factory-imports (static ctors register stuff globally)
 import framework.sdl.framework;
@@ -75,13 +76,13 @@ const cCommandLineHelp =
         Output all log output on stdio.`;
 //Also see parseCmdLine() for how parsing works.
 
-void main(char[][] args) {
+void lmain(char[][] args) {
     ConfigNode cmdargs = init(args, cCommandLineHelp);
 
     if (!cmdargs)
         return;
 
-    auto fwconf = gConf.loadConfig("framework");
+    auto fwconf = loadConfig("framework");
     fwconf.mixinNode(cmdargs.getSubNode("fw"), true);
     auto fw = new Framework(fwconf);
     fw.setCaption("Lumbricus");
@@ -97,4 +98,34 @@ void main(char[][] args) {
     fw.deinitialize();
 
     Stdout.formatln("Bye!");
+}
+
+version(LogExceptions) {
+    import utils.log;
+    import tango.util.log.Trace : Trace;
+}
+
+int main(char[][] args) {
+    version(LogExceptions) {
+        //catch all exceptions, write them to logfile and console and exit
+        try {
+            lmain(args);
+        } catch (Exception e) {
+            if (gLogEverything.destination) {
+                //logfile output
+                e.writeOut((char[] s) {
+                    gLogEverything.destination.writeString(s);
+                });
+            }
+            //console output
+            e.writeOut((char[] s) {
+                Trace.format("{}", s);
+            });
+            return 1;
+        }
+    } else {
+        //using default exception handler (outputs to console)
+        lmain(args);
+    }
+    return 0;
 }

@@ -1,135 +1,121 @@
 module common.config;
 
+///Various utility functions for configfile loading
+///(user-friendly shortcuts, error reporting, compression etc.)
+
 import framework.filesystem;
 import utils.configfile;
 import utils.gzip;
 import utils.log;
 import utils.output;
 import utils.path;
-
 import utils.stream;
 
-private ConfigManager gConfigMgr;
-ConfigManager gConf() {
-    if (!gConfigMgr)
-        new ConfigManager();
-    return gConfigMgr;
-}
+private LogStruct!("configfile") logConf;
+private LogStruct!("configerror") logError;
 
-//global singleton for configfile loading/saving (lol, didn't know where else
-//  to put it), access via gConf
-private class ConfigManager {
-    private LogStruct!("configfile") logConf;
-    private LogStruct!("configerror") logError;
-
-    this() {
-        assert(!gConfigMgr, "singleton");
-        gConfigMgr = this;
+///load a config file from disk; file will be automatically unpacked
+///if applicable
+///Params:
+///  asfilename = true: append ".conf" to section name
+///  allowFail = if the passed file could not be loaded, a value of
+///       false -> will throw an exception (default)
+///       true  -> will return null
+ConfigNode loadConfig(char[] section, bool asfilename = false,
+    bool allowFail = false)
+{
+    char[] fnConf = section ~ (asfilename ? "" : ".conf");
+    VFSPath file = VFSPath(fnConf);
+    VFSPath fileGz = VFSPath(fnConf~".gz");
+    bool gzipped;
+    if (!gFS.exists(file) && gFS.exists(fileGz)) {
+        //found gzipped file instead of original
+        file = fileGz;
+        gzipped = true;
     }
-
-    ///load a config file from disk; file will be automatically unpacked
-    ///if applicable
-    ///Params:
-    ///  asfilename = true: append ".conf" to section name
-    ///  allowFail = if the passed file could not be loaded, a value of
-    ///       false -> will throw an exception (default)
-    ///       true  -> will return null
-    ConfigNode loadConfig(char[] section, bool asfilename = false,
-        bool allowFail = false)
-    {
-        char[] fnConf = section ~ (asfilename ? "" : ".conf");
-        VFSPath file = VFSPath(fnConf);
-        VFSPath fileGz = VFSPath(fnConf~".gz");
-        bool gzipped;
-        if (!gFS.exists(file) && gFS.exists(fileGz)) {
-            //found gzipped file instead of original
-            file = fileGz;
-            gzipped = true;
-        }
-        logConf("load config: {}", file);
-        char[] data;
+    logConf("load config: {}", file);
+    char[] data;
+    try {
+        Stream stream = gFS.open(file);
+        scope (exit) { if (stream) stream.close(); }
+        assert (!!stream);
+        data = cast(char[])stream.readAll();
+    } catch (FilesystemException e) {
+        if (!allowFail)
+            throw e;
+        goto error;
+    }
+    if (gzipped) {
         try {
-            Stream stream = gFS.open(file);
-            scope (exit) { if (stream) stream.close(); }
-            assert (!!stream);
-            data = cast(char[])stream.readAll();
-        } catch (FilesystemException e) {
+            data = cast(char[])gunzipData(cast(ubyte[])data);
+        } catch (ZlibException e) {
             if (!allowFail)
-                throw e;
+                throw new Exception("Decompression failed: "~e.msg);
             goto error;
         }
-        if (gzipped) {
-            try {
-                data = cast(char[])gunzipData(cast(ubyte[])data);
-            } catch (ZlibException e) {
-                if (!allowFail)
-                    throw new Exception("Decompression failed: "~e.msg);
-                goto error;
-            }
-        }
-        //xxx: if parsing fails? etc.
-        auto f = new ConfigFile(data, file.get(), &doLogError);
-        if (!f.rootnode)
-            throw new Exception("?");
-        return f.rootnode;
-
-    error:
-        logError("config file {} failed to load (allowFail = true)", file);
-        return null;
     }
+    //xxx: if parsing fails? etc.
+    auto f = new ConfigFile(data, file.get(), (char[] log) {
+            logError("{}", log);
+        });
+    if (!f.rootnode)
+        throw new Exception("?");
+    return f.rootnode;
 
-    ///Same as above, but will return an empty ConfigNode on error
-    ///Never returns null or throws
-    ConfigNode loadConfigDef(char[] section, bool asfilename = false) {
-        ConfigNode res = loadConfig(section, asfilename, true);
-        if (!res)
-            res = new ConfigNode();
-        return res;
-    }
+error:
+    logError("config file {} failed to load (allowFail = true)", file);
+    return null;
+}
 
-    private void doLogError(char[] log) {
-        logError("{}", log);
-    }
+///Same as above, but will return an empty ConfigNode on error
+///Never returns null or throws
+ConfigNode loadConfigDef(char[] section, bool asfilename = false) {
+    ConfigNode res = loadConfig(section, asfilename, true);
+    if (!res)
+        res = new ConfigNode();
+    return res;
+}
 
-    //arrgh
-    //compress = true: do gzip compression, adds .gz to filename
-    void saveConfig(ConfigNode node, char[] filename, bool compress = false) {
-        if (compress) {
-            saveConfigGz(node, filename~".gz");
-            return;
-        }
-        auto stream = gFS.open(filename, File.WriteCreate);
-        try {
-            auto textstream = new StreamOutput(stream);
-            node.writeFile(textstream);
-        } finally {
-            stream.close();
-        }
+//arrgh
+//compress = true: do gzip compression, adds .gz to filename
+void saveConfig(ConfigNode node, char[] filename, bool compress = false) {
+    if (compress) {
+        saveConfigGz(node, filename~".gz");
+        return;
     }
+    auto stream = gFS.open(filename, File.WriteCreate);
+    try {
+        auto textstream = new StreamOutput(stream);
+        node.writeFile(textstream);
+    } finally {
+        stream.close();
+    }
+}
 
-    //same as above, always gzipped
-    //will not modify file extension
-    void saveConfigGz(ConfigNode node, char[] filename) {
-        auto stream = gFS.open(filename, File.WriteCreate);
-        scope(exit) stream.close();
-        auto w = GZWriter.Pipe(stream.pipeOut());
-        scope(exit) w.close();
-        node.writeFile(w);
-    }
+//same as above, always gzipped
+//will not modify file extension
+void saveConfigGz(ConfigNode node, char[] filename) {
+    auto stream = gFS.open(filename, File.WriteCreate);
+    scope(exit) stream.close();
+    auto w = GZWriter.Pipe(stream.pipeOut());
+    scope(exit) w.close();
+    node.writeFile(w);
+}
 
-    ubyte[] saveConfigGzBuf(ConfigNode node) {
-        ArrayWriter a;
-        auto w = GZWriter.Pipe(a.pipe());
-        node.writeFile(w);
-        w.close();
-        return a.data();
-    }
+ubyte[] saveConfigGzBuf(ConfigNode node) {
+    ArrayWriter a;
+    auto w = GZWriter.Pipe(a.pipe());
+    node.writeFile(w);
+    w.close();
+    return a.data();
+}
 
-    ConfigNode loadConfigGzBuf(ubyte[] buf) {
-        auto data = cast(char[])gunzipData(buf);
-        auto f = new ConfigFile(data, "MemoryBuffer", &doLogError);
-        if (!f.rootnode)
-            throw new Exception("?");
-        return f.rootnode;
-    }
+ConfigNode loadConfigGzBuf(ubyte[] buf) {
+    auto data = cast(char[])gunzipData(buf);
+    auto f = new ConfigFile(data, "MemoryBuffer", (char[] log) {
+            logError("{}", log);
+        });
+    if (!f.rootnode)
+        throw new Exception("?");
+    return f.rootnode;
 }

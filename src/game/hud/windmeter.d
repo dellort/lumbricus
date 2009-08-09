@@ -31,7 +31,7 @@ class WindMeter : Widget {
     this(GameInfo game) {
         mGame = game;
 
-        ConfigNode wmNode = gConf.loadConfig("windmeter");
+        ConfigNode wmNode = loadConfig("windmeter");
 
         //mBackgroundTex = gResources.resource!(BitmapResource)
         //    ("/windmeter_back").get().createTexture();

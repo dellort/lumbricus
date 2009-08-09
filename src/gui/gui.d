@@ -42,12 +42,12 @@ package class MainFrame : SimpleContainer {
         //first parent, this is used to provide default values for all
         //properties; the actual GUI styling should be somewhere else
         style_root = new Styles();
-        style_root.addRules(gConf.loadConfig("gui_style_root")
+        style_root.addRules(loadConfig("gui_style_root")
             .getSubNode("root"));
         styles.parent = style_root;
 
         //load the theme (it's the theme because this is the top-most widget)
-        //styles.addRules(gConf.loadConfig("gui_theme").getSubNode("styles"));
+        //styles.addRules(loadConfig("gui_theme").getSubNode("styles"));
 
         doMouseEnterLeave(true); //mous always in, initial event
         pollFocusState();

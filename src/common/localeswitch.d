@@ -36,7 +36,7 @@ class LocaleSwitch : Task {
         //for reset on cancel
         mOldLanguage = gCurrentLanguage;
 
-        auto loader = new LoadGui(gConf.loadConfig("dialogs/locale_gui"));
+        auto loader = new LoadGui(loadConfig("dialogs/locale_gui"));
         loader.load();
 
         loader.lookup!(Button)("btn_ok").onClick = &okClick;
@@ -54,7 +54,7 @@ class LocaleSwitch : Task {
         gFS.listdir("/locale/", "*.conf", false, (char[] filename) {
             if (filename.length < 6)
                 return true;
-            auto node = gConf.loadConfig("/locale/" ~ filename, true, true);
+            auto node = loadConfig("/locale/" ~ filename, true, true);
             if (node) {
                 //e.g. German (Deutsch)
                 locList ~= node["langname_en"] ~ " ("
@@ -85,9 +85,9 @@ class LocaleSwitch : Task {
     private void okClick(Button sender) {
         assert(mSelLanguage.length > 0);
         //update config file
-        auto node = gConf.loadConfigDef("language");
+        auto node = loadConfigDef("language");
         node["language_id"] = mSelLanguage;
-        gConf.saveConfig(node, "language.conf");
+        saveConfig(node, "language.conf");
         //locale should already be active
         kill();
     }

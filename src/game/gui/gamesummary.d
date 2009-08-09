@@ -27,7 +27,7 @@ class GameSummary : Task {
     this(TaskManager tm, char[] args = "") {
         super(tm);
 
-        auto config = gConf.loadConfig("dialogs/gamesummary_gui");
+        auto config = loadConfig("dialogs/gamesummary_gui");
         auto loader = new LoadGui(config);
         loader.load();
 
@@ -46,7 +46,7 @@ class GameSummary : Task {
         //xxx for debugging, you can do "spawn scores last" and it will show
         //    the last debug dump
         if (args == "last") {
-            init(gConf.loadConfig("persistence_debug"));
+            init(loadConfig("persistence_debug"));
         }
     }
 

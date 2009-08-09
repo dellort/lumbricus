@@ -657,7 +657,7 @@ class WindowFrame : Container {
 
         checkCover = true;
 
-        mConfig = gConf.loadConfig("window");
+        mConfig = loadConfig("window");
 
         mKeysWindow = new KeyBindings();
         mKeysWindow.loadFrom(mConfig.getSubNode("window_bindings"));

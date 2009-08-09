@@ -207,9 +207,9 @@ private:
         onVideoInit(false);
 
         keybindings = new KeyBindings();
-        keybindings.loadFrom(gConf.loadConfig("binds").getSubNode("binds"));
+        keybindings.loadFrom(loadConfig("binds").getSubNode("binds"));
 
-        ConfigNode autoexec = gConf.loadConfig("autoexec");
+        ConfigNode autoexec = loadConfig("autoexec");
         if (globals.programArgs.findNode("exec")) {
             autoexec = globals.programArgs.getSubNode("exec");
         }
@@ -944,12 +944,12 @@ class LogConfig : Task {
     }
 
     void onSave(Button sender) {
-        ConfigNode config = gConf.loadConfig("logging");
+        ConfigNode config = loadConfig("logging");
         auto logs = config.getSubNode("logs");
         foreach (char[] name, Log log; gAllLogs) {
             logs.setValue!(bool)(name, !log.stfu);
         }
-        gConf.saveConfig(config, "logging.conf");
+        saveConfig(config, "logging.conf");
     }
 
     void addLogs() {

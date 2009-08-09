@@ -185,14 +185,14 @@ class CmdNetClient : SimpleNetConnection {
 
     void createGame(GameConfig cfg) {
         CPCreateGame p;
-        p.gameConfig = gConf.saveConfigGzBuf(cfg.save());
+        p.gameConfig = saveConfigGzBuf(cfg.save());
         send(ClientPacket.createGame, p);
     }
 
     void deployTeam(ConfigNode teamInfo) {
         CPDeployTeam p;
         p.teamName = teamInfo.name;
-        p.teamConf = gConf.saveConfigGzBuf(teamInfo);
+        p.teamConf = saveConfigGzBuf(teamInfo);
         send(ClientPacket.deployTeam, p);
     }
 
@@ -432,8 +432,8 @@ class CmdNetClient : SimpleNetConnection {
                 //receiving GameConfig (gzipped ConfigNode)
                 auto p = unmarshal.read!(SPStartLoading)();
                 GameConfig cfg = new GameConfig();
-                cfg.load(gConf.loadConfigGzBuf(p.gameConfig));
-                //gConf.saveConfig(cfg.save(), "gc.conf");
+                cfg.load(loadConfigGzBuf(p.gameConfig));
+                //saveConfig(cfg.save(), "gc.conf");
                 doStartLoading(cfg);
                 break;
             case ServerPacket.gameStart:
@@ -484,7 +484,7 @@ class CmdNetClient : SimpleNetConnection {
                 foreach (pt; p.teams) {
                     NetTeamInfo.Team nt;
                     nt.playerId = pt.playerId;
-                    nt.teamConf = gConf.loadConfigGzBuf(pt.teamConf);
+                    nt.teamConf = loadConfigGzBuf(pt.teamConf);
                     nt.teamConf.rename(pt.teamName);
                     info.teams ~= nt;
                 }

@@ -148,7 +148,7 @@ class GameLoader {
         auto r = new GameLoader();
         auto lg = new GameShell.InputLog;
         r.mDemoInput = lg;
-        auto demoFile = gConf.loadConfig(filename_prefix ~ ".conf", true);
+        auto demoFile = loadConfig(filename_prefix ~ ".conf", true);
         auto cfg = new GameConfig();
         r.mGameConfig = cfg;
         cfg.load(demoFile.getSubNode("game_config"));
@@ -198,7 +198,7 @@ class GameLoader {
             //load mapping file matching gfx set, if it exists
             auto mappingsNode = conf.getSubNode("mappings");
             char[] mappingFile = mappingsNode.getStringValue(mGfx.gfxId);
-            auto mapConf = gConf.loadConfig(dir~"/"~mappingFile,true,true);
+            auto mapConf = loadConfig(dir~"/"~mappingFile,true,true);
             if (mapConf) {
                 mGfx.addSequenceNode(mapConf.getSubNode("sequences"));
             }
@@ -211,7 +211,7 @@ class GameLoader {
         //save last played level functionality
         //xxx should this really be here
         if (mGameConfig.level.saved) {
-            gConf.saveConfig(mGameConfig.level.saved, "lastlevel.conf");
+            saveConfig(mGameConfig.level.saved, "lastlevel.conf");
         }
 
         //this doesn't really make sense, but is a helpful hack for now
@@ -228,7 +228,7 @@ class GameLoader {
             auto demoFile = new ConfigNode();
             demoFile.addNode("game_config", mGameConfig.save());
             char[] filename = "last_demo.";
-            gConf.saveConfig(demoFile, filename ~ "conf");
+            saveConfig(demoFile, filename ~ "conf");
             //why two files? because I want to output stuff in realtime, and
             //  the output should survive even a crash
             auto outstr = gFS.open(filename ~ "dat", File.WriteCreate);

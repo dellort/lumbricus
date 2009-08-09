@@ -472,7 +472,7 @@ public class WTris : Task {
     }
 
     private void createGui() {
-        auto loader = new LoadGui(gConf.loadConfig("dialogs/wtris_gui"));
+        auto loader = new LoadGui(loadConfig("dialogs/wtris_gui"));
 
         loader.addNamedWidget(new GameView(), "gameview");
         loader.addNamedWidget(new Preview(), "preview");

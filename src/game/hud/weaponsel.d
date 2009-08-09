@@ -296,7 +296,7 @@ class WeaponSelWindow : Container {
         styles.id = "weaponwindow";
 
         //meh how stupid
-        auto conf = gConf.loadConfig("wsel").getSubNode("categories");
+        auto conf = loadConfig("wsel").getSubNode("categories");
         foreach (char[] name, char[] value; conf) {
             mCategories ~= value;
         }

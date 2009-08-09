@@ -73,7 +73,7 @@ class CmdNetClientTask : Task {
         mClient.onDisconnect = &onDisconnect;
         mClient.onError = &onError;
 
-        auto config = gConf.loadConfig("dialogs/connect_gui");
+        auto config = loadConfig("dialogs/connect_gui");
         auto loader = new LoadGui(config);
         loader.load();
 
@@ -242,7 +242,7 @@ class CreateNetworkGame : SimpleContainer {
 
     this(Task owner) {
         mOwner = owner;
-        auto config = gConf.loadConfig("dialogs/netgamesetup_gui");
+        auto config = loadConfig("dialogs/netgamesetup_gui");
         auto loader = new LoadGui(config);
 
         mLevelSelector = new LevelWidget(mOwner);
@@ -283,7 +283,7 @@ class CreateNetworkGame : SimpleContainer {
         auto finalLevel = mLevelSelector.currentLevel.render();
 
         //everything else uses defaults...
-        ConfigNode node = gConf.loadConfig("newgame_net");
+        ConfigNode node = loadConfig("newgame_net");
         int wormHP = node.getValue("worm_hp", 150);
         int wormCount = node.getValue("worm_count", 4);
 
@@ -373,7 +373,7 @@ class CmdNetLobbyTask : Task {
         mClient.onHostGrant = &onHostGrant;
         mClient.onHostAccept = &onHostAccept;
 
-        auto config = gConf.loadConfig("dialogs/lobby_gui");
+        auto config = loadConfig("dialogs/lobby_gui");
         auto loader = new LoadGui(config);
         loader.load();
 
@@ -382,7 +382,7 @@ class CmdNetLobbyTask : Task {
         mLobbyDlg = loader.lookup("lobby_root");
 
         mTeams = loader.lookup!(DropDownList)("dd_teams");
-        mTeamNode = gConf.loadConfig("teams").getSubNode("teams");
+        mTeamNode = loadConfig("teams").getSubNode("teams");
         char[][] contents;
         foreach (ConfigNode subn; mTeamNode) {
             contents ~= subn.name;
@@ -502,7 +502,7 @@ class CmdNetLobbyTask : Task {
     private void createStart(GameConfig conf) {
         //really start
         log("debug dump!");
-        gConf.saveConfig(conf.save(), "dump.conf");
+        saveConfig(conf.save(), "dump.conf");
 
         mClient.createGame(conf);
         mCreateWnd.destroy();

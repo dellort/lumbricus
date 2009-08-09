@@ -34,11 +34,11 @@ class TeamEditorTask : Task {
     this(TaskManager tm, char[] args = "") {
         super(tm);
 
-        mTeamConf = gConf.loadConfig("teams");
+        mTeamConf = loadConfig("teams");
         mTeams = mTeamConf.getSubNode("teams");
         mLastTeamId = mTeamConf.getIntValue("lastid", mLastTeamId);
 
-        auto loader = new LoadGui(gConf.loadConfig("dialogs/teamedit_gui"));
+        auto loader = new LoadGui(loadConfig("dialogs/teamedit_gui"));
         loader.load();
 
         loader.lookup!(Button)("ok").onClick = &okClick;
@@ -244,7 +244,7 @@ class TeamEditorTask : Task {
     //save button clicked
     private void okClick(Button sender) {
         mTeamConf.setIntValue("lastid", mLastTeamId);
-        gConf.saveConfig(mTeamConf, "teams.conf");
+        saveConfig(mTeamConf, "teams.conf");
         kill();
     }
 

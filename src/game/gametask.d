@@ -208,7 +208,7 @@ class GameTask : StatefulTask {
             return;
         } else if (args == "") {
             //sorry for this hack... definitely needs to be cleaned up
-            ConfigNode node = gConf.loadConfig("newgame");
+            ConfigNode node = loadConfig("newgame");
             initGame(loadGameConfig(node));
             return;
         }
@@ -706,7 +706,7 @@ class GameTask : StatefulTask {
         File.set("dump_graph.dot", res);
         //std.file.write("dump_graph.dot", res);
         //ConfigNode cfg = saveGame();
-        //gConf.saveConfig(cfg, "savegame.conf");
+        //saveConfig(cfg, "savegame.conf");
     }
 
     ConfigNode gamePersist() {
@@ -907,7 +907,7 @@ class ShowObject : Container {
                 return "\\{\\c(red)null\\}";
         }
         if (!p.type.hasToString())
-            return myformat("(no .toString for {})", p.type.typeInfo); 
+            return myformat("(no .toString for {})", p.type.typeInfo);
         //the lit is for not making it interpreted as markup
         char[] txt = p.type.dataToString(p);
         const cMax = 50;

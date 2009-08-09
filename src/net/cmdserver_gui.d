@@ -42,7 +42,7 @@ class CmdNetServerTask : Task {
     this(TaskManager tm, char[] args = "") {
         super(tm);
 
-        mSrvConf = gConf.loadConfigDef("server");
+        mSrvConf = loadConfigDef("server");
 
         mLabel = new Label();
         mInternetToggle = new Button();

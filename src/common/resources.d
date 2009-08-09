@@ -334,7 +334,7 @@ public class Resources {
 
     ///also just for simplicity
     public static ConfigNode loadConfigForRes(char[] path) {
-        ConfigNode config = gConf.loadConfig(path, true);
+        ConfigNode config = loadConfig(path, true);
         config[cResourcePathName] = path;
         return config;
     }

@@ -27,9 +27,9 @@ class WeaponEditorTask : Task {
     this(TaskManager tm, char[] args = "") {
         super(tm);
 
-        mWeaponConf = gConf.loadConfig("gamemode").getSubNode("weapon_sets");
+        mWeaponConf = loadConfig("gamemode").getSubNode("weapon_sets");
 
-        auto loader = new LoadGui(gConf.loadConfig("dialogs/weaponedit_gui"));
+        auto loader = new LoadGui(loadConfig("dialogs/weaponedit_gui"));
         loader.load();
 
         loader.lookup!(Button)("btn_ok").onClick = &okClick;

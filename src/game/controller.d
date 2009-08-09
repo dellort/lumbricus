@@ -1442,7 +1442,7 @@ class GameController : GameLogicPublic {
                     currentRound + 1);
 
                 debug {
-                    gConf.saveConfig(engine.persistentState,
+                    saveConfig(engine.persistentState,
                         "persistence_debug.conf");
                 }
             }

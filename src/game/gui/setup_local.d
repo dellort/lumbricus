@@ -51,7 +51,7 @@ class LevelWidget : SimpleContainer {
         mOwner = owner;
         mGenerator = new LevelGeneratorShared();
 
-        auto config = gConf.loadConfig("dialogs/gamesetupshared_gui");
+        auto config = loadConfig("dialogs/gamesetupshared_gui");
         auto loader = new LoadGui(config);
         loader.load();
 
@@ -109,7 +109,7 @@ class LevelWidget : SimpleContainer {
     }
 
     private void loadLastPlayedLevel() {
-        scope level = gConf.loadConfig(cLastlevelConf, false, true);
+        scope level = loadConfig(cLastlevelConf, false, true);
         if (level) {
             auto gen = new GenerateFromSaved(mGenerator, level);
             setCurrentLevel(gen);
@@ -121,7 +121,7 @@ class LevelWidget : SimpleContainer {
             loadLastPlayedLevel();
             return;
         }
-        scope level = gConf.loadConfig(cSavedLevelsPath~sender.selection);
+        scope level = loadConfig(cSavedLevelsPath~sender.selection);
         auto gen = new GenerateFromSaved(mGenerator, level);
         setCurrentLevel(gen);
         //level is already saved
@@ -158,7 +158,7 @@ class LevelWidget : SimpleContainer {
             return;
         char[] lname = mSavedLevels.edit.text;
         auto tmpLevel = mCurrentLevel.render(false);
-        gConf.saveConfig(tmpLevel.saved, cSavedLevelsPath ~ lname ~ ".conf");
+        saveConfig(tmpLevel.saved, cSavedLevelsPath ~ lname ~ ".conf");
         delete tmpLevel;
         readSavedLevels();
         mSavedLevels.allowEdit = false;
@@ -262,7 +262,7 @@ class LocalGameSetupTask : Task {
     this(TaskManager tm, char[] args = "") {
         super(tm);
 
-        auto config = gConf.loadConfig("dialogs/localgamesetup_gui");
+        auto config = loadConfig("dialogs/localgamesetup_gui");
         auto loader = new LoadGui(config);
 
         mLevelSelector = new LevelWidget(this);
@@ -304,7 +304,7 @@ class LocalGameSetupTask : Task {
 
     //reload teams from config file and show in dialog
     private void loadTeams() {
-        auto conf = gConf.loadConfig("teams");
+        auto conf = loadConfig("teams");
         if (!conf)
             return;
         mTeams = conf.getSubNode("teams");
@@ -408,7 +408,7 @@ class LocalGameSetupTask : Task {
 
         assert(!mGame); //hm, no idea
         //create default GameConfig with custom level
-        auto gc = loadGameConfig(gConf.loadConfig("newgame"), level, true,
+        auto gc = loadGameConfig(loadConfig("newgame"), level, true,
             mGamePersist);
         gc.teams = buildGameTeams();
         gc.randomSeed = to!(char[])(rand.uniform!(uint));

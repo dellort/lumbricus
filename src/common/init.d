@@ -62,14 +62,14 @@ void initFSMounts() {
     //temporary mounts to read mount.conf
     gFS.reset();
     gFS.mount(MountPath.data, "/", "/", false, 0);
-    auto mountConf = gConf.loadConfig("mount");
+    auto mountConf = loadConfig("mount");
 
     gFS.reset();
     //user's mount.conf will not override, but add to internal paths
     gFS.mount(MountPath.user, "/", "/", false, 0);
     ConfigNode mountConfUser;
     if (gFS.exists("mount.conf"))
-        mountConfUser = gConf.loadConfig("mount");
+        mountConfUser = loadConfig("mount");
     //clear temp mounts
     gFS.reset();
 

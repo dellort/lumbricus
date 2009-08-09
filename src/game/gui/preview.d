@@ -57,14 +57,14 @@ class LevelSelector : SimpleContainer {
         mLblWait.text = _("levelselect.waiting");
 
 
-        auto conf = gConf.loadConfig("dialogs/levelpreview_gui");
+        auto conf = loadConfig("dialogs/levelpreview_gui");
         auto loader = new LoadGui(conf);
         loader.registerWidget!(PainterWidget)("painter");
         loader.load();
 
         mPainter = loader.lookup!(PainterWidget)("painter");
         mPainter.onChange = &painterChange;
-        auto lgnode = gConf.loadConfig("levelgenerator")
+        auto lgnode = loadConfig("levelgenerator")
             .getSubNode("preview_colors");
         mPainter.colorsFromNode(lgnode);
 

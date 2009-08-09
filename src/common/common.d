@@ -63,14 +63,14 @@ class Common {
             defaultOut = StdioOutput.output;
         }
 
-        loadColors(gConf.loadConfig("colors"));
+        loadColors(loadConfig("colors"));
 
         //will set global gResources
         resources = new Resources();
 
         char[] langId = programArgs["language_id"];
         if (!langId.length) {
-            ConfigNode langconf = gConf.loadConfigDef("language");
+            ConfigNode langconf = loadConfigDef("language");
             langId = langconf.getStringValue("language_id", "");
         }
         initLocale(langId);
@@ -103,13 +103,13 @@ class Common {
         guiResources = resources.loadResSet("guires.conf");
 
         gFramework.fontManager.readFontDefinitions(
-            gConf.loadConfig("fonts"));
+            loadConfig("fonts"));
 
     }
 
     //read configuration from video.conf and set video mode
     void setVideoFromConf(bool toggleFullscreen = false) {
-        auto vconf = gConf.loadConfigDef("video");
+        auto vconf = loadConfigDef("video");
         bool fs = vconf.getValue("fullscreen", false);
         if (toggleFullscreen)
             fs = !gFramework.fullScreen;
@@ -129,7 +129,7 @@ class Common {
 
     void saveVideoConfig() {
         //store the current resolution into the config file
-        auto vconf = gConf.loadConfigDef("video");
+        auto vconf = loadConfigDef("video");
         bool isFS = gFramework.fullScreen;
         //xxx save fullscreen state? I would prefer configuring this explicitly
         //vconf.setValue("fullscreen", isFS);
@@ -140,7 +140,7 @@ class Common {
         vnode.setValue("width", res.x);
         vnode.setValue("height", res.y);
         //xxx get bit depth somehow?
-        gConf.saveConfig(vconf, "video.conf");
+        saveConfig(vconf, "video.conf");
     }
 
     void setDefaultOutput(Output o) {
@@ -151,7 +151,7 @@ class Common {
     }
 
     void readLogconf() {
-        ConfigNode conf = gConf.loadConfig("logging", false, true);
+        ConfigNode conf = loadConfig("logging", false, true);
         if (!conf)
             return;
         foreach (ConfigNode sub; conf.getSubNode("logs")) {
@@ -164,7 +164,7 @@ class Common {
     }
 
     void initLocale(char[] langId) {
-        initI18N(cLocalePath, langId, cDefLang, &gConf.loadConfig);
+        initI18N(cLocalePath, langId, cDefLang, &loadConfig);
         try {
             //link locale-specific files into root
             gFS.unmount(mLocaleMount);

@@ -408,7 +408,7 @@ class TestTask : Task {
         createWindow("hihi", k);
 
         //test loading GUIs from file
-        auto loader = new LoadGui(gConf.loadConfig("dialogs/test_gui"));
+        auto loader = new LoadGui(loadConfig("dialogs/test_gui"));
         loader.load();
         createWindow("Test5", loader.lookup("root"));
 

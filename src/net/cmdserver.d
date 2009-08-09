@@ -881,7 +881,7 @@ void main(char[][] args) {
     auto cmdargs = init(args, "no help lol");
     if (!cmdargs)
         return;
-    auto server = new CmdNetServer(gConf.loadConfigDef("server"));
+    auto server = new CmdNetServer(loadConfigDef("server"));
     while (true) {
         server.frame();
     }

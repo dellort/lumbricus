@@ -19,7 +19,7 @@ import tango.util.Convert;
 
 //translator for root locale file (read-only, use accessor method below)
 
-alias ConfigNode delegate(char[] section, bool asfilename = false,
+alias ConfigNode function(char[] section, bool asfilename = false,
     bool allowFail = false) ConfigLoaderDg;
 
 private Translator gLocaleRoot;
