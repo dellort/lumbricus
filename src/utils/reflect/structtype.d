@@ -110,7 +110,11 @@ class ReferenceType : StructuredType {
         };
         //hakish, but should be fine
         static if (!is(T == interface)) {
-            t.mHaveToString = &T.toString !is &Object.toString;
+            //awkward code brought to you by LDC Bugs (TM)
+            //  http://www.dsource.org/projects/ldc/ticket/351
+            char[] function() f = &T.toString;
+            char[] function() g = &Object.toString;
+            t.mHaveToString = f !is g;
         }
         return t;
     }

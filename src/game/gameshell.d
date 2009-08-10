@@ -1011,6 +1011,8 @@ abstract class SimpleNetConnection {
     void delegate(SimpleNetConnection sender, NetTeamInfo info,
         ConfigNode persistentState) onHostAccept;
 
+abstract:
+
     //send a game-independent command (like "say Hi fellas!" or
     //  "pm Player2 Secret message")
     //"game-independent" means the command is not logged/timestamped/passed

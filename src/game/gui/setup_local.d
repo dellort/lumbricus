@@ -23,6 +23,7 @@ import gui.list;
 import gui.boxcontainer;
 import gui.container;
 import utils.configfile;
+import utils.misc;
 
 //import std.thread;
 import tango.math.random.Random : rand;

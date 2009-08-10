@@ -1,12 +1,14 @@
 This is Lumbricus Terrestris. Sorry, it's at a very early alpha/beta state,
 it is not really ready yet.
 
-Slogan: "Instead of following the principle KISS, we bring you THIS!"
+Slogan: "Instead of following the principle of KISS, we bring you THIS!"
 
 WARNING: Currently needs original worms files to run at all. Probably it only
 works with the version of WWP which was available to us. You need to compile and
 run the program "extractdata" and place the resulting files into the data/data2
 directory.
+
+WARNING 2: Unless you are seriously masochistic, don't try to compile the sourcecode. Just don't. You'll fail and end up hating the whole world (but especially you'll hate the bit about the D toolchain).
 
 Actually, Lumbricus is completely independent from WWP and can't read WWP
 datafiles (which is why there's an extra converter).
@@ -21,16 +23,21 @@ https://gna.org/projects/lumbricus
 
 Building it...
 
-- A D compiler for D 1.x is required, pick up the latest version of dmd or gdc:
-  -> http://www.digitalmars.com/d/download.html
+- A D compiler for D 1.x is required, pick up the latest version of dmd:
+  -> http://www.digitalmars.com/d/1.0/changelog.html
+     (Download the latest version available. You'll find the actual download
+      links if you're searching long enough. Treat it as adventure game.)
   D 2.x will _not_ work, it is a different language from D 1.x!
 
   DMD should work under x86 Windows and Linux.
-  GDC supports more arches, but at least for amd64 it is slightly broken and
-  won't work with this code (format()-ing struct arguments isn't implemented).
+  LDC supports more arches, but unless you hate yourself, don't use it.
+      (also, LLVM doesn't really work on Windows)
+  GDC is broken and outdated, and I'll shoot anyone who tries to use it.
 
 - DSSS is the build program we use
   -> http://www.dsource.org/projects/dsss
+  PS: DSSS sucks donkey balls. Feel free to use compile.sh instead, which uses
+      xfbuild (link is in the file).
 
 - Tango, the non-standard standard library. Well I don't really know why we
   switched from Phobos to Tango. Maybe for maximum comedy.
@@ -39,7 +46,7 @@ Building it...
 
 - Derelict, which is a bunch of wrappers for C libraries, especially SDL
   -> http://dsource.org/projects/derelict
-  
+
   With all your build tools (DMD/DSSS) and Tango set up correctly, you can
   install all required Derelict libraries automatically by running
     dsss net deps

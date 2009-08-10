@@ -75,6 +75,7 @@ class NetAnnounce {
 
 ///Server part of announcer
 abstract class NetAnnouncer {
+abstract:
     void tick();
 
     void update(AnnounceInfo info);
@@ -97,6 +98,7 @@ struct ServerInfo {
 
 ///Client part of announcer
 abstract class NetAnnounceClient {
+abstract:
     void tick();
 
     ///loop over internal server list

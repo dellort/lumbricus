@@ -700,13 +700,12 @@ class GameTask : StatefulTask {
     }
 
     private void cmdSerDump(MyBox[] args, Output write) {
-        debug debugDumpTypeInfos(serialize_types);
-        auto ctx = mGameShell.getSerializeContext();
-        char[] res = ctx.dumpGraph(mGameShell.serverEngine());
-        File.set("dump_graph.dot", res);
-        //std.file.write("dump_graph.dot", res);
-        //ConfigNode cfg = saveGame();
-        //saveConfig(cfg, "savegame.conf");
+        debug {
+            debugDumpTypeInfos(serialize_types);
+            auto ctx = mGameShell.getSerializeContext();
+            char[] res = ctx.dumpGraph(mGameShell.serverEngine());
+            File.set("dump_graph.dot", res);
+        }
     }
 
     ConfigNode gamePersist() {
