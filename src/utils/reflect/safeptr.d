@@ -80,7 +80,7 @@ struct SafePtr {
     //           e.g. void* tmp; SafePtr p_tmp = x.mostSpecificClass(&tmp, ...)
     //           if not provided, allocate on heap
     SafePtr mostSpecificClass(void** memory = null, bool may_fail = false) {
-        Object o = toObject();
+        Object o = toObject(may_fail);
         ReferenceType* rt2;
         if (!o)
             return SafePtr.Null;
@@ -95,6 +95,13 @@ struct SafePtr {
             memory = new void*;
         *memory = (*rt2).castTo(o);
         return SafePtr(*rt2, memory);
+    }
+
+    //convert objects/interfaces to the type & pointer of the actual "this" ptr
+    //conents untouched of ptr is null, or type is something else
+    final SafePtr deepestType(void** memory = null) {
+        SafePtr r = mostSpecificClass(memory, true);
+        return (!r.type || !r.ptr) ? *this : r;
     }
 
     SafePtr toObjectPtr(void** memory) {

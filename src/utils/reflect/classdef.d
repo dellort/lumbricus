@@ -29,6 +29,7 @@ class Class {
         void[] mInit; //for default values - only if isStruct()
         Object delegate(ReflectCtor c) mCreateDg;
         bool[size_t] mTransientCache;  //
+        Class[] mHierarchy; //filled on demand
     }
 
     package this(ReferenceType a_owner, TypeInfo_Class cti) {
@@ -106,6 +107,34 @@ class Class {
 
     final Class superClass() {
         return mSuper;
+    }
+
+    //class hierarchy with all super classes, starting with this class
+    // res[$-1] is this
+    // for each 1<=a<res.length: res[a].superClass() is res[a-1]
+    // res[0].superClass() is null
+    //for structs, only contains itself
+    final Class[] hierarchy() {
+        if (mHierarchy.length == 0) {
+            Class[] hier;
+            auto curc = this;
+            while (curc) {
+                mHierarchy ~= curc;
+                curc = curc.superClass();
+            }
+            mHierarchy.reverse;
+        }
+        debug {
+            assert(mHierarchy[$-1] is this);
+            assert(mHierarchy[0].superClass() is null);
+            for (int n = 1; n < mHierarchy.length; n++) {
+                assert(mHierarchy[n].superClass() is mHierarchy[n-1]);
+            }
+            if (isStruct()) {
+                assert(mHierarchy.length == 1);
+            }
+        }
+        return mHierarchy;
     }
 
     final bool isClass() {

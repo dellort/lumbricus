@@ -225,12 +225,16 @@ class GameLandscape : GameObject {
         return mLandscape;
     }
 
-    public Vector2i offset() {
+    final Vector2i offset() {
         return mOffset;
     }
 
-    public Vector2i size() {
+    final Vector2i size() {
         return mSize;
+    }
+
+    final Rect2i rect() {
+        return Rect2i.Span(offset, size);
     }
 
     /+public LandscapeGeometry physics() {
@@ -242,6 +246,10 @@ class GameLandscape : GameObject {
     }
 
     void activate() {
+    }
+
+    override void debug_draw(Canvas c) {
+        //c.drawRect(rect, Color(1,0,0));
     }
 }
 

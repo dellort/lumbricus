@@ -843,23 +843,41 @@ class GameEngine : GameEnginePublic {
     //(bitmap is a Resource for the network mode, if we'll ever have one)
     void insertIntoLandscape(Vector2i pos, Surface bitmap, Lexel bits) {
         Rect2i newrc = Rect2i.Span(pos, bitmap.size);
-        //only add large, aligned tiles; this prevents degenerate cases when
-        //lots of small bitmaps are added (like snow)
+
+        //this is if the objects is inserted so that the landscape doesn't
+        //  cover it fully - possibly create new landscapes to overcome this
         //actually, you can remove all this code if it bothers you; it's not
-        //like being able to extend the level bitmap is a good feature
-        newrc.fitTileGrid(Vector2i(512, 512));
-        Rect2i[] covered;
+        //  like being able to extend the level bitmap is a good feature
+
+        //look if landscape really needs to be extended
+        //(only catches common cases)
+        bool need_extend;
         foreach (ls; gameLandscapes) {
-            covered ~= Rect2i.Span(ls.offset(), ls.size());
+            need_extend |= !ls.rect.contains(newrc);
         }
-        //this is if the objects is inserted so that the landscape doesn't cover
-        //it fully - possibly create new landscapes to overcome this yay
-        Rect2i[] uncovered = newrc.substractRects(covered);
-        foreach (rc; uncovered) {
-            assert(rc.size().x > 0 && rc.size().y > 0);
-            gameLandscapes ~= new GameLandscape(this, rc);
+
+        Rect2i[] covered;
+        if (need_extend) {
+            foreach (ls; gameLandscapes) {
+                covered ~= ls.rect;
+            }
+            //test again (catches cases where object crosses landscape borders)
+            need_extend = newrc.substractRects(covered).length > 0;
         }
-        //really insert
+
+        if (need_extend) {
+            //only add large, aligned tiles; this prevents degenerate cases when
+            //  lots of small bitmaps are added (like snow)
+            newrc.fitTileGrid(Vector2i(512, 512));
+            Rect2i[] uncovered = newrc.substractRects(covered);
+            foreach (rc; uncovered) {
+                assert(rc.size().x > 0 && rc.size().y > 0);
+                log("insert landscape: {}", rc);
+                gameLandscapes ~= new GameLandscape(this, rc);
+            }
+        }
+
+        //really insert (relies on clipping)
         foreach (ls; gameLandscapes) {
             ls.insert(pos, bitmap, bits);
         }

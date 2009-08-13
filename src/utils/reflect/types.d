@@ -74,11 +74,15 @@ class Types {
     //  Object o = ...; SafePtr ptr = types.objPtr(o);
     //  assert(ptr.type.typeInfo is o.classinfo.typeinfo);
     //if obj is null, type is Object
-    final SafePtr objPtr(Object x, void** memory = null) {
+    final SafePtr objPtr(Object x, void** memory = null, bool may_fail = false)
+    {
         if (!memory)
             memory = new void*;
         //yes this could fail
-        Type t = tiToT(x.classinfo.typeinfo);
+        Type t = tiToT((x ? x.classinfo : Object.classinfo).typeinfo, may_fail);
+        if (!t && may_fail)
+            return SafePtr.Null;
+        assert(!!t);
         *memory = castStrict!(ReferenceType)(t).castTo(x);
         SafePtr res;
         res.ptr = memory;

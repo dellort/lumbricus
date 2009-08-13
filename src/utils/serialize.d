@@ -120,6 +120,13 @@ class SerializeContext {
         }
     }
 
+    //return "" on failure
+    char[] lookupExternal(Object o) {
+        if (auto ptr = o in mExternals)
+            return *ptr;
+        return "";
+    }
+
     private CustomSerialize* find_cs(TypeInfo t, bool create) {
         auto p = t in mCustomSerializers;
         if (!p && create) {
@@ -468,13 +475,9 @@ class SerializeOutConfig : SerializeConfig {
     {
         assert (!!klass);
         //each class in the inheritance hierarchy gets a node (structs not)
-        bool is_struct = !!cast(StructType)klass.type();
+        bool is_struct = klass.isStruct();
 
-        if (is_struct)
-            assert (!klass.superClass());
-
-        Class ck = klass;
-        while (ck) {
+        foreach (Class ck; klass.hierarchy) {
             //(not for structs)
             auto dest = is_struct ? cur : cur.add();
             ptr.type = ck.type(); //should be safe...
@@ -484,7 +487,6 @@ class SerializeOutConfig : SerializeConfig {
                 SafePtr mdptr = defptr.ptr ? m.get(defptr) : SafePtr.Null;
                 doWriteMember(dest, m.name(), mptr, mdptr);
             }
-            ck = ck.superClass();
         }
     }
 
@@ -801,12 +803,9 @@ class SerializeInConfig : SerializeConfig {
         SafePtr ptr)
     {
         assert (!!klass);
-        //each class in the inheritance hierarchy gets a node (structs not)
-        bool is_struct = !!cast(StructType)klass.type();
 
-        Class ck = klass;
         //urgh, should have a ConfigNode iterator or so
-        void doit(ConfigNode dest) {
+        void doit(Class ck, ConfigNode dest) {
             ptr.type = ck.type(); //should be safe...
             foreach (ClassMember m; ck.nontransientMembers()) {
                 SafePtr mptr = m.get(ptr);
@@ -818,20 +817,23 @@ class SerializeInConfig : SerializeConfig {
                     doReadMember(sub, mptr);
             }
         }
-        if (is_struct) {
-            assert (!ck.superClass());
-            doit(cur);
+
+        if (klass.isStruct()) {
+            doit(klass, cur);
             return;
         }
+
+        Class[] hier = klass.hierarchy;
+
         foreach (ConfigNode dest; cur) {
             if (dest.name.length)
                 continue; //oops, hack
-            if (!ck)
+            if (!hier.length)
                 new SerializeError("what.");
-            doit(dest);
-            ck = ck.superClass();
+            doit(hier[0], dest);
+            hier = hier[1..$];
         }
-        if (ck)
+        if (hier.length)
             new SerializeError("what 2.");
     }
 

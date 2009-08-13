@@ -5,6 +5,32 @@
 *** völlig unmöglich,
 [] wurde versucht, aber nur kompromiss wurde implementiert oder es hat nicht geklappt
 
+== RFCs (d.h. blablabla) ==
+- kann sdl_sound nicht verwenden, weil sdl_sound anscheinend die länge der musik nicht
+  zurückgibt => problem für "streaming" (nicht alles beim laden dekodiert)
+  abhilfe:
+  - musik (einige anwendung von "streaming") liefert ungültige länge zurück
+  - die musik wird beim laden stückweise dekodiert, und die samples dabei
+    weggeworfen => länge kann schnell (?) ausgerechnet werden
+- offensichtlich sollten alle sprites (nicht nur waffen) "events" haben, und die
+  event-handler sollten in der .conf-datei deklariert werden
+  1. gleich minid verwenden, und das alte action-zeug zur kompatibilität unverändert lassen?
+  2. können ActionSprites und ProjectileSprite abgeschafft werden?
+     (bis auf die tatsache, dass sie aufgrund der kompatibilität vorerst nicht entfernt werden,
+      aber der rest des programmes wird sie nicht mehr verwenden)
+- das graphik-zeug aus gamepublic.d entfernen, und stattdessen direkt in die game engine
+  verschieben?
+  - würde codebloat entfernen und wäre ein bisschen schneller
+  - integration von neuen graphik-effekten ist kein PITA mehr
+  um das zu erreichen würde man:
+  - Scene serialisierbar machen
+  - GameEngine hätte eine eigene Scene
+  - SceneZMix würde verwendet werden, um graphiken aus der client-engine und der server-engine
+    zusammenzuführen (unter berücksichtigung der z-order)
+  zusätzlich würde ich triviale interpolation einbauen, die die bewegungen entweder
+  a) zwischen zwei server frames interpoliert, oder
+  b) nach dem letzten frame extrapoliert
+  der zustand dazu könnte direkt in der server engine gespeichert werden (als transient)
 
 == Sonstiges/Minor ==
 ! besser methode zum auslesen von confignodes (insbesondere mit fehlerbehandlung, so dass ungültige werte nicht still ignoriert werden, beliebige datentypen, user warnen über unbenutzte einträge; vielleicht einfach serialiaiserungscode wiederverwenden)
