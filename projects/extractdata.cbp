@@ -43,10 +43,14 @@
 		<Unit filename="..\src\common\resfileformats.d" />
 		<Unit filename="..\src\devil\image.d" />
 		<Unit filename="..\src\extractdata.d" />
+		<Unit filename="..\src\utils\color.d" />
 		<Unit filename="..\src\utils\configfile.d" />
 		<Unit filename="..\src\utils\filetools.d" />
+		<Unit filename="..\src\utils\misc.d" />
 		<Unit filename="..\src\utils\output.d" />
 		<Unit filename="..\src\utils\path.d" />
+		<Unit filename="..\src\utils\stream.d" />
+		<Unit filename="..\src\utils\string.d" />
 		<Unit filename="..\src\wwpdata\animation.d" />
 		<Unit filename="..\src\wwpdata\common.d" />
 		<Unit filename="..\src\wwpdata\decompression.d" />

@@ -12,12 +12,25 @@
   - musik (einige anwendung von "streaming") liefert ungültige länge zurück
   - die musik wird beim laden stückweise dekodiert, und die samples dabei
     weggeworfen => länge kann schnell (?) ausgerechnet werden
+  + wozu brauchen wir die Musik-Länge überhaupt? Musik läuft nur im Hintergrund, bis man
+    am Ende ankommt. Seeken könnte aber ein Problem werden
+  + wir könnten auch einfach ffmpeg/libav* verwenden, der Code ist fertig und es gibt die
+    Länge korrekt zurück. oder gibts noch mehr Hindernisse als die 9+ MB shared libraries?
 - offensichtlich sollten alle sprites (nicht nur waffen) "events" haben, und die
   event-handler sollten in der .conf-datei deklariert werden
   1. gleich minid verwenden, und das alte action-zeug zur kompatibilität unverändert lassen?
   2. können ActionSprites und ProjectileSprite abgeschafft werden?
      (bis auf die tatsache, dass sie aufgrund der kompatibilität vorerst nicht entfernt werden,
       aber der rest des programmes wird sie nicht mehr verwenden)
+  + ActionSprite existiert nur, um den Event-Code aus GObjectSprite rauszuhalten. Es spricht 
+    nichts dagegen, dass alle Sprites ActionSprites sind, die Trennung würde ich aber gerne
+    beibehalten. 
+    ProjectileSprite war mir aber schon immer ein Dorn im Auge, nur weg damit
+  + imo sollten "Events" von der Implementierung der Aktionen unabhängiger sein, die "Reaktion" 
+    auf ein Event könnte dann als Action oder in Minid implementiert sein
+  + schön wäre auch eine Verallgemeinerung der Events, so dass nicht nur Actions/Skripte, sondern
+    auch Partikel und/oder Sounds erzeugt werden können, und das selbe System auch für 
+    "GameEngine-Events" verwendet wird (z.B. ein Soundeffekt bei Spielstart, oder beim Sieg)
 - das graphik-zeug aus gamepublic.d entfernen, und stattdessen direkt in die game engine
   verschieben?
   - würde codebloat entfernen und wäre ein bisschen schneller
@@ -27,10 +40,24 @@
   - GameEngine hätte eine eigene Scene
   - SceneZMix würde verwendet werden, um graphiken aus der client-engine und der server-engine
     zusammenzuführen (unter berücksichtigung der z-order)
+  + Mir gefällt es nicht, so viel undeterministischen Code in GameEngine zu werfen, das erhöht
+    die Gefahr von Determinismus-Fehlern. Ich hätte dich schon für den Explosions-Partikel-Code
+    in GameEngine am liebsten geschlagen
+  + Die Trennung von Engine und Darstellung fand ich immer ganz gut und übersichtlich. Die ganzen
+    Interfaces sind allerdings irgendwie überflüssig. V.a. die Trennung Team/ServerTeam etc. nervt
+  + Andererseits ist es schon lästig, Position/Geschwindigkeit etc. immer an die Szene weiterleiten
+    zu müssen. Gerade mit Interpolation gehts aber wohl nicht anders, weil die Grafik/SceneObjects
+    dann mit einer anderen Framerate als die Engine laufen
   zusätzlich würde ich triviale interpolation einbauen, die die bewegungen entweder
   a) zwischen zwei server frames interpoliert, oder
   b) nach dem letzten frame extrapoliert
   der zustand dazu könnte direkt in der server engine gespeichert werden (als transient)
+  + Die Idee gefällt mir, dann könnte man gut die Engine-Framerate reduzieren. Solang der 
+    Interpolationscode nicht zu langsam ist
+  + a) würde ein Frame zusätzliches lokales Lag verursachen und braucht die vorige Position
+    der Objekte; b) braucht keinen Zustand, dafür ist die Interpolation ungenau und verursacht 
+    hässliche "Ruckel-Effekte" bei abrupten Flugbahnänderungen (d.h. wenns schiefgeht);
+    -> Ich kann mich nicht entscheiden
 
 == Sonstiges/Minor ==
 ! besser methode zum auslesen von confignodes (insbesondere mit fehlerbehandlung, so dass ungültige werte nicht still ignoriert werden, beliebige datentypen, user warnen über unbenutzte einträge; vielleicht einfach serialiaiserungscode wiederverwenden)

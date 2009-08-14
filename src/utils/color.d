@@ -299,7 +299,10 @@ public struct Color {
 
     //produce string parseable by parse()
     char[] toString() {
-        return myformat("r={}, g={}, b={}, a={}", r, g, b, a);
+        if (hasAlpha)
+            return myformat("r={}, g={}, b={}, a={}", r, g, b, a);
+        else
+            return myformat("r={}, g={}, b={}", r, g, b);
     }
 }
 

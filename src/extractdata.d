@@ -1,7 +1,6 @@
 module extractdata;
 
 import devil.image;
-import tangofile = tango.io.device.File;
 import tango.io.FilePath;
 import tango.io.model.IFile : FileConst;
 import tango.util.Convert;
@@ -9,6 +8,7 @@ import tango.io.Stdout;
 import tango.io.vfs.ZipFolder : ZipFolder;
 import tango.io.compress.Zip : ZipBlockWriter, ZipEntryInfo, createArchive, Method;
 import tango.io.vfs.FileFolder;
+import tango.io.stream.Text;
 debug import tango.core.stacktrace.TraceExceptions;
 import stream = utils.stream;
 import utils.stream;
@@ -19,6 +19,7 @@ import utils.configfile;
 import utils.path;
 import utils.misc;
 import utils.output : TangoStreamOutput;
+import utils.color;
 import wwpdata.animation;
 import wwpdata.common;
 import wwpdata.reader_img;
@@ -126,19 +127,17 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
                 waterout);
             water.free();
 
-            /+
-            scope colourtxt = new File(wpath~"/colour.txt", FileMode.In);
-            char[][] colRGB = str.split(colourtxt.readLine());
+            //colour.txt contains the water background color as RGB
+            //  ex.: 47 55 123 for a blue color
+            scope colourtxt = new TextInput(
+                new File(wpath~"/colour.txt", File.ReadExisting));
+            char[] colLine;
+            assert(colourtxt.readln(colLine));
+            ubyte[] colRGB = to!(ubyte[])(str.split(colLine));
             assert(colRGB.length == 3);
-            auto r = cast(float)to!(ubyte)(colRGB[0])/255.0f;
-            auto g = cast(float)to!(ubyte)(colRGB[1])/255.0f;
-            auto b = cast(float)to!(ubyte)(colRGB[2])/255.0f;
-            +/
-            Stdout.formatln("fixme, I don't know what colour.txt is");
-            float r=0.18, g=0.22, b=0.48;
-            auto conf = WATER_P1 ~ myformat("r={}, g={}, b= {}", r, g, b)
-                ~ WATER_P2;
-            tangofile.File.set(waterout~"water.conf", conf);
+            auto col = Color.fromBytes(colRGB[0], colRGB[1], colRGB[2]);
+            auto conf = WATER_P1 ~ col.toString() ~ WATER_P2;
+            File.set(waterout~"water.conf", conf);
         }
     }
 

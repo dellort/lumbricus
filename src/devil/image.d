@@ -6,6 +6,7 @@ import derelict.devil.ilu;
 import derelict.util.exception;
 import tango.stdc.stringz : toStringz, fromStringz;
 import utils.misc;
+import utils.color;
 
 //pragma(lib,"DerelictIL");
 //pragma(lib,"DerelictILU");
@@ -73,6 +74,19 @@ class Image {
 
         this.bind();
         ilSetPixels(xdst, ydst, 0, aw, ah, 1, fmt, IL_UNSIGNED_BYTE, data.ptr);
+    }
+
+    Color[] getFloatData() {
+        Color[] ret = new Color[w*h];
+        this.bind();
+        ilCopyPixels(0, 0, 0, w, h, 1, IL_RGBA, IL_FLOAT, ret.ptr);
+        return ret;
+    }
+
+    void setFloatData(Color[] data) {
+        assert(data.length == w*h);
+        this.bind();
+        ilSetPixels(0, 0, 0, w, h, 1, IL_RGBA, IL_FLOAT, data.ptr);
     }
 
     Image rotated(float angle, RGBAColor clearColor = RGBAColor.Transparent) {
