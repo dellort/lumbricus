@@ -21,12 +21,20 @@ class ModeRealtime : Gamemode {
     private {
         //static LogStruct!("gamemodes.mdebug") log;
         bool mGameEndedInt, mGameEnded;
-        Time mCrateInterval = timeSecs(10);
-        Time mWaterInterval = timeSecs(15);
-        Time mGameTime = timeSecs(120);
-        int mMaxCrates = 10;
-        int mSuddenDeathWaterRaise = 32;
-        int mStaminaPower = 10;
+
+        struct ModeConfig {
+            //regular crate drops
+            Time crate_interval = timeSecs(10);
+            //after gametime expired, raise water every xx secs
+            Time water_interval = timeSecs(15);
+            Time gametime = timeSecs(120);
+            //max number of crates in the field
+            int maxcrates = 10;
+            int water_raise = 32;
+            //only take control if that many hp were lost
+            int stamina_power = 10;
+        }
+        ModeConfig config;
 
         const cWinTime = timeSecs(4);
         //time from being hit until you can move again
@@ -44,13 +52,7 @@ class ModeRealtime : Gamemode {
     this(GameController parent, ConfigNode config) {
         super(parent, config);
         mStatus = new RealtimeStatus();
-        mCrateInterval = config.getValue("crate_interval", mCrateInterval);
-        mWaterInterval = config.getValue("water_interval", mWaterInterval);
-        mGameTime = config.getValue("gametime", mGameTime);
-        mMaxCrates = config.getIntValue("maxcrates", mMaxCrates);
-        mSuddenDeathWaterRaise = config.getIntValue("water_raise",
-            mSuddenDeathWaterRaise);
-        mStaminaPower = config.getIntValue("stamina_power", mStaminaPower);
+        this.config = config.getCurValue!(ModeConfig)();
     }
 
     this(ReflectCtor c) {
@@ -70,7 +72,8 @@ class ModeRealtime : Gamemode {
 
     void simulate() {
         super.simulate();
-        mStatus.gameRemaining = max(mGameTime - modeTime.current(), Time.Null);
+        mStatus.gameRemaining = max(config.gametime - modeTime.current(),
+            Time.Null);
 
         //--------- Winning and game end ----------------
 
@@ -79,14 +82,8 @@ class ModeRealtime : Gamemode {
                 mGameEnded = true;
             return;
         }
-        int aliveCount;
         ServerTeam lastteam;
-        foreach (t; logic.teams()) {
-            if (t.alive()) {
-                aliveCount++;
-                lastteam = t;
-            }
-        }
+        int aliveCount = aliveTeams(lastteam);
         if (aliveCount < 2) {
             //"Controlled shutdown": deactivate teams, wait for silence,
             //  blow up worms, end game
@@ -122,13 +119,15 @@ class ModeRealtime : Gamemode {
             mStatus.suddenDeath = true;
             logic.startSuddenDeath();
         }
-        if (mStatus.suddenDeath && wait(mWaterInterval, 1)) {
-            engine.raiseWater(mSuddenDeathWaterRaise);
+        if (mStatus.suddenDeath && wait(config.water_interval, 1)) {
+            engine.raiseWater(config.water_raise);
         }
 
         //------------ one crate every mCrateInterval -------------
 
-        if (wait(mCrateInterval) && engine.countSprites("crate") < mMaxCrates) {
+        if (wait(config.crate_interval) && engine.countSprites("crate")
+            < config.maxcrates)
+        {
             logic.dropCrate();
         }
 
@@ -159,7 +158,7 @@ class ModeRealtime : Gamemode {
                         logic.activateTeam(t);
                     }
                 }
-            } else if (!t.current || t.current.lifeLost(mStaminaPower)) {
+            } else if (!t.current || t.current.lifeLost(config.stamina_power)) {
                 //worm change if the current worm was hit
                 logic.activateTeam(t, false);
                 mTeamDeactivateTime[t] = modeTime.current();

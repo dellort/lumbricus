@@ -133,8 +133,8 @@ class GameTimer : Container {
                 if (m)
                     break;
             }
-            if ((state == TurnState.prepare || state == TurnState.playing)
-                && m)
+            if ((state == TurnState.prepare || state == TurnState.playing
+                || state == TurnState.inTurnCleanup) && m)
             {
                 active = true;
                 bordercolor = mGame.allMembers[m].owner.color;

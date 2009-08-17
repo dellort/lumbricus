@@ -21,30 +21,34 @@ class ModeTurnbased : Gamemode {
         TurnState mCurrentTurnState = TurnState.waitForSilence;
         static LogStruct!("gamemodes.turnbased") log;
 
-        //time a turn takes
-        Time mTimePerTurn = timeSecs(15);
-        //extra time before turn time to switch seats etc
-        Time mHotseatSwitchTime = timeSecs(5);
-        //time the worm can still move after firing a weapon
-        Time mRetreatTime = timeSecs(5);
-        //total time for one game until sudden death begins
-        Time mGameTime = timeSecs(300);
-        //can the active worm be chosen in prepare state?
-        bool mAllowSelect;
-        //multi-shot mode (true -> firing a weapon doesn't end the turn)
-        bool mMultishot;
-        float mCrateProb = 0.9f;
-        int mMaxCrates = 8;
-        //max number of beam-ins while worm is moving (crate rain)
-        //  (no more than mMaxCrates total)
-        int mMaxCratesPerTurn = 0;
-        int mTurnCrateCount = 0;
-        int mSuddenDeathWaterRaise = 50;
+        struct ModeConfig {
+            //time a turn takes
+            Time turntime = timeSecs(15);
+            //extra time before turn time to switch seats etc
+            Time hotseattime = timeSecs(5);
+            //time the worm can still move after firing a weapon
+            Time retreattime = timeSecs(5);
+            //total time for one game until sudden death begins
+            Time gametime = timeSecs(300);
+            //can the active worm be chosen in prepare state?
+            bool allowselect;
+            //multi-shot mode (true -> firing a weapon doesn't end the turn)
+            bool multishot;
+            float crateprob = 0.9f;
+            int maxcrates = 8;
+            //max number of beam-ins while worm is moving (crate rain)
+            //  (no more than maxcrates total)
+            int maxcratesperturn = 0;
+            int water_raise = 50;
+        }
+        ModeConfig config;
 
         ServerTeam mCurrentTeam;
         ServerTeam mLastTeam;
 
         TurnbasedStatus mStatus;
+        int mTurnCrateCounter = 0;
+        int mInTurnActivity = cInTurnActCheckC;
         int mCleanupCtr = 1;
         int[] mTeamPerm;
 
@@ -54,23 +58,13 @@ class ModeTurnbased : Gamemode {
         const cWinTime = timeSecs(5);
         //delay for crate rain
         const cTurnCrateDelay = timeSecs(5);
+        const cInTurnActCheckC = 3;
     }
 
     this(GameController parent, ConfigNode config) {
         super(parent, config);
         mStatus = new TurnbasedStatus();
-        mTimePerTurn = config.getValue("turntime", mTimePerTurn);
-        mHotseatSwitchTime = config.getValue("hotseattime", mHotseatSwitchTime);
-        mRetreatTime = config.getValue("retreattime", mRetreatTime);
-        mGameTime = config.getValue("gametime", mGameTime);
-        mAllowSelect = config.getBoolValue("allowselect", mAllowSelect);
-        mMultishot = config.getBoolValue("multishot", mMultishot);
-        mCrateProb = config.getFloatValue("crateprob", mCrateProb);
-        mMaxCrates = config.getIntValue("maxcrates", mMaxCrates);
-        mMaxCratesPerTurn = config.getIntValue("maxcratesperturn",
-            mMaxCratesPerTurn);
-        mSuddenDeathWaterRaise = config.getIntValue("water_raise",
-            mSuddenDeathWaterRaise);
+        this.config = config.getCurValue!(ModeConfig)();
 
         parent.collectTool ~= &doCollectTool;
     }
@@ -105,7 +99,8 @@ class ModeTurnbased : Gamemode {
 
     void simulate() {
         super.simulate();
-        mStatus.gameRemaining = max(mGameTime - modeTime.current(), Time.Null);
+        mStatus.gameRemaining = max(config.gametime - modeTime.current(),
+            Time.Null);
         //this ensures that after each transition(), doState() is also run
         //in the same frame
         TurnState next;
@@ -130,7 +125,7 @@ class ModeTurnbased : Gamemode {
     private TurnState doState() {
         switch (mCurrentTurnState) {
             case TurnState.prepare:
-                mStatus.prepareRemaining = waitRemain(mHotseatSwitchTime, 1,
+                mStatus.prepareRemaining = waitRemain(config.hotseattime, 1,
                     false);
                 if (mCurrentTeam.teamAction())
                     //worm moved -> exit prepare phase
@@ -139,7 +134,7 @@ class ModeTurnbased : Gamemode {
                     return TurnState.playing;
                 break;
             case TurnState.playing:
-                mStatus.turnRemaining = waitRemain!(true)(mTimePerTurn, 1,
+                mStatus.turnRemaining = waitRemain!(true)(config.turntime, 1,
                     false);
                 if (!mCurrentTeam.current)
                     return TurnState.waitForSilence;
@@ -151,24 +146,56 @@ class ModeTurnbased : Gamemode {
                         return TurnState.waitForSilence;
                 }
                 //if not in multishot mode, firing ends the turn
-                if (!mMultishot && mCurrentTeam.current.weaponUsed)
+                if (!config.multishot && mCurrentTeam.current.weaponUsed)
                     return TurnState.retreat;
                 if (!mCurrentTeam.current.alive       //active worm dead
                     || mCurrentTeam.current.lifeLost)   //active worm damaged
                 {
                     return TurnState.waitForSilence;
                 }
-                if (wait(cTurnCrateDelay, 3) && mTurnCrateCount > 0
-                    && engine.countSprites("crate") < mMaxCrates)
+                if (wait!(true)(cTurnCrateDelay, 3) && mTurnCrateCounter > 0
+                    && engine.countSprites("crate") < config.maxcrates)
                 {
                     logic.dropCrate();
-                    mTurnCrateCount--;
+                    mTurnCrateCounter--;
+                }
+                //check for silence every 500ms
+                if (wait!(true)(timeMsecs(500), 4)) {
+                    if (!engine.checkForActivity
+                        && !mCurrentTeam.current.delayedAction)
+                    {
+                        mInTurnActivity--;
+                        if (mInTurnActivity <= 0) {
+                            //no activity for cInTurnActCheckC checks -> cleanup
+                            ServerTeam tmp;
+                            //check if we really need a cleanup
+                            if (aliveTeams(tmp) < 2 || logic.needUpdateHealth)
+                                return TurnState.inTurnCleanup;
+                        }
+                    } else {
+                        mInTurnActivity = cInTurnActCheckC;
+                    }
                 }
                 break;
-            //only used if mMultishot == false
+            //quick cleanup, turn continues (time paused)
+            case TurnState.inTurnCleanup:
+                ServerTeam tmp;
+                if (aliveTeams(tmp) < 2)
+                    return TurnState.waitForSilence;
+                if (!engine.checkForActivity) {
+                    logic.updateHealth();
+                    if (!logic.checkDyingWorms()) {
+                        if (wait(cNextRoundWait, 3))
+                            return TurnState.playing;
+                    }
+                } else {
+                    waitReset(3);
+                }
+                break;
+            //only used if config.multishot == false
             case TurnState.retreat:
                 //give him some time to run, hehe
-                if (wait(mRetreatTime)
+                if (wait(config.retreattime)
                     || !mCurrentTeam.current.alive
                     || mCurrentTeam.current.lifeLost)
                     return TurnState.waitForSilence;
@@ -194,14 +221,8 @@ class ModeTurnbased : Gamemode {
                 if (wait(cNextRoundWait, 0, false) && logic.isIdle()) {
                     waitReset(0);
                     //check if at least two teams are alive
-                    int aliveTeams;
                     ServerTeam firstAlive;
-                    foreach (t; logic.teams) {
-                        if (t.alive()) {
-                            aliveTeams++;
-                            firstAlive = t;
-                        }
-                    }
+                    int aliveTeams = aliveTeams(firstAlive);
 
                     if (aliveTeams < 2) {
                         if (aliveTeams > 0) {
@@ -226,15 +247,15 @@ class ModeTurnbased : Gamemode {
                     if (mCleanupCtr > 1) {
                         mCleanupCtr--;
                         if (mStatus.suddenDeath) {
-                            engine.raiseWater(mSuddenDeathWaterRaise);
+                            engine.raiseWater(config.water_raise);
                             return TurnState.waitForSilence;
                         }
                     }
                     //probably drop a crate, if not too many out already
                     if (mCleanupCtr > 0) {
                         mCleanupCtr--;
-                        if (engine.rnd.nextDouble2 < mCrateProb
-                            && engine.countSprites("crate") < mMaxCrates)
+                        if (engine.rnd.nextDouble2 < config.crateprob
+                            && engine.countSprites("crate") < config.maxcrates)
                         {
                             if (logic.dropCrate()) {
                                 return TurnState.waitForSilence;
@@ -267,7 +288,7 @@ class ModeTurnbased : Gamemode {
         switch (st) {
             case TurnState.prepare:
                 modeTime.paused = true;
-                mStatus.turnRemaining = mTimePerTurn;
+                mStatus.turnRemaining = config.turntime;
                 waitReset(1);
                 waitReset!(true)(1);
                 mCleanupCtr = 2;
@@ -297,17 +318,22 @@ class ModeTurnbased : Gamemode {
 
                 mLastTeam = next;
                 currentTeam = next;
-                if (mAllowSelect)
+                if (config.allowselect)
                     mCurrentTeam.allowSelect = true;
                 log("active: {}", next);
+                mTurnCrateCounter = config.maxcratesperturn;
 
                 break;
             case TurnState.playing:
                 assert(mCurrentTeam);
-                mTurnCrateCount = mMaxCratesPerTurn;
                 modeTime.paused = false;
                 mCurrentTeam.setOnHold(false);
                 mStatus.prepareRemaining = Time.Null;
+                break;
+            case TurnState.inTurnCleanup:
+                assert(mCurrentTeam);
+                modeTime.paused = true;
+                mCurrentTeam.setOnHold(true);
                 break;
             case TurnState.retreat:
                 modeTime.paused = false;

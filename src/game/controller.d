@@ -478,6 +478,14 @@ class ServerTeam : Team {
         }
     }
 
+    bool needUpdateHealth() {
+        foreach (m; mMembers) {
+            if (m.needUpdateHealth())
+                return true;
+        }
+        return false;
+    }
+
     void addWeapon(WeaponClass w, int quantity = 1) {
         weapons.addWeapon(w, quantity);
         parent.updateWeaponStats(null);
@@ -550,6 +558,10 @@ class ServerTeamMember : TeamMember, WormController {
     //send new health value to client
     void updateHealth() {
         mCurrentHealth = health();
+    }
+
+    bool needUpdateHealth() {
+        return mCurrentHealth != health();
     }
 
     // --- start TeamMember
@@ -1470,6 +1482,14 @@ class GameController : GameLogicPublic {
         foreach (t; mTeams) {
             t.updateHealth();
         }
+    }
+
+    bool needUpdateHealth() {
+        foreach (t; mTeams) {
+            if (t.needUpdateHealth())
+                return true;
+        }
+        return false;
     }
 
     ServerTeam[] teams() {

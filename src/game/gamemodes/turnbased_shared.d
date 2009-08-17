@@ -6,6 +6,7 @@ import utils.reflection;
 enum TurnState : int {
     prepare,    //player ready
     playing,    //turn running
+    inTurnCleanup,
     retreat,    //still moving after firing a weapon
     waitForSilence, //before entering cleaningUp: wait for no-activity
     cleaningUp, //worms losing hp etc, may occur during turn

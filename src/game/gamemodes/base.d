@@ -67,6 +67,19 @@ class Gamemode {
     ///     into a single object (the object returned by this function)
     abstract Object getStatus();
 
+    //Returns the number of teams with alive members
+    //If there are any, firstAlive is set to the first one found
+    protected int aliveTeams(out ServerTeam firstAlive) {
+        int ret;
+        foreach (t; logic.teams) {
+            if (t.alive()) {
+                ret++;
+                firstAlive = t;
+            }
+        }
+        return ret;
+    }
+
     //Wait utility functions
     //First call starts the timer, true is returned (and the state is reset)
     //  when the time has elapsed
