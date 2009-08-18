@@ -24,8 +24,8 @@ version = LogExceptions;  //set to write exceptions into logfile, too
 
 //factory-imports (static ctors register stuff globally)
 import framework.sdl.framework;
-import framework.sdl.soundmixer;
-import framework.openal;
+//import framework.sdl.soundmixer;
+//import framework.openal;
 import framework.fontft;
 import framework.imgwrite;
 

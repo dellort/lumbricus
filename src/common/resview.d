@@ -106,7 +106,7 @@ class BitmapHandler : ResViewHandler!(Surface) {
     }
 }
 
-class MusicHandler : ResViewHandler!(Music) {
+/*class MusicHandler : ResViewHandler!(Music) {
     this(Object r) {
         super(r);
         setGUI(new Viewer());
@@ -164,25 +164,34 @@ class MusicHandler : ResViewHandler!(Music) {
         registerHandler!(typeof(this));
     }
 }
-
+*/
 class SampleHandler : ResViewHandler!(Sample) {
     this(Object r) {
         super(r);
         setGUI(new Viewer());
     }
 
-    bool loop, tick;
-    Channel ch;
-    SoundSourcePosition pos;
+    Source ch;
+    SoundSourceInfo pos;
+
+    char[] state() {
+        switch (ch.state) {
+            case PlaybackState.stopped: return "stopped";
+            case PlaybackState.stopping: return "stopping";
+            case PlaybackState.playing: return "playing";
+            case PlaybackState.paused: return "paused";
+        }
+    }
 
     class Viewer : SimpleContainer {
+        Label lblstate;
         this() {
-            ch = gFramework.sound.createChannel();
+            ch = gFramework.sound.createSource();
+            ch.sample = resource;
             auto al = WidgetLayout.Aligned(-1, 0);
             auto box = new BoxContainer(false);
-            auto info = new Label();
-            info.text = myformat("Length: {}", resource.length());
-            box.add(info, al);
+            lblstate = new Label();
+            box.add(lblstate, al);
             Button button(char[] c, void delegate(Button) cb) {
                 auto b = new Button();
                 b.text = c;
@@ -192,32 +201,33 @@ class SampleHandler : ResViewHandler!(Sample) {
             }
             auto chk = button("loop?", &onLoop);
             chk.isCheckbox = true;
-            auto chk2 = button("tick?", &onTick);
-            chk2.isCheckbox = true;
-            chk2.checked = true;
-            onTick(chk2);
             button("play", &onPlay);
             button("stop", &onStop);
+            button("pause", &onPause);
+            button("fade", &onFade);
             box.add(new Position());
             addChild(box);
         }
         void onLoop(Button b) {
-            loop = b.checked();
+            ch.looping = b.checked();
         }
         void onPlay(Button b) {
-            ch.play(resource, loop);
+            ch.play();
         }
         void onStop(Button b) {
             ch.stop();
         }
-        void onTick(Button b) {
-            tick = b.checked();
+        void onPause(Button s) {
+            ch.paused = true;
+        }
+        void onFade(Button s) {
+            ch.stop(timeSecs(2));
         }
         override void simulate() {
-            if (tick) {
-                ch.position = pos;
-                ch.tick();
-            }
+            ch.info = pos;
+            lblstate.text = state()
+                ~ (gFramework.sound.available() ? " a " : " n ")
+                ~ ch.position().toString ~ "/" ~ resource.length.toString;
         }
     }
 
@@ -241,6 +251,11 @@ class SampleHandler : ResViewHandler!(Sample) {
             c.drawRect(box, Color(0,0,0));
             c.drawCircle(mousePos(), 5, Color(1,0,0));
             f.drawText(c, Vector2i(0), msg);
+        }
+        override void onKeyEvent(KeyInfo infos) {
+            if (infos.isMouseButton && infos.isDown) {
+                ch.play();
+            }
         }
     }
 

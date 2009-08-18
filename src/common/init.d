@@ -38,7 +38,9 @@ ConfigNode init(char[][] args, char[] help) {
     initFSMounts();
 
     //open logfile in user dir
-    auto logf = gFS.open("/logall.txt", File.ReadWriteCreate);
+    const File.Style WriteCreateShared =
+        {File.Access.Write, File.Open.Create, File.Share.Read};
+    auto logf = gFS.open("/logall.txt", WriteCreateShared);
     auto logstr = new StreamOutput(logf);
     //write buffered log
     logstr.writeString(logtmp.text);

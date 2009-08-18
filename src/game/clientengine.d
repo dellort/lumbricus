@@ -175,7 +175,7 @@ class ClientGameEngine : GameEngineCallback {
 
     private {
         GameEngine mEngine;
-        Music mMusic;
+        Source mMusic;
 
         uint mDetailLevel;
 
@@ -290,7 +290,9 @@ class ClientGameEngine : GameEngineCallback {
     }
 
     private void initSound() {
-        mMusic = resources.get!(Music)("game");
+        auto mus = resources.get!(Sample)("game");
+        mMusic = mus.createSource();
+        mMusic.looping = true;
         mMusic.play();
     }
 

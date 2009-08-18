@@ -1187,7 +1187,7 @@ class Framework {
 
     private int releaseDriverSounds(bool force) {
         int count;
-        foreach (SoundBase s; gSounds.list) {
+        foreach (Sample s; gSounds.list) {
             if (s.release(force))
                 count++;
         }

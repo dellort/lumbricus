@@ -13,25 +13,16 @@ class SampleResource : ResourceItem {
 
     protected void load() {
         char[] path = mContext.fixPath(mConfig.value);
-        mContents = gFramework.sound.createSample(path);
+        //xxx lol etc.
+        if (mConfig.parent.name == "samples")
+            mContents = gFramework.sound.createSample(path, 0);
+        else
+            //music is streamed
+            mContents = gFramework.sound.createSample(path, 1, true);
     }
 
     static this() {
         Resources.registerResourceType!(typeof(this))("samples");
-    }
-}
-
-class MusicResource : ResourceItem {
-    this(ResourceFile context, char[] id, ConfigNode item) {
-        super(context, id, item);
-    }
-
-    protected void load() {
-        char[] path = mContext.fixPath(mConfig.value);
-        mContents = gFramework.sound.createMusic(path);
-    }
-
-    static this() {
         Resources.registerResourceType!(typeof(this))("music");
     }
 }

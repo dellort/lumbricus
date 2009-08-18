@@ -1,27 +1,24 @@
 module framework.sound;
 
-private import
-    utils.stream,
-    utils.time;
 import framework.framework, utils.configfile, utils.factory, utils.time,
-    utils.vector2, utils.weaklist;
+    utils.vector2, utils.weaklist, utils.stream, utils.misc, utils.list2;
 
-public enum SoundType {
-    error,
-    music,
-    sfx,
-}
+//sound type is only used for mixing (e.g. sfx may be louder than music)
+//  (esp. this should not influence streaming behaviour)
+alias ubyte SoundType;
 
-public enum MusicState {
-    Stopped,
-    Playing,
-    Paused
+public enum PlaybackState {
+    stopped,     //playback has not yet started, or has reached the end
+                 //in either case, play() will start playing from the start
+    playing,
+    paused,
+    stopping,    //fading out to stop
 }
 
 //some data about the object the sound is attached to
 //the mixer can use this to make sound more realistic according to the object's
 //position/movement
-struct SoundSourcePosition {
+struct SoundSourceInfo {
     //units: I don't know how to handle this (and we don't even have an OpenAL
     //backend to test it), but I thought about placing the listener into the
     //middle of the screen and to define the respective borders as -1 and +1
@@ -42,7 +39,7 @@ package {
             }
         }
     }
-    WeakList!(SoundBase, SoundKillData) gSounds;
+    WeakList!(Sample, SoundKillData) gSounds;
 }
 
 ///audio data (or rather, how it can be loaded)
@@ -52,14 +49,14 @@ package {
 ///probably a smarter way would be to store the filename instead of the stream]
 struct DriverSoundData {
     char[] filename;
-    SoundType type;
+    bool streamed;  //streamed audio can only have one instance playing;
+                    //no other restrictions
 }
 
 ///handle for any sound data (samples and music)
 ///DriverSoundData is used to create this!
 //(unifying smaples and music simplifies memory managment)
 abstract class DriverSound {
-    abstract SoundType type();
     abstract Time length();
 }
 
@@ -70,13 +67,22 @@ abstract class DriverChannel {
     //will be set to null if playback is finished or driver is unloaded etc.
     Object reserved_for;
 
-    abstract void setPos(ref SoundSourcePosition pos);
+    abstract void setPos(ref SoundSourceInfo pos);
+    //set absolute volume of this channel
+    abstract void setVolume(float value);
 
     //play() and stop() must only be called if you're still the owner by
     //reserved_by
-    abstract void play(DriverSound s, bool loop);
+    abstract void play(DriverSound s, bool loop, Time startAt);
+
+    abstract void paused(bool p);
+
     //unreserve==true: make channel available to others (getChannel())
     abstract void stop(bool unreserve);
+
+    abstract PlaybackState state();
+
+    abstract Time position();
 }
 
 abstract class SoundDriver {
@@ -90,32 +96,28 @@ abstract class SoundDriver {
     abstract DriverSound loadSound(DriverSoundData data);
     abstract void closeSound(DriverSound s);
 
-    abstract void setVolume(SoundType v, float value);
-
     abstract void destroy();
-
-    //only one Music per time -> need only a  simple per-driver interface for it
-    //m==null: reset
-    abstract void musicPlay(DriverSound m, Time startAt, Time fade);
-    abstract void musicFadeOut(Time fadetime);
-    abstract void musicGetState(out MusicState state, out Time pos);
-    abstract void musicPause(bool pause);
 }
 
 ///main sound class, loads samples and music and sets volume
 //NOTE: not overloaded by sound driver anymore
 public class Sound {
     private {
-        Music mCurrentMusic;
+        //Music mCurrentMusic;
         SoundDriver mDriver;
         //all loaded sound files (music & samples)
         bool[DriverSound] mDriverSounds;
+        ObjectList!(Source, "sNode") mSources;
 
-        MusicState mExpectedMusicState;
-        bool mExpectMusicStop;
+        //MusicState mExpectedMusicState;
+        //bool mExpectMusicStop;
+
+        float mVolume = 1.0f;
+        float[SoundType.max] mTypeVolume = 1.0f;
     }
 
     this() {
+        mSources = new typeof(mSources);
         mDriver = new NullSound(this, null);
     }
 
@@ -143,19 +145,22 @@ public class Sound {
         close();
         mDriver = driver;
 
-        if (mCurrentMusic) {
+        //if (mCurrentMusic) {
             //restore music state (for now, only playing/paused, not the time)
             /*if (mSavedMusicState != MusicState.Stopped) {
                 mCurrentMusic.play();
                 mCurrentMusic.state = mSavedMusicState; //possibly paused
             }*/
-        }
+        //}
     }
 
     ///call this in main loop to update the sound system
     public void tick() {
         mDriver.tick();
-        Time pos;
+        foreach (s; mSources) {
+            s.tick();
+        }
+        /*Time pos;
         MusicState mstate;
         mDriver.musicGetState(mstate, pos);
         if (mstate != mExpectedMusicState && mCurrentMusic
@@ -167,7 +172,7 @@ public class Sound {
             //Trace.formatln("fixup music state {} -> {}",
               //  cast(int)mstate, cast(int)mExpectedMusicState);
             mCurrentMusic.state = mExpectedMusicState;
-        }
+        }*/
     }
 
     ///create music/samples from stream
@@ -177,22 +182,42 @@ public class Sound {
     ///yes, it is silly, and I don't even know when st will definitely be closed
     ///xxx: ok, changed to a filename; class FileSystem is used to open it
     /// this shouldn't have any disadvantages
-    public Music createMusic(char[] filename) {
-        return new Music(this, filename);
-    }
-    public Sample createSample(char[] filename) {
-        return new Sample(this, filename);
+    //public Music createMusic(char[] filename) {
+    //    return new Music(this, filename);
+    //}
+    public Sample createSample(char[] filename, SoundType type = 0,
+        bool streamed = false)
+    {
+        return new Sample(this, filename, type, streamed);
     }
 
-    ///set volume for current music and future samples
-    public void setVolume(SoundType v, float value) {
-        mDriver.setVolume(v, value);
+    ///set global volume (also see setTypeVolume)
+    void volume(float value) {
+        mVolume = clampRangeC(value, 0f, 1f);
+        foreach (s; mSources) {
+            s.updateVolume();
+        }
+    }
+    float volume() {
+        return mVolume;
+    }
+
+    ///set volume for a specific sample type
+    ///actual source volume: <global> * <type volume> * <source volume>
+    void setTypeVolume(SoundType v, float value) {
+        mTypeVolume[v] = clampRangeC(value, 0f, 1f);
+        foreach (s; mSources) {
+            s.updateVolume();
+        }
+    }
+    float getTypeVolume(SoundType v) {
+        return mTypeVolume[v];
     }
 
     ///currently playing music, may be null if no music is set
-    public Music currentMusic() {
-        return mCurrentMusic;
-    }
+    //public Music currentMusic() {
+    //    return mCurrentMusic;
+    //}
 
     ///if this is a real sound device (false when this is a null-driver)
     public bool available() {
@@ -201,8 +226,8 @@ public class Sound {
     }
 
     ///context for playing a Sample
-    public Channel createChannel() {
-        return new Channel(this);
+    public Source createSource() {
+        return new Source(this);
     }
 
     package DriverSound createDriverSound(DriverSoundData d) {
@@ -223,19 +248,24 @@ public class Sound {
     }
 }
 
-///common baseclass for Music and Sample
-public class SoundBase {
+///common class for all sounds
+///sounds can still be streamed if set in the constructor (a streamed sound may
+///  only be playing once at a time)
+public class Sample {
     protected {
         Sound mParent;
         DriverSoundData mSource;
         DriverSound mSound;
+        SoundType mType;
     }
 
-    this(Sound parent, SoundType type, char[] filename) {
+    ///type: only for setting type-specific volume; you can use any value
+    this(Sound parent, char[] filename, SoundType type, bool streamed = false) {
         assert(!!parent);
         mParent = parent;
         mSource.filename = filename;
-        mSource.type = type;
+        mSource.streamed = streamed;
+        mType = type;
         gSounds.add(this);
     }
 
@@ -243,7 +273,7 @@ public class SoundBase {
         return mParent;
     }
 
-    DriverSound getDriverSound() {
+    private DriverSound getDriverSound() {
         if (!mSound) {
             //xxx error handling?
             mSound = mParent.createDriverSound(mSource);
@@ -277,16 +307,314 @@ public class SoundBase {
     }
 
     ///close the sample/music (and stop if active)
-    public void dclose() {
+    void dclose() {
         release(true);
     }
 
     ///get length of this sample/music stream
-    public Time length() {
+    Time length() {
         return getDriverSound().length();
+    }
+
+    ///type for specific volume level
+    SoundType type() {
+        return mType;
+    }
+
+    ///Create a source with this sample assigned to it
+    Source createSource() {
+        Source s = parent().createSource();
+        s.sample = this;
+        return s;
+    }
+
+    ///play the sample on a new source
+    ///redundant helper function
+    Source play() {
+        Source s = createSource();
+        s.play();
+        return s;
     }
 }
 
+///a Source is an object that manages how a Sample is played
+///this is not necessarily equal to a real channel (like a channel in SDL_mixer)
+///  instead, when play() is called, this will try allocate a real channel
+///  when the sound sample is played in a loop, this will continue to try to get
+///  a real channel (through the tick() method)
+///a Source can only play one Sample at a time
+class Source {
+    private {
+        //moved here from DriverChannel -> less driver code
+        enum FadeType {
+            none,
+            fadeIn,
+            fadeOut,
+        }
+        FadeType mFading;
+        Time mFadeStart, mFadeLength;
+
+        Sound mParent;
+        Sample mSample;
+        bool mLooping;
+        float mVolume = 1.0f;
+        DriverChannel mDC;
+        PlaybackState mState;  //the state wanted by the user
+    }
+    ObjListNode!(typeof(this)) sNode;
+
+    SoundSourceInfo info;
+
+    this(Sound base) {
+        assert(!!base);
+        mParent = base;
+        mParent.mSources.add(this);
+    }
+
+    ///stop playing and release this Source
+    void close() {
+        stop();
+        mParent.mSources.remove(this);
+    }
+
+    ///assigned Sample (even valid if playback has finished)
+    final Sample sample() {
+        return mSample;
+    }
+    ///assign a sample
+    ///if this Source is playing, playback will be stopped
+    final void sample(Sample s) {
+        stop();
+        mSample = s;
+    }
+
+    ///if true, the sound will play forever (it will also be restarted
+    ///  on driver reload, or on channel shortage)
+    final bool looping() {
+        return mLooping;
+    }
+    final void looping(bool l) {
+        mLooping = l;
+    }
+
+    ///Private volume for this source
+    ///Relative to global volume settings
+    final float volume() {
+        return mVolume;
+    }
+    final void volume(float value) {
+        mVolume = clampRangeC(value, 0f, 1f);
+        updateVolume();
+    }
+
+    ///play current Sample on this Source
+    ///plays from position start, fading in over fadeinTime
+    ///possibly cancels currently playing Sample
+    void play(Time start = Time.Null, Time fadeinTime = Time.Null) {
+        assert(!!mSample);
+        auto dc = createDC(false);
+        //first try to resume playback if Source was paused
+        if (dc && dc.state == PlaybackState.paused) {
+            //resume
+            dc.paused = false;
+            mState = PlaybackState.playing;
+            return;
+        }
+        //next, try to allocate a channel and start playback
+        if (!dc)
+            dc = createDC();
+        if (dc) {
+            dc.setPos(info);
+            if (fadeinTime == Time.Null) {
+                mFading = FadeType.none;
+                updateVolume();
+            } else {
+                //fading in, so start silent
+                dc.setVolume(0);
+                startFade(FadeType.fadeIn, fadeinTime);
+            }
+
+            //xxx mLooping is only passed here, setting it after the play()
+            //    call has no effect
+            dc.play(mSample.getDriverSound(), mLooping, start);
+            mState = PlaybackState.playing;
+        }
+    }
+
+    //initiate fadein/fadeout
+    private void startFade(FadeType t, Time fTime) {
+        mFading = t;
+        mFadeStart = timeCurrentTime();
+        mFadeLength = fTime;
+    }
+
+    void paused(bool p) {
+        auto dc = createDC(false);
+        if (!dc)
+            return;
+        if (p && mState == PlaybackState.playing) {
+            //going from playing to paused
+            if (dc.state == PlaybackState.playing)
+                dc.paused = true;
+            mState = PlaybackState.paused;
+        } else if (!p && mState == PlaybackState.paused) {
+            //going from paused to playing
+            if (dc.state == PlaybackState.paused)
+                dc.paused = false;
+            mState = PlaybackState.playing;
+        }
+    }
+
+    ///stop playback
+    void stop(Time fadeOut = Time.Null) {
+        if (fadeOut == Time.Null) {
+            //stop now
+            mFading = FadeType.none;
+            if (auto dc = createDC(false)) {
+                dc.stop(true);
+            }
+            mState = PlaybackState.stopped;
+        } else {
+            //start fading out
+            startFade(FadeType.fadeOut, fadeOut);
+            mState = PlaybackState.stopping;
+        }
+    }
+
+    ///Returns actual state of playback
+    //Returned value may be different from mState
+    PlaybackState state() {
+        if (!mSample)
+            return PlaybackState.stopped;
+        auto dc = createDC(false);
+        if (!dc || dc.state == PlaybackState.stopped)
+            return PlaybackState.stopped;
+        return mState;
+    }
+
+    ///get current playback position
+    ///Note: 0 is returned if Driver does not support this, or not playing
+    public Time position() {
+        auto dc = createDC(false);
+        if (!dc || dc.state == PlaybackState.stopped)
+            return Time.Null;
+        return dc.position();
+    }
+
+    private bool dcValid() {
+        return mDC && mDC.reserved_for is this
+            && mDC.owner is mParent.mDriver;
+    }
+
+    //must be called to get the DriverChannel instead of using mDC
+    //can still return null, if channel shortage or dummy sound driver
+    private DriverChannel createDC(bool recreate = true) {
+        if (!dcValid()) {
+            mDC = recreate ? mParent.mDriver.getChannel(this) : null;
+            if (mDC)
+                assert(dcValid());
+        }
+        return mDC;
+    }
+
+    ///should be called on each frame, copies the position value and also makes
+    ///sure a looping sample is played when 1. there was a channel shortage and
+    ///2. if the driver was reloaded
+    //(in other words, this interface sucks)
+    //(not looped samples are not "retried" to play again)
+    private void tick() {
+        //update position if still playing
+        if (auto dc = createDC(false)) {
+            dc.setPos(info);
+            if (mFading != FadeType.none)
+                updateVolume();
+        }
+        if (!mLooping || !mSample)
+            return;
+        if (!dcValid() && mState == PlaybackState.playing) {
+            //restart
+            play();
+        }
+    }
+
+    //Called by Sound, as result of a setVolume() call, or from tick() when
+    //  fade-in/fade-out in progress
+    private void updateVolume() {
+        auto dc = createDC(false);
+        if (!dc)
+            return;
+
+        //The volume level without fading:
+        //  <global volume> * <sound-type specific volume> * <Source volume>
+        float baseVol = mParent.mVolume * mParent.mTypeVolume[mSample.type]
+            * mVolume;
+        float fadeVol = 1.0f;
+
+        if (mFading == FadeType.fadeIn) {
+            //Fading in
+            Time d = timeCurrentTime() - mFadeStart;
+            if (d < mFadeLength) {
+                fadeVol = d.secsf()/mFadeLength.secsf();
+            } else {
+                mFading = FadeType.none;
+            }
+        } else if (mFading == FadeType.fadeOut) {
+            //Fading out
+            Time d = timeCurrentTime() - mFadeStart;
+            if (d < mFadeLength) {
+                fadeVol = 1.0f - d.secsf()/mFadeLength.secsf();
+            } else {
+                fadeVol = 0f;
+                stop();
+                mFading = FadeType.none;
+            }
+        }
+        dc.setVolume(baseVol * fadeVol);
+    }
+}
+
+///sound driver which does nothing
+class NullSound : SoundDriver {
+    this(Sound base, ConfigNode config) {
+    }
+
+    DriverChannel getChannel(Object reserve_for) {
+        return null;
+    }
+
+    void tick() {
+    }
+
+    class NullSoundSound : DriverSound {
+        Time length() {
+            return Time.Null;
+        }
+    }
+
+    DriverSound loadSound(DriverSoundData data) {
+        return new NullSoundSound();
+    }
+
+    void closeSound(DriverSound s) {
+    }
+
+    void destroy() {
+    }
+    static this() {
+        SoundDriverFactory.register!(typeof(this))("null");
+    }
+}
+
+alias StaticFactory!("SoundDrivers", SoundDriver, Sound, ConfigNode)
+    SoundDriverFactory;
+
+
+
+
+
+
+
+/*
 ///music is, other than samples, streamed on playback
 ///only one music stream can play at a time
 public class Music : SoundBase {
@@ -369,159 +697,4 @@ public class Music : SoundBase {
         return t;
     }
 }
-
-///a sound sample that can be played several times
-public class Sample : SoundBase {
-    this(Sound parent, char[] filename) {
-        super(parent, SoundType.sfx, filename);
-    }
-
-    ///play the sample on a free channel
-    ///redundant helper function
-    public void play() {
-        Channel ch = parent().createChannel();
-        ch.play(this);
-    }
-}
-
-///a Channel is an object that manages how a Sample is played
-///this is not necessarily equal to a real channel (like a channel in SDL_mixer)
-///instead, when play() is called, this will try allocate a real channel
-///when the sound sample is played in a loop, this will continue to try to get
-///a real channel (through the tick() method)
-class Channel {
-    private {
-        Sound mParent;
-        Sample mSample;
-        bool mLooping;
-        DriverChannel mDC;
-    }
-
-    this(Sound base) {
-        assert(!!base);
-        mParent = base;
-    }
-
-    SoundSourcePosition position;
-
-    ///last played Sample (even valid if playback has finished)
-    final Sample sample() {
-        return mSample;
-    }
-
-    ///play a Sample on this Channel
-    ///possibly cancel currently playing Sample
-    /// looping = if true, playback never stops unless stop() is called
-    void play(Sample s, bool looping = false) {
-        mSample = s;
-        mLooping = looping;
-        if (auto dc = createDC()) {
-            dc.setPos(position);
-            dc.play(mSample.getDriverSound(), mLooping);
-        }
-    }
-
-    ///stop playback
-    void stop() {
-        mLooping = false;
-        if (auto dc = createDC(false)) {
-            dc.stop(true);
-        }
-    }
-
-    private bool dcValid() {
-        return mDC && mDC.reserved_for is this
-            && mDC.owner is mParent.mDriver;
-    }
-
-    //must be called to get the DriverChannel instead of using mDC
-    //can still return null, if channel shortage or dummy sound driver
-    private DriverChannel createDC(bool recreate = true) {
-        if (!dcValid()) {
-            mDC = recreate ? mParent.mDriver.getChannel(this) : null;
-            if (mDC)
-                assert(mDC.reserved_for is this);
-        }
-        return mDC;
-    }
-
-    ///should be called on each frame, copies the position value and also makes
-    ///sure a looping sample is played when 1. there was a channel shortage and
-    ///2. if the driver was reloaded
-    //(in other words, this interface sucks)
-    //(not looped samples are not "retried" to play again)
-    void tick() {
-        //update position if still playing
-        if (auto dc = createDC(false)) {
-            dc.setPos(position);
-        }
-        if (!mLooping || !mSample)
-            return;
-        if (!dcValid()) {
-            //restart
-            play(mSample, mLooping);
-        }
-    }
-}
-
-///sound driver which does nothing
-class NullSound : SoundDriver {
-    MusicState mustate;
-
-    this(Sound base, ConfigNode config) {
-    }
-
-    DriverChannel getChannel(Object reserve_for) {
-        return null;
-    }
-
-    void tick() {
-    }
-
-    class NullSoundSound : DriverSound {
-        SoundType mtype;
-        SoundType type() {
-            return mtype;
-        }
-        Time length() {
-            return Time.Null;
-        }
-    }
-
-    DriverSound loadSound(DriverSoundData data) {
-        auto snd = new NullSoundSound();
-        snd.mtype = data.type;
-        return snd;
-    }
-
-    void closeSound(DriverSound s) {
-    }
-
-    void setVolume(SoundType v, float value) {
-    }
-
-    void destroy() {
-    }
-
-    void musicPlay(DriverSound m, Time startAt, Time fade) {
-        mustate = m ? MusicState.Playing : MusicState.Stopped;
-    }
-    void musicFadeOut(Time fadetime) {
-    }
-    void musicGetState(out MusicState state, out Time pos) {
-        pos = Time.Null;
-        state = mustate;
-    }
-    void musicPause(bool pause) {
-        if (mustate == MusicState.Stopped)
-            return;
-        mustate = pause ? MusicState.Paused : MusicState.Playing;
-    }
-
-    static this() {
-        SoundDriverFactory.register!(typeof(this))("null");
-    }
-}
-
-alias StaticFactory!("SoundDrivers", SoundDriver, Sound, ConfigNode)
-    SoundDriverFactory;
+*/
