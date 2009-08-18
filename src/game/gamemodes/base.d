@@ -69,7 +69,7 @@ class Gamemode {
 
     //Returns the number of teams with alive members
     //If there are any, firstAlive is set to the first one found
-    protected int aliveTeams(out ServerTeam firstAlive) {
+    protected int aliveTeams(out Team firstAlive) {
         int ret;
         foreach (t; logic.teams) {
             if (t.alive()) {

@@ -11,6 +11,7 @@ import game.water;
 import game.sky;
 import game.animation;
 import game.gamepublic;
+import game.game;
 import game.gfxset;
 import game.glevel;
 import game.sequence;
@@ -32,133 +33,10 @@ import utils.random : rngShared;
 import utils.interpolate;
 import tango.math.Math : PI, pow;
 
-enum GameZOrder {
-    Invisible = 0,
-    Background,
-    BackLayer,
-    BackWater,
-    Landscape,
-    LevelWater,  //water before the level, but behind drowning objects
-    Objects,
-    Crosshair,
-    Effects, //whatw as that
-    Particles,
-    Names,       //stuff drawn by gameview.d
-    Clouds,
-    FrontWater,
-    RangeArrow,  //object-off-level-area arrow
-    Splat,   //Fullscreen effect
-}
 
 
 //------------------------------ Graphics ---------------------------------
 
-class ClientAnimationGraphic : Animator {
-    AnimationGraphic mInfo;
-    Animator mOffArrow;
-    int last_set_ts = -1;
-    private Rect2i mWorldBounds, mArrowPosRect;
-
-    //xxx need worldBounds for out-arrow, better (generic) way to get it?
-    this(AnimationGraphic info, Rect2i worldBounds) {
-        super(info.owner.timebase);
-        zorder = GameZOrder.Objects;
-        mInfo = info;
-        mWorldBounds = worldBounds;
-        mArrowPosRect = worldBounds;
-        mArrowPosRect.extendBorder(Vector2i(-20));
-        if (mInfo.owner_team) {
-            //out-of-world arrow, in team colors
-            mOffArrow = new Animator(info.owner.timebase);
-            mOffArrow.setAnimation(mInfo.owner_team.color.cursor);
-            mOffArrow.zorder = GameZOrder.RangeArrow;
-        }
-    }
-
-    override void draw(Canvas c) {
-        if (mInfo.removed) {
-            removeThis();
-            return;
-        }
-        pos = mInfo.pos;
-        params = mInfo.params;
-        if (mInfo.set_timestamp != last_set_ts) {
-            setAnimation2(mInfo.animation, mInfo.animation_start);
-            last_set_ts = mInfo.set_timestamp;
-        }
-        if (mOffArrow && mInfo.more) {
-            //if object is out of world boundaries, show arrow
-            if (!mWorldBounds.isInside(pos) && pos.y < mWorldBounds.p2.y) {
-                if (!mOffArrow.parent)
-                    parent.add(mOffArrow);
-                mOffArrow.pos = mArrowPosRect.clip(pos);
-                //use object velocity for arrow rotation
-                int a = 90;
-                if (mInfo.more.velocity.quad_length > float.epsilon)
-                    a = cast(int)(mInfo.more.velocity.toAngle()*180.0f/PI);
-                //xxx: arrow animation seems rotated by 180°
-                mOffArrow.params.p1 = (a+180)%360;
-            } else {
-                if (mOffArrow.parent)
-                    mOffArrow.removeThis();
-            }
-        }
-        super.draw(c);
-    }
-
-    override void removeThis() {
-        super.removeThis();
-        if (mOffArrow)
-            mOffArrow.removeThis();
-    }
-}
-
-class ClientLineGraphic : SceneObject {
-    LineGraphic mInfo;
-
-    this(LineGraphic info) {
-        zorder = GameZOrder.Effects;
-        mInfo = info;
-    }
-
-    override void draw(Canvas c) {
-        if (mInfo.removed) {
-            removeThis();
-            return;
-        }
-        Surface tex = mInfo.texture;
-        if (tex) {
-            c.drawTexLine(mInfo.p1, mInfo.p2, tex, mInfo.texoffset,
-                mInfo.color);
-        } else {
-            c.drawLine(mInfo.p1, mInfo.p2, mInfo.color, mInfo.width);
-        }
-    }
-}
-
-//version = DebugShowLandscape;
-
-class LandscapeGraphicImpl : SceneObject {
-    LandscapeGraphic mInfo;
-    Surface bitmap;
-
-    this(LandscapeGraphic info) {
-        mInfo = info;
-        zorder = GameZOrder.Landscape;
-        bitmap = info.shared.image();
-        bitmap.enableCaching(false);
-    }
-
-    void draw(Canvas c) {
-        if (mInfo.removed) {
-            removeThis();
-            return;
-        }
-        c.draw(bitmap, mInfo.pos);
-        version (DebugShowLandscape)
-            c.drawRect(Rect2i.Span(mInfo.pos, bitmap.size), Color(1, 0, 0));
-    }
-}
 
 class CrosshairGraphicImpl : SceneObject {
     private {
@@ -240,7 +118,7 @@ class CrosshairGraphicImpl : SceneObject {
 
         auto infos = cast(WormSequenceUpdate)mInfo.attach;
         assert(!!infos,"Can only attach a target cross to worm sprites");
-        auto pos = infos.position;
+        auto pos = toVector2i(infos.position);
         auto angle = fullAngleFromSideAngle(infos.rotation_angle,
             infos.pointto_angle);
         mDir = Vector2f.fromPolar(1.0f, angle);
@@ -257,22 +135,6 @@ class CrosshairGraphicImpl : SceneObject {
 
 //------------------------------ Effects ---------------------------------
 
-class AnimationEffectImpl : Animator {
-    this(TimeSourcePublic ts, Animation anim, Vector2i pos,
-        AnimationParams params) {
-        super(ts);
-        zorder = GameZOrder.Effects;
-        this.pos = pos;
-        this.params = params;
-        setAnimation(anim);
-    }
-
-    override void draw(Canvas c) {
-        super.draw(c);
-        if (hasFinished())
-            removeThis();
-    }
-}
 
 class NukeSplatEffectImpl : SceneObject {
     static float nukeFlash(float A)(float x) {
@@ -312,12 +174,13 @@ class ClientGameEngine : GameEngineCallback {
     bool enableSpiffyGui;
 
     private {
-        GameEnginePublic mEngine;
+        GameEngine mEngine;
         Music mMusic;
 
         uint mDetailLevel;
 
-        Scene mScene;
+        Scene mLocalScene;
+        SceneZMix mUberScene;
 
         //normal position of the scenes nested in mScene
         Rect2i mSceneRect;
@@ -354,7 +217,7 @@ class ClientGameEngine : GameEngineCallback {
         }
     }
 
-    this(GameEnginePublic engine) {
+    this(GameEngine engine) {
         mEngine = engine;
         gfx = engine.gfx;
         resources = gfx.resources;
@@ -364,16 +227,16 @@ class ClientGameEngine : GameEngineCallback {
 
         mGameDrawTime = globals.newTimer("game_draw_time");
 
-        mScene = new Scene();
+        mLocalScene = new Scene();
+        mUberScene = new SceneZMix();
 
-        mSceneRect = Rect2i(Vector2i(0), mEngine.worldSize);
+        mSceneRect = mEngine.level.worldBounds;
 
         initSound();
 
         auto cb = mEngine.callbacks();
         cb.newGraphic ~= &doNewGraphic;
         cb.nukeSplatEffect ~= &nukeSplatEffect;
-        cb.animationEffect ~= &animationEffect;
 
         //why not use mEngineTime? because higher/non-fixed framerate
         mParticleTime = new TimeSource("particles");
@@ -389,7 +252,12 @@ class ClientGameEngine : GameEngineCallback {
     }
 
     void readd_graphics() {
-        mScene.clear();
+        mUberScene.clear();
+        mLocalScene.clear();
+        mUberScene.add(mLocalScene);
+
+        mUberScene.add(mEngine.scene);
+        mUberScene.add(mEngine.callbacks.scene);
 
         //xxx
         mGameWater = new GameWater(this);
@@ -397,7 +265,7 @@ class ClientGameEngine : GameEngineCallback {
 
         SceneObject particles = new DrawParticles();
         particles.zorder = GameZOrder.Particles;
-        scene.add(particles);
+        mLocalScene.add(particles);
 
         detailLevel = 0;
 
@@ -409,7 +277,7 @@ class ClientGameEngine : GameEngineCallback {
         return mEngineTime;
     }
 
-    GameEnginePublic engine() {
+    GameEngine engine() {
         return mEngine;
     }
 
@@ -442,13 +310,7 @@ class ClientGameEngine : GameEngineCallback {
     }
 
     private void doNewGraphic(Graphic g) {
-        if (auto ani = cast(AnimationGraphic)g) {
-            scene.add(new ClientAnimationGraphic(ani, mSceneRect));
-        } else if (auto line = cast(LineGraphic)g) {
-            scene.add(new ClientLineGraphic(line));
-        } else if (auto land = cast(LandscapeGraphic)g) {
-            scene.add(new LandscapeGraphicImpl(land));
-        } else if (auto tc = cast(CrosshairGraphic)g) {
+        if (auto tc = cast(CrosshairGraphic)g) {
             scene.add(new CrosshairGraphicImpl(tc, gfx));
         } else if (auto txt = cast(TextGraphic)g) {
             //leave it to gameview.d (which adds its own newGraphic callback)
@@ -459,12 +321,6 @@ class ClientGameEngine : GameEngineCallback {
 
     private void nukeSplatEffect() {
         scene.add(new NukeSplatEffectImpl());
-    }
-
-    private void animationEffect(Animation anim, Vector2i pos,
-        AnimationParams params)
-    {
-        scene.add(new AnimationEffectImpl(engineTime, anim, pos, params));
     }
 
     bool paused() {
@@ -504,19 +360,19 @@ class ClientGameEngine : GameEngineCallback {
 
         //only these are shaked on an earth quake
         //...used to shake only Objects and Landscape, but now it's ok too
-        mScene.pos = mSceneRect.p1 + mShakeOffset;
+        mUberScene.pos = mSceneRect.p1 + mShakeOffset;
 
         mGameWater.simulate();
         mGameSky.simulate();
     }
 
     Scene scene() {
-        return mScene;
+        return mLocalScene;
     }
 
     void draw(Canvas canvas) {
         mGameDrawTime.start();
-        mScene.draw(canvas);
+        mUberScene.draw(canvas);
         mGameDrawTime.stop();
     }
 

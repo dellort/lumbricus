@@ -3,6 +3,7 @@ module game.sky;
 import framework.framework;
 import common.restypes.bitmap;
 import game.clientengine;
+import game.gamepublic;
 import game.glevel;
 import game.animation;
 import game.levelgen.level : EnvironmentTheme;
@@ -101,7 +102,7 @@ class GameSky {
     ///create data structures and load textures, however no
     ///game-related values are used
     this(ClientGameEngine engine) {
-        size = engine.engine.worldSize;
+        size = engine.engine.level.worldSize;
 
         EnvironmentTheme theme = engine.engine.level.theme;
 

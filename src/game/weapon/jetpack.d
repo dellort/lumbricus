@@ -60,7 +60,7 @@ class Jetpack : Shooter, Controllable {
         WormSprite mWorm;
         Vector2f mMoveVector;
         float mJetTimeUsed = 0f;
-        ServerTeamMember mMember;
+        TeamMember mMember;
     }
 
     this(JetpackClass base, WormSprite a_owner) {

@@ -4,6 +4,7 @@ import framework.framework;
 import utils.list2;
 import utils.vector2;
 import utils.rect2;
+import utils.reflection;
 
 import arr = tango.core.Array;
 
@@ -23,6 +24,9 @@ class Scene : SceneObjectCentered {
     }
 
     this() {
+    }
+    this (ReflectCtor c) {
+        c.types.registerClass!(SList)();
     }
 
     private void extend_zorder(int z) {
@@ -52,6 +56,8 @@ class Scene : SceneObjectCentered {
     /// xxx currently only supports one container-scene per SceneObject, maybe
     /// I want to change that??? (and: how then? maybe need to allocate listnodes)
     void add(SceneObject obj) {
+        if (obj.mParent is this)
+            return;
         assert(!obj.mParent, "already inserted in another Scene?");
         int z = obj.zorder();
         extend_zorder(z);
@@ -69,6 +75,8 @@ class Scene : SceneObjectCentered {
     /// Remove an object from the scene.
     /// The z-orders of the other objects remain untouched.
     void remove(SceneObject obj) {
+        if (!obj.mParent)
+            return;
         int z = obj.zorder();
         assert(z >= 0 && z < mActiveObjects.length);
         assert(mActiveObjects[z].contains(obj));
@@ -88,16 +96,36 @@ class Scene : SceneObjectCentered {
 
     //NOTE: translates graphic coords
     override void draw(Canvas canvas) {
+        for (int z = 0; z < mActiveObjects.length; z++) {
+            draw_z(canvas, z);
+        }
+    }
+
+    int zmin() {
+        return 0;
+    }
+    int zmax() {
+        return mActiveObjects.length; //huh off by one, but nobody cares
+    }
+
+    //only draw objects with z order z
+    void draw_z(Canvas canvas, int z) {
+        if (z < 0 || z >= mActiveObjects.length)
+            return;
+
+        SList objs = mActiveObjects[z];
+
+        if (objs.empty())
+            return;
+
         canvas.pushState();
         canvas.translate(pos);
 
-        for (int z = 0; z < mActiveObjects.length; z++) {
-            //NOTE: some objects remove themselves with removeThis() when draw()
-            //      is called
-            foreach (obj; mActiveObjects[z]) {
-                if (obj.active) {
-                    obj.draw(canvas);
-                }
+        //NOTE: some objects remove themselves with removeThis() when draw()
+        //      is called
+        foreach (obj; objs) {
+            if (obj.active) {
+                obj.draw(canvas);
             }
         }
 
@@ -109,78 +137,55 @@ class Scene : SceneObjectCentered {
 ///scenes will be as if they were added into a single scene
 ///NOTE: within the same zorder, the objects of the first scene still have a
 ///      lower zorder than objects from the last added scene
-class SceneZMix : Scene {
-    //xxx: I only derive from Scene, because all parents have to be Scene
-    //     (SceneObject.parent); if you don't like this hack, make parent a
-    //     SceneObject (instead of Scene) or an abstract container object
-    //     -- there's also some code duplication, have fun
+//xxx: the subscenes don't have this object as parent (but null or arbitrary)
+//     also, uses a different interface than Scene (but that's naturally)
+//     still better than the hack before
+//also NOTE: special considerations for serialization: SceneZMix is used to
+//  merge graphics that must be serialized and that can't be serialized; so you
+//  should be sure that the serialized sub scenes don't contain references to
+//  the not serialized ones (like in SceneObject.node)
+//  (yes that's my dumb idea; try to sue me)
+class SceneZMix {
     private {
-        Scene mNormalFallback;
         Scene[] mSubScenes;
     }
 
+    Vector2i pos;
+
     this() {
-        mNormalFallback = new Scene();
-        mNormalFallback.mParent = this;
-        //see clear()
-        mSubScenes = [mNormalFallback];
     }
 
-    override void add(SceneObject obj) {
-        assert(!obj.mParent, "already inserted in another Scene?");
-        if (obj.classinfo is Scene.classinfo) {
-            mSubScenes ~= cast(Scene)obj;
-            obj.mParent = this;
-        } else {
-            mNormalFallback.add(obj);
-        }
+    void add(Scene obj) {
+        mSubScenes ~= obj;
     }
 
-    override void remove(SceneObject obj) {
-        assert(obj.mParent is this);
-        if (obj.classinfo is Scene.classinfo) {
-            Scene s = cast(Scene)obj;
-            auto nlen = arr.remove(mSubScenes, s);
-            assert (nlen == mSubScenes.length - 1);
-            //tango makes everything nice and practical
-            mSubScenes.length = nlen;
-            obj.mParent = null;
-        } else {
-            mNormalFallback.remove(obj);
-        }
+    void remove(Scene obj) {
+        //(remove doesn't actually remove anything, it does something... else)
+        auto nlen = arr.remove(mSubScenes, obj);
+        mSubScenes = mSubScenes[0..nlen];
     }
 
-    override void clear() {
+    void clear() {
         while (mSubScenes.length > 1) {
-            remove(mSubScenes[1]);
+            remove(mSubScenes[$-1]);
         }
-        mNormalFallback.clear();
     }
 
-    override void draw(Canvas canvas) {
+    void draw(Canvas canvas) {
         canvas.pushState();
         canvas.translate(pos);
 
-        for (int curz = 0;; curz++) {
-            bool had_one;
+        int zmin = int.max;
+        int zmax = int.min;
 
-            foreach (Scene s; mSubScenes) {
-                //directly mess with the internals
-                if (curz < s.mActiveObjects.length) {
-                    canvas.pushState();
-                    canvas.translate(s.pos);
-                    foreach (obj; mActiveObjects[curz]) {
-                        if (obj.active) {
-                            obj.draw(canvas);
-                        }
-                    }
-                    canvas.popState();
-                    had_one = true;
-                }
-            }
+        foreach (s; mSubScenes) {
+            zmin = min(zmin, s.zmin);
+            zmax = max(zmax, s.zmax);
+        }
 
-            if (!had_one)
-                break;
+        for (int z = zmin; z <= zmax; z++) {
+            foreach (s; mSubScenes)
+                s.draw_z(canvas, z);
         }
 
         canvas.popState();
@@ -192,6 +197,11 @@ class SceneObject {
     private Scene mParent;
     private ushort mZorder;
     bool active = true; //if draw should be called
+
+    this() {
+    }
+    this (ReflectCtor c) {
+    }
 
     //returns non-null only, if it has been added to a Scene
     final Scene parent() {
@@ -224,4 +234,9 @@ class SceneObject {
 
 class SceneObjectCentered : SceneObject {
     Vector2i pos = {0, 0};
+
+    this() {
+    }
+    this (ReflectCtor c) {
+    }
 }

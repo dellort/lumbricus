@@ -6,6 +6,7 @@ import framework.framework;
 import framework.timesource;
 public import common.restypes.animation;
 import utils.rect2;
+import utils.reflection;
 import utils.time;
 import utils.vector2;
 
@@ -27,6 +28,7 @@ class Animator : SceneObjectCentered {
     }
 
     AnimationParams params;
+    bool auto_remove;
 
     final TimeSourcePublic timeSource() {
         return mTimeSource;
@@ -35,6 +37,9 @@ class Animator : SceneObjectCentered {
     this(TimeSourcePublic ts) {
         assert(!!ts); //for now, be nazi about it
         mTimeSource = ts;
+    }
+    this(ReflectCtor c) {
+        super(c);
     }
 
     //set new animation; or null to stop all
@@ -71,7 +76,12 @@ class Animator : SceneObjectCentered {
     override void draw(Canvas canvas) {
         if (!mData)
             return;
-        mData.draw(canvas, pos, params, now() - mStarted);
+        Time t = now() - mStarted;
+        if (auto_remove && mData.finished(t)) {
+            removeThis();
+            return;
+        }
+        mData.draw(canvas, pos, params, t);
     }
 
     //shall return the smallest bounding box for all frame, centered around pos.

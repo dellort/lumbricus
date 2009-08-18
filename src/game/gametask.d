@@ -165,7 +165,7 @@ class GameTask : StatefulTask {
     private {
         GameShell mGameShell; //can be null, if a client in a network game!
         GameLoader mGameLoader; //creates a GameShell
-        GameEnginePublic mGame;
+        GameEngine mGame;
         ClientGameEngine mClientEngine;
         ClientControl mControl;
         GameInfo mGameInfo;
@@ -312,6 +312,8 @@ class GameTask : StatefulTask {
         if (mGameShell) {
             mCmds.removeSub(mGameShell.commands());
             mGameShell.terminate();
+            Object e = mGameShell.serverEngine;
+            //mGameShell.getSerializeContext().death_stomp(e);
         }
         mGameShell = null;
         if (mClientEngine) {

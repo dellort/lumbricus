@@ -7,6 +7,7 @@ import framework.framework;
 import framework.font;
 import framework.i18n;
 import game.gamepublic;
+import game.controller;
 import game.weapon.weapon;
 import gui.boxcontainer;
 import gui.button;
@@ -30,14 +31,16 @@ class WeaponSelWindow : Container {
         //weapon or placeholder for a weapon
         class Cell : Container {
             WeaponClass weapon;
-            int quantity;
-            bool enabled;
+            WeaponItem item; //can be null (=> not available)
 
             Button active;  //enabled, selectable weapon
             Label inactive; //disabled weapon (like airstrikes in caves)
 
             bool infinite() {
-                return quantity == WeaponListItem.QUANTITY_INFINITE;
+                return item ? item.infinite() : false;
+            }
+            int quantity() {
+                return item ? item.count : 0;
             }
 
             bool visible() {
@@ -61,16 +64,11 @@ class WeaponSelWindow : Container {
             }
 
             //enable/disable etc. weapon based on the list
-            void update(WeaponList list) {
-                enabled = false;
-                quantity = 0;
-                //weapon is probably not in this list; then quantity is 0
-                foreach (ref w; list) {
-                    if (w.type is weapon) {
-                        quantity = w.quantity;
-                        enabled = w.enabled;
-                        break;
-                    }
+            void update(WeaponSet wset) {
+                item = null;
+                if (wset) {
+                    auto pitem = weapon in wset.weapons;
+                    item = pitem ? *pitem : null;
                 }
                 active.remove();
                 inactive.remove();
@@ -192,23 +190,25 @@ class WeaponSelWindow : Container {
 
     //recreate the whole GUI when weapons change
     //(finer update granularity didn't seem to be worth it)
-    public void update(WeaponList weapons) {
+    public void update(WeaponSet wset) {
         foreach (Cell c; mAll) {
-            c.update(weapons);
+            c.update(wset);
         }
         updateWeaponInfoline();
         debug {
+            if (!wset)
+                return;
             //check if there's an entry in weapons for which no Cell exists
-            foreach (w; weapons) {
+            foreach (w; wset.weapons) {
                 bool found;
                 foreach (c; mAll) {
-                    if (w.type is c.weapon) {
+                    if (w.weapon is c.weapon) {
                         found = true;
                         break;
                     }
                 }
                 assert(found, myformat("weapon '{}' was not known at init time!",
-                    w.type.name));
+                    w.weapon.name));
             }
         }
     }

@@ -43,8 +43,8 @@ class ModeTurnbased : Gamemode {
         }
         ModeConfig config;
 
-        ServerTeam mCurrentTeam;
-        ServerTeam mLastTeam;
+        Team mCurrentTeam;
+        Team mLastTeam;
 
         TurnbasedStatus mStatus;
         int mTurnCrateCounter = 0;
@@ -110,14 +110,14 @@ class ModeTurnbased : Gamemode {
     }
 
     //utility functions to get/set active team (and ensure only one is active)
-    private void currentTeam(ServerTeam c) {
+    private void currentTeam(Team c) {
         if (mCurrentTeam)
             logic.activateTeam(mCurrentTeam, false);
         mCurrentTeam = c;
         if (mCurrentTeam)
             logic.activateTeam(mCurrentTeam);
     }
-    private ServerTeam currentTeam() {
+    private Team currentTeam() {
         return mCurrentTeam;
     }
 
@@ -167,7 +167,7 @@ class ModeTurnbased : Gamemode {
                         mInTurnActivity--;
                         if (mInTurnActivity <= 0) {
                             //no activity for cInTurnActCheckC checks -> cleanup
-                            ServerTeam tmp;
+                            Team tmp;
                             //check if we really need a cleanup
                             if (aliveTeams(tmp) < 2 || logic.needUpdateHealth)
                                 return TurnState.inTurnCleanup;
@@ -179,7 +179,7 @@ class ModeTurnbased : Gamemode {
                 break;
             //quick cleanup, turn continues (time paused)
             case TurnState.inTurnCleanup:
-                ServerTeam tmp;
+                Team tmp;
                 if (aliveTeams(tmp) < 2)
                     return TurnState.waitForSilence;
                 if (!engine.checkForActivity) {
@@ -221,7 +221,7 @@ class ModeTurnbased : Gamemode {
                 if (wait(cNextRoundWait, 0, false) && logic.isIdle()) {
                     waitReset(0);
                     //check if at least two teams are alive
-                    ServerTeam firstAlive;
+                    Team firstAlive;
                     int aliveTeams = aliveTeams(firstAlive);
 
                     if (aliveTeams < 2) {
@@ -293,10 +293,10 @@ class ModeTurnbased : Gamemode {
                 waitReset!(true)(1);
                 mCleanupCtr = 2;
 
-                ServerTeam next;
+                Team next;
                 //mix teams array according to mTeamPerm
                 assert(mTeamPerm.length == logic.teams.length);
-                scope ServerTeam[] teamsP;
+                scope Team[] teamsP; //xxx: scope arrays don't work as expected
                 teamsP.length = logic.teams.length;
                 for (int i = 0; i < logic.teams.length; i++) {
                     teamsP[i] = logic.teams[mTeamPerm[i]];
@@ -307,7 +307,7 @@ class ModeTurnbased : Gamemode {
                 } else {
                     //select next team/worm
                     next = arrayFindNextPred(teamsP, mLastTeam,
-                        (ServerTeam t) {
+                        (Team t) {
                             return t.alive();
                         }
                     );
@@ -385,7 +385,7 @@ class ModeTurnbased : Gamemode {
         return mStatus;
     }
 
-    private bool doCollectTool(ServerTeamMember member,
+    private bool doCollectTool(TeamMember member,
         CollectableTool tool)
     {
         if (auto t = cast(CollectableToolDoubleTime)tool) {

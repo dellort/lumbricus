@@ -45,7 +45,7 @@ class ControllerMsgs : GamePluginAutoReg {
         Time mLastMsgTime;
         int mMessageCounter;
         GameMessage[] mPendingMessages;
-        ServerTeamMember mLastMember;
+        TeamMember mLastMember;
     }
 
     //clients register here to receive messages (not serialized)
@@ -70,7 +70,7 @@ class ControllerMsgs : GamePluginAutoReg {
         }
     }
 
-    private void onSelectWeapon(ServerTeamMember m, WeaponClass wclass) {
+    private void onSelectWeapon(TeamMember m, WeaponClass wclass) {
         //xxx just copying old code... maybe this can be extended to show
         //    grenade timer messages (like in wwp)
         /*if (wclass) {
@@ -81,7 +81,7 @@ class ControllerMsgs : GamePluginAutoReg {
         }*/
     }
 
-    private void onWormEvent(WormEvent id, ServerTeamMember m) {
+    private void onWormEvent(WormEvent id, TeamMember m) {
         switch (id) {
             case WormEvent.wormActivate:
                 messageAdd("msgwormstartmove", [m.name], m.team,
@@ -100,7 +100,7 @@ class ControllerMsgs : GamePluginAutoReg {
         }
     }
 
-    private void onTeamEvent(TeamEvent id, ServerTeam t) {
+    private void onTeamEvent(TeamEvent id, Team t) {
         switch (id) {
             case TeamEvent.skipTurn:
                 messageAdd("msgskipturn", [t.name()], t);
@@ -125,7 +125,7 @@ class ControllerMsgs : GamePluginAutoReg {
         }
     }
 
-    private void onCrateCollect(ServerTeamMember member,
+    private void onCrateCollect(TeamMember member,
         Collectable[] stuffies)
     {
         foreach (item; stuffies) {
@@ -333,7 +333,7 @@ class ControllerStats : GamePluginAutoReg {
         }
     }
 
-    private void onWormEvent(WormEvent id, ServerTeamMember m) {
+    private void onWormEvent(WormEvent id, TeamMember m) {
         switch (id) {
             case WormEvent.wormActivate:
                 log("Worm activate: {}", m);
@@ -356,7 +356,7 @@ class ControllerStats : GamePluginAutoReg {
         }
     }
 
-    private void onCrateCollect(ServerTeamMember m, Collectable[] stuffies) {
+    private void onCrateCollect(TeamMember m, Collectable[] stuffies) {
         log("{} collects crate: {}", m, stuffies);
         mStats.crateCount++;
     }
@@ -409,7 +409,7 @@ class ControllerPersistence : GamePluginAutoReg {
         //check if we have a winner
         //if the victory condition triggered, the "winner" field will be set,
         //  which can be checked by the GUI
-        ServerTeam winner;
+        Team winner;
         if (checkVictory(engine.persistentState.getStringValue("victory_type",
             cVictoryDef), winner))
         {
@@ -428,19 +428,17 @@ class ControllerPersistence : GamePluginAutoReg {
     }
 
     private void onVictory(Team winner) {
-        //xxx why Team anyway?
-        auto wst = cast(ServerTeam)winner;
         //store winner of current round
-        if (wst) {
+        if (winner) {
             engine.persistentState.setStringValue("round_winner",
-                wst.uniqueId);
+                winner.uniqueId);
         } else {
             //draw
             engine.persistentState.setStringValue("round_winner", "");
         }
     }
 
-    private void load(ServerTeam t) {
+    private void load(Team t) {
         auto node = persistNode(t);
         t.globalWins = node.getValue!(int)("global_wins", 0);
 
@@ -461,7 +459,7 @@ class ControllerPersistence : GamePluginAutoReg {
         t.doubleDmg = node.getValue("double_damage", t.doubleDmg);
     }
 
-    private void save(ServerTeam t) {
+    private void save(Team t) {
         auto node = persistNode(t);
 
         //store some team info (for GUI display)
@@ -487,7 +485,7 @@ class ControllerPersistence : GamePluginAutoReg {
     //return true if the game is over
     //xxx this does not have to be here, all needed information is in
     //    engine.persistentState
-    private bool checkVictory(char[] condition, out ServerTeam winner) {
+    private bool checkVictory(char[] condition, out Team winner) {
         //first check error cases (0 or 1 team in the game)
         //Note: even if teams surrender or leave during game, they are not
         //      removed from this list
@@ -499,7 +497,7 @@ class ControllerPersistence : GamePluginAutoReg {
         }
 
         //determine first and second by number of wins
-        ServerTeam first, second;
+        Team first, second;
         foreach (t; controller.teams) {
             if (!first || t.globalWins >= first.globalWins) {
                 second = first;
@@ -544,7 +542,7 @@ class ControllerPersistence : GamePluginAutoReg {
         return false;
     }
 
-    private ConfigNode persistNode(ServerTeam t) {
+    private ConfigNode persistNode(Team t) {
         return engine.persistentState.getSubNode("teams").getSubNode(
             t.uniqueId);
     }

@@ -392,10 +392,10 @@ class AoEDamageActionClass : AoEActionClass {
 
 class WormSelectHelper : GameObject {
     private {
-        ServerTeamMember mMember;
+        TeamMember mMember;
     }
 
-    this(GameEngine eng, ServerTeamMember member) {
+    this(GameEngine eng, TeamMember member) {
         super(eng);
         mMember = member;
         assert(!!mMember);

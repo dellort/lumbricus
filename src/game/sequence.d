@@ -70,6 +70,37 @@ class SequenceStateList {
     }
 }
 
+//this emulates Delphi style virtual constructors
+//in Delphi, this would just be a class variable of T (or whatever it's called)
+//if you think this is too convoluted, send me hate-mail
+//T = class type common to all objects constructed (e.g. Object)
+//Params = parameter types for the constructor call
+struct VirtualCtor(T, Params...) {
+    private {
+        ClassInfo mInfo;
+        T delegate(Params p) mCtor;
+    }
+
+    static VirtualCtor Init(T2 : T)() {
+        VirtualCtor res;
+        res.mInfo = T2.classinfo;
+        res.mCtor = (Params p) { T r = new T2(p); return r; };
+        return res;
+    }
+
+    T ctor(Params p) {
+        return mCtor(p);
+    }
+
+    ClassInfo classinfo() {
+        return mInfo;
+    }
+}
+
+//the object type that can created by this is a class derived from StateDisplay
+//the ctor of that class takes a Sequence parameter
+alias VirtualCtor!(StateDisplay, Sequence) DisplayType;
+
 ///static data about a single state
 ///(at least used as a handle for the state by the Sequence owner... could use a
 /// a simple string to identify the state, but I haet simple strings)
@@ -124,8 +155,11 @@ class SequenceState {
         }
     }
 
-    abstract bool displayObjectOk(StateDisplay o);
-    abstract StateDisplay createDisplayObject(Sequence owner);
+    private final bool displayObjectOk(StateDisplay o) {
+        return getDisplayType().classinfo is o.classinfo;
+    }
+
+    protected abstract DisplayType getDisplayType();
 
     this(GameEngine a_engine, char[] name) {
         engine = a_engine;
@@ -136,8 +170,11 @@ class SequenceState {
     }
 }
 
+//xxx: what's the point of this class? why not use physics or sprite directly?
+//     or make the sprite update the sequence fields
+//   - and all of WormSequenceUpdate could be merged into this
 class SequenceUpdate {
-    Vector2i position;
+    Vector2f position;
     Vector2f velocity;
     float rotation_angle; //worm itself, always 0 .. PI*2
     float lifePercent;  //percent of initial life remaining, may go > 1.0
@@ -177,28 +214,16 @@ class Sequence {
         StateDisplay mDisplay;
         StateDisplay mOthers;
         SequenceUpdate mUpdate;
-        Team mOwner; //xxx make this go away
-
-        static SequenceUpdate nullUpdate;
+        TeamTheme mOwner; //xxx make this go away
     }
 
-    this(GameEngine a_engine, Team owner) {
+    this(GameEngine a_engine, SequenceUpdate v, TeamTheme owner) {
         engine = a_engine;
-        //to simplify things (no null check required)
-        if (!nullUpdate)
-            nullUpdate = new SequenceUpdate();
-        mUpdate = nullUpdate;
+        mUpdate = v;
         mOwner = owner;
     }
 
     this (ReflectCtor c) {
-    }
-
-    ///modify position etc.; uses only information for which sth. is implemented
-    ///(e.g. it won't use velocity most time)
-    void setUpdater(SequenceUpdate v) {
-        assert (!!v);
-        mUpdate = v;
     }
 
     ///query current position etc. - fields change as the simulation progresses
@@ -208,7 +233,7 @@ class Sequence {
     }
 
     //only for "compatibility" (needs to be changed anyway)
-    Graphic graphic() {
+    SceneObject graphic() {
         return mDisplay ? mDisplay.graphic : null;
     }
 
@@ -236,7 +261,7 @@ class Sequence {
         return mDisplay ? mDisplay.getCurrentState() : null;
     }
 
-    ///initiate state change, which might be changed lazily
+    ///initiate state change, which might be executed lazily
     ///only has an effect if the state is different from the currently targeted
     ///state
     public void setState(SequenceState state) {
@@ -265,7 +290,7 @@ class Sequence {
             mQueuedState = null;
             setDisplay(state);
             mDisplay.enterState(state);
-        } else if (curstate && play_leave) { //yyy
+        } else if (curstate && play_leave) {
             //current -> leave
             mQueuedState = state;
             mDisplay.leaveState();
@@ -303,7 +328,7 @@ class Sequence {
             mDisplay = *cur;
             *cur = (*cur).mNext;
         } else {
-            mDisplay = newstate.createDisplayObject(this);
+            mDisplay = newstate.getDisplayType().ctor(this);
         }
         assert (newstate.displayObjectOk(mDisplay));
         mDisplay.enable();
@@ -345,16 +370,16 @@ class StateDisplay {
     void disable() {
     }
 
-    abstract Graphic graphic();
+    abstract SceneObject graphic();
 
-    Time now() {
+    final Time now() {
         return owner.engine.gameTime.current();
     }
 }
 
 //(only creates and keeps the animation thing)
 class AniStateDisplay : StateDisplay {
-    AnimationGraphic mAnimator;
+    RenderAnimation mAnimator;
 
     this (Sequence a_owner) {
         super(a_owner);
@@ -366,15 +391,16 @@ class AniStateDisplay : StateDisplay {
 
     //xxx this is incredibly stupid
     override void enable() {
-        mAnimator = new AnimationGraphic(owner.mOwner);
-        owner.engine.graphics.add(mAnimator);
+        mAnimator = new RenderAnimation(owner.engine, owner.mUpdate,
+            owner.mOwner);
+        owner.engine.scene.add(mAnimator);
     }
     override void disable() {
         mAnimator.remove();
         mAnimator = null;
     }
 
-    Graphic graphic() {
+    SceneObject graphic() {
         return mAnimator;
     }
 }
@@ -437,7 +463,7 @@ class NapalmStateDisplay : AniStateDisplay {
                     cast(int)(new_animation.duration.msecs))));
             last_animation = new_animation;
         }
-        mAnimator.update(v.position, params);
+        mAnimator.params = params;
     }
 }
 
@@ -461,12 +487,8 @@ class NapalmState : SequenceState {
         super(c);
     }
 
-    bool displayObjectOk(StateDisplay o) {
-        return !!cast(NapalmStateDisplay)o;
-    }
-
-    StateDisplay createDisplayObject(Sequence owner) {
-        return new NapalmStateDisplay(owner);
+    override DisplayType getDisplayType() {
+        return DisplayType.Init!(NapalmStateDisplay);
     }
 }
 
@@ -483,7 +505,7 @@ class WormStateDisplay : AniStateDisplay {
     //for turnaround
     int mSideFacing;
     //only for jetpack
-    AnimationGraphic[2] mJetFlames;
+    RenderAnimation[2] mJetFlames;
     Time[2] mJetFlamesStart;
 
     this (Sequence a_owner) {
@@ -705,36 +727,31 @@ class WormStateDisplay : AniStateDisplay {
         AnimationParams p;
         p.p1 = cast(int)(mAngles[0]/math.PI*180);
         p.p2 = cast(int)(mAngles[1]/math.PI*180);
-        mAnimator.update(v.position, p);
-        mAnimator.more = v;
+        mAnimator.params = p;
         //all updates for jetpack flames
         //why is the jetpack so ridiculously complicated?
         if (!state.is_jetpack) {
             if (mJetFlames[0]) {
                 mJetFlames[0].remove();
                 mJetFlames[1].remove();
-                mJetFlames[] = null;
+                //mJetFlames[] = null;
             }
         } else if (wsu) {
-            if (!mJetFlames[0]) {
-                foreach (ref jf; mJetFlames) {
-                    jf = new AnimationGraphic();
-                    owner.engine.graphics.add(jf);
-                }
-            }
-            mJetFlames[0].update(v.position, p);
-            mJetFlames[1].update(v.position, p);
             bool[2] down;
             down[0] = wsu.selfForce.x != 0;
             down[1] = wsu.selfForce.y < 0;
             Time t = now();
-            //for each direction, do the following: if the expected state does
-            //not equal the needed animation, reverse the current animation, so
-            //that the flame looks looks like it e.g. grows back
-            //the animation start time is adjusted so that the switch to the
-            //reversed animation is seamless
-            for (int n = 0; n < 2; n++) {
-                AnimationGraphic cur = mJetFlames[n];
+            foreach (int n, ref cur; mJetFlames) {
+                if (!cur)
+                    cur = new RenderAnimation(owner.engine, v);
+                if (!cur.parent)
+                    owner.engine.scene.add(cur);
+                cur.params = p;
+                //for each direction: if the expected state does not equal the
+                //needed animation, reverse the current animation, so
+                //that the flame looks looks like it e.g. grows back
+                //the animation start time is adjusted so that the switch to the
+                //reversed animation is seamless
                 auto needed = down[n] ? state.flames[n] : state.rflames[n];
                 if (!cur.animation) {
                     //so that the last frame is displayed
@@ -852,12 +869,8 @@ class WormState : SequenceState {
         seqs[type] = n;
     }
 
-    bool displayObjectOk(StateDisplay o) {
-        return !!cast(WormStateDisplay)o;
-    }
-
-    StateDisplay createDisplayObject(Sequence owner) {
-        return new WormStateDisplay(owner);
+    override DisplayType getDisplayType() {
+        return DisplayType.Init!(WormStateDisplay);
     }
 }
 

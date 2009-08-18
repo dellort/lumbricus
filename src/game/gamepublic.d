@@ -9,8 +9,11 @@ module game.gamepublic;
 import framework.i18n : LocalizedMessage;
 import framework.framework;
 import framework.timesource;
+import common.scene;
 import game.animation;
 import game.gfxset;
+import game.game;
+import game.controller; //: Team, TeamMember
 //import game.glevel;
 import game.weapon.types;
 import game.weapon.weapon;
@@ -24,6 +27,8 @@ import utils.time;
 import utils.list2;
 import utils.md;
 import utils.reflection;
+
+import tango.math.Math : PI;
 
 //lol compiler breaks horribly with this selective import uncommented
 import game.sequence;// : SequenceUpdate;
@@ -87,15 +92,176 @@ class GameConfig {
     }
 }
 
+
+enum GameZOrder {
+    Invisible = 0,
+    Background,
+    BackLayer,
+    BackWater,
+    Landscape,
+    LevelWater,  //water before the level, but behind drowning objects
+    Objects,
+    Names,       //stuff drawn by gameview.d
+    Crosshair,
+    Effects, //whatw as that
+    Particles,
+    Clouds,
+    FrontWater,
+    RangeArrow,  //object-off-level-area arrow
+    Splat,   //Fullscreen effect
+}
+
+//somehow I'd prefer this to be in a struct, but all the wiring and glue is
+//  simpler when this is a separate object
+//NOTE: if you need something simpler, just use Animator (or Sequence)
+//xxx: maybe the actual interpolation code should be moved into SequenceUpdate?
+//     would make sense, because Sequence is actually the thing to be used,
+//     while animations are just low level graphic parts of an object
+//   - also, this would make interpolation code usable by other graphic types
+//   - or this class should be merged directly into Sequence
+class RenderAnimation : SceneObject {
+    //transient/indeterministic interpolation state
+    //just in a struct to make this more clear (and simpler to register)
+    struct Interpolate {
+        Vector2i pos;
+    }
+
+    private {
+        GameEngine mOwner; //especially for gameTime
+        Time mStart; //engine time when animation was started
+        Interpolate mIP;
+        Animation mAnimation;
+        //xxx hack
+        //- gameview.d: read rotation (whether worm is faced left or right)
+        //- out of level arrows need velocity
+        //and now:
+        //- used to actually store the position, lol.
+        //- velocity for interpolation
+        SequenceUpdate mMore;
+        //xxx hack
+        //- camera needs this to know if this object is a worm
+        //  (or some weapon fired by a worm)
+        //- out-of-level arrow animation
+        TeamTheme mOwnerTeam;
+    }
+
+    AnimationParams params;
+    bool auto_remove;
+
+    //xxx for now just for the camera, might be subject to change
+    Time last_position_change; //actually, need time of last "action"?
+
+    this (GameEngine a_owner, SequenceUpdate su, TeamTheme ownerTeam = null) {
+        assert(!!su);
+        mOwner = a_owner;
+        mMore = su;
+        mOwnerTeam = ownerTeam;
+
+        zorder = GameZOrder.Objects;
+    }
+    this (ReflectCtor c) {
+        super(c);
+        c.transient(this, &mIP);
+    }
+
+    private Time now() {
+        return mOwner.gameTime.current();
+    }
+
+    final SequenceUpdate more() {
+        return mMore;
+    }
+
+    final TeamTheme owner_team() {
+        return mOwnerTeam;
+    }
+
+    final Animation animation() {
+        return mAnimation;
+    }
+
+    //return the interpolated position
+    final Vector2i draw_pos() {
+        return mIP.pos;
+    }
+
+    override void draw(Canvas c) {
+        if (!mAnimation)
+            return;
+
+        if (auto_remove && hasFinished()) {
+            remove();
+            return;
+        }
+
+        const cInterpolate = true;
+
+        static if (cInterpolate) {
+            Time itime = mOwner.callbacks.interpolateTime.current;
+            Time diff = itime - now();
+            Vector2i ipos = toVector2i(
+                mMore.position + mMore.velocity * diff.secsf);
+        } else {
+            Time itime = now();
+            Vector2i ipos = toVector2i(mMore.position);
+        }
+
+        mIP.pos = ipos;
+
+        mAnimation.draw(c, ipos, params, itime - mStart);
+
+        auto arrow = mOwnerTeam ? mOwnerTeam.cursor : null;
+        if (arrow) {
+            //if object is out of world boundaries, show arrow
+            //xxx actually, Sequence should be doing this
+            Rect2i worldbounds = mOwner.level.worldBounds;
+            if (!worldbounds.isInside(ipos) && ipos.y < worldbounds.p2.y) {
+                auto posrect = worldbounds;
+                posrect.extendBorder(Vector2i(-20));
+                auto apos = posrect.clip(ipos);
+                //use object velocity for arrow rotation
+                int a = 90;
+                if (mMore.velocity.quad_length > float.epsilon)
+                    a = cast(int)(mMore.velocity.toAngle()*180.0f/PI);
+                AnimationParams aparams;
+                //arrow animation seems rotated by 180° <- no it's not!!1
+                aparams.p1 = (a+180)%360;
+                //arrows used to have zorder GameZOrder.RangeArrow
+                //now they have the zorder of the object; I think it's ok
+                arrow.draw(c, apos, aparams, itime - mStart);
+            }
+        }
+    }
+
+    final void setAnimation(Animation a_animation, Time startAt = Time.Null) {
+        mAnimation = a_animation;
+        mStart = now() + startAt;
+    }
+
+    final bool hasFinished() {
+        if (!mAnimation)
+            return true;
+        return mAnimation.finished(now() - mStart);
+    }
+
+    final Time animation_start() {
+        return mStart;
+    }
+
+    final void remove() {
+        removeThis();
+    }
+}
+
 //blergh
 class GameEngineGraphics {
-    GameEnginePublic engine;
+    GameEngine engine;
     //add_objects is for the client engine, to get to know about new objects
     ObjectList!(Graphic, "node") objects;
     //== engine.gameTime()
     TimeSourcePublic timebase;
 
-    this (GameEnginePublic a_engine) {
+    this (GameEngine a_engine) {
         objects = new typeof(objects);
         engine = a_engine;
         timebase = engine.gameTime;
@@ -141,103 +307,6 @@ abstract class Graphic {
     }
 }
 
-class AnimationGraphic : Graphic {
-    Animation animation;
-    Time animation_start;
-    int set_timestamp; //incremented everytime the animation is reset
-    //xxx use SequenceUpdate directly?
-    Vector2i pos;
-    AnimationParams params;
-    //xxx this is a hack only to make something in gameview.d work again
-    //    I don't know what we really should do here etc....
-    //    maybe make Sequence a "client" object again?
-    SequenceUpdate more;
-
-    //xxx for now just for the camera, might be subject to change
-    Team owner_team;
-    Time last_position_change; //actually, need time of last "action"?
-
-    this (Team ownerTeam = null) {
-        owner_team = ownerTeam;
-    }
-    this (ReflectCtor c) {
-        super(c);
-    }
-
-    final void update(Vector2i a_pos, AnimationParams a_params) {
-        assert(!!owner);
-        if (pos != a_pos) {
-            pos = a_pos;
-            last_position_change = owner.timebase.current();
-        }
-        if (params != a_params) {
-            params = a_params;
-            last_position_change = owner.timebase.current();
-        }
-    }
-    final void update(Vector2i a_pos) {
-        pos = a_pos;
-    }
-
-    final void setAnimation(Animation a_animation, Time startAt = Time.Null) {
-        assert(!!owner);
-        animation = a_animation;
-        animation_start = owner.timebase.current() + startAt;
-        set_timestamp++;
-    }
-
-    //don't know if this is consistent with Animator.hasFinished()
-    //but here, it returns true if currently a frame is displayed
-    //stupid code duplication with common.animation
-    final bool hasFinished() {
-        assert(!!owner);
-        if (!animation)
-            return true;
-        if (animation.repeat || animation.keepLastFrame)
-            return false;
-        return (owner.timebase.current
-            >= animation_start + animation.duration());
-    }
-}
-
-class LineGraphic : Graphic {
-    Vector2i p1, p2;
-    Color color;
-    int width = 1;
-    Surface texture;
-    int texoffset = 0;
-
-    this () {
-    }
-    this (ReflectCtor c) {
-        super(c);
-    }
-
-    void setPos(Vector2i a_p1, Vector2i a_p2) {
-        p1 = a_p1;
-        p2 = a_p2;
-    }
-
-    void setWidth(int w) {
-        width = w;
-    }
-
-    void setColor(Color c) {
-        color = c;
-    }
-
-    //if the backend is OpenGL, use a texture instead of the color to draw
-    //the line; the line is as thick as the height of tex
-    //both the color and the line width are ignored
-    //SDL still will use the color to actually draw the line
-    void setTexture(Surface tex) {
-        texture = tex;
-    }
-    void setTextureOffset(int offs) {
-        texoffset = offs;
-    }
-}
-
 class CrosshairGraphic : Graphic {
     TeamTheme theme;
     SequenceUpdate attach; //where position and angle are read from
@@ -262,22 +331,6 @@ class CrosshairGraphic : Graphic {
     }
 }
 
-class LandscapeGraphic : Graphic {
-    LandscapeBitmap shared; //special handling when the game is saved
-    Vector2i pos;
-
-    this (Vector2i pos, LandscapeBitmap shared) {
-        this.pos = pos;
-        this.shared = shared;
-    }
-    this (ReflectCtor c) {
-        super(c);
-    }
-
-    //pos is in world coordinates for both methods
-    //void damage(Vector2i pos, int radius);
-    //void insert(Vector2i pos, Surface bitmap);
-}
 
 class TextGraphic : Graphic {
     char[] msgMarkup;
@@ -303,45 +356,6 @@ class TextGraphic : Graphic {
 }
 
 
-///GameEngine public interface
-interface GameEnginePublic {
-    ///current water offset
-    int waterOffset();
-
-    ///current wind speed
-    float windSpeed();
-
-    ///return how strong the earth quake is, 0 if no earth quake active
-    float earthQuakeStrength();
-
-    ///level being played, must not modify returned object
-    Level level();
-
-    ///game configuration, must not modify returned object
-    GameConfig config();
-
-    ///game resources, must not modify returned object
-    GfxSet gfx();
-
-    ///xxx really should return a level (both server and client should have it)
-    ///total size of game world and camera start
-    Vector2i worldSize();
-    Vector2i worldCenter();
-
-    ///return the GameLogic singleton
-    GameLogicPublic logic();
-
-    GameEngineGraphics getGraphics();
-
-    GameEngineCallback callbacks();
-
-    //carries time of last network update in networking case, I guess?
-    TimeSourcePublic gameTime();
-
-    ///list of _all_ possible weapons, which are useable during the game
-    ///Team.getWeapons() must never return a Weapon not covered by this list
-    WeaponClass[] weaponList();
-}
 
 ///calls from engine into clients
 ///for stuff that can't simply be polled
@@ -360,110 +374,15 @@ class GameEngineCallback {
     MDelegate!(Graphic) removeGraphic;
 
     MDelegate!() nukeSplatEffect;
-    MDelegate!(Animation, Vector2i, AnimationParams) animationEffect;
 
+    //looks like I'm turning this into a dumping ground for other stuff
+
+    //for transient effects
     ParticleWorld particleEngine;
+    Scene scene;
+
+    //used for interpolated/extrapolated drawing (see GameShell.frame())
+    //NOTE: changes in arbitrary way on replays (restoring snapshots)
+    TimeSourcePublic interpolateTime;
 }
-
-///interface to the server's GameLogic
-///the server can have this per-client to do client-specific actions
-///it's not per-team
-///xxx: this looks as if it work only work
-interface GameLogicPublic {
-
-    ///all participating teams (even dead ones)
-    Team[] getTeams();
-
-    char[] gamemode();
-
-    ///True if game has ended
-    bool gameEnded();
-
-    ///Status of selected gamemode (may contain timing, scores or whatever)
-    Object gamemodeStatus();
-
-    ///Request interface to a plugin; returns null if the plugin is not loaded
-    Object getPlugin(char[] id);
-}
-
-interface TeamMember {
-    char[] name();
-    Team team();
-
-    ///worm is healthy (synonym for health()>0)
-    ///can return false even if worm is still shown on the screen
-    bool alive();
-
-    ///if there's at least one TeamMemberControl which refers to this (?)
-    bool active();
-
-    ///might be under 0
-    ///the controller updates this from time to time, so it probably doesn't
-    ///reflect the real situation
-    int currentHealth();
-
-    ///last time this worm did an action (or so)
-    Time lastAction();
-
-    ///animation state, or something
-    WormAniState wormState();
-
-    WeaponClass getCurrentWeapon();
-    ///show the weapon as an icon near the worm; used when the weapon can not be
-    ///displayed directly (like when worm is on a jetpack)
-    bool displayWeaponIcon();
-
-    //messy, I decided this is always the controlled thing
-    //(not always worm itself, e.g. this can point to a super sheep)
-    Graphic getGraphic();
-    Graphic getControlledGraphic();
-}
-
-//a trivial list of weapons and quantity
-alias WeaponListItem[] WeaponList;
-struct WeaponListItem {
-    WeaponClass type;
-    //quantity or the magic value QUANTITY_INFINITE if unrestricted amount
-    int quantity;
-    //if weapon is allowed by the game controller (e.g. no airstrikes in caves)
-    bool enabled;
-
-    //value is guaranteed to be an int > 0
-    const int QUANTITY_INFINITE = int.max;
-
-    ///return if a weapon is available
-    //warning: rarely used, does not define when weapon is really available
-    bool available() {
-        return enabled && (quantity > 0);
-    }
-}
-
-interface Team {
-    char[] name();
-    char[] id();
-    TeamTheme color();
-
-    ///at least one member with active() == true
-    bool active();
-
-    /// weapons of this team, always up-to-date
-    /// might return null if it's "private" and you shouldn't see it
-    WeaponList getWeapons();
-
-    TeamMember[] getMembers();
-
-    ///currently active worm, null if none
-    TeamMember getActiveMember();
-
-    ///is it possible to choose another worm (tab key)
-    bool allowSelect();
-
-    ///wins so far; normally incremented for the winner team on game end
-    int globalWins();
-
-    bool hasCrateSpy();
-
-    bool hasDoubleDamage();
-}
-
 

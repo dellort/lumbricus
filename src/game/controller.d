@@ -2,6 +2,7 @@ module game.controller;
 
 import common.animation;
 import common.common;
+import common.scene;
 import framework.commandline;
 import game.game;
 import game.gfxset;
@@ -13,6 +14,7 @@ import game.weapon.types;
 import game.weapon.weapon;
 import game.gamepublic;
 import game.temp;
+import game.sequence;
 import game.gamemodes.base;
 import game.controller_events;
 import physics.world;
@@ -37,7 +39,7 @@ interface Controllable {
     GObjectSprite getSprite();
 }
 
-class ServerTeam : Team {
+class Team {
     char[] mName = "unnamed team";
     TeamTheme teamColor;
     int gravestone;
@@ -50,16 +52,15 @@ class ServerTeam : Team {
     bool forcedFinish;
 
     private {
-        ServerTeamMember[] mMembers;  //all members (will not change in-game)
-        TeamMember[] mMembers2;
-        ServerTeamMember mCurrent;  //active worm that will receive user input
-        ServerTeamMember mLastActive;  //worm that played last (to choose next)
+        TeamMember[] mMembers;  //all members (will not change in-game)
+        TeamMember mCurrent;  //active worm that will receive user input
+        TeamMember mLastActive;  //worm that played last (to choose next)
         bool mActive;         //is this team playing?
         bool mOnHold;
 
         //if you can click anything, if true, also show that animation
         PointMode mPointMode;
-        AnimationGraphic mCurrentTargetInd;
+        Animator mCurrentTargetInd;
 
         Vector2f movementVec = {0, 0};
         bool mAlternateControl;
@@ -82,10 +83,9 @@ class ServerTeam : Team {
         //graveStone = node.getIntValue("grave", 0);
         //the worms currently aren't loaded by theirselves...
         foreach (char[] name, char[] value; node.getSubNode("member_names")) {
-            auto worm = new ServerTeamMember(value, this);
+            auto worm = new TeamMember(value, this);
             mMembers ~= worm;
         }
-        mMembers2 = arrayCastCopyImplicit!(TeamMember, ServerTeamMember)(mMembers);
         //xxx error handling
         weapons = parent.initWeaponSet(node["weapon_set"]);
         //what's a default weapon? I don't know, so I can't bring it back
@@ -137,24 +137,8 @@ class ServerTeam : Team {
         return h;
     }
 
-    WeaponList getWeapons() {
-        //convert WeaponSet to WeaponList
-        WeaponItem[] items = weapons.weapons.values;
-        WeaponList list;
-        foreach (item; items) {
-            WeaponListItem nitem;
-            nitem.type = item.weapon;
-            nitem.quantity = item.infinite ?
-                WeaponListItem.QUANTITY_INFINITE : item.count;
-            nitem.enabled = item.canUse();
-            if (nitem.quantity > 0)
-                list ~= nitem;
-        }
-        return list;
-    }
-
     TeamMember[] getMembers() {
-        return mMembers2;
+        return mMembers;
     }
 
     TeamMember getActiveMember() {
@@ -212,19 +196,19 @@ class ServerTeam : Team {
     }
 
     private void placeMembers() {
-        foreach (ServerTeamMember m; mMembers) {
+        foreach (TeamMember m; mMembers) {
             m.place();
         }
     }
 
     //wraps around, if w==null, return first element, if any
-    private ServerTeamMember doFindNext(ServerTeamMember w) {
+    private TeamMember doFindNext(TeamMember w) {
         return arrayFindNext(mMembers, w);
     }
 
-    ServerTeamMember findNext(ServerTeamMember w, bool must_be_alive = false) {
+    TeamMember findNext(TeamMember w, bool must_be_alive = false) {
         return arrayFindNextPred(mMembers, w,
-            (ServerTeamMember t) {
+            (TeamMember t) {
                 return !must_be_alive || t.alive;
             }
         );
@@ -232,7 +216,7 @@ class ServerTeam : Team {
 
     ///activate a member for playing
     ///only for a member, not the team, use setActive for team
-    void current(ServerTeamMember cur) {
+    void current(TeamMember cur) {
         if (cur is mCurrent)
             return;
         if (mCurrent)
@@ -245,7 +229,7 @@ class ServerTeam : Team {
         }
     }
     ///get active member (can be null)
-    ServerTeamMember current() {
+    TeamMember current() {
         return mCurrent;
     }
 
@@ -314,7 +298,7 @@ class ServerTeam : Team {
 
     ///get the worm that would be next-in-row to move
     ///returns null if none left
-    ServerTeamMember nextActive() {
+    TeamMember nextActive() {
         return findNext(mLastActive, true);
     }
 
@@ -335,7 +319,7 @@ class ServerTeam : Team {
         return "[team '" ~ name ~ "']";
     }
 
-    int opApply(int delegate(inout ServerTeamMember member) del) {
+    int opApply(int delegate(inout TeamMember member) del) {
         foreach (m; mMembers) {
             int res = del(m);
             if (res)
@@ -383,15 +367,11 @@ class ServerTeam : Team {
                 //fall-through
             case PointMode.target:
                 //X animation
-                auto t = new AnimationGraphic();
-                parent.engine.graphics.add(t);
-                t.setAnimation(color.pointed);
-                t.update(toVector2i(currentTarget.currentPos));
-                setIndicator(t);
+                setIndicator(color.pointed, currentTarget.currentPos);
                 break;
             case PointMode.instant, PointMode.instantFree:
                 //click effect
-                parent.engine.callbacks.animationEffect(color.click,
+                parent.engine.animationEffect(color.click,
                     toVector2i(where), AnimationParams.init);
 
                 //instant mode -> fire and forget
@@ -403,12 +383,19 @@ class ServerTeam : Team {
                 assert(false);
         }
     }
-    private void setIndicator(AnimationGraphic ind) {
+    private void setIndicator(Animation ani, Vector2f pos = Vector2f.init) {
         //only one cross indicator
         if (mCurrentTargetInd) {
-            mCurrentTargetInd.remove();
+            mCurrentTargetInd.removeThis();
+            mCurrentTargetInd = null;
         }
-        mCurrentTargetInd = ind;
+        if (!ani)
+            return;
+        mCurrentTargetInd = new Animator(parent.engine.gameTime);
+        mCurrentTargetInd.pos = toVector2i(pos) ;
+        mCurrentTargetInd.setAnimation(ani);
+        mCurrentTargetInd.zorder = GameZOrder.Crosshair; //this ok?
+        parent.engine.scene.add(mCurrentTargetInd);
     }
 
     //select (and draw) a weapon by its id
@@ -439,11 +426,12 @@ class ServerTeam : Team {
         if (mCurrentTargetInd) {
             if (targetIsSet && currentTarget.sprite) {
                 //worm tracking
-                mCurrentTargetInd.update(toVector2i(currentTarget.currentPos));
+                mCurrentTargetInd.pos = toVector2i(currentTarget.currentPos);
             }
-            if (mCurrentTargetInd.hasFinished()) {
-                setIndicator(null);
-            }
+            //unused?
+            //if (mCurrentTargetInd.readyflag()) {
+            //    setIndicator(null);
+            //}
         }
 
         bool has_active_worm;
@@ -517,8 +505,8 @@ class ServerTeam : Team {
 }
 
 //member of a team, currently (and maybe always) capsulates a WormSprite object
-class ServerTeamMember : TeamMember, WormController {
-    ServerTeam mTeam;
+class TeamMember : WormController {
+    Team mTeam;
     char[] mName = "unnamed worm";
 
     private {
@@ -540,7 +528,7 @@ class ServerTeamMember : TeamMember, WormController {
         Controllable[] mControlStack;
     }
 
-    this(char[] a_name, ServerTeam a_team) {
+    this(char[] a_name, Team a_team) {
         this.mName = a_name;
         this.mTeam = a_team;
         mEngine = mTeam.parent.engine;
@@ -587,14 +575,16 @@ class ServerTeamMember : TeamMember, WormController {
         return mCurrentHealth;
     }
 
-    Graphic getGraphic() {
+    //xxx: probably replace by something better
+
+    SceneObject getGraphic() {
         if (sprite && sprite.graphic) {
             return sprite.graphic.graphic;
         }
         return null;
     }
 
-    Graphic getControlledGraphic() {
+    SceneObject getControlledGraphic() {
         auto spr = sprite;
         if (mControlStack.length > 0)
             spr = mControlStack[$-1].getSprite();
@@ -1107,7 +1097,7 @@ class ServerTeamMember : TeamMember, WormController {
         return false;
     }
 
-    ServerTeam serverTeam() {
+    Team serverTeam() {
         return mTeam;
     }
 
@@ -1284,17 +1274,14 @@ class WeaponItem {
 //events into worm moves (or weapon moves!), controlls which object is focused
 //by the "camera", and also manages worm teams
 //xxx: move gui parts out of this
-class GameController : GameLogicPublic {
+class GameController {
     private {
         GameEngine mEngine;
         static LogStruct!("game.controller") log;
 
-        ServerTeam[] mTeams;
+        Team[] mTeams;
 
-        //same as mTeams, but array of another type (for gamepublic.d)
-        Team[] mTeams2;
-
-        ServerTeamMember[GameObject] mGameObjectToMember;
+        TeamMember[GameObject] mGameObjectToMember;
 
         //xxx for loading only
         ConfigNode[char[]] mWeaponSets;
@@ -1324,7 +1311,7 @@ class GameController : GameLogicPublic {
     ControllerEvents events;
 
     //when a worm collects a tool from a crate
-    ChainDelegate!(ServerTeamMember, CollectableTool) collectTool;
+    ChainDelegate!(TeamMember, CollectableTool) collectTool;
 
     this(GameEngine engine, GameConfig config) {
         mEngine = engine;
@@ -1371,22 +1358,26 @@ class GameController : GameLogicPublic {
 
     //--- start GameLogicPublic
 
+    ///all participating teams (even dead ones)
     Team[] getTeams() {
-        return mTeams2;
+        return mTeams;
     }
 
     char[] gamemode() {
         return mGamemodeId;
     }
 
+    ///True if game has ended
     bool gameEnded() {
         return mGamemode.ended;
     }
 
+    ///Status of selected gamemode (may contain timing, scores or whatever)
     Object gamemodeStatus() {
         return mGamemode.getStatus;
     }
 
+    ///Request interface to a plugin; returns null if the plugin is not loaded
     Object getPlugin(char[] id) {
         return aaIfIn(mPluginLookup, id);
     }
@@ -1492,12 +1483,12 @@ class GameController : GameLogicPublic {
         return false;
     }
 
-    ServerTeam[] teams() {
+    Team[] teams() {
         return mTeams;
     }
 
     //this function now is no longer special, can use t.setActive directly
-    void activateTeam(ServerTeam t, bool active = true) {
+    void activateTeam(Team t, bool active = true) {
         t.setActive(active);
     }
 
@@ -1520,13 +1511,12 @@ class GameController : GameLogicPublic {
         foreach (ConfigNode sub; config) {
             addTeam(sub);
         }
-        mTeams2 = arrayCastCopyImplicit!(Team, ServerTeam)(mTeams);
         placeWorms();
     }
 
     //config = the "teams" node, i.e. from data/data/teams.conf
     private void addTeam(ConfigNode config) {
-        auto team = new ServerTeam(config, this);
+        auto team = new Team(config, this);
         mTeams ~= team;
     }
 
@@ -1625,7 +1615,7 @@ class GameController : GameLogicPublic {
     //associate go with member; used i.e. for who-damages-who reporting
     //NOTE: tracking membership of projectiles generated by worms works slightly
     //  differently (projectiles form a singly linked list to who fired them)
-    void addMemberGameObject(ServerTeamMember member, GameObject go) {
+    void addMemberGameObject(TeamMember member, GameObject go) {
         //NOTE: the GameObject stays in this AA for forever
         //  in some cases, it could be released again (i.e. after a new round
         //  was started)
@@ -1633,7 +1623,7 @@ class GameController : GameLogicPublic {
         mGameObjectToMember[go] = member;
     }
 
-    ServerTeamMember memberFromGameObject(GameObject go, bool transitive) {
+    TeamMember memberFromGameObject(GameObject go, bool transitive) {
         //typically, GameObject is transitively (consider spawning projectiles!)
         //created by a Worm
         //"victim" from reportViolence should be directly a Worm
@@ -1699,8 +1689,7 @@ class GameController : GameLogicPublic {
     //           prevent message spam)
     bool dropCrate(bool silent = false) {
         Vector2f from, to;
-        float water = engine.waterOffset - 10;
-        if (!engine.placeObjectRandom(water, 10, 25, from, to)) {
+        if (!engine.placeObjectRandom(10, 25, from, to)) {
             log("couldn't find a safe drop-position");
             return false;
         }
@@ -1725,7 +1714,7 @@ class GameController : GameLogicPublic {
             mLastCrate.unParachute();
     }
 
-    private bool doCollectTool(ServerTeamMember collector, CollectableTool tool)
+    private bool doCollectTool(TeamMember collector, CollectableTool tool)
     {
         if (auto t = cast(CollectableToolCrateSpy)tool) {
             collector.serverTeam.addCrateSpy();

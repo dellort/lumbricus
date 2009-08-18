@@ -6,16 +6,6 @@
 [] wurde versucht, aber nur kompromiss wurde implementiert oder es hat nicht geklappt
 
 == RFCs (d.h. blablabla) ==
-- kann sdl_sound nicht verwenden, weil sdl_sound anscheinend die länge der musik nicht
-  zurückgibt => problem für "streaming" (nicht alles beim laden dekodiert)
-  abhilfe:
-  - musik (einige anwendung von "streaming") liefert ungültige länge zurück
-  - die musik wird beim laden stückweise dekodiert, und die samples dabei
-    weggeworfen => länge kann schnell (?) ausgerechnet werden
-  + wozu brauchen wir die Musik-Länge überhaupt? Musik läuft nur im Hintergrund, bis man
-    am Ende ankommt. Seeken könnte aber ein Problem werden
-  + wir könnten auch einfach ffmpeg/libav* verwenden, der Code ist fertig und es gibt die
-    Länge korrekt zurück. oder gibts noch mehr Hindernisse als die 9+ MB shared libraries?
 - offensichtlich sollten alle sprites (nicht nur waffen) "events" haben, und die
   event-handler sollten in der .conf-datei deklariert werden
   1. gleich minid verwenden, und das alte action-zeug zur kompatibilität unverändert lassen?
@@ -31,24 +21,14 @@
   + schön wäre auch eine Verallgemeinerung der Events, so dass nicht nur Actions/Skripte, sondern
     auch Partikel und/oder Sounds erzeugt werden können, und das selbe System auch für 
     "GameEngine-Events" verwendet wird (z.B. ein Soundeffekt bei Spielstart, oder beim Sieg)
-- das graphik-zeug aus gamepublic.d entfernen, und stattdessen direkt in die game engine
-  verschieben?
-  - würde codebloat entfernen und wäre ein bisschen schneller
-  - integration von neuen graphik-effekten ist kein PITA mehr
-  um das zu erreichen würde man:
-  - Scene serialisierbar machen
-  - GameEngine hätte eine eigene Scene
-  - SceneZMix würde verwendet werden, um graphiken aus der client-engine und der server-engine
-    zusammenzuführen (unter berücksichtigung der z-order)
-  + Mir gefällt es nicht, so viel undeterministischen Code in GameEngine zu werfen, das erhöht
-    die Gefahr von Determinismus-Fehlern. Ich hätte dich schon für den Explosions-Partikel-Code
-    in GameEngine am liebsten geschlagen
-  + Die Trennung von Engine und Darstellung fand ich immer ganz gut und übersichtlich. Die ganzen
-    Interfaces sind allerdings irgendwie überflüssig. V.a. die Trennung Team/ServerTeam etc. nervt
-  + Andererseits ist es schon lästig, Position/Geschwindigkeit etc. immer an die Szene weiterleiten
-    zu müssen. Gerade mit Interpolation gehts aber wohl nicht anders, weil die Grafik/SceneObjects
-    dann mit einer anderen Framerate als die Engine laufen
-  zusätzlich würde ich triviale interpolation einbauen, die die bewegungen entweder
+- d0c: "Die Trennung von Engine und Darstellung fand ich immer ganz gut und übersichtlich."
+  - ok, aber sie hat nicht soviel sinn gemacht (der ganze müll in clientengine.d und gamepublic.d NUR damit der "draw(Canvas c)"-aufruf nicht im "server" ist?)
+    eher: man sollte die trennung zwischen server- und client-engine stattdessen "frontend" (teile der GUI, indeterministisch) und "backend" nennen, und soweit wie möglich in unterschiedliche vezeichnisse stecken:
+    gui/hud/, sky.d, water.d, gameshell.d, gametask.d -> src/frontend/
+    game.d, action/, weapon/, worm.d, etc. -> src/backend/
+    ?
+- interpolation...
+  die die bewegungen entweder
   a) zwischen zwei server frames interpoliert, oder
   b) nach dem letzten frame extrapoliert
   der zustand dazu könnte direkt in der server engine gespeichert werden (als transient)
@@ -63,6 +43,7 @@
 ! besser methode zum auslesen von confignodes (insbesondere mit fehlerbehandlung, so dass ungültige werte nicht still ignoriert werden, beliebige datentypen, user warnen über unbenutzte einträge; vielleicht einfach serialiaiserungscode wiederverwenden)
 - configfile.d so ändern, dass datentypen schon in den nodes/in der syntax deklariert werden? libconfig verwenden?
 + editor/debug modus: spielzeit läuft nicht ab, untersuchung/platzierung von game objekten
+- napalm fällt ins meer => partikel erzeugen (vllt. auf später aufschieben)
 
 == bekannte, lösbare Bugs ==
 - wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
@@ -72,6 +53,7 @@
 - Bohrer/Lötlampe stoßen Würmer nicht weg
 - Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
 - sound in ordnung bringen, idiotische Sample/Music trennung aufheben, SDL_sound ausprobieren, sound effekte ins spiel integrieren
+  (SDL_sound oder libavcodec sollte gehen; am besten beides als "codecs" unterstützen; SDL_sound: musiklänge wird vom spiel eh nicht gebraucht)
 
 == bekannte, unlösbare Bugs ==
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)

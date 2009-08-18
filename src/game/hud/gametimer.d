@@ -139,7 +139,7 @@ class GameTimer : Container {
                 active = true;
                 bordercolor = mGame.allMembers[m].owner.color;
                 mLabelBox.styles.setState("active",
-                    m == mGame.control.getControlledMember);
+                    m is mGame.control.getControlledMember);
                 setTurnTime(st.turnRemaining, st.timePaused);
                 setGameTime(st.gameRemaining);
             } else {

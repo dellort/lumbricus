@@ -2,6 +2,7 @@ module game.weapon.rope;
 
 import framework.framework;
 import common.resset;
+import common.scene;
 import game.game;
 import game.sprite;
 import game.weapon.weapon;
@@ -73,7 +74,7 @@ class Rope : Shooter {
         static LogStruct!("rope") log;
         bool mUsed;
         PhysicConstraint mRope;
-        LineGraphic mLine;
+        RenderRope mRender;
         bool mShooting;
         Vector2f mShootDir;
         Time mShootStart;
@@ -82,8 +83,6 @@ class Rope : Shooter {
         Sequence mAnchorGraphic;
         bool mSecondShot = false;
         const cSecondShotVector = Vector2f(0, -1000);
-        //for calculating texoffset
-        int segment_length = 1;
 
         const cSegmentRadius = 3;
         //segments go from anchor to object
@@ -95,7 +94,6 @@ class Rope : Shooter {
             //side on which the rope was hit (sign bit of scalar product)
             //(invalid for the last segment)
             bool hit;
-            LineGraphic line;
             //offset for texture, so that it is drawn continuously
             int texoffset;
 
@@ -120,10 +118,6 @@ class Rope : Shooter {
         myclass = base;
         mWorm = a_owner;
         mSeqUpdate = new SequenceUpdate();
-        if (auto tex = myclass.ropeSegment) {
-            if (tex.size.x > 0)
-                segment_length = tex.size.x;
-        }
     }
 
     this (ReflectCtor c) {
@@ -154,13 +148,6 @@ class Rope : Shooter {
         active = true;
         mShootDir = info.dir;
         shootRope();
-        /*if (!engine.physicworld.thickRay(mWorm.physics.pos, info.pointto, 3,
-            hit1, hit2))
-        {
-            hit2 = mWorm.physics.pos;
-            hit1 = info.pointto;
-        }
-        mLine2.setPos(toVector2i(hit2), toVector2i(info.pointto));*/
     }
 
     override protected bool doRefire() {
@@ -213,18 +200,19 @@ class Rope : Shooter {
             return;
         mShooting = true;
         mShootStart = engine.gameTime.current;
-        mLine = createRopeLine();
-        mAnchorGraphic = new Sequence(engine, null);
-        mAnchorGraphic.setUpdater(mSeqUpdate);
+        //xxx: 3rd parameter is TeamTheme; could get it from mWorm...
+        mAnchorGraphic = new Sequence(engine, mSeqUpdate, null);
         mAnchorGraphic.setState(myclass.anchorAnim);
+        if (!mRender)
+            mRender = new RenderRope(this);
+        engine.scene.add(mRender);
     }
 
     //abort the flying (unattached) rope
     private void abortShoot() {
         mShooting = false;
-        if (mLine)
-            mLine.remove;
-        mLine = null;
+        //if (mRender)
+          //  mRender.removeThis();
     }
 
     //abort the attached rope
@@ -237,30 +225,9 @@ class Rope : Shooter {
             return;
         mRope.dead = true;
         mRope = null;
-        foreach (ref seg; ropeSegments) {
-            segmentDead(seg);
-        }
+        mRender.removeThis();
         ropeSegments = null;
         mWorm.activateRope(null);
-    }
-
-    private void segmentDead(ref RopeSegment seg) {
-        if (seg.line)
-            seg.line.remove();
-        seg.line = null;
-    }
-
-    private LineGraphic createRopeLine() {
-        auto line = new LineGraphic();
-        line.setColor(myclass.ropeColor);
-        line.setWidth(2);
-        line.setTexture(myclass.ropeSegment);
-        engine.graphics.add(line);
-        return line;
-    }
-
-    private void segmentInit(ref RopeSegment seg) {
-        seg.line = createRopeLine();
     }
 
     private void ropeMove(Vector2f mv) {
@@ -268,7 +235,7 @@ class Rope : Shooter {
     }
 
     private void updateAnchorAnim(Vector2f pos, Vector2f toAnchor) {
-        mSeqUpdate.position = toVector2i(pos);
+        mSeqUpdate.position = pos;
         mSeqUpdate.velocity = Vector2f(0);
         mSeqUpdate.rotation_angle = toAnchor.toAngle();
         mSeqUpdate.lifePercent = 1.0f;
@@ -280,7 +247,6 @@ class Rope : Shooter {
         if (mShooting) {
             float t = (engine.gameTime.current - mShootStart).secsf;
             auto p2 = mWorm.physics.pos + mShootDir*myclass.shootSpeed*t;
-            mLine.setPos(toVector2i(mWorm.physics.pos), toVector2i(p2));
             updateAnchorAnim(p2, p2 - mWorm.physics.pos);
             float len = (mWorm.physics.pos-p2).length;
             if (len > myclass.maxLength) {
@@ -303,7 +269,7 @@ class Rope : Shooter {
                     //not using len here because the rope might have overshot
                     auto ropeLen = (ropeSegments[0].end
                         - ropeSegments[0].start).length;
-                    segmentInit(ropeSegments[0]);
+                    //segmentInit(ropeSegments[0]);
                     mRope = new PhysicConstraint(mWorm.physics, hit1, ropeLen,
                         0.8, false);
                     engine.physicworld.add(mRope);
@@ -341,7 +307,7 @@ class Rope : Shooter {
                 if (old.canRemove(wormPos)) {
                     log("remove segment");
                     //remove it
-                    segmentDead(ropeSegments[$-1]);
+                    //segmentDead(ropeSegments[$-1]);
                     ropeSegments.length = ropeSegments.length - 1;
                     ropeSegments[$-1].end = wormPos;
                     mRope.length = (wormPos - old.start).length;
@@ -378,7 +344,7 @@ class Rope : Shooter {
                     !ropeSegments[$-2].canRemove(hit1))
                 {
                     ropeSegments.length = ropeSegments.length + 1;
-                    segmentInit(ropeSegments[$-1]);
+                    //segmentInit(ropeSegments[$-1]);
                 }
                 ropeSegments[$-2].hit =
                     !!signbit((st-hit1)*(hit1-wormPos).orthogonal);
@@ -386,8 +352,6 @@ class Rope : Shooter {
                 ropeSegments[$-1].start = hit1;
                 ropeSegments[$-1].end = wormPos;
                 auto len = (wormPos - hit1).length;
-                ropeSegments[$-1].texoffset = (cast(int)len +
-                    ropeSegments[$-2].texoffset) % segment_length;
                 mRope.length = len;
                 //.hit is invalid
                 //try for more collisions or whatever
@@ -430,16 +394,47 @@ class Rope : Shooter {
             mRope.lengthChange = 0;
         }
 
-        foreach (ref seg; ropeSegments) {
-            assert (!!seg.line);
-            seg.line.setPos(toVector2i(seg.start), toVector2i(seg.end));
-            seg.line.setTextureOffset(seg.texoffset);
-        }
         mWorm.physics.forceLook(swingdir);
         updateAnchorAnim(ropeSegments[0].start, ropeSegments[0].start
             - ropeSegments[0].end);
 
         if (!checkRopeAnchor(ropeSegments[0].start))
             interruptFiring();
+    }
+
+    private void draw(Canvas c) {
+        int texoffs = 0;
+
+        void line(Vector2f s, Vector2f d) {
+            Vector2i s2 = toVector2i(s), d2 = toVector2i(d);
+
+            c.drawTexLine(s2, d2, myclass.ropeSegment, texoffs,
+                myclass.ropeColor);
+
+            texoffs += (d2 - s2).length;
+        }
+
+        if (mShooting) {
+            line(mWorm.physics.pos, mSeqUpdate.position);
+        }
+
+        texoffs = 0;
+        foreach (ref seg; ropeSegments) {
+            line(seg.start, seg.end);
+        }
+    }
+}
+
+class RenderRope : SceneObject {
+    Rope rope;
+    this(Rope r) {
+        rope = r;
+        //xxx: zorder is probably a rather random pick
+        zorder = GameZOrder.Effects;
+    }
+    this(ReflectCtor c) {
+    }
+    override void draw(Canvas c) {
+        rope.draw(c);
     }
 }

@@ -59,7 +59,7 @@ class GameFrame : SimpleContainer {
     //xxx: parameter bla seems to be a relict...
     private void updateWeapons(Team bla) {
         TeamMember t = game.control.getControlledMember();
-        mWeaponSel.update(t ? t.team.getWeapons() : null);
+        mWeaponSel.update(t ? t.team.weapons : null);
     }
 
     private void teamChanged() {
@@ -204,7 +204,7 @@ class GameFrame : SimpleContainer {
         WeaponClass[] wlist = game.engine.weaponList();
         mWeaponSel.init(wlist);
 
-        setPosition(game.engine.worldCenter);
+        setPosition(game.engine.level.worldCenter);
 
         auto cb = game.engine.callbacks();
         cb.weaponsChanged ~= &updateWeapons;

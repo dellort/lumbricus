@@ -2,6 +2,7 @@ module game.water;
 
 import framework.framework;
 import game.clientengine;
+import game.gamepublic;
 import game.glevel;
 import game.animation;
 import game.particles;
@@ -98,7 +99,7 @@ class GameWater {
     }
 
     this(ClientGameEngine engine) {
-        size = engine.engine.worldSize;
+        size = engine.engine.level.worldSize;
         mEngine = engine;
 
         wd!(WaterDrawerFront1)(GameZOrder.FrontWater);

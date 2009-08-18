@@ -48,7 +48,7 @@ class GObjectSprite : GameObject {
         //all state associated with this variable is non-deterministic and must not
         //  have any influence on the rest of the game state
         //xxx: move to Sequence, as soon as this is being rewritten
-        Particle* mParticleEmitter;
+        ParticleEmitter mParticleEmitter;
 
         StaticStateInfo mCurrentState; //must not be null
 
@@ -120,7 +120,7 @@ class GObjectSprite : GameObject {
     }
 
     protected void fillAnimUpdate() {
-        seqUpdate.position = toVector2i(physics.pos);
+        seqUpdate.position = physics.pos;
         seqUpdate.velocity = physics.velocity;
         seqUpdate.rotation_angle = physics.lookey_smooth;
         if (type.initialHp == float.infinity ||
@@ -132,30 +132,11 @@ class GObjectSprite : GameObject {
     }
 
     private void updateParticles() {
-        bool haveparticles() {
-            return !!mParticleEmitter && !mParticleEmitter.dead();
-        }
-
-        bool wantparticles = active() && !!currentState.particle;
-        bool newParticle = haveparticles() &&
-            mParticleEmitter.props !is currentState.particle;
-
-        if (haveparticles() != wantparticles || newParticle) {
-            if (!wantparticles) {
-                mParticleEmitter.kill();
-                mParticleEmitter = null;
-            } else if (auto particles = engine.callbacks.particleEngine) {
-                if (mParticleEmitter) {
-                    mParticleEmitter.kill();
-                }
-                mParticleEmitter = particles.createParticle(
-                    currentState.particle);
-            }
-        }
-        if (haveparticles()) {
-            mParticleEmitter.pos = physics.pos;
-            mParticleEmitter.velocity = physics.velocity;
-        }
+        mParticleEmitter.active = active();
+        mParticleEmitter.current = currentState.particle;
+        mParticleEmitter.pos = physics.pos;
+        mParticleEmitter.velocity = physics.velocity;
+        mParticleEmitter.update(engine.callbacks.particleEngine);
     }
 
     protected void physImpact(PhysicBase other, Vector2f normal) {
@@ -309,8 +290,8 @@ class GObjectSprite : GameObject {
             auto member = engine.controller ?
                 engine.controller.memberFromGameObject(this, true) : null;
             auto owner = member ? member.team : null;
-            graphic = new Sequence(engine, owner);
-            graphic.setUpdater(seqUpdate);
+            graphic = new Sequence(engine, seqUpdate,
+                owner ? owner.teamColor : null);
             physics.checkRotation();
             setCurrentAnimation();
             updateAnimation();

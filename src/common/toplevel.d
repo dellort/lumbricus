@@ -92,6 +92,8 @@ version (linux) {
     }
 }
 
+extern(C) void show_stuff();
+
 //this contains the mainframe
 class TopLevel {
 private:
@@ -233,9 +235,12 @@ private:
 
         globals.setDefaultOutput(mGuiConsole.output);
 
-        globals.cmdLine.registerCommand("gc", &testGC, "timed GC run");
+        globals.cmdLine.registerCommand("gc", &testGC, "timed GC run (+minimize)",
+            ["bool?=true:release framework caches before gc run"]);
         globals.cmdLine.registerCommand("gcmin", &cmdGCmin, "call GC.minimize");
         globals.cmdLine.registerCommand("gcstats", &testGCstats, "GC stats");
+        globals.cmdLine.registerCommand("show_stuff", &cmdShowStuff, "-");
+
         globals.cmdLine.registerCommand("quit", &killShortcut, "kill it");
         globals.cmdLine.registerCommand("toggle", &showConsole,
             "toggle this console");
@@ -658,14 +663,21 @@ private:
     }
 
     private void testGC(MyBox[] args, Output write) {
+        if (args[0].unbox!(bool)) {
+            auto n = gFramework.releaseCaches(true);
+            write.writefln("release caches: {} house shoes", n);
+        }
         auto counter = new PerfTimer();
         auto a = gc_stat_get!(size_t)("usedsize");
         counter.start();
         memory.GC.collect();
         counter.stop();
         auto b = gc_stat_get!(size_t)("usedsize");
-        write.writefln("GC fullcollect: {}, free'd {} KB", counter.time,
-            ((a - b) + 512) / 1024);
+        write.writefln("GC fullcollect: {}, free'd {}", counter.time,
+            str.sizeToHuman(a - b));
+        memory.GC.minimize();
+        auto c = gc_stat_get!(size_t)("usedsize");
+        write.writefln("  ...minimize: {}", str.sizeToHuman(c - b));
     }
     private void testGCstats(MyBox[] args, Output write) {
         static if (is(memory.GCInfo)) {
@@ -682,6 +694,9 @@ private:
     }
     private void cmdGCmin(MyBox[] args, Output write) {
         memory.GC.minimize();
+    }
+    private void cmdShowStuff(MyBox[] args, Output write) {
+        show_stuff();
     }
 
     private void onUpdate() {

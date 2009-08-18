@@ -1,5 +1,6 @@
 module game.weapon.ray;
 
+import common.scene;
 import game.game;
 import game.gobject;
 import physics.world;
@@ -78,38 +79,45 @@ class RayShooter: ActionShooter {
         fireInfo.info.shootbyRadius = 0;
         fireInfo.info.surfNormal = normal;
         if (base.lineTime > Time.Null) {
+            //xxx: evil memory allocation (array literals)
             new RenderLaser(engine, [npos, hitPoint], base.lineTime,
                 [base.lineColors[0], base.lineColors[1], base.lineColors[0]]);
         }
     }
 }
 
-class RenderLaser : GameObject {
+//non-deterministic, transient, self-removing shoot effect
+//xxx: this used to be derived from GameObject
+//     now this functionality got lost: bool activity() { return active; }
+//     if it's needed again, let RayShooter wait until end-time
+class RenderLaser : SceneObject {
     private {
+        GameEngineCallback base;
+        Vector2i[2] mP;
         Time mStart, mEnd;
         Color[] mColors;
-        LineGraphic mLine;
     }
 
     this(GameEngine aengine, Vector2f[2] p, Time duration, Color[] colors) {
-        super(aengine, true);
-        mLine = new LineGraphic();
-        mLine.setPos(toVector2i(p[0]), toVector2i(p[1]));
-        aengine.graphics.add(mLine);
-        mStart = engine.gameTime.current;
+        base = aengine.callbacks;
+        zorder = GameZOrder.Effects;
+        base.scene.add(this);
+        mP[0] = toVector2i(p[0]);
+        mP[1] = toVector2i(p[1]);
+        mStart = base.interpolateTime.current;
         mEnd = mStart + duration;
-        mColors = colors.dup;
+        mColors = colors;
     }
 
     this (ReflectCtor c) {
         super(c);
     }
 
-    override void simulate(float deltaT) {
-        auto cur = engine.gameTime.current;
+    override void draw(Canvas c) {
+        auto cur = base.interpolateTime.current;
         assert(cur >= mStart);
         if (cur >= mEnd) {
-            active = false;
+            removeThis();
             return;
         }
         float pos = 1.0*(cur - mStart).msecs / (mEnd - mStart).msecs;
@@ -119,22 +127,11 @@ class RenderLaser : GameObject {
         float segmod = pos - segi;
         //assert(segi >= 0 && segi < mColors.length-1);
         if (!(segi >= 0 && segi < mColors.length-1)) {
-            active = false;
+            removeThis();
             return;
         }
         //linear interpolation between these
-        auto c = mColors[segi] + (mColors[segi+1]-mColors[segi])*segmod;
-        mLine.setColor(c);
-    }
-
-    override protected void updateActive() {
-        if (!active && mLine) {
-            mLine.remove();
-            mLine = null;
-        }
-    }
-
-    bool activity() {
-        return active;
+        auto col = mColors[segi] + (mColors[segi+1]-mColors[segi])*segmod;
+        c.drawLine(mP[0], mP[1], col);
     }
 }

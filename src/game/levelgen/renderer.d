@@ -161,9 +161,9 @@ class LandscapeBitmap {
 
         Point[] urgs;
         urgs.length = vertices.count;
-        urgs.length = 0;
+        int n;
         foreach(Vertex* v; vertices) {
-            urgs ~= v.pt;
+            urgs[n++] = v.pt;
         }
 
         Color.RGBA32* dstptr; uint dstpitch;
@@ -214,6 +214,12 @@ class LandscapeBitmap {
         if (textured) {
             mImage.unlockPixels(Rect2i(Vector2i(0), mImage.size));
             tex.release();
+        }
+
+        delete urgs;
+        foreach (Vertex* v; vertices) {
+            vertices.remove(v);
+            delete v;
         }
     }
 
@@ -776,6 +782,7 @@ class LandscapeBitmap {
     public void free() {
         assert(!!mImage, "Not for data-only renderer");
         mImage.free();
+        delete mLevelData;
     }
 
     public Surface releaseImage() {

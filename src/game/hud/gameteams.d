@@ -51,6 +51,8 @@ class TeamWindow : Container {
     //return if a is superior or equal to b
     bool compareTeam(TeamInfo a, TeamInfo b) {
         int c = a.currentHealth() - b.currentHealth();
+        if (c == 0)
+            c = a.team.globalWins() - b.team.globalWins();
         //sort by name if health is equal (Tango crashes without that)
         return c == 0 ? a.team.name() <= b.team.name() : c > 0;
     }

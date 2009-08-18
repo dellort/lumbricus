@@ -27,7 +27,7 @@ import tango.util.Convert;
 ///Base class for stuff in crates that can be collected by worms
 class Collectable {
     ///The crate is being collected by a worm
-    abstract void collect(CrateSprite parent, ServerTeamMember member);
+    abstract void collect(CrateSprite parent, TeamMember member);
 
     //translation ID for contents; used to display collect messages
     //could also be used for crate-spy
@@ -61,7 +61,7 @@ class CollectableWeapon : Collectable {
     this (ReflectCtor c) {
     }
 
-    void collect(CrateSprite parent, ServerTeamMember member) {
+    void collect(CrateSprite parent, TeamMember member) {
         member.mTeam.addWeapon(weapon, quantity);
     }
 
@@ -96,7 +96,7 @@ class CollectableMedkit : Collectable {
         return "game_msg.crate.medkit";
     }
 
-    void collect(CrateSprite parent, ServerTeamMember member) {
+    void collect(CrateSprite parent, TeamMember member) {
         member.addHealth(amount);
     }
 }
@@ -108,7 +108,7 @@ abstract class CollectableTool : Collectable {
     this (ReflectCtor c) {
     }
 
-    void collect(CrateSprite parent, ServerTeamMember member) {
+    void collect(CrateSprite parent, TeamMember member) {
         //roundabout way, but I hope it makes a bit sense with double time tool?
         if (!parent.engine.controller.collectTool(member, this)) {
             //this is executed if nobody knew what to do with the tool
@@ -174,7 +174,7 @@ class CollectableBomb : Collectable {
         return "game_msg.crate.bomb";
     }
 
-    void collect(CrateSprite parent, ServerTeamMember member) {
+    void collect(CrateSprite parent, TeamMember member) {
         //harharhar :D
         parent.detonate();
     }
@@ -346,13 +346,17 @@ class CrateSprite : ActionSprite {
             }
         }
 
+        //xxx fix (will be solved by allowing text to be attached to objects)
         //comedy
-        if (mSpy && graphic && graphic.graphic) {
-            auto g = cast(AnimationGraphic)graphic.graphic;
-            if (g && g.animation) {
-                mSpy.pos = toVector2i(physics.pos)
-                    - g.animation.bounds.size.Y / 2;
-            }
+        //if (mSpy && graphic && graphic.graphic) {
+        //    auto g = cast(AnimationGraphic)graphic.graphic;
+        //    if (g && g.animation) {
+        //        mSpy.pos = toVector2i(physics.pos)
+        //            - g.animation.bounds.size.Y / 2;
+        //    }
+        //}
+        if (mSpy) {
+            mSpy.pos = toVector2i(physics.pos) - Vector2i(0,32) / 2;
         }
 
         super.simulate(deltaT);

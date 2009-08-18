@@ -117,8 +117,13 @@ class Level {
         return nlevel;
     }
 
-    Vector2i worldCenter() {
+    //not the middle of the world, but apparently the middle of the landscape
+    final Vector2i worldCenter() {
         return landBounds.center();
+    }
+
+    final Rect2i worldBounds() {
+        return Rect2i(worldSize);
     }
 }
 

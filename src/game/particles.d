@@ -13,6 +13,10 @@ import utils.random;
 import utils.randval;
 
 import math = tango.math.Math;
+import cstdlib = tango.stdc.stdlib;
+
+//use C memory for particles (is lighter on the GC)
+version = CMemory;
 
 
 class ParticleType {
@@ -270,7 +274,7 @@ struct Particle {
                         at += dir * e.offset;
                     }
                 }
-                owner.emitParticle(at, nvel, e.particle);
+                owner.emitParticle(at, nvel, e.particle, false);
                 return;
             }
             sum = nsum;
@@ -278,6 +282,71 @@ struct Particle {
     }
 }
 
+//this is for the user of a ParticleWorld
+//it does the job of... emitting particles
+//takes care of some very stupid issues:
+//  - particle emitters actually work by creating a special particle, which
+//    emits other particles; you'll have to keep that special particle alive
+//    somehow (because particles may randomly die because of various reasons)
+//  - Particle* pointers might randomly become invalid lololo
+//    (memory allocation issues)
+//also this is a struct because I'm deeply afraid of memory allocation
+struct ParticleEmitter {
+    private {
+        ParticleWorld mOwner;
+        ulong mGeneration;
+        Particle* mPtr;
+    }
+
+    //desired particle emitter
+    ParticleType current;
+    //can be used to disable particle emitter, even if current !is null
+    bool active = true;
+    //is used on update()
+    Vector2f pos, velocity;
+
+
+    //check if mPtr is valid, and set it to null if it isn't
+    private void check(ParticleWorld owner) {
+        if (mOwner && owner is mOwner) {
+            if (mOwner.mGeneration == mGeneration)
+                return;
+        }
+        mOwner = owner;
+        //reset for various reasons
+        mPtr = null; //pointer might be invalid lololo
+        mGeneration = mOwner ? mOwner.mGeneration : 0;
+    }
+
+    //must be called "once in a while" (like every game engine frame)
+    void update(ParticleWorld owner) {
+        check(owner);
+
+        if (!mOwner)
+            return;
+
+        bool haveparticles() {
+            return !!mPtr && !mPtr.dead();
+        }
+
+        bool wantparticles = active && !!current;
+        bool newParticle = haveparticles() && mPtr.props !is current;
+
+        if (haveparticles() != wantparticles || newParticle) {
+            if (mPtr) {
+                mPtr.kill();
+                mPtr = null;
+            }
+            if (wantparticles) {
+                mPtr = mOwner.newparticle(current, true);
+            }
+        }
+        if (haveparticles()) {
+            mPtr.pos = pos;
+            mPtr.velocity = velocity;
+        }
+    }
+}
 
 class ParticleWorld {
     private {
@@ -286,6 +355,12 @@ class ParticleWorld {
         ObjectList!(Particle*, "node") mParticles, mFreeParticles;
         ObjectList!(ParticleEffect, "node") mEffects;
         Time mLastFrame = Time.Never;
+        Particle[] mParticleStorage;
+        ulong mGeneration; //changes everytime mParticleStorage changes
+        //set of ParticleTypes, which might be referenced by Particle
+        //because Particles are in C memory, the GC doesn't scan them
+        //  => must prevent those objects from being collected, somehow
+        bool[ParticleType] mPin;
     }
     float windSpeed = 0f;
     int waterLine = int.max;
@@ -309,20 +384,38 @@ class ParticleWorld {
         reinit();
     }
 
-    void reinit(int particle_count = 50000) {
-        //right now changing the length needs full reinitialization
-        //seems one could also simply add particles
-        //destroy
-        foreach (p; mParticles) {
-            p.kill();
+    //must be finalizer-safe (don't access references to GC memory)
+    private void free() {
+        mGeneration++;
+        version (CMemory) {
+            if (mParticleStorage.ptr)
+                Trace.formatln("-------------- free! -----------");
+            cstdlib.free(mParticleStorage.ptr);
         }
-        mParticles.clear();
-        mFreeParticles.clear();
-        //alloc new
-        Particle[] alloc;
-        alloc.length = particle_count;
-        for (int n = 0; n < alloc.length; n++) {
-            mFreeParticles.add(&alloc[n]);
+        mParticleStorage = null;
+    }
+
+    ~this() {
+        free();
+    }
+
+    private void alloc(size_t n) {
+        free();
+        version (CMemory) {
+            void* p = cstdlib.calloc(n, Particle.sizeof);
+            if (!p)
+                throw new Exception("out of memory");
+            mParticleStorage = (cast(Particle*)p)[0..n];
+        } else {
+            mParticleStorage.length = n;
+        }
+    }
+
+    void reinit(int particle_count = 50000) {
+        free();
+        alloc(particle_count);
+        foreach (ref p; mParticleStorage) {
+            mFreeParticles.add(&p);
         }
     }
 
@@ -369,8 +462,12 @@ class ParticleWorld {
     //move from freelist to active list
     //actually never does an actual memory allocation
     //may return null (if all particles are in use)
-    Particle* newparticle(ParticleType props) {
+    private Particle* newparticle(ParticleType props, bool pin) {
         assert(!!props);
+
+        if (pin)
+            mPin[props] = true;
+
         Particle* cur = mFreeParticles.head;
         if (cur) {
             mFreeParticles.remove(cur);
@@ -387,12 +484,10 @@ class ParticleWorld {
         return cur;
     }
 
-    Particle* createParticle(ParticleType props) {
-        return newparticle(props);
-    }
-
-    void emitParticle(Vector2f pos, Vector2f vel, ParticleType props) {
-        Particle* p = newparticle(props);
+    void emitParticle(Vector2f pos, Vector2f vel, ParticleType props,
+        bool pin = true)
+    {
+        Particle* p = newparticle(props, pin);
         if (!p)
             return;
         p.pos = pos;

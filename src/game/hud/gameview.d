@@ -12,9 +12,11 @@ import game.gamepublic;
 import game.game;
 import game.clientengine;
 import game.sequence;
+import game.controller;
 import game.hud.camera;
 import game.weapon.weapon;
 import game.hud.teaminfo;
+import game.gfxset;
 import gui.widget;
 import gui.container;
 import gui.label;
@@ -172,7 +174,7 @@ private class ViewMember {
         } else if (guiIsActive) {
             assert(graphic !is null);
             //xxx hurf hurf
-            auto ag = cast(AnimationGraphic)graphic;
+            auto ag = cast(RenderAnimation)graphic;
             assert (!!ag, "not attached to a worm?");
             Animation ani = ag.animation;
             Rect2i bounds;
@@ -186,7 +188,7 @@ private class ViewMember {
             //ughh
             const d = 30;
             bounds = Rect2i(-d, -d, d, d);
-            bounds += ag.pos;
+            bounds += ag.draw_pos;
 
             if (health_cur != member.currentHealth) {
                 health_cur = member.currentHealth;
@@ -419,7 +421,7 @@ class GameView : Container {
 
         Camera mCamera;
         int mCurCamPriority;
-        AnimationGraphic mCurCamObject;
+        //AnimationGraphic mCurCamObject;
         Time mLastCamChange;
         const cCamChangeDelay = timeSecs(1.2);
         TeamMember mLastActiveMember; //hack to detect worm activation
@@ -690,7 +692,7 @@ class GameView : Container {
     }
 
     override Vector2i layoutSizeRequest() {
-        return mGame.engine.worldSize;
+        return mGame.engine.level.worldSize;
     }
 
     //find a WeaponClass of the weapon named "name" in the current team's
@@ -699,10 +701,9 @@ class GameView : Container {
         auto cm = mGame.control.getControlledMember();
         if (!cm)
             return null;
-        WeaponList weapons = cm.team.getWeapons();
-        foreach (w; weapons) {
-            if (w.type.name == name) {
-                return w.available ? w.type : null;
+        foreach (WeaponItem w; cm.team.weapons.weapons) {
+            if (w.weapon.name == name) {
+                return w.canUse() ? w.weapon : null;
             }
         }
         return null;
@@ -788,19 +789,21 @@ class GameView : Container {
     //  5 moving active worm (or super sheep, but not bazooka etc.)
     //  4 something fired by the active worm's weapon (including offspring)
     //  3 weapon offspring fired by other worms
-    //  2 other worms
+    //  -- not anymore -- 2 other worms
     //  1 other objects (like crates)
     //  0 (not moving) active worm
     //(active means we control the worm)
     //for objects with same priority, the camera tries to focus on the object
     //that moved last
+    //xxx: camera should use game objects instead of graphic stuff
     void sim_camera() {
+    /+
         GameEngineGraphics graphics = mGame.engine.getGraphics();
         TeamMember active_member = mGame.control.getControlledMember();
-        Team active_team;
+        TeamTheme active_team;
         AnimationGraphic active_member_gr;
         if (active_member) {
-            active_team = active_member.team;
+            active_team = active_member.team.teamColor;
             active_member_gr =
                 cast(AnimationGraphic)active_member.getControlledGraphic();
         }
@@ -829,10 +832,10 @@ class GameView : Container {
             if (active_team && gr.owner_team is active_team)
                 return 4;
             if (gr.owner_team) {
-                if (auto member = gr.owner_team.getActiveMember()) {
-                    if (member.getGraphic() is gr)
-                        return 2;
-                }
+                //if (auto member = gr.owner_team.getActiveMember()) {
+                //    if (member.getGraphic() is gr)
+                //        return 2;
+                //}
                 return 3;
             }
             return 1;
@@ -884,10 +887,22 @@ class GameView : Container {
             mLastCamChange = max(mLastCamChange,
                 mCurCamObject.last_position_change);
         }
+    +/
+
+        Time now = mGame.clientTime.current;
+
+        RenderAnimation cur;
+        TeamMember member = mGame.control.getControlledMember();
+        if (member) {
+            cur = cast(RenderAnimation)member.getGraphic();
+        }
+
+        auto mCurCamObject = cur;
 
         if (mCurCamObject) {
             //the following calculates the optimum camera border based
             //  on the speed of the tracked object
+            assert(!!mCurCamObject.more);
             if (mCurCamObject.more) {
                 //calculate velocity multiplier, so an object at cMaxBorderSpeed
                 //  would be exactly centered
@@ -917,7 +932,8 @@ class GameView : Container {
                 mLastCamBorder = Camera.cCameraBorder;
             }
 
-            mCamera.updateCameraTarget(mCurCamObject.pos, mLastCamBorder);
+            mCamera.updateCameraTarget(toVector2i(mCurCamObject.more.position),
+                mLastCamBorder);
         } else {
             mCamera.noFollow();
         }

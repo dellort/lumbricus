@@ -15,6 +15,7 @@ import game.actionsprite, game.controller, game.crate, game.game,
     game.controller_plugins, game.levelgen.renderer, game.action.base,
     game.action.list, game.action.weaponactions, game.action.spriteactions,
     game.action.spawn, game.action.wcontext, game.action.common;
+import common.scene, common.animation;
 import physics.world;
 import utils.random;
 
@@ -25,14 +26,15 @@ void initGameSerialization() {
     serialize_types.registerClasses!(Random, GameEngine, PhysicWorld,
         GameController, WormSprite, GameLandscape, ActionContext,
         ActionSprite, GameController, ActionListRunner, ControlRotateAction,
-        ServerTeam, ServerTeamMember, WeaponSet, WeaponItem, CollectableBomb,
+        Team, TeamMember, WeaponSet, WeaponItem, CollectableBomb,
         CollectableWeapon, CollectableMedkit, CrateSprite, GameLandscape,
         LandscapeGeometry, GObjectSprite, BeamHandler, ActionShooter,
-        ProjectileSprite, RayShooter, RenderLaser, Sequence,
+        ProjectileSprite, RayShooter, Sequence,
         SequenceUpdate, Jetpack, Rope, Drill, WormSprite, WormSelectHelper,
         GravestoneSprite, WormSequenceUpdate, WrapFireInfo, RandomJumpAction,
-        GameEngineGraphics, AnimationGraphic, LineGraphic, TextGraphic,
-        CrosshairGraphic, LandscapeGraphic, NapalmSequenceUpdate,
+        GameEngineGraphics, TextGraphic, RenderAnimation, Animator,
+        RenderLandscape, RenderRope, Scene,
+        CrosshairGraphic, NapalmSequenceUpdate,
         NapalmSprite, ModeTurnbased, ModeDebug, TimeSource, StuckTriggerAction,
         TimeSourceFixFramerate, TurnbasedStatus, HomingAction, SpriteAction,
         MeleeWeapon, MeleeShooter, WeaponContext, DelayedObj,

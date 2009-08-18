@@ -240,3 +240,23 @@ class TimeSourceFixFramerate : TimeSourcePublic {
         }
     }
 }
+
+class TimeSourceSimple : TimeSourcePublic {
+    this(char[] a_name) {
+        super(a_name);
+    }
+    this(ReflectCtor c) {
+        super(c);
+    }
+
+    void reset(Time t) {
+        mSimTime = mLastSimTime = t;
+    }
+
+    void update(Time t) {
+        if (t < mSimTime)
+            assert(false, "time goes backwards for '"~mName~"'");
+        mLastSimTime = mSimTime;
+        mSimTime = t;
+    }
+}

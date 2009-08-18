@@ -80,15 +80,22 @@ abstract class Animation {
 
     private int relFrameTimeMs(Time t) {
         assert(mLengthMS != 0);
-        if (t.msecs >= mLengthMS) {
+        int ms = t.msecs;
+        if (ms < 0) {
+            //I don't know... at any rate, I don't know what needs this
+            //but return value must not lead to negative frame indices
+            ms = realmod(ms, mLengthMS);
+            //ms = 0;
+        }
+        if (ms >= mLengthMS) {
             //if this has happened, we either need to show a new frame,
             //disappear or just stop it
             if (!repeat) {
                 return mLengthMS;
             }
-            return t.msecs % mLengthMS;
+            return ms % mLengthMS;
         }
-        return t.msecs;
+        return ms;
     }
 
     int getFrameIdx(Time t) {
@@ -115,7 +122,9 @@ abstract class Animation {
     }
 
     bool finished(Time t) {
-        return (t.msecs >= mLengthMS && !repeat);
+        if (repeat || keepLastFrame)
+            return false;
+        return t.msecs >= mLengthMS;
     }
 
     //default: create a proxy

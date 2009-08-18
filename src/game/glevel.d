@@ -1,6 +1,7 @@
 module game.glevel;
 
 import common.resset;
+import common.scene;
 import framework.framework;
 import game.gamepublic;
 import game.game;
@@ -20,6 +21,9 @@ import physics.world;
 //circular looks better on collisions (reflecting from walls)
 //rectangular should be faster and falling down from cliffs looks better
 version = CircularCollision;
+
+//red border around bitmap
+//version = DebugShowLandscape;
 
 const cLandscapeSnowBit = Lexel.Type_Bit_Min << 0;
 
@@ -93,21 +97,20 @@ class LandscapeGeometry : PhysicGeometry {
     }
 }
 
-//these 2 functions are used by the server and client code (network case)
-public int landscapeDamage(LandscapeBitmap ls, Vector2i pos, int radius,
-    LandscapeTheme theme)
-{
-    //NOTE: clipping should have been done by the caller already, and the
-    // blastHole function also does clip; so don't care
-    return ls.blastHole(pos, radius, cBlastBorder, theme);
-}
-public void landscapeInsert(LandscapeBitmap ls, Vector2i pos, Surface bitmap,
-    Lexel bits)
-{
-    //whatever the size param is for
-    //the metadata-handling is hardcoded, which is a shame
-    //currently overwrite everything except SolidHard pixels
-    ls.drawBitmap(pos, bitmap, bitmap.size, Lexel.SolidHard, 0, bits);
+//only point of this indirection: keep zorder; could "solve" this by making
+//  GameObject renderable, and assigning them a zorder
+//xxx: why is GameLandscape a GameObject anyway?
+class RenderLandscape : SceneObject {
+    GameLandscape source;
+    this(GameLandscape s) {
+        source = s;
+        zorder = GameZOrder.Landscape;
+    }
+    this(ReflectCtor c) {
+    }
+    override void draw(Canvas c) {
+        source.draw(c);
+    }
 }
 
 //handle landscape objects, large damagable static physic objects, represented
@@ -123,9 +126,13 @@ class GameLandscape : GameObject {
 
         LandscapeGeometry mPhysics;
 
-        //used to display it in the client
-        LandscapeGraphic mGraphic;
         Surface mBorderSegment;
+
+        Wall[] mWalls;
+
+        struct Wall {
+            Vector2i from, to;
+        }
     }
 
     this(GameEngine aengine, LevelLandscape land) {
@@ -159,8 +166,9 @@ class GameLandscape : GameObject {
     }
 
     void init() {
-        mGraphic = new LandscapeGraphic(mOffset, mLandscape);
-        engine.graphics.add(mGraphic);
+        engine.scene.add(new RenderLandscape(this));
+
+        mLandscape.image.enableCaching(false);
 
         mPhysics = new LandscapeGeometry();
         mPhysics.ls = this;
@@ -176,12 +184,7 @@ class GameLandscape : GameObject {
             auto wall = new PlaneGeometry(toVector2f(to), toVector2f(from));
             engine.physicworld.add(wall);
 
-            auto border = new LineGraphic();
-            border.setColor(Color(0.5));
-            border.setWidth(5);
-            border.setTexture(mBorderSegment);
-            border.setPos(from, to);
-            engine.graphics.add(border);
+            mWalls ~= Wall(from, to);
         }
 
         auto rc = Rect2i.Span(offset, size);
@@ -199,12 +202,9 @@ class GameLandscape : GameObject {
         pos -= mOffset;
         auto vr = Vector2i(radius + cBlastBorder);
         if (Rect2i(mSize).intersects(Rect2i(-vr, vr) + pos)) {
-            count = landscapeDamage(mLandscape, pos, radius,
+            count = mLandscape.blastHole(pos, radius, cBlastBorder,
                 mOriginal ? mOriginal.landscape_theme : null);
             mPhysics.generationNo++;
-
-            //this was for replication of the bitmap over network
-            //mGraphic.damage(mOffset, radius);
         }
         return count;
     }
@@ -212,9 +212,20 @@ class GameLandscape : GameObject {
     public void insert(Vector2i pos, Surface bitmap, Lexel bits) {
         //not so often called (like damage()), leave clipping to whoever
         pos -= mOffset;
-        landscapeInsert(mLandscape, pos, bitmap, bits);
+        mLandscape.drawBitmap(pos, bitmap, bitmap.size, Lexel.SolidHard, 0,
+            bits);
         mPhysics.generationNo++; //?
-        //mGraphic.insert(pos, bitmap);
+    }
+
+    private void draw(Canvas c) {
+        c.draw(mLandscape.image, mOffset);
+
+        foreach (w; mWalls) {
+            c.drawTexLine(w.from, w.to, mBorderSegment, 0, Color(1, 0, 0));
+        }
+
+        version (DebugShowLandscape)
+            c.drawRect(rect(), Color(1, 0, 0));
     }
 
     public Surface image() {

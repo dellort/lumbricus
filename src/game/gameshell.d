@@ -3,6 +3,7 @@ module game.gameshell;
 import common.common;
 import common.resources;
 import common.resset;
+import common.scene;
 import framework.framework;
 import framework.i18n; //just because of weapon loading...
 import framework.timesource;
@@ -64,7 +65,7 @@ const int cOptimumInputLag = 1;
 private LogStruct!("game.gameshell") log;
 
 //save the game engine to disk on snapshot/replay, stuff goes into path /debug/
-debug = debug_save;
+//debug = debug_save;
 
 //to implement a pre-load mechanism
 //for normal games:
@@ -349,6 +350,13 @@ class GameLoader {
             ctx.removeExternal(mPersistence);
         }
 
+        auto it = new TimeSourceSimple("GameShell/Interpolated");
+        it.reset(mShell.mGameTime.current);
+        mShell.mInterpolateTime = it;
+        mShell.mEngine.callbacks.interpolateTime = it;
+
+        mShell.mEngine.callbacks.scene = new Scene();
+
         if (mDemoInput) {
             //whee whee we simply set it to replay mode and seriously mess with
             //  the internals
@@ -408,6 +416,11 @@ class GameShell {
 
         CommandBucket mCmds;
         CommandLine mCmd;
+
+        //time used for interpolated drawing
+        TimeSourceSimple mInterpolateTime;
+        //actual time after the execution of the last frame
+        Time mLastFrameRealTime;
 
         //bool mEnableDemoPlayback;
         //if !.isNull(), enable demo recording
@@ -520,7 +533,25 @@ class GameShell {
         return mCmds;
     }
 
+    //for now this does:
+    //- increase the intraframe time (time between engine frames for
+    //  interpolated drawing)
+    //  the time used is mEngine.callbacks.interpolateTime / mInterpolateTime
+    //- execute a game frame if necessary (for simulation)
     void frame() {
+        TimeSourceSimple interpol = mInterpolateTime;
+
+        void exec_frame() {
+            doFrame();
+
+            //skip to next frame, if there's some time "left"
+            auto gt = mGameTime.current;
+            if (interpol.current < gt)
+                interpol.update(gt);
+
+            mLastFrameRealTime = timeCurrentTime();
+        }
+
         if (mUseExternalTS) {
             //external timestamps (network mode, from setFrameReady())
             //this code tries to keep the input queue length (local lag)
@@ -552,7 +583,7 @@ class GameShell {
             mMasterTime.update();
             //don't accidentally run past server time
             int maxFrames = lag + 1;
-            mGameTime.update(&doFrame, maxFrames);
+            mGameTime.update(&exec_frame, maxFrames);
         } else {
             if (mSingleStep) {
                 //xxx: I don't know if there are any desynchronization issues by
@@ -563,14 +594,27 @@ class GameShell {
                 mGameTime.update(
                     () {
                         assert(mSingleStep > 0);
-                        mSingleStep--; doFrame();
+                        mSingleStep--; exec_frame();
                     }, mSingleStep);
                 if (mSingleStep == 0)
                     mGameTime.paused = true;
             } else {
                 mMasterTime.update();
-                mGameTime.update(&doFrame);
+                mGameTime.update(&exec_frame);
             }
+        }
+
+        if (mLastFrameRealTime !is Time.init) {
+            Time cur = mGameTime.current;
+            assert(interpol.current >= cur);
+            Time next = cur + cFrameLength;
+            Time passed = timeCurrentTime() - mLastFrameRealTime;
+            assert(passed >= Time.Null);
+            Time newt = cur + passed;
+            if (newt > next)
+                newt = next; //because time can't go back
+            assert(newt >= cur);
+            interpol.update(newt);
         }
     }
 
@@ -729,6 +773,9 @@ class GameShell {
         mTimeStamp = snap.game_time_ts;
         //xxx it seems using snap.game_time was fine, but whatever
         assert(mGameTime.current == snap.game_time);
+        //interpolated time => reset to start of restored frame (?)
+        mLastFrameRealTime = Time.init;
+        mInterpolateTime.reset(mGameTime.current);
         //assert(!!OnRestoreGuiAfterSnapshot);
         if (OnRestoreGuiAfterSnapshot) {
             OnRestoreGuiAfterSnapshot();

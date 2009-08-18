@@ -9,6 +9,8 @@ import str = utils.string;
 import conv = tango.util.Convert;
 import tango.core.Traits : isIntegerType, isFloatingPointType;
 
+import memory = tango.core.Memory;
+
 debug import tango.core.stacktrace.StackTrace : nameOfFunctionAt;
 
 debug debug = CountClasses;
@@ -189,6 +191,69 @@ class SerializeContext {
         mIgnored ~= ignore;
     }
     +/
+
+    //recursively follow all objects (same object graph as in serialization)
+    //set all fields to .init
+    //no data is actually free'd; the point of this is to "break up" the object
+    //  graph and to enable the GC to actually collect the dead objects
+    void death_stomp(ref Object root) {
+        SafePtr proot = types.ptrOf(root);
+
+        stomp(proot, true);
+    }
+
+    private void stomp_members(SafePtr p2, bool do_stomp) {
+        auto st = cast(StructuredType)p2.type;
+        if (!st || !st.klass())
+            return;
+        foreach (Class c; st.klass.hierarchy()) {
+            p2.type = c.type();
+            foreach (ClassMember m; c.nontransientMembers()) {
+                stomp(m.get(p2), do_stomp);
+            }
+        }
+    }
+
+    private void stomp(SafePtr p, bool do_stomp) {
+        void clear() {
+            //clear field
+            p.type.assign(p, p.type.initPtr());
+        }
+
+        if (auto rt = cast(ReferenceType)p.type) {
+            Object o = p.toObject();
+            if (!o)
+                return;
+            //first clear, so it won't recurse endlessly on cycles
+            clear();
+            //don't follow externals (makes no sense or is dangerous)
+            if (lookupExternal(o).length)
+                return;
+            stomp_members(types.ptrOf(o), true);
+            return;
+        }
+        if (auto st = cast(StructuredType)p.type) {
+            stomp_members(p, do_stomp);
+            return;
+        }
+        if (auto at = cast(ArrayType)p.type) {
+            auto arr = at.getArray(p);
+            //dyn = if the memory block of the array was allocated by the GC
+            bool dyn = memory.GC.addrOf(arr.ptr.ptr) !is null;
+            for (int n = 0; n < arr.length; n++) {
+                stomp(arr.get(n), dyn);
+            }
+        }
+        if (auto mt = cast(MapType)p.type) {
+            mt.iterate(p, (SafePtr key, SafePtr value) {
+                stomp(key, true);
+                stomp(value, true);
+            });
+        }
+
+        if (do_stomp)
+            clear();
+    }
 
     //debug: write out the object graph in graphviz format
     //here because it needs Types and mExternals

@@ -45,7 +45,7 @@ class ModeRealtime : Gamemode {
         const cActivateDelay = timeMsecs(500);
         //how long you can still move before control is taken on victory
         const cWinRetreatTime = timeSecs(10);
-        Time[ServerTeam] mTeamDeactivateTime;
+        Time[Team] mTeamDeactivateTime;
         RealtimeStatus mStatus;
     }
 
@@ -82,7 +82,7 @@ class ModeRealtime : Gamemode {
                 mGameEnded = true;
             return;
         }
-        ServerTeam lastteam;
+        Team lastteam;
         int aliveCount = aliveTeams(lastteam);
         if (aliveCount < 2) {
             //"Controlled shutdown": deactivate teams, wait for silence,
@@ -136,7 +136,7 @@ class ModeRealtime : Gamemode {
         //check if we need to activate or deactivate a team
         foreach (t; logic.teams()) {
             //check for dying worms
-            foreach (ServerTeamMember m; t) {
+            foreach (TeamMember m; t) {
                 //only blow up inactive worms
                 //Note: might blow up several worms concurrently,
                 //      I don't see any problems

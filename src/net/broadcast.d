@@ -9,6 +9,9 @@ import tango.net.device.Socket;
 import tango.net.device.Berkeley; //????!!! lol tango
 import net.iflist;
 
+//fix for tango svn... sorry, I have no fucking idea
+import tango.stdc.posix.sys.time;
+
 //sorry for that (->no converting the address to string and back just for reply)
 alias IPv4Address BCAddress;
 

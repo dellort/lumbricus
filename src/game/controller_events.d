@@ -42,14 +42,14 @@ struct ControllerEvents {
     MDelegate!(int, GameObject) onDemolition;
 
     //worm draws a weapon (wclass may be null if weapon was put away)
-    MDelegate!(ServerTeamMember, WeaponClass) onSelectWeapon;
+    MDelegate!(TeamMember, WeaponClass) onSelectWeapon;
     //used weapon, refired
     MDelegate!(WeaponClass, bool) onFireWeapon;
-    MDelegate!(WormEvent, ServerTeamMember) onWormEvent;
-    MDelegate!(TeamEvent, ServerTeam) onTeamEvent;
+    MDelegate!(WormEvent, TeamMember) onWormEvent;
+    MDelegate!(TeamEvent, Team) onTeamEvent;
 
     MDelegate!(CrateType) onCrateDrop;
-    MDelegate!(ServerTeamMember, Collectable[]) onCrateCollect;
+    MDelegate!(TeamMember, Collectable[]) onCrateCollect;
 
     //imo, sudden death is common enough to be here
     MDelegate!() onSuddenDeath;

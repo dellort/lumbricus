@@ -6,7 +6,9 @@ import physics.world;
 import game.gfxset;
 import game.glevel;
 import game.sprite;
+import common.animation;
 import common.common;
+import common.scene;
 import game.controller;
 import game.weapon.weapon;
 import game.gamepublic;
@@ -42,9 +44,11 @@ class ClassNotRegisteredException : Exception {
 
 //code to manage a game session (hm, whatever this means)
 //reinstantiated on each "round"
-class GameEngine : GameEnginePublic {
+class GameEngine {
     GameLandscape[] gameLandscapes;
     GameEngineGraphics graphics;
+    //the whole fucking world!
+    Scene scene;
 
     Random rnd;
 
@@ -93,7 +97,7 @@ class GameEngine : GameEnginePublic {
         AccessEntry[] mAccessMapping;
         struct AccessEntry {
             char[] tag;
-            ServerTeam team;
+            Team team;
         }
 
         const cWindChange = 80.0f;
@@ -133,6 +137,7 @@ class GameEngine : GameEnginePublic {
         mLevel = config.level;
 
         graphics = new GameEngineGraphics(this);
+        scene = new Scene();
 
         mObjects = new typeof(mObjects)();
         mPhysicWorld = new PhysicWorld(rnd);
@@ -169,7 +174,7 @@ class GameEngine : GameEnginePublic {
         dz.inverse = true;
         //the trigger is inverse, and triggers only when the physic object is
         //completely in the deathzone, but graphics are often larger :(
-        auto death_y = worldSize.y + 20;
+        auto death_y = mLevel.worldSize.y + 20;
         //because trigger is inverse, the plane must be defined inverted too
         mDeathZone.plane.define(Vector2f(1, death_y), Vector2f(0, death_y));
         physicworld.add(dz);
@@ -220,8 +225,8 @@ class GameEngine : GameEnginePublic {
         foreach (ConfigNode sub; map) {
             //sub is "tag_name { "teamid1" "teamid2" ... }"
             foreach (char[] key, char[] value; sub) {
-                ServerTeam found;
-                foreach (ServerTeam t; controller.teams) {
+                Team found;
+                foreach (Team t; controller.teams) {
                     if (t.id() == value) {
                         found = t;
                         break;
@@ -251,35 +256,28 @@ class GameEngine : GameEnginePublic {
         mController = ctl;
     }
 
-    //Direct server-side access to controller
-    //NOT part of GameEnginePublic
+    //lol.
     GameController controller() {
+        return mController;
+    }
+    GameController logic() {
         return mController;
     }
 
     //--- start GameEnginePublic
 
-    Level level() {
+    ///level being played, must not modify returned object
+    final Level level() {
         return mLevel;
     }
 
-    //Part of interface GameEnginePublic
-    GameLogicPublic logic() {
-        return mController;
-    }
-
-    Vector2i worldSize() {
-        return mLevel.worldSize;
-    }
-    Vector2i worldCenter() {
-        return mLevel.worldCenter;
-    }
-
+    ///list of _all_ possible weapons, which are useable during the game
+    ///Team.getWeapons() must never return a Weapon not covered by this list
     WeaponClass[] weaponList() {
         return mWeaponClasses.values;
     }
 
-    GameEngineCallback callbacks() {
+    final GameEngineCallback callbacks() {
         return mCallbacks;
     }
 
@@ -287,28 +285,33 @@ class GameEngine : GameEnginePublic {
         return graphics;
     }
 
-    TimeSourcePublic gameTime() {
+    ///time of last frame that was simulated
+    final TimeSourcePublic gameTime() {
         return mGameTime;
     }
 
-    //return y coordinate of waterline
+    ///return y coordinate of waterline
     int waterOffset() {
         return cast(int)mCurrentWaterLevel;
     }
 
-    public float windSpeed() {
+    ///wind speed ([-1, +1] I guess, see sky.d)
+    float windSpeed() {
         return mWindForce.windSpeed.x/cMaxWind;
     }
 
+    ///return how strong the earth quake is, 0 if no earth quake active
     float earthQuakeStrength() {
         return mEarthquakeForceVis.earthQuakeStrength()
             + mEarthquakeForceDmg.earthQuakeStrength();
     }
 
+    ///game configuration, must not modify returned object
     GameConfig config() {
         return gameConfig;
     }
 
+    ///game resources, must not modify returned object
     GfxSet gfx() {
         return mGfx;
     }
@@ -554,9 +557,14 @@ class GameEngine : GameEnginePublic {
         }
     }
 
-    Rect2f getLandscapeArea(bool forPlace = true) {
-        Rect2f landArea = Rect2f(toVector2f(worldSize)/2,
-            toVector2f(worldSize)/2);
+    Rect2f placementArea() {
+        //xxx: there's also mLevel.landBounds, which does almost the same
+        //  correct way of doing this would be to include all objects on that
+        //  worms can stand/sit
+        //this code also seems to assume that the landscape is in the middle,
+        //  which is ok most time
+        auto mid = toVector2f(mLevel.worldSize)/2;
+        Rect2f landArea = Rect2f(mid, mid);
         if (gameLandscapes.length > 0)
             landArea = Rect2f(toVector2f(gameLandscapes[0].offset),
                 toVector2f(gameLandscapes[0].offset));
@@ -564,10 +572,16 @@ class GameEngine : GameEnginePublic {
             landArea.extend(toVector2f(gl.offset));
             landArea.extend(toVector2f(gl.offset + gl.size));
         }
-        if (forPlace)
-            //add some space at the top for object placement
-            landArea.p1.y = max(landArea.p1.y - 50f, 0);
-        return landArea;
+
+        //add some space at the top for object placement
+        landArea.p1.y = max(landArea.p1.y - 50f, 0);
+
+        //don't place underwater
+        float y_max = waterOffset - 10;
+
+        Rect2f area = Rect2f(0, 0, mLevel.worldSize.x, y_max);
+        area.fitInside(landArea);
+        return area;
     }
 
     //try to place an object into the landscape
@@ -578,83 +592,91 @@ class GameEngine : GameEnginePublic {
     //  dest = where it is dropped (will have same x value as drop)
     //  inAir = true to place exactly at drop and create a hole/platform
     //returns if dest contains a useful value
-    bool placeObject(Vector2f drop, float y_max, float radius,
+    private bool placeObject(Vector2f drop, Rect2f area, float radius,
         out Vector2f dest, bool inAir = false)
     {
-        Rect2f area = Rect2f(0, 0, worldSize.x, y_max);
-        area.fitInside(getLandscapeArea());
+        if (inAir) {
+            return placeObject_air(drop, area, radius, dest);
+        } else {
+            return placeObject_landscape(drop, area, radius, dest);
+        }
+    }
+
+
+    private bool placeObject_air(Vector2f drop, Rect2f area, float radius,
+        out Vector2f dest)
+    {
+        int holeRadius = cast(int)cPlacePlatformDistance/2;
+
+        //don't place half the platform outside the level area
+        area.extendBorder(Vector2f(-holeRadius));
         if (!area.isInside(drop))
             return false;
 
-        Vector2f pos = drop;
-        if (inAir) {
-            int holeRadius = cast(int)cPlacePlatformDistance/2;
+        //check distance to other sprites
+        foreach (GameObject o; mObjects) {
+            auto s = cast(GObjectSprite)o;
+            if (s) {
+                if ((s.physics.pos-drop).length < cPlacePlatformDistance+10f)
+                    return false;
+            }
+        }
 
-            //don't place half the platform outside the level area
-            area.extendBorder(Vector2f(-holeRadius, -holeRadius));
-            if (!area.isInside(pos))
-                return false;
+        //checks ok, remove land and create platform
+        damageLandscape(toVector2i(drop), holeRadius);
+        //xxx: can't access level theme resources here <- what??
+        Surface bmp = gfx.resources.get!(Surface)("place_platform");
+        insertIntoLandscape(Vector2i(cast(int)drop.x-bmp.size.x/2,
+            cast(int)drop.y+bmp.size.y/2), bmp, Lexel.SolidSoft);
+        dest = drop;
+        return true;
+    }
 
+    private bool placeObject_landscape(Vector2f drop, Rect2f area, float radius,
+        out Vector2f dest)
+    {
+        if (!area.isInside(drop))
+            return false;
+
+        GeomContact contact;
+        //cast a ray downwards from drop
+        if (!physicworld.thickRay(drop, Vector2f(0, 1), area.p2.y - drop.y,
+            radius, drop, contact))
+        {
+            return false;
+        }
+        if (contact.depth == float.infinity)
+            //most likely, drop was inside the landscape
+            return false;
+        //had a collision, check normal
+        if (contact.normal.y < 0
+            && abs(contact.normal.x) < -contact.normal.y*1.19f)
+        {
             //check distance to other sprites
             foreach (GameObject o; mObjects) {
                 auto s = cast(GObjectSprite)o;
                 if (s) {
-                    if ((s.physics.pos-pos).length < cPlacePlatformDistance+10f)
+                    if ((s.physics.pos - drop).length < cPlaceMinDistance)
                         return false;
                 }
             }
-
-            //checks ok, remove land and create platform
-            damageLandscape(toVector2i(pos), holeRadius);
-            //xxx: can't access level theme resources here <- what??
-            Surface bmp = gfx.resources.get!(Surface)("place_platform");
-            insertIntoLandscape(Vector2i(cast(int)pos.x-bmp.size.x/2,
-                cast(int)pos.y+bmp.size.y/2), bmp, Lexel.SolidSoft);
-            dest = pos;
+            dest = drop;
             return true;
         } else {
-            GeomContact contact;
-            //cast a ray downwards from drop
-            if (!physicworld.thickRay(drop, Vector2f(0, 1), y_max - drop.y,
-                radius, pos, contact))
-            {
-                return false;
-            }
-            if (contact.depth == float.infinity)
-                //most likely, drop was inside the landscape
-                return false;
-            //had a collision, check normal
-            if (contact.normal.y < 0
-                && abs(contact.normal.x) < -contact.normal.y*1.19f)
-            {
-                //check distance to other sprites
-                foreach (GameObject o; mObjects) {
-                    auto s = cast(GObjectSprite)o;
-                    if (s) {
-                        if ((s.physics.pos - pos).length < cPlaceMinDistance)
-                            return false;
-                    }
-                }
-                dest = pos;
-                return true;
-            } else {
-                return false;
-            }
+            return false;
         }
     }
 
     //place an object deterministically on the landscape
     //checks a position grid with shrinking cell size for a successful placement
     //returns the first free position found
-    bool placeOnLandscapeDet(float y_max, float radius, out Vector2f drop,
+    private bool placeOnLandscapeDet(float radius, out Vector2f drop,
         out Vector2f dest)
     {
-        //get placement area (landscape area)
-        Rect2f area = Rect2f(0, 0, worldSize.x, y_max);
-        area.fitInside(getLandscapeArea());
-
         //multiplier (controls grid size)
         int multiplier = 16;
+
+        Rect2f area = placementArea();
 
         while (multiplier > 0) {
             float xx = cPlaceIncDistance * multiplier;
@@ -663,7 +685,7 @@ class GameEngine : GameEnginePublic {
             while (y < area.p2.y) {
                 drop.x = x;
                 drop.y = y;
-                if (placeObject(drop, area.p2.y, radius, dest))
+                if (placeObject_landscape(drop, area, radius, dest))
                     return true;
                 x += cPlaceIncDistance * multiplier;
                 if (x > area.p2.x) {
@@ -681,15 +703,14 @@ class GameEngine : GameEnginePublic {
     //the sky (instead of anywhere)
     //  retrycount = times it tries again until it gives up
     //  inAir = true to create a platform instead of searching for landscape
-    bool placeObjectRandom(float y_max, float radius, int retrycount,
+    bool placeObjectRandom(float radius, int retrycount,
         out Vector2f drop, out Vector2f dest, bool inAir = false)
     {
-        Rect2f area = Rect2f(0, 0, worldSize.x, y_max);
-        area.fitInside(getLandscapeArea());
+        Rect2f area = placementArea();
         for (;retrycount > 0; retrycount--) {
             drop.x = rnd.nextRange(area.p1.x, area.p2.x);
             drop.y = rnd.nextRange(area.p1.y, area.p2.y);
-            if (placeObject(drop, area.p2.y, radius, dest, inAir))
+            if (placeObject(drop, area, radius, dest, inAir))
                 return true;
         }
         return false;
@@ -710,21 +731,19 @@ class GameEngine : GameEnginePublic {
 
         foreach (GObjectSprite sprite; mPlaceQueue) {
             Vector2f npos, tmp;
-            //first 10: minimum distance from water
-            //second 10: retry count
-            if (!placeOnLandscapeDet(waterOffset-10, sprite.physics.posp.radius,
+            if (!placeOnLandscapeDet(sprite.physics.posp.radius,
                 tmp, npos))
             {
                 //placement unsuccessful
                 //create a platform at a random position
-                if (placeObjectRandom(waterOffset-10,
-                    sprite.physics.posp.radius, 50, tmp, npos, true))
+                if (placeObjectRandom(sprite.physics.posp.radius,
+                    50, tmp, npos, true))
                 {
                     log("placing '{}' in air!", sprite);
                 } else {
                     log("couldn't place '{}'!", sprite);
                     //xxx
-                    npos = toVector2f(worldSize)/2;
+                    npos = toVector2f(mLevel.worldSize)/2;
                 }
             }
             log("placed '{}' at {}", sprite, npos);
@@ -793,6 +812,18 @@ class GameEngine : GameEnginePublic {
                     mGfx.expl.smoke[rngShared.next(0, r)]);
             }
         }
+    }
+
+    void animationEffect(Animation ani, Vector2i at, AnimationParams p) {
+        //if this function gets used a lot, maybe it would be worth it to fuse
+        //  this with the particle engine (cf. showExplosion())
+        Animator a = new Animator(callbacks.interpolateTime);
+        a.auto_remove = true;
+        a.setAnimation(ani);
+        a.pos = at;
+        a.params = p;
+        a.zorder = GameZOrder.Effects;
+        callbacks.scene.add(a);
     }
 
 
@@ -1074,7 +1105,7 @@ class GameEngine : GameEnginePublic {
     }
 
     //similar to addCmd()
-    //expected is a delegate like void foo(ServerTeamMember w, X); where
+    //expected is a delegate like void foo(TeamMember w, X); where
     //X can be further parameters (can be empty)
     private void addWormCmd(T)(char[] name, T del) {
         //remove first parameter, because that's the worm
@@ -1086,7 +1117,7 @@ class GameEngine : GameEnginePublic {
             void moo(Params p) {
                 bool ok;
                 owner.checkWormCommand(
-                    (ServerTeamMember w) {
+                    (TeamMember w) {
                         ok = true;
                         //may error here, if del has a wrong type
                         callee(w, p);
@@ -1122,32 +1153,32 @@ class GameEngine : GameEnginePublic {
         //remember that delegate literals must only access their params
         //if they access members of this class, runtime errors will result
 
-        addWormCmd("next_member", (ServerTeamMember w) {
+        addWormCmd("next_member", (TeamMember w) {
             w.serverTeam.doChooseWorm();
         });
-        addWormCmd("jump", (ServerTeamMember w, bool alt) {
+        addWormCmd("jump", (TeamMember w, bool alt) {
             w.jump(alt ? JumpMode.straightUp : JumpMode.normal);
         });
-        addWormCmd("move", (ServerTeamMember w, int x, int y) {
+        addWormCmd("move", (TeamMember w, int x, int y) {
             w.doMove(Vector2i(x, y));
         });
-        addWormCmd("weapon", (ServerTeamMember w, char[] weapon) {
+        addWormCmd("weapon", (TeamMember w, char[] weapon) {
             WeaponClass wc;
             if (weapon != "-")
                 wc = w.engine.findWeaponClass(weapon, true);
             w.selectWeaponByClass(wc);
         });
-        addWormCmd("set_timer", (ServerTeamMember w, int ms) {
+        addWormCmd("set_timer", (TeamMember w, int ms) {
             w.doSetTimer(timeMsecs(ms));
         });
-        addWormCmd("set_target", (ServerTeamMember w, int x, int y) {
+        addWormCmd("set_target", (TeamMember w, int x, int y) {
             w.serverTeam.doSetPoint(Vector2f(x, y));
         });
-        addWormCmd("select_fire_refire", (ServerTeamMember w, char[] m, bool down) {
+        addWormCmd("select_fire_refire", (TeamMember w, char[] m, bool down) {
             WeaponClass wc = w.engine.findWeaponClass(m);
             w.selectFireRefire(wc, down);
         });
-        addWormCmd("selectandfire", (ServerTeamMember w, char[] m, bool down) {
+        addWormCmd("selectandfire", (TeamMember w, char[] m, bool down) {
             if (down) {
                 WeaponClass wc;
                 if (m != "-")
@@ -1172,11 +1203,11 @@ class GameEngine : GameEnginePublic {
     //must be done here:
     //  1. find out which worm is controlled by GameControl
     //  2. check if the move is allowed
-    private bool checkWormCommand(void delegate(ServerTeamMember w) pass) {
+    private bool checkWormCommand(void delegate(TeamMember w) pass) {
         //we must intersect both sets of team members (= worms):
         // set of active worms (by game controller) and set of worms owned by us
         //xxx: if several worms are active that belong to us, pick the first one
-        foreach (ServerTeam t; controller.teams()) {
+        foreach (Team t; controller.teams()) {
             if (t.active && checkTeamAccess(mTmp_CurrentAccessTag, t)) {
                 pass(t.current);
                 return true;
@@ -1190,7 +1221,7 @@ class GameEngine : GameEnginePublic {
     //xxx: used to cancel replay mode... can't do this anymore
     //  instead, it's hacked back into gameshell.d somewhere
     private void executeWeaponFire(bool is_down) {
-        void fire(ServerTeamMember w) {
+        void fire(TeamMember w) {
             if (is_down) {
                 w.doFireDown();
             } else {
@@ -1210,7 +1241,7 @@ class GameEngine : GameEnginePublic {
     //  surrender
     private void removeControl() {
         //special handling because teams don't need to be active
-        foreach (ServerTeam t; controller.teams()) {
+        foreach (Team t; controller.teams()) {
             if (checkTeamAccess(mTmp_CurrentAccessTag, t)) {
                 t.surrenderTeam();
             }

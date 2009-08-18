@@ -344,7 +344,7 @@ class StuckTriggerAction : SpriteAction {
 
 class ControlRotateAction : SpriteAction, Controllable {
     private {
-        ServerTeamMember mMember;
+        TeamMember mMember;
         Vector2f mMoveVector;
         float mDirection, mRotateSpeed;
     }
