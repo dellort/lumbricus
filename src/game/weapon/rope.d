@@ -202,6 +202,8 @@ class Rope : Shooter {
         mShootStart = engine.gameTime.current;
         //xxx: 3rd parameter is TeamTheme; could get it from mWorm...
         mAnchorGraphic = new Sequence(engine, mSeqUpdate, null);
+        mAnchorGraphic.zorder = GameZOrder.Objects;
+        engine.scene.add(mAnchorGraphic);
         mAnchorGraphic.setState(myclass.anchorAnim);
         if (!mRender)
             mRender = new RenderRope(this);
