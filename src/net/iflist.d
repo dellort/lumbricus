@@ -7,23 +7,10 @@ import tango.net.device.Socket;
 import tango.net.device.Berkeley;
 import tango.sys.Common;
 
-private struct sockaddr_in {
-    ushort sinfamily = AddressFamily.INET;
-    ushort sin_port;
-    uint sin_addr; //in_addr
-    char[8] sin_zero = 0;
-}
-
-//Tango's IPv4Address is used for string-formatting the address
-private class MyAddr : IPv4Address {
-    //name member is protected
-    sockaddr* pAddr() {
-        return name();
-    }
-}
+alias IPv4Address.sockaddr_in sockaddr_in;
 
 version (Win32) {
-    private import tango.sys.win32.WsaSock : WSAIoctl;
+    private import tango.sys.win32.WsaSock : WSAIoctl, socket, sockaddr;
 
     uint _IOR(T)(ubyte x, ubyte y) {
         return IOC_OUT | ((cast(uint)(T.sizeof)&IOCPARM_MASK)<<16) | (x<<8) | y;
@@ -77,7 +64,7 @@ version (Win32) {
         }
 
         char[][] res;
-        scope addr = new MyAddr();
+        scope addr = new IPv4Address(12345);
         int nNumInterfaces = nBytes / INTERFACE_INFO.sizeof;
         for (int i = 0; i < nNumInterfaces; i++) {
             uint flags = interfaceList[i].iiFlags;
@@ -90,7 +77,7 @@ version (Win32) {
                 sockaddr_in mask = cast(sockaddr_in)(interfaceList[i].iiNetmask);
                 ia.sin_addr = ia.sin_addr | (~mask.sin_addr);
 
-                *(addr.pAddr) = cast(sockaddr)(ia);
+                addr.sin = ia;
                 res ~= addr.toAddrString();
             }
         }
@@ -102,7 +89,7 @@ version (Win32) {
 version (linux) {
     private:
 
-    import tango.stdc.posix.sys.socket : AF_INET;
+    import tango.stdc.posix.sys.socket : AF_INET, sockaddr;
 
     extern(C) {
         int getifaddrs(ifaddrs** ifap);
@@ -142,7 +129,7 @@ version (linux) {
         }
 
         char[][] res;
-        scope addr = new MyAddr();
+        scope addr = new IPv4Address(12345);
         ifaddrs* cur = first;
         while (cur) {
             uint flags = cur.ifa_flags;
@@ -156,7 +143,7 @@ version (linux) {
                 sockaddr_in mask = *cast(sockaddr_in*)(cur.ifa_netmask);
                 ia.sin_addr = ia.sin_addr | (~mask.sin_addr);
 
-                *(addr.pAddr) = *cast(sockaddr*)(&ia);
+                addr.sin = ia;
                 res ~= addr.toAddrString();
             }
             cur = cur.ifa_next;

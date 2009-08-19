@@ -10,6 +10,9 @@ import tango.net.device.Berkeley; //????!!! lol tango
 import net.iflist;
 
 //fix for tango svn... sorry, I have no fucking idea
+version(Win32) {
+    import tango.sys.win32.WsaSock : timeval;
+}
 version(linux) {
     import tango.stdc.posix.sys.time;
 }

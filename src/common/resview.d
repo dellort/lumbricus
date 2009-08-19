@@ -106,65 +106,6 @@ class BitmapHandler : ResViewHandler!(Surface) {
     }
 }
 
-/*class MusicHandler : ResViewHandler!(Music) {
-    this(Object r) {
-        super(r);
-        setGUI(new Viewer());
-    }
-
-    char[] state() {
-        switch (resource.state) {
-            case MusicState.Stopped: return "stopped";
-            case MusicState.Playing: return "playing";
-            case MusicState.Paused: return "paused";
-        }
-    }
-
-    class Viewer : SimpleContainer {
-        Label lblstate;
-        this() {
-            auto box = new BoxContainer(false);
-            void button(char[] c, void delegate(Button) cb) {
-                auto b = new Button();
-                b.text = c;
-                b.onClick = cb;
-                box.add(b);
-            }
-            button("play", &onPlay);
-            button("stop", &onStop);
-            button("pause", &onPause);
-            button("fade", &onFade);
-            lblstate = new Label();
-            box.add(lblstate);
-            addChild(box);
-        }
-        void onPlay(Button s) {
-            if (resource.state == MusicState.Paused)
-                resource.state = MusicState.Playing;
-            else
-                resource.play(timeSecs(10), timeSecs(1.5f));
-        }
-        void onStop(Button s) {
-            resource.state = MusicState.Stopped;
-        }
-        void onPause(Button s) {
-            resource.state = MusicState.Paused;
-        }
-        void onFade(Button s) {
-            resource.fadeOut(timeSecs(2));
-        }
-        override void simulate() {
-            lblstate.text = (resource.isCurrent() ? "c " : "- ") ~ state()
-                ~ (gFramework.sound.available() ? " a " : " n ")
-                ~ resource.position().toString ~ "/" ~ resource.length.toString;
-        }
-    }
-
-    static this() {
-        registerHandler!(typeof(this));
-    }
-}
-*/
 class SampleHandler : ResViewHandler!(Sample) {
     this(Object r) {
         super(r);

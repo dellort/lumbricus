@@ -38,11 +38,13 @@ class ALChannel : DriverChannel {
         checkALError("alGenSources");
     }
 
-    void setPos(ref SoundSourcePosition pos) {
-        alSource3f(source, AL_POSITION, pos.position.x, pos.position.y, 0.0f);
+    void setPos(ref SoundSourceInfo pos) {
+        //xxx sounds wrong... maybe we need to set up listener position
+        alSource3f(source, AL_POSITION, pos.position.x/2.0f, 0.0f, 0.0f);
     }
 
-    void play(DriverSound s, bool loop) {
+    void play(DriverSound s, bool loop, Time startAt) {
+        //xxx startAt is ignored
         auto as = castStrict!(ALSound)(s);
         assert(!!as);
         assert(!!reserved_for);
@@ -50,7 +52,7 @@ class ALChannel : DriverChannel {
         alSourcei(source, AL_LOOPING, loop ? AL_TRUE : AL_FALSE);
         alSourcei(source, AL_BUFFER, as.mALBuffer);
         alSourcePlay(source);
-        assert (state() == AL_PLAYING);
+        assert (oalState() == AL_PLAYING);
         lastbuffer = as.mALBuffer;
     }
 
@@ -62,23 +64,49 @@ class ALChannel : DriverChannel {
         }
     }
 
-    void setPause(bool p) {
+    void paused(bool p) {
         if (p) {
             alSourcePause(source);
-        } else if (state() == AL_PAUSED) {
+        } else if (oalState() == AL_PAUSED) {
             alSourcePlay(source);
         }
     }
 
-    ALint state() {
+    void setVolume(float value) {
+        alSourcef(source, AL_GAIN, value);
+    }
+
+    ALint oalState() {
         ALint s;
         alGetSourcei(source, AL_SOURCE_STATE, &s);
         checkALError("alGetSourcei");
         return s;
     }
 
+    PlaybackState state() {
+        switch (oalState()) {
+            case AL_PLAYING:
+                return PlaybackState.playing;
+            case AL_PAUSED:
+                return PlaybackState.paused;
+            default:
+                return PlaybackState.stopped;
+        }
+    }
+
+    Time position() {
+        ALint st = oalState();
+        if (oalState == AL_PLAYING || oalState == AL_PAUSED) {
+            ALfloat pos;
+            alGetSourcef(source, AL_SEC_OFFSET, &pos);
+            return timeSecs(pos);
+        } else {
+            return Time.Null;
+        }
+    }
+
     void check() {
-        if ((state() != AL_PLAYING) && !neverfree) {
+        if ((oalState() != AL_PLAYING) && !neverfree) {
             reserved_for = null;
         }
     }
@@ -92,7 +120,6 @@ class ALChannel : DriverChannel {
 class ALSound : DriverSound {
     ALSoundDriver mDriver;
     Time mLength;
-    SoundType mType;
     ALuint mALBuffer;
 
     this(ALSoundDriver drv, DriverSoundData data) {
@@ -108,12 +135,7 @@ class ALSound : DriverSound {
         if (mALBuffer == AL_NONE) {
             throwALUTError("loading of '"~data.filename~"'");
         }
-        //bleh
-        mType = data.type;
-    }
-
-    SoundType type() {
-        return mType;
+        //xxx set mLength
     }
 
     Time length() {
@@ -128,7 +150,6 @@ class ALSound : DriverSound {
 
 class ALSoundDriver : SoundDriver {
     package {
-        float[SoundType.max+1] volume;
         ALSound[] mSounds;
         ALChannel[] mChannels;
         ALChannel mMusic;
@@ -160,9 +181,6 @@ class ALSoundDriver : SoundDriver {
 
         //probably set up listener (AL_POSITION, AL_VELOCITY, AL_GAIN,
         //AL_ORIENTATION), but there are defaults
-
-        volume[SoundType.music] = 1.0f;
-        volume[SoundType.sfx] = 1.0f;
     }
 
     DriverChannel getChannel(Object reserve_for) {
@@ -194,11 +212,6 @@ class ALSoundDriver : SoundDriver {
         as.free();
     }
 
-    void setVolume(SoundType v, float value) {
-        volume[v] = value;
-        //xxx
-    }
-
     void destroy() {
         debug Trace.formatln("unloading OpenAL");
         //caller must make sure all stuff has been unloaded
@@ -211,35 +224,6 @@ class ALSoundDriver : SoundDriver {
         DerelictALUT.unload();
         DerelictAL.unload();
         debug Trace.formatln("unloaded OpenAL");
-    }
-
-    void musicPlay(DriverSound m, Time startAt, Time fade) {
-        auto as = castStrict!(ALSound)(m);
-        if (!m) {
-            mMusic.stop(false);
-        } else {
-            mMusic.play(m, true);
-        }
-    }
-
-    void musicFadeOut(Time fadetime) {
-        //???
-        musicPlay(null, Time.Null, Time.Null);
-    }
-
-    void musicGetState(out MusicState state, out Time pos) {
-        auto s = mMusic.state();
-        if (s == AL_PLAYING) {
-            state = MusicState.Playing;
-        } else if (s == AL_PAUSED) {
-            state = MusicState.Paused;
-        } else {
-            state = MusicState.Stopped;
-        }
-    }
-
-    void musicPause(bool pause) {
-        mMusic.setPause(pause);
     }
 
     static this() {
