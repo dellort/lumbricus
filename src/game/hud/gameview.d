@@ -174,9 +174,11 @@ private class ViewMember {
         } else if (guiIsActive) {
             assert(graphic !is null);
             //xxx hurf hurf
-            auto ag = cast(RenderAnimation)graphic;
+            Sequence ag = graphic;
             assert (!!ag, "not attached to a worm?");
-            Animation ani = ag.animation;
+            SequenceUpdate su = ag.getInfos();
+            assert(!!su);
+            //Animation ani = ag.animation;
             Rect2i bounds;
             /+
             //assert (!!ani, "should be there because it is active");
@@ -188,7 +190,7 @@ private class ViewMember {
             //ughh
             const d = 30;
             bounds = Rect2i(-d, -d, d, d);
-            bounds += ag.draw_pos;
+            bounds += ag.interpolated_position();
 
             if (health_cur != member.currentHealth) {
                 health_cur = member.currentHealth;
@@ -261,9 +263,8 @@ private class ViewMember {
                 //possibly fix the animation
                 //get where worm looks too
                 bool faceLeft;
-                if (ag.more) {
-                    SequenceUpdate sd = ag.more;
-                    faceLeft = angleLeftRight(sd.rotation_angle, true,
+                if (su) {
+                    faceLeft = angleLeftRight(su.rotation_angle, true,
                         false);
                 }
                 if (!moveWeaponIcon.initialized) {
@@ -797,113 +798,20 @@ class GameView : Container {
     //that moved last
     //xxx: camera should use game objects instead of graphic stuff
     void sim_camera() {
-    /+
-        GameEngineGraphics graphics = mGame.engine.getGraphics();
-        TeamMember active_member = mGame.control.getControlledMember();
-        TeamTheme active_team;
-        AnimationGraphic active_member_gr;
-        if (active_member) {
-            active_team = active_member.team.teamColor;
-            active_member_gr =
-                cast(AnimationGraphic)active_member.getControlledGraphic();
-        }
-        Time now = graphics.timebase.current();
-
-        if (active_member !is mLastActiveMember) {
-            //member got activated
-            mActivateTime = now;
-            mLastActiveMember = active_member;
-        }
-
-        int priority(AnimationGraphic gr) {
-            //hmm
-            bool moving = (now - gr.last_position_change).msecs < 200;
-            //priorization as mentioned above
-            if (gr is active_member_gr) {
-                //active (controlled) teammember
-                //6 when just activated
-                if ((now - mActivateTime).secs < 5)
-                    return 6;
-                //5 when moving, 4 otherwise
-                return moving ? 5 : 4;
-            }
-            if (!moving)
-                return 0;
-            if (active_team && gr.owner_team is active_team)
-                return 4;
-            if (gr.owner_team) {
-                //if (auto member = gr.owner_team.getActiveMember()) {
-                //    if (member.getGraphic() is gr)
-                //        return 2;
-                //}
-                return 3;
-            }
-            return 1;
-        }
-
-        int best_priority;
-        AnimationGraphic best_object;
-
-        foreach (Graphic gr; graphics.objects) {
-            if (auto ani_gr = cast(AnimationGraphic)gr) {
-                int pri = priority(ani_gr);
-                if (pri > best_priority) {
-                    best_object = ani_gr;
-                    best_priority = pri;
-                } else if (pri == best_priority && best_object) {
-                    if (ani_gr.last_position_change >
-                        best_object.last_position_change)
-                    {
-                        best_object = ani_gr;
-                    }
-                }
-            }
-        }
-
-        //if there's nothing else, focus on unmoving active worm
-        if (!best_object) {
-            best_object = active_member_gr;
-        }
-
-        void updateCurObj() {
-            mCurCamObject = best_object;
-            mCurCamPriority = best_priority;
-            mLastCamChange = now;
-        }
-
-        if (best_object !is mCurCamObject) {
-            //want to change focus
-            //  to higher priority -> immediate
-            //  to lower priority -> with delay cCamChangeDelay
-            if (best_priority > mCurCamPriority
-                || now - mLastCamChange > cCamChangeDelay)
-            {
-                updateCurObj();
-            }
-        } else if (mCurCamObject) {
-            //focus unchanged
-            //make sure the focused object does not immediately lose focus
-            //  when it stops moving
-            mLastCamChange = max(mLastCamChange,
-                mCurCamObject.last_position_change);
-        }
-    +/
-
         Time now = mGame.clientTime.current;
 
-        RenderAnimation cur;
+        Sequence cur;
         TeamMember member = mGame.control.getControlledMember();
         if (member) {
-            cur = cast(RenderAnimation)member.getGraphic();
+            cur = member.getGraphic();
         }
 
-        auto mCurCamObject = cur;
-
-        if (mCurCamObject) {
+        if (cur) {
+            Vector2f velocity = cur.getInfos().velocity;
+            Vector2i position = cur.interpolated_position();
             //the following calculates the optimum camera border based
             //  on the speed of the tracked object
-            assert(!!mCurCamObject.more);
-            if (mCurCamObject.more) {
+            if (true) {
                 //calculate velocity multiplier, so an object at cMaxBorderSpeed
                 //  would be exactly centered
                 Vector2f optMult = toVector2f(mCamera.control.size/2
@@ -911,7 +819,7 @@ class GameView : Container {
 
                 //border increases by velocity, component-wise
                 auto camBorder = Camera.cCameraBorder
-                    + toVector2i(mCurCamObject.more.velocity.abs ^ optMult);
+                    + toVector2i(velocity.abs ^ optMult);
                 //always leave a small area at screen center
                 camBorder.clipAbsEntries(mCamera.control.size/2 - Vector2i(50));
 
@@ -932,7 +840,7 @@ class GameView : Container {
                 mLastCamBorder = Camera.cCameraBorder;
             }
 
-            mCamera.updateCameraTarget(toVector2i(mCurCamObject.more.position),
+            mCamera.updateCameraTarget(position,
                 mLastCamBorder);
         } else {
             mCamera.noFollow();

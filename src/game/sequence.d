@@ -204,7 +204,7 @@ class WormSequenceUpdate : SequenceUpdate {
 ///game.sprite for a game logic thingy). Displays animations and also can
 ///trigger sound and particle effects (not yet).
 ///This is the public interface to it.
-class Sequence {
+class Sequence : SceneObject {
     final GameEngine engine;
 
     protected {
@@ -228,21 +228,31 @@ class Sequence {
 
     ///query current position etc. - fields change as the simulation progresses
     //(e.g. target cross needs infos about the weapon angle)
-    SequenceUpdate getInfos() {
+    final SequenceUpdate getInfos() {
         return mUpdate;
     }
 
-    //only for "compatibility" (needs to be changed anyway)
-    SceneObject graphic() {
-        return mDisplay ? mDisplay.graphic : null;
+    //interpolated position, where object will be drawn
+    //non-deterministic (deterministic one is SequenceUpdate.position)
+    final Vector2i interpolated_position() {
+        if (!mDisplay) //huh?
+            return toVector2i(mUpdate.position);
+        return mDisplay.interpolated_position();
     }
 
     ///the animation-system can signal readyness back to the game logic with
     ///this (as requested by d0c)
     ///by default, it is signaled on the end of a state change
-    bool readyflag() {
+    final bool readyflag() {
         return !mDisplay || mDisplay.readyFlag();
     }
+
+    //NOTE:
+    //  Why is there simulate() and draw()?
+    //  - because simulate() is called each game frame, while draw() is called
+    //    randomly (at least in practice). stuff in draw() must not change any
+    //    game state (including sequence state), so you have to do that in
+    //    simulate(). on the other hand, draw() may do non-deterministic stuff.
 
     //should be called every frame
     void simulate() {
@@ -250,9 +260,15 @@ class Sequence {
             mDisplay.simulate();
     }
 
+    override void draw(Canvas c) {
+        if (mDisplay)
+            mDisplay.draw(c);
+    }
+
     //don't need it anymore
     void remove() {
         setDisplay(null);
+        removeThis();
     }
 
     ///query the "real" (i.e. currently being displayed) state
@@ -335,7 +351,7 @@ class Sequence {
     }
 }
 
-//
+//xxx: could be made a SceneObject (for fun and profit)
 class StateDisplay {
     final Sequence owner;
     //only for Sequence.setDisplay()
@@ -359,6 +375,8 @@ class StateDisplay {
 
     void simulate() {
     }
+    void draw(Canvas c) {
+    }
 
     bool readyFlag() {
         return true;
@@ -370,38 +388,117 @@ class StateDisplay {
     void disable() {
     }
 
-    abstract SceneObject graphic();
+    abstract Vector2i interpolated_position();
 
     final Time now() {
         return owner.engine.gameTime.current();
     }
 }
 
-//(only creates and keeps the animation thing)
+//render an animation
+//xxx: maybe the actual interpolation code should be moved into SequenceUpdate?
 class AniStateDisplay : StateDisplay {
-    RenderAnimation mAnimator;
+    //transient/indeterministic interpolation state
+    //just in a struct to make this more clear (and simpler to register)
+    struct Interpolate {
+        Vector2i pos;
+    }
+
+    private {
+        //GameEngine mOwner; //especially for gameTime
+        Time mStart; //engine time when animation was started
+        Interpolate mIP;
+        Animation mAnimation;
+    }
+
+    AnimationParams ani_params;
 
     this (Sequence a_owner) {
         super(a_owner);
     }
-
     this (ReflectCtor c) {
         super(c);
+        c.transient(this, &mIP);
     }
 
-    //xxx this is incredibly stupid
-    override void enable() {
-        mAnimator = new RenderAnimation(owner.engine, owner.mUpdate,
-            owner.mOwner);
-        owner.engine.scene.add(mAnimator);
-    }
-    override void disable() {
-        mAnimator.remove();
-        mAnimator = null;
+    private Time now() {
+        return owner.engine.gameTime.current();
     }
 
-    SceneObject graphic() {
-        return mAnimator;
+    final TeamTheme owner_team() {
+        return owner.mOwner;
+    }
+
+    final Animation animation() {
+        return mAnimation;
+    }
+
+    final override Vector2i interpolated_position() {
+        return mIP.pos;
+    }
+
+    override void draw(Canvas c) {
+        if (!mAnimation)
+            return;
+
+        SequenceUpdate su = owner.getInfos();
+
+        const cInterpolate = true;
+
+        static if (cInterpolate) {
+            Time itime = owner.engine.callbacks.interpolateTime.current;
+            Time diff = itime - now();
+            Vector2i ipos = toVector2i(su.position + su.velocity * diff.secsf);
+        } else {
+            Time itime = now();
+            Vector2i ipos = toVector2i(su.position);
+        }
+
+        mIP.pos = ipos;
+
+        mAnimation.draw(c, ipos, ani_params, itime - mStart);
+
+        auto arrow = owner_team() ? owner_team.cursor : null;
+        if (arrow) {
+            //if object is out of world boundaries, show arrow
+            //xxx actually, Sequence should be doing this
+            Rect2i worldbounds = owner.engine.level.worldBounds;
+            if (!worldbounds.isInside(ipos) && ipos.y < worldbounds.p2.y) {
+                auto posrect = worldbounds;
+                posrect.extendBorder(Vector2i(-20));
+                auto apos = posrect.clip(ipos);
+                //use object velocity for arrow rotation
+                int a = 90;
+                if (su.velocity.quad_length > float.epsilon)
+                    a = cast(int)(su.velocity.toAngle()*180.0f/PI);
+                AnimationParams aparams;
+                //arrow animation seems rotated by 180° <- no it's not!!1
+                aparams.p1 = (a+180)%360;
+                //arrows used to have zorder GameZOrder.RangeArrow
+                //now they have the zorder of the object; I think it's ok
+                arrow.draw(c, apos, aparams, itime - mStart);
+            }
+        }
+    }
+
+    final void setAnimation(Animation a_animation, Time startAt = Time.Null) {
+        mAnimation = a_animation;
+        mStart = now() + startAt;
+    }
+
+    final bool hasFinished() {
+        if (!mAnimation)
+            return true;
+        return mAnimation.finished(now() - mStart);
+    }
+
+    final Time animation_start() {
+        return mStart;
+    }
+
+    //just to make it not abstract, for jetpack flames
+    override SequenceState getCurrentState() {
+        return null;
     }
 }
 
@@ -445,25 +542,21 @@ class NapalmStateDisplay : AniStateDisplay {
                 new_animation = myclass.animFall;
             //xxx controls size (0-100), use damage or whatever
             auto nsu = cast(NapalmSequenceUpdate)v;
-            if (nsu)
-                params.p2 = nsu.decay;
-            else
-                params.p2 = 30;
+            ani_params.p2 = nsu ? nsu.decay : 30;
         } else {
             //fast napalm
             if (last_animation !is myclass.animFly)
                 new_animation = myclass.animFly;
-            params.p1 = cast(int)(v.rotation_angle*180.0f/math.PI);
-            params.p2 = cast(int)(100
+            ani_params.p1 = cast(int)(v.rotation_angle*180.0f/math.PI);
+            ani_params.p2 = cast(int)(100
                 * (speed-cTresholdVelocity) / cVelDelta);
         }
         if (new_animation) {
-            mAnimator.setAnimation(new_animation,
+            setAnimation(new_animation,
                 timeMsecs(owner.engine.rnd.nextRange(0,
                     cast(int)(new_animation.duration.msecs))));
             last_animation = new_animation;
         }
-        mAnimator.params = params;
     }
 }
 
@@ -505,7 +598,9 @@ class WormStateDisplay : AniStateDisplay {
     //for turnaround
     int mSideFacing;
     //only for jetpack
-    RenderAnimation[2] mJetFlames;
+    //xxx: proper "compositing" of sub-animations would be nice; but this is a
+    //  hack for now
+    AniStateDisplay[2] mJetFlames;
     Time[2] mJetFlamesStart;
 
     this (Sequence a_owner) {
@@ -533,7 +628,7 @@ class WormStateDisplay : AniStateDisplay {
         if (!mCurSubSeq || mCurSubSeq.ready)
             return true;
         if (mCurSubSeq.ready_at_end)
-            return mAnimator.hasFinished();
+            return hasFinished();
         return false;
     }
 
@@ -578,7 +673,7 @@ class WormStateDisplay : AniStateDisplay {
         +/
 
         if (s && (s.animation || s.reset_animation)) {
-            mAnimator.setAnimation(s.animation);
+            setAnimation(s.animation);
         }
 
         if (s && s.interpolate_angle_id >= 0) {
@@ -603,7 +698,7 @@ class WormStateDisplay : AniStateDisplay {
         bool ended = true;
         //if keepLastFrame is set, don't look at hasFinished
         auto anim = mCurSubSeq.animation;
-        if (anim && !mAnimator.hasFinished() &&
+        if (anim && !hasFinished() &&
             !mCurSubSeq.dont_wait_for_animation)
         {
             ended = false;
@@ -724,17 +819,16 @@ class WormStateDisplay : AniStateDisplay {
             //but save the excluded angle somewhere else
             mAngleUser = set_angle[exclude];
         }
-        AnimationParams p;
-        p.p1 = cast(int)(mAngles[0]/math.PI*180);
-        p.p2 = cast(int)(mAngles[1]/math.PI*180);
-        mAnimator.params = p;
+        ani_params.p1 = cast(int)(mAngles[0]/math.PI*180);
+        ani_params.p2 = cast(int)(mAngles[1]/math.PI*180);
         //all updates for jetpack flames
         //why is the jetpack so ridiculously complicated?
+
         if (!state.is_jetpack) {
             if (mJetFlames[0]) {
-                mJetFlames[0].remove();
-                mJetFlames[1].remove();
-                //mJetFlames[] = null;
+                //right now, are not added anywhere
+                //mJetFlames[0].disable();
+                //mJetFlames[1].disable();
             }
         } else if (wsu) {
             bool[2] down;
@@ -743,10 +837,8 @@ class WormStateDisplay : AniStateDisplay {
             Time t = now();
             foreach (int n, ref cur; mJetFlames) {
                 if (!cur)
-                    cur = new RenderAnimation(owner.engine, v);
-                if (!cur.parent)
-                    owner.engine.scene.add(cur);
-                cur.params = p;
+                    cur = new AniStateDisplay(owner);
+                cur.ani_params = ani_params;
                 //for each direction: if the expected state does not equal the
                 //needed animation, reverse the current animation, so
                 //that the flame looks looks like it e.g. grows back
@@ -766,6 +858,17 @@ class WormStateDisplay : AniStateDisplay {
                     cur.setAnimation(needed, -(needed.duration() - tdiff));
                 }
             }
+        }
+    }
+
+    override void draw(Canvas c) {
+        super.draw(c);
+        //additions for jetpack (overlays normal animation)
+        WormState state = mCurSubSeq ? mCurSubSeq.owner : null;
+        if (state && state.is_jetpack) {
+            assert(!!mJetFlames[0]);
+            mJetFlames[0].draw(c);
+            mJetFlames[1].draw(c);
         }
     }
 }

@@ -32,7 +32,7 @@ void initGameSerialization() {
         ProjectileSprite, RayShooter, Sequence,
         SequenceUpdate, Jetpack, Rope, Drill, WormSprite, WormSelectHelper,
         GravestoneSprite, WormSequenceUpdate, WrapFireInfo, RandomJumpAction,
-        GameEngineGraphics, TextGraphic, RenderAnimation, Animator,
+        GameEngineGraphics, TextGraphic, Animator,
         RenderLandscape, RenderRope, Scene,
         CrosshairGraphic, NapalmSequenceUpdate,
         NapalmSprite, ModeTurnbased, ModeDebug, TimeSource, StuckTriggerAction,

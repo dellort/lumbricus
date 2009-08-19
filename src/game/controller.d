@@ -577,21 +577,15 @@ class TeamMember : WormController {
 
     //xxx: probably replace by something better
 
-    SceneObject getGraphic() {
-        if (sprite && sprite.graphic) {
-            return sprite.graphic.graphic;
-        }
-        return null;
+    Sequence getGraphic() {
+        return sprite ? sprite.graphic : null;
     }
 
-    SceneObject getControlledGraphic() {
+    Sequence getControlledGraphic() {
         auto spr = sprite;
         if (mControlStack.length > 0)
             spr = mControlStack[$-1].getSprite();
-        if (spr && spr.graphic) {
-            return spr.graphic.graphic;
-        }
-        return null;
+        return spr ? spr.graphic : null;
     }
 
     // --- end TeamMember

@@ -90,16 +90,15 @@ class GObjectSprite : GameObject {
         if (mIsUnderWater && currentState.animationWater) {
             graphic.setState(currentState.animationWater);
         } else {
+            SequenceState nstate = currentState.animation;
             if (mType.teamAnimation) {
                 auto m = engine.controller.memberFromGameObject(this, true);
-                if (m)
-                    graphic.setState(currentState.teamAnim[
-                        TeamTheme.cTeamColors[m.team.color.colorIndex]]);
-                else
-                    graphic.setState(currentState.animation);
-            } else {
-                graphic.setState(currentState.animation);
+                if (m) {
+                    nstate = currentState.teamAnim[
+                        TeamTheme.cTeamColors[m.team.color.colorIndex]];
+                }
             }
+            graphic.setState(nstate);
         }
     }
 
@@ -292,6 +291,8 @@ class GObjectSprite : GameObject {
             auto owner = member ? member.team : null;
             graphic = new Sequence(engine, seqUpdate,
                 owner ? owner.teamColor : null);
+            graphic.zorder = GameZOrder.Objects;
+            engine.scene.add(graphic);
             physics.checkRotation();
             setCurrentAnimation();
             updateAnimation();
