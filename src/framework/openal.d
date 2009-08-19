@@ -2,14 +2,19 @@ module framework.openal;
 
 import derelict.openal.al;
 import derelict.openal.alut;
+import derelict.sdl.sdl;
+import derelict.sdl.sound;
 import framework.framework;
 import framework.sound;
+import framework.sdl.sdl;
+import framework.sdl.rwops;
 import utils.stream;
 import tango.stdc.stringz;
 import utils.array;
 import utils.misc;
 import utils.time;
 import utils.configfile;
+import utils.path;
 
 
 private void throwALUTError(char[] msg) {
@@ -39,8 +44,11 @@ class ALChannel : DriverChannel {
     }
 
     void setPos(ref SoundSourceInfo pos) {
-        //xxx sounds wrong... maybe we need to set up listener position
-        alSource3f(source, AL_POSITION, pos.position.x/2.0f, 0.0f, 0.0f);
+        //listener orientation is (0, 0, -1), so this should position the source
+        //in front of the listener with a 90° FOV, meaning x values close
+        //to -1 / 1 will sound "off-screen"
+        //y is source height, positive meaning "up"
+        alSource3f(source, AL_POSITION, pos.position.x, pos.position.y, -1.0f);
     }
 
     void play(DriverSound s, bool loop, Time startAt) {
@@ -116,7 +124,7 @@ class ALChannel : DriverChannel {
         alDeleteSources(1, &source);
     }
 }
-
+import tango.io.device.File;
 class ALSound : DriverSound {
     ALSoundDriver mDriver;
     Time mLength;
@@ -125,17 +133,50 @@ class ALSound : DriverSound {
     this(ALSoundDriver drv, DriverSoundData data) {
         mDriver = drv;
         mDriver.mSounds ~= this;
+
+        //open the stream and create a sample
         auto source = gFS.open(data.filename);
-        //no Stream-like abstraction (?) => temporarily copy into memory
-        auto stuff = new char[source.size()];
-        source.position = 0;
-        source.readExact(cast(ubyte[])stuff);
-        mALBuffer = alutCreateBufferFromFileImage(stuff.ptr, stuff.length);
-        delete stuff;
-        if (mALBuffer == AL_NONE) {
-            throwALUTError("loading of '"~data.filename~"'");
+        SDL_RWops* ops = rwopsFromStream(source);
+        //1024*1024 is the buffer size, meaning DecodeAll with process 1mb
+        //  at once and then grow the output buffer by that amount
+        Sound_Sample* smp = Sound_NewSample(ops,
+            toStringz(VFSPath(data.filename).extNoDot()), null, 1024*1024);
+        if (!smp) {
+            throw new Exception("SDL_sound failed to load '"~data.filename~"'");
         }
+        Trace.formatln("Sound-Err: {}", fromStringz(Sound_GetError()));
+        Trace.formatln("{}Hz, {}Ch, {}", smp.actual.rate, smp.actual.channels, smp.actual.format);
+
+        //decode everything into memory (no streaming for now)
+        Sound_DecodeAll(smp);
+
+        //debug output
+        File.set("out.raw", cast(void[])smp.buffer[0..smp.buffer_size]);
+
+        Trace.formatln("Sound-Err: {}", fromStringz(Sound_GetError()));
+        //copy sound data to openal buffer
+        alGenBuffers(1, &mALBuffer);
+        alBufferData(mALBuffer,
+            convertSDLFormat(smp.actual.channels, smp.actual.format),
+            smp.buffer, smp.buffer_size, smp.actual.rate);
+
+        //close original sample
+        Sound_FreeSample(smp);
+        source.close();
+
         //xxx set mLength
+    }
+
+    private ALenum convertSDLFormat(ubyte channels, ushort format) {
+        if (channels == 1) {
+            if (format == AUDIO_U8 || format == AUDIO_S8)
+                return AL_FORMAT_MONO8;
+            return AL_FORMAT_MONO16;
+        } else if (channels == 2) {
+            if (format == AUDIO_U8 || format == AUDIO_S8)
+                return AL_FORMAT_STEREO8;
+            return AL_FORMAT_STEREO16;
+        } else assert(false);
     }
 
     Time length() {
@@ -165,6 +206,10 @@ class ALSoundDriver : SoundDriver {
 
         DerelictAL.load();
         DerelictALUT.load();
+
+        sdlInit();
+        DerelictSDLSound.load();
+        Sound_Init();
 
         if (alutInit(null, null) == AL_FALSE) {
             throwALUTError("alutInit");
@@ -221,6 +266,9 @@ class ALSoundDriver : SoundDriver {
         }
         gBase = null;
         alutExit();
+        Sound_Quit();
+        DerelictSDLSound.unload();
+        sdlQuit();
         DerelictALUT.unload();
         DerelictAL.unload();
         debug Trace.formatln("unloaded OpenAL");

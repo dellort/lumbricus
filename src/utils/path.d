@@ -139,6 +139,13 @@ struct VFSPath {
         return "";
     }
 
+    //xxx same as above... choose one, kill the other
+    char[] extNoDot() {
+        if (mExtIdx >= 0)
+            return mPath[mExtIdx+1..$];
+        return "";
+    }
+
     ///return filename with extension of the last path component
     char[] filename() {
         if (mNameIdx >= 0)

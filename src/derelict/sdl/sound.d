@@ -54,22 +54,22 @@ void SOUND_VERSION(out Sound_Version ver) {
 }
 
 
-void function(out Sound_Version ver) Sound_GetLinkedVersion;
+void function(Sound_Version *ver) Sound_GetLinkedVersion;
 int function() Sound_Init;
 int function() Sound_Quit;
 Sound_DecoderInfo** function() Sound_AvailableDecoders;
 char* function() Sound_GetError;
 void function() Sound_ClearError;
-Sound_Sample* function(ref SDL_RWops rw, char *ext,
-    ref Sound_AudioInfo desired, uint bufferSize) Sound_NewSample;
+Sound_Sample* function(SDL_RWops *rw, char *ext,
+    Sound_AudioInfo *desired, uint bufferSize) Sound_NewSample;
 Sound_Sample* function(char *fname,
-    ref Sound_AudioInfo desired, uint bufferSize) Sound_NewSampleFromFile;
-void function(ref Sound_Sample sample) Sound_FreeSample;
-int function(ref Sound_Sample sample, uint new_size) Sound_SetBufferSize;
-uint function(ref Sound_Sample sample) Sound_Decode;
-uint function(ref Sound_Sample sample) Sound_DecodeAll;
-int function(ref Sound_Sample sample) Sound_Rewind;
-int function(ref Sound_Sample sample, uint ms) Sound_Seek;
+    Sound_AudioInfo *desired, uint bufferSize) Sound_NewSampleFromFile;
+void function(Sound_Sample *sample) Sound_FreeSample;
+int function(Sound_Sample *sample, uint new_size) Sound_SetBufferSize;
+uint function(Sound_Sample *sample) Sound_Decode;
+uint function(Sound_Sample *sample) Sound_DecodeAll;
+int function(Sound_Sample *sample) Sound_Rewind;
+int function(Sound_Sample *sample, uint ms) Sound_Seek;
 
 
 extern(D):
