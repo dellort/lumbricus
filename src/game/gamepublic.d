@@ -92,25 +92,6 @@ class GameConfig {
     }
 }
 
-
-enum GameZOrder {
-    Invisible = 0,
-    Background,
-    BackLayer,
-    BackWater,
-    Landscape,
-    LevelWater,  //water before the level, but behind drowning objects
-    Objects,
-    Names,       //stuff drawn by gameview.d
-    Crosshair,
-    Effects, //whatw as that
-    Particles,
-    Clouds,
-    FrontWater,
-    RangeArrow,  //object-off-level-area arrow
-    Splat,   //Fullscreen effect
-}
-
 //somehow I'd prefer this to be in a struct, but all the wiring and glue is
 //  simpler when this is a separate object
 //NOTE: if you need something simpler, just use Animator (or Sequence)

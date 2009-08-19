@@ -70,37 +70,6 @@ class SequenceStateList {
     }
 }
 
-//this emulates Delphi style virtual constructors
-//in Delphi, this would just be a class variable of T (or whatever it's called)
-//if you think this is too convoluted, send me hate-mail
-//T = class type common to all objects constructed (e.g. Object)
-//Params = parameter types for the constructor call
-struct VirtualCtor(T, Params...) {
-    private {
-        ClassInfo mInfo;
-        T delegate(Params p) mCtor;
-    }
-
-    static VirtualCtor Init(T2 : T)() {
-        VirtualCtor res;
-        res.mInfo = T2.classinfo;
-        res.mCtor = (Params p) { T r = new T2(p); return r; };
-        return res;
-    }
-
-    T ctor(Params p) {
-        return mCtor(p);
-    }
-
-    ClassInfo classinfo() {
-        return mInfo;
-    }
-}
-
-//the object type that can created by this is a class derived from StateDisplay
-//the ctor of that class takes a Sequence parameter
-alias VirtualCtor!(StateDisplay, Sequence) DisplayType;
-
 ///static data about a single state
 ///(at least used as a handle for the state by the Sequence owner... could use a
 /// a simple string to identify the state, but I haet simple strings)
@@ -154,6 +123,37 @@ class SequenceState {
             t.dest = engine.sequenceStates.findState(t.dest_name);
         }
     }
+
+    //this emulates Delphi style virtual constructors
+    //in Delphi, this would just be a class variable of T (or whatever it's called)
+    //if you think this is too convoluted, send me hate-mail
+    //T = class type common to all objects constructed (e.g. Object)
+    //Params = parameter types for the constructor call
+    struct VirtualCtor(T, Params...) {
+        private {
+            ClassInfo mInfo;
+            T delegate(Params p) mCtor;
+        }
+
+        static VirtualCtor Init(T2 : T)() {
+            VirtualCtor res;
+            res.mInfo = T2.classinfo;
+            res.mCtor = (Params p) { T r = new T2(p); return r; };
+            return res;
+        }
+
+        T ctor(Params p) {
+            return mCtor(p);
+        }
+
+        ClassInfo classinfo() {
+            return mInfo;
+        }
+    }
+
+    //the object type that can created by this is a class derived from StateDisplay
+    //the ctor of that class takes a Sequence parameter
+    alias VirtualCtor!(StateDisplay, Sequence) DisplayType;
 
     private final bool displayObjectOk(StateDisplay o) {
         return getDisplayType().classinfo is o.classinfo;
