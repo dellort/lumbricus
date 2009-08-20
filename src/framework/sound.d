@@ -67,7 +67,7 @@ abstract class DriverChannel {
     //will be set to null if playback is finished or driver is unloaded etc.
     Object reserved_for;
 
-    abstract void setPos(ref SoundSourceInfo pos);
+    abstract void setInfo(ref SoundSourceInfo info);
     //set absolute volume of this channel
     abstract void setVolume(float value);
 
@@ -424,7 +424,7 @@ class Source {
         if (!dc)
             dc = createDC();
         if (dc) {
-            dc.setPos(info);
+            dc.setInfo(info);
             if (fadeinTime == Time.Null) {
                 mFading = FadeType.none;
                 updateVolume();
@@ -525,7 +525,7 @@ class Source {
     private void tick() {
         //update position if still playing
         if (auto dc = createDC(false)) {
-            dc.setPos(info);
+            dc.setInfo(info);
             if (mFading != FadeType.none)
                 updateVolume();
         }

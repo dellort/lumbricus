@@ -636,6 +636,9 @@ class FileSystem {
         HandlerInstance caller = null)
     {
         version(FSDebug) log("Trying to open '{}'",filename);
+        //always shared reading
+        if (mode.share == File.Share.None)
+            mode.share = File.Share.Read;
         foreach (inout MountedPath p; mMountedPaths) {
             if (p.handler == caller)
                 continue;

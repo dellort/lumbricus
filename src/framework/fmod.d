@@ -81,11 +81,11 @@ class FMODChannel : DriverChannel {
         owner = gBase;
     }
 
-    override void setPos(ref SoundSourceInfo pos) {
+    override void setInfo(ref SoundSourceInfo info) {
         if (state != PlaybackState.stopped) {
-            update(pos);
+            update(info);
         } else {
-            mSourceInfo = pos;
+            mSourceInfo = info;
         }
     }
 
