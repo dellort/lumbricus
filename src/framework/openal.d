@@ -125,8 +125,26 @@ class ALChannel : DriverChannel {
     }
 
     void tick() {
-        if (mSound && state == PlaybackState.playing)
+        auto curSt = state();
+        bool underrunResume;
+        //buffer underrun protection: if playback stopped, buf we still have
+        //a streamed sound assigned that has not run to EOF, this should be (?)
+        //an underrun condition
+        if (curSt == PlaybackState.stopped && mSound && mSound.streamed &&
+            !mSound.streamEOF)
+        {
+            //so force a buffer refill...
+            underrunResume = true;
+        }
+        if ((mSound && curSt == PlaybackState.playing) || underrunResume)
             mSound.update();
+        if (underrunResume) {
+            //...and resume playback
+            alSourcePlay(source);
+        } else if (mSound && curSt == PlaybackState.stopped) {
+            //playback has finished
+            stop(true);
+        }
     }
 
     void close() {
@@ -143,6 +161,7 @@ class ALSound : DriverSound {
         Stream mStream;
         Sound_Sample* mSample;
         ALuint mCurrentSource = uint.max;  //for streaming; can only play once
+        bool streamEOF;
 
         const cReadSampleBuffer = 1024*1024;
         const cStreamBuffer = 4096*8;
@@ -211,14 +230,18 @@ class ALSound : DriverSound {
     //called before the alSourcePlay() call
     private void initPlay(ALuint source) {
         if (mSample) {
-            if (mCurrentSource != uint.max)
-                throw new Exception("Stream can only play once");
+            if (mCurrentSource != uint.max) {
+                finishPlay();
+                debug Trace.formatln("ALSound.initPlay warning: tried to"
+                    " play stream multiple times, current playback cut off");
+            }
             //streamed, queue first 2 buffers
             if (!stream(mALBuffer[0]) || !stream(mALBuffer[1]))
                 throw new Exception("ALSound streaming failed");
             alSourceQueueBuffers(source, 2, mALBuffer.ptr);
             checkALError("alSourceQueueBuffers");
             mCurrentSource = source;
+            streamEOF = false;
         } else {
             //not streamed, all data is already in first buffer
             alSourcei(source, AL_BUFFER, mALBuffer[0]);
@@ -245,6 +268,9 @@ class ALSound : DriverSound {
             checkALError("alSourceUnqueueBuffers");
         }
         mCurrentSource = uint.max;
+
+        //restart from beginning
+        Sound_Rewind(mSample);
     }
 
     //called every frame while playing
@@ -263,8 +289,10 @@ class ALSound : DriverSound {
 
             //pop from begin
             alSourceUnqueueBuffers(mCurrentSource, 1, &buffer);
-            if (!stream(buffer))
+            if (!stream(buffer)) {
+                streamEOF = true;
                 return;
+            }
             //queue at end
             alSourceQueueBuffers(mCurrentSource, 1, &buffer);
             checkALError("alSourceQueueBuffers");
@@ -289,7 +317,11 @@ class ALSound : DriverSound {
 
     private bool canLoop() {
         //can't loop streamed sounds
-        return !mSample;
+        return !streamed;
+    }
+
+    private bool streamed() {
+        return !!mSample;
     }
 
     Time length() {
