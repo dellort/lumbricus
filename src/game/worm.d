@@ -22,6 +22,11 @@ import utils.configfile;
 import utils.reflection;
 import tango.math.Math;
 
+//crosshair
+import common.scene;
+import utils.interpolate;
+import framework.timesource;
+
 /**
   just an idea:
   thing which can be controlled like a worm
@@ -90,7 +95,7 @@ class WormSprite : GObjectSprite {
         JumpMode mJumpMode;
 
         //null if not there, instantiated all the time it's needed
-        CrosshairGraphic mCrosshair;
+        RenderCrosshair mCrosshair;
 
         //that thing when you e.g. shoot a bazooka to set the fire strength
         bool mThrowing;
@@ -710,11 +715,11 @@ class WormSprite : GObjectSprite {
         }
         if (exists != shouldexist) {
             if (exists) {
-                mCrosshair.remove();
+                mCrosshair.removeThis();
                 mCrosshair = null;
             } else {
-                mCrosshair = new CrosshairGraphic(teamColor, seqUpdate);
-                engine.graphics.add(mCrosshair);
+                mCrosshair = new RenderCrosshair(engine, graphic);
+                engine.scene.add(mCrosshair);
             }
         }
     }
@@ -1164,5 +1169,120 @@ class GravestoneSpriteClass : GOSpriteClass {
 
     static this() {
         SpriteClassFactory.register!(typeof(this))("grave_mc");
+    }
+}
+
+
+//move elsewhere?
+class RenderCrosshair : SceneObject {
+    private {
+        GameEngine mEngine;
+        Sequence mAttach;
+        float mLoad = 0.0f;
+        bool mDoReset;
+        InterpolateState mIP;
+
+        struct InterpolateState {
+            bool did_init;
+            InterpolateExp!(float, 4.25f) interp;
+        }
+    }
+
+    this(GameEngine a_engine, Sequence a_attach) {
+        mEngine = a_engine;
+        mAttach = a_attach;
+        zorder = GameZOrder.Crosshair;
+        init_ip();
+        reset();
+    }
+    this (ReflectCtor c) {
+        super(c);
+        c.transient(this, &mIP);
+    }
+
+    private void init_ip() {
+        mIP.interp.currentTimeDg = &time.current;
+        mIP.interp.init(mEngine.gfx.crosshair.animDur, 1, 0);
+        mIP.did_init = true;
+    }
+
+    //value between 0.0 and 1.0 for the fire strength indicator
+    void setLoad(float a_load) {
+        mLoad = a_load;
+    }
+
+    //reset animation, called after this becomes .active again
+    void reset() {
+        mIP.interp.restart();
+    }
+
+    private TimeSourcePublic time() {
+        return mEngine.callbacks.interpolateTime;
+    }
+
+    override void draw(Canvas canvas) {
+        auto tcs = mEngine.gfx.crosshair;
+
+        if (!mIP.did_init) {
+            //if this code is executed, the game was just loaded from a savegame
+            init_ip();
+        }
+
+        //xxx: forgot what this was about
+        /+
+        //NOTE: in this case, the readyflag is true, if the weapon is already
+        // fully rotated into the target direction
+        bool nactive = true; //mAttach.readyflag;
+        if (mTarget.active != nactive) {
+            mTarget.active = nactive;
+            if (nactive)
+                reset();
+        }
+        +/
+
+        auto infos = cast(WormSequenceUpdate)mAttach.getInfos();
+        //xxx make this restriction go away?
+        assert(!!infos,"Can only attach a target cross to worm sprites");
+        auto pos = mAttach.interpolated_position; //toVector2i(infos.position);
+        auto angle = fullAngleFromSideAngle(infos.rotation_angle,
+            infos.pointto_angle);
+        //normalized weapon direction
+        auto dir = Vector2f.fromPolar(1.0f, angle);
+
+        //crosshair animation
+        auto target_offset = tcs.targetDist - tcs.targetStartDist;
+        //xxx reset on weapon change
+        Vector2i target_pos = pos + toVector2i(dir * (tcs.targetDist
+            - target_offset*mIP.interp.value));
+        AnimationParams ap;
+        ap.p1 = cast(int)((angle + 2*PI*mIP.interp.value)*180/PI);
+        Animation cs = mAttach.teamOwner.aim;
+        //(if really an animation should be supported, it's probably better to
+        // use Sequence or so - and no more interpolation)
+        cs.draw(canvas, target_pos, ap, Time.Null);
+
+        //draw that band like thing, which indicates fire/load strength
+        auto start = tcs.loadStart + tcs.radStart;
+        auto abs_end = tcs.loadEnd - tcs.radEnd;
+        auto scale = abs_end - start;
+        auto end = start + cast(int)(scale*mLoad);
+        auto rstart = start + 1; //omit first circle => invisible at mLoad=0
+        float oldn = 0;
+        int stip;
+        auto cur = end;
+        //NOTE: when firing, the load-colors look like they were animated;
+        //  actually that's because the stipple-offset is changing when the
+        //  mLoad value changes => stipple pattern moves with mLoad and the
+        //  color look like they were changing
+        while (cur >= rstart) {
+            auto n = (1.0f*(cur-start)/scale);
+            if ((stip % tcs.stipple)==0)
+                oldn = n;
+            auto col = tcs.colorStart + (tcs.colorEnd-tcs.colorStart)*oldn;
+            auto rad = cast(int)(tcs.radStart+(tcs.radEnd-tcs.radStart)*n);
+            canvas.drawFilledCircle(pos + toVector2i(dir*cur), rad, col);
+            cur -= tcs.add;
+            stip++;
+        }
     }
 }

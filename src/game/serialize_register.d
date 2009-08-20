@@ -34,7 +34,7 @@ void initGameSerialization() {
         GravestoneSprite, WormSequenceUpdate, WrapFireInfo, RandomJumpAction,
         GameEngineGraphics, TextGraphic, Animator,
         RenderLandscape, RenderRope, Scene,
-        CrosshairGraphic, NapalmSequenceUpdate,
+        RenderCrosshair, NapalmSequenceUpdate,
         NapalmSprite, ModeTurnbased, ModeDebug, TimeSource, StuckTriggerAction,
         TimeSourceFixFramerate, TurnbasedStatus, HomingAction, SpriteAction,
         MeleeWeapon, MeleeShooter, WeaponContext, DelayedObj,

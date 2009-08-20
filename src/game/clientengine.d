@@ -35,103 +35,6 @@ import tango.math.Math : PI, pow;
 
 
 
-//------------------------------ Graphics ---------------------------------
-
-
-class CrosshairGraphicImpl : SceneObject {
-    private {
-        CrosshairGraphic mInfo;
-        Vector2f mDir; //normalized weapon direction
-        Animator mTarget;
-        float mTargetOffset;
-        GfxSet mGfx;
-        TimeSourcePublic timebase;
-        InterpolateExp!(float, 4.25f) mInterp;
-    }
-
-    this(CrosshairGraphic info, GfxSet gfx) {
-        zorder = GameZOrder.Crosshair;
-        mGfx = gfx;
-        mInfo = info;
-        timebase = mInfo.owner.timebase;
-        mTarget = new Animator(timebase);
-        mTarget.setAnimation(mInfo.theme.aim);
-        mInterp.currentTimeDg = &timebase.current;
-        mInterp.init(mGfx.crosshair.animDur, 1, 0);
-        mTargetOffset = mGfx.crosshair.targetDist -
-            mGfx.crosshair.targetStartDist;
-        reset();
-    }
-
-    void doDraw(Canvas canvas, Vector2i pos) {
-        auto tcs = mGfx.crosshair;
-        auto start = tcs.loadStart + tcs.radStart;
-        auto abs_end = tcs.loadEnd - tcs.radEnd;
-        auto scale = abs_end - start;
-        auto end = start + cast(int)(scale*mInfo.load);
-        auto rstart = start + 1; //omit first circle => invisible at mLoad=0
-        float oldn = 0;
-        int stip;
-        auto cur = end;
-        //NOTE: when firing, the load-colors look like they were animated;
-        //  actually that's because the stipple-offset is changing when the
-        //  mLoad value changes => stipple pattern moves with mLoad and the
-        //  color look like they were changing
-        while (cur >= rstart) {
-            auto n = (1.0f*(cur-start)/scale);
-            if ((stip % tcs.stipple)==0)
-                oldn = n;
-            auto col = tcs.colorStart + (tcs.colorEnd-tcs.colorStart)*oldn;
-            auto rad = cast(int)(tcs.radStart+(tcs.radEnd-tcs.radStart)*n);
-            canvas.drawFilledCircle(pos + toVector2i(mDir*cur), rad, col);
-            cur -= tcs.add;
-            stip++;
-        }
-    }
-
-    //reset animation, called after this becomes .active again
-    void reset() {
-        mInterp.restart();
-    }
-
-    override void draw(Canvas c) {
-        if (!mInfo.attach)
-            return;
-        if (mInfo.removed) {
-            removeThis();
-            return;
-        }
-
-        //NOTE: in this case, the readyflag is true, if the weapon is already
-        // fully rotated into the target direction
-        bool nactive = true; //mAttach.readyflag;
-        if (mTarget.active != nactive) {
-            mTarget.active = nactive;
-            if (nactive)
-                reset();
-        }
-
-        if (mInfo.doreset) {
-            mInfo.doreset = false;
-            reset();
-        }
-
-        auto infos = cast(WormSequenceUpdate)mInfo.attach;
-        assert(!!infos,"Can only attach a target cross to worm sprites");
-        auto pos = toVector2i(infos.position);
-        auto angle = fullAngleFromSideAngle(infos.rotation_angle,
-            infos.pointto_angle);
-        mDir = Vector2f.fromPolar(1.0f, angle);
-        //target cross animation
-        //xxx reset on weapon change
-        mTarget.pos = pos + toVector2i(mDir * (mGfx.crosshair.targetDist
-            - mTargetOffset*mInterp.value));
-        mTarget.params.p1 = cast(int)((angle + 2*PI*mInterp.value)*180/PI);
-
-        mTarget.draw(c);
-        doDraw(c, pos);
-    }
-}
 
 //------------------------------ Effects ---------------------------------
 
@@ -235,7 +138,6 @@ class ClientGameEngine : GameEngineCallback {
         initSound();
 
         auto cb = mEngine.callbacks();
-        cb.newGraphic ~= &doNewGraphic;
         cb.nukeSplatEffect ~= &nukeSplatEffect;
 
         //why not use mEngineTime? because higher/non-fixed framerate
@@ -308,16 +210,6 @@ class ClientGameEngine : GameEngineCallback {
         //but maybe this should be moved to gemashell.d
         foreach (Graphic g; server_graphics.objects) {
             engine.callbacks.newGraphic(g);
-        }
-    }
-
-    private void doNewGraphic(Graphic g) {
-        if (auto tc = cast(CrosshairGraphic)g) {
-            scene.add(new CrosshairGraphicImpl(tc, gfx));
-        } else if (auto txt = cast(TextGraphic)g) {
-            //leave it to gameview.d (which adds its own newGraphic callback)
-        } else {
-            assert (false, "unknown type: "~g.toString());
         }
     }
 

@@ -232,6 +232,11 @@ class Sequence : SceneObject {
         return mUpdate;
     }
 
+    //xxx belongs into SequenceUpdate? stupid separation
+    final TeamTheme teamOwner() {
+        return mOwner;
+    }
+
     //interpolated position, where object will be drawn
     //non-deterministic (deterministic one is SequenceUpdate.position)
     final Vector2i interpolated_position() {

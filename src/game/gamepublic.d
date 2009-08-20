@@ -165,30 +165,6 @@ abstract class Graphic {
     }
 }
 
-class CrosshairGraphic : Graphic {
-    TeamTheme theme;
-    SequenceUpdate attach; //where position and angle are read from
-    float load = 0.0f;
-    bool doreset;
-
-    this (TeamTheme theme, SequenceUpdate attach) {
-        this.theme = theme;
-        this.attach = attach;
-    }
-    this (ReflectCtor c) {
-        super(c);
-    }
-
-    //value between 0.0 and 1.0 for the fire strength indicator
-    void setLoad(float a_load) {
-        load = a_load;
-    }
-
-    void reset() {
-        doreset = true;
-    }
-}
-
 
 class TextGraphic : Graphic {
     char[] msgMarkup;
@@ -212,8 +188,6 @@ class TextGraphic : Graphic {
         super(c);
     }
 }
-
-
 
 ///calls from engine into clients
 ///for stuff that can't simply be polled
