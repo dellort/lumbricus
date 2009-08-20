@@ -4,6 +4,7 @@ import derelict.openal.al;
 import derelict.openal.alut;
 import derelict.sdl.sdl;
 import derelict.sdl.sound;
+import derelict.util.exception;
 import framework.framework;
 import framework.sound;
 import framework.sdl.sdl;
@@ -144,16 +145,18 @@ class ALSound : DriverSound {
         if (!smp) {
             throw new Exception("SDL_sound failed to load '"~data.filename~"'");
         }
-        Trace.formatln("Sound-Err: {}", fromStringz(Sound_GetError()));
-        Trace.formatln("{}Hz, {}Ch, {}", smp.actual.rate, smp.actual.channels, smp.actual.format);
+
+        //recent versions of SDL_sound support fast duration calculation
+        if (Sound_GetDuration) {
+            //may return -1 if not possible
+            int dur = Sound_GetDuration(smp);
+            if (dur > 0)
+                mLength = timeMsecs(dur);
+        }
 
         //decode everything into memory (no streaming for now)
         Sound_DecodeAll(smp);
 
-        //debug output
-        File.set("out.raw", cast(void[])smp.buffer[0..smp.buffer_size]);
-
-        Trace.formatln("Sound-Err: {}", fromStringz(Sound_GetError()));
         //copy sound data to openal buffer
         alGenBuffers(1, &mALBuffer);
         alBufferData(mALBuffer,
@@ -163,8 +166,6 @@ class ALSound : DriverSound {
         //close original sample
         Sound_FreeSample(smp);
         source.close();
-
-        //xxx set mLength
     }
 
     private ALenum convertSDLFormat(ubyte channels, ushort format) {
@@ -208,7 +209,9 @@ class ALSoundDriver : SoundDriver {
         DerelictALUT.load();
 
         sdlInit();
+        Derelict_SetMissingProcCallback(&missingProcSDLsound);
         DerelictSDLSound.load();
+        Derelict_SetMissingProcCallback(null);
         Sound_Init();
 
         if (alutInit(null, null) == AL_FALSE) {
@@ -277,4 +280,10 @@ class ALSoundDriver : SoundDriver {
     static this() {
         SoundDriverFactory.register!(typeof(this))("openal");
     }
+}
+
+private bool missingProcSDLsound(char[] libName, char[] procName) {
+    if (procName == "Sound_GetDuration")
+        return true;
+    return false;
 }

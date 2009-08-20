@@ -64,6 +64,7 @@ Sound_Sample* function(SDL_RWops *rw, char *ext,
     Sound_AudioInfo *desired, uint bufferSize) Sound_NewSample;
 Sound_Sample* function(char *fname,
     Sound_AudioInfo *desired, uint bufferSize) Sound_NewSampleFromFile;
+int function(Sound_Sample *sample) Sound_GetDuration;
 void function(Sound_Sample *sample) Sound_FreeSample;
 int function(Sound_Sample *sample, uint new_size) Sound_SetBufferSize;
 uint function(Sound_Sample *sample) Sound_Decode;
@@ -83,6 +84,7 @@ private void load(SharedLib lib) {
     bindFunc(Sound_ClearError)("Sound_ClearError",lib);
     bindFunc(Sound_NewSample)("Sound_NewSample",lib);
     bindFunc(Sound_NewSampleFromFile)("Sound_NewSampleFromFile",lib);
+    bindFunc(Sound_GetDuration)("Sound_GetDuration",lib);
     bindFunc(Sound_FreeSample)("Sound_FreeSample",lib);
     bindFunc(Sound_SetBufferSize)("Sound_SetBufferSize",lib);
     bindFunc(Sound_Decode)("Sound_Decode",lib);
