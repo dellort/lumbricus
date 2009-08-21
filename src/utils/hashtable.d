@@ -41,13 +41,14 @@ final class RefHashTable(K, V) {
             K key;
             V value;
             Node* next;
-            bool used;
+            bool used; //unneeded; instead should check if key is null
         }
 
         Node[] mNodes;
         uint mHashMask;
         Node* mColBucket;
         size_t mSize;
+        const uint cLoadFactor = 80;
     }
 
     this() {
@@ -77,13 +78,21 @@ final class RefHashTable(K, V) {
 
     //overwrite old value if already exists
     void insert(K key, V value) {
+        *insert_lookup(key) = value;
+    }
+
+    //if value doesn't exist, insert and set to V.init, else just do a lookup
+    V* insert_lookup(K key) {
         assert(!!key, "no null keys permitted");
 
         uint hash = gethash(key);
 
-        if(auto val = lookup(key, hash)) {
-            *val = value;
-            return;
+        if(V* val = lookup(key, hash)) {
+            return val;
+        }
+
+        if (mSize > 0 && mSize*cLoadFactor > mNodes.length*100) {
+            resizeArray(mNodes.length*2);
         }
 
         auto colBucket = getColBucket();
@@ -121,7 +130,9 @@ final class RefHashTable(K, V) {
         mainPosNode.used = true;
         mSize++;
 
-        mainPosNode.value = value;
+        V* res = &mainPosNode.value;
+        *res = V.init;
+        return res;
     }
 
     bool remove(K key) {
@@ -230,11 +241,17 @@ final class RefHashTable(K, V) {
         }
     }
 
-    void clear() {
-        mNodes = null;
-        mHashMask = 0;
-        mColBucket = null;
-        mSize = 0;
+    void clear(bool free_memory = true) {
+        if (!free_memory) {
+            mSize = 0;
+            mNodes[] = Node.init;
+            mColBucket = mNodes.ptr;
+        } else {
+            mNodes = null;
+            mHashMask = 0;
+            mColBucket = null;
+            mSize = 0;
+        }
     }
 
     private void markUnused(Node* n) {

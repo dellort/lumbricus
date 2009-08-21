@@ -11,6 +11,8 @@ import utils.hashtable : RefHashTable;
 import utils.misc;
 
 import tango.core.Traits : isAssocArrayType;
+//import memory = tango.core.Memory;
+debug import tango.core.stacktrace.StackTrace : nameOfFunctionAt;
 
 class Types {
     private {
@@ -258,6 +260,42 @@ class Types {
         assert(!!m);
         assert(!!fptr);
         mMethodMap[fptr] = m;
+    }
+
+    //when readDelegate has failed, and you don't know why, call this
+    //raises an error and never returns (throws exception or crashes)
+    //ptr = pointer to delegate
+    //where = part of error message
+    void readDelegateError(SafePtr ptr, char[] where) {
+        Object t1;
+        ClassMethod t2;
+        assert(!ptr.readDelegate(t1, t2), "caller is fraudulent");
+        assert(!!cast(DelegateType)ptr.type);
+
+        alias void delegate() Dg;
+        Dg* dgp = cast(Dg*)ptr.ptr;
+        //warning: this might crash, if the delegate points to the
+        //         stack or a struct; we simply can't tell
+        //could use GC to find out, if ptr points to the start of a block; if
+        //  not, then it can't really be a class (if yes, it still could be a
+        //  new'ed struct)
+        char[] crashy = "[enable version debug to see]";
+        char[] func = "?";
+        debug {
+            //we can't tell to what dgp.ptr will point to
+            //if it's not an object, we'll just crash
+            //otherwise, output information useful for debugging
+            Trace.formatln("hello, {}:{} might crash here.", __FILE__,
+                __LINE__);
+            crashy = (cast(Object)dgp.ptr).classinfo.name;
+
+            func = nameOfFunctionAt(dgp.funcptr);
+        }
+        char[] what = myformat("dest-class: {} function: 0x{:x} '{}'",
+            crashy, dgp.funcptr, func);
+
+        throw new Exception(myformat("{}: couldn't write delegate, {}",
+            where, what));
     }
 }
 

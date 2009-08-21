@@ -7,19 +7,22 @@ import utils.misc;
 import utils.time;
 
 import str = utils.string;
+import memory = tango.core.Memory;
 
 private LogStruct!("utils.snapshot") log;
+
 
 class SnapDescriptors {
     private {
         Types types;
         SnapDescriptor[Class] class2desc;
         //actually used during writing
-        SnapDescriptor[ClassInfo] ci2desc;
+        RefHashTable!(ClassInfo, SnapDescriptor) ci2desc;
     }
 
     this(Types a_types) {
         types = a_types;
+        ci2desc = new typeof(ci2desc);
     }
 
     SnapDescriptor lookupSnapDescriptor(Object o) {
@@ -95,6 +98,8 @@ class SnapDescriptor {
         addMember(type, 0);
         //analysis for is_full_pod
         //check if all bytes are covered by PODs
+        //especially important if there should be transient members
+        //(they are unknown/unhandled by the snapshot mechanism)
         bool[] fool;
         fool.length = type.size();
         void cover(size_t[] offs, size_t sz) {
@@ -123,11 +128,10 @@ class SnapDescriptor {
     }
 
     private void addMembers(Class ck, size_t offset) {
-        while (ck) {
-            foreach (ClassMember m; ck.nontransientMembers()) {
+        foreach (c; ck.hierarchy()) {
+            foreach (ClassMember m; c.nontransientMembers()) {
                 addMember(m.type(), offset + m.offset());
             }
-            ck = ck.superClass();
         }
     }
 
@@ -192,19 +196,24 @@ class Snapshot {
         ubyte[] snap_data;
         size_t snap_cur; //data position in snap_data
         size_t snap_read_pos; //same, for reading
-        size_t snap_last_object;
-        Object[] snap_objects;
-        bool[Object] snap_objmarked;
+        Appender!(Object) snap_objects;
+        RefHashTable!(Object, bool) snap_objmarked;
     }
 
     this(SnapDescriptors a_types) {
         assert(!!a_types);
         mTypes = a_types;
+        snap_objmarked = new typeof(snap_objmarked);
     }
 
-    private void reserve(size_t s) {
+    //a is the size of the underlying type - for alignment
+    //x86 doesn't need alignment, so it's not used yet
+    private void reserve(size_t s, size_t a) {
         while (snap_data.length < snap_cur + s) {
+            ubyte[] old_data = snap_data;
             snap_data.length = snap_data.length*2;
+            if (old_data.ptr !is snap_data.ptr)
+                delete old_data;
             if (snap_data.length == 0)
                 snap_data.length = 64*1024;
         }
@@ -214,15 +223,23 @@ class Snapshot {
         size_t s = T.sizeof;
         //align! assume s is power of 2
         //snap_cur = (snap_cur + (s-1)) & ~(s-1);
-        reserve(s);
+        reserve(s, T.sizeof);
         T* dest = cast(T*)&snap_data[snap_cur];
         *dest = *ptr;
         snap_cur += s;
     }
 
     private void write_items(T)(void* base, size_t[] offsets) {
-        for (int n = 0; n < offsets.length; n++) {
-            write!(T)(cast(T*)(base + offsets[n]));
+        if (!offsets.length)
+            return;
+
+        size_t s = T.sizeof * offsets.length;
+        reserve(s, T.sizeof);
+        T* dest = cast(T*)&snap_data[snap_cur];
+        snap_cur += s;
+
+        foreach (size_t offs; offsets) {
+            *dest++ = *cast(T*)(base + offs);
         }
     }
 
@@ -236,16 +253,27 @@ class Snapshot {
     }
 
     private void read_items(T)(void* base, size_t[] offsets) {
-        for (int n = 0; n < offsets.length; n++) {
-            read!(T)(cast(T*)(base + offsets[n]));
+        size_t s = T.sizeof * offsets.length;
+        assert (snap_read_pos + s <= snap_data.length);
+        T* src = cast(T*)&snap_data[snap_read_pos];
+        snap_read_pos += s;
+
+        foreach (size_t offs; offsets) {
+            *cast(T*)(base + offs) = *src++;
         }
     }
 
     void snap(Object snapObj) {
+        //size_t oldsize = snap_data.length;
+        PerfTimer timer = new PerfTimer(true);
+        timer.start();
+
         snap_cur = 0;
+        snap_objects[] = null; //clear references for the GC
         snap_objects.length = 0;
-        //snap_objmarked
-        snap_last_object = 0;
+        //xxx: memory is never freed
+        //on the other hand, we don't want to allocate memory on each snapshot
+        snap_objmarked.clear(false);
 
         int lookups;
 
@@ -253,12 +281,7 @@ class Snapshot {
             if (!o)
                 return;
             lookups++;
-            bool* pmark = o in snap_objmarked;
-            if (!pmark) {
-                snap_objmarked[o] = false;
-                pmark = o in snap_objmarked;
-                assert (!!pmark);
-            }
+            bool* pmark = snap_objmarked.insert_lookup(o);
             if (*pmark)
                 return;
             *pmark = true;
@@ -281,29 +304,28 @@ class Snapshot {
                 Object o = m.type.castFrom(raw);
                 queueObject(o);
             }
-            for (int n = 0; n < desc.arrays.length; n++) {
-                SnapDescriptor.ArrayMember m = desc.arrays[n];
+            foreach (SnapDescriptor.ArrayMember m; desc.arrays) {
                 SafePtr ap = SafePtr(m.t, ptr + m.offset);
                 ArrayType.Array arr = m.t.getArray(ap);
                 assert (arr.ptr.type is m.item.type);
                 size_t len = arr.length;
                 write(&len);
                 if (!m.item.is_full_pod) {
-                    //write normally
+                    //write normally, item-by-item
                     for (int i = 0; i < len; i++) {
                         writeItem(arr.get(i).ptr, m.item);
                     }
                 } else {
-                    //optimization for cases where this is possible
+                    //optimization for cases where this is possible:
+                    //write all items in one go
                     size_t copy = len * arr.ptr.type.size;
-                    reserve(copy);
+                    reserve(copy, 1);
                     void* pdest = &snap_data[snap_cur];
                     pdest[0..copy] = arr.ptr.ptr[0..copy];
                     snap_cur += copy;
                 }
             }
-            for (int n = 0; n < desc.maps.length; n++) {
-                SnapDescriptor.MapMember m = desc.maps[n];
+            foreach (SnapDescriptor.MapMember m; desc.maps) {
                 SafePtr mp = SafePtr(m.t, ptr + m.offset);
                 size_t len = m.t.getLength(mp);
                 write(&len);
@@ -312,53 +334,39 @@ class Snapshot {
                     writeItem(value.ptr, m.value);
                 });
             }
-            for (int n = 0; n < desc.dgs.length; n++) {
-                SnapDescriptor.DgMember m = desc.dgs[n];
+            foreach (SnapDescriptor.DgMember m; desc.dgs) {
                 SafePtr dp = SafePtr(m.t, ptr + m.offset);
                 Object dg_o;
                 ClassMethod dg_m;
+                //we only need the object pointer to follow the object graph
+                //dg_m isn't needed, but readDelegate must look it up anyway
                 //xxx why is this code duplicated from serialize.d
                 if (!dp.readDelegate(dg_o, dg_m)) {
-                    alias void delegate() Dg;
-                    Dg* dgp = cast(Dg*)dp.ptr;
-                    char[] what = "enable version debug to see why";
-                    debug {
-                        log("hello, snapshot.d might crash here.");
-                        what = myformat("dest-class: {} function: 0x{:x}",
-                            (cast(Object)dgp.ptr).classinfo.name, dgp.funcptr);
-                    }
-                    throw new Exception("can't snapshot: "~what);
+                    mTypes.types.readDelegateError(dp, "snapshot");
                 }
                 queueObject(dg_o);
-                write(&dg_o);
-                write(&dg_m);
+                alias void delegate() Dg;
+                Dg* dgp = cast(Dg*)dp.ptr;
+                write(dgp);
             }
-        }
-
-        //size_t oldsize = snap_data.length;
-        PerfTimer timer = new PerfTimer(true);
-        timer.start();
-
-        //xxx: memory is never freed
-        foreach (k, ref v; snap_objmarked) {
-            v = false;
         }
 
         queueObject(snapObj);
 
+        size_t snap_last_object;
         while (snap_last_object < snap_objects.length) {
             Object o = snap_objects[snap_last_object];
+            snap_last_object++;
             auto desc = mTypes.lookupSnapDescriptor(o);
             //if null, maybe an external object (or it is an error)
             if (desc) {
                 writeItem(cast(void*)o, desc);
             }
-            snap_last_object++;
         }
 
         timer.stop();
-        log("t={}, oc={}, ls={}, size={} ({})",
-            timer.time, snap_last_object, lookups, str.sizeToHuman(snap_cur),
+        log("snap t={}, oc={}, ls={}, size={} ({})",
+            timer.time, snap_objects.length, lookups, str.sizeToHuman(snap_cur),
             str.sizeToHuman(snap_data.length));
     }
 
@@ -386,53 +394,60 @@ class Snapshot {
                 void** raw = cast(void**)(ptr + m.offset);
                 read(raw);
             }
-            for (int n = 0; n < desc.arrays.length; n++) {
-                SnapDescriptor.ArrayMember m = desc.arrays[n];
+            arr_loop: foreach (SnapDescriptor.ArrayMember m; desc.arrays) {
                 SafePtr ap = SafePtr(m.t, ptr + m.offset);
                 size_t len;
                 read(&len);
-                //NOTE: there's the following problem:
-                // strings literals (char[]) are stored on the data segment (there
-                // can be other data on the data segment too, but this doesn't
-                // really matter here). stuff on the data segment is read-only, so
-                // we can't simply copy back memory, even if the copy-back had no
-                // effect (if it's constant data, nobody can/will change it).
-                // so, there are three choices:
-                //   1. try to find out, if the pointer points into the read-only
-                //      data segment (not portable, not generally possible)
-                //   2. reallocate the array memory (SLOW)
-                //   3. compare the data, and only copy if it has changed (slow too)
-                //      also, must force reallocation if something has changed
-                //      we don't know if it points into the data segment!
-                m.t.setLength(ap, len);
+                //NOTE: never write into the data segment, because it may be
+                //  write-only, and thus would crash (is the case for string
+                //  literals on Linux; windows doesn't write protect because
+                //  optlink or some other stupidity)
                 ArrayType.Array arr = m.t.getArray(ap);
+                if (arr.length != len) {
+                    m.t.setLength(ap, len);
+                    arr = m.t.getArray(ap);
+                }
                 assert (arr.ptr.type is m.item.type);
                 assert (arr.length == len);
-                //xxx assume the above problem about the data segment only happens
-                //    with PODs; but in some cases, this could go wrong
+                if (len == 0)
+                    continue arr_loop;
+                //solve the problem mentioned above
+                //only write into GC allocated memory blocks
+                //addrOf returns null for unknown pointers, or the start of
+                //  the memory block if was allocated by the GC
+                bool is_gc_allocated = (arr.length == 0) ||
+                    (memory.GC.addrOf(arr.ptr.ptr) !is null);
+                void force_realloc() {
+                    //force reallocation of the array (also clears it hurr)
+                    m.t.assign(ap, m.t.initPtr());
+                    m.t.setLength(ap, len);
+                    arr = m.t.getArray(ap);
+                }
                 if (!m.item.is_full_pod) {
+                    if (!is_gc_allocated)
+                        force_realloc();
                     for (int i = 0; i < len; i++) {
                         readItem(arr.get(i).ptr, m.item);
                     }
-                } else if (len > 0) {
+                } else {
                     size_t copy = len * arr.ptr.type.size;
                     assert (snap_read_pos + copy <= snap_data.length);
                     void* psrc = &snap_data[snap_read_pos];
-                    assert (arr.ptr.ptr is arr.get(0).ptr);
-                    void* pdest = arr.ptr.ptr;
-                    if (psrc[0..copy] != pdest[0..copy]) {
-                        //force reallocation
-                        m.t.assign(ap, m.t.initPtr());
-                        m.t.setLength(ap, len);
-                        arr = m.t.getArray(ap);
-                        pdest = arr.ptr.ptr;
-                        pdest[0..copy] = psrc[0..copy];
-                    }
                     snap_read_pos += copy;
+                    if (!is_gc_allocated) {
+                        //for efficiency: if the data wasn't modified, there's
+                        //  no reason to realloc and copy back the old data
+                        void* pdest = arr.ptr.ptr;
+                        if (psrc[0..copy] == pdest[0..copy]) {
+                            continue arr_loop;
+                        }
+                        force_realloc();
+                    }
+                    void* pdest = arr.ptr.ptr;
+                    pdest[0..copy] = psrc[0..copy];
                 }
             }
-            for (int n = 0; n < desc.maps.length; n++) {
-                SnapDescriptor.MapMember m = desc.maps[n];
+            foreach (SnapDescriptor.MapMember m; desc.maps) {
                 SafePtr mp = SafePtr(m.t, ptr + m.offset);
                 //NOTE: keys, that are in the snapshot and weren't removed until
                 //      unsnap() is called, don't need to be removed; in these
@@ -454,34 +469,27 @@ class Snapshot {
                     len--;
                 }
             }
-            for (int n = 0; n < desc.dgs.length; n++) {
-                SnapDescriptor.DgMember m = desc.dgs[n];
+            foreach (SnapDescriptor.DgMember m; desc.dgs) {
                 SafePtr dp = SafePtr(m.t, ptr + m.offset);
-                Object dg_o;
-                ClassMethod dg_m;
-                read(&dg_o);
-                read(&dg_m);
-                //NOTE: because we know that the data is right, we could use an
-                //      unchecked way to write the actual delegate...
-                if (!dp.writeDelegate(dg_o, dg_m))
-                    assert (false);
+                alias void delegate() Dg;
+                Dg* dgp = cast(Dg*)dp.ptr;
+                read(dgp);
             }
         }
 
         PerfTimer timer = new PerfTimer(true);
         timer.start();
 
-        for (int n = 0; n < snap_objects.length; n++) {
-            Object o = snap_objects[n];
+        foreach (Object o; snap_objects[]) {
+            assert (!!o);
             //NOTE: could store the desc with the object array
             auto desc = mTypes.lookupSnapDescriptor(o);
             if (desc) {
-                assert (!!o);
                 readItem(cast(void*)o, desc);
             }
         }
 
         timer.stop();
-        log("t={}", timer.time);
+        log("restore t={}", timer.time);
     }
 }

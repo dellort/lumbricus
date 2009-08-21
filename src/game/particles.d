@@ -388,8 +388,8 @@ class ParticleWorld {
     private void free() {
         mGeneration++;
         version (CMemory) {
-            if (mParticleStorage.ptr)
-                Trace.formatln("-------------- free! -----------");
+            //if (mParticleStorage.ptr)
+            //    Trace.formatln("-------------- free! -----------");
             cstdlib.free(mParticleStorage.ptr);
         }
         mParticleStorage = null;

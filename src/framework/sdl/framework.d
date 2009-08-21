@@ -387,6 +387,8 @@ class SDLDriver : FrameworkDriver {
         int mFooLockCounter;
 
         Vector2i mDesktopRes;
+
+        bool mInputFocus = true;
     }
     package {
         SDL_Surface* mSDLScreen;
@@ -639,7 +641,8 @@ class SDLDriver : FrameworkDriver {
     }
 
     void setMousePos(Vector2i p) {
-        SDL_WarpMouse(p.x, p.y);
+        if (mInputFocus)
+            SDL_WarpMouse(p.x, p.y);
     }
 
     bool getModifierState(Modifier mod, bool whatithink) {
@@ -768,21 +771,40 @@ class SDLDriver : FrameworkDriver {
                     break;
                 case SDL_MOUSEMOTION:
                     //update mouse pos after button state
-                    updateMousePos(Vector2i(event.motion.x, event.motion.y));
+                    if (mInputFocus)
+                        updateMousePos(Vector2i(event.motion.x, event.motion.y));
                     break;
                 case SDL_MOUSEBUTTONUP:
-                    KeyInfo infos = mouseInfosFromSDL(event.button);
-                    updateMousePos(Vector2i(event.button.x, event.button.y));
-                    mFramework.driver_doKeyUp(infos);
+                    if (mInputFocus) {
+                        KeyInfo infos = mouseInfosFromSDL(event.button);
+                        updateMousePos(Vector2i(event.button.x, event.button.y));
+                        mFramework.driver_doKeyUp(infos);
+                    }
                     break;
                 case SDL_MOUSEBUTTONDOWN:
-                    KeyInfo infos = mouseInfosFromSDL(event.button);
-                    updateMousePos(Vector2i(event.button.x, event.button.y));
-                    mFramework.driver_doKeyDown(infos);
+                    if (mInputFocus) {
+                        KeyInfo infos = mouseInfosFromSDL(event.button);
+                        updateMousePos(Vector2i(event.button.x, event.button.y));
+                        mFramework.driver_doKeyDown(infos);
+                    }
                     break;
                 case SDL_VIDEORESIZE:
                     mFramework.setVideoMode(Vector2i(event.resize.w,
                         event.resize.h));
+                    break;
+                case SDL_ACTIVEEVENT:
+                    bool gain = !!event.active.gain;
+                    auto state = event.active.state;
+                    if (state & SDL_APPINPUTFOCUS)
+                        mInputFocus = gain;
+                    if (state & SDL_APPACTIVE) {
+                        //gain tells if the window is visible (even if fully
+                        //  obscured by other windows) or iconified; on Linux,
+                        //  it also seems to tell if the window on a visible
+                        //  desktop
+                        //=> should pause the game and stop redrawing
+                        //uh, but how (at least event loop will still eat CPU)
+                    }
                     break;
                 // exit if SDLK or the window close button are pressed
                 case SDL_QUIT:

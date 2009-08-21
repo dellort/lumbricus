@@ -42,6 +42,9 @@ class WeaponSelWindow : Container {
             int quantity() {
                 return item ? item.count : 0;
             }
+            bool canUse() {
+                return item ? item.canUse : false;
+            }
 
             bool visible() {
                 return active.parent || inactive.parent;
@@ -73,7 +76,7 @@ class WeaponSelWindow : Container {
                 active.remove();
                 inactive.remove();
                 if (quantity > 0) {
-                    addChild(enabled ? active : inactive);
+                    addChild(canUse ? active : inactive);
                 }
             }
 
@@ -132,7 +135,7 @@ class WeaponSelWindow : Container {
         //sry was lazy!
         WeaponClass[] foo;
         foreach (Cell w; arr) {
-            if (w.enabled && w.quantity > 0)
+            if (w.canUse && w.quantity > 0)
                 foo ~= w.weapon;
         }
         auto nc = arrayFindNext(foo, c);

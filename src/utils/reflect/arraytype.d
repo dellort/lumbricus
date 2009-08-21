@@ -47,6 +47,8 @@ class ArrayType : Type {
 
     //return a copy of the array descriptor
     //xxx doesn't match with D semantics, blergh
+    //also, if you call setLength, an existing Array descriptor may become
+    //  outdated (different .length and .ptr)
     Array getArray(SafePtr array) {
         array.checkExactNotNull(this, "Array.getArray()");
         return mGetArray(this, array);

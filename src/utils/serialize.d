@@ -11,8 +11,6 @@ import tango.core.Traits : isIntegerType, isFloatingPointType;
 
 import memory = tango.core.Memory;
 
-debug import tango.core.stacktrace.StackTrace : nameOfFunctionAt;
-
 debug debug = CountClasses;
 
 /+
@@ -449,7 +447,7 @@ class SerializeOutConfig : SerializeConfig {
     private {
         int mIDAlloc = 0;
         RefHashTable!(Object, char[]) mObject2Id;
-        Object[] mObjectStack;
+        Appender!(Object) mObjectStack;
         int mOSIdx = 0;
         debug (CountClasses) {
             int[Class] mCounter;
@@ -459,15 +457,14 @@ class SerializeOutConfig : SerializeConfig {
     this(SerializeContext a_ctx) {
         super(a_ctx, new ConfigNode());
         mObject2Id = new typeof(mObject2Id);
-        //just some preallocation, I guess
-        mObjectStack.length = 1024;
     }
 
     private bool doWriteNextObject(ConfigNode file) {
-        if (mOSIdx <= 0)
+        if (!mObjectStack.length)
             return false;
-        mOSIdx--;
-        Object o = mObjectStack[mOSIdx];
+        size_t idx = mObjectStack.length - 1;
+        Object o = mObjectStack[idx];
+        mObjectStack.length = idx;
 
         auto node = file.getSubNode(mObject2Id[o]);
         auto tnode = node.getSubNode("type");
@@ -528,10 +525,7 @@ class SerializeOutConfig : SerializeConfig {
         auto nid = ++mIDAlloc;
         auto id = myformat("#{}", nid);
         mObject2Id[o] = id;
-        if (mOSIdx >= mObjectStack.length)
-            mObjectStack.length = mObjectStack.length*2;
-        mObjectStack[mOSIdx] = o;
-        mOSIdx++;
+        mObjectStack ~= o;
         return id;
     }
 
@@ -647,22 +641,7 @@ class SerializeOutConfig : SerializeConfig {
             Object dg_o;
             ClassMethod dg_m;
             if (!ptr.readDelegate(dg_o, dg_m)) {
-                alias void delegate() Dg;
-                Dg* dgp = cast(Dg*)ptr.ptr;
-                //warning: this might crash, if the delegate points to the
-                //         stack or a struct; we simply can't tell
-                char[] what = "enable version debug to see why";
-                debug {
-                    //we can't tell to what dgp.ptr will point to
-                    //if it's not an object, we'll just crash
-                    //otherwise, output information useful for debugging
-                    Trace.formatln("hello, serialize.d might crash here.");
-                    char[] crashy = (cast(Object)dgp.ptr).classinfo.name;
-                    char[] func = nameOfFunctionAt(dgp.funcptr);
-                    what = myformat("dest-class: {} function: 0x{:x} '{}'",
-                        crashy, dgp.funcptr, func);
-                }
-                throw new SerializeError("couldn't write delegate, "~what);
+                mCtx.types.readDelegateError(ptr, "serialize");
             }
             auto sub = member;
             char[] id = queueObject(dg_o);
