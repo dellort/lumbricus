@@ -370,37 +370,6 @@ private class ViewMember {
     } // simulate
 } //ViewMember
 
-private class GameLabel : Label {
-    TextGraphic txt;
-    GameInfo game;
-
-    this(GameInfo a_game, TextGraphic a_txt) {
-        setLayout(WidgetLayout.Aligned(-1, -1));
-        styles.addClass("game-label");
-        txt = a_txt;
-        game = a_game;
-    }
-
-    override void simulate() {
-        if (txt.removed) {
-            remove();
-            return;
-        }
-
-        visible = txt.isVisible(game.control.getControlledMember());
-        if (!visible)
-            return;
-
-        if (txt.msgMarkup != text) {
-            textMarkup = txt.msgMarkup;
-        }
-
-        //there's also utils.math.placeRelative(), which was supposed to do this
-        auto p = - toVector2f(size) ^ txt.attach;
-        setAddToPos(txt.pos + toVector2i(p));
-    }
-}
-
 //GameView is everything which is scrolled
 //it displays the game directly and also handles input directly
 //also draws worm labels
@@ -565,11 +534,6 @@ class GameView : Container {
     this(GameInfo game) {
         mGame = game;
 
-        mGame.engine.callbacks.newGraphic ~= &doNewGraphic;
-        foreach (g; mGame.engine.getGraphics().objects) {
-            doNewGraphic(g);
-        }
-
         readd_graphics();
 
         mGame.engine.callbacks.memberDrown ~= &doMemberDrown;
@@ -671,12 +635,6 @@ class GameView : Container {
         //presence of snapshotting etc. would be nasty
         auto movement = handleDirKey(key, !isDown);
         executeServerCommand(myformat("move {} {}", movement.x, movement.y));
-    }
-
-    private void doNewGraphic(Graphic g) {
-        if (auto txt = cast(TextGraphic)g) {
-            addChild(new GameLabel(mGame, txt));
-        }
     }
 
     Camera camera() {

@@ -46,7 +46,6 @@ class ClassNotRegisteredException : Exception {
 //reinstantiated on each "round"
 class GameEngine {
     GameLandscape[] gameLandscapes;
-    GameEngineGraphics graphics;
     //the whole fucking world!
     Scene scene;
 
@@ -136,7 +135,6 @@ class GameEngine {
         assert(config.level !is null);
         mLevel = config.level;
 
-        graphics = new GameEngineGraphics(this);
         scene = new Scene();
 
         mObjects = new typeof(mObjects)();
@@ -279,10 +277,6 @@ class GameEngine {
 
     final GameEngineCallback callbacks() {
         return mCallbacks;
-    }
-
-    GameEngineGraphics getGraphics() {
-        return graphics;
     }
 
     ///time of last frame that was simulated

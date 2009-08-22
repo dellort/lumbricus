@@ -42,7 +42,7 @@ class ProjectileSprite : ActionSprite {
         bool gluedCache; //last value of physics.isGlued
         bool mTimerDone = false;
         ProjectileFeedback mFeedback;
-        TextGraphic mTimeLabel;
+        RenderText mTimeLabel;
     }
 
     Time detonateTimeState() {
@@ -117,20 +117,19 @@ class ProjectileSprite : ActionSprite {
             && enableEvents && currentState.minimumGluedTime == Time.Null)
         {
             if (!mTimeLabel) {
-                mTimeLabel = new TextGraphic();
-                mTimeLabel.attach = Vector2f(0.5f, 1.0f);
-                engine.graphics.add(mTimeLabel);
+                mTimeLabel = new RenderText(engine);
+                graphic.attachText = mTimeLabel;
             }
-            mTimeLabel.pos = toVector2i(physics.pos) - Vector2i(0, 15);
             int remain = cast(int)(detDelta.secsf + 1.0f);
-            //xxx: prevent allocating memory every frame
             if (remain <= 2)
-                mTimeLabel.msgMarkup = "\\c(team_red)" ~ to!(char[])(remain);
+                mTimeLabel.setFormatted("\\c(team_red){}", remain);
             else
-                mTimeLabel.msgMarkup = to!(char[])(remain);
+                mTimeLabel.setFormatted("{}", remain);
         } else {
             if (mTimeLabel) {
-                mTimeLabel.remove();
+                //xxx: need cleaner way to remove attached text?
+                if (graphic)
+                    graphic.attachText = null;
                 mTimeLabel = null;
             }
         }
@@ -139,7 +138,6 @@ class ProjectileSprite : ActionSprite {
     override protected void updateActive() {
         super.updateActive();
         if (!active && mTimeLabel) {
-            mTimeLabel.remove();
             mTimeLabel = null;
         }
     }

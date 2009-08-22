@@ -55,7 +55,7 @@ class JetpackClass : WeaponClass {
 
 class Jetpack : Shooter, Controllable {
     private {
-        TextGraphic mTimeLabel;
+        RenderText mTimeLabel;
         JetpackClass myclass;
         WormSprite mWorm;
         Vector2f mMoveVector;
@@ -110,12 +110,12 @@ class Jetpack : Shooter, Controllable {
             mWorm.physics.selfForce = Vector2f(0);
         }
         if (active && myclass.maxTime != Time.Never) {
-            mTimeLabel = new TextGraphic();
-            mTimeLabel.attach = Vector2f(0.5f, 1.0f);
-            engine.graphics.add(mTimeLabel);
+            assert(!!mWorm.graphic);
+            mTimeLabel = new RenderText(engine);
+            mWorm.graphic.attachText = mTimeLabel;
         } else {
-            if (mTimeLabel) {
-                mTimeLabel.remove();
+            if (mTimeLabel && mWorm && mWorm.graphic) {
+                mWorm.graphic.attachText = null;
                 mTimeLabel = null;
             }
         }
@@ -134,12 +134,8 @@ class Jetpack : Shooter, Controllable {
             return;
         }
         if (mTimeLabel) {
-            //xxx I'm not gonna copy+paste the crap in crate.d,
-            //    pls fix TextGraphic and remove this hack
-            mTimeLabel.pos = toVector2i(mWorm.physics.pos) - Vector2i(0, 30);
             float remain = myclass.maxTime.secsf - mJetTimeUsed;
-            //xxx prevent reallocating string every frame
-            mTimeLabel.msgMarkup = myformat("{:f1}", remain);
+            mTimeLabel.setFormatted("{:f1}", remain);
         }
 
         //force!

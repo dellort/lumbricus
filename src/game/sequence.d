@@ -217,6 +217,9 @@ class Sequence : SceneObject {
         TeamTheme mOwner; //xxx make this go away
     }
 
+    //and this is a hack... but I guess it's good enough for now
+    RenderText attachText;
+
     this(GameEngine a_engine, SequenceUpdate v, TeamTheme owner) {
         engine = a_engine;
         mUpdate = v;
@@ -268,6 +271,14 @@ class Sequence : SceneObject {
     override void draw(Canvas c) {
         if (mDisplay)
             mDisplay.draw(c);
+        if (attachText) {
+            Vector2i p = interpolated_position();
+            //so that it's on the top of the object
+            //we don't really have a real bounding box, so this will have to do
+            p.y -= 15;
+            auto s = attachText.size();
+            attachText.draw(c, p + Vector2i(-s.x/2, -s.y));
+        }
     }
 
     //don't need it anymore

@@ -56,6 +56,13 @@ class GameInfo {
             auto team = new TeamInfo(this, t);
             teams[t] = team;
         }
+
+        //doesn't necessarily belong here
+        engine.callbacks.getControlledTeamMember = &controlled;
+    }
+
+    private TeamMember controlled() {
+        return control.getControlledMember();
     }
 }
 

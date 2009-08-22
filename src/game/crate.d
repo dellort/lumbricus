@@ -189,7 +189,7 @@ class CrateSprite : ActionSprite {
 
         CrateType mCrateType;
 
-        TextGraphic mSpy;
+        RenderText mSpy;
     }
 
     //contents of the crate
@@ -229,10 +229,7 @@ class CrateSprite : ActionSprite {
 
     override protected void die() {
         collectTrigger.dead = true;
-        if (mSpy) {
-            mSpy.remove();
-            mSpy = null;
-        }
+        mSpy = null;
         super.die();
     }
 
@@ -278,6 +275,7 @@ class CrateSprite : ActionSprite {
     }
 
     override protected void updateActive() {
+        super.updateActive();
         if (active) {
             bool bomb;
             foreach (coll; stuffies) {
@@ -296,22 +294,18 @@ class CrateSprite : ActionSprite {
             }
             //xxx needs a better way to get the contents of the crate
             if (stuffies.length > 0 && mCrateType != CrateType.med) {
-                mSpy = new TextGraphic();
-                mSpy.attach = Vector2f(0.5f, 1.0f);
+                mSpy = new RenderText(engine);
                 char[] msg = "\\t(" ~ stuffies[0].id() ~ ")";
                 if (bomb)
                     msg = "\\c(team_red)" ~ msg;
-                mSpy.msgMarkup = msg;
-                mSpy.visibleDg = &spyVisible;
-                engine.graphics.add(mSpy);
+                mSpy.markupText = msg;
+                mSpy.visibility = &spyVisible;
+                assert(!!graphic);
+                graphic.attachText = mSpy;
             }
         } else {
-            if (mSpy) {
-                mSpy.remove();
-                mSpy = null;
-            }
+            mSpy = null;
         }
-        super.updateActive();
     }
 
     //only valid after crate has been filled and activated
@@ -344,19 +338,6 @@ class CrateSprite : ActionSprite {
             {
                 setState(myclass.st_parachute);
             }
-        }
-
-        //xxx fix (will be solved by allowing text to be attached to objects)
-        //comedy
-        //if (mSpy && graphic && graphic.graphic) {
-        //    auto g = cast(AnimationGraphic)graphic.graphic;
-        //    if (g && g.animation) {
-        //        mSpy.pos = toVector2i(physics.pos)
-        //            - g.animation.bounds.size.Y / 2;
-        //    }
-        //}
-        if (mSpy) {
-            mSpy.pos = toVector2i(physics.pos) - Vector2i(0,32) / 2;
         }
 
         super.simulate(deltaT);

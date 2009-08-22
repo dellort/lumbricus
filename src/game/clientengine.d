@@ -71,7 +71,6 @@ class NukeSplatEffectImpl : SceneObject {
 class ClientGameEngine : GameEngineCallback {
     ResourceSet resources;
     GfxSet gfx;
-    GameEngineGraphics server_graphics;
 
     //not quite clean: Gui drawers can query this / detailLevel changes it
     bool enableSpiffyGui;
@@ -171,7 +170,6 @@ class ClientGameEngine : GameEngineCallback {
 
         detailLevel = 0;
 
-        server_graphics = engine.getGraphics();
         createGraphics();
     }
 
@@ -208,9 +206,7 @@ class ClientGameEngine : GameEngineCallback {
         // 2. loading from savegames
         // 3. resuming snapshots
         //but maybe this should be moved to gemashell.d
-        foreach (Graphic g; server_graphics.objects) {
-            engine.callbacks.newGraphic(g);
-        }
+        // - lol nothing here anymore
     }
 
     private void nukeSplatEffect() {

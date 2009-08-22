@@ -14,7 +14,7 @@ import math = tango.math.Math;
 
 ///draw a box with rounded corners around the specified rect
 ///alpha is unsupported (blame drawFilledRect) and will be ignored
-///if any value from BoxProps (see below) changes, the box needs to be
+///if any value from BoxProperties (see below) changes, the box needs to be
 ///redrawn (sloooow)
 void drawBox(Canvas c, Vector2i pos, Vector2i size, int borderWidth = 1,
     int cornerRadius = 5, Color back = Color(1,1,1),
@@ -33,22 +33,21 @@ void drawBox(Canvas c, in Rect2i rect, in BoxProperties props) {
     drawBox(c, rect.p1, rect.size, props);
 }
 
-void drawBox(Canvas c, Vector2i p, Vector2i s, BoxProperties props)
-{
-    BoxProps bp;
-    bp.p = props;
+void drawBox(Canvas c, Vector2i p, Vector2i s, BoxProperties props) {
+    if (!props.enabled)
+        return;
 
     //all error checking here
     s.x = max(0, s.x);
     s.y = max(0, s.y);
     int m = min(s.x, s.y) / 2;
-    bp.p.borderWidth = min(max(0, bp.p.borderWidth), m);
-    bp.p.cornerRadius = min(max(0, bp.p.cornerRadius), m);
+    props.borderWidth = min(max(0, props.borderWidth), m);
+    props.cornerRadius = min(max(0, props.cornerRadius), m);
 
-    BoxTex tex = getBox(bp);
+    BoxTex tex = getBox(props);
 
     //size of the box quad
-    int qi = max(bp.p.borderWidth, bp.p.cornerRadius);
+    int qi = max(props.borderWidth, props.cornerRadius);
     Vector2i q = Vector2i(qi);
     assert(tex.corners.size == q*2);
     assert(tex.sides[0].size.y == q.y*2);
@@ -68,7 +67,7 @@ void drawBox(Canvas c, Vector2i p, Vector2i s, BoxProperties props)
         auto w = Vector2i(min(sx, ex - px), q.y);
         auto curTex = tex.sides[0];
         c.draw(curTex, Vector2i(px, p.y + s.y - q.y), Vector2i(0, q.y), w);
-        if (bp.p.drawBevel)
+        if (props.drawBevel)
             curTex = tex.bevelSides[0];
         c.draw(curTex, Vector2i(px, p.y), Vector2i(0), w);
         px += w.x;
@@ -82,7 +81,7 @@ void drawBox(Canvas c, Vector2i p, Vector2i s, BoxProperties props)
         auto h = Vector2i(q.x, min(sy, ey - py));
         auto curTex = tex.sides[1];
         c.draw(curTex, Vector2i(p.x + s.x - q.x, py), Vector2i(q.x, 0), h);
-        if (bp.p.drawBevel)
+        if (props.drawBevel)
             curTex = tex.bevelSides[1];
         c.draw(curTex, Vector2i(p.x, py), Vector2i(0), h);
         py += h.y;
@@ -108,6 +107,8 @@ struct BoxProperties {
     int borderWidth = 1, cornerRadius = 5;
     Color border, back = {1,1,1}, bevel = {0.5,0.5,0.5};
     bool drawBevel = false; //bevel = other color for left/top sides
+    //if false, disable drawing - possibly makes user code simpler
+    bool enabled = true;
 
     void loadFrom(ConfigNode node) {
         border = node.getValue("border", border);
@@ -122,10 +123,6 @@ struct BoxProperties {
 private:
 
 //quite a hack to draw boxes with rounded borders...
-struct BoxProps {
-    BoxProperties p;
-}
-
 struct BoxTex {
     //corners: quadratic bitmap which looks like
     //         | left-top    |    right-top |
@@ -147,7 +144,7 @@ struct BoxTex {
     }
 }
 
-BoxTex[BoxProps] boxes;
+BoxTex[BoxProperties] boxes;
 
 //xxx: maybe introduce a global on-framework-creation callback registry for
 //     these cases? currently init() is simply called in getBox().
@@ -183,7 +180,7 @@ int releaseBoxCache() {
     return rel;
 }
 
-BoxTex getBox(BoxProps props) {
+BoxTex getBox(BoxProperties props) {
     init();
 
     auto t = props in boxes;
@@ -193,16 +190,16 @@ BoxTex getBox(BoxProps props) {
     auto orgprops = props;
 
     //avoid blending in of colors which shouldn't be there
-    if (props.p.borderWidth <= 0)
-        props.p.border = props.p.back;
+    if (props.borderWidth <= 0)
+        props.border = props.back;
 
     //border color used, except for circle; circle modifies alpha scaling itself
-    Color border = props.p.border;
+    Color border = props.border;
     //hm I think the border shouldn't be blended by the background's alpha
-    //border.a = border.a * props.p.back.a;
+    //border.a = border.a * props.back.a;
 
     //corners are of size q x q, side textures are also of size q in one dim.
-    int q = max(props.p.borderWidth, props.p.cornerRadius);
+    int q = max(props.borderWidth, props.cornerRadius);
 
     //border textures on the box sides
 
@@ -214,35 +211,35 @@ BoxTex getBox(BoxProps props) {
         size[dir] = 50; //choose as you like
         size[inv] = q*2;
 
-        bool needAlpha = (props.p.back.a < (1.0f - Color.epsilon))
+        bool needAlpha = (props.back.a < (1.0f - Color.epsilon))
             || (sideFore.a < (1.0f - Color.epsilon));
 
         auto surface = gFramework.createSurface(size,
             needAlpha ? Transparency.Alpha : Transparency.None);
 
         Vector2i p1 = Vector2i(0), p2 = size;
-        auto bw = props.p.borderWidth;
+        auto bw = props.borderWidth;
         p1[inv] = bw;
         p2[inv] = p2[inv] - bw;
 
         surface.fill(Rect2i(size), sideFore);
-        surface.fill(Rect2i(p1, p2), props.p.back);
+        surface.fill(Rect2i(p1, p2), props.back);
 
         surface.enableCaching = true;
         return surface;
     }
 
     Texture[2] sides; //will be BoxText.sides
-    sides[0] = createSide(0, props.p.border);
-    sides[1] = createSide(1, props.p.border);
+    sides[0] = createSide(0, props.border);
+    sides[1] = createSide(1, props.border);
     Texture[2] bevelSides;
-    if (props.p.drawBevel) {
-        bevelSides[0] = createSide(0, props.p.bevel);
-        bevelSides[1] = createSide(1, props.p.bevel);
+    if (props.drawBevel) {
+        bevelSides[0] = createSide(0, props.bevel);
+        bevelSides[1] = createSide(1, props.bevel);
     }
 
     void drawCorner(Surface s) {
-        s.fill(Rect2i(s.size), props.p.back);
+        s.fill(Rect2i(s.size), props.back);
 
         //simple distance test, quite expensive though
         //-1 if outside, 0 if hit, 1 if inside
@@ -279,8 +276,8 @@ BoxTex getBox(BoxProps props) {
                             //get the pos of the current sample to the
                             //circle to draw
                             int cPos = onCircle(Vector2f(x + (0.5f + ix)/cGrid,
-                                y + (0.5f + iy)/cGrid), c, props.p.borderWidth,
-                                w - cast(float)props.p.borderWidth/2.0f);
+                                y + (0.5f + iy)/cGrid), c, props.borderWidth,
+                                w - cast(float)props.borderWidth/2.0f);
                             if (cPos <= 0)
                                 //outside or hit -> gather border color
                                 colBuf += 1.0f/(cGrid * cGrid);
@@ -289,8 +286,8 @@ BoxTex getBox(BoxProps props) {
                                 aBuf += 1.0f/(cGrid * cGrid);
                         }
                     }
-                    Color fore = props.p.border;
-                    if (props.p.drawBevel) {
+                    Color fore = props.border;
+                    if (props.drawBevel) {
                         //on beveled drawing, the left/top corners show a
                         //different color than right/bottom, with fadeover
                         //float perc = clampRangeC(((x+y)
@@ -303,13 +300,13 @@ BoxTex getBox(BoxProps props) {
                         if (perc > 1.0f)
                             perc = 3.0f - perc;
                         perc = clampRangeC(perc, 0f, 1f);
-                        fore = fore * perc + props.p.bevel * (1.0f - perc);
+                        fore = fore * perc + props.bevel * (1.0f - perc);
                     }
                     *line = Color(
-                        fore.r*colBuf+props.p.back.r*(1.0f-colBuf),
-                        fore.g*colBuf+props.p.back.g*(1.0f-colBuf),
-                        fore.b*colBuf+props.p.back.b*(1.0f-colBuf),
-                        aBuf*(fore.a*colBuf+props.p.back.a*(1.0f-colBuf)))
+                        fore.r*colBuf+props.back.r*(1.0f-colBuf),
+                        fore.g*colBuf+props.back.g*(1.0f-colBuf),
+                        fore.b*colBuf+props.back.b*(1.0f-colBuf),
+                        aBuf*(fore.a*colBuf+props.back.a*(1.0f-colBuf)))
                             .toRGBA32();
                     line++;
                 }
@@ -409,11 +406,13 @@ public class FormattedText {
         Vector2i mSize;
         //only during parsing
         Style[] mStyleStack; //[$-1] contains current style, assert(length > 0)
+        BoxProperties mBorder;
     }
 
     this() {
         mRootStyle.font = gFramework.fontManager.loadFont("default");
         mTranslator = localeRoot();
+        mBorder.enabled = false;
     }
 
     /+void opAssign(char[] txt) {
@@ -734,9 +733,22 @@ public class FormattedText {
         layoutLine(mParts[prev..$]);
 
         mSize = Vector2i(max_x, pos.y);
+
+        if (mBorder.enabled) {
+            //duplicated from widget.d
+            int borderw = mBorder.borderWidth + mBorder.cornerRadius/3;
+            foreach (ref p; mParts) {
+                p.pos += Vector2i(borderw);
+            }
+            mSize += Vector2i(borderw*2);
+        }
     }
 
     void draw(Canvas c, Vector2i pos) {
+        if (mBorder.enabled) {
+            drawBox(c, pos, mSize, mBorder);
+        }
+
         bool blinkphase = cast(int)(time.timeCurrentTime.secsf*2)%2 == 0;
         foreach (ref p; mParts) {
             if (p.style.blink && blinkphase)
@@ -758,5 +770,15 @@ public class FormattedText {
     }
     Vector2i size() {
         return textSize();
+    }
+
+    BoxProperties border() {
+        return mBorder;
+    }
+    void setBorder(BoxProperties b) {
+        if (mBorder != b) {
+            mBorder = b;
+            update();
+        }
     }
 }

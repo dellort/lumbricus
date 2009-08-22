@@ -27,6 +27,7 @@ import utils.time;
 import utils.list2;
 import utils.md;
 import utils.reflection;
+import utils.misc;
 
 import tango.math.Math : PI;
 
@@ -111,83 +112,112 @@ enum GameZOrder {
     Splat,   //Fullscreen effect
 }
 
-//blergh
-class GameEngineGraphics {
-    GameEngine engine;
-    //add_objects is for the client engine, to get to know about new objects
-    ObjectList!(Graphic, "node") objects;
-    //== engine.gameTime()
-    TimeSourcePublic timebase;
 
-    this (GameEngine a_engine) {
-        objects = new typeof(objects);
-        engine = a_engine;
-        timebase = engine.gameTime;
-    }
-    this (ReflectCtor c) {
-        c.types().registerClass!(typeof(objects))();
+import common.visual;
+
+//xxx: move into another module, or whatever
+//does the annoying and disgusting job of wrapping unserializable FormattedText
+//  in a serializable class
+class RenderText {
+    private {
+        GameEngine mEngine;
+        struct Transient {
+            FormattedText renderer;
+        }
+        Transient mT;
+        char[] mMarkupText;
+        BoxProperties mBorder;
+        Color mFontColor;
     }
 
-    void remove(Graphic n) {
-        if (objects.contains(n)) {
-            objects.remove(n);
-            n.removed = true;
-            engine.callbacks.removeGraphic(n);
-        } else {
-            //if (!n.removed)
-            //    Trace.formatln(n);
-            assert (n.removed);
+    //if non-null, this is visible only if true is returned
+    bool delegate(TeamMember t) visibility;
+
+    this(GameEngine a_engine) {
+        mEngine = a_engine;
+        //init to what we had in the GUI in r865
+        mBorder.border = Color(0.7);
+        mBorder.back = Color(0);
+        mBorder.cornerRadius = 3;
+        mFontColor = Color(0.9);
+    }
+    this(ReflectCtor c) {
+        c.transient(this, &mT);
+    }
+
+    char[] markupText() {
+        return mMarkupText;
+    }
+    void markupText(char[] txt) {
+        if (mMarkupText == txt)
+            return;
+        mMarkupText = txt.dup; //copy for more safety
+        update();
+    }
+
+    Color color() {
+        return mFontColor;
+    }
+    void color(Color c) {
+        if (c == mFontColor)
+            return;
+    }
+
+    //do:
+    //  markupText = format(fmt, ...);
+    //the good thing about this method is, that it doesn't allocate memory if
+    //  the text doesn't change => you can call this method every frame, even
+    //  if nothing changes, without trashing memory
+    void setFormatted(char[] fmt, ...) {
+        char[80] buffer = void;
+        //(markupText setter compares and then copies anyway)
+        markupText = formatfx_s(buffer, fmt, _arguments, _argptr);
+    }
+
+    //--- non-determinstic functions following here
+
+    private void update() {
+        if (!mT.renderer) {
+            mT.renderer = new FormattedText();
+            mT.renderer.font = gFramework.fontManager.loadFont("wormfont");
+        }
+        mT.renderer.setBorder(mBorder);
+        mT.renderer.setMarkup(mMarkupText);
+        FontProperties p = mT.renderer.font.properties;
+        auto p2 = p;
+        p2.fore = mFontColor;
+        if (p2 != p) {
+            mT.renderer.font = gFramework.fontManager.create(p2);
         }
     }
 
-    void add(Graphic g) {
-        assert(!g.owner);
-        g.owner = this;
-        objects.add(g);
-        engine.callbacks.newGraphic(g);
+    FormattedText renderer() {
+        if (!mT.renderer) {
+            update();
+            assert(!!mT.renderer);
+        }
+        return mT.renderer;
+    }
+
+    void draw(Canvas c, Vector2i pos) {
+        if (visible())
+            renderer.draw(c, pos);
+    }
+
+    Vector2i size() {
+        return renderer.textSize();
+    }
+
+    bool visible() {
+        if (!visibility)
+            return true;
+        auto getcontrolled = mEngine.callbacks.getControlledTeamMember;
+        if (!getcontrolled)
+            return true;
+        return visibility(getcontrolled());
     }
 }
 
-//xxx this crap is a relict of the now dead pseudo network stuff
-//    remove/redo this if you feel like it
-abstract class Graphic {
-    GameEngineGraphics owner;
-    ObjListNode!(typeof(this)) node;
-    bool removed;
-
-    this() {
-    }
-    this (ReflectCtor c) {
-    }
-
-    void remove() {
-        owner.remove(this);
-    }
-}
-
-
-class TextGraphic : Graphic {
-    char[] msgMarkup;
-    Vector2i pos;
-    //how the label-rect is attached to pos, for each axis 0.0-1.0
-    //(0,0) is the upper left corner, (1,1) the bottom right corner
-    Vector2f attach = {0, 0};
-    //for isVisible(); see below
-    bool delegate(TeamMember) visibleDg;
-
-    //takes getControlledMember() result, returns if text is shown
-    bool isVisible(TeamMember activeMember) {
-        if (visibleDg)
-            return visibleDg(activeMember);
-        return true;
-    }
-
-    this () {
-    }
-    this (ReflectCtor c) {
-        super(c);
-    }
-}
 
 ///calls from engine into clients
 ///for stuff that can't simply be polled
@@ -202,9 +232,6 @@ class GameEngineCallback {
     //args: (drowning member, lost healthpoints, out-of-screen position)
     MDelegate!(TeamMember, int, Vector2i) memberDrown;
 
-    MDelegate!(Graphic) newGraphic;
-    MDelegate!(Graphic) removeGraphic;
-
     MDelegate!() nukeSplatEffect;
 
     //looks like I'm turning this into a dumping ground for other stuff
@@ -212,6 +239,9 @@ class GameEngineCallback {
     //for transient effects
     ParticleWorld particleEngine;
     Scene scene;
+
+    //needed for rendering team specific stuff (crate spies)
+    TeamMember delegate() getControlledTeamMember;
 
     //used for interpolated/extrapolated drawing (see GameShell.frame())
     //NOTE: changes in arbitrary way on replays (restoring snapshots)
