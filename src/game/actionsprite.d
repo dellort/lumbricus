@@ -4,6 +4,7 @@ import framework.framework;
 import game.gobject;
 import game.animation;
 import game.game;
+import game.gfxset;
 import game.gamepublic;
 import game.sequence;
 import game.action.base;
@@ -222,8 +223,9 @@ class ActionStateInfo : StaticStateInfo {
         super(c);
     }
 
-    this() {
-        actions = new ActionContainer();
+    this(char[] owner_name, char[] this_name) {
+        super(this_name);
+        actions = new ActionContainer(owner_name ~ "::" ~ this_name);
     }
 
     override void loadFromConfig(ConfigNode sc, ConfigNode physNode,
@@ -234,8 +236,8 @@ class ActionStateInfo : StaticStateInfo {
         auto acnode = sc.findNode("actions");
         if (acnode) {
             //"actions" is a node containing action defs
-            actions = new ActionContainer();
-            actions.loadFromConfig(owner.engine, acnode);
+            //actions = new ActionContainer(mCntName);
+            actions.loadFromConfig(owner.gfx, acnode);
         } else {
             //"actions" is a reference to another state
             actionsTmp = sc["actions"];
@@ -269,10 +271,10 @@ class ActionSpriteClass : GOSpriteClass {
 
     bool[char[]] detonateMap;
 
-    this (GameEngine engine, char[] regname) {
-        super(engine, regname);
+    this (GfxSet gfx, char[] regname) {
+        super(gfx, regname);
 
-        actions = new ActionContainer();
+        actions = new ActionContainer(name);
     }
 
     //xxx class
@@ -280,7 +282,7 @@ class ActionSpriteClass : GOSpriteClass {
         super(c);
     }
 
-    ActionSprite createSprite() {
+    ActionSprite createSprite(GameEngine engine) {
         return new ActionSprite(engine, this);
     }
 
@@ -291,7 +293,7 @@ class ActionSpriteClass : GOSpriteClass {
     }
 
     protected void asLoadFromConfig(ConfigNode config) {
-        actions.loadFromConfig(engine, config.getSubNode("actions"));
+        actions.loadFromConfig(gfx, config.getSubNode("actions"));
 
         canRefire = config.getBoolValue("can_refire", canRefire);
 
@@ -304,7 +306,7 @@ class ActionSpriteClass : GOSpriteClass {
         }
     }
 
-    override protected ActionStateInfo createStateInfo() {
-        return new ActionStateInfo();
+    override protected ActionStateInfo createStateInfo(char[] a_name) {
+        return new ActionStateInfo(name, a_name);
     }
 }

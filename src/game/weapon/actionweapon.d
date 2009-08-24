@@ -7,6 +7,7 @@ import game.action.base;
 import game.action.wcontext;
 import game.actionsprite;
 import game.game;
+import game.gfxset;
 import game.gobject;
 import game.sprite;
 import game.sequence;
@@ -20,6 +21,7 @@ import utils.configfile;
 import utils.log;
 import utils.factory;
 import utils.reflection;
+import utils.serialize;
 import utils.time;
 import utils.randval;
 
@@ -34,10 +36,12 @@ class ActionWeapon : WeaponClass {
         super(c);
     }
 
-    this(GameEngine aengine, ConfigNode node) {
-        super(aengine, node);
-        onFire = actionFromConfig(aengine, node.getSubNode("onfire"));
-        onBlowup = actionFromConfig(aengine, node.getSubNode("onblowup", false));
+    this(GfxSet gfx, ConfigNode node) {
+        super(gfx, node);
+        onFire = actionFromConfig(gfx, node.getSubNode("onfire"),
+            name ~ "::onfire");
+        onBlowup = actionFromConfig(gfx, node.getSubNode("onblowup", false),
+            name ~ "::onblowup");
         repeatCount = node.getValue("repeat", repeatCount);
         if (node["repeat_delay"] == "user") {
             //repeat on spacebar
@@ -59,8 +63,8 @@ class ActionWeapon : WeaponClass {
         return !!(repeatDelay.min == Time.Never);
     }
 
-    ActionShooter createShooter(GObjectSprite go) {
-        return new ActionShooter(this, go, mEngine);
+    ActionShooter createShooter(GObjectSprite go, GameEngine engine) {
+        return new ActionShooter(this, go, engine);
     }
 
     static this() {

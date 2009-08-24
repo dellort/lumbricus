@@ -2,6 +2,7 @@ module game.weapon.drill;
 
 import framework.framework;
 import game.game;
+import game.gfxset;
 import game.sprite;
 import game.weapon.weapon;
 import game.worm;
@@ -24,8 +25,8 @@ class DrillClass : WeaponClass {
     RandomValue!(Time) interval = {timeMsecs(150), timeMsecs(250)};
     bool blowtorch = false;
 
-    this(GameEngine engine, ConfigNode node) {
-        super(engine, node);
+    this(GfxSet gfx, ConfigNode node) {
+        super(gfx, node);
         duration = node.getValue("duration", duration);
         tunnelRadius = node.getValue("tunnel_radius", tunnelRadius);
         blowtorch = node.getValue("blowtorch", blowtorch);
@@ -37,7 +38,7 @@ class DrillClass : WeaponClass {
         super(c);
     }
 
-    override Shooter createShooter(GObjectSprite go) {
+    override Shooter createShooter(GObjectSprite go, GameEngine engine) {
         //for now, only worms are enabled to use tools
         //(because of special control methods, i.e. for jetpacks, ropes...)
         auto worm = cast(WormSprite)(go);

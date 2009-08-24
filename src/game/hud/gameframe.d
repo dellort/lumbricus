@@ -201,7 +201,7 @@ class GameFrame : SimpleContainer {
 
         add(mWeaponSel, WidgetLayout.Aligned(1, 1, Vector2i(5, 40)));
 
-        WeaponClass[] wlist = game.engine.weaponList();
+        WeaponClass[] wlist = game.engine.gfx.weaponList();
         mWeaponSel.init(wlist);
 
         setPosition(game.engine.level.worldCenter);

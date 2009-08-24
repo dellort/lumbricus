@@ -3,11 +3,13 @@ module game.action.base;
 import common.resset;
 import framework.framework;
 import game.game;
+import game.gfxset;
 import game.gobject;
 import utils.configfile;
 import utils.time;
 import utils.randval;
 import utils.reflection;
+import utils.serialize;
 import utils.misc;
 import utils.log;
 import utils.strparser : fromStr;
@@ -18,19 +20,23 @@ import tango.core.Traits : ParameterTupleOf;
 import tango.stdc.constants.constSupport : ctfe_i2a;
 
 //I see a pattern...
-alias StaticFactory!("ActionClasses", ActionClass, GameEngine, ConfigNode)
-    ActionClassFactory;
+//NOTE: char[] is a unique name, which is used for serialization only
+//      (directly passed to ActionClass ctor)
+alias StaticFactory!("ActionClasses", ActionClass, GfxSet, ConfigNode,
+    char[]) ActionClassFactory;
 
 ///stupid ActionClass hashmap class
 class ActionContainer {
     private {
         ActionClass[char[]] mActions;
+        char[] mName;
     }
 
     //xxx class
     this (ReflectCtor c) {
     }
-    this () {
+    this (char[] name) {
+        mName = name;
     }
 
     ///get an ActionClass by its id
@@ -53,13 +59,13 @@ class ActionContainer {
             }
           }
     */
-    void loadFromConfig(GameEngine eng, ConfigNode node) {
+    void loadFromConfig(GfxSet gfx, ConfigNode node) {
         mActions = null;
         if (!node)
             return;
         //list of named subnodes, each containing an ActionClass
         foreach (char[] name, ConfigNode n; node) {
-            auto ac = actionFromConfig(eng, n);
+            auto ac = actionFromConfig(gfx, n, mName ~ "::" ~ name);
             if (ac) {
                 //names are unique
                 mActions[name] = ac;
@@ -75,14 +81,16 @@ class ActionContainer {
 }
 
 ///load an action class from a ConfigNode, returns null if class was not found
-ActionClass actionFromConfig(GameEngine eng, ConfigNode node) {
+ActionClass actionFromConfig(GfxSet gfx, ConfigNode node, char[] name) {
     if (node is null)
         return null;
     //empty type value defaults to "list" -> less writing
     char[] type = node.getStringValue("type", "list");
     if (ActionClassFactory.exists(type)) {
-        auto ac = ActionClassFactory.instantiate(type, eng, node);
+        auto ac = ActionClassFactory.instantiate(type, gfx, node, name);
         assert(!!ac);
+        //???
+        gfx.registerActionClass(ac, ac.name);
         return ac;
     } else {
         registerLog("game.action.base")("Action type "~type~" not found.");
@@ -93,13 +101,22 @@ ActionClass actionFromConfig(GameEngine eng, ConfigNode node) {
 
 //just like before
 class ActionClass {
+    private {
+        char[] mName;
+    }
+
     //run it, may put GameObjects on the context stack or just finish
     abstract void execute(ActionContext ctx);
+
+    final char[] name() {
+        return mName;
+    }
 
     //xxx class
     this(ReflectCtor c) {
     }
-    this() {
+    this(char[] name) {
+        mName = name;
     }
 }
 
@@ -191,11 +208,11 @@ class ActionContext {
 }
 
 //for Surface parsing
-private void actionParse(GameEngine eng, out Surface ret, char[] value,
+private void actionParse(GfxSet gfx, out Surface ret, char[] value,
     char[] def)
 {
     if (value.length > 0)
-        ret = eng.gfx.resources.get!(Surface)(value);
+        ret = gfx.resources.get!(Surface)(value);
 }
 
 //generic action class with a lot of template magic
@@ -232,8 +249,9 @@ class MyActionClass(alias Func, char[] args) : ActionClass {
     private ArgStore store;
 
     //xxx class
-    this(GameEngine engine, ConfigNode node)
+    this(GfxSet gfx, ConfigNode node, char[] a_name)
     {
+        super(a_name); //yyy
         //parse parameters from node
         char[][] tmpArg = str.split(args, ",");
         foreach (int i, x; store.tupleof) {
@@ -244,7 +262,7 @@ class MyActionClass(alias Func, char[] args) : ActionClass {
             //xxx not sure if this is correct
             static if (is(typeof(actionParse(null, x, "", "")))) {
                 //if a special parser exists, use it
-                actionParse(engine, store.tupleof[i], node[name], def);
+                actionParse(gfx, store.tupleof[i], node[name], def);
             } else {
                 if (def.length > 0)
                     store.tupleof[i] =
@@ -282,6 +300,7 @@ class MyActionClass(alias Func, char[] args) : ActionClass {
     }
 }
 
+/+
 private void delegate(Types)[] gActionSerializeRegCache;
 //run this after all script functions are registered to setup serialization
 void actionSerializeRegister(Types t) {
@@ -289,6 +308,7 @@ void actionSerializeRegister(Types t) {
         fp(t);
     }
 }
++/
 
 //registers a scripting function at the factory, and for serialization
 //all regScript calls must be done before the scriptSerializeRegister() call
@@ -296,9 +316,11 @@ void regAction(alias Func, char[] args)(char[] id) {
     alias MyActionClass!(Func, args) AcClass;
     ActionClassFactory.register!(AcClass)(id);
 
+    /+
     //whatever
     void reg(Types t) {
         t.registerClass!(AcClass)();
     }
     gActionSerializeRegCache ~= &reg;
+    +/
 }

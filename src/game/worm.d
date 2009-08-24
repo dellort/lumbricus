@@ -624,7 +624,7 @@ class WormSprite : GObjectSprite {
         if (!mWeapon)
             return;
         if (!sh || sh.weapon != mWeapon)
-            sh = mWeapon.createShooter(this);
+            sh = mWeapon.createShooter(this, engine);
 
         log("fire: {}", mWeapon.name);
 
@@ -995,7 +995,8 @@ class WormStateInfo : StaticStateInfo {
     this (ReflectCtor c) {
         super(c);
     }
-    this () {
+    this (char[] a_name) {
+        super(a_name);
     }
 
     override void loadFromConfig(ConfigNode sc, ConfigNode physNode,
@@ -1030,7 +1031,7 @@ class WormSpriteClass : GOSpriteClass {
         super(c);
     }
 
-    this(GameEngine e, char[] r) {
+    this(GfxSet e, char[] r) {
         super(e, r);
     }
     override void loadFromConfig(ConfigNode config) {
@@ -1070,12 +1071,12 @@ class WormSpriteClass : GOSpriteClass {
         flyState[FlyMode.roll] = findSequenceState("fly_roll",true);
         flyState[FlyMode.heavy] = findSequenceState("fly_heavy",true);
     }
-    override WormSprite createSprite() {
+    override WormSprite createSprite(GameEngine engine) {
         return new WormSprite(engine, this);
     }
 
-    override StaticStateInfo createStateInfo() {
-        return new WormStateInfo();
+    override StaticStateInfo createStateInfo(char[] a_name) {
+        return new WormStateInfo(a_name);
     }
 
     override WormStateInfo findState(char[] name, bool canfail = false) {
@@ -1142,7 +1143,7 @@ class GravestoneSpriteClass : GOSpriteClass {
         super(c);
     }
 
-    this(GameEngine e, char[] r) {
+    this(GfxSet e, char[] r) {
         super(e, r);
     }
 
@@ -1163,7 +1164,7 @@ class GravestoneSpriteClass : GOSpriteClass {
         }
     }
 
-    override GravestoneSprite createSprite() {
+    override GravestoneSprite createSprite(GameEngine engine) {
         return new GravestoneSprite(engine, this);
     }
 

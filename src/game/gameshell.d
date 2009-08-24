@@ -236,7 +236,7 @@ class GameLoader {
             mDemoOutput = outstr.pipeOut(true);
         }
 
-        mGfx = new GfxSet(mGameConfig.gfx);
+        mGfx = new GfxSet(mGameConfig);
         loadWeaponSets();
 
         mResPreloader = gResources.createPreloader(mGfx.resources);
@@ -857,13 +857,7 @@ class GameShell {
         //was addResources()
         //can't really be avoided, because we're not going to write game data
         //  graphics and sounds into the savegame
-        mSerializeCtx.addExternal(mGfx, "gfx");
-        foreach (char[] key, TeamTheme tt; mGfx.teamThemes) {
-            mSerializeCtx.addExternal(tt, "gfx_theme::" ~ key);
-        }
-        foreach (ResourceSet.Entry res; mGfx.resources.resourceList()) {
-            mSerializeCtx.addExternal(res.wrapper.get(), "res::" ~ res.name());
-        }
+        mGfx.initSerialization(mSerializeCtx);
     }
 
     //public, but only for debugging stuff

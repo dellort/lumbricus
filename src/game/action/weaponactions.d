@@ -5,6 +5,7 @@ import framework.framework;
 import game.action.base;
 import game.action.wcontext;
 import game.game;
+import game.gfxset;
 import game.gobject;
 import game.sprite;
 import game.weapon.weapon;
@@ -250,7 +251,8 @@ abstract class AoEActionClass : ActionClass {
     this (ReflectCtor c) {
         super(c);
     }
-    this (GameEngine eng, ConfigNode node) {
+    this (GfxSet gfx, ConfigNode node, char[] a_name) {
+        super(a_name);
         radius = node.getValue!(float)("radius", radius);
         char[][] hitIds = node.getValue!(char[][])("hit", ["other"]);
         foreach (h; hitIds) {
@@ -308,8 +310,8 @@ class ImpulseActionClass : AoEActionClass {
     this (ReflectCtor c) {
         super(c);
     }
-    this (GameEngine eng, ConfigNode node) {
-        super(eng, node);
+    this (GfxSet gfx, ConfigNode node, char[] a_name) {
+        super(gfx, node, a_name);
         strength = node.getValue!(float)("strength", strength);
         if (node["direction"] == "outside")
             directionMode = DirMode.outside;
@@ -358,8 +360,8 @@ class AoEDamageActionClass : AoEActionClass {
     this (ReflectCtor c) {
         super(c);
     }
-    this (GameEngine eng, ConfigNode node) {
-        super(eng, node);
+    this (GfxSet gfx, ConfigNode node, char[] a_name) {
+        super(gfx, node, a_name);
         damage = node.getValue!(float)("damage", damage);
     }
 

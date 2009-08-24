@@ -2,6 +2,7 @@ module game.action.list;
 
 import game.action.base;
 import game.game;
+import game.gfxset;
 import game.gobject;
 import utils.configfile;
 import utils.time;
@@ -30,7 +31,8 @@ class ActionListClass : ActionClass {
     this (ReflectCtor c) {
         super(c);
     }
-    this (GameEngine eng, ConfigNode node) {
+    this (GfxSet gfx, ConfigNode node, char[] a_name) {
+        super(a_name);
         //parameters for _this_ list
         char[] et = node.getStringValue("exec", "sequential");
         if (et == "parallel") {
@@ -39,10 +41,12 @@ class ActionListClass : ActionClass {
         repeatCount = node.getIntValue("repeat", 1);
         repeatDelay = node.getValue("repeat_delay", repeatDelay);
         //now load contained actions
+        int idx;
         foreach (ConfigNode n; node) {
+            idx++;
             if (!n.hasSubNodes())
                 continue;
-            auto ac = actionFromConfig(eng, n);
+            auto ac = actionFromConfig(gfx, n, myformat("{}::{}", name, idx));
             if (ac) {
                 actions ~= ac;
             }

@@ -36,11 +36,6 @@ import tango.core.Traits : ParameterTupleOf;
 
 import game.levelgen.renderer;// : LandscapeBitmap;
 
-class ClassNotRegisteredException : Exception {
-    this(char[] msg) {
-        super(msg);
-    }
-}
 
 //code to manage a game session (hm, whatever this means)
 //reinstantiated on each "round"
@@ -53,8 +48,6 @@ class GameEngine {
 
     GameConfig gameConfig;
     ConfigNode persistentState;
-
-    SequenceStateList sequenceStates;
 
     private {
         static LogStruct!("game.game") log;
@@ -85,11 +78,6 @@ class GameEngine {
         //generates earthquakes
         EarthQuakeForce mEarthquakeForceVis, mEarthquakeForceDmg;
 
-        //managment of sprite classes, for findSpriteClass()
-        GOSpriteClass[char[]] mSpriteClasses;
-
-        //same for weapons (also such a two-stage factory, creates Shooters)
-        WeaponClass[char[]] mWeaponClasses;
 
         GObjectSprite[] mPlaceQueue;
 
@@ -139,6 +127,8 @@ class GameEngine {
 
         mObjects = new typeof(mObjects)();
         mPhysicWorld = new PhysicWorld(rnd);
+
+        gfx.addCollisions(mPhysicWorld);
 
         foreach (o; level.objects) {
             if (auto ls = cast(LevelLandscape)o) {
@@ -200,17 +190,6 @@ class GameEngine {
         mWaterChanger.changePerSec = cWaterRaisingSpeed;
         physicworld.add(mWaterChanger);
 
-        sequenceStates = new SequenceStateList();
-
-        //load sequences
-        foreach (ConfigNode node; gfx.sequenceConfig) {
-            loadSequences(this, node);
-        }
-
-        //load weapons
-        foreach (char[] ws; config.weaponsets) {
-            loadWeapons("weapons/"~ws);
-        }
 
         loadLevelStuff();
 
@@ -249,6 +228,10 @@ class GameEngine {
         }
     }
 
+    GObjectSprite createSprite(char[] name) {
+        return gfx.findSpriteClass(name).createSprite(this);
+    }
+
     package void setController(GameController ctl) {
         assert(!mController);
         mController = ctl;
@@ -267,12 +250,6 @@ class GameEngine {
     ///level being played, must not modify returned object
     final Level level() {
         return mLevel;
-    }
-
-    ///list of _all_ possible weapons, which are useable during the game
-    ///Team.getWeapons() must never return a Weapon not covered by this list
-    WeaponClass[] weaponList() {
-        return mWeaponClasses.values;
     }
 
     final GameEngineCallback callbacks() {
@@ -312,97 +289,6 @@ class GameEngine {
 
     //--- end GameEnginePublic
 
-    //factory for GOSpriteClasses
-    //the constructor of GOSpriteClasses will call:
-    //  engine.registerSpriteClass(registerName, this);
-    GOSpriteClass instantiateSpriteClass(char[] name, char[] registerName) {
-        return SpriteClassFactory.instantiate(name, this, registerName);
-    }
-
-    //called by sprite.d/GOSpriteClass.this() only
-    void registerSpriteClass(char[] name, GOSpriteClass sc) {
-        if (findSpriteClass(name, true)) {
-            assert(false, "Sprite class "~name~" already registered");
-        }
-        mSpriteClasses[name] = sc;
-    }
-
-    //find a sprite class
-    GOSpriteClass findSpriteClass(char[] name, bool canfail = false) {
-        GOSpriteClass* gosc = name in mSpriteClasses;
-        if (gosc)
-            return *gosc;
-
-        if (canfail)
-            return null;
-
-        //not found? xxx better error handling (as usual...)
-        throw new ClassNotRegisteredException("sprite class " ~ name
-            ~ " not found");
-    }
-
-    GObjectSprite createSprite(char[] name) {
-        return findSpriteClass(name).createSprite();
-    }
-
-    //currently just worm.conf
-    void loadSpriteClass(ConfigNode sprite) {
-        char[] type = sprite.getStringValue("type", "notype");
-        char[] name = sprite.getStringValue("name", "unnamed");
-        auto res = instantiateSpriteClass(type, name);
-        res.loadFromConfig(sprite);
-    }
-
-    //load all weapons from one weapon set (directory containing set.conf)
-    //loads only collisions and weapon behavior, no resources/sequences
-    private void loadWeapons(char[] dir) {
-        auto set_conf = loadConfig(dir~"/set");
-        auto coll_conf = loadConfig(dir ~ "/"
-            ~ set_conf.getStringValue("collisions","collisions.conf"),true,true);
-        if (coll_conf)
-            physicworld.collide.loadCollisions(coll_conf.getSubNode("collisions"));
-        //load all .conf files found
-        char[] weaponsdir = dir ~ "/weapons";
-        gFS.listdir(weaponsdir, "*.conf", false,
-            (char[] path) {
-                //a weapons file can contain resources, collision map
-                //additions and a list of weapons
-                auto wp_conf = loadConfig(weaponsdir ~ "/"
-                    ~ path[0..$-5]);
-                physicworld.collide.loadCollisions(wp_conf.getSubNode("collisions"));
-                auto list = wp_conf.getSubNode("weapons");
-                foreach (ConfigNode item; list) {
-                    loadWeaponClass(item);
-                }
-                return true;
-            }
-        );
-    }
-
-    //a weapon subnode of weapons.conf
-    private void loadWeaponClass(ConfigNode weapon) {
-        char[] type = weapon.getStringValue("type", "action");
-        //xxx error handling
-        //hope you never need to debug this code!
-        WeaponClass c = WeaponClassFactory.instantiate(type, this, weapon);
-        assert(findWeaponClass(c.name, true) is null);
-        mWeaponClasses[c.name] = c;
-    }
-
-    //find a weapon class
-    WeaponClass findWeaponClass(char[] name, bool canfail = false) {
-        WeaponClass* w = name in mWeaponClasses;
-        if (w)
-            return *w;
-
-        if (canfail)
-            return null;
-
-        //not found? xxx better error handling (as usual...)
-        throw new ClassNotRegisteredException("weapon class "
-            ~ name ~ " not found");
-    }
-
     private void windChangerUpdate(float val) {
         mWindForce.windSpeed = Vector2f(val,0);
     }
@@ -427,11 +313,6 @@ class GameEngine {
     //one time initialization, where levle objects etc. should be loaded (?)
     private void loadLevelStuff() {
         auto conf = loadConfig("game");
-        //load sprites
-        foreach (char[] name, char[] value; conf.getSubNode("sprites")) {
-            auto sprite = loadConfig(value);
-            loadSpriteClass(sprite);
-        }
 
         mPhysicWorld.gravity = Vector2f(0, conf.getFloatValue("gravity",100));
 
@@ -935,7 +816,7 @@ class GameEngine {
 
     //count sprites with passed spriteclass name currently in the game
     int countSprites(char[] name) {
-        auto sc = findSpriteClass(name, true);
+        auto sc = gfx.findSpriteClass(name, true);
         if (!sc)
             return 0;
         int ret = 0;
@@ -1159,7 +1040,7 @@ class GameEngine {
         addWormCmd("weapon", (TeamMember w, char[] weapon) {
             WeaponClass wc;
             if (weapon != "-")
-                wc = w.engine.findWeaponClass(weapon, true);
+                wc = w.engine.gfx.findWeaponClass(weapon, true);
             w.selectWeaponByClass(wc);
         });
         addWormCmd("set_timer", (TeamMember w, int ms) {
@@ -1169,14 +1050,14 @@ class GameEngine {
             w.serverTeam.doSetPoint(Vector2f(x, y));
         });
         addWormCmd("select_fire_refire", (TeamMember w, char[] m, bool down) {
-            WeaponClass wc = w.engine.findWeaponClass(m);
+            WeaponClass wc = w.engine.gfx.findWeaponClass(m);
             w.selectFireRefire(wc, down);
         });
         addWormCmd("selectandfire", (TeamMember w, char[] m, bool down) {
             if (down) {
                 WeaponClass wc;
                 if (m != "-")
-                    wc = w.engine.findWeaponClass(m, true);
+                    wc = w.engine.gfx.findWeaponClass(m, true);
                 w.selectWeaponByClass(wc);
                 //doFireDown will save the keypress and wait if not ready
                 w.doFireDown(true);

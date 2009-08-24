@@ -27,22 +27,13 @@
     gui/hud/, sky.d, water.d, gameshell.d, gametask.d -> src/frontend/
     game.d, action/, weapon/, worm.d, etc. -> src/backend/
     ?
-- interpolation...
-  die die bewegungen entweder
-  a) zwischen zwei server frames interpoliert, oder
-  b) nach dem letzten frame extrapoliert
-  der zustand dazu könnte direkt in der server engine gespeichert werden (als transient)
-  + Die Idee gefällt mir, dann könnte man gut die Engine-Framerate reduzieren. Solang der 
-    Interpolationscode nicht zu langsam ist
-  + a) würde ein Frame zusätzliches lokales Lag verursachen und braucht die vorige Position
-    der Objekte; b) braucht keinen Zustand, dafür ist die Interpolation ungenau und verursacht 
-    hässliche "Ruckel-Effekte" bei abrupten Flugbahnänderungen (d.h. wenns schiefgeht);
-    -> Ich kann mich nicht entscheiden
+- zeugs in gameview.d direkt in die engine verschieben?
 
 == Sonstiges/Minor ==
 ! besser methode zum auslesen von confignodes (insbesondere mit fehlerbehandlung, so dass ungültige werte nicht still ignoriert werden, beliebige datentypen, user warnen über unbenutzte einträge; vielleicht einfach serialiaiserungscode wiederverwenden)
 - configfile.d so ändern, dass datentypen schon in den nodes/in der syntax deklariert werden? libconfig verwenden?
 + editor/debug modus: spielzeit läuft nicht ab, untersuchung/platzierung von game objekten
+    (+ "level editor" töten)
 - napalm fällt ins meer => partikel erzeugen (vllt. auf später aufschieben)
 
 == bekannte, lösbare Bugs ==
@@ -66,8 +57,7 @@
 == GUI (allgemeine Features) ==
 + richtige GUI listen
 + key bindings editor
-+ flash-artiges System für GUI-Animationen (widget einem pfad folgen lassen)
-! styles system neuschreiben, fonts einschliessen, :blink state
+*** andere GUI verwenden
 *** GUI enthässlichen
 
 == GUI spielspezifisch (Dialoge) ==
@@ -79,6 +69,7 @@
 + Locale-Tool ("missing id" finden, Locales vergleichen, aktuelle Locale neu laden)
 + Waffenfenster wegmachen wenns nicht gebraucht wird (insb. in Höhlenlevels lästig)
   wie denn?
++ im-spiel-dialog, der folgende aktionen anbietet: pause, spiel verlassen, speichern, demo aufnahmen, key bindings verändern, obiges optionsmenü
 
 
 == Spiellogik/Gameengine ==
@@ -102,7 +93,15 @@
 * "stub" gpl daten (strichmännchen)
 *** gpl daten (vollständig)
 *** Sequence neuschreiben
-
++ Kamera:
+    - grundzustand: den aktiven, kontrollierten wurm fokusieren (kermacode durchsucht team-liste)
+    - kameracode setzt einen callback, der jedesmal aufgerufen wird, wenn ein neues sprite erzeugt wird (man kann herausfinden, welches team das sprite "abgeschossen" hat)
+    - neue waffen-sprites vom kontrollierten wurm werden sofort fokusiert
+      wenn das sprite stirbt, wird der fokus nach kurzer zeit wieder auf einen wurm gesetzt
+    - bewegt der user die kamera weg, wird der fokus auf waffen-sprites dauerhaft aufgehoben?
+    - sonderbehandlung kisten: fokus beim erscheinen immer sofort setzen
+      sobald kiste steht, fokus sofort wieder auf das vorherige objekt zurück
+    ...
 
 == Waffen ==
 + Superwaffen (Teppichangriff, MB-Bombe etc.)

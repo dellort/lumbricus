@@ -24,7 +24,7 @@ import utils.mybox;
 import utils.reflection;
 
 //factory to instantiate sprite classes, this is a small wtf
-alias StaticFactory!("Sprites", GOSpriteClass, GameEngine, char[])
+alias StaticFactory!("Sprites", GOSpriteClass, GfxSet, char[])
     SpriteClassFactory;
 
 //version = RotateDebug;
@@ -388,7 +388,10 @@ class GObjectSprite : GameObject {
 
 //state infos (per sprite class, thus it's static)
 class StaticStateInfo {
-    char[] name;
+    private {
+        char[] mName;
+    }
+
     POSP physic_properties, physicWater;
 
     //automatic transition to this state if animation finished
@@ -416,13 +419,16 @@ class StaticStateInfo {
         c.transient(this, &onEndTmp);
         c.transient(this, &onDrownTmp);
     }
-    this () {
+    this (char[] a_name) {
+        mName = a_name;
+    }
+
+    final char[] name() {
+        return mName;
     }
 
     void loadFromConfig(ConfigNode sc, ConfigNode physNode, GOSpriteClass owner)
     {
-        name = sc.name;
-
         //physic stuff, already loaded physic-types are not cached
         //NOTE: if no "physic" value given, use state-name for physics
         auto phys = physNode.findNode(sc.getStringValue("physic", name));
@@ -464,7 +470,7 @@ class StaticStateInfo {
         auto particlename = sc["particle"];
         if (particlename.length) {
             //isn't this funny
-            particle = owner.engine.gfx.resources
+            particle = owner.gfx.resources
                 .get!(ParticleType)(particlename);
         }
     }
@@ -489,7 +495,7 @@ class StaticStateInfo {
 //loads static physic properties (in a POSP struct)
 //load static parts of the "states"-nodes
 class GOSpriteClass {
-    GameEngine engine;
+    GfxSet gfx;
     char[] name;
 
     //SequenceObject sequenceObject;
@@ -519,26 +525,25 @@ class GOSpriteClass {
             return null;
     }
 
-    GObjectSprite createSprite() {
+    GObjectSprite createSprite(GameEngine engine) {
         return new GObjectSprite(engine, this);
     }
 
-    this (GameEngine engine, char[] regname) {
-        this.engine = engine;
+    this (GfxSet gfx, char[] regname) {
+        this.gfx = gfx;
         name = regname;
 
-        engine.registerSpriteClass(regname, this);
+        gfx.registerSpriteClass(regname, this);
 
         //create a default state to have at least one state at all
-        auto ssi = createStateInfo();
-        ssi.name = "defaultstate";
+        auto ssi = createStateInfo("defaultstate");
         states[ssi.name] = ssi;
         initState = ssi;
     }
 
     void loadFromConfig(ConfigNode config) {
         //load collision map
-        engine.physicworld.collide.loadCollisions(config.getSubNode("collisions"));
+        gfx.addCollideConf(config.getSubNode("collisions"));
 
         //sequenceObject = engine.gfx.resources.resource!(SequenceObject)
           //  (config["sequence_object"]).get;
@@ -551,7 +556,7 @@ class GOSpriteClass {
         //load states
         //physic stuff is loaded when it's referenced in a state description
         foreach (ConfigNode sc; config.getSubNode("states")) {
-            auto ssi = createStateInfo();
+            auto ssi = createStateInfo(sc.name);
             ssi.loadFromConfig(sc, config.getSubNode("physics"), this);
             states[ssi.name] = ssi;
 
@@ -576,14 +581,14 @@ class GOSpriteClass {
     }
 
     //for derived classes: return your StateInfo class here
-    protected StaticStateInfo createStateInfo() {
-        return new StaticStateInfo();
+    protected StaticStateInfo createStateInfo(char[] a_name) {
+        return new StaticStateInfo(a_name);
     }
 
     SequenceState findSequenceState(char[] pseudo_name,
         bool allow_not_found = false)
     {
-        return engine.sequenceStates.findState(sequencePrefix ~ '_' ~
+        return gfx.sequenceStates.findState(sequencePrefix ~ '_' ~
             pseudo_name, allow_not_found);
     }
 

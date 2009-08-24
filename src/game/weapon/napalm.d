@@ -4,6 +4,7 @@ import framework.framework;
 import game.animation;
 import game.actionsprite;
 import game.game;
+import game.gfxset;
 import game.gobject;
 import game.sprite;
 import game.sequence;
@@ -119,7 +120,7 @@ class NapalmSpriteClass : ProjectileSpriteClass {
     POSP physMedium, physSmall;
     float lightupVelocity = 400;
 
-    override NapalmSprite createSprite() {
+    override NapalmSprite createSprite(GameEngine engine) {
         return new NapalmSprite(engine, this);
     }
 
@@ -137,7 +138,7 @@ class NapalmSpriteClass : ProjectileSpriteClass {
             lightupVelocity);
     }
 
-    this(GameEngine e, char[] r) {
+    this(GfxSet e, char[] r) {
         super(e, r);
     }
 

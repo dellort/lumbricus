@@ -2,6 +2,7 @@ module game.weapon.jetpack;
 
 import framework.framework;
 import game.game;
+import game.gfxset;
 import game.sprite;
 import game.weapon.weapon;
 import game.worm;
@@ -27,8 +28,8 @@ class JetpackClass : WeaponClass {
     Vector2f jetpackThrust = {0f, 0f};
     bool stopOnDisable = true;
 
-    this(GameEngine engine, ConfigNode node) {
-        super(engine, node);
+    this(GfxSet gfx, ConfigNode node) {
+        super(gfx, node);
         maxTime = node.getValue("max_time", maxTime);
         jetpackThrust = node.getValue("jet_thrust", jetpackThrust);
         stopOnDisable = node.getValue("stop_on_disable", stopOnDisable);
@@ -39,7 +40,7 @@ class JetpackClass : WeaponClass {
         super(c);
     }
 
-    override Shooter createShooter(GObjectSprite go) {
+    override Shooter createShooter(GObjectSprite go, GameEngine engine) {
         //for now, only worms are enabled to use tools
         //(because of special control methods, i.e. for jetpacks, ropes...)
         auto worm = cast(WormSprite)(go);

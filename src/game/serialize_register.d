@@ -40,8 +40,10 @@ void initGameSerialization() {
         MeleeWeapon, MeleeShooter, WeaponContext, DelayedObj,
         ModeRealtime, RealtimeStatus, CollectableToolCrateSpy,
         CollectableToolDoubleTime, ControllerMsgs, ControllerStats,
-        ControllerPersistence, CollectableToolDoubleDamage, LandscapeBitmap,
-        GravityCenterAction, ProximitySensorAction);
+        ControllerPersistence, CollectableToolDoubleDamage, /+LandscapeBitmap,+/
+        GravityCenterAction, ProximitySensorAction,
+        NapalmStateDisplay, WormStateDisplay);
+    /+
     //stuff that is actually redundant and wouldn't need to be in savegames
     //but excluding this from savegames would be too much work for nothing
     //keeping them separate still makes sense if we ever need faster snapshots
@@ -58,4 +60,5 @@ void initGameSerialization() {
         SubSequence, WormState, NapalmSpriteClass,
         ProjectileStateInfo, CrateStateInfo, DrillClass);
     actionSerializeRegister(serialize_types);
+    +/
 }

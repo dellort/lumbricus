@@ -1114,7 +1114,7 @@ class WeaponSet {
                 if (crateSet) {
                     //only drop weapons that are not infinite already,
                     //  and that can be used in the current world
-                    if (!weapon.infinite && weapon.weapon.canUse())
+                    if (!weapon.infinite && weapon.weapon.canUse(engine))
                         crateList ~= weapon.weapon;
                 } else {
                     weapons[weapon.weapon] = weapon;
@@ -1204,7 +1204,7 @@ class WeaponItem {
     bool canUse() {
         if (!haveAtLeastOne())
             return false;
-        return mWeapon.canUse();
+        return mWeapon.canUse(mEngine);
     }
 
     void decrease() {
@@ -1233,7 +1233,7 @@ class WeaponItem {
         this(parent);
         auto w = config.name;
         //may throw ClassNotRegisteredException
-        mWeapon = mEngine.findWeaponClass(w);
+        mWeapon = mEngine.gfx.findWeaponClass(w);
         if (config.value == "inf") {
             mInfiniteQuantity = true;
         } else {

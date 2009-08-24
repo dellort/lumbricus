@@ -4,6 +4,7 @@ import framework.framework;
 import common.resset;
 import common.scene;
 import game.game;
+import game.gfxset;
 import game.sprite;
 import game.weapon.weapon;
 import game.worm;
@@ -34,8 +35,8 @@ class RopeClass : WeaponClass {
 
     SequenceState anchorAnim;
 
-    this(GameEngine engine, ConfigNode node) {
-        super(engine, node);
+    this(GfxSet gfx, ConfigNode node) {
+        super(gfx, node);
         shootSpeed = node.getIntValue("shoot_speed", shootSpeed);
         maxLength = node.getIntValue("max_length", maxLength);
         moveSpeed = node.getIntValue("move_speed", moveSpeed);
@@ -45,9 +46,9 @@ class RopeClass : WeaponClass {
         ropeColor = node.getValue("rope_color", ropeColor);
         auto resseg = node["rope_segment"];
         if (resseg.length)
-            ropeSegment = engine.gfx.resources.get!(Surface)(resseg);
+            ropeSegment = gfx.resources.get!(Surface)(resseg);
 
-        anchorAnim = engine.sequenceStates.findState(node["anchor_anim"]);
+        anchorAnim = gfx.sequenceStates.findState(node["anchor_anim"]);
     }
 
     //xxx class
@@ -55,7 +56,7 @@ class RopeClass : WeaponClass {
         super(c);
     }
 
-    override Shooter createShooter(GObjectSprite go) {
+    override Shooter createShooter(GObjectSprite go, GameEngine engine) {
         //for now, only worms are enabled to use tools
         //(because of special control methods, i.e. for jetpacks, ropes...)
         auto worm = cast(WormSprite)(go);

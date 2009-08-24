@@ -7,6 +7,7 @@ import game.action.base;
 import game.sprite;
 import game.weapon.weapon;
 import game.gamepublic;
+import game.gfxset;
 import game.weapon.actionweapon;
 import tango.math.Math: PI;
 import utils.vector2;
@@ -20,8 +21,8 @@ import utils.reflection;
 class MeleeWeapon: ActionWeapon {
     int dist = 10;
 
-    this(GameEngine aengine, ConfigNode node) {
-        super(aengine, node);
+    this(GfxSet gfx, ConfigNode node) {
+        super(gfx, node);
         //always directed with fixed strength
         fireMode.variableThrowStrength = false;
         node.getValue!(int)("distance", dist);
@@ -33,7 +34,7 @@ class MeleeWeapon: ActionWeapon {
     }
 
     //using SpecialShooter here leads to dmd lockup (at least with dsss)
-    MeleeShooter createShooter(GObjectSprite owner) {
+    MeleeShooter createShooter(GObjectSprite owner, GameEngine engine) {
         return new MeleeShooter(this, owner, engine);
     }
 

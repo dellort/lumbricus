@@ -3,22 +3,51 @@ module game.gfxset;
 import common.animation;
 import framework.framework;
 import game.particles : ParticleType;
+import common.config;
 import common.resset;
 import common.resources : gResources, addToResourceSet;
-//import game.sequence : loadSequences; //only for loading grr
 import utils.color;
 import utils.configfile;
 import utils.time;
+import utils.serialize;
 
+import physics.world;
+import game.sequence;
+import game.gamepublic; //:GameConfig
+import game.sprite;
+import game.weapon.weapon;
+
+class ClassNotRegisteredException : Exception {
+    this(char[] msg) {
+        super(msg);
+    }
+}
 
 //references all graphic/sound (no sounds yet) resources etc.
+//after r866: extended to carry sprites & sequences
 class GfxSet {
+    private {
+        //bits from GameConfig; during loading
+        ConfigNode mSprites;
+        char[][] mWeaponSets;
+        ConfigNode[] mSequenceConfig;
+        ConfigNode[] mCollNodes;
+
+        //managment of sprite classes, for findSpriteClass()
+        GOSpriteClass[char[]] mSpriteClasses;
+
+        //same for weapons (also such a two-stage factory, creates Shooters)
+        WeaponClass[char[]] mWeaponClasses;
+
+        Object[char[]] mActionClasses;
+    }
+
     char[] gfxId;
     //xxx only needed by sky.d
     ConfigNode config;
-    ConfigNode[] sequenceConfig;
 
     ResourceSet resources;
+    SequenceStateList sequenceStates;
 
     //keyed by the theme name (TeamTheme.name)
     TeamTheme[char[]] teamThemes;
@@ -37,12 +66,6 @@ class GfxSet {
         }
     }
 
-    /+private void loadSequenceStuff() {
-        foreach (conf; sequenceConfig) {
-            loadSequences(resources, conf);
-        }
-    }+/
-
     private void loadExplosions() {
         expl.load(config.getSubNode("explosions"), resources);
     }
@@ -55,10 +78,11 @@ class GfxSet {
         }
     }
 
-    //gfx = GameConfig.gfx
     //the constructor does allmost all the work, but you have to call
     //finishLoading() too; in between, you can preload the resources
-    this(ConfigNode gfx) {
+    this(GameConfig cfg) {
+        ConfigNode gfx = cfg.gfx;
+
         gfxId = gfx.getStringValue("config", "wwp");
         char[] watername = gfx.getStringValue("waterset", "blue");
 
@@ -75,6 +99,10 @@ class GfxSet {
         waterColor = waterfile.getValue("color", waterColor);
 
         //xxx if you want, add code to load crosshair here
+        //...
+
+        mSprites = config.getSubNode("sprites");
+        mWeaponSets = cfg.weaponsets;
     }
 
     void addGfxSet(ConfigNode conf) {
@@ -87,13 +115,14 @@ class GfxSet {
 
     //Params: n = the "sequences" node, containing loaders
     void addSequenceNode(ConfigNode n) {
-        sequenceConfig ~= n;
+        mSequenceConfig ~= n;
     }
 
     //call after resources have been preloaded
     void finishLoading() {
         reversedHack();
         loadParticles();
+        loadSprites();
         //loaded after all this because Sequences depend from Animations etc.
         //loadSequenceStuff();
         resources.seal(); //disallow addition of more resources
@@ -111,6 +140,175 @@ class GfxSet {
                 rani.ani = ani.reversed();
                 resources.addResource(rani, "reversed_" ~ e.name());
             }
+        }
+    }
+
+    //only for GameEngine
+    void addCollisions(PhysicWorld w) {
+        foreach (c; mCollNodes) {
+            w.collide.loadCollisions(c);
+        }
+    }
+
+    void addCollideConf(ConfigNode node) {
+        if (node)
+            mCollNodes ~= node;
+    }
+
+    //--- sprite & weapon stuff (static data)
+
+    private void loadSprites() {
+        sequenceStates = new SequenceStateList();
+
+        //load sequences
+        foreach (ConfigNode node; mSequenceConfig) {
+            loadSequences(this, node);
+        }
+
+        //load sprites
+        foreach (char[] name, char[] value; mSprites) {
+            auto sprite = loadConfig(value);
+            loadSpriteClass(sprite);
+        }
+
+        //load weapons
+        foreach (char[] ws; mWeaponSets) {
+            loadWeapons("weapons/"~ws);
+        }
+    }
+
+    //factory for GOSpriteClasses
+    //the constructor of GOSpriteClasses will call:
+    //  engine.registerSpriteClass(registerName, this);
+    GOSpriteClass instantiateSpriteClass(char[] name, char[] registerName) {
+        return SpriteClassFactory.instantiate(name, this, registerName);
+    }
+
+    //called by sprite.d/GOSpriteClass.this() only
+    void registerSpriteClass(char[] name, GOSpriteClass sc) {
+        if (findSpriteClass(name, true)) {
+            assert(false, "Sprite class "~name~" already registered");
+        }
+        mSpriteClasses[name] = sc;
+    }
+
+    //find a sprite class
+    GOSpriteClass findSpriteClass(char[] name, bool canfail = false) {
+        GOSpriteClass* gosc = name in mSpriteClasses;
+        if (gosc)
+            return *gosc;
+
+        if (canfail)
+            return null;
+
+        //not found? xxx better error handling (as usual...)
+        throw new ClassNotRegisteredException("sprite class " ~ name
+            ~ " not found");
+    }
+
+    //currently just worm.conf
+    void loadSpriteClass(ConfigNode sprite) {
+        char[] type = sprite.getStringValue("type", "notype");
+        char[] name = sprite.getStringValue("name", "unnamed");
+        auto res = instantiateSpriteClass(type, name);
+        res.loadFromConfig(sprite);
+    }
+
+    //load all weapons from one weapon set (directory containing set.conf)
+    //loads only collisions and weapon behavior, no resources/sequences
+    private void loadWeapons(char[] dir) {
+        auto set_conf = loadConfig(dir~"/set");
+        auto coll_conf = loadConfig(dir ~ "/"
+            ~ set_conf.getStringValue("collisions","collisions.conf"),true,true);
+        if (coll_conf)
+            addCollideConf(coll_conf.getSubNode("collisions"));
+        //load all .conf files found
+        char[] weaponsdir = dir ~ "/weapons";
+        gFS.listdir(weaponsdir, "*.conf", false,
+            (char[] path) {
+                //a weapons file can contain resources, collision map
+                //additions and a list of weapons
+                auto wp_conf = loadConfig(weaponsdir ~ "/"
+                    ~ path[0..$-5]);
+                addCollideConf(wp_conf.getSubNode("collisions"));
+                auto list = wp_conf.getSubNode("weapons");
+                foreach (ConfigNode item; list) {
+                    loadWeaponClass(item);
+                }
+                return true;
+            }
+        );
+    }
+
+    //a weapon subnode of weapons.conf
+    private void loadWeaponClass(ConfigNode weapon) {
+        char[] type = weapon.getStringValue("type", "action");
+        //xxx error handling
+        //hope you never need to debug this code!
+        WeaponClass c = WeaponClassFactory.instantiate(type, this, weapon);
+        assert(findWeaponClass(c.name, true) is null);
+        mWeaponClasses[c.name] = c;
+    }
+
+    //find a weapon class
+    WeaponClass findWeaponClass(char[] name, bool canfail = false) {
+        WeaponClass* w = name in mWeaponClasses;
+        if (w)
+            return *w;
+
+        if (canfail)
+            return null;
+
+        //not found? xxx better error handling (as usual...)
+        throw new ClassNotRegisteredException("weapon class "
+            ~ name ~ " not found");
+    }
+
+    ///list of _all_ possible weapons, which are useable during the game
+    ///Team.getWeapons() must never return a Weapon not covered by this list
+    ///not deterministic (arbitrary order of weapons)
+    WeaponClass[] weaponList() {
+        return mWeaponClasses.values;
+    }
+
+    //--
+    void registerActionClass(Object o, char[] name) {
+        assert(!(name in mActionClasses), "double action name: "~name);
+        mActionClasses[name] = o;
+    }
+
+    void initSerialization(SerializeContext ctx) {
+        ctx.addExternal(this, "gfx");
+
+        foreach (char[] key, TeamTheme tt; teamThemes) {
+            ctx.addExternal(tt, "gfx_theme::" ~ key);
+        }
+
+        foreach (ResourceSet.Entry res; resources.resourceList()) {
+            ctx.addExternal(res.wrapper.get(), "res::" ~ res.name());
+        }
+
+        foreach (char[] key, GOSpriteClass s; mSpriteClasses) {
+            assert(key == s.name);
+            char[] name = "sprite::" ~ key;
+            ctx.addExternal(s, name);
+            //if it gets more complicated than this, add a
+            //  GOSpriteClass.initSerialization() method
+            foreach (char[] key2, StaticStateInfo state; s.states) {
+                assert(key2 == state.name);
+                ctx.addExternal(state, name ~ "::" ~ key2);
+            }
+        }
+
+        foreach (char[] key, WeaponClass w; mWeaponClasses) {
+            assert(key == w.name);
+            w.initSerialization(ctx);
+        }
+
+        sequenceStates.initSerialization(ctx);
+
+        foreach (char[] key, Object o; mActionClasses) {
+            ctx.addExternal(o, "action::" ~ key);
         }
     }
 }

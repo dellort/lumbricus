@@ -18,6 +18,7 @@ import utils.rect2;
 import utils.time;
 import utils.random;
 import utils.reflection;
+import utils.serialize;
 import utils.vector2;
 
 import game.gamepublic;
@@ -28,7 +29,7 @@ import math = tango.math.Math;
 import ieee = tango.math.IEEE;
 import str = utils.string;
 
-static void function(GameEngine engine, ConfigNode from)[char[]]
+static void function(GfxSet engine, ConfigNode from)[char[]]
     loaders;
 
 ///all states, one instance per GameEngine, get via GameEngine.sequenceStates
@@ -68,6 +69,13 @@ class SequenceStateList {
             s.fixup();
         }
     }
+
+    void initSerialization(SerializeContext ctx) {
+        foreach (char[] k, s; mStates) {
+            assert(k == s.name);
+            s.initSerialization(ctx);
+        }
+    }
 }
 
 //this emulates Delphi style virtual constructors
@@ -105,7 +113,7 @@ alias VirtualCtor!(StateDisplay, Sequence) DisplayType;
 ///(at least used as a handle for the state by the Sequence owner... could use a
 /// a simple string to identify the state, but I haet simple strings)
 class SequenceState {
-    final GameEngine engine;
+    final GfxSet gfx;
     private {
         char[] mName;
     }
@@ -151,7 +159,7 @@ class SequenceState {
 
     void fixup() {
         foreach (ref t; playLeaveTransitions) {
-            t.dest = engine.sequenceStates.findState(t.dest_name);
+            t.dest = gfx.sequenceStates.findState(t.dest_name);
         }
     }
 
@@ -161,8 +169,12 @@ class SequenceState {
 
     protected abstract DisplayType getDisplayType();
 
-    this(GameEngine a_engine, char[] name) {
-        engine = a_engine;
+    void initSerialization(SerializeContext ctx) {
+        ctx.addExternal(this, "sequence_state::" ~ name);
+    }
+
+    this(GfxSet a_gfx, char[] name) {
+        gfx = a_gfx;
         mName = name;
     }
 
@@ -588,7 +600,7 @@ class NapalmSequenceUpdate : SequenceUpdate {
 class NapalmState : SequenceState {
     Animation animFly, animFall;
 
-    this(GameEngine a_owner, char[] name) {
+    this(GfxSet a_owner, char[] name) {
         super(a_owner, name);
     }
 
@@ -952,7 +964,7 @@ class WormState : SequenceState {
     Animation[2] flames;
     Animation[2] rflames;
 
-    this(GameEngine a_owner, char[] name) {
+    this(GfxSet a_owner, char[] name) {
         super(a_owner, name);
     }
 
@@ -991,12 +1003,22 @@ class WormState : SequenceState {
     override DisplayType getDisplayType() {
         return DisplayType.Init!(WormStateDisplay);
     }
+
+    override void initSerialization(SerializeContext ctx) {
+        super.initSerialization(ctx);
+        foreach (int idx, SubSequence[] sub; seqs) {
+            foreach (int idx2, SubSequence s; sub) {
+                ctx.addExternal(s, myformat("sub_sequence_state::{}::{}::{}",
+                    name, idx, idx2));
+            }
+        }
+    }
 }
 
 //------------
 
 ///Load a bunch of sequences from a ConfigNode (like "sequences" in wwp.conf)
-void loadSequences(GameEngine engine, ConfigNode seqList) {
+void loadSequences(GfxSet gfx, ConfigNode seqList) {
     init_loaders();
     foreach (ConfigNode sub; seqList) {
         auto pload = sub.name in loaders;
@@ -1004,101 +1026,101 @@ void loadSequences(GameEngine engine, ConfigNode seqList) {
             throw new Exception("sequence loader not found: "~sub.name);
         }
         foreach (ConfigNode subsub; sub) {
-            (*pload)(engine, subsub);
+            (*pload)(gfx, subsub);
         }
     }
 }
 
-void addState(GameEngine engine, SequenceState state) {
-    engine.sequenceStates.addState(state);
+void addState(GfxSet gfx, SequenceState state) {
+    gfx.sequenceStates.addState(state);
 }
 
-Animation getAni(GameEngine e, char[] name) {
-    return e.gfx.resources.get!(Animation)(name);
+Animation getAni(GfxSet gfx, char[] name) {
+    return gfx.resources.get!(Animation)(name);
 }
 
 char[] getValue(ConfigNode fromitem) {
     return fromitem.value;
 }
 
-void loadNormal(GameEngine engine, ConfigNode fromitem) {
+void loadNormal(GfxSet gfx, ConfigNode fromitem) {
     auto value = getValue(fromitem);
     //simple animation, state = animation
-    auto state = new WormState(engine, fromitem.name);
+    auto state = new WormState(gfx, fromitem.name);
     auto ss = new SubSequence;
-    ss.animation = getAni(engine, value);
+    ss.animation = getAni(gfx, value);
     state.seqs[SeqType.Normal] = [ss];
-    addState(engine, state);
+    addState(gfx, state);
 }
 
-void loadTeam(GameEngine engine, ConfigNode fromitem) {
+void loadTeam(GfxSet gfx, ConfigNode fromitem) {
     auto value = getValue(fromitem);
     foreach (col; TeamTheme.cTeamColors) {
-        auto state = new WormState(engine, fromitem.name ~ "_" ~ col);
+        auto state = new WormState(gfx, fromitem.name ~ "_" ~ col);
         auto ss = new SubSequence;
-        ss.animation = getAni(engine, value ~ "_" ~ col);
+        ss.animation = getAni(gfx, value ~ "_" ~ col);
         state.seqs[SeqType.Normal] = [ss];
-        addState(engine, state);
+        addState(gfx, state);
     }
 }
 
-void loadNormalDamage(GameEngine engine, ConfigNode fromitem) {
+void loadNormalDamage(GfxSet gfx, ConfigNode fromitem) {
     auto value = getValue(fromitem);
     //simple animation, state = animation, using damage for p2
-    auto state = new WormState(engine, fromitem.name);
+    auto state = new WormState(gfx, fromitem.name);
     auto ss = new SubSequence;
-    ss.animation = getAni(engine, value);
+    ss.animation = getAni(gfx, value);
     state.seqs[SeqType.Normal] = [ss];
     state.p2_damage = true;
-    addState(engine, state);
+    addState(gfx, state);
 }
 
-void loadWormNormalWeapons(GameEngine engine, ConfigNode fromitem) {
+void loadWormNormalWeapons(GfxSet gfx, ConfigNode fromitem) {
     auto value = getValue(fromitem);
-    auto state = new WormState(engine, fromitem.name);
+    auto state = new WormState(gfx, fromitem.name);
     auto ss = new SubSequence;
-    ss.animation = getAni(engine, value);
+    ss.animation = getAni(gfx, value);
     state.seqs[SeqType.Normal] = [ss];
     state.seqs[SeqType.Leave] = [ss];
     state.reverse_subsequence(SeqType.Leave);
     state.enableLeaveTransition("s_worm_stand");
-    addState(engine, state);
+    addState(gfx, state);
 }
 
 //special case because of enter/leave and turnaround anims
-void loadWormJetpack(GameEngine engine, ConfigNode fromitem) {
+void loadWormJetpack(GfxSet gfx, ConfigNode fromitem) {
     auto sub = fromitem;
-    auto state = new WormState(engine, fromitem.name);
+    auto state = new WormState(gfx, fromitem.name);
     auto s_norm = new SubSequence;
     auto s_enter = new SubSequence;
     auto s_turn = new SubSequence;
-    s_norm.animation = getAni(engine, sub["normal"]);
+    s_norm.animation = getAni(gfx, sub["normal"]);
     state.seqs[SeqType.Normal] = [s_norm];
-    s_enter.animation = getAni(engine, sub["enter"]);
+    s_enter.animation = getAni(gfx, sub["enter"]);
     state.seqs[SeqType.Enter] = [s_enter];
     state.seqs[SeqType.Leave] = state.seqs[SeqType.Enter];
     state.reverse_subsequence(SeqType.Leave);
-    s_turn.animation = getAni(engine, sub["turn"]);
+    s_turn.animation = getAni(gfx, sub["turn"]);
     state.seqs[SeqType.TurnAroundY] = [s_turn];
-    state.flames[0] = getAni(engine, sub["flame_x"]);
-    state.flames[1] = getAni(engine, sub["flame_y"]);
+    state.flames[0] = getAni(gfx, sub["flame_x"]);
+    state.flames[1] = getAni(gfx, sub["flame_y"]);
     state.rflames[0] = state.flames[0].reversed();
     state.rflames[1] = state.flames[1].reversed();
     state.is_jetpack = true;
     state.enableLeaveTransition("s_worm_stand");
-    addState(engine, state);
+    addState(gfx, state);
 }
 
-void loadWormWeapons(GameEngine engine, ConfigNode fromitem) {
+void loadWormWeapons(GfxSet gfx, ConfigNode fromitem) {
     auto value = getValue(fromitem);
     char[] get = value ~ "_get", hold = value ~ "_hold";
-    auto state = new WormState(engine, fromitem.name);
+    auto state = new WormState(gfx, fromitem.name);
     auto s_norm = new SubSequence;
     auto s_enter1 = new SubSequence;
     auto s_enter2 = new SubSequence;
-    s_norm.animation = getAni(engine, hold);
+    s_norm.animation = getAni(gfx, hold);
     state.seqs[SeqType.Normal] = [s_norm];
-    s_enter1.animation = getAni(engine, get);
+    s_enter1.animation = getAni(gfx, get);
     s_enter1.ready = false;
     s_enter2.animation = s_norm.animation;
     s_enter2.ready = false;
@@ -1113,59 +1135,59 @@ void loadWormWeapons(GameEngine engine, ConfigNode fromitem) {
     state.seqs[SeqType.Leave] = state.seqs[SeqType.Enter];
     state.reverse_subsequence(SeqType.Leave);
     state.enableLeaveTransition("s_worm_stand");
-    addState(engine, state);
+    addState(gfx, state);
 }
 
-void loadFirstNormalThenEmpty(GameEngine engine, ConfigNode fromitem) {
+void loadFirstNormalThenEmpty(GfxSet gfx, ConfigNode fromitem) {
     auto value = getValue(fromitem);
-    auto state = new WormState(engine, fromitem.name);
+    auto state = new WormState(gfx, fromitem.name);
     auto s1 = new SubSequence;
     auto s2 = new SubSequence;
-    s1.animation = getAni(engine, value);
+    s1.animation = getAni(gfx, value);
     s1.ready = false;
     s1.ready_at_end = true;
     s2.reset_animation = true;
     s2.wait_forever = true;
     state.seqs[SeqType.Normal] = [s1, s2];
-    addState(engine, state);
+    addState(gfx, state);
 }
 
-void loadAnimation(GameEngine engine, ConfigNode fromitem) {
+void loadAnimation(GfxSet gfx, ConfigNode fromitem) {
     auto value = getValue(fromitem);
-    auto state = new WormState(engine, fromitem.name);
+    auto state = new WormState(gfx, fromitem.name);
     auto s_normal = new SubSequence;
-    s_normal.animation = getAni(engine, value);
+    s_normal.animation = getAni(gfx, value);
     state.seqs[SeqType.Normal] = [s_normal];
-    addState(engine, state);
+    addState(gfx, state);
 }
 
-void loadAnimationWithDrown(GameEngine engine, ConfigNode fromitem) {
+void loadAnimationWithDrown(GfxSet gfx, ConfigNode fromitem) {
     auto value = getValue(fromitem);
     auto val = str.split(value);
     if (val.length != 2)
         assert(false, "at "~fromitem.name);
-    auto state = new WormState(engine, fromitem.name ~ "_normal");
+    auto state = new WormState(gfx, fromitem.name ~ "_normal");
     auto s_normal = new SubSequence;
-    s_normal.animation = getAni(engine, val[0]);
+    s_normal.animation = getAni(gfx, val[0]);
     state.seqs[SeqType.Normal] = [s_normal];
-    addState(engine, state);
-    auto state2 = new WormState(engine, fromitem.name ~ "_drown");
+    addState(gfx, state);
+    auto state2 = new WormState(gfx, fromitem.name ~ "_drown");
     s_normal = new SubSequence;
-    s_normal.animation = getAni(engine, val[1]);
+    s_normal.animation = getAni(gfx, val[1]);
     state2.seqs[SeqType.Normal] = [s_normal];
-    addState(engine, state2);
+    addState(gfx, state2);
 }
 
-void loadNapalm(GameEngine engine, ConfigNode fromitem) {
+void loadNapalm(GfxSet gfx, ConfigNode fromitem) {
     auto value = getValue(fromitem);
     auto val = str.split(value);
     if (val.length != 2)
         assert(false, "at "~fromitem.name);
-    auto state = new NapalmState(engine, fromitem.name);
+    auto state = new NapalmState(gfx, fromitem.name);
     //load animations
-    state.animFall = getAni(engine, val[0]);
-    state.animFly = getAni(engine, val[1]);
-    addState(engine, state);
+    state.animFall = getAni(gfx, val[0]);
+    state.animFly = getAni(gfx, val[1]);
+    addState(gfx, state);
 }
 
 private bool m_loaders_initialized;

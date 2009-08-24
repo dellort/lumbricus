@@ -4,6 +4,7 @@ import game.gobject;
 import game.animation;
 import physics.world;
 import game.game;
+import game.gfxset;
 import game.gamepublic;
 import game.controller;
 import game.sequence;
@@ -360,7 +361,8 @@ class CrateStateInfo : ActionStateInfo {
     this (ReflectCtor c) {
         super(c);
     }
-    this () {
+    this(char[] owner_name, char[] this_name) {
+        super(owner_name, this_name);
     }
 
     override void loadFromConfig(ConfigNode sc, ConfigNode physNode,
@@ -390,7 +392,7 @@ class CrateSpriteClass : ActionSpriteClass {
         super(c);
     }
 
-    this(GameEngine e, char[] r) {
+    this(GfxSet e, char[] r) {
         super(e, r);
     }
     override void loadFromConfig(ConfigNode config) {
@@ -409,17 +411,17 @@ class CrateSpriteClass : ActionSpriteClass {
         st_parachute = findState("parachute");
         st_drowning = findState("drowning");
     }
-    override CrateSprite createSprite() {
+    override CrateSprite createSprite(GameEngine engine) {
         return new CrateSprite(engine, this);
     }
 
-    override protected CrateStateInfo createStateInfo() {
-        return new CrateStateInfo();
+    override protected CrateStateInfo createStateInfo(char[] a_name) {
+        return new CrateStateInfo(name, a_name);
     }
 
     private SequenceState findSequenceState2(CrateType type, char[] pseudo_name)
     {
-        return engine.sequenceStates.findState(mySequencePrefix[type] ~ '_' ~
+        return gfx.sequenceStates.findState(mySequencePrefix[type] ~ '_' ~
             pseudo_name, false);
     }
 

@@ -6,6 +6,7 @@ import game.action.base;
 import game.action.wcontext;
 import game.actionsprite;
 import game.game;
+import game.gfxset;
 import game.gobject;
 import game.sprite;
 import game.sequence;
@@ -193,7 +194,8 @@ class ProjectileStateInfo : ActionStateInfo {
     this (ReflectCtor c) {
         super(c);
     }
-    this () {
+    this(char[] owner_name, char[] this_name) {
+        super(owner_name, this_name);
     }
 
     override void loadFromConfig(ConfigNode sc, ConfigNode physNode,
@@ -224,7 +226,7 @@ class ProjectileStateInfo : ActionStateInfo {
 
 //can load weapon config from configfile, see weapons.conf; it's a projectile
 class ProjectileSpriteClass : ActionSpriteClass {
-    override ProjectileSprite createSprite() {
+    override ProjectileSprite createSprite(GameEngine engine) {
         return new ProjectileSprite(engine, this);
     }
 
@@ -251,8 +253,7 @@ class ProjectileSpriteClass : ActionSpriteClass {
             }
 
             if (auto drownani = findSequenceState("drown", true)) {
-                auto drownstate = createStateInfo();
-                drownstate.name = "drowning";
+                auto drownstate = createStateInfo("drowning");
                 drownstate.animation = drownani;
                 //no events underwater
                 drownstate.disableEvents = true;
@@ -261,7 +262,7 @@ class ProjectileSpriteClass : ActionSpriteClass {
                 drownstate.physic_properties = drownstate.physic_properties.copy();
                 drownstate.physic_properties.radius = 1;
                 drownstate.physic_properties.collisionID = "waterobj";
-                drownstate.particle = engine.gfx.resources
+                drownstate.particle = gfx.resources
                     .get!(ParticleType)("p_projectiledrown");
                 states[drownstate.name] = drownstate;
             }
@@ -273,7 +274,7 @@ class ProjectileSpriteClass : ActionSpriteClass {
             auto particlename = config["particle"];
             if (particlename.length) {
                 //isn't this funny
-                initState.particle = engine.gfx.resources
+                initState.particle = gfx.resources
                     .get!(ParticleType)(particlename);
             }
 
@@ -284,11 +285,11 @@ class ProjectileSpriteClass : ActionSpriteClass {
     }
 
 
-    override protected ProjectileStateInfo createStateInfo() {
-        return new ProjectileStateInfo();
+    override protected ProjectileStateInfo createStateInfo(char[] a_name) {
+        return new ProjectileStateInfo(name, a_name);
     }
 
-    this(GameEngine e, char[] r) {
+    this(GfxSet e, char[] r) {
         super(e, r);
     }
 

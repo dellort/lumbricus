@@ -3,6 +3,7 @@ module game.action.spawn;
 import game.action.base;
 import game.action.wcontext;
 import game.game;
+import game.gfxset;
 import game.gobject;
 import game.sprite;
 import game.actionsprite;
@@ -176,7 +177,8 @@ class SpawnActionClass : ActionClass {
     this (ReflectCtor c) {
         super(c);
     }
-    this (GameEngine eng, ConfigNode node) {
+    this (GfxSet gfx, ConfigNode node, char[] a_name) {
+        super(a_name);
         sparams.loadFromConfig(node);
     }
 

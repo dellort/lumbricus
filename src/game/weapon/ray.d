@@ -2,6 +2,7 @@ module game.weapon.ray;
 
 import common.scene;
 import game.game;
+import game.gfxset;
 import game.gobject;
 import physics.world;
 import game.action.base;
@@ -23,8 +24,8 @@ class RayWeapon: ActionWeapon {
     Time lineTime;         //time for which a laser-like line is displayed
     Color[2] lineColors;   //[cold, hot] colors (interpolated during lineTime)
 
-    this(GameEngine aengine, ConfigNode node) {
-        super(aengine, node);
+    this(GfxSet gfx, ConfigNode node) {
+        super(gfx, node);
         //always directed with fixed strength
         fireMode.variableThrowStrength = false;
         spread = node.getFloatValue("spread", spread);
@@ -39,7 +40,7 @@ class RayWeapon: ActionWeapon {
     }
 
     //using SpecialShooter here leads to dmd lockup (at least with dsss)
-    RayShooter createShooter(GObjectSprite owner) {
+    RayShooter createShooter(GObjectSprite owner, GameEngine engine) {
         return new RayShooter(this, owner, engine);
     }
 

@@ -6,6 +6,7 @@ import framework.framework;
 import common.resset;
 import physics.world;
 import game.game;
+import game.gfxset;
 import game.sprite;
 import game.weapon.types;
 import utils.misc;
@@ -13,11 +14,12 @@ import utils.vector2;
 import utils.time;
 import utils.factory;
 import utils.reflection;
+import utils.serialize;
 import utils.configfile;
 
 import game.gamepublic;
 
-alias StaticFactory!("WeaponClasses", WeaponClass, GameEngine, ConfigNode)
+alias StaticFactory!("WeaponClasses", WeaponClass, GfxSet, ConfigNode)
     WeaponClassFactory;
 
 alias void delegate(Shooter sh) ShooterCallback;
@@ -36,7 +38,7 @@ class WrapFireInfo { //wee so Java like
 //(argument against making classes like i.e. WeaponThrowable: no multiple
 // inheritance *g*; and how would you have a single fire() method then)
 abstract class WeaponClass {
-    protected GameEngine mEngine;
+    protected GfxSet mGfx;
 
     //generally read-only fields
     char[] name; //weapon name, translateable string
@@ -56,13 +58,13 @@ abstract class WeaponClass {
     //weapon-holding animations
     char[][WeaponWormAnimations.max+1] animations;
 
-    GameEngine engine() {
-        return mEngine;
+    GfxSet gfx() {
+        return mGfx;
     }
 
-    this(GameEngine engine, ConfigNode node) {
-        mEngine = engine;
-        assert(mEngine !is null);
+    this(GfxSet gfx, ConfigNode node) {
+        mGfx = gfx;
+        assert(gfx !is null);
 
         name = node.name;
         value = node.getIntValue("value", value);
@@ -72,7 +74,7 @@ abstract class WeaponClass {
         dontEndRound = node.getBoolValue("dont_end_round", dontEndRound);
         deselectAfterFire = node.getBoolValue("deselect", deselectAfterFire);
 
-        icon = engine.gfx.resources.get!(Surface)(node["icon"]);
+        icon = gfx.resources.get!(Surface)(node["icon"]);
 
         auto fire = node.findNode("firemode");
         if (fire) {
@@ -94,7 +96,7 @@ abstract class WeaponClass {
             //    throw new Exception("projectile already exists: "~pr.name);
             //instantiate a sprite class
             //xxx error handling?
-            auto spriteclass = engine.instantiateSpriteClass(pr["type"], pr.name);
+            auto spriteclass = gfx.instantiateSpriteClass(pr["type"], pr.name);
             //projectiles[pr.name] = spriteclass;
 
             spriteclass.loadFromConfig(pr);
@@ -108,10 +110,15 @@ abstract class WeaponClass {
     //just a factory
     //users call fire() on them to actually activate them
     //  go == entity which fires it (its physical properties will be used)
-    abstract Shooter createShooter(GObjectSprite go);
+    abstract Shooter createShooter(GObjectSprite go, GameEngine engine);
 
-    bool canUse() {
+    bool canUse(GameEngine engine) {
         return !isAirstrike || engine.level.airstrikeAllow;
+    }
+
+    void initSerialization(SerializeContext ctx) {
+        char[] key = "weapon::" ~ name;
+        ctx.addExternal(this, key);
     }
 }
 
