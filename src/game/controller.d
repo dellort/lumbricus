@@ -44,7 +44,7 @@ class Team {
     TeamTheme teamColor;
     int gravestone;
     WeaponSet weapons;
-    WeaponItem defaultWeapon;
+    WeaponClass defaultWeapon;
     int initialPoints; //on loading
     WeaponTarget currentTarget;
     bool targetIsSet;
@@ -401,7 +401,7 @@ class Team {
     //select (and draw) a weapon by its id
     void selectWeapon(WeaponClass weaponId) {
         if (mCurrent)
-            mCurrent.selectWeapon(weapons.byId(weaponId));
+            mCurrent.selectWeapon(weaponId);
     }
 
     bool teamAction() {
@@ -510,7 +510,7 @@ class TeamMember : WormController {
     char[] mName = "unnamed worm";
 
     private {
-        WeaponItem mCurrentWeapon;
+        WeaponClass mCurrentWeapon;
         WeaponClass mWormLastWeapon;
         bool mActive;
         Time mLastAction;
@@ -733,11 +733,7 @@ class TeamMember : WormController {
         return WormAniState.walk;
     }
 
-    WeaponClass getCurrentWeapon() {
-        return currentWeapon ? currentWeapon.weapon : null;
-    }
-
-    WeaponItem currentWeapon() {
+    WeaponClass currentWeapon() {
         return mCurrentWeapon;
     }
 
@@ -751,21 +747,20 @@ class TeamMember : WormController {
         return mCurrentWeapon && mWorm.displayWeaponIcon;
     }
 
-    void selectWeapon(WeaponItem weapon) {
+    bool canUseWeapon(WeaponClass c) {
+        return c && mTeam.weapons.find(c).quantity > 0 && c.canUse(engine);
+    }
+
+    void selectWeapon(WeaponClass weapon) {
         if (!isControllable || mLimitedMode)
             return;
         if (weapon && weapon !is mCurrentWeapon) {
             wormAction();
         }
         mCurrentWeapon = weapon;
-        if (mCurrentWeapon)
-            if (!mCurrentWeapon.canUse())
-                mCurrentWeapon = null;
+        if (!canUseWeapon(mCurrentWeapon))
+            mCurrentWeapon = null;
         updateWeapon();
-    }
-
-    void selectWeaponByClass(WeaponClass id) {
-        selectWeapon(mTeam.weapons.byId(id));
     }
 
     //update weapon state of current worm (when new weapon selected)
@@ -773,14 +768,11 @@ class TeamMember : WormController {
         if (!mActive || !alive)
             return;
 
-        WeaponClass selected;
-        if (mCurrentWeapon) {
-            if (!mCurrentWeapon.canUse() || mLimitedMode) {
-                //nothing, leave selected = null
-            } else if (currentWeapon.weapon) {
-                selected = mCurrentWeapon.weapon;
-            }
-        }
+        WeaponClass selected = mCurrentWeapon;
+
+        if (!canUseWeapon(mCurrentWeapon) || mLimitedMode)
+            selected = null;
+
         mTeam.parent.events.onSelectWeapon(this, selected);
         mWorm.weapon = selected;
     }
@@ -828,7 +820,7 @@ class TeamMember : WormController {
             else
                 doFireUp();
         } else {
-            selectWeaponByClass(wc);
+            selectWeapon(wc);
         }
     }
 
@@ -898,11 +890,9 @@ class TeamMember : WormController {
     }
 
     void reduceAmmo(Shooter sh) {
-        WeaponItem wi = mTeam.weapons.byId(sh.weapon);
-        assert(!!wi);
-        wi.decrease();
+        mTeam.weapons.decreaseWeapon(sh.weapon);
         mTeam.parent.updateWeaponStats(this);
-        if (!wi.canUse)
+        if (!canUseWeapon(sh.weapon))
             //weapon ran out of ammo
             sh.interruptFiring(true);
         updateWeapon();
@@ -1102,27 +1092,54 @@ class TeamMember : WormController {
 
 class WeaponSet {
     GameEngine engine;
-    WeaponItem[WeaponClass] weapons;
-    WeaponClass[] crateList;
+    private {
+        Entry[] mEntries;
+    }
+
+    struct Entry {
+        //for the public: all fields readonly (writing getters would be bloat)
+        WeaponClass weapon;
+        uint quantity; //cINF means infinite
+        const cINF = typeof(quantity).max;
+
+        bool infinite() {
+            return quantity == cINF;
+        }
+
+        char[] quantityToString() {
+            if (infinite)
+                return "inf";
+            return to!(char[])(quantity);
+        }
+    }
 
     //config = item from "weapon_sets"
     this (GameEngine aengine, ConfigNode config, bool crateSet = false) {
         this(aengine);
         foreach (ConfigNode node; config.getSubNode("weapon_list")) {
+            WeaponClass w;
+            uint quantity;
+            char[] wname = node.name;
             try {
-                auto weapon = new WeaponItem(this, node);
-                if (crateSet) {
-                    //only drop weapons that are not infinite already,
-                    //  and that can be used in the current world
-                    if (!weapon.infinite && weapon.weapon.canUse(engine))
-                        crateList ~= weapon.weapon;
-                } else {
-                    weapons[weapon.weapon] = weapon;
-                }
+                //may throw ClassNotRegisteredException
+                w = engine.gfx.findWeaponClass(wname);
+                assert(!!w);
             } catch (ClassNotRegisteredException e) {
                 registerLog("game.controller")
-                    ("Error in weapon set '"~config.name~"': "~e.msg);
+                    ("Error in weapon set '"~wname~"': "~e.msg);
             }
+            if (node.value == "inf") {
+                quantity = Entry.cINF;
+            } else {
+                quantity = node.getCurValue!(int)();
+            }
+            if (crateSet) {
+                //only drop weapons that are not infinite already,
+                //  and that can be used in the current world
+                if (quantity == Entry.cINF || !w.canUse(engine))
+                    quantity = 0;
+            }
+            addWeapon(w, quantity);
         }
     }
 
@@ -1137,130 +1154,86 @@ class WeaponSet {
     void saveToConfig(ConfigNode config) {
         auto node = config.getSubNode("weapon_list");
         node.clear();
-        //xxx doesn't give a deterministic order, but it shouldn't matter
-        foreach (WeaponItem wi; weapons) {
-            node.setStringValue(wi.weapon.name, wi.quantityToString);
+        foreach (Entry e; mEntries) {
+            node.setStringValue(e.weapon.name, e.quantityToString);
         }
     }
 
+    void iterate(void delegate(Entry e) dg) {
+        foreach (e; mEntries)
+            dg(e);
+    }
+
+    //linear search, but this isn't called that often and item count is low
+    private Entry* do_find(WeaponClass w, bool add) {
+        foreach (ref e; mEntries) {
+            if (e.weapon is w)
+                return &e;
+        }
+        if (!add)
+            return null;
+        assert(!!w);
+        Entry e;
+        e.weapon = w;
+        mEntries ~= e;
+        return &mEntries[$-1];
+    }
+
+    Entry find(WeaponClass w) {
+        Entry* p = do_find(w, false);
+        return p ? *p : Entry(w, 0);
+    }
+
+    //add weapons form other set to this set
     void addSet(WeaponSet other) {
         assert(!!other);
-        assert(crateList.length == 0, "WeaponSet.addSet not for crate set");
-        //add weapons
-        foreach (WeaponClass key, WeaponItem value; other.weapons) {
-            if (!(key in weapons))
-                weapons[key] = new WeaponItem(this);
-            auto wi = *(key in weapons);
-            wi.addFromItem(value);
+        foreach (Entry e; other.mEntries) {
+            addWeapon(e.weapon, e.quantity);
         }
     }
 
-    WeaponItem byId(WeaponClass weaponId) {
-        if (!weaponId)
-            return null;
-        if (weaponId in weapons)
-            return weapons[weaponId];
-        return null;
+    //can pass Entry.cINF to make weapon infinite
+    void addWeapon(WeaponClass w, uint quantity = 1) {
+        if (!w || quantity < 1)
+            return;
+        Entry* e = do_find(w, true);
+        if (!e.infinite()) {
+            if (quantity == Entry.cINF) {
+                e.quantity = Entry.cINF;
+            } else {
+                e.quantity += quantity;
+            }
+        }
     }
 
-    void addWeapon(WeaponClass c, int quantity = 1) {
-        WeaponItem item = byId(c);
-        if (!item) {
-            item = new WeaponItem(this);
-            item.mWeapon = c;
-            weapons[c] = item;
+    //decrease weapon by one - return if success
+    bool decreaseWeapon(WeaponClass w) {
+        Entry* e = do_find(w, false);
+        if (!e)
+            return false;
+        assert(e.quantity != 0); //unallowed state
+        if (!e.infinite())
+            e.quantity -= 1;
+        if (e.quantity == 0) {
+            //remove from array by moving the last array element into its place
+            size_t idx = e - mEntries.ptr;
+            assert(idx < mEntries.length);
+            mEntries[idx] = mEntries[$-1];
+            mEntries = mEntries[0..$-1];
         }
-        if (!item.infinite) {
-            item.mQuantity += quantity;
-        }
+        return true;
     }
 
     //choose a random weapon based on this weapon set
     //returns null if none was found
     //xxx: Implement different drop probabilities (by value/current count)
     WeaponClass chooseRandomForCrate() {
-        if (crateList.length > 0) {
-            int r = engine.rnd.next(0, crateList.length);
-            return crateList[r];
+        if (mEntries.length > 0) {
+            uint r = engine.rnd.next(0, mEntries.length);
+            return mEntries[r].weapon;
         } else {
             return null;
         }
-    }
-}
-
-class WeaponItem {
-    private {
-        GameEngine mEngine;
-        WeaponSet mContainer;
-        WeaponClass mWeapon;
-        int mQuantity;
-        bool mInfiniteQuantity;
-    }
-
-    bool haveAtLeastOne() {
-        return mQuantity > 0 || mInfiniteQuantity;
-    }
-
-    bool canUse() {
-        if (!haveAtLeastOne())
-            return false;
-        return mWeapon.canUse(mEngine);
-    }
-
-    void decrease() {
-        if (mQuantity > 0)
-            mQuantity--;
-    }
-
-    WeaponClass weapon() {
-        return mWeapon;
-    }
-
-    bool infinite() {
-        return mInfiniteQuantity;
-    }
-    int count() {
-        return infinite ? typeof(mQuantity).max : mQuantity;
-    }
-
-    this (WeaponSet parent) {
-        mContainer = parent;
-        mEngine = parent.engine;
-    }
-
-    //config = an item in "weapon_list"
-    this (WeaponSet parent, ConfigNode config) {
-        this(parent);
-        auto w = config.name;
-        //may throw ClassNotRegisteredException
-        mWeapon = mEngine.gfx.findWeaponClass(w);
-        if (config.value == "inf") {
-            mInfiniteQuantity = true;
-        } else {
-            mQuantity = config.getCurValue!(int)();
-        }
-    }
-
-    this (ReflectCtor c) {
-    }
-
-    //add the stockpile of another WeaponItem to this one
-    //if this.mWeapon is not yet set, it is set to the other item's weapon
-    void addFromItem(WeaponItem other) {
-        assert(!!other);
-        if (!mWeapon)
-            mWeapon = other.weapon;
-        assert(!!mWeapon);
-        if (infinite || other.infinite)
-            mInfiniteQuantity = true;
-        else
-            mQuantity += other.count;
-    }
-
-    char[] quantityToString() {
-        if (infinite)
-            return "inf";
-        return to!(char[])(mQuantity);
     }
 }
 

@@ -26,7 +26,7 @@ void initGameSerialization() {
     serialize_types.registerClasses!(Random, GameEngine, PhysicWorld,
         GameController, WormSprite, GameLandscape, ActionContext,
         ActionSprite, GameController, ActionListRunner, ControlRotateAction,
-        Team, TeamMember, WeaponSet, WeaponItem, CollectableBomb,
+        Team, TeamMember, WeaponSet, CollectableBomb,
         CollectableWeapon, CollectableMedkit, CrateSprite, GameLandscape,
         LandscapeGeometry, GObjectSprite, BeamHandler, ActionShooter,
         ProjectileSprite, RayShooter, Sequence,

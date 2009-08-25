@@ -525,7 +525,7 @@ class GameTask : StatefulTask {
             bool bla, blu;
             override void onDraw(Canvas c) {
                 if (bla || blu) {
-                    Color cl = bla ? Color(0.7) : Color(0.9);
+                    Color cl = bla ? Color(0.7) : Color(1.0,0.7,0.7);
                     c.drawFilledRect(widgetBounds, cl);
                 }
                 c.drawRect(widgetBounds, Color(0));
@@ -564,6 +564,8 @@ class GameTask : StatefulTask {
                             ("window_close"); //that icon is good enough
                     }
                     addc(x, y, lbl);
+                    table.setHomogeneousGroup(0, x, 1);
+                    table.setHomogeneousGroup(1, y, 1);
                     x++;
                 }
                 y++;

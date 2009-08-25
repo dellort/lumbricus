@@ -49,6 +49,7 @@ class PhysicWorld {
     private static LogStruct!("physics") log;
     Random rnd;
     CollisionMap collide;
+    CollideDelegate onCollide;
 
     this (ReflectCtor c) {
         Types t = c.types();
@@ -208,10 +209,15 @@ class PhysicWorld {
                 }
             }
             //call collide event handler
-            collide.callCollide(mContacts[i]); //call collision handler
+            callCollide(mContacts[i]); //call collision handler
         }
         //clear list of contacts
         mContactCount = 0;
+    }
+
+    private void callCollide(Contact c) {
+        assert(!!onCollide);
+        onCollide(c);
     }
 
     private void checkUpdates() {

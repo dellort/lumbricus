@@ -11,6 +11,7 @@ import utils.configfile;
 import utils.time;
 import utils.serialize;
 
+import physics.collisionmap;
 import physics.world;
 import game.sequence;
 import game.gamepublic; //:GameConfig
@@ -40,6 +41,10 @@ class GfxSet {
         WeaponClass[char[]] mWeaponClasses;
 
         Object[char[]] mActionClasses;
+
+        CollisionMap mCollisionMap;
+
+        bool mFinished;
     }
 
     char[] gfxId;
@@ -103,6 +108,8 @@ class GfxSet {
 
         mSprites = config.getSubNode("sprites");
         mWeaponSets = cfg.weaponsets;
+
+        mCollisionMap = new CollisionMap();
     }
 
     void addGfxSet(ConfigNode conf) {
@@ -120,6 +127,8 @@ class GfxSet {
 
     //call after resources have been preloaded
     void finishLoading() {
+        if (mFinished)
+            return;
         reversedHack();
         loadParticles();
         loadSprites();
@@ -128,6 +137,7 @@ class GfxSet {
         resources.seal(); //disallow addition of more resources
         loadTeamThemes();
         loadExplosions();
+        mFinished = true;
     }
 
     //sequence.d wants to reverse some animations, and calls Animation.reversed()
@@ -144,15 +154,14 @@ class GfxSet {
     }
 
     //only for GameEngine
-    void addCollisions(PhysicWorld w) {
-        foreach (c; mCollNodes) {
-            w.collide.loadCollisions(c);
-        }
+    CollisionMap collision_map() {
+        mCollisionMap.seal();
+        return mCollisionMap;
     }
 
     void addCollideConf(ConfigNode node) {
         if (node)
-            mCollNodes ~= node;
+            mCollisionMap.loadCollisions(node);
     }
 
     //--- sprite & weapon stuff (static data)
@@ -278,6 +287,8 @@ class GfxSet {
     }
 
     void initSerialization(SerializeContext ctx) {
+        assert(mFinished, "must have called finishLoading()");
+
         ctx.addExternal(this, "gfx");
 
         foreach (char[] key, TeamTheme tt; teamThemes) {
@@ -309,6 +320,11 @@ class GfxSet {
 
         foreach (char[] key, Object o; mActionClasses) {
             ctx.addExternal(o, "action::" ~ key);
+        }
+
+        ctx.addExternal(collision_map, "collision_map");
+        foreach (CollisionType t; collision_map.collisionTypes()) {
+            ctx.addExternal(t, "collision_type::" ~ t.name);
         }
     }
 }

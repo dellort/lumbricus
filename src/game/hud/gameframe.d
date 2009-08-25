@@ -73,7 +73,7 @@ class GameFrame : SimpleContainer {
     private void selectCategory(char[] category) {
         auto m = game.control.getControlledMember();
         mWeaponSel.checkNextWeaponInCategoryShortcut(category,
-            m?m.getCurrentWeapon():null);
+            m?m.currentWeapon():null);
     }
 
     //scroll to level center
@@ -202,7 +202,7 @@ class GameFrame : SimpleContainer {
         add(mWeaponSel, WidgetLayout.Aligned(1, 1, Vector2i(5, 40)));
 
         WeaponClass[] wlist = game.engine.gfx.weaponList();
-        mWeaponSel.init(wlist);
+        mWeaponSel.init(game.engine, wlist);
 
         setPosition(game.engine.level.worldCenter);
 

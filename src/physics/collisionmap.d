@@ -17,28 +17,37 @@ private const char[][ContactHandling.max+1] cChNames =
     ["", "hit", "hit_noimpulse", "hit_pushback"];
 
 //handling of the collision map
-class CollisionMap {
-    CollisionType[char[]] mCollisionNames;
-    CollisionType[] mCollisions; //indexed by CollisionType.index
-    //pairs of things which collide with each other
-    CollisionType[2][][ContactHandling.max+1] mHits;
+final class CollisionMap {
+    private {
+        CollisionType[char[]] mCollisionNames;
+        CollisionType[] mCollisions; //indexed by CollisionType.index
+        //pairs of things which collide with each other
+        CollisionType[2][][ContactHandling.max+1] mHits;
 
-    //CollisionType.index indexes into this, see canCollide()
-    ContactHandling[][] mTehMatrix;
+        //CollisionType.index indexes into this, see canCollide()
+        ContactHandling[][] mTehMatrix;
 
-    //if there are still unresolved CollisionType forward references
-    //used for faster error checking (in canCollide() which is a hot-spot)
-    bool mHadCTFwRef = true;
+        //if there are still unresolved CollisionType forward references
+        //used for faster error checking (in canCollide() which is a hot-spot)
+        bool mHadCTFwRef = true;
 
-    //special types
-    CollisionType mCTAlways, mCTNever, mCTAll;
+        //special types
+        CollisionType mCTAlways, mCTNever, mCTAll;
 
-    CollideDelegate mCollideHandler;
+        bool mSealed;
+    }
+
+    this() {
+        mCTAlways = findCollisionID("always");
+        mCTAll = findCollisionID("all");
+        mCTNever = findCollisionID("never");
+    }
 
     this (ReflectCtor c) {
     }
 
     CollisionType newCollisionType(char[] name) {
+        assert(!mSealed);
         assert(!(name in mCollisionNames));
         auto t = new CollisionType();
         t.name = name;
@@ -54,12 +63,6 @@ class CollisionMap {
     }
     public CollisionType collideAlways() {
         return mCTAlways;
-    }
-
-    //associate a collision handler with code
-    //this can handle forward-referencing
-    public void setCollideHandler(CollideDelegate oncollide) {
-        mCollideHandler = oncollide;
     }
 
     public ContactHandling canCollide(CollisionType a, CollisionType b) {
@@ -78,12 +81,6 @@ class CollisionMap {
         if (!b.collision)
             assert(false, "no collision for "~b.toString());
         return canCollide(a.collision, b.collision);
-    }
-
-    //call the collision handler for these two objects
-    public void callCollide(Contact c) {
-        assert(!!mCollideHandler);
-        mCollideHandler(c);
     }
 
     //check if all collision handlers were set; if not throw an error
@@ -124,6 +121,8 @@ class CollisionMap {
 
     //will rebuild mTehMatrix
     void rebuildCollisionStuff() {
+        assert(!mSealed);
+
         //return an array containing all transitive subclasses of cur
         CollisionType[] getAll(CollisionType cur) {
             CollisionType[] res = [cur];
@@ -190,6 +189,8 @@ class CollisionMap {
 
     //"collisions" node from i.e. worm.conf
     public void loadCollisions(ConfigNode node) {
+        assert(!mSealed);
+
         auto defines = str.split(node.getStringValue("define"));
         foreach (d; defines) {
             auto cid = findCollisionID(d);
@@ -247,9 +248,12 @@ class CollisionMap {
         rebuildCollisionStuff();
     }
 
-    this() {
-        mCTAlways = findCollisionID("always");
-        mCTAll = findCollisionID("all");
-        mCTNever = findCollisionID("never");
+    //debugging: don't allow any further changes after this hs been called
+    void seal() {
+        if (!mSealed) {
+            //error when a reference to a collision type is missing
+            checkCollisionHandlers();
+        }
+        mSealed = true;
     }
 }

@@ -258,7 +258,7 @@ private class ViewMember {
                 //for now, only animate the left/right change of the
                 //worm
 
-                weaponIcon.image = amember.getCurrentWeapon.icon;
+                weaponIcon.image = amember.currentWeapon.icon;
 
                 //possibly fix the animation
                 //get where worm looks too
@@ -657,15 +657,7 @@ class GameView : Container {
     //find a WeaponClass of the weapon named "name" in the current team's
     //weapon-set (or return null)
     private WeaponClass findWeapon(char[] name) {
-        auto cm = mGame.control.getControlledMember();
-        if (!cm)
-            return null;
-        foreach (WeaponItem w; cm.team.weapons.weapons) {
-            if (w.weapon.name == name) {
-                return w.canUse() ? w.weapon : null;
-            }
-        }
-        return null;
+        return mGame.engine.gfx.findWeaponClass(name, true);
     }
 
     //takes a binding string from KeyBindings and replaces params

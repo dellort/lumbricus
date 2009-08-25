@@ -268,7 +268,7 @@ class CrateSprite : ActionSprite {
         mNoParachute = true;
     }
 
-    protected void setCurrentAnimation() {
+    override protected void setCurrentAnimation() {
         if (!graphic)
             return;
 
@@ -276,9 +276,8 @@ class CrateSprite : ActionSprite {
     }
 
     override protected void updateActive() {
-        super.updateActive();
+        bool bomb;
         if (active) {
-            bool bomb;
             foreach (coll; stuffies) {
                 if (cast(CollectableMedkit)coll) {
                     mCrateType = CrateType.med;
@@ -293,6 +292,9 @@ class CrateSprite : ActionSprite {
                 if (cast(CollectableBomb)coll)
                     bomb = true;
             }
+        }
+        super.updateActive();
+        if (active) {
             //xxx needs a better way to get the contents of the crate
             if (stuffies.length > 0 && mCrateType != CrateType.med) {
                 mSpy = new RenderText(engine);

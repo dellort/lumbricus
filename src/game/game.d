@@ -126,9 +126,9 @@ class GameEngine {
         scene = new Scene();
 
         mObjects = new typeof(mObjects)();
-        mPhysicWorld = new PhysicWorld(rnd);
 
-        gfx.addCollisions(mPhysicWorld);
+        mPhysicWorld = new PhysicWorld(rnd);
+        mPhysicWorld.collide = gfx.collision_map;
 
         foreach (o; level.objects) {
             if (auto ls = cast(LevelLandscape)o) {
@@ -317,10 +317,7 @@ class GameEngine {
         mPhysicWorld.gravity = Vector2f(0, conf.getFloatValue("gravity",100));
 
         //hm!?!?
-        mPhysicWorld.collide.setCollideHandler(&onPhysicHit);
-
-        //error when a reference to a collision type is missing
-        mPhysicWorld.collide.checkCollisionHandlers();
+        mPhysicWorld.onCollide = &onPhysicHit;
     }
 
     //called when a and b touch in physics
@@ -1041,7 +1038,7 @@ class GameEngine {
             WeaponClass wc;
             if (weapon != "-")
                 wc = w.engine.gfx.findWeaponClass(weapon, true);
-            w.selectWeaponByClass(wc);
+            w.selectWeapon(wc);
         });
         addWormCmd("set_timer", (TeamMember w, int ms) {
             w.doSetTimer(timeMsecs(ms));
@@ -1058,7 +1055,7 @@ class GameEngine {
                 WeaponClass wc;
                 if (m != "-")
                     wc = w.engine.gfx.findWeaponClass(m, true);
-                w.selectWeaponByClass(wc);
+                w.selectWeapon(wc);
                 //doFireDown will save the keypress and wait if not ready
                 w.doFireDown(true);
             } else {

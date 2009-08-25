@@ -6,7 +6,7 @@ import common.visual;
 import framework.framework;
 import framework.font;
 import framework.i18n;
-import game.gamepublic;
+import game.game;
 import game.controller;
 import game.weapon.weapon;
 import gui.boxcontainer;
@@ -25,25 +25,27 @@ import str = utils.string;
 
 class WeaponSelWindow : Container {
     private {
+        GameEngine mEngine;
+
         //from the config file
         char[][] mCategories;
 
         //weapon or placeholder for a weapon
         class Cell : Container {
             WeaponClass weapon;
-            WeaponItem item; //can be null (=> not available)
+            WeaponSet.Entry item;
 
             Button active;  //enabled, selectable weapon
             Label inactive; //disabled weapon (like airstrikes in caves)
 
             bool infinite() {
-                return item ? item.infinite() : false;
+                return item.infinite;
             }
-            int quantity() {
-                return item ? item.count : 0;
+            uint quantity() {
+                return item.quantity;
             }
             bool canUse() {
-                return item ? item.canUse : false;
+                return item.quantity > 0 && weapon.canUse(mEngine);
             }
 
             bool visible() {
@@ -68,10 +70,10 @@ class WeaponSelWindow : Container {
 
             //enable/disable etc. weapon based on the list
             void update(WeaponSet wset) {
-                item = null;
-                if (wset) {
-                    auto pitem = weapon in wset.weapons;
-                    item = pitem ? *pitem : null;
+                if (!wset) {
+                    item = WeaponSet.Entry(weapon, 0);
+                } else {
+                    item = wset.find(weapon);
                 }
                 active.remove();
                 inactive.remove();
@@ -198,6 +200,7 @@ class WeaponSelWindow : Container {
             c.update(wset);
         }
         updateWeaponInfoline();
+        /+
         debug {
             if (!wset)
                 return;
@@ -214,13 +217,16 @@ class WeaponSelWindow : Container {
                     w.weapon.name));
             }
         }
+        +/
     }
 
     //recreate the whole GUI
     //should be only needed once, at initialization
-    public void init(WeaponClass[] weapons) {
+    public void init(GameEngine a_engine, WeaponClass[] weapons) {
         //set this to true to also show rows with no weapons in them!
         bool showEmpty = false;
+
+        mEngine = a_engine;
 
         //destroy old GUI, if any
         if (mGrid) {
