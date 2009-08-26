@@ -498,7 +498,7 @@ class AniStateDisplay : StateDisplay {
                 //use object velocity for arrow rotation
                 int a = 90;
                 if (su.velocity.quad_length > float.epsilon)
-                    a = cast(int)(su.velocity.toAngle()*180.0f/PI);
+                    a = cast(int)(su.velocity.toAngle()*180.0f/math.PI);
                 AnimationParams aparams;
                 //arrow animation seems rotated by 180° <- no it's not!!1
                 aparams.p1 = (a+180)%360;

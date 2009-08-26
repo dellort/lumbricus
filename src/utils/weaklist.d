@@ -1,10 +1,6 @@
 module utils.weaklist;
 
-version (Tango) {
-    import tango.stdc.stdlib : malloc, free;
-} else {
-    import std.c.stdlib : malloc, free;
-}
+import tango.stdc.stdlib : malloc, free;
 
 import memory = tango.core.Memory;
 

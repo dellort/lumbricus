@@ -5,6 +5,7 @@ import utils.reflect.all;
 import utils.log;
 import utils.misc;
 import utils.time;
+import utils.hashtable;
 
 import str = utils.string;
 import memory = tango.core.Memory;

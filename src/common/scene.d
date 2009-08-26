@@ -5,6 +5,7 @@ import utils.list2;
 import utils.vector2;
 import utils.rect2;
 import utils.reflection;
+import utils.misc;
 
 import arr = tango.core.Array;
 

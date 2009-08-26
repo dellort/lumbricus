@@ -3,11 +3,7 @@ module utils.gzip;
 import utils.output;
 import utils.stream;
 
-version (Tango) {
-    import czlib = tango.io.compress.c.zlib;
-} else {
-    import czlib = etc.c.zlib;
-}
+import czlib = tango.io.compress.c.zlib;
 
 enum {
     MAX_WBITS = 15,  //from zconf.h
