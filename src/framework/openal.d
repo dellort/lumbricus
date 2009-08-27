@@ -52,15 +52,16 @@ class ALChannel : DriverChannel {
     }
 
     void play(DriverSound s, bool loop, Time startAt) {
-        //xxx startAt is ignored
         mSound = castStrict!(ALSound)(s);
         assert(!!mSound);
         assert(!!reserved_for);
         alSourceStop(source);
-        //xxx AL_LOOPING does not work with streaming, need another solution
+        //xxx AL_LOOPING does not work with streaming; currently, playback will
+        //    stop and be immediately restarted by code in
+        //    framework.sound.Source (=hack)
         if (mSound.canLoop)
             alSourcei(source, AL_LOOPING, loop ? AL_TRUE : AL_FALSE);
-        mSound.initPlay(source);
+        mSound.initPlay(source, startAt);
         alSourcePlay(source);
         assert (oalState() == AL_PLAYING);
     }
@@ -72,6 +73,8 @@ class ALChannel : DriverChannel {
             mSound.finishPlay();
         }
         mSound = null;
+        //clear buffers
+        alSourcei(source, AL_BUFFER, AL_NONE);
         if (unreserve) {
             reserved_for = null;
         }
@@ -112,7 +115,10 @@ class ALChannel : DriverChannel {
         if (state != PlaybackState.stopped) {
             ALfloat pos;
             alGetSourcef(source, AL_SEC_OFFSET, &pos);
-            return timeSecs(pos);
+            Time ret = timeSecs(pos);
+            if (mSound)
+                ret += mSound.streamPos;
+            return ret;
         } else {
             return Time.Null;
         }
@@ -162,6 +168,7 @@ class ALSound : DriverSound {
         Sound_Sample* mSample;
         ALuint mCurrentSource = uint.max;  //for streaming; can only play once
         bool streamEOF;
+        uint mStreamedBytes;
 
         const cReadSampleBuffer = 1024*1024;
         const cStreamBuffer = 4096*8;
@@ -227,14 +234,31 @@ class ALSound : DriverSound {
         } else assert(false);
     }
 
+    //returns bytes per second for a given SDL format
+    private uint formatBps(ubyte channels, ushort format, uint rate) {
+        ubyte sampleSize = 2;
+        if (format == AUDIO_U8 || format == AUDIO_S8)
+            sampleSize = 1;
+        return sampleSize * channels * rate;
+    }
+
+    private uint formatBps(Sound_Sample* sample) {
+        return formatBps(sample.actual.channels, sample.actual.format,
+            sample.actual.rate);
+    }
+
     //called before the alSourcePlay() call
-    private void initPlay(ALuint source) {
+    private void initPlay(ALuint source, Time startAt) {
+        alSourcei(source, AL_BUFFER, AL_NONE);
+        mStreamedBytes = 0;
         if (mSample) {
             if (mCurrentSource != uint.max) {
                 finishPlay();
                 debug Trace.formatln("ALSound.initPlay warning: tried to"
                     " play stream multiple times, current playback cut off");
             }
+            Sound_Seek(mSample, startAt.msecs);
+            mStreamedBytes = cast(uint)(startAt.secsf * formatBps(mSample));
             //streamed, queue first 2 buffers
             if (!stream(mALBuffer[0]) || !stream(mALBuffer[1]))
                 throw new Exception("ALSound streaming failed");
@@ -246,6 +270,9 @@ class ALSound : DriverSound {
             //not streamed, all data is already in first buffer
             alSourcei(source, AL_BUFFER, mALBuffer[0]);
             checkALError("alSourcei");
+            //seek to start pos (note: will reset on loop)
+            alSourcef(source, AL_SEC_OFFSET, startAt.secsf);
+            checkALError("alSourcef");
         }
     }
 
@@ -271,14 +298,14 @@ class ALSound : DriverSound {
 
         //restart from beginning
         Sound_Rewind(mSample);
+        mStreamedBytes = 0;
     }
 
     //called every frame while playing
     private void update() {
         //only if streaming
-        if (!mSample)
+        if (!mSample || mCurrentSource == uint.max)
             return;
-        assert(mCurrentSource != uint.max);
         //check if queued buffers are done
         int processed;
         alGetSourcei(mCurrentSource, AL_BUFFERS_PROCESSED, &processed);
@@ -289,6 +316,9 @@ class ALSound : DriverSound {
 
             //pop from begin
             alSourceUnqueueBuffers(mCurrentSource, 1, &buffer);
+            ALint bufs;
+            alGetBufferi(buffer, AL_SIZE, &bufs);
+            mStreamedBytes += bufs;
             if (!stream(buffer)) {
                 streamEOF = true;
                 return;
@@ -324,6 +354,14 @@ class ALSound : DriverSound {
         return !!mSample;
     }
 
+    //returns the current streaming position; only processed data is counted
+    private Time streamPos() {
+        if (mSample)
+            return timeSecs(cast(float)mStreamedBytes / formatBps(mSample));
+        else
+            return Time.Null;
+    }
+
     Time length() {
         return mLength;
     }
@@ -341,6 +379,7 @@ class ALSound : DriverSound {
             mSample = null;
         } else {
             alDeleteBuffers(1, &mALBuffer[0]);
+            checkALError("alDeleteBuffers");
         }
         mALBuffer[] = uint.max;
     }

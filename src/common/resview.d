@@ -130,22 +130,27 @@ class SampleHandler : ResViewHandler!(Sample) {
             ch = gFramework.sound.createSource();
             ch.sample = resource;
             auto al = WidgetLayout.Aligned(-1, 0);
-            auto box = new BoxContainer(false);
+            auto box = new BoxContainer(false, false, 5);
             lblstate = new Label();
             box.add(lblstate, al);
-            Button button(char[] c, void delegate(Button) cb) {
+            auto btnBox = new BoxContainer(true, false, 2);
+            Button button(char[] c, void delegate(Button) cb, bool bx = false) {
                 auto b = new Button();
                 b.text = c;
                 b.onClick = cb;
-                box.add(b, al);
+                if (bx)
+                    box.add(b, al);
+                else
+                    btnBox.add(b, al);
                 return b;
             }
-            auto chk = button("loop?", &onLoop);
+            auto chk = button("loop?", &onLoop, true);
             chk.isCheckbox = true;
             button("play", &onPlay);
-            button("stop", &onStop);
             button("pause", &onPause);
+            button("stop", &onStop);
             button("fade", &onFade);
+            box.add(btnBox, al);
             box.add(new Position());
             addChild(box);
         }
@@ -195,7 +200,7 @@ class SampleHandler : ResViewHandler!(Sample) {
         }
         override void onKeyEvent(KeyInfo infos) {
             if (infos.isMouseButton && infos.isDown) {
-                ch.play();
+                ch.play(resource.length/4, timeMsecs(300));
             }
         }
     }

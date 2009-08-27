@@ -109,9 +109,6 @@ public class Sound {
         bool[DriverSound] mDriverSounds;
         ObjectList!(Source, "sNode") mSources;
 
-        //MusicState mExpectedMusicState;
-        //bool mExpectMusicStop;
-
         float mVolume = 1.0f;
         float[SoundType.max] mTypeVolume = 1.0f;
     }
@@ -135,8 +132,6 @@ public class Sound {
     //save audio-state before all DriverSounds are free'd and close()/reinit()
     //is called
     public void beforeKill() {
-        //Time d;
-        //mDriver.musicGetState(mExpectedMusicState, d);
     }
 
     //associate with new sound driver
@@ -144,14 +139,6 @@ public class Sound {
         //replace old driver by the dummy driver and overwrite that one
         close();
         mDriver = driver;
-
-        //if (mCurrentMusic) {
-            //restore music state (for now, only playing/paused, not the time)
-            /*if (mSavedMusicState != MusicState.Stopped) {
-                mCurrentMusic.play();
-                mCurrentMusic.state = mSavedMusicState; //possibly paused
-            }*/
-        //}
     }
 
     ///call this in main loop to update the sound system
@@ -160,19 +147,6 @@ public class Sound {
         foreach (s; mSources) {
             s.tick();
         }
-        /*Time pos;
-        MusicState mstate;
-        mDriver.musicGetState(mstate, pos);
-        if (mstate != mExpectedMusicState && mCurrentMusic
-            && !(mstate == MusicState.Stopped && mExpectMusicStop))
-        {
-            assert(mstate == mCurrentMusic.state());
-            //only happens if the driver was reinitialized or if the music
-            //DriverSound was (temporarily destroyed)
-            //Trace.formatln("fixup music state {} -> {}",
-              //  cast(int)mstate, cast(int)mExpectedMusicState);
-            mCurrentMusic.state = mExpectedMusicState;
-        }*/
     }
 
     ///create music/samples from stream
@@ -182,9 +156,6 @@ public class Sound {
     ///yes, it is silly, and I don't even know when st will definitely be closed
     ///xxx: ok, changed to a filename; class FileSystem is used to open it
     /// this shouldn't have any disadvantages
-    //public Music createMusic(char[] filename) {
-    //    return new Music(this, filename);
-    //}
     public Sample createSample(char[] filename, SoundType type = 0,
         bool streamed = false)
     {
@@ -213,11 +184,6 @@ public class Sound {
     float getTypeVolume(SoundType v) {
         return mTypeVolume[v];
     }
-
-    ///currently playing music, may be null if no music is set
-    //public Music currentMusic() {
-    //    return mCurrentMusic;
-    //}
 
     ///if this is a real sound device (false when this is a null-driver)
     public bool available() {
@@ -607,94 +573,3 @@ class NullSound : SoundDriver {
 
 alias StaticFactory!("SoundDrivers", SoundDriver, Sound, ConfigNode)
     SoundDriverFactory;
-
-
-
-
-
-
-
-/*
-///music is, other than samples, streamed on playback
-///only one music stream can play at a time
-public class Music : SoundBase {
-    this(Sound parent, char[] filename) {
-        super(parent, SoundType.music, filename);
-    }
-
-    ///play music from position start, fading in over fadeinTime
-    ///returns immediately
-    ///only one Music at a time can be playing
-    public void play(Time start = Time.Null,
-        Time fadeinTime = Time.Null)
-    {
-        DriverSound snd = getDriverSound();
-        mParent.mCurrentMusic = this;
-        mParent.mExpectedMusicState = MusicState.Playing;
-        mParent.mExpectMusicStop = false;
-        mParent.mDriver.musicPlay(snd, start, fadeinTime);
-    }
-
-    bool isCurrent() {
-        return (mParent.mCurrentMusic is this);
-    }
-
-    public MusicState state() {
-        if (!isCurrent())
-            return MusicState.Stopped;
-        MusicState s;
-        Time t;
-        mParent.mDriver.musicGetState(s, t);
-        return s;
-    }
-
-    public void state(MusicState set) {
-        if (isCurrent() && state() != MusicState.Stopped) {
-            if (set == MusicState.Stopped) {
-                mParent.mCurrentMusic = null;
-                mParent.mDriver.musicPlay(null, Time.Null, Time.Null);
-            } else {
-                mParent.mDriver.musicPause(set == MusicState.Paused);
-            }
-            mParent.mExpectedMusicState = set;
-        } else {
-            if (set == MusicState.Playing) {
-                play();
-            }
-        }
-    }
-
-    ///pause/resume music, if playing
-    ///if it was not playing and p is true, play() is tiggered
-    public void paused(bool p) {
-        state = p ? MusicState.Paused : MusicState.Playing;
-    }
-
-    ///stop the music, if it is playing
-    ///Note: after this call, Sound.currentMusic will be null
-    public void stop() {
-        state = MusicState.Stopped;
-    }
-
-    ///Fade out music over fadeTime
-    ///returns immediately
-    ///Note: Sound.currentMusic is not affected
-    public void fadeOut(Time fadeTime) {
-        if (!isCurrent())
-            return;
-        mParent.mDriver.musicFadeOut(fadeTime);
-        //silly silly
-        mParent.mExpectMusicStop = true;
-    }
-
-    ///get current playback position
-    public Time position() {
-        if (!isCurrent())
-            return Time.Null;
-        MusicState s;
-        Time t;
-        mParent.mDriver.musicGetState(s, t);
-        return t;
-    }
-}
-*/

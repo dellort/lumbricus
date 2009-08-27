@@ -114,19 +114,23 @@ public struct Time {
         //divisior to get from one time unit to the next
         const int[] cTimeDiv =       [1, 1000, 1000, 1000, 60,    60, 0];
         //precission which should be used to display the time
-        const int[] cPrec =         [0,   1,    3,     2,   2,     2];
+        const char[][] cPrec =["{:f0}","{:f1}","{:f3}","{:f2}","{:f2}","{:f2}"];
+        char[] sign;
         long time = nsecs;
-        //xxx negative time?
+        long timeDiv = 1;
+        if (time < 0) {
+            time = -time;
+            sign = "-";
+        }
         for (int i = 0; ; i++) {
-            if (time < cTimeDiv[i]*cTimeDiv[i+1] || i == cTimeName.length-1) {
+            timeDiv *= cTimeDiv[i];
+            if (time < timeDiv*cTimeDiv[i+1] || i == cTimeName.length-1) {
                 //auto s = myformat("%.*f {}", cPrec[i],
                 //    cast(double)time / cTimeDiv[i], cTimeName[i]);
-                //xxx: how to do the precission?
-                auto s = myformat_s(buffer, "{} {}",
-                    cast(double)time / cTimeDiv[i], cTimeName[i]);
+                auto s = myformat_s(buffer, sign ~ cPrec[i] ~ " {}",
+                    cast(double)time / timeDiv, cTimeName[i]);
                 return s;
             }
-            time = time / cTimeDiv[i];
         }
     }
 
