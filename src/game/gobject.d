@@ -71,6 +71,7 @@ abstract class GameObject {
     }
 
     void hash(Hasher hasher) {
+        hasher.hash(mActive);
     }
 
     //can be used to draw for debugging

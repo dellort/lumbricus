@@ -1267,7 +1267,7 @@ class GameController {
         const cCrateProbs = [0.20f, 0.40f, 0.95f];
         //list of tool crates that can drop
         char[][] mActiveCrateTools;
-        int[TeamTheme.cTeamColors.length] mTeamColorCache;
+        int[] mTeamColorCache;
 
         GamePlugin[char[]] mPluginLookup;
         GamePlugin[] mPlugins;
@@ -1497,6 +1497,7 @@ class GameController {
         }
 
         //assign the color least used, preferring the one requested
+        mTeamColorCache.length = TeamTheme.cTeamColors.length;
         foreach (int idx, int count; mTeamColorCache) {
             if (count < mTeamColorCache[colId])
                 colId = idx;

@@ -32,6 +32,7 @@ Building it...
   DMD should work under x86 Windows and Linux.
   LDC supports more arches, but unless you hate yourself, don't use it.
       (also, LLVM doesn't really work on Windows)
+      (general compilation success with LDC depends from current lunar phase)
   GDC is broken and outdated, and I'll shoot anyone who tries to use it.
 
 - DSSS is the build program we use

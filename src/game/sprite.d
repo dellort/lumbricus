@@ -337,8 +337,10 @@ class GObjectSprite : GameObject {
         updateParticles();
     }
 
-    void hash(Hasher hasher) {
+    override void hash(Hasher hasher) {
+        super.hash(hasher);
         hasher.hash(physics.pos);
+        hasher.hash(physics.velocity);
     }
 
     override void debug_draw(Canvas c) {

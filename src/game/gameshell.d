@@ -43,8 +43,13 @@ import convert = tango.util.Convert;
 
 //see GameShell.engineHash()
 //type of hash might be changed in the future
+//special case: if the struct is EngineHash.init, the hash is invalid
 struct EngineHash {
     uint hash;
+
+    char[] toString() {
+        return myformat("0x{:x}", hash);
+    }
 }
 
 //initialized by serialize_register.d
@@ -66,6 +71,18 @@ private LogStruct!("game.gameshell") log;
 
 //save the game engine to disk on snapshot/replay, stuff goes into path /debug/
 //debug = debug_save;
+
+//for each demo frame, write the game hash value (engineHash())
+//could be easily made a runtime option
+//NOTE: when playing demos, the hash value will be checked if the file contains
+//      hash values (actually, it's per LogEntry)
+const bool WriteDemoHashFrames = true;
+
+//check hashes on replays - might put a little pressure on the GC, because each
+//  frame a LogEntry is appended to the replay log
+const bool ReplayHashFrames = true;
+
+//const long cDebugDumpAt = 1;
 
 //to implement a pre-load mechanism
 //for normal games:
@@ -166,6 +183,7 @@ class GameLoader {
         ulong readsize = 0;
         //xxx throws exception on unmarshalling error
         //(as intended, but needs better error reporting)
+        typeof(GameShell.LogEntry.timestamp) previous_ts = 0;
         while (!f.eof()) {
             size_t readfunc(ubyte[] data) {
                 f.readExact(data);
@@ -175,6 +193,12 @@ class GameLoader {
                 return fsize - readsize;
             }
             auto e = Unmarshaller(&readfunc).read!(GameShell.LogEntry)();
+            if (e.timestamp < previous_ts) {
+                //invalid file contents
+                throw new Exception("demo file contains unsorted or negative "
+                    "timestamps");
+            }
+            previous_ts = e.timestamp;
             max_ts = max(max_ts, e.timestamp);
             lg.entries ~= e;
         }
@@ -425,6 +449,8 @@ class GameShell {
         //bool mEnableDemoPlayback;
         //if !.isNull(), enable demo recording
         PipeOut mDemoOutput;
+
+        bool mSOMETHINGISWRONG; //good variable names are an art
     }
     bool terminated;  //set to exit the game instantly
 
@@ -441,6 +467,10 @@ class GameShell {
         long timestamp;
         char[] access_tag;
         char[] cmd;
+
+        //the hash is done right before the input is executed
+        //only valid if !is EngineHash.init
+        EngineHash hash;
 
         char[] toString() {
             return myformat("ts={}, access='{}': '{}'", timestamp, access_tag,
@@ -476,18 +506,66 @@ class GameShell {
     }
 
     private void execEntry(LogEntry e) {
-        log("exec input: {}", e);
+        //empty commands are used for hash frames in demos
+        bool for_hash = e.cmd.length == 0;
+
+        if (!for_hash)
+            log("exec input: {}", e);
         assert(mTimeStamp == e.timestamp);
+
+        //check hash (more a special case for demo replaying)
+        //if e.hash is invalid, e is fresh input (or the hash wasn't stored)
+        if (e.hash !is EngineHash.init) {
+            auto expect = engineHash();
+            if (expect != e.hash && !mSOMETHINGISWRONG) {
+                void woosh() { log("------------ wooooosh -------------"); }
+                woosh();
+                log("oh hi, something is severely wrong");
+                log("current hash: {}", expect);
+                log("LogEntry hash: {}", e.hash);
+                log("timestamp: {}", mTimeStamp);
+                debug_save();
+                log("not bothering you anymore, enjoy your day");
+                mSOMETHINGISWRONG = true;
+                woosh();
+            }
+            //if (mTimeStamp == cDebugDumpAt)
+            //    debug_save();
+        }
+
+        //hopefully not too spaghetti code
+        //xxx: could store hash for each LogEntry (not only hash frames)
+        //     but right now: exactly 1 timestamp each hash check => simpler
+        bool hash_stuff(bool want_hash_frame) {
+            if (!for_hash)
+                return true;
+            //it's a hash frame
+            if (!want_hash_frame)
+                return false;
+            //calculate hash if it hasn't been done yet
+            if (e.hash is EngineHash.init)
+                e.hash = engineHash();
+            return true;
+        }
+
+        if (!mReplayMode && hash_stuff(WriteDemoHashFrames)) {
+            writeDemoEntry(e);
+        }
+
         //(this is here and not in addLoggedInput, because then input could be
         // logged for replay, that was never executed)
-        if (mLogReplayInput) {
+        if (mLogReplayInput && hash_stuff(ReplayHashFrames)) {
             mReplayInput.entries ~= e;
         }
-        mEngine.executeCommand(e.access_tag, e.cmd);
+
+        if (!for_hash) {
+            mEngine.executeCommand(e.access_tag, e.cmd);
+        }
     }
 
     //command to be executed by GameEngine.executeCommand()
     //this is logged/timestamped for networking, snapshot/replays, and demo mode
+    //NOTE: cmd=="" is abused as a special case for demo hash frames
     void addLoggedInput(char[] access_tag, char[] cmd, long cmdTimeStamp = -1) {
         //yeh, this might be a really bad idea
         if (replayMode() && str.startsWith(cmd, "weapon_fire")) {
@@ -496,7 +574,7 @@ class GameShell {
         }
 
         //and this may be a bad idea too
-        if (mCmd.execute(cmd, true))
+        if (cmd.length && mCmd.execute(cmd, true))
             return;
 
 
@@ -511,7 +589,8 @@ class GameShell {
         else
             e.timestamp = mTimeStamp;
 
-        log("received input: {}", e);
+        if (e.cmd.length)
+            log("received input: {}", e);
 
         if (mReplayMode) {
             log("previous input denied, because in replay mode");
@@ -519,8 +598,6 @@ class GameShell {
         }
 
         mCurrentInput.entries ~= e;
-
-        writeDemoEntry(e);
     }
 
     //public access
@@ -542,6 +619,12 @@ class GameShell {
         TimeSourceSimple interpol = mInterpolateTime;
 
         void exec_frame() {
+            if (!mReplayMode) {
+                //pseudo hash command to insert a hash frame (see execFrame())
+                //always generated, but execEntry() might throw it away
+                addLoggedInput("", "");
+            }
+
             doFrame();
 
             //skip to next frame, if there's some time "left"
@@ -640,12 +723,14 @@ class GameShell {
                 mGameTime.current, mGameTime.current.nsecs);
             mPrintFrameTime = false;
         }
+
         //execute input at correct time, which is particularly important for
         //replays (input is reused on a snapshot of the deterministic engine)
         while (mCurrentInput.entries.length > 0) {
             LogEntry e = mCurrentInput.entries[0];
             if (e.timestamp > mTimeStamp)
                 break;
+            //log("pre-exec s={} {}", mTimeStamp, e);
             assert(e.timestamp == mTimeStamp);
             execEntry(e);
             //remove
@@ -654,8 +739,10 @@ class GameShell {
             }
             mCurrentInput.entries.length = mCurrentInput.entries.length - 1;
         }
+
         mEngine.frame();
         mTimeStamp++;
+
         //xxx not sure if the input for this frame should be fed to the engine
         //    before debug-dumping, I'm too tired to think about that
         if (mReplayMode) {
@@ -865,7 +952,7 @@ class GameShell {
         return mSerializeCtx;
     }
 
-    debug(debug_save) void debug_save() {
+    void debug_save() {
         int t;
         char[] p = gFS.getUniqueFilename("/debug/", "dump{0:d3}", ".tar", t);
         log("saving debugging dump to {}", p);
@@ -890,7 +977,12 @@ class GameShell {
         mGameHasher.reset();
         mEngine.hash(mGameHasher);
         mGameHasher.hash(mTimeStamp);
-        return EngineHash(mGameHasher.hash_value);
+        auto hash = EngineHash(mGameHasher.hash_value);
+        if (hash is EngineHash.init) {
+            hash.hash = 1;
+            assert(hash !is EngineHash.init);
+        }
+        return hash;
     }
 
     bool paused() {
