@@ -29,6 +29,7 @@ import utils.perf;
 import memory = tango.core.Memory;
 import utils.stream;
 import tango.core.Variant;
+import conv = tango.util.Convert;
 
 //ZOrders!
 //only for the stuff managed by TopLevel
@@ -42,20 +43,18 @@ enum GUIZOrder : int {
 
 TopLevel gTopLevel;
 
-Variant gc_stat_get_v(char[] name) {
-    static if (is(memory.GCInfo)) {
-        return memory.GCInfo[name];
-    } else {
-        return Variant.init;
+real gc_stat_get_r(char[] name) {
+    static if (is(memory.GC.GCStats)) {
+        memory.GC.GCStats stats = memory.GC.stats();
+        if (stats in name) //someone confused opIn and opIn_r
+            return stats[name];
     }
+    return -1; //xD
 }
 
 T gc_stat_get(T)(char[] name, T def = T.init) {
-    try {
-        return gc_stat_get_v(name).get!(T)();
-    } catch (VariantTypeMismatchException e) {
-        return def;
-    }
+    real res = gc_stat_get_r(name);
+    return (res == -1) ? def : conv.to!(T)(res);
 }
 
 //sorry for the kludge; just for statistics
@@ -667,22 +666,23 @@ private:
             auto n = gFramework.releaseCaches(true);
             write.writefln("release caches: {} house shoes", n);
         }
+        size_t getsize() { return gc_stat_get!(size_t)("usedSize"); }
         auto counter = new PerfTimer();
-        auto a = gc_stat_get!(size_t)("usedsize");
+        auto a = getsize();
         counter.start();
         memory.GC.collect();
         counter.stop();
-        auto b = gc_stat_get!(size_t)("usedsize");
+        auto b = getsize();
         write.writefln("GC fullcollect: {}, free'd {}", counter.time,
             str.sizeToHuman(a - b));
         memory.GC.minimize();
-        auto c = gc_stat_get!(size_t)("usedsize");
+        auto c = getsize();
         write.writefln("  ...minimize: {}", str.sizeToHuman(c - b));
     }
     private void testGCstats(MyBox[] args, Output write) {
-        static if (is(memory.GCInfo)) {
-            foreach (k; memory.GCInfo.keys()) {
-                write.writefln("{} = {}", k, gc_stat_get_v(k));
+        static if (is(memory.GC.GCStats)) {
+            foreach (k; memory.GC.stats().keys()) {
+                write.writefln("{} = {}", k, gc_stat_get_r(k));
             }
         }
         write.writefln("C malloc stats:");
@@ -830,19 +830,21 @@ class StatsWindow : Task {
             //--wnd.client = null; //dirty trick to avoid relayouting all the time
 
             addLine("GC Used",
-                str.sizeToHuman(gc_stat_get!(size_t)("usedsize"),
+                str.sizeToHuman(gc_stat_get!(size_t)("usedSize"),
                 lineBuffer()));
             addLine("GC Poolsize",
-                str.sizeToHuman(gc_stat_get!(size_t)("poolsize"),
+                str.sizeToHuman(gc_stat_get!(size_t)("poolSize"),
                 lineBuffer()));
             addLine("GC count", myformat_s(lineBuffer(), "{}",
-                gc_stat_get!(ulong)("gc_count")));
-            addLine("GC m-time",
-                timeMusecs(gc_stat_get!(ulong)("mark_time_us"))
-                .toString_s(lineBuffer()));
-            addLine("GC s-time",
-                timeMusecs(gc_stat_get!(ulong)("sweep_time_us"))
-                .toString_s(lineBuffer()));
+                gc_stat_get!(ulong)("gcCounter")));
+
+            void gc_time(char[] disp, char[] name) {
+                addLine(disp,
+                    timeSecs(gc_stat_get!(real)(name))
+                    .toString_s(lineBuffer()));
+            }
+            gc_time("GC m-time", "totalMarkTime");
+            gc_time("GC s-time", "totalSweepTime");
 
             size_t[3] mstats;
             get_cmalloc_stats(mstats);

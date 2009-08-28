@@ -290,11 +290,20 @@ class WormSprite : GObjectSprite {
 
         if (currentState is wsc.st_weapon) {
             auto curW = mWeapon;
-            if (mShooterMain && mShooterMain.activity)
+            bool shooting = mShooterMain && mShooterMain.activity;
+            if (shooting)
                 curW = mShooterMain.weapon;
             assert(!!curW);
 
             char[] w = curW.animations[WeaponWormAnimations.Arm];
+            Trace.formatln("weapon, {} {} {}", curW, shooting, w);
+            if (shooting) {
+                char[] w_f = curW.animations[WeaponWormAnimations.Fire];
+                //firing animation is optional
+                if (w_f.length)
+                    w = w_f;
+            }
+
             auto state = wsc.findSequenceState(w, true);
             bool noState = !state;
             if (noState) {
@@ -661,6 +670,9 @@ class WormSprite : GObjectSprite {
 
         if (wcontrol)
             wcontrol.firedWeapon(shTmp, false);
+
+        //update animation, so that fire animation is displayed
+        setCurrentAnimation();
     }
 
     private bool refireWeapon(Shooter sh) {

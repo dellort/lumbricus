@@ -4,6 +4,7 @@ import str = utils.string;
 import strparser = utils.strparser;
 import utils.misc;
 import tango.util.Convert : to;
+import tango.core.Traits : isIntegerType, isFloatingPointType;
 
 //if true, use nanosecond resolution instead of milliseconds
 const bool cNS = true;
@@ -127,7 +128,9 @@ public struct Time {
             if (time < timeDiv*cTimeDiv[i+1] || i == cTimeName.length-1) {
                 //auto s = myformat("%.*f {}", cPrec[i],
                 //    cast(double)time / cTimeDiv[i], cTimeName[i]);
-                auto s = myformat_s(buffer, sign ~ cPrec[i] ~ " {}",
+                char[20] fmt_b = void;
+                auto fmt = myformat_s(fmt_b, "{}{} {}", sign, cPrec[i], "{}");
+                auto s = myformat_s(buffer, fmt,
                     cast(double)time / timeDiv, cTimeName[i]);
                 return s;
             }
@@ -331,9 +334,28 @@ public struct Time {
     }
 }
 
+//give the same kind of numeric type as T, but with maximal value range
+private template maxttype(T) {
+    static if (isIntegerType!(T)) {
+        alias long maxttype;
+    } else static if (isFloatingPointType!(T)) {
+        alias real maxttype;
+    } else {
+        static assert(false);
+    }
+}
+//implicit conversion to maxttype!(T)
+private maxttype!(T) maxconv(T)(T x) {
+    return x;
+}
+
 ///new Time value from nanoseconds
-Time timeNsecs(long val) {
-    return Time(cNS ? val : val/1000);
+Time timeNsecs(T)(T val) {
+    static if (!cNS) {
+        val = val/1000;
+    }
+    //the maxconv is to ensure that val is a number (=> safer)
+    return Time(cast(long)(maxconv(val)));
 }
 
 //xxx all the following functions might behave incorrectly for large values, lol
@@ -341,27 +363,27 @@ Time timeNsecs(long val) {
 ///new Time value from microseconds
 Time timeMusecs(T)(T val) {
     //return Time(cast(long)(cNS ? val*1000 : val));
-    return timeNsecs(cast(TType_Int)(val*1000));
+    return timeNsecs(maxconv(val*1000));
 }
 
 ///new Time value from milliseconds
 Time timeMsecs(T)(T val) {
-    return timeMusecs(cast(TType_Int)(val*1000));
+    return timeMusecs(maxconv(val*1000));
 }
 
 ///new Time value from seconds
 Time timeSecs(T)(T val) {
-    return timeMsecs(cast(TType_Int)(val*1000));
+    return timeMsecs(maxconv(val*1000));
 }
 
 ///new Time value from minutes
 Time timeMins(T)(T val) {
-    return timeSecs(cast(TType_Int)(val*60));
+    return timeSecs(maxconv(val*60));
 }
 
 ///new Time value from hours
 Time timeHours(T)(T val) {
-    return timeMins(cast(TType_Int)(val*60));
+    return timeMins(maxconv(val*60));
 }
 
 ///new Time value from hours+minutes+seconds
