@@ -85,6 +85,9 @@ class ExplosiveForce : PhysicForce {
 
     void delegate(Object cause, Object victim, float damage) onReportApply;
 
+    //the force is only applied if true is returned
+    bool delegate(ExplosiveForce sender, PhysicObject obj) onCheckApply;
+
     this (ReflectCtor c) {
     }
 
@@ -109,6 +112,8 @@ class ExplosiveForce : PhysicForce {
         if (dist > cDistDelta) {
             float r = max(radius-dist,0f)/radius;
             if (r < float.epsilon)
+                return;
+            if (onCheckApply && !onCheckApply(this, o))
                 return;
             float before = o.lifepower;
             o.applyDamage(r*damage, DamageCause.explosion);

@@ -712,7 +712,8 @@ class GameEngine {
     }
 
     void explosionAt(Vector2f pos, float damage, GameObject cause,
-        bool effect = true)
+        bool effect = true, bool damage_landscape = true,
+        bool delegate(ExplosiveForce,PhysicObject) selective = null)
     {
         if (damage < float.epsilon)
             return;
@@ -720,9 +721,11 @@ class GameEngine {
         expl.damage = damage;
         expl.pos = pos;
         expl.onReportApply = &onDamage;
+        expl.onCheckApply = selective;
         expl.cause = cause;
         auto iradius = cast(int)((expl.radius+0.5f)/2.0f);
-        damageLandscape(toVector2i(pos), iradius, cause);
+        if (damage_landscape)
+            damageLandscape(toVector2i(pos), iradius, cause);
         physicworld.add(expl);
         if (effect)
             showExplosion(pos, iradius);

@@ -1,6 +1,7 @@
 module game.weapon.rope;
 
 import framework.framework;
+import common.animation;
 import common.resset;
 import common.scene;
 import game.game;
@@ -20,7 +21,7 @@ import utils.color;
 import utils.log;
 import utils.misc;
 
-import tango.math.Math : abs;
+import math = tango.math.Math;
 import tango.math.IEEE : signbit;
 
 
@@ -33,7 +34,7 @@ class RopeClass : WeaponClass {
     Color ropeColor = Color(1);
     Surface ropeSegment;
 
-    SequenceState anchorAnim;
+    Animation anchorAnim;
 
     this(GfxSet gfx, ConfigNode node) {
         super(gfx, node);
@@ -48,7 +49,7 @@ class RopeClass : WeaponClass {
         if (resseg.length)
             ropeSegment = gfx.resources.get!(Surface)(resseg);
 
-        anchorAnim = gfx.sequenceStates.findState(node["anchor_anim"]);
+        anchorAnim = gfx.resources.get!(Animation)(node["anchor_anim"]);
     }
 
     //xxx class
@@ -80,8 +81,8 @@ class Rope : Shooter {
         Vector2f mShootDir;
         Time mShootStart;
         Vector2f mMoveVec;
-        SequenceUpdate mSeqUpdate;
-        Sequence mAnchorGraphic;
+        Vector2f mAnchorPosition;
+        float mAnchorAngle;
         bool mSecondShot = false;
         const cSecondShotVector = Vector2f(0, -1000);
 
@@ -118,7 +119,6 @@ class Rope : Shooter {
         super(base, a_owner, a_owner.engine);
         myclass = base;
         mWorm = a_owner;
-        mSeqUpdate = new SequenceUpdate();
     }
 
     this (ReflectCtor c) {
@@ -158,9 +158,9 @@ class Rope : Shooter {
             mSecondShot = true;
             //angle of last rope segment, mirrored along y axis for next shot
             mShootDir = ropeSegments[$-1].start - ropeSegments[$-1].end;
-            mShootDir.x = -mShootDir.x;         //mirror along y axis
-            mShootDir.y = -abs(mShootDir.y);     //always shoot upwards
-            float ax = -abs(mShootDir.x);        //at least 45deg up
+            mShootDir.x = -mShootDir.x;          //mirror along y axis
+            mShootDir.y = -math.abs(mShootDir.y);//always shoot upwards
+            float ax = -math.abs(mShootDir.x);   //at least 45deg up
             if (ax < mShootDir.y)
                 mShootDir.y = ax;
             mShootDir = mShootDir.normal;
@@ -201,11 +201,6 @@ class Rope : Shooter {
             return;
         mShooting = true;
         mShootStart = engine.gameTime.current;
-        //xxx: 3rd parameter is TeamTheme; could get it from mWorm...
-        mAnchorGraphic = new Sequence(engine, mSeqUpdate, null);
-        mAnchorGraphic.zorder = GameZOrder.Objects;
-        engine.scene.add(mAnchorGraphic);
-        mAnchorGraphic.setState(myclass.anchorAnim);
         if (!mRender)
             mRender = new RenderRope(this);
         engine.scene.add(mRender);
@@ -220,17 +215,14 @@ class Rope : Shooter {
 
     //abort the attached rope
     private void abortRope() {
-        if (mAnchorGraphic) {
-            mAnchorGraphic.remove();
-            mAnchorGraphic = null;
-        }
-        if (!mRope)
-            return;
-        mRope.dead = true;
+        if (mRope)
+            mRope.dead = true;
         mRope = null;
-        mRender.removeThis();
+        if (mRender)
+            mRender.removeThis();
         ropeSegments = null;
-        mWorm.activateRope(null);
+        if (mWorm)
+            mWorm.activateRope(null);
     }
 
     private void ropeMove(Vector2f mv) {
@@ -238,11 +230,8 @@ class Rope : Shooter {
     }
 
     private void updateAnchorAnim(Vector2f pos, Vector2f toAnchor) {
-        mSeqUpdate.position = pos;
-        mSeqUpdate.velocity = Vector2f(0);
-        mSeqUpdate.rotation_angle = toAnchor.toAngle();
-        mSeqUpdate.lifePercent = 1.0f;
-        mAnchorGraphic.simulate();
+        mAnchorPosition = pos;
+        mAnchorAngle = toAnchor.toAngle();
     }
 
     override void simulate(float deltaT) {
@@ -418,13 +407,18 @@ class Rope : Shooter {
         }
 
         if (mShooting) {
-            line(mWorm.physics.pos, mSeqUpdate.position);
+            line(mWorm.physics.pos, mAnchorPosition);
         }
 
         texoffs = 0;
         foreach (ref seg; ropeSegments) {
             line(seg.start, seg.end);
         }
+
+        AnimationParams ap;
+        ap.p1 = cast(int)(mAnchorAngle/math.PI*180);
+        myclass.anchorAnim.draw(c, toVector2i(mAnchorPosition), ap,
+            mShootStart);
     }
 }
 

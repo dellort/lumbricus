@@ -59,6 +59,8 @@ class Drill : Shooter {
         Time mStart, mNext;
     }
 
+    mixin Methods!("checkApply");
+
     this(DrillClass base, WormSprite a_owner) {
         super(base, a_owner, a_owner.engine);
         mWorm = a_owner;
@@ -111,14 +113,25 @@ class Drill : Shooter {
         }
     }
 
+    private bool checkApply(ExplosiveForce sender, PhysicObject other) {
+        //force applies to all objects, except the own worm
+        return other !is mWorm.physics;
+    }
+
     private void makeTunnel() {
+        //xxx: stuff should be tuneable? (all constants != 0)
         Vector2f advVec = Vector2f(0, 7.0f);
         if (myclass.blowtorch) {
             advVec = mWorm.weaponDir*8.0f
                 + Vector2f(0, mWorm.physics.posp.radius - myclass.tunnelRadius);
         }
-        engine.damageLandscape(toVector2i(mWorm.physics.pos + advVec),
-            myclass.tunnelRadius, mWorm);
+        auto at = mWorm.physics.pos + advVec;
+        engine.damageLandscape(toVector2i(at), myclass.tunnelRadius, mWorm);
+        const cPush = 3.0f; //multiplier so that other worms get pushed away
+        engine.explosionAt(at,
+            myclass.tunnelRadius/ExplosiveForce.cDamageToRadius*cPush, mWorm,
+            false, false, &checkApply);
+
         mNext = engine.gameTime.current + myclass.interval.sample(engine.rnd);
     }
 }

@@ -119,6 +119,7 @@ debug:
 
 import utils.strparser;
 
+/+ ??? gives conflicts, wtf dmd?
 enum X {
     xa,
     xb,
@@ -184,6 +185,7 @@ void not_main() {
     debugDumpTypeInfos(t);
     debugDumpClassGraph(t, x);
 }
++/
 
 void debugDumpTypeInfos(Types t) {
     foreach (Type type; t.allTypes()) {

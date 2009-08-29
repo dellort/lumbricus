@@ -296,7 +296,7 @@ class WormSprite : GObjectSprite {
             assert(!!curW);
 
             char[] w = curW.animations[WeaponWormAnimations.Arm];
-            Trace.formatln("weapon, {} {} {}", curW, shooting, w);
+            //yyy Trace.formatln("weapon, {} {} {}", curW, shooting, w);
             if (shooting) {
                 char[] w_f = curW.animations[WeaponWormAnimations.Fire];
                 //firing animation is optional

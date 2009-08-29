@@ -120,6 +120,8 @@ private:
 
     LoadSaveHandler mLoadSave;
 
+    debug int mPrevGCCount;
+
     void onFrameEnd() {
         mFrameTime.stop();
 
@@ -616,43 +618,6 @@ private:
         globals.initLocale(lid);
     }
 
-/*    private void cmdShowLog(CommandLine cmd) {
-
-        void setTarget(Log log, char[] targetstr) {
-            switch (targetstr) {
-                case "stdout":
-                    log.setBackend(StdioOutput.output, targetstr); break;
-                case "null":
-                    log.setBackend(DevNullOutput.output, targetstr); break;
-                case "console":
-                default:
-                    log.setBackend(cmd.console, "console");
-            }
-        }
-
-        char[][] args = cmd.parseArgs();
-        Log[] set;
-
-        if (args.length == 2) {
-            if (args[0] == "all") {
-                set = gAllLogs.values;
-            } else if (args[0] in gAllLogs) {
-                set = [gAllLogs[args[0]]];
-            }
-            if (set.length) {
-                foreach (Log log; set) {
-                    setTarget(log, args[1]);
-                }
-                return;
-            }
-        }
-
-        cmd.console.writefln("Log targets:");
-        foreach (Log log; gAllLogs) {
-            cmd.console.writefln("  {} -> {}", log.category, log.backend_name);
-        }
-    }*/
-
     private void showConsole(MyBox[], Output) {
         mGuiConsole.toggle();
     }
@@ -700,6 +665,14 @@ private:
     }
 
     private void onUpdate() {
+        debug {
+            int gccount = gc_stat_get!(int)("gcCounter");
+            if (gccount != mPrevGCCount) {
+                registerLog("gc")("GC run detected");
+                mPrevGCCount = gccount;
+            }
+        }
+
         mTaskTime.start();
         taskManager.doFrame();
         mTaskTime.stop();
