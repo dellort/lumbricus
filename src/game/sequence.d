@@ -182,35 +182,6 @@ class SequenceState {
     }
 }
 
-//xxx: what's the point of this class? why not use physics or sprite directly?
-//     or make the sprite update the sequence fields
-//   - and all of WormSequenceUpdate could be merged into this
-class SequenceUpdate {
-    Vector2f position;
-    Vector2f velocity;
-    float rotation_angle; //worm itself, always 0 .. PI*2
-    float lifePercent;  //percent of initial life remaining, may go > 1.0
-    //bool visible;
-
-    this () {
-    }
-    this (ReflectCtor c) {
-    }
-}
-
-//special update class for worm sequence, which allows to introduce custom
-//sequence modifiers without changing GObjectSprite
-//xxx why is this in this module?
-class WormSequenceUpdate : SequenceUpdate {
-    float pointto_angle; //for weapon angle, always 0 .. PI
-    //just used to display jetpack exhaust flames
-    Vector2f selfForce;
-
-    this () {
-    }
-    this (ReflectCtor c) {
-    }
-}
 
 ///A sprite (but it's named Sequence because the name sprite is already used in
 ///game.sprite for a game logic thingy). Displays animations and also can
@@ -225,27 +196,34 @@ class Sequence : SceneObject {
         SequenceState mQueuedState;
         StateDisplay mDisplay;
         StateDisplay mOthers;
-        SequenceUpdate mUpdate;
         TeamTheme mOwner; //xxx make this go away
     }
+
+    //was: SequenceUpdate
+    //(or: read directly from a sprite??)
+    Vector2f position;
+    Vector2f velocity;
+    float rotation_angle; //worm itself, always 0 .. PI*2
+    float lifePercent;  //percent of initial life remaining, may go > 1.0
+    //bool visible;
+
+    //was: WormSequenceUpdate
+    float pointto_angle; //for weapon angle, always 0 .. PI
+    //just used to display jetpack exhaust flames
+    Vector2f selfForce;
+
 
     //and this is a hack... but I guess it's good enough for now
     RenderText attachText;
 
-    this(GameEngine a_engine, SequenceUpdate v, TeamTheme owner) {
+    this(GameEngine a_engine, TeamTheme owner) {
         engine = a_engine;
-        mUpdate = v;
         mOwner = owner;
     }
 
     this (ReflectCtor c) {
     }
 
-    ///query current position etc. - fields change as the simulation progresses
-    //(e.g. target cross needs infos about the weapon angle)
-    final SequenceUpdate getInfos() {
-        return mUpdate;
-    }
 
     //xxx belongs into SequenceUpdate? stupid separation
     final TeamTheme teamOwner() {
@@ -256,7 +234,7 @@ class Sequence : SceneObject {
     //non-deterministic (deterministic one is SequenceUpdate.position)
     final Vector2i interpolated_position() {
         if (!mDisplay) //huh?
-            return toVector2i(mUpdate.position);
+            return toVector2i(position);
         return mDisplay.interpolated_position();
     }
 
@@ -469,7 +447,7 @@ class AniStateDisplay : StateDisplay {
         if (!mAnimation)
             return;
 
-        SequenceUpdate su = owner.getInfos();
+        Sequence su = owner;
 
         const cInterpolate = true;
 
@@ -560,7 +538,7 @@ class NapalmStateDisplay : AniStateDisplay {
     override void simulate() {
         if (!myclass)
             return;
-        SequenceUpdate v = owner.mUpdate;
+        Sequence v = owner;
         float speed = v.velocity.length;
         Animation new_animation;
         AnimationParams params;
@@ -569,8 +547,7 @@ class NapalmStateDisplay : AniStateDisplay {
             if (last_animation !is myclass.animFall)
                 new_animation = myclass.animFall;
             //xxx controls size (0-100), use damage or whatever
-            auto nsu = cast(NapalmSequenceUpdate)v;
-            ani_params.p2 = nsu ? nsu.decay : 30;
+            ani_params.p2 = cast(int)v.lifePercent;
         } else {
             //fast napalm
             if (last_animation !is myclass.animFly)
@@ -585,15 +562,6 @@ class NapalmStateDisplay : AniStateDisplay {
                     cast(int)(new_animation.duration.msecs))));
             last_animation = new_animation;
         }
-    }
-}
-
-class NapalmSequenceUpdate : SequenceUpdate {
-    int decay;
-
-    this () {
-    }
-    this (ReflectCtor c) {
     }
 }
 
@@ -628,8 +596,11 @@ class WormStateDisplay : AniStateDisplay {
     //only for jetpack
     //xxx: proper "compositing" of sub-animations would be nice; but this is a
     //  hack for now
-    AniStateDisplay[2] mJetFlames;
-    Time[2] mJetFlamesStart;
+    struct AniState {
+        Animation ani;
+        Time start;
+    }
+    AniState[2] mJetFlames;
 
     this (Sequence a_owner) {
         super(a_owner);
@@ -822,9 +793,9 @@ class WormStateDisplay : AniStateDisplay {
         updateSubSequence();
         WormState state = mCurSubSeq ? mCurSubSeq.owner : null;
         float[2] set_angle;
-        auto v = owner.mUpdate;
+        Sequence v = owner;
         set_angle[0] = v.rotation_angle;
-        auto wsu = cast(WormSequenceUpdate)v;
+        auto wsu = v;
         if (state.p2_damage) {
             //lol, code below converts back to deg
             const float cDmgToRad = 100.0f/180.0f*math.PI;
@@ -852,38 +823,34 @@ class WormStateDisplay : AniStateDisplay {
         //all updates for jetpack flames
         //why is the jetpack so ridiculously complicated?
 
-        if (!state.is_jetpack) {
-            if (mJetFlames[0]) {
-                //right now, are not added anywhere
-                //mJetFlames[0].disable();
-                //mJetFlames[1].disable();
-            }
-        } else if (wsu) {
+        if (state.is_jetpack && wsu) {
             bool[2] down;
             down[0] = wsu.selfForce.x != 0;
             down[1] = wsu.selfForce.y < 0;
             Time t = now();
             foreach (int n, ref cur; mJetFlames) {
-                if (!cur)
-                    cur = new AniStateDisplay(owner);
-                cur.ani_params = ani_params;
+                void set_ani(Animation ani, Time start = Time.Null) {
+                    cur.ani = ani;
+                    cur.start = now() + start;
+                }
+
                 //for each direction: if the expected state does not equal the
                 //needed animation, reverse the current animation, so
                 //that the flame looks looks like it e.g. grows back
                 //the animation start time is adjusted so that the switch to the
                 //reversed animation is seamless
                 auto needed = down[n] ? state.flames[n] : state.rflames[n];
-                if (!cur.animation) {
+                if (!cur.ani) {
                     //so that the last frame is displayed
-                    cur.setAnimation(needed, -needed.duration());
+                    set_ani(needed, -needed.duration());
                 }
-                if (cur.animation is needed)
+                if (cur.ani is needed)
                     continue;
-                auto tdiff = t - cur.animation_start;
+                auto tdiff = t - cur.start;
                 if (tdiff >= needed.duration()) {
-                    cur.setAnimation(needed);
+                    set_ani(needed);
                 } else {
-                    cur.setAnimation(needed, -(needed.duration() - tdiff));
+                    set_ani(needed, -(needed.duration() - tdiff));
                 }
             }
         }
@@ -893,10 +860,12 @@ class WormStateDisplay : AniStateDisplay {
         super.draw(c);
         //additions for jetpack (overlays normal animation)
         WormState state = mCurSubSeq ? mCurSubSeq.owner : null;
-        if (state && state.is_jetpack) {
-            assert(!!mJetFlames[0]);
-            mJetFlames[0].draw(c);
-            mJetFlames[1].draw(c);
+        if (state.is_jetpack) {
+            foreach (ref cur; mJetFlames) {
+                assert(!!cur.ani);
+                cur.ani.draw(c, interpolated_position(), ani_params,
+                    now() - cur.start);
+            }
         }
     }
 }

@@ -19,7 +19,7 @@ CMD=
 function invoke_compiler
 {
     DMD_IS_BROKEN=+full
-    $CMD xfbuild +c$COMPILER $1.d +xtango -debug -g -L-lz -L-ldl +o$BINDIR$1 +D.deps_$1 +O.objs_$1 $DMD_IS_BROKEN
+    $CMD xfbuild +c$COMPILER $1.d +xtango -unittest -debug -g -L-lz -L-ldl +o$BINDIR$1 +D.deps_$1 +O.objs_$1 $DMD_IS_BROKEN
 }
 
 TARGETS="lumbricus extractdata test mdcl unworms animutil sdlimginfo"

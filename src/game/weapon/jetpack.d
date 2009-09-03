@@ -8,7 +8,7 @@ import game.weapon.weapon;
 import game.worm;
 import game.gamepublic;
 import game.sequence;
-import game.controller;
+import game.wcontrol;
 import physics.world;
 import utils.configfile;
 import utils.factory;
@@ -61,14 +61,14 @@ class Jetpack : Shooter, Controllable {
         WormSprite mWorm;
         Vector2f mMoveVector;
         float mJetTimeUsed = 0f;
-        TeamMember mMember;
+        WormControl mMember;
     }
 
     this(JetpackClass base, WormSprite a_owner) {
         super(base, a_owner, a_owner.engine);
         mWorm = a_owner;
         myclass = base;
-        mMember = engine.controller.memberFromGameObject(mWorm, false);
+        mMember = engine.controller.controlFromGameObject(mWorm, false);
     }
 
     this (ReflectCtor c) {

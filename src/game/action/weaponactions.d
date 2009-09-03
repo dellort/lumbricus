@@ -417,7 +417,7 @@ class WormSelectHelper : GameObject {
         //     called from doFire, which will set mMember.mWormAction = true
         //     afterwards and would conflict with the code below
         mMember.serverTeam.allowSelect = true;
-        mMember.resetActivity();
+        mMember.control.resetActivity();
         kill();
     }
 }

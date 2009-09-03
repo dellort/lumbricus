@@ -225,7 +225,7 @@ class RenderText {
 class GameEngineCallback {
     ///called if the weapon list of any team changes
     ///value increments, if the weapon list of any team changes
-    MDelegate!(Team) weaponsChanged;
+    MDelegate!(WeaponSet) weaponsChanged;
 
     //very hacky *sigh* - maybe controller should always generate events for
     //  showing damage labels, instead of making gameview.d poll it?

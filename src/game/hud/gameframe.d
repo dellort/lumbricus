@@ -56,14 +56,17 @@ class GameFrame : SimpleContainer {
         Vector2i mScrollToAtStart;
     }
 
-    //xxx: parameter bla seems to be a relict...
-    private void updateWeapons(Team bla) {
+    private void updateWeapons(WeaponSet bla) {
         TeamMember t = game.control.getControlledMember();
+        //don't change anything if another team's weapon set was changed
+        if (t && t.team.weapons !is bla)
+            return;
         mWeaponSel.update(t ? t.team.weapons : null);
     }
 
     private void teamChanged() {
-        updateWeapons(null);
+        TeamMember t = game.control.getControlledMember();
+        mWeaponSel.update(t ? t.team.weapons : null);
     }
 
     private void selectWeapon(WeaponClass c) {
@@ -73,7 +76,7 @@ class GameFrame : SimpleContainer {
     private void selectCategory(char[] category) {
         auto m = game.control.getControlledMember();
         mWeaponSel.checkNextWeaponInCategoryShortcut(category,
-            m?m.currentWeapon():null);
+            m?m.control.currentWeapon():null);
     }
 
     //scroll to level center

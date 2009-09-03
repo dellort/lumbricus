@@ -1032,38 +1032,38 @@ class GameEngine {
             w.serverTeam.doChooseWorm();
         });
         addWormCmd("jump", (TeamMember w, bool alt) {
-            w.jump(alt ? JumpMode.straightUp : JumpMode.normal);
+            w.control.jump(alt ? JumpMode.straightUp : JumpMode.normal);
         });
         addWormCmd("move", (TeamMember w, int x, int y) {
-            w.doMove(Vector2i(x, y));
+            w.control.doMove(Vector2i(x, y));
         });
         addWormCmd("weapon", (TeamMember w, char[] weapon) {
             WeaponClass wc;
             if (weapon != "-")
                 wc = w.engine.gfx.findWeaponClass(weapon, true);
-            w.selectWeapon(wc);
+            w.control.selectWeapon(wc);
         });
         addWormCmd("set_timer", (TeamMember w, int ms) {
-            w.doSetTimer(timeMsecs(ms));
+            w.control.doSetTimer(timeMsecs(ms));
         });
         addWormCmd("set_target", (TeamMember w, int x, int y) {
-            w.serverTeam.doSetPoint(Vector2f(x, y));
+            w.control.doSetPoint(Vector2f(x, y));
         });
         addWormCmd("select_fire_refire", (TeamMember w, char[] m, bool down) {
             WeaponClass wc = w.engine.gfx.findWeaponClass(m);
-            w.selectFireRefire(wc, down);
+            w.control.selectFireRefire(wc, down);
         });
         addWormCmd("selectandfire", (TeamMember w, char[] m, bool down) {
             if (down) {
                 WeaponClass wc;
                 if (m != "-")
                     wc = w.engine.gfx.findWeaponClass(m, true);
-                w.selectWeapon(wc);
+                w.control.selectWeapon(wc);
                 //doFireDown will save the keypress and wait if not ready
-                w.doFireDown(true);
+                w.control.doFireDown(true);
             } else {
                 //key was released (like fire behavior)
-                w.doFireUp();
+                w.control.doFireUp();
             }
         });
 
@@ -1098,9 +1098,9 @@ class GameEngine {
     private void executeWeaponFire(bool is_down) {
         void fire(TeamMember w) {
             if (is_down) {
-                w.doFireDown();
+                w.control.doFireDown();
             } else {
-                w.doFireUp();
+                w.control.doFireUp();
             }
         }
 

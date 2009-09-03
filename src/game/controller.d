@@ -17,6 +17,7 @@ import game.temp;
 import game.sequence;
 import game.gamemodes.base;
 import game.controller_events;
+import game.wcontrol;
 import physics.world;
 import utils.vector2;
 import utils.configfile;
@@ -32,22 +33,14 @@ import math = tango.math.Math;
 import tango.util.Convert : to;
 
 
-interface Controllable {
-    bool fire(bool keyDown);
-    bool jump(JumpMode j);
-    bool move(Vector2f m);
-    GObjectSprite getSprite();
-}
 
 class Team {
     char[] mName = "unnamed team";
     TeamTheme teamColor;
     int gravestone;
     WeaponSet weapons;
-    WeaponClass defaultWeapon;
+    //WeaponClass defaultWeapon;
     int initialPoints; //on loading
-    WeaponTarget currentTarget;
-    bool targetIsSet;
     GameController parent;
     bool forcedFinish;
 
@@ -56,13 +49,7 @@ class Team {
         TeamMember mCurrent;  //active worm that will receive user input
         TeamMember mLastActive;  //worm that played last (to choose next)
         bool mActive;         //is this team playing?
-        bool mOnHold;
 
-        //if you can click anything, if true, also show that animation
-        PointMode mPointMode;
-        Animator mCurrentTargetInd;
-
-        Vector2f movementVec = {0, 0};
         bool mAlternateControl;
         bool mAllowSelect;   //can next worm be selected by user (tab)
         char[] mTeamId, mTeamNetId;
@@ -146,7 +133,13 @@ class Team {
     }
 
     bool allowSelect() {
+        if (!mActive || !mCurrent)
+            return false;
         return mAllowSelect;
+    }
+
+    void allowSelect(bool allow) {
+        mAllowSelect = allow;
     }
 
     int globalWins() {
@@ -222,10 +215,9 @@ class Team {
         if (mCurrent)
             mCurrent.setActive(false);
         mCurrent = cur;
+        mLastActive = cur;
         if (mCurrent) {
             mCurrent.setActive(true);
-            //apply current movement (user may have pressed keys early)
-            mCurrent.move(movementVec);
         }
     }
     ///get active member (can be null)
@@ -238,13 +230,12 @@ class Team {
     }
 
     bool isControllable() {
-        return mActive && !mOnHold;
+        return current ? current.control.isControllable : false;
     }
 
     void setOnHold(bool hold) {
-        if (!mActive)
-            return;
-        mOnHold = hold;
+        if (current)
+            current.control.setOnHold(hold);
     }
 
     ///set if this team should be able to move/play
@@ -252,10 +243,9 @@ class Team {
     private void setActive(bool act) {
         if (act == mActive)
             return;
+        mActive = act;
         if (act) {
             //activating team
-            mActive = act;
-            setOnHold(false);
             if (!activateNextInRow()) {
                 //no worm could be activated (i.e. all dead)
                 mActive = false;
@@ -270,11 +260,7 @@ class Team {
             +/
         } else {
             //deactivating
-            mActive = act;
             current = null;
-            setPointMode(PointMode.none);
-            targetIsSet = false;
-            setOnHold(false);
             if (mDoubleDmg > 0) {
                 mDoubleDmg--;
             }
@@ -284,16 +270,12 @@ class Team {
 
     ///select the worm to play when team becomes active
     bool activateNextInRow() {
-        assert(mCurrent is null);
-        assert(mActive);
-        //this will activate the worm
-        auto next = nextActive();
-        current = next;
-        //current may change by user input, mLastActive will not
-        mLastActive = next;
-        if (!next)
+        if (!mActive)
             return false;
-        return true;
+        auto next = nextActive();
+        //this will activate the worm
+        current = next;
+        return !!current;
     }
 
     ///get the worm that would be next-in-row to move
@@ -302,17 +284,13 @@ class Team {
         return findNext(mLastActive, true);
     }
 
-    void allowSelect(bool allow) {
-        mAllowSelect = allow;
-    }
-
     ///choose next in reaction to user keypress
     void doChooseWorm() {
-        if (!mActive || !mCurrent || !mAllowSelect)
+        if (!allowSelect())
             return;
         //activates next, and deactivates current
         //special case: only one left -> current() will do nothing
-        current = findNext(mCurrent, true);
+        activateNextInRow();
     }
 
     char[] toString() {
@@ -328,85 +306,9 @@ class Team {
         return 0;
     }
 
-    //note: also clears the target indicator
-    void setPointMode(PointMode mode) {
-        if (mPointMode == mode)
-            return;
-        mPointMode = mode;
-        setIndicator(null);
-        //show X again, if set before
-        if (mode == PointMode.target && targetIsSet)
-            doSetPoint(currentTarget.currentPos);
-    }
-    private bool checkPointMode() {
-        return (mPointMode == PointMode.none || targetIsSet);
-    }
-    void doSetPoint(Vector2f where) {
-        if (mPointMode == PointMode.none || !isControllable)
-            return;
-
-        if (mPointMode == PointMode.instantFree) {
-            //move point out of landscape
-            if (!parent.engine.physicworld.freePoint(where, 6))
-                return;
-        }
-
-        targetIsSet = true;
-        currentTarget = where;
-
-        switch(mPointMode) {
-            case PointMode.targetTracking:
-                //find sprite closest to where
-                parent.engine.physicworld.objectsAtPred(where, 10,
-                    (PhysicObject obj) {
-                        currentTarget.sprite = cast(GObjectSprite)obj.backlink;
-                        return false;
-                    }, (PhysicObject obj) {
-                        return !!cast(GObjectSprite)obj.backlink;
-                    });
-                //fall-through
-            case PointMode.target:
-                //X animation
-                setIndicator(color.pointed, currentTarget.currentPos);
-                break;
-            case PointMode.instant, PointMode.instantFree:
-                //click effect
-                parent.engine.animationEffect(color.click,
-                    toVector2i(where), AnimationParams.init);
-
-                //instant mode -> fire and forget
-                current.doFireDown(true);
-                current.doFireUp();
-                targetIsSet = false;
-                break;
-            default:
-                assert(false);
-        }
-    }
-    private void setIndicator(Animation ani, Vector2f pos = Vector2f.init) {
-        //only one cross indicator
-        if (mCurrentTargetInd) {
-            mCurrentTargetInd.removeThis();
-            mCurrentTargetInd = null;
-        }
-        if (!ani)
-            return;
-        mCurrentTargetInd = new Animator(parent.engine.gameTime);
-        mCurrentTargetInd.pos = toVector2i(pos) ;
-        mCurrentTargetInd.setAnimation(ani);
-        mCurrentTargetInd.zorder = GameZOrder.Crosshair; //this ok?
-        parent.engine.scene.add(mCurrentTargetInd);
-    }
-
-    //select (and draw) a weapon by its id
-    void selectWeapon(WeaponClass weaponId) {
-        if (mCurrent)
-            mCurrent.selectWeapon(weaponId);
-    }
-
     bool teamAction() {
         if (mCurrent) {
-            return mCurrent.actionPerformed();
+            return mCurrent.control.actionPerformed();
         }
         return false;
     }
@@ -416,24 +318,13 @@ class Team {
     bool isIdle() {
         foreach (m; mMembers) {
             //check if any alive member is still moving around
-            if (m.alive() && !m.isIdle())
+            if (m.alive() && !m.control.isIdle())
                 return false;
         }
         return true;
     }
 
     void simulate() {
-        if (mCurrentTargetInd) {
-            if (targetIsSet && currentTarget.sprite) {
-                //worm tracking
-                mCurrentTargetInd.pos = toVector2i(currentTarget.currentPos);
-            }
-            //unused?
-            //if (mCurrentTargetInd.readyflag()) {
-            //    setIndicator(null);
-            //}
-        }
-
         bool has_active_worm;
 
         foreach (m; mMembers) {
@@ -443,6 +334,9 @@ class Team {
 
         if (!has_active_worm)
             setActive(false);
+
+        if (current && current.control.actionPerformed())
+            mAllowSelect = false;
     }
 
     bool checkDyingMembers() {
@@ -476,7 +370,6 @@ class Team {
 
     void addWeapon(WeaponClass w, int quantity = 1) {
         weapons.addWeapon(w, quantity);
-        parent.updateWeaponStats(null);
     }
 
     void skipTurn() {
@@ -490,9 +383,9 @@ class Team {
         parent.events.onTeamEvent(TeamEvent.surrender, this);
         current = null;
         //xxx: set worms to "white flag" animation first
-        foreach (m; mMembers) {
-            m.removeWorm();
-        }
+        //foreach (m; mMembers) {
+        //    m.removeWorm();
+        //}
     }
 
     void addDoubleDamage() {
@@ -505,27 +398,18 @@ class Team {
 }
 
 //member of a team, currently (and maybe always) capsulates a WormSprite object
-class TeamMember : WormController {
-    Team mTeam;
-    char[] mName = "unnamed worm";
-
+class TeamMember {
     private {
-        WeaponClass mCurrentWeapon;
-        WeaponClass mWormLastWeapon;
+        Team mTeam;
+        char[] mName = "unnamed worm";
         bool mActive;
-        Time mLastAction;
-        Time mLastActivity = timeSecs(-40);
-        WormSprite mWorm;
-        bool mWormAction;
-        Vector2f mLastMoveVector;
+        //GObjectSprite mWorm;
+        WormControl mWormControl;
         GameEngine mEngine;
-        int lastKnownLifepower;
-        int mLastKnownPhysicHealth;
+        int mLastKnownLifepower;
         int mCurrentHealth; //health value reported to client
-        bool mFireDown;
-        bool mWeaponUsed;
-        bool mLimitedMode;
-        Controllable[] mControlStack;
+        bool mDidGoodbye; //show drown death msg only once
+        bool mDeathAnnounced; //show normal death msg only once
     }
 
     this(char[] a_name, Team a_team) {
@@ -537,10 +421,8 @@ class TeamMember : WormController {
     this (ReflectCtor c) {
     }
 
-    void removeWorm() {
-        if (mWorm)
-            mLastKnownPhysicHealth = mWorm.physics.lifepowerInt;
-        mWorm = null;
+    final WormControl control() {
+        return mWormControl;
     }
 
     //send new health value to client
@@ -550,6 +432,15 @@ class TeamMember : WormController {
 
     bool needUpdateHealth() {
         return mCurrentHealth != health();
+    }
+
+    bool checkDying() {
+        bool r = control.checkDying();
+        if (r && !mDeathAnnounced) {
+            mDeathAnnounced = true;
+            mTeam.parent.events.onWormEvent(WormEvent.wormStartDie, this);
+        }
+        return r;
     }
 
     // --- start TeamMember
@@ -568,24 +459,11 @@ class TeamMember : WormController {
 
     bool alive() {
         //currently by havingwormspriteness... since dead worms haven't
-        return (mWorm !is null) && !mWorm.isDead();
+        return control.alive;
     }
 
     int currentHealth() {
         return mCurrentHealth;
-    }
-
-    //xxx: probably replace by something better
-
-    Sequence getGraphic() {
-        return sprite ? sprite.graphic : null;
-    }
-
-    Sequence getControlledGraphic() {
-        auto spr = sprite;
-        if (mControlStack.length > 0)
-            spr = mControlStack[$-1].getSprite();
-        return spr ? spr.graphic : null;
     }
 
     // --- end TeamMember
@@ -595,8 +473,8 @@ class TeamMember : WormController {
         //the thing is that a worm can be dead even if the physics report a
         //positive value - OTOH, we do want these negative values... HACK GO!
         //mLastKnownPhysicHealth is there because mWorm could disappear
-        auto h = mWorm ? mWorm.physics.lifepowerInt : mLastKnownPhysicHealth;
-        if (alive() || realHp) {
+        auto h = mWormControl.sprite.physics.lifepowerInt;
+        if (mWormControl.alive() || realHp) {
             return h;
         } else {
             return h < 0 ? h : 0;
@@ -604,32 +482,29 @@ class TeamMember : WormController {
     }
 
     private void place() {
-        if (mWorm)
-            return;
+        assert (!mWormControl);
         //create and place into the landscape
         //habemus lumbricus
-        mWorm = cast(WormSprite)mEngine.createSprite("worm");
-        mTeam.parent.addMemberGameObject(this, mWorm);
-        assert(mWorm !is null);
-        mWorm.physics.lifepower = mTeam.initialPoints;
-        lastKnownLifepower = health;
+        GObjectSprite worm = mEngine.createSprite("worm");
+        WormSprite xworm = castStrict!(WormSprite)(worm); //xxx no WormSprite
+        assert(worm !is null);
+        worm.physics.lifepower = mTeam.initialPoints;
+        mWormControl = new WormControl(worm);
+        mWormControl.setWeaponSet(mTeam.weapons);
+        mWormControl.setAlternateControl(mTeam.alternateControl);
+        mWormControl.setDelayedDeath();
+        mTeam.parent.addMemberGameObject(this, worm);
+        mLastKnownLifepower = health;
         updateHealth();
         //take control over dying, so we can let them die on end of turn
-        mWorm.delayedDeath = true;
-        mWorm.gravestone = mTeam.gravestone;
-        mWorm.teamColor = mTeam.color;
-        //set feedback interface to this class
-        mWorm.wcontrol = this;
+        xworm.gravestone = mTeam.gravestone;
+        xworm.teamColor = mTeam.color;
         //let Controller place the worm
-        mEngine.queuePlaceOnLandscape(mWorm);
+        mEngine.queuePlaceOnLandscape(worm);
     }
 
     GObjectSprite sprite() {
-        return mWorm;
-    }
-
-    WormSprite worm() {
-        return mWorm;
+        return mWormControl.sprite;
     }
 
     bool isControllable() {
@@ -644,441 +519,69 @@ class TeamMember : WormController {
     //apparently amount of lost healthpoints since last activation
     //tolerance: positive number of health points, whose loss can be tolerated
     bool lifeLost(int tolerance = 0) {
-        return health() + tolerance < lastKnownLifepower;
+        return health() + tolerance < mLastKnownLifepower;
     }
 
     void addHealth(int amount) {
-        if (mWorm) {
-            mWorm.physics.lifepower += amount;
-            lastKnownLifepower += amount;
-            updateHealth();
-        }
+        if (!mWormControl.alive())
+            return;
+        mWormControl.sprite.physics.lifepower += amount;
+        mLastKnownLifepower += amount;
+        updateHealth();
     }
 
     void setActive(bool act) {
+        mWormControl.setActive(act);
         if (mActive == act)
             return;
+        mActive = act;
         if (act) {
-            //member is being activated
-            mActive = act;
-            resetActivity();
-            mWeaponUsed = false;
-            mLimitedMode = false;
-            lastKnownLifepower = health;
-            //select last used weapon, select default if none
-            if (!mCurrentWeapon)
-                mCurrentWeapon = mTeam.defaultWeapon;
-            selectWeapon(mCurrentWeapon);
-        } else {
-            //being deactivated
-            controllableMove(Vector2f(0));
-            mControlStack = null;
-            move(Vector2f(0));
-            mTeam.setPointMode(PointMode.none);
-            mWormLastWeapon = null;
-            resetActivity();
-            mLastAction = Time.Null;
-            if (mWorm) {
-                //stop all action when turn ends
-                mWorm.activateJetpack(false);
-                mWorm.forceAbort();
-                mWorm.weapon = null;
-            }
-            mFireDown = false;
-            mActive = act;
+            mLastKnownLifepower = health;
+            //xxx: just another hack, yay
+            //make the hud show the current weapons
+            mEngine.callbacks.weaponsChanged(mTeam.weapons);
         }
         WormEvent event = mActive ? WormEvent.wormActivate
             : WormEvent.wormDeactivate;
         mTeam.parent.events.onWormEvent(event, this);
     }
 
-    void setLimitedMode() {
-        //can only leave this by deactivating
-        mLimitedMode = true;
-        mFireDown = false;
-        updateWeapon();
-    }
-
-    void jump(JumpMode j) {
-        if (!isControllable)
-            return;
-        bool eaten;
-        foreach_reverse (ctl; mControlStack) {
-            eaten = ctl.jump(j);
-            if (eaten)
-                break;
-        }
-        if (!eaten) {
-            //try alternate fire, if not possible jump instead
-            if (!doAlternateFire())
-                mWorm.jump(j);
-        }
-        wormAction();
-    }
-
-    WormAniState wormState() {
-        if (getGraphic() is null)
-            return WormAniState.invisible;
-
-        if (worm.hasDrowned())
-            return WormAniState.drowning;
-
-        if (!isControllable)
-            return WormAniState.noMovement;
-
-        if (mWorm.jetpackActivated())
-            return WormAniState.jetpackFly;
-
-        //no other possibilities currently
-        return WormAniState.walk;
-    }
-
-    WeaponClass currentWeapon() {
-        return mCurrentWeapon;
-    }
-
-    bool displayWeaponIcon() {
-        if (!mWorm)
-            return false;
-        //this is probably still bogus, what about other possible stuff like
-        //ropes etc. that could be added later?
-        //suggestion: define when exactly a worm can throw a weapon and attempt
-        //to display the weapon icon in these situations
-        return mCurrentWeapon && mWorm.displayWeaponIcon;
-    }
-
-    bool canUseWeapon(WeaponClass c) {
-        return c && mTeam.weapons.find(c).quantity > 0 && c.canUse(engine);
-    }
-
-    void selectWeapon(WeaponClass weapon) {
-        if (!isControllable || mLimitedMode)
-            return;
-        if (weapon && weapon !is mCurrentWeapon) {
-            wormAction();
-        }
-        mCurrentWeapon = weapon;
-        if (!canUseWeapon(mCurrentWeapon))
-            mCurrentWeapon = null;
-        updateWeapon();
-    }
-
-    //update weapon state of current worm (when new weapon selected)
-    private void updateWeapon() {
-        if (!mActive || !alive)
-            return;
-
-        WeaponClass selected = mCurrentWeapon;
-
-        if (!canUseWeapon(mCurrentWeapon) || mLimitedMode)
-            selected = null;
-
-        mTeam.parent.events.onSelectWeapon(this, selected);
-        mWorm.weapon = selected;
-    }
-
-    void doSetTimer(Time t) {
-        if (!isControllable || mLimitedMode)
-            return;
-
-        mWorm.setWeaponTimer(t);
-    }
-
-    private bool controllableFire(bool keyDown) {
-        bool ret;
-        foreach_reverse(ctl; mControlStack) {
-            ret = ctl.fire(keyDown);
-            if (ret)
-                break;
-        }
-        return ret;
-    }
-
-    private bool controllableMove(Vector2f m) {
-        bool ret;
-        foreach_reverse(ctl; mControlStack) {
-            ret = ctl.move(m);
-            if (ret)
-                break;
-        }
-        return ret;
-    }
-
-    void selectFireRefire(WeaponClass wc, bool keyDown) {
-        if (!isControllable)
-            return;
-
-        if (mWorm.altWeapon is wc) {
-            if (keyDown) {
-                mWorm.fireAlternate();
-                wormAction();
-            }
-            return;
-        } else if (mWorm.firedWeapon(false) is wc) {
-            if (keyDown)
-                doFireDown(true);
-            else
-                doFireUp();
-        } else {
-            selectWeapon(wc);
-        }
-    }
-
-    void doFireDown(bool forceSelected = false) {
-        if (!isControllable)
-            return;
-
-        bool success = true;
-        if (!controllableFire(true)) {
-            success = false;
-            if (mWorm.allowAlternate && !forceSelected && !mTeam.alternateControl) {
-                //non-alternate (worms-like) control -> spacebar disables
-                //background weapon if possible (like jetpack)
-                success = mWorm.fireAlternate();
-                wormAction();
-            } else if (mTeam.checkPointMode()) {
-                success = worm.fire(false, forceSelected);
-            }
-            //don't forget a keypress that had no effect
-            mFireDown = !success;
-        }
-        if (success)
-            wormAction();
-    }
-
-    void doFireUp() {
-        mFireDown = false;
-        if (!isControllable)
-            return;
-
-        if (controllableFire(false) || worm.fire(true)) {
-            wormAction();
-        }
-    }
-
-    //returns true if the keypress was taken
-    bool doAlternateFire() {
-        if (!isControllable)
-            return false;
-
-        if (mTeam.alternateControl) {
-            //alternate (new-lumbricus) control: alternate-fire button (return)
-            //refires background weapon (like jetpack-deactivation)
-            if (mWorm.allowAlternate())
-            {
-                mWorm.fireAlternate();
-                wormAction();
-                return true;
-            }
-        } else {
-            //worms-like: alternate-fire button (return) fires selected
-            //weapon if in secondary mode
-            if (mWorm.allowFireSecondary() && mTeam.checkPointMode()) {
-                if (worm.fire()) {
-                    wormAction();
-                }
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // Start WormController implementation (see game.worm) -->
-
-    WeaponTarget getTarget() {
-        return mTeam.currentTarget;
-    }
-
-    void reduceAmmo(Shooter sh) {
-        mTeam.weapons.decreaseWeapon(sh.weapon);
-        mTeam.parent.updateWeaponStats(this);
-        if (!canUseWeapon(sh.weapon))
-            //weapon ran out of ammo
-            sh.interruptFiring(true);
-        updateWeapon();
-        //xxx select next weapon when current is empty... oh sigh
-        //xxx also, select current weapon if we still have one, but weapon is
-        //    undrawn! (???)
-    }
-
-    void firedWeapon(Shooter sh, bool refire) {
-        assert(!!sh);
-        mTeam.parent.events.onFireWeapon(sh.weapon, refire);
-    }
-
-    void doneFiring(Shooter sh) {
-        if (!sh.weapon.dontEndRound)
-            mWeaponUsed = true;
-        if (sh.weapon.deselectAfterFire)
-            selectWeapon(null);
-    }
-
-    // <-- End WormController
-
-    //has the worm fired something since he became active?
-    bool weaponUsed() {
-        return mWeaponUsed;
-    }
-
-    Time lastAction() {
-        return mLastAction;
-    }
-
-    // != lastAction; last activity of the owned WormSprite (updated even if
-    // member is not active)
-    Time lastActivity() {
-        return mLastActivity;
-    }
-
-    //called if any action is issued, i.e. key pressed to control worm
-    //or if it was moved by sth. else
-    void wormAction() {
-        mWormAction = true;
-        mLastAction = mTeam.parent.engine.gameTime.current;
-        if (mTeam.allowSelect)
-            mTeam.allowSelect = false;
-    }
-    //has the worm done anything since activation?
-    bool actionPerformed() {
-        return mWormAction;
-    }
-
-    void resetActivity() {
-        mWormAction = false;
-        mLastAction = timeSecs(-40); //xxx not kosher
-    }
-
-    private void move(Vector2f vec) {
-        if (!alive || !isControllable || vec == mLastMoveVector) {
-            mWorm.move(Vector2f(0));
-            return;
-        }
-
-        mLastMoveVector = vec;
-        if (!controllableMove(vec))
-            mWorm.move(vec);
-        wormAction();
-    }
-
-    void doMove(Vector2i vec) {
-        //xxx: restrict movement vector, but is this correct?
-        vec.x = clampRangeC(vec.x, -1, +1);
-        vec.y = clampRangeC(vec.y, -1, +1);
-        move(toVector2f(vec));
-    }
-
-    bool isIdle() {
-        return mWorm.physics.isGlued;
-    }
-
     void simulate() {
-        //xxx checking all members every frame, too expensive?
-        if (!mWorm)
-            return;
+        mWormControl.simulate();
 
-        //check if a worm is really dead (i.e. "gone"), like after drowning,
-        //or when finished blowing himself up
-        if (mWorm.physics.dead) {
+        //mWormControl deactivates itself if the worm was e.g. injured
+        if (!mWormControl.active())
+            setActive(false);
+
+        //hack for HUD stuff
+        WormSprite worm = castStrict!(WormSprite)(mWormControl.sprite);
+        if (worm.physics.dead && !mDidGoodbye) {
+            mDidGoodbye = true;
             //xxx maybe rather have a onWormDie with a deathcause parameter?
-            WormEvent deathcause = mWorm.hasDrowned()
+            WormEvent deathcause = worm.hasDrowned()
                 ? WormEvent.wormDrown : WormEvent.wormDie;
             mTeam.parent.events.onWormEvent(deathcause, this);
             if (deathcause == WormEvent.wormDrown) {
                 //now it'd be nice if the clientengine could simply catch those
                 //  events, but instead I do this hack (also: need pos and lost)
-                Vector2i pos = toVector2i(mWorm.physics.pos);
+                Vector2i pos = toVector2i(worm.physics.pos);
                 int lost = mCurrentHealth - health();
                 mEngine.callbacks.memberDrown(this, lost, pos);
             }
-            //NOTES:
-            //drowning: drowned worms go physics.dead when reaching the bottom
-            //else: death by exploding; suiciding worms go physics.dead when
-            //      done blowing up
-            removeWorm();
-            return;
         }
-
-        if (mWorm && mWorm.activity())
-            mLastActivity = mEngine.gameTime.current;
-
-        if (!mActive)
-            return;
-
-        if (mWorm) {
-            if (mWorm.firedWeapon !is mWormLastWeapon) {
-                mWormLastWeapon = mWorm.firedWeapon;
-                if (mWormLastWeapon) {
-                    mTeam.setPointMode(mWormLastWeapon.fireMode.point);
-                } else {
-                    mTeam.setPointMode(PointMode.none);
-                }
-            }
-        }
-
-        //check if fire button is being held down, waiting for right state
-        if (mFireDown)
-            doFireDown();
-
-        //isn't done normally?
-        if (!alive())
-            setActive(false);
     }
 
     void youWinNow() {
-        if (mWorm)
-            mWorm.setState(mWorm.findState("win"));
+        control.youWinNow();
     }
 
     bool delayedAction() {
-        //check for any activity that might justify control beyond end-of-turn
-        //e.g. still charging a weapon, still firing a multi-shot weapon
-        return worm.delayedAction;
+        return control.delayedAction;
     }
 
     void forceAbort() {
         //forced stop of all action (like when being damaged)
-        mWorm.forceAbort();
-    }
-
-    void pushControllable(Controllable c) {
-        //if the new top object takes movement input, stop the current top
-        if (c.move(mLastMoveVector))
-            move(Vector2f(0));
-        mControlStack ~= c;
-    }
-
-    void releaseControllable(Controllable c) {
-        //stack gets cleared if the worm becomes inactive
-        if (mControlStack.length == 0)
-            return;
-        if (mControlStack.length > 1 && c is mControlStack[$-1]) {
-            //if removing the top object, transfer current movement to next
-            c.move(Vector2f(0));
-            mControlStack[$-2].move(mLastMoveVector);
-        }
-        //c does not have to be at the top of mControlStack
-        arrayRemove(mControlStack, c);
-    }
-
-    //checks if this worm wants to blow up, returns true if it wants to or is
-    //  in progress of blowing up
-    bool checkDying() {
-        //already dead -> boring
-        if (!mWorm)
-            return false;
-
-        //3 possible states: healthy, unhealthy but not suiciding, suiciding
-        if (mWorm.shouldDie() && !mWorm.isDelayedDying()) {
-            //unhealthy, not suiciding
-            mTeam.parent.events.onWormEvent(WormEvent.wormStartDie, this);
-            mWorm.finallyDie();
-            assert(mWorm.isDelayedDying() || mWorm.isDead());
-            return true;
-        } else if (mWorm.isDelayedDying()) {
-            //suiciding
-            return true;
-        }
-        return false;
+        control.forceAbort();
     }
 
     Team serverTeam() {
@@ -1087,153 +590,6 @@ class TeamMember : WormController {
 
     GameEngine engine() {
         return mEngine;
-    }
-}
-
-class WeaponSet {
-    GameEngine engine;
-    private {
-        Entry[] mEntries;
-    }
-
-    struct Entry {
-        //for the public: all fields readonly (writing getters would be bloat)
-        WeaponClass weapon;
-        uint quantity; //cINF means infinite
-        const cINF = typeof(quantity).max;
-
-        bool infinite() {
-            return quantity == cINF;
-        }
-
-        char[] quantityToString() {
-            if (infinite)
-                return "inf";
-            return to!(char[])(quantity);
-        }
-    }
-
-    //config = item from "weapon_sets"
-    this (GameEngine aengine, ConfigNode config, bool crateSet = false) {
-        this(aengine);
-        foreach (ConfigNode node; config.getSubNode("weapon_list")) {
-            WeaponClass w;
-            uint quantity;
-            char[] wname = node.name;
-            try {
-                //may throw ClassNotRegisteredException
-                w = engine.gfx.findWeaponClass(wname);
-                assert(!!w);
-            } catch (ClassNotRegisteredException e) {
-                registerLog("game.controller")
-                    ("Error in weapon set '"~wname~"': "~e.msg);
-            }
-            if (node.value == "inf") {
-                quantity = Entry.cINF;
-            } else {
-                quantity = node.getCurValue!(int)();
-            }
-            if (crateSet) {
-                //only drop weapons that are not infinite already,
-                //  and that can be used in the current world
-                if (quantity == Entry.cINF || !w.canUse(engine))
-                    quantity = 0;
-            }
-            addWeapon(w, quantity);
-        }
-    }
-
-    //create empty set
-    this(GameEngine aengine) {
-        engine = aengine;
-    }
-
-    this (ReflectCtor c) {
-    }
-
-    void saveToConfig(ConfigNode config) {
-        auto node = config.getSubNode("weapon_list");
-        node.clear();
-        foreach (Entry e; mEntries) {
-            node.setStringValue(e.weapon.name, e.quantityToString);
-        }
-    }
-
-    void iterate(void delegate(Entry e) dg) {
-        foreach (e; mEntries)
-            dg(e);
-    }
-
-    //linear search, but this isn't called that often and item count is low
-    private Entry* do_find(WeaponClass w, bool add) {
-        foreach (ref e; mEntries) {
-            if (e.weapon is w)
-                return &e;
-        }
-        if (!add)
-            return null;
-        assert(!!w);
-        Entry e;
-        e.weapon = w;
-        mEntries ~= e;
-        return &mEntries[$-1];
-    }
-
-    Entry find(WeaponClass w) {
-        Entry* p = do_find(w, false);
-        return p ? *p : Entry(w, 0);
-    }
-
-    //add weapons form other set to this set
-    void addSet(WeaponSet other) {
-        assert(!!other);
-        foreach (Entry e; other.mEntries) {
-            addWeapon(e.weapon, e.quantity);
-        }
-    }
-
-    //can pass Entry.cINF to make weapon infinite
-    void addWeapon(WeaponClass w, uint quantity = 1) {
-        if (!w || quantity < 1)
-            return;
-        Entry* e = do_find(w, true);
-        if (!e.infinite()) {
-            if (quantity == Entry.cINF) {
-                e.quantity = Entry.cINF;
-            } else {
-                e.quantity += quantity;
-            }
-        }
-    }
-
-    //decrease weapon by one - return if success
-    bool decreaseWeapon(WeaponClass w) {
-        Entry* e = do_find(w, false);
-        if (!e)
-            return false;
-        assert(e.quantity != 0); //unallowed state
-        if (!e.infinite())
-            e.quantity -= 1;
-        if (e.quantity == 0) {
-            //remove from array by moving the last array element into its place
-            size_t idx = e - mEntries.ptr;
-            assert(idx < mEntries.length);
-            mEntries[idx] = mEntries[$-1];
-            mEntries = mEntries[0..$-1];
-        }
-        return true;
-    }
-
-    //choose a random weapon based on this weapon set
-    //returns null if none was found
-    //xxx: Implement different drop probabilities (by value/current count)
-    WeaponClass chooseRandomForCrate() {
-        if (mEntries.length > 0) {
-            uint r = engine.rnd.next(0, mEntries.length);
-            return mEntries[r].weapon;
-        } else {
-            return null;
-        }
     }
 }
 
@@ -1354,14 +710,6 @@ class GameController {
     void addCrateTool(char[] id) {
         assert(arraySearch(mActiveCrateTools, id) < 0);
         mActiveCrateTools ~= id;
-    }
-
-    void updateWeaponStats(TeamMember m) {
-        changeWeaponList(m ? m.team : null);
-    }
-
-    private void changeWeaponList(Team t) {
-        engine.callbacks.weaponsChanged(t);
     }
 
     GameEngine engine() {
@@ -1591,6 +939,10 @@ class GameController {
         mGameObjectToMember[go] = member;
     }
 
+    //transitive:
+    //  false = go must be a team member worm; if not, return null
+    //  true = like false, but if go was created by a team member, also return
+    //      that team member
     TeamMember memberFromGameObject(GameObject go, bool transitive) {
         //typically, GameObject is transitively (consider spawning projectiles!)
         //created by a Worm
@@ -1614,6 +966,13 @@ class GameController {
         if (sh !is null)
             return sh.weapon;
         return null;
+    }
+
+    //return WormControl, by which go is controlled
+    //  transitive: go can also be something spawned by that WormControl
+    WormControl controlFromGameObject(GameObject go, bool transitive) {
+        TeamMember m = memberFromGameObject(go, transitive);
+        return m ? m.control : null;
     }
 
     void reportViolence(GameObject cause, GObjectSprite victim, float damage) {

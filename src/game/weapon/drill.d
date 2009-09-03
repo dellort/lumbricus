@@ -80,6 +80,7 @@ class Drill : Shooter {
     }
 
     override protected void updateActive() {
+        //xxx simply activate "firing" state for drill weapon (like minigun...)
         if (myclass.blowtorch)
             mWorm.activateBlowtorch(active);
         else

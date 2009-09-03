@@ -167,7 +167,7 @@ private class ViewMember {
     }
 
     void simulate() {
-        auto graphic = member.member.getGraphic();
+        Sequence graphic = member.member.control.sprite.graphic; //lololol
         bool guiIsActive = !!graphic;
         if (!guiIsActive) {
             removeGUI();
@@ -176,7 +176,7 @@ private class ViewMember {
             //xxx hurf hurf
             Sequence ag = graphic;
             assert (!!ag, "not attached to a worm?");
-            SequenceUpdate su = ag.getInfos();
+            Sequence su = ag;
             assert(!!su);
             //Animation ani = ag.animation;
             Rect2i bounds;
@@ -210,7 +210,7 @@ private class ViewMember {
             if (isActiveWorm) {
                 auto currentTime = owner.mGame.serverTime.current;
                 bool didmove = (currentTime - owner.mGame.control.
-                    getControlledMember.lastAction()) < cArrowDelta;
+                    getControlledMember.control.lastAction()) < cArrowDelta;
                 doMoveDown = !didmove;
             } else {
                 //move labels down, but arrow is invisible
@@ -236,7 +236,7 @@ private class ViewMember {
                 showLabels = !isActiveWorm;
             }
 
-            if (member.member.wormState == WormAniState.drowning) {
+            if (member.member.control.isDrowning()) {
                 showLabels = false;
             }
 
@@ -246,7 +246,7 @@ private class ViewMember {
             //that weapon label
             auto amember = owner.mGame.control.getControlledMember();
             bool weapon_visible = (amember is member.member)
-                && amember.displayWeaponIcon();
+                && amember.control.displayWeaponIcon();
 
             setWVisible(weaponIcon, weapon_visible);
             setArrowAnim(member.member.team.allowSelect());
@@ -258,7 +258,7 @@ private class ViewMember {
                 //for now, only animate the left/right change of the
                 //worm
 
-                weaponIcon.image = amember.currentWeapon.icon;
+                weaponIcon.image = amember.control.currentWeapon.icon;
 
                 //possibly fix the animation
                 //get where worm looks too
@@ -753,11 +753,11 @@ class GameView : Container {
         Sequence cur;
         TeamMember member = mGame.control.getControlledMember();
         if (member) {
-            cur = member.getGraphic();
+            cur = member.control.controlledSprite.graphic;
         }
 
         if (cur) {
-            Vector2f velocity = cur.getInfos().velocity;
+            Vector2f velocity = cur.velocity;
             Vector2i position = cur.interpolated_position();
             //the following calculates the optimum camera border based
             //  on the speed of the tracked object

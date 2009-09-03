@@ -251,7 +251,7 @@ class MyActionClass(alias Func, char[] args) : ActionClass {
     //xxx class
     this(GfxSet gfx, ConfigNode node, char[] a_name)
     {
-        super(a_name); //yyy
+        super(a_name);
         //parse parameters from node
         char[][] tmpArg = str.split(args, ",");
         foreach (int i, x; store.tupleof) {

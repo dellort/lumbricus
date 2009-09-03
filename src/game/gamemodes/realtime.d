@@ -140,7 +140,9 @@ class ModeRealtime : Gamemode {
                 //only blow up inactive worms
                 //Note: might blow up several worms concurrently,
                 //      I don't see any problems
-                if (engine.gameTime.current - m.lastActivity > cUpdateDelay) {
+                if (engine.gameTime.current - m.control.lastActivity
+                    > cUpdateDelay)
+                {
                     m.checkDying();
                     m.updateHealth();
                 }
@@ -153,7 +155,7 @@ class ModeRealtime : Gamemode {
                     //only activate worms that are not currently moving
                     auto next = t.nextActive();
                     if (next && engine.gameTime.current
-                        - next.lastActivity > cActivateDelay)
+                        - next.control.lastActivity > cActivateDelay)
                     {
                         logic.activateTeam(t);
                     }

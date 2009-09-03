@@ -41,7 +41,6 @@ class GObjectSprite : GameObject {
     //if it gets active again it's recreated again LOL
     Sequence graphic;
     SequenceState currentAnimation;
-    protected SequenceUpdate seqUpdate;
 
     private {
         //transient for savegames, Particle created from StaticStateInfo.particle
@@ -109,25 +108,22 @@ class GObjectSprite : GameObject {
 
         fillAnimUpdate();
 
-        //graphic.update(seqUpdate);
         graphic.simulate();
     }
 
-    //can be overriden by user, but he must set seqUpdate
-    protected void createSequenceUpdate() {
-        seqUpdate = new SequenceUpdate();
-    }
-
     protected void fillAnimUpdate() {
-        seqUpdate.position = physics.pos;
-        seqUpdate.velocity = physics.velocity;
-        seqUpdate.rotation_angle = physics.lookey_smooth;
+        assert(!!graphic);
+        graphic.position = physics.pos;
+        graphic.velocity = physics.velocity;
+        graphic.rotation_angle = physics.lookey_smooth;
         if (type.initialHp == float.infinity ||
             physics.lifepower == float.infinity ||
             type.initialHp == 0f)
-            seqUpdate.lifePercent = 1.0f;
-        else
-            seqUpdate.lifePercent = max(physics.lifepower / type.initialHp, 0f);
+        {
+            graphic.lifePercent = 1.0f;
+        } else {
+            graphic.lifePercent = max(physics.lifepower / type.initialHp, 0f);
+        }
     }
 
     private void updateParticles() {
@@ -205,7 +201,8 @@ class GObjectSprite : GameObject {
     //force position
     void setPos(Vector2f pos) {
         physics.setPos(pos, false);
-        fillAnimUpdate();
+        if (graphic)
+            fillAnimUpdate();
     }
 
     //do as less as necessary to force a new state
@@ -289,8 +286,7 @@ class GObjectSprite : GameObject {
             auto member = engine.controller ?
                 engine.controller.memberFromGameObject(this, true) : null;
             auto owner = member ? member.team : null;
-            graphic = new Sequence(engine, seqUpdate,
-                owner ? owner.teamColor : null);
+            graphic = new Sequence(engine, owner ? owner.teamColor : null);
             graphic.zorder = GameZOrder.Objects;
             engine.scene.add(graphic);
             physics.checkRotation();
@@ -328,7 +324,8 @@ class GObjectSprite : GameObject {
         }
         mWaterUpdated = false;
 
-        fillAnimUpdate();
+        if (graphic)
+            fillAnimUpdate();
 
         //xxx: added with sequence-messup
         if (graphic)
@@ -363,8 +360,6 @@ class GObjectSprite : GameObject {
 
         assert(type !is null);
         mType = type;
-
-        createSequenceUpdate();
 
         physics = new PhysicObject();
         physics.backlink = this;

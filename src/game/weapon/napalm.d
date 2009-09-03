@@ -29,7 +29,6 @@ class NapalmSprite : ProjectileSprite {
         Time mRepeatDelay;              //delay until next damage
         Time mLastDmg;                  //Time the last damage was caused
         float mDecaySecs;               //seconds for full decay
-        NapalmSequenceUpdate mNUpdate;  //sequence update, to report decay
         float mDecayPerc = 1.0f;        //cache for decay percentage
     }
 
@@ -84,15 +83,10 @@ class NapalmSprite : ProjectileSprite {
         }
     }
 
-    override protected void createSequenceUpdate() {
-        mNUpdate = new NapalmSequenceUpdate();
-        seqUpdate = mNUpdate;
-    }
-
     override protected void fillAnimUpdate() {
         super.fillAnimUpdate;
         //0: full size, 100: tiny
-        mNUpdate.decay = clampRangeC(100-cast(int)(mDecayPerc*80), 0, 100);
+        graphic.lifePercent = clampRangeC(100.0f-mDecayPerc*80, 0.0f, 100.0f);
     }
 
     this(GameEngine engine, NapalmSpriteClass type) {

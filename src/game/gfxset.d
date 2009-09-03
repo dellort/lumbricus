@@ -313,7 +313,7 @@ class GfxSet {
 
         foreach (char[] key, WeaponClass w; mWeaponClasses) {
             assert(key == w.name);
-            w.initSerialization(ctx);
+            ctx.addExternal(w, "weapon::" ~ w.name);
         }
 
         sequenceStates.initSerialization(ctx);

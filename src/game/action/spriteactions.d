@@ -17,7 +17,7 @@ import game.game;
 import game.gobject;
 import game.sprite;
 import game.sequence;
-import game.controller;
+import game.wcontrol;
 import game.gamepublic;
 import game.temp;
 import utils.misc;
@@ -344,7 +344,7 @@ class StuckTriggerAction : SpriteAction {
 
 class ControlRotateAction : SpriteAction, Controllable {
     private {
-        TeamMember mMember;
+        WormControl mMember;
         Vector2f mMoveVector;
         float mDirection, mRotateSpeed;
     }
@@ -353,7 +353,7 @@ class ControlRotateAction : SpriteAction, Controllable {
         float rotateSpeed)
     {
         super(parent, duration);
-        mMember = engine.controller.memberFromGameObject(mParent, true);
+        mMember = engine.controller.controlFromGameObject(mParent, true);
         mMember.pushControllable(this);
         //if given, use direction from config, physics velocity otherwise
         if (!isNaN(initDirection))

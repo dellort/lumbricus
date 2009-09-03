@@ -44,6 +44,8 @@ interface IControllable {
 }
 **/
 
+//feedback worm -> controller (implemented by controller)
+//xxx: there's also WormControl, but I want to remove WormController
 interface WormController {
     WeaponTarget getTarget();
 
@@ -102,9 +104,6 @@ class WormSprite : GObjectSprite {
         Time mThrowingStarted;
 
         Time mWeaponTimer;
-
-        //same like seqUpdate, but the exact type (I haet casting)
-        WormSequenceUpdate wseqUpdate;
 
         PhysicConstraint mRope;
         void delegate(Vector2f mv) mRopeMove;
@@ -225,13 +224,13 @@ class WormSprite : GObjectSprite {
     //if object wants to die; if true, call finallyDie() (etc.)
     //actually, object can have any state, it even can be dead
     //you should prefer isDead()
-    bool shouldDie() {
+    bool shouldBeDead() {
         return physics.lifepower <= 0;
     }
 
     //if worm is dead (including if worm is waiting to commit suicide)
     bool isDead() {
-        return shouldDie() || isReallyDead();
+        return shouldBeDead() || isReallyDead();
     }
     //less strict than isDead(): return false for not-yet-suicided worms
     //but true for suiciding worms
@@ -258,7 +257,7 @@ class WormSprite : GObjectSprite {
             if (isDelayedDying())
                 return;
             //assert(delayedDeath());
-            assert(shouldDie());
+            assert(shouldBeDead());
             setState(wsc.st_die);
         }
     }
@@ -296,7 +295,6 @@ class WormSprite : GObjectSprite {
             assert(!!curW);
 
             char[] w = curW.animations[WeaponWormAnimations.Arm];
-            //yyy Trace.formatln("weapon, {} {} {}", curW, shooting, w);
             if (shooting) {
                 char[] w_f = curW.animations[WeaponWormAnimations.Fire];
                 //firing animation is optional
@@ -332,16 +330,11 @@ class WormSprite : GObjectSprite {
         super.setCurrentAnimation();
     }
 
-    protected override void createSequenceUpdate() {
-        seqUpdate = wseqUpdate = new WormSequenceUpdate();
-    }
-
     protected override void fillAnimUpdate() {
         super.fillAnimUpdate();
-        assert(!!wseqUpdate);
-        wseqUpdate.pointto_angle = weaponAngle;
+        graphic.pointto_angle = weaponAngle;
         //for jetpack
-        wseqUpdate.selfForce = physics.selfForce;
+        graphic.selfForce = physics.selfForce;
     }
 
     //movement for walking/jetpack
@@ -990,7 +983,7 @@ class WormSprite : GObjectSprite {
         }
         checkReadjust();
         //check death
-        if (active && shouldDie() && !delayedDeath()) {
+        if (active && shouldBeDead() && !delayedDeath()) {
             finallyDie();
         }
     }
@@ -1253,7 +1246,7 @@ class RenderCrosshair : SceneObject {
         }
         +/
 
-        auto infos = cast(WormSequenceUpdate)mAttach.getInfos();
+        Sequence infos = mAttach;
         //xxx make this restriction go away?
         assert(!!infos,"Can only attach a target cross to worm sprites");
         auto pos = mAttach.interpolated_position; //toVector2i(infos.position);

@@ -146,7 +146,7 @@ class ModeTurnbased : Gamemode {
                         return TurnState.waitForSilence;
                 }
                 //if not in multishot mode, firing ends the turn
-                if (!config.multishot && mCurrentTeam.current.weaponUsed)
+                if (!config.multishot && mCurrentTeam.current.control.weaponUsed)
                     return TurnState.retreat;
                 if (!mCurrentTeam.current.alive       //active worm dead
                     || mCurrentTeam.current.lifeLost)   //active worm damaged
@@ -337,14 +337,14 @@ class ModeTurnbased : Gamemode {
                 break;
             case TurnState.retreat:
                 modeTime.paused = false;
-                mCurrentTeam.current.setLimitedMode();
+                mCurrentTeam.current.control.setLimitedMode();
                 break;
             case TurnState.waitForSilence:
                 modeTime.paused = true;
                 //no control while blowing up worms
                 if (mCurrentTeam) {
                     if (mCurrentTeam.current)
-                        mCurrentTeam.current.forceAbort();
+                        mCurrentTeam.current.control.forceAbort();
                     mCurrentTeam.setOnHold(true);
                 }
                 //if it's the turn's end, also take control early enough

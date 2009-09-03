@@ -14,7 +14,8 @@ import game.actionsprite, game.controller, game.crate, game.game,
     game.gamemodes.mdebug, game.gamemodes.realtime, game.weapon.drill,
     game.controller_plugins, game.levelgen.renderer, game.action.base,
     game.action.list, game.action.weaponactions, game.action.spriteactions,
-    game.action.spawn, game.action.wcontext, game.action.common;
+    game.action.spawn, game.action.wcontext, game.action.common,
+    game.wcontrol;
 import common.scene, common.animation;
 import physics.world;
 import utils.random;
@@ -30,11 +31,11 @@ void initGameSerialization() {
         CollectableWeapon, CollectableMedkit, CrateSprite, GameLandscape,
         LandscapeGeometry, GObjectSprite, BeamHandler, ActionShooter,
         ProjectileSprite, RayShooter, Sequence,
-        SequenceUpdate, Jetpack, Rope, Drill, WormSprite, WormSelectHelper,
-        GravestoneSprite, WormSequenceUpdate, WrapFireInfo, RandomJumpAction,
+        Jetpack, Rope, Drill, WormSprite, WormSelectHelper,
+        GravestoneSprite, WrapFireInfo, RandomJumpAction,
         Animator,
         RenderText, RenderLandscape, RenderRope, Scene,
-        RenderCrosshair, NapalmSequenceUpdate,
+        RenderCrosshair,
         NapalmSprite, ModeTurnbased, ModeDebug, TimeSource, StuckTriggerAction,
         TimeSourceFixFramerate, TurnbasedStatus, HomingAction, SpriteAction,
         MeleeWeapon, MeleeShooter, WeaponContext, DelayedObj,
@@ -42,7 +43,8 @@ void initGameSerialization() {
         CollectableToolDoubleTime, ControllerMsgs, ControllerStats,
         ControllerPersistence, CollectableToolDoubleDamage, /+LandscapeBitmap,+/
         GravityCenterAction, ProximitySensorAction,
-        NapalmStateDisplay, WormStateDisplay);
+        NapalmStateDisplay, WormStateDisplay,
+        WormControl);
     /+
     //stuff that is actually redundant and wouldn't need to be in savegames
     //but excluding this from savegames would be too much work for nothing

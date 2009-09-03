@@ -59,7 +59,7 @@ class ControllerMsgs : GamePluginAutoReg {
         c.transient(this, &showMessage);
     }
 
-    mixin(genRegFunc(["onGameStart", "onSelectWeapon", "onWormEvent",
+    mixin(genRegFunc(["onGameStart", "onWormEvent",
         "onTeamEvent", "onCrateDrop", "onCrateCollect", "onSuddenDeath",
         "onVictory", "onGameEnded"]));
 
@@ -68,17 +68,6 @@ class ControllerMsgs : GamePluginAutoReg {
         if (cast(ModeDebug)mode) {
             messageAdd("msgdebuground");
         }
-    }
-
-    private void onSelectWeapon(TeamMember m, WeaponClass wclass) {
-        //xxx just copying old code... maybe this can be extended to show
-        //    grenade timer messages (like in wwp)
-        /*if (wclass) {
-            messageAdd("msgselweapon", ["_.weapons." ~ wclass.name],
-                m.team, m.team);
-        } else {
-            messageAdd("msgnoweapon", null, m.team, m.team);
-        }*/
     }
 
     private void onWormEvent(WormEvent id, TeamMember m) {

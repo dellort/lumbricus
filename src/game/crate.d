@@ -63,7 +63,7 @@ class CollectableWeapon : Collectable {
     }
 
     void collect(CrateSprite parent, TeamMember member) {
-        member.mTeam.addWeapon(weapon, quantity);
+        member.team.addWeapon(weapon, quantity);
     }
 
     char[] id() {

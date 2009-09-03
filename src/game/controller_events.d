@@ -41,10 +41,8 @@ struct ControllerEvents {
     //number of pixels, cause
     MDelegate!(int, GameObject) onDemolition;
 
-    //worm draws a weapon (wclass may be null if weapon was put away)
-    MDelegate!(TeamMember, WeaponClass) onSelectWeapon;
     //used weapon, refired
-    MDelegate!(WeaponClass, bool) onFireWeapon;
+    MDelegate!(WeaponClass, bool) onFireWeapon; //xxx: broken, see wcontrol.d
     MDelegate!(WormEvent, TeamMember) onWormEvent;
     MDelegate!(TeamEvent, Team) onTeamEvent;
 
