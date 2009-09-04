@@ -56,7 +56,7 @@ class WormControl : WormController {
         WeaponClass mCurrentWeapon;
         WeaponClass mWormLastWeapon;
         WeaponClass mCurrentEquipment;
-        bool mActive;
+        bool mEngaged;
         Time mLastAction;
         Time mLastActivity = timeSecs(-40);
         bool mWormAction;
@@ -113,10 +113,10 @@ class WormControl : WormController {
     }
 
     //set on-hold mode; in on-hold mode, the worm is not controllable, although
-    //  it stays active (e.g. weapon state is not changed)
+    //  it stays engaged (e.g. weapon state is not changed)
     //on-hold mode is automatically reset to false if worm is (de)activated
     void setOnHold(bool v) {
-        if (!mActive)
+        if (!mEngaged)
             return;
         mOnHold = v;
     }
@@ -139,8 +139,8 @@ class WormControl : WormController {
             mWorm.activateJetpack(false);
     }
 
-    bool alive() {
-        return !mWorm.isDead();
+    bool isAlive() {
+        return mWorm.isAlive();
     }
 
     //always the worm
@@ -157,18 +157,19 @@ class WormControl : WormController {
         }
     }
 
-    //this "active" is about whether the worm should be made controllable etc.
-    //active=true: worm normally is controllable; but might not be controllable
-    //  if setOnHold(true) was called (after activating)
-    //active=false: normally nothing goes on, but stuff might be still in
+    //this "engaged" is about whether the worm can be made controllable etc.
+    //engaged=true: worm normally is controllable; but might not be controllable
+    //  if setOnHold(true) was called (after engaging)
+    //  a weapon can be selected, but doesn't need to
+    //engaged=false: normally nothing goes on, but stuff might be still in
     //  progress; e.g. worm is flying around, or dying animation is played
-    void setActive(bool act) {
-        if (mActive == act)
+    void setEngaged(bool eng) {
+        if (mEngaged == eng)
             return;
 
-        if (act) {
+        if (eng) {
             //worm is being activated
-            mActive = true;
+            mEngaged = true;
             mWeaponUsed = false;
             mLimitedMode = false;
             //select last used weapon, select default if none
@@ -194,7 +195,7 @@ class WormControl : WormController {
             mTargetIsSet = false;
 
             mFireDown = false;
-            mActive = false;
+            mEngaged = false;
         }
 
         mOnHold = false;
@@ -202,8 +203,8 @@ class WormControl : WormController {
         resetActivity();
     }
 
-    bool active() {
-        return mActive;
+    bool engaged() {
+        return mEngaged;
     }
 
     void setLimitedMode() {
@@ -214,9 +215,9 @@ class WormControl : WormController {
     }
 
     bool isControllable() {
-        if (mActive)
-            assert(alive());
-        return mActive && !mOnHold;
+        if (mEngaged)
+            assert(isAlive());
+        return mEngaged && !mOnHold;
     }
 
     void jump(JumpMode j) {
@@ -276,7 +277,7 @@ class WormControl : WormController {
 
     //update weapon state of current worm (when new weapon selected)
     private void updateWeapon() {
-        if (!mActive || !alive)
+        if (!mEngaged || !isAlive())
             return;
 
         WeaponClass selected = mCurrentWeapon;
@@ -423,7 +424,7 @@ class WormControl : WormController {
 
     // <-- End WormController
 
-    //has the worm fired something since he became active?
+    //has the worm fired something since he became engaged?
     bool weaponUsed() {
         return mWeaponUsed;
     }
@@ -433,7 +434,7 @@ class WormControl : WormController {
     }
 
     // != lastAction; last activity of the owned WormSprite (updated even if
-    // member is not active)
+    // member is not engaged)
     Time lastActivity() {
         return mLastActivity;
     }
@@ -458,7 +459,7 @@ class WormControl : WormController {
     }
 
     private void move(Vector2f vec) {
-        if (!alive || !isControllable) {
+        if (!isAlive() || !isControllable) {
             mMoveVector = Vector2f(0);
             mWorm.move(mMoveVector);
             return;
@@ -500,7 +501,7 @@ class WormControl : WormController {
         if (mWorm && mWorm.activity())
             mLastActivity = mEngine.gameTime.current;
 
-        if (!mActive)
+        if (!mEngaged)
             return;
 
         if (mWorm.firedWeapon !is mWormLastWeapon) {
@@ -516,12 +517,14 @@ class WormControl : WormController {
         if (mFireDown)
             doFireDown();
 
-        //isn't done normally?
-        if (!alive())
-            setActive(false);
+        //if the worm can't be controlled anymore due to circumstances
+        //right now: if the worm died or is drowning
+        if (!mWorm.haveAnyControl())
+            setEngaged(false);
 
         //if moving (by keys or by itself), the worm is performing an action
         //xxx: what if it moves by itself? (e.g. worm swings on a rope)
+        //     okok, there's mWorm.activity() too. and lastActivity()
         if (mMoveVector != Vector2f(0)) {
             wormAction();
         }
@@ -550,7 +553,7 @@ class WormControl : WormController {
     }
 
     void releaseControllable(Controllable c) {
-        //stack gets cleared if the worm becomes inactive
+        //stack gets cleared if the worm becomes unengaged
         if (mControlStack.length == 0)
             return;
         if (mControlStack.length > 1 && c is mControlStack[$-1]) {
@@ -573,11 +576,11 @@ class WormControl : WormController {
         //  healthy, unhealthy but not suiciding, suiciding, dead and done
 
         //worm is healthy?
-        if (!mWorm.shouldBeDead())
+        if (mWorm.isAlive())
             return false;
 
         //dead and done?
-        if (mWorm.isReallyReallyDead())
+        if (mWorm.isReallyDead())
             return false;
 
         //worm is dead, but something is in progress (waiting/suiciding)
@@ -586,7 +589,6 @@ class WormControl : WormController {
             //unhealthy, not suiciding
             //=> start suiciding
             mWorm.finallyDie();
-            assert(mWorm.isDelayedDying() || mWorm.isDead());
         }
 
         return true;
@@ -668,4 +670,6 @@ class WormControl : WormController {
         mCurrentTargetInd.zorder = GameZOrder.Crosshair; //this ok?
         mEngine.scene.add(mCurrentTargetInd);
     }
+
+    //-- moved from worm.d
 }

@@ -12,6 +12,7 @@ import utils.time;
 import utils.list2;
 import utils.log;
 import utils.misc;
+import utils.array : BigArray;
 import drawing = utils.drawing;
 import math = tango.math.Math;
 import digest = tango.io.digest.Digest;
@@ -290,6 +291,8 @@ class LandscapeBitmap {
         Surface tex_up, Surface tex_down)
     {
         assert(!!mImage, "No border drawing for data-only renderer");
+        ubyte[] apline;
+
         //it always scans in the given direction; to draw both borders where "a"
         //is on top ob "b" and where "b" is on top of "a", you have to call this
         //twice (which isn't a problem, since you might want to use different
@@ -313,7 +316,7 @@ class LandscapeBitmap {
             Color.RGBA32* dstptr; uint dstpitch;
             mImage.lockPixelsRGBA32(dstptr, dstpitch);
 
-            ubyte[] apline = new ubyte[mWidth]; //initialized to 0
+            apline[] = 0; //initialize to 0
             int start = up ? mHeight-1 : 0;
             for (int y = start; y >= 0 && y <= mHeight-1; y += dir) {
                 Color.RGBA32* scanline = dstptr + y*dstpitch;
@@ -367,8 +370,6 @@ class LandscapeBitmap {
                 tmpData[y*mWidth..(y+1)*mWidth] = apline;
             }
 
-            delete apline;
-
             mImage.unlockPixels(Rect2i(Vector2i(0), mImage.size));
             texture.unlockPixels(Rect2i.init);
         }
@@ -379,14 +380,16 @@ class LandscapeBitmap {
         }
 
         //stores temporary data between up and down pass
-        ubyte[] tmp = new ubyte[mWidth*mHeight];
+        scope tmp_array = new BigArray!(ubyte)(mWidth*mHeight);
+        ubyte[] tmp = tmp_array[];
+
+        scope apline_array = new BigArray!(ubyte)(mWidth);
+        apline = apline_array[];
 
         if (do_down)
             drawBorderInt(a, b, false, tex_down, tmp);
         if (do_up)
             drawBorderInt(a, b, true, tex_up, tmp);
-
-        delete tmp;
 
         debug {
             counter.stop();

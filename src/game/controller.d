@@ -459,7 +459,7 @@ class TeamMember {
 
     bool alive() {
         //currently by havingwormspriteness... since dead worms haven't
-        return control.alive;
+        return control.isAlive();
     }
 
     int currentHealth() {
@@ -474,7 +474,7 @@ class TeamMember {
         //positive value - OTOH, we do want these negative values... HACK GO!
         //mLastKnownPhysicHealth is there because mWorm could disappear
         auto h = mWormControl.sprite.physics.lifepowerInt;
-        if (mWormControl.alive() || realHp) {
+        if (mWormControl.isAlive() || realHp) {
             return h;
         } else {
             return h < 0 ? h : 0;
@@ -507,10 +507,6 @@ class TeamMember {
         return mWormControl.sprite;
     }
 
-    bool isControllable() {
-        return mActive && alive() && mTeam.isControllable();
-    }
-
     char[] toString() {
         return "[tworm " ~ (mTeam ? mTeam.toString() : null) ~ ":'" ~ name ~ "']";
     }
@@ -523,7 +519,7 @@ class TeamMember {
     }
 
     void addHealth(int amount) {
-        if (!mWormControl.alive())
+        if (!mWormControl.isAlive())
             return;
         mWormControl.sprite.physics.lifepower += amount;
         mLastKnownLifepower += amount;
@@ -531,7 +527,7 @@ class TeamMember {
     }
 
     void setActive(bool act) {
-        mWormControl.setActive(act);
+        mWormControl.setEngaged(act);
         if (mActive == act)
             return;
         mActive = act;
@@ -550,7 +546,7 @@ class TeamMember {
         mWormControl.simulate();
 
         //mWormControl deactivates itself if the worm was e.g. injured
-        if (!mWormControl.active())
+        if (!mWormControl.engaged())
             setActive(false);
 
         //hack for HUD stuff

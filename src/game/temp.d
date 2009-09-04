@@ -11,14 +11,6 @@ enum JumpMode {
     straightUp,  ///jump straight up (backspace)
 }
 
-///tells if and what kinds of weapons can be used (draw, aim, fire)
-enum WeaponMode {
-    none,        ///no use of weapons possible
-                 ///(falling, retreating after fire, ...)
-    full,        ///full weapon set available
-    secondary,   ///limited weapon set (jetpack-flying, ...)
-}
-
 enum CrateType {
     weapon,
     med,

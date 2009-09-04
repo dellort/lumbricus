@@ -6,11 +6,22 @@ import utils.log;
 import utils.misc;
 import utils.time;
 import utils.hashtable;
+import utils.array : Appender;
 
 import str = utils.string;
 import memory = tango.core.Memory;
 
 private LogStruct!("utils.snapshot") log;
+
+/+
+xxx TODO:
+    arrays are not handled correctly: on snapshot rollback, the current slice
+    memory is overwritten with the old contents, even if the slices were set to
+    something else (e.g. "snap(); array = somethingelse; unsnap();" =>
+    "somethingelse" gets overwritten, instead of the old array)
+    solution: compare the slice descriptors on rollback, which means we have to
+    store the slice descriptors in memory scanned by the GC...
++/
 
 
 class SnapDescriptors {

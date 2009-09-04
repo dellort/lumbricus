@@ -426,7 +426,6 @@ private:
 
     private void cmdGrab(MyBox[] args, Output write) {
         auto state = args[0].unbox!(bool)();
-        gFramework.grabInput = state;
         //gFramework.cursorVisible = !state;
         gFramework.mouseLocked = state;
     }

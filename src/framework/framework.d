@@ -109,7 +109,6 @@ abstract class FrameworkDriver {
 
 struct DriverInputState {
     bool mouse_visible = true;
-    bool grab_input;
     bool mouse_locked;
 }
 
@@ -910,16 +909,6 @@ class Framework {
         mDriver.setMousePos(newPos);
     }
 
-    bool grabInput() {
-        return mDriver.getInputState().grab_input;
-    }
-
-    void grabInput(bool grab) {
-        auto state = mDriver.getInputState();
-        state.grab_input = grab;
-        mDriver.setInputState(state);
-    }
-
     //--- driver input callbacks
 
     //xxx should be all package or so, but that doesn't work out
@@ -1131,10 +1120,6 @@ class Framework {
 
             mFPSFrameCount++;
         }
-
-        //make sure to release the grab
-        //at least stupid X11 keeps the grab when the program ends
-        grabInput = false;
     }
 
     private bool doTerminate() {

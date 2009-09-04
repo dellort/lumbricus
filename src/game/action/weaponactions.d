@@ -109,7 +109,7 @@ void homing(WeaponContext wx, float forceA, float forceT) {
 }
 
 void team(WeaponContext wx, char[] action) {
-    auto w = cast(WormSprite)wx.ownerSprite;
+    auto w = wx.ownerSprite;
     if (!w)
         return;
     auto member = wx.engine.controller.memberFromGameObject(w, false);

@@ -85,7 +85,7 @@ class WormSprite : GObjectSprite {
         //by default off, GameController can use this
         bool mDelayedDeath;
 
-        bool mIsDead, mHasDrowned;
+        bool mHasDrowned;
 
         int mGravestone;
 
@@ -205,7 +205,7 @@ class WormSprite : GObjectSprite {
 
     //if can move etc.
     bool haveAnyControl() {
-        return !isDead();
+        return isAlive() && currentState !is wsc.st_drowning;
     }
 
     void gravestone(int grave) {
@@ -221,51 +221,88 @@ class WormSprite : GObjectSprite {
         return mDelayedDeath;
     }
 
-    //if object wants to die; if true, call finallyDie() (etc.)
-    //actually, object can have any state, it even can be dead
-    //you should prefer isDead()
-    bool shouldBeDead() {
-        return physics.lifepower <= 0;
+    /+
+     + Death is a complicated thing. There are 4 possibilities (death states):
+     +  1. worm is really REALLY alive
+     +  2. worm is dead, but still sitting around on the landscape (HUD still
+     +     displays >0 health points, although HP is usually <= 0)
+     +     this is "delayed death", until the gamemode stuff actually triggers
+     +     dying with checkDying()
+     +  3. worm is dead and in the progress of suiciding (an animation is
+     +     displayed, showing the worm blowing up itself)
+     +  4. worm is really REALLY dead, and is not visible anymore
+     +     (worm sprite gets replaced by a gravestone sprite)
+     + For the game, the only difference between 1. and 2. is, that in 2. the
+     + worm is not controllable anymore. In 2., the health points usually are
+     + <= 0, but for the game logic (and physics etc.), the worm is still alive.
+     + The worm can only be engaged in state 1.
+     +
+     + If delayed death is not enabled (with setDelayedDeath()), state 2 is
+     + skipped.
+     +
+     + When the worm is drowning, it's still considered alive. (xxx: need to
+     + implement this properly) The worm dies with state 4 when it reaches the
+     + "death zone".
+     +
+     + Note the the health points amount can be > 0 even if the worm is dead.
+     + e.g. when the worm drowned and died on the death zone.
+     +/
+
+    //death states: 1
+    //true: alive and healthy
+    //false: waiting for suicide, suiciding, or dead and removed from world
+    bool isAlive() {
+        return physics.lifepower > 0 && !physics.dead;
     }
 
-    //if worm is dead (including if worm is waiting to commit suicide)
-    bool isDead() {
-        return shouldBeDead() || isReallyDead();
-    }
-    //less strict than isDead(): return false for not-yet-suicided worms
-    //but true for suiciding worms
-    bool isReallyDead() {
-        return mIsDead;
-    }
-    //returns true if suiciding is also done
-    bool isReallyReallyDead() {
-        return mIsDead && currentState is wsc.st_dead;
+    //death states: 2 and 3
+    //true: waiting for suicide or suiciding
+    //false: anything else
+    bool isWaitingForDeath() {
+        return !isAlive() && !isReallyDead();
     }
 
-    //true if worm has died by drowning (may still be floating down)
+    //death states: 4
+    //true: dead and removed from world
+    //false: anything else
+    bool isReallyDead()
+    out (res) { assert(!res || (physics.lifepower < 0) || physics.dead); }
+    body {
+        return currentState is wsc.st_dead;
+    }
+
+    //true if worm has died by drowning
+    //xxx change in this way:
+    //  - health points loss is always reported as (sprite, amountofloss)
+    //  - gameview.d finds the TeamMember for the sprite
+    //  - gameview.d checks the sprite position, and if it's under water,
+    //    play the floating health point label animation; if not under water,
+    //    the normal HP label animation
     bool hasDrowned() {
-        return isReallyDead() && mHasDrowned;
+        return mHasDrowned;
     }
 
     //if suicide animation played
     bool isDelayedDying() {
-        return isReallyDead() && currentState is wsc.st_die;
+        return currentState is wsc.st_die;
     }
 
     void finallyDie() {
+        if (isAlive())
+            return;
         if (active) {
             if (isDelayedDying())
                 return;
             //assert(delayedDeath());
-            assert(shouldBeDead());
+            assert(!isAlive());
             setState(wsc.st_die);
         }
     }
 
     override protected void die() {
-        //just to be safe
-        mIsDead = true;
         super.die();
+        if (currentState !is wsc.st_dead)
+            setState(wsc.st_dead);
     }
 
     protected this (GameEngine engine, WormSpriteClass spriteclass) {
@@ -754,9 +791,8 @@ class WormSprite : GObjectSprite {
         auto toW = cast(WormStateInfo)to;
         //Trace.formatln("state {} -> {}", from.name, to.name);
 
-        if (!mIsDead && (currentState is wsc.st_drowning)) {
+        if (from is wsc.st_drowning && to is wsc.st_dead) {
             //die by drowning - are there more actions needed?
-            mIsDead = true;
             mHasDrowned = true;
         }
 
@@ -781,12 +817,8 @@ class WormSprite : GObjectSprite {
             updateCrosshair();
         }
 
-        if (to is wsc.st_die) {
-            mIsDead = true;
-        }
         //die by blowing up
         if (to is wsc.st_dead) {
-            mIsDead = true;
             die();
             //explosion!
             engine.explosionAt(physics.pos, wsc.suicideDamage, this);
@@ -983,7 +1015,7 @@ class WormSprite : GObjectSprite {
         }
         checkReadjust();
         //check death
-        if (active && shouldBeDead() && !delayedDeath()) {
+        if (active && !isAlive() && !delayedDeath()) {
             finallyDie();
         }
     }

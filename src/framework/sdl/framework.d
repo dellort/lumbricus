@@ -388,6 +388,7 @@ class SDLDriver : FrameworkDriver {
 
         Vector2i mDesktopRes;
 
+        //SDL window is focused
         bool mInputFocus = true;
     }
     package {
@@ -624,7 +625,15 @@ class SDLDriver : FrameworkDriver {
         if (state == mInputState)
             return;
         setLockMouse(state.mouse_locked);
-        SDL_WM_GrabInput(state.grab_input ? SDL_GRAB_ON : SDL_GRAB_OFF);
+        mInputState = state;
+        update_sdl_mouse_state();
+    }
+
+    private void update_sdl_mouse_state() {
+        bool cursor_visible = mInputState.mouse_visible;
+        //never hide cursor when not focused
+        if (!mInputFocus)
+            cursor_visible = true;
         //NOTE: ShowCursor is buggy, don't use (Windows, fullscreen)
         //SetCursor is used instead
         //SDL_ShowCursor(state.mouse_visible ? SDL_ENABLE : SDL_DISABLE);
@@ -636,8 +645,7 @@ class SDLDriver : FrameworkDriver {
         //but it really should be -1, not 255
         //so this call did crap: SDL_ShowCursor(SDL_QUERY);
         // WHO THE FUCK DID COME UP WITH "enum : Uint8"??? RAGE RAGE RAGE RAGE
-        SDL_SetCursor(state.mouse_visible ? mCursorStd : mCursorNull);
-        mInputState = state;
+        SDL_SetCursor(cursor_visible ? mCursorStd : mCursorNull);
     }
 
     void setMousePos(Vector2i p) {
@@ -795,8 +803,10 @@ class SDLDriver : FrameworkDriver {
                 case SDL_ACTIVEEVENT:
                     bool gain = !!event.active.gain;
                     auto state = event.active.state;
-                    if (state & SDL_APPINPUTFOCUS)
+                    if (state & SDL_APPINPUTFOCUS) {
                         mInputFocus = gain;
+                        update_sdl_mouse_state();
+                    }
                     if (state & SDL_APPACTIVE) {
                         //gain tells if the window is visible (even if fully
                         //  obscured by other windows) or iconified; on Linux,

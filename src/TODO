@@ -52,6 +52,7 @@
 - gui muss beim laden von savegames wiederhergestellt werden (spiele-einstellungsdialog)
 - Projektil fliegt durch wenige Pixel dicke Landschaft, wenn der Wurm beim Feuern direkt davorsteht
 ! napalm ist sehr langsam, minenagriff nicht => ?
+- in broadcast.d, SocketSet allokiert speicher, der der GC überlassen wird (entweder bug report für Tango um eine free() methode hinzuzufügen, oder: blockierender thread?)
 
 
 == GUI (allgemeine Features) ==

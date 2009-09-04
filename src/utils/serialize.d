@@ -4,6 +4,7 @@ import utils.configfile;
 import utils.reflect.all;
 import utils.misc;
 import utils.hashtable;
+import utils.array : Appender;
 import str = utils.string;
 
 import conv = tango.util.Convert;

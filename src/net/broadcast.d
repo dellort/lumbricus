@@ -58,6 +58,8 @@ class NetBroadcast {
     void service() {
         if (!mSocket)
             return;
+        //xxx: SocketSet allocates some memory, but it's left to the GC...
+        //     this causes about 10 GC cycles per second when broadcasting
         scope ssread = new SocketSet();
         ssread.add(mSocket.native);
         //no blocking

@@ -1,5 +1,6 @@
 module utils.array;
 import utils.misc;
+import cstdlib = tango.stdc.stdlib;
 
 //aaIfIn(a,b) works like a[b], but if !(a in b), return null
 public V aaIfIn(K, V)(V[K] aa, K key) {
@@ -204,4 +205,136 @@ unittest {
     assert(arraySortedIsContained([1,2,5], [1,2,5]));
     assert(arraySortedIsContained([1,2,5], cast(int[])[]));
     assert(!arraySortedIsContained(cast(int[])[], [1,2,5]));
+}
+
+
+//for array appending - because using builtin functionality is slow
+//(at least so they say)
+//NOTE: instead of Appender!(int) arr; foreach(x;arr) do foreach(x;arr[])
+struct Appender(T) {
+    private {
+        T[] mArray;
+        size_t mLength;
+        size_t mCapacity;
+    }
+
+    T opIndex(size_t idx) {
+        assert(idx < mLength);
+        return mArray[idx];
+    }
+    void opIndexAssign(T value, size_t idx) {
+        assert(idx < mLength);
+        mArray[idx] = value;
+    }
+    void opCatAssign(T value) {
+        mLength++;
+        if (mLength > mCapacity) {
+            do_grow();
+        }
+        mArray[mLength-1] = value;
+    }
+    T[] opSlice() {
+        return mArray[0..mLength];
+    }
+    void opSliceAssign(T v) {
+        T[] slice = opSlice();
+        slice[] = v;
+    }
+    //add you're bored, add
+    //opSlice(size_t a, size_t b)
+    //opSliceAssign(T v, size_t a, size_t b)
+
+    size_t length() {
+        return mLength;
+    }
+    void length(size_t nlen) {
+        if (nlen <= mLength) {
+            mLength = nlen;
+        } else {
+            size_t oldlen = mLength;
+            size_t oldcap = mArray.length;
+            mLength = nlen;
+            do_grow();
+            //init the stuff that wasn't already initialized by the GC
+            mArray[oldlen .. oldcap] = T.init;
+        }
+    }
+
+    //so that mLength <= mCapacity; don't initialize new items
+    private void do_grow() {
+        //make larger exponantially
+        mCapacity = max(16, mCapacity);
+        while (mCapacity < mLength)
+            mCapacity *= 2;
+        mArray.length = mCapacity;
+    }
+}
+
+unittest {
+    Appender!(int) arr;
+    arr ~= 1;
+    arr ~= 2;
+    assert(arr[] == [1,2]);
+    arr.length = 1;
+    assert(arr[] == [1]);
+    arr.length = 3;
+    assert(arr[] == [1,0,0]);
+}
+
+
+//arrays allocated with C's malloc/free
+//because the D GC really really sucks with big arrays
+//Warning: pointers/slices to the actual array are not GC tracked
+final class BigArray(T) {
+    private {
+        T[] mData;
+    }
+
+    this(size_t initial_length) {
+        length = initial_length;
+    }
+
+    //keep in mind that this invalidates all slices (and pointers) to the array
+    void length(size_t newlen) {
+        //xxx: overflow check for newlen*T.sizeof would be nice
+        size_t sz = newlen*T.sizeof;
+        void* res = cstdlib.realloc(mData.ptr, sz);
+        if (!res && newlen != 0) {
+            //reallocation failed; realloc() leaves memory untouched
+            //xxx: throw out of memroy exception instead?
+            assert(false, "out of memory");
+        }
+        mData = (cast(T*)res)[0..newlen];
+        //init memory like native D arrays are initialized
+        if (newlen > mData.length) {
+            T[] ndata = mData[mData.length..newlen];
+            ndata[] = T.init;
+        }
+    }
+    size_t length() {
+        return mData.length;
+    }
+
+    void free() {
+        length = 0;
+    }
+
+    ~this() {
+        free();
+        assert(mData is null);
+    }
+
+    T opIndex(size_t idx) {
+        return mData[idx];
+    }
+    void opIndexAssign(T value, size_t idx) {
+        mData[idx] = value;
+    }
+    T[] opSlice() {
+        return mData;
+    }
+    void opSliceAssign(T v) {
+        T[] slice = opSlice();
+        slice[] = v;
+    }
 }
