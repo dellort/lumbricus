@@ -750,6 +750,60 @@ class GLCanvas : Canvas {
         doDrawRect(rc.p1, rc.p2, c);
     }
 
+    public void drawPercentRect(Vector2i p1, Vector2i p2, float perc, Color c) {
+        if (p1.x >= p2.x || p1.y >= p2.y)
+            return;
+        //0 -> nothing visible
+        if (perc < float.epsilon)
+            return;
+
+        bool alpha = c.hasAlpha();
+        if (alpha) {
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        }
+
+        //calculate arc angle from percentage (0% is top with an angle of pi/2)
+        //increasing percentage adds counter-clockwise
+        //xxx what about reversing rotation?
+        float a = (perc+0.25)*2*PI;
+        //the "do-it-yourself" tangens (invert y -> math to screen coords)
+        Vector2f av = Vector2f(cos(a)/abs(sin(a)), -sin(a)/abs(cos(a)));
+        av = av.clipAbsEntries(Vector2f(1f));
+        Vector2f center = toVector2f(p1+p2)/2.0f;
+        //this is the arc end-point on the rectangle border
+        Vector2f pOuter = center + ((0.5f*av) ^ toVector2f(p2-p1));
+
+        void doVertices() {
+            glVertex2f(center.x, center.y);
+            glVertex2f(center.x, p1.y);
+            scope(exit) glVertex2f(pOuter.x, pOuter.y);
+            //not all corners are always visible
+            if (perc<0.125) return;
+            glVertex2i(p1.x, p1.y);
+            if (perc<0.375) return;
+            glVertex2i(p1.x, p2.y);
+            if (perc<0.625) return;
+            glVertex2i(p2.x, p2.y);
+            if (perc<0.875) return;
+            glVertex2i(p2.x, p1.y);
+        }
+
+        //triangle fan is much faster than polygon
+        glBegin(GL_TRIANGLE_FAN);
+            glColor4fv(c.ptr);
+            doVertices();
+        glEnd();
+
+        glDisable(GL_BLEND);
+        glColor3f(1.0f, 1.0f, 1.0f);
+
+        checkGLError("drawClockRect", true);
+
+        if (alpha)
+            markAlpha(p1, p2-p1);
+    }
+
     public void draw(Texture source, Vector2i destPos,
         Vector2i sourcePos, Vector2i sourceSize,
         bool mirrorY = false)

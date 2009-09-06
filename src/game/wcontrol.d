@@ -608,9 +608,13 @@ class WormControl : WormController {
         mPointMode = mode;
         setIndicator(null);
         //show X again, if set before
-        if (mode == PointMode.target && mTargetIsSet)
-            doSetPoint(mCurrentTarget.currentPos);
+        if ((mode == PointMode.target || mode == PointMode.targetTracking)
+            && mTargetIsSet)
+        {
+            setIndicator(color.pointed, mCurrentTarget.currentPos);
+        }
     }
+    //checks if ready to fire, according to point mode
     private bool checkPointMode() {
         return (mPointMode == PointMode.none || mTargetIsSet);
     }

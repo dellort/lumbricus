@@ -73,6 +73,12 @@ public class Canvas {
     /// bottom/right border is exclusive
     public abstract void drawVGradient(Rect2i rc, Color c1, Color c2);
 
+    /// draw a filled rect that shows a percentage (like a rectangular
+    /// circle arc; non-accel drivers may draw it simpler)
+    /// perc = 1.0 means the rectangle is fully visible
+    public abstract void drawPercentRect(Vector2i p1, Vector2i p2, float perc,
+        Color c);
+
     public abstract void clear(Color color);
 
     /// Set a clipping rect, and use p1 as origin (0, 0)

@@ -423,11 +423,25 @@ class SDLDriver : FrameworkDriver {
         mOpenGL_LowQuality = config.getBoolValue("lowquality", false);
         glWireframeDebug = config.getBoolValue("gl_debug_wireframe", false);
 
+        //default (empty) means use OS default
+        char[] wndPos = config.getStringValue("window_pos");
         //CENTERED doesn't work - somehow resizing the window enters an endless
         //loop on IceWM... anyway, it makes me want to beat up the SDL devs
         //it also could be our or IceWM's fault
-        //Environment.set("SDL_VIDEO_CENTERED", "center");
-        //Environment.set("SDL_VIDEO_WINDOW_POS", "0,0");
+        version(Windows) {
+            if (wndPos == "center") {
+                Environment.set("SDL_VIDEO_CENTERED", "center");
+            } else {
+                try {
+                    //empty (or invalid) value will throw and not set the var
+                    Vector2i pos = fromStr!(Vector2i)(wndPos);
+                    Environment.set("SDL_VIDEO_WINDOW_POS", myformat("{},{}",
+                        pos.x, pos.y));
+                } catch (ConversionException e) {
+                    //ignore
+                }
+            }
+        }
 
         sdlInit();
 
@@ -1446,6 +1460,11 @@ class SDLCanvas : Canvas {
             a.y++;
             b.y++;
         }
+    }
+
+    public void drawPercentRect(Vector2i p1, Vector2i p2, float perc, Color c) {
+        //this most likely looks stupid, but who cares
+        drawFilledRect(p1, Vector2i(p2.x, cast(int)(p2.y*perc)), c);
     }
 
     public void clear(Color color) {

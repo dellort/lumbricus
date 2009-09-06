@@ -197,6 +197,11 @@ class SampleHandler : ResViewHandler!(Sample) {
             c.drawRect(box, Color(0,0,0));
             c.drawCircle(mousePos(), 5, Color(1,0,0));
             f.drawText(c, Vector2i(0), msg);
+            if (resource.length > Time.Null) {
+                //testing of cooldown rect code
+                c.drawPercentRect(box.p1, box.p2, ch.position().secsf /
+                    resource.length.secsf, Color(0.3, 0.3, 0.3, 0.5));
+            }
         }
         override void onKeyEvent(KeyInfo infos) {
             if (infos.isMouseButton && infos.isDown) {
