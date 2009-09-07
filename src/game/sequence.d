@@ -503,7 +503,7 @@ class SimpleAnimationDisplay : AniStateDisplay {
         std_anim_params();
         //not always done, because one could imagine alternative "wirings"
         if (myclass.wire_p2_to_damage) {
-            ani_params.p2 = cast(int)owner.lifePercent;
+            ani_params.p2 = cast(int)((1.0f-owner.lifePercent)*100);
         }
     }
 }
